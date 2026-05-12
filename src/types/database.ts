@@ -1,3 +1,11 @@
-export type Database = Record<string, never>;
+export { Constants } from "./database.types";
 
-// TODO: reemplazar por tipos generados o definidos al configurar Supabase.
+export type {
+  CompositeTypes,
+  Database,
+  Enums,
+  Json,
+  Tables,
+  TablesInsert,
+  TablesUpdate,
+} from "./database.types";

@@ -1,0 +1,700 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type Database = {
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+  public: {
+    Tables: {
+      archivos: {
+        Row: {
+          bucket: string
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          file_type: string | null
+          id: string
+          pedido_id: string | null
+          solicitud_id: string | null
+          uploaded_by: string | null
+          visibility: Database["public"]["Enums"]["archivo_visibility"]
+        }
+        Insert: {
+          bucket: string
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          pedido_id?: string | null
+          solicitud_id?: string | null
+          uploaded_by?: string | null
+          visibility: Database["public"]["Enums"]["archivo_visibility"]
+        }
+        Update: {
+          bucket?: string
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          pedido_id?: string | null
+          solicitud_id?: string | null
+          uploaded_by?: string | null
+          visibility?: Database["public"]["Enums"]["archivo_visibility"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "archivos_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "archivos_solicitud_id_fkey"
+            columns: ["solicitud_id"]
+            isOneToOne: false
+            referencedRelation: "solicitudes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "archivos_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clientes: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          nombre: string
+          notas: string | null
+          telefono: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          nombre: string
+          notas?: string | null
+          telefono: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          nombre?: string
+          notas?: string | null
+          telefono?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      comentarios: {
+        Row: {
+          contenido: string
+          created_at: string
+          id: string
+          pedido_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          contenido: string
+          created_at?: string
+          id?: string
+          pedido_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          contenido?: string
+          created_at?: string
+          id?: string
+          pedido_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comentarios_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comentarios_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      historial_pedidos: {
+        Row: {
+          action: Database["public"]["Enums"]["historial_pedido_action"]
+          created_at: string
+          id: string
+          metadata: Json | null
+          new_value: string | null
+          old_value: string | null
+          pedido_id: string
+          user_id: string | null
+        }
+        Insert: {
+          action: Database["public"]["Enums"]["historial_pedido_action"]
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          new_value?: string | null
+          old_value?: string | null
+          pedido_id: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["historial_pedido_action"]
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          new_value?: string | null
+          old_value?: string | null
+          pedido_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "historial_pedidos_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historial_pedidos_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pedido_trabajadores: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          id: string
+          pedido_id: string
+          trabajador_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          id?: string
+          pedido_id: string
+          trabajador_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          id?: string
+          pedido_id?: string
+          trabajador_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pedido_trabajadores_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedido_trabajadores_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedido_trabajadores_trabajador_id_fkey"
+            columns: ["trabajador_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pedidos: {
+        Row: {
+          cliente_id: string | null
+          creado_por: string | null
+          created_at: string
+          descripcion: string
+          estado: Database["public"]["Enums"]["pedido_estado"]
+          fecha_creacion: string
+          fecha_entrega_estimada: string | null
+          fecha_entrega_real: string | null
+          id: string
+          numero_pedido: string
+          prioridad: Database["public"]["Enums"]["pedido_prioridad"]
+          solicitud_id: string | null
+          supervisor_id: string | null
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          cliente_id?: string | null
+          creado_por?: string | null
+          created_at?: string
+          descripcion: string
+          estado?: Database["public"]["Enums"]["pedido_estado"]
+          fecha_creacion?: string
+          fecha_entrega_estimada?: string | null
+          fecha_entrega_real?: string | null
+          id?: string
+          numero_pedido: string
+          prioridad?: Database["public"]["Enums"]["pedido_prioridad"]
+          solicitud_id?: string | null
+          supervisor_id?: string | null
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          cliente_id?: string | null
+          creado_por?: string | null
+          created_at?: string
+          descripcion?: string
+          estado?: Database["public"]["Enums"]["pedido_estado"]
+          fecha_creacion?: string
+          fecha_entrega_estimada?: string | null
+          fecha_entrega_real?: string | null
+          id?: string
+          numero_pedido?: string
+          prioridad?: Database["public"]["Enums"]["pedido_prioridad"]
+          solicitud_id?: string | null
+          supervisor_id?: string | null
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pedidos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedidos_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedidos_solicitud_id_fkey"
+            columns: ["solicitud_id"]
+            isOneToOne: false
+            referencedRelation: "solicitudes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedidos_supervisor_id_fkey"
+            columns: ["supervisor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          full_name: string
+          id: string
+          is_active: boolean
+          phone: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name: string
+          id: string
+          is_active?: boolean
+          phone?: string | null
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string
+          id?: string
+          is_active?: boolean
+          phone?: string | null
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      solicitudes: {
+        Row: {
+          cantidad: number | null
+          cliente_email: string | null
+          cliente_id: string | null
+          cliente_nombre: string
+          cliente_telefono: string
+          converted_order_id: string | null
+          created_at: string
+          descripcion: string
+          estado: Database["public"]["Enums"]["solicitud_estado"]
+          fecha_deseada: string | null
+          id: string
+          observaciones: string | null
+          reviewed_by: string | null
+          tipo_servicio: string
+          updated_at: string
+        }
+        Insert: {
+          cantidad?: number | null
+          cliente_email?: string | null
+          cliente_id?: string | null
+          cliente_nombre: string
+          cliente_telefono: string
+          converted_order_id?: string | null
+          created_at?: string
+          descripcion: string
+          estado?: Database["public"]["Enums"]["solicitud_estado"]
+          fecha_deseada?: string | null
+          id?: string
+          observaciones?: string | null
+          reviewed_by?: string | null
+          tipo_servicio: string
+          updated_at?: string
+        }
+        Update: {
+          cantidad?: number | null
+          cliente_email?: string | null
+          cliente_id?: string | null
+          cliente_nombre?: string
+          cliente_telefono?: string
+          converted_order_id?: string | null
+          created_at?: string
+          descripcion?: string
+          estado?: Database["public"]["Enums"]["solicitud_estado"]
+          fecha_deseada?: string | null
+          id?: string
+          observaciones?: string | null
+          reviewed_by?: string | null
+          tipo_servicio?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitudes_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_converted_order_id_fkey"
+            columns: ["converted_order_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      actualizar_estado_pedido: {
+        Args: {
+          p_nuevo_estado: Database["public"]["Enums"]["pedido_estado"]
+          p_pedido_id: string
+        }
+        Returns: {
+          cliente_id: string | null
+          creado_por: string | null
+          created_at: string
+          descripcion: string
+          estado: Database["public"]["Enums"]["pedido_estado"]
+          fecha_creacion: string
+          fecha_entrega_estimada: string | null
+          fecha_entrega_real: string | null
+          id: string
+          numero_pedido: string
+          prioridad: Database["public"]["Enums"]["pedido_prioridad"]
+          solicitud_id: string | null
+          supervisor_id: string | null
+          titulo: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "pedidos"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+    }
+    Enums: {
+      app_role: "admin" | "supervisor" | "trabajador"
+      archivo_visibility:
+        | "cliente_solicitud"
+        | "interno_pedido"
+        | "avance"
+        | "final_entrega"
+      historial_pedido_action:
+        | "pedido_creado"
+        | "estado_cambiado"
+        | "trabajador_asignado"
+        | "trabajador_removido"
+        | "archivo_subido"
+        | "nota_agregada"
+        | "fecha_entrega_actualizada"
+        | "pedido_entregado"
+        | "pedido_cancelado"
+      pedido_estado:
+        | "solicitud_recibida"
+        | "en_revision"
+        | "cotizado"
+        | "aprobado_cliente"
+        | "en_diseno"
+        | "en_produccion"
+        | "listo_entrega"
+        | "entregado"
+        | "cancelado"
+      pedido_prioridad: "baja" | "normal" | "alta" | "urgente"
+      solicitud_estado:
+        | "nueva"
+        | "en_revision"
+        | "contactada"
+        | "aprobada"
+        | "rechazada"
+        | "convertida"
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
+  public: {
+    Enums: {
+      app_role: ["admin", "supervisor", "trabajador"],
+      archivo_visibility: [
+        "cliente_solicitud",
+        "interno_pedido",
+        "avance",
+        "final_entrega",
+      ],
+      historial_pedido_action: [
+        "pedido_creado",
+        "estado_cambiado",
+        "trabajador_asignado",
+        "trabajador_removido",
+        "archivo_subido",
+        "nota_agregada",
+        "fecha_entrega_actualizada",
+        "pedido_entregado",
+        "pedido_cancelado",
+      ],
+      pedido_estado: [
+        "solicitud_recibida",
+        "en_revision",
+        "cotizado",
+        "aprobado_cliente",
+        "en_diseno",
+        "en_produccion",
+        "listo_entrega",
+        "entregado",
+        "cancelado",
+      ],
+      pedido_prioridad: ["baja", "normal", "alta", "urgente"],
+      solicitud_estado: [
+        "nueva",
+        "en_revision",
+        "contactada",
+        "aprobada",
+        "rechazada",
+        "convertida",
+      ],
+    },
+  },
+} as const
+

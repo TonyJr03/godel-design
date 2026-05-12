@@ -1,10 +1,14 @@
-import type { EstadoPedido } from "@/constants/estados-pedido";
+import type { Enums, Tables, TablesInsert, TablesUpdate } from "@/types/database";
 
-export type PedidoId = string;
+export type Pedido = Tables<"pedidos">;
+export type PedidoInsert = TablesInsert<"pedidos">;
+export type PedidoUpdate = TablesUpdate<"pedidos">;
+export type EstadoPedido = Enums<"pedido_estado">;
+export type PrioridadPedido = Enums<"pedido_prioridad">;
+
+export type PedidoId = Pedido["id"];
 
 export type PedidoBase = {
   id: PedidoId;
   estado: EstadoPedido;
 };
-
-// TODO: definir el modelo completo cuando exista el flujo real de pedidos.
