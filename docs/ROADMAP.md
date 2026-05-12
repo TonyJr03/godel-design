@@ -645,7 +645,7 @@ Después de cada tarea de Codex se revisará:
 | Fase | Nombre | Estado |
 |---|---|---|
 | 0 | Base del proyecto | Completada |
-| 1 | Fundamentos de dominio y base de datos | Pendiente |
+| 1 | Fundamentos de dominio y base de datos | Completada |
 | 2 | Configuración de Supabase en Next.js | Pendiente |
 | 3 | Autenticación interna | Pendiente |
 | 4 | Roles y permisos internos | Pendiente |
@@ -667,6 +667,8 @@ Después de cada tarea de Codex se revisará:
 
 La próxima fase activa será:
 
-# Fase 1 — Fundamentos de dominio y base de datos
+# Fase 2 — Configuración de Supabase en Next.js
 
-Antes de continuar con pantallas funcionales o autenticación, se debe diseñar correctamente el esquema de datos inicial, porque este será la base sobre la que se construirá todo el sistema.
+La Fase 1 quedó completada con el modelo de datos inicial, migraciones base, políticas RLS iniciales y modelo de Storage documentado.
+
+El siguiente trabajo será conectar Supabase con Next.js de forma ordenada y segura, sin implementar todavía autenticación completa ni flujos funcionales.
