@@ -14,7 +14,7 @@ No se debe usar la service role key en frontend. Estos clientes usan solamente `
 
 Para regenerarlo:
 
-```bash
+```cmd
 npx supabase gen types typescript --local > src\types\database.types.ts
 ```
 
