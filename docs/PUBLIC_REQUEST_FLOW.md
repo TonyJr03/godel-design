@@ -46,7 +46,7 @@ Todavia no incluye:
 | `tipo_servicio` | Si | Tipo de trabajo solicitado |
 | `descripcion` | Si | Descripcion del encargo |
 | `cantidad` | No | Cantidad solicitada |
-| `fecha_deseada` | No | Fecha deseada de entrega |
+| `fecha_deseada` | No | Fecha deseada de entrega; si se informa debe ser igual o posterior al dia actual |
 | `observaciones` | No | Notas adicionales |
 
 ## Campos que No Acepta la UI
@@ -76,7 +76,8 @@ Reglas generales:
 - `tipo_servicio` es requerido.
 - `descripcion` es requerida.
 - `cantidad` es opcional, pero debe ser positiva si existe.
-- `fecha_deseada` es opcional, pero debe ser valida si existe.
+- `fecha_deseada` es opcional, pero debe ser valida e igual o posterior al dia
+  actual si existe.
 - `observaciones` es opcional.
 - Los campos opcionales vacios se convierten a `null`.
 - Los espacios sobrantes se recortan antes de insertar.

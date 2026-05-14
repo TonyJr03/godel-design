@@ -29,7 +29,8 @@ con el cliente normal de Supabase y depende de RLS.
 
 Los campos se recortan, los opcionales vacios se convierten a `null`, y se
 validan longitudes razonables, formato basico de correo, cantidad positiva y
-fecha valida.
+fecha valida. `fecha_deseada` es opcional, pero si se informa debe ser igual o
+posterior al dia actual. La validacion definitiva ocurre en servidor.
 
 El formulario no acepta campos sensibles como `id`, `estado`, `cliente_id`,
 `reviewed_by` ni `converted_order_id`. La validacion definitiva sigue estando

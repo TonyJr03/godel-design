@@ -102,6 +102,15 @@ function isValidIsoDate(value: string) {
   );
 }
 
+function getTodayIsoDate() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
 function parseCantidad(value: unknown) {
   const textValue = cleanSingleLineText(value);
 
@@ -166,8 +175,13 @@ export function validatePublicSolicitudInput(
     fieldErrors.cantidad = "La cantidad debe ser un entero positivo.";
   }
 
-  if (fecha_deseada && !isValidIsoDate(fecha_deseada)) {
-    fieldErrors.fecha_deseada = "Ingresa una fecha valida.";
+  if (fecha_deseada) {
+    if (!isValidIsoDate(fecha_deseada)) {
+      fieldErrors.fecha_deseada = "Ingresa una fecha valida.";
+    } else if (fecha_deseada < getTodayIsoDate()) {
+      fieldErrors.fecha_deseada =
+        "La fecha deseada no puede ser anterior a hoy.";
+    }
   }
 
   if (

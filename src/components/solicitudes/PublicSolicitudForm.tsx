@@ -48,6 +48,15 @@ const baseInputClass =
 const labelClass = "text-sm font-medium text-zinc-900";
 const helpTextClass = "mt-2 text-sm leading-5 text-zinc-500";
 
+function getTodayInputDate() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
 export function PublicSolicitudForm() {
   const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction, pending] = useActionState(
@@ -70,6 +79,7 @@ export function PublicSolicitudForm() {
   const fechaDeseadaError = getFieldError(state, "fecha_deseada");
   const observacionesError = getFieldError(state, "observaciones");
   const solicitudReference = state.solicitudId?.slice(0, 8);
+  const todayInputDate = getTodayInputDate();
 
   return (
     <form
@@ -255,6 +265,7 @@ export function PublicSolicitudForm() {
                 id="fecha_deseada"
                 name="fecha_deseada"
                 type="date"
+                min={todayInputDate}
                 aria-invalid={Boolean(fechaDeseadaError)}
                 aria-describedby={
                   fechaDeseadaError ? "fecha_deseada-error" : undefined
