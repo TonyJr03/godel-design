@@ -647,7 +647,7 @@ Después de cada tarea de Codex se revisará:
 | 0 | Base del proyecto | Completada |
 | 1 | Fundamentos de dominio y base de datos | Completada |
 | 2 | Configuración de Supabase en Next.js | Completada |
-| 3 | Autenticación interna | Pendiente |
+| 3 | Autenticación interna | Completada |
 | 4 | Roles y permisos internos | Pendiente |
 | 5 | Solicitudes públicas | Pendiente |
 | 6 | Gestión interna de solicitudes | Pendiente |
@@ -667,10 +667,12 @@ Después de cada tarea de Codex se revisará:
 
 La próxima fase activa será:
 
-# Fase 3 — Autenticación interna
+# Fase 4 — Roles y permisos internos
 
 La Fase 1 quedó completada con el modelo de datos inicial, migraciones base, políticas RLS iniciales y modelo de Storage documentado.
 
 La Fase 2 quedó completada con Supabase configurado en Next.js, clientes tipados para navegador y servidor, variables públicas documentadas, tipos generados integrados y guía de desarrollo local.
 
-Login, logout, middleware/proxy de sesión y protección de rutas se implementarán en la Fase 3.
+La Fase 3 quedó completada con login, logout, proxy de sesión, protección básica del dashboard, validación de perfil interno activo y documentación local de autenticación.
+
+Los permisos por rol, la navegación por rol y los helpers de autorización quedan para la Fase 4.
