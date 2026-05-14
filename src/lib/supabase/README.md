@@ -20,6 +20,13 @@ npx supabase gen types typescript --local > src\types\database.types.ts
 
 `src/types/database.ts` funciona como punto central de exportacion para `Database` y los helpers generados, como `Tables`, `TablesInsert`, `TablesUpdate` y `Enums`.
 
-La autenticacion real se implementara en Fase 3. El middleware/proxy de sesion tambien se implementara en Fase 3.
+## Proxy de sesion
 
-Esta subfase solo prepara la configuracion base.
+`src/proxy.ts` es el punto de entrada del proxy de Next.js 16.
+
+`src/lib/supabase/proxy.ts` contiene la logica de actualizacion de sesion con `@supabase/ssr` y la proteccion basica de rutas.
+
+- `/dashboard` y sus subrutas requieren autenticacion.
+- `/`, `/login`, `/solicitud` y assets estaticos permanecen publicos, salvo que `/login` redirige a `/dashboard` cuando ya existe una sesion.
+- La validacion de roles y de perfil activo queda para la siguiente subfase.
+- No se usa service role key; el proxy solo usa `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
