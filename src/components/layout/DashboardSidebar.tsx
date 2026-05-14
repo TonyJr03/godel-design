@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LogoutButton } from "@/components/auth/LogoutButton";
 
 const enlacesDashboard = [
   { href: "/dashboard", label: "Dashboard" },
@@ -11,7 +12,7 @@ const enlacesDashboard = [
 
 export function DashboardSidebar() {
   return (
-    <aside className="border-b border-zinc-200 bg-zinc-950 text-white md:min-h-screen md:w-64 md:border-b-0 md:border-r">
+    <aside className="border-b border-zinc-200 bg-zinc-950 text-white md:flex md:min-h-screen md:w-64 md:flex-col md:border-b-0 md:border-r">
       <div className="px-5 py-6">
         <Link href="/dashboard" className="text-lg font-semibold">
           Godel Diseño
@@ -29,6 +30,9 @@ export function DashboardSidebar() {
           </Link>
         ))}
       </nav>
+      <div className="px-4 pb-5 md:mt-auto md:pt-4">
+        <LogoutButton />
+      </div>
     </aside>
   );
 }

@@ -1,6 +1,6 @@
+import { LoginForm } from "@/components/auth/LoginForm";
 import { PublicHeader } from "@/components/layout/PublicHeader";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { PlaceholderCard } from "@/components/ui/PlaceholderCard";
 
 export default function LoginPage() {
   return (
@@ -9,13 +9,10 @@ export default function LoginPage() {
       <main className="mx-auto w-full max-w-5xl px-6 py-12">
         <PageHeader
           title="Acceso interno"
-          description="Placeholder del futuro acceso para el equipo de Godel Diseño."
+          description="Ingresa con tus credenciales internas para acceder al panel operativo."
         />
-        <div className="mt-8 max-w-2xl">
-          <PlaceholderCard
-            title="Autenticacion pendiente"
-            description="La autenticacion se implementara en una fase posterior. Esta pagina no valida credenciales."
-          />
+        <div className="mt-8">
+          <LoginForm />
         </div>
       </main>
     </div>
