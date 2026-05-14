@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
+import { canAccessDashboardRoute } from "@/lib/permissions";
 import type { Database } from "@/types/database";
 
 type CookieToSet = {
@@ -11,6 +12,7 @@ type CookieToSet = {
 const protectedPathPrefix = "/dashboard";
 const loginPath = "/login";
 const deniedPath = "/acceso-denegado";
+const noPermissionsPath = "/sin-permisos";
 
 function applySessionCookies(
   response: NextResponse,
@@ -60,13 +62,14 @@ export async function updateSession(request: NextRequest) {
   const isDashboardRoute = pathname.startsWith(protectedPathPrefix);
   const isLoginRoute = pathname === loginPath;
   const isDeniedRoute = pathname === deniedPath;
+  const isNoPermissionsRoute = pathname === noPermissionsPath;
 
   const { data, error } = await supabase.auth.getClaims();
   const userId = data?.claims.sub;
   const isAuthenticated = Boolean(userId && !error);
   const authenticatedUserId = isAuthenticated ? userId : null;
 
-  if (isDeniedRoute) {
+  if (isDeniedRoute || isNoPermissionsRoute) {
     return response;
   }
 
@@ -94,6 +97,22 @@ export async function updateSession(request: NextRequest) {
     if (!hasActiveProfile) {
       const redirectUrl = request.nextUrl.clone();
       redirectUrl.pathname = deniedPath;
+      redirectUrl.search = "";
+
+      return applySessionCookies(
+        NextResponse.redirect(redirectUrl),
+        cookiesToSet,
+        headersToSet,
+      );
+    }
+
+    if (
+      isDashboardRoute &&
+      profile &&
+      !canAccessDashboardRoute(profile.role, pathname)
+    ) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = noPermissionsPath;
       redirectUrl.search = "";
 
       return applySessionCookies(

@@ -30,5 +30,7 @@ npx supabase gen types typescript --local > src\types\database.types.ts
 - `/`, `/login`, `/solicitud` y assets estaticos permanecen publicos, salvo que `/login` redirige a `/dashboard` cuando ya existe una sesion.
 - Auth por si solo no basta para entrar al dashboard: el usuario tambien debe tener una fila propia en `public.profiles` con `is_active = true`.
 - `profiles.is_active` controla el acceso interno basico.
-- Los permisos por rol quedan para la Fase 4; el proxy lee `role` pero todavia no decide acceso por `admin`, `supervisor` o `trabajador`.
+- El proxy valida acceso por rol a rutas de dashboard usando `canAccessDashboardRoute`.
+- Si el usuario tiene sesion y perfil activo, pero su rol no permite la ruta solicitada, se redirige a `/sin-permisos`.
 - No se usa service role key; el proxy solo usa `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+- Los permisos sobre datos siguen dependiendo de las politicas RLS de Supabase.
