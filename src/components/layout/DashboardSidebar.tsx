@@ -1,16 +1,19 @@
 import Link from "next/link";
 import { LogoutButton } from "@/components/auth/LogoutButton";
+import { canAccessDashboardRoute, type Role } from "@/lib/permissions";
+import { dashboardNavItems } from "./dashboard-nav-items";
 
-const enlacesDashboard = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/dashboard/solicitudes", label: "Solicitudes" },
-  { href: "/dashboard/pedidos", label: "Pedidos" },
-  { href: "/dashboard/clientes", label: "Clientes" },
-  { href: "/dashboard/usuarios", label: "Usuarios" },
-  { href: "/dashboard/configuracion", label: "Configuracion" },
-] as const;
+type DashboardSidebarProps = {
+  role: Role | null;
+};
 
-export function DashboardSidebar() {
+export function DashboardSidebar({ role }: DashboardSidebarProps) {
+  const visibleNavItems = role
+    ? dashboardNavItems.filter((item) =>
+        canAccessDashboardRoute(role, item.href),
+      )
+    : [];
+
   return (
     <aside className="border-b border-zinc-200 bg-zinc-950 text-white md:flex md:min-h-screen md:w-64 md:flex-col md:border-b-0 md:border-r">
       <div className="px-5 py-6">
@@ -20,7 +23,7 @@ export function DashboardSidebar() {
         <p className="mt-1 text-sm text-zinc-400">Gestion operativa</p>
       </div>
       <nav className="flex gap-2 overflow-x-auto px-4 pb-4 md:flex-col md:overflow-visible">
-        {enlacesDashboard.map((enlace) => (
+        {visibleNavItems.map((enlace) => (
           <Link
             key={enlace.href}
             href={enlace.href}

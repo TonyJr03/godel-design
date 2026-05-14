@@ -1,6 +1,6 @@
 # Permisos internos
 
-`src/lib/permissions` centraliza la autorizacion interna por rol para el dashboard de Godel Diseno. En esta fase solo expone helpers puros: no consulta Supabase, no redirige, no cambia la navegacion y no protege rutas todavia.
+`src/lib/permissions` centraliza la autorizacion interna por rol para el dashboard de Godel Diseno. Expone helpers puros: no consulta Supabase, no redirige y no protege rutas por si solo.
 
 ## Matriz inicial
 
@@ -31,10 +31,12 @@ La autenticacion confirma la identidad del usuario mediante Supabase Auth. El pe
 
 Los helpers de permisos trabajan con roles validos del sistema y devuelven booleanos. Los helpers de rutas permiten evaluar si un rol puede acceder conceptualmente a una ruta del dashboard, pero no hacen redirecciones ni reemplazan los controles de servidor.
 
+La navegacion del dashboard usa `canAccessDashboardRoute` para ocultar enlaces no permitidos segun el rol. Esto es una mejora de UX: ocultar enlaces no reemplaza la proteccion real de rutas ni impide el acceso por URL directa. La proteccion por URL se implementará en la siguiente subfase.
+
 ## Relacion con RLS
 
 Estos helpers no reemplazan Row Level Security. RLS sigue siendo la ultima linea de defensa en Supabase y debe proteger los datos aunque exista una validacion previa en Next.js.
 
-## Proximas subfases
+## Proxima subfase
 
-La navegacion por rol se implementara en la siguiente subfase. La proteccion real de rutas por rol se implementara despues, reutilizando estas reglas sin mezclar UI, redirects y acceso a datos en esta capa.
+La proteccion real de rutas por rol se implementara despues, reutilizando estas reglas sin mezclar UI, redirects y acceso a datos en esta capa.
