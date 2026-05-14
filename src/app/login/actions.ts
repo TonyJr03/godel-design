@@ -30,7 +30,7 @@ export async function login(
   const supabase = await createClient();
 
   try {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -38,6 +38,31 @@ export async function login(
     if (error) {
       return {
         message: "Credenciales inválidas.",
+      };
+    }
+
+    const userId = data.user?.id;
+
+    if (!userId) {
+      await supabase.auth.signOut();
+
+      return {
+        message: "No se pudo iniciar sesión. Inténtalo nuevamente.",
+      };
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("id, role, is_active")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (profileError || !profile?.is_active) {
+      await supabase.auth.signOut();
+
+      return {
+        message:
+          "Tu usuario no tiene acceso interno activo. Contacta al administrador.",
       };
     }
   } catch {

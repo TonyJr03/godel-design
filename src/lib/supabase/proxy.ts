@@ -10,6 +10,7 @@ type CookieToSet = {
 
 const protectedPathPrefix = "/dashboard";
 const loginPath = "/login";
+const deniedPath = "/acceso-denegado";
 
 function applySessionCookies(
   response: NextResponse,
@@ -55,10 +56,19 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  const { data, error } = await supabase.auth.getClaims();
-  const isAuthenticated = Boolean(data?.claims.sub && !error);
   const pathname = request.nextUrl.pathname;
   const isDashboardRoute = pathname.startsWith(protectedPathPrefix);
+  const isLoginRoute = pathname === loginPath;
+  const isDeniedRoute = pathname === deniedPath;
+
+  const { data, error } = await supabase.auth.getClaims();
+  const userId = data?.claims.sub;
+  const isAuthenticated = Boolean(userId && !error);
+  const authenticatedUserId = isAuthenticated ? userId : null;
+
+  if (isDeniedRoute) {
+    return response;
+  }
 
   if (isDashboardRoute && !isAuthenticated) {
     const redirectUrl = request.nextUrl.clone();
@@ -72,7 +82,29 @@ export async function updateSession(request: NextRequest) {
     );
   }
 
-  if (pathname === loginPath && isAuthenticated) {
+  if ((isDashboardRoute || isLoginRoute) && authenticatedUserId) {
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("id, role, is_active")
+      .eq("id", authenticatedUserId)
+      .maybeSingle();
+
+    const hasActiveProfile = Boolean(profile?.is_active && !profileError);
+
+    if (!hasActiveProfile) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = deniedPath;
+      redirectUrl.search = "";
+
+      return applySessionCookies(
+        NextResponse.redirect(redirectUrl),
+        cookiesToSet,
+        headersToSet,
+      );
+    }
+  }
+
+  if (isLoginRoute && isAuthenticated) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = protectedPathPrefix;
     redirectUrl.search = "";
