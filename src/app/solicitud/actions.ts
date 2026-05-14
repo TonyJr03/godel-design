@@ -43,7 +43,7 @@ export async function submitPublicSolicitudAction(
 
   return {
     ok: true,
-    message: "Solicitud registrada correctamente.",
+    message: "Solicitud enviada correctamente. Nos pondremos en contacto contigo.",
     solicitudId: result.solicitudId,
   };
 }

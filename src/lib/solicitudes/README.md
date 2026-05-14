@@ -9,6 +9,10 @@ En Fase 5.1 el cliente externo puede enviar datos basicos de contacto y del
 trabajo solicitado sin tener cuenta de usuario. La solicitud se valida en el
 servidor y se inserta en Supabase con `estado = "nueva"`.
 
+En Fase 5.2, `PublicSolicitudForm` consume la Server Action
+`submitPublicSolicitudAction` desde `/solicitud`. El componente cliente solo
+captura campos publicos y muestra estado de envio, errores y confirmacion.
+
 Por seguridad, el flujo publico no usa service role key. La insercion se hace
 con el cliente normal de Supabase y depende de RLS.
 
@@ -26,6 +30,10 @@ con el cliente normal de Supabase y depende de RLS.
 Los campos se recortan, los opcionales vacios se convierten a `null`, y se
 validan longitudes razonables, formato basico de correo, cantidad positiva y
 fecha valida.
+
+El formulario no acepta campos sensibles como `id`, `estado`, `cliente_id`,
+`reviewed_by` ni `converted_order_id`. La validacion definitiva sigue estando
+en servidor.
 
 ## Alcance excluido
 
