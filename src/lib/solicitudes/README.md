@@ -35,6 +35,10 @@ El formulario no acepta campos sensibles como `id`, `estado`, `cliente_id`,
 `reviewed_by` ni `converted_order_id`. La validacion definitiva sigue estando
 en servidor.
 
+La referencia mostrada al cliente es una version corta del UUID de la solicitud
+y sirve solo como ayuda de seguimiento. No permite leer ni modificar
+solicitudes; RLS impide la lectura publica de `solicitudes`.
+
 ## Alcance excluido
 
 - No hay subida real de archivos todavia.

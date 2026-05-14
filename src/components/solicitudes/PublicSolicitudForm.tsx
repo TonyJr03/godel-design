@@ -24,6 +24,12 @@ type FieldErrorProps = {
   message?: string;
 };
 
+function OptionalMark() {
+  return (
+    <span className="ml-1 text-sm font-normal text-zinc-500">(opcional)</span>
+  );
+}
+
 function FieldError({ id, message }: FieldErrorProps) {
   if (!message) {
     return null;
@@ -63,11 +69,13 @@ export function PublicSolicitudForm() {
   const cantidadError = getFieldError(state, "cantidad");
   const fechaDeseadaError = getFieldError(state, "fecha_deseada");
   const observacionesError = getFieldError(state, "observaciones");
+  const solicitudReference = state.solicitudId?.slice(0, 8);
 
   return (
     <form
       ref={formRef}
       action={formAction}
+      aria-busy={pending}
       className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm sm:p-8"
     >
       <div className="space-y-8">
@@ -82,11 +90,11 @@ export function PublicSolicitudForm() {
             aria-live="polite"
           >
             <p className="font-medium">{state.message}</p>
-            {state.ok && state.solicitudId ? (
+            {state.ok && solicitudReference ? (
               <p className="mt-1 text-teal-800">
-                Referencia:{" "}
-                <span className="font-mono text-xs font-semibold">
-                  {state.solicitudId}
+                Referencia de solicitud:{" "}
+                <span className="font-mono text-sm font-semibold">
+                  {solicitudReference}
                 </span>
               </p>
             ) : null}
@@ -144,7 +152,7 @@ export function PublicSolicitudForm() {
 
             <div className="sm:col-span-2">
               <label className={labelClass} htmlFor="cliente_email">
-                Email opcional
+                Email <OptionalMark />
               </label>
               <input
                 className={baseInputClass}
@@ -200,7 +208,7 @@ export function PublicSolicitudForm() {
 
             <div>
               <label className={labelClass} htmlFor="cantidad">
-                Cantidad opcional
+                Cantidad <OptionalMark />
               </label>
               <input
                 className={baseInputClass}
@@ -240,7 +248,7 @@ export function PublicSolicitudForm() {
 
             <div>
               <label className={labelClass} htmlFor="fecha_deseada">
-                Fecha deseada opcional
+                Fecha deseada <OptionalMark />
               </label>
               <input
                 className={baseInputClass}
@@ -260,7 +268,7 @@ export function PublicSolicitudForm() {
 
             <div className="sm:col-span-2">
               <label className={labelClass} htmlFor="observaciones">
-                Observaciones opcionales
+                Observaciones <OptionalMark />
               </label>
               <textarea
                 className={`${baseInputClass} min-h-28 resize-y`}

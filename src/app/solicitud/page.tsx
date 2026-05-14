@@ -9,7 +9,7 @@ export default function SolicitudPage() {
       <main className="mx-auto w-full max-w-5xl px-6 py-12">
         <PageHeader
           title="Solicitud de trabajo"
-          description="Cuentanos que necesitas producir, disenar o personalizar. Revisaremos la solicitud y nos pondremos en contacto contigo para confirmar detalles y proximos pasos."
+          description="Cuentanos que necesitas producir, disenar o personalizar. Godel Diseno revisara la solicitud y se pondra en contacto contigo para confirmar detalles y proximos pasos."
         />
         <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px]">
           <PublicSolicitudForm />
@@ -20,9 +20,8 @@ export default function SolicitudPage() {
                 Despues del envio
               </h2>
               <p className="mt-2">
-                El equipo revisara la informacion recibida y te contactara por
-                telefono o correo para aclarar detalles antes de crear un pedido
-                interno.
+                Revisaremos la informacion recibida y te contactaremos por
+                telefono o correo antes de crear un pedido interno.
               </p>
             </section>
 
