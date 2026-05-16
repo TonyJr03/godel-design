@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { InternalClientesList } from "@/components/clientes/InternalClientesList";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { listInternalClientes } from "@/lib/clientes";
@@ -22,10 +23,18 @@ export default async function DashboardClientesPage({
 
   return (
     <div className="space-y-8">
-      <PageHeader
-        title="Clientes"
-        description="Listado interno de clientes registrados para consulta operativa."
-      />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <PageHeader
+          title="Clientes"
+          description="Listado interno de clientes registrados para consulta operativa."
+        />
+        <Link
+          href="/dashboard/clientes/nuevo"
+          className="inline-flex min-h-10 items-center justify-center rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800"
+        >
+          Nuevo cliente
+        </Link>
+      </div>
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-zinc-950">

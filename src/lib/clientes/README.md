@@ -11,4 +11,15 @@
 - Permite una búsqueda básica por `q` sobre nombre, teléfono y email.
 - Devuelve errores controlados para no exponer detalles técnicos al usuario.
 
-La creación, edición, detalle de cliente y asociación con solicitudes quedan para próximas subfases.
+## Creación manual
+
+La ruta `/dashboard/clientes/nuevo` muestra el formulario interno para crear clientes manualmente.
+
+- `createClienteAction` lee únicamente `nombre`, `telefono`, `email` y `notas` desde `FormData`.
+- `createInternalCliente` valida el permiso `clientes.manage` en servidor.
+- `validateClienteInput` normaliza el input, valida longitud y formato básico, y convierte campos opcionales vacíos a `null`.
+- La inserción usa el cliente server-side de Supabase, respeta RLS y no usa service role key.
+- No implementa deduplicación avanzada.
+- No asocia solicitudes todavía.
+
+El detalle, la edición y la asociación con solicitudes quedan para próximas subfases.
