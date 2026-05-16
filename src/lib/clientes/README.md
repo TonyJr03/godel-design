@@ -23,3 +23,16 @@ La ruta `/dashboard/clientes/nuevo` muestra el formulario interno para crear cli
 - No asocia solicitudes todavía.
 
 El detalle, la edición y la asociación con solicitudes quedan para próximas subfases.
+
+## Detalle interno
+
+La ruta `/dashboard/clientes/[id]` muestra el detalle server-side de un cliente.
+
+- `getInternalClienteById` valida el formato UUID antes de consultar.
+- Requiere el permiso `clientes.view`.
+- Consulta la tabla `clientes` con el cliente server-side de Supabase.
+- Respeta RLS y no usa service role key.
+- Devuelve estados controlados para `id` inválido, cliente inexistente, falta de permisos o errores de carga.
+- No permite edición ni eliminación todavía.
+- No consulta solicitudes, pedidos ni archivos.
+- La asociación con solicitudes queda para próximas subfases.

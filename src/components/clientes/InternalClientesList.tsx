@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { InternalCliente } from "@/lib/clientes";
 
 type InternalClientesListProps = {
@@ -47,7 +48,7 @@ export function InternalClientesList({ clientes }: InternalClientesListProps) {
                 Teléfono
               </th>
               <th scope="col" className="px-4 py-3">
-                Email
+                Correo electrónico
               </th>
               <th scope="col" className="px-4 py-3">
                 Creación
@@ -79,9 +80,12 @@ export function InternalClientesList({ clientes }: InternalClientesListProps) {
                   {formatDate(cliente.updated_at)}
                 </td>
                 <td className="px-4 py-4 text-right">
-                  <span className="inline-flex h-9 items-center justify-center rounded-md border border-zinc-200 bg-zinc-50 px-3 text-xs font-semibold text-zinc-400">
+                  <Link
+                    href={`/dashboard/clientes/${cliente.id}`}
+                    className="inline-flex h-9 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 text-xs font-semibold text-zinc-700 transition hover:border-zinc-400"
+                  >
                     Ver detalle
-                  </span>
+                  </Link>
                 </td>
               </tr>
             ))}

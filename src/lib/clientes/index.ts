@@ -12,6 +12,11 @@ export {
   type CreateInternalClienteResult,
 } from "./create-internal-cliente";
 export {
+  getInternalClienteById,
+  type GetInternalClienteByIdResult,
+  type InternalClienteDetail,
+} from "./get-internal-cliente-by-id";
+export {
   listInternalClientes,
   type InternalCliente,
   type ListInternalClientesOptions,
