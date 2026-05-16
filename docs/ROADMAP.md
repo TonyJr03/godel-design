@@ -651,7 +651,7 @@ Después de cada tarea de Codex se revisará:
 | 4 | Roles y permisos internos | Completada |
 | 5 | Solicitudes públicas | Completada |
 | 6 | Gestión interna de solicitudes | Completada |
-| 7 | Clientes | Pendiente |
+| 7 | Clientes | Completada |
 | 8 | Pedidos | Pendiente |
 | 9 | Asignación de trabajadores | Pendiente |
 | 10 | Archivos privados | Pendiente |
@@ -667,7 +667,7 @@ Después de cada tarea de Codex se revisará:
 
 La próxima fase activa será:
 
-# Fase 7 — Clientes
+# Fase 8 — Pedidos
 
 La Fase 1 quedó completada con el modelo de datos inicial, migraciones base, políticas RLS iniciales y modelo de Storage documentado.
 
@@ -684,5 +684,9 @@ Quedan fuera de Fase 5 y se abordarán en fases posteriores: archivos privados, 
 La Fase 6 quedó completada con listado interno de solicitudes, filtro por estado, detalle interno, cambio manual de estado, registro de usuario revisor mediante `reviewed_by`, permisos server-side, protección por RLS y documentación del flujo interno.
 
 Quedan fuera de Fase 6 y se abordarán en fases posteriores: conversión de solicitud a pedido, archivos privados, gestión de clientes, historial avanzado, notificaciones y reglas estrictas de transición de estados. En la arquitectura actual, los archivos privados quedan reservados para Fase 10.
+
+La Fase 7 quedó completada con listado interno de clientes, búsqueda básica, creación manual de clientes, detalle de cliente, edición de datos básicos, asociación de solicitudes con clientes existentes, creación de cliente desde solicitud, documentación del flujo de clientes, permisos server-side y protección por RLS.
+
+Quedan fuera de Fase 7 y se abordarán en fases posteriores: pedidos, conversión de solicitud a pedido, archivos privados, eliminación de clientes, historial avanzado, deduplicación inteligente y notificaciones.
 
 Las validaciones de permisos en acciones server-side concretas se aplicarán al implementar los módulos reales de solicitudes, pedidos, clientes y usuarios internos.
