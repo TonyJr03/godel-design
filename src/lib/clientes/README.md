@@ -20,9 +20,6 @@ La ruta `/dashboard/clientes/nuevo` muestra el formulario interno para crear cli
 - `validateClienteInput` normaliza el input, valida longitud y formato básico, y convierte campos opcionales vacíos a `null`.
 - La inserción usa el cliente server-side de Supabase, respeta RLS y no usa service role key.
 - No implementa deduplicación avanzada.
-- No asocia solicitudes todavía.
-
-El detalle, la edición y la asociación con solicitudes quedan para próximas subfases.
 
 ## Detalle interno
 
@@ -33,9 +30,7 @@ La ruta `/dashboard/clientes/[id]` muestra el detalle server-side de un cliente.
 - Consulta la tabla `clientes` con el cliente server-side de Supabase.
 - Respeta RLS y no usa service role key.
 - Devuelve estados controlados para `id` inválido, cliente inexistente, falta de permisos o errores de carga.
-- No permite edición ni eliminación todavía.
 - No consulta solicitudes, pedidos ni archivos.
-- La asociación con solicitudes queda para próximas subfases.
 
 ## Edición interna
 
@@ -47,4 +42,10 @@ La ruta `/dashboard/clientes/[id]/editar` permite actualizar datos básicos de u
 - Solo actualiza `nombre`, `telefono`, `email` y `notas`.
 - Respeta RLS y no usa service role key.
 - No implementa eliminación.
-- No asocia solicitudes todavía.
+
+## Asociación con solicitudes
+
+- Los clientes pueden crearse manualmente o desde una solicitud recibida.
+- La asociación solicitud-cliente queda registrada en `solicitudes.cliente_id`.
+- La creación desde solicitud toma los datos guardados en servidor, no datos de cliente enviados desde el formulario.
+- Pedidos y conversión de solicitud a pedido quedan para una fase posterior.

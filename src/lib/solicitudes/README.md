@@ -1,20 +1,14 @@
 # Solicitudes públicas
 
-Esta carpeta contiene la lógica server-side del flujo público de solicitudes
-para `/solicitud`.
+Esta carpeta contiene la lógica server-side del flujo público e interno de solicitudes.
 
-## Flujo actual
+## Flujo público
 
-En Fase 5.1 el cliente externo puede enviar datos básicos de contacto y del
-trabajo solicitado sin tener cuenta de usuario. La solicitud se valida en el
-servidor y se inserta en Supabase con `estado = "nueva"`.
+El cliente externo puede enviar datos básicos de contacto y del trabajo solicitado sin tener cuenta de usuario. La solicitud se valida en el servidor y se inserta en Supabase con `estado = "nueva"`.
 
-En Fase 5.2, `PublicSolicitudForm` consume la Server Action
-`submitPublicSolicitudAction` desde `/solicitud`. El componente cliente solo
-captura campos públicos y muestra estado de envío, errores y confirmación.
+`PublicSolicitudForm` consume la Server Action `submitPublicSolicitudAction` desde `/solicitud`. El componente cliente solo captura campos públicos y muestra estado de envío, errores y confirmación.
 
-Por seguridad, el flujo público no usa service role key. La inserción se hace
-con el cliente normal de Supabase y depende de RLS.
+Por seguridad, el flujo público no usa service role key. La inserción se hace con el cliente normal de Supabase y depende de RLS.
 
 ## Campos validados
 
@@ -27,56 +21,19 @@ con el cliente normal de Supabase y depende de RLS.
 - `fecha_deseada`
 - `observaciones`
 
-Los campos se recortan, los opcionales vacíos se convierten a `null`, y se
-validan longitudes razonables, formato básico de correo, cantidad positiva y
-fecha válida. `fecha_deseada` es opcional, pero si se informa debe ser igual o
-posterior al día actual. La validación definitiva ocurre en servidor.
+Los campos se recortan, los opcionales vacíos se convierten a `null`, y se validan longitudes razonables, formato básico de correo, cantidad positiva y fecha válida. `fecha_deseada` es opcional, pero si se informa debe ser igual o posterior al día actual. La validación definitiva ocurre en servidor.
 
-El formulario no acepta campos sensibles como `id`, `estado`, `cliente_id`,
-`reviewed_by` ni `converted_order_id`. La validación definitiva sigue estando
-en servidor.
-
-La referencia mostrada al cliente es una versión corta del UUID de la solicitud
-y sirve solo como ayuda de seguimiento. No permite leer ni modificar
-solicitudes; RLS impide la lectura pública de `solicitudes`.
-
-## Alcance excluido
-
-- No hay subida real de archivos todavía.
-- No se crean buckets ni policies de Storage desde este módulo.
-- No se convierte automáticamente la solicitud en pedido.
-- No se hace deduplicación avanzada ni asociación inteligente de clientes;
-  queda para Fase 7.
+El formulario no acepta campos sensibles como `id`, `estado`, `cliente_id`, `reviewed_by` ni `converted_order_id`.
 
 ## Consultas internas
 
-`listInternalSolicitudes` carga el listado server-side para
-`/dashboard/solicitudes`. Requiere un usuario interno activo con permiso
-`solicitudes.view`, valida el rol con los helpers de permisos existentes y usa
-el cliente normal de Supabase, sin service role key.
+`listInternalSolicitudes` carga el listado server-side para `/dashboard/solicitudes`. Requiere un usuario interno activo con permiso `solicitudes.view`, valida el rol con los helpers de permisos existentes y usa el cliente normal de Supabase, sin service role key.
 
-La consulta respeta RLS: `admin` y `supervisor` pueden leer solicitudes, pero
-`trabajador` y usuarios anónimos no deben acceder. El filtro opcional `estado`
-solo acepta los estados definidos en `solicitud_estado`; valores inválidos se
-ignoran de forma controlada.
-
-## Detalle interno
-
-`getInternalSolicitudById` carga server-side el detalle para
-`/dashboard/solicitudes/[id]`. Valida que el identificador tenga formato UUID,
-requiere permiso `solicitudes.view` y consulta Supabase con el cliente normal,
-sin service role key.
-
-La ruta de detalle respeta RLS y no consulta pedidos ni archivos. Tampoco
-permite editar solicitudes, cambiar estado, eliminar datos ni convertir a
-pedido; esas acciones quedan para subfases posteriores.
+`getInternalSolicitudById` carga server-side el detalle para `/dashboard/solicitudes/[id]`. Valida que el identificador tenga formato UUID, requiere permiso `solicitudes.view` y consulta Supabase con el cliente normal, sin service role key.
 
 ## Cambio de estado
 
-`updateInternalSolicitudStatus` cambia server-side el estado operativo de una
-solicitud desde la action de `/dashboard/solicitudes/[id]`. Requiere usuario
-interno activo con permiso `solicitudes.manage`, valida el UUID y solo acepta
-estados manuales permitidos.
+`updateInternalSolicitudStatus` cambia server-side el estado operativo de una solicitud desde la action de `/dashboard/solicitudes/[id]`. Requiere usuario interno activo con permiso `solicitudes.manage`, valida el UUID y solo acepta estados manuales permitidos.
 
 Estados manuales permitidos:
 
@@ -86,15 +43,24 @@ Estados manuales permitidos:
 - `aprobada`
 - `rechazada`
 
-`convertida` no aparece en el formulario ni se acepta en servidor; queda
-reservada para el flujo formal de conversión a pedido. La actualización usa el
-cliente normal de Supabase, respeta RLS, no usa service role key y no consulta
-ni modifica pedidos, clientes o archivos.
+`convertida` no aparece en el formulario ni se acepta en servidor; queda reservada para el flujo formal de conversión a pedido.
 
-## Decisión sobre clientes
+## Asociación solicitud-cliente
 
-La tabla `solicitudes` guarda una copia de los datos de contacto públicos. En
-esta fase se deja `cliente_id = null` y no se inserta en `clientes`, porque la
-política RLS pública actual permite crear solicitudes nuevas sin exponer ni
-modificar la tabla de clientes. La asociación con clientes se resolverá en una
-fase posterior.
+`associateSolicitudWithCliente` asocia una solicitud con un cliente existente. Requiere `solicitudes.manage` y `clientes.view`, valida UUID de solicitud y cliente, verifica que ambos registros existan y actualiza únicamente `solicitudes.cliente_id`.
+
+`createClienteFromSolicitudAndAssociate` crea un cliente básico desde los datos ya guardados en la solicitud (`cliente_nombre`, `cliente_telefono`, `cliente_email`) y lo asocia automáticamente. Requiere `solicitudes.manage` y `clientes.manage`.
+
+Las actions del detalle de solicitud son:
+
+- `associateSolicitudClienteAction`
+- `createClienteFromSolicitudAction`
+
+No se usa service role key, no se convierte la solicitud en pedido, no se modifica `converted_order_id` y no se implementa deduplicación avanzada.
+
+## Alcance excluido
+
+- No hay subida real de archivos todavía.
+- No se crean buckets ni policies de Storage desde este módulo.
+- No se convierte automáticamente la solicitud en pedido.
+- No se implementa deduplicación inteligente de clientes.

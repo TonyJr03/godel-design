@@ -1,3 +1,12 @@
+export {
+  associateSolicitudWithCliente,
+  type AssociateSolicitudWithClienteInput,
+  type AssociateSolicitudWithClienteResult,
+} from "./associate-solicitud-cliente";
+export {
+  createClienteFromSolicitudAndAssociate,
+  type CreateClienteFromSolicitudResult,
+} from "./create-cliente-from-solicitud";
 export { createPublicSolicitud } from "./create-public-solicitud";
 export { getInternalSolicitudById } from "./get-internal-solicitud-by-id";
 export {

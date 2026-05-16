@@ -1,10 +1,12 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import type { InternalSolicitudDetail as InternalSolicitudDetailData } from "@/lib/solicitudes";
 import { SOLICITUD_STATUS_LABELS } from "@/lib/solicitudes/status";
 import { SolicitudStatusForm } from "./SolicitudStatusForm";
 
 type InternalSolicitudDetailProps = {
   solicitud: InternalSolicitudDetailData;
+  clienteSection?: ReactNode;
 };
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("es", {
@@ -26,13 +28,7 @@ function formatDate(value: string | null): string {
   return DATE_FORMATTER.format(new Date(value));
 }
 
-function DetailItem({
-  label,
-  value,
-}: {
-  label: string;
-  value: React.ReactNode;
-}) {
+function DetailItem({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div>
       <dt className="text-xs font-semibold uppercase text-zinc-500">{label}</dt>
@@ -43,6 +39,7 @@ function DetailItem({
 
 export function InternalSolicitudDetail({
   solicitud,
+  clienteSection,
 }: InternalSolicitudDetailProps) {
   return (
     <article className="space-y-6">
@@ -80,7 +77,7 @@ export function InternalSolicitudDetail({
           <DetailItem label="Cliente" value={solicitud.cliente_nombre} />
           <DetailItem label="Teléfono" value={solicitud.cliente_telefono} />
           <DetailItem
-            label="Email"
+            label="Correo electrónico"
             value={solicitud.cliente_email ?? "No informado"}
           />
           <DetailItem label="Tipo de servicio" value={solicitud.tipo_servicio} />
@@ -102,6 +99,8 @@ export function InternalSolicitudDetail({
           />
         </dl>
       </section>
+
+      {clienteSection}
 
       <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-zinc-950">

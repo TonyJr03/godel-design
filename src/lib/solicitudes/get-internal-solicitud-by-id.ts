@@ -6,6 +6,7 @@ import type { Tables } from "@/types/database";
 export type InternalSolicitudDetail = Pick<
   Tables<"solicitudes">,
   | "id"
+  | "cliente_id"
   | "cliente_nombre"
   | "cliente_telefono"
   | "cliente_email"
@@ -67,7 +68,7 @@ export async function getInternalSolicitudById(
     const { data, error } = await supabase
       .from("solicitudes")
       .select(
-        "id, cliente_nombre, cliente_telefono, cliente_email, tipo_servicio, descripcion, cantidad, fecha_deseada, observaciones, estado, created_at, updated_at",
+        "id, cliente_id, cliente_nombre, cliente_telefono, cliente_email, tipo_servicio, descripcion, cantidad, fecha_deseada, observaciones, estado, created_at, updated_at",
       )
       .eq("id", id)
       .maybeSingle();
