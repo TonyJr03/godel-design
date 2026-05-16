@@ -45,9 +45,23 @@ solicitudes; RLS impide la lectura publica de `solicitudes`.
 - No hay subida real de archivos todavia.
 - No se crean buckets ni policies de Storage desde este modulo.
 - No se convierte automaticamente la solicitud en pedido.
-- No se implementa la gestion interna de solicitudes; queda para Fase 6.
 - No se hace deduplicacion avanzada ni asociacion inteligente de clientes;
   queda para Fase 7.
+
+## Consultas internas
+
+`listInternalSolicitudes` carga el listado server-side para
+`/dashboard/solicitudes`. Requiere un usuario interno activo con permiso
+`solicitudes.view`, valida el rol con los helpers de permisos existentes y usa
+el cliente normal de Supabase, sin service role key.
+
+La consulta respeta RLS: `admin` y `supervisor` pueden leer solicitudes, pero
+`trabajador` y usuarios anonimos no deben acceder. El filtro opcional `estado`
+solo acepta los estados definidos en `solicitud_estado`; valores invalidos se
+ignoran de forma controlada.
+
+El detalle de solicitud, cambio de estado, archivos y conversion a pedido quedan
+para proximas subfases.
 
 ## Decision sobre clientes
 
