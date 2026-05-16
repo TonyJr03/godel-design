@@ -44,9 +44,12 @@ export function InternalClienteDetail({
         >
           Volver a clientes
         </Link>
-        <span className="inline-flex min-h-10 items-center justify-center rounded-md border border-zinc-200 bg-zinc-50 px-4 text-sm font-semibold text-zinc-400">
-          Editar cliente próximamente
-        </span>
+        <Link
+          href={`/dashboard/clientes/${cliente.id}/editar`}
+          className="inline-flex min-h-10 items-center justify-center rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800"
+        >
+          Editar cliente
+        </Link>
       </div>
 
       <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">

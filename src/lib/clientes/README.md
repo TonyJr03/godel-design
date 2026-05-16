@@ -36,3 +36,15 @@ La ruta `/dashboard/clientes/[id]` muestra el detalle server-side de un cliente.
 - No permite edición ni eliminación todavía.
 - No consulta solicitudes, pedidos ni archivos.
 - La asociación con solicitudes queda para próximas subfases.
+
+## Edición interna
+
+La ruta `/dashboard/clientes/[id]/editar` permite actualizar datos básicos de un cliente.
+
+- `updateClienteAction` lee únicamente `cliente_id`, `nombre`, `telefono`, `email` y `notas` desde `FormData`.
+- `updateInternalCliente` valida el permiso `clientes.manage` en servidor.
+- El servicio valida UUID e input antes de actualizar.
+- Solo actualiza `nombre`, `telefono`, `email` y `notas`.
+- Respeta RLS y no usa service role key.
+- No implementa eliminación.
+- No asocia solicitudes todavía.
