@@ -47,7 +47,7 @@ export type ListInternalSolicitudesResult =
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 const GENERIC_LIST_ERROR =
-  "No se pudieron cargar las solicitudes. Intentalo nuevamente.";
+  "No se pudieron cargar las solicitudes. Inténtalo nuevamente.";
 
 function normalizeLimit(limit: number | undefined): number {
   if (!Number.isFinite(limit)) {
@@ -73,7 +73,7 @@ export async function listInternalSolicitudes(
   if (!profile) {
     return {
       ok: false,
-      message: "Debes iniciar sesion con un usuario interno activo.",
+      message: "Debes iniciar sesión con un usuario interno activo.",
     };
   }
 

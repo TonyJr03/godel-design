@@ -140,7 +140,7 @@ export function PublicSolicitudForm() {
 
             <div>
               <label className={labelClass} htmlFor="cliente_telefono">
-                Telefono <span className="text-red-700">*</span>
+                Teléfono <span className="text-red-700">*</span>
               </label>
               <input
                 className={baseInputClass}
@@ -202,11 +202,11 @@ export function PublicSolicitudForm() {
                 defaultValue=""
               >
                 <option value="" disabled>
-                  Selecciona una opcion
+                  Selecciona una opción
                 </option>
-                <option value="Impresion">Impresion</option>
-                <option value="Diseno grafico">Diseno grafico</option>
-                <option value="Personalizacion">Personalizacion</option>
+                <option value="Impresion">Impresión</option>
+                <option value="Diseno grafico">Diseño gráfico</option>
+                <option value="Personalizacion">Personalización</option>
                 <option value="Rotulacion">Rotulacion</option>
                 <option value="Otro">Otro</option>
               </select>
@@ -236,7 +236,7 @@ export function PublicSolicitudForm() {
 
             <div className="sm:col-span-2">
               <label className={labelClass} htmlFor="descripcion">
-                Descripcion del trabajo{" "}
+                Descripción del trabajo{" "}
                 <span className="text-red-700">*</span>
               </label>
               <textarea

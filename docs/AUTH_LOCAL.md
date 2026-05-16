@@ -1,4 +1,4 @@
-# Autenticación Local — Godel Design
+# Autenticación Local — Godel Diseño
 
 ## Propósito
 

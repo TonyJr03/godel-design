@@ -4,5 +4,5 @@ export const dashboardNavItems = [
   { href: "/dashboard/pedidos", label: "Pedidos" },
   { href: "/dashboard/clientes", label: "Clientes" },
   { href: "/dashboard/usuarios", label: "Usuarios" },
-  { href: "/dashboard/configuracion", label: "Configuracion" },
+  { href: "/dashboard/configuracion", label: "Configuración" },
 ] as const;

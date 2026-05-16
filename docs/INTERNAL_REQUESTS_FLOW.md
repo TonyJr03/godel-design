@@ -1,21 +1,21 @@
-# Flujo Interno de Solicitudes — Godel Design
+# Flujo Interno de Solicitudes — Godel Diseño
 
-## Proposito
+## Propósito
 
-Este documento describe como el equipo interno revisa y gestiona las solicitudes
-publicas recibidas desde `/solicitud` dentro del dashboard operativo de Godel
-Design.
+Este documento describe cómo el equipo interno revisa y gestiona las solicitudes
+públicas recibidas desde `/solicitud` dentro del dashboard operativo de Godel
+Diseño.
 
-## Relacion con el flujo publico
+## Relación con el flujo público
 
-Las solicitudes se originan desde el formulario publico documentado
+Las solicitudes se originan desde el formulario público documentado
 conceptualmente en `docs/PUBLIC_REQUEST_FLOW.md`. Al enviarse:
 
 - se guardan inicialmente con estado `nueva`;
-- quedan disponibles para revision interna desde el dashboard;
-- no se convierten automaticamente en pedidos.
+- quedan disponibles para revisión interna desde el dashboard;
+- no se convierten automáticamente en pedidos.
 
-La conversion a pedido queda reservada para una fase posterior.
+La conversión a pedido queda reservada para una fase posterior.
 
 ## Ruta interna principal
 
@@ -23,18 +23,18 @@ La ruta principal es `/dashboard/solicitudes`.
 
 Requisitos de acceso:
 
-- autenticacion activa;
+- autenticación activa;
 - perfil interno activo;
 - permiso `solicitudes.view`;
 - rol `admin` o `supervisor`.
 
-El rol `trabajador` no debe acceder a esta seccion.
+El rol `trabajador` no debe acceder a esta sección.
 
 ## Listado interno
 
 | Pieza | Archivo |
 | --- | --- |
-| Pagina | `src/app/dashboard/solicitudes/page.tsx` |
+| Página | `src/app/dashboard/solicitudes/page.tsx` |
 | Servicio | `src/lib/solicitudes/list-internal-solicitudes.ts` |
 | Componente | `src/components/solicitudes/InternalSolicitudesList.tsx` |
 
@@ -43,8 +43,8 @@ El listado:
 - carga server-side;
 - consulta hasta 50 solicitudes;
 - ordena por `created_at` descendente;
-- muestra referencia corta, cliente, telefono, email, tipo de servicio, estado,
-  fecha de creacion, fecha deseada y cantidad;
+- muestra referencia corta, cliente, teléfono, email, tipo de servicio, estado,
+  fecha de creación, fecha deseada y cantidad;
 - permite filtrar por estado;
 - no consulta Supabase desde componentes cliente.
 
@@ -60,8 +60,8 @@ URLs soportadas:
 - `/dashboard/solicitudes?estado=rechazada`
 - `/dashboard/solicitudes?estado=convertida`
 
-`convertida` puede aparecer como filtro porque sera un estado resultante del
-flujo formal de conversion a pedido. En esta fase no puede establecerse
+`convertida` puede aparecer como filtro porque será un estado resultante del
+flujo formal de conversión a pedido. En esta fase no puede establecerse
 manualmente.
 
 ## Detalle interno
@@ -69,7 +69,7 @@ manualmente.
 | Pieza | Archivo |
 | --- | --- |
 | Ruta | `/dashboard/solicitudes/[id]` |
-| Pagina | `src/app/dashboard/solicitudes/[id]/page.tsx` |
+| Página | `src/app/dashboard/solicitudes/[id]/page.tsx` |
 | Servicio | `src/lib/solicitudes/get-internal-solicitud-by-id.ts` |
 | Componente | `src/components/solicitudes/InternalSolicitudDetail.tsx` |
 
@@ -77,9 +77,9 @@ El detalle:
 
 - carga server-side;
 - valida que el `id` tenga formato UUID;
-- usa `notFound()` para id invalido o solicitud inexistente;
+- usa `notFound()` para id inválido o solicitud inexistente;
 - muestra datos completos de la solicitud;
-- no permite edicion completa;
+- no permite edición completa;
 - no convierte a pedido;
 - no gestiona archivos.
 
@@ -105,9 +105,9 @@ El cambio de estado:
 
 | Estado | Significado recomendado |
 | --- | --- |
-| `nueva` | Solicitud recibida y aun no revisada. |
-| `en_revision` | El equipo interno esta evaluando la solicitud. |
-| `contactada` | El cliente fue contactado o se intento contactar. |
+| `nueva` | Solicitud recibida y aún no revisada. |
+| `en_revision` | El equipo interno está evaluando la solicitud. |
+| `contactada` | El cliente fue contactado o se intentó contactar. |
 | `aprobada` | Solicitud aceptada para avanzar hacia pedido. |
 | `rechazada` | Solicitud no aceptada o descartada. |
 | `convertida` | Solicitud ya convertida en pedido interno. |
@@ -123,7 +123,7 @@ En Fase 6.3 solo se pueden establecer manualmente:
 - `rechazada`
 
 `convertida` no puede establecerse manualmente. Ese estado queda reservado para
-el flujo formal de conversion a pedido, que sera implementado en una fase
+el flujo formal de conversión a pedido, que será implementado en una fase
 posterior.
 
 ## Permisos
@@ -144,18 +144,18 @@ El modelo completo de permisos se documenta conceptualmente en
 
 ## Seguridad
 
-El flujo usa varias capas de proteccion:
+El flujo usa varias capas de protección:
 
 1. Proxy de rutas por rol.
-2. Validacion server-side de perfil y permisos.
+2. Validación server-side de perfil y permisos.
 3. RLS en Supabase.
-4. Errores controlados sin exponer detalles tecnicos.
+4. Errores controlados sin exponer detalles técnicos.
 
 Aclaraciones:
 
 - no se usa service role key;
 - los componentes cliente no consultan Supabase directamente;
-- la UI no es la unica capa de seguridad;
+- la UI no es la única capa de seguridad;
 - RLS sigue siendo la defensa final.
 
 ## RLS
@@ -163,27 +163,27 @@ Aclaraciones:
 Las policies existentes permiten:
 
 - lectura de solicitudes a `admin` y `supervisor`;
-- actualizacion de solicitudes a `admin` y `supervisor`;
-- bloqueo de lectura y actualizacion a `trabajador`;
-- bloqueo de lectura publica anonima;
-- insercion publica limitada solo para crear solicitudes nuevas desde el
-  formulario publico.
+- actualización de solicitudes a `admin` y `supervisor`;
+- bloqueo de lectura y actualización a `trabajador`;
+- bloqueo de lectura pública anónima;
+- inserción pública limitada solo para crear solicitudes nuevas desde el
+  formulario público.
 
-## Que NO incluye esta fase
+## Qué NO incluye esta fase
 
-- Conversion de solicitud a pedido.
-- Gestion real de clientes.
+- Conversión de solicitud a pedido.
+- Gestión real de clientes.
 - Archivos adjuntos.
 - Historial avanzado de cambios.
 - Comentarios internos.
 - Notificaciones.
-- Reglas estrictas de transicion de estados.
-- Asignacion de trabajadores.
-- Generacion de presupuestos.
+- Reglas estrictas de transición de estados.
+- Asignación de trabajadores.
+- Generación de presupuestos.
 
 ## Consideraciones futuras
 
-Mas adelante se podra:
+Más adelante se podrá:
 
 - restringir transiciones de estado;
 - registrar historial detallado;
@@ -191,7 +191,7 @@ Mas adelante se podra:
 - convertir solicitud aprobada en pedido;
 - adjuntar archivos privados;
 - notificar al equipo interno;
-- generar codigos humanos de referencia.
+- generar códigos humanos de referencia.
 
 ## Pruebas manuales recomendadas
 
@@ -200,7 +200,7 @@ Mas adelante se podra:
 - Trabajador no puede entrar a `/dashboard/solicitudes`.
 - Admin abre el detalle de una solicitud.
 - Supervisor abre el detalle de una solicitud.
-- Un id invalido muestra 404.
+- Un id inválido muestra 404.
 - Admin cambia el estado de una solicitud.
 - Supervisor cambia el estado de una solicitud.
 - `convertida` no aparece en el selector.
@@ -210,5 +210,5 @@ Mas adelante se podra:
 
 ## Cierre
 
-Con este flujo, Fase 6 queda documentada para revision final antes de avanzar a
-la gestion de clientes o a la fase correspondiente del roadmap.
+Con este flujo, Fase 6 queda documentada para revisión final antes de avanzar a
+la gestión de clientes o a la fase correspondiente del roadmap.

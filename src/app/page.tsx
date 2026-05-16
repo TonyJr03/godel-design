@@ -12,7 +12,7 @@ export default function Home() {
             Godel Diseño
           </p>
           <h1 className="mt-4 text-4xl font-semibold leading-tight text-zinc-950 sm:text-5xl">
-            Sistema de gestion de solicitudes y pedidos
+            Sistema de gestión de solicitudes y pedidos
           </h1>
           <p className="mt-5 max-w-2xl text-lg leading-8 text-zinc-700">
             Base inicial para organizar el flujo operativo de trabajos de

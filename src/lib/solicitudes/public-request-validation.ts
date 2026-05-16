@@ -146,16 +146,16 @@ export function validatePublicSolicitudInput(
   }
 
   if (!cliente_telefono) {
-    fieldErrors.cliente_telefono = "Ingresa un telefono de contacto.";
+    fieldErrors.cliente_telefono = "Ingresa un teléfono de contacto.";
   } else if (cliente_telefono.length > FIELD_LIMITS.cliente_telefono) {
-    fieldErrors.cliente_telefono = "El telefono es demasiado largo.";
+    fieldErrors.cliente_telefono = "El teléfono es demasiado largo.";
   }
 
   if (cliente_email) {
     if (cliente_email.length > FIELD_LIMITS.cliente_email) {
       fieldErrors.cliente_email = "El correo es demasiado largo.";
     } else if (!EMAIL_PATTERN.test(cliente_email)) {
-      fieldErrors.cliente_email = "Ingresa un correo valido.";
+      fieldErrors.cliente_email = "Ingresa un correo válido.";
     }
   }
 
@@ -168,7 +168,7 @@ export function validatePublicSolicitudInput(
   if (!descripcion) {
     fieldErrors.descripcion = "Describe el trabajo solicitado.";
   } else if (descripcion.length > FIELD_LIMITS.descripcion) {
-    fieldErrors.descripcion = "La descripcion es demasiado larga.";
+    fieldErrors.descripcion = "La descripción es demasiado larga.";
   }
 
   if (Number.isNaN(cantidad) || (cantidad !== null && cantidad <= 0)) {
@@ -177,7 +177,7 @@ export function validatePublicSolicitudInput(
 
   if (fecha_deseada) {
     if (!isValidIsoDate(fecha_deseada)) {
-      fieldErrors.fecha_deseada = "Ingresa una fecha valida.";
+      fieldErrors.fecha_deseada = "Ingresa una fecha válida.";
     } else if (fecha_deseada < getTodayIsoDate()) {
       fieldErrors.fecha_deseada =
         "La fecha deseada no puede ser anterior a hoy.";

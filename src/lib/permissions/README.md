@@ -1,6 +1,6 @@
 # Permisos internos
 
-`src/lib/permissions` centraliza la autorizacion interna por rol para el dashboard de Godel Diseno. Expone helpers puros: no consulta Supabase, no redirige y no protege rutas por si solo.
+`src/lib/permissions` centraliza la autorización interna por rol para el dashboard de Godel Diseño. Expone helpers puros: no consulta Supabase, no redirige y no protege rutas por sí solo.
 
 ## Matriz inicial
 
@@ -25,16 +25,16 @@ Permisos definidos:
 - `configuracion.view`
 - `configuracion.manage`
 
-## Autenticacion, perfil y autorizacion
+## Autenticación, perfil y autorización
 
-La autenticacion confirma la identidad del usuario mediante Supabase Auth. El perfil activo confirma que existe una fila interna en `public.profiles` para ese usuario y que `is_active = true`. La autorizacion por rol decide que puede ver o ejecutar ese perfil activo segun `profiles.role`.
+La autenticación confirma la identidad del usuario mediante Supabase Auth. El perfil activo confirma que existe una fila interna en `public.profiles` para ese usuario y que `is_active = true`. La autorización por rol decide qué puede ver o ejecutar ese perfil activo según `profiles.role`.
 
-Los helpers de permisos trabajan con roles validos del sistema y devuelven booleanos. Los helpers de rutas permiten evaluar si un rol puede acceder conceptualmente a una ruta del dashboard, pero no hacen redirecciones ni reemplazan los controles de servidor.
+Los helpers de permisos trabajan con roles válidos del sistema y devuelven booleanos. Los helpers de rutas permiten evaluar si un rol puede acceder conceptualmente a una ruta del dashboard, pero no hacen redirecciones ni reemplazan los controles de servidor.
 
-La navegacion del dashboard usa `canAccessDashboardRoute` para ocultar enlaces no permitidos segun el rol. Esto es una mejora de UX, no la unica proteccion.
+La navegación del dashboard usa `canAccessDashboardRoute` para ocultar enlaces no permitidos según el rol. Esto es una mejora de UX, no la única protección.
 
-La proteccion real por URL directa se realiza en el proxy de Next.js. El proxy tambien usa `canAccessDashboardRoute`, de modo que la navegacion y el bloqueo de rutas comparten la misma fuente de reglas.
+La protección real por URL directa se realiza en el proxy de Next.js. El proxy también usa `canAccessDashboardRoute`, de modo que la navegación y el bloqueo de rutas comparten la misma fuente de reglas.
 
-## Relacion con RLS
+## Relación con RLS
 
-Estos helpers no reemplazan Row Level Security. RLS sigue siendo la ultima linea de defensa en Supabase y debe proteger los datos aunque exista una validacion previa en Next.js.
+Estos helpers no reemplazan Row Level Security. RLS sigue siendo la última línea de defensa en Supabase y debe proteger los datos aunque exista una validación previa en Next.js.

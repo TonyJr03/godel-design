@@ -1,16 +1,16 @@
 # Supabase clients
 
-Esta carpeta prepara la configuracion base de Supabase para Next.js App Router.
+Esta carpeta prepara la configuración base de Supabase para Next.js App Router.
 
 - Usa `src/lib/supabase/client.ts` en componentes cliente. Exporta `createClient()`, basado en `createBrowserClient`.
 - Usa `src/lib/supabase/server.ts` en Server Components, Server Actions y Route Handlers. Exporta `createClient()`, basado en `createServerClient`.
-- Usa `src/lib/supabase/index.ts` cuando prefieras imports con nombres explicitos: `createBrowserSupabaseClient` o `createServerSupabaseClient`.
+- Usa `src/lib/supabase/index.ts` cuando prefieras imports con nombres explícitos: `createBrowserSupabaseClient` o `createServerSupabaseClient`.
 
 No se debe usar la service role key en frontend. Estos clientes usan solamente `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
 
 ## Tipos generados
 
-`src/types/database.types.ts` es generado automaticamente por Supabase CLI a partir del esquema de la base de datos. No debe editarse manualmente salvo una necesidad puntual de formato o compatibilidad.
+`src/types/database.types.ts` es generado automáticamente por Supabase CLI a partir del esquema de la base de datos. No debe editarse manualmente salvo una necesidad puntual de formato o compatibilidad.
 
 Para regenerarlo:
 
@@ -18,19 +18,19 @@ Para regenerarlo:
 npx supabase gen types typescript --local > src\types\database.types.ts
 ```
 
-`src/types/database.ts` funciona como punto central de exportacion para `Database` y los helpers generados, como `Tables`, `TablesInsert`, `TablesUpdate` y `Enums`.
+`src/types/database.ts` funciona como punto central de exportación para `Database` y los helpers generados, como `Tables`, `TablesInsert`, `TablesUpdate` y `Enums`.
 
-## Proxy de sesion
+## Proxy de sesión
 
 `src/proxy.ts` es el punto de entrada del proxy de Next.js 16.
 
-`src/lib/supabase/proxy.ts` contiene la logica de actualizacion de sesion con `@supabase/ssr` y la proteccion basica de rutas.
+`src/lib/supabase/proxy.ts` contiene la lógica de actualización de sesión con `@supabase/ssr` y la protección básica de rutas.
 
-- `/dashboard` y sus subrutas requieren autenticacion.
-- `/`, `/login`, `/solicitud` y assets estaticos permanecen publicos, salvo que `/login` redirige a `/dashboard` cuando ya existe una sesion.
-- Auth por si solo no basta para entrar al dashboard: el usuario tambien debe tener una fila propia en `public.profiles` con `is_active = true`.
-- `profiles.is_active` controla el acceso interno basico.
+- `/dashboard` y sus subrutas requieren autenticación.
+- `/`, `/login`, `/solicitud` y assets estáticos permanecen públicos, salvo que `/login` redirige a `/dashboard` cuando ya existe una sesión.
+- Auth por sí solo no basta para entrar al dashboard: el usuario también debe tener una fila propia en `public.profiles` con `is_active = true`.
+- `profiles.is_active` controla el acceso interno básico.
 - El proxy valida acceso por rol a rutas de dashboard usando `canAccessDashboardRoute`.
-- Si el usuario tiene sesion y perfil activo, pero su rol no permite la ruta solicitada, se redirige a `/sin-permisos`.
+- Si el usuario tiene sesión y perfil activo, pero su rol no permite la ruta solicitada, se redirige a `/sin-permisos`.
 - No se usa service role key; el proxy solo usa `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
-- Los permisos sobre datos siguen dependiendo de las politicas RLS de Supabase.
+- Los permisos sobre datos siguen dependiendo de las políticas RLS de Supabase.

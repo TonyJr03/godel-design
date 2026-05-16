@@ -6,11 +6,11 @@ export default function DashboardNuevoPedidoPage() {
     <div className="space-y-8">
       <PageHeader
         title="Nuevo pedido"
-        description="Creacion manual futura de pedidos internos."
+        description="Creación manual futura de pedidos internos."
       />
       <PlaceholderCard
-        title="Creacion manual pendiente"
-        description="El formulario y las reglas de negocio se agregaran en una fase posterior."
+        title="Creación manual pendiente"
+        description="El formulario y las reglas de negocio se agregarán en una fase posterior."
       />
     </div>
   );

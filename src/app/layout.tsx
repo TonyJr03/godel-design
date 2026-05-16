@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Godel Diseño",
-  description: "Sistema de gestion de solicitudes y pedidos",
+  description: "Sistema de gestión de solicitudes y pedidos",
 };
 
 export default function RootLayout({

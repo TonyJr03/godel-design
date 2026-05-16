@@ -6,11 +6,11 @@ export default function DashboardClientesPage() {
     <div className="space-y-8">
       <PageHeader
         title="Clientes"
-        description="Gestion basica futura de clientes."
+        description="Gestión básica futura de clientes."
       />
       <PlaceholderCard
-        title="Gestion de clientes pendiente"
-        description="Aqui se preparara el listado y mantenimiento basico de clientes."
+        title="Gestión de clientes pendiente"
+        description="Aquí se preparará el listado y mantenimiento básico de clientes."
       />
     </div>
   );

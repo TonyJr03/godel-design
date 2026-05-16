@@ -52,7 +52,7 @@ export function SolicitudStatusForm({
 
       {!canManageManually ? (
         <p className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
-          Esta solicitud esta en un estado reservado y no puede modificarse
+          Esta solicitud está en un estado reservado y no puede modificarse
           manualmente desde esta vista.
         </p>
       ) : null}

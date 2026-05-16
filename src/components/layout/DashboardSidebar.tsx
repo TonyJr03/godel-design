@@ -20,7 +20,7 @@ export function DashboardSidebar({ role }: DashboardSidebarProps) {
         <Link href="/dashboard" className="text-lg font-semibold">
           Godel Diseño
         </Link>
-        <p className="mt-1 text-sm text-zinc-400">Gestion operativa</p>
+        <p className="mt-1 text-sm text-zinc-400">Gestión operativa</p>
       </div>
       <nav className="flex gap-2 overflow-x-auto px-4 pb-4 md:flex-col md:overflow-visible">
         {visibleNavItems.map((enlace) => (

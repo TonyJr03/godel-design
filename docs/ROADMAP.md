@@ -1,4 +1,4 @@
-# Roadmap Oficial del Proyecto Godel Design
+# Roadmap Oficial del Proyecto Godel Diseño
 
 **Proyecto:** Sistema Web de Gestión para Godel Diseño  
 **Repositorio:** `godel-design`  

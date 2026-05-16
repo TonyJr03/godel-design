@@ -78,7 +78,7 @@ export function InternalSolicitudDetail({
 
         <dl className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           <DetailItem label="Cliente" value={solicitud.cliente_nombre} />
-          <DetailItem label="Telefono" value={solicitud.cliente_telefono} />
+          <DetailItem label="Teléfono" value={solicitud.cliente_telefono} />
           <DetailItem
             label="Email"
             value={solicitud.cliente_email ?? "No informado"}
@@ -93,11 +93,11 @@ export function InternalSolicitudDetail({
             value={formatDate(solicitud.fecha_deseada)}
           />
           <DetailItem
-            label="Fecha de creacion"
+            label="Fecha de creación"
             value={formatDate(solicitud.created_at)}
           />
           <DetailItem
-            label="Ultima actualizacion"
+            label="Última actualización"
             value={formatDate(solicitud.updated_at)}
           />
         </dl>
@@ -105,7 +105,7 @@ export function InternalSolicitudDetail({
 
       <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-zinc-950">
-          Gestion interna
+          Gestión interna
         </h2>
         <p className="mt-2 text-sm leading-6 text-zinc-600">
           Actualiza el estado operativo de la solicitud.
@@ -119,7 +119,7 @@ export function InternalSolicitudDetail({
       </section>
 
       <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-zinc-950">Descripcion</h2>
+        <h2 className="text-lg font-semibold text-zinc-950">Descripción</h2>
         <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-zinc-700">
           {solicitud.descripcion}
         </p>

@@ -1,8 +1,8 @@
-# Modelo de Datos Inicial — Godel Design
+# Modelo de Datos Inicial — Godel Diseño
 
 ## Propósito del documento
 
-Este documento define el modelo de datos inicial del sistema web de gestión operativa de Godel Design. Su objetivo es servir como base técnica para crear, en una tarea posterior, las migraciones SQL iniciales de Supabase.
+Este documento define el modelo de datos inicial del sistema web de gestión operativa de Godel Diseño. Su objetivo es servir como base técnica para crear, en una tarea posterior, las migraciones SQL iniciales de Supabase.
 
 Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, autenticación ni lógica de aplicación. Solo describe las entidades principales, sus relaciones, reglas de negocio y criterios de seguridad esperados.
 

@@ -15,7 +15,7 @@ export const SOLICITUD_STATUS_LABELS: Record<
   string
 > = {
   nueva: "Nueva",
-  en_revision: "En revision",
+  en_revision: "En revisión",
   contactada: "Contactada",
   aprobada: "Aprobada",
   rechazada: "Rechazada",

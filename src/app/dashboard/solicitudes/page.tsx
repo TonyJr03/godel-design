@@ -16,7 +16,7 @@ type DashboardSolicitudesPageProps = {
 
 const ESTADO_LABELS: Record<InternalSolicitudEstado, string> = {
   nueva: "Nueva",
-  en_revision: "En revision",
+  en_revision: "En revisión",
   contactada: "Contactada",
   aprobada: "Aprobada",
   rechazada: "Rechazada",
@@ -38,7 +38,7 @@ export default async function DashboardSolicitudesPage({
     <div className="space-y-8">
       <PageHeader
         title="Solicitudes"
-        description="Listado interno de solicitudes recibidas por el formulario publico."
+        description="Listado interno de solicitudes recibidas por el formulario público."
       />
 
       <section className="space-y-3">
@@ -74,7 +74,7 @@ export default async function DashboardSolicitudesPage({
 
       {result.ok && result.ignoredInvalidEstado ? (
         <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-          El filtro de estado no es valido y fue ignorado.
+          El filtro de estado no es válido y fue ignorado.
         </section>
       ) : null}
 
@@ -88,8 +88,8 @@ export default async function DashboardSolicitudesPage({
             No hay solicitudes para mostrar
           </h2>
           <p className="mt-2 text-sm leading-6 text-zinc-600">
-            Cuando entren solicitudes publicas, apareceran aqui ordenadas por
-            fecha de creacion.
+            Cuando entren solicitudes públicas, aparecerán aquí ordenadas por
+            fecha de creación.
           </p>
         </section>
       ) : (

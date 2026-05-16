@@ -7,7 +7,7 @@ type InternalSolicitudesListProps = {
 
 const ESTADO_LABELS: Record<InternalSolicitud["estado"], string> = {
   nueva: "Nueva",
-  en_revision: "En revision",
+  en_revision: "En revisión",
   contactada: "Contactada",
   aprobada: "Aprobada",
   rechazada: "Rechazada",
@@ -58,7 +58,7 @@ export function InternalSolicitudesList({
                 Estado
               </th>
               <th scope="col" className="px-4 py-3">
-                Creacion
+                Creación
               </th>
               <th scope="col" className="px-4 py-3">
                 Deseada
@@ -67,7 +67,7 @@ export function InternalSolicitudesList({
                 Cant.
               </th>
               <th scope="col" className="px-4 py-3 text-right">
-                Accion
+                Acción
               </th>
             </tr>
           </thead>

@@ -6,11 +6,11 @@ export default function DashboardUsuariosPage() {
     <div className="space-y-8">
       <PageHeader
         title="Usuarios"
-        description="Gestion futura de usuarios internos."
+        description="Gestión futura de usuarios internos."
       />
       <PlaceholderCard
         title="Usuarios internos pendientes"
-        description="Los roles y permisos se conectaran cuando exista autenticacion real."
+        description="Los roles y permisos se conectarán cuando exista autenticación real."
       />
     </div>
   );

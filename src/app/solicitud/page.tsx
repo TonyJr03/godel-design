@@ -9,7 +9,7 @@ export default function SolicitudPage() {
       <main className="mx-auto w-full max-w-5xl px-6 py-12">
         <PageHeader
           title="Solicitud de trabajo"
-          description="Cuentanos que necesitas producir, disenar o personalizar. Godel Diseno revisara la solicitud y se pondra en contacto contigo para confirmar detalles y proximos pasos."
+          description="Cuéntanos qué necesitas producir, diseñar o personalizar. Godel Diseño revisará la solicitud y se pondrá en contacto contigo para confirmar detalles y próximos pasos."
         />
         <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px]">
           <PublicSolicitudForm />
@@ -17,11 +17,11 @@ export default function SolicitudPage() {
           <aside className="space-y-4 text-sm leading-6 text-zinc-600">
             <section className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
               <h2 className="text-base font-semibold text-zinc-950">
-                Despues del envio
+                Después del envío
               </h2>
               <p className="mt-2">
-                Revisaremos la informacion recibida y te contactaremos por
-                telefono o correo antes de crear un pedido interno.
+                Revisaremos la información recibida y te contactaremos por
+                teléfono o correo antes de crear un pedido interno.
               </p>
             </section>
 
@@ -30,7 +30,7 @@ export default function SolicitudPage() {
                 Archivos pendientes
               </h2>
               <p className="mt-2">
-                La subida de archivos aun no esta disponible en esta fase. Si
+                La subida de archivos aún no está disponible en esta fase. Si
                 tienes referencias, podremos solicitarlas durante el contacto.
               </p>
             </section>

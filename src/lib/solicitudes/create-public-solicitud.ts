@@ -19,7 +19,7 @@ export type CreatePublicSolicitudResult =
     };
 
 const GENERIC_CREATE_ERROR =
-  "No se pudo registrar la solicitud. Intentalo nuevamente.";
+  "No se pudo registrar la solicitud. Inténtalo nuevamente.";
 
 export async function createPublicSolicitud(
   input: PublicSolicitudInput,
@@ -38,7 +38,7 @@ export async function createPublicSolicitud(
   const supabase = await createClient();
 
   // Fase 5.1 guarda los datos del cliente en la solicitud y deja cliente_id
-  // en null. La asociacion/deduplicacion con clientes queda para Fase 7.
+  // en null. La asociación/deduplicación con clientes queda para Fase 7.
   const solicitudInsert: TablesInsert<"solicitudes"> = {
     id: solicitudId,
     cliente_id: null,

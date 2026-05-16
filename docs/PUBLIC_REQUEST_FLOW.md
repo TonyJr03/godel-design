@@ -1,57 +1,57 @@
-# Flujo de Solicitudes Publicas — Godel Design
+# Flujo de Solicitudes Públicas — Godel Diseño
 
-## Proposito
+## Propósito
 
-Este documento describe como un cliente externo envia una solicitud publica de
-trabajo desde `/solicitud` dentro del sistema web de gestion operativa de Godel
-Design.
+Este documento describe cómo un cliente externo envía una solicitud pública de
+trabajo desde `/solicitud` dentro del sistema web de gestión operativa de Godel
+Diseño.
 
 El objetivo es dejar documentado el flujo actual, los datos que se guardan, las
-validaciones aplicadas, las decisiones tecnicas tomadas y lo que queda pendiente
+validaciones aplicadas, las decisiones técnicas tomadas y lo que queda pendiente
 para fases posteriores.
 
 ## Alcance actual
 
 El flujo actual permite:
 
-- Mostrar un formulario publico en `/solicitud`.
+- Mostrar un formulario público en `/solicitud`.
 - Validar los datos enviados por el cliente.
 - Crear una solicitud en Supabase.
 - Guardar la solicitud con estado `nueva`.
-- Mostrar un mensaje de exito y una referencia corta.
+- Mostrar un mensaje de éxito y una referencia corta.
 
-Todavia no incluye:
+Todavía no incluye:
 
 - Subida real de archivos.
 - Captcha.
-- Gestion interna de solicitudes.
-- Conversion de solicitud a pedido.
-- Asociacion inteligente con clientes.
-- Notificaciones automaticas.
+- Gestión interna de solicitudes.
+- Conversión de solicitud a pedido.
+- Asociación inteligente con clientes.
+- Notificaciones automáticas.
 
-## Ruta publica
+## Ruta pública
 
 - Ruta: `/solicitud`.
-- No requiere autenticacion.
-- Esta disponible para clientes externos.
+- No requiere autenticación.
+- Está disponible para clientes externos.
 - No pertenece al dashboard interno.
 
 ## Campos del formulario
 
-| Campo | Requerido | Descripcion |
+| Campo | Requerido | Descripción |
 |---|---|---|
-| `cliente_nombre` | Si | Nombre del cliente o negocio |
-| `cliente_telefono` | Si | Telefono de contacto |
+| `cliente_nombre` | Sí | Nombre del cliente o negocio |
+| `cliente_telefono` | Sí | Teléfono de contacto |
 | `cliente_email` | No | Correo opcional |
-| `tipo_servicio` | Si | Tipo de trabajo solicitado |
-| `descripcion` | Si | Descripcion del encargo |
+| `tipo_servicio` | Sí | Tipo de trabajo solicitado |
+| `descripcion` | Sí | Descripción del encargo |
 | `cantidad` | No | Cantidad solicitada |
-| `fecha_deseada` | No | Fecha deseada de entrega; si se informa debe ser igual o posterior al dia actual |
+| `fecha_deseada` | No | Fecha deseada de entrega; si se informa debe ser igual o posterior al día actual |
 | `observaciones` | No | Notas adicionales |
 
-## Campos que No Acepta la UI
+## Campos que no acepta la UI
 
-El formulario publico no envia:
+El formulario público no envía:
 
 - `id`
 - `estado`
@@ -60,11 +60,11 @@ El formulario publico no envia:
 - `converted_order_id`
 
 Estos campos son controlados por el servidor, por la base de datos o por flujos
-internos posteriores. La UI publica no debe aceptar valores para ellos.
+internos posteriores. La UI pública no debe aceptar valores para ellos.
 
-## Validacion Server-Side
+## Validación Server-Side
 
-La validacion definitiva esta en:
+La validación definitiva está en:
 
 - `src/lib/solicitudes/public-request-validation.ts`
 
@@ -72,17 +72,17 @@ Reglas generales:
 
 - `cliente_nombre` es requerido.
 - `cliente_telefono` es requerido.
-- `cliente_email` es opcional, pero si existe debe tener formato basico valido.
+- `cliente_email` es opcional, pero si existe debe tener formato básico válido.
 - `tipo_servicio` es requerido.
 - `descripcion` es requerida.
 - `cantidad` es opcional, pero debe ser positiva si existe.
-- `fecha_deseada` es opcional, pero debe ser valida e igual o posterior al dia
+- `fecha_deseada` es opcional, pero debe ser válida e igual o posterior al día
   actual si existe.
 - `observaciones` es opcional.
-- Los campos opcionales vacios se convierten a `null`.
+- Los campos opcionales vacíos se convierten a `null`.
 - Los espacios sobrantes se recortan antes de insertar.
 
-No se usan dependencias externas para esta validacion.
+No se usan dependencias externas para esta validación.
 
 ## Server Action
 
@@ -94,14 +94,14 @@ La Server Action:
 
 - Recibe `FormData`.
 - Convierte los campos del formulario en input controlado.
-- Llama al servicio de creacion.
+- Llama al servicio de creación.
 - Devuelve errores controlados para la UI.
-- No expone errores tecnicos de Supabase al cliente.
+- No expone errores técnicos de Supabase al cliente.
 - No usa service role key.
 
-## Servicio de Creacion
+## Servicio de Creación
 
-El servicio esta en:
+El servicio está en:
 
 - `src/lib/solicitudes/create-public-solicitud.ts`
 
@@ -114,26 +114,26 @@ Responsabilidades:
 - Establecer `reviewed_by = null`.
 - Establecer `converted_order_id = null`.
 - Generar un UUID controlado server-side para poder mostrar una referencia sin
-  hacer lectura publica.
-- Evitar un `.select()` publico innecesario despues del insert.
+  hacer lectura pública.
+- Evitar un `.select()` público innecesario después del insert.
 
-## Decision Sobre Clientes
+## Decisión sobre clientes
 
 En esta fase no se crea ni se asocia un registro en `clientes`.
 
-La decision actual es:
+La decisión actual es:
 
 - Guardar los datos del cliente desnormalizados en la tabla `solicitudes`.
 - Dejar `cliente_id = null`.
-- Posponer la asociacion y deduplicacion de clientes para Fase 7.
-- Evitar abrir insercion publica en `clientes` para este flujo.
+- Posponer la asociación y deduplicación de clientes para Fase 7.
+- Evitar abrir inserción pública en `clientes` para este flujo.
 
-Esto mantiene el flujo publico mas pequeno y reduce la superficie de exposicion
+Esto mantiene el flujo público más pequeño y reduce la superficie de exposición
 de datos de clientes.
 
 ## Referencia de Solicitud
 
-Despues de enviar una solicitud valida, la UI muestra una referencia corta:
+Después de enviar una solicitud válida, la UI muestra una referencia corta:
 
 `Referencia de solicitud: 8b7f3c10`
 
@@ -142,8 +142,8 @@ Esta referencia:
 - Se deriva del UUID real de la solicitud.
 - Sirve solo como ayuda de seguimiento.
 - No permite leer, modificar ni eliminar solicitudes.
-- No sustituye un codigo humano definitivo.
-- Podria reemplazarse en el futuro por un codigo como `GD-2026-000123`.
+- No sustituye un código humano definitivo.
+- Podría reemplazarse en el futuro por un código como `GD-2026-000123`.
 
 ## Seguridad y RLS
 
@@ -151,21 +151,21 @@ El flujo depende de Row Level Security en Supabase.
 
 Estado esperado:
 
-- Usuarios anonimos pueden insertar solicitudes publicas.
-- Usuarios anonimos no pueden leer solicitudes.
-- Usuarios anonimos no pueden actualizar solicitudes.
-- Usuarios anonimos no pueden eliminar solicitudes.
-- No hay lectura publica de clientes.
+- Usuarios anónimos pueden insertar solicitudes públicas.
+- Usuarios anónimos no pueden leer solicitudes.
+- Usuarios anónimos no pueden actualizar solicitudes.
+- Usuarios anónimos no pueden eliminar solicitudes.
+- No hay lectura pública de clientes.
 - No se usa service role key.
 - RLS protege la base de datos.
-- Los errores tecnicos no se exponen al cliente.
+- Los errores técnicos no se exponen al cliente.
 
-La UI publica no debe considerarse una frontera de seguridad. La validacion
+La UI pública no debe considerarse una frontera de seguridad. La validación
 server-side y RLS son la fuente de verdad.
 
-## Relacion con Archivos
+## Relación con archivos
 
-La subida de archivos no esta implementada en esta fase.
+La subida de archivos no está implementada en esta fase.
 
 Referencia conceptual:
 
@@ -174,10 +174,10 @@ Referencia conceptual:
 
 Cuando se implemente:
 
-- Los archivos seran privados.
-- No habra URLs publicas permanentes.
-- Se guardaran metadatos en la tabla `archivos`.
-- Se usaran rutas controladas y URLs firmadas.
+- Los archivos serán privados.
+- No habrá URLs públicas permanentes.
+- Se guardarán metadatos en la tabla `archivos`.
+- Se usarán rutas controladas y URLs firmadas.
 
 ## Flujo Funcional Actual
 
@@ -187,43 +187,43 @@ Cuando se implemente:
 4. La action convierte `FormData` en input.
 5. El servicio valida datos.
 6. El servicio inserta la solicitud con estado `nueva`.
-7. La UI muestra exito y referencia corta.
-8. El equipo interno revisara la solicitud en una fase posterior.
+7. La UI muestra éxito y referencia corta.
+8. El equipo interno revisará la solicitud en una fase posterior.
 
 ## Flujo Interno Pendiente
 
-En Fase 6 se implementara:
+En Fase 6 se implementará:
 
 - Listado interno de solicitudes.
-- Revision por admin o supervisor.
-- Actualizacion de estado.
-- Preparacion para convertir solicitud en pedido.
+- Revisión por admin o supervisor.
+- Actualización de estado.
+- Preparación para convertir solicitud en pedido.
 
-La conversion real a pedido pertenece a una fase posterior del flujo interno.
+La conversión real a pedido pertenece a una fase posterior del flujo interno.
 
 ## Pruebas Manuales Recomendadas
 
-- Enviar solicitud valida.
-- Enviar formulario vacio.
-- Enviar email invalido.
+- Enviar solicitud válida.
+- Enviar formulario vacío.
+- Enviar email inválido.
 - Enviar cantidad negativa.
 - Enviar sin email.
-- Verificar en Supabase Studio que la solicitud quedo con `estado = nueva`.
+- Verificar en Supabase Studio que la solicitud quedó con `estado = nueva`.
 - Verificar que `cliente_id`, `reviewed_by` y `converted_order_id` quedan en
   `null`.
-- Verificar que un usuario anonimo no puede leer solicitudes desde API/UI.
+- Verificar que un usuario anónimo no puede leer solicitudes desde API/UI.
 
 ## Problemas Conocidos o Limitaciones
 
-- No hay captcha todavia.
+- No hay captcha todavía.
 - No hay control avanzado anti-spam.
 - No hay archivos.
 - No hay notificaciones.
-- No hay codigo humano de solicitud.
-- No hay asociacion automatica con clientes.
-- No hay seguimiento publico por referencia.
+- No hay código humano de solicitud.
+- No hay asociación automática con clientes.
+- No hay seguimiento público por referencia.
 
 ## Cierre
 
-La siguiente subfase sera la revision final de Fase 5 antes de pasar a la
-gestion interna de solicitudes.
+La siguiente subfase será la revisión final de Fase 5 antes de pasar a la
+gestión interna de solicitudes.

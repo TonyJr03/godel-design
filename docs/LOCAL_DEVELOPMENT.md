@@ -1,20 +1,20 @@
-# Desarrollo Local — Godel Design
+# Desarrollo Local — Godel Diseño
 
-## Proposito
+## Propósito
 
-Este documento guia la configuracion local del sistema Godel Design para desarrollo con Next.js, Supabase local, Docker y variables de entorno.
+Este documento guía la configuración local del sistema Godel Diseño para desarrollo con Next.js, Supabase local, Docker y variables de entorno.
 
 ## Requisitos previos
 
 - Node.js instalado.
 - npm instalado.
-- Docker Desktop instalado y en ejecucion.
+- Docker Desktop instalado y en ejecución.
 - Repositorio clonado.
 - Dependencias instaladas con `npm install`.
 
 ## Variables de entorno
 
-Crea un archivo `.env.local` en la raiz del proyecto. Este archivo no debe subirse al repositorio.
+Crea un archivo `.env.local` en la raíz del proyecto. Este archivo no debe subirse al repositorio.
 
 ```cmd
 NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321
@@ -25,7 +25,7 @@ Notas importantes:
 
 - `.env.local` no debe subirse al repositorio.
 - No se debe usar la service role key en frontend.
-- La clave publica/publishable no reemplaza las politicas RLS.
+- La clave pública/publishable no reemplaza las políticas RLS.
 - `.env.example` sirve como plantilla.
 
 ## Comandos principales en CMD de Windows
@@ -97,7 +97,7 @@ npm run build
 
 ## Flujo recomendado cuando cambien migraciones
 
-1. Crear o modificar la migracion correspondiente.
+1. Crear o modificar la migración correspondiente.
 2. Ejecutar `npx supabase db reset`.
 3. Regenerar tipos:
 
@@ -110,7 +110,7 @@ npx supabase gen types typescript --local > src\types\database.types.ts
 
 ## Supabase local y otros proyectos
 
-Si otro proyecto local de Supabase esta usando los mismos puertos, puede haber conflicto. Inicialmente se recomienda trabajar con un solo proyecto Supabase local activo a la vez.
+Si otro proyecto local de Supabase está usando los mismos puertos, puede haber conflicto. Inicialmente se recomienda trabajar con un solo proyecto Supabase local activo a la vez.
 
 Detener Supabase local:
 
@@ -124,7 +124,7 @@ Iniciar Supabase local:
 npx supabase start
 ```
 
-Mas adelante se pueden configurar puertos distintos en `supabase/config.toml` si fuera necesario.
+Más adelante se pueden configurar puertos distintos en `supabase/config.toml` si fuera necesario.
 
 ## Supabase Studio
 
@@ -134,11 +134,11 @@ Supabase Studio local normalmente queda disponible en:
 http://localhost:54323
 ```
 
-Desde Studio se pueden revisar tablas, Auth, Storage y politicas. Los cambios estructurales deben mantenerse preferiblemente mediante migraciones.
+Desde Studio se pueden revisar tablas, Auth, Storage y políticas. Los cambios estructurales deben mantenerse preferiblemente mediante migraciones.
 
 ## Manejo de tipos generados
 
-`src/types/database.types.ts` es generado automaticamente por Supabase CLI y no debe editarse manualmente.
+`src/types/database.types.ts` es generado automáticamente por Supabase CLI y no debe editarse manualmente.
 
 Si cambia la base de datos, regenera el archivo con:
 
@@ -150,12 +150,12 @@ Los tipos de dominio deben derivar de `src/types/database.ts`.
 
 ## Problemas conocidos
 
-- Si `npm run build` falla por Google Fonts, revisar la conexion de red.
-- Si Supabase no inicia, revisar que Docker Desktop este corriendo.
+- Si `npm run build` falla por Google Fonts, revisar la conexión de red.
+- Si Supabase no inicia, revisar que Docker Desktop esté corriendo.
 - Si hay conflictos de puertos, detener otros proyectos Supabase locales.
 - Si la base local queda inconsistente, usar `npx supabase db reset` teniendo en cuenta que reinicia los datos locales.
 
-## Que NO se hace en esta fase
+## Qué NO se hace en esta fase
 
 - No implementar login.
 - No implementar logout.
@@ -163,8 +163,8 @@ Los tipos de dominio deben derivar de `src/types/database.ts`.
 - No proteger rutas.
 - No conectar formularios reales.
 - No usar service role key en frontend.
-- No desplegar todavia.
+- No desplegar todavía.
 
 ## Cierre
 
-La siguiente subfase sera la revision final de la Fase 2 antes de pasar a autenticacion.
+La siguiente subfase será la revisión final de la Fase 2 antes de pasar a autenticación.

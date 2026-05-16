@@ -1,19 +1,19 @@
-# Solicitudes publicas
+# Solicitudes públicas
 
-Esta carpeta contiene la logica server-side del flujo publico de solicitudes
+Esta carpeta contiene la lógica server-side del flujo público de solicitudes
 para `/solicitud`.
 
 ## Flujo actual
 
-En Fase 5.1 el cliente externo puede enviar datos basicos de contacto y del
+En Fase 5.1 el cliente externo puede enviar datos básicos de contacto y del
 trabajo solicitado sin tener cuenta de usuario. La solicitud se valida en el
 servidor y se inserta en Supabase con `estado = "nueva"`.
 
 En Fase 5.2, `PublicSolicitudForm` consume la Server Action
 `submitPublicSolicitudAction` desde `/solicitud`. El componente cliente solo
-captura campos publicos y muestra estado de envio, errores y confirmacion.
+captura campos públicos y muestra estado de envío, errores y confirmación.
 
-Por seguridad, el flujo publico no usa service role key. La insercion se hace
+Por seguridad, el flujo público no usa service role key. La inserción se hace
 con el cliente normal de Supabase y depende de RLS.
 
 ## Campos validados
@@ -27,25 +27,25 @@ con el cliente normal de Supabase y depende de RLS.
 - `fecha_deseada`
 - `observaciones`
 
-Los campos se recortan, los opcionales vacios se convierten a `null`, y se
-validan longitudes razonables, formato basico de correo, cantidad positiva y
-fecha valida. `fecha_deseada` es opcional, pero si se informa debe ser igual o
-posterior al dia actual. La validacion definitiva ocurre en servidor.
+Los campos se recortan, los opcionales vacíos se convierten a `null`, y se
+validan longitudes razonables, formato básico de correo, cantidad positiva y
+fecha válida. `fecha_deseada` es opcional, pero si se informa debe ser igual o
+posterior al día actual. La validación definitiva ocurre en servidor.
 
 El formulario no acepta campos sensibles como `id`, `estado`, `cliente_id`,
-`reviewed_by` ni `converted_order_id`. La validacion definitiva sigue estando
+`reviewed_by` ni `converted_order_id`. La validación definitiva sigue estando
 en servidor.
 
-La referencia mostrada al cliente es una version corta del UUID de la solicitud
+La referencia mostrada al cliente es una versión corta del UUID de la solicitud
 y sirve solo como ayuda de seguimiento. No permite leer ni modificar
-solicitudes; RLS impide la lectura publica de `solicitudes`.
+solicitudes; RLS impide la lectura pública de `solicitudes`.
 
 ## Alcance excluido
 
-- No hay subida real de archivos todavia.
-- No se crean buckets ni policies de Storage desde este modulo.
-- No se convierte automaticamente la solicitud en pedido.
-- No se hace deduplicacion avanzada ni asociacion inteligente de clientes;
+- No hay subida real de archivos todavía.
+- No se crean buckets ni policies de Storage desde este módulo.
+- No se convierte automáticamente la solicitud en pedido.
+- No se hace deduplicación avanzada ni asociación inteligente de clientes;
   queda para Fase 7.
 
 ## Consultas internas
@@ -56,8 +56,8 @@ solicitudes; RLS impide la lectura publica de `solicitudes`.
 el cliente normal de Supabase, sin service role key.
 
 La consulta respeta RLS: `admin` y `supervisor` pueden leer solicitudes, pero
-`trabajador` y usuarios anonimos no deben acceder. El filtro opcional `estado`
-solo acepta los estados definidos en `solicitud_estado`; valores invalidos se
+`trabajador` y usuarios anónimos no deben acceder. El filtro opcional `estado`
+solo acepta los estados definidos en `solicitud_estado`; valores inválidos se
 ignoran de forma controlada.
 
 ## Detalle interno
@@ -87,14 +87,14 @@ Estados manuales permitidos:
 - `rechazada`
 
 `convertida` no aparece en el formulario ni se acepta en servidor; queda
-reservada para el flujo formal de conversion a pedido. La actualizacion usa el
+reservada para el flujo formal de conversión a pedido. La actualización usa el
 cliente normal de Supabase, respeta RLS, no usa service role key y no consulta
 ni modifica pedidos, clientes o archivos.
 
-## Decision sobre clientes
+## Decisión sobre clientes
 
-La tabla `solicitudes` guarda una copia de los datos de contacto publicos. En
+La tabla `solicitudes` guarda una copia de los datos de contacto públicos. En
 esta fase se deja `cliente_id = null` y no se inserta en `clientes`, porque la
-politica RLS publica actual permite crear solicitudes nuevas sin exponer ni
-modificar la tabla de clientes. La asociacion con clientes se resolvera en una
+política RLS pública actual permite crear solicitudes nuevas sin exponer ni
+modificar la tabla de clientes. La asociación con clientes se resolverá en una
 fase posterior.

@@ -20,7 +20,7 @@ export default function DashboardPedidosPage() {
       </div>
       <PlaceholderCard
         title="Listado de pedidos futuro"
-        description="Esta vista reserva el espacio del modulo de pedidos sin implementar flujo real."
+        description="Esta vista reserva el espacio del módulo de pedidos sin implementar flujo real."
       />
     </div>
   );

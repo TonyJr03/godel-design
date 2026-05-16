@@ -1,8 +1,8 @@
-# Modelo de Storage Inicial — Godel Design
+# Modelo de Storage Inicial — Godel Diseño
 
 ## Propósito
 
-Este documento define la estrategia inicial para almacenar archivos enviados por clientes y archivos internos asociados a pedidos en Godel Design.
+Este documento define la estrategia inicial para almacenar archivos enviados por clientes y archivos internos asociados a pedidos en Godel Diseño.
 
 El objetivo es dejar clara la estructura esperada de Supabase Storage antes de crear buckets, policies de `storage.objects` o lógica real de subida y descarga en Next.js.
 

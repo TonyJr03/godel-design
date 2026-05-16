@@ -10,7 +10,7 @@ export default function DashboardPage() {
       />
       <PlaceholderCard
         title="Resumen operativo futuro"
-        description="Aqui se mostraran indicadores y alertas cuando existan datos reales."
+        description="Aquí se mostrarán indicadores y alertas cuando existan datos reales."
       />
     </div>
   );
