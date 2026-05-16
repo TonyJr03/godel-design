@@ -1,17 +1,33 @@
-import { PageHeader } from "@/components/ui/PageHeader";
-import { PlaceholderCard } from "@/components/ui/PlaceholderCard";
+import { notFound } from "next/navigation";
 
-export default function DashboardSolicitudDetallePage() {
+import { InternalSolicitudDetail } from "@/components/solicitudes/InternalSolicitudDetail";
+import { getInternalSolicitudById } from "@/lib/solicitudes";
+
+type DashboardSolicitudDetallePageProps = {
+  params: Promise<{
+    id: string;
+  }>;
+};
+
+export default async function DashboardSolicitudDetallePage({
+  params,
+}: DashboardSolicitudDetallePageProps) {
+  const { id } = await params;
+  const result = await getInternalSolicitudById(id);
+
+  if (!result.ok && ["invalid_id", "not_found"].includes(result.reason)) {
+    notFound();
+  }
+
   return (
     <div className="space-y-8">
-      <PageHeader
-        title="Detalle de solicitud"
-        description="Vista futura para revisar una solicitud especifica."
-      />
-      <PlaceholderCard
-        title="Detalle pendiente"
-        description="La ruta dinamica queda preparada sin leer datos ni parametros por ahora."
-      />
+      {!result.ok ? (
+        <section className="rounded-lg border border-red-200 bg-red-50 p-5 text-sm text-red-950">
+          {result.message}
+        </section>
+      ) : (
+        <InternalSolicitudDetail solicitud={result.solicitud} />
+      )}
     </div>
   );
 }

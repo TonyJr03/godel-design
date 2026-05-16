@@ -60,8 +60,16 @@ La consulta respeta RLS: `admin` y `supervisor` pueden leer solicitudes, pero
 solo acepta los estados definidos en `solicitud_estado`; valores invalidos se
 ignoran de forma controlada.
 
-El detalle de solicitud, cambio de estado, archivos y conversion a pedido quedan
-para proximas subfases.
+## Detalle interno
+
+`getInternalSolicitudById` carga server-side el detalle para
+`/dashboard/solicitudes/[id]`. Valida que el identificador tenga formato UUID,
+requiere permiso `solicitudes.view` y consulta Supabase con el cliente normal,
+sin service role key.
+
+La ruta de detalle respeta RLS y no consulta pedidos ni archivos. Tampoco
+permite editar solicitudes, cambiar estado, eliminar datos ni convertir a
+pedido; esas acciones quedan para subfases posteriores.
 
 ## Decision sobre clientes
 

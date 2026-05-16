@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { InternalSolicitud } from "@/lib/solicitudes";
 
 type InternalSolicitudesListProps = {
@@ -105,13 +106,12 @@ export function InternalSolicitudesList({
                   {solicitud.cantidad ?? "No definida"}
                 </td>
                 <td className="px-4 py-4 text-right">
-                  <button
-                    type="button"
-                    disabled
-                    className="inline-flex h-9 cursor-not-allowed items-center justify-center rounded-md border border-zinc-200 px-3 text-xs font-semibold text-zinc-400"
+                  <Link
+                    href={`/dashboard/solicitudes/${solicitud.id}`}
+                    className="inline-flex h-9 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 text-xs font-semibold text-zinc-700 transition hover:border-zinc-400"
                   >
                     Ver detalle
-                  </button>
+                  </Link>
                 </td>
               </tr>
             ))}
