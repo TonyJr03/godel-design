@@ -1,17 +1,10 @@
 import Link from "next/link";
 import type { InternalSolicitudDetail as InternalSolicitudDetailData } from "@/lib/solicitudes";
+import { SOLICITUD_STATUS_LABELS } from "@/lib/solicitudes/status";
+import { SolicitudStatusForm } from "./SolicitudStatusForm";
 
 type InternalSolicitudDetailProps = {
   solicitud: InternalSolicitudDetailData;
-};
-
-const ESTADO_LABELS: Record<InternalSolicitudDetailData["estado"], string> = {
-  nueva: "Nueva",
-  en_revision: "En revision",
-  contactada: "Contactada",
-  aprobada: "Aprobada",
-  rechazada: "Rechazada",
-  convertida: "Convertida",
 };
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("es", {
@@ -76,7 +69,7 @@ export function InternalSolicitudDetail({
       <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center gap-3">
           <span className="inline-flex rounded-md bg-teal-50 px-2.5 py-1.5 text-sm font-semibold text-teal-800 ring-1 ring-inset ring-teal-700/15">
-            {ESTADO_LABELS[solicitud.estado]}
+            {SOLICITUD_STATUS_LABELS[solicitud.estado]}
           </span>
           <span className="text-xs text-zinc-500">
             ID completo: <span className="font-mono">{solicitud.id}</span>
@@ -108,6 +101,21 @@ export function InternalSolicitudDetail({
             value={formatDate(solicitud.updated_at)}
           />
         </dl>
+      </section>
+
+      <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-zinc-950">
+          Gestion interna
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-zinc-600">
+          Actualiza el estado operativo de la solicitud.
+        </p>
+        <div className="mt-5">
+          <SolicitudStatusForm
+            solicitudId={solicitud.id}
+            currentStatus={solicitud.estado}
+          />
+        </div>
       </section>
 
       <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">

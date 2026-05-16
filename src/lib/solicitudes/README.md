@@ -71,6 +71,26 @@ La ruta de detalle respeta RLS y no consulta pedidos ni archivos. Tampoco
 permite editar solicitudes, cambiar estado, eliminar datos ni convertir a
 pedido; esas acciones quedan para subfases posteriores.
 
+## Cambio de estado
+
+`updateInternalSolicitudStatus` cambia server-side el estado operativo de una
+solicitud desde la action de `/dashboard/solicitudes/[id]`. Requiere usuario
+interno activo con permiso `solicitudes.manage`, valida el UUID y solo acepta
+estados manuales permitidos.
+
+Estados manuales permitidos:
+
+- `nueva`
+- `en_revision`
+- `contactada`
+- `aprobada`
+- `rechazada`
+
+`convertida` no aparece en el formulario ni se acepta en servidor; queda
+reservada para el flujo formal de conversion a pedido. La actualizacion usa el
+cliente normal de Supabase, respeta RLS, no usa service role key y no consulta
+ni modifica pedidos, clientes o archivos.
+
 ## Decision sobre clientes
 
 La tabla `solicitudes` guarda una copia de los datos de contacto publicos. En
