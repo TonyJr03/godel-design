@@ -39,10 +39,18 @@ export default async function DashboardPedidosPage({
 
   return (
     <div className="space-y-8">
-      <PageHeader
-        title="Pedidos"
-        description="Listado interno de pedidos oficiales para seguimiento operativo."
-      />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <PageHeader
+          title="Pedidos"
+          description="Listado interno de pedidos oficiales para seguimiento operativo."
+        />
+        <Link
+          href="/dashboard/pedidos/nuevo"
+          className="inline-flex min-h-10 items-center justify-center rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800"
+        >
+          Nuevo pedido
+        </Link>
+      </div>
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-zinc-950">
