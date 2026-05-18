@@ -374,6 +374,10 @@ Construir el núcleo operativo del sistema: la gestión de pedidos oficiales.
 
 La empresa puede crear, consultar, actualizar y controlar pedidos reales.
 
+### Cierre de fase
+
+La Fase 8 quedó completada con listado de pedidos, detalle interno, creación manual, conversión desde solicitud aprobada, cambio de estado, asignación de trabajador responsable, visibilidad controlada de cliente y solicitud para trabajadores asignados, y documentación oficial del flujo en `docs/ORDERS_FLOW.md`.
+
 ---
 
 ## Fase 9 — Asignación de trabajadores
@@ -652,7 +656,7 @@ Después de cada tarea de Codex se revisará:
 | 5 | Solicitudes públicas | Completada |
 | 6 | Gestión interna de solicitudes | Completada |
 | 7 | Clientes | Completada |
-| 8 | Pedidos | Pendiente |
+| 8 | Pedidos | Completada |
 | 9 | Asignación de trabajadores | Pendiente |
 | 10 | Archivos privados | Pendiente |
 | 11 | Comentarios internos e historial | Pendiente |
@@ -667,7 +671,7 @@ Después de cada tarea de Codex se revisará:
 
 La próxima fase activa será:
 
-# Fase 8 — Pedidos
+# Fase 9 — Asignación de trabajadores
 
 La Fase 1 quedó completada con el modelo de datos inicial, migraciones base, políticas RLS iniciales y modelo de Storage documentado.
 
@@ -690,3 +694,7 @@ La Fase 7 quedó completada con listado interno de clientes, búsqueda básica, 
 Quedan fuera de Fase 7 y se abordarán en fases posteriores: pedidos, conversión de solicitud a pedido, archivos privados, eliminación de clientes, historial avanzado, deduplicación inteligente y notificaciones.
 
 Las validaciones de permisos en acciones server-side concretas se aplicarán al implementar los módulos reales de solicitudes, pedidos, clientes y usuarios internos.
+
+La Fase 8 quedó completada con listado de pedidos, detalle, creación manual, conversión desde solicitud aprobada, cambio de estado, asignación de trabajador responsable, visibilidad controlada de cliente y solicitud para trabajadores asignados, y documentación del flujo.
+
+Nota para Fase 9: Fase 8 ya implementó una asignación responsable básica para pedidos. La Fase 9 deberá revisarse antes de iniciar para decidir si se mantiene como refinamiento, ampliación a múltiples trabajadores, remoción explícita de asignaciones, reglas adicionales de carga de trabajo o ajuste del roadmap.
