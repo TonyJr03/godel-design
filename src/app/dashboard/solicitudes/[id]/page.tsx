@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { SolicitudClienteForm } from "@/components/solicitudes/SolicitudClienteForm";
+import { SolicitudConvertPedidoForm } from "@/components/solicitudes/SolicitudConvertPedidoForm";
 import { InternalSolicitudDetail } from "@/components/solicitudes/InternalSolicitudDetail";
 import { getInternalClienteById, listInternalClientes } from "@/lib/clientes";
 import { getInternalSolicitudById } from "@/lib/solicitudes";
@@ -54,6 +55,14 @@ export default async function DashboardSolicitudDetallePage({
               clientesResult.ok ? clientesResult.clientes : []
             }
             clientesLoadError={clientesResult.ok ? null : clientesResult.message}
+          />
+        }
+        conversionSection={
+          <SolicitudConvertPedidoForm
+            solicitudId={result.solicitud.id}
+            estado={result.solicitud.estado}
+            clienteId={result.solicitud.cliente_id}
+            convertedOrderId={result.solicitud.converted_order_id}
           />
         }
       />

@@ -7,6 +7,7 @@ import { SolicitudStatusForm } from "./SolicitudStatusForm";
 type InternalSolicitudDetailProps = {
   solicitud: InternalSolicitudDetailData;
   clienteSection?: ReactNode;
+  conversionSection?: ReactNode;
 };
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("es", {
@@ -40,6 +41,7 @@ function DetailItem({ label, value }: { label: string; value: ReactNode }) {
 export function InternalSolicitudDetail({
   solicitud,
   clienteSection,
+  conversionSection,
 }: InternalSolicitudDetailProps) {
   return (
     <article className="space-y-6">
@@ -101,6 +103,8 @@ export function InternalSolicitudDetail({
       </section>
 
       {clienteSection}
+
+      {conversionSection}
 
       <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-zinc-950">

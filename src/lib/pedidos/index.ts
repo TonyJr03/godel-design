@@ -18,6 +18,11 @@ export {
   createInternalPedido,
   type CreateInternalPedidoResult,
 } from "./create-internal-pedido";
+export {
+  createPedidoFromSolicitud,
+  type CreatePedidoFromSolicitudInput,
+  type CreatePedidoFromSolicitudResult,
+} from "./create-pedido-from-solicitud";
 export { generatePedidoNumber } from "./order-number";
 export {
   PEDIDO_FIELDS,

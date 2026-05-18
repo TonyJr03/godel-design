@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { createPedidoFromSolicitud } from "@/lib/pedidos";
 import {
   associateSolicitudWithCliente,
   createClienteFromSolicitudAndAssociate,
@@ -20,6 +21,13 @@ export type AssociateSolicitudClienteActionState = {
 export type CreateClienteFromSolicitudActionState = {
   ok: boolean;
   message: string;
+};
+
+export type ConvertSolicitudToPedidoActionState = {
+  ok: boolean;
+  message: string;
+  pedidoId?: string;
+  numeroPedido?: string;
 };
 
 function getFormValue(formData: FormData, key: string) {
@@ -107,5 +115,32 @@ export async function createClienteFromSolicitudAction(
   return {
     ok: true,
     message: "Cliente creado y asociado correctamente.",
+  };
+}
+
+export async function convertSolicitudToPedidoAction(
+  _prevState: ConvertSolicitudToPedidoActionState,
+  formData: FormData,
+): Promise<ConvertSolicitudToPedidoActionState> {
+  const solicitudId = getFormValue(formData, "solicitud_id");
+  const result = await createPedidoFromSolicitud({ solicitudId });
+
+  if (!result.ok) {
+    return {
+      ok: false,
+      message: result.message,
+    };
+  }
+
+  revalidatePath("/dashboard/solicitudes");
+  revalidatePath(`/dashboard/solicitudes/${solicitudId}`);
+  revalidatePath("/dashboard/pedidos");
+  revalidatePath(`/dashboard/pedidos/${result.pedidoId}`);
+
+  return {
+    ok: true,
+    message: "Pedido creado correctamente.",
+    pedidoId: result.pedidoId,
+    numeroPedido: result.numeroPedido,
   };
 }

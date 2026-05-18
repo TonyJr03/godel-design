@@ -53,18 +53,42 @@ El servicio `createInternalPedido`:
 - no modifica solicitudes ni `converted_order_id`;
 - no usa service role key.
 
-La conversión desde solicitud queda para una subfase posterior.
+## Conversión desde solicitud
+
+`createPedidoFromSolicitud` convierte una solicitud aprobada en pedido desde el detalle de solicitud.
+
+La action del detalle de solicitud lee únicamente `solicitud_id` desde `FormData` y delega la lógica en el servicio.
+
+El servicio:
+
+- requiere `solicitudes.manage` y `pedidos.manage`;
+- valida UUID server-side;
+- solo permite solicitudes con estado `aprobada`;
+- requiere que la solicitud tenga `cliente_id`;
+- impide convertir solicitudes con `converted_order_id`;
+- crea el pedido con `solicitud_id`;
+- usa estado inicial `solicitud_recibida`;
+- genera `numero_pedido` en servidor con `generatePedidoNumber`;
+- actualiza `solicitudes.estado` a `convertida`;
+- actualiza `solicitudes.converted_order_id` con el pedido creado;
+- no acepta datos de pedido desde el formulario;
+- no crea ni modifica clientes;
+- no asigna trabajadores;
+- no usa service role key.
+
+El cambio de estado de pedido y la asignación de trabajadores quedan para próximas subfases.
 
 ## Alcance por rol
 
 - `admin` y `supervisor` ven todos los pedidos.
 - `admin` y `supervisor` pueden ver el detalle de cualquier pedido.
 - `admin` y `supervisor` pueden crear pedidos manuales.
+- `admin` y `supervisor` pueden convertir solicitudes aprobadas en pedidos.
 - `trabajador` ve solo pedidos asignados mediante `pedido_trabajadores`.
 - `trabajador` solo puede ver el detalle si está asignado al pedido.
-- `trabajador` no puede crear pedidos.
+- `trabajador` no puede crear ni convertir pedidos.
 - usuarios anónimos no pueden leer ni crear pedidos.
 
 ## Fuera de esta subfase
 
-La conversión de solicitudes a pedidos, el cambio de estado, la asignación de trabajadores, la edición, la eliminación, archivos, notificaciones e historial avanzado quedan para próximas subfases.
+El cambio de estado, la asignación de trabajadores, la edición, la eliminación, archivos, notificaciones e historial avanzado quedan para próximas subfases.

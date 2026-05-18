@@ -45,6 +45,12 @@ Estados manuales permitidos:
 
 `convertida` no aparece en el formulario ni se acepta en servidor; queda reservada para el flujo formal de conversión a pedido.
 
+## Conversión a pedido
+
+Una solicitud aprobada con cliente asociado puede convertirse en pedido desde el detalle interno de la solicitud.
+
+El estado `convertida` no se establece manualmente desde el selector de estado. Se establece mediante el flujo formal de conversión, que crea un pedido, relaciona `pedidos.solicitud_id`, actualiza `solicitudes.converted_order_id` y deja la solicitud en estado `convertida`.
+
 ## Asociación solicitud-cliente
 
 `associateSolicitudWithCliente` asocia una solicitud con un cliente existente. Requiere `solicitudes.manage` y `clientes.view`, valida UUID de solicitud y cliente, verifica que ambos registros existan y actualiza únicamente `solicitudes.cliente_id`.
@@ -56,11 +62,11 @@ Las actions del detalle de solicitud son:
 - `associateSolicitudClienteAction`
 - `createClienteFromSolicitudAction`
 
-No se usa service role key, no se convierte la solicitud en pedido, no se modifica `converted_order_id` y no se implementa deduplicación avanzada.
+No se usa service role key y no se implementa deduplicación avanzada.
 
 ## Alcance excluido
 
 - No hay subida real de archivos todavía.
 - No se crean buckets ni policies de Storage desde este módulo.
-- No se convierte automáticamente la solicitud en pedido.
+- No se convierte automáticamente la solicitud en pedido fuera del flujo formal.
 - No se implementa deduplicación inteligente de clientes.
