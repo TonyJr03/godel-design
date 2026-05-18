@@ -3,8 +3,10 @@
 import { revalidatePath } from "next/cache";
 import {
   assignInternalPedidoWorker,
+  removeInternalPedidoWorker,
   updateInternalPedidoStatus,
   type PedidoWorkerFieldErrors,
+  type RemovePedidoWorkerFieldErrors,
   type PedidoStatusFieldErrors,
 } from "@/lib/pedidos";
 
@@ -18,6 +20,12 @@ export type AssignPedidoWorkerActionState = {
   ok: boolean;
   message: string;
   fieldErrors?: PedidoWorkerFieldErrors;
+};
+
+export type RemovePedidoWorkerActionState = {
+  ok: boolean;
+  message: string;
+  fieldErrors?: RemovePedidoWorkerFieldErrors;
 };
 
 function getFormValue(formData: FormData, key: string) {
@@ -78,6 +86,36 @@ export async function assignPedidoWorkerAction(
 
   return {
     ok: true,
-    message: "Trabajador asignado correctamente.",
+    message: result.alreadyAssigned
+      ? "El trabajador ya estaba asignado a este pedido."
+      : "Trabajador asignado correctamente.",
+  };
+}
+
+export async function removePedidoWorkerAction(
+  _prevState: RemovePedidoWorkerActionState,
+  formData: FormData,
+): Promise<RemovePedidoWorkerActionState> {
+  const pedidoId = getFormValue(formData, "pedido_id");
+  const trabajadorId = getFormValue(formData, "trabajador_id");
+  const result = await removeInternalPedidoWorker({
+    pedidoId,
+    trabajadorId,
+  });
+
+  if (!result.ok) {
+    return {
+      ok: false,
+      message: result.message,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePath("/dashboard/pedidos");
+  revalidatePath(`/dashboard/pedidos/${pedidoId}`);
+
+  return {
+    ok: true,
+    message: "Asignación removida correctamente.",
   };
 }

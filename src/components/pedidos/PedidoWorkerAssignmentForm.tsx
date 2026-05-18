@@ -9,7 +9,6 @@ import type { AssignableWorker } from "@/lib/pedidos/list-assignable-workers";
 
 type PedidoWorkerAssignmentFormProps = {
   pedidoId: string;
-  trabajadorActualId: string | null;
   trabajadores: AssignableWorker[];
 };
 
@@ -20,28 +19,21 @@ const initialState: AssignPedidoWorkerActionState = {
 
 export function PedidoWorkerAssignmentForm({
   pedidoId,
-  trabajadorActualId,
   trabajadores,
 }: PedidoWorkerAssignmentFormProps) {
   const [state, formAction, pending] = useActionState(
     assignPedidoWorkerAction,
     initialState,
   );
-  const trabajadorActual = trabajadores.find(
-    (trabajador) => trabajador.id === trabajadorActualId,
-  );
   const trabajadorError = state.fieldErrors?.trabajador_id;
-  const hasCurrentWorker = Boolean(trabajadorActualId);
 
   return (
     <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
       <h3 className="text-lg font-semibold text-zinc-950">
-        Trabajador responsable
+        Asignación de trabajadores
       </h3>
       <p className="mt-2 text-sm leading-6 text-zinc-600">
-        {trabajadorActual
-          ? `Responsable actual: ${trabajadorActual.full_name}`
-          : "Sin trabajador asignado"}
+        Selecciona un trabajador activo para agregarlo a este pedido.
       </p>
 
       {trabajadores.length === 0 ? (
@@ -76,7 +68,7 @@ export function PedidoWorkerAssignmentForm({
             <select
               id="trabajador_id"
               name="trabajador_id"
-              defaultValue={trabajadorActualId ?? ""}
+              defaultValue=""
               disabled={pending}
               required
               aria-invalid={Boolean(trabajadorError)}
@@ -109,11 +101,7 @@ export function PedidoWorkerAssignmentForm({
             disabled={pending}
             className="inline-flex min-h-10 items-center justify-center rounded-md bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
           >
-            {pending
-              ? "Asignando..."
-              : hasCurrentWorker
-                ? "Cambiar trabajador"
-                : "Asignar trabajador"}
+            {pending ? "Asignando..." : "Asignar trabajador"}
           </button>
         </form>
       )}

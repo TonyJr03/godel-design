@@ -40,8 +40,6 @@ export default async function DashboardPedidoDetallePage({
   const canManagePedidos =
     profile !== null && hasPermission(profile.role, "pedidos.manage");
   const workersResult = canManagePedidos ? await listAssignableWorkers() : null;
-  const currentWorkerId =
-    result.pedido.pedido_trabajadores[0]?.trabajador_id ?? null;
 
   return (
     <div className="space-y-8">
@@ -56,7 +54,6 @@ export default async function DashboardPedidoDetallePage({
             workersResult?.ok ? (
               <PedidoWorkerAssignmentForm
                 pedidoId={result.pedido.id}
-                trabajadorActualId={currentWorkerId}
                 trabajadores={workersResult.workers}
               />
             ) : (

@@ -59,3 +59,9 @@ export {
   type AssignInternalPedidoWorkerResult,
   type PedidoWorkerFieldErrors,
 } from "./assign-internal-pedido-worker";
+export {
+  removeInternalPedidoWorker,
+  type RemoveInternalPedidoWorkerInput,
+  type RemoveInternalPedidoWorkerResult,
+  type RemovePedidoWorkerFieldErrors,
+} from "./remove-internal-pedido-worker";

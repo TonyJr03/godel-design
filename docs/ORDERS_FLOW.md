@@ -86,7 +86,7 @@ Campos principales usados actualmente en `pedidos`:
 | `created_at` | Fecha de creación del registro. |
 | `updated_at` | Fecha de última actualización. |
 
-La asignación se guarda en `pedido_trabajadores`, que relaciona pedidos con perfiles internos de rol `trabajador`. Aunque el modelo permite varias filas, en esta fase se usa como asignación responsable simple.
+La asignación se guarda en `pedido_trabajadores`, que relaciona pedidos con perfiles internos de rol `trabajador`. La asignación responsable simple de Fase 8 evoluciona en Fase 9 hacia asignaciones múltiples: un pedido puede tener varios trabajadores y un trabajador puede estar asignado a varios pedidos.
 
 Reglas actuales:
 

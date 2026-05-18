@@ -15,6 +15,7 @@ export type PedidoWorkerFieldErrors = Partial<
 export type AssignInternalPedidoWorkerResult =
   | {
       ok: true;
+      alreadyAssigned?: boolean;
     }
   | {
       ok: false;
@@ -26,6 +27,7 @@ export type AssignInternalPedidoWorkerResult =
         | "trabajador_not_found"
         | "trabajador_inactive"
         | "invalid_role"
+        | "already_assigned"
         | "error";
       message: string;
       fieldErrors?: PedidoWorkerFieldErrors;
@@ -178,14 +180,19 @@ export async function assignInternalPedidoWorker(
       };
     }
 
-    const { data: assignments, error: assignmentsError } = await supabase
-      .from("pedido_trabajadores")
-      .select("id, trabajador_id")
-      .eq("pedido_id", pedidoId)
-      .returns<PedidoAssignment[]>();
+    const { data: existingAssignment, error: existingAssignmentError } =
+      await supabase
+        .from("pedido_trabajadores")
+        .select("id, trabajador_id")
+        .eq("pedido_id", pedidoId)
+        .eq("trabajador_id", trabajadorId)
+        .maybeSingle<PedidoAssignment>();
 
-    if (assignmentsError) {
-      console.error("Error loading pedido worker assignments", assignmentsError);
+    if (existingAssignmentError) {
+      console.error(
+        "Error checking pedido worker assignment",
+        existingAssignmentError,
+      );
 
       return {
         ok: false,
@@ -194,54 +201,30 @@ export async function assignInternalPedidoWorker(
       };
     }
 
-    const currentAssignments = assignments ?? [];
-    const alreadyAssigned = currentAssignments.some(
-      (assignment) => assignment.trabajador_id === trabajadorId,
-    );
+    if (existingAssignment) {
+      return {
+        ok: true,
+        alreadyAssigned: true,
+      };
+    }
 
-    if (!alreadyAssigned) {
-      const { error: insertError } = await supabase
-        .from("pedido_trabajadores")
-        .insert({
-          pedido_id: pedidoId,
-          trabajador_id: trabajadorId,
-          assigned_by: profile.id,
-        });
+    const { error: insertError } = await supabase
+      .from("pedido_trabajadores")
+      .insert({
+        pedido_id: pedidoId,
+        trabajador_id: trabajadorId,
+        assigned_by: profile.id,
+      });
 
-      if (insertError && insertError.code !== "23505") {
-        console.error("Error inserting pedido worker assignment", insertError);
-
+    if (insertError) {
+      if (insertError.code === "23505") {
         return {
-          ok: false,
-          reason: "error",
-          message: GENERIC_ASSIGN_ERROR,
+          ok: true,
+          alreadyAssigned: true,
         };
       }
-    }
 
-    const { error: deleteError } = await supabase
-      .from("pedido_trabajadores")
-      .delete()
-      .eq("pedido_id", pedidoId)
-      .neq("trabajador_id", trabajadorId);
-
-    if (deleteError) {
-      console.error("Error replacing pedido worker assignment", deleteError);
-
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_ASSIGN_ERROR,
-      };
-    }
-
-    const { error: updatePedidoError } = await supabase
-      .from("pedidos")
-      .update({ updated_at: new Date().toISOString() })
-      .eq("id", pedidoId);
-
-    if (updatePedidoError) {
-      console.error("Error touching pedido after worker assignment", updatePedidoError);
+      console.error("Error inserting pedido worker assignment", insertError);
 
       return {
         ok: false,

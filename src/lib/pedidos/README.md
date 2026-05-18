@@ -44,6 +44,8 @@ La RPC permite a `admin` y `supervisor` cambiar cualquier pedido y a `trabajador
 
 La action `assignPedidoWorkerAction` lee únicamente `pedido_id` y `trabajador_id`, y delega en `assignInternalPedidoWorker`.
 
+La action `removePedidoWorkerAction` lee únicamente `pedido_id` y `trabajador_id`, y delega en `removeInternalPedidoWorker` para remover una asignación concreta.
+
 `listAssignableWorkers` carga server-side perfiles activos con rol `trabajador`, ordenados por nombre.
 
 `assignInternalPedidoWorker`:
@@ -53,10 +55,21 @@ La action `assignPedidoWorkerAction` lee únicamente `pedido_id` y `trabajador_i
 - valida que el pedido exista;
 - valida que el trabajador destino exista, esté activo y tenga rol `trabajador`;
 - usa las policies seguras existentes de `pedido_trabajadores`, que permiten insertar/eliminar solo a `admin` o `supervisor`;
-- para esta subfase mantiene una asignación responsable simple: inserta el trabajador elegido si hace falta y elimina otras asignaciones del pedido;
+- permite múltiples trabajadores por pedido: inserta el trabajador elegido si hace falta y no reemplaza ni elimina a los demás;
+- evita duplicados comprobando primero la asignación y apoyándose en la restricción única `(pedido_id, trabajador_id)`;
+- guarda `assigned_by` con el perfil que realiza la asignación y usa el default de `assigned_at`;
 - no modifica estado, solicitud, `converted_order_id`, archivos ni datos generales del pedido.
 
-No se creó RPC nueva porque las policies existentes ya restringen inserción, actualización y eliminación de asignaciones a admin/supervisor. Trabajadores no pueden asignar trabajadores.
+`removeInternalPedidoWorker`:
+
+- requiere `pedidos.manage`;
+- valida UUID de pedido y trabajador;
+- valida que el pedido exista;
+- valida que la asignación exista;
+- elimina solo la relación concreta `(pedido_id, trabajador_id)`;
+- no elimina pedidos, perfiles, solicitudes ni modifica `converted_order_id`.
+
+No se creó RPC nueva porque las policies existentes ya restringen inserción, actualización y eliminación de asignaciones a admin/supervisor. No se usa service role key. Trabajadores no pueden asignar ni remover trabajadores.
 
 ## Alcance por Rol
 
@@ -65,12 +78,12 @@ No se creó RPC nueva porque las policies existentes ya restringen inserción, a
 - `admin` y `supervisor` pueden crear pedidos manuales.
 - `admin` y `supervisor` pueden convertir solicitudes aprobadas en pedidos.
 - `admin` y `supervisor` pueden cambiar el estado de cualquier pedido.
-- `admin` y `supervisor` pueden asignar o cambiar el trabajador responsable.
+- `admin` y `supervisor` pueden asignar o remover trabajadores de un pedido.
 - `trabajador` ve solo pedidos asignados mediante `pedido_trabajadores`.
 - `trabajador` solo puede ver el detalle si está asignado al pedido.
 - `trabajador` puede ver cliente y solicitud asociados a pedidos asignados.
 - `trabajador` puede cambiar el estado solo de pedidos asignados.
-- `trabajador` no puede crear, convertir ni asignar pedidos.
+- `trabajador` no puede crear, convertir, asignar ni remover asignaciones de pedidos.
 - usuarios anónimos no pueden leer ni crear pedidos.
 
 ## Fuera de Esta Subfase
