@@ -1,7 +1,10 @@
 import { notFound } from "next/navigation";
 import { InternalPedidoDetail } from "@/components/pedidos/InternalPedidoDetail";
+import { PedidoWorkerAssignmentForm } from "@/components/pedidos/PedidoWorkerAssignmentForm";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { getInternalPedidoById } from "@/lib/pedidos";
+import { getCurrentProfile } from "@/lib/auth/current-user";
+import { hasPermission } from "@/lib/permissions/permissions";
+import { getInternalPedidoById, listAssignableWorkers } from "@/lib/pedidos";
 
 type DashboardPedidoDetallePageProps = {
   params: Promise<{
@@ -33,13 +36,38 @@ export default async function DashboardPedidoDetallePage({
     );
   }
 
+  const profile = await getCurrentProfile();
+  const canManagePedidos =
+    profile !== null && hasPermission(profile.role, "pedidos.manage");
+  const workersResult = canManagePedidos ? await listAssignableWorkers() : null;
+  const currentWorkerId =
+    result.pedido.pedido_trabajadores[0]?.trabajador_id ?? null;
+
   return (
     <div className="space-y-8">
       <PageHeader
         title="Detalle de pedido"
         description="Consulta interna de la información registrada del pedido."
       />
-      <InternalPedidoDetail pedido={result.pedido} />
+      <InternalPedidoDetail
+        pedido={result.pedido}
+        workerAssignmentSection={
+          canManagePedidos ? (
+            workersResult?.ok ? (
+              <PedidoWorkerAssignmentForm
+                pedidoId={result.pedido.id}
+                trabajadorActualId={currentWorkerId}
+                trabajadores={workersResult.workers}
+              />
+            ) : (
+              <section className="rounded-lg border border-red-200 bg-red-50 p-5 text-sm text-red-950">
+                {workersResult?.message ??
+                  "No se pudieron cargar los trabajadores."}
+              </section>
+            )
+          ) : null
+        }
+      />
     </div>
   );
 }

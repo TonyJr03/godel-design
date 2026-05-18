@@ -5,6 +5,7 @@ import { PedidoStatusForm } from "./PedidoStatusForm";
 
 type InternalPedidoDetailProps = {
   pedido: InternalPedidoDetail;
+  workerAssignmentSection?: ReactNode;
 };
 
 const ESTADO_LABELS: Record<InternalPedidoDetail["estado"], string> = {
@@ -101,7 +102,10 @@ function getTrabajadorName(
   return "Trabajador asignado";
 }
 
-export function InternalPedidoDetail({ pedido }: InternalPedidoDetailProps) {
+export function InternalPedidoDetail({
+  pedido,
+  workerAssignmentSection,
+}: InternalPedidoDetailProps) {
   return (
     <div className="space-y-6">
       <Link
@@ -170,6 +174,8 @@ export function InternalPedidoDetail({ pedido }: InternalPedidoDetailProps) {
       </section>
 
       <PedidoStatusForm pedidoId={pedido.id} estadoActual={pedido.estado} />
+
+      {workerAssignmentSection}
 
       <section className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">

@@ -2,7 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import {
+  assignInternalPedidoWorker,
   updateInternalPedidoStatus,
+  type PedidoWorkerFieldErrors,
   type PedidoStatusFieldErrors,
 } from "@/lib/pedidos";
 
@@ -10,6 +12,12 @@ export type UpdatePedidoStatusActionState = {
   ok: boolean;
   message: string;
   fieldErrors?: PedidoStatusFieldErrors;
+};
+
+export type AssignPedidoWorkerActionState = {
+  ok: boolean;
+  message: string;
+  fieldErrors?: PedidoWorkerFieldErrors;
 };
 
 function getFormValue(formData: FormData, key: string) {
@@ -43,5 +51,33 @@ export async function updatePedidoStatusAction(
   return {
     ok: true,
     message: "Estado actualizado correctamente.",
+  };
+}
+
+export async function assignPedidoWorkerAction(
+  _prevState: AssignPedidoWorkerActionState,
+  formData: FormData,
+): Promise<AssignPedidoWorkerActionState> {
+  const pedidoId = getFormValue(formData, "pedido_id");
+  const trabajadorId = getFormValue(formData, "trabajador_id");
+  const result = await assignInternalPedidoWorker({
+    pedidoId,
+    trabajadorId,
+  });
+
+  if (!result.ok) {
+    return {
+      ok: false,
+      message: result.message,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePath("/dashboard/pedidos");
+  revalidatePath(`/dashboard/pedidos/${pedidoId}`);
+
+  return {
+    ok: true,
+    message: "Trabajador asignado correctamente.",
   };
 }

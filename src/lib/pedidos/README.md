@@ -6,108 +6,70 @@
 
 `listInternalPedidos` carga el listado de pedidos desde Server Components usando el cliente de Supabase configurado en `src/lib/supabase/server.ts`.
 
-El servicio:
-
-- obtiene el perfil actual con `getCurrentProfile`;
-- valida el permiso `pedidos.view`;
-- permite filtrar por estado real del enum `pedido_estado`;
-- ordena por `created_at` descendente;
-- limita la carga a un máximo razonable;
-- no usa service role key;
-- devuelve mensajes seguros para la interfaz;
-- respeta RLS como defensa final.
+El servicio valida `pedidos.view`, permite filtrar por `pedido_estado`, ordena por `created_at`, limita la carga y respeta RLS como defensa final. No usa service role key.
 
 ## `getInternalPedidoById`
 
-`getInternalPedidoById` carga el detalle interno de un pedido para la ruta `/dashboard/pedidos/[id]`.
+`getInternalPedidoById` carga el detalle interno de un pedido para `/dashboard/pedidos/[id]`.
 
-El servicio:
+Valida UUID, obtiene el perfil actual, valida `pedidos.view`, carga pedido, cliente, solicitud y trabajadores asignados. Usa la relación explícita `solicitudes!pedidos_solicitud_id_fkey` para evitar ambigüedades.
 
-- valida que el identificador tenga formato UUID antes de consultar;
-- obtiene el perfil actual con `getCurrentProfile`;
-- valida el permiso `pedidos.view`;
-- carga el pedido, cliente asociado, solicitud asociada y trabajadores asignados;
-- usa la relación explícita `solicitudes!pedidos_solicitud_id_fkey` para evitar ambigüedades;
-- no usa service role key;
-- devuelve errores controlados sin exponer detalles técnicos;
-- respeta RLS como defensa final.
+## Creación Manual
 
-## Creación manual
+`/dashboard/pedidos/nuevo` permite crear pedidos manuales asociados a clientes existentes.
 
-La ruta `/dashboard/pedidos/nuevo` permite crear pedidos manuales asociados a clientes existentes.
+La action `createPedidoAction` lee únicamente `cliente_id`, `titulo`, `descripcion`, `prioridad` y `fecha_entrega_estimada`, y delega en `createInternalPedido`.
 
-La action `createPedidoAction` lee únicamente `cliente_id`, `titulo`, `descripcion`, `prioridad` y `fecha_entrega_estimada` desde `FormData`, y delega la lógica en `createInternalPedido`.
+`createInternalPedido` requiere `pedidos.manage`, valida el input, valida el cliente, genera `numero_pedido`, crea el pedido con estado inicial `en_revision`, guarda `solicitud_id` como `null` y no asigna trabajadores.
 
-El servicio `createInternalPedido`:
-
-- requiere el permiso `pedidos.manage`;
-- valida el input con `validatePedidoInput`;
-- valida que el cliente exista y sea accesible;
-- genera `numero_pedido` en servidor con `generatePedidoNumber`;
-- crea el pedido con estado inicial `en_revision`;
-- guarda `solicitud_id` como `null`;
-- guarda `creado_por` con el perfil actual;
-- no acepta estado desde el formulario;
-- no acepta solicitud desde el formulario;
-- no asigna trabajadores;
-- no modifica solicitudes ni `converted_order_id`;
-- no usa service role key.
-
-## Conversión desde solicitud
+## Conversión Desde Solicitud
 
 `createPedidoFromSolicitud` convierte una solicitud aprobada en pedido desde el detalle de solicitud.
 
-La action del detalle de solicitud lee únicamente `solicitud_id` desde `FormData` y delega la lógica en el servicio.
-
-El servicio:
-
-- requiere `solicitudes.manage` y `pedidos.manage`;
-- valida UUID server-side;
-- solo permite solicitudes con estado `aprobada`;
-- requiere que la solicitud tenga `cliente_id`;
-- impide convertir solicitudes con `converted_order_id`;
-- crea el pedido con `solicitud_id`;
-- usa estado inicial `solicitud_recibida`;
-- genera `numero_pedido` en servidor con `generatePedidoNumber`;
-- actualiza `solicitudes.estado` a `convertida`;
-- actualiza `solicitudes.converted_order_id` con el pedido creado;
-- no acepta datos de pedido desde el formulario;
-- no crea ni modifica clientes;
-- no asigna trabajadores;
-- no usa service role key.
+La action del detalle de solicitud lee únicamente `solicitud_id`. El servicio requiere `solicitudes.manage` y `pedidos.manage`, exige estado `aprobada`, exige `cliente_id`, evita solicitudes ya convertidas, crea el pedido con `solicitud_id`, usa estado inicial `solicitud_recibida` y actualiza la solicitud a `convertida` con `converted_order_id`.
 
 ## Cambio de Estado
 
-La ruta `/dashboard/pedidos/[id]` incluye el formulario `PedidoStatusForm` para cambiar el estado del pedido.
+`/dashboard/pedidos/[id]` incluye `PedidoStatusForm`.
 
-La action `updatePedidoStatusAction` lee únicamente `pedido_id` y `estado` desde `FormData`, y delega la lógica en `updateInternalPedidoStatus`.
+La action `updatePedidoStatusAction` lee únicamente `pedido_id` y `estado`, y delega en `updateInternalPedidoStatus`. El servicio valida `pedidos.change_status`, UUID y estado real, verifica acceso al pedido y usa la RPC segura existente `public.actualizar_estado_pedido`.
 
-El servicio `updateInternalPedidoStatus`:
+La RPC permite a `admin` y `supervisor` cambiar cualquier pedido y a `trabajador` cambiar solo pedidos asignados, sin conceder a trabajadores un `UPDATE` amplio sobre `pedidos`.
 
-- requiere el permiso `pedidos.change_status`;
-- valida UUID server-side;
-- valida el estado contra el enum real `pedido_estado`;
-- verifica que el pedido exista y sea accesible para el usuario actual;
-- usa la RPC segura existente `public.actualizar_estado_pedido`;
-- no usa `update` directo desde el cliente de aplicación;
-- no acepta ni modifica columnas distintas desde el formulario;
-- no usa service role key.
+## Asignación de Trabajador
 
-La RPC `public.actualizar_estado_pedido` ya estaba definida en la migración inicial. Permite a `admin` y `supervisor` cambiar cualquier pedido y a `trabajador` cambiar solo pedidos asignados, sin conceder a trabajadores un `UPDATE` amplio sobre `pedidos`.
+`/dashboard/pedidos/[id]` incluye `PedidoWorkerAssignmentForm` solo para usuarios con `pedidos.manage`.
 
-## Alcance por rol
+La action `assignPedidoWorkerAction` lee únicamente `pedido_id` y `trabajador_id`, y delega en `assignInternalPedidoWorker`.
+
+`listAssignableWorkers` carga server-side perfiles activos con rol `trabajador`, ordenados por nombre.
+
+`assignInternalPedidoWorker`:
+
+- requiere `pedidos.manage`;
+- valida UUID de pedido y trabajador;
+- valida que el pedido exista;
+- valida que el trabajador destino exista, esté activo y tenga rol `trabajador`;
+- usa las policies seguras existentes de `pedido_trabajadores`, que permiten insertar/eliminar solo a `admin` o `supervisor`;
+- para esta subfase mantiene una asignación responsable simple: inserta el trabajador elegido si hace falta y elimina otras asignaciones del pedido;
+- no modifica estado, solicitud, `converted_order_id`, archivos ni datos generales del pedido.
+
+No se creó RPC nueva porque las policies existentes ya restringen inserción, actualización y eliminación de asignaciones a admin/supervisor. Trabajadores no pueden asignar trabajadores.
+
+## Alcance por Rol
 
 - `admin` y `supervisor` ven todos los pedidos.
 - `admin` y `supervisor` pueden ver el detalle de cualquier pedido.
 - `admin` y `supervisor` pueden crear pedidos manuales.
 - `admin` y `supervisor` pueden convertir solicitudes aprobadas en pedidos.
 - `admin` y `supervisor` pueden cambiar el estado de cualquier pedido.
+- `admin` y `supervisor` pueden asignar o cambiar el trabajador responsable.
 - `trabajador` ve solo pedidos asignados mediante `pedido_trabajadores`.
 - `trabajador` solo puede ver el detalle si está asignado al pedido.
 - `trabajador` puede cambiar el estado solo de pedidos asignados.
-- `trabajador` no puede crear ni convertir pedidos.
+- `trabajador` no puede crear, convertir ni asignar pedidos.
 - usuarios anónimos no pueden leer ni crear pedidos.
 
 ## Fuera de Esta Subfase
 
-La asignación de trabajadores, la edición general, la eliminación, archivos, notificaciones e historial avanzado quedan para próximas subfases.
+La edición general, la eliminación, archivos, notificaciones, comentarios internos e historial avanzado quedan para próximas subfases.
