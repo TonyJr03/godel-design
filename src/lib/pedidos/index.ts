@@ -8,3 +8,9 @@ export {
   type ListInternalPedidosOptions,
   type ListInternalPedidosResult,
 } from "./list-internal-pedidos";
+export {
+  getInternalPedidoById,
+  type GetInternalPedidoByIdResult,
+  type InternalPedidoDetail,
+  type InternalPedidoDetailTrabajador,
+} from "./get-internal-pedido-by-id";
