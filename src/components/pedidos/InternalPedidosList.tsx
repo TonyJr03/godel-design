@@ -44,7 +44,7 @@ function getTrabajadoresLabel(pedido: InternalPedido): string {
   const trabajadores = pedido.pedido_trabajadores.map((asignacion) =>
     asignacion.profiles?.full_name?.trim()
       ? asignacion.profiles.full_name
-      : "Trabajador asignado",
+      : "Usuario asignado",
   );
 
   return trabajadores.join(", ");
@@ -95,7 +95,7 @@ export function InternalPedidosList({ pedidos }: InternalPedidosListProps) {
                 Estado
               </th>
               <th scope="col" className="px-4 py-3">
-                Trabajador
+                Personal
               </th>
               <th scope="col" className="px-4 py-3">
                 Creación

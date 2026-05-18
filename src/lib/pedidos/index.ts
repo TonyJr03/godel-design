@@ -50,9 +50,16 @@ export {
 } from "./update-internal-pedido-status";
 export {
   listAssignableWorkers,
+  listAssignableOrderUsers,
+  type AssignableOrderUser,
   type AssignableWorker,
   type ListAssignableWorkersResult,
 } from "./list-assignable-workers";
+export {
+  ASSIGNABLE_ORDER_USER_ROLES,
+  isAssignableOrderUserRole,
+  type AssignableOrderUserRole,
+} from "./order-assignment-roles";
 export {
   assignInternalPedidoWorker,
   type AssignInternalPedidoWorkerInput,

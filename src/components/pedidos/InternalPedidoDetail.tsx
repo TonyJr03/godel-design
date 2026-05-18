@@ -99,7 +99,7 @@ function getTrabajadorName(
     return asignacion.profiles.full_name;
   }
 
-  return "Trabajador asignado";
+  return "Usuario asignado";
 }
 
 export function InternalPedidoDetail({
@@ -281,7 +281,7 @@ export function InternalPedidoDetail({
 
       <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
         <h3 className="text-lg font-semibold text-zinc-950">
-          Trabajadores asignados
+          Personal asignado
         </h3>
         {pedido.pedido_trabajadores.length > 0 ? (
           <ul className="mt-5 divide-y divide-zinc-100">
@@ -301,13 +301,13 @@ export function InternalPedidoDetail({
           </ul>
         ) : (
           <p className="mt-3 text-sm leading-6 text-zinc-600">
-            Este pedido aún no tiene trabajadores asignados.
+            Este pedido aún no tiene personal asignado.
           </p>
         )}
       </section>
 
       <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
-        Las acciones de asignación de trabajadores y archivos se implementarán
+        Las acciones de remoción de personal y archivos se implementarán
         en próximas subfases.
       </section>
     </div>

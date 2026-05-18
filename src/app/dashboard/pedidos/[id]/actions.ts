@@ -87,8 +87,8 @@ export async function assignPedidoWorkerAction(
   return {
     ok: true,
     message: result.alreadyAssigned
-      ? "El trabajador ya estaba asignado a este pedido."
-      : "Trabajador asignado correctamente.",
+      ? "El usuario ya estaba asignado a este pedido."
+      : "Personal asignado correctamente.",
   };
 }
 

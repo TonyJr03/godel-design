@@ -45,7 +45,7 @@ function validateUuid(
     [field]:
       field === "pedido_id"
         ? "El pedido solicitado no existe."
-        : "Selecciona un trabajador válido.",
+        : "Selecciona un usuario válido.",
   };
 }
 
@@ -70,7 +70,7 @@ export async function removeInternalPedidoWorker(
     return {
       ok: false,
       reason: "invalid_trabajador_id",
-      message: "Selecciona un trabajador válido.",
+      message: "Selecciona un usuario válido.",
       fieldErrors: trabajadorIdErrors,
     };
   }
@@ -89,7 +89,7 @@ export async function removeInternalPedidoWorker(
     return {
       ok: false,
       reason: "unauthorized",
-      message: "No tienes permiso para remover trabajadores.",
+      message: "No tienes permiso para remover personal asignado.",
     };
   }
 

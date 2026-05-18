@@ -12,7 +12,7 @@ El servicio valida `pedidos.view`, permite filtrar por `pedido_estado`, ordena p
 
 `getInternalPedidoById` carga el detalle interno de un pedido para `/dashboard/pedidos/[id]`.
 
-Valida UUID, obtiene el perfil actual, valida `pedidos.view`, carga pedido, cliente, solicitud y trabajadores asignados. Usa la relación explícita `solicitudes!pedidos_solicitud_id_fkey` para evitar ambigüedades.
+Valida UUID, obtiene el perfil actual, valida `pedidos.view`, carga pedido, cliente, solicitud y personal asignado. Usa la relación explícita `solicitudes!pedidos_solicitud_id_fkey` para evitar ambigüedades.
 
 El trabajador no accede a los módulos generales de clientes o solicitudes, pero RLS permite leer el cliente y la solicitud relacionados con pedidos que tiene asignados.
 
@@ -22,7 +22,7 @@ El trabajador no accede a los módulos generales de clientes o solicitudes, pero
 
 La action `createPedidoAction` lee únicamente `cliente_id`, `titulo`, `descripcion`, `prioridad` y `fecha_entrega_estimada`, y delega en `createInternalPedido`.
 
-`createInternalPedido` requiere `pedidos.manage`, valida el input, valida el cliente, genera `numero_pedido`, crea el pedido con estado inicial `en_revision`, guarda `solicitud_id` como `null` y no asigna trabajadores.
+`createInternalPedido` requiere `pedidos.manage`, valida el input, valida el cliente, genera `numero_pedido`, crea el pedido con estado inicial `en_revision`, guarda `solicitud_id` como `null` y no asigna personal.
 
 ## Conversión Desde Solicitud
 
@@ -38,7 +38,7 @@ La action `updatePedidoStatusAction` lee únicamente `pedido_id` y `estado`, y d
 
 La RPC permite a `admin` y `supervisor` cambiar cualquier pedido y a `trabajador` cambiar solo pedidos asignados, sin conceder a trabajadores un `UPDATE` amplio sobre `pedidos`.
 
-## Asignación de Trabajador
+## Asignación de Personal
 
 `/dashboard/pedidos/[id]` incluye `PedidoWorkerAssignmentForm` solo para usuarios con `pedidos.manage`.
 
@@ -46,16 +46,17 @@ La action `assignPedidoWorkerAction` lee únicamente `pedido_id` y `trabajador_i
 
 La action `removePedidoWorkerAction` lee únicamente `pedido_id` y `trabajador_id`, y delega en `removeInternalPedidoWorker` para remover una asignación concreta.
 
-`listAssignableWorkers` carga server-side perfiles activos con rol `trabajador`, ordenados por nombre.
+`listAssignableWorkers` mantiene su nombre histórico, pero carga server-side personal interno activo con rol `admin`, `supervisor` o `trabajador`, ordenado por nombre. También se exporta el alias `listAssignableOrderUsers`.
 
 `assignInternalPedidoWorker`:
 
 - requiere `pedidos.manage`;
-- valida UUID de pedido y trabajador;
+- valida UUID de pedido y usuario asignable;
 - valida que el pedido exista;
-- valida que el trabajador destino exista, esté activo y tenga rol `trabajador`;
+- valida que el usuario destino exista, esté activo y tenga rol `admin`, `supervisor` o `trabajador`;
+- no modifica el rol real ni los permisos del usuario asignado;
 - usa las policies seguras existentes de `pedido_trabajadores`, que permiten insertar/eliminar solo a `admin` o `supervisor`;
-- permite múltiples trabajadores por pedido: inserta el trabajador elegido si hace falta y no reemplaza ni elimina a los demás;
+- permite múltiples usuarios internos por pedido: inserta el usuario elegido si hace falta y no reemplaza ni elimina a los demás;
 - evita duplicados comprobando primero la asignación y apoyándose en la restricción única `(pedido_id, trabajador_id)`;
 - guarda `assigned_by` con el perfil que realiza la asignación y usa el default de `assigned_at`;
 - no modifica estado, solicitud, `converted_order_id`, archivos ni datos generales del pedido.
@@ -63,13 +64,13 @@ La action `removePedidoWorkerAction` lee únicamente `pedido_id` y `trabajador_i
 `removeInternalPedidoWorker`:
 
 - requiere `pedidos.manage`;
-- valida UUID de pedido y trabajador;
+- valida UUID de pedido y usuario asignado;
 - valida que el pedido exista;
 - valida que la asignación exista;
 - elimina solo la relación concreta `(pedido_id, trabajador_id)`;
 - no elimina pedidos, perfiles, solicitudes ni modifica `converted_order_id`.
 
-No se creó RPC nueva porque las policies existentes ya restringen inserción, actualización y eliminación de asignaciones a admin/supervisor. No se usa service role key. Trabajadores no pueden asignar ni remover trabajadores.
+No se creó RPC nueva porque las policies existentes ya restringen inserción, actualización y eliminación de asignaciones a admin/supervisor. No se usa service role key. Trabajadores no pueden asignar ni remover personal.
 
 ## Alcance por Rol
 
@@ -78,7 +79,8 @@ No se creó RPC nueva porque las policies existentes ya restringen inserción, a
 - `admin` y `supervisor` pueden crear pedidos manuales.
 - `admin` y `supervisor` pueden convertir solicitudes aprobadas en pedidos.
 - `admin` y `supervisor` pueden cambiar el estado de cualquier pedido.
-- `admin` y `supervisor` pueden asignar o remover trabajadores de un pedido.
+- `admin` y `supervisor` pueden asignar o remover personal interno activo de un pedido.
+- `admin` o `supervisor` asignados a un pedido siguen conservando sus permisos reales.
 - `trabajador` ve solo pedidos asignados mediante `pedido_trabajadores`.
 - `trabajador` solo puede ver el detalle si está asignado al pedido.
 - `trabajador` puede ver cliente y solicitud asociados a pedidos asignados.

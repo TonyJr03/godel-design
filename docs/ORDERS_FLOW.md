@@ -14,7 +14,7 @@ El módulo de pedidos incluye actualmente:
 - creación manual de pedido;
 - conversión de solicitud aprobada a pedido;
 - cambio de estado de pedido;
-- asignación de trabajador responsable;
+- asignación de personal interno;
 - visibilidad limitada para trabajadores asignados.
 
 Todavía no incluye:
@@ -26,14 +26,14 @@ Todavía no incluye:
 - comentarios internos;
 - notificaciones;
 - reportes o estadísticas;
-- múltiples responsables funcionales por pedido.
+- responsables funcionales avanzados por pedido.
 
 ## Rutas del módulo
 
 | Ruta | Uso |
 |---|---|
 | `/dashboard/pedidos` | Listado interno de pedidos y filtro básico por estado. |
-| `/dashboard/pedidos/[id]` | Detalle interno, cambio de estado y asignación de trabajador para `admin` y `supervisor`. |
+| `/dashboard/pedidos/[id]` | Detalle interno, cambio de estado y asignación de personal para `admin` y `supervisor`. |
 | `/dashboard/pedidos/nuevo` | Creación manual de pedido. |
 
 ## Roles y permisos
@@ -42,7 +42,7 @@ Todavía no incluye:
 |---|---|
 | `admin` | Puede ver y gestionar todos los pedidos. |
 | `supervisor` | Puede ver y gestionar todos los pedidos. |
-| `trabajador` | Puede ver pedidos asignados y cambiar su estado. No puede crear pedidos, convertir solicitudes ni asignar responsables. |
+| `trabajador` | Puede ver pedidos asignados y cambiar su estado. No puede crear pedidos, convertir solicitudes ni asignar personal. |
 
 Permisos usados:
 
@@ -86,7 +86,7 @@ Campos principales usados actualmente en `pedidos`:
 | `created_at` | Fecha de creación del registro. |
 | `updated_at` | Fecha de última actualización. |
 
-La asignación se guarda en `pedido_trabajadores`, que relaciona pedidos con perfiles internos de rol `trabajador`. La asignación responsable simple de Fase 8 evoluciona en Fase 9 hacia asignaciones múltiples: un pedido puede tener varios trabajadores y un trabajador puede estar asignado a varios pedidos.
+La asignación se guarda en `pedido_trabajadores`, que funciona como asignación de personal interno a pedidos. La asignación responsable simple de Fase 8 evoluciona en Fase 9 hacia asignaciones múltiples: un pedido puede tener varios usuarios internos asignados y un usuario interno puede estar asignado a varios pedidos. Pueden asignarse perfiles activos con rol `admin`, `supervisor` o `trabajador`; esta asignación indica participación operativa y no cambia el rol real ni los permisos del usuario.
 
 Reglas actuales:
 
@@ -128,7 +128,7 @@ Archivos principales:
 - Servicio: `src/lib/pedidos/get-internal-pedido-by-id.ts`
 - Componente: `src/components/pedidos/InternalPedidoDetail.tsx`
 
-El detalle carga server-side, valida UUID, permiso y alcance por rol. Muestra cliente, solicitud y trabajadores asignados cuando existen. Un trabajador no puede ver pedidos no asignados, pero sí puede ver el cliente y la solicitud relacionados con pedidos que tiene asignados. No implementa edición general.
+El detalle carga server-side, valida UUID, permiso y alcance por rol. Muestra cliente, solicitud y personal asignado cuando existe. Un trabajador no puede ver pedidos no asignados, pero sí puede ver el cliente y la solicitud relacionados con pedidos que tiene asignados. No implementa edición general.
 
 ## Creación manual
 
@@ -141,7 +141,7 @@ Archivos principales:
 - Validación: `src/lib/pedidos/order-validation.ts`
 - Número de pedido: `src/lib/pedidos/order-number.ts`
 
-La creación manual requiere `pedidos.manage`, por lo que solo `admin` y `supervisor` pueden usarla. El formulario selecciona un cliente existente y no acepta estado, `solicitud_id`, número de pedido ni trabajador asignado. El pedido manual se crea con `solicitud_id = null` y estado inicial `en_revision`.
+La creación manual requiere `pedidos.manage`, por lo que solo `admin` y `supervisor` pueden usarla. El formulario selecciona un cliente existente y no acepta estado, `solicitud_id`, número de pedido ni personal asignado. El pedido manual se crea con `solicitud_id = null` y estado inicial `en_revision`.
 
 ## Conversión de solicitud a pedido
 
@@ -159,7 +159,7 @@ Al convertir:
 - se actualiza `solicitudes.estado = convertida`;
 - se actualiza `solicitudes.converted_order_id`;
 - se evita doble conversión mediante validaciones y una restricción única existente;
-- no se asigna trabajador.
+- no se asigna personal.
 
 Flujos relacionados:
 
@@ -181,18 +181,18 @@ La action solo acepta `pedido_id` y `estado`. El estado se valida server-side co
 
 Un trabajador solo puede cambiar el estado de pedidos asignados. Este flujo no modifica solicitudes ni `converted_order_id`.
 
-## Asignación de trabajador
+## Asignación de personal
 
 Archivos principales:
 
-- Listado de trabajadores: `src/lib/pedidos/list-assignable-workers.ts`
+- Listado de personal asignable: `src/lib/pedidos/list-assignable-workers.ts`
 - Servicio de asignación: `src/lib/pedidos/assign-internal-pedido-worker.ts`
 - Componente: `src/components/pedidos/PedidoWorkerAssignmentForm.tsx`
 - Action: `src/app/dashboard/pedidos/[id]/actions.ts`
 
-Solo `admin` y `supervisor` pueden asignar o cambiar trabajador. El listado devuelve perfiles activos con rol `trabajador`. El servicio valida UUID de pedido y trabajador, verifica que el trabajador esté activo y mantiene una asignación responsable simple.
+Solo `admin` y `supervisor` pueden asignar o remover personal. El listado devuelve perfiles activos con rol `admin`, `supervisor` o `trabajador`. El servicio valida UUID de pedido y usuario, verifica que el usuario exista, esté activo y tenga un rol asignable, y no reemplaza automáticamente otras asignaciones.
 
-El trabajador asignado puede ver el pedido y cambiar su estado según la regla de la fase anterior. No se implementan historial avanzado ni notificaciones.
+Asignar un `admin` o `supervisor` no modifica su rol ni degrada sus permisos. Un trabajador asignado puede ver el pedido y cambiar su estado según la regla de la fase anterior. No se implementan historial avanzado ni notificaciones.
 
 ## Seguridad general
 
@@ -235,7 +235,6 @@ Más adelante se podrá:
 - agregar comentarios internos;
 - implementar notificaciones;
 - mejorar reglas de transición de estado;
-- permitir múltiples trabajadores por pedido si el negocio lo requiere;
 - agregar reportes de producción;
 - crear vistas por carga de trabajo;
 - implementar edición controlada de campos del pedido.
@@ -261,9 +260,11 @@ Más adelante se podrá:
 - Cambiar estado como `supervisor`.
 - Cambiar estado como trabajador asignado.
 - Verificar que un trabajador no cambia un pedido no asignado.
-- Asignar trabajador como `admin` o `supervisor`.
+- Asignar personal como `admin` o `supervisor`.
+- Verificar que se puede asignar un `admin`, un `supervisor` y un `trabajador` activos.
+- Verificar que no se pueden asignar usuarios inactivos.
 - Verificar que el trabajador asignado ve el pedido.
-- Verificar que no se modifican solicitudes al cambiar estado o asignar trabajador.
+- Verificar que no se modifican solicitudes al cambiar estado o asignar personal.
 
 ## Cierre
 

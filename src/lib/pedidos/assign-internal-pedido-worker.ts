@@ -2,6 +2,7 @@ import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
 import { createClient } from "@/lib/supabase/server";
 import type { Tables } from "@/types/database";
+import { isAssignableOrderUserRole } from "./order-assignment-roles";
 
 export type AssignInternalPedidoWorkerInput = {
   pedidoId: string;
@@ -42,7 +43,7 @@ type PedidoAssignment = Pick<
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const GENERIC_ASSIGN_ERROR =
-  "No se pudo asignar el trabajador. Inténtalo nuevamente.";
+  "No se pudo asignar el personal. Inténtalo nuevamente.";
 
 function validateUuid(
   value: string,
@@ -56,7 +57,7 @@ function validateUuid(
     [field]:
       field === "pedido_id"
         ? "El pedido solicitado no existe."
-        : "Selecciona un trabajador válido.",
+        : "Selecciona un usuario válido.",
   };
 }
 
@@ -81,7 +82,7 @@ export async function assignInternalPedidoWorker(
     return {
       ok: false,
       reason: "invalid_trabajador_id",
-      message: "Selecciona un trabajador válido.",
+      message: "Selecciona un usuario válido.",
       fieldErrors: trabajadorIdErrors,
     };
   }
@@ -100,7 +101,7 @@ export async function assignInternalPedidoWorker(
     return {
       ok: false,
       reason: "unauthorized",
-      message: "No tienes permiso para asignar trabajadores.",
+      message: "No tienes permiso para asignar personal.",
     };
   }
 
@@ -151,20 +152,20 @@ export async function assignInternalPedidoWorker(
       return {
         ok: false,
         reason: "trabajador_not_found",
-        message: "El trabajador seleccionado no existe.",
+        message: "El usuario seleccionado no existe.",
         fieldErrors: {
-          trabajador_id: "Selecciona un trabajador válido.",
+          trabajador_id: "Selecciona un usuario válido.",
         },
       };
     }
 
-    if (trabajador.role !== "trabajador") {
+    if (!isAssignableOrderUserRole(trabajador.role)) {
       return {
         ok: false,
         reason: "invalid_role",
-        message: "El usuario seleccionado no tiene rol de trabajador.",
+        message: "El usuario seleccionado no puede asignarse a pedidos.",
         fieldErrors: {
-          trabajador_id: "Selecciona un trabajador válido.",
+          trabajador_id: "Selecciona un usuario válido.",
         },
       };
     }
@@ -173,9 +174,9 @@ export async function assignInternalPedidoWorker(
       return {
         ok: false,
         reason: "trabajador_inactive",
-        message: "El trabajador seleccionado no está activo.",
+        message: "El usuario seleccionado no está activo.",
         fieldErrors: {
-          trabajador_id: "Selecciona un trabajador activo.",
+          trabajador_id: "Selecciona un usuario activo.",
         },
       };
     }
