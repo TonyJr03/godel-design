@@ -36,3 +36,15 @@ export {
   type PedidoPrioridad,
   type ValidatePedidoInputResult,
 } from "./order-validation";
+export {
+  PEDIDO_STATUSES,
+  PEDIDO_STATUS_LABELS,
+  isPedidoStatus,
+  type PedidoStatus,
+} from "./status";
+export {
+  updateInternalPedidoStatus,
+  type PedidoStatusFieldErrors,
+  type UpdateInternalPedidoStatusResult,
+  type UpdatePedidoStatusInput,
+} from "./update-internal-pedido-status";

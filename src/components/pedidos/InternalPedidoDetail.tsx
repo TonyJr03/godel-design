@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { InternalPedidoDetail } from "@/lib/pedidos";
+import { PedidoStatusForm } from "./PedidoStatusForm";
 
 type InternalPedidoDetailProps = {
   pedido: InternalPedidoDetail;
@@ -168,6 +169,8 @@ export function InternalPedidoDetail({ pedido }: InternalPedidoDetailProps) {
         </div>
       </section>
 
+      <PedidoStatusForm pedidoId={pedido.id} estadoActual={pedido.estado} />
+
       <section className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
           <h3 className="text-lg font-semibold text-zinc-950">Cliente</h3>
@@ -298,8 +301,8 @@ export function InternalPedidoDetail({ pedido }: InternalPedidoDetailProps) {
       </section>
 
       <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
-        Las acciones de cambio de estado, asignación de trabajadores y archivos
-        se implementarán en próximas subfases.
+        Las acciones de asignación de trabajadores y archivos se implementarán
+        en próximas subfases.
       </section>
     </div>
   );

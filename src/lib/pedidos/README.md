@@ -76,7 +76,24 @@ El servicio:
 - no asigna trabajadores;
 - no usa service role key.
 
-El cambio de estado de pedido y la asignación de trabajadores quedan para próximas subfases.
+## Cambio de Estado
+
+La ruta `/dashboard/pedidos/[id]` incluye el formulario `PedidoStatusForm` para cambiar el estado del pedido.
+
+La action `updatePedidoStatusAction` lee únicamente `pedido_id` y `estado` desde `FormData`, y delega la lógica en `updateInternalPedidoStatus`.
+
+El servicio `updateInternalPedidoStatus`:
+
+- requiere el permiso `pedidos.change_status`;
+- valida UUID server-side;
+- valida el estado contra el enum real `pedido_estado`;
+- verifica que el pedido exista y sea accesible para el usuario actual;
+- usa la RPC segura existente `public.actualizar_estado_pedido`;
+- no usa `update` directo desde el cliente de aplicación;
+- no acepta ni modifica columnas distintas desde el formulario;
+- no usa service role key.
+
+La RPC `public.actualizar_estado_pedido` ya estaba definida en la migración inicial. Permite a `admin` y `supervisor` cambiar cualquier pedido y a `trabajador` cambiar solo pedidos asignados, sin conceder a trabajadores un `UPDATE` amplio sobre `pedidos`.
 
 ## Alcance por rol
 
@@ -84,11 +101,13 @@ El cambio de estado de pedido y la asignación de trabajadores quedan para próx
 - `admin` y `supervisor` pueden ver el detalle de cualquier pedido.
 - `admin` y `supervisor` pueden crear pedidos manuales.
 - `admin` y `supervisor` pueden convertir solicitudes aprobadas en pedidos.
+- `admin` y `supervisor` pueden cambiar el estado de cualquier pedido.
 - `trabajador` ve solo pedidos asignados mediante `pedido_trabajadores`.
 - `trabajador` solo puede ver el detalle si está asignado al pedido.
+- `trabajador` puede cambiar el estado solo de pedidos asignados.
 - `trabajador` no puede crear ni convertir pedidos.
 - usuarios anónimos no pueden leer ni crear pedidos.
 
-## Fuera de esta subfase
+## Fuera de Esta Subfase
 
-El cambio de estado, la asignación de trabajadores, la edición, la eliminación, archivos, notificaciones e historial avanzado quedan para próximas subfases.
+La asignación de trabajadores, la edición general, la eliminación, archivos, notificaciones e historial avanzado quedan para próximas subfases.
