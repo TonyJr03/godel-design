@@ -14,6 +14,8 @@ El servicio valida `pedidos.view`, permite filtrar por `pedido_estado`, ordena p
 
 Valida UUID, obtiene el perfil actual, valida `pedidos.view`, carga pedido, cliente, solicitud y trabajadores asignados. Usa la relación explícita `solicitudes!pedidos_solicitud_id_fkey` para evitar ambigüedades.
 
+El trabajador no accede a los módulos generales de clientes o solicitudes, pero RLS permite leer el cliente y la solicitud relacionados con pedidos que tiene asignados.
+
 ## Creación Manual
 
 `/dashboard/pedidos/nuevo` permite crear pedidos manuales asociados a clientes existentes.
@@ -66,6 +68,7 @@ No se creó RPC nueva porque las policies existentes ya restringen inserción, a
 - `admin` y `supervisor` pueden asignar o cambiar el trabajador responsable.
 - `trabajador` ve solo pedidos asignados mediante `pedido_trabajadores`.
 - `trabajador` solo puede ver el detalle si está asignado al pedido.
+- `trabajador` puede ver cliente y solicitud asociados a pedidos asignados.
 - `trabajador` puede cambiar el estado solo de pedidos asignados.
 - `trabajador` no puede crear, convertir ni asignar pedidos.
 - usuarios anónimos no pueden leer ni crear pedidos.

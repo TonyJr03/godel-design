@@ -43,7 +43,7 @@ Los accesos del módulo respetan la matriz definida conceptualmente en `docs/PER
 |---|---|
 | `admin` | Puede ver y gestionar clientes. |
 | `supervisor` | Puede ver y gestionar clientes. |
-| `trabajador` | No puede acceder a clientes. |
+| `trabajador` | No puede acceder al módulo general de clientes. Puede ver datos de clientes relacionados con pedidos asignados desde el detalle del pedido. |
 
 Permisos usados:
 
@@ -55,9 +55,10 @@ Permisos usados:
 RLS en Supabase restringe:
 
 - Lectura de clientes a `admin` y `supervisor`.
+- Lectura de clientes a `trabajador` solo cuando el cliente está relacionado con un pedido asignado.
 - Inserción de clientes a `admin` y `supervisor`.
 - Actualización de clientes a `admin` y `supervisor`.
-- Acceso de `trabajador` a clientes.
+- Bloqueo de acceso del `trabajador` al módulo general de clientes.
 - Acceso de usuarios anónimos a clientes.
 
 No se usa service role key. RLS es la defensa final: la UI no es la única capa de seguridad.
@@ -177,7 +178,8 @@ Aclaraciones:
 
 - No se usa service role key.
 - Los componentes cliente no consultan Supabase directamente.
-- `trabajador` no puede gestionar clientes.
+- `trabajador` no puede gestionar clientes ni entrar al módulo general de clientes.
+- `trabajador` puede ver datos de clientes relacionados con pedidos asignados.
 - Usuarios anónimos no pueden leer ni modificar clientes.
 
 ## Qué no incluye esta fase

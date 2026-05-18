@@ -59,6 +59,7 @@ Row Level Security restringe la lectura de pedidos según rol y asignación:
 
 - `admin` y `supervisor` pueden leer todos los pedidos.
 - `trabajador` solo puede leer pedidos asignados.
+- `trabajador` puede leer datos de cliente y solicitud solo cuando están relacionados con pedidos asignados.
 - usuarios anónimos no pueden leer pedidos.
 
 La interfaz no es la única capa de seguridad. Los servicios server-side validan permisos antes de operar y RLS queda como defensa final. No se usa service role key en el flujo de pedidos.
@@ -127,7 +128,7 @@ Archivos principales:
 - Servicio: `src/lib/pedidos/get-internal-pedido-by-id.ts`
 - Componente: `src/components/pedidos/InternalPedidoDetail.tsx`
 
-El detalle carga server-side, valida UUID, permiso y alcance por rol. Muestra cliente, solicitud y trabajadores asignados cuando existen. Un trabajador no puede ver pedidos no asignados. No implementa edición general.
+El detalle carga server-side, valida UUID, permiso y alcance por rol. Muestra cliente, solicitud y trabajadores asignados cuando existen. Un trabajador no puede ver pedidos no asignados, pero sí puede ver el cliente y la solicitud relacionados con pedidos que tiene asignados. No implementa edición general.
 
 ## Creación manual
 
@@ -209,7 +210,8 @@ Aclaraciones:
 - no se usa service role key;
 - los componentes cliente no consultan Supabase directamente;
 - los formularios no aceptan campos internos;
-- trabajadores no pueden crear, convertir ni asignar pedidos.
+- trabajadores no pueden crear, convertir ni asignar pedidos;
+- trabajadores no acceden a los módulos generales de clientes o solicitudes, aunque RLS permite leer datos relacionados con pedidos asignados.
 
 ## Qué no incluye esta fase
 

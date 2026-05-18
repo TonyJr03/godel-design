@@ -28,7 +28,7 @@ Requisitos de acceso:
 - permiso `solicitudes.view`;
 - rol `admin` o `supervisor`.
 
-El rol `trabajador` no debe acceder a esta sección.
+El rol `trabajador` no debe acceder a esta sección. Puede ver datos de una solicitud únicamente cuando estén relacionados con un pedido asignado, desde el detalle del pedido.
 
 ## Listado interno
 
@@ -132,7 +132,7 @@ posterior.
 | --- | --- |
 | `admin` | Puede ver y gestionar solicitudes. |
 | `supervisor` | Puede ver y gestionar solicitudes. |
-| `trabajador` | No puede acceder a solicitudes. |
+| `trabajador` | No puede acceder al módulo general de solicitudes. Puede ver datos de solicitudes relacionadas con pedidos asignados desde el detalle del pedido. |
 
 Permisos usados:
 
@@ -163,8 +163,9 @@ Aclaraciones:
 Las policies existentes permiten:
 
 - lectura de solicitudes a `admin` y `supervisor`;
+- lectura de solicitudes a `trabajador` solo cuando la solicitud está relacionada con un pedido asignado;
 - actualización de solicitudes a `admin` y `supervisor`;
-- bloqueo de lectura y actualización a `trabajador`;
+- bloqueo de acceso del `trabajador` al módulo general de solicitudes y bloqueo de actualización;
 - bloqueo de lectura pública anónima;
 - inserción pública limitada solo para crear solicitudes nuevas desde el
   formulario público.
