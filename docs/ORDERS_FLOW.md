@@ -278,4 +278,4 @@ Más adelante se podrá:
 
 ## Cierre
 
-Después de esta documentación corresponde realizar la revisión final de la Fase 8 antes de pasar a la siguiente fase del roadmap.
+La Fase 9 extendió el módulo de pedidos con asignaciones múltiples de personal interno, visibilidad controlada para trabajadores asignados y documentación específica en `docs/ORDER_ASSIGNMENTS_FLOW.md`.

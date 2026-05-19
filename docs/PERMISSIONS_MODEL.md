@@ -138,18 +138,18 @@ Cuando se implementen módulos reales:
 
 - Gestión real de usuarios.
 - Permisos granulares por pedido específico en UI.
-- Asignación real de trabajadores desde interfaz.
-- Filtrado real de pedidos asignados en listados.
+- Gestión avanzada de usuarios.
+- Permisos granulares configurables por pedido desde interfaz administrativa.
 - Auditoría avanzada.
 - Permisos configurables desde base de datos.
 - Panel para editar roles.
 
 ## Pendiente para fases posteriores
 
-- Fase 8 y Fase 9 aplicarán estos permisos en pedidos y asignación de trabajadores.
+- Fase 8 y Fase 9 aplicaron estos permisos en pedidos y asignación de personal interno.
 - Fase 12 implementará gestión de usuarios internos.
 - Fases futuras podrán refinar permisos si la operación real lo exige.
 
 ## Cierre
 
-La siguiente subfase será la revisión final de Fase 4 antes de pasar a solicitudes públicas.
+La Fase 4 quedó como base de permisos. Las fases posteriores mantienen la misma matriz: `trabajador` puede trabajar sobre pedidos asignados, pero no gestiona usuarios, clientes ni solicitudes generales.

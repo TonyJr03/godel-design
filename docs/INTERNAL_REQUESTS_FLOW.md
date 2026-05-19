@@ -179,7 +179,7 @@ Las policies existentes permiten:
 - Comentarios internos.
 - Notificaciones.
 - Reglas estrictas de transición de estados.
-- Asignación de trabajadores.
+- Asignación de personal a pedidos.
 - Generación de presupuestos.
 
 ## Consideraciones futuras

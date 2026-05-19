@@ -36,7 +36,7 @@ La primera versión del sistema incluirá:
 - gestión de solicitudes;
 - conversión de solicitudes en pedidos;
 - gestión de pedidos;
-- asignación de trabajadores;
+- asignación de personal interno a pedidos;
 - gestión básica de clientes;
 - subida y gestión de archivos;
 - estados básicos de solicitudes y pedidos;
@@ -380,25 +380,29 @@ La Fase 8 quedó completada con listado de pedidos, detalle interno, creación m
 
 ---
 
-## Fase 9 — Asignación de trabajadores
+## Fase 9 — Asignación de personal a pedidos
 
 ### Objetivo
 
-Permitir asignar uno o varios trabajadores a cada pedido.
+Permitir asignar uno o varios usuarios internos a cada pedido.
 
 ### Tareas principales
 
-- Listar trabajadores activos.
-- Asignar trabajadores a pedidos.
-- Remover trabajadores de pedidos.
+- Listar personal interno activo asignable.
+- Asignar personal interno a pedidos.
+- Remover asignaciones concretas de pedidos.
 - Registrar quién asignó.
-- Mostrar trabajadores asignados.
+- Mostrar personal asignado.
 - Permitir que trabajadores vean solo sus pedidos asignados.
 - Definir estados que puede actualizar un trabajador.
 
 ### Criterio de cierre
 
 Un trabajador autenticado puede consultar y trabajar únicamente sobre los pedidos que tiene asignados.
+
+### Cierre de fase
+
+La Fase 9 quedó completada con asignaciones múltiples de personal interno a pedidos, asignación de usuarios activos con rol `admin`, `supervisor` o `trabajador`, remoción de asignaciones concretas, visualización completa del personal asignado, visibilidad controlada para trabajador asignado, permisos de cambio de estado con múltiples asignados y documentación oficial en `docs/ORDER_ASSIGNMENTS_FLOW.md`.
 
 ---
 
@@ -585,7 +589,7 @@ Orden inicial recomendado:
 7. Listado y detalle de solicitudes.
 8. Conversión de solicitud a pedido.
 9. Gestión básica de pedidos.
-10. Asignación de trabajadores.
+10. Asignación de personal a pedidos.
 11. Archivos privados.
 12. Comentarios e historial.
 13. Pulido visual.
@@ -657,7 +661,7 @@ Después de cada tarea de Codex se revisará:
 | 6 | Gestión interna de solicitudes | Completada |
 | 7 | Clientes | Completada |
 | 8 | Pedidos | Completada |
-| 9 | Asignación de trabajadores | Pendiente |
+| 9 | Asignación de personal a pedidos | Completada |
 | 10 | Archivos privados | Pendiente |
 | 11 | Comentarios internos e historial | Pendiente |
 | 12 | Gestión de usuarios internos | Pendiente |
@@ -671,7 +675,7 @@ Después de cada tarea de Codex se revisará:
 
 La próxima fase activa será:
 
-# Fase 9 — Asignación de trabajadores
+# Fase 10 — Archivos privados
 
 La Fase 1 quedó completada con el modelo de datos inicial, migraciones base, políticas RLS iniciales y modelo de Storage documentado.
 
@@ -697,4 +701,6 @@ Las validaciones de permisos en acciones server-side concretas se aplicarán al 
 
 La Fase 8 quedó completada con listado de pedidos, detalle, creación manual, conversión desde solicitud aprobada, cambio de estado, asignación de trabajador responsable, visibilidad controlada de cliente y solicitud para trabajadores asignados, y documentación del flujo.
 
-Nota para Fase 9: Fase 8 ya implementó una asignación responsable básica para pedidos. La Fase 9 deberá revisarse antes de iniciar para decidir si se mantiene como refinamiento, ampliación a múltiples trabajadores, remoción explícita de asignaciones, reglas adicionales de carga de trabajo o ajuste del roadmap.
+La Fase 9 quedó completada con asignaciones múltiples de personal interno a pedidos, asignación de `admin`, `supervisor` o `trabajador` activos, remoción de asignaciones concretas, visualización completa del personal asignado, visibilidad controlada para trabajador asignado, permisos de cambio de estado con múltiples asignados y documentación oficial de asignaciones.
+
+La próxima fase activa es Fase 10 — Archivos privados. No debe iniciarse hasta recibir una tarea específica para esa fase.

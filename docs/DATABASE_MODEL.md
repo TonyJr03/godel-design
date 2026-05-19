@@ -229,13 +229,13 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 
 ### `pedido_trabajadores`
 
-**Propósito:** Tabla intermedia para asignar uno o varios trabajadores a cada pedido.
+**Propósito:** Tabla intermedia para asignar uno o varios usuarios internos a cada pedido.
 
 | Campo | Tipo sugerido | Notas |
 |---|---|---|
 | `id` | `uuid` | Identificador único de la asignación. |
 | `pedido_id` | `uuid` | Pedido asignado. |
-| `trabajador_id` | `uuid` | Usuario con rol `trabajador`. |
+| `trabajador_id` | `uuid` | Usuario interno asignado. Conserva el nombre técnico original, pero puede apuntar a un perfil con rol `admin`, `supervisor` o `trabajador`. |
 | `assigned_by` | `uuid nullable` | Usuario que realizó la asignación. |
 | `assigned_at` | `timestamptz` | Fecha de asignación. |
 
@@ -247,14 +247,14 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 
 **Reglas importantes:**
 
-- Un pedido puede tener varios trabajadores.
-- Un trabajador puede estar asignado a varios pedidos.
+- Un pedido puede tener varios usuarios internos asignados.
+- Un usuario interno puede estar asignado a varios pedidos.
 - Se recomienda evitar duplicados para la misma combinación `pedido_id` + `trabajador_id`.
 
 **Notas de seguridad:**
 
-- Solo `admin` o `supervisor` deberían asignar o remover trabajadores.
-- La tabla será clave para permitir que trabajadores vean solo pedidos asignados.
+- Solo `admin` o `supervisor` deberían asignar o remover personal.
+- La tabla es clave para permitir que trabajadores vean solo pedidos asignados y el personal asignado a esos pedidos.
 
 ### `archivos`
 
@@ -358,8 +358,8 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 - Un cliente puede tener muchas solicitudes.
 - Un cliente puede tener muchos pedidos.
 - Una solicitud puede convertirse en un pedido.
-- Un pedido puede tener varios trabajadores.
-- Un trabajador puede estar asignado a varios pedidos.
+- Un pedido puede tener varios usuarios internos asignados.
+- Un usuario interno puede estar asignado a varios pedidos.
 - Un pedido puede tener muchos archivos.
 - Una solicitud puede tener muchos archivos.
 - Un pedido puede tener muchos comentarios.
