@@ -180,7 +180,9 @@ Archivos principales:
 
 La action solo acepta `pedido_id` y `estado`. El estado se valida server-side contra el enum real. La actualización usa la RPC segura `public.actualizar_estado_pedido`, que evita abrir un `UPDATE` amplio sobre `pedidos` para trabajadores.
 
-Un trabajador solo puede cambiar el estado de pedidos asignados. Este flujo no modifica solicitudes ni `converted_order_id`.
+Un trabajador solo puede cambiar el estado de pedidos asignados. Con múltiples usuarios asignados, cualquier trabajador que tenga una fila en `pedido_trabajadores` para ese pedido puede cambiar el estado; un trabajador no asignado no pasa la validación. `admin` y `supervisor` mantienen su permiso global aunque estén asignados operativamente a un pedido.
+
+Este flujo no modifica solicitudes ni `converted_order_id`, no cambia roles reales y no modifica permisos reales.
 
 ## Asignación de personal
 
