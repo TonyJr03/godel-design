@@ -207,7 +207,7 @@ export function PublicSolicitudForm() {
                 <option value="Impresion">Impresión</option>
                 <option value="Diseno grafico">Diseño gráfico</option>
                 <option value="Personalizacion">Personalización</option>
-                <option value="Rotulacion">Rotulacion</option>
+                <option value="Rotulacion">Rotulación</option>
                 <option value="Otro">Otro</option>
               </select>
               <FieldError

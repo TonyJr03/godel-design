@@ -16,7 +16,7 @@ export default function Home() {
           </h1>
           <p className="mt-5 max-w-2xl text-lg leading-8 text-zinc-700">
             Base inicial para organizar el flujo operativo de trabajos de
-            impresion, diseño y personalizacion de productos.
+            impresión, diseño y personalización de productos.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link
