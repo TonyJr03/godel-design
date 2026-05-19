@@ -1,5 +1,5 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
-import { hasPermission, isTrabajador } from "@/lib/permissions/permissions";
+import { hasPermission } from "@/lib/permissions/permissions";
 import { createClient } from "@/lib/supabase/server";
 import { Constants, type Enums, type Tables } from "@/types/database";
 
@@ -80,17 +80,9 @@ const BASE_PEDIDOS_SELECT = `
   solicitudes!pedidos_solicitud_id_fkey(id, tipo_servicio)
 `;
 
-const MANAGER_PEDIDOS_SELECT = `
+const PEDIDOS_SELECT = `
   ${BASE_PEDIDOS_SELECT},
   pedido_trabajadores(
-    trabajador_id,
-    profiles!pedido_trabajadores_trabajador_id_fkey(id, full_name)
-  )
-`;
-
-const WORKER_PEDIDOS_SELECT = `
-  ${BASE_PEDIDOS_SELECT},
-  pedido_trabajadores!inner(
     trabajador_id,
     profiles!pedido_trabajadores_trabajador_id_fkey(id, full_name)
   )
@@ -139,21 +131,16 @@ export async function listInternalPedidos(
   const ignoredInvalidEstado = Boolean(options.estado && !selectedEstado);
   const limit = normalizeLimit(options.limit);
   const supabase = await createClient();
-  const workerScope = isTrabajador(profile.role);
 
   try {
     let query = supabase
       .from("pedidos")
-      .select(workerScope ? WORKER_PEDIDOS_SELECT : MANAGER_PEDIDOS_SELECT)
+      .select(PEDIDOS_SELECT)
       .order("created_at", { ascending: false })
       .limit(limit);
 
     if (selectedEstado) {
       query = query.eq("estado", selectedEstado);
-    }
-
-    if (workerScope) {
-      query = query.eq("pedido_trabajadores.trabajador_id", profile.id);
     }
 
     const { data, error } = await query.returns<InternalPedido[]>();

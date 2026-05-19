@@ -60,6 +60,7 @@ Row Level Security restringe la lectura de pedidos según rol y asignación:
 - `admin` y `supervisor` pueden leer todos los pedidos.
 - `trabajador` solo puede leer pedidos asignados.
 - `trabajador` puede leer datos de cliente y solicitud solo cuando están relacionados con pedidos asignados.
+- `trabajador` puede leer datos básicos del personal asignado a pedidos que puede acceder, pero no puede listar perfiles internos en general.
 - usuarios anónimos no pueden leer pedidos.
 
 La interfaz no es la única capa de seguridad. Los servicios server-side validan permisos antes de operar y RLS queda como defensa final. No se usa service role key en el flujo de pedidos.
@@ -187,12 +188,17 @@ Archivos principales:
 
 - Listado de personal asignable: `src/lib/pedidos/list-assignable-workers.ts`
 - Servicio de asignación: `src/lib/pedidos/assign-internal-pedido-worker.ts`
+- Servicio de remoción: `src/lib/pedidos/remove-internal-pedido-worker.ts`
 - Componente: `src/components/pedidos/PedidoWorkerAssignmentForm.tsx`
 - Action: `src/app/dashboard/pedidos/[id]/actions.ts`
 
 Solo `admin` y `supervisor` pueden asignar o remover personal. El listado devuelve perfiles activos con rol `admin`, `supervisor` o `trabajador`. El servicio valida UUID de pedido y usuario, verifica que el usuario exista, esté activo y tenga un rol asignable, y no reemplaza automáticamente otras asignaciones.
 
+La interfaz del detalle muestra múltiples usuarios asignados con su rol visible. `admin` y `supervisor` pueden agregar personal desde el selector y quitar una asignación concreta con la action `removePedidoWorkerAction`; `trabajador` ve la lista en modo lectura, sin controles de gestión.
+
 Asignar un `admin` o `supervisor` no modifica su rol ni degrada sus permisos. Un trabajador asignado puede ver el pedido y cambiar su estado según la regla de la fase anterior. No se implementan historial avanzado ni notificaciones.
+
+El trabajador no accede al módulo general de usuarios. La visibilidad de nombres y roles del personal asignado se controla mediante RLS de `profiles` con alcance por pedido accesible, usando las asignaciones de `pedido_trabajadores` como contexto.
 
 ## Seguridad general
 
@@ -209,8 +215,8 @@ Aclaraciones:
 
 - no se usa service role key;
 - los componentes cliente no consultan Supabase directamente;
-- los formularios no aceptan campos internos;
-- trabajadores no pueden crear, convertir ni asignar pedidos;
+- los formularios de asignación solo envían `pedido_id` y `trabajador_id`;
+- trabajadores no pueden crear, convertir, asignar ni remover personal;
 - trabajadores no acceden a los módulos generales de clientes o solicitudes, aunque RLS permite leer datos relacionados con pedidos asignados.
 
 ## Qué no incluye esta fase

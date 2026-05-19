@@ -92,16 +92,6 @@ function StatusBadge({ children }: { children: ReactNode }) {
   );
 }
 
-function getTrabajadorName(
-  asignacion: InternalPedidoDetail["pedido_trabajadores"][number],
-): string {
-  if (asignacion.profiles?.full_name?.trim()) {
-    return asignacion.profiles.full_name;
-  }
-
-  return "Usuario asignado";
-}
-
 export function InternalPedidoDetail({
   pedido,
   workerAssignmentSection,
@@ -279,36 +269,8 @@ export function InternalPedidoDetail({
         </div>
       </section>
 
-      <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-        <h3 className="text-lg font-semibold text-zinc-950">
-          Personal asignado
-        </h3>
-        {pedido.pedido_trabajadores.length > 0 ? (
-          <ul className="mt-5 divide-y divide-zinc-100">
-            {pedido.pedido_trabajadores.map((asignacion) => (
-              <li
-                key={asignacion.id}
-                className="flex flex-col gap-1 py-4 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <span className="text-sm font-medium text-zinc-950">
-                  {getTrabajadorName(asignacion)}
-                </span>
-                <span className="text-xs text-zinc-500">
-                  Asignado el {formatDateTime(asignacion.assigned_at)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-3 text-sm leading-6 text-zinc-600">
-            Este pedido aún no tiene personal asignado.
-          </p>
-        )}
-      </section>
-
       <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
-        Las acciones de remoción de personal y archivos se implementarán
-        en próximas subfases.
+        Las acciones de archivos se implementarán en próximas subfases.
       </section>
     </div>
   );

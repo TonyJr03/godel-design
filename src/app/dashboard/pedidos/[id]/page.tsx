@@ -50,19 +50,17 @@ export default async function DashboardPedidoDetallePage({
       <InternalPedidoDetail
         pedido={result.pedido}
         workerAssignmentSection={
-          canManagePedidos ? (
-            workersResult?.ok ? (
-              <PedidoWorkerAssignmentForm
-                pedidoId={result.pedido.id}
-                trabajadores={workersResult.workers}
-              />
-            ) : (
-              <section className="rounded-lg border border-red-200 bg-red-50 p-5 text-sm text-red-950">
-                {workersResult?.message ??
-                  "No se pudo cargar el personal asignable."}
-              </section>
-            )
-          ) : null
+          <PedidoWorkerAssignmentForm
+            pedidoId={result.pedido.id}
+            asignaciones={result.pedido.pedido_trabajadores}
+            canManage={canManagePedidos}
+            trabajadores={workersResult?.ok ? workersResult.workers : []}
+            loadAssignableError={
+              canManagePedidos && workersResult && !workersResult.ok
+                ? workersResult.message
+                : undefined
+            }
+          />
         }
       />
     </div>

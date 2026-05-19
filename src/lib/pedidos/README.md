@@ -16,6 +16,8 @@ Valida UUID, obtiene el perfil actual, valida `pedidos.view`, carga pedido, clie
 
 El trabajador no accede a los módulos generales de clientes o solicitudes, pero RLS permite leer el cliente y la solicitud relacionados con pedidos que tiene asignados.
 
+El trabajador tampoco accede al módulo general de usuarios. RLS de `profiles` solo le permite leer su propio perfil y datos básicos del personal asignado a pedidos que puede acceder, para que el detalle muestre nombres y roles del equipo asignado sin abrir un listado general de perfiles.
+
 ## Creación Manual
 
 `/dashboard/pedidos/nuevo` permite crear pedidos manuales asociados a clientes existentes.
@@ -40,11 +42,13 @@ La RPC permite a `admin` y `supervisor` cambiar cualquier pedido y a `trabajador
 
 ## Asignación de Personal
 
-`/dashboard/pedidos/[id]` incluye `PedidoWorkerAssignmentForm` solo para usuarios con `pedidos.manage`.
+`/dashboard/pedidos/[id]` incluye `PedidoWorkerAssignmentForm` para mostrar el personal asignado. Los usuarios con `pedidos.manage` ven controles para agregar y remover asignaciones; `trabajador` lo ve en modo lectura.
 
 La action `assignPedidoWorkerAction` lee únicamente `pedido_id` y `trabajador_id`, y delega en `assignInternalPedidoWorker`.
 
 La action `removePedidoWorkerAction` lee únicamente `pedido_id` y `trabajador_id`, y delega en `removeInternalPedidoWorker` para remover una asignación concreta.
+
+La UI de detalle muestra múltiples usuarios asignados con su rol visible. El selector de alta oculta usuarios ya asignados cuando están en la lista de personal asignable; la restricción única `(pedido_id, trabajador_id)` y el servicio server-side siguen evitando duplicados.
 
 `listAssignableWorkers` mantiene su nombre histórico, pero carga server-side personal interno activo con rol `admin`, `supervisor` o `trabajador`, ordenado por nombre. También se exporta el alias `listAssignableOrderUsers`.
 
