@@ -202,6 +202,8 @@ Asignar un `admin` o `supervisor` no modifica su rol ni degrada sus permisos. Un
 
 El trabajador no accede al módulo general de usuarios. La visibilidad de nombres y roles del personal asignado se controla mediante RLS de `profiles` con alcance por pedido accesible, usando las asignaciones de `pedido_trabajadores` como contexto.
 
+La documentación específica del flujo de asignación está en `docs/ORDER_ASSIGNMENTS_FLOW.md`.
+
 ## Seguridad general
 
 Capas de seguridad aplicadas:
