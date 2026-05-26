@@ -173,18 +173,34 @@ La lectura posterior de estos archivos queda reservada para `admin` y `superviso
 
 Riesgo controlado: si la subida al bucket privado funciona y luego falla la inserción de metadatos, no se abre eliminación anónima para limpiar el objeto. El error queda registrado en servidor y la limpieza operativa deberá tratarse con un flujo seguro posterior si fuera necesario.
 
+## Fase 10.4B: integración en formulario público
+
+El formulario público `/solicitud` incluye un campo opcional `files` para adjuntar archivos de referencia. La Server Action crea primero la solicitud y luego llama a `uploadPublicSolicitudFiles` para asociar los archivos a la solicitud creada.
+
+La integración mantiene las reglas de Fase 10.4A:
+
+- categoría forzada a `cliente_solicitud`;
+- ruta construida internamente;
+- metadatos guardados en `archivos`;
+- `pedido_id = null`;
+- `uploaded_by = null`;
+- bucket `godel-files`;
+- sin lectura pública;
+- sin URLs públicas ni URLs firmadas para el cliente.
+
+Si los datos principales son inválidos, no se crea la solicitud ni se suben archivos. Si los archivos son claramente inválidos antes de crear la solicitud, tampoco se crea la solicitud. Si la solicitud se crea y luego falla algún archivo, la solicitud se conserva y el cliente recibe una advertencia segura.
+
 ## Qué no queda habilitado todavía
 
-- No hay subida pública integrada todavía en la UI de `/solicitud`.
 - No hay archivos en detalle de solicitudes.
 - No hay eliminación de archivos.
 - No hay edición de metadatos.
 - No hay historial, comentarios ni notificaciones asociados a archivos.
 - No hay URLs públicas permanentes.
 
-## Validaciones pendientes para subfases posteriores
+## Validaciones de archivos
 
-Antes de aceptar archivos desde la aplicación se deben implementar validaciones específicas:
+Las validaciones base aplicadas desde la aplicación incluyen:
 
 - Tamaño máximo por archivo.
 - Cantidad máxima de archivos por solicitud.
@@ -193,15 +209,15 @@ Antes de aceptar archivos desde la aplicación se deben implementar validaciones
 - Nombres de archivo seguros.
 - Bloqueo de archivos ejecutables peligrosos.
 
-Propuesta inicial:
+Límites actuales:
 
 | Contexto | Límite |
 |---|---|
 | Solicitudes públicas | Máximo 20 MB por archivo. |
-| Área interna | Máximo 50 MB por archivo. |
+| Área interna | Máximo 20 MB por archivo. |
 | Solicitud pública | Máximo 5 archivos por solicitud. |
 
-Extensiones a bloquear inicialmente:
+Extensiones bloqueadas incluyen:
 
 - `.exe`
 - `.bat`
@@ -212,7 +228,5 @@ Extensiones a bloquear inicialmente:
 
 ## Pendiente para fases posteriores
 
-- Servicios de subida pública controlada para solicitudes.
-- Integración real con el formulario público.
 - Integración con detalle de solicitudes si se define en una fase posterior.
 - Eliminación controlada de archivos si se define en una fase posterior.

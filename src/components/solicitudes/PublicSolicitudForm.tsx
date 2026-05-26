@@ -78,11 +78,16 @@ export function PublicSolicitudForm() {
   const cantidadError = getFieldError(state, "cantidad");
   const fechaDeseadaError = getFieldError(state, "fecha_deseada");
   const observacionesError = getFieldError(state, "observaciones");
+  const filesError = getFieldError(state, "files");
   const solicitudReference = state.solicitudId?.slice(0, 8);
   const todayInputDate = getTodayInputDate();
+  const formKey = state.ok
+    ? `success-${state.solicitudId ?? "ok"}`
+    : `form-${JSON.stringify(state.values ?? {})}`;
 
   return (
     <form
+      key={formKey}
       ref={formRef}
       action={formAction}
       aria-busy={pending}
@@ -101,12 +106,34 @@ export function PublicSolicitudForm() {
           >
             <p className="font-medium">{state.message}</p>
             {state.ok && solicitudReference ? (
-              <p className="mt-1 text-teal-800">
-                Referencia de solicitud:{" "}
-                <span className="font-mono text-sm font-semibold">
-                  {solicitudReference}
-                </span>
+              <div className="mt-1 space-y-1 text-teal-800">
+                <p>
+                  Referencia de solicitud:{" "}
+                  <span className="font-mono text-sm font-semibold">
+                    {solicitudReference}
+                  </span>
+                </p>
+                {typeof state.uploadedFilesCount === "number" ? (
+                  <p>
+                    Archivos recibidos:{" "}
+                    <span className="font-semibold">
+                      {state.uploadedFilesCount}
+                    </span>
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+            {state.fileWarning ? (
+              <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-950">
+                {state.fileWarning}
               </p>
+            ) : null}
+            {state.fileErrors && state.fileErrors.length > 0 ? (
+              <ul className="mt-3 list-disc space-y-1 pl-5 text-red-800">
+                {state.fileErrors.map((error) => (
+                  <li key={error}>{error}</li>
+                ))}
+              </ul>
             ) : null}
           </div>
         ) : null}
@@ -129,6 +156,7 @@ export function PublicSolicitudForm() {
                 name="cliente_nombre"
                 type="text"
                 autoComplete="name"
+                defaultValue={state.values?.cliente_nombre ?? ""}
                 required
                 aria-invalid={Boolean(nombreError)}
                 aria-describedby={
@@ -148,6 +176,7 @@ export function PublicSolicitudForm() {
                 name="cliente_telefono"
                 type="tel"
                 autoComplete="tel"
+                defaultValue={state.values?.cliente_telefono ?? ""}
                 required
                 aria-invalid={Boolean(telefonoError)}
                 aria-describedby={
@@ -170,6 +199,7 @@ export function PublicSolicitudForm() {
                 name="cliente_email"
                 type="email"
                 autoComplete="email"
+                defaultValue={state.values?.cliente_email ?? ""}
                 aria-invalid={Boolean(emailError)}
                 aria-describedby={emailError ? "cliente_email-error" : undefined}
               />
@@ -199,7 +229,7 @@ export function PublicSolicitudForm() {
                 aria-describedby={
                   tipoServicioError ? "tipo_servicio-error" : undefined
                 }
-                defaultValue=""
+                defaultValue={state.values?.tipo_servicio ?? ""}
               >
                 <option value="" disabled>
                   Selecciona una opción
@@ -225,6 +255,7 @@ export function PublicSolicitudForm() {
                 id="cantidad"
                 name="cantidad"
                 type="number"
+                defaultValue={state.values?.cantidad ?? ""}
                 min="1"
                 step="1"
                 inputMode="numeric"
@@ -243,6 +274,7 @@ export function PublicSolicitudForm() {
                 className={`${baseInputClass} min-h-36 resize-y`}
                 id="descripcion"
                 name="descripcion"
+                defaultValue={state.values?.descripcion ?? ""}
                 required
                 aria-invalid={Boolean(descripcionError)}
                 aria-describedby={
@@ -265,6 +297,7 @@ export function PublicSolicitudForm() {
                 id="fecha_deseada"
                 name="fecha_deseada"
                 type="date"
+                defaultValue={state.values?.fecha_deseada ?? ""}
                 min={todayInputDate}
                 aria-invalid={Boolean(fechaDeseadaError)}
                 aria-describedby={
@@ -285,6 +318,7 @@ export function PublicSolicitudForm() {
                 className={`${baseInputClass} min-h-28 resize-y`}
                 id="observaciones"
                 name="observaciones"
+                defaultValue={state.values?.observaciones ?? ""}
                 aria-invalid={Boolean(observacionesError)}
                 aria-describedby={
                   observacionesError ? "observaciones-error" : undefined
@@ -294,6 +328,32 @@ export function PublicSolicitudForm() {
                 id="observaciones-error"
                 message={observacionesError}
               />
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className={labelClass} htmlFor="files">
+                Archivos de referencia <OptionalMark />
+              </label>
+              <input
+                className="mt-2 block w-full rounded-md border border-zinc-300 bg-white text-sm text-zinc-950 shadow-sm file:mr-4 file:min-h-10 file:border-0 file:bg-zinc-100 file:px-4 file:text-sm file:font-semibold file:text-zinc-700 hover:file:bg-zinc-200 focus:border-teal-700 focus:ring-2 focus:ring-teal-700/20 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500"
+                id="files"
+                name="files"
+                type="file"
+                multiple
+                accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.zip"
+                aria-invalid={Boolean(filesError)}
+                aria-describedby={filesError ? "files-error" : "files-help"}
+                disabled={pending}
+              />
+              <div id="files-help" className={helpTextClass}>
+                <p>Puedes adjuntar hasta 5 archivos.</p>
+                <p>
+                  Formatos permitidos: PDF, JPG, PNG, WEBP, DOC, DOCX y ZIP.
+                </p>
+                <p>Tamaño máximo: 20 MB por archivo.</p>
+                <p>Los archivos se usarán solo para revisar tu solicitud.</p>
+              </div>
+              <FieldError id="files-error" message={filesError} />
             </div>
           </div>
         </section>

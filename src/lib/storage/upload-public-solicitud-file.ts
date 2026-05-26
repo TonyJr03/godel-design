@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
   GODEL_FILES_BUCKET,
   MAX_PUBLIC_SOLICITUD_FILES,
@@ -39,6 +40,7 @@ export async function uploadPublicSolicitudFile(
     category: "cliente_solicitud",
     fileName: safeFileName,
   });
+  const fileId = randomUUID();
   const supabase = await createClient();
 
   try {
@@ -54,9 +56,10 @@ export async function uploadPublicSolicitudFile(
       return { ok: false, reason: "storage_error" };
     }
 
-    const { data: metadata, error: metadataError } = await supabase
+    const { error: metadataError } = await supabase
       .from("archivos")
       .insert({
+        id: fileId,
         pedido_id: null,
         solicitud_id: solicitudId,
         uploaded_by: null,
@@ -66,9 +69,7 @@ export async function uploadPublicSolicitudFile(
         file_size: input.file.size,
         bucket: GODEL_FILES_BUCKET,
         visibility: "cliente_solicitud",
-      })
-      .select("id")
-      .single<{ id: string }>();
+      });
 
     if (metadataError) {
       console.error(
@@ -80,7 +81,7 @@ export async function uploadPublicSolicitudFile(
 
     return {
       ok: true,
-      fileId: metadata.id,
+      fileId,
       fileName: safeFileName,
     };
   } catch (error) {

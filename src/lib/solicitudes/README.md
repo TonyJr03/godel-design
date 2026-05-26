@@ -6,7 +6,7 @@ Esta carpeta contiene la lógica server-side del flujo público e interno de sol
 
 El cliente externo puede enviar datos básicos de contacto y del trabajo solicitado sin tener cuenta de usuario. La solicitud se valida en el servidor y se inserta en Supabase con `estado = "nueva"`.
 
-`PublicSolicitudForm` consume la Server Action `submitPublicSolicitudAction` desde `/solicitud`. El componente cliente solo captura campos públicos y muestra estado de envío, errores y confirmación.
+`PublicSolicitudForm` consume la Server Action `submitPublicSolicitudAction` desde `/solicitud`. El componente cliente captura campos públicos, archivos opcionales y muestra estado de envío, errores y confirmación. No consulta Supabase directamente.
 
 Por seguridad, el flujo público no usa service role key. La inserción se hace con el cliente normal de Supabase y depende de RLS.
 
@@ -20,10 +20,28 @@ Por seguridad, el flujo público no usa service role key. La inserción se hace 
 - `cantidad`
 - `fecha_deseada`
 - `observaciones`
+- `files`
 
 Los campos se recortan, los opcionales vacíos se convierten a `null`, y se validan longitudes razonables, formato básico de correo, cantidad positiva y fecha válida. `fecha_deseada` es opcional, pero si se informa debe ser igual o posterior al día actual. La validación definitiva ocurre en servidor.
 
 El formulario no acepta campos sensibles como `id`, `estado`, `cliente_id`, `reviewed_by` ni `converted_order_id`.
+
+## Archivos opcionales
+
+El formulario público puede recibir hasta 5 archivos opcionales de referencia. Los archivos se procesan server-side después de crear la solicitud y se asocian a esa solicitud mediante `archivos.solicitud_id`.
+
+Reglas principales:
+
+- la solicitud puede enviarse sin archivos;
+- la categoría se fuerza a `cliente_solicitud`;
+- los archivos se guardan en el bucket privado `godel-files`;
+- la ruta se construye como `solicitudes/{solicitud_id}/originales/{timestamp}-{filename}`;
+- `pedido_id` queda en `null`;
+- `uploaded_by` queda en `null`;
+- no hay lectura pública, listado público ni URLs públicas;
+- los archivos se consultarán internamente en una fase posterior.
+
+La solicitud se crea antes de asociar archivos. Si la solicitud se registra correctamente pero algún archivo falla durante la subida, la solicitud se conserva y la UI muestra una advertencia segura.
 
 ## Consultas internas
 
@@ -66,7 +84,7 @@ No se usa service role key y no se implementa deduplicación avanzada.
 
 ## Alcance excluido
 
-- No hay subida real de archivos todavía.
-- No se crean buckets ni policies de Storage desde este módulo.
+- No hay lectura ni descarga pública de archivos.
+- No hay visualización interna de archivos de solicitudes todavía.
 - No se convierte automáticamente la solicitud en pedido fuera del flujo formal.
 - No se implementa deduplicación inteligente de clientes.

@@ -17,17 +17,18 @@ El flujo actual permite:
 - Mostrar un formulario público en `/solicitud`.
 - Validar los datos enviados por el cliente.
 - Crear una solicitud en Supabase.
+- Adjuntar archivos opcionales de referencia.
 - Guardar la solicitud con estado `nueva`.
 - Mostrar un mensaje de éxito y una referencia corta.
 
 Todavía no incluye:
 
-- Subida real de archivos.
 - Captcha.
 - Gestión interna de solicitudes.
 - Conversión de solicitud a pedido.
 - Asociación inteligente con clientes.
 - Notificaciones automáticas.
+- Descarga pública de archivos.
 
 ## Ruta pública
 
@@ -48,6 +49,7 @@ Todavía no incluye:
 | `cantidad` | No | Cantidad solicitada |
 | `fecha_deseada` | No | Fecha deseada de entrega; si se informa debe ser igual o posterior al día actual |
 | `observaciones` | No | Notas adicionales |
+| `files` | No | Archivos de referencia opcionales |
 
 ## Campos que no acepta la UI
 
@@ -98,6 +100,8 @@ La Server Action:
 - Devuelve errores controlados para la UI.
 - No expone errores técnicos de Supabase al cliente.
 - No usa service role key.
+- Procesa archivos opcionales después de crear la solicitud.
+- No genera URLs públicas ni URLs firmadas para el cliente.
 
 ## Servicio de Creación
 
@@ -165,19 +169,23 @@ server-side y RLS son la fuente de verdad.
 
 ## Relación con archivos
 
-La subida de archivos no está implementada en esta fase.
+El cliente puede adjuntar archivos de referencia opcionales al enviar la solicitud.
 
-Referencia conceptual:
+Límites actuales:
 
-- `docs/STORAGE_MODEL.md`
-- Fase 10 — Archivos privados
+- máximo 5 archivos por solicitud;
+- máximo 20 MB por archivo;
+- formatos permitidos: PDF, JPG, PNG, WEBP, DOC, DOCX y ZIP.
 
-Cuando se implemente:
+Los archivos:
 
-- Los archivos serán privados.
-- No habrá URLs públicas permanentes.
-- Se guardarán metadatos en la tabla `archivos`.
-- Se usarán rutas controladas y URLs firmadas.
+- se guardan en el bucket privado `godel-files`;
+- usan rutas `solicitudes/{solicitud_id}/originales/{timestamp}-{filename}`;
+- quedan asociados a la solicitud creada mediante `archivos.solicitud_id`;
+- se registran con `visibility = cliente_solicitud`;
+- no generan URLs públicas ni URLs firmadas para el cliente.
+
+La gestión interna de esos archivos se implementará en otra subfase.
 
 ## Flujo Funcional Actual
 
@@ -187,8 +195,9 @@ Cuando se implemente:
 4. La action convierte `FormData` en input.
 5. El servicio valida datos.
 6. El servicio inserta la solicitud con estado `nueva`.
-7. La UI muestra éxito y referencia corta.
-8. El equipo interno revisará la solicitud en una fase posterior.
+7. Si hay archivos, la action los valida, sube al bucket privado y registra metadatos.
+8. La UI muestra éxito, referencia corta y cantidad de archivos recibidos.
+9. El equipo interno revisará la solicitud en una fase posterior.
 
 ## Flujo Interno Pendiente
 
@@ -208,16 +217,25 @@ La conversión real a pedido pertenece a una fase posterior del flujo interno.
 - Enviar email inválido.
 - Enviar cantidad negativa.
 - Enviar sin email.
+- Enviar solicitud sin archivos.
+- Enviar solicitud con 1 archivo válido.
+- Intentar enviar más de 5 archivos.
+- Intentar enviar archivo no permitido.
+- Intentar enviar archivo mayor de 20 MB.
 - Verificar en Supabase Studio que la solicitud quedó con `estado = nueva`.
 - Verificar que `cliente_id`, `reviewed_by` y `converted_order_id` quedan en
   `null`.
+- Verificar que los archivos quedan bajo `solicitudes/{id}/originales/`.
+- Verificar que `pedido_id` y `uploaded_by` quedan en `null` en `archivos`.
+- Verificar que no hay lectura pública ni URL pública del archivo.
 - Verificar que un usuario anónimo no puede leer solicitudes desde API/UI.
 
 ## Problemas Conocidos o Limitaciones
 
 - No hay captcha todavía.
 - No hay control avanzado anti-spam.
-- No hay archivos.
+- No hay lectura ni descarga pública de archivos.
+- No hay visualización interna de archivos de solicitudes todavía.
 - No hay notificaciones.
 - No hay código humano de solicitud.
 - No hay asociación automática con clientes.

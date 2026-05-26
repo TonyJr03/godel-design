@@ -7,6 +7,7 @@ export type PublicSolicitudInput = {
   cantidad?: unknown;
   fecha_deseada?: unknown;
   observaciones?: unknown;
+  files?: unknown;
 };
 
 export type PublicSolicitudData = {
