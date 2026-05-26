@@ -3,8 +3,10 @@ import { notFound } from "next/navigation";
 import { SolicitudClienteForm } from "@/components/solicitudes/SolicitudClienteForm";
 import { SolicitudConvertPedidoForm } from "@/components/solicitudes/SolicitudConvertPedidoForm";
 import { InternalSolicitudDetail } from "@/components/solicitudes/InternalSolicitudDetail";
+import { SolicitudFilesSection } from "@/components/storage/SolicitudFilesSection";
 import { getInternalClienteById, listInternalClientes } from "@/lib/clientes";
 import { getInternalSolicitudById } from "@/lib/solicitudes";
+import { listSolicitudFiles } from "@/lib/storage";
 
 type DashboardSolicitudDetallePageProps = {
   params: Promise<{
@@ -38,6 +40,7 @@ export default async function DashboardSolicitudDetallePage({
       ? getInternalClienteById(result.solicitud.cliente_id)
       : Promise.resolve(null),
   ]);
+  const filesResult = await listSolicitudFiles(result.solicitud.id);
   const clienteAsociado =
     clienteAsociadoResult && clienteAsociadoResult.ok
       ? clienteAsociadoResult.cliente
@@ -63,6 +66,17 @@ export default async function DashboardSolicitudDetallePage({
             estado={result.solicitud.estado}
             clienteId={result.solicitud.cliente_id}
             convertedOrderId={result.solicitud.converted_order_id}
+          />
+        }
+        filesSection={
+          <SolicitudFilesSection
+            solicitudId={result.solicitud.id}
+            files={filesResult.ok ? filesResult.files : []}
+            loadError={
+              filesResult.ok
+                ? undefined
+                : "No se pudieron cargar los archivos de la solicitud."
+            }
           />
         }
       />

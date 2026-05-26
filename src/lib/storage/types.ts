@@ -147,6 +147,22 @@ export type UploadPedidoFileResult =
         | "error";
     };
 
+export type SolicitudFileListItem = Pick<
+  ArchivoMetadata,
+  "id" | "file_name" | "file_type" | "file_size" | "visibility" | "created_at"
+>;
+
+export type ListSolicitudFilesResult =
+  | {
+      ok: true;
+      files: SolicitudFileListItem[];
+    }
+  | {
+      ok: false;
+      reason: "invalid_id" | "unauthorized" | "error";
+      files: [];
+    };
+
 export type UploadPublicSolicitudFileInput = {
   solicitudId: string;
   file: File;

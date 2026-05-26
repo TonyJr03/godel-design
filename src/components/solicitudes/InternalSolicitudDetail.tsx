@@ -8,6 +8,7 @@ type InternalSolicitudDetailProps = {
   solicitud: InternalSolicitudDetailData;
   clienteSection?: ReactNode;
   conversionSection?: ReactNode;
+  filesSection?: ReactNode;
 };
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("es", {
@@ -42,6 +43,7 @@ export function InternalSolicitudDetail({
   solicitud,
   clienteSection,
   conversionSection,
+  filesSection,
 }: InternalSolicitudDetailProps) {
   return (
     <article className="space-y-6">
@@ -105,6 +107,8 @@ export function InternalSolicitudDetail({
       {clienteSection}
 
       {conversionSection}
+
+      {filesSection}
 
       <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-zinc-950">

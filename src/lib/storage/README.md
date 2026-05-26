@@ -14,6 +14,7 @@ Esta carpeta concentra la lógica reutilizable para trabajar con archivos privad
 - Subida interna de archivos de pedido desde Server Actions.
 - Descarga de archivos de pedido mediante route handler y signed URL.
 - Base backend para subida pública controlada de archivos de solicitud.
+- Listado y descarga interna de archivos de solicitud.
 
 ## Bucket privado
 
@@ -40,7 +41,7 @@ No se aceptan ejecutables, scripts, HTML ni SVG. Formatos de diseño como AI, PS
 
 `createSignedFileUrl(fileId)` consulta `archivos` con RLS mediante el cliente server-side normal de Supabase y genera una signed URL de corta duración. No usa service role key y no recibe rutas directas desde la interfaz.
 
-El route handler `/dashboard/pedidos/[id]/archivos/[fileId]/download` valida que el archivo pertenezca al pedido de la ruta antes de redirigir a la signed URL.
+Los route handlers de descarga validan que el archivo pertenezca al pedido o solicitud de la ruta antes de redirigir a la signed URL.
 
 ## Archivos de pedido
 
@@ -66,12 +67,14 @@ Un trabajador no asignado no puede listar ni subir archivos del pedido por valid
 
 La migración de Fase 10.4A permite a `anon` insertar objetos y metadatos solo para rutas válidas de solicitudes públicas. No permite lectura, listado, actualización ni eliminación anónima. La lectura posterior queda reservada para `admin` y `supervisor` en el módulo interno.
 
-La UI pública todavía no usa estas funciones; se integrará en una subfase posterior.
+La UI pública usa estas funciones para adjuntar archivos al crear la solicitud. El cliente no recibe URLs públicas ni URLs firmadas.
+
+`listSolicitudFiles(solicitudId)` lista metadatos seguros de `archivos` para el detalle interno de solicitud, sin devolver `file_path`. La descarga interna usa `/dashboard/solicitudes/[id]/archivos/[fileId]/download`, valida pertenencia por RLS y redirige a una signed URL de corta duración.
 
 ## Fuera del alcance actual
 
 - No hay eliminación de archivos.
 - No hay edición de metadatos.
-- No hay input de archivos en el formulario público.
-- No hay listado ni descarga de archivos en solicitudes.
+- No hay subida interna de archivos de solicitud.
+- No hay descarga pública de archivos de solicitud.
 - No hay URLs públicas permanentes.

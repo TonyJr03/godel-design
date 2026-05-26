@@ -79,9 +79,22 @@ El detalle:
 - valida que el `id` tenga formato UUID;
 - usa `notFound()` para id inválido o solicitud inexistente;
 - muestra datos completos de la solicitud;
+- muestra archivos privados asociados a la solicitud;
 - no permite edición completa;
 - no convierte a pedido;
-- no gestiona archivos.
+- no permite eliminar archivos.
+
+## Archivos de solicitud
+
+| Pieza | Archivo |
+| --- | --- |
+| Servicio | `src/lib/storage/list-solicitud-files.ts` |
+| Componente | `src/components/storage/SolicitudFilesSection.tsx` |
+| Descarga | `/dashboard/solicitudes/[id]/archivos/[fileId]/download` |
+
+El detalle interno muestra archivos enviados desde el formulario público cuando existen. Los archivos siguen siendo privados en el bucket `godel-files`; la UI no recibe `file_path` ni URLs públicas.
+
+La descarga se realiza con una ruta interna que valida la solicitud, el archivo, la pertenencia entre ambos y el bucket antes de generar una URL firmada de corta duración. `admin` y `supervisor` pueden descargar. `trabajador` no accede al módulo general de solicitudes y usuarios anónimos no pueden usar la ruta de descarga.
 
 ## Cambio de estado
 
@@ -156,6 +169,7 @@ Aclaraciones:
 - no se usa service role key;
 - los componentes cliente no consultan Supabase directamente;
 - la UI no es la única capa de seguridad;
+- no hay lectura pública ni URLs públicas para archivos;
 - RLS sigue siendo la defensa final.
 
 ## RLS
@@ -174,7 +188,7 @@ Las policies existentes permiten:
 
 - Conversión de solicitud a pedido.
 - Gestión real de clientes.
-- Archivos adjuntos.
+- Eliminación de archivos adjuntos.
 - Historial avanzado de cambios.
 - Comentarios internos.
 - Notificaciones.
@@ -190,7 +204,7 @@ Más adelante se podrá:
 - registrar historial detallado;
 - asociar solicitud a cliente existente;
 - convertir solicitud aprobada en pedido;
-- adjuntar archivos privados;
+- permitir eliminación controlada de archivos privados si se define;
 - notificar al equipo interno;
 - generar códigos humanos de referencia.
 
@@ -201,6 +215,10 @@ Más adelante se podrá:
 - Trabajador no puede entrar a `/dashboard/solicitudes`.
 - Admin abre el detalle de una solicitud.
 - Supervisor abre el detalle de una solicitud.
+- Admin descarga un archivo de solicitud.
+- Supervisor descarga un archivo de solicitud.
+- Verificar que no se muestra `file_path`.
+- Verificar que un archivo de otra solicitud no descarga desde este detalle.
 - Un id inválido muestra 404.
 - Admin cambia el estado de una solicitud.
 - Supervisor cambia el estado de una solicitud.

@@ -185,7 +185,7 @@ Los archivos:
 - se registran con `visibility = cliente_solicitud`;
 - no generan URLs públicas ni URLs firmadas para el cliente.
 
-La gestión interna de esos archivos se implementará en otra subfase.
+La gestión interna permite que `admin` y `supervisor` vean y descarguen estos archivos desde el detalle interno de solicitud mediante URLs firmadas de corta duración. Esa descarga no está disponible para clientes públicos.
 
 ## Flujo Funcional Actual
 

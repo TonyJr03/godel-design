@@ -190,9 +190,23 @@ La integración mantiene las reglas de Fase 10.4A:
 
 Si los datos principales son inválidos, no se crea la solicitud ni se suben archivos. Si los archivos son claramente inválidos antes de crear la solicitud, tampoco se crea la solicitud. Si la solicitud se crea y luego falla algún archivo, la solicitud se conserva y el cliente recibe una advertencia segura.
 
+## Fase 10.5: archivos en detalle interno de solicitud
+
+El detalle interno `/dashboard/solicitudes/{solicitud_id}` muestra la sección “Archivos de la solicitud” para `admin` y `supervisor`.
+
+El listado:
+
+- consulta `archivos` por `solicitud_id`;
+- se apoya en RLS;
+- no devuelve `file_path`;
+- muestra nombre, tipo, tamaño, fecha y categoría visible.
+
+La descarga usa `/dashboard/solicitudes/{solicitud_id}/archivos/{archivo_id}/download`, valida UUIDs, confirma que el archivo pertenece a esa solicitud, confirma que `pedido_id` no contradice el contexto de solicitud, verifica `bucket = godel-files` y genera una URL firmada de corta duración. No hay lectura pública ni URL pública permanente.
+
+El trabajador no accede al módulo de solicitudes y no puede listar ni descargar archivos asociados solo a solicitudes.
+
 ## Qué no queda habilitado todavía
 
-- No hay archivos en detalle de solicitudes.
 - No hay eliminación de archivos.
 - No hay edición de metadatos.
 - No hay historial, comentarios ni notificaciones asociados a archivos.
@@ -228,5 +242,4 @@ Extensiones bloqueadas incluyen:
 
 ## Pendiente para fases posteriores
 
-- Integración con detalle de solicitudes si se define en una fase posterior.
 - Eliminación controlada de archivos si se define en una fase posterior.
