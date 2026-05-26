@@ -132,12 +132,30 @@ La generación de URLs firmadas consulta primero la tabla `archivos` con RLS. El
 
 Storage físico y metadatos de negocio siguen separados: Supabase Storage conserva el binario, mientras `archivos` conserva `bucket`, `file_path`, categoría, relaciones con solicitudes/pedidos y trazabilidad.
 
+## Fase 10.3: archivos internos en pedidos
+
+El detalle interno de pedido incluye una sección “Archivos del pedido” para listar, subir y descargar archivos privados asociados a `pedidos`.
+
+Categorías habilitadas:
+
+| Categoría | Ruta | Roles que pueden subir |
+|---|---|---|
+| `interno_pedido` | `pedidos/{pedido_id}/internos/{timestamp}-{filename}` | `admin`, `supervisor` |
+| `avance` | `pedidos/{pedido_id}/avances/{timestamp}-{filename}` | `admin`, `supervisor`, trabajador asignado |
+| `final_entrega` | `pedidos/{pedido_id}/finales/{timestamp}-{filename}` | `admin`, `supervisor`, trabajador asignado |
+
+El listado consulta la tabla `archivos` por `pedido_id` y se apoya en RLS. La UI recibe metadatos seguros como nombre, tamaño, tipo, categoría, fecha y perfil que subió el archivo cuando es visible. No recibe `file_path`.
+
+La subida usa el archivo real recibido por `FormData`, valida nombre, tamaño, MIME, extensión, categoría y contexto, construye la ruta internamente y guarda metadatos en `archivos`. No acepta `file_path`, `bucket`, `uploaded_by`, `file_name`, `file_type` ni `file_size` desde campos del formulario como fuente de verdad.
+
+La descarga usa el route handler interno del pedido, valida que el archivo pertenezca al pedido y redirige a una URL firmada de corta duración. No hay URLs públicas permanentes.
+
 ## Qué no queda habilitado todavía
 
-- No hay subida real de archivos desde formularios.
-- No hay descarga real desde la interfaz.
 - No hay subida pública anónima desde `/solicitud`.
-- No hay componentes visuales nuevos para archivos.
+- No hay archivos en detalle de solicitudes.
+- No hay eliminación de archivos.
+- No hay edición de metadatos.
 - No hay historial, comentarios ni notificaciones asociados a archivos.
 - No hay URLs públicas permanentes.
 
@@ -171,9 +189,7 @@ Extensiones a bloquear inicialmente:
 
 ## Pendiente para fases posteriores
 
-- Servicios de subida y descarga.
-- Generación de signed URLs.
-- Validadores de archivos.
+- Servicios de subida pública controlada para solicitudes.
 - Integración con formulario público.
-- Integración con detalle de pedidos.
 - Integración con detalle de solicitudes si se define en una fase posterior.
+- Eliminación controlada de archivos si se define en una fase posterior.

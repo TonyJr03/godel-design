@@ -1,16 +1,36 @@
 import { notFound } from "next/navigation";
 import { InternalPedidoDetail } from "@/components/pedidos/InternalPedidoDetail";
 import { PedidoWorkerAssignmentForm } from "@/components/pedidos/PedidoWorkerAssignmentForm";
+import { PedidoFilesSection } from "@/components/storage/PedidoFilesSection";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { getCurrentProfile } from "@/lib/auth/current-user";
-import { hasPermission } from "@/lib/permissions/permissions";
+import {
+  hasPermission,
+  isAdmin,
+  isSupervisor,
+  isTrabajador,
+  type Role,
+} from "@/lib/permissions/permissions";
 import { getInternalPedidoById, listAssignableWorkers } from "@/lib/pedidos";
+import { listPedidoFiles, type PedidoFileCategory } from "@/lib/storage";
 
 type DashboardPedidoDetallePageProps = {
   params: Promise<{
     id: string;
   }>;
 };
+
+function getAllowedPedidoFileCategories(role: Role): PedidoFileCategory[] {
+  if (isAdmin(role) || isSupervisor(role)) {
+    return ["interno_pedido", "avance", "final_entrega"];
+  }
+
+  if (isTrabajador(role)) {
+    return ["avance", "final_entrega"];
+  }
+
+  return [];
+}
 
 export default async function DashboardPedidoDetallePage({
   params,
@@ -40,6 +60,10 @@ export default async function DashboardPedidoDetallePage({
   const canManagePedidos =
     profile !== null && hasPermission(profile.role, "pedidos.manage");
   const workersResult = canManagePedidos ? await listAssignableWorkers() : null;
+  const filesResult = await listPedidoFiles(result.pedido.id);
+  const allowedFileCategories = profile
+    ? getAllowedPedidoFileCategories(profile.role)
+    : [];
 
   return (
     <div className="space-y-8">
@@ -59,6 +83,19 @@ export default async function DashboardPedidoDetallePage({
               canManagePedidos && workersResult && !workersResult.ok
                 ? workersResult.message
                 : undefined
+            }
+          />
+        }
+        filesSection={
+          <PedidoFilesSection
+            pedidoId={result.pedido.id}
+            files={filesResult.ok ? filesResult.files : []}
+            canUpload={allowedFileCategories.length > 0}
+            allowedCategories={allowedFileCategories}
+            loadError={
+              filesResult.ok
+                ? undefined
+                : "No se pudieron cargar los archivos del pedido."
             }
           />
         }

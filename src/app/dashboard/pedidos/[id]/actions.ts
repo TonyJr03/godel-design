@@ -9,6 +9,12 @@ import {
   type RemovePedidoWorkerFieldErrors,
   type PedidoStatusFieldErrors,
 } from "@/lib/pedidos";
+import {
+  uploadPedidoFile,
+  validatePedidoFileCategory,
+  type PedidoFileCategory,
+  type UploadPedidoFileResult,
+} from "@/lib/storage";
 
 export type UpdatePedidoStatusActionState = {
   ok: boolean;
@@ -28,10 +34,35 @@ export type RemovePedidoWorkerActionState = {
   fieldErrors?: RemovePedidoWorkerFieldErrors;
 };
 
+export type UploadPedidoFileActionState = {
+  ok: boolean;
+  message: string;
+};
+
 function getFormValue(formData: FormData, key: string) {
   const value = formData.get(key);
 
   return typeof value === "string" ? value : "";
+}
+
+function getUploadPedidoFileMessage(
+  reason: Exclude<UploadPedidoFileResult, { ok: true }>["reason"],
+) {
+  const messages: Record<typeof reason, string> = {
+    unauthorized: "Debes iniciar sesión con un usuario interno activo.",
+    invalid_pedido_id: "El pedido solicitado no existe.",
+    pedido_not_found: "El pedido solicitado no existe o no tienes acceso.",
+    invalid_category: "Selecciona una categoría válida.",
+    forbidden_category: "No tienes permiso para subir archivos en esa categoría.",
+    invalid_file:
+      "El archivo no es válido. Revisa el tipo, la extensión y el tamaño.",
+    storage_error: "No se pudo guardar el archivo. Inténtalo nuevamente.",
+    metadata_error:
+      "El archivo se subió, pero no se pudo guardar su registro. Inténtalo nuevamente.",
+    error: "No se pudo subir el archivo. Inténtalo nuevamente.",
+  };
+
+  return messages[reason];
 }
 
 export async function updatePedidoStatusAction(
@@ -117,5 +148,49 @@ export async function removePedidoWorkerAction(
   return {
     ok: true,
     message: "Asignación removida correctamente.",
+  };
+}
+
+export async function uploadPedidoFileAction(
+  _prevState: UploadPedidoFileActionState,
+  formData: FormData,
+): Promise<UploadPedidoFileActionState> {
+  const pedidoId = getFormValue(formData, "pedido_id");
+  const category = getFormValue(formData, "category");
+  const file = formData.get("file");
+
+  if (!validatePedidoFileCategory(category)) {
+    return {
+      ok: false,
+      message: "Selecciona una categoría válida.",
+    };
+  }
+
+  if (!(file instanceof File)) {
+    return {
+      ok: false,
+      message: "Selecciona un archivo válido.",
+    };
+  }
+
+  const result = await uploadPedidoFile({
+    pedidoId,
+    category: category as PedidoFileCategory,
+    file,
+  });
+
+  if (!result.ok) {
+    return {
+      ok: false,
+      message: getUploadPedidoFileMessage(result.reason),
+    };
+  }
+
+  revalidatePath("/dashboard/pedidos");
+  revalidatePath(`/dashboard/pedidos/${pedidoId}`);
+
+  return {
+    ok: true,
+    message: "Archivo subido correctamente.",
   };
 }

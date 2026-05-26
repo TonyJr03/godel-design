@@ -6,6 +6,7 @@ import { PedidoStatusForm } from "./PedidoStatusForm";
 type InternalPedidoDetailProps = {
   pedido: InternalPedidoDetail;
   workerAssignmentSection?: ReactNode;
+  filesSection?: ReactNode;
 };
 
 const ESTADO_LABELS: Record<InternalPedidoDetail["estado"], string> = {
@@ -95,6 +96,7 @@ function StatusBadge({ children }: { children: ReactNode }) {
 export function InternalPedidoDetail({
   pedido,
   workerAssignmentSection,
+  filesSection,
 }: InternalPedidoDetailProps) {
   return (
     <div className="space-y-6">
@@ -166,6 +168,8 @@ export function InternalPedidoDetail({
       <PedidoStatusForm pedidoId={pedido.id} estadoActual={pedido.estado} />
 
       {workerAssignmentSection}
+
+      {filesSection}
 
       <section className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
@@ -267,10 +271,6 @@ export function InternalPedidoDetail({
             </p>
           )}
         </div>
-      </section>
-
-      <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
-        Las acciones de archivos se implementarán en próximas subfases.
       </section>
     </div>
   );

@@ -97,3 +97,52 @@ export type SignedFileUrlResult =
       ok: false;
       reason: SignedFileUrlErrorReason;
     };
+
+export type PedidoFileListItem = Pick<
+  ArchivoMetadata,
+  | "id"
+  | "file_name"
+  | "file_type"
+  | "file_size"
+  | "visibility"
+  | "created_at"
+  | "uploaded_by"
+> & {
+  uploadedBy: Pick<Tables<"profiles">, "id" | "full_name" | "role"> | null;
+};
+
+export type ListPedidoFilesResult =
+  | {
+      ok: true;
+      files: PedidoFileListItem[];
+    }
+  | {
+      ok: false;
+      reason: "invalid_id" | "unauthorized" | "error";
+      files: [];
+    };
+
+export type UploadPedidoFileInput = {
+  pedidoId: string;
+  category: PedidoFileCategory;
+  file: File;
+};
+
+export type UploadPedidoFileResult =
+  | {
+      ok: true;
+      fileId: string;
+    }
+  | {
+      ok: false;
+      reason:
+        | "unauthorized"
+        | "invalid_pedido_id"
+        | "pedido_not_found"
+        | "invalid_category"
+        | "forbidden_category"
+        | "invalid_file"
+        | "storage_error"
+        | "metadata_error"
+        | "error";
+    };

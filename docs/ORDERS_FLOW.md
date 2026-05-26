@@ -15,13 +15,13 @@ El módulo de pedidos incluye actualmente:
 - conversión de solicitud aprobada a pedido;
 - cambio de estado de pedido;
 - asignación de personal interno;
+- archivos privados internos del pedido;
 - visibilidad limitada para trabajadores asignados.
 
 Todavía no incluye:
 
 - edición general de pedido;
 - eliminación de pedido;
-- archivos privados del pedido;
 - historial avanzado de cambios;
 - comentarios internos;
 - notificaciones;
@@ -129,7 +129,25 @@ Archivos principales:
 - Servicio: `src/lib/pedidos/get-internal-pedido-by-id.ts`
 - Componente: `src/components/pedidos/InternalPedidoDetail.tsx`
 
-El detalle carga server-side, valida UUID, permiso y alcance por rol. Muestra cliente, solicitud y personal asignado cuando existe. Un trabajador no puede ver pedidos no asignados, pero sí puede ver el cliente y la solicitud relacionados con pedidos que tiene asignados. No implementa edición general.
+El detalle carga server-side, valida UUID, permiso y alcance por rol. Muestra cliente, solicitud, personal asignado y archivos privados del pedido cuando existen. Un trabajador no puede ver pedidos no asignados, pero sí puede ver el cliente, la solicitud relacionada y los archivos de pedidos que tiene asignados. No implementa edición general.
+
+## Archivos privados de pedido
+
+Archivos principales:
+
+- Listado: `src/lib/storage/list-pedido-files.ts`
+- Subida: `src/lib/storage/upload-pedido-file.ts`
+- Componente: `src/components/storage/PedidoFilesSection.tsx`
+- Descarga: `/dashboard/pedidos/[id]/archivos/[fileId]/download`
+
+El detalle de pedido permite listar, subir y descargar archivos privados asociados al pedido. Los objetos se guardan en el bucket privado `godel-files` y los metadatos se registran en `archivos`.
+
+Categorías permitidas:
+
+- `admin` y `supervisor`: `interno_pedido`, `avance`, `final_entrega`.
+- `trabajador` asignado: `avance`, `final_entrega`.
+
+La descarga se realiza mediante URL firmada de corta duración. No se usan URLs públicas permanentes, no se acepta `file_path` desde formularios y no se usa service role key. No se implementa eliminación de archivos en esta fase.
 
 ## Creación manual
 
@@ -227,7 +245,6 @@ Aclaraciones:
 
 - edición general de pedido;
 - eliminación;
-- archivos;
 - historial avanzado;
 - comentarios internos;
 - notificaciones;
@@ -240,7 +257,7 @@ Aclaraciones:
 
 Más adelante se podrá:
 
-- agregar archivos privados del pedido;
+- agregar eliminación controlada de archivos privados del pedido;
 - registrar historial de cambios;
 - agregar comentarios internos;
 - implementar notificaciones;
