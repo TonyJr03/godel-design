@@ -4,6 +4,8 @@ export const SIGNED_FILE_URL_EXPIRES_IN_SECONDS = 120;
 
 export const MAX_STORAGE_FILE_SIZE_BYTES = 20 * 1024 * 1024;
 
+export const MAX_PUBLIC_SOLICITUD_FILES = 5;
+
 export const STORAGE_ROOTS = {
   solicitudes: "solicitudes",
   pedidos: "pedidos",

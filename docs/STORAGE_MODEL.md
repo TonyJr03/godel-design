@@ -150,9 +150,32 @@ La subida usa el archivo real recibido por `FormData`, valida nombre, tamaño, M
 
 La descarga usa el route handler interno del pedido, valida que el archivo pertenezca al pedido y redirige a una URL firmada de corta duración. No hay URLs públicas permanentes.
 
+## Fase 10.4A: base para archivos de solicitudes públicas
+
+La base backend permite una futura integración del formulario público con archivos de cliente, sin modificar todavía la UI de `/solicitud`.
+
+Reglas aplicadas:
+
+- El bucket sigue siendo `godel-files` con `public = false`.
+- `anon` solo puede insertar objetos en `storage.objects` bajo `solicitudes/{solicitud_id}/originales/{archivo}`.
+- `anon` solo puede insertar metadatos válidos en `archivos` con `visibility = cliente_solicitud`.
+- `pedido_id` debe ser `null`.
+- `uploaded_by` debe ser `null`.
+- `bucket` debe ser `godel-files`.
+- El UUID de `solicitud_id` debe coincidir con el UUID presente en `file_path`.
+- `file_size` debe ser mayor que cero y no superar 20 MB.
+- `file_type` debe pertenecer a la lista de MIME permitidos.
+- No hay lectura, listado, actualización ni eliminación anónima.
+
+El servicio `uploadPublicSolicitudFile` fuerza la categoría `cliente_solicitud`, valida el archivo real, construye la ruta internamente y guarda metadatos en `archivos`. `uploadPublicSolicitudFiles` limita la carga múltiple a 5 archivos por solicitud.
+
+La lectura posterior de estos archivos queda reservada para `admin` y `supervisor`. Los trabajadores no acceden a archivos asociados solo a solicitudes.
+
+Riesgo controlado: si la subida al bucket privado funciona y luego falla la inserción de metadatos, no se abre eliminación anónima para limpiar el objeto. El error queda registrado en servidor y la limpieza operativa deberá tratarse con un flujo seguro posterior si fuera necesario.
+
 ## Qué no queda habilitado todavía
 
-- No hay subida pública anónima desde `/solicitud`.
+- No hay subida pública integrada todavía en la UI de `/solicitud`.
 - No hay archivos en detalle de solicitudes.
 - No hay eliminación de archivos.
 - No hay edición de metadatos.
@@ -190,6 +213,6 @@ Extensiones a bloquear inicialmente:
 ## Pendiente para fases posteriores
 
 - Servicios de subida pública controlada para solicitudes.
-- Integración con formulario público.
+- Integración real con el formulario público.
 - Integración con detalle de solicitudes si se define en una fase posterior.
 - Eliminación controlada de archivos si se define en una fase posterior.

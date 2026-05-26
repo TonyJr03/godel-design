@@ -146,3 +146,47 @@ export type UploadPedidoFileResult =
         | "metadata_error"
         | "error";
     };
+
+export type UploadPublicSolicitudFileInput = {
+  solicitudId: string;
+  file: File;
+};
+
+export type UploadPublicSolicitudFileResult =
+  | {
+      ok: true;
+      fileId: string;
+      fileName: string;
+    }
+  | {
+      ok: false;
+      reason:
+        | "invalid_solicitud_id"
+        | "invalid_file"
+        | "storage_error"
+        | "metadata_error"
+        | "error";
+    };
+
+export type UploadPublicSolicitudFilesInput = {
+  solicitudId: string;
+  files: File[];
+};
+
+export type UploadPublicSolicitudFilesResult = {
+  ok: boolean;
+  uploaded: Array<{
+    fileId: string;
+    fileName: string;
+  }>;
+  errors: Array<{
+    fileName: string;
+    reason:
+      | "too_many_files"
+      | "invalid_solicitud_id"
+      | "invalid_file"
+      | "storage_error"
+      | "metadata_error"
+      | "error";
+  }>;
+};

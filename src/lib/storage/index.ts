@@ -5,4 +5,5 @@ export * from "./file-validation";
 export * from "./list-pedido-files";
 export * from "./signed-url";
 export * from "./upload-pedido-file";
+export * from "./upload-public-solicitud-file";
 export type * from "./types";
