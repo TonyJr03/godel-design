@@ -435,6 +435,10 @@ Implementar gestión real y segura de archivos mediante Supabase Storage.
 
 Los archivos quedan asociados a solicitudes o pedidos y solo usuarios autorizados pueden acceder a ellos.
 
+### Cierre de fase
+
+La Fase 10 quedó completada con bucket privado `godel-files`, estructura de rutas internas, utilidades reutilizables de Storage, validación de tamaño y formato, sanitización de nombres, subida pública controlada de archivos opcionales en solicitudes, subida interna de archivos en pedidos, metadatos registrados en `archivos`, visualización interna de archivos de solicitudes y pedidos, descargas mediante URLs firmadas de corta duración, y policies/RLS como defensa final. No se usan buckets públicos, URLs públicas permanentes ni service role key.
+
 ---
 
 ## Fase 11 — Comentarios internos e historial
@@ -662,7 +666,7 @@ Después de cada tarea de Codex se revisará:
 | 7 | Clientes | Completada |
 | 8 | Pedidos | Completada |
 | 9 | Asignación de personal a pedidos | Completada |
-| 10 | Archivos privados | Pendiente |
+| 10 | Archivos privados | Completada |
 | 11 | Comentarios internos e historial | Pendiente |
 | 12 | Gestión de usuarios internos | Pendiente |
 | 13 | Dashboard operativo | Pendiente |
@@ -675,7 +679,7 @@ Después de cada tarea de Codex se revisará:
 
 La próxima fase activa será:
 
-# Fase 10 — Archivos privados
+# Fase 11 — Comentarios internos e historial
 
 La Fase 1 quedó completada con el modelo de datos inicial, migraciones base, políticas RLS iniciales y modelo de Storage documentado.
 
@@ -703,4 +707,6 @@ La Fase 8 quedó completada con listado de pedidos, detalle, creación manual, c
 
 La Fase 9 quedó completada con asignaciones múltiples de personal interno a pedidos, asignación de `admin`, `supervisor` o `trabajador` activos, remoción de asignaciones concretas, visualización completa del personal asignado, visibilidad controlada para trabajador asignado, permisos de cambio de estado con múltiples asignados y documentación oficial de asignaciones.
 
-La próxima fase activa es Fase 10 — Archivos privados. No debe iniciarse hasta recibir una tarea específica para esa fase.
+La Fase 10 quedó completada con infraestructura privada de Supabase Storage, bucket privado `godel-files`, policies de `storage.objects`, helpers y validadores de archivos, rutas privadas para solicitudes y pedidos, subida de archivos internos en pedidos, subida pública controlada de archivos opcionales en solicitudes, visualización interna de archivos de solicitud, registro de metadatos en `archivos`, descargas mediante URLs firmadas de corta duración y documentación actualizada. Los archivos permanecen privados, no hay URLs públicas permanentes, no se usa service role key y RLS/policies siguen como defensa final.
+
+La próxima fase activa es Fase 11 — Comentarios internos e historial. No debe iniciarse hasta recibir una tarea específica para esa fase.
