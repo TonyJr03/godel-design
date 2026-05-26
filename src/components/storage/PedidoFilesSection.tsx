@@ -20,7 +20,8 @@ const initialState: UploadPedidoFileActionState = {
   message: "",
 };
 
-const CATEGORY_LABELS: Record<PedidoFileCategory, string> = {
+const CATEGORY_LABELS: Record<PedidoFileListItem["visibility"], string> = {
+  cliente_solicitud: "Archivo enviado por cliente",
   interno_pedido: "Interno del pedido",
   avance: "Avance",
   final_entrega: "Final de entrega",
@@ -56,6 +57,10 @@ function formatFileSize(value: number | null): string {
 }
 
 function getUploaderLabel(file: PedidoFileListItem): string {
+  if (file.visibility === "cliente_solicitud") {
+    return "Cliente";
+  }
+
   if (file.uploadedBy?.full_name?.trim()) {
     return file.uploadedBy.full_name;
   }
@@ -64,7 +69,7 @@ function getUploaderLabel(file: PedidoFileListItem): string {
 }
 
 function getCategoryLabel(category: PedidoFileListItem["visibility"]): string {
-  return CATEGORY_LABELS[category as PedidoFileCategory] ?? "Archivo";
+  return CATEGORY_LABELS[category] ?? "Archivo";
 }
 
 export function PedidoFilesSection({

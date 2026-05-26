@@ -71,6 +71,12 @@ La UI pública usa estas funciones para adjuntar archivos al crear la solicitud.
 
 `listSolicitudFiles(solicitudId)` lista metadatos seguros de `archivos` para el detalle interno de solicitud, sin devolver `file_path`. La descarga interna usa `/dashboard/solicitudes/[id]/archivos/[fileId]/download`, valida pertenencia por RLS y redirige a una signed URL de corta duración.
 
+## Herencia al convertir a pedido
+
+Cuando una solicitud con archivos `cliente_solicitud` se convierte en pedido, no se mueve ni se copia el objeto físico en Storage. El flujo conserva `solicitud_id`, `file_path`, `bucket`, `visibility` y `uploaded_by`, y solo completa `pedido_id` en los metadatos de `archivos`.
+
+Así el archivo sigue visible desde el detalle interno de solicitud para `admin` y `supervisor`, y también aparece en “Archivos del pedido” como “Archivo enviado por cliente”. Un trabajador asignado puede verlo y descargarlo desde el pedido, pero no obtiene acceso al módulo interno de solicitudes.
+
 ## Fuera del alcance actual
 
 - No hay eliminación de archivos.

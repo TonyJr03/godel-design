@@ -205,6 +205,22 @@ La descarga usa `/dashboard/solicitudes/{solicitud_id}/archivos/{archivo_id}/dow
 
 El trabajador no accede al módulo de solicitudes y no puede listar ni descargar archivos asociados solo a solicitudes.
 
+## Fase 10.7: herencia de archivos al convertir a pedido
+
+Cuando una solicitud aprobada se convierte en pedido, los archivos enviados por el cliente se heredan por metadatos:
+
+- no se mueve el objeto físico en Supabase Storage;
+- no se copia el archivo;
+- no cambia `file_path`;
+- no cambia `bucket`;
+- no cambia `solicitud_id`;
+- no cambia `visibility`;
+- se establece `pedido_id` con el pedido generado.
+
+Esto conserva la trazabilidad de origen y permite que el archivo siga apareciendo en el detalle interno de solicitud para `admin` y `supervisor`, y también en el detalle del pedido como “Archivo enviado por cliente”.
+
+La lectura del objeto físico bajo `solicitudes/{solicitud_id}/originales/...` sigue bloqueada para anónimos. Un trabajador asignado solo puede descargarlo desde el pedido cuando existe un registro en `archivos` con ese `file_path`, `visibility = cliente_solicitud` y un `pedido_id` accesible por RLS.
+
 ## Qué no queda habilitado todavía
 
 - No hay eliminación de archivos.

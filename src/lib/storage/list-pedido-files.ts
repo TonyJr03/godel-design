@@ -55,7 +55,12 @@ export async function listPedidoFiles(
       .from("archivos")
       .select(PEDIDO_FILES_SELECT)
       .eq("pedido_id", normalizedPedidoId)
-      .in("visibility", ["interno_pedido", "avance", "final_entrega"])
+      .in("visibility", [
+        "cliente_solicitud",
+        "interno_pedido",
+        "avance",
+        "final_entrega",
+      ])
       .order("created_at", { ascending: false })
       .returns<PedidoFileRow[]>();
 

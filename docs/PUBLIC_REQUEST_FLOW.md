@@ -187,6 +187,8 @@ Los archivos:
 
 La gestión interna permite que `admin` y `supervisor` vean y descarguen estos archivos desde el detalle interno de solicitud mediante URLs firmadas de corta duración. Esa descarga no está disponible para clientes públicos.
 
+Si la solicitud se convierte en pedido, los archivos se heredan por metadatos: se conserva la ruta física original y se completa `archivos.pedido_id` con el pedido generado. No se mueve ni se copia el objeto en Storage.
+
 ## Flujo Funcional Actual
 
 1. Cliente entra a `/solicitud`.

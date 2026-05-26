@@ -198,6 +198,26 @@ export async function createPedidoFromSolicitud(
       };
     }
 
+    const { error: archivosUpdateError } = await supabase
+      .from("archivos")
+      .update({ pedido_id: pedido.id })
+      .eq("solicitud_id", solicitud.id)
+      .is("pedido_id", null)
+      .eq("visibility", "cliente_solicitud");
+
+    if (archivosUpdateError) {
+      console.error(
+        "Error associating solicitud files with converted pedido",
+        archivosUpdateError,
+      );
+
+      return {
+        ok: false,
+        reason: "error",
+        message: GENERIC_CONVERT_ERROR,
+      };
+    }
+
     return {
       ok: true,
       pedidoId: pedido.id,

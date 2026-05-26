@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getCurrentProfile } from "@/lib/auth/current-user";
+import { hasPermission } from "@/lib/permissions/permissions";
 import { createClient } from "@/lib/supabase/server";
 import {
   GODEL_FILES_BUCKET,
@@ -25,6 +27,12 @@ export async function GET(
     return new Response("Archivo no disponible.", { status: 404 });
   }
 
+  const profile = await getCurrentProfile();
+
+  if (!profile || !hasPermission(profile.role, "solicitudes.view")) {
+    return new Response("Archivo no disponible.", { status: 404 });
+  }
+
   const supabase = await createClient();
   const { data: archivo, error } = await supabase
     .from("archivos")
@@ -45,7 +53,6 @@ export async function GET(
 
   if (
     !archivo ||
-    archivo.pedido_id !== null ||
     archivo.bucket !== GODEL_FILES_BUCKET
   ) {
     return new Response("Archivo no disponible.", { status: 404 });

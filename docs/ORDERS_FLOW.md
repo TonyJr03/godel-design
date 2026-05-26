@@ -147,6 +147,8 @@ Categorías permitidas:
 - `admin` y `supervisor`: `interno_pedido`, `avance`, `final_entrega`.
 - `trabajador` asignado: `avance`, `final_entrega`.
 
+Los archivos enviados por el cliente en la solicitud pública también pueden aparecer en el pedido generado como `cliente_solicitud`. En ese caso se muestran como “Archivo enviado por cliente”. No se permite subir esa categoría desde el formulario interno de pedido; solo se hereda al convertir una solicitud en pedido.
+
 La descarga se realiza mediante URL firmada de corta duración. No se usan URLs públicas permanentes, no se acepta `file_path` desde formularios y no se usa service role key. No se implementa eliminación de archivos en esta fase.
 
 ## Creación manual
@@ -177,6 +179,8 @@ Al convertir:
 - se crea un pedido con `pedidos.solicitud_id`;
 - se actualiza `solicitudes.estado = convertida`;
 - se actualiza `solicitudes.converted_order_id`;
+- se asocian al pedido los archivos `cliente_solicitud` de la solicitud completando `archivos.pedido_id`;
+- no se mueven ni copian archivos físicos en Storage;
 - se evita doble conversión mediante validaciones y una restricción única existente;
 - no se asigna personal.
 

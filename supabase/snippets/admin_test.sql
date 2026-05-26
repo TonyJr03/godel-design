@@ -5,7 +5,7 @@ insert into public.profiles (
   is_active
 )
 values (
-  '154d04f2-df90-4cae-92f4-29c0ed6d4144',
+  '64b272e2-b6fb-4de0-bc81-a2a793fce903',
   'Administrador Godel',
   'admin',
   true

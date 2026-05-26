@@ -35,7 +35,6 @@ export async function listSolicitudFiles(
       .from("archivos")
       .select(SOLICITUD_FILES_SELECT)
       .eq("solicitud_id", normalizedSolicitudId)
-      .is("pedido_id", null)
       .eq("visibility", "cliente_solicitud")
       .order("created_at", { ascending: false })
       .returns<SolicitudFileListItem[]>();
