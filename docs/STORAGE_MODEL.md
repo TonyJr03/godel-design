@@ -115,11 +115,27 @@ Las signed URLs no deben guardarse en base de datos. Deben generarse bajo demand
 - Constantes base en `src/lib/storage/constants.ts`.
 - Documentación alineada con la infraestructura real.
 
+## Servicios base de Fase 10.2
+
+La capa `src/lib/storage` concentra utilidades reutilizables para las próximas subfases:
+
+| Archivo | Propósito |
+|---|---|
+| `constants.ts` | Nombre del bucket privado, carpetas, categorías, límites y listas de MIME/extensiones permitidas. |
+| `types.ts` | Tipos internos derivados del modelo de Supabase cuando aplica. |
+| `file-name.ts` | Sanitización de nombres y extracción de extensión/base. |
+| `file-paths.ts` | Construcción de rutas internas para solicitudes y pedidos sin aceptar rutas arbitrarias del usuario. |
+| `file-validation.ts` | Validaciones base de archivo, categoría y contexto antes de futuras subidas. |
+| `signed-url.ts` | Generación server-side de URLs firmadas de corta duración a partir de `archivo.id`. |
+
+La generación de URLs firmadas consulta primero la tabla `archivos` con RLS. El usuario no envía `file_path` directamente; el sistema usa los metadatos guardados en base de datos y el bucket privado `godel-files`.
+
+Storage físico y metadatos de negocio siguen separados: Supabase Storage conserva el binario, mientras `archivos` conserva `bucket`, `file_path`, categoría, relaciones con solicitudes/pedidos y trazabilidad.
+
 ## Qué no queda habilitado todavía
 
 - No hay subida real de archivos desde formularios.
 - No hay descarga real desde la interfaz.
-- No hay generación de signed URLs.
 - No hay subida pública anónima desde `/solicitud`.
 - No hay componentes visuales nuevos para archivos.
 - No hay historial, comentarios ni notificaciones asociados a archivos.
