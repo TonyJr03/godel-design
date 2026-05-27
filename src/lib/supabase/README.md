@@ -8,6 +8,8 @@ Esta carpeta prepara la configuración base de Supabase para Next.js App Router.
 
 No se debe usar la service role key en frontend. Estos clientes usan solamente `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
 
+Para la Fase 12, la gestión inicial de usuarios internos debe seguir usando estos clientes normales y operar solo sobre `public.profiles`. Crear usuarios en Supabase Auth desde la app requeriría Admin API y service role key server-side, por lo que queda fuera del MVP.
+
 ## Tipos generados
 
 `src/types/database.types.ts` es generado automáticamente por Supabase CLI a partir del esquema de la base de datos. No debe editarse manualmente salvo una necesidad puntual de formato o compatibilidad.

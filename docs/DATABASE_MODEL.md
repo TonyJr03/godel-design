@@ -126,6 +126,8 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 - Solo `admin` debería poder gestionar roles y activar o desactivar usuarios.
 - Los usuarios autenticados podrían leer su propio perfil.
 - El acceso a perfiles de otros usuarios debe depender del rol.
+- En el modelo vigente de RLS, `admin` y `supervisor` pueden leer perfiles internos; `trabajador` puede leer su propio perfil y datos básicos de perfiles asignados a pedidos que puede acceder.
+- La Fase 12 recomienda gestionar inicialmente solo `profiles`, sin crear usuarios Auth desde la app y sin usar service role key.
 
 ### `clientes`
 

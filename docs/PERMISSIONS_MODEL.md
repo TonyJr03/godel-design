@@ -129,6 +129,19 @@ Para comentarios e historial de pedidos, las tablas oficiales normalizadas son `
 
 Para solicitudes, las tablas oficiales son `solicitud_comentarios` y `solicitud_historial`. Ambas quedan reservadas a `admin` y `supervisor`; `trabajador` y usuarios anónimos no acceden. Los comentarios de solicitudes están implementados en el detalle de solicitud, son append-only inicialmente y toman el autor desde el usuario autenticado en servidor mediante `solicitud_comentarios.autor_id`. El historial de solicitudes está visible en el detalle de solicitud, es append-only y registra automáticamente eventos de creación, archivos adjuntados, cambios de estado, asociación de cliente, creación de cliente desde solicitud y conversión a pedido. Los eventos del flujo público no abren lectura ni inserción directa anónima sobre `solicitud_historial`.
 
+## Gestión de Usuarios Internos
+
+La Fase 12 mantiene la matriz actual: solo `admin` tiene `usuarios.view`, `usuarios.manage` y acceso a `/dashboard/usuarios`.
+
+La estrategia recomendada para el MVP es gestionar únicamente `public.profiles`. La creación de usuarios en Supabase Auth queda fuera de la app por ahora y debe hacerse manualmente desde Supabase Studio o CLI. Esta decisión evita introducir service role key y conserva RLS como defensa final.
+
+Las futuras acciones del módulo de usuarios deben validar permisos server-side:
+
+- `usuarios.view` para listar o ver detalles de perfiles.
+- `usuarios.manage` para editar perfil operativo, cambiar rol o activar/desactivar usuarios.
+
+`supervisor` y `trabajador` no deben gestionar usuarios. El acceso parcial de `trabajador` a perfiles asignados por pedido existe solo para mostrar información operativa mínima en pedidos, no para listar ni administrar personal.
+
 ## Uso esperado en futuros módulos
 
 Cuando se implementen módulos reales:

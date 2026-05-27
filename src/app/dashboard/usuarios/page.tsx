@@ -10,7 +10,7 @@ export default function DashboardUsuariosPage() {
       />
       <PlaceholderCard
         title="Usuarios internos pendientes"
-        description="Los roles y permisos se conectarán cuando exista autenticación real."
+        description="La gestión funcional se implementará en subfases posteriores."
       />
     </div>
   );

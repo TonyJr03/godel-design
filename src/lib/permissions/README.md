@@ -35,6 +35,12 @@ La navegación del dashboard usa `canAccessDashboardRoute` para ocultar enlaces 
 
 La protección real por URL directa se realiza en el proxy de Next.js. El proxy también usa `canAccessDashboardRoute`, de modo que la navegación y el bloqueo de rutas comparten la misma fuente de reglas.
 
+## Usuarios internos
+
+`usuarios.view` y `usuarios.manage` pertenecen solo a `admin`. La ruta `/dashboard/usuarios` también está limitada a `admin`.
+
+La Fase 12 recomienda implementar primero gestión de perfiles internos sobre `public.profiles`, sin crear usuarios Auth desde la app y sin usar service role key. Las futuras Server Actions del módulo deben validar permisos en servidor antes de leer o modificar perfiles.
+
 ## Relación con RLS
 
 Estos helpers no reemplazan Row Level Security. RLS sigue siendo la última línea de defensa en Supabase y debe proteger los datos aunque exista una validación previa en Next.js.
