@@ -90,6 +90,14 @@ La action `createPedidoCommentAction` lee únicamente `pedido_id` y `contenido`.
 
 Los comentarios son append-only. No hay edición, eliminación, menciones, notificaciones, adjuntos ni registro automático adicional de historial en esta subfase.
 
+## Historial Visible
+
+`/dashboard/pedidos/[id]` incluye `PedidoHistorySection` para listar eventos existentes en `pedido_historial`.
+
+`listPedidoHistory` carga el historial server-side mediante la RPC segura `public.listar_pedido_historial`. Valida UUID, perfil interno, permiso `pedidos.view` y acceso al pedido. La RPC valida `private.can_access_order`, no abre `profiles` globalmente y devuelve solo datos mínimos del actor: nombre y rol.
+
+El historial es append-only. No hay edición, eliminación ni registro automático nuevo en esta subfase. Actualmente se muestran los eventos que ya existan en `pedido_historial`, empezando por cambios de estado registrados por `public.actualizar_estado_pedido`.
+
 ## Alcance por Rol
 
 - `admin` y `supervisor` ven todos los pedidos.
@@ -99,12 +107,14 @@ Los comentarios son append-only. No hay edición, eliminación, menciones, notif
 - `admin` y `supervisor` pueden cambiar el estado de cualquier pedido.
 - `admin` y `supervisor` pueden asignar o remover personal interno activo de un pedido.
 - `admin` y `supervisor` pueden ver y agregar comentarios internos en cualquier pedido.
+- `admin` y `supervisor` pueden ver historial interno de cualquier pedido.
 - `admin` o `supervisor` asignados a un pedido siguen conservando sus permisos reales.
 - `trabajador` ve solo pedidos asignados mediante `pedido_trabajadores`.
 - `trabajador` solo puede ver el detalle si está asignado al pedido.
 - `trabajador` puede ver cliente y solicitud asociados a pedidos asignados.
 - `trabajador` puede cambiar el estado solo de pedidos asignados.
 - `trabajador` puede ver y agregar comentarios internos solo en pedidos asignados.
+- `trabajador` puede ver historial interno solo de pedidos asignados.
 - `trabajador` no puede crear, convertir, asignar ni remover asignaciones de pedidos.
 - usuarios anónimos no pueden leer ni crear pedidos.
 

@@ -560,6 +560,19 @@ export type Database = {
           updated_at: string
         }[]
       }
+      listar_pedido_historial: {
+        Args: { p_pedido_id: string }
+        Returns: {
+          action: Database["public"]["Enums"]["pedido_historial_action"]
+          actor_full_name: string
+          actor_role: Database["public"]["Enums"]["app_role"]
+          created_at: string
+          id: string
+          metadata: Json
+          new_value: string
+          old_value: string
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "supervisor" | "trabajador"

@@ -137,6 +137,22 @@ El módulo actual:
 
 El RLS permite lectura e inserción según acceso al pedido. La subfase 11.2 eliminó las policies de actualización y eliminación para mantener comentarios append-only en el alcance inicial.
 
+### Historial Visible de Pedidos
+
+La Fase 11.5 implementa historial visible en el detalle de pedido.
+
+El módulo actual:
+
+- lista eventos existentes de `pedido_historial` en `/dashboard/pedidos/[id]`;
+- usa la RPC segura `public.listar_pedido_historial`;
+- muestra tipo de evento, resumen visible, actor, rol y fecha;
+- devuelve solo datos mínimos del actor;
+- no abre globalmente `profiles`;
+- no implementa edición ni eliminación;
+- no registra eventos automáticos nuevos.
+
+Actualmente se muestran los eventos que ya existan en `pedido_historial`, empezando por cambios de estado registrados mediante `public.actualizar_estado_pedido`. Eventos adicionales como creación, asignaciones, archivos y conversión quedan para subfases posteriores.
+
 ### Comentarios de Solicitudes
 
 La Fase 11.4 implementa comentarios internos en el detalle de solicitud.
@@ -510,7 +526,6 @@ Estado:
 - `createPedidoComment` valida UUID, permiso, acceso al pedido y contenido;
 - la action del detalle solo lee `pedido_id` y `contenido`;
 - no se acepta autor desde el formulario;
-- no se implementa historial visible;
 - no se registra historial automático adicional.
 
 ### Fase 11.3: UI de Comentarios en Pedidos
@@ -532,6 +547,17 @@ Estado:
 - mostrar autor, rol, fecha y contenido;
 - no exponer a trabajadores ni anónimos;
 - no implementar edición ni eliminación.
+
+### Fase 11.5: Historial Visible en Pedidos
+
+Estado:
+
+- implementado en `PedidoHistorySection`;
+- lista eventos existentes de `pedido_historial`;
+- usa `public.listar_pedido_historial` para exponer datos mínimos del actor;
+- muestra tipo de evento, resumen, actor, rol y fecha;
+- no implementa edición ni eliminación;
+- no registra eventos automáticos nuevos.
 
 ### Fase 11.6: Registro Automático de Historial
 

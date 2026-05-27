@@ -8,6 +8,7 @@ type InternalPedidoDetailProps = {
   workerAssignmentSection?: ReactNode;
   filesSection?: ReactNode;
   commentsSection?: ReactNode;
+  historySection?: ReactNode;
 };
 
 const ESTADO_LABELS: Record<InternalPedidoDetail["estado"], string> = {
@@ -99,6 +100,7 @@ export function InternalPedidoDetail({
   workerAssignmentSection,
   filesSection,
   commentsSection,
+  historySection,
 }: InternalPedidoDetailProps) {
   return (
     <div className="space-y-6">
@@ -172,6 +174,8 @@ export function InternalPedidoDetail({
       {workerAssignmentSection}
 
       {commentsSection}
+
+      {historySection}
 
       {filesSection}
 

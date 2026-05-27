@@ -79,6 +79,12 @@ export {
   type PedidoCommentAuthor,
 } from "./list-pedido-comments";
 export {
+  listPedidoHistory,
+  type ListPedidoHistoryResult,
+  type PedidoHistoryActor,
+  type PedidoHistoryItem,
+} from "./list-pedido-history";
+export {
   createPedidoComment,
   type CreatePedidoCommentInput,
   type CreatePedidoCommentResult,

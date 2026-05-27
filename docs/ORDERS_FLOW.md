@@ -95,7 +95,7 @@ Reglas actuales:
 - `solicitud_id` es `null` en pedidos manuales.
 - `numero_pedido` se genera en servidor.
 
-Las tablas oficiales normalizadas para comentarios e historial de pedidos son `pedido_comentarios` y `pedido_historial`. El enum de eventos de historial de pedidos es `pedido_historial_action`. Los comentarios de pedido están implementados en el detalle interno y son append-only. El historial sigue sin UI visible.
+Las tablas oficiales normalizadas para comentarios e historial de pedidos son `pedido_comentarios` y `pedido_historial`. El enum de eventos de historial de pedidos es `pedido_historial_action`. Los comentarios de pedido están implementados en el detalle interno y son append-only. El historial de pedido está visible en el detalle interno y muestra los eventos existentes en `pedido_historial`.
 
 ## Estados de pedido
 
@@ -147,6 +147,20 @@ El detalle de pedido permite ver y agregar comentarios internos asociados al ped
 El formulario solo envía `pedido_id` y `contenido`. El autor se toma server-side desde el perfil autenticado y se guarda en `pedido_comentarios.user_id`. No se acepta autor, fecha ni otros campos técnicos desde el formulario.
 
 Los comentarios son append-only en el alcance inicial. No hay edición, eliminación, menciones, notificaciones ni adjuntos. Esta subfase no registra historial automático adicional.
+
+## Historial visible de pedido
+
+Archivos principales:
+
+- Listado: `src/lib/pedidos/list-pedido-history.ts`
+- Componente: `src/components/pedidos/PedidoHistorySection.tsx`
+- RPC: `public.listar_pedido_historial`
+
+El detalle de pedido muestra una sección “Historial del pedido” con los eventos registrados en `pedido_historial`. El listado se carga server-side y usa una RPC segura que valida `private.can_access_order` y devuelve solo datos mínimos del actor: nombre y rol.
+
+`admin` y `supervisor` ven el historial de cualquier pedido. `trabajador` ve el historial solo de pedidos asignados. El historial es append-only: no hay edición ni eliminación.
+
+En esta subfase no se registran eventos automáticos nuevos. Actualmente se muestran los eventos existentes, empezando por los cambios de estado registrados por `public.actualizar_estado_pedido`. Eventos como creación, asignaciones, archivos y conversión quedan para subfases posteriores.
 
 ## Archivos privados de pedido
 
