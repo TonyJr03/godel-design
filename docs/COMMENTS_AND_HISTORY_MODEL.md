@@ -45,19 +45,19 @@ Quedan fuera del alcance inicial:
 
 ### Base de datos
 
-El proyecto no parte de cero. La migración inicial ya creó estructuras relacionadas con comentarios e historial para pedidos:
+El proyecto no parte de cero. La migración inicial creó estructuras relacionadas con comentarios e historial para pedidos, y la subfase 11.1B normaliza sus nombres para distinguirlas de las tablas futuras de solicitudes:
 
-- existe la tabla `comentarios`;
-- existe la tabla `historial_pedidos`;
-- existe el enum `historial_pedido_action`;
+- existe la tabla `pedido_comentarios`, renombrada desde `comentarios`;
+- existe la tabla `pedido_historial`, renombrada desde `historial_pedidos`;
+- existe el enum `pedido_historial_action`, renombrado desde `historial_pedido_action`;
 - existe la RPC `public.actualizar_estado_pedido`;
-- existe RLS para `comentarios`;
-- existe RLS para `historial_pedidos`;
-- existen triggers genéricos de `updated_at` en varias tablas, incluido `comentarios`.
+- existe RLS para `pedido_comentarios`;
+- existe RLS para `pedido_historial`;
+- existen triggers genéricos de `updated_at` en varias tablas, incluido `pedido_comentarios`.
 
-La tabla `comentarios` está asociada solo a pedidos mediante `pedido_id`. No existe relación con solicitudes.
+La tabla `pedido_comentarios` está asociada solo a pedidos mediante `pedido_id`. No existe relación con solicitudes.
 
-La tabla `historial_pedidos` está asociada solo a pedidos mediante `pedido_id`. No existe historial equivalente para solicitudes.
+La tabla `pedido_historial` está asociada solo a pedidos mediante `pedido_id`. No existe historial equivalente para solicitudes.
 
 No se encontró una tabla de historial general para múltiples entidades. Tampoco existe una tabla de comentarios interna que pueda apuntar indistintamente a pedidos o solicitudes.
 
@@ -69,13 +69,13 @@ Existen triggers técnicos de actualización de fecha:
 - `set_clientes_updated_at`;
 - `set_solicitudes_updated_at`;
 - `set_pedidos_updated_at`;
-- `set_comentarios_updated_at`.
+- `set_pedido_comentarios_updated_at`.
 
 No se encontraron triggers de negocio que registren automáticamente eventos de historial por creación, asignación, subida de archivos, conversión de solicitud o asociación de cliente.
 
 ### RPC `actualizar_estado_pedido`
 
-La RPC `public.actualizar_estado_pedido` sí registra historial en `historial_pedidos` cuando el estado cambia.
+La RPC `public.actualizar_estado_pedido` sí registra historial en `pedido_historial` cuando el estado cambia.
 
 Eventos que puede registrar:
 
@@ -114,7 +114,7 @@ No registran historial actualmente:
 
 ### Comentarios Actuales
 
-Aunque existe la tabla `comentarios`, no se encontró un módulo funcional completo de comentarios internos en la aplicación.
+Aunque existe la tabla `pedido_comentarios`, no se encontró un módulo funcional completo de comentarios internos en la aplicación.
 
 La tabla actual:
 
@@ -233,7 +233,7 @@ Desventajas:
 - restricciones más complejas para evitar filas ambiguas;
 - consultas con más condiciones condicionales;
 - mayor probabilidad de mezclar reglas de pedidos y solicitudes;
-- implica migrar o convivir con las tablas actuales `comentarios` e `historial_pedidos`.
+- implica migrar o convivir con tablas específicas por entidad.
 
 ### Opción B: Tablas Separadas por Entidad
 
@@ -264,15 +264,19 @@ Desventajas:
 
 Se recomienda la Opción B, ajustada al estado real del proyecto.
 
-Como ya existen `comentarios` e `historial_pedidos`, la implementación de Fase 11.2 debería evitar renombrados innecesarios salvo que se decida una limpieza explícita de esquema.
+La subfase 11.1B formaliza esta decisión al normalizar las tablas de pedidos:
 
-Recomendación práctica:
+- `pedido_comentarios`;
+- `pedido_historial`;
+- `pedido_historial_action`.
 
-- mantener `comentarios` como tabla de comentarios de pedidos, o evaluar renombrarla a `pedido_comentarios` solo si el equipo acepta el costo de migración;
-- mantener `historial_pedidos` como historial de pedidos;
-- agregar `solicitud_comentarios`;
-- agregar `solicitud_historial`;
-- mantener servicios separados para pedidos y solicitudes, con validaciones compartidas cuando sea útil.
+Las tablas previstas para solicitudes siguen pendientes para Fase 11.2:
+
+- `solicitud_comentarios`;
+- `solicitud_historial`;
+- `solicitud_historial_action`.
+
+La recomendación práctica es mantener servicios separados para pedidos y solicitudes, con validaciones compartidas cuando sea útil.
 
 Esta opción prioriza simplicidad, claridad, RLS sencilla, mantenimiento y escalabilidad razonable sin sobreingeniería.
 
@@ -280,7 +284,7 @@ Esta opción prioriza simplicidad, claridad, RLS sencilla, mantenimiento y escal
 
 ### Comentarios de Pedidos
 
-Tabla existente: `comentarios`.
+Tabla existente: `pedido_comentarios`.
 
 Uso recomendado: comentarios internos asociados a pedidos.
 
@@ -324,7 +328,7 @@ Reglas recomendadas:
 
 ### Historial de Pedidos
 
-Tabla existente: `historial_pedidos`.
+Tabla existente: `pedido_historial`.
 
 Campos existentes:
 
@@ -333,7 +337,7 @@ Campos existentes:
 | `id` | `uuid` | Identificador del evento. |
 | `pedido_id` | `uuid` | Pedido relacionado. |
 | `user_id` | `uuid nullable` | Usuario que ejecutó la acción, si aplica. |
-| `action` | `historial_pedido_action` | Tipo de evento. |
+| `action` | `pedido_historial_action` | Tipo de evento. |
 | `old_value` | `text nullable` | Valor anterior cuando aplique. |
 | `new_value` | `text nullable` | Valor nuevo cuando aplique. |
 | `metadata` | `jsonb nullable` | Datos adicionales mínimos. |
@@ -464,8 +468,8 @@ Objetivos:
 - agregar `solicitud_comentarios`;
 - agregar `solicitud_historial`;
 - agregar enum `solicitud_historial_action`;
-- revisar si `comentarios` debe quedar sin `update` y `delete` para el alcance inicial;
-- revisar si `historial_pedidos` debe bloquear toda actualización y eliminación;
+- revisar si `pedido_comentarios` debe quedar sin `update` y `delete` para el alcance inicial;
+- revisar si `pedido_historial` debe bloquear toda actualización y eliminación;
 - mantener RLS simple por entidad.
 
 No debería usarse service role key.
@@ -523,8 +527,8 @@ Objetivos:
 ## Riesgos
 
 - Las tablas actuales ya existen, por lo que un rediseño hacia tablas únicas implicaría migraciones de datos y mayor riesgo.
-- El RLS actual de `comentarios` permite actualización y eliminación, aunque el alcance inicial no contempla edición ni eliminación.
-- `historial_pedidos` permite inserción directa bajo ciertas condiciones; conviene revisar si el historial debe escribirse solo desde funciones o acciones controladas.
+- El RLS actual de `pedido_comentarios` permite actualización y eliminación, aunque el alcance inicial no contempla edición ni eliminación.
+- `pedido_historial` permite inserción directa bajo ciertas condiciones; conviene revisar si el historial debe escribirse solo desde funciones o acciones controladas.
 - Registrar historial desde muchas acciones puede dejar eventos duplicados si no se define una estrategia clara.
 - La conversión de solicitud a pedido afecta varias entidades y debe evitar inconsistencias si una parte del flujo falla.
 - Los eventos de archivos deben registrar metadatos seguros, no rutas privadas ni URLs firmadas.

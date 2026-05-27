@@ -69,7 +69,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 | `avance` | Archivo de avance del trabajo. |
 | `final_entrega` | Archivo final preparado para entrega. |
 
-### `historial_pedido_action`
+### `pedido_historial_action`
 
 | Valor |
 |---|
@@ -219,7 +219,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 
 - `numero_pedido` debe ser único.
 - Un pedido puede crearse manualmente o a partir de una solicitud.
-- Los cambios importantes de estado deben registrarse en `historial_pedidos`.
+- Los cambios importantes de estado deben registrarse en `pedido_historial`.
 
 **Notas de seguridad:**
 
@@ -292,7 +292,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 - El acceso debe resolverse mediante reglas de Storage, RLS y URLs firmadas.
 - Trabajadores solo deberían acceder a archivos de pedidos asignados.
 
-### `comentarios`
+### `pedido_comentarios`
 
 **Propósito:** Almacena notas o comentarios internos asociados a pedidos.
 
@@ -307,8 +307,8 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 
 **Claves foráneas:**
 
-- `comentarios.pedido_id` -> `pedidos.id`.
-- `comentarios.user_id` -> `profiles.id`.
+- `pedido_comentarios.pedido_id` -> `pedidos.id`.
+- `pedido_comentarios.user_id` -> `profiles.id`.
 
 **Reglas importantes:**
 
@@ -321,7 +321,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 - Solo usuarios internos autorizados pueden leer comentarios.
 - Trabajadores solo deberían leer y crear comentarios en pedidos asignados.
 
-### `historial_pedidos`
+### `pedido_historial`
 
 **Propósito:** Registra eventos importantes ocurridos sobre un pedido para trazabilidad básica.
 
@@ -330,7 +330,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 | `id` | `uuid` | Identificador único del evento. |
 | `pedido_id` | `uuid` | Pedido relacionado. |
 | `user_id` | `uuid nullable` | Usuario que ejecutó la acción, si aplica. |
-| `action` | `historial_pedido_action` | Tipo de evento registrado. |
+| `action` | `pedido_historial_action` | Tipo de evento registrado. |
 | `old_value` | `text nullable` | Valor anterior si aplica. |
 | `new_value` | `text nullable` | Valor nuevo si aplica. |
 | `metadata` | `jsonb nullable` | Datos adicionales del evento. |
@@ -338,8 +338,8 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 
 **Claves foráneas:**
 
-- `historial_pedidos.pedido_id` -> `pedidos.id`.
-- `historial_pedidos.user_id` -> `profiles.id`.
+- `pedido_historial.pedido_id` -> `pedidos.id`.
+- `pedido_historial.user_id` -> `profiles.id`.
 
 **Reglas importantes:**
 
@@ -403,8 +403,8 @@ Para archivos, los buckets deben ser privados y el acceso debe protegerse median
 | `pedido_trabajadores` | `trabajador_id` |
 | `archivos` | `pedido_id` |
 | `archivos` | `solicitud_id` |
-| `comentarios` | `pedido_id` |
-| `historial_pedidos` | `pedido_id` |
+| `pedido_comentarios` | `pedido_id` |
+| `pedido_historial` | `pedido_id` |
 
 ## Nota de Fase 11
 

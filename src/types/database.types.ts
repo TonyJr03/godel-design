@@ -7,31 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       archivos: {
@@ -128,7 +103,7 @@ export type Database = {
         }
         Relationships: []
       }
-      comentarios: {
+      pedido_comentarios: {
         Row: {
           contenido: string
           created_at: string
@@ -155,14 +130,14 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "comentarios_pedido_id_fkey"
+            foreignKeyName: "pedido_comentarios_pedido_id_fkey"
             columns: ["pedido_id"]
             isOneToOne: false
             referencedRelation: "pedidos"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "comentarios_user_id_fkey"
+            foreignKeyName: "pedido_comentarios_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -170,9 +145,9 @@ export type Database = {
           },
         ]
       }
-      historial_pedidos: {
+      pedido_historial: {
         Row: {
-          action: Database["public"]["Enums"]["historial_pedido_action"]
+          action: Database["public"]["Enums"]["pedido_historial_action"]
           created_at: string
           id: string
           metadata: Json | null
@@ -182,7 +157,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
-          action: Database["public"]["Enums"]["historial_pedido_action"]
+          action: Database["public"]["Enums"]["pedido_historial_action"]
           created_at?: string
           id?: string
           metadata?: Json | null
@@ -192,7 +167,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
-          action?: Database["public"]["Enums"]["historial_pedido_action"]
+          action?: Database["public"]["Enums"]["pedido_historial_action"]
           created_at?: string
           id?: string
           metadata?: Json | null
@@ -203,14 +178,14 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "historial_pedidos_pedido_id_fkey"
+            foreignKeyName: "pedido_historial_pedido_id_fkey"
             columns: ["pedido_id"]
             isOneToOne: false
             referencedRelation: "pedidos"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "historial_pedidos_user_id_fkey"
+            foreignKeyName: "pedido_historial_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -498,16 +473,6 @@ export type Database = {
         | "interno_pedido"
         | "avance"
         | "final_entrega"
-      historial_pedido_action:
-        | "pedido_creado"
-        | "estado_cambiado"
-        | "trabajador_asignado"
-        | "trabajador_removido"
-        | "archivo_subido"
-        | "nota_agregada"
-        | "fecha_entrega_actualizada"
-        | "pedido_entregado"
-        | "pedido_cancelado"
       pedido_estado:
         | "solicitud_recibida"
         | "en_revision"
@@ -518,6 +483,16 @@ export type Database = {
         | "listo_entrega"
         | "entregado"
         | "cancelado"
+      pedido_historial_action:
+        | "pedido_creado"
+        | "estado_cambiado"
+        | "trabajador_asignado"
+        | "trabajador_removido"
+        | "archivo_subido"
+        | "nota_agregada"
+        | "fecha_entrega_actualizada"
+        | "pedido_entregado"
+        | "pedido_cancelado"
       pedido_prioridad: "baja" | "normal" | "alta" | "urgente"
       solicitud_estado:
         | "nueva"
@@ -651,9 +626,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       app_role: ["admin", "supervisor", "trabajador"],
@@ -662,17 +634,6 @@ export const Constants = {
         "interno_pedido",
         "avance",
         "final_entrega",
-      ],
-      historial_pedido_action: [
-        "pedido_creado",
-        "estado_cambiado",
-        "trabajador_asignado",
-        "trabajador_removido",
-        "archivo_subido",
-        "nota_agregada",
-        "fecha_entrega_actualizada",
-        "pedido_entregado",
-        "pedido_cancelado",
       ],
       pedido_estado: [
         "solicitud_recibida",
@@ -684,6 +645,17 @@ export const Constants = {
         "listo_entrega",
         "entregado",
         "cancelado",
+      ],
+      pedido_historial_action: [
+        "pedido_creado",
+        "estado_cambiado",
+        "trabajador_asignado",
+        "trabajador_removido",
+        "archivo_subido",
+        "nota_agregada",
+        "fecha_entrega_actualizada",
+        "pedido_entregado",
+        "pedido_cancelado",
       ],
       pedido_prioridad: ["baja", "normal", "alta", "urgente"],
       solicitud_estado: [
@@ -697,4 +669,3 @@ export const Constants = {
     },
   },
 } as const
-

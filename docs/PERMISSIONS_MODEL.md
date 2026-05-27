@@ -125,6 +125,8 @@ Los helpers de permisos y la protección de rutas no sustituyen Row Level Securi
 - Las acciones server-side deben validar permisos antes de modificar datos.
 - No se debe confiar solo en el frontend.
 
+Para comentarios e historial de pedidos, las tablas oficiales normalizadas son `pedido_comentarios` y `pedido_historial`. Sus reglas deben seguir el acceso del pedido: `admin` y `supervisor` sobre cualquier pedido, y `trabajador` solo sobre pedidos asignados. Las tablas previstas para solicitudes serán `solicitud_comentarios` y `solicitud_historial`, reservadas para `admin` y `supervisor`.
+
 ## Uso esperado en futuros módulos
 
 Cuando se implementen módulos reales:
