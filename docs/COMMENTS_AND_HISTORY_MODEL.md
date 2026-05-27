@@ -350,7 +350,7 @@ Consideración para Fase 11.2:
 
 Tabla existente: `solicitud_comentarios`.
 
-Campos propuestos:
+Campos existentes:
 
 | Campo | Tipo | Uso |
 | --- | --- | --- |
@@ -411,6 +411,15 @@ Campos propuestos:
 | `created_at` | `timestamptz` | Fecha del evento. |
 
 Enum existente: `solicitud_historial_action`.
+
+Estado desde Fase 11.6:
+
+- el historial es visible en `/dashboard/solicitudes/[id]`;
+- `admin` y `supervisor` pueden ver eventos registrados;
+- `trabajador` y usuarios anónimos no acceden;
+- se muestran tipo de evento, resumen, actor, rol y fecha;
+- no hay edición ni eliminación;
+- no se registran eventos automáticos nuevos en esta subfase.
 
 Valores iniciales:
 
@@ -559,7 +568,18 @@ Estado:
 - no implementa edición ni eliminación;
 - no registra eventos automáticos nuevos.
 
-### Fase 11.6: Registro Automático de Historial
+### Fase 11.6: Historial Visible en Solicitudes
+
+Estado:
+
+- implementado en `SolicitudHistorySection`;
+- lista eventos existentes de `solicitud_historial`;
+- muestra tipo de evento, resumen, actor, rol y fecha;
+- maneja actor nulo como evento automático;
+- no implementa edición ni eliminación;
+- no registra eventos automáticos nuevos.
+
+### Fase 11.7: Registro Automático de Historial
 
 Objetivos:
 
@@ -573,7 +593,7 @@ Objetivos:
 - conectar asociación y creación de cliente desde solicitud;
 - mantener eventos mínimos y útiles.
 
-### Fase 11.7: Documentación y Cierre
+### Fase 11.8: Documentación y Cierre
 
 Objetivos:
 

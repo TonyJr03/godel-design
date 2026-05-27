@@ -3,12 +3,14 @@ import { notFound } from "next/navigation";
 import { SolicitudClienteForm } from "@/components/solicitudes/SolicitudClienteForm";
 import { SolicitudCommentsSection } from "@/components/solicitudes/SolicitudCommentsSection";
 import { SolicitudConvertPedidoForm } from "@/components/solicitudes/SolicitudConvertPedidoForm";
+import { SolicitudHistorySection } from "@/components/solicitudes/SolicitudHistorySection";
 import { InternalSolicitudDetail } from "@/components/solicitudes/InternalSolicitudDetail";
 import { SolicitudFilesSection } from "@/components/storage/SolicitudFilesSection";
 import { getInternalClienteById, listInternalClientes } from "@/lib/clientes";
 import {
   getInternalSolicitudById,
   listSolicitudComments,
+  listSolicitudHistory,
 } from "@/lib/solicitudes";
 import { listSolicitudFiles } from "@/lib/storage";
 
@@ -46,6 +48,7 @@ export default async function DashboardSolicitudDetallePage({
   ]);
   const filesResult = await listSolicitudFiles(result.solicitud.id);
   const commentsResult = await listSolicitudComments(result.solicitud.id);
+  const historyResult = await listSolicitudHistory(result.solicitud.id);
   const clienteAsociado =
     clienteAsociadoResult && clienteAsociadoResult.ok
       ? clienteAsociadoResult.cliente
@@ -89,6 +92,12 @@ export default async function DashboardSolicitudDetallePage({
             solicitudId={result.solicitud.id}
             comments={commentsResult.ok ? commentsResult.comments : []}
             loadError={commentsResult.ok ? undefined : commentsResult.message}
+          />
+        }
+        historySection={
+          <SolicitudHistorySection
+            history={historyResult.ok ? historyResult.history : []}
+            loadError={historyResult.ok ? undefined : historyResult.message}
           />
         }
       />

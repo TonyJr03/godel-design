@@ -130,6 +130,8 @@ Los comentarios son append-only inicialmente: no hay actualización ni eliminaci
 
 La Fase 11.4 implementa comentarios internos en `/dashboard/solicitudes/[id]`. `admin` y `supervisor` pueden ver y agregar comentarios; el autor se toma del usuario autenticado en servidor mediante `solicitud_comentarios.autor_id`. El formulario solo envía `solicitud_id` y `contenido`, no acepta autor ni fecha, y no hay edición ni eliminación.
 
+La Fase 11.6 implementa historial visible en `/dashboard/solicitudes/[id]`. `admin` y `supervisor` pueden ver los eventos existentes en `solicitud_historial`; el rol `trabajador` no accede al módulo de solicitudes. La sección muestra tipo de evento, resumen, actor, rol y fecha, sin edición ni eliminación.
+
 No se registran eventos automáticos de historial en esta subfase y no hay comentarios públicos de clientes.
 
 ## Estados de solicitud

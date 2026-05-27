@@ -90,6 +90,14 @@ No se usa service role key y no se implementa deduplicación avanzada.
 
 La action `createSolicitudCommentAction` lee únicamente `solicitud_id` y `contenido`. No acepta autor ni fechas desde el formulario. No hay edición, eliminación, menciones, notificaciones, adjuntos ni registro automático de historial en esta subfase.
 
+## Historial visible
+
+`listSolicitudHistory` carga server-side el historial interno de una solicitud en orden descendente. Requiere usuario interno activo con permiso `solicitudes.view`, valida UUID, confirma acceso a la solicitud respetando RLS y carga datos mínimos del actor desde `profiles` cuando existe `actor_id`.
+
+`SolicitudHistorySection` muestra los eventos existentes en `solicitud_historial` dentro del detalle interno de solicitud. La sección muestra tipo de evento, resumen, actor, rol y fecha. Si `actor_id` es `null`, el evento se muestra como “Evento automático”.
+
+El historial es append-only. No hay edición, eliminación, notificaciones ni registro automático nuevo de eventos en esta subfase.
+
 ## Alcance excluido
 
 - No hay lectura ni descarga pública de archivos.

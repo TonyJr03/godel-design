@@ -22,6 +22,12 @@ export {
   type SolicitudCommentAuthor,
 } from "./list-solicitud-comments";
 export {
+  listSolicitudHistory,
+  type ListSolicitudHistoryResult,
+  type SolicitudHistoryActor,
+  type SolicitudHistoryItem,
+} from "./list-solicitud-history";
+export {
   INTERNAL_SOLICITUD_ESTADOS,
   isInternalSolicitudEstado,
   listInternalSolicitudes,
