@@ -9,7 +9,7 @@ La intención es separar claramente dos necesidades distintas:
 - comentarios internos escritos por usuarios del equipo;
 - historial automático de eventos relevantes generados por acciones del sistema.
 
-Este documento no implementa migraciones, servicios, componentes ni acciones. Sirve como base para planificar las siguientes subfases.
+Este documento registra el diseño y el estado de avance de las subfases de comentarios e historial. La implementación funcional debe mantenerse alineada con este modelo.
 
 ## Alcance
 
@@ -121,18 +121,21 @@ No registran historial actualmente:
 - creación de cliente desde solicitud;
 - herencia de archivos al convertir solicitud en pedido.
 
-### Comentarios Actuales
+### Comentarios de Pedidos
 
-Aunque existe la tabla `pedido_comentarios`, no se encontró un módulo funcional completo de comentarios internos en la aplicación.
+La Fase 11.3 implementa comentarios internos en el detalle de pedido.
 
-La tabla actual:
+El módulo actual:
 
-- solo permite comentarios sobre pedidos;
-- usa `user_id` como autor;
+- lista comentarios de `pedido_comentarios` en `/dashboard/pedidos/[id]`;
+- permite agregar comentarios a usuarios con acceso al pedido;
+- usa `user_id = profile.id` como autor;
 - guarda `contenido`;
-- tiene `created_at` y `updated_at`.
+- muestra autor, rol, fecha y contenido;
+- no acepta `user_id`, `created_at` ni `updated_at` desde formularios;
+- no implementa edición ni eliminación.
 
-El RLS actual permite lectura e inserción según acceso al pedido. La subfase 11.2 elimina las policies de actualización y eliminación para mantener comentarios append-only en el alcance inicial.
+El RLS permite lectura e inserción según acceso al pedido. La subfase 11.2 eliminó las policies de actualización y eliminación para mantener comentarios append-only en el alcance inicial.
 
 ### Solicitudes
 
@@ -277,7 +280,7 @@ La subfase 11.1B formaliza esta decisión al normalizar las tablas de pedidos:
 - `pedido_historial`;
 - `pedido_historial_action`.
 
-Las tablas previstas para solicitudes siguen pendientes para Fase 11.2:
+Las tablas de solicitudes creadas en Fase 11.2 son:
 
 - `solicitud_comentarios`;
 - `solicitud_historial`;
@@ -484,21 +487,25 @@ No debería usarse service role key.
 
 ### Fase 11.3: Servicios Base
 
-Objetivos:
+Estado:
 
-- crear servicios para listar y crear comentarios;
-- crear servicios para listar historial;
-- crear helpers internos para insertar eventos desde acciones controladas;
-- validar permisos antes de operar;
-- evitar que componentes cliente consulten Supabase directamente.
+- implementado para comentarios internos de pedidos;
+- `listPedidoComments` lista comentarios por pedido en orden ascendente;
+- `createPedidoComment` valida UUID, permiso, acceso al pedido y contenido;
+- la action del detalle solo lee `pedido_id` y `contenido`;
+- no se acepta autor desde el formulario;
+- no se implementan comentarios de solicitudes;
+- no se implementa historial visible;
+- no se registra historial automático adicional.
 
 ### Fase 11.4: UI de Comentarios en Pedidos
 
-Objetivos:
+Estado:
 
-- listar comentarios internos de pedido;
-- permitir crear comentario si el usuario tiene acceso;
-- mostrar autor y fecha;
+- implementado en `PedidoCommentsSection`;
+- lista comentarios internos de pedido;
+- permite crear comentario si el usuario tiene acceso;
+- muestra autor, rol, fecha y contenido;
 - no implementar edición ni eliminación.
 
 ### Fase 11.5: UI de Comentarios en Solicitudes

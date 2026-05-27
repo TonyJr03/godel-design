@@ -78,6 +78,18 @@ La UI de detalle muestra múltiples usuarios asignados con su rol visible. El se
 
 No se creó RPC nueva porque las policies existentes ya restringen inserción, actualización y eliminación de asignaciones a admin/supervisor. No se usa service role key. Trabajadores no pueden asignar ni remover personal.
 
+## Comentarios Internos
+
+`/dashboard/pedidos/[id]` incluye `PedidoCommentsSection` para listar y agregar comentarios internos del pedido.
+
+`listPedidoComments` carga comentarios server-side desde `pedido_comentarios`, valida UUID, perfil interno, permiso `pedidos.view` y acceso al pedido. La consulta respeta RLS y ordena por `created_at` ascendente para lectura tipo conversación.
+
+`createPedidoComment` valida UUID, perfil interno, permiso `pedidos.view`, acceso al pedido y contenido. El comentario es obligatorio, se guarda con `contenido` recortado y tiene límite de 2000 caracteres.
+
+La action `createPedidoCommentAction` lee únicamente `pedido_id` y `contenido`. No acepta `user_id`, autor ni fechas desde el formulario. El autor se toma del perfil autenticado y se guarda como `pedido_comentarios.user_id`.
+
+Los comentarios son append-only. No hay edición, eliminación, menciones, notificaciones, adjuntos ni registro automático adicional de historial en esta subfase.
+
 ## Alcance por Rol
 
 - `admin` y `supervisor` ven todos los pedidos.
@@ -86,14 +98,16 @@ No se creó RPC nueva porque las policies existentes ya restringen inserción, a
 - `admin` y `supervisor` pueden convertir solicitudes aprobadas en pedidos.
 - `admin` y `supervisor` pueden cambiar el estado de cualquier pedido.
 - `admin` y `supervisor` pueden asignar o remover personal interno activo de un pedido.
+- `admin` y `supervisor` pueden ver y agregar comentarios internos en cualquier pedido.
 - `admin` o `supervisor` asignados a un pedido siguen conservando sus permisos reales.
 - `trabajador` ve solo pedidos asignados mediante `pedido_trabajadores`.
 - `trabajador` solo puede ver el detalle si está asignado al pedido.
 - `trabajador` puede ver cliente y solicitud asociados a pedidos asignados.
 - `trabajador` puede cambiar el estado solo de pedidos asignados.
+- `trabajador` puede ver y agregar comentarios internos solo en pedidos asignados.
 - `trabajador` no puede crear, convertir, asignar ni remover asignaciones de pedidos.
 - usuarios anónimos no pueden leer ni crear pedidos.
 
 ## Fuera de Esta Subfase
 
-La edición general, la eliminación, archivos, notificaciones, comentarios internos e historial avanzado quedan para próximas subfases.
+La edición general, la eliminación, notificaciones, comentarios de solicitudes e historial avanzado quedan para próximas subfases.

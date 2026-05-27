@@ -72,3 +72,15 @@ export {
   type RemoveInternalPedidoWorkerResult,
   type RemovePedidoWorkerFieldErrors,
 } from "./remove-internal-pedido-worker";
+export {
+  listPedidoComments,
+  type ListPedidoCommentsResult,
+  type PedidoComment,
+  type PedidoCommentAuthor,
+} from "./list-pedido-comments";
+export {
+  createPedidoComment,
+  type CreatePedidoCommentInput,
+  type CreatePedidoCommentResult,
+  type PedidoCommentFieldErrors,
+} from "./create-pedido-comment";

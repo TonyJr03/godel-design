@@ -549,6 +549,17 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      listar_pedido_comentarios: {
+        Args: { p_pedido_id: string }
+        Returns: {
+          author_full_name: string
+          author_role: Database["public"]["Enums"]["app_role"]
+          contenido: string
+          created_at: string
+          id: string
+          updated_at: string
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "supervisor" | "trabajador"

@@ -16,6 +16,7 @@ El módulo de pedidos incluye actualmente:
 - cambio de estado de pedido;
 - asignación de personal interno;
 - archivos privados internos del pedido;
+- comentarios internos de pedido;
 - visibilidad limitada para trabajadores asignados.
 
 Todavía no incluye:
@@ -23,7 +24,6 @@ Todavía no incluye:
 - edición general de pedido;
 - eliminación de pedido;
 - historial avanzado de cambios;
-- comentarios internos;
 - notificaciones;
 - reportes o estadísticas;
 - responsables funcionales avanzados por pedido.
@@ -95,7 +95,7 @@ Reglas actuales:
 - `solicitud_id` es `null` en pedidos manuales.
 - `numero_pedido` se genera en servidor.
 
-Las tablas oficiales normalizadas para comentarios e historial de pedidos son `pedido_comentarios` y `pedido_historial`. El enum de eventos de historial de pedidos es `pedido_historial_action`. En Fase 11.2 quedan como base de datos y RLS: comentarios append-only, historial append-only y sin UI visible todavía.
+Las tablas oficiales normalizadas para comentarios e historial de pedidos son `pedido_comentarios` y `pedido_historial`. El enum de eventos de historial de pedidos es `pedido_historial_action`. Los comentarios de pedido están implementados en el detalle interno y son append-only. El historial sigue sin UI visible.
 
 ## Estados de pedido
 
@@ -131,7 +131,22 @@ Archivos principales:
 - Servicio: `src/lib/pedidos/get-internal-pedido-by-id.ts`
 - Componente: `src/components/pedidos/InternalPedidoDetail.tsx`
 
-El detalle carga server-side, valida UUID, permiso y alcance por rol. Muestra cliente, solicitud, personal asignado y archivos privados del pedido cuando existen. Un trabajador no puede ver pedidos no asignados, pero sí puede ver el cliente, la solicitud relacionada y los archivos de pedidos que tiene asignados. No implementa edición general.
+El detalle carga server-side, valida UUID, permiso y alcance por rol. Muestra cliente, solicitud, personal asignado, comentarios internos y archivos privados del pedido cuando existen. Un trabajador no puede ver pedidos no asignados, pero sí puede ver el cliente, la solicitud relacionada, los comentarios internos y los archivos de pedidos que tiene asignados. No implementa edición general.
+
+## Comentarios internos de pedido
+
+Archivos principales:
+
+- Listado: `src/lib/pedidos/list-pedido-comments.ts`
+- Creación: `src/lib/pedidos/create-pedido-comment.ts`
+- Componente: `src/components/pedidos/PedidoCommentsSection.tsx`
+- Action: `src/app/dashboard/pedidos/[id]/actions.ts`
+
+El detalle de pedido permite ver y agregar comentarios internos asociados al pedido. Los comentarios son visibles solo para usuarios internos con acceso al pedido: `admin` y `supervisor` en cualquier pedido, y `trabajador` solo en pedidos asignados.
+
+El formulario solo envía `pedido_id` y `contenido`. El autor se toma server-side desde el perfil autenticado y se guarda en `pedido_comentarios.user_id`. No se acepta autor, fecha ni otros campos técnicos desde el formulario.
+
+Los comentarios son append-only en el alcance inicial. No hay edición, eliminación, menciones, notificaciones ni adjuntos. Esta subfase no registra historial automático adicional.
 
 ## Archivos privados de pedido
 
@@ -244,6 +259,7 @@ Aclaraciones:
 - no se usa service role key;
 - los componentes cliente no consultan Supabase directamente;
 - los formularios de asignación solo envían `pedido_id` y `trabajador_id`;
+- el formulario de comentario solo envía `pedido_id` y `contenido`;
 - trabajadores no pueden crear, convertir, asignar ni remover personal;
 - trabajadores no acceden a los módulos generales de clientes o solicitudes, aunque RLS permite leer datos relacionados con pedidos asignados.
 
@@ -252,7 +268,8 @@ Aclaraciones:
 - edición general de pedido;
 - eliminación;
 - historial avanzado;
-- comentarios internos;
+- edición o eliminación de comentarios internos;
+- comentarios de solicitudes;
 - notificaciones;
 - reportes;
 - facturación;
@@ -265,7 +282,6 @@ Más adelante se podrá:
 
 - agregar eliminación controlada de archivos privados del pedido;
 - registrar historial de cambios;
-- agregar comentarios internos;
 - implementar notificaciones;
 - mejorar reglas de transición de estado;
 - agregar reportes de producción;

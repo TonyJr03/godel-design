@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { InternalPedidoDetail } from "@/components/pedidos/InternalPedidoDetail";
+import { PedidoCommentsSection } from "@/components/pedidos/PedidoCommentsSection";
 import { PedidoWorkerAssignmentForm } from "@/components/pedidos/PedidoWorkerAssignmentForm";
 import { PedidoFilesSection } from "@/components/storage/PedidoFilesSection";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -11,7 +12,11 @@ import {
   isTrabajador,
   type Role,
 } from "@/lib/permissions/permissions";
-import { getInternalPedidoById, listAssignableWorkers } from "@/lib/pedidos";
+import {
+  getInternalPedidoById,
+  listAssignableWorkers,
+  listPedidoComments,
+} from "@/lib/pedidos";
 import { listPedidoFiles, type PedidoFileCategory } from "@/lib/storage";
 
 type DashboardPedidoDetallePageProps = {
@@ -61,6 +66,7 @@ export default async function DashboardPedidoDetallePage({
     profile !== null && hasPermission(profile.role, "pedidos.manage");
   const workersResult = canManagePedidos ? await listAssignableWorkers() : null;
   const filesResult = await listPedidoFiles(result.pedido.id);
+  const commentsResult = await listPedidoComments(result.pedido.id);
   const allowedFileCategories = profile
     ? getAllowedPedidoFileCategories(profile.role)
     : [];
@@ -83,6 +89,15 @@ export default async function DashboardPedidoDetallePage({
               canManagePedidos && workersResult && !workersResult.ok
                 ? workersResult.message
                 : undefined
+            }
+          />
+        }
+        commentsSection={
+          <PedidoCommentsSection
+            pedidoId={result.pedido.id}
+            comments={commentsResult.ok ? commentsResult.comments : []}
+            loadError={
+              commentsResult.ok ? undefined : commentsResult.message
             }
           />
         }

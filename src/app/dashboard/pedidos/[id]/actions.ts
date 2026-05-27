@@ -1,16 +1,20 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import {
   assignInternalPedidoWorker,
+  createPedidoComment,
   removeInternalPedidoWorker,
   updateInternalPedidoStatus,
+  type PedidoCommentFieldErrors,
   type PedidoWorkerFieldErrors,
   type RemovePedidoWorkerFieldErrors,
   type PedidoStatusFieldErrors,
 } from "@/lib/pedidos";
 import {
   uploadPedidoFile,
+  isValidUuid,
   validatePedidoFileCategory,
   type PedidoFileCategory,
   type UploadPedidoFileResult,
@@ -39,10 +43,49 @@ export type UploadPedidoFileActionState = {
   message: string;
 };
 
+export type CreatePedidoCommentActionState = {
+  ok: boolean;
+  message: string;
+  fieldErrors?: PedidoCommentFieldErrors;
+  values?: {
+    contenido: string;
+  };
+};
+
 function getFormValue(formData: FormData, key: string) {
   const value = formData.get(key);
 
   return typeof value === "string" ? value : "";
+}
+
+async function getPedidoIdFromRequestPath(): Promise<string> {
+  const headersList = await headers();
+  const rawPath = headersList.get("next-url") ?? headersList.get("referer");
+
+  if (!rawPath) {
+    return "";
+  }
+
+  try {
+    const pathname = rawPath.startsWith("http")
+      ? new URL(rawPath).pathname
+      : rawPath;
+    const match = pathname.match(/^\/dashboard\/pedidos\/([^/?#]+)/);
+
+    return match?.[1] ? decodeURIComponent(match[1]) : "";
+  } catch {
+    return "";
+  }
+}
+
+async function getPedidoIdForComment(formData: FormData): Promise<string> {
+  const pedidoId = getFormValue(formData, "pedido_id").trim();
+
+  if (isValidUuid(pedidoId)) {
+    return pedidoId;
+  }
+
+  return getPedidoIdFromRequestPath();
 }
 
 function getUploadPedidoFileMessage(
@@ -192,5 +235,37 @@ export async function uploadPedidoFileAction(
   return {
     ok: true,
     message: "Archivo subido correctamente.",
+  };
+}
+
+export async function createPedidoCommentAction(
+  _prevState: CreatePedidoCommentActionState,
+  formData: FormData,
+): Promise<CreatePedidoCommentActionState> {
+  const pedidoId = await getPedidoIdForComment(formData);
+  const contenido = getFormValue(formData, "contenido");
+  const result = await createPedidoComment({
+    pedidoId,
+    contenido,
+  });
+
+  if (!result.ok) {
+    return {
+      ok: false,
+      message: result.message,
+      fieldErrors: result.fieldErrors,
+      values: result.values,
+    };
+  }
+
+  revalidatePath("/dashboard/pedidos");
+  revalidatePath(`/dashboard/pedidos/${pedidoId}`);
+
+  return {
+    ok: true,
+    message: "Comentario agregado correctamente.",
+    values: {
+      contenido: "",
+    },
   };
 }
