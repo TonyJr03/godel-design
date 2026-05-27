@@ -270,6 +270,8 @@ Más adelante se podrá:
 - crear vistas por carga de trabajo;
 - implementar edición controlada de campos del pedido.
 
+El diseño técnico de comentarios internos e historial para la Fase 11 se documenta en `docs/COMMENTS_AND_HISTORY_MODEL.md`.
+
 ## Pruebas manuales recomendadas
 
 - Verificar que `admin` ve todos los pedidos.

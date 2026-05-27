@@ -406,6 +406,10 @@ Para archivos, los buckets deben ser privados y el acceso debe protegerse median
 | `comentarios` | `pedido_id` |
 | `historial_pedidos` | `pedido_id` |
 
+## Nota de Fase 11
+
+El diagnóstico y diseño actualizado para comentarios internos e historial operativo se documenta en `docs/COMMENTS_AND_HISTORY_MODEL.md`. Ese documento debe usarse como referencia antes de crear nuevas migraciones relacionadas con comentarios o historial.
+
 ## Pendiente para la siguiente tarea
 
 El próximo paso será crear la migración SQL inicial de Supabase basada en este documento, incluyendo enums, tablas, claves foráneas, restricciones, índices, campos de auditoría y la estrategia inicial de Row Level Security.

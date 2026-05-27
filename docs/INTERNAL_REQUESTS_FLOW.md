@@ -204,11 +204,14 @@ Más adelante se podrá:
 
 - restringir transiciones de estado;
 - registrar historial detallado;
+- agregar comentarios internos;
 - asociar solicitud a cliente existente;
 - convertir solicitud aprobada en pedido;
 - permitir eliminación controlada de archivos privados si se define;
 - notificar al equipo interno;
 - generar códigos humanos de referencia.
+
+El diseño técnico de comentarios internos e historial para la Fase 11 se documenta en `docs/COMMENTS_AND_HISTORY_MODEL.md`.
 
 ## Pruebas manuales recomendadas
 

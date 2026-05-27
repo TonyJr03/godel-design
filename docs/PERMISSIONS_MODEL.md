@@ -147,6 +147,7 @@ Cuando se implementen módulos reales:
 ## Pendiente para fases posteriores
 
 - Fase 8 y Fase 9 aplicaron estos permisos en pedidos y asignación de personal interno.
+- La Fase 11 diseña comentarios internos e historial operativo en `docs/COMMENTS_AND_HISTORY_MODEL.md`, sin cambiar todavía la matriz de permisos de código.
 - Fase 12 implementará gestión de usuarios internos.
 - Fases futuras podrán refinar permisos si la operación real lo exige.
 
