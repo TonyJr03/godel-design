@@ -121,6 +121,8 @@ Responsabilidades:
   hacer lectura pública.
 - Evitar un `.select()` público innecesario después del insert.
 
+Desde Fase 11.7B, la inserción de la solicitud registra automáticamente el evento `solicitud_creada` en `solicitud_historial`. Como el flujo es público, normalmente queda con `actor_id = null` y metadata mínima no sensible.
+
 ## Decisión sobre clientes
 
 En esta fase no se crea ni se asocia un registro en `clientes`.
@@ -185,6 +187,8 @@ Los archivos:
 - se registran con `visibility = cliente_solicitud`;
 - no generan URLs públicas ni URLs firmadas para el cliente.
 
+Desde Fase 11.7B, cada archivo público registrado en `archivos` con `visibility = cliente_solicitud` genera un evento `archivos_adjuntados` en `solicitud_historial`. El evento no incluye `file_path` ni datos personales completos.
+
 La gestión interna permite que `admin` y `supervisor` vean y descarguen estos archivos desde el detalle interno de solicitud mediante URLs firmadas de corta duración. Esa descarga no está disponible para clientes públicos.
 
 Si la solicitud se convierte en pedido, los archivos se heredan por metadatos: se conserva la ruta física original y se completa `archivos.pedido_id` con el pedido generado. No se mueve ni se copia el objeto en Storage.
@@ -197,9 +201,11 @@ Si la solicitud se convierte en pedido, los archivos se heredan por metadatos: s
 4. La action convierte `FormData` en input.
 5. El servicio valida datos.
 6. El servicio inserta la solicitud con estado `nueva`.
-7. Si hay archivos, la action los valida, sube al bucket privado y registra metadatos.
-8. La UI muestra éxito, referencia corta y cantidad de archivos recibidos.
-9. El equipo interno revisará la solicitud en una fase posterior.
+7. La base de datos registra `solicitud_creada` en el historial interno.
+8. Si hay archivos, la action los valida, sube al bucket privado y registra metadatos.
+9. La base de datos registra `archivos_adjuntados` por cada archivo aceptado.
+10. La UI muestra éxito, referencia corta y cantidad de archivos recibidos.
+11. El equipo interno revisará la solicitud en una fase posterior.
 
 ## Flujo Interno Pendiente
 

@@ -132,7 +132,11 @@ La Fase 11.4 implementa comentarios internos en `/dashboard/solicitudes/[id]`. `
 
 La Fase 11.6 implementa historial visible en `/dashboard/solicitudes/[id]`. `admin` y `supervisor` pueden ver los eventos existentes en `solicitud_historial`; el rol `trabajador` no accede al módulo de solicitudes. La sección muestra tipo de evento, resumen, actor, rol y fecha, sin edición ni eliminación.
 
-No se registran eventos automáticos de historial en esta subfase y no hay comentarios públicos de clientes.
+Desde Fase 11.7B, la base de datos registra automáticamente eventos de solicitud para creación, archivos adjuntados, cambios de estado, asociación de cliente y conversión a pedido. El evento `cliente_creado_desde_solicitud` se registra desde el servicio server-side que crea y asocia el cliente. Los eventos originados en el flujo público pueden tener `actor_id = null`.
+
+La sección de historial no se limita al texto genérico del evento: muestra detalles operativos cuando existen. Los cambios de estado indican origen y destino, los archivos muestran el nombre del archivo, los eventos de cliente muestran el cliente relacionado y la conversión muestra el pedido generado.
+
+No hay comentarios públicos de clientes.
 
 ## Estados de solicitud
 

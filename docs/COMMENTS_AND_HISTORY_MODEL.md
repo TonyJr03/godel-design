@@ -160,7 +160,25 @@ Desde Fase 11.7A también se registran automáticamente en base de datos:
 - `trabajador_removido` al eliminar de `pedido_trabajadores`;
 - `archivo_subido` al insertar archivos propios de pedido en `archivos`.
 
-No se crea trigger de cambio de estado para evitar duplicar lo que ya registra `public.actualizar_estado_pedido`. Los archivos heredados desde solicitudes con `visibility = "cliente_solicitud"` no generan `archivo_subido` del pedido. El historial automático de solicitudes queda para una subfase posterior.
+No se crea trigger de cambio de estado para evitar duplicar lo que ya registra `public.actualizar_estado_pedido`. Los archivos heredados desde solicitudes con `visibility = "cliente_solicitud"` no generan `archivo_subido` del pedido.
+
+Desde Fase 11.7B también se registran automáticamente eventos de solicitudes en `solicitud_historial`:
+
+- `solicitud_creada` al insertar una solicitud;
+- `archivos_adjuntados` al insertar archivos con `visibility = "cliente_solicitud"`;
+- `estado_cambiado` al cambiar el estado interno;
+- `cliente_asociado` al asociar un cliente;
+- `cliente_creado_desde_solicitud` desde el flujo server-side que crea cliente;
+- `convertida_a_pedido` al relacionar la solicitud con el pedido generado.
+
+La conversión a pedido no duplica `estado_cambiado` cuando el mismo update establece `converted_order_id` y `estado = "convertida"`.
+
+El historial visible de solicitudes construye resúmenes detallados a partir de `metadata` y relaciones mínimas, de forma equivalente al historial de pedidos. Por ejemplo:
+
+- cambios de estado muestran estado anterior y estado nuevo;
+- archivos adjuntados muestran el nombre del archivo y tamaño cuando existe;
+- asociación o creación de cliente muestra el nombre del cliente;
+- conversión a pedido muestra número y título del pedido cuando están disponibles.
 
 ### Comentarios de Solicitudes
 
@@ -190,7 +208,7 @@ Los cambios actuales en solicitudes se reflejan en campos como:
 - `converted_order_id`;
 - `updated_at`.
 
-Pero esos cambios todavía no se registran automáticamente en la bitácora operativa. El registro automático queda para subfases posteriores.
+Desde Fase 11.7B esos cambios relevantes se registran automáticamente en `solicitud_historial` mediante triggers de base de datos, salvo `cliente_creado_desde_solicitud`, que se registra desde el servicio server-side después de crear y asociar el cliente correctamente.
 
 ### Archivos
 
@@ -207,7 +225,7 @@ La tabla `archivos` guarda metadatos y trazabilidad básica:
 - `visibility`;
 - `created_at`.
 
-No existe registro automático de historial cuando se sube un archivo o cuando se heredan archivos de una solicitud a un pedido.
+Desde Fase 11.7B, la inserción de archivos de solicitud con `visibility = "cliente_solicitud"` registra `archivos_adjuntados` en `solicitud_historial`. La herencia de esos archivos al convertir una solicitud en pedido no genera un nuevo evento de archivo.
 
 ### Asignaciones
 
@@ -218,7 +236,7 @@ La tabla `pedido_trabajadores` guarda:
 - usuario que asignó;
 - fecha de asignación.
 
-No existe registro automático en historial cuando se asigna o remueve personal.
+Desde Fase 11.7A, la asignación y remoción de personal se registran automáticamente en `pedido_historial`.
 
 ## Necesidades Funcionales
 
@@ -421,14 +439,14 @@ Campos propuestos:
 
 Enum existente: `solicitud_historial_action`.
 
-Estado desde Fase 11.6:
+Estado desde Fase 11.7B:
 
 - el historial es visible en `/dashboard/solicitudes/[id]`;
 - `admin` y `supervisor` pueden ver eventos registrados;
 - `trabajador` y usuarios anónimos no acceden;
 - se muestran tipo de evento, resumen, actor, rol y fecha;
 - no hay edición ni eliminación;
-- no se registran eventos automáticos nuevos en esta subfase.
+- se registran eventos automáticos mínimos mediante triggers y flujos server-side controlados.
 
 Valores iniciales:
 
@@ -603,13 +621,14 @@ Estado:
 
 ### Fase 11.7B: Registro Automático de Historial de Solicitudes
 
-Objetivos:
+Estado:
 
-- conectar creación pública de solicitud;
-- conectar archivos de solicitud;
-- conectar cambio de estado de solicitud;
-- conectar asociación y creación de cliente desde solicitud;
-- mantener eventos mínimos y útiles.
+- implementado mediante triggers de base de datos para `solicitud_creada`, `archivos_adjuntados`, `estado_cambiado`, `cliente_asociado` y `convertida_a_pedido`;
+- implementado desde el servicio server-side `createClienteFromSolicitudAndAssociate` para `cliente_creado_desde_solicitud`;
+- los eventos públicos usan `actor_id = null` cuando no existe usuario autenticado;
+- la conversión a pedido evita duplicar `estado_cambiado` cuando el mismo update marca la solicitud como `convertida`;
+- los resúmenes visibles se enriquecen con datos mínimos de `metadata`, cliente y pedido;
+- no abre lectura pública ni inserción anónima directa sobre `solicitud_historial`.
 
 ### Fase 11.8: Documentación y Cierre
 

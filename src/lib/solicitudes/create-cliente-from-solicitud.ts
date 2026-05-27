@@ -151,6 +151,26 @@ export async function createClienteFromSolicitudAndAssociate(
       };
     }
 
+    const { error: historyError } = await supabase
+      .from("solicitud_historial")
+      .insert({
+        solicitud_id: solicitudId,
+        actor_id: profile.id,
+        action: "cliente_creado_desde_solicitud",
+        resumen: `Cliente creado desde la solicitud: ${validation.data.nombre}`,
+        metadata: {
+          cliente_id: cliente.id,
+          cliente_nombre: validation.data.nombre,
+        },
+      });
+
+    if (historyError) {
+      console.error(
+        "Error recording solicitud history for created cliente",
+        historyError,
+      );
+    }
+
     return {
       ok: true,
       solicitudId,

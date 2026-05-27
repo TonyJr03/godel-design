@@ -171,6 +171,8 @@ Reglas aplicadas:
 
 El servicio `uploadPublicSolicitudFile` fuerza la categoría `cliente_solicitud`, valida el archivo real, construye la ruta internamente y guarda metadatos en `archivos`. `uploadPublicSolicitudFiles` limita la carga múltiple a 5 archivos por solicitud.
 
+Desde Fase 11.7B, cada inserción válida de metadatos con `visibility = cliente_solicitud` registra automáticamente `archivos_adjuntados` en `solicitud_historial`. El evento guarda datos mínimos como nombre, tipo y tamaño, pero no incluye `file_path`.
+
 La lectura posterior de estos archivos queda reservada para `admin` y `supervisor`. Los trabajadores no acceden a archivos asociados solo a solicitudes.
 
 Riesgo controlado: si la subida al bucket privado funciona y luego falla la inserción de metadatos, no se abre eliminación anónima para limpiar el objeto. El error queda registrado en servidor y la limpieza operativa deberá tratarse con un flujo seguro posterior si fuera necesario.
@@ -223,11 +225,13 @@ Esto conserva la trazabilidad de origen y permite que el archivo siga apareciend
 
 La lectura del objeto físico bajo `solicitudes/{solicitud_id}/originales/...` sigue bloqueada para anónimos. Un trabajador asignado solo puede descargarlo desde el pedido cuando existe un registro en `archivos` con ese `file_path`, `visibility = cliente_solicitud` y un `pedido_id` accesible por RLS.
 
+La conversión no genera un nuevo evento de archivo de solicitud. El historial de solicitudes registra el evento específico `convertida_a_pedido`, y el historial de pedidos no registra `archivo_subido` para archivos heredados con `visibility = cliente_solicitud`.
+
 ## Qué no queda habilitado todavía
 
 - No hay eliminación de archivos.
 - No hay edición de metadatos.
-- No hay historial, comentarios ni notificaciones asociados a archivos.
+- No hay comentarios ni notificaciones asociados a archivos.
 - No hay URLs públicas permanentes.
 
 ## Validaciones de archivos

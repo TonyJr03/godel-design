@@ -96,7 +96,19 @@ La action `createSolicitudCommentAction` lee únicamente `solicitud_id` y `conte
 
 `SolicitudHistorySection` muestra los eventos existentes en `solicitud_historial` dentro del detalle interno de solicitud. La sección muestra tipo de evento, resumen, actor, rol y fecha. Si `actor_id` es `null`, el evento se muestra como “Evento automático”.
 
-El historial es append-only. No hay edición, eliminación, notificaciones ni registro automático nuevo de eventos en esta subfase.
+Para mantener el mismo nivel de detalle que el historial de pedidos, la sección construye el resumen visible desde `metadata` y relaciones mínimas cuando están disponibles: estados anterior/nuevo, nombre del archivo, cliente relacionado y pedido generado.
+
+El historial es append-only. No hay edición, eliminación ni notificaciones.
+
+Desde Fase 11.7B, la base de datos registra automáticamente:
+
+- `solicitud_creada` al insertar una solicitud;
+- `archivos_adjuntados` al registrar archivos públicos de solicitud;
+- `estado_cambiado` al cambiar el estado interno;
+- `cliente_asociado` al asociar un cliente;
+- `convertida_a_pedido` al convertir una solicitud a pedido.
+
+El evento `cliente_creado_desde_solicitud` se registra desde `createClienteFromSolicitudAndAssociate` después de crear el cliente y asociarlo correctamente. El servicio no acepta datos de historial desde formularios y no usa service role key. Si ese registro de historial falla, se registra el error en servidor sin romper la creación/asociación ya completada.
 
 ## Alcance excluido
 

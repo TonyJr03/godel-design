@@ -2,7 +2,7 @@ import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
 import { isValidUuid } from "@/lib/storage";
 import { createClient } from "@/lib/supabase/server";
-import type { Tables } from "@/types/database";
+import type { Json, Tables } from "@/types/database";
 
 export type SolicitudHistoryActor =
   | Pick<Tables<"profiles">, "full_name" | "role">
@@ -13,6 +13,10 @@ export type SolicitudHistoryItem = Pick<
   "id" | "action" | "resumen" | "metadata" | "created_at"
 > & {
   actor: SolicitudHistoryActor;
+  related: {
+    cliente?: Pick<Tables<"clientes">, "id" | "nombre">;
+    pedido?: Pick<Tables<"pedidos">, "id" | "numero_pedido" | "titulo">;
+  };
 };
 
 type SolicitudHistoryRow = Pick<
@@ -21,6 +25,8 @@ type SolicitudHistoryRow = Pick<
 >;
 
 type ProfileRow = Pick<Tables<"profiles">, "id" | "full_name" | "role">;
+type ClienteRow = Pick<Tables<"clientes">, "id" | "nombre">;
+type PedidoRow = Pick<Tables<"pedidos">, "id" | "numero_pedido" | "titulo">;
 
 export type ListSolicitudHistoryResult =
   | {
@@ -45,6 +51,20 @@ const SOLICITUD_HISTORY_SELECT = `
   metadata,
   created_at
 `;
+
+function isJsonObject(value: Json): value is Record<string, Json> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function getMetadataString(metadata: Json, key: string): string | null {
+  if (!isJsonObject(metadata)) {
+    return null;
+  }
+
+  const value = metadata[key];
+
+  return typeof value === "string" && value.trim() ? value : null;
+}
 
 export async function listSolicitudHistory(
   solicitudIdInput: string,
@@ -130,6 +150,26 @@ export async function listSolicitudHistory(
       ),
     );
     const actorsById = new Map<string, SolicitudHistoryActor>();
+    const clienteIds = Array.from(
+      new Set(
+        history
+          .map((historyItem) =>
+            getMetadataString(historyItem.metadata, "cliente_id"),
+          )
+          .filter((clienteId): clienteId is string => Boolean(clienteId)),
+      ),
+    );
+    const pedidoIds = Array.from(
+      new Set(
+        history
+          .map((historyItem) =>
+            getMetadataString(historyItem.metadata, "pedido_id"),
+          )
+          .filter((pedidoId): pedidoId is string => Boolean(pedidoId)),
+      ),
+    );
+    const clientesById = new Map<string, ClienteRow>();
+    const pedidosById = new Map<string, PedidoRow>();
 
     if (actorIds.length > 0) {
       const { data: profiles, error: profilesError } = await supabase
@@ -150,12 +190,59 @@ export async function listSolicitudHistory(
       }
     }
 
+    if (clienteIds.length > 0) {
+      const { data: clientes, error: clientesError } = await supabase
+        .from("clientes")
+        .select("id, nombre")
+        .in("id", clienteIds)
+        .returns<ClienteRow[]>();
+
+      if (clientesError) {
+        console.error(
+          "Error loading solicitud history related clientes",
+          clientesError,
+        );
+      } else {
+        for (const cliente of clientes ?? []) {
+          clientesById.set(cliente.id, cliente);
+        }
+      }
+    }
+
+    if (pedidoIds.length > 0) {
+      const { data: pedidos, error: pedidosError } = await supabase
+        .from("pedidos")
+        .select("id, numero_pedido, titulo")
+        .in("id", pedidoIds)
+        .returns<PedidoRow[]>();
+
+      if (pedidosError) {
+        console.error(
+          "Error loading solicitud history related pedidos",
+          pedidosError,
+        );
+      } else {
+        for (const pedido of pedidos ?? []) {
+          pedidosById.set(pedido.id, pedido);
+        }
+      }
+    }
+
     return {
       ok: true,
-      history: history.map(({ actor_id, ...historyItem }) => ({
-        ...historyItem,
-        actor: actor_id ? actorsById.get(actor_id) ?? null : null,
-      })),
+      history: history.map(({ actor_id, ...historyItem }) => {
+        const clienteId = getMetadataString(historyItem.metadata, "cliente_id");
+        const pedidoId = getMetadataString(historyItem.metadata, "pedido_id");
+
+        return {
+          ...historyItem,
+          actor: actor_id ? actorsById.get(actor_id) ?? null : null,
+          related: {
+            cliente: clienteId ? clientesById.get(clienteId) : undefined,
+            pedido: pedidoId ? pedidosById.get(pedidoId) : undefined,
+          },
+        };
+      }),
     };
   } catch (error) {
     console.error("Unexpected error listing solicitud history", error);

@@ -190,6 +190,8 @@ Los archivos enviados por el cliente en la solicitud pública también pueden ap
 
 La descarga se realiza mediante URL firmada de corta duración. No se usan URLs públicas permanentes, no se acepta `file_path` desde formularios y no se usa service role key. No se implementa eliminación de archivos en esta fase.
 
+Desde Fase 11.7B, la conversión de una solicitud a pedido registra `convertida_a_pedido` en `solicitud_historial`. Ese evento no duplica `estado_cambiado` cuando la misma operación marca la solicitud como `convertida`, y la herencia de archivos no genera eventos nuevos de archivo.
+
 ## Creación manual
 
 Archivos principales:

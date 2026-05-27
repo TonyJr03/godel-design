@@ -18,6 +18,15 @@ const HISTORY_ACTION_LABELS: Record<
   convertida_a_pedido: "Convertida a pedido",
 };
 
+const SOLICITUD_ESTADO_LABELS: Record<string, string> = {
+  nueva: "Nueva",
+  en_revision: "En revisión",
+  contactada: "Contactada",
+  aprobada: "Aprobada",
+  rechazada: "Rechazada",
+  convertida: "Convertida",
+};
+
 const ROLE_LABELS: Record<Enums<"app_role">, string> = {
   admin: "Admin",
   supervisor: "Supervisor",
@@ -43,6 +52,149 @@ function getActorName(item: SolicitudHistoryItem): string {
 
 function getActorRole(item: SolicitudHistoryItem): string | null {
   return item.actor?.role ? ROLE_LABELS[item.actor.role] : null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function getMetadataString(
+  item: SolicitudHistoryItem,
+  key: string,
+): string | null {
+  if (!isRecord(item.metadata)) {
+    return null;
+  }
+
+  const value = item.metadata[key];
+
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+function getMetadataNumber(
+  item: SolicitudHistoryItem,
+  key: string,
+): number | null {
+  if (!isRecord(item.metadata)) {
+    return null;
+  }
+
+  const value = item.metadata[key];
+
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function formatEstado(value: string | null): string {
+  if (!value) {
+    return "sin dato";
+  }
+
+  return SOLICITUD_ESTADO_LABELS[value] ?? value;
+}
+
+function formatFileSize(value: number | null): string | null {
+  if (!value || value <= 0) {
+    return null;
+  }
+
+  if (value < 1024) {
+    return `${value} B`;
+  }
+
+  if (value < 1024 * 1024) {
+    return `${(value / 1024).toFixed(1)} KB`;
+  }
+
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatShortId(value: string | null): string | null {
+  return value ? value.slice(0, 8).toUpperCase() : null;
+}
+
+function getClienteName(item: SolicitudHistoryItem): string | null {
+  return (
+    item.related.cliente?.nombre ??
+    getMetadataString(item, "cliente_nombre") ??
+    formatShortId(getMetadataString(item, "cliente_id"))
+  );
+}
+
+function getPedidoLabel(item: SolicitudHistoryItem): string | null {
+  const pedido = item.related.pedido;
+
+  if (pedido) {
+    return `${pedido.numero_pedido} - ${pedido.titulo}`;
+  }
+
+  const numeroPedido = getMetadataString(item, "numero_pedido");
+  const titulo = getMetadataString(item, "titulo");
+
+  if (numeroPedido && titulo) {
+    return `${numeroPedido} - ${titulo}`;
+  }
+
+  return numeroPedido ?? formatShortId(getMetadataString(item, "pedido_id"));
+}
+
+function getHistorySummary(item: SolicitudHistoryItem): string {
+  if (item.action === "solicitud_creada") {
+    const tipoServicio = getMetadataString(item, "tipo_servicio");
+    const cantidad = getMetadataNumber(item, "cantidad");
+
+    if (tipoServicio && cantidad) {
+      return `Solicitud registrada: ${tipoServicio} (${cantidad} unidades).`;
+    }
+
+    if (tipoServicio) {
+      return `Solicitud registrada: ${tipoServicio}.`;
+    }
+  }
+
+  if (item.action === "archivos_adjuntados") {
+    const fileName = getMetadataString(item, "file_name");
+    const fileSize = formatFileSize(getMetadataNumber(item, "file_size"));
+
+    if (fileName && fileSize) {
+      return `Archivo adjuntado a la solicitud: ${fileName} (${fileSize}).`;
+    }
+
+    if (fileName) {
+      return `Archivo adjuntado a la solicitud: ${fileName}.`;
+    }
+  }
+
+  if (item.action === "estado_cambiado") {
+    return `Estado cambiado de ${formatEstado(
+      getMetadataString(item, "estado_anterior"),
+    )} a ${formatEstado(getMetadataString(item, "estado_nuevo"))}.`;
+  }
+
+  if (item.action === "cliente_asociado") {
+    const clienteName = getClienteName(item);
+
+    if (clienteName) {
+      return `Cliente asociado a la solicitud: ${clienteName}.`;
+    }
+  }
+
+  if (item.action === "cliente_creado_desde_solicitud") {
+    const clienteName = getClienteName(item);
+
+    if (clienteName) {
+      return `Cliente creado desde la solicitud: ${clienteName}.`;
+    }
+  }
+
+  if (item.action === "convertida_a_pedido") {
+    const pedidoLabel = getPedidoLabel(item);
+
+    if (pedidoLabel) {
+      return `Solicitud convertida a pedido: ${pedidoLabel}.`;
+    }
+  }
+
+  return item.resumen;
 }
 
 export function SolicitudHistorySection({
@@ -82,7 +234,7 @@ export function SolicitudHistorySection({
                       {HISTORY_ACTION_LABELS[item.action]}
                     </span>
                     <p className="mt-3 text-sm leading-6 text-zinc-800">
-                      {item.resumen}
+                      {getHistorySummary(item)}
                     </p>
                   </div>
                   <time
