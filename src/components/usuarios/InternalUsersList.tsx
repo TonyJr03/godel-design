@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type {
   InternalUser,
   InternalUserActiveFilter,
@@ -179,13 +180,12 @@ export function InternalUsersList({
                       {formatDate(user.updated_at)}
                     </td>
                     <td className="px-4 py-4 text-right">
-                      <button
-                        type="button"
-                        disabled
-                        className="inline-flex h-9 cursor-not-allowed items-center justify-center rounded-md border border-zinc-200 bg-zinc-50 px-3 text-xs font-semibold text-zinc-400"
+                      <Link
+                        href={`/dashboard/usuarios/${user.id}`}
+                        className="inline-flex h-9 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 text-xs font-semibold text-zinc-700 transition hover:border-zinc-400"
                       >
-                        Próximamente
-                      </button>
+                        Ver detalle
+                      </Link>
                     </td>
                   </tr>
                 ))}

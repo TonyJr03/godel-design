@@ -43,6 +43,8 @@ La Fase 12 recomienda implementar primero gestión de perfiles internos sobre `p
 
 La subfase 12.2 usa `usuarios.view` para el listado read-only de perfiles internos. La página carga datos server-side, consulta solo `public.profiles`, no consulta `auth.users` y no expone correos electrónicos.
 
+La subfase 12.3 usa el mismo permiso para el detalle read-only de `/dashboard/usuarios/[id]`. El servicio valida UUID, respeta RLS y no habilita acciones de edición, cambio de rol ni activación.
+
 ## Relación con RLS
 
 Estos helpers no reemplazan Row Level Security. RLS sigue siendo la última línea de defensa en Supabase y debe proteger los datos aunque exista una validación previa en Next.js.

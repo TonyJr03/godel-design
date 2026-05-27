@@ -225,7 +225,7 @@ Las futuras operaciones deben cumplir estas reglas:
 | --- | --- |
 | 12.1 | Diagnóstico y decisión arquitectónica. |
 | 12.2 | Listado read-only de usuarios internos para `admin`. Implementado sobre `public.profiles`, con filtros GET por nombre/teléfono, rol y estado activo. |
-| 12.3 | Detalle read-only de usuario interno. |
+| 12.3 | Detalle read-only de usuario interno. Implementado sobre `public.profiles`, con validación de UUID y 404 para IDs inválidos o inexistentes. |
 | 12.4 | Edición de perfil operativo: nombre y campos seguros. |
 | 12.5 | Cambio de rol con protecciones de último admin. |
 | 12.6 | Activación y desactivación con protecciones de último admin activo. |
@@ -257,3 +257,11 @@ Filtros disponibles por GET:
 - `active`: acepta `true` o `false`.
 
 El listado no consulta `auth.users`, no muestra email, no crea usuarios, no edita perfiles, no cambia roles, no activa o desactiva perfiles y no usa service role key.
+
+## Estado de Implementación de 12.3
+
+El detalle read-only de usuario está implementado en `/dashboard/usuarios/[id]` para perfiles con rol `admin`.
+
+La carga se realiza server-side mediante el cliente normal de Supabase y respeta RLS. El servicio valida formato UUID, valida `usuarios.view` y consulta únicamente `public.profiles` con las columnas `id`, `full_name`, `role`, `phone`, `avatar_url`, `is_active`, `created_at` y `updated_at`.
+
+El detalle muestra nombre, rol, teléfono, estado, avatar si existe como enlace seguro, fechas de creación y actualización, e identificador completo. No consulta `auth.users`, no muestra email, no crea usuarios, no edita perfiles, no cambia roles, no activa o desactiva perfiles y no usa service role key.

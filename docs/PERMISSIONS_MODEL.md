@@ -144,6 +144,8 @@ Las futuras acciones del módulo de usuarios deben validar permisos server-side:
 
 La subfase 12.2 implementa el listado read-only de usuarios internos en `/dashboard/usuarios`. La carga se hace server-side desde `public.profiles`, valida `usuarios.view`, respeta RLS, no consulta `auth.users`, no muestra email y no implementa creación ni edición.
 
+La subfase 12.3 implementa el detalle read-only en `/dashboard/usuarios/[id]` con las mismas reglas: solo `admin`, validación server-side de `usuarios.view`, consulta limitada a `public.profiles`, sin email, sin `auth.users`, sin service role y sin acciones de modificación.
+
 ## Uso esperado en futuros módulos
 
 Cuando se implementen módulos reales:
