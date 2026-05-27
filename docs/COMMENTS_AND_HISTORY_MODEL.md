@@ -137,6 +137,22 @@ El módulo actual:
 
 El RLS permite lectura e inserción según acceso al pedido. La subfase 11.2 eliminó las policies de actualización y eliminación para mantener comentarios append-only en el alcance inicial.
 
+### Comentarios de Solicitudes
+
+La Fase 11.4 implementa comentarios internos en el detalle de solicitud.
+
+El módulo actual:
+
+- lista comentarios de `solicitud_comentarios` en `/dashboard/solicitudes/[id]`;
+- permite agregar comentarios a `admin` y `supervisor`;
+- usa `autor_id = profile.id` como autor;
+- guarda `contenido`;
+- muestra autor, rol, fecha y contenido;
+- no acepta autor, `created_at` ni campos técnicos desde formularios;
+- no implementa edición ni eliminación.
+
+Los comentarios de solicitudes son internos y append-only inicialmente. El RLS reserva lectura e inserción a `admin` y `supervisor`; `trabajador` y usuarios anónimos no acceden.
+
 ### Solicitudes
 
 Existen las tablas base `solicitud_comentarios` y `solicitud_historial`, reservadas por RLS a `admin` y `supervisor`.
@@ -494,11 +510,10 @@ Estado:
 - `createPedidoComment` valida UUID, permiso, acceso al pedido y contenido;
 - la action del detalle solo lee `pedido_id` y `contenido`;
 - no se acepta autor desde el formulario;
-- no se implementan comentarios de solicitudes;
 - no se implementa historial visible;
 - no se registra historial automático adicional.
 
-### Fase 11.4: UI de Comentarios en Pedidos
+### Fase 11.3: UI de Comentarios en Pedidos
 
 Estado:
 
@@ -508,14 +523,15 @@ Estado:
 - muestra autor, rol, fecha y contenido;
 - no implementar edición ni eliminación.
 
-### Fase 11.5: UI de Comentarios en Solicitudes
+### Fase 11.4: UI de Comentarios en Solicitudes
 
-Objetivos:
+Estado:
 
 - listar comentarios internos de solicitud;
 - permitir comentar solo a `admin` y `supervisor`;
-- mostrar autor y fecha;
-- no exponer a trabajadores ni anónimos.
+- mostrar autor, rol, fecha y contenido;
+- no exponer a trabajadores ni anónimos;
+- no implementar edición ni eliminación.
 
 ### Fase 11.6: Registro Automático de Historial
 

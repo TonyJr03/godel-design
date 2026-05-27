@@ -1,10 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { createPedidoFromSolicitud } from "@/lib/pedidos";
+import { isValidUuid } from "@/lib/storage";
 import {
   associateSolicitudWithCliente,
   createClienteFromSolicitudAndAssociate,
+  createSolicitudComment,
+  type SolicitudCommentFieldErrors,
   updateInternalSolicitudStatus,
 } from "@/lib/solicitudes";
 
@@ -30,10 +34,49 @@ export type ConvertSolicitudToPedidoActionState = {
   numeroPedido?: string;
 };
 
+export type CreateSolicitudCommentActionState = {
+  ok: boolean;
+  message: string;
+  fieldErrors?: SolicitudCommentFieldErrors;
+  values?: {
+    contenido: string;
+  };
+};
+
 function getFormValue(formData: FormData, key: string) {
   const value = formData.get(key);
 
   return typeof value === "string" ? value : "";
+}
+
+async function getSolicitudIdFromRequestPath(): Promise<string> {
+  const headersList = await headers();
+  const rawPath = headersList.get("next-url") ?? headersList.get("referer");
+
+  if (!rawPath) {
+    return "";
+  }
+
+  try {
+    const pathname = rawPath.startsWith("http")
+      ? new URL(rawPath).pathname
+      : rawPath;
+    const match = pathname.match(/^\/dashboard\/solicitudes\/([^/?#]+)/);
+
+    return match?.[1] ? decodeURIComponent(match[1]) : "";
+  } catch {
+    return "";
+  }
+}
+
+async function getSolicitudIdForComment(formData: FormData): Promise<string> {
+  const solicitudId = getFormValue(formData, "solicitud_id").trim();
+
+  if (isValidUuid(solicitudId)) {
+    return solicitudId;
+  }
+
+  return getSolicitudIdFromRequestPath();
 }
 
 export async function updateSolicitudStatusAction(
@@ -142,5 +185,37 @@ export async function convertSolicitudToPedidoAction(
     message: "Pedido creado correctamente.",
     pedidoId: result.pedidoId,
     numeroPedido: result.numeroPedido,
+  };
+}
+
+export async function createSolicitudCommentAction(
+  _prevState: CreateSolicitudCommentActionState,
+  formData: FormData,
+): Promise<CreateSolicitudCommentActionState> {
+  const solicitudId = await getSolicitudIdForComment(formData);
+  const contenido = getFormValue(formData, "contenido");
+  const result = await createSolicitudComment({
+    solicitudId,
+    contenido,
+  });
+
+  if (!result.ok) {
+    return {
+      ok: false,
+      message: result.message,
+      fieldErrors: result.fieldErrors,
+      values: result.values,
+    };
+  }
+
+  revalidatePath("/dashboard/solicitudes");
+  revalidatePath(`/dashboard/solicitudes/${solicitudId}`);
+
+  return {
+    ok: true,
+    message: "Comentario agregado correctamente.",
+    values: {
+      contenido: "",
+    },
   };
 }

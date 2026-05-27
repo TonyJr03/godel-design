@@ -1,11 +1,15 @@
 import { notFound } from "next/navigation";
 
 import { SolicitudClienteForm } from "@/components/solicitudes/SolicitudClienteForm";
+import { SolicitudCommentsSection } from "@/components/solicitudes/SolicitudCommentsSection";
 import { SolicitudConvertPedidoForm } from "@/components/solicitudes/SolicitudConvertPedidoForm";
 import { InternalSolicitudDetail } from "@/components/solicitudes/InternalSolicitudDetail";
 import { SolicitudFilesSection } from "@/components/storage/SolicitudFilesSection";
 import { getInternalClienteById, listInternalClientes } from "@/lib/clientes";
-import { getInternalSolicitudById } from "@/lib/solicitudes";
+import {
+  getInternalSolicitudById,
+  listSolicitudComments,
+} from "@/lib/solicitudes";
 import { listSolicitudFiles } from "@/lib/storage";
 
 type DashboardSolicitudDetallePageProps = {
@@ -41,6 +45,7 @@ export default async function DashboardSolicitudDetallePage({
       : Promise.resolve(null),
   ]);
   const filesResult = await listSolicitudFiles(result.solicitud.id);
+  const commentsResult = await listSolicitudComments(result.solicitud.id);
   const clienteAsociado =
     clienteAsociadoResult && clienteAsociadoResult.ok
       ? clienteAsociadoResult.cliente
@@ -77,6 +82,13 @@ export default async function DashboardSolicitudDetallePage({
                 ? undefined
                 : "No se pudieron cargar los archivos de la solicitud."
             }
+          />
+        }
+        commentsSection={
+          <SolicitudCommentsSection
+            solicitudId={result.solicitud.id}
+            comments={commentsResult.ok ? commentsResult.comments : []}
+            loadError={commentsResult.ok ? undefined : commentsResult.message}
           />
         }
       />

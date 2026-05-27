@@ -7,8 +7,20 @@ export {
   createClienteFromSolicitudAndAssociate,
   type CreateClienteFromSolicitudResult,
 } from "./create-cliente-from-solicitud";
+export {
+  createSolicitudComment,
+  type CreateSolicitudCommentInput,
+  type CreateSolicitudCommentResult,
+  type SolicitudCommentFieldErrors,
+} from "./create-solicitud-comment";
 export { createPublicSolicitud } from "./create-public-solicitud";
 export { getInternalSolicitudById } from "./get-internal-solicitud-by-id";
+export {
+  listSolicitudComments,
+  type ListSolicitudCommentsResult,
+  type SolicitudComment,
+  type SolicitudCommentAuthor,
+} from "./list-solicitud-comments";
 export {
   INTERNAL_SOLICITUD_ESTADOS,
   isInternalSolicitudEstado,

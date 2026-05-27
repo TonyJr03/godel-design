@@ -82,6 +82,14 @@ Las actions del detalle de solicitud son:
 
 No se usa service role key y no se implementa deduplicación avanzada.
 
+## Comentarios internos
+
+`listSolicitudComments` carga server-side los comentarios internos de una solicitud en orden ascendente. Requiere usuario interno activo con permiso `solicitudes.view`, valida UUID, confirma acceso a la solicitud respetando RLS y carga datos mínimos del autor desde `profiles`.
+
+`createSolicitudComment` agrega comentarios internos append-only. Requiere `solicitudes.manage`, valida UUID, confirma acceso a la solicitud, valida contenido no vacío con máximo de 2000 caracteres e inserta en `solicitud_comentarios` usando `autor_id = profile.id`.
+
+La action `createSolicitudCommentAction` lee únicamente `solicitud_id` y `contenido`. No acepta autor ni fechas desde el formulario. No hay edición, eliminación, menciones, notificaciones, adjuntos ni registro automático de historial en esta subfase.
+
 ## Alcance excluido
 
 - No hay lectura ni descarga pública de archivos.

@@ -127,7 +127,7 @@ Los helpers de permisos y la protección de rutas no sustituyen Row Level Securi
 
 Para comentarios e historial de pedidos, las tablas oficiales normalizadas son `pedido_comentarios` y `pedido_historial`. Sus reglas siguen el acceso del pedido: `admin` y `supervisor` sobre cualquier pedido, y `trabajador` solo sobre pedidos asignados. Los comentarios de pedido están implementados en el detalle de pedido, son append-only inicialmente y toman el autor desde el usuario autenticado en servidor. El historial de pedido se escribe mediante flujos controlados como la RPC `actualizar_estado_pedido`.
 
-Para solicitudes, las tablas oficiales son `solicitud_comentarios` y `solicitud_historial`. Ambas quedan reservadas a `admin` y `supervisor`; `trabajador` y usuarios anónimos no acceden. Los comentarios y el historial de solicitudes son append-only inicialmente.
+Para solicitudes, las tablas oficiales son `solicitud_comentarios` y `solicitud_historial`. Ambas quedan reservadas a `admin` y `supervisor`; `trabajador` y usuarios anónimos no acceden. Los comentarios de solicitudes están implementados en el detalle de solicitud, son append-only inicialmente y toman el autor desde el usuario autenticado en servidor mediante `solicitud_comentarios.autor_id`. El historial de solicitudes sigue sin UI visible ni registro automático adicional en esta subfase.
 
 ## Uso esperado en futuros módulos
 

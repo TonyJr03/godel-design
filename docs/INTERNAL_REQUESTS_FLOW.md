@@ -126,7 +126,11 @@ La Fase 11.2 agrega la base de datos y RLS para comentarios internos e historial
 
 Estas tablas son internas y quedan reservadas para `admin` y `supervisor`. El rol `trabajador` no accede a comentarios ni historial de solicitudes, y usuarios anónimos tampoco acceden.
 
-Los comentarios son append-only inicialmente: no hay actualización ni eliminación. El historial también es append-only. En esta subfase no hay UI visible, servicios funcionales ni registro automático de eventos; esos pasos quedan para subfases posteriores de Fase 11.
+Los comentarios son append-only inicialmente: no hay actualización ni eliminación. El historial también es append-only.
+
+La Fase 11.4 implementa comentarios internos en `/dashboard/solicitudes/[id]`. `admin` y `supervisor` pueden ver y agregar comentarios; el autor se toma del usuario autenticado en servidor mediante `solicitud_comentarios.autor_id`. El formulario solo envía `solicitud_id` y `contenido`, no acepta autor ni fecha, y no hay edición ni eliminación.
+
+No se registran eventos automáticos de historial en esta subfase y no hay comentarios públicos de clientes.
 
 ## Estados de solicitud
 
