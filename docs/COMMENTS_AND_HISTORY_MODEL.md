@@ -45,21 +45,30 @@ Quedan fuera del alcance inicial:
 
 ### Base de datos
 
-El proyecto no parte de cero. La migración inicial creó estructuras relacionadas con comentarios e historial para pedidos, y la subfase 11.1B normaliza sus nombres para distinguirlas de las tablas futuras de solicitudes:
+El proyecto no parte de cero. La migración inicial creó estructuras relacionadas con comentarios e historial para pedidos, la subfase 11.1B normalizó sus nombres y la subfase 11.2 agregó la base de solicitudes:
 
 - existe la tabla `pedido_comentarios`, renombrada desde `comentarios`;
 - existe la tabla `pedido_historial`, renombrada desde `historial_pedidos`;
 - existe el enum `pedido_historial_action`, renombrado desde `historial_pedido_action`;
+- existe la tabla `solicitud_comentarios`;
+- existe la tabla `solicitud_historial`;
+- existe el enum `solicitud_historial_action`;
 - existe la RPC `public.actualizar_estado_pedido`;
 - existe RLS para `pedido_comentarios`;
 - existe RLS para `pedido_historial`;
+- existe RLS para `solicitud_comentarios`;
+- existe RLS para `solicitud_historial`;
 - existen triggers genéricos de `updated_at` en varias tablas, incluido `pedido_comentarios`.
 
 La tabla `pedido_comentarios` está asociada solo a pedidos mediante `pedido_id`. No existe relación con solicitudes.
 
-La tabla `pedido_historial` está asociada solo a pedidos mediante `pedido_id`. No existe historial equivalente para solicitudes.
+La tabla `pedido_historial` está asociada solo a pedidos mediante `pedido_id`.
 
-No se encontró una tabla de historial general para múltiples entidades. Tampoco existe una tabla de comentarios interna que pueda apuntar indistintamente a pedidos o solicitudes.
+La tabla `solicitud_comentarios` está asociada solo a solicitudes mediante `solicitud_id`.
+
+La tabla `solicitud_historial` está asociada solo a solicitudes mediante `solicitud_id`.
+
+No existe una tabla de historial general para múltiples entidades. Tampoco existe una tabla de comentarios interna que pueda apuntar indistintamente a pedidos o solicitudes; la decisión vigente es mantener tablas separadas por entidad.
 
 ### Triggers y Automatización
 
@@ -123,13 +132,11 @@ La tabla actual:
 - guarda `contenido`;
 - tiene `created_at` y `updated_at`.
 
-El RLS actual permite lectura e inserción según acceso al pedido. También permite actualización y eliminación por administradores, supervisores o autor con acceso al pedido, aunque la Fase 11 inicial no debería exponer edición ni eliminación en la interfaz.
+El RLS actual permite lectura e inserción según acceso al pedido. La subfase 11.2 elimina las policies de actualización y eliminación para mantener comentarios append-only en el alcance inicial.
 
 ### Solicitudes
 
-No existe tabla de comentarios para solicitudes.
-
-No existe tabla de historial para solicitudes.
+Existen las tablas base `solicitud_comentarios` y `solicitud_historial`, reservadas por RLS a `admin` y `supervisor`.
 
 Los cambios actuales en solicitudes se reflejan en campos como:
 
@@ -139,7 +146,7 @@ Los cambios actuales en solicitudes se reflejan en campos como:
 - `converted_order_id`;
 - `updated_at`.
 
-Pero esos cambios no se registran en una bitácora operativa visible.
+Pero esos cambios todavía no se registran automáticamente en la bitácora operativa. El registro automático queda para subfases posteriores.
 
 ### Archivos
 
@@ -306,7 +313,7 @@ Consideración para Fase 11.2:
 
 ### Comentarios de Solicitudes
 
-Tabla propuesta: `solicitud_comentarios`.
+Tabla existente: `solicitud_comentarios`.
 
 Campos propuestos:
 
@@ -314,15 +321,16 @@ Campos propuestos:
 | --- | --- | --- |
 | `id` | `uuid` | Identificador del comentario. |
 | `solicitud_id` | `uuid` | Solicitud comentada. |
-| `user_id` | `uuid` | Autor interno. |
+| `autor_id` | `uuid` | Autor interno. |
 | `contenido` | `text` | Texto del comentario. |
 | `created_at` | `timestamptz` | Fecha de creación. |
 
 Reglas recomendadas:
 
 - `contenido` obligatorio y no vacío;
+- longitud máxima de `contenido` de 2000 caracteres;
 - `solicitud_id` obligatorio;
-- `user_id` obligatorio;
+- `autor_id` obligatorio y debe corresponder al usuario autenticado;
 - sin `updated_at` si no habrá edición inicial;
 - sin edición ni eliminación en la primera versión funcional.
 
@@ -343,16 +351,17 @@ Campos existentes:
 | `metadata` | `jsonb nullable` | Datos adicionales mínimos. |
 | `created_at` | `timestamptz` | Fecha del evento. |
 
-Recomendación para Fase 11.2:
+Estado desde Fase 11.2:
 
 - conservar la tabla;
-- ampliar el registro automático desde acciones existentes;
+- mantener lectura según acceso al pedido;
+- permitir comentarios de pedidos accesibles;
 - no permitir actualización ni eliminación desde la aplicación;
-- evaluar si el enum actual cubre todos los eventos o si necesita ajustes.
+- mantener la escritura de historial controlada por RPC o flujos internos.
 
 ### Historial de Solicitudes
 
-Tabla propuesta: `solicitud_historial`.
+Tabla existente: `solicitud_historial`.
 
 Campos propuestos:
 
@@ -360,24 +369,22 @@ Campos propuestos:
 | --- | --- | --- |
 | `id` | `uuid` | Identificador del evento. |
 | `solicitud_id` | `uuid` | Solicitud relacionada. |
-| `user_id` | `uuid nullable` | Usuario ejecutor si aplica. |
+| `actor_id` | `uuid nullable` | Usuario ejecutor si aplica. |
 | `action` | `solicitud_historial_action` | Tipo de evento. |
 | `resumen` | `text` | Texto breve visible para la UI. |
-| `old_value` | `text nullable` | Valor anterior cuando aplique. |
-| `new_value` | `text nullable` | Valor nuevo cuando aplique. |
-| `metadata` | `jsonb nullable` | Datos adicionales mínimos. |
+| `metadata` | `jsonb` | Datos adicionales mínimos, como objeto JSON. |
 | `created_at` | `timestamptz` | Fecha del evento. |
 
-Enum propuesto: `solicitud_historial_action`.
+Enum existente: `solicitud_historial_action`.
 
 Valores iniciales:
 
 - `solicitud_creada`;
-- `archivo_adjuntado`;
+- `archivos_adjuntados`;
 - `estado_cambiado`;
 - `cliente_asociado`;
-- `cliente_creado`;
-- `solicitud_convertida`.
+- `cliente_creado_desde_solicitud`;
+- `convertida_a_pedido`.
 
 ## Eventos Iniciales Propuestos
 
@@ -406,11 +413,11 @@ Eventos mínimos:
 | Evento | Cuándo registrar | Datos mínimos |
 | --- | --- | --- |
 | `solicitud_creada` | Solicitud pública creada. | `solicitud_id`, origen público. |
-| `archivo_adjuntado` | Cliente adjunta archivo a solicitud. | archivo, nombre seguro, solicitud. |
+| `archivos_adjuntados` | Cliente adjunta uno o varios archivos a la solicitud. | archivos, nombres seguros, solicitud. |
 | `estado_cambiado` | Admin o supervisor cambia estado. | estado anterior, estado nuevo, usuario. |
 | `cliente_asociado` | Se asocia cliente existente. | cliente, usuario. |
-| `cliente_creado` | Se crea cliente desde solicitud. | cliente creado, usuario. |
-| `solicitud_convertida` | Se convierte solicitud a pedido. | pedido generado, usuario. |
+| `cliente_creado_desde_solicitud` | Se crea cliente desde solicitud. | cliente creado, usuario. |
+| `convertida_a_pedido` | Se convierte solicitud a pedido. | pedido generado, usuario. |
 
 ## Permisos Propuestos
 
@@ -465,12 +472,13 @@ Subfases recomendadas después de este diagnóstico:
 
 Objetivos:
 
-- agregar `solicitud_comentarios`;
-- agregar `solicitud_historial`;
-- agregar enum `solicitud_historial_action`;
-- revisar si `pedido_comentarios` debe quedar sin `update` y `delete` para el alcance inicial;
-- revisar si `pedido_historial` debe bloquear toda actualización y eliminación;
-- mantener RLS simple por entidad.
+- crear `solicitud_comentarios`;
+- crear `solicitud_historial`;
+- crear enum `solicitud_historial_action`;
+- dejar `pedido_comentarios` sin `update` y `delete` para el alcance append-only inicial;
+- dejar `pedido_historial` sin inserción directa, actualización ni eliminación desde tabla;
+- mantener RLS simple por entidad;
+- no crear UI ni servicios funcionales todavía.
 
 No debería usarse service role key.
 
@@ -527,8 +535,8 @@ Objetivos:
 ## Riesgos
 
 - Las tablas actuales ya existen, por lo que un rediseño hacia tablas únicas implicaría migraciones de datos y mayor riesgo.
-- El RLS actual de `pedido_comentarios` permite actualización y eliminación, aunque el alcance inicial no contempla edición ni eliminación.
-- `pedido_historial` permite inserción directa bajo ciertas condiciones; conviene revisar si el historial debe escribirse solo desde funciones o acciones controladas.
+- `pedido_comentarios` queda append-only desde la base, pero una futura edición controlada requeriría policies nuevas y diseño específico.
+- `pedido_historial` queda sin inserción directa por tabla; los eventos futuros deben escribirse mediante RPC o flujos internos controlados.
 - Registrar historial desde muchas acciones puede dejar eventos duplicados si no se define una estrategia clara.
 - La conversión de solicitud a pedido afecta varias entidades y debe evitar inconsistencias si una parte del flujo falla.
 - Los eventos de archivos deben registrar metadatos seguros, no rutas privadas ni URLs firmadas.

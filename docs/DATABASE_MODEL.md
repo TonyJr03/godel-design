@@ -83,6 +83,17 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 | `pedido_entregado` |
 | `pedido_cancelado` |
 
+### `solicitud_historial_action`
+
+| Valor |
+|---|
+| `solicitud_creada` |
+| `archivos_adjuntados` |
+| `estado_cambiado` |
+| `cliente_asociado` |
+| `cliente_creado_desde_solicitud` |
+| `convertida_a_pedido` |
+
 ## Tablas iniciales
 
 ### `profiles`
@@ -320,6 +331,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 
 - Solo usuarios internos autorizados pueden leer comentarios.
 - Trabajadores solo deberían leer y crear comentarios en pedidos asignados.
+- La subfase 11.2 deja los comentarios de pedido como append-only: sin actualización ni eliminación desde la aplicación.
 
 ### `pedido_historial`
 
@@ -352,6 +364,72 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 - Usuarios internos autorizados pueden leer historial según permisos sobre el pedido.
 - La inserción debería ocurrir mediante acciones controladas de la aplicación o funciones seguras.
 - No se debería permitir actualización o eliminación manual desde el cliente.
+- La subfase 11.2 deja la inserción directa por tabla deshabilitada; la RPC `actualizar_estado_pedido` mantiene el registro de cambios de estado.
+
+### `solicitud_comentarios`
+
+**Propósito:** Almacena comentarios internos asociados a solicitudes.
+
+| Campo | Tipo sugerido | Notas |
+|---|---|---|
+| `id` | `uuid` | Identificador único del comentario. |
+| `solicitud_id` | `uuid` | Solicitud comentada. |
+| `autor_id` | `uuid` | Usuario interno autor del comentario. |
+| `contenido` | `text` | Texto del comentario. |
+| `created_at` | `timestamptz` | Fecha de creación. |
+
+**Claves foráneas:**
+
+- `solicitud_comentarios.solicitud_id` -> `solicitudes.id`.
+- `solicitud_comentarios.autor_id` -> `profiles.id`.
+
+**Reglas importantes:**
+
+- Los comentarios son internos.
+- Una solicitud puede tener muchos comentarios.
+- El contenido no puede estar vacío.
+- El contenido tiene un límite inicial de 2000 caracteres.
+- No hay edición ni eliminación inicial.
+
+**Notas de seguridad:**
+
+- Solo `admin` y `supervisor` pueden leer o insertar comentarios de solicitudes.
+- `trabajador` no accede a comentarios de solicitudes.
+- Usuarios anónimos no acceden.
+
+### `solicitud_historial`
+
+**Propósito:** Registra eventos importantes ocurridos sobre una solicitud para trazabilidad operativa básica.
+
+| Campo | Tipo sugerido | Notas |
+|---|---|---|
+| `id` | `uuid` | Identificador único del evento. |
+| `solicitud_id` | `uuid` | Solicitud relacionada. |
+| `actor_id` | `uuid nullable` | Usuario que ejecutó la acción, si aplica. |
+| `action` | `solicitud_historial_action` | Tipo de evento registrado. |
+| `resumen` | `text` | Resumen breve visible. |
+| `metadata` | `jsonb` | Datos adicionales mínimos del evento. |
+| `created_at` | `timestamptz` | Fecha del evento. |
+
+**Claves foráneas:**
+
+- `solicitud_historial.solicitud_id` -> `solicitudes.id`.
+- `solicitud_historial.actor_id` -> `profiles.id`.
+
+**Reglas importantes:**
+
+- El historial es append-only.
+- El resumen no puede estar vacío.
+- `metadata` debe ser un objeto JSON.
+- Los eventos automáticos se conectarán en subfases posteriores.
+
+**Notas de seguridad:**
+
+- Solo `admin` y `supervisor` pueden leer historial de solicitudes.
+- La inserción queda limitada a `admin` y `supervisor` autenticados para flujos internos futuros.
+- `trabajador` no accede al historial de solicitudes.
+- Usuarios anónimos no acceden.
+- No se permite actualización ni eliminación manual desde el cliente.
 
 ## Relaciones principales
 
@@ -364,6 +442,8 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 - Una solicitud puede tener muchos archivos.
 - Un pedido puede tener muchos comentarios.
 - Un pedido puede tener muchos eventos de historial.
+- Una solicitud puede tener muchos comentarios.
+- Una solicitud puede tener muchos eventos de historial.
 
 ## Reglas de negocio iniciales
 
@@ -405,6 +485,11 @@ Para archivos, los buckets deben ser privados y el acceso debe protegerse median
 | `archivos` | `solicitud_id` |
 | `pedido_comentarios` | `pedido_id` |
 | `pedido_historial` | `pedido_id` |
+| `solicitud_comentarios` | `solicitud_id, created_at` |
+| `solicitud_comentarios` | `autor_id` |
+| `solicitud_historial` | `solicitud_id, created_at` |
+| `solicitud_historial` | `actor_id` |
+| `solicitud_historial` | `action` |
 
 ## Nota de Fase 11
 

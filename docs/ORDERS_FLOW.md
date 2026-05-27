@@ -95,7 +95,7 @@ Reglas actuales:
 - `solicitud_id` es `null` en pedidos manuales.
 - `numero_pedido` se genera en servidor.
 
-Las tablas oficiales normalizadas para comentarios e historial de pedidos son `pedido_comentarios` y `pedido_historial`. El enum de eventos de historial de pedidos es `pedido_historial_action`.
+Las tablas oficiales normalizadas para comentarios e historial de pedidos son `pedido_comentarios` y `pedido_historial`. El enum de eventos de historial de pedidos es `pedido_historial_action`. En Fase 11.2 quedan como base de datos y RLS: comentarios append-only, historial append-only y sin UI visible todavía.
 
 ## Estados de pedido
 

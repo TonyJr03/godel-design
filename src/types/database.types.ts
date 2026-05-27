@@ -355,6 +355,90 @@ export type Database = {
         }
         Relationships: []
       }
+      solicitud_comentarios: {
+        Row: {
+          autor_id: string
+          contenido: string
+          created_at: string
+          id: string
+          solicitud_id: string
+        }
+        Insert: {
+          autor_id: string
+          contenido: string
+          created_at?: string
+          id?: string
+          solicitud_id: string
+        }
+        Update: {
+          autor_id?: string
+          contenido?: string
+          created_at?: string
+          id?: string
+          solicitud_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitud_comentarios_autor_id_fkey"
+            columns: ["autor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitud_comentarios_solicitud_id_fkey"
+            columns: ["solicitud_id"]
+            isOneToOne: false
+            referencedRelation: "solicitudes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      solicitud_historial: {
+        Row: {
+          action: Database["public"]["Enums"]["solicitud_historial_action"]
+          actor_id: string | null
+          created_at: string
+          id: string
+          metadata: Json
+          resumen: string
+          solicitud_id: string
+        }
+        Insert: {
+          action: Database["public"]["Enums"]["solicitud_historial_action"]
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          resumen: string
+          solicitud_id: string
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["solicitud_historial_action"]
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          resumen?: string
+          solicitud_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitud_historial_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitud_historial_solicitud_id_fkey"
+            columns: ["solicitud_id"]
+            isOneToOne: false
+            referencedRelation: "solicitudes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       solicitudes: {
         Row: {
           cantidad: number | null
@@ -501,6 +585,13 @@ export type Database = {
         | "aprobada"
         | "rechazada"
         | "convertida"
+      solicitud_historial_action:
+        | "solicitud_creada"
+        | "archivos_adjuntados"
+        | "estado_cambiado"
+        | "cliente_asociado"
+        | "cliente_creado_desde_solicitud"
+        | "convertida_a_pedido"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -666,6 +757,15 @@ export const Constants = {
         "rechazada",
         "convertida",
       ],
+      solicitud_historial_action: [
+        "solicitud_creada",
+        "archivos_adjuntados",
+        "estado_cambiado",
+        "cliente_asociado",
+        "cliente_creado_desde_solicitud",
+        "convertida_a_pedido",
+      ],
     },
   },
 } as const
+

@@ -116,6 +116,18 @@ El cambio de estado:
 - revalida `/dashboard/solicitudes` y `/dashboard/solicitudes/[id]`;
 - no usa service role key.
 
+## Comentarios e historial de solicitudes
+
+La Fase 11.2 agrega la base de datos y RLS para comentarios internos e historial operativo de solicitudes:
+
+- `solicitud_comentarios`;
+- `solicitud_historial`;
+- `solicitud_historial_action`.
+
+Estas tablas son internas y quedan reservadas para `admin` y `supervisor`. El rol `trabajador` no accede a comentarios ni historial de solicitudes, y usuarios anónimos tampoco acceden.
+
+Los comentarios son append-only inicialmente: no hay actualización ni eliminación. El historial también es append-only. En esta subfase no hay UI visible, servicios funcionales ni registro automático de eventos; esos pasos quedan para subfases posteriores de Fase 11.
+
 ## Estados de solicitud
 
 | Estado | Significado recomendado |
@@ -185,6 +197,9 @@ Las policies existentes permiten:
 - bloqueo de lectura pública anónima;
 - inserción pública limitada solo para crear solicitudes nuevas desde el
   formulario público.
+- lectura e inserción de `solicitud_comentarios` solo a `admin` y `supervisor`;
+- lectura e inserción de `solicitud_historial` solo a `admin` y `supervisor`;
+- sin policies de actualización ni eliminación para comentarios o historial de solicitudes.
 
 ## Qué NO incluye esta fase
 
