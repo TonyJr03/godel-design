@@ -41,6 +41,8 @@ La protección real por URL directa se realiza en el proxy de Next.js. El proxy 
 
 La Fase 12 recomienda implementar primero gestión de perfiles internos sobre `public.profiles`, sin crear usuarios Auth desde la app y sin usar service role key. Las futuras Server Actions del módulo deben validar permisos en servidor antes de leer o modificar perfiles.
 
+La subfase 12.2 usa `usuarios.view` para el listado read-only de perfiles internos. La página carga datos server-side, consulta solo `public.profiles`, no consulta `auth.users` y no expone correos electrónicos.
+
 ## Relación con RLS
 
 Estos helpers no reemplazan Row Level Security. RLS sigue siendo la última línea de defensa en Supabase y debe proteger los datos aunque exista una validación previa en Next.js.

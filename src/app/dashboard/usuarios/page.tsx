@@ -1,17 +1,65 @@
 import { PageHeader } from "@/components/ui/PageHeader";
-import { PlaceholderCard } from "@/components/ui/PlaceholderCard";
+import { InternalUsersList } from "@/components/usuarios/InternalUsersList";
+import { listInternalUsers } from "@/lib/usuarios";
 
-export default function DashboardUsuariosPage() {
+type DashboardUsuariosPageProps = {
+  searchParams: Promise<{
+    q?: string | string[] | undefined;
+    role?: string | string[] | undefined;
+    active?: string | string[] | undefined;
+  }>;
+};
+
+function getSingleSearchParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function DashboardUsuariosPage({
+  searchParams,
+}: DashboardUsuariosPageProps) {
+  const params = await searchParams;
+  const q = getSingleSearchParam(params.q);
+  const role = getSingleSearchParam(params.role);
+  const active = getSingleSearchParam(params.active);
+  const result = await listInternalUsers({ q, role, active });
+
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Usuarios"
-        description="Gestión futura de usuarios internos."
+        title="Usuarios internos"
+        description="Gestiona los perfiles internos del equipo."
       />
-      <PlaceholderCard
-        title="Usuarios internos pendientes"
-        description="La gestión funcional se implementará en subfases posteriores."
-      />
+
+      <section className="rounded-lg border border-teal-200 bg-teal-50 p-4 text-sm text-teal-950">
+        Crear y editar usuarios se implementará en las próximas subfases.
+      </section>
+
+      {result.ignoredInvalidRole ? (
+        <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+          El filtro de rol no es válido y fue ignorado.
+        </section>
+      ) : null}
+
+      {result.ignoredInvalidActive ? (
+        <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+          El filtro de estado no es válido y fue ignorado.
+        </section>
+      ) : null}
+
+      {!result.ok ? (
+        <section className="rounded-lg border border-red-200 bg-red-50 p-5 text-sm text-red-950">
+          {result.message}
+        </section>
+      ) : (
+        <InternalUsersList
+          users={result.users}
+          q={result.q ?? q ?? ""}
+          role={result.role ?? ""}
+          active={
+            result.active === null ? "" : result.active ? "true" : "false"
+          }
+        />
+      )}
     </div>
   );
 }

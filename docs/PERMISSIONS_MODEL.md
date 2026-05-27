@@ -142,6 +142,8 @@ Las futuras acciones del módulo de usuarios deben validar permisos server-side:
 
 `supervisor` y `trabajador` no deben gestionar usuarios. El acceso parcial de `trabajador` a perfiles asignados por pedido existe solo para mostrar información operativa mínima en pedidos, no para listar ni administrar personal.
 
+La subfase 12.2 implementa el listado read-only de usuarios internos en `/dashboard/usuarios`. La carga se hace server-side desde `public.profiles`, valida `usuarios.view`, respeta RLS, no consulta `auth.users`, no muestra email y no implementa creación ni edición.
+
 ## Uso esperado en futuros módulos
 
 Cuando se implementen módulos reales:

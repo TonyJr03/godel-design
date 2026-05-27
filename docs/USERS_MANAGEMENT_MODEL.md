@@ -224,7 +224,7 @@ Las futuras operaciones deben cumplir estas reglas:
 | Subfase | Alcance |
 | --- | --- |
 | 12.1 | Diagnóstico y decisión arquitectónica. |
-| 12.2 | Listado read-only de usuarios internos para `admin`. |
+| 12.2 | Listado read-only de usuarios internos para `admin`. Implementado sobre `public.profiles`, con filtros GET por nombre/teléfono, rol y estado activo. |
 | 12.3 | Detalle read-only de usuario interno. |
 | 12.4 | Edición de perfil operativo: nombre y campos seguros. |
 | 12.5 | Cambio de rol con protecciones de último admin. |
@@ -243,3 +243,17 @@ Solo debería considerarse service role si el proyecto necesita alta completa de
 - auditoría de operaciones sensibles;
 - pruebas de acceso negativo;
 - revisión de logs y errores para no exponer datos sensibles.
+
+## Estado de Implementación de 12.2
+
+El listado interno de usuarios está implementado en `/dashboard/usuarios` para perfiles con rol `admin`.
+
+La consulta se realiza server-side mediante el cliente normal de Supabase y respeta RLS. Selecciona únicamente columnas de `public.profiles`: `id`, `full_name`, `role`, `phone`, `avatar_url`, `is_active`, `created_at` y `updated_at`.
+
+Filtros disponibles por GET:
+
+- `q`: busca por nombre o teléfono.
+- `role`: acepta `admin`, `supervisor` o `trabajador`.
+- `active`: acepta `true` o `false`.
+
+El listado no consulta `auth.users`, no muestra email, no crea usuarios, no edita perfiles, no cambia roles, no activa o desactiva perfiles y no usa service role key.
