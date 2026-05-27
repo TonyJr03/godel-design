@@ -470,6 +470,10 @@ Dar trazabilidad básica al trabajo interno.
 
 Cada pedido tiene una línea de actividad clara y confiable.
 
+### Cierre de fase
+
+La Fase 11 quedó completada con modelo técnico documentado, normalización de `pedido_comentarios` y `pedido_historial`, tablas base para `solicitud_comentarios` y `solicitud_historial`, comentarios internos append-only en pedidos y solicitudes, historial visible en pedidos y solicitudes, RPCs estrechas para exponer datos mínimos de autor/actor en pedidos, triggers privados de historial automático, eventos automáticos relevantes de pedidos y solicitudes, y documentación técnica actualizada. No se implementan comentarios públicos, edición/eliminación de comentarios o historial, notificaciones ni auditoría legal completa.
+
 ---
 
 ## Fase 12 — Gestión de usuarios internos
@@ -667,7 +671,7 @@ Después de cada tarea de Codex se revisará:
 | 8 | Pedidos | Completada |
 | 9 | Asignación de personal a pedidos | Completada |
 | 10 | Archivos privados | Completada |
-| 11 | Comentarios internos e historial | Pendiente |
+| 11 | Comentarios internos e historial | Completada |
 | 12 | Gestión de usuarios internos | Pendiente |
 | 13 | Dashboard operativo | Pendiente |
 | 14 | Pulido visual y responsive | Pendiente |
@@ -679,7 +683,7 @@ Después de cada tarea de Codex se revisará:
 
 La próxima fase activa será:
 
-# Fase 11 — Comentarios internos e historial
+# Fase 12 — Gestión de usuarios internos
 
 La Fase 1 quedó completada con el modelo de datos inicial, migraciones base, políticas RLS iniciales y modelo de Storage documentado.
 
@@ -709,4 +713,6 @@ La Fase 9 quedó completada con asignaciones múltiples de personal interno a pe
 
 La Fase 10 quedó completada con infraestructura privada de Supabase Storage, bucket privado `godel-files`, policies de `storage.objects`, helpers y validadores de archivos, rutas privadas para solicitudes y pedidos, subida de archivos internos en pedidos, subida pública controlada de archivos opcionales en solicitudes, visualización interna de archivos de solicitud, registro de metadatos en `archivos`, descargas mediante URLs firmadas de corta duración y documentación actualizada. Los archivos permanecen privados, no hay URLs públicas permanentes, no se usa service role key y RLS/policies siguen como defensa final.
 
-La próxima fase activa es Fase 11 — Comentarios internos e historial. No debe iniciarse hasta recibir una tarea específica para esa fase.
+La Fase 11 quedó completada con comentarios internos e historial operativo para pedidos y solicitudes, reglas append-only, RLS como defensa final, RPCs estrechas para datos mínimos de autor/actor en pedidos, triggers privados de historial automático y documentación actualizada.
+
+La próxima fase activa es Fase 12 — Gestión de usuarios internos. No debe iniciarse hasta recibir una tarea específica para esa fase.

@@ -80,7 +80,7 @@ Existen triggers técnicos de actualización de fecha:
 - `set_pedidos_updated_at`;
 - `set_pedido_comentarios_updated_at`.
 
-No se encontraron triggers de negocio que registren automáticamente eventos de historial por creación, asignación, subida de archivos, conversión de solicitud o asociación de cliente.
+Desde Fase 11.7A y 11.7B también existen triggers de negocio privados para registrar historial automático de pedidos y solicitudes. Estos triggers cubren creación de pedidos, asignación/remoción de personal, subida de archivos propios de pedido, creación de solicitudes, archivos adjuntados a solicitudes, cambios de estado de solicitud, asociación de cliente y conversión de solicitud a pedido.
 
 ### RPC `actualizar_estado_pedido`
 
@@ -103,23 +103,14 @@ Si el estado enviado es igual al estado actual, la RPC retorna el pedido sin ins
 
 ### Acciones y Servicios Actuales
 
-Las acciones y servicios actuales no registran historial de forma directa.
+Las acciones y servicios actuales no aceptan datos de historial desde formularios. El historial se registra mediante RPCs, triggers privados o servicios server-side controlados:
 
-El único registro de historial operativo detectado ocurre indirectamente cuando `updateInternalPedidoStatus` llama a la RPC `actualizar_estado_pedido`.
+- `updateInternalPedidoStatus` llama a `public.actualizar_estado_pedido`, que registra cambios de estado de pedido;
+- la creación de pedidos, asignación/remoción de personal y subida de archivos propios de pedido se registran por triggers;
+- la creación de solicitudes, archivos adjuntados, cambios de estado, asociación de cliente y conversión a pedido se registran por triggers;
+- `createClienteFromSolicitudAndAssociate` registra `cliente_creado_desde_solicitud` después de crear y asociar el cliente correctamente.
 
-No registran historial actualmente:
-
-- creación manual de pedido;
-- conversión de solicitud a pedido;
-- asignación de personal;
-- remoción de personal;
-- subida de archivo de pedido;
-- creación pública de solicitud;
-- subida pública de archivos de solicitud;
-- cambio de estado de solicitud;
-- asociación de cliente a solicitud;
-- creación de cliente desde solicitud;
-- herencia de archivos al convertir solicitud en pedido.
+La herencia de archivos al convertir una solicitud en pedido no genera un evento adicional de archivo para evitar ruido y duplicados.
 
 ### Comentarios de Pedidos
 
