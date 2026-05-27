@@ -148,6 +148,8 @@ El listado consulta la tabla `archivos` por `pedido_id` y se apoya en RLS. La UI
 
 La subida usa el archivo real recibido por `FormData`, valida nombre, tamaño, MIME, extensión, categoría y contexto, construye la ruta internamente y guarda metadatos en `archivos`. No acepta `file_path`, `bucket`, `uploaded_by`, `file_name`, `file_type` ni `file_size` desde campos del formulario como fuente de verdad.
 
+Desde Fase 11.7A, la inserción de metadatos en `archivos` registra automáticamente `archivo_subido` en `pedido_historial` solo para archivos propios de pedido con `visibility` `interno_pedido`, `avance` o `final_entrega`. No se registra `archivo_subido` para archivos heredados desde solicitudes con `visibility = "cliente_solicitud"`.
+
 La descarga usa el route handler interno del pedido, valida que el archivo pertenezca al pedido y redirige a una URL firmada de corta duración. No hay URLs públicas permanentes.
 
 ## Fase 10.4A: base para archivos de solicitudes públicas

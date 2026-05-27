@@ -151,7 +151,16 @@ El módulo actual:
 - no implementa edición ni eliminación;
 - no registra eventos automáticos nuevos.
 
-Actualmente se muestran los eventos que ya existan en `pedido_historial`, empezando por cambios de estado registrados mediante `public.actualizar_estado_pedido`. Eventos adicionales como creación, asignaciones, archivos y conversión quedan para subfases posteriores.
+Actualmente se muestran los eventos que ya existan en `pedido_historial`. Los cambios de estado se registran mediante `public.actualizar_estado_pedido`.
+
+Desde Fase 11.7A también se registran automáticamente en base de datos:
+
+- `pedido_creado` al insertar en `pedidos`;
+- `trabajador_asignado` al insertar en `pedido_trabajadores`;
+- `trabajador_removido` al eliminar de `pedido_trabajadores`;
+- `archivo_subido` al insertar archivos propios de pedido en `archivos`.
+
+No se crea trigger de cambio de estado para evitar duplicar lo que ya registra `public.actualizar_estado_pedido`. Los archivos heredados desde solicitudes con `visibility = "cliente_solicitud"` no generan `archivo_subido` del pedido. El historial automático de solicitudes queda para una subfase posterior.
 
 ### Comentarios de Solicitudes
 
@@ -579,14 +588,23 @@ Estado:
 - no implementa edición ni eliminación;
 - no registra eventos automáticos nuevos.
 
-### Fase 11.7: Registro Automático de Historial
+### Fase 11.7A: Registro Automático de Historial de Pedidos
+
+Estado:
+
+- implementado mediante triggers de base de datos;
+- registra `pedido_creado`;
+- registra `trabajador_asignado`;
+- registra `trabajador_removido`;
+- registra `archivo_subido` para archivos propios de pedido;
+- conserva cambios de estado mediante `public.actualizar_estado_pedido`;
+- no duplica eventos de estado;
+- no registra historial automático de solicitudes.
+
+### Fase 11.7B: Registro Automático de Historial de Solicitudes
 
 Objetivos:
 
-- conectar creación manual de pedido;
-- conectar conversión de solicitud a pedido;
-- conectar asignación y remoción de personal;
-- conectar subida de archivos de pedido;
 - conectar creación pública de solicitud;
 - conectar archivos de solicitud;
 - conectar cambio de estado de solicitud;

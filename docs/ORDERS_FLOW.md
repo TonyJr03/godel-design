@@ -146,7 +146,7 @@ El detalle de pedido permite ver y agregar comentarios internos asociados al ped
 
 El formulario solo envía `pedido_id` y `contenido`. El autor se toma server-side desde el perfil autenticado y se guarda en `pedido_comentarios.user_id`. No se acepta autor, fecha ni otros campos técnicos desde el formulario.
 
-Los comentarios son append-only en el alcance inicial. No hay edición, eliminación, menciones, notificaciones ni adjuntos. Esta subfase no registra historial automático adicional.
+Los comentarios son append-only en el alcance inicial. No hay edición, eliminación, menciones, notificaciones ni adjuntos.
 
 ## Historial visible de pedido
 
@@ -160,7 +160,15 @@ El detalle de pedido muestra una sección “Historial del pedido” con los eve
 
 `admin` y `supervisor` ven el historial de cualquier pedido. `trabajador` ve el historial solo de pedidos asignados. El historial es append-only: no hay edición ni eliminación.
 
-En esta subfase no se registran eventos automáticos nuevos. Actualmente se muestran los eventos existentes, empezando por los cambios de estado registrados por `public.actualizar_estado_pedido`. Eventos como creación, asignaciones, archivos y conversión quedan para subfases posteriores.
+Desde Fase 11.7A, el historial de pedidos registra automáticamente:
+
+- `pedido_creado` al crear un pedido manual o desde solicitud;
+- `trabajador_asignado` al asignar personal;
+- `trabajador_removido` al remover personal;
+- `archivo_subido` al subir archivos propios de pedido;
+- cambios de estado mediante la RPC existente `public.actualizar_estado_pedido`.
+
+No se crea trigger de actualización de estado para evitar duplicar los eventos que ya registra la RPC. Los archivos heredados de solicitudes con `visibility = "cliente_solicitud"` no generan `archivo_subido` del pedido.
 
 ## Archivos privados de pedido
 

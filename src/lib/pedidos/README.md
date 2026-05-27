@@ -96,7 +96,16 @@ Los comentarios son append-only. No hay edición, eliminación, menciones, notif
 
 `listPedidoHistory` carga el historial server-side mediante la RPC segura `public.listar_pedido_historial`. Valida UUID, perfil interno, permiso `pedidos.view` y acceso al pedido. La RPC valida `private.can_access_order`, no abre `profiles` globalmente y devuelve solo datos mínimos del actor: nombre y rol.
 
-El historial es append-only. No hay edición, eliminación ni registro automático nuevo en esta subfase. Actualmente se muestran los eventos que ya existan en `pedido_historial`, empezando por cambios de estado registrados por `public.actualizar_estado_pedido`.
+El historial es append-only. No hay edición ni eliminación. Los cambios de estado se registran mediante `public.actualizar_estado_pedido`.
+
+Desde Fase 11.7A, la base de datos registra automáticamente estos eventos de pedido mediante triggers controlados:
+
+- `pedido_creado` al insertar en `pedidos`;
+- `trabajador_asignado` al insertar en `pedido_trabajadores`;
+- `trabajador_removido` al eliminar de `pedido_trabajadores`;
+- `archivo_subido` al insertar en `archivos` con categoría propia de pedido.
+
+Los archivos heredados desde solicitudes con `visibility = "cliente_solicitud"` no generan `archivo_subido` del pedido. El historial automático de solicitudes queda fuera de esta subfase.
 
 ## Alcance por Rol
 

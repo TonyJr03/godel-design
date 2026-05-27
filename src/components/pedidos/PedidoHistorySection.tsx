@@ -70,19 +70,19 @@ function getHistorySummary(item: PedidoHistoryItem): string {
   }
 
   if (item.action === "pedido_creado") {
-    return "Pedido creado en el sistema.";
+    return `Pedido creado en el sistema: ${formatHistoryValue(item.new_value)}.`;
   }
 
   if (item.action === "trabajador_asignado") {
-    return "Personal asignado al pedido.";
+    return `Personal asignado al pedido: ${formatHistoryValue(item.new_value)}.`;
   }
 
   if (item.action === "trabajador_removido") {
-    return "Personal removido del pedido.";
+    return `Personal removido del pedido: ${formatHistoryValue(item.old_value)}.`;
   }
 
   if (item.action === "archivo_subido") {
-    return "Archivo agregado al pedido.";
+    return `Archivo agregado al pedido: ${formatHistoryValue(item.new_value)}.`;
   }
 
   if (item.action === "nota_agregada") {
