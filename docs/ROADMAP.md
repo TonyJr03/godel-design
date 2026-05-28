@@ -491,13 +491,23 @@ Permitir que administradores gestionen usuarios internos.
 - Definir mecanismo seguro para creación de usuarios.
 - Evitar uso de claves privadas en frontend.
 
-### Decisión pendiente
+### Decisión adoptada
 
-Definir si la creación de usuarios internos se hará inicialmente desde Supabase manualmente o desde un panel admin con acción segura del servidor.
+La Fase 12 usa gestión de perfiles únicamente:
+
+- los usuarios Auth se crean manualmente desde Supabase Studio o CLI;
+- la app gestiona registros en `public.profiles`;
+- la app no crea credenciales;
+- la app no consulta `auth.users`;
+- la app no usa service role key.
 
 ### Criterio de cierre
 
 Un administrador puede gestionar usuarios internos sin comprometer la seguridad del sistema.
+
+### Cierre de fase
+
+La Fase 12 quedó completada con diagnóstico y decisión arquitectónica, listado interno de usuarios, filtros por nombre/teléfono, rol y estado, detalle read-only, edición controlada de `full_name`, `phone`, `avatar_url`, `role` e `is_active`, creación de perfiles internos para usuarios Auth ya existentes, validaciones server-side, protección contra dejar el sistema sin administrador activo y documentación actualizada. La app gestiona solo `public.profiles`: no crea usuarios Auth, no consulta `auth.users`, no pide email ni contraseña, no implementa invitaciones, no elimina usuarios y no usa service role key.
 
 ---
 
@@ -672,7 +682,7 @@ Después de cada tarea de Codex se revisará:
 | 9 | Asignación de personal a pedidos | Completada |
 | 10 | Archivos privados | Completada |
 | 11 | Comentarios internos e historial | Completada |
-| 12 | Gestión de usuarios internos | Pendiente |
+| 12 | Gestión de usuarios internos | Completada |
 | 13 | Dashboard operativo | Pendiente |
 | 14 | Pulido visual y responsive | Pendiente |
 | 15 | Seguridad, pruebas y despliegue inicial | Pendiente |
@@ -683,7 +693,7 @@ Después de cada tarea de Codex se revisará:
 
 La próxima fase activa será:
 
-# Fase 12 — Gestión de usuarios internos
+# Fase 13 — Dashboard operativo
 
 La Fase 1 quedó completada con el modelo de datos inicial, migraciones base, políticas RLS iniciales y modelo de Storage documentado.
 
@@ -715,4 +725,6 @@ La Fase 10 quedó completada con infraestructura privada de Supabase Storage, bu
 
 La Fase 11 quedó completada con comentarios internos e historial operativo para pedidos y solicitudes, reglas append-only, RLS como defensa final, RPCs estrechas para datos mínimos de autor/actor en pedidos, triggers privados de historial automático y documentación actualizada.
 
-La próxima fase activa es Fase 12 — Gestión de usuarios internos. No debe iniciarse hasta recibir una tarea específica para esa fase.
+La Fase 12 quedó completada con gestión de perfiles internos para `admin`: listado, filtros, detalle, edición, creación de perfiles para usuarios Auth existentes, validaciones server-side, guardas del último administrador activo y documentación actualizada. Se mantiene la Opción A: la app no crea credenciales, no consulta `auth.users`, no pide email ni contraseña, no implementa invitaciones ni eliminación, y no usa service role key.
+
+La próxima fase activa es Fase 13 — Dashboard operativo. No debe iniciarse hasta recibir una tarea específica para esa fase.

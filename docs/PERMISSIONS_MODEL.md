@@ -161,19 +161,19 @@ Cuando se implementen módulos reales:
 
 ## Qué no está incluido todavía
 
-- Gestión real de usuarios.
 - Permisos granulares por pedido específico en UI.
 - Gestión avanzada de usuarios.
 - Permisos granulares configurables por pedido desde interfaz administrativa.
 - Auditoría avanzada.
 - Permisos configurables desde base de datos.
-- Panel para editar roles.
+- Creación de credenciales Auth desde la app.
+- Invitaciones, cambio de contraseña y eliminación física de usuarios.
 
 ## Pendiente para fases posteriores
 
 - Fase 8 y Fase 9 aplicaron estos permisos en pedidos y asignación de personal interno.
 - La Fase 11 diseña comentarios internos e historial operativo en `docs/COMMENTS_AND_HISTORY_MODEL.md`, sin cambiar todavía la matriz de permisos de código.
-- Fase 12 implementará gestión de usuarios internos.
+- La Fase 12 implementó gestión de perfiles internos para `admin`, sin crear credenciales Auth desde la app.
 - Fases futuras podrán refinar permisos si la operación real lo exige.
 
 ## Cierre
