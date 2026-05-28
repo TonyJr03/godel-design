@@ -314,6 +314,8 @@ Más adelante se podrá:
 
 El diseño técnico de comentarios internos e historial para la Fase 11 se documenta en `docs/COMMENTS_AND_HISTORY_MODEL.md`.
 
+El diseño del dashboard operativo para la Fase 13 se documenta en `docs/DASHBOARD_OPERATIVE_MODEL.md`. Las métricas futuras de pedidos deben derivarse de consultas server-side, respetar RLS y filtrar los pedidos del trabajador a sus asignaciones.
+
 ## Pruebas manuales recomendadas
 
 - Verificar que `admin` ve todos los pedidos.

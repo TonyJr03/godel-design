@@ -238,6 +238,8 @@ Más adelante se podrá:
 
 El diseño técnico de comentarios internos e historial para la Fase 11 se documenta en `docs/COMMENTS_AND_HISTORY_MODEL.md`.
 
+El diseño del dashboard operativo para la Fase 13 se documenta en `docs/DASHBOARD_OPERATIVE_MODEL.md`. Las métricas futuras de solicitudes deben estar disponibles solo para `admin` y `supervisor`; el trabajador no debe recibir solicitudes generales desde el dashboard.
+
 ## Pruebas manuales recomendadas
 
 - Admin ve el listado de solicitudes.

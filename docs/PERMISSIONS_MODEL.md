@@ -159,6 +159,12 @@ Cuando se implementen módulos reales:
 - Las consultas deben apoyarse en RLS.
 - Los componentes cliente no deben decidir permisos críticos por sí solos.
 
+## Relación con el dashboard operativo
+
+El diseño del dashboard operativo se documenta en `docs/DASHBOARD_OPERATIVE_MODEL.md`. Ese modelo no cambia la matriz de permisos vigente: `admin` y `supervisor` pueden ver métricas globales de operación, mientras que `trabajador` solo puede recibir métricas y listas derivadas de pedidos asignados.
+
+Las futuras consultas del dashboard deben ejecutarse server-side, usar el cliente normal de Supabase, respetar RLS, no consultar `auth.users` y no usar service role key.
+
 ## Qué no está incluido todavía
 
 - Permisos granulares por pedido específico en UI.
