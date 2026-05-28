@@ -1,6 +1,7 @@
 import { INTERNAL_USER_ROLES, type InternalUserRole } from "./list-internal-users";
 
 export const USER_FIELDS = [
+  "id",
   "full_name",
   "phone",
   "avatar_url",
@@ -26,6 +27,14 @@ export type UpdateUserData = {
   is_active: boolean;
 };
 
+export type CreateUserProfileInput = UpdateUserInput & {
+  id?: string | null;
+};
+
+export type CreateUserProfileData = UpdateUserData & {
+  id: string;
+};
+
 export type UserFieldErrors = Partial<Record<UserField, string>>;
 
 export type ValidateUserInputResult =
@@ -37,6 +46,19 @@ export type ValidateUserInputResult =
       ok: false;
       fieldErrors: UserFieldErrors;
     };
+
+export type ValidateCreateUserProfileInputResult =
+  | {
+      ok: true;
+      data: CreateUserProfileData;
+    }
+  | {
+      ok: false;
+      fieldErrors: UserFieldErrors;
+    };
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const MAX_FULL_NAME_LENGTH = 120;
 const MAX_PHONE_LENGTH = 40;
@@ -117,6 +139,37 @@ export function validateUserInput(
       avatar_url: avatarUrl,
       role,
       is_active: isActive,
+    },
+  };
+}
+
+export function validateCreateUserProfileInput(
+  input: CreateUserProfileInput,
+): ValidateCreateUserProfileInputResult {
+  const id = (input.id ?? "").trim();
+  const profileValidation = validateUserInput(input);
+  const fieldErrors: UserFieldErrors = profileValidation.ok
+    ? {}
+    : { ...profileValidation.fieldErrors };
+
+  if (!id) {
+    fieldErrors.id = "El UUID del usuario Auth es obligatorio.";
+  } else if (!UUID_PATTERN.test(id)) {
+    fieldErrors.id = "Ingresa un UUID válido de Supabase Auth.";
+  }
+
+  if (!profileValidation.ok || Object.keys(fieldErrors).length > 0) {
+    return {
+      ok: false,
+      fieldErrors,
+    };
+  }
+
+  return {
+    ok: true,
+    data: {
+      id,
+      ...profileValidation.data,
     },
   };
 }

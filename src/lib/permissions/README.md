@@ -47,6 +47,8 @@ La subfase 12.3 usa el mismo permiso para el detalle read-only de `/dashboard/us
 
 La subfase 12.4 usa `usuarios.manage` para editar perfiles internos en `/dashboard/usuarios/[id]/editar`. El servicio actualiza solo campos permitidos de `public.profiles` y aplica guardas para conservar al menos un administrador activo.
 
+La subfase 12.5 usa `usuarios.manage` para crear perfiles internos en `/dashboard/usuarios/nuevo`. La app inserta solo en `public.profiles`, no crea usuarios Auth, no consulta `auth.users`, no pide email ni contraseña y no usa service role key.
+
 ## Relación con RLS
 
 Estos helpers no reemplazan Row Level Security. RLS sigue siendo la última línea de defensa en Supabase y debe proteger los datos aunque exista una validación previa en Next.js.

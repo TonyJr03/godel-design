@@ -181,6 +181,7 @@ Subfases futuras deberían implementar:
 
 - listar usuarios internos desde `profiles`;
 - ver detalle de usuario;
+- crear perfil interno para un usuario Auth existente;
 - editar `full_name`;
 - editar campos opcionales existentes como `phone` y `avatar_url` si se decide exponerlos;
 - cambiar `role`;
@@ -227,9 +228,8 @@ Las futuras operaciones deben cumplir estas reglas:
 | 12.2 | Listado read-only de usuarios internos para `admin`. Implementado sobre `public.profiles`, con filtros GET por nombre/teléfono, rol y estado activo. |
 | 12.3 | Detalle read-only de usuario interno. Implementado sobre `public.profiles`, con validación de UUID y 404 para IDs inválidos o inexistentes. |
 | 12.4 | Edición de perfil operativo: nombre, teléfono, avatar, rol y estado. Implementada con guardas para no dejar el sistema sin administrador activo. |
-| 12.5 | Cambio de rol con protecciones de último admin. |
-| 12.6 | Activación y desactivación con protecciones de último admin activo. |
-| 12.7 | Revisión de seguridad, pruebas y documentación final. |
+| 12.5 | Creación de perfil interno para usuario Auth existente. Implementada sin crear credenciales, sin consultar `auth.users` y sin service role key. |
+| 12.6 | Revisión de seguridad, pruebas y documentación final. |
 | Futura | Creación completa o invitaciones, solo si se acepta introducir service role server-side. |
 
 ## Criterio para Adoptar Service Role en el Futuro
@@ -289,3 +289,29 @@ Protecciones implementadas:
 - cualquier edición sobre admins activos verifica que siga existiendo al menos un admin activo.
 
 La edición no consulta `auth.users`, no muestra email, no cambia contraseñas, no elimina usuarios, no crea usuarios y no usa service role key. RLS sigue siendo defensa final.
+
+## Estado de Implementación de 12.5
+
+La creación de perfiles internos está implementada en `/dashboard/usuarios/nuevo` para perfiles con rol `admin`.
+
+Esta pantalla no crea usuarios Auth, no consulta `auth.users`, no pide email, no pide contraseña, no envía invitaciones y no usa service role key. El admin debe crear primero el usuario en Supabase Auth desde Supabase Studio o CLI, copiar su UUID y pegarlo en la app.
+
+Campos permitidos:
+
+- `id`, usando el UUID del usuario Auth existente;
+- `full_name`;
+- `phone`;
+- `avatar_url`;
+- `role`;
+- `is_active`.
+
+No se insertan `created_at`, `updated_at`, email, contraseña, tokens ni campos técnicos de Auth.
+
+Errores controlados:
+
+- UUID inválido;
+- usuario Auth inexistente, detectado por la clave foránea de `profiles.id` hacia `auth.users.id`;
+- perfil interno ya existente para ese UUID;
+- error general seguro.
+
+RLS sigue siendo defensa final: la inserción usa el cliente server-side normal de Supabase con la sesión del admin autenticado.

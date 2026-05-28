@@ -148,6 +148,8 @@ La subfase 12.3 implementa el detalle read-only en `/dashboard/usuarios/[id]` co
 
 La subfase 12.4 implementa edición controlada en `/dashboard/usuarios/[id]/editar`. Solo `admin` puede editar mediante validación server-side de `usuarios.manage`. La edición se limita a `full_name`, `phone`, `avatar_url`, `role` e `is_active`, no consulta `auth.users`, no muestra email, no cambia contraseñas, no elimina usuarios y no usa service role key. El servicio impide desactivar el propio admin, quitarse el rol admin y dejar el sistema sin al menos un admin activo.
 
+La subfase 12.5 implementa creación de perfil interno en `/dashboard/usuarios/nuevo` para usuarios Auth ya existentes. Solo `admin` puede crear perfiles mediante validación server-side de `usuarios.manage`. La app no crea credenciales, no consulta `auth.users`, no pide email ni contraseña, no envía invitaciones y no usa service role key. El UUID se valida por formato y la base confirma su existencia mediante la clave foránea de `public.profiles.id`.
+
 ## Uso esperado en futuros módulos
 
 Cuando se implementen módulos reales:

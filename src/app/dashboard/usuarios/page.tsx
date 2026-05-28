@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { InternalUsersList } from "@/components/usuarios/InternalUsersList";
 import { listInternalUsers } from "@/lib/usuarios";
@@ -25,13 +26,22 @@ export default async function DashboardUsuariosPage({
 
   return (
     <div className="space-y-8">
-      <PageHeader
-        title="Usuarios internos"
-        description="Gestiona los perfiles internos del equipo."
-      />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <PageHeader
+          title="Usuarios internos"
+          description="Gestiona los perfiles internos del equipo."
+        />
+        <Link
+          href="/dashboard/usuarios/nuevo"
+          className="inline-flex min-h-10 items-center justify-center rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800"
+        >
+          Nuevo perfil
+        </Link>
+      </div>
 
       <section className="rounded-lg border border-teal-200 bg-teal-50 p-4 text-sm text-teal-950">
-        Crear y editar usuarios se implementará en las próximas subfases.
+        Los usuarios Auth se crean fuera de esta aplicación. Aquí se gestionan
+        sus perfiles internos.
       </section>
 
       {result.ignoredInvalidRole ? (
