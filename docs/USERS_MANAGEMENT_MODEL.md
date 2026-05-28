@@ -226,7 +226,7 @@ Las futuras operaciones deben cumplir estas reglas:
 | 12.1 | Diagnóstico y decisión arquitectónica. |
 | 12.2 | Listado read-only de usuarios internos para `admin`. Implementado sobre `public.profiles`, con filtros GET por nombre/teléfono, rol y estado activo. |
 | 12.3 | Detalle read-only de usuario interno. Implementado sobre `public.profiles`, con validación de UUID y 404 para IDs inválidos o inexistentes. |
-| 12.4 | Edición de perfil operativo: nombre y campos seguros. |
+| 12.4 | Edición de perfil operativo: nombre, teléfono, avatar, rol y estado. Implementada con guardas para no dejar el sistema sin administrador activo. |
 | 12.5 | Cambio de rol con protecciones de último admin. |
 | 12.6 | Activación y desactivación con protecciones de último admin activo. |
 | 12.7 | Revisión de seguridad, pruebas y documentación final. |
@@ -265,3 +265,27 @@ El detalle read-only de usuario está implementado en `/dashboard/usuarios/[id]`
 La carga se realiza server-side mediante el cliente normal de Supabase y respeta RLS. El servicio valida formato UUID, valida `usuarios.view` y consulta únicamente `public.profiles` con las columnas `id`, `full_name`, `role`, `phone`, `avatar_url`, `is_active`, `created_at` y `updated_at`.
 
 El detalle muestra nombre, rol, teléfono, estado, avatar si existe como enlace seguro, fechas de creación y actualización, e identificador completo. No consulta `auth.users`, no muestra email, no crea usuarios, no edita perfiles, no cambia roles, no activa o desactiva perfiles y no usa service role key.
+
+## Estado de Implementación de 12.4
+
+La edición controlada de perfiles internos está implementada en `/dashboard/usuarios/[id]/editar` para perfiles con rol `admin`.
+
+Campos editables:
+
+- `full_name`;
+- `phone`;
+- `avatar_url`;
+- `role`;
+- `is_active`.
+
+La edición usa Server Actions y un servicio server-side que valida `usuarios.manage`, valida UUID, carga el perfil objetivo desde `public.profiles`, valida input y actualiza únicamente los campos permitidos. No acepta `id`, `created_at` ni `updated_at` desde el formulario como fuente confiable.
+
+Protecciones implementadas:
+
+- un admin no puede desactivarse a sí mismo;
+- un admin no puede quitarse su propio rol `admin`;
+- no se puede desactivar el último admin activo;
+- no se puede cambiar el rol del último admin activo a `supervisor` o `trabajador`;
+- cualquier edición sobre admins activos verifica que siga existiendo al menos un admin activo.
+
+La edición no consulta `auth.users`, no muestra email, no cambia contraseñas, no elimina usuarios, no crea usuarios y no usa service role key. RLS sigue siendo defensa final.

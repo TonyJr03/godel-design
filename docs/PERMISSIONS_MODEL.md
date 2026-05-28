@@ -146,6 +146,8 @@ La subfase 12.2 implementa el listado read-only de usuarios internos en `/dashbo
 
 La subfase 12.3 implementa el detalle read-only en `/dashboard/usuarios/[id]` con las mismas reglas: solo `admin`, validación server-side de `usuarios.view`, consulta limitada a `public.profiles`, sin email, sin `auth.users`, sin service role y sin acciones de modificación.
 
+La subfase 12.4 implementa edición controlada en `/dashboard/usuarios/[id]/editar`. Solo `admin` puede editar mediante validación server-side de `usuarios.manage`. La edición se limita a `full_name`, `phone`, `avatar_url`, `role` e `is_active`, no consulta `auth.users`, no muestra email, no cambia contraseñas, no elimina usuarios y no usa service role key. El servicio impide desactivar el propio admin, quitarse el rol admin y dejar el sistema sin al menos un admin activo.
+
 ## Uso esperado en futuros módulos
 
 Cuando se implementen módulos reales:

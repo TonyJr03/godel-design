@@ -45,6 +45,8 @@ La subfase 12.2 usa `usuarios.view` para el listado read-only de perfiles intern
 
 La subfase 12.3 usa el mismo permiso para el detalle read-only de `/dashboard/usuarios/[id]`. El servicio valida UUID, respeta RLS y no habilita acciones de edición, cambio de rol ni activación.
 
+La subfase 12.4 usa `usuarios.manage` para editar perfiles internos en `/dashboard/usuarios/[id]/editar`. El servicio actualiza solo campos permitidos de `public.profiles` y aplica guardas para conservar al menos un administrador activo.
+
 ## Relación con RLS
 
 Estos helpers no reemplazan Row Level Security. RLS sigue siendo la última línea de defensa en Supabase y debe proteger los datos aunque exista una validación previa en Next.js.

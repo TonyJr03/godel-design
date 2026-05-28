@@ -4,6 +4,8 @@ export {
   isInternalUserRole,
   listInternalUsers,
 } from "./list-internal-users";
+export { updateInternalUser } from "./update-internal-user";
+export { validateUserInput } from "./user-validation";
 
 export type {
   GetInternalUserByIdResult,
@@ -17,3 +19,16 @@ export type {
   ListInternalUsersOptions,
   ListInternalUsersResult,
 } from "./list-internal-users";
+
+export type {
+  UpdateInternalUserInput,
+  UpdateInternalUserResult,
+} from "./update-internal-user";
+
+export type {
+  UpdateUserData,
+  UpdateUserInput,
+  UserField,
+  UserFieldErrors,
+  ValidateUserInputResult,
+} from "./user-validation";

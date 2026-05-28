@@ -77,18 +77,20 @@ export function InternalUserDetail({ user }: InternalUserDetailProps) {
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Link
           href="/dashboard/usuarios"
           className="inline-flex min-h-10 items-center justify-center rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:border-zinc-400"
         >
           Volver a usuarios
         </Link>
+        <Link
+          href={`/dashboard/usuarios/${user.id}/editar`}
+          className="inline-flex min-h-10 items-center justify-center rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800"
+        >
+          Editar usuario
+        </Link>
       </div>
-
-      <section className="rounded-lg border border-teal-200 bg-teal-50 p-4 text-sm text-teal-950">
-        La edición de usuarios se implementará en una próxima subfase.
-      </section>
 
       <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-4 border-b border-zinc-200 pb-5 sm:flex-row sm:items-center">
