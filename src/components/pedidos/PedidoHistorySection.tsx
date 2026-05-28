@@ -1,43 +1,14 @@
-import type { PedidoHistoryItem } from "@/lib/pedidos";
+import {
+  PEDIDO_HISTORY_ACTION_LABELS,
+  PEDIDO_STATUS_LABELS,
+  type PedidoHistoryItem,
+} from "@/lib/pedidos";
+import { ROLE_SHORT_LABELS } from "@/lib/permissions";
 import { formatAppDateTime } from "@/lib/utils";
-import type { Enums } from "@/types/database";
 
 type PedidoHistorySectionProps = {
   history: PedidoHistoryItem[];
   loadError?: string;
-};
-
-const HISTORY_ACTION_LABELS: Record<
-  Enums<"pedido_historial_action">,
-  string
-> = {
-  pedido_creado: "Pedido creado",
-  estado_cambiado: "Estado cambiado",
-  trabajador_asignado: "Personal asignado",
-  trabajador_removido: "Personal removido",
-  archivo_subido: "Archivo subido",
-  nota_agregada: "Nota agregada",
-  fecha_entrega_actualizada: "Fecha de entrega actualizada",
-  pedido_entregado: "Pedido entregado",
-  pedido_cancelado: "Pedido cancelado",
-};
-
-const PEDIDO_ESTADO_LABELS: Record<string, string> = {
-  solicitud_recibida: "Solicitud recibida",
-  en_revision: "En revisión",
-  cotizado: "Cotizado",
-  aprobado_cliente: "Aprobado por cliente",
-  en_diseno: "En diseño",
-  en_produccion: "En producción",
-  listo_entrega: "Listo para entrega",
-  entregado: "Entregado",
-  cancelado: "Cancelado",
-};
-
-const ROLE_LABELS: Record<Enums<"app_role">, string> = {
-  admin: "Admin",
-  supervisor: "Supervisor",
-  trabajador: "Trabajador",
 };
 
 function formatHistoryValue(value: string | null): string {
@@ -45,7 +16,7 @@ function formatHistoryValue(value: string | null): string {
     return "sin dato";
   }
 
-  return PEDIDO_ESTADO_LABELS[value] ?? value;
+  return PEDIDO_STATUS_LABELS[value as keyof typeof PEDIDO_STATUS_LABELS] ?? value;
 }
 
 function getHistorySummary(item: PedidoHistoryItem): string {
@@ -89,7 +60,7 @@ function getActorName(item: PedidoHistoryItem): string {
 }
 
 function getActorRole(item: PedidoHistoryItem): string | null {
-  return item.actor?.role ? ROLE_LABELS[item.actor.role] : null;
+  return item.actor?.role ? ROLE_SHORT_LABELS[item.actor.role] : null;
 }
 
 export function PedidoHistorySection({
@@ -126,7 +97,7 @@ export function PedidoHistorySection({
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <span className="inline-flex rounded-md bg-white px-2 py-1 text-xs font-semibold text-zinc-700 ring-1 ring-inset ring-zinc-200">
-                      {HISTORY_ACTION_LABELS[item.action]}
+                      {PEDIDO_HISTORY_ACTION_LABELS[item.action]}
                     </span>
                     <p className="mt-3 text-sm leading-6 text-zinc-800">
                       {getHistorySummary(item)}

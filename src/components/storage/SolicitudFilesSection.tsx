@@ -1,17 +1,13 @@
-import type { SolicitudFileListItem } from "@/lib/storage";
+import {
+  type SolicitudFileListItem,
+} from "@/lib/storage";
+import { STORAGE_FILE_CATEGORY_LABELS } from "@/lib/storage/labels";
 import { formatAppDateTime } from "@/lib/utils";
 
 type SolicitudFilesSectionProps = {
   solicitudId: string;
   files: SolicitudFileListItem[];
   loadError?: string;
-};
-
-const CATEGORY_LABELS: Record<SolicitudFileListItem["visibility"], string> = {
-  cliente_solicitud: "Archivo enviado por cliente",
-  interno_pedido: "Archivo interno",
-  avance: "Avance",
-  final_entrega: "Final de entrega",
 };
 
 function formatFileSize(value: number | null): string {
@@ -75,7 +71,7 @@ export function SolicitudFilesSection({
                     {file.file_name}
                   </p>
                   <span className="inline-flex rounded-md bg-zinc-100 px-2 py-1 text-xs font-semibold text-zinc-700 ring-1 ring-inset ring-zinc-200">
-                    {CATEGORY_LABELS[file.visibility]}
+                    {STORAGE_FILE_CATEGORY_LABELS[file.visibility]}
                   </span>
                 </div>
                 <p className="mt-1 text-xs leading-5 text-zinc-500">

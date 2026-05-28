@@ -1,37 +1,14 @@
-import type { SolicitudHistoryItem } from "@/lib/solicitudes";
+import { ROLE_SHORT_LABELS } from "@/lib/permissions";
+import {
+  SOLICITUD_HISTORY_ACTION_LABELS,
+  SOLICITUD_STATUS_LABELS,
+  type SolicitudHistoryItem,
+} from "@/lib/solicitudes";
 import { formatAppDateTime } from "@/lib/utils";
-import type { Enums } from "@/types/database";
 
 type SolicitudHistorySectionProps = {
   history: SolicitudHistoryItem[];
   loadError?: string;
-};
-
-const HISTORY_ACTION_LABELS: Record<
-  Enums<"solicitud_historial_action">,
-  string
-> = {
-  solicitud_creada: "Solicitud creada",
-  archivos_adjuntados: "Archivos adjuntados",
-  estado_cambiado: "Estado cambiado",
-  cliente_asociado: "Cliente asociado",
-  cliente_creado_desde_solicitud: "Cliente creado desde solicitud",
-  convertida_a_pedido: "Convertida a pedido",
-};
-
-const SOLICITUD_ESTADO_LABELS: Record<string, string> = {
-  nueva: "Nueva",
-  en_revision: "En revisión",
-  contactada: "Contactada",
-  aprobada: "Aprobada",
-  rechazada: "Rechazada",
-  convertida: "Convertida",
-};
-
-const ROLE_LABELS: Record<Enums<"app_role">, string> = {
-  admin: "Admin",
-  supervisor: "Supervisor",
-  trabajador: "Trabajador",
 };
 
 function getActorName(item: SolicitudHistoryItem): string {
@@ -39,7 +16,7 @@ function getActorName(item: SolicitudHistoryItem): string {
 }
 
 function getActorRole(item: SolicitudHistoryItem): string | null {
-  return item.actor?.role ? ROLE_LABELS[item.actor.role] : null;
+  return item.actor?.role ? ROLE_SHORT_LABELS[item.actor.role] : null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -77,7 +54,7 @@ function formatEstado(value: string | null): string {
     return "sin dato";
   }
 
-  return SOLICITUD_ESTADO_LABELS[value] ?? value;
+  return SOLICITUD_STATUS_LABELS[value as keyof typeof SOLICITUD_STATUS_LABELS] ?? value;
 }
 
 function formatFileSize(value: number | null): string | null {
@@ -219,7 +196,7 @@ export function SolicitudHistorySection({
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <span className="inline-flex rounded-md bg-white px-2 py-1 text-xs font-semibold text-zinc-700 ring-1 ring-inset ring-zinc-200">
-                      {HISTORY_ACTION_LABELS[item.action]}
+                      {SOLICITUD_HISTORY_ACTION_LABELS[item.action]}
                     </span>
                     <p className="mt-3 text-sm leading-6 text-zinc-800">
                       {getHistorySummary(item)}

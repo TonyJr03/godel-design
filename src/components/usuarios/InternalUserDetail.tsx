@@ -1,16 +1,11 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { InternalUserDetail as InternalUserDetailData } from "@/lib/usuarios";
+import { ROLE_LABELS } from "@/lib/permissions";
 import { formatAppDateTime } from "@/lib/utils";
 
 type InternalUserDetailProps = {
   user: InternalUserDetailData;
-};
-
-const ROLE_LABELS: Record<InternalUserDetailData["role"], string> = {
-  admin: "Administrador",
-  supervisor: "Supervisor",
-  trabajador: "Trabajador",
 };
 
 function getInitials(name: string): string {

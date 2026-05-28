@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { InternalSolicitudDetail as InternalSolicitudDetailData } from "@/lib/solicitudes";
-import { SOLICITUD_STATUS_LABELS } from "@/lib/solicitudes/status";
+import { SOLICITUD_STATUS_LABELS } from "@/lib/solicitudes";
 import { SolicitudStatusForm } from "./SolicitudStatusForm";
 
 type InternalSolicitudDetailProps = {

@@ -9,6 +9,7 @@ import {
 } from "@/app/dashboard/pedidos/[id]/actions";
 import type { InternalPedidoDetailTrabajador } from "@/lib/pedidos";
 import type { AssignableWorker } from "@/lib/pedidos/list-assignable-workers";
+import { ROLE_LABELS } from "@/lib/permissions";
 import { formatAppDateTime } from "@/lib/utils";
 
 type PedidoWorkerAssignmentFormProps = {
@@ -27,12 +28,6 @@ const initialAssignState: AssignPedidoWorkerActionState = {
 const initialRemoveState: RemovePedidoWorkerActionState = {
   ok: false,
   message: "",
-};
-
-const ROLE_LABELS: Record<AssignableWorker["role"], string> = {
-  admin: "Administrador",
-  supervisor: "Supervisor",
-  trabajador: "Trabajador",
 };
 
 function getAssignedUserName(

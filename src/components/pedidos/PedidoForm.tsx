@@ -7,6 +7,7 @@ import {
   type CreatePedidoActionState,
 } from "@/app/dashboard/pedidos/nuevo/actions";
 import type { PedidoField, PedidoPrioridad } from "@/lib/pedidos";
+import { PEDIDO_PRIORITY_LABELS } from "@/lib/pedidos/labels";
 
 export type PedidoFormCliente = {
   id: string;
@@ -21,13 +22,6 @@ type PedidoFormProps = {
 const initialState: CreatePedidoActionState = {
   ok: false,
   message: "",
-};
-
-const PRIORIDAD_LABELS: Record<PedidoPrioridad, string> = {
-  baja: "Baja",
-  normal: "Normal",
-  alta: "Alta",
-  urgente: "Urgente",
 };
 
 type FieldErrorProps = {
@@ -207,7 +201,7 @@ export function PedidoForm({ clientes, prioridades }: PedidoFormProps) {
             >
               {prioridades.map((prioridad) => (
                 <option key={prioridad} value={prioridad}>
-                  {PRIORIDAD_LABELS[prioridad]}
+                  {PEDIDO_PRIORITY_LABELS[prioridad]}
                 </option>
               ))}
             </select>

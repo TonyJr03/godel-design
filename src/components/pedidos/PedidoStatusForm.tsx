@@ -7,9 +7,9 @@ import {
 } from "@/app/dashboard/pedidos/[id]/actions";
 import {
   PEDIDO_STATUSES,
-  PEDIDO_STATUS_LABELS,
   type PedidoStatus,
 } from "@/lib/pedidos/status";
+import { PEDIDO_STATUS_LABELS } from "@/lib/pedidos/labels";
 
 type PedidoStatusFormProps = {
   pedidoId: string;

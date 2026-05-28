@@ -4,8 +4,8 @@ import { InternalPedidosList } from "@/components/pedidos/InternalPedidosList";
 import { PageHeader } from "@/components/ui/PageHeader";
 import {
   INTERNAL_PEDIDO_ESTADOS,
+  PEDIDO_STATUS_LABELS,
   listInternalPedidos,
-  type InternalPedidoEstado,
 } from "@/lib/pedidos";
 import { getSingleSearchParam } from "@/lib/utils";
 
@@ -13,18 +13,6 @@ type DashboardPedidosPageProps = {
   searchParams: Promise<{
     estado?: string | string[] | undefined;
   }>;
-};
-
-const ESTADO_LABELS: Record<InternalPedidoEstado, string> = {
-  solicitud_recibida: "Solicitud recibida",
-  en_revision: "En revisión",
-  cotizado: "Cotizado",
-  aprobado_cliente: "Aprobado por cliente",
-  en_diseno: "En diseño",
-  en_produccion: "En producción",
-  listo_entrega: "Listo para entrega",
-  entregado: "Entregado",
-  cancelado: "Cancelado",
 };
 
 export default async function DashboardPedidosPage({
@@ -74,7 +62,7 @@ export default async function DashboardPedidosPage({
                   : "border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400"
               }`}
             >
-              {ESTADO_LABELS[estadoOption]}
+              {PEDIDO_STATUS_LABELS[estadoOption]}
             </Link>
           ))}
         </div>

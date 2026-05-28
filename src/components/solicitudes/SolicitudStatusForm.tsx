@@ -7,9 +7,9 @@ import {
 } from "@/app/dashboard/solicitudes/[id]/actions";
 import {
   MANUAL_SOLICITUD_STATUSES,
-  SOLICITUD_STATUS_LABELS,
   isManualSolicitudStatus,
 } from "@/lib/solicitudes/status";
+import { SOLICITUD_STATUS_LABELS } from "@/lib/solicitudes/labels";
 import type { Enums } from "@/types/database";
 
 type SolicitudStatusFormProps = {

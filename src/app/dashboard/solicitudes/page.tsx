@@ -4,8 +4,8 @@ import { InternalSolicitudesList } from "@/components/solicitudes/InternalSolici
 import { PageHeader } from "@/components/ui/PageHeader";
 import {
   INTERNAL_SOLICITUD_ESTADOS,
+  SOLICITUD_STATUS_LABELS,
   listInternalSolicitudes,
-  type InternalSolicitudEstado,
 } from "@/lib/solicitudes";
 import { getSingleSearchParam } from "@/lib/utils";
 
@@ -13,15 +13,6 @@ type DashboardSolicitudesPageProps = {
   searchParams: Promise<{
     estado?: string | string[] | undefined;
   }>;
-};
-
-const ESTADO_LABELS: Record<InternalSolicitudEstado, string> = {
-  nueva: "Nueva",
-  en_revision: "En revisión",
-  contactada: "Contactada",
-  aprobada: "Aprobada",
-  rechazada: "Rechazada",
-  convertida: "Convertida",
 };
 
 export default async function DashboardSolicitudesPage({
@@ -63,7 +54,7 @@ export default async function DashboardSolicitudesPage({
                   : "border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400"
               }`}
             >
-              {ESTADO_LABELS[estadoOption]}
+              {SOLICITUD_STATUS_LABELS[estadoOption]}
             </Link>
           ))}
         </div>

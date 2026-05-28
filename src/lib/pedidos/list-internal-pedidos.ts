@@ -1,11 +1,12 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
 import { createClient } from "@/lib/supabase/server";
-import { Constants, type Enums, type Tables } from "@/types/database";
+import type { Tables } from "@/types/database";
+import { PEDIDO_STATUSES, type PedidoStatus } from "./status";
 
-export const INTERNAL_PEDIDO_ESTADOS = Constants.public.Enums.pedido_estado;
+export const INTERNAL_PEDIDO_ESTADOS = PEDIDO_STATUSES;
 
-export type InternalPedidoEstado = Enums<"pedido_estado">;
+export type InternalPedidoEstado = PedidoStatus;
 
 type PedidoCliente = Pick<Tables<"clientes">, "id" | "nombre"> | null;
 type PedidoSolicitud =

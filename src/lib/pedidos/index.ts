@@ -37,9 +37,15 @@ export {
   type ValidatePedidoInputResult,
 } from "./order-validation";
 export {
-  PEDIDO_STATUSES,
+  PEDIDO_HISTORY_ACTION_LABELS,
+  PEDIDO_PRIORITY_LABELS,
   PEDIDO_STATUS_LABELS,
+} from "./labels";
+export {
+  PEDIDO_PRIORITIES,
+  PEDIDO_STATUSES,
   isPedidoStatus,
+  type PedidoPriority,
   type PedidoStatus,
 } from "./status";
 export {

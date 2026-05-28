@@ -5,6 +5,7 @@ import {
   createSolicitudCommentAction,
   type CreateSolicitudCommentActionState,
 } from "@/app/dashboard/solicitudes/[id]/actions";
+import { ROLE_SHORT_LABELS } from "@/lib/permissions";
 import type { SolicitudComment } from "@/lib/solicitudes";
 import { formatAppDateTime } from "@/lib/utils";
 
@@ -22,21 +23,14 @@ const initialState: CreateSolicitudCommentActionState = {
   },
 };
 
-const ROLE_LABELS: Record<
-  NonNullable<SolicitudComment["author"]>["role"],
-  string
-> = {
-  admin: "Admin",
-  supervisor: "Supervisor",
-  trabajador: "Trabajador",
-};
-
 function getAuthorName(comment: SolicitudComment): string {
   return comment.author?.full_name?.trim() || "Usuario interno";
 }
 
 function getAuthorRole(comment: SolicitudComment): string {
-  return comment.author?.role ? ROLE_LABELS[comment.author.role] : "Equipo";
+  return comment.author?.role
+    ? ROLE_SHORT_LABELS[comment.author.role]
+    : "Equipo";
 }
 
 export function SolicitudCommentsSection({

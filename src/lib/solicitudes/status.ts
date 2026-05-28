@@ -1,4 +1,8 @@
-import type { Enums } from "@/types/database";
+import { Constants, type Enums } from "@/types/database";
+
+export const SOLICITUD_STATUSES = Constants.public.Enums.solicitud_estado;
+
+export type SolicitudStatus = Enums<"solicitud_estado">;
 
 export const MANUAL_SOLICITUD_STATUSES = [
   "nueva",
@@ -9,18 +13,6 @@ export const MANUAL_SOLICITUD_STATUSES = [
 ] as const satisfies readonly Enums<"solicitud_estado">[];
 
 export type ManualSolicitudStatus = (typeof MANUAL_SOLICITUD_STATUSES)[number];
-
-export const SOLICITUD_STATUS_LABELS: Record<
-  Enums<"solicitud_estado">,
-  string
-> = {
-  nueva: "Nueva",
-  en_revision: "En revisión",
-  contactada: "Contactada",
-  aprobada: "Aprobada",
-  rechazada: "Rechazada",
-  convertida: "Convertida",
-};
 
 export function isManualSolicitudStatus(
   value: string | null | undefined,

@@ -6,6 +6,8 @@ import {
   isTrabajador,
   type Role,
 } from "@/lib/permissions";
+import { PEDIDO_STATUS_LABELS } from "@/lib/pedidos";
+import { SOLICITUD_STATUS_LABELS } from "@/lib/solicitudes";
 import { createClient } from "@/lib/supabase/server";
 import type { Json, Tables } from "@/types/database";
 import type {
@@ -66,27 +68,6 @@ const SOLICITUD_ACTIVITY_SELECT = `
   solicitudes(id, cliente_nombre, tipo_servicio)
 `;
 
-const PEDIDO_ESTADO_LABELS: Record<string, string> = {
-  solicitud_recibida: "Solicitud recibida",
-  en_revision: "En revisión",
-  cotizado: "Cotizado",
-  aprobado_cliente: "Aprobado por cliente",
-  en_diseno: "En diseño",
-  en_produccion: "En producción",
-  listo_entrega: "Listo para entrega",
-  entregado: "Entregado",
-  cancelado: "Cancelado",
-};
-
-const SOLICITUD_ESTADO_LABELS: Record<string, string> = {
-  nueva: "Nueva",
-  en_revision: "En revisión",
-  contactada: "Contactada",
-  aprobada: "Aprobada",
-  rechazada: "Rechazada",
-  convertida: "Convertida",
-};
-
 const GENERIC_ACTIVITY_ERROR =
   "No se pudo cargar la actividad reciente. Inténtalo nuevamente.";
 
@@ -131,7 +112,7 @@ function formatPedidoValue(value: string | null): string {
     return "sin dato";
   }
 
-  return PEDIDO_ESTADO_LABELS[value] ?? value;
+  return PEDIDO_STATUS_LABELS[value as keyof typeof PEDIDO_STATUS_LABELS] ?? value;
 }
 
 function formatPedidoDetailValue(value: string | null): string | null {
@@ -139,7 +120,7 @@ function formatPedidoDetailValue(value: string | null): string | null {
     return null;
   }
 
-  return PEDIDO_ESTADO_LABELS[value] ?? value;
+  return PEDIDO_STATUS_LABELS[value as keyof typeof PEDIDO_STATUS_LABELS] ?? value;
 }
 
 function formatSolicitudEstado(value: string | null): string {
@@ -147,7 +128,7 @@ function formatSolicitudEstado(value: string | null): string {
     return "sin dato";
   }
 
-  return SOLICITUD_ESTADO_LABELS[value] ?? value;
+  return SOLICITUD_STATUS_LABELS[value as keyof typeof SOLICITUD_STATUS_LABELS] ?? value;
 }
 
 function getPedidoTitle(row: PedidoActivityRow): string {

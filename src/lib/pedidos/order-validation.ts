@@ -1,6 +1,6 @@
-import { Constants, type Enums } from "@/types/database";
 import { getTodayIsoDate } from "@/lib/utils";
 import { isValidUuid } from "@/lib/validators";
+import { PEDIDO_PRIORITIES, type PedidoPriority } from "./status";
 
 export const PEDIDO_FIELDS = [
   "cliente_id",
@@ -10,10 +10,10 @@ export const PEDIDO_FIELDS = [
   "fecha_entrega_estimada",
 ] as const;
 
-export const PEDIDO_PRIORIDADES = Constants.public.Enums.pedido_prioridad;
+export const PEDIDO_PRIORIDADES = PEDIDO_PRIORITIES;
 
 export type PedidoField = (typeof PEDIDO_FIELDS)[number];
-export type PedidoPrioridad = Enums<"pedido_prioridad">;
+export type PedidoPrioridad = PedidoPriority;
 
 export type CreatePedidoInput = {
   cliente_id?: string | null;

@@ -4,44 +4,11 @@ import type {
   DashboardPendingSolicitudItem,
   GetDashboardWorkItemsResult,
 } from "@/lib/dashboard";
+import { PEDIDO_PRIORITY_LABELS, PEDIDO_STATUS_LABELS } from "@/lib/pedidos";
+import { SOLICITUD_STATUS_LABELS } from "@/lib/solicitudes";
 
 type DashboardWorkPanelsProps = {
   result: GetDashboardWorkItemsResult;
-};
-
-const SOLICITUD_STATUS_LABELS: Record<
-  DashboardPendingSolicitudItem["estado"],
-  string
-> = {
-  nueva: "Nueva",
-  en_revision: "En revisión",
-  contactada: "Contactada",
-  aprobada: "Aprobada",
-  rechazada: "Rechazada",
-  convertida: "Convertida",
-};
-
-const PEDIDO_STATUS_LABELS: Record<DashboardPedidoWorkItem["estado"], string> =
-  {
-    solicitud_recibida: "Solicitud recibida",
-    en_revision: "En revisión",
-    cotizado: "Cotizado",
-    aprobado_cliente: "Aprobado por cliente",
-    en_diseno: "En diseño",
-    en_produccion: "En producción",
-    listo_entrega: "Listo para entrega",
-    entregado: "Entregado",
-    cancelado: "Cancelado",
-  };
-
-const PEDIDO_PRIORITY_LABELS: Record<
-  DashboardPedidoWorkItem["prioridad"],
-  string
-> = {
-  baja: "Baja",
-  normal: "Normal",
-  alta: "Alta",
-  urgente: "Urgente",
 };
 
 function formatDate(value: string | null): string {

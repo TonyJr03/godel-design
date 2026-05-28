@@ -6,6 +6,7 @@ import {
   type CreatePedidoCommentActionState,
 } from "@/app/dashboard/pedidos/[id]/actions";
 import type { PedidoComment } from "@/lib/pedidos";
+import { ROLE_SHORT_LABELS } from "@/lib/permissions";
 import { formatAppDateTime } from "@/lib/utils";
 
 type PedidoCommentsSectionProps = {
@@ -22,19 +23,14 @@ const initialState: CreatePedidoCommentActionState = {
   },
 };
 
-const ROLE_LABELS: Record<NonNullable<PedidoComment["author"]>["role"], string> =
-  {
-    admin: "Admin",
-    supervisor: "Supervisor",
-    trabajador: "Trabajador",
-  };
-
 function getAuthorName(comment: PedidoComment): string {
   return comment.author?.full_name?.trim() || "Usuario interno";
 }
 
 function getAuthorRole(comment: PedidoComment): string {
-  return comment.author?.role ? ROLE_LABELS[comment.author.role] : "Equipo";
+  return comment.author?.role
+    ? ROLE_SHORT_LABELS[comment.author.role]
+    : "Equipo";
 }
 
 export function PedidoCommentsSection({

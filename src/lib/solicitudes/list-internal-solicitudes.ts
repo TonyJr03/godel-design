@@ -1,18 +1,12 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
 import { createClient } from "@/lib/supabase/server";
-import type { Enums, Tables } from "@/types/database";
+import type { Tables } from "@/types/database";
+import { SOLICITUD_STATUSES, type SolicitudStatus } from "./status";
 
-export const INTERNAL_SOLICITUD_ESTADOS = [
-  "nueva",
-  "en_revision",
-  "contactada",
-  "aprobada",
-  "rechazada",
-  "convertida",
-] as const satisfies readonly Enums<"solicitud_estado">[];
+export const INTERNAL_SOLICITUD_ESTADOS = SOLICITUD_STATUSES;
 
-export type InternalSolicitudEstado = (typeof INTERNAL_SOLICITUD_ESTADOS)[number];
+export type InternalSolicitudEstado = SolicitudStatus;
 
 export type InternalSolicitud = Pick<
   Tables<"solicitudes">,

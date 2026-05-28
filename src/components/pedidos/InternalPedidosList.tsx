@@ -1,20 +1,8 @@
 import Link from "next/link";
-import type { InternalPedido, InternalPedidoEstado } from "@/lib/pedidos";
+import { PEDIDO_STATUS_LABELS, type InternalPedido } from "@/lib/pedidos";
 
 type InternalPedidosListProps = {
   pedidos: InternalPedido[];
-};
-
-const ESTADO_LABELS: Record<InternalPedidoEstado, string> = {
-  solicitud_recibida: "Solicitud recibida",
-  en_revision: "En revisión",
-  cotizado: "Cotizado",
-  aprobado_cliente: "Aprobado por cliente",
-  en_diseno: "En diseño",
-  en_produccion: "En producción",
-  listo_entrega: "Listo para entrega",
-  entregado: "Entregado",
-  cancelado: "Cancelado",
 };
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("es", {
@@ -151,7 +139,7 @@ export function InternalPedidosList({ pedidos }: InternalPedidosListProps) {
                 </td>
                 <td className="whitespace-nowrap px-4 py-4">
                   <span className="inline-flex rounded-md bg-teal-50 px-2 py-1 text-xs font-semibold text-teal-800 ring-1 ring-inset ring-teal-700/15">
-                    {ESTADO_LABELS[pedido.estado]}
+                    {PEDIDO_STATUS_LABELS[pedido.estado]}
                   </span>
                 </td>
                 <td className="px-4 py-4 text-zinc-700">

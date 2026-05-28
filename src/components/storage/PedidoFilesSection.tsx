@@ -5,7 +5,11 @@ import {
   uploadPedidoFileAction,
   type UploadPedidoFileActionState,
 } from "@/app/dashboard/pedidos/[id]/actions";
-import type { PedidoFileCategory, PedidoFileListItem } from "@/lib/storage";
+import {
+  type PedidoFileCategory,
+  type PedidoFileListItem,
+} from "@/lib/storage";
+import { STORAGE_FILE_CATEGORY_LABELS } from "@/lib/storage/labels";
 import { formatAppDateTime } from "@/lib/utils";
 
 type PedidoFilesSectionProps = {
@@ -19,13 +23,6 @@ type PedidoFilesSectionProps = {
 const initialState: UploadPedidoFileActionState = {
   ok: false,
   message: "",
-};
-
-const CATEGORY_LABELS: Record<PedidoFileListItem["visibility"], string> = {
-  cliente_solicitud: "Archivo enviado por cliente",
-  interno_pedido: "Interno del pedido",
-  avance: "Avance",
-  final_entrega: "Final de entrega",
 };
 
 function formatFileSize(value: number | null): string {
@@ -57,7 +54,7 @@ function getUploaderLabel(file: PedidoFileListItem): string {
 }
 
 function getCategoryLabel(category: PedidoFileListItem["visibility"]): string {
-  return CATEGORY_LABELS[category] ?? "Archivo";
+  return STORAGE_FILE_CATEGORY_LABELS[category] ?? "Archivo";
 }
 
 export function PedidoFilesSection({
@@ -194,7 +191,7 @@ export function PedidoFilesSection({
               >
                 {allowedCategories.map((category) => (
                   <option key={category} value={category}>
-                    {CATEGORY_LABELS[category]}
+                    {STORAGE_FILE_CATEGORY_LABELS[category]}
                   </option>
                 ))}
               </select>

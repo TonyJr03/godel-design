@@ -33,8 +33,12 @@ export {
   listInternalSolicitudes,
 } from "./list-internal-solicitudes";
 export {
-  MANUAL_SOLICITUD_STATUSES,
+  SOLICITUD_HISTORY_ACTION_LABELS,
   SOLICITUD_STATUS_LABELS,
+} from "./labels";
+export {
+  MANUAL_SOLICITUD_STATUSES,
+  SOLICITUD_STATUSES,
   isManualSolicitudStatus,
 } from "./status";
 export { updateInternalSolicitudStatus } from "./update-internal-solicitud-status";
@@ -52,6 +56,7 @@ export type {
   InternalSolicitudDetail,
 } from "./get-internal-solicitud-by-id";
 export type { ManualSolicitudStatus } from "./status";
+export type { SolicitudStatus } from "./status";
 export type {
   UpdateInternalSolicitudStatusInput,
   UpdateInternalSolicitudStatusResult,

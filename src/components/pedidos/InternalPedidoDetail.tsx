@@ -1,6 +1,11 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import type { InternalPedidoDetail } from "@/lib/pedidos";
+import {
+  PEDIDO_PRIORITY_LABELS,
+  PEDIDO_STATUS_LABELS,
+  type InternalPedidoDetail,
+} from "@/lib/pedidos";
+import { SOLICITUD_STATUS_LABELS } from "@/lib/solicitudes";
 import { formatAppDateTime } from "@/lib/utils";
 import { PedidoStatusForm } from "./PedidoStatusForm";
 
@@ -10,37 +15,6 @@ type InternalPedidoDetailProps = {
   filesSection?: ReactNode;
   commentsSection?: ReactNode;
   historySection?: ReactNode;
-};
-
-const ESTADO_LABELS: Record<InternalPedidoDetail["estado"], string> = {
-  solicitud_recibida: "Solicitud recibida",
-  en_revision: "En revisión",
-  cotizado: "Cotizado",
-  aprobado_cliente: "Aprobado por cliente",
-  en_diseno: "En diseño",
-  en_produccion: "En producción",
-  listo_entrega: "Listo para entrega",
-  entregado: "Entregado",
-  cancelado: "Cancelado",
-};
-
-const PRIORIDAD_LABELS: Record<InternalPedidoDetail["prioridad"], string> = {
-  baja: "Baja",
-  normal: "Normal",
-  alta: "Alta",
-  urgente: "Urgente",
-};
-
-const SOLICITUD_ESTADO_LABELS: Record<
-  NonNullable<InternalPedidoDetail["solicitudes"]>["estado"],
-  string
-> = {
-  nueva: "Nueva",
-  en_revision: "En revisión",
-  contactada: "Contactada",
-  aprobada: "Aprobada",
-  rechazada: "Rechazada",
-  convertida: "Convertida",
 };
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("es", {
@@ -109,9 +83,9 @@ export function InternalPedidoDetail({
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <StatusBadge>{ESTADO_LABELS[pedido.estado]}</StatusBadge>
+            <StatusBadge>{PEDIDO_STATUS_LABELS[pedido.estado]}</StatusBadge>
             <span className="inline-flex rounded-md bg-zinc-100 px-2 py-1 text-xs font-semibold text-zinc-700 ring-1 ring-inset ring-zinc-200">
-              Prioridad {PRIORIDAD_LABELS[pedido.prioridad]}
+              Prioridad {PEDIDO_PRIORITY_LABELS[pedido.prioridad]}
             </span>
           </div>
         </div>
@@ -231,7 +205,7 @@ export function InternalPedidoDetail({
               />
               <DetailItem
                 label="Estado"
-                value={SOLICITUD_ESTADO_LABELS[pedido.solicitudes.estado]}
+                value={SOLICITUD_STATUS_LABELS[pedido.solicitudes.estado]}
               />
               <DetailItem
                 label="Fecha deseada"
