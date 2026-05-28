@@ -284,7 +284,7 @@ Queda fuera del alcance actual:
 - usar service role key;
 - consultar `auth.users`;
 - instalar dependencias;
-- modificar `docs/ROADMAP.md`;
+- modificar `docs/development/ROADMAP.md`;
 - implementar gráficos;
 - implementar reportes avanzados;
 - implementar notificaciones;

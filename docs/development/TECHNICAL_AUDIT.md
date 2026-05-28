@@ -69,7 +69,7 @@ Las areas que necesitan orden son:
 | --- | --- | --- | --- | --- |
 | Alto | UUID, fecha ISO, limpieza de strings y validacion de email estan duplicados. | `order-validation`, `user-validation`, storage `file-paths`, solicitudes, clientes. | Inconsistencias pequeñas y mantenimiento lento. | Centralizar helpers puros sin cambiar reglas de negocio. |
 | Medio | No se usa libreria de schemas; las validaciones manuales estan bien pero crecen. | Validadores propios en cada dominio. | A mayor superficie, mas dificil validar exhaustivamente. | Por ahora no instalar dependencias; primero unificar helpers. Evaluar schema library solo si el proyecto lo decide. |
-| Medio | La subida publica valida archivos antes de crear solicitud, pero si falla metadata tras upload anonimo queda deuda de limpieza. | Documentado en `STORAGE_MODEL.md` y `TECH_DEBT.md`. | Objetos huerfanos en Storage ante fallos parciales. | Mantener para MVP; disenar limpieza segura antes de produccion. |
+| Medio | La subida publica valida archivos antes de crear solicitud, pero si falla metadata tras upload anonimo queda deuda de limpieza. | Documentado en `../STORAGE_MODEL.md` y `TECH_DEBT.md`. | Objetos huerfanos en Storage ante fallos parciales. | Mantener para MVP; disenar limpieza segura antes de produccion. |
 
 ### Tipos TypeScript
 
@@ -91,7 +91,7 @@ Las areas que necesitan orden son:
 
 | Prioridad | Hallazgo | Evidencia | Riesgo | Propuesta |
 | --- | --- | --- | --- | --- |
-| Alto | Server Actions permiten cuerpos grandes (`110mb`) para archivos. | `next.config.ts`, `docs/TECH_DEBT.md`. | Riesgo de memoria/latencia en produccion. | Migrar a flujo de carga directa/controlada con signed upload cuando se prepare despliegue. |
+| Alto | Server Actions permiten cuerpos grandes (`110mb`) para archivos. | `next.config.ts`, `docs/development/TECH_DEBT.md`. | Riesgo de memoria/latencia en produccion. | Migrar a flujo de carga directa/controlada con signed upload cuando se prepare despliegue. |
 | Medio | La generacion de signed URLs consulta `file_path`, pero solo dentro de helper server-side. | `src/lib/storage/signed-url.ts`. | Correcto hoy; sensible si se reutiliza mal. | Mantener API por `fileId`, no exponer rutas. |
 | Medio | No hay eliminacion/limpieza de archivos implementada. | Docs de Storage. | Objetos huerfanos ante fallos o cambios operativos. | Disenar eliminacion segura con RLS y audit trail en fase posterior. |
 
@@ -102,7 +102,7 @@ Las areas que necesitan orden son:
 | Alto | `README.md` raiz esta desactualizado: describe Supabase/auth/formularios como fuera de alcance. | `README.md`. | Onboarding incorrecto. | Actualizar despues de esta auditoria, sin tocar `ROADMAP.md` si sigue restringido. |
 | Alto | Algunos docs de flujo conservan secciones "pendiente" ya resueltas. | `PUBLIC_REQUEST_FLOW.md`, `INTERNAL_REQUESTS_FLOW.md`, `src/lib/solicitudes/README.md`, `src/lib/clientes/README.md`. | Confusion en futuras tareas. | Hacer una fase de limpieza documental. |
 | Medio | `DATABASE_MODEL.md` mezcla proposito inicial con notas posteriores. | Primeras secciones dicen que no implementa SQL/RLS, luego describe modelo vigente. | Puede confundir como fuente de verdad. | Separar "modelo vigente" de "historia/fases". |
-| Bajo | `TECH_DEBT.md` existe y es util, pero solo cubre subida de archivos. | `docs/TECH_DEBT.md`. | Otras deudas no quedan centralizadas. | Migrar hallazgos de esta auditoria a tareas pequeñas futuras. |
+| Bajo | `TECH_DEBT.md` existe y es util, pero solo cubre subida de archivos. | `docs/development/TECH_DEBT.md`. | Otras deudas no quedan centralizadas. | Migrar hallazgos de esta auditoria a tareas pequeñas futuras. |
 
 ### Seguridad
 
@@ -185,7 +185,7 @@ Las areas que necesitan orden son:
 - Actualizar `README.md`.
 - Limpiar docs con pendientes ya resueltos.
 - Crear snapshot de RLS/policies efectivas finales.
-- No modificar `docs/ROADMAP.md` hasta una tarea explicita.
+- No modificar `docs/development/ROADMAP.md` hasta una tarea explicita.
 
 ### Fase 6: Supabase/RLS y Storage
 
