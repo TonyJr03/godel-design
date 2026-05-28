@@ -20,7 +20,7 @@ Los reportes avanzados quedan fuera de esta fase. No se deben implementar gráfi
 
 ## Diagnóstico del estado actual
 
-La ruta `/dashboard` existe y actualmente muestra una página base con `PageHeader` y `PlaceholderCard`. No consulta datos reales, no calcula métricas y no cambia su contenido según el rol.
+Desde Fase 13.3, la ruta `/dashboard` muestra tarjetas reales de resumen operativo usando `getDashboardSummary()`. La página sigue siendo un Server Component: carga el resumen en servidor y lo entrega a componentes presentacionales sin consultas desde cliente.
 
 El layout de dashboard (`src/app/dashboard/layout.tsx`) obtiene el perfil actual con `getCurrentProfile()` y pasa el rol al sidebar. La navegación visible se filtra con `canAccessDashboardRoute`.
 
@@ -30,9 +30,9 @@ La matriz actual permite:
 
 | Rol | Vista actual de `/dashboard` | Navegación visible actual |
 | --- | --- | --- |
-| `admin` | Placeholder general del dashboard. | Dashboard, solicitudes, pedidos, clientes, usuarios y configuración. |
-| `supervisor` | Placeholder general del dashboard. | Dashboard, solicitudes, pedidos y clientes. |
-| `trabajador` | Placeholder general del dashboard. | Dashboard y pedidos. |
+| `admin` | Tarjetas globales de solicitudes, pedidos y clientes. | Dashboard, solicitudes, pedidos, clientes, usuarios y configuración. |
+| `supervisor` | Tarjetas globales de solicitudes, pedidos y clientes. | Dashboard, solicitudes, pedidos y clientes. |
+| `trabajador` | Tarjetas de pedidos asignados. | Dashboard y pedidos. |
 
 Los módulos existentes ya ofrecen servicios server-side reutilizables como punto de partida conceptual:
 
@@ -171,13 +171,13 @@ El trabajador no debe ver:
 
 ## Métricas MVP recomendadas
 
-La primera versión funcional del dashboard debe ser deliberadamente simple:
+La primera versión funcional del dashboard debe ser deliberadamente simple. Desde Fase 13.3 ya se muestran tarjetas reales de resumen para `admin`, `supervisor` y `trabajador`:
 
 - tarjetas de resumen por rol;
-- sección de "Solicitudes pendientes" para `admin` y `supervisor`;
-- sección de "Pedidos activos" para `admin` y `supervisor`;
-- sección de "Mis pedidos asignados" para `trabajador`;
-- sección simple de actividad reciente solo si puede construirse con consultas claras, RLS y datos mínimos;
+- métricas globales de solicitudes, pedidos y clientes para `admin` y `supervisor`;
+- métricas de pedidos asignados para `trabajador`;
+- secciones de "Solicitudes pendientes", "Pedidos activos" y "Mis pedidos asignados" quedan como posibles ampliaciones posteriores;
+- actividad reciente queda para una subfase posterior;
 - sin gráficos;
 - sin reportes avanzados;
 - sin notificaciones.
@@ -262,19 +262,16 @@ Responsabilidades sugeridas:
 
 1. Fase 13.1: diagnóstico y modelo del dashboard operativo.
 2. Fase 13.2: servicios server-side de resumen por rol, sin UI compleja.
-3. Fase 13.3: tarjetas MVP para `admin` y `supervisor`.
-4. Fase 13.4: panel "Mis pedidos asignados" para `trabajador`.
+3. Fase 13.3: tarjetas MVP por rol en `/dashboard`.
+4. Fase 13.4: panel ampliado de "Mis pedidos asignados" para `trabajador`, si se requiere más detalle que las tarjetas.
 5. Fase 13.5: listas breves de solicitudes pendientes y pedidos activos.
 6. Fase 13.6: actividad reciente mínima si las consultas quedan claras y seguras.
 7. Fase 13.7: documentación, pruebas manuales y cierre.
 
 ## Fuera de alcance
 
-Queda fuera de esta fase:
+Queda fuera del alcance actual:
 
-- implementar métricas funcionales;
-- conectar `/dashboard` a consultas reales;
-- crear componentes visuales nuevos;
 - modificar migraciones;
 - modificar RLS;
 - cambiar la matriz de permisos;
@@ -285,6 +282,7 @@ Queda fuera de esta fase:
 - implementar gráficos;
 - implementar reportes avanzados;
 - implementar notificaciones.
+- implementar actividad reciente.
 
 ## Cierre
 

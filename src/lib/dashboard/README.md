@@ -2,6 +2,8 @@
 
 Esta capa contiene servicios server-side para calcular métricas básicas del dashboard operativo de Godel Diseño.
 
+Desde la Fase 13.3, `/dashboard` consume `getDashboardSummary()` y muestra tarjetas reales de resumen operativo. La página sigue siendo Server Component: carga datos en servidor y delega el renderizado en componentes presentacionales.
+
 ## Roles soportados
 
 - `admin`: recibe resumen global de operación.
@@ -43,6 +45,7 @@ El trabajador no recibe solicitudes generales, clientes generales ni usuarios in
 ## Seguridad
 
 - Las consultas se ejecutan server-side.
+- `/dashboard` no consulta Supabase directamente desde componentes cliente.
 - Se usa `createClient` normal de Supabase.
 - Se valida perfil interno activo mediante `getCurrentProfile()`.
 - Se valida el permiso `dashboard.view`.
@@ -53,12 +56,10 @@ El trabajador no recibe solicitudes generales, clientes generales ni usuarios in
 
 ## Fuera de esta subfase
 
-- UI del dashboard.
-- Componentes visuales.
 - Gráficos.
 - Actividad reciente.
 - Reportes avanzados.
 - Notificaciones.
 - Cambios de RLS o migraciones.
 
-La UI se implementará en subfases posteriores usando estos servicios como capa de lectura.
+La UI implementada en Fase 13.3 se limita a tarjetas de resumen. Actividad reciente, gráficos, reportes avanzados y notificaciones quedan para subfases posteriores.

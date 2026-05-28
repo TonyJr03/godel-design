@@ -1,17 +1,22 @@
+import { DashboardOverview } from "@/components/dashboard/DashboardOverview";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { PlaceholderCard } from "@/components/ui/PlaceholderCard";
+import { getDashboardSummary } from "@/lib/dashboard";
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const result = await getDashboardSummary();
+  const isWorkerDashboard = result.ok && result.summary.kind === "worker";
+
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Dashboard"
-        description="Resumen operativo futuro para solicitudes, pedidos y actividad interna."
+        title={isWorkerDashboard ? "Mi trabajo asignado" : "Dashboard operativo"}
+        description={
+          isWorkerDashboard
+            ? "Resumen de los pedidos en los que estás asignado."
+            : "Resumen general de solicitudes, pedidos y clientes."
+        }
       />
-      <PlaceholderCard
-        title="Resumen operativo futuro"
-        description="Aquí se mostrarán indicadores y alertas cuando existan datos reales."
-      />
+      <DashboardOverview result={result} />
     </div>
   );
 }
