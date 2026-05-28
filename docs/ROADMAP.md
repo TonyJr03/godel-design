@@ -532,6 +532,10 @@ Convertir `/dashboard` en una pantalla realmente útil para el trabajo diario.
 
 Al entrar al dashboard, cada rol entiende rápidamente qué necesita atender.
 
+### Cierre de fase
+
+La Fase 13 quedó completada con diagnóstico y modelo técnico documentado, servicios server-side de resumen por rol, tarjetas reales en `/dashboard`, paneles operativos para solicitudes pendientes y pedidos que requieren atención, vista específica de pedidos asignados para `trabajador` y actividad reciente mínima basada en `pedido_historial` y `solicitud_historial`. El dashboard se adapta a `admin`, `supervisor` y `trabajador`, respeta RLS como defensa final, no consulta `auth.users`, no usa service role key, no expone rutas privadas de archivos ni `metadata` cruda y no implementa gráficos, reportes avanzados, exportaciones ni notificaciones.
+
 ---
 
 ## Fase 14 — Pulido visual y responsive
@@ -683,7 +687,7 @@ Después de cada tarea de Codex se revisará:
 | 10 | Archivos privados | Completada |
 | 11 | Comentarios internos e historial | Completada |
 | 12 | Gestión de usuarios internos | Completada |
-| 13 | Dashboard operativo | Pendiente |
+| 13 | Dashboard operativo | Completada |
 | 14 | Pulido visual y responsive | Pendiente |
 | 15 | Seguridad, pruebas y despliegue inicial | Pendiente |
 
@@ -693,7 +697,7 @@ Después de cada tarea de Codex se revisará:
 
 La próxima fase activa será:
 
-# Fase 13 — Dashboard operativo
+# Fase 14 — Pulido visual y responsive
 
 La Fase 1 quedó completada con el modelo de datos inicial, migraciones base, políticas RLS iniciales y modelo de Storage documentado.
 
@@ -727,4 +731,6 @@ La Fase 11 quedó completada con comentarios internos e historial operativo para
 
 La Fase 12 quedó completada con gestión de perfiles internos para `admin`: listado, filtros, detalle, edición, creación de perfiles para usuarios Auth existentes, validaciones server-side, guardas del último administrador activo y documentación actualizada. Se mantiene la Opción A: la app no crea credenciales, no consulta `auth.users`, no pide email ni contraseña, no implementa invitaciones ni eliminación, y no usa service role key.
 
-La próxima fase activa es Fase 13 — Dashboard operativo. No debe iniciarse hasta recibir una tarea específica para esa fase.
+La Fase 13 quedó completada con dashboard operativo real en `/dashboard`: tarjetas de resumen por rol, paneles operativos por rol y actividad reciente mínima. `admin` y `supervisor` reciben información operativa global permitida por RLS; `trabajador` recibe únicamente métricas, paneles y actividad de pedidos asignados. No se implementan gráficos, reportes avanzados, exportaciones ni notificaciones reales.
+
+La próxima fase activa es Fase 14 — Pulido visual y responsive. No debe iniciarse hasta recibir una tarea específica para esa fase.
