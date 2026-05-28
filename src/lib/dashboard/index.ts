@@ -1,9 +1,14 @@
+export { getDashboardRecentActivity } from "./get-dashboard-activity";
 export { getDashboardSummary } from "./get-dashboard-summary";
 export { getDashboardWorkItems } from "./get-dashboard-work-items";
 export { getWorkerDashboardSummary } from "./get-worker-dashboard";
 export type {
+  DashboardActivityError,
+  DashboardActivityErrorReason,
+  DashboardActivitySource,
   DashboardPedidoWorkItem,
   DashboardPendingSolicitudItem,
+  DashboardRecentActivityItem,
   DashboardRole,
   DashboardSummaryError,
   DashboardSummaryErrorReason,
@@ -11,9 +16,12 @@ export type {
   DashboardWorkItemsError,
   DashboardWorkItemsErrorReason,
   DashboardWorkItemsView,
+  GetDashboardRecentActivityResult,
   GetDashboardWorkItemsResult,
   GetDashboardSummaryResult,
   GetWorkerDashboardSummaryResult,
+  ManagementDashboardRecentActivity,
+  ManagementDashboardRecentActivitySuccess,
   ManagementDashboardMetrics,
   ManagementDashboardRole,
   ManagementDashboardSummary,
@@ -21,6 +29,8 @@ export type {
   ManagementDashboardWorkItems,
   ManagementDashboardWorkItemsSuccess,
   WorkerDashboardMetrics,
+  WorkerDashboardRecentActivity,
+  WorkerDashboardRecentActivitySuccess,
   WorkerDashboardRole,
   WorkerDashboardSummary,
   WorkerDashboardSummarySuccess,

@@ -1,16 +1,23 @@
 import { DashboardOverview } from "@/components/dashboard/DashboardOverview";
+import { DashboardRecentActivity } from "@/components/dashboard/DashboardRecentActivity";
 import { DashboardWorkPanels } from "@/components/dashboard/DashboardWorkPanels";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { getDashboardSummary, getDashboardWorkItems } from "@/lib/dashboard";
+import {
+  getDashboardRecentActivity,
+  getDashboardSummary,
+  getDashboardWorkItems,
+} from "@/lib/dashboard";
 
 export default async function DashboardPage() {
-  const [summaryResult, workItemsResult] = await Promise.all([
+  const [summaryResult, workItemsResult, activityResult] = await Promise.all([
     getDashboardSummary(),
     getDashboardWorkItems(),
+    getDashboardRecentActivity(),
   ]);
   const isWorkerDashboard =
     (summaryResult.ok && summaryResult.summary.kind === "worker") ||
-    (workItemsResult.ok && workItemsResult.workItems.kind === "worker");
+    (workItemsResult.ok && workItemsResult.workItems.kind === "worker") ||
+    (activityResult.ok && activityResult.activity.kind === "worker");
 
   return (
     <div className="space-y-8">
@@ -24,6 +31,7 @@ export default async function DashboardPage() {
       />
       <DashboardOverview result={summaryResult} />
       <DashboardWorkPanels result={workItemsResult} />
+      <DashboardRecentActivity result={activityResult} />
     </div>
   );
 }

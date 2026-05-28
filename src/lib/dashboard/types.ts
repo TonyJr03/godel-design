@@ -160,3 +160,59 @@ export type GetDashboardWorkItemsResult =
   | ManagementDashboardWorkItemsSuccess
   | WorkerDashboardWorkItemsSuccess
   | DashboardWorkItemsError;
+
+export type DashboardActivityErrorReason =
+  | "unauthorized"
+  | "forbidden"
+  | "error";
+
+export type DashboardActivityError = {
+  ok: false;
+  reason: DashboardActivityErrorReason;
+  message: string;
+};
+
+export type DashboardActivitySource = "pedido" | "solicitud";
+
+export type DashboardRecentActivityItem = {
+  id: string;
+  source: DashboardActivitySource;
+  action:
+    | Enums<"pedido_historial_action">
+    | Enums<"solicitud_historial_action">;
+  href: string;
+  title: string;
+  description: string;
+  createdAt: string;
+};
+
+export type ManagementDashboardRecentActivity = {
+  kind: "management";
+  role: ManagementDashboardRole;
+  items: DashboardRecentActivityItem[];
+  generatedAt: string;
+};
+
+export type WorkerDashboardRecentActivity = {
+  kind: "worker";
+  role: WorkerDashboardRole;
+  items: DashboardRecentActivityItem[];
+  generatedAt: string;
+};
+
+export type ManagementDashboardRecentActivitySuccess = {
+  ok: true;
+  role: ManagementDashboardRole;
+  activity: ManagementDashboardRecentActivity;
+};
+
+export type WorkerDashboardRecentActivitySuccess = {
+  ok: true;
+  role: WorkerDashboardRole;
+  activity: WorkerDashboardRecentActivity;
+};
+
+export type GetDashboardRecentActivityResult =
+  | ManagementDashboardRecentActivitySuccess
+  | WorkerDashboardRecentActivitySuccess
+  | DashboardActivityError;

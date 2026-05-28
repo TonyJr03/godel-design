@@ -20,7 +20,7 @@ Los reportes avanzados quedan fuera de esta fase. No se deben implementar gráfi
 
 ## Diagnóstico del estado actual
 
-Desde Fase 13.3, la ruta `/dashboard` muestra tarjetas reales de resumen operativo usando `getDashboardSummary()`. Desde Fase 13.4, también muestra paneles operativos simples usando `getDashboardWorkItems()`. La página sigue siendo un Server Component: carga datos en servidor y los entrega a componentes presentacionales sin consultas desde cliente.
+Desde Fase 13.3, la ruta `/dashboard` muestra tarjetas reales de resumen operativo usando `getDashboardSummary()`. Desde Fase 13.4, también muestra paneles operativos simples usando `getDashboardWorkItems()`. Desde Fase 13.5, muestra actividad reciente mínima usando `getDashboardRecentActivity()`. La página sigue siendo un Server Component: carga datos en servidor y los entrega a componentes presentacionales sin consultas desde cliente.
 
 El layout de dashboard (`src/app/dashboard/layout.tsx`) obtiene el perfil actual con `getCurrentProfile()` y pasa el rol al sidebar. La navegación visible se filtra con `canAccessDashboardRoute`.
 
@@ -30,9 +30,9 @@ La matriz actual permite:
 
 | Rol | Vista actual de `/dashboard` | Navegación visible actual |
 | --- | --- | --- |
-| `admin` | Tarjetas globales, solicitudes pendientes y pedidos que requieren atención. | Dashboard, solicitudes, pedidos, clientes, usuarios y configuración. |
-| `supervisor` | Tarjetas globales, solicitudes pendientes y pedidos que requieren atención. | Dashboard, solicitudes, pedidos y clientes. |
-| `trabajador` | Tarjetas y panel de pedidos asignados. | Dashboard y pedidos. |
+| `admin` | Tarjetas globales, solicitudes pendientes, pedidos que requieren atención y actividad reciente de pedidos y solicitudes. | Dashboard, solicitudes, pedidos, clientes, usuarios y configuración. |
+| `supervisor` | Tarjetas globales, solicitudes pendientes, pedidos que requieren atención y actividad reciente de pedidos y solicitudes. | Dashboard, solicitudes, pedidos y clientes. |
+| `trabajador` | Tarjetas, panel de pedidos asignados y actividad reciente de pedidos asignados. | Dashboard y pedidos. |
 
 Los módulos existentes ya ofrecen servicios server-side reutilizables como punto de partida conceptual:
 
@@ -179,6 +179,7 @@ La primera versión funcional del dashboard debe ser deliberadamente simple. Des
 - sección de "Solicitudes pendientes" para `admin` y `supervisor`;
 - sección de "Pedidos que requieren atención" para `admin` y `supervisor`;
 - sección de "Mis pedidos asignados" para `trabajador`;
+- actividad reciente mínima desde historial de pedidos y solicitudes;
 - actividad reciente avanzada queda para una subfase posterior;
 - sin gráficos;
 - sin reportes avanzados;
@@ -238,10 +239,11 @@ Responsabilidades sugeridas:
 | `get-dashboard-summary.ts` | Conteos agregados para admin y supervisor. |
 | `get-dashboard-work-items.ts` | Listas operativas por rol: solicitudes pendientes y pedidos que requieren atención. |
 | `get-worker-dashboard.ts` | Resumen y lista breve de pedidos asignados al trabajador. |
-| `get-dashboard-activity.ts` | Actividad reciente mínima, si se implementa. |
+| `get-dashboard-activity.ts` | Actividad reciente mínima desde `pedido_historial` y `solicitud_historial`. |
 | `types.ts` | Tipos compartidos del dashboard. |
 | `DashboardSummaryCards.tsx` | Tarjetas de resumen sin consultas directas. |
 | `DashboardWorkPanels.tsx` | Paneles operativos simples sin consultas directas. |
+| `DashboardRecentActivity.tsx` | Lista simple de actividad reciente sin mostrar metadata cruda. |
 | `WorkerDashboardPanel.tsx` | Panel centrado en pedidos asignados. |
 
 ## Reglas de seguridad
@@ -256,8 +258,10 @@ Responsabilidades sugeridas:
 - Las métricas deben filtrarse según rol.
 - `admin` y `supervisor` pueden recibir datos globales de operación.
 - `trabajador` solo debe recibir datos de pedidos asignados.
+- `trabajador` no debe recibir actividad de solicitudes.
 - Los componentes cliente no deben consultar Supabase directamente.
 - No se deben exponer `file_path`, rutas privadas ni URLs persistentes.
+- No se debe renderizar `metadata` cruda ni JSON completo en la UI.
 - La navegación visible no sustituye validaciones server-side ni RLS.
 
 ## Subfases recomendadas para Fase 13
@@ -266,8 +270,8 @@ Responsabilidades sugeridas:
 2. Fase 13.2: servicios server-side de resumen por rol, sin UI compleja.
 3. Fase 13.3: tarjetas MVP por rol en `/dashboard`.
 4. Fase 13.4: paneles operativos por rol en `/dashboard`.
-5. Fase 13.5: refinamiento de listas y criterios de atención, si la operación lo requiere.
-6. Fase 13.6: actividad reciente mínima si las consultas quedan claras y seguras.
+5. Fase 13.5: actividad reciente mínima en `/dashboard`.
+6. Fase 13.6: refinamiento de listas, criterios de atención o actividad si la operación lo requiere.
 7. Fase 13.7: documentación, pruebas manuales y cierre.
 
 ## Fuera de alcance
@@ -283,7 +287,7 @@ Queda fuera del alcance actual:
 - modificar `docs/ROADMAP.md`;
 - implementar gráficos;
 - implementar reportes avanzados;
-- implementar notificaciones.
+- implementar notificaciones;
 - implementar exportaciones;
 - implementar actividad reciente avanzada.
 
