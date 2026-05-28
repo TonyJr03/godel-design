@@ -1,6 +1,7 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
 import { createClient } from "@/lib/supabase/server";
+import { isValidUuid } from "@/lib/validators";
 import { isPedidoStatus, type PedidoStatus } from "./status";
 
 export type UpdatePedidoStatusInput = {
@@ -28,8 +29,6 @@ export type UpdateInternalPedidoStatusResult =
       fieldErrors?: PedidoStatusFieldErrors;
     };
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const GENERIC_STATUS_ERROR =
   "No se pudo actualizar el estado del pedido. Inténtalo nuevamente.";
 
@@ -39,7 +38,7 @@ export async function updateInternalPedidoStatus(
   const pedidoId = input.pedidoId.trim();
   const estado = input.estado.trim();
 
-  if (!UUID_PATTERN.test(pedidoId)) {
+  if (!isValidUuid(pedidoId)) {
     return {
       ok: false,
       reason: "invalid_id",

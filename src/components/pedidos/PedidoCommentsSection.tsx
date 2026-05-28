@@ -6,6 +6,7 @@ import {
   type CreatePedidoCommentActionState,
 } from "@/app/dashboard/pedidos/[id]/actions";
 import type { PedidoComment } from "@/lib/pedidos";
+import { formatAppDateTime } from "@/lib/utils";
 
 type PedidoCommentsSectionProps = {
   pedidoId: string;
@@ -27,19 +28,6 @@ const ROLE_LABELS: Record<NonNullable<PedidoComment["author"]>["role"], string> 
     supervisor: "Supervisor",
     trabajador: "Trabajador",
   };
-
-const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("es", {
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: "UTC",
-});
-
-function formatDateTime(value: string): string {
-  return DATE_TIME_FORMATTER.format(new Date(value));
-}
 
 function getAuthorName(comment: PedidoComment): string {
   return comment.author?.full_name?.trim() || "Usuario interno";
@@ -105,7 +93,7 @@ export function PedidoCommentsSection({
                   dateTime={comment.created_at}
                   className="text-xs leading-5 text-zinc-500"
                 >
-                  {formatDateTime(comment.created_at)}
+                  {formatAppDateTime(comment.created_at)}
                 </time>
               </div>
               <p className="mt-3 whitespace-pre-line text-sm leading-6 text-zinc-700">

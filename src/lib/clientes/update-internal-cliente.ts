@@ -1,6 +1,7 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
 import { createClient } from "@/lib/supabase/server";
+import { isValidUuid } from "@/lib/validators";
 import {
   validateClienteInput,
   type ClienteFieldErrors,
@@ -22,9 +23,6 @@ export type UpdateInternalClienteResult =
       fieldErrors?: ClienteFieldErrors;
     };
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
 const GENERIC_UPDATE_ERROR =
   "No se pudo actualizar el cliente. Inténtalo nuevamente.";
 
@@ -33,7 +31,7 @@ export async function updateInternalCliente(
 ): Promise<UpdateInternalClienteResult> {
   const clienteId = (input.id ?? "").trim();
 
-  if (!UUID_PATTERN.test(clienteId)) {
+  if (!isValidUuid(clienteId)) {
     return {
       ok: false,
       reason: "invalid_id",

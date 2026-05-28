@@ -1,6 +1,7 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
 import { createClient } from "@/lib/supabase/server";
+import { isValidUuid } from "@/lib/validators";
 import type { Tables } from "@/types/database";
 import {
   validateUserInput,
@@ -35,9 +36,6 @@ export type UpdateInternalUserResult =
       message: string;
       fieldErrors?: UserFieldErrors;
     };
-
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const GENERIC_UPDATE_ERROR =
   "No se pudo actualizar el usuario interno. Inténtalo nuevamente.";
@@ -75,7 +73,7 @@ export async function updateInternalUser(
 ): Promise<UpdateInternalUserResult> {
   const userId = (input.id ?? "").trim();
 
-  if (!UUID_PATTERN.test(userId)) {
+  if (!isValidUuid(userId)) {
     return {
       ok: false,
       reason: "invalid_id",

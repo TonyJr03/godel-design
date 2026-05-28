@@ -1,6 +1,6 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { createClient } from "@/lib/supabase/server";
-import { isValidUuid } from "./file-paths";
+import { isValidUuid } from "@/lib/validators";
 import type { ListPedidoFilesResult, PedidoFileListItem } from "./types";
 
 type PedidoFileRow = Omit<PedidoFileListItem, "uploadedBy"> & {

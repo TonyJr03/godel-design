@@ -9,6 +9,7 @@ import {
   uploadPublicSolicitudFiles,
   validateStorageFile,
 } from "@/lib/storage";
+import { getFormValue } from "@/lib/utils";
 
 export type PublicSolicitudSubmittedValues = {
   cliente_nombre: string;
@@ -31,12 +32,6 @@ export type SubmitPublicSolicitudActionState = {
   fileWarning?: string;
   values?: PublicSolicitudSubmittedValues;
 };
-
-function getFormValue(formData: FormData, key: string) {
-  const value = formData.get(key);
-
-  return typeof value === "string" ? value : "";
-}
 
 function getSubmittedValues(formData: FormData): PublicSolicitudSubmittedValues {
   return {

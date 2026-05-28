@@ -5,18 +5,13 @@ import {
   updateInternalUser,
   type UserFieldErrors,
 } from "@/lib/usuarios";
+import { getFormValue } from "@/lib/utils";
 
 export type UpdateUserActionState = {
   ok: boolean;
   message: string;
   fieldErrors?: UserFieldErrors;
 };
-
-function getFormValue(formData: FormData, key: string) {
-  const value = formData.get(key);
-
-  return typeof value === "string" ? value : "";
-}
 
 export async function updateUserAction(
   userId: string,

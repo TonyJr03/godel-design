@@ -1,3 +1,4 @@
+import { isValidUuid } from "@/lib/validators";
 import { INTERNAL_USER_ROLES, type InternalUserRole } from "./list-internal-users";
 
 export const USER_FIELDS = [
@@ -56,9 +57,6 @@ export type ValidateCreateUserProfileInputResult =
       ok: false;
       fieldErrors: UserFieldErrors;
     };
-
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const MAX_FULL_NAME_LENGTH = 120;
 const MAX_PHONE_LENGTH = 40;
@@ -154,7 +152,7 @@ export function validateCreateUserProfileInput(
 
   if (!id) {
     fieldErrors.id = "El UUID del usuario Auth es obligatorio.";
-  } else if (!UUID_PATTERN.test(id)) {
+  } else if (!isValidUuid(id)) {
     fieldErrors.id = "Ingresa un UUID válido de Supabase Auth.";
   }
 

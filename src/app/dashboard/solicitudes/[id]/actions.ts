@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { createPedidoFromSolicitud } from "@/lib/pedidos";
-import { isValidUuid } from "@/lib/storage";
+import { isValidUuid } from "@/lib/validators";
 import {
   associateSolicitudWithCliente,
   createClienteFromSolicitudAndAssociate,
@@ -11,6 +11,7 @@ import {
   type SolicitudCommentFieldErrors,
   updateInternalSolicitudStatus,
 } from "@/lib/solicitudes";
+import { getFormValue } from "@/lib/utils";
 
 export type UpdateSolicitudStatusActionState = {
   ok: boolean;
@@ -42,12 +43,6 @@ export type CreateSolicitudCommentActionState = {
     contenido: string;
   };
 };
-
-function getFormValue(formData: FormData, key: string) {
-  const value = formData.get(key);
-
-  return typeof value === "string" ? value : "";
-}
 
 async function getSolicitudIdFromRequestPath(): Promise<string> {
   const headersList = await headers();

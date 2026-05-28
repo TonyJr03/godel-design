@@ -1,4 +1,5 @@
 import type { PedidoHistoryItem } from "@/lib/pedidos";
+import { formatAppDateTime } from "@/lib/utils";
 import type { Enums } from "@/types/database";
 
 type PedidoHistorySectionProps = {
@@ -38,19 +39,6 @@ const ROLE_LABELS: Record<Enums<"app_role">, string> = {
   supervisor: "Supervisor",
   trabajador: "Trabajador",
 };
-
-const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("es", {
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: "UTC",
-});
-
-function formatDateTime(value: string): string {
-  return DATE_TIME_FORMATTER.format(new Date(value));
-}
 
 function formatHistoryValue(value: string | null): string {
   if (!value) {
@@ -148,7 +136,7 @@ export function PedidoHistorySection({
                     dateTime={item.created_at}
                     className="text-xs leading-5 text-zinc-500"
                   >
-                    {formatDateTime(item.created_at)}
+                    {formatAppDateTime(item.created_at)}
                   </time>
                 </div>
 

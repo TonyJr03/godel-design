@@ -7,6 +7,7 @@ import {
   listInternalSolicitudes,
   type InternalSolicitudEstado,
 } from "@/lib/solicitudes";
+import { getSingleSearchParam } from "@/lib/utils";
 
 type DashboardSolicitudesPageProps = {
   searchParams: Promise<{
@@ -22,10 +23,6 @@ const ESTADO_LABELS: Record<InternalSolicitudEstado, string> = {
   rechazada: "Rechazada",
   convertida: "Convertida",
 };
-
-function getSingleSearchParam(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] : value;
-}
 
 export default async function DashboardSolicitudesPage({
   searchParams,

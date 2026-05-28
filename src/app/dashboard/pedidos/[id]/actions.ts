@@ -14,11 +14,12 @@ import {
 } from "@/lib/pedidos";
 import {
   uploadPedidoFile,
-  isValidUuid,
   validatePedidoFileCategory,
   type PedidoFileCategory,
   type UploadPedidoFileResult,
 } from "@/lib/storage";
+import { getFormValue } from "@/lib/utils";
+import { isValidUuid } from "@/lib/validators";
 
 export type UpdatePedidoStatusActionState = {
   ok: boolean;
@@ -51,12 +52,6 @@ export type CreatePedidoCommentActionState = {
     contenido: string;
   };
 };
-
-function getFormValue(formData: FormData, key: string) {
-  const value = formData.get(key);
-
-  return typeof value === "string" ? value : "";
-}
 
 async function getPedidoIdFromRequestPath(): Promise<string> {
   const headersList = await headers();

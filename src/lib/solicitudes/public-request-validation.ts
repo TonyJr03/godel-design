@@ -1,3 +1,5 @@
+import { getTodayIsoDate } from "@/lib/utils";
+
 export type PublicSolicitudInput = {
   cliente_nombre?: unknown;
   cliente_telefono?: unknown;
@@ -101,15 +103,6 @@ function isValidIsoDate(value: string) {
     date.getUTCMonth() === month - 1 &&
     date.getUTCDate() === day
   );
-}
-
-function getTodayIsoDate() {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, "0");
-  const day = String(today.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
 }
 
 function parseCantidad(value: unknown) {

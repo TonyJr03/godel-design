@@ -3,6 +3,7 @@ import type {
   DashboardRecentActivityItem,
   GetDashboardRecentActivityResult,
 } from "@/lib/dashboard";
+import { formatAppDateTime } from "@/lib/utils";
 
 type DashboardRecentActivityProps = {
   result: GetDashboardRecentActivityResult;
@@ -12,19 +13,6 @@ const SOURCE_LABELS: Record<DashboardRecentActivityItem["source"], string> = {
   pedido: "Pedido",
   solicitud: "Solicitud",
 };
-
-const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("es", {
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: "UTC",
-});
-
-function formatDateTime(value: string): string {
-  return DATE_TIME_FORMATTER.format(new Date(value));
-}
 
 function getLinkLabel(source: DashboardRecentActivityItem["source"]): string {
   return source === "pedido" ? "Ver pedido" : "Ver solicitud";
@@ -82,7 +70,7 @@ export function DashboardRecentActivity({
                       dateTime={item.createdAt}
                       className="text-xs text-zinc-500"
                     >
-                      {formatDateTime(item.createdAt)}
+                      {formatAppDateTime(item.createdAt)}
                     </time>
                   </div>
                   <h3 className="mt-3 truncate text-sm font-semibold text-zinc-950">

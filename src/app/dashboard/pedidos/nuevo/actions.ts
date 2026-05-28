@@ -5,6 +5,7 @@ import {
   createInternalPedido,
   type PedidoFieldErrors,
 } from "@/lib/pedidos";
+import { getFormValue } from "@/lib/utils";
 
 export type CreatePedidoActionState = {
   ok: boolean;
@@ -13,12 +14,6 @@ export type CreatePedidoActionState = {
   pedidoId?: string;
   numeroPedido?: string;
 };
-
-function getFormValue(formData: FormData, key: string) {
-  const value = formData.get(key);
-
-  return typeof value === "string" ? value : "";
-}
 
 export async function createPedidoAction(
   _prevState: CreatePedidoActionState,

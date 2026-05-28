@@ -7,6 +7,7 @@ import {
   listInternalPedidos,
   type InternalPedidoEstado,
 } from "@/lib/pedidos";
+import { getSingleSearchParam } from "@/lib/utils";
 
 type DashboardPedidosPageProps = {
   searchParams: Promise<{
@@ -25,10 +26,6 @@ const ESTADO_LABELS: Record<InternalPedidoEstado, string> = {
   entregado: "Entregado",
   cancelado: "Cancelado",
 };
-
-function getSingleSearchParam(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] : value;
-}
 
 export default async function DashboardPedidosPage({
   searchParams,

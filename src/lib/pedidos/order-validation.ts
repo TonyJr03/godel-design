@@ -1,4 +1,6 @@
 import { Constants, type Enums } from "@/types/database";
+import { getTodayIsoDate } from "@/lib/utils";
+import { isValidUuid } from "@/lib/validators";
 
 export const PEDIDO_FIELDS = [
   "cliente_id",
@@ -41,8 +43,6 @@ export type ValidatePedidoInputResult =
       fieldErrors: PedidoFieldErrors;
     };
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_TITULO_LENGTH = 160;
 const MAX_DESCRIPCION_LENGTH = 3000;
@@ -66,15 +66,6 @@ function cleanOptionalDate(value: string | null | undefined): string | null {
   return cleaned || null;
 }
 
-function getTodayIsoDate(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
-}
-
 export function isPedidoPrioridad(
   prioridad: string | null | undefined,
 ): prioridad is PedidoPrioridad {
@@ -93,7 +84,7 @@ export function validatePedidoInput(
 
   if (!clienteId) {
     fieldErrors.cliente_id = "Selecciona un cliente.";
-  } else if (!UUID_PATTERN.test(clienteId)) {
+  } else if (!isValidUuid(clienteId)) {
     fieldErrors.cliente_id = "Selecciona un cliente válido.";
   }
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { InternalPedidoDetail } from "@/lib/pedidos";
+import { formatAppDateTime } from "@/lib/utils";
 import { PedidoStatusForm } from "./PedidoStatusForm";
 
 type InternalPedidoDetailProps = {
@@ -49,15 +50,6 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("es", {
   timeZone: "UTC",
 });
 
-const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("es", {
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: "UTC",
-});
-
 function formatShortReference(id: string): string {
   return id.slice(0, 8).toUpperCase();
 }
@@ -68,14 +60,6 @@ function formatDate(value: string | null): string {
   }
 
   return DATE_FORMATTER.format(new Date(value));
-}
-
-function formatDateTime(value: string | null): string {
-  if (!value) {
-    return "No definida";
-  }
-
-  return DATE_TIME_FORMATTER.format(new Date(value));
 }
 
 function DetailItem({ label, value }: { label: string; value: ReactNode }) {
@@ -135,7 +119,7 @@ export function InternalPedidoDetail({
         <dl className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           <DetailItem
             label="Fecha operativa"
-            value={formatDateTime(pedido.fecha_creacion)}
+            value={formatAppDateTime(pedido.fecha_creacion, "No definida")}
           />
           <DetailItem
             label="Entrega estimada"
@@ -155,7 +139,7 @@ export function InternalPedidoDetail({
           />
           <DetailItem
             label="Última actualización"
-            value={formatDateTime(pedido.updated_at)}
+            value={formatAppDateTime(pedido.updated_at, "No definida")}
           />
         </dl>
 

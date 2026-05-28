@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createSignedFileUrl, isValidUuid } from "@/lib/storage";
+import { createSignedFileUrl } from "@/lib/storage";
+import { isValidUuid } from "@/lib/validators";
 
 type PedidoFileDownloadRouteProps = {
   params: Promise<{

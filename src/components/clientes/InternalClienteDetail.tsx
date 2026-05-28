@@ -1,27 +1,11 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { InternalClienteDetail } from "@/lib/clientes";
+import { formatAppDateTime } from "@/lib/utils";
 
 type InternalClienteDetailProps = {
   cliente: InternalClienteDetail;
 };
-
-const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("es", {
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: "UTC",
-});
-
-function formatDateTime(value: string | null): string {
-  if (!value) {
-    return "No definida";
-  }
-
-  return DATE_TIME_FORMATTER.format(new Date(value));
-}
 
 function DetailItem({ label, value }: { label: string; value: ReactNode }) {
   return (
@@ -70,11 +54,11 @@ export function InternalClienteDetail({
           />
           <DetailItem
             label="Creación"
-            value={formatDateTime(cliente.created_at)}
+            value={formatAppDateTime(cliente.created_at, "No definida")}
           />
           <DetailItem
             label="Última actualización"
-            value={formatDateTime(cliente.updated_at)}
+            value={formatAppDateTime(cliente.updated_at, "No definida")}
           />
         </dl>
 

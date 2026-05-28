@@ -1,6 +1,7 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
 import { createClient } from "@/lib/supabase/server";
+import { isValidUuid } from "@/lib/validators";
 import type { Enums, Tables, TablesInsert } from "@/types/database";
 import { generatePedidoNumber } from "./order-number";
 
@@ -39,8 +40,6 @@ type SolicitudConvertible = Pick<
   | "fecha_deseada"
 >;
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const INITIAL_CONVERTED_PEDIDO_ESTADO: Enums<"pedido_estado"> =
   "solicitud_recibida";
 const DEFAULT_CONVERTED_PEDIDO_PRIORIDAD: Enums<"pedido_prioridad"> = "normal";
@@ -56,7 +55,7 @@ export async function createPedidoFromSolicitud(
 ): Promise<CreatePedidoFromSolicitudResult> {
   const solicitudId = input.solicitudId.trim();
 
-  if (!UUID_PATTERN.test(solicitudId)) {
+  if (!isValidUuid(solicitudId)) {
     return {
       ok: false,
       reason: "invalid_id",

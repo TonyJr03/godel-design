@@ -8,8 +8,8 @@ import { getFileExtension, sanitizeFileName } from "./file-name";
 import {
   isPedidoFileCategory,
   isSolicitudFileCategory,
-  isValidUuid,
 } from "./file-paths";
+import { isValidUuid } from "@/lib/validators";
 import type {
   FileValidationResult,
   PedidoFileCategory,

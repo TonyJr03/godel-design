@@ -1,6 +1,7 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
 import { createClient } from "@/lib/supabase/server";
+import { isValidUuid } from "@/lib/validators";
 import type { Tables } from "@/types/database";
 
 export type InternalClienteDetail = Pick<
@@ -25,9 +26,6 @@ export type GetInternalClienteByIdResult =
       message: string;
     };
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
 const GENERIC_DETAIL_ERROR =
   "No se pudo cargar el cliente. Inténtalo nuevamente.";
 
@@ -36,7 +34,7 @@ export async function getInternalClienteById(
 ): Promise<GetInternalClienteByIdResult> {
   const clienteId = id.trim();
 
-  if (!UUID_PATTERN.test(clienteId)) {
+  if (!isValidUuid(clienteId)) {
     return {
       ok: false,
       reason: "invalid_id",

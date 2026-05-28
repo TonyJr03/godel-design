@@ -6,6 +6,7 @@ import {
   type UploadPedidoFileActionState,
 } from "@/app/dashboard/pedidos/[id]/actions";
 import type { PedidoFileCategory, PedidoFileListItem } from "@/lib/storage";
+import { formatAppDateTime } from "@/lib/utils";
 
 type PedidoFilesSectionProps = {
   pedidoId: string;
@@ -26,19 +27,6 @@ const CATEGORY_LABELS: Record<PedidoFileListItem["visibility"], string> = {
   avance: "Avance",
   final_entrega: "Final de entrega",
 };
-
-const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("es", {
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: "UTC",
-});
-
-function formatDateTime(value: string): string {
-  return DATE_TIME_FORMATTER.format(new Date(value));
-}
 
 function formatFileSize(value: number | null): string {
   if (!value || value <= 0) {
@@ -123,7 +111,7 @@ export function PedidoFilesSection({
                 <p className="mt-1 text-xs leading-5 text-zinc-500">
                   {formatFileSize(file.file_size)}
                   {" · "}
-                  Subido el {formatDateTime(file.created_at)}
+                  Subido el {formatAppDateTime(file.created_at)}
                   {" · "}
                   {getUploaderLabel(file)}
                 </p>

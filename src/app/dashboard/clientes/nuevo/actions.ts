@@ -5,6 +5,7 @@ import {
   createInternalCliente,
   type ClienteFieldErrors,
 } from "@/lib/clientes";
+import { getFormValue } from "@/lib/utils";
 
 export type CreateClienteActionState = {
   ok: boolean;
@@ -12,12 +13,6 @@ export type CreateClienteActionState = {
   fieldErrors?: ClienteFieldErrors;
   clienteId?: string;
 };
-
-function getFormValue(formData: FormData, key: string) {
-  const value = formData.get(key);
-
-  return typeof value === "string" ? value : "";
-}
 
 export async function createClienteAction(
   _prevState: CreateClienteActionState,

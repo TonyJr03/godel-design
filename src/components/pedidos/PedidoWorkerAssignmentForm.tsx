@@ -9,6 +9,7 @@ import {
 } from "@/app/dashboard/pedidos/[id]/actions";
 import type { InternalPedidoDetailTrabajador } from "@/lib/pedidos";
 import type { AssignableWorker } from "@/lib/pedidos/list-assignable-workers";
+import { formatAppDateTime } from "@/lib/utils";
 
 type PedidoWorkerAssignmentFormProps = {
   pedidoId: string;
@@ -33,23 +34,6 @@ const ROLE_LABELS: Record<AssignableWorker["role"], string> = {
   supervisor: "Supervisor",
   trabajador: "Trabajador",
 };
-
-const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("es", {
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: "UTC",
-});
-
-function formatDateTime(value: string | null): string {
-  if (!value) {
-    return "No definida";
-  }
-
-  return DATE_TIME_FORMATTER.format(new Date(value));
-}
 
 function getAssignedUserName(
   asignacion: InternalPedidoDetailTrabajador,
@@ -150,7 +134,8 @@ export function PedidoWorkerAssignmentForm({
                     ) : null}
                   </div>
                   <p className="mt-1 text-xs text-zinc-500">
-                    Asignado el {formatDateTime(asignacion.assigned_at)}
+                    Asignado el{" "}
+                    {formatAppDateTime(asignacion.assigned_at, "No definida")}
                   </p>
                 </div>
 

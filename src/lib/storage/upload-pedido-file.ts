@@ -7,9 +7,10 @@ import {
   type Role,
 } from "@/lib/permissions/permissions";
 import { createClient } from "@/lib/supabase/server";
+import { isValidUuid } from "@/lib/validators";
 import { GODEL_FILES_BUCKET } from "./constants";
 import { sanitizeFileName } from "./file-name";
-import { buildPedidoFilePath, isValidUuid } from "./file-paths";
+import { buildPedidoFilePath } from "./file-paths";
 import {
   validatePedidoFileCategory,
   validateStorageFile,

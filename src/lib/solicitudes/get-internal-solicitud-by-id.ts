@@ -1,6 +1,7 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
 import { createClient } from "@/lib/supabase/server";
+import { isValidUuid } from "@/lib/validators";
 import type { Tables } from "@/types/database";
 
 export type InternalSolicitudDetail = Pick<
@@ -33,15 +34,8 @@ export type GetInternalSolicitudByIdResult =
       message: string;
     };
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
 const GENERIC_DETAIL_ERROR =
   "No se pudo cargar la solicitud. Inténtalo nuevamente.";
-
-function isValidUuid(id: string): boolean {
-  return UUID_PATTERN.test(id);
-}
 
 export async function getInternalSolicitudById(
   id: string,

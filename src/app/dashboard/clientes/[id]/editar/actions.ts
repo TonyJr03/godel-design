@@ -5,18 +5,13 @@ import {
   updateInternalCliente,
   type ClienteFieldErrors,
 } from "@/lib/clientes";
+import { getFormValue } from "@/lib/utils";
 
 export type UpdateClienteActionState = {
   ok: boolean;
   message: string;
   fieldErrors?: ClienteFieldErrors;
 };
-
-function getFormValue(formData: FormData, key: string) {
-  const value = formData.get(key);
-
-  return typeof value === "string" ? value : "";
-}
 
 export async function updateClienteAction(
   _prevState: UpdateClienteActionState,

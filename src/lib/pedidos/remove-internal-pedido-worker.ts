@@ -1,6 +1,7 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
 import { createClient } from "@/lib/supabase/server";
+import { isValidUuid } from "@/lib/validators";
 
 export type RemoveInternalPedidoWorkerInput = {
   pedidoId: string;
@@ -28,8 +29,6 @@ export type RemoveInternalPedidoWorkerResult =
       fieldErrors?: RemovePedidoWorkerFieldErrors;
     };
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const GENERIC_REMOVE_ERROR =
   "No se pudo remover la asignación. Inténtalo nuevamente.";
 
@@ -37,7 +36,7 @@ function validateUuid(
   value: string,
   field: "pedido_id" | "trabajador_id",
 ): RemovePedidoWorkerFieldErrors | null {
-  if (UUID_PATTERN.test(value)) {
+  if (isValidUuid(value)) {
     return null;
   }
 

@@ -3,16 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getFormValue } from "@/lib/utils";
 
 export type LoginActionState = {
   message?: string;
 };
-
-function getFormValue(formData: FormData, key: string) {
-  const value = formData.get(key);
-
-  return typeof value === "string" ? value : "";
-}
 
 export async function login(
   _state: LoginActionState,
