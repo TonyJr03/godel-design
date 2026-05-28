@@ -20,7 +20,7 @@ Los reportes avanzados quedan fuera de esta fase. No se deben implementar gráfi
 
 ## Diagnóstico del estado actual
 
-Desde Fase 13.3, la ruta `/dashboard` muestra tarjetas reales de resumen operativo usando `getDashboardSummary()`. La página sigue siendo un Server Component: carga el resumen en servidor y lo entrega a componentes presentacionales sin consultas desde cliente.
+Desde Fase 13.3, la ruta `/dashboard` muestra tarjetas reales de resumen operativo usando `getDashboardSummary()`. Desde Fase 13.4, también muestra paneles operativos simples usando `getDashboardWorkItems()`. La página sigue siendo un Server Component: carga datos en servidor y los entrega a componentes presentacionales sin consultas desde cliente.
 
 El layout de dashboard (`src/app/dashboard/layout.tsx`) obtiene el perfil actual con `getCurrentProfile()` y pasa el rol al sidebar. La navegación visible se filtra con `canAccessDashboardRoute`.
 
@@ -30,9 +30,9 @@ La matriz actual permite:
 
 | Rol | Vista actual de `/dashboard` | Navegación visible actual |
 | --- | --- | --- |
-| `admin` | Tarjetas globales de solicitudes, pedidos y clientes. | Dashboard, solicitudes, pedidos, clientes, usuarios y configuración. |
-| `supervisor` | Tarjetas globales de solicitudes, pedidos y clientes. | Dashboard, solicitudes, pedidos y clientes. |
-| `trabajador` | Tarjetas de pedidos asignados. | Dashboard y pedidos. |
+| `admin` | Tarjetas globales, solicitudes pendientes y pedidos que requieren atención. | Dashboard, solicitudes, pedidos, clientes, usuarios y configuración. |
+| `supervisor` | Tarjetas globales, solicitudes pendientes y pedidos que requieren atención. | Dashboard, solicitudes, pedidos y clientes. |
+| `trabajador` | Tarjetas y panel de pedidos asignados. | Dashboard y pedidos. |
 
 Los módulos existentes ya ofrecen servicios server-side reutilizables como punto de partida conceptual:
 
@@ -171,13 +171,15 @@ El trabajador no debe ver:
 
 ## Métricas MVP recomendadas
 
-La primera versión funcional del dashboard debe ser deliberadamente simple. Desde Fase 13.3 ya se muestran tarjetas reales de resumen para `admin`, `supervisor` y `trabajador`:
+La primera versión funcional del dashboard debe ser deliberadamente simple. Desde Fase 13.4 ya se muestran tarjetas reales y paneles operativos para `admin`, `supervisor` y `trabajador`:
 
 - tarjetas de resumen por rol;
 - métricas globales de solicitudes, pedidos y clientes para `admin` y `supervisor`;
 - métricas de pedidos asignados para `trabajador`;
-- secciones de "Solicitudes pendientes", "Pedidos activos" y "Mis pedidos asignados" quedan como posibles ampliaciones posteriores;
-- actividad reciente queda para una subfase posterior;
+- sección de "Solicitudes pendientes" para `admin` y `supervisor`;
+- sección de "Pedidos que requieren atención" para `admin` y `supervisor`;
+- sección de "Mis pedidos asignados" para `trabajador`;
+- actividad reciente avanzada queda para una subfase posterior;
 - sin gráficos;
 - sin reportes avanzados;
 - sin notificaciones.
@@ -218,13 +220,13 @@ No se deben crear estos archivos en Fase 13.1. La estructura recomendada para si
 
 ```text
 src/lib/dashboard/get-dashboard-summary.ts
+src/lib/dashboard/get-dashboard-work-items.ts
 src/lib/dashboard/get-dashboard-activity.ts
 src/lib/dashboard/get-worker-dashboard.ts
 src/lib/dashboard/types.ts
 src/lib/dashboard/index.ts
 src/components/dashboard/DashboardSummaryCards.tsx
-src/components/dashboard/DashboardPendingRequests.tsx
-src/components/dashboard/DashboardActiveOrders.tsx
+src/components/dashboard/DashboardWorkPanels.tsx
 src/components/dashboard/DashboardRecentActivity.tsx
 src/components/dashboard/WorkerDashboardPanel.tsx
 ```
@@ -234,12 +236,12 @@ Responsabilidades sugeridas:
 | Archivo | Responsabilidad |
 | --- | --- |
 | `get-dashboard-summary.ts` | Conteos agregados para admin y supervisor. |
+| `get-dashboard-work-items.ts` | Listas operativas por rol: solicitudes pendientes y pedidos que requieren atención. |
 | `get-worker-dashboard.ts` | Resumen y lista breve de pedidos asignados al trabajador. |
 | `get-dashboard-activity.ts` | Actividad reciente mínima, si se implementa. |
 | `types.ts` | Tipos compartidos del dashboard. |
 | `DashboardSummaryCards.tsx` | Tarjetas de resumen sin consultas directas. |
-| `DashboardPendingRequests.tsx` | Lista breve de solicitudes pendientes. |
-| `DashboardActiveOrders.tsx` | Lista breve de pedidos activos o urgentes. |
+| `DashboardWorkPanels.tsx` | Paneles operativos simples sin consultas directas. |
 | `WorkerDashboardPanel.tsx` | Panel centrado en pedidos asignados. |
 
 ## Reglas de seguridad
@@ -263,8 +265,8 @@ Responsabilidades sugeridas:
 1. Fase 13.1: diagnóstico y modelo del dashboard operativo.
 2. Fase 13.2: servicios server-side de resumen por rol, sin UI compleja.
 3. Fase 13.3: tarjetas MVP por rol en `/dashboard`.
-4. Fase 13.4: panel ampliado de "Mis pedidos asignados" para `trabajador`, si se requiere más detalle que las tarjetas.
-5. Fase 13.5: listas breves de solicitudes pendientes y pedidos activos.
+4. Fase 13.4: paneles operativos por rol en `/dashboard`.
+5. Fase 13.5: refinamiento de listas y criterios de atención, si la operación lo requiere.
 6. Fase 13.6: actividad reciente mínima si las consultas quedan claras y seguras.
 7. Fase 13.7: documentación, pruebas manuales y cierre.
 
@@ -282,7 +284,8 @@ Queda fuera del alcance actual:
 - implementar gráficos;
 - implementar reportes avanzados;
 - implementar notificaciones.
-- implementar actividad reciente.
+- implementar exportaciones;
+- implementar actividad reciente avanzada.
 
 ## Cierre
 

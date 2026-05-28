@@ -1,4 +1,5 @@
 import type { Role } from "@/lib/permissions";
+import type { Enums } from "@/types/database";
 
 export type DashboardRole = Extract<
   Role,
@@ -86,3 +87,76 @@ export type GetDashboardSummaryResult =
 export type GetWorkerDashboardSummaryResult =
   | WorkerDashboardSummarySuccess
   | DashboardSummaryError;
+
+export type DashboardWorkItemsErrorReason =
+  | "unauthorized"
+  | "forbidden"
+  | "error";
+
+export type DashboardWorkItemsError = {
+  ok: false;
+  reason: DashboardWorkItemsErrorReason;
+  message: string;
+};
+
+export type DashboardWorkItemsView = "management" | "worker";
+
+export type DashboardPendingSolicitudItem = {
+  id: string;
+  href: string;
+  clienteNombre: string;
+  clienteTelefono: string;
+  tipoServicio: string;
+  estado: Enums<"solicitud_estado">;
+  createdAt: string;
+  fechaDeseada: string | null;
+  convertedOrderId: string | null;
+};
+
+export type DashboardPedidoWorkItem = {
+  id: string;
+  href: string;
+  numeroPedido: string;
+  titulo: string;
+  estado: Enums<"pedido_estado">;
+  prioridad: Enums<"pedido_prioridad">;
+  fechaEntregaEstimada: string | null;
+  createdAt: string;
+  clienteNombre: string | null;
+  attention: {
+    isOverdue: boolean;
+    isDueSoon: boolean;
+  };
+};
+
+export type ManagementDashboardWorkItems = {
+  kind: "management";
+  role: ManagementDashboardRole;
+  solicitudesPendientes: DashboardPendingSolicitudItem[];
+  pedidosAtencion: DashboardPedidoWorkItem[];
+  generatedAt: string;
+};
+
+export type WorkerDashboardWorkItems = {
+  kind: "worker";
+  role: WorkerDashboardRole;
+  pedidosAsignados: DashboardPedidoWorkItem[];
+  generatedAt: string;
+};
+
+export type ManagementDashboardWorkItemsSuccess = {
+  ok: true;
+  role: ManagementDashboardRole;
+  workItems: ManagementDashboardWorkItems;
+};
+
+export type WorkerDashboardWorkItemsSuccess = {
+  ok: true;
+  role: WorkerDashboardRole;
+  workItems: WorkerDashboardWorkItems;
+};
+
+export type GetDashboardWorkItemsResult =
+  | ManagementDashboardWorkItemsSuccess
+  | WorkerDashboardWorkItemsSuccess
+  | DashboardWorkItemsError;

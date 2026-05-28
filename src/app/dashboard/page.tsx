@@ -1,10 +1,16 @@
 import { DashboardOverview } from "@/components/dashboard/DashboardOverview";
+import { DashboardWorkPanels } from "@/components/dashboard/DashboardWorkPanels";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { getDashboardSummary } from "@/lib/dashboard";
+import { getDashboardSummary, getDashboardWorkItems } from "@/lib/dashboard";
 
 export default async function DashboardPage() {
-  const result = await getDashboardSummary();
-  const isWorkerDashboard = result.ok && result.summary.kind === "worker";
+  const [summaryResult, workItemsResult] = await Promise.all([
+    getDashboardSummary(),
+    getDashboardWorkItems(),
+  ]);
+  const isWorkerDashboard =
+    (summaryResult.ok && summaryResult.summary.kind === "worker") ||
+    (workItemsResult.ok && workItemsResult.workItems.kind === "worker");
 
   return (
     <div className="space-y-8">
@@ -16,7 +22,8 @@ export default async function DashboardPage() {
             : "Resumen general de solicitudes, pedidos y clientes."
         }
       />
-      <DashboardOverview result={result} />
+      <DashboardOverview result={summaryResult} />
+      <DashboardWorkPanels result={workItemsResult} />
     </div>
   );
 }
