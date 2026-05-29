@@ -76,6 +76,9 @@ begin
 end;
 $$;
 
+revoke all on function public.set_updated_at()
+from public, anon, authenticated;
+
 create table public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   full_name text not null,

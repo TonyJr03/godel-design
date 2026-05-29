@@ -311,14 +311,38 @@ comment on function private.can_insert_public_request_file_metadata(
 )
 is 'Valida metadatos anónimos para archivos originales de solicitudes públicas.';
 
-grant execute on function private.storage_path_has_exact_parts(text, integer) to anon, authenticated;
-grant execute on function private.storage_order_id(text) to anon, authenticated;
-grant execute on function private.storage_order_category(text) to anon, authenticated;
-grant execute on function private.storage_request_id(text) to anon, authenticated;
-grant execute on function private.can_read_storage_object(text, text) to anon, authenticated;
-grant execute on function private.can_insert_storage_object(text, text) to anon, authenticated;
-grant execute on function private.can_manage_storage_object(text, text) to anon, authenticated;
-grant execute on function private.can_insert_public_request_storage_object(text, text) to anon, authenticated;
+revoke all on function private.storage_path_has_exact_parts(text, integer)
+from public, anon, authenticated;
+revoke all on function private.storage_order_id(text)
+from public, anon, authenticated;
+revoke all on function private.storage_order_category(text)
+from public, anon, authenticated;
+revoke all on function private.storage_request_id(text)
+from public, anon, authenticated;
+revoke all on function private.can_read_storage_object(text, text)
+from public, anon, authenticated;
+revoke all on function private.can_insert_storage_object(text, text)
+from public, anon, authenticated;
+revoke all on function private.can_manage_storage_object(text, text)
+from public, anon, authenticated;
+revoke all on function private.can_insert_public_request_storage_object(text, text)
+from public, anon, authenticated;
+revoke all on function private.can_insert_public_request_file_metadata(
+  text,
+  text,
+  uuid,
+  uuid,
+  uuid,
+  public.archivo_visibility,
+  bigint,
+  text
+)
+from public, anon, authenticated;
+
+grant execute on function private.can_read_storage_object(text, text) to authenticated;
+grant execute on function private.can_insert_storage_object(text, text) to authenticated;
+grant execute on function private.can_manage_storage_object(text, text) to authenticated;
+grant execute on function private.can_insert_public_request_storage_object(text, text) to anon;
 grant execute on function private.can_insert_public_request_file_metadata(
   text,
   text,
@@ -328,7 +352,7 @@ grant execute on function private.can_insert_public_request_file_metadata(
   public.archivo_visibility,
   bigint,
   text
-) to anon, authenticated;
+) to anon;
 
 grant insert on table public.archivos to anon;
 

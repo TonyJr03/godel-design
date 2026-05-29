@@ -196,7 +196,29 @@ end;
 $$;
 
 grant usage on schema private to anon, authenticated;
-grant execute on all functions in schema private to anon, authenticated;
+
+revoke all on function private.current_user_role()
+from public, anon, authenticated;
+revoke all on function private.current_user_is_active()
+from public, anon, authenticated;
+revoke all on function private.is_admin()
+from public, anon, authenticated;
+revoke all on function private.is_supervisor()
+from public, anon, authenticated;
+revoke all on function private.is_admin_or_supervisor()
+from public, anon, authenticated;
+revoke all on function private.is_assigned_to_order(uuid)
+from public, anon, authenticated;
+revoke all on function private.can_access_order(uuid)
+from public, anon, authenticated;
+
+grant execute on function private.current_user_role() to authenticated;
+grant execute on function private.current_user_is_active() to authenticated;
+grant execute on function private.is_admin() to authenticated;
+grant execute on function private.is_supervisor() to authenticated;
+grant execute on function private.is_admin_or_supervisor() to authenticated;
+grant execute on function private.is_assigned_to_order(uuid) to authenticated;
+grant execute on function private.can_access_order(uuid) to authenticated;
 
 revoke all on function private.ensure_active_pedido_trabajador()
 from public, anon, authenticated;

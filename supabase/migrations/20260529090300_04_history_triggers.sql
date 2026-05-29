@@ -452,6 +452,36 @@ after update of converted_order_id on public.solicitudes
 for each row
 execute function private.insert_solicitud_historial_convertida_a_pedido();
 
+revoke all on function private.insert_pedido_historial_pedido_creado()
+from public, anon, authenticated;
+
+revoke all on function private.insert_pedido_historial_trabajador_asignado()
+from public, anon, authenticated;
+
+revoke all on function private.insert_pedido_historial_trabajador_removido()
+from public, anon, authenticated;
+
+revoke all on function private.insert_pedido_historial_archivo_subido()
+from public, anon, authenticated;
+
+revoke all on function private.solicitud_estado_label(public.solicitud_estado)
+from public, anon, authenticated;
+
+revoke all on function private.insert_solicitud_historial_solicitud_creada()
+from public, anon, authenticated;
+
+revoke all on function private.insert_solicitud_historial_archivo_adjuntado()
+from public, anon, authenticated;
+
+revoke all on function private.insert_solicitud_historial_estado_cambiado()
+from public, anon, authenticated;
+
+revoke all on function private.insert_solicitud_historial_cliente_asociado()
+from public, anon, authenticated;
+
+revoke all on function private.insert_solicitud_historial_convertida_a_pedido()
+from public, anon, authenticated;
+
 comment on function private.solicitud_estado_label(public.solicitud_estado) is
   'Devuelve una etiqueta visible para estados técnicos de solicitud.';
 
