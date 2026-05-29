@@ -53,7 +53,7 @@ export {
   type PublicSolicitudField,
   type PublicSolicitudFieldErrors,
   type PublicSolicitudInput,
-  type PublicSolicitudValidationResult,
+  type ValidatePublicSolicitudInputResult,
 } from "./public-request-validation";
 export type {
   CreatePublicSolicitudErrorReason,

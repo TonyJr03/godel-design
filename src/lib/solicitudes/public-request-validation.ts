@@ -1,4 +1,16 @@
 import { getTodayIsoDate } from "@/lib/utils";
+import {
+  hasFieldErrors,
+  isBasicEmail,
+  isValidIsoDate,
+  normalizeMultilineText,
+  normalizeOptionalMultilineText,
+  normalizeOptionalSingleLineText,
+  normalizeSingleLineText,
+  validationFailure,
+  validationSuccess,
+  type ValidationResult,
+} from "@/lib/validators";
 
 export type PublicSolicitudInput = {
   cliente_nombre?: unknown;
@@ -29,16 +41,11 @@ export type PublicSolicitudFieldErrors = Partial<
   Record<PublicSolicitudField, string>
 >;
 
-export type PublicSolicitudValidationResult =
-  | {
-      ok: true;
-      data: PublicSolicitudData;
-    }
-  | {
-      ok: false;
-      fieldErrors: PublicSolicitudFieldErrors;
-      message: string;
-    };
+export type ValidatePublicSolicitudInputResult = ValidationResult<
+  PublicSolicitudData,
+  PublicSolicitudFieldErrors,
+  { message: string }
+>;
 
 const FIELD_LIMITS = {
   cliente_nombre: 120,
@@ -49,64 +56,11 @@ const FIELD_LIMITS = {
   observaciones: 1000,
 } as const;
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const CONTROL_CHARS_PATTERN = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
-
-function getText(value: unknown) {
-  if (typeof value === "string") {
-    return value;
-  }
-
-  if (typeof value === "number") {
-    return String(value);
-  }
-
-  return "";
-}
-
-function cleanSingleLineText(value: unknown) {
-  return getText(value)
-    .replace(CONTROL_CHARS_PATTERN, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function cleanMultilineText(value: unknown) {
-  return getText(value)
-    .replace(/\r\n?/g, "\n")
-    .replace(CONTROL_CHARS_PATTERN, "")
-    .split("\n")
-    .map((line) => line.replace(/[ \t]+/g, " ").trim())
-    .join("\n")
-    .trim();
-}
-
-function optionalText(value: unknown, multiline = false) {
-  const cleanValue = multiline
-    ? cleanMultilineText(value)
-    : cleanSingleLineText(value);
-
-  return cleanValue.length > 0 ? cleanValue : null;
-}
-
-function isValidIsoDate(value: string) {
-  if (!ISO_DATE_PATTERN.test(value)) {
-    return false;
-  }
-
-  const [year, month, day] = value.split("-").map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day));
-
-  return (
-    date.getUTCFullYear() === year &&
-    date.getUTCMonth() === month - 1 &&
-    date.getUTCDate() === day
-  );
-}
+const VALIDATION_ERROR_MESSAGE =
+  "Revisa los campos marcados antes de enviar la solicitud.";
 
 function parseCantidad(value: unknown) {
-  const textValue = cleanSingleLineText(value);
+  const textValue = normalizeSingleLineText(value);
 
   if (!textValue) {
     return null;
@@ -121,17 +75,17 @@ function parseCantidad(value: unknown) {
 
 export function validatePublicSolicitudInput(
   input: PublicSolicitudInput,
-): PublicSolicitudValidationResult {
+): ValidatePublicSolicitudInputResult {
   const fieldErrors: PublicSolicitudFieldErrors = {};
 
-  const cliente_nombre = cleanSingleLineText(input.cliente_nombre);
-  const cliente_telefono = cleanSingleLineText(input.cliente_telefono);
-  const cliente_email = optionalText(input.cliente_email);
-  const tipo_servicio = cleanSingleLineText(input.tipo_servicio);
-  const descripcion = cleanMultilineText(input.descripcion);
+  const cliente_nombre = normalizeSingleLineText(input.cliente_nombre);
+  const cliente_telefono = normalizeSingleLineText(input.cliente_telefono);
+  const cliente_email = normalizeOptionalSingleLineText(input.cliente_email);
+  const tipo_servicio = normalizeSingleLineText(input.tipo_servicio);
+  const descripcion = normalizeMultilineText(input.descripcion);
   const cantidad = parseCantidad(input.cantidad);
-  const fecha_deseada = optionalText(input.fecha_deseada);
-  const observaciones = optionalText(input.observaciones, true);
+  const fecha_deseada = normalizeOptionalSingleLineText(input.fecha_deseada);
+  const observaciones = normalizeOptionalMultilineText(input.observaciones);
 
   if (!cliente_nombre) {
     fieldErrors.cliente_nombre = "Ingresa el nombre del cliente.";
@@ -148,7 +102,7 @@ export function validatePublicSolicitudInput(
   if (cliente_email) {
     if (cliente_email.length > FIELD_LIMITS.cliente_email) {
       fieldErrors.cliente_email = "El correo es demasiado largo.";
-    } else if (!EMAIL_PATTERN.test(cliente_email)) {
+    } else if (!isBasicEmail(cliente_email)) {
       fieldErrors.cliente_email = "Ingresa un correo válido.";
     }
   }
@@ -178,32 +132,24 @@ export function validatePublicSolicitudInput(
     }
   }
 
-  if (
-    observaciones &&
-    observaciones.length > FIELD_LIMITS.observaciones
-  ) {
+  if (observaciones && observaciones.length > FIELD_LIMITS.observaciones) {
     fieldErrors.observaciones = "Las observaciones son demasiado largas.";
   }
 
-  if (Object.keys(fieldErrors).length > 0) {
-    return {
-      ok: false,
-      fieldErrors,
-      message: "Revisa los campos marcados antes de enviar la solicitud.",
-    };
+  if (hasFieldErrors(fieldErrors)) {
+    return validationFailure(fieldErrors, {
+      message: VALIDATION_ERROR_MESSAGE,
+    });
   }
 
-  return {
-    ok: true,
-    data: {
-      cliente_nombre,
-      cliente_telefono,
-      cliente_email,
-      tipo_servicio,
-      descripcion,
-      cantidad,
-      fecha_deseada,
-      observaciones,
-    },
-  };
+  return validationSuccess({
+    cliente_nombre,
+    cliente_telefono,
+    cliente_email,
+    tipo_servicio,
+    descripcion,
+    cantidad,
+    fecha_deseada,
+    observaciones,
+  });
 }

@@ -6,11 +6,12 @@ import {
   type ServiceResult,
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
-import { Constants, type Enums, type Tables } from "@/types/database";
+import type { Tables } from "@/types/database";
+import {
+  isInternalUserRole,
+  type InternalUserRole,
+} from "./roles";
 
-export const INTERNAL_USER_ROLES = Constants.public.Enums.app_role;
-
-export type InternalUserRole = Enums<"app_role">;
 export type InternalUserActiveFilter = boolean;
 
 export type InternalUser = Pick<
@@ -79,12 +80,6 @@ function normalizeSearchQuery(value: string | null | undefined): string | null {
     .slice(0, MAX_SEARCH_LENGTH);
 
   return normalized || null;
-}
-
-export function isInternalUserRole(
-  role: string | null | undefined,
-): role is InternalUserRole {
-  return INTERNAL_USER_ROLES.includes(role as InternalUserRole);
 }
 
 function normalizeActiveFilter(

@@ -3,8 +3,8 @@ export { getInternalUserById } from "./get-internal-user-by-id";
 export {
   INTERNAL_USER_ROLES,
   isInternalUserRole,
-  listInternalUsers,
-} from "./list-internal-users";
+} from "./roles";
+export { listInternalUsers } from "./list-internal-users";
 export { updateInternalUser } from "./update-internal-user";
 export { validateUserInput } from "./user-validation";
 
@@ -23,11 +23,11 @@ export type {
 export type {
   InternalUser,
   InternalUserActiveFilter,
-  InternalUserRole,
   ListInternalUsersErrorReason,
   ListInternalUsersOptions,
   ListInternalUsersResult,
 } from "./list-internal-users";
+export type { InternalUserRole } from "./roles";
 
 export type {
   UpdateInternalUserErrorReason,
