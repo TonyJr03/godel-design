@@ -9,21 +9,25 @@ export {
 } from "./client-validation";
 export {
   createInternalCliente,
+  type CreateInternalClienteErrorReason,
   type CreateInternalClienteResult,
 } from "./create-internal-cliente";
 export {
   getInternalClienteById,
+  type GetInternalClienteByIdErrorReason,
   type GetInternalClienteByIdResult,
   type InternalClienteDetail,
 } from "./get-internal-cliente-by-id";
 export {
   updateInternalCliente,
+  type UpdateInternalClienteErrorReason,
   type UpdateInternalClienteInput,
   type UpdateInternalClienteResult,
 } from "./update-internal-cliente";
 export {
   listInternalClientes,
   type InternalCliente,
+  type ListInternalClientesErrorReason,
   type ListInternalClientesOptions,
   type ListInternalClientesResult,
 } from "./list-internal-clientes";

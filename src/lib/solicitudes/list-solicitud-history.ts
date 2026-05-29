@@ -1,5 +1,10 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
+import {
+  serviceFailure,
+  serviceSuccess,
+  type ServiceResult,
+} from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
 import type { Json, Tables } from "@/types/database";
@@ -28,17 +33,18 @@ type ProfileRow = Pick<Tables<"profiles">, "id" | "full_name" | "role">;
 type ClienteRow = Pick<Tables<"clientes">, "id" | "nombre">;
 type PedidoRow = Pick<Tables<"pedidos">, "id" | "numero_pedido" | "titulo">;
 
-export type ListSolicitudHistoryResult =
-  | {
-      ok: true;
-      history: SolicitudHistoryItem[];
-    }
-  | {
-      ok: false;
-      reason: "unauthorized" | "invalid_id" | "not_found" | "error";
-      message: string;
-      history: [];
-    };
+export type ListSolicitudHistoryErrorReason =
+  | "unauthorized"
+  | "forbidden"
+  | "invalid_id"
+  | "not_found"
+  | "error";
+
+export type ListSolicitudHistoryResult = ServiceResult<
+  { history: SolicitudHistoryItem[] },
+  ListSolicitudHistoryErrorReason,
+  { history: [] }
+>;
 
 const GENERIC_LIST_HISTORY_ERROR =
   "No se pudo cargar el historial de la solicitud.";
@@ -51,6 +57,10 @@ const SOLICITUD_HISTORY_SELECT = `
   metadata,
   created_at
 `;
+
+const emptyHistory = {
+  history: [] as [],
+};
 
 function isJsonObject(value: Json): value is Record<string, Json> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -72,23 +82,25 @@ export async function listSolicitudHistory(
   const solicitudId = solicitudIdInput.trim();
 
   if (!isValidUuid(solicitudId)) {
-    return {
-      ok: false,
-      reason: "invalid_id",
-      message: "La solicitud no existe.",
-      history: [],
-    };
+    return serviceFailure("invalid_id", "La solicitud no existe.", emptyHistory);
   }
 
   const profile = await getCurrentProfile();
 
-  if (!profile || !hasPermission(profile.role, "solicitudes.view")) {
-    return {
-      ok: false,
-      reason: "unauthorized",
-      message: "No tienes permiso para ver el historial de solicitudes.",
-      history: [],
-    };
+  if (!profile) {
+    return serviceFailure(
+      "unauthorized",
+      "No tienes permiso para ver el historial de solicitudes.",
+      emptyHistory,
+    );
+  }
+
+  if (!hasPermission(profile.role, "solicitudes.view")) {
+    return serviceFailure(
+      "forbidden",
+      "No tienes permiso para ver el historial de solicitudes.",
+      emptyHistory,
+    );
   }
 
   const supabase = await createClient();
@@ -106,21 +118,15 @@ export async function listSolicitudHistory(
         solicitudError,
       );
 
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_LIST_HISTORY_ERROR,
-        history: [],
-      };
+      return serviceFailure("error", GENERIC_LIST_HISTORY_ERROR, emptyHistory);
     }
 
     if (!solicitud) {
-      return {
-        ok: false,
-        reason: "not_found",
-        message: "La solicitud no existe o no tienes acceso.",
-        history: [],
-      };
+      return serviceFailure(
+        "not_found",
+        "La solicitud no existe o no tienes acceso.",
+        emptyHistory,
+      );
     }
 
     const { data, error } = await supabase
@@ -133,12 +139,7 @@ export async function listSolicitudHistory(
     if (error) {
       console.error("Error listing solicitud history", error);
 
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_LIST_HISTORY_ERROR,
-        history: [],
-      };
+      return serviceFailure("error", GENERIC_LIST_HISTORY_ERROR, emptyHistory);
     }
 
     const history = data ?? [];
@@ -228,8 +229,7 @@ export async function listSolicitudHistory(
       }
     }
 
-    return {
-      ok: true,
+    return serviceSuccess({
       history: history.map(({ actor_id, ...historyItem }) => {
         const clienteId = getMetadataString(historyItem.metadata, "cliente_id");
         const pedidoId = getMetadataString(historyItem.metadata, "pedido_id");
@@ -243,15 +243,10 @@ export async function listSolicitudHistory(
           },
         };
       }),
-    };
+    });
   } catch (error) {
     console.error("Unexpected error listing solicitud history", error);
 
-    return {
-      ok: false,
-      reason: "error",
-      message: GENERIC_LIST_HISTORY_ERROR,
-      history: [],
-    };
+    return serviceFailure("error", GENERIC_LIST_HISTORY_ERROR, emptyHistory);
   }
 }

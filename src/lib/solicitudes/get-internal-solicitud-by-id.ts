@@ -1,5 +1,10 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
+import {
+  serviceFailure,
+  serviceSuccess,
+  type ServiceResult,
+} from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
 import type { Tables } from "@/types/database";
@@ -23,16 +28,17 @@ export type InternalSolicitudDetail = Pick<
   | "updated_at"
 >;
 
-export type GetInternalSolicitudByIdResult =
-  | {
-      ok: true;
-      solicitud: InternalSolicitudDetail;
-    }
-  | {
-      ok: false;
-      reason: "unauthorized" | "not_found" | "invalid_id" | "error";
-      message: string;
-    };
+export type GetInternalSolicitudByIdErrorReason =
+  | "unauthorized"
+  | "forbidden"
+  | "not_found"
+  | "invalid_id"
+  | "error";
+
+export type GetInternalSolicitudByIdResult = ServiceResult<
+  { solicitud: InternalSolicitudDetail },
+  GetInternalSolicitudByIdErrorReason
+>;
 
 const GENERIC_DETAIL_ERROR =
   "No se pudo cargar la solicitud. Inténtalo nuevamente.";
@@ -41,21 +47,23 @@ export async function getInternalSolicitudById(
   id: string,
 ): Promise<GetInternalSolicitudByIdResult> {
   if (!isValidUuid(id)) {
-    return {
-      ok: false,
-      reason: "invalid_id",
-      message: "La solicitud no existe.",
-    };
+    return serviceFailure("invalid_id", "La solicitud no existe.");
   }
 
   const profile = await getCurrentProfile();
 
-  if (!profile || !hasPermission(profile.role, "solicitudes.view")) {
-    return {
-      ok: false,
-      reason: "unauthorized",
-      message: "No tienes permiso para ver esta solicitud.",
-    };
+  if (!profile) {
+    return serviceFailure(
+      "unauthorized",
+      "No tienes permiso para ver esta solicitud.",
+    );
+  }
+
+  if (!hasPermission(profile.role, "solicitudes.view")) {
+    return serviceFailure(
+      "forbidden",
+      "No tienes permiso para ver esta solicitud.",
+    );
   }
 
   const supabase = await createClient();
@@ -72,32 +80,17 @@ export async function getInternalSolicitudById(
     if (error) {
       console.error("Error loading internal solicitud detail", error);
 
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_DETAIL_ERROR,
-      };
+      return serviceFailure("error", GENERIC_DETAIL_ERROR);
     }
 
     if (!data) {
-      return {
-        ok: false,
-        reason: "not_found",
-        message: "La solicitud no existe.",
-      };
+      return serviceFailure("not_found", "La solicitud no existe.");
     }
 
-    return {
-      ok: true,
-      solicitud: data,
-    };
+    return serviceSuccess({ solicitud: data });
   } catch (error) {
     console.error("Unexpected error loading internal solicitud detail", error);
 
-    return {
-      ok: false,
-      reason: "error",
-      message: GENERIC_DETAIL_ERROR,
-    };
+    return serviceFailure("error", GENERIC_DETAIL_ERROR);
   }
 }

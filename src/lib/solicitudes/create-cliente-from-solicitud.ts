@@ -1,30 +1,32 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
+import { validateClienteInput, type ClienteFieldErrors } from "@/lib/clientes";
 import { hasPermission } from "@/lib/permissions/permissions";
+import {
+  serviceFailure,
+  serviceSuccess,
+  type ServiceResult,
+} from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
-import {
-  validateClienteInput,
-  type ClienteFieldErrors,
-} from "@/lib/clientes";
 
-export type CreateClienteFromSolicitudResult =
-  | {
-      ok: true;
-      solicitudId: string;
-      clienteId: string;
-    }
-  | {
-      ok: false;
-      reason:
-        | "unauthorized"
-        | "invalid_solicitud_id"
-        | "solicitud_not_found"
-        | "already_associated"
-        | "validation"
-        | "error";
-      message: string;
-      fieldErrors?: ClienteFieldErrors;
-    };
+export type CreateClienteFromSolicitudErrorReason =
+  | "unauthorized"
+  | "forbidden"
+  | "invalid_solicitud_id"
+  | "solicitud_not_found"
+  | "already_associated"
+  | "validation"
+  | "error";
+
+export type CreateClienteFromSolicitudResult = ServiceResult<
+  {
+    solicitudId: string;
+    clienteId: string;
+  },
+  CreateClienteFromSolicitudErrorReason,
+  Record<never, never>,
+  ClienteFieldErrors
+>;
 
 const GENERIC_CREATE_AND_ASSOCIATE_ERROR =
   "No se pudo crear y asociar el cliente. Inténtalo nuevamente.";
@@ -39,25 +41,26 @@ export async function createClienteFromSolicitudAndAssociate(
   const solicitudId = normalizeUuid(solicitudIdInput);
 
   if (!isValidUuid(solicitudId)) {
-    return {
-      ok: false,
-      reason: "invalid_solicitud_id",
-      message: "La solicitud no existe.",
-    };
+    return serviceFailure("invalid_solicitud_id", "La solicitud no existe.");
   }
 
   const profile = await getCurrentProfile();
 
+  if (!profile) {
+    return serviceFailure(
+      "unauthorized",
+      "No tienes permiso para crear clientes desde solicitudes.",
+    );
+  }
+
   if (
-    !profile ||
     !hasPermission(profile.role, "solicitudes.manage") ||
     !hasPermission(profile.role, "clientes.manage")
   ) {
-    return {
-      ok: false,
-      reason: "unauthorized",
-      message: "No tienes permiso para crear clientes desde solicitudes.",
-    };
+    return serviceFailure(
+      "forbidden",
+      "No tienes permiso para crear clientes desde solicitudes.",
+    );
   }
 
   const supabase = await createClient();
@@ -70,30 +73,23 @@ export async function createClienteFromSolicitudAndAssociate(
       .maybeSingle();
 
     if (solicitudError) {
-      console.error("Error loading solicitud before cliente creation", solicitudError);
+      console.error(
+        "Error loading solicitud before cliente creation",
+        solicitudError,
+      );
 
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_CREATE_AND_ASSOCIATE_ERROR,
-      };
+      return serviceFailure("error", GENERIC_CREATE_AND_ASSOCIATE_ERROR);
     }
 
     if (!solicitud) {
-      return {
-        ok: false,
-        reason: "solicitud_not_found",
-        message: "La solicitud no existe.",
-      };
+      return serviceFailure("solicitud_not_found", "La solicitud no existe.");
     }
 
     if (solicitud.cliente_id) {
-      return {
-        ok: false,
-        reason: "already_associated",
-        message:
-          "Esta solicitud ya tiene un cliente asociado. Puedes actualizar la asociación con un cliente existente.",
-      };
+      return serviceFailure(
+        "already_associated",
+        "Esta solicitud ya tiene un cliente asociado. Puedes actualizar la asociación con un cliente existente.",
+      );
     }
 
     const validation = validateClienteInput({
@@ -104,12 +100,13 @@ export async function createClienteFromSolicitudAndAssociate(
     });
 
     if (!validation.ok) {
-      return {
-        ok: false,
-        reason: "validation",
-        message: "Los datos de contacto de la solicitud no permiten crear el cliente.",
-        fieldErrors: validation.fieldErrors,
-      };
+      return serviceFailure(
+        "validation",
+        "Los datos de contacto de la solicitud no permiten crear el cliente.",
+        {
+          fieldErrors: validation.fieldErrors,
+        },
+      );
     }
 
     const { data: cliente, error: clienteError } = await supabase
@@ -121,11 +118,7 @@ export async function createClienteFromSolicitudAndAssociate(
     if (clienteError || !cliente) {
       console.error("Error creating cliente from solicitud", clienteError);
 
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_CREATE_AND_ASSOCIATE_ERROR,
-      };
+      return serviceFailure("error", GENERIC_CREATE_AND_ASSOCIATE_ERROR);
     }
 
     const { data: updatedSolicitud, error: updateError } = await supabase
@@ -136,13 +129,12 @@ export async function createClienteFromSolicitudAndAssociate(
       .maybeSingle();
 
     if (updateError || !updatedSolicitud) {
-      console.error("Error associating created cliente with solicitud", updateError);
+      console.error(
+        "Error associating created cliente with solicitud",
+        updateError,
+      );
 
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_CREATE_AND_ASSOCIATE_ERROR,
-      };
+      return serviceFailure("error", GENERIC_CREATE_AND_ASSOCIATE_ERROR);
     }
 
     const { error: historyError } = await supabase
@@ -165,18 +157,13 @@ export async function createClienteFromSolicitudAndAssociate(
       );
     }
 
-    return {
-      ok: true,
+    return serviceSuccess({
       solicitudId,
       clienteId: cliente.id,
-    };
+    });
   } catch (error) {
     console.error("Unexpected error creating cliente from solicitud", error);
 
-    return {
-      ok: false,
-      reason: "error",
-      message: GENERIC_CREATE_AND_ASSOCIATE_ERROR,
-    };
+    return serviceFailure("error", GENERIC_CREATE_AND_ASSOCIATE_ERROR);
   }
 }

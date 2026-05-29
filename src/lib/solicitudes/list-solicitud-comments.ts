@@ -1,5 +1,10 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
+import {
+  serviceFailure,
+  serviceSuccess,
+  type ServiceResult,
+} from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
 import type { Tables } from "@/types/database";
@@ -22,17 +27,18 @@ type SolicitudCommentRow = Pick<
 
 type ProfileRow = Pick<Tables<"profiles">, "id" | "full_name" | "role">;
 
-export type ListSolicitudCommentsResult =
-  | {
-      ok: true;
-      comments: SolicitudComment[];
-    }
-  | {
-      ok: false;
-      reason: "unauthorized" | "invalid_id" | "not_found" | "error";
-      message: string;
-      comments: [];
-    };
+export type ListSolicitudCommentsErrorReason =
+  | "unauthorized"
+  | "forbidden"
+  | "invalid_id"
+  | "not_found"
+  | "error";
+
+export type ListSolicitudCommentsResult = ServiceResult<
+  { comments: SolicitudComment[] },
+  ListSolicitudCommentsErrorReason,
+  { comments: [] }
+>;
 
 const GENERIC_LIST_COMMENTS_ERROR =
   "No se pudieron cargar los comentarios de la solicitud.";
@@ -44,29 +50,35 @@ const SOLICITUD_COMMENTS_SELECT = `
   created_at
 `;
 
+const emptyComments = {
+  comments: [] as [],
+};
+
 export async function listSolicitudComments(
   solicitudIdInput: string,
 ): Promise<ListSolicitudCommentsResult> {
   const solicitudId = solicitudIdInput.trim();
 
   if (!isValidUuid(solicitudId)) {
-    return {
-      ok: false,
-      reason: "invalid_id",
-      message: "La solicitud no existe.",
-      comments: [],
-    };
+    return serviceFailure("invalid_id", "La solicitud no existe.", emptyComments);
   }
 
   const profile = await getCurrentProfile();
 
-  if (!profile || !hasPermission(profile.role, "solicitudes.view")) {
-    return {
-      ok: false,
-      reason: "unauthorized",
-      message: "No tienes permiso para ver comentarios de solicitudes.",
-      comments: [],
-    };
+  if (!profile) {
+    return serviceFailure(
+      "unauthorized",
+      "No tienes permiso para ver comentarios de solicitudes.",
+      emptyComments,
+    );
+  }
+
+  if (!hasPermission(profile.role, "solicitudes.view")) {
+    return serviceFailure(
+      "forbidden",
+      "No tienes permiso para ver comentarios de solicitudes.",
+      emptyComments,
+    );
   }
 
   const supabase = await createClient();
@@ -84,21 +96,19 @@ export async function listSolicitudComments(
         solicitudError,
       );
 
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_LIST_COMMENTS_ERROR,
-        comments: [],
-      };
+      return serviceFailure(
+        "error",
+        GENERIC_LIST_COMMENTS_ERROR,
+        emptyComments,
+      );
     }
 
     if (!solicitud) {
-      return {
-        ok: false,
-        reason: "not_found",
-        message: "La solicitud no existe o no tienes acceso.",
-        comments: [],
-      };
+      return serviceFailure(
+        "not_found",
+        "La solicitud no existe o no tienes acceso.",
+        emptyComments,
+      );
     }
 
     const { data, error } = await supabase
@@ -111,12 +121,11 @@ export async function listSolicitudComments(
     if (error) {
       console.error("Error listing solicitud comments", error);
 
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_LIST_COMMENTS_ERROR,
-        comments: [],
-      };
+      return serviceFailure(
+        "error",
+        GENERIC_LIST_COMMENTS_ERROR,
+        emptyComments,
+      );
     }
 
     const comments = data ?? [];
@@ -144,21 +153,15 @@ export async function listSolicitudComments(
       }
     }
 
-    return {
-      ok: true,
+    return serviceSuccess({
       comments: comments.map(({ autor_id, ...comment }) => ({
         ...comment,
         author: authorsById.get(autor_id) ?? null,
       })),
-    };
+    });
   } catch (error) {
     console.error("Unexpected error listing solicitud comments", error);
 
-    return {
-      ok: false,
-      reason: "error",
-      message: GENERIC_LIST_COMMENTS_ERROR,
-      comments: [],
-    };
+    return serviceFailure("error", GENERIC_LIST_COMMENTS_ERROR, emptyComments);
   }
 }

@@ -1,5 +1,10 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
+import {
+  serviceFailure,
+  serviceSuccess,
+  type ServiceResult,
+} from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import type { Tables } from "@/types/database";
 import { SOLICITUD_STATUSES, type SolicitudStatus } from "./status";
@@ -26,17 +31,21 @@ export type ListInternalSolicitudesOptions = {
   limit?: number;
 };
 
-export type ListInternalSolicitudesResult =
-  | {
-      ok: true;
-      solicitudes: InternalSolicitud[];
-      estado: InternalSolicitudEstado | null;
-      ignoredInvalidEstado: boolean;
-    }
-  | {
-      ok: false;
-      message: string;
-    };
+type ListInternalSolicitudesMeta = {
+  estado: InternalSolicitudEstado | null;
+  ignoredInvalidEstado: boolean;
+};
+
+export type ListInternalSolicitudesErrorReason =
+  | "unauthorized"
+  | "forbidden"
+  | "error";
+
+export type ListInternalSolicitudesResult = ServiceResult<
+  { solicitudes: InternalSolicitud[] } & ListInternalSolicitudesMeta,
+  ListInternalSolicitudesErrorReason,
+  Partial<ListInternalSolicitudesMeta>
+>;
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -62,26 +71,29 @@ export function isInternalSolicitudEstado(
 export async function listInternalSolicitudes(
   options: ListInternalSolicitudesOptions = {},
 ): Promise<ListInternalSolicitudesResult> {
-  const profile = await getCurrentProfile();
-
-  if (!profile) {
-    return {
-      ok: false,
-      message: "Debes iniciar sesión con un usuario interno activo.",
-    };
-  }
-
-  if (!hasPermission(profile.role, "solicitudes.view")) {
-    return {
-      ok: false,
-      message: "No tienes permiso para ver solicitudes.",
-    };
-  }
-
   const selectedEstado = isInternalSolicitudEstado(options.estado)
     ? options.estado
     : null;
   const ignoredInvalidEstado = Boolean(options.estado && !selectedEstado);
+  const meta = { estado: selectedEstado, ignoredInvalidEstado };
+  const profile = await getCurrentProfile();
+
+  if (!profile) {
+    return serviceFailure(
+      "unauthorized",
+      "Debes iniciar sesión con un usuario interno activo.",
+      meta,
+    );
+  }
+
+  if (!hasPermission(profile.role, "solicitudes.view")) {
+    return serviceFailure(
+      "forbidden",
+      "No tienes permiso para ver solicitudes.",
+      meta,
+    );
+  }
+
   const limit = normalizeLimit(options.limit);
   const supabase = await createClient();
 
@@ -103,24 +115,16 @@ export async function listInternalSolicitudes(
     if (error) {
       console.error("Error listing internal solicitudes", error);
 
-      return {
-        ok: false,
-        message: GENERIC_LIST_ERROR,
-      };
+      return serviceFailure("error", GENERIC_LIST_ERROR, meta);
     }
 
-    return {
-      ok: true,
+    return serviceSuccess({
       solicitudes: data ?? [],
-      estado: selectedEstado,
-      ignoredInvalidEstado,
-    };
+      ...meta,
+    });
   } catch (error) {
     console.error("Unexpected error listing internal solicitudes", error);
 
-    return {
-      ok: false,
-      message: GENERIC_LIST_ERROR,
-    };
+    return serviceFailure("error", GENERIC_LIST_ERROR, meta);
   }
 }

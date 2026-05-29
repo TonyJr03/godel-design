@@ -1,5 +1,10 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
+import {
+  serviceFailure,
+  serviceSuccess,
+  type ServiceResult,
+} from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import {
   validateCreateUserProfileInput,
@@ -9,22 +14,20 @@ import {
 
 export type CreateInternalUserProfileInput = CreateUserProfileInput;
 
-export type CreateInternalUserProfileResult =
-  | {
-      ok: true;
-      userId: string;
-    }
-  | {
-      ok: false;
-      reason:
-        | "unauthorized"
-        | "validation_error"
-        | "already_exists"
-        | "auth_user_not_found"
-        | "error";
-      message: string;
-      fieldErrors?: UserFieldErrors;
-    };
+export type CreateInternalUserProfileErrorReason =
+  | "unauthorized"
+  | "forbidden"
+  | "validation_error"
+  | "already_exists"
+  | "auth_user_not_found"
+  | "error";
+
+export type CreateInternalUserProfileResult = ServiceResult<
+  { userId: string },
+  CreateInternalUserProfileErrorReason,
+  Record<never, never>,
+  UserFieldErrors
+>;
 
 const POSTGRES_UNIQUE_VIOLATION = "23505";
 const POSTGRES_FOREIGN_KEY_VIOLATION = "23503";
@@ -36,23 +39,26 @@ export async function createInternalUserProfile(
 ): Promise<CreateInternalUserProfileResult> {
   const profile = await getCurrentProfile();
 
-  if (!profile || !hasPermission(profile.role, "usuarios.manage")) {
-    return {
-      ok: false,
-      reason: "unauthorized",
-      message: "No tienes permiso para crear perfiles internos.",
-    };
+  if (!profile) {
+    return serviceFailure(
+      "unauthorized",
+      "No tienes permiso para crear perfiles internos.",
+    );
+  }
+
+  if (!hasPermission(profile.role, "usuarios.manage")) {
+    return serviceFailure(
+      "forbidden",
+      "No tienes permiso para crear perfiles internos.",
+    );
   }
 
   const validation = validateCreateUserProfileInput(input);
 
   if (!validation.ok) {
-    return {
-      ok: false,
-      reason: "validation_error",
-      message: "Revisa los datos del perfil interno.",
+    return serviceFailure("validation_error", "Revisa los datos del perfil interno.", {
       fieldErrors: validation.fieldErrors,
-    };
+    });
   }
 
   const supabase = await createClient();
@@ -73,56 +79,34 @@ export async function createInternalUserProfile(
 
     if (error) {
       if (error.code === POSTGRES_UNIQUE_VIOLATION) {
-        return {
-          ok: false,
-          reason: "already_exists",
-          message: "Ya existe un perfil interno para ese UUID.",
+        return serviceFailure("already_exists", "Ya existe un perfil interno para ese UUID.", {
           fieldErrors: {
             id: "Este usuario ya tiene perfil interno.",
           },
-        };
+        });
       }
 
       if (error.code === POSTGRES_FOREIGN_KEY_VIOLATION) {
-        return {
-          ok: false,
-          reason: "auth_user_not_found",
-          message:
-            "No existe un usuario Auth con ese UUID. Créalo primero en Supabase Auth.",
+        return serviceFailure("auth_user_not_found", "No existe un usuario Auth con ese UUID. Créalo primero en Supabase Auth.", {
           fieldErrors: {
             id: "No se encontró un usuario Auth con este UUID.",
           },
-        };
+        });
       }
 
       console.error("Error creating internal user profile", error);
 
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_CREATE_ERROR,
-      };
+      return serviceFailure("error", GENERIC_CREATE_ERROR);
     }
 
     if (!data) {
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_CREATE_ERROR,
-      };
+      return serviceFailure("error", GENERIC_CREATE_ERROR);
     }
 
-    return {
-      ok: true,
-      userId: data.id,
-    };
+    return serviceSuccess({ userId: data.id });
   } catch (error) {
     console.error("Unexpected error creating internal user profile", error);
 
-    return {
-      ok: false,
-      reason: "error",
-      message: GENERIC_CREATE_ERROR,
-    };
+    return serviceFailure("error", GENERIC_CREATE_ERROR);
   }
 }

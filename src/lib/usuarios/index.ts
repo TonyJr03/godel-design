@@ -9,11 +9,13 @@ export { updateInternalUser } from "./update-internal-user";
 export { validateUserInput } from "./user-validation";
 
 export type {
+  CreateInternalUserProfileErrorReason,
   CreateInternalUserProfileInput,
   CreateInternalUserProfileResult,
 } from "./create-internal-user-profile";
 
 export type {
+  GetInternalUserByIdErrorReason,
   GetInternalUserByIdResult,
   InternalUserDetail,
 } from "./get-internal-user-by-id";
@@ -22,11 +24,13 @@ export type {
   InternalUser,
   InternalUserActiveFilter,
   InternalUserRole,
+  ListInternalUsersErrorReason,
   ListInternalUsersOptions,
   ListInternalUsersResult,
 } from "./list-internal-users";
 
 export type {
+  UpdateInternalUserErrorReason,
   UpdateInternalUserInput,
   UpdateInternalUserResult,
 } from "./update-internal-user";

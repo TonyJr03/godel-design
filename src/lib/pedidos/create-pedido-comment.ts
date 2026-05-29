@@ -1,5 +1,10 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
+import {
+  serviceFailure,
+  serviceSuccess,
+  type ServiceResult,
+} from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
 
@@ -12,25 +17,26 @@ export type PedidoCommentFieldErrors = Partial<
   Record<"pedido_id" | "contenido", string>
 >;
 
-export type CreatePedidoCommentResult =
-  | {
-      ok: true;
-      commentId: string;
-    }
-  | {
-      ok: false;
-      reason:
-        | "unauthorized"
-        | "invalid_id"
-        | "not_found"
-        | "validation"
-        | "error";
-      message: string;
-      fieldErrors?: PedidoCommentFieldErrors;
-      values?: {
-        contenido: string;
-      };
-    };
+type CreatePedidoCommentValues = {
+  values?: {
+    contenido: string;
+  };
+};
+
+export type CreatePedidoCommentErrorReason =
+  | "unauthorized"
+  | "forbidden"
+  | "invalid_id"
+  | "not_found"
+  | "validation"
+  | "error";
+
+export type CreatePedidoCommentResult = ServiceResult<
+  { commentId: string },
+  CreatePedidoCommentErrorReason,
+  CreatePedidoCommentValues,
+  PedidoCommentFieldErrors
+>;
 
 const MAX_COMMENT_LENGTH = 2000;
 const GENERIC_CREATE_COMMENT_ERROR =
@@ -42,60 +48,59 @@ export async function createPedidoComment({
 }: CreatePedidoCommentInput): Promise<CreatePedidoCommentResult> {
   const pedidoId = pedidoIdInput.trim();
   const contenido = contenidoInput.trim();
+  const values = { contenido };
 
   if (!isValidUuid(pedidoId)) {
-    return {
-      ok: false,
-      reason: "invalid_id",
-      message: "El pedido solicitado no existe.",
-      fieldErrors: {
-        pedido_id: "El pedido solicitado no existe.",
+    return serviceFailure(
+      "invalid_id",
+      "El pedido solicitado no existe.",
+      {
+        fieldErrors: {
+          pedido_id: "El pedido solicitado no existe.",
+        },
+        values,
       },
-      values: {
-        contenido,
-      },
-    };
+    );
   }
 
   if (!contenido) {
-    return {
-      ok: false,
-      reason: "validation",
-      message: "Escribe un comentario antes de enviarlo.",
+    return serviceFailure("validation", "Escribe un comentario antes de enviarlo.", {
       fieldErrors: {
         contenido: "Escribe un comentario antes de enviarlo.",
       },
-      values: {
-        contenido,
-      },
-    };
+      values,
+    });
   }
 
   if (contenido.length > MAX_COMMENT_LENGTH) {
-    return {
-      ok: false,
-      reason: "validation",
-      message: `El comentario no puede superar ${MAX_COMMENT_LENGTH} caracteres.`,
-      fieldErrors: {
-        contenido: `Máximo ${MAX_COMMENT_LENGTH} caracteres.`,
+    return serviceFailure(
+      "validation",
+      `El comentario no puede superar ${MAX_COMMENT_LENGTH} caracteres.`,
+      {
+        fieldErrors: {
+          contenido: `Máximo ${MAX_COMMENT_LENGTH} caracteres.`,
+        },
+        values,
       },
-      values: {
-        contenido,
-      },
-    };
+    );
   }
 
   const profile = await getCurrentProfile();
 
-  if (!profile || !hasPermission(profile.role, "pedidos.view")) {
-    return {
-      ok: false,
-      reason: "unauthorized",
-      message: "No tienes permiso para comentar en pedidos.",
-      values: {
-        contenido,
-      },
-    };
+  if (!profile) {
+    return serviceFailure(
+      "unauthorized",
+      "No tienes permiso para comentar en pedidos.",
+      { values },
+    );
+  }
+
+  if (!hasPermission(profile.role, "pedidos.view")) {
+    return serviceFailure(
+      "forbidden",
+      "No tienes permiso para comentar en pedidos.",
+      { values },
+    );
   }
 
   const supabase = await createClient();
@@ -110,25 +115,15 @@ export async function createPedidoComment({
     if (pedidoError) {
       console.error("Error checking pedido access before comment", pedidoError);
 
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_CREATE_COMMENT_ERROR,
-        values: {
-          contenido,
-        },
-      };
+      return serviceFailure("error", GENERIC_CREATE_COMMENT_ERROR, { values });
     }
 
     if (!pedido) {
-      return {
-        ok: false,
-        reason: "not_found",
-        message: "El pedido solicitado no existe o no tienes acceso.",
-        values: {
-          contenido,
-        },
-      };
+      return serviceFailure(
+        "not_found",
+        "El pedido solicitado no existe o no tienes acceso.",
+        { values },
+      );
     }
 
     const { data, error } = await supabase
@@ -144,30 +139,13 @@ export async function createPedidoComment({
     if (error || !data) {
       console.error("Error creating pedido comment", error);
 
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_CREATE_COMMENT_ERROR,
-        values: {
-          contenido,
-        },
-      };
+      return serviceFailure("error", GENERIC_CREATE_COMMENT_ERROR, { values });
     }
 
-    return {
-      ok: true,
-      commentId: data.id,
-    };
+    return serviceSuccess({ commentId: data.id });
   } catch (error) {
     console.error("Unexpected error creating pedido comment", error);
 
-    return {
-      ok: false,
-      reason: "error",
-      message: GENERIC_CREATE_COMMENT_ERROR,
-      values: {
-        contenido,
-      },
-    };
+    return serviceFailure("error", GENERIC_CREATE_COMMENT_ERROR, { values });
   }
 }

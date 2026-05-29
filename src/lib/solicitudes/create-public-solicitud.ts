@@ -1,4 +1,9 @@
 import { randomUUID } from "node:crypto";
+import {
+  serviceFailure,
+  serviceSuccess,
+  type ServiceResult,
+} from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import type { TablesInsert } from "@/types/database";
 import {
@@ -7,16 +12,14 @@ import {
   type PublicSolicitudInput,
 } from "./public-request-validation";
 
-export type CreatePublicSolicitudResult =
-  | {
-      ok: true;
-      solicitudId: string;
-    }
-  | {
-      ok: false;
-      fieldErrors?: PublicSolicitudFieldErrors;
-      message: string;
-    };
+export type CreatePublicSolicitudErrorReason = "validation" | "error";
+
+export type CreatePublicSolicitudResult = ServiceResult<
+  { solicitudId: string },
+  CreatePublicSolicitudErrorReason,
+  Record<never, never>,
+  PublicSolicitudFieldErrors
+>;
 
 const GENERIC_CREATE_ERROR =
   "No se pudo registrar la solicitud. Inténtalo nuevamente.";
@@ -27,11 +30,9 @@ export async function createPublicSolicitud(
   const validation = validatePublicSolicitudInput(input);
 
   if (!validation.ok) {
-    return {
-      ok: false,
+    return serviceFailure("validation", validation.message, {
       fieldErrors: validation.fieldErrors,
-      message: validation.message,
-    };
+    });
   }
 
   const solicitudId = randomUUID();
@@ -61,22 +62,13 @@ export async function createPublicSolicitud(
     if (error) {
       console.error("Error creating public solicitud", error);
 
-      return {
-        ok: false,
-        message: GENERIC_CREATE_ERROR,
-      };
+      return serviceFailure("error", GENERIC_CREATE_ERROR);
     }
   } catch (error) {
     console.error("Unexpected error creating public solicitud", error);
 
-    return {
-      ok: false,
-      message: GENERIC_CREATE_ERROR,
-    };
+    return serviceFailure("error", GENERIC_CREATE_ERROR);
   }
 
-  return {
-    ok: true,
-    solicitudId,
-  };
+  return serviceSuccess({ solicitudId });
 }

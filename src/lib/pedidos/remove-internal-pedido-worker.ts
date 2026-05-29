@@ -1,5 +1,10 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
+import {
+  serviceFailure,
+  serviceSuccess,
+  type ServiceResult,
+} from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
 
@@ -12,22 +17,21 @@ export type RemovePedidoWorkerFieldErrors = Partial<
   Record<"pedido_id" | "trabajador_id", string>
 >;
 
-export type RemoveInternalPedidoWorkerResult =
-  | {
-      ok: true;
-    }
-  | {
-      ok: false;
-      reason:
-        | "unauthorized"
-        | "invalid_pedido_id"
-        | "invalid_trabajador_id"
-        | "pedido_not_found"
-        | "assignment_not_found"
-        | "error";
-      message: string;
-      fieldErrors?: RemovePedidoWorkerFieldErrors;
-    };
+export type RemoveInternalPedidoWorkerErrorReason =
+  | "unauthorized"
+  | "forbidden"
+  | "invalid_pedido_id"
+  | "invalid_trabajador_id"
+  | "pedido_not_found"
+  | "assignment_not_found"
+  | "error";
+
+export type RemoveInternalPedidoWorkerResult = ServiceResult<
+  Record<never, never>,
+  RemoveInternalPedidoWorkerErrorReason,
+  Record<never, never>,
+  RemovePedidoWorkerFieldErrors
+>;
 
 const GENERIC_REMOVE_ERROR =
   "No se pudo remover la asignación. Inténtalo nuevamente.";
@@ -57,39 +61,39 @@ export async function removeInternalPedidoWorker(
   const trabajadorIdErrors = validateUuid(trabajadorId, "trabajador_id");
 
   if (pedidoIdErrors) {
-    return {
-      ok: false,
-      reason: "invalid_pedido_id",
-      message: "El pedido solicitado no existe.",
-      fieldErrors: pedidoIdErrors,
-    };
+    return serviceFailure(
+      "invalid_pedido_id",
+      "El pedido solicitado no existe.",
+      {
+        fieldErrors: pedidoIdErrors,
+      },
+    );
   }
 
   if (trabajadorIdErrors) {
-    return {
-      ok: false,
-      reason: "invalid_trabajador_id",
-      message: "Selecciona un usuario válido.",
-      fieldErrors: trabajadorIdErrors,
-    };
+    return serviceFailure(
+      "invalid_trabajador_id",
+      "Selecciona un usuario válido.",
+      {
+        fieldErrors: trabajadorIdErrors,
+      },
+    );
   }
 
   const profile = await getCurrentProfile();
 
   if (!profile) {
-    return {
-      ok: false,
-      reason: "unauthorized",
-      message: "Debes iniciar sesión con un usuario interno activo.",
-    };
+    return serviceFailure(
+      "unauthorized",
+      "Debes iniciar sesión con un usuario interno activo.",
+    );
   }
 
   if (!hasPermission(profile.role, "pedidos.manage")) {
-    return {
-      ok: false,
-      reason: "unauthorized",
-      message: "No tienes permiso para remover personal asignado.",
-    };
+    return serviceFailure(
+      "forbidden",
+      "No tienes permiso para remover personal asignado.",
+    );
   }
 
   const supabase = await createClient();
@@ -104,19 +108,14 @@ export async function removeInternalPedidoWorker(
     if (pedidoError) {
       console.error("Error checking pedido before worker removal", pedidoError);
 
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_REMOVE_ERROR,
-      };
+      return serviceFailure("error", GENERIC_REMOVE_ERROR);
     }
 
     if (!pedido) {
-      return {
-        ok: false,
-        reason: "pedido_not_found",
-        message: "El pedido solicitado no existe.",
-      };
+      return serviceFailure(
+        "pedido_not_found",
+        "El pedido solicitado no existe.",
+      );
     }
 
     const { data: assignment, error: assignmentError } = await supabase
@@ -129,19 +128,14 @@ export async function removeInternalPedidoWorker(
     if (assignmentError) {
       console.error("Error checking pedido worker assignment", assignmentError);
 
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_REMOVE_ERROR,
-      };
+      return serviceFailure("error", GENERIC_REMOVE_ERROR);
     }
 
     if (!assignment) {
-      return {
-        ok: false,
-        reason: "assignment_not_found",
-        message: "La asignación solicitada no existe.",
-      };
+      return serviceFailure(
+        "assignment_not_found",
+        "La asignación solicitada no existe.",
+      );
     }
 
     const { error: deleteError } = await supabase
@@ -153,23 +147,13 @@ export async function removeInternalPedidoWorker(
     if (deleteError) {
       console.error("Error deleting pedido worker assignment", deleteError);
 
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_REMOVE_ERROR,
-      };
+      return serviceFailure("error", GENERIC_REMOVE_ERROR);
     }
 
-    return {
-      ok: true,
-    };
+    return serviceSuccess();
   } catch (error) {
     console.error("Unexpected error removing pedido worker", error);
 
-    return {
-      ok: false,
-      reason: "error",
-      message: GENERIC_REMOVE_ERROR,
-    };
+    return serviceFailure("error", GENERIC_REMOVE_ERROR);
   }
 }

@@ -1,5 +1,10 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
+import {
+  serviceFailure,
+  serviceSuccess,
+  type ServiceResult,
+} from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import type { Tables } from "@/types/database";
 import { ASSIGNABLE_ORDER_USER_ROLES } from "./order-assignment-roles";
@@ -10,15 +15,15 @@ export type AssignableOrderUser = Pick<
 >;
 export type AssignableWorker = AssignableOrderUser;
 
-export type ListAssignableWorkersResult =
-  | {
-      ok: true;
-      workers: AssignableOrderUser[];
-    }
-  | {
-      ok: false;
-      message: string;
-    };
+export type ListAssignableWorkersErrorReason =
+  | "unauthorized"
+  | "forbidden"
+  | "error";
+
+export type ListAssignableWorkersResult = ServiceResult<
+  { workers: AssignableOrderUser[] },
+  ListAssignableWorkersErrorReason
+>;
 
 const WORKERS_LIMIT = 100;
 const GENERIC_LIST_ERROR =
@@ -28,17 +33,17 @@ export async function listAssignableWorkers(): Promise<ListAssignableWorkersResu
   const profile = await getCurrentProfile();
 
   if (!profile) {
-    return {
-      ok: false,
-      message: "Debes iniciar sesión con un usuario interno activo.",
-    };
+    return serviceFailure(
+      "unauthorized",
+      "Debes iniciar sesión con un usuario interno activo.",
+    );
   }
 
   if (!hasPermission(profile.role, "pedidos.manage")) {
-    return {
-      ok: false,
-      message: "No tienes permiso para asignar personal.",
-    };
+    return serviceFailure(
+      "forbidden",
+      "No tienes permiso para asignar personal.",
+    );
   }
 
   const supabase = await createClient();
@@ -56,23 +61,14 @@ export async function listAssignableWorkers(): Promise<ListAssignableWorkersResu
     if (error) {
       console.error("Error listing assignable workers", error);
 
-      return {
-        ok: false,
-        message: GENERIC_LIST_ERROR,
-      };
+      return serviceFailure("error", GENERIC_LIST_ERROR);
     }
 
-    return {
-      ok: true,
-      workers: data ?? [],
-    };
+    return serviceSuccess({ workers: data ?? [] });
   } catch (error) {
     console.error("Unexpected error listing assignable workers", error);
 
-    return {
-      ok: false,
-      message: GENERIC_LIST_ERROR,
-    };
+    return serviceFailure("error", GENERIC_LIST_ERROR);
   }
 }
 

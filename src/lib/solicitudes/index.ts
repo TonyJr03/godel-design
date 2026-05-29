@@ -1,14 +1,17 @@
 export {
   associateSolicitudWithCliente,
+  type AssociateSolicitudWithClienteErrorReason,
   type AssociateSolicitudWithClienteInput,
   type AssociateSolicitudWithClienteResult,
 } from "./associate-solicitud-cliente";
 export {
   createClienteFromSolicitudAndAssociate,
+  type CreateClienteFromSolicitudErrorReason,
   type CreateClienteFromSolicitudResult,
 } from "./create-cliente-from-solicitud";
 export {
   createSolicitudComment,
+  type CreateSolicitudCommentErrorReason,
   type CreateSolicitudCommentInput,
   type CreateSolicitudCommentResult,
   type SolicitudCommentFieldErrors,
@@ -17,12 +20,14 @@ export { createPublicSolicitud } from "./create-public-solicitud";
 export { getInternalSolicitudById } from "./get-internal-solicitud-by-id";
 export {
   listSolicitudComments,
+  type ListSolicitudCommentsErrorReason,
   type ListSolicitudCommentsResult,
   type SolicitudComment,
   type SolicitudCommentAuthor,
 } from "./list-solicitud-comments";
 export {
   listSolicitudHistory,
+  type ListSolicitudHistoryErrorReason,
   type ListSolicitudHistoryResult,
   type SolicitudHistoryActor,
   type SolicitudHistoryItem,
@@ -50,20 +55,26 @@ export {
   type PublicSolicitudInput,
   type PublicSolicitudValidationResult,
 } from "./public-request-validation";
-export type { CreatePublicSolicitudResult } from "./create-public-solicitud";
 export type {
+  CreatePublicSolicitudErrorReason,
+  CreatePublicSolicitudResult,
+} from "./create-public-solicitud";
+export type {
+  GetInternalSolicitudByIdErrorReason,
   GetInternalSolicitudByIdResult,
   InternalSolicitudDetail,
 } from "./get-internal-solicitud-by-id";
 export type { ManualSolicitudStatus } from "./status";
 export type { SolicitudStatus } from "./status";
 export type {
+  UpdateInternalSolicitudStatusErrorReason,
   UpdateInternalSolicitudStatusInput,
   UpdateInternalSolicitudStatusResult,
 } from "./update-internal-solicitud-status";
 export type {
   InternalSolicitud,
   InternalSolicitudEstado,
+  ListInternalSolicitudesErrorReason,
   ListInternalSolicitudesOptions,
   ListInternalSolicitudesResult,
 } from "./list-internal-solicitudes";

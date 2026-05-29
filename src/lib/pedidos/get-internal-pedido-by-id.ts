@@ -1,5 +1,10 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission, isTrabajador } from "@/lib/permissions/permissions";
+import {
+  serviceFailure,
+  serviceSuccess,
+  type ServiceResult,
+} from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
 import type { Tables } from "@/types/database";
@@ -63,16 +68,17 @@ export type InternalPedidoDetail = Pick<
   pedido_trabajadores: InternalPedidoDetailTrabajador[];
 };
 
-export type GetInternalPedidoByIdResult =
-  | {
-      ok: true;
-      pedido: InternalPedidoDetail;
-    }
-  | {
-      ok: false;
-      reason: "unauthorized" | "invalid_id" | "not_found" | "error";
-      message: string;
-    };
+export type GetInternalPedidoByIdErrorReason =
+  | "unauthorized"
+  | "forbidden"
+  | "invalid_id"
+  | "not_found"
+  | "error";
+
+export type GetInternalPedidoByIdResult = ServiceResult<
+  { pedido: InternalPedidoDetail },
+  GetInternalPedidoByIdErrorReason
+>;
 
 const GENERIC_DETAIL_ERROR =
   "No se pudo cargar el pedido. Inténtalo nuevamente.";
@@ -147,48 +153,31 @@ export async function getInternalPedidoById(
   const pedidoId = id.trim();
 
   if (!isValidUuid(pedidoId)) {
-    return {
-      ok: false,
-      reason: "invalid_id",
-      message: "El pedido solicitado no existe.",
-    };
+    return serviceFailure("invalid_id", "El pedido solicitado no existe.");
   }
 
   const profile = await getCurrentProfile();
 
   if (!profile) {
-    return {
-      ok: false,
-      reason: "unauthorized",
-      message: "Debes iniciar sesión con un usuario interno activo.",
-    };
+    return serviceFailure(
+      "unauthorized",
+      "Debes iniciar sesión con un usuario interno activo.",
+    );
   }
 
   if (!hasPermission(profile.role, "pedidos.view")) {
-    return {
-      ok: false,
-      reason: "unauthorized",
-      message: "No tienes permiso para ver pedidos.",
-    };
+    return serviceFailure("forbidden", "No tienes permiso para ver pedidos.");
   }
 
   if (isTrabajador(profile.role)) {
     const isAssigned = await isWorkerAssignedToPedido(pedidoId, profile.id);
 
     if (isAssigned === null) {
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_DETAIL_ERROR,
-      };
+      return serviceFailure("error", GENERIC_DETAIL_ERROR);
     }
 
     if (!isAssigned) {
-      return {
-        ok: false,
-        reason: "not_found",
-        message: "El pedido solicitado no existe.",
-      };
+      return serviceFailure("not_found", "El pedido solicitado no existe.");
     }
   }
 
@@ -204,32 +193,17 @@ export async function getInternalPedidoById(
     if (error) {
       console.error("Error loading internal pedido detail", error);
 
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_DETAIL_ERROR,
-      };
+      return serviceFailure("error", GENERIC_DETAIL_ERROR);
     }
 
     if (!data) {
-      return {
-        ok: false,
-        reason: "not_found",
-        message: "El pedido solicitado no existe.",
-      };
+      return serviceFailure("not_found", "El pedido solicitado no existe.");
     }
 
-    return {
-      ok: true,
-      pedido: data,
-    };
+    return serviceSuccess({ pedido: data });
   } catch (error) {
     console.error("Unexpected error loading internal pedido detail", error);
 
-    return {
-      ok: false,
-      reason: "error",
-      message: GENERIC_DETAIL_ERROR,
-    };
+    return serviceFailure("error", GENERIC_DETAIL_ERROR);
   }
 }

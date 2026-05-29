@@ -1,5 +1,10 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
+import {
+  serviceFailure,
+  serviceSuccess,
+  type ServiceResult,
+} from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import type { Tables } from "@/types/database";
 
@@ -13,17 +18,21 @@ export type ListInternalClientesOptions = {
   limit?: number;
 };
 
-export type ListInternalClientesResult =
-  | {
-      ok: true;
-      clientes: InternalCliente[];
-      q: string | null;
-    }
-  | {
-      ok: false;
-      message: string;
-      q: string | null;
-    };
+export type ListInternalClientesErrorReason =
+  | "unauthorized"
+  | "forbidden"
+  | "error";
+
+export type ListInternalClientesResult = ServiceResult<
+  {
+    clientes: InternalCliente[];
+    q: string | null;
+  },
+  ListInternalClientesErrorReason,
+  {
+    q: string | null;
+  }
+>;
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -62,19 +71,17 @@ export async function listInternalClientes(
   const profile = await getCurrentProfile();
 
   if (!profile) {
-    return {
-      ok: false,
-      message: "Debes iniciar sesión con un usuario interno activo.",
-      q,
-    };
+    return serviceFailure(
+      "unauthorized",
+      "Debes iniciar sesión con un usuario interno activo.",
+      { q },
+    );
   }
 
   if (!hasPermission(profile.role, "clientes.view")) {
-    return {
-      ok: false,
-      message: "No tienes permiso para ver clientes.",
+    return serviceFailure("forbidden", "No tienes permiso para ver clientes.", {
       q,
-    };
+    });
   }
 
   const limit = normalizeLimit(options.limit);
@@ -98,25 +105,16 @@ export async function listInternalClientes(
     if (error) {
       console.error("Error listing internal clientes", error);
 
-      return {
-        ok: false,
-        message: GENERIC_LIST_ERROR,
-        q,
-      };
+      return serviceFailure("error", GENERIC_LIST_ERROR, { q });
     }
 
-    return {
-      ok: true,
+    return serviceSuccess({
       clientes: data ?? [],
       q,
-    };
+    });
   } catch (error) {
     console.error("Unexpected error listing internal clientes", error);
 
-    return {
-      ok: false,
-      message: GENERIC_LIST_ERROR,
-      q,
-    };
+    return serviceFailure("error", GENERIC_LIST_ERROR, { q });
   }
 }

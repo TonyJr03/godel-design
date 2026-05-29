@@ -1,5 +1,10 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
+import {
+  serviceFailure,
+  serviceSuccess,
+  type ServiceResult,
+} from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import type { Tables } from "@/types/database";
 import { PEDIDO_STATUSES, type PedidoStatus } from "./status";
@@ -47,18 +52,21 @@ export type ListInternalPedidosOptions = {
   limit?: number;
 };
 
-export type ListInternalPedidosResult =
-  | {
-      ok: true;
-      pedidos: InternalPedido[];
-      estado: InternalPedidoEstado | null;
-      ignoredInvalidEstado: boolean;
-    }
-  | {
-      ok: false;
-      message: string;
-      estado: InternalPedidoEstado | null;
-    };
+type ListInternalPedidosMeta = {
+  estado: InternalPedidoEstado | null;
+  ignoredInvalidEstado: boolean;
+};
+
+export type ListInternalPedidosErrorReason =
+  | "unauthorized"
+  | "forbidden"
+  | "error";
+
+export type ListInternalPedidosResult = ServiceResult<
+  { pedidos: InternalPedido[] } & ListInternalPedidosMeta,
+  ListInternalPedidosErrorReason,
+  ListInternalPedidosMeta
+>;
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -111,25 +119,26 @@ export async function listInternalPedidos(
   const selectedEstado = isInternalPedidoEstado(options.estado)
     ? options.estado
     : null;
+  const ignoredInvalidEstado = Boolean(options.estado && !selectedEstado);
+  const meta = { estado: selectedEstado, ignoredInvalidEstado };
   const profile = await getCurrentProfile();
 
   if (!profile) {
-    return {
-      ok: false,
-      message: "Debes iniciar sesión con un usuario interno activo.",
-      estado: selectedEstado,
-    };
+    return serviceFailure(
+      "unauthorized",
+      "Debes iniciar sesión con un usuario interno activo.",
+      meta,
+    );
   }
 
   if (!hasPermission(profile.role, "pedidos.view")) {
-    return {
-      ok: false,
-      message: "No tienes permiso para ver pedidos.",
-      estado: selectedEstado,
-    };
+    return serviceFailure(
+      "forbidden",
+      "No tienes permiso para ver pedidos.",
+      meta,
+    );
   }
 
-  const ignoredInvalidEstado = Boolean(options.estado && !selectedEstado);
   const limit = normalizeLimit(options.limit);
   const supabase = await createClient();
 
@@ -149,26 +158,16 @@ export async function listInternalPedidos(
     if (error) {
       console.error("Error listing internal pedidos", error);
 
-      return {
-        ok: false,
-        message: GENERIC_LIST_ERROR,
-        estado: selectedEstado,
-      };
+      return serviceFailure("error", GENERIC_LIST_ERROR, meta);
     }
 
-    return {
-      ok: true,
+    return serviceSuccess({
       pedidos: data ?? [],
-      estado: selectedEstado,
-      ignoredInvalidEstado,
-    };
+      ...meta,
+    });
   } catch (error) {
     console.error("Unexpected error listing internal pedidos", error);
 
-    return {
-      ok: false,
-      message: GENERIC_LIST_ERROR,
-      estado: selectedEstado,
-    };
+    return serviceFailure("error", GENERIC_LIST_ERROR, meta);
   }
 }
