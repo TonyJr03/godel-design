@@ -123,11 +123,92 @@ begin
 end;
 $$;
 
+create or replace function private.ensure_profile_admin_integrity()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_other_active_admins integer;
+begin
+  if tg_op = 'UPDATE' then
+    if auth.uid() = old.id and old.is_active and not new.is_active then
+      raise exception 'No puedes desactivar tu propio perfil'
+        using errcode = '23514';
+    end if;
+
+    if auth.uid() = old.id
+      and old.role = 'admin'::public.app_role
+      and new.role <> 'admin'::public.app_role
+    then
+      raise exception 'No puedes quitar tu propio rol de administrador'
+        using errcode = '23514';
+    end if;
+
+    if old.role = 'admin'::public.app_role
+      and old.is_active
+      and (
+        new.role <> 'admin'::public.app_role
+        or not new.is_active
+      )
+    then
+      perform pg_advisory_xact_lock(hashtext('profiles_active_admin_guard'));
+
+      select count(*)
+      into v_other_active_admins
+      from public.profiles as p
+      where p.id <> old.id
+        and p.role = 'admin'::public.app_role
+        and p.is_active = true;
+
+      if v_other_active_admins = 0 then
+        raise exception 'Debe existir al menos un administrador activo'
+          using errcode = '23514';
+      end if;
+    end if;
+
+    return new;
+  end if;
+
+  if tg_op = 'DELETE' then
+    if old.role = 'admin'::public.app_role and old.is_active then
+      perform pg_advisory_xact_lock(hashtext('profiles_active_admin_guard'));
+
+      select count(*)
+      into v_other_active_admins
+      from public.profiles as p
+      where p.id <> old.id
+        and p.role = 'admin'::public.app_role
+        and p.is_active = true;
+
+      if v_other_active_admins = 0 then
+        raise exception 'Debe existir al menos un administrador activo'
+          using errcode = '23514';
+      end if;
+    end if;
+
+    return old;
+  end if;
+
+  return new;
+end;
+$$;
+
 grant usage on schema private to anon, authenticated;
 grant execute on all functions in schema private to anon, authenticated;
 
 revoke all on function private.ensure_active_pedido_trabajador()
 from public, anon, authenticated;
+
+revoke all on function private.ensure_profile_admin_integrity()
+from public, anon, authenticated;
+
+create trigger ensure_profile_admin_integrity
+before update of role, is_active or delete
+on public.profiles
+for each row
+execute function private.ensure_profile_admin_integrity();
 
 create trigger ensure_active_pedido_trabajador
 before insert or update of trabajador_id
