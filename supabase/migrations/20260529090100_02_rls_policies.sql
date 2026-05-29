@@ -78,7 +78,10 @@ set search_path = public
 stable
 as $$
   select case
-    when auth.uid() is null or order_id is null then false
+    when auth.uid() is null
+      or order_id is null
+      or not private.current_user_is_active()
+    then false
     else exists (
       select 1
       from public.pedido_trabajadores as pt
@@ -99,8 +102,38 @@ as $$
     or private.is_assigned_to_order(order_id);
 $$;
 
+create or replace function private.ensure_active_pedido_trabajador()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not exists (
+    select 1
+    from public.profiles as p
+    where p.id = new.trabajador_id
+      and p.is_active = true
+  ) then
+    raise exception 'El trabajador asignado debe tener un perfil activo'
+      using errcode = '23514';
+  end if;
+
+  return new;
+end;
+$$;
+
 grant usage on schema private to anon, authenticated;
 grant execute on all functions in schema private to anon, authenticated;
+
+revoke all on function private.ensure_active_pedido_trabajador()
+from public, anon, authenticated;
+
+create trigger ensure_active_pedido_trabajador
+before insert or update of trabajador_id
+on public.pedido_trabajadores
+for each row
+execute function private.ensure_active_pedido_trabajador();
 
 grant insert on table public.solicitudes to anon;
 
