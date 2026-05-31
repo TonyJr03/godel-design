@@ -98,8 +98,48 @@ security definer
 set search_path = public
 stable
 as $$
-  select private.is_admin_or_supervisor()
-    or private.is_assigned_to_order(order_id);
+  select case
+    when order_id is null then false
+    else private.is_admin_or_supervisor()
+      or private.is_assigned_to_order(order_id)
+  end;
+$$;
+
+create or replace function private.solicitud_has_accessible_order(p_solicitud_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select case
+    when p_solicitud_id is null then false
+    else exists (
+      select 1
+      from public.solicitudes as s
+      join public.pedidos as p
+        on (
+          p.solicitud_id = s.id
+          or s.converted_order_id = p.id
+        )
+      where s.id = p_solicitud_id
+        and private.can_access_order(p.id)
+    )
+  end;
+$$;
+
+create or replace function private.can_access_solicitud(p_solicitud_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select case
+    when p_solicitud_id is null then false
+    else private.is_admin_or_supervisor()
+      or private.solicitud_has_accessible_order(p_solicitud_id)
+  end;
 $$;
 
 create or replace function private.ensure_active_pedido_trabajador()
@@ -211,6 +251,10 @@ revoke all on function private.is_assigned_to_order(uuid)
 from public, anon, authenticated;
 revoke all on function private.can_access_order(uuid)
 from public, anon, authenticated;
+revoke all on function private.solicitud_has_accessible_order(uuid)
+from public, anon, authenticated;
+revoke all on function private.can_access_solicitud(uuid)
+from public, anon, authenticated;
 
 grant execute on function private.current_user_role() to authenticated;
 grant execute on function private.current_user_is_active() to authenticated;
@@ -219,6 +263,7 @@ grant execute on function private.is_supervisor() to authenticated;
 grant execute on function private.is_admin_or_supervisor() to authenticated;
 grant execute on function private.is_assigned_to_order(uuid) to authenticated;
 grant execute on function private.can_access_order(uuid) to authenticated;
+grant execute on function private.can_access_solicitud(uuid) to authenticated;
 
 revoke all on function private.ensure_active_pedido_trabajador()
 from public, anon, authenticated;
@@ -361,18 +406,7 @@ for select
 to authenticated
 using (
   (select auth.uid()) is not null
-  and (
-    private.is_admin_or_supervisor()
-    or exists (
-      select 1
-      from public.pedidos as p
-      where (
-        p.solicitud_id = solicitudes.id
-        or solicitudes.converted_order_id = p.id
-      )
-        and private.can_access_order(p.id)
-    )
-  )
+  and private.can_access_solicitud(id)
 );
 
 create policy solicitudes_update_manager
