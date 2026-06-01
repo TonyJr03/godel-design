@@ -282,7 +282,7 @@ Aclaraciones:
 
 - no se usa service role key;
 - los componentes cliente no consultan Supabase directamente;
-- los formularios de asignación solo envían `pedido_id` y `trabajador_id`;
+- los formularios de asignación solo envían `pedido_id` y `assigned_profile_id`;
 - el formulario de comentario solo envía `pedido_id` y `contenido`;
 - trabajadores no pueden crear, convertir, asignar ni remover personal;
 - trabajadores no acceden a los módulos generales de clientes o solicitudes, aunque RLS permite leer datos relacionados con pedidos asignados.

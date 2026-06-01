@@ -46,11 +46,11 @@ Un `admin` o `supervisor` asignado a un pedido conserva sus permisos reales. La 
 
 `/dashboard/pedidos/[id]` incluye `PedidoWorkerAssignmentForm` para mostrar el personal asignado. Los usuarios con `pedidos.manage` ven controles para agregar y remover asignaciones; `trabajador` lo ve en modo lectura.
 
-La action `assignPedidoWorkerAction` lee únicamente `pedido_id` y `trabajador_id`, y delega en `assignInternalPedidoWorker`.
+La action `assignPedidoWorkerAction` lee únicamente `pedido_id` y `assigned_profile_id`, y delega en `assignInternalPedidoWorker`.
 
-La action `removePedidoWorkerAction` lee únicamente `pedido_id` y `trabajador_id`, y delega en `removeInternalPedidoWorker` para remover una asignación concreta.
+La action `removePedidoWorkerAction` lee únicamente `pedido_id` y `assigned_profile_id`, y delega en `removeInternalPedidoWorker` para remover una asignación concreta.
 
-La UI de detalle muestra múltiples usuarios asignados con su rol visible. El selector de alta oculta usuarios ya asignados cuando están en la lista de personal asignable; la restricción única `(pedido_id, trabajador_id)` y el servicio server-side siguen evitando duplicados.
+La UI de detalle muestra múltiples usuarios asignados con su rol visible. El selector de alta oculta usuarios ya asignados cuando están en la lista de personal asignable; la restricción única `(pedido_id, assigned_profile_id)` y el servicio server-side siguen evitando duplicados.
 
 `listAssignableWorkers` mantiene su nombre histórico, pero carga server-side personal interno activo con rol `admin`, `supervisor` o `trabajador`, ordenado por nombre. También se exporta el alias `listAssignableOrderUsers`.
 
@@ -63,7 +63,7 @@ La UI de detalle muestra múltiples usuarios asignados con su rol visible. El se
 - no modifica el rol real ni los permisos del usuario asignado;
 - usa las policies seguras existentes de `pedido_trabajadores`, que permiten insertar/eliminar solo a `admin` o `supervisor`;
 - permite múltiples usuarios internos por pedido: inserta el usuario elegido si hace falta y no reemplaza ni elimina a los demás;
-- evita duplicados comprobando primero la asignación y apoyándose en la restricción única `(pedido_id, trabajador_id)`;
+- evita duplicados comprobando primero la asignación y apoyándose en la restricción única `(pedido_id, assigned_profile_id)`;
 - guarda `assigned_by` con el perfil que realiza la asignación y usa el default de `assigned_at`;
 - no modifica estado, solicitud, `converted_order_id`, archivos ni datos generales del pedido.
 
@@ -73,7 +73,7 @@ La UI de detalle muestra múltiples usuarios asignados con su rol visible. El se
 - valida UUID de pedido y usuario asignado;
 - valida que el pedido exista;
 - valida que la asignación exista;
-- elimina solo la relación concreta `(pedido_id, trabajador_id)`;
+- elimina solo la relación concreta `(pedido_id, assigned_profile_id)`;
 - no elimina pedidos, perfiles, solicitudes ni modifica `converted_order_id`.
 
 No se creó RPC nueva porque las policies existentes ya restringen inserción, actualización y eliminación de asignaciones a admin/supervisor. No se usa service role key. Trabajadores no pueden asignar ni remover personal.

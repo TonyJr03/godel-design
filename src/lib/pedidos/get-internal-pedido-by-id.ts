@@ -38,7 +38,7 @@ type PedidoAssignedProfileDetail =
 
 export type InternalPedidoDetailTrabajador = Pick<
   Tables<"pedido_trabajadores">,
-  "id" | "trabajador_id" | "assigned_at" | "assigned_by"
+  "id" | "assigned_profile_id" | "assigned_at" | "assigned_by"
 > & {
   profiles: PedidoAssignedProfileDetail;
 };
@@ -115,10 +115,10 @@ const PEDIDO_DETAIL_SELECT = `
   supervisor:profiles!pedidos_supervisor_id_fkey(id, full_name),
   pedido_trabajadores(
     id,
-    trabajador_id,
+    assigned_profile_id,
     assigned_by,
     assigned_at,
-    profiles!pedido_trabajadores_trabajador_id_fkey(
+    profiles!pedido_trabajadores_assigned_profile_id_fkey(
       id,
       full_name,
       role,
@@ -129,14 +129,14 @@ const PEDIDO_DETAIL_SELECT = `
 
 async function isWorkerAssignedToPedido(
   pedidoId: string,
-  trabajadorId: string,
+  assignedProfileId: string,
 ): Promise<boolean | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("pedido_trabajadores")
     .select("id")
     .eq("pedido_id", pedidoId)
-    .eq("trabajador_id", trabajadorId)
+    .eq("assigned_profile_id", assignedProfileId)
     .maybeSingle<{ id: string }>();
 
   if (error) {

@@ -176,10 +176,10 @@ on delete set null;
 create table public.pedido_trabajadores (
   id uuid primary key default gen_random_uuid(),
   pedido_id uuid not null references public.pedidos(id) on delete cascade,
-  trabajador_id uuid not null references public.profiles(id) on delete cascade,
+  assigned_profile_id uuid not null references public.profiles(id) on delete cascade,
   assigned_by uuid references public.profiles(id) on delete set null,
   assigned_at timestamptz not null default now(),
-  constraint pedido_trabajadores_unique_assignment unique (pedido_id, trabajador_id)
+  constraint pedido_trabajadores_unique_assignment unique (pedido_id, assigned_profile_id)
 );
 
 create table public.archivos (
@@ -288,7 +288,7 @@ create unique index pedidos_solicitud_id_unique_idx
 on public.pedidos(solicitud_id)
 where solicitud_id is not null;
 
-create index pedido_trabajadores_trabajador_id_idx on public.pedido_trabajadores(trabajador_id);
+create index pedido_trabajadores_assigned_profile_id_idx on public.pedido_trabajadores(assigned_profile_id);
 
 create index archivos_pedido_visibility_created_at_idx
 on public.archivos(pedido_id, visibility, created_at desc, id desc);

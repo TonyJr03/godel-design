@@ -136,10 +136,10 @@ export async function assignPedidoWorkerAction(
   formData: FormData,
 ): Promise<AssignPedidoWorkerActionState> {
   const pedidoId = getFormValue(formData, "pedido_id");
-  const trabajadorId = getFormValue(formData, "trabajador_id");
+  const assignedProfileId = getFormValue(formData, "assigned_profile_id");
   const result = await assignInternalPedidoWorker({
     pedidoId,
-    trabajadorId,
+    assignedProfileId,
   });
 
   if (!result.ok) {
@@ -166,10 +166,10 @@ export async function removePedidoWorkerAction(
   formData: FormData,
 ): Promise<RemovePedidoWorkerActionState> {
   const pedidoId = getFormValue(formData, "pedido_id");
-  const trabajadorId = getFormValue(formData, "trabajador_id");
+  const assignedProfileId = getFormValue(formData, "assigned_profile_id");
   const result = await removeInternalPedidoWorker({
     pedidoId,
-    trabajadorId,
+    assignedProfileId,
   });
 
   if (!result.ok) {

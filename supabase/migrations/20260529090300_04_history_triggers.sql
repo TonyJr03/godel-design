@@ -56,7 +56,7 @@ begin
   select p.full_name
   into v_trabajador_nombre
   from public.profiles as p
-  where p.id = new.trabajador_id;
+  where p.id = new.assigned_profile_id;
 
   insert into public.pedido_historial (
     pedido_id,
@@ -72,11 +72,11 @@ begin
     new.assigned_by,
     'trabajador_asignado'::public.pedido_historial_action,
     'Personal asignado al pedido: ' ||
-      coalesce(v_trabajador_nombre, new.trabajador_id::text),
+      coalesce(v_trabajador_nombre, new.assigned_profile_id::text),
     null,
-    coalesce(v_trabajador_nombre, new.trabajador_id::text),
+    coalesce(v_trabajador_nombre, new.assigned_profile_id::text),
     jsonb_build_object(
-      'trabajador_id', new.trabajador_id,
+      'assigned_profile_id', new.assigned_profile_id,
       'assigned_by', new.assigned_by,
       'assigned_at', new.assigned_at
     )
@@ -104,7 +104,7 @@ begin
   select p.full_name
   into v_trabajador_nombre
   from public.profiles as p
-  where p.id = old.trabajador_id;
+  where p.id = old.assigned_profile_id;
 
   v_removed_by := auth.uid();
 
@@ -122,11 +122,11 @@ begin
     v_removed_by,
     'trabajador_removido'::public.pedido_historial_action,
     'Personal removido del pedido: ' ||
-      coalesce(v_trabajador_nombre, old.trabajador_id::text),
-    coalesce(v_trabajador_nombre, old.trabajador_id::text),
+      coalesce(v_trabajador_nombre, old.assigned_profile_id::text),
+    coalesce(v_trabajador_nombre, old.assigned_profile_id::text),
     null,
     jsonb_build_object(
-      'trabajador_id', old.trabajador_id,
+      'assigned_profile_id', old.assigned_profile_id,
       'removed_by', v_removed_by
     )
   );

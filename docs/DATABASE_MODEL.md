@@ -248,21 +248,21 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 |---|---|---|
 | `id` | `uuid` | Identificador único de la asignación. |
 | `pedido_id` | `uuid` | Pedido asignado. |
-| `trabajador_id` | `uuid` | Usuario interno asignado. Conserva el nombre técnico original, pero puede apuntar a un perfil con rol `admin`, `supervisor` o `trabajador`. |
+| `assigned_profile_id` | `uuid` | Perfil interno asignado. Puede tener rol `admin`, `supervisor` o `trabajador`. |
 | `assigned_by` | `uuid nullable` | Usuario que realizó la asignación. |
 | `assigned_at` | `timestamptz` | Fecha de asignación. |
 
 **Claves foráneas:**
 
 - `pedido_trabajadores.pedido_id` -> `pedidos.id`.
-- `pedido_trabajadores.trabajador_id` -> `profiles.id`.
+- `pedido_trabajadores.assigned_profile_id` -> `profiles.id`.
 - `pedido_trabajadores.assigned_by` -> `profiles.id`.
 
 **Reglas importantes:**
 
 - Un pedido puede tener varios usuarios internos asignados.
 - Un usuario interno puede estar asignado a varios pedidos.
-- Se recomienda evitar duplicados para la misma combinación `pedido_id` + `trabajador_id`.
+- Se recomienda evitar duplicados para la misma combinación `pedido_id` + `assigned_profile_id`.
 
 **Notas de seguridad:**
 
@@ -485,7 +485,7 @@ Para archivos, los buckets deben ser privados y el acceso debe protegerse median
 | `pedidos` | `solicitud_id` |
 | `pedidos` | `fecha_entrega_estimada` |
 | `pedido_trabajadores` | `pedido_id` |
-| `pedido_trabajadores` | `trabajador_id` |
+| `pedido_trabajadores` | `assigned_profile_id` |
 | `archivos` | `pedido_id` |
 | `archivos` | `solicitud_id` |
 | `pedido_comentarios` | `pedido_id` |

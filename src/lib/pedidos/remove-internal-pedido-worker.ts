@@ -10,18 +10,18 @@ import { isValidUuid } from "@/lib/validators";
 
 export type RemoveInternalPedidoWorkerInput = {
   pedidoId: string;
-  trabajadorId: string;
+  assignedProfileId: string;
 };
 
 export type RemovePedidoWorkerFieldErrors = Partial<
-  Record<"pedido_id" | "trabajador_id", string>
+  Record<"pedido_id" | "assigned_profile_id", string>
 >;
 
 export type RemoveInternalPedidoWorkerErrorReason =
   | "unauthorized"
   | "forbidden"
   | "invalid_pedido_id"
-  | "invalid_trabajador_id"
+  | "invalid_assigned_profile_id"
   | "pedido_not_found"
   | "assignment_not_found"
   | "error";
@@ -38,7 +38,7 @@ const GENERIC_REMOVE_ERROR =
 
 function validateUuid(
   value: string,
-  field: "pedido_id" | "trabajador_id",
+  field: "pedido_id" | "assigned_profile_id",
 ): RemovePedidoWorkerFieldErrors | null {
   if (isValidUuid(value)) {
     return null;
@@ -56,9 +56,12 @@ export async function removeInternalPedidoWorker(
   input: RemoveInternalPedidoWorkerInput,
 ): Promise<RemoveInternalPedidoWorkerResult> {
   const pedidoId = input.pedidoId.trim();
-  const trabajadorId = input.trabajadorId.trim();
+  const assignedProfileId = input.assignedProfileId.trim();
   const pedidoIdErrors = validateUuid(pedidoId, "pedido_id");
-  const trabajadorIdErrors = validateUuid(trabajadorId, "trabajador_id");
+  const assignedProfileIdErrors = validateUuid(
+    assignedProfileId,
+    "assigned_profile_id",
+  );
 
   if (pedidoIdErrors) {
     return serviceFailure(
@@ -70,12 +73,12 @@ export async function removeInternalPedidoWorker(
     );
   }
 
-  if (trabajadorIdErrors) {
+  if (assignedProfileIdErrors) {
     return serviceFailure(
-      "invalid_trabajador_id",
+      "invalid_assigned_profile_id",
       "Selecciona un usuario válido.",
       {
-        fieldErrors: trabajadorIdErrors,
+        fieldErrors: assignedProfileIdErrors,
       },
     );
   }
@@ -122,7 +125,7 @@ export async function removeInternalPedidoWorker(
       .from("pedido_trabajadores")
       .select("id")
       .eq("pedido_id", pedidoId)
-      .eq("trabajador_id", trabajadorId)
+      .eq("assigned_profile_id", assignedProfileId)
       .maybeSingle<{ id: string }>();
 
     if (assignmentError) {
@@ -142,7 +145,7 @@ export async function removeInternalPedidoWorker(
       .from("pedido_trabajadores")
       .delete()
       .eq("pedido_id", pedidoId)
-      .eq("trabajador_id", trabajadorId);
+      .eq("assigned_profile_id", assignedProfileId);
 
     if (deleteError) {
       console.error("Error deleting pedido worker assignment", deleteError);

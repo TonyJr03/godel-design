@@ -12,21 +12,21 @@ import { isAssignableOrderUserRole } from "./order-assignment-roles";
 
 export type AssignInternalPedidoWorkerInput = {
   pedidoId: string;
-  trabajadorId: string;
+  assignedProfileId: string;
 };
 
 export type PedidoWorkerFieldErrors = Partial<
-  Record<"pedido_id" | "trabajador_id", string>
+  Record<"pedido_id" | "assigned_profile_id", string>
 >;
 
 export type AssignInternalPedidoWorkerErrorReason =
   | "unauthorized"
   | "forbidden"
   | "invalid_pedido_id"
-  | "invalid_trabajador_id"
+  | "invalid_assigned_profile_id"
   | "pedido_not_found"
-  | "trabajador_not_found"
-  | "trabajador_inactive"
+  | "profile_not_found"
+  | "profile_inactive"
   | "invalid_role"
   | "already_assigned"
   | "error";
@@ -41,7 +41,7 @@ export type AssignInternalPedidoWorkerResult = ServiceResult<
 type WorkerProfile = Pick<Tables<"profiles">, "id" | "role" | "is_active">;
 type PedidoAssignment = Pick<
   Tables<"pedido_trabajadores">,
-  "id" | "trabajador_id"
+  "id" | "assigned_profile_id"
 >;
 
 const GENERIC_ASSIGN_ERROR =
@@ -49,7 +49,7 @@ const GENERIC_ASSIGN_ERROR =
 
 function validateUuid(
   value: string,
-  field: "pedido_id" | "trabajador_id",
+  field: "pedido_id" | "assigned_profile_id",
 ): PedidoWorkerFieldErrors | null {
   if (isValidUuid(value)) {
     return null;
@@ -67,9 +67,12 @@ export async function assignInternalPedidoWorker(
   input: AssignInternalPedidoWorkerInput,
 ): Promise<AssignInternalPedidoWorkerResult> {
   const pedidoId = input.pedidoId.trim();
-  const trabajadorId = input.trabajadorId.trim();
+  const assignedProfileId = input.assignedProfileId.trim();
   const pedidoIdErrors = validateUuid(pedidoId, "pedido_id");
-  const trabajadorIdErrors = validateUuid(trabajadorId, "trabajador_id");
+  const assignedProfileIdErrors = validateUuid(
+    assignedProfileId,
+    "assigned_profile_id",
+  );
 
   if (pedidoIdErrors) {
     return serviceFailure(
@@ -81,12 +84,12 @@ export async function assignInternalPedidoWorker(
     );
   }
 
-  if (trabajadorIdErrors) {
+  if (assignedProfileIdErrors) {
     return serviceFailure(
-      "invalid_trabajador_id",
+      "invalid_assigned_profile_id",
       "Selecciona un usuario válido.",
       {
-        fieldErrors: trabajadorIdErrors,
+        fieldErrors: assignedProfileIdErrors,
       },
     );
   }
@@ -132,49 +135,49 @@ export async function assignInternalPedidoWorker(
       );
     }
 
-    const { data: trabajador, error: trabajadorError } = await supabase
+    const { data: assignableProfile, error: assignableProfileError } = await supabase
       .from("profiles")
       .select("id, role, is_active")
-      .eq("id", trabajadorId)
+      .eq("id", assignedProfileId)
       .maybeSingle<WorkerProfile>();
 
-    if (trabajadorError) {
-      console.error("Error checking assignable worker", trabajadorError);
+    if (assignableProfileError) {
+      console.error("Error checking assignable order user", assignableProfileError);
 
       return serviceFailure("error", GENERIC_ASSIGN_ERROR);
     }
 
-    if (!trabajador) {
+    if (!assignableProfile) {
       return serviceFailure(
-        "trabajador_not_found",
+        "profile_not_found",
         "El usuario seleccionado no existe.",
         {
           fieldErrors: {
-            trabajador_id: "Selecciona un usuario válido.",
+            assigned_profile_id: "Selecciona un usuario válido.",
           },
         },
       );
     }
 
-    if (!isAssignableOrderUserRole(trabajador.role)) {
+    if (!isAssignableOrderUserRole(assignableProfile.role)) {
       return serviceFailure(
         "invalid_role",
         "El usuario seleccionado no puede asignarse a pedidos.",
         {
           fieldErrors: {
-            trabajador_id: "Selecciona un usuario válido.",
+            assigned_profile_id: "Selecciona un usuario válido.",
           },
         },
       );
     }
 
-    if (!trabajador.is_active) {
+    if (!assignableProfile.is_active) {
       return serviceFailure(
-        "trabajador_inactive",
+        "profile_inactive",
         "El usuario seleccionado no está activo.",
         {
           fieldErrors: {
-            trabajador_id: "Selecciona un usuario activo.",
+            assigned_profile_id: "Selecciona un usuario activo.",
           },
         },
       );
@@ -183,9 +186,9 @@ export async function assignInternalPedidoWorker(
     const { data: existingAssignment, error: existingAssignmentError } =
       await supabase
         .from("pedido_trabajadores")
-        .select("id, trabajador_id")
+        .select("id, assigned_profile_id")
         .eq("pedido_id", pedidoId)
-        .eq("trabajador_id", trabajadorId)
+        .eq("assigned_profile_id", assignedProfileId)
         .maybeSingle<PedidoAssignment>();
 
     if (existingAssignmentError) {
@@ -205,7 +208,7 @@ export async function assignInternalPedidoWorker(
       .from("pedido_trabajadores")
       .insert({
         pedido_id: pedidoId,
-        trabajador_id: trabajadorId,
+        assigned_profile_id: assignedProfileId,
         assigned_by: profile.id,
       });
 

@@ -76,7 +76,7 @@ const PEDIDOS_WORK_SELECT = `
 
 const ASSIGNED_PEDIDOS_WORK_SELECT = `
   ${PEDIDOS_WORK_SELECT},
-  pedido_trabajadores!inner(trabajador_id)
+  pedido_trabajadores!inner(assigned_profile_id)
 `;
 
 const GENERIC_WORK_ITEMS_ERROR =
@@ -280,7 +280,7 @@ async function listWorkerAssignedPedidos(
   const { data, error } = await supabase
     .from("pedidos")
     .select(ASSIGNED_PEDIDOS_WORK_SELECT)
-    .eq("pedido_trabajadores.trabajador_id", workerProfileId)
+    .eq("pedido_trabajadores.assigned_profile_id", workerProfileId)
     .neq("estado", "entregado")
     .neq("estado", "cancelado")
     .order("created_at", { ascending: false })

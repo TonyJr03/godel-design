@@ -55,9 +55,9 @@ export function PedidoWorkerAssignmentForm({
     removePedidoWorkerAction,
     initialRemoveState,
   );
-  const trabajadorError = assignState.fieldErrors?.trabajador_id;
+  const assignedProfileError = assignState.fieldErrors?.assigned_profile_id;
   const assignedIds = new Set(
-    asignaciones.map((asignacion) => asignacion.trabajador_id),
+    asignaciones.map((asignacion) => asignacion.assigned_profile_id),
   );
   const availableWorkers = trabajadores.filter(
     (trabajador) => !assignedIds.has(trabajador.id),
@@ -139,8 +139,8 @@ export function PedidoWorkerAssignmentForm({
                     <input type="hidden" name="pedido_id" value={pedidoId} />
                     <input
                       type="hidden"
-                      name="trabajador_id"
-                      value={asignacion.trabajador_id}
+                      name="assigned_profile_id"
+                      value={asignacion.assigned_profile_id}
                     />
                     <button
                       type="submit"
@@ -181,20 +181,20 @@ export function PedidoWorkerAssignmentForm({
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
               <div className="w-full max-w-sm">
                 <label
-                  htmlFor="trabajador_id"
+                  htmlFor="assigned_profile_id"
                   className="text-sm font-medium text-zinc-900"
                 >
                   Asignar personal
                 </label>
                 <select
-                  id="trabajador_id"
-                  name="trabajador_id"
+                  id="assigned_profile_id"
+                  name="assigned_profile_id"
                   defaultValue=""
                   disabled={assigning}
                   required
-                  aria-invalid={Boolean(trabajadorError)}
+                  aria-invalid={Boolean(assignedProfileError)}
                   aria-describedby={
-                    trabajadorError ? "trabajador-id-error" : undefined
+                    assignedProfileError ? "assigned-profile-id-error" : undefined
                   }
                   className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-950 shadow-sm outline-none transition focus:border-teal-700 focus:ring-2 focus:ring-teal-700/20 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500"
                 >
@@ -207,12 +207,12 @@ export function PedidoWorkerAssignmentForm({
                     </option>
                   ))}
                 </select>
-                {trabajadorError ? (
+                {assignedProfileError ? (
                   <p
-                    id="trabajador-id-error"
+                    id="assigned-profile-id-error"
                     className="mt-2 text-sm leading-5 text-red-700"
                   >
-                    {trabajadorError}
+                    {assignedProfileError}
                   </p>
                 ) : null}
               </div>

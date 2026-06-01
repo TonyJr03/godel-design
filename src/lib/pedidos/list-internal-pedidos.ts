@@ -23,7 +23,7 @@ type PedidoTrabajadorProfile =
 
 export type InternalPedidoTrabajador = Pick<
   Tables<"pedido_trabajadores">,
-  "trabajador_id"
+  "assigned_profile_id"
 > & {
   profiles: PedidoTrabajadorProfile;
 };
@@ -92,8 +92,8 @@ const BASE_PEDIDOS_SELECT = `
 const PEDIDOS_SELECT = `
   ${BASE_PEDIDOS_SELECT},
   pedido_trabajadores(
-    trabajador_id,
-    profiles!pedido_trabajadores_trabajador_id_fkey(id, full_name)
+    assigned_profile_id,
+    profiles!pedido_trabajadores_assigned_profile_id_fkey(id, full_name)
   )
 `;
 

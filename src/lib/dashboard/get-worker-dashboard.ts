@@ -24,7 +24,7 @@ const ASSIGNED_PEDIDOS_SUMMARY_SELECT = `
   id,
   estado,
   fecha_entrega_estimada,
-  pedido_trabajadores!inner(trabajador_id)
+  pedido_trabajadores!inner(assigned_profile_id)
 `;
 
 const GENERIC_WORKER_SUMMARY_ERROR =
@@ -124,7 +124,7 @@ export async function getWorkerDashboardSummary(
     const { data, error } = await supabase
       .from("pedidos")
       .select(ASSIGNED_PEDIDOS_SUMMARY_SELECT)
-      .eq("pedido_trabajadores.trabajador_id", normalizedWorkerProfileId)
+      .eq("pedido_trabajadores.assigned_profile_id", normalizedWorkerProfileId)
       .returns<AssignedPedidoSummaryRow[]>();
 
     if (error) {

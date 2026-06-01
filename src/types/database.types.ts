@@ -199,21 +199,21 @@ export type Database = {
           assigned_by: string | null
           id: string
           pedido_id: string
-          trabajador_id: string
+          assigned_profile_id: string
         }
         Insert: {
           assigned_at?: string
           assigned_by?: string | null
           id?: string
           pedido_id: string
-          trabajador_id: string
+          assigned_profile_id: string
         }
         Update: {
           assigned_at?: string
           assigned_by?: string | null
           id?: string
           pedido_id?: string
-          trabajador_id?: string
+          assigned_profile_id?: string
         }
         Relationships: [
           {
@@ -231,8 +231,8 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "pedido_trabajadores_trabajador_id_fkey"
-            columns: ["trabajador_id"]
+            foreignKeyName: "pedido_trabajadores_assigned_profile_id_fkey"
+            columns: ["assigned_profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]

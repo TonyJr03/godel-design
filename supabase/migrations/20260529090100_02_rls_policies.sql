@@ -86,7 +86,7 @@ as $$
       select 1
       from public.pedido_trabajadores as pt
       where pt.pedido_id = order_id
-        and pt.trabajador_id = auth.uid()
+        and pt.assigned_profile_id = auth.uid()
     )
   end;
 $$;
@@ -152,10 +152,10 @@ begin
   if not exists (
     select 1
     from public.profiles as p
-    where p.id = new.trabajador_id
+    where p.id = new.assigned_profile_id
       and p.is_active = true
   ) then
-    raise exception 'El trabajador asignado debe tener un perfil activo'
+    raise exception 'El perfil asignado debe estar activo'
       using errcode = '23514';
   end if;
 
@@ -278,7 +278,7 @@ for each row
 execute function private.ensure_profile_admin_integrity();
 
 create trigger ensure_active_pedido_trabajador
-before insert or update of trabajador_id
+before insert or update of assigned_profile_id
 on public.pedido_trabajadores
 for each row
 execute function private.ensure_active_pedido_trabajador();
@@ -322,7 +322,7 @@ using (
     or exists (
       select 1
       from public.pedido_trabajadores as pt
-      where pt.trabajador_id = profiles.id
+      where pt.assigned_profile_id = profiles.id
         and private.can_access_order(pt.pedido_id)
     )
   )
