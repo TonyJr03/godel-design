@@ -56,14 +56,12 @@ export type InternalPedidoDetail = Pick<
   | "fecha_entrega_estimada"
   | "fecha_entrega_real"
   | "created_by"
-  | "supervisor_id"
   | "created_at"
   | "updated_at"
 > & {
   clientes: PedidoClienteDetail;
   solicitudes: PedidoSolicitudDetail;
   creador: PedidoProfileDetail;
-  supervisor: PedidoProfileDetail;
   pedido_trabajadores: InternalPedidoDetailTrabajador[];
 };
 
@@ -94,7 +92,6 @@ const PEDIDO_DETAIL_SELECT = `
   fecha_entrega_estimada,
   fecha_entrega_real,
   created_by,
-  supervisor_id,
   created_at,
   updated_at,
   clientes(id, nombre, telefono, email),
@@ -110,7 +107,6 @@ const PEDIDO_DETAIL_SELECT = `
     created_at
   ),
   creador:profiles!pedidos_created_by_fkey(id, full_name),
-  supervisor:profiles!pedidos_supervisor_id_fkey(id, full_name),
   pedido_trabajadores(
     id,
     assigned_profile_id,

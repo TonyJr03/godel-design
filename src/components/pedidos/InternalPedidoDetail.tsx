@@ -108,10 +108,6 @@ export function InternalPedidoDetail({
             value={pedido.creador?.full_name ?? "No definido"}
           />
           <DetailItem
-            label="Supervisor"
-            value={pedido.supervisor?.full_name ?? "No definido"}
-          />
-          <DetailItem
             label="Última actualización"
             value={formatAppDateTime(pedido.updated_at, "No definida")}
           />

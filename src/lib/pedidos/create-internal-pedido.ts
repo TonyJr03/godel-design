@@ -100,7 +100,6 @@ export async function createInternalPedido(
     estado: INITIAL_MANUAL_PEDIDO_ESTADO,
     solicitud_id: null,
     created_by: profile.id,
-    supervisor_id: profile.role === "supervisor" ? profile.id : null,
   };
 
   try {

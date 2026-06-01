@@ -216,7 +216,6 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 | `fecha_entrega_estimada` | `date nullable` | Fecha estimada de entrega. |
 | `fecha_entrega_real` | `date nullable` | Fecha real de entrega. |
 | `created_by` | `uuid nullable` | Usuario interno que creó el pedido. |
-| `supervisor_id` | `uuid nullable` | Supervisor responsable. |
 | `created_at` | `timestamptz` | Fecha de creación del registro. |
 | `updated_at` | `timestamptz` | Fecha de última actualización. |
 
@@ -225,7 +224,6 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 - `pedidos.cliente_id` -> `clientes.id`.
 - `pedidos.solicitud_id` -> `solicitudes.id`.
 - `pedidos.created_by` -> `profiles.id`.
-- `pedidos.supervisor_id` -> `profiles.id`.
 
 **Reglas importantes:**
 
@@ -312,10 +310,9 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 |---|---|---|
 | `id` | `uuid` | Identificador único del comentario. |
 | `pedido_id` | `uuid` | Pedido comentado. |
-| `author_id` | `uuid` | Usuario interno autor del comentario. |
 | `contenido` | `text` | Texto del comentario. |
+| `author_id` | `uuid` | Usuario interno autor del comentario. |
 | `created_at` | `timestamptz` | Fecha de creación. |
-| `updated_at` | `timestamptz` | Fecha de última actualización. |
 
 **Claves foráneas:**
 
@@ -376,8 +373,8 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 |---|---|---|
 | `id` | `uuid` | Identificador único del comentario. |
 | `solicitud_id` | `uuid` | Solicitud comentada. |
-| `author_id` | `uuid` | Usuario interno autor del comentario. |
 | `contenido` | `text` | Texto del comentario. |
+| `author_id` | `uuid` | Usuario interno autor del comentario. |
 | `created_at` | `timestamptz` | Fecha de creación. |
 
 **Claves foráneas:**

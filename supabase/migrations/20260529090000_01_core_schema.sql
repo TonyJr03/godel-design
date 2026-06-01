@@ -116,6 +116,7 @@ execute function public.set_updated_at();
 create table public.solicitudes (
   id uuid primary key default gen_random_uuid(),
   cliente_id uuid references public.clientes(id) on delete set null,
+  converted_order_id uuid,
   cliente_nombre text not null,
   cliente_telefono text not null,
   cliente_email text,
@@ -126,7 +127,6 @@ create table public.solicitudes (
   observaciones text,
   estado public.solicitud_estado not null default 'nueva',
   reviewed_by uuid references public.profiles(id) on delete set null,
-  converted_order_id uuid,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint solicitudes_cliente_nombre_not_empty check (btrim(cliente_nombre) <> ''),
@@ -153,7 +153,6 @@ create table public.pedidos (
   fecha_entrega_estimada date,
   fecha_entrega_real date,
   created_by uuid references public.profiles(id) on delete set null,
-  supervisor_id uuid references public.profiles(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint pedidos_numero_pedido_not_empty check (btrim(numero_pedido) <> ''),
@@ -185,13 +184,13 @@ create table public.archivos (
   id uuid primary key default gen_random_uuid(),
   pedido_id uuid references public.pedidos(id) on delete cascade,
   solicitud_id uuid references public.solicitudes(id) on delete cascade,
-  uploaded_by uuid references public.profiles(id) on delete set null,
   file_name text not null,
   file_path text not null,
   file_type text,
   file_size bigint,
   bucket text not null,
   visibility public.archivo_visibility not null,
+  uploaded_by uuid references public.profiles(id) on delete set null,
   created_at timestamptz not null default now(),
   constraint archivos_file_name_not_empty check (btrim(file_name) <> ''),
   constraint archivos_file_path_not_empty check (btrim(file_path) <> ''),
@@ -203,8 +202,8 @@ create table public.archivos (
 create table public.pedido_comentarios (
   id uuid primary key default gen_random_uuid(),
   pedido_id uuid not null references public.pedidos(id) on delete cascade,
-  author_id uuid not null references public.profiles(id) on delete restrict,
   contenido text not null,
+  author_id uuid not null references public.profiles(id) on delete restrict,
   created_at timestamptz not null default now(),
   constraint pedido_comentarios_contenido_not_empty check (length(btrim(contenido)) > 0),
   constraint pedido_comentarios_contenido_max_length check (length(contenido) <= 2000)
@@ -213,12 +212,12 @@ create table public.pedido_comentarios (
 create table public.pedido_historial (
   id uuid primary key default gen_random_uuid(),
   pedido_id uuid not null references public.pedidos(id) on delete cascade,
-  actor_id uuid references public.profiles(id) on delete set null,
   action public.pedido_historial_action not null,
   summary text not null,
   old_value text,
   new_value text,
   metadata jsonb not null default '{}'::jsonb,
+  actor_id uuid references public.profiles(id) on delete set null,
   created_at timestamptz not null default now(),
   constraint pedido_historial_summary_not_empty check (length(btrim(summary)) > 0),
   constraint pedido_historial_metadata_is_object check (jsonb_typeof(metadata) = 'object')
@@ -227,8 +226,8 @@ create table public.pedido_historial (
 create table public.solicitud_comentarios (
   id uuid primary key default gen_random_uuid(),
   solicitud_id uuid not null references public.solicitudes(id) on delete cascade,
-  author_id uuid not null references public.profiles(id) on delete restrict,
   contenido text not null,
+  author_id uuid not null references public.profiles(id) on delete restrict,
   created_at timestamptz not null default now(),
   constraint solicitud_comentarios_contenido_not_empty check (length(btrim(contenido)) > 0),
   constraint solicitud_comentarios_contenido_max_length check (length(contenido) <= 2000)
@@ -237,12 +236,12 @@ create table public.solicitud_comentarios (
 create table public.solicitud_historial (
   id uuid primary key default gen_random_uuid(),
   solicitud_id uuid not null references public.solicitudes(id) on delete cascade,
-  actor_id uuid references public.profiles(id) on delete set null,
   action public.solicitud_historial_action not null,
   summary text not null,
   old_value text,
   new_value text,
   metadata jsonb not null default '{}'::jsonb,
+  actor_id uuid references public.profiles(id) on delete set null,
   created_at timestamptz not null default now(),
   constraint solicitud_historial_summary_not_empty check (length(btrim(summary)) > 0),
   constraint solicitud_historial_metadata_is_object check (jsonb_typeof(metadata) = 'object')

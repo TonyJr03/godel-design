@@ -252,7 +252,6 @@ export type Database = {
           numero_pedido: string
           prioridad: Database["public"]["Enums"]["pedido_prioridad"]
           solicitud_id: string | null
-          supervisor_id: string | null
           titulo: string
           updated_at: string
         }
@@ -268,7 +267,6 @@ export type Database = {
           numero_pedido: string
           prioridad?: Database["public"]["Enums"]["pedido_prioridad"]
           solicitud_id?: string | null
-          supervisor_id?: string | null
           titulo: string
           updated_at?: string
         }
@@ -284,7 +282,6 @@ export type Database = {
           numero_pedido?: string
           prioridad?: Database["public"]["Enums"]["pedido_prioridad"]
           solicitud_id?: string | null
-          supervisor_id?: string | null
           titulo?: string
           updated_at?: string
         }
@@ -308,13 +305,6 @@ export type Database = {
             columns: ["solicitud_id"]
             isOneToOne: false
             referencedRelation: "solicitudes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "pedidos_supervisor_id_fkey"
-            columns: ["supervisor_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -540,7 +530,6 @@ export type Database = {
           numero_pedido: string
           prioridad: Database["public"]["Enums"]["pedido_prioridad"]
           solicitud_id: string | null
-          supervisor_id: string | null
           titulo: string
           updated_at: string
         }

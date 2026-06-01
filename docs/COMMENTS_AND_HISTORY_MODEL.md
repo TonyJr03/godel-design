@@ -58,7 +58,7 @@ El proyecto no parte de cero. La migración inicial creó estructuras relacionad
 - existe RLS para `pedido_historial`;
 - existe RLS para `solicitud_comentarios`;
 - existe RLS para `solicitud_historial`;
-- existen triggers genéricos de `updated_at` en varias tablas, incluido `pedido_comentarios`.
+- existen triggers genéricos de `updated_at` en tablas editables como perfiles, clientes, solicitudes y pedidos.
 
 La tabla `pedido_comentarios` está asociada solo a pedidos mediante `pedido_id`. No existe relación con solicitudes.
 
@@ -77,8 +77,7 @@ Existen triggers técnicos de actualización de fecha:
 - `set_profiles_updated_at`;
 - `set_clientes_updated_at`;
 - `set_solicitudes_updated_at`;
-- `set_pedidos_updated_at`;
-- `set_pedido_comentarios_updated_at`.
+- `set_pedidos_updated_at`.
 
 Desde Fase 11.7A y 11.7B también existen triggers de negocio privados para registrar historial automático de pedidos y solicitudes. Estos triggers cubren creación de pedidos, asignación/remoción de personal, subida de archivos propios de pedido, creación de solicitudes, archivos adjuntados a solicitudes, cambios de estado de solicitud, asociación de cliente y conversión de solicitud a pedido.
 
@@ -123,7 +122,7 @@ El módulo actual:
 - usa `author_id = profile.id` como autor;
 - guarda `contenido`;
 - muestra autor, rol, fecha y contenido;
-- no acepta `author_id`, `created_at` ni `updated_at` desde formularios;
+- no acepta `author_id` ni `created_at` desde formularios;
 - no implementa edición ni eliminación.
 
 El RLS permite lectura e inserción según acceso al pedido. La subfase 11.2 eliminó las policies de actualización y eliminación para mantener comentarios append-only en el alcance inicial.

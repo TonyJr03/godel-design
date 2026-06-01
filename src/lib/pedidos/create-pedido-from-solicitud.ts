@@ -137,7 +137,6 @@ export async function createPedidoFromSolicitud(
       prioridad: DEFAULT_CONVERTED_PEDIDO_PRIORIDAD,
       fecha_entrega_estimada: solicitud.fecha_deseada,
       created_by: profile.id,
-      supervisor_id: profile.role === "supervisor" ? profile.id : null,
     };
 
     const { data: pedido, error: pedidoError } = await supabase

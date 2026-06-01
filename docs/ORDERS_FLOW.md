@@ -82,7 +82,6 @@ Campos principales usados actualmente en `pedidos`:
 | `fecha_entrega_estimada` | Fecha prevista de entrega. |
 | `fecha_entrega_real` | Fecha real de entrega si aplica. |
 | `created_by` | Perfil interno que creó el pedido. |
-| `supervisor_id` | Supervisor asociado cuando aplica. |
 | `created_at` | Fecha de creación del registro. |
 | `updated_at` | Fecha de última actualización. |
 
