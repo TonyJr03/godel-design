@@ -57,7 +57,7 @@ Las políticas actuales permiten:
 | `update` | Solo `admin`, usando una sesión autenticada y activa. |
 | `delete` | No hay policy de eliminación; no se permite desde el cliente normal. |
 
-La policy vigente de lectura es `profiles_select_internal_scope`. Sustituyó a la policy inicial para permitir que trabajadores vean datos básicos del personal asignado a pedidos que pueden acceder, sin habilitar navegación general por todos los perfiles.
+La policy vigente de lectura es `profiles_select_visible`. Sustituyó a la policy inicial para permitir que trabajadores vean datos básicos del personal asignado a pedidos que pueden acceder, sin habilitar navegación general por todos los perfiles.
 
 Aunque existen grants de tabla para `authenticated`, RLS es la defensa real que limita filas y operaciones.
 

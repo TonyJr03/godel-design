@@ -36,7 +36,7 @@ begin
     private.is_admin_or_supervisor()
     or (
       private.current_user_role() = 'trabajador'::public.app_role
-      and private.is_assigned_to_order(p_pedido_id)
+      and private.is_assigned_to_pedido(p_pedido_id)
     )
   ) then
     raise exception 'No tienes permiso para cambiar el estado de este pedido';
@@ -123,7 +123,7 @@ as $$
     on p.id = pc.author_id
   where pc.pedido_id = p_pedido_id
     and (select auth.uid()) is not null
-    and private.can_access_order(p_pedido_id)
+    and private.can_access_pedido(p_pedido_id)
   order by pc.created_at asc, pc.id asc;
 $$;
 
@@ -169,7 +169,7 @@ as $$
   where ph.pedido_id = p_pedido_id
     and (select auth.uid()) is not null
     and private.current_user_is_active()
-    and private.can_access_order(p_pedido_id)
+    and private.can_access_pedido(p_pedido_id)
   order by ph.created_at desc, ph.id desc;
 $$;
 

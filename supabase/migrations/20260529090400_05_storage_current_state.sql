@@ -136,7 +136,7 @@ as $$
       select 1
       from public.pedidos as p
       where p.id = private.storage_order_id(object_name)
-        and private.can_access_order(p.id)
+        and private.can_access_pedido(p.id)
     )
     when private.storage_request_id(object_name) is not null then
       (
@@ -155,7 +155,7 @@ as $$
           and a.solicitud_id = private.storage_request_id(object_name)
           and a.pedido_id is not null
           and a.visibility = 'cliente_solicitud'::public.archivo_visibility
-          and private.can_access_order(a.pedido_id)
+          and private.can_access_pedido(a.pedido_id)
       )
     else false
   end;
@@ -186,7 +186,7 @@ as $$
         and (
           private.is_admin_or_supervisor()
           or (
-            private.is_assigned_to_order(p.id)
+            private.is_assigned_to_pedido(p.id)
             and private.storage_order_category(object_name) in ('avances', 'finales')
           )
         )
@@ -373,7 +373,7 @@ with check (
   )
 );
 
-create policy godel_files_select_access
+create policy godel_files_select_accessible
 on storage.objects
 for select
 to authenticated
@@ -381,7 +381,7 @@ using (
   private.can_read_storage_object(bucket_id, name)
 );
 
-create policy godel_files_insert_access
+create policy godel_files_insert_accessible
 on storage.objects
 for insert
 to authenticated

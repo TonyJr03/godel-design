@@ -83,7 +83,7 @@ Las areas que necesitan orden son:
 | Prioridad | Hallazgo | Evidencia | Riesgo | Propuesta |
 | --- | --- | --- | --- | --- |
 | Alto | Hay muchas funciones `security definer` y grants a `anon, authenticated`, incluyendo un `grant execute on all functions in schema private`. | `20260512001000_initial_rls_policies.sql`, migraciones de Storage e historial. | No se ve una brecha directa, pero la superficie merece revision dedicada antes de produccion. | Inventariar funcion por funcion, cambiar grants globales por grants explicitos si aplica. |
-| Alto | Las policies fueron redefinidas en varias migraciones. | `clientes_select_by_role`, `solicitudes_select_manager`, `profiles_select_internal_scope`. | El estado final es razonable, pero cuesta auditarlo mentalmente desde la historia. | Crear una documentacion o snapshot de policies efectivas finales. |
+| Alto | Las policies fueron redefinidas en varias migraciones. | Policies de lectura de clientes, solicitudes y perfiles. | El estado final es razonable, pero cuesta auditarlo mentalmente desde la historia. | Crear una documentacion o snapshot de policies efectivas finales. |
 | Medio | RLS y codigo TypeScript estan mayormente alineados, pero la fuente de verdad de permisos existe en dos mundos. | `permissions.ts` y funciones private SQL. | Drift futuro si se agrega un rol/permiso. | En cada cambio de permisos, actualizar matriz TS, docs y SQL en la misma tarea. |
 | Bajo | Las RPCs de pedido estan bien acotadas pero devuelven `metadata` a servicios. | `listar_pedido_historial`, dashboard activity. | La UI actual no renderiza JSON crudo, pero hay que conservar disciplina. | Mantener DTOs/formatters que transformen metadata antes de llegar a componentes. |
 

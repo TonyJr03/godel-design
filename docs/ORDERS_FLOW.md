@@ -155,7 +155,7 @@ Archivos principales:
 - Componente: `src/components/pedidos/PedidoHistorySection.tsx`
 - RPC: `public.listar_pedido_historial`
 
-El detalle de pedido muestra una sección “Historial del pedido” con los eventos registrados en `pedido_historial`. El listado se carga server-side y usa una RPC segura que valida `private.can_access_order` y devuelve solo datos mínimos del actor: nombre y rol.
+El detalle de pedido muestra una sección “Historial del pedido” con los eventos registrados en `pedido_historial`. El listado se carga server-side y usa una RPC segura que valida `private.can_access_pedido` y devuelve solo datos mínimos del actor: nombre y rol.
 
 `admin` y `supervisor` ven el historial de cualquier pedido. `trabajador` ve el historial solo de pedidos asignados. El historial es append-only: no hay edición ni eliminación.
 

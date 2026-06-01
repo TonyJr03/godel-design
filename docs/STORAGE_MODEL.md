@@ -88,7 +88,7 @@ La migración de Fase 10.1 crea policies sobre `storage.objects` solo para el bu
 | `update` | Solo `admin` y `supervisor` sobre rutas válidas de solicitudes o pedidos. |
 | `delete` | Solo `admin` y `supervisor` sobre rutas válidas de solicitudes o pedidos. |
 
-Las policies reutilizan helpers existentes como `private.can_access_order`, `private.is_assigned_to_order` y `private.is_admin_or_supervisor`. También agregan helpers mínimos para interpretar rutas de Storage y extraer `pedido_id` o `solicitud_id`.
+Las policies reutilizan helpers existentes como `private.can_access_pedido`, `private.is_assigned_to_pedido` y `private.is_admin_or_supervisor`. También agregan helpers mínimos para interpretar rutas de Storage y extraer `pedido_id` o `solicitud_id`.
 
 ## Reglas de acceso
 

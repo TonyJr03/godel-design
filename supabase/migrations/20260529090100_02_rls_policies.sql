@@ -70,7 +70,7 @@ as $$
   );
 $$;
 
-create or replace function private.is_assigned_to_order(order_id uuid)
+create or replace function private.is_assigned_to_pedido(p_pedido_id uuid)
 returns boolean
 language sql
 security definer
@@ -79,19 +79,19 @@ stable
 as $$
   select case
     when auth.uid() is null
-      or order_id is null
+      or p_pedido_id is null
       or not private.current_user_is_active()
     then false
     else exists (
       select 1
       from public.pedido_trabajadores as pt
-      where pt.pedido_id = order_id
+      where pt.pedido_id = p_pedido_id
         and pt.assigned_profile_id = auth.uid()
     )
   end;
 $$;
 
-create or replace function private.can_access_order(order_id uuid)
+create or replace function private.can_access_pedido(p_pedido_id uuid)
 returns boolean
 language sql
 security definer
@@ -99,13 +99,13 @@ set search_path = public
 stable
 as $$
   select case
-    when order_id is null then false
+    when p_pedido_id is null then false
     else private.is_admin_or_supervisor()
-      or private.is_assigned_to_order(order_id)
+      or private.is_assigned_to_pedido(p_pedido_id)
   end;
 $$;
 
-create or replace function private.solicitud_has_accessible_order(p_solicitud_id uuid)
+create or replace function private.solicitud_has_accessible_pedido(p_solicitud_id uuid)
 returns boolean
 language sql
 security definer
@@ -123,7 +123,7 @@ as $$
           or s.converted_order_id = p.id
         )
       where s.id = p_solicitud_id
-        and private.can_access_order(p.id)
+        and private.can_access_pedido(p.id)
     )
   end;
 $$;
@@ -138,7 +138,7 @@ as $$
   select case
     when p_solicitud_id is null then false
     else private.is_admin_or_supervisor()
-      or private.solicitud_has_accessible_order(p_solicitud_id)
+      or private.solicitud_has_accessible_pedido(p_solicitud_id)
   end;
 $$;
 
@@ -247,11 +247,11 @@ revoke all on function private.is_supervisor()
 from public, anon, authenticated;
 revoke all on function private.is_admin_or_supervisor()
 from public, anon, authenticated;
-revoke all on function private.is_assigned_to_order(uuid)
+revoke all on function private.is_assigned_to_pedido(uuid)
 from public, anon, authenticated;
-revoke all on function private.can_access_order(uuid)
+revoke all on function private.can_access_pedido(uuid)
 from public, anon, authenticated;
-revoke all on function private.solicitud_has_accessible_order(uuid)
+revoke all on function private.solicitud_has_accessible_pedido(uuid)
 from public, anon, authenticated;
 revoke all on function private.can_access_solicitud(uuid)
 from public, anon, authenticated;
@@ -261,8 +261,8 @@ grant execute on function private.current_user_is_active() to authenticated;
 grant execute on function private.is_admin() to authenticated;
 grant execute on function private.is_supervisor() to authenticated;
 grant execute on function private.is_admin_or_supervisor() to authenticated;
-grant execute on function private.is_assigned_to_order(uuid) to authenticated;
-grant execute on function private.can_access_order(uuid) to authenticated;
+grant execute on function private.is_assigned_to_pedido(uuid) to authenticated;
+grant execute on function private.can_access_pedido(uuid) to authenticated;
 grant execute on function private.can_access_solicitud(uuid) to authenticated;
 
 revoke all on function private.ensure_active_order_assignment_profile()
@@ -310,7 +310,7 @@ from public, anon;
 revoke all on type public.solicitud_historial_action from public, anon;
 grant usage on type public.solicitud_historial_action to authenticated;
 
-create policy profiles_select_internal_scope
+create policy profiles_select_visible
 on public.profiles
 for select
 to authenticated
@@ -323,7 +323,7 @@ using (
       select 1
       from public.pedido_trabajadores as pt
       where pt.assigned_profile_id = profiles.id
-        and private.can_access_order(pt.pedido_id)
+        and private.can_access_pedido(pt.pedido_id)
     )
   )
 );
@@ -350,7 +350,7 @@ with check (
   and private.is_admin()
 );
 
-create policy clientes_select_by_role
+create policy clientes_select_accessible
 on public.clientes
 for select
 to authenticated
@@ -362,7 +362,7 @@ using (
       select 1
       from public.pedidos as p
       where p.cliente_id = clientes.id
-        and private.can_access_order(p.id)
+        and private.can_access_pedido(p.id)
     )
   )
 );
@@ -400,7 +400,7 @@ with check (
   and cliente_id is null
 );
 
-create policy solicitudes_select_manager
+create policy solicitudes_select_accessible
 on public.solicitudes
 for select
 to authenticated
@@ -431,13 +431,13 @@ using (
   and private.is_admin()
 );
 
-create policy pedidos_select_by_role
+create policy pedidos_select_accessible
 on public.pedidos
 for select
 to authenticated
 using (
   (select auth.uid()) is not null
-  and private.can_access_order(id)
+  and private.can_access_pedido(id)
 );
 
 create policy pedidos_insert_manager
@@ -471,7 +471,7 @@ using (
   and private.is_admin()
 );
 
-create policy pedido_trabajadores_select_by_role
+create policy pedido_trabajadores_select_accessible
 on public.pedido_trabajadores
 for select
 to authenticated
@@ -479,7 +479,7 @@ using (
   (select auth.uid()) is not null
   and (
     private.is_admin_or_supervisor()
-    or private.is_assigned_to_order(pedido_id)
+    or private.is_assigned_to_pedido(pedido_id)
   )
 );
 
@@ -514,7 +514,7 @@ using (
   and private.is_admin_or_supervisor()
 );
 
-create policy archivos_select_by_role
+create policy archivos_select_accessible
 on public.archivos
 for select
 to authenticated
@@ -524,12 +524,12 @@ using (
     private.is_admin_or_supervisor()
     or (
       pedido_id is not null
-      and private.is_assigned_to_order(pedido_id)
+      and private.is_assigned_to_pedido(pedido_id)
     )
   )
 );
 
-create policy archivos_insert_by_role
+create policy archivos_insert_accessible
 on public.archivos
 for insert
 to authenticated
@@ -540,7 +540,7 @@ with check (
     or (
       pedido_id is not null
       and solicitud_id is null
-      and private.is_assigned_to_order(pedido_id)
+      and private.is_assigned_to_pedido(pedido_id)
       and visibility in (
         'avance'::public.archivo_visibility,
         'final_entrega'::public.archivo_visibility
@@ -572,32 +572,32 @@ using (
   and private.is_admin_or_supervisor()
 );
 
-create policy pedido_comentarios_select_by_role
+create policy pedido_comentarios_select_accessible
 on public.pedido_comentarios
 for select
 to authenticated
 using (
   (select auth.uid()) is not null
-  and private.can_access_order(pedido_id)
+  and private.can_access_pedido(pedido_id)
 );
 
-create policy pedido_comentarios_insert_by_role
+create policy pedido_comentarios_insert_accessible
 on public.pedido_comentarios
 for insert
 to authenticated
 with check (
   (select auth.uid()) is not null
-  and private.can_access_order(pedido_id)
+  and private.can_access_pedido(pedido_id)
   and author_id = (select auth.uid())
 );
 
-create policy pedido_historial_select_by_role
+create policy pedido_historial_select_accessible
 on public.pedido_historial
 for select
 to authenticated
 using (
   (select auth.uid()) is not null
-  and private.can_access_order(pedido_id)
+  and private.can_access_pedido(pedido_id)
 );
 
 create policy solicitud_comentarios_select_manager
