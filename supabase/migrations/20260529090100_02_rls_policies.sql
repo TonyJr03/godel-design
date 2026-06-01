@@ -588,7 +588,7 @@ to authenticated
 with check (
   (select auth.uid()) is not null
   and private.can_access_order(pedido_id)
-  and user_id = (select auth.uid())
+  and author_id = (select auth.uid())
 );
 
 create policy pedido_historial_select_by_role
@@ -616,7 +616,7 @@ to authenticated
 with check (
   (select auth.uid()) is not null
   and private.is_admin_or_supervisor()
-  and autor_id = (select auth.uid())
+  and author_id = (select auth.uid())
 );
 
 create policy solicitud_historial_select_manager

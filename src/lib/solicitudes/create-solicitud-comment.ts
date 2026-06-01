@@ -129,7 +129,7 @@ export async function createSolicitudComment({
       .from("solicitud_comentarios")
       .insert({
         solicitud_id: solicitudId,
-        autor_id: profile.id,
+        author_id: profile.id,
         contenido,
       })
       .select("id")

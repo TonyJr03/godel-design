@@ -115,7 +115,7 @@ as $$
     p.role as author_role
   from public.pedido_comentarios as pc
   join public.profiles as p
-    on p.id = pc.user_id
+    on p.id = pc.author_id
   where pc.pedido_id = p_pedido_id
     and (select auth.uid()) is not null
     and private.can_access_order(p_pedido_id)
@@ -196,7 +196,7 @@ as $$
     p.role as author_role
   from public.solicitud_comentarios as sc
   join public.profiles as p
-    on p.id = sc.autor_id
+    on p.id = sc.author_id
   where sc.solicitud_id = p_solicitud_id
     and (select auth.uid()) is not null
     and private.current_user_is_active()

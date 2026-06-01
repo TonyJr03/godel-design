@@ -144,7 +144,7 @@ Archivos principales:
 
 El detalle de pedido permite ver y agregar comentarios internos asociados al pedido. Los comentarios son visibles solo para usuarios internos con acceso al pedido: `admin` y `supervisor` en cualquier pedido, y `trabajador` solo en pedidos asignados.
 
-El formulario solo envía `pedido_id` y `contenido`. El autor se toma server-side desde el perfil autenticado y se guarda en `pedido_comentarios.user_id`. No se acepta autor, fecha ni otros campos técnicos desde el formulario.
+El formulario solo envía `pedido_id` y `contenido`. El autor se toma server-side desde el perfil autenticado y se guarda en `pedido_comentarios.author_id`. No se acepta autor, fecha ni otros campos técnicos desde el formulario.
 
 Los comentarios son append-only en el alcance inicial. No hay edición, eliminación, menciones, notificaciones ni adjuntos.
 

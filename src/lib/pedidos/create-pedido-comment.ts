@@ -130,7 +130,7 @@ export async function createPedidoComment({
       .from("pedido_comentarios")
       .insert({
         pedido_id: pedidoId,
-        user_id: profile.id,
+        author_id: profile.id,
         contenido,
       })
       .select("id")

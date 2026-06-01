@@ -86,7 +86,7 @@ No se creó RPC nueva porque las policies existentes ya restringen inserción, a
 
 `createPedidoComment` valida UUID, perfil interno, permiso `pedidos.view`, acceso al pedido y contenido. El comentario es obligatorio, se guarda con `contenido` recortado y tiene límite de 2000 caracteres.
 
-La action `createPedidoCommentAction` lee únicamente `pedido_id` y `contenido`. No acepta `user_id`, autor ni fechas desde el formulario. El autor se toma del perfil autenticado y se guarda como `pedido_comentarios.user_id`.
+La action `createPedidoCommentAction` lee únicamente `pedido_id` y `contenido`. No acepta `author_id`, autor ni fechas desde el formulario. El autor se toma del perfil autenticado y se guarda como `pedido_comentarios.author_id`.
 
 Los comentarios son append-only. No hay edición, eliminación, menciones, notificaciones, adjuntos ni registro automático adicional de historial en esta subfase.
 

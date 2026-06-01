@@ -105,25 +105,25 @@ export type Database = {
       }
       pedido_comentarios: {
         Row: {
+          author_id: string
           contenido: string
           created_at: string
           id: string
           pedido_id: string
-          user_id: string
         }
         Insert: {
+          author_id: string
           contenido: string
           created_at?: string
           id?: string
           pedido_id: string
-          user_id: string
         }
         Update: {
+          author_id?: string
           contenido?: string
           created_at?: string
           id?: string
           pedido_id?: string
-          user_id?: string
         }
         Relationships: [
           {
@@ -134,8 +134,8 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "pedido_comentarios_user_id_fkey"
-            columns: ["user_id"]
+            foreignKeyName: "pedido_comentarios_author_id_fkey"
+            columns: ["author_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -354,21 +354,21 @@ export type Database = {
       }
       solicitud_comentarios: {
         Row: {
-          autor_id: string
+          author_id: string
           contenido: string
           created_at: string
           id: string
           solicitud_id: string
         }
         Insert: {
-          autor_id: string
+          author_id: string
           contenido: string
           created_at?: string
           id?: string
           solicitud_id: string
         }
         Update: {
-          autor_id?: string
+          author_id?: string
           contenido?: string
           created_at?: string
           id?: string
@@ -376,8 +376,8 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "solicitud_comentarios_autor_id_fkey"
-            columns: ["autor_id"]
+            foreignKeyName: "solicitud_comentarios_author_id_fkey"
+            columns: ["author_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -810,4 +810,3 @@ export const Constants = {
     },
   },
 } as const
-

@@ -86,7 +86,7 @@ No se usa service role key y no se implementa deduplicación avanzada.
 
 `listSolicitudComments` carga server-side los comentarios internos mediante la RPC segura `public.listar_solicitud_comentarios`. Requiere usuario interno activo con permiso `solicitudes.view`, valida UUID, confirma acceso a la solicitud y recibe solo datos mínimos del autor: nombre y rol.
 
-`createSolicitudComment` agrega comentarios internos append-only. Requiere `solicitudes.manage`, valida UUID, confirma acceso a la solicitud, valida contenido no vacío con máximo de 2000 caracteres e inserta en `solicitud_comentarios` usando `autor_id = profile.id`.
+`createSolicitudComment` agrega comentarios internos append-only. Requiere `solicitudes.manage`, valida UUID, confirma acceso a la solicitud, valida contenido no vacío con máximo de 2000 caracteres e inserta en `solicitud_comentarios` usando `author_id = profile.id`.
 
 La action `createSolicitudCommentAction` lee únicamente `solicitud_id` y `contenido`. No acepta autor ni fechas desde el formulario. No hay edición, eliminación, menciones, notificaciones, adjuntos ni registro automático de historial en esta subfase.
 

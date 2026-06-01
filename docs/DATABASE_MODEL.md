@@ -313,7 +313,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 |---|---|---|
 | `id` | `uuid` | Identificador único del comentario. |
 | `pedido_id` | `uuid` | Pedido comentado. |
-| `user_id` | `uuid` | Usuario interno autor del comentario. |
+| `author_id` | `uuid` | Usuario interno autor del comentario. |
 | `contenido` | `text` | Texto del comentario. |
 | `created_at` | `timestamptz` | Fecha de creación. |
 | `updated_at` | `timestamptz` | Fecha de última actualización. |
@@ -321,7 +321,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 **Claves foráneas:**
 
 - `pedido_comentarios.pedido_id` -> `pedidos.id`.
-- `pedido_comentarios.user_id` -> `profiles.id`.
+- `pedido_comentarios.author_id` -> `profiles.id`.
 
 **Reglas importantes:**
 
@@ -376,14 +376,14 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 |---|---|---|
 | `id` | `uuid` | Identificador único del comentario. |
 | `solicitud_id` | `uuid` | Solicitud comentada. |
-| `autor_id` | `uuid` | Usuario interno autor del comentario. |
+| `author_id` | `uuid` | Usuario interno autor del comentario. |
 | `contenido` | `text` | Texto del comentario. |
 | `created_at` | `timestamptz` | Fecha de creación. |
 
 **Claves foráneas:**
 
 - `solicitud_comentarios.solicitud_id` -> `solicitudes.id`.
-- `solicitud_comentarios.autor_id` -> `profiles.id`.
+- `solicitud_comentarios.author_id` -> `profiles.id`.
 
 **Reglas importantes:**
 
@@ -488,7 +488,7 @@ Para archivos, los buckets deben ser privados y el acceso debe protegerse median
 | `pedido_comentarios` | `pedido_id` |
 | `pedido_historial` | `pedido_id` |
 | `solicitud_comentarios` | `solicitud_id, created_at` |
-| `solicitud_comentarios` | `autor_id` |
+| `solicitud_comentarios` | `author_id` |
 | `solicitud_historial` | `solicitud_id, created_at` |
 | `solicitud_historial` | `actor_id` |
 | `solicitud_historial` | `action` |

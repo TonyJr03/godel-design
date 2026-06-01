@@ -179,7 +179,7 @@ El módulo actual:
 
 - lista comentarios de `solicitud_comentarios` en `/dashboard/solicitudes/[id]`;
 - permite agregar comentarios a `admin` y `supervisor`;
-- usa `autor_id = profile.id` como autor;
+- usa `author_id = profile.id` como autor;
 - guarda `contenido`;
 - muestra autor, rol, fecha y contenido;
 - no acepta autor, `created_at` ni campos técnicos desde formularios;
@@ -374,7 +374,7 @@ Campos existentes:
 | --- | --- | --- |
 | `id` | `uuid` | Identificador del comentario. |
 | `solicitud_id` | `uuid` | Solicitud comentada. |
-| `autor_id` | `uuid` | Autor interno. |
+| `author_id` | `uuid` | Autor interno. |
 | `contenido` | `text` | Texto del comentario. |
 | `created_at` | `timestamptz` | Fecha de creación. |
 
@@ -383,7 +383,7 @@ Reglas recomendadas:
 - `contenido` obligatorio y no vacío;
 - longitud máxima de `contenido` de 2000 caracteres;
 - `solicitud_id` obligatorio;
-- `autor_id` obligatorio y debe corresponder al usuario autenticado;
+- `author_id` obligatorio y debe corresponder al usuario autenticado;
 - sin `updated_at` si no habrá edición inicial;
 - sin edición ni eliminación en la primera versión funcional.
 

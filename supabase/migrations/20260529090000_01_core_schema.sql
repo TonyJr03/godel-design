@@ -204,7 +204,7 @@ create table public.archivos (
 create table public.pedido_comentarios (
   id uuid primary key default gen_random_uuid(),
   pedido_id uuid not null references public.pedidos(id) on delete cascade,
-  user_id uuid not null references public.profiles(id) on delete restrict,
+  author_id uuid not null references public.profiles(id) on delete restrict,
   contenido text not null,
   created_at timestamptz not null default now(),
   constraint pedido_comentarios_contenido_not_empty check (length(btrim(contenido)) > 0),
@@ -226,7 +226,7 @@ create table public.pedido_historial (
 create table public.solicitud_comentarios (
   id uuid primary key default gen_random_uuid(),
   solicitud_id uuid not null references public.solicitudes(id) on delete cascade,
-  autor_id uuid not null references public.profiles(id) on delete restrict,
+  author_id uuid not null references public.profiles(id) on delete restrict,
   contenido text not null,
   created_at timestamptz not null default now(),
   constraint solicitud_comentarios_contenido_not_empty check (length(btrim(contenido)) > 0),
@@ -304,8 +304,8 @@ on public.pedido_historial(created_at desc, id desc);
 create index solicitud_comentarios_solicitud_created_at_idx
 on public.solicitud_comentarios(solicitud_id, created_at asc, id asc);
 
-create index solicitud_comentarios_autor_id_idx
-on public.solicitud_comentarios(autor_id);
+create index solicitud_comentarios_author_id_idx
+on public.solicitud_comentarios(author_id);
 
 create index solicitud_historial_solicitud_created_at_idx
 on public.solicitud_historial(solicitud_id, created_at desc, id desc);
