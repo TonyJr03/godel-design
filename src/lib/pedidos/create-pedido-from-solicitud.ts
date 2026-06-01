@@ -136,7 +136,7 @@ export async function createPedidoFromSolicitud(
       estado: INITIAL_CONVERTED_PEDIDO_ESTADO,
       prioridad: DEFAULT_CONVERTED_PEDIDO_PRIORIDAD,
       fecha_entrega_estimada: solicitud.fecha_deseada,
-      creado_por: profile.id,
+      created_by: profile.id,
       supervisor_id: profile.role === "supervisor" ? profile.id : null,
     };
 

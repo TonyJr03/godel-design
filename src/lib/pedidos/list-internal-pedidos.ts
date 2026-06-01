@@ -38,7 +38,6 @@ export type InternalPedido = Pick<
   | "descripcion"
   | "estado"
   | "prioridad"
-  | "fecha_creacion"
   | "fecha_entrega_estimada"
   | "created_at"
 > & {
@@ -82,7 +81,6 @@ const BASE_PEDIDOS_SELECT = `
   descripcion,
   estado,
   prioridad,
-  fecha_creacion,
   fecha_entrega_estimada,
   created_at,
   clientes(id, nombre),

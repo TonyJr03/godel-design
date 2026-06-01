@@ -79,10 +79,9 @@ Campos principales usados actualmente en `pedidos`:
 | `descripcion` | Descripción operativa del trabajo. |
 | `estado` | Estado operativo del pedido. |
 | `prioridad` | Prioridad del pedido. |
-| `fecha_creacion` | Fecha operativa de creación. |
 | `fecha_entrega_estimada` | Fecha prevista de entrega. |
 | `fecha_entrega_real` | Fecha real de entrega si aplica. |
-| `creado_por` | Perfil interno que creó el pedido. |
+| `created_by` | Perfil interno que creó el pedido. |
 | `supervisor_id` | Supervisor asociado cuando aplica. |
 | `created_at` | Fecha de creación del registro. |
 | `updated_at` | Fecha de última actualización. |

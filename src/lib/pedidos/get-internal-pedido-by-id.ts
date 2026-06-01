@@ -53,10 +53,9 @@ export type InternalPedidoDetail = Pick<
   | "descripcion"
   | "estado"
   | "prioridad"
-  | "fecha_creacion"
   | "fecha_entrega_estimada"
   | "fecha_entrega_real"
-  | "creado_por"
+  | "created_by"
   | "supervisor_id"
   | "created_at"
   | "updated_at"
@@ -92,10 +91,9 @@ const PEDIDO_DETAIL_SELECT = `
   descripcion,
   estado,
   prioridad,
-  fecha_creacion,
   fecha_entrega_estimada,
   fecha_entrega_real,
-  creado_por,
+  created_by,
   supervisor_id,
   created_at,
   updated_at,
@@ -111,7 +109,7 @@ const PEDIDO_DETAIL_SELECT = `
     fecha_deseada,
     created_at
   ),
-  creador:profiles!pedidos_creado_por_fkey(id, full_name),
+  creador:profiles!pedidos_created_by_fkey(id, full_name),
   supervisor:profiles!pedidos_supervisor_id_fkey(id, full_name),
   pedido_trabajadores(
     id,

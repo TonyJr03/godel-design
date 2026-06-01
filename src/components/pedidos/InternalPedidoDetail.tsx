@@ -93,7 +93,7 @@ export function InternalPedidoDetail({
         <dl className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           <DetailItem
             label="Fecha operativa"
-            value={formatAppDateTime(pedido.fecha_creacion, "No definida")}
+            value={formatAppDateTime(pedido.created_at, "No definida")}
           />
           <DetailItem
             label="Entrega estimada"

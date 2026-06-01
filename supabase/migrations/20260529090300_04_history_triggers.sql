@@ -19,7 +19,7 @@ begin
   )
   values (
     new.id,
-    new.creado_por,
+    new.created_by,
     'pedido_creado'::public.pedido_historial_action,
     'Pedido creado en el sistema: ' || new.numero_pedido,
     null,

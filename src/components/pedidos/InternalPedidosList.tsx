@@ -146,7 +146,7 @@ export function InternalPedidosList({ pedidos }: InternalPedidosListProps) {
                   {getTrabajadoresLabel(pedido)}
                 </td>
                 <td className="whitespace-nowrap px-4 py-4 text-zinc-700">
-                  {formatDate(pedido.fecha_creacion)}
+                  {formatDate(pedido.created_at)}
                 </td>
                 <td className="whitespace-nowrap px-4 py-4 text-zinc-700">
                   {formatDate(pedido.fecha_entrega_estimada)}

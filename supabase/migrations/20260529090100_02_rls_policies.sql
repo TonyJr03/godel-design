@@ -142,7 +142,7 @@ as $$
   end;
 $$;
 
-create or replace function private.ensure_active_pedido_trabajador()
+create or replace function private.ensure_active_order_assignment_profile()
 returns trigger
 language plpgsql
 security definer
@@ -265,7 +265,7 @@ grant execute on function private.is_assigned_to_order(uuid) to authenticated;
 grant execute on function private.can_access_order(uuid) to authenticated;
 grant execute on function private.can_access_solicitud(uuid) to authenticated;
 
-revoke all on function private.ensure_active_pedido_trabajador()
+revoke all on function private.ensure_active_order_assignment_profile()
 from public, anon, authenticated;
 
 revoke all on function private.ensure_profile_admin_integrity()
@@ -277,11 +277,11 @@ on public.profiles
 for each row
 execute function private.ensure_profile_admin_integrity();
 
-create trigger ensure_active_pedido_trabajador
+create trigger ensure_active_order_assignment_profile
 before insert or update of assigned_profile_id
 on public.pedido_trabajadores
 for each row
-execute function private.ensure_active_pedido_trabajador();
+execute function private.ensure_active_order_assignment_profile();
 
 grant insert on table public.solicitudes to anon;
 

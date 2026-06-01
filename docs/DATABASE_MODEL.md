@@ -213,10 +213,9 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 | `descripcion` | `text` | Detalle del trabajo. |
 | `estado` | `pedido_estado` | Estado operativo del pedido. |
 | `prioridad` | `pedido_prioridad` | Prioridad del pedido. |
-| `fecha_creacion` | `timestamptz` | Fecha operativa de creación del pedido. |
 | `fecha_entrega_estimada` | `date nullable` | Fecha estimada de entrega. |
 | `fecha_entrega_real` | `date nullable` | Fecha real de entrega. |
-| `creado_por` | `uuid nullable` | Usuario interno que creó el pedido. |
+| `created_by` | `uuid nullable` | Usuario interno que creó el pedido. |
 | `supervisor_id` | `uuid nullable` | Supervisor responsable. |
 | `created_at` | `timestamptz` | Fecha de creación del registro. |
 | `updated_at` | `timestamptz` | Fecha de última actualización. |
@@ -225,7 +224,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 
 - `pedidos.cliente_id` -> `clientes.id`.
 - `pedidos.solicitud_id` -> `solicitudes.id`.
-- `pedidos.creado_por` -> `profiles.id`.
+- `pedidos.created_by` -> `profiles.id`.
 - `pedidos.supervisor_id` -> `profiles.id`.
 
 **Reglas importantes:**
