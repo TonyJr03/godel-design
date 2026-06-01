@@ -109,7 +109,6 @@ export type Database = {
           created_at: string
           id: string
           pedido_id: string
-          updated_at: string
           user_id: string
         }
         Insert: {
@@ -117,7 +116,6 @@ export type Database = {
           created_at?: string
           id?: string
           pedido_id: string
-          updated_at?: string
           user_id: string
         }
         Update: {
@@ -125,7 +123,6 @@ export type Database = {
           created_at?: string
           id?: string
           pedido_id?: string
-          updated_at?: string
           user_id?: string
         }
         Relationships: [
@@ -150,7 +147,7 @@ export type Database = {
           action: Database["public"]["Enums"]["pedido_historial_action"]
           created_at: string
           id: string
-          metadata: Json | null
+          metadata: Json
           new_value: string | null
           old_value: string | null
           pedido_id: string
@@ -160,7 +157,7 @@ export type Database = {
           action: Database["public"]["Enums"]["pedido_historial_action"]
           created_at?: string
           id?: string
-          metadata?: Json | null
+          metadata?: Json
           new_value?: string | null
           old_value?: string | null
           pedido_id: string
@@ -170,7 +167,7 @@ export type Database = {
           action?: Database["public"]["Enums"]["pedido_historial_action"]
           created_at?: string
           id?: string
-          metadata?: Json | null
+          metadata?: Json
           new_value?: string | null
           old_value?: string | null
           pedido_id?: string
@@ -557,7 +554,6 @@ export type Database = {
           contenido: string
           created_at: string
           id: string
-          updated_at: string
         }[]
       }
       listar_pedido_historial: {
@@ -571,6 +567,28 @@ export type Database = {
           metadata: Json
           new_value: string
           old_value: string
+        }[]
+      }
+      listar_solicitud_comentarios: {
+        Args: { p_solicitud_id: string }
+        Returns: {
+          author_full_name: string
+          author_role: Database["public"]["Enums"]["app_role"]
+          contenido: string
+          created_at: string
+          id: string
+        }[]
+      }
+      listar_solicitud_historial: {
+        Args: { p_solicitud_id: string }
+        Returns: {
+          action: Database["public"]["Enums"]["solicitud_historial_action"]
+          actor_full_name: string
+          actor_role: Database["public"]["Enums"]["app_role"]
+          created_at: string
+          id: string
+          metadata: Json
+          resumen: string
         }[]
       }
     }

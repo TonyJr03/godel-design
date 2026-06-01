@@ -15,14 +15,14 @@ export type PedidoCommentAuthor =
 
 export type PedidoComment = Pick<
   Tables<"pedido_comentarios">,
-  "id" | "contenido" | "created_at" | "updated_at"
+  "id" | "contenido" | "created_at"
 > & {
   author: PedidoCommentAuthor;
 };
 
 type PedidoCommentRpcRow = Pick<
   Tables<"pedido_comentarios">,
-  "id" | "contenido" | "created_at" | "updated_at"
+  "id" | "contenido" | "created_at"
 > & {
   author_full_name: string;
   author_role: Enums<"app_role"> | null;

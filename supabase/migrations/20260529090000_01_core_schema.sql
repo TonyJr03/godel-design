@@ -207,14 +207,9 @@ create table public.pedido_comentarios (
   user_id uuid not null references public.profiles(id) on delete restrict,
   contenido text not null,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  constraint pedido_comentarios_contenido_not_empty check (btrim(contenido) <> '')
+  constraint pedido_comentarios_contenido_not_empty check (length(btrim(contenido)) > 0),
+  constraint pedido_comentarios_contenido_max_length check (length(contenido) <= 2000)
 );
-
-create trigger set_pedido_comentarios_updated_at
-before update on public.pedido_comentarios
-for each row
-execute function public.set_updated_at();
 
 create table public.pedido_historial (
   id uuid primary key default gen_random_uuid(),
@@ -223,8 +218,9 @@ create table public.pedido_historial (
   action public.pedido_historial_action not null,
   old_value text,
   new_value text,
-  metadata jsonb,
-  created_at timestamptz not null default now()
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  constraint pedido_historial_metadata_is_object check (jsonb_typeof(metadata) = 'object')
 );
 
 create table public.solicitud_comentarios (

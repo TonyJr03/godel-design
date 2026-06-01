@@ -84,7 +84,7 @@ No se usa service role key y no se implementa deduplicación avanzada.
 
 ## Comentarios internos
 
-`listSolicitudComments` carga server-side los comentarios internos de una solicitud en orden ascendente. Requiere usuario interno activo con permiso `solicitudes.view`, valida UUID, confirma acceso a la solicitud respetando RLS y carga datos mínimos del autor desde `profiles`.
+`listSolicitudComments` carga server-side los comentarios internos mediante la RPC segura `public.listar_solicitud_comentarios`. Requiere usuario interno activo con permiso `solicitudes.view`, valida UUID, confirma acceso a la solicitud y recibe solo datos mínimos del autor: nombre y rol.
 
 `createSolicitudComment` agrega comentarios internos append-only. Requiere `solicitudes.manage`, valida UUID, confirma acceso a la solicitud, valida contenido no vacío con máximo de 2000 caracteres e inserta en `solicitud_comentarios` usando `autor_id = profile.id`.
 
@@ -92,7 +92,7 @@ La action `createSolicitudCommentAction` lee únicamente `solicitud_id` y `conte
 
 ## Historial visible
 
-`listSolicitudHistory` carga server-side el historial interno de una solicitud en orden descendente. Requiere usuario interno activo con permiso `solicitudes.view`, valida UUID, confirma acceso a la solicitud respetando RLS y carga datos mínimos del actor desde `profiles` cuando existe `actor_id`.
+`listSolicitudHistory` carga server-side el historial interno mediante la RPC segura `public.listar_solicitud_historial`. Requiere usuario interno activo con permiso `solicitudes.view`, valida UUID, confirma acceso a la solicitud y recibe solo datos mínimos del actor cuando existe `actor_id`: nombre y rol.
 
 `SolicitudHistorySection` muestra los eventos existentes en `solicitud_historial` dentro del detalle interno de solicitud. La sección muestra tipo de evento, resumen, actor, rol y fecha. Si `actor_id` es `null`, el evento se muestra como “Evento automático”.
 

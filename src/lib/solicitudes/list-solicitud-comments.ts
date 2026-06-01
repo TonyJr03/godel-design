@@ -7,7 +7,7 @@ import {
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
-import type { Tables } from "@/types/database";
+import type { Enums, Tables } from "@/types/database";
 
 export type SolicitudCommentAuthor =
   | Pick<Tables<"profiles">, "full_name" | "role">
@@ -20,12 +20,25 @@ export type SolicitudComment = Pick<
   author: SolicitudCommentAuthor;
 };
 
-type SolicitudCommentRow = Pick<
+type SolicitudCommentRpcRow = Pick<
   Tables<"solicitud_comentarios">,
-  "id" | "contenido" | "created_at" | "autor_id"
->;
+  "id" | "contenido" | "created_at"
+> & {
+  author_full_name: string;
+  author_role: Enums<"app_role"> | null;
+};
 
-type ProfileRow = Pick<Tables<"profiles">, "id" | "full_name" | "role">;
+type SolicitudCommentsRpcResult = {
+  data: SolicitudCommentRpcRow[] | null;
+  error: { message?: string } | null;
+};
+
+type SolicitudCommentsRpcClient = {
+  rpc(
+    fn: "listar_solicitud_comentarios",
+    args: { p_solicitud_id: string },
+  ): PromiseLike<SolicitudCommentsRpcResult>;
+};
 
 export type ListSolicitudCommentsErrorReason =
   | "unauthorized"
@@ -42,13 +55,6 @@ export type ListSolicitudCommentsResult = ServiceResult<
 
 const GENERIC_LIST_COMMENTS_ERROR =
   "No se pudieron cargar los comentarios de la solicitud.";
-
-const SOLICITUD_COMMENTS_SELECT = `
-  id,
-  autor_id,
-  contenido,
-  created_at
-`;
 
 const emptyComments = {
   comments: [] as [],
@@ -111,12 +117,11 @@ export async function listSolicitudComments(
       );
     }
 
-    const { data, error } = await supabase
-      .from("solicitud_comentarios")
-      .select(SOLICITUD_COMMENTS_SELECT)
-      .eq("solicitud_id", solicitudId)
-      .order("created_at", { ascending: true })
-      .returns<SolicitudCommentRow[]>();
+    const { data, error } = await (
+      supabase as unknown as SolicitudCommentsRpcClient
+    ).rpc("listar_solicitud_comentarios", {
+      p_solicitud_id: solicitudId,
+    });
 
     if (error) {
       console.error("Error listing solicitud comments", error);
@@ -128,36 +133,18 @@ export async function listSolicitudComments(
       );
     }
 
-    const comments = data ?? [];
-    const authorIds = Array.from(
-      new Set(comments.map((comment) => comment.autor_id)),
-    );
-    const authorsById = new Map<string, SolicitudCommentAuthor>();
-
-    if (authorIds.length > 0) {
-      const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("id, full_name, role")
-        .in("id", authorIds)
-        .returns<ProfileRow[]>();
-
-      if (profilesError) {
-        console.error("Error loading solicitud comment authors", profilesError);
-      } else {
-        for (const authorProfile of profiles ?? []) {
-          authorsById.set(authorProfile.id, {
-            full_name: authorProfile.full_name,
-            role: authorProfile.role,
-          });
-        }
-      }
-    }
-
     return serviceSuccess({
-      comments: comments.map(({ autor_id, ...comment }) => ({
-        ...comment,
-        author: authorsById.get(autor_id) ?? null,
-      })),
+      comments: (data ?? []).map(
+        ({ author_full_name, author_role, ...comment }) => ({
+          ...comment,
+          author: author_role
+            ? {
+                full_name: author_full_name,
+                role: author_role,
+              }
+            : null,
+        }),
+      ),
     });
   } catch (error) {
     console.error("Unexpected error listing solicitud comments", error);

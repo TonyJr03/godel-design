@@ -7,7 +7,7 @@ import {
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
-import type { Json, Tables } from "@/types/database";
+import type { Enums, Json, Tables } from "@/types/database";
 
 export type SolicitudHistoryActor =
   | Pick<Tables<"profiles">, "full_name" | "role">
@@ -24,12 +24,28 @@ export type SolicitudHistoryItem = Pick<
   };
 };
 
-type SolicitudHistoryRow = Pick<
-  Tables<"solicitud_historial">,
-  "id" | "action" | "resumen" | "metadata" | "created_at" | "actor_id"
->;
+type SolicitudHistoryRpcRow = {
+  id: string;
+  action: Enums<"solicitud_historial_action">;
+  resumen: string;
+  metadata: Json;
+  created_at: string;
+  actor_full_name: string | null;
+  actor_role: Enums<"app_role"> | null;
+};
 
-type ProfileRow = Pick<Tables<"profiles">, "id" | "full_name" | "role">;
+type SolicitudHistoryRpcResult = {
+  data: SolicitudHistoryRpcRow[] | null;
+  error: { message?: string } | null;
+};
+
+type SolicitudHistoryRpcClient = {
+  rpc(
+    fn: "listar_solicitud_historial",
+    args: { p_solicitud_id: string },
+  ): PromiseLike<SolicitudHistoryRpcResult>;
+};
+
 type ClienteRow = Pick<Tables<"clientes">, "id" | "nombre">;
 type PedidoRow = Pick<Tables<"pedidos">, "id" | "numero_pedido" | "titulo">;
 
@@ -48,15 +64,6 @@ export type ListSolicitudHistoryResult = ServiceResult<
 
 const GENERIC_LIST_HISTORY_ERROR =
   "No se pudo cargar el historial de la solicitud.";
-
-const SOLICITUD_HISTORY_SELECT = `
-  id,
-  actor_id,
-  action,
-  resumen,
-  metadata,
-  created_at
-`;
 
 const emptyHistory = {
   history: [] as [],
@@ -129,12 +136,11 @@ export async function listSolicitudHistory(
       );
     }
 
-    const { data, error } = await supabase
-      .from("solicitud_historial")
-      .select(SOLICITUD_HISTORY_SELECT)
-      .eq("solicitud_id", solicitudId)
-      .order("created_at", { ascending: false })
-      .returns<SolicitudHistoryRow[]>();
+    const { data, error } = await (
+      supabase as unknown as SolicitudHistoryRpcClient
+    ).rpc("listar_solicitud_historial", {
+      p_solicitud_id: solicitudId,
+    });
 
     if (error) {
       console.error("Error listing solicitud history", error);
@@ -143,14 +149,6 @@ export async function listSolicitudHistory(
     }
 
     const history = data ?? [];
-    const actorIds = Array.from(
-      new Set(
-        history
-          .map((historyItem) => historyItem.actor_id)
-          .filter((actorId): actorId is string => Boolean(actorId)),
-      ),
-    );
-    const actorsById = new Map<string, SolicitudHistoryActor>();
     const clienteIds = Array.from(
       new Set(
         history
@@ -171,25 +169,6 @@ export async function listSolicitudHistory(
     );
     const clientesById = new Map<string, ClienteRow>();
     const pedidosById = new Map<string, PedidoRow>();
-
-    if (actorIds.length > 0) {
-      const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("id, full_name, role")
-        .in("id", actorIds)
-        .returns<ProfileRow[]>();
-
-      if (profilesError) {
-        console.error("Error loading solicitud history actors", profilesError);
-      } else {
-        for (const actorProfile of profiles ?? []) {
-          actorsById.set(actorProfile.id, {
-            full_name: actorProfile.full_name,
-            role: actorProfile.role,
-          });
-        }
-      }
-    }
 
     if (clienteIds.length > 0) {
       const { data: clientes, error: clientesError } = await supabase
@@ -230,13 +209,18 @@ export async function listSolicitudHistory(
     }
 
     return serviceSuccess({
-      history: history.map(({ actor_id, ...historyItem }) => {
+      history: history.map(({ actor_full_name, actor_role, ...historyItem }) => {
         const clienteId = getMetadataString(historyItem.metadata, "cliente_id");
         const pedidoId = getMetadataString(historyItem.metadata, "pedido_id");
 
         return {
           ...historyItem,
-          actor: actor_id ? actorsById.get(actor_id) ?? null : null,
+          actor: actor_role
+            ? {
+                full_name: actor_full_name ?? "Usuario interno",
+                role: actor_role,
+              }
+            : null,
           related: {
             cliente: clienteId ? clientesById.get(clienteId) : undefined,
             pedido: pedidoId ? pedidosById.get(pedidoId) : undefined,
