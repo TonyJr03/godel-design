@@ -63,9 +63,9 @@ Las siguientes piezas requieren servicios específicos de dashboard:
 
 - conteos agrupados por estado de solicitud;
 - conteos agrupados por estado de pedido;
-- pedidos atrasados, calculados por `fecha_entrega_estimada` anterior a la fecha actual y estado no final;
+- pedidos atrasados, calculados por `estimated_delivery_date` anterior a la fecha actual y estado no final;
 - pedidos próximos a entrega, calculados por una ventana corta y estado no final;
-- pedidos entregados recientemente, calculados por `fecha_entrega_real` o por estado y fecha de actualización si se define;
+- pedidos entregados recientemente, calculados por `actual_delivery_date` o por estado y fecha de actualización si se define;
 - archivos recientes con relación mínima a solicitud o pedido;
 - actividad reciente combinando historial de solicitudes e historial de pedidos;
 - resumen específico del trabajador filtrado a pedidos asignados.
@@ -195,8 +195,8 @@ Definición sugerida de estados:
 | Pedidos en diseño | `en_diseno` |
 | Pedidos en producción | `en_produccion` |
 | Pedidos listos | `listo_entrega` |
-| Pedidos atrasados | `fecha_entrega_estimada` vencida y estado distinto de `entregado` o `cancelado` |
-| Próximos vencimientos | `fecha_entrega_estimada` dentro de una ventana corta y estado activo |
+| Pedidos atrasados | `estimated_delivery_date` vencida y estado distinto de `entregado` o `cancelado` |
+| Próximos vencimientos | `estimated_delivery_date` dentro de una ventana corta y estado activo |
 
 ## Métricas futuras
 

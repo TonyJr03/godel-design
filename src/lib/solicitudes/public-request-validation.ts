@@ -13,26 +13,26 @@ import {
 } from "@/lib/validators";
 
 export type PublicSolicitudInput = {
-  cliente_nombre?: unknown;
-  cliente_telefono?: unknown;
-  cliente_email?: unknown;
-  tipo_servicio?: unknown;
-  descripcion?: unknown;
-  cantidad?: unknown;
-  fecha_deseada?: unknown;
-  observaciones?: unknown;
+  client_name?: unknown;
+  client_phone?: unknown;
+  client_email?: unknown;
+  service_type?: unknown;
+  description?: unknown;
+  quantity?: unknown;
+  desired_date?: unknown;
+  notes?: unknown;
   files?: unknown;
 };
 
 export type PublicSolicitudData = {
-  cliente_nombre: string;
-  cliente_telefono: string;
-  cliente_email: string | null;
-  tipo_servicio: string;
-  descripcion: string;
-  cantidad: number | null;
-  fecha_deseada: string | null;
-  observaciones: string | null;
+  client_name: string;
+  client_phone: string;
+  client_email: string | null;
+  service_type: string;
+  description: string;
+  quantity: number | null;
+  desired_date: string | null;
+  notes: string | null;
 };
 
 export type PublicSolicitudField = keyof PublicSolicitudInput;
@@ -48,12 +48,12 @@ export type ValidatePublicSolicitudInputResult = ValidationResult<
 >;
 
 const FIELD_LIMITS = {
-  cliente_nombre: 120,
-  cliente_telefono: 40,
-  cliente_email: 254,
-  tipo_servicio: 120,
-  descripcion: 2000,
-  observaciones: 1000,
+  client_name: 120,
+  client_phone: 40,
+  client_email: 254,
+  service_type: 120,
+  description: 2000,
+  notes: 1000,
 } as const;
 
 const VALIDATION_ERROR_MESSAGE =
@@ -78,62 +78,62 @@ export function validatePublicSolicitudInput(
 ): ValidatePublicSolicitudInputResult {
   const fieldErrors: PublicSolicitudFieldErrors = {};
 
-  const cliente_nombre = normalizeSingleLineText(input.cliente_nombre);
-  const cliente_telefono = normalizeSingleLineText(input.cliente_telefono);
-  const cliente_email = normalizeOptionalSingleLineText(input.cliente_email);
-  const tipo_servicio = normalizeSingleLineText(input.tipo_servicio);
-  const descripcion = normalizeMultilineText(input.descripcion);
-  const cantidad = parseCantidad(input.cantidad);
-  const fecha_deseada = normalizeOptionalSingleLineText(input.fecha_deseada);
-  const observaciones = normalizeOptionalMultilineText(input.observaciones);
+  const client_name = normalizeSingleLineText(input.client_name);
+  const client_phone = normalizeSingleLineText(input.client_phone);
+  const client_email = normalizeOptionalSingleLineText(input.client_email);
+  const service_type = normalizeSingleLineText(input.service_type);
+  const description = normalizeMultilineText(input.description);
+  const quantity = parseCantidad(input.quantity);
+  const desired_date = normalizeOptionalSingleLineText(input.desired_date);
+  const notes = normalizeOptionalMultilineText(input.notes);
 
-  if (!cliente_nombre) {
-    fieldErrors.cliente_nombre = "Ingresa el nombre del cliente.";
-  } else if (cliente_nombre.length > FIELD_LIMITS.cliente_nombre) {
-    fieldErrors.cliente_nombre = "El nombre es demasiado largo.";
+  if (!client_name) {
+    fieldErrors.client_name = "Ingresa el name del cliente.";
+  } else if (client_name.length > FIELD_LIMITS.client_name) {
+    fieldErrors.client_name = "El nombre es demasiado largo.";
   }
 
-  if (!cliente_telefono) {
-    fieldErrors.cliente_telefono = "Ingresa un teléfono de contacto.";
-  } else if (cliente_telefono.length > FIELD_LIMITS.cliente_telefono) {
-    fieldErrors.cliente_telefono = "El teléfono es demasiado largo.";
+  if (!client_phone) {
+    fieldErrors.client_phone = "Ingresa un teléfono de contacto.";
+  } else if (client_phone.length > FIELD_LIMITS.client_phone) {
+    fieldErrors.client_phone = "El teléfono es demasiado largo.";
   }
 
-  if (cliente_email) {
-    if (cliente_email.length > FIELD_LIMITS.cliente_email) {
-      fieldErrors.cliente_email = "El correo es demasiado largo.";
-    } else if (!isBasicEmail(cliente_email)) {
-      fieldErrors.cliente_email = "Ingresa un correo válido.";
+  if (client_email) {
+    if (client_email.length > FIELD_LIMITS.client_email) {
+      fieldErrors.client_email = "El correo es demasiado largo.";
+    } else if (!isBasicEmail(client_email)) {
+      fieldErrors.client_email = "Ingresa un correo válido.";
     }
   }
 
-  if (!tipo_servicio) {
-    fieldErrors.tipo_servicio = "Selecciona o indica el tipo de servicio.";
-  } else if (tipo_servicio.length > FIELD_LIMITS.tipo_servicio) {
-    fieldErrors.tipo_servicio = "El tipo de servicio es demasiado largo.";
+  if (!service_type) {
+    fieldErrors.service_type = "Selecciona o indica el tipo de servicio.";
+  } else if (service_type.length > FIELD_LIMITS.service_type) {
+    fieldErrors.service_type = "El tipo de servicio es demasiado largo.";
   }
 
-  if (!descripcion) {
-    fieldErrors.descripcion = "Describe el trabajo solicitado.";
-  } else if (descripcion.length > FIELD_LIMITS.descripcion) {
-    fieldErrors.descripcion = "La descripción es demasiado larga.";
+  if (!description) {
+    fieldErrors.description = "Describe el trabajo solicitado.";
+  } else if (description.length > FIELD_LIMITS.description) {
+    fieldErrors.description = "La descripción es demasiado larga.";
   }
 
-  if (Number.isNaN(cantidad) || (cantidad !== null && cantidad <= 0)) {
-    fieldErrors.cantidad = "La cantidad debe ser un entero positivo.";
+  if (Number.isNaN(quantity) || (quantity !== null && quantity <= 0)) {
+    fieldErrors.quantity = "La cantidad debe ser un entero positivo.";
   }
 
-  if (fecha_deseada) {
-    if (!isValidIsoDate(fecha_deseada)) {
-      fieldErrors.fecha_deseada = "Ingresa una fecha válida.";
-    } else if (fecha_deseada < getTodayIsoDate()) {
-      fieldErrors.fecha_deseada =
+  if (desired_date) {
+    if (!isValidIsoDate(desired_date)) {
+      fieldErrors.desired_date = "Ingresa una fecha válida.";
+    } else if (desired_date < getTodayIsoDate()) {
+      fieldErrors.desired_date =
         "La fecha deseada no puede ser anterior a hoy.";
     }
   }
 
-  if (observaciones && observaciones.length > FIELD_LIMITS.observaciones) {
-    fieldErrors.observaciones = "Las observaciones son demasiado largas.";
+  if (notes && notes.length > FIELD_LIMITS.notes) {
+    fieldErrors.notes = "Las observaciones son demasiado largas.";
   }
 
   if (hasFieldErrors(fieldErrors)) {
@@ -143,13 +143,13 @@ export function validatePublicSolicitudInput(
   }
 
   return validationSuccess({
-    cliente_nombre,
-    cliente_telefono,
-    cliente_email,
-    tipo_servicio,
-    descripcion,
-    cantidad,
-    fecha_deseada,
-    observaciones,
+    client_name,
+    client_phone,
+    client_email,
+    service_type,
+    description,
+    quantity,
+    desired_date,
+    notes,
   });
 }

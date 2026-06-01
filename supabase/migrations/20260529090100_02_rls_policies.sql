@@ -394,7 +394,7 @@ on public.solicitudes
 for insert
 to anon, authenticated
 with check (
-  estado = 'nueva'::public.solicitud_estado
+  status = 'nueva'::public.solicitud_estado
   and reviewed_by is null
   and converted_order_id is null
   and cliente_id is null

@@ -29,7 +29,7 @@ export function PedidoStatusForm({
     updatePedidoStatusAction,
     initialState,
   );
-  const estadoError = state.fieldErrors?.estado;
+  const estadoError = state.fieldErrors?.status;
 
   return (
     <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
@@ -55,27 +55,27 @@ export function PedidoStatusForm({
         ) : null}
 
         <div className="max-w-sm">
-          <label htmlFor="estado" className="text-sm font-medium text-zinc-900">
+          <label htmlFor="status" className="text-sm font-medium text-zinc-900">
             Estado
           </label>
           <select
-            id="estado"
-            name="estado"
+            id="status"
+            name="status"
             defaultValue={estadoActual}
             disabled={pending}
             aria-invalid={Boolean(estadoError)}
-            aria-describedby={estadoError ? "estado-pedido-error" : undefined}
+            aria-describedby={estadoError ? "status-pedido-error" : undefined}
             className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-950 shadow-sm outline-none transition focus:border-teal-700 focus:ring-2 focus:ring-teal-700/20 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500"
           >
-            {PEDIDO_STATUSES.map((estado) => (
-              <option key={estado} value={estado}>
-                {PEDIDO_STATUS_LABELS[estado]}
+            {PEDIDO_STATUSES.map((status) => (
+              <option key={status} value={status}>
+                {PEDIDO_STATUS_LABELS[status]}
               </option>
             ))}
           </select>
           {estadoError ? (
             <p
-              id="estado-pedido-error"
+              id="status-pedido-error"
               className="mt-2 text-sm leading-5 text-red-700"
             >
               {estadoError}

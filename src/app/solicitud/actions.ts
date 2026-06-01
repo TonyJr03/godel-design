@@ -12,14 +12,14 @@ import {
 import { getFormValue } from "@/lib/utils";
 
 export type PublicSolicitudSubmittedValues = {
-  cliente_nombre: string;
-  cliente_telefono: string;
-  cliente_email: string;
-  tipo_servicio: string;
-  descripcion: string;
-  cantidad: string;
-  fecha_deseada: string;
-  observaciones: string;
+  client_name: string;
+  client_phone: string;
+  client_email: string;
+  service_type: string;
+  description: string;
+  quantity: string;
+  desired_date: string;
+  notes: string;
 };
 
 export type SubmitPublicSolicitudActionState = {
@@ -35,14 +35,14 @@ export type SubmitPublicSolicitudActionState = {
 
 function getSubmittedValues(formData: FormData): PublicSolicitudSubmittedValues {
   return {
-    cliente_nombre: getFormValue(formData, "cliente_nombre"),
-    cliente_telefono: getFormValue(formData, "cliente_telefono"),
-    cliente_email: getFormValue(formData, "cliente_email"),
-    tipo_servicio: getFormValue(formData, "tipo_servicio"),
-    descripcion: getFormValue(formData, "descripcion"),
-    cantidad: getFormValue(formData, "cantidad"),
-    fecha_deseada: getFormValue(formData, "fecha_deseada"),
-    observaciones: getFormValue(formData, "observaciones"),
+    client_name: getFormValue(formData, "client_name"),
+    client_phone: getFormValue(formData, "client_phone"),
+    client_email: getFormValue(formData, "client_email"),
+    service_type: getFormValue(formData, "service_type"),
+    description: getFormValue(formData, "description"),
+    quantity: getFormValue(formData, "quantity"),
+    desired_date: getFormValue(formData, "desired_date"),
+    notes: getFormValue(formData, "notes"),
   };
 }
 
@@ -97,14 +97,14 @@ export async function submitPublicSolicitudAction(
   }
 
   const result = await createPublicSolicitud({
-    cliente_nombre: values.cliente_nombre,
-    cliente_telefono: values.cliente_telefono,
-    cliente_email: values.cliente_email,
-    tipo_servicio: values.tipo_servicio,
-    descripcion: values.descripcion,
-    cantidad: values.cantidad,
-    fecha_deseada: values.fecha_deseada,
-    observaciones: values.observaciones,
+    client_name: values.client_name,
+    client_phone: values.client_phone,
+    client_email: values.client_email,
+    service_type: values.service_type,
+    description: values.description,
+    quantity: values.quantity,
+    desired_date: values.desired_date,
+    notes: values.notes,
   });
 
   if (!result.ok) {

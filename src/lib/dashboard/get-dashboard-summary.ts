@@ -62,21 +62,21 @@ async function getManagementDashboardSummary(
         supabase
           .from("solicitudes")
           .select("id", { count: "exact", head: true })
-          .eq("estado", "nueva"),
+          .eq("status", "nueva"),
       ),
       resolveCount(
         "solicitudes pendientes",
         supabase
           .from("solicitudes")
           .select("id", { count: "exact", head: true })
-          .in("estado", SOLICITUD_ESTADOS_PENDIENTES),
+          .in("status", SOLICITUD_ESTADOS_PENDIENTES),
       ),
       resolveCount(
         "solicitudes aprobadas pendientes de convertir",
         supabase
           .from("solicitudes")
           .select("id", { count: "exact", head: true })
-          .eq("estado", "aprobada")
+          .eq("status", "aprobada")
           .is("converted_order_id", null),
       ),
       resolveCount(
@@ -84,48 +84,48 @@ async function getManagementDashboardSummary(
         supabase
           .from("pedidos")
           .select("id", { count: "exact", head: true })
-          .neq("estado", "entregado")
-          .neq("estado", "cancelado"),
+          .neq("status", "entregado")
+          .neq("status", "cancelado"),
       ),
       resolveCount(
         "pedidos en diseño",
         supabase
           .from("pedidos")
           .select("id", { count: "exact", head: true })
-          .eq("estado", "en_diseno"),
+          .eq("status", "en_diseno"),
       ),
       resolveCount(
         "pedidos en producción",
         supabase
           .from("pedidos")
           .select("id", { count: "exact", head: true })
-          .eq("estado", "en_produccion"),
+          .eq("status", "en_produccion"),
       ),
       resolveCount(
         "pedidos listos para entrega",
         supabase
           .from("pedidos")
           .select("id", { count: "exact", head: true })
-          .eq("estado", "listo_entrega"),
+          .eq("status", "listo_entrega"),
       ),
       resolveCount(
         "pedidos atrasados",
         supabase
           .from("pedidos")
           .select("id", { count: "exact", head: true })
-          .lt("fecha_entrega_estimada", today)
-          .neq("estado", "entregado")
-          .neq("estado", "cancelado"),
+          .lt("estimated_delivery_date", today)
+          .neq("status", "entregado")
+          .neq("status", "cancelado"),
       ),
       resolveCount(
         "pedidos próximos a entrega",
         supabase
           .from("pedidos")
           .select("id", { count: "exact", head: true })
-          .gte("fecha_entrega_estimada", today)
-          .lte("fecha_entrega_estimada", nextSevenDays)
-          .neq("estado", "entregado")
-          .neq("estado", "cancelado"),
+          .gte("estimated_delivery_date", today)
+          .lte("estimated_delivery_date", nextSevenDays)
+          .neq("status", "entregado")
+          .neq("status", "cancelado"),
       ),
       resolveCount(
         "clientes registrados",

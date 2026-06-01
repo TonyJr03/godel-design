@@ -13,9 +13,9 @@ export const INTERNAL_PEDIDO_ESTADOS = PEDIDO_STATUSES;
 
 export type InternalPedidoEstado = PedidoStatus;
 
-type PedidoCliente = Pick<Tables<"clientes">, "id" | "nombre"> | null;
+type PedidoCliente = Pick<Tables<"clientes">, "id" | "name"> | null;
 type PedidoSolicitud =
-  | Pick<Tables<"solicitudes">, "id" | "tipo_servicio">
+  | Pick<Tables<"solicitudes">, "id" | "service_type">
   | null;
 type PedidoTrabajadorProfile =
   | Pick<Tables<"perfiles">, "id" | "full_name">
@@ -31,14 +31,14 @@ export type InternalPedidoTrabajador = Pick<
 export type InternalPedido = Pick<
   Tables<"pedidos">,
   | "id"
-  | "numero_pedido"
+  | "order_number"
   | "cliente_id"
   | "solicitud_id"
-  | "titulo"
-  | "descripcion"
-  | "estado"
-  | "prioridad"
-  | "fecha_entrega_estimada"
+  | "title"
+  | "description"
+  | "status"
+  | "priority"
+  | "estimated_delivery_date"
   | "created_at"
 > & {
   clientes: PedidoCliente;
@@ -47,12 +47,12 @@ export type InternalPedido = Pick<
 };
 
 export type ListInternalPedidosOptions = {
-  estado?: string | null;
+  status?: string | null;
   limit?: number;
 };
 
 type ListInternalPedidosMeta = {
-  estado: InternalPedidoEstado | null;
+  status: InternalPedidoEstado | null;
   ignoredInvalidEstado: boolean;
 };
 
@@ -74,17 +74,17 @@ const GENERIC_LIST_ERROR =
 
 const BASE_PEDIDOS_SELECT = `
   id,
-  numero_pedido,
+  order_number,
   cliente_id,
   solicitud_id,
-  titulo,
-  descripcion,
-  estado,
-  prioridad,
-  fecha_entrega_estimada,
+  title,
+  description,
+  status,
+  priority,
+  estimated_delivery_date,
   created_at,
-  clientes(id, nombre),
-  solicitudes!pedidos_solicitud_id_fkey(id, tipo_servicio)
+  clientes(id, name),
+  solicitudes!pedidos_solicitud_id_fkey(id, service_type)
 `;
 
 const PEDIDOS_SELECT = `
@@ -106,19 +106,19 @@ function normalizeLimit(limit: number | undefined): number {
 }
 
 export function isInternalPedidoEstado(
-  estado: string | null | undefined,
-): estado is InternalPedidoEstado {
-  return INTERNAL_PEDIDO_ESTADOS.includes(estado as InternalPedidoEstado);
+  status: string | null | undefined,
+): status is InternalPedidoEstado {
+  return INTERNAL_PEDIDO_ESTADOS.includes(status as InternalPedidoEstado);
 }
 
 export async function listInternalPedidos(
   options: ListInternalPedidosOptions = {},
 ): Promise<ListInternalPedidosResult> {
-  const selectedEstado = isInternalPedidoEstado(options.estado)
-    ? options.estado
+  const selectedEstado = isInternalPedidoEstado(options.status)
+    ? options.status
     : null;
-  const ignoredInvalidEstado = Boolean(options.estado && !selectedEstado);
-  const meta = { estado: selectedEstado, ignoredInvalidEstado };
+  const ignoredInvalidEstado = Boolean(options.status && !selectedEstado);
+  const meta = { status: selectedEstado, ignoredInvalidEstado };
   const profile = await getCurrentProfile();
 
   if (!profile) {
@@ -148,7 +148,7 @@ export async function listInternalPedidos(
       .limit(limit);
 
     if (selectedEstado) {
-      query = query.eq("estado", selectedEstado);
+      query = query.eq("status", selectedEstado);
     }
 
     const { data, error } = await query.returns<InternalPedido[]>();

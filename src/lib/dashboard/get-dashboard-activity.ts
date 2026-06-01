@@ -17,7 +17,7 @@ import type {
 } from "./types";
 
 type PedidoActivityPedido =
-  | Pick<Tables<"pedidos">, "id" | "numero_pedido" | "titulo">
+  | Pick<Tables<"pedidos">, "id" | "order_number" | "title">
   | null;
 
 type PedidoActivityRow = Pick<
@@ -35,7 +35,7 @@ type PedidoActivityRow = Pick<
 };
 
 type SolicitudActivitySolicitud =
-  | Pick<Tables<"solicitudes">, "id" | "cliente_nombre" | "tipo_servicio">
+  | Pick<Tables<"solicitudes">, "id" | "client_name" | "service_type">
   | null;
 
 type SolicitudActivityRow = Pick<
@@ -64,7 +64,7 @@ const PEDIDO_ACTIVITY_SELECT = `
   new_value,
   metadata,
   created_at,
-  pedidos(id, numero_pedido, titulo)
+  pedidos(id, order_number, title)
 `;
 
 const SOLICITUD_ACTIVITY_SELECT = `
@@ -76,7 +76,7 @@ const SOLICITUD_ACTIVITY_SELECT = `
   new_value,
   metadata,
   created_at,
-  solicitudes(id, cliente_nombre, tipo_servicio)
+  solicitudes(id, client_name, service_type)
 `;
 
 const GENERIC_ACTIVITY_ERROR =
@@ -141,7 +141,7 @@ function formatSolicitudEstado(value: string | null): string {
 
 function getPedidoTitle(row: PedidoActivityRow): string {
   if (row.pedidos) {
-    return `${row.pedidos.numero_pedido} · ${row.pedidos.titulo}`;
+    return `${row.pedidos.order_number} · ${row.pedidos.title}`;
   }
 
   return "Pedido";
@@ -149,7 +149,7 @@ function getPedidoTitle(row: PedidoActivityRow): string {
 
 function getSolicitudTitle(row: SolicitudActivityRow): string {
   if (row.solicitudes) {
-    return `${row.solicitudes.cliente_nombre} · ${row.solicitudes.tipo_servicio}`;
+    return `${row.solicitudes.client_name} · ${row.solicitudes.service_type}`;
   }
 
   return "Solicitud";
@@ -230,7 +230,7 @@ function buildSolicitudDescription(row: SolicitudActivityRow): string {
   }
 
   if (row.action === "cliente_asociado") {
-    const clienteNombre = getMetadataString(row.metadata, "cliente_nombre");
+    const clienteNombre = getMetadataString(row.metadata, "client_name");
 
     return clienteNombre
       ? `Cliente asociado: ${clienteNombre}.`
@@ -238,7 +238,7 @@ function buildSolicitudDescription(row: SolicitudActivityRow): string {
   }
 
   if (row.action === "cliente_creado_desde_solicitud") {
-    const clienteNombre = getMetadataString(row.metadata, "cliente_nombre");
+    const clienteNombre = getMetadataString(row.metadata, "client_name");
 
     return clienteNombre
       ? `Cliente creado desde solicitud: ${clienteNombre}.`
@@ -248,7 +248,7 @@ function buildSolicitudDescription(row: SolicitudActivityRow): string {
   if (row.action === "convertida_a_pedido") {
     const pedidoNumero =
       getMetadataString(row.metadata, "pedido_numero") ??
-      getMetadataString(row.metadata, "numero_pedido");
+      getMetadataString(row.metadata, "order_number");
 
     return pedidoNumero
       ? `Solicitud convertida a pedido: ${pedidoNumero}.`

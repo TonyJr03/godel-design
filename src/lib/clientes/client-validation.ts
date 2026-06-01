@@ -10,20 +10,20 @@ import {
 } from "@/lib/validators";
 import type { TablesInsert } from "@/types/database";
 
-export const CLIENTE_FIELDS = ["nombre", "telefono", "email", "notas"] as const;
+export const CLIENTE_FIELDS = ["name", "phone", "email", "notes"] as const;
 
 export type ClienteField = (typeof CLIENTE_FIELDS)[number];
 
 export type CreateClienteInput = {
-  nombre?: string | null;
-  telefono?: string | null;
+  name?: string | null;
+  phone?: string | null;
   email?: string | null;
-  notas?: string | null;
+  notes?: string | null;
 };
 
 export type CreateClienteData = Pick<
   TablesInsert<"clientes">,
-  "nombre" | "telefono" | "email" | "notas"
+  "name" | "phone" | "email" | "notes"
 >;
 
 export type ClienteFieldErrors = Partial<Record<ClienteField, string>>;
@@ -41,23 +41,23 @@ const MAX_NOTAS_LENGTH = 1000;
 export function validateClienteInput(
   input: CreateClienteInput,
 ): ValidateClienteInputResult {
-  const nombre = normalizeSingleLineText(input.nombre);
-  const telefono = normalizeSingleLineText(input.telefono);
+  const name = normalizeSingleLineText(input.name);
+  const phone = normalizeSingleLineText(input.phone);
   const email =
     normalizeOptionalSingleLineText(input.email)?.toLowerCase() ?? null;
-  const notas = normalizeOptionalMultilineText(input.notas);
+  const notes = normalizeOptionalMultilineText(input.notes);
   const fieldErrors: ClienteFieldErrors = {};
 
-  if (!nombre) {
-    fieldErrors.nombre = "El nombre es obligatorio.";
-  } else if (nombre.length > MAX_NOMBRE_LENGTH) {
-    fieldErrors.nombre = `El nombre no puede superar ${MAX_NOMBRE_LENGTH} caracteres.`;
+  if (!name) {
+    fieldErrors.name = "El nombre es obligatorio.";
+  } else if (name.length > MAX_NOMBRE_LENGTH) {
+    fieldErrors.name = `El nombre no puede superar ${MAX_NOMBRE_LENGTH} caracteres.`;
   }
 
-  if (!telefono) {
-    fieldErrors.telefono = "El teléfono es obligatorio.";
-  } else if (telefono.length > MAX_TELEFONO_LENGTH) {
-    fieldErrors.telefono = `El teléfono no puede superar ${MAX_TELEFONO_LENGTH} caracteres.`;
+  if (!phone) {
+    fieldErrors.phone = "El teléfono es obligatorio.";
+  } else if (phone.length > MAX_TELEFONO_LENGTH) {
+    fieldErrors.phone = `El teléfono no puede superar ${MAX_TELEFONO_LENGTH} caracteres.`;
   }
 
   if (email && email.length > MAX_EMAIL_LENGTH) {
@@ -66,8 +66,8 @@ export function validateClienteInput(
     fieldErrors.email = "Ingresa un correo electrónico válido.";
   }
 
-  if (notas && notas.length > MAX_NOTAS_LENGTH) {
-    fieldErrors.notas = `Las notas no pueden superar ${MAX_NOTAS_LENGTH} caracteres.`;
+  if (notes && notes.length > MAX_NOTAS_LENGTH) {
+    fieldErrors.notes = `Las notas no pueden superar ${MAX_NOTAS_LENGTH} caracteres.`;
   }
 
   if (hasFieldErrors(fieldErrors)) {
@@ -75,9 +75,9 @@ export function validateClienteInput(
   }
 
   return validationSuccess({
-    nombre,
-    telefono,
+    name,
+    phone,
     email,
-    notas,
+    notes,
   });
 }

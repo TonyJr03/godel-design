@@ -78,27 +78,27 @@ export type Database = {
           created_at: string
           email: string | null
           id: string
-          nombre: string
-          notas: string | null
-          telefono: string
+          name: string
+          notes: string | null
+          phone: string
           updated_at: string
         }
         Insert: {
           created_at?: string
           email?: string | null
           id?: string
-          nombre: string
-          notas?: string | null
-          telefono: string
+          name: string
+          notes?: string | null
+          phone: string
           updated_at?: string
         }
         Update: {
           created_at?: string
           email?: string | null
           id?: string
-          nombre?: string
-          notas?: string | null
-          telefono?: string
+          name?: string
+          notes?: string | null
+          phone?: string
           updated_at?: string
         }
         Relationships: []
@@ -106,21 +106,21 @@ export type Database = {
       pedido_comentarios: {
         Row: {
           author_id: string
-          contenido: string
+          content: string
           created_at: string
           id: string
           pedido_id: string
         }
         Insert: {
           author_id: string
-          contenido: string
+          content: string
           created_at?: string
           id?: string
           pedido_id: string
         }
         Update: {
           author_id?: string
-          contenido?: string
+          content?: string
           created_at?: string
           id?: string
           pedido_id?: string
@@ -241,48 +241,48 @@ export type Database = {
       }
       pedidos: {
         Row: {
+          actual_delivery_date: string | null
           cliente_id: string | null
           created_at: string
           created_by: string | null
-          descripcion: string
-          estado: Database["public"]["Enums"]["pedido_estado"]
-          fecha_entrega_estimada: string | null
-          fecha_entrega_real: string | null
+          description: string
+          estimated_delivery_date: string | null
           id: string
-          numero_pedido: string
-          prioridad: Database["public"]["Enums"]["pedido_prioridad"]
+          order_number: string
+          priority: Database["public"]["Enums"]["pedido_prioridad"]
           solicitud_id: string | null
-          titulo: string
+          status: Database["public"]["Enums"]["pedido_estado"]
+          title: string
           updated_at: string
         }
         Insert: {
+          actual_delivery_date?: string | null
           cliente_id?: string | null
           created_at?: string
           created_by?: string | null
-          descripcion: string
-          estado?: Database["public"]["Enums"]["pedido_estado"]
-          fecha_entrega_estimada?: string | null
-          fecha_entrega_real?: string | null
+          description: string
+          estimated_delivery_date?: string | null
           id?: string
-          numero_pedido: string
-          prioridad?: Database["public"]["Enums"]["pedido_prioridad"]
+          order_number: string
+          priority?: Database["public"]["Enums"]["pedido_prioridad"]
           solicitud_id?: string | null
-          titulo: string
+          status?: Database["public"]["Enums"]["pedido_estado"]
+          title: string
           updated_at?: string
         }
         Update: {
+          actual_delivery_date?: string | null
           cliente_id?: string | null
           created_at?: string
           created_by?: string | null
-          descripcion?: string
-          estado?: Database["public"]["Enums"]["pedido_estado"]
-          fecha_entrega_estimada?: string | null
-          fecha_entrega_real?: string | null
+          description?: string
+          estimated_delivery_date?: string | null
           id?: string
-          numero_pedido?: string
-          prioridad?: Database["public"]["Enums"]["pedido_prioridad"]
+          order_number?: string
+          priority?: Database["public"]["Enums"]["pedido_prioridad"]
           solicitud_id?: string | null
-          titulo?: string
+          status?: Database["public"]["Enums"]["pedido_estado"]
+          title?: string
           updated_at?: string
         }
         Relationships: [
@@ -345,21 +345,21 @@ export type Database = {
       solicitud_comentarios: {
         Row: {
           author_id: string
-          contenido: string
+          content: string
           created_at: string
           id: string
           solicitud_id: string
         }
         Insert: {
           author_id: string
-          contenido: string
+          content: string
           created_at?: string
           id?: string
           solicitud_id: string
         }
         Update: {
           author_id?: string
-          contenido?: string
+          content?: string
           created_at?: string
           id?: string
           solicitud_id?: string
@@ -434,54 +434,54 @@ export type Database = {
       }
       solicitudes: {
         Row: {
-          cantidad: number | null
-          cliente_email: string | null
+          client_email: string | null
+          client_name: string
+          client_phone: string
           cliente_id: string | null
-          cliente_nombre: string
-          cliente_telefono: string
           converted_order_id: string | null
           created_at: string
-          descripcion: string
-          estado: Database["public"]["Enums"]["solicitud_estado"]
-          fecha_deseada: string | null
+          description: string
+          desired_date: string | null
           id: string
-          observaciones: string | null
+          notes: string | null
+          quantity: number | null
           reviewed_by: string | null
-          tipo_servicio: string
+          service_type: string
+          status: Database["public"]["Enums"]["solicitud_estado"]
           updated_at: string
         }
         Insert: {
-          cantidad?: number | null
-          cliente_email?: string | null
+          client_email?: string | null
+          client_name: string
+          client_phone: string
           cliente_id?: string | null
-          cliente_nombre: string
-          cliente_telefono: string
           converted_order_id?: string | null
           created_at?: string
-          descripcion: string
-          estado?: Database["public"]["Enums"]["solicitud_estado"]
-          fecha_deseada?: string | null
+          description: string
+          desired_date?: string | null
           id?: string
-          observaciones?: string | null
+          notes?: string | null
+          quantity?: number | null
           reviewed_by?: string | null
-          tipo_servicio: string
+          service_type: string
+          status?: Database["public"]["Enums"]["solicitud_estado"]
           updated_at?: string
         }
         Update: {
-          cantidad?: number | null
-          cliente_email?: string | null
+          client_email?: string | null
+          client_name?: string
+          client_phone?: string
           cliente_id?: string | null
-          cliente_nombre?: string
-          cliente_telefono?: string
           converted_order_id?: string | null
           created_at?: string
-          descripcion?: string
-          estado?: Database["public"]["Enums"]["solicitud_estado"]
-          fecha_deseada?: string | null
+          description?: string
+          desired_date?: string | null
           id?: string
-          observaciones?: string | null
+          notes?: string | null
+          quantity?: number | null
           reviewed_by?: string | null
-          tipo_servicio?: string
+          service_type?: string
+          status?: Database["public"]["Enums"]["solicitud_estado"]
           updated_at?: string
         }
         Relationships: [
@@ -519,18 +519,18 @@ export type Database = {
           p_pedido_id: string
         }
         Returns: {
+          actual_delivery_date: string | null
           cliente_id: string | null
           created_at: string
           created_by: string | null
-          descripcion: string
-          estado: Database["public"]["Enums"]["pedido_estado"]
-          fecha_entrega_estimada: string | null
-          fecha_entrega_real: string | null
+          description: string
+          estimated_delivery_date: string | null
           id: string
-          numero_pedido: string
-          prioridad: Database["public"]["Enums"]["pedido_prioridad"]
+          order_number: string
+          priority: Database["public"]["Enums"]["pedido_prioridad"]
           solicitud_id: string | null
-          titulo: string
+          status: Database["public"]["Enums"]["pedido_estado"]
+          title: string
           updated_at: string
         }
         SetofOptions: {
@@ -545,7 +545,7 @@ export type Database = {
         Returns: {
           author_full_name: string
           author_role: Database["public"]["Enums"]["app_role"]
-          contenido: string
+          content: string
           created_at: string
           id: string
         }[]
@@ -569,7 +569,7 @@ export type Database = {
         Returns: {
           author_full_name: string
           author_role: Database["public"]["Enums"]["app_role"]
-          contenido: string
+          content: string
           created_at: string
           id: string
         }[]

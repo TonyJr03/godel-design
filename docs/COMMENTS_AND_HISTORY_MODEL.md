@@ -120,8 +120,8 @@ El módulo actual:
 - lista comentarios de `pedido_comentarios` en `/dashboard/pedidos/[id]`;
 - permite agregar comentarios a usuarios con acceso al pedido;
 - usa `author_id = profile.id` como autor;
-- guarda `contenido`;
-- muestra autor, rol, fecha y contenido;
+- guarda `content`;
+- muestra autor, rol, fecha y content;
 - no acepta `author_id` ni `created_at` desde formularios;
 - no implementa edición ni eliminación.
 
@@ -161,7 +161,7 @@ Desde Fase 11.7B también se registran automáticamente eventos de solicitudes e
 - `cliente_creado_desde_solicitud` desde el flujo server-side que crea cliente;
 - `convertida_a_pedido` al relacionar la solicitud con el pedido generado.
 
-La conversión a pedido no duplica `estado_cambiado` cuando el mismo update establece `converted_order_id` y `estado = "convertida"`.
+La conversión a pedido no duplica `estado_cambiado` cuando el mismo update establece `converted_order_id` y `status = "convertida"`.
 
 El historial visible de solicitudes construye resúmenes detallados a partir de `summary`, `old_value`, `new_value`, `metadata` y relaciones mínimas, de forma equivalente al historial de pedidos. Por ejemplo:
 
@@ -179,8 +179,8 @@ El módulo actual:
 - lista comentarios de `solicitud_comentarios` en `/dashboard/solicitudes/[id]`;
 - permite agregar comentarios a `admin` y `supervisor`;
 - usa `author_id = profile.id` como autor;
-- guarda `contenido`;
-- muestra autor, rol, fecha y contenido;
+- guarda `content`;
+- muestra autor, rol, fecha y content;
 - no acepta autor, `created_at` ni campos técnicos desde formularios;
 - no implementa edición ni eliminación.
 
@@ -192,7 +192,7 @@ Existen las tablas base `solicitud_comentarios` y `solicitud_historial`, reserva
 
 Los cambios actuales en solicitudes se reflejan en campos como:
 
-- `estado`;
+- `status`;
 - `reviewed_by`;
 - `cliente_id`;
 - `converted_order_id`;
@@ -354,7 +354,7 @@ Campos existentes:
 | `id` | `uuid` | Identificador del comentario. |
 | `pedido_id` | `uuid` | Pedido comentado. |
 | `author_id` | `uuid` | Autor interno. |
-| `contenido` | `text` | Texto del comentario. |
+| `content` | `text` | Texto del comentario. |
 | `created_at` | `timestamptz` | Fecha de creación. |
 
 Consideración para Fase 11.2:
@@ -373,13 +373,13 @@ Campos existentes:
 | `id` | `uuid` | Identificador del comentario. |
 | `solicitud_id` | `uuid` | Solicitud comentada. |
 | `author_id` | `uuid` | Autor interno. |
-| `contenido` | `text` | Texto del comentario. |
+| `content` | `text` | Texto del comentario. |
 | `created_at` | `timestamptz` | Fecha de creación. |
 
 Reglas recomendadas:
 
-- `contenido` obligatorio y no vacío;
-- longitud máxima de `contenido` de 2000 caracteres;
+- `content` obligatorio y no vacío;
+- longitud máxima de `content` de 2000 caracteres;
 - `solicitud_id` obligatorio;
 - `author_id` obligatorio y debe corresponder al usuario autenticado;
 - sin `updated_at` si no habrá edición inicial;
@@ -551,8 +551,8 @@ Estado:
 
 - implementado para comentarios internos de pedidos;
 - `listPedidoComments` lista comentarios por pedido en orden ascendente;
-- `createPedidoComment` valida UUID, permiso, acceso al pedido y contenido;
-- la action del detalle solo lee `pedido_id` y `contenido`;
+- `createPedidoComment` valida UUID, permiso, acceso al pedido y content;
+- la action del detalle solo lee `pedido_id` y `content`;
 - no se acepta autor desde el formulario;
 - no se registra historial automático adicional.
 
@@ -563,7 +563,7 @@ Estado:
 - implementado en `PedidoCommentsSection`;
 - lista comentarios internos de pedido;
 - permite crear comentario si el usuario tiene acceso;
-- muestra autor, rol, fecha y contenido;
+- muestra autor, rol, fecha y content;
 - no implementar edición ni eliminación.
 
 ### Fase 11.4: UI de Comentarios en Solicitudes
@@ -572,7 +572,7 @@ Estado:
 
 - listar comentarios internos de solicitud;
 - permitir comentar solo a `admin` y `supervisor`;
-- mostrar autor, rol, fecha y contenido;
+- mostrar autor, rol, fecha y content;
 - no exponer a trabajadores ni anónimos;
 - no implementar edición ni eliminación.
 

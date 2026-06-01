@@ -71,10 +71,10 @@ export async function updateInternalCliente(
     const { data, error } = await supabase
       .from("clientes")
       .update({
-        nombre: validation.data.nombre,
-        telefono: validation.data.telefono,
+        name: validation.data.name,
+        phone: validation.data.phone,
         email: validation.data.email,
-        notas: validation.data.notas,
+        notes: validation.data.notes,
       })
       .eq("id", clienteId)
       .select("id")

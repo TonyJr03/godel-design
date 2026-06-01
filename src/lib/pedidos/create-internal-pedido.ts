@@ -96,8 +96,8 @@ export async function createInternalPedido(
   const supabase = await createClient();
   const pedido: TablesInsert<"pedidos"> = {
     ...validation.data,
-    numero_pedido: generatePedidoNumber(),
-    estado: INITIAL_MANUAL_PEDIDO_ESTADO,
+    order_number: generatePedidoNumber(),
+    status: INITIAL_MANUAL_PEDIDO_ESTADO,
     solicitud_id: null,
     created_by: profile.id,
   };
@@ -106,7 +106,7 @@ export async function createInternalPedido(
     const { data, error } = await supabase
       .from("pedidos")
       .insert(pedido)
-      .select("id, numero_pedido")
+      .select("id, order_number")
       .single();
 
     if (error || !data) {
@@ -117,7 +117,7 @@ export async function createInternalPedido(
 
     return serviceSuccess({
       pedidoId: data.id,
-      numeroPedido: data.numero_pedido,
+      numeroPedido: data.order_number,
     });
   } catch (error) {
     console.error("Unexpected error creating internal pedido", error);

@@ -41,14 +41,14 @@ Todavía no incluye:
 
 | Campo | Requerido | Descripción |
 |---|---|---|
-| `cliente_nombre` | Sí | Nombre del cliente o negocio |
-| `cliente_telefono` | Sí | Teléfono de contacto |
-| `cliente_email` | No | Correo opcional |
-| `tipo_servicio` | Sí | Tipo de trabajo solicitado |
-| `descripcion` | Sí | Descripción del encargo |
-| `cantidad` | No | Cantidad solicitada |
-| `fecha_deseada` | No | Fecha deseada de entrega; si se informa debe ser igual o posterior al día actual |
-| `observaciones` | No | Notas adicionales |
+| `client_name` | Sí | Nombre del cliente o negocio |
+| `client_phone` | Sí | Teléfono de contacto |
+| `client_email` | No | Correo opcional |
+| `service_type` | Sí | Tipo de trabajo solicitado |
+| `description` | Sí | Descripción del encargo |
+| `quantity` | No | Cantidad solicitada |
+| `desired_date` | No | Fecha deseada de entrega; si se informa debe ser igual o posterior al día actual |
+| `notes` | No | Notas adicionales |
 | `files` | No | Archivos de referencia opcionales |
 
 ## Campos que no acepta la UI
@@ -56,7 +56,7 @@ Todavía no incluye:
 El formulario público no envía:
 
 - `id`
-- `estado`
+- `status`
 - `cliente_id`
 - `reviewed_by`
 - `converted_order_id`
@@ -72,15 +72,15 @@ La validación definitiva está en:
 
 Reglas generales:
 
-- `cliente_nombre` es requerido.
-- `cliente_telefono` es requerido.
-- `cliente_email` es opcional, pero si existe debe tener formato básico válido.
-- `tipo_servicio` es requerido.
-- `descripcion` es requerida.
-- `cantidad` es opcional, pero debe ser positiva si existe.
-- `fecha_deseada` es opcional, pero debe ser válida e igual o posterior al día
+- `client_name` es requerido.
+- `client_phone` es requerido.
+- `client_email` es opcional, pero si existe debe tener formato básico válido.
+- `service_type` es requerido.
+- `description` es requerida.
+- `quantity` es opcional, pero debe ser positiva si existe.
+- `desired_date` es opcional, pero debe ser válida e igual o posterior al día
   actual si existe.
-- `observaciones` es opcional.
+- `notes` es opcional.
 - Los campos opcionales vacíos se convierten a `null`.
 - Los espacios sobrantes se recortan antes de insertar.
 
@@ -113,7 +113,7 @@ Responsabilidades:
 
 - Validar el input recibido.
 - Crear la solicitud en Supabase.
-- Establecer siempre `estado = "nueva"`.
+- Establecer siempre `status = "nueva"`.
 - Establecer `cliente_id = null`.
 - Establecer `reviewed_by = null`.
 - Establecer `converted_order_id = null`.
@@ -230,7 +230,7 @@ La conversión real a pedido pertenece a una fase posterior del flujo interno.
 - Intentar enviar más de 5 archivos.
 - Intentar enviar archivo no permitido.
 - Intentar enviar archivo mayor de 20 MB.
-- Verificar en Supabase Studio que la solicitud quedó con `estado = nueva`.
+- Verificar en Supabase Studio que la solicitud quedó con `status = nueva`.
 - Verificar que `cliente_id`, `reviewed_by` y `converted_order_id` quedan en
   `null`.
 - Verificar que los archivos quedan bajo `solicitudes/{id}/originales/`.

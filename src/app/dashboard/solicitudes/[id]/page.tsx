@@ -71,7 +71,7 @@ export default async function DashboardSolicitudDetallePage({
         conversionSection={
           <SolicitudConvertPedidoForm
             solicitudId={result.solicitud.id}
-            estado={result.solicitud.estado}
+            status={result.solicitud.status}
             clienteId={result.solicitud.cliente_id}
             convertedOrderId={result.solicitud.converted_order_id}
           />

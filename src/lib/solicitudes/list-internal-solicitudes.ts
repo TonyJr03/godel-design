@@ -16,23 +16,23 @@ export type InternalSolicitudEstado = SolicitudStatus;
 export type InternalSolicitud = Pick<
   Tables<"solicitudes">,
   | "id"
-  | "cliente_nombre"
-  | "cliente_telefono"
-  | "cliente_email"
-  | "tipo_servicio"
-  | "estado"
+  | "client_name"
+  | "client_phone"
+  | "client_email"
+  | "service_type"
+  | "status"
   | "created_at"
-  | "fecha_deseada"
-  | "cantidad"
+  | "desired_date"
+  | "quantity"
 >;
 
 export type ListInternalSolicitudesOptions = {
-  estado?: string | null;
+  status?: string | null;
   limit?: number;
 };
 
 type ListInternalSolicitudesMeta = {
-  estado: InternalSolicitudEstado | null;
+  status: InternalSolicitudEstado | null;
   ignoredInvalidEstado: boolean;
 };
 
@@ -63,19 +63,19 @@ function normalizeLimit(limit: number | undefined): number {
 }
 
 export function isInternalSolicitudEstado(
-  estado: string | null | undefined,
-): estado is InternalSolicitudEstado {
-  return INTERNAL_SOLICITUD_ESTADOS.includes(estado as InternalSolicitudEstado);
+  status: string | null | undefined,
+): status is InternalSolicitudEstado {
+  return INTERNAL_SOLICITUD_ESTADOS.includes(status as InternalSolicitudEstado);
 }
 
 export async function listInternalSolicitudes(
   options: ListInternalSolicitudesOptions = {},
 ): Promise<ListInternalSolicitudesResult> {
-  const selectedEstado = isInternalSolicitudEstado(options.estado)
-    ? options.estado
+  const selectedEstado = isInternalSolicitudEstado(options.status)
+    ? options.status
     : null;
-  const ignoredInvalidEstado = Boolean(options.estado && !selectedEstado);
-  const meta = { estado: selectedEstado, ignoredInvalidEstado };
+  const ignoredInvalidEstado = Boolean(options.status && !selectedEstado);
+  const meta = { status: selectedEstado, ignoredInvalidEstado };
   const profile = await getCurrentProfile();
 
   if (!profile) {
@@ -101,13 +101,13 @@ export async function listInternalSolicitudes(
     let query = supabase
       .from("solicitudes")
       .select(
-        "id, cliente_nombre, cliente_telefono, cliente_email, tipo_servicio, estado, created_at, fecha_deseada, cantidad",
+        "id, client_name, client_phone, client_email, service_type, status, created_at, desired_date, quantity",
       )
       .order("created_at", { ascending: false })
       .limit(limit);
 
     if (selectedEstado) {
-      query = query.eq("estado", selectedEstado);
+      query = query.eq("status", selectedEstado);
     }
 
     const { data, error } = await query.returns<InternalSolicitud[]>();

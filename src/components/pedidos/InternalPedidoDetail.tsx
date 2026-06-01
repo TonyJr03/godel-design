@@ -73,19 +73,19 @@ export function InternalPedidoDetail({
         <div className="flex flex-col gap-4 border-b border-zinc-200 pb-5 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="font-mono text-xs font-semibold text-zinc-500">
-              {pedido.numero_pedido} · {formatShortReference(pedido.id)}
+              {pedido.order_number} · {formatShortReference(pedido.id)}
             </p>
             <h2 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">
-              {pedido.titulo}
+              {pedido.title}
             </h2>
             <p className="mt-3 max-w-3xl whitespace-pre-line text-sm leading-6 text-zinc-700">
-              {pedido.descripcion}
+              {pedido.description}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <StatusBadge>{PEDIDO_STATUS_LABELS[pedido.estado]}</StatusBadge>
+            <StatusBadge>{PEDIDO_STATUS_LABELS[pedido.status]}</StatusBadge>
             <span className="inline-flex rounded-md bg-zinc-100 px-2 py-1 text-xs font-semibold text-zinc-700 ring-1 ring-inset ring-zinc-200">
-              Prioridad {PEDIDO_PRIORITY_LABELS[pedido.prioridad]}
+              Prioridad {PEDIDO_PRIORITY_LABELS[pedido.priority]}
             </span>
           </div>
         </div>
@@ -97,11 +97,11 @@ export function InternalPedidoDetail({
           />
           <DetailItem
             label="Entrega estimada"
-            value={formatDate(pedido.fecha_entrega_estimada)}
+            value={formatDate(pedido.estimated_delivery_date)}
           />
           <DetailItem
             label="Entrega real"
-            value={formatDate(pedido.fecha_entrega_real)}
+            value={formatDate(pedido.actual_delivery_date)}
           />
           <DetailItem
             label="Creado por"
@@ -123,7 +123,7 @@ export function InternalPedidoDetail({
         </div>
       </section>
 
-      <PedidoStatusForm pedidoId={pedido.id} estadoActual={pedido.estado} />
+      <PedidoStatusForm pedidoId={pedido.id} estadoActual={pedido.status} />
 
       {workerAssignmentSection}
 
@@ -145,11 +145,11 @@ export function InternalPedidoDetail({
                     href={`/dashboard/clientes/${pedido.clientes.id}`}
                     className="font-semibold text-teal-800 hover:text-teal-900"
                   >
-                    {pedido.clientes.nombre}
+                    {pedido.clientes.name}
                   </Link>
                 }
               />
-              <DetailItem label="Teléfono" value={pedido.clientes.telefono} />
+              <DetailItem label="Teléfono" value={pedido.clientes.phone} />
               <DetailItem
                 label="Correo electrónico"
                 value={pedido.clientes.email ?? "No definido"}
@@ -178,22 +178,22 @@ export function InternalPedidoDetail({
                     href={`/dashboard/solicitudes/${pedido.solicitudes.id}`}
                     className="font-semibold text-teal-800 hover:text-teal-900"
                   >
-                    {pedido.solicitudes.tipo_servicio}
+                    {pedido.solicitudes.service_type}
                   </Link>
                 }
               />
               <DetailItem
                 label="Cliente capturado"
-                value={pedido.solicitudes.cliente_nombre}
+                value={pedido.solicitudes.client_name}
               />
               <DetailItem
                 label="Contacto"
                 value={
                   <span>
-                    {pedido.solicitudes.cliente_telefono}
-                    {pedido.solicitudes.cliente_email ? (
+                    {pedido.solicitudes.client_phone}
+                    {pedido.solicitudes.client_email ? (
                       <span className="mt-1 block text-xs text-zinc-500">
-                        {pedido.solicitudes.cliente_email}
+                        {pedido.solicitudes.client_email}
                       </span>
                     ) : null}
                   </span>
@@ -201,17 +201,17 @@ export function InternalPedidoDetail({
               />
               <DetailItem
                 label="Estado"
-                value={SOLICITUD_STATUS_LABELS[pedido.solicitudes.estado]}
+                value={SOLICITUD_STATUS_LABELS[pedido.solicitudes.status]}
               />
               <DetailItem
                 label="Fecha deseada"
-                value={formatDate(pedido.solicitudes.fecha_deseada)}
+                value={formatDate(pedido.solicitudes.desired_date)}
               />
               <DetailItem
                 label="Descripción original"
                 value={
                   <span className="whitespace-pre-line">
-                    {pedido.solicitudes.descripcion}
+                    {pedido.solicitudes.description}
                   </span>
                 }
               />

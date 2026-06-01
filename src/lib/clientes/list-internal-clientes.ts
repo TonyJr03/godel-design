@@ -10,7 +10,7 @@ import type { Tables } from "@/types/database";
 
 export type InternalCliente = Pick<
   Tables<"clientes">,
-  "id" | "nombre" | "telefono" | "email" | "created_at" | "updated_at"
+  "id" | "name" | "phone" | "email" | "created_at" | "updated_at"
 >;
 
 export type ListInternalClientesOptions = {
@@ -90,13 +90,13 @@ export async function listInternalClientes(
   try {
     let query = supabase
       .from("clientes")
-      .select("id, nombre, telefono, email, created_at, updated_at")
-      .order("nombre", { ascending: true })
+      .select("id, name, phone, email, created_at, updated_at")
+      .order("name", { ascending: true })
       .limit(limit);
 
     if (q) {
       query = query.or(
-        `nombre.ilike.*${q}*,telefono.ilike.*${q}*,email.ilike.*${q}*`,
+        `name.ilike.*${q}*,phone.ilike.*${q}*,email.ilike.*${q}*`,
       );
     }
 

@@ -79,8 +79,8 @@ function formatShortId(value: string | null): string | null {
 
 function getClienteName(item: SolicitudHistoryItem): string | null {
   return (
-    item.related.cliente?.nombre ??
-    getMetadataString(item, "cliente_nombre") ??
+    item.related.cliente?.name ??
+    getMetadataString(item, "client_name") ??
     formatShortId(getMetadataString(item, "cliente_id"))
   );
 }
@@ -89,14 +89,14 @@ function getPedidoLabel(item: SolicitudHistoryItem): string | null {
   const pedido = item.related.pedido;
 
   if (pedido) {
-    return `${pedido.numero_pedido} - ${pedido.titulo}`;
+    return `${pedido.order_number} - ${pedido.title}`;
   }
 
-  const numeroPedido = getMetadataString(item, "numero_pedido");
-  const titulo = getMetadataString(item, "titulo");
+  const numeroPedido = getMetadataString(item, "order_number");
+  const title = getMetadataString(item, "title");
 
-  if (numeroPedido && titulo) {
-    return `${numeroPedido} - ${titulo}`;
+  if (numeroPedido && title) {
+    return `${numeroPedido} - ${title}`;
   }
 
   return numeroPedido ?? formatShortId(getMetadataString(item, "pedido_id"));
@@ -104,11 +104,11 @@ function getPedidoLabel(item: SolicitudHistoryItem): string | null {
 
 function getHistorySummary(item: SolicitudHistoryItem): string {
   if (item.action === "solicitud_creada") {
-    const tipoServicio = getMetadataString(item, "tipo_servicio");
-    const cantidad = getMetadataNumber(item, "cantidad");
+    const tipoServicio = getMetadataString(item, "service_type");
+    const quantity = getMetadataNumber(item, "quantity");
 
-    if (tipoServicio && cantidad) {
-      return `Solicitud registrada: ${tipoServicio} (${cantidad} unidades).`;
+    if (tipoServicio && quantity) {
+      return `Solicitud registrada: ${tipoServicio} (${quantity} unidades).`;
     }
 
     if (tipoServicio) {

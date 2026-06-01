@@ -10,16 +10,16 @@ import { isValidUuid } from "@/lib/validators";
 
 export type CreatePedidoCommentInput = {
   pedidoId: string;
-  contenido: string;
+  content: string;
 };
 
 export type PedidoCommentFieldErrors = Partial<
-  Record<"pedido_id" | "contenido", string>
+  Record<"pedido_id" | "content", string>
 >;
 
 type CreatePedidoCommentValues = {
   values?: {
-    contenido: string;
+    content: string;
   };
 };
 
@@ -44,11 +44,11 @@ const GENERIC_CREATE_COMMENT_ERROR =
 
 export async function createPedidoComment({
   pedidoId: pedidoIdInput,
-  contenido: contenidoInput,
+  content: contenidoInput,
 }: CreatePedidoCommentInput): Promise<CreatePedidoCommentResult> {
   const pedidoId = pedidoIdInput.trim();
-  const contenido = contenidoInput.trim();
-  const values = { contenido };
+  const content = contenidoInput.trim();
+  const values = { content };
 
   if (!isValidUuid(pedidoId)) {
     return serviceFailure(
@@ -63,22 +63,22 @@ export async function createPedidoComment({
     );
   }
 
-  if (!contenido) {
+  if (!content) {
     return serviceFailure("validation", "Escribe un comentario antes de enviarlo.", {
       fieldErrors: {
-        contenido: "Escribe un comentario antes de enviarlo.",
+        content: "Escribe un comentario antes de enviarlo.",
       },
       values,
     });
   }
 
-  if (contenido.length > MAX_COMMENT_LENGTH) {
+  if (content.length > MAX_COMMENT_LENGTH) {
     return serviceFailure(
       "validation",
       `El comentario no puede superar ${MAX_COMMENT_LENGTH} caracteres.`,
       {
         fieldErrors: {
-          contenido: `Máximo ${MAX_COMMENT_LENGTH} caracteres.`,
+          content: `Máximo ${MAX_COMMENT_LENGTH} caracteres.`,
         },
         values,
       },
@@ -131,7 +131,7 @@ export async function createPedidoComment({
       .insert({
         pedido_id: pedidoId,
         author_id: profile.id,
-        contenido,
+        content,
       })
       .select("id")
       .single<{ id: string }>();

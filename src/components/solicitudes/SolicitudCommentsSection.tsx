@@ -19,7 +19,7 @@ const initialState: CreateSolicitudCommentActionState = {
   ok: false,
   message: "",
   values: {
-    contenido: "",
+    content: "",
   },
 };
 
@@ -43,7 +43,7 @@ export function SolicitudCommentsSection({
     createSolicitudCommentAction,
     initialState,
   );
-  const contenidoError = state.fieldErrors?.contenido;
+  const contenidoError = state.fieldErrors?.content;
 
   useEffect(() => {
     if (state.ok) {
@@ -93,7 +93,7 @@ export function SolicitudCommentsSection({
                 </time>
               </div>
               <p className="mt-3 whitespace-pre-line text-sm leading-6 text-zinc-700">
-                {comment.contenido}
+                {comment.content}
               </p>
             </li>
           ))}
@@ -135,12 +135,12 @@ export function SolicitudCommentsSection({
           </label>
           <textarea
             id="solicitud-comment-content"
-            name="contenido"
+            name="content"
             rows={4}
             maxLength={2000}
             required
             disabled={pending}
-            defaultValue={state.values?.contenido ?? ""}
+            defaultValue={state.values?.content ?? ""}
             aria-invalid={Boolean(contenidoError)}
             aria-describedby={
               contenidoError ? "solicitud-comment-content-error" : undefined

@@ -9,5 +9,5 @@ export type SolicitudId = Solicitud["id"];
 
 export type SolicitudBase = {
   id: SolicitudId;
-  estado: EstadoSolicitud;
+  status: EstadoSolicitud;
 };

@@ -10,20 +10,20 @@ import { isValidUuid } from "@/lib/validators";
 import type { Tables } from "@/types/database";
 
 type PedidoClienteDetail =
-  | Pick<Tables<"clientes">, "id" | "nombre" | "telefono" | "email">
+  | Pick<Tables<"clientes">, "id" | "name" | "phone" | "email">
   | null;
 
 type PedidoSolicitudDetail =
   | Pick<
       Tables<"solicitudes">,
       | "id"
-      | "cliente_nombre"
-      | "cliente_telefono"
-      | "cliente_email"
-      | "tipo_servicio"
-      | "descripcion"
-      | "estado"
-      | "fecha_deseada"
+      | "client_name"
+      | "client_phone"
+      | "client_email"
+      | "service_type"
+      | "description"
+      | "status"
+      | "desired_date"
       | "created_at"
     >
   | null;
@@ -46,15 +46,15 @@ export type InternalPedidoDetailTrabajador = Pick<
 export type InternalPedidoDetail = Pick<
   Tables<"pedidos">,
   | "id"
-  | "numero_pedido"
+  | "order_number"
   | "cliente_id"
   | "solicitud_id"
-  | "titulo"
-  | "descripcion"
-  | "estado"
-  | "prioridad"
-  | "fecha_entrega_estimada"
-  | "fecha_entrega_real"
+  | "title"
+  | "description"
+  | "status"
+  | "priority"
+  | "estimated_delivery_date"
+  | "actual_delivery_date"
   | "created_by"
   | "created_at"
   | "updated_at"
@@ -82,28 +82,28 @@ const GENERIC_DETAIL_ERROR =
 
 const PEDIDO_DETAIL_SELECT = `
   id,
-  numero_pedido,
+  order_number,
   cliente_id,
   solicitud_id,
-  titulo,
-  descripcion,
-  estado,
-  prioridad,
-  fecha_entrega_estimada,
-  fecha_entrega_real,
+  title,
+  description,
+  status,
+  priority,
+  estimated_delivery_date,
+  actual_delivery_date,
   created_by,
   created_at,
   updated_at,
-  clientes(id, nombre, telefono, email),
+  clientes(id, name, phone, email),
   solicitudes!pedidos_solicitud_id_fkey(
     id,
-    cliente_nombre,
-    cliente_telefono,
-    cliente_email,
-    tipo_servicio,
-    descripcion,
-    estado,
-    fecha_deseada,
+    client_name,
+    client_phone,
+    client_email,
+    service_type,
+    description,
+    status,
+    desired_date,
     created_at
   ),
   creador:perfiles!pedidos_created_by_fkey(id, full_name),

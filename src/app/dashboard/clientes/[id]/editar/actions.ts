@@ -20,10 +20,10 @@ export async function updateClienteAction(
   const clienteId = getFormValue(formData, "cliente_id");
   const result = await updateInternalCliente({
     id: clienteId,
-    nombre: getFormValue(formData, "nombre"),
-    telefono: getFormValue(formData, "telefono"),
+    name: getFormValue(formData, "name"),
+    phone: getFormValue(formData, "phone"),
     email: getFormValue(formData, "email"),
-    notas: getFormValue(formData, "notas"),
+    notes: getFormValue(formData, "notes"),
   });
 
   if (!result.ok) {

@@ -351,7 +351,7 @@ Construir el núcleo operativo del sistema: la gestión de pedidos oficiales.
 
 - Crear pedidos manualmente.
 - Convertir solicitudes aprobadas en pedidos.
-- Generar `numero_pedido`.
+- Generar `order_number`.
 - Listar pedidos en `/dashboard/pedidos`.
 - Ver detalle en `/dashboard/pedidos/[id]`.
 - Cambiar estados de pedido.
@@ -526,7 +526,7 @@ Convertir `/dashboard` en una pantalla realmente útil para el trabajo diario.
 - Mostrar pedidos próximos a vencer.
 - Mostrar actividad reciente.
 - Crear accesos rápidos.
-- Adaptar contenido según rol.
+- Adaptar content según rol.
 
 ### Criterio de cierre
 

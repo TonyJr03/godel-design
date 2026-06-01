@@ -68,7 +68,7 @@ export async function createClienteFromSolicitudAndAssociate(
   try {
     const { data: solicitud, error: solicitudError } = await supabase
       .from("solicitudes")
-      .select("id, cliente_id, cliente_nombre, cliente_telefono, cliente_email")
+      .select("id, cliente_id, client_name, client_phone, client_email")
       .eq("id", solicitudId)
       .maybeSingle();
 
@@ -93,10 +93,10 @@ export async function createClienteFromSolicitudAndAssociate(
     }
 
     const validation = validateClienteInput({
-      nombre: solicitud.cliente_nombre,
-      telefono: solicitud.cliente_telefono,
-      email: solicitud.cliente_email,
-      notas: `Cliente creado desde la solicitud ${solicitud.id.slice(0, 8).toUpperCase()}.`,
+      name: solicitud.client_name,
+      phone: solicitud.client_phone,
+      email: solicitud.client_email,
+      notes: `Cliente creado desde la solicitud ${solicitud.id.slice(0, 8).toUpperCase()}.`,
     });
 
     if (!validation.ok) {
@@ -143,12 +143,12 @@ export async function createClienteFromSolicitudAndAssociate(
         solicitud_id: solicitudId,
         actor_id: profile.id,
         action: "cliente_creado_desde_solicitud",
-        summary: `Cliente creado desde la solicitud: ${validation.data.nombre}`,
+        summary: `Cliente creado desde la solicitud: ${validation.data.name}`,
         old_value: null,
-        new_value: validation.data.nombre,
+        new_value: validation.data.name,
         metadata: {
           cliente_id: cliente.id,
-          cliente_nombre: validation.data.nombre,
+          client_name: validation.data.name,
         },
       });
 

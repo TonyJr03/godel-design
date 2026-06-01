@@ -22,9 +22,9 @@ El trabajador tampoco accede al módulo general de usuarios. RLS de `perfiles` s
 
 `/dashboard/pedidos/nuevo` permite crear pedidos manuales asociados a clientes existentes.
 
-La action `createPedidoAction` lee únicamente `cliente_id`, `titulo`, `descripcion`, `prioridad` y `fecha_entrega_estimada`, y delega en `createInternalPedido`.
+La action `createPedidoAction` lee únicamente `cliente_id`, `title`, `description`, `priority` y `estimated_delivery_date`, y delega en `createInternalPedido`.
 
-`createInternalPedido` requiere `pedidos.manage`, valida el input, valida el cliente, genera `numero_pedido`, crea el pedido con estado inicial `en_revision`, guarda `solicitud_id` como `null` y no asigna personal.
+`createInternalPedido` requiere `pedidos.manage`, valida el input, valida el cliente, genera `order_number`, crea el pedido con estado inicial `en_revision`, guarda `solicitud_id` como `null` y no asigna personal.
 
 ## Conversión Desde Solicitud
 
@@ -36,7 +36,7 @@ La action del detalle de solicitud lee únicamente `solicitud_id`. El servicio r
 
 `/dashboard/pedidos/[id]` incluye `PedidoStatusForm`.
 
-La action `updatePedidoStatusAction` lee únicamente `pedido_id` y `estado`, y delega en `updateInternalPedidoStatus`. El servicio valida `pedidos.change_status`, UUID y estado real, verifica acceso al pedido y usa la RPC segura existente `public.actualizar_estado_pedido`.
+La action `updatePedidoStatusAction` lee únicamente `pedido_id` y `status`, y delega en `updateInternalPedidoStatus`. El servicio valida `pedidos.change_status`, UUID y estado real, verifica acceso al pedido y usa la RPC segura existente `public.actualizar_estado_pedido`.
 
 La RPC permite a `admin` y `supervisor` cambiar cualquier pedido y a `trabajador` cambiar solo pedidos asignados, sin conceder a trabajadores un `UPDATE` amplio sobre `pedidos`. Con asignaciones múltiples, cualquier trabajador asignado al pedido puede cambiar el estado porque la validación usa `private.is_assigned_to_pedido`, que comprueba la existencia de una relación en `pedido_trabajadores`.
 
@@ -84,9 +84,9 @@ No se creó RPC nueva porque las policies existentes ya restringen inserción, a
 
 `listPedidoComments` carga comentarios server-side desde `pedido_comentarios`, valida UUID, perfil interno, permiso `pedidos.view` y acceso al pedido. La consulta respeta RLS y ordena por `created_at` ascendente para lectura tipo conversación.
 
-`createPedidoComment` valida UUID, perfil interno, permiso `pedidos.view`, acceso al pedido y contenido. El comentario es obligatorio, se guarda con `contenido` recortado y tiene límite de 2000 caracteres.
+`createPedidoComment` valida UUID, perfil interno, permiso `pedidos.view`, acceso al pedido y content. El comentario es obligatorio, se guarda con `content` recortado y tiene límite de 2000 caracteres.
 
-La action `createPedidoCommentAction` lee únicamente `pedido_id` y `contenido`. No acepta `author_id`, autor ni fechas desde el formulario. El autor se toma del perfil autenticado y se guarda como `pedido_comentarios.author_id`.
+La action `createPedidoCommentAction` lee únicamente `pedido_id` y `content`. No acepta `author_id`, autor ni fechas desde el formulario. El autor se toma del perfil autenticado y se guarda como `pedido_comentarios.author_id`.
 
 Los comentarios son append-only. No hay edición, eliminación, menciones, notificaciones, adjuntos ni registro automático adicional de historial en esta subfase.
 

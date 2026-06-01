@@ -12,7 +12,7 @@ import { isManualSolicitudStatus, type ManualSolicitudStatus } from "./status";
 
 export type UpdateInternalSolicitudStatusInput = {
   solicitudId: string;
-  estado: string;
+  status: string;
 };
 
 export type UpdateInternalSolicitudStatusErrorReason =
@@ -24,25 +24,25 @@ export type UpdateInternalSolicitudStatusErrorReason =
   | "error";
 
 export type UpdateInternalSolicitudStatusResult = ServiceResult<
-  { estado: ManualSolicitudStatus },
+  { status: ManualSolicitudStatus },
   UpdateInternalSolicitudStatusErrorReason
 >;
 
 const GENERIC_UPDATE_ERROR =
-  "No se pudo actualizar el estado. Inténtalo nuevamente.";
+  "No se pudo actualizar el status. Inténtalo nuevamente.";
 
 export async function updateInternalSolicitudStatus({
   solicitudId,
-  estado,
+  status,
 }: UpdateInternalSolicitudStatusInput): Promise<UpdateInternalSolicitudStatusResult> {
   if (!isValidUuid(solicitudId)) {
     return serviceFailure("invalid_id", "La solicitud no existe.");
   }
 
-  if (!isManualSolicitudStatus(estado)) {
+  if (!isManualSolicitudStatus(status)) {
     return serviceFailure(
       "invalid_status",
-      "El estado seleccionado no se puede asignar manualmente.",
+      "El status seleccionado no se puede asignar manualmente.",
     );
   }
 
@@ -51,20 +51,20 @@ export async function updateInternalSolicitudStatus({
   if (!profile) {
     return serviceFailure(
       "unauthorized",
-      "No tienes permiso para cambiar el estado de solicitudes.",
+      "No tienes permiso para cambiar el status de solicitudes.",
     );
   }
 
   if (!hasPermission(profile.role, "solicitudes.manage")) {
     return serviceFailure(
       "forbidden",
-      "No tienes permiso para cambiar el estado de solicitudes.",
+      "No tienes permiso para cambiar el status de solicitudes.",
     );
   }
 
   const supabase = await createClient();
   const updateData: TablesUpdate<"solicitudes"> = {
-    estado,
+    status,
     reviewed_by: profile.id,
   };
 
@@ -86,7 +86,7 @@ export async function updateInternalSolicitudStatus({
       return serviceFailure("not_found", "La solicitud no existe.");
     }
 
-    return serviceSuccess({ estado });
+    return serviceSuccess({ status });
   } catch (error) {
     console.error("Unexpected error updating internal solicitud status", error);
 

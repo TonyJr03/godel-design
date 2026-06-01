@@ -65,10 +65,10 @@ export function InternalClientesList({ clientes }: InternalClientesListProps) {
             {clientes.map((cliente) => (
               <tr key={cliente.id} className="align-top">
                 <td className="px-4 py-4 font-medium text-zinc-950">
-                  {cliente.nombre}
+                  {cliente.name}
                 </td>
                 <td className="whitespace-nowrap px-4 py-4 text-zinc-700">
-                  {cliente.telefono}
+                  {cliente.phone}
                 </td>
                 <td className="px-4 py-4 text-zinc-700">
                   {cliente.email ?? "No definido"}

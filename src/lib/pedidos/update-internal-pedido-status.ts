@@ -11,11 +11,11 @@ import { isPedidoStatus, type PedidoStatus } from "./status";
 
 export type UpdatePedidoStatusInput = {
   pedidoId: string;
-  estado: string;
+  status: string;
 };
 
 export type PedidoStatusFieldErrors = Partial<
-  Record<"pedido_id" | "estado", string>
+  Record<"pedido_id" | "status", string>
 >;
 
 export type UpdateInternalPedidoStatusErrorReason =
@@ -40,7 +40,7 @@ export async function updateInternalPedidoStatus(
   input: UpdatePedidoStatusInput,
 ): Promise<UpdateInternalPedidoStatusResult> {
   const pedidoId = input.pedidoId.trim();
-  const estado = input.estado.trim();
+  const status = input.status.trim();
 
   if (!isValidUuid(pedidoId)) {
     return serviceFailure("invalid_id", "El pedido solicitado no existe.", {
@@ -50,10 +50,10 @@ export async function updateInternalPedidoStatus(
     });
   }
 
-  if (!isPedidoStatus(estado)) {
+  if (!isPedidoStatus(status)) {
     return serviceFailure("invalid_status", "Selecciona un estado válido.", {
       fieldErrors: {
-        estado: "Selecciona un estado válido.",
+        status: "Selecciona un estado válido.",
       },
     });
   }
@@ -70,7 +70,7 @@ export async function updateInternalPedidoStatus(
   if (!hasPermission(profile.role, "pedidos.change_status")) {
     return serviceFailure(
       "forbidden",
-      "No tienes permiso para cambiar el estado de pedidos.",
+      "No tienes permiso para cambiar el status de pedidos.",
     );
   }
 
@@ -95,7 +95,7 @@ export async function updateInternalPedidoStatus(
 
     const { error } = await supabase.rpc("actualizar_estado_pedido", {
       p_pedido_id: pedidoId,
-      p_nuevo_estado: estado as PedidoStatus,
+      p_nuevo_estado: status as PedidoStatus,
     });
 
     if (error) {

@@ -13,15 +13,15 @@ export type InternalSolicitudDetail = Pick<
   Tables<"solicitudes">,
   | "id"
   | "cliente_id"
-  | "cliente_nombre"
-  | "cliente_telefono"
-  | "cliente_email"
-  | "tipo_servicio"
-  | "descripcion"
-  | "cantidad"
-  | "fecha_deseada"
-  | "observaciones"
-  | "estado"
+  | "client_name"
+  | "client_phone"
+  | "client_email"
+  | "service_type"
+  | "description"
+  | "quantity"
+  | "desired_date"
+  | "notes"
+  | "status"
   | "converted_order_id"
   | "reviewed_by"
   | "created_at"
@@ -72,7 +72,7 @@ export async function getInternalSolicitudById(
     const { data, error } = await supabase
       .from("solicitudes")
       .select(
-        "id, cliente_id, cliente_nombre, cliente_telefono, cliente_email, tipo_servicio, descripcion, cantidad, fecha_deseada, observaciones, estado, converted_order_id, reviewed_by, created_at, updated_at",
+        "id, cliente_id, client_name, client_phone, client_email, service_type, description, quantity, desired_date, notes, status, converted_order_id, reviewed_by, created_at, updated_at",
       )
       .eq("id", id)
       .maybeSingle();

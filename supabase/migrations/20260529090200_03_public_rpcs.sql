@@ -42,7 +42,7 @@ begin
     raise exception 'No tienes permiso para cambiar el estado de este pedido';
   end if;
 
-  v_estado_anterior := v_pedido.estado;
+  v_estado_anterior := v_pedido.status;
 
   if v_estado_anterior = p_nuevo_estado then
     return v_pedido;
@@ -58,10 +58,10 @@ begin
 
   update public.pedidos
   set
-    estado = p_nuevo_estado,
-    fecha_entrega_real = case
+    status = p_nuevo_estado,
+    actual_delivery_date = case
       when p_nuevo_estado = 'entregado'::public.pedido_estado then current_date
-      else fecha_entrega_real
+      else actual_delivery_date
     end,
     updated_at = now()
   where id = p_pedido_id
@@ -102,7 +102,7 @@ create or replace function public.listar_pedido_comentarios(
 )
 returns table (
   id uuid,
-  contenido text,
+  content text,
   created_at timestamptz,
   author_full_name text,
   author_role public.app_role
@@ -114,7 +114,7 @@ stable
 as $$
   select
     pc.id,
-    pc.contenido,
+    pc.content,
     pc.created_at,
     p.full_name as author_full_name,
     p.role as author_role
@@ -185,7 +185,7 @@ create or replace function public.listar_solicitud_comentarios(
 )
 returns table (
   id uuid,
-  contenido text,
+  content text,
   created_at timestamptz,
   author_full_name text,
   author_role public.app_role
@@ -197,7 +197,7 @@ stable
 as $$
   select
     sc.id,
-    sc.contenido,
+    sc.content,
     sc.created_at,
     p.full_name as author_full_name,
     p.role as author_role

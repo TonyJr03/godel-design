@@ -25,8 +25,8 @@ export type SolicitudHistoryItem = Pick<
 > & {
   actor: SolicitudHistoryActor;
   related: {
-    cliente?: Pick<Tables<"clientes">, "id" | "nombre">;
-    pedido?: Pick<Tables<"pedidos">, "id" | "numero_pedido" | "titulo">;
+    cliente?: Pick<Tables<"clientes">, "id" | "name">;
+    pedido?: Pick<Tables<"pedidos">, "id" | "order_number" | "title">;
   };
 };
 
@@ -54,8 +54,8 @@ type SolicitudHistoryRpcClient = {
   ): PromiseLike<SolicitudHistoryRpcResult>;
 };
 
-type ClienteRow = Pick<Tables<"clientes">, "id" | "nombre">;
-type PedidoRow = Pick<Tables<"pedidos">, "id" | "numero_pedido" | "titulo">;
+type ClienteRow = Pick<Tables<"clientes">, "id" | "name">;
+type PedidoRow = Pick<Tables<"pedidos">, "id" | "order_number" | "title">;
 
 export type ListSolicitudHistoryErrorReason =
   | "unauthorized"
@@ -181,7 +181,7 @@ export async function listSolicitudHistory(
     if (clienteIds.length > 0) {
       const { data: clientes, error: clientesError } = await supabase
         .from("clientes")
-        .select("id, nombre")
+        .select("id, name")
         .in("id", clienteIds)
         .returns<ClienteRow[]>();
 
@@ -200,7 +200,7 @@ export async function listSolicitudHistory(
     if (pedidoIds.length > 0) {
       const { data: pedidos, error: pedidosError } = await supabase
         .from("pedidos")
-        .select("id, numero_pedido, titulo")
+        .select("id, order_number, title")
         .in("id", pedidoIds)
         .returns<PedidoRow[]>();
 

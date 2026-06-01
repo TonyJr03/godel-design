@@ -22,25 +22,25 @@ type PedidoEstado = Enums<"pedido_estado">;
 type PendingSolicitudRow = Pick<
   Tables<"solicitudes">,
   | "id"
-  | "cliente_nombre"
-  | "cliente_telefono"
-  | "tipo_servicio"
-  | "estado"
+  | "client_name"
+  | "client_phone"
+  | "service_type"
+  | "status"
   | "created_at"
-  | "fecha_deseada"
+  | "desired_date"
   | "converted_order_id"
 >;
 
-type PedidoClienteRow = Pick<Tables<"clientes">, "nombre"> | null;
+type PedidoClienteRow = Pick<Tables<"clientes">, "name"> | null;
 
 type PedidoWorkRow = Pick<
   Tables<"pedidos">,
   | "id"
-  | "numero_pedido"
-  | "titulo"
-  | "estado"
-  | "prioridad"
-  | "fecha_entrega_estimada"
+  | "order_number"
+  | "title"
+  | "status"
+  | "priority"
+  | "estimated_delivery_date"
   | "created_at"
 > & {
   clientes: PedidoClienteRow;
@@ -65,13 +65,13 @@ const PEDIDOS_ATTENTION_QUERY_LIMIT = 40;
 
 const PEDIDOS_WORK_SELECT = `
   id,
-  numero_pedido,
-  titulo,
-  estado,
-  prioridad,
-  fecha_entrega_estimada,
+  order_number,
+  title,
+  status,
+  priority,
+  estimated_delivery_date,
   created_at,
-  clientes(nombre)
+  clientes(name)
 `;
 
 const ASSIGNED_PEDIDOS_WORK_SELECT = `
@@ -88,15 +88,15 @@ function isManagementDashboardRole(
   return isAdmin(role) || isSupervisor(role);
 }
 
-function isPedidoActivo(estado: PedidoEstado): boolean {
-  return !FINAL_PEDIDO_ESTADOS.includes(estado);
+function isPedidoActivo(status: PedidoEstado): boolean {
+  return !FINAL_PEDIDO_ESTADOS.includes(status);
 }
 
 function isPedidoAtrasado(pedido: PedidoWorkRow, today: string): boolean {
   return Boolean(
-    pedido.fecha_entrega_estimada &&
-      pedido.fecha_entrega_estimada < today &&
-      isPedidoActivo(pedido.estado),
+    pedido.estimated_delivery_date &&
+      pedido.estimated_delivery_date < today &&
+      isPedidoActivo(pedido.status),
   );
 }
 
@@ -106,10 +106,10 @@ function isPedidoProximoEntrega(
   nextSevenDays: string,
 ): boolean {
   return Boolean(
-    pedido.fecha_entrega_estimada &&
-      pedido.fecha_entrega_estimada >= today &&
-      pedido.fecha_entrega_estimada <= nextSevenDays &&
-      isPedidoActivo(pedido.estado),
+    pedido.estimated_delivery_date &&
+      pedido.estimated_delivery_date >= today &&
+      pedido.estimated_delivery_date <= nextSevenDays &&
+      isPedidoActivo(pedido.status),
   );
 }
 
@@ -126,11 +126,11 @@ function getPedidoAttentionRank(
     return 1;
   }
 
-  if (pedido.estado === "en_produccion") {
+  if (pedido.status === "en_produccion") {
     return 2;
   }
 
-  if (pedido.estado === "en_diseno") {
+  if (pedido.status === "en_diseno") {
     return 3;
   }
 
@@ -141,8 +141,8 @@ function sortPendingSolicitudes(
   solicitudes: PendingSolicitudRow[],
 ): PendingSolicitudRow[] {
   return [...solicitudes].sort((left, right) => {
-    const leftRank = left.estado === "nueva" ? 0 : 1;
-    const rightRank = right.estado === "nueva" ? 0 : 1;
+    const leftRank = left.status === "nueva" ? 0 : 1;
+    const rightRank = right.status === "nueva" ? 0 : 1;
 
     if (leftRank !== rightRank) {
       return leftRank - rightRank;
@@ -165,8 +165,8 @@ function sortPedidosByAttention(
       return leftRank - rightRank;
     }
 
-    const leftDate = left.fecha_entrega_estimada ?? "9999-12-31";
-    const rightDate = right.fecha_entrega_estimada ?? "9999-12-31";
+    const leftDate = left.estimated_delivery_date ?? "9999-12-31";
+    const rightDate = right.estimated_delivery_date ?? "9999-12-31";
 
     if (leftDate !== rightDate) {
       return leftDate.localeCompare(rightDate);
@@ -182,12 +182,12 @@ function mapSolicitudItem(
   return {
     id: solicitud.id,
     href: `/dashboard/solicitudes/${solicitud.id}`,
-    clienteNombre: solicitud.cliente_nombre,
-    clienteTelefono: solicitud.cliente_telefono,
-    tipoServicio: solicitud.tipo_servicio,
-    estado: solicitud.estado,
+    clienteNombre: solicitud.client_name,
+    clienteTelefono: solicitud.client_phone,
+    tipoServicio: solicitud.service_type,
+    status: solicitud.status,
     createdAt: solicitud.created_at,
-    fechaDeseada: solicitud.fecha_deseada,
+    fechaDeseada: solicitud.desired_date,
     convertedOrderId: solicitud.converted_order_id,
   };
 }
@@ -200,13 +200,13 @@ function mapPedidoItem(
   return {
     id: pedido.id,
     href: `/dashboard/pedidos/${pedido.id}`,
-    numeroPedido: pedido.numero_pedido,
-    titulo: pedido.titulo,
-    estado: pedido.estado,
-    prioridad: pedido.prioridad,
-    fechaEntregaEstimada: pedido.fecha_entrega_estimada,
+    numeroPedido: pedido.order_number,
+    title: pedido.title,
+    status: pedido.status,
+    priority: pedido.priority,
+    fechaEntregaEstimada: pedido.estimated_delivery_date,
     createdAt: pedido.created_at,
-    clienteNombre: pedido.clientes?.nombre ?? null,
+    clienteNombre: pedido.clientes?.name ?? null,
     attention: {
       isOverdue: isPedidoAtrasado(pedido, today),
       isDueSoon: isPedidoProximoEntrega(pedido, today, nextSevenDays),
@@ -221,9 +221,9 @@ async function listManagementPendingSolicitudes(): Promise<
   const { data, error } = await supabase
     .from("solicitudes")
     .select(
-      "id, cliente_nombre, cliente_telefono, tipo_servicio, estado, created_at, fecha_deseada, converted_order_id",
+      "id, client_name, client_phone, service_type, status, created_at, desired_date, converted_order_id",
     )
-    .in("estado", SOLICITUD_ESTADOS_PENDIENTES)
+    .in("status", SOLICITUD_ESTADOS_PENDIENTES)
     .order("created_at", { ascending: false })
     .limit(PENDING_SOLICITUDES_QUERY_LIMIT)
     .returns<PendingSolicitudRow[]>();
@@ -237,7 +237,7 @@ async function listManagementPendingSolicitudes(): Promise<
   return sortPendingSolicitudes(
     (data ?? []).filter(
       (solicitud) =>
-        solicitud.estado !== "aprobada" || !solicitud.converted_order_id,
+        solicitud.status !== "aprobada" || !solicitud.converted_order_id,
     ),
   )
     .slice(0, PENDING_SOLICITUDES_LIMIT)
@@ -252,8 +252,8 @@ async function listManagementAttentionPedidos(
   const { data, error } = await supabase
     .from("pedidos")
     .select(PEDIDOS_WORK_SELECT)
-    .neq("estado", "entregado")
-    .neq("estado", "cancelado")
+    .neq("status", "entregado")
+    .neq("status", "cancelado")
     .order("created_at", { ascending: false })
     .limit(PEDIDOS_ATTENTION_QUERY_LIMIT)
     .returns<PedidoWorkRow[]>();
@@ -281,8 +281,8 @@ async function listWorkerAssignedPedidos(
     .from("pedidos")
     .select(ASSIGNED_PEDIDOS_WORK_SELECT)
     .eq("pedido_trabajadores.assigned_profile_id", workerProfileId)
-    .neq("estado", "entregado")
-    .neq("estado", "cancelado")
+    .neq("status", "entregado")
+    .neq("status", "cancelado")
     .order("created_at", { ascending: false })
     .limit(PEDIDOS_ATTENTION_QUERY_LIMIT)
     .returns<PedidoWorkRow[]>();

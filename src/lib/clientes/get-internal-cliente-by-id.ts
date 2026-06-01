@@ -12,10 +12,10 @@ import type { Tables } from "@/types/database";
 export type InternalClienteDetail = Pick<
   Tables<"clientes">,
   | "id"
-  | "nombre"
-  | "telefono"
+  | "name"
+  | "phone"
   | "email"
-  | "notas"
+  | "notes"
   | "created_at"
   | "updated_at"
 >;
@@ -64,7 +64,7 @@ export async function getInternalClienteById(
   try {
     const { data, error } = await supabase
       .from("clientes")
-      .select("id, nombre, telefono, email, notas, created_at, updated_at")
+      .select("id, name, phone, email, notes, created_at, updated_at")
       .eq("id", clienteId)
       .maybeSingle<InternalClienteDetail>();
 

@@ -49,7 +49,7 @@ export type CreatePedidoCommentActionState = {
   message: string;
   fieldErrors?: PedidoCommentFieldErrors;
   values?: {
-    contenido: string;
+    content: string;
   };
 };
 
@@ -108,10 +108,10 @@ export async function updatePedidoStatusAction(
   formData: FormData,
 ): Promise<UpdatePedidoStatusActionState> {
   const pedidoId = getFormValue(formData, "pedido_id");
-  const estado = getFormValue(formData, "estado");
+  const status = getFormValue(formData, "status");
   const result = await updateInternalPedidoStatus({
     pedidoId,
-    estado,
+    status,
   });
 
   if (!result.ok) {
@@ -238,10 +238,10 @@ export async function createPedidoCommentAction(
   formData: FormData,
 ): Promise<CreatePedidoCommentActionState> {
   const pedidoId = await getPedidoIdForComment(formData);
-  const contenido = getFormValue(formData, "contenido");
+  const content = getFormValue(formData, "content");
   const result = await createPedidoComment({
     pedidoId,
-    contenido,
+    content,
   });
 
   if (!result.ok) {
@@ -260,7 +260,7 @@ export async function createPedidoCommentAction(
     ok: true,
     message: "Comentario agregado correctamente.",
     values: {
-      contenido: "",
+      content: "",
     },
   };
 }

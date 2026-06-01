@@ -98,14 +98,14 @@ execute function public.set_updated_at();
 
 create table public.clientes (
   id uuid primary key default gen_random_uuid(),
-  nombre text not null,
-  telefono text not null,
+  name text not null,
+  phone text not null,
   email text,
-  notas text,
+  notes text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint clientes_nombre_not_empty check (btrim(nombre) <> ''),
-  constraint clientes_telefono_not_empty check (btrim(telefono) <> '')
+  constraint clientes_name_not_empty check (btrim(name) <> ''),
+  constraint clientes_phone_not_empty check (btrim(phone) <> '')
 );
 
 create trigger set_clientes_updated_at
@@ -117,23 +117,23 @@ create table public.solicitudes (
   id uuid primary key default gen_random_uuid(),
   cliente_id uuid references public.clientes(id) on delete set null,
   converted_order_id uuid,
-  cliente_nombre text not null,
-  cliente_telefono text not null,
-  cliente_email text,
-  tipo_servicio text not null,
-  descripcion text not null,
-  cantidad integer,
-  fecha_deseada date,
-  observaciones text,
-  estado public.solicitud_estado not null default 'nueva',
+  client_name text not null,
+  client_phone text not null,
+  client_email text,
+  service_type text not null,
+  description text not null,
+  quantity integer,
+  desired_date date,
+  notes text,
+  status public.solicitud_estado not null default 'nueva',
   reviewed_by uuid references public.perfiles(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint solicitudes_cliente_nombre_not_empty check (btrim(cliente_nombre) <> ''),
-  constraint solicitudes_cliente_telefono_not_empty check (btrim(cliente_telefono) <> ''),
-  constraint solicitudes_tipo_servicio_not_empty check (btrim(tipo_servicio) <> ''),
-  constraint solicitudes_descripcion_not_empty check (btrim(descripcion) <> ''),
-  constraint solicitudes_cantidad_positive check (cantidad is null or cantidad > 0)
+  constraint solicitudes_client_name_not_empty check (btrim(client_name) <> ''),
+  constraint solicitudes_client_phone_not_empty check (btrim(client_phone) <> ''),
+  constraint solicitudes_service_type_not_empty check (btrim(service_type) <> ''),
+  constraint solicitudes_description_not_empty check (btrim(description) <> ''),
+  constraint solicitudes_quantity_positive check (quantity is null or quantity > 0)
 );
 
 create trigger set_solicitudes_updated_at
@@ -143,21 +143,21 @@ execute function public.set_updated_at();
 
 create table public.pedidos (
   id uuid primary key default gen_random_uuid(),
-  numero_pedido text not null unique,
+  order_number text not null unique,
   cliente_id uuid references public.clientes(id) on delete set null,
   solicitud_id uuid references public.solicitudes(id) on delete set null,
-  titulo text not null,
-  descripcion text not null,
-  estado public.pedido_estado not null default 'solicitud_recibida',
-  prioridad public.pedido_prioridad not null default 'normal',
-  fecha_entrega_estimada date,
-  fecha_entrega_real date,
+  title text not null,
+  description text not null,
+  status public.pedido_estado not null default 'solicitud_recibida',
+  priority public.pedido_prioridad not null default 'normal',
+  estimated_delivery_date date,
+  actual_delivery_date date,
   created_by uuid references public.perfiles(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint pedidos_numero_pedido_not_empty check (btrim(numero_pedido) <> ''),
-  constraint pedidos_titulo_not_empty check (btrim(titulo) <> ''),
-  constraint pedidos_descripcion_not_empty check (btrim(descripcion) <> '')
+  constraint pedidos_order_number_not_empty check (btrim(order_number) <> ''),
+  constraint pedidos_title_not_empty check (btrim(title) <> ''),
+  constraint pedidos_description_not_empty check (btrim(description) <> '')
 );
 
 create trigger set_pedidos_updated_at
@@ -202,11 +202,11 @@ create table public.archivos (
 create table public.pedido_comentarios (
   id uuid primary key default gen_random_uuid(),
   pedido_id uuid not null references public.pedidos(id) on delete cascade,
-  contenido text not null,
+  content text not null,
   author_id uuid not null references public.perfiles(id) on delete restrict,
   created_at timestamptz not null default now(),
-  constraint pedido_comentarios_contenido_not_empty check (length(btrim(contenido)) > 0),
-  constraint pedido_comentarios_contenido_max_length check (length(contenido) <= 2000)
+  constraint pedido_comentarios_content_not_empty check (length(btrim(content)) > 0),
+  constraint pedido_comentarios_content_max_length check (length(content) <= 2000)
 );
 
 create table public.pedido_historial (
@@ -226,11 +226,11 @@ create table public.pedido_historial (
 create table public.solicitud_comentarios (
   id uuid primary key default gen_random_uuid(),
   solicitud_id uuid not null references public.solicitudes(id) on delete cascade,
-  contenido text not null,
+  content text not null,
   author_id uuid not null references public.perfiles(id) on delete restrict,
   created_at timestamptz not null default now(),
-  constraint solicitud_comentarios_contenido_not_empty check (length(btrim(contenido)) > 0),
-  constraint solicitud_comentarios_contenido_max_length check (length(contenido) <= 2000)
+  constraint solicitud_comentarios_content_not_empty check (length(btrim(content)) > 0),
+  constraint solicitud_comentarios_content_max_length check (length(content) <= 2000)
 );
 
 create table public.solicitud_historial (
@@ -253,14 +253,14 @@ on public.perfiles(full_name, id);
 create index perfiles_active_role_full_name_idx
 on public.perfiles(is_active, role, full_name, id);
 
-create index clientes_nombre_idx
-on public.clientes(nombre, id);
+create index clientes_name_idx
+on public.clientes(name, id);
 
 create index solicitudes_cliente_id_idx on public.solicitudes(cliente_id);
 create index solicitudes_created_at_idx on public.solicitudes(created_at);
 
-create index solicitudes_estado_created_at_idx
-on public.solicitudes(estado, created_at desc, id desc);
+create index solicitudes_status_created_at_idx
+on public.solicitudes(status, created_at desc, id desc);
 
 create unique index solicitudes_converted_order_id_unique_idx
 on public.solicitudes(converted_order_id)
@@ -269,18 +269,18 @@ where converted_order_id is not null;
 create index pedidos_cliente_id_idx on public.pedidos(cliente_id);
 create index pedidos_created_at_idx on public.pedidos(created_at);
 
-create index pedidos_estado_created_at_idx
-on public.pedidos(estado, created_at desc, id desc);
+create index pedidos_status_created_at_idx
+on public.pedidos(status, created_at desc, id desc);
 
 create index pedidos_active_created_at_idx
 on public.pedidos(created_at desc, id desc)
-where estado <> 'entregado'::public.pedido_estado
-  and estado <> 'cancelado'::public.pedido_estado;
+where status <> 'entregado'::public.pedido_estado
+  and status <> 'cancelado'::public.pedido_estado;
 
-create index pedidos_active_fecha_entrega_estimada_idx
-on public.pedidos(fecha_entrega_estimada)
-where estado <> 'entregado'::public.pedido_estado
-  and estado <> 'cancelado'::public.pedido_estado;
+create index pedidos_active_estimated_delivery_date_idx
+on public.pedidos(estimated_delivery_date)
+where status <> 'entregado'::public.pedido_estado
+  and status <> 'cancelado'::public.pedido_estado;
 
 create unique index pedidos_solicitud_id_unique_idx
 on public.pedidos(solicitud_id)

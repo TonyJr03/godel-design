@@ -12,7 +12,7 @@ type PedidoEstado = Enums<"pedido_estado">;
 
 type AssignedPedidoSummaryRow = Pick<
   Tables<"pedidos">,
-  "id" | "estado" | "fecha_entrega_estimada"
+  "id" | "status" | "estimated_delivery_date"
 >;
 
 const FINAL_PEDIDO_ESTADOS: readonly PedidoEstado[] = [
@@ -22,16 +22,16 @@ const FINAL_PEDIDO_ESTADOS: readonly PedidoEstado[] = [
 
 const ASSIGNED_PEDIDOS_SUMMARY_SELECT = `
   id,
-  estado,
-  fecha_entrega_estimada,
+  status,
+  estimated_delivery_date,
   pedido_trabajadores!inner(assigned_profile_id)
 `;
 
 const GENERIC_WORKER_SUMMARY_ERROR =
   "No se pudo cargar el resumen de tus pedidos. Inténtalo nuevamente.";
 
-function isPedidoActivo(estado: PedidoEstado): boolean {
-  return !FINAL_PEDIDO_ESTADOS.includes(estado);
+function isPedidoActivo(status: PedidoEstado): boolean {
+  return !FINAL_PEDIDO_ESTADOS.includes(status);
 }
 
 function isPedidoAtrasado(
@@ -39,9 +39,9 @@ function isPedidoAtrasado(
   today: string,
 ): boolean {
   return Boolean(
-    pedido.fecha_entrega_estimada &&
-      pedido.fecha_entrega_estimada < today &&
-      isPedidoActivo(pedido.estado),
+    pedido.estimated_delivery_date &&
+      pedido.estimated_delivery_date < today &&
+      isPedidoActivo(pedido.status),
   );
 }
 
@@ -51,10 +51,10 @@ function isPedidoProximoEntrega(
   nextSevenDays: string,
 ): boolean {
   return Boolean(
-    pedido.fecha_entrega_estimada &&
-      pedido.fecha_entrega_estimada >= today &&
-      pedido.fecha_entrega_estimada <= nextSevenDays &&
-      isPedidoActivo(pedido.estado),
+    pedido.estimated_delivery_date &&
+      pedido.estimated_delivery_date >= today &&
+      pedido.estimated_delivery_date <= nextSevenDays &&
+      isPedidoActivo(pedido.status),
   );
 }
 
@@ -67,16 +67,16 @@ function buildWorkerMetrics(
 
   return {
     pedidosAsignadosActivos: pedidos.filter((pedido) =>
-      isPedidoActivo(pedido.estado),
+      isPedidoActivo(pedido.status),
     ).length,
     pedidosAsignadosEnDiseno: pedidos.filter(
-      (pedido) => pedido.estado === "en_diseno",
+      (pedido) => pedido.status === "en_diseno",
     ).length,
     pedidosAsignadosEnProduccion: pedidos.filter(
-      (pedido) => pedido.estado === "en_produccion",
+      (pedido) => pedido.status === "en_produccion",
     ).length,
     pedidosAsignadosListosEntrega: pedidos.filter(
-      (pedido) => pedido.estado === "listo_entrega",
+      (pedido) => pedido.status === "listo_entrega",
     ).length,
     pedidosAsignadosAtrasados: pedidos.filter((pedido) =>
       isPedidoAtrasado(pedido, today),

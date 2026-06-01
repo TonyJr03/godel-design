@@ -14,10 +14,10 @@ import { PEDIDO_PRIORITIES, type PedidoPriority } from "./status";
 
 export const PEDIDO_FIELDS = [
   "cliente_id",
-  "titulo",
-  "descripcion",
-  "prioridad",
-  "fecha_entrega_estimada",
+  "title",
+  "description",
+  "priority",
+  "estimated_delivery_date",
 ] as const;
 
 export const PEDIDO_PRIORIDADES = PEDIDO_PRIORITIES;
@@ -27,18 +27,18 @@ export type PedidoPrioridad = PedidoPriority;
 
 export type CreatePedidoInput = {
   cliente_id?: string | null;
-  titulo?: string | null;
-  descripcion?: string | null;
-  prioridad?: string | null;
-  fecha_entrega_estimada?: string | null;
+  title?: string | null;
+  description?: string | null;
+  priority?: string | null;
+  estimated_delivery_date?: string | null;
 };
 
 export type CreatePedidoData = {
   cliente_id: string;
-  titulo: string;
-  descripcion: string;
-  prioridad: PedidoPrioridad;
-  fecha_entrega_estimada: string | null;
+  title: string;
+  description: string;
+  priority: PedidoPrioridad;
+  estimated_delivery_date: string | null;
 };
 
 export type PedidoFieldErrors = Partial<Record<PedidoField, string>>;
@@ -52,20 +52,20 @@ const MAX_TITULO_LENGTH = 160;
 const MAX_DESCRIPCION_LENGTH = 3000;
 
 export function isPedidoPrioridad(
-  prioridad: string | null | undefined,
-): prioridad is PedidoPrioridad {
-  return PEDIDO_PRIORIDADES.includes(prioridad as PedidoPrioridad);
+  priority: string | null | undefined,
+): priority is PedidoPrioridad {
+  return PEDIDO_PRIORIDADES.includes(priority as PedidoPrioridad);
 }
 
 export function validatePedidoInput(
   input: CreatePedidoInput,
 ): ValidatePedidoInputResult {
   const clienteId = normalizeSingleLineText(input.cliente_id);
-  const titulo = normalizeSingleLineText(input.titulo);
-  const descripcion = normalizeMultilineText(input.descripcion);
-  const prioridad = normalizeSingleLineText(input.prioridad);
+  const title = normalizeSingleLineText(input.title);
+  const description = normalizeMultilineText(input.description);
+  const priority = normalizeSingleLineText(input.priority);
   const fechaEntregaEstimada = normalizeOptionalSingleLineText(
-    input.fecha_entrega_estimada,
+    input.estimated_delivery_date,
   );
   const fieldErrors: PedidoFieldErrors = {};
 
@@ -75,27 +75,27 @@ export function validatePedidoInput(
     fieldErrors.cliente_id = "Selecciona un cliente válido.";
   }
 
-  if (!titulo) {
-    fieldErrors.titulo = "El título del trabajo es obligatorio.";
-  } else if (titulo.length > MAX_TITULO_LENGTH) {
-    fieldErrors.titulo = `El título no puede superar ${MAX_TITULO_LENGTH} caracteres.`;
+  if (!title) {
+    fieldErrors.title = "El título del trabajo es obligatorio.";
+  } else if (title.length > MAX_TITULO_LENGTH) {
+    fieldErrors.title = `El título no puede superar ${MAX_TITULO_LENGTH} caracteres.`;
   }
 
-  if (!descripcion) {
-    fieldErrors.descripcion = "La descripción es obligatoria.";
-  } else if (descripcion.length > MAX_DESCRIPCION_LENGTH) {
-    fieldErrors.descripcion = `La descripción no puede superar ${MAX_DESCRIPCION_LENGTH} caracteres.`;
+  if (!description) {
+    fieldErrors.description = "La descripción es obligatoria.";
+  } else if (description.length > MAX_DESCRIPCION_LENGTH) {
+    fieldErrors.description = `La descripción no puede superar ${MAX_DESCRIPCION_LENGTH} caracteres.`;
   }
 
-  if (!isPedidoPrioridad(prioridad)) {
-    fieldErrors.prioridad = "Selecciona una prioridad válida.";
+  if (!isPedidoPrioridad(priority)) {
+    fieldErrors.priority = "Selecciona una prioridad válida.";
   }
 
   if (fechaEntregaEstimada) {
     if (!isValidIsoDate(fechaEntregaEstimada)) {
-      fieldErrors.fecha_entrega_estimada = "Selecciona una fecha válida.";
+      fieldErrors.estimated_delivery_date = "Selecciona una fecha válida.";
     } else if (fechaEntregaEstimada < getTodayIsoDate()) {
-      fieldErrors.fecha_entrega_estimada =
+      fieldErrors.estimated_delivery_date =
         "La fecha estimada de entrega no puede estar en el pasado.";
     }
   }
@@ -106,9 +106,9 @@ export function validatePedidoInput(
 
   return validationSuccess({
     cliente_id: clienteId,
-    titulo,
-    descripcion,
-    prioridad: prioridad as PedidoPrioridad,
-    fecha_entrega_estimada: fechaEntregaEstimada,
+    title,
+    description,
+    priority: priority as PedidoPrioridad,
+    estimated_delivery_date: fechaEntregaEstimada,
   });
 }

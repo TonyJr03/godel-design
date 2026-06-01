@@ -15,14 +15,14 @@ export type SolicitudCommentAuthor =
 
 export type SolicitudComment = Pick<
   Tables<"solicitud_comentarios">,
-  "id" | "contenido" | "created_at"
+  "id" | "content" | "created_at"
 > & {
   author: SolicitudCommentAuthor;
 };
 
 type SolicitudCommentRpcRow = Pick<
   Tables<"solicitud_comentarios">,
-  "id" | "contenido" | "created_at"
+  "id" | "content" | "created_at"
 > & {
   author_full_name: string;
   author_role: Enums<"app_role"> | null;

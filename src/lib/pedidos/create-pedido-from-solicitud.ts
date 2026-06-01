@@ -38,10 +38,10 @@ type SolicitudConvertible = Pick<
   | "id"
   | "cliente_id"
   | "converted_order_id"
-  | "tipo_servicio"
-  | "descripcion"
-  | "estado"
-  | "fecha_deseada"
+  | "service_type"
+  | "description"
+  | "status"
+  | "desired_date"
 >;
 
 const INITIAL_CONVERTED_PEDIDO_ESTADO: Enums<"pedido_estado"> =
@@ -88,7 +88,7 @@ export async function createPedidoFromSolicitud(
     const { data: solicitud, error: solicitudError } = await supabase
       .from("solicitudes")
       .select(
-        "id, cliente_id, converted_order_id, tipo_servicio, descripcion, estado, fecha_deseada",
+        "id, cliente_id, converted_order_id, service_type, description, status, desired_date",
       )
       .eq("id", solicitudId)
       .maybeSingle<SolicitudConvertible>();
@@ -113,7 +113,7 @@ export async function createPedidoFromSolicitud(
       );
     }
 
-    if (solicitud.estado !== "aprobada") {
+    if (solicitud.status !== "aprobada") {
       return serviceFailure(
         "not_approved",
         "La solicitud debe estar aprobada antes de convertirse en pedido.",
@@ -128,21 +128,21 @@ export async function createPedidoFromSolicitud(
     }
 
     const pedidoInsert: TablesInsert<"pedidos"> = {
-      numero_pedido: generatePedidoNumber(),
+      order_number: generatePedidoNumber(),
       cliente_id: solicitud.cliente_id,
       solicitud_id: solicitud.id,
-      titulo: solicitud.tipo_servicio,
-      descripcion: solicitud.descripcion,
-      estado: INITIAL_CONVERTED_PEDIDO_ESTADO,
-      prioridad: DEFAULT_CONVERTED_PEDIDO_PRIORIDAD,
-      fecha_entrega_estimada: solicitud.fecha_deseada,
+      title: solicitud.service_type,
+      description: solicitud.description,
+      status: INITIAL_CONVERTED_PEDIDO_ESTADO,
+      priority: DEFAULT_CONVERTED_PEDIDO_PRIORIDAD,
+      estimated_delivery_date: solicitud.desired_date,
       created_by: profile.id,
     };
 
     const { data: pedido, error: pedidoError } = await supabase
       .from("pedidos")
       .insert(pedidoInsert)
-      .select("id, numero_pedido")
+      .select("id, order_number")
       .single();
 
     if (pedidoError || !pedido) {
@@ -161,12 +161,12 @@ export async function createPedidoFromSolicitud(
     const { data: updatedSolicitud, error: updateError } = await supabase
       .from("solicitudes")
       .update({
-        estado: "convertida",
+        status: "convertida",
         converted_order_id: pedido.id,
         reviewed_by: profile.id,
       })
       .eq("id", solicitud.id)
-      .eq("estado", "aprobada")
+      .eq("status", "aprobada")
       .is("converted_order_id", null)
       .select("id")
       .maybeSingle<{ id: string }>();
@@ -198,7 +198,7 @@ export async function createPedidoFromSolicitud(
 
     return serviceSuccess({
       pedidoId: pedido.id,
-      numeroPedido: pedido.numero_pedido,
+      numeroPedido: pedido.order_number,
     });
   } catch (error) {
     console.error("Unexpected error converting solicitud to pedido", error);

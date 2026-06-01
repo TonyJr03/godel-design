@@ -21,12 +21,12 @@ begin
     new.id,
     new.created_by,
     'pedido_creado'::public.pedido_historial_action,
-    'Pedido creado en el sistema: ' || new.numero_pedido,
+    'Pedido creado en el sistema: ' || new.order_number,
     null,
-    new.numero_pedido,
+    new.order_number,
     jsonb_build_object(
-      'numero_pedido', new.numero_pedido,
-      'titulo', new.titulo,
+      'order_number', new.order_number,
+      'title', new.title,
       'solicitud_id', new.solicitud_id,
       'origen', case
         when new.solicitud_id is null then 'manual'
@@ -244,14 +244,14 @@ begin
     new.id,
     auth.uid(),
     'solicitud_creada'::public.solicitud_historial_action,
-    'Solicitud registrada: ' || new.tipo_servicio ||
-      coalesce(' (' || new.cantidad::text || ' unidades)', ''),
+    'Solicitud registrada: ' || new.service_type ||
+      coalesce(' (' || new.quantity::text || ' unidades)', ''),
     null,
-    new.tipo_servicio,
+    new.service_type,
     jsonb_strip_nulls(
       jsonb_build_object(
-        'tipo_servicio', new.tipo_servicio,
-        'cantidad', new.cantidad,
+        'service_type', new.service_type,
+        'quantity', new.quantity,
         'origen', case
           when auth.uid() is null then 'publica'
           else 'interna'
@@ -327,13 +327,13 @@ security definer
 set search_path = public, private
 as $$
 begin
-  if old.estado is not distinct from new.estado then
+  if old.status is not distinct from new.status then
     return new;
   end if;
 
   if old.converted_order_id is null
     and new.converted_order_id is not null
-    and new.estado = 'convertida'::public.solicitud_estado then
+    and new.status = 'convertida'::public.solicitud_estado then
     return new;
   end if;
 
@@ -351,11 +351,11 @@ begin
     coalesce(auth.uid(), new.reviewed_by),
     'estado_cambiado'::public.solicitud_historial_action,
     'Estado cambiado de ' ||
-      private.solicitud_estado_label(old.estado) ||
+      private.solicitud_estado_label(old.status) ||
       ' a ' ||
-      private.solicitud_estado_label(new.estado),
-    old.estado::text,
-    new.estado::text,
+      private.solicitud_estado_label(new.status),
+    old.status::text,
+    new.status::text,
     jsonb_build_object('source', 'solicitud_estado_trigger')
   );
 
@@ -364,7 +364,7 @@ end;
 $$;
 
 create trigger insert_solicitud_historial_estado_cambiado
-after update of estado on public.solicitudes
+after update of status on public.solicitudes
 for each row
 execute function private.insert_solicitud_historial_estado_cambiado();
 
@@ -375,7 +375,7 @@ security definer
 set search_path = public, private
 as $$
 declare
-  v_cliente_nombre text;
+  v_client_name text;
 begin
   if old.cliente_id is not distinct from new.cliente_id then
     return new;
@@ -385,8 +385,8 @@ begin
     return new;
   end if;
 
-  select c.nombre
-  into v_cliente_nombre
+  select c.name
+  into v_client_name
   from public.clientes as c
   where c.id = new.cliente_id;
 
@@ -404,13 +404,13 @@ begin
     auth.uid(),
     'cliente_asociado'::public.solicitud_historial_action,
     'Cliente asociado a la solicitud: ' ||
-      coalesce(v_cliente_nombre, new.cliente_id::text),
+      coalesce(v_client_name, new.cliente_id::text),
     null,
-    coalesce(v_cliente_nombre, new.cliente_id::text),
+    coalesce(v_client_name, new.cliente_id::text),
     jsonb_strip_nulls(
       jsonb_build_object(
         'cliente_id', new.cliente_id,
-        'cliente_nombre', v_cliente_nombre
+        'client_name', v_client_name
       )
     )
   );
@@ -431,16 +431,16 @@ security definer
 set search_path = public, private
 as $$
 declare
-  v_numero_pedido text;
-  v_titulo text;
+  v_order_number text;
+  v_order_title text;
 begin
   if old.converted_order_id is not null
     or new.converted_order_id is null then
     return new;
   end if;
 
-  select p.numero_pedido, p.titulo
-  into v_numero_pedido, v_titulo
+  select p.order_number, p.title
+  into v_order_number, v_order_title
   from public.pedidos as p
   where p.id = new.converted_order_id;
 
@@ -458,15 +458,15 @@ begin
     coalesce(auth.uid(), new.reviewed_by),
     'convertida_a_pedido'::public.solicitud_historial_action,
     'Solicitud convertida a pedido: ' ||
-      coalesce(v_numero_pedido, new.converted_order_id::text),
+      coalesce(v_order_number, new.converted_order_id::text),
     null,
-    coalesce(v_numero_pedido, new.converted_order_id::text),
+    coalesce(v_order_number, new.converted_order_id::text),
     jsonb_strip_nulls(
       jsonb_build_object(
         'pedido_id', new.converted_order_id,
-        'numero_pedido', v_numero_pedido,
-        'titulo', v_titulo,
-        'estado', new.estado
+        'order_number', v_order_number,
+        'title', v_order_title,
+        'status', new.status
       )
     )
   );

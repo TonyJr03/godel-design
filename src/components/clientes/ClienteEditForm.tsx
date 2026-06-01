@@ -54,10 +54,10 @@ export function ClienteEditForm({ cliente }: ClienteEditFormProps) {
     initialState,
   );
 
-  const nombreError = getFieldError(state, "nombre");
-  const telefonoError = getFieldError(state, "telefono");
+  const nombreError = getFieldError(state, "name");
+  const telefonoError = getFieldError(state, "phone");
   const emailError = getFieldError(state, "email");
-  const notasError = getFieldError(state, "notas");
+  const notasError = getFieldError(state, "notes");
 
   return (
     <form
@@ -84,41 +84,41 @@ export function ClienteEditForm({ cliente }: ClienteEditFormProps) {
 
         <div className="grid gap-5 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <label className={labelClass} htmlFor="nombre">
+            <label className={labelClass} htmlFor="name">
               Nombre <span className="text-red-700">*</span>
             </label>
             <input
               className={baseInputClass}
-              id="nombre"
-              name="nombre"
+              id="name"
+              name="name"
               type="text"
               autoComplete="name"
               required
               maxLength={120}
-              defaultValue={cliente.nombre}
+              defaultValue={cliente.name}
               aria-invalid={Boolean(nombreError)}
-              aria-describedby={nombreError ? "nombre-error" : undefined}
+              aria-describedby={nombreError ? "name-error" : undefined}
             />
-            <FieldError id="nombre-error" message={nombreError} />
+            <FieldError id="name-error" message={nombreError} />
           </div>
 
           <div>
-            <label className={labelClass} htmlFor="telefono">
+            <label className={labelClass} htmlFor="phone">
               Teléfono <span className="text-red-700">*</span>
             </label>
             <input
               className={baseInputClass}
-              id="telefono"
-              name="telefono"
+              id="phone"
+              name="phone"
               type="tel"
               autoComplete="tel"
               required
               maxLength={40}
-              defaultValue={cliente.telefono}
+              defaultValue={cliente.phone}
               aria-invalid={Boolean(telefonoError)}
-              aria-describedby={telefonoError ? "telefono-error" : undefined}
+              aria-describedby={telefonoError ? "phone-error" : undefined}
             />
-            <FieldError id="telefono-error" message={telefonoError} />
+            <FieldError id="phone-error" message={telefonoError} />
           </div>
 
           <div>
@@ -140,19 +140,19 @@ export function ClienteEditForm({ cliente }: ClienteEditFormProps) {
           </div>
 
           <div className="sm:col-span-2">
-            <label className={labelClass} htmlFor="notas">
+            <label className={labelClass} htmlFor="notes">
               Notas <OptionalMark />
             </label>
             <textarea
               className={`${baseInputClass} min-h-32 resize-y`}
-              id="notas"
-              name="notas"
+              id="notes"
+              name="notes"
               maxLength={1000}
-              defaultValue={cliente.notas ?? ""}
+              defaultValue={cliente.notes ?? ""}
               aria-invalid={Boolean(notasError)}
-              aria-describedby={notasError ? "notas-error" : undefined}
+              aria-describedby={notasError ? "notes-error" : undefined}
             />
-            <FieldError id="notas-error" message={notasError} />
+            <FieldError id="notes-error" message={notasError} />
           </div>
         </div>
 

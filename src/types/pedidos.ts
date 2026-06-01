@@ -10,5 +10,5 @@ export type PedidoId = Pedido["id"];
 
 export type PedidoBase = {
   id: PedidoId;
-  estado: EstadoPedido;
+  status: EstadoPedido;
 };

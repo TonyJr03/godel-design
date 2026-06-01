@@ -136,10 +136,10 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 | Campo | Tipo sugerido | Notas |
 |---|---|---|
 | `id` | `uuid` | Identificador único del cliente. |
-| `nombre` | `text` | Nombre del cliente o contacto. |
-| `telefono` | `text` | Teléfono principal. |
+| `name` | `text` | Nombre del cliente o contacto. |
+| `phone` | `text` | Teléfono principal. |
 | `email` | `text nullable` | Correo opcional. |
-| `notas` | `text nullable` | Notas internas simples. |
+| `notes` | `text nullable` | Notas internas simples. |
 | `created_at` | `timestamptz` | Fecha de creación. |
 | `updated_at` | `timestamptz` | Fecha de última actualización. |
 
@@ -167,15 +167,15 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 |---|---|---|
 | `id` | `uuid` | Identificador único de la solicitud. |
 | `cliente_id` | `uuid nullable` | Cliente asociado si ya existe o se crea uno. |
-| `cliente_nombre` | `text` | Nombre capturado desde el formulario público. |
-| `cliente_telefono` | `text` | Teléfono capturado desde el formulario público. |
-| `cliente_email` | `text nullable` | Correo opcional capturado desde el formulario público. |
-| `tipo_servicio` | `text` | Tipo de servicio solicitado. |
-| `descripcion` | `text` | Descripción del trabajo solicitado. |
-| `cantidad` | `integer nullable` | Cantidad solicitada si aplica. |
-| `fecha_deseada` | `date nullable` | Fecha deseada por el cliente. |
-| `observaciones` | `text nullable` | Observaciones adicionales. |
-| `estado` | `solicitud_estado` | Estado operativo de la solicitud. |
+| `client_name` | `text` | Nombre capturado desde el formulario público. |
+| `client_phone` | `text` | Teléfono capturado desde el formulario público. |
+| `client_email` | `text nullable` | Correo opcional capturado desde el formulario público. |
+| `service_type` | `text` | Tipo de servicio solicitado. |
+| `description` | `text` | Descripción del trabajo solicitado. |
+| `quantity` | `integer nullable` | Cantidad solicitada si aplica. |
+| `desired_date` | `date nullable` | Fecha deseada por el cliente. |
+| `notes` | `text nullable` | Observaciones adicionales. |
+| `status` | `solicitud_estado` | Estado operativo de la solicitud. |
 | `reviewed_by` | `uuid nullable` | Usuario interno que revisó la solicitud. |
 | `converted_order_id` | `uuid nullable` | Pedido creado a partir de la solicitud. |
 | `created_at` | `timestamptz` | Fecha de recepción. |
@@ -206,15 +206,15 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 | Campo | Tipo sugerido | Notas |
 |---|---|---|
 | `id` | `uuid` | Identificador único del pedido. |
-| `numero_pedido` | `text unique` | Número visible y único para operación interna. |
+| `order_number` | `text unique` | Número visible y único para operación interna. |
 | `cliente_id` | `uuid nullable` | Cliente asociado. |
 | `solicitud_id` | `uuid nullable` | Solicitud origen si el pedido fue convertido. |
-| `titulo` | `text` | Nombre breve del pedido. |
-| `descripcion` | `text` | Detalle del trabajo. |
-| `estado` | `pedido_estado` | Estado operativo del pedido. |
-| `prioridad` | `pedido_prioridad` | Prioridad del pedido. |
-| `fecha_entrega_estimada` | `date nullable` | Fecha estimada de entrega. |
-| `fecha_entrega_real` | `date nullable` | Fecha real de entrega. |
+| `title` | `text` | Nombre breve del pedido. |
+| `description` | `text` | Detalle del trabajo. |
+| `status` | `pedido_estado` | Estado operativo del pedido. |
+| `priority` | `pedido_prioridad` | Prioridad del pedido. |
+| `estimated_delivery_date` | `date nullable` | Fecha estimada de entrega. |
+| `actual_delivery_date` | `date nullable` | Fecha real de entrega. |
 | `created_by` | `uuid nullable` | Usuario interno que creó el pedido. |
 | `created_at` | `timestamptz` | Fecha de creación del registro. |
 | `updated_at` | `timestamptz` | Fecha de última actualización. |
@@ -227,7 +227,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 
 **Reglas importantes:**
 
-- `numero_pedido` debe ser único.
+- `order_number` debe ser único.
 - Un pedido puede crearse manualmente o a partir de una solicitud.
 - Los cambios importantes de estado deben registrarse en `pedido_historial`.
 
@@ -310,7 +310,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 |---|---|---|
 | `id` | `uuid` | Identificador único del comentario. |
 | `pedido_id` | `uuid` | Pedido comentado. |
-| `contenido` | `text` | Texto del comentario. |
+| `content` | `text` | Texto del comentario. |
 | `author_id` | `uuid` | Usuario interno autor del comentario. |
 | `created_at` | `timestamptz` | Fecha de creación. |
 
@@ -373,7 +373,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 |---|---|---|
 | `id` | `uuid` | Identificador único del comentario. |
 | `solicitud_id` | `uuid` | Solicitud comentada. |
-| `contenido` | `text` | Texto del comentario. |
+| `content` | `text` | Texto del comentario. |
 | `author_id` | `uuid` | Usuario interno autor del comentario. |
 | `created_at` | `timestamptz` | Fecha de creación. |
 
@@ -386,8 +386,8 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 
 - Los comentarios son internos.
 - Una solicitud puede tener muchos comentarios.
-- El contenido no puede estar vacío.
-- El contenido tiene un límite inicial de 2000 caracteres.
+- El content no puede estar vacío.
+- El content tiene un límite inicial de 2000 caracteres.
 - No hay edición ni eliminación inicial.
 
 **Notas de seguridad:**
@@ -473,13 +473,13 @@ Para archivos, los buckets deben ser privados y el acceso debe protegerse median
 
 | Tabla | Campo |
 |---|---|
-| `solicitudes` | `estado` |
+| `solicitudes` | `status` |
 | `solicitudes` | `cliente_id` |
 | `solicitudes` | `created_at` |
-| `pedidos` | `estado` |
+| `pedidos` | `status` |
 | `pedidos` | `cliente_id` |
 | `pedidos` | `solicitud_id` |
-| `pedidos` | `fecha_entrega_estimada` |
+| `pedidos` | `estimated_delivery_date` |
 | `pedido_trabajadores` | `pedido_id` |
 | `pedido_trabajadores` | `assigned_profile_id` |
 | `archivos` | `pedido_id` |

@@ -10,16 +10,16 @@ import { isValidUuid } from "@/lib/validators";
 
 export type CreateSolicitudCommentInput = {
   solicitudId: string;
-  contenido: string;
+  content: string;
 };
 
 export type SolicitudCommentFieldErrors = Partial<
-  Record<"solicitud_id" | "contenido", string>
+  Record<"solicitud_id" | "content", string>
 >;
 
 type CreateSolicitudCommentValues = {
   values?: {
-    contenido: string;
+    content: string;
   };
 };
 
@@ -44,11 +44,11 @@ const GENERIC_CREATE_COMMENT_ERROR =
 
 export async function createSolicitudComment({
   solicitudId: solicitudIdInput,
-  contenido: contenidoInput,
+  content: contenidoInput,
 }: CreateSolicitudCommentInput): Promise<CreateSolicitudCommentResult> {
   const solicitudId = solicitudIdInput.trim();
-  const contenido = contenidoInput.trim();
-  const values = { contenido };
+  const content = contenidoInput.trim();
+  const values = { content };
 
   if (!isValidUuid(solicitudId)) {
     return serviceFailure("invalid_id", "La solicitud no existe.", {
@@ -59,22 +59,22 @@ export async function createSolicitudComment({
     });
   }
 
-  if (!contenido) {
+  if (!content) {
     return serviceFailure("validation", "Escribe un comentario antes de enviarlo.", {
       fieldErrors: {
-        contenido: "Escribe un comentario antes de enviarlo.",
+        content: "Escribe un comentario antes de enviarlo.",
       },
       values,
     });
   }
 
-  if (contenido.length > MAX_COMMENT_LENGTH) {
+  if (content.length > MAX_COMMENT_LENGTH) {
     return serviceFailure(
       "validation",
       `El comentario no puede superar ${MAX_COMMENT_LENGTH} caracteres.`,
       {
         fieldErrors: {
-          contenido: `Máximo ${MAX_COMMENT_LENGTH} caracteres.`,
+          content: `Máximo ${MAX_COMMENT_LENGTH} caracteres.`,
         },
         values,
       },
@@ -130,7 +130,7 @@ export async function createSolicitudComment({
       .insert({
         solicitud_id: solicitudId,
         author_id: profile.id,
-        contenido,
+        content,
       })
       .select("id")
       .single<{ id: string }>();

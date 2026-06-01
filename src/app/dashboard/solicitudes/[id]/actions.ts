@@ -40,7 +40,7 @@ export type CreateSolicitudCommentActionState = {
   message: string;
   fieldErrors?: SolicitudCommentFieldErrors;
   values?: {
-    contenido: string;
+    content: string;
   };
 };
 
@@ -79,11 +79,11 @@ export async function updateSolicitudStatusAction(
   formData: FormData,
 ): Promise<UpdateSolicitudStatusActionState> {
   const solicitudId = getFormValue(formData, "solicitud_id");
-  const estado = getFormValue(formData, "estado");
+  const status = getFormValue(formData, "status");
 
   const result = await updateInternalSolicitudStatus({
     solicitudId,
-    estado,
+    status,
   });
 
   if (!result.ok) {
@@ -188,10 +188,10 @@ export async function createSolicitudCommentAction(
   formData: FormData,
 ): Promise<CreateSolicitudCommentActionState> {
   const solicitudId = await getSolicitudIdForComment(formData);
-  const contenido = getFormValue(formData, "contenido");
+  const content = getFormValue(formData, "content");
   const result = await createSolicitudComment({
     solicitudId,
-    contenido,
+    content,
   });
 
   if (!result.ok) {
@@ -210,7 +210,7 @@ export async function createSolicitudCommentAction(
     ok: true,
     message: "Comentario agregado correctamente.",
     values: {
-      contenido: "",
+      content: "",
     },
   };
 }

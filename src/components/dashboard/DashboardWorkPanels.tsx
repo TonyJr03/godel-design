@@ -94,7 +94,7 @@ function SolicitudesList({
             </div>
             <div className="shrink-0 text-left sm:text-right">
               <p className="text-sm font-medium text-teal-700">
-                {SOLICITUD_STATUS_LABELS[solicitud.estado]}
+                {SOLICITUD_STATUS_LABELS[solicitud.status]}
               </p>
               <p className="mt-1 text-sm text-zinc-500">
                 Deseada: {formatDate(solicitud.fechaDeseada)}
@@ -145,7 +145,7 @@ function PedidosList({
                   ) : null}
                 </div>
                 <p className="mt-1 truncate text-sm text-zinc-700">
-                  {pedido.titulo}
+                  {pedido.title}
                 </p>
                 <p className="mt-1 text-sm text-zinc-500">
                   {pedido.clienteNombre ?? "Cliente no disponible"}
@@ -153,10 +153,10 @@ function PedidosList({
               </div>
               <div className="shrink-0 text-left sm:text-right">
                 <p className="text-sm font-medium text-teal-700">
-                  {PEDIDO_STATUS_LABELS[pedido.estado]}
+                  {PEDIDO_STATUS_LABELS[pedido.status]}
                 </p>
                 <p className="mt-1 text-sm text-zinc-500">
-                  Prioridad: {PEDIDO_PRIORITY_LABELS[pedido.prioridad]}
+                  Prioridad: {PEDIDO_PRIORITY_LABELS[pedido.priority]}
                 </p>
                 <p className="mt-1 text-xs text-zinc-400">
                   Entrega: {formatDate(pedido.fechaEntregaEstimada)}

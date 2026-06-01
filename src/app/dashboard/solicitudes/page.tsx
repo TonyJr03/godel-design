@@ -11,7 +11,7 @@ import { getSingleSearchParam } from "@/lib/utils";
 
 type DashboardSolicitudesPageProps = {
   searchParams: Promise<{
-    estado?: string | string[] | undefined;
+    status?: string | string[] | undefined;
   }>;
 };
 
@@ -19,8 +19,8 @@ export default async function DashboardSolicitudesPage({
   searchParams,
 }: DashboardSolicitudesPageProps) {
   const params = await searchParams;
-  const estado = getSingleSearchParam(params.estado);
-  const result = await listInternalSolicitudes({ estado });
+  const status = getSingleSearchParam(params.status);
+  const result = await listInternalSolicitudes({ status });
 
   return (
     <div className="space-y-8">
@@ -37,7 +37,7 @@ export default async function DashboardSolicitudesPage({
           <Link
             href="/dashboard/solicitudes"
             className={`inline-flex h-9 items-center justify-center rounded-md border px-3 text-sm font-medium transition ${
-              result.ok && !result.estado
+              result.ok && !result.status
                 ? "border-zinc-950 bg-zinc-950 text-white"
                 : "border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400"
             }`}
@@ -47,9 +47,9 @@ export default async function DashboardSolicitudesPage({
           {INTERNAL_SOLICITUD_ESTADOS.map((estadoOption) => (
             <Link
               key={estadoOption}
-              href={`/dashboard/solicitudes?estado=${estadoOption}`}
+              href={`/dashboard/solicitudes?status=${estadoOption}`}
               className={`inline-flex h-9 items-center justify-center rounded-md border px-3 text-sm font-medium transition ${
-                result.ok && result.estado === estadoOption
+                result.ok && result.status === estadoOption
                   ? "border-teal-700 bg-teal-700 text-white"
                   : "border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400"
               }`}

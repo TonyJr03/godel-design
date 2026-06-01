@@ -70,10 +70,10 @@ Campos principales usados actualmente:
 | Campo | Uso |
 |---|---|
 | `id` | Identificador único del cliente. |
-| `nombre` | Nombre del cliente o contacto. |
-| `telefono` | Teléfono principal. Es obligatorio porque el modelo actual lo exige. |
+| `name` | Nombre del cliente o contacto. |
+| `phone` | Teléfono principal. Es obligatorio porque el modelo actual lo exige. |
 | `email` | Correo electrónico opcional. |
-| `notas` | Notas internas opcionales. |
+| `notes` | Notas internas opcionales. |
 | `created_at` | Fecha de creación. |
 | `updated_at` | Fecha de última actualización. |
 
@@ -122,10 +122,10 @@ Archivos principales:
 
 La edición requiere `clientes.manage` y permite modificar solo:
 
-- `nombre`
-- `telefono`
+- `name`
+- `phone`
 - `email`
-- `notas`
+- `notes`
 
 No acepta campos internos, valida input server-side y no implementa eliminación.
 
@@ -147,9 +147,9 @@ La asociación actualiza `solicitudes.cliente_id`. No modifica `converted_order_
 
 Crear cliente desde solicitud toma los datos desde la solicitud guardada en servidor:
 
-- `cliente_nombre`
-- `cliente_telefono`
-- `cliente_email`
+- `client_name`
+- `client_phone`
+- `client_email`
 
 No confía en datos de cliente enviados desde `FormData`. Si la solicitud ya tiene cliente asociado, no crea otro cliente automáticamente.
 

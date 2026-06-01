@@ -111,7 +111,7 @@ Las areas que necesitan orden son:
 | Critico | No se detectaron problemas criticos confirmados. | Busquedas sobre `SUPABASE_SERVICE_ROLE_KEY`, `service_role`, `auth.users`, `file_path`, URLs publicas. | N/A | Mantener restricciones actuales. |
 | Alto | Public request no tiene captcha/rate limiting. | Documentado como pendiente. | Spam o abuso del formulario publico. | Antes de produccion, agregar control anti-spam/rate limit compatible con el despliegue. |
 | Medio | Proxy protege rutas por seccion, pero algunas subrutas permitidas por prefijo dependen de checks de pagina/action. | `/dashboard/pedidos/nuevo` permitido por prefijo a trabajador, bloqueado luego en pagina/action. | Defensa final existe, pero UX y auditoria pueden mejorar. | Refinar reglas de rutas o checks visuales para acciones de gestion. |
-| Medio | `avatar_url` se almacena como texto editable por admin. | Usuarios internos. | Si se renderiza como link/imagen sin restricciones futuras, puede abrir tracking o contenido externo. | Definir politica: URL externa permitida, Storage interno o campo deshabilitado. |
+| Medio | `avatar_url` se almacena como texto editable por admin. | Usuarios internos. | Si se renderiza como link/imagen sin restricciones futuras, puede abrir tracking o content externo. | Definir politica: URL externa permitida, Storage interno o campo deshabilitado. |
 
 ### Rendimiento y mantenibilidad
 

@@ -21,12 +21,12 @@ export async function createPedidoAction(
 ): Promise<CreatePedidoActionState> {
   const result = await createInternalPedido({
     cliente_id: getFormValue(formData, "cliente_id"),
-    titulo: getFormValue(formData, "titulo"),
-    descripcion: getFormValue(formData, "descripcion"),
-    prioridad: getFormValue(formData, "prioridad"),
-    fecha_entrega_estimada: getFormValue(
+    title: getFormValue(formData, "title"),
+    description: getFormValue(formData, "description"),
+    priority: getFormValue(formData, "priority"),
+    estimated_delivery_date: getFormValue(
       formData,
-      "fecha_entrega_estimada",
+      "estimated_delivery_date",
     ),
   });
 

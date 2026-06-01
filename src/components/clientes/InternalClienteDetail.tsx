@@ -39,7 +39,7 @@ export function InternalClienteDetail({
       <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
         <div className="border-b border-zinc-200 pb-5">
           <h2 className="text-2xl font-semibold tracking-tight text-zinc-950">
-            {cliente.nombre}
+            {cliente.name}
           </h2>
           <p className="mt-2 break-all font-mono text-xs text-zinc-500">
             {cliente.id}
@@ -47,7 +47,7 @@ export function InternalClienteDetail({
         </div>
 
         <dl className="mt-6 grid gap-6 sm:grid-cols-2">
-          <DetailItem label="Teléfono" value={cliente.telefono} />
+          <DetailItem label="Teléfono" value={cliente.phone} />
           <DetailItem
             label="Correo electrónico"
             value={cliente.email ?? "No definido"}
@@ -62,11 +62,11 @@ export function InternalClienteDetail({
           />
         </dl>
 
-        {cliente.notas ? (
+        {cliente.notes ? (
           <div className="mt-6 border-t border-zinc-200 pt-6">
             <h3 className="text-sm font-semibold text-zinc-950">Notas</h3>
             <p className="mt-2 whitespace-pre-line text-sm leading-6 text-zinc-700">
-              {cliente.notas}
+              {cliente.notes}
             </p>
           </div>
         ) : null}
