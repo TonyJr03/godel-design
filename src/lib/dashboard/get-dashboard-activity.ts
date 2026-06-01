@@ -25,6 +25,7 @@ type PedidoActivityRow = Pick<
   | "id"
   | "pedido_id"
   | "action"
+  | "summary"
   | "old_value"
   | "new_value"
   | "metadata"
@@ -39,7 +40,14 @@ type SolicitudActivitySolicitud =
 
 type SolicitudActivityRow = Pick<
   Tables<"solicitud_historial">,
-  "id" | "solicitud_id" | "action" | "resumen" | "metadata" | "created_at"
+  | "id"
+  | "solicitud_id"
+  | "action"
+  | "summary"
+  | "old_value"
+  | "new_value"
+  | "metadata"
+  | "created_at"
 > & {
   solicitudes: SolicitudActivitySolicitud;
 };
@@ -51,6 +59,7 @@ const PEDIDO_ACTIVITY_SELECT = `
   id,
   pedido_id,
   action,
+  summary,
   old_value,
   new_value,
   metadata,
@@ -62,7 +71,9 @@ const SOLICITUD_ACTIVITY_SELECT = `
   id,
   solicitud_id,
   action,
-  resumen,
+  summary,
+  old_value,
+  new_value,
   metadata,
   created_at,
   solicitudes(id, cliente_nombre, tipo_servicio)
@@ -92,10 +103,7 @@ function getMetadataString(metadata: Json | null, key: string): string | null {
 }
 
 function getSafeFileName(metadata: Json | null, fallback: string | null): string | null {
-  const rawName =
-    getMetadataString(metadata, "file_name") ??
-    getMetadataString(metadata, "filename") ??
-    fallback;
+  const rawName = getMetadataString(metadata, "file_name") ?? fallback;
 
   if (!rawName) {
     return null;
@@ -192,12 +200,12 @@ function buildPedidoDescription(row: PedidoActivityRow): string {
     return "Fecha de entrega actualizada.";
   }
 
-  return "Evento registrado en el pedido.";
+  return row.summary || "Evento registrado en el pedido.";
 }
 
 function buildSolicitudDescription(row: SolicitudActivityRow): string {
   if (row.action === "solicitud_creada") {
-    return row.resumen || "Solicitud creada.";
+    return row.summary || "Solicitud creada.";
   }
 
   if (row.action === "archivos_adjuntados") {
@@ -205,16 +213,12 @@ function buildSolicitudDescription(row: SolicitudActivityRow): string {
 
     return fileName
       ? `Archivo adjuntado: ${fileName}.`
-      : row.resumen || "Archivos adjuntados.";
+      : row.summary || "Archivos adjuntados.";
   }
 
   if (row.action === "estado_cambiado") {
-    const oldEstado =
-      getMetadataString(row.metadata, "estado_anterior") ??
-      getMetadataString(row.metadata, "old_estado");
-    const newEstado =
-      getMetadataString(row.metadata, "estado_nuevo") ??
-      getMetadataString(row.metadata, "new_estado");
+    const oldEstado = row.old_value;
+    const newEstado = row.new_value;
 
     if (oldEstado || newEstado) {
       return `Estado cambiado de ${formatSolicitudEstado(
@@ -222,7 +226,7 @@ function buildSolicitudDescription(row: SolicitudActivityRow): string {
       )} a ${formatSolicitudEstado(newEstado)}.`;
     }
 
-    return row.resumen || "Estado cambiado.";
+    return row.summary || "Estado cambiado.";
   }
 
   if (row.action === "cliente_asociado") {
@@ -230,7 +234,7 @@ function buildSolicitudDescription(row: SolicitudActivityRow): string {
 
     return clienteNombre
       ? `Cliente asociado: ${clienteNombre}.`
-      : row.resumen || "Cliente asociado.";
+      : row.summary || "Cliente asociado.";
   }
 
   if (row.action === "cliente_creado_desde_solicitud") {
@@ -238,7 +242,7 @@ function buildSolicitudDescription(row: SolicitudActivityRow): string {
 
     return clienteNombre
       ? `Cliente creado desde solicitud: ${clienteNombre}.`
-      : row.resumen || "Cliente creado desde solicitud.";
+      : row.summary || "Cliente creado desde solicitud.";
   }
 
   if (row.action === "convertida_a_pedido") {
@@ -248,10 +252,10 @@ function buildSolicitudDescription(row: SolicitudActivityRow): string {
 
     return pedidoNumero
       ? `Solicitud convertida a pedido: ${pedidoNumero}.`
-      : row.resumen || "Solicitud convertida a pedido.";
+      : row.summary || "Solicitud convertida a pedido.";
   }
 
-  return row.resumen || "Evento registrado en la solicitud.";
+  return row.summary || "Evento registrado en la solicitud.";
 }
 
 function mapPedidoActivity(row: PedidoActivityRow): DashboardRecentActivityItem {

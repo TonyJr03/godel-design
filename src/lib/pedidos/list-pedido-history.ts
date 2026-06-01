@@ -15,7 +15,13 @@ export type PedidoHistoryActor =
 
 export type PedidoHistoryItem = Pick<
   Tables<"pedido_historial">,
-  "id" | "action" | "old_value" | "new_value" | "metadata" | "created_at"
+  | "id"
+  | "action"
+  | "summary"
+  | "old_value"
+  | "new_value"
+  | "metadata"
+  | "created_at"
 > & {
   actor: PedidoHistoryActor;
 };
@@ -23,9 +29,10 @@ export type PedidoHistoryItem = Pick<
 type PedidoHistoryRpcRow = {
   id: string;
   action: Enums<"pedido_historial_action">;
+  summary: string;
   old_value: string | null;
   new_value: string | null;
-  metadata: Json | null;
+  metadata: Json;
   created_at: string;
   actor_full_name: string | null;
   actor_role: Enums<"app_role"> | null;

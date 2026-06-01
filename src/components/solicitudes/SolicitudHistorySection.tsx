@@ -131,8 +131,8 @@ function getHistorySummary(item: SolicitudHistoryItem): string {
 
   if (item.action === "estado_cambiado") {
     return `Estado cambiado de ${formatEstado(
-      getMetadataString(item, "estado_anterior"),
-    )} a ${formatEstado(getMetadataString(item, "estado_nuevo"))}.`;
+      item.old_value,
+    )} a ${formatEstado(item.new_value)}.`;
   }
 
   if (item.action === "cliente_asociado") {
@@ -159,7 +159,7 @@ function getHistorySummary(item: SolicitudHistoryItem): string {
     }
   }
 
-  return item.resumen;
+  return item.summary;
 }
 
 export function SolicitudHistorySection({

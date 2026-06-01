@@ -52,7 +52,7 @@ function getHistorySummary(item: PedidoHistoryItem): string {
     return `Fecha de entrega actualizada de ${formatHistoryValue(item.old_value)} a ${formatHistoryValue(item.new_value)}.`;
   }
 
-  return "Evento registrado en el pedido.";
+  return item.summary || "Evento registrado en el pedido.";
 }
 
 function getActorName(item: PedidoHistoryItem): string {

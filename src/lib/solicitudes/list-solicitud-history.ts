@@ -15,7 +15,13 @@ export type SolicitudHistoryActor =
 
 export type SolicitudHistoryItem = Pick<
   Tables<"solicitud_historial">,
-  "id" | "action" | "resumen" | "metadata" | "created_at"
+  | "id"
+  | "action"
+  | "summary"
+  | "old_value"
+  | "new_value"
+  | "metadata"
+  | "created_at"
 > & {
   actor: SolicitudHistoryActor;
   related: {
@@ -27,7 +33,9 @@ export type SolicitudHistoryItem = Pick<
 type SolicitudHistoryRpcRow = {
   id: string;
   action: Enums<"solicitud_historial_action">;
-  resumen: string;
+  summary: string;
+  old_value: string | null;
+  new_value: string | null;
   metadata: Json;
   created_at: string;
   actor_full_name: string | null;

@@ -143,7 +143,9 @@ export async function createClienteFromSolicitudAndAssociate(
         solicitud_id: solicitudId,
         actor_id: profile.id,
         action: "cliente_creado_desde_solicitud",
-        resumen: `Cliente creado desde la solicitud: ${validation.data.nombre}`,
+        summary: `Cliente creado desde la solicitud: ${validation.data.nombre}`,
+        old_value: null,
+        new_value: validation.data.nombre,
         metadata: {
           cliente_id: cliente.id,
           cliente_nombre: validation.data.nombre,

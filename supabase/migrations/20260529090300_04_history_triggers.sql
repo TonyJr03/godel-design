@@ -10,8 +10,9 @@ as $$
 begin
   insert into public.pedido_historial (
     pedido_id,
-    user_id,
+    actor_id,
     action,
+    summary,
     old_value,
     new_value,
     metadata
@@ -20,6 +21,7 @@ begin
     new.id,
     new.creado_por,
     'pedido_creado'::public.pedido_historial_action,
+    'Pedido creado en el sistema: ' || new.numero_pedido,
     null,
     new.numero_pedido,
     jsonb_build_object(
@@ -58,8 +60,9 @@ begin
 
   insert into public.pedido_historial (
     pedido_id,
-    user_id,
+    actor_id,
     action,
+    summary,
     old_value,
     new_value,
     metadata
@@ -68,6 +71,8 @@ begin
     new.pedido_id,
     new.assigned_by,
     'trabajador_asignado'::public.pedido_historial_action,
+    'Personal asignado al pedido: ' ||
+      coalesce(v_trabajador_nombre, new.trabajador_id::text),
     null,
     coalesce(v_trabajador_nombre, new.trabajador_id::text),
     jsonb_build_object(
@@ -105,8 +110,9 @@ begin
 
   insert into public.pedido_historial (
     pedido_id,
-    user_id,
+    actor_id,
     action,
+    summary,
     old_value,
     new_value,
     metadata
@@ -115,6 +121,8 @@ begin
     old.pedido_id,
     v_removed_by,
     'trabajador_removido'::public.pedido_historial_action,
+    'Personal removido del pedido: ' ||
+      coalesce(v_trabajador_nombre, old.trabajador_id::text),
     coalesce(v_trabajador_nombre, old.trabajador_id::text),
     null,
     jsonb_build_object(
@@ -153,8 +161,9 @@ begin
 
   insert into public.pedido_historial (
     pedido_id,
-    user_id,
+    actor_id,
     action,
+    summary,
     old_value,
     new_value,
     metadata
@@ -163,6 +172,7 @@ begin
     new.pedido_id,
     new.uploaded_by,
     'archivo_subido'::public.pedido_historial_action,
+    'Archivo agregado al pedido: ' || new.file_name,
     null,
     new.file_name,
     jsonb_build_object(
@@ -225,7 +235,9 @@ begin
     solicitud_id,
     actor_id,
     action,
-    resumen,
+    summary,
+    old_value,
+    new_value,
     metadata
   )
   values (
@@ -234,6 +246,8 @@ begin
     'solicitud_creada'::public.solicitud_historial_action,
     'Solicitud registrada: ' || new.tipo_servicio ||
       coalesce(' (' || new.cantidad::text || ' unidades)', ''),
+    null,
+    new.tipo_servicio,
     jsonb_strip_nulls(
       jsonb_build_object(
         'tipo_servicio', new.tipo_servicio,
@@ -274,7 +288,9 @@ begin
     solicitud_id,
     actor_id,
     action,
-    resumen,
+    summary,
+    old_value,
+    new_value,
     metadata
   )
   values (
@@ -282,12 +298,15 @@ begin
     new.uploaded_by,
     'archivos_adjuntados'::public.solicitud_historial_action,
     'Archivo adjuntado a la solicitud: ' || new.file_name,
+    null,
+    new.file_name,
     jsonb_strip_nulls(
       jsonb_build_object(
         'archivo_id', new.id,
         'file_name', new.file_name,
         'file_type', new.file_type,
-        'file_size', new.file_size
+        'file_size', new.file_size,
+        'visibility', new.visibility
       )
     )
   );
@@ -322,7 +341,9 @@ begin
     solicitud_id,
     actor_id,
     action,
-    resumen,
+    summary,
+    old_value,
+    new_value,
     metadata
   )
   values (
@@ -333,10 +354,9 @@ begin
       private.solicitud_estado_label(old.estado) ||
       ' a ' ||
       private.solicitud_estado_label(new.estado),
-    jsonb_build_object(
-      'estado_anterior', old.estado,
-      'estado_nuevo', new.estado
-    )
+    old.estado::text,
+    new.estado::text,
+    jsonb_build_object('source', 'solicitud_estado_trigger')
   );
 
   return new;
@@ -374,7 +394,9 @@ begin
     solicitud_id,
     actor_id,
     action,
-    resumen,
+    summary,
+    old_value,
+    new_value,
     metadata
   )
   values (
@@ -383,6 +405,8 @@ begin
     'cliente_asociado'::public.solicitud_historial_action,
     'Cliente asociado a la solicitud: ' ||
       coalesce(v_cliente_nombre, new.cliente_id::text),
+    null,
+    coalesce(v_cliente_nombre, new.cliente_id::text),
     jsonb_strip_nulls(
       jsonb_build_object(
         'cliente_id', new.cliente_id,
@@ -424,7 +448,9 @@ begin
     solicitud_id,
     actor_id,
     action,
-    resumen,
+    summary,
+    old_value,
+    new_value,
     metadata
   )
   values (
@@ -433,6 +459,8 @@ begin
     'convertida_a_pedido'::public.solicitud_historial_action,
     'Solicitud convertida a pedido: ' ||
       coalesce(v_numero_pedido, new.converted_order_id::text),
+    null,
+    coalesce(v_numero_pedido, new.converted_order_id::text),
     jsonb_strip_nulls(
       jsonb_build_object(
         'pedido_id', new.converted_order_id,

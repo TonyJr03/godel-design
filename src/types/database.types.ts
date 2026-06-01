@@ -145,33 +145,36 @@ export type Database = {
       pedido_historial: {
         Row: {
           action: Database["public"]["Enums"]["pedido_historial_action"]
+          actor_id: string | null
           created_at: string
           id: string
           metadata: Json
           new_value: string | null
           old_value: string | null
           pedido_id: string
-          user_id: string | null
+          summary: string
         }
         Insert: {
           action: Database["public"]["Enums"]["pedido_historial_action"]
+          actor_id?: string | null
           created_at?: string
           id?: string
           metadata?: Json
           new_value?: string | null
           old_value?: string | null
           pedido_id: string
-          user_id?: string | null
+          summary: string
         }
         Update: {
           action?: Database["public"]["Enums"]["pedido_historial_action"]
+          actor_id?: string | null
           created_at?: string
           id?: string
           metadata?: Json
           new_value?: string | null
           old_value?: string | null
           pedido_id?: string
-          user_id?: string | null
+          summary?: string
         }
         Relationships: [
           {
@@ -182,8 +185,8 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "pedido_historial_user_id_fkey"
-            columns: ["user_id"]
+            foreignKeyName: "pedido_historial_actor_id_fkey"
+            columns: ["actor_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -398,8 +401,10 @@ export type Database = {
           created_at: string
           id: string
           metadata: Json
-          resumen: string
+          new_value: string | null
+          old_value: string | null
           solicitud_id: string
+          summary: string
         }
         Insert: {
           action: Database["public"]["Enums"]["solicitud_historial_action"]
@@ -407,8 +412,10 @@ export type Database = {
           created_at?: string
           id?: string
           metadata?: Json
-          resumen: string
+          new_value?: string | null
+          old_value?: string | null
           solicitud_id: string
+          summary: string
         }
         Update: {
           action?: Database["public"]["Enums"]["solicitud_historial_action"]
@@ -416,8 +423,10 @@ export type Database = {
           created_at?: string
           id?: string
           metadata?: Json
-          resumen?: string
+          new_value?: string | null
+          old_value?: string | null
           solicitud_id?: string
+          summary?: string
         }
         Relationships: [
           {
@@ -560,13 +569,14 @@ export type Database = {
         Args: { p_pedido_id: string }
         Returns: {
           action: Database["public"]["Enums"]["pedido_historial_action"]
-          actor_full_name: string
-          actor_role: Database["public"]["Enums"]["app_role"]
+          actor_full_name: string | null
+          actor_role: Database["public"]["Enums"]["app_role"] | null
           created_at: string
           id: string
           metadata: Json
-          new_value: string
-          old_value: string
+          new_value: string | null
+          old_value: string | null
+          summary: string
         }[]
       }
       listar_solicitud_comentarios: {
@@ -583,12 +593,14 @@ export type Database = {
         Args: { p_solicitud_id: string }
         Returns: {
           action: Database["public"]["Enums"]["solicitud_historial_action"]
-          actor_full_name: string
-          actor_role: Database["public"]["Enums"]["app_role"]
+          actor_full_name: string | null
+          actor_role: Database["public"]["Enums"]["app_role"] | null
           created_at: string
           id: string
           metadata: Json
-          resumen: string
+          new_value: string | null
+          old_value: string | null
+          summary: string
         }[]
       }
     }

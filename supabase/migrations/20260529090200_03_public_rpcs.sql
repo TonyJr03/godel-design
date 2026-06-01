@@ -69,8 +69,9 @@ begin
 
   insert into public.pedido_historial (
     pedido_id,
-    user_id,
+    actor_id,
     action,
+    summary,
     old_value,
     new_value,
     metadata
@@ -79,6 +80,10 @@ begin
     p_pedido_id,
     auth.uid(),
     v_action,
+    'Estado cambiado de ' ||
+      v_estado_anterior::text ||
+      ' a ' ||
+      p_nuevo_estado::text,
     v_estado_anterior::text,
     p_nuevo_estado::text,
     jsonb_build_object('source', 'actualizar_estado_pedido')
@@ -135,6 +140,7 @@ create or replace function public.listar_pedido_historial(
 returns table (
   id uuid,
   action public.pedido_historial_action,
+  summary text,
   old_value text,
   new_value text,
   metadata jsonb,
@@ -150,6 +156,7 @@ as $$
   select
     ph.id,
     ph.action,
+    ph.summary,
     ph.old_value,
     ph.new_value,
     ph.metadata,
@@ -158,7 +165,7 @@ as $$
     p.role as actor_role
   from public.pedido_historial as ph
   left join public.profiles as p
-    on p.id = ph.user_id
+    on p.id = ph.actor_id
   where ph.pedido_id = p_pedido_id
     and (select auth.uid()) is not null
     and private.current_user_is_active()
@@ -217,7 +224,9 @@ create or replace function public.listar_solicitud_historial(
 returns table (
   id uuid,
   action public.solicitud_historial_action,
-  resumen text,
+  summary text,
+  old_value text,
+  new_value text,
   metadata jsonb,
   created_at timestamptz,
   actor_full_name text,
@@ -231,7 +240,9 @@ as $$
   select
     sh.id,
     sh.action,
-    sh.resumen,
+    sh.summary,
+    sh.old_value,
+    sh.new_value,
     sh.metadata,
     sh.created_at,
     p.full_name as actor_full_name,

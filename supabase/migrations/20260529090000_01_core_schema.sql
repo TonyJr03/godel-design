@@ -214,12 +214,14 @@ create table public.pedido_comentarios (
 create table public.pedido_historial (
   id uuid primary key default gen_random_uuid(),
   pedido_id uuid not null references public.pedidos(id) on delete cascade,
-  user_id uuid references public.profiles(id) on delete set null,
+  actor_id uuid references public.profiles(id) on delete set null,
   action public.pedido_historial_action not null,
+  summary text not null,
   old_value text,
   new_value text,
   metadata jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
+  constraint pedido_historial_summary_not_empty check (length(btrim(summary)) > 0),
   constraint pedido_historial_metadata_is_object check (jsonb_typeof(metadata) = 'object')
 );
 
@@ -238,10 +240,12 @@ create table public.solicitud_historial (
   solicitud_id uuid not null references public.solicitudes(id) on delete cascade,
   actor_id uuid references public.profiles(id) on delete set null,
   action public.solicitud_historial_action not null,
-  resumen text not null,
+  summary text not null,
+  old_value text,
+  new_value text,
   metadata jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
-  constraint solicitud_historial_resumen_not_empty check (length(btrim(resumen)) > 0),
+  constraint solicitud_historial_summary_not_empty check (length(btrim(summary)) > 0),
   constraint solicitud_historial_metadata_is_object check (jsonb_typeof(metadata) = 'object')
 );
 

@@ -94,7 +94,7 @@ Eventos que puede registrar:
 
 También guarda:
 
-- `user_id = auth.uid()`;
+- `actor_id = auth.uid()`;
 - `old_value` con el estado anterior;
 - `new_value` con el estado nuevo;
 - `metadata.source = "actualizar_estado_pedido"`.
@@ -120,10 +120,10 @@ El módulo actual:
 
 - lista comentarios de `pedido_comentarios` en `/dashboard/pedidos/[id]`;
 - permite agregar comentarios a usuarios con acceso al pedido;
-- usa `user_id = profile.id` como autor;
+- usa `author_id = profile.id` como autor;
 - guarda `contenido`;
 - muestra autor, rol, fecha y contenido;
-- no acepta `user_id`, `created_at` ni `updated_at` desde formularios;
+- no acepta `author_id`, `created_at` ni `updated_at` desde formularios;
 - no implementa edición ni eliminación.
 
 El RLS permite lectura e inserción según acceso al pedido. La subfase 11.2 eliminó las policies de actualización y eliminación para mantener comentarios append-only en el alcance inicial.
@@ -164,9 +164,9 @@ Desde Fase 11.7B también se registran automáticamente eventos de solicitudes e
 
 La conversión a pedido no duplica `estado_cambiado` cuando el mismo update establece `converted_order_id` y `estado = "convertida"`.
 
-El historial visible de solicitudes construye resúmenes detallados a partir de `metadata` y relaciones mínimas, de forma equivalente al historial de pedidos. Por ejemplo:
+El historial visible de solicitudes construye resúmenes detallados a partir de `summary`, `old_value`, `new_value`, `metadata` y relaciones mínimas, de forma equivalente al historial de pedidos. Por ejemplo:
 
-- cambios de estado muestran estado anterior y estado nuevo;
+- cambios de estado muestran estado anterior y estado nuevo desde `old_value` y `new_value`;
 - archivos adjuntados muestran el nombre del archivo y tamaño cuando existe;
 - asociación o creación de cliente muestra el nombre del cliente;
 - conversión a pedido muestra número y título del pedido cuando están disponibles.
@@ -354,10 +354,9 @@ Campos existentes:
 | --- | --- | --- |
 | `id` | `uuid` | Identificador del comentario. |
 | `pedido_id` | `uuid` | Pedido comentado. |
-| `user_id` | `uuid` | Autor interno. |
+| `author_id` | `uuid` | Autor interno. |
 | `contenido` | `text` | Texto del comentario. |
 | `created_at` | `timestamptz` | Fecha de creación. |
-| `updated_at` | `timestamptz` | Fecha de última actualización. |
 
 Consideración para Fase 11.2:
 
@@ -397,11 +396,12 @@ Campos existentes:
 | --- | --- | --- |
 | `id` | `uuid` | Identificador del evento. |
 | `pedido_id` | `uuid` | Pedido relacionado. |
-| `user_id` | `uuid nullable` | Usuario que ejecutó la acción, si aplica. |
+| `actor_id` | `uuid nullable` | Usuario que ejecutó la acción, si aplica. |
 | `action` | `pedido_historial_action` | Tipo de evento. |
+| `summary` | `text` | Texto breve visible para la UI. |
 | `old_value` | `text nullable` | Valor anterior cuando aplique. |
 | `new_value` | `text nullable` | Valor nuevo cuando aplique. |
-| `metadata` | `jsonb nullable` | Datos adicionales mínimos. |
+| `metadata` | `jsonb` | Datos adicionales mínimos. |
 | `created_at` | `timestamptz` | Fecha del evento. |
 
 Estado desde Fase 11.2:
@@ -424,7 +424,9 @@ Campos propuestos:
 | `solicitud_id` | `uuid` | Solicitud relacionada. |
 | `actor_id` | `uuid nullable` | Usuario ejecutor si aplica. |
 | `action` | `solicitud_historial_action` | Tipo de evento. |
-| `resumen` | `text` | Texto breve visible para la UI. |
+| `summary` | `text` | Texto breve visible para la UI. |
+| `old_value` | `text nullable` | Valor anterior cuando aplique. |
+| `new_value` | `text nullable` | Valor nuevo cuando aplique. |
 | `metadata` | `jsonb` | Datos adicionales mínimos, como objeto JSON. |
 | `created_at` | `timestamptz` | Fecha del evento. |
 
@@ -456,8 +458,8 @@ Eventos mínimos:
 
 | Evento | Cuándo registrar | Datos mínimos |
 | --- | --- | --- |
-| `pedido_creado` | Pedido creado manualmente. | `pedido_id`, `user_id`, resumen, origen manual. |
-| `pedido_creado` | Pedido creado desde solicitud. | `pedido_id`, `solicitud_id`, `user_id`, origen solicitud. |
+| `pedido_creado` | Pedido creado manualmente. | `pedido_id`, `actor_id`, `summary`, origen manual. |
+| `pedido_creado` | Pedido creado desde solicitud. | `pedido_id`, `solicitud_id`, `actor_id`, origen solicitud. |
 | `estado_cambiado` | Cambio de estado normal. | estado anterior, estado nuevo, usuario. |
 | `pedido_entregado` | Cambio a `entregado`. | estado anterior, estado nuevo, usuario. |
 | `pedido_cancelado` | Cambio a `cancelado`. | estado anterior, estado nuevo, usuario. |

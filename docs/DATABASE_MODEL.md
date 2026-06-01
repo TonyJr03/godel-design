@@ -343,17 +343,18 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 |---|---|---|
 | `id` | `uuid` | Identificador único del evento. |
 | `pedido_id` | `uuid` | Pedido relacionado. |
-| `user_id` | `uuid nullable` | Usuario que ejecutó la acción, si aplica. |
+| `actor_id` | `uuid nullable` | Usuario que ejecutó la acción, si aplica. |
 | `action` | `pedido_historial_action` | Tipo de evento registrado. |
+| `summary` | `text` | Resumen breve visible. |
 | `old_value` | `text nullable` | Valor anterior si aplica. |
 | `new_value` | `text nullable` | Valor nuevo si aplica. |
-| `metadata` | `jsonb nullable` | Datos adicionales del evento. |
+| `metadata` | `jsonb` | Datos adicionales mínimos del evento. |
 | `created_at` | `timestamptz` | Fecha del evento. |
 
 **Claves foráneas:**
 
 - `pedido_historial.pedido_id` -> `pedidos.id`.
-- `pedido_historial.user_id` -> `profiles.id`.
+- `pedido_historial.actor_id` -> `profiles.id`.
 
 **Reglas importantes:**
 
@@ -409,7 +410,9 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 | `solicitud_id` | `uuid` | Solicitud relacionada. |
 | `actor_id` | `uuid nullable` | Usuario que ejecutó la acción, si aplica. |
 | `action` | `solicitud_historial_action` | Tipo de evento registrado. |
-| `resumen` | `text` | Resumen breve visible. |
+| `summary` | `text` | Resumen breve visible. |
+| `old_value` | `text nullable` | Valor anterior si aplica. |
+| `new_value` | `text nullable` | Valor nuevo si aplica. |
 | `metadata` | `jsonb` | Datos adicionales mínimos del evento. |
 | `created_at` | `timestamptz` | Fecha del evento. |
 
@@ -421,7 +424,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 **Reglas importantes:**
 
 - El historial es append-only.
-- El resumen no puede estar vacío.
+- `summary` no puede estar vacío.
 - `metadata` debe ser un objeto JSON.
 - Los eventos automáticos se conectarán en subfases posteriores.
 
