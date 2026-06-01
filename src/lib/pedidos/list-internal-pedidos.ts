@@ -18,14 +18,14 @@ type PedidoSolicitud =
   | Pick<Tables<"solicitudes">, "id" | "tipo_servicio">
   | null;
 type PedidoTrabajadorProfile =
-  | Pick<Tables<"profiles">, "id" | "full_name">
+  | Pick<Tables<"perfiles">, "id" | "full_name">
   | null;
 
 export type InternalPedidoTrabajador = Pick<
   Tables<"pedido_trabajadores">,
   "assigned_profile_id"
 > & {
-  profiles: PedidoTrabajadorProfile;
+  perfiles: PedidoTrabajadorProfile;
 };
 
 export type InternalPedido = Pick<
@@ -91,7 +91,7 @@ const PEDIDOS_SELECT = `
   ${BASE_PEDIDOS_SELECT},
   pedido_trabajadores(
     assigned_profile_id,
-    profiles!pedido_trabajadores_assigned_profile_id_fkey(id, full_name)
+    perfiles!pedido_trabajadores_assigned_profile_id_fkey(id, full_name)
   )
 `;
 

@@ -10,7 +10,7 @@ import { isValidUuid } from "@/lib/validators";
 import type { Enums, Tables } from "@/types/database";
 
 export type PedidoCommentAuthor =
-  | Pick<Tables<"profiles">, "full_name" | "role">
+  | Pick<Tables<"perfiles">, "full_name" | "role">
   | null;
 
 export type PedidoComment = Pick<

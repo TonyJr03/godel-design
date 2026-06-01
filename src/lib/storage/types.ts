@@ -108,7 +108,7 @@ export type PedidoFileListItem = Pick<
   | "created_at"
   | "uploaded_by"
 > & {
-  uploadedBy: Pick<Tables<"profiles">, "id" | "full_name" | "role"> | null;
+  uploadedBy: Pick<Tables<"perfiles">, "id" | "full_name" | "role"> | null;
 };
 
 export type ListPedidoFilesResult =

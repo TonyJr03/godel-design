@@ -55,7 +55,7 @@ declare
 begin
   select p.full_name
   into v_trabajador_nombre
-  from public.profiles as p
+  from public.perfiles as p
   where p.id = new.assigned_profile_id;
 
   insert into public.pedido_historial (
@@ -103,7 +103,7 @@ declare
 begin
   select p.full_name
   into v_trabajador_nombre
-  from public.profiles as p
+  from public.perfiles as p
   where p.id = old.assigned_profile_id;
 
   v_removed_by := auth.uid();

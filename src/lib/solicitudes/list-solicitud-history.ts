@@ -10,7 +10,7 @@ import { isValidUuid } from "@/lib/validators";
 import type { Enums, Json, Tables } from "@/types/database";
 
 export type SolicitudHistoryActor =
-  | Pick<Tables<"profiles">, "full_name" | "role">
+  | Pick<Tables<"perfiles">, "full_name" | "role">
   | null;
 
 export type SolicitudHistoryItem = Pick<

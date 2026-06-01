@@ -261,7 +261,7 @@ La interfaz del detalle muestra múltiples usuarios asignados con su rol visible
 
 Asignar un `admin` o `supervisor` no modifica su rol ni degrada sus permisos. Un trabajador asignado puede ver el pedido y cambiar su estado según la regla de la fase anterior. No se implementan historial avanzado ni notificaciones.
 
-El trabajador no accede al módulo general de usuarios. La visibilidad de nombres y roles del personal asignado se controla mediante RLS de `profiles` con alcance por pedido accesible, usando las asignaciones de `pedido_trabajadores` como contexto.
+El trabajador no accede al módulo general de usuarios. La visibilidad de nombres y roles del personal asignado se controla mediante RLS de `perfiles` con alcance por pedido accesible, usando las asignaciones de `pedido_trabajadores` como contexto.
 
 La documentación específica del flujo de asignación está en `docs/ORDER_ASSIGNMENTS_FLOW.md`.
 

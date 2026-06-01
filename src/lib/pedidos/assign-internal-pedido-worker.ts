@@ -38,7 +38,7 @@ export type AssignInternalPedidoWorkerResult = ServiceResult<
   PedidoWorkerFieldErrors
 >;
 
-type WorkerProfile = Pick<Tables<"profiles">, "id" | "role" | "is_active">;
+type WorkerProfile = Pick<Tables<"perfiles">, "id" | "role" | "is_active">;
 type PedidoAssignment = Pick<
   Tables<"pedido_trabajadores">,
   "id" | "assigned_profile_id"
@@ -136,7 +136,7 @@ export async function assignInternalPedidoWorker(
     }
 
     const { data: assignableProfile, error: assignableProfileError } = await supabase
-      .from("profiles")
+      .from("perfiles")
       .select("id, role, is_active")
       .eq("id", assignedProfileId)
       .maybeSingle<WorkerProfile>();

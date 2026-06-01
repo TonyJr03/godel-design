@@ -30,8 +30,8 @@ function getTrabajadoresLabel(pedido: InternalPedido): string {
   }
 
   const trabajadores = pedido.pedido_trabajadores.map((asignacion) =>
-    asignacion.profiles?.full_name?.trim()
-      ? asignacion.profiles.full_name
+    asignacion.perfiles?.full_name?.trim()
+      ? asignacion.perfiles.full_name
       : "Usuario asignado",
   );
 

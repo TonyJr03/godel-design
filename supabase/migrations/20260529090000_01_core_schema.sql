@@ -79,7 +79,7 @@ $$;
 revoke all on function public.set_updated_at()
 from public, anon, authenticated;
 
-create table public.profiles (
+create table public.perfiles (
   id uuid primary key references auth.users(id) on delete cascade,
   full_name text not null,
   role public.app_role not null default 'trabajador',
@@ -88,11 +88,11 @@ create table public.profiles (
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint profiles_full_name_not_empty check (btrim(full_name) <> '')
+  constraint perfiles_full_name_not_empty check (btrim(full_name) <> '')
 );
 
-create trigger set_profiles_updated_at
-before update on public.profiles
+create trigger set_perfiles_updated_at
+before update on public.perfiles
 for each row
 execute function public.set_updated_at();
 
@@ -126,7 +126,7 @@ create table public.solicitudes (
   fecha_deseada date,
   observaciones text,
   estado public.solicitud_estado not null default 'nueva',
-  reviewed_by uuid references public.profiles(id) on delete set null,
+  reviewed_by uuid references public.perfiles(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint solicitudes_cliente_nombre_not_empty check (btrim(cliente_nombre) <> ''),
@@ -152,7 +152,7 @@ create table public.pedidos (
   prioridad public.pedido_prioridad not null default 'normal',
   fecha_entrega_estimada date,
   fecha_entrega_real date,
-  created_by uuid references public.profiles(id) on delete set null,
+  created_by uuid references public.perfiles(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint pedidos_numero_pedido_not_empty check (btrim(numero_pedido) <> ''),
@@ -174,8 +174,8 @@ on delete set null;
 create table public.pedido_trabajadores (
   id uuid primary key default gen_random_uuid(),
   pedido_id uuid not null references public.pedidos(id) on delete cascade,
-  assigned_profile_id uuid not null references public.profiles(id) on delete cascade,
-  assigned_by uuid references public.profiles(id) on delete set null,
+  assigned_profile_id uuid not null references public.perfiles(id) on delete cascade,
+  assigned_by uuid references public.perfiles(id) on delete set null,
   assigned_at timestamptz not null default now(),
   constraint pedido_trabajadores_unique_assignment unique (pedido_id, assigned_profile_id)
 );
@@ -190,7 +190,7 @@ create table public.archivos (
   file_size bigint,
   bucket text not null,
   visibility public.archivo_visibility not null,
-  uploaded_by uuid references public.profiles(id) on delete set null,
+  uploaded_by uuid references public.perfiles(id) on delete set null,
   created_at timestamptz not null default now(),
   constraint archivos_file_name_not_empty check (btrim(file_name) <> ''),
   constraint archivos_file_path_not_empty check (btrim(file_path) <> ''),
@@ -203,7 +203,7 @@ create table public.pedido_comentarios (
   id uuid primary key default gen_random_uuid(),
   pedido_id uuid not null references public.pedidos(id) on delete cascade,
   contenido text not null,
-  author_id uuid not null references public.profiles(id) on delete restrict,
+  author_id uuid not null references public.perfiles(id) on delete restrict,
   created_at timestamptz not null default now(),
   constraint pedido_comentarios_contenido_not_empty check (length(btrim(contenido)) > 0),
   constraint pedido_comentarios_contenido_max_length check (length(contenido) <= 2000)
@@ -217,7 +217,7 @@ create table public.pedido_historial (
   old_value text,
   new_value text,
   metadata jsonb not null default '{}'::jsonb,
-  actor_id uuid references public.profiles(id) on delete set null,
+  actor_id uuid references public.perfiles(id) on delete set null,
   created_at timestamptz not null default now(),
   constraint pedido_historial_summary_not_empty check (length(btrim(summary)) > 0),
   constraint pedido_historial_metadata_is_object check (jsonb_typeof(metadata) = 'object')
@@ -227,7 +227,7 @@ create table public.solicitud_comentarios (
   id uuid primary key default gen_random_uuid(),
   solicitud_id uuid not null references public.solicitudes(id) on delete cascade,
   contenido text not null,
-  author_id uuid not null references public.profiles(id) on delete restrict,
+  author_id uuid not null references public.perfiles(id) on delete restrict,
   created_at timestamptz not null default now(),
   constraint solicitud_comentarios_contenido_not_empty check (length(btrim(contenido)) > 0),
   constraint solicitud_comentarios_contenido_max_length check (length(contenido) <= 2000)
@@ -241,17 +241,17 @@ create table public.solicitud_historial (
   old_value text,
   new_value text,
   metadata jsonb not null default '{}'::jsonb,
-  actor_id uuid references public.profiles(id) on delete set null,
+  actor_id uuid references public.perfiles(id) on delete set null,
   created_at timestamptz not null default now(),
   constraint solicitud_historial_summary_not_empty check (length(btrim(summary)) > 0),
   constraint solicitud_historial_metadata_is_object check (jsonb_typeof(metadata) = 'object')
 );
 
-create index profiles_full_name_idx
-on public.profiles(full_name, id);
+create index perfiles_full_name_idx
+on public.perfiles(full_name, id);
 
-create index profiles_active_role_full_name_idx
-on public.profiles(is_active, role, full_name, id);
+create index perfiles_active_role_full_name_idx
+on public.perfiles(is_active, role, full_name, id);
 
 create index clientes_nombre_idx
 on public.clientes(nombre, id);
@@ -321,7 +321,7 @@ on public.solicitud_historial(actor_id);
 create index solicitud_historial_action_idx
 on public.solicitud_historial(action);
 
-alter table public.profiles enable row level security;
+alter table public.perfiles enable row level security;
 alter table public.clientes enable row level security;
 alter table public.solicitudes enable row level security;
 alter table public.pedidos enable row level security;

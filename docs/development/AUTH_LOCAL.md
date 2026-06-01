@@ -9,9 +9,9 @@ Este documento describe cómo crear usuarios internos de prueba en Supabase loca
 Para acceder al sistema interno hacen falta dos cosas:
 
 - Un usuario en Supabase Auth.
-- Un perfil asociado en `public.profiles` con `is_active = true`.
+- Un perfil asociado en `public.perfiles` con `is_active = true`.
 
-Supabase Auth confirma la identidad del usuario. La tabla `public.profiles` controla el acceso interno básico al dashboard.
+Supabase Auth confirma la identidad del usuario. La tabla `public.perfiles` controla el acceso interno básico al dashboard.
 
 ## Requisitos previos
 
@@ -81,14 +81,14 @@ Desde Studio puedes usar:
 
 Estos usuarios son solo para desarrollo local.
 
-## Crear perfil asociado en `public.profiles`
+## Crear perfil asociado en `public.perfiles`
 
 El `id` del perfil debe coincidir exactamente con el UUID del usuario en Auth.
 
 Ejemplo para crear un perfil admin:
 
 ```sql
-insert into public.profiles (
+insert into public.perfiles (
   id,
   full_name,
   role,
@@ -121,7 +121,7 @@ En Fase 3 todavía no se aplican permisos por rol en la interfaz, pero los roles
 Admin:
 
 ```sql
-insert into public.profiles (id, full_name, role, is_active)
+insert into public.perfiles (id, full_name, role, is_active)
 values (
   'UUID_DEL_USUARIO_ADMIN',
   'Administrador Godel',
@@ -139,7 +139,7 @@ set
 Supervisor:
 
 ```sql
-insert into public.profiles (id, full_name, role, is_active)
+insert into public.perfiles (id, full_name, role, is_active)
 values (
   'UUID_DEL_USUARIO_SUPERVISOR',
   'Supervisor Godel',
@@ -157,7 +157,7 @@ set
 Trabajador:
 
 ```sql
-insert into public.profiles (id, full_name, role, is_active)
+insert into public.perfiles (id, full_name, role, is_active)
 values (
   'UUID_DEL_USUARIO_TRABAJADOR',
   'Trabajador Godel',
@@ -174,7 +174,7 @@ set
 
 ## Usuario sin perfil
 
-Un usuario que existe en Supabase Auth pero no tiene fila asociada en `public.profiles` puede autenticarse en Auth, pero no puede acceder al dashboard.
+Un usuario que existe en Supabase Auth pero no tiene fila asociada en `public.perfiles` puede autenticarse en Auth, pero no puede acceder al dashboard.
 
 El sistema lo redirige a `/acceso-denegado`.
 
@@ -185,7 +185,7 @@ Si `is_active = false`, el usuario no puede acceder al dashboard y será redirig
 Desactivar un usuario:
 
 ```sql
-update public.profiles
+update public.perfiles
 set is_active = false, updated_at = now()
 where id = 'UUID_DEL_USUARIO';
 ```
@@ -193,7 +193,7 @@ where id = 'UUID_DEL_USUARIO';
 Reactivar un usuario:
 
 ```sql
-update public.profiles
+update public.perfiles
 set is_active = true, updated_at = now()
 where id = 'UUID_DEL_USUARIO';
 ```
@@ -201,7 +201,7 @@ where id = 'UUID_DEL_USUARIO';
 ## Flujo de prueba recomendado
 
 1. Crear usuario en Auth.
-2. Crear perfil asociado en `profiles`.
+2. Crear perfil asociado en `perfiles`.
 3. Ejecutar `npm run dev`.
 4. Ir a `/login`.
 5. Iniciar sesión.

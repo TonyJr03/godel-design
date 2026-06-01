@@ -40,7 +40,7 @@ Los módulos existentes ya ofrecen servicios server-side reutilizables como punt
 - clientes: listado, detalle y gestión interna;
 - pedidos: listado, detalle, cambio de estado, asignación, comentarios e historial;
 - archivos: listado y descarga controlada para solicitudes y pedidos;
-- usuarios internos: perfiles en `public.profiles`, solo para administración.
+- usuarios internos: perfiles en `public.perfiles`, solo para administración.
 
 ## Información disponible sin crear tablas nuevas
 
@@ -53,7 +53,7 @@ La primera versión puede obtener información desde tablas existentes:
 - `archivos`: archivos recientes asociados a solicitudes o pedidos;
 - `pedido_historial` y `solicitud_historial`: actividad operativa registrada;
 - `pedido_comentarios` y `solicitud_comentarios`: comentarios recientes si se decide incluirlos en una vista de actividad;
-- `profiles`: solo datos mínimos permitidos por RLS, nunca `auth.users`.
+- `perfiles`: solo datos mínimos permitidos por RLS, nunca `auth.users`.
 
 No hacen falta tablas nuevas para el MVP del dashboard. Sí harán falta consultas nuevas porque los listados actuales devuelven filas operativas limitadas, no agregados ni agrupaciones por estado.
 

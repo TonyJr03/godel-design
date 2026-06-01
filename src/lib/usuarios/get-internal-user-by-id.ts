@@ -10,7 +10,7 @@ import { isValidUuid } from "@/lib/validators";
 import type { Tables } from "@/types/database";
 
 export type InternalUserDetail = Pick<
-  Tables<"profiles">,
+  Tables<"perfiles">,
   | "id"
   | "full_name"
   | "role"
@@ -65,7 +65,7 @@ export async function getInternalUserById(
 
   try {
     const { data, error } = await supabase
-      .from("profiles")
+      .from("perfiles")
       .select(
         "id, full_name, role, phone, avatar_url, is_active, created_at, updated_at",
       )

@@ -58,8 +58,8 @@ El campo `assigned_profile_id` representa al usuario interno asignado, que puede
 Relaciones principales:
 
 - `pedido_trabajadores.pedido_id` se relaciona con `pedidos.id`.
-- `pedido_trabajadores.assigned_profile_id` se relaciona con `profiles.id`.
-- `pedido_trabajadores.assigned_by` se relaciona con `profiles.id`.
+- `pedido_trabajadores.assigned_profile_id` se relaciona con `perfiles.id`.
+- `pedido_trabajadores.assigned_by` se relaciona con `perfiles.id`.
 
 La restricción única sobre `(pedido_id, assigned_profile_id)` evita duplicar la misma asignación para el mismo pedido.
 
@@ -123,7 +123,7 @@ Capas aplicadas:
 - validación de usuario activo;
 - RLS en `pedidos`;
 - RLS en `pedido_trabajadores`;
-- RLS en `profiles` para que trabajadores vean perfiles del personal asignado al mismo pedido;
+- RLS en `perfiles` para que trabajadores vean perfiles del personal asignado al mismo pedido;
 - RPC segura para cambio de estado.
 
 Aclaraciones:

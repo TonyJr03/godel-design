@@ -15,7 +15,7 @@ import {
 } from "./user-validation";
 
 type EditableUserProfile = Pick<
-  Tables<"profiles">,
+  Tables<"perfiles">,
   "id" | "full_name" | "role" | "phone" | "avatar_url" | "is_active"
 >;
 
@@ -54,7 +54,7 @@ async function countActiveAdmins(): Promise<
 > {
   const supabase = await createClient();
   const { count, error } = await supabase
-    .from("profiles")
+    .from("perfiles")
     .select("id", { count: "exact", head: true })
     .eq("role", "admin")
     .eq("is_active", true);
@@ -100,7 +100,7 @@ export async function updateInternalUser(
 
   try {
     const { data: currentUser, error: loadError } = await supabase
-      .from("profiles")
+      .from("perfiles")
       .select("id, full_name, role, phone, avatar_url, is_active")
       .eq("id", userId)
       .maybeSingle<EditableUserProfile>();
@@ -161,7 +161,7 @@ export async function updateInternalUser(
     }
 
     const { data: updatedUser, error: updateError } = await supabase
-      .from("profiles")
+      .from("perfiles")
       .update({
         full_name: validation.data.full_name,
         phone: validation.data.phone,
@@ -171,7 +171,7 @@ export async function updateInternalUser(
       })
       .eq("id", userId)
       .select("id")
-      .maybeSingle<Pick<Tables<"profiles">, "id">>();
+      .maybeSingle<Pick<Tables<"perfiles">, "id">>();
 
     if (updateError) {
       console.error("Error updating internal user", updateError);

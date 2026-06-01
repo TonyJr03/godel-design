@@ -10,7 +10,7 @@ import type { Tables } from "@/types/database";
 import { ASSIGNABLE_ORDER_USER_ROLES } from "./order-assignment-roles";
 
 export type AssignableOrderUser = Pick<
-  Tables<"profiles">,
+  Tables<"perfiles">,
   "id" | "full_name" | "role"
 >;
 export type AssignableWorker = AssignableOrderUser;
@@ -50,7 +50,7 @@ export async function listAssignableWorkers(): Promise<ListAssignableWorkersResu
 
   try {
     const { data, error } = await supabase
-      .from("profiles")
+      .from("perfiles")
       .select("id, full_name, role")
       .eq("is_active", true)
       .in("role", [...ASSIGNABLE_ORDER_USER_ROLES])

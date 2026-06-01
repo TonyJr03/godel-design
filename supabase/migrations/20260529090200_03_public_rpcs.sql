@@ -119,7 +119,7 @@ as $$
     p.full_name as author_full_name,
     p.role as author_role
   from public.pedido_comentarios as pc
-  join public.profiles as p
+  join public.perfiles as p
     on p.id = pc.author_id
   where pc.pedido_id = p_pedido_id
     and (select auth.uid()) is not null
@@ -164,7 +164,7 @@ as $$
     p.full_name as actor_full_name,
     p.role as actor_role
   from public.pedido_historial as ph
-  left join public.profiles as p
+  left join public.perfiles as p
     on p.id = ph.actor_id
   where ph.pedido_id = p_pedido_id
     and (select auth.uid()) is not null
@@ -202,7 +202,7 @@ as $$
     p.full_name as author_full_name,
     p.role as author_role
   from public.solicitud_comentarios as sc
-  join public.profiles as p
+  join public.perfiles as p
     on p.id = sc.author_id
   where sc.solicitud_id = p_solicitud_id
     and (select auth.uid()) is not null
@@ -248,7 +248,7 @@ as $$
     p.full_name as actor_full_name,
     p.role as actor_role
   from public.solicitud_historial as sh
-  left join public.profiles as p
+  left join public.perfiles as p
     on p.id = sh.actor_id
   where sh.solicitud_id = p_solicitud_id
     and (select auth.uid()) is not null

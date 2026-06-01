@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Tables } from "@/types/database";
 
 export type CurrentUser = User;
-export type CurrentProfile = Tables<"profiles">;
+export type CurrentProfile = Tables<"perfiles">;
 
 export type CurrentUserWithProfile = {
   user: CurrentUser;
@@ -30,7 +30,7 @@ export async function getCurrentProfile(): Promise<CurrentProfile | null> {
 
   const supabase = await createClient();
   const { data: profile, error } = await supabase
-    .from("profiles")
+    .from("perfiles")
     .select("*")
     .eq("id", user.id)
     .maybeSingle();
@@ -51,7 +51,7 @@ export async function getCurrentUserWithProfile(): Promise<CurrentUserWithProfil
 
   const supabase = await createClient();
   const { data: profile, error } = await supabase
-    .from("profiles")
+    .from("perfiles")
     .select("*")
     .eq("id", user.id)
     .maybeSingle();

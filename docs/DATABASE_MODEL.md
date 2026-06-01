@@ -96,7 +96,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 
 ## Tablas iniciales
 
-### `profiles`
+### `perfiles`
 
 **Propósito:** Representa a los usuarios internos del sistema y extiende la información de `auth.users`.
 
@@ -113,7 +113,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 
 **Claves foráneas:**
 
-- `profiles.id` -> `auth.users.id`.
+- `perfiles.id` -> `auth.users.id`.
 
 **Reglas importantes:**
 
@@ -127,7 +127,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 - Los usuarios autenticados podrían leer su propio perfil.
 - El acceso a perfiles de otros usuarios debe depender del rol.
 - En el modelo vigente de RLS, `admin` y `supervisor` pueden leer perfiles internos; `trabajador` puede leer su propio perfil y datos básicos de perfiles asignados a pedidos que puede acceder.
-- La Fase 12 recomienda gestionar inicialmente solo `profiles`, sin crear usuarios Auth desde la app y sin usar service role key.
+- La Fase 12 recomienda gestionar inicialmente solo `perfiles`, sin crear usuarios Auth desde la app y sin usar service role key.
 
 ### `clientes`
 
@@ -184,7 +184,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 **Claves foráneas:**
 
 - `solicitudes.cliente_id` -> `clientes.id`.
-- `solicitudes.reviewed_by` -> `profiles.id`.
+- `solicitudes.reviewed_by` -> `perfiles.id`.
 - `solicitudes.converted_order_id` -> `pedidos.id`.
 
 **Reglas importantes:**
@@ -223,7 +223,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 
 - `pedidos.cliente_id` -> `clientes.id`.
 - `pedidos.solicitud_id` -> `solicitudes.id`.
-- `pedidos.created_by` -> `profiles.id`.
+- `pedidos.created_by` -> `perfiles.id`.
 
 **Reglas importantes:**
 
@@ -252,8 +252,8 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 **Claves foráneas:**
 
 - `pedido_trabajadores.pedido_id` -> `pedidos.id`.
-- `pedido_trabajadores.assigned_profile_id` -> `profiles.id`.
-- `pedido_trabajadores.assigned_by` -> `profiles.id`.
+- `pedido_trabajadores.assigned_profile_id` -> `perfiles.id`.
+- `pedido_trabajadores.assigned_by` -> `perfiles.id`.
 
 **Reglas importantes:**
 
@@ -288,7 +288,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 
 - `archivos.pedido_id` -> `pedidos.id`.
 - `archivos.solicitud_id` -> `solicitudes.id`.
-- `archivos.uploaded_by` -> `profiles.id`.
+- `archivos.uploaded_by` -> `perfiles.id`.
 
 **Reglas importantes:**
 
@@ -317,7 +317,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 **Claves foráneas:**
 
 - `pedido_comentarios.pedido_id` -> `pedidos.id`.
-- `pedido_comentarios.author_id` -> `profiles.id`.
+- `pedido_comentarios.author_id` -> `perfiles.id`.
 
 **Reglas importantes:**
 
@@ -350,7 +350,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 **Claves foráneas:**
 
 - `pedido_historial.pedido_id` -> `pedidos.id`.
-- `pedido_historial.actor_id` -> `profiles.id`.
+- `pedido_historial.actor_id` -> `perfiles.id`.
 
 **Reglas importantes:**
 
@@ -380,7 +380,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 **Claves foráneas:**
 
 - `solicitud_comentarios.solicitud_id` -> `solicitudes.id`.
-- `solicitud_comentarios.author_id` -> `profiles.id`.
+- `solicitud_comentarios.author_id` -> `perfiles.id`.
 
 **Reglas importantes:**
 
@@ -415,7 +415,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 **Claves foráneas:**
 
 - `solicitud_historial.solicitud_id` -> `solicitudes.id`.
-- `solicitud_historial.actor_id` -> `profiles.id`.
+- `solicitud_historial.actor_id` -> `perfiles.id`.
 
 **Reglas importantes:**
 

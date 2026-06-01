@@ -65,7 +65,7 @@ export async function createInternalUserProfile(
 
   try {
     const { data, error } = await supabase
-      .from("profiles")
+      .from("perfiles")
       .insert({
         id: validation.data.id,
         full_name: validation.data.full_name,

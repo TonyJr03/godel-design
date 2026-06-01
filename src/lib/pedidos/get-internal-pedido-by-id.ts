@@ -29,18 +29,18 @@ type PedidoSolicitudDetail =
   | null;
 
 type PedidoProfileDetail =
-  | Pick<Tables<"profiles">, "id" | "full_name">
+  | Pick<Tables<"perfiles">, "id" | "full_name">
   | null;
 
 type PedidoAssignedProfileDetail =
-  | Pick<Tables<"profiles">, "id" | "full_name" | "role" | "is_active">
+  | Pick<Tables<"perfiles">, "id" | "full_name" | "role" | "is_active">
   | null;
 
 export type InternalPedidoDetailTrabajador = Pick<
   Tables<"pedido_trabajadores">,
   "id" | "assigned_profile_id" | "assigned_at" | "assigned_by"
 > & {
-  profiles: PedidoAssignedProfileDetail;
+  perfiles: PedidoAssignedProfileDetail;
 };
 
 export type InternalPedidoDetail = Pick<
@@ -106,13 +106,13 @@ const PEDIDO_DETAIL_SELECT = `
     fecha_deseada,
     created_at
   ),
-  creador:profiles!pedidos_created_by_fkey(id, full_name),
+  creador:perfiles!pedidos_created_by_fkey(id, full_name),
   pedido_trabajadores(
     id,
     assigned_profile_id,
     assigned_by,
     assigned_at,
-    profiles!pedido_trabajadores_assigned_profile_id_fkey(
+    perfiles!pedido_trabajadores_assigned_profile_id_fkey(
       id,
       full_name,
       role,

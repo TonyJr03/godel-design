@@ -16,7 +16,7 @@ set search_path = public
 stable
 as $$
   select p.role
-  from public.profiles as p
+  from public.perfiles as p
   where p.id = auth.uid()
     and p.is_active = true
   limit 1;
@@ -31,7 +31,7 @@ stable
 as $$
   select exists (
     select 1
-    from public.profiles as p
+    from public.perfiles as p
     where p.id = auth.uid()
       and p.is_active = true
   );
@@ -151,7 +151,7 @@ as $$
 begin
   if not exists (
     select 1
-    from public.profiles as p
+    from public.perfiles as p
     where p.id = new.assigned_profile_id
       and p.is_active = true
   ) then
@@ -163,7 +163,7 @@ begin
 end;
 $$;
 
-create or replace function private.ensure_profile_admin_integrity()
+create or replace function private.ensure_perfil_admin_integrity()
 returns trigger
 language plpgsql
 security definer
@@ -193,11 +193,11 @@ begin
         or not new.is_active
       )
     then
-      perform pg_advisory_xact_lock(hashtext('profiles_active_admin_guard'));
+      perform pg_advisory_xact_lock(hashtext('perfiles_active_admin_guard'));
 
       select count(*)
       into v_other_active_admins
-      from public.profiles as p
+      from public.perfiles as p
       where p.id <> old.id
         and p.role = 'admin'::public.app_role
         and p.is_active = true;
@@ -213,11 +213,11 @@ begin
 
   if tg_op = 'DELETE' then
     if old.role = 'admin'::public.app_role and old.is_active then
-      perform pg_advisory_xact_lock(hashtext('profiles_active_admin_guard'));
+      perform pg_advisory_xact_lock(hashtext('perfiles_active_admin_guard'));
 
       select count(*)
       into v_other_active_admins
-      from public.profiles as p
+      from public.perfiles as p
       where p.id <> old.id
         and p.role = 'admin'::public.app_role
         and p.is_active = true;
@@ -268,14 +268,14 @@ grant execute on function private.can_access_solicitud(uuid) to authenticated;
 revoke all on function private.ensure_active_order_assignment_profile()
 from public, anon, authenticated;
 
-revoke all on function private.ensure_profile_admin_integrity()
+revoke all on function private.ensure_perfil_admin_integrity()
 from public, anon, authenticated;
 
-create trigger ensure_profile_admin_integrity
+create trigger ensure_perfil_admin_integrity
 before update of role, is_active or delete
-on public.profiles
+on public.perfiles
 for each row
-execute function private.ensure_profile_admin_integrity();
+execute function private.ensure_perfil_admin_integrity();
 
 create trigger ensure_active_order_assignment_profile
 before insert or update of assigned_profile_id
@@ -286,7 +286,7 @@ execute function private.ensure_active_order_assignment_profile();
 grant insert on table public.solicitudes to anon;
 
 grant select, insert, update, delete on table
-  public.profiles,
+  public.perfiles,
   public.clientes,
   public.solicitudes,
   public.pedidos,
@@ -310,8 +310,8 @@ from public, anon;
 revoke all on type public.solicitud_historial_action from public, anon;
 grant usage on type public.solicitud_historial_action to authenticated;
 
-create policy profiles_select_visible
-on public.profiles
+create policy perfiles_select_visible
+on public.perfiles
 for select
 to authenticated
 using (
@@ -322,14 +322,14 @@ using (
     or exists (
       select 1
       from public.pedido_trabajadores as pt
-      where pt.assigned_profile_id = profiles.id
+      where pt.assigned_profile_id = perfiles.id
         and private.can_access_pedido(pt.pedido_id)
     )
   )
 );
 
-create policy profiles_insert_admin
-on public.profiles
+create policy perfiles_insert_admin
+on public.perfiles
 for insert
 to authenticated
 with check (
@@ -337,8 +337,8 @@ with check (
   and private.is_admin()
 );
 
-create policy profiles_update_admin
-on public.profiles
+create policy perfiles_update_admin
+on public.perfiles
 for update
 to authenticated
 using (

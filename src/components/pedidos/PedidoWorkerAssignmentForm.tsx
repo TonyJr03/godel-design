@@ -33,8 +33,8 @@ const initialRemoveState: RemovePedidoWorkerActionState = {
 function getAssignedUserName(
   asignacion: InternalPedidoDetailTrabajador,
 ): string {
-  if (asignacion.profiles?.full_name?.trim()) {
-    return asignacion.profiles.full_name;
+  if (asignacion.perfiles?.full_name?.trim()) {
+    return asignacion.perfiles.full_name;
   }
 
   return "Usuario asignado";
@@ -105,7 +105,7 @@ export function PedidoWorkerAssignmentForm({
       {asignaciones.length > 0 ? (
         <ul className="mt-5 divide-y divide-zinc-100">
           {asignaciones.map((asignacion) => {
-            const role = asignacion.profiles?.role;
+            const role = asignacion.perfiles?.role;
 
             return (
               <li
@@ -122,7 +122,7 @@ export function PedidoWorkerAssignmentForm({
                         {ROLE_LABELS[role]}
                       </span>
                     ) : null}
-                    {asignacion.profiles?.is_active === false ? (
+                    {asignacion.perfiles?.is_active === false ? (
                       <span className="inline-flex rounded-md bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-900 ring-1 ring-inset ring-amber-200">
                         Inactivo
                       </span>

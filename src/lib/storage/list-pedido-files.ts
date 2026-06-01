@@ -15,7 +15,7 @@ const PEDIDO_FILES_SELECT = `
   visibility,
   created_at,
   uploaded_by,
-  uploader:profiles!archivos_uploaded_by_fkey(id, full_name, role)
+  uploader:perfiles!archivos_uploaded_by_fkey(id, full_name, role)
 `;
 
 export async function listPedidoFiles(

@@ -85,7 +85,7 @@ export function UserCreateForm() {
             Crear perfil para usuario Auth existente
           </h2>
           <p className="mt-1 text-sm leading-6 text-zinc-600">
-            Solo se guardarán datos del perfil interno en public.profiles.
+            Solo se guardarán datos del perfil interno en public.perfiles.
           </p>
         </div>
 

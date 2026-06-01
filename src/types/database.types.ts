@@ -68,7 +68,7 @@ export type Database = {
             foreignKeyName: "archivos_uploaded_by_fkey"
             columns: ["uploaded_by"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "perfiles"
             referencedColumns: ["id"]
           },
         ]
@@ -130,7 +130,7 @@ export type Database = {
             foreignKeyName: "pedido_comentarios_author_id_fkey"
             columns: ["author_id"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "perfiles"
             referencedColumns: ["id"]
           },
           {
@@ -181,7 +181,7 @@ export type Database = {
             foreignKeyName: "pedido_historial_actor_id_fkey"
             columns: ["actor_id"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "perfiles"
             referencedColumns: ["id"]
           },
           {
@@ -220,14 +220,14 @@ export type Database = {
             foreignKeyName: "pedido_trabajadores_assigned_by_fkey"
             columns: ["assigned_by"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "perfiles"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "pedido_trabajadores_assigned_profile_id_fkey"
             columns: ["assigned_profile_id"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "perfiles"
             referencedColumns: ["id"]
           },
           {
@@ -297,7 +297,7 @@ export type Database = {
             foreignKeyName: "pedidos_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "perfiles"
             referencedColumns: ["id"]
           },
           {
@@ -309,7 +309,7 @@ export type Database = {
           },
         ]
       }
-      profiles: {
+      perfiles: {
         Row: {
           avatar_url: string | null
           created_at: string
@@ -369,7 +369,7 @@ export type Database = {
             foreignKeyName: "solicitud_comentarios_author_id_fkey"
             columns: ["author_id"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "perfiles"
             referencedColumns: ["id"]
           },
           {
@@ -420,7 +420,7 @@ export type Database = {
             foreignKeyName: "solicitud_historial_actor_id_fkey"
             columns: ["actor_id"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "perfiles"
             referencedColumns: ["id"]
           },
           {
@@ -503,7 +503,7 @@ export type Database = {
             foreignKeyName: "solicitudes_reviewed_by_fkey"
             columns: ["reviewed_by"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "perfiles"
             referencedColumns: ["id"]
           },
         ]

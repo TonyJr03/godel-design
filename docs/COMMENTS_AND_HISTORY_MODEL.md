@@ -74,7 +74,7 @@ No existe una tabla de historial general para múltiples entidades. Tampoco exis
 
 Existen triggers técnicos de actualización de fecha:
 
-- `set_profiles_updated_at`;
+- `set_perfiles_updated_at`;
 - `set_clientes_updated_at`;
 - `set_solicitudes_updated_at`;
 - `set_pedidos_updated_at`.
@@ -137,7 +137,7 @@ El módulo actual:
 - usa la RPC segura `public.listar_pedido_historial`;
 - muestra tipo de evento, resumen visible, actor, rol y fecha;
 - devuelve solo datos mínimos del actor;
-- no abre globalmente `profiles`;
+- no abre globalmente `perfiles`;
 - no implementa edición ni eliminación;
 - no registra eventos automáticos nuevos.
 

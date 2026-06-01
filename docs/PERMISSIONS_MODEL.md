@@ -9,8 +9,8 @@ Este documento define la matriz inicial de roles y permisos internos del sistema
 | Concepto | Descripción |
 | --- | --- |
 | Autenticación | Confirma la identidad del usuario mediante Supabase Auth. |
-| Perfil interno activo | Confirma que el usuario autenticado tiene una fila en `public.profiles` con `is_active = true`. |
-| Autorización por rol | Decide qué puede ver o ejecutar un usuario interno según `profiles.role`. |
+| Perfil interno activo | Confirma que el usuario autenticado tiene una fila en `public.perfiles` con `is_active = true`. |
+| Autorización por rol | Decide qué puede ver o ejecutar un usuario interno según `perfiles.role`. |
 | Navegación visible | Oculta o muestra enlaces del dashboard según rol. Es una mejora de UX, no una barrera de seguridad suficiente. |
 | Protección de rutas | Bloquea acceso manual por URL a secciones no permitidas mediante el proxy. |
 | Row Level Security | Políticas de Supabase que protegen los datos en la base de datos. Es la última línea de defensa. |
@@ -108,7 +108,7 @@ Las rutas desconocidas bajo `/dashboard` se bloquean por defecto. Si se agrega u
 El sistema usa varias capas complementarias:
 
 1. Supabase Auth.
-2. `profiles.is_active`.
+2. `perfiles.is_active`.
 3. Helpers de permisos.
 4. Navegación filtrada.
 5. Proxy de rutas.
@@ -133,7 +133,7 @@ Para solicitudes, las tablas oficiales son `solicitud_comentarios` y `solicitud_
 
 La Fase 12 mantiene la matriz actual: solo `admin` tiene `usuarios.view`, `usuarios.manage` y acceso a `/dashboard/usuarios`.
 
-La estrategia recomendada para el MVP es gestionar únicamente `public.profiles`. La creación de usuarios en Supabase Auth queda fuera de la app por ahora y debe hacerse manualmente desde Supabase Studio o CLI. Esta decisión evita introducir service role key y conserva RLS como defensa final.
+La estrategia recomendada para el MVP es gestionar únicamente `public.perfiles`. La creación de usuarios en Supabase Auth queda fuera de la app por ahora y debe hacerse manualmente desde Supabase Studio o CLI. Esta decisión evita introducir service role key y conserva RLS como defensa final.
 
 Las futuras acciones del módulo de usuarios deben validar permisos server-side:
 
@@ -142,13 +142,13 @@ Las futuras acciones del módulo de usuarios deben validar permisos server-side:
 
 `supervisor` y `trabajador` no deben gestionar usuarios. El acceso parcial de `trabajador` a perfiles asignados por pedido existe solo para mostrar información operativa mínima en pedidos, no para listar ni administrar personal.
 
-La subfase 12.2 implementa el listado read-only de usuarios internos en `/dashboard/usuarios`. La carga se hace server-side desde `public.profiles`, valida `usuarios.view`, respeta RLS, no consulta `auth.users`, no muestra email y no implementa creación ni edición.
+La subfase 12.2 implementa el listado read-only de usuarios internos en `/dashboard/usuarios`. La carga se hace server-side desde `public.perfiles`, valida `usuarios.view`, respeta RLS, no consulta `auth.users`, no muestra email y no implementa creación ni edición.
 
-La subfase 12.3 implementa el detalle read-only en `/dashboard/usuarios/[id]` con las mismas reglas: solo `admin`, validación server-side de `usuarios.view`, consulta limitada a `public.profiles`, sin email, sin `auth.users`, sin service role y sin acciones de modificación.
+La subfase 12.3 implementa el detalle read-only en `/dashboard/usuarios/[id]` con las mismas reglas: solo `admin`, validación server-side de `usuarios.view`, consulta limitada a `public.perfiles`, sin email, sin `auth.users`, sin service role y sin acciones de modificación.
 
 La subfase 12.4 implementa edición controlada en `/dashboard/usuarios/[id]/editar`. Solo `admin` puede editar mediante validación server-side de `usuarios.manage`. La edición se limita a `full_name`, `phone`, `avatar_url`, `role` e `is_active`, no consulta `auth.users`, no muestra email, no cambia contraseñas, no elimina usuarios y no usa service role key. El servicio impide desactivar el propio admin, quitarse el rol admin y dejar el sistema sin al menos un admin activo.
 
-La subfase 12.5 implementa creación de perfil interno en `/dashboard/usuarios/nuevo` para usuarios Auth ya existentes. Solo `admin` puede crear perfiles mediante validación server-side de `usuarios.manage`. La app no crea credenciales, no consulta `auth.users`, no pide email ni contraseña, no envía invitaciones y no usa service role key. El UUID se valida por formato y la base confirma su existencia mediante la clave foránea de `public.profiles.id`.
+La subfase 12.5 implementa creación de perfil interno en `/dashboard/usuarios/nuevo` para usuarios Auth ya existentes. Solo `admin` puede crear perfiles mediante validación server-side de `usuarios.manage`. La app no crea credenciales, no consulta `auth.users`, no pide email ni contraseña, no envía invitaciones y no usa service role key. El UUID se valida por formato y la base confirma su existencia mediante la clave foránea de `public.perfiles.id`.
 
 ## Uso esperado en futuros módulos
 

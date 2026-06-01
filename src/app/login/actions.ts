@@ -47,7 +47,7 @@ export async function login(
     }
 
     const { data: profile, error: profileError } = await supabase
-      .from("profiles")
+      .from("perfiles")
       .select("id, role, is_active")
       .eq("id", userId)
       .maybeSingle();
