@@ -245,41 +245,73 @@ create table public.solicitud_historial (
   constraint solicitud_historial_metadata_is_object check (jsonb_typeof(metadata) = 'object')
 );
 
-create index solicitudes_estado_idx on public.solicitudes(estado);
+create index profiles_full_name_idx
+on public.profiles(full_name, id);
+
+create index profiles_active_role_full_name_idx
+on public.profiles(is_active, role, full_name, id);
+
+create index clientes_nombre_idx
+on public.clientes(nombre, id);
+
 create index solicitudes_cliente_id_idx on public.solicitudes(cliente_id);
 create index solicitudes_created_at_idx on public.solicitudes(created_at);
+
+create index solicitudes_estado_created_at_idx
+on public.solicitudes(estado, created_at desc, id desc);
 
 create unique index solicitudes_converted_order_id_unique_idx
 on public.solicitudes(converted_order_id)
 where converted_order_id is not null;
 
-create index pedidos_estado_idx on public.pedidos(estado);
 create index pedidos_cliente_id_idx on public.pedidos(cliente_id);
-create index pedidos_solicitud_id_idx on public.pedidos(solicitud_id);
-create index pedidos_fecha_entrega_estimada_idx on public.pedidos(fecha_entrega_estimada);
+create index pedidos_created_at_idx on public.pedidos(created_at);
+
+create index pedidos_estado_created_at_idx
+on public.pedidos(estado, created_at desc, id desc);
+
+create index pedidos_active_created_at_idx
+on public.pedidos(created_at desc, id desc)
+where estado <> 'entregado'::public.pedido_estado
+  and estado <> 'cancelado'::public.pedido_estado;
+
+create index pedidos_active_fecha_entrega_estimada_idx
+on public.pedidos(fecha_entrega_estimada)
+where estado <> 'entregado'::public.pedido_estado
+  and estado <> 'cancelado'::public.pedido_estado;
 
 create unique index pedidos_solicitud_id_unique_idx
 on public.pedidos(solicitud_id)
 where solicitud_id is not null;
 
-create index pedido_trabajadores_pedido_id_idx on public.pedido_trabajadores(pedido_id);
 create index pedido_trabajadores_trabajador_id_idx on public.pedido_trabajadores(trabajador_id);
 
-create index archivos_pedido_id_idx on public.archivos(pedido_id);
-create index archivos_solicitud_id_idx on public.archivos(solicitud_id);
+create index archivos_pedido_visibility_created_at_idx
+on public.archivos(pedido_id, visibility, created_at desc, id desc);
 
-create index pedido_comentarios_pedido_id_idx on public.pedido_comentarios(pedido_id);
+create index archivos_solicitud_visibility_created_at_idx
+on public.archivos(solicitud_id, visibility, created_at desc, id desc);
 
-create index pedido_historial_pedido_id_idx on public.pedido_historial(pedido_id);
+create index pedido_comentarios_pedido_created_at_idx
+on public.pedido_comentarios(pedido_id, created_at asc, id asc);
+
+create index pedido_historial_pedido_created_at_idx
+on public.pedido_historial(pedido_id, created_at desc, id desc);
+
+create index pedido_historial_created_at_idx
+on public.pedido_historial(created_at desc, id desc);
 
 create index solicitud_comentarios_solicitud_created_at_idx
-on public.solicitud_comentarios(solicitud_id, created_at);
+on public.solicitud_comentarios(solicitud_id, created_at asc, id asc);
 
 create index solicitud_comentarios_autor_id_idx
 on public.solicitud_comentarios(autor_id);
 
 create index solicitud_historial_solicitud_created_at_idx
-on public.solicitud_historial(solicitud_id, created_at);
+on public.solicitud_historial(solicitud_id, created_at desc, id desc);
+
+create index solicitud_historial_created_at_idx
+on public.solicitud_historial(created_at desc, id desc);
 
 create index solicitud_historial_actor_id_idx
 on public.solicitud_historial(actor_id);
