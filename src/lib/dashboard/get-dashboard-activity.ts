@@ -1,19 +1,11 @@
-import { getCurrentProfile } from "@/lib/auth";
-import {
-  hasPermission,
-  isAdmin,
-  isSupervisor,
-  isTrabajador,
-  type Role,
-} from "@/lib/permissions";
 import { PEDIDO_STATUS_LABELS } from "@/lib/pedidos";
 import { SOLICITUD_STATUS_LABELS } from "@/lib/solicitudes";
 import { createClient } from "@/lib/supabase/server";
 import type { Json, Tables } from "@/types/database";
+import type { DashboardContext } from "./context";
 import type {
   DashboardRecentActivityItem,
   GetDashboardRecentActivityResult,
-  ManagementDashboardRole,
 } from "./types";
 
 type PedidoActivityPedido =
@@ -82,12 +74,6 @@ const SOLICITUD_ACTIVITY_SELECT = `
 const GENERIC_ACTIVITY_ERROR =
   "No se pudo cargar la actividad reciente. Inténtalo nuevamente.";
 
-function isManagementDashboardRole(
-  role: Role,
-): role is ManagementDashboardRole {
-  return isAdmin(role) || isSupervisor(role);
-}
-
 function isJsonObject(value: Json | null): value is Record<string, Json> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -102,7 +88,10 @@ function getMetadataString(metadata: Json | null, key: string): string | null {
   return typeof value === "string" && value.trim() ? value : null;
 }
 
-function getSafeFileName(metadata: Json | null, fallback: string | null): string | null {
+function getSafeFileName(
+  metadata: Json | null,
+  fallback: string | null,
+): string | null {
   const rawName = getMetadataString(metadata, "file_name") ?? fallback;
 
   if (!rawName) {
@@ -136,7 +125,9 @@ function formatSolicitudEstado(value: string | null): string {
     return "sin dato";
   }
 
-  return SOLICITUD_STATUS_LABELS[value as keyof typeof SOLICITUD_STATUS_LABELS] ?? value;
+  return SOLICITUD_STATUS_LABELS[
+    value as keyof typeof SOLICITUD_STATUS_LABELS
+  ] ?? value;
 }
 
 function getPedidoTitle(row: PedidoActivityRow): string {
@@ -328,27 +319,11 @@ function sortRecentActivity(
     .slice(0, ACTIVITY_LIMIT);
 }
 
-export async function getDashboardRecentActivity(): Promise<GetDashboardRecentActivityResult> {
-  const profile = await getCurrentProfile();
-
-  if (!profile) {
-    return {
-      ok: false,
-      reason: "unauthorized",
-      message: "Debes iniciar sesión con un usuario interno activo.",
-    };
-  }
-
-  if (!hasPermission(profile.role, "dashboard.view")) {
-    return {
-      ok: false,
-      reason: "forbidden",
-      message: "No tienes permiso para ver el dashboard.",
-    };
-  }
-
+export async function loadDashboardRecentActivity(
+  context: DashboardContext,
+): Promise<GetDashboardRecentActivityResult> {
   try {
-    if (isManagementDashboardRole(profile.role)) {
+    if (context.kind === "management") {
       const [pedidoItems, solicitudItems] = await Promise.all([
         listPedidoActivity(),
         listSolicitudActivity(),
@@ -356,35 +331,27 @@ export async function getDashboardRecentActivity(): Promise<GetDashboardRecentAc
 
       return {
         ok: true,
-        role: profile.role,
+        role: context.role,
         activity: {
           kind: "management",
-          role: profile.role,
+          role: context.role,
           items: sortRecentActivity([...pedidoItems, ...solicitudItems]),
           generatedAt: new Date().toISOString(),
         },
       };
     }
 
-    if (isTrabajador(profile.role)) {
-      const pedidoItems = await listPedidoActivity();
-
-      return {
-        ok: true,
-        role: "trabajador",
-        activity: {
-          kind: "worker",
-          role: "trabajador",
-          items: sortRecentActivity(pedidoItems),
-          generatedAt: new Date().toISOString(),
-        },
-      };
-    }
+    const pedidoItems = await listPedidoActivity();
 
     return {
-      ok: false,
-      reason: "forbidden",
-      message: "No tienes permiso para ver el dashboard.",
+      ok: true,
+      role: "trabajador",
+      activity: {
+        kind: "worker",
+        role: "trabajador",
+        items: sortRecentActivity(pedidoItems),
+        generatedAt: new Date().toISOString(),
+      },
     };
   } catch (error) {
     console.error("Unexpected error loading dashboard recent activity", error);

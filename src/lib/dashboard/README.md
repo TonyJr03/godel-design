@@ -2,7 +2,7 @@
 
 Esta capa contiene servicios server-side para calcular métricas básicas del dashboard operativo de Godel Diseño.
 
-Desde la Fase 13.3, `/dashboard` consume `getDashboardSummary()` y muestra tarjetas reales de resumen operativo. Desde la Fase 13.4 también consume `getDashboardWorkItems()` para mostrar paneles operativos simples. Desde la Fase 13.5 consume `getDashboardRecentActivity()` para mostrar actividad reciente mínima. La página sigue siendo Server Component: carga datos en servidor y delega el renderizado en componentes presentacionales.
+`/dashboard` consume `getDashboard()`, que obtiene un contexto compartido de perfil/rol una sola vez y luego carga en paralelo resumen, paneles operativos y actividad reciente. La página sigue siendo Server Component: carga datos en servidor y delega el renderizado en componentes presentacionales.
 
 ## Roles soportados
 
@@ -14,10 +14,13 @@ Desde la Fase 13.3, `/dashboard` consume `getDashboardSummary()` y muestra tarje
 
 | Servicio | Uso |
 | --- | --- |
-| `getDashboardSummary()` | Punto de entrada principal. Lee el perfil actual, valida `dashboard.view` y decide el resumen según rol. |
-| `getDashboardWorkItems()` | Carga listas operativas para orientar el trabajo diario según rol. |
-| `getDashboardRecentActivity()` | Carga actividad reciente mínima desde historial de pedidos y solicitudes según rol. |
-| `getWorkerDashboardSummary(workerProfileId)` | Resumen específico de pedidos asignados al trabajador autenticado. |
+| `getDashboard()` | Punto de entrada único para `/dashboard`. Resuelve contexto una vez y carga resumen, paneles y actividad en paralelo. |
+| `getDashboardContext()` | Helper interno del módulo. Lee el perfil actual, valida `dashboard.view` y clasifica el dashboard como `management` o `worker`. |
+| `loadDashboardSummary(context)` | Loader interno para métricas de resumen. |
+| `loadDashboardWorkItems(context)` | Loader interno para listas operativas. |
+| `loadDashboardRecentActivity(context)` | Loader interno para actividad reciente. |
+
+Los loaders internos no se exportan desde el barrel del módulo. La API pública prevista para la página es `getDashboard()`.
 
 ## Métricas de admin y supervisor
 
@@ -70,15 +73,14 @@ La actividad reciente usa resúmenes construidos de forma controlada. No se mues
 - Las consultas se ejecutan server-side.
 - `/dashboard` no consulta Supabase directamente desde componentes cliente.
 - Se usa `createClient` normal de Supabase.
-- Se valida perfil interno activo mediante `getCurrentProfile()`.
-- Se valida el permiso `dashboard.view`.
+- `getDashboard()` valida perfil interno activo y permiso `dashboard.view` una sola vez mediante `getDashboardContext()`.
 - No se usa service role key.
 - No se consulta `auth.users`.
 - No se muestra `metadata` cruda en la UI.
 - No se exponen `file_path`, rutas privadas ni URLs.
 - RLS sigue siendo la defensa final para todas las consultas.
 
-## Fuera de esta subfase
+## Fuera de esta fase
 
 - Gráficos.
 - Reportes avanzados.
@@ -86,4 +88,4 @@ La actividad reciente usa resúmenes construidos de forma controlada. No se mues
 - Exportaciones.
 - Cambios de RLS o migraciones.
 
-La UI implementada hasta Fase 13.5 se limita a tarjetas de resumen, paneles operativos simples y actividad reciente mínima. Actividad reciente avanzada, gráficos, reportes avanzados, exportaciones y notificaciones quedan para subfases posteriores.
+La UI implementada se limita a tarjetas de resumen, paneles operativos simples y actividad reciente mínima. Actividad reciente avanzada, gráficos, reportes avanzados, exportaciones y notificaciones quedan para fases posteriores.

@@ -1,23 +1,17 @@
-import { getCurrentProfile } from "@/lib/auth";
-import {
-  hasPermission,
-  isAdmin,
-  isSupervisor,
-  isTrabajador,
-  type Role,
-} from "@/lib/permissions";
 import { createClient } from "@/lib/supabase/server";
-import { addDays, formatDateOnly } from "@/lib/utils";
-import type { Enums, Tables } from "@/types/database";
+import type { Tables } from "@/types/database";
+import type { DashboardContext } from "./context";
+import {
+  getDashboardDateWindow,
+  isPedidoAtrasado,
+  isPedidoProximoEntrega,
+  WORK_PENDING_SOLICITUD_STATUSES,
+} from "./helpers";
 import type {
   DashboardPedidoWorkItem,
   DashboardPendingSolicitudItem,
   GetDashboardWorkItemsResult,
-  ManagementDashboardRole,
 } from "./types";
-
-type SolicitudEstado = Enums<"solicitud_estado">;
-type PedidoEstado = Enums<"pedido_estado">;
 
 type PendingSolicitudRow = Pick<
   Tables<"solicitudes">,
@@ -46,18 +40,6 @@ type PedidoWorkRow = Pick<
   clientes: PedidoClienteRow;
 };
 
-const SOLICITUD_ESTADOS_PENDIENTES: readonly SolicitudEstado[] = [
-  "nueva",
-  "en_revision",
-  "contactada",
-  "aprobada",
-];
-
-const FINAL_PEDIDO_ESTADOS: readonly PedidoEstado[] = [
-  "entregado",
-  "cancelado",
-];
-
 const PENDING_SOLICITUDES_LIMIT = 6;
 const PENDING_SOLICITUDES_QUERY_LIMIT = 24;
 const PEDIDOS_ATTENTION_LIMIT = 8;
@@ -81,37 +63,6 @@ const ASSIGNED_PEDIDOS_WORK_SELECT = `
 
 const GENERIC_WORK_ITEMS_ERROR =
   "No se pudieron cargar los paneles operativos. Inténtalo nuevamente.";
-
-function isManagementDashboardRole(
-  role: Role,
-): role is ManagementDashboardRole {
-  return isAdmin(role) || isSupervisor(role);
-}
-
-function isPedidoActivo(status: PedidoEstado): boolean {
-  return !FINAL_PEDIDO_ESTADOS.includes(status);
-}
-
-function isPedidoAtrasado(pedido: PedidoWorkRow, today: string): boolean {
-  return Boolean(
-    pedido.estimated_delivery_date &&
-      pedido.estimated_delivery_date < today &&
-      isPedidoActivo(pedido.status),
-  );
-}
-
-function isPedidoProximoEntrega(
-  pedido: PedidoWorkRow,
-  today: string,
-  nextSevenDays: string,
-): boolean {
-  return Boolean(
-    pedido.estimated_delivery_date &&
-      pedido.estimated_delivery_date >= today &&
-      pedido.estimated_delivery_date <= nextSevenDays &&
-      isPedidoActivo(pedido.status),
-  );
-}
 
 function getPedidoAttentionRank(
   pedido: PedidoWorkRow,
@@ -223,7 +174,7 @@ async function listManagementPendingSolicitudes(): Promise<
     .select(
       "id, client_name, client_phone, service_type, status, created_at, desired_date, converted_order_id",
     )
-    .in("status", SOLICITUD_ESTADOS_PENDIENTES)
+    .in("status", WORK_PENDING_SOLICITUD_STATUSES)
     .order("created_at", { ascending: false })
     .limit(PENDING_SOLICITUDES_QUERY_LIMIT)
     .returns<PendingSolicitudRow[]>();
@@ -300,31 +251,13 @@ async function listWorkerAssignedPedidos(
     .map((pedido) => mapPedidoItem(pedido, today, nextSevenDays));
 }
 
-export async function getDashboardWorkItems(): Promise<GetDashboardWorkItemsResult> {
-  const profile = await getCurrentProfile();
-
-  if (!profile) {
-    return {
-      ok: false,
-      reason: "unauthorized",
-      message: "Debes iniciar sesión con un usuario interno activo.",
-    };
-  }
-
-  if (!hasPermission(profile.role, "dashboard.view")) {
-    return {
-      ok: false,
-      reason: "forbidden",
-      message: "No tienes permiso para ver el dashboard.",
-    };
-  }
-
-  const now = new Date();
-  const today = formatDateOnly(now);
-  const nextSevenDays = formatDateOnly(addDays(now, 7));
+export async function loadDashboardWorkItems(
+  context: DashboardContext,
+): Promise<GetDashboardWorkItemsResult> {
+  const { today, nextSevenDays } = getDashboardDateWindow();
 
   try {
-    if (isManagementDashboardRole(profile.role)) {
+    if (context.kind === "management") {
       const [solicitudesPendientes, pedidosAtencion] = await Promise.all([
         listManagementPendingSolicitudes(),
         listManagementAttentionPedidos(today, nextSevenDays),
@@ -332,10 +265,10 @@ export async function getDashboardWorkItems(): Promise<GetDashboardWorkItemsResu
 
       return {
         ok: true,
-        role: profile.role,
+        role: context.role,
         workItems: {
           kind: "management",
-          role: profile.role,
+          role: context.role,
           solicitudesPendientes,
           pedidosAtencion,
           generatedAt: new Date().toISOString(),
@@ -343,29 +276,21 @@ export async function getDashboardWorkItems(): Promise<GetDashboardWorkItemsResu
       };
     }
 
-    if (isTrabajador(profile.role)) {
-      const pedidosAsignados = await listWorkerAssignedPedidos(
-        profile.id,
-        today,
-        nextSevenDays,
-      );
-
-      return {
-        ok: true,
-        role: "trabajador",
-        workItems: {
-          kind: "worker",
-          role: "trabajador",
-          pedidosAsignados,
-          generatedAt: new Date().toISOString(),
-        },
-      };
-    }
+    const pedidosAsignados = await listWorkerAssignedPedidos(
+      context.profile.id,
+      today,
+      nextSevenDays,
+    );
 
     return {
-      ok: false,
-      reason: "forbidden",
-      message: "No tienes permiso para ver el dashboard.",
+      ok: true,
+      role: "trabajador",
+      workItems: {
+        kind: "worker",
+        role: "trabajador",
+        pedidosAsignados,
+        generatedAt: new Date().toISOString(),
+      },
     };
   } catch (error) {
     console.error("Unexpected error loading dashboard work items", error);

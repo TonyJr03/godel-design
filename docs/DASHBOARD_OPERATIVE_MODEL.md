@@ -20,7 +20,7 @@ Los reportes avanzados quedan fuera de esta fase. No se deben implementar gráfi
 
 ## Diagnóstico del estado actual
 
-Desde Fase 13.3, la ruta `/dashboard` muestra tarjetas reales de resumen operativo usando `getDashboardSummary()`. Desde Fase 13.4, también muestra paneles operativos simples usando `getDashboardWorkItems()`. Desde Fase 13.5, muestra actividad reciente mínima usando `getDashboardRecentActivity()`. La página sigue siendo un Server Component: carga datos en servidor y los entrega a componentes presentacionales sin consultas desde cliente.
+La ruta `/dashboard` muestra tarjetas reales de resumen operativo, paneles operativos simples y actividad reciente mínima usando `getDashboard()`. Este servicio agregador obtiene un contexto compartido de perfil/rol una sola vez y luego carga resumen, paneles y actividad en paralelo. La página sigue siendo un Server Component: carga datos en servidor y los entrega a componentes presentacionales sin consultas desde cliente.
 
 El layout de dashboard (`src/app/dashboard/layout.tsx`) obtiene el perfil actual con `getCurrentProfile()` y pasa el rol al sidebar. La navegación visible se filtra con `canAccessDashboardRoute`.
 

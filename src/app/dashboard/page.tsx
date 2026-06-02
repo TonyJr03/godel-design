@@ -2,18 +2,11 @@ import { DashboardOverview } from "@/components/dashboard/DashboardOverview";
 import { DashboardRecentActivity } from "@/components/dashboard/DashboardRecentActivity";
 import { DashboardWorkPanels } from "@/components/dashboard/DashboardWorkPanels";
 import { PageHeader } from "@/components/ui/PageHeader";
-import {
-  getDashboardRecentActivity,
-  getDashboardSummary,
-  getDashboardWorkItems,
-} from "@/lib/dashboard";
+import { getDashboard } from "@/lib/dashboard";
 
 export default async function DashboardPage() {
-  const [summaryResult, workItemsResult, activityResult] = await Promise.all([
-    getDashboardSummary(),
-    getDashboardWorkItems(),
-    getDashboardRecentActivity(),
-  ]);
+  const { summaryResult, workItemsResult, activityResult } =
+    await getDashboard();
   const isWorkerDashboard =
     (summaryResult.ok && summaryResult.summary.kind === "worker") ||
     (workItemsResult.ok && workItemsResult.workItems.kind === "worker") ||
