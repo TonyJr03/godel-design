@@ -1,21 +1,23 @@
-# Documentacion del proyecto
+# Documentación del proyecto
 
-Esta carpeta contiene documentacion estable sobre las partes principales del sistema Godel Diseno: modelo de datos, permisos, storage y flujos funcionales.
+Esta carpeta contiene documentación estable sobre las partes principales del sistema Godel Diseño: modelo de datos, permisos, Storage, flujos funcionales y dashboard operativo.
 
 ## Documentos principales
 
 - `DATABASE_MODEL.md`: modelo de datos y relaciones principales.
-- `PERMISSIONS_MODEL.md`: roles, permisos, rutas internas y relacion con RLS.
+- `PERMISSIONS_MODEL.md`: roles, permisos, rutas internas y relación con RLS.
 - `STORAGE_MODEL.md`: bucket privado, rutas de archivos, metadatos y descargas firmadas.
-- `PUBLIC_REQUEST_FLOW.md`: flujo publico de solicitudes.
-- `INTERNAL_REQUESTS_FLOW.md`: gestion interna de solicitudes.
-- `CLIENTS_FLOW.md`: gestion de clientes.
-- `ORDERS_FLOW.md`: gestion de pedidos.
-- `ORDER_ASSIGNMENTS_FLOW.md`: asignacion de personal a pedidos.
+- `PUBLIC_REQUEST_FLOW.md`: flujo público de solicitudes.
+- `INTERNAL_REQUESTS_FLOW.md`: gestión interna de solicitudes.
+- `CLIENTS_FLOW.md`: gestión de clientes.
+- `ORDERS_FLOW.md`: gestión de pedidos.
+- `ORDER_ASSIGNMENTS_FLOW.md`: asignación de personal a pedidos.
 - `COMMENTS_AND_HISTORY_MODEL.md`: comentarios e historial operativo.
-- `USERS_MANAGEMENT_MODEL.md`: gestion de perfiles internos.
+- `USERS_MANAGEMENT_MODEL.md`: gestión de perfiles internos.
 - `DASHBOARD_OPERATIVE_MODEL.md`: dashboard operativo por rol.
 
-## Documentacion de desarrollo
+## Documentación de desarrollo
 
-La carpeta `development/` contiene documentos utiles durante la construccion y consolidacion tecnica, pero mas propensos a quedar obsoletos: roadmap, auditorias, deuda tecnica y guias de entorno local.
+La carpeta `development/` contiene documentos útiles durante la construcción y consolidación técnica, pero más propensos a quedar obsoletos: roadmap histórico, auditorías, deuda técnica y guías de entorno local.
+
+Cuando un documento explique el funcionamiento estable del sistema, debe vivir en `docs/`. Cuando sea seguimiento, deuda, diagnóstico o planificación de desarrollo, debe vivir en `docs/development/`.
