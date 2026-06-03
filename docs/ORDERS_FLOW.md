@@ -73,7 +73,7 @@ Campos principales usados actualmente en `pedidos`:
 |---|---|
 | `id` | Identificador interno del pedido. |
 | `order_number` | Referencia visible generada en servidor. |
-| `cliente_id` | Cliente asociado al pedido. |
+| `cliente_id` | Cliente asociado al pedido; puede ser `null` en pedidos manuales. |
 | `solicitud_id` | Solicitud origen; puede ser `null` en pedidos manuales. |
 | `title` | Nombre breve del trabajo. |
 | `description` | Descripción operativa del trabajo. |
@@ -89,7 +89,7 @@ La asignación se guarda en `pedido_trabajadores`, que funciona como asignación
 
 Reglas actuales:
 
-- `cliente_id` es requerido para crear pedidos desde los flujos implementados.
+- `cliente_id` es opcional en la creación manual y requerido al convertir una solicitud en pedido.
 - `solicitud_id` es `null` en pedidos manuales.
 - `order_number` se genera en servidor.
 
@@ -201,7 +201,7 @@ Archivos principales:
 - Validación: `src/lib/pedidos/order-validation.ts`
 - Número de pedido: `src/lib/pedidos/order-number.ts`
 
-La creación manual requiere `pedidos.manage`, por lo que solo `admin` y `supervisor` pueden usarla. El formulario selecciona un cliente existente y no acepta estado, `solicitud_id`, número de pedido ni personal asignado. El pedido manual se crea con `solicitud_id = null` y estado inicial `en_revision`.
+La creación manual requiere `pedidos.manage`, por lo que solo `admin` y `supervisor` pueden usarla. El formulario permite seleccionar un cliente existente o dejar `Sin cliente asociado`; no acepta estado, `solicitud_id`, número de pedido ni personal asignado. El pedido manual se crea con `solicitud_id = null`, estado inicial `en_revision` y `cliente_id = null` cuando no se selecciona cliente. No existen campos temporales de cliente en este flujo.
 
 ## Conversión de solicitud a pedido
 
@@ -328,8 +328,10 @@ El diseño del dashboard operativo para la Fase 13 se documenta en `docs/DASHBOA
 - Abrir detalle como `supervisor`.
 - Abrir detalle como trabajador asignado.
 - Verificar que un trabajador no abre un pedido no asignado.
-- Crear pedido manual.
+- Crear pedido manual con cliente registrado.
+- Crear pedido manual con `Sin cliente asociado`.
 - Verificar que el pedido manual tiene `solicitud_id = null`.
+- Verificar que lista, detalle y dashboard muestran `Sin cliente asociado` cuando `cliente_id = null`.
 - Convertir una solicitud aprobada con cliente.
 - Verificar que la conversión exige título.
 - Verificar que el pedido convertido no usa `service_type` como título automático.

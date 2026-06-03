@@ -34,7 +34,7 @@ export type CreatePedidoInput = {
 };
 
 export type CreatePedidoData = {
-  cliente_id: string;
+  cliente_id: string | null;
   title: string;
   description: string;
   priority: PedidoPrioridad;
@@ -60,7 +60,7 @@ export function isPedidoPrioridad(
 export function validatePedidoInput(
   input: CreatePedidoInput,
 ): ValidatePedidoInputResult {
-  const clienteId = normalizeSingleLineText(input.cliente_id);
+  const clienteId = normalizeOptionalSingleLineText(input.cliente_id);
   const title = normalizeSingleLineText(input.title);
   const description = normalizeMultilineText(input.description);
   const priority = normalizeSingleLineText(input.priority);
@@ -69,10 +69,8 @@ export function validatePedidoInput(
   );
   const fieldErrors: PedidoFieldErrors = {};
 
-  if (!clienteId) {
-    fieldErrors.cliente_id = "Selecciona un cliente.";
-  } else if (!isValidUuid(clienteId)) {
-    fieldErrors.cliente_id = "Selecciona un cliente válido.";
+  if (clienteId && !isValidUuid(clienteId)) {
+    fieldErrors.cliente_id = "Selecciona un cliente válido o deja el campo vacío.";
   }
 
   if (!title) {

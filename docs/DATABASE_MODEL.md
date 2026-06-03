@@ -209,7 +209,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 |---|---|---|
 | `id` | `uuid` | Identificador único del pedido. |
 | `order_number` | `text unique` | Número visible y único para operación interna. |
-| `cliente_id` | `uuid nullable` | Cliente asociado. |
+| `cliente_id` | `uuid nullable` | Cliente asociado; opcional en pedidos manuales y requerido en pedidos convertidos desde solicitud. |
 | `solicitud_id` | `uuid nullable` | Solicitud origen si el pedido fue convertido. |
 | `title` | `text` | Nombre breve del pedido. |
 | `description` | `text` | Detalle del trabajo. |
@@ -231,6 +231,8 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 
 - `order_number` debe ser único.
 - Un pedido puede crearse manualmente o a partir de una solicitud.
+- Un pedido manual puede quedar sin cliente asociado (`cliente_id = null`).
+- La conversión desde solicitud exige que la solicitud tenga `cliente_id` asociado.
 - Los cambios importantes de estado deben registrarse en `pedido_historial`.
 
 **Notas de seguridad:**

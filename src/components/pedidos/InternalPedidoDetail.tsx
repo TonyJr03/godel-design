@@ -162,7 +162,7 @@ export function InternalPedidoDetail({
             </p>
           ) : (
             <p className="mt-3 text-sm leading-6 text-zinc-600">
-              Este pedido no tiene cliente asociado.
+              Sin cliente asociado.
             </p>
           )}
         </div>

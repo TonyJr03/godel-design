@@ -75,7 +75,9 @@ export async function createInternalPedido(
     });
   }
 
-  const exists = await clienteExists(validation.data.cliente_id);
+  const exists = validation.data.cliente_id
+    ? await clienteExists(validation.data.cliente_id)
+    : true;
 
   if (exists === null) {
     return serviceFailure("error", GENERIC_CREATE_ERROR);
@@ -87,7 +89,7 @@ export async function createInternalPedido(
       "El cliente seleccionado no existe o no está disponible.",
       {
         fieldErrors: {
-          cliente_id: "Selecciona un cliente válido.",
+          cliente_id: "Selecciona un cliente válido o deja el campo vacío.",
         },
       },
     );

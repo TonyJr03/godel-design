@@ -43,7 +43,7 @@ function getClienteLabel(pedido: InternalPedido): string {
     return pedido.clientes.name;
   }
 
-  return pedido.cliente_id ? "Cliente asociado" : "Sin cliente";
+  return pedido.cliente_id ? "Cliente asociado" : "Sin cliente asociado";
 }
 
 export function InternalPedidosList({ pedidos }: InternalPedidosListProps) {

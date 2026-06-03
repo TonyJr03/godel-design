@@ -20,11 +20,11 @@ El trabajador tampoco accede al módulo general de usuarios. RLS de `perfiles` s
 
 ## Creación Manual
 
-`/dashboard/pedidos/nuevo` permite crear pedidos manuales asociados a clientes existentes.
+`/dashboard/pedidos/nuevo` permite crear pedidos manuales con cliente registrado o sin cliente asociado.
 
 La action `createPedidoAction` lee únicamente `cliente_id`, `title`, `description`, `priority` y `estimated_delivery_date`, y delega en `createInternalPedido`.
 
-`createInternalPedido` requiere `pedidos.manage`, valida el input, valida el cliente, genera `order_number`, crea el pedido con estado inicial `en_revision`, guarda `solicitud_id` como `null` y no asigna personal.
+`createInternalPedido` requiere `pedidos.manage`, valida el input, valida el cliente solo cuando se envía `cliente_id`, genera `order_number`, crea el pedido con estado inicial `en_revision`, guarda `solicitud_id` como `null` y no asigna personal. Si no se selecciona cliente, guarda `cliente_id = null`; no captura datos temporales de cliente desde el formulario.
 
 ## Conversión Desde Solicitud
 
@@ -131,4 +131,4 @@ Los archivos heredados desde solicitudes con `visibility = "cliente_solicitud"` 
 
 ## Fuera de Esta Subfase
 
-La edición general, la eliminación, notificaciones, pedidos manuales sin cliente, tareas de pedido e historial avanzado quedan para próximas subfases.
+La edición general, la eliminación, notificaciones, tareas de pedido e historial avanzado quedan para próximas subfases.

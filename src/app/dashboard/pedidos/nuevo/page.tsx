@@ -48,7 +48,7 @@ export default async function DashboardNuevoPedidoPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <PageHeader
           title="Nuevo pedido"
-          description="Crea un pedido manual asociado a un cliente existente."
+          description="Crea un pedido manual con cliente registrado o sin cliente asociado."
         />
         <Link
           href="/dashboard/pedidos"
@@ -59,16 +59,17 @@ export default async function DashboardNuevoPedidoPage() {
       </div>
 
       <section className="max-w-3xl rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
-        Este pedido se creará manualmente y no quedará asociado a una solicitud.
+        Este pedido se creará manualmente, no quedará asociado a una solicitud
+        y el cliente es opcional.
       </section>
 
       {!clientesResult.ok ? (
         <section className="rounded-lg border border-red-200 bg-red-50 p-5 text-sm text-red-950">
           {clientesResult.message}
         </section>
-      ) : (
-        <PedidoForm clientes={clientes} prioridades={PEDIDO_PRIORIDADES} />
-      )}
+      ) : null}
+
+      <PedidoForm clientes={clientes} prioridades={PEDIDO_PRIORIDADES} />
     </div>
   );
 }

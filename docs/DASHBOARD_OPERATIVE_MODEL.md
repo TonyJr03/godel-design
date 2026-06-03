@@ -47,7 +47,7 @@ Los módulos existentes ya ofrecen servicios server-side reutilizables como punt
 La primera versión puede obtener información desde tablas existentes:
 
 - `solicitudes`: estados, fecha de creación, fecha deseada, cliente asociado y pedido convertido;
-- `pedidos`: estado, prioridad, fechas de creación y entrega estimada, entrega real, cliente, solicitud origen y supervisor;
+- `pedidos`: estado, prioridad, fechas de creación y entrega estimada, entrega real, cliente opcional, solicitud origen y supervisor;
 - `pedido_trabajadores`: pedidos asignados a usuarios internos;
 - `clientes`: clientes registrados;
 - `archivos`: archivos recientes asociados a solicitudes o pedidos;
@@ -180,6 +180,7 @@ La primera versión funcional del dashboard debe ser deliberadamente simple. Des
 - sección de "Pedidos que requieren atención" para `admin` y `supervisor`;
 - sección de "Mis pedidos asignados" para `trabajador`;
 - actividad reciente mínima desde historial de pedidos y solicitudes;
+- pedidos manuales con `cliente_id = null` visibles como `Sin cliente asociado`;
 - actividad reciente avanzada queda para una subfase posterior;
 - sin gráficos;
 - sin reportes avanzados;

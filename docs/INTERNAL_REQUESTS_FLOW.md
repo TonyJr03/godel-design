@@ -238,7 +238,6 @@ Más adelante se podrá:
 - registrar historial detallado;
 - agregar comentarios internos;
 - asociar solicitud a cliente existente;
-- permitir pedidos manuales sin cliente asociado si se define el modelo;
 - implementar tareas de pedido;
 - permitir eliminación controlada de archivos privados si se define;
 - notificar al equipo interno;
@@ -267,6 +266,7 @@ El diseño del dashboard operativo para la Fase 13 se documenta en `docs/DASHBOA
 - En Supabase Studio, `reviewed_by` se actualiza al cambiar estado.
 - `converted_order_id` no se modifica durante cambios manuales de estado.
 - Convertir una solicitud aprobada con cliente asociado exige título del pedido.
+- La creación manual de pedidos puede quedar sin cliente asociado.
 - Intentar convertir sin título muestra error.
 - Confirmar que el pedido creado usa el título escrito, no `service_type`.
 - Confirmar que la descripción del pedido se guarda correctamente.

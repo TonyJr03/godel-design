@@ -148,7 +148,7 @@ function PedidosList({
                   {pedido.title}
                 </p>
                 <p className="mt-1 text-sm text-zinc-500">
-                  {pedido.clienteNombre ?? "Cliente no disponible"}
+                  {pedido.clienteNombre ?? "Sin cliente asociado"}
                 </p>
               </div>
               <div className="shrink-0 text-left sm:text-right">
