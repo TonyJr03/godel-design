@@ -444,7 +444,6 @@ export type Database = {
           desired_date: string | null
           id: string
           notes: string | null
-          quantity: number | null
           reviewed_by: string | null
           service_type: string
           status: Database["public"]["Enums"]["solicitud_estado"]
@@ -461,7 +460,6 @@ export type Database = {
           desired_date?: string | null
           id?: string
           notes?: string | null
-          quantity?: number | null
           reviewed_by?: string | null
           service_type: string
           status?: Database["public"]["Enums"]["solicitud_estado"]
@@ -478,7 +476,6 @@ export type Database = {
           desired_date?: string | null
           id?: string
           notes?: string | null
-          quantity?: number | null
           reviewed_by?: string | null
           service_type?: string
           status?: Database["public"]["Enums"]["solicitud_estado"]
@@ -807,3 +804,4 @@ export const Constants = {
     },
   },
 } as const
+

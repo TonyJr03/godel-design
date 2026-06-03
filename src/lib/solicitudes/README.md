@@ -17,12 +17,13 @@ Por seguridad, el flujo público no usa service role key. La inserción se hace 
 - `client_email`
 - `service_type`
 - `description`
-- `quantity`
 - `desired_date`
 - `notes`
 - `files`
 
-Los campos se recortan, los opcionales vacíos se convierten a `null`, y se validan longitudes razonables, formato básico de correo, cantidad positiva y fecha válida. `desired_date` es opcional, pero si se informa debe ser igual o posterior al día actual. La validación definitiva ocurre en servidor.
+Los campos se recortan, los opcionales vacíos se convierten a `null`, y se validan longitudes razonables, formato básico de correo y fecha válida. `desired_date` es opcional, pero si se informa debe ser igual o posterior al día actual. La validación definitiva ocurre en servidor.
+
+`quantity` fue eliminado de solicitudes. Las cantidades, medidas y requisitos deben explicarse dentro de `description` o `notes`; `service_type` queda como referencia inicial del tipo de trabajo.
 
 El formulario no acepta campos sensibles como `id`, `status`, `cliente_id`, `reviewed_by` ni `converted_order_id`.
 
@@ -68,6 +69,8 @@ Estados manuales permitidos:
 Una solicitud aprobada con cliente asociado puede convertirse en pedido desde el detalle interno de la solicitud.
 
 El estado `convertida` no se establece manualmente desde el selector de estado. Se establece mediante el flujo formal de conversión, que crea un pedido, relaciona `pedidos.solicitud_id`, actualiza `solicitudes.converted_order_id` y deja la solicitud en estado `convertida`.
+
+La conversión con título obligatorio para el pedido queda para una subfase posterior. Esta fase puente no modifica la lógica de pedidos.
 
 ## Asociación solicitud-cliente
 

@@ -475,7 +475,7 @@ Eventos mínimos:
 
 | Evento | Cuándo registrar | Datos mínimos |
 | --- | --- | --- |
-| `solicitud_creada` | Solicitud pública creada. | `solicitud_id`, origen público. |
+| `solicitud_creada` | Solicitud pública creada. | `solicitud_id`, `service_type`, origen público; no guarda `quantity`. |
 | `archivos_adjuntados` | Cliente adjunta uno o varios archivos a la solicitud. | archivos, nombres seguros, solicitud. |
 | `estado_cambiado` | Admin o supervisor cambia estado. | estado anterior, estado nuevo, usuario. |
 | `cliente_asociado` | Se asocia cliente existente. | cliente, usuario. |

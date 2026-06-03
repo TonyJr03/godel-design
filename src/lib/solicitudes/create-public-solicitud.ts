@@ -48,7 +48,6 @@ export async function createPublicSolicitud(
     client_email: validation.data.client_email,
     service_type: validation.data.service_type,
     description: validation.data.description,
-    quantity: validation.data.quantity,
     desired_date: validation.data.desired_date,
     notes: validation.data.notes,
     status: "nueva",

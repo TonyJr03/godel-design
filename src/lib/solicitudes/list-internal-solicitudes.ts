@@ -23,7 +23,6 @@ export type InternalSolicitud = Pick<
   | "status"
   | "created_at"
   | "desired_date"
-  | "quantity"
 >;
 
 export type ListInternalSolicitudesOptions = {
@@ -101,7 +100,7 @@ export async function listInternalSolicitudes(
     let query = supabase
       .from("solicitudes")
       .select(
-        "id, client_name, client_phone, client_email, service_type, status, created_at, desired_date, quantity",
+        "id, client_name, client_phone, client_email, service_type, status, created_at, desired_date",
       )
       .order("created_at", { ascending: false })
       .limit(limit);

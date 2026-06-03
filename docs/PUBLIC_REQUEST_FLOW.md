@@ -45,11 +45,12 @@ Todavía no incluye:
 | `client_phone` | Sí | Teléfono de contacto |
 | `client_email` | No | Correo opcional |
 | `service_type` | Sí | Tipo de trabajo solicitado |
-| `description` | Sí | Descripción del encargo |
-| `quantity` | No | Cantidad solicitada |
+| `description` | Sí | Descripción del encargo, incluyendo cantidades, medidas o requisitos cuando apliquen |
 | `desired_date` | No | Fecha deseada de entrega; si se informa debe ser igual o posterior al día actual |
 | `notes` | No | Notas adicionales |
 | `files` | No | Archivos de referencia opcionales |
+
+`quantity` fue eliminado de solicitudes. El formulario no pide cantidad en un campo separado; el cliente debe indicar cantidades dentro de `description` o `notes`.
 
 ## Campos que no acepta la UI
 
@@ -77,12 +78,13 @@ Reglas generales:
 - `client_email` es opcional, pero si existe debe tener formato básico válido.
 - `service_type` es requerido.
 - `description` es requerida.
-- `quantity` es opcional, pero debe ser positiva si existe.
 - `desired_date` es opcional, pero debe ser válida e igual o posterior al día
   actual si existe.
 - `notes` es opcional.
 - Los campos opcionales vacíos se convierten a `null`.
 - Los espacios sobrantes se recortan antes de insertar.
+
+`service_type` funciona como referencia inicial del cliente; el detalle real del trabajo vive en `description` y, si hace falta, en `notes`.
 
 No se usan dependencias externas para esta validación.
 
@@ -96,6 +98,7 @@ La Server Action:
 
 - Recibe `FormData`.
 - Convierte los campos del formulario en input controlado.
+- No lee ni devuelve `quantity`.
 - Llama al servicio de creación.
 - Devuelve errores controlados para la UI.
 - No expone errores técnicos de Supabase al cliente.
@@ -113,6 +116,7 @@ Responsabilidades:
 
 - Validar el input recibido.
 - Crear la solicitud en Supabase.
+- Insertar el detalle del trabajo sin campo separado de cantidad.
 - Establecer siempre `status = "nueva"`.
 - Establecer `cliente_id = null`.
 - Establecer `reviewed_by = null`.
@@ -122,6 +126,8 @@ Responsabilidades:
 - Evitar un `.select()` público innecesario después del insert.
 
 Desde Fase 11.7B, la inserción de la solicitud registra automáticamente el evento `solicitud_creada` en `solicitud_historial`. Como el flujo es público, normalmente queda con `actor_id = null` y metadata mínima no sensible.
+
+La conversión con título obligatorio para el pedido se hará en una subfase posterior. En esta fase puente no se modifica la lógica de pedidos.
 
 ## Decisión sobre clientes
 
@@ -223,8 +229,8 @@ La conversión real a pedido pertenece a una fase posterior del flujo interno.
 - Enviar solicitud válida.
 - Enviar formulario vacío.
 - Enviar email inválido.
-- Enviar cantidad negativa.
 - Enviar sin email.
+- Enviar una solicitud con cantidades escritas en la descripción.
 - Enviar solicitud sin archivos.
 - Enviar solicitud con 1 archivo válido.
 - Intentar enviar más de 5 archivos.

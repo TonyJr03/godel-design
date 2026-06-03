@@ -172,7 +172,6 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 | `client_email` | `text nullable` | Correo opcional capturado desde el formulario público. |
 | `service_type` | `text` | Tipo de servicio solicitado. |
 | `description` | `text` | Descripción del trabajo solicitado. |
-| `quantity` | `integer nullable` | Cantidad solicitada si aplica. |
 | `desired_date` | `date nullable` | Fecha deseada por el cliente. |
 | `notes` | `text nullable` | Observaciones adicionales. |
 | `status` | `solicitud_estado` | Estado operativo de la solicitud. |
@@ -192,6 +191,9 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 - Una solicitud no se convierte automáticamente en pedido.
 - Solo `admin` o `supervisor` pueden aprobar, rechazar o convertir solicitudes.
 - Al convertirse, el estado debería pasar a `convertida` y registrar el pedido generado.
+- `quantity` fue eliminado del modelo de solicitudes. Las cantidades, medidas y requisitos se deben explicar dentro de `description` o `notes`.
+- `service_type` sigue siendo una referencia inicial del tipo de trabajo solicitado.
+- La conversión con título obligatorio para el pedido queda para una subfase posterior; pedidos no se ajusta en esta fase puente.
 
 **Notas de seguridad:**
 

@@ -105,11 +105,6 @@ function getPedidoLabel(item: SolicitudHistoryItem): string | null {
 function getHistorySummary(item: SolicitudHistoryItem): string {
   if (item.action === "solicitud_creada") {
     const tipoServicio = getMetadataString(item, "service_type");
-    const quantity = getMetadataNumber(item, "quantity");
-
-    if (tipoServicio && quantity) {
-      return `Solicitud registrada: ${tipoServicio} (${quantity} unidades).`;
-    }
 
     if (tipoServicio) {
       return `Solicitud registrada: ${tipoServicio}.`;

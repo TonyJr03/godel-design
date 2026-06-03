@@ -57,9 +57,6 @@ export function InternalSolicitudesList({
               <th scope="col" className="px-4 py-3">
                 Deseada
               </th>
-              <th scope="col" className="px-4 py-3">
-                Cant.
-              </th>
               <th scope="col" className="px-4 py-3 text-right">
                 Acción
               </th>
@@ -95,9 +92,6 @@ export function InternalSolicitudesList({
                 </td>
                 <td className="whitespace-nowrap px-4 py-4 text-zinc-700">
                   {formatDate(solicitud.desired_date)}
-                </td>
-                <td className="whitespace-nowrap px-4 py-4 text-zinc-700">
-                  {solicitud.quantity ?? "No definida"}
                 </td>
                 <td className="px-4 py-4 text-right">
                   <Link

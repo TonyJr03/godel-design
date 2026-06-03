@@ -44,9 +44,11 @@ El listado:
 - consulta hasta 50 solicitudes;
 - ordena por `created_at` descendente;
 - muestra referencia corta, cliente, teléfono, email, tipo de servicio, estado,
-  fecha de creación, fecha deseada y cantidad;
+  fecha de creación y fecha deseada;
 - permite filtrar por estado;
 - no consulta Supabase desde componentes cliente.
+
+`quantity` fue eliminado de solicitudes. El detalle de cantidades, medidas o requisitos debe revisarse en `description` o `notes`. No se modifica la lógica de pedidos ni la conversión a pedido en esta fase puente; el título obligatorio de conversión queda para una subfase posterior.
 
 ## Filtro por estado
 

@@ -244,14 +244,12 @@ begin
     new.id,
     auth.uid(),
     'solicitud_creada'::public.solicitud_historial_action,
-    'Solicitud registrada: ' || new.service_type ||
-      coalesce(' (' || new.quantity::text || ' unidades)', ''),
+    'Solicitud registrada: ' || new.service_type,
     null,
     new.service_type,
     jsonb_strip_nulls(
       jsonb_build_object(
         'service_type', new.service_type,
-        'quantity', new.quantity,
         'origen', case
           when auth.uid() is null then 'publica'
           else 'interna'

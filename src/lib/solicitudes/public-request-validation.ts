@@ -18,7 +18,6 @@ export type PublicSolicitudInput = {
   client_email?: unknown;
   service_type?: unknown;
   description?: unknown;
-  quantity?: unknown;
   desired_date?: unknown;
   notes?: unknown;
   files?: unknown;
@@ -30,7 +29,6 @@ export type PublicSolicitudData = {
   client_email: string | null;
   service_type: string;
   description: string;
-  quantity: number | null;
   desired_date: string | null;
   notes: string | null;
 };
@@ -59,20 +57,6 @@ const FIELD_LIMITS = {
 const VALIDATION_ERROR_MESSAGE =
   "Revisa los campos marcados antes de enviar la solicitud.";
 
-function parseCantidad(value: unknown) {
-  const textValue = normalizeSingleLineText(value);
-
-  if (!textValue) {
-    return null;
-  }
-
-  if (!/^\d+$/.test(textValue)) {
-    return Number.NaN;
-  }
-
-  return Number(textValue);
-}
-
 export function validatePublicSolicitudInput(
   input: PublicSolicitudInput,
 ): ValidatePublicSolicitudInputResult {
@@ -83,7 +67,6 @@ export function validatePublicSolicitudInput(
   const client_email = normalizeOptionalSingleLineText(input.client_email);
   const service_type = normalizeSingleLineText(input.service_type);
   const description = normalizeMultilineText(input.description);
-  const quantity = parseCantidad(input.quantity);
   const desired_date = normalizeOptionalSingleLineText(input.desired_date);
   const notes = normalizeOptionalMultilineText(input.notes);
 
@@ -119,10 +102,6 @@ export function validatePublicSolicitudInput(
     fieldErrors.description = "La descripción es demasiado larga.";
   }
 
-  if (Number.isNaN(quantity) || (quantity !== null && quantity <= 0)) {
-    fieldErrors.quantity = "La cantidad debe ser un entero positivo.";
-  }
-
   if (desired_date) {
     if (!isValidIsoDate(desired_date)) {
       fieldErrors.desired_date = "Ingresa una fecha válida.";
@@ -148,7 +127,6 @@ export function validatePublicSolicitudInput(
     client_email,
     service_type,
     description,
-    quantity,
     desired_date,
     notes,
   });

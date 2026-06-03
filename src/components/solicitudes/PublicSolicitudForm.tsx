@@ -75,7 +75,6 @@ export function PublicSolicitudForm() {
   const emailError = getFieldError(state, "client_email");
   const tipoServicioError = getFieldError(state, "service_type");
   const descripcionError = getFieldError(state, "description");
-  const cantidadError = getFieldError(state, "quantity");
   const fechaDeseadaError = getFieldError(state, "desired_date");
   const observacionesError = getFieldError(state, "notes");
   const filesError = getFieldError(state, "files");
@@ -246,25 +245,6 @@ export function PublicSolicitudForm() {
               />
             </div>
 
-            <div>
-              <label className={labelClass} htmlFor="quantity">
-                Cantidad <OptionalMark />
-              </label>
-              <input
-                className={baseInputClass}
-                id="quantity"
-                name="quantity"
-                type="number"
-                defaultValue={state.values?.quantity ?? ""}
-                min="1"
-                step="1"
-                inputMode="numeric"
-                aria-invalid={Boolean(cantidadError)}
-                aria-describedby={cantidadError ? "quantity-error" : undefined}
-              />
-              <FieldError id="quantity-error" message={cantidadError} />
-            </div>
-
             <div className="sm:col-span-2">
               <label className={labelClass} htmlFor="description">
                 Descripción del trabajo{" "}
@@ -282,8 +262,8 @@ export function PublicSolicitudForm() {
                 }
               />
               <p id="description-help" className={helpTextClass}>
-                Incluye medidas, materiales, colores, textos o cualquier detalle
-                importante.
+                Describe el trabajo con el mayor detalle posible. Incluye
+                cantidades, medidas, colores, fechas o indicaciones importantes.
               </p>
               <FieldError id="description-error" message={descripcionError} />
             </div>

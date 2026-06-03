@@ -122,7 +122,6 @@ create table public.solicitudes (
   client_email text,
   service_type text not null,
   description text not null,
-  quantity integer,
   desired_date date,
   notes text,
   status public.solicitud_estado not null default 'nueva',
@@ -132,8 +131,7 @@ create table public.solicitudes (
   constraint solicitudes_client_name_not_empty check (btrim(client_name) <> ''),
   constraint solicitudes_client_phone_not_empty check (btrim(client_phone) <> ''),
   constraint solicitudes_service_type_not_empty check (btrim(service_type) <> ''),
-  constraint solicitudes_description_not_empty check (btrim(description) <> ''),
-  constraint solicitudes_quantity_positive check (quantity is null or quantity > 0)
+  constraint solicitudes_description_not_empty check (btrim(description) <> '')
 );
 
 create trigger set_solicitudes_updated_at

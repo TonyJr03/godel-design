@@ -90,10 +90,6 @@ export function InternalSolicitudDetail({
           />
           <DetailItem label="Tipo de servicio" value={solicitud.service_type} />
           <DetailItem
-            label="Cantidad"
-            value={solicitud.quantity ?? "No definida"}
-          />
-          <DetailItem
             label="Fecha deseada"
             value={formatDate(solicitud.desired_date)}
           />
