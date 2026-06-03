@@ -458,7 +458,7 @@ Eventos mínimos:
 | Evento | Cuándo registrar | Datos mínimos |
 | --- | --- | --- |
 | `pedido_creado` | Pedido creado manualmente. | `pedido_id`, `actor_id`, `summary`, origen manual. |
-| `pedido_creado` | Pedido creado desde solicitud. | `pedido_id`, `solicitud_id`, `actor_id`, origen solicitud. |
+| `pedido_creado` | Pedido creado desde solicitud. | `pedido_id`, `solicitud_id`, `actor_id`, `title`, origen solicitud. |
 | `estado_cambiado` | Cambio de estado normal. | estado anterior, estado nuevo, usuario. |
 | `pedido_entregado` | Cambio a `entregado`. | estado anterior, estado nuevo, usuario. |
 | `pedido_cancelado` | Cambio a `cancelado`. | estado anterior, estado nuevo, usuario. |
@@ -480,7 +480,7 @@ Eventos mínimos:
 | `estado_cambiado` | Admin o supervisor cambia estado. | estado anterior, estado nuevo, usuario. |
 | `cliente_asociado` | Se asocia cliente existente. | cliente, usuario. |
 | `cliente_creado_desde_solicitud` | Se crea cliente desde solicitud. | cliente creado, usuario. |
-| `convertida_a_pedido` | Se convierte solicitud a pedido. | pedido generado, usuario. |
+| `convertida_a_pedido` | Se convierte solicitud a pedido. | pedido generado, título real del pedido, usuario. |
 
 ## Permisos Propuestos
 
@@ -619,7 +619,7 @@ Estado:
 - implementado desde el servicio server-side `createClienteFromSolicitudAndAssociate` para `cliente_creado_desde_solicitud`;
 - los eventos públicos usan `actor_id = null` cuando no existe usuario autenticado;
 - la conversión a pedido evita duplicar `estado_cambiado` cuando el mismo update marca la solicitud como `convertida`;
-- los resúmenes visibles se enriquecen con datos mínimos de `metadata`, cliente y pedido;
+- los resúmenes visibles se enriquecen con datos mínimos de `metadata`, cliente y pedido; el título mostrado corresponde a `pedidos.title`, no a `solicitudes.service_type`;
 - no abre lectura pública ni inserción anónima directa sobre `solicitud_historial`.
 
 ### Fase 11.8: Documentación y Cierre

@@ -211,11 +211,15 @@ Archivos principales:
 - Componente: `src/components/solicitudes/SolicitudConvertPedidoForm.tsx`
 - Action: `src/app/dashboard/solicitudes/[id]/actions.ts`
 
-La conversión requiere `solicitudes.manage` y `pedidos.manage`. Solo se permite convertir solicitudes con estado `aprobada` y `cliente_id` asociado. El formulario solo envía `solicitud_id`; no acepta datos de pedido desde `FormData`.
+La conversión requiere `solicitudes.manage` y `pedidos.manage`. Solo se permite convertir solicitudes con estado `aprobada` y `cliente_id` asociado. El formulario envía únicamente `solicitud_id`, `title` y `description`.
+
+`service_type` queda como referencia inicial elegida por el cliente. No se usa como título automático del pedido. El usuario interno debe definir un `title` obligatorio y puede ajustar la `description` operativa antes de crear el pedido. El formulario no acepta `order_number`, `status`, `cliente_id`, `created_by`, `converted_order_id` ni otros campos técnicos.
 
 Al convertir:
 
 - se crea un pedido con `pedidos.solicitud_id`;
+- se usa el `title` definido por el usuario interno;
+- se guarda la descripción operativa enviada desde el formulario de conversión;
 - se actualiza `solicitudes.status = convertida`;
 - se actualiza `solicitudes.converted_order_id`;
 - se asocian al pedido los archivos `cliente_solicitud` de la solicitud completando `archivos.pedido_id`;
@@ -327,6 +331,9 @@ El diseño del dashboard operativo para la Fase 13 se documenta en `docs/DASHBOA
 - Crear pedido manual.
 - Verificar que el pedido manual tiene `solicitud_id = null`.
 - Convertir una solicitud aprobada con cliente.
+- Verificar que la conversión exige título.
+- Verificar que el pedido convertido no usa `service_type` como título automático.
+- Verificar que la descripción ajustada se guarda en el pedido.
 - Verificar que se crea pedido con `solicitud_id`.
 - Verificar que la solicitud queda `convertida`.
 - Verificar que se guarda `converted_order_id`.

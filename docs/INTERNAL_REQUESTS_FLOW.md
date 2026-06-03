@@ -15,7 +15,9 @@ conceptualmente en `docs/PUBLIC_REQUEST_FLOW.md`. Al enviarse:
 - quedan disponibles para revisión interna desde el dashboard;
 - no se convierten automáticamente en pedidos.
 
-La conversión a pedido queda reservada para una fase posterior.
+La conversión a pedido se realiza manualmente desde el detalle interno cuando la
+solicitud está aprobada, tiene cliente asociado y el usuario interno define el
+título operativo real del pedido.
 
 ## Ruta interna principal
 
@@ -48,7 +50,7 @@ El listado:
 - permite filtrar por estado;
 - no consulta Supabase desde componentes cliente.
 
-`quantity` fue eliminado de solicitudes. El detalle de cantidades, medidas o requisitos debe revisarse en `description` o `notes`. No se modifica la lógica de pedidos ni la conversión a pedido en esta fase puente; el título obligatorio de conversión queda para una subfase posterior.
+`quantity` fue eliminado de solicitudes. El detalle de cantidades, medidas o requisitos debe revisarse en `description` o `notes`. `service_type` es solo una referencia inicial elegida por el cliente, no el título automático del pedido.
 
 ## Filtro por estado
 
@@ -83,8 +85,10 @@ El detalle:
 - muestra datos completos de la solicitud;
 - muestra archivos privados asociados a la solicitud;
 - no permite edición completa;
-- no convierte a pedido;
+- permite convertir a pedido solo si la solicitud está aprobada y tiene cliente asociado;
 - no permite eliminar archivos.
+
+La sección de conversión exige un `title` obligatorio para el pedido. También permite ajustar la descripción operativa del pedido a partir de la descripción original de la solicitud. El formulario no acepta `cliente_id`, `status`, `converted_order_id`, `created_by` ni `order_number`.
 
 ## Archivos de solicitud
 
@@ -162,8 +166,7 @@ En Fase 6.3 solo se pueden establecer manualmente:
 - `rechazada`
 
 `convertida` no puede establecerse manualmente. Ese estado queda reservado para
-el flujo formal de conversión a pedido, que será implementado en una fase
-posterior.
+el flujo formal de conversión a pedido.
 
 ## Permisos
 
@@ -177,6 +180,7 @@ Permisos usados:
 
 - `solicitudes.view`: lectura de listado y detalle.
 - `solicitudes.manage`: cambio manual de estado.
+- `pedidos.manage`: conversión de solicitud aprobada a pedido.
 
 El modelo completo de permisos se documenta conceptualmente en
 `docs/PERMISSIONS_MODEL.md`.
@@ -215,7 +219,6 @@ Las policies existentes permiten:
 
 ## Qué NO incluye esta fase
 
-- Conversión de solicitud a pedido.
 - Gestión real de clientes.
 - Eliminación de archivos adjuntos.
 - Historial avanzado de cambios.
@@ -223,6 +226,8 @@ Las policies existentes permiten:
 - Notificaciones.
 - Reglas estrictas de transición de estados.
 - Asignación de personal a pedidos.
+- Pedidos manuales sin cliente asociado.
+- Tareas de pedido.
 - Generación de presupuestos.
 
 ## Consideraciones futuras
@@ -233,7 +238,8 @@ Más adelante se podrá:
 - registrar historial detallado;
 - agregar comentarios internos;
 - asociar solicitud a cliente existente;
-- convertir solicitud aprobada en pedido;
+- permitir pedidos manuales sin cliente asociado si se define el modelo;
+- implementar tareas de pedido;
 - permitir eliminación controlada de archivos privados si se define;
 - notificar al equipo interno;
 - generar códigos humanos de referencia.
@@ -260,6 +266,10 @@ El diseño del dashboard operativo para la Fase 13 se documenta en `docs/DASHBOA
 - Un intento manipulado de enviar `convertida` falla server-side.
 - En Supabase Studio, `reviewed_by` se actualiza al cambiar estado.
 - `converted_order_id` no se modifica durante cambios manuales de estado.
+- Convertir una solicitud aprobada con cliente asociado exige título del pedido.
+- Intentar convertir sin título muestra error.
+- Confirmar que el pedido creado usa el título escrito, no `service_type`.
+- Confirmar que la descripción del pedido se guarda correctamente.
 
 ## Cierre
 

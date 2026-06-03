@@ -30,7 +30,9 @@ La action `createPedidoAction` lee únicamente `cliente_id`, `title`, `descripti
 
 `createPedidoFromSolicitud` convierte una solicitud aprobada en pedido desde el detalle de solicitud.
 
-La action del detalle de solicitud lee únicamente `solicitud_id`. El servicio requiere `solicitudes.manage` y `pedidos.manage`, exige estado `aprobada`, exige `cliente_id`, evita solicitudes ya convertidas, crea el pedido con `solicitud_id`, usa estado inicial `solicitud_recibida` y actualiza la solicitud a `convertida` con `converted_order_id`.
+La action del detalle de solicitud lee únicamente `solicitud_id`, `title` y `description`. El servicio requiere `solicitudes.manage` y `pedidos.manage`, exige estado `aprobada`, exige `cliente_id`, evita solicitudes ya convertidas, valida `title` y `description`, crea el pedido con `solicitud_id`, usa estado inicial `solicitud_recibida` y actualiza la solicitud a `convertida` con `converted_order_id`.
+
+`service_type` es solo referencia inicial de la solicitud y no se usa como título automático. El usuario interno debe definir el título real del pedido y puede ajustar la descripción operativa antes de convertir. La conversión no acepta `order_number`, `status`, `cliente_id`, `created_by` ni `converted_order_id` desde el formulario.
 
 ## Cambio de Estado
 
@@ -129,4 +131,4 @@ Los archivos heredados desde solicitudes con `visibility = "cliente_solicitud"` 
 
 ## Fuera de Esta Subfase
 
-La edición general, la eliminación, notificaciones, comentarios de solicitudes e historial avanzado quedan para próximas subfases.
+La edición general, la eliminación, notificaciones, pedidos manuales sin cliente, tareas de pedido e historial avanzado quedan para próximas subfases.

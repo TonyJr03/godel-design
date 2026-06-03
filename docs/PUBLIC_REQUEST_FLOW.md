@@ -127,7 +127,7 @@ Responsabilidades:
 
 Desde Fase 11.7B, la inserción de la solicitud registra automáticamente el evento `solicitud_creada` en `solicitud_historial`. Como el flujo es público, normalmente queda con `actor_id = null` y metadata mínima no sensible.
 
-La conversión con título obligatorio para el pedido se hará en una subfase posterior. En esta fase puente no se modifica la lógica de pedidos.
+La conversión interna a pedido exige que el equipo defina un título operativo real. `service_type` queda como referencia inicial del cliente, no como título automático del pedido.
 
 ## Decisión sobre clientes
 

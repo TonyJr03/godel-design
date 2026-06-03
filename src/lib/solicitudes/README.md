@@ -70,7 +70,7 @@ Una solicitud aprobada con cliente asociado puede convertirse en pedido desde el
 
 El estado `convertida` no se establece manualmente desde el selector de estado. Se establece mediante el flujo formal de conversión, que crea un pedido, relaciona `pedidos.solicitud_id`, actualiza `solicitudes.converted_order_id` y deja la solicitud en estado `convertida`.
 
-La conversión con título obligatorio para el pedido queda para una subfase posterior. Esta fase puente no modifica la lógica de pedidos.
+La conversión exige que el usuario interno defina un `title` obligatorio para el pedido. `service_type` queda como referencia inicial del cliente y no se usa como título automático. La descripción del pedido se puede ajustar desde la descripción original de la solicitud antes de crear el pedido.
 
 ## Asociación solicitud-cliente
 

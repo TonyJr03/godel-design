@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
-import { createPedidoFromSolicitud } from "@/lib/pedidos";
+import {
+  createPedidoFromSolicitud,
+  type CreatePedidoFromSolicitudFieldErrors,
+} from "@/lib/pedidos";
 import { isValidUuid } from "@/lib/validators";
 import {
   associateSolicitudWithCliente,
@@ -31,6 +34,11 @@ export type CreateClienteFromSolicitudActionState = {
 export type ConvertSolicitudToPedidoActionState = {
   ok: boolean;
   message: string;
+  fieldErrors?: CreatePedidoFromSolicitudFieldErrors;
+  values?: {
+    title: string;
+    description: string;
+  };
   pedidoId?: string;
   numeroPedido?: string;
 };
@@ -161,12 +169,23 @@ export async function convertSolicitudToPedidoAction(
   formData: FormData,
 ): Promise<ConvertSolicitudToPedidoActionState> {
   const solicitudId = getFormValue(formData, "solicitud_id");
-  const result = await createPedidoFromSolicitud({ solicitudId });
+  const title = getFormValue(formData, "title");
+  const description = getFormValue(formData, "description");
+  const result = await createPedidoFromSolicitud({
+    solicitudId,
+    title,
+    description,
+  });
 
   if (!result.ok) {
     return {
       ok: false,
       message: result.message,
+      fieldErrors: result.fieldErrors,
+      values: result.values ?? {
+        title,
+        description,
+      },
     };
   }
 

@@ -6,17 +6,36 @@ import {
   type ServiceResult,
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
-import { isValidUuid } from "@/lib/validators";
+import {
+  hasFieldErrors,
+  isValidUuid,
+  normalizeMultilineText,
+  normalizeSingleLineText,
+} from "@/lib/validators";
 import type { Enums, Tables, TablesInsert } from "@/types/database";
 import { generatePedidoNumber } from "./order-number";
 
 export type CreatePedidoFromSolicitudInput = {
   solicitudId: string;
+  title?: string | null;
+  description?: string | null;
+};
+
+export type CreatePedidoFromSolicitudField = "title" | "description";
+
+export type CreatePedidoFromSolicitudFieldErrors = Partial<
+  Record<CreatePedidoFromSolicitudField, string>
+>;
+
+export type CreatePedidoFromSolicitudValues = {
+  title: string;
+  description: string;
 };
 
 export type CreatePedidoFromSolicitudErrorReason =
   | "unauthorized"
   | "forbidden"
+  | "validation"
   | "invalid_id"
   | "not_found"
   | "not_approved"
@@ -30,7 +49,9 @@ export type CreatePedidoFromSolicitudResult = ServiceResult<
     pedidoId: string;
     numeroPedido: string;
   },
-  CreatePedidoFromSolicitudErrorReason
+  CreatePedidoFromSolicitudErrorReason,
+  { values?: CreatePedidoFromSolicitudValues },
+  CreatePedidoFromSolicitudFieldErrors
 >;
 
 type SolicitudConvertible = Pick<
@@ -38,7 +59,6 @@ type SolicitudConvertible = Pick<
   | "id"
   | "cliente_id"
   | "converted_order_id"
-  | "service_type"
   | "description"
   | "status"
   | "desired_date"
@@ -49,9 +69,38 @@ const INITIAL_CONVERTED_PEDIDO_ESTADO: Enums<"pedido_estado"> =
 const DEFAULT_CONVERTED_PEDIDO_PRIORIDAD: Enums<"pedido_prioridad"> = "normal";
 const GENERIC_CONVERT_ERROR =
   "No se pudo convertir la solicitud en pedido. Inténtalo nuevamente.";
+const FIELD_LIMITS = {
+  title: 160,
+  description: 3000,
+} as const;
 
 function isDuplicateSolicitudPedidoError(error: { code?: string } | null) {
   return error?.code === "23505";
+}
+
+function validateConversionText(input: CreatePedidoFromSolicitudInput) {
+  const title = normalizeSingleLineText(input.title);
+  const description = normalizeMultilineText(input.description);
+  const fieldErrors: CreatePedidoFromSolicitudFieldErrors = {};
+  const values = { title, description };
+
+  if (!title) {
+    fieldErrors.title = "El título del pedido es obligatorio.";
+  } else if (title.length > FIELD_LIMITS.title) {
+    fieldErrors.title = `El título no puede superar ${FIELD_LIMITS.title} caracteres.`;
+  }
+
+  if (!description) {
+    fieldErrors.description = "La descripción del pedido es obligatoria.";
+  } else if (description.length > FIELD_LIMITS.description) {
+    fieldErrors.description = `La descripción no puede superar ${FIELD_LIMITS.description} caracteres.`;
+  }
+
+  return {
+    ok: !hasFieldErrors(fieldErrors),
+    fieldErrors,
+    values,
+  };
 }
 
 export async function createPedidoFromSolicitud(
@@ -82,13 +131,22 @@ export async function createPedidoFromSolicitud(
     );
   }
 
+  const validation = validateConversionText(input);
+
+  if (!validation.ok) {
+    return serviceFailure("validation", "Revisa los datos del pedido.", {
+      fieldErrors: validation.fieldErrors,
+      values: validation.values,
+    });
+  }
+
   const supabase = await createClient();
 
   try {
     const { data: solicitud, error: solicitudError } = await supabase
       .from("solicitudes")
       .select(
-        "id, cliente_id, converted_order_id, service_type, description, status, desired_date",
+        "id, cliente_id, converted_order_id, description, status, desired_date",
       )
       .eq("id", solicitudId)
       .maybeSingle<SolicitudConvertible>();
@@ -131,8 +189,8 @@ export async function createPedidoFromSolicitud(
       order_number: generatePedidoNumber(),
       cliente_id: solicitud.cliente_id,
       solicitud_id: solicitud.id,
-      title: solicitud.service_type,
-      description: solicitud.description,
+      title: validation.values.title,
+      description: validation.values.description,
       status: INITIAL_CONVERTED_PEDIDO_ESTADO,
       priority: DEFAULT_CONVERTED_PEDIDO_PRIORIDAD,
       estimated_delivery_date: solicitud.desired_date,

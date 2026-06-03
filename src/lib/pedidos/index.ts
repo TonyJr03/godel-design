@@ -24,6 +24,7 @@ export {
 export {
   createPedidoFromSolicitud,
   type CreatePedidoFromSolicitudErrorReason,
+  type CreatePedidoFromSolicitudFieldErrors,
   type CreatePedidoFromSolicitudInput,
   type CreatePedidoFromSolicitudResult,
 } from "./create-pedido-from-solicitud";

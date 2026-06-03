@@ -193,7 +193,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 - Al convertirse, el estado debería pasar a `convertida` y registrar el pedido generado.
 - `quantity` fue eliminado del modelo de solicitudes. Las cantidades, medidas y requisitos se deben explicar dentro de `description` o `notes`.
 - `service_type` sigue siendo una referencia inicial del tipo de trabajo solicitado.
-- La conversión con título obligatorio para el pedido queda para una subfase posterior; pedidos no se ajusta en esta fase puente.
+- La conversión a pedido exige un `title` obligatorio definido por el usuario interno; `service_type` no se usa como título automático.
 
 **Notas de seguridad:**
 
