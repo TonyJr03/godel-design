@@ -4,9 +4,6 @@ import type { PedidoPriority, PedidoStatus } from "./status";
 export const PEDIDO_STATUS_LABELS: Record<PedidoStatus, string> = {
   solicitud_recibida: "Solicitud recibida",
   en_revision: "En revisión",
-  cotizado: "Cotizado",
-  aprobado_cliente: "Aprobado por cliente",
-  en_diseno: "En diseño",
   en_produccion: "En producción",
   listo_entrega: "Listo para entrega",
   entregado: "Entregado",

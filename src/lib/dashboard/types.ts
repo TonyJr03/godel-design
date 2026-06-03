@@ -18,7 +18,6 @@ export type ManagementDashboardMetrics = {
   solicitudesPendientes: number;
   solicitudesAprobadasPendientesConvertir: number;
   pedidosActivos: number;
-  pedidosEnDiseno: number;
   pedidosEnProduccion: number;
   pedidosListosEntrega: number;
   pedidosAtrasados: number;
@@ -28,7 +27,6 @@ export type ManagementDashboardMetrics = {
 
 export type WorkerDashboardMetrics = {
   pedidosAsignadosActivos: number;
-  pedidosAsignadosEnDiseno: number;
   pedidosAsignadosEnProduccion: number;
   pedidosAsignadosListosEntrega: number;
   pedidosAsignadosAtrasados: number;

@@ -596,9 +596,6 @@ export type Database = {
       pedido_estado:
         | "solicitud_recibida"
         | "en_revision"
-        | "cotizado"
-        | "aprobado_cliente"
-        | "en_diseno"
         | "en_produccion"
         | "listo_entrega"
         | "entregado"
@@ -765,9 +762,6 @@ export const Constants = {
       pedido_estado: [
         "solicitud_recibida",
         "en_revision",
-        "cotizado",
-        "aprobado_cliente",
-        "en_diseno",
         "en_produccion",
         "listo_entrega",
         "entregado",

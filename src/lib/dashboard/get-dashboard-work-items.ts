@@ -81,11 +81,7 @@ function getPedidoAttentionRank(
     return 2;
   }
 
-  if (pedido.status === "en_diseno") {
-    return 3;
-  }
-
-  return 4;
+  return 3;
 }
 
 function sortPendingSolicitudes(

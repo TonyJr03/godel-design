@@ -99,7 +99,6 @@ Métricas esenciales para MVP:
 - solicitudes en revisión;
 - solicitudes aprobadas pendientes de convertir;
 - pedidos activos;
-- pedidos en diseño;
 - pedidos en producción;
 - pedidos listos para entrega;
 - pedidos atrasados;
@@ -146,7 +145,6 @@ El trabajador debe ver una pantalla centrada en su trabajo asignado. No debe rec
 Métricas esenciales para MVP:
 
 - pedidos asignados activos;
-- pedidos asignados en diseño;
 - pedidos asignados en producción;
 - pedidos asignados listos para entrega;
 - pedidos asignados atrasados;
@@ -193,11 +191,12 @@ Definición sugerida de estados:
 | Solicitudes pendientes | `nueva`, `en_revision`, `contactada` |
 | Solicitudes aprobadas pendientes de convertir | `aprobada` con `converted_order_id` nulo |
 | Pedidos activos | todos salvo `entregado` y `cancelado` |
-| Pedidos en diseño | `en_diseno` |
 | Pedidos en producción | `en_produccion` |
 | Pedidos listos | `listo_entrega` |
 | Pedidos atrasados | `estimated_delivery_date` vencida y estado distinto de `entregado` o `cancelado` |
 | Próximos vencimientos | `estimated_delivery_date` dentro de una ventana corta y estado activo |
+
+El diseño, impresión, encuadernado y demás avances internos se modelarán como tareas de pedido en una subfase posterior. El dashboard no debe depender todavía de reglas de progreso por tareas.
 
 ## Métricas futuras
 
@@ -279,7 +278,7 @@ Responsabilidades sugeridas:
 
 Queda fuera del alcance actual:
 
-- modificar migraciones;
+- crear migraciones nuevas;
 - modificar RLS;
 - cambiar la matriz de permisos;
 - usar service role key;

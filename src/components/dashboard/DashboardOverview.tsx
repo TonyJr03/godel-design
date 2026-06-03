@@ -43,11 +43,6 @@ function getManagementCards(
       description: "Pedidos abiertos, sin contar entregados ni cancelados.",
     },
     {
-      title: "En diseño",
-      value: metrics.pedidosEnDiseno,
-      description: "Pedidos actualmente en fase de diseño.",
-    },
-    {
       title: "En producción",
       value: metrics.pedidosEnProduccion,
       description: "Pedidos actualmente en fase de producción.",
@@ -88,11 +83,6 @@ function getWorkerCards(
       title: "Asignados activos",
       value: metrics.pedidosAsignadosActivos,
       description: "Tus pedidos abiertos, sin entregados ni cancelados.",
-    },
-    {
-      title: "En diseño",
-      value: metrics.pedidosAsignadosEnDiseno,
-      description: "Tus pedidos asignados que están en diseño.",
     },
     {
       title: "En producción",

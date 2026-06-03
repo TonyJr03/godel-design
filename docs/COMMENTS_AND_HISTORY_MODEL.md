@@ -467,7 +467,7 @@ Eventos mínimos:
 | `archivo_subido` | Se sube archivo de pedido. | archivo, categoría, usuario. |
 | `nota_agregada` | Se crea comentario interno de pedido. | comentario, autor. |
 
-La RPC actual ya cubre cambios de estado de pedido. Los demás eventos todavía no están conectados a acciones o servicios.
+La RPC actual ya cubre cambios de estado de pedido con el enum simplificado de fases generales. Los demás eventos todavía no están conectados a acciones o servicios.
 
 ### Solicitudes
 

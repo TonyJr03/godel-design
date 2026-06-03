@@ -101,15 +101,14 @@ Las tablas oficiales normalizadas para comentarios e historial de pedidos son `p
 |---|---|
 | `solicitud_recibida` | Pedido creado desde una solicitud, pendiente de revisión operativa. |
 | `en_revision` | Pedido en revisión interna. |
-| `cotizado` | Pedido cotizado. |
-| `aprobado_cliente` | Pedido aprobado por el cliente. |
-| `en_diseno` | Trabajo en fase de diseño. |
 | `en_produccion` | Trabajo en fase de producción. |
 | `listo_entrega` | Pedido listo para entregar. |
 | `entregado` | Pedido entregado. |
 | `cancelado` | Pedido cancelado. |
 
-Un pedido manual inicia en `en_revision`. Un pedido convertido desde solicitud inicia en `solicitud_recibida`. El cambio de estado se realiza desde el detalle de pedido. Un trabajador solo puede cambiar el estado si está asignado al pedido.
+Un pedido manual inicia en `en_revision`. Un pedido convertido desde solicitud inicia en `solicitud_recibida`. El flujo general esperado es `solicitud_recibida` -> `en_revision` -> `en_produccion` -> `listo_entrega` -> `entregado` para pedidos convertidos y `en_revision` -> `en_produccion` -> `listo_entrega` -> `entregado` para pedidos manuales. `cancelado` funciona como salida lateral.
+
+Los estados de pedido representan solo la fase general del flujo operativo. El progreso real de diseño, impresión, encuadernado u otras tareas se modelará después con tareas de pedido; esta fase no bloquea cambios de estado por avance de tareas.
 
 ## Listado interno
 
@@ -243,7 +242,7 @@ Archivos principales:
 - Estados: `src/lib/pedidos/status.ts`
 - RPC: `public.actualizar_estado_pedido`
 
-La action solo acepta `pedido_id` y `status`. El estado se valida server-side contra el enum real. La actualización usa la RPC segura `public.actualizar_estado_pedido`, que evita abrir un `UPDATE` amplio sobre `pedidos` para trabajadores.
+La action solo acepta `pedido_id` y `status`. El estado se valida server-side contra el enum real simplificado. La actualización usa la RPC segura `public.actualizar_estado_pedido`, que evita abrir un `UPDATE` amplio sobre `pedidos` para trabajadores.
 
 Un trabajador solo puede cambiar el estado de pedidos asignados. Con múltiples usuarios asignados, cualquier trabajador que tenga una fila en `pedido_trabajadores` para ese pedido puede cambiar el estado; un trabajador no asignado no pasa la validación. `admin` y `supervisor` mantienen su permiso global aunque estén asignados operativamente a un pedido.
 
@@ -300,6 +299,7 @@ Aclaraciones:
 - reportes;
 - facturación;
 - múltiples responsables avanzados;
+- tareas de pedido;
 - reglas automáticas complejas de transición de estados.
 
 ## Consideraciones futuras
@@ -331,8 +331,10 @@ El diseño del dashboard operativo para la Fase 13 se documenta en `docs/DASHBOA
 - Crear pedido manual con cliente registrado.
 - Crear pedido manual con `Sin cliente asociado`.
 - Verificar que el pedido manual tiene `solicitud_id = null`.
+- Verificar que el pedido manual inicia en `en_revision`.
 - Verificar que lista, detalle y dashboard muestran `Sin cliente asociado` cuando `cliente_id = null`.
 - Convertir una solicitud aprobada con cliente.
+- Verificar que el pedido convertido inicia en `solicitud_recibida`.
 - Verificar que la conversión exige título.
 - Verificar que el pedido convertido no usa `service_type` como título automático.
 - Verificar que la descripción ajustada se guarda en el pedido.
@@ -343,6 +345,12 @@ El diseño del dashboard operativo para la Fase 13 se documenta en `docs/DASHBOA
 - Cambiar estado como `admin`.
 - Cambiar estado como `supervisor`.
 - Cambiar estado como trabajador asignado.
+- Cambiar estado entre `solicitud_recibida`, `en_revision`, `en_produccion`, `listo_entrega`, `entregado` y `cancelado`.
+- Confirmar que el selector no muestra estados eliminados.
+- Confirmar que listados y filtros no muestran estados eliminados.
+- Confirmar que el dashboard no muestra tarjeta de diseño.
+- Confirmar que las métricas de activos, producción, listos, atrasados y próximos a entrega funcionan.
+- Confirmar que el historial registra cambios de estado con etiquetas vigentes.
 - Verificar que un trabajador no cambia un pedido no asignado.
 - Asignar personal como `admin` o `supervisor`.
 - Verificar que se puede asignar un `admin`, un `supervisor` y un `trabajador` activos.

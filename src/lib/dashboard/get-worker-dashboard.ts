@@ -37,9 +37,6 @@ function buildWorkerMetrics(
     pedidosAsignadosActivos: pedidos.filter((pedido) =>
       isPedidoActivo(pedido.status as PedidoEstado),
     ).length,
-    pedidosAsignadosEnDiseno: pedidos.filter(
-      (pedido) => pedido.status === "en_diseno",
-    ).length,
     pedidosAsignadosEnProduccion: pedidos.filter(
       (pedido) => pedido.status === "en_produccion",
     ).length,

@@ -37,7 +37,6 @@ async function getManagementDashboardSummary(
       solicitudesPendientes,
       solicitudesAprobadasPendientesConvertir,
       pedidosActivos,
-      pedidosEnDiseno,
       pedidosEnProduccion,
       pedidosListosEntrega,
       pedidosAtrasados,
@@ -73,13 +72,6 @@ async function getManagementDashboardSummary(
           .select("id", { count: "exact", head: true })
           .neq("status", "entregado")
           .neq("status", "cancelado"),
-      ),
-      resolveCount(
-        "pedidos en diseño",
-        supabase
-          .from("pedidos")
-          .select("id", { count: "exact", head: true })
-          .eq("status", "en_diseno"),
       ),
       resolveCount(
         "pedidos en producción",
@@ -133,7 +125,6 @@ async function getManagementDashboardSummary(
           solicitudesPendientes,
           solicitudesAprobadasPendientesConvertir,
           pedidosActivos,
-          pedidosEnDiseno,
           pedidosEnProduccion,
           pedidosListosEntrega,
           pedidosAtrasados,

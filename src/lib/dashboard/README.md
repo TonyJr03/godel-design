@@ -28,7 +28,6 @@ Los loaders internos no se exportan desde el barrel del módulo. La API pública
 - Solicitudes pendientes (`nueva`, `en_revision`, `contactada`).
 - Solicitudes aprobadas pendientes de convertir.
 - Pedidos activos.
-- Pedidos en diseño.
 - Pedidos en producción.
 - Pedidos listos para entrega.
 - Pedidos atrasados.
@@ -38,7 +37,6 @@ Los loaders internos no se exportan desde el barrel del módulo. La API pública
 ## Métricas de trabajador
 
 - Pedidos asignados activos.
-- Pedidos asignados en diseño.
 - Pedidos asignados en producción.
 - Pedidos asignados listos para entrega.
 - Pedidos asignados atrasados.
@@ -86,6 +84,6 @@ La actividad reciente usa resúmenes construidos de forma controlada. No se mues
 - Reportes avanzados.
 - Notificaciones.
 - Exportaciones.
-- Cambios de RLS o migraciones.
+- Cambios de RLS o migraciones nuevas.
 
 La UI implementada se limita a tarjetas de resumen, paneles operativos simples y actividad reciente mínima. Actividad reciente avanzada, gráficos, reportes avanzados, exportaciones y notificaciones quedan para fases posteriores.
