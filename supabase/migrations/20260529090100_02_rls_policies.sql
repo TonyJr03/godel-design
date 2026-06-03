@@ -291,6 +291,7 @@ grant select, insert, update, delete on table
   public.solicitudes,
   public.pedidos,
   public.pedido_trabajadores,
+  public.pedido_tareas,
   public.archivos
 to authenticated;
 
@@ -309,6 +310,9 @@ from public, anon;
 
 revoke all on type public.solicitud_historial_action from public, anon;
 grant usage on type public.solicitud_historial_action to authenticated;
+
+revoke all on type public.pedido_tarea_tipo from public, anon;
+grant usage on type public.pedido_tarea_tipo to authenticated;
 
 create policy perfiles_select_visible
 on public.perfiles
@@ -512,6 +516,52 @@ to authenticated
 using (
   (select auth.uid()) is not null
   and private.is_admin_or_supervisor()
+);
+
+create policy pedido_tareas_select_accessible
+on public.pedido_tareas
+for select
+to authenticated
+using (
+  (select auth.uid()) is not null
+  and private.current_user_is_active()
+  and private.can_access_pedido(pedido_id)
+);
+
+create policy pedido_tareas_insert_accessible
+on public.pedido_tareas
+for insert
+to authenticated
+with check (
+  (select auth.uid()) is not null
+  and private.current_user_is_active()
+  and private.can_access_pedido(pedido_id)
+  and created_by = (select auth.uid())
+);
+
+create policy pedido_tareas_update_accessible
+on public.pedido_tareas
+for update
+to authenticated
+using (
+  (select auth.uid()) is not null
+  and private.current_user_is_active()
+  and private.can_access_pedido(pedido_id)
+)
+with check (
+  (select auth.uid()) is not null
+  and private.current_user_is_active()
+  and private.can_access_pedido(pedido_id)
+);
+
+create policy pedido_tareas_delete_accessible
+on public.pedido_tareas
+for delete
+to authenticated
+using (
+  (select auth.uid()) is not null
+  and private.current_user_is_active()
+  and private.can_access_pedido(pedido_id)
 );
 
 create policy archivos_select_accessible

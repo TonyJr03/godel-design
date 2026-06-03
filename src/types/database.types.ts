@@ -193,6 +193,86 @@ export type Database = {
           },
         ]
       }
+      pedido_tareas: {
+        Row: {
+          completed_at: string | null
+          completed_by: string | null
+          completed_quantity: number | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_completed: boolean
+          pedido_id: string
+          sort_order: number
+          target_quantity: number | null
+          task_type: Database["public"]["Enums"]["pedido_tarea_tipo"]
+          title: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_by?: string | null
+          completed_quantity?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_completed?: boolean
+          pedido_id: string
+          sort_order?: number
+          target_quantity?: number | null
+          task_type: Database["public"]["Enums"]["pedido_tarea_tipo"]
+          title: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          completed_by?: string | null
+          completed_quantity?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_completed?: boolean
+          pedido_id?: string
+          sort_order?: number
+          target_quantity?: number | null
+          task_type?: Database["public"]["Enums"]["pedido_tarea_tipo"]
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pedido_tareas_completed_by_fkey"
+            columns: ["completed_by"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedido_tareas_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedido_tareas_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedido_tareas_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pedido_trabajadores: {
         Row: {
           assigned_at: string
@@ -610,7 +690,14 @@ export type Database = {
         | "fecha_entrega_actualizada"
         | "pedido_entregado"
         | "pedido_cancelado"
+        | "tarea_creada"
+        | "tarea_actualizada"
+        | "tarea_eliminada"
+        | "tarea_completada"
+        | "tarea_reabierta"
+        | "tarea_progreso_actualizado"
       pedido_prioridad: "baja" | "normal" | "alta" | "urgente"
+      pedido_tarea_tipo: "simple" | "cuantificada"
       solicitud_estado:
         | "nueva"
         | "en_revision"
@@ -777,8 +864,15 @@ export const Constants = {
         "fecha_entrega_actualizada",
         "pedido_entregado",
         "pedido_cancelado",
+        "tarea_creada",
+        "tarea_actualizada",
+        "tarea_eliminada",
+        "tarea_completada",
+        "tarea_reabierta",
+        "tarea_progreso_actualizado",
       ],
       pedido_prioridad: ["baja", "normal", "alta", "urgente"],
+      pedido_tarea_tipo: ["simple", "cuantificada"],
       solicitud_estado: [
         "nueva",
         "en_revision",

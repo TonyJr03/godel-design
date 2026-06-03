@@ -46,6 +46,16 @@ La RPC permite a `admin` y `supervisor` cambiar cualquier pedido y a `trabajador
 
 Un `admin` o `supervisor` asignado a un pedido conserva sus permisos reales. La asignación operativa no cambia roles ni permisos, y un trabajador no asignado no puede cambiar el estado porque no pasa la validación de acceso del servicio ni la validación de la RPC.
 
+## Modelo de Tareas
+
+La base de datos incluye `public.pedido_tareas` para modelar el progreso operativo real del pedido. Las tareas pueden ser `simple` o `cuantificada` mediante el enum `public.pedido_tarea_tipo`.
+
+Las tareas simples no guardan cantidades. Las tareas cuantificadas requieren `target_quantity`, `completed_quantity >= 0` y avance menor o igual que la cantidad objetivo. La detección automática de tipo por números en el título se implementará en TypeScript en una subfase posterior.
+
+RLS permite gestionar tareas a `admin`, `supervisor` y personal asignado al pedido mediante `private.can_access_pedido(pedido_id)`. La inserción exige `created_by = auth.uid()` para trazabilidad.
+
+Esta subfase no implementa servicios TypeScript, acciones, formularios, listado ni reglas de cambio de estado basadas en progreso de tareas.
+
 ## Asignación de Personal
 
 `/dashboard/pedidos/[id]` incluye `PedidoWorkerAssignmentForm` para mostrar el personal asignado. Los usuarios con `pedidos.manage` ven controles para agregar y remover asignaciones; `trabajador` lo ve en modo lectura.
@@ -107,7 +117,8 @@ Desde Fase 11.7A, la base de datos registra automáticamente estos eventos de pe
 - `pedido_creado` al insertar en `pedidos`;
 - `trabajador_asignado` al insertar en `pedido_trabajadores`;
 - `trabajador_removido` al eliminar de `pedido_trabajadores`;
-- `archivo_subido` al insertar en `archivos` con categoría propia de pedido.
+- `archivo_subido` al insertar en `archivos` con categoría propia de pedido;
+- eventos de tarea al crear, actualizar, eliminar, completar, reabrir o actualizar progreso en `pedido_tareas`.
 
 Los archivos heredados desde solicitudes con `visibility = "cliente_solicitud"` no generan `archivo_subido` del pedido. El historial automático de solicitudes queda fuera de esta subfase.
 
@@ -121,11 +132,13 @@ Los archivos heredados desde solicitudes con `visibility = "cliente_solicitud"` 
 - `admin` y `supervisor` pueden asignar o remover personal interno activo de un pedido.
 - `admin` y `supervisor` pueden ver y agregar comentarios internos en cualquier pedido.
 - `admin` y `supervisor` pueden ver historial interno de cualquier pedido.
+- `admin` y `supervisor` pueden gestionar tareas de cualquier pedido.
 - `admin` o `supervisor` asignados a un pedido siguen conservando sus permisos reales.
 - `trabajador` ve solo pedidos asignados mediante `pedido_trabajadores`.
 - `trabajador` solo puede ver el detalle si está asignado al pedido.
 - `trabajador` puede ver cliente y solicitud asociados a pedidos asignados.
 - `trabajador` puede cambiar el estado solo de pedidos asignados.
+- `trabajador` puede gestionar tareas solo de pedidos asignados.
 - `trabajador` puede ver y agregar comentarios internos solo en pedidos asignados.
 - `trabajador` puede ver historial interno solo de pedidos asignados.
 - `trabajador` no puede crear, convertir, asignar ni remover asignaciones de pedidos.
@@ -133,4 +146,4 @@ Los archivos heredados desde solicitudes con `visibility = "cliente_solicitud"` 
 
 ## Fuera de Esta Subfase
 
-La edición general, la eliminación, notificaciones, tareas de pedido, reglas de progreso por tareas e historial avanzado quedan para próximas subfases.
+La edición general, la eliminación, notificaciones, UI de tareas, servicios TypeScript de tareas, reglas de progreso por tareas e historial avanzado quedan para próximas subfases.

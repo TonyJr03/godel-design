@@ -35,6 +35,11 @@ create type public.pedido_prioridad as enum (
   'urgente'
 );
 
+create type public.pedido_tarea_tipo as enum (
+  'simple',
+  'cuantificada'
+);
+
 create type public.archivo_visibility as enum (
   'cliente_solicitud',
   'interno_pedido',
@@ -51,7 +56,13 @@ create type public.pedido_historial_action as enum (
   'nota_agregada',
   'fecha_entrega_actualizada',
   'pedido_entregado',
-  'pedido_cancelado'
+  'pedido_cancelado',
+  'tarea_creada',
+  'tarea_actualizada',
+  'tarea_eliminada',
+  'tarea_completada',
+  'tarea_reabierta',
+  'tarea_progreso_actualizado'
 );
 
 create type public.solicitud_historial_action as enum (
@@ -175,6 +186,60 @@ create table public.pedido_trabajadores (
   constraint pedido_trabajadores_unique_assignment unique (pedido_id, assigned_profile_id)
 );
 
+create table public.pedido_tareas (
+  id uuid primary key default gen_random_uuid(),
+  pedido_id uuid not null references public.pedidos(id) on delete cascade,
+  title text not null,
+  task_type public.pedido_tarea_tipo not null,
+  target_quantity integer,
+  completed_quantity integer,
+  is_completed boolean not null default false,
+  sort_order integer not null default 0,
+  created_by uuid references public.perfiles(id) on delete set null,
+  updated_by uuid references public.perfiles(id) on delete set null,
+  completed_by uuid references public.perfiles(id) on delete set null,
+  completed_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint pedido_tareas_title_not_empty check (length(btrim(title)) > 0),
+  constraint pedido_tareas_sort_order_non_negative check (sort_order >= 0),
+  constraint pedido_tareas_simple_quantity_check check (
+    task_type <> 'simple'::public.pedido_tarea_tipo
+    or (
+      target_quantity is null
+      and completed_quantity is null
+    )
+  ),
+  constraint pedido_tareas_quantified_quantity_check check (
+    task_type <> 'cuantificada'::public.pedido_tarea_tipo
+    or (
+      target_quantity is not null
+      and target_quantity > 0
+      and completed_quantity is not null
+      and completed_quantity >= 0
+    )
+  ),
+  constraint pedido_tareas_completed_quantity_valid check (
+    task_type <> 'cuantificada'::public.pedido_tarea_tipo
+    or completed_quantity <= target_quantity
+  ),
+  constraint pedido_tareas_completed_state_check check (
+    not is_completed
+    or (
+      completed_at is not null
+      and (
+        task_type = 'simple'::public.pedido_tarea_tipo
+        or completed_quantity = target_quantity
+      )
+    )
+  )
+);
+
+create trigger set_pedido_tareas_updated_at
+before update on public.pedido_tareas
+for each row
+execute function public.set_updated_at();
+
 create table public.archivos (
   id uuid primary key default gen_random_uuid(),
   pedido_id uuid references public.pedidos(id) on delete cascade,
@@ -283,6 +348,15 @@ where solicitud_id is not null;
 
 create index pedido_trabajadores_assigned_profile_id_idx on public.pedido_trabajadores(assigned_profile_id);
 
+create index pedido_tareas_pedido_sort_order_idx
+on public.pedido_tareas(pedido_id, sort_order, created_at, id);
+
+create index pedido_tareas_pedido_created_at_idx
+on public.pedido_tareas(pedido_id, created_at desc);
+
+create index pedido_tareas_pedido_completed_idx
+on public.pedido_tareas(pedido_id, is_completed);
+
 create index archivos_pedido_visibility_created_at_idx
 on public.archivos(pedido_id, visibility, created_at desc, id desc);
 
@@ -321,6 +395,7 @@ alter table public.clientes enable row level security;
 alter table public.solicitudes enable row level security;
 alter table public.pedidos enable row level security;
 alter table public.pedido_trabajadores enable row level security;
+alter table public.pedido_tareas enable row level security;
 alter table public.archivos enable row level security;
 alter table public.pedido_comentarios enable row level security;
 alter table public.pedido_historial enable row level security;

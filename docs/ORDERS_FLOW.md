@@ -110,6 +110,17 @@ Un pedido manual inicia en `en_revision`. Un pedido convertido desde solicitud i
 
 Los estados de pedido representan solo la fase general del flujo operativo. El progreso real de diseño, impresión, encuadernado u otras tareas se modelará después con tareas de pedido; esta fase no bloquea cambios de estado por avance de tareas.
 
+## Modelo base de tareas
+
+La base de datos incluye `pedido_tareas` para representar el progreso operativo real de un pedido. Cada tarea pertenece a un pedido y puede ser:
+
+- `simple`: tarea sin cantidades.
+- `cuantificada`: tarea con `target_quantity` y `completed_quantity`.
+
+El usuario escribirá tareas en lenguaje normal. La detección automática de si una tarea es simple o cuantificada, según si contiene un número, se implementará desde TypeScript en una subfase posterior.
+
+En esta subfase no hay UI de tareas, servicios TypeScript de tareas ni integración entre progreso de tareas y cambio de estado. La tabla queda preparada con RLS e historial automático para que `admin`, `supervisor` y personal asignado puedan gestionar tareas de pedidos accesibles cuando se implemente la capa de aplicación.
+
 ## Listado interno
 
 Archivos principales:
@@ -299,7 +310,8 @@ Aclaraciones:
 - reportes;
 - facturación;
 - múltiples responsables avanzados;
-- tareas de pedido;
+- UI de tareas de pedido;
+- servicios TypeScript de tareas de pedido;
 - reglas automáticas complejas de transición de estados.
 
 ## Consideraciones futuras
@@ -357,6 +369,17 @@ El diseño del dashboard operativo para la Fase 13 se documenta en `docs/DASHBOA
 - Verificar que no se pueden asignar usuarios inactivos.
 - Verificar que el trabajador asignado ve el pedido.
 - Verificar que no se modifican solicitudes al cambiar estado o asignar personal.
+- Verificar en Supabase Studio que existe `pedido_tareas`.
+- Verificar que existe el enum `pedido_tarea_tipo`.
+- Verificar que `pedido_historial_action` incluye acciones de tareas.
+- Insertar manualmente una tarea simple válida.
+- Insertar manualmente una tarea cuantificada válida.
+- Verificar que una tarea simple con cantidades falla por constraint.
+- Verificar que una tarea cuantificada sin `target_quantity` falla.
+- Verificar que `completed_quantity > target_quantity` falla.
+- Confirmar historial al crear, actualizar progreso, completar, reabrir y eliminar tarea.
+- Confirmar que anónimo no accede a `pedido_tareas`.
+- Confirmar que RLS respeta acceso por pedido.
 
 ## Cierre
 

@@ -57,6 +57,13 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 | `alta` |
 | `urgente` |
 
+### `pedido_tarea_tipo`
+
+| Valor | Uso |
+|---|---|
+| `simple` | Tarea sin cantidades, como diseñar una pieza o revisar un archivo. |
+| `cuantificada` | Tarea con cantidad objetivo y avance numérico. |
+
 ### `archivo_visibility`
 
 | Valor | Uso |
@@ -269,6 +276,50 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 - Solo `admin` o `supervisor` deberían asignar o remover personal.
 - La tabla es clave para permitir que trabajadores vean solo pedidos asignados y el personal asignado a esos pedidos.
 
+### `pedido_tareas`
+
+**Propósito:** Registra tareas operativas asociadas a un pedido. El progreso real del pedido se modelará con estas tareas, no con estados finos de pedido.
+
+| Campo | Tipo sugerido | Notas |
+|---|---|---|
+| `id` | `uuid` | Identificador único de la tarea. |
+| `pedido_id` | `uuid` | Pedido al que pertenece la tarea. |
+| `title` | `text` | Texto escrito por el usuario interno. |
+| `task_type` | `pedido_tarea_tipo` | `simple` o `cuantificada`. |
+| `target_quantity` | `integer nullable` | Cantidad objetivo para tareas cuantificadas. |
+| `completed_quantity` | `integer nullable` | Avance numérico de tareas cuantificadas. |
+| `is_completed` | `boolean` | Indica si la tarea está completada. |
+| `sort_order` | `integer` | Orden manual dentro del pedido. |
+| `created_by` | `uuid nullable` | Perfil que creó la tarea. |
+| `updated_by` | `uuid nullable` | Perfil que actualizó la tarea. |
+| `completed_by` | `uuid nullable` | Perfil que completó la tarea. |
+| `completed_at` | `timestamptz nullable` | Fecha de completado. |
+| `created_at` | `timestamptz` | Fecha de creación. |
+| `updated_at` | `timestamptz` | Fecha de última actualización. |
+
+**Claves foráneas:**
+
+- `pedido_tareas.pedido_id` -> `pedidos.id`.
+- `pedido_tareas.created_by` -> `perfiles.id`.
+- `pedido_tareas.updated_by` -> `perfiles.id`.
+- `pedido_tareas.completed_by` -> `perfiles.id`.
+
+**Reglas importantes:**
+
+- `title` no puede estar vacío.
+- `sort_order` no puede ser negativo.
+- Las tareas `simple` no guardan cantidades.
+- Las tareas `cuantificada` requieren `target_quantity > 0`, `completed_quantity >= 0` y `completed_quantity <= target_quantity`.
+- La detección automática de tipo por números en el título se implementará en TypeScript en una subfase posterior.
+- Esta subfase no implementa UI, servicios TypeScript ni reglas de cambio de estado basadas en progreso.
+
+**Notas de seguridad:**
+
+- RLS está activo.
+- `admin`, `supervisor` y personal asignado pueden gestionar tareas de pedidos accesibles.
+- El acceso se basa en `private.can_access_pedido(pedido_id)`.
+- Usuarios anónimos no acceden.
+
 ### `archivos`
 
 **Propósito:** Registra metadatos de archivos asociados a solicitudes o pedidos.
@@ -442,6 +493,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 - Una solicitud puede convertirse en un pedido.
 - Un pedido puede tener varios usuarios internos asignados.
 - Un usuario interno puede estar asignado a varios pedidos.
+- Un pedido puede tener muchas tareas.
 - Un pedido puede tener muchos archivos.
 - Una solicitud puede tener muchos archivos.
 - Un pedido puede tener muchos comentarios.
@@ -454,6 +506,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 - Una solicitud no se convierte automáticamente en pedido.
 - Solo `admin` o `supervisor` podrán convertir solicitudes en pedidos.
 - Trabajadores solo podrán ver pedidos asignados.
+- Trabajadores asignados pueden gestionar tareas de sus pedidos asignados.
 - Los archivos serán privados por defecto.
 - El historial no será editable manualmente.
 - Los clientes no tendrán cuenta de usuario en la primera versión.

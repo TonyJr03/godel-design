@@ -30,4 +30,10 @@ export const PEDIDO_HISTORY_ACTION_LABELS: Record<
   fecha_entrega_actualizada: "Fecha de entrega actualizada",
   pedido_entregado: "Pedido entregado",
   pedido_cancelado: "Pedido cancelado",
+  tarea_creada: "Tarea creada",
+  tarea_actualizada: "Tarea actualizada",
+  tarea_eliminada: "Tarea eliminada",
+  tarea_completada: "Tarea completada",
+  tarea_reabierta: "Tarea reabierta",
+  tarea_progreso_actualizado: "Progreso de tarea actualizado",
 };

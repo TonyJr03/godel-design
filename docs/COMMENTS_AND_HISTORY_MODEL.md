@@ -79,7 +79,7 @@ Existen triggers técnicos de actualización de fecha:
 - `set_solicitudes_updated_at`;
 - `set_pedidos_updated_at`.
 
-Desde Fase 11.7A y 11.7B también existen triggers de negocio privados para registrar historial automático de pedidos y solicitudes. Estos triggers cubren creación de pedidos, asignación/remoción de personal, subida de archivos propios de pedido, creación de solicitudes, archivos adjuntados a solicitudes, cambios de estado de solicitud, asociación de cliente y conversión de solicitud a pedido.
+Desde Fase 11.7A y 11.7B también existen triggers de negocio privados para registrar historial automático de pedidos y solicitudes. Estos triggers cubren creación de pedidos, asignación/remoción de personal, subida de archivos propios de pedido, creación de solicitudes, archivos adjuntados a solicitudes, cambios de estado de solicitud, asociación de cliente y conversión de solicitud a pedido. Desde Fase 13.6E, también registran cambios relevantes de tareas de pedido.
 
 ### RPC `actualizar_estado_pedido`
 
@@ -149,6 +149,7 @@ Desde Fase 11.7A también se registran automáticamente en base de datos:
 - `trabajador_asignado` al insertar en `pedido_trabajadores`;
 - `trabajador_removido` al eliminar de `pedido_trabajadores`;
 - `archivo_subido` al insertar archivos propios de pedido en `archivos`.
+- `tarea_creada`, `tarea_actualizada`, `tarea_eliminada`, `tarea_completada`, `tarea_reabierta` y `tarea_progreso_actualizado` al cambiar `pedido_tareas`.
 
 No se crea trigger de cambio de estado para evitar duplicar lo que ya registra `public.actualizar_estado_pedido`. Los archivos heredados desde solicitudes con `visibility = "cliente_solicitud"` no generan `archivo_subido` del pedido.
 
@@ -466,8 +467,14 @@ Eventos mínimos:
 | `trabajador_removido` | Se remueve personal del pedido. | perfil removido, usuario que removió. |
 | `archivo_subido` | Se sube archivo de pedido. | archivo, categoría, usuario. |
 | `nota_agregada` | Se crea comentario interno de pedido. | comentario, autor. |
+| `tarea_creada` | Se crea una tarea de pedido. | tarea, tipo, cantidades, orden. |
+| `tarea_actualizada` | Cambia título, tipo, cantidad objetivo u orden. | valores anteriores y nuevos relevantes. |
+| `tarea_eliminada` | Se elimina una tarea de pedido. | tarea eliminada y estado previo seguro. |
+| `tarea_completada` | Una tarea pasa a completada. | tarea, usuario, fecha y estado. |
+| `tarea_reabierta` | Una tarea completada vuelve a abierta. | tarea y estado anterior/nuevo. |
+| `tarea_progreso_actualizado` | Cambia el avance numérico de una tarea cuantificada. | cantidad anterior y cantidad nueva. |
 
-La RPC actual ya cubre cambios de estado de pedido con el enum simplificado de fases generales. Los demás eventos todavía no están conectados a acciones o servicios.
+La RPC actual ya cubre cambios de estado de pedido con el enum simplificado de fases generales. Los eventos de tareas quedan conectados mediante triggers de base de datos, pero todavía no existe UI ni servicio TypeScript de tareas.
 
 ### Solicitudes
 
@@ -607,6 +614,7 @@ Estado:
 - registra `trabajador_asignado`;
 - registra `trabajador_removido`;
 - registra `archivo_subido` para archivos propios de pedido;
+- registra eventos de tareas desde `pedido_tareas`;
 - conserva cambios de estado mediante `public.actualizar_estado_pedido`;
 - no duplica eventos de estado;
 - no registra historial automático de solicitudes.
