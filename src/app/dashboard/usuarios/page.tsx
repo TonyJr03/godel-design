@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { InternalUsersList } from "@/components/usuarios/InternalUsersList";
 import { listInternalUsers } from "@/lib/usuarios";
+import { getSingleSearchParam } from "@/lib/utils";
 
 type DashboardUsuariosPageProps = {
   searchParams: Promise<{
@@ -10,10 +11,6 @@ type DashboardUsuariosPageProps = {
     active?: string | string[] | undefined;
   }>;
 };
-
-function getSingleSearchParam(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] : value;
-}
 
 export default async function DashboardUsuariosPage({
   searchParams,

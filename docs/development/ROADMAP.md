@@ -166,7 +166,7 @@ Diseñar correctamente el modelo de datos, enums, relaciones, restricciones e in
 
 ### Tablas base
 
-- `profiles`
+- `perfiles`
 - `clientes`
 - `solicitudes`
 - `pedidos`
@@ -233,7 +233,7 @@ Diferenciar correctamente los permisos de `admin`, `supervisor` y `trabajador`.
 
 ### Tareas principales
 
-- Leer rol desde `profiles`.
+- Leer rol desde `perfiles`.
 - Crear helpers de permisos en `src/lib/permissions`.
 - Ajustar navegación por rol.
 - Proteger acciones sensibles.
@@ -351,7 +351,7 @@ Construir el núcleo operativo del sistema: la gestión de pedidos oficiales.
 
 - Crear pedidos manualmente.
 - Convertir solicitudes aprobadas en pedidos.
-- Generar `numero_pedido`.
+- Generar `order_number`.
 - Listar pedidos en `/dashboard/pedidos`.
 - Ver detalle en `/dashboard/pedidos/[id]`.
 - Cambiar estados de pedido.
@@ -496,7 +496,7 @@ Permitir que administradores gestionen usuarios internos.
 La Fase 12 usa gestión de perfiles únicamente:
 
 - los usuarios Auth se crean manualmente desde Supabase Studio o CLI;
-- la app gestiona registros en `public.profiles`;
+- la app gestiona registros en `public.perfiles`;
 - la app no crea credenciales;
 - la app no consulta `auth.users`;
 - la app no usa service role key.
@@ -507,7 +507,7 @@ Un administrador puede gestionar usuarios internos sin comprometer la seguridad 
 
 ### Cierre de fase
 
-La Fase 12 quedó completada con diagnóstico y decisión arquitectónica, listado interno de usuarios, filtros por nombre/teléfono, rol y estado, detalle read-only, edición controlada de `full_name`, `phone`, `avatar_url`, `role` e `is_active`, creación de perfiles internos para usuarios Auth ya existentes, validaciones server-side, protección contra dejar el sistema sin administrador activo y documentación actualizada. La app gestiona solo `public.profiles`: no crea usuarios Auth, no consulta `auth.users`, no pide email ni contraseña, no implementa invitaciones, no elimina usuarios y no usa service role key.
+La Fase 12 quedó completada con diagnóstico y decisión arquitectónica, listado interno de usuarios, filtros por nombre/teléfono, rol y estado, detalle read-only, edición controlada de `full_name`, `phone`, `avatar_url`, `role` e `is_active`, creación de perfiles internos para usuarios Auth ya existentes, validaciones server-side, protección contra dejar el sistema sin administrador activo y documentación actualizada. La app gestiona solo `public.perfiles`: no crea usuarios Auth, no consulta `auth.users`, no pide email ni contraseña, no implementa invitaciones, no elimina usuarios y no usa service role key.
 
 ---
 
@@ -526,7 +526,7 @@ Convertir `/dashboard` en una pantalla realmente útil para el trabajo diario.
 - Mostrar pedidos próximos a vencer.
 - Mostrar actividad reciente.
 - Crear accesos rápidos.
-- Adaptar contenido según rol.
+- Adaptar content según rol.
 
 ### Criterio de cierre
 
@@ -606,7 +606,7 @@ Orden inicial recomendado:
 2. Configuración Supabase en Next.js.
 3. Login y logout.
 4. Protección de dashboard.
-5. Profiles y roles.
+5. Perfiles y roles.
 6. Formulario público de solicitudes.
 7. Listado y detalle de solicitudes.
 8. Conversión de solicitud a pedido.

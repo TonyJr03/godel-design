@@ -68,7 +68,7 @@ export type Database = {
             foreignKeyName: "archivos_uploaded_by_fkey"
             columns: ["uploaded_by"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "perfiles"
             referencedColumns: ["id"]
           },
         ]
@@ -78,57 +78,61 @@ export type Database = {
           created_at: string
           email: string | null
           id: string
-          nombre: string
-          notas: string | null
-          telefono: string
+          name: string
+          notes: string | null
+          phone: string
           updated_at: string
         }
         Insert: {
           created_at?: string
           email?: string | null
           id?: string
-          nombre: string
-          notas?: string | null
-          telefono: string
+          name: string
+          notes?: string | null
+          phone: string
           updated_at?: string
         }
         Update: {
           created_at?: string
           email?: string | null
           id?: string
-          nombre?: string
-          notas?: string | null
-          telefono?: string
+          name?: string
+          notes?: string | null
+          phone?: string
           updated_at?: string
         }
         Relationships: []
       }
       pedido_comentarios: {
         Row: {
-          contenido: string
+          author_id: string
+          content: string
           created_at: string
           id: string
           pedido_id: string
-          updated_at: string
-          user_id: string
         }
         Insert: {
-          contenido: string
+          author_id: string
+          content: string
           created_at?: string
           id?: string
           pedido_id: string
-          updated_at?: string
-          user_id: string
         }
         Update: {
-          contenido?: string
+          author_id?: string
+          content?: string
           created_at?: string
           id?: string
           pedido_id?: string
-          updated_at?: string
-          user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "pedido_comentarios_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "pedido_comentarios_pedido_id_fkey"
             columns: ["pedido_id"]
@@ -136,59 +140,55 @@ export type Database = {
             referencedRelation: "pedidos"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "pedido_comentarios_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
         ]
       }
       pedido_historial: {
         Row: {
           action: Database["public"]["Enums"]["pedido_historial_action"]
+          actor_id: string | null
           created_at: string
           id: string
-          metadata: Json | null
+          metadata: Json
           new_value: string | null
           old_value: string | null
           pedido_id: string
-          user_id: string | null
+          summary: string
         }
         Insert: {
           action: Database["public"]["Enums"]["pedido_historial_action"]
+          actor_id?: string | null
           created_at?: string
           id?: string
-          metadata?: Json | null
+          metadata?: Json
           new_value?: string | null
           old_value?: string | null
           pedido_id: string
-          user_id?: string | null
+          summary: string
         }
         Update: {
           action?: Database["public"]["Enums"]["pedido_historial_action"]
+          actor_id?: string | null
           created_at?: string
           id?: string
-          metadata?: Json | null
+          metadata?: Json
           new_value?: string | null
           old_value?: string | null
           pedido_id?: string
-          user_id?: string | null
+          summary?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "pedido_historial_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "pedido_historial_pedido_id_fkey"
             columns: ["pedido_id"]
             isOneToOne: false
             referencedRelation: "pedidos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "pedido_historial_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -197,30 +197,37 @@ export type Database = {
         Row: {
           assigned_at: string
           assigned_by: string | null
+          assigned_profile_id: string
           id: string
           pedido_id: string
-          trabajador_id: string
         }
         Insert: {
           assigned_at?: string
           assigned_by?: string | null
+          assigned_profile_id: string
           id?: string
           pedido_id: string
-          trabajador_id: string
         }
         Update: {
           assigned_at?: string
           assigned_by?: string | null
+          assigned_profile_id?: string
           id?: string
           pedido_id?: string
-          trabajador_id?: string
         }
         Relationships: [
           {
             foreignKeyName: "pedido_trabajadores_assigned_by_fkey"
             columns: ["assigned_by"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedido_trabajadores_assigned_profile_id_fkey"
+            columns: ["assigned_profile_id"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
             referencedColumns: ["id"]
           },
           {
@@ -230,65 +237,52 @@ export type Database = {
             referencedRelation: "pedidos"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "pedido_trabajadores_trabajador_id_fkey"
-            columns: ["trabajador_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
         ]
       }
       pedidos: {
         Row: {
+          actual_delivery_date: string | null
           cliente_id: string | null
-          creado_por: string | null
           created_at: string
-          descripcion: string
-          estado: Database["public"]["Enums"]["pedido_estado"]
-          fecha_creacion: string
-          fecha_entrega_estimada: string | null
-          fecha_entrega_real: string | null
+          created_by: string | null
+          description: string
+          estimated_delivery_date: string | null
           id: string
-          numero_pedido: string
-          prioridad: Database["public"]["Enums"]["pedido_prioridad"]
+          order_number: string
+          priority: Database["public"]["Enums"]["pedido_prioridad"]
           solicitud_id: string | null
-          supervisor_id: string | null
-          titulo: string
+          status: Database["public"]["Enums"]["pedido_estado"]
+          title: string
           updated_at: string
         }
         Insert: {
+          actual_delivery_date?: string | null
           cliente_id?: string | null
-          creado_por?: string | null
           created_at?: string
-          descripcion: string
-          estado?: Database["public"]["Enums"]["pedido_estado"]
-          fecha_creacion?: string
-          fecha_entrega_estimada?: string | null
-          fecha_entrega_real?: string | null
+          created_by?: string | null
+          description: string
+          estimated_delivery_date?: string | null
           id?: string
-          numero_pedido: string
-          prioridad?: Database["public"]["Enums"]["pedido_prioridad"]
+          order_number: string
+          priority?: Database["public"]["Enums"]["pedido_prioridad"]
           solicitud_id?: string | null
-          supervisor_id?: string | null
-          titulo: string
+          status?: Database["public"]["Enums"]["pedido_estado"]
+          title: string
           updated_at?: string
         }
         Update: {
+          actual_delivery_date?: string | null
           cliente_id?: string | null
-          creado_por?: string | null
           created_at?: string
-          descripcion?: string
-          estado?: Database["public"]["Enums"]["pedido_estado"]
-          fecha_creacion?: string
-          fecha_entrega_estimada?: string | null
-          fecha_entrega_real?: string | null
+          created_by?: string | null
+          description?: string
+          estimated_delivery_date?: string | null
           id?: string
-          numero_pedido?: string
-          prioridad?: Database["public"]["Enums"]["pedido_prioridad"]
+          order_number?: string
+          priority?: Database["public"]["Enums"]["pedido_prioridad"]
           solicitud_id?: string | null
-          supervisor_id?: string | null
-          titulo?: string
+          status?: Database["public"]["Enums"]["pedido_estado"]
+          title?: string
           updated_at?: string
         }
         Relationships: [
@@ -300,10 +294,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "pedidos_creado_por_fkey"
-            columns: ["creado_por"]
+            foreignKeyName: "pedidos_created_by_fkey"
+            columns: ["created_by"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "perfiles"
             referencedColumns: ["id"]
           },
           {
@@ -313,16 +307,9 @@ export type Database = {
             referencedRelation: "solicitudes"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "pedidos_supervisor_id_fkey"
-            columns: ["supervisor_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
         ]
       }
-      profiles: {
+      perfiles: {
         Row: {
           avatar_url: string | null
           created_at: string
@@ -357,32 +344,32 @@ export type Database = {
       }
       solicitud_comentarios: {
         Row: {
-          autor_id: string
-          contenido: string
+          author_id: string
+          content: string
           created_at: string
           id: string
           solicitud_id: string
         }
         Insert: {
-          autor_id: string
-          contenido: string
+          author_id: string
+          content: string
           created_at?: string
           id?: string
           solicitud_id: string
         }
         Update: {
-          autor_id?: string
-          contenido?: string
+          author_id?: string
+          content?: string
           created_at?: string
           id?: string
           solicitud_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "solicitud_comentarios_autor_id_fkey"
-            columns: ["autor_id"]
+            foreignKeyName: "solicitud_comentarios_author_id_fkey"
+            columns: ["author_id"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "perfiles"
             referencedColumns: ["id"]
           },
           {
@@ -401,8 +388,10 @@ export type Database = {
           created_at: string
           id: string
           metadata: Json
-          resumen: string
+          new_value: string | null
+          old_value: string | null
           solicitud_id: string
+          summary: string
         }
         Insert: {
           action: Database["public"]["Enums"]["solicitud_historial_action"]
@@ -410,8 +399,10 @@ export type Database = {
           created_at?: string
           id?: string
           metadata?: Json
-          resumen: string
+          new_value?: string | null
+          old_value?: string | null
           solicitud_id: string
+          summary: string
         }
         Update: {
           action?: Database["public"]["Enums"]["solicitud_historial_action"]
@@ -419,15 +410,17 @@ export type Database = {
           created_at?: string
           id?: string
           metadata?: Json
-          resumen?: string
+          new_value?: string | null
+          old_value?: string | null
           solicitud_id?: string
+          summary?: string
         }
         Relationships: [
           {
             foreignKeyName: "solicitud_historial_actor_id_fkey"
             columns: ["actor_id"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "perfiles"
             referencedColumns: ["id"]
           },
           {
@@ -441,54 +434,54 @@ export type Database = {
       }
       solicitudes: {
         Row: {
-          cantidad: number | null
-          cliente_email: string | null
+          client_email: string | null
+          client_name: string
+          client_phone: string
           cliente_id: string | null
-          cliente_nombre: string
-          cliente_telefono: string
           converted_order_id: string | null
           created_at: string
-          descripcion: string
-          estado: Database["public"]["Enums"]["solicitud_estado"]
-          fecha_deseada: string | null
+          description: string
+          desired_date: string | null
           id: string
-          observaciones: string | null
+          notes: string | null
+          quantity: number | null
           reviewed_by: string | null
-          tipo_servicio: string
+          service_type: string
+          status: Database["public"]["Enums"]["solicitud_estado"]
           updated_at: string
         }
         Insert: {
-          cantidad?: number | null
-          cliente_email?: string | null
+          client_email?: string | null
+          client_name: string
+          client_phone: string
           cliente_id?: string | null
-          cliente_nombre: string
-          cliente_telefono: string
           converted_order_id?: string | null
           created_at?: string
-          descripcion: string
-          estado?: Database["public"]["Enums"]["solicitud_estado"]
-          fecha_deseada?: string | null
+          description: string
+          desired_date?: string | null
           id?: string
-          observaciones?: string | null
+          notes?: string | null
+          quantity?: number | null
           reviewed_by?: string | null
-          tipo_servicio: string
+          service_type: string
+          status?: Database["public"]["Enums"]["solicitud_estado"]
           updated_at?: string
         }
         Update: {
-          cantidad?: number | null
-          cliente_email?: string | null
+          client_email?: string | null
+          client_name?: string
+          client_phone?: string
           cliente_id?: string | null
-          cliente_nombre?: string
-          cliente_telefono?: string
           converted_order_id?: string | null
           created_at?: string
-          descripcion?: string
-          estado?: Database["public"]["Enums"]["solicitud_estado"]
-          fecha_deseada?: string | null
+          description?: string
+          desired_date?: string | null
           id?: string
-          observaciones?: string | null
+          notes?: string | null
+          quantity?: number | null
           reviewed_by?: string | null
-          tipo_servicio?: string
+          service_type?: string
+          status?: Database["public"]["Enums"]["solicitud_estado"]
           updated_at?: string
         }
         Relationships: [
@@ -510,7 +503,7 @@ export type Database = {
             foreignKeyName: "solicitudes_reviewed_by_fkey"
             columns: ["reviewed_by"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "perfiles"
             referencedColumns: ["id"]
           },
         ]
@@ -526,20 +519,18 @@ export type Database = {
           p_pedido_id: string
         }
         Returns: {
+          actual_delivery_date: string | null
           cliente_id: string | null
-          creado_por: string | null
           created_at: string
-          descripcion: string
-          estado: Database["public"]["Enums"]["pedido_estado"]
-          fecha_creacion: string
-          fecha_entrega_estimada: string | null
-          fecha_entrega_real: string | null
+          created_by: string | null
+          description: string
+          estimated_delivery_date: string | null
           id: string
-          numero_pedido: string
-          prioridad: Database["public"]["Enums"]["pedido_prioridad"]
+          order_number: string
+          priority: Database["public"]["Enums"]["pedido_prioridad"]
           solicitud_id: string | null
-          supervisor_id: string | null
-          titulo: string
+          status: Database["public"]["Enums"]["pedido_estado"]
+          title: string
           updated_at: string
         }
         SetofOptions: {
@@ -554,10 +545,9 @@ export type Database = {
         Returns: {
           author_full_name: string
           author_role: Database["public"]["Enums"]["app_role"]
-          contenido: string
+          content: string
           created_at: string
           id: string
-          updated_at: string
         }[]
       }
       listar_pedido_historial: {
@@ -571,6 +561,31 @@ export type Database = {
           metadata: Json
           new_value: string
           old_value: string
+          summary: string
+        }[]
+      }
+      listar_solicitud_comentarios: {
+        Args: { p_solicitud_id: string }
+        Returns: {
+          author_full_name: string
+          author_role: Database["public"]["Enums"]["app_role"]
+          content: string
+          created_at: string
+          id: string
+        }[]
+      }
+      listar_solicitud_historial: {
+        Args: { p_solicitud_id: string }
+        Returns: {
+          action: Database["public"]["Enums"]["solicitud_historial_action"]
+          actor_full_name: string
+          actor_role: Database["public"]["Enums"]["app_role"]
+          created_at: string
+          id: string
+          metadata: Json
+          new_value: string
+          old_value: string
+          summary: string
         }[]
       }
     }
@@ -792,4 +807,3 @@ export const Constants = {
     },
   },
 } as const
-

@@ -1,6 +1,12 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
+import {
+  serviceFailure,
+  serviceSuccess,
+  type ServiceResult,
+} from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
+import { isValidUuid } from "@/lib/validators";
 import type { Enums, Tables, TablesInsert } from "@/types/database";
 import { generatePedidoNumber } from "./order-number";
 
@@ -8,39 +14,36 @@ export type CreatePedidoFromSolicitudInput = {
   solicitudId: string;
 };
 
-export type CreatePedidoFromSolicitudResult =
-  | {
-      ok: true;
-      pedidoId: string;
-      numeroPedido: string;
-    }
-  | {
-      ok: false;
-      reason:
-        | "unauthorized"
-        | "invalid_id"
-        | "not_found"
-        | "not_approved"
-        | "missing_client"
-        | "already_converted"
-        | "duplicate_conversion"
-        | "error";
-      message: string;
-    };
+export type CreatePedidoFromSolicitudErrorReason =
+  | "unauthorized"
+  | "forbidden"
+  | "invalid_id"
+  | "not_found"
+  | "not_approved"
+  | "missing_client"
+  | "already_converted"
+  | "duplicate_conversion"
+  | "error";
+
+export type CreatePedidoFromSolicitudResult = ServiceResult<
+  {
+    pedidoId: string;
+    numeroPedido: string;
+  },
+  CreatePedidoFromSolicitudErrorReason
+>;
 
 type SolicitudConvertible = Pick<
   Tables<"solicitudes">,
   | "id"
   | "cliente_id"
   | "converted_order_id"
-  | "tipo_servicio"
-  | "descripcion"
-  | "estado"
-  | "fecha_deseada"
+  | "service_type"
+  | "description"
+  | "status"
+  | "desired_date"
 >;
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const INITIAL_CONVERTED_PEDIDO_ESTADO: Enums<"pedido_estado"> =
   "solicitud_recibida";
 const DEFAULT_CONVERTED_PEDIDO_PRIORIDAD: Enums<"pedido_prioridad"> = "normal";
@@ -56,33 +59,27 @@ export async function createPedidoFromSolicitud(
 ): Promise<CreatePedidoFromSolicitudResult> {
   const solicitudId = input.solicitudId.trim();
 
-  if (!UUID_PATTERN.test(solicitudId)) {
-    return {
-      ok: false,
-      reason: "invalid_id",
-      message: "La solicitud no existe.",
-    };
+  if (!isValidUuid(solicitudId)) {
+    return serviceFailure("invalid_id", "La solicitud no existe.");
   }
 
   const profile = await getCurrentProfile();
 
   if (!profile) {
-    return {
-      ok: false,
-      reason: "unauthorized",
-      message: "Debes iniciar sesión con un usuario interno activo.",
-    };
+    return serviceFailure(
+      "unauthorized",
+      "Debes iniciar sesión con un usuario interno activo.",
+    );
   }
 
   if (
     !hasPermission(profile.role, "solicitudes.manage") ||
     !hasPermission(profile.role, "pedidos.manage")
   ) {
-    return {
-      ok: false,
-      reason: "unauthorized",
-      message: "No tienes permiso para convertir solicitudes en pedidos.",
-    };
+    return serviceFailure(
+      "forbidden",
+      "No tienes permiso para convertir solicitudes en pedidos.",
+    );
   }
 
   const supabase = await createClient();
@@ -91,111 +88,96 @@ export async function createPedidoFromSolicitud(
     const { data: solicitud, error: solicitudError } = await supabase
       .from("solicitudes")
       .select(
-        "id, cliente_id, converted_order_id, tipo_servicio, descripcion, estado, fecha_deseada",
+        "id, cliente_id, converted_order_id, service_type, description, status, desired_date",
       )
       .eq("id", solicitudId)
       .maybeSingle<SolicitudConvertible>();
 
     if (solicitudError) {
-      console.error("Error loading solicitud for pedido conversion", solicitudError);
+      console.error(
+        "Error loading solicitud for pedido conversion",
+        solicitudError,
+      );
 
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_CONVERT_ERROR,
-      };
+      return serviceFailure("error", GENERIC_CONVERT_ERROR);
     }
 
     if (!solicitud) {
-      return {
-        ok: false,
-        reason: "not_found",
-        message: "La solicitud no existe.",
-      };
+      return serviceFailure("not_found", "La solicitud no existe.");
     }
 
     if (solicitud.converted_order_id) {
-      return {
-        ok: false,
-        reason: "already_converted",
-        message: "Esta solicitud ya fue convertida en pedido.",
-      };
+      return serviceFailure(
+        "already_converted",
+        "Esta solicitud ya fue convertida en pedido.",
+      );
     }
 
-    if (solicitud.estado !== "aprobada") {
-      return {
-        ok: false,
-        reason: "not_approved",
-        message: "La solicitud debe estar aprobada antes de convertirse en pedido.",
-      };
+    if (solicitud.status !== "aprobada") {
+      return serviceFailure(
+        "not_approved",
+        "La solicitud debe estar aprobada antes de convertirse en pedido.",
+      );
     }
 
     if (!solicitud.cliente_id) {
-      return {
-        ok: false,
-        reason: "missing_client",
-        message: "Asocia un cliente antes de convertir esta solicitud en pedido.",
-      };
+      return serviceFailure(
+        "missing_client",
+        "Asocia un cliente antes de convertir esta solicitud en pedido.",
+      );
     }
 
     const pedidoInsert: TablesInsert<"pedidos"> = {
-      numero_pedido: generatePedidoNumber(),
+      order_number: generatePedidoNumber(),
       cliente_id: solicitud.cliente_id,
       solicitud_id: solicitud.id,
-      titulo: solicitud.tipo_servicio,
-      descripcion: solicitud.descripcion,
-      estado: INITIAL_CONVERTED_PEDIDO_ESTADO,
-      prioridad: DEFAULT_CONVERTED_PEDIDO_PRIORIDAD,
-      fecha_entrega_estimada: solicitud.fecha_deseada,
-      creado_por: profile.id,
-      supervisor_id: profile.role === "supervisor" ? profile.id : null,
+      title: solicitud.service_type,
+      description: solicitud.description,
+      status: INITIAL_CONVERTED_PEDIDO_ESTADO,
+      priority: DEFAULT_CONVERTED_PEDIDO_PRIORIDAD,
+      estimated_delivery_date: solicitud.desired_date,
+      created_by: profile.id,
     };
 
     const { data: pedido, error: pedidoError } = await supabase
       .from("pedidos")
       .insert(pedidoInsert)
-      .select("id, numero_pedido")
+      .select("id, order_number")
       .single();
 
     if (pedidoError || !pedido) {
       console.error("Error creating pedido from solicitud", pedidoError);
 
       if (isDuplicateSolicitudPedidoError(pedidoError)) {
-        return {
-          ok: false,
-          reason: "duplicate_conversion",
-          message: "Esta solicitud ya tiene un pedido asociado.",
-        };
+        return serviceFailure(
+          "duplicate_conversion",
+          "Esta solicitud ya tiene un pedido asociado.",
+        );
       }
 
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_CONVERT_ERROR,
-      };
+      return serviceFailure("error", GENERIC_CONVERT_ERROR);
     }
 
     const { data: updatedSolicitud, error: updateError } = await supabase
       .from("solicitudes")
       .update({
-        estado: "convertida",
+        status: "convertida",
         converted_order_id: pedido.id,
         reviewed_by: profile.id,
       })
       .eq("id", solicitud.id)
-      .eq("estado", "aprobada")
+      .eq("status", "aprobada")
       .is("converted_order_id", null)
       .select("id")
       .maybeSingle<{ id: string }>();
 
     if (updateError || !updatedSolicitud) {
-      console.error("Error updating solicitud after pedido conversion", updateError);
+      console.error(
+        "Error updating solicitud after pedido conversion",
+        updateError,
+      );
 
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_CONVERT_ERROR,
-      };
+      return serviceFailure("error", GENERIC_CONVERT_ERROR);
     }
 
     const { error: archivosUpdateError } = await supabase
@@ -211,25 +193,16 @@ export async function createPedidoFromSolicitud(
         archivosUpdateError,
       );
 
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_CONVERT_ERROR,
-      };
+      return serviceFailure("error", GENERIC_CONVERT_ERROR);
     }
 
-    return {
-      ok: true,
+    return serviceSuccess({
       pedidoId: pedido.id,
-      numeroPedido: pedido.numero_pedido,
-    };
+      numeroPedido: pedido.order_number,
+    });
   } catch (error) {
     console.error("Unexpected error converting solicitud to pedido", error);
 
-    return {
-      ok: false,
-      reason: "error",
-      message: GENERIC_CONVERT_ERROR,
-    };
+    return serviceFailure("error", GENERIC_CONVERT_ERROR);
   }
 }

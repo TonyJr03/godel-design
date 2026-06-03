@@ -1,21 +1,15 @@
-import { getCurrentProfile } from "@/lib/auth";
-import {
-  hasPermission,
-  isAdmin,
-  isSupervisor,
-  isTrabajador,
-  type Role,
-} from "@/lib/permissions";
+import { PEDIDO_STATUS_LABELS } from "@/lib/pedidos";
+import { SOLICITUD_STATUS_LABELS } from "@/lib/solicitudes";
 import { createClient } from "@/lib/supabase/server";
 import type { Json, Tables } from "@/types/database";
+import type { DashboardContext } from "./context";
 import type {
   DashboardRecentActivityItem,
   GetDashboardRecentActivityResult,
-  ManagementDashboardRole,
 } from "./types";
 
 type PedidoActivityPedido =
-  | Pick<Tables<"pedidos">, "id" | "numero_pedido" | "titulo">
+  | Pick<Tables<"pedidos">, "id" | "order_number" | "title">
   | null;
 
 type PedidoActivityRow = Pick<
@@ -23,6 +17,7 @@ type PedidoActivityRow = Pick<
   | "id"
   | "pedido_id"
   | "action"
+  | "summary"
   | "old_value"
   | "new_value"
   | "metadata"
@@ -32,12 +27,19 @@ type PedidoActivityRow = Pick<
 };
 
 type SolicitudActivitySolicitud =
-  | Pick<Tables<"solicitudes">, "id" | "cliente_nombre" | "tipo_servicio">
+  | Pick<Tables<"solicitudes">, "id" | "client_name" | "service_type">
   | null;
 
 type SolicitudActivityRow = Pick<
   Tables<"solicitud_historial">,
-  "id" | "solicitud_id" | "action" | "resumen" | "metadata" | "created_at"
+  | "id"
+  | "solicitud_id"
+  | "action"
+  | "summary"
+  | "old_value"
+  | "new_value"
+  | "metadata"
+  | "created_at"
 > & {
   solicitudes: SolicitudActivitySolicitud;
 };
@@ -49,52 +51,28 @@ const PEDIDO_ACTIVITY_SELECT = `
   id,
   pedido_id,
   action,
+  summary,
   old_value,
   new_value,
   metadata,
   created_at,
-  pedidos(id, numero_pedido, titulo)
+  pedidos(id, order_number, title)
 `;
 
 const SOLICITUD_ACTIVITY_SELECT = `
   id,
   solicitud_id,
   action,
-  resumen,
+  summary,
+  old_value,
+  new_value,
   metadata,
   created_at,
-  solicitudes(id, cliente_nombre, tipo_servicio)
+  solicitudes(id, client_name, service_type)
 `;
-
-const PEDIDO_ESTADO_LABELS: Record<string, string> = {
-  solicitud_recibida: "Solicitud recibida",
-  en_revision: "En revisión",
-  cotizado: "Cotizado",
-  aprobado_cliente: "Aprobado por cliente",
-  en_diseno: "En diseño",
-  en_produccion: "En producción",
-  listo_entrega: "Listo para entrega",
-  entregado: "Entregado",
-  cancelado: "Cancelado",
-};
-
-const SOLICITUD_ESTADO_LABELS: Record<string, string> = {
-  nueva: "Nueva",
-  en_revision: "En revisión",
-  contactada: "Contactada",
-  aprobada: "Aprobada",
-  rechazada: "Rechazada",
-  convertida: "Convertida",
-};
 
 const GENERIC_ACTIVITY_ERROR =
   "No se pudo cargar la actividad reciente. Inténtalo nuevamente.";
-
-function isManagementDashboardRole(
-  role: Role,
-): role is ManagementDashboardRole {
-  return isAdmin(role) || isSupervisor(role);
-}
 
 function isJsonObject(value: Json | null): value is Record<string, Json> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -110,11 +88,11 @@ function getMetadataString(metadata: Json | null, key: string): string | null {
   return typeof value === "string" && value.trim() ? value : null;
 }
 
-function getSafeFileName(metadata: Json | null, fallback: string | null): string | null {
-  const rawName =
-    getMetadataString(metadata, "file_name") ??
-    getMetadataString(metadata, "filename") ??
-    fallback;
+function getSafeFileName(
+  metadata: Json | null,
+  fallback: string | null,
+): string | null {
+  const rawName = getMetadataString(metadata, "file_name") ?? fallback;
 
   if (!rawName) {
     return null;
@@ -131,7 +109,7 @@ function formatPedidoValue(value: string | null): string {
     return "sin dato";
   }
 
-  return PEDIDO_ESTADO_LABELS[value] ?? value;
+  return PEDIDO_STATUS_LABELS[value as keyof typeof PEDIDO_STATUS_LABELS] ?? value;
 }
 
 function formatPedidoDetailValue(value: string | null): string | null {
@@ -139,7 +117,7 @@ function formatPedidoDetailValue(value: string | null): string | null {
     return null;
   }
 
-  return PEDIDO_ESTADO_LABELS[value] ?? value;
+  return PEDIDO_STATUS_LABELS[value as keyof typeof PEDIDO_STATUS_LABELS] ?? value;
 }
 
 function formatSolicitudEstado(value: string | null): string {
@@ -147,12 +125,14 @@ function formatSolicitudEstado(value: string | null): string {
     return "sin dato";
   }
 
-  return SOLICITUD_ESTADO_LABELS[value] ?? value;
+  return SOLICITUD_STATUS_LABELS[
+    value as keyof typeof SOLICITUD_STATUS_LABELS
+  ] ?? value;
 }
 
 function getPedidoTitle(row: PedidoActivityRow): string {
   if (row.pedidos) {
-    return `${row.pedidos.numero_pedido} · ${row.pedidos.titulo}`;
+    return `${row.pedidos.order_number} · ${row.pedidos.title}`;
   }
 
   return "Pedido";
@@ -160,7 +140,7 @@ function getPedidoTitle(row: PedidoActivityRow): string {
 
 function getSolicitudTitle(row: SolicitudActivityRow): string {
   if (row.solicitudes) {
-    return `${row.solicitudes.cliente_nombre} · ${row.solicitudes.tipo_servicio}`;
+    return `${row.solicitudes.client_name} · ${row.solicitudes.service_type}`;
   }
 
   return "Solicitud";
@@ -211,12 +191,12 @@ function buildPedidoDescription(row: PedidoActivityRow): string {
     return "Fecha de entrega actualizada.";
   }
 
-  return "Evento registrado en el pedido.";
+  return row.summary || "Evento registrado en el pedido.";
 }
 
 function buildSolicitudDescription(row: SolicitudActivityRow): string {
   if (row.action === "solicitud_creada") {
-    return row.resumen || "Solicitud creada.";
+    return row.summary || "Solicitud creada.";
   }
 
   if (row.action === "archivos_adjuntados") {
@@ -224,16 +204,12 @@ function buildSolicitudDescription(row: SolicitudActivityRow): string {
 
     return fileName
       ? `Archivo adjuntado: ${fileName}.`
-      : row.resumen || "Archivos adjuntados.";
+      : row.summary || "Archivos adjuntados.";
   }
 
   if (row.action === "estado_cambiado") {
-    const oldEstado =
-      getMetadataString(row.metadata, "estado_anterior") ??
-      getMetadataString(row.metadata, "old_estado");
-    const newEstado =
-      getMetadataString(row.metadata, "estado_nuevo") ??
-      getMetadataString(row.metadata, "new_estado");
+    const oldEstado = row.old_value;
+    const newEstado = row.new_value;
 
     if (oldEstado || newEstado) {
       return `Estado cambiado de ${formatSolicitudEstado(
@@ -241,36 +217,36 @@ function buildSolicitudDescription(row: SolicitudActivityRow): string {
       )} a ${formatSolicitudEstado(newEstado)}.`;
     }
 
-    return row.resumen || "Estado cambiado.";
+    return row.summary || "Estado cambiado.";
   }
 
   if (row.action === "cliente_asociado") {
-    const clienteNombre = getMetadataString(row.metadata, "cliente_nombre");
+    const clienteNombre = getMetadataString(row.metadata, "client_name");
 
     return clienteNombre
       ? `Cliente asociado: ${clienteNombre}.`
-      : row.resumen || "Cliente asociado.";
+      : row.summary || "Cliente asociado.";
   }
 
   if (row.action === "cliente_creado_desde_solicitud") {
-    const clienteNombre = getMetadataString(row.metadata, "cliente_nombre");
+    const clienteNombre = getMetadataString(row.metadata, "client_name");
 
     return clienteNombre
       ? `Cliente creado desde solicitud: ${clienteNombre}.`
-      : row.resumen || "Cliente creado desde solicitud.";
+      : row.summary || "Cliente creado desde solicitud.";
   }
 
   if (row.action === "convertida_a_pedido") {
     const pedidoNumero =
       getMetadataString(row.metadata, "pedido_numero") ??
-      getMetadataString(row.metadata, "numero_pedido");
+      getMetadataString(row.metadata, "order_number");
 
     return pedidoNumero
       ? `Solicitud convertida a pedido: ${pedidoNumero}.`
-      : row.resumen || "Solicitud convertida a pedido.";
+      : row.summary || "Solicitud convertida a pedido.";
   }
 
-  return row.resumen || "Evento registrado en la solicitud.";
+  return row.summary || "Evento registrado en la solicitud.";
 }
 
 function mapPedidoActivity(row: PedidoActivityRow): DashboardRecentActivityItem {
@@ -343,27 +319,11 @@ function sortRecentActivity(
     .slice(0, ACTIVITY_LIMIT);
 }
 
-export async function getDashboardRecentActivity(): Promise<GetDashboardRecentActivityResult> {
-  const profile = await getCurrentProfile();
-
-  if (!profile) {
-    return {
-      ok: false,
-      reason: "unauthorized",
-      message: "Debes iniciar sesión con un usuario interno activo.",
-    };
-  }
-
-  if (!hasPermission(profile.role, "dashboard.view")) {
-    return {
-      ok: false,
-      reason: "forbidden",
-      message: "No tienes permiso para ver el dashboard.",
-    };
-  }
-
+export async function loadDashboardRecentActivity(
+  context: DashboardContext,
+): Promise<GetDashboardRecentActivityResult> {
   try {
-    if (isManagementDashboardRole(profile.role)) {
+    if (context.kind === "management") {
       const [pedidoItems, solicitudItems] = await Promise.all([
         listPedidoActivity(),
         listSolicitudActivity(),
@@ -371,35 +331,27 @@ export async function getDashboardRecentActivity(): Promise<GetDashboardRecentAc
 
       return {
         ok: true,
-        role: profile.role,
+        role: context.role,
         activity: {
           kind: "management",
-          role: profile.role,
+          role: context.role,
           items: sortRecentActivity([...pedidoItems, ...solicitudItems]),
           generatedAt: new Date().toISOString(),
         },
       };
     }
 
-    if (isTrabajador(profile.role)) {
-      const pedidoItems = await listPedidoActivity();
-
-      return {
-        ok: true,
-        role: "trabajador",
-        activity: {
-          kind: "worker",
-          role: "trabajador",
-          items: sortRecentActivity(pedidoItems),
-          generatedAt: new Date().toISOString(),
-        },
-      };
-    }
+    const pedidoItems = await listPedidoActivity();
 
     return {
-      ok: false,
-      reason: "forbidden",
-      message: "No tienes permiso para ver el dashboard.",
+      ok: true,
+      role: "trabajador",
+      activity: {
+        kind: "worker",
+        role: "trabajador",
+        items: sortRecentActivity(pedidoItems),
+        generatedAt: new Date().toISOString(),
+      },
     };
   } catch (error) {
     console.error("Unexpected error loading dashboard recent activity", error);

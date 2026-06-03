@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { InternalSolicitudDetail as InternalSolicitudDetailData } from "@/lib/solicitudes";
-import { SOLICITUD_STATUS_LABELS } from "@/lib/solicitudes/status";
+import { SOLICITUD_STATUS_LABELS } from "@/lib/solicitudes";
 import { SolicitudStatusForm } from "./SolicitudStatusForm";
 
 type InternalSolicitudDetailProps = {
@@ -57,10 +57,10 @@ export function InternalSolicitudDetail({
             {formatShortReference(solicitud.id)}
           </p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-zinc-950">
-            Solicitud de {solicitud.cliente_nombre}
+            Solicitud de {solicitud.client_name}
           </h1>
           <p className="mt-3 text-base leading-7 text-zinc-600">
-            {solicitud.tipo_servicio}
+            {solicitud.service_type}
           </p>
         </div>
         <Link
@@ -74,7 +74,7 @@ export function InternalSolicitudDetail({
       <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center gap-3">
           <span className="inline-flex rounded-md bg-teal-50 px-2.5 py-1.5 text-sm font-semibold text-teal-800 ring-1 ring-inset ring-teal-700/15">
-            {SOLICITUD_STATUS_LABELS[solicitud.estado]}
+            {SOLICITUD_STATUS_LABELS[solicitud.status]}
           </span>
           <span className="text-xs text-zinc-500">
             ID completo: <span className="font-mono">{solicitud.id}</span>
@@ -82,20 +82,20 @@ export function InternalSolicitudDetail({
         </div>
 
         <dl className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          <DetailItem label="Cliente" value={solicitud.cliente_nombre} />
-          <DetailItem label="Teléfono" value={solicitud.cliente_telefono} />
+          <DetailItem label="Cliente" value={solicitud.client_name} />
+          <DetailItem label="Teléfono" value={solicitud.client_phone} />
           <DetailItem
             label="Correo electrónico"
-            value={solicitud.cliente_email ?? "No informado"}
+            value={solicitud.client_email ?? "No informado"}
           />
-          <DetailItem label="Tipo de servicio" value={solicitud.tipo_servicio} />
+          <DetailItem label="Tipo de servicio" value={solicitud.service_type} />
           <DetailItem
             label="Cantidad"
-            value={solicitud.cantidad ?? "No definida"}
+            value={solicitud.quantity ?? "No definida"}
           />
           <DetailItem
             label="Fecha deseada"
-            value={formatDate(solicitud.fecha_deseada)}
+            value={formatDate(solicitud.desired_date)}
           />
           <DetailItem
             label="Fecha de creación"
@@ -128,7 +128,7 @@ export function InternalSolicitudDetail({
         <div className="mt-5">
           <SolicitudStatusForm
             solicitudId={solicitud.id}
-            currentStatus={solicitud.estado}
+            currentStatus={solicitud.status}
           />
         </div>
       </section>
@@ -136,17 +136,17 @@ export function InternalSolicitudDetail({
       <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-zinc-950">Descripción</h2>
         <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-zinc-700">
-          {solicitud.descripcion}
+          {solicitud.description}
         </p>
       </section>
 
-      {solicitud.observaciones ? (
+      {solicitud.notes ? (
         <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-zinc-950">
             Observaciones
           </h2>
           <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-zinc-700">
-            {solicitud.observaciones}
+            {solicitud.notes}
           </p>
         </section>
       ) : null}

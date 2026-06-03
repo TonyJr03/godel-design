@@ -1,120 +1,118 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission, isTrabajador } from "@/lib/permissions/permissions";
+import {
+  serviceFailure,
+  serviceSuccess,
+  type ServiceResult,
+} from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
+import { isValidUuid } from "@/lib/validators";
 import type { Tables } from "@/types/database";
 
 type PedidoClienteDetail =
-  | Pick<Tables<"clientes">, "id" | "nombre" | "telefono" | "email">
+  | Pick<Tables<"clientes">, "id" | "name" | "phone" | "email">
   | null;
 
 type PedidoSolicitudDetail =
   | Pick<
       Tables<"solicitudes">,
       | "id"
-      | "cliente_nombre"
-      | "cliente_telefono"
-      | "cliente_email"
-      | "tipo_servicio"
-      | "descripcion"
-      | "estado"
-      | "fecha_deseada"
+      | "client_name"
+      | "client_phone"
+      | "client_email"
+      | "service_type"
+      | "description"
+      | "status"
+      | "desired_date"
       | "created_at"
     >
   | null;
 
 type PedidoProfileDetail =
-  | Pick<Tables<"profiles">, "id" | "full_name">
+  | Pick<Tables<"perfiles">, "id" | "full_name">
   | null;
 
 type PedidoAssignedProfileDetail =
-  | Pick<Tables<"profiles">, "id" | "full_name" | "role" | "is_active">
+  | Pick<Tables<"perfiles">, "id" | "full_name" | "role" | "is_active">
   | null;
 
 export type InternalPedidoDetailTrabajador = Pick<
   Tables<"pedido_trabajadores">,
-  "id" | "trabajador_id" | "assigned_at" | "assigned_by"
+  "id" | "assigned_profile_id" | "assigned_at" | "assigned_by"
 > & {
-  profiles: PedidoAssignedProfileDetail;
+  perfiles: PedidoAssignedProfileDetail;
 };
 
 export type InternalPedidoDetail = Pick<
   Tables<"pedidos">,
   | "id"
-  | "numero_pedido"
+  | "order_number"
   | "cliente_id"
   | "solicitud_id"
-  | "titulo"
-  | "descripcion"
-  | "estado"
-  | "prioridad"
-  | "fecha_creacion"
-  | "fecha_entrega_estimada"
-  | "fecha_entrega_real"
-  | "creado_por"
-  | "supervisor_id"
+  | "title"
+  | "description"
+  | "status"
+  | "priority"
+  | "estimated_delivery_date"
+  | "actual_delivery_date"
+  | "created_by"
   | "created_at"
   | "updated_at"
 > & {
   clientes: PedidoClienteDetail;
   solicitudes: PedidoSolicitudDetail;
   creador: PedidoProfileDetail;
-  supervisor: PedidoProfileDetail;
   pedido_trabajadores: InternalPedidoDetailTrabajador[];
 };
 
-export type GetInternalPedidoByIdResult =
-  | {
-      ok: true;
-      pedido: InternalPedidoDetail;
-    }
-  | {
-      ok: false;
-      reason: "unauthorized" | "invalid_id" | "not_found" | "error";
-      message: string;
-    };
+export type GetInternalPedidoByIdErrorReason =
+  | "unauthorized"
+  | "forbidden"
+  | "invalid_id"
+  | "not_found"
+  | "error";
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+export type GetInternalPedidoByIdResult = ServiceResult<
+  { pedido: InternalPedidoDetail },
+  GetInternalPedidoByIdErrorReason
+>;
 
 const GENERIC_DETAIL_ERROR =
   "No se pudo cargar el pedido. Inténtalo nuevamente.";
 
 const PEDIDO_DETAIL_SELECT = `
   id,
-  numero_pedido,
+  order_number,
   cliente_id,
   solicitud_id,
-  titulo,
-  descripcion,
-  estado,
-  prioridad,
-  fecha_creacion,
-  fecha_entrega_estimada,
-  fecha_entrega_real,
-  creado_por,
-  supervisor_id,
+  title,
+  description,
+  status,
+  priority,
+  estimated_delivery_date,
+  actual_delivery_date,
+  created_by,
   created_at,
   updated_at,
-  clientes(id, nombre, telefono, email),
+  clientes(id, name, phone, email),
   solicitudes!pedidos_solicitud_id_fkey(
     id,
-    cliente_nombre,
-    cliente_telefono,
-    cliente_email,
-    tipo_servicio,
-    descripcion,
-    estado,
-    fecha_deseada,
+    client_name,
+    client_phone,
+    client_email,
+    service_type,
+    description,
+    status,
+    desired_date,
     created_at
   ),
-  creador:profiles!pedidos_creado_por_fkey(id, full_name),
-  supervisor:profiles!pedidos_supervisor_id_fkey(id, full_name),
+  creador:perfiles!pedidos_created_by_fkey(id, full_name),
   pedido_trabajadores(
     id,
-    trabajador_id,
+    assigned_profile_id,
     assigned_by,
     assigned_at,
-    profiles!pedido_trabajadores_trabajador_id_fkey(
+    perfiles!pedido_trabajadores_assigned_profile_id_fkey(
       id,
       full_name,
       role,
@@ -125,14 +123,14 @@ const PEDIDO_DETAIL_SELECT = `
 
 async function isWorkerAssignedToPedido(
   pedidoId: string,
-  trabajadorId: string,
+  assignedProfileId: string,
 ): Promise<boolean | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("pedido_trabajadores")
     .select("id")
     .eq("pedido_id", pedidoId)
-    .eq("trabajador_id", trabajadorId)
+    .eq("assigned_profile_id", assignedProfileId)
     .maybeSingle<{ id: string }>();
 
   if (error) {
@@ -148,49 +146,32 @@ export async function getInternalPedidoById(
 ): Promise<GetInternalPedidoByIdResult> {
   const pedidoId = id.trim();
 
-  if (!UUID_PATTERN.test(pedidoId)) {
-    return {
-      ok: false,
-      reason: "invalid_id",
-      message: "El pedido solicitado no existe.",
-    };
+  if (!isValidUuid(pedidoId)) {
+    return serviceFailure("invalid_id", "El pedido solicitado no existe.");
   }
 
   const profile = await getCurrentProfile();
 
   if (!profile) {
-    return {
-      ok: false,
-      reason: "unauthorized",
-      message: "Debes iniciar sesión con un usuario interno activo.",
-    };
+    return serviceFailure(
+      "unauthorized",
+      "Debes iniciar sesión con un usuario interno activo.",
+    );
   }
 
   if (!hasPermission(profile.role, "pedidos.view")) {
-    return {
-      ok: false,
-      reason: "unauthorized",
-      message: "No tienes permiso para ver pedidos.",
-    };
+    return serviceFailure("forbidden", "No tienes permiso para ver pedidos.");
   }
 
   if (isTrabajador(profile.role)) {
     const isAssigned = await isWorkerAssignedToPedido(pedidoId, profile.id);
 
     if (isAssigned === null) {
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_DETAIL_ERROR,
-      };
+      return serviceFailure("error", GENERIC_DETAIL_ERROR);
     }
 
     if (!isAssigned) {
-      return {
-        ok: false,
-        reason: "not_found",
-        message: "El pedido solicitado no existe.",
-      };
+      return serviceFailure("not_found", "El pedido solicitado no existe.");
     }
   }
 
@@ -206,32 +187,17 @@ export async function getInternalPedidoById(
     if (error) {
       console.error("Error loading internal pedido detail", error);
 
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_DETAIL_ERROR,
-      };
+      return serviceFailure("error", GENERIC_DETAIL_ERROR);
     }
 
     if (!data) {
-      return {
-        ok: false,
-        reason: "not_found",
-        message: "El pedido solicitado no existe.",
-      };
+      return serviceFailure("not_found", "El pedido solicitado no existe.");
     }
 
-    return {
-      ok: true,
-      pedido: data,
-    };
+    return serviceSuccess({ pedido: data });
   } catch (error) {
     console.error("Unexpected error loading internal pedido detail", error);
 
-    return {
-      ok: false,
-      reason: "error",
-      message: GENERIC_DETAIL_ERROR,
-    };
+    return serviceFailure("error", GENERIC_DETAIL_ERROR);
   }
 }

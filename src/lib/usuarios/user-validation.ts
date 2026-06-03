@@ -1,4 +1,13 @@
-import { INTERNAL_USER_ROLES, type InternalUserRole } from "./list-internal-users";
+import {
+  hasFieldErrors,
+  isValidUuid,
+  normalizeOptionalSingleLineText,
+  normalizeSingleLineText,
+  validationFailure,
+  validationSuccess,
+  type ValidationResult,
+} from "@/lib/validators";
+import { isInternalUserRole, type InternalUserRole } from "./roles";
 
 export const USER_FIELDS = [
   "id",
@@ -37,48 +46,19 @@ export type CreateUserProfileData = UpdateUserData & {
 
 export type UserFieldErrors = Partial<Record<UserField, string>>;
 
-export type ValidateUserInputResult =
-  | {
-      ok: true;
-      data: UpdateUserData;
-    }
-  | {
-      ok: false;
-      fieldErrors: UserFieldErrors;
-    };
+export type ValidateUserInputResult = ValidationResult<
+  UpdateUserData,
+  UserFieldErrors
+>;
 
-export type ValidateCreateUserProfileInputResult =
-  | {
-      ok: true;
-      data: CreateUserProfileData;
-    }
-  | {
-      ok: false;
-      fieldErrors: UserFieldErrors;
-    };
-
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+export type ValidateCreateUserProfileInputResult = ValidationResult<
+  CreateUserProfileData,
+  UserFieldErrors
+>;
 
 const MAX_FULL_NAME_LENGTH = 120;
 const MAX_PHONE_LENGTH = 40;
 const MAX_AVATAR_URL_LENGTH = 500;
-
-function cleanRequired(value: string | null | undefined): string {
-  return (value ?? "").trim().replace(/\s+/g, " ");
-}
-
-function cleanOptional(value: string | null | undefined): string | null {
-  const cleaned = (value ?? "").trim().replace(/\s+/g, " ");
-
-  return cleaned || null;
-}
-
-function isValidUserRole(
-  role: string | null | undefined,
-): role is InternalUserRole {
-  return INTERNAL_USER_ROLES.includes(role as InternalUserRole);
-}
 
 function parseActiveValue(value: string | null | undefined): boolean | null {
   if (value === "true") {
@@ -95,10 +75,10 @@ function parseActiveValue(value: string | null | undefined): boolean | null {
 export function validateUserInput(
   input: UpdateUserInput,
 ): ValidateUserInputResult {
-  const fullName = cleanRequired(input.full_name);
-  const phone = cleanOptional(input.phone);
-  const avatarUrl = cleanOptional(input.avatar_url);
-  const role = isValidUserRole(input.role) ? input.role : null;
+  const fullName = normalizeSingleLineText(input.full_name);
+  const phone = normalizeOptionalSingleLineText(input.phone);
+  const avatarUrl = normalizeOptionalSingleLineText(input.avatar_url);
+  const role = isInternalUserRole(input.role) ? input.role : null;
   const isActive = parseActiveValue(input.is_active);
   const fieldErrors: UserFieldErrors = {};
 
@@ -124,29 +104,23 @@ export function validateUserInput(
     fieldErrors.is_active = "Selecciona un estado válido.";
   }
 
-  if (!role || isActive === null || Object.keys(fieldErrors).length > 0) {
-    return {
-      ok: false,
-      fieldErrors,
-    };
+  if (!role || isActive === null || hasFieldErrors(fieldErrors)) {
+    return validationFailure(fieldErrors);
   }
 
-  return {
-    ok: true,
-    data: {
-      full_name: fullName,
-      phone,
-      avatar_url: avatarUrl,
-      role,
-      is_active: isActive,
-    },
-  };
+  return validationSuccess({
+    full_name: fullName,
+    phone,
+    avatar_url: avatarUrl,
+    role,
+    is_active: isActive,
+  });
 }
 
 export function validateCreateUserProfileInput(
   input: CreateUserProfileInput,
 ): ValidateCreateUserProfileInputResult {
-  const id = (input.id ?? "").trim();
+  const id = normalizeSingleLineText(input.id);
   const profileValidation = validateUserInput(input);
   const fieldErrors: UserFieldErrors = profileValidation.ok
     ? {}
@@ -154,22 +128,16 @@ export function validateCreateUserProfileInput(
 
   if (!id) {
     fieldErrors.id = "El UUID del usuario Auth es obligatorio.";
-  } else if (!UUID_PATTERN.test(id)) {
+  } else if (!isValidUuid(id)) {
     fieldErrors.id = "Ingresa un UUID válido de Supabase Auth.";
   }
 
-  if (!profileValidation.ok || Object.keys(fieldErrors).length > 0) {
-    return {
-      ok: false,
-      fieldErrors,
-    };
+  if (!profileValidation.ok || hasFieldErrors(fieldErrors)) {
+    return validationFailure(fieldErrors);
   }
 
-  return {
-    ok: true,
-    data: {
-      id,
-      ...profileValidation.data,
-    },
-  };
+  return validationSuccess({
+    id,
+    ...profileValidation.data,
+  });
 }

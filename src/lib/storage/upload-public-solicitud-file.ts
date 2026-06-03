@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto";
+import { createClient } from "@/lib/supabase/server";
+import { isValidUuid } from "@/lib/validators";
 import {
   GODEL_FILES_BUCKET,
   MAX_PUBLIC_SOLICITUD_FILES,
 } from "./constants";
 import { sanitizeFileName } from "./file-name";
-import { buildSolicitudFilePath, isValidUuid } from "./file-paths";
+import { buildSolicitudFilePath } from "./file-paths";
 import { validateStorageFile } from "./file-validation";
-import { createClient } from "@/lib/supabase/server";
 import type {
   UploadPublicSolicitudFileInput,
   UploadPublicSolicitudFileResult,
@@ -100,7 +101,7 @@ export async function uploadPublicSolicitudFiles(
     ok: true,
     uploaded: [],
     errors: extraFiles.map((file) => ({
-      fileName: file.name || "Archivo sin nombre",
+      fileName: file.name || "Archivo sin name",
       reason: "too_many_files",
     })),
   };
@@ -126,7 +127,7 @@ export async function uploadPublicSolicitudFiles(
       });
     } else {
       result.errors.push({
-        fileName: file.name || "Archivo sin nombre",
+        fileName: file.name || "Archivo sin name",
         reason: uploadResult.reason,
       });
     }

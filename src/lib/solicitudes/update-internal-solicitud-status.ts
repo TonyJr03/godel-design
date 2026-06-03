@@ -1,73 +1,70 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
+import {
+  serviceFailure,
+  serviceSuccess,
+  type ServiceResult,
+} from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
+import { isValidUuid } from "@/lib/validators";
 import type { TablesUpdate } from "@/types/database";
 import { isManualSolicitudStatus, type ManualSolicitudStatus } from "./status";
 
 export type UpdateInternalSolicitudStatusInput = {
   solicitudId: string;
-  estado: string;
+  status: string;
 };
 
-export type UpdateInternalSolicitudStatusResult =
-  | {
-      ok: true;
-      estado: ManualSolicitudStatus;
-    }
-  | {
-      ok: false;
-      reason:
-        | "unauthorized"
-        | "invalid_id"
-        | "invalid_status"
-        | "not_found"
-        | "error";
-      message: string;
-    };
+export type UpdateInternalSolicitudStatusErrorReason =
+  | "unauthorized"
+  | "forbidden"
+  | "invalid_id"
+  | "invalid_status"
+  | "not_found"
+  | "error";
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+export type UpdateInternalSolicitudStatusResult = ServiceResult<
+  { status: ManualSolicitudStatus },
+  UpdateInternalSolicitudStatusErrorReason
+>;
 
 const GENERIC_UPDATE_ERROR =
-  "No se pudo actualizar el estado. Inténtalo nuevamente.";
-
-function isValidUuid(id: string): boolean {
-  return UUID_PATTERN.test(id);
-}
+  "No se pudo actualizar el status. Inténtalo nuevamente.";
 
 export async function updateInternalSolicitudStatus({
   solicitudId,
-  estado,
+  status,
 }: UpdateInternalSolicitudStatusInput): Promise<UpdateInternalSolicitudStatusResult> {
   if (!isValidUuid(solicitudId)) {
-    return {
-      ok: false,
-      reason: "invalid_id",
-      message: "La solicitud no existe.",
-    };
+    return serviceFailure("invalid_id", "La solicitud no existe.");
   }
 
-  if (!isManualSolicitudStatus(estado)) {
-    return {
-      ok: false,
-      reason: "invalid_status",
-      message: "El estado seleccionado no se puede asignar manualmente.",
-    };
+  if (!isManualSolicitudStatus(status)) {
+    return serviceFailure(
+      "invalid_status",
+      "El status seleccionado no se puede asignar manualmente.",
+    );
   }
 
   const profile = await getCurrentProfile();
 
-  if (!profile || !hasPermission(profile.role, "solicitudes.manage")) {
-    return {
-      ok: false,
-      reason: "unauthorized",
-      message: "No tienes permiso para cambiar el estado de solicitudes.",
-    };
+  if (!profile) {
+    return serviceFailure(
+      "unauthorized",
+      "No tienes permiso para cambiar el status de solicitudes.",
+    );
+  }
+
+  if (!hasPermission(profile.role, "solicitudes.manage")) {
+    return serviceFailure(
+      "forbidden",
+      "No tienes permiso para cambiar el status de solicitudes.",
+    );
   }
 
   const supabase = await createClient();
   const updateData: TablesUpdate<"solicitudes"> = {
-    estado,
+    status,
     reviewed_by: profile.id,
   };
 
@@ -82,32 +79,17 @@ export async function updateInternalSolicitudStatus({
     if (error) {
       console.error("Error updating internal solicitud status", error);
 
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_UPDATE_ERROR,
-      };
+      return serviceFailure("error", GENERIC_UPDATE_ERROR);
     }
 
     if (!data) {
-      return {
-        ok: false,
-        reason: "not_found",
-        message: "La solicitud no existe.",
-      };
+      return serviceFailure("not_found", "La solicitud no existe.");
     }
 
-    return {
-      ok: true,
-      estado,
-    };
+    return serviceSuccess({ status });
   } catch (error) {
     console.error("Unexpected error updating internal solicitud status", error);
 
-    return {
-      ok: false,
-      reason: "error",
-      message: GENERIC_UPDATE_ERROR,
-    };
+    return serviceFailure("error", GENERIC_UPDATE_ERROR);
   }
 }

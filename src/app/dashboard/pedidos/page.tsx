@@ -4,38 +4,23 @@ import { InternalPedidosList } from "@/components/pedidos/InternalPedidosList";
 import { PageHeader } from "@/components/ui/PageHeader";
 import {
   INTERNAL_PEDIDO_ESTADOS,
+  PEDIDO_STATUS_LABELS,
   listInternalPedidos,
-  type InternalPedidoEstado,
 } from "@/lib/pedidos";
+import { getSingleSearchParam } from "@/lib/utils";
 
 type DashboardPedidosPageProps = {
   searchParams: Promise<{
-    estado?: string | string[] | undefined;
+    status?: string | string[] | undefined;
   }>;
 };
-
-const ESTADO_LABELS: Record<InternalPedidoEstado, string> = {
-  solicitud_recibida: "Solicitud recibida",
-  en_revision: "En revisión",
-  cotizado: "Cotizado",
-  aprobado_cliente: "Aprobado por cliente",
-  en_diseno: "En diseño",
-  en_produccion: "En producción",
-  listo_entrega: "Listo para entrega",
-  entregado: "Entregado",
-  cancelado: "Cancelado",
-};
-
-function getSingleSearchParam(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] : value;
-}
 
 export default async function DashboardPedidosPage({
   searchParams,
 }: DashboardPedidosPageProps) {
   const params = await searchParams;
-  const estado = getSingleSearchParam(params.estado);
-  const result = await listInternalPedidos({ estado });
+  const status = getSingleSearchParam(params.status);
+  const result = await listInternalPedidos({ status });
 
   return (
     <div className="space-y-8">
@@ -60,7 +45,7 @@ export default async function DashboardPedidosPage({
           <Link
             href="/dashboard/pedidos"
             className={`inline-flex h-9 items-center justify-center rounded-md border px-3 text-sm font-medium transition ${
-              result.ok && !result.estado
+              result.ok && !result.status
                 ? "border-zinc-950 bg-zinc-950 text-white"
                 : "border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400"
             }`}
@@ -70,14 +55,14 @@ export default async function DashboardPedidosPage({
           {INTERNAL_PEDIDO_ESTADOS.map((estadoOption) => (
             <Link
               key={estadoOption}
-              href={`/dashboard/pedidos?estado=${estadoOption}`}
+              href={`/dashboard/pedidos?status=${estadoOption}`}
               className={`inline-flex h-9 items-center justify-center rounded-md border px-3 text-sm font-medium transition ${
-                result.ok && result.estado === estadoOption
+                result.ok && result.status === estadoOption
                   ? "border-teal-700 bg-teal-700 text-white"
                   : "border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400"
               }`}
             >
-              {ESTADO_LABELS[estadoOption]}
+              {PEDIDO_STATUS_LABELS[estadoOption]}
             </Link>
           ))}
         </div>

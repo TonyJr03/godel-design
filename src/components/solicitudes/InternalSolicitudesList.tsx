@@ -1,17 +1,11 @@
 import Link from "next/link";
-import type { InternalSolicitud } from "@/lib/solicitudes";
+import {
+  SOLICITUD_STATUS_LABELS,
+  type InternalSolicitud,
+} from "@/lib/solicitudes";
 
 type InternalSolicitudesListProps = {
   solicitudes: InternalSolicitud[];
-};
-
-const ESTADO_LABELS: Record<InternalSolicitud["estado"], string> = {
-  nueva: "Nueva",
-  en_revision: "En revisión",
-  contactada: "Contactada",
-  aprobada: "Aprobada",
-  rechazada: "Rechazada",
-  convertida: "Convertida",
 };
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("es", {
@@ -78,32 +72,32 @@ export function InternalSolicitudesList({
                   {formatShortReference(solicitud.id)}
                 </td>
                 <td className="px-4 py-4 font-medium text-zinc-950">
-                  {solicitud.cliente_nombre}
+                  {solicitud.client_name}
                 </td>
                 <td className="px-4 py-4 text-zinc-700">
-                  <div>{solicitud.cliente_telefono}</div>
-                  {solicitud.cliente_email ? (
+                  <div>{solicitud.client_phone}</div>
+                  {solicitud.client_email ? (
                     <div className="mt-1 text-xs text-zinc-500">
-                      {solicitud.cliente_email}
+                      {solicitud.client_email}
                     </div>
                   ) : null}
                 </td>
                 <td className="px-4 py-4 text-zinc-700">
-                  {solicitud.tipo_servicio}
+                  {solicitud.service_type}
                 </td>
                 <td className="whitespace-nowrap px-4 py-4">
                   <span className="inline-flex rounded-md bg-teal-50 px-2 py-1 text-xs font-semibold text-teal-800 ring-1 ring-inset ring-teal-700/15">
-                    {ESTADO_LABELS[solicitud.estado]}
+                    {SOLICITUD_STATUS_LABELS[solicitud.status]}
                   </span>
                 </td>
                 <td className="whitespace-nowrap px-4 py-4 text-zinc-700">
                   {formatDate(solicitud.created_at)}
                 </td>
                 <td className="whitespace-nowrap px-4 py-4 text-zinc-700">
-                  {formatDate(solicitud.fecha_deseada)}
+                  {formatDate(solicitud.desired_date)}
                 </td>
                 <td className="whitespace-nowrap px-4 py-4 text-zinc-700">
-                  {solicitud.cantidad ?? "No definida"}
+                  {solicitud.quantity ?? "No definida"}
                 </td>
                 <td className="px-4 py-4 text-right">
                   <Link

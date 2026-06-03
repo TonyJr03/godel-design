@@ -7,10 +7,11 @@ import {
   type CreatePedidoActionState,
 } from "@/app/dashboard/pedidos/nuevo/actions";
 import type { PedidoField, PedidoPrioridad } from "@/lib/pedidos";
+import { PEDIDO_PRIORITY_LABELS } from "@/lib/pedidos/labels";
 
 export type PedidoFormCliente = {
   id: string;
-  nombre: string;
+  name: string;
 };
 
 type PedidoFormProps = {
@@ -21,13 +22,6 @@ type PedidoFormProps = {
 const initialState: CreatePedidoActionState = {
   ok: false,
   message: "",
-};
-
-const PRIORIDAD_LABELS: Record<PedidoPrioridad, string> = {
-  baja: "Baja",
-  normal: "Normal",
-  alta: "Alta",
-  urgente: "Urgente",
 };
 
 type FieldErrorProps = {
@@ -76,10 +70,10 @@ export function PedidoForm({ clientes, prioridades }: PedidoFormProps) {
   }, [state.ok]);
 
   const clienteError = getFieldError(state, "cliente_id");
-  const tituloError = getFieldError(state, "titulo");
-  const descripcionError = getFieldError(state, "descripcion");
-  const prioridadError = getFieldError(state, "prioridad");
-  const fechaEntregaError = getFieldError(state, "fecha_entrega_estimada");
+  const tituloError = getFieldError(state, "title");
+  const descripcionError = getFieldError(state, "description");
+  const prioridadError = getFieldError(state, "priority");
+  const fechaEntregaError = getFieldError(state, "estimated_delivery_date");
 
   if (clientes.length === 0) {
     return (
@@ -150,7 +144,7 @@ export function PedidoForm({ clientes, prioridades }: PedidoFormProps) {
               </option>
               {clientes.map((cliente) => (
                 <option key={cliente.id} value={cliente.id}>
-                  {cliente.nombre}
+                  {cliente.name}
                 </option>
               ))}
             </select>
@@ -158,70 +152,70 @@ export function PedidoForm({ clientes, prioridades }: PedidoFormProps) {
           </div>
 
           <div className="sm:col-span-2">
-            <label className={labelClass} htmlFor="titulo">
+            <label className={labelClass} htmlFor="title">
               Título del trabajo <span className="text-red-700">*</span>
             </label>
             <input
               className={baseInputClass}
-              id="titulo"
-              name="titulo"
+              id="title"
+              name="title"
               type="text"
               required
               maxLength={160}
               aria-invalid={Boolean(tituloError)}
-              aria-describedby={tituloError ? "titulo-error" : undefined}
+              aria-describedby={tituloError ? "title-error" : undefined}
             />
-            <FieldError id="titulo-error" message={tituloError} />
+            <FieldError id="title-error" message={tituloError} />
           </div>
 
           <div className="sm:col-span-2">
-            <label className={labelClass} htmlFor="descripcion">
+            <label className={labelClass} htmlFor="description">
               Descripción <span className="text-red-700">*</span>
             </label>
             <textarea
               className={`${baseInputClass} min-h-36 resize-y`}
-              id="descripcion"
-              name="descripcion"
+              id="description"
+              name="description"
               required
               maxLength={3000}
               aria-invalid={Boolean(descripcionError)}
               aria-describedby={
-                descripcionError ? "descripcion-error" : undefined
+                descripcionError ? "description-error" : undefined
               }
             />
-            <FieldError id="descripcion-error" message={descripcionError} />
+            <FieldError id="description-error" message={descripcionError} />
           </div>
 
           <div>
-            <label className={labelClass} htmlFor="prioridad">
+            <label className={labelClass} htmlFor="priority">
               Prioridad <span className="text-red-700">*</span>
             </label>
             <select
               className={baseInputClass}
-              id="prioridad"
-              name="prioridad"
+              id="priority"
+              name="priority"
               required
               defaultValue="normal"
               aria-invalid={Boolean(prioridadError)}
-              aria-describedby={prioridadError ? "prioridad-error" : undefined}
+              aria-describedby={prioridadError ? "priority-error" : undefined}
             >
-              {prioridades.map((prioridad) => (
-                <option key={prioridad} value={prioridad}>
-                  {PRIORIDAD_LABELS[prioridad]}
+              {prioridades.map((priority) => (
+                <option key={priority} value={priority}>
+                  {PEDIDO_PRIORITY_LABELS[priority]}
                 </option>
               ))}
             </select>
-            <FieldError id="prioridad-error" message={prioridadError} />
+            <FieldError id="priority-error" message={prioridadError} />
           </div>
 
           <div>
-            <label className={labelClass} htmlFor="fecha_entrega_estimada">
+            <label className={labelClass} htmlFor="estimated_delivery_date">
               Fecha estimada de entrega <OptionalMark />
             </label>
             <input
               className={baseInputClass}
-              id="fecha_entrega_estimada"
-              name="fecha_entrega_estimada"
+              id="estimated_delivery_date"
+              name="estimated_delivery_date"
               type="date"
               aria-invalid={Boolean(fechaEntregaError)}
               aria-describedby={

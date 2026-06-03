@@ -20,7 +20,7 @@ Los reportes avanzados quedan fuera de esta fase. No se deben implementar gráfi
 
 ## Diagnóstico del estado actual
 
-Desde Fase 13.3, la ruta `/dashboard` muestra tarjetas reales de resumen operativo usando `getDashboardSummary()`. Desde Fase 13.4, también muestra paneles operativos simples usando `getDashboardWorkItems()`. Desde Fase 13.5, muestra actividad reciente mínima usando `getDashboardRecentActivity()`. La página sigue siendo un Server Component: carga datos en servidor y los entrega a componentes presentacionales sin consultas desde cliente.
+La ruta `/dashboard` muestra tarjetas reales de resumen operativo, paneles operativos simples y actividad reciente mínima usando `getDashboard()`. Este servicio agregador obtiene un contexto compartido de perfil/rol una sola vez y luego carga resumen, paneles y actividad en paralelo. La página sigue siendo un Server Component: carga datos en servidor y los entrega a componentes presentacionales sin consultas desde cliente.
 
 El layout de dashboard (`src/app/dashboard/layout.tsx`) obtiene el perfil actual con `getCurrentProfile()` y pasa el rol al sidebar. La navegación visible se filtra con `canAccessDashboardRoute`.
 
@@ -40,7 +40,7 @@ Los módulos existentes ya ofrecen servicios server-side reutilizables como punt
 - clientes: listado, detalle y gestión interna;
 - pedidos: listado, detalle, cambio de estado, asignación, comentarios e historial;
 - archivos: listado y descarga controlada para solicitudes y pedidos;
-- usuarios internos: perfiles en `public.profiles`, solo para administración.
+- usuarios internos: perfiles en `public.perfiles`, solo para administración.
 
 ## Información disponible sin crear tablas nuevas
 
@@ -53,7 +53,7 @@ La primera versión puede obtener información desde tablas existentes:
 - `archivos`: archivos recientes asociados a solicitudes o pedidos;
 - `pedido_historial` y `solicitud_historial`: actividad operativa registrada;
 - `pedido_comentarios` y `solicitud_comentarios`: comentarios recientes si se decide incluirlos en una vista de actividad;
-- `profiles`: solo datos mínimos permitidos por RLS, nunca `auth.users`.
+- `perfiles`: solo datos mínimos permitidos por RLS, nunca `auth.users`.
 
 No hacen falta tablas nuevas para el MVP del dashboard. Sí harán falta consultas nuevas porque los listados actuales devuelven filas operativas limitadas, no agregados ni agrupaciones por estado.
 
@@ -63,9 +63,9 @@ Las siguientes piezas requieren servicios específicos de dashboard:
 
 - conteos agrupados por estado de solicitud;
 - conteos agrupados por estado de pedido;
-- pedidos atrasados, calculados por `fecha_entrega_estimada` anterior a la fecha actual y estado no final;
+- pedidos atrasados, calculados por `estimated_delivery_date` anterior a la fecha actual y estado no final;
 - pedidos próximos a entrega, calculados por una ventana corta y estado no final;
-- pedidos entregados recientemente, calculados por `fecha_entrega_real` o por estado y fecha de actualización si se define;
+- pedidos entregados recientemente, calculados por `actual_delivery_date` o por estado y fecha de actualización si se define;
 - archivos recientes con relación mínima a solicitud o pedido;
 - actividad reciente combinando historial de solicitudes e historial de pedidos;
 - resumen específico del trabajador filtrado a pedidos asignados.
@@ -195,8 +195,8 @@ Definición sugerida de estados:
 | Pedidos en diseño | `en_diseno` |
 | Pedidos en producción | `en_produccion` |
 | Pedidos listos | `listo_entrega` |
-| Pedidos atrasados | `fecha_entrega_estimada` vencida y estado distinto de `entregado` o `cancelado` |
-| Próximos vencimientos | `fecha_entrega_estimada` dentro de una ventana corta y estado activo |
+| Pedidos atrasados | `estimated_delivery_date` vencida y estado distinto de `entregado` o `cancelado` |
+| Próximos vencimientos | `estimated_delivery_date` dentro de una ventana corta y estado activo |
 
 ## Métricas futuras
 
@@ -284,7 +284,7 @@ Queda fuera del alcance actual:
 - usar service role key;
 - consultar `auth.users`;
 - instalar dependencias;
-- modificar `docs/ROADMAP.md`;
+- modificar `docs/development/ROADMAP.md`;
 - implementar gráficos;
 - implementar reportes avanzados;
 - implementar notificaciones;

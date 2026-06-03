@@ -6,6 +6,8 @@ import {
   type CreatePedidoCommentActionState,
 } from "@/app/dashboard/pedidos/[id]/actions";
 import type { PedidoComment } from "@/lib/pedidos";
+import { ROLE_SHORT_LABELS } from "@/lib/permissions";
+import { formatAppDateTime } from "@/lib/utils";
 
 type PedidoCommentsSectionProps = {
   pedidoId: string;
@@ -17,36 +19,18 @@ const initialState: CreatePedidoCommentActionState = {
   ok: false,
   message: "",
   values: {
-    contenido: "",
+    content: "",
   },
 };
-
-const ROLE_LABELS: Record<NonNullable<PedidoComment["author"]>["role"], string> =
-  {
-    admin: "Admin",
-    supervisor: "Supervisor",
-    trabajador: "Trabajador",
-  };
-
-const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("es", {
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: "UTC",
-});
-
-function formatDateTime(value: string): string {
-  return DATE_TIME_FORMATTER.format(new Date(value));
-}
 
 function getAuthorName(comment: PedidoComment): string {
   return comment.author?.full_name?.trim() || "Usuario interno";
 }
 
 function getAuthorRole(comment: PedidoComment): string {
-  return comment.author?.role ? ROLE_LABELS[comment.author.role] : "Equipo";
+  return comment.author?.role
+    ? ROLE_SHORT_LABELS[comment.author.role]
+    : "Equipo";
 }
 
 export function PedidoCommentsSection({
@@ -59,7 +43,7 @@ export function PedidoCommentsSection({
     createPedidoCommentAction,
     initialState,
   );
-  const contenidoError = state.fieldErrors?.contenido;
+  const contenidoError = state.fieldErrors?.content;
 
   useEffect(() => {
     if (state.ok) {
@@ -105,11 +89,11 @@ export function PedidoCommentsSection({
                   dateTime={comment.created_at}
                   className="text-xs leading-5 text-zinc-500"
                 >
-                  {formatDateTime(comment.created_at)}
+                  {formatAppDateTime(comment.created_at)}
                 </time>
               </div>
               <p className="mt-3 whitespace-pre-line text-sm leading-6 text-zinc-700">
-                {comment.contenido}
+                {comment.content}
               </p>
             </li>
           ))}
@@ -151,12 +135,12 @@ export function PedidoCommentsSection({
           </label>
           <textarea
             id="pedido-comment-content"
-            name="contenido"
+            name="content"
             rows={4}
             maxLength={2000}
             required
             disabled={pending}
-            defaultValue={state.values?.contenido ?? ""}
+            defaultValue={state.values?.content ?? ""}
             aria-invalid={Boolean(contenidoError)}
             aria-describedby={
               contenidoError ? "pedido-comment-content-error" : undefined

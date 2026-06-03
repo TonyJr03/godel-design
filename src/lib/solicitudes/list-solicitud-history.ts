@@ -1,56 +1,81 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
-import { isValidUuid } from "@/lib/storage";
+import {
+  serviceFailure,
+  serviceSuccess,
+  type ServiceResult,
+} from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
-import type { Json, Tables } from "@/types/database";
+import { isValidUuid } from "@/lib/validators";
+import type { Enums, Json, Tables } from "@/types/database";
 
 export type SolicitudHistoryActor =
-  | Pick<Tables<"profiles">, "full_name" | "role">
+  | Pick<Tables<"perfiles">, "full_name" | "role">
   | null;
 
 export type SolicitudHistoryItem = Pick<
   Tables<"solicitud_historial">,
-  "id" | "action" | "resumen" | "metadata" | "created_at"
+  | "id"
+  | "action"
+  | "summary"
+  | "old_value"
+  | "new_value"
+  | "metadata"
+  | "created_at"
 > & {
   actor: SolicitudHistoryActor;
   related: {
-    cliente?: Pick<Tables<"clientes">, "id" | "nombre">;
-    pedido?: Pick<Tables<"pedidos">, "id" | "numero_pedido" | "titulo">;
+    cliente?: Pick<Tables<"clientes">, "id" | "name">;
+    pedido?: Pick<Tables<"pedidos">, "id" | "order_number" | "title">;
   };
 };
 
-type SolicitudHistoryRow = Pick<
-  Tables<"solicitud_historial">,
-  "id" | "action" | "resumen" | "metadata" | "created_at" | "actor_id"
+type SolicitudHistoryRpcRow = {
+  id: string;
+  action: Enums<"solicitud_historial_action">;
+  summary: string;
+  old_value: string | null;
+  new_value: string | null;
+  metadata: Json;
+  created_at: string;
+  actor_full_name: string | null;
+  actor_role: Enums<"app_role"> | null;
+};
+
+type SolicitudHistoryRpcResult = {
+  data: SolicitudHistoryRpcRow[] | null;
+  error: { message?: string } | null;
+};
+
+type SolicitudHistoryRpcClient = {
+  rpc(
+    fn: "listar_solicitud_historial",
+    args: { p_solicitud_id: string },
+  ): PromiseLike<SolicitudHistoryRpcResult>;
+};
+
+type ClienteRow = Pick<Tables<"clientes">, "id" | "name">;
+type PedidoRow = Pick<Tables<"pedidos">, "id" | "order_number" | "title">;
+
+export type ListSolicitudHistoryErrorReason =
+  | "unauthorized"
+  | "forbidden"
+  | "invalid_id"
+  | "not_found"
+  | "error";
+
+export type ListSolicitudHistoryResult = ServiceResult<
+  { history: SolicitudHistoryItem[] },
+  ListSolicitudHistoryErrorReason,
+  { history: [] }
 >;
-
-type ProfileRow = Pick<Tables<"profiles">, "id" | "full_name" | "role">;
-type ClienteRow = Pick<Tables<"clientes">, "id" | "nombre">;
-type PedidoRow = Pick<Tables<"pedidos">, "id" | "numero_pedido" | "titulo">;
-
-export type ListSolicitudHistoryResult =
-  | {
-      ok: true;
-      history: SolicitudHistoryItem[];
-    }
-  | {
-      ok: false;
-      reason: "unauthorized" | "invalid_id" | "not_found" | "error";
-      message: string;
-      history: [];
-    };
 
 const GENERIC_LIST_HISTORY_ERROR =
   "No se pudo cargar el historial de la solicitud.";
 
-const SOLICITUD_HISTORY_SELECT = `
-  id,
-  actor_id,
-  action,
-  resumen,
-  metadata,
-  created_at
-`;
+const emptyHistory = {
+  history: [] as [],
+};
 
 function isJsonObject(value: Json): value is Record<string, Json> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -72,23 +97,25 @@ export async function listSolicitudHistory(
   const solicitudId = solicitudIdInput.trim();
 
   if (!isValidUuid(solicitudId)) {
-    return {
-      ok: false,
-      reason: "invalid_id",
-      message: "La solicitud no existe.",
-      history: [],
-    };
+    return serviceFailure("invalid_id", "La solicitud no existe.", emptyHistory);
   }
 
   const profile = await getCurrentProfile();
 
-  if (!profile || !hasPermission(profile.role, "solicitudes.view")) {
-    return {
-      ok: false,
-      reason: "unauthorized",
-      message: "No tienes permiso para ver el historial de solicitudes.",
-      history: [],
-    };
+  if (!profile) {
+    return serviceFailure(
+      "unauthorized",
+      "No tienes permiso para ver el historial de solicitudes.",
+      emptyHistory,
+    );
+  }
+
+  if (!hasPermission(profile.role, "solicitudes.view")) {
+    return serviceFailure(
+      "forbidden",
+      "No tienes permiso para ver el historial de solicitudes.",
+      emptyHistory,
+    );
   }
 
   const supabase = await createClient();
@@ -106,50 +133,30 @@ export async function listSolicitudHistory(
         solicitudError,
       );
 
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_LIST_HISTORY_ERROR,
-        history: [],
-      };
+      return serviceFailure("error", GENERIC_LIST_HISTORY_ERROR, emptyHistory);
     }
 
     if (!solicitud) {
-      return {
-        ok: false,
-        reason: "not_found",
-        message: "La solicitud no existe o no tienes acceso.",
-        history: [],
-      };
+      return serviceFailure(
+        "not_found",
+        "La solicitud no existe o no tienes acceso.",
+        emptyHistory,
+      );
     }
 
-    const { data, error } = await supabase
-      .from("solicitud_historial")
-      .select(SOLICITUD_HISTORY_SELECT)
-      .eq("solicitud_id", solicitudId)
-      .order("created_at", { ascending: false })
-      .returns<SolicitudHistoryRow[]>();
+    const { data, error } = await (
+      supabase as unknown as SolicitudHistoryRpcClient
+    ).rpc("listar_solicitud_historial", {
+      p_solicitud_id: solicitudId,
+    });
 
     if (error) {
       console.error("Error listing solicitud history", error);
 
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_LIST_HISTORY_ERROR,
-        history: [],
-      };
+      return serviceFailure("error", GENERIC_LIST_HISTORY_ERROR, emptyHistory);
     }
 
     const history = data ?? [];
-    const actorIds = Array.from(
-      new Set(
-        history
-          .map((historyItem) => historyItem.actor_id)
-          .filter((actorId): actorId is string => Boolean(actorId)),
-      ),
-    );
-    const actorsById = new Map<string, SolicitudHistoryActor>();
     const clienteIds = Array.from(
       new Set(
         history
@@ -171,29 +178,10 @@ export async function listSolicitudHistory(
     const clientesById = new Map<string, ClienteRow>();
     const pedidosById = new Map<string, PedidoRow>();
 
-    if (actorIds.length > 0) {
-      const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("id, full_name, role")
-        .in("id", actorIds)
-        .returns<ProfileRow[]>();
-
-      if (profilesError) {
-        console.error("Error loading solicitud history actors", profilesError);
-      } else {
-        for (const actorProfile of profiles ?? []) {
-          actorsById.set(actorProfile.id, {
-            full_name: actorProfile.full_name,
-            role: actorProfile.role,
-          });
-        }
-      }
-    }
-
     if (clienteIds.length > 0) {
       const { data: clientes, error: clientesError } = await supabase
         .from("clientes")
-        .select("id, nombre")
+        .select("id, name")
         .in("id", clienteIds)
         .returns<ClienteRow[]>();
 
@@ -212,7 +200,7 @@ export async function listSolicitudHistory(
     if (pedidoIds.length > 0) {
       const { data: pedidos, error: pedidosError } = await supabase
         .from("pedidos")
-        .select("id, numero_pedido, titulo")
+        .select("id, order_number, title")
         .in("id", pedidoIds)
         .returns<PedidoRow[]>();
 
@@ -228,30 +216,29 @@ export async function listSolicitudHistory(
       }
     }
 
-    return {
-      ok: true,
-      history: history.map(({ actor_id, ...historyItem }) => {
+    return serviceSuccess({
+      history: history.map(({ actor_full_name, actor_role, ...historyItem }) => {
         const clienteId = getMetadataString(historyItem.metadata, "cliente_id");
         const pedidoId = getMetadataString(historyItem.metadata, "pedido_id");
 
         return {
           ...historyItem,
-          actor: actor_id ? actorsById.get(actor_id) ?? null : null,
+          actor: actor_role
+            ? {
+                full_name: actor_full_name ?? "Usuario interno",
+                role: actor_role,
+              }
+            : null,
           related: {
             cliente: clienteId ? clientesById.get(clienteId) : undefined,
             pedido: pedidoId ? pedidosById.get(pedidoId) : undefined,
           },
         };
       }),
-    };
+    });
   } catch (error) {
     console.error("Unexpected error listing solicitud history", error);
 
-    return {
-      ok: false,
-      reason: "error",
-      message: GENERIC_LIST_HISTORY_ERROR,
-      history: [],
-    };
+    return serviceFailure("error", GENERIC_LIST_HISTORY_ERROR, emptyHistory);
   }
 }

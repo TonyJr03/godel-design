@@ -4,7 +4,7 @@ Esta carpeta contiene la lógica server-side del flujo público e interno de sol
 
 ## Flujo público
 
-El cliente externo puede enviar datos básicos de contacto y del trabajo solicitado sin tener cuenta de usuario. La solicitud se valida en el servidor y se inserta en Supabase con `estado = "nueva"`.
+El cliente externo puede enviar datos básicos de contacto y del trabajo solicitado sin tener cuenta de usuario. La solicitud se valida en el servidor y se inserta en Supabase con `status = "nueva"`.
 
 `PublicSolicitudForm` consume la Server Action `submitPublicSolicitudAction` desde `/solicitud`. El componente cliente captura campos públicos, archivos opcionales y muestra estado de envío, errores y confirmación. No consulta Supabase directamente.
 
@@ -12,19 +12,19 @@ Por seguridad, el flujo público no usa service role key. La inserción se hace 
 
 ## Campos validados
 
-- `cliente_nombre`
-- `cliente_telefono`
-- `cliente_email`
-- `tipo_servicio`
-- `descripcion`
-- `cantidad`
-- `fecha_deseada`
-- `observaciones`
+- `client_name`
+- `client_phone`
+- `client_email`
+- `service_type`
+- `description`
+- `quantity`
+- `desired_date`
+- `notes`
 - `files`
 
-Los campos se recortan, los opcionales vacíos se convierten a `null`, y se validan longitudes razonables, formato básico de correo, cantidad positiva y fecha válida. `fecha_deseada` es opcional, pero si se informa debe ser igual o posterior al día actual. La validación definitiva ocurre en servidor.
+Los campos se recortan, los opcionales vacíos se convierten a `null`, y se validan longitudes razonables, formato básico de correo, cantidad positiva y fecha válida. `desired_date` es opcional, pero si se informa debe ser igual o posterior al día actual. La validación definitiva ocurre en servidor.
 
-El formulario no acepta campos sensibles como `id`, `estado`, `cliente_id`, `reviewed_by` ni `converted_order_id`.
+El formulario no acepta campos sensibles como `id`, `status`, `cliente_id`, `reviewed_by` ni `converted_order_id`.
 
 ## Archivos opcionales
 
@@ -73,7 +73,7 @@ El estado `convertida` no se establece manualmente desde el selector de estado. 
 
 `associateSolicitudWithCliente` asocia una solicitud con un cliente existente. Requiere `solicitudes.manage` y `clientes.view`, valida UUID de solicitud y cliente, verifica que ambos registros existan y actualiza únicamente `solicitudes.cliente_id`.
 
-`createClienteFromSolicitudAndAssociate` crea un cliente básico desde los datos ya guardados en la solicitud (`cliente_nombre`, `cliente_telefono`, `cliente_email`) y lo asocia automáticamente. Requiere `solicitudes.manage` y `clientes.manage`.
+`createClienteFromSolicitudAndAssociate` crea un cliente básico desde los datos ya guardados en la solicitud (`client_name`, `client_phone`, `client_email`) y lo asocia automáticamente. Requiere `solicitudes.manage` y `clientes.manage`.
 
 Las actions del detalle de solicitud son:
 
@@ -84,19 +84,19 @@ No se usa service role key y no se implementa deduplicación avanzada.
 
 ## Comentarios internos
 
-`listSolicitudComments` carga server-side los comentarios internos de una solicitud en orden ascendente. Requiere usuario interno activo con permiso `solicitudes.view`, valida UUID, confirma acceso a la solicitud respetando RLS y carga datos mínimos del autor desde `profiles`.
+`listSolicitudComments` carga server-side los comentarios internos mediante la RPC segura `public.listar_solicitud_comentarios`. Requiere usuario interno activo con permiso `solicitudes.view`, valida UUID, confirma acceso a la solicitud y recibe solo datos mínimos del autor: nombre y rol.
 
-`createSolicitudComment` agrega comentarios internos append-only. Requiere `solicitudes.manage`, valida UUID, confirma acceso a la solicitud, valida contenido no vacío con máximo de 2000 caracteres e inserta en `solicitud_comentarios` usando `autor_id = profile.id`.
+`createSolicitudComment` agrega comentarios internos append-only. Requiere `solicitudes.manage`, valida UUID, confirma acceso a la solicitud, valida content no vacío con máximo de 2000 caracteres e inserta en `solicitud_comentarios` usando `author_id = profile.id`.
 
-La action `createSolicitudCommentAction` lee únicamente `solicitud_id` y `contenido`. No acepta autor ni fechas desde el formulario. No hay edición, eliminación, menciones, notificaciones, adjuntos ni registro automático de historial en esta subfase.
+La action `createSolicitudCommentAction` lee únicamente `solicitud_id` y `content`. No acepta autor ni fechas desde el formulario. No hay edición, eliminación, menciones, notificaciones, adjuntos ni registro automático de historial en esta subfase.
 
 ## Historial visible
 
-`listSolicitudHistory` carga server-side el historial interno de una solicitud en orden descendente. Requiere usuario interno activo con permiso `solicitudes.view`, valida UUID, confirma acceso a la solicitud respetando RLS y carga datos mínimos del actor desde `profiles` cuando existe `actor_id`.
+`listSolicitudHistory` carga server-side el historial interno mediante la RPC segura `public.listar_solicitud_historial`. Requiere usuario interno activo con permiso `solicitudes.view`, valida UUID, confirma acceso a la solicitud y recibe solo datos mínimos del actor cuando existe `actor_id`: nombre y rol.
 
 `SolicitudHistorySection` muestra los eventos existentes en `solicitud_historial` dentro del detalle interno de solicitud. La sección muestra tipo de evento, resumen, actor, rol y fecha. Si `actor_id` es `null`, el evento se muestra como “Evento automático”.
 
-Para mantener el mismo nivel de detalle que el historial de pedidos, la sección construye el resumen visible desde `metadata` y relaciones mínimas cuando están disponibles: estados anterior/nuevo, nombre del archivo, cliente relacionado y pedido generado.
+Para mantener el mismo nivel de detalle que el historial de pedidos, la sección usa `summary`, `old_value`, `new_value`, `metadata` y relaciones mínimas cuando están disponibles: estados anterior/nuevo, nombre del archivo, cliente relacionado y pedido generado.
 
 El historial es append-only. No hay edición, eliminación ni notificaciones.
 

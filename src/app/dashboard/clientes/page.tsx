@@ -2,16 +2,13 @@ import Link from "next/link";
 import { InternalClientesList } from "@/components/clientes/InternalClientesList";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { listInternalClientes } from "@/lib/clientes";
+import { getSingleSearchParam } from "@/lib/utils";
 
 type DashboardClientesPageProps = {
   searchParams: Promise<{
     q?: string | string[] | undefined;
   }>;
 };
-
-function getSingleSearchParam(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] : value;
-}
 
 export default async function DashboardClientesPage({
   searchParams,

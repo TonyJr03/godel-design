@@ -49,19 +49,19 @@ La tabla técnica usada para registrar asignaciones es `pedido_trabajadores`.
 Columnas principales:
 
 - `pedido_id`: identifica el pedido asignado.
-- `trabajador_id`: identifica el usuario interno asignado.
+- `assigned_profile_id`: identifica el perfil interno asignado.
 - `assigned_by`: identifica el usuario que realizó la asignación.
 - `assigned_at`: registra la fecha y hora de asignación.
 
-El campo `trabajador_id` conserva el nombre técnico original, pero actualmente representa al usuario interno asignado, que puede tener rol `admin`, `supervisor` o `trabajador`.
+El campo `assigned_profile_id` representa al usuario interno asignado, que puede tener rol `admin`, `supervisor` o `trabajador`.
 
 Relaciones principales:
 
 - `pedido_trabajadores.pedido_id` se relaciona con `pedidos.id`.
-- `pedido_trabajadores.trabajador_id` se relaciona con `profiles.id`.
-- `pedido_trabajadores.assigned_by` se relaciona con `profiles.id`.
+- `pedido_trabajadores.assigned_profile_id` se relaciona con `perfiles.id`.
+- `pedido_trabajadores.assigned_by` se relaciona con `perfiles.id`.
 
-La restricción única sobre `(pedido_id, trabajador_id)` evita duplicar la misma asignación para el mismo pedido.
+La restricción única sobre `(pedido_id, assigned_profile_id)` evita duplicar la misma asignación para el mismo pedido.
 
 ## Roles y permisos
 
@@ -96,9 +96,9 @@ Archivos principales:
 
 `remove-internal-pedido-worker.ts` elimina solo la relación concreta entre pedido y usuario interno. No elimina el pedido ni elimina el perfil.
 
-`actions.ts` expone `assignPedidoWorkerAction` y `removePedidoWorkerAction`. Ambas leen únicamente `pedido_id` y `trabajador_id`, delegan en servicios server-side y revalidan el listado y el detalle del pedido.
+`actions.ts` expone `assignPedidoWorkerAction` y `removePedidoWorkerAction`. Ambas leen únicamente `pedido_id` y `assigned_profile_id`, delegan en servicios server-side y revalidan el listado y el detalle del pedido.
 
-Los duplicados se evitan con una comprobación previa en el servicio y con la restricción única `(pedido_id, trabajador_id)` en base de datos.
+Los duplicados se evitan con una comprobación previa en el servicio y con la restricción única `(pedido_id, assigned_profile_id)` en base de datos.
 
 ## Interfaz
 
@@ -123,7 +123,7 @@ Capas aplicadas:
 - validación de usuario activo;
 - RLS en `pedidos`;
 - RLS en `pedido_trabajadores`;
-- RLS en `profiles` para que trabajadores vean perfiles del personal asignado al mismo pedido;
+- RLS en `perfiles` para que trabajadores vean perfiles del personal asignado al mismo pedido;
 - RPC segura para cambio de estado.
 
 Aclaraciones:

@@ -4,18 +4,13 @@ import type {
   InternalUserActiveFilter,
   InternalUserRole,
 } from "@/lib/usuarios";
+import { ROLE_LABELS } from "@/lib/permissions";
 
 type InternalUsersListProps = {
   users: InternalUser[];
   q: string;
   role: InternalUserRole | "";
   active: "true" | "false" | "";
-};
-
-const ROLE_LABELS: Record<InternalUserRole, string> = {
-  admin: "Administrador",
-  supervisor: "Supervisor",
-  trabajador: "Trabajador",
 };
 
 const ACTIVE_LABELS: Record<`${InternalUserActiveFilter}`, string> = {

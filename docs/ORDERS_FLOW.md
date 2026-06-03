@@ -72,18 +72,16 @@ Campos principales usados actualmente en `pedidos`:
 | Campo | Uso |
 |---|---|
 | `id` | Identificador interno del pedido. |
-| `numero_pedido` | Referencia visible generada en servidor. |
+| `order_number` | Referencia visible generada en servidor. |
 | `cliente_id` | Cliente asociado al pedido. |
 | `solicitud_id` | Solicitud origen; puede ser `null` en pedidos manuales. |
-| `titulo` | Nombre breve del trabajo. |
-| `descripcion` | Descripción operativa del trabajo. |
-| `estado` | Estado operativo del pedido. |
-| `prioridad` | Prioridad del pedido. |
-| `fecha_creacion` | Fecha operativa de creación. |
-| `fecha_entrega_estimada` | Fecha prevista de entrega. |
-| `fecha_entrega_real` | Fecha real de entrega si aplica. |
-| `creado_por` | Perfil interno que creó el pedido. |
-| `supervisor_id` | Supervisor asociado cuando aplica. |
+| `title` | Nombre breve del trabajo. |
+| `description` | Descripción operativa del trabajo. |
+| `status` | Estado operativo del pedido. |
+| `priority` | Prioridad del pedido. |
+| `estimated_delivery_date` | Fecha prevista de entrega. |
+| `actual_delivery_date` | Fecha real de entrega si aplica. |
+| `created_by` | Perfil interno que creó el pedido. |
 | `created_at` | Fecha de creación del registro. |
 | `updated_at` | Fecha de última actualización. |
 
@@ -93,7 +91,7 @@ Reglas actuales:
 
 - `cliente_id` es requerido para crear pedidos desde los flujos implementados.
 - `solicitud_id` es `null` en pedidos manuales.
-- `numero_pedido` se genera en servidor.
+- `order_number` se genera en servidor.
 
 Las tablas oficiales normalizadas para comentarios e historial de pedidos son `pedido_comentarios` y `pedido_historial`. El enum de eventos de historial de pedidos es `pedido_historial_action`. Los comentarios de pedido están implementados en el detalle interno y son append-only. El historial de pedido está visible en el detalle interno y muestra los eventos existentes en `pedido_historial`.
 
@@ -144,7 +142,7 @@ Archivos principales:
 
 El detalle de pedido permite ver y agregar comentarios internos asociados al pedido. Los comentarios son visibles solo para usuarios internos con acceso al pedido: `admin` y `supervisor` en cualquier pedido, y `trabajador` solo en pedidos asignados.
 
-El formulario solo envía `pedido_id` y `contenido`. El autor se toma server-side desde el perfil autenticado y se guarda en `pedido_comentarios.user_id`. No se acepta autor, fecha ni otros campos técnicos desde el formulario.
+El formulario solo envía `pedido_id` y `content`. El autor se toma server-side desde el perfil autenticado y se guarda en `pedido_comentarios.author_id`. No se acepta autor, fecha ni otros campos técnicos desde el formulario.
 
 Los comentarios son append-only en el alcance inicial. No hay edición, eliminación, menciones, notificaciones ni adjuntos.
 
@@ -156,7 +154,7 @@ Archivos principales:
 - Componente: `src/components/pedidos/PedidoHistorySection.tsx`
 - RPC: `public.listar_pedido_historial`
 
-El detalle de pedido muestra una sección “Historial del pedido” con los eventos registrados en `pedido_historial`. El listado se carga server-side y usa una RPC segura que valida `private.can_access_order` y devuelve solo datos mínimos del actor: nombre y rol.
+El detalle de pedido muestra una sección “Historial del pedido” con los eventos registrados en `pedido_historial`. El listado se carga server-side y usa una RPC segura que valida `private.can_access_pedido` y devuelve solo datos mínimos del actor: nombre y rol.
 
 `admin` y `supervisor` ven el historial de cualquier pedido. `trabajador` ve el historial solo de pedidos asignados. El historial es append-only: no hay edición ni eliminación.
 
@@ -218,7 +216,7 @@ La conversión requiere `solicitudes.manage` y `pedidos.manage`. Solo se permite
 Al convertir:
 
 - se crea un pedido con `pedidos.solicitud_id`;
-- se actualiza `solicitudes.estado = convertida`;
+- se actualiza `solicitudes.status = convertida`;
 - se actualiza `solicitudes.converted_order_id`;
 - se asocian al pedido los archivos `cliente_solicitud` de la solicitud completando `archivos.pedido_id`;
 - no se mueven ni copian archivos físicos en Storage;
@@ -241,7 +239,7 @@ Archivos principales:
 - Estados: `src/lib/pedidos/status.ts`
 - RPC: `public.actualizar_estado_pedido`
 
-La action solo acepta `pedido_id` y `estado`. El estado se valida server-side contra el enum real. La actualización usa la RPC segura `public.actualizar_estado_pedido`, que evita abrir un `UPDATE` amplio sobre `pedidos` para trabajadores.
+La action solo acepta `pedido_id` y `status`. El estado se valida server-side contra el enum real. La actualización usa la RPC segura `public.actualizar_estado_pedido`, que evita abrir un `UPDATE` amplio sobre `pedidos` para trabajadores.
 
 Un trabajador solo puede cambiar el estado de pedidos asignados. Con múltiples usuarios asignados, cualquier trabajador que tenga una fila en `pedido_trabajadores` para ese pedido puede cambiar el estado; un trabajador no asignado no pasa la validación. `admin` y `supervisor` mantienen su permiso global aunque estén asignados operativamente a un pedido.
 
@@ -263,7 +261,7 @@ La interfaz del detalle muestra múltiples usuarios asignados con su rol visible
 
 Asignar un `admin` o `supervisor` no modifica su rol ni degrada sus permisos. Un trabajador asignado puede ver el pedido y cambiar su estado según la regla de la fase anterior. No se implementan historial avanzado ni notificaciones.
 
-El trabajador no accede al módulo general de usuarios. La visibilidad de nombres y roles del personal asignado se controla mediante RLS de `profiles` con alcance por pedido accesible, usando las asignaciones de `pedido_trabajadores` como contexto.
+El trabajador no accede al módulo general de usuarios. La visibilidad de nombres y roles del personal asignado se controla mediante RLS de `perfiles` con alcance por pedido accesible, usando las asignaciones de `pedido_trabajadores` como contexto.
 
 La documentación específica del flujo de asignación está en `docs/ORDER_ASSIGNMENTS_FLOW.md`.
 
@@ -282,8 +280,8 @@ Aclaraciones:
 
 - no se usa service role key;
 - los componentes cliente no consultan Supabase directamente;
-- los formularios de asignación solo envían `pedido_id` y `trabajador_id`;
-- el formulario de comentario solo envía `pedido_id` y `contenido`;
+- los formularios de asignación solo envían `pedido_id` y `assigned_profile_id`;
+- el formulario de comentario solo envía `pedido_id` y `content`;
 - trabajadores no pueden crear, convertir, asignar ni remover personal;
 - trabajadores no acceden a los módulos generales de clientes o solicitudes, aunque RLS permite leer datos relacionados con pedidos asignados.
 

@@ -87,7 +87,7 @@ export async function updateSession(request: NextRequest) {
 
   if ((isDashboardRoute || isLoginRoute) && authenticatedUserId) {
     const { data: profile, error: profileError } = await supabase
-      .from("profiles")
+      .from("perfiles")
       .select("id, role, is_active")
       .eq("id", authenticatedUserId)
       .maybeSingle();

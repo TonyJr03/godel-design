@@ -1,16 +1,27 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
-import { isValidUuid } from "@/lib/storage";
+import {
+  serviceFailure,
+  serviceSuccess,
+  type ServiceResult,
+} from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
+import { isValidUuid } from "@/lib/validators";
 import type { Enums, Json, Tables } from "@/types/database";
 
 export type PedidoHistoryActor =
-  | Pick<Tables<"profiles">, "full_name" | "role">
+  | Pick<Tables<"perfiles">, "full_name" | "role">
   | null;
 
 export type PedidoHistoryItem = Pick<
   Tables<"pedido_historial">,
-  "id" | "action" | "old_value" | "new_value" | "metadata" | "created_at"
+  | "id"
+  | "action"
+  | "summary"
+  | "old_value"
+  | "new_value"
+  | "metadata"
+  | "created_at"
 > & {
   actor: PedidoHistoryActor;
 };
@@ -18,9 +29,10 @@ export type PedidoHistoryItem = Pick<
 type PedidoHistoryRpcRow = {
   id: string;
   action: Enums<"pedido_historial_action">;
+  summary: string;
   old_value: string | null;
   new_value: string | null;
-  metadata: Json | null;
+  metadata: Json;
   created_at: string;
   actor_full_name: string | null;
   actor_role: Enums<"app_role"> | null;
@@ -38,20 +50,25 @@ type PedidoHistoryRpcClient = {
   ): PromiseLike<PedidoHistoryRpcResult>;
 };
 
-export type ListPedidoHistoryResult =
-  | {
-      ok: true;
-      history: PedidoHistoryItem[];
-    }
-  | {
-      ok: false;
-      reason: "unauthorized" | "invalid_id" | "not_found" | "error";
-      message: string;
-      history: [];
-    };
+export type ListPedidoHistoryErrorReason =
+  | "unauthorized"
+  | "forbidden"
+  | "invalid_id"
+  | "not_found"
+  | "error";
+
+export type ListPedidoHistoryResult = ServiceResult<
+  { history: PedidoHistoryItem[] },
+  ListPedidoHistoryErrorReason,
+  { history: [] }
+>;
 
 const GENERIC_LIST_HISTORY_ERROR =
   "No se pudo cargar el historial del pedido.";
+
+const emptyHistory = {
+  history: [] as [],
+};
 
 export async function listPedidoHistory(
   pedidoIdInput: string,
@@ -59,23 +76,29 @@ export async function listPedidoHistory(
   const pedidoId = pedidoIdInput.trim();
 
   if (!isValidUuid(pedidoId)) {
-    return {
-      ok: false,
-      reason: "invalid_id",
-      message: "El pedido solicitado no existe.",
-      history: [],
-    };
+    return serviceFailure(
+      "invalid_id",
+      "El pedido solicitado no existe.",
+      emptyHistory,
+    );
   }
 
   const profile = await getCurrentProfile();
 
-  if (!profile || !hasPermission(profile.role, "pedidos.view")) {
-    return {
-      ok: false,
-      reason: "unauthorized",
-      message: "No tienes permiso para ver el historial de pedidos.",
-      history: [],
-    };
+  if (!profile) {
+    return serviceFailure(
+      "unauthorized",
+      "No tienes permiso para ver el historial de pedidos.",
+      emptyHistory,
+    );
+  }
+
+  if (!hasPermission(profile.role, "pedidos.view")) {
+    return serviceFailure(
+      "forbidden",
+      "No tienes permiso para ver el historial de pedidos.",
+      emptyHistory,
+    );
   }
 
   const supabase = await createClient();
@@ -90,21 +113,15 @@ export async function listPedidoHistory(
     if (pedidoError) {
       console.error("Error checking pedido access for history", pedidoError);
 
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_LIST_HISTORY_ERROR,
-        history: [],
-      };
+      return serviceFailure("error", GENERIC_LIST_HISTORY_ERROR, emptyHistory);
     }
 
     if (!pedido) {
-      return {
-        ok: false,
-        reason: "not_found",
-        message: "El pedido solicitado no existe o no tienes acceso.",
-        history: [],
-      };
+      return serviceFailure(
+        "not_found",
+        "El pedido solicitado no existe o no tienes acceso.",
+        emptyHistory,
+      );
     }
 
     const { data, error } = await (
@@ -116,16 +133,10 @@ export async function listPedidoHistory(
     if (error) {
       console.error("Error listing pedido history", error);
 
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_LIST_HISTORY_ERROR,
-        history: [],
-      };
+      return serviceFailure("error", GENERIC_LIST_HISTORY_ERROR, emptyHistory);
     }
 
-    return {
-      ok: true,
+    return serviceSuccess({
       history: (data ?? []).map(
         ({ actor_full_name, actor_role, ...historyItem }) => ({
           ...historyItem,
@@ -137,15 +148,10 @@ export async function listPedidoHistory(
             : null,
         }),
       ),
-    };
+    });
   } catch (error) {
     console.error("Unexpected error listing pedido history", error);
 
-    return {
-      ok: false,
-      reason: "error",
-      message: GENERIC_LIST_HISTORY_ERROR,
-      history: [],
-    };
+    return serviceFailure("error", GENERIC_LIST_HISTORY_ERROR, emptyHistory);
   }
 }

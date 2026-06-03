@@ -4,44 +4,11 @@ import type {
   DashboardPendingSolicitudItem,
   GetDashboardWorkItemsResult,
 } from "@/lib/dashboard";
+import { PEDIDO_PRIORITY_LABELS, PEDIDO_STATUS_LABELS } from "@/lib/pedidos";
+import { SOLICITUD_STATUS_LABELS } from "@/lib/solicitudes";
 
 type DashboardWorkPanelsProps = {
   result: GetDashboardWorkItemsResult;
-};
-
-const SOLICITUD_STATUS_LABELS: Record<
-  DashboardPendingSolicitudItem["estado"],
-  string
-> = {
-  nueva: "Nueva",
-  en_revision: "En revisión",
-  contactada: "Contactada",
-  aprobada: "Aprobada",
-  rechazada: "Rechazada",
-  convertida: "Convertida",
-};
-
-const PEDIDO_STATUS_LABELS: Record<DashboardPedidoWorkItem["estado"], string> =
-  {
-    solicitud_recibida: "Solicitud recibida",
-    en_revision: "En revisión",
-    cotizado: "Cotizado",
-    aprobado_cliente: "Aprobado por cliente",
-    en_diseno: "En diseño",
-    en_produccion: "En producción",
-    listo_entrega: "Listo para entrega",
-    entregado: "Entregado",
-    cancelado: "Cancelado",
-  };
-
-const PEDIDO_PRIORITY_LABELS: Record<
-  DashboardPedidoWorkItem["prioridad"],
-  string
-> = {
-  baja: "Baja",
-  normal: "Normal",
-  alta: "Alta",
-  urgente: "Urgente",
 };
 
 function formatDate(value: string | null): string {
@@ -127,7 +94,7 @@ function SolicitudesList({
             </div>
             <div className="shrink-0 text-left sm:text-right">
               <p className="text-sm font-medium text-teal-700">
-                {SOLICITUD_STATUS_LABELS[solicitud.estado]}
+                {SOLICITUD_STATUS_LABELS[solicitud.status]}
               </p>
               <p className="mt-1 text-sm text-zinc-500">
                 Deseada: {formatDate(solicitud.fechaDeseada)}
@@ -178,7 +145,7 @@ function PedidosList({
                   ) : null}
                 </div>
                 <p className="mt-1 truncate text-sm text-zinc-700">
-                  {pedido.titulo}
+                  {pedido.title}
                 </p>
                 <p className="mt-1 text-sm text-zinc-500">
                   {pedido.clienteNombre ?? "Cliente no disponible"}
@@ -186,10 +153,10 @@ function PedidosList({
               </div>
               <div className="shrink-0 text-left sm:text-right">
                 <p className="text-sm font-medium text-teal-700">
-                  {PEDIDO_STATUS_LABELS[pedido.estado]}
+                  {PEDIDO_STATUS_LABELS[pedido.status]}
                 </p>
                 <p className="mt-1 text-sm text-zinc-500">
-                  Prioridad: {PEDIDO_PRIORITY_LABELS[pedido.prioridad]}
+                  Prioridad: {PEDIDO_PRIORITY_LABELS[pedido.priority]}
                 </p>
                 <p className="mt-1 text-xs text-zinc-400">
                   Entrega: {formatDate(pedido.fechaEntregaEstimada)}

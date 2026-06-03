@@ -39,7 +39,7 @@ export default async function DashboardNuevoPedidoPage() {
   const clientes: PedidoFormCliente[] = clientesResult.ok
     ? clientesResult.clientes.map((cliente) => ({
         id: cliente.id,
-        nombre: cliente.nombre,
+        name: cliente.name,
       }))
     : [];
 

@@ -1,10 +1,16 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
+import {
+  serviceFailure,
+  serviceSuccess,
+  type ServiceResult,
+} from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
+import { isValidUuid } from "@/lib/validators";
 import type { Tables } from "@/types/database";
 
 export type InternalUserDetail = Pick<
-  Tables<"profiles">,
+  Tables<"perfiles">,
   | "id"
   | "full_name"
   | "role"
@@ -15,19 +21,17 @@ export type InternalUserDetail = Pick<
   | "updated_at"
 >;
 
-export type GetInternalUserByIdResult =
-  | {
-      ok: true;
-      user: InternalUserDetail;
-    }
-  | {
-      ok: false;
-      reason: "unauthorized" | "invalid_id" | "not_found" | "error";
-      message: string;
-    };
+export type GetInternalUserByIdErrorReason =
+  | "unauthorized"
+  | "forbidden"
+  | "invalid_id"
+  | "not_found"
+  | "error";
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+export type GetInternalUserByIdResult = ServiceResult<
+  { user: InternalUserDetail },
+  GetInternalUserByIdErrorReason
+>;
 
 const GENERIC_DETAIL_ERROR =
   "No se pudo cargar el usuario interno. Inténtalo nuevamente.";
@@ -37,29 +41,31 @@ export async function getInternalUserById(
 ): Promise<GetInternalUserByIdResult> {
   const userId = id.trim();
 
-  if (!UUID_PATTERN.test(userId)) {
-    return {
-      ok: false,
-      reason: "invalid_id",
-      message: "El usuario solicitado no existe.",
-    };
+  if (!isValidUuid(userId)) {
+    return serviceFailure("invalid_id", "El usuario solicitado no existe.");
   }
 
   const profile = await getCurrentProfile();
 
-  if (!profile || !hasPermission(profile.role, "usuarios.view")) {
-    return {
-      ok: false,
-      reason: "unauthorized",
-      message: "No tienes permiso para ver usuarios internos.",
-    };
+  if (!profile) {
+    return serviceFailure(
+      "unauthorized",
+      "No tienes permiso para ver usuarios internos.",
+    );
+  }
+
+  if (!hasPermission(profile.role, "usuarios.view")) {
+    return serviceFailure(
+      "forbidden",
+      "No tienes permiso para ver usuarios internos.",
+    );
   }
 
   const supabase = await createClient();
 
   try {
     const { data, error } = await supabase
-      .from("profiles")
+      .from("perfiles")
       .select(
         "id, full_name, role, phone, avatar_url, is_active, created_at, updated_at",
       )
@@ -69,32 +75,17 @@ export async function getInternalUserById(
     if (error) {
       console.error("Error loading internal user detail", error);
 
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_DETAIL_ERROR,
-      };
+      return serviceFailure("error", GENERIC_DETAIL_ERROR);
     }
 
     if (!data) {
-      return {
-        ok: false,
-        reason: "not_found",
-        message: "El usuario solicitado no existe.",
-      };
+      return serviceFailure("not_found", "El usuario solicitado no existe.");
     }
 
-    return {
-      ok: true,
-      user: data,
-    };
+    return serviceSuccess({ user: data });
   } catch (error) {
     console.error("Unexpected error loading internal user detail", error);
 
-    return {
-      ok: false,
-      reason: "error",
-      message: GENERIC_DETAIL_ERROR,
-    };
+    return serviceFailure("error", GENERIC_DETAIL_ERROR);
   }
 }

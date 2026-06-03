@@ -1,27 +1,11 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { InternalClienteDetail } from "@/lib/clientes";
+import { formatAppDateTime } from "@/lib/utils";
 
 type InternalClienteDetailProps = {
   cliente: InternalClienteDetail;
 };
-
-const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("es", {
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: "UTC",
-});
-
-function formatDateTime(value: string | null): string {
-  if (!value) {
-    return "No definida";
-  }
-
-  return DATE_TIME_FORMATTER.format(new Date(value));
-}
 
 function DetailItem({ label, value }: { label: string; value: ReactNode }) {
   return (
@@ -55,7 +39,7 @@ export function InternalClienteDetail({
       <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
         <div className="border-b border-zinc-200 pb-5">
           <h2 className="text-2xl font-semibold tracking-tight text-zinc-950">
-            {cliente.nombre}
+            {cliente.name}
           </h2>
           <p className="mt-2 break-all font-mono text-xs text-zinc-500">
             {cliente.id}
@@ -63,26 +47,26 @@ export function InternalClienteDetail({
         </div>
 
         <dl className="mt-6 grid gap-6 sm:grid-cols-2">
-          <DetailItem label="Teléfono" value={cliente.telefono} />
+          <DetailItem label="Teléfono" value={cliente.phone} />
           <DetailItem
             label="Correo electrónico"
             value={cliente.email ?? "No definido"}
           />
           <DetailItem
             label="Creación"
-            value={formatDateTime(cliente.created_at)}
+            value={formatAppDateTime(cliente.created_at, "No definida")}
           />
           <DetailItem
             label="Última actualización"
-            value={formatDateTime(cliente.updated_at)}
+            value={formatAppDateTime(cliente.updated_at, "No definida")}
           />
         </dl>
 
-        {cliente.notas ? (
+        {cliente.notes ? (
           <div className="mt-6 border-t border-zinc-200 pt-6">
             <h3 className="text-sm font-semibold text-zinc-950">Notas</h3>
             <p className="mt-2 whitespace-pre-line text-sm leading-6 text-zinc-700">
-              {cliente.notas}
+              {cliente.notes}
             </p>
           </div>
         ) : null}

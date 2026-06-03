@@ -16,15 +16,15 @@ Valida UUID, obtiene el perfil actual, valida `pedidos.view`, carga pedido, clie
 
 El trabajador no accede a los módulos generales de clientes o solicitudes, pero RLS permite leer el cliente y la solicitud relacionados con pedidos que tiene asignados.
 
-El trabajador tampoco accede al módulo general de usuarios. RLS de `profiles` solo le permite leer su propio perfil y datos básicos del personal asignado a pedidos que puede acceder, para que el detalle muestre nombres y roles del equipo asignado sin abrir un listado general de perfiles.
+El trabajador tampoco accede al módulo general de usuarios. RLS de `perfiles` solo le permite leer su propio perfil y datos básicos del personal asignado a pedidos que puede acceder, para que el detalle muestre nombres y roles del equipo asignado sin abrir un listado general de perfiles.
 
 ## Creación Manual
 
 `/dashboard/pedidos/nuevo` permite crear pedidos manuales asociados a clientes existentes.
 
-La action `createPedidoAction` lee únicamente `cliente_id`, `titulo`, `descripcion`, `prioridad` y `fecha_entrega_estimada`, y delega en `createInternalPedido`.
+La action `createPedidoAction` lee únicamente `cliente_id`, `title`, `description`, `priority` y `estimated_delivery_date`, y delega en `createInternalPedido`.
 
-`createInternalPedido` requiere `pedidos.manage`, valida el input, valida el cliente, genera `numero_pedido`, crea el pedido con estado inicial `en_revision`, guarda `solicitud_id` como `null` y no asigna personal.
+`createInternalPedido` requiere `pedidos.manage`, valida el input, valida el cliente, genera `order_number`, crea el pedido con estado inicial `en_revision`, guarda `solicitud_id` como `null` y no asigna personal.
 
 ## Conversión Desde Solicitud
 
@@ -36,9 +36,9 @@ La action del detalle de solicitud lee únicamente `solicitud_id`. El servicio r
 
 `/dashboard/pedidos/[id]` incluye `PedidoStatusForm`.
 
-La action `updatePedidoStatusAction` lee únicamente `pedido_id` y `estado`, y delega en `updateInternalPedidoStatus`. El servicio valida `pedidos.change_status`, UUID y estado real, verifica acceso al pedido y usa la RPC segura existente `public.actualizar_estado_pedido`.
+La action `updatePedidoStatusAction` lee únicamente `pedido_id` y `status`, y delega en `updateInternalPedidoStatus`. El servicio valida `pedidos.change_status`, UUID y estado real, verifica acceso al pedido y usa la RPC segura existente `public.actualizar_estado_pedido`.
 
-La RPC permite a `admin` y `supervisor` cambiar cualquier pedido y a `trabajador` cambiar solo pedidos asignados, sin conceder a trabajadores un `UPDATE` amplio sobre `pedidos`. Con asignaciones múltiples, cualquier trabajador asignado al pedido puede cambiar el estado porque la validación usa `private.is_assigned_to_order`, que comprueba la existencia de una relación en `pedido_trabajadores`.
+La RPC permite a `admin` y `supervisor` cambiar cualquier pedido y a `trabajador` cambiar solo pedidos asignados, sin conceder a trabajadores un `UPDATE` amplio sobre `pedidos`. Con asignaciones múltiples, cualquier trabajador asignado al pedido puede cambiar el estado porque la validación usa `private.is_assigned_to_pedido`, que comprueba la existencia de una relación en `pedido_trabajadores`.
 
 Un `admin` o `supervisor` asignado a un pedido conserva sus permisos reales. La asignación operativa no cambia roles ni permisos, y un trabajador no asignado no puede cambiar el estado porque no pasa la validación de acceso del servicio ni la validación de la RPC.
 
@@ -46,11 +46,11 @@ Un `admin` o `supervisor` asignado a un pedido conserva sus permisos reales. La 
 
 `/dashboard/pedidos/[id]` incluye `PedidoWorkerAssignmentForm` para mostrar el personal asignado. Los usuarios con `pedidos.manage` ven controles para agregar y remover asignaciones; `trabajador` lo ve en modo lectura.
 
-La action `assignPedidoWorkerAction` lee únicamente `pedido_id` y `trabajador_id`, y delega en `assignInternalPedidoWorker`.
+La action `assignPedidoWorkerAction` lee únicamente `pedido_id` y `assigned_profile_id`, y delega en `assignInternalPedidoWorker`.
 
-La action `removePedidoWorkerAction` lee únicamente `pedido_id` y `trabajador_id`, y delega en `removeInternalPedidoWorker` para remover una asignación concreta.
+La action `removePedidoWorkerAction` lee únicamente `pedido_id` y `assigned_profile_id`, y delega en `removeInternalPedidoWorker` para remover una asignación concreta.
 
-La UI de detalle muestra múltiples usuarios asignados con su rol visible. El selector de alta oculta usuarios ya asignados cuando están en la lista de personal asignable; la restricción única `(pedido_id, trabajador_id)` y el servicio server-side siguen evitando duplicados.
+La UI de detalle muestra múltiples usuarios asignados con su rol visible. El selector de alta oculta usuarios ya asignados cuando están en la lista de personal asignable; la restricción única `(pedido_id, assigned_profile_id)` y el servicio server-side siguen evitando duplicados.
 
 `listAssignableWorkers` mantiene su nombre histórico, pero carga server-side personal interno activo con rol `admin`, `supervisor` o `trabajador`, ordenado por nombre. También se exporta el alias `listAssignableOrderUsers`.
 
@@ -63,7 +63,7 @@ La UI de detalle muestra múltiples usuarios asignados con su rol visible. El se
 - no modifica el rol real ni los permisos del usuario asignado;
 - usa las policies seguras existentes de `pedido_trabajadores`, que permiten insertar/eliminar solo a `admin` o `supervisor`;
 - permite múltiples usuarios internos por pedido: inserta el usuario elegido si hace falta y no reemplaza ni elimina a los demás;
-- evita duplicados comprobando primero la asignación y apoyándose en la restricción única `(pedido_id, trabajador_id)`;
+- evita duplicados comprobando primero la asignación y apoyándose en la restricción única `(pedido_id, assigned_profile_id)`;
 - guarda `assigned_by` con el perfil que realiza la asignación y usa el default de `assigned_at`;
 - no modifica estado, solicitud, `converted_order_id`, archivos ni datos generales del pedido.
 
@@ -73,7 +73,7 @@ La UI de detalle muestra múltiples usuarios asignados con su rol visible. El se
 - valida UUID de pedido y usuario asignado;
 - valida que el pedido exista;
 - valida que la asignación exista;
-- elimina solo la relación concreta `(pedido_id, trabajador_id)`;
+- elimina solo la relación concreta `(pedido_id, assigned_profile_id)`;
 - no elimina pedidos, perfiles, solicitudes ni modifica `converted_order_id`.
 
 No se creó RPC nueva porque las policies existentes ya restringen inserción, actualización y eliminación de asignaciones a admin/supervisor. No se usa service role key. Trabajadores no pueden asignar ni remover personal.
@@ -84,9 +84,9 @@ No se creó RPC nueva porque las policies existentes ya restringen inserción, a
 
 `listPedidoComments` carga comentarios server-side desde `pedido_comentarios`, valida UUID, perfil interno, permiso `pedidos.view` y acceso al pedido. La consulta respeta RLS y ordena por `created_at` ascendente para lectura tipo conversación.
 
-`createPedidoComment` valida UUID, perfil interno, permiso `pedidos.view`, acceso al pedido y contenido. El comentario es obligatorio, se guarda con `contenido` recortado y tiene límite de 2000 caracteres.
+`createPedidoComment` valida UUID, perfil interno, permiso `pedidos.view`, acceso al pedido y content. El comentario es obligatorio, se guarda con `content` recortado y tiene límite de 2000 caracteres.
 
-La action `createPedidoCommentAction` lee únicamente `pedido_id` y `contenido`. No acepta `user_id`, autor ni fechas desde el formulario. El autor se toma del perfil autenticado y se guarda como `pedido_comentarios.user_id`.
+La action `createPedidoCommentAction` lee únicamente `pedido_id` y `content`. No acepta `author_id`, autor ni fechas desde el formulario. El autor se toma del perfil autenticado y se guarda como `pedido_comentarios.author_id`.
 
 Los comentarios son append-only. No hay edición, eliminación, menciones, notificaciones, adjuntos ni registro automático adicional de historial en esta subfase.
 
@@ -94,7 +94,7 @@ Los comentarios son append-only. No hay edición, eliminación, menciones, notif
 
 `/dashboard/pedidos/[id]` incluye `PedidoHistorySection` para listar eventos existentes en `pedido_historial`.
 
-`listPedidoHistory` carga el historial server-side mediante la RPC segura `public.listar_pedido_historial`. Valida UUID, perfil interno, permiso `pedidos.view` y acceso al pedido. La RPC valida `private.can_access_order`, no abre `profiles` globalmente y devuelve solo datos mínimos del actor: nombre y rol.
+`listPedidoHistory` carga el historial server-side mediante la RPC segura `public.listar_pedido_historial`. Valida UUID, perfil interno, permiso `pedidos.view` y acceso al pedido. La RPC valida `private.can_access_pedido`, no abre `perfiles` globalmente y devuelve solo datos mínimos del actor: nombre y rol.
 
 El historial es append-only. No hay edición ni eliminación. Los cambios de estado se registran mediante `public.actualizar_estado_pedido`.
 

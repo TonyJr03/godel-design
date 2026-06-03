@@ -4,35 +4,23 @@ import { InternalSolicitudesList } from "@/components/solicitudes/InternalSolici
 import { PageHeader } from "@/components/ui/PageHeader";
 import {
   INTERNAL_SOLICITUD_ESTADOS,
+  SOLICITUD_STATUS_LABELS,
   listInternalSolicitudes,
-  type InternalSolicitudEstado,
 } from "@/lib/solicitudes";
+import { getSingleSearchParam } from "@/lib/utils";
 
 type DashboardSolicitudesPageProps = {
   searchParams: Promise<{
-    estado?: string | string[] | undefined;
+    status?: string | string[] | undefined;
   }>;
 };
-
-const ESTADO_LABELS: Record<InternalSolicitudEstado, string> = {
-  nueva: "Nueva",
-  en_revision: "En revisión",
-  contactada: "Contactada",
-  aprobada: "Aprobada",
-  rechazada: "Rechazada",
-  convertida: "Convertida",
-};
-
-function getSingleSearchParam(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] : value;
-}
 
 export default async function DashboardSolicitudesPage({
   searchParams,
 }: DashboardSolicitudesPageProps) {
   const params = await searchParams;
-  const estado = getSingleSearchParam(params.estado);
-  const result = await listInternalSolicitudes({ estado });
+  const status = getSingleSearchParam(params.status);
+  const result = await listInternalSolicitudes({ status });
 
   return (
     <div className="space-y-8">
@@ -49,7 +37,7 @@ export default async function DashboardSolicitudesPage({
           <Link
             href="/dashboard/solicitudes"
             className={`inline-flex h-9 items-center justify-center rounded-md border px-3 text-sm font-medium transition ${
-              result.ok && !result.estado
+              result.ok && !result.status
                 ? "border-zinc-950 bg-zinc-950 text-white"
                 : "border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400"
             }`}
@@ -59,14 +47,14 @@ export default async function DashboardSolicitudesPage({
           {INTERNAL_SOLICITUD_ESTADOS.map((estadoOption) => (
             <Link
               key={estadoOption}
-              href={`/dashboard/solicitudes?estado=${estadoOption}`}
+              href={`/dashboard/solicitudes?status=${estadoOption}`}
               className={`inline-flex h-9 items-center justify-center rounded-md border px-3 text-sm font-medium transition ${
-                result.ok && result.estado === estadoOption
+                result.ok && result.status === estadoOption
                   ? "border-teal-700 bg-teal-700 text-white"
                   : "border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400"
               }`}
             >
-              {ESTADO_LABELS[estadoOption]}
+              {SOLICITUD_STATUS_LABELS[estadoOption]}
             </Link>
           ))}
         </div>

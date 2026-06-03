@@ -8,14 +8,14 @@
 - Requiere el permiso `clientes.view`.
 - Usa el cliente server-side de Supabase y respeta RLS como defensa final.
 - No usa service role key.
-- Permite una búsqueda básica por `q` sobre nombre, teléfono y email.
+- Permite una búsqueda básica por `q` sobre `name`, `phone` y `email`.
 - Devuelve errores controlados para no exponer detalles técnicos al usuario.
 
 ## Creación manual
 
 La ruta `/dashboard/clientes/nuevo` muestra el formulario interno para crear clientes manualmente.
 
-- `createClienteAction` lee únicamente `nombre`, `telefono`, `email` y `notas` desde `FormData`.
+- `createClienteAction` lee únicamente `name`, `phone`, `email` y `notes` desde `FormData`.
 - `createInternalCliente` valida el permiso `clientes.manage` en servidor.
 - `validateClienteInput` normaliza el input, valida longitud y formato básico, y convierte campos opcionales vacíos a `null`.
 - La inserción usa el cliente server-side de Supabase, respeta RLS y no usa service role key.
@@ -36,10 +36,10 @@ La ruta `/dashboard/clientes/[id]` muestra el detalle server-side de un cliente.
 
 La ruta `/dashboard/clientes/[id]/editar` permite actualizar datos básicos de un cliente.
 
-- `updateClienteAction` lee únicamente `cliente_id`, `nombre`, `telefono`, `email` y `notas` desde `FormData`.
+- `updateClienteAction` lee únicamente `cliente_id`, `name`, `phone`, `email` y `notes` desde `FormData`.
 - `updateInternalCliente` valida el permiso `clientes.manage` en servidor.
 - El servicio valida UUID e input antes de actualizar.
-- Solo actualiza `nombre`, `telefono`, `email` y `notas`.
+- Solo actualiza `name`, `phone`, `email` y `notes`.
 - Respeta RLS y no usa service role key.
 - No implementa eliminación.
 

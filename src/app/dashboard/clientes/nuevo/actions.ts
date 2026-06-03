@@ -5,6 +5,7 @@ import {
   createInternalCliente,
   type ClienteFieldErrors,
 } from "@/lib/clientes";
+import { getFormValue } from "@/lib/utils";
 
 export type CreateClienteActionState = {
   ok: boolean;
@@ -13,21 +14,15 @@ export type CreateClienteActionState = {
   clienteId?: string;
 };
 
-function getFormValue(formData: FormData, key: string) {
-  const value = formData.get(key);
-
-  return typeof value === "string" ? value : "";
-}
-
 export async function createClienteAction(
   _prevState: CreateClienteActionState,
   formData: FormData,
 ): Promise<CreateClienteActionState> {
   const result = await createInternalCliente({
-    nombre: getFormValue(formData, "nombre"),
-    telefono: getFormValue(formData, "telefono"),
+    name: getFormValue(formData, "name"),
+    phone: getFormValue(formData, "phone"),
     email: getFormValue(formData, "email"),
-    notas: getFormValue(formData, "notas"),
+    notes: getFormValue(formData, "notes"),
   });
 
   if (!result.ok) {

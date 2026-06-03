@@ -1,15 +1,21 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
+import {
+  serviceFailure,
+  serviceSuccess,
+  type ServiceResult,
+} from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
-import { Constants, type Enums, type Tables } from "@/types/database";
+import type { Tables } from "@/types/database";
+import {
+  isInternalUserRole,
+  type InternalUserRole,
+} from "./roles";
 
-export const INTERNAL_USER_ROLES = Constants.public.Enums.app_role;
-
-export type InternalUserRole = Enums<"app_role">;
 export type InternalUserActiveFilter = boolean;
 
 export type InternalUser = Pick<
-  Tables<"profiles">,
+  Tables<"perfiles">,
   | "id"
   | "full_name"
   | "role"
@@ -27,26 +33,24 @@ export type ListInternalUsersOptions = {
   limit?: number;
 };
 
-export type ListInternalUsersResult =
-  | {
-      ok: true;
-      users: InternalUser[];
-      q: string | null;
-      role: InternalUserRole | null;
-      active: InternalUserActiveFilter | null;
-      ignoredInvalidRole: boolean;
-      ignoredInvalidActive: boolean;
-    }
-  | {
-      ok: false;
-      reason: "unauthorized" | "error";
-      message: string;
-      q: string | null;
-      role: InternalUserRole | null;
-      active: InternalUserActiveFilter | null;
-      ignoredInvalidRole: boolean;
-      ignoredInvalidActive: boolean;
-    };
+type ListInternalUsersMeta = {
+  q: string | null;
+  role: InternalUserRole | null;
+  active: InternalUserActiveFilter | null;
+  ignoredInvalidRole: boolean;
+  ignoredInvalidActive: boolean;
+};
+
+export type ListInternalUsersErrorReason =
+  | "unauthorized"
+  | "forbidden"
+  | "error";
+
+export type ListInternalUsersResult = ServiceResult<
+  { users: InternalUser[] } & ListInternalUsersMeta,
+  ListInternalUsersErrorReason,
+  ListInternalUsersMeta
+>;
 
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 100;
@@ -78,12 +82,6 @@ function normalizeSearchQuery(value: string | null | undefined): string | null {
   return normalized || null;
 }
 
-export function isInternalUserRole(
-  role: string | null | undefined,
-): role is InternalUserRole {
-  return INTERNAL_USER_ROLES.includes(role as InternalUserRole);
-}
-
 function normalizeActiveFilter(
   active: string | null | undefined,
 ): InternalUserActiveFilter | null {
@@ -106,19 +104,29 @@ export async function listInternalUsers(
   const active = normalizeActiveFilter(options.active);
   const ignoredInvalidRole = Boolean(options.role && !role);
   const ignoredInvalidActive = Boolean(options.active && active === null);
+  const meta = {
+    q,
+    role,
+    active,
+    ignoredInvalidRole,
+    ignoredInvalidActive,
+  };
   const profile = await getCurrentProfile();
 
-  if (!profile || !hasPermission(profile.role, "usuarios.view")) {
-    return {
-      ok: false,
-      reason: "unauthorized",
-      message: "No tienes permiso para ver usuarios internos.",
-      q,
-      role,
-      active,
-      ignoredInvalidRole,
-      ignoredInvalidActive,
-    };
+  if (!profile) {
+    return serviceFailure(
+      "unauthorized",
+      "No tienes permiso para ver usuarios internos.",
+      meta,
+    );
+  }
+
+  if (!hasPermission(profile.role, "usuarios.view")) {
+    return serviceFailure(
+      "forbidden",
+      "No tienes permiso para ver usuarios internos.",
+      meta,
+    );
   }
 
   const limit = normalizeLimit(options.limit);
@@ -126,7 +134,7 @@ export async function listInternalUsers(
 
   try {
     let query = supabase
-      .from("profiles")
+      .from("perfiles")
       .select(
         "id, full_name, role, phone, avatar_url, is_active, created_at, updated_at",
       )
@@ -150,39 +158,16 @@ export async function listInternalUsers(
     if (error) {
       console.error("Error listing internal users", error);
 
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_LIST_ERROR,
-        q,
-        role,
-        active,
-        ignoredInvalidRole,
-        ignoredInvalidActive,
-      };
+      return serviceFailure("error", GENERIC_LIST_ERROR, meta);
     }
 
-    return {
-      ok: true,
+    return serviceSuccess({
       users: data ?? [],
-      q,
-      role,
-      active,
-      ignoredInvalidRole,
-      ignoredInvalidActive,
-    };
+      ...meta,
+    });
   } catch (error) {
     console.error("Unexpected error listing internal users", error);
 
-    return {
-      ok: false,
-      reason: "error",
-      message: GENERIC_LIST_ERROR,
-      q,
-      role,
-      active,
-      ignoredInvalidRole,
-      ignoredInvalidActive,
-    };
+    return serviceFailure("error", GENERIC_LIST_ERROR, meta);
   }
 }

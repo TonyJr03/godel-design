@@ -107,7 +107,7 @@ export type DashboardPendingSolicitudItem = {
   clienteNombre: string;
   clienteTelefono: string;
   tipoServicio: string;
-  estado: Enums<"solicitud_estado">;
+  status: Enums<"solicitud_estado">;
   createdAt: string;
   fechaDeseada: string | null;
   convertedOrderId: string | null;
@@ -117,9 +117,9 @@ export type DashboardPedidoWorkItem = {
   id: string;
   href: string;
   numeroPedido: string;
-  titulo: string;
-  estado: Enums<"pedido_estado">;
-  prioridad: Enums<"pedido_prioridad">;
+  title: string;
+  status: Enums<"pedido_estado">;
+  priority: Enums<"pedido_prioridad">;
   fechaEntregaEstimada: string | null;
   createdAt: string;
   clienteNombre: string | null;

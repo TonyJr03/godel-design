@@ -7,9 +7,9 @@ import {
 } from "@/app/dashboard/solicitudes/[id]/actions";
 import {
   MANUAL_SOLICITUD_STATUSES,
-  SOLICITUD_STATUS_LABELS,
   isManualSolicitudStatus,
 } from "@/lib/solicitudes/status";
+import { SOLICITUD_STATUS_LABELS } from "@/lib/solicitudes/labels";
 import type { Enums } from "@/types/database";
 
 type SolicitudStatusFormProps = {
@@ -59,14 +59,14 @@ export function SolicitudStatusForm({
 
       <div className="max-w-sm">
         <label
-          htmlFor="estado"
+          htmlFor="status"
           className="text-sm font-medium text-zinc-900"
         >
           Estado
         </label>
         <select
-          id="estado"
-          name="estado"
+          id="status"
+          name="status"
           defaultValue={canManageManually ? currentStatus : "nueva"}
           disabled={!canManageManually || pending}
           className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-950 shadow-sm outline-none transition focus:border-teal-700 focus:ring-2 focus:ring-teal-700/20 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500"

@@ -96,7 +96,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 
 ## Tablas iniciales
 
-### `profiles`
+### `perfiles`
 
 **Propósito:** Representa a los usuarios internos del sistema y extiende la información de `auth.users`.
 
@@ -113,7 +113,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 
 **Claves foráneas:**
 
-- `profiles.id` -> `auth.users.id`.
+- `perfiles.id` -> `auth.users.id`.
 
 **Reglas importantes:**
 
@@ -127,7 +127,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 - Los usuarios autenticados podrían leer su propio perfil.
 - El acceso a perfiles de otros usuarios debe depender del rol.
 - En el modelo vigente de RLS, `admin` y `supervisor` pueden leer perfiles internos; `trabajador` puede leer su propio perfil y datos básicos de perfiles asignados a pedidos que puede acceder.
-- La Fase 12 recomienda gestionar inicialmente solo `profiles`, sin crear usuarios Auth desde la app y sin usar service role key.
+- La Fase 12 recomienda gestionar inicialmente solo `perfiles`, sin crear usuarios Auth desde la app y sin usar service role key.
 
 ### `clientes`
 
@@ -136,10 +136,10 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 | Campo | Tipo sugerido | Notas |
 |---|---|---|
 | `id` | `uuid` | Identificador único del cliente. |
-| `nombre` | `text` | Nombre del cliente o contacto. |
-| `telefono` | `text` | Teléfono principal. |
+| `name` | `text` | Nombre del cliente o contacto. |
+| `phone` | `text` | Teléfono principal. |
 | `email` | `text nullable` | Correo opcional. |
-| `notas` | `text nullable` | Notas internas simples. |
+| `notes` | `text nullable` | Notas internas simples. |
 | `created_at` | `timestamptz` | Fecha de creación. |
 | `updated_at` | `timestamptz` | Fecha de última actualización. |
 
@@ -167,15 +167,15 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 |---|---|---|
 | `id` | `uuid` | Identificador único de la solicitud. |
 | `cliente_id` | `uuid nullable` | Cliente asociado si ya existe o se crea uno. |
-| `cliente_nombre` | `text` | Nombre capturado desde el formulario público. |
-| `cliente_telefono` | `text` | Teléfono capturado desde el formulario público. |
-| `cliente_email` | `text nullable` | Correo opcional capturado desde el formulario público. |
-| `tipo_servicio` | `text` | Tipo de servicio solicitado. |
-| `descripcion` | `text` | Descripción del trabajo solicitado. |
-| `cantidad` | `integer nullable` | Cantidad solicitada si aplica. |
-| `fecha_deseada` | `date nullable` | Fecha deseada por el cliente. |
-| `observaciones` | `text nullable` | Observaciones adicionales. |
-| `estado` | `solicitud_estado` | Estado operativo de la solicitud. |
+| `client_name` | `text` | Nombre capturado desde el formulario público. |
+| `client_phone` | `text` | Teléfono capturado desde el formulario público. |
+| `client_email` | `text nullable` | Correo opcional capturado desde el formulario público. |
+| `service_type` | `text` | Tipo de servicio solicitado. |
+| `description` | `text` | Descripción del trabajo solicitado. |
+| `quantity` | `integer nullable` | Cantidad solicitada si aplica. |
+| `desired_date` | `date nullable` | Fecha deseada por el cliente. |
+| `notes` | `text nullable` | Observaciones adicionales. |
+| `status` | `solicitud_estado` | Estado operativo de la solicitud. |
 | `reviewed_by` | `uuid nullable` | Usuario interno que revisó la solicitud. |
 | `converted_order_id` | `uuid nullable` | Pedido creado a partir de la solicitud. |
 | `created_at` | `timestamptz` | Fecha de recepción. |
@@ -184,7 +184,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 **Claves foráneas:**
 
 - `solicitudes.cliente_id` -> `clientes.id`.
-- `solicitudes.reviewed_by` -> `profiles.id`.
+- `solicitudes.reviewed_by` -> `perfiles.id`.
 - `solicitudes.converted_order_id` -> `pedidos.id`.
 
 **Reglas importantes:**
@@ -206,18 +206,16 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 | Campo | Tipo sugerido | Notas |
 |---|---|---|
 | `id` | `uuid` | Identificador único del pedido. |
-| `numero_pedido` | `text unique` | Número visible y único para operación interna. |
+| `order_number` | `text unique` | Número visible y único para operación interna. |
 | `cliente_id` | `uuid nullable` | Cliente asociado. |
 | `solicitud_id` | `uuid nullable` | Solicitud origen si el pedido fue convertido. |
-| `titulo` | `text` | Nombre breve del pedido. |
-| `descripcion` | `text` | Detalle del trabajo. |
-| `estado` | `pedido_estado` | Estado operativo del pedido. |
-| `prioridad` | `pedido_prioridad` | Prioridad del pedido. |
-| `fecha_creacion` | `timestamptz` | Fecha operativa de creación del pedido. |
-| `fecha_entrega_estimada` | `date nullable` | Fecha estimada de entrega. |
-| `fecha_entrega_real` | `date nullable` | Fecha real de entrega. |
-| `creado_por` | `uuid nullable` | Usuario interno que creó el pedido. |
-| `supervisor_id` | `uuid nullable` | Supervisor responsable. |
+| `title` | `text` | Nombre breve del pedido. |
+| `description` | `text` | Detalle del trabajo. |
+| `status` | `pedido_estado` | Estado operativo del pedido. |
+| `priority` | `pedido_prioridad` | Prioridad del pedido. |
+| `estimated_delivery_date` | `date nullable` | Fecha estimada de entrega. |
+| `actual_delivery_date` | `date nullable` | Fecha real de entrega. |
+| `created_by` | `uuid nullable` | Usuario interno que creó el pedido. |
 | `created_at` | `timestamptz` | Fecha de creación del registro. |
 | `updated_at` | `timestamptz` | Fecha de última actualización. |
 
@@ -225,12 +223,11 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 
 - `pedidos.cliente_id` -> `clientes.id`.
 - `pedidos.solicitud_id` -> `solicitudes.id`.
-- `pedidos.creado_por` -> `profiles.id`.
-- `pedidos.supervisor_id` -> `profiles.id`.
+- `pedidos.created_by` -> `perfiles.id`.
 
 **Reglas importantes:**
 
-- `numero_pedido` debe ser único.
+- `order_number` debe ser único.
 - Un pedido puede crearse manualmente o a partir de una solicitud.
 - Los cambios importantes de estado deben registrarse en `pedido_historial`.
 
@@ -248,21 +245,21 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 |---|---|---|
 | `id` | `uuid` | Identificador único de la asignación. |
 | `pedido_id` | `uuid` | Pedido asignado. |
-| `trabajador_id` | `uuid` | Usuario interno asignado. Conserva el nombre técnico original, pero puede apuntar a un perfil con rol `admin`, `supervisor` o `trabajador`. |
+| `assigned_profile_id` | `uuid` | Perfil interno asignado. Puede tener rol `admin`, `supervisor` o `trabajador`. |
 | `assigned_by` | `uuid nullable` | Usuario que realizó la asignación. |
 | `assigned_at` | `timestamptz` | Fecha de asignación. |
 
 **Claves foráneas:**
 
 - `pedido_trabajadores.pedido_id` -> `pedidos.id`.
-- `pedido_trabajadores.trabajador_id` -> `profiles.id`.
-- `pedido_trabajadores.assigned_by` -> `profiles.id`.
+- `pedido_trabajadores.assigned_profile_id` -> `perfiles.id`.
+- `pedido_trabajadores.assigned_by` -> `perfiles.id`.
 
 **Reglas importantes:**
 
 - Un pedido puede tener varios usuarios internos asignados.
 - Un usuario interno puede estar asignado a varios pedidos.
-- Se recomienda evitar duplicados para la misma combinación `pedido_id` + `trabajador_id`.
+- Se recomienda evitar duplicados para la misma combinación `pedido_id` + `assigned_profile_id`.
 
 **Notas de seguridad:**
 
@@ -291,7 +288,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 
 - `archivos.pedido_id` -> `pedidos.id`.
 - `archivos.solicitud_id` -> `solicitudes.id`.
-- `archivos.uploaded_by` -> `profiles.id`.
+- `archivos.uploaded_by` -> `perfiles.id`.
 
 **Reglas importantes:**
 
@@ -313,15 +310,14 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 |---|---|---|
 | `id` | `uuid` | Identificador único del comentario. |
 | `pedido_id` | `uuid` | Pedido comentado. |
-| `user_id` | `uuid` | Usuario interno autor del comentario. |
-| `contenido` | `text` | Texto del comentario. |
+| `content` | `text` | Texto del comentario. |
+| `author_id` | `uuid` | Usuario interno autor del comentario. |
 | `created_at` | `timestamptz` | Fecha de creación. |
-| `updated_at` | `timestamptz` | Fecha de última actualización. |
 
 **Claves foráneas:**
 
 - `pedido_comentarios.pedido_id` -> `pedidos.id`.
-- `pedido_comentarios.user_id` -> `profiles.id`.
+- `pedido_comentarios.author_id` -> `perfiles.id`.
 
 **Reglas importantes:**
 
@@ -343,17 +339,18 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 |---|---|---|
 | `id` | `uuid` | Identificador único del evento. |
 | `pedido_id` | `uuid` | Pedido relacionado. |
-| `user_id` | `uuid nullable` | Usuario que ejecutó la acción, si aplica. |
+| `actor_id` | `uuid nullable` | Usuario que ejecutó la acción, si aplica. |
 | `action` | `pedido_historial_action` | Tipo de evento registrado. |
+| `summary` | `text` | Resumen breve visible. |
 | `old_value` | `text nullable` | Valor anterior si aplica. |
 | `new_value` | `text nullable` | Valor nuevo si aplica. |
-| `metadata` | `jsonb nullable` | Datos adicionales del evento. |
+| `metadata` | `jsonb` | Datos adicionales mínimos del evento. |
 | `created_at` | `timestamptz` | Fecha del evento. |
 
 **Claves foráneas:**
 
 - `pedido_historial.pedido_id` -> `pedidos.id`.
-- `pedido_historial.user_id` -> `profiles.id`.
+- `pedido_historial.actor_id` -> `perfiles.id`.
 
 **Reglas importantes:**
 
@@ -376,21 +373,21 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 |---|---|---|
 | `id` | `uuid` | Identificador único del comentario. |
 | `solicitud_id` | `uuid` | Solicitud comentada. |
-| `autor_id` | `uuid` | Usuario interno autor del comentario. |
-| `contenido` | `text` | Texto del comentario. |
+| `content` | `text` | Texto del comentario. |
+| `author_id` | `uuid` | Usuario interno autor del comentario. |
 | `created_at` | `timestamptz` | Fecha de creación. |
 
 **Claves foráneas:**
 
 - `solicitud_comentarios.solicitud_id` -> `solicitudes.id`.
-- `solicitud_comentarios.autor_id` -> `profiles.id`.
+- `solicitud_comentarios.author_id` -> `perfiles.id`.
 
 **Reglas importantes:**
 
 - Los comentarios son internos.
 - Una solicitud puede tener muchos comentarios.
-- El contenido no puede estar vacío.
-- El contenido tiene un límite inicial de 2000 caracteres.
+- El content no puede estar vacío.
+- El content tiene un límite inicial de 2000 caracteres.
 - No hay edición ni eliminación inicial.
 
 **Notas de seguridad:**
@@ -409,19 +406,21 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 | `solicitud_id` | `uuid` | Solicitud relacionada. |
 | `actor_id` | `uuid nullable` | Usuario que ejecutó la acción, si aplica. |
 | `action` | `solicitud_historial_action` | Tipo de evento registrado. |
-| `resumen` | `text` | Resumen breve visible. |
+| `summary` | `text` | Resumen breve visible. |
+| `old_value` | `text nullable` | Valor anterior si aplica. |
+| `new_value` | `text nullable` | Valor nuevo si aplica. |
 | `metadata` | `jsonb` | Datos adicionales mínimos del evento. |
 | `created_at` | `timestamptz` | Fecha del evento. |
 
 **Claves foráneas:**
 
 - `solicitud_historial.solicitud_id` -> `solicitudes.id`.
-- `solicitud_historial.actor_id` -> `profiles.id`.
+- `solicitud_historial.actor_id` -> `perfiles.id`.
 
 **Reglas importantes:**
 
 - El historial es append-only.
-- El resumen no puede estar vacío.
+- `summary` no puede estar vacío.
 - `metadata` debe ser un objeto JSON.
 - Los eventos automáticos se conectarán en subfases posteriores.
 
@@ -474,21 +473,21 @@ Para archivos, los buckets deben ser privados y el acceso debe protegerse median
 
 | Tabla | Campo |
 |---|---|
-| `solicitudes` | `estado` |
+| `solicitudes` | `status` |
 | `solicitudes` | `cliente_id` |
 | `solicitudes` | `created_at` |
-| `pedidos` | `estado` |
+| `pedidos` | `status` |
 | `pedidos` | `cliente_id` |
 | `pedidos` | `solicitud_id` |
-| `pedidos` | `fecha_entrega_estimada` |
+| `pedidos` | `estimated_delivery_date` |
 | `pedido_trabajadores` | `pedido_id` |
-| `pedido_trabajadores` | `trabajador_id` |
+| `pedido_trabajadores` | `assigned_profile_id` |
 | `archivos` | `pedido_id` |
 | `archivos` | `solicitud_id` |
 | `pedido_comentarios` | `pedido_id` |
 | `pedido_historial` | `pedido_id` |
 | `solicitud_comentarios` | `solicitud_id, created_at` |
-| `solicitud_comentarios` | `autor_id` |
+| `solicitud_comentarios` | `author_id` |
 | `solicitud_historial` | `solicitud_id, created_at` |
 | `solicitud_historial` | `actor_id` |
 | `solicitud_historial` | `action` |

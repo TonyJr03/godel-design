@@ -4,19 +4,13 @@ import {
   STORAGE_ROOTS,
 } from "./constants";
 import { sanitizeFileName } from "./file-name";
+import { isValidUuid } from "@/lib/validators";
 import type {
   BuildPedidoFilePathInput,
   BuildSolicitudFilePathInput,
   PedidoFileCategory,
   SolicitudFileCategory,
 } from "./types";
-
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-export function isValidUuid(value: string): boolean {
-  return UUID_REGEX.test(value);
-}
 
 function buildTimestampPrefix(now = new Date()): string {
   return now.toISOString().replace(/[:.]/g, "-");

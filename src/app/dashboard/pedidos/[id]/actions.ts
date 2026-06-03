@@ -14,11 +14,12 @@ import {
 } from "@/lib/pedidos";
 import {
   uploadPedidoFile,
-  isValidUuid,
   validatePedidoFileCategory,
   type PedidoFileCategory,
   type UploadPedidoFileResult,
 } from "@/lib/storage";
+import { getFormValue } from "@/lib/utils";
+import { isValidUuid } from "@/lib/validators";
 
 export type UpdatePedidoStatusActionState = {
   ok: boolean;
@@ -48,15 +49,9 @@ export type CreatePedidoCommentActionState = {
   message: string;
   fieldErrors?: PedidoCommentFieldErrors;
   values?: {
-    contenido: string;
+    content: string;
   };
 };
-
-function getFormValue(formData: FormData, key: string) {
-  const value = formData.get(key);
-
-  return typeof value === "string" ? value : "";
-}
 
 async function getPedidoIdFromRequestPath(): Promise<string> {
   const headersList = await headers();
@@ -113,10 +108,10 @@ export async function updatePedidoStatusAction(
   formData: FormData,
 ): Promise<UpdatePedidoStatusActionState> {
   const pedidoId = getFormValue(formData, "pedido_id");
-  const estado = getFormValue(formData, "estado");
+  const status = getFormValue(formData, "status");
   const result = await updateInternalPedidoStatus({
     pedidoId,
-    estado,
+    status,
   });
 
   if (!result.ok) {
@@ -141,10 +136,10 @@ export async function assignPedidoWorkerAction(
   formData: FormData,
 ): Promise<AssignPedidoWorkerActionState> {
   const pedidoId = getFormValue(formData, "pedido_id");
-  const trabajadorId = getFormValue(formData, "trabajador_id");
+  const assignedProfileId = getFormValue(formData, "assigned_profile_id");
   const result = await assignInternalPedidoWorker({
     pedidoId,
-    trabajadorId,
+    assignedProfileId,
   });
 
   if (!result.ok) {
@@ -171,10 +166,10 @@ export async function removePedidoWorkerAction(
   formData: FormData,
 ): Promise<RemovePedidoWorkerActionState> {
   const pedidoId = getFormValue(formData, "pedido_id");
-  const trabajadorId = getFormValue(formData, "trabajador_id");
+  const assignedProfileId = getFormValue(formData, "assigned_profile_id");
   const result = await removeInternalPedidoWorker({
     pedidoId,
-    trabajadorId,
+    assignedProfileId,
   });
 
   if (!result.ok) {
@@ -243,10 +238,10 @@ export async function createPedidoCommentAction(
   formData: FormData,
 ): Promise<CreatePedidoCommentActionState> {
   const pedidoId = await getPedidoIdForComment(formData);
-  const contenido = getFormValue(formData, "contenido");
+  const content = getFormValue(formData, "content");
   const result = await createPedidoComment({
     pedidoId,
-    contenido,
+    content,
   });
 
   if (!result.ok) {
@@ -265,7 +260,7 @@ export async function createPedidoCommentAction(
     ok: true,
     message: "Comentario agregado correctamente.",
     values: {
-      contenido: "",
+      content: "",
     },
   };
 }

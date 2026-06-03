@@ -1,36 +1,42 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
-import { isValidUuid } from "@/lib/storage";
+import {
+  serviceFailure,
+  serviceSuccess,
+  type ServiceResult,
+} from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
+import { isValidUuid } from "@/lib/validators";
 
 export type CreateSolicitudCommentInput = {
   solicitudId: string;
-  contenido: string;
+  content: string;
 };
 
 export type SolicitudCommentFieldErrors = Partial<
-  Record<"solicitud_id" | "contenido", string>
+  Record<"solicitud_id" | "content", string>
 >;
 
-export type CreateSolicitudCommentResult =
-  | {
-      ok: true;
-      commentId: string;
-    }
-  | {
-      ok: false;
-      reason:
-        | "unauthorized"
-        | "invalid_id"
-        | "not_found"
-        | "validation"
-        | "error";
-      message: string;
-      fieldErrors?: SolicitudCommentFieldErrors;
-      values?: {
-        contenido: string;
-      };
-    };
+type CreateSolicitudCommentValues = {
+  values?: {
+    content: string;
+  };
+};
+
+export type CreateSolicitudCommentErrorReason =
+  | "unauthorized"
+  | "forbidden"
+  | "invalid_id"
+  | "not_found"
+  | "validation"
+  | "error";
+
+export type CreateSolicitudCommentResult = ServiceResult<
+  { commentId: string },
+  CreateSolicitudCommentErrorReason,
+  CreateSolicitudCommentValues,
+  SolicitudCommentFieldErrors
+>;
 
 const MAX_COMMENT_LENGTH = 2000;
 const GENERIC_CREATE_COMMENT_ERROR =
@@ -38,64 +44,59 @@ const GENERIC_CREATE_COMMENT_ERROR =
 
 export async function createSolicitudComment({
   solicitudId: solicitudIdInput,
-  contenido: contenidoInput,
+  content: contenidoInput,
 }: CreateSolicitudCommentInput): Promise<CreateSolicitudCommentResult> {
   const solicitudId = solicitudIdInput.trim();
-  const contenido = contenidoInput.trim();
+  const content = contenidoInput.trim();
+  const values = { content };
 
   if (!isValidUuid(solicitudId)) {
-    return {
-      ok: false,
-      reason: "invalid_id",
-      message: "La solicitud no existe.",
+    return serviceFailure("invalid_id", "La solicitud no existe.", {
       fieldErrors: {
         solicitud_id: "La solicitud no existe.",
       },
-      values: {
-        contenido,
-      },
-    };
+      values,
+    });
   }
 
-  if (!contenido) {
-    return {
-      ok: false,
-      reason: "validation",
-      message: "Escribe un comentario antes de enviarlo.",
+  if (!content) {
+    return serviceFailure("validation", "Escribe un comentario antes de enviarlo.", {
       fieldErrors: {
-        contenido: "Escribe un comentario antes de enviarlo.",
+        content: "Escribe un comentario antes de enviarlo.",
       },
-      values: {
-        contenido,
-      },
-    };
+      values,
+    });
   }
 
-  if (contenido.length > MAX_COMMENT_LENGTH) {
-    return {
-      ok: false,
-      reason: "validation",
-      message: `El comentario no puede superar ${MAX_COMMENT_LENGTH} caracteres.`,
-      fieldErrors: {
-        contenido: `Máximo ${MAX_COMMENT_LENGTH} caracteres.`,
+  if (content.length > MAX_COMMENT_LENGTH) {
+    return serviceFailure(
+      "validation",
+      `El comentario no puede superar ${MAX_COMMENT_LENGTH} caracteres.`,
+      {
+        fieldErrors: {
+          content: `Máximo ${MAX_COMMENT_LENGTH} caracteres.`,
+        },
+        values,
       },
-      values: {
-        contenido,
-      },
-    };
+    );
   }
 
   const profile = await getCurrentProfile();
 
-  if (!profile || !hasPermission(profile.role, "solicitudes.manage")) {
-    return {
-      ok: false,
-      reason: "unauthorized",
-      message: "No tienes permiso para comentar en solicitudes.",
-      values: {
-        contenido,
-      },
-    };
+  if (!profile) {
+    return serviceFailure(
+      "unauthorized",
+      "No tienes permiso para comentar en solicitudes.",
+      { values },
+    );
+  }
+
+  if (!hasPermission(profile.role, "solicitudes.manage")) {
+    return serviceFailure(
+      "forbidden",
+      "No tienes permiso para comentar en solicitudes.",
+      { values },
+    );
   }
 
   const supabase = await createClient();
@@ -113,33 +114,23 @@ export async function createSolicitudComment({
         solicitudError,
       );
 
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_CREATE_COMMENT_ERROR,
-        values: {
-          contenido,
-        },
-      };
+      return serviceFailure("error", GENERIC_CREATE_COMMENT_ERROR, { values });
     }
 
     if (!solicitud) {
-      return {
-        ok: false,
-        reason: "not_found",
-        message: "La solicitud no existe o no tienes acceso.",
-        values: {
-          contenido,
-        },
-      };
+      return serviceFailure(
+        "not_found",
+        "La solicitud no existe o no tienes acceso.",
+        { values },
+      );
     }
 
     const { data, error } = await supabase
       .from("solicitud_comentarios")
       .insert({
         solicitud_id: solicitudId,
-        autor_id: profile.id,
-        contenido,
+        author_id: profile.id,
+        content,
       })
       .select("id")
       .single<{ id: string }>();
@@ -147,30 +138,13 @@ export async function createSolicitudComment({
     if (error || !data) {
       console.error("Error creating solicitud comment", error);
 
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_CREATE_COMMENT_ERROR,
-        values: {
-          contenido,
-        },
-      };
+      return serviceFailure("error", GENERIC_CREATE_COMMENT_ERROR, { values });
     }
 
-    return {
-      ok: true,
-      commentId: data.id,
-    };
+    return serviceSuccess({ commentId: data.id });
   } catch (error) {
     console.error("Unexpected error creating solicitud comment", error);
 
-    return {
-      ok: false,
-      reason: "error",
-      message: GENERIC_CREATE_COMMENT_ERROR,
-      values: {
-        contenido,
-      },
-    };
+    return serviceFailure("error", GENERIC_CREATE_COMMENT_ERROR, { values });
   }
 }

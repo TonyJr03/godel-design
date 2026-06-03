@@ -1,39 +1,44 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
+import {
+  serviceFailure,
+  serviceSuccess,
+  type ServiceResult,
+} from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
-import { Constants, type Enums, type Tables } from "@/types/database";
+import type { Tables } from "@/types/database";
+import { PEDIDO_STATUSES, type PedidoStatus } from "./status";
 
-export const INTERNAL_PEDIDO_ESTADOS = Constants.public.Enums.pedido_estado;
+export const INTERNAL_PEDIDO_ESTADOS = PEDIDO_STATUSES;
 
-export type InternalPedidoEstado = Enums<"pedido_estado">;
+export type InternalPedidoEstado = PedidoStatus;
 
-type PedidoCliente = Pick<Tables<"clientes">, "id" | "nombre"> | null;
+type PedidoCliente = Pick<Tables<"clientes">, "id" | "name"> | null;
 type PedidoSolicitud =
-  | Pick<Tables<"solicitudes">, "id" | "tipo_servicio">
+  | Pick<Tables<"solicitudes">, "id" | "service_type">
   | null;
 type PedidoTrabajadorProfile =
-  | Pick<Tables<"profiles">, "id" | "full_name">
+  | Pick<Tables<"perfiles">, "id" | "full_name">
   | null;
 
 export type InternalPedidoTrabajador = Pick<
   Tables<"pedido_trabajadores">,
-  "trabajador_id"
+  "assigned_profile_id"
 > & {
-  profiles: PedidoTrabajadorProfile;
+  perfiles: PedidoTrabajadorProfile;
 };
 
 export type InternalPedido = Pick<
   Tables<"pedidos">,
   | "id"
-  | "numero_pedido"
+  | "order_number"
   | "cliente_id"
   | "solicitud_id"
-  | "titulo"
-  | "descripcion"
-  | "estado"
-  | "prioridad"
-  | "fecha_creacion"
-  | "fecha_entrega_estimada"
+  | "title"
+  | "description"
+  | "status"
+  | "priority"
+  | "estimated_delivery_date"
   | "created_at"
 > & {
   clientes: PedidoCliente;
@@ -42,22 +47,25 @@ export type InternalPedido = Pick<
 };
 
 export type ListInternalPedidosOptions = {
-  estado?: string | null;
+  status?: string | null;
   limit?: number;
 };
 
-export type ListInternalPedidosResult =
-  | {
-      ok: true;
-      pedidos: InternalPedido[];
-      estado: InternalPedidoEstado | null;
-      ignoredInvalidEstado: boolean;
-    }
-  | {
-      ok: false;
-      message: string;
-      estado: InternalPedidoEstado | null;
-    };
+type ListInternalPedidosMeta = {
+  status: InternalPedidoEstado | null;
+  ignoredInvalidEstado: boolean;
+};
+
+export type ListInternalPedidosErrorReason =
+  | "unauthorized"
+  | "forbidden"
+  | "error";
+
+export type ListInternalPedidosResult = ServiceResult<
+  { pedidos: InternalPedido[] } & ListInternalPedidosMeta,
+  ListInternalPedidosErrorReason,
+  ListInternalPedidosMeta
+>;
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -66,25 +74,24 @@ const GENERIC_LIST_ERROR =
 
 const BASE_PEDIDOS_SELECT = `
   id,
-  numero_pedido,
+  order_number,
   cliente_id,
   solicitud_id,
-  titulo,
-  descripcion,
-  estado,
-  prioridad,
-  fecha_creacion,
-  fecha_entrega_estimada,
+  title,
+  description,
+  status,
+  priority,
+  estimated_delivery_date,
   created_at,
-  clientes(id, nombre),
-  solicitudes!pedidos_solicitud_id_fkey(id, tipo_servicio)
+  clientes(id, name),
+  solicitudes!pedidos_solicitud_id_fkey(id, service_type)
 `;
 
 const PEDIDOS_SELECT = `
   ${BASE_PEDIDOS_SELECT},
   pedido_trabajadores(
-    trabajador_id,
-    profiles!pedido_trabajadores_trabajador_id_fkey(id, full_name)
+    assigned_profile_id,
+    perfiles!pedido_trabajadores_assigned_profile_id_fkey(id, full_name)
   )
 `;
 
@@ -99,36 +106,37 @@ function normalizeLimit(limit: number | undefined): number {
 }
 
 export function isInternalPedidoEstado(
-  estado: string | null | undefined,
-): estado is InternalPedidoEstado {
-  return INTERNAL_PEDIDO_ESTADOS.includes(estado as InternalPedidoEstado);
+  status: string | null | undefined,
+): status is InternalPedidoEstado {
+  return INTERNAL_PEDIDO_ESTADOS.includes(status as InternalPedidoEstado);
 }
 
 export async function listInternalPedidos(
   options: ListInternalPedidosOptions = {},
 ): Promise<ListInternalPedidosResult> {
-  const selectedEstado = isInternalPedidoEstado(options.estado)
-    ? options.estado
+  const selectedEstado = isInternalPedidoEstado(options.status)
+    ? options.status
     : null;
+  const ignoredInvalidEstado = Boolean(options.status && !selectedEstado);
+  const meta = { status: selectedEstado, ignoredInvalidEstado };
   const profile = await getCurrentProfile();
 
   if (!profile) {
-    return {
-      ok: false,
-      message: "Debes iniciar sesión con un usuario interno activo.",
-      estado: selectedEstado,
-    };
+    return serviceFailure(
+      "unauthorized",
+      "Debes iniciar sesión con un usuario interno activo.",
+      meta,
+    );
   }
 
   if (!hasPermission(profile.role, "pedidos.view")) {
-    return {
-      ok: false,
-      message: "No tienes permiso para ver pedidos.",
-      estado: selectedEstado,
-    };
+    return serviceFailure(
+      "forbidden",
+      "No tienes permiso para ver pedidos.",
+      meta,
+    );
   }
 
-  const ignoredInvalidEstado = Boolean(options.estado && !selectedEstado);
   const limit = normalizeLimit(options.limit);
   const supabase = await createClient();
 
@@ -140,7 +148,7 @@ export async function listInternalPedidos(
       .limit(limit);
 
     if (selectedEstado) {
-      query = query.eq("estado", selectedEstado);
+      query = query.eq("status", selectedEstado);
     }
 
     const { data, error } = await query.returns<InternalPedido[]>();
@@ -148,26 +156,16 @@ export async function listInternalPedidos(
     if (error) {
       console.error("Error listing internal pedidos", error);
 
-      return {
-        ok: false,
-        message: GENERIC_LIST_ERROR,
-        estado: selectedEstado,
-      };
+      return serviceFailure("error", GENERIC_LIST_ERROR, meta);
     }
 
-    return {
-      ok: true,
+    return serviceSuccess({
       pedidos: data ?? [],
-      estado: selectedEstado,
-      ignoredInvalidEstado,
-    };
+      ...meta,
+    });
   } catch (error) {
     console.error("Unexpected error listing internal pedidos", error);
 
-    return {
-      ok: false,
-      message: GENERIC_LIST_ERROR,
-      estado: selectedEstado,
-    };
+    return serviceFailure("error", GENERIC_LIST_ERROR, meta);
   }
 }

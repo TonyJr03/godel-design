@@ -8,7 +8,7 @@ Esta carpeta prepara la configuración base de Supabase para Next.js App Router.
 
 No se debe usar la service role key en frontend. Estos clientes usan solamente `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
 
-Para la Fase 12, la gestión inicial de usuarios internos debe seguir usando estos clientes normales y operar solo sobre `public.profiles`. Crear usuarios en Supabase Auth desde la app requeriría Admin API y service role key server-side, por lo que queda fuera del MVP.
+Para la Fase 12, la gestión inicial de usuarios internos debe seguir usando estos clientes normales y operar solo sobre `public.perfiles`. Crear usuarios en Supabase Auth desde la app requeriría Admin API y service role key server-side, por lo que queda fuera del MVP.
 
 ## Tipos generados
 
@@ -30,8 +30,8 @@ npx supabase gen types typescript --local > src\types\database.types.ts
 
 - `/dashboard` y sus subrutas requieren autenticación.
 - `/`, `/login`, `/solicitud` y assets estáticos permanecen públicos, salvo que `/login` redirige a `/dashboard` cuando ya existe una sesión.
-- Auth por sí solo no basta para entrar al dashboard: el usuario también debe tener una fila propia en `public.profiles` con `is_active = true`.
-- `profiles.is_active` controla el acceso interno básico.
+- Auth por sí solo no basta para entrar al dashboard: el usuario también debe tener una fila propia en `public.perfiles` con `is_active = true`.
+- `perfiles.is_active` controla el acceso interno básico.
 - El proxy valida acceso por rol a rutas de dashboard usando `canAccessDashboardRoute`.
 - Si el usuario tiene sesión y perfil activo, pero su rol no permite la ruta solicitada, se redirige a `/sin-permisos`.
 - No se usa service role key; el proxy solo usa `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.

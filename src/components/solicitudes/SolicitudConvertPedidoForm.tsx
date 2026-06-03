@@ -10,7 +10,7 @@ import type { Enums } from "@/types/database";
 
 type SolicitudConvertPedidoFormProps = {
   solicitudId: string;
-  estado: Enums<"solicitud_estado">;
+  status: Enums<"solicitud_estado">;
   clienteId: string | null;
   convertedOrderId: string | null;
 };
@@ -22,7 +22,7 @@ const initialState: ConvertSolicitudToPedidoActionState = {
 
 export function SolicitudConvertPedidoForm({
   solicitudId,
-  estado,
+  status,
   clienteId,
   convertedOrderId,
 }: SolicitudConvertPedidoFormProps) {
@@ -31,7 +31,7 @@ export function SolicitudConvertPedidoForm({
     initialState,
   );
   const currentPedidoId = state.pedidoId ?? convertedOrderId;
-  const canConvert = estado === "aprobada" && Boolean(clienteId) && !currentPedidoId;
+  const canConvert = status === "aprobada" && Boolean(clienteId) && !currentPedidoId;
 
   return (
     <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
@@ -71,7 +71,7 @@ export function SolicitudConvertPedidoForm({
             Ver pedido
           </Link>
         </div>
-      ) : estado !== "aprobada" ? (
+      ) : status !== "aprobada" ? (
         <p className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
           La solicitud debe estar aprobada antes de convertirse en pedido.
         </p>

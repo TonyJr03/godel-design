@@ -52,8 +52,8 @@ export function SolicitudClienteForm({
 
       {clienteAsociado ? (
         <div className="mt-4 rounded-md border border-teal-200 bg-teal-50 p-4 text-sm text-teal-950">
-          <p className="font-semibold">{clienteAsociado.nombre}</p>
-          <p className="mt-1">{clienteAsociado.telefono}</p>
+          <p className="font-semibold">{clienteAsociado.name}</p>
+          <p className="mt-1">{clienteAsociado.phone}</p>
           {clienteAsociado.email ? (
             <p className="mt-1">{clienteAsociado.email}</p>
           ) : null}
@@ -92,7 +92,7 @@ export function SolicitudClienteForm({
             </option>
             {clientesDisponibles.map((cliente) => (
               <option key={cliente.id} value={cliente.id}>
-                {cliente.nombre} · {cliente.telefono}
+                {cliente.name} · {cliente.phone}
               </option>
             ))}
           </select>

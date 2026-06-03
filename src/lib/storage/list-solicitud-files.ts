@@ -1,7 +1,7 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
 import { createClient } from "@/lib/supabase/server";
-import { isValidUuid } from "./file-paths";
+import { isValidUuid } from "@/lib/validators";
 import type { ListSolicitudFilesResult, SolicitudFileListItem } from "./types";
 
 const SOLICITUD_FILES_SELECT = `

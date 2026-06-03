@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { createPedidoFromSolicitud } from "@/lib/pedidos";
-import { isValidUuid } from "@/lib/storage";
+import { isValidUuid } from "@/lib/validators";
 import {
   associateSolicitudWithCliente,
   createClienteFromSolicitudAndAssociate,
@@ -11,6 +11,7 @@ import {
   type SolicitudCommentFieldErrors,
   updateInternalSolicitudStatus,
 } from "@/lib/solicitudes";
+import { getFormValue } from "@/lib/utils";
 
 export type UpdateSolicitudStatusActionState = {
   ok: boolean;
@@ -39,15 +40,9 @@ export type CreateSolicitudCommentActionState = {
   message: string;
   fieldErrors?: SolicitudCommentFieldErrors;
   values?: {
-    contenido: string;
+    content: string;
   };
 };
-
-function getFormValue(formData: FormData, key: string) {
-  const value = formData.get(key);
-
-  return typeof value === "string" ? value : "";
-}
 
 async function getSolicitudIdFromRequestPath(): Promise<string> {
   const headersList = await headers();
@@ -84,11 +79,11 @@ export async function updateSolicitudStatusAction(
   formData: FormData,
 ): Promise<UpdateSolicitudStatusActionState> {
   const solicitudId = getFormValue(formData, "solicitud_id");
-  const estado = getFormValue(formData, "estado");
+  const status = getFormValue(formData, "status");
 
   const result = await updateInternalSolicitudStatus({
     solicitudId,
-    estado,
+    status,
   });
 
   if (!result.ok) {
@@ -193,10 +188,10 @@ export async function createSolicitudCommentAction(
   formData: FormData,
 ): Promise<CreateSolicitudCommentActionState> {
   const solicitudId = await getSolicitudIdForComment(formData);
-  const contenido = getFormValue(formData, "contenido");
+  const content = getFormValue(formData, "content");
   const result = await createSolicitudComment({
     solicitudId,
-    contenido,
+    content,
   });
 
   if (!result.ok) {
@@ -215,7 +210,7 @@ export async function createSolicitudCommentAction(
     ok: true,
     message: "Comentario agregado correctamente.",
     values: {
-      contenido: "",
+      content: "",
     },
   };
 }

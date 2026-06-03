@@ -53,12 +53,12 @@ El listado:
 URLs soportadas:
 
 - `/dashboard/solicitudes`
-- `/dashboard/solicitudes?estado=nueva`
-- `/dashboard/solicitudes?estado=en_revision`
-- `/dashboard/solicitudes?estado=contactada`
-- `/dashboard/solicitudes?estado=aprobada`
-- `/dashboard/solicitudes?estado=rechazada`
-- `/dashboard/solicitudes?estado=convertida`
+- `/dashboard/solicitudes?status=nueva`
+- `/dashboard/solicitudes?status=en_revision`
+- `/dashboard/solicitudes?status=contactada`
+- `/dashboard/solicitudes?status=aprobada`
+- `/dashboard/solicitudes?status=rechazada`
+- `/dashboard/solicitudes?status=convertida`
 
 `convertida` puede aparecer como filtro porque será un estado resultante del
 flujo formal de conversión a pedido. En esta fase no puede establecerse
@@ -111,7 +111,7 @@ El cambio de estado:
 
 - requiere permiso `solicitudes.manage`;
 - se valida server-side;
-- actualiza `estado`;
+- actualiza `status`;
 - actualiza `reviewed_by`;
 - revalida `/dashboard/solicitudes` y `/dashboard/solicitudes/[id]`;
 - no usa service role key.
@@ -128,7 +128,7 @@ Estas tablas son internas y quedan reservadas para `admin` y `supervisor`. El ro
 
 Los comentarios son append-only inicialmente: no hay actualización ni eliminación. El historial también es append-only.
 
-La Fase 11.4 implementa comentarios internos en `/dashboard/solicitudes/[id]`. `admin` y `supervisor` pueden ver y agregar comentarios; el autor se toma del usuario autenticado en servidor mediante `solicitud_comentarios.autor_id`. El formulario solo envía `solicitud_id` y `contenido`, no acepta autor ni fecha, y no hay edición ni eliminación.
+La Fase 11.4 implementa comentarios internos en `/dashboard/solicitudes/[id]`. `admin` y `supervisor` pueden ver y agregar comentarios; el autor se toma del usuario autenticado en servidor mediante `solicitud_comentarios.author_id`. El formulario solo envía `solicitud_id` y `content`, no acepta autor ni fecha, y no hay edición ni eliminación.
 
 La Fase 11.6 implementa historial visible en `/dashboard/solicitudes/[id]`. `admin` y `supervisor` pueden ver los eventos existentes en `solicitud_historial`; el rol `trabajador` no accede al módulo de solicitudes. La sección muestra tipo de evento, resumen, actor, rol y fecha, sin edición ni eliminación.
 

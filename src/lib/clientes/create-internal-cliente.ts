@@ -1,5 +1,10 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
+import {
+  serviceFailure,
+  serviceSuccess,
+  type ServiceResult,
+} from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import {
   validateClienteInput,
@@ -7,16 +12,20 @@ import {
   type CreateClienteInput,
 } from "./client-validation";
 
-export type CreateInternalClienteResult =
-  | {
-      ok: true;
-      clienteId: string;
-    }
-  | {
-      ok: false;
-      message: string;
-      fieldErrors?: ClienteFieldErrors;
-    };
+export type CreateInternalClienteErrorReason =
+  | "unauthorized"
+  | "forbidden"
+  | "validation"
+  | "error";
+
+export type CreateInternalClienteResult = ServiceResult<
+  {
+    clienteId: string;
+  },
+  CreateInternalClienteErrorReason,
+  Record<never, never>,
+  ClienteFieldErrors
+>;
 
 const GENERIC_CREATE_ERROR =
   "No se pudo crear el cliente. Inténtalo nuevamente.";
@@ -27,27 +36,22 @@ export async function createInternalCliente(
   const profile = await getCurrentProfile();
 
   if (!profile) {
-    return {
-      ok: false,
-      message: "Debes iniciar sesión con un usuario interno activo.",
-    };
+    return serviceFailure(
+      "unauthorized",
+      "Debes iniciar sesión con un usuario interno activo.",
+    );
   }
 
   if (!hasPermission(profile.role, "clientes.manage")) {
-    return {
-      ok: false,
-      message: "No tienes permiso para crear clientes.",
-    };
+    return serviceFailure("forbidden", "No tienes permiso para crear clientes.");
   }
 
   const validation = validateClienteInput(input);
 
   if (!validation.ok) {
-    return {
-      ok: false,
-      message: "Revisa los datos del cliente.",
+    return serviceFailure("validation", "Revisa los datos del cliente.", {
       fieldErrors: validation.fieldErrors,
-    };
+    });
   }
 
   const supabase = await createClient();
@@ -62,22 +66,15 @@ export async function createInternalCliente(
     if (error || !data) {
       console.error("Error creating internal cliente", error);
 
-      return {
-        ok: false,
-        message: GENERIC_CREATE_ERROR,
-      };
+      return serviceFailure("error", GENERIC_CREATE_ERROR);
     }
 
-    return {
-      ok: true,
+    return serviceSuccess({
       clienteId: data.id,
-    };
+    });
   } catch (error) {
     console.error("Unexpected error creating internal cliente", error);
 
-    return {
-      ok: false,
-      message: GENERIC_CREATE_ERROR,
-    };
+    return serviceFailure("error", GENERIC_CREATE_ERROR);
   }
 }

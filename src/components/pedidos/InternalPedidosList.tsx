@@ -1,20 +1,8 @@
 import Link from "next/link";
-import type { InternalPedido, InternalPedidoEstado } from "@/lib/pedidos";
+import { PEDIDO_STATUS_LABELS, type InternalPedido } from "@/lib/pedidos";
 
 type InternalPedidosListProps = {
   pedidos: InternalPedido[];
-};
-
-const ESTADO_LABELS: Record<InternalPedidoEstado, string> = {
-  solicitud_recibida: "Solicitud recibida",
-  en_revision: "En revisión",
-  cotizado: "Cotizado",
-  aprobado_cliente: "Aprobado por cliente",
-  en_diseno: "En diseño",
-  en_produccion: "En producción",
-  listo_entrega: "Listo para entrega",
-  entregado: "Entregado",
-  cancelado: "Cancelado",
 };
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("es", {
@@ -42,8 +30,8 @@ function getTrabajadoresLabel(pedido: InternalPedido): string {
   }
 
   const trabajadores = pedido.pedido_trabajadores.map((asignacion) =>
-    asignacion.profiles?.full_name?.trim()
-      ? asignacion.profiles.full_name
+    asignacion.perfiles?.full_name?.trim()
+      ? asignacion.perfiles.full_name
       : "Usuario asignado",
   );
 
@@ -51,8 +39,8 @@ function getTrabajadoresLabel(pedido: InternalPedido): string {
 }
 
 function getClienteLabel(pedido: InternalPedido): string {
-  if (pedido.clientes?.nombre) {
-    return pedido.clientes.nombre;
+  if (pedido.clientes?.name) {
+    return pedido.clientes.name;
   }
 
   return pedido.cliente_id ? "Cliente asociado" : "Sin cliente";
@@ -113,7 +101,7 @@ export function InternalPedidosList({ pedidos }: InternalPedidosListProps) {
               <tr key={pedido.id} className="align-top">
                 <td className="whitespace-nowrap px-4 py-4">
                   <div className="font-semibold text-zinc-950">
-                    {pedido.numero_pedido}
+                    {pedido.order_number}
                   </div>
                   <div className="mt-1 font-mono text-xs text-zinc-500">
                     {formatShortReference(pedido.id)}
@@ -125,7 +113,7 @@ export function InternalPedidosList({ pedidos }: InternalPedidosListProps) {
                 <td className="px-4 py-4 text-zinc-700">
                   {pedido.solicitudes ? (
                     <div>
-                      <div>{pedido.solicitudes.tipo_servicio}</div>
+                      <div>{pedido.solicitudes.service_type}</div>
                       <div className="mt-1 font-mono text-xs text-zinc-500">
                         {formatShortReference(pedido.solicitudes.id)}
                       </div>
@@ -143,25 +131,25 @@ export function InternalPedidosList({ pedidos }: InternalPedidosListProps) {
                 </td>
                 <td className="min-w-64 px-4 py-4 text-zinc-700">
                   <div className="font-medium text-zinc-950">
-                    {pedido.titulo}
+                    {pedido.title}
                   </div>
                   <p className="mt-1 line-clamp-2 text-xs leading-5 text-zinc-500">
-                    {pedido.descripcion}
+                    {pedido.description}
                   </p>
                 </td>
                 <td className="whitespace-nowrap px-4 py-4">
                   <span className="inline-flex rounded-md bg-teal-50 px-2 py-1 text-xs font-semibold text-teal-800 ring-1 ring-inset ring-teal-700/15">
-                    {ESTADO_LABELS[pedido.estado]}
+                    {PEDIDO_STATUS_LABELS[pedido.status]}
                   </span>
                 </td>
                 <td className="px-4 py-4 text-zinc-700">
                   {getTrabajadoresLabel(pedido)}
                 </td>
                 <td className="whitespace-nowrap px-4 py-4 text-zinc-700">
-                  {formatDate(pedido.fecha_creacion)}
+                  {formatDate(pedido.created_at)}
                 </td>
                 <td className="whitespace-nowrap px-4 py-4 text-zinc-700">
-                  {formatDate(pedido.fecha_entrega_estimada)}
+                  {formatDate(pedido.estimated_delivery_date)}
                 </td>
                 <td className="px-4 py-4 text-right">
                   <Link

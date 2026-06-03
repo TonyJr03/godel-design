@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
 import { createClient } from "@/lib/supabase/server";
+import { isValidUuid } from "@/lib/validators";
 import {
   GODEL_FILES_BUCKET,
   createSignedFileUrl,
-  isValidUuid,
 } from "@/lib/storage";
 
 type SolicitudFileDownloadRouteProps = {

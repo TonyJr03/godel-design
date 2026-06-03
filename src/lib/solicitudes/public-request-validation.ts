@@ -1,24 +1,38 @@
+import { getTodayIsoDate } from "@/lib/utils";
+import {
+  hasFieldErrors,
+  isBasicEmail,
+  isValidIsoDate,
+  normalizeMultilineText,
+  normalizeOptionalMultilineText,
+  normalizeOptionalSingleLineText,
+  normalizeSingleLineText,
+  validationFailure,
+  validationSuccess,
+  type ValidationResult,
+} from "@/lib/validators";
+
 export type PublicSolicitudInput = {
-  cliente_nombre?: unknown;
-  cliente_telefono?: unknown;
-  cliente_email?: unknown;
-  tipo_servicio?: unknown;
-  descripcion?: unknown;
-  cantidad?: unknown;
-  fecha_deseada?: unknown;
-  observaciones?: unknown;
+  client_name?: unknown;
+  client_phone?: unknown;
+  client_email?: unknown;
+  service_type?: unknown;
+  description?: unknown;
+  quantity?: unknown;
+  desired_date?: unknown;
+  notes?: unknown;
   files?: unknown;
 };
 
 export type PublicSolicitudData = {
-  cliente_nombre: string;
-  cliente_telefono: string;
-  cliente_email: string | null;
-  tipo_servicio: string;
-  descripcion: string;
-  cantidad: number | null;
-  fecha_deseada: string | null;
-  observaciones: string | null;
+  client_name: string;
+  client_phone: string;
+  client_email: string | null;
+  service_type: string;
+  description: string;
+  quantity: number | null;
+  desired_date: string | null;
+  notes: string | null;
 };
 
 export type PublicSolicitudField = keyof PublicSolicitudInput;
@@ -27,93 +41,26 @@ export type PublicSolicitudFieldErrors = Partial<
   Record<PublicSolicitudField, string>
 >;
 
-export type PublicSolicitudValidationResult =
-  | {
-      ok: true;
-      data: PublicSolicitudData;
-    }
-  | {
-      ok: false;
-      fieldErrors: PublicSolicitudFieldErrors;
-      message: string;
-    };
+export type ValidatePublicSolicitudInputResult = ValidationResult<
+  PublicSolicitudData,
+  PublicSolicitudFieldErrors,
+  { message: string }
+>;
 
 const FIELD_LIMITS = {
-  cliente_nombre: 120,
-  cliente_telefono: 40,
-  cliente_email: 254,
-  tipo_servicio: 120,
-  descripcion: 2000,
-  observaciones: 1000,
+  client_name: 120,
+  client_phone: 40,
+  client_email: 254,
+  service_type: 120,
+  description: 2000,
+  notes: 1000,
 } as const;
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const CONTROL_CHARS_PATTERN = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
-
-function getText(value: unknown) {
-  if (typeof value === "string") {
-    return value;
-  }
-
-  if (typeof value === "number") {
-    return String(value);
-  }
-
-  return "";
-}
-
-function cleanSingleLineText(value: unknown) {
-  return getText(value)
-    .replace(CONTROL_CHARS_PATTERN, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function cleanMultilineText(value: unknown) {
-  return getText(value)
-    .replace(/\r\n?/g, "\n")
-    .replace(CONTROL_CHARS_PATTERN, "")
-    .split("\n")
-    .map((line) => line.replace(/[ \t]+/g, " ").trim())
-    .join("\n")
-    .trim();
-}
-
-function optionalText(value: unknown, multiline = false) {
-  const cleanValue = multiline
-    ? cleanMultilineText(value)
-    : cleanSingleLineText(value);
-
-  return cleanValue.length > 0 ? cleanValue : null;
-}
-
-function isValidIsoDate(value: string) {
-  if (!ISO_DATE_PATTERN.test(value)) {
-    return false;
-  }
-
-  const [year, month, day] = value.split("-").map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day));
-
-  return (
-    date.getUTCFullYear() === year &&
-    date.getUTCMonth() === month - 1 &&
-    date.getUTCDate() === day
-  );
-}
-
-function getTodayIsoDate() {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, "0");
-  const day = String(today.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
-}
+const VALIDATION_ERROR_MESSAGE =
+  "Revisa los campos marcados antes de enviar la solicitud.";
 
 function parseCantidad(value: unknown) {
-  const textValue = cleanSingleLineText(value);
+  const textValue = normalizeSingleLineText(value);
 
   if (!textValue) {
     return null;
@@ -128,89 +75,81 @@ function parseCantidad(value: unknown) {
 
 export function validatePublicSolicitudInput(
   input: PublicSolicitudInput,
-): PublicSolicitudValidationResult {
+): ValidatePublicSolicitudInputResult {
   const fieldErrors: PublicSolicitudFieldErrors = {};
 
-  const cliente_nombre = cleanSingleLineText(input.cliente_nombre);
-  const cliente_telefono = cleanSingleLineText(input.cliente_telefono);
-  const cliente_email = optionalText(input.cliente_email);
-  const tipo_servicio = cleanSingleLineText(input.tipo_servicio);
-  const descripcion = cleanMultilineText(input.descripcion);
-  const cantidad = parseCantidad(input.cantidad);
-  const fecha_deseada = optionalText(input.fecha_deseada);
-  const observaciones = optionalText(input.observaciones, true);
+  const client_name = normalizeSingleLineText(input.client_name);
+  const client_phone = normalizeSingleLineText(input.client_phone);
+  const client_email = normalizeOptionalSingleLineText(input.client_email);
+  const service_type = normalizeSingleLineText(input.service_type);
+  const description = normalizeMultilineText(input.description);
+  const quantity = parseCantidad(input.quantity);
+  const desired_date = normalizeOptionalSingleLineText(input.desired_date);
+  const notes = normalizeOptionalMultilineText(input.notes);
 
-  if (!cliente_nombre) {
-    fieldErrors.cliente_nombre = "Ingresa el nombre del cliente.";
-  } else if (cliente_nombre.length > FIELD_LIMITS.cliente_nombre) {
-    fieldErrors.cliente_nombre = "El nombre es demasiado largo.";
+  if (!client_name) {
+    fieldErrors.client_name = "Ingresa el name del cliente.";
+  } else if (client_name.length > FIELD_LIMITS.client_name) {
+    fieldErrors.client_name = "El nombre es demasiado largo.";
   }
 
-  if (!cliente_telefono) {
-    fieldErrors.cliente_telefono = "Ingresa un teléfono de contacto.";
-  } else if (cliente_telefono.length > FIELD_LIMITS.cliente_telefono) {
-    fieldErrors.cliente_telefono = "El teléfono es demasiado largo.";
+  if (!client_phone) {
+    fieldErrors.client_phone = "Ingresa un teléfono de contacto.";
+  } else if (client_phone.length > FIELD_LIMITS.client_phone) {
+    fieldErrors.client_phone = "El teléfono es demasiado largo.";
   }
 
-  if (cliente_email) {
-    if (cliente_email.length > FIELD_LIMITS.cliente_email) {
-      fieldErrors.cliente_email = "El correo es demasiado largo.";
-    } else if (!EMAIL_PATTERN.test(cliente_email)) {
-      fieldErrors.cliente_email = "Ingresa un correo válido.";
+  if (client_email) {
+    if (client_email.length > FIELD_LIMITS.client_email) {
+      fieldErrors.client_email = "El correo es demasiado largo.";
+    } else if (!isBasicEmail(client_email)) {
+      fieldErrors.client_email = "Ingresa un correo válido.";
     }
   }
 
-  if (!tipo_servicio) {
-    fieldErrors.tipo_servicio = "Selecciona o indica el tipo de servicio.";
-  } else if (tipo_servicio.length > FIELD_LIMITS.tipo_servicio) {
-    fieldErrors.tipo_servicio = "El tipo de servicio es demasiado largo.";
+  if (!service_type) {
+    fieldErrors.service_type = "Selecciona o indica el tipo de servicio.";
+  } else if (service_type.length > FIELD_LIMITS.service_type) {
+    fieldErrors.service_type = "El tipo de servicio es demasiado largo.";
   }
 
-  if (!descripcion) {
-    fieldErrors.descripcion = "Describe el trabajo solicitado.";
-  } else if (descripcion.length > FIELD_LIMITS.descripcion) {
-    fieldErrors.descripcion = "La descripción es demasiado larga.";
+  if (!description) {
+    fieldErrors.description = "Describe el trabajo solicitado.";
+  } else if (description.length > FIELD_LIMITS.description) {
+    fieldErrors.description = "La descripción es demasiado larga.";
   }
 
-  if (Number.isNaN(cantidad) || (cantidad !== null && cantidad <= 0)) {
-    fieldErrors.cantidad = "La cantidad debe ser un entero positivo.";
+  if (Number.isNaN(quantity) || (quantity !== null && quantity <= 0)) {
+    fieldErrors.quantity = "La cantidad debe ser un entero positivo.";
   }
 
-  if (fecha_deseada) {
-    if (!isValidIsoDate(fecha_deseada)) {
-      fieldErrors.fecha_deseada = "Ingresa una fecha válida.";
-    } else if (fecha_deseada < getTodayIsoDate()) {
-      fieldErrors.fecha_deseada =
+  if (desired_date) {
+    if (!isValidIsoDate(desired_date)) {
+      fieldErrors.desired_date = "Ingresa una fecha válida.";
+    } else if (desired_date < getTodayIsoDate()) {
+      fieldErrors.desired_date =
         "La fecha deseada no puede ser anterior a hoy.";
     }
   }
 
-  if (
-    observaciones &&
-    observaciones.length > FIELD_LIMITS.observaciones
-  ) {
-    fieldErrors.observaciones = "Las observaciones son demasiado largas.";
+  if (notes && notes.length > FIELD_LIMITS.notes) {
+    fieldErrors.notes = "Las observaciones son demasiado largas.";
   }
 
-  if (Object.keys(fieldErrors).length > 0) {
-    return {
-      ok: false,
-      fieldErrors,
-      message: "Revisa los campos marcados antes de enviar la solicitud.",
-    };
+  if (hasFieldErrors(fieldErrors)) {
+    return validationFailure(fieldErrors, {
+      message: VALIDATION_ERROR_MESSAGE,
+    });
   }
 
-  return {
-    ok: true,
-    data: {
-      cliente_nombre,
-      cliente_telefono,
-      cliente_email,
-      tipo_servicio,
-      descripcion,
-      cantidad,
-      fecha_deseada,
-      observaciones,
-    },
-  };
+  return validationSuccess({
+    client_name,
+    client_phone,
+    client_email,
+    service_type,
+    description,
+    quantity,
+    desired_date,
+    notes,
+  });
 }

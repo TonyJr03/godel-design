@@ -3,7 +3,7 @@ import {
   GODEL_FILES_BUCKET,
   SIGNED_FILE_URL_EXPIRES_IN_SECONDS,
 } from "./constants";
-import { isValidUuid } from "./file-paths";
+import { isValidUuid } from "@/lib/validators";
 import type { SignedFileUrlResult } from "./types";
 
 export async function createSignedFileUrl(

@@ -1,6 +1,6 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { createClient } from "@/lib/supabase/server";
-import { isValidUuid } from "./file-paths";
+import { isValidUuid } from "@/lib/validators";
 import type { ListPedidoFilesResult, PedidoFileListItem } from "./types";
 
 type PedidoFileRow = Omit<PedidoFileListItem, "uploadedBy"> & {
@@ -15,7 +15,7 @@ const PEDIDO_FILES_SELECT = `
   visibility,
   created_at,
   uploaded_by,
-  uploader:profiles!archivos_uploaded_by_fkey(id, full_name, role)
+  uploader:perfiles!archivos_uploaded_by_fkey(id, full_name, role)
 `;
 
 export async function listPedidoFiles(

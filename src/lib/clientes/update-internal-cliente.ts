@@ -1,6 +1,12 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
+import {
+  serviceFailure,
+  serviceSuccess,
+  type ServiceResult,
+} from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
+import { isValidUuid } from "@/lib/validators";
 import {
   validateClienteInput,
   type ClienteFieldErrors,
@@ -11,19 +17,20 @@ export type UpdateInternalClienteInput = CreateClienteInput & {
   id?: string | null;
 };
 
-export type UpdateInternalClienteResult =
-  | {
-      ok: true;
-    }
-  | {
-      ok: false;
-      reason: "unauthorized" | "invalid_id" | "validation" | "not_found" | "error";
-      message: string;
-      fieldErrors?: ClienteFieldErrors;
-    };
+export type UpdateInternalClienteErrorReason =
+  | "unauthorized"
+  | "forbidden"
+  | "invalid_id"
+  | "validation"
+  | "not_found"
+  | "error";
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+export type UpdateInternalClienteResult = ServiceResult<
+  Record<never, never>,
+  UpdateInternalClienteErrorReason,
+  Record<never, never>,
+  ClienteFieldErrors
+>;
 
 const GENERIC_UPDATE_ERROR =
   "No se pudo actualizar el cliente. Inténtalo nuevamente.";
@@ -33,41 +40,29 @@ export async function updateInternalCliente(
 ): Promise<UpdateInternalClienteResult> {
   const clienteId = (input.id ?? "").trim();
 
-  if (!UUID_PATTERN.test(clienteId)) {
-    return {
-      ok: false,
-      reason: "invalid_id",
-      message: "El cliente solicitado no existe.",
-    };
+  if (!isValidUuid(clienteId)) {
+    return serviceFailure("invalid_id", "El cliente solicitado no existe.");
   }
 
   const profile = await getCurrentProfile();
 
   if (!profile) {
-    return {
-      ok: false,
-      reason: "unauthorized",
-      message: "Debes iniciar sesión con un usuario interno activo.",
-    };
+    return serviceFailure(
+      "unauthorized",
+      "Debes iniciar sesión con un usuario interno activo.",
+    );
   }
 
   if (!hasPermission(profile.role, "clientes.manage")) {
-    return {
-      ok: false,
-      reason: "unauthorized",
-      message: "No tienes permiso para editar clientes.",
-    };
+    return serviceFailure("forbidden", "No tienes permiso para editar clientes.");
   }
 
   const validation = validateClienteInput(input);
 
   if (!validation.ok) {
-    return {
-      ok: false,
-      reason: "validation",
-      message: "Revisa los datos del cliente.",
+    return serviceFailure("validation", "Revisa los datos del cliente.", {
       fieldErrors: validation.fieldErrors,
-    };
+    });
   }
 
   const supabase = await createClient();
@@ -76,10 +71,10 @@ export async function updateInternalCliente(
     const { data, error } = await supabase
       .from("clientes")
       .update({
-        nombre: validation.data.nombre,
-        telefono: validation.data.telefono,
+        name: validation.data.name,
+        phone: validation.data.phone,
         email: validation.data.email,
-        notas: validation.data.notas,
+        notes: validation.data.notes,
       })
       .eq("id", clienteId)
       .select("id")
@@ -88,31 +83,17 @@ export async function updateInternalCliente(
     if (error) {
       console.error("Error updating internal cliente", error);
 
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_UPDATE_ERROR,
-      };
+      return serviceFailure("error", GENERIC_UPDATE_ERROR);
     }
 
     if (!data) {
-      return {
-        ok: false,
-        reason: "not_found",
-        message: "El cliente solicitado no existe.",
-      };
+      return serviceFailure("not_found", "El cliente solicitado no existe.");
     }
 
-    return {
-      ok: true,
-    };
+    return serviceSuccess();
   } catch (error) {
     console.error("Unexpected error updating internal cliente", error);
 
-    return {
-      ok: false,
-      reason: "error",
-      message: GENERIC_UPDATE_ERROR,
-    };
+    return serviceFailure("error", GENERIC_UPDATE_ERROR);
   }
 }

@@ -1,57 +1,22 @@
-import type { SolicitudHistoryItem } from "@/lib/solicitudes";
-import type { Enums } from "@/types/database";
+import { ROLE_SHORT_LABELS } from "@/lib/permissions";
+import {
+  SOLICITUD_HISTORY_ACTION_LABELS,
+  SOLICITUD_STATUS_LABELS,
+  type SolicitudHistoryItem,
+} from "@/lib/solicitudes";
+import { formatAppDateTime } from "@/lib/utils";
 
 type SolicitudHistorySectionProps = {
   history: SolicitudHistoryItem[];
   loadError?: string;
 };
 
-const HISTORY_ACTION_LABELS: Record<
-  Enums<"solicitud_historial_action">,
-  string
-> = {
-  solicitud_creada: "Solicitud creada",
-  archivos_adjuntados: "Archivos adjuntados",
-  estado_cambiado: "Estado cambiado",
-  cliente_asociado: "Cliente asociado",
-  cliente_creado_desde_solicitud: "Cliente creado desde solicitud",
-  convertida_a_pedido: "Convertida a pedido",
-};
-
-const SOLICITUD_ESTADO_LABELS: Record<string, string> = {
-  nueva: "Nueva",
-  en_revision: "En revisión",
-  contactada: "Contactada",
-  aprobada: "Aprobada",
-  rechazada: "Rechazada",
-  convertida: "Convertida",
-};
-
-const ROLE_LABELS: Record<Enums<"app_role">, string> = {
-  admin: "Admin",
-  supervisor: "Supervisor",
-  trabajador: "Trabajador",
-};
-
-const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("es", {
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: "UTC",
-});
-
-function formatDateTime(value: string): string {
-  return DATE_TIME_FORMATTER.format(new Date(value));
-}
-
 function getActorName(item: SolicitudHistoryItem): string {
   return item.actor?.full_name?.trim() || "Evento automático";
 }
 
 function getActorRole(item: SolicitudHistoryItem): string | null {
-  return item.actor?.role ? ROLE_LABELS[item.actor.role] : null;
+  return item.actor?.role ? ROLE_SHORT_LABELS[item.actor.role] : null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -89,7 +54,7 @@ function formatEstado(value: string | null): string {
     return "sin dato";
   }
 
-  return SOLICITUD_ESTADO_LABELS[value] ?? value;
+  return SOLICITUD_STATUS_LABELS[value as keyof typeof SOLICITUD_STATUS_LABELS] ?? value;
 }
 
 function formatFileSize(value: number | null): string | null {
@@ -114,8 +79,8 @@ function formatShortId(value: string | null): string | null {
 
 function getClienteName(item: SolicitudHistoryItem): string | null {
   return (
-    item.related.cliente?.nombre ??
-    getMetadataString(item, "cliente_nombre") ??
+    item.related.cliente?.name ??
+    getMetadataString(item, "client_name") ??
     formatShortId(getMetadataString(item, "cliente_id"))
   );
 }
@@ -124,14 +89,14 @@ function getPedidoLabel(item: SolicitudHistoryItem): string | null {
   const pedido = item.related.pedido;
 
   if (pedido) {
-    return `${pedido.numero_pedido} - ${pedido.titulo}`;
+    return `${pedido.order_number} - ${pedido.title}`;
   }
 
-  const numeroPedido = getMetadataString(item, "numero_pedido");
-  const titulo = getMetadataString(item, "titulo");
+  const numeroPedido = getMetadataString(item, "order_number");
+  const title = getMetadataString(item, "title");
 
-  if (numeroPedido && titulo) {
-    return `${numeroPedido} - ${titulo}`;
+  if (numeroPedido && title) {
+    return `${numeroPedido} - ${title}`;
   }
 
   return numeroPedido ?? formatShortId(getMetadataString(item, "pedido_id"));
@@ -139,11 +104,11 @@ function getPedidoLabel(item: SolicitudHistoryItem): string | null {
 
 function getHistorySummary(item: SolicitudHistoryItem): string {
   if (item.action === "solicitud_creada") {
-    const tipoServicio = getMetadataString(item, "tipo_servicio");
-    const cantidad = getMetadataNumber(item, "cantidad");
+    const tipoServicio = getMetadataString(item, "service_type");
+    const quantity = getMetadataNumber(item, "quantity");
 
-    if (tipoServicio && cantidad) {
-      return `Solicitud registrada: ${tipoServicio} (${cantidad} unidades).`;
+    if (tipoServicio && quantity) {
+      return `Solicitud registrada: ${tipoServicio} (${quantity} unidades).`;
     }
 
     if (tipoServicio) {
@@ -166,8 +131,8 @@ function getHistorySummary(item: SolicitudHistoryItem): string {
 
   if (item.action === "estado_cambiado") {
     return `Estado cambiado de ${formatEstado(
-      getMetadataString(item, "estado_anterior"),
-    )} a ${formatEstado(getMetadataString(item, "estado_nuevo"))}.`;
+      item.old_value,
+    )} a ${formatEstado(item.new_value)}.`;
   }
 
   if (item.action === "cliente_asociado") {
@@ -194,7 +159,7 @@ function getHistorySummary(item: SolicitudHistoryItem): string {
     }
   }
 
-  return item.resumen;
+  return item.summary;
 }
 
 export function SolicitudHistorySection({
@@ -231,7 +196,7 @@ export function SolicitudHistorySection({
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <span className="inline-flex rounded-md bg-white px-2 py-1 text-xs font-semibold text-zinc-700 ring-1 ring-inset ring-zinc-200">
-                      {HISTORY_ACTION_LABELS[item.action]}
+                      {SOLICITUD_HISTORY_ACTION_LABELS[item.action]}
                     </span>
                     <p className="mt-3 text-sm leading-6 text-zinc-800">
                       {getHistorySummary(item)}
@@ -241,7 +206,7 @@ export function SolicitudHistorySection({
                     dateTime={item.created_at}
                     className="text-xs leading-5 text-zinc-500"
                   >
-                    {formatDateTime(item.created_at)}
+                    {formatAppDateTime(item.created_at)}
                   </time>
                 </div>
 

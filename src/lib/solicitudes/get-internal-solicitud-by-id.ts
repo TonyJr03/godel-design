@@ -1,67 +1,69 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
+import {
+  serviceFailure,
+  serviceSuccess,
+  type ServiceResult,
+} from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
+import { isValidUuid } from "@/lib/validators";
 import type { Tables } from "@/types/database";
 
 export type InternalSolicitudDetail = Pick<
   Tables<"solicitudes">,
   | "id"
   | "cliente_id"
-  | "cliente_nombre"
-  | "cliente_telefono"
-  | "cliente_email"
-  | "tipo_servicio"
-  | "descripcion"
-  | "cantidad"
-  | "fecha_deseada"
-  | "observaciones"
-  | "estado"
+  | "client_name"
+  | "client_phone"
+  | "client_email"
+  | "service_type"
+  | "description"
+  | "quantity"
+  | "desired_date"
+  | "notes"
+  | "status"
   | "converted_order_id"
   | "reviewed_by"
   | "created_at"
   | "updated_at"
 >;
 
-export type GetInternalSolicitudByIdResult =
-  | {
-      ok: true;
-      solicitud: InternalSolicitudDetail;
-    }
-  | {
-      ok: false;
-      reason: "unauthorized" | "not_found" | "invalid_id" | "error";
-      message: string;
-    };
+export type GetInternalSolicitudByIdErrorReason =
+  | "unauthorized"
+  | "forbidden"
+  | "not_found"
+  | "invalid_id"
+  | "error";
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+export type GetInternalSolicitudByIdResult = ServiceResult<
+  { solicitud: InternalSolicitudDetail },
+  GetInternalSolicitudByIdErrorReason
+>;
 
 const GENERIC_DETAIL_ERROR =
   "No se pudo cargar la solicitud. Inténtalo nuevamente.";
-
-function isValidUuid(id: string): boolean {
-  return UUID_PATTERN.test(id);
-}
 
 export async function getInternalSolicitudById(
   id: string,
 ): Promise<GetInternalSolicitudByIdResult> {
   if (!isValidUuid(id)) {
-    return {
-      ok: false,
-      reason: "invalid_id",
-      message: "La solicitud no existe.",
-    };
+    return serviceFailure("invalid_id", "La solicitud no existe.");
   }
 
   const profile = await getCurrentProfile();
 
-  if (!profile || !hasPermission(profile.role, "solicitudes.view")) {
-    return {
-      ok: false,
-      reason: "unauthorized",
-      message: "No tienes permiso para ver esta solicitud.",
-    };
+  if (!profile) {
+    return serviceFailure(
+      "unauthorized",
+      "No tienes permiso para ver esta solicitud.",
+    );
+  }
+
+  if (!hasPermission(profile.role, "solicitudes.view")) {
+    return serviceFailure(
+      "forbidden",
+      "No tienes permiso para ver esta solicitud.",
+    );
   }
 
   const supabase = await createClient();
@@ -70,7 +72,7 @@ export async function getInternalSolicitudById(
     const { data, error } = await supabase
       .from("solicitudes")
       .select(
-        "id, cliente_id, cliente_nombre, cliente_telefono, cliente_email, tipo_servicio, descripcion, cantidad, fecha_deseada, observaciones, estado, converted_order_id, reviewed_by, created_at, updated_at",
+        "id, cliente_id, client_name, client_phone, client_email, service_type, description, quantity, desired_date, notes, status, converted_order_id, reviewed_by, created_at, updated_at",
       )
       .eq("id", id)
       .maybeSingle();
@@ -78,32 +80,17 @@ export async function getInternalSolicitudById(
     if (error) {
       console.error("Error loading internal solicitud detail", error);
 
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_DETAIL_ERROR,
-      };
+      return serviceFailure("error", GENERIC_DETAIL_ERROR);
     }
 
     if (!data) {
-      return {
-        ok: false,
-        reason: "not_found",
-        message: "La solicitud no existe.",
-      };
+      return serviceFailure("not_found", "La solicitud no existe.");
     }
 
-    return {
-      ok: true,
-      solicitud: data,
-    };
+    return serviceSuccess({ solicitud: data });
   } catch (error) {
     console.error("Unexpected error loading internal solicitud detail", error);
 
-    return {
-      ok: false,
-      reason: "error",
-      message: GENERIC_DETAIL_ERROR,
-    };
+    return serviceFailure("error", GENERIC_DETAIL_ERROR);
   }
 }

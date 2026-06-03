@@ -1,33 +1,12 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { InternalUserDetail as InternalUserDetailData } from "@/lib/usuarios";
+import { ROLE_LABELS } from "@/lib/permissions";
+import { formatAppDateTime } from "@/lib/utils";
 
 type InternalUserDetailProps = {
   user: InternalUserDetailData;
 };
-
-const ROLE_LABELS: Record<InternalUserDetailData["role"], string> = {
-  admin: "Administrador",
-  supervisor: "Supervisor",
-  trabajador: "Trabajador",
-};
-
-const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("es", {
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: "UTC",
-});
-
-function formatDateTime(value: string | null): string {
-  if (!value) {
-    return "No definida";
-  }
-
-  return DATE_TIME_FORMATTER.format(new Date(value));
-}
 
 function getInitials(name: string): string {
   const words = name.trim().split(/\s+/).slice(0, 2);
@@ -139,11 +118,11 @@ export function InternalUserDetail({ user }: InternalUserDetailProps) {
           />
           <DetailItem
             label="Creación"
-            value={formatDateTime(user.created_at)}
+            value={formatAppDateTime(user.created_at, "No definida")}
           />
           <DetailItem
             label="Última actualización"
-            value={formatDateTime(user.updated_at)}
+            value={formatAppDateTime(user.updated_at, "No definida")}
           />
         </dl>
       </section>

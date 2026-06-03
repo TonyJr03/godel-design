@@ -70,14 +70,14 @@ export function PublicSolicitudForm() {
     }
   }, [state.ok]);
 
-  const nombreError = getFieldError(state, "cliente_nombre");
-  const telefonoError = getFieldError(state, "cliente_telefono");
-  const emailError = getFieldError(state, "cliente_email");
-  const tipoServicioError = getFieldError(state, "tipo_servicio");
-  const descripcionError = getFieldError(state, "descripcion");
-  const cantidadError = getFieldError(state, "cantidad");
-  const fechaDeseadaError = getFieldError(state, "fecha_deseada");
-  const observacionesError = getFieldError(state, "observaciones");
+  const nombreError = getFieldError(state, "client_name");
+  const telefonoError = getFieldError(state, "client_phone");
+  const emailError = getFieldError(state, "client_email");
+  const tipoServicioError = getFieldError(state, "service_type");
+  const descripcionError = getFieldError(state, "description");
+  const cantidadError = getFieldError(state, "quantity");
+  const fechaDeseadaError = getFieldError(state, "desired_date");
+  const observacionesError = getFieldError(state, "notes");
   const filesError = getFieldError(state, "files");
   const solicitudReference = state.solicitudId?.slice(0, 8);
   const todayInputDate = getTodayInputDate();
@@ -147,63 +147,63 @@ export function PublicSolicitudForm() {
           </h2>
           <div className="mt-5 grid gap-5 sm:grid-cols-2">
             <div>
-              <label className={labelClass} htmlFor="cliente_nombre">
+              <label className={labelClass} htmlFor="client_name">
                 Nombre del cliente <span className="text-red-700">*</span>
               </label>
               <input
                 className={baseInputClass}
-                id="cliente_nombre"
-                name="cliente_nombre"
+                id="client_name"
+                name="client_name"
                 type="text"
                 autoComplete="name"
-                defaultValue={state.values?.cliente_nombre ?? ""}
+                defaultValue={state.values?.client_name ?? ""}
                 required
                 aria-invalid={Boolean(nombreError)}
                 aria-describedby={
-                  nombreError ? "cliente_nombre-error" : undefined
+                  nombreError ? "client_name-error" : undefined
                 }
               />
-              <FieldError id="cliente_nombre-error" message={nombreError} />
+              <FieldError id="client_name-error" message={nombreError} />
             </div>
 
             <div>
-              <label className={labelClass} htmlFor="cliente_telefono">
+              <label className={labelClass} htmlFor="client_phone">
                 Teléfono <span className="text-red-700">*</span>
               </label>
               <input
                 className={baseInputClass}
-                id="cliente_telefono"
-                name="cliente_telefono"
+                id="client_phone"
+                name="client_phone"
                 type="tel"
                 autoComplete="tel"
-                defaultValue={state.values?.cliente_telefono ?? ""}
+                defaultValue={state.values?.client_phone ?? ""}
                 required
                 aria-invalid={Boolean(telefonoError)}
                 aria-describedby={
-                  telefonoError ? "cliente_telefono-error" : undefined
+                  telefonoError ? "client_phone-error" : undefined
                 }
               />
               <FieldError
-                id="cliente_telefono-error"
+                id="client_phone-error"
                 message={telefonoError}
               />
             </div>
 
             <div className="sm:col-span-2">
-              <label className={labelClass} htmlFor="cliente_email">
+              <label className={labelClass} htmlFor="client_email">
                 Email <OptionalMark />
               </label>
               <input
                 className={baseInputClass}
-                id="cliente_email"
-                name="cliente_email"
+                id="client_email"
+                name="client_email"
                 type="email"
                 autoComplete="email"
-                defaultValue={state.values?.cliente_email ?? ""}
+                defaultValue={state.values?.client_email ?? ""}
                 aria-invalid={Boolean(emailError)}
-                aria-describedby={emailError ? "cliente_email-error" : undefined}
+                aria-describedby={emailError ? "client_email-error" : undefined}
               />
-              <FieldError id="cliente_email-error" message={emailError} />
+              <FieldError id="client_email-error" message={emailError} />
             </div>
           </div>
         </section>
@@ -217,19 +217,19 @@ export function PublicSolicitudForm() {
           </h2>
           <div className="mt-5 grid gap-5 sm:grid-cols-2">
             <div>
-              <label className={labelClass} htmlFor="tipo_servicio">
+              <label className={labelClass} htmlFor="service_type">
                 Tipo de servicio <span className="text-red-700">*</span>
               </label>
               <select
                 className={baseInputClass}
-                id="tipo_servicio"
-                name="tipo_servicio"
+                id="service_type"
+                name="service_type"
                 required
                 aria-invalid={Boolean(tipoServicioError)}
                 aria-describedby={
-                  tipoServicioError ? "tipo_servicio-error" : undefined
+                  tipoServicioError ? "service_type-error" : undefined
                 }
-                defaultValue={state.values?.tipo_servicio ?? ""}
+                defaultValue={state.values?.service_type ?? ""}
               >
                 <option value="" disabled>
                   Selecciona una opción
@@ -241,91 +241,91 @@ export function PublicSolicitudForm() {
                 <option value="Otro">Otro</option>
               </select>
               <FieldError
-                id="tipo_servicio-error"
+                id="service_type-error"
                 message={tipoServicioError}
               />
             </div>
 
             <div>
-              <label className={labelClass} htmlFor="cantidad">
+              <label className={labelClass} htmlFor="quantity">
                 Cantidad <OptionalMark />
               </label>
               <input
                 className={baseInputClass}
-                id="cantidad"
-                name="cantidad"
+                id="quantity"
+                name="quantity"
                 type="number"
-                defaultValue={state.values?.cantidad ?? ""}
+                defaultValue={state.values?.quantity ?? ""}
                 min="1"
                 step="1"
                 inputMode="numeric"
                 aria-invalid={Boolean(cantidadError)}
-                aria-describedby={cantidadError ? "cantidad-error" : undefined}
+                aria-describedby={cantidadError ? "quantity-error" : undefined}
               />
-              <FieldError id="cantidad-error" message={cantidadError} />
+              <FieldError id="quantity-error" message={cantidadError} />
             </div>
 
             <div className="sm:col-span-2">
-              <label className={labelClass} htmlFor="descripcion">
+              <label className={labelClass} htmlFor="description">
                 Descripción del trabajo{" "}
                 <span className="text-red-700">*</span>
               </label>
               <textarea
                 className={`${baseInputClass} min-h-36 resize-y`}
-                id="descripcion"
-                name="descripcion"
-                defaultValue={state.values?.descripcion ?? ""}
+                id="description"
+                name="description"
+                defaultValue={state.values?.description ?? ""}
                 required
                 aria-invalid={Boolean(descripcionError)}
                 aria-describedby={
-                  descripcionError ? "descripcion-error" : "descripcion-help"
+                  descripcionError ? "description-error" : "description-help"
                 }
               />
-              <p id="descripcion-help" className={helpTextClass}>
+              <p id="description-help" className={helpTextClass}>
                 Incluye medidas, materiales, colores, textos o cualquier detalle
                 importante.
               </p>
-              <FieldError id="descripcion-error" message={descripcionError} />
+              <FieldError id="description-error" message={descripcionError} />
             </div>
 
             <div>
-              <label className={labelClass} htmlFor="fecha_deseada">
+              <label className={labelClass} htmlFor="desired_date">
                 Fecha deseada <OptionalMark />
               </label>
               <input
                 className={baseInputClass}
-                id="fecha_deseada"
-                name="fecha_deseada"
+                id="desired_date"
+                name="desired_date"
                 type="date"
-                defaultValue={state.values?.fecha_deseada ?? ""}
+                defaultValue={state.values?.desired_date ?? ""}
                 min={todayInputDate}
                 aria-invalid={Boolean(fechaDeseadaError)}
                 aria-describedby={
-                  fechaDeseadaError ? "fecha_deseada-error" : undefined
+                  fechaDeseadaError ? "desired_date-error" : undefined
                 }
               />
               <FieldError
-                id="fecha_deseada-error"
+                id="desired_date-error"
                 message={fechaDeseadaError}
               />
             </div>
 
             <div className="sm:col-span-2">
-              <label className={labelClass} htmlFor="observaciones">
+              <label className={labelClass} htmlFor="notes">
                 Observaciones <OptionalMark />
               </label>
               <textarea
                 className={`${baseInputClass} min-h-28 resize-y`}
-                id="observaciones"
-                name="observaciones"
-                defaultValue={state.values?.observaciones ?? ""}
+                id="notes"
+                name="notes"
+                defaultValue={state.values?.notes ?? ""}
                 aria-invalid={Boolean(observacionesError)}
                 aria-describedby={
-                  observacionesError ? "observaciones-error" : undefined
+                  observacionesError ? "notes-error" : undefined
                 }
               />
               <FieldError
-                id="observaciones-error"
+                id="notes-error"
                 message={observacionesError}
               />
             </div>

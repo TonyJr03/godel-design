@@ -1,6 +1,6 @@
 # Godel Diseño
 
-Sistema web de gestión operativa para Godel Diseño, orientado a preparar el flujo de solicitudes, pedidos, clientes, archivos y usuarios internos.
+Sistema web interno de gestión operativa para Godel Diseño. El proyecto cubre autenticación, roles internos, solicitudes públicas, gestión de solicitudes, clientes, pedidos, asignaciones de personal, archivos privados, comentarios, historial, usuarios internos y dashboard operativo.
 
 ## Stack
 
@@ -8,34 +8,48 @@ Sistema web de gestión operativa para Godel Diseño, orientado a preparar el fl
 - React
 - TypeScript
 - Tailwind CSS
-- Estructura en `src/app`
+- Supabase Auth, Postgres, RLS y Storage
+- Estructura principal en `src/app`
 - Alias de importación `@/*`
 
-## Alcance inicial
+## Estructura
 
-- Estructura base de carpetas del proyecto.
-- Rutas placeholder para landing, solicitud pública, login y dashboard.
-- Layout básico del dashboard con navegación interna.
-- Componentes base reutilizables para encabezados y placeholders.
-- Constantes iniciales de roles y estados.
-- Tipos y servicios placeholder sin lógica real.
+- `src/app`: rutas, Server Components, Server Actions y Route Handlers.
+- `src/components`: componentes visuales reutilizables por dominio.
+- `src/lib/<dominio>`: lógica server-side, consultas, mutaciones y servicios del sistema.
+- `src/lib/supabase`: clientes Supabase para navegador, servidor y proxy.
+- `src/lib/permissions`: helpers de permisos, roles, rutas y etiquetas.
+- `src/lib/utils` y `src/lib/validators`: utilidades puras y validadores compartidos.
+- `src/types`: tipos globales y tipos generados de Supabase.
+- `supabase/migrations`: estado consolidado de esquema, RLS, RPCs, triggers y Storage.
+- `docs`: documentación estable del sistema.
+- `docs/development`: auditorías, deuda técnica, roadmap histórico y guías locales.
 
-## Fuera de alcance
+No hay una capa activa en `src/services`; la lógica real del backend de aplicación vive en `src/lib/<dominio>`.
 
-- Supabase y conexión a base de datos.
-- Autenticación y validación de sesión.
-- Formularios funcionales.
-- Lógica de negocio real.
-- Integraciones o datos externos.
+## Seguridad
 
-## Comandos básicos
+- No se usa service role key en la aplicación.
+- No se consulta `auth.users` desde el código de aplicación.
+- Las Server Actions validan permisos antes de ejecutar cambios sensibles.
+- RLS queda como defensa final en base de datos.
+- Los archivos se gestionan en bucket privado con rutas internas y descargas firmadas.
+- La UI no debe exponer `file_path`, URLs permanentes privadas ni metadata cruda.
+
+## Comandos
 
 ```bash
-npm run dev
-npm run build
-npm run lint
+npm.cmd run dev
+npm.cmd run lint
+npm.cmd run build
 ```
 
-## Nota
+Para regenerar tipos de Supabase después de un `db reset` local:
 
-Supabase se configurará en una fase posterior. Esta etapa solo deja preparada la base del proyecto.
+```bash
+npx supabase gen types typescript --local > src/types/database.types.ts
+```
+
+## Documentación
+
+La documentación funcional está en `docs/`. La deuda técnica viva está centralizada en `docs/development/TECH_DEBT.md`; actualmente quedan pendientes de fase posterior el endurecimiento avanzado de Storage, anti-spam/rate limit y pruebas automatizadas.
