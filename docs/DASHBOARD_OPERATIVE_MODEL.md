@@ -65,6 +65,8 @@ Las siguientes piezas requieren servicios específicos de dashboard:
 - conteos agrupados por estado de pedido;
 - pedidos atrasados, calculados por `estimated_delivery_date` anterior a la fecha actual y estado no final;
 - pedidos próximos a entrega, calculados por una ventana corta y estado no final;
+- pedidos en revisión sin tareas;
+- pedidos en producción con progreso incompleto;
 - pedidos entregados recientemente, calculados por `actual_delivery_date` o por estado y fecha de actualización si se define;
 - archivos recientes con relación mínima a solicitud o pedido;
 - actividad reciente combinando historial de solicitudes e historial de pedidos;
@@ -101,6 +103,7 @@ Métricas esenciales para MVP:
 - pedidos activos;
 - pedidos en producción;
 - pedidos listos para entrega;
+- pedidos en revisión sin tareas;
 - pedidos atrasados;
 - clientes registrados;
 - actividad reciente operativa si la consulta es viable sin abrir datos sensibles.
@@ -173,11 +176,11 @@ La primera versión funcional del dashboard debe ser deliberadamente simple. Des
 
 - tarjetas de resumen por rol;
 - métricas globales de solicitudes, pedidos y clientes para `admin` y `supervisor`;
-- métricas de pedidos asignados para `trabajador`;
+- métricas de pedidos asignados para `trabajador`, incluyendo asignados en revisión sin tareas;
 - sección de "Solicitudes pendientes" para `admin` y `supervisor`;
 - sección de "Pedidos que requieren atención" para `admin` y `supervisor`;
 - sección de "Mis pedidos asignados" para `trabajador`;
-- actividad reciente mínima desde historial de pedidos y solicitudes;
+- actividad reciente mínima desde historial de pedidos y solicitudes, incluyendo eventos de tareas con títulos seguros;
 - pedidos manuales con `cliente_id = null` visibles como `Sin cliente asociado`;
 - actividad reciente avanzada queda para una subfase posterior;
 - sin gráficos;
@@ -193,10 +196,12 @@ Definición sugerida de estados:
 | Pedidos activos | todos salvo `entregado` y `cancelado` |
 | Pedidos en producción | `en_produccion` |
 | Pedidos listos | `listo_entrega` |
+| Pedidos en revisión sin tareas | `en_revision` sin filas en `pedido_tareas` |
+| Pedidos en producción con progreso incompleto | `en_produccion` con tareas pendientes o sin tareas completas |
 | Pedidos atrasados | `estimated_delivery_date` vencida y estado distinto de `entregado` o `cancelado` |
 | Próximos vencimientos | `estimated_delivery_date` dentro de una ventana corta y estado activo |
 
-El diseño, impresión, encuadernado y demás avances internos se modelarán como tareas de pedido en una subfase posterior. El dashboard no debe depender todavía de reglas de progreso por tareas.
+El diseño, impresión, encuadernado y demás avances internos se modelan como tareas de pedido. El dashboard usa progreso agregado por tareas para orientar la operación, pero no implementa gráficos avanzados, reportes financieros ni productividad.
 
 ## Métricas futuras
 
@@ -271,7 +276,7 @@ Responsabilidades sugeridas:
 3. Fase 13.3: tarjetas MVP por rol en `/dashboard`.
 4. Fase 13.4: paneles operativos por rol en `/dashboard`.
 5. Fase 13.5: actividad reciente mínima en `/dashboard`.
-6. Fase 13.6: refinamiento de listas, criterios de atención o actividad si la operación lo requiere.
+6. Fase 13.6: refinamiento de listas, criterios de atención y actividad según tareas de pedido.
 7. Fase 13.7: documentación, pruebas manuales y cierre.
 
 ## Fuera de alcance
@@ -289,7 +294,7 @@ Queda fuera del alcance actual:
 - implementar reportes avanzados;
 - implementar notificaciones;
 - implementar exportaciones;
-- implementar actividad reciente avanzada.
+- implementar reportes o gráficos avanzados de productividad.
 
 ## Cierre
 

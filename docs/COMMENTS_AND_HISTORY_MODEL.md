@@ -112,6 +112,8 @@ Las acciones y servicios actuales no aceptan datos de historial desde formulario
 - la creación de solicitudes, archivos adjuntados, cambios de estado, asociación de cliente y conversión a pedido se registran por triggers;
 - `createClienteFromSolicitudAndAssociate` registra `cliente_creado_desde_solicitud` después de crear y asociar el cliente correctamente.
 
+La actividad reciente del dashboard consume estos eventos y construye resúmenes controlados. Para tareas muestra títulos seguros, por ejemplo `Tarea creada: X.` o `Progreso de tarea X actualizado de A a B.`, sin mostrar metadata cruda, JSON, rutas privadas ni `file_path`.
+
 La herencia de archivos al convertir una solicitud en pedido no genera un evento adicional de archivo para evitar ruido y duplicados.
 
 ### Comentarios de Pedidos
@@ -475,7 +477,7 @@ Eventos mínimos:
 | `tarea_eliminada` | Se elimina una tarea de pedido. | tarea eliminada y estado previo seguro. |
 | `tarea_completada` | Una tarea pasa a completada. | tarea, usuario, fecha y estado. |
 | `tarea_reabierta` | Una tarea completada vuelve a abierta. | tarea y estado anterior/nuevo. |
-| `tarea_progreso_actualizado` | Cambia el avance numérico de una tarea cuantificada. | cantidad anterior y cantidad nueva. |
+| `tarea_progreso_actualizado` | Cambia el avance numérico de una tarea cuantificada. | título de tarea, cantidad anterior y cantidad nueva. |
 
 La RPC actual cubre cambios de estado de pedido con el enum simplificado de fases generales y valida las transiciones según tareas. Los eventos de tareas quedan conectados mediante triggers de base de datos; los servicios server-side y la UI del detalle de pedido ya pueden listar, crear, actualizar, completar, reabrir y eliminar tareas.
 

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import type { Tables } from "@/types/database";
 import type { DashboardContext, ManagementDashboardContext } from "./context";
 import {
   getDashboardDateWindow,
@@ -12,6 +13,9 @@ type CountQuery = PromiseLike<{
   error: { message?: string } | null;
 }>;
 
+type PedidoSinTareasRow = Pick<Tables<"pedidos">, "id">;
+type PedidoTaskPedidoIdRow = Pick<Tables<"pedido_tareas">, "pedido_id">;
+
 const GENERIC_SUMMARY_ERROR =
   "No se pudo cargar el resumen del dashboard. Inténtalo nuevamente.";
 
@@ -23,6 +27,48 @@ async function resolveCount(label: string, query: CountQuery): Promise<number> {
   }
 
   return count ?? 0;
+}
+
+async function countPedidosEnRevisionSinTareas(): Promise<number> {
+  const supabase = await createClient();
+  const { data: pedidos, error: pedidosError } = await supabase
+    .from("pedidos")
+    .select("id")
+    .eq("status", "en_revision")
+    .returns<PedidoSinTareasRow[]>();
+
+  if (pedidosError) {
+    throw new Error(
+      `pedidos en revisión: ${
+        pedidosError.message ?? "Supabase query error"
+      }`,
+    );
+  }
+
+  const pedidoIds = (pedidos ?? []).map((pedido) => pedido.id);
+
+  if (pedidoIds.length === 0) {
+    return 0;
+  }
+
+  const { data: tasks, error: tasksError } = await supabase
+    .from("pedido_tareas")
+    .select("pedido_id")
+    .in("pedido_id", pedidoIds)
+    .returns<PedidoTaskPedidoIdRow[]>();
+
+  if (tasksError) {
+    throw new Error(
+      `tareas de pedidos en revisión: ${
+        tasksError.message ?? "Supabase query error"
+      }`,
+    );
+  }
+
+  const pedidoIdsWithTasks = new Set((tasks ?? []).map((task) => task.pedido_id));
+
+  return pedidoIds.filter((pedidoId) => !pedidoIdsWithTasks.has(pedidoId))
+    .length;
 }
 
 async function getManagementDashboardSummary(
@@ -39,6 +85,7 @@ async function getManagementDashboardSummary(
       pedidosActivos,
       pedidosEnProduccion,
       pedidosListosEntrega,
+      pedidosSinTareas,
       pedidosAtrasados,
       pedidosProximosEntrega,
       clientesRegistrados,
@@ -87,6 +134,7 @@ async function getManagementDashboardSummary(
           .select("id", { count: "exact", head: true })
           .eq("status", "listo_entrega"),
       ),
+      countPedidosEnRevisionSinTareas(),
       resolveCount(
         "pedidos atrasados",
         supabase
@@ -127,6 +175,7 @@ async function getManagementDashboardSummary(
           pedidosActivos,
           pedidosEnProduccion,
           pedidosListosEntrega,
+          pedidosSinTareas,
           pedidosAtrasados,
           pedidosProximosEntrega,
           clientesRegistrados,

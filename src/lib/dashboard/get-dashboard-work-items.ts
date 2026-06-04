@@ -1,4 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
+import {
+  calculatePedidoTasksProgressByPedidoId,
+  type PedidoTaskProgressByPedidoInput,
+  type PedidoTasksProgress,
+} from "@/lib/pedidos";
 import type { Tables } from "@/types/database";
 import type { DashboardContext } from "./context";
 import {
@@ -40,6 +45,10 @@ type PedidoWorkRow = Pick<
   clientes: PedidoClienteRow;
 };
 
+type PedidoWorkWithProgress = PedidoWorkRow & {
+  progress: PedidoTasksProgress;
+};
+
 const PENDING_SOLICITUDES_LIMIT = 6;
 const PENDING_SOLICITUDES_QUERY_LIMIT = 24;
 const PEDIDOS_ATTENTION_LIMIT = 8;
@@ -63,9 +72,25 @@ const ASSIGNED_PEDIDOS_WORK_SELECT = `
 
 const GENERIC_WORK_ITEMS_ERROR =
   "No se pudieron cargar los paneles operativos. Inténtalo nuevamente.";
+const EMPTY_TASK_PROGRESS: PedidoTasksProgress = {
+  totalTasks: 0,
+  completedTasks: 0,
+  pendingTasks: 0,
+  progressPercentage: 0,
+  hasTasks: false,
+  isComplete: false,
+};
+
+const TASK_PROGRESS_SELECT = `
+  pedido_id,
+  task_type,
+  target_quantity,
+  completed_quantity,
+  is_completed
+`;
 
 function getPedidoAttentionRank(
-  pedido: PedidoWorkRow,
+  pedido: PedidoWorkWithProgress,
   today: string,
   nextSevenDays: string,
 ): number {
@@ -77,11 +102,19 @@ function getPedidoAttentionRank(
     return 1;
   }
 
-  if (pedido.status === "en_produccion") {
+  if (pedido.status === "en_revision" && !pedido.progress.hasTasks) {
     return 2;
   }
 
-  return 3;
+  if (pedido.status === "en_produccion" && !pedido.progress.isComplete) {
+    return 3;
+  }
+
+  if (pedido.status === "listo_entrega") {
+    return 4;
+  }
+
+  return 5;
 }
 
 function sortPendingSolicitudes(
@@ -100,10 +133,10 @@ function sortPendingSolicitudes(
 }
 
 function sortPedidosByAttention(
-  pedidos: PedidoWorkRow[],
+  pedidos: PedidoWorkWithProgress[],
   today: string,
   nextSevenDays: string,
-): PedidoWorkRow[] {
+): PedidoWorkWithProgress[] {
   return [...pedidos].sort((left, right) => {
     const leftRank = getPedidoAttentionRank(left, today, nextSevenDays);
     const rightRank = getPedidoAttentionRank(right, today, nextSevenDays);
@@ -140,7 +173,7 @@ function mapSolicitudItem(
 }
 
 function mapPedidoItem(
-  pedido: PedidoWorkRow,
+  pedido: PedidoWorkWithProgress,
   today: string,
   nextSevenDays: string,
 ): DashboardPedidoWorkItem {
@@ -154,11 +187,51 @@ function mapPedidoItem(
     fechaEntregaEstimada: pedido.estimated_delivery_date,
     createdAt: pedido.created_at,
     clienteNombre: pedido.clientes?.name ?? null,
+    progress: pedido.progress,
     attention: {
       isOverdue: isPedidoAtrasado(pedido, today),
       isDueSoon: isPedidoProximoEntrega(pedido, today, nextSevenDays),
+      isReviewWithoutTasks:
+        pedido.status === "en_revision" && !pedido.progress.hasTasks,
+      isProductionWithPendingTasks:
+        pedido.status === "en_produccion" && !pedido.progress.isComplete,
+      isReadyForDelivery: pedido.status === "listo_entrega",
     },
   };
+}
+
+async function attachTaskProgressToPedidos(
+  pedidos: PedidoWorkRow[],
+): Promise<PedidoWorkWithProgress[]> {
+  if (pedidos.length === 0) {
+    return [];
+  }
+
+  const supabase = await createClient();
+  const pedidoIds = pedidos.map((pedido) => pedido.id);
+  const { data, error } = await supabase
+    .from("pedido_tareas")
+    .select(TASK_PROGRESS_SELECT)
+    .in("pedido_id", pedidoIds)
+    .returns<PedidoTaskProgressByPedidoInput[]>();
+
+  if (error) {
+    throw new Error(
+      `progreso de pedidos operativos: ${
+        error.message ?? "Supabase query error"
+      }`,
+    );
+  }
+
+  const progressByPedidoId = calculatePedidoTasksProgressByPedidoId(
+    pedidoIds,
+    data ?? [],
+  );
+
+  return pedidos.map((pedido) => ({
+    ...pedido,
+    progress: progressByPedidoId.get(pedido.id) ?? EMPTY_TASK_PROGRESS,
+  }));
 }
 
 async function listManagementPendingSolicitudes(): Promise<
@@ -213,7 +286,9 @@ async function listManagementAttentionPedidos(
     );
   }
 
-  return sortPedidosByAttention(data ?? [], today, nextSevenDays)
+  const pedidos = await attachTaskProgressToPedidos(data ?? []);
+
+  return sortPedidosByAttention(pedidos, today, nextSevenDays)
     .slice(0, PEDIDOS_ATTENTION_LIMIT)
     .map((pedido) => mapPedidoItem(pedido, today, nextSevenDays));
 }
@@ -242,7 +317,9 @@ async function listWorkerAssignedPedidos(
     );
   }
 
-  return sortPedidosByAttention(data ?? [], today, nextSevenDays)
+  const pedidos = await attachTaskProgressToPedidos(data ?? []);
+
+  return sortPedidosByAttention(pedidos, today, nextSevenDays)
     .slice(0, PEDIDOS_ATTENTION_LIMIT)
     .map((pedido) => mapPedidoItem(pedido, today, nextSevenDays));
 }

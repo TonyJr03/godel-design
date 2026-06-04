@@ -37,7 +37,31 @@ function getPedidoAttentionLabel(item: DashboardPedidoWorkItem): string | null {
     return "Próximo";
   }
 
+  if (item.attention.isReviewWithoutTasks) {
+    return "Sin tareas";
+  }
+
+  if (item.attention.isProductionWithPendingTasks) {
+    return "Tareas pendientes";
+  }
+
+  if (item.attention.isReadyForDelivery) {
+    return "Listo";
+  }
+
   return null;
+}
+
+function getPedidoProgressLabel(item: DashboardPedidoWorkItem): string {
+  if (!item.progress.hasTasks) {
+    return "Sin tareas";
+  }
+
+  if (item.progress.isComplete) {
+    return "100% completado";
+  }
+
+  return `Progreso: ${item.progress.progressPercentage}%`;
 }
 
 function EmptyState({ message }: { message: string }) {
@@ -149,6 +173,9 @@ function PedidosList({
                 </p>
                 <p className="mt-1 text-sm text-zinc-500">
                   {pedido.clienteNombre ?? "Sin cliente asociado"}
+                </p>
+                <p className="mt-1 text-sm text-zinc-500">
+                  {getPedidoProgressLabel(pedido)}
                 </p>
               </div>
               <div className="shrink-0 text-left sm:text-right">

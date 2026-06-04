@@ -6,7 +6,7 @@
 
 `listInternalPedidos` carga el listado de pedidos desde Server Components usando el cliente de Supabase configurado en `src/lib/supabase/server.ts`.
 
-El servicio valida `pedidos.view`, permite filtrar por `pedido_estado`, ordena por `created_at`, limita la carga y respeta RLS como defensa final. No usa service role key.
+El servicio valida `pedidos.view`, permite filtrar por `pedido_estado`, ordena por `created_at`, limita la carga y respeta RLS como defensa final. También carga el progreso agregado de tareas en una consulta adicional por lote para que el listado muestre `Sin tareas`, porcentaje o `100% completado` sin exponer detalles completos de tareas. No usa service role key.
 
 ## `getInternalPedidoById`
 
@@ -57,6 +57,8 @@ Las tareas simples no guardan cantidades. Las tareas cuantificadas requieren `ta
 La detección de tipo vive en `task-validation.ts`: un título sin números independientes crea una tarea `simple`; un único entero positivo independiente crea una tarea `cuantificada` con `target_quantity` y `completed_quantity = 0`; dos o más números, decimales, cero o negativos fallan validación. Los dígitos dentro de palabras no cuentan, por lo que `Imprimir hojas A4` es simple y `Imprimir 40 hojas A4` es cuantificada.
 
 El progreso agregado vive en `task-progress.ts`: sin tareas devuelve 0%; cada tarea simple vale 100% si está completada y 0% si está pendiente; cada tarea cuantificada usa `completed_quantity / target_quantity * 100`; el total es el promedio redondeado de todas las tareas.
+
+El mismo cálculo se reutiliza en el detalle, el listado interno de pedidos y los paneles operativos del dashboard. Las consultas de dashboard y listado son server-side y no muestran metadata cruda ni datos técnicos de tareas.
 
 RLS permite gestionar tareas a `admin`, `supervisor` y personal asignado al pedido mediante `private.can_access_pedido(pedido_id)`. La inserción exige `created_by = auth.uid()` para trazabilidad.
 
@@ -118,7 +120,7 @@ Los comentarios son append-only. No hay edición, eliminación, menciones, notif
 
 `listPedidoHistory` carga el historial server-side mediante la RPC segura `public.listar_pedido_historial`. Valida UUID, perfil interno, permiso `pedidos.view` y acceso al pedido. La RPC valida `private.can_access_pedido`, no abre `perfiles` globalmente y devuelve solo datos mínimos del actor: nombre y rol.
 
-El historial es append-only. No hay edición ni eliminación. Los cambios de estado se registran mediante `public.actualizar_estado_pedido`.
+El historial es append-only. No hay edición ni eliminación. Los cambios de estado se registran mediante `public.actualizar_estado_pedido`. Los eventos de tareas se muestran con resúmenes controlados y título de tarea cuando existe, sin renderizar JSON ni metadata cruda.
 
 Desde Fase 11.7A, la base de datos registra automáticamente estos eventos de pedido mediante triggers controlados:
 

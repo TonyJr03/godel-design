@@ -32,6 +32,13 @@ function getHistoryMetadataString(
   return typeof value === "string" && value.trim() ? value : null;
 }
 
+function getHistoryTaskTitle(
+  item: PedidoHistoryItem,
+  fallback: string | null,
+): string | null {
+  return getHistoryMetadataString(item.metadata, "title") ?? fallback;
+}
+
 function getHistorySummary(item: PedidoHistoryItem): string {
   if (
     item.action === "estado_cambiado" ||
@@ -66,32 +73,48 @@ function getHistorySummary(item: PedidoHistoryItem): string {
   }
 
   if (item.action === "tarea_creada") {
-    return `Tarea creada: ${formatHistoryValue(item.new_value)}.`;
+    const taskTitle = getHistoryTaskTitle(item, item.new_value);
+
+    return taskTitle ? `Tarea creada: ${taskTitle}.` : "Tarea creada.";
   }
 
   if (item.action === "tarea_actualizada") {
-    return item.old_value && item.new_value && item.old_value !== item.new_value
-      ? `Tarea actualizada de ${formatHistoryValue(item.old_value)} a ${formatHistoryValue(item.new_value)}.`
+    const taskTitle = getHistoryTaskTitle(item, item.new_value);
+
+    return taskTitle
+      ? `Tarea actualizada: ${taskTitle}.`
       : item.summary || "Tarea actualizada.";
   }
 
   if (item.action === "tarea_eliminada") {
-    return `Tarea eliminada: ${formatHistoryValue(item.old_value)}.`;
+    const taskTitle = getHistoryTaskTitle(item, item.old_value);
+
+    return taskTitle
+      ? `Tarea eliminada: ${taskTitle}.`
+      : "Tarea eliminada.";
   }
 
   if (item.action === "tarea_completada") {
-    return `Tarea completada: ${formatHistoryValue(item.new_value)}.`;
+    const taskTitle = getHistoryTaskTitle(item, item.new_value);
+
+    return taskTitle
+      ? `Tarea completada: ${taskTitle}.`
+      : "Tarea completada.";
   }
 
   if (item.action === "tarea_reabierta") {
-    return `Tarea reabierta: ${formatHistoryValue(item.new_value)}.`;
+    const taskTitle = getHistoryTaskTitle(item, item.new_value);
+
+    return taskTitle
+      ? `Tarea reabierta: ${taskTitle}.`
+      : "Tarea reabierta.";
   }
 
   if (item.action === "tarea_progreso_actualizado") {
     const taskTitle = getHistoryMetadataString(item.metadata, "title");
 
     return taskTitle
-      ? `Progreso de tarea "${taskTitle}" actualizado de ${formatHistoryValue(item.old_value)} a ${formatHistoryValue(item.new_value)}.`
+      ? `Progreso de tarea ${taskTitle} actualizado de ${formatHistoryValue(item.old_value)} a ${formatHistoryValue(item.new_value)}.`
       : `Progreso de tarea actualizado de ${formatHistoryValue(item.old_value)} a ${formatHistoryValue(item.new_value)}.`;
   }
 

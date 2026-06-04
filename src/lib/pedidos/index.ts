@@ -129,7 +129,9 @@ export {
   type ValidatePedidoTaskSortOrderResult,
 } from "./task-validation";
 export {
+  calculatePedidoTasksProgressByPedidoId,
   calculatePedidoTasksProgress,
+  type PedidoTaskProgressByPedidoInput,
   type PedidoTaskProgressInput,
   type PedidoTasksProgress,
 } from "./task-progress";

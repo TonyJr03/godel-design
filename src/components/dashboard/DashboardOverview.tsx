@@ -53,6 +53,11 @@ function getManagementCards(
       description: "Pedidos terminados y pendientes de entrega.",
     },
     {
+      title: "Sin tareas",
+      value: metrics.pedidosSinTareas,
+      description: "Pedidos en revisión que aún no tienen tareas.",
+    },
+    {
       title: "Pedidos atrasados",
       value: metrics.pedidosAtrasados,
       description: "Pedidos activos con fecha estimada vencida.",
@@ -93,6 +98,11 @@ function getWorkerCards(
       title: "Listos para entrega",
       value: metrics.pedidosAsignadosListosEntrega,
       description: "Tus pedidos terminados y pendientes de entrega.",
+    },
+    {
+      title: "Asignados sin tareas",
+      value: metrics.pedidosAsignadosSinTareas,
+      description: "Tus pedidos en revisión que aún no tienen tareas.",
     },
     {
       title: "Atrasados",

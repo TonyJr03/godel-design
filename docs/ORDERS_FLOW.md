@@ -145,6 +145,8 @@ Archivos principales:
 
 El listado carga server-side. `admin` y `supervisor` ven todos los pedidos; `trabajador` ve solo pedidos asignados. El filtro por estado usa parámetros GET. El componente visual no consulta Supabase. La consulta usa relación explícita con solicitudes para evitar ambigüedad de PostgREST.
 
+El listado muestra progreso operativo basado en tareas: `Sin tareas`, `Progreso: N%` o `100% completado`. No muestra tareas completas ni campos técnicos en la tabla; el cálculo usa el helper compartido de progreso y una consulta server-side por lote a `pedido_tareas`.
+
 ## Detalle de pedido
 
 Archivos principales:
@@ -341,6 +343,8 @@ El diseño técnico de comentarios internos e historial para la Fase 11 se docum
 
 El diseño del dashboard operativo para la Fase 13 se documenta en `docs/DASHBOARD_OPERATIVE_MODEL.md`. Las métricas futuras de pedidos deben derivarse de consultas server-side, respetar RLS y filtrar los pedidos del trabajador a sus asignaciones.
 
+Desde 13.6I, el dashboard y los paneles operativos también consideran tareas: pedidos en revisión sin tareas, pedidos en producción con tareas pendientes, pedidos listos para entrega y progreso agregado por pedido. No se implementan gráficos avanzados, reportes financieros ni productividad.
+
 ## Pruebas manuales recomendadas
 
 - Verificar que `admin` ve todos los pedidos.
@@ -373,6 +377,8 @@ El diseño del dashboard operativo para la Fase 13 se documenta en `docs/DASHBOA
 - Confirmar que listados y filtros no muestran estados eliminados.
 - Confirmar que el dashboard no muestra tarjeta de diseño.
 - Confirmar que las métricas de activos, producción, listos, atrasados y próximos a entrega funcionan.
+- Confirmar que el listado de pedidos muestra `Sin tareas`, progreso porcentual o `100% completado`.
+- Confirmar que los paneles operativos muestran progreso y priorizan pedidos atrasados, próximos, sin tareas, con tareas pendientes y listos para entrega.
 - Confirmar que el historial registra cambios de estado con etiquetas vigentes.
 - Intentar pasar a `en_produccion` sin tareas y confirmar bloqueo.
 - Crear una tarea y pasar a `en_produccion`.

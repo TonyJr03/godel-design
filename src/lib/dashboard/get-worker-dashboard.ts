@@ -18,6 +18,8 @@ type AssignedPedidoSummaryRow = Pick<
   "id" | "status" | "estimated_delivery_date"
 >;
 
+type PedidoTaskPedidoIdRow = Pick<Tables<"pedido_tareas">, "pedido_id">;
+
 const ASSIGNED_PEDIDOS_SUMMARY_SELECT = `
   id,
   status,
@@ -30,6 +32,7 @@ const GENERIC_WORKER_SUMMARY_ERROR =
 
 function buildWorkerMetrics(
   pedidos: AssignedPedidoSummaryRow[],
+  pedidoIdsWithTasks: Set<string>,
 ): WorkerDashboardMetrics {
   const { today, nextSevenDays } = getDashboardDateWindow();
 
@@ -42,6 +45,10 @@ function buildWorkerMetrics(
     ).length,
     pedidosAsignadosListosEntrega: pedidos.filter(
       (pedido) => pedido.status === "listo_entrega",
+    ).length,
+    pedidosAsignadosSinTareas: pedidos.filter(
+      (pedido) =>
+        pedido.status === "en_revision" && !pedidoIdsWithTasks.has(pedido.id),
     ).length,
     pedidosAsignadosAtrasados: pedidos.filter((pedido) =>
       isPedidoAtrasado(pedido, today),
@@ -75,13 +82,38 @@ export async function loadWorkerDashboardSummary(
       };
     }
 
+    const pedidos = data ?? [];
+    const pedidoIds = pedidos.map((pedido) => pedido.id);
+    const { data: tasks, error: tasksError } =
+      pedidoIds.length > 0
+        ? await supabase
+            .from("pedido_tareas")
+            .select("pedido_id")
+            .in("pedido_id", pedidoIds)
+            .returns<PedidoTaskPedidoIdRow[]>()
+        : { data: [] as PedidoTaskPedidoIdRow[], error: null };
+
+    if (tasksError) {
+      console.error("Error loading worker task summary", tasksError);
+
+      return {
+        ok: false,
+        reason: "error",
+        message: GENERIC_WORKER_SUMMARY_ERROR,
+      };
+    }
+
+    const pedidoIdsWithTasks = new Set(
+      (tasks ?? []).map((task) => task.pedido_id),
+    );
+
     return {
       ok: true,
       role: "trabajador",
       summary: {
         kind: "worker",
         role: "trabajador",
-        metrics: buildWorkerMetrics(data ?? []),
+        metrics: buildWorkerMetrics(pedidos, pedidoIdsWithTasks),
         generatedAt: new Date().toISOString(),
       },
     };

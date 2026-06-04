@@ -7,6 +7,10 @@ export type PedidoTaskProgressInput = {
   is_completed: boolean;
 };
 
+export type PedidoTaskProgressByPedidoInput = PedidoTaskProgressInput & {
+  pedido_id: string;
+};
+
 export type PedidoTasksProgress = {
   totalTasks: number;
   completedTasks: number;
@@ -62,4 +66,25 @@ export function calculatePedidoTasksProgress(
     hasTasks: true,
     isComplete: completedTasks === totalTasks,
   };
+}
+
+export function calculatePedidoTasksProgressByPedidoId(
+  pedidoIds: readonly string[],
+  tasks: readonly PedidoTaskProgressByPedidoInput[],
+): Map<string, PedidoTasksProgress> {
+  const tasksByPedidoId = new Map<string, PedidoTaskProgressInput[]>();
+
+  for (const task of tasks) {
+    const currentTasks = tasksByPedidoId.get(task.pedido_id) ?? [];
+
+    currentTasks.push(task);
+    tasksByPedidoId.set(task.pedido_id, currentTasks);
+  }
+
+  return new Map(
+    pedidoIds.map((pedidoId) => [
+      pedidoId,
+      calculatePedidoTasksProgress(tasksByPedidoId.get(pedidoId) ?? []),
+    ]),
+  );
 }

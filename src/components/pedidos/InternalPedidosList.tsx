@@ -46,6 +46,18 @@ function getClienteLabel(pedido: InternalPedido): string {
   return pedido.cliente_id ? "Cliente asociado" : "Sin cliente asociado";
 }
 
+function getProgressLabel(pedido: InternalPedido): string {
+  if (!pedido.taskProgress.hasTasks) {
+    return "Sin tareas";
+  }
+
+  if (pedido.taskProgress.isComplete) {
+    return "100% completado";
+  }
+
+  return `Progreso: ${pedido.taskProgress.progressPercentage}%`;
+}
+
 export function InternalPedidosList({ pedidos }: InternalPedidosListProps) {
   if (pedidos.length === 0) {
     return (
@@ -81,6 +93,9 @@ export function InternalPedidosList({ pedidos }: InternalPedidosListProps) {
               </th>
               <th scope="col" className="px-4 py-3">
                 Estado
+              </th>
+              <th scope="col" className="px-4 py-3">
+                Progreso
               </th>
               <th scope="col" className="px-4 py-3">
                 Personal
@@ -140,6 +155,17 @@ export function InternalPedidosList({ pedidos }: InternalPedidosListProps) {
                 <td className="whitespace-nowrap px-4 py-4">
                   <span className="inline-flex rounded-md bg-teal-50 px-2 py-1 text-xs font-semibold text-teal-800 ring-1 ring-inset ring-teal-700/15">
                     {PEDIDO_STATUS_LABELS[pedido.status]}
+                  </span>
+                </td>
+                <td className="whitespace-nowrap px-4 py-4 text-zinc-700">
+                  <span
+                    className={
+                      pedido.taskProgress.isComplete
+                        ? "inline-flex rounded-md bg-teal-50 px-2 py-1 text-xs font-semibold text-teal-800 ring-1 ring-inset ring-teal-700/15"
+                        : "inline-flex rounded-md bg-zinc-100 px-2 py-1 text-xs font-semibold text-zinc-700 ring-1 ring-inset ring-zinc-200"
+                    }
+                  >
+                    {getProgressLabel(pedido)}
                   </span>
                 </td>
                 <td className="px-4 py-4 text-zinc-700">
