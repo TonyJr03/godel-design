@@ -124,7 +124,7 @@ export function InternalSolicitudDetail({
           Gestión interna
         </h2>
         <p className="mt-2 text-sm leading-6 text-zinc-600">
-          Actualiza el estado operativo de la solicitud.
+          Actualiza el estado operativo siguiendo las transiciones permitidas.
         </p>
         <div className="mt-5">
           <SolicitudStatusForm

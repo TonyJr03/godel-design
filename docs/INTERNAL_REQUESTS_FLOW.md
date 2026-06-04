@@ -114,15 +114,19 @@ Si la solicitud se convierte en pedido, estos archivos conservan `solicitud_id` 
 | Servicio | `src/lib/solicitudes/update-internal-solicitud-status.ts` |
 | Componente | `src/components/solicitudes/SolicitudStatusForm.tsx` |
 | Helpers | `src/lib/solicitudes/status.ts` |
+| RPC | `public.actualizar_estado_solicitud` |
 
 El cambio de estado:
 
 - requiere permiso `solicitudes.manage`;
-- se valida server-side;
+- se valida server-side mediante `public.actualizar_estado_solicitud`;
 - actualiza `status`;
 - actualiza `reviewed_by`;
+- registra `estado_cambiado` mediante el trigger de historial existente cuando el estado realmente cambia;
 - revalida `/dashboard/solicitudes` y `/dashboard/solicitudes/[id]`;
 - no usa service role key.
+
+La RPC es la autoridad de transiciones. La UI solo muestra las opciones permitidas para orientar al usuario, pero los saltos inválidos también fallan server-side.
 
 ## Comentarios e historial de solicitudes
 
@@ -140,7 +144,7 @@ La Fase 11.4 implementa comentarios internos en `/dashboard/solicitudes/[id]`. `
 
 La Fase 11.6 implementa historial visible en `/dashboard/solicitudes/[id]`. `admin` y `supervisor` pueden ver los eventos existentes en `solicitud_historial`; el rol `trabajador` no accede al módulo de solicitudes. La sección muestra tipo de evento, resumen, actor, rol y fecha, sin edición ni eliminación.
 
-Desde Fase 11.7B, la base de datos registra automáticamente eventos de solicitud para creación, archivos adjuntados, cambios de estado, asociación de cliente y conversión a pedido. El evento `cliente_creado_desde_solicitud` se registra desde el servicio server-side que crea y asocia el cliente. Los eventos originados en el flujo público pueden tener `actor_id = null`.
+Desde Fase 11.7B, la base de datos registra automáticamente eventos de solicitud para creación, archivos adjuntados, cambios de estado, asociación de cliente y conversión a pedido. El evento `cliente_creado_desde_solicitud` se registra desde el servicio server-side después de crear el cliente y antes de asociarlo a la solicitud. Los eventos originados en el flujo público pueden tener `actor_id = null`.
 
 La sección de historial no se limita al texto genérico del evento: muestra detalles operativos cuando existen. Los cambios de estado indican origen y destino, los archivos muestran el nombre del archivo, los eventos de cliente muestran el cliente relacionado y la conversión muestra el pedido generado.
 
@@ -157,18 +161,16 @@ No hay comentarios públicos de clientes.
 | `rechazada` | Solicitud no aceptada o descartada. |
 | `convertida` | Solicitud ya convertida en pedido interno. |
 
-## Estados manuales permitidos
+## Transiciones manuales permitidas
 
-En Fase 6.3 solo se pueden establecer manualmente:
+El selector manual no permite cambios libres. Solo se aceptan estas transiciones:
 
-- `nueva`
-- `en_revision`
-- `contactada`
-- `aprobada`
-- `rechazada`
+- `nueva` -> `en_revision` o `rechazada`;
+- `en_revision` -> `contactada` o `rechazada`;
+- `contactada` -> `aprobada` o `rechazada`;
+- `aprobada` -> `rechazada`.
 
-`convertida` no puede establecerse manualmente. Ese estado queda reservado para
-el flujo formal de conversión a pedido.
+`rechazada` y `convertida` son estados cerrados y no admiten cambios manuales. `convertida` no aparece en el selector ni se acepta en la RPC manual; ese estado queda reservado para el flujo formal de conversión a pedido.
 
 ## Permisos
 
@@ -226,7 +228,6 @@ Las policies existentes permiten:
 - Historial avanzado de cambios.
 - Comentarios internos.
 - Notificaciones.
-- Reglas estrictas de transición de estados.
 - Asignación de personal a pedidos.
 - Pedidos manuales sin cliente asociado.
 - Tareas de pedido.
@@ -236,7 +237,6 @@ Las policies existentes permiten:
 
 Más adelante se podrá:
 
-- restringir transiciones de estado;
 - registrar historial detallado;
 - agregar comentarios internos;
 - asociar solicitud a cliente existente;
@@ -263,7 +263,14 @@ El diseño del dashboard operativo para la Fase 13 se documenta en `docs/DASHBOA
 - Un id inválido muestra 404.
 - Admin cambia el estado de una solicitud.
 - Supervisor cambia el estado de una solicitud.
+- Solicitud `nueva` permite pasar a `en_revision` o `rechazada`.
+- Solicitud `nueva` no permite pasar directo a `aprobada`.
+- Solicitud `en_revision` permite pasar a `contactada` o `rechazada`.
+- Solicitud `contactada` permite pasar a `aprobada` o `rechazada`.
+- Solicitud `aprobada` permite rechazar o convertir a pedido.
 - `convertida` no aparece en el selector.
+- Solicitud `convertida` no permite cambios manuales.
+- Solicitud `rechazada` no permite cambios manuales.
 - Un intento manipulado de enviar `convertida` falla server-side.
 - En Supabase Studio, `reviewed_by` se actualiza al cambiar estado.
 - `converted_order_id` no se modifica durante cambios manuales de estado.

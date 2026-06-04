@@ -617,6 +617,34 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      actualizar_estado_solicitud: {
+        Args: {
+          p_estado_nuevo: Database["public"]["Enums"]["solicitud_estado"]
+          p_solicitud_id: string
+        }
+        Returns: {
+          client_email: string | null
+          client_name: string
+          client_phone: string
+          cliente_id: string | null
+          converted_order_id: string | null
+          created_at: string
+          description: string
+          desired_date: string | null
+          id: string
+          notes: string | null
+          reviewed_by: string | null
+          service_type: string
+          status: Database["public"]["Enums"]["solicitud_estado"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "solicitudes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       listar_pedido_comentarios: {
         Args: { p_pedido_id: string }
         Returns: {

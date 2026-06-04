@@ -56,17 +56,16 @@ Los valores técnicos o históricos de `service_type` se renderizan mediante `la
 
 ## Cambio de estado
 
-`updateInternalSolicitudStatus` cambia server-side el estado operativo de una solicitud desde la action de `/dashboard/solicitudes/[id]`. Requiere usuario interno activo con permiso `solicitudes.manage`, valida el UUID y solo acepta estados manuales permitidos.
+`updateInternalSolicitudStatus` cambia server-side el estado operativo de una solicitud desde la action de `/dashboard/solicitudes/[id]`. Requiere usuario interno activo con permiso `solicitudes.manage`, valida el UUID, rechaza `convertida` como estado manual y delega la transición en la RPC segura `public.actualizar_estado_solicitud`.
 
-Estados manuales permitidos:
+Transiciones manuales permitidas:
 
-- `nueva`
-- `en_revision`
-- `contactada`
-- `aprobada`
-- `rechazada`
+- `nueva` -> `en_revision` o `rechazada`;
+- `en_revision` -> `contactada` o `rechazada`;
+- `contactada` -> `aprobada` o `rechazada`;
+- `aprobada` -> `rechazada`.
 
-`convertida` no aparece en el formulario ni se acepta en servidor; queda reservada para el flujo formal de conversión a pedido.
+`rechazada` y `convertida` son estados cerrados. `convertida` no aparece en el formulario ni se acepta en servidor; queda reservada para el flujo formal de conversión a pedido. Si el estado enviado es igual al actual, la RPC retorna sin duplicar historial.
 
 ## Conversión a pedido
 
@@ -103,6 +102,8 @@ La action `createSolicitudCommentAction` lee únicamente `solicitud_id` y `conte
 
 `SolicitudHistorySection` muestra los eventos existentes en `solicitud_historial` dentro del detalle interno de solicitud. La sección muestra tipo de evento, resumen, actor, rol y fecha. Si `actor_id` es `null`, el evento se muestra como “Evento automático”.
 
+El historial se muestra con el evento más reciente primero. La tabla `solicitud_historial` usa `created_at default clock_timestamp()` para que eventos insertados muy cerca entre sí conserven un timestamp real de ejecución. La RPC ordena por `created_at desc` y usa `id desc` solo como desempate secundario; no hay reordenamiento visual manual en TypeScript.
+
 Para mantener el mismo nivel de detalle que el historial de pedidos, la sección usa `summary`, `old_value`, `new_value`, `metadata` y relaciones mínimas cuando están disponibles: estados anterior/nuevo, nombre del archivo, cliente relacionado y pedido generado.
 
 El historial es append-only. No hay edición, eliminación ni notificaciones.
@@ -115,7 +116,7 @@ Desde Fase 11.7B, la base de datos registra automáticamente:
 - `cliente_asociado` al asociar un cliente;
 - `convertida_a_pedido` al convertir una solicitud a pedido.
 
-El evento `cliente_creado_desde_solicitud` se registra desde `createClienteFromSolicitudAndAssociate` después de crear el cliente y asociarlo correctamente. El servicio no acepta datos de historial desde formularios y no usa service role key. Si ese registro de historial falla, se registra el error en servidor sin romper la creación/asociación ya completada.
+El evento `cliente_creado_desde_solicitud` se registra desde `createClienteFromSolicitudAndAssociate` después de crear el cliente y antes de asociarlo a la solicitud. Luego la actualización de `solicitudes.cliente_id` dispara `cliente_asociado`. Como el historial visible se muestra con el evento más reciente primero, el usuario verá primero “Cliente asociado” y después “Cliente creado desde la solicitud”. El servicio no acepta datos de historial desde formularios y no usa service role key. Si ese registro de historial falla, se registra el error en servidor sin romper la creación/asociación ya completada.
 
 ## Alcance excluido
 

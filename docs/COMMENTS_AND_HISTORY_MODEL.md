@@ -54,6 +54,7 @@ El proyecto no parte de cero. La migración inicial creó estructuras relacionad
 - existe la tabla `solicitud_historial`;
 - existe el enum `solicitud_historial_action`;
 - existe la RPC `public.actualizar_estado_pedido`;
+- existe la RPC `public.actualizar_estado_solicitud`;
 - existe RLS para `pedido_comentarios`;
 - existe RLS para `pedido_historial`;
 - existe RLS para `solicitud_comentarios`;
@@ -69,6 +70,8 @@ La tabla `solicitud_comentarios` está asociada solo a solicitudes mediante `sol
 La tabla `solicitud_historial` está asociada solo a solicitudes mediante `solicitud_id`.
 
 No existe una tabla de historial general para múltiples entidades. Tampoco existe una tabla de comentarios interna que pueda apuntar indistintamente a pedidos o solicitudes; la decisión vigente es mantener tablas separadas por entidad.
+
+Las tablas de historial (`pedido_historial` y `solicitud_historial`) usan `created_at default clock_timestamp()` para registrar el momento real de cada inserción, incluso cuando varios eventos ocurren dentro de una misma transacción. Las RPCs de listado muestran los eventos con lo más reciente primero (`created_at desc`); `id desc` queda solo como desempate secundario, no como fuente de verdad del orden de eventos. No se aplica reordenamiento visual manual en TypeScript.
 
 ### Triggers y Automatización
 
@@ -102,6 +105,21 @@ También guarda:
 
 Si el estado enviado es igual al estado actual, la RPC retorna el pedido sin insertar evento.
 
+### RPC `actualizar_estado_solicitud`
+
+La RPC `public.actualizar_estado_solicitud` valida las transiciones manuales de solicitudes. Solo `admin` y `supervisor` activos pueden ejecutarla. La UI muestra las opciones permitidas, pero la autoridad real es la RPC.
+
+Reglas vigentes:
+
+- `nueva` -> `en_revision` o `rechazada`;
+- `en_revision` -> `contactada` o `rechazada`;
+- `contactada` -> `aprobada` o `rechazada`;
+- `aprobada` -> `rechazada`;
+- `rechazada` y `convertida` son estados cerrados;
+- `convertida` solo se asigna por el flujo formal de conversión a pedido.
+
+La RPC actualiza `solicitudes.status` y `reviewed_by`. El evento `estado_cambiado` se registra mediante el trigger privado existente sobre `solicitudes.status`, por lo que la RPC no inserta historial manualmente. Si el estado enviado es igual al actual, retorna la solicitud sin duplicar historial.
+
 ### Acciones y Servicios Actuales
 
 Las acciones y servicios actuales no aceptan datos de historial desde formularios. El historial se registra mediante RPCs, triggers privados o servicios server-side controlados:
@@ -110,7 +128,7 @@ Las acciones y servicios actuales no aceptan datos de historial desde formulario
 - la creación de pedidos, asignación/remoción de personal y subida de archivos propios de pedido se registran por triggers;
 - las acciones de tareas de pedido delegan en servicios server-side y los eventos se registran por triggers sobre `pedido_tareas`;
 - la creación de solicitudes, archivos adjuntados, cambios de estado, asociación de cliente y conversión a pedido se registran por triggers;
-- `createClienteFromSolicitudAndAssociate` registra `cliente_creado_desde_solicitud` después de crear y asociar el cliente correctamente.
+- `createClienteFromSolicitudAndAssociate` registra `cliente_creado_desde_solicitud` después de crear el cliente y antes de asociarlo a la solicitud; luego el trigger de `cliente_id` registra `cliente_asociado`.
 
 La actividad reciente del dashboard consume estos eventos y construye resúmenes controlados. Para tareas muestra títulos seguros, por ejemplo `Tarea creada: X.` o `Progreso de tarea X actualizado de A a B.`, sin mostrar metadata cruda, JSON, rutas privadas ni `file_path`.
 
@@ -204,7 +222,7 @@ Los cambios actuales en solicitudes se reflejan en campos como:
 - `converted_order_id`;
 - `updated_at`.
 
-Desde Fase 11.7B esos cambios relevantes se registran automáticamente en `solicitud_historial` mediante triggers de base de datos, salvo `cliente_creado_desde_solicitud`, que se registra desde el servicio server-side después de crear y asociar el cliente correctamente.
+Desde Fase 11.7B esos cambios relevantes se registran automáticamente en `solicitud_historial` mediante triggers de base de datos, salvo `cliente_creado_desde_solicitud`, que se registra desde el servicio server-side después de crear el cliente y antes de asociarlo a la solicitud.
 
 ### Archivos
 
@@ -630,6 +648,7 @@ Estado:
 
 - implementado mediante triggers de base de datos para `solicitud_creada`, `archivos_adjuntados`, `estado_cambiado`, `cliente_asociado` y `convertida_a_pedido`;
 - implementado desde el servicio server-side `createClienteFromSolicitudAndAssociate` para `cliente_creado_desde_solicitud`;
+- como el historial visible muestra el evento más reciente primero, el par se ve como `cliente_asociado` y después `cliente_creado_desde_solicitud` cuando ambos pertenecen al mismo cliente;
 - los eventos públicos usan `actor_id = null` cuando no existe usuario autenticado;
 - la conversión a pedido evita duplicar `estado_cambiado` cuando el mismo update marca la solicitud como `convertida`;
 - los resúmenes visibles se enriquecen con datos mínimos de `metadata`, cliente y pedido; el título mostrado corresponde a `pedidos.title`, no a `solicitudes.service_type`;

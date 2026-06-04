@@ -195,6 +195,9 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 - Una solicitud no se convierte automáticamente en pedido.
 - Solo `admin` o `supervisor` pueden aprobar, rechazar o convertir solicitudes.
 - Al convertirse, el estado debería pasar a `convertida` y registrar el pedido generado.
+- Los cambios manuales de estado se validan mediante `public.actualizar_estado_solicitud`.
+- Transiciones manuales permitidas: `nueva` -> `en_revision` o `rechazada`; `en_revision` -> `contactada` o `rechazada`; `contactada` -> `aprobada` o `rechazada`; `aprobada` -> `rechazada`.
+- `rechazada` y `convertida` son estados cerrados. `convertida` solo se asigna desde el flujo formal de conversión a pedido.
 - `quantity` fue eliminado del modelo de solicitudes. Las cantidades, medidas y requisitos se deben explicar dentro de `description` o `notes`.
 - `service_type` sigue siendo una referencia inicial del tipo de trabajo solicitado.
 - La conversión a pedido exige un `title` obligatorio definido por el usuario interno; `service_type` no se usa como título automático.

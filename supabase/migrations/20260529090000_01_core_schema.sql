@@ -278,7 +278,7 @@ create table public.pedido_historial (
   new_value text,
   metadata jsonb not null default '{}'::jsonb,
   actor_id uuid references public.perfiles(id) on delete set null,
-  created_at timestamptz not null default now(),
+  created_at timestamptz not null default clock_timestamp(),
   constraint pedido_historial_summary_not_empty check (length(btrim(summary)) > 0),
   constraint pedido_historial_metadata_is_object check (jsonb_typeof(metadata) = 'object')
 );
@@ -302,7 +302,7 @@ create table public.solicitud_historial (
   new_value text,
   metadata jsonb not null default '{}'::jsonb,
   actor_id uuid references public.perfiles(id) on delete set null,
-  created_at timestamptz not null default now(),
+  created_at timestamptz not null default clock_timestamp(),
   constraint solicitud_historial_summary_not_empty check (length(btrim(summary)) > 0),
   constraint solicitud_historial_metadata_is_object check (jsonb_typeof(metadata) = 'object')
 );

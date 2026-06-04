@@ -47,7 +47,10 @@ export {
 export {
   MANUAL_SOLICITUD_STATUSES,
   SOLICITUD_STATUSES,
+  getAllowedSolicitudStatusTransitions,
   isManualSolicitudStatus,
+  isSolicitudClosedStatus,
+  isSolicitudStatus,
 } from "./status";
 export { updateInternalSolicitudStatus } from "./update-internal-solicitud-status";
 export {
@@ -69,6 +72,7 @@ export type {
 } from "./get-internal-solicitud-by-id";
 export type { ManualSolicitudStatus } from "./status";
 export type { SolicitudStatus } from "./status";
+export type { SolicitudStatusTransitionOption } from "./status";
 export type {
   UpdateInternalSolicitudStatusErrorReason,
   UpdateInternalSolicitudStatusInput,

@@ -121,22 +121,6 @@ export async function createClienteFromSolicitudAndAssociate(
       return serviceFailure("error", GENERIC_CREATE_AND_ASSOCIATE_ERROR);
     }
 
-    const { data: updatedSolicitud, error: updateError } = await supabase
-      .from("solicitudes")
-      .update({ cliente_id: cliente.id })
-      .eq("id", solicitudId)
-      .select("id")
-      .maybeSingle();
-
-    if (updateError || !updatedSolicitud) {
-      console.error(
-        "Error associating created cliente with solicitud",
-        updateError,
-      );
-
-      return serviceFailure("error", GENERIC_CREATE_AND_ASSOCIATE_ERROR);
-    }
-
     const { error: historyError } = await supabase
       .from("solicitud_historial")
       .insert({
@@ -157,6 +141,22 @@ export async function createClienteFromSolicitudAndAssociate(
         "Error recording solicitud history for created cliente",
         historyError,
       );
+    }
+
+    const { data: updatedSolicitud, error: updateError } = await supabase
+      .from("solicitudes")
+      .update({ cliente_id: cliente.id })
+      .eq("id", solicitudId)
+      .select("id")
+      .maybeSingle();
+
+    if (updateError || !updatedSolicitud) {
+      console.error(
+        "Error associating created cliente with solicitud",
+        updateError,
+      );
+
+      return serviceFailure("error", GENERIC_CREATE_AND_ASSOCIATE_ERROR);
     }
 
     return serviceSuccess({

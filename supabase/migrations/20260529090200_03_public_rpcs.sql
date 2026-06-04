@@ -174,6 +174,105 @@ revoke all on function public.actualizar_estado_pedido(uuid, public.pedido_estad
 revoke all on function public.actualizar_estado_pedido(uuid, public.pedido_estado) from anon;
 grant execute on function public.actualizar_estado_pedido(uuid, public.pedido_estado) to authenticated;
 
+create or replace function public.actualizar_estado_solicitud(
+  p_solicitud_id uuid,
+  p_estado_nuevo public.solicitud_estado
+)
+returns public.solicitudes
+language plpgsql
+security definer
+set search_path = public, private
+as $$
+declare
+  v_solicitud public.solicitudes;
+  v_estado_anterior public.solicitud_estado;
+begin
+  if auth.uid() is null then
+    raise exception 'Usuario no autenticado';
+  end if;
+
+  if not private.current_user_is_active() then
+    raise exception 'Usuario inactivo o sin perfil valido';
+  end if;
+
+  if not private.is_admin_or_supervisor() then
+    raise exception 'No tienes permiso para cambiar el estado de esta solicitud.';
+  end if;
+
+  if p_estado_nuevo = 'convertida'::public.solicitud_estado then
+    raise exception 'El estado convertida solo se asigna al convertir la solicitud en pedido.';
+  end if;
+
+  select *
+  into v_solicitud
+  from public.solicitudes
+  where id = p_solicitud_id
+  for update;
+
+  if not found then
+    raise exception 'Solicitud no encontrada';
+  end if;
+
+  v_estado_anterior := v_solicitud.status;
+
+  if v_estado_anterior = p_estado_nuevo then
+    return v_solicitud;
+  end if;
+
+  if v_estado_anterior in (
+    'rechazada'::public.solicitud_estado,
+    'convertida'::public.solicitud_estado
+  ) then
+    raise exception 'No se puede cambiar el estado de una solicitud cerrada.';
+  end if;
+
+  if v_estado_anterior = 'nueva'::public.solicitud_estado then
+    if p_estado_nuevo not in (
+      'en_revision'::public.solicitud_estado,
+      'rechazada'::public.solicitud_estado
+    ) then
+      raise exception 'Transición de estado no permitida.';
+    end if;
+  elsif v_estado_anterior = 'en_revision'::public.solicitud_estado then
+    if p_estado_nuevo not in (
+      'contactada'::public.solicitud_estado,
+      'rechazada'::public.solicitud_estado
+    ) then
+      raise exception 'Transición de estado no permitida.';
+    end if;
+  elsif v_estado_anterior = 'contactada'::public.solicitud_estado then
+    if p_estado_nuevo not in (
+      'aprobada'::public.solicitud_estado,
+      'rechazada'::public.solicitud_estado
+    ) then
+      raise exception 'Transición de estado no permitida.';
+    end if;
+  elsif v_estado_anterior = 'aprobada'::public.solicitud_estado then
+    if p_estado_nuevo <> 'rechazada'::public.solicitud_estado then
+      raise exception 'Transición de estado no permitida.';
+    end if;
+  else
+    raise exception 'Transición de estado no permitida.';
+  end if;
+
+  update public.solicitudes
+  set
+    status = p_estado_nuevo,
+    reviewed_by = auth.uid()
+  where id = p_solicitud_id
+  returning * into v_solicitud;
+
+  return v_solicitud;
+end;
+$$;
+
+revoke all on function public.actualizar_estado_solicitud(uuid, public.solicitud_estado) from public;
+revoke all on function public.actualizar_estado_solicitud(uuid, public.solicitud_estado) from anon;
+grant execute on function public.actualizar_estado_solicitud(uuid, public.solicitud_estado) to authenticated;
+
+comment on function public.actualizar_estado_solicitud(uuid, public.solicitud_estado) is
+  'Actualiza estados de solicitud aplicando transiciones operativas y reservando convertida para la conversión a pedido.';
+
 create or replace function public.listar_pedido_comentarios(
   p_pedido_id uuid
 )
