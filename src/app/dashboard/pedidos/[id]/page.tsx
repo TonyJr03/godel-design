@@ -86,6 +86,12 @@ export default async function DashboardPedidoDetallePage({
       />
       <InternalPedidoDetail
         pedido={result.pedido}
+        taskProgress={tasksResult.ok ? tasksResult.progress : undefined}
+        tasksLoadError={
+          tasksResult.ok
+            ? undefined
+            : "No se pudieron cargar las tareas del pedido."
+        }
         workerAssignmentSection={
           <PedidoWorkerAssignmentForm
             pedidoId={result.pedido.id}

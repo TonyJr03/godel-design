@@ -238,7 +238,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 - Un pedido manual puede quedar sin cliente asociado (`cliente_id = null`).
 - La conversión desde solicitud exige que la solicitud tenga `cliente_id` asociado.
 - Un pedido manual inicia en `en_revision`; un pedido convertido desde solicitud inicia en `solicitud_recibida`.
-- Los estados de pedido solo representan fases generales. Las tareas de pedido modelarán el progreso real en una subfase posterior.
+- Los estados de pedido solo representan fases generales. Las tareas de pedido modelan el progreso real y condicionan el avance operativo mediante `public.actualizar_estado_pedido`.
 - Los cambios importantes de estado deben registrarse en `pedido_historial`.
 
 **Notas de seguridad:**
@@ -278,7 +278,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 
 ### `pedido_tareas`
 
-**Propósito:** Registra tareas operativas asociadas a un pedido. El progreso real del pedido se modelará con estas tareas, no con estados finos de pedido.
+**Propósito:** Registra tareas operativas asociadas a un pedido. El progreso real del pedido se modela con estas tareas, no con estados finos de pedido.
 
 | Campo | Tipo sugerido | Notas |
 |---|---|---|
@@ -310,8 +310,8 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 - `sort_order` no puede ser negativo.
 - Las tareas `simple` no guardan cantidades.
 - Las tareas `cuantificada` requieren `target_quantity > 0`, `completed_quantity >= 0` y `completed_quantity <= target_quantity`.
-- La detección automática de tipo por números en el título se implementará en TypeScript en una subfase posterior.
-- Esta subfase no implementa UI, servicios TypeScript ni reglas de cambio de estado basadas en progreso.
+- La detección automática de tipo por números en el título se implementa en servicios TypeScript server-side.
+- La UI del detalle permite gestionar tareas y la RPC de cambio de estado exige tareas para pasar a producción y tareas completas para marcar listo para entrega.
 
 **Notas de seguridad:**
 

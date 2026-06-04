@@ -108,7 +108,17 @@ Las tablas oficiales normalizadas para comentarios e historial de pedidos son `p
 
 Un pedido manual inicia en `en_revision`. Un pedido convertido desde solicitud inicia en `solicitud_recibida`. El flujo general esperado es `solicitud_recibida` -> `en_revision` -> `en_produccion` -> `listo_entrega` -> `entregado` para pedidos convertidos y `en_revision` -> `en_produccion` -> `listo_entrega` -> `entregado` para pedidos manuales. `cancelado` funciona como salida lateral.
 
-Los estados de pedido representan solo la fase general del flujo operativo. El progreso real de diseño, impresión, encuadernado u otras tareas se modela con tareas de pedido; esta fase todavía no bloquea cambios de estado por avance de tareas.
+Los estados de pedido representan solo la fase general del flujo operativo. El progreso real de diseño, impresión, encuadernado u otras tareas se modela con tareas de pedido, y la RPC `public.actualizar_estado_pedido` aplica las reglas operativas fuertes.
+
+Reglas de transición vigentes:
+
+- `solicitud_recibida` puede pasar a `en_revision` o `cancelado`.
+- `en_revision` puede pasar a `en_produccion` o `cancelado`; para pasar a `en_produccion` debe existir al menos una tarea.
+- `en_produccion` puede pasar a `listo_entrega` o `cancelado`; para pasar a `listo_entrega` debe existir al menos una tarea y todas deben estar completadas.
+- `listo_entrega` puede pasar a `entregado`, volver a `en_produccion` o pasar a `cancelado`.
+- `entregado` y `cancelado` son estados cerrados y no admiten cambios posteriores.
+
+La UI del detalle usa el progreso ya cargado para orientar al usuario, pero la validación real está en la RPC. Un trabajador asignado puede cambiar estado siguiendo las mismas reglas; un trabajador no asignado no accede al pedido.
 
 ## Modelo base de tareas
 
@@ -277,7 +287,7 @@ Solo `admin` y `supervisor` pueden asignar o remover personal. El listado devuel
 
 La interfaz del detalle muestra múltiples usuarios asignados con su rol visible. `admin` y `supervisor` pueden agregar personal desde el selector y quitar una asignación concreta con la action `removePedidoWorkerAction`; `trabajador` ve la lista en modo lectura, sin controles de gestión.
 
-Asignar un `admin` o `supervisor` no modifica su rol ni degrada sus permisos. Un trabajador asignado puede ver el pedido y cambiar su estado según la regla de la fase anterior. No se implementan historial avanzado ni notificaciones.
+Asignar un `admin` o `supervisor` no modifica su rol ni degrada sus permisos. Un trabajador asignado puede ver el pedido y cambiar su estado siguiendo las reglas operativas vigentes. No se implementan historial avanzado ni notificaciones.
 
 El trabajador no accede al módulo general de usuarios. La visibilidad de nombres y roles del personal asignado se controla mediante RLS de `perfiles` con alcance por pedido accesible, usando las asignaciones de `pedido_trabajadores` como contexto.
 
@@ -314,7 +324,7 @@ Aclaraciones:
 - reportes;
 - facturación;
 - múltiples responsables avanzados;
-- reglas automáticas complejas de transición de estados.
+- reapertura de pedidos cerrados o flujos avanzados de corrección posteriores a entrega.
 
 ## Consideraciones futuras
 
@@ -323,7 +333,6 @@ Más adelante se podrá:
 - agregar eliminación controlada de archivos privados del pedido;
 - registrar historial de cambios;
 - implementar notificaciones;
-- mejorar reglas de transición de estado;
 - agregar reportes de producción;
 - crear vistas por carga de trabajo;
 - implementar edición controlada de campos del pedido.
@@ -365,6 +374,12 @@ El diseño del dashboard operativo para la Fase 13 se documenta en `docs/DASHBOA
 - Confirmar que el dashboard no muestra tarjeta de diseño.
 - Confirmar que las métricas de activos, producción, listos, atrasados y próximos a entrega funcionan.
 - Confirmar que el historial registra cambios de estado con etiquetas vigentes.
+- Intentar pasar a `en_produccion` sin tareas y confirmar bloqueo.
+- Crear una tarea y pasar a `en_produccion`.
+- Intentar pasar a `listo_entrega` con tareas incompletas y confirmar bloqueo.
+- Completar todas las tareas y pasar a `listo_entrega`.
+- Pasar de `listo_entrega` a `entregado`.
+- Confirmar que `entregado` y `cancelado` no admiten cambios posteriores.
 - Verificar que un trabajador no cambia un pedido no asignado.
 - Asignar personal como `admin` o `supervisor`.
 - Verificar que se puede asignar un `admin`, un `supervisor` y un `trabajador` activos.

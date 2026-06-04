@@ -14,6 +14,9 @@ declare
   v_pedido public.pedidos;
   v_estado_anterior public.pedido_estado;
   v_action public.pedido_historial_action;
+  v_task_count integer;
+  v_has_tasks boolean;
+  v_all_tasks_completed boolean;
 begin
   if auth.uid() is null then
     raise exception 'Usuario no autenticado';
@@ -46,6 +49,80 @@ begin
 
   if v_estado_anterior = p_nuevo_estado then
     return v_pedido;
+  end if;
+
+  if v_estado_anterior in (
+    'entregado'::public.pedido_estado,
+    'cancelado'::public.pedido_estado
+  ) then
+    raise exception 'No se puede cambiar el estado de un pedido cerrado.';
+  end if;
+
+  if p_nuevo_estado = 'entregado'::public.pedido_estado
+    and v_estado_anterior <> 'listo_entrega'::public.pedido_estado then
+    raise exception 'Solo se puede marcar como entregado un pedido listo para entrega.';
+  end if;
+
+  select
+    count(*)::integer,
+    coalesce(bool_and(is_completed), false)
+  into
+    v_task_count,
+    v_all_tasks_completed
+  from public.pedido_tareas
+  where pedido_id = p_pedido_id;
+
+  v_has_tasks := v_task_count > 0;
+
+  if v_estado_anterior = 'solicitud_recibida'::public.pedido_estado then
+    if p_nuevo_estado not in (
+      'en_revision'::public.pedido_estado,
+      'cancelado'::public.pedido_estado
+    ) then
+      raise exception 'Transición de estado no permitida.';
+    end if;
+  elsif v_estado_anterior = 'en_revision'::public.pedido_estado then
+    if p_nuevo_estado not in (
+      'en_produccion'::public.pedido_estado,
+      'cancelado'::public.pedido_estado
+    ) then
+      if p_nuevo_estado = 'entregado'::public.pedido_estado then
+        raise exception 'Solo se puede marcar como entregado un pedido listo para entrega.';
+      end if;
+
+      raise exception 'Transición de estado no permitida.';
+    end if;
+
+    if p_nuevo_estado = 'en_produccion'::public.pedido_estado
+      and not v_has_tasks then
+      raise exception 'No se puede pasar a producción sin tareas registradas.';
+    end if;
+  elsif v_estado_anterior = 'en_produccion'::public.pedido_estado then
+    if p_nuevo_estado not in (
+      'listo_entrega'::public.pedido_estado,
+      'cancelado'::public.pedido_estado
+    ) then
+      if p_nuevo_estado = 'entregado'::public.pedido_estado then
+        raise exception 'Solo se puede marcar como entregado un pedido listo para entrega.';
+      end if;
+
+      raise exception 'Transición de estado no permitida.';
+    end if;
+
+    if p_nuevo_estado = 'listo_entrega'::public.pedido_estado
+      and (not v_has_tasks or not v_all_tasks_completed) then
+      raise exception 'No se puede marcar como listo para entrega hasta completar todas las tareas.';
+    end if;
+  elsif v_estado_anterior = 'listo_entrega'::public.pedido_estado then
+    if p_nuevo_estado not in (
+      'entregado'::public.pedido_estado,
+      'en_produccion'::public.pedido_estado,
+      'cancelado'::public.pedido_estado
+    ) then
+      raise exception 'Transición de estado no permitida.';
+    end if;
+  else
+    raise exception 'Transición de estado no permitida.';
   end if;
 
   if p_nuevo_estado = 'entregado'::public.pedido_estado then

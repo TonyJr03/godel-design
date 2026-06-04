@@ -85,6 +85,8 @@ Desde Fase 11.7A y 11.7B también existen triggers de negocio privados para regi
 
 La RPC `public.actualizar_estado_pedido` sí registra historial en `pedido_historial` cuando el estado cambia.
 
+También valida las reglas operativas de estado: requiere tareas para pasar a `en_produccion`, requiere todas las tareas completadas para pasar a `listo_entrega`, permite `entregado` solo desde `listo_entrega`, permite `cancelado` como salida lateral desde estados activos y bloquea cambios desde `entregado` o `cancelado`. La UI orienta al usuario, pero la autoridad de validación es la RPC.
+
 Eventos que puede registrar:
 
 - `estado_cambiado`;
@@ -475,7 +477,7 @@ Eventos mínimos:
 | `tarea_reabierta` | Una tarea completada vuelve a abierta. | tarea y estado anterior/nuevo. |
 | `tarea_progreso_actualizado` | Cambia el avance numérico de una tarea cuantificada. | cantidad anterior y cantidad nueva. |
 
-La RPC actual ya cubre cambios de estado de pedido con el enum simplificado de fases generales. Los eventos de tareas quedan conectados mediante triggers de base de datos; los servicios server-side y la UI del detalle de pedido ya pueden listar, crear, actualizar, completar, reabrir y eliminar tareas. Las reglas de estado según progreso quedan para 13.6H.
+La RPC actual cubre cambios de estado de pedido con el enum simplificado de fases generales y valida las transiciones según tareas. Los eventos de tareas quedan conectados mediante triggers de base de datos; los servicios server-side y la UI del detalle de pedido ya pueden listar, crear, actualizar, completar, reabrir y eliminar tareas.
 
 ### Solicitudes
 

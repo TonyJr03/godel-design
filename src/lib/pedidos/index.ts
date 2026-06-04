@@ -49,9 +49,14 @@ export {
 export {
   PEDIDO_PRIORITIES,
   PEDIDO_STATUSES,
+  getAllowedPedidoStatusTransitions,
+  isPedidoActiveStatus,
+  isPedidoClosedStatus,
   isPedidoStatus,
   type PedidoPriority,
   type PedidoStatus,
+  type PedidoStatusTransitionContext,
+  type PedidoStatusTransitionOption,
 } from "./status";
 export {
   updateInternalPedidoStatus,
