@@ -19,6 +19,19 @@ function formatHistoryValue(value: string | null): string {
   return PEDIDO_STATUS_LABELS[value as keyof typeof PEDIDO_STATUS_LABELS] ?? value;
 }
 
+function getHistoryMetadataString(
+  metadata: PedidoHistoryItem["metadata"],
+  key: string,
+): string | null {
+  if (typeof metadata !== "object" || metadata === null || Array.isArray(metadata)) {
+    return null;
+  }
+
+  const value = (metadata as Record<string, unknown>)[key];
+
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
 function getHistorySummary(item: PedidoHistoryItem): string {
   if (
     item.action === "estado_cambiado" ||
@@ -50,6 +63,36 @@ function getHistorySummary(item: PedidoHistoryItem): string {
 
   if (item.action === "fecha_entrega_actualizada") {
     return `Fecha de entrega actualizada de ${formatHistoryValue(item.old_value)} a ${formatHistoryValue(item.new_value)}.`;
+  }
+
+  if (item.action === "tarea_creada") {
+    return `Tarea creada: ${formatHistoryValue(item.new_value)}.`;
+  }
+
+  if (item.action === "tarea_actualizada") {
+    return item.old_value && item.new_value && item.old_value !== item.new_value
+      ? `Tarea actualizada de ${formatHistoryValue(item.old_value)} a ${formatHistoryValue(item.new_value)}.`
+      : item.summary || "Tarea actualizada.";
+  }
+
+  if (item.action === "tarea_eliminada") {
+    return `Tarea eliminada: ${formatHistoryValue(item.old_value)}.`;
+  }
+
+  if (item.action === "tarea_completada") {
+    return `Tarea completada: ${formatHistoryValue(item.new_value)}.`;
+  }
+
+  if (item.action === "tarea_reabierta") {
+    return `Tarea reabierta: ${formatHistoryValue(item.new_value)}.`;
+  }
+
+  if (item.action === "tarea_progreso_actualizado") {
+    const taskTitle = getHistoryMetadataString(item.metadata, "title");
+
+    return taskTitle
+      ? `Progreso de tarea "${taskTitle}" actualizado de ${formatHistoryValue(item.old_value)} a ${formatHistoryValue(item.new_value)}.`
+      : `Progreso de tarea actualizado de ${formatHistoryValue(item.old_value)} a ${formatHistoryValue(item.new_value)}.`;
   }
 
   return item.summary || "Evento registrado en el pedido.";

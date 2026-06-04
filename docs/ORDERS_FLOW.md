@@ -108,7 +108,7 @@ Las tablas oficiales normalizadas para comentarios e historial de pedidos son `p
 
 Un pedido manual inicia en `en_revision`. Un pedido convertido desde solicitud inicia en `solicitud_recibida`. El flujo general esperado es `solicitud_recibida` -> `en_revision` -> `en_produccion` -> `listo_entrega` -> `entregado` para pedidos convertidos y `en_revision` -> `en_produccion` -> `listo_entrega` -> `entregado` para pedidos manuales. `cancelado` funciona como salida lateral.
 
-Los estados de pedido representan solo la fase general del flujo operativo. El progreso real de diseño, impresión, encuadernado u otras tareas se modelará después con tareas de pedido; esta fase no bloquea cambios de estado por avance de tareas.
+Los estados de pedido representan solo la fase general del flujo operativo. El progreso real de diseño, impresión, encuadernado u otras tareas se modela con tareas de pedido; esta fase todavía no bloquea cambios de estado por avance de tareas.
 
 ## Modelo base de tareas
 
@@ -121,7 +121,9 @@ El usuario escribirá tareas en lenguaje normal. La detección automática vive 
 
 El progreso agregado se calcula como promedio redondeado: una tarea simple aporta 100% si está completada y 0% si está pendiente; una tarea cuantificada aporta `completed_quantity / target_quantity * 100`; sin tareas el progreso es 0%.
 
-En esta subfase hay servicios server-side para listar, crear, actualizar y eliminar tareas, pero no hay UI ni integración entre progreso de tareas y cambio de estado. La tabla queda preparada con RLS e historial automático para que `admin`, `supervisor` y personal asignado puedan gestionar tareas de pedidos accesibles.
+En esta subfase hay servicios server-side y UI en `/dashboard/pedidos/[id]` para listar, crear, editar título, eliminar, completar, reabrir y actualizar progreso de tareas. La tabla queda protegida con RLS e historial automático para que `admin`, `supervisor` y personal asignado puedan gestionar tareas de pedidos accesibles.
+
+La UI no permite seleccionar `task_type`, `target_quantity`, autorías, fechas técnicas ni `sort_order`. Solo envía `pedido_id`, `task_id`, `title` o `completed_quantity` según el formulario, y las Server Actions delegan la validación en servicios server-side.
 
 ## Listado interno
 
@@ -312,7 +314,6 @@ Aclaraciones:
 - reportes;
 - facturación;
 - múltiples responsables avanzados;
-- UI de tareas de pedido;
 - reglas automáticas complejas de transición de estados.
 
 ## Consideraciones futuras

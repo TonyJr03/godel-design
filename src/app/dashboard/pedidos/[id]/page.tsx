@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { InternalPedidoDetail } from "@/components/pedidos/InternalPedidoDetail";
 import { PedidoCommentsSection } from "@/components/pedidos/PedidoCommentsSection";
 import { PedidoHistorySection } from "@/components/pedidos/PedidoHistorySection";
+import { PedidoTasksSection } from "@/components/pedidos/PedidoTasksSection";
 import { PedidoWorkerAssignmentForm } from "@/components/pedidos/PedidoWorkerAssignmentForm";
 import { PedidoFilesSection } from "@/components/storage/PedidoFilesSection";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -14,10 +15,12 @@ import {
   type Role,
 } from "@/lib/permissions/permissions";
 import {
+  EMPTY_PEDIDO_TASKS_PROGRESS,
   getInternalPedidoById,
   listAssignableWorkers,
   listPedidoComments,
   listPedidoHistory,
+  listPedidoTasks,
 } from "@/lib/pedidos";
 import { listPedidoFiles, type PedidoFileCategory } from "@/lib/storage";
 
@@ -67,6 +70,7 @@ export default async function DashboardPedidoDetallePage({
   const canManagePedidos =
     profile !== null && hasPermission(profile.role, "pedidos.manage");
   const workersResult = canManagePedidos ? await listAssignableWorkers() : null;
+  const tasksResult = await listPedidoTasks(result.pedido.id);
   const filesResult = await listPedidoFiles(result.pedido.id);
   const commentsResult = await listPedidoComments(result.pedido.id);
   const historyResult = await listPedidoHistory(result.pedido.id);
@@ -92,6 +96,22 @@ export default async function DashboardPedidoDetallePage({
               canManagePedidos && workersResult && !workersResult.ok
                 ? workersResult.message
                 : undefined
+            }
+          />
+        }
+        tasksSection={
+          <PedidoTasksSection
+            pedidoId={result.pedido.id}
+            tasks={tasksResult.ok ? tasksResult.tasks : []}
+            progress={
+              tasksResult.ok
+                ? tasksResult.progress
+                : EMPTY_PEDIDO_TASKS_PROGRESS
+            }
+            loadError={
+              tasksResult.ok
+                ? undefined
+                : "No se pudieron cargar las tareas del pedido."
             }
           />
         }

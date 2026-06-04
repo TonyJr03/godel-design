@@ -106,6 +106,7 @@ Las acciones y servicios actuales no aceptan datos de historial desde formulario
 
 - `updateInternalPedidoStatus` llama a `public.actualizar_estado_pedido`, que registra cambios de estado de pedido;
 - la creación de pedidos, asignación/remoción de personal y subida de archivos propios de pedido se registran por triggers;
+- las acciones de tareas de pedido delegan en servicios server-side y los eventos se registran por triggers sobre `pedido_tareas`;
 - la creación de solicitudes, archivos adjuntados, cambios de estado, asociación de cliente y conversión a pedido se registran por triggers;
 - `createClienteFromSolicitudAndAssociate` registra `cliente_creado_desde_solicitud` después de crear y asociar el cliente correctamente.
 
@@ -474,7 +475,7 @@ Eventos mínimos:
 | `tarea_reabierta` | Una tarea completada vuelve a abierta. | tarea y estado anterior/nuevo. |
 | `tarea_progreso_actualizado` | Cambia el avance numérico de una tarea cuantificada. | cantidad anterior y cantidad nueva. |
 
-La RPC actual ya cubre cambios de estado de pedido con el enum simplificado de fases generales. Los eventos de tareas quedan conectados mediante triggers de base de datos; los servicios server-side de tareas ya pueden listar, crear, actualizar y eliminar tareas, pero todavía no existe UI para operarlas.
+La RPC actual ya cubre cambios de estado de pedido con el enum simplificado de fases generales. Los eventos de tareas quedan conectados mediante triggers de base de datos; los servicios server-side y la UI del detalle de pedido ya pueden listar, crear, actualizar, completar, reabrir y eliminar tareas. Las reglas de estado según progreso quedan para 13.6H.
 
 ### Solicitudes
 

@@ -12,6 +12,7 @@ import { PedidoStatusForm } from "./PedidoStatusForm";
 type InternalPedidoDetailProps = {
   pedido: InternalPedidoDetail;
   workerAssignmentSection?: ReactNode;
+  tasksSection?: ReactNode;
   filesSection?: ReactNode;
   commentsSection?: ReactNode;
   historySection?: ReactNode;
@@ -56,6 +57,7 @@ function StatusBadge({ children }: { children: ReactNode }) {
 export function InternalPedidoDetail({
   pedido,
   workerAssignmentSection,
+  tasksSection,
   filesSection,
   commentsSection,
   historySection,
@@ -124,6 +126,8 @@ export function InternalPedidoDetail({
       </section>
 
       <PedidoStatusForm pedidoId={pedido.id} estadoActual={pedido.status} />
+
+      {tasksSection}
 
       {workerAssignmentSection}
 

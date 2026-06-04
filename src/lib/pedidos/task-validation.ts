@@ -68,13 +68,13 @@ export function parsePedidoTaskTitle(
   const title = cleanPedidoTaskTitle(titleInput);
 
   if (!title) {
-    return failTaskValidation("Escribe el título de la tarea.", {
-      title: "El título de la tarea es obligatorio.",
+    return failTaskValidation("Escribe un título válido para la tarea.", {
+      title: "Escribe un título válido para la tarea.",
     });
   }
 
   if (!LETTER_PATTERN.test(title)) {
-    return failTaskValidation("Escribe una tarea con texto descriptivo.", {
+    return failTaskValidation("Escribe un título válido para la tarea.", {
       title: "El título debe incluir texto descriptivo.",
     });
   }
@@ -101,9 +101,9 @@ export function parsePedidoTaskTitle(
 
   if (numberTokens.length > 1) {
     return failTaskValidation(
-      "Escribe una sola tarea por vez. Se detectaron varios números.",
+      "La tarea solo puede contener una cantidad numérica. Si necesitas varios pasos, crea tareas separadas.",
       {
-        title: "La tarea no puede contener más de un número.",
+        title: "La tarea solo puede contener una cantidad numérica.",
       },
     );
   }
@@ -112,7 +112,7 @@ export function parsePedidoTaskTitle(
 
   if (rawQuantity.includes(".") || rawQuantity.includes(",")) {
     return failTaskValidation(
-      "Las cantidades decimales todavía no están soportadas.",
+      "Los decimales no están soportados en esta versión.",
       {
         title: "Usa un número entero positivo.",
       },
@@ -122,7 +122,7 @@ export function parsePedidoTaskTitle(
   const targetQuantity = Number(rawQuantity);
 
   if (!Number.isSafeInteger(targetQuantity) || targetQuantity <= 0) {
-    return failTaskValidation("Usa un número entero positivo mayor que cero.", {
+    return failTaskValidation("La cantidad debe ser mayor que cero.", {
       title: "La cantidad debe ser mayor que cero.",
     });
   }

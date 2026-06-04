@@ -191,6 +191,48 @@ function buildPedidoDescription(row: PedidoActivityRow): string {
     return "Fecha de entrega actualizada.";
   }
 
+  if (row.action === "tarea_creada") {
+    return row.new_value
+      ? `Tarea creada: ${row.new_value}.`
+      : row.summary || "Tarea creada.";
+  }
+
+  if (row.action === "tarea_actualizada") {
+    return row.old_value && row.new_value && row.old_value !== row.new_value
+      ? `Tarea actualizada de ${row.old_value} a ${row.new_value}.`
+      : row.summary || "Tarea actualizada.";
+  }
+
+  if (row.action === "tarea_eliminada") {
+    return row.old_value
+      ? `Tarea eliminada: ${row.old_value}.`
+      : row.summary || "Tarea eliminada.";
+  }
+
+  if (row.action === "tarea_completada") {
+    return row.new_value
+      ? `Tarea completada: ${row.new_value}.`
+      : row.summary || "Tarea completada.";
+  }
+
+  if (row.action === "tarea_reabierta") {
+    return row.new_value
+      ? `Tarea reabierta: ${row.new_value}.`
+      : row.summary || "Tarea reabierta.";
+  }
+
+  if (row.action === "tarea_progreso_actualizado") {
+    const taskTitle = getMetadataString(row.metadata, "title");
+
+    return taskTitle
+      ? `Progreso de tarea "${taskTitle}" actualizado de ${formatPedidoValue(
+          row.old_value,
+        )} a ${formatPedidoValue(row.new_value)}.`
+      : `Progreso de tarea actualizado de ${formatPedidoValue(
+          row.old_value,
+        )} a ${formatPedidoValue(row.new_value)}.`;
+  }
+
   return row.summary || "Evento registrado en el pedido.";
 }
 

@@ -5,8 +5,12 @@ import { headers } from "next/headers";
 import {
   assignInternalPedidoWorker,
   createPedidoComment,
+  createPedidoTask,
+  deletePedidoTask,
   removeInternalPedidoWorker,
+  updatePedidoTask,
   updateInternalPedidoStatus,
+  type PedidoTaskFieldErrors,
   type PedidoCommentFieldErrors,
   type PedidoWorkerFieldErrors,
   type RemovePedidoWorkerFieldErrors,
@@ -51,6 +55,44 @@ export type CreatePedidoCommentActionState = {
   values?: {
     content: string;
   };
+};
+
+type PedidoTaskActionValues = {
+  title?: string;
+  completedQuantity?: string;
+};
+
+export type CreatePedidoTaskActionState = {
+  ok: boolean;
+  message: string;
+  fieldErrors?: PedidoTaskFieldErrors;
+  values?: PedidoTaskActionValues;
+};
+
+export type UpdatePedidoTaskTitleActionState = {
+  ok: boolean;
+  message: string;
+  fieldErrors?: PedidoTaskFieldErrors;
+  values?: PedidoTaskActionValues;
+};
+
+export type UpdatePedidoTaskProgressActionState = {
+  ok: boolean;
+  message: string;
+  fieldErrors?: PedidoTaskFieldErrors;
+  values?: PedidoTaskActionValues;
+};
+
+export type TogglePedidoTaskCompletionActionState = {
+  ok: boolean;
+  message: string;
+  fieldErrors?: PedidoTaskFieldErrors;
+};
+
+export type DeletePedidoTaskActionState = {
+  ok: boolean;
+  message: string;
+  fieldErrors?: PedidoTaskFieldErrors;
 };
 
 async function getPedidoIdFromRequestPath(): Promise<string> {
@@ -103,6 +145,11 @@ function getUploadPedidoFileMessage(
   return messages[reason];
 }
 
+function revalidatePedidoDetail(pedidoId: string) {
+  revalidatePath("/dashboard/pedidos");
+  revalidatePath(`/dashboard/pedidos/${pedidoId}`);
+}
+
 export async function updatePedidoStatusAction(
   _prevState: UpdatePedidoStatusActionState,
   formData: FormData,
@@ -122,8 +169,7 @@ export async function updatePedidoStatusAction(
     };
   }
 
-  revalidatePath("/dashboard/pedidos");
-  revalidatePath(`/dashboard/pedidos/${pedidoId}`);
+  revalidatePedidoDetail(pedidoId);
 
   return {
     ok: true,
@@ -150,8 +196,7 @@ export async function assignPedidoWorkerAction(
     };
   }
 
-  revalidatePath("/dashboard/pedidos");
-  revalidatePath(`/dashboard/pedidos/${pedidoId}`);
+  revalidatePedidoDetail(pedidoId);
 
   return {
     ok: true,
@@ -180,8 +225,7 @@ export async function removePedidoWorkerAction(
     };
   }
 
-  revalidatePath("/dashboard/pedidos");
-  revalidatePath(`/dashboard/pedidos/${pedidoId}`);
+  revalidatePedidoDetail(pedidoId);
 
   return {
     ok: true,
@@ -224,8 +268,7 @@ export async function uploadPedidoFileAction(
     };
   }
 
-  revalidatePath("/dashboard/pedidos");
-  revalidatePath(`/dashboard/pedidos/${pedidoId}`);
+  revalidatePedidoDetail(pedidoId);
 
   return {
     ok: true,
@@ -253,8 +296,7 @@ export async function createPedidoCommentAction(
     };
   }
 
-  revalidatePath("/dashboard/pedidos");
-  revalidatePath(`/dashboard/pedidos/${pedidoId}`);
+  revalidatePedidoDetail(pedidoId);
 
   return {
     ok: true,
@@ -262,5 +304,179 @@ export async function createPedidoCommentAction(
     values: {
       content: "",
     },
+  };
+}
+
+export async function createPedidoTaskAction(
+  _prevState: CreatePedidoTaskActionState,
+  formData: FormData,
+): Promise<CreatePedidoTaskActionState> {
+  const pedidoId = getFormValue(formData, "pedido_id");
+  const title = getFormValue(formData, "title");
+  const result = await createPedidoTask({
+    pedidoId,
+    title,
+  });
+
+  if (!result.ok) {
+    return {
+      ok: false,
+      message: result.message,
+      fieldErrors: result.fieldErrors,
+      values: result.values,
+    };
+  }
+
+  revalidatePedidoDetail(pedidoId);
+
+  return {
+    ok: true,
+    message: "Tarea creada correctamente.",
+    values: {
+      title: "",
+    },
+  };
+}
+
+export async function updatePedidoTaskTitleAction(
+  _prevState: UpdatePedidoTaskTitleActionState,
+  formData: FormData,
+): Promise<UpdatePedidoTaskTitleActionState> {
+  const pedidoId = getFormValue(formData, "pedido_id");
+  const taskId = getFormValue(formData, "task_id");
+  const title = getFormValue(formData, "title");
+  const result = await updatePedidoTask({
+    pedidoId,
+    taskId,
+    title,
+  });
+
+  if (!result.ok) {
+    return {
+      ok: false,
+      message: result.message,
+      fieldErrors: result.fieldErrors,
+      values: result.values,
+    };
+  }
+
+  revalidatePedidoDetail(pedidoId);
+
+  return {
+    ok: true,
+    message: "Tarea actualizada correctamente.",
+  };
+}
+
+export async function updatePedidoTaskProgressAction(
+  _prevState: UpdatePedidoTaskProgressActionState,
+  formData: FormData,
+): Promise<UpdatePedidoTaskProgressActionState> {
+  const pedidoId = getFormValue(formData, "pedido_id");
+  const taskId = getFormValue(formData, "task_id");
+  const completedQuantity = getFormValue(formData, "completed_quantity");
+  const result = await updatePedidoTask({
+    pedidoId,
+    taskId,
+    completedQuantity,
+  });
+
+  if (!result.ok) {
+    return {
+      ok: false,
+      message: result.message,
+      fieldErrors: result.fieldErrors,
+      values: result.values,
+    };
+  }
+
+  revalidatePedidoDetail(pedidoId);
+
+  return {
+    ok: true,
+    message: "Progreso actualizado correctamente.",
+  };
+}
+
+export async function completePedidoTaskAction(
+  _prevState: TogglePedidoTaskCompletionActionState,
+  formData: FormData,
+): Promise<TogglePedidoTaskCompletionActionState> {
+  const pedidoId = getFormValue(formData, "pedido_id");
+  const taskId = getFormValue(formData, "task_id");
+  const result = await updatePedidoTask({
+    pedidoId,
+    taskId,
+    isCompleted: true,
+  });
+
+  if (!result.ok) {
+    return {
+      ok: false,
+      message: result.message,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePedidoDetail(pedidoId);
+
+  return {
+    ok: true,
+    message: "Tarea marcada como completada.",
+  };
+}
+
+export async function reopenPedidoTaskAction(
+  _prevState: TogglePedidoTaskCompletionActionState,
+  formData: FormData,
+): Promise<TogglePedidoTaskCompletionActionState> {
+  const pedidoId = getFormValue(formData, "pedido_id");
+  const taskId = getFormValue(formData, "task_id");
+  const result = await updatePedidoTask({
+    pedidoId,
+    taskId,
+    isCompleted: false,
+  });
+
+  if (!result.ok) {
+    return {
+      ok: false,
+      message: result.message,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePedidoDetail(pedidoId);
+
+  return {
+    ok: true,
+    message: "Tarea reabierta correctamente.",
+  };
+}
+
+export async function deletePedidoTaskAction(
+  _prevState: DeletePedidoTaskActionState,
+  formData: FormData,
+): Promise<DeletePedidoTaskActionState> {
+  const pedidoId = getFormValue(formData, "pedido_id");
+  const taskId = getFormValue(formData, "task_id");
+  const result = await deletePedidoTask({
+    pedidoId,
+    taskId,
+  });
+
+  if (!result.ok) {
+    return {
+      ok: false,
+      message: result.message,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePedidoDetail(pedidoId);
+
+  return {
+    ok: true,
+    message: "Tarea eliminada correctamente.",
   };
 }
