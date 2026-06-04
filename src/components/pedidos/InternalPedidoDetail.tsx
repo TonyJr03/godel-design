@@ -6,7 +6,10 @@ import {
   type InternalPedidoDetail,
   type PedidoStatusTransitionContext,
 } from "@/lib/pedidos";
-import { SOLICITUD_STATUS_LABELS } from "@/lib/solicitudes";
+import {
+  SOLICITUD_STATUS_LABELS,
+  getSolicitudServiceTypeLabel,
+} from "@/lib/solicitudes";
 import { formatAppDateTime } from "@/lib/utils";
 import { PedidoStatusForm } from "./PedidoStatusForm";
 
@@ -192,7 +195,9 @@ export function InternalPedidoDetail({
                     href={`/dashboard/solicitudes/${pedido.solicitudes.id}`}
                     className="font-semibold text-teal-800 hover:text-teal-900"
                   >
-                    {pedido.solicitudes.service_type}
+                    {getSolicitudServiceTypeLabel(
+                      pedido.solicitudes.service_type,
+                    )}
                   </Link>
                 }
               />

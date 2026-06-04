@@ -4,6 +4,7 @@ import {
   type PedidoTaskProgressByPedidoInput,
   type PedidoTasksProgress,
 } from "@/lib/pedidos";
+import { getSolicitudServiceTypeLabel } from "@/lib/solicitudes";
 import type { Tables } from "@/types/database";
 import type { DashboardContext } from "./context";
 import {
@@ -164,7 +165,7 @@ function mapSolicitudItem(
     href: `/dashboard/solicitudes/${solicitud.id}`,
     clienteNombre: solicitud.client_name,
     clienteTelefono: solicitud.client_phone,
-    tipoServicio: solicitud.service_type,
+    tipoServicio: getSolicitudServiceTypeLabel(solicitud.service_type),
     status: solicitud.status,
     createdAt: solicitud.created_at,
     fechaDeseada: solicitud.desired_date,

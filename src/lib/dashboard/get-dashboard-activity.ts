@@ -1,5 +1,8 @@
 import { PEDIDO_STATUS_LABELS } from "@/lib/pedidos";
-import { SOLICITUD_STATUS_LABELS } from "@/lib/solicitudes";
+import {
+  SOLICITUD_STATUS_LABELS,
+  getSolicitudServiceTypeLabel,
+} from "@/lib/solicitudes";
 import { createClient } from "@/lib/supabase/server";
 import type { Json, Tables } from "@/types/database";
 import type { DashboardContext } from "./context";
@@ -144,7 +147,9 @@ function getPedidoTitle(row: PedidoActivityRow): string {
 
 function getSolicitudTitle(row: SolicitudActivityRow): string {
   if (row.solicitudes) {
-    return `${row.solicitudes.client_name} · ${row.solicitudes.service_type}`;
+    return `${row.solicitudes.client_name} · ${getSolicitudServiceTypeLabel(
+      row.solicitudes.service_type,
+    )}`;
   }
 
   return "Solicitud";

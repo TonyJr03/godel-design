@@ -2,6 +2,7 @@ import { ROLE_SHORT_LABELS } from "@/lib/permissions";
 import {
   SOLICITUD_HISTORY_ACTION_LABELS,
   SOLICITUD_STATUS_LABELS,
+  getSolicitudServiceTypeLabel,
   type SolicitudHistoryItem,
 } from "@/lib/solicitudes";
 import { formatAppDateTime } from "@/lib/utils";
@@ -107,7 +108,7 @@ function getHistorySummary(item: SolicitudHistoryItem): string {
     const tipoServicio = getMetadataString(item, "service_type");
 
     if (tipoServicio) {
-      return `Solicitud registrada: ${tipoServicio}.`;
+      return `Solicitud registrada: ${getSolicitudServiceTypeLabel(tipoServicio)}.`;
     }
   }
 

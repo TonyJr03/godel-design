@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   SOLICITUD_STATUS_LABELS,
+  getSolicitudServiceTypeLabel,
   type InternalSolicitud,
 } from "@/lib/solicitudes";
 
@@ -80,7 +81,7 @@ export function InternalSolicitudesList({
                   ) : null}
                 </td>
                 <td className="px-4 py-4 text-zinc-700">
-                  {solicitud.service_type}
+                  {getSolicitudServiceTypeLabel(solicitud.service_type)}
                 </td>
                 <td className="whitespace-nowrap px-4 py-4">
                   <span className="inline-flex rounded-md bg-teal-50 px-2 py-1 text-xs font-semibold text-teal-800 ring-1 ring-inset ring-teal-700/15">

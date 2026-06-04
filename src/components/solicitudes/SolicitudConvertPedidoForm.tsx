@@ -6,6 +6,7 @@ import {
   convertSolicitudToPedidoAction,
   type ConvertSolicitudToPedidoActionState,
 } from "@/app/dashboard/solicitudes/[id]/actions";
+import { getSolicitudServiceTypeLabel } from "@/lib/solicitudes/labels";
 import type { Enums } from "@/types/database";
 
 type SolicitudConvertPedidoFormProps = {
@@ -40,6 +41,7 @@ export function SolicitudConvertPedidoForm({
   const descriptionError = state.fieldErrors?.description;
   const titleValue = state.values?.title ?? "";
   const descriptionValue = state.values?.description ?? solicitudDescription;
+  const serviceTypeLabel = getSolicitudServiceTypeLabel(serviceType);
 
   return (
     <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
@@ -100,7 +102,7 @@ export function SolicitudConvertPedidoForm({
               <span className="font-semibold text-zinc-900">
                 Tipo de servicio de la solicitud:
               </span>{" "}
-              {serviceType}
+              {serviceTypeLabel}
             </p>
             <p className="mt-2 text-zinc-600">
               Usa esta información como referencia inicial, no como título

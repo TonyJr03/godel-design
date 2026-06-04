@@ -34,6 +34,8 @@ La action del detalle de solicitud lee únicamente `solicitud_id`, `title` y `de
 
 `service_type` es solo referencia inicial de la solicitud y no se usa como título automático. El usuario interno debe definir el título real del pedido y puede ajustar la descripción operativa antes de convertir. La conversión no acepta `order_number`, `status`, `cliente_id`, `created_by` ni `converted_order_id` desde el formulario.
 
+Cuando un pedido muestra datos de su solicitud origen, el tipo de servicio debe renderizarse con `getSolicitudServiceTypeLabel` desde `src/lib/solicitudes/labels.ts` para evitar valores técnicos o históricos sin tildes en listados, detalles y dashboard.
+
 ## Cambio de Estado
 
 `/dashboard/pedidos/[id]` incluye `PedidoStatusForm`.

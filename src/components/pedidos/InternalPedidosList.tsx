@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PEDIDO_STATUS_LABELS, type InternalPedido } from "@/lib/pedidos";
+import { getSolicitudServiceTypeLabel } from "@/lib/solicitudes";
 
 type InternalPedidosListProps = {
   pedidos: InternalPedido[];
@@ -128,7 +129,11 @@ export function InternalPedidosList({ pedidos }: InternalPedidosListProps) {
                 <td className="px-4 py-4 text-zinc-700">
                   {pedido.solicitudes ? (
                     <div>
-                      <div>{pedido.solicitudes.service_type}</div>
+                      <div>
+                        {getSolicitudServiceTypeLabel(
+                          pedido.solicitudes.service_type,
+                        )}
+                      </div>
                       <div className="mt-1 font-mono text-xs text-zinc-500">
                         {formatShortReference(pedido.solicitudes.id)}
                       </div>

@@ -182,6 +182,7 @@ La primera versión funcional del dashboard debe ser deliberadamente simple. Des
 - sección de "Mis pedidos asignados" para `trabajador`;
 - actividad reciente mínima desde historial de pedidos y solicitudes, incluyendo eventos de tareas con títulos seguros;
 - pedidos manuales con `cliente_id = null` visibles como `Sin cliente asociado`;
+- tipos de servicio de solicitudes renderizados mediante labels visibles, no como valores técnicos crudos;
 - actividad reciente avanzada queda para una subfase posterior;
 - sin gráficos;
 - sin reportes avanzados;

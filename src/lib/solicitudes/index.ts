@@ -39,7 +39,10 @@ export {
 } from "./list-internal-solicitudes";
 export {
   SOLICITUD_HISTORY_ACTION_LABELS,
+  SOLICITUD_SERVICE_TYPE_LABELS,
+  SOLICITUD_SERVICE_TYPE_OPTIONS,
   SOLICITUD_STATUS_LABELS,
+  getSolicitudServiceTypeLabel,
 } from "./labels";
 export {
   MANUAL_SOLICITUD_STATUSES,

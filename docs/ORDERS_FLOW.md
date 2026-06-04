@@ -241,6 +241,8 @@ La conversión requiere `solicitudes.manage` y `pedidos.manage`. Solo se permite
 
 `service_type` queda como referencia inicial elegida por el cliente. No se usa como título automático del pedido. El usuario interno debe definir un `title` obligatorio y puede ajustar la `description` operativa antes de crear el pedido. El formulario no acepta `order_number`, `status`, `cliente_id`, `created_by`, `converted_order_id` ni otros campos técnicos.
 
+Cuando el pedido muestra datos de la solicitud origen, el tipo de servicio se renderiza con `getSolicitudServiceTypeLabel` desde `src/lib/solicitudes/labels.ts`; el valor guardado en `service_type` no se renombra ni se usa como título automático.
+
 Al convertir:
 
 - se crea un pedido con `pedidos.solicitud_id`;

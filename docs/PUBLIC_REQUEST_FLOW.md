@@ -24,8 +24,6 @@ El flujo actual permite:
 Todavía no incluye:
 
 - Captcha.
-- Gestión interna de solicitudes.
-- Conversión de solicitud a pedido.
 - Asociación inteligente con clientes.
 - Notificaciones automáticas.
 - Descarga pública de archivos.
@@ -211,18 +209,11 @@ Si la solicitud se convierte en pedido, los archivos se heredan por metadatos: s
 8. Si hay archivos, la action los valida, sube al bucket privado y registra metadatos.
 9. La base de datos registra `archivos_adjuntados` por cada archivo aceptado.
 10. La UI muestra éxito, referencia corta y cantidad de archivos recibidos.
-11. El equipo interno revisará la solicitud en una fase posterior.
+11. El equipo interno revisa la solicitud desde el dashboard.
 
-## Flujo Interno Pendiente
+## Relación con el flujo interno
 
-En Fase 6 se implementará:
-
-- Listado interno de solicitudes.
-- Revisión por admin o supervisor.
-- Actualización de estado.
-- Preparación para convertir solicitud en pedido.
-
-La conversión real a pedido pertenece a una fase posterior del flujo interno.
+El listado, detalle, archivos, comentarios, historial y conversión a pedido se gestionan desde el dashboard interno. Los valores visibles de `service_type` deben mostrarse mediante los labels centralizados de `src/lib/solicitudes/labels.ts`, sin cambiar el valor técnico guardado en la solicitud.
 
 ## Pruebas Manuales Recomendadas
 
@@ -249,7 +240,6 @@ La conversión real a pedido pertenece a una fase posterior del flujo interno.
 - No hay captcha todavía.
 - No hay control avanzado anti-spam.
 - No hay lectura ni descarga pública de archivos.
-- No hay visualización interna de archivos de solicitudes todavía.
 - No hay notificaciones.
 - No hay código humano de solicitud.
 - No hay asociación automática con clientes.
@@ -257,5 +247,4 @@ La conversión real a pedido pertenece a una fase posterior del flujo interno.
 
 ## Cierre
 
-La siguiente subfase será la revisión final de Fase 5 antes de pasar a la
-gestión interna de solicitudes.
+El flujo público queda conectado con la gestión interna de solicitudes, archivos privados, historial y conversión formal a pedido.

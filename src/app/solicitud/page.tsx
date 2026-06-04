@@ -25,13 +25,13 @@ export default function SolicitudPage() {
               </p>
             </section>
 
-            <section className="rounded-lg border border-amber-200 bg-amber-50 p-5 text-amber-950">
+            <section className="rounded-lg border border-teal-200 bg-teal-50 p-5 text-teal-950">
               <h2 className="text-base font-semibold">
-                Archivos pendientes
+                Archivos opcionales
               </h2>
               <p className="mt-2">
-                La subida de archivos aún no está disponible en esta fase. Si
-                tienes referencias, podremos solicitarlas durante el contacto.
+                Puedes adjuntar archivos de referencia, imágenes o documentos
+                relacionados con tu solicitud.
               </p>
             </section>
           </aside>

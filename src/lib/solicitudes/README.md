@@ -40,9 +40,13 @@ Reglas principales:
 - `pedido_id` queda en `null`;
 - `uploaded_by` queda en `null`;
 - no hay lectura pública, listado público ni URLs públicas;
-- los archivos se consultarán internamente en una fase posterior.
+- `admin` y `supervisor` pueden consultarlos y descargarlos desde el detalle interno de solicitud mediante rutas internas seguras.
 
 La solicitud se crea antes de asociar archivos. Si la solicitud se registra correctamente pero algún archivo falla durante la subida, la solicitud se conserva y la UI muestra una advertencia segura.
+
+## Labels visibles
+
+Los valores técnicos o históricos de `service_type` se renderizan mediante `labels.ts`. La UI debe usar `getSolicitudServiceTypeLabel` para mostrar tildes y `ñ` correctamente sin cambiar el valor guardado en la solicitud.
 
 ## Consultas internas
 
@@ -116,6 +120,5 @@ El evento `cliente_creado_desde_solicitud` se registra desde `createClienteFromS
 ## Alcance excluido
 
 - No hay lectura ni descarga pública de archivos.
-- No hay visualización interna de archivos de solicitudes todavía.
 - No se convierte automáticamente la solicitud en pedido fuera del flujo formal.
 - No se implementa deduplicación inteligente de clientes.

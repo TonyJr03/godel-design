@@ -5,6 +5,7 @@ import {
   submitPublicSolicitudAction,
   type SubmitPublicSolicitudActionState,
 } from "@/app/solicitud/actions";
+import { SOLICITUD_SERVICE_TYPE_OPTIONS } from "@/lib/solicitudes/labels";
 import type { PublicSolicitudField } from "@/lib/solicitudes";
 
 const initialState: SubmitPublicSolicitudActionState = {
@@ -233,11 +234,11 @@ export function PublicSolicitudForm() {
                 <option value="" disabled>
                   Selecciona una opción
                 </option>
-                <option value="Impresion">Impresión</option>
-                <option value="Diseno grafico">Diseño gráfico</option>
-                <option value="Personalizacion">Personalización</option>
-                <option value="Rotulacion">Rotulación</option>
-                <option value="Otro">Otro</option>
+                {SOLICITUD_SERVICE_TYPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
               <FieldError
                 id="service_type-error"
