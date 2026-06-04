@@ -117,9 +117,11 @@ La base de datos incluye `pedido_tareas` para representar el progreso operativo 
 - `simple`: tarea sin cantidades.
 - `cuantificada`: tarea con `target_quantity` y `completed_quantity`.
 
-El usuario escribirá tareas en lenguaje normal. La detección automática de si una tarea es simple o cuantificada, según si contiene un número, se implementará desde TypeScript en una subfase posterior.
+El usuario escribirá tareas en lenguaje normal. La detección automática vive en servicios server-side de TypeScript: un título sin números independientes crea una tarea `simple`; un único entero positivo independiente crea una tarea `cuantificada`; dos o más números, decimales, cero o negativos fallan validación. Los dígitos dentro de palabras no cuentan, así que `Imprimir hojas A4` es simple y `Imprimir 40 hojas A4` es cuantificada.
 
-En esta subfase no hay UI de tareas, servicios TypeScript de tareas ni integración entre progreso de tareas y cambio de estado. La tabla queda preparada con RLS e historial automático para que `admin`, `supervisor` y personal asignado puedan gestionar tareas de pedidos accesibles cuando se implemente la capa de aplicación.
+El progreso agregado se calcula como promedio redondeado: una tarea simple aporta 100% si está completada y 0% si está pendiente; una tarea cuantificada aporta `completed_quantity / target_quantity * 100`; sin tareas el progreso es 0%.
+
+En esta subfase hay servicios server-side para listar, crear, actualizar y eliminar tareas, pero no hay UI ni integración entre progreso de tareas y cambio de estado. La tabla queda preparada con RLS e historial automático para que `admin`, `supervisor` y personal asignado puedan gestionar tareas de pedidos accesibles.
 
 ## Listado interno
 
@@ -311,7 +313,6 @@ Aclaraciones:
 - facturación;
 - múltiples responsables avanzados;
 - UI de tareas de pedido;
-- servicios TypeScript de tareas de pedido;
 - reglas automáticas complejas de transición de estados.
 
 ## Consideraciones futuras

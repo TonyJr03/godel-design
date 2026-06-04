@@ -50,11 +50,17 @@ Un `admin` o `supervisor` asignado a un pedido conserva sus permisos reales. La 
 
 La base de datos incluye `public.pedido_tareas` para modelar el progreso operativo real del pedido. Las tareas pueden ser `simple` o `cuantificada` mediante el enum `public.pedido_tarea_tipo`.
 
-Las tareas simples no guardan cantidades. Las tareas cuantificadas requieren `target_quantity`, `completed_quantity >= 0` y avance menor o igual que la cantidad objetivo. La detección automática de tipo por números en el título se implementará en TypeScript en una subfase posterior.
+Las tareas simples no guardan cantidades. Las tareas cuantificadas requieren `target_quantity`, `completed_quantity >= 0` y avance menor o igual que la cantidad objetivo.
+
+La detección de tipo vive en `task-validation.ts`: un título sin números independientes crea una tarea `simple`; un único entero positivo independiente crea una tarea `cuantificada` con `target_quantity` y `completed_quantity = 0`; dos o más números, decimales, cero o negativos fallan validación. Los dígitos dentro de palabras no cuentan, por lo que `Imprimir hojas A4` es simple y `Imprimir 40 hojas A4` es cuantificada.
+
+El progreso agregado vive en `task-progress.ts`: sin tareas devuelve 0%; cada tarea simple vale 100% si está completada y 0% si está pendiente; cada tarea cuantificada usa `completed_quantity / target_quantity * 100`; el total es el promedio redondeado de todas las tareas.
 
 RLS permite gestionar tareas a `admin`, `supervisor` y personal asignado al pedido mediante `private.can_access_pedido(pedido_id)`. La inserción exige `created_by = auth.uid()` para trazabilidad.
 
-Esta subfase no implementa servicios TypeScript, acciones, formularios, listado ni reglas de cambio de estado basadas en progreso de tareas.
+Los servicios server-side disponibles son `listPedidoTasks`, `createPedidoTask`, `updatePedidoTask` y `deletePedidoTask`. Todos usan `createClient`, el perfil actual y RLS; no aceptan campos técnicos desde entrada externa.
+
+Esta subfase no implementa acciones, formularios, UI ni reglas de cambio de estado basadas en progreso de tareas.
 
 ## Asignación de Personal
 
@@ -146,4 +152,4 @@ Los archivos heredados desde solicitudes con `visibility = "cliente_solicitud"` 
 
 ## Fuera de Esta Subfase
 
-La edición general, la eliminación, notificaciones, UI de tareas, servicios TypeScript de tareas, reglas de progreso por tareas e historial avanzado quedan para próximas subfases.
+La edición general, la eliminación, notificaciones, UI de tareas, reglas automáticas de estado por progreso e historial avanzado quedan para próximas subfases.

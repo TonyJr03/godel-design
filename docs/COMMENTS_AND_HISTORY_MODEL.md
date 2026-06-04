@@ -474,7 +474,7 @@ Eventos mínimos:
 | `tarea_reabierta` | Una tarea completada vuelve a abierta. | tarea y estado anterior/nuevo. |
 | `tarea_progreso_actualizado` | Cambia el avance numérico de una tarea cuantificada. | cantidad anterior y cantidad nueva. |
 
-La RPC actual ya cubre cambios de estado de pedido con el enum simplificado de fases generales. Los eventos de tareas quedan conectados mediante triggers de base de datos, pero todavía no existe UI ni servicio TypeScript de tareas.
+La RPC actual ya cubre cambios de estado de pedido con el enum simplificado de fases generales. Los eventos de tareas quedan conectados mediante triggers de base de datos; los servicios server-side de tareas ya pueden listar, crear, actualizar y eliminar tareas, pero todavía no existe UI para operarlas.
 
 ### Solicitudes
 
