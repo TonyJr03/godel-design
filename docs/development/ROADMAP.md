@@ -360,11 +360,9 @@ Construir el núcleo operativo del sistema: la gestión de pedidos oficiales.
 
 ### Estados de pedido
 
+- `creado`
 - `solicitud_recibida`
 - `en_revision`
-- `cotizado`
-- `aprobado_cliente`
-- `en_diseno`
 - `en_produccion`
 - `listo_entrega`
 - `entregado`
@@ -526,7 +524,7 @@ Convertir `/dashboard` en una pantalla realmente útil para el trabajo diario.
 - Mostrar pedidos próximos a vencer.
 - Mostrar actividad reciente.
 - Crear accesos rápidos.
-- Adaptar content según rol.
+- Adaptar contenido según rol.
 
 ### Criterio de cierre
 
@@ -535,6 +533,22 @@ Al entrar al dashboard, cada rol entiende rápidamente qué necesita atender.
 ### Cierre de fase
 
 La Fase 13 quedó completada con diagnóstico y modelo técnico documentado, servicios server-side de resumen por rol, tarjetas reales en `/dashboard`, paneles operativos para solicitudes pendientes y pedidos que requieren atención, vista específica de pedidos asignados para `trabajador` y actividad reciente mínima basada en `pedido_historial` y `solicitud_historial`. El dashboard se adapta a `admin`, `supervisor` y `trabajador`, respeta RLS como defensa final, no consulta `auth.users`, no usa service role key, no expone rutas privadas de archivos ni `metadata` cruda y no implementa gráficos, reportes avanzados, exportaciones ni notificaciones.
+
+### Cierre de fase puente 13.6
+
+La fase puente 13.6 quedó completada como reajuste operativo de solicitudes y pedidos antes de iniciar la Fase 14. El cierre incluye eliminación definitiva de `quantity` en solicitudes, conversión a pedido con título obligatorio, pedidos manuales con o sin cliente asociado, simplificación de estados de pedido, modelo `pedido_tareas`, tareas simples y cuantificadas, progreso agregado por promedio, reglas de estado condicionadas por tareas, historial automático de tareas y dashboard/listados ajustados al progreso operativo. No se iniciaron trabajos de pulido visual ni responsive.
+
+### Cierre de fase puente 13.7
+
+La fase puente 13.7 quedó completada con el refinamiento operativo final previo
+a la Fase 14. El cierre incluye textos y labels visibles corregidos, estados de
+solicitud con transiciones controladas, validación centralizada de fechas,
+conversión a pedido con prioridad y fecha estimada, numeración secuencial
+`P-YY-XXXX`, estado inicial `creado` para pedidos manuales, categoría automática
+de archivos según el estado del pedido, historial operativo legible y búsquedas
+y filtros uniformes con consultas server-side. RLS continúa como defensa final;
+no se añadió service role key, no se consulta `auth.users` y no se inició el
+pulido visual o responsive de la Fase 14.
 
 ---
 
@@ -731,6 +745,6 @@ La Fase 11 quedó completada con comentarios internos e historial operativo para
 
 La Fase 12 quedó completada con gestión de perfiles internos para `admin`: listado, filtros, detalle, edición, creación de perfiles para usuarios Auth existentes, validaciones server-side, guardas del último administrador activo y documentación actualizada. Se mantiene la Opción A: la app no crea credenciales, no consulta `auth.users`, no pide email ni contraseña, no implementa invitaciones ni eliminación, y no usa service role key.
 
-La Fase 13 quedó completada con dashboard operativo real en `/dashboard`: tarjetas de resumen por rol, paneles operativos por rol y actividad reciente mínima. `admin` y `supervisor` reciben información operativa global permitida por RLS; `trabajador` recibe únicamente métricas, paneles y actividad de pedidos asignados. No se implementan gráficos, reportes avanzados, exportaciones ni notificaciones reales.
+La Fase 13 quedó completada con dashboard operativo real en `/dashboard`: tarjetas de resumen por rol, paneles operativos por rol y actividad reciente mínima. La fase puente 13.6 cerró el reajuste operativo de solicitudes y pedidos: solicitudes sin `quantity`, conversión con título obligatorio, pedidos manuales sin cliente asociado, estados simplificados, tareas de pedido, progreso por promedio, reglas de estado según tareas, historial de tareas y dashboard/listados ajustados a ese modelo. La fase puente 13.7 completó los labels y textos visibles, transiciones controladas de solicitudes, fechas centralizadas, conversión con prioridad y fecha estimada, numeración `P-YY-XXXX`, estado `creado`, archivos por estado e interfaz uniforme de búsquedas y filtros server-side. `admin` y `supervisor` reciben información operativa global permitida por RLS; `trabajador` recibe únicamente métricas, paneles y actividad de pedidos asignados. No se implementan gráficos, reportes avanzados, exportaciones, notificaciones reales ni pulido visual/responsive.
 
 La próxima fase activa es Fase 14 — Pulido visual y responsive. No debe iniciarse hasta recibir una tarea específica para esa fase.

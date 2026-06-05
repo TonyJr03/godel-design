@@ -1,11 +1,13 @@
 import Link from "next/link";
 import {
   SOLICITUD_STATUS_LABELS,
+  getSolicitudServiceTypeLabel,
   type InternalSolicitud,
 } from "@/lib/solicitudes";
 
 type InternalSolicitudesListProps = {
   solicitudes: InternalSolicitud[];
+  emptyMessage?: string;
 };
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("es", {
@@ -29,7 +31,19 @@ function formatDate(value: string | null): string {
 
 export function InternalSolicitudesList({
   solicitudes,
+  emptyMessage = "Cuando entren solicitudes públicas, aparecerán aquí ordenadas por fecha de creación.",
 }: InternalSolicitudesListProps) {
+  if (solicitudes.length === 0) {
+    return (
+      <section className="rounded-lg border border-dashed border-zinc-300 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-zinc-950">
+          No hay solicitudes para mostrar
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-zinc-600">{emptyMessage}</p>
+      </section>
+    );
+  }
+
   return (
     <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
@@ -57,9 +71,6 @@ export function InternalSolicitudesList({
               <th scope="col" className="px-4 py-3">
                 Deseada
               </th>
-              <th scope="col" className="px-4 py-3">
-                Cant.
-              </th>
               <th scope="col" className="px-4 py-3 text-right">
                 Acción
               </th>
@@ -83,7 +94,7 @@ export function InternalSolicitudesList({
                   ) : null}
                 </td>
                 <td className="px-4 py-4 text-zinc-700">
-                  {solicitud.service_type}
+                  {getSolicitudServiceTypeLabel(solicitud.service_type)}
                 </td>
                 <td className="whitespace-nowrap px-4 py-4">
                   <span className="inline-flex rounded-md bg-teal-50 px-2 py-1 text-xs font-semibold text-teal-800 ring-1 ring-inset ring-teal-700/15">
@@ -95,9 +106,6 @@ export function InternalSolicitudesList({
                 </td>
                 <td className="whitespace-nowrap px-4 py-4 text-zinc-700">
                   {formatDate(solicitud.desired_date)}
-                </td>
-                <td className="whitespace-nowrap px-4 py-4 text-zinc-700">
-                  {solicitud.quantity ?? "No definida"}
                 </td>
                 <td className="px-4 py-4 text-right">
                   <Link

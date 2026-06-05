@@ -5,7 +5,10 @@ import {
   submitPublicSolicitudAction,
   type SubmitPublicSolicitudActionState,
 } from "@/app/solicitud/actions";
+import { getTodayDateInputValue } from "@/lib/utils";
+import { SOLICITUD_SERVICE_TYPE_OPTIONS } from "@/lib/solicitudes/labels";
 import type { PublicSolicitudField } from "@/lib/solicitudes";
+import { STORAGE_FILE_INPUT_ACCEPT } from "@/lib/storage/constants";
 
 const initialState: SubmitPublicSolicitudActionState = {
   ok: false,
@@ -48,15 +51,6 @@ const baseInputClass =
 const labelClass = "text-sm font-medium text-zinc-900";
 const helpTextClass = "mt-2 text-sm leading-5 text-zinc-500";
 
-function getTodayInputDate() {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, "0");
-  const day = String(today.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
-}
-
 export function PublicSolicitudForm() {
   const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction, pending] = useActionState(
@@ -75,12 +69,11 @@ export function PublicSolicitudForm() {
   const emailError = getFieldError(state, "client_email");
   const tipoServicioError = getFieldError(state, "service_type");
   const descripcionError = getFieldError(state, "description");
-  const cantidadError = getFieldError(state, "quantity");
   const fechaDeseadaError = getFieldError(state, "desired_date");
   const observacionesError = getFieldError(state, "notes");
   const filesError = getFieldError(state, "files");
   const solicitudReference = state.solicitudId?.slice(0, 8);
-  const todayInputDate = getTodayInputDate();
+  const todayInputDate = getTodayDateInputValue();
   const formKey = state.ok
     ? `success-${state.solicitudId ?? "ok"}`
     : `form-${JSON.stringify(state.values ?? {})}`;
@@ -234,35 +227,16 @@ export function PublicSolicitudForm() {
                 <option value="" disabled>
                   Selecciona una opción
                 </option>
-                <option value="Impresion">Impresión</option>
-                <option value="Diseno grafico">Diseño gráfico</option>
-                <option value="Personalizacion">Personalización</option>
-                <option value="Rotulacion">Rotulación</option>
-                <option value="Otro">Otro</option>
+                {SOLICITUD_SERVICE_TYPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
               <FieldError
                 id="service_type-error"
                 message={tipoServicioError}
               />
-            </div>
-
-            <div>
-              <label className={labelClass} htmlFor="quantity">
-                Cantidad <OptionalMark />
-              </label>
-              <input
-                className={baseInputClass}
-                id="quantity"
-                name="quantity"
-                type="number"
-                defaultValue={state.values?.quantity ?? ""}
-                min="1"
-                step="1"
-                inputMode="numeric"
-                aria-invalid={Boolean(cantidadError)}
-                aria-describedby={cantidadError ? "quantity-error" : undefined}
-              />
-              <FieldError id="quantity-error" message={cantidadError} />
             </div>
 
             <div className="sm:col-span-2">
@@ -282,8 +256,8 @@ export function PublicSolicitudForm() {
                 }
               />
               <p id="description-help" className={helpTextClass}>
-                Incluye medidas, materiales, colores, textos o cualquier detalle
-                importante.
+                Describe el trabajo con el mayor detalle posible. Incluye
+                cantidades, medidas, colores, fechas o indicaciones importantes.
               </p>
               <FieldError id="description-error" message={descripcionError} />
             </div>
@@ -340,7 +314,7 @@ export function PublicSolicitudForm() {
                 name="files"
                 type="file"
                 multiple
-                accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.zip"
+                accept={STORAGE_FILE_INPUT_ACCEPT}
                 aria-invalid={Boolean(filesError)}
                 aria-describedby={filesError ? "files-error" : "files-help"}
                 disabled={pending}

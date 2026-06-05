@@ -18,7 +18,6 @@ export type InternalSolicitudDetail = Pick<
   | "client_email"
   | "service_type"
   | "description"
-  | "quantity"
   | "desired_date"
   | "notes"
   | "status"
@@ -72,7 +71,7 @@ export async function getInternalSolicitudById(
     const { data, error } = await supabase
       .from("solicitudes")
       .select(
-        "id, cliente_id, client_name, client_phone, client_email, service_type, description, quantity, desired_date, notes, status, converted_order_id, reviewed_by, created_at, updated_at",
+        "id, cliente_id, client_name, client_phone, client_email, service_type, description, desired_date, notes, status, converted_order_id, reviewed_by, created_at, updated_at",
       )
       .eq("id", id)
       .maybeSingle();

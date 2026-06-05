@@ -4,14 +4,21 @@ import {
   PEDIDO_PRIORITY_LABELS,
   PEDIDO_STATUS_LABELS,
   type InternalPedidoDetail,
+  type PedidoStatusTransitionContext,
 } from "@/lib/pedidos";
-import { SOLICITUD_STATUS_LABELS } from "@/lib/solicitudes";
+import {
+  SOLICITUD_STATUS_LABELS,
+  getSolicitudServiceTypeLabel,
+} from "@/lib/solicitudes";
 import { formatAppDateTime } from "@/lib/utils";
 import { PedidoStatusForm } from "./PedidoStatusForm";
 
 type InternalPedidoDetailProps = {
   pedido: InternalPedidoDetail;
+  taskProgress?: PedidoStatusTransitionContext | null;
+  tasksLoadError?: string;
   workerAssignmentSection?: ReactNode;
+  tasksSection?: ReactNode;
   filesSection?: ReactNode;
   commentsSection?: ReactNode;
   historySection?: ReactNode;
@@ -55,7 +62,10 @@ function StatusBadge({ children }: { children: ReactNode }) {
 
 export function InternalPedidoDetail({
   pedido,
+  taskProgress,
+  tasksLoadError,
   workerAssignmentSection,
+  tasksSection,
   filesSection,
   commentsSection,
   historySection,
@@ -123,7 +133,14 @@ export function InternalPedidoDetail({
         </div>
       </section>
 
-      <PedidoStatusForm pedidoId={pedido.id} estadoActual={pedido.status} />
+      <PedidoStatusForm
+        pedidoId={pedido.id}
+        estadoActual={pedido.status}
+        taskProgress={taskProgress}
+        tasksLoadError={tasksLoadError}
+      />
+
+      {tasksSection}
 
       {workerAssignmentSection}
 
@@ -162,7 +179,7 @@ export function InternalPedidoDetail({
             </p>
           ) : (
             <p className="mt-3 text-sm leading-6 text-zinc-600">
-              Este pedido no tiene cliente asociado.
+              Sin cliente asociado.
             </p>
           )}
         </div>
@@ -178,7 +195,9 @@ export function InternalPedidoDetail({
                     href={`/dashboard/solicitudes/${pedido.solicitudes.id}`}
                     className="font-semibold text-teal-800 hover:text-teal-900"
                   >
-                    {pedido.solicitudes.service_type}
+                    {getSolicitudServiceTypeLabel(
+                      pedido.solicitudes.service_type,
+                    )}
                   </Link>
                 }
               />

@@ -28,9 +28,9 @@ Los loaders internos no se exportan desde el barrel del módulo. La API pública
 - Solicitudes pendientes (`nueva`, `en_revision`, `contactada`).
 - Solicitudes aprobadas pendientes de convertir.
 - Pedidos activos.
-- Pedidos en diseño.
 - Pedidos en producción.
 - Pedidos listos para entrega.
+- Pedidos pendientes de revisión o en revisión sin tareas.
 - Pedidos atrasados.
 - Pedidos próximos a entrega.
 - Clientes registrados.
@@ -38,9 +38,9 @@ Los loaders internos no se exportan desde el barrel del módulo. La API pública
 ## Métricas de trabajador
 
 - Pedidos asignados activos.
-- Pedidos asignados en diseño.
 - Pedidos asignados en producción.
 - Pedidos asignados listos para entrega.
+- Pedidos asignados pendientes de revisión o en revisión sin tareas.
 - Pedidos asignados atrasados.
 - Pedidos asignados próximos a entrega.
 - Total de pedidos asignados.
@@ -58,7 +58,7 @@ El trabajador no recibe solicitudes generales, clientes generales ni usuarios in
 
 - pedidos asignados que requieren atención.
 
-Estos paneles son listas simples con enlaces internos a detalles de solicitud o pedido. No son reportes, no tienen paginación, no implementan filtros avanzados y no representan un feed completo de actividad reciente.
+Estos paneles son listas simples con enlaces internos a detalles de solicitud o pedido. Los pedidos `creado` y `solicitud_recibida` se consideran activos, se priorizan como pendientes de revisión y siguen mostrando `Sin tareas` cuando corresponde. No son reportes, no tienen paginación, no implementan filtros avanzados y no representan un feed completo de actividad reciente.
 
 ## Actividad reciente mínima
 
@@ -86,6 +86,6 @@ La actividad reciente usa resúmenes construidos de forma controlada. No se mues
 - Reportes avanzados.
 - Notificaciones.
 - Exportaciones.
-- Cambios de RLS o migraciones.
+- Cambios de RLS o migraciones nuevas.
 
 La UI implementada se limita a tarjetas de resumen, paneles operativos simples y actividad reciente mínima. Actividad reciente avanzada, gráficos, reportes avanzados, exportaciones y notificaciones quedan para fases posteriores.

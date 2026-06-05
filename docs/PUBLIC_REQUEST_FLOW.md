@@ -24,8 +24,6 @@ El flujo actual permite:
 Todavía no incluye:
 
 - Captcha.
-- Gestión interna de solicitudes.
-- Conversión de solicitud a pedido.
 - Asociación inteligente con clientes.
 - Notificaciones automáticas.
 - Descarga pública de archivos.
@@ -45,11 +43,12 @@ Todavía no incluye:
 | `client_phone` | Sí | Teléfono de contacto |
 | `client_email` | No | Correo opcional |
 | `service_type` | Sí | Tipo de trabajo solicitado |
-| `description` | Sí | Descripción del encargo |
-| `quantity` | No | Cantidad solicitada |
+| `description` | Sí | Descripción del encargo, incluyendo cantidades, medidas o requisitos cuando apliquen |
 | `desired_date` | No | Fecha deseada de entrega; si se informa debe ser igual o posterior al día actual |
 | `notes` | No | Notas adicionales |
 | `files` | No | Archivos de referencia opcionales |
+
+`quantity` fue eliminado de solicitudes. El formulario no pide cantidad en un campo separado; el cliente debe indicar cantidades dentro de `description` o `notes`.
 
 ## Campos que no acepta la UI
 
@@ -77,12 +76,18 @@ Reglas generales:
 - `client_email` es opcional, pero si existe debe tener formato básico válido.
 - `service_type` es requerido.
 - `description` es requerida.
-- `quantity` es opcional, pero debe ser positiva si existe.
 - `desired_date` es opcional, pero debe ser válida e igual o posterior al día
   actual si existe.
 - `notes` es opcional.
 - Los campos opcionales vacíos se convierten a `null`.
 - Los espacios sobrantes se recortan antes de insertar.
+
+La validación de `desired_date` usa los helpers de fecha de
+`src/lib/validators/date.ts`, apoyados en `src/lib/utils/date.ts` para calcular
+el día actual local. Trabaja con valores `YYYY-MM-DD` de inputs HTML y evita
+convertir a UTC con `toISOString()`.
+
+`service_type` funciona como referencia inicial del cliente; el detalle real del trabajo vive en `description` y, si hace falta, en `notes`.
 
 No se usan dependencias externas para esta validación.
 
@@ -96,6 +101,7 @@ La Server Action:
 
 - Recibe `FormData`.
 - Convierte los campos del formulario en input controlado.
+- No lee ni devuelve `quantity`.
 - Llama al servicio de creación.
 - Devuelve errores controlados para la UI.
 - No expone errores técnicos de Supabase al cliente.
@@ -113,6 +119,7 @@ Responsabilidades:
 
 - Validar el input recibido.
 - Crear la solicitud en Supabase.
+- Insertar el detalle del trabajo sin campo separado de cantidad.
 - Establecer siempre `status = "nueva"`.
 - Establecer `cliente_id = null`.
 - Establecer `reviewed_by = null`.
@@ -122,6 +129,8 @@ Responsabilidades:
 - Evitar un `.select()` público innecesario después del insert.
 
 Desde Fase 11.7B, la inserción de la solicitud registra automáticamente el evento `solicitud_creada` en `solicitud_historial`. Como el flujo es público, normalmente queda con `actor_id = null` y metadata mínima no sensible.
+
+La conversión interna a pedido exige que el equipo defina un título operativo real. `service_type` queda como referencia inicial del cliente, no como título automático del pedido.
 
 ## Decisión sobre clientes
 
@@ -205,26 +214,19 @@ Si la solicitud se convierte en pedido, los archivos se heredan por metadatos: s
 8. Si hay archivos, la action los valida, sube al bucket privado y registra metadatos.
 9. La base de datos registra `archivos_adjuntados` por cada archivo aceptado.
 10. La UI muestra éxito, referencia corta y cantidad de archivos recibidos.
-11. El equipo interno revisará la solicitud en una fase posterior.
+11. El equipo interno revisa la solicitud desde el dashboard.
 
-## Flujo Interno Pendiente
+## Relación con el flujo interno
 
-En Fase 6 se implementará:
-
-- Listado interno de solicitudes.
-- Revisión por admin o supervisor.
-- Actualización de estado.
-- Preparación para convertir solicitud en pedido.
-
-La conversión real a pedido pertenece a una fase posterior del flujo interno.
+El listado, detalle, archivos, comentarios, historial y conversión a pedido se gestionan desde el dashboard interno. Los valores visibles de `service_type` deben mostrarse mediante los labels centralizados de `src/lib/solicitudes/labels.ts`, sin cambiar el valor técnico guardado en la solicitud.
 
 ## Pruebas Manuales Recomendadas
 
 - Enviar solicitud válida.
 - Enviar formulario vacío.
 - Enviar email inválido.
-- Enviar cantidad negativa.
 - Enviar sin email.
+- Enviar una solicitud con cantidades escritas en la descripción.
 - Enviar solicitud sin archivos.
 - Enviar solicitud con 1 archivo válido.
 - Intentar enviar más de 5 archivos.
@@ -243,7 +245,6 @@ La conversión real a pedido pertenece a una fase posterior del flujo interno.
 - No hay captcha todavía.
 - No hay control avanzado anti-spam.
 - No hay lectura ni descarga pública de archivos.
-- No hay visualización interna de archivos de solicitudes todavía.
 - No hay notificaciones.
 - No hay código humano de solicitud.
 - No hay asociación automática con clientes.
@@ -251,5 +252,4 @@ La conversión real a pedido pertenece a una fase posterior del flujo interno.
 
 ## Cierre
 
-La siguiente subfase será la revisión final de Fase 5 antes de pasar a la
-gestión interna de solicitudes.
+El flujo público queda conectado con la gestión interna de solicitudes, archivos privados, historial y conversión formal a pedido.

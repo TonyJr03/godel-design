@@ -5,18 +5,18 @@ import {
   uploadPedidoFileAction,
   type UploadPedidoFileActionState,
 } from "@/app/dashboard/pedidos/[id]/actions";
-import {
-  type PedidoFileCategory,
-  type PedidoFileListItem,
-} from "@/lib/storage";
+import type { PedidoFileListItem } from "@/lib/storage";
+import type { PedidoStatus } from "@/lib/pedidos";
+import { STORAGE_FILE_INPUT_ACCEPT } from "@/lib/storage/constants";
+import { getPedidoFileVisibilityForStatus } from "@/lib/storage/file-validation";
 import { STORAGE_FILE_CATEGORY_LABELS } from "@/lib/storage/labels";
 import { formatAppDateTime } from "@/lib/utils";
 
 type PedidoFilesSectionProps = {
   pedidoId: string;
+  pedidoStatus: PedidoStatus;
   files: PedidoFileListItem[];
   canUpload: boolean;
-  allowedCategories: PedidoFileCategory[];
   loadError?: string;
 };
 
@@ -57,18 +57,46 @@ function getCategoryLabel(category: PedidoFileListItem["visibility"]): string {
   return STORAGE_FILE_CATEGORY_LABELS[category] ?? "Archivo";
 }
 
+function getUploadContextMessage(status: PedidoStatus): string {
+  const result = getPedidoFileVisibilityForStatus(status);
+
+  if (!result.ok) {
+    if (result.reason === "pedido_delivered") {
+      return "Este pedido ya fue entregado y no admite nuevas subidas de archivos.";
+    }
+
+    if (result.reason === "pedido_canceled") {
+      return "Este pedido fue cancelado y no admite nuevas subidas de archivos.";
+    }
+
+    return result.message;
+  }
+
+  if (result.visibility === "interno_pedido") {
+    return "Los archivos se guardarán como internos del pedido.";
+  }
+
+  if (result.visibility === "avance") {
+    return "Los archivos se guardarán como avances del pedido.";
+  }
+
+  return "Los archivos se guardarán como archivos finales de entrega.";
+}
+
 export function PedidoFilesSection({
   pedidoId,
+  pedidoStatus,
   files,
   canUpload,
-  allowedCategories,
   loadError,
 }: PedidoFilesSectionProps) {
   const [state, formAction, pending] = useActionState(
     uploadPedidoFileAction,
     initialState,
   );
-  const canShowUploadForm = canUpload && allowedCategories.length > 0;
+  const visibilityResult = getPedidoFileVisibilityForStatus(pedidoStatus);
+  const canShowUploadForm = canUpload && visibilityResult.ok;
+  const uploadContextMessage = getUploadContextMessage(pedidoStatus);
 
   return (
     <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
@@ -88,6 +116,16 @@ export function PedidoFilesSection({
           {loadError}
         </p>
       ) : null}
+
+      <p
+        className={`mt-5 rounded-md border px-4 py-3 text-sm leading-6 ${
+          visibilityResult.ok
+            ? "border-teal-200 bg-teal-50 text-teal-950"
+            : "border-zinc-200 bg-zinc-50 text-zinc-700"
+        }`}
+      >
+        {uploadContextMessage}
+      </p>
 
       {files.length > 0 ? (
         <ul className="mt-5 divide-y divide-zinc-100">
@@ -156,7 +194,7 @@ export function PedidoFilesSection({
             </div>
           ) : null}
 
-          <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(12rem,16rem)_auto] lg:items-end">
+          <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
             <div>
               <label
                 htmlFor="pedido-file"
@@ -168,33 +206,11 @@ export function PedidoFilesSection({
                 id="pedido-file"
                 name="file"
                 type="file"
+                accept={STORAGE_FILE_INPUT_ACCEPT}
                 required
                 disabled={pending}
                 className="mt-2 block w-full rounded-md border border-zinc-300 bg-white text-sm text-zinc-950 shadow-sm file:mr-4 file:min-h-10 file:border-0 file:bg-zinc-100 file:px-4 file:text-sm file:font-semibold file:text-zinc-700 hover:file:bg-zinc-200 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500"
               />
-            </div>
-
-            <div>
-              <label
-                htmlFor="pedido-file-category"
-                className="text-sm font-medium text-zinc-900"
-              >
-                Categoría
-              </label>
-              <select
-                id="pedido-file-category"
-                name="category"
-                required
-                disabled={pending}
-                defaultValue={allowedCategories[0]}
-                className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-950 shadow-sm outline-none transition focus:border-teal-700 focus:ring-2 focus:ring-teal-700/20 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500"
-              >
-                {allowedCategories.map((category) => (
-                  <option key={category} value={category}>
-                    {STORAGE_FILE_CATEGORY_LABELS[category]}
-                  </option>
-                ))}
-              </select>
             </div>
 
             <button

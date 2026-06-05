@@ -2,42 +2,29 @@ import { notFound } from "next/navigation";
 import { InternalPedidoDetail } from "@/components/pedidos/InternalPedidoDetail";
 import { PedidoCommentsSection } from "@/components/pedidos/PedidoCommentsSection";
 import { PedidoHistorySection } from "@/components/pedidos/PedidoHistorySection";
+import { PedidoTasksSection } from "@/components/pedidos/PedidoTasksSection";
 import { PedidoWorkerAssignmentForm } from "@/components/pedidos/PedidoWorkerAssignmentForm";
 import { PedidoFilesSection } from "@/components/storage/PedidoFilesSection";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import {
   hasPermission,
-  isAdmin,
-  isSupervisor,
-  isTrabajador,
-  type Role,
 } from "@/lib/permissions/permissions";
 import {
+  EMPTY_PEDIDO_TASKS_PROGRESS,
   getInternalPedidoById,
   listAssignableWorkers,
   listPedidoComments,
   listPedidoHistory,
+  listPedidoTasks,
 } from "@/lib/pedidos";
-import { listPedidoFiles, type PedidoFileCategory } from "@/lib/storage";
+import { listPedidoFiles } from "@/lib/storage";
 
 type DashboardPedidoDetallePageProps = {
   params: Promise<{
     id: string;
   }>;
 };
-
-function getAllowedPedidoFileCategories(role: Role): PedidoFileCategory[] {
-  if (isAdmin(role) || isSupervisor(role)) {
-    return ["interno_pedido", "avance", "final_entrega"];
-  }
-
-  if (isTrabajador(role)) {
-    return ["avance", "final_entrega"];
-  }
-
-  return [];
-}
 
 export default async function DashboardPedidoDetallePage({
   params,
@@ -67,13 +54,10 @@ export default async function DashboardPedidoDetallePage({
   const canManagePedidos =
     profile !== null && hasPermission(profile.role, "pedidos.manage");
   const workersResult = canManagePedidos ? await listAssignableWorkers() : null;
+  const tasksResult = await listPedidoTasks(result.pedido.id);
   const filesResult = await listPedidoFiles(result.pedido.id);
   const commentsResult = await listPedidoComments(result.pedido.id);
   const historyResult = await listPedidoHistory(result.pedido.id);
-  const allowedFileCategories = profile
-    ? getAllowedPedidoFileCategories(profile.role)
-    : [];
-
   return (
     <div className="space-y-8">
       <PageHeader
@@ -82,6 +66,12 @@ export default async function DashboardPedidoDetallePage({
       />
       <InternalPedidoDetail
         pedido={result.pedido}
+        taskProgress={tasksResult.ok ? tasksResult.progress : undefined}
+        tasksLoadError={
+          tasksResult.ok
+            ? undefined
+            : "No se pudieron cargar las tareas del pedido."
+        }
         workerAssignmentSection={
           <PedidoWorkerAssignmentForm
             pedidoId={result.pedido.id}
@@ -92,6 +82,22 @@ export default async function DashboardPedidoDetallePage({
               canManagePedidos && workersResult && !workersResult.ok
                 ? workersResult.message
                 : undefined
+            }
+          />
+        }
+        tasksSection={
+          <PedidoTasksSection
+            pedidoId={result.pedido.id}
+            tasks={tasksResult.ok ? tasksResult.tasks : []}
+            progress={
+              tasksResult.ok
+                ? tasksResult.progress
+                : EMPTY_PEDIDO_TASKS_PROGRESS
+            }
+            loadError={
+              tasksResult.ok
+                ? undefined
+                : "No se pudieron cargar las tareas del pedido."
             }
           />
         }
@@ -113,9 +119,9 @@ export default async function DashboardPedidoDetallePage({
         filesSection={
           <PedidoFilesSection
             pedidoId={result.pedido.id}
+            pedidoStatus={result.pedido.status}
             files={filesResult.ok ? filesResult.files : []}
-            canUpload={allowedFileCategories.length > 0}
-            allowedCategories={allowedFileCategories}
+            canUpload={profile !== null}
             loadError={
               filesResult.ok
                 ? undefined

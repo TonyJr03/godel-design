@@ -43,11 +43,6 @@ function getManagementCards(
       description: "Pedidos abiertos, sin contar entregados ni cancelados.",
     },
     {
-      title: "En diseño",
-      value: metrics.pedidosEnDiseno,
-      description: "Pedidos actualmente en fase de diseño.",
-    },
-    {
       title: "En producción",
       value: metrics.pedidosEnProduccion,
       description: "Pedidos actualmente en fase de producción.",
@@ -56,6 +51,12 @@ function getManagementCards(
       title: "Listos para entrega",
       value: metrics.pedidosListosEntrega,
       description: "Pedidos terminados y pendientes de entrega.",
+    },
+    {
+      title: "Sin tareas",
+      value: metrics.pedidosSinTareas,
+      description:
+        "Pedidos pendientes de revisión o en revisión que aún no tienen tareas.",
     },
     {
       title: "Pedidos atrasados",
@@ -90,11 +91,6 @@ function getWorkerCards(
       description: "Tus pedidos abiertos, sin entregados ni cancelados.",
     },
     {
-      title: "En diseño",
-      value: metrics.pedidosAsignadosEnDiseno,
-      description: "Tus pedidos asignados que están en diseño.",
-    },
-    {
       title: "En producción",
       value: metrics.pedidosAsignadosEnProduccion,
       description: "Tus pedidos asignados que están en producción.",
@@ -103,6 +99,12 @@ function getWorkerCards(
       title: "Listos para entrega",
       value: metrics.pedidosAsignadosListosEntrega,
       description: "Tus pedidos terminados y pendientes de entrega.",
+    },
+    {
+      title: "Asignados sin tareas",
+      value: metrics.pedidosAsignadosSinTareas,
+      description:
+        "Tus pedidos pendientes de revisión o en revisión que aún no tienen tareas.",
     },
     {
       title: "Atrasados",

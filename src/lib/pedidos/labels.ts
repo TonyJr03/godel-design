@@ -2,11 +2,9 @@ import type { Enums } from "@/types/database";
 import type { PedidoPriority, PedidoStatus } from "./status";
 
 export const PEDIDO_STATUS_LABELS: Record<PedidoStatus, string> = {
+  creado: "Creado",
   solicitud_recibida: "Solicitud recibida",
   en_revision: "En revisión",
-  cotizado: "Cotizado",
-  aprobado_cliente: "Aprobado por cliente",
-  en_diseno: "En diseño",
   en_produccion: "En producción",
   listo_entrega: "Listo para entrega",
   entregado: "Entregado",
@@ -33,4 +31,10 @@ export const PEDIDO_HISTORY_ACTION_LABELS: Record<
   fecha_entrega_actualizada: "Fecha de entrega actualizada",
   pedido_entregado: "Pedido entregado",
   pedido_cancelado: "Pedido cancelado",
+  tarea_creada: "Tarea creada",
+  tarea_actualizada: "Tarea actualizada",
+  tarea_eliminada: "Tarea eliminada",
+  tarea_completada: "Tarea completada",
+  tarea_reabierta: "Tarea reabierta",
+  tarea_progreso_actualizado: "Progreso de tarea actualizado",
 };

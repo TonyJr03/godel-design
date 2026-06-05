@@ -18,9 +18,9 @@ export type ManagementDashboardMetrics = {
   solicitudesPendientes: number;
   solicitudesAprobadasPendientesConvertir: number;
   pedidosActivos: number;
-  pedidosEnDiseno: number;
   pedidosEnProduccion: number;
   pedidosListosEntrega: number;
+  pedidosSinTareas: number;
   pedidosAtrasados: number;
   pedidosProximosEntrega: number;
   clientesRegistrados: number;
@@ -28,9 +28,9 @@ export type ManagementDashboardMetrics = {
 
 export type WorkerDashboardMetrics = {
   pedidosAsignadosActivos: number;
-  pedidosAsignadosEnDiseno: number;
   pedidosAsignadosEnProduccion: number;
   pedidosAsignadosListosEntrega: number;
+  pedidosAsignadosSinTareas: number;
   pedidosAsignadosAtrasados: number;
   pedidosAsignadosProximosEntrega: number;
   totalPedidosAsignados: number;
@@ -123,9 +123,21 @@ export type DashboardPedidoWorkItem = {
   fechaEntregaEstimada: string | null;
   createdAt: string;
   clienteNombre: string | null;
+  progress: {
+    totalTasks: number;
+    completedTasks: number;
+    pendingTasks: number;
+    progressPercentage: number;
+    hasTasks: boolean;
+    isComplete: boolean;
+  };
   attention: {
+    isPendingReview: boolean;
     isOverdue: boolean;
     isDueSoon: boolean;
+    isReviewWithoutTasks: boolean;
+    isProductionWithPendingTasks: boolean;
+    isReadyForDelivery: boolean;
   };
 };
 

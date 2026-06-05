@@ -101,7 +101,7 @@ export async function uploadPublicSolicitudFiles(
     ok: true,
     uploaded: [],
     errors: extraFiles.map((file) => ({
-      fileName: file.name || "Archivo sin name",
+      fileName: file.name || "Archivo sin nombre",
       reason: "too_many_files",
     })),
   };
@@ -127,7 +127,7 @@ export async function uploadPublicSolicitudFiles(
       });
     } else {
       result.errors.push({
-        fileName: file.name || "Archivo sin name",
+        fileName: file.name || "Archivo sin nombre",
         reason: uploadResult.reason,
       });
     }

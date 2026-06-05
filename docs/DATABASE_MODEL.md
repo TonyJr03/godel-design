@@ -41,11 +41,9 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 
 | Valor |
 |---|
+| `creado` |
 | `solicitud_recibida` |
 | `en_revision` |
-| `cotizado` |
-| `aprobado_cliente` |
-| `en_diseno` |
 | `en_produccion` |
 | `listo_entrega` |
 | `entregado` |
@@ -59,6 +57,13 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 | `normal` |
 | `alta` |
 | `urgente` |
+
+### `pedido_tarea_tipo`
+
+| Valor | Uso |
+|---|---|
+| `simple` | Tarea sin cantidades, como diseñar una pieza o revisar un archivo. |
+| `cuantificada` | Tarea con cantidad objetivo y avance numérico. |
 
 ### `archivo_visibility`
 
@@ -172,7 +177,6 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 | `client_email` | `text nullable` | Correo opcional capturado desde el formulario público. |
 | `service_type` | `text` | Tipo de servicio solicitado. |
 | `description` | `text` | Descripción del trabajo solicitado. |
-| `quantity` | `integer nullable` | Cantidad solicitada si aplica. |
 | `desired_date` | `date nullable` | Fecha deseada por el cliente. |
 | `notes` | `text nullable` | Observaciones adicionales. |
 | `status` | `solicitud_estado` | Estado operativo de la solicitud. |
@@ -192,6 +196,12 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 - Una solicitud no se convierte automáticamente en pedido.
 - Solo `admin` o `supervisor` pueden aprobar, rechazar o convertir solicitudes.
 - Al convertirse, el estado debería pasar a `convertida` y registrar el pedido generado.
+- Los cambios manuales de estado se validan mediante `public.actualizar_estado_solicitud`.
+- Transiciones manuales permitidas: `nueva` -> `en_revision` o `rechazada`; `en_revision` -> `contactada` o `rechazada`; `contactada` -> `aprobada` o `rechazada`; `aprobada` -> `rechazada`.
+- `rechazada` y `convertida` son estados cerrados. `convertida` solo se asigna desde el flujo formal de conversión a pedido.
+- `quantity` fue eliminado del modelo de solicitudes. Las cantidades, medidas y requisitos se deben explicar dentro de `description` o `notes`.
+- `service_type` sigue siendo una referencia inicial del tipo de trabajo solicitado.
+- La conversión a pedido exige `title`, `description` y `priority` definidos por el usuario interno. `priority` inicia visualmente en `normal` y se valida contra el enum real. `estimated_delivery_date` es opcional y no puede ser anterior al día actual si se informa. `service_type` no se usa como título automático.
 
 **Notas de seguridad:**
 
@@ -206,8 +216,8 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 | Campo | Tipo sugerido | Notas |
 |---|---|---|
 | `id` | `uuid` | Identificador único del pedido. |
-| `order_number` | `text unique` | Número visible y único para operación interna. |
-| `cliente_id` | `uuid nullable` | Cliente asociado. |
+| `order_number` | `text unique` | Número visible y único para operación interna, con formato `P-YY-XXXX`. |
+| `cliente_id` | `uuid nullable` | Cliente asociado; opcional en pedidos manuales y requerido en pedidos convertidos desde solicitud. |
 | `solicitud_id` | `uuid nullable` | Solicitud origen si el pedido fue convertido. |
 | `title` | `text` | Nombre breve del pedido. |
 | `description` | `text` | Detalle del trabajo. |
@@ -227,8 +237,15 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 
 **Reglas importantes:**
 
-- `order_number` debe ser único.
+- `order_number` debe ser único y cumplir el formato `P-YY-XXXX`.
+- `order_number` se genera en base de datos al insertar el pedido. La secuencia reinicia cada año y se controla con `pedido_contadores` para proteger la concurrencia.
 - Un pedido puede crearse manualmente o a partir de una solicitud.
+- Un pedido manual puede quedar sin cliente asociado (`cliente_id = null`).
+- La conversión desde solicitud exige que la solicitud tenga `cliente_id` asociado.
+- Un pedido manual inicia en `creado`; un pedido convertido desde solicitud inicia en `solicitud_recibida`.
+- `creado` puede pasar únicamente a `en_revision` o `cancelado`. No permite avanzar directamente a producción, listo para entrega o entregado.
+- La conversión desde solicitud guarda la prioridad definida por el usuario interno y una fecha estimada opcional validada server-side. Usa la numeración generada por base de datos y mantiene el estado inicial `solicitud_recibida`.
+- Los estados de pedido solo representan fases generales. Las tareas de pedido modelan el progreso real y condicionan el avance operativo mediante `public.actualizar_estado_pedido`.
 - Los cambios importantes de estado deben registrarse en `pedido_historial`.
 
 **Notas de seguridad:**
@@ -236,6 +253,30 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 - `admin` puede acceder a todos los pedidos.
 - `supervisor` puede gestionar pedidos.
 - `trabajador` solo debe leer pedidos donde esté asignado.
+
+### `pedido_contadores`
+
+**Propósito:** Controla la secuencia anual de números visibles de pedido.
+
+| Campo | Tipo sugerido | Notas |
+|---|---|---|
+| `year` | `smallint` | Año de la secuencia. Clave primaria. |
+| `last_number` | `integer` | Último número asignado dentro del año. |
+| `updated_at` | `timestamptz` | Fecha de última actualización del contador. |
+
+**Reglas importantes:**
+
+- La numeración visible de pedidos usa el formato `P-YY-XXXX`.
+- La secuencia reinicia por año.
+- La función privada `private.generar_numero_pedido()` incrementa el contador dentro de la transacción.
+- Si la secuencia anual supera `9999`, la función debe fallar para evitar generar un formato inválido.
+- La aplicación no acepta ni envía `order_number` desde formularios.
+
+**Notas de seguridad:**
+
+- La tabla no tiene UI ni acceso directo desde la aplicación.
+- No se conceden permisos directos a usuarios anónimos o autenticados.
+- La asignación del número ocurre mediante trigger de base de datos al insertar en `pedidos`.
 
 ### `pedido_trabajadores`
 
@@ -266,6 +307,50 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 - Solo `admin` o `supervisor` deberían asignar o remover personal.
 - La tabla es clave para permitir que trabajadores vean solo pedidos asignados y el personal asignado a esos pedidos.
 
+### `pedido_tareas`
+
+**Propósito:** Registra tareas operativas asociadas a un pedido. El progreso real del pedido se modela con estas tareas, no con estados finos de pedido.
+
+| Campo | Tipo sugerido | Notas |
+|---|---|---|
+| `id` | `uuid` | Identificador único de la tarea. |
+| `pedido_id` | `uuid` | Pedido al que pertenece la tarea. |
+| `title` | `text` | Texto escrito por el usuario interno. |
+| `task_type` | `pedido_tarea_tipo` | `simple` o `cuantificada`. |
+| `target_quantity` | `integer nullable` | Cantidad objetivo para tareas cuantificadas. |
+| `completed_quantity` | `integer nullable` | Avance numérico de tareas cuantificadas. |
+| `is_completed` | `boolean` | Indica si la tarea está completada. |
+| `sort_order` | `integer` | Orden manual dentro del pedido. |
+| `created_by` | `uuid nullable` | Perfil que creó la tarea. |
+| `updated_by` | `uuid nullable` | Perfil que actualizó la tarea. |
+| `completed_by` | `uuid nullable` | Perfil que completó la tarea. |
+| `completed_at` | `timestamptz nullable` | Fecha de completado. |
+| `created_at` | `timestamptz` | Fecha de creación. |
+| `updated_at` | `timestamptz` | Fecha de última actualización. |
+
+**Claves foráneas:**
+
+- `pedido_tareas.pedido_id` -> `pedidos.id`.
+- `pedido_tareas.created_by` -> `perfiles.id`.
+- `pedido_tareas.updated_by` -> `perfiles.id`.
+- `pedido_tareas.completed_by` -> `perfiles.id`.
+
+**Reglas importantes:**
+
+- `title` no puede estar vacío.
+- `sort_order` no puede ser negativo.
+- Las tareas `simple` no guardan cantidades.
+- Las tareas `cuantificada` requieren `target_quantity > 0`, `completed_quantity >= 0` y `completed_quantity <= target_quantity`.
+- La detección automática de tipo por números en el título se implementa en servicios TypeScript server-side.
+- La UI del detalle permite gestionar tareas y la RPC de cambio de estado exige tareas para pasar a producción y tareas completas para marcar listo para entrega.
+
+**Notas de seguridad:**
+
+- RLS está activo.
+- `admin`, `supervisor` y personal asignado pueden gestionar tareas de pedidos accesibles.
+- El acceso se basa en `private.can_access_pedido(pedido_id)`.
+- Usuarios anónimos no acceden.
+
 ### `archivos`
 
 **Propósito:** Registra metadatos de archivos asociados a solicitudes o pedidos.
@@ -295,12 +380,16 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 - Un archivo puede pertenecer a una solicitud o a un pedido.
 - Debe evitarse que un archivo quede sin contexto salvo decisión explícita.
 - Los archivos son privados por defecto.
+- En subidas internas de pedido, `visibility` se deriva del estado actual: revisión inicial usa `interno_pedido`, producción usa `avance` y listo para entrega usa `final_entrega`.
+- Pedidos `entregado` o `cancelado` no aceptan nuevas subidas.
+- Los archivos heredados desde una solicitud conservan `visibility = cliente_solicitud`, su ruta física y su relación de origen.
 
 **Notas de seguridad:**
 
 - No deben usarse URLs públicas permanentes.
 - El acceso debe resolverse mediante reglas de Storage, RLS y URLs firmadas.
 - Trabajadores solo deberían acceder a archivos de pedidos asignados.
+- Un trabajador asignado puede subir la categoría derivada por el estado del pedido; RLS y Storage deben validar la misma correspondencia entre estado, categoría y carpeta.
 
 ### `pedido_comentarios`
 
@@ -386,8 +475,8 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 
 - Los comentarios son internos.
 - Una solicitud puede tener muchos comentarios.
-- El content no puede estar vacío.
-- El content tiene un límite inicial de 2000 caracteres.
+- El contenido no puede estar vacío.
+- El campo `content` tiene un límite inicial de 2000 caracteres.
 - No hay edición ni eliminación inicial.
 
 **Notas de seguridad:**
@@ -439,6 +528,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 - Una solicitud puede convertirse en un pedido.
 - Un pedido puede tener varios usuarios internos asignados.
 - Un usuario interno puede estar asignado a varios pedidos.
+- Un pedido puede tener muchas tareas.
 - Un pedido puede tener muchos archivos.
 - Una solicitud puede tener muchos archivos.
 - Un pedido puede tener muchos comentarios.
@@ -451,6 +541,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 - Una solicitud no se convierte automáticamente en pedido.
 - Solo `admin` o `supervisor` podrán convertir solicitudes en pedidos.
 - Trabajadores solo podrán ver pedidos asignados.
+- Trabajadores asignados pueden gestionar tareas de sus pedidos asignados.
 - Los archivos serán privados por defecto.
 - El historial no será editable manualmente.
 - Los clientes no tendrán cuenta de usuario en la primera versión.

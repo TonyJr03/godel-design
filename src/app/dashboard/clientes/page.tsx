@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ListFiltersBar } from "@/components/common/ListFiltersBar";
 import { InternalClientesList } from "@/components/clientes/InternalClientesList";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { listInternalClientes } from "@/lib/clientes";
@@ -16,7 +17,7 @@ export default async function DashboardClientesPage({
   const params = await searchParams;
   const q = getSingleSearchParam(params.q);
   const result = await listInternalClientes({ q });
-  const searchValue = result.q ?? q ?? "";
+  const searchValue = result.q ?? "";
 
   return (
     <div className="space-y-8">
@@ -33,33 +34,25 @@ export default async function DashboardClientesPage({
         </Link>
       </div>
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-zinc-950">
-          Buscar clientes
-        </h2>
-        <form action="/dashboard/clientes" className="flex max-w-2xl gap-3">
-          <input
-            type="search"
-            name="q"
-            defaultValue={searchValue}
-            placeholder="Nombre, teléfono o email"
-            className="min-h-10 flex-1 rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-teal-700 focus:ring-2 focus:ring-teal-700/20"
-          />
-          <button
-            type="submit"
-            className="inline-flex min-h-10 items-center justify-center rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800"
-          >
-            Buscar
-          </button>
-        </form>
-      </section>
+      <ListFiltersBar
+        searchLabel="Buscar clientes"
+        searchPlaceholder="Nombre, teléfono o correo"
+        initialQuery={searchValue}
+      />
 
       {!result.ok ? (
         <section className="rounded-lg border border-red-200 bg-red-50 p-5 text-sm text-red-950">
           {result.message}
         </section>
       ) : (
-        <InternalClientesList clientes={result.clientes} />
+        <InternalClientesList
+          clientes={result.clientes}
+          emptyMessage={
+            searchValue
+              ? "No se encontraron clientes con los filtros aplicados."
+              : undefined
+          }
+        />
       )}
     </div>
   );

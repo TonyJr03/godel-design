@@ -256,6 +256,12 @@ Filtros disponibles por GET:
 - `role`: acepta `admin`, `supervisor` o `trabajador`.
 - `active`: acepta `true` o `false`.
 
+La página usa la misma barra de filtros que los demás listados internos. La
+búsqueda actualiza `q` con `router.replace` tras 200 ms sin escritura; los
+selectores de rol y estado se aplican inmediatamente y el botón de limpieza
+elimina los tres parámetros. El componente cliente solo modifica la URL y la
+consulta permanece server-side. Durante la espera muestra `Buscando...`.
+
 El listado no consulta `auth.users`, no muestra email, no crea usuarios, no edita perfiles, no cambia roles, no activa o desactiva perfiles y no usa service role key.
 
 ## Estado de Implementación de 12.3

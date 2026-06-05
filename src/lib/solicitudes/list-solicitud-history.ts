@@ -216,8 +216,8 @@ export async function listSolicitudHistory(
       }
     }
 
-    return serviceSuccess({
-      history: history.map(({ actor_full_name, actor_role, ...historyItem }) => {
+    const mappedHistory = history.map(
+      ({ actor_full_name, actor_role, ...historyItem }) => {
         const clienteId = getMetadataString(historyItem.metadata, "cliente_id");
         const pedidoId = getMetadataString(historyItem.metadata, "pedido_id");
 
@@ -234,7 +234,11 @@ export async function listSolicitudHistory(
             pedido: pedidoId ? pedidosById.get(pedidoId) : undefined,
           },
         };
-      }),
+      },
+    );
+
+    return serviceSuccess({
+      history: mappedHistory,
     });
   } catch (error) {
     console.error("Unexpected error listing solicitud history", error);

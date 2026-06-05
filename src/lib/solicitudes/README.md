@@ -2,6 +2,12 @@
 
 Esta carpeta contiene la lógica server-side del flujo público e interno de solicitudes.
 
+## Listado interno
+
+`listInternalSolicitudes` acepta `q` y `status`. La búsqueda server-side cubre la referencia corta visible, nombre, teléfono y correo del cliente, tipo de servicio, descripción y notas. Los labels visibles de servicio se traducen a los valores almacenados para búsquedas como “diseño”.
+
+La búsqueda se combina con el filtro de estado, conserva ambos parámetros GET en la UI, limita y normaliza el texto recibido y respeta el permiso `solicitudes.view` y RLS. La barra común actualiza `q` tras 200 ms sin escritura, aplica el estado inmediatamente, muestra `Buscando...` durante la espera y permite limpiar ambos filtros; la consulta continúa server-side. No forma parte de un buscador global.
+
 ## Flujo público
 
 El cliente externo puede enviar datos básicos de contacto y del trabajo solicitado sin tener cuenta de usuario. La solicitud se valida en el servidor y se inserta en Supabase con `status = "nueva"`.
@@ -17,12 +23,15 @@ Por seguridad, el flujo público no usa service role key. La inserción se hace 
 - `client_email`
 - `service_type`
 - `description`
-- `quantity`
 - `desired_date`
 - `notes`
 - `files`
 
-Los campos se recortan, los opcionales vacíos se convierten a `null`, y se validan longitudes razonables, formato básico de correo, cantidad positiva y fecha válida. `desired_date` es opcional, pero si se informa debe ser igual o posterior al día actual. La validación definitiva ocurre en servidor.
+Los campos se recortan, los opcionales vacíos se convierten a `null`, y se validan longitudes razonables, formato básico de correo y fecha válida. `desired_date` es opcional, pero si se informa debe ser igual o posterior al día actual. La validación definitiva ocurre en servidor.
+
+La fecha deseada se valida con los helpers centralizados de `src/lib/validators/date.ts`, apoyados en `src/lib/utils/date.ts` para calcular el día actual local. El `min` del formulario público es solo una ayuda de UI; la regla real sigue estando en la validación server-side.
+
+`quantity` fue eliminado de solicitudes. Las cantidades, medidas y requisitos deben explicarse dentro de `description` o `notes`; `service_type` queda como referencia inicial del tipo de trabajo.
 
 El formulario no acepta campos sensibles como `id`, `status`, `cliente_id`, `reviewed_by` ni `converted_order_id`.
 
@@ -39,9 +48,13 @@ Reglas principales:
 - `pedido_id` queda en `null`;
 - `uploaded_by` queda en `null`;
 - no hay lectura pública, listado público ni URLs públicas;
-- los archivos se consultarán internamente en una fase posterior.
+- `admin` y `supervisor` pueden consultarlos y descargarlos desde el detalle interno de solicitud mediante rutas internas seguras.
 
 La solicitud se crea antes de asociar archivos. Si la solicitud se registra correctamente pero algún archivo falla durante la subida, la solicitud se conserva y la UI muestra una advertencia segura.
+
+## Labels visibles
+
+Los valores técnicos o históricos de `service_type` se renderizan mediante `labels.ts`. La UI debe usar `getSolicitudServiceTypeLabel` para mostrar tildes y `ñ` correctamente sin cambiar el valor guardado en la solicitud.
 
 ## Consultas internas
 
@@ -51,23 +64,26 @@ La solicitud se crea antes de asociar archivos. Si la solicitud se registra corr
 
 ## Cambio de estado
 
-`updateInternalSolicitudStatus` cambia server-side el estado operativo de una solicitud desde la action de `/dashboard/solicitudes/[id]`. Requiere usuario interno activo con permiso `solicitudes.manage`, valida el UUID y solo acepta estados manuales permitidos.
+`updateInternalSolicitudStatus` cambia server-side el estado operativo de una solicitud desde la action de `/dashboard/solicitudes/[id]`. Requiere usuario interno activo con permiso `solicitudes.manage`, valida el UUID, rechaza `convertida` como estado manual y delega la transición en la RPC segura `public.actualizar_estado_solicitud`.
 
-Estados manuales permitidos:
+Transiciones manuales permitidas:
 
-- `nueva`
-- `en_revision`
-- `contactada`
-- `aprobada`
-- `rechazada`
+- `nueva` -> `en_revision` o `rechazada`;
+- `en_revision` -> `contactada` o `rechazada`;
+- `contactada` -> `aprobada` o `rechazada`;
+- `aprobada` -> `rechazada`.
 
-`convertida` no aparece en el formulario ni se acepta en servidor; queda reservada para el flujo formal de conversión a pedido.
+`rechazada` y `convertida` son estados cerrados. `convertida` no aparece en el formulario ni se acepta en servidor; queda reservada para el flujo formal de conversión a pedido. Si el estado enviado es igual al actual, la RPC retorna sin duplicar historial.
 
 ## Conversión a pedido
 
 Una solicitud aprobada con cliente asociado puede convertirse en pedido desde el detalle interno de la solicitud.
 
 El estado `convertida` no se establece manualmente desde el selector de estado. Se establece mediante el flujo formal de conversión, que crea un pedido, relaciona `pedidos.solicitud_id`, actualiza `solicitudes.converted_order_id` y deja la solicitud en estado `convertida`.
+
+La conversión exige que el usuario interno defina `title`, `description` y `priority` para el pedido. `priority` inicia visualmente en `normal` y se valida contra las prioridades reales de pedido. `estimated_delivery_date` es opcional, pero si se informa debe ser igual o posterior al día actual y se valida con `src/lib/validators/date.ts`.
+
+`service_type` queda como referencia inicial del cliente y no se usa como título automático. La descripción del pedido se puede ajustar desde la descripción original de la solicitud antes de crear el pedido. La conversión no envía `order_number`; la base de datos lo asigna con formato `P-YY-XXXX`. El estado inicial sigue siendo `solicitud_recibida`.
 
 ## Asociación solicitud-cliente
 
@@ -96,6 +112,8 @@ La action `createSolicitudCommentAction` lee únicamente `solicitud_id` y `conte
 
 `SolicitudHistorySection` muestra los eventos existentes en `solicitud_historial` dentro del detalle interno de solicitud. La sección muestra tipo de evento, resumen, actor, rol y fecha. Si `actor_id` es `null`, el evento se muestra como “Evento automático”.
 
+El historial se muestra con el evento más reciente primero. La tabla `solicitud_historial` usa `created_at default clock_timestamp()` para que eventos insertados muy cerca entre sí conserven un timestamp real de ejecución. La RPC ordena por `created_at desc` y usa `id desc` solo como desempate secundario; no hay reordenamiento visual manual en TypeScript.
+
 Para mantener el mismo nivel de detalle que el historial de pedidos, la sección usa `summary`, `old_value`, `new_value`, `metadata` y relaciones mínimas cuando están disponibles: estados anterior/nuevo, nombre del archivo, cliente relacionado y pedido generado.
 
 El historial es append-only. No hay edición, eliminación ni notificaciones.
@@ -108,11 +126,10 @@ Desde Fase 11.7B, la base de datos registra automáticamente:
 - `cliente_asociado` al asociar un cliente;
 - `convertida_a_pedido` al convertir una solicitud a pedido.
 
-El evento `cliente_creado_desde_solicitud` se registra desde `createClienteFromSolicitudAndAssociate` después de crear el cliente y asociarlo correctamente. El servicio no acepta datos de historial desde formularios y no usa service role key. Si ese registro de historial falla, se registra el error en servidor sin romper la creación/asociación ya completada.
+El evento `cliente_creado_desde_solicitud` se registra desde `createClienteFromSolicitudAndAssociate` después de crear el cliente y antes de asociarlo a la solicitud. Luego la actualización de `solicitudes.cliente_id` dispara `cliente_asociado`. Como el historial visible se muestra con el evento más reciente primero, el usuario verá primero “Cliente asociado” y después “Cliente creado desde la solicitud”. El servicio no acepta datos de historial desde formularios y no usa service role key. Si ese registro de historial falla, se registra el error en servidor sin romper la creación/asociación ya completada.
 
 ## Alcance excluido
 
 - No hay lectura ni descarga pública de archivos.
-- No hay visualización interna de archivos de solicitudes todavía.
 - No se convierte automáticamente la solicitud en pedido fuera del flujo formal.
 - No se implementa deduplicación inteligente de clientes.

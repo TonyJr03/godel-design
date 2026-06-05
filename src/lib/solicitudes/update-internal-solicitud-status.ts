@@ -7,8 +7,12 @@ import {
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
-import type { TablesUpdate } from "@/types/database";
-import { isManualSolicitudStatus, type ManualSolicitudStatus } from "./status";
+import type { Enums, Tables } from "@/types/database";
+import {
+  isManualSolicitudStatus,
+  isSolicitudStatus,
+  type ManualSolicitudStatus,
+} from "./status";
 
 export type UpdateInternalSolicitudStatusInput = {
   solicitudId: string;
@@ -21,6 +25,7 @@ export type UpdateInternalSolicitudStatusErrorReason =
   | "invalid_id"
   | "invalid_status"
   | "not_found"
+  | "transition"
   | "error";
 
 export type UpdateInternalSolicitudStatusResult = ServiceResult<
@@ -29,20 +34,59 @@ export type UpdateInternalSolicitudStatusResult = ServiceResult<
 >;
 
 const GENERIC_UPDATE_ERROR =
-  "No se pudo actualizar el status. Inténtalo nuevamente.";
+  "No se pudo actualizar el estado. Inténtalo nuevamente.";
+
+const SAFE_RPC_STATUS_MESSAGES = [
+  "Transición de estado no permitida.",
+  "No se puede cambiar el estado de una solicitud cerrada.",
+  "El estado convertida solo se asigna al convertir la solicitud en pedido.",
+  "No tienes permiso para cambiar el estado de esta solicitud.",
+] as const;
+
+type SolicitudStatusRpcResult = {
+  data: Tables<"solicitudes"> | null;
+  error: { message?: string } | null;
+};
+
+type SolicitudStatusRpcClient = {
+  rpc(
+    fn: "actualizar_estado_solicitud",
+    args: {
+      p_solicitud_id: string;
+      p_estado_nuevo: Enums<"solicitud_estado">;
+    },
+  ): PromiseLike<SolicitudStatusRpcResult>;
+};
+
+function getSafeRpcStatusErrorMessage(errorMessage: string | undefined): string {
+  const message = errorMessage?.trim();
+
+  return (
+    SAFE_RPC_STATUS_MESSAGES.find((safeMessage) =>
+      message?.includes(safeMessage),
+    ) ?? GENERIC_UPDATE_ERROR
+  );
+}
 
 export async function updateInternalSolicitudStatus({
   solicitudId,
   status,
 }: UpdateInternalSolicitudStatusInput): Promise<UpdateInternalSolicitudStatusResult> {
-  if (!isValidUuid(solicitudId)) {
+  const normalizedSolicitudId = solicitudId.trim();
+  const normalizedStatus = status.trim();
+
+  if (!isValidUuid(normalizedSolicitudId)) {
     return serviceFailure("invalid_id", "La solicitud no existe.");
   }
 
-  if (!isManualSolicitudStatus(status)) {
+  if (!isSolicitudStatus(normalizedStatus)) {
+    return serviceFailure("invalid_status", "Selecciona un estado válido.");
+  }
+
+  if (!isManualSolicitudStatus(normalizedStatus)) {
     return serviceFailure(
       "invalid_status",
-      "El status seleccionado no se puede asignar manualmente.",
+      "El estado convertida solo se asigna al convertir la solicitud en pedido.",
     );
   }
 
@@ -51,42 +95,55 @@ export async function updateInternalSolicitudStatus({
   if (!profile) {
     return serviceFailure(
       "unauthorized",
-      "No tienes permiso para cambiar el status de solicitudes.",
+      "No tienes permiso para cambiar el estado de solicitudes.",
     );
   }
 
   if (!hasPermission(profile.role, "solicitudes.manage")) {
     return serviceFailure(
       "forbidden",
-      "No tienes permiso para cambiar el status de solicitudes.",
+      "No tienes permiso para cambiar el estado de solicitudes.",
     );
   }
 
   const supabase = await createClient();
-  const updateData: TablesUpdate<"solicitudes"> = {
-    status,
-    reviewed_by: profile.id,
-  };
 
   try {
-    const { data, error } = await supabase
+    const { data: solicitud, error: solicitudError } = await supabase
       .from("solicitudes")
-      .update(updateData)
-      .eq("id", solicitudId)
       .select("id")
-      .maybeSingle();
+      .eq("id", normalizedSolicitudId)
+      .maybeSingle<{ id: string }>();
 
-    if (error) {
-      console.error("Error updating internal solicitud status", error);
+    if (solicitudError) {
+      console.error("Error checking solicitud before status update", solicitudError);
 
       return serviceFailure("error", GENERIC_UPDATE_ERROR);
     }
 
-    if (!data) {
+    if (!solicitud) {
       return serviceFailure("not_found", "La solicitud no existe.");
     }
 
-    return serviceSuccess({ status });
+    const { error } = await (
+      supabase as unknown as SolicitudStatusRpcClient
+    ).rpc("actualizar_estado_solicitud", {
+      p_solicitud_id: normalizedSolicitudId,
+      p_estado_nuevo: normalizedStatus,
+    });
+
+    if (error) {
+      console.error("Error updating internal solicitud status", error);
+      const message = getSafeRpcStatusErrorMessage(error.message);
+
+      if (message !== GENERIC_UPDATE_ERROR) {
+        return serviceFailure("transition", message);
+      }
+
+      return serviceFailure("error", GENERIC_UPDATE_ERROR);
+    }
+
+    return serviceSuccess({ status: normalizedStatus });
   } catch (error) {
     console.error("Unexpected error updating internal solicitud status", error);
 

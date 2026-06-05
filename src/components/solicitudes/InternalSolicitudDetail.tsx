@@ -1,7 +1,10 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { InternalSolicitudDetail as InternalSolicitudDetailData } from "@/lib/solicitudes";
-import { SOLICITUD_STATUS_LABELS } from "@/lib/solicitudes";
+import {
+  SOLICITUD_STATUS_LABELS,
+  getSolicitudServiceTypeLabel,
+} from "@/lib/solicitudes";
 import { SolicitudStatusForm } from "./SolicitudStatusForm";
 
 type InternalSolicitudDetailProps = {
@@ -49,6 +52,8 @@ export function InternalSolicitudDetail({
   commentsSection,
   historySection,
 }: InternalSolicitudDetailProps) {
+  const serviceTypeLabel = getSolicitudServiceTypeLabel(solicitud.service_type);
+
   return (
     <article className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -60,7 +65,7 @@ export function InternalSolicitudDetail({
             Solicitud de {solicitud.client_name}
           </h1>
           <p className="mt-3 text-base leading-7 text-zinc-600">
-            {solicitud.service_type}
+            {serviceTypeLabel}
           </p>
         </div>
         <Link
@@ -88,11 +93,7 @@ export function InternalSolicitudDetail({
             label="Correo electrónico"
             value={solicitud.client_email ?? "No informado"}
           />
-          <DetailItem label="Tipo de servicio" value={solicitud.service_type} />
-          <DetailItem
-            label="Cantidad"
-            value={solicitud.quantity ?? "No definida"}
-          />
+          <DetailItem label="Tipo de servicio" value={serviceTypeLabel} />
           <DetailItem
             label="Fecha deseada"
             value={formatDate(solicitud.desired_date)}
@@ -123,7 +124,7 @@ export function InternalSolicitudDetail({
           Gestión interna
         </h2>
         <p className="mt-2 text-sm leading-6 text-zinc-600">
-          Actualiza el estado operativo de la solicitud.
+          Actualiza el estado operativo siguiendo las transiciones permitidas.
         </p>
         <div className="mt-5">
           <SolicitudStatusForm

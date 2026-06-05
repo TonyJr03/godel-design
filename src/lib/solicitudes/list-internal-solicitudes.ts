@@ -6,7 +6,9 @@ import {
   type ServiceResult,
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
+import { normalizeSearchQuery } from "@/lib/utils";
 import type { Tables } from "@/types/database";
+import { getSolicitudServiceTypeSearchValues } from "./labels";
 import { SOLICITUD_STATUSES, type SolicitudStatus } from "./status";
 
 export const INTERNAL_SOLICITUD_ESTADOS = SOLICITUD_STATUSES;
@@ -23,15 +25,16 @@ export type InternalSolicitud = Pick<
   | "status"
   | "created_at"
   | "desired_date"
-  | "quantity"
 >;
 
 export type ListInternalSolicitudesOptions = {
+  q?: string | null;
   status?: string | null;
   limit?: number;
 };
 
 type ListInternalSolicitudesMeta = {
+  q: string | null;
   status: InternalSolicitudEstado | null;
   ignoredInvalidEstado: boolean;
 };
@@ -49,8 +52,11 @@ export type ListInternalSolicitudesResult = ServiceResult<
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
+const REFERENCE_SCAN_LIMIT = 500;
 const GENERIC_LIST_ERROR =
   "No se pudieron cargar las solicitudes. Inténtalo nuevamente.";
+const SOLICITUDES_SELECT =
+  "id, client_name, client_phone, client_email, service_type, status, created_at, desired_date";
 
 function normalizeLimit(limit: number | undefined): number {
   if (!Number.isFinite(limit)) {
@@ -68,14 +74,42 @@ export function isInternalSolicitudEstado(
   return INTERNAL_SOLICITUD_ESTADOS.includes(status as InternalSolicitudEstado);
 }
 
+function mergeSolicitudes(
+  groups: InternalSolicitud[][],
+  limit: number,
+): InternalSolicitud[] {
+  const byId = new Map<string, InternalSolicitud>();
+
+  for (const group of groups) {
+    for (const solicitud of group) {
+      byId.set(solicitud.id, solicitud);
+    }
+  }
+
+  return [...byId.values()]
+    .sort((left, right) => right.created_at.localeCompare(left.created_at))
+    .slice(0, limit);
+}
+
+function matchesVisibleSolicitudReference(id: string, query: string): boolean {
+  const compactQuery = query.replace(/-/g, "").toLowerCase();
+
+  return (
+    compactQuery.length >= 4 &&
+    /^[0-9a-f]+$/.test(compactQuery) &&
+    id.replace(/-/g, "").toLowerCase().startsWith(compactQuery)
+  );
+}
+
 export async function listInternalSolicitudes(
   options: ListInternalSolicitudesOptions = {},
 ): Promise<ListInternalSolicitudesResult> {
+  const q = normalizeSearchQuery(options.q);
   const selectedEstado = isInternalSolicitudEstado(options.status)
     ? options.status
     : null;
   const ignoredInvalidEstado = Boolean(options.status && !selectedEstado);
-  const meta = { status: selectedEstado, ignoredInvalidEstado };
+  const meta = { q, status: selectedEstado, ignoredInvalidEstado };
   const profile = await getCurrentProfile();
 
   if (!profile) {
@@ -98,28 +132,95 @@ export async function listInternalSolicitudes(
   const supabase = await createClient();
 
   try {
-    let query = supabase
+    let baseQuery = supabase
       .from("solicitudes")
-      .select(
-        "id, client_name, client_phone, client_email, service_type, status, created_at, desired_date, quantity",
-      )
+      .select(SOLICITUDES_SELECT)
       .order("created_at", { ascending: false })
       .limit(limit);
 
     if (selectedEstado) {
-      query = query.eq("status", selectedEstado);
+      baseQuery = baseQuery.eq("status", selectedEstado);
     }
 
-    const { data, error } = await query.returns<InternalSolicitud[]>();
+    if (!q) {
+      const { data, error } =
+        await baseQuery.returns<InternalSolicitud[]>();
 
-    if (error) {
-      console.error("Error listing internal solicitudes", error);
+      if (error) {
+        console.error("Error listing internal solicitudes", error);
+
+        return serviceFailure("error", GENERIC_LIST_ERROR, meta);
+      }
+
+      return serviceSuccess({
+        solicitudes: data ?? [],
+        ...meta,
+      });
+    }
+
+    let textQuery = supabase
+      .from("solicitudes")
+      .select(SOLICITUDES_SELECT)
+      .or(
+        `client_name.ilike.*${q}*,client_phone.ilike.*${q}*,client_email.ilike.*${q}*,service_type.ilike.*${q}*,description.ilike.*${q}*,notes.ilike.*${q}*`,
+      )
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    let referenceQuery = supabase
+      .from("solicitudes")
+      .select(SOLICITUDES_SELECT)
+      .order("created_at", { ascending: false })
+      .limit(REFERENCE_SCAN_LIMIT);
+
+    if (selectedEstado) {
+      textQuery = textQuery.eq("status", selectedEstado);
+      referenceQuery = referenceQuery.eq("status", selectedEstado);
+    }
+
+    const serviceTypeValues = getSolicitudServiceTypeSearchValues(q);
+    let serviceTypeQuery =
+      serviceTypeValues.length > 0
+        ? supabase
+            .from("solicitudes")
+            .select(SOLICITUDES_SELECT)
+            .in("service_type", serviceTypeValues)
+            .order("created_at", { ascending: false })
+            .limit(limit)
+        : null;
+
+    if (serviceTypeQuery && selectedEstado) {
+      serviceTypeQuery = serviceTypeQuery.eq("status", selectedEstado);
+    }
+
+    const [textResult, referenceResult, serviceTypeResult] = await Promise.all([
+      textQuery.returns<InternalSolicitud[]>(),
+      referenceQuery.returns<InternalSolicitud[]>(),
+      serviceTypeQuery
+        ? serviceTypeQuery.returns<InternalSolicitud[]>()
+        : Promise.resolve({ data: [] as InternalSolicitud[], error: null }),
+    ]);
+    const searchError =
+      textResult.error ?? referenceResult.error ?? serviceTypeResult.error;
+
+    if (searchError) {
+      console.error("Error searching internal solicitudes", searchError);
 
       return serviceFailure("error", GENERIC_LIST_ERROR, meta);
     }
 
+    const referenceMatches = (referenceResult.data ?? []).filter((solicitud) =>
+      matchesVisibleSolicitudReference(solicitud.id, q),
+    );
+
     return serviceSuccess({
-      solicitudes: data ?? [],
+      solicitudes: mergeSolicitudes(
+        [
+          textResult.data ?? [],
+          serviceTypeResult.data ?? [],
+          referenceMatches,
+        ],
+        limit,
+      ),
       ...meta,
     });
   } catch (error) {

@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { PEDIDO_STATUS_LABELS, type InternalPedido } from "@/lib/pedidos";
+import { getSolicitudServiceTypeLabel } from "@/lib/solicitudes";
 
 type InternalPedidosListProps = {
   pedidos: InternalPedido[];
+  emptyMessage?: string;
 };
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("es", {
@@ -43,10 +45,25 @@ function getClienteLabel(pedido: InternalPedido): string {
     return pedido.clientes.name;
   }
 
-  return pedido.cliente_id ? "Cliente asociado" : "Sin cliente";
+  return pedido.cliente_id ? "Cliente asociado" : "Sin cliente asociado";
 }
 
-export function InternalPedidosList({ pedidos }: InternalPedidosListProps) {
+function getProgressLabel(pedido: InternalPedido): string {
+  if (!pedido.taskProgress.hasTasks) {
+    return "Sin tareas";
+  }
+
+  if (pedido.taskProgress.isComplete) {
+    return "100% completado";
+  }
+
+  return `Progreso: ${pedido.taskProgress.progressPercentage}%`;
+}
+
+export function InternalPedidosList({
+  pedidos,
+  emptyMessage = "Cuando existan pedidos internos, aparecerán aquí ordenados por fecha de creación.",
+}: InternalPedidosListProps) {
   if (pedidos.length === 0) {
     return (
       <section className="rounded-lg border border-dashed border-zinc-300 bg-white p-6 shadow-sm">
@@ -54,8 +71,7 @@ export function InternalPedidosList({ pedidos }: InternalPedidosListProps) {
           No hay pedidos para mostrar
         </h2>
         <p className="mt-2 text-sm leading-6 text-zinc-600">
-          Cuando existan pedidos internos, aparecerán aquí ordenados por fecha
-          de creación.
+          {emptyMessage}
         </p>
       </section>
     );
@@ -81,6 +97,9 @@ export function InternalPedidosList({ pedidos }: InternalPedidosListProps) {
               </th>
               <th scope="col" className="px-4 py-3">
                 Estado
+              </th>
+              <th scope="col" className="px-4 py-3">
+                Progreso
               </th>
               <th scope="col" className="px-4 py-3">
                 Personal
@@ -113,7 +132,11 @@ export function InternalPedidosList({ pedidos }: InternalPedidosListProps) {
                 <td className="px-4 py-4 text-zinc-700">
                   {pedido.solicitudes ? (
                     <div>
-                      <div>{pedido.solicitudes.service_type}</div>
+                      <div>
+                        {getSolicitudServiceTypeLabel(
+                          pedido.solicitudes.service_type,
+                        )}
+                      </div>
                       <div className="mt-1 font-mono text-xs text-zinc-500">
                         {formatShortReference(pedido.solicitudes.id)}
                       </div>
@@ -140,6 +163,17 @@ export function InternalPedidosList({ pedidos }: InternalPedidosListProps) {
                 <td className="whitespace-nowrap px-4 py-4">
                   <span className="inline-flex rounded-md bg-teal-50 px-2 py-1 text-xs font-semibold text-teal-800 ring-1 ring-inset ring-teal-700/15">
                     {PEDIDO_STATUS_LABELS[pedido.status]}
+                  </span>
+                </td>
+                <td className="whitespace-nowrap px-4 py-4 text-zinc-700">
+                  <span
+                    className={
+                      pedido.taskProgress.isComplete
+                        ? "inline-flex rounded-md bg-teal-50 px-2 py-1 text-xs font-semibold text-teal-800 ring-1 ring-inset ring-teal-700/15"
+                        : "inline-flex rounded-md bg-zinc-100 px-2 py-1 text-xs font-semibold text-zinc-700 ring-1 ring-inset ring-zinc-200"
+                    }
+                  >
+                    {getProgressLabel(pedido)}
                   </span>
                 </td>
                 <td className="px-4 py-4 text-zinc-700">

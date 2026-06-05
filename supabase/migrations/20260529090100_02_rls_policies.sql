@@ -105,6 +105,107 @@ as $$
   end;
 $$;
 
+create or replace function private.pedido_file_visibility_for_status(
+  p_status public.pedido_estado
+)
+returns public.archivo_visibility
+language sql
+immutable
+set search_path = public
+as $$
+  select case
+    when p_status in (
+      'creado'::public.pedido_estado,
+      'solicitud_recibida'::public.pedido_estado,
+      'en_revision'::public.pedido_estado
+    ) then 'interno_pedido'::public.archivo_visibility
+    when p_status = 'en_produccion'::public.pedido_estado
+      then 'avance'::public.archivo_visibility
+    when p_status = 'listo_entrega'::public.pedido_estado
+      then 'final_entrega'::public.archivo_visibility
+    else null
+  end;
+$$;
+
+create or replace function private.pedido_file_path_matches(
+  p_file_path text,
+  p_pedido_id uuid,
+  p_visibility public.archivo_visibility
+)
+returns boolean
+language sql
+immutable
+set search_path = public
+as $$
+  select p_file_path is not null
+    and p_pedido_id is not null
+    and p_visibility in (
+      'interno_pedido'::public.archivo_visibility,
+      'avance'::public.archivo_visibility,
+      'final_entrega'::public.archivo_visibility
+    )
+    and p_file_path !~ '/{2,}'
+    and array_length(string_to_array(p_file_path, '/'), 1) = 4
+    and split_part(p_file_path, '/', 1) = 'pedidos'
+    and split_part(p_file_path, '/', 2) = p_pedido_id::text
+    and split_part(p_file_path, '/', 3) = case p_visibility
+      when 'interno_pedido'::public.archivo_visibility then 'internos'
+      when 'avance'::public.archivo_visibility then 'avances'
+      when 'final_entrega'::public.archivo_visibility then 'finales'
+    end
+    and btrim(split_part(p_file_path, '/', 4)) <> '';
+$$;
+
+create or replace function private.can_insert_pedido_file_metadata(
+  p_bucket text,
+  p_file_path text,
+  p_pedido_id uuid,
+  p_solicitud_id uuid,
+  p_uploaded_by uuid,
+  p_visibility public.archivo_visibility,
+  p_file_name text,
+  p_file_size bigint,
+  p_file_type text
+)
+returns boolean
+language sql
+security definer
+set search_path = public, private
+stable
+as $$
+  select auth.uid() is not null
+    and private.current_user_is_active()
+    and p_bucket = 'godel-files'
+    and p_pedido_id is not null
+    and p_solicitud_id is null
+    and p_uploaded_by = auth.uid()
+    and btrim(coalesce(p_file_name, '')) <> ''
+    and p_file_size > 0
+    and p_file_size <= 20971520
+    and p_file_type in (
+      'application/pdf',
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/zip',
+      'application/x-zip-compressed'
+    )
+    and private.can_access_pedido(p_pedido_id)
+    and private.pedido_file_path_matches(
+      p_file_path,
+      p_pedido_id,
+      p_visibility
+    )
+    and exists (
+      select 1
+      from public.pedidos as p
+      where p.id = p_pedido_id
+        and p_visibility = private.pedido_file_visibility_for_status(p.status)
+    );
+$$;
+
 create or replace function private.solicitud_has_accessible_pedido(p_solicitud_id uuid)
 returns boolean
 language sql
@@ -251,6 +352,26 @@ revoke all on function private.is_assigned_to_pedido(uuid)
 from public, anon, authenticated;
 revoke all on function private.can_access_pedido(uuid)
 from public, anon, authenticated;
+revoke all on function private.pedido_file_visibility_for_status(public.pedido_estado)
+from public, anon, authenticated;
+revoke all on function private.pedido_file_path_matches(
+  text,
+  uuid,
+  public.archivo_visibility
+)
+from public, anon, authenticated;
+revoke all on function private.can_insert_pedido_file_metadata(
+  text,
+  text,
+  uuid,
+  uuid,
+  uuid,
+  public.archivo_visibility,
+  text,
+  bigint,
+  text
+)
+from public, anon, authenticated;
 revoke all on function private.solicitud_has_accessible_pedido(uuid)
 from public, anon, authenticated;
 revoke all on function private.can_access_solicitud(uuid)
@@ -263,6 +384,25 @@ grant execute on function private.is_supervisor() to authenticated;
 grant execute on function private.is_admin_or_supervisor() to authenticated;
 grant execute on function private.is_assigned_to_pedido(uuid) to authenticated;
 grant execute on function private.can_access_pedido(uuid) to authenticated;
+grant execute on function private.pedido_file_visibility_for_status(
+  public.pedido_estado
+) to authenticated;
+grant execute on function private.pedido_file_path_matches(
+  text,
+  uuid,
+  public.archivo_visibility
+) to authenticated;
+grant execute on function private.can_insert_pedido_file_metadata(
+  text,
+  text,
+  uuid,
+  uuid,
+  uuid,
+  public.archivo_visibility,
+  text,
+  bigint,
+  text
+) to authenticated;
 grant execute on function private.can_access_solicitud(uuid) to authenticated;
 
 revoke all on function private.ensure_active_order_assignment_profile()
@@ -291,6 +431,7 @@ grant select, insert, update, delete on table
   public.solicitudes,
   public.pedidos,
   public.pedido_trabajadores,
+  public.pedido_tareas,
   public.archivos
 to authenticated;
 
@@ -302,6 +443,9 @@ to authenticated;
 
 grant select on table public.pedido_historial to authenticated;
 
+revoke all on table public.pedido_contadores
+from public, anon, authenticated;
+
 revoke all on table
   public.solicitud_comentarios,
   public.solicitud_historial
@@ -309,6 +453,9 @@ from public, anon;
 
 revoke all on type public.solicitud_historial_action from public, anon;
 grant usage on type public.solicitud_historial_action to authenticated;
+
+revoke all on type public.pedido_tarea_tipo from public, anon;
+grant usage on type public.pedido_tarea_tipo to authenticated;
 
 create policy perfiles_select_visible
 on public.perfiles
@@ -514,6 +661,52 @@ using (
   and private.is_admin_or_supervisor()
 );
 
+create policy pedido_tareas_select_accessible
+on public.pedido_tareas
+for select
+to authenticated
+using (
+  (select auth.uid()) is not null
+  and private.current_user_is_active()
+  and private.can_access_pedido(pedido_id)
+);
+
+create policy pedido_tareas_insert_accessible
+on public.pedido_tareas
+for insert
+to authenticated
+with check (
+  (select auth.uid()) is not null
+  and private.current_user_is_active()
+  and private.can_access_pedido(pedido_id)
+  and created_by = (select auth.uid())
+);
+
+create policy pedido_tareas_update_accessible
+on public.pedido_tareas
+for update
+to authenticated
+using (
+  (select auth.uid()) is not null
+  and private.current_user_is_active()
+  and private.can_access_pedido(pedido_id)
+)
+with check (
+  (select auth.uid()) is not null
+  and private.current_user_is_active()
+  and private.can_access_pedido(pedido_id)
+);
+
+create policy pedido_tareas_delete_accessible
+on public.pedido_tareas
+for delete
+to authenticated
+using (
+  (select auth.uid()) is not null
+  and private.current_user_is_active()
+  and private.can_access_pedido(pedido_id)
+);
+
 create policy archivos_select_accessible
 on public.archivos
 for select
@@ -534,19 +727,16 @@ on public.archivos
 for insert
 to authenticated
 with check (
-  (select auth.uid()) is not null
-  and (
-    private.is_admin_or_supervisor()
-    or (
-      pedido_id is not null
-      and solicitud_id is null
-      and private.is_assigned_to_pedido(pedido_id)
-      and visibility in (
-        'avance'::public.archivo_visibility,
-        'final_entrega'::public.archivo_visibility
-      )
-      and uploaded_by = (select auth.uid())
-    )
+  private.can_insert_pedido_file_metadata(
+    bucket,
+    file_path,
+    pedido_id,
+    solicitud_id,
+    uploaded_by,
+    visibility,
+    file_name,
+    file_size,
+    file_type
   )
 );
 

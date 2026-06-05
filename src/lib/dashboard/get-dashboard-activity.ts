@@ -1,5 +1,8 @@
 import { PEDIDO_STATUS_LABELS } from "@/lib/pedidos";
-import { SOLICITUD_STATUS_LABELS } from "@/lib/solicitudes";
+import {
+  SOLICITUD_STATUS_LABELS,
+  getSolicitudServiceTypeLabel,
+} from "@/lib/solicitudes";
 import { createClient } from "@/lib/supabase/server";
 import type { Json, Tables } from "@/types/database";
 import type { DashboardContext } from "./context";
@@ -104,6 +107,10 @@ function getSafeFileName(
   return safeName || null;
 }
 
+function getTaskTitle(metadata: Json | null, fallback: string | null): string | null {
+  return getMetadataString(metadata, "title") ?? fallback;
+}
+
 function formatPedidoValue(value: string | null): string {
   if (!value) {
     return "sin dato";
@@ -140,7 +147,9 @@ function getPedidoTitle(row: PedidoActivityRow): string {
 
 function getSolicitudTitle(row: SolicitudActivityRow): string {
   if (row.solicitudes) {
-    return `${row.solicitudes.client_name} · ${row.solicitudes.service_type}`;
+    return `${row.solicitudes.client_name} · ${getSolicitudServiceTypeLabel(
+      row.solicitudes.service_type,
+    )}`;
   }
 
   return "Solicitud";
@@ -189,6 +198,58 @@ function buildPedidoDescription(row: PedidoActivityRow): string {
 
   if (row.action === "fecha_entrega_actualizada") {
     return "Fecha de entrega actualizada.";
+  }
+
+  if (row.action === "tarea_creada") {
+    const taskTitle = getTaskTitle(row.metadata, row.new_value);
+
+    return taskTitle
+      ? `Tarea creada: ${taskTitle}.`
+      : row.summary || "Tarea creada.";
+  }
+
+  if (row.action === "tarea_actualizada") {
+    const taskTitle = getTaskTitle(row.metadata, row.new_value);
+
+    return taskTitle
+      ? `Tarea actualizada: ${taskTitle}.`
+      : row.summary || "Tarea actualizada.";
+  }
+
+  if (row.action === "tarea_eliminada") {
+    const taskTitle = getTaskTitle(row.metadata, row.old_value);
+
+    return taskTitle
+      ? `Tarea eliminada: ${taskTitle}.`
+      : row.summary || "Tarea eliminada.";
+  }
+
+  if (row.action === "tarea_completada") {
+    const taskTitle = getTaskTitle(row.metadata, row.new_value);
+
+    return taskTitle
+      ? `Tarea completada: ${taskTitle}.`
+      : row.summary || "Tarea completada.";
+  }
+
+  if (row.action === "tarea_reabierta") {
+    const taskTitle = getTaskTitle(row.metadata, row.new_value);
+
+    return taskTitle
+      ? `Tarea reabierta: ${taskTitle}.`
+      : row.summary || "Tarea reabierta.";
+  }
+
+  if (row.action === "tarea_progreso_actualizado") {
+    const taskTitle = getMetadataString(row.metadata, "title");
+
+    return taskTitle
+      ? `Progreso de tarea ${taskTitle} actualizado de ${formatPedidoValue(
+          row.old_value,
+        )} a ${formatPedidoValue(row.new_value)}.`
+      : `Progreso de tarea actualizado de ${formatPedidoValue(
+          row.old_value,
+        )} a ${formatPedidoValue(row.new_value)}.`;
   }
 
   return row.summary || "Evento registrado en el pedido.";

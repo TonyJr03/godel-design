@@ -142,6 +142,24 @@ export type Database = {
           },
         ]
       }
+      pedido_contadores: {
+        Row: {
+          last_number: number
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          last_number?: number
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          last_number?: number
+          updated_at?: string
+          year?: number
+        }
+        Relationships: []
+      }
       pedido_historial: {
         Row: {
           action: Database["public"]["Enums"]["pedido_historial_action"]
@@ -189,6 +207,86 @@ export type Database = {
             columns: ["pedido_id"]
             isOneToOne: false
             referencedRelation: "pedidos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pedido_tareas: {
+        Row: {
+          completed_at: string | null
+          completed_by: string | null
+          completed_quantity: number | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_completed: boolean
+          pedido_id: string
+          sort_order: number
+          target_quantity: number | null
+          task_type: Database["public"]["Enums"]["pedido_tarea_tipo"]
+          title: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_by?: string | null
+          completed_quantity?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_completed?: boolean
+          pedido_id: string
+          sort_order?: number
+          target_quantity?: number | null
+          task_type: Database["public"]["Enums"]["pedido_tarea_tipo"]
+          title: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          completed_by?: string | null
+          completed_quantity?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_completed?: boolean
+          pedido_id?: string
+          sort_order?: number
+          target_quantity?: number | null
+          task_type?: Database["public"]["Enums"]["pedido_tarea_tipo"]
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pedido_tareas_completed_by_fkey"
+            columns: ["completed_by"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedido_tareas_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedido_tareas_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedido_tareas_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
             referencedColumns: ["id"]
           },
         ]
@@ -263,7 +361,7 @@ export type Database = {
           description: string
           estimated_delivery_date?: string | null
           id?: string
-          order_number: string
+          order_number?: string
           priority?: Database["public"]["Enums"]["pedido_prioridad"]
           solicitud_id?: string | null
           status?: Database["public"]["Enums"]["pedido_estado"]
@@ -444,7 +542,6 @@ export type Database = {
           desired_date: string | null
           id: string
           notes: string | null
-          quantity: number | null
           reviewed_by: string | null
           service_type: string
           status: Database["public"]["Enums"]["solicitud_estado"]
@@ -461,7 +558,6 @@ export type Database = {
           desired_date?: string | null
           id?: string
           notes?: string | null
-          quantity?: number | null
           reviewed_by?: string | null
           service_type: string
           status?: Database["public"]["Enums"]["solicitud_estado"]
@@ -478,7 +574,6 @@ export type Database = {
           desired_date?: string | null
           id?: string
           notes?: string | null
-          quantity?: number | null
           reviewed_by?: string | null
           service_type?: string
           status?: Database["public"]["Enums"]["solicitud_estado"]
@@ -540,6 +635,34 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      actualizar_estado_solicitud: {
+        Args: {
+          p_estado_nuevo: Database["public"]["Enums"]["solicitud_estado"]
+          p_solicitud_id: string
+        }
+        Returns: {
+          client_email: string | null
+          client_name: string
+          client_phone: string
+          cliente_id: string | null
+          converted_order_id: string | null
+          created_at: string
+          description: string
+          desired_date: string | null
+          id: string
+          notes: string | null
+          reviewed_by: string | null
+          service_type: string
+          status: Database["public"]["Enums"]["solicitud_estado"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "solicitudes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       listar_pedido_comentarios: {
         Args: { p_pedido_id: string }
         Returns: {
@@ -597,11 +720,9 @@ export type Database = {
         | "avance"
         | "final_entrega"
       pedido_estado:
+        | "creado"
         | "solicitud_recibida"
         | "en_revision"
-        | "cotizado"
-        | "aprobado_cliente"
-        | "en_diseno"
         | "en_produccion"
         | "listo_entrega"
         | "entregado"
@@ -616,7 +737,14 @@ export type Database = {
         | "fecha_entrega_actualizada"
         | "pedido_entregado"
         | "pedido_cancelado"
+        | "tarea_creada"
+        | "tarea_actualizada"
+        | "tarea_eliminada"
+        | "tarea_completada"
+        | "tarea_reabierta"
+        | "tarea_progreso_actualizado"
       pedido_prioridad: "baja" | "normal" | "alta" | "urgente"
+      pedido_tarea_tipo: "simple" | "cuantificada"
       solicitud_estado:
         | "nueva"
         | "en_revision"
@@ -766,11 +894,9 @@ export const Constants = {
         "final_entrega",
       ],
       pedido_estado: [
+        "creado",
         "solicitud_recibida",
         "en_revision",
-        "cotizado",
-        "aprobado_cliente",
-        "en_diseno",
         "en_produccion",
         "listo_entrega",
         "entregado",
@@ -786,8 +912,15 @@ export const Constants = {
         "fecha_entrega_actualizada",
         "pedido_entregado",
         "pedido_cancelado",
+        "tarea_creada",
+        "tarea_actualizada",
+        "tarea_eliminada",
+        "tarea_completada",
+        "tarea_reabierta",
+        "tarea_progreso_actualizado",
       ],
       pedido_prioridad: ["baja", "normal", "alta", "urgente"],
+      pedido_tarea_tipo: ["simple", "cuantificada"],
       solicitud_estado: [
         "nueva",
         "en_revision",
@@ -807,3 +940,4 @@ export const Constants = {
     },
   },
 } as const
+

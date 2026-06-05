@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
-import { createPedidoFromSolicitud } from "@/lib/pedidos";
+import {
+  createPedidoFromSolicitud,
+  type CreatePedidoFromSolicitudFieldErrors,
+} from "@/lib/pedidos";
 import { isValidUuid } from "@/lib/validators";
 import {
   associateSolicitudWithCliente,
@@ -31,6 +34,13 @@ export type CreateClienteFromSolicitudActionState = {
 export type ConvertSolicitudToPedidoActionState = {
   ok: boolean;
   message: string;
+  fieldErrors?: CreatePedidoFromSolicitudFieldErrors;
+  values?: {
+    title: string;
+    description: string;
+    priority: string;
+    estimated_delivery_date: string | null;
+  };
   pedidoId?: string;
   numeroPedido?: string;
 };
@@ -161,12 +171,32 @@ export async function convertSolicitudToPedidoAction(
   formData: FormData,
 ): Promise<ConvertSolicitudToPedidoActionState> {
   const solicitudId = getFormValue(formData, "solicitud_id");
-  const result = await createPedidoFromSolicitud({ solicitudId });
+  const title = getFormValue(formData, "title");
+  const description = getFormValue(formData, "description");
+  const priority = getFormValue(formData, "priority");
+  const estimatedDeliveryDate = getFormValue(
+    formData,
+    "estimated_delivery_date",
+  );
+  const result = await createPedidoFromSolicitud({
+    solicitudId,
+    title,
+    description,
+    priority,
+    estimatedDeliveryDate,
+  });
 
   if (!result.ok) {
     return {
       ok: false,
       message: result.message,
+      fieldErrors: result.fieldErrors,
+      values: result.values ?? {
+        title,
+        description,
+        priority,
+        estimated_delivery_date: estimatedDeliveryDate || null,
+      },
     };
   }
 

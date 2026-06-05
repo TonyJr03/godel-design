@@ -47,17 +47,20 @@ Los route handlers de descarga validan que el archivo pertenezca al pedido o sol
 
 `listPedidoFiles(pedidoId)` lista metadatos seguros de `archivos` para un pedido, sin devolver `file_path` ni URLs públicas al componente cliente.
 
-`uploadPedidoFile(input)` valida usuario interno activo, acceso al pedido, categoría, archivo real recibido por `FormData`, nombre seguro, MIME, extensión y tamaño. Después sube el objeto al bucket privado `godel-files` e inserta metadatos en `archivos`.
+`uploadPedidoFile(input)` recibe únicamente `pedidoId` y el archivo real. Valida usuario interno activo y acceso al pedido, carga su estado mediante RLS, deriva la categoría server-side, valida nombre seguro, MIME, extensión y tamaño, construye la ruta y guarda el objeto en el bucket privado `godel-files` antes de insertar sus metadatos en `archivos`.
 
-Categorías permitidas por rol:
+Categoría automática por estado:
 
-| Rol | Categorías |
-|---|---|
-| `admin` | `interno_pedido`, `avance`, `final_entrega` |
-| `supervisor` | `interno_pedido`, `avance`, `final_entrega` |
-| `trabajador` asignado | `avance`, `final_entrega` |
+| Estado del pedido | Categoría | Carpeta |
+|---|---|---|
+| `creado`, `solicitud_recibida`, `en_revision` | `interno_pedido` | `internos` |
+| `en_produccion` | `avance` | `avances` |
+| `listo_entrega` | `final_entrega` | `finales` |
+| `entregado`, `cancelado` | Subida bloqueada | — |
 
-Un trabajador no asignado no puede listar ni subir archivos del pedido por validaciones server-side y RLS.
+`admin`, `supervisor` y cualquier trabajador asignado pueden subir la categoría correspondiente mientras el estado lo permita. Un trabajador no asignado no puede cargar el pedido ni subir archivos por las validaciones server-side, RLS y policies de Storage.
+
+El formulario no envía `visibility`, categoría, bucket, ruta, usuario, nombre, MIME ni tamaño como fuente de verdad. La policy de `archivos` y la policy de `storage.objects` vuelven a comprobar que el estado actual coincida con la categoría y la carpeta derivadas.
 
 ## Archivos públicos de solicitud
 

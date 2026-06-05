@@ -6,17 +6,46 @@ import {
   type ServiceResult,
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
-import { isValidUuid } from "@/lib/validators";
+import {
+  hasFieldErrors,
+  isValidUuid,
+  normalizeMultilineText,
+  normalizeOptionalSingleLineText,
+  normalizeSingleLineText,
+  validateOptionalFutureDate,
+} from "@/lib/validators";
 import type { Enums, Tables, TablesInsert } from "@/types/database";
-import { generatePedidoNumber } from "./order-number";
+import { isPedidoPrioridad, type PedidoPrioridad } from "./order-validation";
 
 export type CreatePedidoFromSolicitudInput = {
   solicitudId: string;
+  title?: string | null;
+  description?: string | null;
+  priority?: string | null;
+  estimatedDeliveryDate?: string | null;
+};
+
+export type CreatePedidoFromSolicitudField =
+  | "title"
+  | "description"
+  | "priority"
+  | "estimated_delivery_date";
+
+export type CreatePedidoFromSolicitudFieldErrors = Partial<
+  Record<CreatePedidoFromSolicitudField, string>
+>;
+
+export type CreatePedidoFromSolicitudValues = {
+  title: string;
+  description: string;
+  priority: string;
+  estimated_delivery_date: string | null;
 };
 
 export type CreatePedidoFromSolicitudErrorReason =
   | "unauthorized"
   | "forbidden"
+  | "validation"
   | "invalid_id"
   | "not_found"
   | "not_approved"
@@ -30,7 +59,9 @@ export type CreatePedidoFromSolicitudResult = ServiceResult<
     pedidoId: string;
     numeroPedido: string;
   },
-  CreatePedidoFromSolicitudErrorReason
+  CreatePedidoFromSolicitudErrorReason,
+  { values?: CreatePedidoFromSolicitudValues },
+  CreatePedidoFromSolicitudFieldErrors
 >;
 
 type SolicitudConvertible = Pick<
@@ -38,20 +69,75 @@ type SolicitudConvertible = Pick<
   | "id"
   | "cliente_id"
   | "converted_order_id"
-  | "service_type"
   | "description"
   | "status"
-  | "desired_date"
 >;
 
 const INITIAL_CONVERTED_PEDIDO_ESTADO: Enums<"pedido_estado"> =
   "solicitud_recibida";
-const DEFAULT_CONVERTED_PEDIDO_PRIORIDAD: Enums<"pedido_prioridad"> = "normal";
 const GENERIC_CONVERT_ERROR =
   "No se pudo convertir la solicitud en pedido. Inténtalo nuevamente.";
+const FIELD_LIMITS = {
+  title: 160,
+  description: 3000,
+} as const;
 
 function isDuplicateSolicitudPedidoError(error: { code?: string } | null) {
   return error?.code === "23505";
+}
+
+function validateConversionInput(input: CreatePedidoFromSolicitudInput) {
+  const title = normalizeSingleLineText(input.title);
+  const description = normalizeMultilineText(input.description);
+  const priority = normalizeSingleLineText(input.priority);
+  const estimatedDeliveryDate = normalizeOptionalSingleLineText(
+    input.estimatedDeliveryDate,
+  );
+  const fieldErrors: CreatePedidoFromSolicitudFieldErrors = {};
+  const values = {
+    title,
+    description,
+    priority,
+    estimated_delivery_date: estimatedDeliveryDate,
+  };
+
+  if (!title) {
+    fieldErrors.title = "El título del pedido es obligatorio.";
+  } else if (title.length > FIELD_LIMITS.title) {
+    fieldErrors.title = `El título no puede superar ${FIELD_LIMITS.title} caracteres.`;
+  }
+
+  if (!description) {
+    fieldErrors.description = "La descripción del pedido es obligatoria.";
+  } else if (description.length > FIELD_LIMITS.description) {
+    fieldErrors.description = `La descripción no puede superar ${FIELD_LIMITS.description} caracteres.`;
+  }
+
+  if (!isPedidoPrioridad(priority)) {
+    fieldErrors.priority = "Selecciona una prioridad válida.";
+  }
+
+  if (estimatedDeliveryDate) {
+    const estimatedDeliveryDateValidation =
+      validateOptionalFutureDate(estimatedDeliveryDate);
+
+    if (estimatedDeliveryDateValidation === "invalid") {
+      fieldErrors.estimated_delivery_date =
+        "La fecha estimada de entrega no es válida.";
+    } else if (estimatedDeliveryDateValidation === "past") {
+      fieldErrors.estimated_delivery_date =
+        "La fecha estimada de entrega no puede ser anterior al día actual.";
+    }
+  }
+
+  return {
+    ok: !hasFieldErrors(fieldErrors),
+    fieldErrors,
+    values: {
+      ...values,
+      priority: priority as PedidoPrioridad,
+    },
+  };
 }
 
 export async function createPedidoFromSolicitud(
@@ -82,14 +168,21 @@ export async function createPedidoFromSolicitud(
     );
   }
 
+  const validation = validateConversionInput(input);
+
+  if (!validation.ok) {
+    return serviceFailure("validation", "Revisa los datos del pedido.", {
+      fieldErrors: validation.fieldErrors,
+      values: validation.values,
+    });
+  }
+
   const supabase = await createClient();
 
   try {
     const { data: solicitud, error: solicitudError } = await supabase
       .from("solicitudes")
-      .select(
-        "id, cliente_id, converted_order_id, service_type, description, status, desired_date",
-      )
+      .select("id, cliente_id, converted_order_id, description, status")
       .eq("id", solicitudId)
       .maybeSingle<SolicitudConvertible>();
 
@@ -128,14 +221,13 @@ export async function createPedidoFromSolicitud(
     }
 
     const pedidoInsert: TablesInsert<"pedidos"> = {
-      order_number: generatePedidoNumber(),
       cliente_id: solicitud.cliente_id,
       solicitud_id: solicitud.id,
-      title: solicitud.service_type,
-      description: solicitud.description,
+      title: validation.values.title,
+      description: validation.values.description,
       status: INITIAL_CONVERTED_PEDIDO_ESTADO,
-      priority: DEFAULT_CONVERTED_PEDIDO_PRIORIDAD,
-      estimated_delivery_date: solicitud.desired_date,
+      priority: validation.values.priority,
+      estimated_delivery_date: validation.values.estimated_delivery_date,
       created_by: profile.id,
     };
 

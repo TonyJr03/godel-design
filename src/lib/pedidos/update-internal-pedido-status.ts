@@ -24,6 +24,7 @@ export type UpdateInternalPedidoStatusErrorReason =
   | "invalid_id"
   | "invalid_status"
   | "not_found"
+  | "transition"
   | "error";
 
 export type UpdateInternalPedidoStatusResult = ServiceResult<
@@ -35,6 +36,24 @@ export type UpdateInternalPedidoStatusResult = ServiceResult<
 
 const GENERIC_STATUS_ERROR =
   "No se pudo actualizar el estado del pedido. Inténtalo nuevamente.";
+
+const SAFE_RPC_STATUS_MESSAGES = [
+  "No se puede pasar a producción sin tareas registradas.",
+  "No se puede marcar como listo para entrega hasta completar todas las tareas.",
+  "Solo se puede marcar como entregado un pedido listo para entrega.",
+  "No se puede cambiar el estado de un pedido cerrado.",
+  "Transición de estado no permitida.",
+] as const;
+
+function getSafeRpcStatusErrorMessage(errorMessage: string | undefined): string {
+  const message = errorMessage?.trim();
+
+  return (
+    SAFE_RPC_STATUS_MESSAGES.find((safeMessage) =>
+      message?.includes(safeMessage),
+    ) ?? GENERIC_STATUS_ERROR
+  );
+}
 
 export async function updateInternalPedidoStatus(
   input: UpdatePedidoStatusInput,
@@ -100,6 +119,15 @@ export async function updateInternalPedidoStatus(
 
     if (error) {
       console.error("Error updating internal pedido status", error);
+      const message = getSafeRpcStatusErrorMessage(error.message);
+
+      if (message !== GENERIC_STATUS_ERROR) {
+        return serviceFailure("transition", message, {
+          fieldErrors: {
+            status: message,
+          },
+        });
+      }
 
       return serviceFailure("error", GENERIC_STATUS_ERROR);
     }

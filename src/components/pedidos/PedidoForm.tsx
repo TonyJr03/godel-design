@@ -6,6 +6,7 @@ import {
   createPedidoAction,
   type CreatePedidoActionState,
 } from "@/app/dashboard/pedidos/nuevo/actions";
+import { getTodayDateInputValue } from "@/lib/utils";
 import type { PedidoField, PedidoPrioridad } from "@/lib/pedidos";
 import { PEDIDO_PRIORITY_LABELS } from "@/lib/pedidos/labels";
 
@@ -74,26 +75,7 @@ export function PedidoForm({ clientes, prioridades }: PedidoFormProps) {
   const descripcionError = getFieldError(state, "description");
   const prioridadError = getFieldError(state, "priority");
   const fechaEntregaError = getFieldError(state, "estimated_delivery_date");
-
-  if (clientes.length === 0) {
-    return (
-      <section className="max-w-3xl rounded-lg border border-dashed border-zinc-300 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-zinc-950">
-          No hay clientes disponibles
-        </h2>
-        <p className="mt-2 text-sm leading-6 text-zinc-600">
-          Para crear un pedido manual, primero debe existir un cliente
-          registrado.
-        </p>
-        <Link
-          href="/dashboard/clientes/nuevo"
-          className="mt-5 inline-flex min-h-10 items-center justify-center rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800"
-        >
-          Crear cliente
-        </Link>
-      </section>
-    );
-  }
+  const todayInputDate = getTodayDateInputValue();
 
   return (
     <form
@@ -128,19 +110,18 @@ export function PedidoForm({ clientes, prioridades }: PedidoFormProps) {
         <div className="grid gap-5 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <label className={labelClass} htmlFor="cliente_id">
-              Cliente <span className="text-red-700">*</span>
+              Cliente <OptionalMark />
             </label>
             <select
               className={baseInputClass}
               id="cliente_id"
               name="cliente_id"
-              required
               defaultValue=""
               aria-invalid={Boolean(clienteError)}
-              aria-describedby={clienteError ? "cliente-error" : undefined}
+              aria-describedby={clienteError ? "cliente-error" : "cliente-help"}
             >
-              <option value="" disabled>
-                Selecciona un cliente
+              <option value="">
+                Sin cliente asociado
               </option>
               {clientes.map((cliente) => (
                 <option key={cliente.id} value={cliente.id}>
@@ -148,6 +129,11 @@ export function PedidoForm({ clientes, prioridades }: PedidoFormProps) {
                 </option>
               ))}
             </select>
+            {!clienteError ? (
+              <p id="cliente-help" className="mt-1 text-xs text-zinc-500">
+                Selecciona un cliente registrado o deja este campo vacío.
+              </p>
+            ) : null}
             <FieldError id="cliente-error" message={clienteError} />
           </div>
 
@@ -217,6 +203,7 @@ export function PedidoForm({ clientes, prioridades }: PedidoFormProps) {
               id="estimated_delivery_date"
               name="estimated_delivery_date"
               type="date"
+              min={todayInputDate}
               aria-invalid={Boolean(fechaEntregaError)}
               aria-describedby={
                 fechaEntregaError ? "fecha-entrega-error" : undefined

@@ -54,6 +54,7 @@ El proyecto no parte de cero. La migración inicial creó estructuras relacionad
 - existe la tabla `solicitud_historial`;
 - existe el enum `solicitud_historial_action`;
 - existe la RPC `public.actualizar_estado_pedido`;
+- existe la RPC `public.actualizar_estado_solicitud`;
 - existe RLS para `pedido_comentarios`;
 - existe RLS para `pedido_historial`;
 - existe RLS para `solicitud_comentarios`;
@@ -70,6 +71,8 @@ La tabla `solicitud_historial` está asociada solo a solicitudes mediante `solic
 
 No existe una tabla de historial general para múltiples entidades. Tampoco existe una tabla de comentarios interna que pueda apuntar indistintamente a pedidos o solicitudes; la decisión vigente es mantener tablas separadas por entidad.
 
+Las tablas de historial (`pedido_historial` y `solicitud_historial`) usan `created_at default clock_timestamp()` para registrar el momento real de cada inserción, incluso cuando varios eventos ocurren dentro de una misma transacción. Las RPCs de listado muestran los eventos con lo más reciente primero (`created_at desc`); `id desc` queda solo como desempate secundario, no como fuente de verdad del orden de eventos. No se aplica reordenamiento visual manual en TypeScript.
+
 ### Triggers y Automatización
 
 Existen triggers técnicos de actualización de fecha:
@@ -79,11 +82,13 @@ Existen triggers técnicos de actualización de fecha:
 - `set_solicitudes_updated_at`;
 - `set_pedidos_updated_at`.
 
-Desde Fase 11.7A y 11.7B también existen triggers de negocio privados para registrar historial automático de pedidos y solicitudes. Estos triggers cubren creación de pedidos, asignación/remoción de personal, subida de archivos propios de pedido, creación de solicitudes, archivos adjuntados a solicitudes, cambios de estado de solicitud, asociación de cliente y conversión de solicitud a pedido.
+Desde Fase 11.7A y 11.7B también existen triggers de negocio privados para registrar historial automático de pedidos y solicitudes. Estos triggers cubren creación de pedidos, asignación/remoción de personal, subida de archivos propios de pedido, creación de solicitudes, archivos adjuntados a solicitudes, cambios de estado de solicitud, asociación de cliente y conversión de solicitud a pedido. Desde Fase 13.6E, también registran cambios relevantes de tareas de pedido.
 
 ### RPC `actualizar_estado_pedido`
 
 La RPC `public.actualizar_estado_pedido` sí registra historial en `pedido_historial` cuando el estado cambia.
+
+También valida las reglas operativas de estado: requiere tareas para pasar a `en_produccion`, requiere todas las tareas completadas para pasar a `listo_entrega`, permite `entregado` solo desde `listo_entrega`, permite `cancelado` como salida lateral desde estados activos y bloquea cambios desde `entregado` o `cancelado`. La UI orienta al usuario, pero la autoridad de validación es la RPC.
 
 Eventos que puede registrar:
 
@@ -100,14 +105,32 @@ También guarda:
 
 Si el estado enviado es igual al estado actual, la RPC retorna el pedido sin insertar evento.
 
+### RPC `actualizar_estado_solicitud`
+
+La RPC `public.actualizar_estado_solicitud` valida las transiciones manuales de solicitudes. Solo `admin` y `supervisor` activos pueden ejecutarla. La UI muestra las opciones permitidas, pero la autoridad real es la RPC.
+
+Reglas vigentes:
+
+- `nueva` -> `en_revision` o `rechazada`;
+- `en_revision` -> `contactada` o `rechazada`;
+- `contactada` -> `aprobada` o `rechazada`;
+- `aprobada` -> `rechazada`;
+- `rechazada` y `convertida` son estados cerrados;
+- `convertida` solo se asigna por el flujo formal de conversión a pedido.
+
+La RPC actualiza `solicitudes.status` y `reviewed_by`. El evento `estado_cambiado` se registra mediante el trigger privado existente sobre `solicitudes.status`, por lo que la RPC no inserta historial manualmente. Si el estado enviado es igual al actual, retorna la solicitud sin duplicar historial.
+
 ### Acciones y Servicios Actuales
 
 Las acciones y servicios actuales no aceptan datos de historial desde formularios. El historial se registra mediante RPCs, triggers privados o servicios server-side controlados:
 
 - `updateInternalPedidoStatus` llama a `public.actualizar_estado_pedido`, que registra cambios de estado de pedido;
 - la creación de pedidos, asignación/remoción de personal y subida de archivos propios de pedido se registran por triggers;
+- las acciones de tareas de pedido delegan en servicios server-side y los eventos se registran por triggers sobre `pedido_tareas`;
 - la creación de solicitudes, archivos adjuntados, cambios de estado, asociación de cliente y conversión a pedido se registran por triggers;
-- `createClienteFromSolicitudAndAssociate` registra `cliente_creado_desde_solicitud` después de crear y asociar el cliente correctamente.
+- `createClienteFromSolicitudAndAssociate` registra `cliente_creado_desde_solicitud` después de crear el cliente y antes de asociarlo a la solicitud; luego el trigger de `cliente_id` registra `cliente_asociado`.
+
+La actividad reciente del dashboard consume estos eventos y construye resúmenes controlados. Para tareas muestra títulos seguros, por ejemplo `Tarea creada: X.` o `Progreso de tarea X actualizado de A a B.`, sin mostrar metadata cruda, JSON, rutas privadas ni `file_path`.
 
 La herencia de archivos al convertir una solicitud en pedido no genera un evento adicional de archivo para evitar ruido y duplicados.
 
@@ -121,7 +144,7 @@ El módulo actual:
 - permite agregar comentarios a usuarios con acceso al pedido;
 - usa `author_id = profile.id` como autor;
 - guarda `content`;
-- muestra autor, rol, fecha y content;
+- muestra autor, rol, fecha y contenido;
 - no acepta `author_id` ni `created_at` desde formularios;
 - no implementa edición ni eliminación.
 
@@ -149,6 +172,7 @@ Desde Fase 11.7A también se registran automáticamente en base de datos:
 - `trabajador_asignado` al insertar en `pedido_trabajadores`;
 - `trabajador_removido` al eliminar de `pedido_trabajadores`;
 - `archivo_subido` al insertar archivos propios de pedido en `archivos`.
+- `tarea_creada`, `tarea_actualizada`, `tarea_eliminada`, `tarea_completada`, `tarea_reabierta` y `tarea_progreso_actualizado` al cambiar `pedido_tareas`.
 
 No se crea trigger de cambio de estado para evitar duplicar lo que ya registra `public.actualizar_estado_pedido`. Los archivos heredados desde solicitudes con `visibility = "cliente_solicitud"` no generan `archivo_subido` del pedido.
 
@@ -180,7 +204,7 @@ El módulo actual:
 - permite agregar comentarios a `admin` y `supervisor`;
 - usa `author_id = profile.id` como autor;
 - guarda `content`;
-- muestra autor, rol, fecha y content;
+- muestra autor, rol, fecha y contenido;
 - no acepta autor, `created_at` ni campos técnicos desde formularios;
 - no implementa edición ni eliminación.
 
@@ -198,7 +222,7 @@ Los cambios actuales en solicitudes se reflejan en campos como:
 - `converted_order_id`;
 - `updated_at`.
 
-Desde Fase 11.7B esos cambios relevantes se registran automáticamente en `solicitud_historial` mediante triggers de base de datos, salvo `cliente_creado_desde_solicitud`, que se registra desde el servicio server-side después de crear y asociar el cliente correctamente.
+Desde Fase 11.7B esos cambios relevantes se registran automáticamente en `solicitud_historial` mediante triggers de base de datos, salvo `cliente_creado_desde_solicitud`, que se registra desde el servicio server-side después de crear el cliente y antes de asociarlo a la solicitud.
 
 ### Archivos
 
@@ -458,7 +482,7 @@ Eventos mínimos:
 | Evento | Cuándo registrar | Datos mínimos |
 | --- | --- | --- |
 | `pedido_creado` | Pedido creado manualmente. | `pedido_id`, `actor_id`, `summary`, origen manual. |
-| `pedido_creado` | Pedido creado desde solicitud. | `pedido_id`, `solicitud_id`, `actor_id`, origen solicitud. |
+| `pedido_creado` | Pedido creado desde solicitud. | `pedido_id`, `solicitud_id`, `actor_id`, `title`, origen solicitud. |
 | `estado_cambiado` | Cambio de estado normal. | estado anterior, estado nuevo, usuario. |
 | `pedido_entregado` | Cambio a `entregado`. | estado anterior, estado nuevo, usuario. |
 | `pedido_cancelado` | Cambio a `cancelado`. | estado anterior, estado nuevo, usuario. |
@@ -466,8 +490,14 @@ Eventos mínimos:
 | `trabajador_removido` | Se remueve personal del pedido. | perfil removido, usuario que removió. |
 | `archivo_subido` | Se sube archivo de pedido. | archivo, categoría, usuario. |
 | `nota_agregada` | Se crea comentario interno de pedido. | comentario, autor. |
+| `tarea_creada` | Se crea una tarea de pedido. | tarea, tipo, cantidades, orden. |
+| `tarea_actualizada` | Cambia título, tipo, cantidad objetivo u orden. | valores anteriores y nuevos relevantes. |
+| `tarea_eliminada` | Se elimina una tarea de pedido. | tarea eliminada y estado previo seguro. |
+| `tarea_completada` | Una tarea pasa a completada. | tarea, usuario, fecha y estado. |
+| `tarea_reabierta` | Una tarea completada vuelve a abierta. | tarea y estado anterior/nuevo. |
+| `tarea_progreso_actualizado` | Cambia el avance numérico de una tarea cuantificada. | título de tarea, cantidad anterior y cantidad nueva. |
 
-La RPC actual ya cubre cambios de estado de pedido. Los demás eventos todavía no están conectados a acciones o servicios.
+La RPC actual cubre cambios de estado de pedido con el enum simplificado de fases generales y valida las transiciones según tareas. Los eventos de tareas quedan conectados mediante triggers de base de datos; los servicios server-side y la UI del detalle de pedido ya pueden listar, crear, actualizar, completar, reabrir y eliminar tareas.
 
 ### Solicitudes
 
@@ -475,12 +505,12 @@ Eventos mínimos:
 
 | Evento | Cuándo registrar | Datos mínimos |
 | --- | --- | --- |
-| `solicitud_creada` | Solicitud pública creada. | `solicitud_id`, origen público. |
+| `solicitud_creada` | Solicitud pública creada. | `solicitud_id`, `service_type`, origen público; no guarda `quantity`. |
 | `archivos_adjuntados` | Cliente adjunta uno o varios archivos a la solicitud. | archivos, nombres seguros, solicitud. |
 | `estado_cambiado` | Admin o supervisor cambia estado. | estado anterior, estado nuevo, usuario. |
 | `cliente_asociado` | Se asocia cliente existente. | cliente, usuario. |
 | `cliente_creado_desde_solicitud` | Se crea cliente desde solicitud. | cliente creado, usuario. |
-| `convertida_a_pedido` | Se convierte solicitud a pedido. | pedido generado, usuario. |
+| `convertida_a_pedido` | Se convierte solicitud a pedido. | pedido generado, título real del pedido, usuario. |
 
 ## Permisos Propuestos
 
@@ -551,7 +581,7 @@ Estado:
 
 - implementado para comentarios internos de pedidos;
 - `listPedidoComments` lista comentarios por pedido en orden ascendente;
-- `createPedidoComment` valida UUID, permiso, acceso al pedido y content;
+- `createPedidoComment` valida UUID, permiso, acceso al pedido y `content`;
 - la action del detalle solo lee `pedido_id` y `content`;
 - no se acepta autor desde el formulario;
 - no se registra historial automático adicional.
@@ -563,7 +593,7 @@ Estado:
 - implementado en `PedidoCommentsSection`;
 - lista comentarios internos de pedido;
 - permite crear comentario si el usuario tiene acceso;
-- muestra autor, rol, fecha y content;
+- muestra autor, rol, fecha y contenido;
 - no implementar edición ni eliminación.
 
 ### Fase 11.4: UI de Comentarios en Solicitudes
@@ -572,7 +602,7 @@ Estado:
 
 - listar comentarios internos de solicitud;
 - permitir comentar solo a `admin` y `supervisor`;
-- mostrar autor, rol, fecha y content;
+- mostrar autor, rol, fecha y contenido;
 - no exponer a trabajadores ni anónimos;
 - no implementar edición ni eliminación.
 
@@ -607,6 +637,7 @@ Estado:
 - registra `trabajador_asignado`;
 - registra `trabajador_removido`;
 - registra `archivo_subido` para archivos propios de pedido;
+- registra eventos de tareas desde `pedido_tareas`;
 - conserva cambios de estado mediante `public.actualizar_estado_pedido`;
 - no duplica eventos de estado;
 - no registra historial automático de solicitudes.
@@ -617,9 +648,10 @@ Estado:
 
 - implementado mediante triggers de base de datos para `solicitud_creada`, `archivos_adjuntados`, `estado_cambiado`, `cliente_asociado` y `convertida_a_pedido`;
 - implementado desde el servicio server-side `createClienteFromSolicitudAndAssociate` para `cliente_creado_desde_solicitud`;
+- como el historial visible muestra el evento más reciente primero, el par se ve como `cliente_asociado` y después `cliente_creado_desde_solicitud` cuando ambos pertenecen al mismo cliente;
 - los eventos públicos usan `actor_id = null` cuando no existe usuario autenticado;
 - la conversión a pedido evita duplicar `estado_cambiado` cuando el mismo update marca la solicitud como `convertida`;
-- los resúmenes visibles se enriquecen con datos mínimos de `metadata`, cliente y pedido;
+- los resúmenes visibles se enriquecen con datos mínimos de `metadata`, cliente y pedido; el título mostrado corresponde a `pedidos.title`, no a `solicitudes.service_type`;
 - no abre lectura pública ni inserción anónima directa sobre `solicitud_historial`.
 
 ### Fase 11.8: Documentación y Cierre

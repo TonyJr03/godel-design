@@ -1,32 +1,21 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
-import {
-  hasPermission,
-  isAdmin,
-  isSupervisor,
-  isTrabajador,
-  type Role,
-} from "@/lib/permissions/permissions";
+import { hasPermission } from "@/lib/permissions/permissions";
+import type { PedidoStatus } from "@/lib/pedidos/status";
 import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
 import { GODEL_FILES_BUCKET } from "./constants";
 import { sanitizeFileName } from "./file-name";
 import { buildPedidoFilePath } from "./file-paths";
 import {
-  validatePedidoFileCategory,
+  getPedidoFileVisibilityForStatus,
   validateStorageFile,
 } from "./file-validation";
 import type { UploadPedidoFileInput, UploadPedidoFileResult } from "./types";
 
-function canUploadPedidoCategory(role: Role, category: string): boolean {
-  if (isAdmin(role) || isSupervisor(role)) {
-    return validatePedidoFileCategory(category);
-  }
-
-  return (
-    isTrabajador(role) &&
-    (category === "avance" || category === "final_entrega")
-  );
-}
+type PedidoFileUploadContext = {
+  id: string;
+  status: PedidoStatus;
+};
 
 export async function uploadPedidoFile(
   input: UploadPedidoFileInput,
@@ -37,29 +26,10 @@ export async function uploadPedidoFile(
     return { ok: false, reason: "invalid_pedido_id" };
   }
 
-  if (!validatePedidoFileCategory(input.category)) {
-    return { ok: false, reason: "invalid_category" };
-  }
-
   const profile = await getCurrentProfile();
 
   if (!profile || !hasPermission(profile.role, "pedidos.view")) {
     return { ok: false, reason: "unauthorized" };
-  }
-
-  if (!canUploadPedidoCategory(profile.role, input.category)) {
-    return { ok: false, reason: "forbidden_category" };
-  }
-
-  const validation = validateStorageFile({
-    file: input.file,
-    category: input.category,
-    pedidoId,
-    solicitudId: null,
-  });
-
-  if (!validation.ok) {
-    return { ok: false, reason: "invalid_file" };
   }
 
   const supabase = await createClient();
@@ -67,9 +37,9 @@ export async function uploadPedidoFile(
   try {
     const { data: pedido, error: pedidoError } = await supabase
       .from("pedidos")
-      .select("id")
+      .select("id, status")
       .eq("id", pedidoId)
-      .maybeSingle<{ id: string }>();
+      .maybeSingle<PedidoFileUploadContext>();
 
     if (pedidoError) {
       console.error("Error checking pedido before file upload", pedidoError);
@@ -80,10 +50,28 @@ export async function uploadPedidoFile(
       return { ok: false, reason: "pedido_not_found" };
     }
 
+    const visibilityResult = getPedidoFileVisibilityForStatus(pedido.status);
+
+    if (!visibilityResult.ok) {
+      return { ok: false, reason: visibilityResult.reason };
+    }
+
+    const visibility = visibilityResult.visibility;
+    const validation = validateStorageFile({
+      file: input.file,
+      category: visibility,
+      pedidoId,
+      solicitudId: null,
+    });
+
+    if (!validation.ok) {
+      return { ok: false, reason: "invalid_file" };
+    }
+
     const safeFileName = sanitizeFileName(input.file.name);
     const filePath = buildPedidoFilePath({
       pedidoId,
-      category: input.category,
+      category: visibility,
       fileName: safeFileName,
     });
 
@@ -110,7 +98,7 @@ export async function uploadPedidoFile(
         file_type: input.file.type,
         file_size: input.file.size,
         bucket: GODEL_FILES_BUCKET,
-        visibility: input.category,
+        visibility,
       })
       .select("id")
       .single<{ id: string }>();

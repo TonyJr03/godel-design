@@ -15,7 +15,9 @@ conceptualmente en `docs/PUBLIC_REQUEST_FLOW.md`. Al enviarse:
 - quedan disponibles para revisión interna desde el dashboard;
 - no se convierten automáticamente en pedidos.
 
-La conversión a pedido queda reservada para una fase posterior.
+La conversión a pedido se realiza manualmente desde el detalle interno cuando la
+solicitud está aprobada, tiene cliente asociado y el usuario interno define el
+título operativo real, la descripción y la prioridad inicial del pedido.
 
 ## Ruta interna principal
 
@@ -44,9 +46,19 @@ El listado:
 - consulta hasta 50 solicitudes;
 - ordena por `created_at` descendente;
 - muestra referencia corta, cliente, teléfono, email, tipo de servicio, estado,
-  fecha de creación, fecha deseada y cantidad;
+  fecha de creación y fecha deseada;
+- permite buscar mediante `q` por referencia visible, cliente, teléfono, correo,
+  tipo de servicio, descripción o notas;
 - permite filtrar por estado;
+- combina búsqueda y estado conservando ambos parámetros GET;
+- usa la barra común de listados: la búsqueda actualiza `q` tras 200 ms sin
+  escritura y el selector de estado actualiza la URL inmediatamente;
+- permite limpiar búsqueda y estado en una sola acción;
 - no consulta Supabase desde componentes cliente.
+
+`quantity` fue eliminado de solicitudes. El detalle de cantidades, medidas o requisitos debe revisarse en `description` o `notes`. `service_type` es solo una referencia inicial elegida por el cliente, no el título automático del pedido.
+
+Los listados, detalles, historial y conversión deben renderizar `service_type` mediante `getSolicitudServiceTypeLabel` desde `src/lib/solicitudes/labels.ts`, para mantener tildes y `ñ` correctas sin modificar el valor técnico guardado.
 
 ## Filtro por estado
 
@@ -63,6 +75,15 @@ URLs soportadas:
 `convertida` puede aparecer como filtro porque será un estado resultante del
 flujo formal de conversión a pedido. En esta fase no puede establecerse
 manualmente.
+
+La búsqueda se ejecuta server-side, normaliza y limita el texto recibido y respeta permiso y RLS. Para tipos de servicio también considera los labels visibles, por lo que una búsqueda como “diseño” puede encontrar valores históricos sin tilde. La referencia corta se resuelve desde los primeros caracteres del UUID accesible.
+
+La barra de búsqueda es un componente cliente únicamente para sincronizar los
+controles con la URL mediante `router.replace`. No consulta Supabase ni filtra
+los resultados cargados en memoria. Mientras espera el debounce o la respuesta
+del servidor muestra el estado discreto `Buscando...`.
+
+No es un buscador global. Si el volumen crece significativamente, podrán evaluarse índices o búsqueda especializada en una fase posterior sin cambiar el contrato `q`.
 
 ## Detalle interno
 
@@ -81,8 +102,12 @@ El detalle:
 - muestra datos completos de la solicitud;
 - muestra archivos privados asociados a la solicitud;
 - no permite edición completa;
-- no convierte a pedido;
+- permite convertir a pedido solo si la solicitud está aprobada y tiene cliente asociado;
 - no permite eliminar archivos.
+
+La sección de conversión exige `title`, `description` y `priority` para el pedido. La prioridad inicia en `normal` y se valida contra el enum real de prioridades. También permite definir `estimated_delivery_date` de forma opcional; si se informa, debe ser igual o posterior al día actual y se valida server-side con `src/lib/validators/date.ts`.
+
+El formulario no acepta `cliente_id`, `status`, `converted_order_id`, `created_by`, `order_number`, campos de archivos ni otros campos técnicos. La conversión no envía número de pedido; la base de datos lo asigna con formato `P-YY-XXXX`. El estado inicial sigue siendo `solicitud_recibida`.
 
 ## Archivos de solicitud
 
@@ -106,15 +131,19 @@ Si la solicitud se convierte en pedido, estos archivos conservan `solicitud_id` 
 | Servicio | `src/lib/solicitudes/update-internal-solicitud-status.ts` |
 | Componente | `src/components/solicitudes/SolicitudStatusForm.tsx` |
 | Helpers | `src/lib/solicitudes/status.ts` |
+| RPC | `public.actualizar_estado_solicitud` |
 
 El cambio de estado:
 
 - requiere permiso `solicitudes.manage`;
-- se valida server-side;
+- se valida server-side mediante `public.actualizar_estado_solicitud`;
 - actualiza `status`;
 - actualiza `reviewed_by`;
+- registra `estado_cambiado` mediante el trigger de historial existente cuando el estado realmente cambia;
 - revalida `/dashboard/solicitudes` y `/dashboard/solicitudes/[id]`;
 - no usa service role key.
+
+La RPC es la autoridad de transiciones. La UI solo muestra las opciones permitidas para orientar al usuario, pero los saltos inválidos también fallan server-side.
 
 ## Comentarios e historial de solicitudes
 
@@ -132,7 +161,7 @@ La Fase 11.4 implementa comentarios internos en `/dashboard/solicitudes/[id]`. `
 
 La Fase 11.6 implementa historial visible en `/dashboard/solicitudes/[id]`. `admin` y `supervisor` pueden ver los eventos existentes en `solicitud_historial`; el rol `trabajador` no accede al módulo de solicitudes. La sección muestra tipo de evento, resumen, actor, rol y fecha, sin edición ni eliminación.
 
-Desde Fase 11.7B, la base de datos registra automáticamente eventos de solicitud para creación, archivos adjuntados, cambios de estado, asociación de cliente y conversión a pedido. El evento `cliente_creado_desde_solicitud` se registra desde el servicio server-side que crea y asocia el cliente. Los eventos originados en el flujo público pueden tener `actor_id = null`.
+Desde Fase 11.7B, la base de datos registra automáticamente eventos de solicitud para creación, archivos adjuntados, cambios de estado, asociación de cliente y conversión a pedido. El evento `cliente_creado_desde_solicitud` se registra desde el servicio server-side después de crear el cliente y antes de asociarlo a la solicitud. Los eventos originados en el flujo público pueden tener `actor_id = null`.
 
 La sección de historial no se limita al texto genérico del evento: muestra detalles operativos cuando existen. Los cambios de estado indican origen y destino, los archivos muestran el nombre del archivo, los eventos de cliente muestran el cliente relacionado y la conversión muestra el pedido generado.
 
@@ -149,19 +178,16 @@ No hay comentarios públicos de clientes.
 | `rechazada` | Solicitud no aceptada o descartada. |
 | `convertida` | Solicitud ya convertida en pedido interno. |
 
-## Estados manuales permitidos
+## Transiciones manuales permitidas
 
-En Fase 6.3 solo se pueden establecer manualmente:
+El selector manual no permite cambios libres. Solo se aceptan estas transiciones:
 
-- `nueva`
-- `en_revision`
-- `contactada`
-- `aprobada`
-- `rechazada`
+- `nueva` -> `en_revision` o `rechazada`;
+- `en_revision` -> `contactada` o `rechazada`;
+- `contactada` -> `aprobada` o `rechazada`;
+- `aprobada` -> `rechazada`.
 
-`convertida` no puede establecerse manualmente. Ese estado queda reservado para
-el flujo formal de conversión a pedido, que será implementado en una fase
-posterior.
+`rechazada` y `convertida` son estados cerrados y no admiten cambios manuales. `convertida` no aparece en el selector ni se acepta en la RPC manual; ese estado queda reservado para el flujo formal de conversión a pedido.
 
 ## Permisos
 
@@ -175,6 +201,7 @@ Permisos usados:
 
 - `solicitudes.view`: lectura de listado y detalle.
 - `solicitudes.manage`: cambio manual de estado.
+- `pedidos.manage`: conversión de solicitud aprobada a pedido.
 
 El modelo completo de permisos se documenta conceptualmente en
 `docs/PERMISSIONS_MODEL.md`.
@@ -213,25 +240,24 @@ Las policies existentes permiten:
 
 ## Qué NO incluye esta fase
 
-- Conversión de solicitud a pedido.
 - Gestión real de clientes.
 - Eliminación de archivos adjuntos.
 - Historial avanzado de cambios.
 - Comentarios internos.
 - Notificaciones.
-- Reglas estrictas de transición de estados.
 - Asignación de personal a pedidos.
+- Pedidos manuales sin cliente asociado.
+- Tareas de pedido.
 - Generación de presupuestos.
 
 ## Consideraciones futuras
 
 Más adelante se podrá:
 
-- restringir transiciones de estado;
 - registrar historial detallado;
 - agregar comentarios internos;
 - asociar solicitud a cliente existente;
-- convertir solicitud aprobada en pedido;
+- implementar tareas de pedido;
 - permitir eliminación controlada de archivos privados si se define;
 - notificar al equipo interno;
 - generar códigos humanos de referencia.
@@ -245,6 +271,8 @@ El diseño del dashboard operativo para la Fase 13 se documenta en `docs/DASHBOA
 - Admin ve el listado de solicitudes.
 - Supervisor ve el listado de solicitudes.
 - Trabajador no puede entrar a `/dashboard/solicitudes`.
+- Buscar solicitudes por referencia, cliente, teléfono, correo, servicio y descripción.
+- Combinar `q` con filtro de estado y luego limpiar ambos filtros.
 - Admin abre el detalle de una solicitud.
 - Supervisor abre el detalle de una solicitud.
 - Admin descarga un archivo de solicitud.
@@ -254,10 +282,26 @@ El diseño del dashboard operativo para la Fase 13 se documenta en `docs/DASHBOA
 - Un id inválido muestra 404.
 - Admin cambia el estado de una solicitud.
 - Supervisor cambia el estado de una solicitud.
+- Solicitud `nueva` permite pasar a `en_revision` o `rechazada`.
+- Solicitud `nueva` no permite pasar directo a `aprobada`.
+- Solicitud `en_revision` permite pasar a `contactada` o `rechazada`.
+- Solicitud `contactada` permite pasar a `aprobada` o `rechazada`.
+- Solicitud `aprobada` permite rechazar o convertir a pedido.
 - `convertida` no aparece en el selector.
+- Solicitud `convertida` no permite cambios manuales.
+- Solicitud `rechazada` no permite cambios manuales.
 - Un intento manipulado de enviar `convertida` falla server-side.
 - En Supabase Studio, `reviewed_by` se actualiza al cambiar estado.
 - `converted_order_id` no se modifica durante cambios manuales de estado.
+- Convertir una solicitud aprobada con cliente asociado exige título, descripción y prioridad del pedido.
+- Confirmar que la prioridad inicia en `normal`.
+- Convertir sin fecha estimada y confirmar que el pedido queda sin fecha.
+- Convertir con fecha estimada de hoy o futura y confirmar que se guarda.
+- Forzar una fecha estimada pasada y confirmar error server-side.
+- La creación manual de pedidos puede quedar sin cliente asociado.
+- Intentar convertir sin título muestra error.
+- Confirmar que el pedido creado usa el título escrito, no `service_type`.
+- Confirmar que la descripción del pedido se guarda correctamente.
 
 ## Cierre
 

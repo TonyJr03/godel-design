@@ -17,7 +17,6 @@ export type PublicSolicitudSubmittedValues = {
   client_email: string;
   service_type: string;
   description: string;
-  quantity: string;
   desired_date: string;
   notes: string;
 };
@@ -40,7 +39,6 @@ function getSubmittedValues(formData: FormData): PublicSolicitudSubmittedValues 
     client_email: getFormValue(formData, "client_email"),
     service_type: getFormValue(formData, "service_type"),
     description: getFormValue(formData, "description"),
-    quantity: getFormValue(formData, "quantity"),
     desired_date: getFormValue(formData, "desired_date"),
     notes: getFormValue(formData, "notes"),
   };
@@ -102,7 +100,6 @@ export async function submitPublicSolicitudAction(
     client_email: values.client_email,
     service_type: values.service_type,
     description: values.description,
-    quantity: values.quantity,
     desired_date: values.desired_date,
     notes: values.notes,
   });

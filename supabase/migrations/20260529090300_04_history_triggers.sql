@@ -193,6 +193,186 @@ after insert on public.archivos
 for each row
 execute function private.insert_pedido_historial_archivo_subido();
 
+create or replace function private.insert_pedido_historial_tarea_creada()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, private
+as $$
+begin
+  insert into public.pedido_historial (
+    pedido_id,
+    actor_id,
+    action,
+    summary,
+    old_value,
+    new_value,
+    metadata
+  )
+  values (
+    new.pedido_id,
+    coalesce(new.created_by, auth.uid()),
+    'tarea_creada'::public.pedido_historial_action,
+    'Tarea creada en el pedido: ' || new.title,
+    null,
+    new.title,
+    jsonb_strip_nulls(
+      jsonb_build_object(
+        'task_id', new.id,
+        'title', new.title,
+        'task_type', new.task_type::text,
+        'target_quantity', new.target_quantity,
+        'completed_quantity', new.completed_quantity,
+        'is_completed', new.is_completed,
+        'sort_order', new.sort_order
+      )
+    )
+  );
+
+  return new;
+end;
+$$;
+
+create trigger insert_pedido_historial_tarea_creada
+after insert on public.pedido_tareas
+for each row
+execute function private.insert_pedido_historial_tarea_creada();
+
+create or replace function private.insert_pedido_historial_tarea_actualizada()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, private
+as $$
+declare
+  v_actor_id uuid;
+  v_action public.pedido_historial_action;
+  v_summary text;
+  v_old_value text;
+  v_new_value text;
+  v_metadata jsonb;
+begin
+  if old.is_completed = false and new.is_completed = true then
+    v_action := 'tarea_completada'::public.pedido_historial_action;
+    v_summary := 'Tarea completada en el pedido: ' || new.title;
+    v_old_value := old.title;
+    v_new_value := new.title;
+  elsif old.is_completed = true and new.is_completed = false then
+    v_action := 'tarea_reabierta'::public.pedido_historial_action;
+    v_summary := 'Tarea reabierta en el pedido: ' || new.title;
+    v_old_value := old.title;
+    v_new_value := new.title;
+  elsif old.completed_quantity is distinct from new.completed_quantity then
+    v_action := 'tarea_progreso_actualizado'::public.pedido_historial_action;
+    v_summary := 'Progreso actualizado en tarea del pedido: ' || new.title;
+    v_old_value := old.completed_quantity::text;
+    v_new_value := new.completed_quantity::text;
+  elsif old.title is distinct from new.title
+    or old.task_type is distinct from new.task_type
+    or old.target_quantity is distinct from new.target_quantity
+    or old.sort_order is distinct from new.sort_order then
+    v_action := 'tarea_actualizada'::public.pedido_historial_action;
+    v_summary := 'Tarea actualizada en el pedido: ' || new.title;
+    v_old_value := old.title;
+    v_new_value := new.title;
+  else
+    return new;
+  end if;
+
+  v_actor_id := coalesce(new.updated_by, auth.uid());
+  v_metadata := jsonb_strip_nulls(
+    jsonb_build_object(
+      'task_id', new.id,
+      'title', new.title,
+      'previous_title', old.title,
+      'task_type', new.task_type::text,
+      'previous_task_type', old.task_type::text,
+      'target_quantity', new.target_quantity,
+      'previous_target_quantity', old.target_quantity,
+      'completed_quantity', new.completed_quantity,
+      'previous_completed_quantity', old.completed_quantity,
+      'is_completed', new.is_completed,
+      'previous_is_completed', old.is_completed,
+      'sort_order', new.sort_order,
+      'previous_sort_order', old.sort_order,
+      'completed_at', new.completed_at,
+      'completed_by', new.completed_by
+    )
+  );
+
+  insert into public.pedido_historial (
+    pedido_id,
+    actor_id,
+    action,
+    summary,
+    old_value,
+    new_value,
+    metadata
+  )
+  values (
+    new.pedido_id,
+    v_actor_id,
+    v_action,
+    v_summary,
+    v_old_value,
+    v_new_value,
+    v_metadata
+  );
+
+  return new;
+end;
+$$;
+
+create trigger insert_pedido_historial_tarea_actualizada
+after update on public.pedido_tareas
+for each row
+execute function private.insert_pedido_historial_tarea_actualizada();
+
+create or replace function private.insert_pedido_historial_tarea_eliminada()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, private
+as $$
+begin
+  insert into public.pedido_historial (
+    pedido_id,
+    actor_id,
+    action,
+    summary,
+    old_value,
+    new_value,
+    metadata
+  )
+  values (
+    old.pedido_id,
+    coalesce(auth.uid(), old.updated_by, old.created_by),
+    'tarea_eliminada'::public.pedido_historial_action,
+    'Tarea eliminada del pedido: ' || old.title,
+    old.title,
+    null,
+    jsonb_strip_nulls(
+      jsonb_build_object(
+        'task_id', old.id,
+        'title', old.title,
+        'task_type', old.task_type::text,
+        'target_quantity', old.target_quantity,
+        'completed_quantity', old.completed_quantity,
+        'is_completed', old.is_completed,
+        'sort_order', old.sort_order
+      )
+    )
+  );
+
+  return old;
+end;
+$$;
+
+create trigger insert_pedido_historial_tarea_eliminada
+after delete on public.pedido_tareas
+for each row
+execute function private.insert_pedido_historial_tarea_eliminada();
+
 comment on function private.insert_pedido_historial_pedido_creado() is
   'Registra historial automático cuando se crea un pedido.';
 
@@ -204,6 +384,15 @@ comment on function private.insert_pedido_historial_trabajador_removido() is
 
 comment on function private.insert_pedido_historial_archivo_subido() is
   'Registra historial automático cuando se sube un archivo propio de pedido.';
+
+comment on function private.insert_pedido_historial_tarea_creada() is
+  'Registra historial automático cuando se crea una tarea de pedido.';
+
+comment on function private.insert_pedido_historial_tarea_actualizada() is
+  'Registra historial automático cuando se actualiza una tarea de pedido.';
+
+comment on function private.insert_pedido_historial_tarea_eliminada() is
+  'Registra historial automático cuando se elimina una tarea de pedido.';
 
 create or replace function private.solicitud_estado_label(
   p_estado public.solicitud_estado
@@ -244,14 +433,12 @@ begin
     new.id,
     auth.uid(),
     'solicitud_creada'::public.solicitud_historial_action,
-    'Solicitud registrada: ' || new.service_type ||
-      coalesce(' (' || new.quantity::text || ' unidades)', ''),
+    'Solicitud registrada: ' || new.service_type,
     null,
     new.service_type,
     jsonb_strip_nulls(
       jsonb_build_object(
         'service_type', new.service_type,
-        'quantity', new.quantity,
         'origen', case
           when auth.uid() is null then 'publica'
           else 'interna'
@@ -490,6 +677,15 @@ revoke all on function private.insert_pedido_historial_trabajador_removido()
 from public, anon, authenticated;
 
 revoke all on function private.insert_pedido_historial_archivo_subido()
+from public, anon, authenticated;
+
+revoke all on function private.insert_pedido_historial_tarea_creada()
+from public, anon, authenticated;
+
+revoke all on function private.insert_pedido_historial_tarea_actualizada()
+from public, anon, authenticated;
+
+revoke all on function private.insert_pedido_historial_tarea_eliminada()
 from public, anon, authenticated;
 
 revoke all on function private.solicitud_estado_label(public.solicitud_estado)

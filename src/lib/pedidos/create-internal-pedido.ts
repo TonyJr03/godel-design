@@ -7,7 +7,6 @@ import {
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import type { Enums, TablesInsert } from "@/types/database";
-import { generatePedidoNumber } from "./order-number";
 import {
   validatePedidoInput,
   type CreatePedidoInput,
@@ -31,7 +30,7 @@ export type CreateInternalPedidoResult = ServiceResult<
   PedidoFieldErrors
 >;
 
-const INITIAL_MANUAL_PEDIDO_ESTADO: Enums<"pedido_estado"> = "en_revision";
+const INITIAL_MANUAL_PEDIDO_ESTADO: Enums<"pedido_estado"> = "creado";
 const GENERIC_CREATE_ERROR =
   "No se pudo crear el pedido. Inténtalo nuevamente.";
 
@@ -75,7 +74,9 @@ export async function createInternalPedido(
     });
   }
 
-  const exists = await clienteExists(validation.data.cliente_id);
+  const exists = validation.data.cliente_id
+    ? await clienteExists(validation.data.cliente_id)
+    : true;
 
   if (exists === null) {
     return serviceFailure("error", GENERIC_CREATE_ERROR);
@@ -87,7 +88,7 @@ export async function createInternalPedido(
       "El cliente seleccionado no existe o no está disponible.",
       {
         fieldErrors: {
-          cliente_id: "Selecciona un cliente válido.",
+          cliente_id: "Selecciona un cliente válido o deja el campo vacío.",
         },
       },
     );
@@ -96,7 +97,6 @@ export async function createInternalPedido(
   const supabase = await createClient();
   const pedido: TablesInsert<"pedidos"> = {
     ...validation.data,
-    order_number: generatePedidoNumber(),
     status: INITIAL_MANUAL_PEDIDO_ESTADO,
     solicitud_id: null,
     created_by: profile.id,

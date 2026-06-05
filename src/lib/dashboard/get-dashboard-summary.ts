@@ -1,7 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
+import type { Tables } from "@/types/database";
 import type { DashboardContext, ManagementDashboardContext } from "./context";
 import {
   getDashboardDateWindow,
+  PEDIDO_STATUSES_WITHOUT_TASKS_ATTENTION,
   SUMMARY_PENDING_SOLICITUD_STATUSES,
 } from "./helpers";
 import { loadWorkerDashboardSummary } from "./get-worker-dashboard";
@@ -11,6 +13,9 @@ type CountQuery = PromiseLike<{
   count: number | null;
   error: { message?: string } | null;
 }>;
+
+type PedidoSinTareasRow = Pick<Tables<"pedidos">, "id">;
+type PedidoTaskPedidoIdRow = Pick<Tables<"pedido_tareas">, "pedido_id">;
 
 const GENERIC_SUMMARY_ERROR =
   "No se pudo cargar el resumen del dashboard. Inténtalo nuevamente.";
@@ -25,6 +30,48 @@ async function resolveCount(label: string, query: CountQuery): Promise<number> {
   return count ?? 0;
 }
 
+async function countPedidosPendientesSinTareas(): Promise<number> {
+  const supabase = await createClient();
+  const { data: pedidos, error: pedidosError } = await supabase
+    .from("pedidos")
+    .select("id")
+    .in("status", PEDIDO_STATUSES_WITHOUT_TASKS_ATTENTION)
+    .returns<PedidoSinTareasRow[]>();
+
+  if (pedidosError) {
+    throw new Error(
+      `pedidos pendientes sin tareas: ${
+        pedidosError.message ?? "Supabase query error"
+      }`,
+    );
+  }
+
+  const pedidoIds = (pedidos ?? []).map((pedido) => pedido.id);
+
+  if (pedidoIds.length === 0) {
+    return 0;
+  }
+
+  const { data: tasks, error: tasksError } = await supabase
+    .from("pedido_tareas")
+    .select("pedido_id")
+    .in("pedido_id", pedidoIds)
+    .returns<PedidoTaskPedidoIdRow[]>();
+
+  if (tasksError) {
+    throw new Error(
+      `tareas de pedidos pendientes: ${
+        tasksError.message ?? "Supabase query error"
+      }`,
+    );
+  }
+
+  const pedidoIdsWithTasks = new Set((tasks ?? []).map((task) => task.pedido_id));
+
+  return pedidoIds.filter((pedidoId) => !pedidoIdsWithTasks.has(pedidoId))
+    .length;
+}
+
 async function getManagementDashboardSummary(
   context: ManagementDashboardContext,
 ): Promise<GetDashboardSummaryResult> {
@@ -37,9 +84,9 @@ async function getManagementDashboardSummary(
       solicitudesPendientes,
       solicitudesAprobadasPendientesConvertir,
       pedidosActivos,
-      pedidosEnDiseno,
       pedidosEnProduccion,
       pedidosListosEntrega,
+      pedidosSinTareas,
       pedidosAtrasados,
       pedidosProximosEntrega,
       clientesRegistrados,
@@ -75,13 +122,6 @@ async function getManagementDashboardSummary(
           .neq("status", "cancelado"),
       ),
       resolveCount(
-        "pedidos en diseño",
-        supabase
-          .from("pedidos")
-          .select("id", { count: "exact", head: true })
-          .eq("status", "en_diseno"),
-      ),
-      resolveCount(
         "pedidos en producción",
         supabase
           .from("pedidos")
@@ -95,6 +135,7 @@ async function getManagementDashboardSummary(
           .select("id", { count: "exact", head: true })
           .eq("status", "listo_entrega"),
       ),
+      countPedidosPendientesSinTareas(),
       resolveCount(
         "pedidos atrasados",
         supabase
@@ -133,9 +174,9 @@ async function getManagementDashboardSummary(
           solicitudesPendientes,
           solicitudesAprobadasPendientesConvertir,
           pedidosActivos,
-          pedidosEnDiseno,
           pedidosEnProduccion,
           pedidosListosEntrega,
+          pedidosSinTareas,
           pedidosAtrasados,
           pedidosProximosEntrega,
           clientesRegistrados,
