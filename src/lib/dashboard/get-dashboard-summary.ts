@@ -3,6 +3,7 @@ import type { Tables } from "@/types/database";
 import type { DashboardContext, ManagementDashboardContext } from "./context";
 import {
   getDashboardDateWindow,
+  PEDIDO_STATUSES_WITHOUT_TASKS_ATTENTION,
   SUMMARY_PENDING_SOLICITUD_STATUSES,
 } from "./helpers";
 import { loadWorkerDashboardSummary } from "./get-worker-dashboard";
@@ -29,17 +30,17 @@ async function resolveCount(label: string, query: CountQuery): Promise<number> {
   return count ?? 0;
 }
 
-async function countPedidosEnRevisionSinTareas(): Promise<number> {
+async function countPedidosPendientesSinTareas(): Promise<number> {
   const supabase = await createClient();
   const { data: pedidos, error: pedidosError } = await supabase
     .from("pedidos")
     .select("id")
-    .eq("status", "en_revision")
+    .in("status", PEDIDO_STATUSES_WITHOUT_TASKS_ATTENTION)
     .returns<PedidoSinTareasRow[]>();
 
   if (pedidosError) {
     throw new Error(
-      `pedidos en revisión: ${
+      `pedidos pendientes sin tareas: ${
         pedidosError.message ?? "Supabase query error"
       }`,
     );
@@ -59,7 +60,7 @@ async function countPedidosEnRevisionSinTareas(): Promise<number> {
 
   if (tasksError) {
     throw new Error(
-      `tareas de pedidos en revisión: ${
+      `tareas de pedidos pendientes: ${
         tasksError.message ?? "Supabase query error"
       }`,
     );
@@ -134,7 +135,7 @@ async function getManagementDashboardSummary(
           .select("id", { count: "exact", head: true })
           .eq("status", "listo_entrega"),
       ),
-      countPedidosEnRevisionSinTareas(),
+      countPedidosPendientesSinTareas(),
       resolveCount(
         "pedidos atrasados",
         supabase

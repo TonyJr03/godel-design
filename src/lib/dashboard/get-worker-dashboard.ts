@@ -4,6 +4,7 @@ import {
   getDashboardDateWindow,
   isPedidoActivo,
   isPedidoAtrasado,
+  isPedidoPendingReview,
   isPedidoProximoEntrega,
   type PedidoEstado,
 } from "./helpers";
@@ -48,7 +49,9 @@ function buildWorkerMetrics(
     ).length,
     pedidosAsignadosSinTareas: pedidos.filter(
       (pedido) =>
-        pedido.status === "en_revision" && !pedidoIdsWithTasks.has(pedido.id),
+        (isPedidoPendingReview(pedido.status) ||
+          pedido.status === "en_revision") &&
+        !pedidoIdsWithTasks.has(pedido.id),
     ).length,
     pedidosAsignadosAtrasados: pedidos.filter((pedido) =>
       isPedidoAtrasado(pedido, today),

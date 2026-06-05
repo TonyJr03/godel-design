@@ -41,6 +41,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 
 | Valor |
 |---|
+| `creado` |
 | `solicitud_recibida` |
 | `en_revision` |
 | `en_produccion` |
@@ -241,7 +242,8 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 - Un pedido puede crearse manualmente o a partir de una solicitud.
 - Un pedido manual puede quedar sin cliente asociado (`cliente_id = null`).
 - La conversión desde solicitud exige que la solicitud tenga `cliente_id` asociado.
-- Un pedido manual inicia en `en_revision`; un pedido convertido desde solicitud inicia en `solicitud_recibida`.
+- Un pedido manual inicia en `creado`; un pedido convertido desde solicitud inicia en `solicitud_recibida`.
+- `creado` puede pasar únicamente a `en_revision` o `cancelado`. No permite avanzar directamente a producción, listo para entrega o entregado.
 - La conversión desde solicitud guarda la prioridad definida por el usuario interno y una fecha estimada opcional validada server-side. Usa la numeración generada por base de datos y mantiene el estado inicial `solicitud_recibida`.
 - Los estados de pedido solo representan fases generales. Las tareas de pedido modelan el progreso real y condicionan el avance operativo mediante `public.actualizar_estado_pedido`.
 - Los cambios importantes de estado deben registrarse en `pedido_historial`.

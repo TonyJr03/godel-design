@@ -74,7 +74,10 @@ begin
 
   v_has_tasks := v_task_count > 0;
 
-  if v_estado_anterior = 'solicitud_recibida'::public.pedido_estado then
+  if v_estado_anterior in (
+    'creado'::public.pedido_estado,
+    'solicitud_recibida'::public.pedido_estado
+  ) then
     if p_nuevo_estado not in (
       'en_revision'::public.pedido_estado,
       'cancelado'::public.pedido_estado

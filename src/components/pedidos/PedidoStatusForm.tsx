@@ -67,6 +67,13 @@ export function PedidoStatusForm({
         </p>
       ) : null}
 
+      {estadoActual === "creado" ? (
+        <p className="mt-5 rounded-md border border-teal-200 bg-teal-50 px-4 py-3 text-sm leading-6 text-teal-950">
+          Este pedido fue creado manualmente y aún debe revisarse antes de pasar
+          a producción.
+        </p>
+      ) : null}
+
       {!isClosed && tasksLoadError ? (
         <p className="mt-5 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
           No se pudo cargar el progreso de tareas para orientar el cambio de

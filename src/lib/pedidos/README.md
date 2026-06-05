@@ -24,7 +24,7 @@ El trabajador tampoco accede al módulo general de usuarios. RLS de `perfiles` s
 
 La action `createPedidoAction` lee únicamente `cliente_id`, `title`, `description`, `priority` y `estimated_delivery_date`, y delega en `createInternalPedido`.
 
-`createInternalPedido` requiere `pedidos.manage`, valida el input, valida el cliente solo cuando se envía `cliente_id`, crea el pedido con estado inicial `en_revision`, guarda `solicitud_id` como `null` y no asigna personal. Si no se selecciona cliente, guarda `cliente_id = null`; no captura datos temporales de cliente desde el formulario.
+`createInternalPedido` requiere `pedidos.manage`, valida el input, valida el cliente solo cuando se envía `cliente_id`, crea el pedido con estado inicial `creado`, guarda `solicitud_id` como `null` y no asigna personal. Si no se selecciona cliente, guarda `cliente_id = null`; no captura datos temporales de cliente desde el formulario.
 
 El número de pedido (`order_number`) no se acepta desde formularios ni se genera en TypeScript. La base de datos lo asigna al insertar el pedido con formato `P-YY-XXXX`, usando un contador anual transaccional.
 
@@ -48,9 +48,9 @@ Cuando un pedido muestra datos de su solicitud origen, el tipo de servicio debe 
 
 La action `updatePedidoStatusAction` lee únicamente `pedido_id` y `status`, y delega en `updateInternalPedidoStatus`. El servicio valida `pedidos.change_status`, UUID y estado real, verifica acceso al pedido y usa la RPC segura existente `public.actualizar_estado_pedido`.
 
-Los estados vigentes de pedido son `solicitud_recibida`, `en_revision`, `en_produccion`, `listo_entrega`, `entregado` y `cancelado`. La RPC es la autoridad para validar transiciones: `solicitud_recibida` avanza a `en_revision` o `cancelado`; `en_revision` avanza a `en_produccion` o `cancelado`; `en_produccion` avanza a `listo_entrega` o `cancelado`; `listo_entrega` avanza a `entregado`, vuelve a `en_produccion` o pasa a `cancelado`.
+Los estados vigentes de pedido son `creado`, `solicitud_recibida`, `en_revision`, `en_produccion`, `listo_entrega`, `entregado` y `cancelado`. La RPC es la autoridad para validar transiciones: `creado` avanza a `en_revision` o `cancelado`; `solicitud_recibida` avanza a `en_revision` o `cancelado`; `en_revision` avanza a `en_produccion` o `cancelado`; `en_produccion` avanza a `listo_entrega` o `cancelado`; `listo_entrega` avanza a `entregado`, vuelve a `en_produccion` o pasa a `cancelado`.
 
-Para pasar a `en_produccion` debe existir al menos una tarea. Para pasar a `listo_entrega` debe existir al menos una tarea y todas deben estar completadas. `entregado` solo se permite desde `listo_entrega`. `entregado` y `cancelado` son estados cerrados y no admiten cambios posteriores. La UI filtra y deshabilita opciones como ayuda operativa, pero la validación real está en `public.actualizar_estado_pedido`.
+Un pedido manual no puede pasar directamente de `creado` a producción: primero debe pasar a `en_revision`. Para pasar de `en_revision` a `en_produccion` debe existir al menos una tarea. Para pasar a `listo_entrega` debe existir al menos una tarea y todas deben estar completadas. `entregado` solo se permite desde `listo_entrega`. `entregado` y `cancelado` son estados cerrados y no admiten cambios posteriores. La UI filtra y deshabilita opciones como ayuda operativa, pero la validación real está en `public.actualizar_estado_pedido`.
 
 La RPC permite a `admin` y `supervisor` cambiar cualquier pedido y a `trabajador` cambiar solo pedidos asignados, sin conceder a trabajadores un `UPDATE` amplio sobre `pedidos`. Con asignaciones múltiples, cualquier trabajador asignado al pedido puede cambiar el estado porque la validación usa `private.is_assigned_to_pedido`, que comprueba la existencia de una relación en `pedido_trabajadores`.
 

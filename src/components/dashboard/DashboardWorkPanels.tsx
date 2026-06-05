@@ -29,6 +29,10 @@ function getSolicitudReference(id: string): string {
 }
 
 function getPedidoAttentionLabel(item: DashboardPedidoWorkItem): string | null {
+  if (item.attention.isPendingReview) {
+    return "Pendiente de revisión";
+  }
+
   if (item.attention.isOverdue) {
     return "Atrasado";
   }

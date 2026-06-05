@@ -2,6 +2,7 @@ import type { Enums } from "@/types/database";
 import type { PedidoPriority, PedidoStatus } from "./status";
 
 export const PEDIDO_STATUS_LABELS: Record<PedidoStatus, string> = {
+  creado: "Creado",
   solicitud_recibida: "Solicitud recibida",
   en_revision: "En revisión",
   en_produccion: "En producción",

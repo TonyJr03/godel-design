@@ -30,7 +30,7 @@ export type CreateInternalPedidoResult = ServiceResult<
   PedidoFieldErrors
 >;
 
-const INITIAL_MANUAL_PEDIDO_ESTADO: Enums<"pedido_estado"> = "en_revision";
+const INITIAL_MANUAL_PEDIDO_ESTADO: Enums<"pedido_estado"> = "creado";
 const GENERIC_CREATE_ERROR =
   "No se pudo crear el pedido. Inténtalo nuevamente.";
 

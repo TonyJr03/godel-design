@@ -720,6 +720,7 @@ export type Database = {
         | "avance"
         | "final_entrega"
       pedido_estado:
+        | "creado"
         | "solicitud_recibida"
         | "en_revision"
         | "en_produccion"
@@ -893,6 +894,7 @@ export const Constants = {
         "final_entrega",
       ],
       pedido_estado: [
+        "creado",
         "solicitud_recibida",
         "en_revision",
         "en_produccion",

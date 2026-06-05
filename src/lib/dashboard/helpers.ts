@@ -32,6 +32,16 @@ export const FINAL_PEDIDO_STATUSES: readonly PedidoEstado[] = [
   "cancelado",
 ];
 
+export const PENDING_REVIEW_PEDIDO_STATUSES: readonly PedidoEstado[] = [
+  "creado",
+  "solicitud_recibida",
+];
+
+export const PEDIDO_STATUSES_WITHOUT_TASKS_ATTENTION: readonly PedidoEstado[] = [
+  ...PENDING_REVIEW_PEDIDO_STATUSES,
+  "en_revision",
+];
+
 export function getDashboardDateWindow(
   date = new Date(),
 ): DashboardDateWindow {
@@ -43,6 +53,10 @@ export function getDashboardDateWindow(
 
 export function isPedidoActivo(status: PedidoEstado): boolean {
   return !FINAL_PEDIDO_STATUSES.includes(status);
+}
+
+export function isPedidoPendingReview(status: PedidoEstado): boolean {
+  return PENDING_REVIEW_PEDIDO_STATUSES.includes(status);
 }
 
 export function isPedidoAtrasado(

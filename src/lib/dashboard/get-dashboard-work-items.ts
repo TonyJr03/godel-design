@@ -10,6 +10,7 @@ import type { DashboardContext } from "./context";
 import {
   getDashboardDateWindow,
   isPedidoAtrasado,
+  isPedidoPendingReview,
   isPedidoProximoEntrega,
   WORK_PENDING_SOLICITUD_STATUSES,
 } from "./helpers";
@@ -95,27 +96,31 @@ function getPedidoAttentionRank(
   today: string,
   nextSevenDays: string,
 ): number {
-  if (isPedidoAtrasado(pedido, today)) {
+  if (isPedidoPendingReview(pedido.status)) {
     return 0;
   }
 
-  if (isPedidoProximoEntrega(pedido, today, nextSevenDays)) {
+  if (isPedidoAtrasado(pedido, today)) {
     return 1;
   }
 
-  if (pedido.status === "en_revision" && !pedido.progress.hasTasks) {
+  if (isPedidoProximoEntrega(pedido, today, nextSevenDays)) {
     return 2;
   }
 
-  if (pedido.status === "en_produccion" && !pedido.progress.isComplete) {
+  if (pedido.status === "en_revision" && !pedido.progress.hasTasks) {
     return 3;
   }
 
-  if (pedido.status === "listo_entrega") {
+  if (pedido.status === "en_produccion" && !pedido.progress.isComplete) {
     return 4;
   }
 
-  return 5;
+  if (pedido.status === "listo_entrega") {
+    return 5;
+  }
+
+  return 6;
 }
 
 function sortPendingSolicitudes(
@@ -190,6 +195,7 @@ function mapPedidoItem(
     clienteNombre: pedido.clientes?.name ?? null,
     progress: pedido.progress,
     attention: {
+      isPendingReview: isPedidoPendingReview(pedido.status),
       isOverdue: isPedidoAtrasado(pedido, today),
       isDueSoon: isPedidoProximoEntrega(pedido, today, nextSevenDays),
       isReviewWithoutTasks:

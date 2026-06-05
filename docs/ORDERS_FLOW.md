@@ -100,6 +100,7 @@ Las tablas oficiales normalizadas para comentarios e historial de pedidos son `p
 
 | Estado | Significado |
 |---|---|
+| `creado` | Pedido creado manualmente, pendiente de revisión formal. |
 | `solicitud_recibida` | Pedido creado desde una solicitud, pendiente de revisión operativa. |
 | `en_revision` | Pedido en revisión interna. |
 | `en_produccion` | Trabajo en fase de producción. |
@@ -107,12 +108,13 @@ Las tablas oficiales normalizadas para comentarios e historial de pedidos son `p
 | `entregado` | Pedido entregado. |
 | `cancelado` | Pedido cancelado. |
 
-Un pedido manual inicia en `en_revision`. Un pedido convertido desde solicitud inicia en `solicitud_recibida`. El flujo general esperado es `solicitud_recibida` -> `en_revision` -> `en_produccion` -> `listo_entrega` -> `entregado` para pedidos convertidos y `en_revision` -> `en_produccion` -> `listo_entrega` -> `entregado` para pedidos manuales. `cancelado` funciona como salida lateral.
+Un pedido manual inicia en `creado`. Un pedido convertido desde solicitud inicia en `solicitud_recibida`. El flujo esperado es `creado` -> `en_revision` -> `en_produccion` -> `listo_entrega` -> `entregado` para pedidos manuales y `solicitud_recibida` -> `en_revision` -> `en_produccion` -> `listo_entrega` -> `entregado` para pedidos convertidos. `cancelado` funciona como salida lateral desde los estados activos.
 
 Los estados de pedido representan solo la fase general del flujo operativo. El progreso real de diseño, impresión, encuadernado u otras tareas se modela con tareas de pedido, y la RPC `public.actualizar_estado_pedido` aplica las reglas operativas fuertes.
 
 Reglas de transición vigentes:
 
+- `creado` puede pasar a `en_revision` o `cancelado`.
 - `solicitud_recibida` puede pasar a `en_revision` o `cancelado`.
 - `en_revision` puede pasar a `en_produccion` o `cancelado`; para pasar a `en_produccion` debe existir al menos una tarea.
 - `en_produccion` puede pasar a `listo_entrega` o `cancelado`; para pasar a `listo_entrega` debe existir al menos una tarea y todas deben estar completadas.
@@ -228,7 +230,7 @@ Archivos principales:
 - Validación: `src/lib/pedidos/order-validation.ts`
 - Numeración: `private.generar_numero_pedido()` y `public.pedido_contadores`
 
-La creación manual requiere `pedidos.manage`, por lo que solo `admin` y `supervisor` pueden usarla. El formulario permite seleccionar un cliente existente o dejar `Sin cliente asociado`; no acepta estado, `solicitud_id`, número de pedido ni personal asignado. El pedido manual se crea con `solicitud_id = null`, estado inicial `en_revision` y `cliente_id = null` cuando no se selecciona cliente. No existen campos temporales de cliente en este flujo.
+La creación manual requiere `pedidos.manage`, por lo que solo `admin` y `supervisor` pueden usarla. El formulario permite seleccionar un cliente existente o dejar `Sin cliente asociado`; no acepta estado, `solicitud_id`, número de pedido ni personal asignado. El pedido manual se crea con `solicitud_id = null`, estado inicial `creado` y `cliente_id = null` cuando no se selecciona cliente. No existen campos temporales de cliente en este flujo.
 
 El número visible del pedido se asigna en base de datos al insertar, con formato `P-YY-XXXX`. El contador es anual, se guarda en `public.pedido_contadores` y se incrementa dentro de la transacción para proteger la concurrencia. La app no envía `order_number`.
 
@@ -356,7 +358,7 @@ El diseño técnico de comentarios internos e historial para la Fase 11 se docum
 
 El diseño del dashboard operativo para la Fase 13 se documenta en `docs/DASHBOARD_OPERATIVE_MODEL.md`. Las métricas futuras de pedidos deben derivarse de consultas server-side, respetar RLS y filtrar los pedidos del trabajador a sus asignaciones.
 
-Desde 13.6I, el dashboard y los paneles operativos también consideran tareas: pedidos en revisión sin tareas, pedidos en producción con tareas pendientes, pedidos listos para entrega y progreso agregado por pedido. No se implementan gráficos avanzados, reportes financieros ni productividad.
+Desde 13.6I, el dashboard y los paneles operativos también consideran tareas: pedidos pendientes de revisión o en revisión sin tareas, pedidos en producción con tareas pendientes, pedidos listos para entrega y progreso agregado por pedido. Los estados `creado` y `solicitud_recibida` se muestran como pendientes de revisión y se priorizan de la misma manera en los paneles operativos. No se implementan gráficos avanzados, reportes financieros ni productividad.
 
 ## Pruebas manuales recomendadas
 
@@ -371,7 +373,7 @@ Desde 13.6I, el dashboard y los paneles operativos también consideran tareas: p
 - Crear pedido manual con cliente registrado.
 - Crear pedido manual con `Sin cliente asociado`.
 - Verificar que el pedido manual tiene `solicitud_id = null`.
-- Verificar que el pedido manual inicia en `en_revision`.
+- Verificar que el pedido manual inicia en `creado`.
 - Verificar que lista, detalle y dashboard muestran `Sin cliente asociado` cuando `cliente_id = null`.
 - Convertir una solicitud aprobada con cliente.
 - Verificar que el pedido convertido inicia en `solicitud_recibida`.
@@ -390,13 +392,16 @@ Desde 13.6I, el dashboard y los paneles operativos también consideran tareas: p
 - Cambiar estado como `admin`.
 - Cambiar estado como `supervisor`.
 - Cambiar estado como trabajador asignado.
+- Cambiar un pedido manual de `creado` a `en_revision`.
+- Intentar pasar de `creado` directamente a `en_produccion` y confirmar el bloqueo.
+- Cancelar un pedido desde `creado` y confirmar que queda cerrado.
 - Cambiar estado entre `solicitud_recibida`, `en_revision`, `en_produccion`, `listo_entrega`, `entregado` y `cancelado`.
 - Confirmar que el selector no muestra estados eliminados.
 - Confirmar que listados y filtros no muestran estados eliminados.
 - Confirmar que el dashboard no muestra tarjeta de diseño.
 - Confirmar que las métricas de activos, producción, listos, atrasados y próximos a entrega funcionan.
 - Confirmar que el listado de pedidos muestra `Sin tareas`, progreso porcentual o `100% completado`.
-- Confirmar que los paneles operativos muestran progreso y priorizan pedidos atrasados, próximos, sin tareas, con tareas pendientes y listos para entrega.
+- Confirmar que los paneles operativos priorizan pedidos `creado` y `solicitud_recibida` como pendientes de revisión y muestran progreso, atrasados, próximos, sin tareas, con tareas pendientes y listos para entrega.
 - Confirmar que el historial registra cambios de estado con etiquetas vigentes.
 - Intentar pasar a `en_produccion` sin tareas y confirmar bloqueo.
 - Crear una tarea y pasar a `en_produccion`.

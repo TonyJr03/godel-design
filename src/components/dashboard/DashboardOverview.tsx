@@ -55,7 +55,8 @@ function getManagementCards(
     {
       title: "Sin tareas",
       value: metrics.pedidosSinTareas,
-      description: "Pedidos en revisión que aún no tienen tareas.",
+      description:
+        "Pedidos pendientes de revisión o en revisión que aún no tienen tareas.",
     },
     {
       title: "Pedidos atrasados",
@@ -102,7 +103,8 @@ function getWorkerCards(
     {
       title: "Asignados sin tareas",
       value: metrics.pedidosAsignadosSinTareas,
-      description: "Tus pedidos en revisión que aún no tienen tareas.",
+      description:
+        "Tus pedidos pendientes de revisión o en revisión que aún no tienen tareas.",
     },
     {
       title: "Atrasados",

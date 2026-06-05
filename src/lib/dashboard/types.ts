@@ -132,6 +132,7 @@ export type DashboardPedidoWorkItem = {
     isComplete: boolean;
   };
   attention: {
+    isPendingReview: boolean;
     isOverdue: boolean;
     isDueSoon: boolean;
     isReviewWithoutTasks: boolean;

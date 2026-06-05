@@ -22,6 +22,7 @@ create type public.solicitud_estado as enum (
 );
 
 create type public.pedido_estado as enum (
+  'creado',
   'solicitud_recibida',
   'en_revision',
   'en_produccion',

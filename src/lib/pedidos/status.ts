@@ -53,6 +53,14 @@ export function getAllowedPedidoStatusTransitions(
     return [current];
   }
 
+  if (currentStatus === "creado") {
+    return [
+      current,
+      buildStatusOption("en_revision"),
+      buildStatusOption("cancelado"),
+    ];
+  }
+
   if (currentStatus === "solicitud_recibida") {
     return [
       current,
