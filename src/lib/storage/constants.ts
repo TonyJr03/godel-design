@@ -53,6 +53,10 @@ export const ALLOWED_STORAGE_FILE_EXTENSIONS = [
   "zip",
 ] as const;
 
+export const STORAGE_FILE_INPUT_ACCEPT = ALLOWED_STORAGE_FILE_EXTENSIONS.map(
+  (extension) => `.${extension}`,
+).join(",");
+
 export const BLOCKED_STORAGE_FILE_EXTENSIONS = [
   "exe",
   "bat",

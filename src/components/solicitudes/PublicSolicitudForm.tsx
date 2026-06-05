@@ -8,6 +8,7 @@ import {
 import { getTodayDateInputValue } from "@/lib/utils";
 import { SOLICITUD_SERVICE_TYPE_OPTIONS } from "@/lib/solicitudes/labels";
 import type { PublicSolicitudField } from "@/lib/solicitudes";
+import { STORAGE_FILE_INPUT_ACCEPT } from "@/lib/storage/constants";
 
 const initialState: SubmitPublicSolicitudActionState = {
   ok: false,
@@ -313,7 +314,7 @@ export function PublicSolicitudForm() {
                 name="files"
                 type="file"
                 multiple
-                accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.zip"
+                accept={STORAGE_FILE_INPUT_ACCEPT}
                 aria-invalid={Boolean(filesError)}
                 aria-describedby={filesError ? "files-error" : "files-help"}
                 disabled={pending}

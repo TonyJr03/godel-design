@@ -124,7 +124,6 @@ export type ListPedidoFilesResult =
 
 export type UploadPedidoFileInput = {
   pedidoId: string;
-  category: PedidoFileCategory;
   file: File;
 };
 
@@ -139,8 +138,9 @@ export type UploadPedidoFileResult =
         | "unauthorized"
         | "invalid_pedido_id"
         | "pedido_not_found"
-        | "invalid_category"
-        | "forbidden_category"
+        | "pedido_delivered"
+        | "pedido_canceled"
+        | "status_not_allowed"
         | "invalid_file"
         | "storage_error"
         | "metadata_error"

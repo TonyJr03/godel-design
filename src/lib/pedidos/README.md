@@ -140,6 +140,8 @@ Desde Fase 11.7A, la base de datos registra automáticamente estos eventos de pe
 
 Los archivos heredados desde solicitudes con `visibility = "cliente_solicitud"` no generan `archivo_subido` del pedido. El historial automático de solicitudes queda fuera de esta subfase.
 
+La subida de archivos propios del pedido no permite elegir categoría. El servicio deriva `interno_pedido` para `creado`, `solicitud_recibida` y `en_revision`; `avance` para `en_produccion`; y `final_entrega` para `listo_entrega`. Los pedidos `entregado` o `cancelado` bloquean nuevas subidas. Un trabajador asignado puede subir la categoría correspondiente, incluida `interno_pedido`, mientras RLS y Storage bloquean pedidos no asignados y rutas que no coincidan con el estado.
+
 ## Alcance por Rol
 
 - `admin` y `supervisor` ven todos los pedidos.

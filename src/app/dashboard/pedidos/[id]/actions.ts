@@ -18,8 +18,6 @@ import {
 } from "@/lib/pedidos";
 import {
   uploadPedidoFile,
-  validatePedidoFileCategory,
-  type PedidoFileCategory,
   type UploadPedidoFileResult,
 } from "@/lib/storage";
 import { getFormValue } from "@/lib/utils";
@@ -132,8 +130,10 @@ function getUploadPedidoFileMessage(
     unauthorized: "Debes iniciar sesión con un usuario interno activo.",
     invalid_pedido_id: "El pedido solicitado no existe.",
     pedido_not_found: "El pedido solicitado no existe o no tienes acceso.",
-    invalid_category: "Selecciona una categoría válida.",
-    forbidden_category: "No tienes permiso para subir archivos en esa categoría.",
+    pedido_delivered: "No se pueden subir archivos a un pedido entregado.",
+    pedido_canceled: "No se pueden subir archivos a un pedido cancelado.",
+    status_not_allowed:
+      "El estado actual del pedido no permite subir archivos.",
     invalid_file:
       "El archivo no es válido. Revisa el tipo, la extensión y el tamaño.",
     storage_error: "No se pudo guardar el archivo. Inténtalo nuevamente.",
@@ -238,15 +238,7 @@ export async function uploadPedidoFileAction(
   formData: FormData,
 ): Promise<UploadPedidoFileActionState> {
   const pedidoId = getFormValue(formData, "pedido_id");
-  const category = getFormValue(formData, "category");
   const file = formData.get("file");
-
-  if (!validatePedidoFileCategory(category)) {
-    return {
-      ok: false,
-      message: "Selecciona una categoría válida.",
-    };
-  }
 
   if (!(file instanceof File)) {
     return {
@@ -257,7 +249,6 @@ export async function uploadPedidoFileAction(
 
   const result = await uploadPedidoFile({
     pedidoId,
-    category: category as PedidoFileCategory,
     file,
   });
 

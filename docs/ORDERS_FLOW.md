@@ -206,16 +206,20 @@ Archivos principales:
 - Componente: `src/components/storage/PedidoFilesSection.tsx`
 - Descarga: `/dashboard/pedidos/[id]/archivos/[fileId]/download`
 
-El detalle de pedido permite listar, subir y descargar archivos privados asociados al pedido. Los objetos se guardan en el bucket privado `godel-files` y los metadatos se registran en `archivos`.
+El detalle de pedido permite listar, subir y descargar archivos privados asociados al pedido. Los objetos se guardan en el bucket privado `godel-files` y los metadatos se registran en `archivos`. El usuario no selecciona categoría: la aplicación la deriva server-side desde el estado actual del pedido.
 
-Categorías permitidas:
+Mapeo de estado a categoría:
 
-- `admin` y `supervisor`: `interno_pedido`, `avance`, `final_entrega`.
-- `trabajador` asignado: `avance`, `final_entrega`.
+- `creado`, `solicitud_recibida` o `en_revision`: `interno_pedido`.
+- `en_produccion`: `avance`.
+- `listo_entrega`: `final_entrega`.
+- `entregado` o `cancelado`: no permiten nuevas subidas.
+
+`admin`, `supervisor` y los trabajadores asignados pueden subir el archivo correspondiente al estado. Un trabajador no asignado no puede acceder al pedido ni subir archivos. RLS de `archivos` y las policies de Storage validan que el usuario tenga acceso y que `visibility`, estado y carpeta coincidan.
 
 Los archivos enviados por el cliente en la solicitud pública también pueden aparecer en el pedido generado como `cliente_solicitud`. En ese caso se muestran como “Archivo enviado por cliente”. No se permite subir esa categoría desde el formulario interno de pedido; solo se hereda al convertir una solicitud en pedido.
 
-La descarga se realiza mediante URL firmada de corta duración. No se usan URLs públicas permanentes, no se acepta `file_path` desde formularios y no se usa service role key. No se implementa eliminación de archivos en esta fase.
+El formulario interno envía únicamente `pedido_id` y `file`. La descarga se realiza mediante URL firmada de corta duración. No se usan URLs públicas permanentes, no se aceptan categoría, `visibility`, `file_path`, bucket ni otros metadatos técnicos desde formularios y no se usa service role key. No se implementa eliminación de archivos en esta fase.
 
 Desde Fase 11.7B, la conversión de una solicitud a pedido registra `convertida_a_pedido` en `solicitud_historial`. Ese evento no duplica `estado_cambiado` cuando la misma operación marca la solicitud como `convertida`, y la herencia de archivos no genera eventos nuevos de archivo.
 

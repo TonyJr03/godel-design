@@ -183,13 +183,14 @@ as $$
       select 1
       from public.pedidos as p
       where p.id = private.storage_order_id(object_name)
-        and (
-          private.is_admin_or_supervisor()
-          or (
-            private.is_assigned_to_pedido(p.id)
-            and private.storage_order_category(object_name) in ('avances', 'finales')
-          )
-        )
+        and private.can_access_pedido(p.id)
+        and private.storage_order_category(object_name) = case
+          private.pedido_file_visibility_for_status(p.status)
+          when 'interno_pedido'::public.archivo_visibility then 'internos'
+          when 'avance'::public.archivo_visibility then 'avances'
+          when 'final_entrega'::public.archivo_visibility then 'finales'
+          else null
+        end
     )
     when private.storage_request_id(object_name) is not null then
       private.is_admin_or_supervisor()

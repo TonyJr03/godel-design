@@ -380,12 +380,16 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 - Un archivo puede pertenecer a una solicitud o a un pedido.
 - Debe evitarse que un archivo quede sin contexto salvo decisión explícita.
 - Los archivos son privados por defecto.
+- En subidas internas de pedido, `visibility` se deriva del estado actual: revisión inicial usa `interno_pedido`, producción usa `avance` y listo para entrega usa `final_entrega`.
+- Pedidos `entregado` o `cancelado` no aceptan nuevas subidas.
+- Los archivos heredados desde una solicitud conservan `visibility = cliente_solicitud`, su ruta física y su relación de origen.
 
 **Notas de seguridad:**
 
 - No deben usarse URLs públicas permanentes.
 - El acceso debe resolverse mediante reglas de Storage, RLS y URLs firmadas.
 - Trabajadores solo deberían acceder a archivos de pedidos asignados.
+- Un trabajador asignado puede subir la categoría derivada por el estado del pedido; RLS y Storage deben validar la misma correspondencia entre estado, categoría y carpeta.
 
 ### `pedido_comentarios`
 

@@ -33,7 +33,7 @@ Las categorías corresponden al enum `archivo_visibility`.
 | Categoría | Quién lo sube normalmente | Entidad asociada | Quién debería verlo |
 |---|---|---|---|
 | `cliente_solicitud` | Cliente externo mediante flujo público controlado | `solicitudes` | `admin` y `supervisor` |
-| `interno_pedido` | `admin` o `supervisor` | `pedidos` | `admin`, `supervisor` y trabajadores asignados al pedido si aplica |
+| `interno_pedido` | Usuario interno con acceso al pedido durante revisión inicial | `pedidos` | `admin`, `supervisor` y trabajadores asignados al pedido |
 | `avance` | Trabajador asignado, `admin` o `supervisor` | `pedidos` | `admin`, `supervisor` y trabajadores asignados al pedido |
 | `final_entrega` | Trabajador asignado, `admin` o `supervisor` | `pedidos` | `admin`, `supervisor` y trabajadores asignados al pedido |
 
@@ -84,7 +84,7 @@ La migración de Fase 10.1 crea policies sobre `storage.objects` solo para el bu
 | Operación | Alcance habilitado |
 |---|---|
 | `select` | `admin` y `supervisor` sobre solicitudes y pedidos; trabajador solo sobre pedidos asignados. |
-| `insert` | `admin` y `supervisor` sobre solicitudes y pedidos; trabajador solo en `pedidos/{pedido_id}/avances` y `pedidos/{pedido_id}/finales` si está asignado al pedido. |
+| `insert` | Usuarios internos con acceso al pedido, únicamente en la carpeta que corresponda a su estado actual. |
 | `update` | Solo `admin` y `supervisor` sobre rutas válidas de solicitudes o pedidos. |
 | `delete` | Solo `admin` y `supervisor` sobre rutas válidas de solicitudes o pedidos. |
 
@@ -95,7 +95,7 @@ Las policies reutilizan helpers existentes como `private.can_access_pedido`, `pr
 - `admin` puede acceder a archivos de solicitudes y pedidos.
 - `supervisor` puede acceder a archivos de solicitudes y pedidos.
 - `trabajador` puede leer archivos de pedidos asignados.
-- `trabajador` puede subir archivos operativos solo a `avances` y `finales` de pedidos asignados.
+- `trabajador` puede subir archivos a pedidos asignados, incluida la carpeta `internos`, cuando el estado actual lo permita.
 - `trabajador` no puede acceder a archivos de pedidos no asignados.
 - `trabajador` no puede acceder a archivos asociados solo a solicitudes.
 - Usuarios anónimos no pueden leer, listar, actualizar ni eliminar archivos.
@@ -136,17 +136,20 @@ Storage físico y metadatos de negocio siguen separados: Supabase Storage conser
 
 El detalle interno de pedido incluye una sección “Archivos del pedido” para listar, subir y descargar archivos privados asociados a `pedidos`.
 
-Categorías habilitadas:
+La categoría no se selecciona en el formulario. Se deriva server-side desde el estado actual:
 
-| Categoría | Ruta | Roles que pueden subir |
+| Estado | Categoría | Ruta |
 |---|---|---|
-| `interno_pedido` | `pedidos/{pedido_id}/internos/{timestamp}-{filename}` | `admin`, `supervisor` |
-| `avance` | `pedidos/{pedido_id}/avances/{timestamp}-{filename}` | `admin`, `supervisor`, trabajador asignado |
-| `final_entrega` | `pedidos/{pedido_id}/finales/{timestamp}-{filename}` | `admin`, `supervisor`, trabajador asignado |
+| `creado`, `solicitud_recibida`, `en_revision` | `interno_pedido` | `pedidos/{pedido_id}/internos/{timestamp}-{filename}` |
+| `en_produccion` | `avance` | `pedidos/{pedido_id}/avances/{timestamp}-{filename}` |
+| `listo_entrega` | `final_entrega` | `pedidos/{pedido_id}/finales/{timestamp}-{filename}` |
+| `entregado`, `cancelado` | Subida bloqueada | — |
 
 El listado consulta la tabla `archivos` por `pedido_id` y se apoya en RLS. La UI recibe metadatos seguros como nombre, tamaño, tipo, categoría, fecha y perfil que subió el archivo cuando es visible. No recibe `file_path`.
 
-La subida usa el archivo real recibido por `FormData`, valida nombre, tamaño, MIME, extensión, categoría y contexto, construye la ruta internamente y guarda metadatos en `archivos`. No acepta `file_path`, `bucket`, `uploaded_by`, `file_name`, `file_type` ni `file_size` desde campos del formulario como fuente de verdad.
+La subida usa únicamente `pedido_id` y el archivo real recibido por `FormData`. Carga el pedido con RLS, deriva la categoría desde su estado, valida nombre, tamaño, MIME, extensión y contexto, construye la ruta internamente y guarda metadatos en `archivos`. No acepta `visibility`, categoría, `file_path`, `bucket`, `uploaded_by`, `file_name`, `file_type` ni `file_size` desde campos del formulario como fuente de verdad.
+
+RLS de `archivos` y las policies de `storage.objects` comprueban nuevamente acceso al pedido, usuario activo, estado, categoría y carpeta. Esto permite subir archivos internos a un trabajador asignado durante `creado`, `solicitud_recibida` o `en_revision`, y bloquea toda nueva subida cuando el pedido está `entregado` o `cancelado`.
 
 Desde Fase 11.7A, la inserción de metadatos en `archivos` registra automáticamente `archivo_subido` en `pedido_historial` solo para archivos propios de pedido con `visibility` `interno_pedido`, `avance` o `final_entrega`. No se registra `archivo_subido` para archivos heredados desde solicitudes con `visibility = "cliente_solicitud"`.
 
