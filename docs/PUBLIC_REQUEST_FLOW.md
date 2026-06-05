@@ -82,6 +82,11 @@ Reglas generales:
 - Los campos opcionales vacíos se convierten a `null`.
 - Los espacios sobrantes se recortan antes de insertar.
 
+La validación de `desired_date` usa los helpers de fecha de
+`src/lib/validators/date.ts`, apoyados en `src/lib/utils/date.ts` para calcular
+el día actual local. Trabaja con valores `YYYY-MM-DD` de inputs HTML y evita
+convertir a UTC con `toISOString()`.
+
 `service_type` funciona como referencia inicial del cliente; el detalle real del trabajo vive en `description` y, si hace falta, en `notes`.
 
 No se usan dependencias externas para esta validación.

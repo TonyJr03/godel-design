@@ -5,6 +5,7 @@ import {
   submitPublicSolicitudAction,
   type SubmitPublicSolicitudActionState,
 } from "@/app/solicitud/actions";
+import { getTodayDateInputValue } from "@/lib/utils";
 import { SOLICITUD_SERVICE_TYPE_OPTIONS } from "@/lib/solicitudes/labels";
 import type { PublicSolicitudField } from "@/lib/solicitudes";
 
@@ -49,15 +50,6 @@ const baseInputClass =
 const labelClass = "text-sm font-medium text-zinc-900";
 const helpTextClass = "mt-2 text-sm leading-5 text-zinc-500";
 
-function getTodayInputDate() {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, "0");
-  const day = String(today.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
-}
-
 export function PublicSolicitudForm() {
   const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction, pending] = useActionState(
@@ -80,7 +72,7 @@ export function PublicSolicitudForm() {
   const observacionesError = getFieldError(state, "notes");
   const filesError = getFieldError(state, "files");
   const solicitudReference = state.solicitudId?.slice(0, 8);
-  const todayInputDate = getTodayInputDate();
+  const todayInputDate = getTodayDateInputValue();
   const formKey = state.ok
     ? `success-${state.solicitudId ?? "ok"}`
     : `form-${JSON.stringify(state.values ?? {})}`;

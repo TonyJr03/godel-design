@@ -26,6 +26,8 @@ La action `createPedidoAction` lee únicamente `cliente_id`, `title`, `descripti
 
 `createInternalPedido` requiere `pedidos.manage`, valida el input, valida el cliente solo cuando se envía `cliente_id`, genera `order_number`, crea el pedido con estado inicial `en_revision`, guarda `solicitud_id` como `null` y no asigna personal. Si no se selecciona cliente, guarda `cliente_id = null`; no captura datos temporales de cliente desde el formulario.
 
+`estimated_delivery_date` es opcional, pero si se informa debe ser una fecha válida e igual o posterior al día actual. La validación usa los helpers centralizados de `src/lib/validators/date.ts`, apoyados en `src/lib/utils/date.ts` para calcular el día actual local. El `min` del formulario es solo una ayuda visual.
+
 ## Conversión Desde Solicitud
 
 `createPedidoFromSolicitud` convierte una solicitud aprobada en pedido desde el detalle de solicitud.

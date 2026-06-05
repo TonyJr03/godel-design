@@ -6,6 +6,7 @@ import {
   createPedidoAction,
   type CreatePedidoActionState,
 } from "@/app/dashboard/pedidos/nuevo/actions";
+import { getTodayDateInputValue } from "@/lib/utils";
 import type { PedidoField, PedidoPrioridad } from "@/lib/pedidos";
 import { PEDIDO_PRIORITY_LABELS } from "@/lib/pedidos/labels";
 
@@ -74,6 +75,7 @@ export function PedidoForm({ clientes, prioridades }: PedidoFormProps) {
   const descripcionError = getFieldError(state, "description");
   const prioridadError = getFieldError(state, "priority");
   const fechaEntregaError = getFieldError(state, "estimated_delivery_date");
+  const todayInputDate = getTodayDateInputValue();
 
   return (
     <form
@@ -201,6 +203,7 @@ export function PedidoForm({ clientes, prioridades }: PedidoFormProps) {
               id="estimated_delivery_date"
               name="estimated_delivery_date"
               type="date"
+              min={todayInputDate}
               aria-invalid={Boolean(fechaEntregaError)}
               aria-describedby={
                 fechaEntregaError ? "fecha-entrega-error" : undefined

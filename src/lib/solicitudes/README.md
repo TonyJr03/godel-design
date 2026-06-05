@@ -23,6 +23,8 @@ Por seguridad, el flujo público no usa service role key. La inserción se hace 
 
 Los campos se recortan, los opcionales vacíos se convierten a `null`, y se validan longitudes razonables, formato básico de correo y fecha válida. `desired_date` es opcional, pero si se informa debe ser igual o posterior al día actual. La validación definitiva ocurre en servidor.
 
+La fecha deseada se valida con los helpers centralizados de `src/lib/validators/date.ts`, apoyados en `src/lib/utils/date.ts` para calcular el día actual local. El `min` del formulario público es solo una ayuda de UI; la regla real sigue estando en la validación server-side.
+
 `quantity` fue eliminado de solicitudes. Las cantidades, medidas y requisitos deben explicarse dentro de `description` o `notes`; `service_type` queda como referencia inicial del tipo de trabajo.
 
 El formulario no acepta campos sensibles como `id`, `status`, `cliente_id`, `reviewed_by` ni `converted_order_id`.

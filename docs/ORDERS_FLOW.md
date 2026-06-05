@@ -229,6 +229,8 @@ Archivos principales:
 
 La creación manual requiere `pedidos.manage`, por lo que solo `admin` y `supervisor` pueden usarla. El formulario permite seleccionar un cliente existente o dejar `Sin cliente asociado`; no acepta estado, `solicitud_id`, número de pedido ni personal asignado. El pedido manual se crea con `solicitud_id = null`, estado inicial `en_revision` y `cliente_id = null` cuando no se selecciona cliente. No existen campos temporales de cliente en este flujo.
 
+`estimated_delivery_date` es opcional. Si se informa, debe ser una fecha válida e igual o posterior al día actual. La validación server-side usa los helpers de fecha de `src/lib/validators/date.ts`, apoyados en `src/lib/utils/date.ts` para calcular el día actual local; el `min` del input de fecha solo orienta la captura en la UI.
+
 ## Conversión de solicitud a pedido
 
 Archivos principales:

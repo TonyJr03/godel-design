@@ -14,7 +14,6 @@ export type ValidationResult<
 
 const BASIC_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const CONTROL_CHARS_PATTERN = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
-const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 export function validationSuccess<Data extends object>(
   data: Data,
@@ -88,19 +87,4 @@ export function normalizeOptionalMultilineText(value: unknown): string | null {
 
 export function isBasicEmail(value: string): boolean {
   return BASIC_EMAIL_PATTERN.test(value);
-}
-
-export function isValidIsoDate(value: string): boolean {
-  if (!ISO_DATE_PATTERN.test(value)) {
-    return false;
-  }
-
-  const [year, month, day] = value.split("-").map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day));
-
-  return (
-    date.getUTCFullYear() === year &&
-    date.getUTCMonth() === month - 1 &&
-    date.getUTCDate() === day
-  );
 }

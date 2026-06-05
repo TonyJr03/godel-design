@@ -24,8 +24,8 @@ export function addDays(date: Date, days: number): Date {
   return nextDate;
 }
 
-export function getTodayIsoDate(): string {
-  return formatDateOnly(new Date());
+export function getTodayDateInputValue(date = new Date()): string {
+  return formatDateOnly(date);
 }
 
 export function formatAppDateTime(

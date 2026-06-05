@@ -1,14 +1,13 @@
-import { getTodayIsoDate } from "@/lib/utils";
 import {
   hasFieldErrors,
   isBasicEmail,
-  isValidIsoDate,
   normalizeMultilineText,
   normalizeOptionalMultilineText,
   normalizeOptionalSingleLineText,
   normalizeSingleLineText,
   validationFailure,
   validationSuccess,
+  validateOptionalFutureDate,
   type ValidationResult,
 } from "@/lib/validators";
 
@@ -103,9 +102,11 @@ export function validatePublicSolicitudInput(
   }
 
   if (desired_date) {
-    if (!isValidIsoDate(desired_date)) {
+    const desiredDateValidation = validateOptionalFutureDate(desired_date);
+
+    if (desiredDateValidation === "invalid") {
       fieldErrors.desired_date = "Ingresa una fecha válida.";
-    } else if (desired_date < getTodayIsoDate()) {
+    } else if (desiredDateValidation === "past") {
       fieldErrors.desired_date =
         "La fecha deseada no puede ser anterior a hoy.";
     }

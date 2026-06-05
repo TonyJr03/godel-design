@@ -1,13 +1,12 @@
-import { getTodayIsoDate } from "@/lib/utils";
 import {
   hasFieldErrors,
-  isValidIsoDate,
   isValidUuid,
   normalizeMultilineText,
   normalizeOptionalSingleLineText,
   normalizeSingleLineText,
   validationFailure,
   validationSuccess,
+  validateOptionalFutureDate,
   type ValidationResult,
 } from "@/lib/validators";
 import { PEDIDO_PRIORITIES, type PedidoPriority } from "./status";
@@ -90,9 +89,12 @@ export function validatePedidoInput(
   }
 
   if (fechaEntregaEstimada) {
-    if (!isValidIsoDate(fechaEntregaEstimada)) {
+    const fechaEntregaEstimadaValidation =
+      validateOptionalFutureDate(fechaEntregaEstimada);
+
+    if (fechaEntregaEstimadaValidation === "invalid") {
       fieldErrors.estimated_delivery_date = "Selecciona una fecha válida.";
-    } else if (fechaEntregaEstimada < getTodayIsoDate()) {
+    } else if (fechaEntregaEstimadaValidation === "past") {
       fieldErrors.estimated_delivery_date =
         "La fecha estimada de entrega no puede estar en el pasado.";
     }
