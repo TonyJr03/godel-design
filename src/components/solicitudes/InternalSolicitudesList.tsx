@@ -7,6 +7,7 @@ import {
 
 type InternalSolicitudesListProps = {
   solicitudes: InternalSolicitud[];
+  emptyMessage?: string;
 };
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("es", {
@@ -30,7 +31,19 @@ function formatDate(value: string | null): string {
 
 export function InternalSolicitudesList({
   solicitudes,
+  emptyMessage = "Cuando entren solicitudes públicas, aparecerán aquí ordenadas por fecha de creación.",
 }: InternalSolicitudesListProps) {
+  if (solicitudes.length === 0) {
+    return (
+      <section className="rounded-lg border border-dashed border-zinc-300 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-zinc-950">
+          No hay solicitudes para mostrar
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-zinc-600">{emptyMessage}</p>
+      </section>
+    );
+  }
+
   return (
     <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
       <div className="overflow-x-auto">

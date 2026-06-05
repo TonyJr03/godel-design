@@ -43,6 +43,7 @@ export {
   SOLICITUD_SERVICE_TYPE_OPTIONS,
   SOLICITUD_STATUS_LABELS,
   getSolicitudServiceTypeLabel,
+  getSolicitudServiceTypeSearchValues,
 } from "./labels";
 export {
   MANUAL_SOLICITUD_STATUSES,

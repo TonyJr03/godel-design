@@ -8,7 +8,10 @@
 - Requiere el permiso `clientes.view`.
 - Usa el cliente server-side de Supabase y respeta RLS como defensa final.
 - No usa service role key.
-- Permite una búsqueda básica por `q` sobre `name`, `phone` y `email`.
+- Permite una búsqueda server-side por `q` sobre `name`, `phone`, `email` y `notes`.
+- Normaliza y limita el texto de búsqueda; la barra común actualiza `q` en la URL tras 200 ms sin escritura, muestra `Buscando...` durante la espera y permite limpiarlo desde la UI.
+- El componente cliente solo sincroniza la URL; la consulta y el filtrado continúan server-side.
+- La búsqueda pertenece únicamente al listado de clientes; no es un buscador global.
 - Devuelve errores controlados para no exponer detalles técnicos al usuario.
 
 ## Creación manual

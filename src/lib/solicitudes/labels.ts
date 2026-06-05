@@ -65,3 +65,31 @@ export function getSolicitudServiceTypeLabel(
 
   return SOLICITUD_SERVICE_TYPE_LABELS[value] ?? value;
 }
+
+function normalizeSearchLabel(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("es")
+    .trim();
+}
+
+export function getSolicitudServiceTypeSearchValues(query: string): string[] {
+  const normalizedQuery = normalizeSearchLabel(query);
+
+  if (!normalizedQuery) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      Object.entries(SOLICITUD_SERVICE_TYPE_LABELS)
+        .filter(([value, label]) =>
+          `${normalizeSearchLabel(value)} ${normalizeSearchLabel(label)}`.includes(
+            normalizedQuery,
+          ),
+        )
+        .map(([value]) => value),
+    ),
+  );
+}

@@ -32,7 +32,7 @@ Todavía no incluye:
 
 | Ruta | Uso |
 |---|---|
-| `/dashboard/pedidos` | Listado interno de pedidos y filtro básico por estado. |
+| `/dashboard/pedidos` | Listado interno de pedidos con búsqueda textual y filtro por estado. |
 | `/dashboard/pedidos/[id]` | Detalle interno, cambio de estado y asignación de personal para `admin` y `supervisor`. |
 | `/dashboard/pedidos/nuevo` | Creación manual de pedido. |
 
@@ -146,7 +146,14 @@ Archivos principales:
 - Servicio: `src/lib/pedidos/list-internal-pedidos.ts`
 - Componente: `src/components/pedidos/InternalPedidosList.tsx`
 
-El listado carga server-side. `admin` y `supervisor` ven todos los pedidos; `trabajador` ve solo pedidos asignados. El filtro por estado usa parámetros GET. El componente visual no consulta Supabase. La consulta usa relación explícita con solicitudes para evitar ambigüedad de PostgREST.
+El listado carga server-side. `admin` y `supervisor` ven todos los pedidos; `trabajador` ve solo pedidos asignados. La búsqueda usa `q` y cubre número de pedido, título, descripción, cliente asociado y referencia o tipo de servicio de la solicitud origen. El filtro por estado y la búsqueda conviven mediante parámetros GET.
+
+La barra común actualiza `q` con `router.replace` tras 200 ms sin escritura,
+aplica el selector de estado inmediatamente y permite limpiar ambos controles.
+El componente cliente solo sincroniza la URL: la consulta, los permisos y el
+filtrado continúan en el servidor. Durante la espera muestra `Buscando...`.
+
+Las relaciones de cliente y solicitud se mantienen opcionales: buscar no convierte los joins en internos ni oculta pedidos manuales sin cliente. El componente visual no consulta Supabase y RLS sigue limitando al trabajador a pedidos asignados. No es un buscador global; índices o búsqueda avanzada quedan como mejora futura si aumenta el volumen.
 
 El listado muestra progreso operativo basado en tareas: `Sin tareas`, `Progreso: N%` o `100% completado`. No muestra tareas completas ni campos técnicos en la tabla; el cálculo usa el helper compartido de progreso y una consulta server-side por lote a `pedido_tareas`.
 
@@ -370,6 +377,10 @@ Desde 13.6I, el dashboard y los paneles operativos también consideran tareas: p
 - Verificar que `supervisor` ve todos los pedidos.
 - Verificar que `trabajador` ve solo pedidos asignados.
 - Probar el filtro por estado.
+- Buscar por número `P-YY-XXXX`, título, descripción y cliente.
+- Buscar por referencia o servicio de la solicitud origen.
+- Combinar búsqueda con estado y limpiar los filtros.
+- Confirmar que un pedido sin cliente sigue apareciendo al coincidir por número o título.
 - Abrir detalle como `admin`.
 - Abrir detalle como `supervisor`.
 - Abrir detalle como trabajador asignado.

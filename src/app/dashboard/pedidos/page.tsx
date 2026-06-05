@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { ListFiltersBar } from "@/components/common/ListFiltersBar";
 import { InternalPedidosList } from "@/components/pedidos/InternalPedidosList";
 import { PageHeader } from "@/components/ui/PageHeader";
 import {
@@ -11,6 +12,7 @@ import { getSingleSearchParam } from "@/lib/utils";
 
 type DashboardPedidosPageProps = {
   searchParams: Promise<{
+    q?: string | string[] | undefined;
     status?: string | string[] | undefined;
   }>;
 };
@@ -19,8 +21,10 @@ export default async function DashboardPedidosPage({
   searchParams,
 }: DashboardPedidosPageProps) {
   const params = await searchParams;
+  const q = getSingleSearchParam(params.q);
   const status = getSingleSearchParam(params.status);
-  const result = await listInternalPedidos({ status });
+  const result = await listInternalPedidos({ q, status });
+  const searchValue = result.q ?? "";
 
   return (
     <div className="space-y-8">
@@ -37,36 +41,25 @@ export default async function DashboardPedidosPage({
         </Link>
       </div>
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-zinc-950">
-          Filtrar por estado
-        </h2>
-        <div className="flex flex-wrap gap-2">
-          <Link
-            href="/dashboard/pedidos"
-            className={`inline-flex h-9 items-center justify-center rounded-md border px-3 text-sm font-medium transition ${
-              result.ok && !result.status
-                ? "border-zinc-950 bg-zinc-950 text-white"
-                : "border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400"
-            }`}
-          >
-            Todos
-          </Link>
-          {INTERNAL_PEDIDO_ESTADOS.map((estadoOption) => (
-            <Link
-              key={estadoOption}
-              href={`/dashboard/pedidos?status=${estadoOption}`}
-              className={`inline-flex h-9 items-center justify-center rounded-md border px-3 text-sm font-medium transition ${
-                result.ok && result.status === estadoOption
-                  ? "border-teal-700 bg-teal-700 text-white"
-                  : "border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400"
-              }`}
-            >
-              {PEDIDO_STATUS_LABELS[estadoOption]}
-            </Link>
-          ))}
-        </div>
-      </section>
+      <ListFiltersBar
+        searchLabel="Buscar pedidos"
+        searchPlaceholder="Número, cliente, solicitud o trabajo"
+        initialQuery={searchValue}
+        filters={[
+          {
+            name: "status",
+            label: "Estado",
+            value: result.status ?? "",
+            options: [
+              { value: "", label: "Todos los estados" },
+              ...INTERNAL_PEDIDO_ESTADOS.map((estadoOption) => ({
+                value: estadoOption,
+                label: PEDIDO_STATUS_LABELS[estadoOption],
+              })),
+            ],
+          },
+        ]}
+      />
 
       {result.ok && result.ignoredInvalidEstado ? (
         <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
@@ -79,7 +72,14 @@ export default async function DashboardPedidosPage({
           {result.message}
         </section>
       ) : (
-        <InternalPedidosList pedidos={result.pedidos} />
+        <InternalPedidosList
+          pedidos={result.pedidos}
+          emptyMessage={
+            searchValue || result.status
+              ? "No se encontraron pedidos con los filtros aplicados."
+              : undefined
+          }
+        />
       )}
     </div>
   );

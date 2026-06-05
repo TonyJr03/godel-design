@@ -3,6 +3,7 @@ import type { InternalCliente } from "@/lib/clientes";
 
 type InternalClientesListProps = {
   clientes: InternalCliente[];
+  emptyMessage?: string;
 };
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("es", {
@@ -20,7 +21,10 @@ function formatDate(value: string | null): string {
   return DATE_FORMATTER.format(new Date(value));
 }
 
-export function InternalClientesList({ clientes }: InternalClientesListProps) {
+export function InternalClientesList({
+  clientes,
+  emptyMessage = "Cuando existan clientes registrados, aparecerán aquí para consulta interna.",
+}: InternalClientesListProps) {
   if (clientes.length === 0) {
     return (
       <section className="rounded-lg border border-dashed border-zinc-300 bg-white p-6 shadow-sm">
@@ -28,8 +32,7 @@ export function InternalClientesList({ clientes }: InternalClientesListProps) {
           No hay clientes para mostrar
         </h2>
         <p className="mt-2 text-sm leading-6 text-zinc-600">
-          Cuando existan clientes registrados, aparecerán aquí para consulta
-          interna.
+          {emptyMessage}
         </p>
       </section>
     );

@@ -87,7 +87,14 @@ Archivos principales:
 - Servicio: `src/lib/clientes/list-internal-clientes.ts`
 - Componente: `src/components/clientes/InternalClientesList.tsx`
 
-El listado carga server-side, valida el permiso `clientes.view` y permite búsqueda básica por `q`. La búsqueda consulta nombre, teléfono o email, y limita resultados de forma razonable. Los componentes cliente no consultan Supabase directamente.
+El listado carga server-side, valida el permiso `clientes.view` y permite búsqueda por `q`. La búsqueda consulta nombre, teléfono, correo y notas, normaliza y limita el texto recibido y conserva el valor en la URL. Los componentes cliente no consultan Supabase directamente y RLS sigue siendo la defensa final.
+
+La barra común actualiza `q` con `router.replace` tras 200 ms sin escritura y
+permite limpiar la búsqueda. El componente cliente solo sincroniza la URL; la
+consulta y el filtrado permanecen server-side. Durante la espera muestra
+`Buscando...`.
+
+Esta búsqueda pertenece solo al listado de clientes, no es un buscador global. Si el volumen aumenta, podrán evaluarse índices o búsqueda más avanzada en una fase posterior.
 
 ## Creación manual
 
@@ -213,6 +220,8 @@ Más adelante se podrá:
 - `trabajador` no entra a `/dashboard/clientes`.
 - Búsqueda por nombre funciona.
 - Búsqueda por teléfono funciona.
+- Búsqueda por correo y notas funciona.
+- Limpiar la búsqueda restaura el listado.
 - Crear cliente manualmente.
 - Crear cliente con email inválido debe fallar.
 - Crear cliente sin teléfono debe fallar.

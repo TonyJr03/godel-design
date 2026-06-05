@@ -6,6 +6,7 @@ import {
   type ServiceResult,
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
+import { normalizeSearchQuery } from "@/lib/utils";
 import type { Tables } from "@/types/database";
 import {
   isInternalUserRole,
@@ -54,7 +55,6 @@ export type ListInternalUsersResult = ServiceResult<
 
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 100;
-const MAX_SEARCH_LENGTH = 80;
 const GENERIC_LIST_ERROR =
   "No se pudieron cargar los usuarios internos. Inténtalo nuevamente.";
 
@@ -66,20 +66,6 @@ function normalizeLimit(limit: number | undefined): number {
   const finiteLimit = limit ?? DEFAULT_LIMIT;
 
   return Math.min(Math.max(Math.trunc(finiteLimit), 1), MAX_LIMIT);
-}
-
-function normalizeSearchQuery(value: string | null | undefined): string | null {
-  if (!value) {
-    return null;
-  }
-
-  const normalized = value
-    .replace(/[(),*%]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, MAX_SEARCH_LENGTH);
-
-  return normalized || null;
 }
 
 function normalizeActiveFilter(

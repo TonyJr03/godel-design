@@ -2,6 +2,12 @@
 
 Esta carpeta contiene la lógica server-side del flujo público e interno de solicitudes.
 
+## Listado interno
+
+`listInternalSolicitudes` acepta `q` y `status`. La búsqueda server-side cubre la referencia corta visible, nombre, teléfono y correo del cliente, tipo de servicio, descripción y notas. Los labels visibles de servicio se traducen a los valores almacenados para búsquedas como “diseño”.
+
+La búsqueda se combina con el filtro de estado, conserva ambos parámetros GET en la UI, limita y normaliza el texto recibido y respeta el permiso `solicitudes.view` y RLS. La barra común actualiza `q` tras 200 ms sin escritura, aplica el estado inmediatamente, muestra `Buscando...` durante la espera y permite limpiar ambos filtros; la consulta continúa server-side. No forma parte de un buscador global.
+
 ## Flujo público
 
 El cliente externo puede enviar datos básicos de contacto y del trabajo solicitado sin tener cuenta de usuario. La solicitud se valida en el servidor y se inserta en Supabase con `status = "nueva"`.

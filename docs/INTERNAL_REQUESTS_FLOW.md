@@ -47,7 +47,13 @@ El listado:
 - ordena por `created_at` descendente;
 - muestra referencia corta, cliente, teléfono, email, tipo de servicio, estado,
   fecha de creación y fecha deseada;
+- permite buscar mediante `q` por referencia visible, cliente, teléfono, correo,
+  tipo de servicio, descripción o notas;
 - permite filtrar por estado;
+- combina búsqueda y estado conservando ambos parámetros GET;
+- usa la barra común de listados: la búsqueda actualiza `q` tras 200 ms sin
+  escritura y el selector de estado actualiza la URL inmediatamente;
+- permite limpiar búsqueda y estado en una sola acción;
 - no consulta Supabase desde componentes cliente.
 
 `quantity` fue eliminado de solicitudes. El detalle de cantidades, medidas o requisitos debe revisarse en `description` o `notes`. `service_type` es solo una referencia inicial elegida por el cliente, no el título automático del pedido.
@@ -69,6 +75,15 @@ URLs soportadas:
 `convertida` puede aparecer como filtro porque será un estado resultante del
 flujo formal de conversión a pedido. En esta fase no puede establecerse
 manualmente.
+
+La búsqueda se ejecuta server-side, normaliza y limita el texto recibido y respeta permiso y RLS. Para tipos de servicio también considera los labels visibles, por lo que una búsqueda como “diseño” puede encontrar valores históricos sin tilde. La referencia corta se resuelve desde los primeros caracteres del UUID accesible.
+
+La barra de búsqueda es un componente cliente únicamente para sincronizar los
+controles con la URL mediante `router.replace`. No consulta Supabase ni filtra
+los resultados cargados en memoria. Mientras espera el debounce o la respuesta
+del servidor muestra el estado discreto `Buscando...`.
+
+No es un buscador global. Si el volumen crece significativamente, podrán evaluarse índices o búsqueda especializada en una fase posterior sin cambiar el contrato `q`.
 
 ## Detalle interno
 
@@ -256,6 +271,8 @@ El diseño del dashboard operativo para la Fase 13 se documenta en `docs/DASHBOA
 - Admin ve el listado de solicitudes.
 - Supervisor ve el listado de solicitudes.
 - Trabajador no puede entrar a `/dashboard/solicitudes`.
+- Buscar solicitudes por referencia, cliente, teléfono, correo, servicio y descripción.
+- Combinar `q` con filtro de estado y luego limpiar ambos filtros.
 - Admin abre el detalle de una solicitud.
 - Supervisor abre el detalle de una solicitud.
 - Admin descarga un archivo de solicitud.

@@ -4,6 +4,7 @@ import { getSolicitudServiceTypeLabel } from "@/lib/solicitudes";
 
 type InternalPedidosListProps = {
   pedidos: InternalPedido[];
+  emptyMessage?: string;
 };
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("es", {
@@ -59,7 +60,10 @@ function getProgressLabel(pedido: InternalPedido): string {
   return `Progreso: ${pedido.taskProgress.progressPercentage}%`;
 }
 
-export function InternalPedidosList({ pedidos }: InternalPedidosListProps) {
+export function InternalPedidosList({
+  pedidos,
+  emptyMessage = "Cuando existan pedidos internos, aparecerán aquí ordenados por fecha de creación.",
+}: InternalPedidosListProps) {
   if (pedidos.length === 0) {
     return (
       <section className="rounded-lg border border-dashed border-zinc-300 bg-white p-6 shadow-sm">
@@ -67,8 +71,7 @@ export function InternalPedidosList({ pedidos }: InternalPedidosListProps) {
           No hay pedidos para mostrar
         </h2>
         <p className="mt-2 text-sm leading-6 text-zinc-600">
-          Cuando existan pedidos internos, aparecerán aquí ordenados por fecha
-          de creación.
+          {emptyMessage}
         </p>
       </section>
     );

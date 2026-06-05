@@ -6,6 +6,8 @@ import {
   type ServiceResult,
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
+import { getSolicitudServiceTypeSearchValues } from "@/lib/solicitudes";
+import { normalizeSearchQuery } from "@/lib/utils";
 import type { Tables } from "@/types/database";
 import {
   calculatePedidoTasksProgressByPedidoId,
@@ -56,11 +58,13 @@ export type InternalPedido = InternalPedidoRow & {
 };
 
 export type ListInternalPedidosOptions = {
+  q?: string | null;
   status?: string | null;
   limit?: number;
 };
 
 type ListInternalPedidosMeta = {
+  q: string | null;
   status: InternalPedidoEstado | null;
   ignoredInvalidEstado: boolean;
 };
@@ -78,6 +82,7 @@ export type ListInternalPedidosResult = ServiceResult<
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
+const REFERENCE_SCAN_LIMIT = 500;
 const GENERIC_LIST_ERROR =
   "No se pudieron cargar los pedidos. Inténtalo nuevamente.";
 const EMPTY_TASK_PROGRESS: PedidoTasksProgress = {
@@ -136,6 +141,33 @@ export function isInternalPedidoEstado(
   return INTERNAL_PEDIDO_ESTADOS.includes(status as InternalPedidoEstado);
 }
 
+function mergePedidos(
+  groups: InternalPedidoRow[][],
+  limit: number,
+): InternalPedidoRow[] {
+  const byId = new Map<string, InternalPedidoRow>();
+
+  for (const group of groups) {
+    for (const pedido of group) {
+      byId.set(pedido.id, pedido);
+    }
+  }
+
+  return [...byId.values()]
+    .sort((left, right) => right.created_at.localeCompare(left.created_at))
+    .slice(0, limit);
+}
+
+function matchesVisibleReference(id: string, query: string): boolean {
+  const compactQuery = query.replace(/-/g, "").toLowerCase();
+
+  return (
+    compactQuery.length >= 4 &&
+    /^[0-9a-f]+$/.test(compactQuery) &&
+    id.replace(/-/g, "").toLowerCase().startsWith(compactQuery)
+  );
+}
+
 async function loadTaskProgressByPedidoId(
   supabase: Awaited<ReturnType<typeof createClient>>,
   pedidoIds: string[],
@@ -164,11 +196,12 @@ async function loadTaskProgressByPedidoId(
 export async function listInternalPedidos(
   options: ListInternalPedidosOptions = {},
 ): Promise<ListInternalPedidosResult> {
+  const q = normalizeSearchQuery(options.q);
   const selectedEstado = isInternalPedidoEstado(options.status)
     ? options.status
     : null;
   const ignoredInvalidEstado = Boolean(options.status && !selectedEstado);
-  const meta = { status: selectedEstado, ignoredInvalidEstado };
+  const meta = { q, status: selectedEstado, ignoredInvalidEstado };
   const profile = await getCurrentProfile();
 
   if (!profile) {
@@ -191,25 +224,126 @@ export async function listInternalPedidos(
   const supabase = await createClient();
 
   try {
-    let query = supabase
-      .from("pedidos")
-      .select(PEDIDOS_SELECT)
-      .order("created_at", { ascending: false })
-      .limit(limit);
+    const buildPedidoQuery = () => {
+      let query = supabase
+        .from("pedidos")
+        .select(PEDIDOS_SELECT)
+        .order("created_at", { ascending: false })
+        .limit(limit);
 
-    if (selectedEstado) {
-      query = query.eq("status", selectedEstado);
+      if (selectedEstado) {
+        query = query.eq("status", selectedEstado);
+      }
+
+      return query;
+    };
+
+    let pedidos: InternalPedidoRow[];
+
+    if (!q) {
+      const { data, error } =
+        await buildPedidoQuery().returns<InternalPedidoRow[]>();
+
+      if (error) {
+        console.error("Error listing internal pedidos", error);
+
+        return serviceFailure("error", GENERIC_LIST_ERROR, meta);
+      }
+
+      pedidos = data ?? [];
+    } else {
+      const serviceTypeValues = getSolicitudServiceTypeSearchValues(q);
+      const [clientesResult, solicitudesTextResult, solicitudesReferenceResult] =
+        await Promise.all([
+          supabase
+            .from("clientes")
+            .select("id")
+            .or(
+              `name.ilike.*${q}*,phone.ilike.*${q}*,email.ilike.*${q}*`,
+            )
+            .limit(REFERENCE_SCAN_LIMIT)
+            .returns<Array<{ id: string }>>(),
+          serviceTypeValues.length > 0
+            ? supabase
+                .from("solicitudes")
+                .select("id")
+                .in("service_type", serviceTypeValues)
+                .limit(REFERENCE_SCAN_LIMIT)
+                .returns<Array<{ id: string }>>()
+            : supabase
+                .from("solicitudes")
+                .select("id")
+                .ilike("service_type", `%${q}%`)
+                .limit(REFERENCE_SCAN_LIMIT)
+                .returns<Array<{ id: string }>>(),
+          supabase
+            .from("solicitudes")
+            .select("id")
+            .order("created_at", { ascending: false })
+            .limit(REFERENCE_SCAN_LIMIT)
+            .returns<Array<{ id: string }>>(),
+        ]);
+      const relationError =
+        clientesResult.error ??
+        solicitudesTextResult.error ??
+        solicitudesReferenceResult.error;
+
+      if (relationError) {
+        console.error("Error resolving pedido search relations", relationError);
+
+        return serviceFailure("error", GENERIC_LIST_ERROR, meta);
+      }
+
+      const clienteIds = (clientesResult.data ?? []).map((cliente) => cliente.id);
+      const solicitudIds = new Set(
+        (solicitudesTextResult.data ?? []).map((solicitud) => solicitud.id),
+      );
+
+      for (const solicitud of solicitudesReferenceResult.data ?? []) {
+        if (matchesVisibleReference(solicitud.id, q)) {
+          solicitudIds.add(solicitud.id);
+        }
+      }
+
+      const pedidoQueries = [
+        buildPedidoQuery()
+          .or(
+            `order_number.ilike.*${q}*,title.ilike.*${q}*,description.ilike.*${q}*`,
+          )
+          .returns<InternalPedidoRow[]>(),
+      ];
+
+      if (clienteIds.length > 0) {
+        pedidoQueries.push(
+          buildPedidoQuery()
+            .in("cliente_id", clienteIds)
+            .returns<InternalPedidoRow[]>(),
+        );
+      }
+
+      if (solicitudIds.size > 0) {
+        pedidoQueries.push(
+          buildPedidoQuery()
+            .in("solicitud_id", [...solicitudIds])
+            .returns<InternalPedidoRow[]>(),
+        );
+      }
+
+      const searchResults = await Promise.all(pedidoQueries);
+      const searchError = searchResults.find((result) => result.error)?.error;
+
+      if (searchError) {
+        console.error("Error searching internal pedidos", searchError);
+
+        return serviceFailure("error", GENERIC_LIST_ERROR, meta);
+      }
+
+      pedidos = mergePedidos(
+        searchResults.map((result) => result.data ?? []),
+        limit,
+      );
     }
 
-    const { data, error } = await query.returns<InternalPedidoRow[]>();
-
-    if (error) {
-      console.error("Error listing internal pedidos", error);
-
-      return serviceFailure("error", GENERIC_LIST_ERROR, meta);
-    }
-
-    const pedidos = data ?? [];
     const progressByPedidoId = await loadTaskProgressByPedidoId(
       supabase,
       pedidos.map((pedido) => pedido.id),

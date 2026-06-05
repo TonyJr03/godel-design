@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ListFiltersBar } from "@/components/common/ListFiltersBar";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { InternalUsersList } from "@/components/usuarios/InternalUsersList";
 import { listInternalUsers } from "@/lib/usuarios";
@@ -20,6 +21,10 @@ export default async function DashboardUsuariosPage({
   const role = getSingleSearchParam(params.role);
   const active = getSingleSearchParam(params.active);
   const result = await listInternalUsers({ q, role, active });
+  const searchValue = result.q ?? "";
+  const roleValue = result.role ?? "";
+  const activeValue =
+    result.active === null ? "" : result.active ? "true" : "false";
 
   return (
     <div className="space-y-8">
@@ -41,6 +46,35 @@ export default async function DashboardUsuariosPage({
         sus perfiles internos.
       </section>
 
+      <ListFiltersBar
+        searchLabel="Buscar usuarios"
+        searchPlaceholder="Nombre o teléfono"
+        initialQuery={searchValue}
+        filters={[
+          {
+            name: "role",
+            label: "Rol",
+            value: roleValue,
+            options: [
+              { value: "", label: "Todos los roles" },
+              { value: "admin", label: "Administrador" },
+              { value: "supervisor", label: "Supervisor" },
+              { value: "trabajador", label: "Trabajador" },
+            ],
+          },
+          {
+            name: "active",
+            label: "Estado",
+            value: activeValue,
+            options: [
+              { value: "", label: "Todos" },
+              { value: "true", label: "Activos" },
+              { value: "false", label: "Inactivos" },
+            ],
+          },
+        ]}
+      />
+
       {result.ignoredInvalidRole ? (
         <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
           El filtro de rol no es válido y fue ignorado.
@@ -60,10 +94,10 @@ export default async function DashboardUsuariosPage({
       ) : (
         <InternalUsersList
           users={result.users}
-          q={result.q ?? q ?? ""}
-          role={result.role ?? ""}
-          active={
-            result.active === null ? "" : result.active ? "true" : "false"
+          emptyMessage={
+            searchValue || roleValue || activeValue
+              ? "No se encontraron usuarios con los filtros aplicados."
+              : undefined
           }
         />
       )}
