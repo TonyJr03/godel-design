@@ -144,7 +144,7 @@ El módulo actual:
 - permite agregar comentarios a usuarios con acceso al pedido;
 - usa `author_id = profile.id` como autor;
 - guarda `content`;
-- muestra autor, rol, fecha y content;
+- muestra autor, rol, fecha y contenido;
 - no acepta `author_id` ni `created_at` desde formularios;
 - no implementa edición ni eliminación.
 
@@ -204,7 +204,7 @@ El módulo actual:
 - permite agregar comentarios a `admin` y `supervisor`;
 - usa `author_id = profile.id` como autor;
 - guarda `content`;
-- muestra autor, rol, fecha y content;
+- muestra autor, rol, fecha y contenido;
 - no acepta autor, `created_at` ni campos técnicos desde formularios;
 - no implementa edición ni eliminación.
 
@@ -581,7 +581,7 @@ Estado:
 
 - implementado para comentarios internos de pedidos;
 - `listPedidoComments` lista comentarios por pedido en orden ascendente;
-- `createPedidoComment` valida UUID, permiso, acceso al pedido y content;
+- `createPedidoComment` valida UUID, permiso, acceso al pedido y `content`;
 - la action del detalle solo lee `pedido_id` y `content`;
 - no se acepta autor desde el formulario;
 - no se registra historial automático adicional.
@@ -593,7 +593,7 @@ Estado:
 - implementado en `PedidoCommentsSection`;
 - lista comentarios internos de pedido;
 - permite crear comentario si el usuario tiene acceso;
-- muestra autor, rol, fecha y content;
+- muestra autor, rol, fecha y contenido;
 - no implementar edición ni eliminación.
 
 ### Fase 11.4: UI de Comentarios en Solicitudes
@@ -602,7 +602,7 @@ Estado:
 
 - listar comentarios internos de solicitud;
 - permitir comentar solo a `admin` y `supervisor`;
-- mostrar autor, rol, fecha y content;
+- mostrar autor, rol, fecha y contenido;
 - no exponer a trabajadores ni anónimos;
 - no implementar edición ni eliminación.
 

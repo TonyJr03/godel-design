@@ -475,8 +475,8 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 
 - Los comentarios son internos.
 - Una solicitud puede tener muchos comentarios.
-- El content no puede estar vacío.
-- El content tiene un límite inicial de 2000 caracteres.
+- El contenido no puede estar vacío.
+- El campo `content` tiene un límite inicial de 2000 caracteres.
 - No hay edición ni eliminación inicial.
 
 **Notas de seguridad:**

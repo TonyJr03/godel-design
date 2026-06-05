@@ -70,7 +70,7 @@ export function validatePublicSolicitudInput(
   const notes = normalizeOptionalMultilineText(input.notes);
 
   if (!client_name) {
-    fieldErrors.client_name = "Ingresa el name del cliente.";
+    fieldErrors.client_name = "Ingresa el nombre del cliente.";
   } else if (client_name.length > FIELD_LIMITS.client_name) {
     fieldErrors.client_name = "El nombre es demasiado largo.";
   }
