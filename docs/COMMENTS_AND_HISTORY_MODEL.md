@@ -145,7 +145,10 @@ Las acciones y servicios actuales no aceptan datos de historial desde formulario
   creación del pedido y la conversión de la solicitud se registran por los
   triggers existentes;
 - la creación de solicitudes, archivos adjuntados, cambios de estado y asociación de cliente se registran por triggers;
-- `createClienteFromSolicitudAndAssociate` registra `cliente_creado_desde_solicitud` después de crear el cliente y antes de asociarlo a la solicitud; luego el trigger de `cliente_id` registra `cliente_asociado`.
+- `createClienteFromSolicitudAndAssociate` llama a
+  `public.crear_cliente_desde_solicitud`; la RPC registra
+  `cliente_creado_desde_solicitud` y luego el trigger de `cliente_id` registra
+  `cliente_asociado` dentro de la misma transacción.
 
 La actividad reciente del dashboard consume estos eventos y construye resúmenes controlados. Para tareas muestra títulos seguros, por ejemplo `Tarea creada: X.` o `Progreso de tarea X actualizado de A a B.`, sin mostrar metadata cruda, JSON, rutas privadas ni `file_path`.
 
@@ -239,7 +242,7 @@ Los cambios actuales en solicitudes se reflejan en campos como:
 - `converted_order_id`;
 - `updated_at`.
 
-Desde Fase 11.7B esos cambios relevantes se registran automáticamente en `solicitud_historial` mediante triggers de base de datos, salvo `cliente_creado_desde_solicitud`, que se registra desde el servicio server-side después de crear el cliente y antes de asociarlo a la solicitud.
+Desde Fase 11.7B esos cambios relevantes se registran automáticamente en `solicitud_historial` mediante triggers de base de datos. `cliente_creado_desde_solicitud` se inserta actualmente dentro de la RPC transaccional `public.crear_cliente_desde_solicitud`, antes de actualizar `cliente_id`.
 
 ### Archivos
 
@@ -664,7 +667,9 @@ Estado:
 Estado:
 
 - implementado mediante triggers de base de datos para `solicitud_creada`, `archivos_adjuntados`, `estado_cambiado`, `cliente_asociado` y `convertida_a_pedido`;
-- implementado desde el servicio server-side `createClienteFromSolicitudAndAssociate` para `cliente_creado_desde_solicitud`;
+- implementado dentro de `public.crear_cliente_desde_solicitud` para
+  `cliente_creado_desde_solicitud`, como parte de la misma transacción que crea
+  y asocia el cliente;
 - como el historial visible muestra el evento más reciente primero, el par se ve como `cliente_asociado` y después `cliente_creado_desde_solicitud` cuando ambos pertenecen al mismo cliente;
 - los eventos públicos usan `actor_id = null` cuando no existe usuario autenticado;
 - la conversión a pedido evita duplicar `estado_cambiado` cuando el mismo update marca la solicitud como `convertida`;

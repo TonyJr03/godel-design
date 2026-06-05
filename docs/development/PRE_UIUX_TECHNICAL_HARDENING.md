@@ -4,7 +4,7 @@
 
 - Etapa: preparación técnica previa a la Fase 14.
 - Alcance: diagnóstico, decisiones arquitectónicas y plan de trabajo.
-- Estado actual: Fase 13.8B completada; siguiente subfase 13.8C.
+- Estado actual: Fase 13.8C completada; siguiente subfase 13.8D.
 - Fecha de creación: 5 de junio de 2026.
 
 ## 1. Objetivo del hardening
@@ -295,6 +295,8 @@ no escribe tablas directamente. Usa un contrato RPC local hasta regenerar
 
 ### 13.8C — Creación y asociación de cliente transaccional
 
+**Estado: completada el 5 de junio de 2026.**
+
 #### Objetivo
 
 Evitar clientes huérfanos y asegurar una asociación e historial coherentes.
@@ -315,6 +317,29 @@ Evitar clientes huérfanos y asegurar una asociación e historial coherentes.
 
 No debe existir un camino de error que deje un cliente creado exclusivamente
 para una asociación que no llegó a completarse.
+
+#### Implementación
+
+La RPC `public.crear_cliente_desde_solicitud(uuid)` es ahora la autoridad para
+crear un cliente con los datos guardados en una solicitud y asociarlo. Bloquea
+la solicitud con `FOR UPDATE`, valida autorización, ausencia de cliente previo
+y datos mínimos, e incluye cliente, historial y asociación en una única
+transacción.
+
+El evento `cliente_creado_desde_solicitud` se inserta antes de actualizar
+`solicitudes.cliente_id`. El trigger existente registra después
+`cliente_asociado`, por lo que el historial descendente muestra primero la
+asociación y luego la creación, sin duplicar eventos.
+
+La implementación se añadió a la migración consolidada
+`20260529090200_03_public_rpcs.sql`; no se creó una migración adicional ni se
+modificaron policies RLS. La función es `security definer`, revoca ejecución a
+`public` y `anon`, y concede `execute` solo a `authenticated`.
+
+La asociación con un cliente existente fue revisada y se mantiene fuera de
+esta RPC: es una actualización explícita de una sola tabla, permite reemplazar
+la asociación desde la UI y no crea una fila que pueda quedar huérfana. Su
+concurrencia de último escritor queda como revisión posterior separada.
 
 ### 13.8D — Concurrencia en estados de pedido y fechas SQL locales
 

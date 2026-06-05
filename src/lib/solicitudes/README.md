@@ -95,14 +95,21 @@ revierten.
 
 `associateSolicitudWithCliente` asocia una solicitud con un cliente existente. Requiere `solicitudes.manage` y `clientes.view`, valida UUID de solicitud y cliente, verifica que ambos registros existan y actualiza únicamente `solicitudes.cliente_id`.
 
-`createClienteFromSolicitudAndAssociate` crea un cliente básico desde los datos ya guardados en la solicitud (`client_name`, `client_phone`, `client_email`) y lo asocia automáticamente. Requiere `solicitudes.manage` y `clientes.manage`.
+`createClienteFromSolicitudAndAssociate` crea un cliente básico desde los datos ya guardados en la solicitud (`client_name`, `client_phone`, `client_email`) y lo asocia automáticamente. Requiere `solicitudes.manage` y `clientes.manage`, conserva la validación de UX y delega la escritura en la RPC transaccional `public.crear_cliente_desde_solicitud`.
+
+La action solo envía `solicitud_id`; no acepta nombre, teléfono, correo, notas,
+actor ni otros campos técnicos. La RPC bloquea la solicitud con `FOR UPDATE`,
+valida de nuevo usuario activo, rol, asociación previa y datos mínimos, y
+confirma o revierte en conjunto el cliente, el historial y la asociación.
 
 Las actions del detalle de solicitud son:
 
 - `associateSolicitudClienteAction`
 - `createClienteFromSolicitudAction`
 
-No se usa service role key y no se implementa deduplicación avanzada.
+No se usa service role key y no se implementa deduplicación avanzada. La
+asociación de un cliente existente conserva su servicio separado y su capacidad
+de reemplazar explícitamente la relación.
 
 ## Comentarios internos
 
@@ -132,7 +139,13 @@ Desde Fase 11.7B, la base de datos registra automáticamente:
 - `cliente_asociado` al asociar un cliente;
 - `convertida_a_pedido` al convertir una solicitud a pedido.
 
-El evento `cliente_creado_desde_solicitud` se registra desde `createClienteFromSolicitudAndAssociate` después de crear el cliente y antes de asociarlo a la solicitud. Luego la actualización de `solicitudes.cliente_id` dispara `cliente_asociado`. Como el historial visible se muestra con el evento más reciente primero, el usuario verá primero “Cliente asociado” y después “Cliente creado desde la solicitud”. El servicio no acepta datos de historial desde formularios y no usa service role key. Si ese registro de historial falla, se registra el error en servidor sin romper la creación/asociación ya completada.
+El evento `cliente_creado_desde_solicitud` se registra dentro de
+`public.crear_cliente_desde_solicitud` después de crear el cliente y antes de
+asociarlo. Luego la actualización de `solicitudes.cliente_id` dispara una sola
+vez `cliente_asociado`. Como el historial visible se muestra con el evento más
+reciente primero, el usuario ve primero “Cliente asociado” y después “Cliente
+creado desde la solicitud”. Si cualquier registro de historial o asociación
+falla, la transacción revierte también la creación del cliente.
 
 ## Alcance excluido
 

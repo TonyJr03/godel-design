@@ -693,6 +693,24 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      crear_cliente_desde_solicitud: {
+        Args: { p_solicitud_id: string }
+        Returns: {
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "clientes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       listar_pedido_comentarios: {
         Args: { p_pedido_id: string }
         Returns: {

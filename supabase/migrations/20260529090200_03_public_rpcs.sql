@@ -436,6 +436,135 @@ comment on function public.convertir_solicitud_a_pedido(
 ) is
   'Convierte una solicitud aprobada en pedido y hereda sus archivos en una única transacción.';
 
+create or replace function public.crear_cliente_desde_solicitud(
+  p_solicitud_id uuid
+)
+returns public.clientes
+language plpgsql
+security definer
+set search_path = public, private
+as $$
+declare
+  v_solicitud public.solicitudes;
+  v_cliente public.clientes;
+  v_name text;
+  v_phone text;
+  v_email text;
+  v_notes text;
+begin
+  if auth.uid() is null then
+    raise exception 'Usuario no autenticado.';
+  end if;
+
+  if not private.current_user_is_active() then
+    raise exception 'Usuario inactivo o sin perfil válido.';
+  end if;
+
+  if not private.is_admin_or_supervisor() then
+    raise exception 'No tienes permiso para crear clientes desde solicitudes.';
+  end if;
+
+  select *
+  into v_solicitud
+  from public.solicitudes
+  where id = p_solicitud_id
+  for update;
+
+  if not found then
+    raise exception 'La solicitud no existe.';
+  end if;
+
+  if v_solicitud.cliente_id is not null then
+    raise exception 'Esta solicitud ya tiene un cliente asociado.';
+  end if;
+
+  v_name := btrim(regexp_replace(v_solicitud.client_name, '[[:space:]]+', ' ', 'g'));
+  v_phone := btrim(regexp_replace(v_solicitud.client_phone, '[[:space:]]+', ' ', 'g'));
+  v_email := nullif(
+    lower(btrim(regexp_replace(coalesce(v_solicitud.client_email, ''), '[[:space:]]+', ' ', 'g'))),
+    ''
+  );
+  v_notes :=
+    'Cliente creado desde la solicitud ' ||
+    upper(left(v_solicitud.id::text, 8)) ||
+    '.';
+
+  if v_name = '' then
+    raise exception 'El nombre es obligatorio.';
+  end if;
+
+  if char_length(v_name) > 120 then
+    raise exception 'El nombre no puede superar 120 caracteres.';
+  end if;
+
+  if v_phone = '' then
+    raise exception 'El teléfono es obligatorio.';
+  end if;
+
+  if char_length(v_phone) > 40 then
+    raise exception 'El teléfono no puede superar 40 caracteres.';
+  end if;
+
+  if v_email is not null and char_length(v_email) > 160 then
+    raise exception 'El correo electrónico no puede superar 160 caracteres.';
+  end if;
+
+  if v_email is not null
+    and v_email !~ '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$' then
+    raise exception 'Ingresa un correo electrónico válido.';
+  end if;
+
+  insert into public.clientes (
+    name,
+    phone,
+    email,
+    notes
+  )
+  values (
+    v_name,
+    v_phone,
+    v_email,
+    v_notes
+  )
+  returning * into v_cliente;
+
+  insert into public.solicitud_historial (
+    solicitud_id,
+    actor_id,
+    action,
+    summary,
+    old_value,
+    new_value,
+    metadata
+  )
+  values (
+    v_solicitud.id,
+    auth.uid(),
+    'cliente_creado_desde_solicitud'::public.solicitud_historial_action,
+    'Cliente creado desde la solicitud: ' || v_cliente.name,
+    null,
+    v_cliente.name,
+    jsonb_build_object(
+      'cliente_id', v_cliente.id,
+      'client_name', v_cliente.name
+    )
+  );
+
+  update public.solicitudes
+  set cliente_id = v_cliente.id
+  where id = v_solicitud.id;
+
+  return v_cliente;
+end;
+$$;
+
+revoke all on function public.crear_cliente_desde_solicitud(uuid) from public;
+revoke all on function public.crear_cliente_desde_solicitud(uuid) from anon;
+grant execute on function public.crear_cliente_desde_solicitud(uuid) to authenticated;
+
+comment on function public.crear_cliente_desde_solicitud(uuid) is
+  'Crea un cliente con los datos guardados en una solicitud y lo asocia dentro de una única transacción.';
+
 create or replace function public.listar_pedido_comentarios(
   p_pedido_id uuid
 )

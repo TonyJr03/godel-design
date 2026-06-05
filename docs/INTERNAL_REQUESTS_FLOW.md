@@ -173,7 +173,7 @@ La Fase 11.4 implementa comentarios internos en `/dashboard/solicitudes/[id]`. `
 
 La Fase 11.6 implementa historial visible en `/dashboard/solicitudes/[id]`. `admin` y `supervisor` pueden ver los eventos existentes en `solicitud_historial`; el rol `trabajador` no accede al módulo de solicitudes. La sección muestra tipo de evento, resumen, actor, rol y fecha, sin edición ni eliminación.
 
-Desde Fase 11.7B, la base de datos registra automáticamente eventos de solicitud para creación, archivos adjuntados, cambios de estado, asociación de cliente y conversión a pedido. El evento `cliente_creado_desde_solicitud` se registra desde el servicio server-side después de crear el cliente y antes de asociarlo a la solicitud. Los eventos originados en el flujo público pueden tener `actor_id = null`.
+Desde Fase 11.7B, la base de datos registra automáticamente eventos de solicitud para creación, archivos adjuntados, cambios de estado, asociación de cliente y conversión a pedido. Desde Fase 13.8C, la RPC transaccional `public.crear_cliente_desde_solicitud` inserta `cliente_creado_desde_solicitud` antes de asociar el cliente; el update posterior activa el trigger de `cliente_asociado`. Los eventos originados en el flujo público pueden tener `actor_id = null`.
 
 La sección de historial no se limita al texto genérico del evento: muestra detalles operativos cuando existen. Los cambios de estado indican origen y destino, los archivos muestran el nombre del archivo, los eventos de cliente muestran el cliente relacionado y la conversión muestra el pedido generado.
 
@@ -213,6 +213,7 @@ Permisos usados:
 
 - `solicitudes.view`: lectura de listado y detalle.
 - `solicitudes.manage`: cambio manual de estado.
+- `clientes.manage`: creación de cliente desde una solicitud.
 - `pedidos.manage`: conversión de solicitud aprobada a pedido.
 
 El modelo completo de permisos se documenta conceptualmente en
@@ -235,6 +236,8 @@ Aclaraciones:
 - no hay lectura pública ni URLs públicas para archivos;
 - la RPC de conversión es `security definer`, valida usuario activo y rol
   `admin` o `supervisor`, y solo concede ejecución a `authenticated`;
+- la RPC de creación de cliente desde solicitud aplica las mismas restricciones
+  de autenticación y rol, y no acepta datos de cliente desde el formulario;
 - no se modificaron policies RLS; siguen protegiendo los accesos directos a
   tablas fuera de la RPC.
 

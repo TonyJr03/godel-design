@@ -51,4 +51,15 @@ La ruta `/dashboard/clientes/[id]/editar` permite actualizar datos básicos de u
 - Los clientes pueden crearse manualmente o desde una solicitud recibida.
 - La asociación solicitud-cliente queda registrada en `solicitudes.cliente_id`.
 - La creación desde solicitud toma los datos guardados en servidor, no datos de cliente enviados desde el formulario.
-- Pedidos y conversión de solicitud a pedido quedan para una fase posterior.
+- `createClienteFromSolicitudAndAssociate` conserva validación y permisos, pero
+  delega la escritura en `public.crear_cliente_desde_solicitud(uuid)`.
+- La RPC bloquea la solicitud y crea cliente, historial y asociación en una
+  única transacción, evitando clientes huérfanos.
+- El historial muestra `cliente_asociado` sobre
+  `cliente_creado_desde_solicitud`, sin duplicar eventos.
+- La asociación con un cliente existente permanece como flujo separado.
+- La conversión de solicitud a pedido también es transaccional.
+
+La RPC es `security definer`, solo puede ejecutarla `authenticated` y valida
+internamente que el actor sea `admin` o `supervisor` activo. No usa service role
+key, no consulta `auth.users` y no modifica la creación manual de clientes.
