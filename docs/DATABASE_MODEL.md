@@ -215,7 +215,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 | Campo | Tipo sugerido | Notas |
 |---|---|---|
 | `id` | `uuid` | Identificador único del pedido. |
-| `order_number` | `text unique` | Número visible y único para operación interna. |
+| `order_number` | `text unique` | Número visible y único para operación interna, con formato `P-YY-XXXX`. |
 | `cliente_id` | `uuid nullable` | Cliente asociado; opcional en pedidos manuales y requerido en pedidos convertidos desde solicitud. |
 | `solicitud_id` | `uuid nullable` | Solicitud origen si el pedido fue convertido. |
 | `title` | `text` | Nombre breve del pedido. |
@@ -236,12 +236,13 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 
 **Reglas importantes:**
 
-- `order_number` debe ser único.
+- `order_number` debe ser único y cumplir el formato `P-YY-XXXX`.
+- `order_number` se genera en base de datos al insertar el pedido. La secuencia reinicia cada año y se controla con `pedido_contadores` para proteger la concurrencia.
 - Un pedido puede crearse manualmente o a partir de una solicitud.
 - Un pedido manual puede quedar sin cliente asociado (`cliente_id = null`).
 - La conversión desde solicitud exige que la solicitud tenga `cliente_id` asociado.
 - Un pedido manual inicia en `en_revision`; un pedido convertido desde solicitud inicia en `solicitud_recibida`.
-- La conversión desde solicitud guarda la prioridad definida por el usuario interno y una fecha estimada opcional validada server-side. No modifica todavía la numeración de pedidos ni el estado inicial del pedido convertido.
+- La conversión desde solicitud guarda la prioridad definida por el usuario interno y una fecha estimada opcional validada server-side. Usa la numeración generada por base de datos y mantiene el estado inicial `solicitud_recibida`.
 - Los estados de pedido solo representan fases generales. Las tareas de pedido modelan el progreso real y condicionan el avance operativo mediante `public.actualizar_estado_pedido`.
 - Los cambios importantes de estado deben registrarse en `pedido_historial`.
 
@@ -250,6 +251,30 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 - `admin` puede acceder a todos los pedidos.
 - `supervisor` puede gestionar pedidos.
 - `trabajador` solo debe leer pedidos donde esté asignado.
+
+### `pedido_contadores`
+
+**Propósito:** Controla la secuencia anual de números visibles de pedido.
+
+| Campo | Tipo sugerido | Notas |
+|---|---|---|
+| `year` | `smallint` | Año de la secuencia. Clave primaria. |
+| `last_number` | `integer` | Último número asignado dentro del año. |
+| `updated_at` | `timestamptz` | Fecha de última actualización del contador. |
+
+**Reglas importantes:**
+
+- La numeración visible de pedidos usa el formato `P-YY-XXXX`.
+- La secuencia reinicia por año.
+- La función privada `private.generar_numero_pedido()` incrementa el contador dentro de la transacción.
+- Si la secuencia anual supera `9999`, la función debe fallar para evitar generar un formato inválido.
+- La aplicación no acepta ni envía `order_number` desde formularios.
+
+**Notas de seguridad:**
+
+- La tabla no tiene UI ni acceso directo desde la aplicación.
+- No se conceden permisos directos a usuarios anónimos o autenticados.
+- La asignación del número ocurre mediante trigger de base de datos al insertar en `pedidos`.
 
 ### `pedido_trabajadores`
 

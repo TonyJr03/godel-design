@@ -28,7 +28,6 @@ export {
   type CreatePedidoFromSolicitudInput,
   type CreatePedidoFromSolicitudResult,
 } from "./create-pedido-from-solicitud";
-export { generatePedidoNumber } from "./order-number";
 export {
   PEDIDO_FIELDS,
   PEDIDO_PRIORIDADES,

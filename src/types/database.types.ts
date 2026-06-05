@@ -142,6 +142,24 @@ export type Database = {
           },
         ]
       }
+      pedido_contadores: {
+        Row: {
+          last_number: number
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          last_number?: number
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          last_number?: number
+          updated_at?: string
+          year?: number
+        }
+        Relationships: []
+      }
       pedido_historial: {
         Row: {
           action: Database["public"]["Enums"]["pedido_historial_action"]
@@ -343,7 +361,7 @@ export type Database = {
           description: string
           estimated_delivery_date?: string | null
           id?: string
-          order_number: string
+          order_number?: string
           priority?: Database["public"]["Enums"]["pedido_prioridad"]
           solicitud_id?: string | null
           status?: Database["public"]["Enums"]["pedido_estado"]

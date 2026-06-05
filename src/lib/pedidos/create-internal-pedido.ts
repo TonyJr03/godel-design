@@ -7,7 +7,6 @@ import {
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import type { Enums, TablesInsert } from "@/types/database";
-import { generatePedidoNumber } from "./order-number";
 import {
   validatePedidoInput,
   type CreatePedidoInput,
@@ -98,7 +97,6 @@ export async function createInternalPedido(
   const supabase = await createClient();
   const pedido: TablesInsert<"pedidos"> = {
     ...validation.data,
-    order_number: generatePedidoNumber(),
     status: INITIAL_MANUAL_PEDIDO_ESTADO,
     solicitud_id: null,
     created_by: profile.id,

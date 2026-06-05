@@ -303,6 +303,9 @@ to authenticated;
 
 grant select on table public.pedido_historial to authenticated;
 
+revoke all on table public.pedido_contadores
+from public, anon, authenticated;
+
 revoke all on table
   public.solicitud_comentarios,
   public.solicitud_historial

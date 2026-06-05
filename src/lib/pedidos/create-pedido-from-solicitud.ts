@@ -15,7 +15,6 @@ import {
   validateOptionalFutureDate,
 } from "@/lib/validators";
 import type { Enums, Tables, TablesInsert } from "@/types/database";
-import { generatePedidoNumber } from "./order-number";
 import { isPedidoPrioridad, type PedidoPrioridad } from "./order-validation";
 
 export type CreatePedidoFromSolicitudInput = {
@@ -222,7 +221,6 @@ export async function createPedidoFromSolicitud(
     }
 
     const pedidoInsert: TablesInsert<"pedidos"> = {
-      order_number: generatePedidoNumber(),
       cliente_id: solicitud.cliente_id,
       solicitud_id: solicitud.id,
       title: validation.values.title,

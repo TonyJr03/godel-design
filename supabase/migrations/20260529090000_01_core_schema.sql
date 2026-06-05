@@ -4,6 +4,8 @@
 
 create extension if not exists "pgcrypto";
 
+create schema if not exists private;
+
 create type public.app_role as enum (
   'admin',
   'supervisor',
@@ -147,9 +149,71 @@ before update on public.solicitudes
 for each row
 execute function public.set_updated_at();
 
+create table public.pedido_contadores (
+  year smallint primary key,
+  last_number integer not null default 0,
+  updated_at timestamptz not null default now(),
+  constraint pedido_contadores_year_check check (year between 2000 and 9999),
+  constraint pedido_contadores_last_number_non_negative check (last_number >= 0)
+);
+
+create trigger set_pedido_contadores_updated_at
+before update on public.pedido_contadores
+for each row
+execute function public.set_updated_at();
+
+create or replace function private.generar_numero_pedido()
+returns text
+language plpgsql
+security definer
+set search_path = public, private
+as $$
+declare
+  v_year smallint := extract(year from current_date)::smallint;
+  v_next_number integer;
+begin
+  insert into public.pedido_contadores as pc (year, last_number)
+  values (v_year, 1)
+  on conflict (year) do update
+  set
+    last_number = pc.last_number + 1,
+    updated_at = now()
+  returning last_number
+  into v_next_number;
+
+  if v_next_number > 9999 then
+    raise exception 'Se agotó la secuencia anual de pedidos para el año %.', v_year
+      using errcode = '22000';
+  end if;
+
+  return 'P-' ||
+    right(v_year::text, 2) ||
+    '-' ||
+    lpad(v_next_number::text, 4, '0');
+end;
+$$;
+
+revoke all on function private.generar_numero_pedido()
+from public, anon, authenticated;
+
+create or replace function private.set_pedido_order_number()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, private
+as $$
+begin
+  new.order_number = private.generar_numero_pedido();
+  return new;
+end;
+$$;
+
+revoke all on function private.set_pedido_order_number()
+from public, anon, authenticated;
+
 create table public.pedidos (
   id uuid primary key default gen_random_uuid(),
-  order_number text not null unique,
+  order_number text not null unique default '',
   cliente_id uuid references public.clientes(id) on delete set null,
   solicitud_id uuid references public.solicitudes(id) on delete set null,
   title text not null,
@@ -162,9 +226,15 @@ create table public.pedidos (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint pedidos_order_number_not_empty check (btrim(order_number) <> ''),
+  constraint pedidos_order_number_format_check check (order_number ~ '^P-[0-9]{2}-[0-9]{4}$'),
   constraint pedidos_title_not_empty check (btrim(title) <> ''),
   constraint pedidos_description_not_empty check (btrim(description) <> '')
 );
+
+create trigger set_pedido_order_number
+before insert on public.pedidos
+for each row
+execute function private.set_pedido_order_number();
 
 create trigger set_pedidos_updated_at
 before update on public.pedidos
@@ -393,6 +463,7 @@ on public.solicitud_historial(action);
 alter table public.perfiles enable row level security;
 alter table public.clientes enable row level security;
 alter table public.solicitudes enable row level security;
+alter table public.pedido_contadores enable row level security;
 alter table public.pedidos enable row level security;
 alter table public.pedido_trabajadores enable row level security;
 alter table public.pedido_tareas enable row level security;
