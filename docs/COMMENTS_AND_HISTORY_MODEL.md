@@ -120,6 +120,20 @@ Reglas vigentes:
 
 La RPC actualiza `solicitudes.status` y `reviewed_by`. El evento `estado_cambiado` se registra mediante el trigger privado existente sobre `solicitudes.status`, por lo que la RPC no inserta historial manualmente. Si el estado enviado es igual al actual, retorna la solicitud sin duplicar historial.
 
+### RPC `convertir_solicitud_a_pedido`
+
+La RPC `public.convertir_solicitud_a_pedido` ejecuta en una sola transacción la
+creación del pedido, la marca de la solicitud como `convertida` y la asociación
+por metadata de sus archivos `cliente_solicitud`. No inserta historial
+manualmente.
+
+El insert de `pedidos` activa `pedido_creado`. El update que establece a la vez
+`solicitudes.status = "convertida"` y `converted_order_id` activa
+`convertida_a_pedido`, mientras el trigger genérico de estado omite
+`estado_cambiado` para evitar duplicación. La actualización de
+`archivos.pedido_id` no genera `archivo_subido`, porque no inserta un archivo
+nuevo ni altera su visibilidad.
+
 ### Acciones y Servicios Actuales
 
 Las acciones y servicios actuales no aceptan datos de historial desde formularios. El historial se registra mediante RPCs, triggers privados o servicios server-side controlados:
@@ -127,7 +141,10 @@ Las acciones y servicios actuales no aceptan datos de historial desde formulario
 - `updateInternalPedidoStatus` llama a `public.actualizar_estado_pedido`, que registra cambios de estado de pedido;
 - la creación de pedidos, asignación/remoción de personal y subida de archivos propios de pedido se registran por triggers;
 - las acciones de tareas de pedido delegan en servicios server-side y los eventos se registran por triggers sobre `pedido_tareas`;
-- la creación de solicitudes, archivos adjuntados, cambios de estado, asociación de cliente y conversión a pedido se registran por triggers;
+- `createPedidoFromSolicitud` llama a `public.convertir_solicitud_a_pedido`; la
+  creación del pedido y la conversión de la solicitud se registran por los
+  triggers existentes;
+- la creación de solicitudes, archivos adjuntados, cambios de estado y asociación de cliente se registran por triggers;
 - `createClienteFromSolicitudAndAssociate` registra `cliente_creado_desde_solicitud` después de crear el cliente y antes de asociarlo a la solicitud; luego el trigger de `cliente_id` registra `cliente_asociado`.
 
 La actividad reciente del dashboard consume estos eventos y construye resúmenes controlados. Para tareas muestra títulos seguros, por ejemplo `Tarea creada: X.` o `Progreso de tarea X actualizado de A a B.`, sin mostrar metadata cruda, JSON, rutas privadas ni `file_path`.

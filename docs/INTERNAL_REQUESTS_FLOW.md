@@ -109,6 +109,13 @@ La sección de conversión exige `title`, `description` y `priority` para el ped
 
 El formulario no acepta `cliente_id`, `status`, `converted_order_id`, `created_by`, `order_number`, campos de archivos ni otros campos técnicos. La conversión no envía número de pedido; la base de datos lo asigna con formato `P-YY-XXXX`. El estado inicial sigue siendo `solicitud_recibida`.
 
+La escritura completa se delega en la RPC transaccional
+`public.convertir_solicitud_a_pedido`. La función bloquea la solicitud, repite
+las validaciones de autorización, estado, cliente, doble conversión y fecha de
+negocio, y confirma en conjunto la creación del pedido, la actualización de la
+solicitud y la herencia de archivos. La Server Action solo lee campos
+permitidos, delega y revalida rutas.
+
 ## Archivos de solicitud
 
 | Pieza | Archivo |
@@ -122,6 +129,11 @@ El detalle interno muestra archivos enviados desde el formulario público cuando
 La descarga se realiza con una ruta interna que valida la solicitud, el archivo, la pertenencia entre ambos y el bucket antes de generar una URL firmada de corta duración. `admin` y `supervisor` pueden descargar. `trabajador` no accede al módulo general de solicitudes y usuarios anónimos no pueden usar la ruta de descarga.
 
 Si la solicitud se convierte en pedido, estos archivos conservan `solicitud_id` y también reciben `pedido_id` en `archivos`. Siguen apareciendo en el detalle interno de solicitud para `admin` y `supervisor`, y quedan disponibles desde el pedido generado como “Archivo enviado por cliente”.
+
+Esta herencia modifica únicamente metadata en `public.archivos`. No cambia
+`bucket`, `file_path`, `visibility`, `uploaded_by` ni mueve o copia objetos en
+Storage. Si la actualización falla, la transacción revierte también el pedido y
+la marca de conversión.
 
 ## Cambio de estado
 
@@ -221,7 +233,10 @@ Aclaraciones:
 - los componentes cliente no consultan Supabase directamente;
 - la UI no es la única capa de seguridad;
 - no hay lectura pública ni URLs públicas para archivos;
-- RLS sigue siendo la defensa final.
+- la RPC de conversión es `security definer`, valida usuario activo y rol
+  `admin` o `supervisor`, y solo concede ejecución a `authenticated`;
+- no se modificaron policies RLS; siguen protegiendo los accesos directos a
+  tablas fuera de la RPC.
 
 ## RLS
 

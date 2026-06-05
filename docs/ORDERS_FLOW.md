@@ -257,7 +257,13 @@ Archivos principales:
 
 La conversión requiere `solicitudes.manage` y `pedidos.manage`. Solo se permite convertir solicitudes con estado `aprobada` y `cliente_id` asociado. El formulario envía únicamente `solicitud_id`, `title`, `description`, `priority` y `estimated_delivery_date`.
 
-`priority` es obligatoria, inicia visualmente en `normal` y se valida contra las prioridades reales del enum. `estimated_delivery_date` es opcional; si se informa debe ser una fecha válida e igual o posterior al día actual. La UI limita el calendario desde hoy, pero la validación definitiva ocurre server-side con `src/lib/validators/date.ts`.
+`createPedidoFromSolicitud` conserva la validación de UX y la comprobación de
+permisos, pero la escritura se ejecuta exclusivamente mediante
+`public.convertir_solicitud_a_pedido(uuid, text, text,
+public.pedido_prioridad, date)`. La RPC es transaccional, bloquea la solicitud
+con `FOR UPDATE` y evita que dos intentos simultáneos creen pedidos distintos.
+
+`priority` es obligatoria, inicia visualmente en `normal` y se valida contra las prioridades reales del enum. `estimated_delivery_date` es opcional; si se informa debe ser una fecha válida e igual o posterior al día actual. La UI limita el calendario desde hoy; el servicio valida con `src/lib/validators/date.ts` y la RPC repite la regla usando la fecha de negocio de `America/Havana`.
 
 `service_type` queda como referencia inicial elegida por el cliente. No se usa como título automático del pedido. El usuario interno debe definir un `title` obligatorio y puede ajustar la `description` operativa antes de crear el pedido. El formulario no acepta `order_number`, `status`, `cliente_id`, `created_by`, `converted_order_id`, campos de archivos ni otros campos técnicos.
 
@@ -277,7 +283,11 @@ Al convertir:
 - se evita doble conversión mediante validaciones y una restricción única existente;
 - no se asigna personal.
 
-La conversión mantiene el estado inicial `solicitud_recibida` y usa la misma numeración de base de datos que la creación manual. La app no envía `order_number`.
+Todas esas escrituras se confirman o revierten juntas. La herencia de archivos
+solo completa `archivos.pedido_id`; no cambia su ruta, bucket, visibilidad ni
+autor, y no mueve objetos físicos en Storage.
+
+La conversión mantiene el estado inicial `solicitud_recibida` y usa la misma numeración de base de datos que la creación manual. La app no envía `order_number`. La RPC revoca ejecución a `public` y `anon`, concede `execute` solo a `authenticated` y valida internamente que el actor sea `admin` o `supervisor` activo.
 
 Flujos relacionados:
 

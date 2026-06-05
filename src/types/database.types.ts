@@ -663,6 +663,36 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      convertir_solicitud_a_pedido: {
+        Args: {
+          p_description: string
+          p_estimated_delivery_date: string
+          p_priority: Database["public"]["Enums"]["pedido_prioridad"]
+          p_solicitud_id: string
+          p_title: string
+        }
+        Returns: {
+          actual_delivery_date: string | null
+          cliente_id: string | null
+          created_at: string
+          created_by: string | null
+          description: string
+          estimated_delivery_date: string | null
+          id: string
+          order_number: string
+          priority: Database["public"]["Enums"]["pedido_prioridad"]
+          solicitud_id: string | null
+          status: Database["public"]["Enums"]["pedido_estado"]
+          title: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "pedidos"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       listar_pedido_comentarios: {
         Args: { p_pedido_id: string }
         Returns: {

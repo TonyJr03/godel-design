@@ -4,7 +4,7 @@
 
 - Etapa: preparación técnica previa a la Fase 14.
 - Alcance: diagnóstico, decisiones arquitectónicas y plan de trabajo.
-- Estado inicial: Fase 13.8A.
+- Estado actual: Fase 13.8B completada; siguiente subfase 13.8C.
 - Fecha de creación: 5 de junio de 2026.
 
 ## 1. Objetivo del hardening
@@ -246,6 +246,8 @@ de trabajo.
 
 ### 13.8B — Conversión solicitud a pedido transaccional
 
+**Estado: completada el 5 de junio de 2026.**
+
 #### Objetivo
 
 Mover la conversión completa a una RPC transaccional.
@@ -273,6 +275,23 @@ Mover la conversión completa a una RPC transaccional.
 #### Criterio de cierre
 
 Ante cualquier fallo, ninguna escritura parcial debe quedar confirmada.
+
+#### Implementación
+
+La RPC `public.convertir_solicitud_a_pedido(uuid, text, text,
+public.pedido_prioridad, date)` es ahora la única autoridad de escritura para
+este flujo. Bloquea la solicitud con `FOR UPDATE`, repite las validaciones
+críticas, crea el pedido, actualiza la solicitud y completa `archivos.pedido_id`
+en una sola transacción.
+
+La implementación se añadió a la migración consolidada
+`20260529090200_03_public_rpcs.sql`; no se creó una migración adicional ni se
+modificaron policies RLS. La función es `security definer`, revoca ejecución a
+`public` y `anon`, y concede `execute` únicamente a `authenticated`.
+
+`createPedidoFromSolicitud` conserva las validaciones de UX y permisos, pero ya
+no escribe tablas directamente. Usa un contrato RPC local hasta regenerar
+`src/types/database.types.ts`.
 
 ### 13.8C — Creación y asociación de cliente transaccional
 

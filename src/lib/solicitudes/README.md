@@ -79,11 +79,17 @@ Transiciones manuales permitidas:
 
 Una solicitud aprobada con cliente asociado puede convertirse en pedido desde el detalle interno de la solicitud.
 
-El estado `convertida` no se establece manualmente desde el selector de estado. Se establece mediante el flujo formal de conversión, que crea un pedido, relaciona `pedidos.solicitud_id`, actualiza `solicitudes.converted_order_id` y deja la solicitud en estado `convertida`.
+El estado `convertida` no se establece manualmente desde el selector de estado. Se establece mediante la RPC transaccional `public.convertir_solicitud_a_pedido`, que crea un pedido, relaciona `pedidos.solicitud_id`, actualiza `solicitudes.converted_order_id` y deja la solicitud en estado `convertida`.
 
-La conversión exige que el usuario interno defina `title`, `description` y `priority` para el pedido. `priority` inicia visualmente en `normal` y se valida contra las prioridades reales de pedido. `estimated_delivery_date` es opcional, pero si se informa debe ser igual o posterior al día actual y se valida con `src/lib/validators/date.ts`.
+La conversión exige que el usuario interno defina `title`, `description` y `priority` para el pedido. `priority` inicia visualmente en `normal` y se valida contra las prioridades reales de pedido. `estimated_delivery_date` es opcional, pero si se informa debe ser igual o posterior al día actual; se valida con `src/lib/validators/date.ts` y nuevamente en la RPC con la fecha de negocio de `America/Havana`.
 
 `service_type` queda como referencia inicial del cliente y no se usa como título automático. La descripción del pedido se puede ajustar desde la descripción original de la solicitud antes de crear el pedido. La conversión no envía `order_number`; la base de datos lo asigna con formato `P-YY-XXXX`. El estado inicial sigue siendo `solicitud_recibida`.
+
+La RPC bloquea la solicitud durante la decisión, valida nuevamente usuario
+activo, rol, estado, cliente, doble conversión y fecha estimada, y completa
+también `archivos.pedido_id` para los archivos `cliente_solicitud`. No cambia
+rutas ni objetos de Storage. Ante cualquier error, todas las escrituras se
+revierten.
 
 ## Asociación solicitud-cliente
 
