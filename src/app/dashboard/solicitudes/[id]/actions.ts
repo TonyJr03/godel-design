@@ -38,6 +38,8 @@ export type ConvertSolicitudToPedidoActionState = {
   values?: {
     title: string;
     description: string;
+    priority: string;
+    estimated_delivery_date: string | null;
   };
   pedidoId?: string;
   numeroPedido?: string;
@@ -171,10 +173,17 @@ export async function convertSolicitudToPedidoAction(
   const solicitudId = getFormValue(formData, "solicitud_id");
   const title = getFormValue(formData, "title");
   const description = getFormValue(formData, "description");
+  const priority = getFormValue(formData, "priority");
+  const estimatedDeliveryDate = getFormValue(
+    formData,
+    "estimated_delivery_date",
+  );
   const result = await createPedidoFromSolicitud({
     solicitudId,
     title,
     description,
+    priority,
+    estimatedDeliveryDate,
   });
 
   if (!result.ok) {
@@ -185,6 +194,8 @@ export async function convertSolicitudToPedidoAction(
       values: result.values ?? {
         title,
         description,
+        priority,
+        estimated_delivery_date: estimatedDeliveryDate || null,
       },
     };
   }

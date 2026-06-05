@@ -6,7 +6,10 @@ import {
   convertSolicitudToPedidoAction,
   type ConvertSolicitudToPedidoActionState,
 } from "@/app/dashboard/solicitudes/[id]/actions";
+import { PEDIDO_PRIORITY_LABELS } from "@/lib/pedidos/labels";
+import { PEDIDO_PRIORITIES } from "@/lib/pedidos/status";
 import { getSolicitudServiceTypeLabel } from "@/lib/solicitudes/labels";
+import { getTodayDateInputValue } from "@/lib/utils";
 import type { Enums } from "@/types/database";
 
 type SolicitudConvertPedidoFormProps = {
@@ -16,12 +19,19 @@ type SolicitudConvertPedidoFormProps = {
   convertedOrderId: string | null;
   serviceType: string;
   solicitudDescription: string;
+  solicitudDesiredDate: string | null;
 };
 
 const initialState: ConvertSolicitudToPedidoActionState = {
   ok: false,
   message: "",
 };
+
+function OptionalMark() {
+  return (
+    <span className="ml-1 text-sm font-normal text-zinc-500">(opcional)</span>
+  );
+}
 
 export function SolicitudConvertPedidoForm({
   solicitudId,
@@ -30,6 +40,7 @@ export function SolicitudConvertPedidoForm({
   convertedOrderId,
   serviceType,
   solicitudDescription,
+  solicitudDesiredDate,
 }: SolicitudConvertPedidoFormProps) {
   const [state, formAction, pending] = useActionState(
     convertSolicitudToPedidoAction,
@@ -39,9 +50,16 @@ export function SolicitudConvertPedidoForm({
   const canConvert = status === "aprobada" && Boolean(clienteId) && !currentPedidoId;
   const titleError = state.fieldErrors?.title;
   const descriptionError = state.fieldErrors?.description;
+  const priorityError = state.fieldErrors?.priority;
+  const estimatedDeliveryDateError =
+    state.fieldErrors?.estimated_delivery_date;
   const titleValue = state.values?.title ?? "";
   const descriptionValue = state.values?.description ?? solicitudDescription;
+  const priorityValue = state.values?.priority ?? "normal";
+  const estimatedDeliveryDateValue =
+    state.values?.estimated_delivery_date ?? solicitudDesiredDate ?? "";
   const serviceTypeLabel = getSolicitudServiceTypeLabel(serviceType);
+  const todayInputDate = getTodayDateInputValue();
 
   return (
     <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
@@ -131,6 +149,83 @@ export function SolicitudConvertPedidoForm({
             {titleError ? (
               <p id="convert-title-error" className="mt-2 text-sm leading-5 text-red-700">
                 {titleError}
+              </p>
+            ) : null}
+          </div>
+
+          <div>
+            <label
+              className="text-sm font-medium text-zinc-900"
+              htmlFor="priority"
+            >
+              Prioridad <span className="text-red-700">*</span>
+            </label>
+            <select
+              className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-base text-zinc-950 shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-teal-700 focus:ring-2 focus:ring-teal-700/20"
+              id="priority"
+              name="priority"
+              required
+              defaultValue={priorityValue}
+              aria-invalid={Boolean(priorityError)}
+              aria-describedby={
+                priorityError ? "convert-priority-error" : "convert-priority-help"
+              }
+            >
+              {PEDIDO_PRIORITIES.map((priority) => (
+                <option key={priority} value={priority}>
+                  {PEDIDO_PRIORITY_LABELS[priority]}
+                </option>
+              ))}
+            </select>
+            <p
+              id="convert-priority-help"
+              className="mt-2 text-sm leading-5 text-zinc-500"
+            >
+              Define la prioridad operativa inicial del pedido.
+            </p>
+            {priorityError ? (
+              <p
+                id="convert-priority-error"
+                className="mt-2 text-sm leading-5 text-red-700"
+              >
+                {priorityError}
+              </p>
+            ) : null}
+          </div>
+
+          <div>
+            <label
+              className="text-sm font-medium text-zinc-900"
+              htmlFor="estimated_delivery_date"
+            >
+              Fecha estimada de entrega <OptionalMark />
+            </label>
+            <input
+              className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-base text-zinc-950 shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-teal-700 focus:ring-2 focus:ring-teal-700/20"
+              id="estimated_delivery_date"
+              name="estimated_delivery_date"
+              type="date"
+              defaultValue={estimatedDeliveryDateValue}
+              min={todayInputDate}
+              aria-invalid={Boolean(estimatedDeliveryDateError)}
+              aria-describedby={
+                estimatedDeliveryDateError
+                  ? "convert-estimated-delivery-date-error"
+                  : "convert-estimated-delivery-date-help"
+              }
+            />
+            <p
+              id="convert-estimated-delivery-date-help"
+              className="mt-2 text-sm leading-5 text-zinc-500"
+            >
+              Opcional. Si la defines, debe ser desde hoy en adelante.
+            </p>
+            {estimatedDeliveryDateError ? (
+              <p
+                id="convert-estimated-delivery-date-error"
+                className="mt-2 text-sm leading-5 text-red-700"
+              >
+                {estimatedDeliveryDateError}
               </p>
             ) : null}
           </div>

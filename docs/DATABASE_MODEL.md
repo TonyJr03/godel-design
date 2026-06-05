@@ -200,7 +200,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 - `rechazada` y `convertida` son estados cerrados. `convertida` solo se asigna desde el flujo formal de conversión a pedido.
 - `quantity` fue eliminado del modelo de solicitudes. Las cantidades, medidas y requisitos se deben explicar dentro de `description` o `notes`.
 - `service_type` sigue siendo una referencia inicial del tipo de trabajo solicitado.
-- La conversión a pedido exige un `title` obligatorio definido por el usuario interno; `service_type` no se usa como título automático.
+- La conversión a pedido exige `title`, `description` y `priority` definidos por el usuario interno. `priority` inicia visualmente en `normal` y se valida contra el enum real. `estimated_delivery_date` es opcional y no puede ser anterior al día actual si se informa. `service_type` no se usa como título automático.
 
 **Notas de seguridad:**
 
@@ -241,6 +241,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 - Un pedido manual puede quedar sin cliente asociado (`cliente_id = null`).
 - La conversión desde solicitud exige que la solicitud tenga `cliente_id` asociado.
 - Un pedido manual inicia en `en_revision`; un pedido convertido desde solicitud inicia en `solicitud_recibida`.
+- La conversión desde solicitud guarda la prioridad definida por el usuario interno y una fecha estimada opcional validada server-side. No modifica todavía la numeración de pedidos ni el estado inicial del pedido convertido.
 - Los estados de pedido solo representan fases generales. Las tareas de pedido modelan el progreso real y condicionan el avance operativo mediante `public.actualizar_estado_pedido`.
 - Los cambios importantes de estado deben registrarse en `pedido_historial`.
 

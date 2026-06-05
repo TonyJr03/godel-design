@@ -10,18 +10,27 @@ import {
   hasFieldErrors,
   isValidUuid,
   normalizeMultilineText,
+  normalizeOptionalSingleLineText,
   normalizeSingleLineText,
+  validateOptionalFutureDate,
 } from "@/lib/validators";
 import type { Enums, Tables, TablesInsert } from "@/types/database";
 import { generatePedidoNumber } from "./order-number";
+import { isPedidoPrioridad, type PedidoPrioridad } from "./order-validation";
 
 export type CreatePedidoFromSolicitudInput = {
   solicitudId: string;
   title?: string | null;
   description?: string | null;
+  priority?: string | null;
+  estimatedDeliveryDate?: string | null;
 };
 
-export type CreatePedidoFromSolicitudField = "title" | "description";
+export type CreatePedidoFromSolicitudField =
+  | "title"
+  | "description"
+  | "priority"
+  | "estimated_delivery_date";
 
 export type CreatePedidoFromSolicitudFieldErrors = Partial<
   Record<CreatePedidoFromSolicitudField, string>
@@ -30,6 +39,8 @@ export type CreatePedidoFromSolicitudFieldErrors = Partial<
 export type CreatePedidoFromSolicitudValues = {
   title: string;
   description: string;
+  priority: string;
+  estimated_delivery_date: string | null;
 };
 
 export type CreatePedidoFromSolicitudErrorReason =
@@ -61,12 +72,10 @@ type SolicitudConvertible = Pick<
   | "converted_order_id"
   | "description"
   | "status"
-  | "desired_date"
 >;
 
 const INITIAL_CONVERTED_PEDIDO_ESTADO: Enums<"pedido_estado"> =
   "solicitud_recibida";
-const DEFAULT_CONVERTED_PEDIDO_PRIORIDAD: Enums<"pedido_prioridad"> = "normal";
 const GENERIC_CONVERT_ERROR =
   "No se pudo convertir la solicitud en pedido. Inténtalo nuevamente.";
 const FIELD_LIMITS = {
@@ -78,11 +87,20 @@ function isDuplicateSolicitudPedidoError(error: { code?: string } | null) {
   return error?.code === "23505";
 }
 
-function validateConversionText(input: CreatePedidoFromSolicitudInput) {
+function validateConversionInput(input: CreatePedidoFromSolicitudInput) {
   const title = normalizeSingleLineText(input.title);
   const description = normalizeMultilineText(input.description);
+  const priority = normalizeSingleLineText(input.priority);
+  const estimatedDeliveryDate = normalizeOptionalSingleLineText(
+    input.estimatedDeliveryDate,
+  );
   const fieldErrors: CreatePedidoFromSolicitudFieldErrors = {};
-  const values = { title, description };
+  const values = {
+    title,
+    description,
+    priority,
+    estimated_delivery_date: estimatedDeliveryDate,
+  };
 
   if (!title) {
     fieldErrors.title = "El título del pedido es obligatorio.";
@@ -96,10 +114,30 @@ function validateConversionText(input: CreatePedidoFromSolicitudInput) {
     fieldErrors.description = `La descripción no puede superar ${FIELD_LIMITS.description} caracteres.`;
   }
 
+  if (!isPedidoPrioridad(priority)) {
+    fieldErrors.priority = "Selecciona una prioridad válida.";
+  }
+
+  if (estimatedDeliveryDate) {
+    const estimatedDeliveryDateValidation =
+      validateOptionalFutureDate(estimatedDeliveryDate);
+
+    if (estimatedDeliveryDateValidation === "invalid") {
+      fieldErrors.estimated_delivery_date =
+        "La fecha estimada de entrega no es válida.";
+    } else if (estimatedDeliveryDateValidation === "past") {
+      fieldErrors.estimated_delivery_date =
+        "La fecha estimada de entrega no puede ser anterior al día actual.";
+    }
+  }
+
   return {
     ok: !hasFieldErrors(fieldErrors),
     fieldErrors,
-    values,
+    values: {
+      ...values,
+      priority: priority as PedidoPrioridad,
+    },
   };
 }
 
@@ -131,7 +169,7 @@ export async function createPedidoFromSolicitud(
     );
   }
 
-  const validation = validateConversionText(input);
+  const validation = validateConversionInput(input);
 
   if (!validation.ok) {
     return serviceFailure("validation", "Revisa los datos del pedido.", {
@@ -145,9 +183,7 @@ export async function createPedidoFromSolicitud(
   try {
     const { data: solicitud, error: solicitudError } = await supabase
       .from("solicitudes")
-      .select(
-        "id, cliente_id, converted_order_id, description, status, desired_date",
-      )
+      .select("id, cliente_id, converted_order_id, description, status")
       .eq("id", solicitudId)
       .maybeSingle<SolicitudConvertible>();
 
@@ -192,8 +228,8 @@ export async function createPedidoFromSolicitud(
       title: validation.values.title,
       description: validation.values.description,
       status: INITIAL_CONVERTED_PEDIDO_ESTADO,
-      priority: DEFAULT_CONVERTED_PEDIDO_PRIORIDAD,
-      estimated_delivery_date: solicitud.desired_date,
+      priority: validation.values.priority,
+      estimated_delivery_date: validation.values.estimated_delivery_date,
       created_by: profile.id,
     };
 

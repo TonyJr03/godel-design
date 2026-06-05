@@ -239,9 +239,11 @@ Archivos principales:
 - Componente: `src/components/solicitudes/SolicitudConvertPedidoForm.tsx`
 - Action: `src/app/dashboard/solicitudes/[id]/actions.ts`
 
-La conversión requiere `solicitudes.manage` y `pedidos.manage`. Solo se permite convertir solicitudes con estado `aprobada` y `cliente_id` asociado. El formulario envía únicamente `solicitud_id`, `title` y `description`.
+La conversión requiere `solicitudes.manage` y `pedidos.manage`. Solo se permite convertir solicitudes con estado `aprobada` y `cliente_id` asociado. El formulario envía únicamente `solicitud_id`, `title`, `description`, `priority` y `estimated_delivery_date`.
 
-`service_type` queda como referencia inicial elegida por el cliente. No se usa como título automático del pedido. El usuario interno debe definir un `title` obligatorio y puede ajustar la `description` operativa antes de crear el pedido. El formulario no acepta `order_number`, `status`, `cliente_id`, `created_by`, `converted_order_id` ni otros campos técnicos.
+`priority` es obligatoria, inicia visualmente en `normal` y se valida contra las prioridades reales del enum. `estimated_delivery_date` es opcional; si se informa debe ser una fecha válida e igual o posterior al día actual. La UI limita el calendario desde hoy, pero la validación definitiva ocurre server-side con `src/lib/validators/date.ts`.
+
+`service_type` queda como referencia inicial elegida por el cliente. No se usa como título automático del pedido. El usuario interno debe definir un `title` obligatorio y puede ajustar la `description` operativa antes de crear el pedido. El formulario no acepta `order_number`, `status`, `cliente_id`, `created_by`, `converted_order_id`, campos de archivos ni otros campos técnicos.
 
 Cuando el pedido muestra datos de la solicitud origen, el tipo de servicio se renderiza con `getSolicitudServiceTypeLabel` desde `src/lib/solicitudes/labels.ts`; el valor guardado en `service_type` no se renombra ni se usa como título automático.
 
@@ -250,12 +252,16 @@ Al convertir:
 - se crea un pedido con `pedidos.solicitud_id`;
 - se usa el `title` definido por el usuario interno;
 - se guarda la descripción operativa enviada desde el formulario de conversión;
+- se guarda la `priority` definida por el usuario interno;
+- se guarda `estimated_delivery_date` como fecha normalizada o `null`;
 - se actualiza `solicitudes.status = convertida`;
 - se actualiza `solicitudes.converted_order_id`;
 - se asocian al pedido los archivos `cliente_solicitud` de la solicitud completando `archivos.pedido_id`;
 - no se mueven ni copian archivos físicos en Storage;
 - se evita doble conversión mediante validaciones y una restricción única existente;
 - no se asigna personal.
+
+La conversión mantiene por ahora la numeración actual de pedidos y el estado inicial `solicitud_recibida`.
 
 Flujos relacionados:
 
@@ -367,6 +373,11 @@ Desde 13.6I, el dashboard y los paneles operativos también consideran tareas: p
 - Convertir una solicitud aprobada con cliente.
 - Verificar que el pedido convertido inicia en `solicitud_recibida`.
 - Verificar que la conversión exige título.
+- Verificar que la conversión muestra prioridad con valor `normal`.
+- Verificar que la conversión permite fecha estimada opcional.
+- Convertir sin fecha estimada y confirmar que el pedido queda sin fecha.
+- Convertir con fecha estimada de hoy o futura y confirmar que se guarda.
+- Forzar una fecha estimada pasada y confirmar error server-side.
 - Verificar que el pedido convertido no usa `service_type` como título automático.
 - Verificar que la descripción ajustada se guarda en el pedido.
 - Verificar que se crea pedido con `solicitud_id`.

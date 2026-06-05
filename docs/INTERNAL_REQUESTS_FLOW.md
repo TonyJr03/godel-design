@@ -17,7 +17,7 @@ conceptualmente en `docs/PUBLIC_REQUEST_FLOW.md`. Al enviarse:
 
 La conversión a pedido se realiza manualmente desde el detalle interno cuando la
 solicitud está aprobada, tiene cliente asociado y el usuario interno define el
-título operativo real del pedido.
+título operativo real, la descripción y la prioridad inicial del pedido.
 
 ## Ruta interna principal
 
@@ -90,7 +90,9 @@ El detalle:
 - permite convertir a pedido solo si la solicitud está aprobada y tiene cliente asociado;
 - no permite eliminar archivos.
 
-La sección de conversión exige un `title` obligatorio para el pedido. También permite ajustar la descripción operativa del pedido a partir de la descripción original de la solicitud. El formulario no acepta `cliente_id`, `status`, `converted_order_id`, `created_by` ni `order_number`.
+La sección de conversión exige `title`, `description` y `priority` para el pedido. La prioridad inicia en `normal` y se valida contra el enum real de prioridades. También permite definir `estimated_delivery_date` de forma opcional; si se informa, debe ser igual o posterior al día actual y se valida server-side con `src/lib/validators/date.ts`.
+
+El formulario no acepta `cliente_id`, `status`, `converted_order_id`, `created_by`, `order_number`, campos de archivos ni otros campos técnicos. La conversión mantiene la numeración actual de pedidos y el estado inicial `solicitud_recibida`.
 
 ## Archivos de solicitud
 
@@ -274,7 +276,11 @@ El diseño del dashboard operativo para la Fase 13 se documenta en `docs/DASHBOA
 - Un intento manipulado de enviar `convertida` falla server-side.
 - En Supabase Studio, `reviewed_by` se actualiza al cambiar estado.
 - `converted_order_id` no se modifica durante cambios manuales de estado.
-- Convertir una solicitud aprobada con cliente asociado exige título del pedido.
+- Convertir una solicitud aprobada con cliente asociado exige título, descripción y prioridad del pedido.
+- Confirmar que la prioridad inicia en `normal`.
+- Convertir sin fecha estimada y confirmar que el pedido queda sin fecha.
+- Convertir con fecha estimada de hoy o futura y confirmar que se guarda.
+- Forzar una fecha estimada pasada y confirmar error server-side.
 - La creación manual de pedidos puede quedar sin cliente asociado.
 - Intentar convertir sin título muestra error.
 - Confirmar que el pedido creado usa el título escrito, no `service_type`.
