@@ -15,15 +15,18 @@ El módulo de pedidos incluye actualmente:
 - conversión de solicitud aprobada a pedido;
 - cambio de estado de pedido;
 - asignación de personal interno;
+- tareas y progreso operativo;
 - archivos privados internos del pedido;
 - comentarios internos de pedido;
+- historial automático visible;
+- búsqueda textual y filtro de estado;
 - visibilidad limitada para trabajadores asignados.
 
 Todavía no incluye:
 
 - edición general de pedido;
 - eliminación de pedido;
-- historial avanzado de cambios;
+- filtros o reportes avanzados sobre historial;
 - notificaciones;
 - reportes o estadísticas;
 - responsables funcionales avanzados por pedido.
@@ -92,7 +95,7 @@ Reglas actuales:
 - `cliente_id` es opcional en la creación manual y requerido al convertir una solicitud en pedido.
 - `solicitud_id` es `null` en pedidos manuales.
 - `order_number` se genera en base de datos con formato `P-YY-XXXX`.
-- La secuencia de `order_number` reinicia cada año y se controla con `pedido_contadores`.
+- La secuencia de `order_number` reinicia cada año según la fecha de negocio de `America/Havana` y se controla con `pedido_contadores`.
 
 Las tablas oficiales normalizadas para comentarios e historial de pedidos son `pedido_comentarios` y `pedido_historial`. El enum de eventos de historial de pedidos es `pedido_historial_action`. Los comentarios de pedido están implementados en el detalle interno y son append-only. El historial de pedido está visible en el detalle interno y muestra los eventos existentes en `pedido_historial`.
 
@@ -136,7 +139,19 @@ El progreso agregado se calcula como promedio redondeado: una tarea simple aport
 
 En esta subfase hay servicios server-side y UI en `/dashboard/pedidos/[id]` para listar, crear, editar título, eliminar, completar, reabrir y actualizar progreso de tareas. La tabla queda protegida con RLS e historial automático para que `admin`, `supervisor` y personal asignado puedan gestionar tareas de pedidos accesibles.
 
-La UI no permite seleccionar `task_type`, `target_quantity`, autorías, fechas técnicas ni `sort_order`. Solo envía `pedido_id`, `task_id`, `title` o `completed_quantity` según el formulario, y las Server Actions delegan la validación en servicios server-side.
+Las mutaciones se permiten solo en `creado`, `solicitud_recibida`, `en_revision`
+y `en_produccion`. En `listo_entrega` las tareas quedan en modo lectura para
+preservar el progreso completo; una corrección requiere volver primero a
+`en_produccion`. En `entregado` y `cancelado` también quedan en modo lectura.
+El listado y el progreso continúan visibles.
+
+Los servicios validan el estado actual antes de mutar y las policies RLS de
+inserción, actualización y eliminación aplican la misma regla mediante
+`private.can_manage_pedido_tasks`. La policy de lectura conserva
+`private.can_access_pedido`, por lo que esta restricción no abre permisos ni
+impide consultar tareas existentes.
+
+La UI no permite seleccionar `task_type`, `target_quantity`, autorías, fechas técnicas ni `sort_order`. La página enlaza `pedido_id` a las Server Actions; los formularios solo envían `task_id`, `title` o `completed_quantity` según la operación, y las actions delegan la validación en servicios server-side.
 
 ## Listado interno
 
@@ -178,7 +193,7 @@ Archivos principales:
 
 El detalle de pedido permite ver y agregar comentarios internos asociados al pedido. Los comentarios son visibles solo para usuarios internos con acceso al pedido: `admin` y `supervisor` en cualquier pedido, y `trabajador` solo en pedidos asignados.
 
-El formulario solo envía `pedido_id` y `content`. El autor se toma server-side desde el perfil autenticado y se guarda en `pedido_comentarios.author_id`. No se acepta autor, fecha ni otros campos técnicos desde el formulario.
+La página enlaza `pedido_id` a la action y el formulario solo envía `content`. El autor se toma server-side desde el perfil autenticado y se guarda en `pedido_comentarios.author_id`. No se acepta autor, fecha ni otros campos técnicos desde el formulario.
 
 Los comentarios son append-only en el alcance inicial. No hay edición, eliminación, menciones, notificaciones ni adjuntos.
 
@@ -200,6 +215,8 @@ Desde Fase 11.7A, el historial de pedidos registra automáticamente:
 - `trabajador_asignado` al asignar personal;
 - `trabajador_removido` al remover personal;
 - `archivo_subido` al subir archivos propios de pedido;
+- eventos de creación, actualización, eliminación, completado, reapertura y
+  progreso de tareas;
 - cambios de estado mediante la RPC existente `public.actualizar_estado_pedido`.
 
 No se crea trigger de actualización de estado para evitar duplicar los eventos que ya registra la RPC. Los archivos heredados de solicitudes con `visibility = "cliente_solicitud"` no generan `archivo_subido` del pedido.
@@ -226,7 +243,7 @@ Mapeo de estado a categoría:
 
 Los archivos enviados por el cliente en la solicitud pública también pueden aparecer en el pedido generado como `cliente_solicitud`. En ese caso se muestran como “Archivo enviado por cliente”. No se permite subir esa categoría desde el formulario interno de pedido; solo se hereda al convertir una solicitud en pedido.
 
-El formulario interno envía únicamente `pedido_id` y `file`. La descarga se realiza mediante URL firmada de corta duración. No se usan URLs públicas permanentes, no se aceptan categoría, `visibility`, `file_path`, bucket ni otros metadatos técnicos desde formularios y no se usa service role key. No se implementa eliminación de archivos en esta fase.
+La página enlaza `pedido_id` a la action y el formulario interno envía únicamente `file`. La descarga se realiza mediante URL firmada de corta duración. No se usan URLs públicas permanentes, no se aceptan categoría, `visibility`, `file_path`, bucket ni otros metadatos técnicos desde formularios y no se usa service role key. No se implementa eliminación de archivos en esta fase.
 
 Desde Fase 11.7B, la conversión de una solicitud a pedido registra `convertida_a_pedido` en `solicitud_historial`. Ese evento no duplica `estado_cambiado` cuando la misma operación marca la solicitud como `convertida`, y la herencia de archivos no genera eventos nuevos de archivo.
 
@@ -243,7 +260,7 @@ Archivos principales:
 
 La creación manual requiere `pedidos.manage`, por lo que solo `admin` y `supervisor` pueden usarla. El formulario permite seleccionar un cliente existente o dejar `Sin cliente asociado`; no acepta estado, `solicitud_id`, número de pedido ni personal asignado. El pedido manual se crea con `solicitud_id = null`, estado inicial `creado` y `cliente_id = null` cuando no se selecciona cliente. No existen campos temporales de cliente en este flujo.
 
-El número visible del pedido se asigna en base de datos al insertar, con formato `P-YY-XXXX`. El contador es anual, se guarda en `public.pedido_contadores` y se incrementa dentro de la transacción para proteger la concurrencia. La app no envía `order_number`.
+El número visible del pedido se asigna en base de datos al insertar, con formato `P-YY-XXXX`. El contador es anual, se guarda en `public.pedido_contadores` y se incrementa dentro de la transacción para proteger la concurrencia. El año se obtiene mediante `private.current_business_date()` y no depende del día UTC de la sesión. La app no envía `order_number`.
 
 `estimated_delivery_date` es opcional. Si se informa, debe ser una fecha válida e igual o posterior al día actual. La validación server-side usa los helpers de fecha de `src/lib/validators/date.ts`, apoyados en `src/lib/utils/date.ts` para calcular el día actual local; el `min` del input de fecha solo orienta la captura en la UI.
 
@@ -255,9 +272,15 @@ Archivos principales:
 - Componente: `src/components/solicitudes/SolicitudConvertPedidoForm.tsx`
 - Action: `src/app/dashboard/solicitudes/[id]/actions.ts`
 
-La conversión requiere `solicitudes.manage` y `pedidos.manage`. Solo se permite convertir solicitudes con estado `aprobada` y `cliente_id` asociado. El formulario envía únicamente `solicitud_id`, `title`, `description`, `priority` y `estimated_delivery_date`.
+La conversión requiere `solicitudes.manage` y `pedidos.manage`. Solo se permite convertir solicitudes con estado `aprobada` y `cliente_id` asociado. La página enlaza `solicitud_id` a la action y el formulario envía únicamente `title`, `description`, `priority` y `estimated_delivery_date`.
 
-`priority` es obligatoria, inicia visualmente en `normal` y se valida contra las prioridades reales del enum. `estimated_delivery_date` es opcional; si se informa debe ser una fecha válida e igual o posterior al día actual. La UI limita el calendario desde hoy, pero la validación definitiva ocurre server-side con `src/lib/validators/date.ts`.
+`createPedidoFromSolicitud` conserva la validación de UX y la comprobación de
+permisos, pero la escritura se ejecuta exclusivamente mediante
+`public.convertir_solicitud_a_pedido(uuid, text, text,
+public.pedido_prioridad, date)`. La RPC es transaccional, bloquea la solicitud
+con `FOR UPDATE` y evita que dos intentos simultáneos creen pedidos distintos.
+
+`priority` es obligatoria, inicia visualmente en `normal` y se valida contra las prioridades reales del enum. `estimated_delivery_date` es opcional; si se informa debe ser una fecha válida e igual o posterior al día actual. La UI limita el calendario desde hoy; el servicio valida con `src/lib/validators/date.ts` y la RPC repite la regla usando la fecha de negocio de `America/Havana`.
 
 `service_type` queda como referencia inicial elegida por el cliente. No se usa como título automático del pedido. El usuario interno debe definir un `title` obligatorio y puede ajustar la `description` operativa antes de crear el pedido. El formulario no acepta `order_number`, `status`, `cliente_id`, `created_by`, `converted_order_id`, campos de archivos ni otros campos técnicos.
 
@@ -277,7 +300,11 @@ Al convertir:
 - se evita doble conversión mediante validaciones y una restricción única existente;
 - no se asigna personal.
 
-La conversión mantiene el estado inicial `solicitud_recibida` y usa la misma numeración de base de datos que la creación manual. La app no envía `order_number`.
+Todas esas escrituras se confirman o revierten juntas. La herencia de archivos
+solo completa `archivos.pedido_id`; no cambia su ruta, bucket, visibilidad ni
+autor, y no mueve objetos físicos en Storage.
+
+La conversión mantiene el estado inicial `solicitud_recibida` y usa la misma numeración de base de datos que la creación manual. La app no envía `order_number`. La RPC revoca ejecución a `public` y `anon`, concede `execute` solo a `authenticated` y valida internamente que el actor sea `admin` o `supervisor` activo.
 
 Flujos relacionados:
 
@@ -295,7 +322,22 @@ Archivos principales:
 - Estados: `src/lib/pedidos/status.ts`
 - RPC: `public.actualizar_estado_pedido`
 
-La action solo acepta `pedido_id` y `status`. El estado se valida server-side contra el enum real simplificado. La actualización usa la RPC segura `public.actualizar_estado_pedido`, que evita abrir un `UPDATE` amplio sobre `pedidos` para trabajadores.
+La página enlaza `pedido_id` a la action, que acepta únicamente `status` desde el formulario. El estado se valida server-side contra el enum real simplificado. La actualización usa la RPC segura `public.actualizar_estado_pedido`, que evita abrir un `UPDATE` amplio sobre `pedidos` para trabajadores.
+
+La RPC bloquea la fila del pedido con `FOR UPDATE` antes de leer su estado. Dos
+transiciones simultáneas quedan serializadas: la segunda petición valida contra
+el estado confirmado por la primera, no contra un estado obsoleto.
+
+Antes de contar tareas, la RPC bloquea las tareas existentes con `FOR SHARE`.
+Así espera cambios o eliminaciones en curso y mantiene estables esas filas
+durante la decisión. Las nuevas tareas quedan coordinadas por el bloqueo del
+pedido y la clave foránea. Las mutaciones de tareas también bloquean y validan
+el pedido mediante `private.can_manage_pedido_tasks`, por lo que una operación
+iniciada después de confirmar `listo_entrega`, `entregado` o `cancelado` queda
+bloqueada.
+
+Cuando el pedido pasa a `entregado`, `actual_delivery_date` usa
+`private.current_business_date()`, basada en `America/Havana`.
 
 Un trabajador solo puede cambiar el estado de pedidos asignados. Con múltiples usuarios asignados, cualquier trabajador que tenga una fila en `pedido_trabajadores` para ese pedido puede cambiar el estado; un trabajador no asignado no pasa la validación. `admin` y `supervisor` mantienen su permiso global aunque estén asignados operativamente a un pedido.
 
@@ -315,7 +357,10 @@ Solo `admin` y `supervisor` pueden asignar o remover personal. El listado devuel
 
 La interfaz del detalle muestra múltiples usuarios asignados con su rol visible. `admin` y `supervisor` pueden agregar personal desde el selector y quitar una asignación concreta con la action `removePedidoWorkerAction`; `trabajador` ve la lista en modo lectura, sin controles de gestión.
 
-Asignar un `admin` o `supervisor` no modifica su rol ni degrada sus permisos. Un trabajador asignado puede ver el pedido y cambiar su estado siguiendo las reglas operativas vigentes. No se implementan historial avanzado ni notificaciones.
+Asignar un `admin` o `supervisor` no modifica su rol ni degrada sus permisos. Un
+trabajador asignado puede ver el pedido y cambiar su estado siguiendo las
+reglas operativas vigentes. La asignación y la remoción generan historial
+automático; no se implementan notificaciones ni reportes especializados.
 
 El trabajador no accede al módulo general de usuarios. La visibilidad de nombres y roles del personal asignado se controla mediante RLS de `perfiles` con alcance por pedido accesible, usando las asignaciones de `pedido_trabajadores` como contexto.
 
@@ -336,8 +381,11 @@ Aclaraciones:
 
 - no se usa service role key;
 - los componentes cliente no consultan Supabase directamente;
-- los formularios de asignación solo envían `pedido_id` y `assigned_profile_id`;
-- el formulario de comentario solo envía `pedido_id` y `content`;
+- la página enlaza `pedido_id` a todas las actions del detalle;
+- los formularios de asignación solo envían `assigned_profile_id`;
+- el formulario de comentario solo envía `content`;
+- los formularios de tareas conservan `task_id` cuando actúan sobre una tarea existente;
+- ninguna action obtiene el pedido desde `referer`, `next-url` u otra cabecera;
 - trabajadores no pueden crear, convertir, asignar ni remover personal;
 - trabajadores no acceden a los módulos generales de clientes o solicitudes, aunque RLS permite leer datos relacionados con pedidos asignados.
 
@@ -345,9 +393,8 @@ Aclaraciones:
 
 - edición general de pedido;
 - eliminación;
-- historial avanzado;
+- filtros o reportes avanzados de historial;
 - edición o eliminación de comentarios internos;
-- comentarios de solicitudes;
 - notificaciones;
 - reportes;
 - facturación;
@@ -359,7 +406,7 @@ Aclaraciones:
 Más adelante se podrá:
 
 - agregar eliminación controlada de archivos privados del pedido;
-- registrar historial de cambios;
+- agregar filtros específicos al historial;
 - implementar notificaciones;
 - agregar reportes de producción;
 - crear vistas por carga de trabajo;
@@ -444,4 +491,6 @@ Desde 13.6I, el dashboard y los paneles operativos también consideran tareas: p
 
 ## Cierre
 
-La Fase 9 extendió el módulo de pedidos con asignaciones múltiples de personal interno, visibilidad controlada para trabajadores asignados y documentación específica en `docs/ORDER_ASSIGNMENTS_FLOW.md`.
+El módulo vigente cubre creación manual y desde solicitud, estados controlados,
+tareas y progreso, asignaciones múltiples, archivos privados, comentarios,
+historial y búsqueda server-side con filtro de estado.

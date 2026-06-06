@@ -9,10 +9,18 @@ const APP_DATE_TIME_FORMATTER = new Intl.DateTimeFormat("es", {
   timeZone: APP_TIME_ZONE,
 });
 
+const APP_DATE_PARTS_FORMATTER = new Intl.DateTimeFormat("en", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  timeZone: APP_TIME_ZONE,
+});
+
 export function formatDateOnly(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
+  const parts = APP_DATE_PARTS_FORMATTER.formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
 
   return `${year}-${month}-${day}`;
 }

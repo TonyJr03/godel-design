@@ -8,12 +8,12 @@ Esta carpeta concentra la lógica reutilizable para trabajar con archivos privad
 - Tipos internos para categorías, rutas, validación y URLs firmadas.
 - Sanitización de nombres de archivo.
 - Construcción de rutas internas para solicitudes y pedidos.
-- Validación base de archivos antes de futuras subidas.
+- Validación compartida para subidas públicas e internas.
 - Helper server-side para generar URLs firmadas de corta duración desde `archivo.id`.
 - Listado de archivos internos de pedido con RLS.
 - Subida interna de archivos de pedido desde Server Actions.
 - Descarga de archivos de pedido mediante route handler y signed URL.
-- Base backend para subida pública controlada de archivos de solicitud.
+- Subida pública controlada de archivos de solicitud.
 - Listado y descarga interna de archivos de solicitud.
 
 ## Bucket privado
@@ -25,7 +25,7 @@ El sistema usa el bucket privado `godel-files`. No se usan buckets públicos ni 
 Las rutas se construyen desde datos controlados por la aplicación. No se debe aceptar un `file_path` enviado directamente por el usuario.
 
 ```text
-solicitudes/{solicitud_id}/originales/{timestamp}-{filename}
+solicitudes/{solicitud_id}/originales/{timestamp}-{uuid}-{filename}
 pedidos/{pedido_id}/internos/{timestamp}-{filename}
 pedidos/{pedido_id}/avances/{timestamp}-{filename}
 pedidos/{pedido_id}/finales/{timestamp}-{filename}
@@ -64,11 +64,31 @@ El formulario no envía `visibility`, categoría, bucket, ruta, usuario, nombre,
 
 ## Archivos públicos de solicitud
 
-`uploadPublicSolicitudFile(input)` prepara la subida de archivos enviados por clientes externos. La función fuerza la categoría `cliente_solicitud`, usa la ruta `solicitudes/{solicitud_id}/originales/{timestamp}-{filename}` y guarda metadatos en `archivos` con `pedido_id = null` y `uploaded_by = null`.
+`uploadPublicSolicitudFile(input)` procesa archivos enviados por clientes externos. La función fuerza la categoría `cliente_solicitud`, usa la ruta `solicitudes/{solicitud_id}/originales/{timestamp}-{uuid}-{filename}` y guarda metadatos en `archivos` con `pedido_id = null` y `uploaded_by = null`.
 
-`uploadPublicSolicitudFiles(input)` sube varios archivos uno por uno y limita la cantidad a 5 archivos por solicitud.
+`uploadPublicSolicitudFiles(input)` sube varios archivos uno por uno y limita
+la cantidad a 5 archivos opcionales por solicitud. Admite PDF, JPG, JPEG, PNG,
+WEBP, DOC, DOCX y ZIP, con un máximo de 20 MB por archivo.
 
-La migración de Fase 10.4A permite a `anon` insertar objetos y metadatos solo para rutas válidas de solicitudes públicas. No permite lectura, listado, actualización ni eliminación anónima. La lectura posterior queda reservada para `admin` y `supervisor` en el módulo interno.
+La migración consolidada permite a `anon` insertar objetos y metadatos solo
+para rutas válidas de solicitudes públicas. Desde Fase 13.8E, Storage bloquea
+el sexto objeto secuencial y metadata aplica un máximo estricto de cinco con
+conteo serializado. Ambas capas validan la combinación extensión/MIME. Los
+20 MB se aplican en TypeScript, en el bucket y en la policy de metadata; esta
+última exige además un objeto existente sin registro previo. No permite
+lectura, listado, actualización ni eliminación anónima. La lectura posterior
+queda reservada para `admin` y `supervisor` en el módulo interno.
+
+El conteo de Storage no se considera una garantía absoluta frente a subidas
+paralelas, porque la autorización puede ocurrir antes de completar cada objeto.
+La metadata conserva el límite estricto; monitoreo, rate limiting y
+reconciliación cubren el riesgo residual de producción.
+
+El flujo conserva el orden objeto y después metadata. No se abre `DELETE`
+anónimo porque la API de Storage también requiere `SELECT`; un fallo
+excepcional puede dejar un objeto sin metadata, limitado por el cupo de cinco,
+que debe detectarse y limpiarse mediante reconciliación interna. Rate limiting,
+monitoreo y antivirus quedan como endurecimiento de producción.
 
 La UI pública usa estas funciones para adjuntar archivos al crear la solicitud. El cliente no recibe URLs públicas ni URLs firmadas.
 

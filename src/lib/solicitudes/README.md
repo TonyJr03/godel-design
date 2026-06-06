@@ -44,13 +44,25 @@ Reglas principales:
 - la solicitud puede enviarse sin archivos;
 - la categoría se fuerza a `cliente_solicitud`;
 - los archivos se guardan en el bucket privado `godel-files`;
-- la ruta se construye como `solicitudes/{solicitud_id}/originales/{timestamp}-{filename}`;
+- la ruta se construye como `solicitudes/{solicitud_id}/originales/{timestamp}-{uuid}-{filename}`;
 - `pedido_id` queda en `null`;
 - `uploaded_by` queda en `null`;
 - no hay lectura pública, listado público ni URLs públicas;
 - `admin` y `supervisor` pueden consultarlos y descargarlos desde el detalle interno de solicitud mediante rutas internas seguras.
 
 La solicitud se crea antes de asociar archivos. Si la solicitud se registra correctamente pero algún archivo falla durante la subida, la solicitud se conserva y la UI muestra una advertencia segura.
+
+El límite de cinco también se aplica en las policies anónimas: Storage bloquea
+el sexto objeto secuencial y `archivos` mantiene un máximo estricto de cinco
+metadatos con conteo serializado. Las policies validan ruta, 20 MB y
+combinación de extensión/MIME; la metadata solo se acepta si el objeto exacto
+existe y aún no está registrado. Las subidas paralelas conservan un riesgo
+residual en el conteo físico de Storage y requieren monitoreo/reconciliación en
+producción.
+
+No hay lectura, listado ni borrado anónimo. Por ello un fallo excepcional entre
+la subida y la metadata no se compensa abriendo permisos públicos: el objeto
+queda sujeto al cupo y debe resolverse mediante reconciliación interna.
 
 ## Labels visibles
 
@@ -79,24 +91,38 @@ Transiciones manuales permitidas:
 
 Una solicitud aprobada con cliente asociado puede convertirse en pedido desde el detalle interno de la solicitud.
 
-El estado `convertida` no se establece manualmente desde el selector de estado. Se establece mediante el flujo formal de conversión, que crea un pedido, relaciona `pedidos.solicitud_id`, actualiza `solicitudes.converted_order_id` y deja la solicitud en estado `convertida`.
+El estado `convertida` no se establece manualmente desde el selector de estado. Se establece mediante la RPC transaccional `public.convertir_solicitud_a_pedido`, que crea un pedido, relaciona `pedidos.solicitud_id`, actualiza `solicitudes.converted_order_id` y deja la solicitud en estado `convertida`.
 
-La conversión exige que el usuario interno defina `title`, `description` y `priority` para el pedido. `priority` inicia visualmente en `normal` y se valida contra las prioridades reales de pedido. `estimated_delivery_date` es opcional, pero si se informa debe ser igual o posterior al día actual y se valida con `src/lib/validators/date.ts`.
+La conversión exige que el usuario interno defina `title`, `description` y `priority` para el pedido. `priority` inicia visualmente en `normal` y se valida contra las prioridades reales de pedido. `estimated_delivery_date` es opcional, pero si se informa debe ser igual o posterior al día actual; se valida con `src/lib/validators/date.ts` y nuevamente en la RPC con la fecha de negocio de `America/Havana`.
 
 `service_type` queda como referencia inicial del cliente y no se usa como título automático. La descripción del pedido se puede ajustar desde la descripción original de la solicitud antes de crear el pedido. La conversión no envía `order_number`; la base de datos lo asigna con formato `P-YY-XXXX`. El estado inicial sigue siendo `solicitud_recibida`.
+
+La RPC bloquea la solicitud durante la decisión, valida nuevamente usuario
+activo, rol, estado, cliente, doble conversión y fecha estimada, y completa
+también `archivos.pedido_id` para los archivos `cliente_solicitud`. No cambia
+rutas ni objetos de Storage. Ante cualquier error, todas las escrituras se
+revierten.
 
 ## Asociación solicitud-cliente
 
 `associateSolicitudWithCliente` asocia una solicitud con un cliente existente. Requiere `solicitudes.manage` y `clientes.view`, valida UUID de solicitud y cliente, verifica que ambos registros existan y actualiza únicamente `solicitudes.cliente_id`.
 
-`createClienteFromSolicitudAndAssociate` crea un cliente básico desde los datos ya guardados en la solicitud (`client_name`, `client_phone`, `client_email`) y lo asocia automáticamente. Requiere `solicitudes.manage` y `clientes.manage`.
+`createClienteFromSolicitudAndAssociate` crea un cliente básico desde los datos ya guardados en la solicitud (`client_name`, `client_phone`, `client_email`) y lo asocia automáticamente. Requiere `solicitudes.manage` y `clientes.manage`, conserva la validación de UX y delega la escritura en la RPC transaccional `public.crear_cliente_desde_solicitud`.
+
+La página enlaza `solicitud_id` a la action, cuyo formulario no envía campos
+editables; no acepta nombre, teléfono, correo, notas, actor ni otros campos
+técnicos. La RPC bloquea la solicitud con `FOR UPDATE`,
+valida de nuevo usuario activo, rol, asociación previa y datos mínimos, y
+confirma o revierte en conjunto el cliente, el historial y la asociación.
 
 Las actions del detalle de solicitud son:
 
 - `associateSolicitudClienteAction`
 - `createClienteFromSolicitudAction`
 
-No se usa service role key y no se implementa deduplicación avanzada.
+No se usa service role key y no se implementa deduplicación avanzada. La
+asociación de un cliente existente conserva su servicio separado y su capacidad
+de reemplazar explícitamente la relación.
 
 ## Comentarios internos
 
@@ -104,7 +130,24 @@ No se usa service role key y no se implementa deduplicación avanzada.
 
 `createSolicitudComment` agrega comentarios internos append-only. Requiere `solicitudes.manage`, valida UUID, confirma acceso a la solicitud, valida content no vacío con máximo de 2000 caracteres e inserta en `solicitud_comentarios` usando `author_id = profile.id`.
 
-La action `createSolicitudCommentAction` lee únicamente `solicitud_id` y `content`. No acepta autor ni fechas desde el formulario. No hay edición, eliminación, menciones, notificaciones, adjuntos ni registro automático de historial en esta subfase.
+La página enlaza `solicitud_id` a `createSolicitudCommentAction` y el formulario envía únicamente `content`. No acepta autor ni fechas. No hay edición, eliminación, menciones, notificaciones, adjuntos ni registro automático de historial en esta subfase.
+
+## Contrato de actions del detalle
+
+Las Server Actions de `/dashboard/solicitudes/[id]` reciben `solicitud_id`
+enlazado desde la página server-side después de cargar y validar la solicitud.
+Ninguna mutación obtiene el ID desde `FormData`, `referer`, `next-url` u otra
+cabecera. Los IDs secundarios necesarios para cada operación, como
+`cliente_id`, permanecen en el formulario.
+
+Las actions siguen siendo adaptadores finos: leen solo campos editables,
+delegan autorización y mutación en servicios server-side o RPCs, y revalidan
+`/dashboard`, `/dashboard/solicitudes` y el detalle. Se mantienen juntas porque
+separarlas no reduciría complejidad real.
+
+El listado combina búsqueda server-side y filtro por estado mediante
+`ListFiltersBar`. La búsqueda usa un debounce de 200 ms, conserva ambos
+parámetros en la URL y permanece limitada a `admin` y `supervisor`.
 
 ## Historial visible
 
@@ -126,7 +169,13 @@ Desde Fase 11.7B, la base de datos registra automáticamente:
 - `cliente_asociado` al asociar un cliente;
 - `convertida_a_pedido` al convertir una solicitud a pedido.
 
-El evento `cliente_creado_desde_solicitud` se registra desde `createClienteFromSolicitudAndAssociate` después de crear el cliente y antes de asociarlo a la solicitud. Luego la actualización de `solicitudes.cliente_id` dispara `cliente_asociado`. Como el historial visible se muestra con el evento más reciente primero, el usuario verá primero “Cliente asociado” y después “Cliente creado desde la solicitud”. El servicio no acepta datos de historial desde formularios y no usa service role key. Si ese registro de historial falla, se registra el error en servidor sin romper la creación/asociación ya completada.
+El evento `cliente_creado_desde_solicitud` se registra dentro de
+`public.crear_cliente_desde_solicitud` después de crear el cliente y antes de
+asociarlo. Luego la actualización de `solicitudes.cliente_id` dispara una sola
+vez `cliente_asociado`. Como el historial visible se muestra con el evento más
+reciente primero, el usuario ve primero “Cliente asociado” y después “Cliente
+creado desde la solicitud”. Si cualquier registro de historial o asociación
+falla, la transacción revierte también la creación del cliente.
 
 ## Alcance excluido
 

@@ -1,10 +1,12 @@
-# Modelo de Datos Inicial — Godel Diseño
+# Modelo de Datos Vigente — Godel Diseño
 
 ## Propósito del documento
 
-Este documento define el modelo de datos inicial del sistema web de gestión operativa de Godel Diseño. Su objetivo es servir como base técnica para crear, en una tarea posterior, las migraciones SQL iniciales de Supabase.
-
-Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, autenticación ni lógica de aplicación. Solo describe las entidades principales, sus relaciones, reglas de negocio y criterios de seguridad esperados.
+Este documento describe el modelo de datos consolidado del sistema web de
+gestión operativa de Godel Diseño. El esquema, las políticas RLS, los helpers,
+los triggers y las RPC principales están implementados en las migraciones de
+`supabase/migrations/`; este archivo resume sus entidades, relaciones, reglas de
+negocio y criterios de seguridad.
 
 ## Principios del modelo
 
@@ -87,6 +89,12 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 | `fecha_entrega_actualizada` |
 | `pedido_entregado` |
 | `pedido_cancelado` |
+| `tarea_creada` |
+| `tarea_actualizada` |
+| `tarea_eliminada` |
+| `tarea_completada` |
+| `tarea_reabierta` |
+| `tarea_progreso_actualizado` |
 
 ### `solicitud_historial_action`
 
@@ -132,7 +140,8 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 - Los usuarios autenticados podrían leer su propio perfil.
 - El acceso a perfiles de otros usuarios debe depender del rol.
 - En el modelo vigente de RLS, `admin` y `supervisor` pueden leer perfiles internos; `trabajador` puede leer su propio perfil y datos básicos de perfiles asignados a pedidos que puede acceder.
-- La Fase 12 recomienda gestionar inicialmente solo `perfiles`, sin crear usuarios Auth desde la app y sin usar service role key.
+- La aplicación gestiona `public.perfiles`, sin crear usuarios Auth desde la app
+  y sin usar service role key.
 
 ### `clientes`
 
@@ -238,7 +247,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 **Reglas importantes:**
 
 - `order_number` debe ser único y cumplir el formato `P-YY-XXXX`.
-- `order_number` se genera en base de datos al insertar el pedido. La secuencia reinicia cada año y se controla con `pedido_contadores` para proteger la concurrencia.
+- `order_number` se genera en base de datos al insertar el pedido. La secuencia reinicia cada año según `private.current_business_date()`, con zona `America/Havana`, y se controla con `pedido_contadores` para proteger la concurrencia.
 - Un pedido puede crearse manualmente o a partir de una solicitud.
 - Un pedido manual puede quedar sin cliente asociado (`cliente_id = null`).
 - La conversión desde solicitud exige que la solicitud tenga `cliente_id` asociado.
@@ -246,7 +255,9 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 - `creado` puede pasar únicamente a `en_revision` o `cancelado`. No permite avanzar directamente a producción, listo para entrega o entregado.
 - La conversión desde solicitud guarda la prioridad definida por el usuario interno y una fecha estimada opcional validada server-side. Usa la numeración generada por base de datos y mantiene el estado inicial `solicitud_recibida`.
 - Los estados de pedido solo representan fases generales. Las tareas de pedido modelan el progreso real y condicionan el avance operativo mediante `public.actualizar_estado_pedido`.
-- Los cambios importantes de estado deben registrarse en `pedido_historial`.
+- `public.actualizar_estado_pedido` bloquea el pedido con `FOR UPDATE` y las tareas existentes con `FOR SHARE` durante la decisión.
+- Al marcar un pedido como `entregado`, `actual_delivery_date` usa la fecha local de negocio.
+- Los cambios importantes de estado se registran en `pedido_historial`.
 
 **Notas de seguridad:**
 
@@ -268,7 +279,8 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 
 - La numeración visible de pedidos usa el formato `P-YY-XXXX`.
 - La secuencia reinicia por año.
-- La función privada `private.generar_numero_pedido()` incrementa el contador dentro de la transacción.
+- La función privada `private.current_business_date()` devuelve la fecha de negocio para `America/Havana`.
+- La función privada `private.generar_numero_pedido()` obtiene de esa fecha el año e incrementa el contador dentro de la transacción.
 - Si la secuencia anual supera `9999`, la función debe fallar para evitar generar un formato inválido.
 - La aplicación no acepta ni envía `order_number` desde formularios.
 
@@ -300,7 +312,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 
 - Un pedido puede tener varios usuarios internos asignados.
 - Un usuario interno puede estar asignado a varios pedidos.
-- Se recomienda evitar duplicados para la misma combinación `pedido_id` + `assigned_profile_id`.
+- La restricción única evita duplicados para la misma combinación `pedido_id` + `assigned_profile_id`.
 
 **Notas de seguridad:**
 
@@ -343,6 +355,9 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 - Las tareas `cuantificada` requieren `target_quantity > 0`, `completed_quantity >= 0` y `completed_quantity <= target_quantity`.
 - La detección automática de tipo por números en el título se implementa en servicios TypeScript server-side.
 - La UI del detalle permite gestionar tareas y la RPC de cambio de estado exige tareas para pasar a producción y tareas completas para marcar listo para entrega.
+- Las mutaciones solo se permiten en `creado`, `solicitud_recibida`,
+  `en_revision` y `en_produccion`. En `listo_entrega`, `entregado` y
+  `cancelado` las tareas quedan en modo lectura.
 
 **Notas de seguridad:**
 
@@ -412,7 +427,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 
 - Los comentarios son internos.
 - Un pedido puede tener muchos comentarios.
-- Agregar un comentario puede registrar un evento `nota_agregada` en el historial.
+- Los comentarios son append-only. No se editan ni eliminan desde la aplicación.
 
 **Notas de seguridad:**
 
@@ -444,8 +459,8 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 **Reglas importantes:**
 
 - El historial no debe editarse manualmente desde la aplicación.
-- Debe registrar cambios relevantes de estado, asignaciones, archivos, fechas y cierre del pedido.
-- Debe mantenerse simple en la primera versión.
+- Registra cambios relevantes de estado, asignaciones, archivos, tareas y cierre
+  del pedido mediante RPCs y triggers controlados.
 
 **Notas de seguridad:**
 
@@ -511,12 +526,15 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 - El historial es append-only.
 - `summary` no puede estar vacío.
 - `metadata` debe ser un objeto JSON.
-- Los eventos automáticos se conectarán en subfases posteriores.
+- Los eventos automáticos se registran mediante triggers y RPCs para creación,
+  archivos, cambios de estado, asociación o creación de cliente y conversión a
+  pedido.
 
 **Notas de seguridad:**
 
 - Solo `admin` y `supervisor` pueden leer historial de solicitudes.
-- La inserción queda limitada a `admin` y `supervisor` autenticados para flujos internos futuros.
+- La escritura se realiza mediante triggers y RPCs controlados; no hay inserción
+  pública directa.
 - `trabajador` no accede al historial de solicitudes.
 - Usuarios anónimos no acceden.
 - No se permite actualización ni eliminación manual desde el cliente.
@@ -546,37 +564,43 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 - El historial no será editable manualmente.
 - Los clientes no tendrán cuenta de usuario en la primera versión.
 
-## Estrategia inicial de RLS
+## Estrategia de RLS
 
-La estrategia de Row Level Security debe definirse desde el inicio y reforzarse en las migraciones SQL.
+Row Level Security está activa en las tablas expuestas y se complementa con
+policies de Storage y validaciones server-side.
 
 | Rol o contexto | Acceso conceptual |
 |---|---|
 | `admin` | Puede acceder a todo el sistema. |
 | `supervisor` | Puede gestionar solicitudes, clientes operativos, pedidos, asignaciones, archivos, comentarios e historial. |
 | `trabajador` | Solo puede ver pedidos asignados y datos relacionados necesarios para trabajar. |
-| Cliente externo | Solo puede insertar solicitudes públicas y archivos de solicitud cuando el flujo lo permita. |
+| Cliente externo | Solo puede insertar solicitudes públicas y hasta cinco archivos válidos mediante el flujo controlado. |
 | Usuario no autenticado | No puede leer información interna. |
 
-Para archivos, los buckets deben ser privados y el acceso debe protegerse mediante reglas de Storage, validación de permisos y URLs firmadas de duración limitada.
+El bucket `godel-files` es privado. Las descargas internas validan permisos y
+generan URLs firmadas de duración limitada; no hay lectura ni listado público.
 
-## Índices sugeridos
+## Índices principales
 
 | Tabla | Campo |
 |---|---|
-| `solicitudes` | `status` |
 | `solicitudes` | `cliente_id` |
 | `solicitudes` | `created_at` |
-| `pedidos` | `status` |
+| `solicitudes` | `status, created_at` |
+| `solicitudes` | `converted_order_id` único cuando no es `null` |
 | `pedidos` | `cliente_id` |
-| `pedidos` | `solicitud_id` |
-| `pedidos` | `estimated_delivery_date` |
-| `pedido_trabajadores` | `pedido_id` |
+| `pedidos` | `created_at` |
+| `pedidos` | `status, created_at` |
+| `pedidos` | `estimated_delivery_date` para pedidos activos |
+| `pedidos` | `solicitud_id` único cuando no es `null` |
 | `pedido_trabajadores` | `assigned_profile_id` |
-| `archivos` | `pedido_id` |
-| `archivos` | `solicitud_id` |
-| `pedido_comentarios` | `pedido_id` |
-| `pedido_historial` | `pedido_id` |
+| `pedido_tareas` | `pedido_id, sort_order` |
+| `pedido_tareas` | `pedido_id, created_at` |
+| `pedido_tareas` | `pedido_id, is_completed` |
+| `archivos` | `pedido_id, visibility, created_at` |
+| `archivos` | `solicitud_id, visibility, created_at` |
+| `pedido_comentarios` | `pedido_id, created_at` |
+| `pedido_historial` | `pedido_id, created_at` |
 | `solicitud_comentarios` | `solicitud_id, created_at` |
 | `solicitud_comentarios` | `author_id` |
 | `solicitud_historial` | `solicitud_id, created_at` |
@@ -587,6 +611,14 @@ Para archivos, los buckets deben ser privados y el acceso debe protegerse median
 
 El diagnóstico y diseño actualizado para comentarios internos e historial operativo se documenta en `docs/COMMENTS_AND_HISTORY_MODEL.md`. Ese documento debe usarse como referencia antes de crear nuevas migraciones relacionadas con comentarios o historial.
 
-## Pendiente para la siguiente tarea
+## Operaciones transaccionales principales
 
-El próximo paso será crear la migración SQL inicial de Supabase basada en este documento, incluyendo enums, tablas, claves foráneas, restricciones, índices, campos de auditoría y la estrategia inicial de Row Level Security.
+- `public.convertir_solicitud_a_pedido` crea el pedido, marca la solicitud como
+  convertida y hereda sus archivos dentro de una sola transacción.
+- `public.crear_cliente_desde_solicitud` crea el cliente, registra historial y
+  lo asocia a la solicitud de forma atómica.
+- `public.actualizar_estado_pedido` serializa cambios de estado y valida tareas.
+- `public.actualizar_estado_solicitud` controla las transiciones manuales.
+
+La evolución del esquema debe hacerse mediante nuevas migraciones y mantener
+alineados los tipos generados de Supabase.

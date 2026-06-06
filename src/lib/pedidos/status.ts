@@ -33,6 +33,33 @@ export function isPedidoActiveStatus(status: PedidoStatus): boolean {
   return !isPedidoClosedStatus(status);
 }
 
+export function canManagePedidoTasksInStatus(status: PedidoStatus): boolean {
+  return (
+    status === "creado" ||
+    status === "solicitud_recibida" ||
+    status === "en_revision" ||
+    status === "en_produccion"
+  );
+}
+
+export function getPedidoTaskManagementBlockedReason(
+  status: PedidoStatus,
+): string | null {
+  if (status === "listo_entrega") {
+    return "Para modificar tareas, devuelve el pedido a producción.";
+  }
+
+  if (status === "entregado") {
+    return "No se pueden modificar tareas de un pedido entregado.";
+  }
+
+  if (status === "cancelado") {
+    return "No se pueden modificar tareas de un pedido cancelado.";
+  }
+
+  return null;
+}
+
 function buildStatusOption(
   status: PedidoStatus,
   options?: Omit<PedidoStatusTransitionOption, "status">,

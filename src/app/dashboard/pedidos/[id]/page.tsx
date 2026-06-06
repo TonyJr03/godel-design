@@ -19,6 +19,19 @@ import {
   listPedidoTasks,
 } from "@/lib/pedidos";
 import { listPedidoFiles } from "@/lib/storage";
+import {
+  assignPedidoWorkerAction,
+  completePedidoTaskAction,
+  createPedidoCommentAction,
+  createPedidoTaskAction,
+  deletePedidoTaskAction,
+  removePedidoWorkerAction,
+  reopenPedidoTaskAction,
+  updatePedidoStatusAction,
+  updatePedidoTaskProgressAction,
+  updatePedidoTaskTitleAction,
+  uploadPedidoFileAction,
+} from "./actions";
 
 type DashboardPedidoDetallePageProps = {
   params: Promise<{
@@ -58,6 +71,21 @@ export default async function DashboardPedidoDetallePage({
   const filesResult = await listPedidoFiles(result.pedido.id);
   const commentsResult = await listPedidoComments(result.pedido.id);
   const historyResult = await listPedidoHistory(result.pedido.id);
+  const pedidoId = result.pedido.id;
+  const assignWorkerAction = assignPedidoWorkerAction.bind(null, pedidoId);
+  const removeWorkerAction = removePedidoWorkerAction.bind(null, pedidoId);
+  const createTaskAction = createPedidoTaskAction.bind(null, pedidoId);
+  const taskActions = {
+    complete: completePedidoTaskAction.bind(null, pedidoId),
+    delete: deletePedidoTaskAction.bind(null, pedidoId),
+    reopen: reopenPedidoTaskAction.bind(null, pedidoId),
+    updateProgress: updatePedidoTaskProgressAction.bind(null, pedidoId),
+    updateTitle: updatePedidoTaskTitleAction.bind(null, pedidoId),
+  };
+  const createCommentAction = createPedidoCommentAction.bind(null, pedidoId);
+  const updateStatusAction = updatePedidoStatusAction.bind(null, pedidoId);
+  const uploadFileAction = uploadPedidoFileAction.bind(null, pedidoId);
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -66,6 +94,7 @@ export default async function DashboardPedidoDetallePage({
       />
       <InternalPedidoDetail
         pedido={result.pedido}
+        updateStatusAction={updateStatusAction}
         taskProgress={tasksResult.ok ? tasksResult.progress : undefined}
         tasksLoadError={
           tasksResult.ok
@@ -74,7 +103,8 @@ export default async function DashboardPedidoDetallePage({
         }
         workerAssignmentSection={
           <PedidoWorkerAssignmentForm
-            pedidoId={result.pedido.id}
+            assignWorkerAction={assignWorkerAction}
+            removeWorkerAction={removeWorkerAction}
             asignaciones={result.pedido.pedido_trabajadores}
             canManage={canManagePedidos}
             trabajadores={workersResult?.ok ? workersResult.workers : []}
@@ -87,7 +117,9 @@ export default async function DashboardPedidoDetallePage({
         }
         tasksSection={
           <PedidoTasksSection
-            pedidoId={result.pedido.id}
+            createTaskAction={createTaskAction}
+            taskActions={taskActions}
+            pedidoStatus={result.pedido.status}
             tasks={tasksResult.ok ? tasksResult.tasks : []}
             progress={
               tasksResult.ok
@@ -103,7 +135,7 @@ export default async function DashboardPedidoDetallePage({
         }
         commentsSection={
           <PedidoCommentsSection
-            pedidoId={result.pedido.id}
+            createCommentAction={createCommentAction}
             comments={commentsResult.ok ? commentsResult.comments : []}
             loadError={
               commentsResult.ok ? undefined : commentsResult.message
@@ -119,6 +151,7 @@ export default async function DashboardPedidoDetallePage({
         filesSection={
           <PedidoFilesSection
             pedidoId={result.pedido.id}
+            uploadFileAction={uploadFileAction}
             pedidoStatus={result.pedido.status}
             files={filesResult.ok ? filesResult.files : []}
             canUpload={profile !== null}

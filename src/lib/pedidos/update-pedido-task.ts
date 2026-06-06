@@ -8,6 +8,11 @@ import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
 import type { Tables, TablesUpdate } from "@/types/database";
 import {
+  canManagePedidoTasksInStatus,
+  getPedidoTaskManagementBlockedReason,
+  type PedidoStatus,
+} from "./status";
+import {
   parsePedidoTaskCompletion,
   parsePedidoTaskTitle,
   validatePedidoTaskCompletedQuantity,
@@ -34,6 +39,7 @@ export type UpdatePedidoTaskErrorReason =
   | "unauthorized"
   | "invalid_id"
   | "not_found"
+  | "status_blocked"
   | "validation"
   | "error";
 
@@ -162,6 +168,38 @@ export async function updatePedidoTask(
       );
     }
 
+    const { data: pedido, error: pedidoError } = await supabase
+      .from("pedidos")
+      .select("id, status")
+      .eq("id", task.pedido_id)
+      .maybeSingle<{ id: string; status: PedidoStatus }>();
+
+    if (pedidoError) {
+      console.error(
+        "Error checking pedido status before task update",
+        pedidoError,
+      );
+
+      return serviceFailure("error", GENERIC_UPDATE_TASK_ERROR, { values });
+    }
+
+    if (!pedido) {
+      return serviceFailure(
+        "not_found",
+        "El pedido solicitado no existe o no tienes acceso.",
+        { values },
+      );
+    }
+
+    if (!canManagePedidoTasksInStatus(pedido.status)) {
+      return serviceFailure(
+        "status_blocked",
+        getPedidoTaskManagementBlockedReason(pedido.status) ??
+          GENERIC_UPDATE_TASK_ERROR,
+        { values },
+      );
+    }
+
     const taskUpdate: TablesUpdate<"pedido_tareas"> = {
       updated_by: profile.id,
     };
@@ -286,12 +324,32 @@ export async function updatePedidoTask(
     taskUpdate.completed_at = nextCompletedAt;
     taskUpdate.completed_by = nextCompletedBy;
 
-    const { error } = await supabase
+    const { data: updatedTask, error } = await supabase
       .from("pedido_tareas")
       .update(taskUpdate)
-      .eq("id", task.id);
+      .eq("id", task.id)
+      .select("id")
+      .maybeSingle<{ id: string }>();
 
-    if (error) {
+    if (error || !updatedTask) {
+      const { data: currentPedido } = await supabase
+        .from("pedidos")
+        .select("status")
+        .eq("id", task.pedido_id)
+        .maybeSingle<{ status: PedidoStatus }>();
+
+      if (
+        currentPedido &&
+        !canManagePedidoTasksInStatus(currentPedido.status)
+      ) {
+        return serviceFailure(
+          "status_blocked",
+          getPedidoTaskManagementBlockedReason(currentPedido.status) ??
+            GENERIC_UPDATE_TASK_ERROR,
+          { values },
+        );
+      }
+
       console.error("Error updating pedido task", error);
 
       return serviceFailure("error", GENERIC_UPDATE_TASK_ERROR, { values });

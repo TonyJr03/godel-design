@@ -1,9 +1,9 @@
 "use client";
 
 import { useActionState } from "react";
-import {
-  uploadPedidoFileAction,
-  type UploadPedidoFileActionState,
+import type {
+  PedidoDetailAction,
+  UploadPedidoFileActionState,
 } from "@/app/dashboard/pedidos/[id]/actions";
 import type { PedidoFileListItem } from "@/lib/storage";
 import type { PedidoStatus } from "@/lib/pedidos";
@@ -14,6 +14,7 @@ import { formatAppDateTime } from "@/lib/utils";
 
 type PedidoFilesSectionProps = {
   pedidoId: string;
+  uploadFileAction: PedidoDetailAction<UploadPedidoFileActionState>;
   pedidoStatus: PedidoStatus;
   files: PedidoFileListItem[];
   canUpload: boolean;
@@ -85,13 +86,14 @@ function getUploadContextMessage(status: PedidoStatus): string {
 
 export function PedidoFilesSection({
   pedidoId,
+  uploadFileAction,
   pedidoStatus,
   files,
   canUpload,
   loadError,
 }: PedidoFilesSectionProps) {
   const [state, formAction, pending] = useActionState(
-    uploadPedidoFileAction,
+    uploadFileAction,
     initialState,
   );
   const visibilityResult = getPedidoFileVisibilityForStatus(pedidoStatus);
@@ -178,8 +180,6 @@ export function PedidoFilesSection({
           aria-busy={pending}
           className="mt-6 border-t border-zinc-200 pt-5"
         >
-          <input type="hidden" name="pedido_id" value={pedidoId} />
-
           {state.message ? (
             <div
               className={

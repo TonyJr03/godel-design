@@ -29,11 +29,11 @@ begin
     from information_schema.columns
     where table_schema = 'storage'
       and table_name = 'objects'
-      and column_name in ('bucket_id', 'name')
+      and column_name in ('bucket_id', 'name', 'metadata')
     group by table_schema, table_name
-    having count(*) = 2
+    having count(*) = 3
   ) then
-    raise exception 'La tabla storage.objects no tiene las columnas esperadas: bucket_id y name.';
+    raise exception 'La tabla storage.objects no tiene las columnas esperadas: bucket_id, name y metadata.';
   end if;
 end;
 $$;
@@ -116,6 +116,65 @@ $$;
 
 comment on function private.storage_request_id(text)
 is 'Extrae el solicitud_id desde rutas privadas con formato solicitudes/{solicitud_id}/originales/{archivo}.';
+
+create or replace function private.is_allowed_public_request_file_type(
+  file_name text,
+  file_type text
+)
+returns boolean
+language sql
+immutable
+as $$
+  select coalesce(
+    file_name is not null
+      and btrim(file_name) <> ''
+      and (
+        (lower(file_name) ~ '\.pdf$' and file_type = 'application/pdf')
+        or (
+          lower(file_name) ~ '\.(jpg|jpeg)$'
+          and file_type = 'image/jpeg'
+        )
+        or (lower(file_name) ~ '\.png$' and file_type = 'image/png')
+        or (lower(file_name) ~ '\.webp$' and file_type = 'image/webp')
+        or (
+          lower(file_name) ~ '\.doc$'
+          and file_type = 'application/msword'
+        )
+        or (
+          lower(file_name) ~ '\.docx$'
+          and file_type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        )
+        or (
+          lower(file_name) ~ '\.zip$'
+          and file_type in ('application/zip', 'application/x-zip-compressed')
+        )
+      ),
+    false
+  );
+$$;
+
+comment on function private.is_allowed_public_request_file_type(text, text)
+is 'Valida combinaciones permitidas de extensión y MIME para archivos públicos de solicitud.';
+
+create or replace function private.is_allowed_public_request_file(
+  file_name text,
+  file_size bigint,
+  file_type text
+)
+returns boolean
+language sql
+immutable
+as $$
+  select coalesce(
+    file_size > 0
+      and file_size <= 20971520
+      and private.is_allowed_public_request_file_type(file_name, file_type),
+    false
+  );
+$$;
+
+comment on function private.is_allowed_public_request_file(text, bigint, text)
+is 'Valida de forma compartida extensión, MIME y tamaño máximo de archivos públicos de solicitud.';
 
 create or replace function private.can_read_storage_object(
   object_bucket_id text,
@@ -239,68 +298,129 @@ is 'Limita actualización y eliminación de objetos privados a admin o superviso
 
 create or replace function private.can_insert_public_request_storage_object(
   object_bucket_id text,
-  object_name text
+  object_name text,
+  object_metadata jsonb
 )
 returns boolean
-language sql
+language plpgsql
 security definer
 set search_path = public, private
-stable
 as $$
-  select object_bucket_id = 'godel-files'
-    and private.storage_request_id(object_name) is not null
-    and exists (
-      select 1
-      from public.solicitudes as s
-      where s.id = private.storage_request_id(object_name)
+declare
+  v_solicitud_id uuid;
+  v_existing_objects integer;
+begin
+  v_solicitud_id := private.storage_request_id(object_name);
+
+  if object_bucket_id <> 'godel-files'
+    or v_solicitud_id is null
+    or object_metadata is null
+    or not private.is_allowed_public_request_file_type(
+      split_part(object_name, '/', 4),
+      object_metadata->>'mimetype'
+    ) then
+    return false;
+  end if;
+
+  perform 1
+  from public.solicitudes as s
+  where s.id = v_solicitud_id
+  for update;
+
+  if not found then
+    return false;
+  end if;
+
+  select count(*)
+  into v_existing_objects
+  from storage.objects as o
+  where o.bucket_id = object_bucket_id
+    and o.name like format(
+      'solicitudes/%s/originales/%%',
+      v_solicitud_id
     );
+
+  return v_existing_objects < 5;
+end;
 $$;
 
-comment on function private.can_insert_public_request_storage_object(text, text)
-is 'Valida subidas anónimas controladas al bucket privado para archivos originales de solicitudes públicas.';
+comment on function private.can_insert_public_request_storage_object(text, text, jsonb)
+is 'Valida ruta, archivo y cupo secuencial de cinco objetos anónimos por solicitud, bloqueando la solicitud durante la evaluación.';
 
 create or replace function private.can_insert_public_request_file_metadata(
-  file_bucket text,
-  file_path text,
-  file_pedido_id uuid,
-  file_solicitud_id uuid,
-  file_uploaded_by uuid,
-  file_visibility public.archivo_visibility,
-  file_size bigint,
-  file_type text
+  p_file_bucket text,
+  p_file_path text,
+  p_file_name text,
+  p_file_pedido_id uuid,
+  p_file_solicitud_id uuid,
+  p_file_uploaded_by uuid,
+  p_file_visibility public.archivo_visibility,
+  p_file_size bigint,
+  p_file_type text
 )
 returns boolean
-language sql
+language plpgsql
 security definer
 set search_path = public, private
-stable
 as $$
-  select file_bucket = 'godel-files'
-    and file_pedido_id is null
-    and file_solicitud_id is not null
-    and file_uploaded_by is null
-    and file_visibility = 'cliente_solicitud'::public.archivo_visibility
-    and private.storage_request_id(file_path) = file_solicitud_id
-    and file_size > 0
-    and file_size <= 20971520
-    and file_type in (
-      'application/pdf',
-      'image/jpeg',
-      'image/png',
-      'image/webp',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/zip',
-      'application/x-zip-compressed'
+declare
+  v_existing_files integer;
+begin
+  if p_file_bucket <> 'godel-files'
+    or p_file_pedido_id is not null
+    or p_file_solicitud_id is null
+    or p_file_uploaded_by is not null
+    or p_file_visibility <> 'cliente_solicitud'::public.archivo_visibility
+    or private.storage_request_id(p_file_path) <> p_file_solicitud_id
+    or not private.is_allowed_public_request_file(
+      p_file_name,
+      p_file_size,
+      p_file_type
     )
-    and exists (
+    or not private.is_allowed_public_request_file(
+      split_part(p_file_path, '/', 4),
+      p_file_size,
+      p_file_type
+    ) then
+    return false;
+  end if;
+
+  perform 1
+  from public.solicitudes as s
+  where s.id = p_file_solicitud_id
+  for update;
+
+  if not found then
+    return false;
+  end if;
+
+  if not exists (
+    select 1
+    from storage.objects as o
+    where o.bucket_id = p_file_bucket
+      and o.name = p_file_path
+  ) then
+    return false;
+  end if;
+
+  select count(*)
+  into v_existing_files
+  from public.archivos as a
+  where a.solicitud_id = p_file_solicitud_id
+    and a.visibility = 'cliente_solicitud'::public.archivo_visibility;
+
+  return v_existing_files < 5
+    and not exists (
       select 1
-      from public.solicitudes as s
-      where s.id = file_solicitud_id
+      from public.archivos as a
+      where a.bucket = p_file_bucket
+        and a.file_path = p_file_path
     );
+end;
 $$;
 
 comment on function private.can_insert_public_request_file_metadata(
+  text,
   text,
   text,
   uuid,
@@ -310,7 +430,7 @@ comment on function private.can_insert_public_request_file_metadata(
   bigint,
   text
 )
-is 'Valida metadatos anónimos para archivos originales de solicitudes públicas.';
+is 'Valida metadatos anónimos contra un objeto existente y limita a cinco archivos por solicitud con conteo serializado.';
 
 revoke all on function private.storage_path_has_exact_parts(text, integer)
 from public, anon, authenticated;
@@ -320,15 +440,20 @@ revoke all on function private.storage_order_category(text)
 from public, anon, authenticated;
 revoke all on function private.storage_request_id(text)
 from public, anon, authenticated;
+revoke all on function private.is_allowed_public_request_file_type(text, text)
+from public, anon, authenticated;
+revoke all on function private.is_allowed_public_request_file(text, bigint, text)
+from public, anon, authenticated;
 revoke all on function private.can_read_storage_object(text, text)
 from public, anon, authenticated;
 revoke all on function private.can_insert_storage_object(text, text)
 from public, anon, authenticated;
 revoke all on function private.can_manage_storage_object(text, text)
 from public, anon, authenticated;
-revoke all on function private.can_insert_public_request_storage_object(text, text)
+revoke all on function private.can_insert_public_request_storage_object(text, text, jsonb)
 from public, anon, authenticated;
 revoke all on function private.can_insert_public_request_file_metadata(
+  text,
   text,
   text,
   uuid,
@@ -343,8 +468,9 @@ from public, anon, authenticated;
 grant execute on function private.can_read_storage_object(text, text) to authenticated;
 grant execute on function private.can_insert_storage_object(text, text) to authenticated;
 grant execute on function private.can_manage_storage_object(text, text) to authenticated;
-grant execute on function private.can_insert_public_request_storage_object(text, text) to anon;
+grant execute on function private.can_insert_public_request_storage_object(text, text, jsonb) to anon;
 grant execute on function private.can_insert_public_request_file_metadata(
+  text,
   text,
   text,
   uuid,
@@ -365,6 +491,7 @@ with check (
   private.can_insert_public_request_file_metadata(
     bucket,
     file_path,
+    file_name,
     pedido_id,
     solicitud_id,
     uploaded_by,
@@ -414,7 +541,7 @@ on storage.objects
 for insert
 to anon
 with check (
-  private.can_insert_public_request_storage_object(bucket_id, name)
+  private.can_insert_public_request_storage_object(bucket_id, name, metadata)
 );
 
 do $$

@@ -4,7 +4,9 @@
 
 La gestión de usuarios internos permite administrar quién puede entrar al dashboard operativo de Godel Diseño y qué rol tiene dentro del sistema. Esta fase se limita al personal interno; los clientes externos no tienen cuenta de usuario en el MVP actual.
 
-El objetivo de la Fase 12 es construir una gestión segura sobre el modelo existente de Supabase Auth y `public.perfiles`, sin abrir capacidades administrativas más amplias de las necesarias.
+El módulo implementa una gestión segura sobre Supabase Auth y
+`public.perfiles`, sin abrir capacidades administrativas más amplias de las
+necesarias.
 
 ## Modelo Actual
 
@@ -72,7 +74,8 @@ Los permisos de dominio ya existen:
 | `usuarios.view` | Sí | No | No |
 | `usuarios.manage` | Sí | No | No |
 
-Las futuras páginas y Server Actions del módulo deben validar estos permisos en servidor. La navegación visible no debe considerarse una barrera de seguridad suficiente.
+Las páginas y Server Actions del módulo validan estos permisos en servidor. La
+navegación visible no se considera una barrera de seguridad suficiente.
 
 ## Qué Puede Hacerse Sin Service Role
 
@@ -160,9 +163,9 @@ Riesgos y límites:
 
 Complejidad: alta.
 
-## Decisión Recomendada para el MVP
+## Decisión Vigente para el MVP
 
-La recomendación para Godel Diseño es implementar primero la Opción A: gestión de perfiles únicamente.
+Godel Diseño usa la Opción A: gestión de perfiles únicamente.
 
 Esta decisión es consistente con el estado actual del proyecto:
 
@@ -173,11 +176,10 @@ Esta decisión es consistente con el estado actual del proyecto:
 - la ruta `/dashboard/usuarios` ya está limitada a `admin`;
 - el proyecto evita service role key hasta ahora.
 
-El MVP debe asumir que el usuario Auth se crea manualmente fuera de la app. Después, un admin podrá mantener el perfil interno desde el dashboard.
+El usuario Auth se crea manualmente fuera de la app. Después, un admin mantiene
+el perfil interno desde el dashboard.
 
-## Operaciones Permitidas para Fase 12
-
-Subfases futuras deberían implementar:
+## Operaciones Implementadas
 
 - listar usuarios internos desde `perfiles`;
 - ver detalle de usuario;
@@ -207,7 +209,7 @@ Queda explícitamente fuera del MVP:
 
 ## Consideraciones de Seguridad
 
-Las futuras operaciones deben cumplir estas reglas:
+Las operaciones cumplen estas reglas:
 
 - validar usuario autenticado y perfil activo en servidor;
 - validar `usuarios.view` para lectura y `usuarios.manage` para cambios;
@@ -220,7 +222,7 @@ Las futuras operaciones deben cumplir estas reglas:
 - no permitir eliminación física en esta etapa;
 - registrar decisiones sensibles en documentación antes de ampliar Auth.
 
-## Subfases Propuestas de Fase 12
+## Historial de Implementación de Fase 12
 
 | Subfase | Alcance |
 | --- | --- |

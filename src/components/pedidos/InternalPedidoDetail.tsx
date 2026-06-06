@@ -1,5 +1,9 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import type {
+  PedidoDetailAction,
+  UpdatePedidoStatusActionState,
+} from "@/app/dashboard/pedidos/[id]/actions";
 import {
   PEDIDO_PRIORITY_LABELS,
   PEDIDO_STATUS_LABELS,
@@ -15,6 +19,7 @@ import { PedidoStatusForm } from "./PedidoStatusForm";
 
 type InternalPedidoDetailProps = {
   pedido: InternalPedidoDetail;
+  updateStatusAction: PedidoDetailAction<UpdatePedidoStatusActionState>;
   taskProgress?: PedidoStatusTransitionContext | null;
   tasksLoadError?: string;
   workerAssignmentSection?: ReactNode;
@@ -62,6 +67,7 @@ function StatusBadge({ children }: { children: ReactNode }) {
 
 export function InternalPedidoDetail({
   pedido,
+  updateStatusAction,
   taskProgress,
   tasksLoadError,
   workerAssignmentSection,
@@ -134,7 +140,7 @@ export function InternalPedidoDetail({
       </section>
 
       <PedidoStatusForm
-        pedidoId={pedido.id}
+        updateStatusAction={updateStatusAction}
         estadoActual={pedido.status}
         taskProgress={taskProgress}
         tasksLoadError={tasksLoadError}

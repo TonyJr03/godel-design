@@ -23,8 +23,8 @@ Todavía no incluye:
 - Deduplicación inteligente.
 - Listado de pedidos por cliente.
 - Listado completo de solicitudes por cliente.
-- Conversión de solicitud a pedido.
-- Archivos privados.
+- Archivos propios del cliente.
+- Estadísticas o actividad agregada por cliente.
 
 ## Rutas del módulo
 
@@ -158,7 +158,25 @@ Crear cliente desde solicitud toma los datos desde la solicitud guardada en serv
 - `client_phone`
 - `client_email`
 
-No confía en datos de cliente enviados desde `FormData`. Si la solicitud ya tiene cliente asociado, no crea otro cliente automáticamente.
+No confía en datos de cliente enviados desde `FormData`: la página enlaza
+`solicitud_id` a la action y el formulario no envía nombre, teléfono ni correo.
+El servicio conserva la validación de UX y delega la escritura en
+`public.crear_cliente_desde_solicitud(uuid)`.
+
+La RPC bloquea la solicitud con `FOR UPDATE`, exige usuario activo `admin` o
+`supervisor`, impide crear otro cliente si ya existe una asociación y valida
+nombre, teléfono y correo con los límites vigentes. Después crea el cliente,
+registra `cliente_creado_desde_solicitud` y actualiza
+`solicitudes.cliente_id` dentro de la misma transacción. Si falla cualquier
+paso, no queda un cliente huérfano.
+
+El update de `cliente_id` activa el trigger existente de
+`cliente_asociado`. Como ese evento ocurre después y el historial se ordena de
+más reciente a más antiguo, se muestra primero “Cliente asociado” y después
+“Cliente creado desde la solicitud”.
+
+La asociación con un cliente existente mantiene su flujo separado y permite
+actualizar explícitamente la relación. No se modificó en esta subfase.
 
 ## Relación con solicitudes
 
@@ -169,9 +187,13 @@ Referencias conceptuales:
 
 Las solicitudes públicas pueden llegar con `cliente_id = null`. Luego, el equipo interno puede asociarlas con un cliente existente o crear un cliente básico desde los datos capturados en la solicitud.
 
-Esta asociación prepara la futura conversión a pedido, pero la conversión se implementará en una fase posterior.
+Esta asociación prepara la conversión transaccional a pedido ya implementada.
 
 ## Seguridad
+
+La RPC de creación desde solicitud es `security definer`, revoca ejecución a
+`public` y `anon`, concede `execute` solo a `authenticated` y vuelve a validar
+el rol dentro de PostgreSQL. No usa service role key ni consulta `auth.users`.
 
 Capas aplicadas:
 
@@ -196,8 +218,6 @@ Aclaraciones:
 - Historial de cambios.
 - Comentarios internos.
 - Archivos.
-- Pedidos.
-- Conversión de solicitud a pedido.
 - Estadísticas por cliente.
 - Seguimiento público por cliente.
 
@@ -235,4 +255,6 @@ Más adelante se podrá:
 
 ## Cierre
 
-Después de esta documentación corresponde la revisión final de la Fase 7 antes de pasar a la siguiente fase del roadmap.
+El módulo vigente cubre gestión básica de clientes, asociación con solicitudes,
+creación transaccional desde solicitud y preparación para la conversión
+transaccional a pedido.

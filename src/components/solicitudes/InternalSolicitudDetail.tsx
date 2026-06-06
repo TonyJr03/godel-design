@@ -1,5 +1,9 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import type {
+  SolicitudDetailAction,
+  UpdateSolicitudStatusActionState,
+} from "@/app/dashboard/solicitudes/[id]/actions";
 import type { InternalSolicitudDetail as InternalSolicitudDetailData } from "@/lib/solicitudes";
 import {
   SOLICITUD_STATUS_LABELS,
@@ -9,6 +13,7 @@ import { SolicitudStatusForm } from "./SolicitudStatusForm";
 
 type InternalSolicitudDetailProps = {
   solicitud: InternalSolicitudDetailData;
+  updateStatusAction: SolicitudDetailAction<UpdateSolicitudStatusActionState>;
   clienteSection?: ReactNode;
   conversionSection?: ReactNode;
   filesSection?: ReactNode;
@@ -46,6 +51,7 @@ function DetailItem({ label, value }: { label: string; value: ReactNode }) {
 
 export function InternalSolicitudDetail({
   solicitud,
+  updateStatusAction,
   clienteSection,
   conversionSection,
   filesSection,
@@ -128,7 +134,7 @@ export function InternalSolicitudDetail({
         </p>
         <div className="mt-5">
           <SolicitudStatusForm
-            solicitudId={solicitud.id}
+            updateStatusAction={updateStatusAction}
             currentStatus={solicitud.status}
           />
         </div>

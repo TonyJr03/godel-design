@@ -8,6 +8,11 @@ import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
 import type { TablesInsert } from "@/types/database";
 import {
+  canManagePedidoTasksInStatus,
+  getPedidoTaskManagementBlockedReason,
+  type PedidoStatus,
+} from "./status";
+import {
   parsePedidoTaskTitle,
   type PedidoTaskFieldErrors,
 } from "./task-validation";
@@ -25,6 +30,7 @@ export type CreatePedidoTaskErrorReason =
   | "unauthorized"
   | "invalid_id"
   | "not_found"
+  | "status_blocked"
   | "validation"
   | "error";
 
@@ -101,9 +107,9 @@ export async function createPedidoTask(
   try {
     const { data: pedido, error: pedidoError } = await supabase
       .from("pedidos")
-      .select("id")
+      .select("id, status")
       .eq("id", pedidoId)
-      .maybeSingle<{ id: string }>();
+      .maybeSingle<{ id: string; status: PedidoStatus }>();
 
     if (pedidoError) {
       console.error("Error checking pedido access before task create", pedidoError);
@@ -115,6 +121,15 @@ export async function createPedidoTask(
       return serviceFailure(
         "not_found",
         "El pedido solicitado no existe o no tienes acceso.",
+        { values },
+      );
+    }
+
+    if (!canManagePedidoTasksInStatus(pedido.status)) {
+      return serviceFailure(
+        "status_blocked",
+        getPedidoTaskManagementBlockedReason(pedido.status) ??
+          GENERIC_CREATE_TASK_ERROR,
         { values },
       );
     }
@@ -144,6 +159,24 @@ export async function createPedidoTask(
       .single<{ id: string }>();
 
     if (error || !data) {
+      const { data: currentPedido } = await supabase
+        .from("pedidos")
+        .select("status")
+        .eq("id", pedidoId)
+        .maybeSingle<{ status: PedidoStatus }>();
+
+      if (
+        currentPedido &&
+        !canManagePedidoTasksInStatus(currentPedido.status)
+      ) {
+        return serviceFailure(
+          "status_blocked",
+          getPedidoTaskManagementBlockedReason(currentPedido.status) ??
+            GENERIC_CREATE_TASK_ERROR,
+          { values },
+        );
+      }
+
       console.error("Error creating pedido task", error);
 
       return serviceFailure("error", GENERIC_CREATE_TASK_ERROR, { values });

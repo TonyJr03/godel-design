@@ -13,6 +13,13 @@ import {
   listSolicitudHistory,
 } from "@/lib/solicitudes";
 import { listSolicitudFiles } from "@/lib/storage";
+import {
+  associateSolicitudClienteAction,
+  convertSolicitudToPedidoAction,
+  createClienteFromSolicitudAction,
+  createSolicitudCommentAction,
+  updateSolicitudStatusAction,
+} from "./actions";
 
 type DashboardSolicitudDetallePageProps = {
   params: Promise<{
@@ -53,14 +60,34 @@ export default async function DashboardSolicitudDetallePage({
     clienteAsociadoResult && clienteAsociadoResult.ok
       ? clienteAsociadoResult.cliente
       : null;
+  const solicitudId = result.solicitud.id;
+  const associateClienteAction = associateSolicitudClienteAction.bind(
+    null,
+    solicitudId,
+  );
+  const createClienteAction = createClienteFromSolicitudAction.bind(
+    null,
+    solicitudId,
+  );
+  const convertAction = convertSolicitudToPedidoAction.bind(null, solicitudId);
+  const createCommentAction = createSolicitudCommentAction.bind(
+    null,
+    solicitudId,
+  );
+  const updateStatusAction = updateSolicitudStatusAction.bind(
+    null,
+    solicitudId,
+  );
 
   return (
     <div className="space-y-8">
       <InternalSolicitudDetail
         solicitud={result.solicitud}
+        updateStatusAction={updateStatusAction}
         clienteSection={
           <SolicitudClienteForm
-            solicitudId={result.solicitud.id}
+            associateClienteAction={associateClienteAction}
+            createClienteAction={createClienteAction}
             clienteAsociado={clienteAsociado}
             clientesDisponibles={
               clientesResult.ok ? clientesResult.clientes : []
@@ -70,7 +97,7 @@ export default async function DashboardSolicitudDetallePage({
         }
         conversionSection={
           <SolicitudConvertPedidoForm
-            solicitudId={result.solicitud.id}
+            convertAction={convertAction}
             status={result.solicitud.status}
             clienteId={result.solicitud.cliente_id}
             convertedOrderId={result.solicitud.converted_order_id}
@@ -92,7 +119,7 @@ export default async function DashboardSolicitudDetallePage({
         }
         commentsSection={
           <SolicitudCommentsSection
-            solicitudId={result.solicitud.id}
+            createCommentAction={createCommentAction}
             comments={commentsResult.ok ? commentsResult.comments : []}
             loadError={commentsResult.ok ? undefined : commentsResult.message}
           />

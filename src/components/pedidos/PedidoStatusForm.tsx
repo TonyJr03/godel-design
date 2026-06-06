@@ -1,9 +1,9 @@
 "use client";
 
 import { useActionState } from "react";
-import {
-  updatePedidoStatusAction,
-  type UpdatePedidoStatusActionState,
+import type {
+  PedidoDetailAction,
+  UpdatePedidoStatusActionState,
 } from "@/app/dashboard/pedidos/[id]/actions";
 import {
   getAllowedPedidoStatusTransitions,
@@ -14,7 +14,7 @@ import {
 import { PEDIDO_STATUS_LABELS } from "@/lib/pedidos/labels";
 
 type PedidoStatusFormProps = {
-  pedidoId: string;
+  updateStatusAction: PedidoDetailAction<UpdatePedidoStatusActionState>;
   estadoActual: PedidoStatus;
   taskProgress?: PedidoStatusTransitionContext | null;
   tasksLoadError?: string;
@@ -26,13 +26,13 @@ const initialState: UpdatePedidoStatusActionState = {
 };
 
 export function PedidoStatusForm({
-  pedidoId,
+  updateStatusAction,
   estadoActual,
   taskProgress,
   tasksLoadError,
 }: PedidoStatusFormProps) {
   const [state, formAction, pending] = useActionState(
-    updatePedidoStatusAction,
+    updateStatusAction,
     initialState,
   );
   const estadoError = state.fieldErrors?.status;
@@ -100,8 +100,6 @@ export function PedidoStatusForm({
           aria-busy={pending}
           className="mt-5 space-y-4"
         >
-          <input type="hidden" name="pedido_id" value={pedidoId} />
-
           {state.message ? (
             <div
               className={

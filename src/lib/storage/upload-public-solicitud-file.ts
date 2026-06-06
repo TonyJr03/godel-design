@@ -36,12 +36,12 @@ export async function uploadPublicSolicitudFile(
   }
 
   const safeFileName = sanitizeFileName(input.file.name);
+  const fileId = randomUUID();
   const filePath = buildSolicitudFilePath({
     solicitudId,
     category: "cliente_solicitud",
-    fileName: safeFileName,
+    fileName: `${fileId}-${safeFileName}`,
   });
-  const fileId = randomUUID();
   const supabase = await createClient();
 
   try {

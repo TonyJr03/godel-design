@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
 import {
   assignInternalPedidoWorker,
   createPedidoComment,
@@ -21,7 +20,11 @@ import {
   type UploadPedidoFileResult,
 } from "@/lib/storage";
 import { getFormValue } from "@/lib/utils";
-import { isValidUuid } from "@/lib/validators";
+
+export type PedidoDetailAction<State> = (
+  prevState: State,
+  formData: FormData,
+) => Promise<State>;
 
 export type UpdatePedidoStatusActionState = {
   ok: boolean;
@@ -93,36 +96,6 @@ export type DeletePedidoTaskActionState = {
   fieldErrors?: PedidoTaskFieldErrors;
 };
 
-async function getPedidoIdFromRequestPath(): Promise<string> {
-  const headersList = await headers();
-  const rawPath = headersList.get("next-url") ?? headersList.get("referer");
-
-  if (!rawPath) {
-    return "";
-  }
-
-  try {
-    const pathname = rawPath.startsWith("http")
-      ? new URL(rawPath).pathname
-      : rawPath;
-    const match = pathname.match(/^\/dashboard\/pedidos\/([^/?#]+)/);
-
-    return match?.[1] ? decodeURIComponent(match[1]) : "";
-  } catch {
-    return "";
-  }
-}
-
-async function getPedidoIdForComment(formData: FormData): Promise<string> {
-  const pedidoId = getFormValue(formData, "pedido_id").trim();
-
-  if (isValidUuid(pedidoId)) {
-    return pedidoId;
-  }
-
-  return getPedidoIdFromRequestPath();
-}
-
 function getUploadPedidoFileMessage(
   reason: Exclude<UploadPedidoFileResult, { ok: true }>["reason"],
 ) {
@@ -146,15 +119,16 @@ function getUploadPedidoFileMessage(
 }
 
 function revalidatePedidoDetail(pedidoId: string) {
+  revalidatePath("/dashboard");
   revalidatePath("/dashboard/pedidos");
   revalidatePath(`/dashboard/pedidos/${pedidoId}`);
 }
 
 export async function updatePedidoStatusAction(
+  pedidoId: string,
   _prevState: UpdatePedidoStatusActionState,
   formData: FormData,
 ): Promise<UpdatePedidoStatusActionState> {
-  const pedidoId = getFormValue(formData, "pedido_id");
   const status = getFormValue(formData, "status");
   const result = await updateInternalPedidoStatus({
     pedidoId,
@@ -178,10 +152,10 @@ export async function updatePedidoStatusAction(
 }
 
 export async function assignPedidoWorkerAction(
+  pedidoId: string,
   _prevState: AssignPedidoWorkerActionState,
   formData: FormData,
 ): Promise<AssignPedidoWorkerActionState> {
-  const pedidoId = getFormValue(formData, "pedido_id");
   const assignedProfileId = getFormValue(formData, "assigned_profile_id");
   const result = await assignInternalPedidoWorker({
     pedidoId,
@@ -207,10 +181,10 @@ export async function assignPedidoWorkerAction(
 }
 
 export async function removePedidoWorkerAction(
+  pedidoId: string,
   _prevState: RemovePedidoWorkerActionState,
   formData: FormData,
 ): Promise<RemovePedidoWorkerActionState> {
-  const pedidoId = getFormValue(formData, "pedido_id");
   const assignedProfileId = getFormValue(formData, "assigned_profile_id");
   const result = await removeInternalPedidoWorker({
     pedidoId,
@@ -234,10 +208,10 @@ export async function removePedidoWorkerAction(
 }
 
 export async function uploadPedidoFileAction(
+  pedidoId: string,
   _prevState: UploadPedidoFileActionState,
   formData: FormData,
 ): Promise<UploadPedidoFileActionState> {
-  const pedidoId = getFormValue(formData, "pedido_id");
   const file = formData.get("file");
 
   if (!(file instanceof File)) {
@@ -268,10 +242,10 @@ export async function uploadPedidoFileAction(
 }
 
 export async function createPedidoCommentAction(
+  pedidoId: string,
   _prevState: CreatePedidoCommentActionState,
   formData: FormData,
 ): Promise<CreatePedidoCommentActionState> {
-  const pedidoId = await getPedidoIdForComment(formData);
   const content = getFormValue(formData, "content");
   const result = await createPedidoComment({
     pedidoId,
@@ -299,10 +273,10 @@ export async function createPedidoCommentAction(
 }
 
 export async function createPedidoTaskAction(
+  pedidoId: string,
   _prevState: CreatePedidoTaskActionState,
   formData: FormData,
 ): Promise<CreatePedidoTaskActionState> {
-  const pedidoId = getFormValue(formData, "pedido_id");
   const title = getFormValue(formData, "title");
   const result = await createPedidoTask({
     pedidoId,
@@ -330,10 +304,10 @@ export async function createPedidoTaskAction(
 }
 
 export async function updatePedidoTaskTitleAction(
+  pedidoId: string,
   _prevState: UpdatePedidoTaskTitleActionState,
   formData: FormData,
 ): Promise<UpdatePedidoTaskTitleActionState> {
-  const pedidoId = getFormValue(formData, "pedido_id");
   const taskId = getFormValue(formData, "task_id");
   const title = getFormValue(formData, "title");
   const result = await updatePedidoTask({
@@ -360,10 +334,10 @@ export async function updatePedidoTaskTitleAction(
 }
 
 export async function updatePedidoTaskProgressAction(
+  pedidoId: string,
   _prevState: UpdatePedidoTaskProgressActionState,
   formData: FormData,
 ): Promise<UpdatePedidoTaskProgressActionState> {
-  const pedidoId = getFormValue(formData, "pedido_id");
   const taskId = getFormValue(formData, "task_id");
   const completedQuantity = getFormValue(formData, "completed_quantity");
   const result = await updatePedidoTask({
@@ -390,10 +364,10 @@ export async function updatePedidoTaskProgressAction(
 }
 
 export async function completePedidoTaskAction(
+  pedidoId: string,
   _prevState: TogglePedidoTaskCompletionActionState,
   formData: FormData,
 ): Promise<TogglePedidoTaskCompletionActionState> {
-  const pedidoId = getFormValue(formData, "pedido_id");
   const taskId = getFormValue(formData, "task_id");
   const result = await updatePedidoTask({
     pedidoId,
@@ -418,10 +392,10 @@ export async function completePedidoTaskAction(
 }
 
 export async function reopenPedidoTaskAction(
+  pedidoId: string,
   _prevState: TogglePedidoTaskCompletionActionState,
   formData: FormData,
 ): Promise<TogglePedidoTaskCompletionActionState> {
-  const pedidoId = getFormValue(formData, "pedido_id");
   const taskId = getFormValue(formData, "task_id");
   const result = await updatePedidoTask({
     pedidoId,
@@ -446,10 +420,10 @@ export async function reopenPedidoTaskAction(
 }
 
 export async function deletePedidoTaskAction(
+  pedidoId: string,
   _prevState: DeletePedidoTaskActionState,
   formData: FormData,
 ): Promise<DeletePedidoTaskActionState> {
-  const pedidoId = getFormValue(formData, "pedido_id");
   const taskId = getFormValue(formData, "task_id");
   const result = await deletePedidoTask({
     pedidoId,

@@ -68,6 +68,10 @@ Estos paneles son listas simples con enlaces internos a detalles de solicitud o 
 
 La actividad reciente usa resúmenes construidos de forma controlada. No se muestra `metadata` cruda, JSON completo, `file_path`, rutas privadas ni URLs. Esta sección no es un sistema de notificaciones ni un reporte avanzado.
 
+Los listados enlazados desde el dashboard mantienen sus búsquedas y filtros en
+la URL mediante `ListFiltersBar`. La consulta se ejecuta server-side tras un
+debounce de 200 ms y el trabajador continúa limitado a pedidos asignados.
+
 ## Seguridad
 
 - Las consultas se ejecutan server-side.

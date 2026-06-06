@@ -12,7 +12,7 @@ Supabase Storage guarda los binarios. La tabla `archivos` guarda los metadatos d
 - No usar buckets públicos.
 - No usar URLs públicas permanentes.
 - Acceso controlado por RLS, policies de Storage y validaciones de aplicación.
-- Descargas futuras mediante URLs firmadas de corta duración.
+- Descargas internas mediante URLs firmadas de corta duración.
 - Metadatos de archivos guardados en la tabla `archivos`.
 - Separación entre archivos de solicitudes, archivos internos, avances y entregas finales.
 
@@ -24,7 +24,7 @@ La Fase 10.1 crea o asegura un único bucket privado mediante migración:
 |---|---|---|
 | `godel-files` | Privado (`public = false`) | Archivos de solicitudes, pedidos, avances y entregas finales. |
 
-Este bucket no debe marcarse como público. Todo acceso debe pasar por reglas de permisos, validaciones de aplicación y, para descargas futuras, URLs firmadas de corta duración.
+Este bucket no debe marcarse como público. Todo acceso debe pasar por reglas de permisos, validaciones de aplicación y, para descargas, URLs firmadas de corta duración.
 
 ## Categorías de archivos
 
@@ -44,7 +44,7 @@ Los archivos asociados solo a solicitudes no deben ser visibles para trabajadore
 Estructura esperada dentro del bucket `godel-files`:
 
 ```text
-solicitudes/{solicitud_id}/originales/{timestamp}-{filename}
+solicitudes/{solicitud_id}/originales/{timestamp}-{uuid}-{filename}
 pedidos/{pedido_id}/internos/{timestamp}-{filename}
 pedidos/{pedido_id}/avances/{timestamp}-{filename}
 pedidos/{pedido_id}/finales/{timestamp}-{filename}
@@ -66,7 +66,7 @@ Supabase Storage guarda el archivo. La tabla `archivos` guarda los metadatos nec
 |---|---|
 | `pedido_id` | Relaciona el archivo con un pedido cuando aplica. |
 | `solicitud_id` | Relaciona el archivo con una solicitud cuando aplica. |
-| `uploaded_by` | Usuario interno que subió el archivo; será `null` para algunos flujos públicos futuros. |
+| `uploaded_by` | Usuario interno que subió el archivo; es `null` en el flujo público de solicitudes. |
 | `file_name` | Nombre visible del archivo. |
 | `file_path` | Ruta completa dentro del bucket. |
 | `file_type` | MIME type detectado o declarado. |
@@ -99,11 +99,13 @@ Las policies reutilizan helpers existentes como `private.can_access_pedido`, `pr
 - `trabajador` no puede acceder a archivos de pedidos no asignados.
 - `trabajador` no puede acceder a archivos asociados solo a solicitudes.
 - Usuarios anónimos no pueden leer, listar, actualizar ni eliminar archivos.
-- La subida pública anónima de archivos de solicitud no está habilitada en esta subfase.
+- Usuarios anónimos solo pueden insertar hasta cinco archivos válidos para una
+  solicitud recién creada, sin permisos de lectura, listado, actualización o
+  eliminación.
 
 ## URLs firmadas
 
-Las descargas futuras deben hacerse mediante signed URLs de corta duración. Una duración inicial razonable es entre 5 y 10 minutos.
+Las descargas internas se realizan mediante signed URLs de corta duración.
 
 Las signed URLs no deben guardarse en base de datos. Deben generarse bajo demanda después de validar permisos sobre la solicitud, pedido o archivo correspondiente.
 
@@ -125,7 +127,7 @@ La capa `src/lib/storage` concentra utilidades reutilizables para las próximas 
 | `types.ts` | Tipos internos derivados del modelo de Supabase cuando aplica. |
 | `file-name.ts` | Sanitización de nombres y extracción de extensión/base. |
 | `file-paths.ts` | Construcción de rutas internas para solicitudes y pedidos sin aceptar rutas arbitrarias del usuario. |
-| `file-validation.ts` | Validaciones base de archivo, categoría y contexto antes de futuras subidas. |
+| `file-validation.ts` | Validaciones compartidas de archivo, categoría y contexto. |
 | `signed-url.ts` | Generación server-side de URLs firmadas de corta duración a partir de `archivo.id`. |
 
 La generación de URLs firmadas consulta primero la tabla `archivos` con RLS. El usuario no envía `file_path` directamente; el sistema usa los metadatos guardados en base de datos y el bucket privado `godel-files`.
@@ -147,7 +149,12 @@ La categoría no se selecciona en el formulario. Se deriva server-side desde el 
 
 El listado consulta la tabla `archivos` por `pedido_id` y se apoya en RLS. La UI recibe metadatos seguros como nombre, tamaño, tipo, categoría, fecha y perfil que subió el archivo cuando es visible. No recibe `file_path`.
 
-La subida usa únicamente `pedido_id` y el archivo real recibido por `FormData`. Carga el pedido con RLS, deriva la categoría desde su estado, valida nombre, tamaño, MIME, extensión y contexto, construye la ruta internamente y guarda metadatos en `archivos`. No acepta `visibility`, categoría, `file_path`, `bucket`, `uploaded_by`, `file_name`, `file_type` ni `file_size` desde campos del formulario como fuente de verdad.
+La página enlaza `pedido_id` a la action y el formulario envía únicamente el
+archivo real. El servicio carga el pedido con RLS, deriva la categoría desde su
+estado, valida nombre, tamaño, MIME, extensión y contexto, construye la ruta
+internamente y guarda metadatos en `archivos`. No acepta `visibility`,
+categoría, `file_path`, `bucket`, `uploaded_by`, `file_name`, `file_type` ni
+`file_size` desde campos del formulario como fuente de verdad.
 
 RLS de `archivos` y las policies de `storage.objects` comprueban nuevamente acceso al pedido, usuario activo, estado, categoría y carpeta. Esto permite subir archivos internos a un trabajador asignado durante `creado`, `solicitud_recibida` o `en_revision`, y bloquea toda nueva subida cuando el pedido está `entregado` o `cancelado`.
 
@@ -155,9 +162,9 @@ Desde Fase 11.7A, la inserción de metadatos en `archivos` registra automáticam
 
 La descarga usa el route handler interno del pedido, valida que el archivo pertenezca al pedido y redirige a una URL firmada de corta duración. No hay URLs públicas permanentes.
 
-## Fase 10.4A: base para archivos de solicitudes públicas
+## Archivos de solicitudes públicas
 
-La base backend permite una futura integración del formulario público con archivos de cliente, sin modificar todavía la UI de `/solicitud`.
+El formulario público integra la subida controlada de archivos de cliente.
 
 Reglas aplicadas:
 
@@ -169,16 +176,39 @@ Reglas aplicadas:
 - `bucket` debe ser `godel-files`.
 - El UUID de `solicitud_id` debe coincidir con el UUID presente en `file_path`.
 - `file_size` debe ser mayor que cero y no superar 20 MB.
-- `file_type` debe pertenecer a la lista de MIME permitidos.
+- Extensión y `file_type` deben formar una combinación permitida.
+- Una solicitud admite como máximo 5 objetos y 5 registros de metadata.
+- La metadata solo puede insertarse si el objeto exacto ya existe y todavía no
+  tiene otro registro asociado.
 - No hay lectura, listado, actualización ni eliminación anónima.
 
-El servicio `uploadPublicSolicitudFile` fuerza la categoría `cliente_solicitud`, valida el archivo real, construye la ruta internamente y guarda metadatos en `archivos`. `uploadPublicSolicitudFiles` limita la carga múltiple a 5 archivos por solicitud.
+El servicio `uploadPublicSolicitudFile` fuerza la categoría `cliente_solicitud`, valida el archivo real, construye la ruta internamente con timestamp y UUID y guarda metadatos en `archivos`. `uploadPublicSolicitudFiles` limita la carga múltiple a 5 archivos por solicitud.
 
 Desde Fase 11.7B, cada inserción válida de metadatos con `visibility = cliente_solicitud` registra automáticamente `archivos_adjuntados` en `solicitud_historial`. El evento guarda datos mínimos como nombre, tipo y tamaño, pero no incluye `file_path`.
 
 La lectura posterior de estos archivos queda reservada para `admin` y `supervisor`. Los trabajadores no acceden a archivos asociados solo a solicitudes.
 
-Riesgo controlado: si la subida al bucket privado funciona y luego falla la inserción de metadatos, no se abre eliminación anónima para limpiar el objeto. El error queda registrado en servidor y la limpieza operativa deberá tratarse con un flujo seguro posterior si fuera necesario.
+Desde Fase 13.8E, Storage rechaza nuevas subidas cuando ya existen cinco
+objetos bajo la solicitud y metadata limita a cinco registros mediante un
+conteo serializado con bloqueo de la solicitud. Storage y metadata comparten
+las combinaciones de extensión/MIME: PDF, JPG, JPEG, PNG, WEBP, DOC, DOCX y
+ZIP. Los 20 MB se validan en TypeScript, en la configuración nativa del bucket
+y al insertar metadata.
+
+Riesgo controlado: se conserva el orden objeto y después metadata. Si ocurre un
+fallo excepcional después de subir el objeto, puede quedar un objeto sin
+metadata, pero su cantidad queda incluida en el máximo de cinco objetos. No se
+abre limpieza anónima porque la API de Storage requiere permisos de lectura y
+eliminación para borrar, lo que rompería la ausencia de lectura/listado público.
+La reconciliación y eliminación deben ejecutarse mediante un proceso interno
+seguro y monitoreado.
+
+Limitación concurrente aceptada: Supabase Storage puede comprobar RLS antes de
+completar físicamente subidas paralelas. El conteo de objetos cierra el bypass
+secuencial evidente, pero varias autorizaciones simultáneas podrían observar el
+mismo cupo. La capa de metadata sigue serializada y no admite más de cinco
+registros; producción debe complementar esto con rate limiting, monitoreo y
+reconciliación.
 
 ## Fase 10.4B: integración en formulario público
 
@@ -230,12 +260,20 @@ La lectura del objeto físico bajo `solicitudes/{solicitud_id}/originales/...` s
 
 La conversión no genera un nuevo evento de archivo de solicitud. El historial de solicitudes registra el evento específico `convertida_a_pedido`, y el historial de pedidos no registra `archivo_subido` para archivos heredados con `visibility = cliente_solicitud`.
 
-## Qué no queda habilitado todavía
+## Fuera del alcance actual
 
 - No hay eliminación de archivos.
 - No hay edición de metadatos.
 - No hay comentarios ni notificaciones asociados a archivos.
 - No hay URLs públicas permanentes.
+
+Deuda de producción aceptada:
+
+- rate limiting por IP o en reverse proxy/Vercel;
+- CAPTCHA o honeypot si aparece abuso;
+- monitoreo de consumo y errores de Storage;
+- reconciliación periódica de objetos sin metadata;
+- antivirus o validación profunda de contenido si el riesgo operativo lo exige.
 
 ## Validaciones de archivos
 
@@ -265,6 +303,6 @@ Extensiones bloqueadas incluyen:
 - `.sh`
 - `.scr`
 
-## Pendiente para fases posteriores
+## Deuda y mejoras futuras
 
 - Eliminación controlada de archivos si se define en una fase posterior.

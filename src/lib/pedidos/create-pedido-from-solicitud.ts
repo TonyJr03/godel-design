@@ -14,7 +14,7 @@ import {
   normalizeSingleLineText,
   validateOptionalFutureDate,
 } from "@/lib/validators";
-import type { Enums, Tables, TablesInsert } from "@/types/database";
+import type { Enums, Tables } from "@/types/database";
 import { isPedidoPrioridad, type PedidoPrioridad } from "./order-validation";
 
 export type CreatePedidoFromSolicitudInput = {
@@ -64,17 +64,6 @@ export type CreatePedidoFromSolicitudResult = ServiceResult<
   CreatePedidoFromSolicitudFieldErrors
 >;
 
-type SolicitudConvertible = Pick<
-  Tables<"solicitudes">,
-  | "id"
-  | "cliente_id"
-  | "converted_order_id"
-  | "description"
-  | "status"
->;
-
-const INITIAL_CONVERTED_PEDIDO_ESTADO: Enums<"pedido_estado"> =
-  "solicitud_recibida";
 const GENERIC_CONVERT_ERROR =
   "No se pudo convertir la solicitud en pedido. Inténtalo nuevamente.";
 const FIELD_LIMITS = {
@@ -82,8 +71,94 @@ const FIELD_LIMITS = {
   description: 3000,
 } as const;
 
-function isDuplicateSolicitudPedidoError(error: { code?: string } | null) {
-  return error?.code === "23505";
+const SAFE_RPC_CONVERSION_ERRORS = [
+  {
+    message: "Usuario no autenticado.",
+    reason: "unauthorized",
+  },
+  {
+    message: "Usuario inactivo o sin perfil válido.",
+    reason: "unauthorized",
+  },
+  {
+    message: "No tienes permiso para convertir solicitudes en pedidos.",
+    reason: "forbidden",
+  },
+  {
+    message: "El título del pedido es obligatorio.",
+    reason: "validation",
+  },
+  {
+    message: "El título del pedido no puede superar 160 caracteres.",
+    reason: "validation",
+  },
+  {
+    message: "La descripción del pedido es obligatoria.",
+    reason: "validation",
+  },
+  {
+    message: "La descripción del pedido no puede superar 3000 caracteres.",
+    reason: "validation",
+  },
+  {
+    message: "Selecciona una prioridad válida.",
+    reason: "validation",
+  },
+  {
+    message:
+      "La fecha estimada de entrega no puede ser anterior al día actual.",
+    reason: "validation",
+  },
+  {
+    message: "La solicitud no existe.",
+    reason: "not_found",
+  },
+  {
+    message: "Esta solicitud ya fue convertida en pedido.",
+    reason: "already_converted",
+  },
+  {
+    message: "Esta solicitud ya tiene un pedido asociado.",
+    reason: "duplicate_conversion",
+  },
+  {
+    message:
+      "La solicitud debe estar aprobada antes de convertirse en pedido.",
+    reason: "not_approved",
+  },
+  {
+    message: "Asocia un cliente antes de convertir esta solicitud en pedido.",
+    reason: "missing_client",
+  },
+] as const satisfies ReadonlyArray<{
+  message: string;
+  reason: CreatePedidoFromSolicitudErrorReason;
+}>;
+
+type ConvertSolicitudRpcResult = {
+  data: Tables<"pedidos"> | null;
+  error: { message?: string } | null;
+};
+
+type ConvertSolicitudRpcClient = {
+  rpc(
+    fn: "convertir_solicitud_a_pedido",
+    args: {
+      p_solicitud_id: string;
+      p_title: string;
+      p_description: string;
+      p_priority: Enums<"pedido_prioridad">;
+      p_estimated_delivery_date: string | null;
+    },
+  ): PromiseLike<ConvertSolicitudRpcResult>;
+};
+
+function getSafeRpcConversionError(errorMessage: string | undefined) {
+  const message = errorMessage?.trim();
+
+  return SAFE_RPC_CONVERSION_ERRORS.find((safeError) =>
+    message?.includes(safeError.message),
+  );
 }
 
 function validateConversionInput(input: CreatePedidoFromSolicitudInput) {
@@ -180,110 +255,30 @@ export async function createPedidoFromSolicitud(
   const supabase = await createClient();
 
   try {
-    const { data: solicitud, error: solicitudError } = await supabase
-      .from("solicitudes")
-      .select("id, cliente_id, converted_order_id, description, status")
-      .eq("id", solicitudId)
-      .maybeSingle<SolicitudConvertible>();
+    const { data: pedido, error } = await (
+      supabase as unknown as ConvertSolicitudRpcClient
+    ).rpc("convertir_solicitud_a_pedido", {
+      p_solicitud_id: solicitudId,
+      p_title: validation.values.title,
+      p_description: validation.values.description,
+      p_priority: validation.values.priority,
+      p_estimated_delivery_date:
+        validation.values.estimated_delivery_date,
+    });
 
-    if (solicitudError) {
-      console.error(
-        "Error loading solicitud for pedido conversion",
-        solicitudError,
-      );
+    if (error) {
+      console.error("Error converting solicitud to pedido", error);
+      const safeError = getSafeRpcConversionError(error.message);
 
-      return serviceFailure("error", GENERIC_CONVERT_ERROR);
-    }
-
-    if (!solicitud) {
-      return serviceFailure("not_found", "La solicitud no existe.");
-    }
-
-    if (solicitud.converted_order_id) {
-      return serviceFailure(
-        "already_converted",
-        "Esta solicitud ya fue convertida en pedido.",
-      );
-    }
-
-    if (solicitud.status !== "aprobada") {
-      return serviceFailure(
-        "not_approved",
-        "La solicitud debe estar aprobada antes de convertirse en pedido.",
-      );
-    }
-
-    if (!solicitud.cliente_id) {
-      return serviceFailure(
-        "missing_client",
-        "Asocia un cliente antes de convertir esta solicitud en pedido.",
-      );
-    }
-
-    const pedidoInsert: TablesInsert<"pedidos"> = {
-      cliente_id: solicitud.cliente_id,
-      solicitud_id: solicitud.id,
-      title: validation.values.title,
-      description: validation.values.description,
-      status: INITIAL_CONVERTED_PEDIDO_ESTADO,
-      priority: validation.values.priority,
-      estimated_delivery_date: validation.values.estimated_delivery_date,
-      created_by: profile.id,
-    };
-
-    const { data: pedido, error: pedidoError } = await supabase
-      .from("pedidos")
-      .insert(pedidoInsert)
-      .select("id, order_number")
-      .single();
-
-    if (pedidoError || !pedido) {
-      console.error("Error creating pedido from solicitud", pedidoError);
-
-      if (isDuplicateSolicitudPedidoError(pedidoError)) {
-        return serviceFailure(
-          "duplicate_conversion",
-          "Esta solicitud ya tiene un pedido asociado.",
-        );
+      if (safeError) {
+        return serviceFailure(safeError.reason, safeError.message);
       }
 
       return serviceFailure("error", GENERIC_CONVERT_ERROR);
     }
 
-    const { data: updatedSolicitud, error: updateError } = await supabase
-      .from("solicitudes")
-      .update({
-        status: "convertida",
-        converted_order_id: pedido.id,
-        reviewed_by: profile.id,
-      })
-      .eq("id", solicitud.id)
-      .eq("status", "aprobada")
-      .is("converted_order_id", null)
-      .select("id")
-      .maybeSingle<{ id: string }>();
-
-    if (updateError || !updatedSolicitud) {
-      console.error(
-        "Error updating solicitud after pedido conversion",
-        updateError,
-      );
-
-      return serviceFailure("error", GENERIC_CONVERT_ERROR);
-    }
-
-    const { error: archivosUpdateError } = await supabase
-      .from("archivos")
-      .update({ pedido_id: pedido.id })
-      .eq("solicitud_id", solicitud.id)
-      .is("pedido_id", null)
-      .eq("visibility", "cliente_solicitud");
-
-    if (archivosUpdateError) {
-      console.error(
-        "Error associating solicitud files with converted pedido",
-        archivosUpdateError,
-      );
+    if (!pedido) {
+      console.error("Pedido conversion RPC returned no pedido");
 
       return serviceFailure("error", GENERIC_CONVERT_ERROR);
     }

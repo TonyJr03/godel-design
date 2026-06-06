@@ -2,18 +2,20 @@
 
 ## Propósito
 
-Este documento define el diagnóstico y el diseño técnico recomendado para la Fase 11 de Godel Diseño: comentarios internos e historial operativo visible.
+Este documento describe el modelo vigente de comentarios internos e historial
+operativo visible de Godel Diseño.
 
 La intención es separar claramente dos necesidades distintas:
 
 - comentarios internos escritos por usuarios del equipo;
 - historial automático de eventos relevantes generados por acciones del sistema.
 
-Este documento registra el diseño y el estado de avance de las subfases de comentarios e historial. La implementación funcional debe mantenerse alineada con este modelo.
+La implementación funcional, las políticas RLS, los triggers y las RPCs deben
+mantenerse alineados con este modelo.
 
 ## Alcance
 
-La Fase 11 debe cubrir:
+El alcance actual cubre:
 
 - comentarios internos en pedidos;
 - comentarios internos en solicitudes;
@@ -41,7 +43,7 @@ Quedan fuera del alcance inicial:
 - auditoría legal completa;
 - exportación de logs.
 
-## Diagnóstico del Estado Actual
+## Estado Actual
 
 ### Base de datos
 
@@ -90,6 +92,20 @@ La RPC `public.actualizar_estado_pedido` sí registra historial en `pedido_histo
 
 También valida las reglas operativas de estado: requiere tareas para pasar a `en_produccion`, requiere todas las tareas completadas para pasar a `listo_entrega`, permite `entregado` solo desde `listo_entrega`, permite `cancelado` como salida lateral desde estados activos y bloquea cambios desde `entregado` o `cancelado`. La UI orienta al usuario, pero la autoridad de validación es la RPC.
 
+Desde Fase 13.8D, la RPC bloquea el pedido con `FOR UPDATE` antes de leer el
+estado y mantiene actualización e historial dentro de la misma transacción.
+También bloquea con `FOR SHARE` las tareas existentes antes de calcular si hay
+tareas y si todas están completas. Por ello una transición concurrente no
+puede confirmar usando un estado anterior ni una versión intermedia de esas
+tareas.
+
+Desde Fase 13.8D-2, las mutaciones de `pedido_tareas` solo se permiten cuando el
+pedido está en `creado`, `solicitud_recibida`, `en_revision` o
+`en_produccion`. Los servicios server-side y las policies RLS aplican la misma
+regla. En `listo_entrega`, `entregado` y `cancelado` las tareas quedan en modo
+lectura; para corregir un pedido listo para entrega debe volver primero a
+`en_produccion`.
+
 Eventos que puede registrar:
 
 - `estado_cambiado`;
@@ -104,6 +120,9 @@ También guarda:
 - `metadata.source = "actualizar_estado_pedido"`.
 
 Si el estado enviado es igual al estado actual, la RPC retorna el pedido sin insertar evento.
+
+La fecha real al entregar usa `private.current_business_date()` con zona
+`America/Havana`. Esto no cambia el contenido ni el número de eventos.
 
 ### RPC `actualizar_estado_solicitud`
 
@@ -120,6 +139,20 @@ Reglas vigentes:
 
 La RPC actualiza `solicitudes.status` y `reviewed_by`. El evento `estado_cambiado` se registra mediante el trigger privado existente sobre `solicitudes.status`, por lo que la RPC no inserta historial manualmente. Si el estado enviado es igual al actual, retorna la solicitud sin duplicar historial.
 
+### RPC `convertir_solicitud_a_pedido`
+
+La RPC `public.convertir_solicitud_a_pedido` ejecuta en una sola transacción la
+creación del pedido, la marca de la solicitud como `convertida` y la asociación
+por metadata de sus archivos `cliente_solicitud`. No inserta historial
+manualmente.
+
+El insert de `pedidos` activa `pedido_creado`. El update que establece a la vez
+`solicitudes.status = "convertida"` y `converted_order_id` activa
+`convertida_a_pedido`, mientras el trigger genérico de estado omite
+`estado_cambiado` para evitar duplicación. La actualización de
+`archivos.pedido_id` no genera `archivo_subido`, porque no inserta un archivo
+nuevo ni altera su visibilidad.
+
 ### Acciones y Servicios Actuales
 
 Las acciones y servicios actuales no aceptan datos de historial desde formularios. El historial se registra mediante RPCs, triggers privados o servicios server-side controlados:
@@ -127,8 +160,16 @@ Las acciones y servicios actuales no aceptan datos de historial desde formulario
 - `updateInternalPedidoStatus` llama a `public.actualizar_estado_pedido`, que registra cambios de estado de pedido;
 - la creación de pedidos, asignación/remoción de personal y subida de archivos propios de pedido se registran por triggers;
 - las acciones de tareas de pedido delegan en servicios server-side y los eventos se registran por triggers sobre `pedido_tareas`;
-- la creación de solicitudes, archivos adjuntados, cambios de estado, asociación de cliente y conversión a pedido se registran por triggers;
-- `createClienteFromSolicitudAndAssociate` registra `cliente_creado_desde_solicitud` después de crear el cliente y antes de asociarlo a la solicitud; luego el trigger de `cliente_id` registra `cliente_asociado`.
+- las mutaciones bloqueadas por el estado del pedido no alcanzan esos triggers
+  y no generan eventos; las permitidas conservan el historial existente;
+- `createPedidoFromSolicitud` llama a `public.convertir_solicitud_a_pedido`; la
+  creación del pedido y la conversión de la solicitud se registran por los
+  triggers existentes;
+- la creación de solicitudes, archivos adjuntados, cambios de estado y asociación de cliente se registran por triggers;
+- `createClienteFromSolicitudAndAssociate` llama a
+  `public.crear_cliente_desde_solicitud`; la RPC registra
+  `cliente_creado_desde_solicitud` y luego el trigger de `cliente_id` registra
+  `cliente_asociado` dentro de la misma transacción.
 
 La actividad reciente del dashboard consume estos eventos y construye resúmenes controlados. Para tareas muestra títulos seguros, por ejemplo `Tarea creada: X.` o `Progreso de tarea X actualizado de A a B.`, sin mostrar metadata cruda, JSON, rutas privadas ni `file_path`.
 
@@ -162,7 +203,7 @@ El módulo actual:
 - devuelve solo datos mínimos del actor;
 - no abre globalmente `perfiles`;
 - no implementa edición ni eliminación;
-- no registra eventos automáticos nuevos.
+- muestra los eventos automáticos generados por RPCs y triggers.
 
 Actualmente se muestran los eventos que ya existan en `pedido_historial`. Los cambios de estado se registran mediante `public.actualizar_estado_pedido`.
 
@@ -222,7 +263,7 @@ Los cambios actuales en solicitudes se reflejan en campos como:
 - `converted_order_id`;
 - `updated_at`.
 
-Desde Fase 11.7B esos cambios relevantes se registran automáticamente en `solicitud_historial` mediante triggers de base de datos, salvo `cliente_creado_desde_solicitud`, que se registra desde el servicio server-side después de crear el cliente y antes de asociarlo a la solicitud.
+Desde Fase 11.7B esos cambios relevantes se registran automáticamente en `solicitud_historial` mediante triggers de base de datos. `cliente_creado_desde_solicitud` se inserta actualmente dentro de la RPC transaccional `public.crear_cliente_desde_solicitud`, antes de actualizar `cliente_id`.
 
 ### Archivos
 
@@ -287,9 +328,9 @@ Requisitos iniciales:
 
 El historial no debe usarse como auditoría legal completa ni como copia de todos los cambios de cada campo.
 
-## Opciones de Modelo de Datos
+## Decisión de Modelo de Datos
 
-### Opción A: Tablas Únicas por Concepto
+### Alternativa descartada: tablas únicas por concepto
 
 Estructura:
 
@@ -318,7 +359,7 @@ Desventajas:
 - mayor probabilidad de mezclar reglas de pedidos y solicitudes;
 - implica migrar o convivir con tablas específicas por entidad.
 
-### Opción B: Tablas Separadas por Entidad
+### Modelo vigente: tablas separadas por entidad
 
 Estructura conceptual:
 
@@ -343,9 +384,9 @@ Desventajas:
 - algo más de duplicación controlada;
 - si en el futuro aparecen muchas entidades comentables, puede crecer el número de tablas.
 
-## Decisión Recomendada
+## Decisión Vigente
 
-Se recomienda la Opción B, ajustada al estado real del proyecto.
+Se mantiene el modelo de tablas separadas por entidad.
 
 La subfase 11.1B formaliza esta decisión al normalizar las tablas de pedidos:
 
@@ -363,13 +404,13 @@ La recomendación práctica es mantener servicios separados para pedidos y solic
 
 Esta opción prioriza simplicidad, claridad, RLS sencilla, mantenimiento y escalabilidad razonable sin sobreingeniería.
 
-## Tablas Propuestas
+## Tablas Vigentes
 
 ### Comentarios de Pedidos
 
 Tabla existente: `pedido_comentarios`.
 
-Uso recomendado: comentarios internos asociados a pedidos.
+Uso vigente: comentarios internos asociados a pedidos.
 
 Campos existentes:
 
@@ -381,10 +422,10 @@ Campos existentes:
 | `content` | `text` | Texto del comentario. |
 | `created_at` | `timestamptz` | Fecha de creación. |
 
-Consideración para Fase 11.2:
+Reglas vigentes:
 
 - no exponer edición ni eliminación en UI;
-- evaluar si conviene restringir RLS de `update` y `delete` para alinearlo con el alcance inicial.
+- RLS no permite `update` ni `delete` desde la aplicación.
 
 ### Comentarios de Solicitudes
 
@@ -400,7 +441,7 @@ Campos existentes:
 | `content` | `text` | Texto del comentario. |
 | `created_at` | `timestamptz` | Fecha de creación. |
 
-Reglas recomendadas:
+Reglas vigentes:
 
 - `content` obligatorio y no vacío;
 - longitud máxima de `content` de 2000 caracteres;
@@ -439,7 +480,7 @@ Estado desde Fase 11.2:
 
 Tabla existente: `solicitud_historial`.
 
-Campos propuestos:
+Campos vigentes:
 
 | Campo | Tipo | Uso |
 | --- | --- | --- |
@@ -462,6 +503,7 @@ Estado desde Fase 11.7B:
 - `trabajador` y usuarios anónimos no acceden;
 - se muestran tipo de evento, resumen, actor, rol y fecha;
 - no hay edición ni eliminación;
+- no hay inserción directa desde roles de aplicación;
 - se registran eventos automáticos mínimos mediante triggers y flujos server-side controlados.
 
 Valores iniciales:
@@ -473,7 +515,7 @@ Valores iniciales:
 - `cliente_creado_desde_solicitud`;
 - `convertida_a_pedido`.
 
-## Eventos Iniciales Propuestos
+## Eventos Vigentes
 
 ### Pedidos
 
@@ -512,7 +554,7 @@ Eventos mínimos:
 | `cliente_creado_desde_solicitud` | Se crea cliente desde solicitud. | cliente creado, usuario. |
 | `convertida_a_pedido` | Se convierte solicitud a pedido. | pedido generado, título real del pedido, usuario. |
 
-## Permisos Propuestos
+## Permisos Vigentes
 
 ### Comentarios de Pedidos
 
@@ -550,9 +592,9 @@ Eventos mínimos:
 | `trabajador` | No accede. |
 | Anónimo | No accede. |
 
-## Estrategia de Implementación
+## Historial de Implementación
 
-Subfases recomendadas después de este diagnóstico:
+La implementación se completó mediante estas subfases históricas:
 
 1. Migraciones y RLS.
 2. Servicios base.
@@ -571,9 +613,9 @@ Objetivos:
 - dejar `pedido_comentarios` sin `update` y `delete` para el alcance append-only inicial;
 - dejar `pedido_historial` sin inserción directa, actualización ni eliminación desde tabla;
 - mantener RLS simple por entidad;
-- no crear UI ni servicios funcionales todavía.
+- esta subfase no creó UI ni servicios funcionales.
 
-No debería usarse service role key.
+No se usa service role key.
 
 ### Fase 11.3: Servicios Base
 
@@ -582,7 +624,7 @@ Estado:
 - implementado para comentarios internos de pedidos;
 - `listPedidoComments` lista comentarios por pedido en orden ascendente;
 - `createPedidoComment` valida UUID, permiso, acceso al pedido y `content`;
-- la action del detalle solo lee `pedido_id` y `content`;
+- la página enlaza `pedido_id` a la action y el formulario solo envía `content`;
 - no se acepta autor desde el formulario;
 - no se registra historial automático adicional.
 
@@ -600,11 +642,12 @@ Estado:
 
 Estado:
 
-- listar comentarios internos de solicitud;
-- permitir comentar solo a `admin` y `supervisor`;
-- mostrar autor, rol, fecha y contenido;
-- no exponer a trabajadores ni anónimos;
-- no implementar edición ni eliminación.
+- implementada en `SolicitudCommentsSection`;
+- lista comentarios internos de solicitud;
+- permite comentar solo a `admin` y `supervisor`;
+- muestra autor, rol, fecha y contenido;
+- no expone a trabajadores ni anónimos;
+- no implementa edición ni eliminación.
 
 ### Fase 11.5: Historial Visible en Pedidos
 
@@ -615,7 +658,7 @@ Estado:
 - usa `public.listar_pedido_historial` para exponer datos mínimos del actor;
 - muestra tipo de evento, resumen, actor, rol y fecha;
 - no implementa edición ni eliminación;
-- no registra eventos automáticos nuevos.
+- muestra los eventos automáticos registrados por RPCs y triggers.
 
 ### Fase 11.6: Historial Visible en Solicitudes
 
@@ -626,7 +669,7 @@ Estado:
 - muestra tipo de evento, resumen, actor, rol y fecha;
 - maneja actor nulo como evento automático;
 - no implementa edición ni eliminación;
-- no registra eventos automáticos nuevos.
+- muestra los eventos automáticos registrados por RPCs y triggers.
 
 ### Fase 11.7A: Registro Automático de Historial de Pedidos
 
@@ -647,7 +690,9 @@ Estado:
 Estado:
 
 - implementado mediante triggers de base de datos para `solicitud_creada`, `archivos_adjuntados`, `estado_cambiado`, `cliente_asociado` y `convertida_a_pedido`;
-- implementado desde el servicio server-side `createClienteFromSolicitudAndAssociate` para `cliente_creado_desde_solicitud`;
+- implementado dentro de `public.crear_cliente_desde_solicitud` para
+  `cliente_creado_desde_solicitud`, como parte de la misma transacción que crea
+  y asocia el cliente;
 - como el historial visible muestra el evento más reciente primero, el par se ve como `cliente_asociado` y después `cliente_creado_desde_solicitud` cuando ambos pertenecen al mismo cliente;
 - los eventos públicos usan `actor_id = null` cuando no existe usuario autenticado;
 - la conversión a pedido evita duplicar `estado_cambiado` cuando el mismo update marca la solicitud como `convertida`;
@@ -656,11 +701,11 @@ Estado:
 
 ### Fase 11.8: Documentación y Cierre
 
-Objetivos:
+Estado:
 
-- actualizar documentación funcional;
-- documentar pruebas manuales recomendadas;
-- confirmar que RLS y servicios cumplen la matriz definida.
+- documentación funcional consolidada;
+- pruebas manuales recomendadas documentadas;
+- RLS y servicios alineados con la matriz definida.
 
 ## Riesgos
 
@@ -688,6 +733,7 @@ Más adelante se podría evaluar:
 
 ## Conclusión
 
-La decisión recomendada es mantener un modelo separado por entidad, compatible con las tablas ya existentes para pedidos y extendido con tablas específicas para solicitudes.
-
-Esto permite avanzar en Fase 11 con bajo riesgo, RLS comprensible y una separación clara entre conversación interna e historial automático.
+El modelo vigente mantiene tablas separadas por entidad, RLS comprensible y una
+separación clara entre conversación interna e historial automático. Los
+comentarios son append-only y los historiales se muestran con el evento más
+reciente primero, usando `clock_timestamp()` como tiempo real de inserción.

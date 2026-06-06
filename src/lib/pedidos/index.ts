@@ -48,7 +48,9 @@ export {
 export {
   PEDIDO_PRIORITIES,
   PEDIDO_STATUSES,
+  canManagePedidoTasksInStatus,
   getAllowedPedidoStatusTransitions,
+  getPedidoTaskManagementBlockedReason,
   isPedidoActiveStatus,
   isPedidoClosedStatus,
   isPedidoStatus,

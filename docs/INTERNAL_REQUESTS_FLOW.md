@@ -72,9 +72,8 @@ URLs soportadas:
 - `/dashboard/solicitudes?status=rechazada`
 - `/dashboard/solicitudes?status=convertida`
 
-`convertida` puede aparecer como filtro porque será un estado resultante del
-flujo formal de conversión a pedido. En esta fase no puede establecerse
-manualmente.
+`convertida` aparece como filtro porque es el estado resultante del flujo formal
+de conversión a pedido. No puede establecerse manualmente.
 
 La búsqueda se ejecuta server-side, normaliza y limita el texto recibido y respeta permiso y RLS. Para tipos de servicio también considera los labels visibles, por lo que una búsqueda como “diseño” puede encontrar valores históricos sin tilde. La referencia corta se resuelve desde los primeros caracteres del UUID accesible.
 
@@ -109,6 +108,14 @@ La sección de conversión exige `title`, `description` y `priority` para el ped
 
 El formulario no acepta `cliente_id`, `status`, `converted_order_id`, `created_by`, `order_number`, campos de archivos ni otros campos técnicos. La conversión no envía número de pedido; la base de datos lo asigna con formato `P-YY-XXXX`. El estado inicial sigue siendo `solicitud_recibida`.
 
+La escritura completa se delega en la RPC transaccional
+`public.convertir_solicitud_a_pedido`. La función bloquea la solicitud, repite
+las validaciones de autorización, estado, cliente, doble conversión y fecha de
+negocio, y confirma en conjunto la creación del pedido, la actualización de la
+solicitud y la herencia de archivos. La Server Action solo lee campos
+permitidos; la página enlaza `solicitud_id`, y la action delega y revalida
+rutas.
+
 ## Archivos de solicitud
 
 | Pieza | Archivo |
@@ -122,6 +129,11 @@ El detalle interno muestra archivos enviados desde el formulario público cuando
 La descarga se realiza con una ruta interna que valida la solicitud, el archivo, la pertenencia entre ambos y el bucket antes de generar una URL firmada de corta duración. `admin` y `supervisor` pueden descargar. `trabajador` no accede al módulo general de solicitudes y usuarios anónimos no pueden usar la ruta de descarga.
 
 Si la solicitud se convierte en pedido, estos archivos conservan `solicitud_id` y también reciben `pedido_id` en `archivos`. Siguen apareciendo en el detalle interno de solicitud para `admin` y `supervisor`, y quedan disponibles desde el pedido generado como “Archivo enviado por cliente”.
+
+Esta herencia modifica únicamente metadata en `public.archivos`. No cambia
+`bucket`, `file_path`, `visibility`, `uploaded_by` ni mueve o copia objetos en
+Storage. Si la actualización falla, la transacción revierte también el pedido y
+la marca de conversión.
 
 ## Cambio de estado
 
@@ -140,7 +152,7 @@ El cambio de estado:
 - actualiza `status`;
 - actualiza `reviewed_by`;
 - registra `estado_cambiado` mediante el trigger de historial existente cuando el estado realmente cambia;
-- revalida `/dashboard/solicitudes` y `/dashboard/solicitudes/[id]`;
+- revalida `/dashboard`, `/dashboard/solicitudes` y `/dashboard/solicitudes/[id]`;
 - no usa service role key.
 
 La RPC es la autoridad de transiciones. La UI solo muestra las opciones permitidas para orientar al usuario, pero los saltos inválidos también fallan server-side.
@@ -157,11 +169,23 @@ Estas tablas son internas y quedan reservadas para `admin` y `supervisor`. El ro
 
 Los comentarios son append-only inicialmente: no hay actualización ni eliminación. El historial también es append-only.
 
-La Fase 11.4 implementa comentarios internos en `/dashboard/solicitudes/[id]`. `admin` y `supervisor` pueden ver y agregar comentarios; el autor se toma del usuario autenticado en servidor mediante `solicitud_comentarios.author_id`. El formulario solo envía `solicitud_id` y `content`, no acepta autor ni fecha, y no hay edición ni eliminación.
+La Fase 11.4 implementa comentarios internos en `/dashboard/solicitudes/[id]`. `admin` y `supervisor` pueden ver y agregar comentarios; el autor se toma del usuario autenticado en servidor mediante `solicitud_comentarios.author_id`. La página enlaza `solicitud_id` a la action y el formulario solo envía `content`; no acepta autor ni fecha, y no hay edición ni eliminación.
+
+## Contrato de actions del detalle
+
+La página server-side carga y valida la solicitud antes de enlazar
+`solicitud_id` a las actions de estado, cliente, conversión y comentarios. Los
+formularios no repiten el ID principal ni las actions lo reconstruyen desde
+`referer`, `next-url` u otra cabecera.
+
+Los IDs secundarios siguen siendo entradas explícitas cuando la operación los
+necesita, como `cliente_id` al asociar un cliente existente. Las actions leen
+solo campos permitidos, delegan autorización y escritura en servicios o RPCs,
+y revalidan dashboard, listado y detalle.
 
 La Fase 11.6 implementa historial visible en `/dashboard/solicitudes/[id]`. `admin` y `supervisor` pueden ver los eventos existentes en `solicitud_historial`; el rol `trabajador` no accede al módulo de solicitudes. La sección muestra tipo de evento, resumen, actor, rol y fecha, sin edición ni eliminación.
 
-Desde Fase 11.7B, la base de datos registra automáticamente eventos de solicitud para creación, archivos adjuntados, cambios de estado, asociación de cliente y conversión a pedido. El evento `cliente_creado_desde_solicitud` se registra desde el servicio server-side después de crear el cliente y antes de asociarlo a la solicitud. Los eventos originados en el flujo público pueden tener `actor_id = null`.
+Desde Fase 11.7B, la base de datos registra automáticamente eventos de solicitud para creación, archivos adjuntados, cambios de estado, asociación de cliente y conversión a pedido. Desde Fase 13.8C, la RPC transaccional `public.crear_cliente_desde_solicitud` inserta `cliente_creado_desde_solicitud` antes de asociar el cliente; el update posterior activa el trigger de `cliente_asociado`. Los eventos originados en el flujo público pueden tener `actor_id = null`.
 
 La sección de historial no se limita al texto genérico del evento: muestra detalles operativos cuando existen. Los cambios de estado indican origen y destino, los archivos muestran el nombre del archivo, los eventos de cliente muestran el cliente relacionado y la conversión muestra el pedido generado.
 
@@ -201,6 +225,7 @@ Permisos usados:
 
 - `solicitudes.view`: lectura de listado y detalle.
 - `solicitudes.manage`: cambio manual de estado.
+- `clientes.manage`: creación de cliente desde una solicitud.
 - `pedidos.manage`: conversión de solicitud aprobada a pedido.
 
 El modelo completo de permisos se documenta conceptualmente en
@@ -221,7 +246,12 @@ Aclaraciones:
 - los componentes cliente no consultan Supabase directamente;
 - la UI no es la única capa de seguridad;
 - no hay lectura pública ni URLs públicas para archivos;
-- RLS sigue siendo la defensa final.
+- la RPC de conversión es `security definer`, valida usuario activo y rol
+  `admin` o `supervisor`, y solo concede ejecución a `authenticated`;
+- la RPC de creación de cliente desde solicitud aplica las mismas restricciones
+  de autenticación y rol, y no acepta datos de cliente desde el formulario;
+- no se modificaron policies RLS; siguen protegiendo los accesos directos a
+  tablas fuera de la RPC.
 
 ## RLS
 
@@ -238,29 +268,23 @@ Las policies existentes permiten:
 - lectura e inserción de `solicitud_historial` solo a `admin` y `supervisor`;
 - sin policies de actualización ni eliminación para comentarios o historial de solicitudes.
 
-## Qué NO incluye esta fase
+## Fuera del alcance actual
 
-- Gestión real de clientes.
-- Eliminación de archivos adjuntos.
-- Historial avanzado de cambios.
-- Comentarios internos.
-- Notificaciones.
-- Asignación de personal a pedidos.
-- Pedidos manuales sin cliente asociado.
-- Tareas de pedido.
-- Generación de presupuestos.
+- eliminación de archivos adjuntos;
+- edición completa de solicitudes;
+- notificaciones;
+- generación de presupuestos;
+- deduplicación avanzada de clientes;
+- seguimiento público por referencia.
 
 ## Consideraciones futuras
 
-Más adelante se podrá:
+Mejoras futuras posibles:
 
-- registrar historial detallado;
-- agregar comentarios internos;
-- asociar solicitud a cliente existente;
-- implementar tareas de pedido;
-- permitir eliminación controlada de archivos privados si se define;
+- permitir eliminación controlada de archivos privados;
 - notificar al equipo interno;
-- generar códigos humanos de referencia.
+- generar códigos humanos de referencia;
+- ampliar filtros o búsqueda si aumenta el volumen.
 
 El diseño técnico de comentarios internos e historial para la Fase 11 se documenta en `docs/COMMENTS_AND_HISTORY_MODEL.md`.
 
@@ -305,5 +329,5 @@ El diseño del dashboard operativo para la Fase 13 se documenta en `docs/DASHBOA
 
 ## Cierre
 
-Con este flujo, Fase 6 queda documentada para revisión final antes de avanzar a
-la gestión de clientes o a la fase correspondiente del roadmap.
+El flujo interno vigente cubre revisión, estados controlados, cliente asociado,
+comentarios, historial, archivos privados y conversión transaccional a pedido.
