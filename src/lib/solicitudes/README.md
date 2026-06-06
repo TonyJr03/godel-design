@@ -44,13 +44,25 @@ Reglas principales:
 - la solicitud puede enviarse sin archivos;
 - la categoría se fuerza a `cliente_solicitud`;
 - los archivos se guardan en el bucket privado `godel-files`;
-- la ruta se construye como `solicitudes/{solicitud_id}/originales/{timestamp}-{filename}`;
+- la ruta se construye como `solicitudes/{solicitud_id}/originales/{timestamp}-{uuid}-{filename}`;
 - `pedido_id` queda en `null`;
 - `uploaded_by` queda en `null`;
 - no hay lectura pública, listado público ni URLs públicas;
 - `admin` y `supervisor` pueden consultarlos y descargarlos desde el detalle interno de solicitud mediante rutas internas seguras.
 
 La solicitud se crea antes de asociar archivos. Si la solicitud se registra correctamente pero algún archivo falla durante la subida, la solicitud se conserva y la UI muestra una advertencia segura.
+
+El límite de cinco también se aplica en las policies anónimas: Storage bloquea
+el sexto objeto secuencial y `archivos` mantiene un máximo estricto de cinco
+metadatos con conteo serializado. Las policies validan ruta, 20 MB y
+combinación de extensión/MIME; la metadata solo se acepta si el objeto exacto
+existe y aún no está registrado. Las subidas paralelas conservan un riesgo
+residual en el conteo físico de Storage y requieren monitoreo/reconciliación en
+producción.
+
+No hay lectura, listado ni borrado anónimo. Por ello un fallo excepcional entre
+la subida y la metadata no se compensa abriendo permisos públicos: el objeto
+queda sujeto al cupo y debe resolverse mediante reconciliación interna.
 
 ## Labels visibles
 

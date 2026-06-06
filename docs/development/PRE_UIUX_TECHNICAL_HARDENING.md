@@ -4,7 +4,7 @@
 
 - Etapa: preparación técnica previa a la Fase 14.
 - Alcance: diagnóstico, decisiones arquitectónicas y plan de trabajo.
-- Estado actual: Fase 13.8D-2 completada; siguiente subfase 13.8E.
+- Estado actual: Fase 13.8E completada; siguiente subfase 13.8F.
 - Fecha de creación: 5 de junio de 2026.
 
 ## 1. Objetivo del hardening
@@ -423,6 +423,8 @@ existentes sin añadir tipos nuevos.
 
 ### 13.8E — Endurecimiento de subida pública y objetos huérfanos
 
+**Estado: completada el 6 de junio de 2026.**
+
 #### Objetivo
 
 Reducir abuso y mejorar la consistencia entre Storage y metadata.
@@ -442,6 +444,37 @@ Reducir abuso y mejorar la consistencia entre Storage y metadata.
 
 El flujo debe contar con una mitigación concreta o una deuda aceptada,
 responsable y verificable antes de producción.
+
+#### Implementación
+
+Las policies anónimas de `storage.objects` y `archivos` aplican el cupo de
+cinco por solicitud. Storage bloquea el bypass secuencial cuando ya existen
+cinco objetos; metadata mantiene un máximo estricto de cinco mediante un conteo
+serializado con `FOR UPDATE` sobre la solicitud.
+
+Storage y metadata comparten las extensiones y MIME admitidos. El límite de
+20 MB se aplica en TypeScript, en la configuración nativa del bucket y en la
+policy de metadata. La metadata exige además que el objeto exacto ya exista,
+que no tenga otro registro asociado, que la ruta corresponda a la solicitud y
+que `pedido_id` y `uploaded_by` sean `null`. Las rutas generadas por TypeScript
+incorporan un UUID para reducir colisiones.
+
+Se mantiene el orden objeto y después metadata. No se concedió `SELECT` ni
+`DELETE` a `anon`: la eliminación mediante la API de Storage requiere ambos
+permisos y abrirlos permitiría inspeccionar o eliminar objetos sin registrar.
+Los fallos excepcionales posteriores a la subida quedan limitados por el cupo
+de cinco objetos y requieren reconciliación interna segura antes de producción.
+
+El conteo físico de Storage conserva una limitación concurrente: la autorización
+puede evaluarse antes de completar subidas paralelas. Por ello no se considera
+una garantía absoluta frente a varias cargas simultáneas; metadata sí conserva
+el máximo estricto. Este riesgo queda aceptado junto al rate limiting y
+monitoreo pendientes de producción.
+
+No se implementó rate limiting, CAPTCHA ni análisis profundo del contenido.
+Quedan como deuda de producción el límite por IP o reverse proxy, monitoreo de
+Storage, antivirus si el riesgo lo exige y una tarea periódica de detección y
+limpieza de objetos sin metadata.
 
 ### 13.8F — Limpieza de actions, IDs de ruta y dependencia de referer
 

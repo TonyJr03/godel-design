@@ -191,10 +191,27 @@ Límites actuales:
 Los archivos:
 
 - se guardan en el bucket privado `godel-files`;
-- usan rutas `solicitudes/{solicitud_id}/originales/{timestamp}-{filename}`;
+- usan rutas `solicitudes/{solicitud_id}/originales/{timestamp}-{uuid}-{filename}`;
 - quedan asociados a la solicitud creada mediante `archivos.solicitud_id`;
 - se registran con `visibility = cliente_solicitud`;
 - no generan URLs públicas ni URLs firmadas para el cliente.
+
+El límite de cinco no depende solo de la UI o TypeScript. Storage rechaza el
+sexto objeto en el flujo secuencial y la policy de `archivos` serializa el
+conteo para impedir más de cinco metadatos, incluso mediante llamadas directas
+con la anon key. También validan ruta y combinación de extensión/MIME. Los
+20 MB se aplican en TypeScript, en el bucket y en la policy de metadata. La
+metadata requiere que el objeto exacto exista y no esté registrado.
+
+Supabase Storage puede autorizar subidas paralelas antes de completar los
+objetos, por lo que su conteo no se considera una garantía concurrente absoluta.
+Metadata sí mantiene el máximo estricto de cinco. Rate limiting, monitoreo y
+reconciliación completan esta defensa antes de producción.
+
+La aplicación sube primero el objeto y después inserta metadata. No se habilita
+borrado anónimo para compensar un fallo excepcional, porque la API de Storage
+requeriría abrir también lectura sobre esos objetos. El cupo de cinco limita el
+impacto y la limpieza queda a cargo de una reconciliación interna segura.
 
 Desde Fase 11.7B, cada archivo público registrado en `archivos` con `visibility = cliente_solicitud` genera un evento `archivos_adjuntados` en `solicitud_historial`. El evento no incluye `file_path` ni datos personales completos.
 
@@ -239,11 +256,17 @@ El listado, detalle, archivos, comentarios, historial y conversión a pedido se 
 - Verificar que `pedido_id` y `uploaded_by` quedan en `null` en `archivos`.
 - Verificar que no hay lectura pública ni URL pública del archivo.
 - Verificar que un usuario anónimo no puede leer solicitudes desde API/UI.
+- Intentar un sexto objeto y un sexto registro de metadata mediante anon key.
+- Intentar registrar metadata para un objeto inexistente o ya registrado.
+- Confirmar que `anon` no puede listar, descargar ni eliminar objetos.
 
 ## Problemas Conocidos o Limitaciones
 
 - No hay captcha todavía.
 - No hay control avanzado anti-spam.
+- No hay rate limiting por IP o reverse proxy.
+- No hay antivirus ni inspección profunda del contenido.
+- La limpieza periódica de objetos sin metadata debe prepararse antes de producción.
 - No hay lectura ni descarga pública de archivos.
 - No hay notificaciones.
 - No hay código humano de solicitud.

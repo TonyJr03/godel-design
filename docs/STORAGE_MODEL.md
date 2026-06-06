@@ -44,7 +44,7 @@ Los archivos asociados solo a solicitudes no deben ser visibles para trabajadore
 Estructura esperada dentro del bucket `godel-files`:
 
 ```text
-solicitudes/{solicitud_id}/originales/{timestamp}-{filename}
+solicitudes/{solicitud_id}/originales/{timestamp}-{uuid}-{filename}
 pedidos/{pedido_id}/internos/{timestamp}-{filename}
 pedidos/{pedido_id}/avances/{timestamp}-{filename}
 pedidos/{pedido_id}/finales/{timestamp}-{filename}
@@ -169,16 +169,39 @@ Reglas aplicadas:
 - `bucket` debe ser `godel-files`.
 - El UUID de `solicitud_id` debe coincidir con el UUID presente en `file_path`.
 - `file_size` debe ser mayor que cero y no superar 20 MB.
-- `file_type` debe pertenecer a la lista de MIME permitidos.
+- Extensión y `file_type` deben formar una combinación permitida.
+- Una solicitud admite como máximo 5 objetos y 5 registros de metadata.
+- La metadata solo puede insertarse si el objeto exacto ya existe y todavía no
+  tiene otro registro asociado.
 - No hay lectura, listado, actualización ni eliminación anónima.
 
-El servicio `uploadPublicSolicitudFile` fuerza la categoría `cliente_solicitud`, valida el archivo real, construye la ruta internamente y guarda metadatos en `archivos`. `uploadPublicSolicitudFiles` limita la carga múltiple a 5 archivos por solicitud.
+El servicio `uploadPublicSolicitudFile` fuerza la categoría `cliente_solicitud`, valida el archivo real, construye la ruta internamente con timestamp y UUID y guarda metadatos en `archivos`. `uploadPublicSolicitudFiles` limita la carga múltiple a 5 archivos por solicitud.
 
 Desde Fase 11.7B, cada inserción válida de metadatos con `visibility = cliente_solicitud` registra automáticamente `archivos_adjuntados` en `solicitud_historial`. El evento guarda datos mínimos como nombre, tipo y tamaño, pero no incluye `file_path`.
 
 La lectura posterior de estos archivos queda reservada para `admin` y `supervisor`. Los trabajadores no acceden a archivos asociados solo a solicitudes.
 
-Riesgo controlado: si la subida al bucket privado funciona y luego falla la inserción de metadatos, no se abre eliminación anónima para limpiar el objeto. El error queda registrado en servidor y la limpieza operativa deberá tratarse con un flujo seguro posterior si fuera necesario.
+Desde Fase 13.8E, Storage rechaza nuevas subidas cuando ya existen cinco
+objetos bajo la solicitud y metadata limita a cinco registros mediante un
+conteo serializado con bloqueo de la solicitud. Storage y metadata comparten
+las combinaciones de extensión/MIME: PDF, JPG, JPEG, PNG, WEBP, DOC, DOCX y
+ZIP. Los 20 MB se validan en TypeScript, en la configuración nativa del bucket
+y al insertar metadata.
+
+Riesgo controlado: se conserva el orden objeto y después metadata. Si ocurre un
+fallo excepcional después de subir el objeto, puede quedar un objeto sin
+metadata, pero su cantidad queda incluida en el máximo de cinco objetos. No se
+abre limpieza anónima porque la API de Storage requiere permisos de lectura y
+eliminación para borrar, lo que rompería la ausencia de lectura/listado público.
+La reconciliación y eliminación deben ejecutarse mediante un proceso interno
+seguro y monitoreado.
+
+Limitación concurrente aceptada: Supabase Storage puede comprobar RLS antes de
+completar físicamente subidas paralelas. El conteo de objetos cierra el bypass
+secuencial evidente, pero varias autorizaciones simultáneas podrían observar el
+mismo cupo. La capa de metadata sigue serializada y no admite más de cinco
+registros; producción debe complementar esto con rate limiting, monitoreo y
+reconciliación.
 
 ## Fase 10.4B: integración en formulario público
 
@@ -236,6 +259,14 @@ La conversión no genera un nuevo evento de archivo de solicitud. El historial d
 - No hay edición de metadatos.
 - No hay comentarios ni notificaciones asociados a archivos.
 - No hay URLs públicas permanentes.
+
+Deuda de producción aceptada:
+
+- rate limiting por IP o en reverse proxy/Vercel;
+- CAPTCHA o honeypot si aparece abuso;
+- monitoreo de consumo y errores de Storage;
+- reconciliación periódica de objetos sin metadata;
+- antivirus o validación profunda de contenido si el riesgo operativo lo exige.
 
 ## Validaciones de archivos
 
