@@ -4,7 +4,8 @@
 
 - Etapa: preparación técnica previa a la Fase 14.
 - Alcance: diagnóstico, decisiones arquitectónicas y plan de trabajo.
-- Estado actual: Fase 13.8G completada; siguiente subfase 13.8H.
+- Estado actual: Fase 13.8 completada; Fase 14 habilitada como siguiente etapa,
+  todavía no iniciada.
 - Fecha de creación: 5 de junio de 2026.
 
 ## 1. Objetivo del hardening
@@ -565,6 +566,8 @@ cierre de esta subfase.
 
 ### 13.8H — Revisión final pre-UI/UX
 
+**Estado: completada el 6 de junio de 2026.**
+
 #### Objetivo
 
 Confirmar que integridad, concurrencia, documentación y verificaciones están
@@ -579,6 +582,23 @@ listas para iniciar la Fase 14.
 - revisión de deuda aceptada de Storage;
 - ejecución de lint, build y `git diff --check`;
 - decisión explícita de apertura o bloqueo de la Fase 14.
+
+#### Resultado de la revisión
+
+La revisión confirmó la coherencia de schema, enums, RLS, RPCs, triggers,
+Storage privado, servicios server-side, actions enlazadas a IDs de ruta,
+dashboard por rol, validadores y documentación estable. No se detectaron
+bloqueos de integridad, concurrencia o seguridad para iniciar la Fase 14.
+
+Se retiró un permiso residual de inserción directa para `authenticated` sobre
+`solicitud_historial`, junto con su policy de inserción. El historial queda
+alineado con el modelo documentado: lectura para gestores y escritura
+exclusivamente mediante triggers y RPCs controladas.
+
+Las verificaciones `npm.cmd run lint`, `npm.cmd run build`,
+`git diff --check` y `npx.cmd supabase db lint --local --level warning`
+finalizaron correctamente. No se ejecutó `supabase db reset` durante esta
+revisión.
 
 ## 7. Fuera de alcance
 
@@ -707,9 +727,8 @@ Durante todo el hardening:
 
 ## 13. Decisión actual
 
-El proyecto no requiere una reescritura antes de UI/UX. Requiere un hardening
-acotado y secuencial.
+La Fase 13.8 queda cerrada. Los contratos técnicos revisados son estables y no
+existen bloqueos conocidos para comenzar la Fase 14.
 
-La Fase 14 permanece bloqueada hasta completar, como mínimo, las subfases
-13.8B, 13.8C y 13.8D, y hasta que 13.8H confirme que los contratos técnicos son
-estables para sostener el rediseño.
+La Fase 14 es la siguiente etapa habilitada, pero no se inicia como parte de
+este hardening ni de su revisión final.

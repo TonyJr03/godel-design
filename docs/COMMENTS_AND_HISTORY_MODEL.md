@@ -503,6 +503,7 @@ Estado desde Fase 11.7B:
 - `trabajador` y usuarios anónimos no acceden;
 - se muestran tipo de evento, resumen, actor, rol y fecha;
 - no hay edición ni eliminación;
+- no hay inserción directa desde roles de aplicación;
 - se registran eventos automáticos mínimos mediante triggers y flujos server-side controlados.
 
 Valores iniciales:

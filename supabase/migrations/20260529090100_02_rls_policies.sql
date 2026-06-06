@@ -475,11 +475,13 @@ to authenticated;
 
 grant select, insert on table
   public.pedido_comentarios,
-  public.solicitud_comentarios,
-  public.solicitud_historial
+  public.solicitud_comentarios
 to authenticated;
 
-grant select on table public.pedido_historial to authenticated;
+grant select on table
+  public.pedido_historial,
+  public.solicitud_historial
+to authenticated;
 
 revoke all on table public.pedido_contadores
 from public, anon, authenticated;
@@ -854,17 +856,4 @@ to authenticated
 using (
   (select auth.uid()) is not null
   and private.is_admin_or_supervisor()
-);
-
-create policy solicitud_historial_insert_manager
-on public.solicitud_historial
-for insert
-to authenticated
-with check (
-  (select auth.uid()) is not null
-  and private.is_admin_or_supervisor()
-  and (
-    actor_id is null
-    or actor_id = (select auth.uid())
-  )
 );

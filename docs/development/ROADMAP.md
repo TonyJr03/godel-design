@@ -550,6 +550,17 @@ y filtros uniformes con consultas server-side. RLS continúa como defensa final;
 no se añadió service role key, no se consulta `auth.users` y no se inició el
 pulido visual o responsive de la Fase 14.
 
+### Cierre de fase puente 13.8
+
+La fase puente 13.8 quedó completada el 6 de junio de 2026 con el hardening
+técnico pre-UI/UX. El cierre incluye operaciones críticas transaccionales,
+control de concurrencia en estados y tareas, fechas SQL de negocio,
+endurecimiento de Storage público, actions enlazadas a IDs de ruta, limpieza
+documental y revisión final de schema, RLS, RPCs, permisos, flujos y dashboard.
+Las verificaciones de lint, build, diff y esquema local finalizaron
+correctamente. La Fase 14 queda habilitada como siguiente etapa, pero todavía
+no se ha iniciado.
+
 ---
 
 ## Fase 14 — Pulido visual y responsive
@@ -712,6 +723,8 @@ Después de cada tarea de Codex se revisará:
 La próxima fase activa será:
 
 # Fase 14 — Pulido visual y responsive
+
+Estado: siguiente fase habilitada, todavía no iniciada.
 
 La Fase 1 quedó completada con el modelo de datos inicial, migraciones base, políticas RLS iniciales y modelo de Storage documentado.
 
