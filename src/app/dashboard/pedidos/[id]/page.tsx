@@ -88,6 +88,7 @@ export default async function DashboardPedidoDetallePage({
         tasksSection={
           <PedidoTasksSection
             pedidoId={result.pedido.id}
+            pedidoStatus={result.pedido.status}
             tasks={tasksResult.ok ? tasksResult.tasks : []}
             progress={
               tasksResult.ok

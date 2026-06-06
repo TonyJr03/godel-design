@@ -7,6 +7,11 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
 import type { Tables } from "@/types/database";
+import {
+  canManagePedidoTasksInStatus,
+  getPedidoTaskManagementBlockedReason,
+  type PedidoStatus,
+} from "./status";
 import type { PedidoTaskFieldErrors } from "./task-validation";
 
 export type DeletePedidoTaskInput = {
@@ -18,6 +23,7 @@ export type DeletePedidoTaskErrorReason =
   | "unauthorized"
   | "invalid_id"
   | "not_found"
+  | "status_blocked"
   | "error";
 
 export type DeletePedidoTaskResult = ServiceResult<
@@ -91,12 +97,61 @@ export async function deletePedidoTask(
       );
     }
 
-    const { error } = await supabase
+    const { data: pedido, error: pedidoError } = await supabase
+      .from("pedidos")
+      .select("id, status")
+      .eq("id", task.pedido_id)
+      .maybeSingle<{ id: string; status: PedidoStatus }>();
+
+    if (pedidoError) {
+      console.error(
+        "Error checking pedido status before task delete",
+        pedidoError,
+      );
+
+      return serviceFailure("error", GENERIC_DELETE_TASK_ERROR);
+    }
+
+    if (!pedido) {
+      return serviceFailure(
+        "not_found",
+        "El pedido solicitado no existe o no tienes acceso.",
+      );
+    }
+
+    if (!canManagePedidoTasksInStatus(pedido.status)) {
+      return serviceFailure(
+        "status_blocked",
+        getPedidoTaskManagementBlockedReason(pedido.status) ??
+          GENERIC_DELETE_TASK_ERROR,
+      );
+    }
+
+    const { data: deletedTask, error } = await supabase
       .from("pedido_tareas")
       .delete()
-      .eq("id", task.id);
+      .eq("id", task.id)
+      .select("id")
+      .maybeSingle<{ id: string }>();
 
-    if (error) {
+    if (error || !deletedTask) {
+      const { data: currentPedido } = await supabase
+        .from("pedidos")
+        .select("status")
+        .eq("id", task.pedido_id)
+        .maybeSingle<{ status: PedidoStatus }>();
+
+      if (
+        currentPedido &&
+        !canManagePedidoTasksInStatus(currentPedido.status)
+      ) {
+        return serviceFailure(
+          "status_blocked",
+          getPedidoTaskManagementBlockedReason(currentPedido.status) ??
+            GENERIC_DELETE_TASK_ERROR,
+        );
+      }
+
       console.error("Error deleting pedido task", error);
 
       return serviceFailure("error", GENERIC_DELETE_TASK_ERROR);

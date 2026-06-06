@@ -97,6 +97,13 @@ tareas y si todas están completas. Por ello una transición concurrente no
 puede confirmar usando un estado anterior ni una versión intermedia de esas
 tareas.
 
+Desde Fase 13.8D-2, las mutaciones de `pedido_tareas` solo se permiten cuando el
+pedido está en `creado`, `solicitud_recibida`, `en_revision` o
+`en_produccion`. Los servicios server-side y las policies RLS aplican la misma
+regla. En `listo_entrega`, `entregado` y `cancelado` las tareas quedan en modo
+lectura; para corregir un pedido listo para entrega debe volver primero a
+`en_produccion`.
+
 Eventos que puede registrar:
 
 - `estado_cambiado`;
@@ -151,6 +158,8 @@ Las acciones y servicios actuales no aceptan datos de historial desde formulario
 - `updateInternalPedidoStatus` llama a `public.actualizar_estado_pedido`, que registra cambios de estado de pedido;
 - la creación de pedidos, asignación/remoción de personal y subida de archivos propios de pedido se registran por triggers;
 - las acciones de tareas de pedido delegan en servicios server-side y los eventos se registran por triggers sobre `pedido_tareas`;
+- las mutaciones bloqueadas por el estado del pedido no alcanzan esos triggers
+  y no generan eventos; las permitidas conservan el historial existente;
 - `createPedidoFromSolicitud` llama a `public.convertir_solicitud_a_pedido`; la
   creación del pedido y la conversión de la solicitud se registran por los
   triggers existentes;

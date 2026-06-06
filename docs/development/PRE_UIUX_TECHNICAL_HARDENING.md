@@ -4,7 +4,7 @@
 
 - Etapa: preparación técnica previa a la Fase 14.
 - Alcance: diagnóstico, decisiones arquitectónicas y plan de trabajo.
-- Estado actual: Fase 13.8D completada; siguiente subfase 13.8E.
+- Estado actual: Fase 13.8D-2 completada; siguiente subfase 13.8E.
 - Fecha de creación: 5 de junio de 2026.
 
 ## 1. Objetivo del hardening
@@ -377,11 +377,8 @@ existentes del pedido. Esto espera actualizaciones o eliminaciones en curso y
 evita que esas filas cambien durante la decisión. El bloqueo `FOR UPDATE` del
 pedido también coordina nuevas tareas que deban validar su clave foránea.
 
-La protección cubre la decisión transaccional. Una tarea todavía puede
-modificarse después de que la transición haya confirmado, porque las mutaciones
-de tareas siguen siendo operaciones directas separadas. Restringir cambios
-posteriores según el estado requeriría mover esas mutaciones a RPCs o añadir una
-regla de negocio específica.
+La protección cubre la decisión transaccional. La limitación detectada sobre
+mutaciones posteriores de tareas se resuelve en la subfase 13.8D-2.
 
 Se añadió `private.current_business_date()`, basada en `America/Havana`, junto
 a las funciones privadas del esquema consolidado. La usan la numeración anual
@@ -390,6 +387,39 @@ validación de fecha estimada en la conversión de solicitud.
 
 No cambiaron la firma pública de `actualizar_estado_pedido`, las transiciones,
 los mensajes controlados, la matriz de permisos ni las policies RLS.
+
+### 13.8D-2 — Bloqueo de mutaciones de tareas según estado del pedido
+
+**Estado: completada el 6 de junio de 2026.**
+
+#### Objetivo
+
+Impedir que una mutación de tareas rompa la coherencia entre el estado general
+del pedido y su progreso operativo.
+
+#### Implementación
+
+Las tareas pueden crearse, editarse, eliminarse, completarse, reabrirse y
+actualizar su progreso solo cuando el pedido está en `creado`,
+`solicitud_recibida`, `en_revision` o `en_produccion`.
+
+En `listo_entrega` las tareas quedan en modo lectura para preservar el progreso
+completo requerido por ese estado. Cualquier corrección exige devolver primero
+el pedido a `en_produccion`. En `entregado` y `cancelado` las tareas también
+quedan en modo lectura.
+
+Los servicios server-side validan el estado actual antes de cada mutación. Como
+defensa final, las policies RLS de inserción, actualización y eliminación usan
+`private.can_manage_pedido_tasks`, que bloquea la fila del pedido y comprueba
+acceso y estado permitido. El listado de tareas no cambia.
+
+La UI conserva el listado y el progreso, oculta los formularios y botones de
+mutación cuando corresponde y muestra el motivo del bloqueo. Esta orientación
+no sustituye la validación de servicios y base de datos.
+
+Las mutaciones bloqueadas no alcanzan los triggers y, por tanto, no crean
+eventos de historial. Las mutaciones permitidas conservan los eventos
+existentes sin añadir tipos nuevos.
 
 ### 13.8E — Endurecimiento de subida pública y objetos huérfanos
 

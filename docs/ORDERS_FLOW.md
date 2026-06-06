@@ -136,6 +136,18 @@ El progreso agregado se calcula como promedio redondeado: una tarea simple aport
 
 En esta subfase hay servicios server-side y UI en `/dashboard/pedidos/[id]` para listar, crear, editar título, eliminar, completar, reabrir y actualizar progreso de tareas. La tabla queda protegida con RLS e historial automático para que `admin`, `supervisor` y personal asignado puedan gestionar tareas de pedidos accesibles.
 
+Las mutaciones se permiten solo en `creado`, `solicitud_recibida`, `en_revision`
+y `en_produccion`. En `listo_entrega` las tareas quedan en modo lectura para
+preservar el progreso completo; una corrección requiere volver primero a
+`en_produccion`. En `entregado` y `cancelado` también quedan en modo lectura.
+El listado y el progreso continúan visibles.
+
+Los servicios validan el estado actual antes de mutar y las policies RLS de
+inserción, actualización y eliminación aplican la misma regla mediante
+`private.can_manage_pedido_tasks`. La policy de lectura conserva
+`private.can_access_pedido`, por lo que esta restricción no abre permisos ni
+impide consultar tareas existentes.
+
 La UI no permite seleccionar `task_type`, `target_quantity`, autorías, fechas técnicas ni `sort_order`. Solo envía `pedido_id`, `task_id`, `title` o `completed_quantity` según el formulario, y las Server Actions delegan la validación en servicios server-side.
 
 ## Listado interno
@@ -314,9 +326,10 @@ el estado confirmado por la primera, no contra un estado obsoleto.
 Antes de contar tareas, la RPC bloquea las tareas existentes con `FOR SHARE`.
 Así espera cambios o eliminaciones en curso y mantiene estables esas filas
 durante la decisión. Las nuevas tareas quedan coordinadas por el bloqueo del
-pedido y la clave foránea. Una mutación iniciada después de confirmar el cambio
-de estado sigue siendo posible; prohibirla requeriría una regla adicional sobre
-las operaciones de tareas.
+pedido y la clave foránea. Las mutaciones de tareas también bloquean y validan
+el pedido mediante `private.can_manage_pedido_tasks`, por lo que una operación
+iniciada después de confirmar `listo_entrega`, `entregado` o `cancelado` queda
+bloqueada.
 
 Cuando el pedido pasa a `entregado`, `actual_delivery_date` usa
 `private.current_business_date()`, basada en `America/Havana`.

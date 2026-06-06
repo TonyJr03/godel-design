@@ -105,6 +105,41 @@ as $$
   end;
 $$;
 
+create or replace function private.can_manage_pedido_tasks(p_pedido_id uuid)
+returns boolean
+language plpgsql
+security definer
+set search_path = public, private
+as $$
+declare
+  v_status public.pedido_estado;
+begin
+  if auth.uid() is null
+    or p_pedido_id is null
+    or not private.current_user_is_active() then
+    return false;
+  end if;
+
+  select p.status
+  into v_status
+  from public.pedidos as p
+  where p.id = p_pedido_id
+  for update;
+
+  if not found then
+    return false;
+  end if;
+
+  return private.can_access_pedido(p_pedido_id)
+    and v_status in (
+      'creado'::public.pedido_estado,
+      'solicitud_recibida'::public.pedido_estado,
+      'en_revision'::public.pedido_estado,
+      'en_produccion'::public.pedido_estado
+    );
+end;
+$$;
+
 create or replace function private.pedido_file_visibility_for_status(
   p_status public.pedido_estado
 )
@@ -352,6 +387,8 @@ revoke all on function private.is_assigned_to_pedido(uuid)
 from public, anon, authenticated;
 revoke all on function private.can_access_pedido(uuid)
 from public, anon, authenticated;
+revoke all on function private.can_manage_pedido_tasks(uuid)
+from public, anon, authenticated;
 revoke all on function private.pedido_file_visibility_for_status(public.pedido_estado)
 from public, anon, authenticated;
 revoke all on function private.pedido_file_path_matches(
@@ -384,6 +421,7 @@ grant execute on function private.is_supervisor() to authenticated;
 grant execute on function private.is_admin_or_supervisor() to authenticated;
 grant execute on function private.is_assigned_to_pedido(uuid) to authenticated;
 grant execute on function private.can_access_pedido(uuid) to authenticated;
+grant execute on function private.can_manage_pedido_tasks(uuid) to authenticated;
 grant execute on function private.pedido_file_visibility_for_status(
   public.pedido_estado
 ) to authenticated;
@@ -678,7 +716,7 @@ to authenticated
 with check (
   (select auth.uid()) is not null
   and private.current_user_is_active()
-  and private.can_access_pedido(pedido_id)
+  and private.can_manage_pedido_tasks(pedido_id)
   and created_by = (select auth.uid())
 );
 
@@ -689,12 +727,12 @@ to authenticated
 using (
   (select auth.uid()) is not null
   and private.current_user_is_active()
-  and private.can_access_pedido(pedido_id)
+  and private.can_manage_pedido_tasks(pedido_id)
 )
 with check (
   (select auth.uid()) is not null
   and private.current_user_is_active()
-  and private.can_access_pedido(pedido_id)
+  and private.can_manage_pedido_tasks(pedido_id)
 );
 
 create policy pedido_tareas_delete_accessible
@@ -704,7 +742,7 @@ to authenticated
 using (
   (select auth.uid()) is not null
   and private.current_user_is_active()
-  and private.can_access_pedido(pedido_id)
+  and private.can_manage_pedido_tasks(pedido_id)
 );
 
 create policy archivos_select_accessible

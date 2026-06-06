@@ -12,11 +12,12 @@ import {
   type UpdatePedidoTaskProgressActionState,
   type UpdatePedidoTaskTitleActionState,
 } from "@/app/dashboard/pedidos/[id]/actions";
-import type { PedidoTask } from "@/lib/pedidos";
+import type { PedidoTask } from "@/lib/pedidos/list-pedido-tasks";
 
 type PedidoTaskItemProps = {
   pedidoId: string;
   task: PedidoTask;
+  canManage: boolean;
 };
 
 const titleInitialState: UpdatePedidoTaskTitleActionState = {
@@ -82,7 +83,11 @@ function TaskHiddenFields({
   );
 }
 
-export function PedidoTaskItem({ pedidoId, task }: PedidoTaskItemProps) {
+export function PedidoTaskItem({
+  pedidoId,
+  task,
+  canManage,
+}: PedidoTaskItemProps) {
   const [titleState, titleAction, titlePending] = useActionState(
     updatePedidoTaskTitleAction,
     titleInitialState,
@@ -133,39 +138,43 @@ export function PedidoTaskItem({ pedidoId, task }: PedidoTaskItemProps) {
           ) : null}
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          {!isQuantified || task.is_completed ? (
-            <form action={completionAction} aria-busy={completionPending}>
+        {canManage ? (
+          <div className="flex flex-wrap gap-2">
+            {!isQuantified || task.is_completed ? (
+              <form action={completionAction} aria-busy={completionPending}>
+                <TaskHiddenFields pedidoId={pedidoId} taskId={task.id} />
+                <button
+                  type="submit"
+                  disabled={completionPending}
+                  className="inline-flex min-h-9 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 transition hover:border-zinc-400 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500"
+                >
+                  {task.is_completed ? "Reabrir" : "Marcar como completada"}
+                </button>
+              </form>
+            ) : null}
+
+            <form action={deleteAction} aria-busy={deletePending}>
               <TaskHiddenFields pedidoId={pedidoId} taskId={task.id} />
               <button
                 type="submit"
-                disabled={completionPending}
-                className="inline-flex min-h-9 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 transition hover:border-zinc-400 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500"
+                disabled={deletePending}
+                className="inline-flex min-h-9 items-center justify-center rounded-md border border-red-200 bg-white px-3 text-sm font-medium text-red-700 transition hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500"
               >
-                {task.is_completed ? "Reabrir" : "Marcar como completada"}
+                Eliminar
               </button>
             </form>
-          ) : null}
+          </div>
+        ) : null}
+      </div>
 
-          <form action={deleteAction} aria-busy={deletePending}>
-            <TaskHiddenFields pedidoId={pedidoId} taskId={task.id} />
-            <button
-              type="submit"
-              disabled={deletePending}
-              className="inline-flex min-h-9 items-center justify-center rounded-md border border-red-200 bg-white px-3 text-sm font-medium text-red-700 transition hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500"
-            >
-              Eliminar
-            </button>
-          </form>
+      {canManage ? (
+        <div className="mt-4 grid gap-3">
+          <ActionMessage state={completionState} />
+          <ActionMessage state={deleteState} />
         </div>
-      </div>
+      ) : null}
 
-      <div className="mt-4 grid gap-3">
-        <ActionMessage state={completionState} />
-        <ActionMessage state={deleteState} />
-      </div>
-
-      {isQuantified ? (
+      {canManage && isQuantified ? (
         <form
           action={progressAction}
           aria-busy={progressPending}
@@ -220,54 +229,56 @@ export function PedidoTaskItem({ pedidoId, task }: PedidoTaskItemProps) {
         </form>
       ) : null}
 
-      <form
-        action={titleAction}
-        aria-busy={titlePending}
-        className="mt-4 border-t border-zinc-200 pt-4"
-      >
-        <TaskHiddenFields pedidoId={pedidoId} taskId={task.id} />
-        <ActionMessage state={titleState} />
-        <div className="mt-3 flex flex-col gap-3 lg:flex-row lg:items-end">
-          <div className="flex-1">
-            <label
-              htmlFor={`task-title-${task.id}`}
-              className="text-sm font-medium text-zinc-900"
-            >
-              Editar
-            </label>
-            <input
-              key={`${task.id}-${task.title}`}
-              id={`task-title-${task.id}`}
-              name="title"
-              type="text"
-              maxLength={160}
-              required
-              defaultValue={titleState.values?.title ?? task.title}
-              disabled={titlePending}
-              aria-invalid={Boolean(titleError)}
-              aria-describedby={
-                titleError ? `task-title-${task.id}-error` : undefined
-              }
-              className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-950 shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-teal-700 focus:ring-2 focus:ring-teal-700/20 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500"
-            />
-            {titleError ? (
-              <p
-                id={`task-title-${task.id}-error`}
-                className="mt-2 text-sm leading-5 text-red-700"
+      {canManage ? (
+        <form
+          action={titleAction}
+          aria-busy={titlePending}
+          className="mt-4 border-t border-zinc-200 pt-4"
+        >
+          <TaskHiddenFields pedidoId={pedidoId} taskId={task.id} />
+          <ActionMessage state={titleState} />
+          <div className="mt-3 flex flex-col gap-3 lg:flex-row lg:items-end">
+            <div className="flex-1">
+              <label
+                htmlFor={`task-title-${task.id}`}
+                className="text-sm font-medium text-zinc-900"
               >
-                {titleError}
-              </p>
-            ) : null}
+                Editar
+              </label>
+              <input
+                key={`${task.id}-${task.title}`}
+                id={`task-title-${task.id}`}
+                name="title"
+                type="text"
+                maxLength={160}
+                required
+                defaultValue={titleState.values?.title ?? task.title}
+                disabled={titlePending}
+                aria-invalid={Boolean(titleError)}
+                aria-describedby={
+                  titleError ? `task-title-${task.id}-error` : undefined
+                }
+                className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-950 shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-teal-700 focus:ring-2 focus:ring-teal-700/20 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500"
+              />
+              {titleError ? (
+                <p
+                  id={`task-title-${task.id}-error`}
+                  className="mt-2 text-sm leading-5 text-red-700"
+                >
+                  {titleError}
+                </p>
+              ) : null}
+            </div>
+            <button
+              type="submit"
+              disabled={titlePending}
+              className="inline-flex min-h-10 items-center justify-center rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:border-zinc-400 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500"
+            >
+              Guardar
+            </button>
           </div>
-          <button
-            type="submit"
-            disabled={titlePending}
-            className="inline-flex min-h-10 items-center justify-center rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:border-zinc-400 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500"
-          >
-            Guardar
-          </button>
-        </div>
-      </form>
+        </form>
+      ) : null}
     </li>
   );
 }

@@ -76,9 +76,9 @@ simultáneas se procesan en serie. Antes de calcular el progreso bloquea con
 concurrentes esperan, y las inserciones quedan coordinadas por la clave foránea
 al pedido bloqueado.
 
-Esta garantía cubre la lectura y transición actuales. Las tareas todavía pueden
-modificarse después de confirmar el nuevo estado; limitar mutaciones posteriores
-según el estado del pedido requeriría una regla adicional en el flujo de tareas.
+Las mutaciones de tareas bloquean y validan también la fila del pedido. Después
+de confirmar `listo_entrega`, `entregado` o `cancelado`, cualquier inserción,
+actualización o eliminación de tareas queda bloqueada.
 
 Al marcar `entregado`, la RPC guarda `actual_delivery_date` mediante
 `private.current_business_date()`, usando `America/Havana`.
@@ -95,11 +95,21 @@ El progreso agregado vive en `task-progress.ts`: sin tareas devuelve 0%; cada ta
 
 El mismo cálculo se reutiliza en el detalle, el listado interno de pedidos y los paneles operativos del dashboard. Las consultas de dashboard y listado son server-side y no muestran metadata cruda ni datos técnicos de tareas.
 
-RLS permite gestionar tareas a `admin`, `supervisor` y personal asignado al pedido mediante `private.can_access_pedido(pedido_id)`. La inserción exige `created_by = auth.uid()` para trazabilidad.
+RLS permite leer tareas a `admin`, `supervisor` y personal asignado mediante
+`private.can_access_pedido(pedido_id)`. Para insertar, actualizar o eliminar,
+`private.can_manage_pedido_tasks(pedido_id)` exige además que el pedido esté en
+`creado`, `solicitud_recibida`, `en_revision` o `en_produccion`. La inserción
+también exige `created_by = auth.uid()` para trazabilidad.
 
-Los servicios server-side disponibles son `listPedidoTasks`, `createPedidoTask`, `updatePedidoTask` y `deletePedidoTask`. Todos usan `createClient`, el perfil actual y RLS; no aceptan campos técnicos desde entrada externa.
+Los servicios server-side disponibles son `listPedidoTasks`, `createPedidoTask`, `updatePedidoTask` y `deletePedidoTask`. Todos usan `createClient`, el perfil actual y RLS; no aceptan campos técnicos desde entrada externa. Los servicios de mutación cargan el estado actual y aplican la misma regla que RLS.
 
 `/dashboard/pedidos/[id]` integra `PedidoTasksSection` para crear, editar, eliminar, completar, reabrir y actualizar progreso de tareas desde formularios con Server Actions. El usuario no selecciona el tipo: el sistema lo detecta desde el título y los servicios mantienen los campos técnicos bajo control.
+
+En `listo_entrega`, `entregado` y `cancelado`, la sección conserva tareas y
+progreso en modo lectura y oculta todos los controles de mutación. Para corregir
+tareas de un pedido `listo_entrega`, primero hay que devolverlo a
+`en_produccion`. La UI orienta; los servicios y RLS constituyen la defensa
+efectiva.
 
 ## Asignación de Personal
 
@@ -179,13 +189,13 @@ La subida de archivos propios del pedido no permite elegir categoría. El servic
 - `admin` y `supervisor` pueden asignar o remover personal interno activo de un pedido.
 - `admin` y `supervisor` pueden ver y agregar comentarios internos en cualquier pedido.
 - `admin` y `supervisor` pueden ver historial interno de cualquier pedido.
-- `admin` y `supervisor` pueden gestionar tareas de cualquier pedido.
+- `admin` y `supervisor` pueden gestionar tareas de cualquier pedido en un estado permitido.
 - `admin` o `supervisor` asignados a un pedido siguen conservando sus permisos reales.
 - `trabajador` ve solo pedidos asignados mediante `pedido_trabajadores`.
 - `trabajador` solo puede ver el detalle si está asignado al pedido.
 - `trabajador` puede ver cliente y solicitud asociados a pedidos asignados.
 - `trabajador` puede cambiar el estado solo de pedidos asignados.
-- `trabajador` puede gestionar tareas solo de pedidos asignados.
+- `trabajador` puede gestionar tareas solo de pedidos asignados y en un estado permitido.
 - `trabajador` puede ver y agregar comentarios internos solo en pedidos asignados.
 - `trabajador` puede ver historial interno solo de pedidos asignados.
 - `trabajador` no puede crear, convertir, asignar ni remover asignaciones de pedidos.
