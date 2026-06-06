@@ -1,12 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
 import {
   createPedidoFromSolicitud,
   type CreatePedidoFromSolicitudFieldErrors,
 } from "@/lib/pedidos";
-import { isValidUuid } from "@/lib/validators";
 import {
   associateSolicitudWithCliente,
   createClienteFromSolicitudAndAssociate,
@@ -15,6 +13,11 @@ import {
   updateInternalSolicitudStatus,
 } from "@/lib/solicitudes";
 import { getFormValue } from "@/lib/utils";
+
+export type SolicitudDetailAction<State> = (
+  prevState: State,
+  formData: FormData,
+) => Promise<State>;
 
 export type UpdateSolicitudStatusActionState = {
   ok: boolean;
@@ -54,41 +57,17 @@ export type CreateSolicitudCommentActionState = {
   };
 };
 
-async function getSolicitudIdFromRequestPath(): Promise<string> {
-  const headersList = await headers();
-  const rawPath = headersList.get("next-url") ?? headersList.get("referer");
-
-  if (!rawPath) {
-    return "";
-  }
-
-  try {
-    const pathname = rawPath.startsWith("http")
-      ? new URL(rawPath).pathname
-      : rawPath;
-    const match = pathname.match(/^\/dashboard\/solicitudes\/([^/?#]+)/);
-
-    return match?.[1] ? decodeURIComponent(match[1]) : "";
-  } catch {
-    return "";
-  }
-}
-
-async function getSolicitudIdForComment(formData: FormData): Promise<string> {
-  const solicitudId = getFormValue(formData, "solicitud_id").trim();
-
-  if (isValidUuid(solicitudId)) {
-    return solicitudId;
-  }
-
-  return getSolicitudIdFromRequestPath();
+function revalidateSolicitudDetail(solicitudId: string) {
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/solicitudes");
+  revalidatePath(`/dashboard/solicitudes/${solicitudId}`);
 }
 
 export async function updateSolicitudStatusAction(
+  solicitudId: string,
   _prevState: UpdateSolicitudStatusActionState,
   formData: FormData,
 ): Promise<UpdateSolicitudStatusActionState> {
-  const solicitudId = getFormValue(formData, "solicitud_id");
   const status = getFormValue(formData, "status");
 
   const result = await updateInternalSolicitudStatus({
@@ -103,8 +82,7 @@ export async function updateSolicitudStatusAction(
     };
   }
 
-  revalidatePath("/dashboard/solicitudes");
-  revalidatePath(`/dashboard/solicitudes/${solicitudId}`);
+  revalidateSolicitudDetail(solicitudId);
 
   return {
     ok: true,
@@ -113,10 +91,10 @@ export async function updateSolicitudStatusAction(
 }
 
 export async function associateSolicitudClienteAction(
+  solicitudId: string,
   _prevState: AssociateSolicitudClienteActionState,
   formData: FormData,
 ): Promise<AssociateSolicitudClienteActionState> {
-  const solicitudId = getFormValue(formData, "solicitud_id");
   const clienteId = getFormValue(formData, "cliente_id");
   const result = await associateSolicitudWithCliente({
     solicitudId,
@@ -130,8 +108,7 @@ export async function associateSolicitudClienteAction(
     };
   }
 
-  revalidatePath("/dashboard/solicitudes");
-  revalidatePath(`/dashboard/solicitudes/${result.solicitudId}`);
+  revalidateSolicitudDetail(result.solicitudId);
   revalidatePath("/dashboard/clientes");
   revalidatePath(`/dashboard/clientes/${result.clienteId}`);
 
@@ -142,10 +119,13 @@ export async function associateSolicitudClienteAction(
 }
 
 export async function createClienteFromSolicitudAction(
+  solicitudId: string,
   _prevState: CreateClienteFromSolicitudActionState,
-  formData: FormData,
+  _formData: FormData,
 ): Promise<CreateClienteFromSolicitudActionState> {
-  const solicitudId = getFormValue(formData, "solicitud_id");
+  void _prevState;
+  void _formData;
+
   const result = await createClienteFromSolicitudAndAssociate(solicitudId);
 
   if (!result.ok) {
@@ -155,8 +135,7 @@ export async function createClienteFromSolicitudAction(
     };
   }
 
-  revalidatePath("/dashboard/solicitudes");
-  revalidatePath(`/dashboard/solicitudes/${result.solicitudId}`);
+  revalidateSolicitudDetail(result.solicitudId);
   revalidatePath("/dashboard/clientes");
   revalidatePath(`/dashboard/clientes/${result.clienteId}`);
 
@@ -167,10 +146,10 @@ export async function createClienteFromSolicitudAction(
 }
 
 export async function convertSolicitudToPedidoAction(
+  solicitudId: string,
   _prevState: ConvertSolicitudToPedidoActionState,
   formData: FormData,
 ): Promise<ConvertSolicitudToPedidoActionState> {
-  const solicitudId = getFormValue(formData, "solicitud_id");
   const title = getFormValue(formData, "title");
   const description = getFormValue(formData, "description");
   const priority = getFormValue(formData, "priority");
@@ -200,8 +179,7 @@ export async function convertSolicitudToPedidoAction(
     };
   }
 
-  revalidatePath("/dashboard/solicitudes");
-  revalidatePath(`/dashboard/solicitudes/${solicitudId}`);
+  revalidateSolicitudDetail(solicitudId);
   revalidatePath("/dashboard/pedidos");
   revalidatePath(`/dashboard/pedidos/${result.pedidoId}`);
 
@@ -214,10 +192,10 @@ export async function convertSolicitudToPedidoAction(
 }
 
 export async function createSolicitudCommentAction(
+  solicitudId: string,
   _prevState: CreateSolicitudCommentActionState,
   formData: FormData,
 ): Promise<CreateSolicitudCommentActionState> {
-  const solicitudId = await getSolicitudIdForComment(formData);
   const content = getFormValue(formData, "content");
   const result = await createSolicitudComment({
     solicitudId,
@@ -233,8 +211,7 @@ export async function createSolicitudCommentAction(
     };
   }
 
-  revalidatePath("/dashboard/solicitudes");
-  revalidatePath(`/dashboard/solicitudes/${solicitudId}`);
+  revalidateSolicitudDetail(solicitudId);
 
   return {
     ok: true,

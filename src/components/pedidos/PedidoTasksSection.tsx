@@ -1,9 +1,9 @@
 "use client";
 
 import { useActionState, useEffect, useRef } from "react";
-import {
-  createPedidoTaskAction,
-  type CreatePedidoTaskActionState,
+import type {
+  CreatePedidoTaskActionState,
+  PedidoDetailAction,
 } from "@/app/dashboard/pedidos/[id]/actions";
 import {
   canManagePedidoTasksInStatus,
@@ -13,10 +13,14 @@ import {
 import type { PedidoTask } from "@/lib/pedidos/list-pedido-tasks";
 import type { PedidoTasksProgress } from "@/lib/pedidos/task-progress";
 import { PedidoProgressBar } from "./PedidoProgressBar";
-import { PedidoTaskItem } from "./PedidoTaskItem";
+import {
+  PedidoTaskItem,
+  type PedidoTaskItemActions,
+} from "./PedidoTaskItem";
 
 type PedidoTasksSectionProps = {
-  pedidoId: string;
+  createTaskAction: PedidoDetailAction<CreatePedidoTaskActionState>;
+  taskActions: PedidoTaskItemActions;
   pedidoStatus: PedidoStatus;
   tasks: PedidoTask[];
   progress: PedidoTasksProgress;
@@ -32,7 +36,8 @@ const createInitialState: CreatePedidoTaskActionState = {
 };
 
 export function PedidoTasksSection({
-  pedidoId,
+  createTaskAction,
+  taskActions,
   pedidoStatus,
   tasks,
   progress,
@@ -40,7 +45,7 @@ export function PedidoTasksSection({
 }: PedidoTasksSectionProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction, pending] = useActionState(
-    createPedidoTaskAction,
+    createTaskAction,
     createInitialState,
   );
   const titleError = state.fieldErrors?.title;
@@ -89,8 +94,6 @@ export function PedidoTasksSection({
           aria-busy={pending}
           className="mt-6 border-t border-zinc-200 pt-5"
         >
-          <input type="hidden" name="pedido_id" value={pedidoId} />
-
           {state.message ? (
             <div
               className={
@@ -161,9 +164,9 @@ export function PedidoTasksSection({
           {tasks.map((task) => (
             <PedidoTaskItem
               key={task.id}
-              pedidoId={pedidoId}
               task={task}
               canManage={canManageTasks}
+              actions={taskActions}
             />
           ))}
         </ul>

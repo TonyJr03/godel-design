@@ -148,7 +148,7 @@ inserción, actualización y eliminación aplican la misma regla mediante
 `private.can_access_pedido`, por lo que esta restricción no abre permisos ni
 impide consultar tareas existentes.
 
-La UI no permite seleccionar `task_type`, `target_quantity`, autorías, fechas técnicas ni `sort_order`. Solo envía `pedido_id`, `task_id`, `title` o `completed_quantity` según el formulario, y las Server Actions delegan la validación en servicios server-side.
+La UI no permite seleccionar `task_type`, `target_quantity`, autorías, fechas técnicas ni `sort_order`. La página enlaza `pedido_id` a las Server Actions; los formularios solo envían `task_id`, `title` o `completed_quantity` según la operación, y las actions delegan la validación en servicios server-side.
 
 ## Listado interno
 
@@ -190,7 +190,7 @@ Archivos principales:
 
 El detalle de pedido permite ver y agregar comentarios internos asociados al pedido. Los comentarios son visibles solo para usuarios internos con acceso al pedido: `admin` y `supervisor` en cualquier pedido, y `trabajador` solo en pedidos asignados.
 
-El formulario solo envía `pedido_id` y `content`. El autor se toma server-side desde el perfil autenticado y se guarda en `pedido_comentarios.author_id`. No se acepta autor, fecha ni otros campos técnicos desde el formulario.
+La página enlaza `pedido_id` a la action y el formulario solo envía `content`. El autor se toma server-side desde el perfil autenticado y se guarda en `pedido_comentarios.author_id`. No se acepta autor, fecha ni otros campos técnicos desde el formulario.
 
 Los comentarios son append-only en el alcance inicial. No hay edición, eliminación, menciones, notificaciones ni adjuntos.
 
@@ -238,7 +238,7 @@ Mapeo de estado a categoría:
 
 Los archivos enviados por el cliente en la solicitud pública también pueden aparecer en el pedido generado como `cliente_solicitud`. En ese caso se muestran como “Archivo enviado por cliente”. No se permite subir esa categoría desde el formulario interno de pedido; solo se hereda al convertir una solicitud en pedido.
 
-El formulario interno envía únicamente `pedido_id` y `file`. La descarga se realiza mediante URL firmada de corta duración. No se usan URLs públicas permanentes, no se aceptan categoría, `visibility`, `file_path`, bucket ni otros metadatos técnicos desde formularios y no se usa service role key. No se implementa eliminación de archivos en esta fase.
+La página enlaza `pedido_id` a la action y el formulario interno envía únicamente `file`. La descarga se realiza mediante URL firmada de corta duración. No se usan URLs públicas permanentes, no se aceptan categoría, `visibility`, `file_path`, bucket ni otros metadatos técnicos desde formularios y no se usa service role key. No se implementa eliminación de archivos en esta fase.
 
 Desde Fase 11.7B, la conversión de una solicitud a pedido registra `convertida_a_pedido` en `solicitud_historial`. Ese evento no duplica `estado_cambiado` cuando la misma operación marca la solicitud como `convertida`, y la herencia de archivos no genera eventos nuevos de archivo.
 
@@ -267,7 +267,7 @@ Archivos principales:
 - Componente: `src/components/solicitudes/SolicitudConvertPedidoForm.tsx`
 - Action: `src/app/dashboard/solicitudes/[id]/actions.ts`
 
-La conversión requiere `solicitudes.manage` y `pedidos.manage`. Solo se permite convertir solicitudes con estado `aprobada` y `cliente_id` asociado. El formulario envía únicamente `solicitud_id`, `title`, `description`, `priority` y `estimated_delivery_date`.
+La conversión requiere `solicitudes.manage` y `pedidos.manage`. Solo se permite convertir solicitudes con estado `aprobada` y `cliente_id` asociado. La página enlaza `solicitud_id` a la action y el formulario envía únicamente `title`, `description`, `priority` y `estimated_delivery_date`.
 
 `createPedidoFromSolicitud` conserva la validación de UX y la comprobación de
 permisos, pero la escritura se ejecuta exclusivamente mediante
@@ -317,7 +317,7 @@ Archivos principales:
 - Estados: `src/lib/pedidos/status.ts`
 - RPC: `public.actualizar_estado_pedido`
 
-La action solo acepta `pedido_id` y `status`. El estado se valida server-side contra el enum real simplificado. La actualización usa la RPC segura `public.actualizar_estado_pedido`, que evita abrir un `UPDATE` amplio sobre `pedidos` para trabajadores.
+La página enlaza `pedido_id` a la action, que acepta únicamente `status` desde el formulario. El estado se valida server-side contra el enum real simplificado. La actualización usa la RPC segura `public.actualizar_estado_pedido`, que evita abrir un `UPDATE` amplio sobre `pedidos` para trabajadores.
 
 La RPC bloquea la fila del pedido con `FOR UPDATE` antes de leer su estado. Dos
 transiciones simultáneas quedan serializadas: la segunda petición valida contra
@@ -373,8 +373,11 @@ Aclaraciones:
 
 - no se usa service role key;
 - los componentes cliente no consultan Supabase directamente;
-- los formularios de asignación solo envían `pedido_id` y `assigned_profile_id`;
-- el formulario de comentario solo envía `pedido_id` y `content`;
+- la página enlaza `pedido_id` a todas las actions del detalle;
+- los formularios de asignación solo envían `assigned_profile_id`;
+- el formulario de comentario solo envía `content`;
+- los formularios de tareas conservan `task_id` cuando actúan sobre una tarea existente;
+- ninguna action obtiene el pedido desde `referer`, `next-url` u otra cabecera;
 - trabajadores no pueden crear, convertir, asignar ni remover personal;
 - trabajadores no acceden a los módulos generales de clientes o solicitudes, aunque RLS permite leer datos relacionados con pedidos asignados.
 

@@ -1,11 +1,10 @@
 "use client";
 
 import { useActionState } from "react";
-import {
-  assignPedidoWorkerAction,
-  removePedidoWorkerAction,
-  type AssignPedidoWorkerActionState,
-  type RemovePedidoWorkerActionState,
+import type {
+  AssignPedidoWorkerActionState,
+  PedidoDetailAction,
+  RemovePedidoWorkerActionState,
 } from "@/app/dashboard/pedidos/[id]/actions";
 import type { InternalPedidoDetailTrabajador } from "@/lib/pedidos";
 import type { AssignableWorker } from "@/lib/pedidos/list-assignable-workers";
@@ -13,7 +12,8 @@ import { ROLE_LABELS } from "@/lib/permissions";
 import { formatAppDateTime } from "@/lib/utils";
 
 type PedidoWorkerAssignmentFormProps = {
-  pedidoId: string;
+  assignWorkerAction: PedidoDetailAction<AssignPedidoWorkerActionState>;
+  removeWorkerAction: PedidoDetailAction<RemovePedidoWorkerActionState>;
   asignaciones: InternalPedidoDetailTrabajador[];
   canManage: boolean;
   trabajadores: AssignableWorker[];
@@ -41,18 +41,19 @@ function getAssignedUserName(
 }
 
 export function PedidoWorkerAssignmentForm({
-  pedidoId,
+  assignWorkerAction,
+  removeWorkerAction,
   asignaciones,
   canManage,
   trabajadores,
   loadAssignableError,
 }: PedidoWorkerAssignmentFormProps) {
   const [assignState, assignFormAction, assigning] = useActionState(
-    assignPedidoWorkerAction,
+    assignWorkerAction,
     initialAssignState,
   );
   const [removeState, removeFormAction, removing] = useActionState(
-    removePedidoWorkerAction,
+    removeWorkerAction,
     initialRemoveState,
   );
   const assignedProfileError = assignState.fieldErrors?.assigned_profile_id;
@@ -136,7 +137,6 @@ export function PedidoWorkerAssignmentForm({
 
                 {canManage ? (
                   <form action={removeFormAction}>
-                    <input type="hidden" name="pedido_id" value={pedidoId} />
                     <input
                       type="hidden"
                       name="assigned_profile_id"
@@ -167,8 +167,6 @@ export function PedidoWorkerAssignmentForm({
           aria-busy={assigning}
           className="mt-6 border-t border-zinc-200 pt-5"
         >
-          <input type="hidden" name="pedido_id" value={pedidoId} />
-
           {loadAssignableError ? (
             <p className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-900">
               {loadAssignableError}

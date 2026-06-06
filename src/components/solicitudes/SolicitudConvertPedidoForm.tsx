@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
-import {
-  convertSolicitudToPedidoAction,
-  type ConvertSolicitudToPedidoActionState,
+import type {
+  ConvertSolicitudToPedidoActionState,
+  SolicitudDetailAction,
 } from "@/app/dashboard/solicitudes/[id]/actions";
 import { PEDIDO_PRIORITY_LABELS } from "@/lib/pedidos/labels";
 import { PEDIDO_PRIORITIES } from "@/lib/pedidos/status";
@@ -13,7 +13,7 @@ import { getTodayDateInputValue } from "@/lib/utils";
 import type { Enums } from "@/types/database";
 
 type SolicitudConvertPedidoFormProps = {
-  solicitudId: string;
+  convertAction: SolicitudDetailAction<ConvertSolicitudToPedidoActionState>;
   status: Enums<"solicitud_estado">;
   clienteId: string | null;
   convertedOrderId: string | null;
@@ -34,7 +34,7 @@ function OptionalMark() {
 }
 
 export function SolicitudConvertPedidoForm({
-  solicitudId,
+  convertAction,
   status,
   clienteId,
   convertedOrderId,
@@ -43,7 +43,7 @@ export function SolicitudConvertPedidoForm({
   solicitudDesiredDate,
 }: SolicitudConvertPedidoFormProps) {
   const [state, formAction, pending] = useActionState(
-    convertSolicitudToPedidoAction,
+    convertAction,
     initialState,
   );
   const currentPedidoId = state.pedidoId ?? convertedOrderId;
@@ -114,7 +114,6 @@ export function SolicitudConvertPedidoForm({
         </p>
       ) : (
         <form action={formAction} aria-busy={pending} className="mt-5 space-y-5">
-          <input type="hidden" name="solicitud_id" value={solicitudId} />
           <div className="border-l-2 border-zinc-200 pl-4 text-sm leading-6 text-zinc-700">
             <p>
               <span className="font-semibold text-zinc-900">

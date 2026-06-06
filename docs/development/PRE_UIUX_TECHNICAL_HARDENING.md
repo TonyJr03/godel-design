@@ -4,7 +4,7 @@
 
 - Etapa: preparación técnica previa a la Fase 14.
 - Alcance: diagnóstico, decisiones arquitectónicas y plan de trabajo.
-- Estado actual: Fase 13.8E completada; siguiente subfase 13.8F.
+- Estado actual: Fase 13.8F completada; siguiente subfase 13.8G.
 - Fecha de creación: 5 de junio de 2026.
 
 ## 1. Objetivo del hardening
@@ -478,6 +478,8 @@ limpieza de objetos sin metadata.
 
 ### 13.8F — Limpieza de actions, IDs de ruta y dependencia de referer
 
+**Estado: completada el 6 de junio de 2026.**
+
 #### Objetivo
 
 Eliminar dependencias frágiles para obtener IDs críticos.
@@ -496,6 +498,23 @@ Eliminar dependencias frágiles para obtener IDs críticos.
 
 Las mutaciones no deben depender de `referer` o `next-url` para identificar la
 entidad objetivo.
+
+#### Implementación
+
+Las páginas de detalle de pedido y solicitud validan la entidad cargada y
+enlazan su UUID a cada Server Action antes de pasarlo a los componentes cliente.
+Los formularios ya no envían `pedido_id` ni `solicitud_id`, y las actions no
+intentan reconstruirlos desde `referer`, `next-url` u otras cabeceras.
+
+Los identificadores secundarios necesarios para cada operación se mantienen en
+el formulario: por ejemplo `task_id`, `assigned_profile_id` y `cliente_id`. Las
+actions siguen siendo una capa fina y delegan validación, autorización y
+mutación en los servicios o RPC existentes. El archivo de actions de cada
+detalle se conserva unido porque dividirlo no reducía complejidad real.
+
+Todas las mutaciones de detalle revalidan `/dashboard`, el listado de la entidad
+y la ruta concreta. Esta subfase no cambia esquema, RLS, RPCs ni el uso del
+cliente normal de Supabase.
 
 ### 13.8G — Limpieza documental final
 

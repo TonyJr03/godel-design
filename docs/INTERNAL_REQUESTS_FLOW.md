@@ -114,7 +114,8 @@ La escritura completa se delega en la RPC transaccional
 las validaciones de autorización, estado, cliente, doble conversión y fecha de
 negocio, y confirma en conjunto la creación del pedido, la actualización de la
 solicitud y la herencia de archivos. La Server Action solo lee campos
-permitidos, delega y revalida rutas.
+permitidos; la página enlaza `solicitud_id`, y la action delega y revalida
+rutas.
 
 ## Archivos de solicitud
 
@@ -152,7 +153,7 @@ El cambio de estado:
 - actualiza `status`;
 - actualiza `reviewed_by`;
 - registra `estado_cambiado` mediante el trigger de historial existente cuando el estado realmente cambia;
-- revalida `/dashboard/solicitudes` y `/dashboard/solicitudes/[id]`;
+- revalida `/dashboard`, `/dashboard/solicitudes` y `/dashboard/solicitudes/[id]`;
 - no usa service role key.
 
 La RPC es la autoridad de transiciones. La UI solo muestra las opciones permitidas para orientar al usuario, pero los saltos inválidos también fallan server-side.
@@ -169,7 +170,19 @@ Estas tablas son internas y quedan reservadas para `admin` y `supervisor`. El ro
 
 Los comentarios son append-only inicialmente: no hay actualización ni eliminación. El historial también es append-only.
 
-La Fase 11.4 implementa comentarios internos en `/dashboard/solicitudes/[id]`. `admin` y `supervisor` pueden ver y agregar comentarios; el autor se toma del usuario autenticado en servidor mediante `solicitud_comentarios.author_id`. El formulario solo envía `solicitud_id` y `content`, no acepta autor ni fecha, y no hay edición ni eliminación.
+La Fase 11.4 implementa comentarios internos en `/dashboard/solicitudes/[id]`. `admin` y `supervisor` pueden ver y agregar comentarios; el autor se toma del usuario autenticado en servidor mediante `solicitud_comentarios.author_id`. La página enlaza `solicitud_id` a la action y el formulario solo envía `content`; no acepta autor ni fecha, y no hay edición ni eliminación.
+
+## Contrato de actions del detalle
+
+La página server-side carga y valida la solicitud antes de enlazar
+`solicitud_id` a las actions de estado, cliente, conversión y comentarios. Los
+formularios no repiten el ID principal ni las actions lo reconstruyen desde
+`referer`, `next-url` u otra cabecera.
+
+Los IDs secundarios siguen siendo entradas explícitas cuando la operación los
+necesita, como `cliente_id` al asociar un cliente existente. Las actions leen
+solo campos permitidos, delegan autorización y escritura en servicios o RPCs,
+y revalidan dashboard, listado y detalle.
 
 La Fase 11.6 implementa historial visible en `/dashboard/solicitudes/[id]`. `admin` y `supervisor` pueden ver los eventos existentes en `solicitud_historial`; el rol `trabajador` no accede al módulo de solicitudes. La sección muestra tipo de evento, resumen, actor, rol y fecha, sin edición ni eliminación.
 

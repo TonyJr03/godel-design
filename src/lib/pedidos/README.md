@@ -36,7 +36,7 @@ El número de pedido (`order_number`) no se acepta desde formularios ni se gener
 
 `createPedidoFromSolicitud` convierte una solicitud aprobada en pedido desde el detalle de solicitud. Conserva la validación de input y permisos, pero no escribe tablas directamente.
 
-La action del detalle de solicitud lee únicamente `solicitud_id`, `title`, `description`, `priority` y `estimated_delivery_date`. El servicio requiere `solicitudes.manage` y `pedidos.manage`, valida `title`, `description`, `priority` y `estimated_delivery_date`, y delega en `public.convertir_solicitud_a_pedido`.
+La página del detalle enlaza `solicitud_id` a la action; el formulario envía únicamente `title`, `description`, `priority` y `estimated_delivery_date`. El servicio requiere `solicitudes.manage` y `pedidos.manage`, valida el UUID enlazado y los campos editables, y delega en `public.convertir_solicitud_a_pedido`.
 
 La RPC bloquea la solicitud con `FOR UPDATE`, exige usuario activo `admin` o
 `supervisor`, estado `aprobada`, cliente asociado y ausencia de conversiones
@@ -60,7 +60,7 @@ Cuando un pedido muestra datos de su solicitud origen, el tipo de servicio debe 
 
 `/dashboard/pedidos/[id]` incluye `PedidoStatusForm`.
 
-La action `updatePedidoStatusAction` lee únicamente `pedido_id` y `status`, y delega en `updateInternalPedidoStatus`. El servicio valida `pedidos.change_status`, UUID y estado real, verifica acceso al pedido y usa la RPC segura existente `public.actualizar_estado_pedido`.
+La página del detalle enlaza `pedido_id` a `updatePedidoStatusAction`; el formulario envía únicamente `status`. La action delega en `updateInternalPedidoStatus`, que valida `pedidos.change_status`, UUID y estado real, verifica acceso al pedido y usa la RPC segura existente `public.actualizar_estado_pedido`.
 
 Los estados vigentes de pedido son `creado`, `solicitud_recibida`, `en_revision`, `en_produccion`, `listo_entrega`, `entregado` y `cancelado`. La RPC es la autoridad para validar transiciones: `creado` avanza a `en_revision` o `cancelado`; `solicitud_recibida` avanza a `en_revision` o `cancelado`; `en_revision` avanza a `en_produccion` o `cancelado`; `en_produccion` avanza a `listo_entrega` o `cancelado`; `listo_entrega` avanza a `entregado`, vuelve a `en_produccion` o pasa a `cancelado`.
 
@@ -105,6 +105,10 @@ Los servicios server-side disponibles son `listPedidoTasks`, `createPedidoTask`,
 
 `/dashboard/pedidos/[id]` integra `PedidoTasksSection` para crear, editar, eliminar, completar, reabrir y actualizar progreso de tareas desde formularios con Server Actions. El usuario no selecciona el tipo: el sistema lo detecta desde el título y los servicios mantienen los campos técnicos bajo control.
 
+La página enlaza `pedido_id` a todas las actions de tareas. Los formularios no
+lo repiten; conservan `task_id` como identificador secundario cuando la
+operación actúa sobre una tarea existente.
+
 En `listo_entrega`, `entregado` y `cancelado`, la sección conserva tareas y
 progreso en modo lectura y oculta todos los controles de mutación. Para corregir
 tareas de un pedido `listo_entrega`, primero hay que devolverlo a
@@ -115,9 +119,9 @@ efectiva.
 
 `/dashboard/pedidos/[id]` incluye `PedidoWorkerAssignmentForm` para mostrar el personal asignado. Los usuarios con `pedidos.manage` ven controles para agregar y remover asignaciones; `trabajador` lo ve en modo lectura.
 
-La action `assignPedidoWorkerAction` lee únicamente `pedido_id` y `assigned_profile_id`, y delega en `assignInternalPedidoWorker`.
+La página enlaza `pedido_id` a `assignPedidoWorkerAction`; el formulario envía únicamente `assigned_profile_id` y la action delega en `assignInternalPedidoWorker`.
 
-La action `removePedidoWorkerAction` lee únicamente `pedido_id` y `assigned_profile_id`, y delega en `removeInternalPedidoWorker` para remover una asignación concreta.
+La página enlaza `pedido_id` a `removePedidoWorkerAction`; el formulario conserva `assigned_profile_id` para identificar la asignación concreta y la action delega en `removeInternalPedidoWorker`.
 
 La UI de detalle muestra múltiples usuarios asignados con su rol visible. El selector de alta oculta usuarios ya asignados cuando están en la lista de personal asignable; la restricción única `(pedido_id, assigned_profile_id)` y el servicio server-side siguen evitando duplicados.
 
@@ -155,7 +159,20 @@ No se creó RPC nueva porque las policies existentes ya restringen inserción, a
 
 `createPedidoComment` valida UUID, perfil interno, permiso `pedidos.view`, acceso al pedido y content. El comentario es obligatorio, se guarda con `content` recortado y tiene límite de 2000 caracteres.
 
-La action `createPedidoCommentAction` lee únicamente `pedido_id` y `content`. No acepta `author_id`, autor ni fechas desde el formulario. El autor se toma del perfil autenticado y se guarda como `pedido_comentarios.author_id`.
+La página enlaza `pedido_id` a `createPedidoCommentAction` y el formulario envía únicamente `content`. No acepta `author_id`, autor ni fechas. El autor se toma del perfil autenticado y se guarda como `pedido_comentarios.author_id`.
+
+## Contrato de actions del detalle
+
+Las Server Actions de `/dashboard/pedidos/[id]` reciben `pedido_id` enlazado
+desde la página server-side después de cargar y validar el pedido. Ninguna
+mutación obtiene el ID desde `FormData`, `referer`, `next-url` u otra cabecera.
+Los IDs secundarios necesarios para la operación, como `task_id` y
+`assigned_profile_id`, sí permanecen en el formulario.
+
+Las actions son adaptadores finos: leen solo los campos editables, delegan la
+autorización y la mutación en servicios server-side o RPCs, y revalidan
+`/dashboard`, `/dashboard/pedidos` y el detalle. Se mantienen en un único
+archivo porque separarlas no reduciría complejidad.
 
 Los comentarios son append-only. No hay edición, eliminación, menciones, notificaciones, adjuntos ni registro automático adicional de historial en esta subfase.
 

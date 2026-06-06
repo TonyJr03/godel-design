@@ -109,8 +109,9 @@ revierten.
 
 `createClienteFromSolicitudAndAssociate` crea un cliente básico desde los datos ya guardados en la solicitud (`client_name`, `client_phone`, `client_email`) y lo asocia automáticamente. Requiere `solicitudes.manage` y `clientes.manage`, conserva la validación de UX y delega la escritura en la RPC transaccional `public.crear_cliente_desde_solicitud`.
 
-La action solo envía `solicitud_id`; no acepta nombre, teléfono, correo, notas,
-actor ni otros campos técnicos. La RPC bloquea la solicitud con `FOR UPDATE`,
+La página enlaza `solicitud_id` a la action, cuyo formulario no envía campos
+editables; no acepta nombre, teléfono, correo, notas, actor ni otros campos
+técnicos. La RPC bloquea la solicitud con `FOR UPDATE`,
 valida de nuevo usuario activo, rol, asociación previa y datos mínimos, y
 confirma o revierte en conjunto el cliente, el historial y la asociación.
 
@@ -129,7 +130,20 @@ de reemplazar explícitamente la relación.
 
 `createSolicitudComment` agrega comentarios internos append-only. Requiere `solicitudes.manage`, valida UUID, confirma acceso a la solicitud, valida content no vacío con máximo de 2000 caracteres e inserta en `solicitud_comentarios` usando `author_id = profile.id`.
 
-La action `createSolicitudCommentAction` lee únicamente `solicitud_id` y `content`. No acepta autor ni fechas desde el formulario. No hay edición, eliminación, menciones, notificaciones, adjuntos ni registro automático de historial en esta subfase.
+La página enlaza `solicitud_id` a `createSolicitudCommentAction` y el formulario envía únicamente `content`. No acepta autor ni fechas. No hay edición, eliminación, menciones, notificaciones, adjuntos ni registro automático de historial en esta subfase.
+
+## Contrato de actions del detalle
+
+Las Server Actions de `/dashboard/solicitudes/[id]` reciben `solicitud_id`
+enlazado desde la página server-side después de cargar y validar la solicitud.
+Ninguna mutación obtiene el ID desde `FormData`, `referer`, `next-url` u otra
+cabecera. Los IDs secundarios necesarios para cada operación, como
+`cliente_id`, permanecen en el formulario.
+
+Las actions siguen siendo adaptadores finos: leen solo campos editables,
+delegan autorización y mutación en servicios server-side o RPCs, y revalidan
+`/dashboard`, `/dashboard/solicitudes` y el detalle. Se mantienen juntas porque
+separarlas no reduciría complejidad real.
 
 ## Historial visible
 

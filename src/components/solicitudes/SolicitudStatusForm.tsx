@@ -1,9 +1,9 @@
 "use client";
 
 import { useActionState } from "react";
-import {
-  updateSolicitudStatusAction,
-  type UpdateSolicitudStatusActionState,
+import type {
+  SolicitudDetailAction,
+  UpdateSolicitudStatusActionState,
 } from "@/app/dashboard/solicitudes/[id]/actions";
 import {
   getAllowedSolicitudStatusTransitions,
@@ -13,7 +13,7 @@ import { SOLICITUD_STATUS_LABELS } from "@/lib/solicitudes/labels";
 import type { Enums } from "@/types/database";
 
 type SolicitudStatusFormProps = {
-  solicitudId: string;
+  updateStatusAction: SolicitudDetailAction<UpdateSolicitudStatusActionState>;
   currentStatus: Enums<"solicitud_estado">;
 };
 
@@ -51,11 +51,11 @@ function getClosedStatusMessage(status: Enums<"solicitud_estado">): string {
 }
 
 export function SolicitudStatusForm({
-  solicitudId,
+  updateStatusAction,
   currentStatus,
 }: SolicitudStatusFormProps) {
   const [state, formAction, pending] = useActionState(
-    updateSolicitudStatusAction,
+    updateStatusAction,
     initialState,
   );
   const transitionOptions = getAllowedSolicitudStatusTransitions(currentStatus);
@@ -74,8 +74,6 @@ export function SolicitudStatusForm({
 
   return (
     <form action={formAction} aria-busy={pending} className="space-y-4">
-      <input type="hidden" name="solicitud_id" value={solicitudId} />
-
       <ActionMessage state={state} />
 
       {currentStatus === "aprobada" ? (

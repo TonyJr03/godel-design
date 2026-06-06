@@ -1,23 +1,27 @@
 "use client";
 
 import { useActionState } from "react";
-import {
-  completePedidoTaskAction,
-  deletePedidoTaskAction,
-  reopenPedidoTaskAction,
-  updatePedidoTaskProgressAction,
-  updatePedidoTaskTitleAction,
-  type DeletePedidoTaskActionState,
-  type TogglePedidoTaskCompletionActionState,
-  type UpdatePedidoTaskProgressActionState,
-  type UpdatePedidoTaskTitleActionState,
+import type {
+  DeletePedidoTaskActionState,
+  PedidoDetailAction,
+  TogglePedidoTaskCompletionActionState,
+  UpdatePedidoTaskProgressActionState,
+  UpdatePedidoTaskTitleActionState,
 } from "@/app/dashboard/pedidos/[id]/actions";
 import type { PedidoTask } from "@/lib/pedidos/list-pedido-tasks";
 
+export type PedidoTaskItemActions = {
+  complete: PedidoDetailAction<TogglePedidoTaskCompletionActionState>;
+  delete: PedidoDetailAction<DeletePedidoTaskActionState>;
+  reopen: PedidoDetailAction<TogglePedidoTaskCompletionActionState>;
+  updateProgress: PedidoDetailAction<UpdatePedidoTaskProgressActionState>;
+  updateTitle: PedidoDetailAction<UpdatePedidoTaskTitleActionState>;
+};
+
 type PedidoTaskItemProps = {
-  pedidoId: string;
   task: PedidoTask;
   canManage: boolean;
+  actions: PedidoTaskItemActions;
 };
 
 const titleInitialState: UpdatePedidoTaskTitleActionState = {
@@ -68,40 +72,29 @@ function ActionMessage({
   );
 }
 
-function TaskHiddenFields({
-  pedidoId,
-  taskId,
-}: {
-  pedidoId: string;
-  taskId: string;
-}) {
-  return (
-    <>
-      <input type="hidden" name="pedido_id" value={pedidoId} />
-      <input type="hidden" name="task_id" value={taskId} />
-    </>
-  );
+function TaskHiddenFields({ taskId }: { taskId: string }) {
+  return <input type="hidden" name="task_id" value={taskId} />;
 }
 
 export function PedidoTaskItem({
-  pedidoId,
   task,
   canManage,
+  actions,
 }: PedidoTaskItemProps) {
   const [titleState, titleAction, titlePending] = useActionState(
-    updatePedidoTaskTitleAction,
+    actions.updateTitle,
     titleInitialState,
   );
   const [progressState, progressAction, progressPending] = useActionState(
-    updatePedidoTaskProgressAction,
+    actions.updateProgress,
     progressInitialState,
   );
   const [completionState, completionAction, completionPending] = useActionState(
-    task.is_completed ? reopenPedidoTaskAction : completePedidoTaskAction,
+    task.is_completed ? actions.reopen : actions.complete,
     completionInitialState,
   );
   const [deleteState, deleteAction, deletePending] = useActionState(
-    deletePedidoTaskAction,
+    actions.delete,
     deleteInitialState,
   );
   const isQuantified = task.task_type === "cuantificada";
@@ -142,7 +135,7 @@ export function PedidoTaskItem({
           <div className="flex flex-wrap gap-2">
             {!isQuantified || task.is_completed ? (
               <form action={completionAction} aria-busy={completionPending}>
-                <TaskHiddenFields pedidoId={pedidoId} taskId={task.id} />
+                <TaskHiddenFields taskId={task.id} />
                 <button
                   type="submit"
                   disabled={completionPending}
@@ -154,7 +147,7 @@ export function PedidoTaskItem({
             ) : null}
 
             <form action={deleteAction} aria-busy={deletePending}>
-              <TaskHiddenFields pedidoId={pedidoId} taskId={task.id} />
+              <TaskHiddenFields taskId={task.id} />
               <button
                 type="submit"
                 disabled={deletePending}
@@ -180,7 +173,7 @@ export function PedidoTaskItem({
           aria-busy={progressPending}
           className="mt-4 border-t border-zinc-200 pt-4"
         >
-          <TaskHiddenFields pedidoId={pedidoId} taskId={task.id} />
+          <TaskHiddenFields taskId={task.id} />
           <ActionMessage state={progressState} />
           <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
             <div className="max-w-40">
@@ -235,7 +228,7 @@ export function PedidoTaskItem({
           aria-busy={titlePending}
           className="mt-4 border-t border-zinc-200 pt-4"
         >
-          <TaskHiddenFields pedidoId={pedidoId} taskId={task.id} />
+          <TaskHiddenFields taskId={task.id} />
           <ActionMessage state={titleState} />
           <div className="mt-3 flex flex-col gap-3 lg:flex-row lg:items-end">
             <div className="flex-1">

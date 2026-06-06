@@ -2,16 +2,20 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
-import {
-  associateSolicitudClienteAction,
-  createClienteFromSolicitudAction,
-  type AssociateSolicitudClienteActionState,
-  type CreateClienteFromSolicitudActionState,
+import type {
+  AssociateSolicitudClienteActionState,
+  CreateClienteFromSolicitudActionState,
+  SolicitudDetailAction,
 } from "@/app/dashboard/solicitudes/[id]/actions";
 import type { InternalCliente, InternalClienteDetail } from "@/lib/clientes";
 
 type SolicitudClienteFormProps = {
-  solicitudId: string;
+  associateClienteAction: SolicitudDetailAction<
+    AssociateSolicitudClienteActionState
+  >;
+  createClienteAction: SolicitudDetailAction<
+    CreateClienteFromSolicitudActionState
+  >;
   clienteAsociado: InternalClienteDetail | null;
   clientesDisponibles: InternalCliente[];
   clientesLoadError?: string | null;
@@ -28,17 +32,18 @@ const initialCreateState: CreateClienteFromSolicitudActionState = {
 };
 
 export function SolicitudClienteForm({
-  solicitudId,
+  associateClienteAction,
+  createClienteAction,
   clienteAsociado,
   clientesDisponibles,
   clientesLoadError,
 }: SolicitudClienteFormProps) {
   const [associateState, associateAction, associatePending] = useActionState(
-    associateSolicitudClienteAction,
+    associateClienteAction,
     initialAssociateState,
   );
   const [createState, createAction, createPending] = useActionState(
-    createClienteFromSolicitudAction,
+    createClienteAction,
     initialCreateState,
   );
   const hasClientes = clientesDisponibles.length > 0;
@@ -72,8 +77,6 @@ export function SolicitudClienteForm({
 
       <div className="mt-6 grid gap-5 lg:grid-cols-2">
         <form action={associateAction} aria-busy={associatePending}>
-          <input type="hidden" name="solicitud_id" value={solicitudId} />
-
           <label
             htmlFor="cliente_id"
             className="text-sm font-medium text-zinc-900"
@@ -131,7 +134,6 @@ export function SolicitudClienteForm({
         </form>
 
         <form action={createAction} aria-busy={createPending}>
-          <input type="hidden" name="solicitud_id" value={solicitudId} />
           <h3 className="text-sm font-semibold text-zinc-950">
             Crear desde la solicitud
           </h3>

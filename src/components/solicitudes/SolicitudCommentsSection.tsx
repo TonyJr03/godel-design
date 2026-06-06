@@ -1,16 +1,16 @@
 "use client";
 
 import { useActionState, useEffect, useRef } from "react";
-import {
-  createSolicitudCommentAction,
-  type CreateSolicitudCommentActionState,
+import type {
+  CreateSolicitudCommentActionState,
+  SolicitudDetailAction,
 } from "@/app/dashboard/solicitudes/[id]/actions";
 import { ROLE_SHORT_LABELS } from "@/lib/permissions";
 import type { SolicitudComment } from "@/lib/solicitudes";
 import { formatAppDateTime } from "@/lib/utils";
 
 type SolicitudCommentsSectionProps = {
-  solicitudId: string;
+  createCommentAction: SolicitudDetailAction<CreateSolicitudCommentActionState>;
   comments: SolicitudComment[];
   loadError?: string;
 };
@@ -34,13 +34,13 @@ function getAuthorRole(comment: SolicitudComment): string {
 }
 
 export function SolicitudCommentsSection({
-  solicitudId,
+  createCommentAction,
   comments,
   loadError,
 }: SolicitudCommentsSectionProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction, pending] = useActionState(
-    createSolicitudCommentAction,
+    createCommentAction,
     initialState,
   );
   const contenidoError = state.fieldErrors?.content;
@@ -110,8 +110,6 @@ export function SolicitudCommentsSection({
         aria-busy={pending}
         className="mt-6 border-t border-zinc-200 pt-5"
       >
-        <input type="hidden" name="solicitud_id" value={solicitudId} />
-
         {state.message ? (
           <div
             className={

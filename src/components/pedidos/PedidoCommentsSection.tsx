@@ -1,16 +1,16 @@
 "use client";
 
 import { useActionState, useEffect, useRef } from "react";
-import {
-  createPedidoCommentAction,
-  type CreatePedidoCommentActionState,
+import type {
+  CreatePedidoCommentActionState,
+  PedidoDetailAction,
 } from "@/app/dashboard/pedidos/[id]/actions";
 import type { PedidoComment } from "@/lib/pedidos";
 import { ROLE_SHORT_LABELS } from "@/lib/permissions";
 import { formatAppDateTime } from "@/lib/utils";
 
 type PedidoCommentsSectionProps = {
-  pedidoId: string;
+  createCommentAction: PedidoDetailAction<CreatePedidoCommentActionState>;
   comments: PedidoComment[];
   loadError?: string;
 };
@@ -34,13 +34,13 @@ function getAuthorRole(comment: PedidoComment): string {
 }
 
 export function PedidoCommentsSection({
-  pedidoId,
+  createCommentAction,
   comments,
   loadError,
 }: PedidoCommentsSectionProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction, pending] = useActionState(
-    createPedidoCommentAction,
+    createCommentAction,
     initialState,
   );
   const contenidoError = state.fieldErrors?.content;
@@ -110,8 +110,6 @@ export function PedidoCommentsSection({
         aria-busy={pending}
         className="mt-6 border-t border-zinc-200 pt-5"
       >
-        <input type="hidden" name="pedido_id" value={pedidoId} />
-
         {state.message ? (
           <div
             className={
