@@ -15,15 +15,18 @@ El módulo de pedidos incluye actualmente:
 - conversión de solicitud aprobada a pedido;
 - cambio de estado de pedido;
 - asignación de personal interno;
+- tareas y progreso operativo;
 - archivos privados internos del pedido;
 - comentarios internos de pedido;
+- historial automático visible;
+- búsqueda textual y filtro de estado;
 - visibilidad limitada para trabajadores asignados.
 
 Todavía no incluye:
 
 - edición general de pedido;
 - eliminación de pedido;
-- historial avanzado de cambios;
+- filtros o reportes avanzados sobre historial;
 - notificaciones;
 - reportes o estadísticas;
 - responsables funcionales avanzados por pedido.
@@ -212,6 +215,8 @@ Desde Fase 11.7A, el historial de pedidos registra automáticamente:
 - `trabajador_asignado` al asignar personal;
 - `trabajador_removido` al remover personal;
 - `archivo_subido` al subir archivos propios de pedido;
+- eventos de creación, actualización, eliminación, completado, reapertura y
+  progreso de tareas;
 - cambios de estado mediante la RPC existente `public.actualizar_estado_pedido`.
 
 No se crea trigger de actualización de estado para evitar duplicar los eventos que ya registra la RPC. Los archivos heredados de solicitudes con `visibility = "cliente_solicitud"` no generan `archivo_subido` del pedido.
@@ -352,7 +357,10 @@ Solo `admin` y `supervisor` pueden asignar o remover personal. El listado devuel
 
 La interfaz del detalle muestra múltiples usuarios asignados con su rol visible. `admin` y `supervisor` pueden agregar personal desde el selector y quitar una asignación concreta con la action `removePedidoWorkerAction`; `trabajador` ve la lista en modo lectura, sin controles de gestión.
 
-Asignar un `admin` o `supervisor` no modifica su rol ni degrada sus permisos. Un trabajador asignado puede ver el pedido y cambiar su estado siguiendo las reglas operativas vigentes. No se implementan historial avanzado ni notificaciones.
+Asignar un `admin` o `supervisor` no modifica su rol ni degrada sus permisos. Un
+trabajador asignado puede ver el pedido y cambiar su estado siguiendo las
+reglas operativas vigentes. La asignación y la remoción generan historial
+automático; no se implementan notificaciones ni reportes especializados.
 
 El trabajador no accede al módulo general de usuarios. La visibilidad de nombres y roles del personal asignado se controla mediante RLS de `perfiles` con alcance por pedido accesible, usando las asignaciones de `pedido_trabajadores` como contexto.
 
@@ -385,9 +393,8 @@ Aclaraciones:
 
 - edición general de pedido;
 - eliminación;
-- historial avanzado;
+- filtros o reportes avanzados de historial;
 - edición o eliminación de comentarios internos;
-- comentarios de solicitudes;
 - notificaciones;
 - reportes;
 - facturación;
@@ -399,7 +406,7 @@ Aclaraciones:
 Más adelante se podrá:
 
 - agregar eliminación controlada de archivos privados del pedido;
-- registrar historial de cambios;
+- agregar filtros específicos al historial;
 - implementar notificaciones;
 - agregar reportes de producción;
 - crear vistas por carga de trabajo;
@@ -484,4 +491,6 @@ Desde 13.6I, el dashboard y los paneles operativos también consideran tareas: p
 
 ## Cierre
 
-La Fase 9 extendió el módulo de pedidos con asignaciones múltiples de personal interno, visibilidad controlada para trabajadores asignados y documentación específica en `docs/ORDER_ASSIGNMENTS_FLOW.md`.
+El módulo vigente cubre creación manual y desde solicitud, estados controlados,
+tareas y progreso, asignaciones múltiples, archivos privados, comentarios,
+historial y búsqueda server-side con filtro de estado.

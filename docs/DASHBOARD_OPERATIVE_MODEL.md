@@ -222,9 +222,9 @@ Quedan para fases posteriores:
 - notificaciones;
 - panel administrativo de salud del sistema.
 
-## Estructura técnica propuesta
+## Estructura técnica vigente
 
-No se deben crear estos archivos en Fase 13.1. La estructura recomendada para siguientes subfases es:
+El dashboard se implementa con esta estructura:
 
 ```text
 src/lib/dashboard/get-dashboard-summary.ts
@@ -239,7 +239,7 @@ src/components/dashboard/DashboardRecentActivity.tsx
 src/components/dashboard/WorkerDashboardPanel.tsx
 ```
 
-Responsabilidades sugeridas:
+Responsabilidades:
 
 | Archivo | Responsabilidad |
 | --- | --- |
@@ -271,7 +271,7 @@ Responsabilidades sugeridas:
 - No se debe renderizar `metadata` cruda ni JSON completo en la UI.
 - La navegación visible no sustituye validaciones server-side ni RLS.
 
-## Subfases recomendadas para Fase 13
+## Historial de implementación de Fase 13
 
 1. Fase 13.1: diagnóstico y modelo del dashboard operativo.
 2. Fase 13.2: servicios server-side de resumen por rol, sin UI compleja.
@@ -298,6 +298,15 @@ Queda fuera del alcance actual:
 - implementar exportaciones;
 - implementar reportes o gráficos avanzados de productividad.
 
+## Relación con listados y búsquedas
+
+Los listados de solicitudes, pedidos y clientes usan `ListFiltersBar` para
+sincronizar búsqueda y filtros con la URL. La búsqueda se ejecuta server-side
+tras un debounce de 200 ms; el componente cliente no consulta Supabase. En
+pedidos, RLS limita al trabajador a pedidos asignados.
+
 ## Cierre
 
-El dashboard operativo debe avanzar como una capa de lectura server-side sobre los módulos existentes. La prioridad del MVP es mostrar trabajo pendiente y pedidos relevantes por rol, no crear análisis avanzado ni nuevas reglas de negocio.
+El dashboard operativo funciona como una capa de lectura server-side sobre los
+módulos existentes. Muestra trabajo pendiente y pedidos relevantes por rol sin
+crear análisis avanzado ni nuevas reglas de negocio.

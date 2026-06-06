@@ -8,12 +8,12 @@ Esta carpeta concentra la lógica reutilizable para trabajar con archivos privad
 - Tipos internos para categorías, rutas, validación y URLs firmadas.
 - Sanitización de nombres de archivo.
 - Construcción de rutas internas para solicitudes y pedidos.
-- Validación base de archivos antes de futuras subidas.
+- Validación compartida para subidas públicas e internas.
 - Helper server-side para generar URLs firmadas de corta duración desde `archivo.id`.
 - Listado de archivos internos de pedido con RLS.
 - Subida interna de archivos de pedido desde Server Actions.
 - Descarga de archivos de pedido mediante route handler y signed URL.
-- Base backend para subida pública controlada de archivos de solicitud.
+- Subida pública controlada de archivos de solicitud.
 - Listado y descarga interna de archivos de solicitud.
 
 ## Bucket privado
@@ -64,9 +64,11 @@ El formulario no envía `visibility`, categoría, bucket, ruta, usuario, nombre,
 
 ## Archivos públicos de solicitud
 
-`uploadPublicSolicitudFile(input)` prepara la subida de archivos enviados por clientes externos. La función fuerza la categoría `cliente_solicitud`, usa la ruta `solicitudes/{solicitud_id}/originales/{timestamp}-{uuid}-{filename}` y guarda metadatos en `archivos` con `pedido_id = null` y `uploaded_by = null`.
+`uploadPublicSolicitudFile(input)` procesa archivos enviados por clientes externos. La función fuerza la categoría `cliente_solicitud`, usa la ruta `solicitudes/{solicitud_id}/originales/{timestamp}-{uuid}-{filename}` y guarda metadatos en `archivos` con `pedido_id = null` y `uploaded_by = null`.
 
-`uploadPublicSolicitudFiles(input)` sube varios archivos uno por uno y limita la cantidad a 5 archivos por solicitud.
+`uploadPublicSolicitudFiles(input)` sube varios archivos uno por uno y limita
+la cantidad a 5 archivos opcionales por solicitud. Admite PDF, JPG, JPEG, PNG,
+WEBP, DOC, DOCX y ZIP, con un máximo de 20 MB por archivo.
 
 La migración consolidada permite a `anon` insertar objetos y metadatos solo
 para rutas válidas de solicitudes públicas. Desde Fase 13.8E, Storage bloquea

@@ -196,6 +196,10 @@ Los archivos heredados desde solicitudes con `visibility = "cliente_solicitud"` 
 
 La subida de archivos propios del pedido no permite elegir categoría. El servicio deriva `interno_pedido` para `creado`, `solicitud_recibida` y `en_revision`; `avance` para `en_produccion`; y `final_entrega` para `listo_entrega`. Los pedidos `entregado` o `cancelado` bloquean nuevas subidas. Un trabajador asignado puede subir la categoría correspondiente, incluida `interno_pedido`, mientras RLS y Storage bloquean pedidos no asignados y rutas que no coincidan con el estado.
 
+El listado de pedidos combina búsqueda server-side y filtro por estado mediante
+`ListFiltersBar`. La búsqueda usa un debounce de 200 ms, conserva los filtros en
+la URL y respeta RLS; `trabajador` solo recibe pedidos asignados.
+
 ## Alcance por Rol
 
 - `admin` y `supervisor` ven todos los pedidos.

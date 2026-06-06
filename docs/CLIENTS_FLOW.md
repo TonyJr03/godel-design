@@ -23,8 +23,8 @@ Todavía no incluye:
 - Deduplicación inteligente.
 - Listado de pedidos por cliente.
 - Listado completo de solicitudes por cliente.
-- Conversión de solicitud a pedido.
-- Archivos privados.
+- Archivos propios del cliente.
+- Estadísticas o actividad agregada por cliente.
 
 ## Rutas del módulo
 
@@ -158,9 +158,10 @@ Crear cliente desde solicitud toma los datos desde la solicitud guardada en serv
 - `client_phone`
 - `client_email`
 
-No confía en datos de cliente enviados desde `FormData`: la action solo envía
-`solicitud_id`. El servicio conserva la validación de UX y delega la escritura
-en `public.crear_cliente_desde_solicitud(uuid)`.
+No confía en datos de cliente enviados desde `FormData`: la página enlaza
+`solicitud_id` a la action y el formulario no envía nombre, teléfono ni correo.
+El servicio conserva la validación de UX y delega la escritura en
+`public.crear_cliente_desde_solicitud(uuid)`.
 
 La RPC bloquea la solicitud con `FOR UPDATE`, exige usuario activo `admin` o
 `supervisor`, impide crear otro cliente si ya existe una asociación y valida
@@ -217,8 +218,6 @@ Aclaraciones:
 - Historial de cambios.
 - Comentarios internos.
 - Archivos.
-- Pedidos.
-- Conversión de solicitud a pedido.
 - Estadísticas por cliente.
 - Seguimiento público por cliente.
 
@@ -256,4 +255,6 @@ Más adelante se podrá:
 
 ## Cierre
 
-Después de esta documentación corresponde la revisión final de la Fase 7 antes de pasar a la siguiente fase del roadmap.
+El módulo vigente cubre gestión básica de clientes, asociación con solicitudes,
+creación transaccional desde solicitud y preparación para la conversión
+transaccional a pedido.

@@ -72,9 +72,8 @@ URLs soportadas:
 - `/dashboard/solicitudes?status=rechazada`
 - `/dashboard/solicitudes?status=convertida`
 
-`convertida` puede aparecer como filtro porque será un estado resultante del
-flujo formal de conversión a pedido. En esta fase no puede establecerse
-manualmente.
+`convertida` aparece como filtro porque es el estado resultante del flujo formal
+de conversión a pedido. No puede establecerse manualmente.
 
 La búsqueda se ejecuta server-side, normaliza y limita el texto recibido y respeta permiso y RLS. Para tipos de servicio también considera los labels visibles, por lo que una búsqueda como “diseño” puede encontrar valores históricos sin tilde. La referencia corta se resuelve desde los primeros caracteres del UUID accesible.
 
@@ -269,29 +268,23 @@ Las policies existentes permiten:
 - lectura e inserción de `solicitud_historial` solo a `admin` y `supervisor`;
 - sin policies de actualización ni eliminación para comentarios o historial de solicitudes.
 
-## Qué NO incluye esta fase
+## Fuera del alcance actual
 
-- Gestión real de clientes.
-- Eliminación de archivos adjuntos.
-- Historial avanzado de cambios.
-- Comentarios internos.
-- Notificaciones.
-- Asignación de personal a pedidos.
-- Pedidos manuales sin cliente asociado.
-- Tareas de pedido.
-- Generación de presupuestos.
+- eliminación de archivos adjuntos;
+- edición completa de solicitudes;
+- notificaciones;
+- generación de presupuestos;
+- deduplicación avanzada de clientes;
+- seguimiento público por referencia.
 
 ## Consideraciones futuras
 
-Más adelante se podrá:
+Mejoras futuras posibles:
 
-- registrar historial detallado;
-- agregar comentarios internos;
-- asociar solicitud a cliente existente;
-- implementar tareas de pedido;
-- permitir eliminación controlada de archivos privados si se define;
+- permitir eliminación controlada de archivos privados;
 - notificar al equipo interno;
-- generar códigos humanos de referencia.
+- generar códigos humanos de referencia;
+- ampliar filtros o búsqueda si aumenta el volumen.
 
 El diseño técnico de comentarios internos e historial para la Fase 11 se documenta en `docs/COMMENTS_AND_HISTORY_MODEL.md`.
 
@@ -336,5 +329,5 @@ El diseño del dashboard operativo para la Fase 13 se documenta en `docs/DASHBOA
 
 ## Cierre
 
-Con este flujo, Fase 6 queda documentada para revisión final antes de avanzar a
-la gestión de clientes o a la fase correspondiente del roadmap.
+El flujo interno vigente cubre revisión, estados controlados, cliente asociado,
+comentarios, historial, archivos privados y conversión transaccional a pedido.

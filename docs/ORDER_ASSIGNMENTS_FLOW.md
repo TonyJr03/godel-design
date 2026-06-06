@@ -15,13 +15,14 @@ Actualmente el flujo incluye:
 - visualización del personal asignado en el detalle del pedido;
 - visibilidad de personal asignado para trabajadores que pertenecen al mismo pedido;
 - cambio de estado por parte de trabajadores asignados;
+- historial automático al asignar o remover personal;
+- comentarios internos disponibles en el detalle del pedido;
 - control de permisos mediante servicios server-side, RLS y RPC segura para estado.
 
 Actualmente no incluye:
 
-- historial avanzado de asignaciones;
+- vista especializada o filtros del historial de asignaciones;
 - notificaciones;
-- comentarios internos;
 - control de carga de trabajo;
 - asignación automática;
 - roles temporales dentro del pedido;
@@ -96,7 +97,10 @@ Archivos principales:
 
 `remove-internal-pedido-worker.ts` elimina solo la relación concreta entre pedido y usuario interno. No elimina el pedido ni elimina el perfil.
 
-`actions.ts` expone `assignPedidoWorkerAction` y `removePedidoWorkerAction`. Ambas leen únicamente `pedido_id` y `assigned_profile_id`, delegan en servicios server-side y revalidan el listado y el detalle del pedido.
+`actions.ts` expone `assignPedidoWorkerAction` y `removePedidoWorkerAction`. La
+página enlaza `pedido_id`; los formularios conservan únicamente
+`assigned_profile_id`, y las actions delegan en servicios server-side y
+revalidan dashboard, listado y detalle.
 
 Los duplicados se evitan con una comprobación previa en el servicio y con la restricción única `(pedido_id, assigned_profile_id)` en base de datos.
 
@@ -150,10 +154,10 @@ No se hace un `UPDATE` amplio inseguro sobre `pedidos` desde el código de aplic
 ## Limitaciones actuales
 
 - No hay responsable principal diferenciado.
-- No hay historial de quién fue removido.
+- El historial registra asignación y remoción, pero no ofrece una vista
+  especializada ni reportes de asignaciones.
 - No hay notificaciones al asignar.
 - No hay métricas de carga por usuario.
-- No hay comentarios internos.
 - No hay asignación automática.
 
 ## Consideraciones futuras
@@ -161,12 +165,12 @@ No se hace un `UPDATE` amplio inseguro sobre `pedidos` desde el código de aplic
 Posibles mejoras:
 
 - responsable principal más colaboradores;
-- historial de asignaciones;
+- filtros específicos para eventos de asignación;
 - notificaciones internas;
 - vista de carga de trabajo por usuario;
 - filtros por personal asignado;
 - reglas de transición de estado por rol;
-- comentarios internos por pedido.
+- reportes operativos de asignaciones.
 
 ## Pruebas manuales recomendadas
 

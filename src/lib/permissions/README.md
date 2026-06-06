@@ -39,7 +39,9 @@ La protección real por URL directa se realiza en el proxy de Next.js. El proxy 
 
 `usuarios.view` y `usuarios.manage` pertenecen solo a `admin`. La ruta `/dashboard/usuarios` también está limitada a `admin`.
 
-La Fase 12 recomienda implementar primero gestión de perfiles internos sobre `public.perfiles`, sin crear usuarios Auth desde la app y sin usar service role key. Las futuras Server Actions del módulo deben validar permisos en servidor antes de leer o modificar perfiles.
+La gestión de usuarios internos opera sobre `public.perfiles`, sin crear
+usuarios Auth desde la app y sin usar service role key. Las Server Actions del
+módulo validan permisos en servidor antes de leer o modificar perfiles.
 
 La subfase 12.2 usa `usuarios.view` para el listado read-only de perfiles internos. La página carga datos server-side, consulta solo `public.perfiles`, no consulta `auth.users` y no expone correos electrónicos.
 

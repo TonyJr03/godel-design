@@ -145,6 +145,10 @@ delegan autorización y mutación en servicios server-side o RPCs, y revalidan
 `/dashboard`, `/dashboard/solicitudes` y el detalle. Se mantienen juntas porque
 separarlas no reduciría complejidad real.
 
+El listado combina búsqueda server-side y filtro por estado mediante
+`ListFiltersBar`. La búsqueda usa un debounce de 200 ms, conserva ambos
+parámetros en la URL y permanece limitada a `admin` y `supervisor`.
+
 ## Historial visible
 
 `listSolicitudHistory` carga server-side el historial interno mediante la RPC segura `public.listar_solicitud_historial`. Requiere usuario interno activo con permiso `solicitudes.view`, valida UUID, confirma acceso a la solicitud y recibe solo datos mínimos del actor cuando existe `actor_id`: nombre y rol.

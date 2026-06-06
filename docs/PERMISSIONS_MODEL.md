@@ -2,7 +2,8 @@
 
 ## Propósito
 
-Este documento define la matriz inicial de roles y permisos internos del sistema web de gestión operativa de Godel Diseño. Su objetivo es dejar una referencia clara para mantenimiento, futuras fases y revisiones de seguridad.
+Este documento define la matriz vigente de roles y permisos internos del
+sistema web de gestión operativa de Godel Diseño.
 
 ## Conceptos base
 
@@ -72,7 +73,7 @@ Este documento define la matriz inicial de roles y permisos internos del sistema
 
 - Puede ver dashboard.
 - Puede ver pedidos.
-- Puede cambiar estado de pedidos asignados cuando los módulos reales lo implementen.
+- Puede cambiar el estado de pedidos asignados.
 - No puede ver solicitudes.
 - No puede ver clientes.
 - No puede gestionar usuarios.
@@ -121,7 +122,7 @@ Ocultar enlaces en el sidebar es solo UX. No debe considerarse seguridad suficie
 Los helpers de permisos y la protección de rutas no sustituyen Row Level Security.
 
 - RLS sigue siendo la última línea de defensa.
-- Las consultas futuras deben respetar permisos.
+- Las consultas deben respetar permisos.
 - Las acciones server-side deben validar permisos antes de modificar datos.
 - No se debe confiar solo en el frontend.
 
@@ -133,9 +134,12 @@ Para solicitudes, las tablas oficiales son `solicitud_comentarios` y `solicitud_
 
 La Fase 12 mantiene la matriz actual: solo `admin` tiene `usuarios.view`, `usuarios.manage` y acceso a `/dashboard/usuarios`.
 
-La estrategia recomendada para el MVP es gestionar únicamente `public.perfiles`. La creación de usuarios en Supabase Auth queda fuera de la app por ahora y debe hacerse manualmente desde Supabase Studio o CLI. Esta decisión evita introducir service role key y conserva RLS como defensa final.
+La estrategia vigente gestiona únicamente `public.perfiles`. La creación de
+usuarios en Supabase Auth queda fuera de la app y se realiza manualmente desde
+Supabase Studio o CLI. Esta decisión evita introducir service role key y
+conserva RLS como defensa final.
 
-Las futuras acciones del módulo de usuarios deben validar permisos server-side:
+Las acciones del módulo de usuarios validan permisos server-side:
 
 - `usuarios.view` para listar o ver detalles de perfiles.
 - `usuarios.manage` para editar perfil operativo, cambiar rol o activar/desactivar usuarios.
@@ -150,9 +154,7 @@ La subfase 12.4 implementa edición controlada en `/dashboard/usuarios/[id]/edit
 
 La subfase 12.5 implementa creación de perfil interno en `/dashboard/usuarios/nuevo` para usuarios Auth ya existentes. Solo `admin` puede crear perfiles mediante validación server-side de `usuarios.manage`. La app no crea credenciales, no consulta `auth.users`, no pide email ni contraseña, no envía invitaciones y no usa service role key. El UUID se valida por formato y la base confirma su existencia mediante la clave foránea de `public.perfiles.id`.
 
-## Uso esperado en futuros módulos
-
-Cuando se implementen módulos reales:
+## Uso en módulos
 
 - Las páginas server-side deben leer el perfil actual.
 - Las acciones server-side deben validar permisos.
@@ -163,7 +165,8 @@ Cuando se implementen módulos reales:
 
 El diseño del dashboard operativo se documenta en `docs/DASHBOARD_OPERATIVE_MODEL.md`. Ese modelo no cambia la matriz de permisos vigente: `admin` y `supervisor` pueden ver métricas globales de operación, mientras que `trabajador` solo puede recibir métricas y listas derivadas de pedidos asignados.
 
-Las futuras consultas del dashboard deben ejecutarse server-side, usar el cliente normal de Supabase, respetar RLS, no consultar `auth.users` y no usar service role key.
+Las consultas del dashboard se ejecutan server-side, usan el cliente normal de
+Supabase, respetan RLS, no consultan `auth.users` y no usan service role key.
 
 ## Qué no está incluido todavía
 
@@ -175,12 +178,11 @@ Las futuras consultas del dashboard deben ejecutarse server-side, usar el client
 - Creación de credenciales Auth desde la app.
 - Invitaciones, cambio de contraseña y eliminación física de usuarios.
 
-## Pendiente para fases posteriores
+## Evolución futura
 
-- Fase 8 y Fase 9 aplicaron estos permisos en pedidos y asignación de personal interno.
-- La Fase 11 diseña comentarios internos e historial operativo en `docs/COMMENTS_AND_HISTORY_MODEL.md`, sin cambiar todavía la matriz de permisos de código.
-- La Fase 12 implementó gestión de perfiles internos para `admin`, sin crear credenciales Auth desde la app.
-- Fases futuras podrán refinar permisos si la operación real lo exige.
+La matriz ya se aplica en pedidos, asignaciones, comentarios, historial,
+dashboard y gestión de perfiles internos. Podrá refinarse si la operación real
+lo exige, mediante una decisión separada y manteniendo RLS como defensa final.
 
 ## Cierre
 

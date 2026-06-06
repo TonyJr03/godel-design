@@ -134,17 +134,18 @@ La conversión interna a pedido exige que el equipo defina un título operativo 
 
 ## Decisión sobre clientes
 
-En esta fase no se crea ni se asocia un registro en `clientes`.
-
-La decisión actual es:
+El flujo público no crea ni asocia automáticamente un registro en `clientes`.
+La decisión vigente es:
 
 - Guardar los datos del cliente desnormalizados en la tabla `solicitudes`.
 - Dejar `cliente_id = null`.
-- Posponer la asociación y deduplicación de clientes para Fase 7.
+- Permitir que el equipo asocie un cliente existente o cree uno desde el detalle
+  interno de la solicitud.
 - Evitar abrir inserción pública en `clientes` para este flujo.
 
-Esto mantiene el flujo público más pequeño y reduce la superficie de exposición
-de datos de clientes.
+La creación de cliente desde solicitud y la conversión posterior a pedido son
+operaciones internas transaccionales. La deduplicación inteligente sigue fuera
+del alcance actual.
 
 ## Referencia de Solicitud
 
@@ -186,7 +187,7 @@ Límites actuales:
 
 - máximo 5 archivos por solicitud;
 - máximo 20 MB por archivo;
-- formatos permitidos: PDF, JPG, PNG, WEBP, DOC, DOCX y ZIP.
+- formatos permitidos: PDF, JPG, JPEG, PNG, WEBP, DOC, DOCX y ZIP.
 
 Los archivos:
 

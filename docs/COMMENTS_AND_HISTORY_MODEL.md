@@ -2,18 +2,20 @@
 
 ## Propósito
 
-Este documento define el diagnóstico y el diseño técnico recomendado para la Fase 11 de Godel Diseño: comentarios internos e historial operativo visible.
+Este documento describe el modelo vigente de comentarios internos e historial
+operativo visible de Godel Diseño.
 
 La intención es separar claramente dos necesidades distintas:
 
 - comentarios internos escritos por usuarios del equipo;
 - historial automático de eventos relevantes generados por acciones del sistema.
 
-Este documento registra el diseño y el estado de avance de las subfases de comentarios e historial. La implementación funcional debe mantenerse alineada con este modelo.
+La implementación funcional, las políticas RLS, los triggers y las RPCs deben
+mantenerse alineados con este modelo.
 
 ## Alcance
 
-La Fase 11 debe cubrir:
+El alcance actual cubre:
 
 - comentarios internos en pedidos;
 - comentarios internos en solicitudes;
@@ -41,7 +43,7 @@ Quedan fuera del alcance inicial:
 - auditoría legal completa;
 - exportación de logs.
 
-## Diagnóstico del Estado Actual
+## Estado Actual
 
 ### Base de datos
 
@@ -201,7 +203,7 @@ El módulo actual:
 - devuelve solo datos mínimos del actor;
 - no abre globalmente `perfiles`;
 - no implementa edición ni eliminación;
-- no registra eventos automáticos nuevos.
+- muestra los eventos automáticos generados por RPCs y triggers.
 
 Actualmente se muestran los eventos que ya existan en `pedido_historial`. Los cambios de estado se registran mediante `public.actualizar_estado_pedido`.
 
@@ -326,9 +328,9 @@ Requisitos iniciales:
 
 El historial no debe usarse como auditoría legal completa ni como copia de todos los cambios de cada campo.
 
-## Opciones de Modelo de Datos
+## Decisión de Modelo de Datos
 
-### Opción A: Tablas Únicas por Concepto
+### Alternativa descartada: tablas únicas por concepto
 
 Estructura:
 
@@ -357,7 +359,7 @@ Desventajas:
 - mayor probabilidad de mezclar reglas de pedidos y solicitudes;
 - implica migrar o convivir con tablas específicas por entidad.
 
-### Opción B: Tablas Separadas por Entidad
+### Modelo vigente: tablas separadas por entidad
 
 Estructura conceptual:
 
@@ -382,9 +384,9 @@ Desventajas:
 - algo más de duplicación controlada;
 - si en el futuro aparecen muchas entidades comentables, puede crecer el número de tablas.
 
-## Decisión Recomendada
+## Decisión Vigente
 
-Se recomienda la Opción B, ajustada al estado real del proyecto.
+Se mantiene el modelo de tablas separadas por entidad.
 
 La subfase 11.1B formaliza esta decisión al normalizar las tablas de pedidos:
 
@@ -402,13 +404,13 @@ La recomendación práctica es mantener servicios separados para pedidos y solic
 
 Esta opción prioriza simplicidad, claridad, RLS sencilla, mantenimiento y escalabilidad razonable sin sobreingeniería.
 
-## Tablas Propuestas
+## Tablas Vigentes
 
 ### Comentarios de Pedidos
 
 Tabla existente: `pedido_comentarios`.
 
-Uso recomendado: comentarios internos asociados a pedidos.
+Uso vigente: comentarios internos asociados a pedidos.
 
 Campos existentes:
 
@@ -420,10 +422,10 @@ Campos existentes:
 | `content` | `text` | Texto del comentario. |
 | `created_at` | `timestamptz` | Fecha de creación. |
 
-Consideración para Fase 11.2:
+Reglas vigentes:
 
 - no exponer edición ni eliminación en UI;
-- evaluar si conviene restringir RLS de `update` y `delete` para alinearlo con el alcance inicial.
+- RLS no permite `update` ni `delete` desde la aplicación.
 
 ### Comentarios de Solicitudes
 
@@ -439,7 +441,7 @@ Campos existentes:
 | `content` | `text` | Texto del comentario. |
 | `created_at` | `timestamptz` | Fecha de creación. |
 
-Reglas recomendadas:
+Reglas vigentes:
 
 - `content` obligatorio y no vacío;
 - longitud máxima de `content` de 2000 caracteres;
@@ -478,7 +480,7 @@ Estado desde Fase 11.2:
 
 Tabla existente: `solicitud_historial`.
 
-Campos propuestos:
+Campos vigentes:
 
 | Campo | Tipo | Uso |
 | --- | --- | --- |
@@ -512,7 +514,7 @@ Valores iniciales:
 - `cliente_creado_desde_solicitud`;
 - `convertida_a_pedido`.
 
-## Eventos Iniciales Propuestos
+## Eventos Vigentes
 
 ### Pedidos
 
@@ -551,7 +553,7 @@ Eventos mínimos:
 | `cliente_creado_desde_solicitud` | Se crea cliente desde solicitud. | cliente creado, usuario. |
 | `convertida_a_pedido` | Se convierte solicitud a pedido. | pedido generado, título real del pedido, usuario. |
 
-## Permisos Propuestos
+## Permisos Vigentes
 
 ### Comentarios de Pedidos
 
@@ -589,9 +591,9 @@ Eventos mínimos:
 | `trabajador` | No accede. |
 | Anónimo | No accede. |
 
-## Estrategia de Implementación
+## Historial de Implementación
 
-Subfases recomendadas después de este diagnóstico:
+La implementación se completó mediante estas subfases históricas:
 
 1. Migraciones y RLS.
 2. Servicios base.
@@ -610,9 +612,9 @@ Objetivos:
 - dejar `pedido_comentarios` sin `update` y `delete` para el alcance append-only inicial;
 - dejar `pedido_historial` sin inserción directa, actualización ni eliminación desde tabla;
 - mantener RLS simple por entidad;
-- no crear UI ni servicios funcionales todavía.
+- esta subfase no creó UI ni servicios funcionales.
 
-No debería usarse service role key.
+No se usa service role key.
 
 ### Fase 11.3: Servicios Base
 
@@ -621,7 +623,7 @@ Estado:
 - implementado para comentarios internos de pedidos;
 - `listPedidoComments` lista comentarios por pedido en orden ascendente;
 - `createPedidoComment` valida UUID, permiso, acceso al pedido y `content`;
-- la action del detalle solo lee `pedido_id` y `content`;
+- la página enlaza `pedido_id` a la action y el formulario solo envía `content`;
 - no se acepta autor desde el formulario;
 - no se registra historial automático adicional.
 
@@ -639,11 +641,12 @@ Estado:
 
 Estado:
 
-- listar comentarios internos de solicitud;
-- permitir comentar solo a `admin` y `supervisor`;
-- mostrar autor, rol, fecha y contenido;
-- no exponer a trabajadores ni anónimos;
-- no implementar edición ni eliminación.
+- implementada en `SolicitudCommentsSection`;
+- lista comentarios internos de solicitud;
+- permite comentar solo a `admin` y `supervisor`;
+- muestra autor, rol, fecha y contenido;
+- no expone a trabajadores ni anónimos;
+- no implementa edición ni eliminación.
 
 ### Fase 11.5: Historial Visible en Pedidos
 
@@ -654,7 +657,7 @@ Estado:
 - usa `public.listar_pedido_historial` para exponer datos mínimos del actor;
 - muestra tipo de evento, resumen, actor, rol y fecha;
 - no implementa edición ni eliminación;
-- no registra eventos automáticos nuevos.
+- muestra los eventos automáticos registrados por RPCs y triggers.
 
 ### Fase 11.6: Historial Visible en Solicitudes
 
@@ -665,7 +668,7 @@ Estado:
 - muestra tipo de evento, resumen, actor, rol y fecha;
 - maneja actor nulo como evento automático;
 - no implementa edición ni eliminación;
-- no registra eventos automáticos nuevos.
+- muestra los eventos automáticos registrados por RPCs y triggers.
 
 ### Fase 11.7A: Registro Automático de Historial de Pedidos
 
@@ -697,11 +700,11 @@ Estado:
 
 ### Fase 11.8: Documentación y Cierre
 
-Objetivos:
+Estado:
 
-- actualizar documentación funcional;
-- documentar pruebas manuales recomendadas;
-- confirmar que RLS y servicios cumplen la matriz definida.
+- documentación funcional consolidada;
+- pruebas manuales recomendadas documentadas;
+- RLS y servicios alineados con la matriz definida.
 
 ## Riesgos
 
@@ -729,6 +732,7 @@ Más adelante se podría evaluar:
 
 ## Conclusión
 
-La decisión recomendada es mantener un modelo separado por entidad, compatible con las tablas ya existentes para pedidos y extendido con tablas específicas para solicitudes.
-
-Esto permite avanzar en Fase 11 con bajo riesgo, RLS comprensible y una separación clara entre conversación interna e historial automático.
+El modelo vigente mantiene tablas separadas por entidad, RLS comprensible y una
+separación clara entre conversación interna e historial automático. Los
+comentarios son append-only y los historiales se muestran con el evento más
+reciente primero, usando `clock_timestamp()` como tiempo real de inserción.

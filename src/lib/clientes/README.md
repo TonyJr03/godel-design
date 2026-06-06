@@ -63,3 +63,6 @@ La ruta `/dashboard/clientes/[id]/editar` permite actualizar datos básicos de u
 La RPC es `security definer`, solo puede ejecutarla `authenticated` y valida
 internamente que el actor sea `admin` o `supervisor` activo. No usa service role
 key, no consulta `auth.users` y no modifica la creación manual de clientes.
+
+El listado usa `ListFiltersBar` para sincronizar la búsqueda con la URL tras un
+debounce de 200 ms. La consulta y el filtrado siguen ejecutándose server-side.

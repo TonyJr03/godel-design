@@ -4,7 +4,7 @@
 
 - Etapa: preparación técnica previa a la Fase 14.
 - Alcance: diagnóstico, decisiones arquitectónicas y plan de trabajo.
-- Estado actual: Fase 13.8F completada; siguiente subfase 13.8G.
+- Estado actual: Fase 13.8G completada; siguiente subfase 13.8H.
 - Fecha de creación: 5 de junio de 2026.
 
 ## 1. Objetivo del hardening
@@ -518,6 +518,8 @@ cliente normal de Supabase.
 
 ### 13.8G — Limpieza documental final
 
+**Estado: completada el 6 de junio de 2026.**
+
 #### Objetivo
 
 Eliminar contradicciones entre documentación y estado vigente.
@@ -541,6 +543,25 @@ Eliminar contradicciones entre documentación y estado vigente.
 La documentación estable debe describir el sistema actual. El contexto
 histórico debe estar claramente identificado como histórico y no como trabajo
 pendiente vigente.
+
+#### Implementación
+
+Se revisaron los modelos y flujos estables de base de datos, solicitudes,
+clientes, pedidos, asignaciones, Storage, comentarios, historial, dashboard,
+usuarios, permisos y Supabase, además de los README de dominio existentes.
+
+Se eliminaron anuncios de migraciones iniciales pendientes, referencias a la
+conversión como trabajo futuro, la afirmación de que la subida pública estaba
+deshabilitada y las notas que negaban comentarios o historial ya
+implementados. También se alinearon numeración, estados, tareas, archivos,
+actions enlazadas a IDs de ruta, búsquedas server-side y operaciones
+transaccionales.
+
+Se conservaron como deuda vigente las pruebas automatizadas pendientes, rate
+limiting y protección antiabuso avanzada, monitoreo y reconciliación de objetos
+sin metadata, y otras capacidades explícitamente fuera del MVP. No se modificó
+el roadmap histórico porque no contenía una contradicción necesaria para el
+cierre de esta subfase.
 
 ### 13.8H — Revisión final pre-UI/UX
 
