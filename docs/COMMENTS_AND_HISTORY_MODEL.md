@@ -90,6 +90,13 @@ La RPC `public.actualizar_estado_pedido` sí registra historial en `pedido_histo
 
 También valida las reglas operativas de estado: requiere tareas para pasar a `en_produccion`, requiere todas las tareas completadas para pasar a `listo_entrega`, permite `entregado` solo desde `listo_entrega`, permite `cancelado` como salida lateral desde estados activos y bloquea cambios desde `entregado` o `cancelado`. La UI orienta al usuario, pero la autoridad de validación es la RPC.
 
+Desde Fase 13.8D, la RPC bloquea el pedido con `FOR UPDATE` antes de leer el
+estado y mantiene actualización e historial dentro de la misma transacción.
+También bloquea con `FOR SHARE` las tareas existentes antes de calcular si hay
+tareas y si todas están completas. Por ello una transición concurrente no
+puede confirmar usando un estado anterior ni una versión intermedia de esas
+tareas.
+
 Eventos que puede registrar:
 
 - `estado_cambiado`;
@@ -104,6 +111,9 @@ También guarda:
 - `metadata.source = "actualizar_estado_pedido"`.
 
 Si el estado enviado es igual al estado actual, la RPC retorna el pedido sin insertar evento.
+
+La fecha real al entregar usa `private.current_business_date()` con zona
+`America/Havana`. Esto no cambia el contenido ni el número de eventos.
 
 ### RPC `actualizar_estado_solicitud`
 

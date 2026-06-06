@@ -28,7 +28,7 @@ La action `createPedidoAction` lee únicamente `cliente_id`, `title`, `descripti
 
 `createInternalPedido` requiere `pedidos.manage`, valida el input, valida el cliente solo cuando se envía `cliente_id`, crea el pedido con estado inicial `creado`, guarda `solicitud_id` como `null` y no asigna personal. Si no se selecciona cliente, guarda `cliente_id = null`; no captura datos temporales de cliente desde el formulario.
 
-El número de pedido (`order_number`) no se acepta desde formularios ni se genera en TypeScript. La base de datos lo asigna al insertar el pedido con formato `P-YY-XXXX`, usando un contador anual transaccional.
+El número de pedido (`order_number`) no se acepta desde formularios ni se genera en TypeScript. La base de datos lo asigna al insertar el pedido con formato `P-YY-XXXX`, usando un contador anual transaccional y el año de la fecha de negocio `America/Havana`.
 
 `estimated_delivery_date` es opcional, pero si se informa debe ser una fecha válida e igual o posterior al día actual. La validación usa los helpers centralizados de `src/lib/validators/date.ts`, apoyados en `src/lib/utils/date.ts` para calcular el día actual local. El `min` del formulario es solo una ayuda visual.
 
@@ -69,6 +69,19 @@ Un pedido manual no puede pasar directamente de `creado` a producción: primero 
 La RPC permite a `admin` y `supervisor` cambiar cualquier pedido y a `trabajador` cambiar solo pedidos asignados, sin conceder a trabajadores un `UPDATE` amplio sobre `pedidos`. Con asignaciones múltiples, cualquier trabajador asignado al pedido puede cambiar el estado porque la validación usa `private.is_assigned_to_pedido`, que comprueba la existencia de una relación en `pedido_trabajadores`.
 
 Un `admin` o `supervisor` asignado a un pedido conserva sus permisos reales. La asignación operativa no cambia roles ni permisos, y un trabajador no asignado no puede cambiar el estado porque no pasa la validación de acceso del servicio ni la validación de la RPC.
+
+La RPC carga el pedido con `FOR UPDATE`, por lo que las transiciones
+simultáneas se procesan en serie. Antes de calcular el progreso bloquea con
+`FOR SHARE` las tareas existentes; las actualizaciones y eliminaciones
+concurrentes esperan, y las inserciones quedan coordinadas por la clave foránea
+al pedido bloqueado.
+
+Esta garantía cubre la lectura y transición actuales. Las tareas todavía pueden
+modificarse después de confirmar el nuevo estado; limitar mutaciones posteriores
+según el estado del pedido requeriría una regla adicional en el flujo de tareas.
+
+Al marcar `entregado`, la RPC guarda `actual_delivery_date` mediante
+`private.current_business_date()`, usando `America/Havana`.
 
 ## Modelo de Tareas
 

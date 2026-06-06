@@ -238,7 +238,7 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 **Reglas importantes:**
 
 - `order_number` debe ser único y cumplir el formato `P-YY-XXXX`.
-- `order_number` se genera en base de datos al insertar el pedido. La secuencia reinicia cada año y se controla con `pedido_contadores` para proteger la concurrencia.
+- `order_number` se genera en base de datos al insertar el pedido. La secuencia reinicia cada año según `private.current_business_date()`, con zona `America/Havana`, y se controla con `pedido_contadores` para proteger la concurrencia.
 - Un pedido puede crearse manualmente o a partir de una solicitud.
 - Un pedido manual puede quedar sin cliente asociado (`cliente_id = null`).
 - La conversión desde solicitud exige que la solicitud tenga `cliente_id` asociado.
@@ -246,6 +246,8 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 - `creado` puede pasar únicamente a `en_revision` o `cancelado`. No permite avanzar directamente a producción, listo para entrega o entregado.
 - La conversión desde solicitud guarda la prioridad definida por el usuario interno y una fecha estimada opcional validada server-side. Usa la numeración generada por base de datos y mantiene el estado inicial `solicitud_recibida`.
 - Los estados de pedido solo representan fases generales. Las tareas de pedido modelan el progreso real y condicionan el avance operativo mediante `public.actualizar_estado_pedido`.
+- `public.actualizar_estado_pedido` bloquea el pedido con `FOR UPDATE` y las tareas existentes con `FOR SHARE` durante la decisión.
+- Al marcar un pedido como `entregado`, `actual_delivery_date` usa la fecha local de negocio.
 - Los cambios importantes de estado deben registrarse en `pedido_historial`.
 
 **Notas de seguridad:**
@@ -268,7 +270,8 @@ Este archivo no implementa todavía SQL, políticas RLS, buckets de Storage, aut
 
 - La numeración visible de pedidos usa el formato `P-YY-XXXX`.
 - La secuencia reinicia por año.
-- La función privada `private.generar_numero_pedido()` incrementa el contador dentro de la transacción.
+- La función privada `private.current_business_date()` devuelve la fecha de negocio para `America/Havana`.
+- La función privada `private.generar_numero_pedido()` obtiene de esa fecha el año e incrementa el contador dentro de la transacción.
 - Si la secuencia anual supera `9999`, la función debe fallar para evitar generar un formato inválido.
 - La aplicación no acepta ni envía `order_number` desde formularios.
 

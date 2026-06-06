@@ -92,7 +92,7 @@ Reglas actuales:
 - `cliente_id` es opcional en la creación manual y requerido al convertir una solicitud en pedido.
 - `solicitud_id` es `null` en pedidos manuales.
 - `order_number` se genera en base de datos con formato `P-YY-XXXX`.
-- La secuencia de `order_number` reinicia cada año y se controla con `pedido_contadores`.
+- La secuencia de `order_number` reinicia cada año según la fecha de negocio de `America/Havana` y se controla con `pedido_contadores`.
 
 Las tablas oficiales normalizadas para comentarios e historial de pedidos son `pedido_comentarios` y `pedido_historial`. El enum de eventos de historial de pedidos es `pedido_historial_action`. Los comentarios de pedido están implementados en el detalle interno y son append-only. El historial de pedido está visible en el detalle interno y muestra los eventos existentes en `pedido_historial`.
 
@@ -243,7 +243,7 @@ Archivos principales:
 
 La creación manual requiere `pedidos.manage`, por lo que solo `admin` y `supervisor` pueden usarla. El formulario permite seleccionar un cliente existente o dejar `Sin cliente asociado`; no acepta estado, `solicitud_id`, número de pedido ni personal asignado. El pedido manual se crea con `solicitud_id = null`, estado inicial `creado` y `cliente_id = null` cuando no se selecciona cliente. No existen campos temporales de cliente en este flujo.
 
-El número visible del pedido se asigna en base de datos al insertar, con formato `P-YY-XXXX`. El contador es anual, se guarda en `public.pedido_contadores` y se incrementa dentro de la transacción para proteger la concurrencia. La app no envía `order_number`.
+El número visible del pedido se asigna en base de datos al insertar, con formato `P-YY-XXXX`. El contador es anual, se guarda en `public.pedido_contadores` y se incrementa dentro de la transacción para proteger la concurrencia. El año se obtiene mediante `private.current_business_date()` y no depende del día UTC de la sesión. La app no envía `order_number`.
 
 `estimated_delivery_date` es opcional. Si se informa, debe ser una fecha válida e igual o posterior al día actual. La validación server-side usa los helpers de fecha de `src/lib/validators/date.ts`, apoyados en `src/lib/utils/date.ts` para calcular el día actual local; el `min` del input de fecha solo orienta la captura en la UI.
 
@@ -306,6 +306,20 @@ Archivos principales:
 - RPC: `public.actualizar_estado_pedido`
 
 La action solo acepta `pedido_id` y `status`. El estado se valida server-side contra el enum real simplificado. La actualización usa la RPC segura `public.actualizar_estado_pedido`, que evita abrir un `UPDATE` amplio sobre `pedidos` para trabajadores.
+
+La RPC bloquea la fila del pedido con `FOR UPDATE` antes de leer su estado. Dos
+transiciones simultáneas quedan serializadas: la segunda petición valida contra
+el estado confirmado por la primera, no contra un estado obsoleto.
+
+Antes de contar tareas, la RPC bloquea las tareas existentes con `FOR SHARE`.
+Así espera cambios o eliminaciones en curso y mantiene estables esas filas
+durante la decisión. Las nuevas tareas quedan coordinadas por el bloqueo del
+pedido y la clave foránea. Una mutación iniciada después de confirmar el cambio
+de estado sigue siendo posible; prohibirla requeriría una regla adicional sobre
+las operaciones de tareas.
+
+Cuando el pedido pasa a `entregado`, `actual_delivery_date` usa
+`private.current_business_date()`, basada en `America/Havana`.
 
 Un trabajador solo puede cambiar el estado de pedidos asignados. Con múltiples usuarios asignados, cualquier trabajador que tenga una fila en `pedido_trabajadores` para ese pedido puede cambiar el estado; un trabajador no asignado no pasa la validación. `admin` y `supervisor` mantienen su permiso global aunque estén asignados operativamente a un pedido.
 

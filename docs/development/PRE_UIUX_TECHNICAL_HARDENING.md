@@ -4,7 +4,7 @@
 
 - Etapa: preparación técnica previa a la Fase 14.
 - Alcance: diagnóstico, decisiones arquitectónicas y plan de trabajo.
-- Estado actual: Fase 13.8C completada; siguiente subfase 13.8D.
+- Estado actual: Fase 13.8D completada; siguiente subfase 13.8E.
 - Fecha de creación: 5 de junio de 2026.
 
 ## 1. Objetivo del hardening
@@ -343,6 +343,8 @@ concurrencia de último escritor queda como revisión posterior separada.
 
 ### 13.8D — Concurrencia en estados de pedido y fechas SQL locales
 
+**Estado: completada el 5 de junio de 2026.**
+
 #### Objetivo
 
 Endurecer `public.actualizar_estado_pedido` y alinear fechas de negocio.
@@ -362,6 +364,32 @@ Endurecer `public.actualizar_estado_pedido` y alinear fechas de negocio.
 
 Dos peticiones concurrentes no deben producir un estado o historial imposible
 según las reglas del pedido.
+
+#### Implementación
+
+`public.actualizar_estado_pedido` carga ahora el pedido con `FOR UPDATE`. El
+estado usado para validar permanece bloqueado hasta completar la actualización
+y el evento de historial, por lo que dos transiciones concurrentes se evalúan
+en serie y la segunda observa el estado confirmado por la primera.
+
+Antes de calcular el progreso, la RPC bloquea con `FOR SHARE` las tareas
+existentes del pedido. Esto espera actualizaciones o eliminaciones en curso y
+evita que esas filas cambien durante la decisión. El bloqueo `FOR UPDATE` del
+pedido también coordina nuevas tareas que deban validar su clave foránea.
+
+La protección cubre la decisión transaccional. Una tarea todavía puede
+modificarse después de que la transición haya confirmado, porque las mutaciones
+de tareas siguen siendo operaciones directas separadas. Restringir cambios
+posteriores según el estado requeriría mover esas mutaciones a RPCs o añadir una
+regla de negocio específica.
+
+Se añadió `private.current_business_date()`, basada en `America/Havana`, junto
+a las funciones privadas del esquema consolidado. La usan la numeración anual
+`P-YY-XXXX`, la asignación de `actual_delivery_date` al entregar y la
+validación de fecha estimada en la conversión de solicitud.
+
+No cambiaron la firma pública de `actualizar_estado_pedido`, las transiciones,
+los mensajes controlados, la matriz de permisos ni las policies RLS.
 
 ### 13.8E — Endurecimiento de subida pública y objetos huérfanos
 

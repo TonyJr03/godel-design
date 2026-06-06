@@ -29,7 +29,8 @@ begin
   select *
   into v_pedido
   from public.pedidos
-  where id = p_pedido_id;
+  where id = p_pedido_id
+  for update;
 
   if not found then
     raise exception 'Pedido no encontrado';
@@ -62,6 +63,11 @@ begin
     and v_estado_anterior <> 'listo_entrega'::public.pedido_estado then
     raise exception 'Solo se puede marcar como entregado un pedido listo para entrega.';
   end if;
+
+  perform 1
+  from public.pedido_tareas
+  where pedido_id = p_pedido_id
+  for share;
 
   select
     count(*)::integer,
@@ -140,7 +146,8 @@ begin
   set
     status = p_nuevo_estado,
     actual_delivery_date = case
-      when p_nuevo_estado = 'entregado'::public.pedido_estado then current_date
+      when p_nuevo_estado = 'entregado'::public.pedido_estado
+        then private.current_business_date()
       else actual_delivery_date
     end,
     updated_at = now()
@@ -293,8 +300,7 @@ declare
   v_pedido public.pedidos;
   v_title text := btrim(p_title);
   v_description text := btrim(p_description);
-  v_business_date date :=
-    (clock_timestamp() at time zone 'America/Havana')::date;
+  v_business_date date := private.current_business_date();
 begin
   if auth.uid() is null then
     raise exception 'Usuario no autenticado.';

@@ -163,6 +163,20 @@ before update on public.pedido_contadores
 for each row
 execute function public.set_updated_at();
 
+create or replace function private.current_business_date()
+returns date
+language sql
+set search_path = pg_catalog
+as $$
+  select (clock_timestamp() at time zone 'America/Havana')::date;
+$$;
+
+revoke all on function private.current_business_date()
+from public, anon, authenticated;
+
+comment on function private.current_business_date() is
+  'Devuelve la fecha local de negocio para America/Havana.';
+
 create or replace function private.generar_numero_pedido()
 returns text
 language plpgsql
@@ -170,7 +184,8 @@ security definer
 set search_path = public, private
 as $$
 declare
-  v_year smallint := extract(year from current_date)::smallint;
+  v_year smallint :=
+    extract(year from private.current_business_date())::smallint;
   v_next_number integer;
 begin
   insert into public.pedido_contadores as pc (year, last_number)
