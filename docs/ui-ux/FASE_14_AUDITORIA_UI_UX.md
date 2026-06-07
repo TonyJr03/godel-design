@@ -941,11 +941,11 @@ hex y clases que luego habría que reemplazar.
 
 ### Navegación
 
-- [ ] La ruta activa es visible y usa `aria-current`.
-- [ ] Existe skip link al contenido.
-- [ ] El orden de tabulación es lógico.
-- [ ] La navegación móvil es clara y operable.
-- [ ] La visibilidad por rol se conserva.
+- [x] La ruta activa es visible y usa `aria-current`.
+- [x] Existe skip link al contenido.
+- [x] El orden de tabulación es lógico.
+- [x] La navegación móvil es clara y operable.
+- [x] La visibilidad por rol se conserva.
 
 ### Componentes
 
@@ -977,7 +977,7 @@ hex y clases que luego habría que reemplazar.
 
 ### Accesibilidad
 
-- [ ] El foco visible es consistente.
+- [x] El foco visible es consistente.
 - [ ] La UI funciona con teclado.
 - [ ] Los mensajes importantes se anuncian.
 - [ ] La jerarquía de headings es correcta.
@@ -1038,3 +1038,30 @@ hex y clases que luego habría que reemplazar.
   Los badges reutilizan etiquetas canónicas del dominio, expresan el estado con
   texto además de color y mantienen un fallback neutro. No se tocaron
   permisos, RLS, RPCs, servicios, formularios, pantallas ni dependencias.
+
+### 14.4A — Layout interno y navegación responsive
+
+- **Fecha:** 7 de junio de 2026.
+- **Cambios realizados:** refinamiento del shell interno con sidebar desktop
+  de marca, navegación activa, `aria-current`, skip link, destino principal
+  accesible, ancho de contenido controlado y navegación móvil vertical.
+- **Archivos modificados:** `src/app/dashboard/layout.tsx`,
+  `src/components/layout/DashboardSidebar.tsx`,
+  `src/components/layout/DashboardMobileNav.tsx`,
+  `src/components/layout/DashboardNavLink.tsx`,
+  `src/components/layout/SkipLink.tsx`,
+  `src/components/layout/dashboard-nav-items.ts`,
+  `src/components/auth/LogoutButton.tsx`,
+  `docs/ui-ux/FASE_14_DESIGN_SYSTEM.md` y este documento.
+- **Validaciones ejecutadas:** `npm run lint` y `npm run build` aprobados con
+  Next.js 16.2.6. Inspección visual autenticada con perfil admin en Edge 149,
+  a 1440 × 1000 px y 375 × 812 px, sobre `/dashboard`,
+  `/dashboard/solicitudes`, `/dashboard/pedidos`, `/dashboard/clientes`,
+  `/dashboard/usuarios` y `/dashboard/configuracion`.
+- **Observaciones:** el filtrado por rol permanece en `DashboardSidebar`, que
+  sigue siendo Server Component. Solo `DashboardNavLink` usa `usePathname` en
+  cliente para presentar la ruta activa y cerrar el menú móvil tras navegar.
+  No se añadieron consultas, permisos, dependencias ni cambios de negocio. No
+  se detectó overflow horizontal global ni solapamiento del shell. Las tablas
+  conservan su scroll horizontal interno en móvil, pendiente de la subfase de
+  listados y fuera del alcance de 14.4A.

@@ -186,3 +186,53 @@ lógica de negocio.
 4. No usar `Card interactive` como sustituto de semántica HTML accionable.
 5. No extender variantes para casos aislados si `className` y los tokens
    existentes resuelven el caso de forma clara.
+
+## 10. Layout y navegación
+
+### Sidebar desktop
+
+- El shell interno usa un lateral azul profundo de marca sobre el fondo cálido
+  general.
+- La marca y el subtítulo ocupan una cabecera estable; el cierre de sesión se
+  mantiene separado en la zona inferior.
+- Los enlaces visibles se calculan en servidor mediante las reglas de permisos
+  existentes.
+- El sidebar puede ser `sticky` en desktop, pero no debe ocultar contenido ni
+  forzar el ancho de las páginas hijas.
+
+### Navegación móvil
+
+- En móvil se utiliza una cabecera compacta con navegación vertical
+  desplegable mediante `details` y `summary`.
+- Las rutas no dependen de scroll horizontal, hover, overlays ni iconos.
+- Los targets principales mantienen una altura mínima de 44 px.
+- El menú se cierra al elegir una ruta y conserva el comportamiento normal de
+  `Link`.
+
+### Navegación activa
+
+- La ruta actual debe distinguirse mediante contraste, superficie y borde, no
+  solo mediante color.
+- El enlace activo expone `aria-current="page"`.
+- Las rutas índice usan coincidencia exacta. Las secciones admiten sus rutas
+  hijas, por ejemplo `/dashboard/pedidos/[id]`.
+- `usePathname` queda aislado en un Client Component pequeño; el layout, el
+  sidebar, los datos y el filtrado por rol permanecen en servidor.
+
+### Acceso por teclado
+
+- El shell incluye un enlace “Saltar al contenido principal” antes de la
+  navegación.
+- El contenido principal usa `id="main-content"` y puede recibir foco al usar
+  el enlace de salto.
+- El orden del DOM sigue el recorrido visual: skip link, navegación y
+  contenido.
+- El foco visible global no debe eliminarse en enlaces, `summary` ni botones.
+
+### Restricciones
+
+1. No duplicar reglas de permisos en componentes cliente.
+2. No enviar el rol ni mapas de permisos al cliente para calcular navegación.
+3. No consultar Supabase desde el shell cliente.
+4. No convertir el layout completo en Client Component.
+5. No usar negro puro cuando un azul profundo o grafito de marca sea adecuado.

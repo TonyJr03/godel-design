@@ -1,11 +1,25 @@
 import { logout } from "@/app/login/actions";
 
-export function LogoutButton() {
+type LogoutButtonProps = {
+  variant?: "default" | "inverse";
+};
+
+const variantClasses = {
+  default:
+    "border-border-strong bg-surface text-text-primary hover:bg-surface-muted",
+  inverse:
+    "border-white/25 bg-white/5 text-white hover:border-white/40 hover:bg-white/10",
+} as const;
+
+export function LogoutButton({ variant = "default" }: LogoutButtonProps) {
   return (
     <form action={logout}>
       <button
         type="submit"
-        className="w-full rounded-md border border-zinc-700 px-3 py-2 text-left text-sm font-medium text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800 hover:text-white"
+        className={[
+          "min-h-11 w-full rounded-(--radius-control) border px-3 py-2.5 text-left text-sm font-semibold transition-[background-color,border-color,color] duration-200",
+          variantClasses[variant],
+        ].join(" ")}
       >
         Cerrar sesión
       </button>

@@ -6,3 +6,5 @@ export const dashboardNavItems = [
   { href: "/dashboard/usuarios", label: "Usuarios" },
   { href: "/dashboard/configuracion", label: "Configuración" },
 ] as const;
+
+export type DashboardNavItem = (typeof dashboardNavItems)[number];

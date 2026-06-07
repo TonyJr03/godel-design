@@ -1,7 +1,11 @@
 import Link from "next/link";
+
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { canAccessDashboardRoute, type Role } from "@/lib/permissions";
+
 import { dashboardNavItems } from "./dashboard-nav-items";
+import { DashboardMobileNav } from "./DashboardMobileNav";
+import { DashboardNavLink } from "./DashboardNavLink";
 
 type DashboardSidebarProps = {
   role: Role | null;
@@ -15,27 +19,37 @@ export function DashboardSidebar({ role }: DashboardSidebarProps) {
     : [];
 
   return (
-    <aside className="border-b border-zinc-200 bg-zinc-950 text-white md:flex md:min-h-screen md:w-64 md:flex-col md:border-b-0 md:border-r">
-      <div className="px-5 py-6">
-        <Link href="/dashboard" className="text-lg font-semibold">
-          Godel Diseño
-        </Link>
-        <p className="mt-1 text-sm text-zinc-400">Gestión operativa</p>
-      </div>
-      <nav className="flex gap-2 overflow-x-auto px-4 pb-4 md:flex-col md:overflow-visible">
-        {visibleNavItems.map((enlace) => (
+    <>
+      <DashboardMobileNav items={visibleNavItems} />
+
+      <aside className="hidden min-h-screen w-72 shrink-0 flex-col border-r border-brand-primary bg-brand-primary-hover text-white md:sticky md:top-0 md:flex md:h-screen">
+        <div className="border-b border-white/15 px-6 py-7">
           <Link
-            key={enlace.href}
-            href={enlace.href}
-            className="whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium text-zinc-200 transition hover:bg-zinc-800 hover:text-white"
+            href="/dashboard"
+            className="inline-flex min-h-11 items-center text-xl font-semibold tracking-tight text-white"
           >
-            {enlace.label}
+            Godel Diseño
           </Link>
-        ))}
-      </nav>
-      <div className="px-4 pb-5 md:mt-auto md:pt-4">
-        <LogoutButton />
-      </div>
-    </aside>
+          <p className="mt-1 text-sm text-white/70">Gestión operativa</p>
+        </div>
+
+        <nav
+          aria-label="Navegación principal"
+          className="grid gap-1.5 px-4 py-6"
+        >
+          {visibleNavItems.map((item) => (
+            <DashboardNavLink
+              key={item.href}
+              href={item.href}
+              label={item.label}
+            />
+          ))}
+        </nav>
+
+        <div className="mt-auto border-t border-white/15 px-4 py-5">
+          <LogoutButton variant="inverse" />
+        </div>
+      </aside>
+    </>
   );
 }
