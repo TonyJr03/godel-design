@@ -935,7 +935,7 @@ hex y clases que luego habría que reemplazar.
 - [x] Server Components siguen siendo el valor por defecto.
 - [x] No hay consultas Supabase nuevas en componentes cliente.
 - [x] No se movió lógica sensible al navegador.
-- [ ] No se duplicaron reglas de permisos.
+- [x] No se duplicaron reglas de permisos.
 - [x] No se modificaron RLS, RPCs, Storage ni servicios críticos.
 - [x] No se introdujeron dependencias innecesarias.
 
@@ -949,11 +949,11 @@ hex y clases que luego habría que reemplazar.
 
 ### Componentes
 
-- [ ] Botones tienen variantes y tamaños consistentes.
+- [x] Botones tienen variantes y tamaños consistentes.
 - [ ] Inputs, selects y textareas comparten estados.
-- [ ] Alerts, badges y estados vacíos están normalizados.
-- [ ] Estados y prioridades no dependen solo del color.
-- [ ] No existen componentes universales innecesariamente complejos.
+- [x] Alerts, badges y estados vacíos están normalizados.
+- [x] Estados y prioridades no dependen solo del color.
+- [x] No existen componentes universales innecesariamente complejos.
 
 ### Formularios
 
@@ -1022,3 +1022,19 @@ hex y clases que luego habría que reemplazar.
 - **Observaciones:** Geist se mantiene como fuente principal. No se añadieron
   dependencias, Client Components, consultas, cambios de permisos ni lógica de
   negocio. La migración visual completa queda fuera de esta subfase.
+
+### 14.3A — Componentes UI comunes base
+
+- **Fecha:** 7 de junio de 2026.
+- **Cambios realizados:** creación de `Button`, `Card`, `Alert`,
+  `StatusBadge`, `PriorityBadge` y `EmptyState`; export público opcional y
+  migración piloto de `PlaceholderCard` mediante composición.
+- **Archivos modificados:** componentes base en `src/components/ui`,
+  `src/components/ui/PlaceholderCard.tsx`,
+  `docs/ui-ux/FASE_14_DESIGN_SYSTEM.md` y este documento.
+- **Validaciones ejecutadas:** `npm run lint` y `npm run build` aprobados con
+  Next.js 16.2.6.
+- **Observaciones:** se conservaron Server Components y contratos existentes.
+  Los badges reutilizan etiquetas canónicas del dominio, expresan el estado con
+  texto además de color y mantienen un fallback neutro. No se tocaron
+  permisos, RLS, RPCs, servicios, formularios, pantallas ni dependencias.

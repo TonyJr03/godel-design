@@ -113,14 +113,76 @@ desactivar la interfaz.
 8. Validar estados normal, hover, focus, disabled, error y éxito al migrar cada
    componente.
 
-## 8. Próximos componentes a normalizar
+## 8. Secuencia de normalización
 
-1. `Button`
-2. `Card`
-3. `Alert`
-4. `StatusBadge`
-5. `EmptyState`
-6. `FormField`
+La subfase 14.3A incorpora `Button`, `Card`, `Alert`, `StatusBadge`,
+`PriorityBadge` y `EmptyState`. `FormField` y los controles de formulario
+quedan para una subfase posterior.
 
-La normalización debe hacerse en pequeñas migraciones, conservando contratos y
+La adopción debe hacerse en pequeñas migraciones, conservando contratos y
 Server Components por defecto.
+
+## 9. Componentes UI base
+
+Los componentes viven en `src/components/ui` y se exportan también desde
+`src/components/ui/index.ts`. No contienen consultas, permisos, estado local ni
+lógica de negocio.
+
+### Button
+
+- Variantes: `primary`, `secondary`, `ghost`, `danger` y `link`.
+- Tamaños: `sm`, `md` y `lg`, con altura mínima de 40, 44 y 48 px.
+- Acepta las props nativas de `button`, incluidos `type`, `disabled` y eventos.
+- `primary` usa azul; `danger` queda reservado para acciones destructivas.
+
+```tsx
+<Button type="submit">Guardar cambios</Button>
+<Button type="button" variant="danger">
+  Eliminar pedido
+</Button>
+```
+
+### Card
+
+- Variantes: `default`, `muted`, `raised` e `interactive`.
+- Padding: `sm`, `md` y `lg`.
+- Puede renderizar `div`, `section` o `article` mediante `as`.
+- `interactive` aporta feedback visual, pero el consumidor debe conservar la
+  semántica de enlace o botón cuando toda la tarjeta sea accionable.
+
+### Alert
+
+- Variantes: `info`, `success`, `warning` y `danger`.
+- Acepta título opcional y contenido libre.
+- `danger` usa `role="alert"` y `success` usa `role="status"` por defecto.
+- El texto siempre acompaña al color; no depende de iconos.
+
+### StatusBadge y PriorityBadge
+
+- Muestran una etiqueta textual además del tono semántico.
+- Reutilizan las etiquetas canónicas de solicitudes y pedidos.
+- Los valores desconocidos se humanizan y usan un estilo neutro.
+- `PriorityBadge` contempla `baja`, `normal`, `alta` y `urgente`.
+
+```tsx
+<StatusBadge status="en_produccion" />
+<PriorityBadge priority="urgente" />
+```
+
+### EmptyState
+
+- Variantes: `default`, `search`, `permission` y `error`.
+- Requiere `title` y `description`; acepta `action` y `eyebrow`.
+- Sirve para ausencia de datos, búsquedas sin resultados, restricciones de
+  acceso y errores recuperables.
+- La acción debe ser concreta y solo mostrarse cuando exista una recuperación
+  real para la persona usuaria.
+
+### Restricciones
+
+1. No usar estos componentes para encapsular permisos o transiciones de estado.
+2. No convertirlos en Client Components solo para resolver estilos.
+3. No añadir iconografía decorativa hasta definir el sistema de iconos.
+4. No usar `Card interactive` como sustituto de semántica HTML accionable.
+5. No extender variantes para casos aislados si `className` y los tokens
+   existentes resuelven el caso de forma clara.
