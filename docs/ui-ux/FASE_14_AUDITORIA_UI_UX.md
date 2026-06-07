@@ -923,21 +923,21 @@ hex y clases que luego habría que reemplazar.
 
 ### Sistema visual
 
-- [ ] Los colores usan tokens semánticos.
-- [ ] Azul y naranja tienen funciones diferenciadas.
+- [x] Los colores usan tokens semánticos.
+- [x] Azul y naranja tienen funciones diferenciadas.
 - [ ] Texto y bordes cumplen contraste.
 - [ ] Radios, sombras y espacios siguen escalas definidas.
-- [ ] Geist se usa de forma consistente.
+- [x] Geist se usa de forma consistente.
 - [ ] Monoespaciada se reserva para referencias útiles.
 
 ### Arquitectura
 
-- [ ] Server Components siguen siendo el valor por defecto.
-- [ ] No hay consultas Supabase nuevas en componentes cliente.
-- [ ] No se movió lógica sensible al navegador.
+- [x] Server Components siguen siendo el valor por defecto.
+- [x] No hay consultas Supabase nuevas en componentes cliente.
+- [x] No se movió lógica sensible al navegador.
 - [ ] No se duplicaron reglas de permisos.
-- [ ] No se modificaron RLS, RPCs, Storage ni servicios críticos.
-- [ ] No se introdujeron dependencias innecesarias.
+- [x] No se modificaron RLS, RPCs, Storage ni servicios críticos.
+- [x] No se introdujeron dependencias innecesarias.
 
 ### Navegación
 
@@ -1000,6 +1000,25 @@ hex y clases que luego habría que reemplazar.
 - [ ] Flujos de admin revisados.
 - [ ] Flujos de supervisor revisados.
 - [ ] Flujos de trabajador revisados.
-- [ ] Lint aprobado.
-- [ ] Build aprobado.
+- [x] Lint aprobado.
+- [x] Build aprobado.
 - [ ] Revisión manual en navegador y dispositivos reales completada.
+
+## Avance de implementación UI/UX
+
+### 14.2A — Sistema visual base
+
+- **Fecha:** 7 de junio de 2026.
+- **Cambios realizados:** definición de tokens semánticos de color, superficie,
+  texto, borde, foco, radio, sombra y movimiento; estilos globales mínimos de
+  selección, foco visible y movimiento reducido; migración piloto de
+  `PageHeader` y `PlaceholderCard`.
+- **Archivos modificados:** `src/app/globals.css`,
+  `src/components/ui/PageHeader.tsx`,
+  `src/components/ui/PlaceholderCard.tsx`,
+  `docs/ui-ux/FASE_14_DESIGN_SYSTEM.md` y este documento.
+- **Validaciones ejecutadas:** `npm run lint` aprobado y `npm run build`
+  aprobado con Next.js 16.2.6.
+- **Observaciones:** Geist se mantiene como fuente principal. No se añadieron
+  dependencias, Client Components, consultas, cambios de permisos ni lógica de
+  negocio. La migración visual completa queda fuera de esta subfase.

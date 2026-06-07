@@ -1,13 +1,63 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f7f7f4;
-  --foreground: #171717;
+  --background: #f6f4ef;
+  --foreground: #2f3034;
+  --surface: #ffffff;
+  --surface-muted: #eeece6;
+  --surface-raised: #fffefc;
+  --text-primary: #2f3034;
+  --text-secondary: #5f6268;
+  --text-muted: #6b6d72;
+  --brand-primary: #145d99;
+  --brand-primary-hover: #104e82;
+  --brand-primary-soft: #e8f1f8;
+  --brand-accent: #e55026;
+  --brand-accent-hover: #c94420;
+  --brand-accent-soft: #fcede7;
+  --border: #d9d6cf;
+  --border-strong: #b8b4aa;
+  --success: #2f7d56;
+  --success-soft: #e8f5ee;
+  --warning: #9a5f06;
+  --warning-soft: #fff3d8;
+  --danger: #b33a3a;
+  --danger-soft: #fcebec;
+  --info: #3171af;
+  --info-soft: #eaf2fa;
+  --focus-ring: #3171af;
+  --shadow-soft: 0 1px 2px rgb(47 48 52 / 6%),
+    0 8px 24px rgb(47 48 52 / 5%);
+  --radius-card: 0.75rem;
+  --radius-control: 0.5rem;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-raised: var(--surface-raised);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-primary-hover: var(--brand-primary-hover);
+  --color-brand-primary-soft: var(--brand-primary-soft);
+  --color-brand-accent: var(--brand-accent);
+  --color-brand-accent-hover: var(--brand-accent-hover);
+  --color-brand-accent-soft: var(--brand-accent-soft);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-focus-ring: var(--focus-ring);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -16,4 +66,25 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+::selection {
+  background: var(--brand-primary-soft);
+  color: var(--text-primary);
+}
+
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }
