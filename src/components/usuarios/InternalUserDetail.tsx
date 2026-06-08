@@ -1,7 +1,14 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
-import type { InternalUserDetail as InternalUserDetailData } from "@/lib/usuarios";
+
+import {
+  Alert,
+  DetailPanel,
+  MetadataGrid,
+  MetadataItem,
+  StatusBadge,
+} from "@/components/ui";
 import { ROLE_LABELS } from "@/lib/permissions";
+import type { InternalUserDetail as InternalUserDetailData } from "@/lib/usuarios";
 import { formatAppDateTime } from "@/lib/utils";
 
 type InternalUserDetailProps = {
@@ -10,10 +17,6 @@ type InternalUserDetailProps = {
 
 function getInitials(name: string): string {
   const words = name.trim().split(/\s+/).slice(0, 2);
-
-  if (words.length === 0) {
-    return "US";
-  }
 
   return words.map((word) => word[0]?.toUpperCase() ?? "").join("") || "US";
 }
@@ -32,100 +35,118 @@ function getSafeAvatarHref(value: string | null): string | null {
   try {
     const url = new URL(avatarUrl);
 
-    if (url.protocol === "https:" || url.protocol === "http:") {
-      return url.toString();
-    }
+    return ["https:", "http:"].includes(url.protocol) ? url.toString() : null;
   } catch {
     return null;
   }
-
-  return null;
-}
-
-function DetailItem({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div>
-      <dt className="text-xs font-semibold uppercase text-zinc-500">{label}</dt>
-      <dd className="mt-1 text-sm leading-6 text-zinc-950">{value}</dd>
-    </div>
-  );
 }
 
 export function InternalUserDetail({ user }: InternalUserDetailProps) {
   const avatarHref = getSafeAvatarHref(user.avatar_url);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Link
-          href="/dashboard/usuarios"
-          className="inline-flex min-h-10 items-center justify-center rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:border-zinc-400"
-        >
-          Volver a usuarios
-        </Link>
-        <Link
-          href={`/dashboard/usuarios/${user.id}/editar`}
-          className="inline-flex min-h-10 items-center justify-center rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800"
-        >
-          Editar usuario
-        </Link>
-      </div>
-
-      <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-4 border-b border-zinc-200 pb-5 sm:flex-row sm:items-center">
-          <div className="flex size-14 shrink-0 items-center justify-center rounded-md bg-zinc-900 text-sm font-semibold text-white">
+    <article className="space-y-6">
+      <header className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex min-w-0 items-start gap-4">
+          <div className="flex size-14 shrink-0 items-center justify-center rounded-(--radius-control) bg-brand-primary text-sm font-semibold text-white">
             {getInitials(user.full_name)}
           </div>
-          <div>
-            <p className="text-sm font-medium text-zinc-600">
-              Perfil interno del equipo
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-brand-primary">
+              Perfil interno
             </p>
-            <h2 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-950">
+            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-text-primary">
               {user.full_name}
-            </h2>
-            <p className="mt-2 break-all font-mono text-xs text-zinc-500">
-              {user.id}
-            </p>
+            </h1>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="text-sm text-text-secondary">
+                {ROLE_LABELS[user.role]}
+              </span>
+              <StatusBadge status={user.is_active ? "activo" : "inactivo"} />
+            </div>
           </div>
         </div>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Link
+            href="/dashboard/usuarios"
+            className="inline-flex min-h-11 items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-4 text-sm font-semibold text-text-primary transition-colors hover:bg-surface-muted"
+          >
+            Volver a usuarios
+          </Link>
+          <Link
+            href={`/dashboard/usuarios/${user.id}/editar`}
+            className="inline-flex min-h-11 items-center justify-center rounded-(--radius-control) bg-brand-primary px-4 text-sm font-semibold text-white transition-colors hover:bg-brand-primary-hover"
+          >
+            Editar usuario
+          </Link>
+        </div>
+      </header>
 
-        <dl className="mt-6 grid gap-6 sm:grid-cols-2">
-          <DetailItem label="Rol" value={ROLE_LABELS[user.role]} />
-          <DetailItem
-            label="Estado"
-            value={user.is_active ? "Activo" : "Inactivo"}
-          />
-          <DetailItem
-            label="Teléfono"
-            value={user.phone?.trim() || "Sin teléfono"}
-          />
-          <DetailItem
-            label="Avatar"
-            value={
-              avatarHref ? (
-                <a
-                  href={avatarHref}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-semibold text-teal-800 underline-offset-4 hover:underline"
-                >
-                  Ver avatar
-                </a>
-              ) : (
-                "No definido"
-              )
-            }
-          />
-          <DetailItem
-            label="Creación"
-            value={formatAppDateTime(user.created_at, "No definida")}
-          />
-          <DetailItem
-            label="Última actualización"
-            value={formatAppDateTime(user.updated_at, "No definida")}
-          />
-        </dl>
-      </section>
-    </div>
+      <Alert variant="info" title="Cuenta de acceso">
+        La autenticación se gestiona fuera de esta ficha. Aquí solo se consulta
+        y administra el perfil interno asociado.
+      </Alert>
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <DetailPanel
+          title="Información operativa"
+          description="Datos visibles del perfil dentro del equipo."
+        >
+          <MetadataGrid>
+            <MetadataItem label="Rol" value={ROLE_LABELS[user.role]} />
+            <MetadataItem
+              label="Estado"
+              value={
+                <StatusBadge
+                  status={user.is_active ? "activo" : "inactivo"}
+                />
+              }
+            />
+            <MetadataItem
+              label="Teléfono"
+              value={user.phone?.trim() || "Sin teléfono"}
+            />
+            <MetadataItem
+              label="Avatar"
+              value={
+                avatarHref ? (
+                  <a
+                    href={avatarHref}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-semibold text-brand-primary underline-offset-4 hover:underline"
+                  >
+                    Ver avatar
+                  </a>
+                ) : (
+                  "No definido"
+                )
+              }
+            />
+          </MetadataGrid>
+        </DetailPanel>
+
+        <DetailPanel title="Registro" description="Información técnica secundaria.">
+          <MetadataGrid className="sm:grid-cols-1">
+            <MetadataItem
+              label="Creación"
+              value={formatAppDateTime(user.created_at, "No definida")}
+            />
+            <MetadataItem
+              label="Última actualización"
+              value={formatAppDateTime(user.updated_at, "No definida")}
+            />
+            <MetadataItem
+              label="Auth ID"
+              value={
+                <span className="break-all font-mono text-xs text-text-secondary">
+                  {user.id}
+                </span>
+              }
+            />
+          </MetadataGrid>
+        </DetailPanel>
+      </div>
+    </article>
   );
 }

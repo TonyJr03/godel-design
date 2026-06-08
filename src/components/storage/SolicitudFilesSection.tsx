@@ -42,24 +42,24 @@ export function SolicitudFilesSection({
   loadError,
 }: SolicitudFilesSectionProps) {
   return (
-    <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
+    <section className="rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6">
       <div>
-        <h2 className="text-lg font-semibold text-zinc-950">
+        <h2 className="text-lg font-semibold text-text-primary">
           Archivos de la solicitud
         </h2>
-        <p className="mt-2 text-sm leading-6 text-zinc-600">
+        <p className="mt-2 text-sm leading-6 text-text-secondary">
           Archivos privados enviados como referencia para esta solicitud.
         </p>
       </div>
 
       {loadError ? (
-        <p className="mt-5 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-900">
+        <p className="mt-5 rounded-(--radius-control) border border-danger/30 bg-danger-soft px-4 py-3 text-sm leading-6 text-danger">
           {loadError}
         </p>
       ) : null}
 
       {files.length > 0 ? (
-        <ul className="mt-5 divide-y divide-zinc-100">
+        <ul className="mt-5 divide-y divide-border">
           {files.map((file) => (
             <li
               key={file.id}
@@ -67,26 +67,26 @@ export function SolicitudFilesSection({
             >
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="break-all text-sm font-semibold text-zinc-950">
+                  <p className="break-all text-sm font-semibold text-text-primary">
                     {file.file_name}
                   </p>
-                  <span className="inline-flex rounded-md bg-zinc-100 px-2 py-1 text-xs font-semibold text-zinc-700 ring-1 ring-inset ring-zinc-200">
+                  <span className="inline-flex rounded-(--radius-control) border border-border bg-surface-muted px-2 py-1 text-xs font-semibold text-text-secondary">
                     {STORAGE_FILE_CATEGORY_LABELS[file.visibility]}
                   </span>
                 </div>
-                <p className="mt-1 text-xs leading-5 text-zinc-500">
+                <p className="mt-1 text-xs leading-5 text-text-muted">
                   {formatFileSize(file.file_size)}
                   {" · "}
                   Subido el {formatAppDateTime(file.created_at)}
                 </p>
-                <p className="mt-1 text-xs text-zinc-400">
+                <p className="mt-1 text-xs text-text-muted">
                   {getFileTypeLabel(file)}
                 </p>
               </div>
 
               <a
                 href={`/dashboard/solicitudes/${solicitudId}/archivos/${file.id}/download`}
-                className="inline-flex min-h-9 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-700 transition hover:border-zinc-400 hover:bg-zinc-50"
+                className="inline-flex min-h-11 items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-4 text-sm font-semibold text-brand-primary transition-colors hover:bg-brand-primary-soft"
               >
                 Descargar
               </a>
@@ -94,7 +94,7 @@ export function SolicitudFilesSection({
           ))}
         </ul>
       ) : !loadError ? (
-        <p className="mt-5 rounded-md border border-dashed border-zinc-300 px-4 py-3 text-sm leading-6 text-zinc-600">
+        <p className="mt-5 rounded-(--radius-control) border border-dashed border-border-strong bg-surface-raised px-4 py-3 text-sm leading-6 text-text-secondary">
           No hay archivos asociados a esta solicitud.
         </p>
       ) : null}

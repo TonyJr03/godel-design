@@ -33,13 +33,13 @@ export function PedidoProgressBar(props: PedidoProgressBarProps) {
   );
 
   return (
-    <div className="rounded-md border border-zinc-200 bg-zinc-50 p-4">
+    <div className="rounded-(--radius-control) border border-border bg-surface-muted p-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-semibold text-zinc-950">
+          <p className="text-sm font-semibold text-text-primary">
             {getTasksSummary(props)}
           </p>
-          <p className="mt-1 text-sm text-zinc-600">
+          <p className="mt-1 text-sm text-text-secondary">
             Progreso: {safePercentage}%
           </p>
         </div>
@@ -47,8 +47,8 @@ export function PedidoProgressBar(props: PedidoProgressBarProps) {
           <span
             className={
               props.isComplete
-                ? "inline-flex rounded-md bg-teal-50 px-2 py-1 text-xs font-semibold text-teal-800 ring-1 ring-inset ring-teal-700/15"
-                : "inline-flex rounded-md bg-white px-2 py-1 text-xs font-semibold text-zinc-700 ring-1 ring-inset ring-zinc-200"
+                ? "inline-flex rounded-(--radius-control) border border-success/30 bg-success-soft px-2 py-1 text-xs font-semibold text-success"
+                : "inline-flex rounded-(--radius-control) border border-border-strong bg-surface px-2 py-1 text-xs font-semibold text-text-secondary"
             }
           >
             {props.isComplete
@@ -58,9 +58,9 @@ export function PedidoProgressBar(props: PedidoProgressBarProps) {
         ) : null}
       </div>
 
-      <div className="mt-4 h-3 overflow-hidden rounded-full bg-white ring-1 ring-inset ring-zinc-200">
+      <div className="mt-4 h-3 overflow-hidden rounded-full bg-surface ring-1 ring-inset ring-border">
         <div
-          className="h-full rounded-full bg-teal-700 transition-all"
+          className="h-full rounded-full bg-brand-primary transition-all"
           style={{ width: `${safePercentage}%` }}
         />
       </div>

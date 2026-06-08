@@ -134,53 +134,53 @@ export function PedidoHistorySection({
   loadError,
 }: PedidoHistorySectionProps) {
   return (
-    <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
+    <section className="rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6">
       <div>
-        <h3 className="text-lg font-semibold text-zinc-950">
+        <h2 className="text-lg font-semibold text-text-primary">
           Historial del pedido
-        </h3>
-        <p className="mt-2 text-sm leading-6 text-zinc-600">
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-text-secondary">
           Este historial registra eventos relevantes del pedido.
         </p>
       </div>
 
       {loadError ? (
-        <p className="mt-5 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-900">
+        <p className="mt-5 rounded-(--radius-control) border border-danger/30 bg-danger-soft px-4 py-3 text-sm leading-6 text-danger">
           {loadError}
         </p>
       ) : null}
 
       {history.length > 0 ? (
-        <ol className="mt-5 space-y-4">
+        <ol className="relative mt-5 space-y-5 border-l border-border pl-5">
           {history.map((item) => {
             const actorRole = getActorRole(item);
 
             return (
               <li
                 key={item.id}
-                className="rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3"
+                className="relative rounded-(--radius-control) border border-border bg-surface-muted px-4 py-3 before:absolute before:left-[-1.72rem] before:top-4 before:size-3 before:rounded-full before:border-2 before:border-surface before:bg-brand-primary"
               >
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                    <span className="inline-flex rounded-md bg-white px-2 py-1 text-xs font-semibold text-zinc-700 ring-1 ring-inset ring-zinc-200">
+                    <span className="inline-flex rounded-(--radius-control) border border-border bg-surface px-2 py-1 text-xs font-semibold text-text-secondary">
                       {PEDIDO_HISTORY_ACTION_LABELS[item.action]}
                     </span>
-                    <p className="mt-3 text-sm leading-6 text-zinc-800">
+                    <p className="mt-3 text-sm leading-6 text-text-primary">
                       {getHistorySummary(item)}
                     </p>
                   </div>
                   <time
                     dateTime={item.created_at}
-                    className="text-xs leading-5 text-zinc-500"
+                    className="text-xs leading-5 text-text-muted"
                   >
                     {formatAppDateTime(item.created_at)}
                   </time>
                 </div>
 
-                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-text-muted">
                   <span>{getActorName(item)}</span>
                   {actorRole ? (
-                    <span className="inline-flex rounded-md bg-white px-2 py-1 font-semibold text-zinc-600 ring-1 ring-inset ring-zinc-200">
+                    <span className="inline-flex rounded-(--radius-control) border border-border bg-surface px-2 py-1 font-semibold text-text-secondary">
                       {actorRole}
                     </span>
                   ) : null}
@@ -190,7 +190,7 @@ export function PedidoHistorySection({
           })}
         </ol>
       ) : !loadError ? (
-        <p className="mt-5 rounded-md border border-dashed border-zinc-300 px-4 py-3 text-sm leading-6 text-zinc-600">
+        <p className="mt-5 rounded-(--radius-control) border border-dashed border-border-strong bg-surface-raised px-4 py-3 text-sm leading-6 text-text-secondary">
           Todavía no hay eventos registrados en este pedido.
         </p>
       ) : null}

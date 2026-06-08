@@ -6,6 +6,7 @@ import { SolicitudConvertPedidoForm } from "@/components/solicitudes/SolicitudCo
 import { SolicitudHistorySection } from "@/components/solicitudes/SolicitudHistorySection";
 import { InternalSolicitudDetail } from "@/components/solicitudes/InternalSolicitudDetail";
 import { SolicitudFilesSection } from "@/components/storage/SolicitudFilesSection";
+import { Alert } from "@/components/ui";
 import { getInternalClienteById, listInternalClientes } from "@/lib/clientes";
 import {
   getInternalSolicitudById,
@@ -40,9 +41,7 @@ export default async function DashboardSolicitudDetallePage({
   if (!result.ok) {
     return (
       <div className="space-y-8">
-        <section className="rounded-lg border border-red-200 bg-red-50 p-5 text-sm text-red-950">
-          {result.message}
-        </section>
+        <Alert variant="danger">{result.message}</Alert>
       </div>
     );
   }

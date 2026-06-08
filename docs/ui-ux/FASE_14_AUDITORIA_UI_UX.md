@@ -960,7 +960,7 @@ hex y clases que luego habría que reemplazar.
 - [ ] Todos los campos tienen label.
 - [ ] Ayuda y error están asociados mediante ARIA.
 - [ ] Pending, disabled, success y error son visibles.
-- [ ] Los contratos de Server Actions no cambiaron.
+- [x] Los contratos de Server Actions no cambiaron.
 - [ ] Los campos usan teclado móvil apropiado.
 - [ ] Las acciones son claras y no permiten doble envío accidental.
 
@@ -988,11 +988,11 @@ hex y clases que luego habría que reemplazar.
 ### Contenido y estados
 
 - [ ] Loading, vacío, error, éxito y permisos están diseñados.
-- [ ] Los mensajes usan lenguaje operativo y no metadata cruda.
-- [ ] No se expone `file_path`.
-- [ ] Las referencias completas no dominan la pantalla.
+- [x] Los mensajes usan lenguaje operativo y no metadata cruda.
+- [x] No se expone `file_path`.
+- [x] Las referencias completas no dominan la pantalla.
 - [x] El dashboard prioriza acciones sobre métricas decorativas.
-- [ ] Comentarios, historial y archivos se distinguen visualmente.
+- [x] Comentarios, historial y archivos se distinguen visualmente.
 
 ### Verificación final
 
@@ -1112,3 +1112,32 @@ hex y clases que luego habría que reemplazar.
   interno cuando su densidad lo requiere; tablet y móvil usan cards y ya no
   dependen de ese scroll. Supervisor comparte estos listados operativos con
   admin salvo las áreas exclusivas de usuarios y configuración.
+
+### 14.7A — Detalles operativos
+
+- **Fecha:** 8 de junio de 2026.
+- **Cambios realizados:** composición de ficha operativa para solicitud,
+  pedido, cliente y usuario; resumen superior con datos prioritarios; layout de
+  dos columnas para detalles complejos; metadata técnica relegada; archivos
+  tratados como anexos; comentarios como notas internas; historial como
+  timeline; tareas, asignaciones, estados y formularios migrados a tokens
+  semánticos con targets principales de 44 px.
+- **Archivos modificados:** páginas de detalle de solicitudes, pedidos,
+  clientes y usuarios; componentes `Internal*Detail`; componentes visuales de
+  estado, asociación, conversión, tareas, asignaciones, archivos, comentarios
+  e historial; nuevos `DetailPanel` y `MetadataGrid`;
+  `docs/ui-ux/FASE_14_DESIGN_SYSTEM.md` y este documento.
+- **Validaciones ejecutadas:** `npm run lint` y `npm run build` aprobados con
+  Next.js 16.2.6. Inspección visual autenticada en Edge 149 con perfil admin
+  sobre los cuatro detalles a 1440 × 1000 px, 768 × 1024 px y 375 × 812 px.
+  El detalle de un pedido asignado también se validó con perfil trabajador en
+  los tres tamaños. Cada pantalla mantuvo un único `h1`, controles principales
+  de al menos 44 px y ausencia de scroll horizontal global.
+- **Observaciones:** no se modificaron consultas, permisos, transiciones,
+  Server Actions, contratos de formulario, RLS, RPCs, Storage ni servicios.
+  Cliente no muestra relaciones adicionales porque el loader actual no las
+  consulta. Usuario no muestra email porque el perfil interno no lo expone y
+  no se consulta `auth.users`. Las descargas conservan sus rutas controladas y
+  ningún componente presenta `file_path`. En trabajador se conservaron los
+  controles permitidos de estado y tareas, mientras la asignación de personal
+  permaneció en modo lectura.

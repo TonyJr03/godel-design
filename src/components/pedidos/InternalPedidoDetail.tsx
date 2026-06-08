@@ -1,14 +1,20 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+
 import type {
   PedidoDetailAction,
   UpdatePedidoStatusActionState,
 } from "@/app/dashboard/pedidos/[id]/actions";
 import {
-  PEDIDO_PRIORITY_LABELS,
-  PEDIDO_STATUS_LABELS,
-  type InternalPedidoDetail,
-  type PedidoStatusTransitionContext,
+  DetailPanel,
+  MetadataGrid,
+  MetadataItem,
+  PriorityBadge,
+  StatusBadge,
+} from "@/components/ui";
+import type {
+  InternalPedidoDetail as InternalPedidoDetailData,
+  PedidoStatusTransitionContext,
 } from "@/lib/pedidos";
 import {
   SOLICITUD_STATUS_LABELS,
@@ -18,7 +24,7 @@ import { formatAppDateTime } from "@/lib/utils";
 import { PedidoStatusForm } from "./PedidoStatusForm";
 
 type InternalPedidoDetailProps = {
-  pedido: InternalPedidoDetail;
+  pedido: InternalPedidoDetailData;
   updateStatusAction: PedidoDetailAction<UpdatePedidoStatusActionState>;
   taskProgress?: PedidoStatusTransitionContext | null;
   tasksLoadError?: string;
@@ -41,28 +47,19 @@ function formatShortReference(id: string): string {
 }
 
 function formatDate(value: string | null): string {
-  if (!value) {
-    return "No definida";
+  return value ? DATE_FORMATTER.format(new Date(value)) : "No definida";
+}
+
+function getProgressLabel(
+  progress: PedidoStatusTransitionContext | null | undefined,
+) {
+  if (!progress?.hasTasks) {
+    return "Sin tareas";
   }
 
-  return DATE_FORMATTER.format(new Date(value));
-}
-
-function DetailItem({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div>
-      <dt className="text-xs font-semibold uppercase text-zinc-500">{label}</dt>
-      <dd className="mt-1 text-sm leading-6 text-zinc-950">{value}</dd>
-    </div>
-  );
-}
-
-function StatusBadge({ children }: { children: ReactNode }) {
-  return (
-    <span className="inline-flex rounded-md bg-teal-50 px-2 py-1 text-xs font-semibold text-teal-800 ring-1 ring-inset ring-teal-700/15">
-      {children}
-    </span>
-  );
+  return progress.isComplete
+    ? "Tareas completadas"
+    : `${Math.round(progress.progressPercentage)}% completado`;
 }
 
 export function InternalPedidoDetail({
@@ -77,188 +74,202 @@ export function InternalPedidoDetail({
   historySection,
 }: InternalPedidoDetailProps) {
   return (
-    <div className="space-y-6">
-      <Link
-        href="/dashboard/pedidos"
-        className="inline-flex min-h-10 items-center justify-center rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:border-zinc-400"
-      >
-        Volver a pedidos
-      </Link>
-
-      <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-4 border-b border-zinc-200 pb-5 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <p className="font-mono text-xs font-semibold text-zinc-500">
-              {pedido.order_number} · {formatShortReference(pedido.id)}
+    <article className="space-y-6">
+      <header className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="font-mono text-sm font-semibold text-brand-primary">
+              {pedido.order_number}
             </p>
-            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">
-              {pedido.title}
-            </h2>
-            <p className="mt-3 max-w-3xl whitespace-pre-line text-sm leading-6 text-zinc-700">
-              {pedido.description}
-            </p>
+            <StatusBadge status={pedido.status} />
+            <PriorityBadge priority={pedido.priority} />
           </div>
-          <div className="flex flex-wrap gap-2">
-            <StatusBadge>{PEDIDO_STATUS_LABELS[pedido.status]}</StatusBadge>
-            <span className="inline-flex rounded-md bg-zinc-100 px-2 py-1 text-xs font-semibold text-zinc-700 ring-1 ring-inset ring-zinc-200">
-              Prioridad {PEDIDO_PRIORITY_LABELS[pedido.priority]}
-            </span>
-          </div>
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-text-primary">
+            {pedido.title}
+          </h1>
+          <p className="mt-3 max-w-3xl whitespace-pre-line text-base leading-7 text-text-secondary">
+            {pedido.description}
+          </p>
         </div>
+        <Link
+          href="/dashboard/pedidos"
+          className="inline-flex min-h-11 items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-4 text-sm font-semibold text-text-primary transition-colors hover:bg-surface-muted"
+        >
+          Volver a pedidos
+        </Link>
+      </header>
 
-        <dl className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          <DetailItem
-            label="Fecha operativa"
-            value={formatAppDateTime(pedido.created_at, "No definida")}
+      <section className="rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6">
+        <MetadataGrid className="lg:grid-cols-4">
+          <MetadataItem
+            label="Cliente"
+            value={pedido.clientes?.name ?? "Sin cliente asociado"}
           />
-          <DetailItem
+          <MetadataItem
+            label="Progreso"
+            value={getProgressLabel(taskProgress)}
+          />
+          <MetadataItem
             label="Entrega estimada"
             value={formatDate(pedido.estimated_delivery_date)}
           />
-          <DetailItem
-            label="Entrega real"
-            value={formatDate(pedido.actual_delivery_date)}
+          <MetadataItem
+            label="Personal asignado"
+            value={
+              pedido.pedido_trabajadores.length > 0
+                ? pedido.pedido_trabajadores
+                    .map(
+                      (assignment) =>
+                        assignment.perfiles?.full_name ?? "Perfil no disponible",
+                    )
+                    .join(", ")
+                : "Sin personal asignado"
+            }
           />
-          <DetailItem
-            label="Creado por"
-            value={pedido.creador?.full_name ?? "No definido"}
-          />
-          <DetailItem
-            label="Última actualización"
-            value={formatAppDateTime(pedido.updated_at, "No definida")}
-          />
-        </dl>
-
-        <div className="mt-6 border-t border-zinc-200 pt-6">
-          <h3 className="text-sm font-semibold text-zinc-950">
-            Identificador interno
-          </h3>
-          <p className="mt-2 break-all font-mono text-xs text-zinc-500">
-            {pedido.id}
-          </p>
-        </div>
+        </MetadataGrid>
       </section>
 
-      <PedidoStatusForm
-        updateStatusAction={updateStatusAction}
-        estadoActual={pedido.status}
-        taskProgress={taskProgress}
-        tasksLoadError={tasksLoadError}
-      />
-
-      {tasksSection}
-
-      {workerAssignmentSection}
-
-      {commentsSection}
-
-      {historySection}
-
-      {filesSection}
-
-      <section className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-zinc-950">Cliente</h3>
-          {pedido.clientes ? (
-            <dl className="mt-5 grid gap-5">
-              <DetailItem
-                label="Nombre"
-                value={
-                  <Link
-                    href={`/dashboard/clientes/${pedido.clientes.id}`}
-                    className="font-semibold text-teal-800 hover:text-teal-900"
-                  >
-                    {pedido.clientes.name}
-                  </Link>
-                }
-              />
-              <DetailItem label="Teléfono" value={pedido.clientes.phone} />
-              <DetailItem
-                label="Correo electrónico"
-                value={pedido.clientes.email ?? "No definido"}
-              />
-            </dl>
-          ) : pedido.cliente_id ? (
-            <p className="mt-3 text-sm leading-6 text-zinc-600">
-              Este pedido tiene un cliente asociado, pero no hay datos visibles
-              para mostrar.
-            </p>
-          ) : (
-            <p className="mt-3 text-sm leading-6 text-zinc-600">
-              Sin cliente asociado.
-            </p>
-          )}
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="order-2 min-w-0 space-y-6 xl:col-start-1 xl:row-start-1">
+          {tasksSection}
+          {filesSection}
+          {commentsSection}
+          {historySection}
         </div>
 
-        <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-zinc-950">Solicitud</h3>
-          {pedido.solicitudes ? (
-            <dl className="mt-5 grid gap-5">
-              <DetailItem
-                label="Servicio"
-                value={
-                  <Link
-                    href={`/dashboard/solicitudes/${pedido.solicitudes.id}`}
-                    className="font-semibold text-teal-800 hover:text-teal-900"
-                  >
-                    {getSolicitudServiceTypeLabel(
-                      pedido.solicitudes.service_type,
-                    )}
-                  </Link>
-                }
+        <aside className="contents min-w-0 xl:col-start-2 xl:row-start-1 xl:block xl:space-y-6">
+          <div className="order-1 space-y-6 xl:block">
+            <PedidoStatusForm
+              updateStatusAction={updateStatusAction}
+              estadoActual={pedido.status}
+              taskProgress={taskProgress}
+              tasksLoadError={tasksLoadError}
+            />
+
+            {workerAssignmentSection}
+          </div>
+
+          <div className="order-3 space-y-6 xl:block">
+            <DetailPanel title="Cliente" description="Contacto asociado al pedido.">
+            {pedido.clientes ? (
+              <MetadataGrid className="sm:grid-cols-1">
+                <MetadataItem
+                  label="Nombre"
+                  value={
+                    <Link
+                      href={`/dashboard/clientes/${pedido.clientes.id}`}
+                      className="font-semibold text-brand-primary underline-offset-4 hover:underline"
+                    >
+                      {pedido.clientes.name}
+                    </Link>
+                  }
+                />
+                <MetadataItem label="Teléfono" value={pedido.clientes.phone} />
+                <MetadataItem
+                  label="Correo electrónico"
+                  value={pedido.clientes.email ?? "No definido"}
+                />
+              </MetadataGrid>
+            ) : (
+              <p className="text-sm leading-6 text-text-secondary">
+                {pedido.cliente_id
+                  ? "El pedido tiene un cliente asociado, pero sus datos no están disponibles."
+                  : "Este pedido no tiene cliente asociado."}
+              </p>
+            )}
+            </DetailPanel>
+
+            <DetailPanel
+              title="Solicitud de origen"
+              description="Referencia de entrada del trabajo."
+            >
+            {pedido.solicitudes ? (
+              <MetadataGrid className="sm:grid-cols-1">
+                <MetadataItem
+                  label="Servicio"
+                  value={
+                    <Link
+                      href={`/dashboard/solicitudes/${pedido.solicitudes.id}`}
+                      className="font-semibold text-brand-primary underline-offset-4 hover:underline"
+                    >
+                      {getSolicitudServiceTypeLabel(
+                        pedido.solicitudes.service_type,
+                      )}
+                    </Link>
+                  }
+                />
+                <MetadataItem
+                  label="Cliente capturado"
+                  value={pedido.solicitudes.client_name}
+                />
+                <MetadataItem
+                  label="Estado"
+                  value={
+                    <StatusBadge
+                      status={pedido.solicitudes.status}
+                      label={
+                        SOLICITUD_STATUS_LABELS[pedido.solicitudes.status]
+                      }
+                    />
+                  }
+                />
+                <MetadataItem
+                  label="Fecha deseada"
+                  value={formatDate(pedido.solicitudes.desired_date)}
+                />
+                <MetadataItem
+                  label="Descripción original"
+                  value={
+                    <span className="whitespace-pre-line">
+                      {pedido.solicitudes.description}
+                    </span>
+                  }
+                />
+              </MetadataGrid>
+            ) : (
+              <p className="text-sm leading-6 text-text-secondary">
+                {pedido.solicitud_id
+                  ? "La solicitud asociada no está disponible para mostrar."
+                  : "Pedido creado manualmente, sin solicitud de origen."}
+              </p>
+            )}
+            </DetailPanel>
+
+            <DetailPanel title="Metadata" description="Información técnica secundaria.">
+            <MetadataGrid className="sm:grid-cols-1">
+              <MetadataItem
+                label="Referencia interna"
+                value={formatShortReference(pedido.id)}
               />
-              <DetailItem
-                label="Cliente capturado"
-                value={pedido.solicitudes.client_name}
+              <MetadataItem
+                label="Creación"
+                value={formatAppDateTime(pedido.created_at, "No definida")}
               />
-              <DetailItem
-                label="Contacto"
+              <MetadataItem
+                label="Entrega real"
+                value={formatDate(pedido.actual_delivery_date)}
+              />
+              <MetadataItem
+                label="Creado por"
+                value={pedido.creador?.full_name ?? "No definido"}
+              />
+              <MetadataItem
+                label="Última actualización"
+                value={formatAppDateTime(pedido.updated_at, "No definida")}
+              />
+              <MetadataItem
+                label="Identificador interno"
                 value={
-                  <span>
-                    {pedido.solicitudes.client_phone}
-                    {pedido.solicitudes.client_email ? (
-                      <span className="mt-1 block text-xs text-zinc-500">
-                        {pedido.solicitudes.client_email}
-                      </span>
-                    ) : null}
+                  <span className="break-all font-mono text-xs text-text-secondary">
+                    {pedido.id}
                   </span>
                 }
               />
-              <DetailItem
-                label="Estado"
-                value={SOLICITUD_STATUS_LABELS[pedido.solicitudes.status]}
-              />
-              <DetailItem
-                label="Fecha deseada"
-                value={formatDate(pedido.solicitudes.desired_date)}
-              />
-              <DetailItem
-                label="Descripción original"
-                value={
-                  <span className="whitespace-pre-line">
-                    {pedido.solicitudes.description}
-                  </span>
-                }
-              />
-            </dl>
-          ) : pedido.solicitud_id ? (
-            <div className="mt-3 space-y-2">
-              <p className="text-sm leading-6 text-zinc-600">
-                Este pedido tiene una solicitud asociada, pero no hay datos
-                visibles para mostrar.
-              </p>
-              <p className="font-mono text-xs text-zinc-500">
-                {pedido.solicitud_id}
-              </p>
-            </div>
-          ) : (
-            <p className="mt-3 text-sm leading-6 text-zinc-600">
-              Este pedido fue creado manualmente o aún no tiene solicitud
-              asociada.
-            </p>
-          )}
-        </div>
-      </section>
-    </div>
+            </MetadataGrid>
+            </DetailPanel>
+          </div>
+        </aside>
+      </div>
+    </article>
   );
 }

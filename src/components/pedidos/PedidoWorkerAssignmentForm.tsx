@@ -65,12 +65,12 @@ export function PedidoWorkerAssignmentForm({
   );
 
   return (
-    <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
+    <section className="rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6">
       <div>
-        <h3 className="text-lg font-semibold text-zinc-950">
+        <h2 className="text-lg font-semibold text-text-primary">
           Personal asignado
-        </h3>
-        <p className="mt-2 text-sm leading-6 text-zinc-600">
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-text-secondary">
           Usuarios internos que participan operativamente en este pedido.
         </p>
       </div>
@@ -79,8 +79,8 @@ export function PedidoWorkerAssignmentForm({
         <div
           className={
             assignState.ok
-              ? "mt-5 rounded-md border border-teal-200 bg-teal-50 px-4 py-3 text-sm leading-6 text-teal-900"
-              : "mt-5 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-900"
+              ? "mt-5 rounded-(--radius-control) border border-success/30 bg-success-soft px-4 py-3 text-sm leading-6 text-success"
+              : "mt-5 rounded-(--radius-control) border border-danger/30 bg-danger-soft px-4 py-3 text-sm leading-6 text-danger"
           }
           role={assignState.ok ? "status" : "alert"}
           aria-live="polite"
@@ -93,8 +93,8 @@ export function PedidoWorkerAssignmentForm({
         <div
           className={
             removeState.ok
-              ? "mt-5 rounded-md border border-teal-200 bg-teal-50 px-4 py-3 text-sm leading-6 text-teal-900"
-              : "mt-5 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-900"
+              ? "mt-5 rounded-(--radius-control) border border-success/30 bg-success-soft px-4 py-3 text-sm leading-6 text-success"
+              : "mt-5 rounded-(--radius-control) border border-danger/30 bg-danger-soft px-4 py-3 text-sm leading-6 text-danger"
           }
           role={removeState.ok ? "status" : "alert"}
           aria-live="polite"
@@ -104,7 +104,7 @@ export function PedidoWorkerAssignmentForm({
       ) : null}
 
       {asignaciones.length > 0 ? (
-        <ul className="mt-5 divide-y divide-zinc-100">
+        <ul className="mt-5 divide-y divide-border">
           {asignaciones.map((asignacion) => {
             const role = asignacion.perfiles?.role;
 
@@ -115,21 +115,21 @@ export function PedidoWorkerAssignmentForm({
               >
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-medium text-zinc-950">
+                    <span className="text-sm font-medium text-text-primary">
                       {getAssignedUserName(asignacion)}
                     </span>
                     {role ? (
-                      <span className="inline-flex rounded-md bg-zinc-100 px-2 py-1 text-xs font-semibold text-zinc-700 ring-1 ring-inset ring-zinc-200">
+                      <span className="inline-flex rounded-(--radius-control) border border-border bg-surface-muted px-2 py-1 text-xs font-semibold text-text-secondary">
                         {ROLE_LABELS[role]}
                       </span>
                     ) : null}
                     {asignacion.perfiles?.is_active === false ? (
-                      <span className="inline-flex rounded-md bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-900 ring-1 ring-inset ring-amber-200">
+                      <span className="inline-flex rounded-(--radius-control) border border-warning/30 bg-warning-soft px-2 py-1 text-xs font-semibold text-warning">
                         Inactivo
                       </span>
                     ) : null}
                   </div>
-                  <p className="mt-1 text-xs text-zinc-500">
+                  <p className="mt-1 text-xs text-text-muted">
                     Asignado el{" "}
                     {formatAppDateTime(asignacion.assigned_at, "No definida")}
                   </p>
@@ -145,7 +145,7 @@ export function PedidoWorkerAssignmentForm({
                     <button
                       type="submit"
                       disabled={removing}
-                      className="inline-flex min-h-9 items-center justify-center rounded-md border border-red-200 bg-white px-3 text-xs font-semibold text-red-700 transition hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:text-zinc-400"
+                      className="inline-flex min-h-11 items-center justify-center rounded-(--radius-control) border border-danger/30 bg-surface px-3 text-xs font-semibold text-danger transition-colors hover:bg-danger-soft disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Quitar
                     </button>
@@ -156,7 +156,7 @@ export function PedidoWorkerAssignmentForm({
           })}
         </ul>
       ) : (
-        <p className="mt-5 rounded-md border border-dashed border-zinc-300 px-4 py-3 text-sm leading-6 text-zinc-600">
+        <p className="mt-5 rounded-(--radius-control) border border-dashed border-border-strong bg-surface-raised px-4 py-3 text-sm leading-6 text-text-secondary">
           No hay personal asignado a este pedido.
         </p>
       )}
@@ -165,14 +165,14 @@ export function PedidoWorkerAssignmentForm({
         <form
           action={assignFormAction}
           aria-busy={assigning}
-          className="mt-6 border-t border-zinc-200 pt-5"
+          className="mt-6 border-t border-border pt-5"
         >
           {loadAssignableError ? (
-            <p className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-900">
+            <p className="rounded-(--radius-control) border border-danger/30 bg-danger-soft px-4 py-3 text-sm leading-6 text-danger">
               {loadAssignableError}
             </p>
           ) : availableWorkers.length === 0 ? (
-            <p className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
+            <p className="rounded-(--radius-control) border border-warning/30 bg-warning-soft px-4 py-3 text-sm leading-6 text-text-primary">
               No hay más usuarios disponibles para asignar.
             </p>
           ) : (
@@ -180,7 +180,7 @@ export function PedidoWorkerAssignmentForm({
               <div className="w-full max-w-sm">
                 <label
                   htmlFor="assigned_profile_id"
-                  className="text-sm font-medium text-zinc-900"
+                  className="text-sm font-medium text-text-primary"
                 >
                   Asignar personal
                 </label>
@@ -194,7 +194,7 @@ export function PedidoWorkerAssignmentForm({
                   aria-describedby={
                     assignedProfileError ? "assigned-profile-id-error" : undefined
                   }
-                  className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-950 shadow-sm outline-none transition focus:border-teal-700 focus:ring-2 focus:ring-teal-700/20 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500"
+                  className="mt-2 min-h-11 w-full rounded-(--radius-control) border border-border-strong bg-surface px-3 py-2 text-sm text-text-primary shadow-(--shadow-soft) disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted"
                 >
                   <option value="" disabled>
                     Selecciona un usuario
@@ -208,7 +208,7 @@ export function PedidoWorkerAssignmentForm({
                 {assignedProfileError ? (
                   <p
                     id="assigned-profile-id-error"
-                    className="mt-2 text-sm leading-5 text-red-700"
+                    className="mt-2 text-sm leading-5 text-danger"
                   >
                     {assignedProfileError}
                   </p>
@@ -218,7 +218,7 @@ export function PedidoWorkerAssignmentForm({
               <button
                 type="submit"
                 disabled={assigning}
-                className="inline-flex min-h-10 items-center justify-center rounded-md bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-(--radius-control) bg-brand-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-primary-hover disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
               >
                 {assigning ? "Asignando..." : "Asignar personal"}
               </button>

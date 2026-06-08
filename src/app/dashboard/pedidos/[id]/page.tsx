@@ -5,7 +5,7 @@ import { PedidoHistorySection } from "@/components/pedidos/PedidoHistorySection"
 import { PedidoTasksSection } from "@/components/pedidos/PedidoTasksSection";
 import { PedidoWorkerAssignmentForm } from "@/components/pedidos/PedidoWorkerAssignmentForm";
 import { PedidoFilesSection } from "@/components/storage/PedidoFilesSection";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { Alert, PageHeader } from "@/components/ui";
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import {
   hasPermission,
@@ -56,9 +56,7 @@ export default async function DashboardPedidoDetallePage({
           title="Detalle de pedido"
           description="Consulta interna de la información registrada del pedido."
         />
-        <section className="rounded-lg border border-red-200 bg-red-50 p-5 text-sm text-red-950">
-          {result.message}
-        </section>
+        <Alert variant="danger">{result.message}</Alert>
       </div>
     );
   }
@@ -87,12 +85,7 @@ export default async function DashboardPedidoDetallePage({
   const uploadFileAction = uploadPedidoFileAction.bind(null, pedidoId);
 
   return (
-    <div className="space-y-8">
-      <PageHeader
-        title="Detalle de pedido"
-        description="Consulta interna de la información registrada del pedido."
-      />
-      <InternalPedidoDetail
+    <InternalPedidoDetail
         pedido={result.pedido}
         updateStatusAction={updateStatusAction}
         taskProgress={tasksResult.ok ? tasksResult.progress : undefined}
@@ -162,7 +155,6 @@ export default async function DashboardPedidoDetallePage({
             }
           />
         }
-      />
-    </div>
+    />
   );
 }

@@ -50,13 +50,13 @@ export function SolicitudClienteForm({
   const hasClienteAsociado = Boolean(clienteAsociado);
 
   return (
-    <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-      <h2 className="text-lg font-semibold text-zinc-950">
+    <section className="rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6">
+      <h2 className="text-lg font-semibold text-text-primary">
         Cliente asociado
       </h2>
 
       {clienteAsociado ? (
-        <div className="mt-4 rounded-md border border-teal-200 bg-teal-50 p-4 text-sm text-teal-950">
+        <div className="mt-4 rounded-(--radius-control) border border-success/30 bg-success-soft p-4 text-sm text-text-primary">
           <p className="font-semibold">{clienteAsociado.name}</p>
           <p className="mt-1">{clienteAsociado.phone}</p>
           {clienteAsociado.email ? (
@@ -64,13 +64,13 @@ export function SolicitudClienteForm({
           ) : null}
           <Link
             href={`/dashboard/clientes/${clienteAsociado.id}`}
-            className="mt-3 inline-flex text-sm font-semibold text-teal-800 underline-offset-4 hover:underline"
+            className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-brand-primary underline-offset-4 hover:underline"
           >
             Ver cliente
           </Link>
         </div>
       ) : (
-        <p className="mt-2 text-sm leading-6 text-zinc-600">
+        <p className="mt-2 text-sm leading-6 text-text-secondary">
           Esta solicitud todavía no tiene un cliente interno asociado.
         </p>
       )}
@@ -79,7 +79,7 @@ export function SolicitudClienteForm({
         <form action={associateAction} aria-busy={associatePending}>
           <label
             htmlFor="cliente_id"
-            className="text-sm font-medium text-zinc-900"
+            className="text-sm font-medium text-text-primary"
           >
             Cliente existente
           </label>
@@ -88,7 +88,7 @@ export function SolicitudClienteForm({
             name="cliente_id"
             defaultValue={clienteAsociado?.id ?? ""}
             disabled={!hasClientes || associatePending}
-            className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-950 shadow-sm outline-none transition focus:border-teal-700 focus:ring-2 focus:ring-teal-700/20 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500"
+            className="mt-2 min-h-11 w-full rounded-(--radius-control) border border-border-strong bg-surface px-3 py-2 text-sm text-text-primary shadow-(--shadow-soft) disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted"
           >
             <option value="" disabled>
               Selecciona un cliente
@@ -101,7 +101,7 @@ export function SolicitudClienteForm({
           </select>
 
           {clientesLoadError ? (
-            <p className="mt-2 text-sm leading-5 text-red-700">
+            <p className="mt-2 text-sm leading-5 text-danger">
               {clientesLoadError}
             </p>
           ) : null}
@@ -110,8 +110,8 @@ export function SolicitudClienteForm({
             <p
               className={`mt-3 rounded-md border px-4 py-3 text-sm leading-6 ${
                 associateState.ok
-                  ? "border-teal-200 bg-teal-50 text-teal-900"
-                  : "border-red-200 bg-red-50 text-red-900"
+                  ? "border-success/30 bg-success-soft text-success"
+                  : "border-danger/30 bg-danger-soft text-danger"
               }`}
               role={associateState.ok ? "status" : "alert"}
               aria-live="polite"
@@ -123,7 +123,7 @@ export function SolicitudClienteForm({
           <button
             type="submit"
             disabled={!hasClientes || associatePending}
-            className="mt-4 inline-flex min-h-10 items-center justify-center rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
+            className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-(--radius-control) bg-brand-primary px-4 text-sm font-semibold text-white transition-colors hover:bg-brand-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
           >
             {associatePending
               ? "Guardando..."
@@ -134,10 +134,10 @@ export function SolicitudClienteForm({
         </form>
 
         <form action={createAction} aria-busy={createPending}>
-          <h3 className="text-sm font-semibold text-zinc-950">
+          <h3 className="text-sm font-semibold text-text-primary">
             Crear desde la solicitud
           </h3>
-          <p className="mt-2 text-sm leading-6 text-zinc-600">
+          <p className="mt-2 text-sm leading-6 text-text-secondary">
             Crea un cliente básico usando el nombre, teléfono y correo ya
             guardados en esta solicitud.
           </p>
@@ -146,8 +146,8 @@ export function SolicitudClienteForm({
             <p
               className={`mt-3 rounded-md border px-4 py-3 text-sm leading-6 ${
                 createState.ok
-                  ? "border-teal-200 bg-teal-50 text-teal-900"
-                  : "border-red-200 bg-red-50 text-red-900"
+                  ? "border-success/30 bg-success-soft text-success"
+                  : "border-danger/30 bg-danger-soft text-danger"
               }`}
               role={createState.ok ? "status" : "alert"}
               aria-live="polite"
@@ -159,7 +159,7 @@ export function SolicitudClienteForm({
           <button
             type="submit"
             disabled={hasClienteAsociado || createPending}
-            className="mt-4 inline-flex min-h-10 items-center justify-center rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:border-zinc-400 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400"
+            className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-4 text-sm font-semibold text-text-primary transition-colors hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
           >
             {createPending
               ? "Creando..."

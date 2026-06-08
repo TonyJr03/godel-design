@@ -61,8 +61,8 @@ function ActionMessage({
     <p
       className={
         state.ok
-          ? "rounded-md border border-teal-200 bg-teal-50 px-3 py-2 text-sm leading-5 text-teal-900"
-          : "rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm leading-5 text-red-900"
+          ? "rounded-(--radius-control) border border-success/30 bg-success-soft px-3 py-2 text-sm leading-5 text-success"
+          : "rounded-(--radius-control) border border-danger/30 bg-danger-soft px-3 py-2 text-sm leading-5 text-danger"
       }
       role={state.ok ? "status" : "alert"}
       aria-live="polite"
@@ -104,28 +104,28 @@ export function PedidoTaskItem({
   const progressError = progressState.fieldErrors?.completed_quantity;
 
   return (
-    <li className="rounded-md border border-zinc-200 bg-zinc-50 p-4">
+    <li className="rounded-(--radius-control) border border-border bg-surface-muted p-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <span
               className={
                 task.is_completed
-                  ? "inline-flex rounded-md bg-teal-50 px-2 py-1 text-xs font-semibold text-teal-800 ring-1 ring-inset ring-teal-700/15"
-                  : "inline-flex rounded-md bg-white px-2 py-1 text-xs font-semibold text-zinc-700 ring-1 ring-inset ring-zinc-200"
+                  ? "inline-flex rounded-(--radius-control) border border-success/30 bg-success-soft px-2 py-1 text-xs font-semibold text-success"
+                  : "inline-flex rounded-(--radius-control) border border-border bg-surface px-2 py-1 text-xs font-semibold text-text-secondary"
               }
             >
               {task.is_completed ? "Completada" : "Pendiente"}
             </span>
-            <span className="inline-flex rounded-md bg-white px-2 py-1 text-xs font-semibold text-zinc-600 ring-1 ring-inset ring-zinc-200">
+            <span className="inline-flex rounded-(--radius-control) border border-border bg-surface px-2 py-1 text-xs font-semibold text-text-secondary">
               {isQuantified ? "Cuantificada" : "Simple"}
             </span>
           </div>
-          <p className="mt-3 text-base font-semibold leading-6 text-zinc-950">
+          <p className="mt-3 text-base font-semibold leading-6 text-text-primary">
             {task.title}
           </p>
           {isQuantified ? (
-            <p className="mt-1 text-sm text-zinc-600">
+            <p className="mt-1 text-sm text-text-secondary">
               {completedQuantity} / {targetQuantity}
             </p>
           ) : null}
@@ -139,7 +139,7 @@ export function PedidoTaskItem({
                 <button
                   type="submit"
                   disabled={completionPending}
-                  className="inline-flex min-h-9 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 transition hover:border-zinc-400 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500"
+                  className="inline-flex min-h-11 items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-3 text-sm font-medium text-text-primary transition-colors hover:bg-brand-primary-soft disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {task.is_completed ? "Reabrir" : "Marcar como completada"}
                 </button>
@@ -151,7 +151,7 @@ export function PedidoTaskItem({
               <button
                 type="submit"
                 disabled={deletePending}
-                className="inline-flex min-h-9 items-center justify-center rounded-md border border-red-200 bg-white px-3 text-sm font-medium text-red-700 transition hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500"
+                className="inline-flex min-h-11 items-center justify-center rounded-(--radius-control) border border-danger/30 bg-surface px-3 text-sm font-medium text-danger transition-colors hover:bg-danger-soft disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Eliminar
               </button>
@@ -171,7 +171,7 @@ export function PedidoTaskItem({
         <form
           action={progressAction}
           aria-busy={progressPending}
-          className="mt-4 border-t border-zinc-200 pt-4"
+          className="mt-4 border-t border-border pt-4"
         >
           <TaskHiddenFields taskId={task.id} />
           <ActionMessage state={progressState} />
@@ -179,7 +179,7 @@ export function PedidoTaskItem({
             <div className="max-w-40">
               <label
                 htmlFor={`task-progress-${task.id}`}
-                className="text-sm font-medium text-zinc-900"
+                className="text-sm font-medium text-text-primary"
               >
                 Actualizar progreso
               </label>
@@ -200,12 +200,12 @@ export function PedidoTaskItem({
                 aria-describedby={
                   progressError ? `task-progress-${task.id}-error` : undefined
                 }
-                className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-950 shadow-sm outline-none transition focus:border-teal-700 focus:ring-2 focus:ring-teal-700/20 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500"
+                className="mt-2 min-h-11 w-full rounded-(--radius-control) border border-border-strong bg-surface px-3 py-2 text-sm text-text-primary shadow-(--shadow-soft) disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted"
               />
               {progressError ? (
                 <p
                   id={`task-progress-${task.id}-error`}
-                  className="mt-2 text-sm leading-5 text-red-700"
+                  className="mt-2 text-sm leading-5 text-danger"
                 >
                   {progressError}
                 </p>
@@ -214,7 +214,7 @@ export function PedidoTaskItem({
             <button
               type="submit"
               disabled={progressPending}
-              className="inline-flex min-h-10 items-center justify-center rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
+              className="inline-flex min-h-11 items-center justify-center rounded-(--radius-control) bg-brand-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
             >
               Guardar
             </button>
@@ -226,7 +226,7 @@ export function PedidoTaskItem({
         <form
           action={titleAction}
           aria-busy={titlePending}
-          className="mt-4 border-t border-zinc-200 pt-4"
+          className="mt-4 border-t border-border pt-4"
         >
           <TaskHiddenFields taskId={task.id} />
           <ActionMessage state={titleState} />
@@ -234,7 +234,7 @@ export function PedidoTaskItem({
             <div className="flex-1">
               <label
                 htmlFor={`task-title-${task.id}`}
-                className="text-sm font-medium text-zinc-900"
+                className="text-sm font-medium text-text-primary"
               >
                 Editar
               </label>
@@ -251,12 +251,12 @@ export function PedidoTaskItem({
                 aria-describedby={
                   titleError ? `task-title-${task.id}-error` : undefined
                 }
-                className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-950 shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-teal-700 focus:ring-2 focus:ring-teal-700/20 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500"
+                className="mt-2 min-h-11 w-full rounded-(--radius-control) border border-border-strong bg-surface px-3 py-2 text-sm text-text-primary shadow-(--shadow-soft) placeholder:text-text-muted disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted"
               />
               {titleError ? (
                 <p
                   id={`task-title-${task.id}-error`}
-                  className="mt-2 text-sm leading-5 text-red-700"
+                  className="mt-2 text-sm leading-5 text-danger"
                 >
                   {titleError}
                 </p>
@@ -265,7 +265,7 @@ export function PedidoTaskItem({
             <button
               type="submit"
               disabled={titlePending}
-              className="inline-flex min-h-10 items-center justify-center rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:border-zinc-400 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500"
+              className="inline-flex min-h-11 items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-4 py-2 text-sm font-semibold text-text-primary transition-colors hover:bg-brand-primary-soft disabled:cursor-not-allowed disabled:opacity-50"
             >
               Guardar
             </button>

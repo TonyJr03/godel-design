@@ -101,20 +101,20 @@ export function PedidoFilesSection({
   const uploadContextMessage = getUploadContextMessage(pedidoStatus);
 
   return (
-    <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
+    <section className="rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-zinc-950">
+          <h2 className="text-lg font-semibold text-text-primary">
             Archivos del pedido
-          </h3>
-          <p className="mt-2 text-sm leading-6 text-zinc-600">
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-text-secondary">
             Archivos privados asociados a este pedido.
           </p>
         </div>
       </div>
 
       {loadError ? (
-        <p className="mt-5 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-900">
+        <p className="mt-5 rounded-(--radius-control) border border-danger/30 bg-danger-soft px-4 py-3 text-sm leading-6 text-danger">
           {loadError}
         </p>
       ) : null}
@@ -122,15 +122,15 @@ export function PedidoFilesSection({
       <p
         className={`mt-5 rounded-md border px-4 py-3 text-sm leading-6 ${
           visibilityResult.ok
-            ? "border-teal-200 bg-teal-50 text-teal-950"
-            : "border-zinc-200 bg-zinc-50 text-zinc-700"
+            ? "border-info/30 bg-info-soft text-text-primary"
+            : "border-border bg-surface-muted text-text-secondary"
         }`}
       >
         {uploadContextMessage}
       </p>
 
       {files.length > 0 ? (
-        <ul className="mt-5 divide-y divide-zinc-100">
+        <ul className="mt-5 divide-y divide-border">
           {files.map((file) => (
             <li
               key={file.id}
@@ -138,14 +138,14 @@ export function PedidoFilesSection({
             >
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="break-all text-sm font-semibold text-zinc-950">
+                  <p className="break-all text-sm font-semibold text-text-primary">
                     {file.file_name}
                   </p>
-                  <span className="inline-flex rounded-md bg-zinc-100 px-2 py-1 text-xs font-semibold text-zinc-700 ring-1 ring-inset ring-zinc-200">
+                  <span className="inline-flex rounded-(--radius-control) border border-border bg-surface-muted px-2 py-1 text-xs font-semibold text-text-secondary">
                     {getCategoryLabel(file.visibility)}
                   </span>
                 </div>
-                <p className="mt-1 text-xs leading-5 text-zinc-500">
+                <p className="mt-1 text-xs leading-5 text-text-muted">
                   {formatFileSize(file.file_size)}
                   {" · "}
                   Subido el {formatAppDateTime(file.created_at)}
@@ -153,7 +153,7 @@ export function PedidoFilesSection({
                   {getUploaderLabel(file)}
                 </p>
                 {file.file_type ? (
-                  <p className="mt-1 text-xs text-zinc-400">
+                  <p className="mt-1 text-xs text-text-muted">
                     {file.file_type}
                   </p>
                 ) : null}
@@ -161,7 +161,7 @@ export function PedidoFilesSection({
 
               <a
                 href={`/dashboard/pedidos/${pedidoId}/archivos/${file.id}/download`}
-                className="inline-flex min-h-9 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-700 transition hover:border-zinc-400 hover:bg-zinc-50"
+                className="inline-flex min-h-11 items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-4 text-sm font-semibold text-brand-primary transition-colors hover:bg-brand-primary-soft"
               >
                 Descargar
               </a>
@@ -169,7 +169,7 @@ export function PedidoFilesSection({
           ))}
         </ul>
       ) : !loadError ? (
-        <p className="mt-5 rounded-md border border-dashed border-zinc-300 px-4 py-3 text-sm leading-6 text-zinc-600">
+        <p className="mt-5 rounded-(--radius-control) border border-dashed border-border-strong bg-surface-raised px-4 py-3 text-sm leading-6 text-text-secondary">
           No hay archivos asociados a este pedido.
         </p>
       ) : null}
@@ -178,14 +178,14 @@ export function PedidoFilesSection({
         <form
           action={formAction}
           aria-busy={pending}
-          className="mt-6 border-t border-zinc-200 pt-5"
+          className="mt-6 border-t border-border pt-5"
         >
           {state.message ? (
             <div
               className={
                 state.ok
-                  ? "rounded-md border border-teal-200 bg-teal-50 px-4 py-3 text-sm leading-6 text-teal-900"
-                  : "rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-900"
+                  ? "rounded-(--radius-control) border border-success/30 bg-success-soft px-4 py-3 text-sm leading-6 text-success"
+                  : "rounded-(--radius-control) border border-danger/30 bg-danger-soft px-4 py-3 text-sm leading-6 text-danger"
               }
               role={state.ok ? "status" : "alert"}
               aria-live="polite"
@@ -198,7 +198,7 @@ export function PedidoFilesSection({
             <div>
               <label
                 htmlFor="pedido-file"
-                className="text-sm font-medium text-zinc-900"
+                className="text-sm font-medium text-text-primary"
               >
                 Archivo
               </label>
@@ -209,14 +209,14 @@ export function PedidoFilesSection({
                 accept={STORAGE_FILE_INPUT_ACCEPT}
                 required
                 disabled={pending}
-                className="mt-2 block w-full rounded-md border border-zinc-300 bg-white text-sm text-zinc-950 shadow-sm file:mr-4 file:min-h-10 file:border-0 file:bg-zinc-100 file:px-4 file:text-sm file:font-semibold file:text-zinc-700 hover:file:bg-zinc-200 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500"
+                className="mt-2 block min-h-11 w-full rounded-(--radius-control) border border-border-strong bg-surface text-sm text-text-primary shadow-(--shadow-soft) file:mr-4 file:min-h-11 file:border-0 file:bg-surface-muted file:px-4 file:text-sm file:font-semibold file:text-text-primary hover:file:bg-brand-primary-soft disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted"
               />
             </div>
 
             <button
               type="submit"
               disabled={pending}
-              className="inline-flex min-h-10 items-center justify-center rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-(--radius-control) bg-brand-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-primary-hover disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto"
             >
               {pending ? "Subiendo..." : "Subir archivo"}
             </button>

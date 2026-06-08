@@ -372,3 +372,59 @@ corta y secundaria cuando ya formen parte del listado.
 3. No convertir los listados completos en Client Components.
 4. No duplicar reglas de permisos o visibilidad.
 5. No añadir paginación, ordenamiento o métricas que no existan.
+
+## 13. Detalles operativos
+
+### Concepto de ficha de trabajo
+
+- Los detalles se presentan como fichas operativas, no como una pila uniforme
+  de tarjetas.
+- La cabecera identifica el registro con título, referencia corta, estado y
+  prioridad cuando corresponde.
+- El resumen superior concentra los datos necesarios para orientarse antes de
+  entrar en formularios, anexos o actividad.
+- Los UUID completos quedan dentro de paneles de metadata secundaria y nunca
+  compiten con el título.
+
+### Composición desktop
+
+- Desde `xl`, los detalles complejos pueden usar una columna principal flexible
+  y una columna secundaria de contexto.
+- La columna principal contiene trabajo, tareas, archivos, comentarios e
+  historial.
+- La columna secundaria contiene estado, asignaciones, cliente, origen,
+  acciones y metadata técnica.
+- Los detalles simples de cliente y usuario usan una ficha principal y un
+  panel lateral de registro sin simular complejidad inexistente.
+
+### Composición móvil
+
+- Una sola columna, con cabecera, resumen y acciones antes de las secciones de
+  trabajo.
+- Las acciones principales alcanzan 44 px y las acciones adyacentes mantienen
+  al menos 8 px de separación.
+- Textos largos, nombres de archivo e identificadores pueden romper línea sin
+  ampliar el viewport.
+- Ninguna acción depende de hover ni se introduce scroll horizontal global.
+
+### Secciones operativas
+
+- **Archivos:** se muestran como anexos con nombre, categoría, tamaño, fecha y
+  descarga controlada.
+- **Comentarios:** se presentan como notas internas, con autor, rol, fecha y
+  contenido legible.
+- **Historial:** usa un timeline compacto y cronológico, con resumen operativo
+  y actor como contexto secundario.
+- **Tareas:** combinan progreso textual, barra de avance y controles existentes
+  sin reinterpretar sus reglas.
+- **Estados vacíos:** explican la ausencia de información sin inventar acciones
+  de recuperación.
+
+### Restricciones
+
+1. No cambiar lógica de negocio, transiciones, permisos ni Server Actions.
+2. No exponer `file_path` ni construir enlaces directos a Storage.
+3. No mover consultas o acciones sensibles a Client Components.
+4. No ampliar consultas únicamente para decorar una ficha.
+5. No duplicar reglas de acceso en componentes presentacionales.
+6. No mostrar metadata cruda cuando exista una etiqueta operativa.

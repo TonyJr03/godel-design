@@ -1,5 +1,6 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
+
+import { DetailPanel, MetadataGrid, MetadataItem } from "@/components/ui";
 import type { InternalClienteDetail } from "@/lib/clientes";
 import { formatAppDateTime } from "@/lib/utils";
 
@@ -7,70 +8,97 @@ type InternalClienteDetailProps = {
   cliente: InternalClienteDetail;
 };
 
-function DetailItem({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div>
-      <dt className="text-xs font-semibold uppercase text-zinc-500">{label}</dt>
-      <dd className="mt-1 text-sm leading-6 text-zinc-950">{value}</dd>
-    </div>
-  );
+function formatShortReference(id: string) {
+  return id.slice(0, 8).toUpperCase();
 }
 
 export function InternalClienteDetail({
   cliente,
 }: InternalClienteDetailProps) {
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Link
-          href="/dashboard/clientes"
-          className="inline-flex min-h-10 items-center justify-center rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:border-zinc-400"
-        >
-          Volver a clientes
-        </Link>
-        <Link
-          href={`/dashboard/clientes/${cliente.id}/editar`}
-          className="inline-flex min-h-10 items-center justify-center rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800"
-        >
-          Editar cliente
-        </Link>
-      </div>
-
-      <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-        <div className="border-b border-zinc-200 pb-5">
-          <h2 className="text-2xl font-semibold tracking-tight text-zinc-950">
+    <article className="space-y-6">
+      <header className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <p className="font-mono text-sm font-semibold text-brand-primary">
+            Cliente {formatShortReference(cliente.id)}
+          </p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-text-primary">
             {cliente.name}
-          </h2>
-          <p className="mt-2 break-all font-mono text-xs text-zinc-500">
-            {cliente.id}
+          </h1>
+          <p className="mt-3 max-w-2xl text-base leading-7 text-text-secondary">
+            Ficha de contacto para consulta y seguimiento operativo.
           </p>
         </div>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Link
+            href="/dashboard/clientes"
+            className="inline-flex min-h-11 items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-4 text-sm font-semibold text-text-primary transition-colors hover:bg-surface-muted"
+          >
+            Volver a clientes
+          </Link>
+          <Link
+            href={`/dashboard/clientes/${cliente.id}/editar`}
+            className="inline-flex min-h-11 items-center justify-center rounded-(--radius-control) bg-brand-primary px-4 text-sm font-semibold text-white transition-colors hover:bg-brand-primary-hover"
+          >
+            Editar cliente
+          </Link>
+        </div>
+      </header>
 
-        <dl className="mt-6 grid gap-6 sm:grid-cols-2">
-          <DetailItem label="Teléfono" value={cliente.phone} />
-          <DetailItem
-            label="Correo electrónico"
-            value={cliente.email ?? "No definido"}
-          />
-          <DetailItem
-            label="Creación"
-            value={formatAppDateTime(cliente.created_at, "No definida")}
-          />
-          <DetailItem
-            label="Última actualización"
-            value={formatAppDateTime(cliente.updated_at, "No definida")}
-          />
-        </dl>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <DetailPanel
+          title="Datos de contacto"
+          description="Información disponible para coordinar el trabajo con este cliente."
+        >
+          <MetadataGrid>
+            <MetadataItem label="Teléfono" value={cliente.phone} />
+            <MetadataItem
+              label="Correo electrónico"
+              value={cliente.email ?? "No definido"}
+            />
+          </MetadataGrid>
+        </DetailPanel>
 
-        {cliente.notes ? (
-          <div className="mt-6 border-t border-zinc-200 pt-6">
-            <h3 className="text-sm font-semibold text-zinc-950">Notas</h3>
-            <p className="mt-2 whitespace-pre-line text-sm leading-6 text-zinc-700">
+        <DetailPanel
+          title="Registro"
+          description="Metadata secundaria de la ficha."
+          className="lg:row-span-2"
+        >
+          <MetadataGrid className="sm:grid-cols-1">
+            <MetadataItem
+              label="Creación"
+              value={formatAppDateTime(cliente.created_at, "No definida")}
+            />
+            <MetadataItem
+              label="Última actualización"
+              value={formatAppDateTime(cliente.updated_at, "No definida")}
+            />
+            <MetadataItem
+              label="Identificador interno"
+              value={
+                <span className="break-all font-mono text-xs text-text-secondary">
+                  {cliente.id}
+                </span>
+              }
+            />
+          </MetadataGrid>
+        </DetailPanel>
+
+        <DetailPanel
+          title="Notas"
+          description="Contexto operativo registrado para este cliente."
+        >
+          {cliente.notes ? (
+            <p className="whitespace-pre-line text-sm leading-7 text-text-primary">
               {cliente.notes}
             </p>
-          </div>
-        ) : null}
-      </section>
-    </div>
+          ) : (
+            <p className="text-sm leading-6 text-text-secondary">
+              No hay notas registradas para este cliente.
+            </p>
+          )}
+        </DetailPanel>
+      </div>
+    </article>
   );
 }

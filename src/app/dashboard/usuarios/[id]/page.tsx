@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
+
 import { InternalUserDetail } from "@/components/usuarios/InternalUserDetail";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { Alert, PageHeader } from "@/components/ui";
 import { getInternalUserById } from "@/lib/usuarios";
 
 type DashboardUsuarioDetailPageProps = {
@@ -22,24 +23,11 @@ export default async function DashboardUsuarioDetailPage({
 
     return (
       <div className="space-y-8">
-        <PageHeader
-          title="Detalle de usuario"
-          description="Perfil interno del equipo."
-        />
-        <section className="rounded-lg border border-red-200 bg-red-50 p-5 text-sm text-red-950">
-          {result.message}
-        </section>
+        <PageHeader title="Detalle de usuario" description="Perfil interno del equipo." />
+        <Alert variant="danger">{result.message}</Alert>
       </div>
     );
   }
 
-  return (
-    <div className="space-y-8">
-      <PageHeader
-        title="Detalle de usuario"
-        description="Perfil interno del equipo."
-      />
-      <InternalUserDetail user={result.user} />
-    </div>
-  );
+  return <InternalUserDetail user={result.user} />;
 }

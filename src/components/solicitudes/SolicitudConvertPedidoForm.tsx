@@ -29,7 +29,7 @@ const initialState: ConvertSolicitudToPedidoActionState = {
 
 function OptionalMark() {
   return (
-    <span className="ml-1 text-sm font-normal text-zinc-500">(opcional)</span>
+    <span className="ml-1 text-sm font-normal text-text-muted">(opcional)</span>
   );
 }
 
@@ -62,11 +62,11 @@ export function SolicitudConvertPedidoForm({
   const todayInputDate = getTodayDateInputValue();
 
   return (
-    <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-      <h2 className="text-lg font-semibold text-zinc-950">
+    <section className="rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6">
+      <h2 className="text-lg font-semibold text-text-primary">
         Conversión a pedido
       </h2>
-      <p className="mt-2 text-sm leading-6 text-zinc-600">
+      <p className="mt-2 text-sm leading-6 text-text-secondary">
         Para convertir la solicitud debe estar aprobada, tener un cliente
         asociado y contar con un título real de pedido. El tipo de servicio
         seleccionado por el cliente es solo una referencia.
@@ -76,8 +76,8 @@ export function SolicitudConvertPedidoForm({
         <div
           className={
             state.ok
-              ? "mt-4 rounded-md border border-teal-200 bg-teal-50 px-4 py-3 text-sm leading-6 text-teal-900"
-              : "mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-900"
+              ? "mt-4 rounded-(--radius-control) border border-success/30 bg-success-soft px-4 py-3 text-sm leading-6 text-success"
+              : "mt-4 rounded-(--radius-control) border border-danger/30 bg-danger-soft px-4 py-3 text-sm leading-6 text-danger"
           }
           role={state.ok ? "status" : "alert"}
           aria-live="polite"
@@ -86,7 +86,7 @@ export function SolicitudConvertPedidoForm({
           {state.ok && currentPedidoId ? (
             <Link
               href={`/dashboard/pedidos/${currentPedidoId}`}
-              className="mt-2 inline-flex text-sm font-semibold text-teal-900 underline underline-offset-4"
+              className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-brand-primary underline underline-offset-4"
             >
               Ver pedido {state.numeroPedido}
             </Link>
@@ -95,7 +95,7 @@ export function SolicitudConvertPedidoForm({
       ) : null}
 
       {currentPedidoId ? (
-        <div className="mt-4 rounded-md border border-teal-200 bg-teal-50 px-4 py-3 text-sm leading-6 text-teal-900">
+        <div className="mt-4 rounded-(--radius-control) border border-success/30 bg-success-soft px-4 py-3 text-sm leading-6 text-success">
           <p>Esta solicitud ya fue convertida en pedido.</p>
           <Link
             href={`/dashboard/pedidos/${currentPedidoId}`}
@@ -105,34 +105,34 @@ export function SolicitudConvertPedidoForm({
           </Link>
         </div>
       ) : status !== "aprobada" ? (
-        <p className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
+        <p className="mt-4 rounded-(--radius-control) border border-warning/30 bg-warning-soft px-4 py-3 text-sm leading-6 text-text-primary">
           La solicitud debe estar aprobada antes de convertirse en pedido.
         </p>
       ) : !clienteId ? (
-        <p className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
+        <p className="mt-4 rounded-(--radius-control) border border-warning/30 bg-warning-soft px-4 py-3 text-sm leading-6 text-text-primary">
           Asocia un cliente antes de convertir esta solicitud en pedido.
         </p>
       ) : (
         <form action={formAction} aria-busy={pending} className="mt-5 space-y-5">
-          <div className="border-l-2 border-zinc-200 pl-4 text-sm leading-6 text-zinc-700">
+          <div className="border-l-2 border-border pl-4 text-sm leading-6 text-text-secondary">
             <p>
-              <span className="font-semibold text-zinc-900">
+              <span className="font-semibold text-text-primary">
                 Tipo de servicio de la solicitud:
               </span>{" "}
               {serviceTypeLabel}
             </p>
-            <p className="mt-2 text-zinc-600">
+            <p className="mt-2 text-text-secondary">
               Usa esta información como referencia inicial, no como título
               automático del pedido.
             </p>
           </div>
 
           <div>
-            <label className="text-sm font-medium text-zinc-900" htmlFor="title">
-              Título del pedido <span className="text-red-700">*</span>
+            <label className="text-sm font-medium text-text-primary" htmlFor="title">
+              Título del pedido <span className="text-danger">*</span>
             </label>
             <input
-              className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-base text-zinc-950 shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-teal-700 focus:ring-2 focus:ring-teal-700/20"
+              className="mt-2 min-h-11 w-full rounded-(--radius-control) border border-border-strong bg-surface px-3 py-2 text-base text-text-primary shadow-(--shadow-soft) placeholder:text-text-muted"
               id="title"
               name="title"
               type="text"
@@ -142,11 +142,11 @@ export function SolicitudConvertPedidoForm({
               aria-invalid={Boolean(titleError)}
               aria-describedby={titleError ? "convert-title-error" : "convert-title-help"}
             />
-            <p id="convert-title-help" className="mt-2 text-sm leading-5 text-zinc-500">
+            <p id="convert-title-help" className="mt-2 text-sm leading-5 text-text-secondary">
               Define un nombre claro para identificar este trabajo internamente.
             </p>
             {titleError ? (
-              <p id="convert-title-error" className="mt-2 text-sm leading-5 text-red-700">
+              <p id="convert-title-error" className="mt-2 text-sm leading-5 text-danger">
                 {titleError}
               </p>
             ) : null}
@@ -154,13 +154,13 @@ export function SolicitudConvertPedidoForm({
 
           <div>
             <label
-              className="text-sm font-medium text-zinc-900"
+              className="text-sm font-medium text-text-primary"
               htmlFor="priority"
             >
-              Prioridad <span className="text-red-700">*</span>
+              Prioridad <span className="text-danger">*</span>
             </label>
             <select
-              className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-base text-zinc-950 shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-teal-700 focus:ring-2 focus:ring-teal-700/20"
+              className="mt-2 min-h-11 w-full rounded-(--radius-control) border border-border-strong bg-surface px-3 py-2 text-base text-text-primary shadow-(--shadow-soft)"
               id="priority"
               name="priority"
               required
@@ -178,14 +178,14 @@ export function SolicitudConvertPedidoForm({
             </select>
             <p
               id="convert-priority-help"
-              className="mt-2 text-sm leading-5 text-zinc-500"
+              className="mt-2 text-sm leading-5 text-text-secondary"
             >
               Define la prioridad operativa inicial del pedido.
             </p>
             {priorityError ? (
               <p
                 id="convert-priority-error"
-                className="mt-2 text-sm leading-5 text-red-700"
+                className="mt-2 text-sm leading-5 text-danger"
               >
                 {priorityError}
               </p>
@@ -194,13 +194,13 @@ export function SolicitudConvertPedidoForm({
 
           <div>
             <label
-              className="text-sm font-medium text-zinc-900"
+              className="text-sm font-medium text-text-primary"
               htmlFor="estimated_delivery_date"
             >
               Fecha estimada de entrega <OptionalMark />
             </label>
             <input
-              className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-base text-zinc-950 shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-teal-700 focus:ring-2 focus:ring-teal-700/20"
+              className="mt-2 min-h-11 w-full rounded-(--radius-control) border border-border-strong bg-surface px-3 py-2 text-base text-text-primary shadow-(--shadow-soft)"
               id="estimated_delivery_date"
               name="estimated_delivery_date"
               type="date"
@@ -215,14 +215,14 @@ export function SolicitudConvertPedidoForm({
             />
             <p
               id="convert-estimated-delivery-date-help"
-              className="mt-2 text-sm leading-5 text-zinc-500"
+              className="mt-2 text-sm leading-5 text-text-secondary"
             >
               Opcional. Si la defines, debe ser desde hoy en adelante.
             </p>
             {estimatedDeliveryDateError ? (
               <p
                 id="convert-estimated-delivery-date-error"
-                className="mt-2 text-sm leading-5 text-red-700"
+                className="mt-2 text-sm leading-5 text-danger"
               >
                 {estimatedDeliveryDateError}
               </p>
@@ -231,13 +231,13 @@ export function SolicitudConvertPedidoForm({
 
           <div>
             <label
-              className="text-sm font-medium text-zinc-900"
+              className="text-sm font-medium text-text-primary"
               htmlFor="description"
             >
-              Descripción del pedido <span className="text-red-700">*</span>
+              Descripción del pedido <span className="text-danger">*</span>
             </label>
             <textarea
-              className="mt-2 min-h-36 w-full resize-y rounded-md border border-zinc-300 bg-white px-3 py-2 text-base text-zinc-950 shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-teal-700 focus:ring-2 focus:ring-teal-700/20"
+              className="mt-2 min-h-36 w-full resize-y rounded-(--radius-control) border border-border-strong bg-surface px-3 py-2 text-base text-text-primary shadow-(--shadow-soft) placeholder:text-text-muted"
               id="description"
               name="description"
               defaultValue={descriptionValue}
@@ -252,7 +252,7 @@ export function SolicitudConvertPedidoForm({
             />
             <p
               id="convert-description-help"
-              className="mt-2 text-sm leading-5 text-zinc-500"
+              className="mt-2 text-sm leading-5 text-text-secondary"
             >
               Puedes ajustar la descripción original de la solicitud antes de
               crear el pedido.
@@ -260,7 +260,7 @@ export function SolicitudConvertPedidoForm({
             {descriptionError ? (
               <p
                 id="convert-description-error"
-                className="mt-2 text-sm leading-5 text-red-700"
+                className="mt-2 text-sm leading-5 text-danger"
               >
                 {descriptionError}
               </p>
@@ -270,7 +270,7 @@ export function SolicitudConvertPedidoForm({
           <button
             type="submit"
             disabled={!canConvert || pending}
-            className="inline-flex min-h-10 items-center justify-center rounded-md bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-(--radius-control) bg-brand-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending ? "Convirtiendo..." : "Convertir en pedido"}
           </button>

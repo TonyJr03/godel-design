@@ -1,14 +1,18 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+
 import type {
   SolicitudDetailAction,
   UpdateSolicitudStatusActionState,
 } from "@/app/dashboard/solicitudes/[id]/actions";
-import type { InternalSolicitudDetail as InternalSolicitudDetailData } from "@/lib/solicitudes";
 import {
-  SOLICITUD_STATUS_LABELS,
-  getSolicitudServiceTypeLabel,
-} from "@/lib/solicitudes";
+  DetailPanel,
+  MetadataGrid,
+  MetadataItem,
+  StatusBadge,
+} from "@/components/ui";
+import type { InternalSolicitudDetail as InternalSolicitudDetailData } from "@/lib/solicitudes";
+import { getSolicitudServiceTypeLabel } from "@/lib/solicitudes";
 import { SolicitudStatusForm } from "./SolicitudStatusForm";
 
 type InternalSolicitudDetailProps = {
@@ -33,20 +37,7 @@ function formatShortReference(id: string): string {
 }
 
 function formatDate(value: string | null): string {
-  if (!value) {
-    return "No definida";
-  }
-
-  return DATE_FORMATTER.format(new Date(value));
-}
-
-function DetailItem({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div>
-      <dt className="text-xs font-semibold uppercase text-zinc-500">{label}</dt>
-      <dd className="mt-1 text-sm text-zinc-900">{value}</dd>
-    </div>
-  );
+  return value ? DATE_FORMATTER.format(new Date(value)) : "No definida";
 }
 
 export function InternalSolicitudDetail({
@@ -62,101 +53,122 @@ export function InternalSolicitudDetail({
 
   return (
     <article className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="font-mono text-sm font-semibold text-teal-700">
-            {formatShortReference(solicitud.id)}
-          </p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-zinc-950">
+      <header className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="font-mono text-sm font-semibold text-brand-primary">
+              Solicitud {formatShortReference(solicitud.id)}
+            </p>
+            <StatusBadge status={solicitud.status} />
+          </div>
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-text-primary">
             Solicitud de {solicitud.client_name}
           </h1>
-          <p className="mt-3 text-base leading-7 text-zinc-600">
+          <p className="mt-3 max-w-3xl text-base leading-7 text-text-secondary">
             {serviceTypeLabel}
           </p>
         </div>
         <Link
           href="/dashboard/solicitudes"
-          className="inline-flex h-10 items-center justify-center rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-800 transition hover:border-zinc-400"
+          className="inline-flex min-h-11 items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-4 text-sm font-semibold text-text-primary transition-colors hover:bg-surface-muted"
         >
-          Volver al listado
+          Volver a solicitudes
         </Link>
-      </div>
+      </header>
 
-      <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="inline-flex rounded-md bg-teal-50 px-2.5 py-1.5 text-sm font-semibold text-teal-800 ring-1 ring-inset ring-teal-700/15">
-            {SOLICITUD_STATUS_LABELS[solicitud.status]}
-          </span>
-          <span className="text-xs text-zinc-500">
-            ID completo: <span className="font-mono">{solicitud.id}</span>
-          </span>
-        </div>
-
-        <dl className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          <DetailItem label="Cliente" value={solicitud.client_name} />
-          <DetailItem label="Teléfono" value={solicitud.client_phone} />
-          <DetailItem
-            label="Correo electrónico"
-            value={solicitud.client_email ?? "No informado"}
-          />
-          <DetailItem label="Tipo de servicio" value={serviceTypeLabel} />
-          <DetailItem
+      <section className="rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6">
+        <MetadataGrid className="lg:grid-cols-4">
+          <MetadataItem label="Cliente" value={solicitud.client_name} />
+          <MetadataItem label="Servicio" value={serviceTypeLabel} />
+          <MetadataItem
             label="Fecha deseada"
             value={formatDate(solicitud.desired_date)}
           />
-          <DetailItem
-            label="Fecha de creación"
+          <MetadataItem
+            label="Recepción"
             value={formatDate(solicitud.created_at)}
           />
-          <DetailItem
-            label="Última actualización"
-            value={formatDate(solicitud.updated_at)}
-          />
-        </dl>
+        </MetadataGrid>
       </section>
 
-      {clienteSection}
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="order-2 min-w-0 space-y-6 xl:col-start-1 xl:row-start-1">
+          <DetailPanel
+            title="Trabajo solicitado"
+            description="Descripción recibida para valorar y preparar el trabajo."
+          >
+            <p className="whitespace-pre-wrap text-sm leading-7 text-text-primary">
+              {solicitud.description}
+            </p>
+            {solicitud.notes ? (
+              <div className="mt-5 border-t border-border pt-5">
+                <h3 className="text-sm font-semibold text-text-primary">
+                  Observaciones
+                </h3>
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-text-secondary">
+                  {solicitud.notes}
+                </p>
+              </div>
+            ) : null}
+          </DetailPanel>
 
-      {conversionSection}
-
-      {filesSection}
-
-      {commentsSection}
-
-      {historySection}
-
-      <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-zinc-950">
-          Gestión interna
-        </h2>
-        <p className="mt-2 text-sm leading-6 text-zinc-600">
-          Actualiza el estado operativo siguiendo las transiciones permitidas.
-        </p>
-        <div className="mt-5">
-          <SolicitudStatusForm
-            updateStatusAction={updateStatusAction}
-            currentStatus={solicitud.status}
-          />
+          {filesSection}
+          {commentsSection}
+          {historySection}
         </div>
-      </section>
 
-      <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-zinc-950">Descripción</h2>
-        <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-zinc-700">
-          {solicitud.description}
-        </p>
-      </section>
+        <aside className="contents min-w-0 xl:col-start-2 xl:row-start-1 xl:block xl:space-y-6">
+          <div className="order-1 space-y-6 xl:block">
+            <DetailPanel
+              title="Gestión interna"
+              description="Actualiza el estado siguiendo las transiciones permitidas."
+            >
+              <SolicitudStatusForm
+                updateStatusAction={updateStatusAction}
+                currentStatus={solicitud.status}
+              />
+            </DetailPanel>
 
-      {solicitud.notes ? (
-        <section className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-zinc-950">
-            Observaciones
-          </h2>
-          <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-zinc-700">
-            {solicitud.notes}
-          </p>
-        </section>
-      ) : null}
+            {clienteSection}
+            {conversionSection}
+          </div>
+
+          <div className="order-3 space-y-6 xl:block">
+            <DetailPanel
+              title="Contacto recibido"
+              description="Datos capturados en la solicitud pública."
+            >
+              <MetadataGrid className="sm:grid-cols-1">
+                <MetadataItem label="Teléfono" value={solicitud.client_phone} />
+                <MetadataItem
+                  label="Correo electrónico"
+                  value={solicitud.client_email ?? "No informado"}
+                />
+              </MetadataGrid>
+            </DetailPanel>
+
+            <DetailPanel
+              title="Metadata"
+              description="Información técnica secundaria."
+            >
+              <MetadataGrid className="sm:grid-cols-1">
+                <MetadataItem
+                  label="Última actualización"
+                  value={formatDate(solicitud.updated_at)}
+                />
+                <MetadataItem
+                  label="Identificador interno"
+                  value={
+                    <span className="break-all font-mono text-xs text-text-secondary">
+                      {solicitud.id}
+                    </span>
+                  }
+                />
+              </MetadataGrid>
+            </DetailPanel>
+          </div>
+        </aside>
+      </div>
     </article>
   );
 }
