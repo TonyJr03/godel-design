@@ -236,3 +236,73 @@ lógica de negocio.
 3. No consultar Supabase desde el shell cliente.
 4. No convertir el layout completo en Client Component.
 5. No usar negro puro cuando un azul profundo o grafito de marca sea adecuado.
+
+## 11. Dashboard operativo
+
+### Jerarquía
+
+El dashboard debe ordenar la información según su utilidad diaria:
+
+1. Encabezado y contexto del rol.
+2. Atención operativa.
+3. Solicitudes o pedidos que requieren acción.
+4. Métricas de contexto.
+5. Actividad reciente.
+
+Las acciones y excepciones aparecen antes que las cifras generales. El
+dashboard no debe obligar a recorrer una cuadrícula extensa para localizar el
+trabajo pendiente.
+
+### Atención operativa
+
+- Solo muestra indicadores existentes con valor mayor que cero.
+- Atrasos usan `danger`; entregas próximas, conversiones y falta de tareas usan
+  `warning`; solicitudes pendientes pueden usar `info`.
+- Cada indicador combina valor, etiqueta y explicación. El color nunca es la
+  única señal.
+- Cuando no existen incidencias se muestra un estado tranquilo de operación al
+  día, sin crear una alerta falsa.
+
+### Métricas
+
+- Todas las métricas conservan título, valor y descripción.
+- Las variantes `neutral`, `info`, `warning`, `danger` y `success` expresan
+  intención, no tendencia ni análisis estadístico.
+- Las métricas de atención pueden repetirse como contexto después de los
+  paneles accionables, pero no deben dominar la parte superior.
+- No añadir porcentajes, comparativas o tendencias que no existan en los datos.
+
+### Fichas de trabajo
+
+- Solicitudes: referencia, cliente, servicio, estado, fechas y acceso directo.
+- Pedidos: número, trabajo, cliente, estado, prioridad, atención, progreso,
+  entrega estimada y acceso directo.
+- `StatusBadge` y `PriorityBadge` mantienen las etiquetas canónicas del
+  dominio.
+- Las fichas no modifican el orden ni la selección calculados por los loaders.
+
+### Actividad reciente
+
+- Se presenta como registro compacto ordenado cronológicamente.
+- El origen `Pedido` o `Solicitud`, la fecha, el título, la descripción y la
+  acción permanecen visibles.
+- Azul identifica eventos de pedidos y naranja eventos de solicitudes, siempre
+  acompañados por texto.
+
+### Responsive
+
+- Móvil: una columna; atención y trabajo pendiente antes que métricas.
+- Tablet: métricas y datos internos pueden usar dos columnas.
+- Desktop: solicitudes y pedidos pueden compartir dos columnas, mientras las
+  métricas se distribuyen sin perder jerarquía.
+- Las acciones deben alcanzar al menos 40 px y no depender de hover.
+- El dashboard no debe introducir overflow horizontal global.
+
+### Restricciones
+
+1. No inventar estadísticas, tendencias, gráficos ni reportes.
+2. No convertir el dashboard en un panel analítico avanzado.
+3. No modificar consultas, orden de prioridad ni visibilidad por rol por
+   motivos visuales.
+4. No mover carga de datos o permisos a componentes cliente.
+5. No rediseñar listados, detalles o formularios desde el dashboard.

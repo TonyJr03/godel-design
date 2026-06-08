@@ -1,8 +1,10 @@
 import type { GetDashboardSummaryResult } from "@/lib/dashboard";
+import { Alert } from "@/components/ui/Alert";
 import {
   DashboardSummaryCards,
   type DashboardSummaryCard,
 } from "./DashboardSummaryCards";
+import { DashboardSection } from "./DashboardSection";
 
 type DashboardOverviewProps = {
   result: GetDashboardSummaryResult;
@@ -26,52 +28,62 @@ function getManagementCards(
       title: "Solicitudes nuevas",
       value: metrics.solicitudesNuevas,
       description: "Solicitudes recibidas pendientes de primera revisión.",
+      tone: "info",
     },
     {
       title: "Solicitudes pendientes",
       value: metrics.solicitudesPendientes,
       description: "Solicitudes nuevas, en revisión o contactadas.",
+      tone: "warning",
     },
     {
       title: "Aprobadas sin convertir",
       value: metrics.solicitudesAprobadasPendientesConvertir,
       description: "Solicitudes aprobadas que aún no tienen pedido.",
+      tone: "warning",
     },
     {
       title: "Pedidos activos",
       value: metrics.pedidosActivos,
       description: "Pedidos abiertos, sin contar entregados ni cancelados.",
+      tone: "info",
     },
     {
       title: "En producción",
       value: metrics.pedidosEnProduccion,
       description: "Pedidos actualmente en fase de producción.",
+      tone: "info",
     },
     {
       title: "Listos para entrega",
       value: metrics.pedidosListosEntrega,
       description: "Pedidos terminados y pendientes de entrega.",
+      tone: "success",
     },
     {
       title: "Sin tareas",
       value: metrics.pedidosSinTareas,
       description:
         "Pedidos pendientes de revisión o en revisión que aún no tienen tareas.",
+      tone: "warning",
     },
     {
       title: "Pedidos atrasados",
       value: metrics.pedidosAtrasados,
       description: "Pedidos activos con fecha estimada vencida.",
+      tone: "danger",
     },
     {
       title: "Próximos a entrega",
       value: metrics.pedidosProximosEntrega,
       description: "Pedidos activos con entrega en los próximos 7 días.",
+      tone: "warning",
     },
     {
       title: "Clientes registrados",
       value: metrics.clientesRegistrados,
       description: "Clientes disponibles para operación interna.",
+      tone: "neutral",
     },
   ];
 }
@@ -84,37 +96,44 @@ function getWorkerCards(
       title: "Pedidos asignados",
       value: metrics.totalPedidosAsignados,
       description: "Total de pedidos en los que estás asignado.",
+      tone: "neutral",
     },
     {
       title: "Asignados activos",
       value: metrics.pedidosAsignadosActivos,
       description: "Tus pedidos abiertos, sin entregados ni cancelados.",
+      tone: "info",
     },
     {
       title: "En producción",
       value: metrics.pedidosAsignadosEnProduccion,
       description: "Tus pedidos asignados que están en producción.",
+      tone: "info",
     },
     {
       title: "Listos para entrega",
       value: metrics.pedidosAsignadosListosEntrega,
       description: "Tus pedidos terminados y pendientes de entrega.",
+      tone: "success",
     },
     {
       title: "Asignados sin tareas",
       value: metrics.pedidosAsignadosSinTareas,
       description:
         "Tus pedidos pendientes de revisión o en revisión que aún no tienen tareas.",
+      tone: "warning",
     },
     {
       title: "Atrasados",
       value: metrics.pedidosAsignadosAtrasados,
       description: "Tus pedidos activos con fecha estimada vencida.",
+      tone: "danger",
     },
     {
       title: "Próximos a entrega",
       value: metrics.pedidosAsignadosProximosEntrega,
       description: "Tus pedidos con entrega en los próximos 7 días.",
+      tone: "warning",
     },
   ];
 }
@@ -122,15 +141,12 @@ function getWorkerCards(
 export function DashboardOverview({ result }: DashboardOverviewProps) {
   if (!result.ok) {
     return (
-      <section className="rounded-lg border border-red-200 bg-red-50 p-5 text-sm text-red-950">
-        <h2 className="font-semibold">
-          No se pudo cargar el resumen del dashboard.
-        </h2>
-        <p className="mt-2 leading-6">
+      <Alert variant="danger" title="No se pudo cargar el resumen del dashboard">
+        <p>
           Intenta recargar la página o contacta al administrador si el problema
           continúa.
         </p>
-      </section>
+      </Alert>
     );
   }
 
@@ -139,5 +155,12 @@ export function DashboardOverview({ result }: DashboardOverviewProps) {
       ? getManagementCards(result.summary.metrics)
       : getWorkerCards(result.summary.metrics);
 
-  return <DashboardSummaryCards cards={cards} />;
+  return (
+    <DashboardSection
+      title="Resumen operativo"
+      description="Métricas de contexto para entender el volumen y estado general del trabajo."
+    >
+      <DashboardSummaryCards cards={cards} />
+    </DashboardSection>
+  );
 }

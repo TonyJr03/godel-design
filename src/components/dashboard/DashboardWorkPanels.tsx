@@ -1,15 +1,23 @@
 import Link from "next/link";
+
 import type {
   DashboardPedidoWorkItem,
   DashboardPendingSolicitudItem,
   GetDashboardWorkItemsResult,
 } from "@/lib/dashboard";
-import { PEDIDO_PRIORITY_LABELS, PEDIDO_STATUS_LABELS } from "@/lib/pedidos";
-import { SOLICITUD_STATUS_LABELS } from "@/lib/solicitudes";
+import { Alert } from "@/components/ui/Alert";
+import { Card } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { PriorityBadge } from "@/components/ui/PriorityBadge";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+
+import { DashboardSection } from "./DashboardSection";
 
 type DashboardWorkPanelsProps = {
   result: GetDashboardWorkItemsResult;
 };
+
+type AttentionTone = "info" | "warning" | "danger" | "success";
 
 function formatDate(value: string | null): string {
   if (!value) {
@@ -28,29 +36,31 @@ function getSolicitudReference(id: string): string {
   return `Solicitud ${id.slice(0, 8)}`;
 }
 
-function getPedidoAttentionLabel(item: DashboardPedidoWorkItem): string | null {
+function getPedidoAttention(
+  item: DashboardPedidoWorkItem,
+): { label: string; tone: AttentionTone } | null {
   if (item.attention.isPendingReview) {
-    return "Pendiente de revisión";
+    return { label: "Pendiente de revisión", tone: "warning" };
   }
 
   if (item.attention.isOverdue) {
-    return "Atrasado";
+    return { label: "Entrega atrasada", tone: "danger" };
   }
 
   if (item.attention.isDueSoon) {
-    return "Próximo";
+    return { label: "Entrega próxima", tone: "warning" };
   }
 
   if (item.attention.isReviewWithoutTasks) {
-    return "Sin tareas";
+    return { label: "Sin tareas", tone: "warning" };
   }
 
   if (item.attention.isProductionWithPendingTasks) {
-    return "Tareas pendientes";
+    return { label: "Tareas pendientes", tone: "info" };
   }
 
   if (item.attention.isReadyForDelivery) {
-    return "Listo";
+    return { label: "Listo para entrega", tone: "success" };
   }
 
   return null;
@@ -58,38 +68,25 @@ function getPedidoAttentionLabel(item: DashboardPedidoWorkItem): string | null {
 
 function getPedidoProgressLabel(item: DashboardPedidoWorkItem): string {
   if (!item.progress.hasTasks) {
-    return "Sin tareas";
+    return "Sin tareas registradas";
   }
 
   if (item.progress.isComplete) {
-    return "100% completado";
+    return `${item.progress.completedTasks} de ${item.progress.totalTasks} tareas completadas`;
   }
 
-  return `Progreso: ${item.progress.progressPercentage}%`;
+  return `${item.progress.progressPercentage}% completado · ${item.progress.pendingTasks} pendientes`;
 }
 
-function EmptyState({ message }: { message: string }) {
-  return (
-    <div className="rounded-lg border border-dashed border-zinc-300 bg-white p-5 text-sm text-zinc-600">
-      {message}
-    </div>
-  );
-}
+const attentionClasses: Record<AttentionTone, string> = {
+  info: "border-info/30 bg-info-soft text-info",
+  warning: "border-warning/30 bg-warning-soft text-warning",
+  danger: "border-danger/30 bg-danger-soft text-danger",
+  success: "border-success/30 bg-success-soft text-success",
+};
 
-function WorkPanel({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="space-y-3">
-      <h2 className="text-lg font-semibold text-zinc-950">{title}</h2>
-      {children}
-    </section>
-  );
-}
+const actionLinkClasses =
+  "inline-flex min-h-10 items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-3 text-sm font-semibold text-brand-primary transition-colors duration-200 hover:border-brand-primary hover:bg-brand-primary-soft";
 
 function SolicitudesList({
   solicitudes,
@@ -97,42 +94,76 @@ function SolicitudesList({
   solicitudes: DashboardPendingSolicitudItem[];
 }) {
   if (solicitudes.length === 0) {
-    return <EmptyState message="No hay solicitudes pendientes por revisar." />;
+    return (
+      <EmptyState
+        title="Solicitudes al día"
+        description="No hay solicitudes pendientes por revisar."
+      />
+    );
   }
 
   return (
-    <div className="divide-y divide-zinc-200 overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
+    <div className="grid gap-3">
       {solicitudes.map((solicitud) => (
-        <Link
+        <Card
+          as="article"
           key={solicitud.id}
-          href={solicitud.href}
-          className="block p-4 transition hover:bg-zinc-50"
+          padding="sm"
+          className="shadow-(--shadow-soft)"
         >
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-zinc-950">
+              <p className="text-sm font-semibold text-text-primary">
                 {getSolicitudReference(solicitud.id)}
               </p>
-              <p className="mt-1 truncate text-sm text-zinc-700">
+              <p className="mt-1 text-base font-semibold text-text-primary">
                 {solicitud.clienteNombre}
               </p>
-              <p className="mt-1 text-sm text-zinc-500">
-                {solicitud.tipoServicio} · {solicitud.clienteTelefono}
-              </p>
             </div>
-            <div className="shrink-0 text-left sm:text-right">
-              <p className="text-sm font-medium text-teal-700">
-                {SOLICITUD_STATUS_LABELS[solicitud.status]}
-              </p>
-              <p className="mt-1 text-sm text-zinc-500">
-                Deseada: {formatDate(solicitud.fechaDeseada)}
-              </p>
-              <p className="mt-1 text-xs text-zinc-400">
-                Creada: {formatDate(solicitud.createdAt)}
-              </p>
-            </div>
+            <StatusBadge status={solicitud.status} />
           </div>
-        </Link>
+
+          <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+            <div>
+              <dt className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+                Servicio
+              </dt>
+              <dd className="mt-1 text-text-primary">
+                {solicitud.tipoServicio}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+                Fecha deseada
+              </dt>
+              <dd className="mt-1 text-text-primary">
+                {formatDate(solicitud.fechaDeseada)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+                Contacto
+              </dt>
+              <dd className="mt-1 text-text-primary">
+                {solicitud.clienteTelefono}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+                Recibida
+              </dt>
+              <dd className="mt-1 text-text-primary">
+                {formatDate(solicitud.createdAt)}
+              </dd>
+            </div>
+          </dl>
+
+          <div className="mt-4 flex justify-end border-t border-border pt-4">
+            <Link href={solicitud.href} className={actionLinkClasses}>
+              Ver solicitud
+            </Link>
+          </div>
+        </Card>
       ))}
     </div>
   );
@@ -146,55 +177,80 @@ function PedidosList({
   emptyMessage: string;
 }) {
   if (pedidos.length === 0) {
-    return <EmptyState message={emptyMessage} />;
+    return (
+      <EmptyState
+        title="Sin pedidos pendientes"
+        description={emptyMessage}
+      />
+    );
   }
 
   return (
-    <div className="divide-y divide-zinc-200 overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
+    <div className="grid gap-3">
       {pedidos.map((pedido) => {
-        const attentionLabel = getPedidoAttentionLabel(pedido);
+        const attention = getPedidoAttention(pedido);
 
         return (
-          <Link
+          <Card
+            as="article"
             key={pedido.id}
-            href={pedido.href}
-            className="block p-4 transition hover:bg-zinc-50"
+            padding="sm"
+            className="shadow-(--shadow-soft)"
           >
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-semibold text-zinc-950">
-                    {pedido.numeroPedido}
-                  </p>
-                  {attentionLabel ? (
-                    <span className="rounded-md bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">
-                      {attentionLabel}
-                    </span>
-                  ) : null}
-                </div>
-                <p className="mt-1 truncate text-sm text-zinc-700">
-                  {pedido.title}
+                <p className="text-sm font-semibold text-brand-primary">
+                  {pedido.numeroPedido}
                 </p>
-                <p className="mt-1 text-sm text-zinc-500">
+                <h3 className="mt-1 text-base font-semibold text-text-primary">
+                  {pedido.title}
+                </h3>
+                <p className="mt-1 text-sm text-text-secondary">
                   {pedido.clienteNombre ?? "Sin cliente asociado"}
                 </p>
-                <p className="mt-1 text-sm text-zinc-500">
-                  {getPedidoProgressLabel(pedido)}
-                </p>
               </div>
-              <div className="shrink-0 text-left sm:text-right">
-                <p className="text-sm font-medium text-teal-700">
-                  {PEDIDO_STATUS_LABELS[pedido.status]}
-                </p>
-                <p className="mt-1 text-sm text-zinc-500">
-                  Prioridad: {PEDIDO_PRIORITY_LABELS[pedido.priority]}
-                </p>
-                <p className="mt-1 text-xs text-zinc-400">
-                  Entrega: {formatDate(pedido.fechaEntregaEstimada)}
-                </p>
+              <div className="flex flex-wrap justify-end gap-2">
+                <StatusBadge status={pedido.status} />
+                <PriorityBadge priority={pedido.priority} />
               </div>
             </div>
-          </Link>
+
+            {attention ? (
+              <p
+                className={[
+                  "mt-4 inline-flex rounded-(--radius-control) border px-2.5 py-1 text-xs font-semibold",
+                  attentionClasses[attention.tone],
+                ].join(" ")}
+              >
+                {attention.label}
+              </p>
+            ) : null}
+
+            <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+                  Progreso
+                </dt>
+                <dd className="mt-1 text-text-primary">
+                  {getPedidoProgressLabel(pedido)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+                  Entrega estimada
+                </dt>
+                <dd className="mt-1 text-text-primary">
+                  {formatDate(pedido.fechaEntregaEstimada)}
+                </dd>
+              </div>
+            </dl>
+
+            <div className="mt-4 flex justify-end border-t border-border pt-4">
+              <Link href={pedido.href} className={actionLinkClasses}>
+                Ver pedido
+              </Link>
+            </div>
+          </Card>
         );
       })}
     </div>
@@ -204,40 +260,66 @@ function PedidosList({
 export function DashboardWorkPanels({ result }: DashboardWorkPanelsProps) {
   if (!result.ok) {
     return (
-      <section className="rounded-lg border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950">
-        <h2 className="font-semibold">
-          No se pudieron cargar los paneles operativos.
-        </h2>
-        <p className="mt-2 leading-6">
+      <Alert
+        variant="warning"
+        title="No se pudieron cargar los paneles operativos"
+      >
+        <p>
           Intenta recargar la página o contacta al administrador si el problema
           continúa.
         </p>
-      </section>
+      </Alert>
     );
   }
 
   if (result.workItems.kind === "worker") {
     return (
-      <WorkPanel title="Mis pedidos asignados">
+      <DashboardSection
+        title="Trabajo que requiere seguimiento"
+        description="Pedidos asignados ordenados según la atención operativa que necesitan."
+      >
         <PedidosList
           pedidos={result.workItems.pedidosAsignados}
           emptyMessage="No tienes pedidos asignados que requieran atención."
         />
-      </WorkPanel>
+      </DashboardSection>
     );
   }
 
   return (
-    <div className="grid gap-8 xl:grid-cols-2">
-      <WorkPanel title="Solicitudes pendientes">
-        <SolicitudesList solicitudes={result.workItems.solicitudesPendientes} />
-      </WorkPanel>
-      <WorkPanel title="Pedidos que requieren atención">
-        <PedidosList
-          pedidos={result.workItems.pedidosAtencion}
-          emptyMessage="No hay pedidos que requieran atención inmediata."
-        />
-      </WorkPanel>
-    </div>
+    <section aria-labelledby="dashboard-work-title">
+      <div className="max-w-3xl">
+        <h2
+          id="dashboard-work-title"
+          className="text-xl font-semibold tracking-tight text-text-primary"
+        >
+          Trabajo pendiente
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-text-secondary">
+          Accesos directos a las solicitudes y pedidos que necesitan una
+          decisión o seguimiento.
+        </p>
+      </div>
+
+      <div className="mt-4 grid gap-8 xl:grid-cols-2">
+        <DashboardSection
+          title="Solicitudes pendientes"
+          description="Solicitudes nuevas, en revisión, contactadas o aprobadas sin convertir."
+        >
+          <SolicitudesList
+            solicitudes={result.workItems.solicitudesPendientes}
+          />
+        </DashboardSection>
+        <DashboardSection
+          title="Pedidos que requieren atención"
+          description="Pedidos priorizados por revisión, fechas, tareas y estado de entrega."
+        >
+          <PedidosList
+            pedidos={result.workItems.pedidosAtencion}
+            emptyMessage="No hay pedidos que requieran atención inmediata."
+          />
+        </DashboardSection>
+      </div>
+    </section>
   );
 }

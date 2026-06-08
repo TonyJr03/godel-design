@@ -1,3 +1,4 @@
+import { DashboardAttentionPanel } from "@/components/dashboard/DashboardAttentionPanel";
 import { DashboardOverview } from "@/components/dashboard/DashboardOverview";
 import { DashboardRecentActivity } from "@/components/dashboard/DashboardRecentActivity";
 import { DashboardWorkPanels } from "@/components/dashboard/DashboardWorkPanels";
@@ -13,7 +14,7 @@ export default async function DashboardPage() {
     (activityResult.ok && activityResult.activity.kind === "worker");
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <PageHeader
         title={isWorkerDashboard ? "Mi trabajo asignado" : "Dashboard operativo"}
         description={
@@ -22,8 +23,9 @@ export default async function DashboardPage() {
             : "Resumen general de solicitudes, pedidos y clientes."
         }
       />
-      <DashboardOverview result={summaryResult} />
+      <DashboardAttentionPanel result={summaryResult} />
       <DashboardWorkPanels result={workItemsResult} />
+      <DashboardOverview result={summaryResult} />
       <DashboardRecentActivity result={activityResult} />
     </div>
   );

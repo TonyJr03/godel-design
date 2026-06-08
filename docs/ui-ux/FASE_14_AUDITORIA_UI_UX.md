@@ -991,7 +991,7 @@ hex y clases que luego habría que reemplazar.
 - [ ] Los mensajes usan lenguaje operativo y no metadata cruda.
 - [ ] No se expone `file_path`.
 - [ ] Las referencias completas no dominan la pantalla.
-- [ ] El dashboard prioriza acciones sobre métricas decorativas.
+- [x] El dashboard prioriza acciones sobre métricas decorativas.
 - [ ] Comentarios, historial y archivos se distinguen visualmente.
 
 ### Verificación final
@@ -1065,3 +1065,25 @@ hex y clases que luego habría que reemplazar.
   se detectó overflow horizontal global ni solapamiento del shell. Las tablas
   conservan su scroll horizontal interno en móvil, pendiente de la subfase de
   listados y fuera del alcance de 14.4A.
+
+### 14.5A — Dashboard operativo
+
+- **Fecha:** 8 de junio de 2026.
+- **Cambios realizados:** reorganización del dashboard para situar atención y
+  trabajo pendiente antes de las métricas; nueva zona de atención operativa;
+  métricas con intención visual; fichas de solicitudes y pedidos con badges
+  canónicos; actividad reciente como registro compacto.
+- **Archivos modificados:** `src/app/dashboard/page.tsx`, componentes de
+  `src/components/dashboard`, `docs/ui-ux/FASE_14_DESIGN_SYSTEM.md` y este
+  documento.
+- **Validaciones ejecutadas:** `npm run lint` y `npm run build` aprobados con
+  Next.js 16.2.6. Inspección visual autenticada con perfil admin de prueba en
+  Edge 149 a 1440 × 1000 px y 375 × 812 px.
+- **Observaciones:** se conservaron todos los datos, enlaces, loaders,
+  consultas, prioridades y variantes por rol existentes. El dashboard y sus
+  componentes presentacionales siguen renderizándose en servidor. No se
+  añadieron estadísticas, gráficos, dependencias, permisos ni lógica de
+  negocio. No se detectó overflow horizontal global en `/dashboard`; la
+  jerarquía, fichas, métricas y actividad conservaron legibilidad en ambos
+  tamaños. La comprobación visual de otros roles queda pendiente al no disponer
+  de credenciales específicas para supervisor y trabajador.
