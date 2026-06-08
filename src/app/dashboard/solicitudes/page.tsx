@@ -1,5 +1,6 @@
 import { ListFiltersBar } from "@/components/common/ListFiltersBar";
 import { InternalSolicitudesList } from "@/components/solicitudes/InternalSolicitudesList";
+import { Alert } from "@/components/ui/Alert";
 import { PageHeader } from "@/components/ui/PageHeader";
 import {
   INTERNAL_SOLICITUD_ESTADOS,
@@ -52,18 +53,17 @@ export default async function DashboardSolicitudesPage({
       />
 
       {result.ok && result.ignoredInvalidEstado ? (
-        <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+        <Alert variant="warning">
           El filtro de estado no es válido y fue ignorado.
-        </section>
+        </Alert>
       ) : null}
 
       {!result.ok ? (
-        <section className="rounded-lg border border-red-200 bg-red-50 p-5 text-sm text-red-950">
-          {result.message}
-        </section>
+        <Alert variant="danger">{result.message}</Alert>
       ) : (
         <InternalSolicitudesList
           solicitudes={result.solicitudes}
+          hasActiveFilters={Boolean(searchValue || result.status)}
           emptyMessage={
             searchValue || result.status
               ? "No se encontraron solicitudes con los filtros aplicados."

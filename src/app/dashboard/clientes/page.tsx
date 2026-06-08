@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ListFiltersBar } from "@/components/common/ListFiltersBar";
 import { InternalClientesList } from "@/components/clientes/InternalClientesList";
+import { Alert } from "@/components/ui/Alert";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { listInternalClientes } from "@/lib/clientes";
 import { getSingleSearchParam } from "@/lib/utils";
@@ -28,7 +29,7 @@ export default async function DashboardClientesPage({
         />
         <Link
           href="/dashboard/clientes/nuevo"
-          className="inline-flex min-h-10 items-center justify-center rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800"
+          className="inline-flex min-h-11 items-center justify-center rounded-(--radius-control) bg-brand-primary px-4 text-sm font-semibold text-white transition-colors duration-200 hover:bg-brand-primary-hover"
         >
           Nuevo cliente
         </Link>
@@ -41,12 +42,11 @@ export default async function DashboardClientesPage({
       />
 
       {!result.ok ? (
-        <section className="rounded-lg border border-red-200 bg-red-50 p-5 text-sm text-red-950">
-          {result.message}
-        </section>
+        <Alert variant="danger">{result.message}</Alert>
       ) : (
         <InternalClientesList
           clientes={result.clientes}
+          hasActiveFilters={Boolean(searchValue)}
           emptyMessage={
             searchValue
               ? "No se encontraron clientes con los filtros aplicados."

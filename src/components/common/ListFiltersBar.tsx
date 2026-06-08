@@ -133,15 +133,15 @@ export function ListFiltersBar({
 
   return (
     <section
-      className="space-y-2"
+      className="rounded-(--radius-card) border border-border bg-surface p-4 shadow-(--shadow-soft) sm:p-5"
       aria-label="Búsqueda y filtros"
       aria-busy={isSearching}
     >
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
         <div className="min-w-0 flex-1">
           <label
             htmlFor="list-search"
-            className="block text-sm font-semibold text-zinc-950"
+            className="block text-sm font-semibold text-text-primary"
           >
             {searchLabel}
           </label>
@@ -152,7 +152,7 @@ export function ListFiltersBar({
             maxLength={120}
             placeholder={searchPlaceholder}
             onChange={(event) => setQuery(event.target.value)}
-            className="mt-2 min-h-10 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-teal-700 focus:ring-2 focus:ring-teal-700/20"
+            className="mt-2 min-h-11 w-full rounded-(--radius-control) border border-border-strong bg-surface px-3 text-sm text-text-primary transition-colors duration-200 placeholder:text-text-muted hover:border-brand-primary focus:border-brand-primary"
           />
         </div>
 
@@ -160,7 +160,7 @@ export function ListFiltersBar({
           <div key={filter.name} className="lg:w-52">
             <label
               htmlFor={`list-filter-${filter.name}`}
-              className="block text-sm font-semibold text-zinc-950"
+              className="block text-sm font-semibold text-text-primary"
             >
               {filter.label}
             </label>
@@ -170,7 +170,7 @@ export function ListFiltersBar({
               onChange={(event) =>
                 updateFilter(filter.name, event.target.value)
               }
-              className="mt-2 min-h-10 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-950 outline-none transition focus:border-teal-700 focus:ring-2 focus:ring-teal-700/20"
+              className="mt-2 min-h-11 w-full rounded-(--radius-control) border border-border-strong bg-surface px-3 text-sm text-text-primary transition-colors duration-200 hover:border-brand-primary focus:border-brand-primary"
             >
               {filter.options.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -185,7 +185,7 @@ export function ListFiltersBar({
           <button
             type="button"
             onClick={clearFilters}
-            className="inline-flex min-h-10 items-center justify-center rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:border-zinc-400 hover:bg-zinc-50"
+            className="inline-flex min-h-11 items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-4 text-sm font-semibold text-brand-primary transition-colors duration-200 hover:border-brand-primary hover:bg-brand-primary-soft"
           >
             {clearLabel}
           </button>
@@ -193,7 +193,7 @@ export function ListFiltersBar({
       </div>
 
       <p
-        className="min-h-5 text-xs text-zinc-500"
+        className="mt-2 min-h-5 text-xs text-text-muted"
         role="status"
         aria-live="polite"
       >

@@ -970,10 +970,10 @@ hex y clases que luego habría que reemplazar.
 - [ ] Revisado a 768 px.
 - [ ] Revisado a 1024 px.
 - [ ] Revisado a 1440 px.
-- [ ] No hay scroll horizontal global.
-- [ ] Las tablas tienen alternativa móvil.
-- [ ] Los targets táctiles principales alcanzan 44 px.
-- [ ] Hay al menos 8 px entre acciones táctiles adyacentes.
+- [x] No hay scroll horizontal global.
+- [x] Las tablas tienen alternativa móvil.
+- [x] Los targets táctiles principales alcanzan 44 px.
+- [x] Hay al menos 8 px entre acciones táctiles adyacentes.
 
 ### Accesibilidad
 
@@ -1087,3 +1087,28 @@ hex y clases que luego habría que reemplazar.
   jerarquía, fichas, métricas y actividad conservaron legibilidad en ambos
   tamaños. La comprobación visual de otros roles queda pendiente al no disponer
   de credenciales específicas para supervisor y trabajador.
+
+### 14.6A — Listados operativos
+
+- **Fecha:** 8 de junio de 2026.
+- **Cambios realizados:** tablas desktop normalizadas y cards móviles para
+  solicitudes, pedidos, clientes y usuarios; filtros migrados a tokens
+  semánticos; estados, prioridades, alertas y vacíos normalizados; acciones de
+  detalle con targets de 44 px.
+- **Archivos modificados:** páginas de listado de solicitudes, pedidos,
+  clientes y usuarios; sus componentes `Internal*List`;
+  `src/components/common/ListFiltersBar.tsx`,
+  `src/components/ui/StatusBadge.tsx`,
+  `docs/ui-ux/FASE_14_DESIGN_SYSTEM.md` y este documento.
+- **Validaciones ejecutadas:** `npm run lint` y `npm run build` aprobados con
+  Next.js 16.2.6. Inspección visual autenticada en Edge 149 con perfil admin
+  sobre los cuatro listados a 1440 × 1000 px, 768 × 1024 px y 375 × 812 px.
+  El listado de pedidos también se validó con perfil trabajador en los tres
+  tamaños. No se detectó scroll horizontal global y todos los controles
+  visibles mantuvieron un alto mínimo de 44 px.
+- **Observaciones:** las cards y tablas reciben los mismos arrays cargados en
+  servidor. No se modificaron consultas, filtros funcionales, rutas, permisos,
+  servicios ni acciones. Las tablas se reservan desde `lg` y conservan scroll
+  interno cuando su densidad lo requiere; tablet y móvil usan cards y ya no
+  dependen de ese scroll. Supervisor comparte estos listados operativos con
+  admin salvo las áreas exclusivas de usuarios y configuración.

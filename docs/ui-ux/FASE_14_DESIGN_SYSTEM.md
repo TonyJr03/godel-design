@@ -306,3 +306,69 @@ trabajo pendiente.
    motivos visuales.
 4. No mover carga de datos o permisos a componentes cliente.
 5. No rediseñar listados, detalles o formularios desde el dashboard.
+
+## 12. Listados operativos
+
+### Tabla desktop y cards móviles
+
+- Cada listado recibe un único array desde servidor y renderiza dos
+  representaciones presentacionales de esos mismos datos.
+- Base móvil: cards operativas en una columna.
+- Desde `lg`: tabla semántica con encabezados `scope="col"`.
+- Las tablas densas pueden conservar scroll horizontal dentro de su propia
+  superficie, pero nunca deben producir overflow global de la página.
+- No duplicar consultas, permisos, ordenamiento ni transformación de dominio
+  para construir la vista móvil.
+
+### Datos prioritarios en cards
+
+- **Solicitud:** referencia corta, cliente, servicio, estado, creación, fecha
+  deseada y acceso a la solicitud.
+- **Pedido:** número, trabajo, cliente, estado, prioridad, progreso, personal,
+  entrega estimada y acceso al pedido.
+- **Cliente:** nombre, teléfono, correo disponible, actualización y acceso al
+  cliente.
+- **Usuario:** nombre, referencia corta secundaria, rol, estado, teléfono,
+  actualización y acceso al usuario.
+
+Los UUID técnicos no deben dominar la card. Pueden mostrarse como referencia
+corta y secundaria cuando ya formen parte del listado.
+
+### Estados y prioridades
+
+- `StatusBadge` representa estados de solicitudes, pedidos y usuarios.
+- `PriorityBadge` representa prioridad de pedidos.
+- Progreso usa texto explícito y un tono semántico; no depende solo del color.
+- Las etiquetas visibles reutilizan los mapas canónicos del dominio.
+
+### Filtros
+
+- La búsqueda permanece visible y conserva sincronización con la URL.
+- Los filtros se apilan en móvil y se distribuyen horizontalmente cuando existe
+  espacio.
+- Inputs, selects y limpiar filtros mantienen targets mínimos de 44 px.
+- La superficie de filtros usa borde, fondo y sombra del sistema visual.
+- El feedback de búsqueda continúa anunciado mediante `aria-live`.
+
+### Acciones
+
+- La acción de detalle siempre tiene texto específico: `Ver solicitud`,
+  `Ver pedido`, `Ver cliente` o `Ver usuario`.
+- En móvil ocupa el ancho disponible y alcanza al menos 44 px de alto.
+- En desktop permanece en la última columna con foco y hover visibles.
+- Acciones adyacentes deben conservar al menos 8 px de separación.
+
+### Estados vacíos
+
+- Sin datos: `EmptyState` con variante `default` y explicación de primer uso.
+- Sin resultados: `EmptyState` con variante `search` y referencia explícita a
+  los filtros actuales.
+- No inventar una acción de recuperación cuando el listado no dispone de una.
+
+### Restricciones
+
+1. No cambiar consultas ni servicios para crear cards móviles.
+2. No ocultar datos críticos de la tabla desktop.
+3. No convertir los listados completos en Client Components.
+4. No duplicar reglas de permisos o visibilidad.
+5. No añadir paginación, ordenamiento o métricas que no existan.

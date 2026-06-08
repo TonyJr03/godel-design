@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ListFiltersBar } from "@/components/common/ListFiltersBar";
+import { Alert } from "@/components/ui/Alert";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { InternalUsersList } from "@/components/usuarios/InternalUsersList";
 import { listInternalUsers } from "@/lib/usuarios";
@@ -35,16 +36,16 @@ export default async function DashboardUsuariosPage({
         />
         <Link
           href="/dashboard/usuarios/nuevo"
-          className="inline-flex min-h-10 items-center justify-center rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800"
+          className="inline-flex min-h-11 items-center justify-center rounded-(--radius-control) bg-brand-primary px-4 text-sm font-semibold text-white transition-colors duration-200 hover:bg-brand-primary-hover"
         >
           Nuevo perfil
         </Link>
       </div>
 
-      <section className="rounded-lg border border-teal-200 bg-teal-50 p-4 text-sm text-teal-950">
+      <Alert variant="info">
         Los usuarios Auth se crean fuera de esta aplicación. Aquí se gestionan
         sus perfiles internos.
-      </section>
+      </Alert>
 
       <ListFiltersBar
         searchLabel="Buscar usuarios"
@@ -76,24 +77,23 @@ export default async function DashboardUsuariosPage({
       />
 
       {result.ignoredInvalidRole ? (
-        <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+        <Alert variant="warning">
           El filtro de rol no es válido y fue ignorado.
-        </section>
+        </Alert>
       ) : null}
 
       {result.ignoredInvalidActive ? (
-        <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+        <Alert variant="warning">
           El filtro de estado no es válido y fue ignorado.
-        </section>
+        </Alert>
       ) : null}
 
       {!result.ok ? (
-        <section className="rounded-lg border border-red-200 bg-red-50 p-5 text-sm text-red-950">
-          {result.message}
-        </section>
+        <Alert variant="danger">{result.message}</Alert>
       ) : (
         <InternalUsersList
           users={result.users}
+          hasActiveFilters={Boolean(searchValue || roleValue || activeValue)}
           emptyMessage={
             searchValue || roleValue || activeValue
               ? "No se encontraron usuarios con los filtros aplicados."

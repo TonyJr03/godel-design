@@ -1,10 +1,16 @@
 import Link from "next/link";
-import { PEDIDO_STATUS_LABELS, type InternalPedido } from "@/lib/pedidos";
+
+import { Card } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { PriorityBadge } from "@/components/ui/PriorityBadge";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import type { InternalPedido } from "@/lib/pedidos";
 import { getSolicitudServiceTypeLabel } from "@/lib/solicitudes";
 
 type InternalPedidosListProps = {
   pedidos: InternalPedido[];
   emptyMessage?: string;
+  hasActiveFilters?: boolean;
 };
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("es", {
@@ -13,6 +19,9 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("es", {
   year: "numeric",
   timeZone: "UTC",
 });
+
+const actionLinkClasses =
+  "inline-flex min-h-11 items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-4 text-sm font-semibold text-brand-primary transition-colors duration-200 hover:border-brand-primary hover:bg-brand-primary-soft";
 
 function formatShortReference(id: string): string {
   return id.slice(0, 8).toUpperCase();
@@ -31,13 +40,13 @@ function getTrabajadoresLabel(pedido: InternalPedido): string {
     return "Sin asignar";
   }
 
-  const trabajadores = pedido.pedido_trabajadores.map((asignacion) =>
-    asignacion.perfiles?.full_name?.trim()
-      ? asignacion.perfiles.full_name
-      : "Usuario asignado",
-  );
-
-  return trabajadores.join(", ");
+  return pedido.pedido_trabajadores
+    .map((asignacion) =>
+      asignacion.perfiles?.full_name?.trim()
+        ? asignacion.perfiles.full_name
+        : "Usuario asignado",
+    )
+    .join(", ");
 }
 
 function getClienteLabel(pedido: InternalPedido): string {
@@ -54,150 +63,229 @@ function getProgressLabel(pedido: InternalPedido): string {
   }
 
   if (pedido.taskProgress.isComplete) {
-    return "100% completado";
+    return `${pedido.taskProgress.completedTasks} de ${pedido.taskProgress.totalTasks} tareas completadas`;
   }
 
-  return `Progreso: ${pedido.taskProgress.progressPercentage}%`;
+  return `${pedido.taskProgress.progressPercentage}% completado · ${pedido.taskProgress.pendingTasks} pendientes`;
+}
+
+function ProgressBadge({ pedido }: { pedido: InternalPedido }) {
+  return (
+    <span
+      className={[
+        "inline-flex rounded-(--radius-control) border px-2.5 py-1 text-xs font-semibold",
+        pedido.taskProgress.isComplete
+          ? "border-success/30 bg-success-soft text-success"
+          : "border-border-strong bg-surface-muted text-text-secondary",
+      ].join(" ")}
+    >
+      {getProgressLabel(pedido)}
+    </span>
+  );
 }
 
 export function InternalPedidosList({
   pedidos,
   emptyMessage = "Cuando existan pedidos internos, aparecerán aquí ordenados por fecha de creación.",
+  hasActiveFilters = false,
 }: InternalPedidosListProps) {
   if (pedidos.length === 0) {
     return (
-      <section className="rounded-lg border border-dashed border-zinc-300 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-zinc-950">
-          No hay pedidos para mostrar
-        </h2>
-        <p className="mt-2 text-sm leading-6 text-zinc-600">
-          {emptyMessage}
-        </p>
-      </section>
+      <EmptyState
+        variant={hasActiveFilters ? "search" : "default"}
+        title={
+          hasActiveFilters
+            ? "Sin resultados para estos filtros"
+            : "No hay pedidos para mostrar"
+        }
+        description={emptyMessage}
+      />
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-zinc-200 text-sm">
-          <thead className="bg-zinc-100 text-left text-xs font-semibold uppercase text-zinc-600">
-            <tr>
-              <th scope="col" className="px-4 py-3">
-                Pedido
-              </th>
-              <th scope="col" className="px-4 py-3">
-                Cliente
-              </th>
-              <th scope="col" className="px-4 py-3">
-                Solicitud
-              </th>
-              <th scope="col" className="px-4 py-3">
-                Trabajo
-              </th>
-              <th scope="col" className="px-4 py-3">
-                Estado
-              </th>
-              <th scope="col" className="px-4 py-3">
-                Progreso
-              </th>
-              <th scope="col" className="px-4 py-3">
-                Personal
-              </th>
-              <th scope="col" className="px-4 py-3">
-                Creación
-              </th>
-              <th scope="col" className="px-4 py-3">
-                Entrega estimada
-              </th>
-              <th scope="col" className="px-4 py-3 text-right">
-                Acción
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-100 bg-white">
-            {pedidos.map((pedido) => (
-              <tr key={pedido.id} className="align-top">
-                <td className="whitespace-nowrap px-4 py-4">
-                  <div className="font-semibold text-zinc-950">
-                    {pedido.order_number}
-                  </div>
-                  <div className="mt-1 font-mono text-xs text-zinc-500">
-                    {formatShortReference(pedido.id)}
-                  </div>
-                </td>
-                <td className="px-4 py-4 text-zinc-700">
+    <>
+      <div className="grid gap-4 lg:hidden" aria-label="Pedidos">
+        {pedidos.map((pedido) => (
+          <Card
+            as="article"
+            key={pedido.id}
+            padding="sm"
+            className="shadow-(--shadow-soft)"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-brand-primary">
+                  {pedido.order_number}
+                </p>
+                <h2 className="mt-1 text-lg font-semibold text-text-primary">
+                  {pedido.title}
+                </h2>
+                <p className="mt-1 text-sm text-text-secondary">
                   {getClienteLabel(pedido)}
-                </td>
-                <td className="px-4 py-4 text-zinc-700">
-                  {pedido.solicitudes ? (
-                    <div>
-                      <div>
-                        {getSolicitudServiceTypeLabel(
-                          pedido.solicitudes.service_type,
-                        )}
-                      </div>
-                      <div className="mt-1 font-mono text-xs text-zinc-500">
-                        {formatShortReference(pedido.solicitudes.id)}
-                      </div>
-                    </div>
-                  ) : pedido.solicitud_id ? (
-                    <div>
-                      <div>Solicitud asociada</div>
-                      <div className="mt-1 font-mono text-xs text-zinc-500">
-                        {formatShortReference(pedido.solicitud_id)}
-                      </div>
-                    </div>
-                  ) : (
-                    "Manual"
-                  )}
-                </td>
-                <td className="min-w-64 px-4 py-4 text-zinc-700">
-                  <div className="font-medium text-zinc-950">
-                    {pedido.title}
-                  </div>
-                  <p className="mt-1 line-clamp-2 text-xs leading-5 text-zinc-500">
-                    {pedido.description}
-                  </p>
-                </td>
-                <td className="whitespace-nowrap px-4 py-4">
-                  <span className="inline-flex rounded-md bg-teal-50 px-2 py-1 text-xs font-semibold text-teal-800 ring-1 ring-inset ring-teal-700/15">
-                    {PEDIDO_STATUS_LABELS[pedido.status]}
-                  </span>
-                </td>
-                <td className="whitespace-nowrap px-4 py-4 text-zinc-700">
-                  <span
-                    className={
-                      pedido.taskProgress.isComplete
-                        ? "inline-flex rounded-md bg-teal-50 px-2 py-1 text-xs font-semibold text-teal-800 ring-1 ring-inset ring-teal-700/15"
-                        : "inline-flex rounded-md bg-zinc-100 px-2 py-1 text-xs font-semibold text-zinc-700 ring-1 ring-inset ring-zinc-200"
-                    }
-                  >
-                    {getProgressLabel(pedido)}
-                  </span>
-                </td>
-                <td className="px-4 py-4 text-zinc-700">
-                  {getTrabajadoresLabel(pedido)}
-                </td>
-                <td className="whitespace-nowrap px-4 py-4 text-zinc-700">
-                  {formatDate(pedido.created_at)}
-                </td>
-                <td className="whitespace-nowrap px-4 py-4 text-zinc-700">
+                </p>
+              </div>
+              <div className="flex flex-wrap justify-end gap-2">
+                <StatusBadge status={pedido.status} />
+                <PriorityBadge priority={pedido.priority} />
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <ProgressBadge pedido={pedido} />
+            </div>
+
+            <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+                  Entrega estimada
+                </dt>
+                <dd className="mt-1 text-text-primary">
                   {formatDate(pedido.estimated_delivery_date)}
-                </td>
-                <td className="px-4 py-4 text-right">
-                  <Link
-                    href={`/dashboard/pedidos/${pedido.id}`}
-                    className="inline-flex h-9 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 text-xs font-semibold text-zinc-700 transition hover:border-zinc-400"
-                  >
-                    Ver detalle
-                  </Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+                  Personal
+                </dt>
+                <dd className="mt-1 text-text-primary">
+                  {getTrabajadoresLabel(pedido)}
+                </dd>
+              </div>
+            </dl>
+
+            <div className="mt-4 border-t border-border pt-4">
+              <Link
+                href={`/dashboard/pedidos/${pedido.id}`}
+                className={`${actionLinkClasses} w-full`}
+              >
+                Ver pedido
+              </Link>
+            </div>
+          </Card>
+        ))}
       </div>
-    </div>
+
+      <div className="hidden overflow-hidden rounded-(--radius-card) border border-border bg-surface shadow-(--shadow-soft) lg:block">
+        <div className="overflow-x-auto">
+          <table className="min-w-275 divide-y divide-border text-sm">
+            <thead className="bg-surface-muted text-left text-xs font-semibold uppercase tracking-wide text-text-secondary">
+              <tr>
+                <th scope="col" className="px-4 py-3">
+                  Pedido
+                </th>
+                <th scope="col" className="px-4 py-3">
+                  Cliente
+                </th>
+                <th scope="col" className="px-4 py-3">
+                  Solicitud
+                </th>
+                <th scope="col" className="px-4 py-3">
+                  Trabajo
+                </th>
+                <th scope="col" className="px-4 py-3">
+                  Estado
+                </th>
+                <th scope="col" className="px-4 py-3">
+                  Prioridad
+                </th>
+                <th scope="col" className="px-4 py-3">
+                  Progreso
+                </th>
+                <th scope="col" className="px-4 py-3">
+                  Personal
+                </th>
+                <th scope="col" className="px-4 py-3">
+                  Creación
+                </th>
+                <th scope="col" className="px-4 py-3">
+                  Entrega estimada
+                </th>
+                <th scope="col" className="px-4 py-3 text-right">
+                  Acción
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border bg-surface">
+              {pedidos.map((pedido) => (
+                <tr
+                  key={pedido.id}
+                  className="align-top transition-colors duration-200 hover:bg-brand-primary-soft/50"
+                >
+                  <td className="whitespace-nowrap px-4 py-4">
+                    <div className="font-semibold text-text-primary">
+                      {pedido.order_number}
+                    </div>
+                    <div className="mt-1 font-mono text-xs text-text-muted">
+                      {formatShortReference(pedido.id)}
+                    </div>
+                  </td>
+                  <td className="px-4 py-4 text-text-secondary">
+                    {getClienteLabel(pedido)}
+                  </td>
+                  <td className="px-4 py-4 text-text-secondary">
+                    {pedido.solicitudes ? (
+                      <div>
+                        <div>
+                          {getSolicitudServiceTypeLabel(
+                            pedido.solicitudes.service_type,
+                          )}
+                        </div>
+                        <div className="mt-1 font-mono text-xs text-text-muted">
+                          {formatShortReference(pedido.solicitudes.id)}
+                        </div>
+                      </div>
+                    ) : pedido.solicitud_id ? (
+                      <div>
+                        <div>Solicitud asociada</div>
+                        <div className="mt-1 font-mono text-xs text-text-muted">
+                          {formatShortReference(pedido.solicitud_id)}
+                        </div>
+                      </div>
+                    ) : (
+                      "Manual"
+                    )}
+                  </td>
+                  <td className="min-w-64 px-4 py-4 text-text-secondary">
+                    <div className="font-semibold text-text-primary">
+                      {pedido.title}
+                    </div>
+                    <p className="mt-1 line-clamp-2 text-xs leading-5 text-text-muted">
+                      {pedido.description}
+                    </p>
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-4">
+                    <StatusBadge status={pedido.status} />
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-4">
+                    <PriorityBadge priority={pedido.priority} />
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-4">
+                    <ProgressBadge pedido={pedido} />
+                  </td>
+                  <td className="px-4 py-4 text-text-secondary">
+                    {getTrabajadoresLabel(pedido)}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-4 text-text-secondary">
+                    {formatDate(pedido.created_at)}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-4 text-text-secondary">
+                    {formatDate(pedido.estimated_delivery_date)}
+                  </td>
+                  <td className="px-4 py-4 text-right">
+                    <Link
+                      href={`/dashboard/pedidos/${pedido.id}`}
+                      className={actionLinkClasses}
+                    >
+                      Ver pedido
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
   );
 }

@@ -26,6 +26,8 @@ const statusLabels: Record<string, string> = {
   en_progreso: "En progreso",
   completada: "Completada",
   completado: "Completado",
+  activo: "Activo",
+  inactivo: "Inactivo",
 };
 
 const statusTones: Record<string, BadgeTone> = {
@@ -43,6 +45,8 @@ const statusTones: Record<string, BadgeTone> = {
   entregado: "success",
   completada: "success",
   completado: "success",
+  activo: "success",
+  inactivo: "neutral",
   rechazada: "danger",
   cancelado: "danger",
 };

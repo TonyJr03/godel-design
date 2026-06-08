@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { ListFiltersBar } from "@/components/common/ListFiltersBar";
 import { InternalPedidosList } from "@/components/pedidos/InternalPedidosList";
+import { Alert } from "@/components/ui/Alert";
 import { PageHeader } from "@/components/ui/PageHeader";
 import {
   INTERNAL_PEDIDO_ESTADOS,
@@ -35,7 +36,7 @@ export default async function DashboardPedidosPage({
         />
         <Link
           href="/dashboard/pedidos/nuevo"
-          className="inline-flex min-h-10 items-center justify-center rounded-md bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800"
+          className="inline-flex min-h-11 items-center justify-center rounded-(--radius-control) bg-brand-primary px-4 text-sm font-semibold text-white transition-colors duration-200 hover:bg-brand-primary-hover"
         >
           Nuevo pedido
         </Link>
@@ -62,18 +63,17 @@ export default async function DashboardPedidosPage({
       />
 
       {result.ok && result.ignoredInvalidEstado ? (
-        <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+        <Alert variant="warning">
           El filtro de estado no es válido y fue ignorado.
-        </section>
+        </Alert>
       ) : null}
 
       {!result.ok ? (
-        <section className="rounded-lg border border-red-200 bg-red-50 p-5 text-sm text-red-950">
-          {result.message}
-        </section>
+        <Alert variant="danger">{result.message}</Alert>
       ) : (
         <InternalPedidosList
           pedidos={result.pedidos}
+          hasActiveFilters={Boolean(searchValue || result.status)}
           emptyMessage={
             searchValue || result.status
               ? "No se encontraron pedidos con los filtros aplicados."
