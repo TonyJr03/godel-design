@@ -950,19 +950,21 @@ hex y clases que luego habría que reemplazar.
 ### Componentes
 
 - [x] Botones tienen variantes y tamaños consistentes.
-- [ ] Inputs, selects y textareas comparten estados.
+- [x] Inputs, selects y textareas comparten estados en formularios migrados.
 - [x] Alerts, badges y estados vacíos están normalizados.
 - [x] Estados y prioridades no dependen solo del color.
 - [x] No existen componentes universales innecesariamente complejos.
 
 ### Formularios
 
-- [ ] Todos los campos tienen label.
-- [ ] Ayuda y error están asociados mediante ARIA.
-- [ ] Pending, disabled, success y error son visibles.
+- [x] Todos los campos tienen label en los formularios migrados.
+- [x] Ayuda y error están asociados mediante ARIA en formularios migrados.
+- [x] Pending, disabled, success y error son visibles cuando aplican en los
+  formularios migrados.
 - [x] Los contratos de Server Actions no cambiaron.
-- [ ] Los campos usan teclado móvil apropiado.
-- [ ] Las acciones son claras y no permiten doble envío accidental.
+- [x] Los campos migrados usan teclado móvil apropiado.
+- [x] Las acciones migradas son claras y bloquean el doble envío durante
+  pending.
 
 ### Responsive
 
@@ -1141,3 +1143,29 @@ hex y clases que luego habría que reemplazar.
   ningún componente presenta `file_path`. En trabajador se conservaron los
   controles permitidos de estado y tareas, mientras la asignación de personal
   permaneció en modo lectura.
+
+### 14.8A — Formularios internos
+
+- **Fecha:** 9 de junio de 2026.
+- **Cambios realizados:** creación de `FormField`, `Input`, `Select`,
+  `Textarea`, `FormSection` y `FormActions`; normalización de labels, ayuda,
+  error, required/optional, disabled y pending; migración responsive de los
+  formularios principales de cliente, pedido manual y usuario.
+- **Archivos modificados:** formularios de alta y edición de clientes;
+  formulario de pedido manual; formularios de alta y edición de usuarios;
+  componentes de formulario en `src/components/ui`, su barrel de exportación,
+  `docs/ui-ux/FASE_14_DESIGN_SYSTEM.md` y este documento.
+- **Validaciones ejecutadas:** `npm run lint` y `npm run build` aprobados con
+  Next.js 16.2.6. Inspección visual autenticada con perfil admin sobre alta de
+  cliente, pedido y usuario, además de edición de cliente y usuario, a
+  1440 × 1000 px, 768 × 1024 px y 375 × 812 px. Las 15 combinaciones
+  conservaron labels visibles, controles de al menos 44 px y ausencia de
+  overflow horizontal global.
+- **Observaciones:** se conservaron Server Actions, `name`, `id`,
+  `defaultValue`, tipos, límites, `FormData`, validaciones y estados pending
+  existentes. No se modificaron consultas, permisos, RLS, RPCs, Storage,
+  servicios ni dependencias. El formulario público `/solicitud` y los
+  formularios internos de conversión, archivos, tareas, asignaciones y
+  comentarios quedan fuera de esta migración para no ampliar el riesgo. No se
+  ejecutaron submits ni errores de servidor durante la inspección para evitar
+  escrituras de datos.

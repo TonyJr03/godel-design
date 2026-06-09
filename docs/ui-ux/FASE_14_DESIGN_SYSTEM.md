@@ -428,3 +428,48 @@ corta y secundaria cuando ya formen parte del listado.
 4. No ampliar consultas únicamente para decorar una ficha.
 5. No duplicar reglas de acceso en componentes presentacionales.
 6. No mostrar metadata cruda cuando exista una etiqueta operativa.
+
+## 14. Formularios internos
+
+### Campo y controles
+
+- `FormField` agrupa label, indicador requerido u opcional, ayuda, error y
+  control.
+- `Input`, `Select` y `Textarea` aceptan las props nativas y no incorporan
+  estado local ni validación propia.
+- Los controles comparten superficie, borde, tipografía, foco global, estado
+  inválido y estado disabled mediante tokens semánticos.
+- Los errores se muestran junto al campo y se asocian mediante
+  `aria-describedby`.
+- La ayuda permanece próxima al control y nunca sustituye un label visible.
+
+### Estados
+
+- **Required:** asterisco textual visible y nota general del formulario.
+- **Optional:** etiqueta `(opcional)` junto al label.
+- **Error:** borde `danger`, texto de error y `aria-invalid`.
+- **Disabled:** superficie secundaria, menor énfasis y cursor no permitido.
+- **Pending:** el formulario conserva `aria-busy`, desactiva el submit y cambia
+  su texto cuando el flujo ya lo hacía.
+- **Success/error general:** `Alert` con rol y tono semánticos.
+
+### Composición
+
+- `FormSection` presenta el formulario como hoja de trabajo con ancho máximo
+  razonable.
+- Móvil usa una columna; desde `sm` pueden agruparse dos campos cortos
+  relacionados.
+- Textareas, títulos, nombres y campos de contexto ocupan el ancho completo.
+- `FormActions` apila acciones en móvil y las alinea horizontalmente cuando hay
+  espacio, con separación mínima de 8 px.
+- Los botones principales usan azul, tienen al menos 44 px de alto y muestran
+  claramente el estado pending o disabled.
+
+### Restricciones
+
+1. No cambiar `name`, `id`, `defaultValue`, tipo, límites ni atributos nativos.
+2. No cambiar Server Actions ni la estructura de `FormData`.
+3. No mover validación, permisos o consultas al navegador.
+4. No convertir controles presentacionales en Client Components.
+5. No introducir librerías de formularios ni dependencias.
+6. No migrar el formulario público de solicitud dentro de esta subfase.
