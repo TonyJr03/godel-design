@@ -925,10 +925,10 @@ hex y clases que luego habría que reemplazar.
 
 - [x] Los colores usan tokens semánticos.
 - [x] Azul y naranja tienen funciones diferenciadas.
-- [ ] Texto y bordes cumplen contraste.
-- [ ] Radios, sombras y espacios siguen escalas definidas.
+- [ ] Texto y bordes cumplen contraste en una auditoría formal completa.
+- [x] Radios, sombras y espacios siguen escalas definidas.
 - [x] Geist se usa de forma consistente.
-- [ ] Monoespaciada se reserva para referencias útiles.
+- [x] Monoespaciada se reserva para referencias útiles.
 
 ### Arquitectura
 
@@ -980,16 +980,20 @@ hex y clases que luego habría que reemplazar.
 ### Accesibilidad
 
 - [x] El foco visible es consistente.
-- [ ] La UI funciona con teclado.
-- [ ] Los mensajes importantes se anuncian.
-- [ ] La jerarquía de headings es correcta.
-- [ ] `prefers-reduced-motion` es respetado.
-- [ ] El zoom al 200 % no oculta contenido o acciones.
-- [ ] Iconos decorativos están ocultos a tecnologías de asistencia.
+- [x] La UI funciona con teclado en los flujos revisados.
+- [x] Los mensajes importantes usan mecanismos anunciables.
+- [ ] La jerarquía completa de headings fue auditada con herramienta
+  especializada.
+- [x] `prefers-reduced-motion` es respetado.
+- [x] El zoom al 200 % no oculta contenido o acciones en las pantallas
+  críticas revisadas.
+- [ ] Todos los iconos y elementos decorativos fueron auditados con tecnología
+  de asistencia.
 
 ### Contenido y estados
 
-- [ ] Loading, vacío, error, éxito y permisos están diseñados.
+- [ ] Loading, vacío, error, éxito y permisos fueron auditados en todos los
+  módulos.
 - [x] Los mensajes usan lenguaje operativo y no metadata cruda.
 - [x] No se expone `file_path`.
 - [x] Las referencias completas no dominan la pantalla.
@@ -1292,3 +1296,29 @@ hex y clases que luego habría que reemplazar.
   rutas existentes, permisos, redirects, servicios ni dependencias. No se creó
   `global-not-found.tsx`. El comportamiento interno se documenta y se conserva
   sin ampliar rutas permitidas ni modificar la arquitectura de autorización.
+
+### 14.11 — Revisión final UI/UX
+
+- **Fecha:** 11 de junio de 2026.
+- **Cambios realizados:** auditoría final de consistencia visual, responsive,
+  accesibilidad básica, formularios, estados especiales y roles; creación de
+  `docs/ui-ux/FASE_14_CIERRE_UI_UX.md`; cierre del checklist y declaración del
+  design system como referencia vigente.
+- **Archivos modificados:** `docs/ui-ux/FASE_14_CIERRE_UI_UX.md`,
+  `docs/ui-ux/FASE_14_DESIGN_SYSTEM.md` y este documento.
+- **Validaciones ejecutadas:** 84 combinaciones de rutas y breakpoints con
+  admin y 12 con trabajador en Edge; 375 × 812, 768 × 1024, 1024 × 768 y
+  1440 × 1000; cero casos de overflow global, controles principales menores de
+  44 px, campos visibles sin label o rutas sin datos. Tabulación revisada en
+  `/`, `/login`, `/solicitud`, `/dashboard` y alta de cliente, con foco visible
+  de 3 px. Reflow equivalente al 200 % revisado en solicitud pública, pedidos
+  y detalle de pedido. Error ficticio de login anunciado y validación requerida
+  pública comprobada sin crear registros. `npm run lint` y `npm run build`
+  aprobaron con Next.js 16.2.6; `git diff --check` aprobó sin errores.
+- **Observaciones:** no se realizaron envíos que escribieran datos. No se
+  dispuso de credenciales específicas de supervisor, dispositivos físicos ni
+  lector de pantalla formal. No se modificaron componentes de producto porque
+  la revisión no detectó defectos concretos que justificaran cambios.
+- **Estado final:** Fase 14 cerrada sin bloqueantes UI/UX conocidos. Quedan como
+  recomendaciones no bloqueantes las pruebas con supervisor, dispositivos
+  físicos, lector de pantalla y usuarios reales.

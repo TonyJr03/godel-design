@@ -716,3 +716,14 @@ ampliar excesivamente los campos.
 1. No consultar datos ni comprobar sesión, perfil o permisos desde la 404.
 2. No cambiar middleware, auth, redirects o rutas existentes.
 3. No añadir búsqueda global ni revelar la URL solicitada o detalles técnicos.
+
+## 20. Estado final de Fase 14
+
+- El sistema visual documentado en este archivo es la referencia para nuevas
+  pantallas y ajustes posteriores.
+- Los componentes y patrones existentes deben reutilizarse antes de crear
+  variantes nuevas.
+- Cualquier ampliación debe conservar tokens semánticos, foco visible, targets
+  táctiles de 44 px, alternativas móviles y Server Components por defecto.
+- Las mejoras futuras de accesibilidad formal o pruebas con usuarios no deben
+  alterar contratos funcionales sin una fase específica.
