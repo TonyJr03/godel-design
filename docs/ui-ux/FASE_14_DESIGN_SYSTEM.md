@@ -473,3 +473,69 @@ corta y secundaria cuando ya formen parte del listado.
 4. No convertir controles presentacionales en Client Components.
 5. No introducir librerías de formularios ni dependencias.
 6. No migrar el formulario público de solicitud dentro de esta subfase.
+
+## 15. Formulario público de solicitud
+
+### Objetivo de la experiencia
+
+- La página pública guía al cliente para explicar un trabajo personalizado sin
+  presentar el flujo como una compra o checkout.
+- El mensaje principal es: se envía una solicitud, el equipo revisa la
+  información y después contacta al cliente para confirmar alcance, precio y
+  fecha.
+- La estética conserva el fondo papel y las hojas de trabajo del sistema, con
+  un tono más cálido, explicativo y accesible que el dashboard interno.
+- Azul comunica confianza y acción principal; naranja se reserva para pequeños
+  acentos de marca y orientación.
+
+### Estructura
+
+1. Cabecera pública con marca y acceso claro al formulario.
+2. Introducción que diferencia solicitud de pedido confirmado.
+3. Formulario principal dividido en contacto, detalles, archivos y envío.
+4. Panel `Cómo funciona` con los pasos de revisión y contacto.
+5. Recordatorio de información útil antes de comenzar.
+
+En móvil, el formulario aparece antes que los bloques secundarios. En desktop,
+la hoja principal comparte espacio con un panel lateral estrecho y sticky sin
+ampliar excesivamente los campos.
+
+### Campos y ayudas
+
+- Todos los campos conservan label visible, indicador requerido u opcional y
+  controles de al menos 44 px.
+- Las ayudas explican qué información resulta útil sin convertir campos
+  opcionales en obligatorios.
+- Ayuda y error pueden coexistir en `aria-describedby`; el error también activa
+  `aria-invalid`.
+- El submit conserva feedback pending, bloqueo de doble envío y texto explícito.
+
+### Archivos
+
+- El input nativo permanece visible, accesible y compatible con selección
+  múltiple.
+- La ayuda muestra el límite de 5 archivos, 20 MB por archivo y los formatos
+  permitidos definidos por la implementación existente.
+- Se sugieren diseños, referencias, logos y documentos únicamente como apoyo
+  para entender el trabajo.
+- La interfaz no muestra bucket, rutas, metadata interna ni `file_path`.
+
+### Éxito y error
+
+- Los errores generales usan `Alert` con lenguaje recuperable y los errores de
+  campo permanecen junto al control correspondiente.
+- El éxito explica los próximos pasos y destaca la referencia abreviada
+  existente sin inventar información.
+- Las advertencias de archivos distinguen una solicitud registrada de un
+  adjunto que no pudo procesarse.
+- Los mensajes importantes conservan `role` semántico y `aria-live`.
+
+### Restricciones
+
+1. No convertir el flujo en catálogo, carrito, pago, checkout o panel de
+   cliente.
+2. No cambiar Server Actions, `FormData`, nombres, ids, tipos ni validaciones.
+3. No cambiar límites, formatos, bucket, paths, metadata o visibilidad de
+   Storage.
+4. No mover consultas, validación sensible o lógica de archivos al navegador.
+5. No introducir librerías de formularios, iconos ni dependencias.

@@ -998,7 +998,7 @@ hex y clases que luego habría que reemplazar.
 
 ### Verificación final
 
-- [ ] Flujos públicos revisados.
+- [x] Flujo público de solicitud revisado.
 - [ ] Flujos de admin revisados.
 - [ ] Flujos de supervisor revisados.
 - [ ] Flujos de trabajador revisados.
@@ -1169,3 +1169,29 @@ hex y clases que luego habría que reemplazar.
   comentarios quedan fuera de esta migración para no ampliar el riesgo. No se
   ejecutaron submits ni errores de servidor durante la inspección para evitar
   escrituras de datos.
+
+### 14.9A — Formulario público de solicitud
+
+- **Fecha:** 11 de junio de 2026.
+- **Cambios realizados:** rediseño de `/solicitud` como experiencia guiada;
+  nueva jerarquía pública, aclaración de solicitud frente a pedido confirmado,
+  formulario dividido en contacto, detalles, archivos y envío; panel
+  `Cómo funciona`; migración a los controles normalizados de 14.8A; mejora de
+  mensajes de éxito, error, referencia y próximos pasos.
+- **Archivos modificados:** `src/app/solicitud/page.tsx`,
+  `src/components/solicitudes/PublicSolicitudForm.tsx`,
+  `src/components/layout/PublicHeader.tsx`,
+  `docs/ui-ux/FASE_14_DESIGN_SYSTEM.md` y este documento.
+- **Validaciones ejecutadas:** `npm run lint` y `npm run build` aprobados con
+  Next.js 16.2.6. Inspección visual de `/solicitud` a 1440 × 1000 px,
+  768 × 1024 px y 375 × 812 px. En las tres resoluciones se verificaron un
+  único `h1`, cuatro secciones de formulario, labels para todos los campos,
+  referencias `aria-describedby` válidas, controles de al menos 44 px y
+  ausencia de overflow horizontal global. La validación nativa enfocó el primer
+  campo requerido y un PNG mínimo local pudo seleccionarse sin enviarse.
+- **Observaciones:** se conservaron Server Action, `name`, `id`, tipos,
+  `required`, `defaultValue`, `accept`, `multiple`, `FormData`, validaciones,
+  límites y lógica de subida. No se modificaron consultas, RLS, RPCs, Storage,
+  servicios, acciones ni dependencias. No se envió una solicitud real ni se
+  observó un pending prolongado para evitar escrituras; los estados de éxito y
+  pending conservan el contrato existente y fueron revisados en código.

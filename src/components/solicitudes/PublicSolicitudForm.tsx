@@ -9,6 +9,16 @@ import { getTodayDateInputValue } from "@/lib/utils";
 import { SOLICITUD_SERVICE_TYPE_OPTIONS } from "@/lib/solicitudes/labels";
 import type { PublicSolicitudField } from "@/lib/solicitudes";
 import { STORAGE_FILE_INPUT_ACCEPT } from "@/lib/storage/constants";
+import {
+  Alert,
+  Button,
+  FormActions,
+  FormField,
+  FormSection,
+  Input,
+  Select,
+  Textarea,
+} from "@/components/ui";
 
 const initialState: SubmitPublicSolicitudActionState = {
   ok: false,
@@ -21,35 +31,6 @@ function getFieldError(
 ) {
   return state.fieldErrors?.[field];
 }
-
-type FieldErrorProps = {
-  id: string;
-  message?: string;
-};
-
-function OptionalMark() {
-  return (
-    <span className="ml-1 text-sm font-normal text-zinc-500">(opcional)</span>
-  );
-}
-
-function FieldError({ id, message }: FieldErrorProps) {
-  if (!message) {
-    return null;
-  }
-
-  return (
-    <p id={id} className="mt-2 text-sm leading-5 text-red-700">
-      {message}
-    </p>
-  );
-}
-
-const baseInputClass =
-  "mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-base text-zinc-950 shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-teal-700 focus:ring-2 focus:ring-teal-700/20";
-
-const labelClass = "text-sm font-medium text-zinc-900";
-const helpTextClass = "mt-2 text-sm leading-5 text-zinc-500";
 
 export function PublicSolicitudForm() {
   const formRef = useRef<HTMLFormElement>(null);
@@ -84,144 +65,141 @@ export function PublicSolicitudForm() {
       ref={formRef}
       action={formAction}
       aria-busy={pending}
-      className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm sm:p-8"
+      className="space-y-6"
     >
-      <div className="space-y-8">
-        {state.message ? (
-          <div
-            className={
-              state.ok
-                ? "rounded-md border border-teal-200 bg-teal-50 px-4 py-3 text-sm leading-6 text-teal-900"
-                : "rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-900"
-            }
-            role={state.ok ? "status" : "alert"}
-            aria-live="polite"
-          >
-            <p className="font-medium">{state.message}</p>
-            {state.ok && solicitudReference ? (
-              <div className="mt-1 space-y-1 text-teal-800">
-                <p>
-                  Referencia de solicitud:{" "}
-                  <span className="font-mono text-sm font-semibold">
-                    {solicitudReference}
+      {state.message ? (
+        <Alert
+          variant={state.ok ? "success" : "danger"}
+          title={state.ok ? "Hemos recibido tu solicitud" : "Revisa la solicitud"}
+          aria-live="polite"
+          className="px-5 py-4"
+        >
+          <p className="leading-6">{state.message}</p>
+          {state.ok && solicitudReference ? (
+            <div className="mt-3 rounded-(--radius-control) border border-success/20 bg-surface/70 px-3 py-3">
+              <p className="text-sm text-text-secondary">
+                Guarda esta referencia por si necesitas identificar la
+                solicitud:
+              </p>
+              <p className="mt-1 font-mono text-base font-semibold text-text-primary">
+                {solicitudReference}
+              </p>
+              {typeof state.uploadedFilesCount === "number" ? (
+                <p className="mt-2 text-sm text-text-secondary">
+                  Archivos recibidos:{" "}
+                  <span className="font-semibold text-text-primary">
+                    {state.uploadedFilesCount}
                   </span>
                 </p>
-                {typeof state.uploadedFilesCount === "number" ? (
-                  <p>
-                    Archivos recibidos:{" "}
-                    <span className="font-semibold">
-                      {state.uploadedFilesCount}
-                    </span>
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
-            {state.fileWarning ? (
-              <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-950">
-                {state.fileWarning}
-              </p>
-            ) : null}
-            {state.fileErrors && state.fileErrors.length > 0 ? (
-              <ul className="mt-3 list-disc space-y-1 pl-5 text-red-800">
-                {state.fileErrors.map((error) => (
-                  <li key={error}>{error}</li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-        ) : null}
+              ) : null}
+            </div>
+          ) : null}
+          {state.fileWarning ? (
+            <div className="mt-3 rounded-(--radius-control) border border-warning/30 bg-warning-soft px-3 py-2 text-warning">
+              {state.fileWarning}
+            </div>
+          ) : null}
+          {state.fileErrors && state.fileErrors.length > 0 ? (
+            <ul className="mt-3 list-disc space-y-1 pl-5 text-danger">
+              {state.fileErrors.map((error) => (
+                <li key={error}>{error}</li>
+              ))}
+            </ul>
+          ) : null}
+          {state.ok ? (
+            <p className="mt-3 text-sm leading-6 text-text-secondary">
+              El equipo revisará la información y se pondrá en contacto contigo
+              para confirmar los siguientes pasos.
+            </p>
+          ) : null}
+        </Alert>
+      ) : null}
 
-        <section aria-labelledby="contacto-heading">
-          <h2
-            id="contacto-heading"
-            className="text-lg font-semibold text-zinc-950"
+      <FormSection
+        title="1. Datos de contacto"
+        description="Indícanos cómo podemos comunicarnos contigo para revisar la solicitud."
+      >
+        <div className="grid gap-5 sm:grid-cols-2">
+          <FormField
+            id="client_name"
+            label="Nombre del cliente"
+            required
+            error={nombreError}
           >
-            Datos de contacto
-          </h2>
-          <div className="mt-5 grid gap-5 sm:grid-cols-2">
-            <div>
-              <label className={labelClass} htmlFor="client_name">
-                Nombre del cliente <span className="text-red-700">*</span>
-              </label>
-              <input
-                className={baseInputClass}
+            {({ describedBy, invalid }) => (
+              <Input
                 id="client_name"
                 name="client_name"
                 type="text"
                 autoComplete="name"
                 defaultValue={state.values?.client_name ?? ""}
                 required
-                aria-invalid={Boolean(nombreError)}
-                aria-describedby={
-                  nombreError ? "client_name-error" : undefined
-                }
+                invalid={invalid}
+                aria-describedby={describedBy}
               />
-              <FieldError id="client_name-error" message={nombreError} />
-            </div>
+            )}
+          </FormField>
 
-            <div>
-              <label className={labelClass} htmlFor="client_phone">
-                Teléfono <span className="text-red-700">*</span>
-              </label>
-              <input
-                className={baseInputClass}
+          <FormField
+            id="client_phone"
+            label="Teléfono"
+            required
+            error={telefonoError}
+          >
+            {({ describedBy, invalid }) => (
+              <Input
                 id="client_phone"
                 name="client_phone"
                 type="tel"
                 autoComplete="tel"
                 defaultValue={state.values?.client_phone ?? ""}
                 required
-                aria-invalid={Boolean(telefonoError)}
-                aria-describedby={
-                  telefonoError ? "client_phone-error" : undefined
-                }
+                invalid={invalid}
+                aria-describedby={describedBy}
               />
-              <FieldError
-                id="client_phone-error"
-                message={telefonoError}
-              />
-            </div>
+            )}
+          </FormField>
 
-            <div className="sm:col-span-2">
-              <label className={labelClass} htmlFor="client_email">
-                Email <OptionalMark />
-              </label>
-              <input
-                className={baseInputClass}
+          <FormField
+            id="client_email"
+            label="Correo electrónico"
+            error={emailError}
+            help="Si lo indicas, también podremos responderte por correo."
+            className="sm:col-span-2"
+          >
+            {({ describedBy, invalid }) => (
+              <Input
                 id="client_email"
                 name="client_email"
                 type="email"
                 autoComplete="email"
                 defaultValue={state.values?.client_email ?? ""}
-                aria-invalid={Boolean(emailError)}
-                aria-describedby={emailError ? "client_email-error" : undefined}
+                invalid={invalid}
+                aria-describedby={describedBy}
               />
-              <FieldError id="client_email-error" message={emailError} />
-            </div>
-          </div>
-        </section>
+            )}
+          </FormField>
+        </div>
+      </FormSection>
 
-        <section aria-labelledby="trabajo-heading">
-          <h2
-            id="trabajo-heading"
-            className="text-lg font-semibold text-zinc-950"
+      <FormSection
+        title="2. Detalles del trabajo"
+        description="No necesitas tenerlo todo decidido. Comparte lo que sabes y aclararemos el resto contigo."
+      >
+        <div className="grid gap-5 sm:grid-cols-2">
+          <FormField
+            id="service_type"
+            label="Tipo de servicio"
+            required
+            error={tipoServicioError}
           >
-            Detalles del trabajo
-          </h2>
-          <div className="mt-5 grid gap-5 sm:grid-cols-2">
-            <div>
-              <label className={labelClass} htmlFor="service_type">
-                Tipo de servicio <span className="text-red-700">*</span>
-              </label>
-              <select
-                className={baseInputClass}
+            {({ describedBy, invalid }) => (
+              <Select
                 id="service_type"
                 name="service_type"
                 required
-                aria-invalid={Boolean(tipoServicioError)}
-                aria-describedby={
-                  tipoServicioError ? "service_type-error" : undefined
-                }
+                invalid={invalid}
+                aria-describedby={describedBy}
                 defaultValue={state.values?.service_type ?? ""}
               >
                 <option value="" disabled>
@@ -232,119 +210,132 @@ export function PublicSolicitudForm() {
                     {option.label}
                   </option>
                 ))}
-              </select>
-              <FieldError
-                id="service_type-error"
-                message={tipoServicioError}
-              />
-            </div>
+              </Select>
+            )}
+          </FormField>
 
-            <div className="sm:col-span-2">
-              <label className={labelClass} htmlFor="description">
-                Descripción del trabajo{" "}
-                <span className="text-red-700">*</span>
-              </label>
-              <textarea
-                className={`${baseInputClass} min-h-36 resize-y`}
-                id="description"
-                name="description"
-                defaultValue={state.values?.description ?? ""}
-                required
-                aria-invalid={Boolean(descripcionError)}
-                aria-describedby={
-                  descripcionError ? "description-error" : "description-help"
-                }
-              />
-              <p id="description-help" className={helpTextClass}>
-                Describe el trabajo con el mayor detalle posible. Incluye
-                cantidades, medidas, colores, fechas o indicaciones importantes.
-              </p>
-              <FieldError id="description-error" message={descripcionError} />
-            </div>
-
-            <div>
-              <label className={labelClass} htmlFor="desired_date">
-                Fecha deseada <OptionalMark />
-              </label>
-              <input
-                className={baseInputClass}
+          <FormField
+            id="desired_date"
+            label="Fecha deseada"
+            error={fechaDeseadaError}
+            help="La disponibilidad y la fecha final se confirmarán contigo."
+          >
+            {({ describedBy, invalid }) => (
+              <Input
                 id="desired_date"
                 name="desired_date"
                 type="date"
                 defaultValue={state.values?.desired_date ?? ""}
                 min={todayInputDate}
-                aria-invalid={Boolean(fechaDeseadaError)}
-                aria-describedby={
-                  fechaDeseadaError ? "desired_date-error" : undefined
-                }
+                invalid={invalid}
+                aria-describedby={describedBy}
               />
-              <FieldError
-                id="desired_date-error"
-                message={fechaDeseadaError}
-              />
-            </div>
+            )}
+          </FormField>
 
-            <div className="sm:col-span-2">
-              <label className={labelClass} htmlFor="notes">
-                Observaciones <OptionalMark />
-              </label>
-              <textarea
-                className={`${baseInputClass} min-h-28 resize-y`}
+          <FormField
+            id="description"
+            label="Descripción del trabajo"
+            required
+            error={descripcionError}
+            help="Incluye cantidades, medidas, colores, materiales, textos o cualquier indicación importante."
+            className="sm:col-span-2"
+          >
+            {({ describedBy, invalid }) => (
+              <Textarea
+                id="description"
+                name="description"
+                defaultValue={state.values?.description ?? ""}
+                required
+                invalid={invalid}
+                aria-describedby={describedBy}
+                className="min-h-40"
+              />
+            )}
+          </FormField>
+
+          <FormField
+            id="notes"
+            label="Observaciones adicionales"
+            error={observacionesError}
+            help="Añade aquí cualquier contexto que no encaje en la descripción."
+            className="sm:col-span-2"
+          >
+            {({ describedBy, invalid }) => (
+              <Textarea
                 id="notes"
                 name="notes"
                 defaultValue={state.values?.notes ?? ""}
-                aria-invalid={Boolean(observacionesError)}
-                aria-describedby={
-                  observacionesError ? "notes-error" : undefined
-                }
+                invalid={invalid}
+                aria-describedby={describedBy}
+                className="min-h-28"
               />
-              <FieldError
-                id="notes-error"
-                message={observacionesError}
-              />
-            </div>
-
-            <div className="sm:col-span-2">
-              <label className={labelClass} htmlFor="files">
-                Archivos de referencia <OptionalMark />
-              </label>
-              <input
-                className="mt-2 block w-full rounded-md border border-zinc-300 bg-white text-sm text-zinc-950 shadow-sm file:mr-4 file:min-h-10 file:border-0 file:bg-zinc-100 file:px-4 file:text-sm file:font-semibold file:text-zinc-700 hover:file:bg-zinc-200 focus:border-teal-700 focus:ring-2 focus:ring-teal-700/20 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500"
-                id="files"
-                name="files"
-                type="file"
-                multiple
-                accept={STORAGE_FILE_INPUT_ACCEPT}
-                aria-invalid={Boolean(filesError)}
-                aria-describedby={filesError ? "files-error" : "files-help"}
-                disabled={pending}
-              />
-              <div id="files-help" className={helpTextClass}>
-                <p>Puedes adjuntar hasta 5 archivos.</p>
-                <p>
-                  Formatos permitidos: PDF, JPG, PNG, WEBP, DOC, DOCX y ZIP.
-                </p>
-                <p>Tamaño máximo: 20 MB por archivo.</p>
-                <p>Los archivos se usarán solo para revisar tu solicitud.</p>
-              </div>
-              <FieldError id="files-error" message={filesError} />
-            </div>
-          </div>
-        </section>
-
-        <div className="flex flex-col gap-3 border-t border-zinc-200 pt-6 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm leading-6 text-zinc-500">
-            Los campos marcados con * son obligatorios.
-          </p>
-          <button
-            type="submit"
-            disabled={pending}
-            className="inline-flex min-h-11 items-center justify-center rounded-md bg-zinc-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
-          >
-            {pending ? "Enviando..." : "Enviar solicitud"}
-          </button>
+            )}
+          </FormField>
         </div>
-      </div>
+      </FormSection>
+
+      <FormSection
+        title="3. Archivos de referencia"
+        description="Adjunta diseños, imágenes, logos, documentos o referencias que nos ayuden a entender mejor el trabajo."
+      >
+        <FormField
+          id="files"
+          label="Seleccionar archivos"
+          error={filesError}
+          help={
+            <span className="block space-y-1">
+              <span className="block">Hasta 5 archivos, con un máximo de 20 MB por archivo.</span>
+              <span className="block">
+                Formatos permitidos: PDF, JPG, JPEG, PNG, WEBP, DOC, DOCX y ZIP.
+              </span>
+              <span className="block">
+                Los archivos se usarán únicamente para revisar tu solicitud.
+              </span>
+            </span>
+          }
+        >
+          {({ describedBy, invalid }) => (
+            <Input
+              id="files"
+              name="files"
+              type="file"
+              multiple
+              accept={STORAGE_FILE_INPUT_ACCEPT}
+              invalid={invalid}
+              aria-describedby={describedBy}
+              disabled={pending}
+              className="min-h-12 cursor-pointer p-1 text-sm file:mr-3 file:min-h-10 file:cursor-pointer file:rounded-(--radius-control) file:border-0 file:bg-brand-primary-soft file:px-4 file:text-sm file:font-semibold file:text-brand-primary hover:file:bg-info-soft"
+            />
+          )}
+        </FormField>
+      </FormSection>
+
+      <FormSection
+        title="4. Revisa y envía"
+        description="Al enviar, registraremos la solicitud para que el equipo pueda revisarla y contactarte."
+      >
+        <div className="rounded-(--radius-control) border border-border bg-surface-raised px-4 py-3 text-sm leading-6 text-text-secondary">
+          <p>
+            La solicitud no confirma todavía el precio, la fecha ni el inicio
+            del trabajo. Esos detalles se acordarán contigo antes de preparar
+            el pedido.
+          </p>
+        </div>
+        <FormActions
+          note="Los campos marcados con * son obligatorios."
+          className="mt-6"
+        >
+          <Button
+            type="submit"
+            size="lg"
+            disabled={pending}
+            className="w-full sm:w-auto"
+          >
+            {pending ? "Enviando solicitud..." : "Enviar solicitud"}
+          </Button>
+        </FormActions>
+      </FormSection>
     </form>
   );
 }
