@@ -1267,3 +1267,28 @@ hex y clases que luego habría que reemplazar.
   consultas, RLS, RPCs, Storage, servicios y dependencias. No se exponen reglas
   internas de permisos. El cierre final de accesibilidad y Fase 14 permanece
   pendiente para 14.11.
+
+### 14.10C — Página 404 personalizada
+
+- **Fecha:** 11 de junio de 2026.
+- **Cambios realizados:** creación de `src/app/not-found.tsx` mediante la
+  convención raíz de App Router; composición pública con `PublicHeader`,
+  `Card`, mensaje humano y acciones hacia inicio, solicitud y login.
+- **Archivos modificados:** `src/app/not-found.tsx`,
+  `src/components/layout/PublicHeader.tsx`,
+  `docs/ui-ux/FASE_14_DESIGN_SYSTEM.md` y este documento.
+- **Validaciones ejecutadas:** `/ruta-inexistente` y
+  `/solicitud/no-existe` mostraron la 404 personalizada y respondieron con
+  estado HTTP 404. Ambas se revisaron en Edge a 375 × 812, 768 × 1024,
+  1024 × 768 y 1440 × 1000; las ocho combinaciones conservaron un único `h1`,
+  acciones de al menos 44 px y ausencia de overflow horizontal global.
+  `/dashboard/ruta-inexistente` se probó con sesión admin y fue redirigida a
+  `/sin-permisos` por el middleware existente.
+- **Validaciones de proyecto:** `npm run lint` y `npm run build` aprobaron con
+  Next.js 16.2.6; el build generó `/_not-found` como ruta estática.
+  `git diff --check` aprobó sin errores.
+- **Observaciones:** la página permanece como Server Component estático, sin
+  consultas, hooks ni lógica de autenticación. No se modificaron middleware,
+  rutas existentes, permisos, redirects, servicios ni dependencias. No se creó
+  `global-not-found.tsx`. El comportamiento interno se documenta y se conserva
+  sin ampliar rutas permitidas ni modificar la arquitectura de autorización.

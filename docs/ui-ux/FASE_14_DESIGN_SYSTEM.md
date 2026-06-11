@@ -692,3 +692,27 @@ ampliar excesivamente los campos.
 2. No cambiar autenticación, autorización, middleware, redirects o visibilidad
    por rol desde estas pantallas.
 3. No mover comprobaciones de sesión o permisos al cliente.
+
+## 19. Página 404 personalizada
+
+### Tono y composición
+
+- El mensaje debe explicar de forma humana que la página no se encontró, sin
+  mostrar rutas internas, stack traces ni metadata técnica.
+- La composición usa el header público, fondo cálido y una card central con un
+  único `h1`.
+- `404` funciona como referencia secundaria; el título y las opciones de
+  recuperación tienen prioridad.
+
+### Acciones recomendadas
+
+- `Volver al inicio` es la acción principal azul.
+- `Enviar una solicitud` y `Acceso interno` son acciones secundarias hacia
+  rutas públicas existentes.
+- Todas las acciones alcanzan al menos 44 px y se apilan en móvil.
+
+### Restricciones
+
+1. No consultar datos ni comprobar sesión, perfil o permisos desde la 404.
+2. No cambiar middleware, auth, redirects o rutas existentes.
+3. No añadir búsqueda global ni revelar la URL solicitada o detalles técnicos.
