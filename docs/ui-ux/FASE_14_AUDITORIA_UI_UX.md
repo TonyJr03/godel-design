@@ -1246,3 +1246,24 @@ hex y clases que luego habría que reemplazar.
   RLS, RPCs, Storage, servicios, middleware ni dependencias. La revisión con
   supervisor, dispositivos físicos, zoom al 200 % y lector de pantalla queda
   para 14.11.
+
+### 14.10B — Pantallas de permisos
+
+- **Fecha:** 11 de junio de 2026.
+- **Cambios realizados:** alineación visual de `/acceso-denegado` y
+  `/sin-permisos` con el sistema de papel; incorporación de `Card` y `Alert`;
+  jerarquía diferenciada para cuenta sin acceso interno y sección no
+  autorizada; acciones seguras de inicio, dashboard y cierre de sesión.
+- **Archivos modificados:** `src/app/acceso-denegado/page.tsx`,
+  `src/app/sin-permisos/page.tsx`,
+  `docs/ui-ux/FASE_14_DESIGN_SYSTEM.md` y este documento.
+- **Validaciones ejecutadas:** inspección visual en Edge a 375 × 812,
+  768 × 1024, 1024 × 768 y 1440 × 1000. Las ocho combinaciones conservaron un
+  único `h1`, acciones de al menos 44 px y ausencia de overflow horizontal
+  global. `npm run lint` y `npm run build` aprobaron con Next.js 16.2.6;
+  `git diff --check` aprobó sin errores.
+- **Observaciones:** se conservaron la Server Action y el redirect de logout,
+  los redirects de acceso, middleware, autenticación, autorización, permisos,
+  consultas, RLS, RPCs, Storage, servicios y dependencias. No se exponen reglas
+  internas de permisos. El cierre final de accesibilidad y Fase 14 permanece
+  pendiente para 14.11.

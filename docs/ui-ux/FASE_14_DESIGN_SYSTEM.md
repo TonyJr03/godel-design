@@ -658,3 +658,37 @@ ampliar excesivamente los campos.
 2. No duplicar datos ni reglas de negocio entre variantes desktop y móvil.
 3. No modificar `name`, `id`, `action`, `FormData` o contratos de Server
    Actions por motivos visuales.
+
+## 18. Pantallas de permisos y acceso restringido
+
+### Tono y estructura
+
+- El mensaje debe ser humano, directo y no culpar al usuario.
+- Cada pantalla usa fondo cálido, una card central, un único `h1`, explicación
+  breve, aviso moderado y acciones claras.
+- El naranja se reserva para la identificación y el aviso; el azul mantiene la
+  acción principal de navegación segura.
+
+### Diferencia entre estados
+
+- **Acceso denegado:** la sesión actual no tiene acceso interno habilitado. Se
+  ofrece volver al inicio o cerrar la sesión para regresar al login con otra
+  cuenta.
+- **Sin permisos:** la sesión es válida, pero la sección no está disponible
+  para ese perfil. Se prioriza volver al dashboard y continuar en áreas
+  permitidas.
+
+### Acciones
+
+- La acción principal debe llevar a un destino seguro y existente.
+- Cerrar sesión se mantiene como acción secundaria y conserva su Server Action
+  y redirect actuales.
+- Todas las acciones alcanzan al menos 44 px y se apilan en móvil.
+
+### Restricciones
+
+1. No revelar nombres de permisos, reglas internas, identificadores ni detalles
+   de implementación.
+2. No cambiar autenticación, autorización, middleware, redirects o visibilidad
+   por rol desde estas pantallas.
+3. No mover comprobaciones de sesión o permisos al cliente.
