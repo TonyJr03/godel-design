@@ -968,10 +968,10 @@ hex y clases que luego habría que reemplazar.
 
 ### Responsive
 
-- [ ] Revisado a 375 px.
-- [ ] Revisado a 768 px.
-- [ ] Revisado a 1024 px.
-- [ ] Revisado a 1440 px.
+- [x] Revisado a 375 px.
+- [x] Revisado a 768 px.
+- [x] Revisado a 1024 px.
+- [x] Revisado a 1440 px.
 - [x] No hay scroll horizontal global.
 - [x] Las tablas tienen alternativa móvil.
 - [x] Los targets táctiles principales alcanzan 44 px.
@@ -999,9 +999,9 @@ hex y clases que luego habría que reemplazar.
 ### Verificación final
 
 - [x] Flujo público de solicitud revisado.
-- [ ] Flujos de admin revisados.
+- [x] Flujos de admin revisados.
 - [ ] Flujos de supervisor revisados.
-- [ ] Flujos de trabajador revisados.
+- [x] Flujos de trabajador revisados.
 - [x] Lint aprobado.
 - [x] Build aprobado.
 - [ ] Revisión manual en navegador y dispositivos reales completada.
@@ -1222,3 +1222,27 @@ hex y clases que luego habría que reemplazar.
   habilitó nuevamente. No se modificaron Auth, consultas, middleware, permisos,
   RLS, RPCs, Storage, servicios ni dependencias. No se añadieron registro,
   recuperación, catálogo, pagos ni nuevas rutas.
+
+### 14.10 — Revisión responsive integral
+
+- **Fecha:** 11 de junio de 2026.
+- **Cambios realizados:** auditoría transversal de rutas públicas e internas en
+  cuatro breakpoints; cards de listados conservadas hasta `xl`; normalización a
+  44 px de acciones operativas y enlaces de metadata; verificación del menú
+  móvil y de la navegación correspondiente a admin y trabajador.
+- **Archivos modificados:** listados de solicitudes, pedidos, clientes y
+  usuarios; paneles del dashboard; detalles de pedido y usuario; páginas de
+  alta de pedido y cliente, edición de cliente y permisos; design system, este
+  documento y `docs/ui-ux/FASE_14_REVISION_RESPONSIVE.md`.
+- **Validaciones ejecutadas:** inspección visual automatizada y manual en Edge
+  a 375 × 812, 768 × 1024, 1024 × 768 y 1440 × 1000. Se revisaron las 20 rutas
+  indicadas con admin y, adicionalmente, dashboard, pedidos y detalle de pedido
+  con trabajador. Todas conservaron un único `h1`, navegación operable y
+  ausencia de overflow horizontal global. `npm run lint` y `npm run build`
+  aprobaron con Next.js 16.2.6; `git diff --check` aprobó sin errores.
+- **Observaciones:** la tabla de pedidos mantiene scroll horizontal interno
+  controlado en desktop; en anchos inferiores a `xl` se reemplaza por cards. No
+  se modificaron permisos, consultas, Server Actions, contratos de formulario,
+  RLS, RPCs, Storage, servicios, middleware ni dependencias. La revisión con
+  supervisor, dispositivos físicos, zoom al 200 % y lector de pantalla queda
+  para 14.11.

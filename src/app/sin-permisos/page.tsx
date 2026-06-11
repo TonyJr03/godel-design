@@ -19,7 +19,7 @@ export default function SinPermisosPage() {
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
           <Link
             href="/dashboard"
-            className="inline-flex items-center justify-center rounded-md bg-zinc-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-800"
+            className="inline-flex min-h-11 items-center justify-center rounded-md bg-zinc-950 px-4 text-sm font-medium text-white transition hover:bg-zinc-800"
           >
             Volver al dashboard
           </Link>

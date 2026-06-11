@@ -22,7 +22,7 @@ export default async function DashboardNuevoPedidoPage() {
           />
           <Link
             href="/dashboard/pedidos"
-            className="inline-flex min-h-10 items-center justify-center rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:border-zinc-400"
+            className="inline-flex min-h-11 items-center justify-center rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:border-zinc-400"
           >
             Volver a pedidos
           </Link>
@@ -52,7 +52,7 @@ export default async function DashboardNuevoPedidoPage() {
         />
         <Link
           href="/dashboard/pedidos"
-          className="inline-flex min-h-10 items-center justify-center rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:border-zinc-400"
+          className="inline-flex min-h-11 items-center justify-center rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:border-zinc-400"
         >
           Volver a pedidos
         </Link>

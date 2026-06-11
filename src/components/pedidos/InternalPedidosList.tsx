@@ -105,7 +105,7 @@ export function InternalPedidosList({
 
   return (
     <>
-      <div className="grid gap-4 lg:hidden" aria-label="Pedidos">
+      <div className="grid gap-4 xl:hidden" aria-label="Pedidos">
         {pedidos.map((pedido) => (
           <Card
             as="article"
@@ -166,7 +166,7 @@ export function InternalPedidosList({
         ))}
       </div>
 
-      <div className="hidden overflow-hidden rounded-(--radius-card) border border-border bg-surface shadow-(--shadow-soft) lg:block">
+      <div className="hidden overflow-hidden rounded-(--radius-card) border border-border bg-surface shadow-(--shadow-soft) xl:block">
         <div className="overflow-x-auto">
           <table className="min-w-275 divide-y divide-border text-sm">
             <thead className="bg-surface-muted text-left text-xs font-semibold uppercase tracking-wide text-text-secondary">

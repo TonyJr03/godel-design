@@ -158,7 +158,7 @@ export function InternalPedidoDetail({
                   value={
                     <Link
                       href={`/dashboard/clientes/${pedido.clientes.id}`}
-                      className="font-semibold text-brand-primary underline-offset-4 hover:underline"
+                      className="inline-flex min-h-11 items-center font-semibold text-brand-primary underline-offset-4 hover:underline"
                     >
                       {pedido.clientes.name}
                     </Link>
@@ -190,7 +190,7 @@ export function InternalPedidoDetail({
                   value={
                     <Link
                       href={`/dashboard/solicitudes/${pedido.solicitudes.id}`}
-                      className="font-semibold text-brand-primary underline-offset-4 hover:underline"
+                      className="inline-flex min-h-11 items-center font-semibold text-brand-primary underline-offset-4 hover:underline"
                     >
                       {getSolicitudServiceTypeLabel(
                         pedido.solicitudes.service_type,

@@ -77,7 +77,7 @@ export function InternalUsersList({
 
   return (
     <>
-      <div className="grid gap-4 lg:hidden" aria-label="Usuarios internos">
+      <div className="grid gap-4 xl:hidden" aria-label="Usuarios internos">
         {users.map((user) => (
           <Card
             as="article"
@@ -131,7 +131,7 @@ export function InternalUsersList({
         ))}
       </div>
 
-      <div className="hidden overflow-hidden rounded-(--radius-card) border border-border bg-surface shadow-(--shadow-soft) lg:block">
+      <div className="hidden overflow-hidden rounded-(--radius-card) border border-border bg-surface shadow-(--shadow-soft) xl:block">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-border text-sm">
             <thead className="bg-surface-muted text-left text-xs font-semibold uppercase tracking-wide text-text-secondary">

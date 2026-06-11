@@ -114,7 +114,7 @@ export function InternalUserDetail({ user }: InternalUserDetailProps) {
                     href={avatarHref}
                     target="_blank"
                     rel="noreferrer"
-                    className="font-semibold text-brand-primary underline-offset-4 hover:underline"
+                    className="inline-flex min-h-11 items-center font-semibold text-brand-primary underline-offset-4 hover:underline"
                   >
                     Ver avatar
                   </a>

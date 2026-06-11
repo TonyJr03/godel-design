@@ -594,3 +594,67 @@ ampliar excesivamente los campos.
 3. No cambiar acciones, redirects, consultas, permisos ni Supabase Auth.
 4. No cambiar nombres, ids, tipos, autocomplete, validaciones ni `FormData`.
 5. No introducir librerías, iconos o dependencias.
+
+## 17. Reglas responsive finales
+
+### Breakpoints de referencia
+
+- **375 px:** referencia móvil principal; contenido lineal y acciones cómodas.
+- **768 px (`md`):** navegación interna desktop y composiciones tablet.
+- **1024 px (`lg`):** detalles en columnas cuando el ancho útil lo permite.
+- **1280 px (`xl`):** tablas operativas desktop con sidebar visible.
+- **1440 px:** referencia desktop de validación; limitar lectura y conservar
+  scroll interno cuando una tabla de alta densidad lo requiera.
+
+### Navegación móvil
+
+- Bajo `md`, usar el menú móvil vertical existente y mantener cada destino con
+  al menos 44 px de alto.
+- El menú no debe solaparse con el contenido ni alterar la visibilidad por rol.
+- Foco, estado activo y orden de tabulación deben permanecer visibles.
+
+### Tablas y cards
+
+- Solicitudes, pedidos, clientes y usuarios usan cards por debajo de `xl`.
+- Desde `xl` pueden usar tabla; cualquier overflow horizontal debe quedar
+  contenido en el wrapper de la tabla, nunca en la página.
+- Cards y tablas deben representar los mismos datos y destinos.
+
+### Detalles
+
+- En móvil, mantener un flujo vertical con resumen y acciones principales al
+  inicio.
+- Las columnas laterales solo se activan cuando existe ancho útil suficiente.
+- Cada columna y panel debe usar `min-w-0`; UUIDs, emails y metadata extensa
+  deben envolver sin ampliar el viewport.
+
+### Formularios
+
+- Una columna es el valor por defecto en móvil.
+- Dos columnas se usan desde tablet solo cuando la relación entre campos y su
+  longitud lo permiten.
+- Labels, ayuda y errores permanecen visibles; acciones apiladas en móvil y
+  file inputs contenidos.
+
+### Acciones táctiles
+
+- Acciones operativas principales, navegación y enlaces de regreso alcanzan un
+  mínimo de 44 px.
+- Mantener al menos 8 px entre acciones táctiles adyacentes.
+- Ninguna acción necesaria puede depender solo de `hover`.
+
+### Textos largos y metadata
+
+- Aplicar `min-w-0`, wrapping semántico y `break-words` donde corresponda.
+- No ocultar UUIDs, errores o referencias mediante `overflow-hidden` si esa
+  información es necesaria.
+- Los enlaces de metadata deben conservar un área táctil suficiente sin cambiar
+  su destino ni jerarquía.
+
+### Restricciones
+
+1. No resolver responsive moviendo consultas, permisos o lógica sensible al
+   cliente.
+2. No duplicar datos ni reglas de negocio entre variantes desktop y móvil.
+3. No modificar `name`, `id`, `action`, `FormData` o contratos de Server
+   Actions por motivos visuales.

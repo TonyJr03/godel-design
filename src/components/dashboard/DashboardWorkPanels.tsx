@@ -86,7 +86,7 @@ const attentionClasses: Record<AttentionTone, string> = {
 };
 
 const actionLinkClasses =
-  "inline-flex min-h-10 items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-3 text-sm font-semibold text-brand-primary transition-colors duration-200 hover:border-brand-primary hover:bg-brand-primary-soft";
+  "inline-flex min-h-11 items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-3 text-sm font-semibold text-brand-primary transition-colors duration-200 hover:border-brand-primary hover:bg-brand-primary-soft";
 
 function SolicitudesList({
   solicitudes,
