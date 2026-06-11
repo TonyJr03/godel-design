@@ -1195,3 +1195,30 @@ hex y clases que luego habría que reemplazar.
   servicios, acciones ni dependencias. No se envió una solicitud real ni se
   observó un pending prolongado para evitar escrituras; los estados de éxito y
   pending conservan el contrato existente y fueron revisados en código.
+
+### 14.9B — Inicio y login
+
+- **Fecha:** 11 de junio de 2026.
+- **Cambios realizados:** rediseño de `/` como entrada pública breve con hero,
+  explicación del proceso, bloques de confianza y CTA de solicitud/acceso;
+  rediseño de `/login` como acceso al workspace interno; migración visual del
+  formulario a `Card`, `FormField`, `Input`, `Alert` y `Button`; navegación
+  pública con estado activo correcto por ruta y etiquetas compactas en móvil.
+- **Archivos modificados:** `src/app/page.tsx`, `src/app/login/page.tsx`,
+  `src/components/auth/LoginForm.tsx`,
+  `src/components/layout/PublicHeader.tsx`,
+  `src/app/solicitud/page.tsx`,
+  `docs/ui-ux/FASE_14_DESIGN_SYSTEM.md` y este documento.
+- **Validaciones ejecutadas:** `npm run lint` y `npm run build` aprobados con
+  Next.js 16.2.6. Inspección visual de `/`, `/login` y `/solicitud` a
+  1440 × 1000 px, 768 × 1024 px y 375 × 812 px. Las nueve combinaciones
+  conservaron un único `h1`, estado de navegación correcto, controles
+  principales de 44–48 px y ausencia de overflow horizontal. Login y solicitud
+  mantuvieron labels para todos sus campos visibles.
+- **Observaciones:** se conservaron la acción `login`, nombres, ids, tipos,
+  autocomplete, required, `FormData`, manejo de errores, redirect y bloqueo
+  pending. Se probó una vez el error con credenciales deliberadamente
+  ficticias: el mensaje fue anunciado, asociado al formulario y el submit se
+  habilitó nuevamente. No se modificaron Auth, consultas, middleware, permisos,
+  RLS, RPCs, Storage, servicios ni dependencias. No se añadieron registro,
+  recuperación, catálogo, pagos ni nuevas rutas.

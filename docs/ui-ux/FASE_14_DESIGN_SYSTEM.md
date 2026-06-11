@@ -539,3 +539,58 @@ ampliar excesivamente los campos.
    Storage.
 4. No mover consultas, validación sensible o lógica de archivos al navegador.
 5. No introducir librerías de formularios, iconos ni dependencias.
+
+## 16. Pantallas públicas complementarias
+
+### Página inicial
+
+- `/` funciona como entrada breve al sistema, no como catálogo ni página de
+  comercio.
+- El hero explica que Godel Diseño recibe trabajos de impresión, diseño y
+  personalización mediante solicitudes revisadas por el equipo.
+- Siempre se distingue una solicitud de una compra o pedido confirmado.
+- La página prioriza dos acciones: `Enviar solicitud` como CTA principal azul y
+  `Acceso interno` como acción secundaria.
+- El contenido complementario resume el proceso y aporta confianza sin listar
+  productos, precios o promociones.
+
+### Login
+
+- `/login` se presenta como acceso al workspace de producción y comunica que es
+  exclusivo para personal autorizado.
+- La jerarquía es: contexto operativo, formulario de acceso e información
+  secundaria.
+- En móvil el formulario aparece inmediatamente después del título; las notas
+  sobre organización y autorización quedan después.
+- Email y contraseña usan `FormField` e `Input`; el error general usa `Alert` y
+  el submit usa `Button` con estado pending y disabled.
+- No se muestran opciones de registro, recuperación o acceso de clientes cuando
+  esas funciones no existen.
+
+### Header público
+
+- La marca enlaza a inicio y conserva el acento naranja discreto.
+- La navegación contiene Inicio, Enviar solicitud y Acceso interno.
+- Cada ruta declara su estado actual mediante `aria-current="page"` y énfasis
+  azul.
+- Las etiquetas se acortan en móvil para evitar overflow sin cambiar destinos.
+- El header se mantiene compatible con `/`, `/solicitud` y `/login`.
+
+### Responsive y accesibilidad
+
+- Los CTA principales alcanzan al menos 44 px y pasan a ancho completo cuando
+  mejora la lectura móvil.
+- Cada pantalla mantiene un único `h1`, contraste alto y foco visible global.
+- Los campos de login conservan labels, tipos, autocomplete y required.
+- El error de autenticación se anuncia mediante `role="alert"`, `aria-live` y
+  asociación con el formulario.
+- Las páginas permanecen como Server Components; solo el formulario conserva
+  su frontera cliente existente.
+
+### Restricciones
+
+1. No crear catálogo, carrito, pagos, checkout ni listado comercial extenso.
+2. No añadir signup público, recuperación de contraseña o panel de cliente.
+3. No cambiar acciones, redirects, consultas, permisos ni Supabase Auth.
+4. No cambiar nombres, ids, tipos, autocomplete, validaciones ni `FormData`.
+5. No introducir librerías, iconos o dependencias.

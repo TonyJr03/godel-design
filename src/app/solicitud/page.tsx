@@ -4,7 +4,7 @@ import { PublicSolicitudForm } from "@/components/solicitudes/PublicSolicitudFor
 export default function SolicitudPage() {
   return (
     <div className="min-h-screen bg-background">
-      <PublicHeader />
+      <PublicHeader currentPage="solicitud" />
       <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
         <header className="max-w-3xl">
           <p className="text-sm font-semibold uppercase tracking-[0.16em] text-brand-accent">
