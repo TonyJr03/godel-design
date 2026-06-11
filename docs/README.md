@@ -4,6 +4,8 @@ Esta carpeta contiene documentación estable sobre las partes principales del si
 
 ## Documentos principales
 
+- `CONVENCIONES_UI_UX_GODEL.md`: reglas visuales, responsive, accesibles y
+  arquitectónicas para toda UI nueva.
 - `DATABASE_MODEL.md`: modelo de datos y relaciones principales.
 - `PERMISSIONS_MODEL.md`: roles, permisos, rutas internas y relación con RLS.
 - `STORAGE_MODEL.md`: bucket privado, rutas de archivos, metadatos y descargas firmadas.

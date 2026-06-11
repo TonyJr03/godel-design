@@ -4,8 +4,8 @@
 **Repositorio:** `godel-design`  
 **Documento:** Roadmap oficial de desarrollo inicial  
 **Estado:** Activo  
-**Versión:** 1.0  
-**Fecha:** 2026-05-12  
+**Versión:** 1.1
+**Fecha:** 2026-06-12
 
 ---
 
@@ -558,12 +558,14 @@ control de concurrencia en estados y tareas, fechas SQL de negocio,
 endurecimiento de Storage público, actions enlazadas a IDs de ruta, limpieza
 documental y revisión final de schema, RLS, RPCs, permisos, flujos y dashboard.
 Las verificaciones de lint, build, diff y esquema local finalizaron
-correctamente. La Fase 14 queda habilitada como siguiente etapa, pero todavía
-no se ha iniciado.
+correctamente. Al cerrar esta fase puente, la Fase 14 quedó habilitada como
+siguiente etapa, todavía sin iniciar en ese momento.
 
 ---
 
 ## Fase 14 — Pulido visual y responsive
+
+**Estado:** Completada.
 
 ### Objetivo
 
@@ -583,6 +585,21 @@ Mejorar la experiencia visual y de uso del sistema.
 ### Criterio de cierre
 
 El sistema se puede usar cómodamente desde computadora y teléfono.
+
+### Cierre de fase
+
+La Fase 14 quedó completada el 11 de junio de 2026 con un sistema visual
+semántico y consistente, componentes UI reutilizables, navegación responsive,
+dashboard y módulos operativos rediseñados, formularios normalizados, pantallas
+públicas, estados de permisos y página 404 personalizada. La revisión final
+incluyó los breakpoints 375, 768, 1024 y 1440 px, flujos de `admin` y
+`trabajador`, navegación por teclado, foco visible y reflow equivalente al
+200 % en pantallas críticas. No se modificaron reglas de negocio, permisos,
+RLS, RPCs, Storage, autenticación ni contratos de Server Actions.
+
+Las convenciones permanentes para futuras interfaces están documentadas en
+`docs/CONVENCIONES_UI_UX_GODEL.md`; el detalle y la evidencia de cierre se
+encuentran en `docs/ui-ux/FASE_14_CIERRE_UI_UX.md`.
 
 ---
 
@@ -713,7 +730,7 @@ Después de cada tarea de Codex se revisará:
 | 11 | Comentarios internos e historial | Completada |
 | 12 | Gestión de usuarios internos | Completada |
 | 13 | Dashboard operativo | Completada |
-| 14 | Pulido visual y responsive | Pendiente |
+| 14 | Pulido visual y responsive | Completada |
 | 15 | Seguridad, pruebas y despliegue inicial | Pendiente |
 
 ---
@@ -722,7 +739,7 @@ Después de cada tarea de Codex se revisará:
 
 La próxima fase activa será:
 
-# Fase 14 — Pulido visual y responsive
+# Fase 15 — Seguridad, pruebas y despliegue inicial
 
 Estado: siguiente fase habilitada, todavía no iniciada.
 
@@ -760,4 +777,11 @@ La Fase 12 quedó completada con gestión de perfiles internos para `admin`: lis
 
 La Fase 13 quedó completada con dashboard operativo real en `/dashboard`: tarjetas de resumen por rol, paneles operativos por rol y actividad reciente mínima. La fase puente 13.6 cerró el reajuste operativo de solicitudes y pedidos: solicitudes sin `quantity`, conversión con título obligatorio, pedidos manuales sin cliente asociado, estados simplificados, tareas de pedido, progreso por promedio, reglas de estado según tareas, historial de tareas y dashboard/listados ajustados a ese modelo. La fase puente 13.7 completó los labels y textos visibles, transiciones controladas de solicitudes, fechas centralizadas, conversión con prioridad y fecha estimada, numeración `P-YY-XXXX`, estado `creado`, archivos por estado e interfaz uniforme de búsquedas y filtros server-side. `admin` y `supervisor` reciben información operativa global permitida por RLS; `trabajador` recibe únicamente métricas, paneles y actividad de pedidos asignados. No se implementan gráficos, reportes avanzados, exportaciones, notificaciones reales ni pulido visual/responsive.
 
-La próxima fase activa es Fase 14 — Pulido visual y responsive. No debe iniciarse hasta recibir una tarea específica para esa fase.
+La Fase 14 quedó completada con sistema visual semántico, componentes UI
+reutilizables, layout y navegación responsive, dashboard, listados, detalles y
+formularios normalizados, experiencia pública, pantallas de permisos, 404
+personalizada y revisión final de responsive y accesibilidad básica. La guía
+permanente para nueva UI es `docs/CONVENCIONES_UI_UX_GODEL.md`.
+
+La próxima fase activa es Fase 15 — Seguridad, pruebas y despliegue inicial. No
+debe iniciarse hasta recibir una tarea específica para esa fase.
