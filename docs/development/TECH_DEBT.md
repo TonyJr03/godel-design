@@ -73,3 +73,47 @@ Propuesta futura:
 - Agregar control anti-spam compatible con el despliegue.
 - Agregar rate limiting para `/solicitud`.
 - Revisar limites de cantidad/tamano segun infraestructura real.
+
+## Separacion Encargo / Impresion
+
+Estado actual:
+
+- `workflow_type` gobierna la variante operativa.
+- `service_type` conserva un uso descriptivo.
+- Ambos flujos comparten entidades, permisos y estados generales.
+- Los encargos requieren tareas para avanzar.
+- Las impresiones pueden avanzar sin tareas obligatorias.
+
+### 6. Normalizacion futura de detalles de impresion
+
+Prioridad: Baja mientras no existan reportes especificos.
+
+Los detalles de impresion se guardan como una descripcion estructurada. Solo
+conviene normalizarlos en tablas o columnas propias si aparecen necesidades
+reales de busqueda, cotizacion, automatizacion o metricas por atributo.
+
+### 7. Reconciliacion de solicitudes y archivos publicos
+
+Prioridad: Media.
+
+Ademas de detectar objetos huerfanos, conviene poder identificar solicitudes de
+impresion creadas correctamente cuyos archivos fallen despues durante la subida,
+para facilitar su recuperacion operativa sin debilitar las politicas publicas.
+
+### 8. Estados especificos o reducidos para impresion
+
+Prioridad: Baja.
+
+Alfa 1 comparte los estados generales de pedido. Si la operacion real demuestra
+que impresion necesita menos etapas o estados propios, debe evaluarse con datos
+de uso antes de ampliar enums, RPCs y superficies de interfaz.
+
+### 9. Metricas separadas por flujo
+
+Prioridad: Baja.
+
+El dashboard sigue siendo generico. La metrica de pedidos sin tareas incluye
+actualmente encargos e impresiones, aunque la ausencia de tareas solo bloquea a
+los encargos. Debe filtrarse por `workflow_type = encargo` o reformularse antes
+de usarla como indicador estricto. La segmentacion y las metricas propias de
+impresion quedan pendientes hasta que exista una necesidad concreta.

@@ -40,9 +40,9 @@ formulario general. `impresion` representa trabajos directos de impresión,
 exige al menos un archivo y solicita cantidad de copias, modo de color, tamaño
 de papel, caras y observaciones opcionales.
 
-Los detalles de impresión se normalizan y se convierten server-side en una
-descripción estructurada. No se crean tablas específicas de impresión en esta
-subfase.
+Los detalles de impresión se validan y se serializan server-side en una
+descripción estructurada. No se crean tablas normalizadas específicas de
+impresión en esta subfase.
 
 ## Ruta pública
 
@@ -164,7 +164,11 @@ Responsabilidades:
 
 Desde Fase 11.7B, la inserción de la solicitud registra automáticamente el evento `solicitud_creada` en `solicitud_historial`. Como el flujo es público, normalmente queda con `actor_id = null` y metadata mínima no sensible.
 
-La conversión interna a pedido exige que el equipo defina un título operativo real. `service_type` queda como referencia inicial del cliente, no como título automático del pedido.
+La conversión interna conserva el `workflow_type` de la solicitud. En encargos,
+el equipo define el título operativo; en impresiones se usa el título
+predeterminado `Pedido de impresión` y se conserva la descripción estructurada.
+`service_type` queda como referencia descriptiva del servicio y no decide el
+flujo ni el título del pedido.
 
 ## Decisión sobre clientes
 

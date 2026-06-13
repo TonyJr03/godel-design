@@ -223,7 +223,11 @@ negocio y criterios de seguridad.
 - `service_type` sigue siendo una referencia inicial del tipo de trabajo solicitado.
 - `workflow_type` diferencia el flujo operativo general del servicio específico.
 - Los registros existentes quedan como `encargo`.
-- La conversión a pedido exige `title`, `description` y `priority` definidos por el usuario interno. `priority` inicia visualmente en `normal` y se valida contra el enum real. `estimated_delivery_date` es opcional y no puede ser anterior al día actual si se informa. `service_type` no se usa como título automático.
+- La conversión conserva el `workflow_type` de la solicitud.
+- En encargos, la conversión exige `title` y `description` definidos por el usuario interno.
+- En impresiones, la conversión usa el título operativo predeterminado `Pedido de impresión` y conserva la descripción estructurada de la solicitud.
+- `priority` se valida contra el enum real. `estimated_delivery_date` es opcional y no puede ser anterior al día actual si se informa.
+- `service_type` describe el servicio solicitado; no decide el flujo ni se usa como título automático.
 
 **Notas de seguridad:**
 
@@ -270,13 +274,14 @@ negocio y criterios de seguridad.
 - Un pedido manual inicia en `creado`; un pedido convertido desde solicitud inicia en `solicitud_recibida`.
 - `creado` puede pasar únicamente a `en_revision` o `cancelado`. No permite avanzar directamente a producción, listo para entrega o entregado.
 - La conversión desde solicitud guarda la prioridad definida por el usuario interno y una fecha estimada opcional validada server-side. Usa la numeración generada por base de datos y mantiene el estado inicial `solicitud_recibida`.
-- Los estados de pedido solo representan fases generales. Las tareas de pedido modelan el progreso real y condicionan el avance operativo mediante `public.actualizar_estado_pedido`.
+- Los dos flujos comparten los estados generales `creado`, `solicitud_recibida`, `en_revision`, `en_produccion`, `listo_entrega`, `entregado` y `cancelado`.
+- En pedidos de tipo `encargo`, las tareas modelan el progreso real y condicionan el avance operativo mediante `public.actualizar_estado_pedido`.
+- En pedidos de tipo `impresion`, las tareas no son obligatorias y el pedido puede avanzar por los mismos estados generales sin crearlas.
 - `public.actualizar_estado_pedido` bloquea el pedido con `FOR UPDATE` y las tareas existentes con `FOR SHARE` durante la decisión.
 - Al marcar un pedido como `entregado`, `actual_delivery_date` usa la fecha local de negocio.
 - Los cambios importantes de estado se registran en `pedido_historial`.
-- En esta subfase no se separan formularios, estados ni reglas operativas por
-  `workflow_type`. Los detalles específicos de impresión todavía no se
-  normalizan en tablas y se abordarán en una subfase posterior.
+- La creación y la presentación se adaptan a cada `workflow_type`, pero no hay estados exclusivos de impresión.
+- Los detalles específicos de impresión se guardan como descripción estructurada; no existen tablas normalizadas específicas de impresión.
 
 **Notas de seguridad:**
 

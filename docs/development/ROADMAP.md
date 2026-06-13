@@ -4,8 +4,8 @@
 **Repositorio:** `godel-design`  
 **Documento:** Roadmap oficial de desarrollo inicial  
 **Estado:** Activo  
-**Versión:** 1.1
-**Fecha:** 2026-06-12
+**Versión:** 1.2
+**Fecha:** 2026-06-13
 
 ---
 
@@ -600,6 +600,16 @@ RLS, RPCs, Storage, autenticación ni contratos de Server Actions.
 Las convenciones permanentes para futuras interfaces están documentadas en
 `docs/CONVENCIONES_UI_UX_GODEL.md`; el detalle y la evidencia de cierre se
 encuentran en `docs/ui-ux/FASE_14_CIERRE_UI_UX.md`.
+
+### Cierre Alfa 1
+
+Alfa 1 quedó cerrada el 13 de junio de 2026 con la separación operativa entre
+`encargo` e `impresion` mediante `workflow_type`. Ambos flujos reutilizan
+solicitudes, pedidos, clientes, archivos, comentarios, historial, permisos y
+estados generales. Los encargos requieren tareas para avanzar; las impresiones
+pueden recorrer los mismos estados sin tareas obligatorias. `service_type`
+permanece como dato descriptivo y no gobierna el flujo. El detalle del cierre se
+conserva en `docs/development/ALFA_1_WORKFLOW_TYPE_CHECKLIST.md`.
 
 ---
 

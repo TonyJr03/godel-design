@@ -212,7 +212,13 @@ reconciliación.
 
 ## Fase 10.4B: integración en formulario público
 
-El formulario público `/solicitud` incluye un campo opcional `files` para adjuntar archivos de referencia. La Server Action crea primero la solicitud y luego llama a `uploadPublicSolicitudFiles` para asociar los archivos a la solicitud creada.
+El formulario público `/solicitud` permite adjuntar archivos de referencia. Son
+opcionales para `encargo` y obligatorios para `impresion`. Ambos flujos
+comparten el bucket, las rutas, la metadata, los permisos y la herencia de
+archivos al convertir una solicitud en pedido; `workflow_type` solo determina
+el requisito del formulario público. La Server Action crea primero la solicitud
+y luego llama a `uploadPublicSolicitudFiles` para asociar los archivos a la
+solicitud creada.
 
 La integración mantiene las reglas de Fase 10.4A:
 
