@@ -10,8 +10,10 @@ import {
   validateStorageFile,
 } from "@/lib/storage";
 import { getFormValue } from "@/lib/utils";
+import { WORKFLOW_TYPES } from "@/lib/workflow-types";
 
 export type PublicSolicitudSubmittedValues = {
+  workflow_type: string;
   client_name: string;
   client_phone: string;
   client_email: string;
@@ -19,6 +21,10 @@ export type PublicSolicitudSubmittedValues = {
   description: string;
   desired_date: string;
   notes: string;
+  print_copies: string;
+  print_color_mode: string;
+  print_paper_size: string;
+  print_sides: string;
 };
 
 export type SubmitPublicSolicitudActionState = {
@@ -34,6 +40,7 @@ export type SubmitPublicSolicitudActionState = {
 
 function getSubmittedValues(formData: FormData): PublicSolicitudSubmittedValues {
   return {
+    workflow_type: getFormValue(formData, "workflow_type"),
     client_name: getFormValue(formData, "client_name"),
     client_phone: getFormValue(formData, "client_phone"),
     client_email: getFormValue(formData, "client_email"),
@@ -41,6 +48,10 @@ function getSubmittedValues(formData: FormData): PublicSolicitudSubmittedValues 
     description: getFormValue(formData, "description"),
     desired_date: getFormValue(formData, "desired_date"),
     notes: getFormValue(formData, "notes"),
+    print_copies: getFormValue(formData, "print_copies"),
+    print_color_mode: getFormValue(formData, "print_color_mode"),
+    print_paper_size: getFormValue(formData, "print_paper_size"),
+    print_sides: getFormValue(formData, "print_sides"),
   };
 }
 
@@ -81,6 +92,22 @@ export async function submitPublicSolicitudAction(
 ): Promise<SubmitPublicSolicitudActionState> {
   const values = getSubmittedValues(formData);
   const files = getSolicitudFiles(formData);
+
+  if (
+    values.workflow_type === WORKFLOW_TYPES.IMPRESION &&
+    files.length === 0
+  ) {
+    return {
+      ok: false,
+      message: "Adjunta el documento que deseas imprimir.",
+      fieldErrors: {
+        files:
+          "Para solicitar una impresión debes adjuntar el documento a imprimir.",
+      },
+      values,
+    };
+  }
+
   const filesError = validateSolicitudFilesBeforeCreate(files);
 
   if (filesError) {
@@ -95,6 +122,7 @@ export async function submitPublicSolicitudAction(
   }
 
   const result = await createPublicSolicitud({
+    workflow_type: values.workflow_type,
     client_name: values.client_name,
     client_phone: values.client_phone,
     client_email: values.client_email,
@@ -102,6 +130,10 @@ export async function submitPublicSolicitudAction(
     description: values.description,
     desired_date: values.desired_date,
     notes: values.notes,
+    print_copies: values.print_copies,
+    print_color_mode: values.print_color_mode,
+    print_paper_size: values.print_paper_size,
+    print_sides: values.print_sides,
   });
 
   if (!result.ok) {

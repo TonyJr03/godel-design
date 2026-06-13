@@ -17,7 +17,8 @@ El flujo actual permite:
 - Mostrar un formulario público en `/solicitud`.
 - Validar los datos enviados por el cliente.
 - Crear una solicitud en Supabase.
-- Adjuntar archivos opcionales de referencia.
+- Adjuntar archivos de referencia opcionales en encargos y obligatorios en
+  impresiones.
 - Guardar la solicitud con estado `nueva`.
 - Mostrar un mensaje de éxito y una referencia corta.
 
@@ -30,15 +31,18 @@ Todavía no incluye:
 
 ## Tipo de flujo operativo
 
-La tabla `solicitudes` incorpora `workflow_type` para diferenciar el flujo
-operativo general del servicio específico indicado en `service_type`.
-`encargo` representa trabajos personalizados o complejos, mientras que
-`impresion` representa trabajos directos de impresión.
+`/solicitud` permite elegir mediante pestañas entre `Encargo personalizado` e
+`Impresión`. Ambas variantes crean registros en la misma tabla `solicitudes`;
+la diferencia formal se guarda en `workflow_type`.
 
-En esta subfase el formulario público no permite seleccionar esta variante:
-las solicitudes existentes y las nuevas continúan como `encargo` por defecto.
-No se separan formularios ni estados, y los detalles específicos de impresión
-todavía no se normalizan en tablas.
+`encargo` representa trabajos personalizados o complejos y conserva el
+formulario general. `impresion` representa trabajos directos de impresión,
+exige al menos un archivo y solicita cantidad de copias, modo de color, tamaño
+de papel, caras y observaciones opcionales.
+
+Los detalles de impresión se normalizan y se convierten server-side en una
+descripción estructurada. No se crean tablas específicas de impresión en esta
+subfase.
 
 ## Ruta pública
 
@@ -51,16 +55,24 @@ todavía no se normalizan en tablas.
 
 | Campo | Requerido | Descripción |
 |---|---|---|
+| `workflow_type` | Sí | Variante validada: `encargo` o `impresion` |
 | `client_name` | Sí | Nombre del cliente o negocio |
 | `client_phone` | Sí | Teléfono de contacto |
 | `client_email` | No | Correo opcional |
-| `service_type` | Sí | Tipo de trabajo solicitado |
-| `description` | Sí | Descripción del encargo, incluyendo cantidades, medidas o requisitos cuando apliquen |
-| `desired_date` | No | Fecha deseada de entrega; si se informa debe ser igual o posterior al día actual |
-| `notes` | No | Notas adicionales |
-| `files` | No | Archivos de referencia opcionales |
+| `service_type` | En encargo | Tipo de trabajo solicitado |
+| `description` | En encargo | Descripción del encargo, incluyendo cantidades, medidas o requisitos cuando apliquen |
+| `desired_date` | No | Fecha deseada del encargo; si se informa debe ser igual o posterior al día actual |
+| `print_copies` | En impresión | Cantidad entera entre 1 y 10000 |
+| `print_color_mode` | En impresión | Blanco y negro o color |
+| `print_paper_size` | En impresión | Carta, A4, Oficio u Otro |
+| `print_sides` | En impresión | Una cara o doble cara |
+| `notes` | No | Observaciones adicionales |
+| `files` | En impresión | Opcional en encargos y obligatorio en impresiones |
 
-`quantity` fue eliminado de solicitudes. El formulario no pide cantidad en un campo separado; el cliente debe indicar cantidades dentro de `description` o `notes`.
+`quantity` sigue eliminado de la tabla `solicitudes`. Los encargos indican sus
+cantidades dentro de `description` o `notes`; la variante de impresión usa
+`print_copies` solo como input y lo integra en la descripción estructurada, sin
+crear una columna nueva.
 
 ## Campos que no acepta la UI
 
@@ -86,8 +98,12 @@ Reglas generales:
 - `client_name` es requerido.
 - `client_phone` es requerido.
 - `client_email` es opcional, pero si existe debe tener formato básico válido.
-- `service_type` es requerido.
-- `description` es requerida.
+- `workflow_type` es requerido y solo admite `encargo` o `impresion`.
+- En encargos, `service_type` y `description` son requeridos.
+- En impresiones, cantidad, color, papel, caras y al menos un archivo son
+  requeridos.
+- La descripción de impresión se construye en servidor y no se acepta como
+  fuente de verdad desde un campo oculto del cliente.
 - `desired_date` es opcional, pero debe ser válida e igual o posterior al día
   actual si existe.
 - `notes` es opcional.
@@ -113,12 +129,15 @@ La Server Action:
 
 - Recibe `FormData`.
 - Convierte los campos del formulario en input controlado.
+- Valida `workflow_type` como input no confiable.
+- Exige al menos un archivo antes de crear una solicitud de impresión.
 - No lee ni devuelve `quantity`.
 - Llama al servicio de creación.
 - Devuelve errores controlados para la UI.
 - No expone errores técnicos de Supabase al cliente.
 - No usa service role key.
-- Procesa archivos opcionales después de crear la solicitud.
+- Procesa los archivos después de crear la solicitud; son opcionales en
+  encargos y obligatorios en impresiones.
 - No genera URLs públicas ni URLs firmadas para el cliente.
 
 ## Servicio de Creación
@@ -131,7 +150,10 @@ Responsabilidades:
 
 - Validar el input recibido.
 - Crear la solicitud en Supabase.
-- Insertar el detalle del trabajo sin campo separado de cantidad.
+- Guardar `workflow_type` según la variante validada.
+- Construir server-side la descripción estructurada para impresiones.
+- Insertar el detalle del trabajo sin agregar columnas específicas de
+  impresión.
 - Establecer siempre `status = "nueva"`.
 - Establecer `cliente_id = null`.
 - Establecer `reviewed_by = null`.
@@ -193,7 +215,8 @@ server-side y RLS son la fuente de verdad.
 
 ## Relación con archivos
 
-El cliente puede adjuntar archivos de referencia opcionales al enviar la solicitud.
+El cliente puede adjuntar archivos de referencia al enviar la solicitud. Son
+opcionales para encargos y se exige al menos uno para impresiones.
 
 Límites actuales:
 
@@ -235,16 +258,17 @@ Si la solicitud se convierte en pedido, los archivos se heredan por metadatos: s
 ## Flujo Funcional Actual
 
 1. Cliente entra a `/solicitud`.
-2. Completa el formulario.
-3. El componente cliente llama a la Server Action.
-4. La action convierte `FormData` en input.
-5. El servicio valida datos.
-6. El servicio inserta la solicitud con estado `nueva`.
-7. La base de datos registra `solicitud_creada` en el historial interno.
-8. Si hay archivos, la action los valida, sube al bucket privado y registra metadatos.
-9. La base de datos registra `archivos_adjuntados` por cada archivo aceptado.
-10. La UI muestra éxito, referencia corta y cantidad de archivos recibidos.
-11. El equipo interno revisa la solicitud desde el dashboard.
+2. Elige `Encargo personalizado` o `Impresión`.
+3. Completa los campos de la variante seleccionada.
+4. El componente cliente llama a la Server Action.
+5. La action convierte `FormData` en input y valida los archivos.
+6. El servicio valida los datos y construye la descripción de impresión cuando aplica.
+7. El servicio inserta la solicitud con estado `nueva`.
+8. La base de datos registra `solicitud_creada` en el historial interno.
+9. Si hay archivos, la action los valida, sube al bucket privado y registra metadatos.
+10. La base de datos registra `archivos_adjuntados` por cada archivo aceptado.
+11. La UI muestra éxito, referencia corta y cantidad de archivos recibidos.
+12. El equipo interno revisa la solicitud desde el dashboard.
 
 ## Relación con el flujo interno
 
