@@ -14,6 +14,11 @@ import {
 import type { InternalSolicitudDetail as InternalSolicitudDetailData } from "@/lib/solicitudes";
 import { getSolicitudServiceTypeLabel } from "@/lib/solicitudes";
 import { SolicitudStatusForm } from "./SolicitudStatusForm";
+import { WorkflowTypeBadge } from "./WorkflowTypeBadge";
+import {
+  WORKFLOW_TYPES,
+  WORKFLOW_TYPE_LABELS,
+} from "@/lib/workflow-types";
 
 type InternalSolicitudDetailProps = {
   solicitud: InternalSolicitudDetailData;
@@ -50,6 +55,9 @@ export function InternalSolicitudDetail({
   historySection,
 }: InternalSolicitudDetailProps) {
   const serviceTypeLabel = getSolicitudServiceTypeLabel(solicitud.service_type);
+  const isPrintWorkflow =
+    solicitud.workflow_type === WORKFLOW_TYPES.IMPRESION;
+  const workflowTypeLabel = WORKFLOW_TYPE_LABELS[solicitud.workflow_type];
 
   return (
     <article className="space-y-6">
@@ -59,6 +67,7 @@ export function InternalSolicitudDetail({
             <p className="font-mono text-sm font-semibold text-brand-primary">
               Solicitud {formatShortReference(solicitud.id)}
             </p>
+            <WorkflowTypeBadge workflowType={solicitud.workflow_type} />
             <StatusBadge status={solicitud.status} />
           </div>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight text-text-primary">
@@ -77,8 +86,12 @@ export function InternalSolicitudDetail({
       </header>
 
       <section className="rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6">
-        <MetadataGrid className="lg:grid-cols-4">
+        <MetadataGrid className="lg:grid-cols-5">
           <MetadataItem label="Cliente" value={solicitud.client_name} />
+          <MetadataItem
+            label="Tipo de solicitud"
+            value={workflowTypeLabel}
+          />
           <MetadataItem label="Servicio" value={serviceTypeLabel} />
           <MetadataItem
             label="Fecha deseada"
@@ -94,8 +107,16 @@ export function InternalSolicitudDetail({
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="order-2 min-w-0 space-y-6 xl:col-start-1 xl:row-start-1">
           <DetailPanel
-            title="Trabajo solicitado"
-            description="Descripción recibida para valorar y preparar el trabajo."
+            title={
+              isPrintWorkflow
+                ? "Datos de impresión solicitada"
+                : "Trabajo solicitado"
+            }
+            description={
+              isPrintWorkflow
+                ? "Opciones recibidas para preparar la impresión."
+                : "Descripción recibida para valorar y preparar el encargo."
+            }
           >
             <p className="whitespace-pre-wrap text-sm leading-7 text-text-primary">
               {solicitud.description}

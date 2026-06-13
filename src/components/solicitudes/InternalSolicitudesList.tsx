@@ -7,6 +7,7 @@ import {
   getSolicitudServiceTypeLabel,
   type InternalSolicitud,
 } from "@/lib/solicitudes";
+import { WorkflowTypeBadge } from "./WorkflowTypeBadge";
 
 type InternalSolicitudesListProps = {
   solicitudes: InternalSolicitud[];
@@ -74,7 +75,10 @@ export function InternalSolicitudesList({
                   {solicitud.client_name}
                 </h2>
               </div>
-              <StatusBadge status={solicitud.status} />
+              <div className="flex flex-wrap justify-end gap-2">
+                <WorkflowTypeBadge workflowType={solicitud.workflow_type} />
+                <StatusBadge status={solicitud.status} />
+              </div>
             </div>
 
             <dl className="mt-4 grid gap-3 text-sm">
@@ -136,6 +140,9 @@ export function InternalSolicitudesList({
                   Servicio
                 </th>
                 <th scope="col" className="px-4 py-3">
+                  Tipo
+                </th>
+                <th scope="col" className="px-4 py-3">
                   Estado
                 </th>
                 <th scope="col" className="px-4 py-3">
@@ -171,6 +178,11 @@ export function InternalSolicitudesList({
                   </td>
                   <td className="px-4 py-4 text-text-secondary">
                     {getSolicitudServiceTypeLabel(solicitud.service_type)}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-4">
+                    <WorkflowTypeBadge
+                      workflowType={solicitud.workflow_type}
+                    />
                   </td>
                   <td className="whitespace-nowrap px-4 py-4">
                     <StatusBadge status={solicitud.status} />

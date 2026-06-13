@@ -19,6 +19,10 @@ La conversión a pedido se realiza manualmente desde el detalle interno cuando l
 solicitud está aprobada, tiene cliente asociado y el usuario interno define el
 título operativo real, la descripción y la prioridad inicial del pedido.
 
+Las solicitudes de `Encargo` e `Impresión` continúan viviendo en la misma tabla
+`solicitudes`. La diferencia formal se guarda en `workflow_type`; esta subfase
+solo la incorpora a la lectura, filtros y presentación interna.
+
 ## Ruta interna principal
 
 La ruta principal es `/dashboard/solicitudes`.
@@ -45,15 +49,15 @@ El listado:
 - carga server-side;
 - consulta hasta 50 solicitudes;
 - ordena por `created_at` descendente;
-- muestra referencia corta, cliente, teléfono, email, tipo de servicio, estado,
-  fecha de creación y fecha deseada;
+- muestra referencia corta, cliente, teléfono, email, tipo de solicitud, tipo
+  de servicio, estado, fecha de creación y fecha deseada;
 - permite buscar mediante `q` por referencia visible, cliente, teléfono, correo,
   tipo de servicio, descripción o notas;
-- permite filtrar por estado;
-- combina búsqueda y estado conservando ambos parámetros GET;
+- permite filtrar por estado y por tipo de solicitud;
+- combina búsqueda, estado y `workflow_type` conservando los parámetros GET;
 - usa la barra común de listados: la búsqueda actualiza `q` tras 200 ms sin
   escritura y el selector de estado actualiza la URL inmediatamente;
-- permite limpiar búsqueda y estado en una sola acción;
+- permite limpiar búsqueda, estado y tipo en una sola acción;
 - no consulta Supabase desde componentes cliente.
 
 `quantity` fue eliminado de solicitudes. El detalle de cantidades, medidas o requisitos debe revisarse en `description` o `notes`. `service_type` es solo una referencia inicial elegida por el cliente, no el título automático del pedido.
@@ -84,6 +88,19 @@ del servidor muestra el estado discreto `Buscando...`.
 
 No es un buscador global. Si el volumen crece significativamente, podrán evaluarse índices o búsqueda especializada en una fase posterior sin cambiar el contrato `q`.
 
+## Filtro por tipo de solicitud
+
+URLs soportadas:
+
+- `/dashboard/solicitudes?workflow_type=encargo`
+- `/dashboard/solicitudes?workflow_type=impresion`
+- `/dashboard/solicitudes?status=nueva&workflow_type=impresion`
+
+El filtro se valida contra el enum formal `workflow_type`. Un valor inválido se
+ignora de forma segura y la página muestra una advertencia. El filtro se aplica
+en la consulta general y en todas las ramas de búsqueda por texto, referencia
+visible y labels de servicio.
+
 ## Detalle interno
 
 | Pieza | Archivo |
@@ -99,12 +116,19 @@ El detalle:
 - valida que el `id` tenga formato UUID;
 - usa `notFound()` para id inválido o solicitud inexistente;
 - muestra datos completos de la solicitud;
+- muestra un badge y metadata con `Encargo` o `Impresión`;
+- ajusta el título descriptivo del trabajo según `workflow_type`;
+- conserva la descripción estructurada de impresión con saltos de línea, sin
+  parsearla todavía en campos separados;
 - muestra archivos privados asociados a la solicitud;
 - no permite edición completa;
 - permite convertir a pedido solo si la solicitud está aprobada y tiene cliente asociado;
 - no permite eliminar archivos.
 
 La sección de conversión exige `title`, `description` y `priority` para el pedido. La prioridad inicia en `normal` y se valida contra el enum real de prioridades. También permite definir `estimated_delivery_date` de forma opcional; si se informa, debe ser igual o posterior al día actual y se valida server-side con `src/lib/validators/date.ts`.
+
+La conversión a pedido no cambia en esta subfase. Tampoco cambian los estados,
+las transiciones ni sus reglas.
 
 El formulario no acepta `cliente_id`, `status`, `converted_order_id`, `created_by`, `order_number`, campos de archivos ni otros campos técnicos. La conversión no envía número de pedido; la base de datos lo asigna con formato `P-YY-XXXX`. El estado inicial sigue siendo `solicitud_recibida`.
 
@@ -296,7 +320,10 @@ El diseño del dashboard operativo para la Fase 13 se documenta en `docs/DASHBOA
 - Supervisor ve el listado de solicitudes.
 - Trabajador no puede entrar a `/dashboard/solicitudes`.
 - Buscar solicitudes por referencia, cliente, teléfono, correo, servicio y descripción.
-- Combinar `q` con filtro de estado y luego limpiar ambos filtros.
+- Filtrar por `Encargo` y por `Impresión`.
+- Combinar estado y tipo de solicitud.
+- Combinar `q`, estado y tipo, y luego limpiar todos los filtros.
+- Forzar un `workflow_type` inválido y confirmar que se ignora con advertencia.
 - Admin abre el detalle de una solicitud.
 - Supervisor abre el detalle de una solicitud.
 - Admin descarga un archivo de solicitud.
@@ -330,4 +357,5 @@ El diseño del dashboard operativo para la Fase 13 se documenta en `docs/DASHBOA
 ## Cierre
 
 El flujo interno vigente cubre revisión, estados controlados, cliente asociado,
-comentarios, historial, archivos privados y conversión transaccional a pedido.
+distinción entre Encargo e Impresión, comentarios, historial, archivos privados
+y conversión transaccional a pedido.
