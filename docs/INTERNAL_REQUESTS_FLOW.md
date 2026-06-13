@@ -16,12 +16,13 @@ conceptualmente en `docs/PUBLIC_REQUEST_FLOW.md`. Al enviarse:
 - no se convierten automáticamente en pedidos.
 
 La conversión a pedido se realiza manualmente desde el detalle interno cuando la
-solicitud está aprobada, tiene cliente asociado y el usuario interno define el
-título operativo real, la descripción y la prioridad inicial del pedido.
+solicitud está aprobada y tiene cliente asociado. El formulario adapta sus
+requisitos al `workflow_type` de la solicitud y permite definir la prioridad
+inicial y la fecha estimada del pedido.
 
 Las solicitudes de `Encargo` e `Impresión` continúan viviendo en la misma tabla
-`solicitudes`. La diferencia formal se guarda en `workflow_type`; esta subfase
-solo la incorpora a la lectura, filtros y presentación interna.
+`solicitudes`. La diferencia formal se guarda en `workflow_type` y se conserva
+al convertir la solicitud en pedido.
 
 ## Ruta interna principal
 
@@ -125,20 +126,28 @@ El detalle:
 - permite convertir a pedido solo si la solicitud está aprobada y tiene cliente asociado;
 - no permite eliminar archivos.
 
-La sección de conversión exige `title`, `description` y `priority` para el pedido. La prioridad inicia en `normal` y se valida contra el enum real de prioridades. También permite definir `estimated_delivery_date` de forma opcional; si se informa, debe ser igual o posterior al día actual y se valida server-side con `src/lib/validators/date.ts`.
+La sección identifica si se creará un pedido de `Encargo` o de `Impresión`.
+Para encargos, `title` y `description` son obligatorios. Para impresiones, el
+título es opcional y usa `Pedido de impresión` cuando queda vacío; la
+descripción se precarga desde la solicitud, puede editarse y, si se envía vacía,
+el servicio recupera la descripción original.
 
-La conversión a pedido no cambia en esta subfase. Tampoco cambian los estados,
-las transiciones ni sus reglas.
+La prioridad inicia en `normal` y se valida contra el enum real de prioridades.
+También permite definir `estimated_delivery_date` de forma opcional; si se
+informa, debe ser igual o posterior al día actual y se valida server-side con
+`src/lib/validators/date.ts`.
 
 El formulario no acepta `cliente_id`, `status`, `converted_order_id`, `created_by`, `order_number`, campos de archivos ni otros campos técnicos. La conversión no envía número de pedido; la base de datos lo asigna con formato `P-YY-XXXX`. El estado inicial sigue siendo `solicitud_recibida`.
 
-La escritura completa se delega en la RPC transaccional
+El formulario no envía `workflow_type`. El servicio carga primero la solicitud,
+aplica las reglas y valores por defecto correspondientes a su flujo y delega la
+escritura completa en la RPC transaccional
 `public.convertir_solicitud_a_pedido`. La función bloquea la solicitud, repite
 las validaciones de autorización, estado, cliente, doble conversión y fecha de
-negocio, y confirma en conjunto la creación del pedido, la actualización de la
-solicitud y la herencia de archivos. La Server Action solo lee campos
-permitidos; la página enlaza `solicitud_id`, y la action delega y revalida
-rutas.
+negocio, copia `solicitudes.workflow_type` a `pedidos.workflow_type` y confirma
+en conjunto la creación del pedido, la actualización de la solicitud y la
+herencia de archivos. La Server Action solo lee campos permitidos; la página
+enlaza `solicitud_id`, y la action delega y revalida rutas.
 
 ## Archivos de solicitud
 
@@ -344,7 +353,11 @@ El diseño del dashboard operativo para la Fase 13 se documenta en `docs/DASHBOA
 - Un intento manipulado de enviar `convertida` falla server-side.
 - En Supabase Studio, `reviewed_by` se actualiza al cambiar estado.
 - `converted_order_id` no se modifica durante cambios manuales de estado.
-- Convertir una solicitud aprobada con cliente asociado exige título, descripción y prioridad del pedido.
+- Convertir un encargo aprobado con cliente asociado exige título, descripción y prioridad.
+- Convertir una impresión aprobada muestra `Pedido de impresión` como título inicial.
+- Vaciar el título de una impresión y confirmar que el servidor usa `Pedido de impresión`.
+- Vaciar la descripción de una impresión y confirmar que el servidor conserva la descripción de la solicitud.
+- Confirmar que encargo e impresión conservan su `workflow_type` en el pedido creado.
 - Confirmar que la prioridad inicia en `normal`.
 - Convertir sin fecha estimada y confirmar que el pedido queda sin fecha.
 - Convertir con fecha estimada de hoy o futura y confirmar que se guarda.

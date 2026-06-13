@@ -6,10 +6,16 @@ import type {
   ConvertSolicitudToPedidoActionState,
   SolicitudDetailAction,
 } from "@/app/dashboard/solicitudes/[id]/actions";
+import { WorkflowTypeBadge } from "@/components/solicitudes/WorkflowTypeBadge";
 import { PEDIDO_PRIORITY_LABELS } from "@/lib/pedidos/labels";
 import { PEDIDO_PRIORITIES } from "@/lib/pedidos/status";
 import { getSolicitudServiceTypeLabel } from "@/lib/solicitudes/labels";
 import { getTodayDateInputValue } from "@/lib/utils";
+import {
+  WORKFLOW_TYPES,
+  WORKFLOW_TYPE_LABELS,
+  type WorkflowType,
+} from "@/lib/workflow-types";
 import type { Enums } from "@/types/database";
 
 type SolicitudConvertPedidoFormProps = {
@@ -17,10 +23,13 @@ type SolicitudConvertPedidoFormProps = {
   status: Enums<"solicitud_estado">;
   clienteId: string | null;
   convertedOrderId: string | null;
+  workflowType: WorkflowType;
   serviceType: string;
   solicitudDescription: string;
   solicitudDesiredDate: string | null;
 };
+
+const DEFAULT_PRINT_PEDIDO_TITLE = "Pedido de impresión";
 
 const initialState: ConvertSolicitudToPedidoActionState = {
   ok: false,
@@ -38,6 +47,7 @@ export function SolicitudConvertPedidoForm({
   status,
   clienteId,
   convertedOrderId,
+  workflowType,
   serviceType,
   solicitudDescription,
   solicitudDesiredDate,
@@ -47,13 +57,16 @@ export function SolicitudConvertPedidoForm({
     initialState,
   );
   const currentPedidoId = state.pedidoId ?? convertedOrderId;
-  const canConvert = status === "aprobada" && Boolean(clienteId) && !currentPedidoId;
+  const canConvert =
+    status === "aprobada" && Boolean(clienteId) && !currentPedidoId;
   const titleError = state.fieldErrors?.title;
   const descriptionError = state.fieldErrors?.description;
   const priorityError = state.fieldErrors?.priority;
   const estimatedDeliveryDateError =
     state.fieldErrors?.estimated_delivery_date;
-  const titleValue = state.values?.title ?? "";
+  const isPrintWorkflow = workflowType === WORKFLOW_TYPES.IMPRESION;
+  const titleValue =
+    state.values?.title ?? (isPrintWorkflow ? DEFAULT_PRINT_PEDIDO_TITLE : "");
   const descriptionValue = state.values?.description ?? solicitudDescription;
   const priorityValue = state.values?.priority ?? "normal";
   const estimatedDeliveryDateValue =
@@ -68,8 +81,8 @@ export function SolicitudConvertPedidoForm({
       </h2>
       <p className="mt-2 text-sm leading-6 text-text-secondary">
         Para convertir la solicitud debe estar aprobada, tener un cliente
-        asociado y contar con un título real de pedido. El tipo de servicio
-        seleccionado por el cliente es solo una referencia.
+        asociado y contar con la información operativa necesaria. El tipo de
+        servicio seleccionado por el cliente es solo una referencia.
       </p>
 
       {state.message ? (
@@ -114,7 +127,13 @@ export function SolicitudConvertPedidoForm({
         </p>
       ) : (
         <form action={formAction} aria-busy={pending} className="mt-5 space-y-5">
-          <div className="border-l-2 border-border pl-4 text-sm leading-6 text-text-secondary">
+          <div className="rounded-(--radius-control) border border-border bg-surface-muted px-4 py-3 text-sm leading-6 text-text-secondary">
+            <p className="flex flex-wrap items-center gap-2">
+              <span className="font-semibold text-text-primary">
+                Pedido de {WORKFLOW_TYPE_LABELS[workflowType].toLowerCase()}
+              </span>
+              <WorkflowTypeBadge workflowType={workflowType} />
+            </p>
             <p>
               <span className="font-semibold text-text-primary">
                 Tipo de servicio de la solicitud:
@@ -122,14 +141,23 @@ export function SolicitudConvertPedidoForm({
               {serviceTypeLabel}
             </p>
             <p className="mt-2 text-text-secondary">
-              Usa esta información como referencia inicial, no como título
-              automático del pedido.
+              {isPrintWorkflow
+                ? "La descripción original se usa como base y puedes ajustarla antes de crear el pedido."
+                : "Usa esta información como referencia inicial, no como título automático del pedido."}
             </p>
           </div>
 
           <div>
-            <label className="text-sm font-medium text-text-primary" htmlFor="title">
-              Título del pedido <span className="text-danger">*</span>
+            <label
+              className="text-sm font-medium text-text-primary"
+              htmlFor="title"
+            >
+              Título del pedido
+              {isPrintWorkflow ? (
+                <OptionalMark />
+              ) : (
+                <span className="text-danger"> *</span>
+              )}
             </label>
             <input
               className="mt-2 min-h-11 w-full rounded-(--radius-control) border border-border-strong bg-surface px-3 py-2 text-base text-text-primary shadow-(--shadow-soft) placeholder:text-text-muted"
@@ -138,15 +166,25 @@ export function SolicitudConvertPedidoForm({
               type="text"
               defaultValue={titleValue}
               maxLength={160}
-              required
+              required={!isPrintWorkflow}
               aria-invalid={Boolean(titleError)}
-              aria-describedby={titleError ? "convert-title-error" : "convert-title-help"}
+              aria-describedby={
+                titleError ? "convert-title-error" : "convert-title-help"
+              }
             />
-            <p id="convert-title-help" className="mt-2 text-sm leading-5 text-text-secondary">
-              Define un nombre claro para identificar este trabajo internamente.
+            <p
+              id="convert-title-help"
+              className="mt-2 text-sm leading-5 text-text-secondary"
+            >
+              {isPrintWorkflow
+                ? `Opcional. Si lo dejas vacío se usará “${DEFAULT_PRINT_PEDIDO_TITLE}”.`
+                : "Define un nombre claro para identificar este trabajo internamente."}
             </p>
             {titleError ? (
-              <p id="convert-title-error" className="mt-2 text-sm leading-5 text-danger">
+              <p
+                id="convert-title-error"
+                className="mt-2 text-sm leading-5 text-danger"
+              >
                 {titleError}
               </p>
             ) : null}
@@ -234,7 +272,12 @@ export function SolicitudConvertPedidoForm({
               className="text-sm font-medium text-text-primary"
               htmlFor="description"
             >
-              Descripción del pedido <span className="text-danger">*</span>
+              Descripción del pedido
+              {isPrintWorkflow ? (
+                <OptionalMark />
+              ) : (
+                <span className="text-danger"> *</span>
+              )}
             </label>
             <textarea
               className="mt-2 min-h-36 w-full resize-y rounded-(--radius-control) border border-border-strong bg-surface px-3 py-2 text-base text-text-primary shadow-(--shadow-soft) placeholder:text-text-muted"
@@ -242,7 +285,7 @@ export function SolicitudConvertPedidoForm({
               name="description"
               defaultValue={descriptionValue}
               maxLength={3000}
-              required
+              required={!isPrintWorkflow}
               aria-invalid={Boolean(descriptionError)}
               aria-describedby={
                 descriptionError
@@ -254,8 +297,9 @@ export function SolicitudConvertPedidoForm({
               id="convert-description-help"
               className="mt-2 text-sm leading-5 text-text-secondary"
             >
-              Puedes ajustar la descripción original de la solicitud antes de
-              crear el pedido.
+              {isPrintWorkflow
+                ? "Puedes ajustarla. Si la dejas vacía, el servidor conservará la descripción original de la solicitud."
+                : "Puedes ajustar la descripción original de la solicitud antes de crear el pedido."}
             </p>
             {descriptionError ? (
               <p

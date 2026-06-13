@@ -100,6 +100,7 @@ export default async function DashboardSolicitudDetallePage({
             status={result.solicitud.status}
             clienteId={result.solicitud.cliente_id}
             convertedOrderId={result.solicitud.converted_order_id}
+            workflowType={result.solicitud.workflow_type}
             serviceType={result.solicitud.service_type}
             solicitudDescription={result.solicitud.description}
             solicitudDesiredDate={result.solicitud.desired_date}

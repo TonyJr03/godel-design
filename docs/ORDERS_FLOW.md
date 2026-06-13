@@ -38,10 +38,11 @@ Todavía no incluye:
 directos de impresión. Este discriminador no reemplaza `service_type`, que
 continúa siendo la referencia al servicio específico de la solicitud origen.
 
-Los pedidos existentes quedan como `encargo`. En esta subfase no se modifican
-los formularios, listados, filtros, estados, tareas ni reglas de transición.
-Los detalles propios de impresión todavía no se normalizan en tablas y se
-abordarán en una subfase posterior.
+Los pedidos existentes quedan como `encargo`. La creación manual y la conversión
+desde solicitud guardan el flujo correspondiente. No se modifican listados,
+filtros, estados, tareas ni reglas de transición. Los detalles propios de
+impresión todavía no se normalizan en tablas y se abordarán en una subfase
+posterior.
 
 ## Rutas del módulo
 
@@ -90,6 +91,7 @@ Campos principales usados actualmente en `pedidos`:
 | `order_number` | Referencia visible generada por la base de datos. |
 | `cliente_id` | Cliente asociado al pedido; puede ser `null` en pedidos manuales. |
 | `solicitud_id` | Solicitud origen; puede ser `null` en pedidos manuales. |
+| `workflow_type` | Flujo operativo: `encargo` o `impresion`. |
 | `title` | Nombre breve del trabajo. |
 | `description` | Descripción operativa del trabajo. |
 | `status` | Estado operativo del pedido. |
@@ -303,7 +305,7 @@ Archivos principales:
 - Componente: `src/components/solicitudes/SolicitudConvertPedidoForm.tsx`
 - Action: `src/app/dashboard/solicitudes/[id]/actions.ts`
 
-La conversión requiere `solicitudes.manage` y `pedidos.manage`. Solo se permite convertir solicitudes con estado `aprobada` y `cliente_id` asociado. La página enlaza `solicitud_id` a la action y el formulario envía únicamente `title`, `description`, `priority` y `estimated_delivery_date`.
+La conversión requiere `solicitudes.manage` y `pedidos.manage`. Solo se permite convertir solicitudes con estado `aprobada` y `cliente_id` asociado. La página enlaza `solicitud_id` a la action y el formulario envía únicamente `title`, `description`, `priority` y `estimated_delivery_date`; no envía `workflow_type`.
 
 `createPedidoFromSolicitud` conserva la validación de UX y la comprobación de
 permisos, pero la escritura se ejecuta exclusivamente mediante
@@ -313,13 +315,21 @@ con `FOR UPDATE` y evita que dos intentos simultáneos creen pedidos distintos.
 
 `priority` es obligatoria, inicia visualmente en `normal` y se valida contra las prioridades reales del enum. `estimated_delivery_date` es opcional; si se informa debe ser una fecha válida e igual o posterior al día actual. La UI limita el calendario desde hoy; el servicio valida con `src/lib/validators/date.ts` y la RPC repite la regla usando la fecha de negocio de `America/Havana`.
 
-`service_type` queda como referencia inicial elegida por el cliente. No se usa como título automático del pedido. El usuario interno debe definir un `title` obligatorio y puede ajustar la `description` operativa antes de crear el pedido. El formulario no acepta `order_number`, `status`, `cliente_id`, `created_by`, `converted_order_id`, campos de archivos ni otros campos técnicos.
+`service_type` queda como referencia inicial elegida por el cliente. No se usa
+como título automático del pedido. En encargos, el usuario interno debe definir
+`title` y `description`. En impresiones, el título es opcional y usa
+`Pedido de impresión` cuando queda vacío; la descripción se precarga desde la
+solicitud y puede ajustarse. Si se envía vacía, el servidor usa la descripción
+original de la solicitud. El formulario no acepta `order_number`, `status`,
+`cliente_id`, `workflow_type`, `created_by`, `converted_order_id`, campos de
+archivos ni otros campos técnicos.
 
 Cuando el pedido muestra datos de la solicitud origen, el tipo de servicio se renderiza con `getSolicitudServiceTypeLabel` desde `src/lib/solicitudes/labels.ts`; el valor guardado en `service_type` no se renombra ni se usa como título automático.
 
 Al convertir:
 
 - se crea un pedido con `pedidos.solicitud_id`;
+- se copia `solicitudes.workflow_type` a `pedidos.workflow_type`;
 - se usa el `title` definido por el usuario interno;
 - se guarda la descripción operativa enviada desde el formulario de conversión;
 - se guarda la `priority` definida por el usuario interno;
@@ -335,7 +345,12 @@ Todas esas escrituras se confirman o revierten juntas. La herencia de archivos
 solo completa `archivos.pedido_id`; no cambia su ruta, bucket, visibilidad ni
 autor, y no mueve objetos físicos en Storage.
 
-La conversión mantiene el estado inicial `solicitud_recibida` y usa la misma numeración de base de datos que la creación manual. La app no envía `order_number`. La RPC revoca ejecución a `public` y `anon`, concede `execute` solo a `authenticated` y valida internamente que el actor sea `admin` o `supervisor` activo.
+La conversión mantiene el estado inicial `solicitud_recibida` y usa la misma
+numeración de base de datos que la creación manual. La RPC bloquea y lee la
+solicitud como autoridad del flujo, por lo que `workflow_type` no depende de
+datos enviados por el navegador. La app no envía `order_number`. La RPC revoca
+ejecución a `public` y `anon`, concede `execute` solo a `authenticated` y valida
+internamente que el actor sea `admin` o `supervisor` activo.
 
 Flujos relacionados:
 
@@ -470,7 +485,10 @@ Desde 13.6I, el dashboard y los paneles operativos también consideran tareas: p
 - Verificar que lista, detalle y dashboard muestran `Sin cliente asociado` cuando `cliente_id = null`.
 - Convertir una solicitud aprobada con cliente.
 - Verificar que el pedido convertido inicia en `solicitud_recibida`.
-- Verificar que la conversión exige título.
+- Verificar que la conversión de un encargo exige título y descripción.
+- Verificar que una impresión usa `Pedido de impresión` si el título queda vacío.
+- Verificar que una impresión conserva la descripción original si se envía vacía.
+- Verificar que el pedido convertido conserva el `workflow_type` de la solicitud.
 - Verificar que la conversión muestra prioridad con valor `normal`.
 - Verificar que la conversión permite fecha estimada opcional.
 - Convertir sin fecha estimada y confirmar que el pedido queda sin fecha.

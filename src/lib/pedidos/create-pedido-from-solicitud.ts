@@ -14,6 +14,7 @@ import {
   normalizeSingleLineText,
   validateOptionalFutureDate,
 } from "@/lib/validators";
+import { WORKFLOW_TYPES, type WorkflowType } from "@/lib/workflow-types";
 import type { Enums, Tables } from "@/types/database";
 import { isPedidoPrioridad, type PedidoPrioridad } from "./order-validation";
 
@@ -70,6 +71,7 @@ const FIELD_LIMITS = {
   title: 160,
   description: 3000,
 } as const;
+const DEFAULT_PRINT_PEDIDO_TITLE = "Pedido de impresión";
 
 const SAFE_RPC_CONVERSION_ERRORS = [
   {
@@ -161,9 +163,25 @@ function getSafeRpcConversionError(errorMessage: string | undefined) {
   );
 }
 
-function validateConversionInput(input: CreatePedidoFromSolicitudInput) {
-  const title = normalizeSingleLineText(input.title);
-  const description = normalizeMultilineText(input.description);
+function validateConversionInput(
+  input: CreatePedidoFromSolicitudInput,
+  solicitud: {
+    workflow_type: WorkflowType;
+    description: string;
+  },
+) {
+  const submittedTitle = normalizeSingleLineText(input.title);
+  const submittedDescription = normalizeMultilineText(input.description);
+  const isPrintWorkflow =
+    solicitud.workflow_type === WORKFLOW_TYPES.IMPRESION;
+  const title =
+    isPrintWorkflow && !submittedTitle
+      ? DEFAULT_PRINT_PEDIDO_TITLE
+      : submittedTitle;
+  const description =
+    isPrintWorkflow && !submittedDescription
+      ? normalizeMultilineText(solicitud.description)
+      : submittedDescription;
   const priority = normalizeSingleLineText(input.priority);
   const estimatedDeliveryDate = normalizeOptionalSingleLineText(
     input.estimatedDeliveryDate,
@@ -243,18 +261,37 @@ export async function createPedidoFromSolicitud(
     );
   }
 
-  const validation = validateConversionInput(input);
-
-  if (!validation.ok) {
-    return serviceFailure("validation", "Revisa los datos del pedido.", {
-      fieldErrors: validation.fieldErrors,
-      values: validation.values,
-    });
-  }
-
   const supabase = await createClient();
 
   try {
+    const { data: solicitud, error: solicitudError } = await supabase
+      .from("solicitudes")
+      .select("workflow_type, description")
+      .eq("id", solicitudId)
+      .maybeSingle();
+
+    if (solicitudError) {
+      console.error(
+        "Error loading solicitud before pedido conversion",
+        solicitudError,
+      );
+
+      return serviceFailure("error", GENERIC_CONVERT_ERROR);
+    }
+
+    if (!solicitud) {
+      return serviceFailure("not_found", "La solicitud no existe.");
+    }
+
+    const validation = validateConversionInput(input, solicitud);
+
+    if (!validation.ok) {
+      return serviceFailure("validation", "Revisa los datos del pedido.", {
+        fieldErrors: validation.fieldErrors,
+        values: validation.values,
+      });
+    }
+
     const { data: pedido, error } = await (
       supabase as unknown as ConvertSolicitudRpcClient
     ).rpc("convertir_solicitud_a_pedido", {
