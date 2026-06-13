@@ -31,6 +31,9 @@ export {
 export {
   PEDIDO_FIELDS,
   PEDIDO_PRIORIDADES,
+  PRINT_COLOR_MODE_OPTIONS,
+  PRINT_PAPER_SIZE_OPTIONS,
+  PRINT_SIDES_OPTIONS,
   isPedidoPrioridad,
   validatePedidoInput,
   type CreatePedidoData,
@@ -38,6 +41,9 @@ export {
   type PedidoField,
   type PedidoFieldErrors,
   type PedidoPrioridad,
+  type PrintColorMode,
+  type PrintPaperSize,
+  type PrintSides,
   type ValidatePedidoInputResult,
 } from "./order-validation";
 export {

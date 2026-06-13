@@ -96,7 +96,12 @@ export async function createInternalPedido(
 
   const supabase = await createClient();
   const pedido: TablesInsert<"pedidos"> = {
-    ...validation.data,
+    workflow_type: validation.data.workflow_type,
+    cliente_id: validation.data.cliente_id,
+    title: validation.data.title,
+    description: validation.data.description,
+    priority: validation.data.priority,
+    estimated_delivery_date: validation.data.estimated_delivery_date,
     status: INITIAL_MANUAL_PEDIDO_ESTADO,
     solicitud_id: null,
     created_by: profile.id,

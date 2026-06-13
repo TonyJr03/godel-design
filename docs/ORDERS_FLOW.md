@@ -270,7 +270,26 @@ Archivos principales:
 - Validación: `src/lib/pedidos/order-validation.ts`
 - Numeración: `private.generar_numero_pedido()` y `public.pedido_contadores`
 
-La creación manual requiere `pedidos.manage`, por lo que solo `admin` y `supervisor` pueden usarla. El formulario permite seleccionar un cliente existente o dejar `Sin cliente asociado`; no acepta estado, `solicitud_id`, número de pedido ni personal asignado. El pedido manual se crea con `solicitud_id = null`, estado inicial `creado` y `cliente_id = null` cuando no se selecciona cliente. No existen campos temporales de cliente en este flujo.
+La creación manual requiere `pedidos.manage`, por lo que solo `admin` y
+`supervisor` pueden usarla. El formulario permite elegir mediante pestañas
+entre `Encargo` e `Impresión`. Ambos tipos viven en la tabla `pedidos` y su
+diferencia formal se guarda en `workflow_type`.
+
+Ambas variantes permiten seleccionar un cliente existente o dejar
+`Sin cliente asociado`; no aceptan estado, `solicitud_id`, número de pedido ni
+personal asignado. El pedido manual se crea con `solicitud_id = null`, estado
+inicial `creado` y `cliente_id = null` cuando no se selecciona cliente. No
+existen campos temporales de cliente en este flujo.
+
+El encargo conserva título y descripción obligatorios. La impresión solicita
+cantidad de copias, modo de color, tamaño de papel, caras y observaciones
+opcionales. Si no se informa título, el servidor usa `Pedido de impresión`.
+La descripción final de impresión se construye server-side con esas opciones;
+no se confía en una descripción oculta enviada por el cliente.
+
+La creación manual de impresión todavía no permite adjuntar archivos. Tampoco
+modifica el listado o detalle de pedidos, la conversión desde solicitudes, las
+tareas, el progreso, los estados ni sus reglas.
 
 El número visible del pedido se asigna en base de datos al insertar, con formato `P-YY-XXXX`. El contador es anual, se guarda en `public.pedido_contadores` y se incrementa dentro de la transacción para proteger la concurrencia. El año se obtiene mediante `private.current_business_date()` y no depende del día UTC de la sesión. La app no envía `order_number`.
 

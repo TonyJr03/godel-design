@@ -20,6 +20,7 @@ export async function createPedidoAction(
   formData: FormData,
 ): Promise<CreatePedidoActionState> {
   const result = await createInternalPedido({
+    workflow_type: getFormValue(formData, "workflow_type"),
     cliente_id: getFormValue(formData, "cliente_id"),
     title: getFormValue(formData, "title"),
     description: getFormValue(formData, "description"),
@@ -28,6 +29,11 @@ export async function createPedidoAction(
       formData,
       "estimated_delivery_date",
     ),
+    print_copies: getFormValue(formData, "print_copies"),
+    print_color_mode: getFormValue(formData, "print_color_mode"),
+    print_paper_size: getFormValue(formData, "print_paper_size"),
+    print_sides: getFormValue(formData, "print_sides"),
+    print_notes: getFormValue(formData, "print_notes"),
   });
 
   if (!result.ok) {
