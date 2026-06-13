@@ -128,18 +128,29 @@ Las tablas oficiales normalizadas para comentarios e historial de pedidos son `p
 
 Un pedido manual inicia en `creado`. Un pedido convertido desde solicitud inicia en `solicitud_recibida`. El flujo esperado es `creado` -> `en_revision` -> `en_produccion` -> `listo_entrega` -> `entregado` para pedidos manuales y `solicitud_recibida` -> `en_revision` -> `en_produccion` -> `listo_entrega` -> `entregado` para pedidos convertidos. `cancelado` funciona como salida lateral desde los estados activos.
 
-Los estados de pedido representan solo la fase general del flujo operativo. El progreso real de diseño, impresión, encuadernado u otras tareas se modela con tareas de pedido, y la RPC `public.actualizar_estado_pedido` aplica las reglas operativas fuertes.
+Los estados de pedido representan solo la fase general del flujo operativo. La
+RPC `public.actualizar_estado_pedido` aplica las reglas operativas fuertes y usa
+`workflow_type` para decidir si las tareas son requisito de avance.
 
 Reglas de transición vigentes:
 
 - `creado` puede pasar a `en_revision` o `cancelado`.
 - `solicitud_recibida` puede pasar a `en_revision` o `cancelado`.
-- `en_revision` puede pasar a `en_produccion` o `cancelado`; para pasar a `en_produccion` debe existir al menos una tarea.
-- `en_produccion` puede pasar a `listo_entrega` o `cancelado`; para pasar a `listo_entrega` debe existir al menos una tarea y todas deben estar completadas.
+- `en_revision` puede pasar a `en_produccion` o `cancelado`.
+- `en_produccion` puede pasar a `listo_entrega` o `cancelado`.
 - `listo_entrega` puede pasar a `entregado`, volver a `en_produccion` o pasar a `cancelado`.
 - `entregado` y `cancelado` son estados cerrados y no admiten cambios posteriores.
 
-La UI del detalle usa el progreso ya cargado para orientar al usuario, pero la validación real está en la RPC. Un trabajador asignado puede cambiar estado siguiendo las mismas reglas; un trabajador no asignado no accede al pedido.
+Para `encargo`, pasar de `en_revision` a `en_produccion` exige al menos una
+tarea, y pasar de `en_produccion` a `listo_entrega` exige que existan tareas y
+que todas estén completas. Para `impresion`, esas dos transiciones no requieren
+tareas. Ambos flujos conservan la misma secuencia: `entregado` solo se permite
+desde `listo_entrega`, sin saltos directos desde producción.
+
+La UI del detalle usa el flujo y el progreso ya cargados para orientar al
+usuario, pero la validación real está en la RPC. Un trabajador asignado puede
+cambiar estado siguiendo las mismas reglas; un trabajador no asignado no accede
+al pedido.
 
 ## Modelo base de tareas
 
@@ -214,18 +225,18 @@ conserva su estructura y saltos de línea.
 
 En encargos se mantiene el bloque completo de tareas y su progreso. En
 impresiones se presenta una nota de flujo directo en lugar del bloque principal
-de tareas. La página sigue cargando el progreso y lo entrega al formulario de
-estado para conservar exactamente las reglas vigentes. Asignación, archivos,
-comentarios, historial y cambio de estado permanecen visibles para ambos tipos.
+de tareas. La página sigue cargando el progreso, pero el formulario de estado
+usa `workflow_type` para no bloquear impresiones por ausencia de tareas.
+Asignación, archivos, comentarios, historial y cambio de estado permanecen
+visibles para ambos tipos.
 
 Un trabajador no puede ver pedidos no asignados, pero sí puede ver el cliente,
 la solicitud relacionada, los comentarios internos y los archivos de pedidos
 que tiene asignados. No se implementa edición general.
 
-Alfa 1.6 no modifica `public.actualizar_estado_pedido`, las acciones de tareas
-ni la validación de transiciones. La presentación de impresión como flujo
-directo no implica todavía que pueda avanzar de estado sin cumplir las reglas
-actuales.
+Las acciones y validaciones de tareas no cambian. Una impresión puede conservar
+tareas existentes, pero no las necesita para avanzar entre revisión, producción
+y listo para entrega.
 
 ## Comentarios internos de pedido
 
@@ -405,6 +416,12 @@ La RPC bloquea la fila del pedido con `FOR UPDATE` antes de leer su estado. Dos
 transiciones simultáneas quedan serializadas: la segunda petición valida contra
 el estado confirmado por la primera, no contra un estado obsoleto.
 
+La secuencia de transiciones es idéntica para Encargo e Impresión. La diferencia
+es que la RPC aplica las restricciones de existencia y finalización de tareas
+solo cuando `pedidos.workflow_type = 'encargo'`. Las impresiones pueden pasar de
+`en_revision` a `en_produccion` y de `en_produccion` a `listo_entrega` sin
+tareas, pero no pueden saltar directamente a `entregado`.
+
 Antes de contar tareas, la RPC bloquea las tareas existentes con `FOR SHARE`.
 Así espera cambios o eliminaciones en curso y mantiene estables esas filas
 durante la decisión. Las nuevas tareas quedan coordinadas por el bloqueo del
@@ -552,10 +569,13 @@ Desde 13.6I, el dashboard y los paneles operativos también consideran tareas: p
 - Confirmar que estado, asignación, archivos, comentarios e historial siguen visibles en impresiones.
 - Confirmar que los paneles operativos priorizan pedidos `creado` y `solicitud_recibida` como pendientes de revisión y muestran progreso, atrasados, próximos, sin tareas, con tareas pendientes y listos para entrega.
 - Confirmar que el historial registra cambios de estado con etiquetas vigentes.
-- Intentar pasar a `en_produccion` sin tareas y confirmar bloqueo.
-- Crear una tarea y pasar a `en_produccion`.
-- Intentar pasar a `listo_entrega` con tareas incompletas y confirmar bloqueo.
-- Completar todas las tareas y pasar a `listo_entrega`.
+- En un encargo, intentar pasar a `en_produccion` sin tareas y confirmar bloqueo.
+- En un encargo, crear una tarea y pasar a `en_produccion`.
+- En un encargo, intentar pasar a `listo_entrega` con tareas incompletas y confirmar bloqueo.
+- En un encargo, completar todas las tareas y pasar a `listo_entrega`.
+- En una impresión sin tareas, pasar de `en_revision` a `en_produccion`.
+- En una impresión sin tareas, pasar de `en_produccion` a `listo_entrega`.
+- En una impresión, intentar pasar directamente de `en_produccion` a `entregado` y confirmar bloqueo.
 - Pasar de `listo_entrega` a `entregado`.
 - Confirmar que `entregado` y `cancelado` no admiten cambios posteriores.
 - Verificar que un trabajador no cambia un pedido no asignado.

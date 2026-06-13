@@ -1,4 +1,8 @@
 import { Constants, type Enums } from "@/types/database";
+import {
+  WORKFLOW_TYPES,
+  type WorkflowType,
+} from "@/lib/workflow-types";
 
 export const PEDIDO_STATUSES = Constants.public.Enums.pedido_estado;
 export const PEDIDO_PRIORITIES = Constants.public.Enums.pedido_prioridad;
@@ -73,8 +77,10 @@ function buildStatusOption(
 export function getAllowedPedidoStatusTransitions(
   currentStatus: PedidoStatus,
   progress?: PedidoStatusTransitionContext | null,
+  workflowType: WorkflowType = WORKFLOW_TYPES.ENCARGO,
 ): PedidoStatusTransitionOption[] {
   const current = buildStatusOption(currentStatus, { isCurrent: true });
+  const requiresTasks = workflowType === WORKFLOW_TYPES.ENCARGO;
 
   if (isPedidoClosedStatus(currentStatus)) {
     return [current];
@@ -97,7 +103,7 @@ export function getAllowedPedidoStatusTransitions(
   }
 
   if (currentStatus === "en_revision") {
-    const needsTasks = progress ? !progress.hasTasks : false;
+    const needsTasks = requiresTasks && progress ? !progress.hasTasks : false;
 
     return [
       current,
@@ -112,9 +118,10 @@ export function getAllowedPedidoStatusTransitions(
   }
 
   if (currentStatus === "en_produccion") {
-    const needsCompletedTasks = progress
-      ? !progress.hasTasks || !progress.isComplete
-      : false;
+    const needsCompletedTasks =
+      requiresTasks && progress
+        ? !progress.hasTasks || !progress.isComplete
+        : false;
 
     return [
       current,

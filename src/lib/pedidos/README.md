@@ -64,7 +64,19 @@ La página del detalle enlaza `pedido_id` a `updatePedidoStatusAction`; el formu
 
 Los estados vigentes de pedido son `creado`, `solicitud_recibida`, `en_revision`, `en_produccion`, `listo_entrega`, `entregado` y `cancelado`. La RPC es la autoridad para validar transiciones: `creado` avanza a `en_revision` o `cancelado`; `solicitud_recibida` avanza a `en_revision` o `cancelado`; `en_revision` avanza a `en_produccion` o `cancelado`; `en_produccion` avanza a `listo_entrega` o `cancelado`; `listo_entrega` avanza a `entregado`, vuelve a `en_produccion` o pasa a `cancelado`.
 
-Un pedido manual no puede pasar directamente de `creado` a producción: primero debe pasar a `en_revision`. Para pasar de `en_revision` a `en_produccion` debe existir al menos una tarea. Para pasar a `listo_entrega` debe existir al menos una tarea y todas deben estar completadas. `entregado` solo se permite desde `listo_entrega`. `entregado` y `cancelado` son estados cerrados y no admiten cambios posteriores. La UI filtra y deshabilita opciones como ayuda operativa, pero la validación real está en `public.actualizar_estado_pedido`.
+Un pedido manual no puede pasar directamente de `creado` a producción: primero
+debe pasar a `en_revision`. Los pedidos con `workflow_type = encargo` requieren
+al menos una tarea para pasar de `en_revision` a `en_produccion`, y requieren
+que existan tareas y todas estén completas para pasar a `listo_entrega`. Los
+pedidos con `workflow_type = impresion` pueden realizar esas dos transiciones
+sin tareas.
+
+Las transiciones disponibles no cambian: `entregado` solo se permite desde
+`listo_entrega`, por lo que una impresión tampoco puede saltar directamente
+desde `en_produccion`. `entregado` y `cancelado` son estados cerrados y no
+admiten cambios posteriores. La UI usa `workflow_type` para orientar y
+deshabilitar opciones, pero la validación real está en
+`public.actualizar_estado_pedido`.
 
 La RPC permite a `admin` y `supervisor` cambiar cualquier pedido y a `trabajador` cambiar solo pedidos asignados, sin conceder a trabajadores un `UPDATE` amplio sobre `pedidos`. Con asignaciones múltiples, cualquier trabajador asignado al pedido puede cambiar el estado porque la validación usa `private.is_assigned_to_pedido`, que comprueba la existencia de una relación en `pedido_trabajadores`.
 

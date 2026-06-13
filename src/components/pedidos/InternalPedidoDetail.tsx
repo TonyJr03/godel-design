@@ -191,6 +191,7 @@ export function InternalPedidoDetail({
             <PedidoStatusForm
               updateStatusAction={updateStatusAction}
               estadoActual={pedido.status}
+              workflowType={pedido.workflow_type}
               taskProgress={taskProgress}
               tasksLoadError={tasksLoadError}
             />
