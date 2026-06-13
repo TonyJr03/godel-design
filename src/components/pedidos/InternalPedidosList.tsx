@@ -6,6 +6,8 @@ import { PriorityBadge } from "@/components/ui/PriorityBadge";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { InternalPedido } from "@/lib/pedidos";
 import { getSolicitudServiceTypeLabel } from "@/lib/solicitudes";
+import { WORKFLOW_TYPES } from "@/lib/workflow-types";
+import { PedidoWorkflowTypeBadge } from "./PedidoWorkflowTypeBadge";
 
 type InternalPedidosListProps = {
   pedidos: InternalPedido[];
@@ -58,6 +60,10 @@ function getClienteLabel(pedido: InternalPedido): string {
 }
 
 function getProgressLabel(pedido: InternalPedido): string {
+  if (pedido.workflow_type === WORKFLOW_TYPES.IMPRESION) {
+    return "Flujo directo";
+  }
+
   if (!pedido.taskProgress.hasTasks) {
     return "Sin tareas";
   }
@@ -69,14 +75,22 @@ function getProgressLabel(pedido: InternalPedido): string {
   return `${pedido.taskProgress.progressPercentage}% completado · ${pedido.taskProgress.pendingTasks} pendientes`;
 }
 
+function getProgressBadgeClasses(pedido: InternalPedido): string {
+  if (pedido.workflow_type === WORKFLOW_TYPES.IMPRESION) {
+    return "border-brand-accent/30 bg-brand-accent-soft text-brand-accent";
+  }
+
+  return pedido.taskProgress.isComplete
+    ? "border-success/30 bg-success-soft text-success"
+    : "border-border-strong bg-surface-muted text-text-secondary";
+}
+
 function ProgressBadge({ pedido }: { pedido: InternalPedido }) {
   return (
     <span
       className={[
         "inline-flex rounded-(--radius-control) border px-2.5 py-1 text-xs font-semibold",
-        pedido.taskProgress.isComplete
-          ? "border-success/30 bg-success-soft text-success"
-          : "border-border-strong bg-surface-muted text-text-secondary",
+        getProgressBadgeClasses(pedido),
       ].join(" ")}
     >
       {getProgressLabel(pedido)}
@@ -126,6 +140,9 @@ export function InternalPedidosList({
                 </p>
               </div>
               <div className="flex flex-wrap justify-end gap-2">
+                <PedidoWorkflowTypeBadge
+                  workflowType={pedido.workflow_type}
+                />
                 <StatusBadge status={pedido.status} />
                 <PriorityBadge priority={pedido.priority} />
               </div>
@@ -168,11 +185,14 @@ export function InternalPedidosList({
 
       <div className="hidden overflow-hidden rounded-(--radius-card) border border-border bg-surface shadow-(--shadow-soft) xl:block">
         <div className="overflow-x-auto">
-          <table className="min-w-275 divide-y divide-border text-sm">
+          <table className="min-w-300 divide-y divide-border text-sm">
             <thead className="bg-surface-muted text-left text-xs font-semibold uppercase tracking-wide text-text-secondary">
               <tr>
                 <th scope="col" className="px-4 py-3">
                   Pedido
+                </th>
+                <th scope="col" className="px-4 py-3">
+                  Tipo
                 </th>
                 <th scope="col" className="px-4 py-3">
                   Cliente
@@ -219,6 +239,11 @@ export function InternalPedidosList({
                     <div className="mt-1 font-mono text-xs text-text-muted">
                       {formatShortReference(pedido.id)}
                     </div>
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-4">
+                    <PedidoWorkflowTypeBadge
+                      workflowType={pedido.workflow_type}
+                    />
                   </td>
                   <td className="px-4 py-4 text-text-secondary">
                     {getClienteLabel(pedido)}

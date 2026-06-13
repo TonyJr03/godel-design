@@ -8,6 +8,10 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { getSolicitudServiceTypeSearchValues } from "@/lib/solicitudes";
 import { normalizeSearchQuery } from "@/lib/utils";
+import {
+  isWorkflowType,
+  type WorkflowType,
+} from "@/lib/workflow-types";
 import type { Tables } from "@/types/database";
 import {
   calculatePedidoTasksProgressByPedidoId,
@@ -41,6 +45,7 @@ type InternalPedidoRow = Pick<
   | "order_number"
   | "cliente_id"
   | "solicitud_id"
+  | "workflow_type"
   | "title"
   | "description"
   | "status"
@@ -60,13 +65,16 @@ export type InternalPedido = InternalPedidoRow & {
 export type ListInternalPedidosOptions = {
   q?: string | null;
   status?: string | null;
+  workflowType?: string | null;
   limit?: number;
 };
 
 type ListInternalPedidosMeta = {
   q: string | null;
   status: InternalPedidoEstado | null;
+  workflowType: WorkflowType | null;
   ignoredInvalidEstado: boolean;
+  ignoredInvalidWorkflowType: boolean;
 };
 
 export type ListInternalPedidosErrorReason =
@@ -99,6 +107,7 @@ const BASE_PEDIDOS_SELECT = `
   order_number,
   cliente_id,
   solicitud_id,
+  workflow_type,
   title,
   description,
   status,
@@ -200,8 +209,20 @@ export async function listInternalPedidos(
   const selectedEstado = isInternalPedidoEstado(options.status)
     ? options.status
     : null;
+  const selectedWorkflowType = isWorkflowType(options.workflowType)
+    ? options.workflowType
+    : null;
   const ignoredInvalidEstado = Boolean(options.status && !selectedEstado);
-  const meta = { q, status: selectedEstado, ignoredInvalidEstado };
+  const ignoredInvalidWorkflowType = Boolean(
+    options.workflowType && !selectedWorkflowType,
+  );
+  const meta = {
+    q,
+    status: selectedEstado,
+    workflowType: selectedWorkflowType,
+    ignoredInvalidEstado,
+    ignoredInvalidWorkflowType,
+  };
   const profile = await getCurrentProfile();
 
   if (!profile) {
@@ -233,6 +254,10 @@ export async function listInternalPedidos(
 
       if (selectedEstado) {
         query = query.eq("status", selectedEstado);
+      }
+
+      if (selectedWorkflowType) {
+        query = query.eq("workflow_type", selectedWorkflowType);
       }
 
       return query;

@@ -20,6 +20,7 @@ type PedidoSolicitudDetail =
       | "client_name"
       | "client_phone"
       | "client_email"
+      | "workflow_type"
       | "service_type"
       | "description"
       | "status"
@@ -49,6 +50,7 @@ export type InternalPedidoDetail = Pick<
   | "order_number"
   | "cliente_id"
   | "solicitud_id"
+  | "workflow_type"
   | "title"
   | "description"
   | "status"
@@ -85,6 +87,7 @@ const PEDIDO_DETAIL_SELECT = `
   order_number,
   cliente_id,
   solicitud_id,
+  workflow_type,
   title,
   description,
   status,
@@ -100,6 +103,7 @@ const PEDIDO_DETAIL_SELECT = `
     client_name,
     client_phone,
     client_email,
+    workflow_type,
     service_type,
     description,
     status,

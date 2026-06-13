@@ -21,6 +21,11 @@ import {
   getSolicitudServiceTypeLabel,
 } from "@/lib/solicitudes";
 import { formatAppDateTime } from "@/lib/utils";
+import {
+  WORKFLOW_TYPES,
+  WORKFLOW_TYPE_LABELS,
+} from "@/lib/workflow-types";
+import { PedidoWorkflowTypeBadge } from "./PedidoWorkflowTypeBadge";
 import { PedidoStatusForm } from "./PedidoStatusForm";
 
 type InternalPedidoDetailProps = {
@@ -73,6 +78,9 @@ export function InternalPedidoDetail({
   commentsSection,
   historySection,
 }: InternalPedidoDetailProps) {
+  const isPrintWorkflow =
+    pedido.workflow_type === WORKFLOW_TYPES.IMPRESION;
+
   return (
     <article className="space-y-6">
       <header className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
@@ -81,14 +89,15 @@ export function InternalPedidoDetail({
             <p className="font-mono text-sm font-semibold text-brand-primary">
               {pedido.order_number}
             </p>
+            <PedidoWorkflowTypeBadge workflowType={pedido.workflow_type} />
             <StatusBadge status={pedido.status} />
             <PriorityBadge priority={pedido.priority} />
           </div>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight text-text-primary">
-            {pedido.title}
+            Detalle del pedido
           </h1>
-          <p className="mt-3 max-w-3xl whitespace-pre-line text-base leading-7 text-text-secondary">
-            {pedido.description}
+          <p className="mt-3 max-w-3xl text-base leading-7 text-text-secondary">
+            Consulta la información del trabajo y su seguimiento operativo.
           </p>
         </div>
         <Link
@@ -100,14 +109,22 @@ export function InternalPedidoDetail({
       </header>
 
       <section className="rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6">
-        <MetadataGrid className="lg:grid-cols-4">
+        <MetadataGrid className="lg:grid-cols-5">
           <MetadataItem
             label="Cliente"
             value={pedido.clientes?.name ?? "Sin cliente asociado"}
           />
           <MetadataItem
-            label="Progreso"
-            value={getProgressLabel(taskProgress)}
+            label="Tipo de pedido"
+            value={WORKFLOW_TYPE_LABELS[pedido.workflow_type]}
+          />
+          <MetadataItem
+            label={isPrintWorkflow ? "Operación" : "Progreso"}
+            value={
+              isPrintWorkflow
+                ? "Flujo directo de impresión"
+                : getProgressLabel(taskProgress)
+            }
           />
           <MetadataItem
             label="Entrega estimada"
@@ -131,7 +148,39 @@ export function InternalPedidoDetail({
 
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="order-2 min-w-0 space-y-6 xl:col-start-1 xl:row-start-1">
-          {tasksSection}
+          <DetailPanel
+            title={
+              isPrintWorkflow
+                ? "Datos del pedido de impresión"
+                : "Datos del encargo"
+            }
+            description={
+              isPrintWorkflow
+                ? "Especificaciones registradas para preparar este pedido de impresión."
+                : "Título y descripción operativa del trabajo solicitado."
+            }
+          >
+            <h3 className="text-xl font-semibold text-text-primary">
+              {pedido.title}
+            </h3>
+            <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-text-secondary">
+              {pedido.description}
+            </p>
+          </DetailPanel>
+
+          {isPrintWorkflow ? (
+            <section className="rounded-(--radius-card) border border-brand-accent/30 bg-brand-accent-soft p-5 sm:p-6">
+              <h2 className="text-lg font-semibold text-text-primary">
+                Flujo directo de impresión
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-text-secondary">
+                Las tareas detalladas no se muestran como bloque principal para
+                este tipo de pedido en esta etapa.
+              </p>
+            </section>
+          ) : (
+            tasksSection
+          )}
           {filesSection}
           {commentsSection}
           {historySection}
@@ -196,6 +245,14 @@ export function InternalPedidoDetail({
                         pedido.solicitudes.service_type,
                       )}
                     </Link>
+                  }
+                />
+                <MetadataItem
+                  label="Tipo de solicitud"
+                  value={
+                    WORKFLOW_TYPE_LABELS[
+                      pedido.solicitudes.workflow_type
+                    ]
                   }
                 />
                 <MetadataItem

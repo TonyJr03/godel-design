@@ -39,16 +39,17 @@ directos de impresión. Este discriminador no reemplaza `service_type`, que
 continúa siendo la referencia al servicio específico de la solicitud origen.
 
 Los pedidos existentes quedan como `encargo`. La creación manual y la conversión
-desde solicitud guardan el flujo correspondiente. No se modifican listados,
-filtros, estados, tareas ni reglas de transición. Los detalles propios de
-impresión todavía no se normalizan en tablas y se abordarán en una subfase
-posterior.
+desde solicitud guardan el flujo correspondiente. El listado y el detalle
+interno muestran esta diferencia y presentan las impresiones como un flujo
+directo. No cambian los estados, las tareas almacenadas ni las reglas de
+transición. Los detalles propios de impresión todavía no se normalizan en tablas
+y se abordarán en una subfase posterior.
 
 ## Rutas del módulo
 
 | Ruta | Uso |
 |---|---|
-| `/dashboard/pedidos` | Listado interno de pedidos con búsqueda textual y filtro por estado. |
+| `/dashboard/pedidos` | Listado interno de pedidos con búsqueda textual y filtros por estado y tipo de flujo. |
 | `/dashboard/pedidos/[id]` | Detalle interno, cambio de estado y asignación de personal para `admin` y `supervisor`. |
 | `/dashboard/pedidos/nuevo` | Creación manual de pedido. |
 
@@ -175,16 +176,28 @@ Archivos principales:
 - Servicio: `src/lib/pedidos/list-internal-pedidos.ts`
 - Componente: `src/components/pedidos/InternalPedidosList.tsx`
 
-El listado carga server-side. `admin` y `supervisor` ven todos los pedidos; `trabajador` ve solo pedidos asignados. La búsqueda usa `q` y cubre número de pedido, título, descripción, cliente asociado y referencia o tipo de servicio de la solicitud origen. El filtro por estado y la búsqueda conviven mediante parámetros GET.
+El listado carga server-side. `admin` y `supervisor` ven todos los pedidos;
+`trabajador` ve solo pedidos asignados. La búsqueda usa `q` y cubre número de
+pedido, título, descripción, cliente asociado y referencia o tipo de servicio de
+la solicitud origen. La búsqueda y los filtros por estado y `workflow_type`
+conviven mediante parámetros GET.
 
 La barra común actualiza `q` con `router.replace` tras 200 ms sin escritura,
-aplica el selector de estado inmediatamente y permite limpiar ambos controles.
+aplica los selectores de estado y tipo inmediatamente y permite limpiar todos
+los controles.
 El componente cliente solo sincroniza la URL: la consulta, los permisos y el
 filtrado continúan en el servidor. Durante la espera muestra `Buscando...`.
 
 Las relaciones de cliente y solicitud se mantienen opcionales: buscar no convierte los joins en internos ni oculta pedidos manuales sin cliente. El componente visual no consulta Supabase y RLS sigue limitando al trabajador a pedidos asignados. No es un buscador global; índices o búsqueda avanzada quedan como mejora futura si aumenta el volumen.
 
-El listado muestra progreso operativo basado en tareas: `Sin tareas`, `Progreso: N%` o `100% completado`. No muestra tareas completas ni campos técnicos en la tabla; el cálculo usa el helper compartido de progreso y una consulta server-side por lote a `pedido_tareas`.
+Cada pedido muestra un badge `Encargo` o `Impresión`, tanto en tarjetas
+responsive como en la tabla de escritorio. Un valor inválido de
+`workflow_type` en la URL se ignora de forma segura y produce una advertencia.
+
+Para encargos, el listado mantiene el progreso operativo basado en tareas:
+`Sin tareas`, porcentaje o tareas completadas. Para impresiones muestra
+`Flujo directo` en lugar de presentar la ausencia de tareas como una carencia.
+El cálculo y la carga real de tareas no cambian.
 
 ## Detalle de pedido
 
@@ -194,7 +207,25 @@ Archivos principales:
 - Servicio: `src/lib/pedidos/get-internal-pedido-by-id.ts`
 - Componente: `src/components/pedidos/InternalPedidoDetail.tsx`
 
-El detalle carga server-side, valida UUID, permiso y alcance por rol. Muestra cliente, solicitud, personal asignado, comentarios internos y archivos privados del pedido cuando existen. Un trabajador no puede ver pedidos no asignados, pero sí puede ver el cliente, la solicitud relacionada, los comentarios internos y los archivos de pedidos que tiene asignados. No implementa edición general.
+El detalle carga server-side, valida UUID, permiso y alcance por rol. Muestra el
+tipo de pedido en el encabezado y en la metadata, además de cliente, solicitud,
+personal asignado, comentarios internos y archivos privados. La descripción
+conserva su estructura y saltos de línea.
+
+En encargos se mantiene el bloque completo de tareas y su progreso. En
+impresiones se presenta una nota de flujo directo en lugar del bloque principal
+de tareas. La página sigue cargando el progreso y lo entrega al formulario de
+estado para conservar exactamente las reglas vigentes. Asignación, archivos,
+comentarios, historial y cambio de estado permanecen visibles para ambos tipos.
+
+Un trabajador no puede ver pedidos no asignados, pero sí puede ver el cliente,
+la solicitud relacionada, los comentarios internos y los archivos de pedidos
+que tiene asignados. No se implementa edición general.
+
+Alfa 1.6 no modifica `public.actualizar_estado_pedido`, las acciones de tareas
+ni la validación de transiciones. La presentación de impresión como flujo
+directo no implica todavía que pueda avanzar de estado sin cumplir las reglas
+actuales.
 
 ## Comentarios internos de pedido
 
@@ -470,6 +501,9 @@ Desde 13.6I, el dashboard y los paneles operativos también consideran tareas: p
 - Verificar que `supervisor` ve todos los pedidos.
 - Verificar que `trabajador` ve solo pedidos asignados.
 - Probar el filtro por estado.
+- Filtrar por `Encargo` y por `Impresión`.
+- Combinar búsqueda, estado y tipo de flujo.
+- Forzar un `workflow_type` inválido y confirmar que se ignora con advertencia.
 - Buscar por número `P-YY-XXXX`, título, descripción y cliente.
 - Buscar por referencia o servicio de la solicitud origen.
 - Combinar búsqueda con estado y limpiar los filtros.
@@ -511,7 +545,11 @@ Desde 13.6I, el dashboard y los paneles operativos también consideran tareas: p
 - Confirmar que listados y filtros no muestran estados eliminados.
 - Confirmar que el dashboard no muestra tarjeta de diseño.
 - Confirmar que las métricas de activos, producción, listos, atrasados y próximos a entrega funcionan.
-- Confirmar que el listado de pedidos muestra `Sin tareas`, progreso porcentual o `100% completado`.
+- Confirmar que los encargos muestran `Sin tareas`, progreso porcentual o tareas completadas.
+- Confirmar que las impresiones muestran `Flujo directo` en el listado.
+- Confirmar que el detalle muestra el badge y la metadata del tipo de pedido.
+- Confirmar que una impresión muestra la nota de flujo directo en lugar del bloque completo de tareas.
+- Confirmar que estado, asignación, archivos, comentarios e historial siguen visibles en impresiones.
 - Confirmar que los paneles operativos priorizan pedidos `creado` y `solicitud_recibida` como pendientes de revisión y muestran progreso, atrasados, próximos, sin tareas, con tareas pendientes y listos para entrega.
 - Confirmar que el historial registra cambios de estado con etiquetas vigentes.
 - Intentar pasar a `en_produccion` sin tareas y confirmar bloqueo.
