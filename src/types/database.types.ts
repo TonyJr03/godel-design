@@ -352,6 +352,7 @@ export type Database = {
           status: Database["public"]["Enums"]["pedido_estado"]
           title: string
           updated_at: string
+          workflow_type: Database["public"]["Enums"]["workflow_type"]
         }
         Insert: {
           actual_delivery_date?: string | null
@@ -367,6 +368,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["pedido_estado"]
           title: string
           updated_at?: string
+          workflow_type?: Database["public"]["Enums"]["workflow_type"]
         }
         Update: {
           actual_delivery_date?: string | null
@@ -382,6 +384,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["pedido_estado"]
           title?: string
           updated_at?: string
+          workflow_type?: Database["public"]["Enums"]["workflow_type"]
         }
         Relationships: [
           {
@@ -546,6 +549,7 @@ export type Database = {
           service_type: string
           status: Database["public"]["Enums"]["solicitud_estado"]
           updated_at: string
+          workflow_type: Database["public"]["Enums"]["workflow_type"]
         }
         Insert: {
           client_email?: string | null
@@ -562,6 +566,7 @@ export type Database = {
           service_type: string
           status?: Database["public"]["Enums"]["solicitud_estado"]
           updated_at?: string
+          workflow_type?: Database["public"]["Enums"]["workflow_type"]
         }
         Update: {
           client_email?: string | null
@@ -578,6 +583,7 @@ export type Database = {
           service_type?: string
           status?: Database["public"]["Enums"]["solicitud_estado"]
           updated_at?: string
+          workflow_type?: Database["public"]["Enums"]["workflow_type"]
         }
         Relationships: [
           {
@@ -627,6 +633,7 @@ export type Database = {
           status: Database["public"]["Enums"]["pedido_estado"]
           title: string
           updated_at: string
+          workflow_type: Database["public"]["Enums"]["workflow_type"]
         }
         SetofOptions: {
           from: "*"
@@ -655,6 +662,7 @@ export type Database = {
           service_type: string
           status: Database["public"]["Enums"]["solicitud_estado"]
           updated_at: string
+          workflow_type: Database["public"]["Enums"]["workflow_type"]
         }
         SetofOptions: {
           from: "*"
@@ -685,6 +693,7 @@ export type Database = {
           status: Database["public"]["Enums"]["pedido_estado"]
           title: string
           updated_at: string
+          workflow_type: Database["public"]["Enums"]["workflow_type"]
         }
         SetofOptions: {
           from: "*"
@@ -807,6 +816,7 @@ export type Database = {
         | "cliente_asociado"
         | "cliente_creado_desde_solicitud"
         | "convertida_a_pedido"
+      workflow_type: "encargo" | "impresion"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -985,6 +995,7 @@ export const Constants = {
         "cliente_creado_desde_solicitud",
         "convertida_a_pedido",
       ],
+      workflow_type: ["encargo", "impresion"],
     },
   },
 } as const

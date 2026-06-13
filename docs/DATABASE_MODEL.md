@@ -28,6 +28,16 @@ negocio y criterios de seguridad.
 | `supervisor` | Gestión operativa de solicitudes y pedidos. |
 | `trabajador` | Ejecución y seguimiento de pedidos asignados. |
 
+### `workflow_type`
+
+| Valor | Uso |
+|---|---|
+| `encargo` | Trabajo personalizado o complejo. |
+| `impresion` | Trabajo directo de impresión. |
+
+`workflow_type` diferencia la variante del flujo operativo. No reemplaza
+`service_type`, que sigue describiendo el servicio específico solicitado.
+
 ### `solicitud_estado`
 
 | Valor |
@@ -184,6 +194,7 @@ negocio y criterios de seguridad.
 | `client_name` | `text` | Nombre capturado desde el formulario público. |
 | `client_phone` | `text` | Teléfono capturado desde el formulario público. |
 | `client_email` | `text nullable` | Correo opcional capturado desde el formulario público. |
+| `workflow_type` | `workflow_type` | Variante del flujo operativo; por defecto `encargo`. |
 | `service_type` | `text` | Tipo de servicio solicitado. |
 | `description` | `text` | Descripción del trabajo solicitado. |
 | `desired_date` | `date nullable` | Fecha deseada por el cliente. |
@@ -210,6 +221,8 @@ negocio y criterios de seguridad.
 - `rechazada` y `convertida` son estados cerrados. `convertida` solo se asigna desde el flujo formal de conversión a pedido.
 - `quantity` fue eliminado del modelo de solicitudes. Las cantidades, medidas y requisitos se deben explicar dentro de `description` o `notes`.
 - `service_type` sigue siendo una referencia inicial del tipo de trabajo solicitado.
+- `workflow_type` diferencia el flujo operativo general del servicio específico.
+- Los registros existentes quedan como `encargo`.
 - La conversión a pedido exige `title`, `description` y `priority` definidos por el usuario interno. `priority` inicia visualmente en `normal` y se valida contra el enum real. `estimated_delivery_date` es opcional y no puede ser anterior al día actual si se informa. `service_type` no se usa como título automático.
 
 **Notas de seguridad:**
@@ -228,6 +241,7 @@ negocio y criterios de seguridad.
 | `order_number` | `text unique` | Número visible y único para operación interna, con formato `P-YY-XXXX`. |
 | `cliente_id` | `uuid nullable` | Cliente asociado; opcional en pedidos manuales y requerido en pedidos convertidos desde solicitud. |
 | `solicitud_id` | `uuid nullable` | Solicitud origen si el pedido fue convertido. |
+| `workflow_type` | `workflow_type` | Variante del flujo operativo; por defecto `encargo`. |
 | `title` | `text` | Nombre breve del pedido. |
 | `description` | `text` | Detalle del trabajo. |
 | `status` | `pedido_estado` | Estado operativo del pedido. |
@@ -249,6 +263,8 @@ negocio y criterios de seguridad.
 - `order_number` debe ser único y cumplir el formato `P-YY-XXXX`.
 - `order_number` se genera en base de datos al insertar el pedido. La secuencia reinicia cada año según `private.current_business_date()`, con zona `America/Havana`, y se controla con `pedido_contadores` para proteger la concurrencia.
 - Un pedido puede crearse manualmente o a partir de una solicitud.
+- `workflow_type` distingue encargos personalizados o complejos de trabajos directos de impresión, sin describir el servicio específico.
+- Los registros existentes quedan como `encargo`.
 - Un pedido manual puede quedar sin cliente asociado (`cliente_id = null`).
 - La conversión desde solicitud exige que la solicitud tenga `cliente_id` asociado.
 - Un pedido manual inicia en `creado`; un pedido convertido desde solicitud inicia en `solicitud_recibida`.
@@ -258,6 +274,9 @@ negocio y criterios de seguridad.
 - `public.actualizar_estado_pedido` bloquea el pedido con `FOR UPDATE` y las tareas existentes con `FOR SHARE` durante la decisión.
 - Al marcar un pedido como `entregado`, `actual_delivery_date` usa la fecha local de negocio.
 - Los cambios importantes de estado se registran en `pedido_historial`.
+- En esta subfase no se separan formularios, estados ni reglas operativas por
+  `workflow_type`. Los detalles específicos de impresión todavía no se
+  normalizan en tablas y se abordarán en una subfase posterior.
 
 **Notas de seguridad:**
 

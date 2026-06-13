@@ -28,6 +28,18 @@ Todavía no incluye:
 - Notificaciones automáticas.
 - Descarga pública de archivos.
 
+## Tipo de flujo operativo
+
+La tabla `solicitudes` incorpora `workflow_type` para diferenciar el flujo
+operativo general del servicio específico indicado en `service_type`.
+`encargo` representa trabajos personalizados o complejos, mientras que
+`impresion` representa trabajos directos de impresión.
+
+En esta subfase el formulario público no permite seleccionar esta variante:
+las solicitudes existentes y las nuevas continúan como `encargo` por defecto.
+No se separan formularios ni estados, y los detalles específicos de impresión
+todavía no se normalizan en tablas.
+
 ## Ruta pública
 
 - Ruta: `/solicitud`.

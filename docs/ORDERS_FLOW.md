@@ -31,6 +31,18 @@ Todavía no incluye:
 - reportes o estadísticas;
 - responsables funcionales avanzados por pedido.
 
+## Tipo de flujo operativo
+
+`pedidos.workflow_type` diferencia la variante operativa del pedido:
+`encargo` para trabajos personalizados o complejos e `impresion` para trabajos
+directos de impresión. Este discriminador no reemplaza `service_type`, que
+continúa siendo la referencia al servicio específico de la solicitud origen.
+
+Los pedidos existentes quedan como `encargo`. En esta subfase no se modifican
+los formularios, listados, filtros, estados, tareas ni reglas de transición.
+Los detalles propios de impresión todavía no se normalizan en tablas y se
+abordarán en una subfase posterior.
+
 ## Rutas del módulo
 
 | Ruta | Uso |
