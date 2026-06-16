@@ -346,16 +346,23 @@ El número visible del pedido se asigna en base de datos al insertar, con format
 El pedido manual tambien obtiene `public_reference` propio con formato
 `GD-XXXX-XXXX`. Ese codigo no es secuencial, no reemplaza a `order_number` y
 se muestra en el mensaje de éxito del formulario con opción de copiar. Este
-código puede compartirse con el cliente; la página pública `/estado` todavía no
-existe en esta subfase.
+código puede compartirse con el cliente y consultarse en la página pública
+`/estado` mediante el parámetro `ref`, por ejemplo
+`/estado?ref=GD-8F3A-92BC`.
 
-La capa de consulta pública por `public_reference` ya existe a nivel server-side
-mediante la RPC controlada `public.consultar_estado_publico`. Para pedidos
-devuelve solo información pública: `kind = pedido`, `public_reference`,
-`workflow_type`, `order_number`, estado público, fechas de creación/entrega y
-progreso agregado cuando aplica. No devuelve cliente, contacto, descripción
-completa, archivos, tareas, comentarios, historial, personal asignado ni UUIDs
-internos.
+La capa de consulta pública por `public_reference` existe a nivel server-side
+mediante la RPC controlada `public.consultar_estado_publico` y se usa desde
+`src/lib/public-tracking`; la UI pública no consulta Supabase desde componentes
+cliente. Para pedidos devuelve solo información pública: `kind = pedido`,
+`public_reference`, `workflow_type`, `order_number`, estado público, fechas de
+creación/entrega y progreso agregado cuando aplica. No devuelve cliente,
+contacto, descripción completa, archivos, nombres de tareas, comentarios,
+historial, personal asignado ni UUIDs internos.
+
+Cuando una solicitud fue convertida, la misma referencia pública resuelve el
+pedido generado y `/estado` muestra el resultado como `Pedido`, no como
+solicitud convertida. La sección de consulta en la Home todavía no está
+implementada.
 
 `estimated_delivery_date` es opcional. Si se informa, debe ser una fecha válida e igual o posterior al día actual. La validación server-side usa los helpers de fecha de `src/lib/validators/date.ts`, apoyados en `src/lib/utils/date.ts` para calcular el día actual local; el `min` del input de fecha solo orienta la captura en la UI.
 

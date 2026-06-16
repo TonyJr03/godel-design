@@ -31,7 +31,7 @@ Todavía no incluye:
 - Asociación inteligente con clientes.
 - Notificaciones automáticas.
 - Descarga pública de archivos.
-- Página pública de consulta de estado por referencia.
+- Sección de consulta de estado en la Home.
 
 ## Tipo de flujo operativo
 
@@ -209,11 +209,11 @@ Esta referencia:
 - se muestra en el mensaje de éxito del formulario público;
 - se puede copiar desde la interfaz mediante un botón accesible.
 
-La página pública de consulta de estado todavía no existe en esta subfase. El
-código se muestra para conservarlo y usarlo cuando la consulta pública de estado
-se implemente en subfases posteriores.
+La página pública de consulta de estado existe en `/estado`. El formulario usa
+GET con el parámetro `ref`, por ejemplo `/estado?ref=GD-8F3A-92BC`, para que el
+resultado pueda compartirse por URL sin exponer datos sensibles.
 
-La capa server-side de consulta pública ya existe mediante
+La consulta pública usa la capa server-side existente mediante
 `public.consultar_estado_publico(p_public_reference)` y
 `src/lib/public-tracking`. Esta capa normaliza y valida el formato
 `GD-XXXX-XXXX`, busca primero pedidos y luego solicitudes, y devuelve solo un
@@ -221,6 +221,12 @@ DTO público mínimo: tipo de registro, flujo, estado público, fechas no
 sensibles, número de pedido cuando aplica y progreso agregado sin nombres de
 tareas. No devuelve cliente, teléfono, correo, descripción completa, notas,
 archivos, comentarios, historial, usuarios ni UUIDs internos.
+
+Si la referencia corresponde a una solicitud ya convertida, la consulta resuelve
+y muestra el pedido resultante. La UI no presenta "solicitud convertida" como
+resultado final para el cliente.
+
+La sección de consulta en la Home todavía no está implementada.
 
 ## Seguridad y RLS
 
@@ -300,6 +306,8 @@ Si la solicitud se convierte en pedido, los archivos se heredan por metadatos: s
 11. La UI muestra éxito, el `public_reference` con opción de copiar y la
     cantidad de archivos recibidos.
 12. El equipo interno revisa la solicitud desde el dashboard.
+13. El cliente puede consultar `/estado?ref=...` para ver un estado público
+    seguro. Si la solicitud fue convertida, se muestra el pedido asociado.
 
 ## Relación con el flujo interno
 
@@ -338,8 +346,8 @@ El listado, detalle, archivos, comentarios, historial y conversión a pedido se 
 - No hay lectura ni descarga pública de archivos.
 - No hay notificaciones.
 - No hay asociación automática con clientes.
-- No hay página `/estado` ni consulta pública de estado.
-- No hay interfaz pública para usar la capa de consulta por referencia todavía.
+- No hay sección de consulta de estado en la Home.
+- No hay captcha ni rate limiting específicos para `/estado` todavía.
 
 ## Cierre
 
