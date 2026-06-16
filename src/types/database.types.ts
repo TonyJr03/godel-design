@@ -679,6 +679,22 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      consultar_estado_publico: {
+        Args: { p_public_reference: string }
+        Returns: {
+          actual_delivery_date: string
+          created_at: string
+          desired_date: string
+          estimated_delivery_date: string
+          kind: string
+          order_number: string
+          progress_label: string
+          progress_percentage: number
+          public_reference: string
+          status: string
+          workflow_type: Database["public"]["Enums"]["workflow_type"]
+        }[]
+      }
       convertir_solicitud_a_pedido: {
         Args: {
           p_description: string

@@ -130,6 +130,15 @@ Para comentarios e historial de pedidos, las tablas oficiales normalizadas son `
 
 Para solicitudes, las tablas oficiales son `solicitud_comentarios` y `solicitud_historial`. Ambas quedan reservadas a `admin` y `supervisor`; `trabajador` y usuarios anónimos no acceden. Los comentarios de solicitudes están implementados en el detalle de solicitud, son append-only inicialmente y toman el autor desde el usuario autenticado en servidor mediante `solicitud_comentarios.author_id`. El historial de solicitudes está visible en el detalle de solicitud, es append-only y registra automáticamente eventos de creación, archivos adjuntados, cambios de estado, asociación de cliente, creación de cliente desde solicitud y conversión a pedido. Ningún rol de aplicación tiene inserción directa sobre `solicitud_historial`; la escritura queda limitada a triggers y RPCs controladas.
 
+La consulta pública por código de seguimiento no abre lectura anónima directa
+sobre `solicitudes` ni `pedidos`. Se expone únicamente mediante la RPC
+controlada `public.consultar_estado_publico(text)`, con ejecución para `anon` y
+`authenticated`, y devuelve solo datos públicos mínimos asociados a
+`public_reference`: tipo de registro, flujo, estado público, fechas no
+sensibles, número interno de pedido cuando aplica y progreso agregado sin
+nombres de tareas. No expone cliente, contacto, archivos, comentarios,
+historial, usuarios internos ni UUIDs.
+
 ## Gestión de Usuarios Internos
 
 La Fase 12 mantiene la matriz actual: solo `admin` tiene `usuarios.view`, `usuarios.manage` y acceso a `/dashboard/usuarios`.

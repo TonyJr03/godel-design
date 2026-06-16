@@ -74,6 +74,21 @@ Propuesta futura:
 - Agregar rate limiting para `/solicitud`.
 - Revisar limites de cantidad/tamano segun infraestructura real.
 
+### 5.1 Proteccion de consulta publica por codigo
+
+Prioridad: Alta antes de produccion.
+
+La consulta publica por `public_reference` usa una RPC controlada y no abre
+lectura anonima directa sobre tablas, pero antes de exponer una pagina publica
+conviene agregar defensas operativas contra abuso.
+
+Propuesta futura:
+
+- Agregar rate limiting para la futura ruta `/estado`.
+- Evaluar captcha o desafio liviano si aparece enumeracion o abuso.
+- Considerar verificacion adicional por telefono u otro dato acordado si el
+  cliente exige mayor privacidad para ciertos trabajos.
+
 ## Separacion Encargo / Impresion
 
 Estado actual:

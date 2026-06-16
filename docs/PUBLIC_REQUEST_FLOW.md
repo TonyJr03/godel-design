@@ -213,6 +213,15 @@ La página pública de consulta de estado todavía no existe en esta subfase. El
 código se muestra para conservarlo y usarlo cuando la consulta pública de estado
 se implemente en subfases posteriores.
 
+La capa server-side de consulta pública ya existe mediante
+`public.consultar_estado_publico(p_public_reference)` y
+`src/lib/public-tracking`. Esta capa normaliza y valida el formato
+`GD-XXXX-XXXX`, busca primero pedidos y luego solicitudes, y devuelve solo un
+DTO público mínimo: tipo de registro, flujo, estado público, fechas no
+sensibles, número de pedido cuando aplica y progreso agregado sin nombres de
+tareas. No devuelve cliente, teléfono, correo, descripción completa, notas,
+archivos, comentarios, historial, usuarios ni UUIDs internos.
+
 ## Seguridad y RLS
 
 El flujo depende de Row Level Security en Supabase.
@@ -227,6 +236,9 @@ Estado esperado:
 - No se usa service role key.
 - RLS protege la base de datos.
 - Los errores técnicos no se exponen al cliente.
+- La consulta pública por `public_reference` usa una RPC controlada con
+  `security definer`; no abre `select` anónimo directo sobre `solicitudes` ni
+  `pedidos`.
 
 La UI pública no debe considerarse una frontera de seguridad. La validación
 server-side y RLS son la fuente de verdad.
@@ -326,8 +338,8 @@ El listado, detalle, archivos, comentarios, historial y conversión a pedido se 
 - No hay lectura ni descarga pública de archivos.
 - No hay notificaciones.
 - No hay asociación automática con clientes.
-- No hay seguimiento público por referencia.
 - No hay página `/estado` ni consulta pública de estado.
+- No hay interfaz pública para usar la capa de consulta por referencia todavía.
 
 ## Cierre
 

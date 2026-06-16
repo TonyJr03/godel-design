@@ -349,6 +349,14 @@ se muestra en el mensaje de éxito del formulario con opción de copiar. Este
 código puede compartirse con el cliente; la página pública `/estado` todavía no
 existe en esta subfase.
 
+La capa de consulta pública por `public_reference` ya existe a nivel server-side
+mediante la RPC controlada `public.consultar_estado_publico`. Para pedidos
+devuelve solo información pública: `kind = pedido`, `public_reference`,
+`workflow_type`, `order_number`, estado público, fechas de creación/entrega y
+progreso agregado cuando aplica. No devuelve cliente, contacto, descripción
+completa, archivos, tareas, comentarios, historial, personal asignado ni UUIDs
+internos.
+
 `estimated_delivery_date` es opcional. Si se informa, debe ser una fecha válida e igual o posterior al día actual. La validación server-side usa los helpers de fecha de `src/lib/validators/date.ts`, apoyados en `src/lib/utils/date.ts` para calcular el día actual local; el `min` del input de fecha solo orienta la captura en la UI.
 
 ## Conversión de solicitud a pedido
@@ -482,12 +490,15 @@ Capas de seguridad aplicadas:
 2. Validación server-side de permisos.
 3. Validación server-side de UUID e input.
 4. RPC segura para cambio de estado.
-5. RLS en Supabase.
-6. Errores controlados sin detalles técnicos.
+5. RPC controlada para consulta pública por `public_reference`.
+6. RLS en Supabase.
+7. Errores controlados sin detalles técnicos.
 
 Aclaraciones:
 
 - no se usa service role key;
+- la consulta pública por referencia no abre `select` anónimo directo sobre
+  `pedidos` ni `solicitudes`;
 - los componentes cliente no consultan Supabase directamente;
 - la página enlaza `pedido_id` a todas las actions del detalle;
 - los formularios de asignación solo envían `assigned_profile_id`;
