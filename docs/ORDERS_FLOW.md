@@ -90,6 +90,7 @@ Campos principales usados actualmente en `pedidos`:
 |---|---|
 | `id` | Identificador interno del pedido. |
 | `order_number` | Referencia visible generada por la base de datos. |
+| `public_reference` | Codigo publico de seguimiento con formato `GD-XXXX-XXXX`. |
 | `cliente_id` | Cliente asociado al pedido; puede ser `null` en pedidos manuales. |
 | `solicitud_id` | Solicitud origen; puede ser `null` en pedidos manuales. |
 | `workflow_type` | Flujo operativo: `encargo` o `impresion`. |
@@ -111,6 +112,11 @@ Reglas actuales:
 - `solicitud_id` es `null` en pedidos manuales.
 - `order_number` se genera en base de datos con formato `P-YY-XXXX`.
 - La secuencia de `order_number` reinicia cada año según la fecha de negocio de `America/Havana` y se controla con `pedido_contadores`.
+- `public_reference` no es `order_number`, no es UUID interno y no es
+  secuencial.
+- Los pedidos manuales generan un `public_reference` propio.
+- Los pedidos convertidos desde solicitud heredan el `public_reference` de la
+  solicitud origen.
 
 Las tablas oficiales normalizadas para comentarios e historial de pedidos son `pedido_comentarios` y `pedido_historial`. El enum de eventos de historial de pedidos es `pedido_historial_action`. Los comentarios de pedido están implementados en el detalle interno y son append-only. El historial de pedido está visible en el detalle interno y muestra los eventos existentes en `pedido_historial`.
 
@@ -337,6 +343,10 @@ tareas, el progreso, los estados ni sus reglas.
 
 El número visible del pedido se asigna en base de datos al insertar, con formato `P-YY-XXXX`. El contador es anual, se guarda en `public.pedido_contadores` y se incrementa dentro de la transacción para proteger la concurrencia. El año se obtiene mediante `private.current_business_date()` y no depende del día UTC de la sesión. La app no envía `order_number`.
 
+El pedido manual tambien obtiene `public_reference` propio con formato
+`GD-XXXX-XXXX`. Ese codigo no es secuencial, no reemplaza a `order_number` y
+queda disponible en el resultado de la Server Action para subfases posteriores.
+
 `estimated_delivery_date` es opcional. Si se informa, debe ser una fecha válida e igual o posterior al día actual. La validación server-side usa los helpers de fecha de `src/lib/validators/date.ts`, apoyados en `src/lib/utils/date.ts` para calcular el día actual local; el `min` del input de fecha solo orienta la captura en la UI.
 
 ## Conversión de solicitud a pedido
@@ -371,6 +381,7 @@ Cuando el pedido muestra datos de la solicitud origen, el tipo de servicio se re
 Al convertir:
 
 - se crea un pedido con `pedidos.solicitud_id`;
+- se copia `solicitudes.public_reference` a `pedidos.public_reference`;
 - se copia `solicitudes.workflow_type` a `pedidos.workflow_type`;
 - se usa el `title` definido por el usuario interno;
 - se guarda la descripción operativa enviada desde el formulario de conversión;
@@ -387,12 +398,13 @@ Todas esas escrituras se confirman o revierten juntas. La herencia de archivos
 solo completa `archivos.pedido_id`; no cambia su ruta, bucket, visibilidad ni
 autor, y no mueve objetos físicos en Storage.
 
-La conversión mantiene el estado inicial `solicitud_recibida` y usa la misma
-numeración de base de datos que la creación manual. La RPC bloquea y lee la
-solicitud como autoridad del flujo, por lo que `workflow_type` no depende de
-datos enviados por el navegador. La app no envía `order_number`. La RPC revoca
-ejecución a `public` y `anon`, concede `execute` solo a `authenticated` y valida
-internamente que el actor sea `admin` o `supervisor` activo.
+La conversión mantiene el estado inicial `solicitud_recibida`, hereda
+exactamente el `public_reference` de la solicitud y usa la misma numeración de
+base de datos que la creación manual. La RPC bloquea y lee la solicitud como
+autoridad del flujo, por lo que `workflow_type` y `public_reference` no dependen
+de datos enviados por el navegador. La app no envía `order_number`. La RPC
+revoca ejecución a `public` y `anon`, concede `execute` solo a `authenticated` y
+valida internamente que el actor sea `admin` o `supervisor` activo.
 
 Flujos relacionados:
 

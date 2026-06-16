@@ -190,6 +190,7 @@ negocio y criterios de seguridad.
 | Campo | Tipo sugerido | Notas |
 |---|---|---|
 | `id` | `uuid` | Identificador único de la solicitud. |
+| `public_reference` | `text` | Codigo publico de seguimiento con formato `GD-XXXX-XXXX`. |
 | `cliente_id` | `uuid nullable` | Cliente asociado si ya existe o se crea uno. |
 | `client_name` | `text` | Nombre capturado desde el formulario público. |
 | `client_phone` | `text` | Teléfono capturado desde el formulario público. |
@@ -214,6 +215,10 @@ negocio y criterios de seguridad.
 **Reglas importantes:**
 
 - Una solicitud no se convierte automáticamente en pedido.
+- Toda solicitud tiene `public_reference`, un codigo publico no secuencial con
+  formato `GD-XXXX-XXXX`.
+- `public_reference` no es el UUID interno, no deriva del `id` y no usa la
+  numeracion interna de pedidos.
 - Solo `admin` o `supervisor` pueden aprobar, rechazar o convertir solicitudes.
 - Al convertirse, el estado debería pasar a `convertida` y registrar el pedido generado.
 - Los cambios manuales de estado se validan mediante `public.actualizar_estado_solicitud`.
@@ -243,6 +248,7 @@ negocio y criterios de seguridad.
 |---|---|---|
 | `id` | `uuid` | Identificador único del pedido. |
 | `order_number` | `text unique` | Número visible y único para operación interna, con formato `P-YY-XXXX`. |
+| `public_reference` | `text` | Codigo publico de seguimiento con formato `GD-XXXX-XXXX`. |
 | `cliente_id` | `uuid nullable` | Cliente asociado; opcional en pedidos manuales y requerido en pedidos convertidos desde solicitud. |
 | `solicitud_id` | `uuid nullable` | Solicitud origen si el pedido fue convertido. |
 | `workflow_type` | `workflow_type` | Variante del flujo operativo; por defecto `encargo`. |
@@ -266,11 +272,19 @@ negocio y criterios de seguridad.
 
 - `order_number` debe ser único y cumplir el formato `P-YY-XXXX`.
 - `order_number` se genera en base de datos al insertar el pedido. La secuencia reinicia cada año según `private.current_business_date()`, con zona `America/Havana`, y se controla con `pedido_contadores` para proteger la concurrencia.
+- Todo pedido tiene `public_reference`, un codigo publico no secuencial con
+  formato `GD-XXXX-XXXX`.
+- `public_reference` no reemplaza `order_number`: `order_number` sigue siendo la
+  numeracion interna operativa y `public_reference` queda reservado para
+  seguimiento publico.
 - Un pedido puede crearse manualmente o a partir de una solicitud.
 - `workflow_type` distingue encargos personalizados o complejos de trabajos directos de impresión, sin describir el servicio específico.
 - Los registros existentes quedan como `encargo`.
 - Un pedido manual puede quedar sin cliente asociado (`cliente_id = null`).
 - La conversión desde solicitud exige que la solicitud tenga `cliente_id` asociado.
+- Un pedido convertido desde solicitud hereda exactamente el
+  `public_reference` de esa solicitud.
+- Un pedido manual genera su propio `public_reference`.
 - Un pedido manual inicia en `creado`; un pedido convertido desde solicitud inicia en `solicitud_recibida`.
 - `creado` puede pasar únicamente a `en_revision` o `cancelado`. No permite avanzar directamente a producción, listo para entrega o entregado.
 - La conversión desde solicitud guarda la prioridad definida por el usuario interno y una fecha estimada opcional validada server-side. Usa la numeración generada por base de datos y mantiene el estado inicial `solicitud_recibida`.
@@ -568,6 +582,7 @@ negocio y criterios de seguridad.
 - Un cliente puede tener muchas solicitudes.
 - Un cliente puede tener muchos pedidos.
 - Una solicitud puede convertirse en un pedido.
+- Una solicitud convertida y su pedido asociado comparten `public_reference`.
 - Un pedido puede tener varios usuarios internos asignados.
 - Un usuario interno puede estar asignado a varios pedidos.
 - Un pedido puede tener muchas tareas.
@@ -611,11 +626,13 @@ generan URLs firmadas de duración limitada; no hay lectura ni listado público.
 | `solicitudes` | `cliente_id` |
 | `solicitudes` | `created_at` |
 | `solicitudes` | `status, created_at` |
+| `solicitudes` | `public_reference` unico |
 | `solicitudes` | `converted_order_id` único cuando no es `null` |
 | `pedidos` | `cliente_id` |
 | `pedidos` | `created_at` |
 | `pedidos` | `status, created_at` |
 | `pedidos` | `estimated_delivery_date` para pedidos activos |
+| `pedidos` | `public_reference` unico |
 | `pedidos` | `solicitud_id` único cuando no es `null` |
 | `pedido_trabajadores` | `assigned_profile_id` |
 | `pedido_tareas` | `pedido_id, sort_order` |
@@ -639,6 +656,8 @@ El diagnóstico y diseño actualizado para comentarios internos e historial oper
 
 - `public.convertir_solicitud_a_pedido` crea el pedido, marca la solicitud como
   convertida y hereda sus archivos dentro de una sola transacción.
+- En la conversion de solicitud a pedido, el pedido hereda exactamente el
+  `public_reference` de la solicitud; no se genera un codigo nuevo.
 - `public.crear_cliente_desde_solicitud` crea el cliente, registra historial y
   lo asocia a la solicitud de forma atómica.
 - `public.actualizar_estado_pedido` serializa cambios de estado y valida tareas.

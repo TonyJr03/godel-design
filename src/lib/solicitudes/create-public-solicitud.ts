@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 import {
   serviceFailure,
   serviceSuccess,
@@ -15,7 +15,10 @@ import {
 export type CreatePublicSolicitudErrorReason = "validation" | "error";
 
 export type CreatePublicSolicitudResult = ServiceResult<
-  { solicitudId: string },
+  {
+    solicitudId: string;
+    publicReference: string;
+  },
   CreatePublicSolicitudErrorReason,
   Record<never, never>,
   PublicSolicitudFieldErrors
@@ -23,6 +26,35 @@ export type CreatePublicSolicitudResult = ServiceResult<
 
 const GENERIC_CREATE_ERROR =
   "No se pudo registrar la solicitud. Inténtalo nuevamente.";
+
+const PUBLIC_REFERENCE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+const PUBLIC_REFERENCE_INSERT_ATTEMPTS = 5;
+
+function generatePublicReference() {
+  let token = "";
+
+  for (let index = 0; index < 8; index += 1) {
+    token += PUBLIC_REFERENCE_ALPHABET.charAt(
+      randomInt(PUBLIC_REFERENCE_ALPHABET.length),
+    );
+  }
+
+  return `GD-${token.slice(0, 4)}-${token.slice(4, 8)}`;
+}
+
+function isPublicReferenceConflict(error: {
+  code?: string;
+  message?: string;
+  details?: string | null;
+}) {
+  const errorText = `${error.message ?? ""} ${error.details ?? ""}`.toLowerCase();
+
+  return (
+    error.code === "23505" &&
+    (errorText.includes("public_reference") ||
+      errorText.includes("referencia publica"))
+  );
+}
 
 export async function createPublicSolicitud(
   input: PublicSolicitudInput,
@@ -57,9 +89,28 @@ export async function createPublicSolicitud(
   };
 
   try {
-    const { error } = await supabase.from("solicitudes").insert(solicitudInsert);
+    for (
+      let attempt = 1;
+      attempt <= PUBLIC_REFERENCE_INSERT_ATTEMPTS;
+      attempt += 1
+    ) {
+      const publicReference = generatePublicReference();
+      const { error } = await supabase.from("solicitudes").insert({
+        ...solicitudInsert,
+        public_reference: publicReference,
+      });
 
-    if (error) {
+      if (!error) {
+        return serviceSuccess({ solicitudId, publicReference });
+      }
+
+      if (
+        attempt < PUBLIC_REFERENCE_INSERT_ATTEMPTS &&
+        isPublicReferenceConflict(error)
+      ) {
+        continue;
+      }
+
       console.error("Error creating public solicitud", error);
 
       return serviceFailure("error", GENERIC_CREATE_ERROR);
@@ -70,5 +121,5 @@ export async function createPublicSolicitud(
     return serviceFailure("error", GENERIC_CREATE_ERROR);
   }
 
-  return serviceSuccess({ solicitudId });
+  return serviceFailure("error", GENERIC_CREATE_ERROR);
 }

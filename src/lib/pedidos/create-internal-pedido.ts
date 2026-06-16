@@ -24,6 +24,7 @@ export type CreateInternalPedidoResult = ServiceResult<
   {
     pedidoId: string;
     numeroPedido: string;
+    publicReference: string;
   },
   CreateInternalPedidoErrorReason,
   Record<never, never>,
@@ -111,7 +112,7 @@ export async function createInternalPedido(
     const { data, error } = await supabase
       .from("pedidos")
       .insert(pedido)
-      .select("id, order_number")
+      .select("id, order_number, public_reference")
       .single();
 
     if (error || !data) {
@@ -123,6 +124,7 @@ export async function createInternalPedido(
     return serviceSuccess({
       pedidoId: data.id,
       numeroPedido: data.order_number,
+      publicReference: data.public_reference,
     });
   } catch (error) {
     console.error("Unexpected error creating internal pedido", error);

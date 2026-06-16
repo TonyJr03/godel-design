@@ -13,6 +13,7 @@ export type CreatePedidoActionState = {
   fieldErrors?: PedidoFieldErrors;
   pedidoId?: string;
   numeroPedido?: string;
+  publicReference?: string;
 };
 
 export async function createPedidoAction(
@@ -51,5 +52,6 @@ export async function createPedidoAction(
     message: "Pedido creado correctamente.",
     pedidoId: result.pedidoId,
     numeroPedido: result.numeroPedido,
+    publicReference: result.publicReference,
   };
 }

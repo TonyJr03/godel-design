@@ -20,7 +20,9 @@ El flujo actual permite:
 - Adjuntar archivos de referencia opcionales en encargos y obligatorios en
   impresiones.
 - Guardar la solicitud con estado `nueva`.
-- Mostrar un mensaje de éxito y una referencia corta.
+- Registrar `public_reference` con formato `GD-XXXX-XXXX` y devolverlo desde la
+  Server Action para la siguiente subfase.
+- Mostrar un mensaje de éxito.
 
 Todavía no incluye:
 
@@ -28,6 +30,8 @@ Todavía no incluye:
 - Asociación inteligente con clientes.
 - Notificaciones automáticas.
 - Descarga pública de archivos.
+- Página pública de consulta de estado por referencia.
+- Componente para copiar el código de seguimiento.
 
 ## Tipo de flujo operativo
 
@@ -79,6 +83,7 @@ crear una columna nueva.
 El formulario público no envía:
 
 - `id`
+- `public_reference`
 - `status`
 - `cliente_id`
 - `reviewed_by`
@@ -158,8 +163,12 @@ Responsabilidades:
 - Establecer `cliente_id = null`.
 - Establecer `reviewed_by = null`.
 - Establecer `converted_order_id = null`.
-- Generar un UUID controlado server-side para poder mostrar una referencia sin
-  hacer lectura pública.
+- Generar server-side un `public_reference` no secuencial con formato
+  `GD-XXXX-XXXX` para devolverlo sin hacer lectura publica anonima.
+- La base de datos tambien tiene default para `public_reference` y valida el
+  formato como respaldo para otros inserts.
+- No usar el UUID interno ni sus primeros caracteres como codigo publico.
+  La lectura publica de solicitudes sigue cerrada por RLS.
 - Evitar un `.select()` público innecesario después del insert.
 
 Desde Fase 11.7B, la inserción de la solicitud registra automáticamente el evento `solicitud_creada` en `solicitud_historial`. Como el flujo es público, normalmente queda con `actor_id = null` y metadata mínima no sensible.
@@ -185,19 +194,23 @@ La creación de cliente desde solicitud y la conversión posterior a pedido son
 operaciones internas transaccionales. La deduplicación inteligente sigue fuera
 del alcance actual.
 
-## Referencia de Solicitud
+## Referencia pública
 
-Después de enviar una solicitud válida, la UI muestra una referencia corta:
-
-`Referencia de solicitud: 8b7f3c10`
+Toda solicitud guarda `public_reference`, un código público no secuencial con
+formato `GD-XXXX-XXXX`.
 
 Esta referencia:
 
-- Se deriva del UUID real de la solicitud.
-- Sirve solo como ayuda de seguimiento.
-- No permite leer, modificar ni eliminar solicitudes.
-- No sustituye un código humano definitivo.
-- Podría reemplazarse en el futuro por un código como `GD-2026-000123`.
+- no es el UUID interno;
+- no se deriva del `id`;
+- no es `order_number`;
+- no usa numeración secuencial;
+- se guarda en mayúsculas;
+- queda disponible en el resultado de la Server Action para Alfa 2.2.
+
+La página pública de consulta de estado todavía no existe en esta subfase. El
+componente para copiar el código se implementará en Alfa 2.2 y la consulta
+pública de estado se abordará en subfases posteriores.
 
 ## Seguridad y RLS
 
@@ -271,7 +284,8 @@ Si la solicitud se convierte en pedido, los archivos se heredan por metadatos: s
 8. La base de datos registra `solicitud_creada` en el historial interno.
 9. Si hay archivos, la action los valida, sube al bucket privado y registra metadatos.
 10. La base de datos registra `archivos_adjuntados` por cada archivo aceptado.
-11. La UI muestra éxito, referencia corta y cantidad de archivos recibidos.
+11. La UI muestra éxito y cantidad de archivos recibidos; el nuevo
+    `public_reference` queda disponible para la interfaz de Alfa 2.2.
 12. El equipo interno revisa la solicitud desde el dashboard.
 
 ## Relación con el flujo interno
@@ -310,9 +324,10 @@ El listado, detalle, archivos, comentarios, historial y conversión a pedido se 
 - La limpieza periódica de objetos sin metadata debe prepararse antes de producción.
 - No hay lectura ni descarga pública de archivos.
 - No hay notificaciones.
-- No hay código humano de solicitud.
 - No hay asociación automática con clientes.
 - No hay seguimiento público por referencia.
+- No hay página `/estado` ni consulta pública de estado.
+- No hay componente de copia del `public_reference` todavía.
 
 ## Cierre
 

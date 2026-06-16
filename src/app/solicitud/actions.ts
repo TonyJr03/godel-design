@@ -32,6 +32,7 @@ export type SubmitPublicSolicitudActionState = {
   message: string;
   fieldErrors?: PublicSolicitudFieldErrors;
   solicitudId?: string;
+  publicReference?: string;
   uploadedFilesCount?: number;
   fileErrors?: string[];
   fileWarning?: string;
@@ -162,6 +163,7 @@ export async function submitPublicSolicitudAction(
         message:
           "Solicitud enviada correctamente, pero algunos archivos no pudieron adjuntarse.",
         solicitudId: result.solicitudId,
+        publicReference: result.publicReference,
         uploadedFilesCount: uploadResult.uploaded.length,
         fileWarning:
           "La solicitud fue registrada. Puedes mencionar los archivos pendientes cuando nos contactemos contigo.",
@@ -175,6 +177,7 @@ export async function submitPublicSolicitudAction(
       ok: true,
       message: "Solicitud enviada correctamente. Nos pondremos en contacto contigo.",
       solicitudId: result.solicitudId,
+      publicReference: result.publicReference,
       uploadedFilesCount: uploadResult.uploaded.length,
     };
   }
@@ -183,6 +186,7 @@ export async function submitPublicSolicitudAction(
     ok: true,
     message: "Solicitud enviada correctamente. Nos pondremos en contacto contigo.",
     solicitudId: result.solicitudId,
+    publicReference: result.publicReference,
     uploadedFilesCount: 0,
   };
 }
