@@ -21,8 +21,9 @@ El flujo actual permite:
   impresiones.
 - Guardar la solicitud con estado `nueva`.
 - Registrar `public_reference` con formato `GD-XXXX-XXXX` y devolverlo desde la
-  Server Action para la siguiente subfase.
-- Mostrar un mensaje de éxito.
+  Server Action.
+- Mostrar un mensaje de éxito con el código público de seguimiento.
+- Permitir copiar el código desde la interfaz.
 
 Todavía no incluye:
 
@@ -31,7 +32,6 @@ Todavía no incluye:
 - Notificaciones automáticas.
 - Descarga pública de archivos.
 - Página pública de consulta de estado por referencia.
-- Componente para copiar el código de seguimiento.
 
 ## Tipo de flujo operativo
 
@@ -206,11 +206,12 @@ Esta referencia:
 - no es `order_number`;
 - no usa numeración secuencial;
 - se guarda en mayúsculas;
-- queda disponible en el resultado de la Server Action para Alfa 2.2.
+- se muestra en el mensaje de éxito del formulario público;
+- se puede copiar desde la interfaz mediante un botón accesible.
 
 La página pública de consulta de estado todavía no existe en esta subfase. El
-componente para copiar el código se implementará en Alfa 2.2 y la consulta
-pública de estado se abordará en subfases posteriores.
+código se muestra para conservarlo y usarlo cuando la consulta pública de estado
+se implemente en subfases posteriores.
 
 ## Seguridad y RLS
 
@@ -284,8 +285,8 @@ Si la solicitud se convierte en pedido, los archivos se heredan por metadatos: s
 8. La base de datos registra `solicitud_creada` en el historial interno.
 9. Si hay archivos, la action los valida, sube al bucket privado y registra metadatos.
 10. La base de datos registra `archivos_adjuntados` por cada archivo aceptado.
-11. La UI muestra éxito y cantidad de archivos recibidos; el nuevo
-    `public_reference` queda disponible para la interfaz de Alfa 2.2.
+11. La UI muestra éxito, el `public_reference` con opción de copiar y la
+    cantidad de archivos recibidos.
 12. El equipo interno revisa la solicitud desde el dashboard.
 
 ## Relación con el flujo interno
@@ -327,7 +328,6 @@ El listado, detalle, archivos, comentarios, historial y conversión a pedido se 
 - No hay asociación automática con clientes.
 - No hay seguimiento público por referencia.
 - No hay página `/estado` ni consulta pública de estado.
-- No hay componente de copia del `public_reference` todavía.
 
 ## Cierre
 

@@ -345,7 +345,9 @@ El número visible del pedido se asigna en base de datos al insertar, con format
 
 El pedido manual tambien obtiene `public_reference` propio con formato
 `GD-XXXX-XXXX`. Ese codigo no es secuencial, no reemplaza a `order_number` y
-queda disponible en el resultado de la Server Action para subfases posteriores.
+se muestra en el mensaje de éxito del formulario con opción de copiar. Este
+código puede compartirse con el cliente; la página pública `/estado` todavía no
+existe en esta subfase.
 
 `estimated_delivery_date` es opcional. Si se informa, debe ser una fecha válida e igual o posterior al día actual. La validación server-side usa los helpers de fecha de `src/lib/validators/date.ts`, apoyados en `src/lib/utils/date.ts` para calcular el día actual local; el `min` del input de fecha solo orienta la captura en la UI.
 

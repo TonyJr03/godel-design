@@ -24,6 +24,7 @@ import {
   WORKFLOW_TYPES,
   type WorkflowType,
 } from "@/lib/workflow-types";
+import { CopyableCode } from "@/components/common/CopyableCode";
 import {
   Alert,
   Button,
@@ -128,7 +129,6 @@ export function PublicSolicitudForm() {
   const printSidesError = getFieldError(state, "print_sides");
   const filesError = getFieldError(state, "files");
   const isPrintWorkflow = workflowType === WORKFLOW_TYPES.IMPRESION;
-  const solicitudReference = state.solicitudId?.slice(0, 8);
   const todayInputDate = getTodayDateInputValue();
   const formKey = state.ok
     ? `success-${state.solicitudId ?? "ok"}`
@@ -150,17 +150,16 @@ export function PublicSolicitudForm() {
           className="px-5 py-4"
         >
           <p className="leading-6">{state.message}</p>
-          {state.ok && solicitudReference ? (
-            <div className="mt-3 rounded-(--radius-control) border border-success/20 bg-surface/70 px-3 py-3">
-              <p className="text-sm text-text-secondary">
-                Guarda esta referencia por si necesitas identificar la
-                solicitud:
-              </p>
-              <p className="mt-1 font-mono text-base font-semibold text-text-primary">
-                {solicitudReference}
-              </p>
+          {state.ok && state.publicReference ? (
+            <div className="mt-3 space-y-3">
+              <CopyableCode
+                code={state.publicReference}
+                label="Código de seguimiento"
+                helperText="Guarda este código. Lo usarás para consultar el estado de tu solicitud o pedido cuando la consulta esté disponible en el sistema."
+                className="border-success/20 bg-surface"
+              />
               {typeof state.uploadedFilesCount === "number" ? (
-                <p className="mt-2 text-sm text-text-secondary">
+                <p className="text-sm text-text-secondary">
                   Archivos recibidos:{" "}
                   <span className="font-semibold text-text-primary">
                     {state.uploadedFilesCount}

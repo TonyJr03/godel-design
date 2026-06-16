@@ -36,6 +36,7 @@ import {
   WORKFLOW_TYPES,
   type WorkflowType,
 } from "@/lib/workflow-types";
+import { CopyableCode } from "@/components/common/CopyableCode";
 
 export type PedidoFormCliente = {
   id: string;
@@ -149,6 +150,14 @@ export function PedidoForm({ clientes, prioridades }: PedidoFormProps) {
           aria-live="polite"
         >
           <p>{state.message}</p>
+          {state.ok && state.publicReference ? (
+            <CopyableCode
+              code={state.publicReference}
+              label="Código de seguimiento para el cliente"
+              helperText="Comparte este código con el cliente para que pueda consultar el estado del trabajo cuando la consulta esté disponible."
+              className="mt-3 border-success/20 bg-surface"
+            />
+          ) : null}
           {state.ok && state.pedidoId ? (
             <Link
               href={`/dashboard/pedidos/${state.pedidoId}`}
