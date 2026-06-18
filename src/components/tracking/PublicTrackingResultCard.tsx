@@ -106,12 +106,6 @@ export function PublicTrackingResultCard({
             </span>
           }
         />
-        {isPedido && trackingStatus.orderNumber ? (
-          <MetadataItem
-            label="Número de pedido"
-            value={trackingStatus.orderNumber}
-          />
-        ) : null}
         <MetadataItem label="Tipo" value={isPedido ? "Pedido" : "Solicitud"} />
         <MetadataItem label="Flujo" value={trackingStatus.workflowLabel} />
         <MetadataItem

@@ -219,9 +219,13 @@ La consulta pública usa la capa server-side existente mediante
 `src/lib/public-tracking`. Esta capa normaliza y valida el formato
 `GD-XXXX-XXXX`, busca primero pedidos y luego solicitudes, y devuelve solo un
 DTO público mínimo: tipo de registro, flujo, estado público, fechas no
-sensibles, número de pedido cuando aplica y progreso agregado sin nombres de
-tareas. No devuelve cliente, teléfono, correo, descripción completa, notas,
-archivos, comentarios, historial, usuarios ni UUIDs internos.
+sensibles y progreso agregado sin nombres de tareas. No devuelve número de
+pedido, cliente, teléfono, correo, descripción completa, notas, archivos,
+comentarios, historial, usuarios ni UUIDs internos.
+
+`order_number` se considera un número operativo interno. El cliente externo
+consulta siempre por `public_reference` y `/estado` no muestra el número interno
+del pedido.
 
 Si la referencia corresponde a una solicitud ya convertida, la consulta resuelve
 y muestra el pedido resultante. La UI no presenta "solicitud convertida" como

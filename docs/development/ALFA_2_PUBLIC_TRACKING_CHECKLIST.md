@@ -17,13 +17,14 @@
 - `order_number` sigue siendo referencia operativa interna del pedido.
 - El UUID interno y sus referencias cortas no deben usarse como codigo publico.
 - La consulta publica no usa `order_number` como entrada de seguimiento.
+- `/estado` no muestra `order_number`.
 
 ## Seguridad
 
 - La lectura anonima directa de `solicitudes` y `pedidos` sigue cerrada.
 - La consulta publica se limita a `public.consultar_estado_publico(text)`.
 - El DTO publico no expone cliente, contacto, descripcion completa, archivos,
-  comentarios, historial, usuarios internos ni UUIDs.
+  comentarios, historial, usuarios internos, UUIDs ni `order_number`.
 - Los detalles internos siguen protegidos por autenticacion, permisos y RLS.
 - No se cambio la matriz de permisos, RLS, Storage ni las reglas de estados.
 
@@ -32,6 +33,8 @@
 - Ejecutar `rg "slice\(0, 8\)"` y confirmar que solo queda para referencias
   internas.
 - Ejecutar `rg "order_number"` y confirmar que no se usa como codigo publico.
+- Confirmar que el DTO camelCase de seguimiento publico no expone el numero
+  operativo interno.
 - Ejecutar `rg "public_reference"` y revisar que la capa de seguimiento usa ese
   campo.
 - Ejecutar `rg "publicReference"` y revisar conversiones de DTO o UI.

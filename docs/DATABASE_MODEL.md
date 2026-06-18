@@ -250,7 +250,7 @@ negocio y criterios de seguridad.
 | Campo | Tipo sugerido | Notas |
 |---|---|---|
 | `id` | `uuid` | Identificador único del pedido. |
-| `order_number` | `text unique` | Número visible y único para operación interna, con formato `P-YY-XXXX`. |
+| `order_number` | `text unique` | Número operativo interno y único, con formato `P-YY-XXXX`. |
 | `public_reference` | `text` | Codigo publico de seguimiento con formato `GD-XXXX-XXXX`. |
 | `cliente_id` | `uuid nullable` | Cliente asociado; opcional en pedidos manuales y requerido en pedidos convertidos desde solicitud. |
 | `solicitud_id` | `uuid nullable` | Solicitud origen si el pedido fue convertido. |
@@ -321,7 +321,7 @@ negocio y criterios de seguridad.
 
 **Reglas importantes:**
 
-- La numeración visible de pedidos usa el formato `P-YY-XXXX`.
+- La numeración operativa interna de pedidos usa el formato `P-YY-XXXX`.
 - La secuencia reinicia por año.
 - La función privada `private.current_business_date()` devuelve la fecha de negocio para `America/Havana`.
 - La función privada `private.generar_numero_pedido()` obtiene de esa fecha el año e incrementa el contador dentro de la transacción.

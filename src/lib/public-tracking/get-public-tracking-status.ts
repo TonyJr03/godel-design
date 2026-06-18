@@ -29,7 +29,6 @@ export type PublicTrackingStatusResult = {
   desiredDate: string | null;
   estimatedDeliveryDate: string | null;
   actualDeliveryDate: string | null;
-  orderNumber: string | null;
   progress: PublicTrackingProgress | null;
 };
 
@@ -49,7 +48,6 @@ type PublicTrackingRpcRow = {
   desired_date: string | null;
   estimated_delivery_date: string | null;
   kind: string;
-  order_number: string | null;
   progress_label: string | null;
   progress_percentage: number | null;
   public_reference: string;
@@ -101,7 +99,6 @@ function mapPublicTrackingRow(
     desiredDate: row.desired_date,
     estimatedDeliveryDate: row.estimated_delivery_date,
     actualDeliveryDate: row.actual_delivery_date,
-    orderNumber: row.order_number,
     progress: row.progress_label
       ? {
           percentage: row.progress_percentage,

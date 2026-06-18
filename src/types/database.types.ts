@@ -687,7 +687,6 @@ export type Database = {
           desired_date: string
           estimated_delivery_date: string
           kind: string
-          order_number: string
           progress_label: string
           progress_percentage: number
           public_reference: string

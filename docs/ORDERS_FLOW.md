@@ -90,7 +90,7 @@ Campos principales usados actualmente en `pedidos`:
 | Campo | Uso |
 |---|---|
 | `id` | Identificador interno del pedido. |
-| `order_number` | Referencia visible generada por la base de datos. |
+| `order_number` | Número operativo interno generado por la base de datos. |
 | `public_reference` | Codigo publico de seguimiento con formato `GD-XXXX-XXXX`. |
 | `cliente_id` | Cliente asociado al pedido; puede ser `null` en pedidos manuales. |
 | `solicitud_id` | Solicitud origen; puede ser `null` en pedidos manuales. |
@@ -115,6 +115,8 @@ Reglas actuales:
 - La secuencia de `order_number` reinicia cada año según la fecha de negocio de `America/Havana` y se controla con `pedido_contadores`.
 - `public_reference` no es `order_number`, no es UUID interno y no es
   secuencial.
+- `order_number` no se devuelve en la consulta pública `/estado`; el cliente
+  usa únicamente `public_reference`.
 - Los pedidos manuales generan un `public_reference` propio.
 - Los pedidos convertidos desde solicitud heredan el `public_reference` de la
   solicitud origen.
@@ -344,7 +346,7 @@ La creación manual de impresión todavía no permite adjuntar archivos. Tampoco
 modifica el listado o detalle de pedidos, la conversión desde solicitudes, las
 tareas, el progreso, los estados ni sus reglas.
 
-El número visible del pedido se asigna en base de datos al insertar, con formato `P-YY-XXXX`. El contador es anual, se guarda en `public.pedido_contadores` y se incrementa dentro de la transacción para proteger la concurrencia. El año se obtiene mediante `private.current_business_date()` y no depende del día UTC de la sesión. La app no envía `order_number`.
+El número operativo interno del pedido se asigna en base de datos al insertar, con formato `P-YY-XXXX`. El contador es anual, se guarda en `public.pedido_contadores` y se incrementa dentro de la transacción para proteger la concurrencia. El año se obtiene mediante `private.current_business_date()` y no depende del día UTC de la sesión. La app no envía `order_number`.
 
 El pedido manual tambien obtiene `public_reference` propio con formato
 `GD-XXXX-XXXX`. Ese codigo no es secuencial, no reemplaza a `order_number` y
@@ -357,8 +359,8 @@ La capa de consulta pública por `public_reference` existe a nivel server-side
 mediante la RPC controlada `public.consultar_estado_publico` y se usa desde
 `src/lib/public-tracking`; la UI pública no consulta Supabase desde componentes
 cliente. Para pedidos devuelve solo información pública: `kind = pedido`,
-`public_reference`, `workflow_type`, `order_number`, estado público, fechas de
-creación/entrega y progreso agregado cuando aplica. No devuelve cliente,
+`public_reference`, `workflow_type`, estado público, fechas de creación/entrega
+y progreso agregado cuando aplica. No devuelve `order_number`, cliente,
 contacto, descripción completa, archivos, nombres de tareas, comentarios,
 historial, personal asignado ni UUIDs internos.
 

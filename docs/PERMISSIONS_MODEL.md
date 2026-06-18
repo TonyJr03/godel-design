@@ -135,9 +135,8 @@ sobre `solicitudes` ni `pedidos`. Se expone únicamente mediante la RPC
 controlada `public.consultar_estado_publico(text)`, con ejecución para `anon` y
 `authenticated`, y devuelve solo datos públicos mínimos asociados a
 `public_reference`: tipo de registro, flujo, estado público, fechas no
-sensibles, número interno de pedido cuando aplica y progreso agregado sin
-nombres de tareas. No expone cliente, contacto, archivos, comentarios,
-historial, usuarios internos ni UUIDs.
+sensibles y progreso agregado sin nombres de tareas. No expone `order_number`,
+cliente, contacto, archivos, comentarios, historial, usuarios internos ni UUIDs.
 
 Los usuarios internos autorizados pueden ver y copiar `public_reference` desde
 el detalle de solicitud o pedido para compartirlo con el cliente. Eso no cambia
