@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { PublicHeader } from "@/components/layout/PublicHeader";
+import { PublicTrackingSearchForm } from "@/components/tracking/PublicTrackingSearchForm";
 
 export default function Home() {
   return (
@@ -80,6 +81,35 @@ export default function Home() {
                 ))}
               </ol>
             </section>
+          </div>
+        </section>
+
+        <section className="border-y border-border bg-surface-raised">
+          <div className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-10 sm:px-6 sm:py-12 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] lg:items-center">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-brand-accent">
+                Seguimiento
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-text-primary">
+                Consulta el estado de tu trabajo
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-text-secondary">
+                Introduce el código de seguimiento que recibiste al enviar tu
+                solicitud o al registrar tu pedido.
+              </p>
+            </div>
+            <div className="rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6">
+              <PublicTrackingSearchForm
+                layout="inline"
+                helperText="Formato esperado: GD-XXXX-XXXX."
+              />
+              <Link
+                href="/estado"
+                className="mt-4 inline-flex min-h-10 items-center rounded-(--radius-control) text-sm font-semibold text-brand-primary underline-offset-4 transition-colors hover:text-brand-primary-hover hover:underline"
+              >
+                Ir a la página de consulta
+              </Link>
+            </div>
           </div>
         </section>
 

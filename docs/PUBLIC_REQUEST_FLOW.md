@@ -24,6 +24,8 @@ El flujo actual permite:
   Server Action.
 - Mostrar un mensaje de éxito con el código público de seguimiento.
 - Permitir copiar el código desde la interfaz.
+- Mostrar una entrada rápida de consulta de estado en la Home que redirige a
+  `/estado?ref=...`.
 
 Todavía no incluye:
 
@@ -31,7 +33,6 @@ Todavía no incluye:
 - Asociación inteligente con clientes.
 - Notificaciones automáticas.
 - Descarga pública de archivos.
-- Sección de consulta de estado en la Home.
 
 ## Tipo de flujo operativo
 
@@ -226,7 +227,10 @@ Si la referencia corresponde a una solicitud ya convertida, la consulta resuelve
 y muestra el pedido resultante. La UI no presenta "solicitud convertida" como
 resultado final para el cliente.
 
-La sección de consulta en la Home todavía no está implementada.
+La Home incluye una entrada rápida para consultar estado. Ese formulario solo
+envía al cliente a `/estado?ref=...`; no consulta Supabase, no llama la RPC y no
+muestra resultados ni datos sensibles en la página inicial. La consulta real se
+resuelve siempre en `/estado`.
 
 ## Seguridad y RLS
 
@@ -308,6 +312,8 @@ Si la solicitud se convierte en pedido, los archivos se heredan por metadatos: s
 12. El equipo interno revisa la solicitud desde el dashboard.
 13. El cliente puede consultar `/estado?ref=...` para ver un estado público
     seguro. Si la solicitud fue convertida, se muestra el pedido asociado.
+14. Desde la Home, el cliente puede escribir el código en una entrada rápida
+    que redirige a `/estado?ref=...` sin consultar datos desde la Home.
 
 ## Relación con el flujo interno
 
@@ -346,7 +352,6 @@ El listado, detalle, archivos, comentarios, historial y conversión a pedido se 
 - No hay lectura ni descarga pública de archivos.
 - No hay notificaciones.
 - No hay asociación automática con clientes.
-- No hay sección de consulta de estado en la Home.
 - No hay captcha ni rate limiting específicos para `/estado` todavía.
 
 ## Cierre
