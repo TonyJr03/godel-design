@@ -48,6 +48,7 @@ export type InternalPedidoDetail = Pick<
   Tables<"pedidos">,
   | "id"
   | "order_number"
+  | "public_reference"
   | "cliente_id"
   | "solicitud_id"
   | "workflow_type"
@@ -85,6 +86,7 @@ const GENERIC_DETAIL_ERROR =
 const PEDIDO_DETAIL_SELECT = `
   id,
   order_number,
+  public_reference,
   cliente_id,
   solicitud_id,
   workflow_type,

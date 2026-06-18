@@ -139,6 +139,11 @@ sensibles, número interno de pedido cuando aplica y progreso agregado sin
 nombres de tareas. No expone cliente, contacto, archivos, comentarios,
 historial, usuarios internos ni UUIDs.
 
+Los usuarios internos autorizados pueden ver y copiar `public_reference` desde
+el detalle de solicitud o pedido para compartirlo con el cliente. Eso no cambia
+la matriz de permisos ni abre lecturas anónimas directas: el acceso público se
+mantiene limitado a la RPC de consulta por código.
+
 ## Gestión de Usuarios Internos
 
 La Fase 12 mantiene la matriz actual: solo `admin` tiene `usuarios.view`, `usuarios.manage` y acceso a `/dashboard/usuarios`.

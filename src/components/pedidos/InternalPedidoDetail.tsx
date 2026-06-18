@@ -5,6 +5,7 @@ import type {
   PedidoDetailAction,
   UpdatePedidoStatusActionState,
 } from "@/app/dashboard/pedidos/[id]/actions";
+import { CopyableCode } from "@/components/common/CopyableCode";
 import {
   DetailPanel,
   MetadataGrid,
@@ -107,6 +108,12 @@ export function InternalPedidoDetail({
           Volver a pedidos
         </Link>
       </header>
+
+      <CopyableCode
+        code={pedido.public_reference}
+        helperText="Comparte este código con el cliente para consultar el estado público. El número de pedido se mantiene como referencia operativa interna."
+        className="border-brand-primary/20 bg-brand-primary-soft"
+      />
 
       <section className="rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6">
         <MetadataGrid className="lg:grid-cols-5">

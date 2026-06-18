@@ -84,10 +84,15 @@ conviene agregar defensas operativas contra abuso.
 
 Propuesta futura:
 
-- Agregar rate limiting para la futura ruta `/estado`.
+- Agregar rate limiting para la ruta `/estado`.
 - Evaluar captcha o desafio liviano si aparece enumeracion o abuso.
 - Considerar verificacion adicional por telefono u otro dato acordado si el
   cliente exige mayor privacidad para ciertos trabajos.
+- Registrar auditoria o metricas agregadas de consultas fallidas por codigo,
+  cuidando no guardar datos personales innecesarios.
+- Hacer una inspeccion visual completa en escritorio y movil antes de
+  produccion para validar la posicion del bloque copiable en solicitudes,
+  pedidos, Home y `/estado`.
 
 ## Separacion Encargo / Impresion
 

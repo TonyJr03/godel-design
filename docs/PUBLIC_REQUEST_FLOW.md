@@ -317,7 +317,7 @@ Si la solicitud se convierte en pedido, los archivos se heredan por metadatos: s
 
 ## Relación con el flujo interno
 
-El listado, detalle, archivos, comentarios, historial y conversión a pedido se gestionan desde el dashboard interno. Los valores visibles de `service_type` deben mostrarse mediante los labels centralizados de `src/lib/solicitudes/labels.ts`, sin cambiar el valor técnico guardado en la solicitud.
+El listado, detalle, archivos, comentarios, historial y conversión a pedido se gestionan desde el dashboard interno. El detalle interno de solicitud muestra el mismo `public_reference` como código copiable para que el equipo pueda compartirlo con el cliente sin usar el UUID ni una referencia corta derivada. Los valores visibles de `service_type` deben mostrarse mediante los labels centralizados de `src/lib/solicitudes/labels.ts`, sin cambiar el valor técnico guardado en la solicitud.
 
 ## Pruebas Manuales Recomendadas
 

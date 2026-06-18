@@ -118,6 +118,7 @@ El detalle:
 - usa `notFound()` para id inválido o solicitud inexistente;
 - muestra datos completos de la solicitud;
 - muestra un badge y metadata con `Encargo` o `Impresión`;
+- muestra `public_reference` en un bloque copiable de seguimiento público;
 - ajusta el título descriptivo del trabajo según `workflow_type`;
 - conserva la descripción estructurada de impresión con saltos de línea, sin
   parsearla todavía en campos separados;
@@ -301,6 +302,12 @@ Las policies existentes permiten:
 - lectura e inserción de `solicitud_historial` solo a `admin` y `supervisor`;
 - sin policies de actualización ni eliminación para comentarios o historial de solicitudes.
 
+El código de seguimiento mostrado al equipo interno es siempre
+`solicitudes.public_reference`. Las referencias cortas derivadas del UUID pueden
+usarse como identificadores internos, pero no deben compartirse como código
+público. Si la solicitud ya fue convertida, ese mismo código resuelve el pedido
+asociado en `/estado`.
+
 ## Fuera del alcance actual
 
 - eliminación de archivos adjuntos;
@@ -308,7 +315,8 @@ Las policies existentes permiten:
 - notificaciones;
 - generación de presupuestos;
 - deduplicación avanzada de clientes;
-- seguimiento público por referencia.
+- validaciones avanzadas adicionales para consulta pública, como captcha,
+  rate limiting o verificación complementaria por teléfono.
 
 ## Consideraciones futuras
 

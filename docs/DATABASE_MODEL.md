@@ -219,6 +219,9 @@ negocio y criterios de seguridad.
   formato `GD-XXXX-XXXX`.
 - `public_reference` no es el UUID interno, no deriva del `id` y no usa la
   numeracion interna de pedidos.
+- El detalle interno puede mostrar `public_reference` como codigo copiable para
+  compartir con el cliente; las referencias cortas derivadas del UUID quedan
+  solo como identificadores internos.
 - Solo `admin` o `supervisor` pueden aprobar, rechazar o convertir solicitudes.
 - Al convertirse, el estado debería pasar a `convertida` y registrar el pedido generado.
 - Los cambios manuales de estado se validan mediante `public.actualizar_estado_solicitud`.
@@ -277,6 +280,9 @@ negocio y criterios de seguridad.
 - `public_reference` no reemplaza `order_number`: `order_number` sigue siendo la
   numeracion interna operativa y `public_reference` queda reservado para
   seguimiento publico.
+- El detalle interno del pedido muestra ambos conceptos separados:
+  `order_number` como referencia operativa y `public_reference` como codigo
+  copiable para el cliente.
 - Un pedido puede crearse manualmente o a partir de una solicitud.
 - `workflow_type` distingue encargos personalizados o complejos de trabajos directos de impresión, sin describir el servicio específico.
 - Los registros existentes quedan como `encargo`.

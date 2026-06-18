@@ -5,6 +5,7 @@ import type {
   SolicitudDetailAction,
   UpdateSolicitudStatusActionState,
 } from "@/app/dashboard/solicitudes/[id]/actions";
+import { CopyableCode } from "@/components/common/CopyableCode";
 import {
   DetailPanel,
   MetadataGrid,
@@ -65,7 +66,7 @@ export function InternalSolicitudDetail({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-3">
             <p className="font-mono text-sm font-semibold text-brand-primary">
-              Solicitud {formatShortReference(solicitud.id)}
+              Referencia interna {formatShortReference(solicitud.id)}
             </p>
             <WorkflowTypeBadge workflowType={solicitud.workflow_type} />
             <StatusBadge status={solicitud.status} />
@@ -84,6 +85,12 @@ export function InternalSolicitudDetail({
           Volver a solicitudes
         </Link>
       </header>
+
+      <CopyableCode
+        code={solicitud.public_reference}
+        helperText="Comparte este código con el cliente para consultar el estado público. Si la solicitud ya fue convertida, el mismo código mostrará el pedido asociado."
+        className="border-brand-primary/20 bg-brand-primary-soft"
+      />
 
       <section className="rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6">
         <MetadataGrid className="lg:grid-cols-5">

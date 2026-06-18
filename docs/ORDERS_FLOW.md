@@ -20,6 +20,7 @@ El módulo de pedidos incluye actualmente:
 - comentarios internos de pedido;
 - historial automático visible;
 - búsqueda textual y filtro de estado;
+- código público de seguimiento visible y copiable en el detalle interno;
 - visibilidad limitada para trabajadores asignados.
 
 Todavía no incluye:
@@ -226,8 +227,10 @@ Archivos principales:
 
 El detalle carga server-side, valida UUID, permiso y alcance por rol. Muestra el
 tipo de pedido en el encabezado y en la metadata, además de cliente, solicitud,
-personal asignado, comentarios internos y archivos privados. La descripción
-conserva su estructura y saltos de línea.
+personal asignado, comentarios internos y archivos privados. También muestra
+`pedidos.public_reference` en un bloque copiable para compartir con el cliente.
+`order_number` se conserva como número operativo interno y no se usa como código
+público de seguimiento. La descripción conserva su estructura y saltos de línea.
 
 En encargos se mantiene el bloque completo de tareas y su progreso. En
 impresiones se presenta una nota de flujo directo en lugar del bloque principal
@@ -361,8 +364,8 @@ historial, personal asignado ni UUIDs internos.
 
 Cuando una solicitud fue convertida, la misma referencia pública resuelve el
 pedido generado y `/estado` muestra el resultado como `Pedido`, no como
-solicitud convertida. La sección de consulta en la Home todavía no está
-implementada.
+solicitud convertida. La Home incluye una entrada rápida que redirige a
+`/estado?ref=...` sin consultar datos sensibles desde la página inicial.
 
 `estimated_delivery_date` es opcional. Si se informa, debe ser una fecha válida e igual o posterior al día actual. La validación server-side usa los helpers de fecha de `src/lib/validators/date.ts`, apoyados en `src/lib/utils/date.ts` para calcular el día actual local; el `min` del input de fecha solo orienta la captura en la UI.
 
