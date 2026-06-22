@@ -615,6 +615,95 @@ export type Database = {
           },
         ]
       }
+      trabajo_plantilla_tareas: {
+        Row: {
+          created_at: string
+          id: string
+          sort_order: number
+          target_quantity: number | null
+          task_type: Database["public"]["Enums"]["pedido_tarea_tipo"]
+          template_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          sort_order?: number
+          target_quantity?: number | null
+          task_type: Database["public"]["Enums"]["pedido_tarea_tipo"]
+          template_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          sort_order?: number
+          target_quantity?: number | null
+          task_type?: Database["public"]["Enums"]["pedido_tarea_tipo"]
+          template_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trabajo_plantilla_tareas_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "trabajo_plantillas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trabajo_plantillas: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trabajo_plantillas_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trabajo_plantillas_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

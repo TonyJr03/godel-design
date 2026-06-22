@@ -143,6 +143,15 @@ el detalle de solicitud o pedido para compartirlo con el cliente. Eso no cambia
 la matriz de permisos ni abre lecturas anónimas directas: el acceso público se
 mantiene limitado a la RPC de consulta por código.
 
+Para plantillas de tareas de encargos, `trabajo_plantillas` y
+`trabajo_plantilla_tareas` tienen RLS activo. Usuarios internos autenticados y
+activos pueden leer plantillas activas y sus tareas para poder seleccionarlas en
+una fase posterior. `admin` puede leer tambien plantillas inactivas y gestionar
+la definicion completa, equivalente al permiso `configuracion.manage`.
+`supervisor` y `trabajador` no pueden crear, editar, activar/desactivar ni
+eliminar plantillas. `anon` no tiene permisos ni policies de lectura o escritura
+sobre estas tablas.
+
 ## Gestión de Usuarios Internos
 
 La Fase 12 mantiene la matriz actual: solo `admin` tiene `usuarios.view`, `usuarios.manage` y acceso a `/dashboard/usuarios`.

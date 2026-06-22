@@ -410,6 +410,75 @@ negocio y criterios de seguridad.
 - El acceso se basa en `private.can_access_pedido(pedido_id)`.
 - Usuarios anónimos no acceden.
 
+### `trabajo_plantillas`
+
+**Proposito:** Guarda la cabecera de plantillas de tareas para encargos, tambien llamadas trabajos predeterminados. Una plantilla no es un pedido real, no tiene estado operativo y no representa trabajo en curso.
+
+| Campo | Tipo sugerido | Notas |
+|---|---|---|
+| `id` | `uuid` | Identificador unico de la plantilla. |
+| `name` | `text` | Nombre visible de la plantilla. |
+| `description` | `text nullable` | Descripcion interna opcional. |
+| `is_active` | `boolean` | Permite ocultar plantillas sin eliminar su definicion historica. |
+| `created_by` | `uuid nullable` | Perfil interno que creo la plantilla. |
+| `updated_by` | `uuid nullable` | Perfil interno que actualizo la plantilla. |
+| `created_at` | `timestamptz` | Fecha de creacion. |
+| `updated_at` | `timestamptz` | Fecha de ultima actualizacion. |
+
+**Claves foraneas:**
+
+- `trabajo_plantillas.created_by` -> `perfiles.id`.
+- `trabajo_plantillas.updated_by` -> `perfiles.id`.
+
+**Reglas importantes:**
+
+- El nombre no puede quedar vacio tras `trim` y debe medir entre 2 y 120 caracteres.
+- La descripcion es opcional y tiene limite de 2000 caracteres.
+- Las plantillas se usan como base para crear tareas nuevas en pedidos de tipo `encargo`.
+- Aplicar una plantilla copiara sus tareas a `pedido_tareas` en una subfase posterior.
+- Editar, desactivar o eliminar una plantilla no modifica pedidos existentes ni tareas ya copiadas.
+
+**Notas de seguridad:**
+
+- RLS esta activo.
+- Usuarios internos autenticados y activos pueden leer plantillas activas.
+- `admin` puede leer plantillas activas e inactivas y gestionarlas.
+- Usuarios anonimos no acceden.
+
+### `trabajo_plantilla_tareas`
+
+**Proposito:** Guarda las tareas ordenadas de una plantilla. Estas filas describen tareas a copiar en el futuro, pero no guardan progreso real.
+
+| Campo | Tipo sugerido | Notas |
+|---|---|---|
+| `id` | `uuid` | Identificador unico de la tarea de plantilla. |
+| `template_id` | `uuid` | Plantilla a la que pertenece. |
+| `title` | `text` | Texto de la tarea predeterminada. |
+| `task_type` | `pedido_tarea_tipo` | Reutiliza el mismo enum que `pedido_tareas.task_type`. |
+| `target_quantity` | `integer nullable` | Cantidad objetivo para tareas cuantificadas. |
+| `sort_order` | `integer` | Orden dentro de la plantilla. |
+| `created_at` | `timestamptz` | Fecha de creacion. |
+| `updated_at` | `timestamptz` | Fecha de ultima actualizacion. |
+
+**Claves foraneas:**
+
+- `trabajo_plantilla_tareas.template_id` -> `trabajo_plantillas.id` con `on delete cascade`.
+
+**Reglas importantes:**
+
+- `title` no puede estar vacio y tiene limite de 200 caracteres.
+- `sort_order` no puede ser negativo.
+- Las tareas `simple` deben tener `target_quantity = null`.
+- Las tareas `cuantificada` requieren `target_quantity > 0`.
+- No existen `is_completed`, `completed_quantity`, `completed_at` ni `completed_by`, porque una plantilla no tiene avance.
+
+**Notas de seguridad:**
+
+- RLS esta activo.
+- La lectura sigue la visibilidad de la plantilla padre: plantillas activas para usuarios internos activos y todas para `admin`.
+- Crear, actualizar o eliminar tareas de plantilla queda reservado a `admin`, equivalente SQL del permiso `configuracion.manage`.
+- Usuarios anonimos no acceden.
+
 ### `archivos`
 
 **Propósito:** Registra metadatos de archivos asociados a solicitudes o pedidos.
@@ -592,6 +661,7 @@ negocio y criterios de seguridad.
 - Un pedido puede tener varios usuarios internos asignados.
 - Un usuario interno puede estar asignado a varios pedidos.
 - Un pedido puede tener muchas tareas.
+- Una plantilla de trabajo puede tener muchas tareas predeterminadas.
 - Un pedido puede tener muchos archivos.
 - Una solicitud puede tener muchos archivos.
 - Un pedido puede tener muchos comentarios.
@@ -644,6 +714,11 @@ generan URLs firmadas de duración limitada; no hay lectura ni listado público.
 | `pedido_tareas` | `pedido_id, sort_order` |
 | `pedido_tareas` | `pedido_id, created_at` |
 | `pedido_tareas` | `pedido_id, is_completed` |
+| `trabajo_plantillas` | `is_active` |
+| `trabajo_plantillas` | `name` |
+| `trabajo_plantillas` | `created_at` |
+| `trabajo_plantilla_tareas` | `template_id` |
+| `trabajo_plantilla_tareas` | `template_id, sort_order` |
 | `archivos` | `pedido_id, visibility, created_at` |
 | `archivos` | `solicitud_id, visibility, created_at` |
 | `pedido_comentarios` | `pedido_id, created_at` |

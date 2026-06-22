@@ -188,6 +188,14 @@ impide consultar tareas existentes.
 
 La UI no permite seleccionar `task_type`, `target_quantity`, autorías, fechas técnicas ni `sort_order`. La página enlaza `pedido_id` a las Server Actions; los formularios solo envían `task_id`, `title` o `completed_quantity` según la operación, y las actions delegan la validación en servicios server-side.
 
+## Plantillas de tareas para encargos
+
+El modelo de datos incluye `trabajo_plantillas` y `trabajo_plantilla_tareas` como base para trabajos predeterminados de encargos. Estas plantillas no son pedidos reales, no tienen estado operativo y sus tareas no tienen progreso.
+
+La aplicacion de plantillas se implementara en una subfase posterior. La regla prevista es copiar las tareas de `trabajo_plantilla_tareas` a `pedido_tareas`; desde ese momento seran tareas normales del pedido, independientes de la plantilla original.
+
+Editar, desactivar o eliminar una plantilla no debe modificar pedidos ya creados ni tareas ya copiadas. Esta subfase no agrega UI, acciones, RPCs de aplicacion ni cambios al flujo actual de creacion o completado de tareas.
+
 ## Listado interno
 
 Archivos principales:
