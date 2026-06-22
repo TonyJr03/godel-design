@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 
 import {
@@ -144,6 +145,12 @@ export function TaskTemplatesList({ templates }: TaskTemplatesListProps) {
             </div>
 
             <div className="w-full shrink-0 lg:w-44">
+              <Link
+                href={`/dashboard/configuracion/plantillas/${template.id}`}
+                className="mb-3 inline-flex min-h-10 w-full items-center justify-center rounded-(--radius-control) bg-brand-primary px-3 text-sm font-semibold text-white transition-colors duration-200 hover:bg-brand-primary-hover"
+              >
+                Gestionar tareas
+              </Link>
               <ToggleTaskTemplateActiveForm template={template} />
             </div>
           </div>

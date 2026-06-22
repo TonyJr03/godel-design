@@ -194,11 +194,13 @@ El modelo de datos incluye `trabajo_plantillas` y `trabajo_plantilla_tareas` com
 
 `/dashboard/configuracion` ya permite a `admin` gestionar la cabecera de estas plantillas: nombre, descripcion y estado activa/inactiva. El listado muestra tambien la cantidad de tareas asociadas para preparar la siguiente etapa.
 
-En esta etapa no se gestionan las tareas internas de la plantilla. Esa edicion se implementara en Alfa 3.3.
+Desde Alfa 3.3, cada plantilla tiene un detalle en `/dashboard/configuracion/plantillas/[templateId]` para definir sus tareas internas. Las tareas se listan por `sort_order`, pueden ser `simple` o `cuantificada` y usan el mismo parseo de titulo que las tareas de pedido: un entero positivo independiente convierte la tarea en cuantificada y guarda `target_quantity`.
+
+El admin puede agregar, editar, eliminar y mover tareas arriba o abajo. No hay drag and drop ni campos de progreso. Eliminar una tarea de plantilla no toca pedidos ni `pedido_tareas`; el orden restante se normaliza para mantener una secuencia simple.
 
 La aplicacion de plantillas se implementara en una subfase posterior. La regla prevista es copiar las tareas de `trabajo_plantilla_tareas` a `pedido_tareas`; desde ese momento seran tareas normales del pedido, independientes de la plantilla original.
 
-Editar o desactivar una plantilla no debe modificar pedidos ya creados ni tareas ya copiadas. Esta subfase no agrega rutas de detalle, tareas internas, aplicacion a pedidos, RPCs de aplicacion ni cambios al flujo actual de creacion o completado de tareas.
+Editar o desactivar una plantilla, o editar sus tareas internas, no debe modificar pedidos ya creados ni tareas ya copiadas. Esta subfase no agrega aplicacion a pedidos, selector en pedidos, RPCs de aplicacion ni cambios al flujo actual de creacion o completado de tareas.
 
 ## Listado interno
 

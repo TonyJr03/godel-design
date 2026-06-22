@@ -470,6 +470,11 @@ negocio y criterios de seguridad.
 - `sort_order` no puede ser negativo.
 - Las tareas `simple` deben tener `target_quantity = null`.
 - Las tareas `cuantificada` requieren `target_quantity > 0`.
+- El orden visual se obtiene por `sort_order`, `created_at` e `id`; la gestion
+  actual permite mover tareas arriba o abajo y normaliza el orden tras eliminar.
+- La creacion y edicion desde Configuracion reutilizan el parseo de titulos de
+  `pedido_tareas`: un entero positivo independiente crea una tarea
+  `cuantificada`; sin cantidad crea una tarea `simple`.
 - No existen `is_completed`, `completed_quantity`, `completed_at` ni `completed_by`, porque una plantilla no tiene avance.
 
 **Notas de seguridad:**

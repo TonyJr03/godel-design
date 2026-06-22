@@ -148,10 +148,14 @@ Para plantillas de tareas de encargos, `trabajo_plantillas` y
 activos pueden leer plantillas activas y sus tareas para poder seleccionarlas en
 una fase posterior. La pantalla `/dashboard/configuracion` usa
 `configuracion.view` para cargar la seccion y `configuracion.manage` para crear,
-editar nombre/descripcion y activar o desactivar plantillas. En la matriz
-vigente esos permisos pertenecen solo a `admin`. `supervisor` y `trabajador` no
-pueden gestionar plantillas. `anon` no tiene permisos ni policies de lectura o
-escritura sobre estas tablas.
+editar nombre/descripcion, activar o desactivar plantillas y gestionar sus
+tareas internas. La subruta
+`/dashboard/configuracion/plantillas/[templateId]` mantiene el mismo alcance:
+listar, crear, editar, eliminar y reordenar tareas de plantilla requiere
+configuracion/admin. En la matriz vigente esos permisos pertenecen solo a
+`admin`. `supervisor` y `trabajador` no pueden gestionar plantillas ni sus
+tareas internas. `anon` no tiene permisos ni policies de lectura o escritura
+sobre estas tablas.
 
 ## Gestión de Usuarios Internos
 
