@@ -192,9 +192,13 @@ La UI no permite seleccionar `task_type`, `target_quantity`, autorías, fechas t
 
 El modelo de datos incluye `trabajo_plantillas` y `trabajo_plantilla_tareas` como base para trabajos predeterminados de encargos. Estas plantillas no son pedidos reales, no tienen estado operativo y sus tareas no tienen progreso.
 
+`/dashboard/configuracion` ya permite a `admin` gestionar la cabecera de estas plantillas: nombre, descripcion y estado activa/inactiva. El listado muestra tambien la cantidad de tareas asociadas para preparar la siguiente etapa.
+
+En esta etapa no se gestionan las tareas internas de la plantilla. Esa edicion se implementara en Alfa 3.3.
+
 La aplicacion de plantillas se implementara en una subfase posterior. La regla prevista es copiar las tareas de `trabajo_plantilla_tareas` a `pedido_tareas`; desde ese momento seran tareas normales del pedido, independientes de la plantilla original.
 
-Editar, desactivar o eliminar una plantilla no debe modificar pedidos ya creados ni tareas ya copiadas. Esta subfase no agrega UI, acciones, RPCs de aplicacion ni cambios al flujo actual de creacion o completado de tareas.
+Editar o desactivar una plantilla no debe modificar pedidos ya creados ni tareas ya copiadas. Esta subfase no agrega rutas de detalle, tareas internas, aplicacion a pedidos, RPCs de aplicacion ni cambios al flujo actual de creacion o completado de tareas.
 
 ## Listado interno
 

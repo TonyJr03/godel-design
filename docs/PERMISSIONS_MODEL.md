@@ -146,11 +146,12 @@ mantiene limitado a la RPC de consulta por código.
 Para plantillas de tareas de encargos, `trabajo_plantillas` y
 `trabajo_plantilla_tareas` tienen RLS activo. Usuarios internos autenticados y
 activos pueden leer plantillas activas y sus tareas para poder seleccionarlas en
-una fase posterior. `admin` puede leer tambien plantillas inactivas y gestionar
-la definicion completa, equivalente al permiso `configuracion.manage`.
-`supervisor` y `trabajador` no pueden crear, editar, activar/desactivar ni
-eliminar plantillas. `anon` no tiene permisos ni policies de lectura o escritura
-sobre estas tablas.
+una fase posterior. La pantalla `/dashboard/configuracion` usa
+`configuracion.view` para cargar la seccion y `configuracion.manage` para crear,
+editar nombre/descripcion y activar o desactivar plantillas. En la matriz
+vigente esos permisos pertenecen solo a `admin`. `supervisor` y `trabajador` no
+pueden gestionar plantillas. `anon` no tiene permisos ni policies de lectura o
+escritura sobre estas tablas.
 
 ## Gestión de Usuarios Internos
 
