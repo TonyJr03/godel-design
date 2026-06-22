@@ -192,15 +192,19 @@ La UI no permite seleccionar `task_type`, `target_quantity`, autorías, fechas t
 
 El modelo de datos incluye `trabajo_plantillas` y `trabajo_plantilla_tareas` como base para trabajos predeterminados de encargos. Estas plantillas no son pedidos reales, no tienen estado operativo y sus tareas no tienen progreso.
 
-`/dashboard/configuracion` ya permite a `admin` gestionar la cabecera de estas plantillas: nombre, descripcion y estado activa/inactiva. El listado muestra tambien la cantidad de tareas asociadas para preparar la siguiente etapa.
+`/dashboard/configuracion` permite a `admin` gestionar la cabecera de estas plantillas: nombre, descripción y estado activa/inactiva. El listado muestra también la cantidad de tareas asociadas.
 
 Desde Alfa 3.3, cada plantilla tiene un detalle en `/dashboard/configuracion/plantillas/[templateId]` para definir sus tareas internas. Las tareas se listan por `sort_order`, pueden ser `simple` o `cuantificada` y usan el mismo parseo de titulo que las tareas de pedido: un entero positivo independiente convierte la tarea en cuantificada y guarda `target_quantity`.
 
 El admin puede agregar, editar, eliminar y mover tareas arriba o abajo. No hay drag and drop ni campos de progreso. Eliminar una tarea de plantilla no toca pedidos ni `pedido_tareas`; el orden restante se normaliza para mantener una secuencia simple.
 
-La aplicacion de plantillas se implementara en una subfase posterior. La regla prevista es copiar las tareas de `trabajo_plantilla_tareas` a `pedido_tareas`; desde ese momento seran tareas normales del pedido, independientes de la plantilla original.
+Desde Alfa 3.4, el detalle de un pedido de tipo `encargo` muestra un selector para aplicar plantillas activas con tareas cuando el usuario puede gestionar tareas y el estado del pedido permite mutarlas. La accion server-side llama a la RPC transaccional `public.aplicar_plantilla_tareas_pedido(p_pedido_id uuid, p_template_id uuid)`.
 
-Editar o desactivar una plantilla, o editar sus tareas internas, no debe modificar pedidos ya creados ni tareas ya copiadas. Esta subfase no agrega aplicacion a pedidos, selector en pedidos, RPCs de aplicacion ni cambios al flujo actual de creacion o completado de tareas.
+La RPC copia las tareas de `trabajo_plantilla_tareas` al final de `pedido_tareas`, preserva el orden relativo de la plantilla y calcula `sort_order` despues del maximo actual del pedido. No reemplaza ni borra tareas existentes. Las tareas copiadas quedan como tareas normales del pedido: se pueden editar, completar, reabrir, actualizar progreso o eliminar, y cuentan para el progreso y las reglas de avance de encargos.
+
+La copia no crea una relacion viva con la plantilla. Editar, reordenar, desactivar o eliminar tareas internas de una plantilla no modifica tareas ya copiadas a pedidos. Aplicar la misma plantilla mas de una vez puede duplicar tareas en esta version; la UI lo advierte antes de aplicar.
+
+La aplicacion de plantillas no esta disponible para pedidos `impresion`. La UI no muestra el selector en impresiones y la RPC tambien bloquea cualquier intento backend cuando `pedidos.workflow_type <> 'encargo'`.
 
 ## Listado interno
 

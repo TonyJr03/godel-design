@@ -137,3 +137,28 @@ actualmente encargos e impresiones, aunque la ausencia de tareas solo bloquea a
 los encargos. Debe filtrarse por `workflow_type = encargo` o reformularse antes
 de usarla como indicador estricto. La segmentacion y las metricas propias de
 impresion quedan pendientes hasta que exista una necesidad concreta.
+
+## Plantillas de tareas
+
+Estado actual:
+
+- Las plantillas activas con tareas se pueden aplicar a pedidos de tipo
+  `encargo`.
+- La aplicacion copia tareas al final de `pedido_tareas` y no mantiene
+  sincronizacion viva con la plantilla.
+- Aplicar la misma plantilla mas de una vez puede duplicar tareas.
+
+### 10. Duplicados y seleccion avanzada de plantillas
+
+Prioridad: Baja mientras el volumen de plantillas sea controlado.
+
+Alfa 3.4 permite duplicados al aplicar plantillas para no bloquear casos donde
+repetir un bloque de trabajo sea intencional. La UI advierte este comportamiento,
+pero no hace prevencion inteligente.
+
+Propuesta futura:
+
+- Evaluar prevencion opcional de duplicados al aplicar plantillas de tareas.
+- Considerar una confirmacion adicional cuando el pedido ya tiene tareas.
+- Evaluar filtros por tipo de trabajo, categoria de plantilla o contexto del
+  pedido si crece el catalogo.

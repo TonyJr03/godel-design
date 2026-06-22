@@ -16,6 +16,10 @@ import {
   type PedidoStatusFieldErrors,
 } from "@/lib/pedidos";
 import {
+  applyTaskTemplateToPedido,
+  type ApplyTaskTemplateFieldErrors,
+} from "@/lib/task-templates";
+import {
   uploadPedidoFile,
   type UploadPedidoFileResult,
 } from "@/lib/storage";
@@ -94,6 +98,12 @@ export type DeletePedidoTaskActionState = {
   ok: boolean;
   message: string;
   fieldErrors?: PedidoTaskFieldErrors;
+};
+
+export type ApplyTaskTemplateActionState = {
+  ok: boolean;
+  message: string;
+  fieldErrors?: ApplyTaskTemplateFieldErrors;
 };
 
 function getUploadPedidoFileMessage(
@@ -300,6 +310,36 @@ export async function createPedidoTaskAction(
     values: {
       title: "",
     },
+  };
+}
+
+export async function applyTaskTemplateAction(
+  pedidoId: string,
+  _prevState: ApplyTaskTemplateActionState,
+  formData: FormData,
+): Promise<ApplyTaskTemplateActionState> {
+  const templateId = getFormValue(formData, "template_id");
+  const result = await applyTaskTemplateToPedido({
+    pedidoId,
+    templateId,
+  });
+
+  if (!result.ok) {
+    return {
+      ok: false,
+      message: result.message,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePedidoDetail(pedidoId);
+
+  return {
+    ok: true,
+    message:
+      result.insertedCount === 1
+        ? "Se agregó 1 tarea desde la plantilla."
+        : `Se agregaron ${result.insertedCount} tareas desde la plantilla.`,
   };
 }
 

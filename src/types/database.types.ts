@@ -709,6 +709,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      aplicar_plantilla_tareas_pedido: {
+        Args: {
+          p_pedido_id: string
+          p_template_id: string
+        }
+        Returns: number
+      }
       actualizar_estado_pedido: {
         Args: {
           p_nuevo_estado: Database["public"]["Enums"]["pedido_estado"]
@@ -1112,4 +1119,3 @@ export const Constants = {
     },
   },
 } as const
-

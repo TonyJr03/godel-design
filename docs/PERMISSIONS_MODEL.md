@@ -146,7 +146,7 @@ mantiene limitado a la RPC de consulta por código.
 Para plantillas de tareas de encargos, `trabajo_plantillas` y
 `trabajo_plantilla_tareas` tienen RLS activo. Usuarios internos autenticados y
 activos pueden leer plantillas activas y sus tareas para poder seleccionarlas en
-una fase posterior. La pantalla `/dashboard/configuracion` usa
+pedidos de tipo `encargo`. La pantalla `/dashboard/configuracion` usa
 `configuracion.view` para cargar la seccion y `configuracion.manage` para crear,
 editar nombre/descripcion, activar o desactivar plantillas y gestionar sus
 tareas internas. La subruta
@@ -156,6 +156,14 @@ configuracion/admin. En la matriz vigente esos permisos pertenecen solo a
 `admin`. `supervisor` y `trabajador` no pueden gestionar plantillas ni sus
 tareas internas. `anon` no tiene permisos ni policies de lectura o escritura
 sobre estas tablas.
+
+Aplicar una plantilla a un pedido no requiere permisos de configuracion, sino el
+mismo permiso efectivo que gestionar tareas del pedido. La RPC
+`public.aplicar_plantilla_tareas_pedido` valida `auth.uid()`, usuario interno
+activo, `private.can_manage_pedido_tasks(pedido_id)`, `workflow_type = encargo`,
+estado editable, plantilla activa y existencia de tareas antes de insertar en
+`pedido_tareas`. No basta con tener acceso visual al pedido si el usuario no
+puede modificar sus tareas. `anon` no tiene `execute` sobre esta RPC.
 
 ## Gestión de Usuarios Internos
 

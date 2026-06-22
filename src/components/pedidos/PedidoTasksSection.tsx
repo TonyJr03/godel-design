@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useRef } from "react";
 import type {
+  ApplyTaskTemplateActionState,
   CreatePedidoTaskActionState,
   PedidoDetailAction,
 } from "@/app/dashboard/pedidos/[id]/actions";
@@ -12,6 +13,8 @@ import {
 } from "@/lib/pedidos/status";
 import type { PedidoTask } from "@/lib/pedidos/list-pedido-tasks";
 import type { PedidoTasksProgress } from "@/lib/pedidos/task-progress";
+import type { ActiveTaskTemplateForOrder } from "@/lib/task-templates";
+import { ApplyTaskTemplateForm } from "./ApplyTaskTemplateForm";
 import { PedidoProgressBar } from "./PedidoProgressBar";
 import {
   PedidoTaskItem,
@@ -19,12 +22,15 @@ import {
 } from "./PedidoTaskItem";
 
 type PedidoTasksSectionProps = {
+  applyTaskTemplateAction?: PedidoDetailAction<ApplyTaskTemplateActionState>;
   createTaskAction: PedidoDetailAction<CreatePedidoTaskActionState>;
   taskActions: PedidoTaskItemActions;
   pedidoStatus: PedidoStatus;
   tasks: PedidoTask[];
   progress: PedidoTasksProgress;
   loadError?: string;
+  taskTemplates?: ActiveTaskTemplateForOrder[];
+  taskTemplatesLoadError?: string;
 };
 
 const createInitialState: CreatePedidoTaskActionState = {
@@ -36,12 +42,15 @@ const createInitialState: CreatePedidoTaskActionState = {
 };
 
 export function PedidoTasksSection({
+  applyTaskTemplateAction,
   createTaskAction,
   taskActions,
   pedidoStatus,
   tasks,
   progress,
   loadError,
+  taskTemplates = [],
+  taskTemplatesLoadError,
 }: PedidoTasksSectionProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction, pending] = useActionState(
@@ -88,12 +97,16 @@ export function PedidoTasksSection({
       ) : null}
 
       {canManageTasks ? (
-        <form
-          ref={formRef}
-          action={formAction}
-          aria-busy={pending}
-          className="mt-6 border-t border-border pt-5"
-        >
+        <div className="mt-6 space-y-5 border-t border-border pt-5">
+          {applyTaskTemplateAction ? (
+            <ApplyTaskTemplateForm
+              action={applyTaskTemplateAction}
+              templates={taskTemplates}
+              loadError={taskTemplatesLoadError}
+            />
+          ) : null}
+
+          <form ref={formRef} action={formAction} aria-busy={pending}>
           {state.message ? (
             <div
               className={
@@ -148,7 +161,8 @@ export function PedidoTasksSection({
               {pending ? "Creando..." : "Crear tarea"}
             </button>
           </div>
-        </form>
+          </form>
+        </div>
       ) : (
         <p className="mt-6 rounded-(--radius-control) border border-warning/30 bg-warning-soft px-4 py-3 text-sm leading-6 text-text-primary">
           {blockedReason}
