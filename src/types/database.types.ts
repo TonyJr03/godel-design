@@ -211,6 +211,67 @@ export type Database = {
           },
         ]
       }
+      pedido_pagos: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          paid_at: string | null
+          paid_cash_amount: number
+          paid_transfer_amount: number
+          payment_status: Database["public"]["Enums"]["pedido_pago_estado"]
+          pedido_id: string
+          total_amount: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          paid_at?: string | null
+          paid_cash_amount?: number
+          paid_transfer_amount?: number
+          payment_status?: Database["public"]["Enums"]["pedido_pago_estado"]
+          pedido_id: string
+          total_amount?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          paid_at?: string | null
+          paid_cash_amount?: number
+          paid_transfer_amount?: number
+          payment_status?: Database["public"]["Enums"]["pedido_pago_estado"]
+          pedido_id?: string
+          total_amount?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pedido_pagos_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedido_pagos_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: true
+            referencedRelation: "pedidos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedido_pagos_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pedido_tareas: {
         Row: {
           completed_at: string | null
@@ -709,13 +770,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      aplicar_plantilla_tareas_pedido: {
-        Args: {
-          p_pedido_id: string
-          p_template_id: string
-        }
-        Returns: number
-      }
       actualizar_estado_pedido: {
         Args: {
           p_nuevo_estado: Database["public"]["Enums"]["pedido_estado"]
@@ -774,6 +828,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      aplicar_plantilla_tareas_pedido: {
+        Args: { p_pedido_id: string; p_template_id: string }
+        Returns: number
       }
       consultar_estado_publico: {
         Args: { p_public_reference: string }
@@ -920,6 +978,7 @@ export type Database = {
         | "tarea_completada"
         | "tarea_reabierta"
         | "tarea_progreso_actualizado"
+      pedido_pago_estado: "sin_pago" | "parcial" | "pagado"
       pedido_prioridad: "baja" | "normal" | "alta" | "urgente"
       pedido_tarea_tipo: "simple" | "cuantificada"
       solicitud_estado:
@@ -1097,6 +1156,7 @@ export const Constants = {
         "tarea_reabierta",
         "tarea_progreso_actualizado",
       ],
+      pedido_pago_estado: ["sin_pago", "parcial", "pagado"],
       pedido_prioridad: ["baja", "normal", "alta", "urgente"],
       pedido_tarea_tipo: ["simple", "cuantificada"],
       solicitud_estado: [
@@ -1119,3 +1179,4 @@ export const Constants = {
     },
   },
 } as const
+

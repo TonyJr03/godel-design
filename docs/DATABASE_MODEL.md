@@ -61,6 +61,18 @@ negocio y criterios de seguridad.
 | `entregado` |
 | `cancelado` |
 
+### `pedido_pago_estado`
+
+| Valor | Uso |
+|---|---|
+| `sin_pago` | Precio mayor que cero sin monto pagado. |
+| `parcial` | Precio mayor que cero con pago menor al total. |
+| `pagado` | No queda monto pendiente; incluye pedidos con `total_amount = 0`. |
+
+El estado se calcula en base de datos a partir de `total_amount`,
+`paid_cash_amount` y `paid_transfer_amount`; la aplicacion no lo decide
+manualmente.
+
 ### `pedido_prioridad`
 
 | Valor |
@@ -308,6 +320,54 @@ negocio y criterios de seguridad.
 - `admin` puede acceder a todos los pedidos.
 - `supervisor` puede gestionar pedidos.
 - `trabajador` solo debe leer pedidos donde esté asignado.
+
+### `pedido_pagos`
+
+**Proposito:** Guarda el resumen financiero 1:1 de un pedido. `pedidos`
+mantiene el dominio operativo y `pedido_pagos` mantiene el dominio financiero.
+No es una tabla de movimientos, abonos individuales ni comprobantes.
+
+| Campo | Tipo sugerido | Notas |
+|---|---|---|
+| `pedido_id` | `uuid` | Clave primaria y FK al pedido. |
+| `total_amount` | `numeric(12,2)` | Precio total del pedido. Puede ser `0`. |
+| `paid_cash_amount` | `numeric(12,2)` | Monto pagado en efectivo. |
+| `paid_transfer_amount` | `numeric(12,2)` | Monto pagado por transferencia. |
+| `payment_status` | `pedido_pago_estado` | Estado calculado por trigger. |
+| `paid_at` | `timestamptz nullable` | Fecha en que el resumen queda pagado. |
+| `created_by` | `uuid nullable` | Perfil interno que creo el resumen si aplica. |
+| `updated_by` | `uuid nullable` | Perfil interno que actualizo el resumen si aplica. |
+| `created_at` | `timestamptz` | Fecha de creacion. |
+| `updated_at` | `timestamptz` | Fecha de ultima actualizacion. |
+
+**Claves foraneas:**
+
+- `pedido_pagos.pedido_id` -> `pedidos.id` con `on delete cascade`.
+- `pedido_pagos.created_by` -> `perfiles.id`.
+- `pedido_pagos.updated_by` -> `perfiles.id`.
+
+**Reglas importantes:**
+
+- Cada pedido debe tener un unico resumen financiero.
+- `total_amount >= 0`.
+- `paid_cash_amount >= 0`.
+- `paid_transfer_amount >= 0`.
+- `paid_cash_amount + paid_transfer_amount <= total_amount`.
+- Si `total_amount = 0`, el pedido se considera `pagado` y `paid_at` se setea.
+- Si el total es mayor que cero y no hay monto pagado, el estado es `sin_pago`.
+- Si el monto pagado es mayor que cero y menor que el total, el estado es `parcial`.
+- Si el monto pagado coincide con el total, el estado es `pagado`.
+- El trigger `private.set_pedido_payment_status()` recalcula siempre
+  `payment_status` y mantiene `paid_at` coherente.
+- Los pedidos existentes se rellenan con total cero y estado `pagado`.
+
+**Notas de seguridad:**
+
+- RLS esta activo.
+- Usuarios anonimos no acceden.
+- Usuarios internos activos pueden leer el resumen si ya pueden acceder al pedido.
+- Las modificaciones directas quedan restringidas a `admin` y `supervisor`.
+- No se usa `service_role` ni se consulta `auth.users` para este modelo.
 
 ### `pedido_contadores`
 
@@ -669,6 +729,7 @@ negocio y criterios de seguridad.
 - Una solicitud convertida y su pedido asociado comparten `public_reference`.
 - Un pedido puede tener varios usuarios internos asignados.
 - Un usuario interno puede estar asignado a varios pedidos.
+- Un pedido tiene un resumen financiero unico en `pedido_pagos`.
 - Un pedido puede tener muchas tareas.
 - Una plantilla de trabajo puede tener muchas tareas predeterminadas.
 - Un pedido puede tener muchos archivos.
@@ -684,6 +745,8 @@ negocio y criterios de seguridad.
 - Solo `admin` o `supervisor` podrán convertir solicitudes en pedidos.
 - Trabajadores solo podrán ver pedidos asignados.
 - Trabajadores asignados pueden gestionar tareas de sus pedidos asignados.
+- Todo pedido debe tener un resumen financiero 1:1 en `pedido_pagos`.
+- El precio total puede ser cero y en ese caso el resumen queda `pagado`.
 - Los archivos serán privados por defecto.
 - El historial no será editable manualmente.
 - Los clientes no tendrán cuenta de usuario en la primera versión.
@@ -719,6 +782,8 @@ generan URLs firmadas de duración limitada; no hay lectura ni listado público.
 | `pedidos` | `estimated_delivery_date` para pedidos activos |
 | `pedidos` | `public_reference` unico |
 | `pedidos` | `solicitud_id` único cuando no es `null` |
+| `pedido_pagos` | `pedido_id` clave primaria |
+| `pedido_pagos` | `payment_status` |
 | `pedido_trabajadores` | `assigned_profile_id` |
 | `pedido_tareas` | `pedido_id, sort_order` |
 | `pedido_tareas` | `pedido_id, created_at` |

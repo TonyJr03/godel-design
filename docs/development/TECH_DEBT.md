@@ -167,3 +167,29 @@ Propuesta futura:
 - Evaluar reordenamiento avanzado o drag and drop en Configuracion si la edicion
   por botones deja de ser suficiente.
 - Hacer pruebas visuales mas amplias con datos reales antes de produccion.
+
+## Pagos y modelo financiero
+
+Estado actual:
+
+- `pedido_pagos` guarda un resumen financiero 1:1 por pedido.
+- El estado de pago se calcula en base de datos desde total, efectivo y
+  transferencia.
+- Los pedidos historicos quedan backfilled como `pagado` con total cero.
+- No existe todavia UI de precios, registro de pagos ni bloqueo de entrega.
+
+### 11. Movimientos, comprobantes y cierre operativo
+
+Prioridad: Media cuando el flujo financiero empiece a usarse en operacion real.
+
+El resumen actual cubre el estado financiero minimo, pero no reemplaza una
+contabilidad detallada ni una caja diaria.
+
+Propuesta futura:
+
+- Agregar tabla de movimientos de pago o abonos si se requiere trazabilidad por
+  transaccion.
+- Modelar comprobantes de transferencia y adjuntos asociados.
+- Definir impresion o generacion de recibos.
+- Evaluar cierre de caja por dia, usuario o turno.
+- Endurecer auditoria historica para ediciones de precio y pagos.

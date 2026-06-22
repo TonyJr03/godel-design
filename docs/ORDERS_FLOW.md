@@ -21,6 +21,7 @@ El módulo de pedidos incluye actualmente:
 - historial automático visible;
 - búsqueda textual y filtro de estado;
 - código público de seguimiento visible y copiable en el detalle interno;
+- resumen financiero base 1:1 en `pedido_pagos`;
 - visibilidad limitada para trabajadores asignados.
 
 Todavía no incluye:
@@ -28,6 +29,9 @@ Todavía no incluye:
 - edición general de pedido;
 - eliminación de pedido;
 - filtros o reportes avanzados sobre historial;
+- formularios o UI para definir precios y registrar pagos;
+- tabla de movimientos o abonos individuales;
+- bloqueo de entrega por pago incompleto;
 - notificaciones;
 - reportes o estadísticas;
 - responsables funcionales avanzados por pedido.
@@ -122,6 +126,28 @@ Reglas actuales:
   solicitud origen.
 
 Las tablas oficiales normalizadas para comentarios e historial de pedidos son `pedido_comentarios` y `pedido_historial`. El enum de eventos de historial de pedidos es `pedido_historial_action`. Los comentarios de pedido están implementados en el detalle interno y son append-only. El historial de pedido está visible en el detalle interno y muestra los eventos existentes en `pedido_historial`.
+
+## Modelo financiero base
+
+Todo pedido tiene un resumen financiero unico en `pedido_pagos`. Esta tabla
+separa el dominio financiero del dominio operativo: `pedidos` conserva estado,
+flujo, cliente, descripcion, fechas y asignaciones; `pedido_pagos` conserva el
+precio total, los montos pagados por efectivo y transferencia, el estado de pago
+calculado y la fecha de pago completo si aplica.
+
+El precio total puede ser cero por reglas normales de negocio como cortesia,
+regalo, ajuste interno o trabajo sin cobro. Cuando `total_amount = 0`, el
+resumen queda `pagado` y `paid_at` se setea porque no existe monto pendiente.
+
+El estado financiero no se envia desde la UI ni lo decide la aplicacion:
+la base de datos calcula `sin_pago`, `parcial` o `pagado` segun
+`total_amount`, `paid_cash_amount` y `paid_transfer_amount`. No se permite
+registrar montos negativos ni pagar mas que el total.
+
+En esta subfase no hay formulario de precio ni registro de pagos en la UI. El
+precio se definira al crear manualmente o convertir solicitudes en fases
+posteriores. La actualizacion de pagos y el bloqueo de entrega sin pago completo
+tambien quedan para fases posteriores.
 
 ## Estados de pedido
 

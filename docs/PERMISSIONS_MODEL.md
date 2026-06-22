@@ -143,6 +143,14 @@ el detalle de solicitud o pedido para compartirlo con el cliente. Eso no cambia
 la matriz de permisos ni abre lecturas anónimas directas: el acceso público se
 mantiene limitado a la RPC de consulta por código.
 
+Los resumenes de pago de `pedido_pagos` son informacion interna del pedido. No
+hay policies ni grants para acceso anonimo. La lectura interna sigue el mismo
+alcance del pedido: `admin` y `supervisor` sobre cualquier pedido, y
+`trabajador` solo sobre pedidos asignados. En esta subfase no existe UI de
+actualizacion de pagos; las modificaciones directas quedan restringidas por RLS
+a `admin` y `supervisor`, y una futura RPC o servicio server-side debera volver
+a validar permisos antes de actualizar importes.
+
 Para plantillas de tareas de encargos, `trabajo_plantillas` y
 `trabajo_plantilla_tareas` tienen RLS activo. Usuarios internos autenticados y
 activos pueden leer plantillas activas y sus tareas para poder seleccionarlas en
