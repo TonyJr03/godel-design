@@ -24,8 +24,8 @@ export function TaskTemplatesSection({ templates }: TaskTemplatesSectionProps) {
       </div>
 
       <Alert variant="info">
-        La edición de tareas internas de cada plantilla se habilitará en la
-        próxima fase.
+        Usa Gestionar tareas para definir, ordenar y mantener las tareas
+        internas de cada plantilla.
       </Alert>
 
       <TaskTemplateForm mode="create" layout="section" />

@@ -137,7 +137,7 @@ export function TaskTemplateForm({
       <FormActions
         note={
           isCreate
-            ? "Las tareas internas se configurarán en la siguiente etapa."
+            ? "Después de crearla, usa Gestionar tareas para definir su flujo."
             : undefined
         }
       >
@@ -159,7 +159,7 @@ export function TaskTemplateForm({
       {layout === "section" ? (
         <FormSection
           title="Nueva plantilla"
-          description="Crea una cabecera reutilizable. Las tareas se agregarán en Alfa 3.3."
+          description="Crea una cabecera reutilizable para encargos internos."
         >
           {content}
         </FormSection>
