@@ -206,6 +206,17 @@ La copia no crea una relacion viva con la plantilla. Editar, reordenar, desactiv
 
 La aplicacion de plantillas no esta disponible para pedidos `impresion`. La UI no muestra el selector en impresiones y la RPC tambien bloquea cualquier intento backend cuando `pedidos.workflow_type <> 'encargo'`.
 
+Flujo completo vigente:
+
+1. Un `admin` configura la plantilla en Configuracion.
+2. Un `admin` define sus tareas internas ordenadas.
+3. Un usuario autorizado abre un pedido de tipo `encargo`.
+4. Si el estado permite gestionar tareas, selecciona una plantilla activa con tareas.
+5. El sistema copia las tareas al final de `pedido_tareas`.
+6. Las tareas copiadas quedan editables y se comportan como tareas normales.
+7. El flujo no aplica a pedidos de `impresion`.
+8. Aplicar dos veces la misma plantilla puede duplicar tareas en esta version.
+
 ## Listado interno
 
 Archivos principales:

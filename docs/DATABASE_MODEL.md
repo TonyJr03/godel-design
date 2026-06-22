@@ -434,9 +434,11 @@ negocio y criterios de seguridad.
 
 - El nombre no puede quedar vacio tras `trim` y debe medir entre 2 y 120 caracteres.
 - La descripcion es opcional y tiene limite de 2000 caracteres.
-- Las plantillas se usan como base para crear tareas nuevas en pedidos de tipo `encargo`.
-- Aplicar una plantilla copiara sus tareas a `pedido_tareas` en una subfase posterior.
+- Las plantillas se usan como moldes para crear tareas nuevas en pedidos de tipo `encargo`.
+- Aplicar una plantilla copia sus tareas a `pedido_tareas` mediante la RPC transaccional `public.aplicar_plantilla_tareas_pedido`.
+- La copia agrega tareas al final del pedido y no reemplaza ni borra tareas existentes.
 - Editar, desactivar o eliminar una plantilla no modifica pedidos existentes ni tareas ya copiadas.
+- No hay sincronizacion viva entre plantilla y pedido.
 
 **Notas de seguridad:**
 
@@ -447,7 +449,7 @@ negocio y criterios de seguridad.
 
 ### `trabajo_plantilla_tareas`
 
-**Proposito:** Guarda las tareas ordenadas de una plantilla. Estas filas describen tareas a copiar en el futuro, pero no guardan progreso real.
+**Proposito:** Guarda las tareas ordenadas de una plantilla. Estas filas describen tareas base para copiar a pedidos de tipo `encargo`, pero no guardan progreso real.
 
 | Campo | Tipo sugerido | Notas |
 |---|---|---|
@@ -476,6 +478,8 @@ negocio y criterios de seguridad.
   `pedido_tareas`: un entero positivo independiente crea una tarea
   `cuantificada`; sin cantidad crea una tarea `simple`.
 - No existen `is_completed`, `completed_quantity`, `completed_at` ni `completed_by`, porque una plantilla no tiene avance.
+- Al aplicar la plantilla, cada fila se copia como una tarea nueva e independiente en `pedido_tareas`.
+- `pedido_tareas` sigue siendo la tabla real de tareas operativas y progreso del pedido.
 
 **Notas de seguridad:**
 

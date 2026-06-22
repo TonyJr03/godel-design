@@ -162,3 +162,8 @@ Propuesta futura:
 - Considerar una confirmacion adicional cuando el pedido ya tiene tareas.
 - Evaluar filtros por tipo de trabajo, categoria de plantilla o contexto del
   pedido si crece el catalogo.
+- Evaluar busqueda/filtro en el selector si aumenta el numero de plantillas.
+- Evaluar una previsualizacion de tareas antes de aplicar una plantilla.
+- Evaluar reordenamiento avanzado o drag and drop en Configuracion si la edicion
+  por botones deja de ser suficiente.
+- Hacer pruebas visuales mas amplias con datos reales antes de produccion.
