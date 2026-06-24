@@ -39,14 +39,28 @@ const GENERIC_STATUS_ERROR =
 
 const SAFE_RPC_STATUS_MESSAGES = [
   "No se puede pasar a producción sin tareas registradas.",
+  "No se puede pasar a produccion sin tareas registradas.",
   "No se puede marcar como listo para entrega hasta completar todas las tareas.",
   "Solo se puede marcar como entregado un pedido listo para entrega.",
   "No se puede cambiar el estado de un pedido cerrado.",
   "Transición de estado no permitida.",
+  "Transicion de estado no permitida.",
 ] as const;
 
 function getSafeRpcStatusErrorMessage(errorMessage: string | undefined): string {
   const message = errorMessage?.trim();
+
+  if (
+    message?.includes(
+      "No se puede marcar como entregado un pedido con pago pendiente.",
+    )
+  ) {
+    return "No se puede entregar el pedido porque el pago no está completo.";
+  }
+
+  if (message?.includes("No se puede validar el pago del pedido.")) {
+    return "No se puede validar el pago del pedido.";
+  }
 
   return (
     SAFE_RPC_STATUS_MESSAGES.find((safeMessage) =>

@@ -160,7 +160,9 @@ edita desde esta pantalla. La RPC valida permisos, montos no negativos, maximo
 dos decimales y que la suma pagada no supere `total_amount`. El trigger de
 `pedido_pagos` recalcula `payment_status` y `paid_at`. Cada actualizacion
 registra historial con `pago_actualizado`. Todavia no hay movimientos o abonos
-individuales ni bloqueo de entrega por pago incompleto.
+individuales. Para marcar un pedido como `entregado`, el pago debe estar
+completo: `pedido_pagos.payment_status = 'pagado'`. Los pedidos con
+`total_amount = 0` cumplen esta regla porque quedan `pagado`.
 
 ## Estados de pedido
 
@@ -193,12 +195,13 @@ Para `encargo`, pasar de `en_revision` a `en_produccion` exige al menos una
 tarea, y pasar de `en_produccion` a `listo_entrega` exige que existan tareas y
 que todas estén completas. Para `impresion`, esas dos transiciones no requieren
 tareas. Ambos flujos conservan la misma secuencia: `entregado` solo se permite
-desde `listo_entrega`, sin saltos directos desde producción.
+desde `listo_entrega`, sin saltos directos desde producción, y requiere pago
+completo.
 
-La UI del detalle usa el flujo y el progreso ya cargados para orientar al
-usuario, pero la validación real está en la RPC. Un trabajador asignado puede
-cambiar estado siguiendo las mismas reglas; un trabajador no asignado no accede
-al pedido.
+La UI del detalle usa el flujo, el progreso y el estado de pago ya cargados
+para orientar al usuario, pero la validación real está en la RPC. Un trabajador
+asignado puede cambiar estado siguiendo las mismas reglas; un trabajador no
+asignado no accede al pedido.
 
 ## Modelo base de tareas
 
@@ -538,6 +541,14 @@ solo cuando `pedidos.workflow_type = 'encargo'`. Las impresiones pueden pasar de
 `en_revision` a `en_produccion` y de `en_produccion` a `listo_entrega` sin
 tareas, pero no pueden saltar directamente a `entregado`.
 
+Para pasar de `listo_entrega` a `entregado`, la RPC tambien valida
+`pedido_pagos.payment_status = 'pagado'`. Si el resumen financiero no existe o
+el pago esta `sin_pago` o `parcial`, la transicion falla aunque el usuario tenga
+permiso para cambiar estado. La UI muestra un aviso de pago pendiente y
+deshabilita la opcion `entregado`, pero la autoridad final es
+`public.actualizar_estado_pedido`. La consulta publica `/estado` no expone
+informacion de pago.
+
 Antes de contar tareas, la RPC bloquea las tareas existentes con `FOR SHARE`.
 Así espera cambios o eliminaciones en curso y mantiene estables esas filas
 durante la decisión. Las nuevas tareas quedan coordinadas por el bloqueo del
@@ -695,7 +706,10 @@ Desde 13.6I, el dashboard y los paneles operativos también consideran tareas: p
 - En una impresión sin tareas, pasar de `en_revision` a `en_produccion`.
 - En una impresión sin tareas, pasar de `en_produccion` a `listo_entrega`.
 - En una impresión, intentar pasar directamente de `en_produccion` a `entregado` y confirmar bloqueo.
-- Pasar de `listo_entrega` a `entregado`.
+- Intentar pasar de `listo_entrega` a `entregado` con pago `sin_pago` y confirmar bloqueo.
+- Intentar pasar de `listo_entrega` a `entregado` con pago `parcial` y confirmar bloqueo.
+- Pasar de `listo_entrega` a `entregado` con pago `pagado`.
+- Pasar de `listo_entrega` a `entregado` con total `0`, que queda `pagado`.
 - Confirmar que `entregado` y `cancelado` no admiten cambios posteriores.
 - Verificar que un trabajador no cambia un pedido no asignado.
 - Asignar personal como `admin` o `supervisor`.

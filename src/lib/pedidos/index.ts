@@ -55,6 +55,7 @@ export {
 export {
   PEDIDO_PRIORITIES,
   PEDIDO_STATUSES,
+  DELIVERY_PAYMENT_PENDING_REASON,
   canManagePedidoTasksInStatus,
   getAllowedPedidoStatusTransitions,
   getPedidoTaskManagementBlockedReason,
@@ -62,6 +63,7 @@ export {
   isPedidoClosedStatus,
   isPedidoStatus,
   type PedidoPriority,
+  type PedidoPaymentStatus,
   type PedidoStatus,
   type PedidoStatusTransitionContext,
   type PedidoStatusTransitionOption,

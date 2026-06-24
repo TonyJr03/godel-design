@@ -311,6 +311,9 @@ manualmente.
 - En pedidos de tipo `encargo`, las tareas modelan el progreso real y condicionan el avance operativo mediante `public.actualizar_estado_pedido`.
 - En pedidos de tipo `impresion`, las tareas no son obligatorias y el pedido puede avanzar por los mismos estados generales sin crearlas.
 - `public.actualizar_estado_pedido` bloquea el pedido con `FOR UPDATE` y las tareas existentes con `FOR SHARE` durante la decisión.
+- Para marcar `entregado`, `public.actualizar_estado_pedido` exige que
+  `pedido_pagos.payment_status = 'pagado'`; los pedidos con total cero cumplen
+  esta regla porque el resumen financiero queda `pagado`.
 - Al marcar un pedido como `entregado`, `actual_delivery_date` usa la fecha local de negocio.
 - Los cambios importantes de estado se registran en `pedido_historial`.
 - La creación y la presentación se adaptan a cada `workflow_type`, pero no hay estados exclusivos de impresión.
@@ -369,6 +372,8 @@ No es una tabla de movimientos, abonos individuales ni comprobantes.
 - La actualizacion interna de pagos usa `public.actualizar_pago_pedido` para
   modificar solo efectivo y transferencia acumulados, mantener `updated_by` y
   registrar historial en una sola transaccion.
+- El estado de pago `pagado` es condicion para que
+  `public.actualizar_estado_pedido` pueda cerrar el pedido como `entregado`.
 
 **Notas de seguridad:**
 
@@ -824,7 +829,8 @@ El diagnóstico y diseño actualizado para comentarios internos e historial oper
   `public_reference` de la solicitud; no se genera un codigo nuevo.
 - `public.crear_cliente_desde_solicitud` crea el cliente, registra historial y
   lo asocia a la solicitud de forma atómica.
-- `public.actualizar_estado_pedido` serializa cambios de estado y valida tareas.
+- `public.actualizar_estado_pedido` serializa cambios de estado y valida tareas
+  y pago completo antes de entregar.
 - `public.actualizar_estado_solicitud` controla las transiciones manuales.
 
 La evolución del esquema debe hacerse mediante nuevas migraciones y mantener

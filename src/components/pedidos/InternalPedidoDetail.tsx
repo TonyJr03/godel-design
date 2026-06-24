@@ -201,6 +201,7 @@ export function InternalPedidoDetail({
               updateStatusAction={updateStatusAction}
               estadoActual={pedido.status}
               workflowType={pedido.workflow_type}
+              paymentStatus={pedido.payment.paymentStatus}
               taskProgress={taskProgress}
               tasksLoadError={tasksLoadError}
             />

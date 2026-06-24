@@ -9,6 +9,7 @@ export const PEDIDO_PRIORITIES = Constants.public.Enums.pedido_prioridad;
 
 export type PedidoStatus = Enums<"pedido_estado">;
 export type PedidoPriority = Enums<"pedido_prioridad">;
+export type PedidoPaymentStatus = Enums<"pedido_pago_estado">;
 
 export type PedidoStatusTransitionContext = {
   hasTasks: boolean;
@@ -22,6 +23,9 @@ export type PedidoStatusTransitionOption = {
   disabled?: boolean;
   reason?: string;
 };
+
+export const DELIVERY_PAYMENT_PENDING_REASON =
+  "El pedido debe estar completamente pagado antes de marcarlo como entregado.";
 
 export function isPedidoStatus(
   value: string | null | undefined,
@@ -78,9 +82,12 @@ export function getAllowedPedidoStatusTransitions(
   currentStatus: PedidoStatus,
   progress?: PedidoStatusTransitionContext | null,
   workflowType: WorkflowType = WORKFLOW_TYPES.ENCARGO,
+  paymentStatus?: PedidoPaymentStatus,
 ): PedidoStatusTransitionOption[] {
   const current = buildStatusOption(currentStatus, { isCurrent: true });
   const requiresTasks = workflowType === WORKFLOW_TYPES.ENCARGO;
+  const blocksDeliveryByPayment =
+    paymentStatus !== undefined && paymentStatus !== "pagado";
 
   if (isPedidoClosedStatus(currentStatus)) {
     return [current];
@@ -138,7 +145,12 @@ export function getAllowedPedidoStatusTransitions(
   if (currentStatus === "listo_entrega") {
     return [
       current,
-      buildStatusOption("entregado"),
+      buildStatusOption("entregado", {
+        disabled: blocksDeliveryByPayment,
+        reason: blocksDeliveryByPayment
+          ? DELIVERY_PAYMENT_PENDING_REASON
+          : undefined,
+      }),
       buildStatusOption("en_produccion", {
         reason: "Puedes volver a producción si hay correcciones pendientes.",
       }),

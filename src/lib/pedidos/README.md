@@ -99,6 +99,13 @@ admiten cambios posteriores. La UI usa `workflow_type` para orientar y
 deshabilitar opciones, pero la validación real está en
 `public.actualizar_estado_pedido`.
 
+Para marcar `entregado`, el pedido debe tener
+`pedido_pagos.payment_status = 'pagado'`. La UI deshabilita la opción de
+entrega y muestra aviso cuando el pago está pendiente, pero la RPC repite la
+validación como autoridad final. Si falta el resumen financiero, la entrega se
+bloquea de forma segura. Los pedidos con `total_amount = 0` pueden entregarse
+porque el trigger los mantiene como `pagado`.
+
 La RPC permite a `admin` y `supervisor` cambiar cualquier pedido y a `trabajador` cambiar solo pedidos asignados, sin conceder a trabajadores un `UPDATE` amplio sobre `pedidos`. Con asignaciones múltiples, cualquier trabajador asignado al pedido puede cambiar el estado porque la validación usa `private.is_assigned_to_pedido`, que comprueba la existencia de una relación en `pedido_trabajadores`.
 
 Un `admin` o `supervisor` asignado a un pedido conserva sus permisos reales. La asignación operativa no cambia roles ni permisos, y un trabajador no asignado no puede cambiar el estado porque no pasa la validación de acceso del servicio ni la validación de la RPC.

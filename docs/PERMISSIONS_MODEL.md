@@ -153,6 +153,12 @@ roles, el servicio server-side vuelve a validar el perfil activo y la RPC
 actualizar efectivo o transferencia. Los trabajadores no actualizan pagos en
 esta version.
 
+El cambio de estado a `entregado` requiere, ademas del permiso normal de cambio
+de estado y las reglas operativas del pedido, que el resumen financiero este
+completamente pagado (`pedido_pagos.payment_status = 'pagado'`). La RPC
+`public.actualizar_estado_pedido` valida esa condicion final; no basta con que
+la UI permita el cambio o con que el usuario tenga `pedidos.change_status`.
+
 Para plantillas de tareas de encargos, `trabajo_plantillas` y
 `trabajo_plantilla_tareas` tienen RLS activo. Usuarios internos autenticados y
 activos pueden leer plantillas activas y sus tareas para poder seleccionarlas en
