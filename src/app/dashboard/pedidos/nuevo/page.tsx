@@ -18,17 +18,17 @@ export default async function DashboardNuevoPedidoPage() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <PageHeader
             title="Nuevo pedido"
-            description="Creación manual de pedidos internos."
+            description="Creación manual de encargos e impresiones."
           />
           <Link
             href="/dashboard/pedidos"
-            className="inline-flex min-h-11 items-center justify-center rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:border-zinc-400"
+            className="inline-flex min-h-11 items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-4 text-sm font-semibold text-text-primary transition-colors hover:bg-surface-muted"
           >
             Volver a pedidos
           </Link>
         </div>
 
-        <section className="rounded-lg border border-red-200 bg-red-50 p-5 text-sm text-red-950">
+        <section className="rounded-(--radius-card) border border-danger/30 bg-danger-soft p-5 text-sm text-danger">
           No tienes permiso para crear pedidos.
         </section>
       </div>
@@ -48,23 +48,24 @@ export default async function DashboardNuevoPedidoPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <PageHeader
           title="Nuevo pedido"
-          description="Crea un pedido manual con cliente registrado o sin cliente asociado."
+          description="Crea manualmente un encargo o una impresión, con cliente registrado o sin cliente asociado."
         />
         <Link
           href="/dashboard/pedidos"
-          className="inline-flex min-h-11 items-center justify-center rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:border-zinc-400"
+          className="inline-flex min-h-11 items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-4 text-sm font-semibold text-text-primary transition-colors hover:bg-surface-muted"
         >
           Volver a pedidos
         </Link>
       </div>
 
-      <section className="max-w-3xl rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
+      <section className="max-w-3xl rounded-(--radius-card) border border-warning/30 bg-warning-soft p-4 text-sm leading-6 text-text-primary">
         Este pedido se creará manualmente, no quedará asociado a una solicitud
-        y el cliente es opcional.
+        y el cliente es opcional. La impresión manual no adjunta archivos desde
+        este formulario.
       </section>
 
       {!clientesResult.ok ? (
-        <section className="rounded-lg border border-red-200 bg-red-50 p-5 text-sm text-red-950">
+        <section className="rounded-(--radius-card) border border-danger/30 bg-danger-soft p-5 text-sm text-danger">
           {clientesResult.message}
         </section>
       ) : null}

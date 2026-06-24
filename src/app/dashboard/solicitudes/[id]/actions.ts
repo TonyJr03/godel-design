@@ -41,6 +41,7 @@ export type ConvertSolicitudToPedidoActionState = {
   values?: {
     title: string;
     description: string;
+    total_amount: string | number;
     priority: string;
     estimated_delivery_date: string | null;
   };
@@ -152,6 +153,7 @@ export async function convertSolicitudToPedidoAction(
 ): Promise<ConvertSolicitudToPedidoActionState> {
   const title = getFormValue(formData, "title");
   const description = getFormValue(formData, "description");
+  const totalAmount = getFormValue(formData, "total_amount");
   const priority = getFormValue(formData, "priority");
   const estimatedDeliveryDate = getFormValue(
     formData,
@@ -161,6 +163,7 @@ export async function convertSolicitudToPedidoAction(
     solicitudId,
     title,
     description,
+    totalAmount,
     priority,
     estimatedDeliveryDate,
   });
@@ -173,6 +176,7 @@ export async function convertSolicitudToPedidoAction(
       values: result.values ?? {
         title,
         description,
+        total_amount: totalAmount,
         priority,
         estimated_delivery_date: estimatedDeliveryDate || null,
       },

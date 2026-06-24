@@ -16,8 +16,18 @@ conceptualmente en `docs/PUBLIC_REQUEST_FLOW.md`. Al enviarse:
 - no se convierten automáticamente en pedidos.
 
 La conversión a pedido se realiza manualmente desde el detalle interno cuando la
-solicitud está aprobada, tiene cliente asociado y el usuario interno define el
-título operativo real, la descripción y la prioridad inicial del pedido.
+solicitud está aprobada y tiene cliente asociado. El formulario adapta sus
+requisitos al `workflow_type` de la solicitud y permite definir la prioridad
+inicial, el precio total y la fecha estimada del pedido.
+
+La solicitud no tiene precio propio. El usuario interno define `total_amount`
+en el momento de convertir y ese monto pertenece al pedido resultante mediante
+`pedido_pagos`. Si el precio es `0`, el resumen financiero queda `pagado`; si
+es mayor que `0`, queda `sin_pago` porque todavia no se registra pago inicial.
+
+Las solicitudes de `Encargo` e `Impresión` continúan viviendo en la misma tabla
+`solicitudes`. La diferencia formal se guarda en `workflow_type` y se conserva
+al convertir la solicitud en pedido.
 
 ## Ruta interna principal
 
@@ -45,15 +55,15 @@ El listado:
 - carga server-side;
 - consulta hasta 50 solicitudes;
 - ordena por `created_at` descendente;
-- muestra referencia corta, cliente, teléfono, email, tipo de servicio, estado,
-  fecha de creación y fecha deseada;
+- muestra referencia corta, cliente, teléfono, email, tipo de solicitud, tipo
+  de servicio, estado, fecha de creación y fecha deseada;
 - permite buscar mediante `q` por referencia visible, cliente, teléfono, correo,
   tipo de servicio, descripción o notas;
-- permite filtrar por estado;
-- combina búsqueda y estado conservando ambos parámetros GET;
+- permite filtrar por estado y por tipo de solicitud;
+- combina búsqueda, estado y `workflow_type` conservando los parámetros GET;
 - usa la barra común de listados: la búsqueda actualiza `q` tras 200 ms sin
   escritura y el selector de estado actualiza la URL inmediatamente;
-- permite limpiar búsqueda y estado en una sola acción;
+- permite limpiar búsqueda, estado y tipo en una sola acción;
 - no consulta Supabase desde componentes cliente.
 
 `quantity` fue eliminado de solicitudes. El detalle de cantidades, medidas o requisitos debe revisarse en `description` o `notes`. `service_type` es solo una referencia inicial elegida por el cliente, no el título automático del pedido.
@@ -84,6 +94,19 @@ del servidor muestra el estado discreto `Buscando...`.
 
 No es un buscador global. Si el volumen crece significativamente, podrán evaluarse índices o búsqueda especializada en una fase posterior sin cambiar el contrato `q`.
 
+## Filtro por tipo de solicitud
+
+URLs soportadas:
+
+- `/dashboard/solicitudes?workflow_type=encargo`
+- `/dashboard/solicitudes?workflow_type=impresion`
+- `/dashboard/solicitudes?status=nueva&workflow_type=impresion`
+
+El filtro se valida contra el enum formal `workflow_type`. Un valor inválido se
+ignora de forma segura y la página muestra una advertencia. El filtro se aplica
+en la consulta general y en todas las ramas de búsqueda por texto, referencia
+visible y labels de servicio.
+
 ## Detalle interno
 
 | Pieza | Archivo |
@@ -99,22 +122,41 @@ El detalle:
 - valida que el `id` tenga formato UUID;
 - usa `notFound()` para id inválido o solicitud inexistente;
 - muestra datos completos de la solicitud;
+- muestra un badge y metadata con `Encargo` o `Impresión`;
+- muestra `public_reference` en un bloque copiable de seguimiento público;
+- ajusta el título descriptivo del trabajo según `workflow_type`;
+- conserva la descripción estructurada de impresión con saltos de línea, sin
+  parsearla todavía en campos separados;
 - muestra archivos privados asociados a la solicitud;
 - no permite edición completa;
 - permite convertir a pedido solo si la solicitud está aprobada y tiene cliente asociado;
 - no permite eliminar archivos.
 
-La sección de conversión exige `title`, `description` y `priority` para el pedido. La prioridad inicia en `normal` y se valida contra el enum real de prioridades. También permite definir `estimated_delivery_date` de forma opcional; si se informa, debe ser igual o posterior al día actual y se valida server-side con `src/lib/validators/date.ts`.
+La sección identifica si se creará un pedido de `Encargo` o de `Impresión`.
+Para encargos, `title` y `description` son obligatorios. Para impresiones, el
+título es opcional y usa `Pedido de impresión` cuando queda vacío; la
+descripción se precarga desde la solicitud, puede editarse y, si se envía vacía,
+el servicio recupera la descripción original.
+
+La prioridad inicia en `normal` y se valida contra el enum real de prioridades.
+El precio total es obligatorio, puede ser `0`, no puede ser negativo ni tener
+mas de 2 decimales, y se guarda en `pedido_pagos` al confirmar la conversion.
+También permite definir `estimated_delivery_date` de forma opcional; si se
+informa, debe ser igual o posterior al día actual y se valida server-side con
+`src/lib/validators/date.ts`.
 
 El formulario no acepta `cliente_id`, `status`, `converted_order_id`, `created_by`, `order_number`, campos de archivos ni otros campos técnicos. La conversión no envía número de pedido; la base de datos lo asigna con formato `P-YY-XXXX`. El estado inicial sigue siendo `solicitud_recibida`.
 
-La escritura completa se delega en la RPC transaccional
+El formulario no envía `workflow_type`. El servicio carga primero la solicitud,
+aplica las reglas y valores por defecto correspondientes a su flujo y delega la
+escritura completa en la RPC transaccional
 `public.convertir_solicitud_a_pedido`. La función bloquea la solicitud, repite
-las validaciones de autorización, estado, cliente, doble conversión y fecha de
-negocio, y confirma en conjunto la creación del pedido, la actualización de la
-solicitud y la herencia de archivos. La Server Action solo lee campos
-permitidos; la página enlaza `solicitud_id`, y la action delega y revalida
-rutas.
+las validaciones de autorización, estado, cliente, doble conversión, precio y
+fecha de negocio, copia `solicitudes.workflow_type` a `pedidos.workflow_type`,
+crea `pedido_pagos` y confirma en conjunto la creación del pedido, la
+actualización de la solicitud y la herencia de archivos. La Server Action solo
+lee campos permitidos; la página enlaza `solicitud_id`, y la action delega y
+revalida rutas.
 
 ## Archivos de solicitud
 
@@ -268,6 +310,12 @@ Las policies existentes permiten:
 - lectura e inserción de `solicitud_historial` solo a `admin` y `supervisor`;
 - sin policies de actualización ni eliminación para comentarios o historial de solicitudes.
 
+El código de seguimiento mostrado al equipo interno es siempre
+`solicitudes.public_reference`. Las referencias cortas derivadas del UUID pueden
+usarse como identificadores internos, pero no deben compartirse como código
+público. Si la solicitud ya fue convertida, ese mismo código resuelve el pedido
+asociado en `/estado`.
+
 ## Fuera del alcance actual
 
 - eliminación de archivos adjuntos;
@@ -275,7 +323,8 @@ Las policies existentes permiten:
 - notificaciones;
 - generación de presupuestos;
 - deduplicación avanzada de clientes;
-- seguimiento público por referencia.
+- validaciones avanzadas adicionales para consulta pública, como captcha,
+  rate limiting o verificación complementaria por teléfono.
 
 ## Consideraciones futuras
 
@@ -296,7 +345,10 @@ El diseño del dashboard operativo para la Fase 13 se documenta en `docs/DASHBOA
 - Supervisor ve el listado de solicitudes.
 - Trabajador no puede entrar a `/dashboard/solicitudes`.
 - Buscar solicitudes por referencia, cliente, teléfono, correo, servicio y descripción.
-- Combinar `q` con filtro de estado y luego limpiar ambos filtros.
+- Filtrar por `Encargo` y por `Impresión`.
+- Combinar estado y tipo de solicitud.
+- Combinar `q`, estado y tipo, y luego limpiar todos los filtros.
+- Forzar un `workflow_type` inválido y confirmar que se ignora con advertencia.
 - Admin abre el detalle de una solicitud.
 - Supervisor abre el detalle de una solicitud.
 - Admin descarga un archivo de solicitud.
@@ -317,7 +369,11 @@ El diseño del dashboard operativo para la Fase 13 se documenta en `docs/DASHBOA
 - Un intento manipulado de enviar `convertida` falla server-side.
 - En Supabase Studio, `reviewed_by` se actualiza al cambiar estado.
 - `converted_order_id` no se modifica durante cambios manuales de estado.
-- Convertir una solicitud aprobada con cliente asociado exige título, descripción y prioridad del pedido.
+- Convertir un encargo aprobado con cliente asociado exige título, descripción y prioridad.
+- Convertir una impresión aprobada muestra `Pedido de impresión` como título inicial.
+- Vaciar el título de una impresión y confirmar que el servidor usa `Pedido de impresión`.
+- Vaciar la descripción de una impresión y confirmar que el servidor conserva la descripción de la solicitud.
+- Confirmar que encargo e impresión conservan su `workflow_type` en el pedido creado.
 - Confirmar que la prioridad inicia en `normal`.
 - Convertir sin fecha estimada y confirmar que el pedido queda sin fecha.
 - Convertir con fecha estimada de hoy o futura y confirmar que se guarda.
@@ -330,4 +386,5 @@ El diseño del dashboard operativo para la Fase 13 se documenta en `docs/DASHBOA
 ## Cierre
 
 El flujo interno vigente cubre revisión, estados controlados, cliente asociado,
-comentarios, historial, archivos privados y conversión transaccional a pedido.
+distinción entre Encargo e Impresión, comentarios, historial, archivos privados
+y conversión transaccional a pedido.

@@ -9,12 +9,18 @@ import {
   removeInternalPedidoWorker,
   updatePedidoTask,
   updateInternalPedidoStatus,
+  updatePedidoPayment,
   type PedidoTaskFieldErrors,
   type PedidoCommentFieldErrors,
+  type PedidoPaymentFieldErrors,
   type PedidoWorkerFieldErrors,
   type RemovePedidoWorkerFieldErrors,
   type PedidoStatusFieldErrors,
 } from "@/lib/pedidos";
+import {
+  applyTaskTemplateToPedido,
+  type ApplyTaskTemplateFieldErrors,
+} from "@/lib/task-templates";
 import {
   uploadPedidoFile,
   type UploadPedidoFileResult,
@@ -30,6 +36,16 @@ export type UpdatePedidoStatusActionState = {
   ok: boolean;
   message: string;
   fieldErrors?: PedidoStatusFieldErrors;
+};
+
+export type UpdatePedidoPaymentActionState = {
+  ok: boolean;
+  message: string;
+  fieldErrors?: PedidoPaymentFieldErrors;
+  values?: {
+    paidCashAmount: string;
+    paidTransferAmount: string;
+  };
 };
 
 export type AssignPedidoWorkerActionState = {
@@ -96,6 +112,12 @@ export type DeletePedidoTaskActionState = {
   fieldErrors?: PedidoTaskFieldErrors;
 };
 
+export type ApplyTaskTemplateActionState = {
+  ok: boolean;
+  message: string;
+  fieldErrors?: ApplyTaskTemplateFieldErrors;
+};
+
 function getUploadPedidoFileMessage(
   reason: Exclude<UploadPedidoFileResult, { ok: true }>["reason"],
 ) {
@@ -148,6 +170,36 @@ export async function updatePedidoStatusAction(
   return {
     ok: true,
     message: "Estado actualizado correctamente.",
+  };
+}
+
+export async function updatePedidoPaymentAction(
+  pedidoId: string,
+  _prevState: UpdatePedidoPaymentActionState,
+  formData: FormData,
+): Promise<UpdatePedidoPaymentActionState> {
+  const paidCashAmount = getFormValue(formData, "paid_cash_amount");
+  const paidTransferAmount = getFormValue(formData, "paid_transfer_amount");
+  const result = await updatePedidoPayment({
+    pedidoId,
+    paidCashAmount,
+    paidTransferAmount,
+  });
+
+  if (!result.ok) {
+    return {
+      ok: false,
+      message: result.message,
+      fieldErrors: result.fieldErrors,
+      values: result.values,
+    };
+  }
+
+  revalidatePedidoDetail(pedidoId);
+
+  return {
+    ok: true,
+    message: "Pago actualizado correctamente.",
   };
 }
 
@@ -300,6 +352,36 @@ export async function createPedidoTaskAction(
     values: {
       title: "",
     },
+  };
+}
+
+export async function applyTaskTemplateAction(
+  pedidoId: string,
+  _prevState: ApplyTaskTemplateActionState,
+  formData: FormData,
+): Promise<ApplyTaskTemplateActionState> {
+  const templateId = getFormValue(formData, "template_id");
+  const result = await applyTaskTemplateToPedido({
+    pedidoId,
+    templateId,
+  });
+
+  if (!result.ok) {
+    return {
+      ok: false,
+      message: result.message,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  revalidatePedidoDetail(pedidoId);
+
+  return {
+    ok: true,
+    message:
+      result.insertedCount === 1
+        ? "Se agregó 1 tarea desde la plantilla."
+        : `Se agregaron ${result.insertedCount} tareas desde la plantilla.`,
   };
 }
 

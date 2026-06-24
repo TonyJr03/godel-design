@@ -38,6 +38,7 @@ export {
   listInternalSolicitudes,
 } from "./list-internal-solicitudes";
 export {
+  ENCARGO_SERVICE_TYPE_OPTIONS,
   SOLICITUD_HISTORY_ACTION_LABELS,
   SOLICITUD_SERVICE_TYPE_LABELS,
   SOLICITUD_SERVICE_TYPE_OPTIONS,
@@ -55,7 +56,13 @@ export {
 } from "./status";
 export { updateInternalSolicitudStatus } from "./update-internal-solicitud-status";
 export {
+  PRINT_COLOR_MODE_OPTIONS,
+  PRINT_PAPER_SIZE_OPTIONS,
+  PRINT_SIDES_OPTIONS,
   validatePublicSolicitudInput,
+  type PrintColorMode,
+  type PrintPaperSize,
+  type PrintSides,
   type PublicSolicitudData,
   type PublicSolicitudField,
   type PublicSolicitudFieldErrors,

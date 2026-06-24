@@ -211,6 +211,67 @@ export type Database = {
           },
         ]
       }
+      pedido_pagos: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          paid_at: string | null
+          paid_cash_amount: number
+          paid_transfer_amount: number
+          payment_status: Database["public"]["Enums"]["pedido_pago_estado"]
+          pedido_id: string
+          total_amount: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          paid_at?: string | null
+          paid_cash_amount?: number
+          paid_transfer_amount?: number
+          payment_status?: Database["public"]["Enums"]["pedido_pago_estado"]
+          pedido_id: string
+          total_amount?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          paid_at?: string | null
+          paid_cash_amount?: number
+          paid_transfer_amount?: number
+          payment_status?: Database["public"]["Enums"]["pedido_pago_estado"]
+          pedido_id?: string
+          total_amount?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pedido_pagos_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedido_pagos_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: true
+            referencedRelation: "pedidos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedido_pagos_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pedido_tareas: {
         Row: {
           completed_at: string | null
@@ -348,10 +409,12 @@ export type Database = {
           id: string
           order_number: string
           priority: Database["public"]["Enums"]["pedido_prioridad"]
+          public_reference: string
           solicitud_id: string | null
           status: Database["public"]["Enums"]["pedido_estado"]
           title: string
           updated_at: string
+          workflow_type: Database["public"]["Enums"]["workflow_type"]
         }
         Insert: {
           actual_delivery_date?: string | null
@@ -363,10 +426,12 @@ export type Database = {
           id?: string
           order_number?: string
           priority?: Database["public"]["Enums"]["pedido_prioridad"]
+          public_reference?: string
           solicitud_id?: string | null
           status?: Database["public"]["Enums"]["pedido_estado"]
           title: string
           updated_at?: string
+          workflow_type?: Database["public"]["Enums"]["workflow_type"]
         }
         Update: {
           actual_delivery_date?: string | null
@@ -378,10 +443,12 @@ export type Database = {
           id?: string
           order_number?: string
           priority?: Database["public"]["Enums"]["pedido_prioridad"]
+          public_reference?: string
           solicitud_id?: string | null
           status?: Database["public"]["Enums"]["pedido_estado"]
           title?: string
           updated_at?: string
+          workflow_type?: Database["public"]["Enums"]["workflow_type"]
         }
         Relationships: [
           {
@@ -542,10 +609,12 @@ export type Database = {
           desired_date: string | null
           id: string
           notes: string | null
+          public_reference: string
           reviewed_by: string | null
           service_type: string
           status: Database["public"]["Enums"]["solicitud_estado"]
           updated_at: string
+          workflow_type: Database["public"]["Enums"]["workflow_type"]
         }
         Insert: {
           client_email?: string | null
@@ -558,10 +627,12 @@ export type Database = {
           desired_date?: string | null
           id?: string
           notes?: string | null
+          public_reference?: string
           reviewed_by?: string | null
           service_type: string
           status?: Database["public"]["Enums"]["solicitud_estado"]
           updated_at?: string
+          workflow_type?: Database["public"]["Enums"]["workflow_type"]
         }
         Update: {
           client_email?: string | null
@@ -574,10 +645,12 @@ export type Database = {
           desired_date?: string | null
           id?: string
           notes?: string | null
+          public_reference?: string
           reviewed_by?: string | null
           service_type?: string
           status?: Database["public"]["Enums"]["solicitud_estado"]
           updated_at?: string
+          workflow_type?: Database["public"]["Enums"]["workflow_type"]
         }
         Relationships: [
           {
@@ -597,6 +670,95 @@ export type Database = {
           {
             foreignKeyName: "solicitudes_reviewed_by_fkey"
             columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trabajo_plantilla_tareas: {
+        Row: {
+          created_at: string
+          id: string
+          sort_order: number
+          target_quantity: number | null
+          task_type: Database["public"]["Enums"]["pedido_tarea_tipo"]
+          template_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          sort_order?: number
+          target_quantity?: number | null
+          task_type: Database["public"]["Enums"]["pedido_tarea_tipo"]
+          template_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          sort_order?: number
+          target_quantity?: number | null
+          task_type?: Database["public"]["Enums"]["pedido_tarea_tipo"]
+          template_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trabajo_plantilla_tareas_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "trabajo_plantillas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trabajo_plantillas: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trabajo_plantillas_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trabajo_plantillas_updated_by_fkey"
+            columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "perfiles"
             referencedColumns: ["id"]
@@ -623,10 +785,12 @@ export type Database = {
           id: string
           order_number: string
           priority: Database["public"]["Enums"]["pedido_prioridad"]
+          public_reference: string
           solicitud_id: string | null
           status: Database["public"]["Enums"]["pedido_estado"]
           title: string
           updated_at: string
+          workflow_type: Database["public"]["Enums"]["workflow_type"]
         }
         SetofOptions: {
           from: "*"
@@ -651,10 +815,12 @@ export type Database = {
           desired_date: string | null
           id: string
           notes: string | null
+          public_reference: string
           reviewed_by: string | null
           service_type: string
           status: Database["public"]["Enums"]["solicitud_estado"]
           updated_at: string
+          workflow_type: Database["public"]["Enums"]["workflow_type"]
         }
         SetofOptions: {
           from: "*"
@@ -663,6 +829,50 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      actualizar_pago_pedido: {
+        Args: {
+          p_paid_cash_amount: number
+          p_paid_transfer_amount: number
+          p_pedido_id: string
+        }
+        Returns: {
+          created_at: string
+          created_by: string | null
+          paid_at: string | null
+          paid_cash_amount: number
+          paid_transfer_amount: number
+          payment_status: Database["public"]["Enums"]["pedido_pago_estado"]
+          pedido_id: string
+          total_amount: number
+          updated_at: string
+          updated_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "pedido_pagos"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      aplicar_plantilla_tareas_pedido: {
+        Args: { p_pedido_id: string; p_template_id: string }
+        Returns: number
+      }
+      consultar_estado_publico: {
+        Args: { p_public_reference: string }
+        Returns: {
+          actual_delivery_date: string
+          created_at: string
+          desired_date: string
+          estimated_delivery_date: string
+          kind: string
+          progress_label: string
+          progress_percentage: number
+          public_reference: string
+          status: string
+          workflow_type: Database["public"]["Enums"]["workflow_type"]
+        }[]
+      }
       convertir_solicitud_a_pedido: {
         Args: {
           p_description: string
@@ -670,6 +880,7 @@ export type Database = {
           p_priority: Database["public"]["Enums"]["pedido_prioridad"]
           p_solicitud_id: string
           p_title: string
+          p_total_amount: number
         }
         Returns: {
           actual_delivery_date: string | null
@@ -681,10 +892,12 @@ export type Database = {
           id: string
           order_number: string
           priority: Database["public"]["Enums"]["pedido_prioridad"]
+          public_reference: string
           solicitud_id: string | null
           status: Database["public"]["Enums"]["pedido_estado"]
           title: string
           updated_at: string
+          workflow_type: Database["public"]["Enums"]["workflow_type"]
         }
         SetofOptions: {
           from: "*"
@@ -710,6 +923,22 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      crear_pedido_manual: {
+        Args: {
+          p_cliente_id: string
+          p_description: string
+          p_estimated_delivery_date: string
+          p_priority: Database["public"]["Enums"]["pedido_prioridad"]
+          p_title: string
+          p_total_amount: number
+          p_workflow_type: Database["public"]["Enums"]["workflow_type"]
+        }
+        Returns: {
+          order_number: string
+          pedido_id: string
+          public_reference: string
+        }[]
       }
       listar_pedido_comentarios: {
         Args: { p_pedido_id: string }
@@ -791,6 +1020,8 @@ export type Database = {
         | "tarea_completada"
         | "tarea_reabierta"
         | "tarea_progreso_actualizado"
+        | "pago_actualizado"
+      pedido_pago_estado: "sin_pago" | "parcial" | "pagado"
       pedido_prioridad: "baja" | "normal" | "alta" | "urgente"
       pedido_tarea_tipo: "simple" | "cuantificada"
       solicitud_estado:
@@ -807,6 +1038,7 @@ export type Database = {
         | "cliente_asociado"
         | "cliente_creado_desde_solicitud"
         | "convertida_a_pedido"
+      workflow_type: "encargo" | "impresion"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -966,7 +1198,9 @@ export const Constants = {
         "tarea_completada",
         "tarea_reabierta",
         "tarea_progreso_actualizado",
+        "pago_actualizado",
       ],
+      pedido_pago_estado: ["sin_pago", "parcial", "pagado"],
       pedido_prioridad: ["baja", "normal", "alta", "urgente"],
       pedido_tarea_tipo: ["simple", "cuantificada"],
       solicitud_estado: [
@@ -985,6 +1219,7 @@ export const Constants = {
         "cliente_creado_desde_solicitud",
         "convertida_a_pedido",
       ],
+      workflow_type: ["encargo", "impresion"],
     },
   },
 } as const

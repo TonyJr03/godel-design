@@ -130,6 +130,59 @@ Para comentarios e historial de pedidos, las tablas oficiales normalizadas son `
 
 Para solicitudes, las tablas oficiales son `solicitud_comentarios` y `solicitud_historial`. Ambas quedan reservadas a `admin` y `supervisor`; `trabajador` y usuarios anónimos no acceden. Los comentarios de solicitudes están implementados en el detalle de solicitud, son append-only inicialmente y toman el autor desde el usuario autenticado en servidor mediante `solicitud_comentarios.author_id`. El historial de solicitudes está visible en el detalle de solicitud, es append-only y registra automáticamente eventos de creación, archivos adjuntados, cambios de estado, asociación de cliente, creación de cliente desde solicitud y conversión a pedido. Ningún rol de aplicación tiene inserción directa sobre `solicitud_historial`; la escritura queda limitada a triggers y RPCs controladas.
 
+La consulta pública por código de seguimiento no abre lectura anónima directa
+sobre `solicitudes` ni `pedidos`. Se expone únicamente mediante la RPC
+controlada `public.consultar_estado_publico(text)`, con ejecución para `anon` y
+`authenticated`, y devuelve solo datos públicos mínimos asociados a
+`public_reference`: tipo de registro, flujo, estado público, fechas no
+sensibles y progreso agregado sin nombres de tareas. No expone `order_number`,
+cliente, contacto, archivos, comentarios, historial, usuarios internos ni UUIDs.
+
+Los usuarios internos autorizados pueden ver y copiar `public_reference` desde
+el detalle de solicitud o pedido para compartirlo con el cliente. Eso no cambia
+la matriz de permisos ni abre lecturas anónimas directas: el acceso público se
+mantiene limitado a la RPC de consulta por código.
+
+Los resumenes de pago de `pedido_pagos` son informacion interna del pedido. No
+hay policies ni grants para acceso anonimo. La lectura interna sigue el mismo
+alcance del pedido: `admin` y `supervisor` sobre cualquier pedido, y
+`trabajador` solo sobre pedidos asignados. El listado interno puede mostrar y
+filtrar el estado de pago dentro de ese mismo alcance. La actualizacion de pagos queda
+restringida a `admin` y `supervisor`: la UI solo muestra el formulario a esos
+roles, el servicio server-side vuelve a validar el perfil activo y la RPC
+`public.actualizar_pago_pedido` repite la defensa en base de datos antes de
+actualizar efectivo o transferencia. Los trabajadores no actualizan pagos en
+esta version.
+
+El cambio de estado a `entregado` requiere, ademas del permiso normal de cambio
+de estado y las reglas operativas del pedido, que el resumen financiero este
+completamente pagado (`pedido_pagos.payment_status = 'pagado'`). La RPC
+`public.actualizar_estado_pedido` valida esa condicion final; no basta con que
+la UI permita el cambio o con que el usuario tenga `pedidos.change_status`.
+La consulta publica `/estado` no expone informacion financiera.
+
+Para plantillas de tareas de encargos, `trabajo_plantillas` y
+`trabajo_plantilla_tareas` tienen RLS activo. Usuarios internos autenticados y
+activos pueden leer plantillas activas y sus tareas para poder seleccionarlas en
+pedidos de tipo `encargo`. La pantalla `/dashboard/configuracion` usa
+`configuracion.view` para cargar la seccion y `configuracion.manage` para crear,
+editar nombre/descripcion, activar o desactivar plantillas y gestionar sus
+tareas internas. La subruta
+`/dashboard/configuracion/plantillas/[templateId]` mantiene el mismo alcance:
+listar, crear, editar, eliminar y reordenar tareas de plantilla requiere
+configuracion/admin. En la matriz vigente esos permisos pertenecen solo a
+`admin`. `supervisor` y `trabajador` no pueden gestionar plantillas ni sus
+tareas internas. `anon` no tiene permisos ni policies de lectura o escritura
+sobre estas tablas.
+
+Aplicar una plantilla a un pedido no requiere permisos de configuracion, sino el
+mismo permiso efectivo que gestionar tareas del pedido. La RPC
+`public.aplicar_plantilla_tareas_pedido` valida `auth.uid()`, usuario interno
+activo, `private.can_manage_pedido_tasks(pedido_id)`, `workflow_type = encargo`,
+estado editable, plantilla activa y existencia de tareas antes de insertar en
+`pedido_tareas`. No basta con tener acceso visual al pedido si el usuario no
+puede modificar sus tareas. `anon` no tiene `execute` sobre esta RPC.
+
 ## Gestión de Usuarios Internos
 
 La Fase 12 mantiene la matriz actual: solo `admin` tiene `usuarios.view`, `usuarios.manage` y acceso a `/dashboard/usuarios`.

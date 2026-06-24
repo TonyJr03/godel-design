@@ -1,5 +1,9 @@
 import type { Enums } from "@/types/database";
-import type { PedidoPriority, PedidoStatus } from "./status";
+import type {
+  PedidoPaymentStatus,
+  PedidoPriority,
+  PedidoStatus,
+} from "./status";
 
 export const PEDIDO_STATUS_LABELS: Record<PedidoStatus, string> = {
   creado: "Creado",
@@ -16,6 +20,15 @@ export const PEDIDO_PRIORITY_LABELS: Record<PedidoPriority, string> = {
   normal: "Normal",
   alta: "Alta",
   urgente: "Urgente",
+};
+
+export const PEDIDO_PAYMENT_STATUS_LABELS: Record<
+  PedidoPaymentStatus,
+  string
+> = {
+  sin_pago: "Sin pagar",
+  parcial: "Pago parcial",
+  pagado: "Pagado",
 };
 
 export const PEDIDO_HISTORY_ACTION_LABELS: Record<
@@ -37,4 +50,5 @@ export const PEDIDO_HISTORY_ACTION_LABELS: Record<
   tarea_completada: "Tarea completada",
   tarea_reabierta: "Tarea reabierta",
   tarea_progreso_actualizado: "Progreso de tarea actualizado",
+  pago_actualizado: "Pago actualizado",
 };

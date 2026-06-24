@@ -1,10 +1,17 @@
 import { Constants, type Enums } from "@/types/database";
+import {
+  WORKFLOW_TYPES,
+  type WorkflowType,
+} from "@/lib/workflow-types";
 
 export const PEDIDO_STATUSES = Constants.public.Enums.pedido_estado;
 export const PEDIDO_PRIORITIES = Constants.public.Enums.pedido_prioridad;
+export const PEDIDO_PAYMENT_STATUSES =
+  Constants.public.Enums.pedido_pago_estado;
 
 export type PedidoStatus = Enums<"pedido_estado">;
 export type PedidoPriority = Enums<"pedido_prioridad">;
+export type PedidoPaymentStatus = Enums<"pedido_pago_estado">;
 
 export type PedidoStatusTransitionContext = {
   hasTasks: boolean;
@@ -18,6 +25,9 @@ export type PedidoStatusTransitionOption = {
   disabled?: boolean;
   reason?: string;
 };
+
+export const DELIVERY_PAYMENT_PENDING_REASON =
+  "El pedido debe estar completamente pagado antes de marcarlo como entregado.";
 
 export function isPedidoStatus(
   value: string | null | undefined,
@@ -73,8 +83,13 @@ function buildStatusOption(
 export function getAllowedPedidoStatusTransitions(
   currentStatus: PedidoStatus,
   progress?: PedidoStatusTransitionContext | null,
+  workflowType: WorkflowType = WORKFLOW_TYPES.ENCARGO,
+  paymentStatus?: PedidoPaymentStatus,
 ): PedidoStatusTransitionOption[] {
   const current = buildStatusOption(currentStatus, { isCurrent: true });
+  const requiresTasks = workflowType === WORKFLOW_TYPES.ENCARGO;
+  const blocksDeliveryByPayment =
+    paymentStatus !== undefined && paymentStatus !== "pagado";
 
   if (isPedidoClosedStatus(currentStatus)) {
     return [current];
@@ -97,7 +112,7 @@ export function getAllowedPedidoStatusTransitions(
   }
 
   if (currentStatus === "en_revision") {
-    const needsTasks = progress ? !progress.hasTasks : false;
+    const needsTasks = requiresTasks && progress ? !progress.hasTasks : false;
 
     return [
       current,
@@ -112,9 +127,10 @@ export function getAllowedPedidoStatusTransitions(
   }
 
   if (currentStatus === "en_produccion") {
-    const needsCompletedTasks = progress
-      ? !progress.hasTasks || !progress.isComplete
-      : false;
+    const needsCompletedTasks =
+      requiresTasks && progress
+        ? !progress.hasTasks || !progress.isComplete
+        : false;
 
     return [
       current,
@@ -131,7 +147,12 @@ export function getAllowedPedidoStatusTransitions(
   if (currentStatus === "listo_entrega") {
     return [
       current,
-      buildStatusOption("entregado"),
+      buildStatusOption("entregado", {
+        disabled: blocksDeliveryByPayment,
+        reason: blocksDeliveryByPayment
+          ? DELIVERY_PAYMENT_PENDING_REASON
+          : undefined,
+      }),
       buildStatusOption("en_produccion", {
         reason: "Puedes volver a producción si hay correcciones pendientes.",
       }),

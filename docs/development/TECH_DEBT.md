@@ -73,3 +73,133 @@ Propuesta futura:
 - Agregar control anti-spam compatible con el despliegue.
 - Agregar rate limiting para `/solicitud`.
 - Revisar limites de cantidad/tamano segun infraestructura real.
+
+### 5.1 Proteccion de consulta publica por codigo
+
+Prioridad: Alta antes de produccion.
+
+La consulta publica por `public_reference` usa una RPC controlada y no abre
+lectura anonima directa sobre tablas, pero antes de exponer una pagina publica
+conviene agregar defensas operativas contra abuso.
+
+Propuesta futura:
+
+- Agregar rate limiting para la ruta `/estado`.
+- Evaluar captcha o desafio liviano si aparece enumeracion o abuso.
+- Considerar verificacion adicional por telefono u otro dato acordado si el
+  cliente exige mayor privacidad para ciertos trabajos.
+- Registrar auditoria o metricas agregadas de consultas fallidas por codigo,
+  cuidando no guardar datos personales innecesarios.
+- Hacer una inspeccion visual completa en escritorio y movil antes de
+  produccion para validar la posicion del bloque copiable en solicitudes,
+  pedidos, Home y `/estado`.
+
+## Separacion Encargo / Impresion
+
+Estado actual:
+
+- `workflow_type` gobierna la variante operativa.
+- `service_type` conserva un uso descriptivo.
+- Ambos flujos comparten entidades, permisos y estados generales.
+- Los encargos requieren tareas para avanzar.
+- Las impresiones pueden avanzar sin tareas obligatorias.
+
+### 6. Normalizacion futura de detalles de impresion
+
+Prioridad: Baja mientras no existan reportes especificos.
+
+Los detalles de impresion se guardan como una descripcion estructurada. Solo
+conviene normalizarlos en tablas o columnas propias si aparecen necesidades
+reales de busqueda, cotizacion, automatizacion o metricas por atributo.
+
+### 7. Reconciliacion de solicitudes y archivos publicos
+
+Prioridad: Media.
+
+Ademas de detectar objetos huerfanos, conviene poder identificar solicitudes de
+impresion creadas correctamente cuyos archivos fallen despues durante la subida,
+para facilitar su recuperacion operativa sin debilitar las politicas publicas.
+
+### 8. Estados especificos o reducidos para impresion
+
+Prioridad: Baja.
+
+Alfa 1 comparte los estados generales de pedido. Si la operacion real demuestra
+que impresion necesita menos etapas o estados propios, debe evaluarse con datos
+de uso antes de ampliar enums, RPCs y superficies de interfaz.
+
+### 9. Metricas separadas por flujo
+
+Prioridad: Baja.
+
+El dashboard sigue siendo generico. La metrica de pedidos sin tareas incluye
+actualmente encargos e impresiones, aunque la ausencia de tareas solo bloquea a
+los encargos. Debe filtrarse por `workflow_type = encargo` o reformularse antes
+de usarla como indicador estricto. La segmentacion y las metricas propias de
+impresion quedan pendientes hasta que exista una necesidad concreta.
+
+## Plantillas de tareas
+
+Estado actual:
+
+- Las plantillas activas con tareas se pueden aplicar a pedidos de tipo
+  `encargo`.
+- La aplicacion copia tareas al final de `pedido_tareas` y no mantiene
+  sincronizacion viva con la plantilla.
+- Aplicar la misma plantilla mas de una vez puede duplicar tareas.
+
+### 10. Duplicados y seleccion avanzada de plantillas
+
+Prioridad: Baja mientras el volumen de plantillas sea controlado.
+
+Alfa 3.4 permite duplicados al aplicar plantillas para no bloquear casos donde
+repetir un bloque de trabajo sea intencional. La UI advierte este comportamiento,
+pero no hace prevencion inteligente.
+
+Propuesta futura:
+
+- Evaluar prevencion opcional de duplicados al aplicar plantillas de tareas.
+- Considerar una confirmacion adicional cuando el pedido ya tiene tareas.
+- Evaluar filtros por tipo de trabajo, categoria de plantilla o contexto del
+  pedido si crece el catalogo.
+- Evaluar busqueda/filtro en el selector si aumenta el numero de plantillas.
+- Evaluar una previsualizacion de tareas antes de aplicar una plantilla.
+- Evaluar reordenamiento avanzado o drag and drop en Configuracion si la edicion
+  por botones deja de ser suficiente.
+- Hacer pruebas visuales mas amplias con datos reales antes de produccion.
+
+## Pagos y modelo financiero
+
+Estado actual:
+
+- `pedido_pagos` guarda un resumen financiero 1:1 por pedido.
+- El estado de pago se calcula en base de datos desde total, efectivo y
+  transferencia.
+- Los pedidos historicos quedan backfilled como `pagado` con total cero.
+- La creacion manual ya registra precio inicial.
+- El detalle interno permite a `admin` y `supervisor` actualizar efectivo y
+  transferencia acumulados.
+- El listado interno muestra y filtra estado de pago.
+- La entrega queda bloqueada si el pago no esta completo.
+- No existe todavia edicion controlada del total.
+
+### 11. Movimientos, comprobantes y cierre operativo
+
+Prioridad: Media cuando el flujo financiero empiece a usarse en operacion real.
+
+El resumen actual cubre el estado financiero minimo, pero no reemplaza una
+contabilidad detallada ni una caja diaria.
+
+Propuesta futura:
+
+- Agregar tabla de movimientos de pago o abonos si se requiere trazabilidad por
+  transaccion.
+- Definir edicion controlada del total despues de creado el pedido, con permisos
+  e historial especificos.
+- Modelar comprobantes de transferencia y adjuntos asociados.
+- Definir impresion o generacion de recibos.
+- Evaluar cierre de caja por dia, usuario o turno.
+- Agregar metricas financieras al dashboard cuando haya necesidad real: pedidos
+  pendientes de pago, monto pendiente total y monto cobrado.
+- Evaluar exportes financieros y filtros avanzados por deuda o monto pendiente.
+- Endurecer auditoria historica para ediciones de precio y pagos.

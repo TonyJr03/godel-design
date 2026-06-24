@@ -14,7 +14,7 @@ También carga el progreso agregado de tareas en una consulta adicional por lote
 
 `getInternalPedidoById` carga el detalle interno de un pedido para `/dashboard/pedidos/[id]`.
 
-Valida UUID, obtiene el perfil actual, valida `pedidos.view`, carga pedido, cliente, solicitud y personal asignado. Usa la relación explícita `solicitudes!pedidos_solicitud_id_fkey` para evitar ambigüedades.
+Valida UUID, obtiene el perfil actual, valida `pedidos.view`, carga pedido, cliente, solicitud, personal asignado y resumen financiero. Usa la relación explícita `solicitudes!pedidos_solicitud_id_fkey` para evitar ambigüedades. Si el registro de `pedido_pagos` falta por una inconsistencia, el detalle no rompe la página y marca el pago como no disponible.
 
 El trabajador no accede a los módulos generales de clientes o solicitudes, pero RLS permite leer el cliente y la solicitud relacionados con pedidos que tiene asignados.
 
@@ -24,9 +24,19 @@ El trabajador tampoco accede al módulo general de usuarios. RLS de `perfiles` s
 
 `/dashboard/pedidos/nuevo` permite crear pedidos manuales con cliente registrado o sin cliente asociado.
 
-La action `createPedidoAction` lee únicamente `cliente_id`, `title`, `description`, `priority` y `estimated_delivery_date`, y delega en `createInternalPedido`.
+La action `createPedidoAction` lee únicamente `workflow_type`, `cliente_id`,
+`title`, `description`, `total_amount`, `priority`,
+`estimated_delivery_date` y los campos de impresión cuando aplica, y delega en
+`createInternalPedido`.
 
-`createInternalPedido` requiere `pedidos.manage`, valida el input, valida el cliente solo cuando se envía `cliente_id`, crea el pedido con estado inicial `creado`, guarda `solicitud_id` como `null` y no asigna personal. Si no se selecciona cliente, guarda `cliente_id = null`; no captura datos temporales de cliente desde el formulario.
+`createInternalPedido` requiere `pedidos.manage`, valida el input, valida el
+cliente solo cuando se envía `cliente_id` y delega la escritura en
+`public.crear_pedido_manual`. Esa RPC crea el pedido con estado inicial
+`creado`, guarda `solicitud_id` como `null`, no asigna personal y crea el
+resumen financiero en `pedido_pagos` con `paid_cash_amount = 0` y
+`paid_transfer_amount = 0`. Si no se selecciona cliente, guarda
+`cliente_id = null`; no captura datos temporales de cliente desde el formulario.
+El precio total es obligatorio, puede ser `0` y no puede ser negativo.
 
 El número de pedido (`order_number`) no se acepta desde formularios ni se genera en TypeScript. La base de datos lo asigna al insertar el pedido con formato `P-YY-XXXX`, usando un contador anual transaccional y el año de la fecha de negocio `America/Havana`.
 
@@ -36,16 +46,17 @@ El número de pedido (`order_number`) no se acepta desde formularios ni se gener
 
 `createPedidoFromSolicitud` convierte una solicitud aprobada en pedido desde el detalle de solicitud. Conserva la validación de input y permisos, pero no escribe tablas directamente.
 
-La página del detalle enlaza `solicitud_id` a la action; el formulario envía únicamente `title`, `description`, `priority` y `estimated_delivery_date`. El servicio requiere `solicitudes.manage` y `pedidos.manage`, valida el UUID enlazado y los campos editables, y delega en `public.convertir_solicitud_a_pedido`.
+La página del detalle enlaza `solicitud_id` a la action; el formulario envía únicamente `title`, `description`, `total_amount`, `priority` y `estimated_delivery_date`. El servicio requiere `solicitudes.manage` y `pedidos.manage`, valida el UUID enlazado y los campos editables, y delega en `public.convertir_solicitud_a_pedido`.
 
 La RPC bloquea la solicitud con `FOR UPDATE`, exige usuario activo `admin` o
 `supervisor`, estado `aprobada`, cliente asociado y ausencia de conversiones
 previas. Después crea el pedido con `solicitud_id` y estado
-`solicitud_recibida`, actualiza la solicitud a `convertida` con
-`converted_order_id` y completa `archivos.pedido_id` para los archivos
-`cliente_solicitud`. Todas las escrituras se confirman o revierten juntas.
+`solicitud_recibida`, crea `pedido_pagos` con el precio total, actualiza la
+solicitud a `convertida` con `converted_order_id` y completa
+`archivos.pedido_id` para los archivos `cliente_solicitud`. Todas las
+escrituras se confirman o revierten juntas.
 
-`priority` es obligatoria, inicia visualmente en `normal` y se valida contra las prioridades reales del enum. `estimated_delivery_date` es opcional; si se informa debe ser una fecha válida e igual o posterior al día actual. El servicio usa los helpers de `src/lib/validators/date.ts` y la RPC repite la regla con la fecha de negocio de `America/Havana`.
+`priority` es obligatoria, inicia visualmente en `normal` y se valida contra las prioridades reales del enum. `total_amount` tambien es obligatorio, permite `0`, rechaza negativos, valores no numericos y mas de 2 decimales. `estimated_delivery_date` es opcional; si se informa debe ser una fecha válida e igual o posterior al día actual. El servicio usa los helpers de `src/lib/validators/date.ts` y la RPC repite la regla con la fecha de negocio de `America/Havana`.
 
 `service_type` es solo referencia inicial de la solicitud y no se usa como título automático. El usuario interno debe definir el título real del pedido y puede ajustar la descripción operativa antes de convertir. La conversión no acepta `order_number`, `status`, `cliente_id`, `created_by`, `converted_order_id` ni campos de archivos desde el formulario. El número de pedido se asigna en base de datos y el estado inicial del pedido convertido sigue siendo `solicitud_recibida`.
 
@@ -56,6 +67,16 @@ solo a `authenticated`.
 
 Cuando un pedido muestra datos de su solicitud origen, el tipo de servicio debe renderizarse con `getSolicitudServiceTypeLabel` desde `src/lib/solicitudes/labels.ts` para evitar valores técnicos o históricos sin tildes en listados, detalles y dashboard.
 
+## Pago del Pedido
+
+`/dashboard/pedidos/[id]` incluye `PedidoPaymentSection`.
+
+La pagina del detalle enlaza `pedido_id` a `updatePedidoPaymentAction`; el formulario envia unicamente `paid_cash_amount` y `paid_transfer_amount` como montos acumulados actuales. No acepta `total_amount`, `payment_status`, `paid_at`, `updated_by` ni campos de historial desde el cliente.
+
+`updatePedidoPayment` valida UUID, usuario interno activo, rol `admin` o `supervisor`, formato numerico, montos no negativos, maximo dos decimales y que efectivo mas transferencia no supere el total. Despues delega en `public.actualizar_pago_pedido`, que repite permisos en base de datos, actualiza solo efectivo y transferencia, deja que el trigger calcule `payment_status` y registra `pago_actualizado` en `pedido_historial`.
+
+El detalle muestra total, efectivo, transferencia, total pagado, pendiente, estado y fecha de pago completo si aplica. Los trabajadores pueden leer pagos de pedidos asignados segun RLS, pero no ven formulario ni pueden actualizar pagos server-side.
+
 ## Cambio de Estado
 
 `/dashboard/pedidos/[id]` incluye `PedidoStatusForm`.
@@ -64,7 +85,26 @@ La página del detalle enlaza `pedido_id` a `updatePedidoStatusAction`; el formu
 
 Los estados vigentes de pedido son `creado`, `solicitud_recibida`, `en_revision`, `en_produccion`, `listo_entrega`, `entregado` y `cancelado`. La RPC es la autoridad para validar transiciones: `creado` avanza a `en_revision` o `cancelado`; `solicitud_recibida` avanza a `en_revision` o `cancelado`; `en_revision` avanza a `en_produccion` o `cancelado`; `en_produccion` avanza a `listo_entrega` o `cancelado`; `listo_entrega` avanza a `entregado`, vuelve a `en_produccion` o pasa a `cancelado`.
 
-Un pedido manual no puede pasar directamente de `creado` a producción: primero debe pasar a `en_revision`. Para pasar de `en_revision` a `en_produccion` debe existir al menos una tarea. Para pasar a `listo_entrega` debe existir al menos una tarea y todas deben estar completadas. `entregado` solo se permite desde `listo_entrega`. `entregado` y `cancelado` son estados cerrados y no admiten cambios posteriores. La UI filtra y deshabilita opciones como ayuda operativa, pero la validación real está en `public.actualizar_estado_pedido`.
+Un pedido manual no puede pasar directamente de `creado` a producción: primero
+debe pasar a `en_revision`. Los pedidos con `workflow_type = encargo` requieren
+al menos una tarea para pasar de `en_revision` a `en_produccion`, y requieren
+que existan tareas y todas estén completas para pasar a `listo_entrega`. Los
+pedidos con `workflow_type = impresion` pueden realizar esas dos transiciones
+sin tareas.
+
+Las transiciones disponibles no cambian: `entregado` solo se permite desde
+`listo_entrega`, por lo que una impresión tampoco puede saltar directamente
+desde `en_produccion`. `entregado` y `cancelado` son estados cerrados y no
+admiten cambios posteriores. La UI usa `workflow_type` para orientar y
+deshabilitar opciones, pero la validación real está en
+`public.actualizar_estado_pedido`.
+
+Para marcar `entregado`, el pedido debe tener
+`pedido_pagos.payment_status = 'pagado'`. La UI deshabilita la opción de
+entrega y muestra aviso cuando el pago está pendiente, pero la RPC repite la
+validación como autoridad final. Si falta el resumen financiero, la entrega se
+bloquea de forma segura. Los pedidos con `total_amount = 0` pueden entregarse
+porque el trigger los mantiene como `pagado`.
 
 La RPC permite a `admin` y `supervisor` cambiar cualquier pedido y a `trabajador` cambiar solo pedidos asignados, sin conceder a trabajadores un `UPDATE` amplio sobre `pedidos`. Con asignaciones múltiples, cualquier trabajador asignado al pedido puede cambiar el estado porque la validación usa `private.is_assigned_to_pedido`, que comprueba la existencia de una relación en `pedido_trabajadores`.
 

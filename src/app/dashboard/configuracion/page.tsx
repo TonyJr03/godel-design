@@ -1,17 +1,23 @@
+import { TaskTemplatesSection } from "@/components/configuracion/TaskTemplatesSection";
+import { Alert } from "@/components/ui/Alert";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { PlaceholderCard } from "@/components/ui/PlaceholderCard";
+import { listTaskTemplates } from "@/lib/task-templates";
 
-export default function DashboardConfiguracionPage() {
+export default async function DashboardConfiguracionPage() {
+  const result = await listTaskTemplates();
+
   return (
     <div className="space-y-8">
       <PageHeader
         title="Configuración"
-        description="Ajustes futuros del sistema operativo."
+        description="Ajustes operativos del sistema interno."
       />
-      <PlaceholderCard
-        title="Ajustes pendientes"
-        description="Esta sección queda reservada para configuraciones de una fase posterior."
-      />
+
+      {!result.ok ? (
+        <Alert variant="danger">{result.message}</Alert>
+      ) : (
+        <TaskTemplatesSection templates={result.templates} />
+      )}
     </div>
   );
 }

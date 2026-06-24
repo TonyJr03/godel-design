@@ -8,15 +8,25 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { getSolicitudServiceTypeSearchValues } from "@/lib/solicitudes";
 import { normalizeSearchQuery } from "@/lib/utils";
+import {
+  isWorkflowType,
+  type WorkflowType,
+} from "@/lib/workflow-types";
 import type { Tables } from "@/types/database";
 import {
   calculatePedidoTasksProgressByPedidoId,
   type PedidoTaskProgressByPedidoInput,
   type PedidoTasksProgress,
 } from "./task-progress";
-import { PEDIDO_STATUSES, type PedidoStatus } from "./status";
+import {
+  PEDIDO_PAYMENT_STATUSES,
+  PEDIDO_STATUSES,
+  type PedidoPaymentStatus,
+  type PedidoStatus,
+} from "./status";
 
 export const INTERNAL_PEDIDO_ESTADOS = PEDIDO_STATUSES;
+export const INTERNAL_PEDIDO_PAYMENT_STATUSES = PEDIDO_PAYMENT_STATUSES;
 
 export type InternalPedidoEstado = PedidoStatus;
 
@@ -27,6 +37,13 @@ type PedidoSolicitud =
 type PedidoTrabajadorProfile =
   | Pick<Tables<"perfiles">, "id" | "full_name">
   | null;
+type PedidoPaymentRow = Pick<
+  Tables<"pedido_pagos">,
+  | "total_amount"
+  | "paid_cash_amount"
+  | "paid_transfer_amount"
+  | "payment_status"
+>;
 
 export type InternalPedidoTrabajador = Pick<
   Tables<"pedido_trabajadores">,
@@ -35,12 +52,23 @@ export type InternalPedidoTrabajador = Pick<
   perfiles: PedidoTrabajadorProfile;
 };
 
+export type InternalPedidoPaymentSummary = {
+  totalAmount: number;
+  paidCashAmount: number;
+  paidTransferAmount: number;
+  paidTotalAmount: number;
+  pendingAmount: number;
+  paymentStatus: PedidoPaymentStatus;
+  isAvailable: boolean;
+};
+
 type InternalPedidoRow = Pick<
   Tables<"pedidos">,
   | "id"
   | "order_number"
   | "cliente_id"
   | "solicitud_id"
+  | "workflow_type"
   | "title"
   | "description"
   | "status"
@@ -51,22 +79,30 @@ type InternalPedidoRow = Pick<
   clientes: PedidoCliente;
   solicitudes: PedidoSolicitud;
   pedido_trabajadores: InternalPedidoTrabajador[];
+  payment: PedidoPaymentRow | PedidoPaymentRow[] | null;
 };
 
-export type InternalPedido = InternalPedidoRow & {
+export type InternalPedido = Omit<InternalPedidoRow, "payment"> & {
+  payment: InternalPedidoPaymentSummary;
   taskProgress: PedidoTasksProgress;
 };
 
 export type ListInternalPedidosOptions = {
   q?: string | null;
   status?: string | null;
+  workflowType?: string | null;
+  paymentStatus?: string | null;
   limit?: number;
 };
 
 type ListInternalPedidosMeta = {
   q: string | null;
   status: InternalPedidoEstado | null;
+  workflowType: WorkflowType | null;
+  paymentStatus: PedidoPaymentStatus | null;
   ignoredInvalidEstado: boolean;
+  ignoredInvalidWorkflowType: boolean;
+  ignoredInvalidPaymentStatus: boolean;
 };
 
 export type ListInternalPedidosErrorReason =
@@ -99,6 +135,7 @@ const BASE_PEDIDOS_SELECT = `
   order_number,
   cliente_id,
   solicitud_id,
+  workflow_type,
   title,
   description,
   status,
@@ -106,11 +143,47 @@ const BASE_PEDIDOS_SELECT = `
   estimated_delivery_date,
   created_at,
   clientes(id, name),
-  solicitudes!pedidos_solicitud_id_fkey(id, service_type)
+  solicitudes!pedidos_solicitud_id_fkey(id, service_type),
+  payment:pedido_pagos(
+    total_amount,
+    paid_cash_amount,
+    paid_transfer_amount,
+    payment_status
+  )
+`;
+
+const BASE_PEDIDOS_SELECT_WITH_PAYMENT_FILTER = `
+  id,
+  order_number,
+  cliente_id,
+  solicitud_id,
+  workflow_type,
+  title,
+  description,
+  status,
+  priority,
+  estimated_delivery_date,
+  created_at,
+  clientes(id, name),
+  solicitudes!pedidos_solicitud_id_fkey(id, service_type),
+  payment:pedido_pagos!inner(
+    total_amount,
+    paid_cash_amount,
+    paid_transfer_amount,
+    payment_status
+  )
 `;
 
 const PEDIDOS_SELECT = `
   ${BASE_PEDIDOS_SELECT},
+  pedido_trabajadores(
+    assigned_profile_id,
+    perfiles!pedido_trabajadores_assigned_profile_id_fkey(id, full_name)
+  )
+`;
+
+const PEDIDOS_SELECT_WITH_PAYMENT_FILTER = `
+  ${BASE_PEDIDOS_SELECT_WITH_PAYMENT_FILTER},
   pedido_trabajadores(
     assigned_profile_id,
     perfiles!pedido_trabajadores_assigned_profile_id_fkey(id, full_name)
@@ -139,6 +212,61 @@ export function isInternalPedidoEstado(
   status: string | null | undefined,
 ): status is InternalPedidoEstado {
   return INTERNAL_PEDIDO_ESTADOS.includes(status as InternalPedidoEstado);
+}
+
+export function isInternalPedidoPaymentStatus(
+  status: string | null | undefined,
+): status is PedidoPaymentStatus {
+  return INTERNAL_PEDIDO_PAYMENT_STATUSES.includes(
+    status as PedidoPaymentStatus,
+  );
+}
+
+function roundMoney(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function getPaymentRow(
+  payment: InternalPedidoRow["payment"],
+): PedidoPaymentRow | null {
+  return Array.isArray(payment) ? payment[0] ?? null : payment;
+}
+
+function getMissingPaymentSummary(): InternalPedidoPaymentSummary {
+  return {
+    totalAmount: 0,
+    paidCashAmount: 0,
+    paidTransferAmount: 0,
+    paidTotalAmount: 0,
+    pendingAmount: 0,
+    paymentStatus: "sin_pago",
+    isAvailable: false,
+  };
+}
+
+function mapPaymentSummary(
+  payment: InternalPedidoRow["payment"],
+): InternalPedidoPaymentSummary {
+  const paymentRow = getPaymentRow(payment);
+
+  if (!paymentRow) {
+    return getMissingPaymentSummary();
+  }
+
+  const totalAmount = Number(paymentRow.total_amount);
+  const paidCashAmount = Number(paymentRow.paid_cash_amount);
+  const paidTransferAmount = Number(paymentRow.paid_transfer_amount);
+  const paidTotalAmount = roundMoney(paidCashAmount + paidTransferAmount);
+
+  return {
+    totalAmount,
+    paidCashAmount,
+    paidTransferAmount,
+    paidTotalAmount,
+    pendingAmount: Math.max(0, roundMoney(totalAmount - paidTotalAmount)),
+    paymentStatus: paymentRow.payment_status,
+    isAvailable: true,
+  };
 }
 
 function mergePedidos(
@@ -200,8 +328,30 @@ export async function listInternalPedidos(
   const selectedEstado = isInternalPedidoEstado(options.status)
     ? options.status
     : null;
+  const selectedWorkflowType = isWorkflowType(options.workflowType)
+    ? options.workflowType
+    : null;
+  const selectedPaymentStatus = isInternalPedidoPaymentStatus(
+    options.paymentStatus,
+  )
+    ? options.paymentStatus
+    : null;
   const ignoredInvalidEstado = Boolean(options.status && !selectedEstado);
-  const meta = { q, status: selectedEstado, ignoredInvalidEstado };
+  const ignoredInvalidWorkflowType = Boolean(
+    options.workflowType && !selectedWorkflowType,
+  );
+  const ignoredInvalidPaymentStatus = Boolean(
+    options.paymentStatus && !selectedPaymentStatus,
+  );
+  const meta = {
+    q,
+    status: selectedEstado,
+    workflowType: selectedWorkflowType,
+    paymentStatus: selectedPaymentStatus,
+    ignoredInvalidEstado,
+    ignoredInvalidWorkflowType,
+    ignoredInvalidPaymentStatus,
+  };
   const profile = await getCurrentProfile();
 
   if (!profile) {
@@ -227,12 +377,24 @@ export async function listInternalPedidos(
     const buildPedidoQuery = () => {
       let query = supabase
         .from("pedidos")
-        .select(PEDIDOS_SELECT)
+        .select(
+          selectedPaymentStatus
+            ? PEDIDOS_SELECT_WITH_PAYMENT_FILTER
+            : PEDIDOS_SELECT,
+        )
         .order("created_at", { ascending: false })
         .limit(limit);
 
       if (selectedEstado) {
         query = query.eq("status", selectedEstado);
+      }
+
+      if (selectedWorkflowType) {
+        query = query.eq("workflow_type", selectedWorkflowType);
+      }
+
+      if (selectedPaymentStatus) {
+        query = query.eq("payment.payment_status", selectedPaymentStatus);
       }
 
       return query;
@@ -352,6 +514,7 @@ export async function listInternalPedidos(
     return serviceSuccess({
       pedidos: pedidos.map((pedido) => ({
         ...pedido,
+        payment: mapPaymentSummary(pedido.payment),
         taskProgress: progressByPedidoId.get(pedido.id) ?? EMPTY_TASK_PROGRESS,
       })),
       ...meta,

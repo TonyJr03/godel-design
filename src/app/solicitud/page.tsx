@@ -11,11 +11,12 @@ export default function SolicitudPage() {
             Solicitud de trabajo
           </p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight text-text-primary sm:text-4xl">
-            Cuéntanos qué necesitas crear
+            ¿Qué necesitas preparar?
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-7 text-text-secondary sm:text-lg">
-            Envía los detalles de tu idea y el equipo de Godel Diseño la
-            revisará contigo para confirmar alcance, precio y fecha.
+            Elige entre un encargo personalizado o una impresión directa.
+            Revisaremos la información contigo para confirmar alcance, precio
+            y fecha.
           </p>
           <div className="mt-6 rounded-(--radius-card) border border-brand-primary/20 bg-brand-primary-soft px-4 py-3 text-sm leading-6 text-text-primary sm:px-5">
             <strong>Enviar esta solicitud no confirma un pedido.</strong>{" "}
@@ -39,7 +40,7 @@ export default function SolicitudPage() {
                 {[
                   [
                     "Envías tu solicitud",
-                    "Cuéntanos el trabajo y adjunta referencias si las tienes.",
+                    "Elige Encargo o Impresión y completa los datos necesarios.",
                   ],
                   [
                     "Revisamos los detalles",
@@ -77,7 +78,11 @@ export default function SolicitudPage() {
               </h2>
               <ul className="mt-3 space-y-2 text-sm leading-5 text-text-secondary">
                 <li>Ten a mano medidas, cantidades y colores importantes.</li>
-                <li>Los archivos de referencia son opcionales.</li>
+                <li>
+                  Para una impresión debes adjuntar el documento que
+                  prepararemos.
+                </li>
+                <li>En los encargos, los archivos de referencia son opcionales.</li>
                 <li>Podrás aclarar cualquier detalle cuando te contactemos.</li>
               </ul>
             </section>

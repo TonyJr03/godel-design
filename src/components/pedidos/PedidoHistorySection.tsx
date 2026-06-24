@@ -118,6 +118,10 @@ function getHistorySummary(item: PedidoHistoryItem): string {
       : `Progreso de tarea actualizado de ${formatHistoryValue(item.old_value)} a ${formatHistoryValue(item.new_value)}.`;
   }
 
+  if (item.action === "pago_actualizado") {
+    return "Pago del pedido actualizado.";
+  }
+
   return item.summary || "Evento registrado en el pedido.";
 }
 

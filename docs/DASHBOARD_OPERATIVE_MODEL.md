@@ -203,7 +203,15 @@ Definición sugerida de estados:
 | Pedidos atrasados | `estimated_delivery_date` vencida y estado distinto de `entregado` o `cancelado` |
 | Próximos vencimientos | `estimated_delivery_date` dentro de una ventana corta y estado activo |
 
-El diseño, impresión, encuadernado y demás avances internos se modelan como tareas de pedido. El dashboard usa progreso agregado por tareas para orientar la operación, considera `creado` y `solicitud_recibida` estados activos equivalentes en atención operativa y los prioriza como pendientes de revisión, pero no implementa gráficos avanzados, reportes financieros ni productividad.
+El dashboard mantiene una lectura operativa genérica y todavía no segmenta
+métricas por `workflow_type`. En encargos, las tareas son obligatorias para el
+avance y su progreso agregado orienta la operación. En impresiones, el pedido
+puede avanzar directamente por los mismos estados sin tareas. La métrica
+existente de pedidos sin tareas aún incluye ambos flujos y puede señalar una
+impresión válida como atención pendiente; corregir esa semántica queda
+registrado como deuda del dashboard. `creado` y `solicitud_recibida` se
+consideran estados activos equivalentes en atención operativa, sin implementar
+gráficos avanzados, reportes financieros ni productividad.
 
 ## Métricas futuras
 

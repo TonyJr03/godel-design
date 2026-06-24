@@ -28,6 +28,16 @@ negocio y criterios de seguridad.
 | `supervisor` | Gestión operativa de solicitudes y pedidos. |
 | `trabajador` | Ejecución y seguimiento de pedidos asignados. |
 
+### `workflow_type`
+
+| Valor | Uso |
+|---|---|
+| `encargo` | Trabajo personalizado o complejo. |
+| `impresion` | Trabajo directo de impresión. |
+
+`workflow_type` diferencia la variante del flujo operativo. No reemplaza
+`service_type`, que sigue describiendo el servicio específico solicitado.
+
 ### `solicitud_estado`
 
 | Valor |
@@ -50,6 +60,18 @@ negocio y criterios de seguridad.
 | `listo_entrega` |
 | `entregado` |
 | `cancelado` |
+
+### `pedido_pago_estado`
+
+| Valor | Uso |
+|---|---|
+| `sin_pago` | Precio mayor que cero sin monto pagado. |
+| `parcial` | Precio mayor que cero con pago menor al total. |
+| `pagado` | No queda monto pendiente; incluye pedidos con `total_amount = 0`. |
+
+El estado se calcula en base de datos a partir de `total_amount`,
+`paid_cash_amount` y `paid_transfer_amount`; la aplicacion no lo decide
+manualmente.
 
 ### `pedido_prioridad`
 
@@ -95,6 +117,7 @@ negocio y criterios de seguridad.
 | `tarea_completada` |
 | `tarea_reabierta` |
 | `tarea_progreso_actualizado` |
+| `pago_actualizado` |
 
 ### `solicitud_historial_action`
 
@@ -180,10 +203,12 @@ negocio y criterios de seguridad.
 | Campo | Tipo sugerido | Notas |
 |---|---|---|
 | `id` | `uuid` | Identificador único de la solicitud. |
+| `public_reference` | `text` | Codigo publico de seguimiento con formato `GD-XXXX-XXXX`. |
 | `cliente_id` | `uuid nullable` | Cliente asociado si ya existe o se crea uno. |
 | `client_name` | `text` | Nombre capturado desde el formulario público. |
 | `client_phone` | `text` | Teléfono capturado desde el formulario público. |
 | `client_email` | `text nullable` | Correo opcional capturado desde el formulario público. |
+| `workflow_type` | `workflow_type` | Variante del flujo operativo; por defecto `encargo`. |
 | `service_type` | `text` | Tipo de servicio solicitado. |
 | `description` | `text` | Descripción del trabajo solicitado. |
 | `desired_date` | `date nullable` | Fecha deseada por el cliente. |
@@ -203,6 +228,13 @@ negocio y criterios de seguridad.
 **Reglas importantes:**
 
 - Una solicitud no se convierte automáticamente en pedido.
+- Toda solicitud tiene `public_reference`, un codigo publico no secuencial con
+  formato `GD-XXXX-XXXX`.
+- `public_reference` no es el UUID interno, no deriva del `id` y no usa la
+  numeracion interna de pedidos.
+- El detalle interno puede mostrar `public_reference` como codigo copiable para
+  compartir con el cliente; las referencias cortas derivadas del UUID quedan
+  solo como identificadores internos.
 - Solo `admin` o `supervisor` pueden aprobar, rechazar o convertir solicitudes.
 - Al convertirse, el estado debería pasar a `convertida` y registrar el pedido generado.
 - Los cambios manuales de estado se validan mediante `public.actualizar_estado_solicitud`.
@@ -210,7 +242,13 @@ negocio y criterios de seguridad.
 - `rechazada` y `convertida` son estados cerrados. `convertida` solo se asigna desde el flujo formal de conversión a pedido.
 - `quantity` fue eliminado del modelo de solicitudes. Las cantidades, medidas y requisitos se deben explicar dentro de `description` o `notes`.
 - `service_type` sigue siendo una referencia inicial del tipo de trabajo solicitado.
-- La conversión a pedido exige `title`, `description` y `priority` definidos por el usuario interno. `priority` inicia visualmente en `normal` y se valida contra el enum real. `estimated_delivery_date` es opcional y no puede ser anterior al día actual si se informa. `service_type` no se usa como título automático.
+- `workflow_type` diferencia el flujo operativo general del servicio específico.
+- Los registros existentes quedan como `encargo`.
+- La conversión conserva el `workflow_type` de la solicitud.
+- En encargos, la conversión exige `title` y `description` definidos por el usuario interno.
+- En impresiones, la conversión usa el título operativo predeterminado `Pedido de impresión` y conserva la descripción estructurada de la solicitud.
+- `priority` se valida contra el enum real. `estimated_delivery_date` es opcional y no puede ser anterior al día actual si se informa.
+- `service_type` describe el servicio solicitado; no decide el flujo ni se usa como título automático.
 
 **Notas de seguridad:**
 
@@ -225,9 +263,11 @@ negocio y criterios de seguridad.
 | Campo | Tipo sugerido | Notas |
 |---|---|---|
 | `id` | `uuid` | Identificador único del pedido. |
-| `order_number` | `text unique` | Número visible y único para operación interna, con formato `P-YY-XXXX`. |
+| `order_number` | `text unique` | Número operativo interno y único, con formato `P-YY-XXXX`. |
+| `public_reference` | `text` | Codigo publico de seguimiento con formato `GD-XXXX-XXXX`. |
 | `cliente_id` | `uuid nullable` | Cliente asociado; opcional en pedidos manuales y requerido en pedidos convertidos desde solicitud. |
 | `solicitud_id` | `uuid nullable` | Solicitud origen si el pedido fue convertido. |
+| `workflow_type` | `workflow_type` | Variante del flujo operativo; por defecto `encargo`. |
 | `title` | `text` | Nombre breve del pedido. |
 | `description` | `text` | Detalle del trabajo. |
 | `status` | `pedido_estado` | Estado operativo del pedido. |
@@ -248,22 +288,103 @@ negocio y criterios de seguridad.
 
 - `order_number` debe ser único y cumplir el formato `P-YY-XXXX`.
 - `order_number` se genera en base de datos al insertar el pedido. La secuencia reinicia cada año según `private.current_business_date()`, con zona `America/Havana`, y se controla con `pedido_contadores` para proteger la concurrencia.
+- Todo pedido tiene `public_reference`, un codigo publico no secuencial con
+  formato `GD-XXXX-XXXX`.
+- `public_reference` no reemplaza `order_number`: `order_number` sigue siendo la
+  numeracion interna operativa y `public_reference` queda reservado para
+  seguimiento publico.
+- El detalle interno del pedido muestra ambos conceptos separados:
+  `order_number` como referencia operativa y `public_reference` como codigo
+  copiable para el cliente.
 - Un pedido puede crearse manualmente o a partir de una solicitud.
+- `workflow_type` distingue encargos personalizados o complejos de trabajos directos de impresión, sin describir el servicio específico.
+- Los registros existentes quedan como `encargo`.
 - Un pedido manual puede quedar sin cliente asociado (`cliente_id = null`).
 - La conversión desde solicitud exige que la solicitud tenga `cliente_id` asociado.
+- Un pedido convertido desde solicitud hereda exactamente el
+  `public_reference` de esa solicitud.
+- Un pedido manual genera su propio `public_reference`.
 - Un pedido manual inicia en `creado`; un pedido convertido desde solicitud inicia en `solicitud_recibida`.
 - `creado` puede pasar únicamente a `en_revision` o `cancelado`. No permite avanzar directamente a producción, listo para entrega o entregado.
 - La conversión desde solicitud guarda la prioridad definida por el usuario interno y una fecha estimada opcional validada server-side. Usa la numeración generada por base de datos y mantiene el estado inicial `solicitud_recibida`.
-- Los estados de pedido solo representan fases generales. Las tareas de pedido modelan el progreso real y condicionan el avance operativo mediante `public.actualizar_estado_pedido`.
+- Los dos flujos comparten los estados generales `creado`, `solicitud_recibida`, `en_revision`, `en_produccion`, `listo_entrega`, `entregado` y `cancelado`.
+- En pedidos de tipo `encargo`, las tareas modelan el progreso real y condicionan el avance operativo mediante `public.actualizar_estado_pedido`.
+- En pedidos de tipo `impresion`, las tareas no son obligatorias y el pedido puede avanzar por los mismos estados generales sin crearlas.
 - `public.actualizar_estado_pedido` bloquea el pedido con `FOR UPDATE` y las tareas existentes con `FOR SHARE` durante la decisión.
+- Para marcar `entregado`, `public.actualizar_estado_pedido` exige que
+  `pedido_pagos.payment_status = 'pagado'`; los pedidos con total cero cumplen
+  esta regla porque el resumen financiero queda `pagado`.
 - Al marcar un pedido como `entregado`, `actual_delivery_date` usa la fecha local de negocio.
 - Los cambios importantes de estado se registran en `pedido_historial`.
+- La creación y la presentación se adaptan a cada `workflow_type`, pero no hay estados exclusivos de impresión.
+- Los detalles específicos de impresión se guardan como descripción estructurada; no existen tablas normalizadas específicas de impresión.
 
 **Notas de seguridad:**
 
 - `admin` puede acceder a todos los pedidos.
 - `supervisor` puede gestionar pedidos.
 - `trabajador` solo debe leer pedidos donde esté asignado.
+
+### `pedido_pagos`
+
+**Proposito:** Guarda el resumen financiero 1:1 de un pedido. `pedidos`
+mantiene el dominio operativo y `pedido_pagos` mantiene el dominio financiero.
+No es una tabla de movimientos, abonos individuales ni comprobantes.
+
+| Campo | Tipo sugerido | Notas |
+|---|---|---|
+| `pedido_id` | `uuid` | Clave primaria y FK al pedido. |
+| `total_amount` | `numeric(12,2)` | Precio total del pedido. Puede ser `0`. |
+| `paid_cash_amount` | `numeric(12,2)` | Monto pagado en efectivo. |
+| `paid_transfer_amount` | `numeric(12,2)` | Monto pagado por transferencia. |
+| `payment_status` | `pedido_pago_estado` | Estado calculado por trigger. |
+| `paid_at` | `timestamptz nullable` | Fecha en que el resumen queda pagado. |
+| `created_by` | `uuid nullable` | Perfil interno que creo el resumen si aplica. |
+| `updated_by` | `uuid nullable` | Perfil interno que actualizo el resumen si aplica. |
+| `created_at` | `timestamptz` | Fecha de creacion. |
+| `updated_at` | `timestamptz` | Fecha de ultima actualizacion. |
+
+**Claves foraneas:**
+
+- `pedido_pagos.pedido_id` -> `pedidos.id` con `on delete cascade`.
+- `pedido_pagos.created_by` -> `perfiles.id`.
+- `pedido_pagos.updated_by` -> `perfiles.id`.
+
+**Reglas importantes:**
+
+- Cada pedido debe tener un unico resumen financiero.
+- `total_amount >= 0`.
+- `paid_cash_amount >= 0`.
+- `paid_transfer_amount >= 0`.
+- `paid_cash_amount + paid_transfer_amount <= total_amount`.
+- Si `total_amount = 0`, el pedido se considera `pagado` y `paid_at` se setea.
+- Si el total es mayor que cero y no hay monto pagado, el estado es `sin_pago`.
+- Si el monto pagado es mayor que cero y menor que el total, el estado es `parcial`.
+- Si el monto pagado coincide con el total, el estado es `pagado`.
+- El trigger `private.set_pedido_payment_status()` recalcula siempre
+  `payment_status` y mantiene `paid_at` coherente.
+- Los pedidos existentes se rellenan con total cero y estado `pagado`.
+- La creacion manual usa `public.crear_pedido_manual` para crear el pedido y su
+  resumen financiero en una sola transaccion.
+- La conversion desde solicitud usa `public.convertir_solicitud_a_pedido` para
+  crear el pedido, su resumen financiero y asociar archivos en una sola
+  transaccion.
+- La actualizacion interna de pagos usa `public.actualizar_pago_pedido` para
+  modificar solo efectivo y transferencia acumulados, mantener `updated_by` y
+  registrar historial en una sola transaccion.
+- El estado de pago `pagado` es condicion para que
+  `public.actualizar_estado_pedido` pueda cerrar el pedido como `entregado`.
+- El listado interno puede leer este resumen para mostrar y filtrar estado de
+  pago. Esa visibilidad sigue limitada por acceso interno al pedido; no forma
+  parte del seguimiento publico.
+
+**Notas de seguridad:**
+
+- RLS esta activo.
+- Usuarios anonimos no acceden.
+- Usuarios internos activos pueden leer el resumen si ya pueden acceder al pedido.
+- Las modificaciones directas quedan restringidas a `admin` y `supervisor`.
+- No se usa `service_role` ni se consulta `auth.users` para este modelo.
 
 ### `pedido_contadores`
 
@@ -277,7 +398,7 @@ negocio y criterios de seguridad.
 
 **Reglas importantes:**
 
-- La numeración visible de pedidos usa el formato `P-YY-XXXX`.
+- La numeración operativa interna de pedidos usa el formato `P-YY-XXXX`.
 - La secuencia reinicia por año.
 - La función privada `private.current_business_date()` devuelve la fecha de negocio para `America/Havana`.
 - La función privada `private.generar_numero_pedido()` obtiene de esa fecha el año e incrementa el contador dentro de la transacción.
@@ -365,6 +486,84 @@ negocio y criterios de seguridad.
 - `admin`, `supervisor` y personal asignado pueden gestionar tareas de pedidos accesibles.
 - El acceso se basa en `private.can_access_pedido(pedido_id)`.
 - Usuarios anónimos no acceden.
+
+### `trabajo_plantillas`
+
+**Proposito:** Guarda la cabecera de plantillas de tareas para encargos, tambien llamadas trabajos predeterminados. Una plantilla no es un pedido real, no tiene estado operativo y no representa trabajo en curso.
+
+| Campo | Tipo sugerido | Notas |
+|---|---|---|
+| `id` | `uuid` | Identificador unico de la plantilla. |
+| `name` | `text` | Nombre visible de la plantilla. |
+| `description` | `text nullable` | Descripcion interna opcional. |
+| `is_active` | `boolean` | Permite ocultar plantillas sin eliminar su definicion historica. |
+| `created_by` | `uuid nullable` | Perfil interno que creo la plantilla. |
+| `updated_by` | `uuid nullable` | Perfil interno que actualizo la plantilla. |
+| `created_at` | `timestamptz` | Fecha de creacion. |
+| `updated_at` | `timestamptz` | Fecha de ultima actualizacion. |
+
+**Claves foraneas:**
+
+- `trabajo_plantillas.created_by` -> `perfiles.id`.
+- `trabajo_plantillas.updated_by` -> `perfiles.id`.
+
+**Reglas importantes:**
+
+- El nombre no puede quedar vacio tras `trim` y debe medir entre 2 y 120 caracteres.
+- La descripcion es opcional y tiene limite de 2000 caracteres.
+- Las plantillas se usan como moldes para crear tareas nuevas en pedidos de tipo `encargo`.
+- Aplicar una plantilla copia sus tareas a `pedido_tareas` mediante la RPC transaccional `public.aplicar_plantilla_tareas_pedido`.
+- La copia agrega tareas al final del pedido y no reemplaza ni borra tareas existentes.
+- Editar, desactivar o eliminar una plantilla no modifica pedidos existentes ni tareas ya copiadas.
+- No hay sincronizacion viva entre plantilla y pedido.
+
+**Notas de seguridad:**
+
+- RLS esta activo.
+- Usuarios internos autenticados y activos pueden leer plantillas activas.
+- `admin` puede leer plantillas activas e inactivas y gestionarlas.
+- Usuarios anonimos no acceden.
+
+### `trabajo_plantilla_tareas`
+
+**Proposito:** Guarda las tareas ordenadas de una plantilla. Estas filas describen tareas base para copiar a pedidos de tipo `encargo`, pero no guardan progreso real.
+
+| Campo | Tipo sugerido | Notas |
+|---|---|---|
+| `id` | `uuid` | Identificador unico de la tarea de plantilla. |
+| `template_id` | `uuid` | Plantilla a la que pertenece. |
+| `title` | `text` | Texto de la tarea predeterminada. |
+| `task_type` | `pedido_tarea_tipo` | Reutiliza el mismo enum que `pedido_tareas.task_type`. |
+| `target_quantity` | `integer nullable` | Cantidad objetivo para tareas cuantificadas. |
+| `sort_order` | `integer` | Orden dentro de la plantilla. |
+| `created_at` | `timestamptz` | Fecha de creacion. |
+| `updated_at` | `timestamptz` | Fecha de ultima actualizacion. |
+
+**Claves foraneas:**
+
+- `trabajo_plantilla_tareas.template_id` -> `trabajo_plantillas.id` con `on delete cascade`.
+
+**Reglas importantes:**
+
+- `title` no puede estar vacio y tiene limite de 200 caracteres.
+- `sort_order` no puede ser negativo.
+- Las tareas `simple` deben tener `target_quantity = null`.
+- Las tareas `cuantificada` requieren `target_quantity > 0`.
+- El orden visual se obtiene por `sort_order`, `created_at` e `id`; la gestion
+  actual permite mover tareas arriba o abajo y normaliza el orden tras eliminar.
+- La creacion y edicion desde Configuracion reutilizan el parseo de titulos de
+  `pedido_tareas`: un entero positivo independiente crea una tarea
+  `cuantificada`; sin cantidad crea una tarea `simple`.
+- No existen `is_completed`, `completed_quantity`, `completed_at` ni `completed_by`, porque una plantilla no tiene avance.
+- Al aplicar la plantilla, cada fila se copia como una tarea nueva e independiente en `pedido_tareas`.
+- `pedido_tareas` sigue siendo la tabla real de tareas operativas y progreso del pedido.
+
+**Notas de seguridad:**
+
+- RLS esta activo.
+- La lectura sigue la visibilidad de la plantilla padre: plantillas activas para usuarios internos activos y todas para `admin`.
+- Crear, actualizar o eliminar tareas de plantilla queda reservado a `admin`, equivalente SQL del permiso `configuracion.manage`.
+- Usuarios anonimos no acceden.
 
 ### `archivos`
 
@@ -459,15 +658,15 @@ negocio y criterios de seguridad.
 **Reglas importantes:**
 
 - El historial no debe editarse manualmente desde la aplicación.
-- Registra cambios relevantes de estado, asignaciones, archivos, tareas y cierre
-  del pedido mediante RPCs y triggers controlados.
+- Registra cambios relevantes de estado, asignaciones, archivos, tareas, pagos y
+  cierre del pedido mediante RPCs y triggers controlados.
 
 **Notas de seguridad:**
 
 - Usuarios internos autorizados pueden leer historial según permisos sobre el pedido.
 - La inserción debería ocurrir mediante acciones controladas de la aplicación o funciones seguras.
 - No se debería permitir actualización o eliminación manual desde el cliente.
-- La subfase 11.2 deja la inserción directa por tabla deshabilitada; la RPC `actualizar_estado_pedido` mantiene el registro de cambios de estado.
+- La subfase 11.2 deja la inserción directa por tabla deshabilitada; las RPCs controladas, como `actualizar_estado_pedido` y `actualizar_pago_pedido`, mantienen el registro de cambios operativos.
 
 ### `solicitud_comentarios`
 
@@ -544,9 +743,12 @@ negocio y criterios de seguridad.
 - Un cliente puede tener muchas solicitudes.
 - Un cliente puede tener muchos pedidos.
 - Una solicitud puede convertirse en un pedido.
+- Una solicitud convertida y su pedido asociado comparten `public_reference`.
 - Un pedido puede tener varios usuarios internos asignados.
 - Un usuario interno puede estar asignado a varios pedidos.
+- Un pedido tiene un resumen financiero unico en `pedido_pagos`.
 - Un pedido puede tener muchas tareas.
+- Una plantilla de trabajo puede tener muchas tareas predeterminadas.
 - Un pedido puede tener muchos archivos.
 - Una solicitud puede tener muchos archivos.
 - Un pedido puede tener muchos comentarios.
@@ -560,6 +762,9 @@ negocio y criterios de seguridad.
 - Solo `admin` o `supervisor` podrán convertir solicitudes en pedidos.
 - Trabajadores solo podrán ver pedidos asignados.
 - Trabajadores asignados pueden gestionar tareas de sus pedidos asignados.
+- Todo pedido debe tener un resumen financiero 1:1 en `pedido_pagos`.
+- El precio total puede ser cero y en ese caso el resumen queda `pagado`.
+- El listado interno de pedidos puede filtrar por `pedido_pagos.payment_status`.
 - Los archivos serán privados por defecto.
 - El historial no será editable manualmente.
 - Los clientes no tendrán cuenta de usuario en la primera versión.
@@ -587,16 +792,25 @@ generan URLs firmadas de duración limitada; no hay lectura ni listado público.
 | `solicitudes` | `cliente_id` |
 | `solicitudes` | `created_at` |
 | `solicitudes` | `status, created_at` |
+| `solicitudes` | `public_reference` unico |
 | `solicitudes` | `converted_order_id` único cuando no es `null` |
 | `pedidos` | `cliente_id` |
 | `pedidos` | `created_at` |
 | `pedidos` | `status, created_at` |
 | `pedidos` | `estimated_delivery_date` para pedidos activos |
+| `pedidos` | `public_reference` unico |
 | `pedidos` | `solicitud_id` único cuando no es `null` |
+| `pedido_pagos` | `pedido_id` clave primaria |
+| `pedido_pagos` | `payment_status` |
 | `pedido_trabajadores` | `assigned_profile_id` |
 | `pedido_tareas` | `pedido_id, sort_order` |
 | `pedido_tareas` | `pedido_id, created_at` |
 | `pedido_tareas` | `pedido_id, is_completed` |
+| `trabajo_plantillas` | `is_active` |
+| `trabajo_plantillas` | `name` |
+| `trabajo_plantillas` | `created_at` |
+| `trabajo_plantilla_tareas` | `template_id` |
+| `trabajo_plantilla_tareas` | `template_id, sort_order` |
 | `archivos` | `pedido_id, visibility, created_at` |
 | `archivos` | `solicitud_id, visibility, created_at` |
 | `pedido_comentarios` | `pedido_id, created_at` |
@@ -615,9 +829,12 @@ El diagnóstico y diseño actualizado para comentarios internos e historial oper
 
 - `public.convertir_solicitud_a_pedido` crea el pedido, marca la solicitud como
   convertida y hereda sus archivos dentro de una sola transacción.
+- En la conversion de solicitud a pedido, el pedido hereda exactamente el
+  `public_reference` de la solicitud; no se genera un codigo nuevo.
 - `public.crear_cliente_desde_solicitud` crea el cliente, registra historial y
   lo asocia a la solicitud de forma atómica.
-- `public.actualizar_estado_pedido` serializa cambios de estado y valida tareas.
+- `public.actualizar_estado_pedido` serializa cambios de estado y valida tareas
+  y pago completo antes de entregar.
 - `public.actualizar_estado_solicitud` controla las transiciones manuales.
 
 La evolución del esquema debe hacerse mediante nuevas migraciones y mantener
