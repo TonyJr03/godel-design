@@ -29,7 +29,7 @@ Todavía no incluye:
 - edición general de pedido;
 - eliminación de pedido;
 - filtros o reportes avanzados sobre historial;
-- formularios o UI para definir precios y registrar pagos;
+- formularios o UI para registrar pagos posteriores al precio inicial;
 - tabla de movimientos o abonos individuales;
 - bloqueo de entrega por pago incompleto;
 - notificaciones;
@@ -144,10 +144,13 @@ la base de datos calcula `sin_pago`, `parcial` o `pagado` segun
 `total_amount`, `paid_cash_amount` y `paid_transfer_amount`. No se permite
 registrar montos negativos ni pagar mas que el total.
 
-En esta subfase no hay formulario de precio ni registro de pagos en la UI. El
-precio se definira al crear manualmente o convertir solicitudes en fases
-posteriores. La actualizacion de pagos y el bloqueo de entrega sin pago completo
-tambien quedan para fases posteriores.
+En la creacion manual se define el precio total del pedido. La RPC
+`public.crear_pedido_manual` crea `pedidos` y `pedido_pagos` en una unica
+transaccion: con precio `0`, el resumen queda `pagado`; con precio mayor que
+`0`, queda `sin_pago` porque todavia no se registra pago inicial. La conversion
+desde solicitudes definira precio en una fase posterior. La actualizacion de
+pagos y el bloqueo de entrega sin pago completo tambien quedan para fases
+posteriores.
 
 ## Estados de pedido
 
@@ -390,6 +393,14 @@ Ambas variantes permiten seleccionar un cliente existente o dejar
 personal asignado. El pedido manual se crea con `solicitud_id = null`, estado
 inicial `creado` y `cliente_id = null` cuando no se selecciona cliente. No
 existen campos temporales de cliente en este flujo.
+
+La creacion manual exige `total_amount`, permite `0` y rechaza valores
+negativos o no numericos. El servicio server-side valida el monto y llama a
+`public.crear_pedido_manual`, que inserta el pedido y su resumen financiero en
+`pedido_pagos` dentro de la misma transaccion. No se registra pago inicial:
+`paid_cash_amount = 0` y `paid_transfer_amount = 0`. Por eso, un pedido manual
+con precio `0` queda `pagado`; con precio mayor que `0`, queda `sin_pago`.
+Todavia no existe actualizacion de pagos desde el detalle del pedido.
 
 El encargo conserva título y descripción obligatorios. La impresión solicita
 cantidad de copias, modo de color, tamaño de papel, caras y observaciones

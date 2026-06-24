@@ -6,7 +6,7 @@ import {
   type ServiceResult,
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
-import type { Enums, TablesInsert } from "@/types/database";
+import type { Enums } from "@/types/database";
 import {
   validatePedidoInput,
   type CreatePedidoInput,
@@ -31,9 +31,34 @@ export type CreateInternalPedidoResult = ServiceResult<
   PedidoFieldErrors
 >;
 
-const INITIAL_MANUAL_PEDIDO_ESTADO: Enums<"pedido_estado"> = "creado";
 const GENERIC_CREATE_ERROR =
   "No se pudo crear el pedido. Inténtalo nuevamente.";
+
+type CreateManualPedidoRpcRow = {
+  pedido_id: string;
+  order_number: string;
+  public_reference: string;
+};
+
+type CreateManualPedidoRpcResult = {
+  data: CreateManualPedidoRpcRow[] | null;
+  error: { message?: string } | null;
+};
+
+type CreateManualPedidoRpcClient = {
+  rpc(
+    fn: "crear_pedido_manual",
+    args: {
+      p_workflow_type: Enums<"workflow_type">;
+      p_cliente_id: string | null;
+      p_title: string;
+      p_description: string;
+      p_priority: Enums<"pedido_prioridad">;
+      p_estimated_delivery_date: string | null;
+      p_total_amount: number;
+    },
+  ): PromiseLike<CreateManualPedidoRpcResult>;
+};
 
 async function clienteExists(clienteId: string): Promise<boolean | null> {
   const supabase = await createClient();
@@ -95,36 +120,31 @@ export async function createInternalPedido(
     );
   }
 
-  const supabase = await createClient();
-  const pedido: TablesInsert<"pedidos"> = {
-    workflow_type: validation.data.workflow_type,
-    cliente_id: validation.data.cliente_id,
-    title: validation.data.title,
-    description: validation.data.description,
-    priority: validation.data.priority,
-    estimated_delivery_date: validation.data.estimated_delivery_date,
-    status: INITIAL_MANUAL_PEDIDO_ESTADO,
-    solicitud_id: null,
-    created_by: profile.id,
-  };
-
   try {
-    const { data, error } = await supabase
-      .from("pedidos")
-      .insert(pedido)
-      .select("id, order_number, public_reference")
-      .single();
+    const supabase = await createClient();
+    const { data, error } = await (
+      supabase as unknown as CreateManualPedidoRpcClient
+    ).rpc("crear_pedido_manual", {
+      p_workflow_type: validation.data.workflow_type,
+      p_cliente_id: validation.data.cliente_id,
+      p_title: validation.data.title,
+      p_description: validation.data.description,
+      p_priority: validation.data.priority,
+      p_estimated_delivery_date: validation.data.estimated_delivery_date,
+      p_total_amount: validation.data.total_amount,
+    });
+    const pedido = data?.[0];
 
-    if (error || !data) {
+    if (error || !pedido) {
       console.error("Error creating internal pedido", error);
 
       return serviceFailure("error", GENERIC_CREATE_ERROR);
     }
 
     return serviceSuccess({
-      pedidoId: data.id,
-      numeroPedido: data.order_number,
-      publicReference: data.public_reference,
+      pedidoId: pedido.pedido_id,
+      numeroPedido: pedido.order_number,
+      publicReference: pedido.public_reference,
     });
   } catch (error) {
     console.error("Unexpected error creating internal pedido", error);

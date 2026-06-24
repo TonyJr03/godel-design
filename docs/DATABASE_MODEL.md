@@ -360,6 +360,8 @@ No es una tabla de movimientos, abonos individuales ni comprobantes.
 - El trigger `private.set_pedido_payment_status()` recalcula siempre
   `payment_status` y mantiene `paid_at` coherente.
 - Los pedidos existentes se rellenan con total cero y estado `pagado`.
+- La creacion manual usa `public.crear_pedido_manual` para crear el pedido y su
+  resumen financiero en una sola transaccion.
 
 **Notas de seguridad:**
 

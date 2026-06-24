@@ -176,7 +176,8 @@ Estado actual:
 - El estado de pago se calcula en base de datos desde total, efectivo y
   transferencia.
 - Los pedidos historicos quedan backfilled como `pagado` con total cero.
-- No existe todavia UI de precios, registro de pagos ni bloqueo de entrega.
+- La creacion manual ya registra precio inicial.
+- No existe todavia UI de registro de pagos ni bloqueo de entrega.
 
 ### 11. Movimientos, comprobantes y cierre operativo
 

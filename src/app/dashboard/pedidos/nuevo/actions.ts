@@ -25,6 +25,7 @@ export async function createPedidoAction(
     cliente_id: getFormValue(formData, "cliente_id"),
     title: getFormValue(formData, "title"),
     description: getFormValue(formData, "description"),
+    total_amount: getFormValue(formData, "total_amount"),
     priority: getFormValue(formData, "priority"),
     estimated_delivery_date: getFormValue(
       formData,

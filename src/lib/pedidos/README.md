@@ -24,9 +24,19 @@ El trabajador tampoco accede al módulo general de usuarios. RLS de `perfiles` s
 
 `/dashboard/pedidos/nuevo` permite crear pedidos manuales con cliente registrado o sin cliente asociado.
 
-La action `createPedidoAction` lee únicamente `cliente_id`, `title`, `description`, `priority` y `estimated_delivery_date`, y delega en `createInternalPedido`.
+La action `createPedidoAction` lee únicamente `workflow_type`, `cliente_id`,
+`title`, `description`, `total_amount`, `priority`,
+`estimated_delivery_date` y los campos de impresión cuando aplica, y delega en
+`createInternalPedido`.
 
-`createInternalPedido` requiere `pedidos.manage`, valida el input, valida el cliente solo cuando se envía `cliente_id`, crea el pedido con estado inicial `creado`, guarda `solicitud_id` como `null` y no asigna personal. Si no se selecciona cliente, guarda `cliente_id = null`; no captura datos temporales de cliente desde el formulario.
+`createInternalPedido` requiere `pedidos.manage`, valida el input, valida el
+cliente solo cuando se envía `cliente_id` y delega la escritura en
+`public.crear_pedido_manual`. Esa RPC crea el pedido con estado inicial
+`creado`, guarda `solicitud_id` como `null`, no asigna personal y crea el
+resumen financiero en `pedido_pagos` con `paid_cash_amount = 0` y
+`paid_transfer_amount = 0`. Si no se selecciona cliente, guarda
+`cliente_id = null`; no captura datos temporales de cliente desde el formulario.
+El precio total es obligatorio, puede ser `0` y no puede ser negativo.
 
 El número de pedido (`order_number`) no se acepta desde formularios ni se genera en TypeScript. La base de datos lo asigna al insertar el pedido con formato `P-YY-XXXX`, usando un contador anual transaccional y el año de la fecha de negocio `America/Havana`.
 

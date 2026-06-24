@@ -127,6 +127,7 @@ export function PedidoForm({ clientes, prioridades }: PedidoFormProps) {
   const clienteError = getFieldError(state, "cliente_id");
   const tituloError = getFieldError(state, "title");
   const descripcionError = getFieldError(state, "description");
+  const totalAmountError = getFieldError(state, "total_amount");
   const prioridadError = getFieldError(state, "priority");
   const fechaEntregaError = getFieldError(state, "estimated_delivery_date");
   const printCopiesError = getFieldError(state, "print_copies");
@@ -303,6 +304,32 @@ export function PedidoForm({ clientes, prioridades }: PedidoFormProps) {
             )}
           </FormField>
         </div>
+      </FormSection>
+
+      <FormSection
+        title="Precio del pedido"
+        description="Define el monto total que debe pagar el cliente por este pedido. Puede ser 0 en caso de cortesía, regalo o trabajo sin cobro."
+      >
+        <FormField
+          id="total_amount"
+          label="Monto total a pagar"
+          required
+          error={totalAmountError}
+        >
+          {({ describedBy, invalid }) => (
+            <Input
+              id="total_amount"
+              name="total_amount"
+              type="number"
+              inputMode="decimal"
+              min={0}
+              step="0.01"
+              required
+              invalid={invalid}
+              aria-describedby={describedBy}
+            />
+          )}
+        </FormField>
       </FormSection>
 
       <FormSection

@@ -898,6 +898,22 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      crear_pedido_manual: {
+        Args: {
+          p_cliente_id: string
+          p_description: string
+          p_estimated_delivery_date: string
+          p_priority: Database["public"]["Enums"]["pedido_prioridad"]
+          p_title: string
+          p_total_amount: number
+          p_workflow_type: Database["public"]["Enums"]["workflow_type"]
+        }
+        Returns: {
+          order_number: string
+          pedido_id: string
+          public_reference: string
+        }[]
+      }
       listar_pedido_comentarios: {
         Args: { p_pedido_id: string }
         Returns: {
