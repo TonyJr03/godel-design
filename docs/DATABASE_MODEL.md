@@ -374,6 +374,9 @@ No es una tabla de movimientos, abonos individuales ni comprobantes.
   registrar historial en una sola transaccion.
 - El estado de pago `pagado` es condicion para que
   `public.actualizar_estado_pedido` pueda cerrar el pedido como `entregado`.
+- El listado interno puede leer este resumen para mostrar y filtrar estado de
+  pago. Esa visibilidad sigue limitada por acceso interno al pedido; no forma
+  parte del seguimiento publico.
 
 **Notas de seguridad:**
 
@@ -761,6 +764,7 @@ No es una tabla de movimientos, abonos individuales ni comprobantes.
 - Trabajadores asignados pueden gestionar tareas de sus pedidos asignados.
 - Todo pedido debe tener un resumen financiero 1:1 en `pedido_pagos`.
 - El precio total puede ser cero y en ese caso el resumen queda `pagado`.
+- El listado interno de pedidos puede filtrar por `pedido_pagos.payment_status`.
 - Los archivos serán privados por defecto.
 - El historial no será editable manualmente.
 - Los clientes no tendrán cuenta de usuario en la primera versión.

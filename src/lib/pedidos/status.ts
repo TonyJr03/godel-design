@@ -6,6 +6,8 @@ import {
 
 export const PEDIDO_STATUSES = Constants.public.Enums.pedido_estado;
 export const PEDIDO_PRIORITIES = Constants.public.Enums.pedido_prioridad;
+export const PEDIDO_PAYMENT_STATUSES =
+  Constants.public.Enums.pedido_pago_estado;
 
 export type PedidoStatus = Enums<"pedido_estado">;
 export type PedidoPriority = Enums<"pedido_prioridad">;

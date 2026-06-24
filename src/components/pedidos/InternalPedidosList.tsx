@@ -4,7 +4,11 @@ import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PriorityBadge } from "@/components/ui/PriorityBadge";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import type { InternalPedido } from "@/lib/pedidos";
+import { formatMoney } from "@/lib/format/money";
+import {
+  PEDIDO_PAYMENT_STATUS_LABELS,
+  type InternalPedido,
+} from "@/lib/pedidos";
 import { getSolicitudServiceTypeLabel } from "@/lib/solicitudes";
 import { WORKFLOW_TYPES } from "@/lib/workflow-types";
 import { PedidoWorkflowTypeBadge } from "./PedidoWorkflowTypeBadge";
@@ -98,6 +102,58 @@ function ProgressBadge({ pedido }: { pedido: InternalPedido }) {
   );
 }
 
+function getPaymentBadgeClasses(pedido: InternalPedido): string {
+  if (!pedido.payment.isAvailable) {
+    return "border-warning/30 bg-warning-soft text-text-primary";
+  }
+
+  if (pedido.payment.paymentStatus === "pagado") {
+    return "border-success/30 bg-success-soft text-success";
+  }
+
+  if (pedido.payment.paymentStatus === "parcial") {
+    return "border-warning/30 bg-warning-soft text-text-primary";
+  }
+
+  return "border-danger/30 bg-danger-soft text-danger";
+}
+
+function getPaymentLabel(pedido: InternalPedido): string {
+  return pedido.payment.isAvailable
+    ? PEDIDO_PAYMENT_STATUS_LABELS[pedido.payment.paymentStatus]
+    : "Sin información";
+}
+
+function getPaymentPendingLabel(pedido: InternalPedido): string | null {
+  if (!pedido.payment.isAvailable || pedido.payment.pendingAmount <= 0) {
+    return null;
+  }
+
+  return `Pendiente: ${formatMoney(pedido.payment.pendingAmount)}`;
+}
+
+function PaymentBadge({ pedido }: { pedido: InternalPedido }) {
+  const pendingLabel = getPaymentPendingLabel(pedido);
+
+  return (
+    <div className="inline-flex flex-col items-start gap-1">
+      <span
+        className={[
+          "inline-flex rounded-(--radius-control) border px-2.5 py-1 text-xs font-semibold",
+          getPaymentBadgeClasses(pedido),
+        ].join(" ")}
+      >
+        {getPaymentLabel(pedido)}
+      </span>
+      {pendingLabel ? (
+        <span className="text-xs leading-5 text-text-muted">
+          {pendingLabel}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 export function InternalPedidosList({
   pedidos,
   emptyMessage = "Cuando existan pedidos internos, aparecerán aquí ordenados por fecha de creación.",
@@ -149,7 +205,10 @@ export function InternalPedidosList({
             </div>
 
             <div className="mt-4">
-              <ProgressBadge pedido={pedido} />
+              <div className="flex flex-wrap gap-2">
+                <ProgressBadge pedido={pedido} />
+                <PaymentBadge pedido={pedido} />
+              </div>
             </div>
 
             <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
@@ -211,6 +270,9 @@ export function InternalPedidosList({
                 </th>
                 <th scope="col" className="px-4 py-3">
                   Progreso
+                </th>
+                <th scope="col" className="px-4 py-3">
+                  Pago
                 </th>
                 <th scope="col" className="px-4 py-3">
                   Personal
@@ -287,6 +349,9 @@ export function InternalPedidosList({
                   </td>
                   <td className="whitespace-nowrap px-4 py-4">
                     <ProgressBadge pedido={pedido} />
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-4">
+                    <PaymentBadge pedido={pedido} />
                   </td>
                   <td className="px-4 py-4 text-text-secondary">
                     {getTrabajadoresLabel(pedido)}

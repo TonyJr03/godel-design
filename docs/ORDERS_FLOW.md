@@ -20,6 +20,7 @@ El módulo de pedidos incluye actualmente:
 - comentarios internos de pedido;
 - historial automático visible;
 - búsqueda textual y filtro de estado;
+- filtro por estado de pago en listado interno;
 - código público de seguimiento visible y copiable en el detalle interno;
 - resumen financiero base 1:1 en `pedido_pagos`;
 - visualizacion y actualizacion interna de pagos acumulados;
@@ -32,7 +33,6 @@ Todavía no incluye:
 - filtros o reportes avanzados sobre historial;
 - tabla de movimientos o abonos individuales;
 - edicion del total financiero desde el detalle;
-- bloqueo de entrega por pago incompleto;
 - notificaciones;
 - reportes o estadísticas;
 - responsables funcionales avanzados por pedido.
@@ -163,6 +163,12 @@ registra historial con `pago_actualizado`. Todavia no hay movimientos o abonos
 individuales. Para marcar un pedido como `entregado`, el pago debe estar
 completo: `pedido_pagos.payment_status = 'pagado'`. Los pedidos con
 `total_amount = 0` cumplen esta regla porque quedan `pagado`.
+
+El listado interno de pedidos muestra el estado de pago resumido y permite
+filtrar por `sin_pago`, `parcial` o `pagado` mediante `payment_status`. Este
+filtro se combina con busqueda textual, estado operativo y `workflow_type`.
+La consulta publica `/estado` no muestra importes, estado de pago ni deuda
+pendiente; los pagos siguen siendo informacion interna.
 
 ## Estados de pedido
 
@@ -563,6 +569,10 @@ Cuando el pedido pasa a `entregado`, `actual_delivery_date` usa
 Un trabajador solo puede cambiar el estado de pedidos asignados. Con múltiples usuarios asignados, cualquier trabajador que tenga una fila en `pedido_trabajadores` para ese pedido puede cambiar el estado; un trabajador no asignado no pasa la validación. `admin` y `supervisor` mantienen su permiso global aunque estén asignados operativamente a un pedido.
 
 Este flujo no modifica solicitudes ni `converted_order_id`, no cambia roles reales y no modifica permisos reales.
+
+El bloqueo por pago pendiente solo afecta al flujo interno. La ruta publica
+`/estado` puede seguir mostrando el estado operativo del pedido, pero no expone
+el resumen financiero ni el motivo de pago pendiente.
 
 ## Asignación de personal
 

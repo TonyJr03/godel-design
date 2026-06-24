@@ -179,7 +179,9 @@ Estado actual:
 - La creacion manual ya registra precio inicial.
 - El detalle interno permite a `admin` y `supervisor` actualizar efectivo y
   transferencia acumulados.
-- No existe todavia edicion controlada del total ni bloqueo de entrega por pago.
+- El listado interno muestra y filtra estado de pago.
+- La entrega queda bloqueada si el pago no esta completo.
+- No existe todavia edicion controlada del total.
 
 ### 11. Movimientos, comprobantes y cierre operativo
 
@@ -197,4 +199,7 @@ Propuesta futura:
 - Modelar comprobantes de transferencia y adjuntos asociados.
 - Definir impresion o generacion de recibos.
 - Evaluar cierre de caja por dia, usuario o turno.
+- Agregar metricas financieras al dashboard cuando haya necesidad real: pedidos
+  pendientes de pago, monto pendiente total y monto cobrado.
+- Evaluar exportes financieros y filtros avanzados por deuda o monto pendiente.
 - Endurecer auditoria historica para ediciones de precio y pagos.
