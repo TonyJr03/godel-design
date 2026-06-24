@@ -18,7 +18,12 @@ conceptualmente en `docs/PUBLIC_REQUEST_FLOW.md`. Al enviarse:
 La conversión a pedido se realiza manualmente desde el detalle interno cuando la
 solicitud está aprobada y tiene cliente asociado. El formulario adapta sus
 requisitos al `workflow_type` de la solicitud y permite definir la prioridad
-inicial y la fecha estimada del pedido.
+inicial, el precio total y la fecha estimada del pedido.
+
+La solicitud no tiene precio propio. El usuario interno define `total_amount`
+en el momento de convertir y ese monto pertenece al pedido resultante mediante
+`pedido_pagos`. Si el precio es `0`, el resumen financiero queda `pagado`; si
+es mayor que `0`, queda `sin_pago` porque todavia no se registra pago inicial.
 
 Las solicitudes de `Encargo` e `Impresión` continúan viviendo en la misma tabla
 `solicitudes`. La diferencia formal se guarda en `workflow_type` y se conserva
@@ -134,6 +139,8 @@ descripción se precarga desde la solicitud, puede editarse y, si se envía vac�
 el servicio recupera la descripción original.
 
 La prioridad inicia en `normal` y se valida contra el enum real de prioridades.
+El precio total es obligatorio, puede ser `0`, no puede ser negativo ni tener
+mas de 2 decimales, y se guarda en `pedido_pagos` al confirmar la conversion.
 También permite definir `estimated_delivery_date` de forma opcional; si se
 informa, debe ser igual o posterior al día actual y se valida server-side con
 `src/lib/validators/date.ts`.
@@ -144,11 +151,12 @@ El formulario no envía `workflow_type`. El servicio carga primero la solicitud,
 aplica las reglas y valores por defecto correspondientes a su flujo y delega la
 escritura completa en la RPC transaccional
 `public.convertir_solicitud_a_pedido`. La función bloquea la solicitud, repite
-las validaciones de autorización, estado, cliente, doble conversión y fecha de
-negocio, copia `solicitudes.workflow_type` a `pedidos.workflow_type` y confirma
-en conjunto la creación del pedido, la actualización de la solicitud y la
-herencia de archivos. La Server Action solo lee campos permitidos; la página
-enlaza `solicitud_id`, y la action delega y revalida rutas.
+las validaciones de autorización, estado, cliente, doble conversión, precio y
+fecha de negocio, copia `solicitudes.workflow_type` a `pedidos.workflow_type`,
+crea `pedido_pagos` y confirma en conjunto la creación del pedido, la
+actualización de la solicitud y la herencia de archivos. La Server Action solo
+lee campos permitidos; la página enlaza `solicitud_id`, y la action delega y
+revalida rutas.
 
 ## Archivos de solicitud
 

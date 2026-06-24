@@ -114,10 +114,75 @@ const MAX_PRINT_COPIES = 10000;
 const MAX_TOTAL_AMOUNT = 9999999999.99;
 const DEFAULT_PRINT_TITLE = "Pedido de impresión";
 
+export type PedidoTotalAmountValidationResult =
+  | {
+      ok: true;
+      value: number;
+    }
+  | {
+      ok: false;
+      error: string;
+    };
+
 export function isPedidoPrioridad(
   priority: string | null | undefined,
 ): priority is PedidoPrioridad {
   return PEDIDO_PRIORIDADES.includes(priority as PedidoPrioridad);
+}
+
+export function validatePedidoTotalAmount(
+  value: unknown,
+): PedidoTotalAmountValidationResult {
+  const totalAmountValue = normalizeSingleLineText(value);
+
+  if (!totalAmountValue) {
+    return {
+      ok: false,
+      error: "El precio total es obligatorio.",
+    };
+  }
+
+  if (totalAmountValue.startsWith("-")) {
+    return {
+      ok: false,
+      error: "El precio total no puede ser negativo.",
+    };
+  }
+
+  if (!/^\d+(?:\.\d+)?$/.test(totalAmountValue)) {
+    return {
+      ok: false,
+      error: "El precio total debe ser un número válido.",
+    };
+  }
+
+  if (!/^\d+(?:\.\d{1,2})?$/.test(totalAmountValue)) {
+    return {
+      ok: false,
+      error: "El precio total no puede tener más de 2 decimales.",
+    };
+  }
+
+  const totalAmount = Number(totalAmountValue);
+
+  if (!Number.isFinite(totalAmount)) {
+    return {
+      ok: false,
+      error: "El precio total debe ser un número válido.",
+    };
+  }
+
+  if (totalAmount > MAX_TOTAL_AMOUNT) {
+    return {
+      ok: false,
+      error: "El precio total supera el máximo permitido.",
+    };
+  }
+
+  return {
+    ok: true,
+    value: totalAmount,
+  };
 }
 
 function isOptionValue<
@@ -162,7 +227,6 @@ export function validatePedidoInput(
   const clienteId = normalizeOptionalSingleLineText(input.cliente_id);
   const title = normalizeSingleLineText(input.title);
   const description = normalizeMultilineText(input.description);
-  const totalAmountValue = normalizeSingleLineText(input.total_amount);
   const priority = normalizeSingleLineText(input.priority);
   const fechaEntregaEstimada = normalizeOptionalSingleLineText(
     input.estimated_delivery_date,
@@ -188,24 +252,12 @@ export function validatePedidoInput(
     fieldErrors.priority = "Selecciona una prioridad válida.";
   }
 
-  let totalAmount: number | null = null;
+  const totalAmountValidation = validatePedidoTotalAmount(
+    input.total_amount,
+  );
 
-  if (!totalAmountValue) {
-    fieldErrors.total_amount = "El precio total es obligatorio.";
-  } else if (totalAmountValue.startsWith("-")) {
-    fieldErrors.total_amount = "El precio total no puede ser negativo.";
-  } else if (!/^\d+(?:\.\d{1,2})?$/.test(totalAmountValue)) {
-    fieldErrors.total_amount = "El precio total debe ser un número válido.";
-  } else {
-    totalAmount = Number(totalAmountValue);
-
-    if (!Number.isFinite(totalAmount)) {
-      fieldErrors.total_amount =
-        "El precio total debe ser un número válido.";
-    } else if (totalAmount > MAX_TOTAL_AMOUNT) {
-      fieldErrors.total_amount =
-        "El precio total supera el máximo permitido.";
-    }
+  if (!totalAmountValidation.ok) {
+    fieldErrors.total_amount = totalAmountValidation.error;
   }
 
   if (fechaEntregaEstimada) {
@@ -290,7 +342,7 @@ export function validatePedidoInput(
 
   const commonData = {
     cliente_id: clienteId,
-    total_amount: totalAmount as number,
+    total_amount: totalAmountValidation.ok ? totalAmountValidation.value : 0,
     priority: priority as PedidoPrioridad,
     estimated_delivery_date: fechaEntregaEstimada,
   };

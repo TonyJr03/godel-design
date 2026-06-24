@@ -148,9 +148,9 @@ En la creacion manual se define el precio total del pedido. La RPC
 `public.crear_pedido_manual` crea `pedidos` y `pedido_pagos` en una unica
 transaccion: con precio `0`, el resumen queda `pagado`; con precio mayor que
 `0`, queda `sin_pago` porque todavia no se registra pago inicial. La conversion
-desde solicitudes definira precio en una fase posterior. La actualizacion de
-pagos y el bloqueo de entrega sin pago completo tambien quedan para fases
-posteriores.
+desde solicitudes aplica la misma regla mediante
+`public.convertir_solicitud_a_pedido`. La actualizacion de pagos y el bloqueo
+de entrega sin pago completo quedan para fases posteriores.
 
 ## Estados de pedido
 
@@ -445,15 +445,16 @@ Archivos principales:
 - Componente: `src/components/solicitudes/SolicitudConvertPedidoForm.tsx`
 - Action: `src/app/dashboard/solicitudes/[id]/actions.ts`
 
-La conversión requiere `solicitudes.manage` y `pedidos.manage`. Solo se permite convertir solicitudes con estado `aprobada` y `cliente_id` asociado. La página enlaza `solicitud_id` a la action y el formulario envía únicamente `title`, `description`, `priority` y `estimated_delivery_date`; no envía `workflow_type`.
+La conversión requiere `solicitudes.manage` y `pedidos.manage`. Solo se permite convertir solicitudes con estado `aprobada` y `cliente_id` asociado. La página enlaza `solicitud_id` a la action y el formulario envía únicamente `title`, `description`, `total_amount`, `priority` y `estimated_delivery_date`; no envía `workflow_type`.
 
 `createPedidoFromSolicitud` conserva la validación de UX y la comprobación de
 permisos, pero la escritura se ejecuta exclusivamente mediante
 `public.convertir_solicitud_a_pedido(uuid, text, text,
-public.pedido_prioridad, date)`. La RPC es transaccional, bloquea la solicitud
-con `FOR UPDATE` y evita que dos intentos simultáneos creen pedidos distintos.
+public.pedido_prioridad, date, numeric)`. La RPC es transaccional, bloquea la
+solicitud con `FOR UPDATE` y evita que dos intentos simultáneos creen pedidos
+distintos.
 
-`priority` es obligatoria, inicia visualmente en `normal` y se valida contra las prioridades reales del enum. `estimated_delivery_date` es opcional; si se informa debe ser una fecha válida e igual o posterior al día actual. La UI limita el calendario desde hoy; el servicio valida con `src/lib/validators/date.ts` y la RPC repite la regla usando la fecha de negocio de `America/Havana`.
+`priority` es obligatoria, inicia visualmente en `normal` y se valida contra las prioridades reales del enum. `total_amount` tambien es obligatorio, permite `0`, rechaza negativos, valores no numericos y mas de 2 decimales. `estimated_delivery_date` es opcional; si se informa debe ser una fecha válida e igual o posterior al día actual. La UI limita el calendario desde hoy; el servicio valida con `src/lib/validators/date.ts` y la RPC repite la regla usando la fecha de negocio de `America/Havana`.
 
 `service_type` queda como referencia inicial elegida por el cliente. No se usa
 como título automático del pedido. En encargos, el usuario interno debe definir
@@ -473,6 +474,8 @@ Al convertir:
 - se copia `solicitudes.workflow_type` a `pedidos.workflow_type`;
 - se usa el `title` definido por el usuario interno;
 - se guarda la descripción operativa enviada desde el formulario de conversión;
+- se crea `pedido_pagos` con `total_amount`, efectivo `0` y transferencia `0`;
+- si `total_amount = 0`, el pago queda `pagado`; si es mayor que `0`, queda `sin_pago`;
 - se guarda la `priority` definida por el usuario interno;
 - se guarda `estimated_delivery_date` como fecha normalizada o `null`;
 - se actualiza `solicitudes.status = convertida`;
@@ -482,9 +485,11 @@ Al convertir:
 - se evita doble conversión mediante validaciones y una restricción única existente;
 - no se asigna personal.
 
-Todas esas escrituras se confirman o revierten juntas. La herencia de archivos
-solo completa `archivos.pedido_id`; no cambia su ruta, bucket, visibilidad ni
-autor, y no mueve objetos físicos en Storage.
+Todas esas escrituras se confirman o revierten juntas. Si falla la creacion de
+`pedido_pagos`, no queda pedido creado, solicitud convertida ni archivos
+asociados a un pedido incompleto. La herencia de archivos solo completa
+`archivos.pedido_id`; no cambia su ruta, bucket, visibilidad ni autor, y no
+mueve objetos físicos en Storage.
 
 La conversión mantiene el estado inicial `solicitud_recibida`, hereda
 exactamente el `public_reference` de la solicitud y usa la misma numeración de

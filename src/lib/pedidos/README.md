@@ -46,16 +46,17 @@ El número de pedido (`order_number`) no se acepta desde formularios ni se gener
 
 `createPedidoFromSolicitud` convierte una solicitud aprobada en pedido desde el detalle de solicitud. Conserva la validación de input y permisos, pero no escribe tablas directamente.
 
-La página del detalle enlaza `solicitud_id` a la action; el formulario envía únicamente `title`, `description`, `priority` y `estimated_delivery_date`. El servicio requiere `solicitudes.manage` y `pedidos.manage`, valida el UUID enlazado y los campos editables, y delega en `public.convertir_solicitud_a_pedido`.
+La página del detalle enlaza `solicitud_id` a la action; el formulario envía únicamente `title`, `description`, `total_amount`, `priority` y `estimated_delivery_date`. El servicio requiere `solicitudes.manage` y `pedidos.manage`, valida el UUID enlazado y los campos editables, y delega en `public.convertir_solicitud_a_pedido`.
 
 La RPC bloquea la solicitud con `FOR UPDATE`, exige usuario activo `admin` o
 `supervisor`, estado `aprobada`, cliente asociado y ausencia de conversiones
 previas. Después crea el pedido con `solicitud_id` y estado
-`solicitud_recibida`, actualiza la solicitud a `convertida` con
-`converted_order_id` y completa `archivos.pedido_id` para los archivos
-`cliente_solicitud`. Todas las escrituras se confirman o revierten juntas.
+`solicitud_recibida`, crea `pedido_pagos` con el precio total, actualiza la
+solicitud a `convertida` con `converted_order_id` y completa
+`archivos.pedido_id` para los archivos `cliente_solicitud`. Todas las
+escrituras se confirman o revierten juntas.
 
-`priority` es obligatoria, inicia visualmente en `normal` y se valida contra las prioridades reales del enum. `estimated_delivery_date` es opcional; si se informa debe ser una fecha válida e igual o posterior al día actual. El servicio usa los helpers de `src/lib/validators/date.ts` y la RPC repite la regla con la fecha de negocio de `America/Havana`.
+`priority` es obligatoria, inicia visualmente en `normal` y se valida contra las prioridades reales del enum. `total_amount` tambien es obligatorio, permite `0`, rechaza negativos, valores no numericos y mas de 2 decimales. `estimated_delivery_date` es opcional; si se informa debe ser una fecha válida e igual o posterior al día actual. El servicio usa los helpers de `src/lib/validators/date.ts` y la RPC repite la regla con la fecha de negocio de `America/Havana`.
 
 `service_type` es solo referencia inicial de la solicitud y no se usa como título automático. El usuario interno debe definir el título real del pedido y puede ajustar la descripción operativa antes de convertir. La conversión no acepta `order_number`, `status`, `cliente_id`, `created_by`, `converted_order_id` ni campos de archivos desde el formulario. El número de pedido se asigna en base de datos y el estado inicial del pedido convertido sigue siendo `solicitud_recibida`.
 

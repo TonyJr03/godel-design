@@ -362,6 +362,9 @@ No es una tabla de movimientos, abonos individuales ni comprobantes.
 - Los pedidos existentes se rellenan con total cero y estado `pagado`.
 - La creacion manual usa `public.crear_pedido_manual` para crear el pedido y su
   resumen financiero en una sola transaccion.
+- La conversion desde solicitud usa `public.convertir_solicitud_a_pedido` para
+  crear el pedido, su resumen financiero y asociar archivos en una sola
+  transaccion.
 
 **Notas de seguridad:**
 

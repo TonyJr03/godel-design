@@ -16,12 +16,17 @@ import {
 } from "@/lib/validators";
 import { WORKFLOW_TYPES, type WorkflowType } from "@/lib/workflow-types";
 import type { Enums, Tables } from "@/types/database";
-import { isPedidoPrioridad, type PedidoPrioridad } from "./order-validation";
+import {
+  isPedidoPrioridad,
+  validatePedidoTotalAmount,
+  type PedidoPrioridad,
+} from "./order-validation";
 
 export type CreatePedidoFromSolicitudInput = {
   solicitudId: string;
   title?: string | null;
   description?: string | null;
+  totalAmount?: string | null;
   priority?: string | null;
   estimatedDeliveryDate?: string | null;
 };
@@ -29,6 +34,7 @@ export type CreatePedidoFromSolicitudInput = {
 export type CreatePedidoFromSolicitudField =
   | "title"
   | "description"
+  | "total_amount"
   | "priority"
   | "estimated_delivery_date";
 
@@ -39,6 +45,7 @@ export type CreatePedidoFromSolicitudFieldErrors = Partial<
 export type CreatePedidoFromSolicitudValues = {
   title: string;
   description: string;
+  total_amount: string | number;
   priority: string;
   estimated_delivery_date: string | null;
 };
@@ -112,6 +119,22 @@ const SAFE_RPC_CONVERSION_ERRORS = [
     reason: "validation",
   },
   {
+    message: "El precio total es obligatorio.",
+    reason: "validation",
+  },
+  {
+    message: "El precio total no puede ser negativo.",
+    reason: "validation",
+  },
+  {
+    message: "El precio total no puede tener mas de 2 decimales.",
+    reason: "validation",
+  },
+  {
+    message: "El precio total supera el maximo permitido.",
+    reason: "validation",
+  },
+  {
     message: "La solicitud no existe.",
     reason: "not_found",
   },
@@ -151,6 +174,7 @@ type ConvertSolicitudRpcClient = {
       p_description: string;
       p_priority: Enums<"pedido_prioridad">;
       p_estimated_delivery_date: string | null;
+      p_total_amount: number;
     },
   ): PromiseLike<ConvertSolicitudRpcResult>;
 };
@@ -182,6 +206,7 @@ function validateConversionInput(
     isPrintWorkflow && !submittedDescription
       ? normalizeMultilineText(solicitud.description)
       : submittedDescription;
+  const totalAmountValue = normalizeSingleLineText(input.totalAmount);
   const priority = normalizeSingleLineText(input.priority);
   const estimatedDeliveryDate = normalizeOptionalSingleLineText(
     input.estimatedDeliveryDate,
@@ -190,6 +215,7 @@ function validateConversionInput(
   const values = {
     title,
     description,
+    total_amount: totalAmountValue,
     priority,
     estimated_delivery_date: estimatedDeliveryDate,
   };
@@ -210,6 +236,12 @@ function validateConversionInput(
     fieldErrors.priority = "Selecciona una prioridad válida.";
   }
 
+  const totalAmountValidation = validatePedidoTotalAmount(input.totalAmount);
+
+  if (!totalAmountValidation.ok) {
+    fieldErrors.total_amount = totalAmountValidation.error;
+  }
+
   if (estimatedDeliveryDate) {
     const estimatedDeliveryDateValidation =
       validateOptionalFutureDate(estimatedDeliveryDate);
@@ -228,6 +260,9 @@ function validateConversionInput(
     fieldErrors,
     values: {
       ...values,
+      total_amount: totalAmountValidation.ok
+        ? totalAmountValidation.value
+        : totalAmountValue,
       priority: priority as PedidoPrioridad,
     },
   };
@@ -301,6 +336,7 @@ export async function createPedidoFromSolicitud(
       p_priority: validation.values.priority,
       p_estimated_delivery_date:
         validation.values.estimated_delivery_date,
+      p_total_amount: Number(validation.values.total_amount),
     });
 
     if (error) {

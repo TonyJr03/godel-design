@@ -855,6 +855,7 @@ export type Database = {
           p_priority: Database["public"]["Enums"]["pedido_prioridad"]
           p_solicitud_id: string
           p_title: string
+          p_total_amount: number
         }
         Returns: {
           actual_delivery_date: string | null

@@ -61,6 +61,7 @@ export function SolicitudConvertPedidoForm({
     status === "aprobada" && Boolean(clienteId) && !currentPedidoId;
   const titleError = state.fieldErrors?.title;
   const descriptionError = state.fieldErrors?.description;
+  const totalAmountError = state.fieldErrors?.total_amount;
   const priorityError = state.fieldErrors?.priority;
   const estimatedDeliveryDateError =
     state.fieldErrors?.estimated_delivery_date;
@@ -68,6 +69,7 @@ export function SolicitudConvertPedidoForm({
   const titleValue =
     state.values?.title ?? (isPrintWorkflow ? DEFAULT_PRINT_PEDIDO_TITLE : "");
   const descriptionValue = state.values?.description ?? solicitudDescription;
+  const totalAmountValue = state.values?.total_amount ?? "";
   const priorityValue = state.values?.priority ?? "normal";
   const estimatedDeliveryDateValue =
     state.values?.estimated_delivery_date ?? solicitudDesiredDate ?? "";
@@ -226,6 +228,50 @@ export function SolicitudConvertPedidoForm({
                 className="mt-2 text-sm leading-5 text-danger"
               >
                 {priorityError}
+              </p>
+            ) : null}
+          </div>
+
+          <div>
+            <p className="text-sm font-semibold text-text-primary">
+              Precio del pedido
+            </p>
+            <label
+              className="mt-3 block text-sm font-medium text-text-primary"
+              htmlFor="total_amount"
+            >
+              Monto total a pagar <span className="text-danger">*</span>
+            </label>
+            <input
+              className="mt-2 min-h-11 w-full rounded-(--radius-control) border border-border-strong bg-surface px-3 py-2 text-base text-text-primary shadow-(--shadow-soft)"
+              id="total_amount"
+              name="total_amount"
+              type="number"
+              inputMode="decimal"
+              min={0}
+              step="0.01"
+              required
+              defaultValue={totalAmountValue}
+              aria-invalid={Boolean(totalAmountError)}
+              aria-describedby={
+                totalAmountError
+                  ? "convert-total-amount-error"
+                  : "convert-total-amount-help"
+              }
+            />
+            <p
+              id="convert-total-amount-help"
+              className="mt-2 text-sm leading-5 text-text-secondary"
+            >
+              Define el monto total que debe pagar el cliente por este pedido.
+              Puede ser 0 en caso de cortesía, regalo o trabajo sin cobro.
+            </p>
+            {totalAmountError ? (
+              <p
+                id="convert-total-amount-error"
+                className="mt-2 text-sm leading-5 text-danger"
+              >
+                {totalAmountError}
               </p>
             ) : null}
           </div>
