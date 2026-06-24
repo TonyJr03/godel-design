@@ -14,7 +14,7 @@ También carga el progreso agregado de tareas en una consulta adicional por lote
 
 `getInternalPedidoById` carga el detalle interno de un pedido para `/dashboard/pedidos/[id]`.
 
-Valida UUID, obtiene el perfil actual, valida `pedidos.view`, carga pedido, cliente, solicitud y personal asignado. Usa la relación explícita `solicitudes!pedidos_solicitud_id_fkey` para evitar ambigüedades.
+Valida UUID, obtiene el perfil actual, valida `pedidos.view`, carga pedido, cliente, solicitud, personal asignado y resumen financiero. Usa la relación explícita `solicitudes!pedidos_solicitud_id_fkey` para evitar ambigüedades. Si el registro de `pedido_pagos` falta por una inconsistencia, el detalle no rompe la página y marca el pago como no disponible.
 
 El trabajador no accede a los módulos generales de clientes o solicitudes, pero RLS permite leer el cliente y la solicitud relacionados con pedidos que tiene asignados.
 
@@ -66,6 +66,16 @@ visibilidad y autor, sin mover ni copiar objetos de Storage. La RPC es
 solo a `authenticated`.
 
 Cuando un pedido muestra datos de su solicitud origen, el tipo de servicio debe renderizarse con `getSolicitudServiceTypeLabel` desde `src/lib/solicitudes/labels.ts` para evitar valores técnicos o históricos sin tildes en listados, detalles y dashboard.
+
+## Pago del Pedido
+
+`/dashboard/pedidos/[id]` incluye `PedidoPaymentSection`.
+
+La pagina del detalle enlaza `pedido_id` a `updatePedidoPaymentAction`; el formulario envia unicamente `paid_cash_amount` y `paid_transfer_amount` como montos acumulados actuales. No acepta `total_amount`, `payment_status`, `paid_at`, `updated_by` ni campos de historial desde el cliente.
+
+`updatePedidoPayment` valida UUID, usuario interno activo, rol `admin` o `supervisor`, formato numerico, montos no negativos, maximo dos decimales y que efectivo mas transferencia no supere el total. Despues delega en `public.actualizar_pago_pedido`, que repite permisos en base de datos, actualiza solo efectivo y transferencia, deja que el trigger calcule `payment_status` y registra `pago_actualizado` en `pedido_historial`.
+
+El detalle muestra total, efectivo, transferencia, total pagado, pendiente, estado y fecha de pago completo si aplica. Los trabajadores pueden leer pagos de pedidos asignados segun RLS, pero no ven formulario ni pueden actualizar pagos server-side.
 
 ## Cambio de Estado
 

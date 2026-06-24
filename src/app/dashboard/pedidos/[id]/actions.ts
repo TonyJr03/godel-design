@@ -9,8 +9,10 @@ import {
   removeInternalPedidoWorker,
   updatePedidoTask,
   updateInternalPedidoStatus,
+  updatePedidoPayment,
   type PedidoTaskFieldErrors,
   type PedidoCommentFieldErrors,
+  type PedidoPaymentFieldErrors,
   type PedidoWorkerFieldErrors,
   type RemovePedidoWorkerFieldErrors,
   type PedidoStatusFieldErrors,
@@ -34,6 +36,16 @@ export type UpdatePedidoStatusActionState = {
   ok: boolean;
   message: string;
   fieldErrors?: PedidoStatusFieldErrors;
+};
+
+export type UpdatePedidoPaymentActionState = {
+  ok: boolean;
+  message: string;
+  fieldErrors?: PedidoPaymentFieldErrors;
+  values?: {
+    paidCashAmount: string;
+    paidTransferAmount: string;
+  };
 };
 
 export type AssignPedidoWorkerActionState = {
@@ -158,6 +170,36 @@ export async function updatePedidoStatusAction(
   return {
     ok: true,
     message: "Estado actualizado correctamente.",
+  };
+}
+
+export async function updatePedidoPaymentAction(
+  pedidoId: string,
+  _prevState: UpdatePedidoPaymentActionState,
+  formData: FormData,
+): Promise<UpdatePedidoPaymentActionState> {
+  const paidCashAmount = getFormValue(formData, "paid_cash_amount");
+  const paidTransferAmount = getFormValue(formData, "paid_transfer_amount");
+  const result = await updatePedidoPayment({
+    pedidoId,
+    paidCashAmount,
+    paidTransferAmount,
+  });
+
+  if (!result.ok) {
+    return {
+      ok: false,
+      message: result.message,
+      fieldErrors: result.fieldErrors,
+      values: result.values,
+    };
+  }
+
+  revalidatePedidoDetail(pedidoId);
+
+  return {
+    ok: true,
+    message: "Pago actualizado correctamente.",
   };
 }
 

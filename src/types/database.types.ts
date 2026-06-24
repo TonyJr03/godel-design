@@ -829,6 +829,31 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      actualizar_pago_pedido: {
+        Args: {
+          p_paid_cash_amount: number
+          p_paid_transfer_amount: number
+          p_pedido_id: string
+        }
+        Returns: {
+          created_at: string
+          created_by: string | null
+          paid_at: string | null
+          paid_cash_amount: number
+          paid_transfer_amount: number
+          payment_status: Database["public"]["Enums"]["pedido_pago_estado"]
+          pedido_id: string
+          total_amount: number
+          updated_at: string
+          updated_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "pedido_pagos"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       aplicar_plantilla_tareas_pedido: {
         Args: { p_pedido_id: string; p_template_id: string }
         Returns: number
@@ -995,6 +1020,7 @@ export type Database = {
         | "tarea_completada"
         | "tarea_reabierta"
         | "tarea_progreso_actualizado"
+        | "pago_actualizado"
       pedido_pago_estado: "sin_pago" | "parcial" | "pagado"
       pedido_prioridad: "baja" | "normal" | "alta" | "urgente"
       pedido_tarea_tipo: "simple" | "cuantificada"
@@ -1172,6 +1198,7 @@ export const Constants = {
         "tarea_completada",
         "tarea_reabierta",
         "tarea_progreso_actualizado",
+        "pago_actualizado",
       ],
       pedido_pago_estado: ["sin_pago", "parcial", "pagado"],
       pedido_prioridad: ["baja", "normal", "alta", "urgente"],

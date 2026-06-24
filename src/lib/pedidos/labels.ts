@@ -37,4 +37,5 @@ export const PEDIDO_HISTORY_ACTION_LABELS: Record<
   tarea_completada: "Tarea completada",
   tarea_reabierta: "Tarea reabierta",
   tarea_progreso_actualizado: "Progreso de tarea actualizado",
+  pago_actualizado: "Pago actualizado",
 };

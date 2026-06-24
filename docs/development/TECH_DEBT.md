@@ -177,7 +177,9 @@ Estado actual:
   transferencia.
 - Los pedidos historicos quedan backfilled como `pagado` con total cero.
 - La creacion manual ya registra precio inicial.
-- No existe todavia UI de registro de pagos ni bloqueo de entrega.
+- El detalle interno permite a `admin` y `supervisor` actualizar efectivo y
+  transferencia acumulados.
+- No existe todavia edicion controlada del total ni bloqueo de entrega por pago.
 
 ### 11. Movimientos, comprobantes y cierre operativo
 
@@ -190,6 +192,8 @@ Propuesta futura:
 
 - Agregar tabla de movimientos de pago o abonos si se requiere trazabilidad por
   transaccion.
+- Definir edicion controlada del total despues de creado el pedido, con permisos
+  e historial especificos.
 - Modelar comprobantes de transferencia y adjuntos asociados.
 - Definir impresion o generacion de recibos.
 - Evaluar cierre de caja por dia, usuario o turno.

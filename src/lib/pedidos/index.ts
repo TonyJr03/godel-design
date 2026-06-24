@@ -14,6 +14,7 @@ export {
   type GetInternalPedidoByIdErrorReason,
   type GetInternalPedidoByIdResult,
   type InternalPedidoDetail,
+  type InternalPedidoPayment,
   type InternalPedidoDetailTrabajador,
 } from "./get-internal-pedido-by-id";
 export {
@@ -72,6 +73,15 @@ export {
   type UpdateInternalPedidoStatusResult,
   type UpdatePedidoStatusInput,
 } from "./update-internal-pedido-status";
+export {
+  updatePedidoPayment,
+  type PedidoPaymentFieldErrors,
+  type UpdatePedidoPaymentErrorReason,
+  type UpdatePedidoPaymentInput,
+  type UpdatePedidoPaymentResult,
+  type UpdatePedidoPaymentValues,
+  type UpdatedPedidoPayment,
+} from "./update-pedido-payment";
 export {
   listAssignableWorkers,
   listAssignableOrderUsers,

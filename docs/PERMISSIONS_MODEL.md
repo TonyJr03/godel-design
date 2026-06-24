@@ -146,10 +146,12 @@ mantiene limitado a la RPC de consulta por código.
 Los resumenes de pago de `pedido_pagos` son informacion interna del pedido. No
 hay policies ni grants para acceso anonimo. La lectura interna sigue el mismo
 alcance del pedido: `admin` y `supervisor` sobre cualquier pedido, y
-`trabajador` solo sobre pedidos asignados. En esta subfase no existe UI de
-actualizacion de pagos; las modificaciones directas quedan restringidas por RLS
-a `admin` y `supervisor`, y una futura RPC o servicio server-side debera volver
-a validar permisos antes de actualizar importes.
+`trabajador` solo sobre pedidos asignados. La actualizacion de pagos queda
+restringida a `admin` y `supervisor`: la UI solo muestra el formulario a esos
+roles, el servicio server-side vuelve a validar el perfil activo y la RPC
+`public.actualizar_pago_pedido` repite la defensa en base de datos antes de
+actualizar efectivo o transferencia. Los trabajadores no actualizan pagos en
+esta version.
 
 Para plantillas de tareas de encargos, `trabajo_plantillas` y
 `trabajo_plantilla_tareas` tienen RLS activo. Usuarios internos autenticados y

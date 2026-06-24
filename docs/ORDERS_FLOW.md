@@ -22,6 +22,7 @@ El módulo de pedidos incluye actualmente:
 - búsqueda textual y filtro de estado;
 - código público de seguimiento visible y copiable en el detalle interno;
 - resumen financiero base 1:1 en `pedido_pagos`;
+- visualizacion y actualizacion interna de pagos acumulados;
 - visibilidad limitada para trabajadores asignados.
 
 Todavía no incluye:
@@ -29,8 +30,8 @@ Todavía no incluye:
 - edición general de pedido;
 - eliminación de pedido;
 - filtros o reportes avanzados sobre historial;
-- formularios o UI para registrar pagos posteriores al precio inicial;
 - tabla de movimientos o abonos individuales;
+- edicion del total financiero desde el detalle;
 - bloqueo de entrega por pago incompleto;
 - notificaciones;
 - reportes o estadísticas;
@@ -149,8 +150,17 @@ En la creacion manual se define el precio total del pedido. La RPC
 transaccion: con precio `0`, el resumen queda `pagado`; con precio mayor que
 `0`, queda `sin_pago` porque todavia no se registra pago inicial. La conversion
 desde solicitudes aplica la misma regla mediante
-`public.convertir_solicitud_a_pedido`. La actualizacion de pagos y el bloqueo
-de entrega sin pago completo quedan para fases posteriores.
+`public.convertir_solicitud_a_pedido`.
+
+El detalle interno del pedido muestra total, efectivo, transferencia, total
+pagado, pendiente, estado y fecha de pago completo si aplica. `admin` y
+`supervisor` pueden actualizar los montos acumulados `paid_cash_amount` y
+`paid_transfer_amount` mediante `public.actualizar_pago_pedido`; el total no se
+edita desde esta pantalla. La RPC valida permisos, montos no negativos, maximo
+dos decimales y que la suma pagada no supere `total_amount`. El trigger de
+`pedido_pagos` recalcula `payment_status` y `paid_at`. Cada actualizacion
+registra historial con `pago_actualizado`. Todavia no hay movimientos o abonos
+individuales ni bloqueo de entrega por pago incompleto.
 
 ## Estados de pedido
 
@@ -400,7 +410,8 @@ negativos o no numericos. El servicio server-side valida el monto y llama a
 `pedido_pagos` dentro de la misma transaccion. No se registra pago inicial:
 `paid_cash_amount = 0` y `paid_transfer_amount = 0`. Por eso, un pedido manual
 con precio `0` queda `pagado`; con precio mayor que `0`, queda `sin_pago`.
-Todavia no existe actualizacion de pagos desde el detalle del pedido.
+La actualizacion posterior de pago se realiza desde el detalle interno editando
+solo efectivo y transferencia acumulados.
 
 El encargo conserva título y descripción obligatorios. La impresión solicita
 cantidad de copias, modo de color, tamaño de papel, caras y observaciones

@@ -7,7 +7,7 @@ import {
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
-import type { Tables } from "@/types/database";
+import type { Enums, Tables } from "@/types/database";
 
 type PedidoClienteDetail =
   | Pick<Tables<"clientes">, "id" | "name" | "phone" | "email">
@@ -36,6 +36,26 @@ type PedidoProfileDetail =
 type PedidoAssignedProfileDetail =
   | Pick<Tables<"perfiles">, "id" | "full_name" | "role" | "is_active">
   | null;
+
+type PedidoPaymentRow = Pick<
+  Tables<"pedido_pagos">,
+  | "total_amount"
+  | "paid_cash_amount"
+  | "paid_transfer_amount"
+  | "payment_status"
+  | "paid_at"
+>;
+
+export type InternalPedidoPayment = {
+  totalAmount: number;
+  paidCashAmount: number;
+  paidTransferAmount: number;
+  paidTotalAmount: number;
+  pendingAmount: number;
+  paymentStatus: Enums<"pedido_pago_estado">;
+  paidAt: string | null;
+  isAvailable: boolean;
+};
 
 export type InternalPedidoDetailTrabajador = Pick<
   Tables<"pedido_trabajadores">,
@@ -66,6 +86,7 @@ export type InternalPedidoDetail = Pick<
   solicitudes: PedidoSolicitudDetail;
   creador: PedidoProfileDetail;
   pedido_trabajadores: InternalPedidoDetailTrabajador[];
+  payment: InternalPedidoPayment;
 };
 
 export type GetInternalPedidoByIdErrorReason =
@@ -147,6 +168,42 @@ async function isWorkerAssignedToPedido(
   return Boolean(data);
 }
 
+function roundMoney(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function getMissingPayment(): InternalPedidoPayment {
+  return {
+    totalAmount: 0,
+    paidCashAmount: 0,
+    paidTransferAmount: 0,
+    paidTotalAmount: 0,
+    pendingAmount: 0,
+    paymentStatus: "sin_pago",
+    paidAt: null,
+    isAvailable: false,
+  };
+}
+
+function mapPaymentRow(row: PedidoPaymentRow): InternalPedidoPayment {
+  const totalAmount = Number(row.total_amount);
+  const paidCashAmount = Number(row.paid_cash_amount);
+  const paidTransferAmount = Number(row.paid_transfer_amount);
+  const paidTotalAmount = roundMoney(paidCashAmount + paidTransferAmount);
+  const pendingAmount = Math.max(0, roundMoney(totalAmount - paidTotalAmount));
+
+  return {
+    totalAmount,
+    paidCashAmount,
+    paidTransferAmount,
+    paidTotalAmount,
+    pendingAmount,
+    paymentStatus: row.payment_status,
+    paidAt: row.paid_at,
+    isAvailable: true,
+  };
+}
+
 export async function getInternalPedidoById(
   id: string,
 ): Promise<GetInternalPedidoByIdResult> {
@@ -200,7 +257,24 @@ export async function getInternalPedidoById(
       return serviceFailure("not_found", "El pedido solicitado no existe.");
     }
 
-    return serviceSuccess({ pedido: data });
+    const { data: payment, error: paymentError } = await supabase
+      .from("pedido_pagos")
+      .select(
+        "total_amount, paid_cash_amount, paid_transfer_amount, payment_status, paid_at",
+      )
+      .eq("pedido_id", pedidoId)
+      .maybeSingle<PedidoPaymentRow>();
+
+    if (paymentError) {
+      console.error("Error loading pedido payment detail", paymentError);
+    }
+
+    return serviceSuccess({
+      pedido: {
+        ...data,
+        payment: payment ? mapPaymentRow(payment) : getMissingPayment(),
+      },
+    });
   } catch (error) {
     console.error("Unexpected error loading internal pedido detail", error);
 

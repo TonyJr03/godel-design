@@ -35,6 +35,7 @@ type InternalPedidoDetailProps = {
   taskProgress?: PedidoStatusTransitionContext | null;
   tasksLoadError?: string;
   workerAssignmentSection?: ReactNode;
+  paymentSection?: ReactNode;
   tasksSection?: ReactNode;
   filesSection?: ReactNode;
   commentsSection?: ReactNode;
@@ -74,6 +75,7 @@ export function InternalPedidoDetail({
   taskProgress,
   tasksLoadError,
   workerAssignmentSection,
+  paymentSection,
   tasksSection,
   filesSection,
   commentsSection,
@@ -202,6 +204,8 @@ export function InternalPedidoDetail({
               taskProgress={taskProgress}
               tasksLoadError={tasksLoadError}
             />
+
+            {paymentSection}
 
             {workerAssignmentSection}
           </div>

@@ -117,6 +117,7 @@ manualmente.
 | `tarea_completada` |
 | `tarea_reabierta` |
 | `tarea_progreso_actualizado` |
+| `pago_actualizado` |
 
 ### `solicitud_historial_action`
 
@@ -365,6 +366,9 @@ No es una tabla de movimientos, abonos individuales ni comprobantes.
 - La conversion desde solicitud usa `public.convertir_solicitud_a_pedido` para
   crear el pedido, su resumen financiero y asociar archivos en una sola
   transaccion.
+- La actualizacion interna de pagos usa `public.actualizar_pago_pedido` para
+  modificar solo efectivo y transferencia acumulados, mantener `updated_by` y
+  registrar historial en una sola transaccion.
 
 **Notas de seguridad:**
 
@@ -646,15 +650,15 @@ No es una tabla de movimientos, abonos individuales ni comprobantes.
 **Reglas importantes:**
 
 - El historial no debe editarse manualmente desde la aplicación.
-- Registra cambios relevantes de estado, asignaciones, archivos, tareas y cierre
-  del pedido mediante RPCs y triggers controlados.
+- Registra cambios relevantes de estado, asignaciones, archivos, tareas, pagos y
+  cierre del pedido mediante RPCs y triggers controlados.
 
 **Notas de seguridad:**
 
 - Usuarios internos autorizados pueden leer historial según permisos sobre el pedido.
 - La inserción debería ocurrir mediante acciones controladas de la aplicación o funciones seguras.
 - No se debería permitir actualización o eliminación manual desde el cliente.
-- La subfase 11.2 deja la inserción directa por tabla deshabilitada; la RPC `actualizar_estado_pedido` mantiene el registro de cambios de estado.
+- La subfase 11.2 deja la inserción directa por tabla deshabilitada; las RPCs controladas, como `actualizar_estado_pedido` y `actualizar_pago_pedido`, mantienen el registro de cambios operativos.
 
 ### `solicitud_comentarios`
 
