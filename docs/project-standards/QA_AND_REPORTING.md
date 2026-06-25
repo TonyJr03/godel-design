@@ -42,6 +42,14 @@ Para tareas de UI:
 - Estados vacios.
 - Overflow.
 
+## Checklists de apoyo
+
+Antes de iniciar una tarea, revisa `docs/project-standards/checklists/CHECKLIST_BEFORE_IMPLEMENTATION.md`.
+
+Antes de entregar o preparar commit, revisa `docs/project-standards/checklists/CHECKLIST_BEFORE_COMMIT.md`.
+
+Para cambios de base de datos, rutas publicas, UI interna o cierre de fase, usa la checklist correspondiente en `docs/project-standards/checklists/`.
+
 ## Reporte final obligatorio
 
 Codex debe reportar siempre:

@@ -19,6 +19,7 @@ Antes de implementar cambios, revisa la documentación aplicable:
 - `docs/project-standards/SECURITY_RULES.md`
 - `docs/project-standards/DATABASE_RULES.md`
 - `docs/project-standards/QA_AND_REPORTING.md`
+- `docs/project-standards/checklists/`
 
 Según el área tocada, consulta también:
 

@@ -23,6 +23,20 @@ No uses `docs/development/` para reglas permanentes nuevas salvo instruccion exp
 - Migraciones, RLS, RPC, triggers, constraints o tipos generados: consulta `DATABASE_RULES.md`.
 - Cierre de tareas, pruebas, reportes o advertencias tecnicas: consulta `QA_AND_REPORTING.md`.
 
+## Checklists
+
+Las checklists permanentes estan en `docs/project-standards/checklists/`.
+
+Deben usarse como apoyo durante implementacion, QA y cierre de tareas:
+
+- `checklists/README.md`
+- `checklists/CHECKLIST_BEFORE_IMPLEMENTATION.md`
+- `checklists/CHECKLIST_BEFORE_COMMIT.md`
+- `checklists/CHECKLIST_DATABASE_CHANGE.md`
+- `checklists/CHECKLIST_PUBLIC_ROUTE_SECURITY.md`
+- `checklists/CHECKLIST_INTERNAL_UI_QA.md`
+- `checklists/CHECKLIST_PHASE_CLOSURE.md`
+
 ## Skills operativas
 
 - Para migraciones, RLS, RPC, constraints y triggers usa `godel-supabase-migration-qa`.
