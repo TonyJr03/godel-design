@@ -36,10 +36,10 @@
 - Prueba casos validos e invalidos.
 - Prueba permisos cuando aplique.
 
-## QA futuro de migraciones
+## QA de migraciones
 
-El procedimiento detallado de QA de migraciones quedara en una skill futura:
+El procedimiento detallado de QA de migraciones esta definido en la skill local:
 
 - `.codex/skills/godel-supabase-migration-qa/SKILL.md`
 
-No crees esa skill salvo que una tarea futura lo indique.
+Usa esa skill cuando la tarea toque migraciones, tablas, enums, constraints, triggers, RLS, policies, grants, RPCs, backfills, estado de Supabase Storage o `src/types/database.types.ts`.
