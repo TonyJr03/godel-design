@@ -203,3 +203,63 @@ Propuesta futura:
   pendientes de pago, monto pendiente total y monto cobrado.
 - Evaluar exportes financieros y filtros avanzados por deuda o monto pendiente.
 - Endurecer auditoria historica para ediciones de precio y pagos.
+
+## Hallazgos de auditoria Tools 2.1 - Preparacion Beta
+
+### 12. Revisar grants `anon` sobre tablas internas
+
+Prioridad: Alta.
+
+Durante la auditoria se detecto que, en la base local efectiva, el rol `anon`
+conserva privilegios SQL directos amplios sobre tablas internas como `pedidos`
+y `solicitudes`. RLS bloqueo las lecturas y escrituras comunes durante la
+prueba, por lo que no se confirmo una fuga funcional, pero el estado de grants
+contradice la regla de seguridad del proyecto de no abrir acceso anonimo directo
+sobre tablas internas.
+
+Accion futura:
+
+En Fase Beta, revisar y endurecer los grants mediante una migracion explicita de
+hardening. La meta sera revocar privilegios innecesarios a `anon` sobre tablas
+internas y dejar unicamente los accesos publicos controlados que el sistema
+realmente necesita, por ejemplo el flujo publico de solicitudes y la RPC segura
+de consulta de estado.
+
+Notas:
+
+- No romper `/solicitud`.
+- No romper `/estado`.
+- Revisar RLS y grants juntos.
+- Probar `anon` y `authenticated` despues del cambio.
+
+### 13. Afinar acceso de trabajador a `/dashboard/pedidos/nuevo`
+
+Prioridad: Baja.
+
+Actualmente un trabajador puede recibir respuesta 200 al entrar en
+`/dashboard/pedidos/nuevo`, pero la pantalla muestra que no tiene permiso y no
+expone el formulario. Funcionalmente la operacion esta bloqueada por UI, action
+y servicio, pero en Beta se puede valorar si conviene aplicar una regla de ruta
+mas estricta, por ejemplo redireccion a una pantalla de acceso denegado.
+
+Accion futura:
+
+Revisar durante Beta la politica de rutas internas no autorizadas para decidir
+si se mantiene el patron actual de mensaje en pagina o si se unifica con
+redirect/denegacion.
+
+### 14. Revisar contrato DB de `convertir_solicitud_a_pedido` para Impresion
+
+Prioridad: Baja/Media.
+
+La aplicacion normaliza titulo y descripcion para solicitudes de tipo Impresion
+antes de llamar a la RPC `convertir_solicitud_a_pedido`. El flujo normal
+funciona, pero la RPC exige titulo/descripcion no vacios directamente. Esto
+significa que parte del fallback funcional vive en la capa de aplicacion y no
+en el contrato de base de datos.
+
+Accion futura:
+
+Durante Beta, decidir si la normalizacion debe seguir unicamente en la
+aplicacion o si la RPC debe reforzar tambien ese comportamiento para dejar el
+contrato transaccional mas autonomo.

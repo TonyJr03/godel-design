@@ -41,4 +41,8 @@ Según el área tocada, consulta también:
 
 ## Skills del proyecto
 
-Cuando existan skills en `.codex/skills/`, úsalas para operaciones complejas como QA de migraciones Supabase, QA visual autenticada o diseño UI/UX.
+Usa las skills disponibles en `.codex/skills/` para operaciones complejas:
+
+- `.codex/skills/godel-supabase-migration-qa/SKILL.md`
+- `.codex/skills/godel-authenticated-visual-qa/SKILL.md`
+- `.codex/skills/ui-ux-pro-max/SKILL.md`

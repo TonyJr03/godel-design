@@ -22,3 +22,9 @@ No uses `docs/development/` para reglas permanentes nuevas salvo instruccion exp
 - Permisos, rutas publicas, archivos, secretos o exposicion de datos: consulta `SECURITY_RULES.md`.
 - Migraciones, RLS, RPC, triggers, constraints o tipos generados: consulta `DATABASE_RULES.md`.
 - Cierre de tareas, pruebas, reportes o advertencias tecnicas: consulta `QA_AND_REPORTING.md`.
+
+## Skills operativas
+
+- Para migraciones, RLS, RPC, constraints y triggers usa `godel-supabase-migration-qa`.
+- Para QA visual autenticada usa `godel-authenticated-visual-qa`.
+- Para trabajo UI/UX usa `ui-ux-pro-max` cuando aplique.
