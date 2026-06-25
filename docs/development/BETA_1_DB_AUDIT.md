@@ -451,8 +451,8 @@ privados; mover helpers de orden puede romper RLS.
 | RPC publica tracking final | 10, 11 | `03_business_rpcs.sql` | Mantener grant a `anon` y DTO publico minimo. |
 | Bucket `godel-files` | 05 | `04_storage.sql` | Crear/asegurar bucket privado. |
 | Helpers y policies Storage | 05 | `04_storage.sql` | Revisar necesidad de helpers ejecutables por `anon`. |
-| Triggers de historial | 04 | `05_final_hardening.sql` | Pueden ir al final despues de tablas/enums/RPCs. |
-| Triggers de `updated_at`, order number, public reference, payment status | 01, 09, 12, 14 | `01_core_schema.sql` o `05_final_hardening.sql` | Decidir si mantener junto a tablas o hardening final. |
+| Tablas, funciones y triggers de historial | 01, 04, 17 | `01_core_schema.sql` | Decision corregida en Beta 1.1: el historial es comportamiento estructural del modelo. Policies y grants quedan en `02_security_rls_grants.sql`; revokes/comments finales pueden quedar en `05_final_hardening.sql`. |
+| Triggers de `updated_at`, order number, public reference, payment status | 01, 09, 12, 14 | `01_core_schema.sql` | Mantener junto a tablas y funciones estructurales. |
 | Grants finales y revokes extra | 02, 05, 12, 14 + hallazgos Beta 1.0 | `05_final_hardening.sql` | Debe corregir grants amplios efectivos de `anon`. |
 | Comentarios SQL | Varias | `05_final_hardening.sql` | Utiles para mantenimiento, no deben ocultar orden de dependencias. |
 
