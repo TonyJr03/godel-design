@@ -20,9 +20,12 @@ Usar al cerrar una fase Alfa, Beta, Gamma o cualquier bloque grande.
 
 ## QA
 
+- [ ] `npm run verify` paso.
 - [ ] `npm run lint` paso.
 - [ ] `npm run build` paso.
+- [ ] `npm run diff:check` paso.
 - [ ] `git diff --check` paso.
+- [ ] Scripts de auditoria relevantes ejecutados.
 - [ ] QA visual ejecutada si hubo cambios UI.
 - [ ] QA DB ejecutada si hubo cambios DB.
 

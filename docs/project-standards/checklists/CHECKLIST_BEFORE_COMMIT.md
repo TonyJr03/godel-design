@@ -10,9 +10,12 @@
 
 ## Verificacion
 
+- [ ] Ejecute `npm run verify` si se toco codigo.
 - [ ] Ejecute `git diff --check`.
+- [ ] Ejecute `npm run diff:check`.
 - [ ] Ejecute `npm run lint` si se toco codigo.
 - [ ] Ejecute `npm run build` si se toco codigo.
+- [ ] Ejecute auditorias relevantes si se toco seguridad, rutas publicas o Supabase.
 - [ ] Si no ejecute lint/build, explique por que.
 
 ## Seguridad

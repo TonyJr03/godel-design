@@ -6,7 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "verify": "npm run lint && npm run build",
+    "diff:check": "git diff --check",
+    "audit:security": "node scripts/audit-security.mjs",
+    "audit:client-supabase": "node scripts/audit-client-supabase.mjs",
+    "audit:public-tracking": "node scripts/audit-public-tracking.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",

@@ -21,10 +21,12 @@ Segun el tipo de tarea, considera:
 - `npm run lint`
 - `npm run build`
 - `git diff --check`
+- `npm run verify`
+- `npm run diff:check`
 
 Para tareas solo documentales:
 
-- `git diff --check` puede ser suficiente.
+- `npm run diff:check` puede ser suficiente.
 - `npm run lint` y `npm run build` son opcionales si no se toco codigo.
 
 Para tareas de base de datos:
@@ -41,6 +43,16 @@ Para tareas de UI:
 - Estados de error.
 - Estados vacios.
 - Overflow.
+
+## Scripts utiles
+
+- `npm run verify`: ejecuta lint y build.
+- `npm run diff:check`: revisa whitespace y conflictos visibles en el diff.
+- `npm run audit:security`: busca referencias a `service_role`, `SUPABASE_SERVICE_ROLE_KEY` y `auth.users`.
+- `npm run audit:client-supabase`: busca posibles usos de Supabase o `createClient()` en `src/components`.
+- `npm run audit:public-tracking`: busca campos sensibles para tracking publico en las rutas y librerias de estado publico.
+
+Los scripts de auditoria son informativos. Sus coincidencias pueden ser falsos positivos o referencias documentales esperadas; deben interpretarse junto con revision manual, RLS/grants y QA funcional segun aplique.
 
 ## Checklists de apoyo
 
