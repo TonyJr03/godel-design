@@ -358,7 +358,7 @@ create table public.archivos (
   created_at timestamptz not null default now(),
   constraint archivos_file_name_not_empty check (btrim(file_name) <> ''),
   constraint archivos_file_path_not_empty check (btrim(file_path) <> ''),
-  constraint archivos_bucket_not_empty check (btrim(bucket) <> ''),
+  constraint archivos_bucket_godel_files_check check (bucket = 'godel-files'),
   constraint archivos_file_size_non_negative check (file_size is null or file_size >= 0),
   constraint archivos_has_context check (pedido_id is not null or solicitud_id is not null)
 );
