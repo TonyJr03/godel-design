@@ -1,6 +1,7 @@
--- Consolidated current Storage state.
--- Storage is kept as a separate layer so it can be reviewed/refactored later
--- without mixing it with the relational schema and RLS consolidation.
+-- Beta 1 consolidated Storage layer.
+-- Storage objects and public.archivos metadata are not transactional together.
+-- A failed metadata insert after object upload can leave an orphan object.
+-- Orphan cleanup, rate limiting and captcha are intentionally left as technical debt.
 
 do $$
 begin
@@ -52,8 +53,11 @@ create or replace function private.storage_path_has_exact_parts(
 returns boolean
 language sql
 immutable
+set search_path = pg_catalog
 as $$
   select object_name is not null
+    and expected_parts is not null
+    and expected_parts > 0
     and object_name !~ '/{2,}'
     and array_length(string_to_array(object_name, '/'), 1) = expected_parts
     and not exists (
@@ -64,12 +68,13 @@ as $$
 $$;
 
 comment on function private.storage_path_has_exact_parts(text, integer)
-is 'Valida que una ruta de Storage tenga la cantidad exacta de segmentos esperada y sin segmentos vacíos.';
+is 'Valida rutas de Storage con cantidad exacta de segmentos y sin segmentos vacios.';
 
 create or replace function private.storage_order_id(object_name text)
 returns uuid
 language sql
 immutable
+set search_path = public, private
 as $$
   select case
     when private.storage_path_has_exact_parts(object_name, 4)
@@ -82,12 +87,13 @@ as $$
 $$;
 
 comment on function private.storage_order_id(text)
-is 'Extrae el pedido_id desde rutas privadas con formato pedidos/{pedido_id}/{categoria}/{archivo}.';
+is 'Extrae pedido_id desde pedidos/{pedido_id}/{categoria}/{filename}.';
 
 create or replace function private.storage_order_category(object_name text)
 returns text
 language sql
 immutable
+set search_path = public, private
 as $$
   select case
     when private.storage_order_id(object_name) is not null
@@ -97,12 +103,13 @@ as $$
 $$;
 
 comment on function private.storage_order_category(text)
-is 'Extrae la categoría de una ruta privada de pedido en Storage.';
+is 'Extrae la categoria de una ruta de pedido en Storage.';
 
 create or replace function private.storage_request_id(object_name text)
 returns uuid
 language sql
 immutable
+set search_path = public, private
 as $$
   select case
     when private.storage_path_has_exact_parts(object_name, 4)
@@ -115,7 +122,7 @@ as $$
 $$;
 
 comment on function private.storage_request_id(text)
-is 'Extrae el solicitud_id desde rutas privadas con formato solicitudes/{solicitud_id}/originales/{archivo}.';
+is 'Extrae solicitud_id desde solicitudes/{solicitud_id}/originales/{filename}.';
 
 create or replace function private.is_allowed_public_request_file_type(
   file_name text,
@@ -124,9 +131,11 @@ create or replace function private.is_allowed_public_request_file_type(
 returns boolean
 language sql
 immutable
+set search_path = pg_catalog
 as $$
   select coalesce(
     file_name is not null
+      and file_type is not null
       and btrim(file_name) <> ''
       and (
         (lower(file_name) ~ '\.pdf$' and file_type = 'application/pdf')
@@ -154,7 +163,7 @@ as $$
 $$;
 
 comment on function private.is_allowed_public_request_file_type(text, text)
-is 'Valida combinaciones permitidas de extensión y MIME para archivos públicos de solicitud.';
+is 'Valida combinaciones permitidas de extension y MIME para archivos publicos de solicitud.';
 
 create or replace function private.is_allowed_public_request_file(
   file_name text,
@@ -164,6 +173,7 @@ create or replace function private.is_allowed_public_request_file(
 returns boolean
 language sql
 immutable
+set search_path = public, private
 as $$
   select coalesce(
     file_size > 0
@@ -174,7 +184,7 @@ as $$
 $$;
 
 comment on function private.is_allowed_public_request_file(text, bigint, text)
-is 'Valida de forma compartida extensión, MIME y tamaño máximo de archivos públicos de solicitud.';
+is 'Valida extension, MIME y tamano maximo de archivos publicos de solicitud.';
 
 create or replace function private.can_read_storage_object(
   object_bucket_id text,
@@ -188,6 +198,7 @@ stable
 as $$
   select case
     when object_bucket_id <> 'godel-files'
+      or object_name is null
       or auth.uid() is null
       or not private.current_user_is_active()
     then false
@@ -221,7 +232,7 @@ as $$
 $$;
 
 comment on function private.can_read_storage_object(text, text)
-is 'Valida lectura/listado de objetos del bucket privado godel-files según ruta, pedido, solicitud y archivos heredados por metadatos.';
+is 'Valida lectura interna de objetos del bucket privado godel-files segun pedido, solicitud y archivos heredados.';
 
 create or replace function private.can_insert_storage_object(
   object_bucket_id text,
@@ -235,6 +246,7 @@ stable
 as $$
   select case
     when object_bucket_id <> 'godel-files'
+      or object_name is null
       or auth.uid() is null
       or not private.current_user_is_active()
     then false
@@ -263,7 +275,7 @@ as $$
 $$;
 
 comment on function private.can_insert_storage_object(text, text)
-is 'Valida subidas internas al bucket privado; no habilita subidas públicas anónimas.';
+is 'Valida subidas internas autorizadas al bucket privado; no habilita subidas anonimas.';
 
 create or replace function private.can_manage_storage_object(
   object_bucket_id text,
@@ -276,6 +288,7 @@ set search_path = public, private
 stable
 as $$
   select object_bucket_id = 'godel-files'
+    and object_name is not null
     and auth.uid() is not null
     and private.current_user_is_active()
     and private.is_admin_or_supervisor()
@@ -294,7 +307,7 @@ as $$
 $$;
 
 comment on function private.can_manage_storage_object(text, text)
-is 'Limita actualización y eliminación de objetos privados a admin o supervisor sobre rutas válidas.';
+is 'Limita update/delete de objetos privados a admin o supervisor sobre rutas validas.';
 
 create or replace function private.can_insert_public_request_storage_object(
   object_bucket_id text,
@@ -313,6 +326,7 @@ begin
   v_solicitud_id := private.storage_request_id(object_name);
 
   if object_bucket_id <> 'godel-files'
+    or object_name is null
     or v_solicitud_id is null
     or object_metadata is null
     or not private.is_allowed_public_request_file_type(
@@ -345,7 +359,7 @@ end;
 $$;
 
 comment on function private.can_insert_public_request_storage_object(text, text, jsonb)
-is 'Valida ruta, archivo y cupo secuencial de cinco objetos anónimos por solicitud, bloqueando la solicitud durante la evaluación.';
+is 'Valida ruta, tipo y cupo de cinco objetos anonimos por solicitud.';
 
 create or replace function private.can_insert_public_request_file_metadata(
   p_file_bucket text,
@@ -367,6 +381,7 @@ declare
   v_existing_files integer;
 begin
   if p_file_bucket <> 'godel-files'
+    or p_file_path is null
     or p_file_pedido_id is not null
     or p_file_solicitud_id is null
     or p_file_uploaded_by is not null
@@ -430,7 +445,7 @@ comment on function private.can_insert_public_request_file_metadata(
   bigint,
   text
 )
-is 'Valida metadatos anónimos contra un objeto existente y limita a cinco archivos por solicitud con conteo serializado.';
+is 'Valida metadata anonima contra objeto existente y limita a cinco archivos por solicitud.';
 
 revoke all on function private.storage_path_has_exact_parts(text, integer)
 from public, anon, authenticated;
@@ -465,9 +480,22 @@ revoke all on function private.can_insert_public_request_file_metadata(
 )
 from public, anon, authenticated;
 
+grant usage on schema storage to anon, authenticated;
+
+-- Required only so anon policies can evaluate strict Storage helpers.
+grant usage on schema private to anon;
+
+grant usage on type public.archivo_visibility to anon;
+
+grant insert on table storage.objects to anon;
+grant select, insert, update, delete on table storage.objects to authenticated;
+
+grant insert on table public.archivos to anon;
+
 grant execute on function private.can_read_storage_object(text, text) to authenticated;
 grant execute on function private.can_insert_storage_object(text, text) to authenticated;
 grant execute on function private.can_manage_storage_object(text, text) to authenticated;
+
 grant execute on function private.can_insert_public_request_storage_object(text, text, jsonb) to anon;
 grant execute on function private.can_insert_public_request_file_metadata(
   text,
@@ -481,14 +509,16 @@ grant execute on function private.can_insert_public_request_file_metadata(
   text
 ) to anon;
 
-grant insert on table public.archivos to anon;
+drop policy if exists archivos_insert_public_request_files
+on public.archivos;
 
 create policy archivos_insert_public_request_files
 on public.archivos
 for insert
 to anon
 with check (
-  private.can_insert_public_request_file_metadata(
+  bucket = 'godel-files'
+  and private.can_insert_public_request_file_metadata(
     bucket,
     file_path,
     file_name,
@@ -501,6 +531,9 @@ with check (
   )
 );
 
+drop policy if exists godel_files_select_accessible
+on storage.objects;
+
 create policy godel_files_select_accessible
 on storage.objects
 for select
@@ -509,6 +542,9 @@ using (
   private.can_read_storage_object(bucket_id, name)
 );
 
+drop policy if exists godel_files_insert_accessible
+on storage.objects;
+
 create policy godel_files_insert_accessible
 on storage.objects
 for insert
@@ -516,6 +552,9 @@ to authenticated
 with check (
   private.can_insert_storage_object(bucket_id, name)
 );
+
+drop policy if exists godel_files_update_manager
+on storage.objects;
 
 create policy godel_files_update_manager
 on storage.objects
@@ -528,6 +567,9 @@ with check (
   private.can_manage_storage_object(bucket_id, name)
 );
 
+drop policy if exists godel_files_delete_manager
+on storage.objects;
+
 create policy godel_files_delete_manager
 on storage.objects
 for delete
@@ -536,12 +578,16 @@ using (
   private.can_manage_storage_object(bucket_id, name)
 );
 
+drop policy if exists godel_files_insert_public_request_files
+on storage.objects;
+
 create policy godel_files_insert_public_request_files
 on storage.objects
 for insert
 to anon
 with check (
-  private.can_insert_public_request_storage_object(bucket_id, name, metadata)
+  bucket_id = 'godel-files'
+  and private.can_insert_public_request_storage_object(bucket_id, name, metadata)
 );
 
 do $$

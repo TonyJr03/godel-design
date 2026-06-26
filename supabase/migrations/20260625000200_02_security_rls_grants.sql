@@ -1,12 +1,77 @@
--- Consolidated private helpers, grants and RLS policies.
--- The policy expressions mirror the effective state of the previous migration
--- history. Security refinements will be added in later dedicated migrations.
+-- Beta 1 consolidated security layer.
+-- Contains security helpers, access helpers, table RLS, table policies and base grants.
+-- Excludes business RPCs, Storage policies and final hardening.
 
 create schema if not exists private;
 
 revoke all on schema private from public;
 revoke all on schema private from anon;
 revoke all on schema private from authenticated;
+
+grant usage on schema public to anon, authenticated;
+grant usage on schema private to authenticated;
+
+revoke all on table
+  public.perfiles,
+  public.clientes,
+  public.solicitudes,
+  public.pedido_contadores,
+  public.pedidos,
+  public.pedido_trabajadores,
+  public.pedido_tareas,
+  public.archivos,
+  public.pedido_comentarios,
+  public.pedido_historial,
+  public.solicitud_comentarios,
+  public.solicitud_historial,
+  public.trabajo_plantillas,
+  public.trabajo_plantilla_tareas,
+  public.pedido_pagos
+from public, anon, authenticated;
+
+revoke all on type public.app_role from public, anon;
+revoke all on type public.workflow_type from public, anon;
+revoke all on type public.solicitud_estado from public, anon;
+revoke all on type public.pedido_estado from public, anon;
+revoke all on type public.pedido_pago_estado from public, anon;
+revoke all on type public.pedido_prioridad from public, anon;
+revoke all on type public.pedido_tarea_tipo from public, anon;
+revoke all on type public.archivo_visibility from public, anon;
+revoke all on type public.pedido_historial_action from public, anon;
+revoke all on type public.solicitud_historial_action from public, anon;
+
+grant usage on type public.workflow_type to anon;
+grant usage on type public.solicitud_estado to anon;
+
+grant usage on type
+  public.app_role,
+  public.workflow_type,
+  public.solicitud_estado,
+  public.pedido_estado,
+  public.pedido_pago_estado,
+  public.pedido_prioridad,
+  public.pedido_tarea_tipo,
+  public.archivo_visibility,
+  public.pedido_historial_action,
+  public.solicitud_historial_action
+to authenticated;
+
+grant insert on table public.solicitudes to anon;
+
+grant select, insert, update on table public.perfiles to authenticated;
+grant select, insert, update on table public.clientes to authenticated;
+grant select, insert, update, delete on table public.solicitudes to authenticated;
+grant select, insert, update, delete on table public.pedidos to authenticated;
+grant select, insert, update, delete on table public.pedido_trabajadores to authenticated;
+grant select, insert, update, delete on table public.pedido_tareas to authenticated;
+grant select, insert, update, delete on table public.archivos to authenticated;
+grant select, insert on table public.pedido_comentarios to authenticated;
+grant select on table public.pedido_historial to authenticated;
+grant select, insert on table public.solicitud_comentarios to authenticated;
+grant select on table public.solicitud_historial to authenticated;
+grant select, insert, update, delete on table public.trabajo_plantillas to authenticated;
+grant select, insert, update, delete on table public.trabajo_plantilla_tareas to authenticated;
+grant select, insert, update, delete on table public.pedido_pagos to authenticated;
 
 create or replace function private.current_user_role()
 returns public.app_role
@@ -65,7 +130,10 @@ set search_path = public
 stable
 as $$
   select coalesce(
-    private.current_user_role() in ('admin'::public.app_role, 'supervisor'::public.app_role),
+    private.current_user_role() in (
+      'admin'::public.app_role,
+      'supervisor'::public.app_role
+    ),
     false
   );
 $$;
@@ -102,6 +170,43 @@ as $$
     when p_pedido_id is null then false
     else private.is_admin_or_supervisor()
       or private.is_assigned_to_pedido(p_pedido_id)
+  end;
+$$;
+
+create or replace function private.solicitud_has_accessible_pedido(p_solicitud_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select case
+    when p_solicitud_id is null then false
+    else exists (
+      select 1
+      from public.solicitudes as s
+      join public.pedidos as p
+        on (
+          p.solicitud_id = s.id
+          or s.converted_order_id = p.id
+        )
+      where s.id = p_solicitud_id
+        and private.can_access_pedido(p.id)
+    )
+  end;
+$$;
+
+create or replace function private.can_access_solicitud(p_solicitud_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select case
+    when p_solicitud_id is null then false
+    else private.is_admin_or_supervisor()
+      or private.solicitud_has_accessible_pedido(p_solicitud_id)
   end;
 $$;
 
@@ -241,138 +346,6 @@ as $$
     );
 $$;
 
-create or replace function private.solicitud_has_accessible_pedido(p_solicitud_id uuid)
-returns boolean
-language sql
-security definer
-set search_path = public
-stable
-as $$
-  select case
-    when p_solicitud_id is null then false
-    else exists (
-      select 1
-      from public.solicitudes as s
-      join public.pedidos as p
-        on (
-          p.solicitud_id = s.id
-          or s.converted_order_id = p.id
-        )
-      where s.id = p_solicitud_id
-        and private.can_access_pedido(p.id)
-    )
-  end;
-$$;
-
-create or replace function private.can_access_solicitud(p_solicitud_id uuid)
-returns boolean
-language sql
-security definer
-set search_path = public
-stable
-as $$
-  select case
-    when p_solicitud_id is null then false
-    else private.is_admin_or_supervisor()
-      or private.solicitud_has_accessible_pedido(p_solicitud_id)
-  end;
-$$;
-
-create or replace function private.ensure_active_order_assignment_profile()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  if not exists (
-    select 1
-    from public.perfiles as p
-    where p.id = new.assigned_profile_id
-      and p.is_active = true
-  ) then
-    raise exception 'El perfil asignado debe estar activo'
-      using errcode = '23514';
-  end if;
-
-  return new;
-end;
-$$;
-
-create or replace function private.ensure_perfil_admin_integrity()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  v_other_active_admins integer;
-begin
-  if tg_op = 'UPDATE' then
-    if auth.uid() = old.id and old.is_active and not new.is_active then
-      raise exception 'No puedes desactivar tu propio perfil'
-        using errcode = '23514';
-    end if;
-
-    if auth.uid() = old.id
-      and old.role = 'admin'::public.app_role
-      and new.role <> 'admin'::public.app_role
-    then
-      raise exception 'No puedes quitar tu propio rol de administrador'
-        using errcode = '23514';
-    end if;
-
-    if old.role = 'admin'::public.app_role
-      and old.is_active
-      and (
-        new.role <> 'admin'::public.app_role
-        or not new.is_active
-      )
-    then
-      perform pg_advisory_xact_lock(hashtext('perfiles_active_admin_guard'));
-
-      select count(*)
-      into v_other_active_admins
-      from public.perfiles as p
-      where p.id <> old.id
-        and p.role = 'admin'::public.app_role
-        and p.is_active = true;
-
-      if v_other_active_admins = 0 then
-        raise exception 'Debe existir al menos un administrador activo'
-          using errcode = '23514';
-      end if;
-    end if;
-
-    return new;
-  end if;
-
-  if tg_op = 'DELETE' then
-    if old.role = 'admin'::public.app_role and old.is_active then
-      perform pg_advisory_xact_lock(hashtext('perfiles_active_admin_guard'));
-
-      select count(*)
-      into v_other_active_admins
-      from public.perfiles as p
-      where p.id <> old.id
-        and p.role = 'admin'::public.app_role
-        and p.is_active = true;
-
-      if v_other_active_admins = 0 then
-        raise exception 'Debe existir al menos un administrador activo'
-          using errcode = '23514';
-      end if;
-    end if;
-
-    return old;
-  end if;
-
-  return new;
-end;
-$$;
-
-grant usage on schema private to anon, authenticated;
-
 revoke all on function private.current_user_role()
 from public, anon, authenticated;
 revoke all on function private.current_user_is_active()
@@ -386,6 +359,10 @@ from public, anon, authenticated;
 revoke all on function private.is_assigned_to_pedido(uuid)
 from public, anon, authenticated;
 revoke all on function private.can_access_pedido(uuid)
+from public, anon, authenticated;
+revoke all on function private.solicitud_has_accessible_pedido(uuid)
+from public, anon, authenticated;
+revoke all on function private.can_access_solicitud(uuid)
 from public, anon, authenticated;
 revoke all on function private.can_manage_pedido_tasks(uuid)
 from public, anon, authenticated;
@@ -409,10 +386,6 @@ revoke all on function private.can_insert_pedido_file_metadata(
   text
 )
 from public, anon, authenticated;
-revoke all on function private.solicitud_has_accessible_pedido(uuid)
-from public, anon, authenticated;
-revoke all on function private.can_access_solicitud(uuid)
-from public, anon, authenticated;
 
 grant execute on function private.current_user_role() to authenticated;
 grant execute on function private.current_user_is_active() to authenticated;
@@ -421,6 +394,8 @@ grant execute on function private.is_supervisor() to authenticated;
 grant execute on function private.is_admin_or_supervisor() to authenticated;
 grant execute on function private.is_assigned_to_pedido(uuid) to authenticated;
 grant execute on function private.can_access_pedido(uuid) to authenticated;
+grant execute on function private.solicitud_has_accessible_pedido(uuid) to authenticated;
+grant execute on function private.can_access_solicitud(uuid) to authenticated;
 grant execute on function private.can_manage_pedido_tasks(uuid) to authenticated;
 grant execute on function private.pedido_file_visibility_for_status(
   public.pedido_estado
@@ -441,61 +416,22 @@ grant execute on function private.can_insert_pedido_file_metadata(
   bigint,
   text
 ) to authenticated;
-grant execute on function private.can_access_solicitud(uuid) to authenticated;
 
-revoke all on function private.ensure_active_order_assignment_profile()
-from public, anon, authenticated;
-
-revoke all on function private.ensure_perfil_admin_integrity()
-from public, anon, authenticated;
-
-create trigger ensure_perfil_admin_integrity
-before update of role, is_active or delete
-on public.perfiles
-for each row
-execute function private.ensure_perfil_admin_integrity();
-
-create trigger ensure_active_order_assignment_profile
-before insert or update of assigned_profile_id
-on public.pedido_trabajadores
-for each row
-execute function private.ensure_active_order_assignment_profile();
-
-grant insert on table public.solicitudes to anon;
-
-grant select, insert, update, delete on table
-  public.perfiles,
-  public.clientes,
-  public.solicitudes,
-  public.pedidos,
-  public.pedido_trabajadores,
-  public.pedido_tareas,
-  public.archivos
-to authenticated;
-
-grant select, insert on table
-  public.pedido_comentarios,
-  public.solicitud_comentarios
-to authenticated;
-
-grant select on table
-  public.pedido_historial,
-  public.solicitud_historial
-to authenticated;
-
-revoke all on table public.pedido_contadores
-from public, anon, authenticated;
-
-revoke all on table
-  public.solicitud_comentarios,
-  public.solicitud_historial
-from public, anon;
-
-revoke all on type public.solicitud_historial_action from public, anon;
-grant usage on type public.solicitud_historial_action to authenticated;
-
-revoke all on type public.pedido_tarea_tipo from public, anon;
-grant usage on type public.pedido_tarea_tipo to authenticated;
+alter table public.perfiles enable row level security;
+alter table public.clientes enable row level security;
+alter table public.solicitudes enable row level security;
+alter table public.pedido_contadores enable row level security;
+alter table public.pedidos enable row level security;
+alter table public.pedido_trabajadores enable row level security;
+alter table public.pedido_tareas enable row level security;
+alter table public.archivos enable row level security;
+alter table public.pedido_comentarios enable row level security;
+alter table public.pedido_historial enable row level security;
+alter table public.solicitud_comentarios enable row level security;
+alter table public.solicitud_historial enable row level security;
+alter table public.trabajo_plantillas enable row level security;
+alter table public.trabajo_plantilla_tareas enable row level security;
+alter table public.pedido_pagos enable row level security;
 
 create policy perfiles_select_visible
 on public.perfiles
@@ -521,6 +457,7 @@ for insert
 to authenticated
 with check (
   (select auth.uid()) is not null
+  and private.current_user_is_active()
   and private.is_admin()
 );
 
@@ -530,10 +467,12 @@ for update
 to authenticated
 using (
   (select auth.uid()) is not null
+  and private.current_user_is_active()
   and private.is_admin()
 )
 with check (
   (select auth.uid()) is not null
+  and private.current_user_is_active()
   and private.is_admin()
 );
 
@@ -543,6 +482,7 @@ for select
 to authenticated
 using (
   (select auth.uid()) is not null
+  and private.current_user_is_active()
   and (
     private.is_admin_or_supervisor()
     or exists (
@@ -560,6 +500,7 @@ for insert
 to authenticated
 with check (
   (select auth.uid()) is not null
+  and private.current_user_is_active()
   and private.is_admin_or_supervisor()
 );
 
@@ -569,22 +510,38 @@ for update
 to authenticated
 using (
   (select auth.uid()) is not null
+  and private.current_user_is_active()
   and private.is_admin_or_supervisor()
 )
 with check (
   (select auth.uid()) is not null
+  and private.current_user_is_active()
   and private.is_admin_or_supervisor()
 );
 
 create policy solicitudes_insert_public
 on public.solicitudes
 for insert
-to anon, authenticated
+to anon
 with check (
   status = 'nueva'::public.solicitud_estado
   and reviewed_by is null
   and converted_order_id is null
   and cliente_id is null
+  and btrim(client_name) <> ''
+  and btrim(client_phone) <> ''
+  and btrim(service_type) <> ''
+  and btrim(description) <> ''
+);
+
+create policy solicitudes_insert_manager
+on public.solicitudes
+for insert
+to authenticated
+with check (
+  (select auth.uid()) is not null
+  and private.current_user_is_active()
+  and private.is_admin_or_supervisor()
 );
 
 create policy solicitudes_select_accessible
@@ -593,6 +550,7 @@ for select
 to authenticated
 using (
   (select auth.uid()) is not null
+  and private.current_user_is_active()
   and private.can_access_solicitud(id)
 );
 
@@ -602,10 +560,12 @@ for update
 to authenticated
 using (
   (select auth.uid()) is not null
+  and private.current_user_is_active()
   and private.is_admin_or_supervisor()
 )
 with check (
   (select auth.uid()) is not null
+  and private.current_user_is_active()
   and private.is_admin_or_supervisor()
 );
 
@@ -615,6 +575,7 @@ for delete
 to authenticated
 using (
   (select auth.uid()) is not null
+  and private.current_user_is_active()
   and private.is_admin()
 );
 
@@ -624,6 +585,7 @@ for select
 to authenticated
 using (
   (select auth.uid()) is not null
+  and private.current_user_is_active()
   and private.can_access_pedido(id)
 );
 
@@ -633,6 +595,7 @@ for insert
 to authenticated
 with check (
   (select auth.uid()) is not null
+  and private.current_user_is_active()
   and private.is_admin_or_supervisor()
 );
 
@@ -642,10 +605,12 @@ for update
 to authenticated
 using (
   (select auth.uid()) is not null
+  and private.current_user_is_active()
   and private.is_admin_or_supervisor()
 )
 with check (
   (select auth.uid()) is not null
+  and private.current_user_is_active()
   and private.is_admin_or_supervisor()
 );
 
@@ -655,6 +620,7 @@ for delete
 to authenticated
 using (
   (select auth.uid()) is not null
+  and private.current_user_is_active()
   and private.is_admin()
 );
 
@@ -664,10 +630,8 @@ for select
 to authenticated
 using (
   (select auth.uid()) is not null
-  and (
-    private.is_admin_or_supervisor()
-    or private.is_assigned_to_pedido(pedido_id)
-  )
+  and private.current_user_is_active()
+  and private.can_access_pedido(pedido_id)
 );
 
 create policy pedido_trabajadores_insert_manager
@@ -676,6 +640,7 @@ for insert
 to authenticated
 with check (
   (select auth.uid()) is not null
+  and private.current_user_is_active()
   and private.is_admin_or_supervisor()
 );
 
@@ -685,10 +650,12 @@ for update
 to authenticated
 using (
   (select auth.uid()) is not null
+  and private.current_user_is_active()
   and private.is_admin_or_supervisor()
 )
 with check (
   (select auth.uid()) is not null
+  and private.current_user_is_active()
   and private.is_admin_or_supervisor()
 );
 
@@ -698,6 +665,7 @@ for delete
 to authenticated
 using (
   (select auth.uid()) is not null
+  and private.current_user_is_active()
   and private.is_admin_or_supervisor()
 );
 
@@ -753,6 +721,7 @@ for select
 to authenticated
 using (
   (select auth.uid()) is not null
+  and private.current_user_is_active()
   and (
     private.is_admin_or_supervisor()
     or (
@@ -762,7 +731,7 @@ using (
   )
 );
 
-create policy archivos_insert_accessible
+create policy archivos_insert_internal
 on public.archivos
 for insert
 to authenticated
@@ -786,10 +755,12 @@ for update
 to authenticated
 using (
   (select auth.uid()) is not null
+  and private.current_user_is_active()
   and private.is_admin_or_supervisor()
 )
 with check (
   (select auth.uid()) is not null
+  and private.current_user_is_active()
   and private.is_admin_or_supervisor()
 );
 
@@ -799,6 +770,7 @@ for delete
 to authenticated
 using (
   (select auth.uid()) is not null
+  and private.current_user_is_active()
   and private.is_admin_or_supervisor()
 );
 
@@ -808,6 +780,7 @@ for select
 to authenticated
 using (
   (select auth.uid()) is not null
+  and private.current_user_is_active()
   and private.can_access_pedido(pedido_id)
 );
 
@@ -817,6 +790,7 @@ for insert
 to authenticated
 with check (
   (select auth.uid()) is not null
+  and private.current_user_is_active()
   and private.can_access_pedido(pedido_id)
   and author_id = (select auth.uid())
 );
@@ -827,6 +801,7 @@ for select
 to authenticated
 using (
   (select auth.uid()) is not null
+  and private.current_user_is_active()
   and private.can_access_pedido(pedido_id)
 );
 
@@ -836,6 +811,7 @@ for select
 to authenticated
 using (
   (select auth.uid()) is not null
+  and private.current_user_is_active()
   and private.is_admin_or_supervisor()
 );
 
@@ -845,6 +821,7 @@ for insert
 to authenticated
 with check (
   (select auth.uid()) is not null
+  and private.current_user_is_active()
   and private.is_admin_or_supervisor()
   and author_id = (select auth.uid())
 );
@@ -855,5 +832,152 @@ for select
 to authenticated
 using (
   (select auth.uid()) is not null
+  and private.current_user_is_active()
+  and private.is_admin_or_supervisor()
+);
+
+create policy trabajo_plantillas_select_visible
+on public.trabajo_plantillas
+for select
+to authenticated
+using (
+  (select auth.uid()) is not null
+  and private.current_user_is_active()
+  and (
+    is_active = true
+    or private.is_admin()
+  )
+);
+
+create policy trabajo_plantillas_insert_admin
+on public.trabajo_plantillas
+for insert
+to authenticated
+with check (
+  (select auth.uid()) is not null
+  and private.current_user_is_active()
+  and private.is_admin()
+);
+
+create policy trabajo_plantillas_update_admin
+on public.trabajo_plantillas
+for update
+to authenticated
+using (
+  (select auth.uid()) is not null
+  and private.current_user_is_active()
+  and private.is_admin()
+)
+with check (
+  (select auth.uid()) is not null
+  and private.current_user_is_active()
+  and private.is_admin()
+);
+
+create policy trabajo_plantillas_delete_admin
+on public.trabajo_plantillas
+for delete
+to authenticated
+using (
+  (select auth.uid()) is not null
+  and private.current_user_is_active()
+  and private.is_admin()
+);
+
+create policy trabajo_plantilla_tareas_select_visible
+on public.trabajo_plantilla_tareas
+for select
+to authenticated
+using (
+  (select auth.uid()) is not null
+  and private.current_user_is_active()
+  and exists (
+    select 1
+    from public.trabajo_plantillas as tp
+    where tp.id = trabajo_plantilla_tareas.template_id
+      and (
+        tp.is_active = true
+        or private.is_admin()
+      )
+  )
+);
+
+create policy trabajo_plantilla_tareas_insert_admin
+on public.trabajo_plantilla_tareas
+for insert
+to authenticated
+with check (
+  (select auth.uid()) is not null
+  and private.current_user_is_active()
+  and private.is_admin()
+);
+
+create policy trabajo_plantilla_tareas_update_admin
+on public.trabajo_plantilla_tareas
+for update
+to authenticated
+using (
+  (select auth.uid()) is not null
+  and private.current_user_is_active()
+  and private.is_admin()
+)
+with check (
+  (select auth.uid()) is not null
+  and private.current_user_is_active()
+  and private.is_admin()
+);
+
+create policy trabajo_plantilla_tareas_delete_admin
+on public.trabajo_plantilla_tareas
+for delete
+to authenticated
+using (
+  (select auth.uid()) is not null
+  and private.current_user_is_active()
+  and private.is_admin()
+);
+
+create policy pedido_pagos_select_accessible
+on public.pedido_pagos
+for select
+to authenticated
+using (
+  (select auth.uid()) is not null
+  and private.current_user_is_active()
+  and private.can_access_pedido(pedido_id)
+);
+
+create policy pedido_pagos_insert_manager
+on public.pedido_pagos
+for insert
+to authenticated
+with check (
+  (select auth.uid()) is not null
+  and private.current_user_is_active()
+  and private.is_admin_or_supervisor()
+);
+
+create policy pedido_pagos_update_manager
+on public.pedido_pagos
+for update
+to authenticated
+using (
+  (select auth.uid()) is not null
+  and private.current_user_is_active()
+  and private.is_admin_or_supervisor()
+)
+with check (
+  (select auth.uid()) is not null
+  and private.current_user_is_active()
+  and private.is_admin_or_supervisor()
+);
+
+create policy pedido_pagos_delete_manager
+on public.pedido_pagos
+for delete
+to authenticated
+using (
+  (select auth.uid()) is not null
+  and private.current_user_is_active()
   and private.is_admin_or_supervisor()
 );
