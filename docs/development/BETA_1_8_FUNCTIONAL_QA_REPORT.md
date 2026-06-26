@@ -258,6 +258,25 @@ Resultado:
 
 Nota: no se imprimieron ni guardaron credenciales. El smoke autenticado usa unicamente variables locales de entorno.
 
+## Ajuste Beta 1.8.2 - Mensajes de login
+
+Se corrigio el manejo de errores del login para diferenciar credenciales incorrectas de fallos temporales de conexion. La UI muestra mensajes amigables sin detalles tecnicos, mientras que los detalles quedan limitados al log del servidor.
+
+Mensajes finales:
+
+- Campos vacios: `Ingresa tu correo y contraseña.`
+- Credenciales incorrectas: `Correo o contraseña incorrectos.`
+- Error temporal de conexion o servicio: `No pudimos iniciar sesión en este momento. Inténtalo nuevamente en unos minutos.`
+- Usuario sin perfil activo: `Tu usuario no tiene acceso interno activo. Contacta al administrador.`
+
+Verificacion manual:
+
+- Campos vacios: OK.
+- Credenciales incorrectas: OK.
+- Credenciales correctas con perfil activo: OK.
+- Usuario Auth sin perfil activo: no probado en esta pasada.
+- Simulacion de URL local incorrecta en servidor aislado: intento realizado, pero `next dev` aislado agoto tiempo de espera antes de completar la prueba. La rama de error queda cubierta por codigo y `verify`; requiere repeticion manual si se quiere evidencia visual especifica de infraestructura caida.
+
 ## 14. Dictamen
 
 Estado tecnico DB/types/app contracts: aprobado.
