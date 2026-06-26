@@ -63,7 +63,7 @@ npx supabase db reset
 Regenerar tipos de Supabase:
 
 ```cmd
-npx supabase gen types typescript --local > src\types\database.types.ts
+npm.cmd run types:supabase
 ```
 
 Iniciar Next.js en desarrollo:
@@ -102,7 +102,7 @@ npm run build
 3. Regenerar tipos:
 
 ```cmd
-npx supabase gen types typescript --local > src\types\database.types.ts
+npm.cmd run types:supabase
 ```
 
 4. Ejecutar `npm run lint`.
@@ -143,7 +143,13 @@ Desde Studio se pueden revisar tablas, Auth, Storage y políticas. Los cambios e
 Si cambia la base de datos, regenera el archivo con:
 
 ```cmd
-npx supabase gen types typescript --local > src\types\database.types.ts
+npm.cmd run types:supabase
+```
+
+El script ejecuta la generacion limitada al schema publico:
+
+```cmd
+supabase gen types typescript --local --schema public > src/types/database.types.ts
 ```
 
 Los tipos de dominio deben derivar de `src/types/database.ts`.
@@ -155,16 +161,15 @@ Los tipos de dominio deben derivar de `src/types/database.ts`.
 - Si hay conflictos de puertos, detener otros proyectos Supabase locales.
 - Si la base local queda inconsistente, usar `npx supabase db reset` teniendo en cuenta que reinicia los datos locales.
 
-## Qué NO se hace en esta fase
+## Nota historica
 
-- No implementar login.
-- No implementar logout.
-- No crear middleware.
-- No proteger rutas.
-- No conectar formularios reales.
-- No usar service role key en frontend.
-- No desplegar todavía.
+Este documento nacio durante la configuracion inicial local. En el estado actual
+del proyecto ya existen login, logout, rutas protegidas, formularios reales,
+Storage privado, tracking publico y QA con Playwright. Las reglas permanentes
+siguen siendo: no subir `.env.local`, no usar service role key en frontend ni en
+codigo de aplicacion, y regenerar tipos mediante `npm.cmd run types:supabase`.
 
 ## Cierre
 
-La siguiente subfase será la revisión final de la Fase 2 antes de pasar a autenticación.
+Para cierre de tareas locales usa los scripts documentados en `package.json` y
+los reportes vigentes de `docs/development/`.

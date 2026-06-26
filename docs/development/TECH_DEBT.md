@@ -208,29 +208,29 @@ Propuesta futura:
 
 ### 12. Revisar grants `anon` sobre tablas internas
 
-Prioridad: Alta.
+Estado Beta 1: resuelto para tablas publicas de negocio.
 
 Durante la auditoria se detecto que, en la base local efectiva, el rol `anon`
-conserva privilegios SQL directos amplios sobre tablas internas como `pedidos`
+conservaba privilegios SQL directos amplios sobre tablas internas como `pedidos`
 y `solicitudes`. RLS bloqueo las lecturas y escrituras comunes durante la
 prueba, por lo que no se confirmo una fuga funcional, pero el estado de grants
 contradice la regla de seguridad del proyecto de no abrir acceso anonimo directo
 sobre tablas internas.
 
-Accion futura:
+Accion tomada:
 
-En Fase Beta, revisar y endurecer los grants mediante una migracion explicita de
-hardening. La meta sera revocar privilegios innecesarios a `anon` sobre tablas
-internas y dejar unicamente los accesos publicos controlados que el sistema
-realmente necesita, por ejemplo el flujo publico de solicitudes y la RPC segura
-de consulta de estado.
+Beta 1 consolido RLS/grants y hardening final. El QA de Beta 1.7 y Beta 1.8
+confirmo que `anon` no tiene `SELECT`, `UPDATE` ni `DELETE` sobre tablas publicas
+de negocio internas verificadas, no puede ejecutar RPCs internas y mantiene solo
+los accesos publicos controlados que necesita `/solicitud`, archivos publicos de
+solicitud y `consultar_estado_publico`.
 
-Notas:
+Observacion remanente:
 
-- No romper `/solicitud`.
-- No romper `/estado`.
-- Revisar RLS y grants juntos.
-- Probar `anon` y `authenticated` despues del cambio.
+La ACL base de `storage.objects` sigue apareciendo en catalogo con grants
+administrados por Supabase, pero el acceso efectivo queda cerrado por RLS y por
+ausencia de policies anonimas de lectura/mutacion. Se mantiene como observacion
+operativa, no como bug funcional confirmado.
 
 ### 13. Afinar acceso de trabajador a `/dashboard/pedidos/nuevo`
 
@@ -239,14 +239,14 @@ Prioridad: Baja.
 Actualmente un trabajador puede recibir respuesta 200 al entrar en
 `/dashboard/pedidos/nuevo`, pero la pantalla muestra que no tiene permiso y no
 expone el formulario. Funcionalmente la operacion esta bloqueada por UI, action
-y servicio, pero en Beta se puede valorar si conviene aplicar una regla de ruta
-mas estricta, por ejemplo redireccion a una pantalla de acceso denegado.
+y servicio. En una fase futura se puede valorar si conviene aplicar una regla de
+ruta mas estricta, por ejemplo redireccion a una pantalla de acceso denegado.
 
-Accion futura:
+Accion futura post-Beta:
 
-Revisar durante Beta la politica de rutas internas no autorizadas para decidir
-si se mantiene el patron actual de mensaje en pagina o si se unifica con
-redirect/denegacion.
+Decidir si se mantiene el patron actual de mensaje en pagina o si se unifica con
+redirect/denegacion. Beta 1.8.3 valido que el trabajador no ve el formulario y
+la operacion queda bloqueada.
 
 ### 14. Revisar contrato DB de `convertir_solicitud_a_pedido` para Impresion
 
@@ -258,8 +258,25 @@ funciona, pero la RPC exige titulo/descripcion no vacios directamente. Esto
 significa que parte del fallback funcional vive en la capa de aplicacion y no
 en el contrato de base de datos.
 
-Accion futura:
+Accion futura post-Beta:
 
-Durante Beta, decidir si la normalizacion debe seguir unicamente en la
-aplicacion o si la RPC debe reforzar tambien ese comportamiento para dejar el
-contrato transaccional mas autonomo.
+Decidir si la normalizacion debe seguir unicamente en la aplicacion o si la RPC
+debe reforzar tambien ese comportamiento para dejar el contrato transaccional
+mas autonomo. Beta 1.8.3 valido el flujo normal de conversion, por lo que no
+bloquea el cierre de Beta 1.
+
+## QA y automatizacion
+
+### 15. Dividir el full visual QA en specs mas pequenos
+
+Prioridad: Baja/Media antes de que crezca la suite.
+
+Beta 1.8.3 agrego un recorrido Playwright completo que valida solicitud publica,
+tracking, login, roles, conversion, pedidos, tareas, pagos, Storage y permisos.
+El spec funciona como prueba de cierre, pero es largo y crea datos reales de QA.
+
+Propuesta futura:
+
+- Dividir el recorrido en specs por dominio cuando aumente la frecuencia de QA.
+- Mantener un smoke rapido para desarrollo diario.
+- Reservar el full visual QA para cierres de fase o cambios transversales.

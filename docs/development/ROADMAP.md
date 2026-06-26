@@ -42,6 +42,7 @@ La primera versión del sistema incluirá:
 - estados básicos de solicitudes y pedidos;
 - notas internas;
 - historial básico de actividad;
+- consulta pública controlada por código de seguimiento;
 - diseño responsive para computadora y teléfono.
 
 ---
@@ -56,7 +57,6 @@ No forman parte de este proyecto inicial:
 - carrito de compras;
 - facturación automática;
 - panel de cliente;
-- consulta pública del estado del pedido;
 - notificaciones por WhatsApp;
 - notificaciones por correo;
 - inventario;
