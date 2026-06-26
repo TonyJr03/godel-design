@@ -277,10 +277,171 @@ Verificacion manual:
 - Usuario Auth sin perfil activo: no probado en esta pasada.
 - Simulacion de URL local incorrecta en servidor aislado: intento realizado, pero `next dev` aislado agoto tiempo de espera antes de completar la prueba. La rama de error queda cubierta por codigo y `verify`; requiere repeticion manual si se quiere evidencia visual especifica de infraestructura caida.
 
+## Beta 1.8.3 - QA visual completo con Playwright
+
+Servidor usado: `http://localhost:3000` ya estaba respondiendo; no se inicio un nuevo servidor.
+
+Browser usado: Playwright Chromium.
+
+Archivos agregados:
+
+- `tests/e2e/full-visual-qa.spec.ts`
+- `tests/e2e/fixtures/sample-print-request.pdf`
+
+### 1. Precondiciones
+
+- Playwright disponible: `Version 1.61.1`.
+- Perfiles activos confirmados en `public.perfiles`: `admin`, `supervisor`, `trabajador`.
+- Credenciales QA tomadas de `.env.local`/entorno local. No se documentaron passwords.
+- No se consulto `auth.users` desde codigo de aplicacion.
+- No se uso `service_role`.
+
+### 2. Flujo publico de solicitudes
+
+Resultado: OK.
+
+- Solicitud `encargo` creada desde `/solicitud`.
+- Solicitud `impresion` creada desde `/solicitud` con fixture PDF.
+- Referencias de la pasada completa:
+  - Encargo: `GD-QEMR-AE0T`
+  - Impresion: `GD-LITW-DSE1`
+- La UI mostro confirmacion y codigo de seguimiento.
+- No se detecto exposicion publica de UUIDs, `file_path`, `order_number`, `pedido_pagos`, `storage.objects` ni secretos.
+
+### 3. Tracking publico
+
+Resultado: OK.
+
+- `/estado?ref=GD-QEMR-AE0T`: OK.
+- `/estado?ref=GD-LITW-DSE1`: OK.
+- Referencia invalida `BAD-CODE`: muestra error controlado.
+- Referencia inexistente `GD-ZZZZ-ZZZZ`: muestra error controlado.
+- Tras conversion, el tracking publico usa la misma referencia del pedido convertido sin exponer numero interno.
+
+### 4. Login y dashboard admin
+
+Resultado: OK.
+
+- Login admin por `/login`: OK.
+- Dashboard admin: OK.
+- Nav admin con `Solicitudes`, `Pedidos`, `Usuarios`, `Configuracion`: OK.
+- Screenshots desktop y mobile capturados temporalmente e inspeccionados durante la corrida:
+  - `test-results/beta-1-8-3-admin-dashboard-desktop.png`
+  - `test-results/beta-1-8-3-admin-dashboard-mobile.png`
+- Los artefactos temporales de `test-results/` fueron limpiados despues de documentar la evidencia.
+- Observacion visual: layout legible en desktop y mobile, sin solapes criticos ni overflow horizontal evidente.
+
+### 5. Gestion de solicitud y conversion
+
+Resultado: OK.
+
+- Solicitud de encargo localizada desde `/dashboard/solicitudes?q=...`.
+- Cambios de estado: `nueva` -> `en_revision` -> `contactada` -> `aprobada`.
+- Cliente creado desde la solicitud.
+- Solicitud convertida a pedido.
+- Referencia publica heredada al pedido convertido: `GD-QEMR-AE0T`.
+
+### 6. Pedido manual encargo
+
+Resultado: OK.
+
+- Pedido manual encargo creado desde `/dashboard/pedidos/nuevo`.
+- Referencia publica: `GD-ADC3-5F69`.
+- Bloqueo visual de produccion antes de revision: OK.
+- Bloqueo visual de produccion sin tareas: OK.
+- Tarea cuantificada `Imprimir 10 paginas`: OK.
+- Bloqueo de listo para entrega con tarea incompleta: OK.
+- Progreso de tarea a `10 / 10`: OK.
+- Listo para entrega con pago pendiente: OK.
+- Entrega bloqueada con pago parcial: OK.
+- Entrega permitida con pago completo: OK.
+
+### 7. Pedido manual impresion
+
+Resultado: OK.
+
+- Pedido manual impresion creado desde `/dashboard/pedidos/nuevo`.
+- Referencia publica: `GD-E9CE-12FC`.
+- Flujo directo sin tareas obligatorias: OK.
+- Avance `creado` -> `en_revision` -> `en_produccion` -> `listo_entrega`: OK.
+
+### 8. Storage / archivos internos
+
+Resultado: OK.
+
+- Archivo `sample-print-request.pdf` subido desde UI interna del pedido.
+- La UI mostro el archivo y el historial asociado.
+- No se mostro `file_path` en el detalle.
+
+### 9. Rol supervisor
+
+Resultado: OK.
+
+- Login supervisor: OK.
+- Puede acceder a pedidos.
+- No ve `Usuarios` en la navegacion.
+- Acceso directo a `/dashboard/usuarios` bloqueado por pantalla de permisos internos.
+
+### 10. Rol trabajador
+
+Resultado: OK.
+
+- Login trabajador: OK.
+- Puede acceder a pedidos.
+- No ve `Solicitudes` en la navegacion.
+- Acceso a `/dashboard/pedidos/nuevo` bloqueado con mensaje de permisos.
+- Pedido asignado visible para trabajador: OK.
+- Pedido no asignado bloqueado/no disponible: OK.
+
+### 11. Pruebas ejecutadas
+
+```bash
+npm.cmd run test:e2e -- --project=chromium tests/e2e/full-visual-qa.spec.ts
+npm.cmd run test:e2e -- --project=chromium
+npm.cmd run diff:check
+npm.cmd run audit:security
+npm.cmd run audit:client-supabase
+npm.cmd run audit:public-tracking
+npm.cmd run verify
+```
+
+Resultados:
+
+- Focused Playwright Beta 1.8.3: OK, `1 passed`.
+- Suite Playwright Chromium completa: OK, `5 passed`.
+- `diff:check`: OK.
+- `audit:security`: OK; imprime referencias documentales esperadas y FK de migracion hacia `auth.users`.
+- `audit:client-supabase`: OK, sin coincidencias.
+- `audit:public-tracking`: OK, sin coincidencias.
+- `verify`: OK (`eslint`, `next build`, TypeScript, 17/17 rutas).
+
+### 12. Busquedas estaticas
+
+Se revisaron:
+
+- `p_bucket = 'godel-files'`
+- `archivos_bucket_godel_files_check`
+- `storage.objects`
+- `storage.buckets`
+- `consultar_estado_publico`
+- `convertir_solicitud_a_pedido`
+- `actualizar_estado_pedido`
+- `service_role`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+Resultado:
+
+- `archivos_bucket_godel_files_check` existe en `supabase/migrations/20260625000100_01_core_schema.sql`.
+- `private.can_insert_pedido_file_metadata` exige `p_bucket = 'godel-files'` en `supabase/migrations/20260625000200_02_security_rls_grants.sql`.
+- Las RPCs y Storage aparecen en migraciones, tipos, servicios server-side y documentacion esperada.
+- Las referencias a `service_role` y `SUPABASE_SERVICE_ROLE_KEY` son reglas/audits/documentacion esperada o patrones negativos del test; no se agrego uso operativo.
+
+Conclusion Beta 1.8.3: aprobada para continuar a Beta 1.9 desde QA visual/e2e local.
+
 ## 14. Dictamen
 
 Estado tecnico DB/types/app contracts: aprobado.
 
-Estado QA visual completa: pendiente.
+Estado QA visual completa: aprobado en Playwright Chromium.
 
-Recomendacion: Beta 1.8 queda tecnicamente consistente y con QA SQL/HTTP aprobada. Beta 1.8.1 deja Playwright listo para continuar, pero no debe cerrarse como QA funcional visual completa hasta ejecutar una pasada real de navegador con `admin`, `supervisor` y `trabajador`, incluyendo screenshots desktop/mobile y revision de consola.
+Recomendacion: Beta 1.8 queda cerrada localmente con QA funcional visual completa para continuar hacia Beta 1.9.
