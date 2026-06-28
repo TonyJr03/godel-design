@@ -1,6 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { actionFailure, actionSuccess } from "@/lib/actions/action-state";
+import { revalidatePedidoDetail } from "@/lib/actions/revalidation";
 import {
   assignInternalPedidoWorker,
   createPedidoComment,
@@ -140,12 +141,6 @@ function getUploadPedidoFileMessage(
   return messages[reason];
 }
 
-function revalidatePedidoDetail(pedidoId: string) {
-  revalidatePath("/dashboard");
-  revalidatePath("/dashboard/pedidos");
-  revalidatePath(`/dashboard/pedidos/${pedidoId}`);
-}
-
 export async function updatePedidoStatusAction(
   pedidoId: string,
   _prevState: UpdatePedidoStatusActionState,
@@ -158,19 +153,14 @@ export async function updatePedidoStatusAction(
   });
 
   if (!result.ok) {
-    return {
-      ok: false,
-      message: result.message,
+    return actionFailure(result.message, {
       fieldErrors: result.fieldErrors,
-    };
+    });
   }
 
   revalidatePedidoDetail(pedidoId);
 
-  return {
-    ok: true,
-    message: "Estado actualizado correctamente.",
-  };
+  return actionSuccess("Estado actualizado correctamente.");
 }
 
 export async function updatePedidoPaymentAction(
@@ -187,20 +177,15 @@ export async function updatePedidoPaymentAction(
   });
 
   if (!result.ok) {
-    return {
-      ok: false,
-      message: result.message,
+    return actionFailure(result.message, {
       fieldErrors: result.fieldErrors,
       values: result.values,
-    };
+    });
   }
 
   revalidatePedidoDetail(pedidoId);
 
-  return {
-    ok: true,
-    message: "Pago actualizado correctamente.",
-  };
+  return actionSuccess("Pago actualizado correctamente.");
 }
 
 export async function assignPedidoWorkerAction(
@@ -215,21 +200,18 @@ export async function assignPedidoWorkerAction(
   });
 
   if (!result.ok) {
-    return {
-      ok: false,
-      message: result.message,
+    return actionFailure(result.message, {
       fieldErrors: result.fieldErrors,
-    };
+    });
   }
 
   revalidatePedidoDetail(pedidoId);
 
-  return {
-    ok: true,
-    message: result.alreadyAssigned
+  return actionSuccess(
+    result.alreadyAssigned
       ? "El usuario ya estaba asignado a este pedido."
       : "Personal asignado correctamente.",
-  };
+  );
 }
 
 export async function removePedidoWorkerAction(
@@ -244,19 +226,14 @@ export async function removePedidoWorkerAction(
   });
 
   if (!result.ok) {
-    return {
-      ok: false,
-      message: result.message,
+    return actionFailure(result.message, {
       fieldErrors: result.fieldErrors,
-    };
+    });
   }
 
   revalidatePedidoDetail(pedidoId);
 
-  return {
-    ok: true,
-    message: "Asignación removida correctamente.",
-  };
+  return actionSuccess("Asignación removida correctamente.");
 }
 
 export async function uploadPedidoFileAction(
@@ -267,10 +244,7 @@ export async function uploadPedidoFileAction(
   const file = formData.get("file");
 
   if (!(file instanceof File)) {
-    return {
-      ok: false,
-      message: "Selecciona un archivo válido.",
-    };
+    return actionFailure("Selecciona un archivo válido.");
   }
 
   const result = await uploadPedidoFile({
@@ -279,18 +253,12 @@ export async function uploadPedidoFileAction(
   });
 
   if (!result.ok) {
-    return {
-      ok: false,
-      message: getUploadPedidoFileMessage(result.reason),
-    };
+    return actionFailure(getUploadPedidoFileMessage(result.reason));
   }
 
   revalidatePedidoDetail(pedidoId);
 
-  return {
-    ok: true,
-    message: "Archivo subido correctamente.",
-  };
+  return actionSuccess("Archivo subido correctamente.");
 }
 
 export async function createPedidoCommentAction(
@@ -305,23 +273,19 @@ export async function createPedidoCommentAction(
   });
 
   if (!result.ok) {
-    return {
-      ok: false,
-      message: result.message,
+    return actionFailure(result.message, {
       fieldErrors: result.fieldErrors,
       values: result.values,
-    };
+    });
   }
 
   revalidatePedidoDetail(pedidoId);
 
-  return {
-    ok: true,
-    message: "Comentario agregado correctamente.",
+  return actionSuccess("Comentario agregado correctamente.", {
     values: {
       content: "",
     },
-  };
+  });
 }
 
 export async function createPedidoTaskAction(
@@ -336,23 +300,19 @@ export async function createPedidoTaskAction(
   });
 
   if (!result.ok) {
-    return {
-      ok: false,
-      message: result.message,
+    return actionFailure(result.message, {
       fieldErrors: result.fieldErrors,
       values: result.values,
-    };
+    });
   }
 
   revalidatePedidoDetail(pedidoId);
 
-  return {
-    ok: true,
-    message: "Tarea creada correctamente.",
+  return actionSuccess("Tarea creada correctamente.", {
     values: {
       title: "",
     },
-  };
+  });
 }
 
 export async function applyTaskTemplateAction(
@@ -367,22 +327,18 @@ export async function applyTaskTemplateAction(
   });
 
   if (!result.ok) {
-    return {
-      ok: false,
-      message: result.message,
+    return actionFailure(result.message, {
       fieldErrors: result.fieldErrors,
-    };
+    });
   }
 
   revalidatePedidoDetail(pedidoId);
 
-  return {
-    ok: true,
-    message:
-      result.insertedCount === 1
-        ? "Se agregó 1 tarea desde la plantilla."
-        : `Se agregaron ${result.insertedCount} tareas desde la plantilla.`,
-  };
+  return actionSuccess(
+    result.insertedCount === 1
+      ? "Se agregó 1 tarea desde la plantilla."
+      : `Se agregaron ${result.insertedCount} tareas desde la plantilla.`,
+  );
 }
 
 export async function updatePedidoTaskTitleAction(
@@ -399,20 +355,15 @@ export async function updatePedidoTaskTitleAction(
   });
 
   if (!result.ok) {
-    return {
-      ok: false,
-      message: result.message,
+    return actionFailure(result.message, {
       fieldErrors: result.fieldErrors,
       values: result.values,
-    };
+    });
   }
 
   revalidatePedidoDetail(pedidoId);
 
-  return {
-    ok: true,
-    message: "Tarea actualizada correctamente.",
-  };
+  return actionSuccess("Tarea actualizada correctamente.");
 }
 
 export async function updatePedidoTaskProgressAction(
@@ -429,20 +380,15 @@ export async function updatePedidoTaskProgressAction(
   });
 
   if (!result.ok) {
-    return {
-      ok: false,
-      message: result.message,
+    return actionFailure(result.message, {
       fieldErrors: result.fieldErrors,
       values: result.values,
-    };
+    });
   }
 
   revalidatePedidoDetail(pedidoId);
 
-  return {
-    ok: true,
-    message: "Progreso actualizado correctamente.",
-  };
+  return actionSuccess("Progreso actualizado correctamente.");
 }
 
 export async function completePedidoTaskAction(
@@ -458,19 +404,14 @@ export async function completePedidoTaskAction(
   });
 
   if (!result.ok) {
-    return {
-      ok: false,
-      message: result.message,
+    return actionFailure(result.message, {
       fieldErrors: result.fieldErrors,
-    };
+    });
   }
 
   revalidatePedidoDetail(pedidoId);
 
-  return {
-    ok: true,
-    message: "Tarea marcada como completada.",
-  };
+  return actionSuccess("Tarea marcada como completada.");
 }
 
 export async function reopenPedidoTaskAction(
@@ -486,19 +427,14 @@ export async function reopenPedidoTaskAction(
   });
 
   if (!result.ok) {
-    return {
-      ok: false,
-      message: result.message,
+    return actionFailure(result.message, {
       fieldErrors: result.fieldErrors,
-    };
+    });
   }
 
   revalidatePedidoDetail(pedidoId);
 
-  return {
-    ok: true,
-    message: "Tarea reabierta correctamente.",
-  };
+  return actionSuccess("Tarea reabierta correctamente.");
 }
 
 export async function deletePedidoTaskAction(
@@ -513,17 +449,12 @@ export async function deletePedidoTaskAction(
   });
 
   if (!result.ok) {
-    return {
-      ok: false,
-      message: result.message,
+    return actionFailure(result.message, {
       fieldErrors: result.fieldErrors,
-    };
+    });
   }
 
   revalidatePedidoDetail(pedidoId);
 
-  return {
-    ok: true,
-    message: "Tarea eliminada correctamente.",
-  };
+  return actionSuccess("Tarea eliminada correctamente.");
 }
