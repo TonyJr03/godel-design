@@ -7,7 +7,8 @@ import {
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
-import type { Enums, Tables } from "@/types/database";
+import type { Tables } from "@/types/database";
+import { listPedidoCommentsRpc } from "./rpc";
 
 export type PedidoCommentAuthor =
   | Pick<Tables<"perfiles">, "full_name" | "role">
@@ -18,26 +19,6 @@ export type PedidoComment = Pick<
   "id" | "content" | "created_at"
 > & {
   author: PedidoCommentAuthor;
-};
-
-type PedidoCommentRpcRow = Pick<
-  Tables<"pedido_comentarios">,
-  "id" | "content" | "created_at"
-> & {
-  author_full_name: string;
-  author_role: Enums<"app_role"> | null;
-};
-
-type PedidoCommentsRpcResult = {
-  data: PedidoCommentRpcRow[] | null;
-  error: { message?: string } | null;
-};
-
-type PedidoCommentsRpcClient = {
-  rpc(
-    fn: "listar_pedido_comentarios",
-    args: { p_pedido_id: string },
-  ): PromiseLike<PedidoCommentsRpcResult>;
 };
 
 export type ListPedidoCommentsErrorReason =
@@ -118,9 +99,7 @@ export async function listPedidoComments(
       );
     }
 
-    const { data, error } = await (
-      supabase as unknown as PedidoCommentsRpcClient
-    ).rpc("listar_pedido_comentarios", {
+    const { data, error } = await listPedidoCommentsRpc(supabase, {
       p_pedido_id: pedidoId,
     });
 
