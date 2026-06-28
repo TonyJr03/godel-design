@@ -5,29 +5,32 @@ import {
   serviceSuccess,
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
-import { getSolicitudServiceTypeSearchValues } from "@/lib/solicitudes";
-import { normalizeSearchQuery } from "@/lib/utils";
-import { isWorkflowType } from "@/lib/workflow-types";
+import {
+  collectSolicitudSearchIds,
+  getClienteSearchCondition,
+  getPedidoSearchServiceTypeValues,
+  getPedidoTextSearchCondition,
+  getSolicitudServiceTypeSearchPattern,
+  normalizeInternalPedidosFilters,
+  REFERENCE_SCAN_LIMIT,
+} from "./list-internal-pedidos-filters";
 import {
   mapInternalPedidos,
   mergePedidos,
 } from "./list-internal-pedidos-mappers";
 import { loadTaskProgressByPedidoId } from "./list-internal-pedidos-progress";
 import type {
-  InternalPedidoEstado,
   InternalPedidoRow,
   ListInternalPedidosOptions,
   ListInternalPedidosResult,
 } from "./list-internal-pedidos-types";
-import {
-  PEDIDO_PAYMENT_STATUSES,
-  PEDIDO_STATUSES,
-  type PedidoPaymentStatus,
-} from "./status";
 
-export const INTERNAL_PEDIDO_ESTADOS = PEDIDO_STATUSES;
-export const INTERNAL_PEDIDO_PAYMENT_STATUSES = PEDIDO_PAYMENT_STATUSES;
-
+export {
+  INTERNAL_PEDIDO_ESTADOS,
+  INTERNAL_PEDIDO_PAYMENT_STATUSES,
+  isInternalPedidoEstado,
+  isInternalPedidoPaymentStatus,
+} from "./list-internal-pedidos-filters";
 export type {
   InternalPedido,
   InternalPedidoEstado,
@@ -38,9 +41,6 @@ export type {
   ListInternalPedidosResult,
 } from "./list-internal-pedidos-types";
 
-const DEFAULT_LIMIT = 50;
-const MAX_LIMIT = 100;
-const REFERENCE_SCAN_LIMIT = 500;
 const GENERIC_LIST_ERROR =
   "No se pudieron cargar los pedidos. Inténtalo nuevamente.";
 const BASE_PEDIDOS_SELECT = `
@@ -103,71 +103,16 @@ const PEDIDOS_SELECT_WITH_PAYMENT_FILTER = `
   )
 `;
 
-function normalizeLimit(limit: number | undefined): number {
-  if (!Number.isFinite(limit)) {
-    return DEFAULT_LIMIT;
-  }
-
-  const finiteLimit = limit ?? DEFAULT_LIMIT;
-
-  return Math.min(Math.max(Math.trunc(finiteLimit), 1), MAX_LIMIT);
-}
-
-export function isInternalPedidoEstado(
-  status: string | null | undefined,
-): status is InternalPedidoEstado {
-  return INTERNAL_PEDIDO_ESTADOS.includes(status as InternalPedidoEstado);
-}
-
-export function isInternalPedidoPaymentStatus(
-  status: string | null | undefined,
-): status is PedidoPaymentStatus {
-  return INTERNAL_PEDIDO_PAYMENT_STATUSES.includes(
-    status as PedidoPaymentStatus,
-  );
-}
-
-function matchesVisibleReference(id: string, query: string): boolean {
-  const compactQuery = query.replace(/-/g, "").toLowerCase();
-
-  return (
-    compactQuery.length >= 4 &&
-    /^[0-9a-f]+$/.test(compactQuery) &&
-    id.replace(/-/g, "").toLowerCase().startsWith(compactQuery)
-  );
-}
-
 export async function listInternalPedidos(
   options: ListInternalPedidosOptions = {},
 ): Promise<ListInternalPedidosResult> {
-  const q = normalizeSearchQuery(options.q);
-  const selectedEstado = isInternalPedidoEstado(options.status)
-    ? options.status
-    : null;
-  const selectedWorkflowType = isWorkflowType(options.workflowType)
-    ? options.workflowType
-    : null;
-  const selectedPaymentStatus = isInternalPedidoPaymentStatus(
-    options.paymentStatus,
-  )
-    ? options.paymentStatus
-    : null;
-  const ignoredInvalidEstado = Boolean(options.status && !selectedEstado);
-  const ignoredInvalidWorkflowType = Boolean(
-    options.workflowType && !selectedWorkflowType,
-  );
-  const ignoredInvalidPaymentStatus = Boolean(
-    options.paymentStatus && !selectedPaymentStatus,
-  );
-  const meta = {
+  const { limit, ...meta } = normalizeInternalPedidosFilters(options);
+  const {
     q,
     status: selectedEstado,
     workflowType: selectedWorkflowType,
     paymentStatus: selectedPaymentStatus,
-    ignoredInvalidEstado,
-    ignoredInvalidWorkflowType,
-    ignoredInvalidPaymentStatus,
-  };
+  } = meta;
   const profile = await getCurrentProfile();
 
   if (!profile) {
@@ -186,7 +131,6 @@ export async function listInternalPedidos(
     );
   }
 
-  const limit = normalizeLimit(options.limit);
   const supabase = await createClient();
 
   try {
@@ -230,15 +174,13 @@ export async function listInternalPedidos(
 
       pedidos = data ?? [];
     } else {
-      const serviceTypeValues = getSolicitudServiceTypeSearchValues(q);
+      const serviceTypeValues = getPedidoSearchServiceTypeValues(q);
       const [clientesResult, solicitudesTextResult, solicitudesReferenceResult] =
         await Promise.all([
           supabase
             .from("clientes")
             .select("id")
-            .or(
-              `name.ilike.*${q}*,phone.ilike.*${q}*,email.ilike.*${q}*`,
-            )
+            .or(getClienteSearchCondition(q))
             .limit(REFERENCE_SCAN_LIMIT)
             .returns<Array<{ id: string }>>(),
           serviceTypeValues.length > 0
@@ -251,7 +193,7 @@ export async function listInternalPedidos(
             : supabase
                 .from("solicitudes")
                 .select("id")
-                .ilike("service_type", `%${q}%`)
+                .ilike("service_type", getSolicitudServiceTypeSearchPattern(q))
                 .limit(REFERENCE_SCAN_LIMIT)
                 .returns<Array<{ id: string }>>(),
           supabase
@@ -273,21 +215,15 @@ export async function listInternalPedidos(
       }
 
       const clienteIds = (clientesResult.data ?? []).map((cliente) => cliente.id);
-      const solicitudIds = new Set(
-        (solicitudesTextResult.data ?? []).map((solicitud) => solicitud.id),
+      const solicitudIds = collectSolicitudSearchIds(
+        solicitudesTextResult.data ?? [],
+        solicitudesReferenceResult.data ?? [],
+        q,
       );
-
-      for (const solicitud of solicitudesReferenceResult.data ?? []) {
-        if (matchesVisibleReference(solicitud.id, q)) {
-          solicitudIds.add(solicitud.id);
-        }
-      }
 
       const pedidoQueries = [
         buildPedidoQuery()
-          .or(
-            `order_number.ilike.*${q}*,title.ilike.*${q}*,description.ilike.*${q}*`,
-          )
+          .or(getPedidoTextSearchCondition(q))
           .returns<InternalPedidoRow[]>(),
       ];
 
