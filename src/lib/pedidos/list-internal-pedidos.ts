@@ -3,133 +3,46 @@ import { hasPermission } from "@/lib/permissions/permissions";
 import {
   serviceFailure,
   serviceSuccess,
-  type ServiceResult,
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import { getSolicitudServiceTypeSearchValues } from "@/lib/solicitudes";
 import { normalizeSearchQuery } from "@/lib/utils";
+import { isWorkflowType } from "@/lib/workflow-types";
 import {
-  isWorkflowType,
-  type WorkflowType,
-} from "@/lib/workflow-types";
-import type { Tables } from "@/types/database";
-import {
-  calculatePedidoTasksProgressByPedidoId,
-  type PedidoTaskProgressByPedidoInput,
-  type PedidoTasksProgress,
-} from "./task-progress";
+  mapInternalPedidos,
+  mergePedidos,
+} from "./list-internal-pedidos-mappers";
+import { loadTaskProgressByPedidoId } from "./list-internal-pedidos-progress";
+import type {
+  InternalPedidoEstado,
+  InternalPedidoRow,
+  ListInternalPedidosOptions,
+  ListInternalPedidosResult,
+} from "./list-internal-pedidos-types";
 import {
   PEDIDO_PAYMENT_STATUSES,
   PEDIDO_STATUSES,
   type PedidoPaymentStatus,
-  type PedidoStatus,
 } from "./status";
 
 export const INTERNAL_PEDIDO_ESTADOS = PEDIDO_STATUSES;
 export const INTERNAL_PEDIDO_PAYMENT_STATUSES = PEDIDO_PAYMENT_STATUSES;
 
-export type InternalPedidoEstado = PedidoStatus;
-
-type PedidoCliente = Pick<Tables<"clientes">, "id" | "name"> | null;
-type PedidoSolicitud =
-  | Pick<Tables<"solicitudes">, "id" | "service_type">
-  | null;
-type PedidoTrabajadorProfile =
-  | Pick<Tables<"perfiles">, "id" | "full_name">
-  | null;
-type PedidoPaymentRow = Pick<
-  Tables<"pedido_pagos">,
-  | "total_amount"
-  | "paid_cash_amount"
-  | "paid_transfer_amount"
-  | "payment_status"
->;
-
-export type InternalPedidoTrabajador = Pick<
-  Tables<"pedido_trabajadores">,
-  "assigned_profile_id"
-> & {
-  perfiles: PedidoTrabajadorProfile;
-};
-
-export type InternalPedidoPaymentSummary = {
-  totalAmount: number;
-  paidCashAmount: number;
-  paidTransferAmount: number;
-  paidTotalAmount: number;
-  pendingAmount: number;
-  paymentStatus: PedidoPaymentStatus;
-  isAvailable: boolean;
-};
-
-type InternalPedidoRow = Pick<
-  Tables<"pedidos">,
-  | "id"
-  | "order_number"
-  | "cliente_id"
-  | "solicitud_id"
-  | "workflow_type"
-  | "title"
-  | "description"
-  | "status"
-  | "priority"
-  | "estimated_delivery_date"
-  | "created_at"
-> & {
-  clientes: PedidoCliente;
-  solicitudes: PedidoSolicitud;
-  pedido_trabajadores: InternalPedidoTrabajador[];
-  payment: PedidoPaymentRow | PedidoPaymentRow[] | null;
-};
-
-export type InternalPedido = Omit<InternalPedidoRow, "payment"> & {
-  payment: InternalPedidoPaymentSummary;
-  taskProgress: PedidoTasksProgress;
-};
-
-export type ListInternalPedidosOptions = {
-  q?: string | null;
-  status?: string | null;
-  workflowType?: string | null;
-  paymentStatus?: string | null;
-  limit?: number;
-};
-
-type ListInternalPedidosMeta = {
-  q: string | null;
-  status: InternalPedidoEstado | null;
-  workflowType: WorkflowType | null;
-  paymentStatus: PedidoPaymentStatus | null;
-  ignoredInvalidEstado: boolean;
-  ignoredInvalidWorkflowType: boolean;
-  ignoredInvalidPaymentStatus: boolean;
-};
-
-export type ListInternalPedidosErrorReason =
-  | "unauthorized"
-  | "forbidden"
-  | "error";
-
-export type ListInternalPedidosResult = ServiceResult<
-  { pedidos: InternalPedido[] } & ListInternalPedidosMeta,
+export type {
+  InternalPedido,
+  InternalPedidoEstado,
+  InternalPedidoPaymentSummary,
+  InternalPedidoTrabajador,
   ListInternalPedidosErrorReason,
-  ListInternalPedidosMeta
->;
+  ListInternalPedidosOptions,
+  ListInternalPedidosResult,
+} from "./list-internal-pedidos-types";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 const REFERENCE_SCAN_LIMIT = 500;
 const GENERIC_LIST_ERROR =
   "No se pudieron cargar los pedidos. Inténtalo nuevamente.";
-const EMPTY_TASK_PROGRESS: PedidoTasksProgress = {
-  totalTasks: 0,
-  completedTasks: 0,
-  pendingTasks: 0,
-  progressPercentage: 0,
-  hasTasks: false,
-  isComplete: false,
-};
-
 const BASE_PEDIDOS_SELECT = `
   id,
   order_number,
@@ -190,14 +103,6 @@ const PEDIDOS_SELECT_WITH_PAYMENT_FILTER = `
   )
 `;
 
-const TASK_PROGRESS_SELECT = `
-  pedido_id,
-  task_type,
-  target_quantity,
-  completed_quantity,
-  is_completed
-`;
-
 function normalizeLimit(limit: number | undefined): number {
   if (!Number.isFinite(limit)) {
     return DEFAULT_LIMIT;
@@ -222,70 +127,6 @@ export function isInternalPedidoPaymentStatus(
   );
 }
 
-function roundMoney(value: number): number {
-  return Math.round(value * 100) / 100;
-}
-
-function getPaymentRow(
-  payment: InternalPedidoRow["payment"],
-): PedidoPaymentRow | null {
-  return Array.isArray(payment) ? payment[0] ?? null : payment;
-}
-
-function getMissingPaymentSummary(): InternalPedidoPaymentSummary {
-  return {
-    totalAmount: 0,
-    paidCashAmount: 0,
-    paidTransferAmount: 0,
-    paidTotalAmount: 0,
-    pendingAmount: 0,
-    paymentStatus: "sin_pago",
-    isAvailable: false,
-  };
-}
-
-function mapPaymentSummary(
-  payment: InternalPedidoRow["payment"],
-): InternalPedidoPaymentSummary {
-  const paymentRow = getPaymentRow(payment);
-
-  if (!paymentRow) {
-    return getMissingPaymentSummary();
-  }
-
-  const totalAmount = Number(paymentRow.total_amount);
-  const paidCashAmount = Number(paymentRow.paid_cash_amount);
-  const paidTransferAmount = Number(paymentRow.paid_transfer_amount);
-  const paidTotalAmount = roundMoney(paidCashAmount + paidTransferAmount);
-
-  return {
-    totalAmount,
-    paidCashAmount,
-    paidTransferAmount,
-    paidTotalAmount,
-    pendingAmount: Math.max(0, roundMoney(totalAmount - paidTotalAmount)),
-    paymentStatus: paymentRow.payment_status,
-    isAvailable: true,
-  };
-}
-
-function mergePedidos(
-  groups: InternalPedidoRow[][],
-  limit: number,
-): InternalPedidoRow[] {
-  const byId = new Map<string, InternalPedidoRow>();
-
-  for (const group of groups) {
-    for (const pedido of group) {
-      byId.set(pedido.id, pedido);
-    }
-  }
-
-  return [...byId.values()]
-    .sort((left, right) => right.created_at.localeCompare(left.created_at))
-    .slice(0, limit);
-}
-
 function matchesVisibleReference(id: string, query: string): boolean {
   const compactQuery = query.replace(/-/g, "").toLowerCase();
 
@@ -294,31 +135,6 @@ function matchesVisibleReference(id: string, query: string): boolean {
     /^[0-9a-f]+$/.test(compactQuery) &&
     id.replace(/-/g, "").toLowerCase().startsWith(compactQuery)
   );
-}
-
-async function loadTaskProgressByPedidoId(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  pedidoIds: string[],
-): Promise<Map<string, PedidoTasksProgress>> {
-  if (pedidoIds.length === 0) {
-    return new Map();
-  }
-
-  const { data, error } = await supabase
-    .from("pedido_tareas")
-    .select(TASK_PROGRESS_SELECT)
-    .in("pedido_id", pedidoIds)
-    .returns<PedidoTaskProgressByPedidoInput[]>();
-
-  if (error) {
-    throw new Error(
-      `progreso de tareas de pedidos: ${
-        error.message ?? "Supabase query error"
-      }`,
-    );
-  }
-
-  return calculatePedidoTasksProgressByPedidoId(pedidoIds, data ?? []);
 }
 
 export async function listInternalPedidos(
@@ -512,11 +328,7 @@ export async function listInternalPedidos(
     );
 
     return serviceSuccess({
-      pedidos: pedidos.map((pedido) => ({
-        ...pedido,
-        payment: mapPaymentSummary(pedido.payment),
-        taskProgress: progressByPedidoId.get(pedido.id) ?? EMPTY_TASK_PROGRESS,
-      })),
+      pedidos: mapInternalPedidos(pedidos, progressByPedidoId),
       ...meta,
     });
   } catch (error) {
