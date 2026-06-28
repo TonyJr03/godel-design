@@ -3,6 +3,8 @@ import { resolve } from "node:path";
 
 import { expect, type Page, test } from "@playwright/test";
 
+import { getFutureDateInputValue } from "./helpers/date";
+
 type Role = "admin" | "supervisor" | "worker";
 
 type Credentials = {
@@ -33,7 +35,7 @@ const runId = new Date()
   .toISOString()
   .replace(/\D/g, "")
   .slice(0, 14);
-const futureDate = "2026-12-18";
+const futureDate = getFutureDateInputValue(30);
 const sensitivePatterns = [
   /\border_number\b/i,
   /\bfile_path\b/i,
