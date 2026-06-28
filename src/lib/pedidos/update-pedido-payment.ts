@@ -7,7 +7,11 @@ import {
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
-import type { Enums, Tables } from "@/types/database";
+import type { Enums } from "@/types/database";
+import {
+  updatePedidoPaymentRpc,
+  type UpdatePedidoPaymentRpcRow,
+} from "./rpc";
 
 export type UpdatePedidoPaymentInput = {
   pedidoId: string;
@@ -49,31 +53,6 @@ export type UpdatePedidoPaymentResult = ServiceResult<
   { values: UpdatePedidoPaymentValues },
   PedidoPaymentFieldErrors
 >;
-
-type PedidoPaymentRow = Pick<
-  Tables<"pedido_pagos">,
-  | "total_amount"
-  | "paid_cash_amount"
-  | "paid_transfer_amount"
-  | "payment_status"
-  | "paid_at"
->;
-
-type UpdatePedidoPaymentRpcResult = {
-  data: PedidoPaymentRow | null;
-  error: { message?: string } | null;
-};
-
-type UpdatePedidoPaymentRpcClient = {
-  rpc(
-    fn: "actualizar_pago_pedido",
-    args: {
-      p_pedido_id: string;
-      p_paid_cash_amount: number;
-      p_paid_transfer_amount: number;
-    },
-  ): PromiseLike<UpdatePedidoPaymentRpcResult>;
-};
 
 type ParsedPaymentAmount =
   | { ok: true; value: number; cents: number }
@@ -174,7 +153,7 @@ function roundMoney(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
-function mapPaymentRow(row: PedidoPaymentRow): UpdatedPedidoPayment {
+function mapPaymentRow(row: UpdatePedidoPaymentRpcRow): UpdatedPedidoPayment {
   const totalAmount = Number(row.total_amount);
   const paidCashAmount = Number(row.paid_cash_amount);
   const paidTransferAmount = Number(row.paid_transfer_amount);
@@ -283,7 +262,7 @@ export async function updatePedidoPayment({
         "total_amount, paid_cash_amount, paid_transfer_amount, payment_status, paid_at",
       )
       .eq("pedido_id", pedidoId)
-      .maybeSingle<PedidoPaymentRow>();
+      .maybeSingle<UpdatePedidoPaymentRpcRow>();
 
     if (paymentError) {
       console.error("Error loading payment before update", paymentError);
@@ -321,9 +300,7 @@ export async function updatePedidoPayment({
       );
     }
 
-    const { data, error } = await (
-      supabase as unknown as UpdatePedidoPaymentRpcClient
-    ).rpc("actualizar_pago_pedido", {
+    const { data, error } = await updatePedidoPaymentRpc(supabase, {
       p_pedido_id: pedidoId,
       p_paid_cash_amount: cashValidation.ok ? cashValidation.value : 0,
       p_paid_transfer_amount: transferValidation.ok
