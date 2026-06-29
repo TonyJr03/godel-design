@@ -7,7 +7,25 @@ import {
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
-import type { Enums } from "@/types/database";
+import {
+  GENERIC_PAYMENT_UPDATE_ERROR,
+  getSafeRpcPaymentErrorMessage,
+} from "./payment-errors";
+import {
+  mapUpdatedPedidoPayment,
+  type UpdatedPedidoPayment,
+} from "./payment-mappers";
+import {
+  buildUpdatePedidoPaymentRpcArgs,
+  getPaymentAmountFieldErrors,
+  getPaymentTotalExceededFieldErrors,
+  getUpdatePedidoPaymentValues,
+  hasPaymentFieldErrors,
+  isPaymentTotalExceeded,
+  parsePaymentAmount,
+  type PedidoPaymentFieldErrors,
+  type UpdatePedidoPaymentValues,
+} from "./payment-validation";
 import {
   updatePedidoPaymentRpc,
   type UpdatePedidoPaymentRpcRow,
@@ -19,24 +37,11 @@ export type UpdatePedidoPaymentInput = {
   paidTransferAmount: string;
 };
 
-export type PedidoPaymentFieldErrors = Partial<
-  Record<"pedido_id" | "paid_cash_amount" | "paid_transfer_amount", string>
->;
-
-export type UpdatePedidoPaymentValues = {
-  paidCashAmount: string;
-  paidTransferAmount: string;
-};
-
-export type UpdatedPedidoPayment = {
-  totalAmount: number;
-  paidCashAmount: number;
-  paidTransferAmount: number;
-  paidTotalAmount: number;
-  pendingAmount: number;
-  paymentStatus: Enums<"pedido_pago_estado">;
-  paidAt: string | null;
-};
+export type { UpdatedPedidoPayment } from "./payment-mappers";
+export type {
+  PedidoPaymentFieldErrors,
+  UpdatePedidoPaymentValues,
+} from "./payment-validation";
 
 export type UpdatePedidoPaymentErrorReason =
   | "unauthorized"
@@ -54,132 +59,16 @@ export type UpdatePedidoPaymentResult = ServiceResult<
   PedidoPaymentFieldErrors
 >;
 
-type ParsedPaymentAmount =
-  | { ok: true; value: number; cents: number }
-  | { ok: false; error: string };
-
-const MAX_PAYMENT_AMOUNT = 9999999999.99;
-const GENERIC_PAYMENT_UPDATE_ERROR =
-  "No se pudo actualizar el pago del pedido. Inténtalo nuevamente.";
-
-const SAFE_RPC_PAYMENT_MESSAGES = [
-  "El monto pagado en efectivo es obligatorio",
-  "El monto pagado por transferencia es obligatorio",
-  "El monto pagado en efectivo no puede ser negativo",
-  "El monto pagado por transferencia no puede ser negativo",
-  "El monto pagado en efectivo no puede tener mas de 2 decimales",
-  "El monto pagado por transferencia no puede tener mas de 2 decimales",
-  "El monto pagado en efectivo supera el maximo permitido",
-  "El monto pagado por transferencia supera el maximo permitido",
-  "El total pagado no puede superar el total del pedido",
-] as const;
-
-function getSafeRpcPaymentErrorMessage(
-  errorMessage: string | undefined,
-): string {
-  const message = errorMessage?.trim();
-
-  return (
-    SAFE_RPC_PAYMENT_MESSAGES.find((safeMessage) =>
-      message?.includes(safeMessage),
-    ) ?? GENERIC_PAYMENT_UPDATE_ERROR
-  );
-}
-
-function parsePaymentAmount(
-  value: string,
-  fieldLabel: string,
-): ParsedPaymentAmount {
-  const normalized = value.trim();
-
-  if (!normalized) {
-    return {
-      ok: false,
-      error: `El monto pagado ${fieldLabel} es obligatorio.`,
-    };
-  }
-
-  if (normalized.startsWith("-")) {
-    return {
-      ok: false,
-      error: `El monto pagado ${fieldLabel} no puede ser negativo.`,
-    };
-  }
-
-  if (!/^\d+(?:\.\d+)?$/.test(normalized)) {
-    return {
-      ok: false,
-      error: `El monto pagado ${fieldLabel} debe ser un número válido.`,
-    };
-  }
-
-  const [, decimalPart = ""] = normalized.split(".");
-
-  if (decimalPart.length > 2) {
-    return {
-      ok: false,
-      error: `El monto pagado ${fieldLabel} no puede tener más de 2 decimales.`,
-    };
-  }
-
-  const valueNumber = Number(normalized);
-
-  if (!Number.isFinite(valueNumber)) {
-    return {
-      ok: false,
-      error: `El monto pagado ${fieldLabel} debe ser un número válido.`,
-    };
-  }
-
-  if (valueNumber > MAX_PAYMENT_AMOUNT) {
-    return {
-      ok: false,
-      error: `El monto pagado ${fieldLabel} supera el máximo permitido.`,
-    };
-  }
-
-  return {
-    ok: true,
-    value: valueNumber,
-    cents: Math.round(valueNumber * 100),
-  };
-}
-
-function moneyToCents(value: number): number {
-  return Math.round(value * 100);
-}
-
-function roundMoney(value: number): number {
-  return Math.round(value * 100) / 100;
-}
-
-function mapPaymentRow(row: UpdatePedidoPaymentRpcRow): UpdatedPedidoPayment {
-  const totalAmount = Number(row.total_amount);
-  const paidCashAmount = Number(row.paid_cash_amount);
-  const paidTransferAmount = Number(row.paid_transfer_amount);
-  const paidTotalAmount = roundMoney(paidCashAmount + paidTransferAmount);
-
-  return {
-    totalAmount,
-    paidCashAmount,
-    paidTransferAmount,
-    paidTotalAmount,
-    pendingAmount: Math.max(0, roundMoney(totalAmount - paidTotalAmount)),
-    paymentStatus: row.payment_status,
-    paidAt: row.paid_at,
-  };
-}
-
 export async function updatePedidoPayment({
   pedidoId: pedidoIdInput,
   paidCashAmount: paidCashAmountInput,
   paidTransferAmount: paidTransferAmountInput,
 }: UpdatePedidoPaymentInput): Promise<UpdatePedidoPaymentResult> {
   const pedidoId = pedidoIdInput.trim();
-  const values = {
-    paidCashAmount: paidCashAmountInput.trim(),
-    paidTransferAmount: paidTransferAmountInput.trim(),
-  };
+  const values = getUpdatePedidoPaymentValues({
+    paidCashAmount: paidCashAmountInput,
+    paidTransferAmount: paidTransferAmountInput,
+  });
 
   if (!isValidUuid(pedidoId)) {
     return serviceFailure("invalid_id", "El pedido solicitado no existe.", {
@@ -198,17 +87,12 @@ export async function updatePedidoPayment({
     values.paidTransferAmount,
     "por transferencia",
   );
-  const fieldErrors: PedidoPaymentFieldErrors = {};
+  const fieldErrors = getPaymentAmountFieldErrors(
+    cashValidation,
+    transferValidation,
+  );
 
-  if (!cashValidation.ok) {
-    fieldErrors.paid_cash_amount = cashValidation.error;
-  }
-
-  if (!transferValidation.ok) {
-    fieldErrors.paid_transfer_amount = transferValidation.error;
-  }
-
-  if (Object.keys(fieldErrors).length > 0) {
+  if (hasPaymentFieldErrors(fieldErrors)) {
     return serviceFailure("validation", "Revisa los montos del pago.", {
       fieldErrors,
       values,
@@ -278,35 +162,31 @@ export async function updatePedidoPayment({
       );
     }
 
-    const totalCents = moneyToCents(Number(payment.total_amount));
-
     if (
-      cashValidation.ok &&
-      transferValidation.ok &&
-      cashValidation.cents + transferValidation.cents > totalCents
+      isPaymentTotalExceeded(
+        cashValidation,
+        transferValidation,
+        Number(payment.total_amount),
+      )
     ) {
       return serviceFailure(
         "validation",
         "El total pagado no puede superar el total del pedido.",
         {
-          fieldErrors: {
-            paid_cash_amount:
-              "La suma de efectivo y transferencia supera el total.",
-            paid_transfer_amount:
-              "La suma de efectivo y transferencia supera el total.",
-          },
+          fieldErrors: getPaymentTotalExceededFieldErrors(),
           values,
         },
       );
     }
 
-    const { data, error } = await updatePedidoPaymentRpc(supabase, {
-      p_pedido_id: pedidoId,
-      p_paid_cash_amount: cashValidation.ok ? cashValidation.value : 0,
-      p_paid_transfer_amount: transferValidation.ok
-        ? transferValidation.value
-        : 0,
-    });
+    const { data, error } = await updatePedidoPaymentRpc(
+      supabase,
+      buildUpdatePedidoPaymentRpcArgs(
+        pedidoId,
+        cashValidation,
+        transferValidation,
+      ),
+    );
 
     if (error || !data) {
       console.error("Error updating pedido payment", error);
@@ -325,7 +205,7 @@ export async function updatePedidoPayment({
       return serviceFailure("error", GENERIC_PAYMENT_UPDATE_ERROR, { values });
     }
 
-    return serviceSuccess({ payment: mapPaymentRow(data) });
+    return serviceSuccess({ payment: mapUpdatedPedidoPayment(data) });
   } catch (error) {
     console.error("Unexpected error updating pedido payment", error);
 
