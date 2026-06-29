@@ -8,15 +8,18 @@ import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
 import type { Tables, TablesUpdate } from "@/types/database";
 import {
-  canManagePedidoTasksInStatus,
-  getPedidoTaskManagementBlockedReason,
-  type PedidoStatus,
-} from "./status";
+  canManagePedidoTaskMutation,
+  getPedidoTaskStatusBlockedMessage,
+} from "./task-errors";
+import type { PedidoStatus } from "./status";
 import {
+  getPedidoTaskUpdateValues,
+  hasPedidoTaskUpdateInput,
   parsePedidoTaskCompletion,
   parsePedidoTaskTitle,
   validatePedidoTaskCompletedQuantity,
   validatePedidoTaskSortOrder,
+  type PedidoTaskUpdateValues,
   type PedidoTaskFieldErrors,
 } from "./task-validation";
 
@@ -29,11 +32,7 @@ export type UpdatePedidoTaskInput = {
   sortOrder?: string | number | null;
 };
 
-export type UpdatePedidoTaskValues = {
-  title?: string;
-  completedQuantity?: string;
-  sortOrder?: string;
-};
+export type UpdatePedidoTaskValues = PedidoTaskUpdateValues;
 
 export type UpdatePedidoTaskErrorReason =
   | "unauthorized"
@@ -67,33 +66,12 @@ type PedidoTaskRow = Pick<
 const GENERIC_UPDATE_TASK_ERROR =
   "No se pudo actualizar la tarea. Inténtalo nuevamente.";
 
-function hasUpdateInput(input: UpdatePedidoTaskInput): boolean {
-  return (
-    input.title !== undefined ||
-    input.completedQuantity !== undefined ||
-    input.isCompleted !== undefined ||
-    input.sortOrder !== undefined
-  );
-}
-
 export async function updatePedidoTask(
   input: UpdatePedidoTaskInput,
 ): Promise<UpdatePedidoTaskResult> {
   const taskId = input.taskId.trim();
   const pedidoId = input.pedidoId?.trim() ?? null;
-  const values: UpdatePedidoTaskValues = {};
-
-  if (input.title !== undefined && input.title !== null) {
-    values.title = input.title.trim();
-  }
-
-  if (input.completedQuantity !== undefined && input.completedQuantity !== null) {
-    values.completedQuantity = String(input.completedQuantity);
-  }
-
-  if (input.sortOrder !== undefined && input.sortOrder !== null) {
-    values.sortOrder = String(input.sortOrder);
-  }
+  const values = getPedidoTaskUpdateValues(input);
 
   if (!isValidUuid(taskId)) {
     return serviceFailure(
@@ -121,7 +99,7 @@ export async function updatePedidoTask(
     );
   }
 
-  if (!hasUpdateInput(input)) {
+  if (!hasPedidoTaskUpdateInput(input)) {
     return serviceFailure("validation", "No hay cambios para guardar.", {
       values,
     });
@@ -191,11 +169,13 @@ export async function updatePedidoTask(
       );
     }
 
-    if (!canManagePedidoTasksInStatus(pedido.status)) {
+    if (!canManagePedidoTaskMutation(pedido.status)) {
       return serviceFailure(
         "status_blocked",
-        getPedidoTaskManagementBlockedReason(pedido.status) ??
+        getPedidoTaskStatusBlockedMessage(
+          pedido.status,
           GENERIC_UPDATE_TASK_ERROR,
+        ),
         { values },
       );
     }
@@ -340,12 +320,14 @@ export async function updatePedidoTask(
 
       if (
         currentPedido &&
-        !canManagePedidoTasksInStatus(currentPedido.status)
+        !canManagePedidoTaskMutation(currentPedido.status)
       ) {
         return serviceFailure(
           "status_blocked",
-          getPedidoTaskManagementBlockedReason(currentPedido.status) ??
+          getPedidoTaskStatusBlockedMessage(
+            currentPedido.status,
             GENERIC_UPDATE_TASK_ERROR,
+          ),
           { values },
         );
       }

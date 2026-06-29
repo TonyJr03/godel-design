@@ -8,10 +8,10 @@ import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
 import type { TablesInsert } from "@/types/database";
 import {
-  canManagePedidoTasksInStatus,
-  getPedidoTaskManagementBlockedReason,
-  type PedidoStatus,
-} from "./status";
+  canManagePedidoTaskMutation,
+  getPedidoTaskStatusBlockedMessage,
+} from "./task-errors";
+import type { PedidoStatus } from "./status";
 import {
   parsePedidoTaskTitle,
   type PedidoTaskFieldErrors,
@@ -125,11 +125,13 @@ export async function createPedidoTask(
       );
     }
 
-    if (!canManagePedidoTasksInStatus(pedido.status)) {
+    if (!canManagePedidoTaskMutation(pedido.status)) {
       return serviceFailure(
         "status_blocked",
-        getPedidoTaskManagementBlockedReason(pedido.status) ??
+        getPedidoTaskStatusBlockedMessage(
+          pedido.status,
           GENERIC_CREATE_TASK_ERROR,
+        ),
         { values },
       );
     }
@@ -167,12 +169,14 @@ export async function createPedidoTask(
 
       if (
         currentPedido &&
-        !canManagePedidoTasksInStatus(currentPedido.status)
+        !canManagePedidoTaskMutation(currentPedido.status)
       ) {
         return serviceFailure(
           "status_blocked",
-          getPedidoTaskManagementBlockedReason(currentPedido.status) ??
+          getPedidoTaskStatusBlockedMessage(
+            currentPedido.status,
             GENERIC_CREATE_TASK_ERROR,
+          ),
           { values },
         );
       }
