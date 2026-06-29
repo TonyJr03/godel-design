@@ -2,6 +2,135 @@
 
 `src/lib/pedidos` agrupa la lógica server-side del módulo interno de pedidos.
 
+## Rol del dominio Pedidos
+
+`src/lib/pedidos` contiene los servicios server-side y helpers internos del
+dominio Pedidos. La carpeta cubre:
+
+- creación manual de pedidos;
+- conversión desde solicitudes aprobadas;
+- listado interno;
+- detalle interno;
+- cambios de estado;
+- pagos;
+- tareas y progreso operativo;
+- asignaciones de personal;
+- comentarios internos;
+- historial visible;
+- wrappers RPC;
+- validaciones, mappers, labels y helpers internos.
+
+## Convención interna
+
+El dominio sigue la decisión formal de Beta 2.1: `src/lib/<dominio>` es la capa
+de servicios de dominio y lógica server-side de aplicación. No existe una capa
+activa en `src/services`, y no debe crearse una carpeta paralela para Pedidos
+sin una nueva decisión arquitectónica formal.
+
+Los archivos se separan solo cuando reducen complejidad real, duplicación o
+riesgo. El servicio público principal debe seguir siendo legible como
+orquestador del flujo: validar perfil y permisos, validar input, consultar o
+mutar mediante Supabase/RPC, mapear DTOs seguros y devolver resultados
+controlados.
+
+## Mapa de archivos
+
+| Archivo | Responsabilidad |
+| --- | --- |
+| `create-internal-pedido.ts` | Servicio de creación manual de pedidos; valida input y delega en RPC transaccional. |
+| `create-pedido-from-solicitud.ts` | Conversión de solicitud aprobada a pedido mediante RPC transaccional. |
+| `get-internal-pedido-by-id.ts` | Loader público del detalle interno; valida acceso, carga pedido y compone el DTO. |
+| `get-internal-pedido-detail-types.ts` | Tipos del detalle de pedido y su fila base. |
+| `get-internal-pedido-detail-mappers.ts` | Mappers puros del detalle, incluido resumen de pago seguro. |
+| `get-internal-pedido-detail-loaders.ts` | Select y loaders secundarios del detalle, como pago y asignación del trabajador. |
+| `list-internal-pedidos.ts` | Loader del listado interno con búsqueda, filtros y composición del resultado. |
+| `list-internal-pedidos-types.ts` | Tipos del listado interno y metadatos de filtros. |
+| `list-internal-pedidos-mappers.ts` | Mappers del listado y resumen financiero de tarjetas/tabla. |
+| `list-internal-pedidos-progress.ts` | Carga agregada de progreso de tareas para listados. |
+| `list-internal-pedidos-filters.ts` | Normalización y validación de filtros del listado. |
+| `rpc.ts` | Wrappers tipados de RPCs usadas por Pedidos. |
+| `update-internal-pedido-status.ts` | Servicio de cambio de estado; valida permiso/acceso y delega en RPC. |
+| `status.ts` | Estados, transiciones permitidas y reglas auxiliares de estado/tareas/pago. |
+| `update-pedido-payment.ts` | Orquestador de actualización de pagos acumulados. |
+| `payment-validation.ts` | Validación y normalización de montos de pago. |
+| `payment-errors.ts` | Mensajes seguros y allowlist de errores de pago. |
+| `payment-mappers.ts` | Mapper del resultado financiero actualizado. |
+| `create-pedido-task.ts` | Servicio de creación de tareas de pedido. |
+| `update-pedido-task.ts` | Servicio de edición, completado, reapertura y progreso de tareas. |
+| `delete-pedido-task.ts` | Servicio de eliminación controlada de tareas. |
+| `list-pedido-tasks.ts` | Loader de tareas del detalle de pedido. |
+| `task-validation.ts` | Parseo y validaciones de tareas simples/cuantificadas. |
+| `task-errors.ts` | Mensajes seguros para errores de tareas. |
+| `task-progress.ts` | Cálculo de progreso agregado de tareas. |
+| `assign-internal-pedido-worker.ts` | Servicio de asignación de personal a pedidos. |
+| `remove-internal-pedido-worker.ts` | Servicio de remoción de asignaciones concretas. |
+| `worker-assignment-validation.ts` | Normalización y validación compartida de asignaciones. |
+| `worker-assignment-errors.ts` | Errores compartidos de asignación/remoción. |
+| `worker-assignment-queries.ts` | Queries compartidas de pedido, perfil asignable y asignación existente. |
+| `list-assignable-workers.ts` | Lista perfiles internos activos asignables a pedidos. |
+| `order-assignment-roles.ts` | Roles permitidos para asignación operativa. |
+| `list-pedido-comments.ts` | Loader de comentarios internos de pedido. |
+| `create-pedido-comment.ts` | Servicio para agregar comentarios internos append-only. |
+| `list-pedido-history.ts` | Loader del historial visible mediante RPC segura. |
+| `order-validation.ts` | Validaciones de creación/conversión de pedidos e impresión. |
+| `labels.ts` | Labels visibles de estados, prioridades, pagos e historial. |
+| `index.ts` | Punto de exportación pública del dominio. |
+
+## Reglas del dominio
+
+- Los servicios validan perfil interno activo y permisos antes de operar.
+- Las operaciones críticas usan RPC/RLS cuando hay transacción, transición de
+  estado, pago, conversión o regla multi-tabla.
+- Las Server Actions son adaptadores finos: leen `FormData`, llaman servicios
+  de `src/lib/pedidos` y revalidan rutas.
+- Los componentes no consultan Supabase directamente.
+- No se expone `file_path`; los archivos privados se descargan mediante rutas
+  server-side y signed URLs de corta duración.
+- Los datos enviados a UI deben ser DTOs seguros, sin metadata cruda ni errores
+  SQL/Postgres.
+- Los wrappers RPC viven en `rpc.ts` cuando reducen duplicación real.
+- TypeScript puede mejorar mensajes y UX, pero RLS, constraints y RPCs siguen
+  siendo defensa final.
+
+## Qué no hacer
+
+- No mover Pedidos a `src/services`.
+- No consultar `auth.users` desde código de aplicación.
+- No usar `service_role` ni `SUPABASE_SERVICE_ROLE_KEY`.
+- No exponer `file_path`, buckets internos, URLs privadas persistentes ni
+  metadata sensible.
+- No mezclar refactors de Pedidos con features nuevas.
+- No cambiar reglas de pago, tareas, estado, conversión o asignaciones sin
+  migración, QA y documentación aplicable.
+- No mover lógica de negocio a componentes ni a Server Actions.
+
+## Cierre Beta 2.3.9
+
+Beta 2.3.9 documenta el cierre parcial de la consolidación del dominio
+Pedidos. Durante Beta 2.3 el dominio quedó ordenado en subfases pequeñas:
+
+- Beta 2.3.1: Server Actions del detalle de pedido divididas por familia.
+- Beta 2.3.2: wrappers RPC restantes centralizados en `rpc.ts`.
+- Beta 2.3.3: listado interno separado en tipos, mappers y progreso.
+- Beta 2.3.4: filtros y helpers puros del listado extraídos.
+- Beta 2.3.5: helpers de tareas de pedido consolidados.
+- Beta 2.3.6: helpers de pagos de pedido consolidados.
+- Beta 2.3.7: helpers de asignación/remoción de trabajadores consolidados.
+- Beta 2.3.8: loader del detalle separado en tipos, mappers y loaders.
+
+## Pendientes técnicos conocidos
+
+- Evaluar tests enfocados para filtros combinados del listado antes de extraer
+  un query builder más fino.
+- Evaluar tests enfocados para cálculo de progreso y bloqueos de transición por
+  tareas antes de mover más lógica alrededor de estado/tareas.
+- Mantener el full visual QA como recorrido de cierre, pero considerar specs
+  por dominio cuando crezca la frecuencia de QA.
+- Revisar en una fase transversal la dependencia de red/Google Fonts durante
+  `next build` si afecta reproducibilidad en CI o entornos aislados.
+
+## Detalle funcional vigente
+
 ## `listInternalPedidos`
 
 `listInternalPedidos` carga el listado de pedidos desde Server Components usando el cliente de Supabase configurado en `src/lib/supabase/server.ts`.
@@ -211,8 +340,9 @@ Los IDs secundarios necesarios para la operación, como `task_id` y
 
 Las actions son adaptadores finos: leen solo los campos editables, delegan la
 autorización y la mutación en servicios server-side o RPCs, y revalidan
-`/dashboard`, `/dashboard/pedidos` y el detalle. Se mantienen en un único
-archivo porque separarlas no reduciría complejidad.
+`/dashboard`, `/dashboard/pedidos` y el detalle. Desde Beta 2.3.1 están
+divididas por familia en `src/app/dashboard/pedidos/[id]/actions/`:
+estado, tareas, pagos, archivos, comentarios, asignaciones y plantillas.
 
 Los comentarios son append-only. No hay edición, eliminación, menciones, notificaciones, adjuntos ni registro automático adicional de historial en esta subfase.
 
