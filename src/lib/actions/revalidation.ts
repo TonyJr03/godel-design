@@ -11,3 +11,12 @@ export function revalidateSolicitudDetail(solicitudId: string) {
   revalidatePath("/dashboard/solicitudes");
   revalidatePath(`/dashboard/solicitudes/${solicitudId}`);
 }
+
+export function revalidateSolicitudConversion(
+  solicitudId: string,
+  pedidoId: string,
+) {
+  revalidateSolicitudDetail(solicitudId);
+  revalidatePath("/dashboard/pedidos");
+  revalidatePath(`/dashboard/pedidos/${pedidoId}`);
+}

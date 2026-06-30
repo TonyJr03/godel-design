@@ -1,7 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { revalidateSolicitudDetail } from "@/lib/actions/revalidation";
+import {
+  revalidateSolicitudConversion,
+  revalidateSolicitudDetail,
+} from "@/lib/actions/revalidation";
 import {
   createPedidoFromSolicitud,
   type CreatePedidoFromSolicitudFieldErrors,
@@ -178,9 +181,7 @@ export async function convertSolicitudToPedidoAction(
     };
   }
 
-  revalidateSolicitudDetail(solicitudId);
-  revalidatePath("/dashboard/pedidos");
-  revalidatePath(`/dashboard/pedidos/${result.pedidoId}`);
+  revalidateSolicitudConversion(solicitudId, result.pedidoId);
 
   return {
     ok: true,
