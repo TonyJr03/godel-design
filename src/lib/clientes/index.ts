@@ -16,7 +16,6 @@ export {
   getInternalClienteById,
   type GetInternalClienteByIdErrorReason,
   type GetInternalClienteByIdResult,
-  type InternalClienteDetail,
 } from "./get-internal-cliente-by-id";
 export {
   updateInternalCliente,
@@ -26,8 +25,8 @@ export {
 } from "./update-internal-cliente";
 export {
   listInternalClientes,
-  type InternalCliente,
   type ListInternalClientesErrorReason,
   type ListInternalClientesOptions,
   type ListInternalClientesResult,
 } from "./list-internal-clientes";
+export type { InternalCliente, InternalClienteDetail } from "./types";

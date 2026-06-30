@@ -7,12 +7,7 @@ import {
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import { normalizeSearchQuery } from "@/lib/utils";
-import type { Tables } from "@/types/database";
-
-export type InternalCliente = Pick<
-  Tables<"clientes">,
-  "id" | "name" | "phone" | "email" | "created_at" | "updated_at"
->;
+import type { InternalCliente } from "./types";
 
 export type ListInternalClientesOptions = {
   q?: string | null;

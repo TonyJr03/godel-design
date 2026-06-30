@@ -1,16 +1,18 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import {
+  actionFailure,
+  actionSuccess,
+  type BaseActionState,
+} from "@/lib/actions/action-state";
+import { revalidateClientesList } from "@/lib/actions/revalidation";
 import {
   createInternalCliente,
   type ClienteFieldErrors,
 } from "@/lib/clientes";
 import { getFormValue } from "@/lib/utils";
 
-export type CreateClienteActionState = {
-  ok: boolean;
-  message: string;
-  fieldErrors?: ClienteFieldErrors;
+export type CreateClienteActionState = BaseActionState<ClienteFieldErrors> & {
   clienteId?: string;
 };
 
@@ -26,18 +28,14 @@ export async function createClienteAction(
   });
 
   if (!result.ok) {
-    return {
-      ok: false,
-      message: result.message,
+    return actionFailure(result.message, {
       fieldErrors: result.fieldErrors,
-    };
+    });
   }
 
-  revalidatePath("/dashboard/clientes");
+  revalidateClientesList();
 
-  return {
-    ok: true,
-    message: "Cliente creado correctamente.",
+  return actionSuccess("Cliente creado correctamente.", {
     clienteId: result.clienteId,
-  };
+  });
 }

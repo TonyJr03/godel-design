@@ -1,17 +1,18 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import {
+  actionFailure,
+  actionSuccess,
+  type BaseActionState,
+} from "@/lib/actions/action-state";
+import { revalidateClienteEdit } from "@/lib/actions/revalidation";
 import {
   updateInternalCliente,
   type ClienteFieldErrors,
 } from "@/lib/clientes";
 import { getFormValue } from "@/lib/utils";
 
-export type UpdateClienteActionState = {
-  ok: boolean;
-  message: string;
-  fieldErrors?: ClienteFieldErrors;
-};
+export type UpdateClienteActionState = BaseActionState<ClienteFieldErrors>;
 
 export async function updateClienteAction(
   _prevState: UpdateClienteActionState,
@@ -27,19 +28,12 @@ export async function updateClienteAction(
   });
 
   if (!result.ok) {
-    return {
-      ok: false,
-      message: result.message,
+    return actionFailure(result.message, {
       fieldErrors: result.fieldErrors,
-    };
+    });
   }
 
-  revalidatePath("/dashboard/clientes");
-  revalidatePath(`/dashboard/clientes/${clienteId}`);
-  revalidatePath(`/dashboard/clientes/${clienteId}/editar`);
+  revalidateClienteEdit(clienteId);
 
-  return {
-    ok: true,
-    message: "Cliente actualizado correctamente.",
-  };
+  return actionSuccess("Cliente actualizado correctamente.");
 }

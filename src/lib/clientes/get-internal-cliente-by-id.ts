@@ -7,18 +7,7 @@ import {
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
-import type { Tables } from "@/types/database";
-
-export type InternalClienteDetail = Pick<
-  Tables<"clientes">,
-  | "id"
-  | "name"
-  | "phone"
-  | "email"
-  | "notes"
-  | "created_at"
-  | "updated_at"
->;
+import type { InternalClienteDetail } from "./types";
 
 export type GetInternalClienteByIdErrorReason =
   | "unauthorized"
