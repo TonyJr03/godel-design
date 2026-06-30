@@ -325,3 +325,15 @@ Deuda aceptada:
 - [x] Ejecutado `npm.cmd run audit:client-supabase`.
 - [x] Ejecutado `npm.cmd run audit:public-tracking`.
 - [x] Ejecutado `npm.cmd run verify`.
+
+## 14 Cierre documental Beta 2.4.9
+
+Beta 2.4.9 deja esta auditoria como diagnostico historico de arranque del
+dominio Solicitudes y Tracking Publico. El mapa operativo vigente queda en
+`src/lib/solicitudes/README.md`, con la separacion entre `/solicitud`,
+`/dashboard/solicitudes` y `/estado`, el inventario de servicios, las actions
+internas divididas por familia, las reglas de seguridad, la relacion con
+Storage, el contrato de Public Tracking y los pendientes tecnicos conocidos.
+
+No se modifico codigo funcional, componentes, Server Actions, servicios
+TypeScript, migraciones ni tests durante este cierre documental.

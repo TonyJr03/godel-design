@@ -1,184 +1,202 @@
-# Solicitudes públicas
+# Dominio Solicitudes
 
-Esta carpeta contiene la lógica server-side del flujo público e interno de solicitudes.
+Este directorio contiene la logica server-side del dominio Solicitudes. Despues de Beta 2.4 queda como el mapa operativo para:
 
-## Listado interno
+- creacion publica de solicitudes;
+- validacion publica;
+- listado interno;
+- detalle interno;
+- cambio de estado;
+- asociacion de cliente;
+- creacion de cliente desde solicitud;
+- comentarios internos;
+- historial interno;
+- wrappers RPC del dominio.
 
-`listInternalSolicitudes` acepta `q` y `status`. La búsqueda server-side cubre la referencia corta visible, nombre, teléfono y correo del cliente, tipo de servicio, descripción y notas. Los labels visibles de servicio se traducen a los valores almacenados para búsquedas como “diseño”.
+`src/lib/solicitudes` es capa de dominio. Las rutas App Router y Server Actions adaptan formularios y navegacion, pero las reglas de validacion, permisos, DTOs seguros y mutaciones viven aqui o en RPCs cuando la operacion es critica.
 
-La búsqueda se combina con el filtro de estado, conserva ambos parámetros GET en la UI, limita y normaliza el texto recibido y respeta el permiso `solicitudes.view` y RLS. La barra común actualiza `q` tras 200 ms sin escritura, aplica el estado inmediatamente, muestra `Buscando...` durante la espera y permite limpiar ambos filtros; la consulta continúa server-side. No forma parte de un buscador global.
+## Separacion de flujos
 
-## Flujo público
+Hay tres superficies relacionadas, pero no equivalentes:
 
-El cliente externo puede enviar datos básicos de contacto y del trabajo solicitado sin tener cuenta de usuario. La solicitud se valida en el servidor y se inserta en Supabase con `status = "nueva"`.
+| Superficie | Ubicacion | Responsabilidad |
+|---|---|---|
+| Entrada publica | `/solicitud` | Recibir solicitudes externas sin cuenta de usuario. |
+| Gestion interna | `/dashboard/solicitudes` | Listar, revisar, asociar cliente, comentar, ver historial y convertir solicitudes. |
+| Tracking publico | `/estado` | Consultar estado publico por `public_reference`; pertenece a `src/lib/public-tracking`, no al dominio interno de solicitudes. |
 
-`PublicSolicitudForm` consume la Server Action `submitPublicSolicitudAction` desde `/solicitud`. El componente cliente captura campos públicos, archivos opcionales y muestra estado de envío, errores y confirmación. No consulta Supabase directamente.
+La conversion Solicitud -> Pedido se dispara desde el detalle interno de una solicitud, pero la operacion critica vive en el dominio Pedidos y en la RPC transaccional `public.convertir_solicitud_a_pedido`. No debe reimplementarse en TypeScript ni moverse a una action.
 
-Por seguridad, el flujo público no usa service role key. La inserción se hace con el cliente normal de Supabase y depende de RLS.
+## Mapa de archivos
 
-## Campos validados
+| Archivo | Responsabilidad |
+|---|---|
+| `index.ts` | Punto de export controlado del dominio. |
+| `create-public-solicitud.ts` | Crea solicitudes publicas, genera `public_reference`, inserta con cliente normal de Supabase y devuelve resultado seguro. |
+| `public-request-validation.ts` | Orquesta la validacion publica y delega reglas comunes o por workflow. |
+| `public-request-validation-types.ts` | Tipos, opciones y limites del formulario publico. |
+| `public-request-validation-common.ts` | Normalizacion y validacion comun de contacto, workflow y campos compartidos. |
+| `public-request-validation-encargo.ts` | Reglas y DTO para solicitudes de encargo personalizado. |
+| `public-request-validation-impresion.ts` | Reglas, opciones y descripcion server-side para solicitudes de impresion. |
+| `list-internal-solicitudes.ts` | Listado interno con filtros, busqueda server-side, permisos y DTO acotado. |
+| `get-internal-solicitud-by-id.ts` | Loader server-side del detalle interno con validacion de UUID, perfil activo y permiso. |
+| `update-internal-solicitud-status.ts` | Valida cambio de estado y delega la transicion en RPC segura. |
+| `associate-solicitud-cliente.ts` | Asocia una solicitud a un cliente existente con permisos internos. |
+| `create-cliente-from-solicitud.ts` | Crea cliente basico desde datos ya guardados en la solicitud y asocia mediante RPC transaccional. |
+| `create-solicitud-comment.ts` | Crea comentarios internos append-only. |
+| `list-solicitud-comments.ts` | Lista comentarios internos mediante RPC con datos minimos del autor. |
+| `list-solicitud-history.ts` | Lista historial interno mediante RPC y mapea metadata relacionada para UI interna. |
+| `rpc.ts` | Centraliza wrappers tipados/casteados de RPCs del dominio. |
+| `labels.ts` | Traduce estados, servicios e historial a textos visibles. |
+| `status.ts` | Define estados, transiciones manuales y estados cerrados del dominio. |
 
-- `client_name`
-- `client_phone`
-- `client_email`
-- `service_type`
-- `description`
-- `desired_date`
-- `notes`
-- `files`
+## Flujo publico `/solicitud`
 
-Los campos se recortan, los opcionales vacíos se convierten a `null`, y se validan longitudes razonables, formato básico de correo y fecha válida. `desired_date` es opcional, pero si se informa debe ser igual o posterior al día actual. La validación definitiva ocurre en servidor.
+`/solicitud` renderiza `PublicSolicitudForm` y usa `src/app/solicitud/actions.ts` como Server Action publica. El componente cliente solo maneja interaccion, tabs, inputs, archivos seleccionados y mensajes; no consulta Supabase.
 
-La fecha deseada se valida con los helpers centralizados de `src/lib/validators/date.ts`, apoyados en `src/lib/utils/date.ts` para calcular el día actual local. El `min` del formulario público es solo una ayuda de UI; la regla real sigue estando en la validación server-side.
+La action publica:
 
-`quantity` fue eliminado de solicitudes. Las cantidades, medidas y requisitos deben explicarse dentro de `description` o `notes`; `service_type` queda como referencia inicial del tipo de trabajo.
+- lee solo campos permitidos desde `FormData`;
+- pre-valida archivos cuando aplica;
+- llama `createPublicSolicitud`;
+- coordina la subida de archivos publicos de solicitud;
+- devuelve mensajes seguros para la UI.
 
-El formulario no acepta campos sensibles como `id`, `status`, `cliente_id`, `reviewed_by` ni `converted_order_id`.
+La validacion definitiva ocurre server-side. El formulario no acepta como fuente de verdad campos tecnicos como `id`, `status`, `cliente_id`, `reviewed_by`, `converted_order_id`, `bucket`, `file_path` o `uploaded_by`.
 
-## Archivos opcionales
+`desired_date` es opcional; si se informa debe ser una fecha valida igual o posterior al dia actual. El `min` del formulario es ayuda de UX, no autoridad. Las pruebas e2e deben usar fechas futuras dinamicas.
 
-El formulario público puede recibir hasta 5 archivos opcionales de referencia. Los archivos se procesan server-side después de crear la solicitud y se asocian a esa solicitud mediante `archivos.solicitud_id`.
+## Gestion interna
 
-Reglas principales:
+`/dashboard/solicitudes` y `/dashboard/solicitudes/[id]` cargan datos server-side. Los servicios validan UUID, perfil interno activo y permisos antes de leer o mutar.
 
-- la solicitud puede enviarse sin archivos;
-- la categoría se fuerza a `cliente_solicitud`;
-- los archivos se guardan en el bucket privado `godel-files`;
-- la ruta se construye como `solicitudes/{solicitud_id}/originales/{timestamp}-{uuid}-{filename}`;
-- `pedido_id` queda en `null`;
-- `uploaded_by` queda en `null`;
-- no hay lectura pública, listado público ni URLs públicas;
-- `admin` y `supervisor` pueden consultarlos y descargarlos desde el detalle interno de solicitud mediante rutas internas seguras.
+Permisos habituales:
 
-La solicitud se crea antes de asociar archivos. Si la solicitud se registra correctamente pero algún archivo falla durante la subida, la solicitud se conserva y la UI muestra una advertencia segura.
+- `solicitudes.view` para listado, detalle, comentarios e historial;
+- `solicitudes.manage` para estado, asociacion, creacion de cliente desde solicitud, comentarios y conversion;
+- permisos del dominio destino cuando la operacion cruza limites, como `clientes.manage` o `pedidos.manage`.
 
-El límite de cinco también se aplica en las policies anónimas: Storage bloquea
-el sexto objeto secuencial y `archivos` mantiene un máximo estricto de cinco
-metadatos con conteo serializado. Las policies validan ruta, 20 MB y
-combinación de extensión/MIME; la metadata solo se acepta si el objeto exacto
-existe y aún no está registrado. Las subidas paralelas conservan un riesgo
-residual en el conteo físico de Storage y requieren monitoreo/reconciliación en
-producción.
+Las mutaciones internas devuelven estados controlados para formularios, revalidan rutas afectadas y no filtran errores SQL, Postgres o Supabase al usuario.
 
-No hay lectura, listado ni borrado anónimo. Por ello un fallo excepcional entre
-la subida y la metadata no se compensa abriendo permisos públicos: el objeto
-queda sujeto al cupo y debe resolverse mediante reconciliación interna.
+## Server Actions internas
 
-## Labels visibles
+Las Server Actions del detalle interno estan divididas por familia en:
 
-Los valores técnicos o históricos de `service_type` se renderizan mediante `labels.ts`. La UI debe usar `getSolicitudServiceTypeLabel` para mostrar tildes y `ñ` correctamente sin cambiar el valor guardado en la solicitud.
+```text
+src/app/dashboard/solicitudes/[id]/actions/
+```
 
-## Consultas internas
+Familias actuales:
 
-`listInternalSolicitudes` carga el listado server-side para `/dashboard/solicitudes`. Requiere un usuario interno activo con permiso `solicitudes.view`, valida el rol con los helpers de permisos existentes y usa el cliente normal de Supabase, sin service role key.
+- `status-actions.ts`;
+- `client-actions.ts`;
+- `comment-actions.ts`;
+- `conversion-actions.ts`;
+- `shared.ts`.
 
-`getInternalSolicitudById` carga server-side el detalle para `/dashboard/solicitudes/[id]`. Valida que el identificador tenga formato UUID, requiere permiso `solicitudes.view` y consulta Supabase con el cliente normal, sin service role key.
+`src/app/dashboard/solicitudes/[id]/actions.ts` queda como facade de re-exports para mantener imports estables desde componentes y paginas. Las actions son adaptadores finos: reciben `solicitud_id` enlazado desde el Server Component, leen solo campos editables, llaman servicios de `src/lib` o dominio Pedidos y revalidan rutas.
 
-## Cambio de estado
+## Estados y conversion
 
-`updateInternalSolicitudStatus` cambia server-side el estado operativo de una solicitud desde la action de `/dashboard/solicitudes/[id]`. Requiere usuario interno activo con permiso `solicitudes.manage`, valida el UUID, rechaza `convertida` como estado manual y delega la transición en la RPC segura `public.actualizar_estado_solicitud`.
+Los cambios manuales de estado se validan en `status.ts` y `update-internal-solicitud-status.ts`. El estado `convertida` no se asigna manualmente desde UI; queda reservado para la conversion formal a pedido.
 
-Transiciones manuales permitidas:
+La conversion Solicitud -> Pedido:
 
-- `nueva` -> `en_revision` o `rechazada`;
-- `en_revision` -> `contactada` o `rechazada`;
-- `contactada` -> `aprobada` o `rechazada`;
-- `aprobada` -> `rechazada`.
+- requiere solicitud aprobada;
+- requiere cliente asociado;
+- requiere usuario interno activo y permisos;
+- valida titulo, descripcion, prioridad, monto y fecha estimada;
+- delega la escritura critica en `public.convertir_solicitud_a_pedido`;
+- conserva el `public_reference` para que `/estado` resuelva el pedido con el mismo codigo publico;
+- deja que la base genere `order_number`.
 
-`rechazada` y `convertida` son estados cerrados. `convertida` no aparece en el formulario ni se acepta en servidor; queda reservada para el flujo formal de conversión a pedido. Si el estado enviado es igual al actual, la RPC retorna sin duplicar historial.
+No mover esta logica a TypeScript. TypeScript mejora UX y mensajes; la transaccion vive en RPC.
 
-## Conversión a pedido
+## Reglas de seguridad
 
-Una solicitud aprobada con cliente asociado puede convertirse en pedido desde el detalle interno de la solicitud.
+Reglas vigentes para este dominio:
 
-El estado `convertida` no se establece manualmente desde el selector de estado. Se establece mediante la RPC transaccional `public.convertir_solicitud_a_pedido`, que crea un pedido, relaciona `pedidos.solicitud_id`, actualiza `solicitudes.converted_order_id` y deja la solicitud en estado `convertida`.
+- no usar `service_role`;
+- no agregar ni leer `SUPABASE_SERVICE_ROLE_KEY`;
+- no consultar `auth.users` desde codigo de aplicacion;
+- no mover logica de dominio a Client Components;
+- no consultar Supabase desde componentes cliente;
+- mantener Server Actions finas;
+- validar perfil activo y permisos en servicios;
+- usar RPC/RLS como defensa final en operaciones criticas;
+- no exponer `file_path`, bucket, rutas privadas ni metadata cruda;
+- no exponer datos internos por rutas publicas;
+- devolver errores publicos seguros.
 
-La conversión exige que el usuario interno defina `title`, `description` y `priority` para el pedido. `priority` inicia visualmente en `normal` y se valida contra las prioridades reales de pedido. `estimated_delivery_date` es opcional, pero si se informa debe ser igual o posterior al día actual; se valida con `src/lib/validators/date.ts` y nuevamente en la RPC con la fecha de negocio de `America/Havana`.
+## Relacion con Storage
 
-`service_type` queda como referencia inicial del cliente y no se usa como título automático. La descripción del pedido se puede ajustar desde la descripción original de la solicitud antes de crear el pedido. La conversión no envía `order_number`; la base de datos lo asigna con formato `P-YY-XXXX`. El estado inicial sigue siendo `solicitud_recibida`.
+Los archivos publicos de solicitud se guardan en el bucket privado `godel-files`. La metadata vive en `archivos` y se asocia con `solicitud_id`; antes de conversion, `pedido_id` queda en `null`.
 
-La RPC bloquea la solicitud durante la decisión, valida nuevamente usuario
-activo, rol, estado, cliente, doble conversión y fecha estimada, y completa
-también `archivos.pedido_id` para los archivos `cliente_solicitud`. No cambia
-rutas ni objetos de Storage. Ante cualquier error, todas las escrituras se
-revierten.
+Reglas actuales:
 
-## Asociación solicitud-cliente
+- no hay lectura, listado ni descarga publica de archivos;
+- los listados internos no devuelven `file_path`;
+- la descarga interna usa route handler y signed URL corta;
+- las rutas y categorias se derivan server-side;
+- la conversion puede asociar metadata de archivos al pedido sin mover objetos;
+- un fallo excepcional entre upload y metadata puede dejar objeto huerfano.
 
-`associateSolicitudWithCliente` asocia una solicitud con un cliente existente. Requiere `solicitudes.manage` y `clientes.view`, valida UUID de solicitud y cliente, verifica que ambos registros existan y actualiza únicamente `solicitudes.cliente_id`.
+La reconciliacion de objetos de Storage sin metadata queda como deuda operativa. No se resuelve abriendo borrado anonimo ni descarga publica.
 
-`createClienteFromSolicitudAndAssociate` crea un cliente básico desde los datos ya guardados en la solicitud (`client_name`, `client_phone`, `client_email`) y lo asocia automáticamente. Requiere `solicitudes.manage` y `clientes.manage`, conserva la validación de UX y delega la escritura en la RPC transaccional `public.crear_cliente_desde_solicitud`.
+## Relacion con Public Tracking
 
-La página enlaza `solicitud_id` a la action, cuyo formulario no envía campos
-editables; no acepta nombre, teléfono, correo, notas, actor ni otros campos
-técnicos. La RPC bloquea la solicitud con `FOR UPDATE`,
-valida de nuevo usuario activo, rol, asociación previa y datos mínimos, y
-confirma o revierte en conjunto el cliente, el historial y la asociación.
+`/estado` esta documentado en:
 
-Las actions del detalle de solicitud son:
+```text
+src/lib/public-tracking/README.md
+```
 
-- `associateSolicitudClienteAction`
-- `createClienteFromSolicitudAction`
+El contrato publico debe mantenerse por allowlist. No debe exponer:
 
-No se usa service role key y no se implementa deduplicación avanzada. La
-asociación de un cliente existente conserva su servicio separado y su capacidad
-de reemplazar explícitamente la relación.
+- UUIDs internos;
+- `order_number`;
+- cliente, telefono o correo;
+- descripcion, notas o archivos;
+- `file_path`;
+- bucket o rutas privadas;
+- pagos, deuda o estado financiero;
+- comentarios;
+- historial;
+- tareas o personal interno.
 
-## Comentarios internos
+Cualquier cambio al DTO publico de `/estado` debe pasar por checklist de ruta publica y `npm.cmd run audit:public-tracking`.
 
-`listSolicitudComments` carga server-side los comentarios internos mediante la RPC segura `public.listar_solicitud_comentarios`. Requiere usuario interno activo con permiso `solicitudes.view`, valida UUID, confirma acceso a la solicitud y recibe solo datos mínimos del autor: nombre y rol.
+## QA Beta 2.4.8
 
-`createSolicitudComment` agrega comentarios internos append-only. Requiere `solicitudes.manage`, valida UUID, confirma acceso a la solicitud, valida content no vacío con máximo de 2000 caracteres e inserta en `solicitud_comentarios` usando `author_id = profile.id`.
+Beta 2.4.8 agrego specs focales para las rutas publicas:
 
-La página enlaza `solicitud_id` a `createSolicitudCommentAction` y el formulario envía únicamente `content`. No acepta autor ni fechas. No hay edición, eliminación, menciones, notificaciones, adjuntos ni registro automático de historial en esta subfase.
+```text
+tests/e2e/public-solicitud.spec.ts
+tests/e2e/public-tracking.spec.ts
+```
 
-## Contrato de actions del detalle
+Estos specs verifican render basico, validaciones seguras y ausencia visible de detalles tecnicos sensibles en rutas publicas.
 
-Las Server Actions de `/dashboard/solicitudes/[id]` reciben `solicitud_id`
-enlazado desde la página server-side después de cargar y validar la solicitud.
-Ninguna mutación obtiene el ID desde `FormData`, `referer`, `next-url` u otra
-cabecera. Los IDs secundarios necesarios para cada operación, como
-`cliente_id`, permanecen en el formulario.
+`tests/e2e/full-visual-qa.spec.ts` sigue siendo el recorrido general de aceptacion. No debe usarse como unico diagnostico para nuevos cambios de dominio cuando sea razonable agregar specs focales pequenos.
 
-Las actions siguen siendo adaptadores finos: leen solo campos editables,
-delegan autorización y mutación en servicios server-side o RPCs, y revalidan
-`/dashboard`, `/dashboard/solicitudes` y el detalle. Se mantienen juntas porque
-separarlas no reduciría complejidad real.
+## Pendientes tecnicos conocidos
 
-El listado combina búsqueda server-side y filtro por estado mediante
-`ListFiltersBar`. La búsqueda usa un debounce de 200 ms, conserva ambos
-parámetros en la URL y permanece limitada a `admin` y `supervisor`.
+- fixture o semilla estable para tracking publico positivo;
+- reconciliacion interna de objetos de Storage sin metadata;
+- rate limiting, captcha u honeypot antes de exposicion publica real;
+- posible division futura de `PublicSolicitudForm` si crece mas;
+- posible division futura de `full-visual-qa.spec.ts` por dominios adicionales;
+- revisar dependencia de red/Google Fonts en build para reproducibilidad.
 
-## Historial visible
+## Que no hacer
 
-`listSolicitudHistory` carga server-side el historial interno mediante la RPC segura `public.listar_solicitud_historial`. Requiere usuario interno activo con permiso `solicitudes.view`, valida UUID, confirma acceso a la solicitud y recibe solo datos mínimos del actor cuando existe `actor_id`: nombre y rol.
-
-`SolicitudHistorySection` muestra los eventos existentes en `solicitud_historial` dentro del detalle interno de solicitud. La sección muestra tipo de evento, resumen, actor, rol y fecha. Si `actor_id` es `null`, el evento se muestra como “Evento automático”.
-
-El historial se muestra con el evento más reciente primero. La tabla `solicitud_historial` usa `created_at default clock_timestamp()` para que eventos insertados muy cerca entre sí conserven un timestamp real de ejecución. La RPC ordena por `created_at desc` y usa `id desc` solo como desempate secundario; no hay reordenamiento visual manual en TypeScript.
-
-Para mantener el mismo nivel de detalle que el historial de pedidos, la sección usa `summary`, `old_value`, `new_value`, `metadata` y relaciones mínimas cuando están disponibles: estados anterior/nuevo, nombre del archivo, cliente relacionado y pedido generado.
-
-El historial es append-only. No hay edición, eliminación ni notificaciones.
-
-Desde Fase 11.7B, la base de datos registra automáticamente:
-
-- `solicitud_creada` al insertar una solicitud;
-- `archivos_adjuntados` al registrar archivos públicos de solicitud;
-- `estado_cambiado` al cambiar el estado interno;
-- `cliente_asociado` al asociar un cliente;
-- `convertida_a_pedido` al convertir una solicitud a pedido.
-
-El evento `cliente_creado_desde_solicitud` se registra dentro de
-`public.crear_cliente_desde_solicitud` después de crear el cliente y antes de
-asociarlo. Luego la actualización de `solicitudes.cliente_id` dispara una sola
-vez `cliente_asociado`. Como el historial visible se muestra con el evento más
-reciente primero, el usuario ve primero “Cliente asociado” y después “Cliente
-creado desde la solicitud”. Si cualquier registro de historial o asociación
-falla, la transacción revierte también la creación del cliente.
-
-## Alcance excluido
-
-- No hay lectura ni descarga pública de archivos.
-- No se convierte automáticamente la solicitud en pedido fuera del flujo formal.
-- No se implementa deduplicación inteligente de clientes.
+- No cambiar el DTO publico de `/estado` sin checklist de ruta publica.
+- No exponer `order_number`.
+- No exponer `file_path`.
+- No abrir descarga publica de archivos.
+- No mover conversion a TypeScript.
+- No sacar `convertir_solicitud_a_pedido` de la RPC transaccional.
+- No mezclar refactor con features.
+- No crear `src/services`.
+- No aceptar campos tecnicos desde formularios como fuente de verdad.
+- No abrir permisos anonimos directos sobre tablas internas.
