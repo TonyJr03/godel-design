@@ -7,7 +7,7 @@ import {
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
-import type { Enums, Tables } from "@/types/database";
+import { updateSolicitudStatusRpc } from "./rpc";
 import {
   isManualSolicitudStatus,
   isSolicitudStatus,
@@ -42,21 +42,6 @@ const SAFE_RPC_STATUS_MESSAGES = [
   "El estado convertida solo se asigna al convertir la solicitud en pedido.",
   "No tienes permiso para cambiar el estado de esta solicitud.",
 ] as const;
-
-type SolicitudStatusRpcResult = {
-  data: Tables<"solicitudes"> | null;
-  error: { message?: string } | null;
-};
-
-type SolicitudStatusRpcClient = {
-  rpc(
-    fn: "actualizar_estado_solicitud",
-    args: {
-      p_solicitud_id: string;
-      p_estado_nuevo: Enums<"solicitud_estado">;
-    },
-  ): PromiseLike<SolicitudStatusRpcResult>;
-};
 
 function getSafeRpcStatusErrorMessage(errorMessage: string | undefined): string {
   const message = errorMessage?.trim();
@@ -125,9 +110,7 @@ export async function updateInternalSolicitudStatus({
       return serviceFailure("not_found", "La solicitud no existe.");
     }
 
-    const { error } = await (
-      supabase as unknown as SolicitudStatusRpcClient
-    ).rpc("actualizar_estado_solicitud", {
+    const { error } = await updateSolicitudStatusRpc(supabase, {
       p_solicitud_id: normalizedSolicitudId,
       p_estado_nuevo: normalizedStatus,
     });

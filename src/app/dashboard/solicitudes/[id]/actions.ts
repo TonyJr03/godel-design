@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { revalidateSolicitudDetail } from "@/lib/actions/revalidation";
 import {
   createPedidoFromSolicitud,
   type CreatePedidoFromSolicitudFieldErrors,
@@ -57,12 +58,6 @@ export type CreateSolicitudCommentActionState = {
     content: string;
   };
 };
-
-function revalidateSolicitudDetail(solicitudId: string) {
-  revalidatePath("/dashboard");
-  revalidatePath("/dashboard/solicitudes");
-  revalidatePath(`/dashboard/solicitudes/${solicitudId}`);
-}
 
 export async function updateSolicitudStatusAction(
   solicitudId: string,

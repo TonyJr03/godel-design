@@ -7,7 +7,8 @@ import {
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
-import type { Enums, Json, Tables } from "@/types/database";
+import type { Json, Tables } from "@/types/database";
+import { listSolicitudHistoryRpc } from "./rpc";
 
 export type SolicitudHistoryActor =
   | Pick<Tables<"perfiles">, "full_name" | "role">
@@ -28,30 +29,6 @@ export type SolicitudHistoryItem = Pick<
     cliente?: Pick<Tables<"clientes">, "id" | "name">;
     pedido?: Pick<Tables<"pedidos">, "id" | "order_number" | "title">;
   };
-};
-
-type SolicitudHistoryRpcRow = {
-  id: string;
-  action: Enums<"solicitud_historial_action">;
-  summary: string;
-  old_value: string | null;
-  new_value: string | null;
-  metadata: Json;
-  created_at: string;
-  actor_full_name: string | null;
-  actor_role: Enums<"app_role"> | null;
-};
-
-type SolicitudHistoryRpcResult = {
-  data: SolicitudHistoryRpcRow[] | null;
-  error: { message?: string } | null;
-};
-
-type SolicitudHistoryRpcClient = {
-  rpc(
-    fn: "listar_solicitud_historial",
-    args: { p_solicitud_id: string },
-  ): PromiseLike<SolicitudHistoryRpcResult>;
 };
 
 type ClienteRow = Pick<Tables<"clientes">, "id" | "name">;
@@ -144,9 +121,7 @@ export async function listSolicitudHistory(
       );
     }
 
-    const { data, error } = await (
-      supabase as unknown as SolicitudHistoryRpcClient
-    ).rpc("listar_solicitud_historial", {
+    const { data, error } = await listSolicitudHistoryRpc(supabase, {
       p_solicitud_id: solicitudId,
     });
 
