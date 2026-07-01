@@ -37,6 +37,26 @@ La validación base exige archivo existente, nombre seguro, tamaño mayor que ce
 
 No se aceptan ejecutables, scripts, HTML ni SVG. Formatos de diseño como AI, PSD o CDR quedan pendientes porque sus MIME types no son confiables sin validación adicional.
 
+## Relacion TS/SQL
+
+Las reglas de Storage se validan en dos capas. TypeScript mejora UX, mensajes y
+control de entrada antes de subir archivos; SQL, RLS y policies de Storage son
+la defensa final.
+
+| Regla | TypeScript | SQL / policy relacionada |
+|---|---|---|
+| Bucket privado | `GODEL_FILES_BUCKET` | Bucket `godel-files` privado y constraint `archivos_bucket_godel_files_check`. |
+| Tamano maximo | `MAX_STORAGE_FILE_SIZE_BYTES` | `file_size <= 20971520` y `storage.buckets.file_size_limit`. |
+| MIME/extensiones | `ALLOWED_STORAGE_MIME_TYPES`, `ALLOWED_STORAGE_FILE_EXTENSIONS` y mapa MIME por extension | `private.is_allowed_public_request_file_type` y allowed MIME types del bucket. |
+| Extensiones bloqueadas | `BLOCKED_STORAGE_FILE_EXTENSIONS` | Defensa previa en TS; SQL solo permite allowlist positiva. |
+| Rutas de pedido | `buildPedidoFilePath` | `private.storage_order_id`, `private.storage_order_category` y `private.pedido_file_path_matches`. |
+| Rutas de solicitud | `buildSolicitudFilePath` | `private.storage_request_id` y policy anonima de solicitudes publicas. |
+| Categoria por estado | `getPedidoFileVisibilityForStatus` | `private.pedido_file_visibility_for_status`. |
+
+Cuando cambie cualquiera de estas reglas, la fase debe revisar TypeScript, SQL,
+policies, documentacion y QA juntos para evitar drift. Esta subfase no cambia
+limites, MIME, extensiones, carpetas, categorias ni formato de `file_path`.
+
 ## URLs firmadas
 
 `createSignedFileUrl(fileId)` consulta `archivos` con RLS mediante el cliente server-side normal de Supabase y genera una signed URL de corta duración. No usa service role key y no recibe rutas directas desde la interfaz.

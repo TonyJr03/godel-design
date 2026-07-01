@@ -11,6 +11,7 @@ import {
 } from "./file-paths";
 import { isValidUuid } from "@/lib/validators";
 import type {
+  AllowedStorageFileExtension,
   FileValidationResult,
   PedidoFileCategory,
   SolicitudFileCategory,
@@ -34,7 +35,10 @@ export type PedidoFileVisibilityForStatusResult =
 const allowedMimeTypes = new Set<string>(ALLOWED_STORAGE_MIME_TYPES);
 const allowedExtensions = new Set<string>(ALLOWED_STORAGE_FILE_EXTENSIONS);
 const blockedExtensions = new Set<string>(BLOCKED_STORAGE_FILE_EXTENSIONS);
-const allowedMimeTypesByExtension: Record<string, ReadonlySet<string>> = {
+const allowedMimeTypesByExtension: Record<
+  AllowedStorageFileExtension,
+  ReadonlySet<string>
+> = {
   pdf: new Set(["application/pdf"]),
   jpg: new Set(["image/jpeg"]),
   jpeg: new Set(["image/jpeg"]),
@@ -143,11 +147,13 @@ function validateFileShape(
     return { ok: false, reason: "extension_not_allowed" };
   }
 
+  const allowedExtension = extension as AllowedStorageFileExtension;
+
   if (!allowedMimeTypes.has(file.type)) {
     return { ok: false, reason: "mime_not_allowed" };
   }
 
-  if (!allowedMimeTypesByExtension[extension]?.has(file.type)) {
+  if (!allowedMimeTypesByExtension[allowedExtension].has(file.type)) {
     return { ok: false, reason: "mime_not_allowed" };
   }
 
