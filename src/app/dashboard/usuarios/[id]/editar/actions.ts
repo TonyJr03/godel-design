@@ -1,17 +1,18 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import {
+  actionFailure,
+  actionSuccess,
+  type BaseActionState,
+} from "@/lib/actions/action-state";
+import { revalidateUsuarioEdit } from "@/lib/actions/revalidation";
 import {
   updateInternalUser,
   type UserFieldErrors,
 } from "@/lib/usuarios";
 import { getFormValue } from "@/lib/utils";
 
-export type UpdateUserActionState = {
-  ok: boolean;
-  message: string;
-  fieldErrors?: UserFieldErrors;
-};
+export type UpdateUserActionState = BaseActionState<UserFieldErrors>;
 
 export async function updateUserAction(
   userId: string,
@@ -28,19 +29,12 @@ export async function updateUserAction(
   });
 
   if (!result.ok) {
-    return {
-      ok: false,
-      message: result.message,
+    return actionFailure(result.message, {
       fieldErrors: result.fieldErrors,
-    };
+    });
   }
 
-  revalidatePath("/dashboard/usuarios");
-  revalidatePath(`/dashboard/usuarios/${result.userId}`);
-  revalidatePath(`/dashboard/usuarios/${result.userId}/editar`);
+  revalidateUsuarioEdit(result.userId);
 
-  return {
-    ok: true,
-    message: "Usuario actualizado correctamente.",
-  };
+  return actionSuccess("Usuario actualizado correctamente.");
 }

@@ -14,6 +14,20 @@ export function revalidateClienteEdit(clienteId: string) {
   revalidatePath(`/dashboard/clientes/${clienteId}/editar`);
 }
 
+export function revalidateUsuariosList() {
+  revalidatePath("/dashboard/usuarios");
+}
+
+export function revalidateUsuarioDetail(userId: string) {
+  revalidateUsuariosList();
+  revalidatePath(`/dashboard/usuarios/${userId}`);
+}
+
+export function revalidateUsuarioEdit(userId: string) {
+  revalidateUsuarioDetail(userId);
+  revalidatePath(`/dashboard/usuarios/${userId}/editar`);
+}
+
 export function revalidatePedidoDetail(pedidoId: string) {
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/pedidos");

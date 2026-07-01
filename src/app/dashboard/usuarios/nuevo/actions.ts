@@ -1,18 +1,18 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import {
+  actionFailure,
+  type BaseActionState,
+} from "@/lib/actions/action-state";
+import { revalidateUsuarioDetail } from "@/lib/actions/revalidation";
 import {
   createInternalUserProfile,
   type UserFieldErrors,
 } from "@/lib/usuarios";
 import { getFormValue } from "@/lib/utils";
 
-export type CreateUserProfileActionState = {
-  ok: boolean;
-  message: string;
-  fieldErrors?: UserFieldErrors;
-};
+export type CreateUserProfileActionState = BaseActionState<UserFieldErrors>;
 
 export async function createUserProfileAction(
   _prevState: CreateUserProfileActionState,
@@ -28,15 +28,12 @@ export async function createUserProfileAction(
   });
 
   if (!result.ok) {
-    return {
-      ok: false,
-      message: result.message,
+    return actionFailure(result.message, {
       fieldErrors: result.fieldErrors,
-    };
+    });
   }
 
-  revalidatePath("/dashboard/usuarios");
-  revalidatePath(`/dashboard/usuarios/${result.userId}`);
+  revalidateUsuarioDetail(result.userId);
 
   redirect(`/dashboard/usuarios/${result.userId}`);
 }

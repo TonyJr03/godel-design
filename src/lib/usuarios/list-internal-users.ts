@@ -7,25 +7,13 @@ import {
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import { normalizeSearchQuery } from "@/lib/utils";
-import type { Tables } from "@/types/database";
 import {
   isInternalUserRole,
   type InternalUserRole,
 } from "./roles";
+import type { InternalUser } from "./types";
 
 export type InternalUserActiveFilter = boolean;
-
-export type InternalUser = Pick<
-  Tables<"perfiles">,
-  | "id"
-  | "full_name"
-  | "role"
-  | "phone"
-  | "avatar_url"
-  | "is_active"
-  | "created_at"
-  | "updated_at"
->;
 
 export type ListInternalUsersOptions = {
   q?: string | null;

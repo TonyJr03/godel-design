@@ -7,19 +7,7 @@ import {
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
-import type { Tables } from "@/types/database";
-
-export type InternalUserDetail = Pick<
-  Tables<"perfiles">,
-  | "id"
-  | "full_name"
-  | "role"
-  | "phone"
-  | "avatar_url"
-  | "is_active"
-  | "created_at"
-  | "updated_at"
->;
+import type { InternalUserDetail } from "./types";
 
 export type GetInternalUserByIdErrorReason =
   | "unauthorized"

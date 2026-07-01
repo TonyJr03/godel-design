@@ -17,17 +17,16 @@ export type {
 export type {
   GetInternalUserByIdErrorReason,
   GetInternalUserByIdResult,
-  InternalUserDetail,
 } from "./get-internal-user-by-id";
 
 export type {
-  InternalUser,
   InternalUserActiveFilter,
   ListInternalUsersErrorReason,
   ListInternalUsersOptions,
   ListInternalUsersResult,
 } from "./list-internal-users";
 export type { InternalUserRole } from "./roles";
+export type { InternalUser, InternalUserDetail } from "./types";
 
 export type {
   UpdateInternalUserErrorReason,
