@@ -33,6 +33,10 @@ orquestador del flujo: validar perfil y permisos, validar input, consultar o
 mutar mediante Supabase/RPC, mapear DTOs seguros y devolver resultados
 controlados.
 
+Por su tamano, Pedidos usa archivos `*-types.ts` por subflujo, como
+`list-internal-pedidos-types.ts` y `get-internal-pedido-detail-types.ts`. Esta
+separacion es intencional y evita un `types.ts` unico demasiado grande.
+
 ## Mapa de archivos
 
 | Archivo | Responsabilidad |
@@ -95,6 +99,7 @@ controlados.
 ## Qué no hacer
 
 - No mover Pedidos a `src/services`.
+- No crear `src/lib/pedidos/types.ts` solo por uniformidad.
 - No consultar `auth.users` desde código de aplicación.
 - No usar `service_role` ni `SUPABASE_SERVICE_ROLE_KEY`.
 - No exponer `file_path`, buckets internos, URLs privadas persistentes ni

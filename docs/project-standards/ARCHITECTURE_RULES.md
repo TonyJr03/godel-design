@@ -88,16 +88,24 @@ Decision vigente:
 
 Responsabilidades:
 
-- Contener tipos generados de Supabase y tipos compartidos de dominio cuando apliquen.
+- Contener tipos generados/base de Supabase.
 - Usar `src/types/database.types.ts` como salida generada desde Supabase CLI.
-- Exponer helpers generados a traves de puntos centrales como `src/types/database.ts`.
+- No editar manualmente `src/types/database.types.ts`.
+- Exponer helpers generados a traves de `src/types/database.ts`, como
+  `Tables`, `Enums`, `TablesInsert` y `TablesUpdate`.
 - Complementar, no reemplazar, los DTOs seguros que viven cerca de cada dominio en `src/lib`.
+- Evitar aliases por dominio en `src/types` cuando no haya uso compartido real.
 
 No debe:
 
 - Editar manualmente `src/types/database.types.ts` salvo necesidad puntual documentada.
 - Inventar tipos que contradigan migraciones, enums, RPCs o RLS.
 - Usarse como sustituto de validaciones runtime en servidor o base de datos.
+
+DTOs, inputs y contratos internos deben vivir en `src/lib/<dominio>/types.ts`
+o en archivos `*-types.ts` del dominio cuando el subflujo sea suficientemente
+grande. En dominios extensos como Pedidos, usar `*-types.ts` por subflujo es
+valido y preferible a concentrar todos los tipos en un `types.ts` gigante.
 
 ### `tests/e2e`
 

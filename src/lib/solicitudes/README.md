@@ -38,6 +38,7 @@ La conversion Solicitud -> Pedido se dispara desde el detalle interno de una sol
 | `public-request-validation-common.ts` | Normalizacion y validacion comun de contacto, workflow y campos compartidos. |
 | `public-request-validation-encargo.ts` | Reglas y DTO para solicitudes de encargo personalizado. |
 | `public-request-validation-impresion.ts` | Reglas, opciones y descripcion server-side para solicitudes de impresion. |
+| `types.ts` | DTOs internos del dominio, como `InternalSolicitud` e `InternalSolicitudDetail`. |
 | `list-internal-solicitudes.ts` | Listado interno con filtros, busqueda server-side, permisos y DTO acotado. |
 | `get-internal-solicitud-by-id.ts` | Loader server-side del detalle interno con validacion de UUID, perfil activo y permiso. |
 | `update-internal-solicitud-status.ts` | Valida cambio de estado y delega la transicion en RPC segura. |
