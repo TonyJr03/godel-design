@@ -24,6 +24,20 @@ Estos campos cubren los usos actuales de autorizacion, auditoria interna basica
 y asociaciones server-side. Los datos completos de perfiles internos pertenecen
 al dominio `src/lib/usuarios`, no al helper transversal de sesion.
 
+La consulta de perfil selecciona explicitamente `id`, `role` e `is_active`; no
+usa `select("*")`. Si no hay sesion, no hay perfil o el perfil esta inactivo,
+los helpers devuelven `null` sin filtrar detalles internos de Supabase.
+
+## Relacion con Supabase Auth
+
+Supabase Auth identifica al usuario autenticado y administra credenciales. Esta
+capa solo lee el usuario actual mediante el cliente server-side normal y luego
+resuelve su fila activa en `public.perfiles`.
+
+La aplicacion no consulta `auth.users` desde app code. Cualquier flujo que
+necesite crear credenciales Auth debe quedar fuera de este dominio y tener una
+fase explicita de seguridad.
+
 ## Relacion con permisos
 
 `getCurrentProfile()` solo confirma que existe un perfil interno activo. No

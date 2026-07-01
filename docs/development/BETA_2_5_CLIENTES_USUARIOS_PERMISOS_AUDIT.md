@@ -503,3 +503,50 @@ Nunca debe llegar a `/solicitud` o `/estado`:
 - [x] Confirmado que no se modificaron servicios TypeScript.
 - [x] Confirmado que no se modificaron migraciones.
 - [x] Confirmado que no se modificaron tests.
+
+## 13. Cierre Beta 2.5.6
+
+Los hallazgos historicos anteriores reflejan el diagnostico inicial de Beta
+2.5.1. El estado final del dominio queda registrado en esta seccion despues de
+las subfases 2.5.2 a 2.5.6.
+
+Estado final:
+
+- Clientes queda documentado en `src/lib/clientes/README.md` como dominio
+  server-side interno, con rutas, componentes, servicios, revalidacion,
+  relacion con solicitudes/pedidos, datos visibles y datos prohibidos en rutas
+  publicas.
+- Usuarios/Perfiles queda documentado en `src/lib/usuarios/README.md` como
+  gestion de `public.perfiles`, sin crear usuarios Auth, sin consultar
+  `auth.users`, sin email/password y sin `service_role`.
+- Auth queda documentado con `CurrentProfile` minimo: `id`, `role` e
+  `is_active`. `getCurrentProfile()` selecciona esos campos de forma explicita
+  y no usa `select("*")`.
+- Permisos conserva una unica matriz TypeScript para autorizacion interna y
+  documenta que cualquier cambio funcional de roles debe tocar TypeScript,
+  SQL/RLS, documentacion y QA por rol en una fase explicita.
+- Las specs focales de Beta 2.5.5 quedan registradas como cobertura actual:
+  `tests/e2e/clientes.spec.ts` y `tests/e2e/usuarios.spec.ts`.
+- La suite e2e actual de Beta 2.5 cubre 13 tests entre smoke, full visual QA,
+  clientes y usuarios.
+
+Pendientes tecnicos registrados:
+
+- Decidir en una fase posterior si `/dashboard/pedidos/nuevo` debe bloquearse
+  por ruta para trabajador o conservar el bloqueo en pagina/action.
+- Mantener sincronizados permisos TypeScript, SQL/RLS, documentacion y QA por
+  rol ante cualquier cambio futuro de matriz.
+- Evaluar una fixture/semilla mas estable para e2e si la cobertura focal crece.
+- Mantener como deuda futura la posible deduplicacion de clientes si aparece
+  una necesidad operativa real.
+- Definir en una fase futura una politica de archivado, desactivacion o
+  eliminacion controlada de clientes; no hay eliminacion directa en Beta 2.5.
+- Considerar la dependencia de red de Google Fonts durante `next build` cuando
+  se ejecute `verify` en entornos restringidos.
+
+Cierre:
+
+- Beta 2.5 queda cerrada documentalmente para Clientes, Usuarios/Perfiles,
+  Auth minimo y Permisos.
+- Este cierre no modifica codigo funcional, componentes, Server Actions,
+  servicios TypeScript, migraciones, tipos generados ni tests.
