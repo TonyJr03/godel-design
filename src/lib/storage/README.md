@@ -2,6 +2,11 @@
 
 Esta carpeta concentra la lógica reutilizable para trabajar con archivos privados de Godel Diseño.
 
+Este README queda como mapa operativo final del dominio Storage despues de
+Beta 2.6. La documentacion historica del modelo sigue en `docs/STORAGE_MODEL.md`,
+pero las decisiones vigentes de implementacion estan resumidas aqui y en
+`docs/development/BETA_2_6_STORAGE_AUDIT.md`.
+
 ## Alcance actual
 
 - Constantes del bucket privado `godel-files`.
@@ -15,10 +20,34 @@ Esta carpeta concentra la lógica reutilizable para trabajar con archivos privad
 - Descarga de archivos de pedido mediante route handler y signed URL.
 - Subida pública controlada de archivos de solicitud.
 - Listado y descarga interna de archivos de solicitud.
+- Builders server-side de metadata para `public.archivos`.
+- Helper compartido para respuestas y redireccion de route handlers internos.
+
+## Mapa de archivos vigente
+
+| Archivo | Responsabilidad |
+|---|---|
+| `constants.ts` | Bucket privado, expiracion de signed URLs, limites, carpetas, categorias, MIME/extensiones permitidas y extensiones bloqueadas. |
+| `types.ts` | Tipos internos, contratos de validacion, resultados de upload, DTOs seguros y allowlist `SafeListedFileMetadata`. |
+| `file-name.ts` | Sanitizacion de nombres de archivo y extraccion de extension/base. |
+| `file-paths.ts` | Construccion server-side de `file_path` para solicitudes y pedidos. |
+| `file-validation.ts` | Validacion compartida de archivo, categoria, contexto y categoria de pedido por estado. |
+| `upload-metadata.ts` | Builders server-side de metadata para insertar en `public.archivos`. |
+| `upload-public-solicitud-file.ts` | Upload publico controlado desde `/solicitud`. |
+| `upload-pedido-file.ts` | Upload interno de archivos propios de pedido con cleanup best-effort. |
+| `list-solicitud-files.ts` | Listado interno seguro de archivos de solicitud. |
+| `list-pedido-files.ts` | Listado interno seguro de archivos de pedido. |
+| `signed-url.ts` | Generacion server-side de signed URLs de corta duracion desde `archivo.id`. |
+| `download-route.ts` | Helper compartido para ids, respuestas seguras y redireccion a signed URL desde route handlers internos. |
+| `labels.ts` | Labels visibles por categoria. |
+| `index.ts` | Barrel publico del dominio Storage para contratos de uso general. |
+
+QA focal del dominio vive en `tests/e2e/storage.spec.ts`.
 
 ## Bucket privado
 
-El sistema usa el bucket privado `godel-files`. No se usan buckets públicos ni URLs públicas permanentes.
+El sistema usa el bucket privado `godel-files`. No se usan buckets públicos,
+listados anonimos ni URLs públicas permanentes.
 
 ## Rutas internas
 
@@ -70,6 +99,11 @@ componentes reciben solo metadata segura y enlaces a
 pertenencia por `pedido_id` o `solicitud_id`, permisos internos cuando aplica y
 RLS sobre `archivos`. La URL firmada mantiene la expiracion corta definida por
 `SIGNED_FILE_URL_EXPIRES_IN_SECONDS`.
+
+Las signed URLs no se devuelven desde listados, no se guardan en base de datos,
+no llegan a componentes y no se exponen en `/estado`. Cualquier cambio que
+requiera archivos publicos debe tratarse como una fase nueva de seguridad
+publica.
 
 ## DTOs seguros de listado
 
@@ -166,6 +200,16 @@ La UI pública usa estas funciones para adjuntar archivos al crear la solicitud.
 
 `listSolicitudFiles(solicitudId)` lista metadatos seguros de `archivos` para el detalle interno de solicitud, sin devolver `file_path`. La descarga interna usa `/dashboard/solicitudes/[id]/archivos/[fileId]/download`, valida pertenencia por RLS y redirige a una signed URL de corta duración.
 
+## Relacion con `/estado`
+
+`/estado` no lista archivos, no descarga archivos, no revela `file_path`, no
+revela bucket y no revela signed URLs. El contrato publico vive en
+`src/lib/public-tracking` y se mantiene por allowlist.
+
+Cualquier cambio para mostrar archivos publicamente seria una fase nueva de
+seguridad publica. Debe revisar RPC/RLS, policies, checklist de rutas publicas,
+documentacion y `npm.cmd run audit:public-tracking`.
+
 ## Herencia al convertir a pedido
 
 Cuando una solicitud con archivos `cliente_solicitud` se convierte en pedido, no se mueve ni se copia el objeto físico en Storage. El flujo conserva `solicitud_id`, `file_path`, `bucket`, `visibility` y `uploaded_by`, y solo completa `pedido_id` en los metadatos de `archivos`.
@@ -179,3 +223,65 @@ Así el archivo sigue visible desde el detalle interno de solicitud para `admin`
 - No hay subida interna de archivos de solicitud.
 - No hay descarga pública de archivos de solicitud.
 - No hay URLs públicas permanentes.
+
+## QA Beta 2.6.6
+
+`tests/e2e/storage.spec.ts` agrega QA focal de Storage con cobertura de:
+
+- secciones seguras de archivos en pedido y solicitud;
+- links internos de descarga mediante route handlers;
+- upload publico invalido bloqueado;
+- descargas invalidas con respuestas seguras;
+- trabajador bloqueado o con respuesta segura para descarga de solicitud;
+- `/estado` sin superficie de archivos;
+- ausencia visible de `file_path`, bucket, signed URLs y otros terminos
+  sensibles.
+
+No hubo upload positivo real ni descarga positiva de archivo real en e2e porque
+todavia no existe fixture/cleanup estable para objetos de Storage. Esa cobertura
+queda pendiente para una fase posterior.
+
+## Pendientes tecnicos conocidos
+
+- No existe reconciliacion interna de objetos huerfanos.
+- El upload publico puede dejar objeto sin metadata si falla el insert
+  posterior.
+- No hay upload positivo e2e por falta de fixture/cleanup estable.
+- No hay descarga positiva e2e de archivo real por falta de fixture estable.
+- No hay rate limiting, captcha ni honeypot en `/solicitud`.
+- No hay antivirus ni escaneo profundo de archivos.
+- No hay monitoreo operativo agregado de Storage.
+- Puede existir drift futuro entre TypeScript y SQL/policies si se cambian
+  MIME, extensiones, rutas, categorias o tamano.
+- `npm.cmd run verify` sigue dependiendo de red para descargar Google Fonts
+  durante `next build`.
+
+## Reglas de seguridad
+
+- Mantener `godel-files` privado.
+- No abrir lectura anonima.
+- No abrir listado anonimo.
+- No abrir delete anonimo.
+- No usar `service_role`.
+- No agregar `SUPABASE_SERVICE_ROLE_KEY`.
+- No exponer `file_path`.
+- No exponer bucket.
+- No devolver signed URLs desde listados.
+- No devolver signed URLs a componentes.
+- No permitir descargas desde `/estado`.
+- No aceptar `visibility`, bucket, `file_path`, `uploaded_by`, `file_name`,
+  `file_type` o `file_size` desde formularios como fuente de verdad.
+- No mover generacion de signed URLs a Client Components.
+- No cambiar policies/RLS como refactor menor.
+
+## Que no hacer
+
+- No modificar `src/app` ni componentes para cambiar seguridad de Storage sin
+  fase explicita.
+- No consultar Supabase desde Client Components.
+- No filtrar metadata cruda a UI.
+- No mover el dominio a `src/services`.
+- No ampliar formatos, limites, rutas o categorias sin revisar TypeScript,
+  SQL/policies, documentacion y QA juntos.
+- No implementar reconciliacion, antivirus, rate limiting o archivos publicos
+  como refactor menor.

@@ -1,4 +1,34 @@
-# Beta 2.6.1 - Auditoria focal de Storage y archivos
+# Beta 2.6 - Auditoria y cierre del dominio Storage
+
+## 0. Cierre Beta 2.6.7
+
+Beta 2.6 queda cerrada documentalmente con estas subfases:
+
+- Beta 2.6.1 - Auditoria focal de Storage y archivos: completada.
+- Beta 2.6.2 - Validacion y path builders de Storage: completada.
+- Beta 2.6.3 - DTOs seguros y listados de archivos: completada.
+- Beta 2.6.4 - Uploads y metadata server-side: completada.
+- Beta 2.6.5 - Route handlers de descarga y signed URLs: completada.
+- Beta 2.6.6 - QA e2e focal de Storage: completada.
+- Beta 2.6.7 - Cierre documental del dominio Storage: completada.
+
+Estado final:
+
+- validacion, limites, MIME/extensiones y path builders documentados y
+  consolidados en `src/lib/storage`;
+- DTOs seguros de listado consolidados mediante allowlist, sin `file_path`,
+  bucket, rutas privadas ni signed URLs;
+- metadata server-side consolidada con `upload-metadata.ts`;
+- descargas internas mediante route handlers y signed URLs de corta duracion,
+  con helper compartido en `download-route.ts`;
+- bucket `godel-files` permanece privado;
+- `/estado` sigue sin listar, descargar ni revelar archivos;
+- QA focal agregado en `tests/e2e/storage.spec.ts`;
+- suite e2e Chromium actual: 19 tests.
+
+Esta subfase fue documental. No modifica codigo funcional, componentes, Server
+Actions, servicios TypeScript, route handlers, tests, migraciones, RLS, policies,
+tipos generados, `.env.local` ni `package.json`.
 
 ## 1. Objetivo
 
@@ -31,21 +61,20 @@ Puntos fuertes:
 - RLS de `archivos` y policies de `storage.objects` actuan como defensa final;
 - `anon` no tiene lectura, listado, update ni delete sobre archivos.
 
-Riesgos principales:
+Riesgos principales al cierre:
 
 - Storage y `public.archivos` no son transaccionales entre si, por lo que la
   subida publica puede dejar objetos sin metadata si falla el insert posterior;
-- los route handlers de descarga de pedido y solicitud duplican patron y deben
-  consolidarse con cuidado;
+- los route handlers de descarga ya comparten helper base, pero el helper debe
+  mantenerse solo detras de rutas internas;
 - `file_path` vive en metadata y en `createSignedFileUrl`, por lo que cualquier
   helper nuevo debe mantenerse estrictamente server-side;
 - no hay reconciliacion, monitoreo, rate limiting, captcha ni antivirus dentro
   de esta beta.
 
-Recomendacion general: consolidar primero validacion, path builders y contratos
-seguros de DTO/listado; despues revisar uploads, metadata y route handlers. No
-abrir bucket publico, no exponer `file_path` y no tocar policies/RLS sin fase
-explicita.
+Recomendacion general tras el cierre: mantener `src/lib/storage` como frontera
+server-side del dominio, no abrir bucket publico, no exponer `file_path`, no
+devolver signed URLs a componentes y no tocar policies/RLS sin fase explicita.
 
 ## 3. Mapa del dominio Storage
 
@@ -59,7 +88,9 @@ Archivos de `src/lib/storage`:
 | `file-paths.ts` | Construye rutas internas para pedidos y solicitudes; valida UUID y categoria. |
 | `file-validation.ts` | Valida presencia, nombre, tamano, MIME, extension, categoria y contexto. Tambien deriva categoria de pedido por estado. |
 | `labels.ts` | Labels visibles por categoria de archivo. |
+| `upload-metadata.ts` | Construye metadata server-side para inserts en `public.archivos` sin aceptar campos tecnicos desde formularios. |
 | `signed-url.ts` | Genera signed URL de corta duracion desde `archivo.id`, leyendo `bucket` y `file_path` server-side con RLS. |
+| `download-route.ts` | Comparte validacion de UUIDs, respuestas seguras y redireccion a signed URL para route handlers internos. |
 | `list-pedido-files.ts` | Lista metadata segura de archivos de pedido. |
 | `list-solicitud-files.ts` | Lista metadata segura de archivos de solicitud. |
 | `upload-pedido-file.ts` | Sube archivo interno de pedido y guarda metadata. |
@@ -246,10 +277,15 @@ Flujo de solicitud:
 5. Llama `createSignedFileUrl(archivo.id)`.
 6. Redirige a signed URL.
 
+`parseDownloadRouteIds`, `fileNotAvailableResponse`,
+`fileDownloadErrorResponse` y `redirectToSignedFileUrl` viven en
+`src/lib/storage/download-route.ts`. El helper comparte el patron seguro sin
+quitar a cada route handler su validacion de pertenencia al pedido o solicitud.
+
 `createSignedFileUrl` lee `id`, `bucket` y `file_path` server-side, valida que
 el bucket sea `godel-files` y usa `createSignedUrl` con expiracion de 120
-segundos. `file_path` y bucket no llegan a Client Components; solo se devuelve
-la redireccion desde el route handler.
+segundos. `file_path`, bucket y signed URLs no llegan a Client Components ni a
+listados; solo se devuelve la redireccion desde el route handler interno.
 
 ## 7. Relacion con Solicitudes y Pedidos
 
@@ -303,6 +339,11 @@ Cualquier cambio que agregue archivos a rutas publicas debe considerarse cambio
 de seguridad publica y pasar por checklist de ruta publica, RLS/policies,
 documentacion y `audit:public-tracking`.
 
+Estado de cierre Beta 2.6: `/estado` no lista archivos, no descarga archivos,
+no revela `file_path`, no revela bucket y no revela signed URLs. Cualquier
+cambio para mostrar archivos publicamente queda fuera de esta beta y debe
+tratarse como una fase nueva.
+
 ## 9. Evaluacion de archivos principales
 
 | Archivo | Responsabilidad | Riesgo | Recomendacion |
@@ -312,6 +353,7 @@ documentacion y `audit:public-tracking`.
 | `src/lib/storage/file-name.ts` | Sanitizar nombres. | Medio por entrada externa. | Mantener simple y probado con casos raros. |
 | `src/lib/storage/file-paths.ts` | Construir rutas internas. | Alto por `file_path`. | Conservar server-side; no aceptar rutas desde UI. |
 | `src/lib/storage/file-validation.ts` | Validar archivo, categoria y contexto. | Alto por seguridad de uploads. | Consolidar primero en Beta 2.6.2. |
+| `src/lib/storage/upload-metadata.ts` | Builders server-side de metadata para `public.archivos`. | Medio si se aceptan campos tecnicos externos en el futuro. | Mantener metadata derivada por servidor. |
 | `src/lib/storage/upload-public-solicitud-file.ts` | Subida anonima controlada y metadata. | Medio por no atomicidad objeto/metadata. | Mantener deuda de reconciliacion; no abrir delete anonimo. |
 | `src/lib/storage/upload-pedido-file.ts` | Subida interna de pedido y cleanup best-effort. | Medio. | Revisar errores y cleanup en fase de uploads. |
 | `src/lib/storage/list-pedido-files.ts` | Listado seguro de archivos de pedido. | Bajo-medio. | Mantener DTO minimo; revisar uploader si cambia perfiles. |
@@ -319,8 +361,9 @@ documentacion y `audit:public-tracking`.
 | `src/lib/storage/signed-url.ts` | Signed URL server-side desde metadata. | Alto por acceso a `file_path`. | Mantener solo servidor y expiracion corta. |
 | `src/app/solicitud/actions.ts` | Crea solicitud y coordina uploads publicos. | Medio. | Mantener action fina; extraer helper solo si reduce claridad. |
 | `src/app/dashboard/pedidos/[id]/actions/file-actions.ts` | Action de subida interna. | Bajo-medio. | Mantener como adaptador fino. |
-| `src/app/dashboard/pedidos/[id]/archivos/[fileId]/download/route.ts` | Descarga interna de pedido. | Medio. | Candidato a helper compartido con solicitud. |
-| `src/app/dashboard/solicitudes/[id]/archivos/[fileId]/download/route.ts` | Descarga interna de solicitud. | Medio. | Candidato a helper compartido con pedido. |
+| `src/lib/storage/download-route.ts` | Helper compartido de route handlers internos. | Medio si se reutiliza fuera de rutas internas. | Mantenerlo detras de route handlers y sin exportarlo a componentes. |
+| `src/app/dashboard/pedidos/[id]/archivos/[fileId]/download/route.ts` | Descarga interna de pedido. | Medio. | Mantener pertenencia por `pedido_id`, RLS y signed URL corta. |
+| `src/app/dashboard/solicitudes/[id]/archivos/[fileId]/download/route.ts` | Descarga interna de solicitud. | Medio. | Mantener permiso `solicitudes.view`, pertenencia por `solicitud_id`, bucket privado y signed URL corta. |
 | `src/components/storage/PedidoFilesSection.tsx` | UI de listado/subida/descarga de pedido. | Bajo-medio. | No pasar `file_path`; mantener formulario con solo archivo. |
 | `src/components/storage/SolicitudFilesSection.tsx` | UI de listado/descarga de solicitud. | Bajo. | No pasar `file_path`; mantener links a route handler. |
 | `src/components/solicitudes/PublicSolicitudForm.tsx` | UI publica con input multiple de archivos. | Medio por flujo publico. | Mantener validacion server-side como autoridad. |
@@ -341,16 +384,18 @@ documentacion y `audit:public-tracking`.
   atomica entre Storage y Postgres.
 - Upload publico no limpia objeto si falla metadata; upload interno intenta
   cleanup best-effort.
-- Route handlers de descarga repiten validacion de UUID, consulta de archivo y
-  redireccion a signed URL.
+- Route handlers de descarga ya comparten validacion de UUID, respuestas seguras
+  y redireccion a signed URL mediante `download-route.ts`; cada ruta conserva
+  su validacion de pertenencia y permisos.
 - Los DTOs de pedido y solicitud son seguros, pero cualquier nuevo listado debe
   evitar `file_path`, bucket y metadata cruda.
 - Revalidacion de pedido tras upload ya usa helper; solicitudes publicas no
   revalidan dashboard porque son flujo externo.
 - No hay reconciliacion de objetos sin metadata.
 - No hay logs operativos agregados ni monitoreo de Storage.
-- No hay QA e2e focal solo de Storage; hoy Storage queda cubierto sobre todo
-  por full visual QA y specs publicas.
+- Hay QA e2e focal de Storage en `tests/e2e/storage.spec.ts`, pero no incluye
+  upload positivo real ni descarga positiva de archivo real por falta de
+  fixture/cleanup estable.
 - Policies de Supabase Storage son parte critica de la seguridad y no deben
   cambiarse como refactor de TypeScript.
 
@@ -362,7 +407,7 @@ documentacion y `audit:public-tracking`.
 | Alto | Policies Storage/RLS | La seguridad depende de RLS en `archivos` y policies de `storage.objects`. | Drift si se cambia TS sin SQL/RLS o viceversa. | Cualquier cambio de permisos/paths debe tener fase SQL/RLS, docs y QA. |
 | Medio | Upload publico | Storage y metadata no son atomicos. | Objetos huerfanos si falla metadata despues del upload. | Disenar reconciliacion interna; no abrir borrado anonimo. |
 | Medio | Upload publico | No hay rate limiting, captcha, honeypot, antivirus ni monitoreo operativo. | Abuso de `/solicitud` o consumo de Storage en produccion publica. | Tratar como hardening operativo posterior, no como refactor. |
-| Medio | Route handlers | Descargas de pedido y solicitud comparten patron pero estan duplicadas. | Cambios futuros pueden divergir. | Consolidar helper pequeno en Beta 2.6.5 si reduce duplicacion. |
+| Medio | Route handlers | Descargas de pedido y solicitud comparten helper base, pero cada ruta mantiene validaciones propias. | Reutilizar el helper fuera de rutas internas podria exponer signed URLs. | Mantener `download-route.ts` server-side y detras de route handlers internos. |
 | Medio | Validacion TS/SQL | Listas de MIME/extensiones y reglas de ruta existen en TS y SQL. | Drift de validacion entre app y DB. | Consolidar documentacion y pruebas focales de validacion. |
 | Bajo | Listados | `listPedidoFiles` y `listSolicitudFiles` usan DTOs seguros separados. | Duplicacion menor. | Mantener separados salvo que un mapper compartido reduzca claridad. |
 | Bajo | UI | Componentes de archivos formatean tamano y renderizan links internos. | Duplicacion visual menor. | Extraer helper de formato si crece, sin tocar seguridad. |
@@ -373,37 +418,55 @@ No se detecta hallazgo critico: no hay evidencia de bucket publico, bypass
 confirmado de permisos, descarga anonima o exposicion real de `file_path` en UI
 publica.
 
-## 12. Plan recomendado para Beta 2.6
+## 12. Resultado de Beta 2.6
 
-1. Beta 2.6.2 - Consolidar validacion y path builders de Storage.
-   - Revisar `constants.ts`, `file-validation.ts`, `file-paths.ts` y helpers
-     SQL relacionados.
-   - Confirmar alineacion TS/SQL para MIME, extensiones, tamano y rutas.
-   - No cambiar comportamiento ni ampliar formatos.
+1. Beta 2.6.2 consolido documentacion y alineacion de validacion/path builders:
+   `constants.ts`, `file-validation.ts` y `file-paths.ts` mantienen bucket,
+   limites, MIME/extensiones, categorias y rutas sin aceptar `file_path` de
+   usuario.
 
-2. Beta 2.6.3 - Consolidar DTOs seguros y listados de archivos.
-   - Revisar `types.ts`, `list-pedido-files.ts`, `list-solicitud-files.ts` y
-     componentes consumidores.
-   - Mantener DTOs sin `file_path`, bucket ni signed URLs.
+2. Beta 2.6.3 consolido DTOs seguros y listados:
+   `SafeListedFileMetadata`, `PedidoFileListItem` y `SolicitudFileListItem`
+   no devuelven `file_path`, bucket, rutas privadas, signed URLs ni metadata
+   cruda.
 
-3. Beta 2.6.4 - Revisar uploads y metadata.
-   - Revisar `upload-public-solicitud-file.ts`, `upload-pedido-file.ts`,
-     actions y mensajes seguros.
-   - Documentar estrategia de cleanup/reconciliacion sin abrir permisos
-     anonimos.
+3. Beta 2.6.4 consolido uploads y metadata:
+   `upload-metadata.ts` centraliza builders de metadata server-side para
+   solicitud publica y pedido interno. El upload interno conserva cleanup
+   best-effort; el upload publico mantiene la deuda de objeto huerfano si falla
+   el insert posterior.
 
-4. Beta 2.6.5 - Revisar route handlers de descarga y signed URLs.
-   - Evaluar helper compartido para descarga interna.
-   - Mantener pertenencia, RLS, bucket privado y expiracion corta.
+4. Beta 2.6.5 consolido route handlers y signed URLs:
+   `download-route.ts` comparte parsing de UUIDs, respuestas seguras y
+   redireccion a signed URL. Los route handlers internos conservan validacion
+   de pertenencia a pedido/solicitud y RLS.
 
-5. Beta 2.6.6 - QA e2e focal de Storage si aplica.
-   - Cubrir subida publica valida/invalida.
-   - Cubrir listado/descarga interna por rol.
-   - Cubrir ausencia de `file_path` en UI y `/estado`.
+5. Beta 2.6.6 agrego QA e2e focal:
+   `tests/e2e/storage.spec.ts` cubre secciones seguras de archivos en pedido y
+   solicitud, links internos de descarga, upload publico invalido bloqueado,
+   descargas invalidas seguras, worker bloqueado/seguro para solicitud,
+   `/estado` sin superficie de archivos y ausencia visible de terminos
+   sensibles como `file_path`, bucket y signed URLs. No cubre upload positivo
+   real ni descarga positiva real por falta de fixture/cleanup estable.
 
-6. Beta 2.6.7 - Documentar y cerrar dominio Storage.
-   - Actualizar README de `src/lib/storage`, `docs/STORAGE_MODEL.md` y deuda
-     tecnica si hubo cambios.
+6. Beta 2.6.7 cierra documentalmente el dominio:
+   `src/lib/storage/README.md` queda como mapa operativo vigente junto con este
+   documento de auditoria y cierre.
+
+## 12.1 Deudas tecnicas reales
+
+- No existe reconciliacion interna de objetos huerfanos.
+- El upload publico puede dejar objeto sin metadata si falla el insert
+  posterior.
+- No hay upload positivo e2e por falta de fixture/cleanup estable.
+- No hay descarga positiva e2e de archivo real por falta de fixture estable.
+- No hay rate limiting, captcha ni honeypot en `/solicitud`.
+- No hay antivirus ni escaneo de archivos.
+- No hay monitoreo operativo agregado de Storage.
+- Puede existir drift futuro entre TypeScript y SQL/policies si se cambian
+  MIME, extensiones, rutas, categorias o tamano.
+- La dependencia de red/Google Fonts durante `npm.cmd run verify` y
+  `next build` sigue como deuda transversal de reproducibilidad.
 
 ## 13. Que NO conviene hacer
 
