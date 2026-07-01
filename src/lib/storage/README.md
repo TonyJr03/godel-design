@@ -63,6 +63,35 @@ limites, MIME, extensiones, carpetas, categorias ni formato de `file_path`.
 
 Los route handlers de descarga validan que el archivo pertenezca al pedido o solicitud de la ruta antes de redirigir a la signed URL.
 
+## DTOs seguros de listado
+
+Los listados de archivos devuelven DTOs por allowlist. No devuelven
+`file_path`, bucket, rutas privadas, signed URLs ni metadata cruda.
+
+`PedidoFileListItem` expone solo:
+
+- `id`
+- `file_name`
+- `file_type`
+- `file_size`
+- `visibility`
+- `created_at`
+- `uploaded_by`
+- `uploadedBy` con `id`, `full_name` y `role`
+
+`SolicitudFileListItem` expone solo:
+
+- `id`
+- `file_name`
+- `file_type`
+- `file_size`
+- `visibility`
+- `created_at`
+
+`uploadedBy` se mantiene unicamente en archivos de pedido porque esa pantalla
+necesita distinguir archivos del cliente y archivos subidos por usuarios
+internos. Los archivos de solicitud conservan un DTO mas minimo.
+
 ## Archivos de pedido
 
 `listPedidoFiles(pedidoId)` lista metadatos seguros de `archivos` para un pedido, sin devolver `file_path` ni URLs públicas al componente cliente.
