@@ -1,12 +1,13 @@
-import { NextResponse } from "next/server";
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
 import { createClient } from "@/lib/supabase/server";
-import { isValidUuid } from "@/lib/validators";
+import { GODEL_FILES_BUCKET } from "@/lib/storage";
 import {
-  GODEL_FILES_BUCKET,
-  createSignedFileUrl,
-} from "@/lib/storage";
+  fileDownloadErrorResponse,
+  fileNotAvailableResponse,
+  parseDownloadRouteIds,
+  redirectToSignedFileUrl,
+} from "@/lib/storage/download-route";
 
 type SolicitudFileDownloadRouteProps = {
   params: Promise<{
@@ -20,25 +21,24 @@ export async function GET(
   { params }: SolicitudFileDownloadRouteProps,
 ) {
   const { id, fileId } = await params;
-  const solicitudId = id.trim();
-  const archivoId = fileId.trim();
+  const routeIds = parseDownloadRouteIds({ ownerId: id, fileId });
 
-  if (!isValidUuid(solicitudId) || !isValidUuid(archivoId)) {
-    return new Response("Archivo no disponible.", { status: 404 });
+  if (!routeIds.ok) {
+    return routeIds.response;
   }
 
   const profile = await getCurrentProfile();
 
   if (!profile || !hasPermission(profile.role, "solicitudes.view")) {
-    return new Response("Archivo no disponible.", { status: 404 });
+    return fileNotAvailableResponse();
   }
 
   const supabase = await createClient();
   const { data: archivo, error } = await supabase
     .from("archivos")
     .select("id, solicitud_id, pedido_id, bucket")
-    .eq("id", archivoId)
-    .eq("solicitud_id", solicitudId)
+    .eq("id", routeIds.fileId)
+    .eq("solicitud_id", routeIds.ownerId)
     .maybeSingle<{
       id: string;
       solicitud_id: string | null;
@@ -48,21 +48,15 @@ export async function GET(
 
   if (error) {
     console.error("Error checking solicitud file before download", error);
-    return new Response("No se pudo preparar la descarga.", { status: 500 });
+    return fileDownloadErrorResponse(500);
   }
 
   if (
     !archivo ||
     archivo.bucket !== GODEL_FILES_BUCKET
   ) {
-    return new Response("Archivo no disponible.", { status: 404 });
+    return fileNotAvailableResponse();
   }
 
-  const signedUrlResult = await createSignedFileUrl(archivo.id);
-
-  if (!signedUrlResult.ok) {
-    return new Response("No se pudo preparar la descarga.", { status: 403 });
-  }
-
-  return NextResponse.redirect(signedUrlResult.url);
+  return redirectToSignedFileUrl(archivo.id);
 }

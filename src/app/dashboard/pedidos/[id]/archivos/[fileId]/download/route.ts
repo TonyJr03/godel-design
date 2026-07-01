@@ -1,7 +1,10 @@
-import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createSignedFileUrl } from "@/lib/storage";
-import { isValidUuid } from "@/lib/validators";
+import {
+  fileDownloadErrorResponse,
+  fileNotAvailableResponse,
+  parseDownloadRouteIds,
+  redirectToSignedFileUrl,
+} from "@/lib/storage/download-route";
 
 type PedidoFileDownloadRouteProps = {
   params: Promise<{
@@ -15,35 +18,28 @@ export async function GET(
   { params }: PedidoFileDownloadRouteProps,
 ) {
   const { id, fileId } = await params;
-  const pedidoId = id.trim();
-  const archivoId = fileId.trim();
+  const routeIds = parseDownloadRouteIds({ ownerId: id, fileId });
 
-  if (!isValidUuid(pedidoId) || !isValidUuid(archivoId)) {
-    return new Response("Archivo no disponible.", { status: 404 });
+  if (!routeIds.ok) {
+    return routeIds.response;
   }
 
   const supabase = await createClient();
   const { data: archivo, error } = await supabase
     .from("archivos")
     .select("id, pedido_id")
-    .eq("id", archivoId)
-    .eq("pedido_id", pedidoId)
+    .eq("id", routeIds.fileId)
+    .eq("pedido_id", routeIds.ownerId)
     .maybeSingle<{ id: string; pedido_id: string | null }>();
 
   if (error) {
     console.error("Error checking pedido file before download", error);
-    return new Response("No se pudo preparar la descarga.", { status: 500 });
+    return fileDownloadErrorResponse(500);
   }
 
   if (!archivo) {
-    return new Response("Archivo no disponible.", { status: 404 });
+    return fileNotAvailableResponse();
   }
 
-  const signedUrlResult = await createSignedFileUrl(archivo.id);
-
-  if (!signedUrlResult.ok) {
-    return new Response("No se pudo preparar la descarga.", { status: 403 });
-  }
-
-  return NextResponse.redirect(signedUrlResult.url);
+  return redirectToSignedFileUrl(archivo.id);
 }

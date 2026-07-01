@@ -63,6 +63,14 @@ limites, MIME, extensiones, carpetas, categorias ni formato de `file_path`.
 
 Los route handlers de descarga validan que el archivo pertenezca al pedido o solicitud de la ruta antes de redirigir a la signed URL.
 
+Los route handlers internos son la unica superficie de descarga. Los listados y
+componentes reciben solo metadata segura y enlaces a
+`/dashboard/.../archivos/[fileId]/download`; no reciben signed URLs, bucket ni
+`file_path`. La redireccion se crea bajo demanda despues de validar UUIDs,
+pertenencia por `pedido_id` o `solicitud_id`, permisos internos cuando aplica y
+RLS sobre `archivos`. La URL firmada mantiene la expiracion corta definida por
+`SIGNED_FILE_URL_EXPIRES_IN_SECONDS`.
+
 ## DTOs seguros de listado
 
 Los listados de archivos devuelven DTOs por allowlist. No devuelven
