@@ -111,6 +111,14 @@ Categoría automática por estado:
 
 El formulario no envía `visibility`, categoría, bucket, ruta, usuario, nombre, MIME ni tamaño como fuente de verdad. La policy de `archivos` y la policy de `storage.objects` vuelven a comprobar que el estado actual coincida con la categoría y la carpeta derivadas.
 
+La metadata de pedido se construye server-side antes del insert en `archivos`.
+El servicio fija `pedido_id`, `solicitud_id = null`, `uploaded_by` con el
+perfil interno actual, `bucket = godel-files`, `file_path` generado y
+`visibility` derivada del estado. Si el objeto ya se subio a Storage pero falla
+el insert de metadata, el servicio intenta borrar ese objeto como cleanup
+best-effort. Un fallo en ese cleanup se registra en servidor y no cambia el
+mensaje seguro que recibe la UI.
+
 ## Archivos públicos de solicitud
 
 `uploadPublicSolicitudFile(input)` procesa archivos enviados por clientes externos. La función fuerza la categoría `cliente_solicitud`, usa la ruta `solicitudes/{solicitud_id}/originales/{timestamp}-{uuid}-{filename}` y guarda metadatos en `archivos` con `pedido_id = null` y `uploaded_by = null`.
@@ -138,6 +146,13 @@ anónimo porque la API de Storage también requiere `SELECT`; un fallo
 excepcional puede dejar un objeto sin metadata, limitado por el cupo de cinco,
 que debe detectarse y limpiarse mediante reconciliación interna. Rate limiting,
 monitoreo y antivirus quedan como endurecimiento de producción.
+
+La metadata publica tambien se construye server-side. El cliente no controla
+`visibility`, bucket, `file_path`, `uploaded_by`, `file_name`, `file_type` ni
+`file_size`; esos valores salen del archivo real, la solicitud creada, el
+bucket oficial y el path generado por la aplicacion. Esta subfase documenta la
+deuda de objetos huerfanos, pero no implementa reconciliacion, borrado anonimo,
+rate limiting, captcha, antivirus ni monitoreo.
 
 La UI pública usa estas funciones para adjuntar archivos al crear la solicitud. El cliente no recibe URLs públicas ni URLs firmadas.
 

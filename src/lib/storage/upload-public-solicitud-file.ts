@@ -8,6 +8,7 @@ import {
 import { sanitizeFileName } from "./file-name";
 import { buildSolicitudFilePath } from "./file-paths";
 import { validateStorageFile } from "./file-validation";
+import { buildPublicSolicitudFileMetadata } from "./upload-metadata";
 import type {
   UploadPublicSolicitudFileInput,
   UploadPublicSolicitudFileResult,
@@ -59,18 +60,15 @@ export async function uploadPublicSolicitudFile(
 
     const { error: metadataError } = await supabase
       .from("archivos")
-      .insert({
-        id: fileId,
-        pedido_id: null,
-        solicitud_id: solicitudId,
-        uploaded_by: null,
-        file_name: safeFileName,
-        file_path: filePath,
-        file_type: input.file.type,
-        file_size: input.file.size,
-        bucket: GODEL_FILES_BUCKET,
-        visibility: "cliente_solicitud",
-      });
+      .insert(
+        buildPublicSolicitudFileMetadata({
+          fileId,
+          solicitudId,
+          fileName: safeFileName,
+          filePath,
+          file: input.file,
+        }),
+      );
 
     if (metadataError) {
       console.error(
