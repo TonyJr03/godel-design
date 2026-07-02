@@ -96,6 +96,13 @@ representan un feed completo de actividad reciente.
 
 La actividad reciente usa resúmenes construidos de forma controlada. No se muestra `metadata` cruda, JSON completo, `file_path`, rutas privadas ni URLs. Esta sección no es un sistema de notificaciones ni un reporte avanzado.
 
+Desde Beta 2.7.3, los mappers de actividad viven en `activity-mappers.ts`. Ese
+archivo mantiene los tipos de rows internas de historial y una allowlist
+explicita de campos de metadata que pueden convertirse en texto visible:
+`file_name`, `title`, `client_name`, `pedido_numero` y `order_number`. El loader
+`get-dashboard-activity.ts` conserva las queries, limites, orden y reglas por
+rol, y delega solo la transformacion segura a DTO.
+
 Los listados enlazados desde el dashboard mantienen sus búsquedas y filtros en
 la URL mediante `ListFiltersBar`. La consulta se ejecuta server-side tras un
 debounce de 200 ms y el trabajador continúa limitado a pedidos asignados.
