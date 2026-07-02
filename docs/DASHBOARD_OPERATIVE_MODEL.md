@@ -203,15 +203,15 @@ Definición sugerida de estados:
 | Pedidos atrasados | `estimated_delivery_date` vencida y estado distinto de `entregado` o `cancelado` |
 | Próximos vencimientos | `estimated_delivery_date` dentro de una ventana corta y estado activo |
 
-El dashboard mantiene una lectura operativa genérica y todavía no segmenta
-métricas por `workflow_type`. En encargos, las tareas son obligatorias para el
+El dashboard mantiene una lectura operativa genérica y segmenta las señales de
+tareas por `workflow_type`. En encargos, las tareas son obligatorias para el
 avance y su progreso agregado orienta la operación. En impresiones, el pedido
-puede avanzar directamente por los mismos estados sin tareas. La métrica
-existente de pedidos sin tareas aún incluye ambos flujos y puede señalar una
-impresión válida como atención pendiente; corregir esa semántica queda
-registrado como deuda del dashboard. `creado` y `solicitud_recibida` se
-consideran estados activos equivalentes en atención operativa, sin implementar
-gráficos avanzados, reportes financieros ni productividad.
+puede avanzar directamente por los mismos estados sin tareas. Desde Beta 2.7.4,
+la métrica de pedidos sin tareas y las señales de atención usan
+`doesPedidoWorkflowRequireTasks()`: solo `workflow_type = encargo` requiere
+tareas obligatorias. `creado` y `solicitud_recibida` se consideran estados
+activos equivalentes en atención operativa, sin implementar gráficos avanzados,
+reportes financieros ni productividad.
 
 ## Métricas futuras
 
@@ -239,12 +239,14 @@ src/lib/dashboard/get-dashboard-summary.ts
 src/lib/dashboard/get-dashboard-work-items.ts
 src/lib/dashboard/get-dashboard-activity.ts
 src/lib/dashboard/get-worker-dashboard.ts
+src/lib/dashboard/activity-mappers.ts
+src/lib/dashboard/helpers.ts
 src/lib/dashboard/types.ts
 src/lib/dashboard/index.ts
+src/components/dashboard/DashboardAttentionPanel.tsx
 src/components/dashboard/DashboardSummaryCards.tsx
 src/components/dashboard/DashboardWorkPanels.tsx
 src/components/dashboard/DashboardRecentActivity.tsx
-src/components/dashboard/WorkerDashboardPanel.tsx
 ```
 
 Responsabilidades:
@@ -259,7 +261,14 @@ Responsabilidades:
 | `DashboardSummaryCards.tsx` | Tarjetas de resumen sin consultas directas. |
 | `DashboardWorkPanels.tsx` | Paneles operativos simples sin consultas directas. |
 | `DashboardRecentActivity.tsx` | Lista simple de actividad reciente sin mostrar metadata cruda. |
-| `WorkerDashboardPanel.tsx` | Panel centrado en pedidos asignados. |
+| `DashboardAttentionPanel.tsx` | Indicadores prioritarios por rol. |
+| `activity-mappers.ts` | Mappers seguros de historial hacia textos visibles sin metadata cruda. |
+| `helpers.ts` | Estados, ventanas de fecha y `doesPedidoWorkflowRequireTasks()`. |
+
+El dashboard de trabajador no usa un panel separado llamado
+`WorkerDashboardPanel.tsx`. La vista worker esta integrada en
+`DashboardOverview`, `DashboardAttentionPanel` y `DashboardWorkPanels` usando
+DTOs `kind: "worker"`.
 
 ## Reglas de seguridad
 
@@ -314,6 +323,14 @@ tras un debounce de 200 ms; el componente cliente no consulta Supabase. En
 pedidos, RLS limita al trabajador a pedidos asignados.
 
 ## Cierre
+
+Actualizacion Beta 2.7.6: la deuda de `workflow_type` en metricas de tareas
+quedo corregida en Beta 2.7.4. El dashboard usa
+`doesPedidoWorkflowRequireTasks()` para que solo `workflow_type = encargo`
+requiera tareas obligatorias; `workflow_type = impresion` puede avanzar sin
+tareas internas. La vista worker esta integrada en `DashboardOverview`,
+`DashboardAttentionPanel` y `DashboardWorkPanels`; no existe un componente
+`WorkerDashboardPanel.tsx`.
 
 El dashboard operativo funciona como una capa de lectura server-side sobre los
 módulos existentes. Muestra trabajo pendiente y pedidos relevantes por rol sin

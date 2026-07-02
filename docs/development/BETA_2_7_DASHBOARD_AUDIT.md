@@ -481,3 +481,80 @@ bucket, `service_role`, `SUPABASE_SERVICE_ROLE_KEY` o datos Auth en dashboard.
 - [x] Reviso riesgos de exposicion.
 - [x] Propuso subfases.
 - [x] No modifico codigo funcional.
+
+## 13. Cierre documental Beta 2.7.6
+
+Estado de subfases:
+
+- [x] Beta 2.7.1 - Auditoria focal de Dashboard, actividad y work-items.
+- [x] Beta 2.7.2 - Consolidar tipos y DTOs de Dashboard.
+- [x] Beta 2.7.3 - Consolidar loaders y mappers de resumen/actividad.
+- [x] Beta 2.7.4 - Revisar work-items y dashboard de trabajador.
+- [x] Beta 2.7.5 - QA e2e focal de Dashboard por rol y estabilizacion de login e2e.
+- [x] Beta 2.7.6 - Cierre documental del dominio Dashboard.
+
+Estado final del dominio:
+
+- `/dashboard` consume `getDashboard()` como fachada principal.
+- `getDashboardContext()` resuelve perfil activo, valida `dashboard.view` y
+  clasifica el resultado como `management` o `worker`.
+- `types.ts` se mantiene como archivo unico de contratos del dominio; no se
+  dividio porque la separacion no reducia complejidad real.
+- DTOs y errores seguros quedaron consolidados sin metadata cruda, `file_path`,
+  bucket, signed URLs, datos Auth, `service_role`, `SUPABASE_SERVICE_ROLE_KEY`
+  ni errores SQL/Postgres expuestos a componentes.
+- `activity-mappers.ts` extrae mappers seguros de historial de pedidos y
+  solicitudes con allowlist de campos visibles.
+- Work-items y summary usan `workflow_type` para la regla "sin tareas".
+- `workflow_type` confirmado para Dashboard: `encargo` e `impresion`.
+- Solo `encargo` requiere tareas obligatorias; `impresion` puede avanzar sin
+  tareas internas.
+- `doesPedidoWorkflowRequireTasks()` centraliza esta decision.
+- El progreso de tareas se reutiliza desde Pedidos mediante
+  `loadTaskProgressByPedidoId`.
+- El dashboard de trabajador esta integrado en `DashboardOverview`,
+  `DashboardAttentionPanel` y `DashboardWorkPanels` con DTOs `kind: "worker"`;
+  no existe `WorkerDashboardPanel.tsx`.
+- `trabajador` no recibe solicitudes generales, clientes globales,
+  usuarios/perfiles globales ni pedidos no asignados.
+- `admin` y `supervisor` mantienen vista global de operacion; `supervisor` no
+  recibe usuarios/configuracion.
+- Los componentes de Dashboard no consultan Supabase y no son autoridad de
+  permisos.
+- Proxy, loaders server-side y RLS siguen siendo la defensa efectiva por rol.
+
+QA final registrado:
+
+- `tests/e2e/dashboard.spec.ts` cubre dashboard admin, supervisor y trabajador,
+  rutas protegidas, visibilidad por rol y ausencia visible de terminos
+  sensibles.
+- `tests/e2e/helpers/assertions.ts` incluye terminos sensibles de Dashboard y
+  Storage: `file_path`, bucket, `godel-files`, signed URLs, `metadata`,
+  `auth.users`, `service_role`, `SUPABASE_SERVICE_ROLE_KEY`, `SQL`, `Postgres`
+  y stack traces.
+- `tests/e2e/helpers/auth.ts` quedo endurecido para ejecucion paralela:
+  limpia cookies/storage, espera boton habilitado, espera URL final
+  `/dashboard` y espera heading renderizado.
+- Suite e2e Chromium local actual: 23 tests, 23/23 pasando en paralelo despues
+  del ajuste de `loginAs`.
+
+Deudas tecnicas reales:
+
+- Summary management usa varias queries independientes; aceptable para MVP,
+  medir antes de optimizar.
+- Si crecen metricas o volumen, evaluar RPC o agregacion dedicada en fase
+  explicita.
+- El dashboard no debe convertirse en sistema analitico complejo sin decision
+  funcional.
+- Full visual QA sigue dependiendo del build con Google Fonts/red.
+- Mantener vigilancia de QA por rol si cambian permisos, RLS o navegacion.
+- Cualquier cambio de permisos debe coordinar TypeScript, RLS, documentacion y
+  QA.
+- La estabilidad e2e paralela debe seguir observandose en CI, aunque la suite
+  local paso 23/23 en paralelo despues del ajuste.
+
+Restricciones de cierre:
+
+- No se modifico codigo funcional en Beta 2.7.6.
+- No se tocaron componentes, servicios TypeScript, tests, migraciones, RLS,
+  policies, route handlers ni dependencias.
