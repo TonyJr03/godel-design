@@ -7,26 +7,10 @@ import {
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
-import type { Tables } from "@/types/database";
-
-export type TaskTemplateTask = Pick<
-  Tables<"trabajo_plantilla_tareas">,
-  | "id"
-  | "template_id"
-  | "title"
-  | "task_type"
-  | "target_quantity"
-  | "sort_order"
-  | "created_at"
-  | "updated_at"
->;
-
-export type ListTaskTemplateTasksErrorReason =
-  | "unauthorized"
-  | "forbidden"
-  | "invalid_id"
-  | "not_found"
-  | "error";
+import type {
+  ListTaskTemplateTasksErrorReason,
+  TaskTemplateTask,
+} from "./types";
 
 export type ListTaskTemplateTasksResult = ServiceResult<
   { tasks: TaskTemplateTask[] },

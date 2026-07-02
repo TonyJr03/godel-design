@@ -7,23 +7,12 @@ import {
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
-import {
-  validateTaskTemplateInput,
-  type TaskTemplateFieldErrors,
-  type TaskTemplateInput,
-} from "./task-template-validation";
-
-export type UpdateTaskTemplateInput = TaskTemplateInput & {
-  id?: string | null;
-};
-
-export type UpdateTaskTemplateErrorReason =
-  | "unauthorized"
-  | "forbidden"
-  | "invalid_id"
-  | "validation"
-  | "not_found"
-  | "error";
+import { validateTaskTemplateInput } from "./task-template-validation";
+import type {
+  TaskTemplateFieldErrors,
+  UpdateTaskTemplateErrorReason,
+  UpdateTaskTemplateInput,
+} from "./types";
 
 export type UpdateTaskTemplateResult = ServiceResult<
   Record<never, never>,

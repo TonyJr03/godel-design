@@ -6,17 +6,12 @@ import {
   type ServiceResult,
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
-import {
-  validateTaskTemplateInput,
-  type TaskTemplateFieldErrors,
-  type TaskTemplateInput,
-} from "./task-template-validation";
-
-export type CreateTaskTemplateErrorReason =
-  | "unauthorized"
-  | "forbidden"
-  | "validation"
-  | "error";
+import { validateTaskTemplateInput } from "./task-template-validation";
+import type {
+  CreateTaskTemplateErrorReason,
+  TaskTemplateFieldErrors,
+  TaskTemplateInput,
+} from "./types";
 
 export type CreateTaskTemplateResult = ServiceResult<
   { templateId: string },

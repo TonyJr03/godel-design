@@ -8,25 +8,13 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
 import type { TablesUpdate } from "@/types/database";
-import {
-  parseTaskTemplateTaskTitle,
-  type TaskTemplateTaskFieldErrors,
-} from "./task-template-task-validation";
-import type { TaskTemplateTaskActionValues } from "./create-task-template-task";
-
-export type UpdateTaskTemplateTaskInput = {
-  templateId: string;
-  taskId: string;
-  title: string;
-};
-
-export type UpdateTaskTemplateTaskErrorReason =
-  | "unauthorized"
-  | "forbidden"
-  | "invalid_id"
-  | "not_found"
-  | "validation"
-  | "error";
+import { parseTaskTemplateTaskTitle } from "./task-template-task-validation";
+import type {
+  TaskTemplateTaskActionValues,
+  TaskTemplateTaskFieldErrors,
+  UpdateTaskTemplateTaskErrorReason,
+  UpdateTaskTemplateTaskInput,
+} from "./types";
 
 export type UpdateTaskTemplateTaskResult = ServiceResult<
   Record<never, never>,

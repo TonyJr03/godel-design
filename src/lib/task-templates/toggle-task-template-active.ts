@@ -7,19 +7,10 @@ import {
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
-
-export type ToggleTaskTemplateActiveInput = {
-  id?: string | null;
-  isActive?: boolean | null;
-};
-
-export type ToggleTaskTemplateActiveErrorReason =
-  | "unauthorized"
-  | "forbidden"
-  | "invalid_id"
-  | "validation"
-  | "not_found"
-  | "error";
+import type {
+  ToggleTaskTemplateActiveErrorReason,
+  ToggleTaskTemplateActiveInput,
+} from "./types";
 
 export type ToggleTaskTemplateActiveResult = ServiceResult<
   Record<never, never>,

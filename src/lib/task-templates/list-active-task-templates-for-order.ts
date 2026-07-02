@@ -5,18 +5,10 @@ import {
   type ServiceResult,
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
-import type { Tables } from "@/types/database";
-
-export type ActiveTaskTemplateForOrder = Pick<
-  Tables<"trabajo_plantillas">,
-  "id" | "name" | "description"
-> & {
-  tasksCount: number;
-};
-
-export type ListActiveTaskTemplatesForOrderErrorReason =
-  | "unauthorized"
-  | "error";
+import type {
+  ActiveTaskTemplateForOrder,
+  ListActiveTaskTemplatesForOrderErrorReason,
+} from "./types";
 
 export type ListActiveTaskTemplatesForOrderResult = ServiceResult<
   { templates: ActiveTaskTemplateForOrder[] },

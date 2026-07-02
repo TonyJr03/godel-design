@@ -7,24 +7,10 @@ import {
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
-import type { Tables } from "@/types/database";
-
-export type TaskTemplateDetail = Pick<
-  Tables<"trabajo_plantillas">,
-  | "id"
-  | "name"
-  | "description"
-  | "is_active"
-  | "created_at"
-  | "updated_at"
->;
-
-export type GetTaskTemplateByIdErrorReason =
-  | "unauthorized"
-  | "forbidden"
-  | "invalid_id"
-  | "not_found"
-  | "error";
+import type {
+  GetTaskTemplateByIdErrorReason,
+  TaskTemplateDetail,
+} from "./types";
 
 export type GetTaskTemplateByIdResult = ServiceResult<
   { template: TaskTemplateDetail },

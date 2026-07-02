@@ -6,28 +6,11 @@ import {
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
-
-export type ApplyTaskTemplateToPedidoInput = {
-  pedidoId: string;
-  templateId: string;
-};
-
-export type ApplyTaskTemplateField = "pedido_id" | "template_id";
-
-export type ApplyTaskTemplateFieldErrors = Partial<
-  Record<ApplyTaskTemplateField, string>
->;
-
-export type ApplyTaskTemplateToPedidoErrorReason =
-  | "unauthorized"
-  | "invalid_id"
-  | "not_found"
-  | "workflow_blocked"
-  | "status_blocked"
-  | "template_inactive"
-  | "template_empty"
-  | "forbidden"
-  | "error";
+import type {
+  ApplyTaskTemplateFieldErrors,
+  ApplyTaskTemplateToPedidoErrorReason,
+  ApplyTaskTemplateToPedidoInput,
+} from "./types";
 
 export type ApplyTaskTemplateToPedidoResult = ServiceResult<
   { insertedCount: number },

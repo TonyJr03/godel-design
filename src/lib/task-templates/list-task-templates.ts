@@ -6,24 +6,10 @@ import {
   type ServiceResult,
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
-import type { Tables } from "@/types/database";
-
-export type TaskTemplateListItem = Pick<
-  Tables<"trabajo_plantillas">,
-  | "id"
-  | "name"
-  | "description"
-  | "is_active"
-  | "created_at"
-  | "updated_at"
-> & {
-  tasksCount: number;
-};
-
-export type ListTaskTemplatesErrorReason =
-  | "unauthorized"
-  | "forbidden"
-  | "error";
+import type {
+  ListTaskTemplatesErrorReason,
+  TaskTemplateListItem,
+} from "./types";
 
 export type ListTaskTemplatesResult = ServiceResult<
   { templates: TaskTemplateListItem[] },
