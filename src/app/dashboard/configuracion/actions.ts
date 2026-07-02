@@ -1,6 +1,11 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import {
+  actionFailure,
+  actionSuccess,
+  type BaseActionState,
+} from "@/lib/actions/action-state";
+import { revalidateTaskTemplatesList } from "@/lib/actions/revalidation";
 import {
   createTaskTemplate,
   toggleTaskTemplateActive,
@@ -9,11 +14,8 @@ import {
 } from "@/lib/task-templates";
 import { getFormValue } from "@/lib/utils";
 
-export type TaskTemplateActionState = {
-  ok: boolean;
-  message: string;
-  fieldErrors?: TaskTemplateFieldErrors;
-};
+export type TaskTemplateActionState =
+  BaseActionState<TaskTemplateFieldErrors>;
 
 export async function createTaskTemplateAction(
   _prevState: TaskTemplateActionState,
@@ -25,19 +27,14 @@ export async function createTaskTemplateAction(
   });
 
   if (!result.ok) {
-    return {
-      ok: false,
-      message: result.message,
+    return actionFailure(result.message, {
       fieldErrors: result.fieldErrors,
-    };
+    });
   }
 
-  revalidatePath("/dashboard/configuracion");
+  revalidateTaskTemplatesList();
 
-  return {
-    ok: true,
-    message: "Plantilla creada correctamente.",
-  };
+  return actionSuccess("Plantilla creada correctamente.");
 }
 
 export async function updateTaskTemplateAction(
@@ -51,19 +48,14 @@ export async function updateTaskTemplateAction(
   });
 
   if (!result.ok) {
-    return {
-      ok: false,
-      message: result.message,
+    return actionFailure(result.message, {
       fieldErrors: result.fieldErrors,
-    };
+    });
   }
 
-  revalidatePath("/dashboard/configuracion");
+  revalidateTaskTemplatesList();
 
-  return {
-    ok: true,
-    message: "Plantilla actualizada correctamente.",
-  };
+  return actionSuccess("Plantilla actualizada correctamente.");
 }
 
 export async function toggleTaskTemplateActiveAction(
@@ -82,19 +74,14 @@ export async function toggleTaskTemplateActiveAction(
   });
 
   if (!result.ok) {
-    return {
-      ok: false,
-      message: result.message,
-    };
+    return actionFailure(result.message);
   }
 
-  revalidatePath("/dashboard/configuracion");
+  revalidateTaskTemplatesList();
 
-  return {
-    ok: true,
-    message:
-      isActiveValue === "true"
-        ? "Plantilla activada correctamente."
-        : "Plantilla desactivada correctamente.",
-  };
+  return actionSuccess(
+    isActiveValue === "true"
+      ? "Plantilla activada correctamente."
+      : "Plantilla desactivada correctamente.",
+  );
 }

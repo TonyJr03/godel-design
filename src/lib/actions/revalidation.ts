@@ -18,6 +18,15 @@ export function revalidateUsuariosList() {
   revalidatePath("/dashboard/usuarios");
 }
 
+export function revalidateTaskTemplatesList() {
+  revalidatePath("/dashboard/configuracion");
+}
+
+export function revalidateTaskTemplateDetail(templateId: string) {
+  revalidateTaskTemplatesList();
+  revalidatePath(`/dashboard/configuracion/plantillas/${templateId}`);
+}
+
 export function revalidateUsuarioDetail(userId: string) {
   revalidateUsuariosList();
   revalidatePath(`/dashboard/usuarios/${userId}`);
