@@ -3,6 +3,7 @@ import type { Enums } from "@/types/database";
 
 export type SolicitudEstado = Enums<"solicitud_estado">;
 export type PedidoEstado = Enums<"pedido_estado">;
+export type PedidoWorkflowType = Enums<"workflow_type">;
 
 export type DashboardDateWindow = {
   today: string;
@@ -12,6 +13,10 @@ export type DashboardDateWindow = {
 export type PedidoDeliveryStatusInput = {
   status: PedidoEstado;
   estimated_delivery_date: string | null;
+};
+
+export type PedidoTaskRequirementInput = {
+  workflow_type: PedidoWorkflowType;
 };
 
 export const SUMMARY_PENDING_SOLICITUD_STATUSES: readonly SolicitudEstado[] = [
@@ -57,6 +62,12 @@ export function isPedidoActivo(status: PedidoEstado): boolean {
 
 export function isPedidoPendingReview(status: PedidoEstado): boolean {
   return PENDING_REVIEW_PEDIDO_STATUSES.includes(status);
+}
+
+export function doesPedidoWorkflowRequireTasks(
+  pedido: PedidoTaskRequirementInput,
+): boolean {
+  return pedido.workflow_type === "encargo";
 }
 
 export function isPedidoAtrasado(

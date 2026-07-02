@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
+import { loadTaskProgressByPedidoId } from "@/lib/pedidos/list-internal-pedidos-progress";
 import type { WorkerDashboardContext } from "./context";
 import {
+  doesPedidoWorkflowRequireTasks,
   getDashboardDateWindow,
   isPedidoActivo,
   isPedidoAtrasado,
@@ -16,14 +18,13 @@ import type {
 
 type AssignedPedidoSummaryRow = Pick<
   Tables<"pedidos">,
-  "id" | "status" | "estimated_delivery_date"
+  "id" | "status" | "estimated_delivery_date" | "workflow_type"
 >;
-
-type PedidoTaskPedidoIdRow = Pick<Tables<"pedido_tareas">, "pedido_id">;
 
 const ASSIGNED_PEDIDOS_SUMMARY_SELECT = `
   id,
   status,
+  workflow_type,
   estimated_delivery_date,
   pedido_trabajadores!inner(assigned_profile_id)
 `;
@@ -49,6 +50,7 @@ function buildWorkerMetrics(
     ).length,
     pedidosAsignadosSinTareas: pedidos.filter(
       (pedido) =>
+        doesPedidoWorkflowRequireTasks(pedido) &&
         (isPedidoPendingReview(pedido.status) ||
           pedido.status === "en_revision") &&
         !pedidoIdsWithTasks.has(pedido.id),
@@ -87,27 +89,14 @@ export async function loadWorkerDashboardSummary(
 
     const pedidos = data ?? [];
     const pedidoIds = pedidos.map((pedido) => pedido.id);
-    const { data: tasks, error: tasksError } =
-      pedidoIds.length > 0
-        ? await supabase
-            .from("pedido_tareas")
-            .select("pedido_id")
-            .in("pedido_id", pedidoIds)
-            .returns<PedidoTaskPedidoIdRow[]>()
-        : { data: [] as PedidoTaskPedidoIdRow[], error: null };
-
-    if (tasksError) {
-      console.error("Error loading worker task summary", tasksError);
-
-      return {
-        ok: false,
-        reason: "error",
-        message: GENERIC_WORKER_SUMMARY_ERROR,
-      };
-    }
-
+    const progressByPedidoId = await loadTaskProgressByPedidoId(
+      supabase,
+      pedidoIds,
+    );
     const pedidoIdsWithTasks = new Set(
-      (tasks ?? []).map((task) => task.pedido_id),
+      [...progressByPedidoId.entries()]
+        .filter(([, progress]) => progress.hasTasks)
+        .map(([pedidoId]) => pedidoId),
     );
 
     return {

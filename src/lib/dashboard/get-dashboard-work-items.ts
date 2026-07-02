@@ -1,13 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
-import {
-  calculatePedidoTasksProgressByPedidoId,
-  type PedidoTaskProgressByPedidoInput,
-  type PedidoTasksProgress,
-} from "@/lib/pedidos";
+import { loadTaskProgressByPedidoId } from "@/lib/pedidos/list-internal-pedidos-progress";
+import type { PedidoTasksProgress } from "@/lib/pedidos";
 import { getSolicitudServiceTypeLabel } from "@/lib/solicitudes";
 import type { Tables } from "@/types/database";
 import type { DashboardContext } from "./context";
 import {
+  doesPedidoWorkflowRequireTasks,
   getDashboardDateWindow,
   isPedidoAtrasado,
   isPedidoPendingReview,
@@ -41,6 +39,7 @@ type PedidoWorkRow = Pick<
   | "title"
   | "status"
   | "priority"
+  | "workflow_type"
   | "estimated_delivery_date"
   | "created_at"
 > & {
@@ -62,6 +61,7 @@ const PEDIDOS_WORK_SELECT = `
   title,
   status,
   priority,
+  workflow_type,
   estimated_delivery_date,
   created_at,
   clientes(name)
@@ -83,13 +83,23 @@ const EMPTY_TASK_PROGRESS: PedidoTasksProgress = {
   isComplete: false,
 };
 
-const TASK_PROGRESS_SELECT = `
-  pedido_id,
-  task_type,
-  target_quantity,
-  completed_quantity,
-  is_completed
-`;
+function isReviewWithoutRequiredTasks(pedido: PedidoWorkWithProgress): boolean {
+  return (
+    pedido.status === "en_revision" &&
+    doesPedidoWorkflowRequireTasks(pedido) &&
+    !pedido.progress.hasTasks
+  );
+}
+
+function isProductionWithPendingRequiredTasks(
+  pedido: PedidoWorkWithProgress,
+): boolean {
+  return (
+    pedido.status === "en_produccion" &&
+    doesPedidoWorkflowRequireTasks(pedido) &&
+    !pedido.progress.isComplete
+  );
+}
 
 function getPedidoAttentionRank(
   pedido: PedidoWorkWithProgress,
@@ -108,11 +118,11 @@ function getPedidoAttentionRank(
     return 2;
   }
 
-  if (pedido.status === "en_revision" && !pedido.progress.hasTasks) {
+  if (isReviewWithoutRequiredTasks(pedido)) {
     return 3;
   }
 
-  if (pedido.status === "en_produccion" && !pedido.progress.isComplete) {
+  if (isProductionWithPendingRequiredTasks(pedido)) {
     return 4;
   }
 
@@ -198,41 +208,26 @@ function mapPedidoItem(
       isPendingReview: isPedidoPendingReview(pedido.status),
       isOverdue: isPedidoAtrasado(pedido, today),
       isDueSoon: isPedidoProximoEntrega(pedido, today, nextSevenDays),
-      isReviewWithoutTasks:
-        pedido.status === "en_revision" && !pedido.progress.hasTasks,
+      isReviewWithoutTasks: isReviewWithoutRequiredTasks(pedido),
       isProductionWithPendingTasks:
-        pedido.status === "en_produccion" && !pedido.progress.isComplete,
+        isProductionWithPendingRequiredTasks(pedido),
       isReadyForDelivery: pedido.status === "listo_entrega",
     },
   };
 }
 
 async function attachTaskProgressToPedidos(
+  supabase: Awaited<ReturnType<typeof createClient>>,
   pedidos: PedidoWorkRow[],
 ): Promise<PedidoWorkWithProgress[]> {
   if (pedidos.length === 0) {
     return [];
   }
 
-  const supabase = await createClient();
   const pedidoIds = pedidos.map((pedido) => pedido.id);
-  const { data, error } = await supabase
-    .from("pedido_tareas")
-    .select(TASK_PROGRESS_SELECT)
-    .in("pedido_id", pedidoIds)
-    .returns<PedidoTaskProgressByPedidoInput[]>();
-
-  if (error) {
-    throw new Error(
-      `progreso de pedidos operativos: ${
-        error.message ?? "Supabase query error"
-      }`,
-    );
-  }
-
-  const progressByPedidoId = calculatePedidoTasksProgressByPedidoId(
+  const progressByPedidoId = await loadTaskProgressByPedidoId(
+    supabase,
     pedidoIds,
-    data ?? [],
   );
 
   return pedidos.map((pedido) => ({
@@ -293,7 +288,7 @@ async function listManagementAttentionPedidos(
     );
   }
 
-  const pedidos = await attachTaskProgressToPedidos(data ?? []);
+  const pedidos = await attachTaskProgressToPedidos(supabase, data ?? []);
 
   return sortPedidosByAttention(pedidos, today, nextSevenDays)
     .slice(0, PEDIDOS_ATTENTION_LIMIT)
@@ -324,7 +319,7 @@ async function listWorkerAssignedPedidos(
     );
   }
 
-  const pedidos = await attachTaskProgressToPedidos(data ?? []);
+  const pedidos = await attachTaskProgressToPedidos(supabase, data ?? []);
 
   return sortPedidosByAttention(pedidos, today, nextSevenDays)
     .slice(0, PEDIDOS_ATTENTION_LIMIT)

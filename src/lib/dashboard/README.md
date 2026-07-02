@@ -50,8 +50,7 @@ Los tipos de filas y shapes de queries permanecen internos a los loaders.
 - Pedidos activos.
 - Pedidos en producción.
 - Pedidos listos para entrega.
-- Pedidos pendientes de revisión o en revisión sin tareas. Esta métrica todavía
-  incluye impresiones, aunque ese flujo no requiere tareas para avanzar.
+- Pedidos de tipo `encargo` pendientes de revisión o en revisión sin tareas.
 - Pedidos atrasados.
 - Pedidos próximos a entrega.
 - Clientes registrados.
@@ -61,8 +60,8 @@ Los tipos de filas y shapes de queries permanecen internos a los loaders.
 - Pedidos asignados activos.
 - Pedidos asignados en producción.
 - Pedidos asignados listos para entrega.
-- Pedidos asignados pendientes de revisión o en revisión sin tareas. Esta
-  métrica todavía no diferencia el flujo de impresión.
+- Pedidos asignados de tipo `encargo` pendientes de revisión o en revisión sin
+  tareas.
 - Pedidos asignados atrasados.
 - Pedidos asignados próximos a entrega.
 - Total de pedidos asignados.
@@ -83,10 +82,11 @@ El trabajador no recibe solicitudes generales, clientes generales ni usuarios in
 Estos paneles son listas simples con enlaces internos a detalles de solicitud o
 pedido. Los pedidos `creado` y `solicitud_recibida` se consideran activos, se
 priorizan como pendientes de revisión y siguen mostrando `Sin tareas` cuando
-corresponde. Esa señal aún incluye impresiones sin tareas, aunque puedan avanzar
-válidamente; el ajuste por `workflow_type` queda como deuda del dashboard. No
-son reportes, no tienen paginación, no implementan filtros avanzados y no
-representan un feed completo de actividad reciente.
+corresponde. Desde Beta 2.7.4, las señales de tareas pendientes solo aplican a
+pedidos `workflow_type = encargo`; los pedidos `workflow_type = impresion`
+pueden avanzar validamente sin tareas internas. No son reportes, no tienen
+paginación, no implementan filtros avanzados y no representan un feed completo
+de actividad reciente.
 
 ## Actividad reciente mínima
 
