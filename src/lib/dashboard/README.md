@@ -22,6 +22,26 @@ Esta capa contiene servicios server-side para calcular métricas básicas del da
 
 Los loaders internos no se exportan desde el barrel del módulo. La API pública prevista para la página es `getDashboard()`.
 
+## Contratos de tipos y DTOs
+
+Decision Beta 2.7.2: se mantiene `src/lib/dashboard/types.ts` como archivo
+unico de contratos del dominio. El tamano actual sigue siendo legible y la
+division en `summary-types.ts`, `work-items-types.ts` y `activity-types.ts`
+agregaria imports sin reducir complejidad real.
+
+Los tipos se organizan por rol y subflujo:
+
+- roles `management` (`admin` y `supervisor`) y `worker` (`trabajador`);
+- resumen operativo por rol;
+- work-items por rol;
+- actividad reciente por rol;
+- errores seguros compartidos por los resultados del dashboard.
+
+Los DTOs visibles son allowlists para componentes. No exponen filas completas
+de tablas, metadata cruda, `file_path`, bucket, signed URLs, datos de Auth,
+errores SQL/Postgres/Supabase ni metricas financieras agregadas no decididas.
+Los tipos de filas y shapes de queries permanecen internos a los loaders.
+
 ## Métricas de admin y supervisor
 
 - Solicitudes nuevas.
