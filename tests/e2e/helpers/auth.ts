@@ -57,9 +57,28 @@ export async function loginAs(page: Page, role: QaRole) {
     return;
   }
 
-  await page.goto("/login");
+  await page.context().clearCookies();
+  await page.goto("/login", { waitUntil: "domcontentloaded" });
+  await page.evaluate(() => {
+    window.localStorage.clear();
+    window.sessionStorage.clear();
+  });
+
   await page.getByLabel(/correo/i).fill(credentials.email);
   await page.getByLabel(/contrase.a|contrasena/i).fill(credentials.password);
-  await page.getByRole("button", { name: /entrar al workspace/i }).click();
-  await expect(page).toHaveURL(/\/dashboard/);
+
+  const submitButton = page.getByRole("button", {
+    name: /entrar al workspace/i,
+  });
+
+  await expect(submitButton).toBeEnabled();
+  await submitButton.click();
+  await expect(page).toHaveURL(/\/dashboard(?:\/)?(?:[?#].*)?$/, {
+    timeout: 20_000,
+  });
+  await expect(
+    page.getByRole("heading", {
+      name: /dashboard operativo|mi trabajo asignado/i,
+    }),
+  ).toBeVisible({ timeout: 20_000 });
 }

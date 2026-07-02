@@ -2,15 +2,22 @@ import { expect, type Page } from "@playwright/test";
 
 const internalSensitivePatterns = [
   /\bauth\.users\b/i,
+  /\bbucket\b/i,
   /\bcliente_id\b/i,
+  /\bcreateSignedUrl\b/i,
   /\bfile_path\b/i,
+  /\bgodel-files\b/i,
+  /\bmetadata\b/i,
   /\border_number\b/i,
   /\bpassword\b/i,
   /\bperfil_id\b/i,
   /\bPostgres\b/i,
   /\bservice_role\b/i,
+  /\bsigned URL\b/i,
+  /\bsignedUrl\b/i,
   /\bSQL\b/i,
   /\bstack trace\b/i,
+  /\bstorage\.objects\b/i,
   /\bSUPABASE_SERVICE_ROLE_KEY\b/i,
 ];
 
