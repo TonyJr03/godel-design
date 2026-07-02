@@ -35,10 +35,10 @@ Puntos fuertes:
 - No se detecta `service_role`, `SUPABASE_SERVICE_ROLE_KEY`, `auth.users` ni
   Supabase directo en componentes.
 
-Riesgos principales:
+Riesgos principales detectados en Beta 2.8.1:
 
-- Tipos, reasons y DTOs estan dispersos por archivo; conviene crear
-  `src/lib/task-templates/types.ts`.
+- Tipos, reasons y DTOs estaban dispersos por archivo; resuelto en Beta 2.8.2
+  con `src/lib/task-templates/types.ts`.
 - Mensajes genericos, razones de error y `ActionState` se repiten en actions y
   servicios.
 - El parsing de errores de la RPC vive dentro de
@@ -47,8 +47,8 @@ Riesgos principales:
 - Crear, eliminar y reordenar tareas de plantilla hace varias operaciones
   Supabase fuera de una RPC; es aceptable para MVP, pero puede dejar orden
   parcialmente normalizado si una actualizacion intermedia falla.
-- No existe spec e2e focal de Configuracion/templates; full visual QA cubre
-  tareas manuales y workflow, pero no plantillas.
+- No existia spec e2e focal de Configuracion/templates; resuelto en Beta 2.8.5
+  con `tests/e2e/task-templates.spec.ts`.
 
 Recomendacion general: consolidar primero tipos, errores y validaciones del
 dominio; despues reducir duplicacion en Server Actions/revalidacion; luego
@@ -59,7 +59,7 @@ focal y documentacion.
 
 | Archivo | Responsabilidad | Riesgo | Recomendacion |
 | ------- | --------------- | ------ | ------------- |
-| `index.ts` | Barrel publico del dominio. Exporta servicios, validaciones y tipos definidos por archivo. | Bajo: correcto, pero exporta muchos tipos dispersos. | Mantener; cuando exista `types.ts`, exponer contratos desde ahi. |
+| `index.ts` | Barrel publico del dominio. Exporta servicios, validaciones y contratos compartidos desde `types.ts`. | Bajo. | Mantener como API publica del dominio. |
 | `task-template-validation.ts` | Valida nombre y descripcion de plantilla; define field errors e input. | Bajo. | Mantener y reexportar tipos desde `types.ts` si se crea. |
 | `task-template-task-validation.ts` | Reutiliza `parsePedidoTaskTitle` para parsear titulo, tipo y cantidad de tarea de plantilla. | Bajo: buena reutilizacion con Pedidos. | Mantener esta dependencia explicita; no duplicar parseo. |
 | `list-task-templates.ts` | Lista plantillas para Configuracion, con conteo de tareas. Requiere `configuracion.view`. | Medio: hace query de plantillas y conteo manual por tareas. | Mantener por ahora; si crece, extraer mapper/query helper. |
@@ -151,7 +151,8 @@ Actions:
 
 Revalidacion:
 
-- Existe helper local `revalidateTaskTemplateDetail(templateId)` que revalida:
+- Existe helper centralizado `revalidateTaskTemplateDetail(templateId)` en
+  `src/lib/actions/revalidation.ts` que revalida:
   - `/dashboard/configuracion`;
   - `/dashboard/configuracion/plantillas/${templateId}`.
 
@@ -285,10 +286,9 @@ Tipos existentes:
 - `TaskTemplateTaskFieldErrors`
 - `ApplyTaskTemplateFieldErrors`
 
-Estado actual: los tipos son correctos, pero estan dispersos por archivo. Esto
-era razonable al crecer incrementalmente el dominio; para Beta 2.8 conviene
-crear `src/lib/task-templates/types.ts` y mover alli contratos compartidos,
-sin cambiar comportamiento.
+Estado final: los tipos compartidos viven en
+`src/lib/task-templates/types.ts`. Esto incluye DTOs, inputs, field errors y
+reasons. Los `ServiceResult` especificos permanecen locales por operacion.
 
 Validaciones:
 
@@ -349,13 +349,13 @@ Patrones:
 
 Revalidaciones:
 
-- Configuracion revalida `/dashboard/configuracion` manualmente.
-- Detalle usa helper local `revalidateTaskTemplateDetail(templateId)`.
+- Configuracion usa `revalidateTaskTemplatesList()`.
+- Detalle usa `revalidateTaskTemplateDetail(templateId)`.
 - Pedido usa helper transversal `revalidatePedidoDetail(pedidoId)`.
 
-Recomendacion: crear helpers de revalidacion de Configuracion en
-`src/lib/actions/revalidation.ts` y evaluar un action-state comun para
-task-templates, siguiendo el patron ya usado por Pedido, Clientes y Usuarios.
+Estado final: los helpers de revalidacion de Configuracion viven en
+`src/lib/actions/revalidation.ts`; las Server Actions usan helpers comunes de
+action-state y permanecen como adaptadores finos.
 
 ## 10. Relacion con Pedidos y workflow_type
 
@@ -397,17 +397,17 @@ Cobertura actual:
 - `dashboard.spec.ts` cubre ausencia de enlace a `/dashboard/configuracion`
   para supervisor y trabajador, pero no visita la ruta de Configuracion.
 
-Huecos:
+Huecos detectados en Beta 2.8.1 y cerrados en Beta 2.8.5:
 
-- No hay spec e2e focal de Configuracion/templates.
-- No se cubre crear plantilla.
-- No se cubre editar plantilla.
-- No se cubre activar/desactivar plantilla.
-- No se cubre detalle de plantilla.
-- No se cubre crear/editar/eliminar/reordenar tareas de plantilla.
-- No se cubre aplicar plantilla a pedido `encargo`.
-- No se cubre intento de aplicar plantilla a `impresion`.
-- No se cubre que supervisor/worker no puedan acceder a
+- Spec e2e focal de Configuracion/templates.
+- Crear plantilla.
+- Editar plantilla.
+- Activar/desactivar plantilla.
+- Detalle de plantilla.
+- Crear/editar/eliminar/reordenar tareas de plantilla.
+- Aplicar plantilla a pedido `encargo`.
+- Confirmar ausencia de selector en pedido `impresion`.
+- Confirmar que supervisor/worker no puedan acceder a
   `/dashboard/configuracion`.
 
 Casos recomendados sin crear datos peligrosos:
@@ -431,7 +431,7 @@ Casos recomendados sin crear datos peligrosos:
 | Medio | Atomicidad | Crear/eliminar/reordenar tareas de plantilla usa varias operaciones Supabase secuenciales. | Orden parcialmente normalizado ante error intermedio o concurrencia. | Evaluar RPC transaccional solo si QA/uso real lo justifica. |
 | Medio | QA | No existe e2e focal de Configuracion/templates. | Cambios futuros dependen de full QA indirecto. | Crear spec focal en Beta 2.8.5. |
 | Bajo | Server Actions | ActionState y mensajes se repiten en actions de Configuracion/detalle. | Mantenimiento repetitivo. | Reusar helpers de `src/lib/actions` o crear helpers locales. |
-| Bajo | Revalidacion | Configuracion usa revalidaciones manuales/locales. | Omisiones futuras si se agregan rutas. | Agregar `revalidateTaskTemplatesList` y `revalidateTaskTemplateDetail`. |
+| Bajo | Revalidacion | Resuelto en Beta 2.8.3: Configuracion usa helpers centralizados. | Bajo; mantener los helpers al agregar rutas. | Usar `revalidateTaskTemplatesList` y `revalidateTaskTemplateDetail`. |
 | Bajo | Listados | Conteo de tareas se calcula con segunda query y Map. | Suficiente para MVP; puede crecer en costo. | Medir antes de optimizar; evitar RPC prematura. |
 | Bajo | Permisos TS | No existe `pedidos.tasks.manage`; se usa permiso efectivo DB para tareas. | Puede confundir lectura de codigo. | Documentar; no crear permiso nuevo sin fase de permisos/RLS. |
 | Observacion | Seguridad | Configuracion esta limitada a `admin` en ruta, servicios y RLS. | N/A | Mantener triple defensa. |
@@ -499,3 +499,119 @@ exposicion de secretos, mutacion anonima o Supabase directo desde componentes.
 - [x] Reviso QA existente.
 - [x] Propuso subfases.
 - [x] No modifico codigo funcional.
+
+## 16. Cierre documental Beta 2.8.6
+
+Beta 2.8 queda cerrada documentalmente para el dominio
+Configuracion/templates.
+
+Subfases:
+
+- Beta 2.8.1 completada: auditoria focal de Configuracion y plantillas de
+  tareas.
+- Beta 2.8.2 completada: consolidacion de tipos, errores y validaciones de
+  `task-templates`.
+- Beta 2.8.3 completada: consolidacion de Server Actions y revalidacion de
+  Configuracion.
+- Beta 2.8.4 completada: revision de aplicacion de plantillas a pedidos.
+- Beta 2.8.5 completada: QA e2e focal de Configuracion/templates.
+- Beta 2.8.6 completada: cierre documental del dominio.
+
+Estado final:
+
+- `src/lib/task-templates/types.ts` existe como contrato compartido del dominio.
+- Los DTOs, inputs, field errors y reasons compartidos viven en `types.ts`.
+- Los `ServiceResult` especificos permanecen locales por operacion para mantener
+  cada contrato cerca del servicio que lo devuelve.
+- `task-template-validation.ts` conserva la validacion runtime de cabecera de
+  plantilla.
+- `task-template-task-validation.ts` conserva la validacion runtime de tareas de
+  plantilla reutilizando el parser de tareas de pedido.
+- `errors.ts` se creo en Beta 2.8.4 para el mapper seguro de errores RPC.
+- `errors.ts` contiene `mapApplyTaskTemplateRpcError()`.
+- No se creo `rpc.ts` porque no hay repeticion suficiente: existe una sola RPC
+  consumida desde este dominio.
+- La revalidacion de Configuracion quedo centralizada en
+  `src/lib/actions/revalidation.ts`.
+- `revalidateTaskTemplatesList()` revalida `/dashboard/configuracion`.
+- `revalidateTaskTemplateDetail(templateId)` revalida listado y detalle de
+  plantilla.
+- Las Server Actions siguen siendo adaptadores finos: leen `FormData`, llaman
+  servicios, devuelven estados seguros y revalidan.
+- La aplicacion de plantillas a pedido mantiene la RPC transaccional
+  `aplicar_plantilla_tareas_pedido`.
+- El bloqueo de `workflow_type = impresion` permanece intacto.
+- La UI oculta el selector en pedidos `impresion`, pero la defensa real sigue en
+  la RPC.
+- `tests/e2e/task-templates.spec.ts` agrega QA focal del dominio.
+- La suite e2e total esperada en Chromium queda en 26 tests.
+- La suite serial pasa 26/26.
+- La suite paralela con 8 workers sigue inestable por auth/timeouts/navegacion y
+  pasa como deuda a Beta 2.9.
+
+Mapa operativo final:
+
+- `src/lib/task-templates/README.md` documenta arquitectura actual, mapa de
+  archivos, contratos, validaciones, errores RPC, permisos, RLS, relacion con
+  Pedidos, relacion con `workflow_type`, helpers de revalidacion, QA y deudas.
+
+## 17. QA focal Beta 2.8.5
+
+`tests/e2e/task-templates.spec.ts` cubre:
+
+- admin accede a Configuracion;
+- supervisor y worker quedan bloqueados;
+- crear plantilla QA;
+- editar descripcion;
+- desactivar y reactivar plantilla;
+- crear tarea simple;
+- crear tarea cuantificada;
+- reordenar tarea;
+- editar tarea;
+- eliminar tarea;
+- aplicar plantilla a pedido `encargo`;
+- confirmar ausencia de selector en pedido `impresion`;
+- ausencia de terminos sensibles en pantallas donde aplica.
+
+Estado QA documentado:
+
+- Total e2e Chromium esperado: 26 tests.
+- `tests/e2e/task-templates.spec.ts`: 3/3.
+- `tests/e2e/full-visual-qa.spec.ts`: 1/1.
+- Suite serial Chromium: 26/26.
+- Suite paralela Chromium: pendiente por flakiness de auth/timeouts/navegacion.
+
+## 18. Seguridad final documentada
+
+- Configuracion esta limitada a `admin`.
+- `configuracion.view` y `configuracion.manage` pertenecen solo a `admin`.
+- Los componentes no consultan Supabase.
+- Las Server Actions no contienen reglas fuertes de negocio.
+- Los servicios validan perfil activo y permisos.
+- RLS refuerza lectura y mutacion de plantillas.
+- `aplicar_plantilla_tareas_pedido` es la defensa transaccional para copiar
+  tareas de plantilla al pedido.
+- No aplicar plantillas a `workflow_type = impresion`.
+- No usar `service_role`.
+- No agregar `SUPABASE_SERVICE_ROLE_KEY`.
+- No consultar `auth.users` desde app code.
+- No exponer errores SQL/Postgres/Supabase al usuario.
+- No crear permiso `pedidos.tasks.manage` sin fase explicita de permisos, RLS,
+  docs y QA.
+
+## 19. Deuda tecnica restante
+
+Pendientes reales, no fallas criticas:
+
+- Crear, eliminar y reordenar tareas de plantilla usa operaciones Supabase
+  secuenciales.
+- Evaluar RPC transaccional para gestion de tareas de plantilla solo si aparece
+  concurrencia real.
+- El conteo de tareas en listado usa segunda query y `Map`; aceptable para MVP.
+- No crear `rpc.ts` hasta que haya mas RPCs o repeticion real.
+- La suite e2e paralela con 8 workers sigue inestable por
+  auth/timeouts/navegacion.
+- `build`/`verify` sigue dependiendo de Google Fonts/red.
+- Cualquier cambio de `workflow_type` debe coordinar Pedidos, Dashboard, RPC,
+  docs y QA.
+- Cualquier cambio de permisos debe coordinar TS, RLS, docs y QA.
