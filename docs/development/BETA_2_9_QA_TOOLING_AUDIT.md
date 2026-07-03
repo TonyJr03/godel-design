@@ -424,3 +424,38 @@ estan documentados como salida informativa.
 - [x] Reviso flakiness serial/paralela.
 - [x] Propuso subfases.
 - [x] No modifico codigo funcional.
+
+## 15. Actualizacion Beta 2.9.7
+
+Se aplico una configuracion minima de `webServer` en `playwright.config.ts`:
+
+```ts
+webServer: {
+  command: "npm run dev",
+  url: "http://localhost:3000",
+  reuseExistingServer: !process.env.CI,
+  timeout: 120_000,
+}
+```
+
+Decision:
+
+- El servidor local existente se reutiliza fuera de CI.
+- En CI, Playwright debe levantar el servidor con `npm run dev`.
+- No se fija `workers` globalmente.
+- El gate fuerte temporal sigue siendo Chromium serial:
+
+```bash
+npm.cmd run test:e2e:chromium:serial
+```
+
+Tambien quedan disponibles scripts explicitos:
+
+```bash
+npm.cmd run test:e2e:chromium
+npm.cmd run test:e2e:chromium:serial
+```
+
+La suite paralela completa sigue siendo diagnostica, no gate. La causa esperada
+de flakiness continua siendo concurrencia de logins, usuarios QA compartidos,
+datos persistentes y specs mutantes.

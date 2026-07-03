@@ -312,3 +312,25 @@ npm.cmd run test:e2e -- --project=chromium tests/e2e/solicitudes-internas.spec.t
 - [x] Definio matriz cambio -> spec.
 - [x] Definio cuando usar full visual QA.
 - [x] No modifico tests ni codigo funcional.
+
+## 13. Actualizacion Beta 2.9.7
+
+Estado actualizado:
+
+- Existen 11 specs e2e en `tests/e2e`.
+- El total esperado actual de tests Chromium es 30.
+- Playwright define `webServer` con `npm run dev` y reutiliza
+  `localhost:3000` en desarrollo local.
+- El gate fuerte temporal es:
+
+```bash
+npm.cmd run test:e2e:chromium:serial
+```
+
+Regla vigente:
+
+- Specs publicos son candidatos a paralelismo.
+- Specs autenticados, serializados o mutantes siguen recomendados en modo
+  serial mientras no existan sesiones aisladas por rol, fixtures estables o
+  estrategia de limpieza segura.
+- La suite paralela completa se puede medir, pero no bloquea Beta 2.9.
