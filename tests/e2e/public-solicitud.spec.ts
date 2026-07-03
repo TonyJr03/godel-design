@@ -1,27 +1,6 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
-const publicSensitivePatterns = [
-  /\bauth\.users\b/i,
-  /\bbucket\b/i,
-  /\bcliente_id\b/i,
-  /\bfile_path\b/i,
-  /\border_number\b/i,
-  /\bpayment_status\b/i,
-  /\bpedido_id\b/i,
-  /\bservice_role\b/i,
-  /\bsolicitud_id\b/i,
-  /\bSQLSTATE\b/i,
-  /\bsupabase\b/i,
-  /\bSUPABASE_SERVICE_ROLE_KEY\b/i,
-];
-
-async function expectNoVisibleSensitiveText(page: Page) {
-  const bodyText = await page.locator("body").innerText();
-
-  for (const pattern of publicSensitivePatterns) {
-    expect(bodyText).not.toMatch(pattern);
-  }
-}
+import { expectNoPublicSensitiveText } from "./helpers/assertions";
 
 test("public solicitud form renders workflows and safe validation", async ({
   page,
@@ -67,5 +46,5 @@ test("public solicitud form renders workflows and safe validation", async ({
   await expect(page.getByText(/ingresa el nombre del cliente/i)).toBeVisible({
     timeout: 15_000,
   });
-  await expectNoVisibleSensitiveText(page);
+  await expectNoPublicSensitiveText(page);
 });

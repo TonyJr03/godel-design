@@ -1,16 +1,10 @@
-import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { expect, type Page, test } from "@playwright/test";
 
+import { loginAs } from "./helpers/auth";
 import { getFutureDateInputValue } from "./helpers/date";
-
-type Role = "admin" | "supervisor" | "worker";
-
-type Credentials = {
-  email: string;
-  password: string;
-};
+import { createQaEmail, createQaRunId } from "./helpers/qa-data";
 
 type QaState = {
   encargoReference?: string;
@@ -31,10 +25,7 @@ const qaState: QaState = {
   notes: [],
 };
 
-const runId = new Date()
-  .toISOString()
-  .replace(/\D/g, "")
-  .slice(0, 14);
+const runId = createQaRunId();
 const futureDate = getFutureDateInputValue(30);
 const sensitivePatterns = [
   /\border_number\b/i,
@@ -47,59 +38,6 @@ const sensitivePatterns = [
 ];
 
 test.describe.configure({ mode: "serial" });
-
-function readLocalEnv(name: string) {
-  if (process.env[name]) {
-    return process.env[name];
-  }
-
-  const envPath = resolve(process.cwd(), ".env.local");
-  if (!existsSync(envPath)) {
-    return undefined;
-  }
-
-  const line = readFileSync(envPath, "utf8")
-    .split(/\r?\n/)
-    .find((entry) => entry.trim().startsWith(`${name}=`));
-
-  if (!line) {
-    return undefined;
-  }
-
-  return line.slice(line.indexOf("=") + 1).trim().replace(/^['"]|['"]$/g, "");
-}
-
-function getCredentials(role: Role): Credentials | null {
-  const prefixes = {
-    admin: "GODEL_TEST_ADMIN",
-    supervisor: "GODEL_TEST_SUPERVISOR",
-    worker: "GODEL_TEST_WORKER",
-  } satisfies Record<Role, string>;
-  const prefix = prefixes[role];
-  const email = readLocalEnv(`${prefix}_EMAIL`);
-  const password = readLocalEnv(`${prefix}_PASSWORD`);
-
-  if (!email || !password) {
-    return null;
-  }
-
-  return { email, password };
-}
-
-async function loginAs(page: Page, role: Role) {
-  const credentials = getCredentials(role);
-
-  if (!credentials) {
-    test.skip(true, `QA credentials for ${role} are not configured.`);
-    return;
-  }
-
-  await page.goto("/login");
-  await page.getByLabel(/correo/i).fill(credentials.email);
-  await page.getByLabel(/contrase.a|contrasena/i).fill(credentials.password);
-  await page.getByRole("button", { name: /entrar al workspace/i }).click();
-  await expect(page).toHaveURL(/\/dashboard/);
-}
 
 async function logout(page: Page) {
   const button = page.getByRole("button", { name: /cerrar sesi.n/i });
@@ -308,7 +246,7 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   await fillPublicContact(page, {
     name: encargoName,
     phone: "5551001",
-    email: `qa.encargo.${runId}@example.com`,
+    email: createQaEmail("qa-encargo", runId),
   });
   await page.getByLabel(/tipo de servicio/i).selectOption("Personalizacion");
   await page.getByLabel(/fecha deseada/i).fill(futureDate);
@@ -330,7 +268,7 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   await fillPublicContact(page, {
     name: impresionName,
     phone: "5551002",
-    email: `qa.impresion.${runId}@example.com`,
+    email: createQaEmail("qa-impresion", runId),
   });
   await page.getByLabel(/cantidad de copias/i).fill("5");
   await page.getByLabel(/modo de color/i).selectOption("color");

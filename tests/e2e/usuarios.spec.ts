@@ -5,6 +5,7 @@ import {
   expectNoVisibleSensitiveText,
 } from "./helpers/assertions";
 import { loginAs } from "./helpers/auth";
+import { createUnlikelyQaQuery } from "./helpers/qa-data";
 
 test("admin can access usuarios and see safe profile validation", async ({
   page,
@@ -20,7 +21,7 @@ test("admin can access usuarios and see safe profile validation", async ({
   await expect(page.getByLabel(/^estado$/i)).toBeVisible();
   await expectNoVisibleSensitiveText(page);
 
-  const unlikelyQuery = `qa-usuarios-sin-resultados-${Date.now()}`;
+  const unlikelyQuery = createUnlikelyQaQuery("usuarios-sin-resultados");
   await page.getByLabel(/buscar usuarios/i).fill(unlikelyQuery);
   await expect(page).toHaveURL(/\/dashboard\/usuarios\?q=/);
   await expect(

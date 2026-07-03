@@ -6,17 +6,12 @@ import {
 } from "./helpers/assertions";
 import { loginAs } from "./helpers/auth";
 import { getFutureDateInputValue } from "./helpers/date";
+import { createQaRunId, createQaRunLabel } from "./helpers/qa-data";
 
 test.describe.configure({ mode: "serial" });
 
-const runId = new Date()
-  .toISOString()
-  .replace(/\D/g, "")
-  .slice(0, 14);
-const runLabel = runId.replace(
-  /\d/g,
-  (digit) => "abcdefghij"[Number(digit)] ?? "x",
-);
+const runId = createQaRunId();
+const runLabel = createQaRunLabel(runId);
 const futureDate = getFutureDateInputValue(30);
 const templateName = `QA Template ${runId}`;
 const templateDescription = `Plantilla QA creada por Playwright ${runId}`;

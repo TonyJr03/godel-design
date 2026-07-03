@@ -1,39 +1,24 @@
 import { expect, type Page, test } from "@playwright/test";
 
-import { expectAccessLimitedPage } from "./helpers/assertions";
+import {
+  expectAccessLimitedPage,
+  expectNoTechnicalLeakText,
+} from "./helpers/assertions";
 import { loginAs } from "./helpers/auth";
 import { getFutureDateInputValue } from "./helpers/date";
+import { createQaEmail, createQaRunId } from "./helpers/qa-data";
 
 test.describe.configure({ mode: "serial" });
 
-const runId = new Date()
-  .toISOString()
-  .replace(/\D/g, "")
-  .slice(0, 14);
+const runId = createQaRunId();
 const futureDate = getFutureDateInputValue(30);
 const clientName = `QA Cliente Solicitud ${runId}`;
 const clientPhone = `555${runId.slice(-7)}`;
-const clientEmail = `qa-solicitud-${runId}@example.com`;
+const clientEmail = createQaEmail("qa-solicitud", runId);
 const solicitudDescription = `QA Solicitud Interna ${runId}`;
 const solicitudNotes = `Solicitud interna focal creada por Playwright ${runId}`;
 const pedidoTitle = `QA Pedido Desde Solicitud ${runId}`;
 const pedidoDescription = `Pedido convertido desde ${solicitudDescription}`;
-
-const solicitudSensitivePatterns = [
-  /\bauth\.users\b/i,
-  /\bbucket\b/i,
-  /\bcreateSignedUrl\b/i,
-  /\bfile_path\b/i,
-  /\bgodel-files\b/i,
-  /\bPostgres\b/i,
-  /\bservice_role\b/i,
-  /\bsigned URL\b/i,
-  /\bsignedUrl\b/i,
-  /\bSQL\b/i,
-  /\bstack trace\b/i,
-  /\bstorage\.objects\b/i,
-  /\bSUPABASE_SERVICE_ROLE_KEY\b/i,
-];
 
 function sectionByHeading(page: Page, heading: RegExp) {
   return page.locator("section").filter({
@@ -45,14 +30,6 @@ async function expectStatusMessage(page: Page, message: RegExp) {
   await expect(page.getByText(message).first()).toBeVisible({
     timeout: 15_000,
   });
-}
-
-async function expectNoSolicitudSensitiveText(page: Page) {
-  const bodyText = await page.locator("body").innerText();
-
-  for (const pattern of solicitudSensitivePatterns) {
-    expect(bodyText).not.toMatch(pattern);
-  }
 }
 
 async function createPublicSolicitudFixture(page: Page) {
@@ -74,7 +51,7 @@ async function createPublicSolicitudFixture(page: Page) {
   await expect(page.getByText(/hemos recibido tu solicitud/i)).toBeVisible({
     timeout: 15_000,
   });
-  await expectNoSolicitudSensitiveText(page);
+  await expectNoTechnicalLeakText(page);
 
   const bodyText = await page.locator("body").innerText();
   const publicReference = bodyText.match(/GD-[A-Z0-9]{4}-[A-Z0-9]{4}/)?.[0];
@@ -91,7 +68,7 @@ async function expectSolicitudesListLoaded(page: Page) {
     page.getByRole("heading", { name: /^solicitudes$/i }),
   ).toBeVisible();
   await expect(page.getByLabel(/buscar solicitudes/i)).toBeVisible();
-  await expectNoSolicitudSensitiveText(page);
+  await expectNoTechnicalLeakText(page);
 }
 
 async function openSolicitudDetail(page: Page, query = clientName) {
@@ -109,7 +86,7 @@ async function openSolicitudDetail(page: Page, query = clientName) {
   ).toBeVisible();
   await expect(page.getByText(solicitudDescription).first()).toBeVisible();
   await expect(page.getByText(clientEmail).first()).toBeVisible();
-  await expectNoSolicitudSensitiveText(page);
+  await expectNoTechnicalLeakText(page);
 
   return page.url();
 }
@@ -128,7 +105,7 @@ async function updateSolicitudStatus(
   await expectStatusMessage(page, /estado actualizado correctamente/i);
   await page.reload();
   await expect(page.getByText(visibleLabel).first()).toBeVisible();
-  await expectNoSolicitudSensitiveText(page);
+  await expectNoTechnicalLeakText(page);
 }
 
 async function createClienteFromSolicitud(page: Page) {
@@ -144,7 +121,7 @@ async function createClienteFromSolicitud(page: Page) {
   await expect(refreshedSection.getByText(clientName).first()).toBeVisible();
   await expect(refreshedSection.getByRole("link", { name: /ver cliente/i }))
     .toBeVisible();
-  await expectNoSolicitudSensitiveText(page);
+  await expectNoTechnicalLeakText(page);
 }
 
 async function convertSolicitudToPedido(page: Page) {
@@ -164,7 +141,7 @@ async function convertSolicitudToPedido(page: Page) {
   ).toBeVisible();
   await expect(page.getByText(pedidoTitle).first()).toBeVisible();
   await expect(page.getByText(pedidoDescription).first()).toBeVisible();
-  await expectNoSolicitudSensitiveText(page);
+  await expectNoTechnicalLeakText(page);
 
   return page.url();
 }
@@ -210,7 +187,7 @@ test("solicitudes access follows current role boundaries", async ({ page }) => {
     await expect(
       page.getByRole("heading", { name: new RegExp(`solicitud de ${clientName}`, "i") }),
     ).toBeVisible();
-    await expectNoSolicitudSensitiveText(page);
+    await expectNoTechnicalLeakText(page);
   }
 
   if (convertedPedidoUrl) {
@@ -219,7 +196,7 @@ test("solicitudes access follows current role boundaries", async ({ page }) => {
       page.getByRole("heading", { name: /detalle del pedido/i }),
     ).toBeVisible();
     await expect(page.getByText(pedidoTitle).first()).toBeVisible();
-    await expectNoSolicitudSensitiveText(page);
+    await expectNoTechnicalLeakText(page);
   }
 
   await loginAs(page, "worker");

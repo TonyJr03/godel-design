@@ -1,39 +1,19 @@
 import { expect, type Page, test } from "@playwright/test";
 
+import { expectNoTechnicalLeakText } from "./helpers/assertions";
 import { loginAs } from "./helpers/auth";
 import { getFutureDateInputValue } from "./helpers/date";
+import { createQaRunId, createQaRunLabel } from "./helpers/qa-data";
 
 test.describe.configure({ mode: "serial" });
 
-const runId = new Date()
-  .toISOString()
-  .replace(/\D/g, "")
-  .slice(0, 14);
-const runLabel = runId.replace(
-  /\d/g,
-  (digit) => "abcdefghij"[Number(digit)] ?? "x",
-);
+const runId = createQaRunId();
+const runLabel = createQaRunLabel(runId);
 const futureDate = getFutureDateInputValue(30);
 const clienteLabel = `QA Cliente Focal ${runId}`;
 const encargoTitle = `QA Pedido Focal Encargo ${runId}`;
 const impresionTitle = `QA Pedido Focal Impresion ${runId}`;
 const quantifiedTaskTitle = `QA Tarea Focal Imprimir 5 hojas ${runLabel}`;
-
-const pedidoSensitivePatterns = [
-  /\bauth\.users\b/i,
-  /\bbucket\b/i,
-  /\bcreateSignedUrl\b/i,
-  /\bfile_path\b/i,
-  /\bgodel-files\b/i,
-  /\bPostgres\b/i,
-  /\bservice_role\b/i,
-  /\bsigned URL\b/i,
-  /\bsignedUrl\b/i,
-  /\bSQL\b/i,
-  /\bstack trace\b/i,
-  /\bstorage\.objects\b/i,
-  /\bSUPABASE_SERVICE_ROLE_KEY\b/i,
-];
 
 function sectionByHeading(page: Page, heading: RegExp) {
   return page.locator("section").filter({
@@ -51,19 +31,11 @@ async function expectStatusMessage(page: Page, message: RegExp) {
   });
 }
 
-async function expectNoPedidoSensitiveText(page: Page) {
-  const bodyText = await page.locator("body").innerText();
-
-  for (const pattern of pedidoSensitivePatterns) {
-    expect(bodyText).not.toMatch(pattern);
-  }
-}
-
 async function expectPedidosListLoaded(page: Page) {
   await expect(page).toHaveURL(/\/dashboard\/pedidos(?:[/?#].*)?$/);
   await expect(page.getByRole("heading", { name: /^pedidos$/i })).toBeVisible();
   await expect(page.getByLabel(/buscar pedidos/i)).toBeVisible();
-  await expectNoPedidoSensitiveText(page);
+  await expectNoTechnicalLeakText(page);
 }
 
 async function createManualPedido(
@@ -105,7 +77,7 @@ async function createManualPedido(
     page.getByRole("heading", { name: /detalle del pedido/i }),
   ).toBeVisible();
   await expect(page.getByText(title).first()).toBeVisible();
-  await expectNoPedidoSensitiveText(page);
+  await expectNoTechnicalLeakText(page);
 
   return page.url();
 }
@@ -272,7 +244,7 @@ test("admin can create and manage focal internal pedidos", async ({ page }) => {
   await expect(
     page.getByRole("button", { name: /aplicar plantilla/i }),
   ).toHaveCount(0);
-  await expectNoPedidoSensitiveText(page);
+  await expectNoTechnicalLeakText(page);
 });
 
 test("pedido access follows current role boundaries", async ({ page }) => {
@@ -291,7 +263,7 @@ test("pedido access follows current role boundaries", async ({ page }) => {
       page.getByRole("heading", { name: /detalle del pedido/i }),
     ).toBeVisible();
     await expect(page.getByText(impresionTitle).first()).toBeVisible();
-    await expectNoPedidoSensitiveText(page);
+    await expectNoTechnicalLeakText(page);
   }
 
   await loginAs(page, "worker");
@@ -302,14 +274,14 @@ test("pedido access follows current role boundaries", async ({ page }) => {
   await expect(
     page.getByText(/no tienes permiso para crear pedidos/i),
   ).toBeVisible();
-  await expectNoPedidoSensitiveText(page);
+  await expectNoTechnicalLeakText(page);
 
   if (assignedEncargoDetailUrl) {
     await page.goto(assignedEncargoDetailUrl);
     await expect(
       page.getByRole("heading", { name: /detalle del pedido/i }),
     ).toBeVisible();
-    await expectNoPedidoSensitiveText(page);
+    await expectNoTechnicalLeakText(page);
   }
 
   if (impresionDetailUrl) {

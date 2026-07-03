@@ -1,27 +1,6 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
-const publicSensitivePatterns = [
-  /\bauth\.users\b/i,
-  /\bbucket\b/i,
-  /\bcliente_id\b/i,
-  /\bfile_path\b/i,
-  /\border_number\b/i,
-  /\bpayment_status\b/i,
-  /\bpedido_id\b/i,
-  /\bservice_role\b/i,
-  /\bsolicitud_id\b/i,
-  /\bSQLSTATE\b/i,
-  /\bsupabase\b/i,
-  /\bSUPABASE_SERVICE_ROLE_KEY\b/i,
-];
-
-async function expectNoVisibleSensitiveText(page: Page) {
-  const bodyText = await page.locator("body").innerText();
-
-  for (const pattern of publicSensitivePatterns) {
-    expect(bodyText).not.toMatch(pattern);
-  }
-}
+import { expectNoPublicSensitiveText } from "./helpers/assertions";
 
 test("public tracking rejects invalid references safely", async ({ page }) => {
   await page.goto("/estado");
@@ -41,5 +20,5 @@ test("public tracking rejects invalid references safely", async ({ page }) => {
   await expect(page).toHaveURL(/\/estado\?ref=BAD-CODE/);
   await expect(page.getByText(/c.digo inv.lido/i)).toBeVisible();
   await expect(page.getByText(/formato v.lido/i)).toBeVisible();
-  await expectNoVisibleSensitiveText(page);
+  await expectNoPublicSensitiveText(page);
 });

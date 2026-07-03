@@ -1,36 +1,12 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
+import {
+  expectNoStorageLeakText,
+  expectNoStorageLeakTextIn,
+} from "./helpers/assertions";
 import { loginAs } from "./helpers/auth";
 
 const NON_EXISTENT_UUID = "00000000-0000-4000-8000-000000000000";
-
-const storageSensitivePatterns = [
-  /\bauth\.users\b/i,
-  /\bbucket\b/i,
-  /\bcreateSignedUrl\b/i,
-  /\bfile_path\b/i,
-  /\bgodel-files\b/i,
-  /\bPostgres\b/i,
-  /\bservice_role\b/i,
-  /\bsigned URL\b/i,
-  /\bsignedUrl\b/i,
-  /\bSQL\b/i,
-  /\bstack trace\b/i,
-  /\bstorage\.objects\b/i,
-  /\bSUPABASE_SERVICE_ROLE_KEY\b/i,
-];
-
-async function expectNoStorageSensitiveText(page: Page) {
-  await expectNoStorageSensitiveTextIn(page.locator("body"));
-}
-
-async function expectNoStorageSensitiveTextIn(locator: Locator) {
-  const text = await locator.innerText();
-
-  for (const pattern of storageSensitivePatterns) {
-    expect(text).not.toMatch(pattern);
-  }
-}
 
 async function openFirstInternalDetail(
   page: Page,
@@ -104,7 +80,7 @@ test("admin sees safe pedido storage section when a pedido exists", async ({
   }).first();
 
   await expect(storageSection).toBeVisible();
-  await expectNoStorageSensitiveTextIn(storageSection);
+  await expectNoStorageLeakTextIn(storageSection);
   await expectDownloadLinksUseInternalRoute(
     storageSection,
     /\/dashboard\/pedidos\/[^/]+\/archivos\/[^/]+\/download$/,
@@ -136,7 +112,7 @@ test("admin sees safe solicitud storage section when a solicitud exists", async 
   }).first();
 
   await expect(storageSection).toBeVisible();
-  await expectNoStorageSensitiveTextIn(storageSection);
+  await expectNoStorageLeakTextIn(storageSection);
   await expectDownloadLinksUseInternalRoute(
     storageSection,
     /\/dashboard\/solicitudes\/[^/]+\/archivos\/[^/]+\/download$/,
@@ -169,7 +145,7 @@ test("public solicitud rejects blocked file upload safely", async ({ page }) => 
   });
   await expect(page.getByText(/blocked-storage\.svg/i)).toBeVisible();
   await expect(page.getByText(/hemos recibido tu solicitud/i)).toHaveCount(0);
-  await expectNoStorageSensitiveText(page);
+  await expectNoStorageLeakText(page);
 });
 
 test("download routes reject invalid identifiers safely", async ({ page }) => {
@@ -177,13 +153,13 @@ test("download routes reject invalid identifiers safely", async ({ page }) => {
 
   await page.goto("/dashboard/pedidos/not-a-uuid/archivos/not-a-uuid/download");
   await expect(page.locator("body")).toContainText(/archivo no disponible/i);
-  await expectNoStorageSensitiveText(page);
+  await expectNoStorageLeakText(page);
 
   await page.goto(
     "/dashboard/solicitudes/not-a-uuid/archivos/not-a-uuid/download",
   );
   await expect(page.locator("body")).toContainText(/archivo no disponible/i);
-  await expectNoStorageSensitiveText(page);
+  await expectNoStorageLeakText(page);
 });
 
 test("worker gets safe response for solicitud download route", async ({
@@ -198,7 +174,7 @@ test("worker gets safe response for solicitud download route", async ({
   await expect(page.locator("body")).toContainText(
     /archivo no disponible|esta secci.n no est. disponible|acceso limitado/i,
   );
-  await expectNoStorageSensitiveText(page);
+  await expectNoStorageLeakText(page);
 });
 
 test("public tracking has no storage download surface or metadata", async ({
@@ -208,5 +184,5 @@ test("public tracking has no storage download surface or metadata", async ({
 
   await expect(page.getByText(/c.digo inv.lido/i)).toBeVisible();
   await expectNoDownloadSurface(page);
-  await expectNoStorageSensitiveText(page);
+  await expectNoStorageLeakText(page);
 });
