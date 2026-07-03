@@ -13,18 +13,20 @@ ocultar fallos reales.
 
 ## 2. Resumen ejecutivo
 
-Estado general:
+Estado general inicial de Beta 2.9.1:
 
 - La suite e2e tiene cobertura amplia para rutas publicas, login, dashboard,
   clientes, usuarios, storage, Configuracion/templates y full visual QA.
-- El total actual de tests e2e Chromium es 26.
-- La ejecucion serial conocida pasa 26/26.
+- El total inicial de tests e2e Chromium era 26.
+- La ejecucion serial inicial conocida pasaba 26/26.
 - La ejecucion paralela conocida con 8 workers es inestable: aparecen timeouts
   de navegacion y fallos de login/URL.
-- Playwright no define `webServer`; los tests asumen que `localhost:3000` ya
-  responde.
-- `verify` ejecuta `lint` y `build`; `build` depende de `next/font/google` y
-  falla sin red cuando no puede descargar Geist/Geist Mono.
+- En Beta 2.9.1, Playwright no definia `webServer`; desde Beta 2.9.7 ya lo
+  define con `npm run dev` y reutilizacion local.
+- En Beta 2.9.1, `verify` dependia de `next/font/google`; desde Beta 2.9.6
+  pasa offline con system font stack.
+- Estado de cierre Beta 2.9.8: 11 specs e2e, 30 tests Chromium esperados,
+  suite serial 30/30 y full visual QA 1/1.
 
 Puntos fuertes:
 
@@ -72,7 +74,8 @@ Recomendacion general:
 | `task-templates.spec.ts` | Configuracion/templates: roles, CRUD plantilla, tareas, aplicar a encargo, ausencia en impresion. | Crea plantillas y pedidos QA persistentes. | Serializado; depende de orden interno entre tests y datos creados. | Mantener serial/no paralelizable; evaluar cleanup o prefijo QA. |
 | `full-visual-qa.spec.ts` | Recorrido end-to-end amplio: solicitudes publicas, conversion, pedidos, tareas, pagos, storage, roles y screenshots dashboard. | Crea solicitudes, clientes, pedidos, pagos, archivos y asignaciones persistentes. | Muy amplio, mutante, serial, timeout alto; duplica login y genera screenshots en `test-results`. | Mantener como aceptacion de release; mover cobertura repetida a specs focales. |
 
-Total actual: 26 declaraciones `test(...)` en `tests/e2e`.
+Total inicial: 26 declaraciones `test(...)` en `tests/e2e`.
+Total de cierre Beta 2.9.8: 30 tests Chromium esperados.
 
 ## 4. Helpers e2e
 
@@ -132,10 +135,15 @@ No hay mas archivos en `tests/e2e/helpers/`.
 
 ## 5. Diagnostico de ejecucion serial vs paralela
 
-Resultado serial actual conocido:
+Resultado serial inicial conocido:
 
 - `npm.cmd run test:e2e -- --project=chromium --workers=1`
 - Resultado: 26/26.
+
+Resultado serial de cierre Beta 2.9.8:
+
+- `npm.cmd run test:e2e:chromium:serial`
+- Resultado: 30/30.
 
 Resultado paralelo actual conocido:
 
@@ -182,7 +190,7 @@ Que conviene probar en Beta 2.9.2:
 
 Archivo: `playwright.config.ts`.
 
-Configuracion actual:
+Configuracion observada en Beta 2.9.1:
 
 - `testDir`: `./tests/e2e`.
 - `baseURL`: `http://localhost:3000`.
@@ -193,7 +201,7 @@ Configuracion actual:
   - `chromium` con `Desktop Chrome`.
   - `edge` con `Desktop Edge` y `channel: "msedge"`.
 
-Ausencias relevantes:
+Ausencias relevantes en Beta 2.9.1:
 
 - No define `webServer`.
 - No define `workers`.
@@ -202,6 +210,13 @@ Ausencias relevantes:
 - No define timeout global.
 - No define `outputDir`.
 - No define `storageState`.
+
+Estado de cierre Beta 2.9.8:
+
+- Define `webServer` con `npm run dev`, `http://localhost:3000`,
+  `reuseExistingServer: !process.env.CI` y `timeout: 120_000`.
+- No fija `workers` globalmente.
+- Mantiene la suite serial Chromium como gate temporal explicito.
 
 Implicaciones:
 
@@ -459,3 +474,25 @@ npm.cmd run test:e2e:chromium:serial
 La suite paralela completa sigue siendo diagnostica, no gate. La causa esperada
 de flakiness continua siendo concurrencia de logins, usuarios QA compartidos,
 datos persistentes y specs mutantes.
+
+## 16. Cierre Beta 2.9.8
+
+Documento operativo final:
+
+- `docs/development/BETA_2_9_QA_TOOLING_STRATEGY.md`
+
+Estado final registrado:
+
+- `pedidos.spec.ts` creado como spec focal de Pedidos internos.
+- `solicitudes-internas.spec.ts` creado como spec focal de Solicitudes internas.
+- Helpers e2e consolidados: `auth.ts`, `assertions.ts`, `date.ts` y
+  `qa-data.ts`.
+- Google Fonts eliminado; `verify` pasa offline con system font stack.
+- `webServer` agregado en `playwright.config.ts`.
+- Scripts `test:e2e:chromium` y `test:e2e:chromium:serial` agregados.
+- Artefactos `/test-results/`, `/playwright-report/` y `debug.log` ignorados.
+- Total actual: 11 specs e2e y 30 tests Chromium.
+- Gate estable temporal: `npm.cmd run test:e2e:chromium:serial`.
+- Suite serial conocida: 30/30.
+- Full visual QA conocido: 1/1.
+- Suite paralela completa sigue como diagnostico, no gate.

@@ -11,20 +11,27 @@ cierre de fase o release, no como sustituto de specs focales pequenos.
 
 ## 2. Resumen ejecutivo
 
-Cobertura actual:
+Cobertura inicial de Beta 2.9.2:
 
-- Existen 9 specs e2e en `tests/e2e`.
-- Existen 26 tests Chromium actuales.
+- Existian 9 specs e2e en `tests/e2e`.
+- Existian 26 tests Chromium.
 - Hay specs focales para rutas publicas, tracking publico, dashboard, clientes,
   usuarios, storage y Configuracion/templates.
 - La suite serial Chromium es el modo confiable actual.
 - La suite paralela sigue siendo objetivo futuro por flakiness en auth,
   navegacion y timeouts.
 
-Huecos principales:
+Estado de cierre Beta 2.9.8:
 
-- No hay spec focal dedicado de Pedidos internos.
-- No hay spec focal dedicado de Solicitudes internas.
+- Existen 11 specs e2e.
+- El total esperado actual es 30 tests Chromium.
+- `pedidos.spec.ts` y `solicitudes-internas.spec.ts` ya fueron creados.
+- El gate fuerte temporal es `npm.cmd run test:e2e:chromium:serial`.
+
+Huecos principales detectados en Beta 2.9.2:
+
+- No habia spec focal dedicado de Pedidos internos.
+- No habia spec focal dedicado de Solicitudes internas.
 - Conversion Solicitud -> Pedido, tareas de pedido, pagos, asignaciones,
   comentarios e historial dependen demasiado de `full-visual-qa.spec.ts`.
 - Storage tiene spec focal, pero algunos casos internos dependen de fixtures
@@ -35,7 +42,7 @@ Recomendacion general:
 - Usar specs focales por dominio como primera linea de QA.
 - Mantener `full-visual-qa.spec.ts` para cambios transversales, cierre de fase,
   permisos/RLS, layout general y aceptacion pre-merge/pre-release.
-- Crear antes de cerrar Beta 2.9 al menos:
+- Crear antes de cerrar Beta 2.9 al menos, ya resuelto en Beta 2.9.3 y 2.9.4:
   - `tests/e2e/pedidos.spec.ts`;
   - `tests/e2e/solicitudes-internas.spec.ts`.
 - Mantener specs autenticados y mutantes en modo serial por ahora.
@@ -334,3 +341,22 @@ Regla vigente:
   serial mientras no existan sesiones aisladas por rol, fixtures estables o
   estrategia de limpieza segura.
 - La suite paralela completa se puede medir, pero no bloquea Beta 2.9.
+
+## 14. Cierre Beta 2.9.8
+
+La estrategia operativa final vive en:
+
+- `docs/development/BETA_2_9_QA_TOOLING_STRATEGY.md`
+
+Resumen actualizado:
+
+- La matriz focal se mantiene como documento de analisis.
+- La guia operativa para comandos, gates, `webServer`, paralelismo, build
+  offline, artefactos y deudas queda centralizada en el documento de estrategia.
+- Los specs focales nuevos de Beta 2.9 son:
+  - `tests/e2e/pedidos.spec.ts`;
+  - `tests/e2e/solicitudes-internas.spec.ts`.
+- El total actual esperado es 30 tests Chromium.
+- El gate fuerte temporal es `npm.cmd run test:e2e:chromium:serial`.
+- Full visual QA queda como aceptacion transversal, no como sustituto de specs
+  focales.
