@@ -1,6 +1,11 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import {
+  actionFailure,
+  actionSuccess,
+  type BaseActionState,
+} from "@/lib/actions/action-state";
+import { revalidateTaskTemplateDetail } from "@/lib/actions/revalidation";
 import {
   createTaskTemplateTask,
   deleteTaskTemplateTask,
@@ -16,36 +21,20 @@ export type TaskTemplateDetailAction<State> = (
   formData: FormData,
 ) => Promise<State>;
 
-export type CreateTaskTemplateTaskActionState = {
-  ok: boolean;
-  message: string;
-  fieldErrors?: TaskTemplateTaskFieldErrors;
-  values?: TaskTemplateTaskActionValues;
-};
+type TaskTemplateTaskActionState<Values = never> = BaseActionState<
+  TaskTemplateTaskFieldErrors,
+  Values
+>;
 
-export type UpdateTaskTemplateTaskActionState = {
-  ok: boolean;
-  message: string;
-  fieldErrors?: TaskTemplateTaskFieldErrors;
-  values?: TaskTemplateTaskActionValues;
-};
+export type CreateTaskTemplateTaskActionState =
+  TaskTemplateTaskActionState<TaskTemplateTaskActionValues>;
 
-export type DeleteTaskTemplateTaskActionState = {
-  ok: boolean;
-  message: string;
-  fieldErrors?: TaskTemplateTaskFieldErrors;
-};
+export type UpdateTaskTemplateTaskActionState =
+  TaskTemplateTaskActionState<TaskTemplateTaskActionValues>;
 
-export type MoveTaskTemplateTaskActionState = {
-  ok: boolean;
-  message: string;
-  fieldErrors?: TaskTemplateTaskFieldErrors;
-};
+export type DeleteTaskTemplateTaskActionState = TaskTemplateTaskActionState;
 
-function revalidateTaskTemplateDetail(templateId: string) {
-  revalidatePath("/dashboard/configuracion");
-  revalidatePath(`/dashboard/configuracion/plantillas/${templateId}`);
-}
+export type MoveTaskTemplateTaskActionState = TaskTemplateTaskActionState;
 
 export async function createTaskTemplateTaskAction(
   templateId: string,
@@ -58,23 +47,19 @@ export async function createTaskTemplateTaskAction(
   });
 
   if (!result.ok) {
-    return {
-      ok: false,
-      message: result.message,
+    return actionFailure(result.message, {
       fieldErrors: result.fieldErrors,
       values: result.values,
-    };
+    });
   }
 
   revalidateTaskTemplateDetail(templateId);
 
-  return {
-    ok: true,
-    message: "Tarea agregada correctamente.",
+  return actionSuccess("Tarea agregada correctamente.", {
     values: {
       title: "",
     },
-  };
+  });
 }
 
 export async function updateTaskTemplateTaskAction(
@@ -89,20 +74,15 @@ export async function updateTaskTemplateTaskAction(
   });
 
   if (!result.ok) {
-    return {
-      ok: false,
-      message: result.message,
+    return actionFailure(result.message, {
       fieldErrors: result.fieldErrors,
       values: result.values,
-    };
+    });
   }
 
   revalidateTaskTemplateDetail(templateId);
 
-  return {
-    ok: true,
-    message: "Tarea actualizada correctamente.",
-  };
+  return actionSuccess("Tarea actualizada correctamente.");
 }
 
 export async function deleteTaskTemplateTaskAction(
@@ -116,19 +96,14 @@ export async function deleteTaskTemplateTaskAction(
   });
 
   if (!result.ok) {
-    return {
-      ok: false,
-      message: result.message,
+    return actionFailure(result.message, {
       fieldErrors: result.fieldErrors,
-    };
+    });
   }
 
   revalidateTaskTemplateDetail(templateId);
 
-  return {
-    ok: true,
-    message: "Tarea eliminada correctamente.",
-  };
+  return actionSuccess("Tarea eliminada correctamente.");
 }
 
 export async function moveTaskTemplateTaskAction(
@@ -143,17 +118,12 @@ export async function moveTaskTemplateTaskAction(
   });
 
   if (!result.ok) {
-    return {
-      ok: false,
-      message: result.message,
+    return actionFailure(result.message, {
       fieldErrors: result.fieldErrors,
-    };
+    });
   }
 
   revalidateTaskTemplateDetail(templateId);
 
-  return {
-    ok: true,
-    message: "Orden actualizado correctamente.",
-  };
+  return actionSuccess("Orden actualizado correctamente.");
 }

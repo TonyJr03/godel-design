@@ -8,16 +8,12 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
 import type { Tables } from "@/types/database";
+import type { EditableUserProfile } from "./types";
 import {
   validateUserInput,
   type UpdateUserInput,
   type UserFieldErrors,
 } from "./user-validation";
-
-type EditableUserProfile = Pick<
-  Tables<"perfiles">,
-  "id" | "full_name" | "role" | "phone" | "avatar_url" | "is_active"
->;
 
 export type UpdateInternalUserInput = UpdateUserInput & {
   id?: string | null;

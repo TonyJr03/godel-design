@@ -7,7 +7,8 @@ import {
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
-import type { Enums, Json, Tables } from "@/types/database";
+import type { Tables } from "@/types/database";
+import { listPedidoHistoryRpc } from "./rpc";
 
 export type PedidoHistoryActor =
   | Pick<Tables<"perfiles">, "full_name" | "role">
@@ -24,30 +25,6 @@ export type PedidoHistoryItem = Pick<
   | "created_at"
 > & {
   actor: PedidoHistoryActor;
-};
-
-type PedidoHistoryRpcRow = {
-  id: string;
-  action: Enums<"pedido_historial_action">;
-  summary: string;
-  old_value: string | null;
-  new_value: string | null;
-  metadata: Json;
-  created_at: string;
-  actor_full_name: string | null;
-  actor_role: Enums<"app_role"> | null;
-};
-
-type PedidoHistoryRpcResult = {
-  data: PedidoHistoryRpcRow[] | null;
-  error: { message?: string } | null;
-};
-
-type PedidoHistoryRpcClient = {
-  rpc(
-    fn: "listar_pedido_historial",
-    args: { p_pedido_id: string },
-  ): PromiseLike<PedidoHistoryRpcResult>;
 };
 
 export type ListPedidoHistoryErrorReason =
@@ -124,9 +101,7 @@ export async function listPedidoHistory(
       );
     }
 
-    const { data, error } = await (
-      supabase as unknown as PedidoHistoryRpcClient
-    ).rpc("listar_pedido_historial", {
+    const { data, error } = await listPedidoHistoryRpc(supabase, {
       p_pedido_id: pedidoId,
     });
 

@@ -8,7 +8,7 @@ import {
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
-import type { Tables } from "@/types/database";
+import { createClienteFromSolicitudRpc } from "./rpc";
 
 export type CreateClienteFromSolicitudErrorReason =
   | "unauthorized"
@@ -81,20 +81,6 @@ const SAFE_RPC_CREATE_CLIENTE_ERRORS = [
   message: string;
   reason: CreateClienteFromSolicitudErrorReason;
 }>;
-
-type CreateClienteFromSolicitudRpcResult = {
-  data: Tables<"clientes"> | null;
-  error: { message?: string } | null;
-};
-
-type CreateClienteFromSolicitudRpcClient = {
-  rpc(
-    fn: "crear_cliente_desde_solicitud",
-    args: {
-      p_solicitud_id: string;
-    },
-  ): PromiseLike<CreateClienteFromSolicitudRpcResult>;
-};
 
 function normalizeUuid(value: string | null | undefined): string {
   return (value ?? "").trim();
@@ -182,11 +168,12 @@ export async function createClienteFromSolicitudAndAssociate(
       );
     }
 
-    const { data: cliente, error } = await (
-      supabase as unknown as CreateClienteFromSolicitudRpcClient
-    ).rpc("crear_cliente_desde_solicitud", {
-      p_solicitud_id: solicitudId,
-    });
+    const { data: cliente, error } = await createClienteFromSolicitudRpc(
+      supabase,
+      {
+        p_solicitud_id: solicitudId,
+      },
+    );
 
     if (error) {
       console.error("Error creating cliente from solicitud", error);

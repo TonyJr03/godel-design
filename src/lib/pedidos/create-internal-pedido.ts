@@ -6,12 +6,12 @@ import {
   type ServiceResult,
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
-import type { Enums } from "@/types/database";
 import {
   validatePedidoInput,
   type CreatePedidoInput,
   type PedidoFieldErrors,
 } from "./order-validation";
+import { createManualPedidoRpc } from "./rpc";
 
 export type CreateInternalPedidoErrorReason =
   | "unauthorized"
@@ -33,32 +33,6 @@ export type CreateInternalPedidoResult = ServiceResult<
 
 const GENERIC_CREATE_ERROR =
   "No se pudo crear el pedido. Inténtalo nuevamente.";
-
-type CreateManualPedidoRpcRow = {
-  pedido_id: string;
-  order_number: string;
-  public_reference: string;
-};
-
-type CreateManualPedidoRpcResult = {
-  data: CreateManualPedidoRpcRow[] | null;
-  error: { message?: string } | null;
-};
-
-type CreateManualPedidoRpcClient = {
-  rpc(
-    fn: "crear_pedido_manual",
-    args: {
-      p_workflow_type: Enums<"workflow_type">;
-      p_cliente_id: string | null;
-      p_title: string;
-      p_description: string;
-      p_priority: Enums<"pedido_prioridad">;
-      p_estimated_delivery_date: string | null;
-      p_total_amount: number;
-    },
-  ): PromiseLike<CreateManualPedidoRpcResult>;
-};
 
 async function clienteExists(clienteId: string): Promise<boolean | null> {
   const supabase = await createClient();
@@ -122,9 +96,7 @@ export async function createInternalPedido(
 
   try {
     const supabase = await createClient();
-    const { data, error } = await (
-      supabase as unknown as CreateManualPedidoRpcClient
-    ).rpc("crear_pedido_manual", {
+    const { data, error } = await createManualPedidoRpc(supabase, {
       p_workflow_type: validation.data.workflow_type,
       p_cliente_id: validation.data.cliente_id,
       p_title: validation.data.title,

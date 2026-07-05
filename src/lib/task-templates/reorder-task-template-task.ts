@@ -7,23 +7,12 @@ import {
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
-import type { TaskTemplateTaskFieldErrors } from "./task-template-task-validation";
-
-export type TaskTemplateTaskMoveDirection = "up" | "down";
-
-export type ReorderTaskTemplateTaskInput = {
-  templateId: string;
-  taskId: string;
-  direction: string;
-};
-
-export type ReorderTaskTemplateTaskErrorReason =
-  | "unauthorized"
-  | "forbidden"
-  | "invalid_id"
-  | "validation"
-  | "not_found"
-  | "error";
+import type {
+  ReorderTaskTemplateTaskErrorReason,
+  ReorderTaskTemplateTaskInput,
+  TaskTemplateTaskFieldErrors,
+  TaskTemplateTaskMoveDirection,
+} from "./types";
 
 export type ReorderTaskTemplateTaskResult = ServiceResult<
   Record<never, never>,

@@ -7,19 +7,11 @@ import {
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
-import type { TaskTemplateTaskFieldErrors } from "./task-template-task-validation";
-
-export type DeleteTaskTemplateTaskInput = {
-  templateId: string;
-  taskId: string;
-};
-
-export type DeleteTaskTemplateTaskErrorReason =
-  | "unauthorized"
-  | "forbidden"
-  | "invalid_id"
-  | "not_found"
-  | "error";
+import type {
+  DeleteTaskTemplateTaskErrorReason,
+  DeleteTaskTemplateTaskInput,
+  TaskTemplateTaskFieldErrors,
+} from "./types";
 
 export type DeleteTaskTemplateTaskResult = ServiceResult<
   Record<never, never>,

@@ -11,6 +11,8 @@ export const STORAGE_ROOTS = {
   pedidos: "pedidos",
 } as const;
 
+export type StorageRoot = (typeof STORAGE_ROOTS)[keyof typeof STORAGE_ROOTS];
+
 export const STORAGE_SOLICITUD_FOLDERS = {
   originales: "originales",
 } as const;

@@ -6,6 +6,7 @@ const roots = [
   "src/app/estado",
   "src/components/tracking",
 ];
+const codeFilePattern = /\.(?:[cm]?[jt]sx?)$/;
 const pattern = /order_number|pedido_pagos|file_path/g;
 
 function listFiles(path) {
@@ -32,6 +33,10 @@ function listFiles(path) {
 }
 
 function scanFile(file) {
+  if (!codeFilePattern.test(file)) {
+    return [];
+  }
+
   const text = readFileSync(file, "utf8");
   const matches = [];
 

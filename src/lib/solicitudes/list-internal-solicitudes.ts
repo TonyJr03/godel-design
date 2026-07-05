@@ -11,26 +11,13 @@ import {
   isWorkflowType,
   type WorkflowType,
 } from "@/lib/workflow-types";
-import type { Tables } from "@/types/database";
 import { getSolicitudServiceTypeSearchValues } from "./labels";
 import { SOLICITUD_STATUSES, type SolicitudStatus } from "./status";
+import type { InternalSolicitud } from "./types";
 
 export const INTERNAL_SOLICITUD_ESTADOS = SOLICITUD_STATUSES;
 
 export type InternalSolicitudEstado = SolicitudStatus;
-
-export type InternalSolicitud = Pick<
-  Tables<"solicitudes">,
-  | "id"
-  | "client_name"
-  | "client_phone"
-  | "client_email"
-  | "workflow_type"
-  | "service_type"
-  | "status"
-  | "created_at"
-  | "desired_date"
->;
 
 export type ListInternalSolicitudesOptions = {
   q?: string | null;

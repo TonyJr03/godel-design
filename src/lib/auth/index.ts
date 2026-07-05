@@ -8,4 +8,4 @@ export type {
   CurrentProfile,
   CurrentUser,
   CurrentUserWithProfile,
-} from "./current-user";
+} from "./types";

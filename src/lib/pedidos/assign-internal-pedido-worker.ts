@@ -6,18 +6,28 @@ import {
   type ServiceResult,
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
-import { isValidUuid } from "@/lib/validators";
-import type { Tables } from "@/types/database";
 import { isAssignableOrderUserRole } from "./order-assignment-roles";
+import {
+  GENERIC_ASSIGN_PEDIDO_WORKER_ERROR,
+  isDuplicatePedidoWorkerAssignmentError,
+} from "./worker-assignment-errors";
+import {
+  findAssignablePedidoWorkerProfile,
+  findPedidoForWorkerAssignment,
+  findPedidoWorkerAssignment,
+} from "./worker-assignment-queries";
+import {
+  normalizePedidoWorkerAssignmentInput,
+  validatePedidoWorkerAssignmentUuid,
+  type PedidoWorkerAssignmentFieldErrors,
+} from "./worker-assignment-validation";
 
 export type AssignInternalPedidoWorkerInput = {
   pedidoId: string;
   assignedProfileId: string;
 };
 
-export type PedidoWorkerFieldErrors = Partial<
-  Record<"pedido_id" | "assigned_profile_id", string>
->;
+export type PedidoWorkerFieldErrors = PedidoWorkerAssignmentFieldErrors;
 
 export type AssignInternalPedidoWorkerErrorReason =
   | "unauthorized"
@@ -38,38 +48,16 @@ export type AssignInternalPedidoWorkerResult = ServiceResult<
   PedidoWorkerFieldErrors
 >;
 
-type WorkerProfile = Pick<Tables<"perfiles">, "id" | "role" | "is_active">;
-type PedidoAssignment = Pick<
-  Tables<"pedido_trabajadores">,
-  "id" | "assigned_profile_id"
->;
-
-const GENERIC_ASSIGN_ERROR =
-  "No se pudo asignar el personal. Inténtalo nuevamente.";
-
-function validateUuid(
-  value: string,
-  field: "pedido_id" | "assigned_profile_id",
-): PedidoWorkerFieldErrors | null {
-  if (isValidUuid(value)) {
-    return null;
-  }
-
-  return {
-    [field]:
-      field === "pedido_id"
-        ? "El pedido solicitado no existe."
-        : "Selecciona un usuario válido.",
-  };
-}
-
 export async function assignInternalPedidoWorker(
   input: AssignInternalPedidoWorkerInput,
 ): Promise<AssignInternalPedidoWorkerResult> {
-  const pedidoId = input.pedidoId.trim();
-  const assignedProfileId = input.assignedProfileId.trim();
-  const pedidoIdErrors = validateUuid(pedidoId, "pedido_id");
-  const assignedProfileIdErrors = validateUuid(
+  const { pedidoId, assignedProfileId } =
+    normalizePedidoWorkerAssignmentInput(input);
+  const pedidoIdErrors = validatePedidoWorkerAssignmentUuid(
+    pedidoId,
+    "pedido_id",
+  );
+  const assignedProfileIdErrors = validatePedidoWorkerAssignmentUuid(
     assignedProfileId,
     "assigned_profile_id",
   );
@@ -113,11 +101,8 @@ export async function assignInternalPedidoWorker(
   const supabase = await createClient();
 
   try {
-    const { data: pedido, error: pedidoError } = await supabase
-      .from("pedidos")
-      .select("id")
-      .eq("id", pedidoId)
-      .maybeSingle<{ id: string }>();
+    const { data: pedido, error: pedidoError } =
+      await findPedidoForWorkerAssignment(supabase, pedidoId);
 
     if (pedidoError) {
       console.error(
@@ -125,7 +110,7 @@ export async function assignInternalPedidoWorker(
         pedidoError,
       );
 
-      return serviceFailure("error", GENERIC_ASSIGN_ERROR);
+      return serviceFailure("error", GENERIC_ASSIGN_PEDIDO_WORKER_ERROR);
     }
 
     if (!pedido) {
@@ -135,16 +120,16 @@ export async function assignInternalPedidoWorker(
       );
     }
 
-    const { data: assignableProfile, error: assignableProfileError } = await supabase
-      .from("perfiles")
-      .select("id, role, is_active")
-      .eq("id", assignedProfileId)
-      .maybeSingle<WorkerProfile>();
+    const { data: assignableProfile, error: assignableProfileError } =
+      await findAssignablePedidoWorkerProfile(supabase, assignedProfileId);
 
     if (assignableProfileError) {
-      console.error("Error checking assignable order user", assignableProfileError);
+      console.error(
+        "Error checking assignable order user",
+        assignableProfileError,
+      );
 
-      return serviceFailure("error", GENERIC_ASSIGN_ERROR);
+      return serviceFailure("error", GENERIC_ASSIGN_PEDIDO_WORKER_ERROR);
     }
 
     if (!assignableProfile) {
@@ -184,12 +169,7 @@ export async function assignInternalPedidoWorker(
     }
 
     const { data: existingAssignment, error: existingAssignmentError } =
-      await supabase
-        .from("pedido_trabajadores")
-        .select("id, assigned_profile_id")
-        .eq("pedido_id", pedidoId)
-        .eq("assigned_profile_id", assignedProfileId)
-        .maybeSingle<PedidoAssignment>();
+      await findPedidoWorkerAssignment(supabase, pedidoId, assignedProfileId);
 
     if (existingAssignmentError) {
       console.error(
@@ -197,7 +177,7 @@ export async function assignInternalPedidoWorker(
         existingAssignmentError,
       );
 
-      return serviceFailure("error", GENERIC_ASSIGN_ERROR);
+      return serviceFailure("error", GENERIC_ASSIGN_PEDIDO_WORKER_ERROR);
     }
 
     if (existingAssignment) {
@@ -210,22 +190,22 @@ export async function assignInternalPedidoWorker(
         pedido_id: pedidoId,
         assigned_profile_id: assignedProfileId,
         assigned_by: profile.id,
-      });
+    });
 
     if (insertError) {
-      if (insertError.code === "23505") {
+      if (isDuplicatePedidoWorkerAssignmentError(insertError)) {
         return serviceSuccess({ alreadyAssigned: true });
       }
 
       console.error("Error inserting pedido worker assignment", insertError);
 
-      return serviceFailure("error", GENERIC_ASSIGN_ERROR);
+      return serviceFailure("error", GENERIC_ASSIGN_PEDIDO_WORKER_ERROR);
     }
 
     return serviceSuccess();
   } catch (error) {
     console.error("Unexpected error assigning pedido worker", error);
 
-    return serviceFailure("error", GENERIC_ASSIGN_ERROR);
+    return serviceFailure("error", GENERIC_ASSIGN_PEDIDO_WORKER_ERROR);
   }
 }

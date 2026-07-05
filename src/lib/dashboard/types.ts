@@ -13,6 +13,17 @@ export type ManagementDashboardRole = Extract<
 
 export type WorkerDashboardRole = Extract<DashboardRole, "trabajador">;
 
+export type DashboardResultErrorReason =
+  | "unauthorized"
+  | "forbidden"
+  | "error";
+
+export type DashboardResultError = {
+  ok: false;
+  reason: DashboardResultErrorReason;
+  message: string;
+};
+
 export type ManagementDashboardMetrics = {
   solicitudesNuevas: number;
   solicitudesPendientes: number;
@@ -36,12 +47,6 @@ export type WorkerDashboardMetrics = {
   totalPedidosAsignados: number;
 };
 
-export type DashboardSummaryValue = {
-  key: string;
-  label: string;
-  value: number;
-};
-
 export type ManagementDashboardSummary = {
   kind: "management";
   role: ManagementDashboardRole;
@@ -56,16 +61,9 @@ export type WorkerDashboardSummary = {
   generatedAt: string;
 };
 
-export type DashboardSummaryErrorReason =
-  | "unauthorized"
-  | "forbidden"
-  | "error";
+export type DashboardSummaryErrorReason = DashboardResultErrorReason;
 
-export type DashboardSummaryError = {
-  ok: false;
-  reason: DashboardSummaryErrorReason;
-  message: string;
-};
+export type DashboardSummaryError = DashboardResultError;
 
 export type ManagementDashboardSummarySuccess = {
   ok: true;
@@ -88,18 +86,9 @@ export type GetWorkerDashboardSummaryResult =
   | WorkerDashboardSummarySuccess
   | DashboardSummaryError;
 
-export type DashboardWorkItemsErrorReason =
-  | "unauthorized"
-  | "forbidden"
-  | "error";
+export type DashboardWorkItemsErrorReason = DashboardResultErrorReason;
 
-export type DashboardWorkItemsError = {
-  ok: false;
-  reason: DashboardWorkItemsErrorReason;
-  message: string;
-};
-
-export type DashboardWorkItemsView = "management" | "worker";
+export type DashboardWorkItemsError = DashboardResultError;
 
 export type DashboardPendingSolicitudItem = {
   id: string;
@@ -173,16 +162,9 @@ export type GetDashboardWorkItemsResult =
   | WorkerDashboardWorkItemsSuccess
   | DashboardWorkItemsError;
 
-export type DashboardActivityErrorReason =
-  | "unauthorized"
-  | "forbidden"
-  | "error";
+export type DashboardActivityErrorReason = DashboardResultErrorReason;
 
-export type DashboardActivityError = {
-  ok: false;
-  reason: DashboardActivityErrorReason;
-  message: string;
-};
+export type DashboardActivityError = DashboardResultError;
 
 export type DashboardActivitySource = "pedido" | "solicitud";
 

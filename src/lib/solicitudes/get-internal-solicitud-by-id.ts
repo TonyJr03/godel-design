@@ -7,27 +7,7 @@ import {
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
-import type { Tables } from "@/types/database";
-
-export type InternalSolicitudDetail = Pick<
-  Tables<"solicitudes">,
-  | "id"
-  | "public_reference"
-  | "cliente_id"
-  | "client_name"
-  | "client_phone"
-  | "client_email"
-  | "workflow_type"
-  | "service_type"
-  | "description"
-  | "desired_date"
-  | "notes"
-  | "status"
-  | "converted_order_id"
-  | "reviewed_by"
-  | "created_at"
-  | "updated_at"
->;
+import type { InternalSolicitudDetail } from "./types";
 
 export type GetInternalSolicitudByIdErrorReason =
   | "unauthorized"
@@ -76,6 +56,7 @@ export async function getInternalSolicitudById(
         "id, public_reference, cliente_id, client_name, client_phone, client_email, workflow_type, service_type, description, desired_date, notes, status, converted_order_id, reviewed_by, created_at, updated_at",
       )
       .eq("id", id)
+      .returns<InternalSolicitudDetail>()
       .maybeSingle();
 
     if (error) {

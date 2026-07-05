@@ -10,5 +10,6 @@ export * from "./reorder-task-template-task";
 export * from "./task-template-task-validation";
 export * from "./task-template-validation";
 export * from "./toggle-task-template-active";
+export * from "./types";
 export * from "./update-task-template-task";
 export * from "./update-task-template";

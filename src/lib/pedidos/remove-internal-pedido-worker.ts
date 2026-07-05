@@ -6,16 +6,24 @@ import {
   type ServiceResult,
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
-import { isValidUuid } from "@/lib/validators";
+import { GENERIC_REMOVE_PEDIDO_WORKER_ERROR } from "./worker-assignment-errors";
+import {
+  findPedidoForWorkerAssignment,
+  findPedidoWorkerAssignment,
+} from "./worker-assignment-queries";
+import {
+  normalizePedidoWorkerAssignmentInput,
+  validatePedidoWorkerAssignmentUuid,
+  type PedidoWorkerAssignmentFieldErrors,
+} from "./worker-assignment-validation";
 
 export type RemoveInternalPedidoWorkerInput = {
   pedidoId: string;
   assignedProfileId: string;
 };
 
-export type RemovePedidoWorkerFieldErrors = Partial<
-  Record<"pedido_id" | "assigned_profile_id", string>
->;
+export type RemovePedidoWorkerFieldErrors =
+  PedidoWorkerAssignmentFieldErrors;
 
 export type RemoveInternalPedidoWorkerErrorReason =
   | "unauthorized"
@@ -33,32 +41,16 @@ export type RemoveInternalPedidoWorkerResult = ServiceResult<
   RemovePedidoWorkerFieldErrors
 >;
 
-const GENERIC_REMOVE_ERROR =
-  "No se pudo remover la asignación. Inténtalo nuevamente.";
-
-function validateUuid(
-  value: string,
-  field: "pedido_id" | "assigned_profile_id",
-): RemovePedidoWorkerFieldErrors | null {
-  if (isValidUuid(value)) {
-    return null;
-  }
-
-  return {
-    [field]:
-      field === "pedido_id"
-        ? "El pedido solicitado no existe."
-        : "Selecciona un usuario válido.",
-  };
-}
-
 export async function removeInternalPedidoWorker(
   input: RemoveInternalPedidoWorkerInput,
 ): Promise<RemoveInternalPedidoWorkerResult> {
-  const pedidoId = input.pedidoId.trim();
-  const assignedProfileId = input.assignedProfileId.trim();
-  const pedidoIdErrors = validateUuid(pedidoId, "pedido_id");
-  const assignedProfileIdErrors = validateUuid(
+  const { pedidoId, assignedProfileId } =
+    normalizePedidoWorkerAssignmentInput(input);
+  const pedidoIdErrors = validatePedidoWorkerAssignmentUuid(
+    pedidoId,
+    "pedido_id",
+  );
+  const assignedProfileIdErrors = validatePedidoWorkerAssignmentUuid(
     assignedProfileId,
     "assigned_profile_id",
   );
@@ -102,16 +94,13 @@ export async function removeInternalPedidoWorker(
   const supabase = await createClient();
 
   try {
-    const { data: pedido, error: pedidoError } = await supabase
-      .from("pedidos")
-      .select("id")
-      .eq("id", pedidoId)
-      .maybeSingle<{ id: string }>();
+    const { data: pedido, error: pedidoError } =
+      await findPedidoForWorkerAssignment(supabase, pedidoId);
 
     if (pedidoError) {
       console.error("Error checking pedido before worker removal", pedidoError);
 
-      return serviceFailure("error", GENERIC_REMOVE_ERROR);
+      return serviceFailure("error", GENERIC_REMOVE_PEDIDO_WORKER_ERROR);
     }
 
     if (!pedido) {
@@ -121,17 +110,13 @@ export async function removeInternalPedidoWorker(
       );
     }
 
-    const { data: assignment, error: assignmentError } = await supabase
-      .from("pedido_trabajadores")
-      .select("id")
-      .eq("pedido_id", pedidoId)
-      .eq("assigned_profile_id", assignedProfileId)
-      .maybeSingle<{ id: string }>();
+    const { data: assignment, error: assignmentError } =
+      await findPedidoWorkerAssignment(supabase, pedidoId, assignedProfileId);
 
     if (assignmentError) {
       console.error("Error checking pedido worker assignment", assignmentError);
 
-      return serviceFailure("error", GENERIC_REMOVE_ERROR);
+      return serviceFailure("error", GENERIC_REMOVE_PEDIDO_WORKER_ERROR);
     }
 
     if (!assignment) {
@@ -150,13 +135,13 @@ export async function removeInternalPedidoWorker(
     if (deleteError) {
       console.error("Error deleting pedido worker assignment", deleteError);
 
-      return serviceFailure("error", GENERIC_REMOVE_ERROR);
+      return serviceFailure("error", GENERIC_REMOVE_PEDIDO_WORKER_ERROR);
     }
 
     return serviceSuccess();
   } catch (error) {
     console.error("Unexpected error removing pedido worker", error);
 
-    return serviceFailure("error", GENERIC_REMOVE_ERROR);
+    return serviceFailure("error", GENERIC_REMOVE_PEDIDO_WORKER_ERROR);
   }
 }

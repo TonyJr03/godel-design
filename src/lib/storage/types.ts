@@ -10,7 +10,9 @@ import type {
 
 export type StorageBucketName = typeof GODEL_FILES_BUCKET;
 
-export type ArchivoMetadata = Tables<"archivos">;
+export type StorageFileMetadataRow = Tables<"archivos">;
+
+export type ArchivoMetadata = StorageFileMetadataRow;
 
 export type StorageFileCategory = Enums<"archivo_visibility">;
 
@@ -98,16 +100,21 @@ export type SignedFileUrlResult =
       reason: SignedFileUrlErrorReason;
     };
 
-export type PedidoFileListItem = Pick<
-  ArchivoMetadata,
+type SafeListedFileFields =
   | "id"
   | "file_name"
   | "file_type"
   | "file_size"
   | "visibility"
-  | "created_at"
-  | "uploaded_by"
-> & {
+  | "created_at";
+
+export type SafeListedFileMetadata = Pick<
+  StorageFileMetadataRow,
+  SafeListedFileFields
+>;
+
+export type PedidoFileListItem = SafeListedFileMetadata &
+  Pick<StorageFileMetadataRow, "uploaded_by"> & {
   uploadedBy: Pick<Tables<"perfiles">, "id" | "full_name" | "role"> | null;
 };
 
@@ -147,10 +154,7 @@ export type UploadPedidoFileResult =
         | "error";
     };
 
-export type SolicitudFileListItem = Pick<
-  ArchivoMetadata,
-  "id" | "file_name" | "file_type" | "file_size" | "visibility" | "created_at"
->;
+export type SolicitudFileListItem = SafeListedFileMetadata;
 
 export type ListSolicitudFilesResult =
   | {

@@ -1,6 +1,7 @@
 import {
   PEDIDO_FILE_CATEGORY_TO_FOLDER,
   SOLICITUD_FILE_CATEGORY_TO_FOLDER,
+  type StorageRoot,
   STORAGE_ROOTS,
 } from "./constants";
 import { sanitizeFileName } from "./file-name";
@@ -14,6 +15,26 @@ import type {
 
 function buildTimestampPrefix(now = new Date()): string {
   return now.toISOString().replace(/[:.]/g, "-");
+}
+
+function buildStoredFileName(fileName: string, now?: Date): string {
+  return `${buildTimestampPrefix(now)}-${sanitizeFileName(fileName)}`;
+}
+
+function buildStorageFilePath({
+  root,
+  ownerId,
+  folder,
+  fileName,
+  now,
+}: {
+  root: StorageRoot;
+  ownerId: string;
+  folder: string;
+  fileName: string;
+  now?: Date;
+}) {
+  return [root, ownerId, folder, buildStoredFileName(fileName, now)].join("/");
 }
 
 export function isPedidoFileCategory(
@@ -37,16 +58,15 @@ export function buildPedidoFilePath(input: BuildPedidoFilePathInput): string {
     throw new Error("Invalid pedido file category");
   }
 
-  const safeFileName = sanitizeFileName(input.fileName);
-  const timestamp = buildTimestampPrefix(input.now);
   const folder = PEDIDO_FILE_CATEGORY_TO_FOLDER[input.category];
 
-  return [
-    STORAGE_ROOTS.pedidos,
-    input.pedidoId,
+  return buildStorageFilePath({
+    root: STORAGE_ROOTS.pedidos,
+    ownerId: input.pedidoId,
     folder,
-    `${timestamp}-${safeFileName}`,
-  ].join("/");
+    fileName: input.fileName,
+    now: input.now,
+  });
 }
 
 export function buildSolicitudFilePath(
@@ -62,14 +82,13 @@ export function buildSolicitudFilePath(
     throw new Error("Invalid solicitud file category");
   }
 
-  const safeFileName = sanitizeFileName(input.fileName);
-  const timestamp = buildTimestampPrefix(input.now);
   const folder = SOLICITUD_FILE_CATEGORY_TO_FOLDER[category];
 
-  return [
-    STORAGE_ROOTS.solicitudes,
-    input.solicitudId,
+  return buildStorageFilePath({
+    root: STORAGE_ROOTS.solicitudes,
+    ownerId: input.solicitudId,
     folder,
-    `${timestamp}-${safeFileName}`,
-  ].join("/");
+    fileName: input.fileName,
+    now: input.now,
+  });
 }

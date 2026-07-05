@@ -1,68 +1,156 @@
 # Clientes
 
-`src/lib/clientes` centraliza la lógica server-side del módulo interno de clientes.
+`src/lib/clientes` contiene la logica server-side del dominio interno de
+clientes. El dashboard usa este dominio para listar, consultar, crear y editar
+clientes registrados para la operacion.
 
-## `listInternalClientes`
+Los datos de clientes son datos personales internos. No deben reutilizarse en
+rutas publicas ni en DTOs de `/estado`.
 
-- Carga el listado interno de clientes desde Server Components.
-- Requiere el permiso `clientes.view`.
-- Usa el cliente server-side de Supabase y respeta RLS como defensa final.
-- No usa service role key.
-- Permite una búsqueda server-side por `q` sobre `name`, `phone`, `email` y `notes`.
-- Normaliza y limita el texto de búsqueda; la barra común actualiza `q` en la URL tras 200 ms sin escritura, muestra `Buscando...` durante la espera y permite limpiarlo desde la UI.
-- El componente cliente solo sincroniza la URL; la consulta y el filtrado continúan server-side.
-- La búsqueda pertenece únicamente al listado de clientes; no es un buscador global.
-- Devuelve errores controlados para no exponer detalles técnicos al usuario.
+## Mapa de archivos
 
-## Creación manual
+- `index.ts`: barrel publico del dominio.
+- `types.ts`: DTOs internos `InternalCliente` e `InternalClienteDetail`.
+- `client-validation.ts`: normalizacion y validacion de input editable.
+- `list-internal-clientes.ts`: listado interno con busqueda.
+- `get-internal-cliente-by-id.ts`: detalle interno por UUID.
+- `create-internal-cliente.ts`: creacion manual de cliente.
+- `update-internal-cliente.ts`: actualizacion manual de cliente.
 
-La ruta `/dashboard/clientes/nuevo` muestra el formulario interno para crear clientes manualmente.
+## Rutas internas
 
-- `createClienteAction` lee únicamente `name`, `phone`, `email` y `notes` desde `FormData`.
-- `createInternalCliente` valida el permiso `clientes.manage` en servidor.
-- `validateClienteInput` normaliza el input, valida longitud y formato básico, y convierte campos opcionales vacíos a `null`.
-- La inserción usa el cliente server-side de Supabase, respeta RLS y no usa service role key.
-- No implementa deduplicación avanzada.
+- `/dashboard/clientes`: listado interno con busqueda `q`.
+- `/dashboard/clientes/nuevo`: formulario de creacion manual.
+- `/dashboard/clientes/[id]`: detalle interno.
+- `/dashboard/clientes/[id]/editar`: edicion interna.
 
-## Detalle interno
+Las rutas viven en `src/app/dashboard/clientes` y deben seguir delegando en
+servicios de `src/lib/clientes`. Las Server Actions son adaptadores finos:
+leen `FormData`, llaman servicios y revalidan rutas.
 
-La ruta `/dashboard/clientes/[id]` muestra el detalle server-side de un cliente.
+## Componentes principales
 
-- `getInternalClienteById` valida el formato UUID antes de consultar.
-- Requiere el permiso `clientes.view`.
-- Consulta la tabla `clientes` con el cliente server-side de Supabase.
-- Respeta RLS y no usa service role key.
-- Devuelve estados controlados para `id` inválido, cliente inexistente, falta de permisos o errores de carga.
-- No consulta solicitudes, pedidos ni archivos.
+- `InternalClientesList`: listado responsive de clientes.
+- `InternalClienteDetail`: detalle interno con datos operativos.
+- `ClienteForm`: formulario de creacion.
+- `ClienteEditForm`: formulario de edicion.
 
-## Edición interna
+Los componentes son UI. No consultan Supabase, no deciden permisos criticos y
+no deben reutilizarse en rutas publicas.
 
-La ruta `/dashboard/clientes/[id]/editar` permite actualizar datos básicos de un cliente.
+## Servicios
 
-- `updateClienteAction` lee únicamente `cliente_id`, `name`, `phone`, `email` y `notes` desde `FormData`.
-- `updateInternalCliente` valida el permiso `clientes.manage` en servidor.
-- El servicio valida UUID e input antes de actualizar.
-- Solo actualiza `name`, `phone`, `email` y `notes`.
-- Respeta RLS y no usa service role key.
-- No implementa eliminación.
+- `listInternalClientes` requiere `clientes.view`, busca por `name`, `phone`,
+  `email` y `notes`, y devuelve DTO de listado sin notas.
+- `getInternalClienteById` valida UUID, requiere `clientes.view` y devuelve el
+  detalle con `notes`.
+- `createInternalCliente` requiere `clientes.manage`, valida input y crea una
+  fila en `clientes`.
+- `updateInternalCliente` requiere `clientes.manage`, valida UUID e input, y
+  actualiza solo `name`, `phone`, `email` y `notes`.
 
-## Asociación con solicitudes
+Todos usan el cliente server-side normal de Supabase, respetan RLS como defensa
+final y devuelven errores seguros.
 
-- Los clientes pueden crearse manualmente o desde una solicitud recibida.
-- La asociación solicitud-cliente queda registrada en `solicitudes.cliente_id`.
-- La creación desde solicitud toma los datos guardados en servidor, no datos de cliente enviados desde el formulario.
-- `createClienteFromSolicitudAndAssociate` conserva validación y permisos, pero
-  delega la escritura en `public.crear_cliente_desde_solicitud(uuid)`.
-- La RPC bloquea la solicitud y crea cliente, historial y asociación en una
-  única transacción, evitando clientes huérfanos.
-- El historial muestra `cliente_asociado` sobre
-  `cliente_creado_desde_solicitud`, sin duplicar eventos.
-- La asociación con un cliente existente permanece como flujo separado.
-- La conversión de solicitud a pedido también es transaccional.
+## Tipos y validacion
 
-La RPC es `security definer`, solo puede ejecutarla `authenticated` y valida
-internamente que el actor sea `admin` o `supervisor` activo. No usa service role
-key, no consulta `auth.users` y no modifica la creación manual de clientes.
+`types.ts` centraliza los DTOs internos:
 
-El listado usa `ListFiltersBar` para sincronizar la búsqueda con la URL tras un
-debounce de 200 ms. La consulta y el filtrado siguen ejecutándose server-side.
+- `InternalCliente`: `id`, `name`, `phone`, `email`, `created_at`,
+  `updated_at`.
+- `InternalClienteDetail`: lo anterior mas `notes`.
+
+`client-validation.ts` normaliza `name`, `phone`, `email` y `notes`, valida
+longitudes, valida email basico y convierte opcionales vacios a `null`.
+
+## Revalidacion
+
+Las rutas de clientes se revalidan con helpers centralizados en
+`src/lib/actions/revalidation.ts`:
+
+- `revalidateClientesList()`
+- `revalidateClienteDetail(clienteId)`
+- `revalidateClienteEdit(clienteId)`
+
+Las actions de clientes deben usar esos helpers en lugar de repetir rutas a
+mano.
+
+## Relacion con solicitudes
+
+Clientes puede relacionarse con solicitudes de dos formas:
+
+- asociar una solicitud a un cliente existente;
+- crear un cliente desde una solicitud ya recibida.
+
+El flujo de creacion desde solicitud pertenece al dominio `solicitudes`, porque
+la solicitud es el origen de la operacion. Ese flujo usa datos persistidos en la
+solicitud y delega la parte critica en la RPC
+`public.crear_cliente_desde_solicitud(uuid)`, que crea cliente, historial y
+asociacion en una transaccion.
+
+La creacion manual de clientes no debe tomar decisiones sobre solicitudes.
+
+## Relacion con pedidos
+
+Los pedidos pueden tener `cliente_id` o quedar sin cliente asociado. El dominio
+pedidos valida la existencia/acceso del cliente cuando crea pedidos manuales y
+carga datos minimos de cliente para listados y detalles internos.
+
+Clientes no debe crear pedidos ni forzar la creacion automatica de clientes
+para pedidos sin cliente.
+
+## Datos visibles en dashboard
+
+En rutas internas puede mostrarse:
+
+- nombre;
+- telefono;
+- correo;
+- notas solo en detalle/edicion interna;
+- fechas de creacion/actualizacion;
+- UUID interno solo dentro del dashboard cuando el componente lo necesite.
+
+## Datos prohibidos en rutas publicas
+
+No deben llegar a `/solicitud` ni `/estado`:
+
+- UUIDs internos de cliente;
+- telefono;
+- correo;
+- notas;
+- nombres de cliente internos derivados de dashboards;
+- errores SQL/Postgres/Supabase;
+- metadatos crudos.
+
+No reutilices `InternalCliente` ni `InternalClienteDetail` en contratos
+publicos.
+
+## Seguridad
+
+- Validar perfil activo y permisos en servidor.
+- Mantener `clientes.view` para lecturas internas.
+- Mantener `clientes.manage` para creacion/edicion.
+- Usar RLS como defensa final.
+- No usar `service_role`.
+- No agregar `SUPABASE_SERVICE_ROLE_KEY`.
+- No consultar `auth.users`.
+- No consultar Supabase desde componentes cliente.
+
+## Estado actual y pendientes
+
+- No hay eliminacion de clientes en esta fase.
+- No hay deduplicacion avanzada todavia.
+- La desactivacion, archivado o eliminacion controlada de clientes requiere
+  diseno futuro explicito.
+- La deduplicacion de clientes queda como posible mejora futura si aparece
+  necesidad operativa real.
+
+## Que no hacer
+
+- No exponer datos de clientes en rutas publicas.
+- No reutilizar DTOs internos en `/estado`.
+- No mover permisos a componentes.
+- No confiar en ocultar botones como seguridad.
+- No crear `src/services`.
+- No implementar eliminacion directa sin fase explicita.
+- No mezclar refactors del dominio con cambios de solicitudes, pedidos o RLS.

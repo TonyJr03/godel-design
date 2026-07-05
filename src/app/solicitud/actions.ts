@@ -2,11 +2,14 @@
 
 import {
   createPublicSolicitud,
+  type CreatePublicSolicitudResult,
   type PublicSolicitudFieldErrors,
+  type PublicSolicitudInput,
 } from "@/lib/solicitudes";
 import {
   MAX_PUBLIC_SOLICITUD_FILES,
   uploadPublicSolicitudFiles,
+  type UploadPublicSolicitudFilesResult,
   validateStorageFile,
 } from "@/lib/storage";
 import { getFormValue } from "@/lib/utils";
@@ -87,42 +90,10 @@ function validateSolicitudFilesBeforeCreate(files: File[]) {
   return null;
 }
 
-export async function submitPublicSolicitudAction(
-  _prevState: SubmitPublicSolicitudActionState,
-  formData: FormData,
-): Promise<SubmitPublicSolicitudActionState> {
-  const values = getSubmittedValues(formData);
-  const files = getSolicitudFiles(formData);
-
-  if (
-    values.workflow_type === WORKFLOW_TYPES.IMPRESION &&
-    files.length === 0
-  ) {
-    return {
-      ok: false,
-      message: "Adjunta el documento que deseas imprimir.",
-      fieldErrors: {
-        files:
-          "Para solicitar una impresión debes adjuntar el documento a imprimir.",
-      },
-      values,
-    };
-  }
-
-  const filesError = validateSolicitudFilesBeforeCreate(files);
-
-  if (filesError) {
-    return {
-      ok: false,
-      message: "Revisa los archivos adjuntos antes de enviar la solicitud.",
-      fieldErrors: {
-        files: filesError,
-      },
-      values,
-    };
-  }
-
-  const result = await createPublicSolicitud({
+function buildCreatePublicSolicitudInput(
+  values: PublicSolicitudSubmittedValues,
+): PublicSolicitudInput {
+  return {
     workflow_type: values.workflow_type,
     client_name: values.client_name,
     client_phone: values.client_phone,
@@ -135,15 +106,109 @@ export async function submitPublicSolicitudAction(
     print_color_mode: values.print_color_mode,
     print_paper_size: values.print_paper_size,
     print_sides: values.print_sides,
-  });
+  };
+}
+
+function buildPublicSolicitudFieldErrorState({
+  message,
+  fieldErrors,
+  values,
+}: {
+  message: string;
+  fieldErrors: PublicSolicitudFieldErrors;
+  values: PublicSolicitudSubmittedValues;
+}): SubmitPublicSolicitudActionState {
+  return {
+    ok: false,
+    message,
+    fieldErrors,
+    values,
+  };
+}
+
+function buildCreatePublicSolicitudErrorState(
+  result: Extract<CreatePublicSolicitudResult, { ok: false }>,
+  values: PublicSolicitudSubmittedValues,
+): SubmitPublicSolicitudActionState {
+  return {
+    ok: false,
+    message: result.message,
+    fieldErrors: result.fieldErrors,
+    values,
+  };
+}
+
+function buildPublicSolicitudSuccessState(
+  result: Extract<CreatePublicSolicitudResult, { ok: true }>,
+  uploadedFilesCount: number,
+): SubmitPublicSolicitudActionState {
+  return {
+    ok: true,
+    message: "Solicitud enviada correctamente. Nos pondremos en contacto contigo.",
+    solicitudId: result.solicitudId,
+    publicReference: result.publicReference,
+    uploadedFilesCount,
+  };
+}
+
+function buildUploadWarningState(
+  result: Extract<CreatePublicSolicitudResult, { ok: true }>,
+  uploadResult: UploadPublicSolicitudFilesResult,
+): SubmitPublicSolicitudActionState {
+  return {
+    ok: true,
+    message:
+      "Solicitud enviada correctamente, pero algunos archivos no pudieron adjuntarse.",
+    solicitudId: result.solicitudId,
+    publicReference: result.publicReference,
+    uploadedFilesCount: uploadResult.uploaded.length,
+    fileWarning:
+      "La solicitud fue registrada. Puedes mencionar los archivos pendientes cuando nos contactemos contigo.",
+    fileErrors: uploadResult.errors.map(
+      (error) => `${error.fileName}: no se pudo adjuntar.`,
+    ),
+  };
+}
+
+export async function submitPublicSolicitudAction(
+  _prevState: SubmitPublicSolicitudActionState,
+  formData: FormData,
+): Promise<SubmitPublicSolicitudActionState> {
+  const values = getSubmittedValues(formData);
+  const files = getSolicitudFiles(formData);
+
+  if (
+    values.workflow_type === WORKFLOW_TYPES.IMPRESION &&
+    files.length === 0
+  ) {
+    return buildPublicSolicitudFieldErrorState({
+      message: "Adjunta el documento que deseas imprimir.",
+      fieldErrors: {
+        files:
+          "Para solicitar una impresión debes adjuntar el documento a imprimir.",
+      },
+      values,
+    });
+  }
+
+  const filesError = validateSolicitudFilesBeforeCreate(files);
+
+  if (filesError) {
+    return buildPublicSolicitudFieldErrorState({
+      message: "Revisa los archivos adjuntos antes de enviar la solicitud.",
+      fieldErrors: {
+        files: filesError,
+      },
+      values,
+    });
+  }
+
+  const result = await createPublicSolicitud(
+    buildCreatePublicSolicitudInput(values),
+  );
 
   if (!result.ok) {
-    return {
-      ok: false,
-      message: result.message,
-      fieldErrors: result.fieldErrors,
-      values,
-    };
+    return buildCreatePublicSolicitudErrorState(result, values);
   }
 
   if (files.length > 0) {
@@ -158,35 +223,14 @@ export async function submitPublicSolicitudAction(
         errors: uploadResult.errors,
       });
 
-      return {
-        ok: true,
-        message:
-          "Solicitud enviada correctamente, pero algunos archivos no pudieron adjuntarse.",
-        solicitudId: result.solicitudId,
-        publicReference: result.publicReference,
-        uploadedFilesCount: uploadResult.uploaded.length,
-        fileWarning:
-          "La solicitud fue registrada. Puedes mencionar los archivos pendientes cuando nos contactemos contigo.",
-        fileErrors: uploadResult.errors.map(
-          (error) => `${error.fileName}: no se pudo adjuntar.`,
-        ),
-      };
+      return buildUploadWarningState(result, uploadResult);
     }
 
-    return {
-      ok: true,
-      message: "Solicitud enviada correctamente. Nos pondremos en contacto contigo.",
-      solicitudId: result.solicitudId,
-      publicReference: result.publicReference,
-      uploadedFilesCount: uploadResult.uploaded.length,
-    };
+    return buildPublicSolicitudSuccessState(
+      result,
+      uploadResult.uploaded.length,
+    );
   }
 
-  return {
-    ok: true,
-    message: "Solicitud enviada correctamente. Nos pondremos en contacto contigo.",
-    solicitudId: result.solicitudId,
-    publicReference: result.publicReference,
-    uploadedFilesCount: 0,
-  };
+  return buildPublicSolicitudSuccessState(result, 0);
 }

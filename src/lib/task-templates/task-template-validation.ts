@@ -1,22 +1,12 @@
+import type {
+  TaskTemplateFieldErrors,
+  TaskTemplateInput,
+  ValidTaskTemplateInput,
+} from "./types";
+
 export const TASK_TEMPLATE_NAME_MIN_LENGTH = 2;
 export const TASK_TEMPLATE_NAME_MAX_LENGTH = 120;
 export const TASK_TEMPLATE_DESCRIPTION_MAX_LENGTH = 2000;
-
-export type TaskTemplateField = "name" | "description";
-
-export type TaskTemplateFieldErrors = Partial<
-  Record<TaskTemplateField, string>
->;
-
-export type TaskTemplateInput = {
-  name?: string | null;
-  description?: string | null;
-};
-
-export type ValidTaskTemplateInput = {
-  name: string;
-  description: string | null;
-};
 
 export type TaskTemplateValidationResult =
   | {

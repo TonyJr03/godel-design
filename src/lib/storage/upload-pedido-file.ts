@@ -10,12 +10,28 @@ import {
   getPedidoFileVisibilityForStatus,
   validateStorageFile,
 } from "./file-validation";
+import { buildPedidoFileMetadata } from "./upload-metadata";
 import type { UploadPedidoFileInput, UploadPedidoFileResult } from "./types";
 
 type PedidoFileUploadContext = {
   id: string;
   status: PedidoStatus;
 };
+
+type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+
+async function removeUploadedObjectBestEffort(
+  supabase: SupabaseServerClient,
+  filePath: string,
+) {
+  const { error: cleanupError } = await supabase.storage
+    .from(GODEL_FILES_BUCKET)
+    .remove([filePath]);
+
+  if (cleanupError) {
+    console.error("Best-effort cleanup failed for pedido file", cleanupError);
+  }
+}
 
 export async function uploadPedidoFile(
   input: UploadPedidoFileInput,
@@ -89,31 +105,22 @@ export async function uploadPedidoFile(
 
     const { data: metadata, error: metadataError } = await supabase
       .from("archivos")
-      .insert({
-        pedido_id: pedidoId,
-        solicitud_id: null,
-        uploaded_by: profile.id,
-        file_name: safeFileName,
-        file_path: filePath,
-        file_type: input.file.type,
-        file_size: input.file.size,
-        bucket: GODEL_FILES_BUCKET,
-        visibility,
-      })
+      .insert(
+        buildPedidoFileMetadata({
+          pedidoId,
+          uploadedBy: profile.id,
+          fileName: safeFileName,
+          filePath,
+          file: input.file,
+          visibility,
+        }),
+      )
       .select("id")
       .single<{ id: string }>();
 
     if (metadataError) {
       console.error("Error inserting pedido file metadata", metadataError);
-
-      const { error: cleanupError } = await supabase.storage
-        .from(GODEL_FILES_BUCKET)
-        .remove([filePath]);
-
-      if (cleanupError) {
-        console.error("Best-effort cleanup failed for pedido file", cleanupError);
-      }
-
+      await removeUploadedObjectBestEffort(supabase, filePath);
       return { ok: false, reason: "metadata_error" };
     }
 

@@ -1,14 +1,34 @@
-import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
-import type { Tables } from "@/types/database";
+import type {
+  CurrentProfile,
+  CurrentUser,
+  CurrentUserWithProfile,
+} from "./types";
 
-export type CurrentUser = User;
-export type CurrentProfile = Tables<"perfiles">;
+export type {
+  CurrentProfile,
+  CurrentUser,
+  CurrentUserWithProfile,
+} from "./types";
 
-export type CurrentUserWithProfile = {
-  user: CurrentUser;
-  profile: CurrentProfile;
-};
+const CURRENT_PROFILE_SELECT = "id, role, is_active";
+
+async function getActiveProfileByUserId(
+  userId: string,
+): Promise<CurrentProfile | null> {
+  const supabase = await createClient();
+  const { data: profile, error } = await supabase
+    .from("perfiles")
+    .select(CURRENT_PROFILE_SELECT)
+    .eq("id", userId)
+    .maybeSingle<CurrentProfile>();
+
+  if (error || !profile?.is_active) {
+    return null;
+  }
+
+  return profile;
+}
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
   const supabase = await createClient();
@@ -28,18 +48,7 @@ export async function getCurrentProfile(): Promise<CurrentProfile | null> {
     return null;
   }
 
-  const supabase = await createClient();
-  const { data: profile, error } = await supabase
-    .from("perfiles")
-    .select("*")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (error || !profile?.is_active) {
-    return null;
-  }
-
-  return profile;
+  return getActiveProfileByUserId(user.id);
 }
 
 export async function getCurrentUserWithProfile(): Promise<CurrentUserWithProfile | null> {
@@ -49,14 +58,9 @@ export async function getCurrentUserWithProfile(): Promise<CurrentUserWithProfil
     return null;
   }
 
-  const supabase = await createClient();
-  const { data: profile, error } = await supabase
-    .from("perfiles")
-    .select("*")
-    .eq("id", user.id)
-    .maybeSingle();
+  const profile = await getActiveProfileByUserId(user.id);
 
-  if (error || !profile?.is_active) {
+  if (!profile) {
     return null;
   }
 

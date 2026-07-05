@@ -30,6 +30,10 @@
     0 8px 24px rgb(47 48 52 / 5%);
   --radius-card: 0.75rem;
   --radius-control: 0.5rem;
+  --font-ui-sans: ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-ui-mono: ui-monospace, SFMono-Regular, Consolas,
+    "Liberation Mono", monospace;
 }
 
 @theme inline {
@@ -58,14 +62,14 @@
   --color-info: var(--info);
   --color-info-soft: var(--info-soft);
   --color-focus-ring: var(--focus-ring);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-ui-sans);
+  --font-mono: var(--font-ui-mono);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-ui-sans), Arial, Helvetica, sans-serif;
 }
 
 ::selection {

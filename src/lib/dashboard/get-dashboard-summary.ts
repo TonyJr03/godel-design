@@ -1,7 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
+import { loadTaskProgressByPedidoId } from "@/lib/pedidos/list-internal-pedidos-progress";
 import type { Tables } from "@/types/database";
 import type { DashboardContext, ManagementDashboardContext } from "./context";
 import {
+  doesPedidoWorkflowRequireTasks,
   getDashboardDateWindow,
   PEDIDO_STATUSES_WITHOUT_TASKS_ATTENTION,
   SUMMARY_PENDING_SOLICITUD_STATUSES,
@@ -14,8 +16,7 @@ type CountQuery = PromiseLike<{
   error: { message?: string } | null;
 }>;
 
-type PedidoSinTareasRow = Pick<Tables<"pedidos">, "id">;
-type PedidoTaskPedidoIdRow = Pick<Tables<"pedido_tareas">, "pedido_id">;
+type PedidoSinTareasRow = Pick<Tables<"pedidos">, "id" | "workflow_type">;
 
 const GENERIC_SUMMARY_ERROR =
   "No se pudo cargar el resumen del dashboard. Inténtalo nuevamente.";
@@ -34,7 +35,7 @@ async function countPedidosPendientesSinTareas(): Promise<number> {
   const supabase = await createClient();
   const { data: pedidos, error: pedidosError } = await supabase
     .from("pedidos")
-    .select("id")
+    .select("id, workflow_type")
     .in("status", PEDIDO_STATUSES_WITHOUT_TASKS_ATTENTION)
     .returns<PedidoSinTareasRow[]>();
 
@@ -46,30 +47,23 @@ async function countPedidosPendientesSinTareas(): Promise<number> {
     );
   }
 
-  const pedidoIds = (pedidos ?? []).map((pedido) => pedido.id);
+  const pedidosRequiringTasks = (pedidos ?? []).filter(
+    doesPedidoWorkflowRequireTasks,
+  );
+  const pedidoIds = pedidosRequiringTasks.map((pedido) => pedido.id);
 
   if (pedidoIds.length === 0) {
     return 0;
   }
 
-  const { data: tasks, error: tasksError } = await supabase
-    .from("pedido_tareas")
-    .select("pedido_id")
-    .in("pedido_id", pedidoIds)
-    .returns<PedidoTaskPedidoIdRow[]>();
+  const progressByPedidoId = await loadTaskProgressByPedidoId(
+    supabase,
+    pedidoIds,
+  );
 
-  if (tasksError) {
-    throw new Error(
-      `tareas de pedidos pendientes: ${
-        tasksError.message ?? "Supabase query error"
-      }`,
-    );
-  }
-
-  const pedidoIdsWithTasks = new Set((tasks ?? []).map((task) => task.pedido_id));
-
-  return pedidoIds.filter((pedidoId) => !pedidoIdsWithTasks.has(pedidoId))
-    .length;
+  return pedidoIds.filter(
+    (pedidoId) => !progressByPedidoId.get(pedidoId)?.hasTasks,
+  ).length;
 }
 
 async function getManagementDashboardSummary(

@@ -15,12 +15,12 @@ import {
   validateOptionalFutureDate,
 } from "@/lib/validators";
 import { WORKFLOW_TYPES, type WorkflowType } from "@/lib/workflow-types";
-import type { Enums, Tables } from "@/types/database";
 import {
   isPedidoPrioridad,
   validatePedidoTotalAmount,
   type PedidoPrioridad,
 } from "./order-validation";
+import { convertSolicitudToPedidoRpc } from "./rpc";
 
 export type CreatePedidoFromSolicitudInput = {
   solicitudId: string;
@@ -159,25 +159,6 @@ const SAFE_RPC_CONVERSION_ERRORS = [
   message: string;
   reason: CreatePedidoFromSolicitudErrorReason;
 }>;
-
-type ConvertSolicitudRpcResult = {
-  data: Tables<"pedidos"> | null;
-  error: { message?: string } | null;
-};
-
-type ConvertSolicitudRpcClient = {
-  rpc(
-    fn: "convertir_solicitud_a_pedido",
-    args: {
-      p_solicitud_id: string;
-      p_title: string;
-      p_description: string;
-      p_priority: Enums<"pedido_prioridad">;
-      p_estimated_delivery_date: string | null;
-      p_total_amount: number;
-    },
-  ): PromiseLike<ConvertSolicitudRpcResult>;
-};
 
 function getSafeRpcConversionError(errorMessage: string | undefined) {
   const message = errorMessage?.trim();
@@ -327,9 +308,7 @@ export async function createPedidoFromSolicitud(
       });
     }
 
-    const { data: pedido, error } = await (
-      supabase as unknown as ConvertSolicitudRpcClient
-    ).rpc("convertir_solicitud_a_pedido", {
+    const { data: pedido, error } = await convertSolicitudToPedidoRpc(supabase, {
       p_solicitud_id: solicitudId,
       p_title: validation.values.title,
       p_description: validation.values.description,

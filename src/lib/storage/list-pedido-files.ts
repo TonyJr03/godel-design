@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
 import type { ListPedidoFilesResult, PedidoFileListItem } from "./types";
 
-type PedidoFileRow = Omit<PedidoFileListItem, "uploadedBy"> & {
+type PedidoFileListRow = Omit<PedidoFileListItem, "uploadedBy"> & {
   uploader: PedidoFileListItem["uploadedBy"];
 };
 
@@ -17,6 +17,16 @@ const PEDIDO_FILES_SELECT = `
   uploaded_by,
   uploader:perfiles!archivos_uploaded_by_fkey(id, full_name, role)
 `;
+
+function mapPedidoFileListRow({
+  uploader,
+  ...file
+}: PedidoFileListRow): PedidoFileListItem {
+  return {
+    ...file,
+    uploadedBy: uploader,
+  };
+}
 
 export async function listPedidoFiles(
   pedidoId: string,
@@ -62,7 +72,7 @@ export async function listPedidoFiles(
         "final_entrega",
       ])
       .order("created_at", { ascending: false })
-      .returns<PedidoFileRow[]>();
+      .returns<PedidoFileListRow[]>();
 
     if (error) {
       console.error("Error listing pedido files", error);
@@ -71,10 +81,7 @@ export async function listPedidoFiles(
 
     return {
       ok: true,
-      files: (data ?? []).map(({ uploader, ...file }) => ({
-        ...file,
-        uploadedBy: uploader,
-      })),
+      files: (data ?? []).map(mapPedidoFileListRow),
     };
   } catch (error) {
     console.error("Unexpected error listing pedido files", error);

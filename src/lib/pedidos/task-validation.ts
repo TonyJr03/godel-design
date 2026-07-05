@@ -44,6 +44,19 @@ export type ValidatePedidoTaskSortOrderResult = ValidationResult<
   { message: string }
 >;
 
+export type PedidoTaskUpdateInputForValues = {
+  title?: string | null;
+  completedQuantity?: string | number | null;
+  isCompleted?: string | boolean | null;
+  sortOrder?: string | number | null;
+};
+
+export type PedidoTaskUpdateValues = {
+  title?: string;
+  completedQuantity?: string;
+  sortOrder?: string;
+};
+
 const NUMBER_TOKEN_PATTERN = /(^|[^\p{L}\p{N}])(-?\d+(?:[.,]\d+)?)(?=$|[^\p{L}\p{N}])/gu;
 const LETTER_PATTERN = /\p{L}/u;
 
@@ -133,6 +146,37 @@ export function parsePedidoTaskTitle(
     targetQuantity,
     completedQuantity: 0,
   });
+}
+
+export function hasPedidoTaskUpdateInput(
+  input: PedidoTaskUpdateInputForValues,
+): boolean {
+  return (
+    input.title !== undefined ||
+    input.completedQuantity !== undefined ||
+    input.isCompleted !== undefined ||
+    input.sortOrder !== undefined
+  );
+}
+
+export function getPedidoTaskUpdateValues(
+  input: PedidoTaskUpdateInputForValues,
+): PedidoTaskUpdateValues {
+  const values: PedidoTaskUpdateValues = {};
+
+  if (input.title !== undefined && input.title !== null) {
+    values.title = input.title.trim();
+  }
+
+  if (input.completedQuantity !== undefined && input.completedQuantity !== null) {
+    values.completedQuantity = String(input.completedQuantity);
+  }
+
+  if (input.sortOrder !== undefined && input.sortOrder !== null) {
+    values.sortOrder = String(input.sortOrder);
+  }
+
+  return values;
 }
 
 export function validatePedidoTaskCompletedQuantity(

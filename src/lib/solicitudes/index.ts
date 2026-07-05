@@ -76,8 +76,8 @@ export type {
 export type {
   GetInternalSolicitudByIdErrorReason,
   GetInternalSolicitudByIdResult,
-  InternalSolicitudDetail,
 } from "./get-internal-solicitud-by-id";
+export type { InternalSolicitud, InternalSolicitudDetail } from "./types";
 export type { ManualSolicitudStatus } from "./status";
 export type { SolicitudStatus } from "./status";
 export type { SolicitudStatusTransitionOption } from "./status";
@@ -87,7 +87,6 @@ export type {
   UpdateInternalSolicitudStatusResult,
 } from "./update-internal-solicitud-status";
 export type {
-  InternalSolicitud,
   InternalSolicitudEstado,
   ListInternalSolicitudesErrorReason,
   ListInternalSolicitudesOptions,
