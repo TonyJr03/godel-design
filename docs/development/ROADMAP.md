@@ -611,6 +611,20 @@ pueden recorrer los mismos estados sin tareas obligatorias. `service_type`
 permanece como dato descriptivo y no gobierna el flujo. El detalle del cierre se
 conserva en `docs/development/ALFA_1_WORKFLOW_TYPE_CHECKLIST.md`.
 
+### Cierre Beta 2
+
+Beta 2 quedo completada con la consolidacion arquitectonica del proyecto. El
+cierre confirma `src/lib/<dominio>` como capa de dominio, ausencia de
+`src/services`, Server Actions finas, componentes sin Supabase directo, DTOs
+seguros, Storage privado, tracking publico minimo, QA focal por dominio, suite
+serial Chromium como gate estable y build/verify offline.
+
+El informe final vive en `docs/development/BETA_2_FINAL_CLOSURE.md` y el
+registro accionable de deuda tecnica vive en
+`docs/development/BETA_2_TECHNICAL_DEBT.md`. Las deudas registradas quedan
+aceptadas y no bloquean el avance hacia la siguiente fase definida por este
+roadmap.
+
 ---
 
 ## Fase 15 — Seguridad, pruebas y despliegue inicial
@@ -792,6 +806,11 @@ reutilizables, layout y navegación responsive, dashboard, listados, detalles y
 formularios normalizados, experiencia pública, pantallas de permisos, 404
 personalizada y revisión final de responsive y accesibilidad básica. La guía
 permanente para nueva UI es `docs/CONVENCIONES_UI_UX_GODEL.md`.
+
+Beta 2 quedo completada como fase de consolidacion arquitectonica, seguridad,
+dominios, Storage, QA y documentacion. El cierre final esta documentado en
+`docs/development/BETA_2_FINAL_CLOSURE.md`; la deuda tecnica aceptada queda
+registrada en `docs/development/BETA_2_TECHNICAL_DEBT.md`.
 
 La próxima fase activa es Fase 15 — Seguridad, pruebas y despliegue inicial. No
 debe iniciarse hasta recibir una tarea específica para esa fase.
