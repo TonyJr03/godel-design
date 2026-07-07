@@ -6,7 +6,7 @@ import { useActionState } from "react";
 import {
   toggleTaskTemplateActiveAction,
   type TaskTemplateActionState,
-} from "@/app/dashboard/configuracion/actions";
+} from "@/app/(interno)/dashboard/configuracion/actions";
 import { TaskTemplateForm } from "@/components/configuracion/TaskTemplateForm";
 import { Alert, Button, Card, EmptyState, StatusBadge } from "@/components/ui";
 import type { TaskTemplateListItem } from "@/lib/task-templates";

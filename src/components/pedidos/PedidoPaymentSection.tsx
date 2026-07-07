@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import type {
   PedidoDetailAction,
   UpdatePedidoPaymentActionState,
-} from "@/app/dashboard/pedidos/[id]/actions";
+} from "@/app/(interno)/dashboard/pedidos/[id]/actions";
 import { formatMoney } from "@/lib/format/money";
 import type { InternalPedidoPayment } from "@/lib/pedidos";
 import { formatAppDateTime } from "@/lib/utils";

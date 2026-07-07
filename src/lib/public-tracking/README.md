@@ -92,7 +92,7 @@ El mapper debe construir el DTO campo por campo.
 `npm.cmd run audit:public-tracking` revisa codigo de:
 
 - `src/lib/public-tracking`;
-- `src/app/estado`;
+- `src/app/(publico)/estado`;
 - `src/components/tracking`.
 
 El script busca terminos internos sensibles en archivos de codigo. La

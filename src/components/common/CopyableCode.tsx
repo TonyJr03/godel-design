@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Check, Copy } from "lucide-react";
+
 import { Button } from "@/components/ui";
 
 export type CopyableCodeProps = {
@@ -27,6 +29,7 @@ export function CopyableCode({
   className,
 }: CopyableCodeProps) {
   const [statusMessage, setStatusMessage] = useState("");
+  const isCopied = statusMessage === copiedMessage;
 
   useEffect(() => {
     if (!statusMessage) {
@@ -76,7 +79,20 @@ export function CopyableCode({
           onClick={copyCode}
           className="w-full cursor-pointer sm:w-auto"
         >
-          {statusMessage === copiedMessage ? "Copiado" : "Copiar"}
+          {isCopied ? (
+            <Check
+              aria-hidden="true"
+              className="size-4 shrink-0"
+              strokeWidth={2}
+            />
+          ) : (
+            <Copy
+              aria-hidden="true"
+              className="size-4 shrink-0"
+              strokeWidth={2}
+            />
+          )}
+          {isCopied ? "Copiado" : "Copiar"}
         </Button>
       </div>
 

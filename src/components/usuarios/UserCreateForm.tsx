@@ -6,7 +6,7 @@ import { useActionState } from "react";
 import {
   createUserProfileAction,
   type CreateUserProfileActionState,
-} from "@/app/dashboard/usuarios/nuevo/actions";
+} from "@/app/(interno)/dashboard/usuarios/nuevo/actions";
 import {
   Alert,
   Button,

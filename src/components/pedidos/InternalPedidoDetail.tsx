@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import type {
   PedidoDetailAction,
   UpdatePedidoStatusActionState,
-} from "@/app/dashboard/pedidos/[id]/actions";
+} from "@/app/(interno)/dashboard/pedidos/[id]/actions";
 import { CopyableCode } from "@/components/common/CopyableCode";
 import {
   DetailPanel,

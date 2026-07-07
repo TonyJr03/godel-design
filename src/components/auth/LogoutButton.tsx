@@ -1,4 +1,6 @@
-import { logout } from "@/app/login/actions";
+import { LogOut } from "lucide-react";
+
+import { logout } from "@/app/(interno)/login/actions";
 
 type LogoutButtonProps = {
   variant?: "default" | "inverse";
@@ -17,10 +19,15 @@ export function LogoutButton({ variant = "default" }: LogoutButtonProps) {
       <button
         type="submit"
         className={[
-          "min-h-11 w-full rounded-(--radius-control) border px-3 py-2.5 text-left text-sm font-semibold transition-[background-color,border-color,color] duration-200",
+          "inline-flex min-h-11 w-full items-center gap-2 rounded-(--radius-control) border px-3 py-2.5 text-left text-sm font-semibold transition-[background-color,border-color,color] duration-200",
           variantClasses[variant],
         ].join(" ")}
       >
+        <LogOut
+          aria-hidden="true"
+          className="size-5 shrink-0"
+          strokeWidth={1.75}
+        />
         Cerrar sesión
       </button>
     </form>

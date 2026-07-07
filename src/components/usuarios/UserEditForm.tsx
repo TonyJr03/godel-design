@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState } from "react";
 
-import type { UpdateUserActionState } from "@/app/dashboard/usuarios/[id]/editar/actions";
+import type { UpdateUserActionState } from "@/app/(interno)/dashboard/usuarios/[id]/editar/actions";
 import {
   Alert,
   Button,

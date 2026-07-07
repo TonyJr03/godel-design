@@ -10,7 +10,7 @@ import {
 import {
   submitPublicSolicitudAction,
   type SubmitPublicSolicitudActionState,
-} from "@/app/solicitud/actions";
+} from "@/app/(publico)/solicitud/actions";
 import {
   PRINT_COLOR_MODE_OPTIONS,
   PRINT_PAPER_SIZE_OPTIONS,

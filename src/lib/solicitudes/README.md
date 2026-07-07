@@ -53,7 +53,7 @@ La conversion Solicitud -> Pedido se dispara desde el detalle interno de una sol
 
 ## Flujo publico `/solicitud`
 
-`/solicitud` renderiza `PublicSolicitudForm` y usa `src/app/solicitud/actions.ts` como Server Action publica. El componente cliente solo maneja interaccion, tabs, inputs, archivos seleccionados y mensajes; no consulta Supabase.
+`/solicitud` renderiza `PublicSolicitudForm` y usa `src/app/(publico)/solicitud/actions.ts` como Server Action publica. El componente cliente solo maneja interaccion, tabs, inputs, archivos seleccionados y mensajes; no consulta Supabase.
 
 La action publica:
 
@@ -84,7 +84,7 @@ Las mutaciones internas devuelven estados controlados para formularios, revalida
 Las Server Actions del detalle interno estan divididas por familia en:
 
 ```text
-src/app/dashboard/solicitudes/[id]/actions/
+src/app/(interno)/dashboard/solicitudes/[id]/actions/
 ```
 
 Familias actuales:
@@ -95,7 +95,7 @@ Familias actuales:
 - `conversion-actions.ts`;
 - `shared.ts`.
 
-`src/app/dashboard/solicitudes/[id]/actions.ts` queda como facade de re-exports para mantener imports estables desde componentes y paginas. Las actions son adaptadores finos: reciben `solicitud_id` enlazado desde el Server Component, leen solo campos editables, llaman servicios de `src/lib` o dominio Pedidos y revalidan rutas.
+`src/app/(interno)/dashboard/solicitudes/[id]/actions.ts` queda como facade de re-exports para mantener imports estables desde componentes y paginas. Las actions son adaptadores finos: reciben `solicitud_id` enlazado desde el Server Component, leen solo campos editables, llaman servicios de `src/lib` o dominio Pedidos y revalidan rutas.
 
 ## Estados y conversion
 

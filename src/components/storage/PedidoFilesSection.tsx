@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import type {
   PedidoDetailAction,
   UploadPedidoFileActionState,
-} from "@/app/dashboard/pedidos/[id]/actions";
+} from "@/app/(interno)/dashboard/pedidos/[id]/actions";
 import type { PedidoFileListItem } from "@/lib/storage";
 import type { PedidoStatus } from "@/lib/pedidos";
 import { STORAGE_FILE_INPUT_ACCEPT } from "@/lib/storage/constants";

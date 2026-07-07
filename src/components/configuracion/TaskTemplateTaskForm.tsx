@@ -6,7 +6,7 @@ import type {
   CreateTaskTemplateTaskActionState,
   TaskTemplateDetailAction,
   UpdateTaskTemplateTaskActionState,
-} from "@/app/dashboard/configuracion/plantillas/[templateId]/actions";
+} from "@/app/(interno)/dashboard/configuracion/plantillas/[templateId]/actions";
 import { Alert, Button, FormActions, FormField, Input } from "@/components/ui";
 import type {
   TaskTemplateTask,

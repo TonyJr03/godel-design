@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 const roots = [
   "src/lib/public-tracking",
-  "src/app/estado",
+  "src/app/(publico)/estado",
   "src/components/tracking",
 ];
 const codeFilePattern = /\.(?:[cm]?[jt]sx?)$/;

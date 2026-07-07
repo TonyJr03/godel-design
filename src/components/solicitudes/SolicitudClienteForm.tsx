@@ -6,7 +6,7 @@ import type {
   AssociateSolicitudClienteActionState,
   CreateClienteFromSolicitudActionState,
   SolicitudDetailAction,
-} from "@/app/dashboard/solicitudes/[id]/actions";
+} from "@/app/(interno)/dashboard/solicitudes/[id]/actions";
 import type { InternalCliente, InternalClienteDetail } from "@/lib/clientes";
 
 type SolicitudClienteFormProps = {

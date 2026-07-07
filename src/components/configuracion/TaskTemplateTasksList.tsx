@@ -7,7 +7,7 @@ import type {
   MoveTaskTemplateTaskActionState,
   TaskTemplateDetailAction,
   UpdateTaskTemplateTaskActionState,
-} from "@/app/dashboard/configuracion/plantillas/[templateId]/actions";
+} from "@/app/(interno)/dashboard/configuracion/plantillas/[templateId]/actions";
 import { TaskTemplateTaskForm } from "@/components/configuracion/TaskTemplateTaskForm";
 import { Alert, Button, EmptyState, StatusBadge } from "@/components/ui";
 import type { TaskTemplateTask } from "@/lib/task-templates";

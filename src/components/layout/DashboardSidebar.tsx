@@ -42,6 +42,7 @@ export function DashboardSidebar({ role }: DashboardSidebarProps) {
               key={item.href}
               href={item.href}
               label={item.label}
+              icon={item.icon}
             />
           ))}
         </nav>

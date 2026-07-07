@@ -1,3 +1,5 @@
+import { Menu } from "lucide-react";
+
 import { LogoutButton } from "@/components/auth/LogoutButton";
 
 import type { DashboardNavItem } from "./dashboard-nav-items";
@@ -18,7 +20,12 @@ export function DashboardMobileNav({ items }: DashboardMobileNavProps) {
               Gestión operativa
             </span>
           </span>
-          <span className="rounded-(--radius-control) border border-white/25 bg-white/10 px-3 py-2 text-sm font-semibold">
+          <span className="inline-flex min-h-11 items-center gap-2 rounded-(--radius-control) border border-white/25 bg-white/10 px-3 py-2 text-sm font-semibold">
+            <Menu
+              aria-hidden="true"
+              className="size-5 shrink-0"
+              strokeWidth={1.75}
+            />
             Menú
           </span>
         </summary>
@@ -30,6 +37,7 @@ export function DashboardMobileNav({ items }: DashboardMobileNavProps) {
                 key={item.href}
                 href={item.href}
                 label={item.label}
+                icon={item.icon}
                 variant="mobile"
               />
             ))}

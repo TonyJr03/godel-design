@@ -12,7 +12,7 @@ import {
 import {
   createPedidoAction,
   type CreatePedidoActionState,
-} from "@/app/dashboard/pedidos/nuevo/actions";
+} from "@/app/(interno)/dashboard/pedidos/nuevo/actions";
 import {
   Alert,
   Button,

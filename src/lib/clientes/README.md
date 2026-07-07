@@ -24,7 +24,7 @@ rutas publicas ni en DTOs de `/estado`.
 - `/dashboard/clientes/[id]`: detalle interno.
 - `/dashboard/clientes/[id]/editar`: edicion interna.
 
-Las rutas viven en `src/app/dashboard/clientes` y deben seguir delegando en
+Las rutas viven en `src/app/(interno)/dashboard/clientes` y deben seguir delegando en
 servicios de `src/lib/clientes`. Las Server Actions son adaptadores finos:
 leen `FormData`, llaman servicios y revalidan rutas.
 

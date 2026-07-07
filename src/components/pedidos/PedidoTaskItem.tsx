@@ -7,7 +7,7 @@ import type {
   TogglePedidoTaskCompletionActionState,
   UpdatePedidoTaskProgressActionState,
   UpdatePedidoTaskTitleActionState,
-} from "@/app/dashboard/pedidos/[id]/actions";
+} from "@/app/(interno)/dashboard/pedidos/[id]/actions";
 import type { PedidoTask } from "@/lib/pedidos/list-pedido-tasks";
 
 export type PedidoTaskItemActions = {

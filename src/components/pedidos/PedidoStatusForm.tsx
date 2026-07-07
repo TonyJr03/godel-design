@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import type {
   PedidoDetailAction,
   UpdatePedidoStatusActionState,
-} from "@/app/dashboard/pedidos/[id]/actions";
+} from "@/app/(interno)/dashboard/pedidos/[id]/actions";
 import {
   DELIVERY_PAYMENT_PENDING_REASON,
   getAllowedPedidoStatusTransitions,

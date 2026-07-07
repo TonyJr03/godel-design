@@ -5,7 +5,7 @@ import type {
   ApplyTaskTemplateActionState,
   CreatePedidoTaskActionState,
   PedidoDetailAction,
-} from "@/app/dashboard/pedidos/[id]/actions";
+} from "@/app/(interno)/dashboard/pedidos/[id]/actions";
 import {
   canManagePedidoTasksInStatus,
   getPedidoTaskManagementBlockedReason,

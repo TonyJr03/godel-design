@@ -2,12 +2,33 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import {
+  ClipboardList,
+  ContactRound,
+  LayoutDashboard,
+  Package,
+  Settings,
+  UserCog,
+  type LucideIcon,
+} from "lucide-react";
+
+import type { DashboardNavIconName } from "./dashboard-nav-items";
 
 type DashboardNavLinkProps = {
   href: string;
   label: string;
+  icon: DashboardNavIconName;
   variant?: "desktop" | "mobile";
 };
+
+const NAV_ICONS = {
+  dashboard: LayoutDashboard,
+  solicitudes: ClipboardList,
+  pedidos: Package,
+  clientes: ContactRound,
+  usuarios: UserCog,
+  configuracion: Settings,
+} satisfies Record<DashboardNavIconName, LucideIcon>;
 
 const variantClasses = {
   desktop: {
@@ -37,11 +58,13 @@ function isActivePath(pathname: string, href: string) {
 export function DashboardNavLink({
   href,
   label,
+  icon,
   variant = "desktop",
 }: DashboardNavLinkProps) {
   const pathname = usePathname();
   const isActive = isActivePath(pathname, href);
   const classes = variantClasses[variant];
+  const Icon = NAV_ICONS[icon];
 
   return (
     <Link
@@ -53,12 +76,17 @@ export function DashboardNavLink({
         }
       }}
       className={[
-        "flex items-center rounded-(--radius-control) text-sm font-semibold transition-[background-color,border-color,color,box-shadow] duration-200",
+        "flex items-center gap-3 rounded-(--radius-control) text-sm font-semibold transition-[background-color,border-color,color,box-shadow] duration-200",
         classes.base,
         isActive ? classes.active : classes.inactive,
       ].join(" ")}
     >
-      {label}
+      <Icon
+        aria-hidden="true"
+        className="size-5 shrink-0"
+        strokeWidth={1.75}
+      />
+      <span>{label}</span>
     </Link>
   );
 }

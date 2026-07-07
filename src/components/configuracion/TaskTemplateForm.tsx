@@ -6,7 +6,7 @@ import {
   createTaskTemplateAction,
   updateTaskTemplateAction,
   type TaskTemplateActionState,
-} from "@/app/dashboard/configuracion/actions";
+} from "@/app/(interno)/dashboard/configuracion/actions";
 import {
   Alert,
   Button,

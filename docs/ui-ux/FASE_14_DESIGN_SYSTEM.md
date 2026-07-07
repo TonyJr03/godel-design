@@ -717,7 +717,50 @@ ampliar excesivamente los campos.
 2. No cambiar middleware, auth, redirects o rutas existentes.
 3. No añadir búsqueda global ni revelar la URL solicitada o detalles técnicos.
 
-## 20. Estado final de Fase 14
+## 20. Iconografia funcional
+
+Lucide React es la libreria de iconos funcionales del proyecto. Se usa para
+reforzar navegacion, acciones y estados de interfaz; no sustituye logotipos ni
+recursos propios de Godel Diseno.
+
+### Tamanos
+
+- `16 px`: metadata y elementos auxiliares.
+- `20 px`: navegacion y botones.
+- `24 px`: encabezados de seccion y estados vacios.
+- Tamanos superiores se reservan para ilustraciones o estados vacios
+  justificados.
+
+### Grosor
+
+El grosor base es `strokeWidth={1.75}`. Puede usarse `2` cuando el tamano
+pequeno o el contraste requiera mayor definicion, pero no debe variarse de
+forma arbitraria.
+
+### Color
+
+Los iconos heredan el color del texto con `currentColor`. No se asignan colores
+hexadecimales directamente en los iconos.
+
+### Accesibilidad
+
+Cuando un icono acompana una etiqueta textual visible debe llevar
+`aria-hidden="true"`. Un futuro boton de solo icono debe tener nombre accesible
+mediante `aria-label`, target tactil minimo de 44 px y, si el significado no es
+evidente, tooltip. Ningun estado puede comunicarse solo mediante el dibujo.
+
+### Imports
+
+Usar imports directos desde `lucide-react`:
+
+```tsx
+import { LayoutDashboard, Package } from "lucide-react";
+```
+
+No usar `import * as Icons from "lucide-react"`, el componente dinamico general
+de Lucide ni un catalogo que importe todos los iconos.
+
+## 21. Estado final de Fase 14
 
 - El sistema visual documentado en este archivo es la referencia para nuevas
   pantallas y ajustes posteriores.
