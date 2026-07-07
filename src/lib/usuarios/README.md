@@ -26,7 +26,7 @@ contrasena, no usa `service_role` y no agrega `SUPABASE_SERVICE_ROLE_KEY`.
 - `/dashboard/usuarios/[id]`: detalle interno del perfil.
 - `/dashboard/usuarios/[id]/editar`: edicion interna de perfil, rol y estado.
 
-Las rutas viven en `src/app/dashboard/usuarios` y deben seguir delegando en
+Las rutas viven en `src/app/(interno)/dashboard/usuarios` y deben seguir delegando en
 servicios de `src/lib/usuarios`. Las Server Actions son adaptadores finos:
 leen `FormData`, llaman servicios y revalidan rutas.
 

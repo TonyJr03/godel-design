@@ -5,7 +5,7 @@ import type {
   AssignPedidoWorkerActionState,
   PedidoDetailAction,
   RemovePedidoWorkerActionState,
-} from "@/app/dashboard/pedidos/[id]/actions";
+} from "@/app/(interno)/dashboard/pedidos/[id]/actions";
 import type { InternalPedidoDetailTrabajador } from "@/lib/pedidos";
 import type { AssignableWorker } from "@/lib/pedidos/list-assignable-workers";
 import { ROLE_LABELS } from "@/lib/permissions";

@@ -5,7 +5,7 @@ import {
   deleteTaskTemplateTaskAction,
   moveTaskTemplateTaskAction,
   updateTaskTemplateTaskAction,
-} from "@/app/dashboard/configuracion/plantillas/[templateId]/actions";
+} from "@/app/(interno)/dashboard/configuracion/plantillas/[templateId]/actions";
 import { TaskTemplateDetailHeader } from "@/components/configuracion/TaskTemplateDetailHeader";
 import { TaskTemplateTasksSection } from "@/components/configuracion/TaskTemplateTasksSection";
 import { Alert } from "@/components/ui";

@@ -1,4 +1,4 @@
-import { logout } from "@/app/login/actions";
+import { logout } from "@/app/(interno)/login/actions";
 
 type LogoutButtonProps = {
   variant?: "default" | "inverse";

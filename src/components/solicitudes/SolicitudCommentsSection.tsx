@@ -4,7 +4,7 @@ import { useActionState, useEffect, useRef } from "react";
 import type {
   CreateSolicitudCommentActionState,
   SolicitudDetailAction,
-} from "@/app/dashboard/solicitudes/[id]/actions";
+} from "@/app/(interno)/dashboard/solicitudes/[id]/actions";
 import { ROLE_SHORT_LABELS } from "@/lib/permissions";
 import type { SolicitudComment } from "@/lib/solicitudes";
 import { formatAppDateTime } from "@/lib/utils";

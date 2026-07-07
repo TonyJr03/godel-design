@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import type {
   PedidoDetailAction,
   UpdatePedidoPaymentActionState,
-} from "@/app/dashboard/pedidos/[id]/actions";
+} from "@/app/(interno)/dashboard/pedidos/[id]/actions";
 import type { InternalPedidoPayment } from "@/lib/pedidos";
 
 type PedidoPaymentFormProps = {

@@ -5,7 +5,7 @@ import { useActionState } from "react";
 import type {
   ApplyTaskTemplateActionState,
   PedidoDetailAction,
-} from "@/app/dashboard/pedidos/[id]/actions";
+} from "@/app/(interno)/dashboard/pedidos/[id]/actions";
 import { Alert, Button, Select } from "@/components/ui";
 import type { ActiveTaskTemplateForOrder } from "@/lib/task-templates";
 

@@ -5,7 +5,7 @@ import { useActionState, useEffect, useRef } from "react";
 import {
   createClienteAction,
   type CreateClienteActionState,
-} from "@/app/dashboard/clientes/nuevo/actions";
+} from "@/app/(interno)/dashboard/clientes/nuevo/actions";
 import {
   Alert,
   Button,

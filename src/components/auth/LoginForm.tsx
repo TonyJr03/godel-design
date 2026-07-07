@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { login, type LoginActionState } from "@/app/login/actions";
+import { login, type LoginActionState } from "@/app/(interno)/login/actions";
 import { Alert, Button, Card, FormField, Input } from "@/components/ui";
 
 const initialState: LoginActionState = {};

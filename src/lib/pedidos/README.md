@@ -346,7 +346,7 @@ Los IDs secundarios necesarios para la operación, como `task_id` y
 Las actions son adaptadores finos: leen solo los campos editables, delegan la
 autorización y la mutación en servicios server-side o RPCs, y revalidan
 `/dashboard`, `/dashboard/pedidos` y el detalle. Desde Beta 2.3.1 están
-divididas por familia en `src/app/dashboard/pedidos/[id]/actions/`:
+divididas por familia en `src/app/(interno)/dashboard/pedidos/[id]/actions/`:
 estado, tareas, pagos, archivos, comentarios, asignaciones y plantillas.
 
 Los comentarios son append-only. No hay edición, eliminación, menciones, notificaciones, adjuntos ni registro automático adicional de historial en esta subfase.

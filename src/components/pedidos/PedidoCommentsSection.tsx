@@ -4,7 +4,7 @@ import { useActionState, useEffect, useRef } from "react";
 import type {
   CreatePedidoCommentActionState,
   PedidoDetailAction,
-} from "@/app/dashboard/pedidos/[id]/actions";
+} from "@/app/(interno)/dashboard/pedidos/[id]/actions";
 import type { PedidoComment } from "@/lib/pedidos";
 import { ROLE_SHORT_LABELS } from "@/lib/permissions";
 import { formatAppDateTime } from "@/lib/utils";

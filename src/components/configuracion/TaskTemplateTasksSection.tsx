@@ -1,7 +1,7 @@
 import type {
   CreateTaskTemplateTaskActionState,
   TaskTemplateDetailAction,
-} from "@/app/dashboard/configuracion/plantillas/[templateId]/actions";
+} from "@/app/(interno)/dashboard/configuracion/plantillas/[templateId]/actions";
 import { TaskTemplateTaskForm } from "@/components/configuracion/TaskTemplateTaskForm";
 import {
   TaskTemplateTasksList,

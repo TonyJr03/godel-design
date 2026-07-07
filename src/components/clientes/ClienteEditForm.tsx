@@ -5,7 +5,7 @@ import { useActionState } from "react";
 import {
   updateClienteAction,
   type UpdateClienteActionState,
-} from "@/app/dashboard/clientes/[id]/editar/actions";
+} from "@/app/(interno)/dashboard/clientes/[id]/editar/actions";
 import {
   Alert,
   Button,

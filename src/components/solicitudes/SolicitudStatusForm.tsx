@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import type {
   SolicitudDetailAction,
   UpdateSolicitudStatusActionState,
-} from "@/app/dashboard/solicitudes/[id]/actions";
+} from "@/app/(interno)/dashboard/solicitudes/[id]/actions";
 import {
   getAllowedSolicitudStatusTransitions,
   isSolicitudClosedStatus,
