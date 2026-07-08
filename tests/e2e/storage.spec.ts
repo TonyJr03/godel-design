@@ -71,9 +71,8 @@ test("admin sees safe pedido storage section when a pedido exists", async ({
     return;
   }
 
-  await expect(
-    page.getByRole("heading", { name: /detalle del pedido/i }),
-  ).toBeVisible();
+  await expect(page.locator("h1")).toHaveCount(1);
+  await expect(page.locator("h1")).toBeVisible();
 
   const storageSection = page.locator("section").filter({
     has: page.getByRole("heading", { name: /archivos del pedido/i }),

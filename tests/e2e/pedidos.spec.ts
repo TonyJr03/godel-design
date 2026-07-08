@@ -21,8 +21,12 @@ function sectionByHeading(page: Page, heading: RegExp) {
   }).first();
 }
 
-function getTaskItem(page: Page, title: string) {
-  return page.locator("li").filter({ hasText: title }).first();
+function getPedidoTasksSection(page: Page) {
+  return sectionByHeading(page, /tareas del pedido/i);
+}
+
+function getPedidoTaskItem(page: Page, title: string) {
+  return getPedidoTasksSection(page).locator("li").filter({ hasText: title }).first();
 }
 
 async function expectStatusMessage(page: Page, message: RegExp) {
@@ -74,9 +78,12 @@ async function createManualPedido(
 
   await page.getByRole("link", { name: /ver detalle del pedido/i }).click();
   await expect(
-    page.getByRole("heading", { name: /detalle del pedido/i }),
+    page.getByRole("heading", {
+      level: 1,
+      name: title,
+      exact: true,
+    }),
   ).toBeVisible();
-  await expect(page.getByText(title).first()).toBeVisible();
   await expectNoTechnicalLeakText(page);
 
   return page.url();
@@ -113,19 +120,19 @@ async function expectPedidoStatusBlocked(page: Page, status: string) {
 }
 
 async function createQuantifiedTask(page: Page) {
-  const taskSection = sectionByHeading(page, /tareas del pedido/i);
+  const taskSection = getPedidoTasksSection(page);
 
   await taskSection.getByLabel(/nueva tarea/i).fill(quantifiedTaskTitle);
   await taskSection.getByRole("button", { name: /crear tarea/i }).click();
   await expectStatusMessage(page, /tarea creada correctamente/i);
   await page.reload();
-  await expect(getTaskItem(page, quantifiedTaskTitle)).toBeVisible();
-  await expect(getTaskItem(page, quantifiedTaskTitle).getByText(/cuantificada/i))
+  await expect(getPedidoTaskItem(page, quantifiedTaskTitle)).toBeVisible();
+  await expect(getPedidoTaskItem(page, quantifiedTaskTitle).getByText(/cuantificada/i))
     .toBeVisible();
 }
 
 async function completeQuantifiedTask(page: Page) {
-  const task = getTaskItem(page, quantifiedTaskTitle);
+  const task = getPedidoTaskItem(page, quantifiedTaskTitle);
   const progressForm = task.locator("form").filter({
     hasText: /actualizar progreso/i,
   });
@@ -134,7 +141,7 @@ async function completeQuantifiedTask(page: Page) {
   await progressForm.getByRole("button", { name: /guardar/i }).click();
   await expectStatusMessage(page, /progreso actualizado correctamente/i);
   await page.reload();
-  await expect(getTaskItem(page, quantifiedTaskTitle).getByText(/5\s*\/\s*5/i))
+  await expect(getPedidoTaskItem(page, quantifiedTaskTitle).getByText(/5\s*\/\s*5/i))
     .toBeVisible();
 }
 
@@ -222,7 +229,8 @@ test("admin can create and manage focal internal pedidos", async ({ page }) => {
   await expectPedidoStatusBlocked(page, "listo_entrega");
   await completeQuantifiedTask(page);
   await updatePedidoStatus(page, "listo_entrega");
-  await expect(page.getByText(/pago pendiente/i)).toBeVisible();
+  await expect(sectionByHeading(page, /pago del pedido/i).getByText(/pago pendiente/i))
+    .toBeVisible();
   await updatePayment(page, "250", "0");
   await expect(sectionByHeading(page, /pago del pedido/i).getByText(/pago parcial/i))
     .toBeVisible();
@@ -237,7 +245,9 @@ test("admin can create and manage focal internal pedidos", async ({ page }) => {
     impresionTitle,
     "300",
   );
-  await expect(page.getByText(/no requiere tareas/i)).toBeVisible();
+  await expect(
+    page.getByText(/este pedido es de impresi.n directa y no requiere tareas/i),
+  ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: /cargar tareas predeterminadas/i }),
   ).toHaveCount(0);
@@ -260,9 +270,12 @@ test("pedido access follows current role boundaries", async ({ page }) => {
   if (impresionDetailUrl) {
     await page.goto(impresionDetailUrl);
     await expect(
-      page.getByRole("heading", { name: /detalle del pedido/i }),
+      page.getByRole("heading", {
+        level: 1,
+        name: impresionTitle,
+        exact: true,
+      }),
     ).toBeVisible();
-    await expect(page.getByText(impresionTitle).first()).toBeVisible();
     await expectNoTechnicalLeakText(page);
   }
 
@@ -279,7 +292,11 @@ test("pedido access follows current role boundaries", async ({ page }) => {
   if (assignedEncargoDetailUrl) {
     await page.goto(assignedEncargoDetailUrl);
     await expect(
-      page.getByRole("heading", { name: /detalle del pedido/i }),
+      page.getByRole("heading", {
+        level: 1,
+        name: encargoTitle,
+        exact: true,
+      }),
     ).toBeVisible();
     await expectNoTechnicalLeakText(page);
   }

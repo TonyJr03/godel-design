@@ -137,9 +137,12 @@ async function convertSolicitudToPedido(page: Page) {
 
   await section.getByRole("link", { name: /^ver pedido$/i }).click();
   await expect(
-    page.getByRole("heading", { name: /detalle del pedido/i }),
+    page.getByRole("heading", {
+      level: 1,
+      name: pedidoTitle,
+      exact: true,
+    }),
   ).toBeVisible();
-  await expect(page.getByText(pedidoTitle).first()).toBeVisible();
   await expect(page.getByText(pedidoDescription).first()).toBeVisible();
   await expectNoTechnicalLeakText(page);
 
@@ -193,9 +196,12 @@ test("solicitudes access follows current role boundaries", async ({ page }) => {
   if (convertedPedidoUrl) {
     await page.goto(convertedPedidoUrl);
     await expect(
-      page.getByRole("heading", { name: /detalle del pedido/i }),
+      page.getByRole("heading", {
+        level: 1,
+        name: pedidoTitle,
+        exact: true,
+      }),
     ).toBeVisible();
-    await expect(page.getByText(pedidoTitle).first()).toBeVisible();
     await expectNoTechnicalLeakText(page);
   }
 

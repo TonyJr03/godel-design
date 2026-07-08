@@ -112,6 +112,13 @@ export default async function DashboardPedidoDetallePage({
             ? undefined
             : "No se pudieron cargar las tareas del pedido."
         }
+        tasks={tasksResult.ok ? tasksResult.tasks : []}
+        files={filesResult.ok ? filesResult.files : []}
+        filesLoadError={
+          filesResult.ok
+            ? undefined
+            : "No se pudieron cargar los archivos del pedido."
+        }
         workerAssignmentSection={
           <PedidoWorkerAssignmentForm
             assignWorkerAction={assignWorkerAction}

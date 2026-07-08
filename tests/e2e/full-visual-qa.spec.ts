@@ -101,10 +101,22 @@ async function openSolicitudDetail(page: Page, query: string) {
   await expect(page.getByRole("heading", { name: /solicitud de/i })).toBeVisible();
 }
 
-async function openPedidoDetailFromSearch(page: Page, query: string) {
+async function openPedidoDetailFromSearch(
+  page: Page,
+  query: string,
+  expectedTitle?: string,
+) {
   await page.goto(`/dashboard/pedidos?q=${encodeURIComponent(query)}`);
   await page.getByRole("link", { name: /ver pedido/i }).first().click();
-  await expect(page.getByRole("heading", { name: /detalle del pedido/i })).toBeVisible();
+  const heading = expectedTitle
+    ? page.getByRole("heading", {
+        level: 1,
+        name: expectedTitle,
+        exact: true,
+      })
+    : page.locator("h1");
+
+  await expect(heading).toBeVisible();
 }
 
 async function updateSolicitudStatus(page: Page, status: string) {
@@ -179,7 +191,13 @@ async function createManualPedido(
 
   const reference = await extractPublicReference(page);
   await page.getByRole("link", { name: /ver detalle del pedido/i }).click();
-  await expect(page.getByRole("heading", { name: /detalle del pedido/i })).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: title,
+      exact: true,
+    }),
+  ).toBeVisible();
 
   return {
     reference,
@@ -239,6 +257,7 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
 
   const encargoName = `Cliente QA Encargo Playwright ${runId}`;
   const impresionName = `Cliente QA Impresion Playwright ${runId}`;
+  const convertedPedidoTitle = `Pedido convertido QA ${runId}`;
   const manualEncargoTitle = `Pedido QA Encargo Playwright ${runId}`;
   const manualImpresionTitle = `Pedido QA Impresion Playwright ${runId}`;
 
@@ -313,7 +332,7 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   await page.getByRole("button", { name: /crear cliente desde esta solicitud/i }).click();
   await expectStatusMessage(page, /cliente creado y asociado correctamente/i);
   await page.reload();
-  await page.getByLabel(/t.tulo del pedido/i).fill(`Pedido convertido QA ${runId}`);
+  await page.getByLabel(/t.tulo del pedido/i).fill(convertedPedidoTitle);
   await page.getByLabel(/prioridad/i).selectOption("normal");
   await page.getByLabel(/monto total a pagar/i).fill("1200");
   await page.getByLabel(/fecha estimada de entrega/i).fill(futureDate);
@@ -323,7 +342,13 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   await page.getByRole("button", { name: /convertir en pedido/i }).click();
   await expectStatusMessage(page, /pedido creado correctamente/i);
   await page.getByRole("link", { name: /^ver pedido$/i }).click();
-  await expect(page.getByRole("heading", { name: /detalle del pedido/i })).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: convertedPedidoTitle,
+      exact: true,
+    }),
+  ).toBeVisible();
   qaState.convertedPedidoReference = await extractPublicReference(page);
   expect(qaState.convertedPedidoReference).toBe(qaState.encargoReference);
   await expect(page.getByText(/pedido convertido qa/i)).toBeVisible();
@@ -360,10 +385,12 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   await expectStatusMessage(page, /progreso actualizado correctamente/i);
   await page.reload();
   await updatePedidoStatus(page, "listo_entrega");
-  await expect(page.getByText(/pago pendiente/i)).toBeVisible();
+  await expect(sectionByHeading(page, /pago/i).getByText(/pago pendiente/i))
+    .toBeVisible();
   await expectPedidoStatusBlocked(page, "entregado");
   await updatePayment(page, "500", "0");
-  await expect(page.getByText(/pago pendiente/i)).toBeVisible();
+  await expect(sectionByHeading(page, /pago/i).getByText(/pago pendiente/i))
+    .toBeVisible();
   await updatePayment(page, "500", "500");
   await updatePedidoStatus(page, "entregado");
   await expect(page.getByText(/este pedido est. cerrado/i)).toBeVisible();
@@ -377,7 +404,9 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   qaState.manualImpresionReference = manualImpresion.reference;
   qaState.manualImpresionUrl = manualImpresion.url;
   qaState.unassignedPedidoUrl = manualImpresion.url;
-  await expect(page.getByText(/no requiere tareas/i)).toBeVisible();
+  await expect(
+    page.getByText(/este pedido es de impresi.n directa y no requiere tareas/i),
+  ).toBeVisible();
   await updatePedidoStatus(page, "en_revision");
   await updatePedidoStatus(page, "en_produccion");
   await updatePedidoStatus(page, "listo_entrega");
@@ -400,8 +429,7 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   await expect(page.getByRole("link", { name: /usuarios/i })).toHaveCount(0);
   await page.goto("/dashboard/usuarios");
   await expect(page.getByText(/esta secci.n no est. disponible|acceso limitado/i).first()).toBeVisible();
-  await openPedidoDetailFromSearch(page, manualImpresionTitle);
-  await expect(page.getByRole("heading", { name: /detalle del pedido/i })).toBeVisible();
+  await openPedidoDetailFromSearch(page, manualImpresionTitle, manualImpresionTitle);
 
   await logout(page);
   await loginAs(page, "worker");
@@ -410,7 +438,13 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   await page.goto("/dashboard/pedidos/nuevo");
   await expect(page.getByText(/no tienes permiso para crear pedidos/i)).toBeVisible();
   await page.goto(qaState.assignedPedidoUrl as string);
-  await expect(page.getByRole("heading", { name: /detalle del pedido/i })).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: manualEncargoTitle,
+      exact: true,
+    }),
+  ).toBeVisible();
   await page.goto(qaState.unassignedPedidoUrl as string);
   await expect(page.getByText(/404|no se encontr|no tienes acceso/i)).toBeVisible();
 

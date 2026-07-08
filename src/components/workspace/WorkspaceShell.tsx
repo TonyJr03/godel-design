@@ -9,6 +9,7 @@ type WorkspaceShellProps = {
   summary: ReactNode;
   main: ReactNode;
   className?: string;
+  hasActions?: boolean;
 };
 
 export function WorkspaceShell({
@@ -16,6 +17,7 @@ export function WorkspaceShell({
   summary,
   main,
   className,
+  hasActions = true,
 }: WorkspaceShellProps) {
   return (
     <section
@@ -23,12 +25,19 @@ export function WorkspaceShell({
     >
       <div className="min-w-0">{header}</div>
       <div className="min-w-0">{summary}</div>
-      <WorkspaceTabletToolbar />
-      <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_14rem]">
+      {hasActions ? <WorkspaceTabletToolbar /> : null}
+      <div
+        className={[
+          "grid min-w-0 gap-6",
+          hasActions ? "xl:grid-cols-[minmax(0,1fr)_14rem]" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
         <div className="min-w-0">{main}</div>
-        <WorkspaceActionRail />
+        {hasActions ? <WorkspaceActionRail /> : null}
       </div>
-      <MobileWorkspaceBar />
+      {hasActions ? <MobileWorkspaceBar /> : null}
     </section>
   );
 }

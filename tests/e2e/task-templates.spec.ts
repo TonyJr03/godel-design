@@ -28,6 +28,19 @@ function getTaskItem(page: Page, title: string) {
   return page.locator("li").filter({ hasText: title }).first();
 }
 
+function sectionByHeading(page: Page, heading: RegExp) {
+  return page.locator("section").filter({
+    has: page.getByRole("heading", { name: heading }),
+  }).first();
+}
+
+function getPedidoTaskItem(page: Page, title: string) {
+  return sectionByHeading(page, /tareas del pedido/i)
+    .locator("li")
+    .filter({ hasText: title })
+    .first();
+}
+
 async function expectConfigurationLoaded(page: Page) {
   await expect(page).toHaveURL(/\/dashboard\/configuracion/);
   await expect(
@@ -74,7 +87,11 @@ async function createManualPedido(
 
   await page.getByRole("link", { name: /ver detalle del pedido/i }).click();
   await expect(
-    page.getByRole("heading", { name: /detalle del pedido/i }),
+    page.getByRole("heading", {
+      level: 1,
+      name: title,
+      exact: true,
+    }),
   ).toBeVisible();
 }
 
@@ -226,14 +243,16 @@ test("admin can apply a template to encargo and impresion has no selector", asyn
   await expect(
     page.getByText(/se agreg. 1 tarea desde la plantilla/i),
   ).toBeVisible({ timeout: 15_000 });
-  await expect(getTaskItem(page, quantifiedTaskTitle)).toBeVisible();
+  await expect(getPedidoTaskItem(page, quantifiedTaskTitle)).toBeVisible();
 
   await createManualPedido(
     page,
     "impresion",
     `QA Pedido Template Impresion ${runId}`,
   );
-  await expect(page.getByText(/no requiere tareas/i)).toBeVisible();
+  await expect(
+    page.getByText(/este pedido es de impresi.n directa y no requiere tareas/i),
+  ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: /cargar tareas predeterminadas/i }),
   ).toHaveCount(0);
