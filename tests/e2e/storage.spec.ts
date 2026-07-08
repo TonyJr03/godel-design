@@ -55,7 +55,7 @@ async function expectNoDownloadSurface(page: Page) {
   );
 }
 
-test("admin sees safe pedido storage section when a pedido exists", async ({
+test("admin sees safe pedido storage panel when a pedido exists", async ({
   page,
 }) => {
   await loginAs(page, "admin");
@@ -74,16 +74,25 @@ test("admin sees safe pedido storage section when a pedido exists", async ({
   await expect(page.locator("h1")).toHaveCount(1);
   await expect(page.locator("h1")).toBeVisible();
 
-  const storageSection = page.locator("section").filter({
-    has: page.getByRole("heading", { name: /archivos del pedido/i }),
-  }).first();
+  await page.getByRole("button", { name: /archivos/i }).click();
 
-  await expect(storageSection).toBeVisible();
-  await expectNoStorageLeakTextIn(storageSection);
-  await expectDownloadLinksUseInternalRoute(
-    storageSection,
-    /\/dashboard\/pedidos\/[^/]+\/archivos\/[^/]+\/download$/,
-  );
+  const storageDialog = page.getByRole("dialog", { name: /^archivos$/i });
+
+  await expect(storageDialog).toBeVisible();
+  await expectNoStorageLeakTextIn(storageDialog);
+
+  const downloadLinks = storageDialog.getByRole("link", { name: /descargar/i });
+
+  if ((await downloadLinks.count()) > 0) {
+    await expectDownloadLinksUseInternalRoute(
+      storageDialog,
+      /\/dashboard\/pedidos\/[^/]+\/archivos\/[^/]+\/download$/,
+    );
+  } else {
+    await expect(
+      storageDialog.getByText(/no hay archivos asociados a este pedido/i),
+    ).toBeVisible();
+  }
 });
 
 test("admin sees safe solicitud storage section when a solicitud exists", async ({

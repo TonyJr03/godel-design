@@ -1,3 +1,5 @@
+export { PedidoCommentsPanel } from "./PedidoCommentsPanel";
+export { PedidoFilesPanel } from "./PedidoFilesPanel";
 export { PedidoFilesPreview } from "./PedidoFilesPreview";
 export { PedidoHistoryTimeline } from "./PedidoHistoryTimeline";
 export { PedidoInformationPanel } from "./PedidoInformationPanel";

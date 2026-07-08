@@ -1,16 +1,10 @@
 "use client";
 
 import { Ellipsis } from "lucide-react";
-import { useEffect } from "react";
 
 import { WorkspaceIcon } from "./WorkspaceIcon";
 import { useWorkspace } from "./workspace-context";
 import type { WorkspaceAction } from "./types";
-
-export const MOBILE_WORKSPACE_BAR_CONTENT_OFFSET_CLASS =
-  "pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-0";
-const MOBILE_WORKSPACE_BAR_SCROLL_OFFSET =
-  "calc(6rem + env(safe-area-inset-bottom))";
 
 const GRID_COLUMN_CLASSES = {
   1: "grid-cols-1",
@@ -50,23 +44,6 @@ export function MobileWorkspaceBar() {
     (action) => !action.disabled && !directActionIds.has(action.id),
   );
   const visibleItemCount = directActions.length + (hasMore ? 1 : 0);
-
-  useEffect(() => {
-    const previousHtmlScrollPadding =
-      document.documentElement.style.scrollPaddingBottom;
-    const previousBodyScrollPadding = document.body.style.scrollPaddingBottom;
-
-    document.documentElement.style.scrollPaddingBottom =
-      MOBILE_WORKSPACE_BAR_SCROLL_OFFSET;
-    document.body.style.scrollPaddingBottom =
-      MOBILE_WORKSPACE_BAR_SCROLL_OFFSET;
-
-    return () => {
-      document.documentElement.style.scrollPaddingBottom =
-        previousHtmlScrollPadding;
-      document.body.style.scrollPaddingBottom = previousBodyScrollPadding;
-    };
-  }, []);
 
   if (visibleItemCount === 0) {
     return null;

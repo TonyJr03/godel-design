@@ -12,6 +12,7 @@ import {
 } from "@/components/workspace";
 import type {
   InternalPedidoDetail as InternalPedidoDetailData,
+  PedidoComment,
   PedidoHistoryItem,
   PedidoTask,
   PedidoTasksProgress,
@@ -22,6 +23,8 @@ import { WORKFLOW_TYPES } from "@/lib/workflow-types";
 
 import { PedidoStatusForm } from "./PedidoStatusForm";
 import {
+  PedidoCommentsPanel,
+  PedidoFilesPanel,
   PedidoHistoryTimeline,
   PedidoInformationPanel,
   PedidoWorkspaceHeader,
@@ -39,11 +42,13 @@ type InternalPedidoDetailProps = {
   historyLoadError?: string;
   files: readonly PedidoFileListItem[];
   filesLoadError?: string;
+  comments: readonly PedidoComment[];
+  commentsLoadError?: string;
   workerAssignmentSection?: ReactNode;
   paymentSection?: ReactNode;
   tasksSection?: ReactNode;
-  filesSection?: ReactNode;
-  commentsSection?: ReactNode;
+  fileUploadSection?: ReactNode;
+  commentComposerSection?: ReactNode;
 };
 
 export function InternalPedidoDetail({
@@ -56,15 +61,29 @@ export function InternalPedidoDetail({
   historyLoadError,
   files,
   filesLoadError,
+  comments,
+  commentsLoadError,
   workerAssignmentSection,
   paymentSection,
   tasksSection,
-  filesSection,
-  commentsSection,
+  fileUploadSection,
+  commentComposerSection,
 }: InternalPedidoDetailProps) {
   const isPrintWorkflow = pedido.workflow_type === WORKFLOW_TYPES.IMPRESION;
   const safeTaskProgress = taskProgress ?? EMPTY_PEDIDO_TASKS_PROGRESS;
   const workspaceActions: readonly WorkspaceAction[] = [
+    {
+      id: "archivos",
+      label: "Archivos",
+      icon: "archivos",
+      badge: files.length > 0 ? files.length : undefined,
+    },
+    {
+      id: "comentarios",
+      label: "Comentarios",
+      icon: "comentarios",
+      badge: comments.length > 0 ? comments.length : undefined,
+    },
     {
       id: "historial",
       label: "Historial",
@@ -78,6 +97,29 @@ export function InternalPedidoDetail({
     },
   ];
   const workspacePanels: Readonly<Record<string, WorkspacePanel>> = {
+    archivos: {
+      id: "archivos",
+      title: "Archivos",
+      description: "Archivos privados y entregables asociados al pedido.",
+      content: (
+        <PedidoFilesPanel
+          pedidoId={pedido.id}
+          files={files}
+          loadError={filesLoadError}
+        />
+      ),
+    },
+    comentarios: {
+      id: "comentarios",
+      title: "Comentarios",
+      description: "Notas internas compartidas por el equipo.",
+      content: (
+        <PedidoCommentsPanel
+          comments={comments}
+          loadError={commentsLoadError}
+        />
+      ),
+    },
     historial: {
       id: "historial",
       title: "Historial",
@@ -102,8 +144,8 @@ export function InternalPedidoDetail({
     <WorkspaceController
       actions={workspaceActions}
       panels={workspacePanels}
-      tabletActionIds={["historial", "informacion"]}
-      mobileActionIds={["historial", "informacion"]}
+      tabletActionIds={["archivos", "comentarios", "historial"]}
+      mobileActionIds={["archivos", "comentarios", "historial"]}
     >
       <article>
         <WorkspaceShell
@@ -148,8 +190,8 @@ export function InternalPedidoDetail({
             <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
               <div className="order-2 min-w-0 space-y-6 xl:col-start-1 xl:row-start-1">
                 {!isPrintWorkflow ? tasksSection : null}
-                {filesSection}
-                {commentsSection}
+                {fileUploadSection}
+                {commentComposerSection}
               </div>
 
               <aside className="contents min-w-0 xl:col-start-2 xl:row-start-1 xl:block xl:space-y-6">

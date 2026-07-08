@@ -14,6 +14,7 @@ const clienteLabel = `QA Cliente Focal ${runId}`;
 const encargoTitle = `QA Pedido Focal Encargo ${runId}`;
 const impresionTitle = `QA Pedido Focal Impresion ${runId}`;
 const quantifiedTaskTitle = `QA Tarea Focal Imprimir 5 hojas ${runLabel}`;
+const workspaceCommentText = `QA comentario workspace ${runLabel}`;
 
 function sectionByHeading(page: Page, heading: RegExp) {
   return page.locator("section").filter({
@@ -290,6 +291,95 @@ test("pedido workspace contextual panels are accessible", async ({ page }) => {
     }),
   ).toBeVisible();
 
+  const desktopRail = page.getByRole("complementary", {
+    name: /acciones del workspace/i,
+  });
+  await expect(
+    desktopRail.getByRole("button", { name: /archivos/i }),
+  ).toBeVisible();
+  await expect(
+    desktopRail.getByRole("button", { name: /comentarios/i }),
+  ).toBeVisible();
+  await expect(
+    desktopRail.getByRole("button", { name: /informaci.n/i }),
+  ).toBeVisible();
+  await expect(
+    desktopRail.getByRole("button", { name: /m.s/i }),
+  ).toHaveCount(0);
+
+  const commentComposer = sectionByHeading(page, /^agregar comentario$/i);
+  await commentComposer
+    .getByRole("textbox", { name: /^comentario$/i })
+    .fill(workspaceCommentText);
+  await commentComposer
+    .getByRole("button", { name: /^agregar comentario$/i })
+    .click();
+  await expectStatusMessage(page, /comentario agregado correctamente/i);
+  await page.reload();
+
+  const commentsTrigger = page.getByRole("button", {
+    name: /comentarios/i,
+  });
+  await commentsTrigger.click();
+
+  const commentsDialog = page.getByRole("dialog", {
+    name: /^comentarios$/i,
+  });
+  await expect(commentsDialog).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(1);
+  await expect(
+    commentsDialog.getByRole("heading", { name: /^comentarios$/i }),
+  ).toBeFocused();
+
+  const createdComment = commentsDialog
+    .getByRole("listitem")
+    .filter({ hasText: workspaceCommentText })
+    .first();
+  await expect(createdComment).toBeVisible();
+  await expect(createdComment.locator("time")).toHaveCount(1);
+  await expect(
+    createdComment.getByText(/admin|supervisor|trabajador|equipo/i).first(),
+  ).toBeVisible();
+
+  await commentsDialog.getByRole("button", { name: /cerrar/i }).click();
+  await expect(commentsDialog).toBeHidden();
+  await expect(commentsTrigger).toBeFocused();
+
+  const filesTrigger = page.getByRole("button", { name: /archivos/i });
+  await filesTrigger.click();
+
+  const filesDialog = page.getByRole("dialog", { name: /^archivos$/i });
+  await expect(filesDialog).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(1);
+  await expect(
+    filesDialog.getByRole("heading", { name: /^archivos$/i }),
+  ).toBeFocused();
+
+  const fileDownloadLinks = filesDialog.getByRole("link", {
+    name: /descargar/i,
+  });
+  const fileDownloadLinkCount = await fileDownloadLinks.count();
+
+  if (fileDownloadLinkCount > 0) {
+    for (let index = 0; index < fileDownloadLinkCount; index += 1) {
+      const href = await fileDownloadLinks.nth(index).getAttribute("href");
+
+      expect(href).toBeTruthy();
+      expect(href).toMatch(
+        /\/dashboard\/pedidos\/[^/]+\/archivos\/[^/]+\/download$/,
+      );
+      expect(href).not.toMatch(/file_path|bucket|godel-files|signed|supabase/i);
+    }
+  } else {
+    await expect(
+      filesDialog.getByText(/no hay archivos asociados a este pedido/i),
+    ).toBeVisible();
+  }
+
+  await filesDialog.getByRole("button", { name: /cerrar/i }).click();
+  await expect(filesDialog).toBeHidden();
+  await expect(filesTrigger).toBeFocused();
+
   const informationTrigger = page.getByRole("button", {
     name: /informaci.n/i,
   });
@@ -344,36 +434,70 @@ test("pedido workspace contextual panels are accessible", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto(encargoDetailUrl);
 
-  const mobileHistoryTrigger = page.getByRole("button", {
-    name: /historial/i,
-  });
-  const mobileInformationTrigger = page.getByRole("button", {
-    name: /informaci.n/i,
-  });
-
-  await expect(mobileHistoryTrigger).toBeVisible();
-  await expect(mobileInformationTrigger).toBeVisible();
-  await expect(page.getByRole("button", { name: /m.s/i })).toHaveCount(0);
-
-  await mobileInformationTrigger.click();
-  await expect(
-    page.getByRole("dialog", { name: /^informaci.n$/i }),
-  ).toBeVisible();
-  await page.getByRole("dialog", { name: /^informaci.n$/i })
-    .getByRole("button", { name: /cerrar/i })
-    .click();
-  await expect(mobileInformationTrigger).toBeFocused();
-
-  const actionBar = page.getByRole("navigation", {
+  const mobileActionBar = page.getByRole("navigation", {
     name: /acciones del workspace/i,
   });
+  const mobileFilesTrigger = mobileActionBar.getByRole("button", {
+    name: /archivos/i,
+  });
+  const mobileCommentsTrigger = mobileActionBar.getByRole("button", {
+    name: /comentarios/i,
+  });
+  const mobileHistoryTrigger = mobileActionBar.getByRole("button", {
+    name: /historial/i,
+  });
+  const mobileInformationDirectTrigger = mobileActionBar.getByRole("button", {
+    name: /informaci.n/i,
+  });
+  const mobileMoreTrigger = mobileActionBar.getByRole("button", {
+    name: /m.s/i,
+  });
+
+  await expect(mobileFilesTrigger).toBeVisible();
+  await expect(mobileCommentsTrigger).toBeVisible();
+  await expect(mobileHistoryTrigger).toBeVisible();
+  await expect(mobileMoreTrigger).toBeVisible();
+  await expect(mobileInformationDirectTrigger).toHaveCount(0);
+
+  await mobileMoreTrigger.focus();
+  await page.keyboard.press("Enter");
+  const moreDialog = page.getByRole("dialog", { name: /^m.s acciones$/i });
+  await expect(moreDialog).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(1);
+  await expect(
+    moreDialog.getByRole("button", { name: /informaci.n/i }),
+  ).toBeVisible();
+
+  await moreDialog.getByRole("button", { name: /informaci.n/i }).click();
+  const mobileInformationDialog = page.getByRole("dialog", {
+    name: /^informaci.n$/i,
+  });
+  await expect(
+    mobileInformationDialog,
+  ).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(1);
+  const backButton = mobileInformationDialog.getByRole("button", {
+    name: /volver/i,
+  });
+  await expect(backButton).toBeVisible();
+
+  await backButton.click();
+  await expect(moreDialog).toBeVisible();
+  await expect(
+    moreDialog.getByRole("button", { name: /informaci.n/i }),
+  ).toBeVisible();
+
+  await moreDialog.getByRole("button", { name: /cerrar/i }).click();
+  await expect(moreDialog).toBeHidden();
+  await expect(mobileMoreTrigger).toBeFocused();
+
   const lastControl = page.getByRole("button", {
     name: /agregar comentario/i,
   });
 
   await lastControl.scrollIntoViewIfNeeded();
 
-  const actionBarBox = await actionBar.boundingBox();
+  const actionBarBox = await mobileActionBar.boundingBox();
   const lastControlBox = await lastControl.boundingBox();
 
   expect(actionBarBox).not.toBeNull();

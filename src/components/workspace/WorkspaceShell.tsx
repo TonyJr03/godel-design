@@ -30,7 +30,7 @@ export function WorkspaceShell({
         "min-w-0 space-y-5",
         hasActions ? MOBILE_WORKSPACE_BAR_CONTENT_OFFSET_CLASS : "",
         hasActions
-          ? "[&_button]:scroll-mb-[calc(6rem+env(safe-area-inset-bottom))]"
+          ? "[&_a]:scroll-mb-[calc(6rem+env(safe-area-inset-bottom))] [&_button]:scroll-mb-[calc(6rem+env(safe-area-inset-bottom))] [&_input]:scroll-mb-[calc(6rem+env(safe-area-inset-bottom))] [&_select]:scroll-mb-[calc(6rem+env(safe-area-inset-bottom))] [&_textarea]:scroll-mb-[calc(6rem+env(safe-area-inset-bottom))] md:[&_a]:scroll-mb-0 md:[&_button]:scroll-mb-0 md:[&_input]:scroll-mb-0 md:[&_select]:scroll-mb-0 md:[&_textarea]:scroll-mb-0"
           : "",
         className,
       ]

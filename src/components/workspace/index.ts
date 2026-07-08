@@ -5,10 +5,7 @@ export type {
   WorkspaceIconName,
   WorkspacePanel,
 } from "./types";
-export {
-  MOBILE_WORKSPACE_BAR_CONTENT_OFFSET_CLASS,
-  MobileWorkspaceBar,
-} from "./MobileWorkspaceBar";
+export { MobileWorkspaceBar } from "./MobileWorkspaceBar";
 export { WorkspaceActionRail } from "./WorkspaceActionRail";
 export { WorkspaceActionTrigger } from "./WorkspaceActionTrigger";
 export { WorkspaceController } from "./WorkspaceController";
