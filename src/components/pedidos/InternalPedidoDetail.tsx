@@ -23,6 +23,7 @@ import { WORKFLOW_TYPES } from "@/lib/workflow-types";
 
 import { PedidoStatusForm } from "./PedidoStatusForm";
 import {
+  getPedidoPrimaryWorkspaceAction,
   PedidoCommentsPanel,
   PedidoFilesPanel,
   PedidoHistoryTimeline,
@@ -44,9 +45,9 @@ type InternalPedidoDetailProps = {
   filesLoadError?: string;
   comments: readonly PedidoComment[];
   commentsLoadError?: string;
-  workerAssignmentSection?: ReactNode;
-  paymentSection?: ReactNode;
-  tasksSection?: ReactNode;
+  personnelPanelContent?: ReactNode;
+  paymentPanelContent?: ReactNode;
+  tasksPanelContent?: ReactNode;
   fileUploadSection?: ReactNode;
   commentComposerSection?: ReactNode;
 };
@@ -63,15 +64,41 @@ export function InternalPedidoDetail({
   filesLoadError,
   comments,
   commentsLoadError,
-  workerAssignmentSection,
-  paymentSection,
-  tasksSection,
+  personnelPanelContent,
+  paymentPanelContent,
+  tasksPanelContent,
   fileUploadSection,
   commentComposerSection,
 }: InternalPedidoDetailProps) {
   const isPrintWorkflow = pedido.workflow_type === WORKFLOW_TYPES.IMPRESION;
   const safeTaskProgress = taskProgress ?? EMPTY_PEDIDO_TASKS_PROGRESS;
+  const primaryAction = getPedidoPrimaryWorkspaceAction({
+    pedido,
+    taskProgress,
+    tasksLoadError,
+  });
+  const compactActionIds = isPrintWorkflow
+    ? ["estado", "archivos", "pagos"]
+    : ["estado", "tareas", "archivos"];
   const workspaceActions: readonly WorkspaceAction[] = [
+    {
+      id: "estado",
+      label: "Estado",
+      icon: "estado",
+    },
+    ...(!isPrintWorkflow && tasksPanelContent
+      ? [
+          {
+            id: "tareas",
+            label: "Tareas",
+            icon: "tareas",
+            badge:
+              !tasksLoadError && taskProgress?.pendingTasks
+                ? taskProgress.pendingTasks
+                : undefined,
+          } satisfies WorkspaceAction,
+        ]
+      : []),
     {
       id: "archivos",
       label: "Archivos",
@@ -83,6 +110,25 @@ export function InternalPedidoDetail({
       label: "Comentarios",
       icon: "comentarios",
       badge: comments.length > 0 ? comments.length : undefined,
+    },
+    {
+      id: "personal",
+      label: "Personal",
+      icon: "personal",
+      badge:
+        pedido.pedido_trabajadores.length > 0
+          ? pedido.pedido_trabajadores.length
+          : undefined,
+    },
+    {
+      id: "pagos",
+      label: "Pagos",
+      icon: "pagos",
+      tone:
+        pedido.payment.isAvailable &&
+        pedido.payment.paymentStatus === "pagado"
+          ? "success"
+          : "warning",
     },
     {
       id: "historial",
@@ -97,6 +143,34 @@ export function InternalPedidoDetail({
     },
   ];
   const workspacePanels: Readonly<Record<string, WorkspacePanel>> = {
+    estado: {
+      id: "estado",
+      title: "Estado",
+      description:
+        "Consulta el estado actual y aplica una transición permitida.",
+      content: (
+        <PedidoStatusForm
+          presentation="panel"
+          updateStatusAction={updateStatusAction}
+          estadoActual={pedido.status}
+          workflowType={pedido.workflow_type}
+          paymentStatus={pedido.payment.paymentStatus}
+          taskProgress={taskProgress}
+          tasksLoadError={tasksLoadError}
+        />
+      ),
+    },
+    ...(tasksPanelContent
+      ? {
+          tareas: {
+            id: "tareas",
+            title: "Tareas",
+            description:
+              "Organiza el trabajo, actualiza cantidades y controla el avance.",
+            content: tasksPanelContent,
+          },
+        }
+      : {}),
     archivos: {
       id: "archivos",
       title: "Archivos",
@@ -119,6 +193,20 @@ export function InternalPedidoDetail({
           loadError={commentsLoadError}
         />
       ),
+    },
+    personal: {
+      id: "personal",
+      title: "Personal",
+      description:
+        "Consulta y administra las personas asignadas al pedido.",
+      content: personnelPanelContent,
+    },
+    pagos: {
+      id: "pagos",
+      title: "Pagos",
+      description:
+        "Consulta el resumen financiero y registra los importes recibidos.",
+      content: paymentPanelContent,
     },
     historial: {
       id: "historial",
@@ -144,13 +232,19 @@ export function InternalPedidoDetail({
     <WorkspaceController
       actions={workspaceActions}
       panels={workspacePanels}
-      tabletActionIds={["archivos", "comentarios", "historial"]}
-      mobileActionIds={["archivos", "comentarios", "historial"]}
+      primaryActionId={primaryAction?.id}
+      tabletActionIds={compactActionIds}
+      mobileActionIds={compactActionIds}
     >
       <article>
         <WorkspaceShell
           hasActions
-          header={<PedidoWorkspaceHeader pedido={pedido} />}
+          header={
+            <PedidoWorkspaceHeader
+              pedido={pedido}
+              primaryActionLabel={primaryAction?.label}
+            />
+          }
           summary={
             <PedidoWorkspaceSummary
               pedido={pedido}
@@ -171,45 +265,25 @@ export function InternalPedidoDetail({
           }
         >
           <section
-            aria-labelledby="pedido-management-title"
+            aria-labelledby="pedido-contributions-title"
             className="min-w-0 space-y-6 pt-3"
           >
             <div className="min-w-0">
               <h2
-                id="pedido-management-title"
+                id="pedido-contributions-title"
                 className="text-2xl font-semibold tracking-tight text-text-primary"
               >
-                Gestión del pedido
+                Aportes al pedido
               </h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-text-secondary">
-                Administra el estado, las tareas, los archivos y el seguimiento
-                interno.
+                Sube nuevos archivos y registra comentarios internos para el
+                equipo.
               </p>
             </div>
 
-            <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
-              <div className="order-2 min-w-0 space-y-6 xl:col-start-1 xl:row-start-1">
-                {!isPrintWorkflow ? tasksSection : null}
-                {fileUploadSection}
-                {commentComposerSection}
-              </div>
-
-              <aside className="contents min-w-0 xl:col-start-2 xl:row-start-1 xl:block xl:space-y-6">
-                <div className="order-1 space-y-6 xl:block">
-                  <PedidoStatusForm
-                    updateStatusAction={updateStatusAction}
-                    estadoActual={pedido.status}
-                    workflowType={pedido.workflow_type}
-                    paymentStatus={pedido.payment.paymentStatus}
-                    taskProgress={taskProgress}
-                    tasksLoadError={tasksLoadError}
-                  />
-
-                  {paymentSection}
-
-                  {workerAssignmentSection}
-                </div>
-              </aside>
+            <div className="grid items-start gap-6 xl:grid-cols-2">
+              {fileUploadSection}
+              {commentComposerSection}
             </div>
           </section>
         </WorkspaceShell>

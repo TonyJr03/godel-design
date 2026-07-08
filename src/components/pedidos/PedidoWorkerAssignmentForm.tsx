@@ -18,6 +18,7 @@ type PedidoWorkerAssignmentFormProps = {
   canManage: boolean;
   trabajadores: AssignableWorker[];
   loadAssignableError?: string;
+  presentation?: "card" | "panel";
 };
 
 const initialAssignState: AssignPedidoWorkerActionState = {
@@ -47,6 +48,7 @@ export function PedidoWorkerAssignmentForm({
   canManage,
   trabajadores,
   loadAssignableError,
+  presentation = "card",
 }: PedidoWorkerAssignmentFormProps) {
   const [assignState, assignFormAction, assigning] = useActionState(
     assignWorkerAction,
@@ -63,14 +65,30 @@ export function PedidoWorkerAssignmentForm({
   const availableWorkers = trabajadores.filter(
     (trabajador) => !assignedIds.has(trabajador.id),
   );
+  const isPanelPresentation = presentation === "panel";
 
   return (
-    <section className="rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6">
+    <section
+      className={
+        isPanelPresentation
+          ? "min-w-0"
+          : "rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6"
+      }
+    >
       <div>
-        <h2 className="text-lg font-semibold text-text-primary">
-          Personal asignado
-        </h2>
-        <p className="mt-2 text-sm leading-6 text-text-secondary">
+        {!isPanelPresentation ? (
+          <h2 className="text-lg font-semibold text-text-primary">
+            Personal asignado
+          </h2>
+        ) : null}
+        <p
+          className={[
+            "text-sm leading-6 text-text-secondary",
+            isPanelPresentation ? "" : "mt-2",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
           Usuarios internos que participan operativamente en este pedido.
         </p>
       </div>

@@ -56,12 +56,8 @@ export function PedidoFilesPanel({
 
   return (
     <div>
-      <p className="text-sm leading-6 text-text-secondary">
-        Archivos privados y entregables asociados al pedido.
-      </p>
-
       {loadError ? (
-        <Alert variant="danger" className="mt-5">
+        <Alert variant="danger">
           {loadError}
         </Alert>
       ) : null}

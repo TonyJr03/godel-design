@@ -13,6 +13,7 @@ type PedidoPaymentSectionProps = {
   payment: InternalPedidoPayment;
   canManage: boolean;
   updatePaymentAction?: PedidoDetailAction<UpdatePedidoPaymentActionState>;
+  presentation?: "card" | "panel";
 };
 
 const PAYMENT_STATUS_LABELS: Record<
@@ -45,23 +46,40 @@ export function PedidoPaymentSection({
   payment,
   canManage,
   updatePaymentAction,
+  presentation = "card",
 }: PedidoPaymentSectionProps) {
   const hasNoAmountToPay = payment.isAvailable && payment.totalAmount === 0;
+  const isPanelPresentation = presentation === "panel";
 
   return (
-    <section className="rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6">
-      <h2 className="text-lg font-semibold text-text-primary">
-        Pago del pedido
-      </h2>
+    <section
+      className={
+        isPanelPresentation
+          ? "min-w-0"
+          : "rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6"
+      }
+    >
+      {!isPanelPresentation ? (
+        <h2 className="text-lg font-semibold text-text-primary">
+          Pago del pedido
+        </h2>
+      ) : null}
 
       {!payment.isAvailable ? (
-        <p className="mt-5 rounded-(--radius-control) border border-warning/30 bg-warning-soft px-4 py-3 text-sm leading-6 text-text-primary">
+        <p
+          className={[
+            "rounded-(--radius-control) border border-warning/30 bg-warning-soft px-4 py-3 text-sm leading-6 text-text-primary",
+            isPanelPresentation ? "" : "mt-5",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
           Este pedido no tiene resumen financiero registrado. No se puede
           actualizar el pago hasta corregir esa inconsistencia.
         </p>
       ) : (
         <>
-          <dl className="mt-5">
+          <dl className={isPanelPresentation ? "" : "mt-5"}>
             <PaymentRow label="Total" value={formatMoney(payment.totalAmount)} />
             <PaymentRow
               label="Pagado en efectivo"

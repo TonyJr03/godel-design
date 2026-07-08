@@ -1,4 +1,4 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import { expectNoTechnicalLeakText } from "./helpers/assertions";
 import { loginAs } from "./helpers/auth";
@@ -22,29 +22,69 @@ function sectionByHeading(page: Page, heading: RegExp) {
   }).first();
 }
 
-function getPedidoTasksSection(page: Page) {
-  return page
-    .getByRole("heading", { name: /tareas del pedido/i })
-    .locator("xpath=ancestor::section[1]");
+async function clickFirstVisible(locator: Locator) {
+  const count = await locator.count();
+
+  for (let index = 0; index < count; index += 1) {
+    const candidate = locator.nth(index);
+
+    if (await candidate.isVisible().catch(() => false)) {
+      await candidate.click();
+      return;
+    }
+  }
+
+  throw new Error("No visible element found for locator.");
 }
 
-function getPedidoTaskItem(page: Page, title: string) {
-  return getPedidoTasksSection(page)
+async function closeOpenPedidoDialog(page: Page) {
+  const openDialog = page.getByRole("dialog");
+
+  if ((await openDialog.count()) === 0) {
+    return;
+  }
+
+  const closeButton = openDialog.getByRole("button", { name: /cerrar/i });
+
+  if (await closeButton.isVisible().catch(() => false)) {
+    await closeButton.click();
+    await expect(openDialog).toBeHidden();
+  }
+}
+
+async function openPedidoPanel(
+  page: Page,
+  name: RegExp,
+  triggerName = name,
+): Promise<Locator> {
+  await closeOpenPedidoDialog(page);
+  await clickFirstVisible(page.getByRole("button", { name: triggerName }));
+
+  const dialog = page.getByRole("dialog", { name });
+
+  await expect(dialog).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(1);
+
+  return dialog;
+}
+
+async function getPedidoTasksPanel(page: Page) {
+  return openPedidoPanel(page, /^tareas$/i, /tareas/i);
+}
+
+async function getPedidoTaskItem(page: Page, title: string) {
+  return (await getPedidoTasksPanel(page))
     .locator("li")
     .filter({ hasText: title })
     .first();
 }
 
-function getPedidoPaymentSection(page: Page) {
-  return page
-    .getByRole("heading", { name: /pago del pedido/i })
-    .locator("xpath=ancestor::section[1]");
+async function getPedidoPaymentPanel(page: Page) {
+  return openPedidoPanel(page, /^pagos$/i);
 }
 
-function getPedidoStatusSection(page: Page) {
-  return page
-    .getByRole("heading", { name: /estado del pedido/i })
-    .locator("xpath=ancestor::section[1]");
+async function getPedidoStatusPanel(page: Page) {
+  return openPedidoPanel(page, /^estado$/i);
 }
 
 async function expectStatusMessage(page: Page, message: RegExp) {
@@ -108,7 +148,7 @@ async function createManualPedido(
 }
 
 async function updatePedidoStatus(page: Page, status: string) {
-  const section = sectionByHeading(page, /estado del pedido/i);
+  const section = await getPedidoStatusPanel(page);
   const statusLabels: Record<string, RegExp> = {
     creado: /estado actual:\s*creado/i,
     en_revision: /estado actual:\s*en revisi.n/i,
@@ -119,6 +159,7 @@ async function updatePedidoStatus(page: Page, status: string) {
 
   await section.getByLabel(/^estado$/i).selectOption(status);
   await section.getByRole("button", { name: /actualizar estado/i }).click();
+  await expect(section).toBeVisible();
   await expect(section.getByText(statusLabels[status])).toBeVisible({
     timeout: 15_000,
   });
@@ -126,7 +167,8 @@ async function updatePedidoStatus(page: Page, status: string) {
 }
 
 async function expectPedidoStatusBlocked(page: Page, status: string) {
-  const option = sectionByHeading(page, /estado del pedido/i).locator(
+  const section = await getPedidoStatusPanel(page);
+  const option = section.locator(
     `option[value="${status}"]`,
   );
 
@@ -138,43 +180,54 @@ async function expectPedidoStatusBlocked(page: Page, status: string) {
 }
 
 async function createQuantifiedTask(page: Page) {
-  const taskSection = getPedidoTasksSection(page);
+  const taskSection = await getPedidoTasksPanel(page);
 
   await taskSection.getByLabel(/nueva tarea/i).fill(quantifiedTaskTitle);
   await taskSection.getByRole("button", { name: /crear tarea/i }).click();
-  await expectStatusMessage(page, /tarea creada correctamente/i);
+  await expect(taskSection).toBeVisible();
+  await expect(
+    taskSection.getByText(/tarea creada correctamente/i),
+  ).toBeVisible({ timeout: 15_000 });
   await page.reload();
-  await expect(getPedidoTaskItem(page, quantifiedTaskTitle)).toBeVisible();
-  await expect(getPedidoTaskItem(page, quantifiedTaskTitle).getByText(/cuantificada/i))
-    .toBeVisible();
+  const task = await getPedidoTaskItem(page, quantifiedTaskTitle);
+  await expect(task).toBeVisible();
+  await expect(task.getByText(/cuantificada/i)).toBeVisible();
 }
 
 async function completeQuantifiedTask(page: Page) {
-  const task = getPedidoTaskItem(page, quantifiedTaskTitle);
+  const task = await getPedidoTaskItem(page, quantifiedTaskTitle);
   const progressForm = task.locator("form").filter({
     hasText: /actualizar progreso/i,
   });
 
   await task.getByLabel(/actualizar progreso/i).fill("5");
   await progressForm.getByRole("button", { name: /guardar/i }).click();
-  await expectStatusMessage(page, /progreso actualizado correctamente/i);
+  const tasksPanel = page.getByRole("dialog", { name: /^tareas$/i });
+  await expect(tasksPanel).toBeVisible();
+  await expect(
+    tasksPanel.getByText(/progreso actualizado correctamente/i),
+  ).toBeVisible({ timeout: 15_000 });
   await page.reload();
-  await expect(getPedidoTaskItem(page, quantifiedTaskTitle).getByText(/5\s*\/\s*5/i))
-    .toBeVisible();
+  await expect(
+    (await getPedidoTaskItem(page, quantifiedTaskTitle)).getByText(/5\s*\/\s*5/i),
+  ).toBeVisible();
 }
 
 async function updatePayment(page: Page, cash: string, transfer = "0") {
-  const section = getPedidoPaymentSection(page);
+  const section = await getPedidoPaymentPanel(page);
 
   await section.getByLabel(/pagado en efectivo/i).fill(cash);
   await section.getByLabel(/pagado por transferencia/i).fill(transfer);
   await section.getByRole("button", { name: /actualizar pago/i }).click();
-  await expectStatusMessage(page, /pago actualizado correctamente/i);
+  await expect(section).toBeVisible();
+  await expect(
+    section.getByText(/pago actualizado correctamente/i),
+  ).toBeVisible({ timeout: 15_000 });
   await page.reload();
 }
 
 async function assignFirstAvailableWorker(page: Page) {
-  const section = sectionByHeading(page, /personal asignado/i);
+  const section = await openPedidoPanel(page, /^personal$/i);
   const select = section.getByLabel(/asignar personal/i);
 
   if ((await select.count()) === 0) {
@@ -207,10 +260,12 @@ async function assignFirstAvailableWorker(page: Page) {
 
   await select.selectOption(value);
   await section.getByRole("button", { name: /asignar personal/i }).click();
-  await expectStatusMessage(
-    page,
-    /personal asignado correctamente|usuario ya estaba asignado/i,
-  );
+  await expect(section).toBeVisible();
+  await expect(
+    section.getByText(
+      /personal asignado correctamente|usuario ya estaba asignado/i,
+    ),
+  ).toBeVisible({ timeout: 15_000 });
   await page.reload();
 
   return true;
@@ -237,21 +292,47 @@ test("admin can create and manage focal internal pedidos", async ({ page }) => {
     "500",
   );
 
+  const reviewStatusCta = page.getByRole("button", {
+    name: /revisar estado/i,
+  });
+  await expect(reviewStatusCta).toBeVisible();
+  await reviewStatusCta.click();
   await expect(
-    sectionByHeading(page, /estado del pedido/i).getByText(/debe revisarse/i),
+    page.getByRole("dialog", { name: /^estado$/i }).getByText(/debe revisarse/i),
   ).toBeVisible();
   await updatePedidoStatus(page, "en_revision");
+
+  const createTasksCta = page.getByRole("button", { name: /crear tareas/i });
+  await expect(createTasksCta).toBeVisible();
+  await createTasksCta.click();
+  await expect(page.getByRole("dialog", { name: /^tareas$/i })).toBeVisible();
+
   await expectPedidoStatusBlocked(page, "en_produccion");
   await createQuantifiedTask(page);
   await updatePedidoStatus(page, "en_produccion");
+
+  const updateTasksCta = page.getByRole("button", {
+    name: /actualizar tareas/i,
+  });
+  await expect(updateTasksCta).toBeVisible();
+  await updateTasksCta.click();
+  await expect(page.getByRole("dialog", { name: /^tareas$/i })).toBeVisible();
+
   await expectPedidoStatusBlocked(page, "listo_entrega");
   await completeQuantifiedTask(page);
   await updatePedidoStatus(page, "listo_entrega");
-  await expect(getPedidoStatusSection(page).getByText(/^pago pendiente$/i))
-    .toBeVisible();
+
+  const reviewPaymentCta = page.getByRole("button", { name: /revisar pago/i });
+  await expect(reviewPaymentCta).toBeVisible();
+  await reviewPaymentCta.click();
+  await expect(
+    page.getByRole("dialog", { name: /^pagos$/i }).getByText(/^sin pagar$/i),
+  ).toBeVisible();
+
   await updatePayment(page, "250", "0");
-  await expect(getPedidoPaymentSection(page).getByText(/^pago parcial$/i))
-    .toBeVisible();
+  await expect(
+    (await getPedidoPaymentPanel(page)).getByText(/^pago parcial$/i),
+  ).toBeVisible();
 
   if (await assignFirstAvailableWorker(page)) {
     assignedEncargoDetailUrl = page.url();
@@ -263,8 +344,14 @@ test("admin can create and manage focal internal pedidos", async ({ page }) => {
     impresionTitle,
     "300",
   );
+  await expect(page.getByRole("button", { name: /revisar estado/i }))
+    .toBeVisible();
+  await expect(page.getByRole("button", { name: /^tareas/i })).toHaveCount(0);
+  const printStatusPanel = await openPedidoPanel(page, /^estado$/i);
   await expect(
-    page.getByText(/este pedido es de impresi.n directa y no requiere tareas/i),
+    printStatusPanel.getByText(
+      /este pedido es de impresi.n directa y no requiere tareas/i,
+    ),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: /cargar tareas predeterminadas/i }),
@@ -295,6 +382,12 @@ test("pedido workspace contextual panels are accessible", async ({ page }) => {
     name: /acciones del workspace/i,
   });
   await expect(
+    desktopRail.getByRole("button", { name: /^estado/i }),
+  ).toBeVisible();
+  await expect(
+    desktopRail.getByRole("button", { name: /^tareas/i }),
+  ).toBeVisible();
+  await expect(
     desktopRail.getByRole("button", { name: /archivos/i }),
   ).toBeVisible();
   await expect(
@@ -302,6 +395,12 @@ test("pedido workspace contextual panels are accessible", async ({ page }) => {
   ).toBeVisible();
   await expect(
     desktopRail.getByRole("button", { name: /informaci.n/i }),
+  ).toBeVisible();
+  await expect(
+    desktopRail.getByRole("button", { name: /personal/i }),
+  ).toBeVisible();
+  await expect(
+    desktopRail.getByRole("button", { name: /pagos/i }),
   ).toBeVisible();
   await expect(
     desktopRail.getByRole("button", { name: /m.s/i }),
@@ -437,10 +536,16 @@ test("pedido workspace contextual panels are accessible", async ({ page }) => {
   const mobileActionBar = page.getByRole("navigation", {
     name: /acciones del workspace/i,
   });
+  const mobileStatusTrigger = mobileActionBar.getByRole("button", {
+    name: /^estado/i,
+  });
+  const mobileTasksTrigger = mobileActionBar.getByRole("button", {
+    name: /^tareas/i,
+  });
   const mobileFilesTrigger = mobileActionBar.getByRole("button", {
     name: /archivos/i,
   });
-  const mobileCommentsTrigger = mobileActionBar.getByRole("button", {
+  const mobileCommentsDirectTrigger = mobileActionBar.getByRole("button", {
     name: /comentarios/i,
   });
   const mobileHistoryTrigger = mobileActionBar.getByRole("button", {
@@ -453,10 +558,12 @@ test("pedido workspace contextual panels are accessible", async ({ page }) => {
     name: /m.s/i,
   });
 
+  await expect(mobileStatusTrigger).toBeVisible();
+  await expect(mobileTasksTrigger).toBeVisible();
   await expect(mobileFilesTrigger).toBeVisible();
-  await expect(mobileCommentsTrigger).toBeVisible();
-  await expect(mobileHistoryTrigger).toBeVisible();
   await expect(mobileMoreTrigger).toBeVisible();
+  await expect(mobileCommentsDirectTrigger).toHaveCount(0);
+  await expect(mobileHistoryTrigger).toHaveCount(0);
   await expect(mobileInformationDirectTrigger).toHaveCount(0);
 
   await mobileMoreTrigger.focus();
@@ -464,6 +571,18 @@ test("pedido workspace contextual panels are accessible", async ({ page }) => {
   const moreDialog = page.getByRole("dialog", { name: /^m.s acciones$/i });
   await expect(moreDialog).toBeVisible();
   await expect(page.getByRole("dialog")).toHaveCount(1);
+  await expect(
+    moreDialog.getByRole("button", { name: /comentarios/i }),
+  ).toBeVisible();
+  await expect(
+    moreDialog.getByRole("button", { name: /personal/i }),
+  ).toBeVisible();
+  await expect(
+    moreDialog.getByRole("button", { name: /pagos/i }),
+  ).toBeVisible();
+  await expect(
+    moreDialog.getByRole("button", { name: /historial/i }),
+  ).toBeVisible();
   await expect(
     moreDialog.getByRole("button", { name: /informaci.n/i }),
   ).toBeVisible();

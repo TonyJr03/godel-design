@@ -122,8 +122,9 @@ export default async function DashboardPedidoDetallePage({
       }
       comments={commentsResult.ok ? commentsResult.comments : []}
       commentsLoadError={commentsResult.ok ? undefined : commentsResult.message}
-      workerAssignmentSection={
+      personnelPanelContent={
         <PedidoWorkerAssignmentForm
+          presentation="panel"
           assignWorkerAction={assignWorkerAction}
           removeWorkerAction={removeWorkerAction}
           asignaciones={result.pedido.pedido_trabajadores}
@@ -136,41 +137,45 @@ export default async function DashboardPedidoDetallePage({
           }
         />
       }
-      paymentSection={
+      paymentPanelContent={
         <PedidoPaymentSection
+          presentation="panel"
           payment={result.pedido.payment}
           canManage={canManagePayments}
           updatePaymentAction={updatePaymentAction}
         />
       }
-      tasksSection={
-        <PedidoTasksSection
-          applyTaskTemplateAction={
-            shouldLoadTaskTemplates ? applyTemplateAction : undefined
-          }
-          createTaskAction={createTaskAction}
-          taskActions={taskActions}
-          pedidoStatus={result.pedido.status}
-          tasks={tasksResult.ok ? tasksResult.tasks : []}
-          taskTemplates={
-            taskTemplatesResult?.ok ? taskTemplatesResult.templates : []
-          }
-          taskTemplatesLoadError={
-            taskTemplatesResult && !taskTemplatesResult.ok
-              ? taskTemplatesResult.message
-              : undefined
-          }
-          progress={
-            tasksResult.ok
-              ? tasksResult.progress
-              : EMPTY_PEDIDO_TASKS_PROGRESS
-          }
-          loadError={
-            tasksResult.ok
-              ? undefined
-              : "No se pudieron cargar las tareas del pedido."
-          }
-        />
+      tasksPanelContent={
+        result.pedido.workflow_type === WORKFLOW_TYPES.ENCARGO ? (
+          <PedidoTasksSection
+            presentation="panel"
+            applyTaskTemplateAction={
+              shouldLoadTaskTemplates ? applyTemplateAction : undefined
+            }
+            createTaskAction={createTaskAction}
+            taskActions={taskActions}
+            pedidoStatus={result.pedido.status}
+            tasks={tasksResult.ok ? tasksResult.tasks : []}
+            taskTemplates={
+              taskTemplatesResult?.ok ? taskTemplatesResult.templates : []
+            }
+            taskTemplatesLoadError={
+              taskTemplatesResult && !taskTemplatesResult.ok
+                ? taskTemplatesResult.message
+                : undefined
+            }
+            progress={
+              tasksResult.ok
+                ? tasksResult.progress
+                : EMPTY_PEDIDO_TASKS_PROGRESS
+            }
+            loadError={
+              tasksResult.ok
+                ? undefined
+                : "No se pudieron cargar las tareas del pedido."
+            }
+          />
+        ) : undefined
       }
       commentComposerSection={
         <PedidoCommentComposer createCommentAction={createCommentAction} />

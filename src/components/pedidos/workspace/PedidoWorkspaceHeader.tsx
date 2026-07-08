@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { PedidoWorkflowTypeBadge } from "@/components/pedidos/PedidoWorkflowTypeBadge";
 import { PriorityBadge, StatusBadge } from "@/components/ui";
+import { WorkspaceActionTrigger } from "@/components/workspace";
 import type { InternalPedidoDetail } from "@/lib/pedidos";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("es", {
@@ -18,9 +19,13 @@ function formatDate(value: string | null): string | null {
 
 type PedidoWorkspaceHeaderProps = {
   pedido: InternalPedidoDetail;
+  primaryActionLabel?: string;
 };
 
-export function PedidoWorkspaceHeader({ pedido }: PedidoWorkspaceHeaderProps) {
+export function PedidoWorkspaceHeader({
+  pedido,
+  primaryActionLabel,
+}: PedidoWorkspaceHeaderProps) {
   const estimatedDeliveryDate = formatDate(pedido.estimated_delivery_date);
 
   return (
@@ -33,27 +38,36 @@ export function PedidoWorkspaceHeader({ pedido }: PedidoWorkspaceHeaderProps) {
         Volver a pedidos
       </Link>
 
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2.5">
-          <p className="font-mono text-sm font-semibold text-brand-primary">
-            {pedido.order_number}
-          </p>
-          <PedidoWorkflowTypeBadge workflowType={pedido.workflow_type} />
-          <StatusBadge status={pedido.status} />
-          <PriorityBadge priority={pedido.priority} />
+      <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <p className="font-mono text-sm font-semibold text-brand-primary">
+              {pedido.order_number}
+            </p>
+            <PedidoWorkflowTypeBadge workflowType={pedido.workflow_type} />
+            <StatusBadge status={pedido.status} />
+            <PriorityBadge priority={pedido.priority} />
+          </div>
+
+          <h1 className="mt-3 wrap-break-word text-3xl font-semibold tracking-tight text-text-primary sm:text-4xl">
+            {pedido.title}
+          </h1>
+
+          {estimatedDeliveryDate ? (
+            <p className="mt-3 text-sm leading-6 text-text-secondary">
+              Entrega estimada:{" "}
+              <span className="font-semibold text-text-primary">
+                {estimatedDeliveryDate}
+              </span>
+            </p>
+          ) : null}
         </div>
 
-        <h1 className="mt-3 wrap-break-word text-3xl font-semibold tracking-tight text-text-primary sm:text-4xl">
-          {pedido.title}
-        </h1>
-
-        {estimatedDeliveryDate ? (
-          <p className="mt-3 text-sm leading-6 text-text-secondary">
-            Entrega estimada:{" "}
-            <span className="font-semibold text-text-primary">
-              {estimatedDeliveryDate}
-            </span>
-          </p>
+        {primaryActionLabel ? (
+          <WorkspaceActionTrigger
+            label={primaryActionLabel}
+            className="w-full lg:w-auto"
+          />
         ) : null}
       </div>
     </header>

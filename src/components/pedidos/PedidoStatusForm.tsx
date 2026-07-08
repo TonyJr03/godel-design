@@ -26,6 +26,7 @@ type PedidoStatusFormProps = {
   paymentStatus?: PedidoPaymentStatus;
   taskProgress?: PedidoStatusTransitionContext | null;
   tasksLoadError?: string;
+  presentation?: "card" | "panel";
 };
 
 const initialState: UpdatePedidoStatusActionState = {
@@ -40,6 +41,7 @@ export function PedidoStatusForm({
   paymentStatus,
   taskProgress,
   tasksLoadError,
+  presentation = "card",
 }: PedidoStatusFormProps) {
   const [state, formAction, pending] = useActionState(
     updateStatusAction,
@@ -66,14 +68,30 @@ export function PedidoStatusForm({
   const hasEnabledTransition = statusOptions.some(
     (option) => !option.isCurrent && !option.disabled,
   );
+  const isPanelPresentation = presentation === "panel";
 
   return (
-    <section className="rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6">
-      <h2 className="text-lg font-semibold text-text-primary">
-        Estado del pedido
-      </h2>
+    <section
+      className={
+        isPanelPresentation
+          ? "min-w-0"
+          : "rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6"
+      }
+    >
+      {!isPanelPresentation ? (
+        <h2 className="text-lg font-semibold text-text-primary">
+          Estado del pedido
+        </h2>
+      ) : null}
 
-      <p className="mt-2 text-sm leading-6 text-text-secondary">
+      <p
+        className={[
+          "text-sm leading-6 text-text-secondary",
+          isPanelPresentation ? "" : "mt-2",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
         Estado actual:{" "}
         <span className="font-semibold text-text-primary">
           {PEDIDO_STATUS_LABELS[estadoActual]}

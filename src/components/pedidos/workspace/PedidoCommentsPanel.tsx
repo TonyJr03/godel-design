@@ -24,12 +24,8 @@ export function PedidoCommentsPanel({
 }: PedidoCommentsPanelProps) {
   return (
     <div>
-      <p className="text-sm leading-6 text-text-secondary">
-        Conversación interna visible para el equipo con acceso al pedido.
-      </p>
-
       {loadError ? (
-        <Alert variant="danger" className="mt-5">
+        <Alert variant="danger">
           {loadError}
         </Alert>
       ) : null}

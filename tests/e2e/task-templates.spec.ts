@@ -1,4 +1,4 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import {
   expectAccessLimitedPage,
@@ -28,14 +28,49 @@ function getTaskItem(page: Page, title: string) {
   return page.locator("li").filter({ hasText: title }).first();
 }
 
-function sectionByHeading(page: Page, heading: RegExp) {
-  return page.locator("section").filter({
-    has: page.getByRole("heading", { name: heading }),
-  }).first();
+async function clickFirstVisible(locator: Locator) {
+  const count = await locator.count();
+
+  for (let index = 0; index < count; index += 1) {
+    const candidate = locator.nth(index);
+
+    if (await candidate.isVisible().catch(() => false)) {
+      await candidate.click();
+      return;
+    }
+  }
+
+  throw new Error("No visible element found for locator.");
 }
 
-function getPedidoTaskItem(page: Page, title: string) {
-  return sectionByHeading(page, /tareas del pedido/i)
+async function openPedidoPanel(
+  page: Page,
+  name: RegExp,
+  triggerName = name,
+): Promise<Locator> {
+  const openDialog = page.getByRole("dialog");
+
+  if ((await openDialog.count()) > 0) {
+    const closeButton = openDialog.getByRole("button", { name: /cerrar/i });
+
+    if (await closeButton.isVisible().catch(() => false)) {
+      await closeButton.click();
+      await expect(openDialog).toBeHidden();
+    }
+  }
+
+  await clickFirstVisible(page.getByRole("button", { name: triggerName }));
+
+  const dialog = page.getByRole("dialog", { name });
+
+  await expect(dialog).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(1);
+
+  return dialog;
+}
+
+async function getPedidoTaskItem(page: Page, title: string) {
+  return (await openPedidoPanel(page, /^tareas$/i, /tareas/i))
     .locator("li")
     .filter({ hasText: title })
     .first();
@@ -235,15 +270,18 @@ test("admin can apply a template to encargo and impresion has no selector", asyn
     "encargo",
     `QA Pedido Template Encargo ${runId}`,
   );
+  const tasksPanel = await openPedidoPanel(page, /^tareas$/i, /tareas/i);
   await expect(
-    page.getByRole("heading", { name: /cargar tareas predeterminadas/i }),
+    tasksPanel.getByRole("heading", { name: /cargar tareas predeterminadas/i }),
   ).toBeVisible();
   await selectTaskTemplate(page, templateName);
   await page.getByRole("button", { name: /aplicar plantilla/i }).click();
+  await expect(tasksPanel).toBeVisible();
   await expect(
-    page.getByText(/se agreg. 1 tarea desde la plantilla/i),
+    tasksPanel.getByText(/se agreg. 1 tarea desde la plantilla/i),
   ).toBeVisible({ timeout: 15_000 });
-  await expect(getPedidoTaskItem(page, quantifiedTaskTitle)).toBeVisible();
+  await page.reload();
+  await expect(await getPedidoTaskItem(page, quantifiedTaskTitle)).toBeVisible();
 
   await createManualPedido(
     page,
@@ -251,8 +289,9 @@ test("admin can apply a template to encargo and impresion has no selector", asyn
     `QA Pedido Template Impresion ${runId}`,
   );
   await expect(
-    page.getByText(/este pedido es de impresi.n directa y no requiere tareas/i),
+    page.getByText(/este tipo de pedido no requiere tareas/i),
   ).toBeVisible();
+  await expect(page.getByRole("button", { name: /^tareas/i })).toHaveCount(0);
   await expect(
     page.getByRole("heading", { name: /cargar tareas predeterminadas/i }),
   ).toHaveCount(0);

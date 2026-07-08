@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import { loginAs } from "./helpers/auth";
 import { getFutureDateInputValue } from "./helpers/date";
@@ -51,10 +51,45 @@ async function logout(page: Page) {
   await page.context().clearCookies();
 }
 
-function sectionByHeading(page: Page, heading: RegExp) {
-  return page.locator("section").filter({
-    has: page.getByRole("heading", { name: heading }),
-  }).first();
+async function clickFirstVisible(locator: Locator) {
+  const count = await locator.count();
+
+  for (let index = 0; index < count; index += 1) {
+    const candidate = locator.nth(index);
+
+    if (await candidate.isVisible().catch(() => false)) {
+      await candidate.click();
+      return;
+    }
+  }
+
+  throw new Error("No visible element found for locator.");
+}
+
+async function openPedidoPanel(
+  page: Page,
+  name: RegExp,
+  triggerName = name,
+): Promise<Locator> {
+  const openDialog = page.getByRole("dialog");
+
+  if ((await openDialog.count()) > 0) {
+    const closeButton = openDialog.getByRole("button", { name: /cerrar/i });
+
+    if (await closeButton.isVisible().catch(() => false)) {
+      await closeButton.click();
+      await expect(openDialog).toBeHidden();
+    }
+  }
+
+  await clickFirstVisible(page.getByRole("button", { name: triggerName }));
+
+  const dialog = page.getByRole("dialog", { name });
+
+  await expect(dialog).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(1);
+
+  return dialog;
 }
 
 async function expectStatusMessage(page: Page, message: RegExp) {
@@ -131,7 +166,7 @@ async function updateSolicitudStatus(page: Page, status: string) {
 }
 
 async function updatePedidoStatus(page: Page, status: string) {
-  const section = sectionByHeading(page, /estado del pedido/i);
+  const section = await openPedidoPanel(page, /^estado$/i);
   const statusLabels: Record<string, RegExp> = {
     creado: /estado actual:\s*creado/i,
     en_revision: /estado actual:\s*en revisi.n/i,
@@ -143,14 +178,14 @@ async function updatePedidoStatus(page: Page, status: string) {
 
   await section.getByLabel(/^estado$/i).selectOption(status);
   await section.getByRole("button", { name: /actualizar estado/i }).click();
-  await expect(sectionByHeading(page, /estado del pedido/i).getByText(statusLabels[status])).toBeVisible({
+  await expect(section.getByText(statusLabels[status])).toBeVisible({
     timeout: 15_000,
   });
   await page.reload();
 }
 
 async function updatePayment(page: Page, cash: string, transfer = "0") {
-  const section = sectionByHeading(page, /pago/i);
+  const section = await openPedidoPanel(page, /^pagos$/i);
 
   await section.getByLabel(/pagado en efectivo/i).fill(cash);
   await section.getByLabel(/pagado por transferencia/i).fill(transfer);
@@ -212,7 +247,7 @@ async function captureViewport(page: Page, name: string, viewport: { width: numb
 }
 
 async function expectPedidoStatusBlocked(page: Page, status: string) {
-  const option = sectionByHeading(page, /estado del pedido/i).locator(
+  const option = (await openPedidoPanel(page, /^estado$/i)).locator(
     `option[value="${status}"]`,
   );
 
@@ -224,7 +259,7 @@ async function expectPedidoStatusBlocked(page: Page, status: string) {
 }
 
 async function selectFirstAssignableWorker(page: Page) {
-  const section = sectionByHeading(page, /personal asignado/i);
+  const section = await openPedidoPanel(page, /^personal$/i);
   const select = section.getByLabel(/asignar personal/i);
   const value = await select.evaluate((element) => {
     const htmlSelect = element as HTMLSelectElement;
@@ -369,7 +404,7 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   await expectPedidoStatusBlocked(page, "en_produccion");
   await expect(page.getByText(/tarea/i).first()).toBeVisible();
 
-  const taskSection = sectionByHeading(page, /tareas del pedido/i);
+  const taskSection = await openPedidoPanel(page, /^tareas$/i, /tareas/i);
   await taskSection.getByLabel(/nueva tarea/i).fill("Imprimir 10 paginas");
   await taskSection.getByRole("button", { name: /crear tarea/i }).click();
   await expectStatusMessage(page, /tarea creada correctamente/i);
@@ -385,15 +420,19 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   await expectStatusMessage(page, /progreso actualizado correctamente/i);
   await page.reload();
   await updatePedidoStatus(page, "listo_entrega");
-  await expect(sectionByHeading(page, /pago/i).getByText(/pago pendiente/i))
-    .toBeVisible();
+  await expect(
+    (await openPedidoPanel(page, /^pagos$/i)).getByText(/sin pagar|pago pendiente/i),
+  ).toBeVisible();
   await expectPedidoStatusBlocked(page, "entregado");
   await updatePayment(page, "500", "0");
-  await expect(sectionByHeading(page, /pago/i).getByText(/pago pendiente/i))
-    .toBeVisible();
+  await expect(
+    (await openPedidoPanel(page, /^pagos$/i)).getByText(/pago parcial/i),
+  ).toBeVisible();
   await updatePayment(page, "500", "500");
   await updatePedidoStatus(page, "entregado");
-  await expect(page.getByText(/este pedido est. cerrado/i)).toBeVisible();
+  await expect(
+    (await openPedidoPanel(page, /^estado$/i)).getByText(/este pedido est. cerrado/i),
+  ).toBeVisible();
 
   const manualImpresion = await createManualPedido(
     page,
@@ -405,7 +444,7 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   qaState.manualImpresionUrl = manualImpresion.url;
   qaState.unassignedPedidoUrl = manualImpresion.url;
   await expect(
-    page.getByText(/este pedido es de impresi.n directa y no requiere tareas/i),
+    page.getByText(/este tipo de pedido no requiere tareas/i),
   ).toBeVisible();
   await updatePedidoStatus(page, "en_revision");
   await updatePedidoStatus(page, "en_produccion");

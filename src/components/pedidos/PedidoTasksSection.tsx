@@ -31,6 +31,7 @@ type PedidoTasksSectionProps = {
   loadError?: string;
   taskTemplates?: ActiveTaskTemplateForOrder[];
   taskTemplatesLoadError?: string;
+  presentation?: "card" | "panel";
 };
 
 const createInitialState: CreatePedidoTaskActionState = {
@@ -51,6 +52,7 @@ export function PedidoTasksSection({
   loadError,
   taskTemplates = [],
   taskTemplatesLoadError,
+  presentation = "card",
 }: PedidoTasksSectionProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction, pending] = useActionState(
@@ -60,6 +62,7 @@ export function PedidoTasksSection({
   const titleError = state.fieldErrors?.title;
   const canManageTasks = canManagePedidoTasksInStatus(pedidoStatus);
   const blockedReason = getPedidoTaskManagementBlockedReason(pedidoStatus);
+  const isPanelPresentation = presentation === "panel";
 
   useEffect(() => {
     if (state.ok) {
@@ -68,12 +71,27 @@ export function PedidoTasksSection({
   }, [state.ok]);
 
   return (
-    <section className="rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6">
+    <section
+      className={
+        isPanelPresentation
+          ? "min-w-0"
+          : "rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6"
+      }
+    >
       <div>
-        <h2 className="text-lg font-semibold text-text-primary">
-          Tareas del pedido
-        </h2>
-        <p className="mt-2 text-sm leading-6 text-text-secondary">
+        {!isPanelPresentation ? (
+          <h2 className="text-lg font-semibold text-text-primary">
+            Tareas del pedido
+          </h2>
+        ) : null}
+        <p
+          className={[
+            "text-sm leading-6 text-text-secondary",
+            isPanelPresentation ? "" : "mt-2",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
           Escribe cada paso del trabajo como una tarea. Si incluyes una
           cantidad, el sistema la detectará automáticamente.
         </p>
