@@ -1,3 +1,4 @@
+import { Alert } from "@/components/ui";
 import {
   PEDIDO_HISTORY_ACTION_LABELS,
   PEDIDO_STATUS_LABELS,
@@ -6,8 +7,8 @@ import {
 import { ROLE_SHORT_LABELS } from "@/lib/permissions";
 import { formatAppDateTime } from "@/lib/utils";
 
-type PedidoHistorySectionProps = {
-  history: PedidoHistoryItem[];
+type PedidoHistoryTimelineProps = {
+  history: readonly PedidoHistoryItem[];
   loadError?: string;
 };
 
@@ -133,71 +134,60 @@ function getActorRole(item: PedidoHistoryItem): string | null {
   return item.actor?.role ? ROLE_SHORT_LABELS[item.actor.role] : null;
 }
 
-export function PedidoHistorySection({
+export function PedidoHistoryTimeline({
   history,
   loadError,
-}: PedidoHistorySectionProps) {
+}: PedidoHistoryTimelineProps) {
+  if (loadError) {
+    return <Alert variant="danger">{loadError}</Alert>;
+  }
+
+  if (history.length === 0) {
+    return (
+      <p className="rounded-(--radius-control) border border-dashed border-border-strong bg-surface-raised px-4 py-3 text-sm leading-6 text-text-secondary">
+        Todavía no hay eventos registrados en este pedido.
+      </p>
+    );
+  }
+
   return (
-    <section className="rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6">
-      <div>
-        <h2 className="text-lg font-semibold text-text-primary">
-          Historial del pedido
-        </h2>
-        <p className="mt-2 text-sm leading-6 text-text-secondary">
-          Este historial registra eventos relevantes del pedido.
-        </p>
-      </div>
+    <ol className="relative space-y-5 border-l border-border pl-5">
+      {history.map((item) => {
+        const actorRole = getActorRole(item);
 
-      {loadError ? (
-        <p className="mt-5 rounded-(--radius-control) border border-danger/30 bg-danger-soft px-4 py-3 text-sm leading-6 text-danger">
-          {loadError}
-        </p>
-      ) : null}
-
-      {history.length > 0 ? (
-        <ol className="relative mt-5 space-y-5 border-l border-border pl-5">
-          {history.map((item) => {
-            const actorRole = getActorRole(item);
-
-            return (
-              <li
-                key={item.id}
-                className="relative rounded-(--radius-control) border border-border bg-surface-muted px-4 py-3 before:absolute before:left-[-1.72rem] before:top-4 before:size-3 before:rounded-full before:border-2 before:border-surface before:bg-brand-primary"
+        return (
+          <li
+            key={item.id}
+            className="relative rounded-(--radius-control) border border-border bg-surface-muted px-4 py-3 before:absolute before:left-[-1.72rem] before:top-4 before:size-3 before:rounded-full before:border-2 before:border-surface before:bg-brand-primary"
+          >
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <span className="inline-flex rounded-(--radius-control) border border-border bg-surface px-2 py-1 text-xs font-semibold text-text-secondary">
+                  {PEDIDO_HISTORY_ACTION_LABELS[item.action]}
+                </span>
+                <p className="mt-3 text-sm leading-6 text-text-primary">
+                  {getHistorySummary(item)}
+                </p>
+              </div>
+              <time
+                dateTime={item.created_at}
+                className="text-xs leading-5 text-text-muted"
               >
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <span className="inline-flex rounded-(--radius-control) border border-border bg-surface px-2 py-1 text-xs font-semibold text-text-secondary">
-                      {PEDIDO_HISTORY_ACTION_LABELS[item.action]}
-                    </span>
-                    <p className="mt-3 text-sm leading-6 text-text-primary">
-                      {getHistorySummary(item)}
-                    </p>
-                  </div>
-                  <time
-                    dateTime={item.created_at}
-                    className="text-xs leading-5 text-text-muted"
-                  >
-                    {formatAppDateTime(item.created_at)}
-                  </time>
-                </div>
+                {formatAppDateTime(item.created_at)}
+              </time>
+            </div>
 
-                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-text-muted">
-                  <span>{getActorName(item)}</span>
-                  {actorRole ? (
-                    <span className="inline-flex rounded-(--radius-control) border border-border bg-surface px-2 py-1 font-semibold text-text-secondary">
-                      {actorRole}
-                    </span>
-                  ) : null}
-                </div>
-              </li>
-            );
-          })}
-        </ol>
-      ) : !loadError ? (
-        <p className="mt-5 rounded-(--radius-control) border border-dashed border-border-strong bg-surface-raised px-4 py-3 text-sm leading-6 text-text-secondary">
-          Todavía no hay eventos registrados en este pedido.
-        </p>
-      ) : null}
-    </section>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-text-muted">
+              <span>{getActorName(item)}</span>
+              {actorRole ? (
+                <span className="inline-flex rounded-(--radius-control) border border-border bg-surface px-2 py-1 font-semibold text-text-secondary">
+                  {actorRole}
+                </span>
+              ) : null}
+            </div>
+          </li>
+        );
+      })}
+    </ol>
   );
 }

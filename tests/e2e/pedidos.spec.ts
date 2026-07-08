@@ -22,11 +22,28 @@ function sectionByHeading(page: Page, heading: RegExp) {
 }
 
 function getPedidoTasksSection(page: Page) {
-  return sectionByHeading(page, /tareas del pedido/i);
+  return page
+    .getByRole("heading", { name: /tareas del pedido/i })
+    .locator("xpath=ancestor::section[1]");
 }
 
 function getPedidoTaskItem(page: Page, title: string) {
-  return getPedidoTasksSection(page).locator("li").filter({ hasText: title }).first();
+  return getPedidoTasksSection(page)
+    .locator("li")
+    .filter({ hasText: title })
+    .first();
+}
+
+function getPedidoPaymentSection(page: Page) {
+  return page
+    .getByRole("heading", { name: /pago del pedido/i })
+    .locator("xpath=ancestor::section[1]");
+}
+
+function getPedidoStatusSection(page: Page) {
+  return page
+    .getByRole("heading", { name: /estado del pedido/i })
+    .locator("xpath=ancestor::section[1]");
 }
 
 async function expectStatusMessage(page: Page, message: RegExp) {
@@ -146,7 +163,7 @@ async function completeQuantifiedTask(page: Page) {
 }
 
 async function updatePayment(page: Page, cash: string, transfer = "0") {
-  const section = sectionByHeading(page, /pago del pedido/i);
+  const section = getPedidoPaymentSection(page);
 
   await section.getByLabel(/pagado en efectivo/i).fill(cash);
   await section.getByLabel(/pagado por transferencia/i).fill(transfer);
@@ -229,10 +246,10 @@ test("admin can create and manage focal internal pedidos", async ({ page }) => {
   await expectPedidoStatusBlocked(page, "listo_entrega");
   await completeQuantifiedTask(page);
   await updatePedidoStatus(page, "listo_entrega");
-  await expect(sectionByHeading(page, /pago del pedido/i).getByText(/pago pendiente/i))
+  await expect(getPedidoStatusSection(page).getByText(/^pago pendiente$/i))
     .toBeVisible();
   await updatePayment(page, "250", "0");
-  await expect(sectionByHeading(page, /pago del pedido/i).getByText(/pago parcial/i))
+  await expect(getPedidoPaymentSection(page).getByText(/^pago parcial$/i))
     .toBeVisible();
 
   if (await assignFirstAvailableWorker(page)) {
@@ -255,6 +272,117 @@ test("admin can create and manage focal internal pedidos", async ({ page }) => {
     page.getByRole("button", { name: /aplicar plantilla/i }),
   ).toHaveCount(0);
   await expectNoTechnicalLeakText(page);
+});
+
+test("pedido workspace contextual panels are accessible", async ({ page }) => {
+  test.setTimeout(120_000);
+
+  test.skip(!encargoDetailUrl, "The focal encargo pedido was not created.");
+
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await loginAs(page, "admin");
+  await page.goto(encargoDetailUrl);
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: encargoTitle,
+      exact: true,
+    }),
+  ).toBeVisible();
+
+  const informationTrigger = page.getByRole("button", {
+    name: /informaci.n/i,
+  });
+  await informationTrigger.click();
+
+  const informationDialog = page.getByRole("dialog", {
+    name: /^informaci.n$/i,
+  });
+  await expect(informationDialog).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(1);
+  await expect(
+    informationDialog.getByRole("heading", { name: /^informaci.n$/i }),
+  ).toBeFocused();
+  await expect(
+    informationDialog.getByRole("heading", { name: /^cliente$/i }),
+  ).toBeVisible();
+  await expect(
+    informationDialog.getByText(/este pedido no tiene cliente asociado/i),
+  ).toBeVisible();
+  await expect(
+    informationDialog.getByRole("heading", { name: /solicitud de origen/i }),
+  ).toBeVisible();
+  await expect(
+    informationDialog.getByText(/pedido creado manualmente/i),
+  ).toBeVisible();
+  await expect(
+    informationDialog.getByRole("heading", { name: /informaci.n t.cnica/i }),
+  ).toBeVisible();
+  await expect(informationDialog.getByText(/referencia interna/i))
+    .toBeVisible();
+
+  await informationDialog.getByRole("button", { name: /cerrar/i }).click();
+  await expect(informationDialog).toBeHidden();
+  await expect(informationTrigger).toBeFocused();
+
+  const historyTrigger = page.getByRole("button", { name: /historial/i });
+  await historyTrigger.click();
+
+  const historyDialog = page.getByRole("dialog", { name: /^historial$/i });
+  await expect(historyDialog).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(1);
+  await expect(
+    historyDialog.getByRole("heading", { name: /^historial$/i }),
+  ).toBeFocused();
+  await expect(historyDialog.getByText(/pedido creado/i).first())
+    .toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(historyDialog).toBeHidden();
+  await expect(historyTrigger).toBeFocused();
+
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto(encargoDetailUrl);
+
+  const mobileHistoryTrigger = page.getByRole("button", {
+    name: /historial/i,
+  });
+  const mobileInformationTrigger = page.getByRole("button", {
+    name: /informaci.n/i,
+  });
+
+  await expect(mobileHistoryTrigger).toBeVisible();
+  await expect(mobileInformationTrigger).toBeVisible();
+  await expect(page.getByRole("button", { name: /m.s/i })).toHaveCount(0);
+
+  await mobileInformationTrigger.click();
+  await expect(
+    page.getByRole("dialog", { name: /^informaci.n$/i }),
+  ).toBeVisible();
+  await page.getByRole("dialog", { name: /^informaci.n$/i })
+    .getByRole("button", { name: /cerrar/i })
+    .click();
+  await expect(mobileInformationTrigger).toBeFocused();
+
+  const actionBar = page.getByRole("navigation", {
+    name: /acciones del workspace/i,
+  });
+  const lastControl = page.getByRole("button", {
+    name: /agregar comentario/i,
+  });
+
+  await lastControl.scrollIntoViewIfNeeded();
+
+  const actionBarBox = await actionBar.boundingBox();
+  const lastControlBox = await lastControl.boundingBox();
+
+  expect(actionBarBox).not.toBeNull();
+  expect(lastControlBox).not.toBeNull();
+  expect(
+    (lastControlBox?.y ?? 0) + (lastControlBox?.height ?? 0),
+  ).toBeLessThanOrEqual((actionBarBox?.y ?? 0) + 2);
+
+  await page.setViewportSize({ width: 1280, height: 720 });
 });
 
 test("pedido access follows current role boundaries", async ({ page }) => {

@@ -1,12 +1,23 @@
 "use client";
 
 import { Ellipsis } from "lucide-react";
+import { useEffect } from "react";
 
 import { WorkspaceIcon } from "./WorkspaceIcon";
 import { useWorkspace } from "./workspace-context";
 import type { WorkspaceAction } from "./types";
 
-export const MOBILE_WORKSPACE_BAR_CONTENT_OFFSET_CLASS = "pb-24 md:pb-0";
+export const MOBILE_WORKSPACE_BAR_CONTENT_OFFSET_CLASS =
+  "pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-0";
+const MOBILE_WORKSPACE_BAR_SCROLL_OFFSET =
+  "calc(6rem + env(safe-area-inset-bottom))";
+
+const GRID_COLUMN_CLASSES = {
+  1: "grid-cols-1",
+  2: "grid-cols-2",
+  3: "grid-cols-3",
+  4: "grid-cols-4",
+} as const;
 
 function getDirectActions(
   actions: readonly WorkspaceAction[],
@@ -35,14 +46,45 @@ export function MobileWorkspaceBar() {
   } = useWorkspace();
   const directActions = getDirectActions(actions, mobileActionIds);
   const directActionIds = new Set(directActions.map((action) => action.id));
-  const hasMore = actions.some((action) => !directActionIds.has(action.id));
+  const hasMore = actions.some(
+    (action) => !action.disabled && !directActionIds.has(action.id),
+  );
+  const visibleItemCount = directActions.length + (hasMore ? 1 : 0);
+
+  useEffect(() => {
+    const previousHtmlScrollPadding =
+      document.documentElement.style.scrollPaddingBottom;
+    const previousBodyScrollPadding = document.body.style.scrollPaddingBottom;
+
+    document.documentElement.style.scrollPaddingBottom =
+      MOBILE_WORKSPACE_BAR_SCROLL_OFFSET;
+    document.body.style.scrollPaddingBottom =
+      MOBILE_WORKSPACE_BAR_SCROLL_OFFSET;
+
+    return () => {
+      document.documentElement.style.scrollPaddingBottom =
+        previousHtmlScrollPadding;
+      document.body.style.scrollPaddingBottom = previousBodyScrollPadding;
+    };
+  }, []);
+
+  if (visibleItemCount === 0) {
+    return null;
+  }
 
   return (
     <nav
       aria-label="Acciones del workspace"
       className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface-raised px-2 pt-2 pb-[env(safe-area-inset-bottom)] shadow-(--shadow-soft) md:hidden"
     >
-      <div className="grid min-h-16 grid-cols-4 gap-1">
+      <div
+        className={[
+          "grid min-h-16 gap-1",
+          GRID_COLUMN_CLASSES[
+            visibleItemCount as keyof typeof GRID_COLUMN_CLASSES
+          ],
+        ].join(" ")}
+      >
         {directActions.map((action) => {
           const isActive = activePanelId === action.id;
 

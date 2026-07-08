@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import { InternalPedidoDetail } from "@/components/pedidos/InternalPedidoDetail";
 import { PedidoCommentsSection } from "@/components/pedidos/PedidoCommentsSection";
-import { PedidoHistorySection } from "@/components/pedidos/PedidoHistorySection";
 import { PedidoPaymentSection } from "@/components/pedidos/PedidoPaymentSection";
 import { PedidoTasksSection } from "@/components/pedidos/PedidoTasksSection";
 import { PedidoWorkerAssignmentForm } from "@/components/pedidos/PedidoWorkerAssignmentForm";
@@ -113,6 +112,8 @@ export default async function DashboardPedidoDetallePage({
             : "No se pudieron cargar las tareas del pedido."
         }
         tasks={tasksResult.ok ? tasksResult.tasks : []}
+        history={historyResult.ok ? historyResult.history : []}
+        historyLoadError={historyResult.ok ? undefined : historyResult.message}
         files={filesResult.ok ? filesResult.files : []}
         filesLoadError={
           filesResult.ok
@@ -176,12 +177,6 @@ export default async function DashboardPedidoDetallePage({
             loadError={
               commentsResult.ok ? undefined : commentsResult.message
             }
-          />
-        }
-        historySection={
-          <PedidoHistorySection
-            history={historyResult.ok ? historyResult.history : []}
-            loadError={historyResult.ok ? undefined : historyResult.message}
           />
         }
         filesSection={
