@@ -60,23 +60,19 @@ export function PedidoTasksPreview({
   loadError,
 }: PedidoTasksPreviewProps) {
   const previewTasks = getPreviewTasks(tasks);
+  const hiddenTasksCount = Math.max(tasks.length - previewTasks.length, 0);
 
   return (
     <section
       aria-labelledby="pedido-tasks-preview-title"
-      className="rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6"
+      className="flex min-h-0 flex-col rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6"
     >
-      <div>
-        <h2
-          id="pedido-tasks-preview-title"
-          className="text-lg font-semibold text-text-primary"
-        >
-          Tareas próximas
-        </h2>
-        <p className="mt-2 text-sm leading-6 text-text-secondary">
-          Lectura rápida del avance del encargo.
-        </p>
-      </div>
+      <h2
+        id="pedido-tasks-preview-title"
+        className="shrink-0 text-lg font-semibold text-text-primary"
+      >
+        Tareas próximas
+      </h2>
 
       {loadError ? (
         <Alert variant="danger" className="mt-5">
@@ -84,31 +80,41 @@ export function PedidoTasksPreview({
         </Alert>
       ) : (
         <>
-          <div className="mt-5">
+          <div className="mt-5 shrink-0">
             <PedidoProgressBar {...progress} />
           </div>
 
-          {previewTasks.length > 0 ? (
-            <ul className="mt-5 divide-y divide-border">
-              {previewTasks.map((task) => (
-                <li
-                  key={task.id}
-                  className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <p className="min-w-0 wrap-break-word text-sm font-semibold text-text-primary">
-                    {task.title}
+          <div className="mt-5 min-h-0 xl:flex-1 xl:overflow-y-auto xl:overscroll-contain">
+            {previewTasks.length > 0 ? (
+              <>
+                <ul className="divide-y divide-border">
+                  {previewTasks.map((task) => (
+                    <li
+                      key={task.id}
+                      className="flex flex-col gap-2 py-3 first:pt-0 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <p className="min-w-0 wrap-break-word text-sm font-semibold text-text-primary">
+                        {task.title}
+                      </p>
+                      <span className="inline-flex w-fit rounded-(--radius-control) border border-border bg-surface-muted px-2.5 py-1 text-xs font-semibold text-text-secondary">
+                        {getTaskStatusLabel(task)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+
+                {hiddenTasksCount > 0 ? (
+                  <p className="pt-3 text-xs leading-5 text-text-muted">
+                    Mostrando {previewTasks.length} de {tasks.length} tareas.
                   </p>
-                  <span className="inline-flex w-fit rounded-(--radius-control) border border-border bg-surface-muted px-2.5 py-1 text-xs font-semibold text-text-secondary">
-                    {getTaskStatusLabel(task)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-5 rounded-(--radius-control) border border-dashed border-border-strong bg-surface-raised px-4 py-3 text-sm leading-6 text-text-secondary">
-              Este encargo todavía no tiene tareas registradas.
-            </p>
-          )}
+                ) : null}
+              </>
+            ) : (
+              <p className="rounded-(--radius-control) border border-dashed border-border-strong bg-surface-raised px-4 py-3 text-sm leading-6 text-text-secondary">
+                Este encargo todavía no tiene tareas registradas.
+              </p>
+            )}
+          </div>
         </>
       )}
     </section>

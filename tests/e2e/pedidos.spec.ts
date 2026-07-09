@@ -76,7 +76,7 @@ async function getPedidoTaskItem(page: Page, title: string) {
 }
 
 async function getPedidoPaymentPanel(page: Page) {
-  return openPedidoPanel(page, /^pagos$/i);
+  return openPedidoPanel(page, /^pagos$/i, /pagos/i);
 }
 
 async function getPedidoStatusPanel(page: Page) {
@@ -85,6 +85,40 @@ async function getPedidoStatusPanel(page: Page) {
 
 function getPedidoHeader(page: Page) {
   return page.locator("article header").first();
+}
+
+function getWorkspaceRail(page: Page) {
+  return page.getByRole("complementary", {
+    name: /acciones del workspace/i,
+  });
+}
+
+function getRailAction(page: Page, name: RegExp) {
+  return getWorkspaceRail(page).getByRole("button", { name });
+}
+
+async function expectNoDocumentScroll(page: Page) {
+  await expect(async () => {
+    const dimensions = await page.evaluate(() => ({
+      innerHeight: window.innerHeight,
+      scrollHeight: document.documentElement.scrollHeight,
+    }));
+
+    expect(dimensions.scrollHeight).toBeLessThanOrEqual(
+      dimensions.innerHeight + 2,
+    );
+  }).toPass({ timeout: 10_000 });
+}
+
+async function expectNoHorizontalOverflow(page: Page) {
+  const dimensions = await page.evaluate(() => ({
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }));
+
+  expect(dimensions.scrollWidth).toBeLessThanOrEqual(
+    dimensions.clientWidth + 1,
+  );
 }
 
 async function expectStatusMessage(page: Page, message: RegExp) {
@@ -257,7 +291,7 @@ async function updatePayment(page: Page, cash: string, transfer = "0") {
 }
 
 async function assignFirstAvailableWorker(page: Page) {
-  const section = await openPedidoPanel(page, /^personal$/i);
+  const section = await openPedidoPanel(page, /^personal$/i, /personal/i);
   const select = section.getByLabel(/asignar personal/i);
 
   if ((await select.count()) === 0) {
@@ -323,6 +357,15 @@ test("admin can create and manage focal internal pedidos", async ({ page }) => {
   );
 
   await expectCompactPedidoHeader(page, encargoTitle);
+  await expect(
+    getRailAction(page, /tareas.*sin tareas registradas/i),
+  ).toBeVisible();
+  await expect(
+    getRailAction(page, /personal.*sin personal asignado/i),
+  ).toBeVisible();
+  await expect(
+    getRailAction(page, /pagos.*pago pendiente/i),
+  ).toBeVisible();
   const copyReferenceButton = getPedidoHeader(page).getByRole("button", {
     name: /copiar c.digo de seguimiento/i,
   });
@@ -352,6 +395,9 @@ test("admin can create and manage focal internal pedidos", async ({ page }) => {
   await updatePedidoStatus(page, "en_produccion");
 
   await expectCompactPedidoHeader(page, encargoTitle);
+  await expect(
+    getRailAction(page, /tareas.*tareas pendientes/i),
+  ).toBeVisible();
   await expect(await getPedidoTasksPanel(page)).toBeVisible();
 
   await expectPedidoStatusBlocked(page, "listo_entrega");
@@ -365,7 +411,18 @@ test("admin can create and manage focal internal pedidos", async ({ page }) => {
 
   await updatePayment(page, "250", "0");
   await expect(
+    getRailAction(page, /pagos.*pago pendiente/i),
+  ).toBeVisible();
+  await expect(
     (await getPedidoPaymentPanel(page)).getByText(/^pago parcial$/i),
+  ).toBeVisible();
+
+  await updatePayment(page, "500", "0");
+  await expect(
+    getRailAction(page, /pagos.*pago completado/i),
+  ).toBeVisible();
+  await expect(
+    (await getPedidoPaymentPanel(page)).getByText(/^pagado$/i),
   ).toBeVisible();
 
   if (await assignFirstAvailableWorker(page)) {
@@ -380,6 +437,18 @@ test("admin can create and manage focal internal pedidos", async ({ page }) => {
   );
   await expectCompactPedidoHeader(page, impresionTitle);
   await expect(page.getByRole("button", { name: /^tareas/i })).toHaveCount(0);
+  await expect(
+    page.getByText(/flujo directo de impresi.n/i),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: /descripci.n y especificaciones/i }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /archivos recientes/i }),
+  ).toBeVisible();
+  await expect(getRailAction(page, /^estado/i)).toBeVisible();
+  await expect(getRailAction(page, /^archivos/i)).toBeVisible();
+  await expect(getRailAction(page, /^pagos/i)).toBeVisible();
   const printStatusPanel = await openPedidoPanel(page, /^estado$/i);
   await expect(
     printStatusPanel.getByText(
@@ -400,7 +469,7 @@ test("pedido workspace contextual panels are accessible", async ({ page }) => {
 
   test.skip(!encargoDetailUrl, "The focal encargo pedido was not created.");
 
-  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.setViewportSize({ width: 1440, height: 900 });
   await loginAs(page, "admin");
   await page.goto(encargoDetailUrl);
   await expect(
@@ -410,34 +479,65 @@ test("pedido workspace contextual panels are accessible", async ({ page }) => {
       exact: true,
     }),
   ).toBeVisible();
+  await expectNoDocumentScroll(page);
 
-  const desktopRail = page.getByRole("complementary", {
-    name: /acciones del workspace/i,
-  });
-  await expect(
-    desktopRail.getByRole("button", { name: /^estado/i }),
-  ).toBeVisible();
-  await expect(
-    desktopRail.getByRole("button", { name: /^tareas/i }),
-  ).toBeVisible();
-  await expect(
-    desktopRail.getByRole("button", { name: /archivos/i }),
-  ).toBeVisible();
-  await expect(
-    desktopRail.getByRole("button", { name: /comentarios/i }),
-  ).toBeVisible();
-  await expect(
-    desktopRail.getByRole("button", { name: /informaci.n/i }),
-  ).toBeVisible();
-  await expect(
-    desktopRail.getByRole("button", { name: /personal/i }),
-  ).toBeVisible();
-  await expect(
-    desktopRail.getByRole("button", { name: /pagos/i }),
-  ).toBeVisible();
+  const desktopRail = getWorkspaceRail(page);
+  await expect(desktopRail).toBeVisible();
+  const desktopStatusTrigger = getRailAction(page, /^estado/i);
+  const desktopTasksTrigger = getRailAction(page, /^tareas/i);
+  const desktopFilesTrigger = getRailAction(page, /archivos/i);
+  const desktopCommentsTrigger = getRailAction(page, /comentarios/i);
+  const desktopInformationTrigger = getRailAction(page, /informaci.n/i);
+  const desktopPersonnelTrigger = getRailAction(page, /personal/i);
+  const desktopPaymentTrigger = getRailAction(page, /pagos/i);
+  const desktopHistoryTrigger = getRailAction(page, /historial/i);
+
+  await expect(desktopStatusTrigger).toBeVisible();
+  await expect(desktopTasksTrigger).toBeVisible();
+  await expect(desktopFilesTrigger).toBeVisible();
+  await expect(desktopCommentsTrigger).toBeVisible();
+  await expect(desktopInformationTrigger).toBeVisible();
+  await expect(desktopPersonnelTrigger).toBeVisible();
+  await expect(desktopPaymentTrigger).toBeVisible();
+  await expect(desktopHistoryTrigger).toBeVisible();
+  await expect(desktopStatusTrigger.getByText(/^Estado$/i)).toHaveCount(0);
+  await expect(desktopStatusTrigger.locator("svg")).toBeVisible();
+  await expect(desktopHistoryTrigger.locator("svg")).toBeVisible();
+  await expect(desktopHistoryTrigger.getByText(/\d+/)).toBeVisible();
   await expect(
     desktopRail.getByRole("button", { name: /m.s/i }),
   ).toHaveCount(0);
+
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.goto(encargoDetailUrl);
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: encargoTitle,
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expectNoDocumentScroll(page);
+
+  const compactDesktopRail = getWorkspaceRail(page);
+  const compactInformationTrigger = compactDesktopRail.getByRole("button", {
+    name: /informaci.n/i,
+  });
+
+  await expect(compactDesktopRail).toBeVisible();
+  await expect(compactInformationTrigger).toHaveCount(1);
+  await expect(
+    getRailAction(page, /pagos.*pago completado/i),
+  ).toBeVisible();
+  await compactInformationTrigger.scrollIntoViewIfNeeded();
+
+  const viewportHeight = await page.evaluate(() => window.innerHeight);
+  const informationBox = await compactInformationTrigger.boundingBox();
+
+  expect(informationBox).not.toBeNull();
+  expect((informationBox?.y ?? 0) + (informationBox?.height ?? 0))
+    .toBeLessThanOrEqual(viewportHeight + 1);
+  await expectNoDocumentScroll(page);
 
   await expect(
     page.getByRole("heading", { name: /^aportes al pedido$/i }),
@@ -586,8 +686,35 @@ test("pedido workspace contextual panels are accessible", async ({ page }) => {
   await expect(historyDialog).toBeHidden();
   await expect(historyTrigger).toBeFocused();
 
+  await page.setViewportSize({ width: 900, height: 1000 });
+  await page.goto(encargoDetailUrl);
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: encargoTitle,
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+  const tabletActionToolbar = page.getByRole("navigation", {
+    name: /acciones del workspace/i,
+  });
+  await expect(
+    tabletActionToolbar.getByRole("button", { name: /^estado/i }),
+  ).toBeVisible();
+  await expect(
+    tabletActionToolbar.getByRole("button", { name: /^tareas/i }),
+  ).toBeVisible();
+  await expect(
+    tabletActionToolbar.getByRole("button", { name: /archivos/i }),
+  ).toBeVisible();
+  await expect(
+    tabletActionToolbar.getByRole("button", { name: /m.s/i }),
+  ).toBeVisible();
+
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto(encargoDetailUrl);
+  await expectNoHorizontalOverflow(page);
 
   const mobileActionBar = page.getByRole("navigation", {
     name: /acciones del workspace/i,

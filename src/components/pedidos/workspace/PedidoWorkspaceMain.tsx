@@ -1,4 +1,3 @@
-import { DetailPanel } from "@/components/ui";
 import type {
   InternalPedidoDetail,
   PedidoTask,
@@ -7,6 +6,7 @@ import type {
 import type { PedidoFileListItem } from "@/lib/storage";
 import { WORKFLOW_TYPES } from "@/lib/workflow-types";
 
+import { PedidoDescriptionPreview } from "./PedidoDescriptionPreview";
 import { PedidoFilesPreview } from "./PedidoFilesPreview";
 import { PedidoTasksPreview } from "./PedidoTasksPreview";
 
@@ -29,52 +29,44 @@ export function PedidoWorkspaceMain({
 }: PedidoWorkspaceMainProps) {
   const isPrintWorkflow =
     pedido.workflow_type === WORKFLOW_TYPES.IMPRESION;
-  const description = pedido.description.trim()
-    ? pedido.description
-    : "Sin descripción registrada.";
+
+  if (isPrintWorkflow) {
+    return (
+      <div className="grid min-w-0 gap-5 xl:h-full xl:min-h-0 xl:grid-cols-2">
+        <PedidoDescriptionPreview
+          title="Descripción y especificaciones"
+          description={pedido.description}
+        />
+
+        <PedidoFilesPreview
+          pedidoId={pedido.id}
+          files={files}
+          loadError={filesLoadError}
+        />
+      </div>
+    );
+  }
 
   return (
-    <div className="min-w-0 space-y-6">
-      <DetailPanel
-        title={
-          isPrintWorkflow
-            ? "Descripción y especificaciones"
-            : "Trabajo solicitado"
-        }
-        description={
-          isPrintWorkflow
-            ? "Información registrada para preparar este pedido de impresión."
-            : "Descripción operativa del encargo."
-        }
-      >
-        <p className="whitespace-pre-wrap text-sm leading-7 text-text-secondary">
-          {description}
-        </p>
-      </DetailPanel>
+    <div className="grid min-w-0 gap-5 xl:h-full xl:min-h-0 xl:grid-rows-[minmax(8rem,10rem)_minmax(0,1fr)]">
+      <PedidoDescriptionPreview
+        title="Trabajo solicitado"
+        description={pedido.description}
+      />
 
-      {isPrintWorkflow ? (
-        <section className="rounded-(--radius-card) border border-brand-accent/30 bg-brand-accent-soft p-5 sm:p-6">
-          <h2 className="text-lg font-semibold text-text-primary">
-            Flujo directo de impresión
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-text-secondary">
-            Este tipo de pedido no requiere tareas para avanzar. La operación se
-            concentra en las especificaciones, los archivos y la entrega.
-          </p>
-        </section>
-      ) : (
+      <div className="grid min-w-0 gap-5 lg:grid-cols-2 xl:h-full xl:min-h-0">
         <PedidoTasksPreview
           tasks={tasks}
           progress={taskProgress}
           loadError={tasksLoadError}
         />
-      )}
 
-      <PedidoFilesPreview
-        pedidoId={pedido.id}
-        files={files}
-        loadError={filesLoadError}
-      />
+        <PedidoFilesPreview
+          pedidoId={pedido.id}
+          files={files}
+          loadError={filesLoadError}
+        />
+      </div>
     </div>
   );
 }

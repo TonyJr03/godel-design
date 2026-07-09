@@ -12,13 +12,19 @@ import {
 } from "@/components/workspace";
 import type {
   InternalPedidoDetail as InternalPedidoDetailData,
+  InternalPedidoPayment,
   PedidoComment,
   PedidoHistoryItem,
   PedidoTask,
   PedidoTasksProgress,
 } from "@/lib/pedidos";
-import { EMPTY_PEDIDO_TASKS_PROGRESS } from "@/lib/pedidos";
+import {
+  EMPTY_PEDIDO_TASKS_PROGRESS,
+  isPedidoActiveStatus,
+  type PedidoStatus,
+} from "@/lib/pedidos";
 import type { PedidoFileListItem } from "@/lib/storage";
+import { getTodayDateInputValue } from "@/lib/utils";
 import { WORKFLOW_TYPES } from "@/lib/workflow-types";
 
 import { PedidoStatusForm } from "./PedidoStatusForm";
@@ -50,6 +56,79 @@ type InternalPedidoDetailProps = {
   commentComposerPanelContent: ReactNode;
 };
 
+type WorkspaceActionState = Pick<WorkspaceAction, "tone" | "statusLabel">;
+
+function getTaskActionState({
+  isPrintWorkflow,
+  isActivePedido,
+  status,
+  progress,
+  loadError,
+}: {
+  isPrintWorkflow: boolean;
+  isActivePedido: boolean;
+  status: PedidoStatus;
+  progress: PedidoTasksProgress;
+  loadError?: string;
+}): WorkspaceActionState {
+  if (isPrintWorkflow) {
+    return {};
+  }
+
+  if (loadError) {
+    return {
+      tone: "danger",
+      statusLabel: "No se pudieron cargar las tareas",
+    };
+  }
+
+  if (isActivePedido && !progress.hasTasks) {
+    return {
+      tone: "warning",
+      statusLabel: "Sin tareas registradas",
+    };
+  }
+
+  if (status === "en_produccion" && progress.hasTasks && !progress.isComplete) {
+    return {
+      tone: "warning",
+      statusLabel: "Tareas pendientes",
+    };
+  }
+
+  if (progress.hasTasks && progress.isComplete) {
+    return {
+      tone: "success",
+      statusLabel: "Tareas completadas",
+    };
+  }
+
+  return {};
+}
+
+function getPaymentActionState(
+  payment: InternalPedidoPayment,
+): WorkspaceActionState {
+  if (!payment.isAvailable) {
+    return {
+      tone: "danger",
+      statusLabel: "Resumen financiero no disponible",
+    };
+  }
+
+  if (payment.paymentStatus === "pagado") {
+    return {
+      tone: "success",
+      statusLabel: "Pago completado",
+    };
+  }
+
+  return {
+    tone: "warning",
+    statusLabel: "Pago pendiente",
+  };
+}
+
 export function InternalPedidoDetail({
   pedido,
   updateStatusAction,
@@ -70,6 +149,53 @@ export function InternalPedidoDetail({
 }: InternalPedidoDetailProps) {
   const isPrintWorkflow = pedido.workflow_type === WORKFLOW_TYPES.IMPRESION;
   const safeTaskProgress = taskProgress ?? EMPTY_PEDIDO_TASKS_PROGRESS;
+  const isActivePedido = isPedidoActiveStatus(pedido.status);
+  const today = getTodayDateInputValue();
+  const estimatedDeliveryDate =
+    pedido.estimated_delivery_date?.slice(0, 10) ?? null;
+  const isEstimatedDeliveryOverdue =
+    isActivePedido &&
+    estimatedDeliveryDate !== null &&
+    estimatedDeliveryDate < today;
+  const taskActionState = getTaskActionState({
+    isPrintWorkflow,
+    isActivePedido,
+    status: pedido.status,
+    progress: safeTaskProgress,
+    loadError: tasksLoadError,
+  });
+  const filesActionState: WorkspaceActionState = filesLoadError
+    ? {
+        tone: "danger",
+        statusLabel: "No se pudieron cargar los archivos",
+      }
+    : {};
+  const commentsActionState: WorkspaceActionState = commentsLoadError
+    ? {
+        tone: "danger",
+        statusLabel: "No se pudieron cargar los comentarios",
+      }
+    : {};
+  const personalActionState: WorkspaceActionState =
+    isActivePedido && pedido.pedido_trabajadores.length === 0
+      ? {
+          tone: "warning",
+          statusLabel: "Sin personal asignado",
+        }
+      : {};
+  const paymentActionState = getPaymentActionState(pedido.payment);
+  const historyActionState: WorkspaceActionState = historyLoadError
+    ? {
+        tone: "danger",
+        statusLabel: "No se pudo cargar el historial",
+      }
+    : {};
+  const informationActionState: WorkspaceActionState = !pedido.cliente_id
+    ? {
+        tone: "warning",
+        statusLabel: "Sin cliente asociado",
+      }
+    : {};
   const compactActionIds = isPrintWorkflow
     ? ["estado", "archivos", "pagos"]
     : ["estado", "tareas", "archivos"];
@@ -78,6 +204,10 @@ export function InternalPedidoDetail({
       id: "estado",
       label: "Estado",
       icon: "estado",
+      tone: isEstimatedDeliveryOverdue ? "warning" : undefined,
+      statusLabel: isEstimatedDeliveryOverdue
+        ? "Fecha estimada vencida"
+        : undefined,
     },
     ...(!isPrintWorkflow && tasksPanelContent
       ? [
@@ -85,9 +215,10 @@ export function InternalPedidoDetail({
             id: "tareas",
             label: "Tareas",
             icon: "tareas",
+            ...taskActionState,
             badge:
-              !tasksLoadError && taskProgress?.pendingTasks
-                ? taskProgress.pendingTasks
+              !tasksLoadError && safeTaskProgress.pendingTasks
+                ? safeTaskProgress.pendingTasks
                 : undefined,
           } satisfies WorkspaceAction,
         ]
@@ -96,18 +227,21 @@ export function InternalPedidoDetail({
       id: "archivos",
       label: "Archivos",
       icon: "archivos",
+      ...filesActionState,
       badge: files.length > 0 ? files.length : undefined,
     },
     {
       id: "comentarios",
       label: "Comentarios",
       icon: "comentarios",
+      ...commentsActionState,
       badge: comments.length > 0 ? comments.length : undefined,
     },
     {
       id: "personal",
       label: "Personal",
       icon: "personal",
+      ...personalActionState,
       badge:
         pedido.pedido_trabajadores.length > 0
           ? pedido.pedido_trabajadores.length
@@ -117,22 +251,20 @@ export function InternalPedidoDetail({
       id: "pagos",
       label: "Pagos",
       icon: "pagos",
-      tone:
-        pedido.payment.isAvailable &&
-        pedido.payment.paymentStatus === "pagado"
-          ? "success"
-          : "warning",
+      ...paymentActionState,
     },
     {
       id: "historial",
       label: "Historial",
       icon: "historial",
+      ...historyActionState,
       badge: history.length > 0 ? history.length : undefined,
     },
     {
       id: "informacion",
       label: "Información",
       icon: "informacion",
+      ...informationActionState,
     },
   ];
   const workspacePanels: Readonly<Record<string, WorkspacePanel>> = {
@@ -269,6 +401,8 @@ export function InternalPedidoDetail({
       <article>
         <WorkspaceShell
           hasActions
+          desktopMode="contained"
+          railPresentation="icons"
           header={<PedidoWorkspaceHeader pedido={pedido} />}
           main={
             <PedidoWorkspaceMain

@@ -68,6 +68,20 @@ function getActionToneClasses(action: WorkspaceAction) {
   return "border-border bg-surface text-text-primary hover:bg-brand-primary-soft hover:text-brand-primary";
 }
 
+function getActionAccessibleName(
+  action: WorkspaceAction,
+  disabledReason?: string,
+) {
+  return [
+    action.label,
+    action.statusLabel,
+    disabledReason,
+    typeof action.badge === "number" ? String(action.badge) : null,
+  ]
+    .filter((part): part is string => Boolean(part))
+    .join(" — ");
+}
+
 export function WorkspaceController({
   actions,
   panels,
@@ -321,11 +335,16 @@ function WorkspaceMoreList({
         const hasPanel = Boolean(panels[action.id]);
         const isDisabled = action.disabled || !hasPanel;
         const disabledReason = action.disabledReason ?? "Panel no disponible.";
+        const accessibleName = getActionAccessibleName(
+          action,
+          isDisabled ? disabledReason : undefined,
+        );
 
         return (
           <button
             key={action.id}
             type="button"
+            aria-label={accessibleName}
             className={[
               "flex min-h-11 w-full cursor-pointer items-start gap-3 rounded-(--radius-control) border px-3 py-3 text-left transition-colors duration-200 disabled:cursor-not-allowed",
               getActionToneClasses(action),
@@ -349,6 +368,11 @@ function WorkspaceMoreList({
                   </span>
                 ) : null}
               </span>
+              {action.statusLabel ? (
+                <span className="mt-1 block text-xs leading-5 text-text-secondary">
+                  {action.statusLabel}
+                </span>
+              ) : null}
               {isDisabled ? (
                 <span className="mt-1 block text-xs leading-5 text-text-secondary">
                   {disabledReason}

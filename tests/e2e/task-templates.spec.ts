@@ -289,7 +289,13 @@ test("admin can apply a template to encargo and impresion has no selector", asyn
     `QA Pedido Template Impresion ${runId}`,
   );
   await expect(
-    page.getByText(/este tipo de pedido no requiere tareas/i),
+    page.getByText(/flujo directo de impresi.n|este tipo de pedido no requiere tareas/i),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: /descripci.n y especificaciones/i }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /archivos recientes/i }),
   ).toBeVisible();
   await expect(page.getByRole("button", { name: /^tareas/i })).toHaveCount(0);
   await expect(

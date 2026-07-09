@@ -52,18 +52,20 @@ async function logout(page: Page) {
 }
 
 async function clickFirstVisible(locator: Locator) {
-  const count = await locator.count();
+  await expect(async () => {
+    const count = await locator.count();
 
-  for (let index = 0; index < count; index += 1) {
-    const candidate = locator.nth(index);
+    for (let index = 0; index < count; index += 1) {
+      const candidate = locator.nth(index);
 
-    if (await candidate.isVisible().catch(() => false)) {
-      await candidate.click();
-      return;
+      if (await candidate.isVisible().catch(() => false)) {
+        await candidate.click();
+        return;
+      }
     }
-  }
 
-  throw new Error("No visible element found for locator.");
+    throw new Error("No visible element found for locator.");
+  }).toPass({ timeout: 10_000 });
 }
 
 async function openPedidoPanel(
@@ -212,7 +214,7 @@ async function updatePedidoStatus(page: Page, status: string) {
 }
 
 async function updatePayment(page: Page, cash: string, transfer = "0") {
-  const section = await openPedidoPanel(page, /^pagos$/i);
+  const section = await openPedidoPanel(page, /^pagos$/i, /pagos/i);
 
   await section.getByLabel(/pagado en efectivo/i).fill(cash);
   await section.getByLabel(/pagado por transferencia/i).fill(transfer);
@@ -286,7 +288,7 @@ async function expectPedidoStatusBlocked(page: Page, status: string) {
 }
 
 async function selectFirstAssignableWorker(page: Page) {
-  const section = await openPedidoPanel(page, /^personal$/i);
+  const section = await openPedidoPanel(page, /^personal$/i, /personal/i);
   const select = section.getByLabel(/asignar personal/i);
   const value = await select.evaluate((element) => {
     const htmlSelect = element as HTMLSelectElement;
@@ -427,6 +429,27 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   qaState.assignedPedidoUrl = manualEncargo.url;
 
   await expectCompactPedidoHeader(page, manualEncargoTitle);
+  await expect(
+    page.getByRole("heading", { name: /^trabajo solicitado$/i }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /^tareas pr.ximas$/i }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /^archivos recientes$/i }),
+  ).toBeVisible();
+  const workspaceRail = page.getByRole("complementary", {
+    name: /acciones del workspace/i,
+  });
+  const railTasksButton = workspaceRail.getByRole("button", {
+    name: /tareas.*sin tareas registradas/i,
+  });
+  await expect(railTasksButton).toBeVisible();
+  await expect(railTasksButton.getByText(/^Tareas$/i)).toHaveCount(0);
+  await expect(railTasksButton.locator("svg")).toBeVisible();
+  await expect(
+    workspaceRail.getByRole("button", { name: /pagos.*pago pendiente/i }),
+  ).toBeVisible();
   await expectPedidoStatusBlocked(page, "en_produccion");
   await expect(page.getByText(/revisarse antes de pasar/i)).toBeVisible();
   await updatePedidoStatus(page, "en_revision");
@@ -450,17 +473,29 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   await page.reload();
   await updatePedidoStatus(page, "listo_entrega");
   await expect(
-    (await openPedidoPanel(page, /^pagos$/i)).getByText(/sin pagar|pago pendiente/i),
+    (await openPedidoPanel(page, /^pagos$/i, /pagos/i)).getByText(
+      /sin pagar|pago pendiente/i,
+    ),
   ).toBeVisible();
   await expectPedidoStatusBlocked(page, "entregado");
   await updatePayment(page, "500", "0");
   await expect(
-    (await openPedidoPanel(page, /^pagos$/i)).getByText(/pago parcial/i),
+    workspaceRail.getByRole("button", { name: /pagos.*pago pendiente/i }),
+  ).toBeVisible();
+  await expect(
+    (await openPedidoPanel(page, /^pagos$/i, /pagos/i)).getByText(
+      /pago parcial/i,
+    ),
   ).toBeVisible();
   await updatePayment(page, "500", "500");
+  await expect(
+    workspaceRail.getByRole("button", { name: /pagos.*pago completado/i }),
+  ).toBeVisible();
   await updatePedidoStatus(page, "entregado");
   await expect(
-    (await openPedidoPanel(page, /^estado$/i)).getByText(/este pedido est. cerrado/i),
+    (await openPedidoPanel(page, /^estado$/i)).getByText(
+      /este pedido est. cerrado/i,
+    ),
   ).toBeVisible();
 
   const manualImpresion = await createManualPedido(
@@ -474,8 +509,22 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   qaState.unassignedPedidoUrl = manualImpresion.url;
   await expectCompactPedidoHeader(page, manualImpresionTitle);
   await expect(
-    page.getByText(/este tipo de pedido no requiere tareas/i),
+    page.getByText(/flujo directo de impresi.n|este tipo de pedido no requiere tareas/i),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: /descripci.n y especificaciones/i }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /archivos recientes/i }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: /^tareas/i })).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: /^estado/i }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /^archivos/i }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: /^pagos/i })).toBeVisible();
   await updatePedidoStatus(page, "en_revision");
   await updatePedidoStatus(page, "en_produccion");
   await updatePedidoStatus(page, "listo_entrega");

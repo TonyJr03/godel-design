@@ -23,6 +23,7 @@ type WorkspaceActionBase = {
   label: string;
   icon: WorkspaceIconName;
   badge?: number;
+  statusLabel?: string;
   tone?: WorkspaceActionTone;
 };
 
