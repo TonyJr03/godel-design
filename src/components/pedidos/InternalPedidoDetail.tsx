@@ -45,11 +45,11 @@ type InternalPedidoDetailProps = {
   filesLoadError?: string;
   comments: readonly PedidoComment[];
   commentsLoadError?: string;
-  personnelPanelContent?: ReactNode;
-  paymentPanelContent?: ReactNode;
+  personnelPanelContent: ReactNode;
+  paymentPanelContent: ReactNode;
   tasksPanelContent?: ReactNode;
-  fileUploadSection?: ReactNode;
-  commentComposerSection?: ReactNode;
+  fileUploadPanelContent: ReactNode;
+  commentComposerPanelContent: ReactNode;
 };
 
 export function InternalPedidoDetail({
@@ -67,8 +67,8 @@ export function InternalPedidoDetail({
   personnelPanelContent,
   paymentPanelContent,
   tasksPanelContent,
-  fileUploadSection,
-  commentComposerSection,
+  fileUploadPanelContent,
+  commentComposerPanelContent,
 }: InternalPedidoDetailProps) {
   const isPrintWorkflow = pedido.workflow_type === WORKFLOW_TYPES.IMPRESION;
   const safeTaskProgress = taskProgress ?? EMPTY_PEDIDO_TASKS_PROGRESS;
@@ -174,24 +174,62 @@ export function InternalPedidoDetail({
     archivos: {
       id: "archivos",
       title: "Archivos",
-      description: "Archivos privados y entregables asociados al pedido.",
+      description:
+        "Consulta los archivos asociados y agrega nuevos recursos al pedido.",
       content: (
-        <PedidoFilesPanel
-          pedidoId={pedido.id}
-          files={files}
-          loadError={filesLoadError}
-        />
+        <div className="space-y-8">
+          {fileUploadPanelContent}
+
+          <section
+            aria-labelledby="pedido-files-list-title"
+            className="border-t border-border pt-6"
+          >
+            <h3
+              id="pedido-files-list-title"
+              className="text-base font-semibold text-text-primary"
+            >
+              Archivos asociados
+            </h3>
+
+            <div className="mt-4">
+              <PedidoFilesPanel
+                pedidoId={pedido.id}
+                files={files}
+                loadError={filesLoadError}
+              />
+            </div>
+          </section>
+        </div>
       ),
     },
     comentarios: {
       id: "comentarios",
       title: "Comentarios",
-      description: "Notas internas compartidas por el equipo.",
+      description:
+        "Consulta la conversacion interna y registra nuevas notas para el equipo.",
       content: (
-        <PedidoCommentsPanel
-          comments={comments}
-          loadError={commentsLoadError}
-        />
+        <div className="space-y-8">
+          {commentComposerPanelContent}
+
+          <section
+            aria-labelledby="pedido-comments-list-title"
+            className="border-t border-border pt-6"
+          >
+            <h3
+              id="pedido-comments-list-title"
+              className="text-base font-semibold text-text-primary"
+            >
+              Conversacion interna
+            </h3>
+
+            <div className="mt-4">
+              <PedidoCommentsPanel
+                comments={comments}
+                loadError={commentsLoadError}
+              />
+            </div>
+          </section>
+        </div>
       ),
     },
     personal: {
@@ -263,30 +301,7 @@ export function InternalPedidoDetail({
               filesLoadError={filesLoadError}
             />
           }
-        >
-          <section
-            aria-labelledby="pedido-contributions-title"
-            className="min-w-0 space-y-6 pt-3"
-          >
-            <div className="min-w-0">
-              <h2
-                id="pedido-contributions-title"
-                className="text-2xl font-semibold tracking-tight text-text-primary"
-              >
-                Aportes al pedido
-              </h2>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-text-secondary">
-                Sube nuevos archivos y registra comentarios internos para el
-                equipo.
-              </p>
-            </div>
-
-            <div className="grid items-start gap-6 xl:grid-cols-2">
-              {fileUploadSection}
-              {commentComposerSection}
-            </div>
-          </section>
-        </WorkspaceShell>
+        />
       </article>
     </WorkspaceController>
   );

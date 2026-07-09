@@ -16,12 +16,6 @@ const impresionTitle = `QA Pedido Focal Impresion ${runId}`;
 const quantifiedTaskTitle = `QA Tarea Focal Imprimir 5 hojas ${runLabel}`;
 const workspaceCommentText = `QA comentario workspace ${runLabel}`;
 
-function sectionByHeading(page: Page, heading: RegExp) {
-  return page.locator("section").filter({
-    has: page.getByRole("heading", { name: heading }),
-  }).first();
-}
-
 async function clickFirstVisible(locator: Locator) {
   const count = await locator.count();
 
@@ -406,15 +400,15 @@ test("pedido workspace contextual panels are accessible", async ({ page }) => {
     desktopRail.getByRole("button", { name: /m.s/i }),
   ).toHaveCount(0);
 
-  const commentComposer = sectionByHeading(page, /^agregar comentario$/i);
-  await commentComposer
-    .getByRole("textbox", { name: /^comentario$/i })
-    .fill(workspaceCommentText);
-  await commentComposer
-    .getByRole("button", { name: /^agregar comentario$/i })
-    .click();
-  await expectStatusMessage(page, /comentario agregado correctamente/i);
-  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: /^aportes al pedido$/i }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: /^subir archivo$/i }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: /^agregar comentario$/i }),
+  ).toHaveCount(0);
 
   const commentsTrigger = page.getByRole("button", {
     name: /comentarios/i,
@@ -429,6 +423,23 @@ test("pedido workspace contextual panels are accessible", async ({ page }) => {
   await expect(
     commentsDialog.getByRole("heading", { name: /^comentarios$/i }),
   ).toBeFocused();
+  await expect(
+    commentsDialog.getByRole("heading", { name: /^agregar comentario$/i }),
+  ).toBeVisible();
+  await expect(
+    commentsDialog.getByRole("heading", { name: /^conversaci.n interna$/i }),
+  ).toBeVisible();
+
+  await commentsDialog
+    .getByRole("textbox", { name: /^comentario$/i })
+    .fill(workspaceCommentText);
+  await commentsDialog
+    .getByRole("button", { name: /^agregar comentario$/i })
+    .click();
+  await expect(commentsDialog).toBeVisible();
+  await expect(
+    commentsDialog.getByText(/comentario agregado correctamente/i),
+  ).toBeVisible({ timeout: 15_000 });
 
   const createdComment = commentsDialog
     .getByRole("listitem")
@@ -453,6 +464,12 @@ test("pedido workspace contextual panels are accessible", async ({ page }) => {
   await expect(
     filesDialog.getByRole("heading", { name: /^archivos$/i }),
   ).toBeFocused();
+  await expect(
+    filesDialog.getByRole("heading", { name: /^subir nuevo archivo$/i }),
+  ).toBeVisible();
+  await expect(
+    filesDialog.getByRole("heading", { name: /^archivos asociados$/i }),
+  ).toBeVisible();
 
   const fileDownloadLinks = filesDialog.getByRole("link", {
     name: /descargar/i,
@@ -610,19 +627,22 @@ test("pedido workspace contextual panels are accessible", async ({ page }) => {
   await expect(moreDialog).toBeHidden();
   await expect(mobileMoreTrigger).toBeFocused();
 
-  const lastControl = page.getByRole("button", {
-    name: /agregar comentario/i,
+  const lastMainContent = page.getByRole("region", {
+    name: /archivos recientes/i,
   });
 
-  await lastControl.scrollIntoViewIfNeeded();
+  await expect(
+    page.getByRole("heading", { name: /^aportes al pedido$/i }),
+  ).toHaveCount(0);
+  await lastMainContent.scrollIntoViewIfNeeded();
 
   const actionBarBox = await mobileActionBar.boundingBox();
-  const lastControlBox = await lastControl.boundingBox();
+  const lastMainContentBox = await lastMainContent.boundingBox();
 
   expect(actionBarBox).not.toBeNull();
-  expect(lastControlBox).not.toBeNull();
+  expect(lastMainContentBox).not.toBeNull();
   expect(
-    (lastControlBox?.y ?? 0) + (lastControlBox?.height ?? 0),
+    (lastMainContentBox?.y ?? 0) + (lastMainContentBox?.height ?? 0),
   ).toBeLessThanOrEqual((actionBarBox?.y ?? 0) + 2);
 
   await page.setViewportSize({ width: 1280, height: 720 });

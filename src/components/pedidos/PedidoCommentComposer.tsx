@@ -8,6 +8,7 @@ import type {
 
 type PedidoCommentComposerProps = {
   createCommentAction: PedidoDetailAction<CreatePedidoCommentActionState>;
+  presentation?: "card" | "panel";
 };
 
 const initialState: CreatePedidoCommentActionState = {
@@ -20,6 +21,7 @@ const initialState: CreatePedidoCommentActionState = {
 
 export function PedidoCommentComposer({
   createCommentAction,
+  presentation = "card",
 }: PedidoCommentComposerProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction, pending] = useActionState(
@@ -27,6 +29,17 @@ export function PedidoCommentComposer({
     initialState,
   );
   const contenidoError = state.fieldErrors?.content;
+  const isPanel = presentation === "panel";
+  const titleId = isPanel
+    ? "pedido-comment-composer-panel-title"
+    : "pedido-comment-composer-title";
+  const textareaId = isPanel
+    ? "pedido-comment-content-panel"
+    : "pedido-comment-content";
+  const errorId = isPanel
+    ? "pedido-comment-content-panel-error"
+    : "pedido-comment-content-error";
+  const Heading = isPanel ? "h3" : "h2";
 
   useEffect(() => {
     if (state.ok) {
@@ -36,16 +49,24 @@ export function PedidoCommentComposer({
 
   return (
     <section
-      aria-labelledby="pedido-comment-composer-title"
-      className="rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6"
+      aria-labelledby={titleId}
+      className={
+        isPanel
+          ? "min-w-0"
+          : "rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6"
+      }
     >
       <div>
-        <h2
-          id="pedido-comment-composer-title"
-          className="text-lg font-semibold text-text-primary"
+        <Heading
+          id={titleId}
+          className={
+            isPanel
+              ? "text-base font-semibold text-text-primary"
+              : "text-lg font-semibold text-text-primary"
+          }
         >
           Agregar comentario
-        </h2>
+        </Heading>
         <p className="mt-2 text-sm leading-6 text-text-secondary">
           Registra una nota interna para el equipo que trabaja en este pedido.
         </p>
@@ -73,13 +94,13 @@ export function PedidoCommentComposer({
 
         <div className="mt-4">
           <label
-            htmlFor="pedido-comment-content"
+            htmlFor={textareaId}
             className="text-sm font-medium text-text-primary"
           >
             Comentario
           </label>
           <textarea
-            id="pedido-comment-content"
+            id={textareaId}
             name="content"
             rows={4}
             maxLength={2000}
@@ -88,13 +109,13 @@ export function PedidoCommentComposer({
             defaultValue={state.values?.content ?? ""}
             aria-invalid={Boolean(contenidoError)}
             aria-describedby={
-              contenidoError ? "pedido-comment-content-error" : undefined
+              contenidoError ? errorId : undefined
             }
             className="mt-2 block min-h-28 w-full resize-y rounded-(--radius-control) border border-border-strong bg-surface px-3 py-2 text-sm text-text-primary shadow-(--shadow-soft) placeholder:text-text-muted disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted"
           />
           {contenidoError ? (
             <p
-              id="pedido-comment-content-error"
+              id={errorId}
               className="mt-2 text-sm leading-5 text-danger"
             >
               {contenidoError}

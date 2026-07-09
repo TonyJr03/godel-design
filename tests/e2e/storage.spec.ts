@@ -5,8 +5,14 @@ import {
   expectNoStorageLeakTextIn,
 } from "./helpers/assertions";
 import { loginAs } from "./helpers/auth";
+import { createQaRunId } from "./helpers/qa-data";
 
 const NON_EXISTENT_UUID = "00000000-0000-4000-8000-000000000000";
+const runId = createQaRunId();
+const minimumPngBuffer = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
+  "base64",
+);
 
 async function openFirstInternalDetail(
   page: Page,
@@ -80,6 +86,9 @@ test("admin sees safe pedido storage panel when a pedido exists", async ({
 
   await expect(storageDialog).toBeVisible();
   await expectNoStorageLeakTextIn(storageDialog);
+  await expect(
+    storageDialog.getByRole("heading", { name: /^subir nuevo archivo$/i }),
+  ).toBeVisible();
 
   const downloadLinks = storageDialog.getByRole("link", { name: /descargar/i });
 
@@ -91,6 +100,38 @@ test("admin sees safe pedido storage panel when a pedido exists", async ({
   } else {
     await expect(
       storageDialog.getByText(/no hay archivos asociados a este pedido/i),
+    ).toBeVisible();
+  }
+
+  const fileInput = storageDialog.getByLabel(/^archivo$/i);
+
+  if (await fileInput.isVisible().catch(() => false)) {
+    const qaFileName = `qa-storage-panel-${runId}.png`;
+
+    await fileInput.setInputFiles({
+      name: qaFileName,
+      mimeType: "image/png",
+      buffer: minimumPngBuffer,
+    });
+    await storageDialog
+      .getByRole("button", { name: /^subir archivo$/i })
+      .click();
+    await expect(storageDialog).toBeVisible();
+    await expect(
+      storageDialog.getByText(/archivo subido correctamente/i),
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(storageDialog.getByText(qaFileName)).toBeVisible({
+      timeout: 15_000,
+    });
+    await expectDownloadLinksUseInternalRoute(
+      storageDialog,
+      /\/dashboard\/pedidos\/[^/]+\/archivos\/[^/]+\/download$/,
+    );
+  } else {
+    await expect(
+      storageDialog.getByText(
+        /no admite nuevas subidas|no admite nuevas subidas de archivos/i,
+      ),
     ).toBeVisible();
   }
 });

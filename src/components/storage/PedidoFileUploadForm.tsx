@@ -13,6 +13,7 @@ type PedidoFileUploadFormProps = {
   uploadFileAction: PedidoDetailAction<UploadPedidoFileActionState>;
   pedidoStatus: PedidoStatus;
   canUpload: boolean;
+  presentation?: "card" | "panel";
 };
 
 const initialState: UploadPedidoFileActionState = {
@@ -50,6 +51,7 @@ export function PedidoFileUploadForm({
   uploadFileAction,
   pedidoStatus,
   canUpload,
+  presentation = "card",
 }: PedidoFileUploadFormProps) {
   const [state, formAction, pending] = useActionState(
     uploadFileAction,
@@ -58,19 +60,33 @@ export function PedidoFileUploadForm({
   const visibilityResult = getPedidoFileVisibilityForStatus(pedidoStatus);
   const canShowUploadForm = canUpload && visibilityResult.ok;
   const uploadContextMessage = getUploadContextMessage(pedidoStatus);
+  const isPanel = presentation === "panel";
+  const titleId = isPanel
+    ? "pedido-file-upload-panel-title"
+    : "pedido-file-upload-title";
+  const fileInputId = isPanel ? "pedido-file-panel" : "pedido-file";
+  const Heading = isPanel ? "h3" : "h2";
 
   return (
     <section
-      aria-labelledby="pedido-file-upload-title"
-      className="rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6"
+      aria-labelledby={titleId}
+      className={
+        isPanel
+          ? "min-w-0"
+          : "rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6"
+      }
     >
       <div>
-        <h2
-          id="pedido-file-upload-title"
-          className="text-lg font-semibold text-text-primary"
+        <Heading
+          id={titleId}
+          className={
+            isPanel
+              ? "text-base font-semibold text-text-primary"
+              : "text-lg font-semibold text-text-primary"
+          }
         >
-          Subir archivo
-        </h2>
+          {isPanel ? "Subir nuevo archivo" : "Subir archivo"}
+        </Heading>
         <p className="mt-2 text-sm leading-6 text-text-secondary">
           Agrega archivos internos, avances o entregables según el estado
           actual.
@@ -106,13 +122,13 @@ export function PedidoFileUploadForm({
           <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
             <div>
               <label
-                htmlFor="pedido-file"
+                htmlFor={fileInputId}
                 className="text-sm font-medium text-text-primary"
               >
                 Archivo
               </label>
               <input
-                id="pedido-file"
+                id={fileInputId}
                 name="file"
                 type="file"
                 accept={STORAGE_FILE_INPUT_ACCEPT}

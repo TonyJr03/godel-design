@@ -177,11 +177,15 @@ export default async function DashboardPedidoDetallePage({
           />
         ) : undefined
       }
-      commentComposerSection={
-        <PedidoCommentComposer createCommentAction={createCommentAction} />
+      commentComposerPanelContent={
+        <PedidoCommentComposer
+          presentation="panel"
+          createCommentAction={createCommentAction}
+        />
       }
-      fileUploadSection={
+      fileUploadPanelContent={
         <PedidoFileUploadForm
+          presentation="panel"
           uploadFileAction={uploadFileAction}
           pedidoStatus={result.pedido.status}
           canUpload={profile !== null}

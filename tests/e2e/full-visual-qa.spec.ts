@@ -450,13 +450,71 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   await updatePedidoStatus(page, "en_produccion");
   await updatePedidoStatus(page, "listo_entrega");
 
-  await page.locator('input[name="file"]').setInputFiles(
+  const filesPanel = await openPedidoPanel(page, /^archivos$/i, /archivos/i);
+  await expect(
+    filesPanel.getByRole("heading", { name: /^subir nuevo archivo$/i }),
+  ).toBeVisible();
+  await expect(
+    filesPanel.getByRole("heading", { name: /^archivos asociados$/i }),
+  ).toBeVisible();
+  await filesPanel.getByLabel(/^archivo$/i).setInputFiles(
     resolve(process.cwd(), "tests/e2e/fixtures/sample-print-request.pdf"),
   );
-  await page.getByRole("button", { name: /subir archivo/i }).click();
-  await expectStatusMessage(page, /archivo subido correctamente/i);
-  await page.reload();
-  await expect(page.getByText(/sample-print-request\.pdf/i).first()).toBeVisible();
+  await filesPanel.getByRole("button", { name: /subir archivo/i }).click();
+  await expect(filesPanel).toBeVisible();
+  await expect(
+    filesPanel.getByText(/archivo subido correctamente/i),
+  ).toBeVisible({ timeout: 15_000 });
+  await expect(
+    filesPanel.getByText(/sample-print-request\.pdf/i).first(),
+  ).toBeVisible();
+  await captureViewport(page, "pedido-archivos-panel-desktop", {
+    width: 1440,
+    height: 1000,
+  });
+
+  const commentsPanel = await openPedidoPanel(
+    page,
+    /^comentarios$/i,
+    /comentarios/i,
+  );
+  await expect(
+    commentsPanel.getByRole("heading", { name: /^agregar comentario$/i }),
+  ).toBeVisible();
+  await expect(
+    commentsPanel.getByRole("heading", { name: /^conversaci.n interna$/i }),
+  ).toBeVisible();
+  const visualComment =
+    `Comentario QA visual ${runId} con una linea suficientemente larga ` +
+    "para revisar wrapping sin overflow en el panel contextual.";
+  await commentsPanel.getByLabel(/^comentario$/i).fill(visualComment);
+  await commentsPanel
+    .getByRole("button", { name: /agregar comentario/i })
+    .click();
+  await expect(commentsPanel).toBeVisible();
+  await expect(
+    commentsPanel.getByText(/comentario agregado correctamente/i),
+  ).toBeVisible({ timeout: 15_000 });
+  await expect(commentsPanel.getByText(visualComment)).toBeVisible();
+  await captureViewport(page, "pedido-comentarios-panel-mobile", {
+    width: 375,
+    height: 812,
+  });
+  await commentsPanel.getByRole("button", { name: /cerrar/i }).click();
+  await expect(commentsPanel).toBeHidden();
+  await expect(
+    page.getByRole("heading", { name: /^aportes al pedido$/i }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: /^subir archivo$/i }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: /^agregar comentario$/i }),
+  ).toHaveCount(0);
+  await captureViewport(page, "pedido-main-no-aportes-tablet", {
+    width: 900,
+    height: 1000,
+  });
   await expect(page.locator("body")).not.toContainText(/file_path/i);
 
   await page.goto(qaState.manualEncargoUrl);
