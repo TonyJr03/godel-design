@@ -68,6 +68,26 @@ async function clickFirstVisible(locator: Locator) {
   }).toPass({ timeout: 10_000 });
 }
 
+async function expectBefore(first: Locator, second: Locator) {
+  const secondHandle = await second.elementHandle();
+
+  if (!secondHandle) {
+    throw new Error(
+      "Expected second locator to resolve before comparing DOM order.",
+    );
+  }
+
+  const isBefore = await first.evaluate((firstElement, secondElement) => {
+    return Boolean(
+      firstElement.compareDocumentPosition(secondElement as Element) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+  }, secondHandle);
+
+  await secondHandle.dispose();
+  expect(isBefore).toBe(true);
+}
+
 async function openPedidoPanel(
   page: Page,
   name: RegExp,
@@ -457,7 +477,34 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   await expect(page.getByText(/tarea/i).first()).toBeVisible();
 
   const taskSection = await openPedidoPanel(page, /^tareas$/i, /tareas/i);
-  await taskSection.getByLabel(/nueva tarea/i).fill("Imprimir 10 paginas");
+  const taskTemplateHeading = taskSection.getByRole("heading", {
+    name: /cargar tareas predeterminadas/i,
+  });
+  const registeredTasksHeading = taskSection.getByRole("heading", {
+    name: /^tareas registradas$/i,
+  });
+  const newTaskHeading = taskSection.getByRole("heading", {
+    name: /^nueva tarea$/i,
+  });
+
+  await expect(taskTemplateHeading).toBeVisible();
+  await expect(registeredTasksHeading).toBeVisible();
+  await expect(newTaskHeading).toBeVisible();
+  await expect(taskSection.getByText(/escribe cada paso del trabajo/i))
+    .toHaveCount(0);
+  await expect(taskSection.getByText(/dise.ar el logo/i)).toHaveCount(0);
+  await expect(taskSection.getByText(/imprimir 40 p.ginas/i)).toHaveCount(0);
+  await expect(taskSection.getByText(/encuadernar 2 libretas/i)).toHaveCount(0);
+  await expect(
+    taskSection.getByText(/las tareas de la plantilla se agregar.n al final/i),
+  ).toHaveCount(0);
+  await expect(taskSection.getByText(/si aplicas la misma plantilla/i))
+    .toHaveCount(0);
+  await expectBefore(taskTemplateHeading, newTaskHeading);
+  await expectBefore(newTaskHeading, registeredTasksHeading);
+  await taskSection
+    .getByRole("textbox", { name: /nueva tarea/i })
+    .fill("Imprimir 10 paginas");
   await taskSection.getByRole("button", { name: /crear tarea/i }).click();
   await expectStatusMessage(page, /tarea creada correctamente/i);
   await page.reload();
@@ -532,11 +579,23 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   const filesPanel = await openPedidoPanel(page, /^archivos$/i, /archivos/i);
   await expect(
     filesPanel.getByRole("heading", { name: /^subir nuevo archivo$/i }),
-  ).toBeVisible();
+  ).toHaveCount(0);
   await expect(
-    filesPanel.getByRole("heading", { name: /^archivos asociados$/i }),
-  ).toBeVisible();
-  await filesPanel.getByLabel(/^archivo$/i).setInputFiles(
+    filesPanel.getByText(
+      /agrega archivos internos, avances o entregables seg.n el estado actual/i,
+    ),
+  ).toHaveCount(0);
+  const filesListHeading = filesPanel.getByRole("heading", {
+    name: /^archivos asociados$/i,
+  });
+  const uploadInput = filesPanel.getByLabel(/^archivo$/i);
+
+  await expect(filesListHeading).toBeVisible();
+  await expectBefore(filesListHeading, uploadInput);
+  await expect(
+    filesPanel.getByText(/los archivos se guardar.n como/i),
+  ).toHaveCount(0);
+  await uploadInput.setInputFiles(
     resolve(process.cwd(), "tests/e2e/fixtures/sample-print-request.pdf"),
   );
   await filesPanel.getByRole("button", { name: /subir archivo/i }).click();
@@ -559,14 +618,28 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   );
   await expect(
     commentsPanel.getByRole("heading", { name: /^agregar comentario$/i }),
-  ).toBeVisible();
+  ).toHaveCount(0);
   await expect(
-    commentsPanel.getByRole("heading", { name: /^conversaci.n interna$/i }),
-  ).toBeVisible();
+    commentsPanel.getByText(
+      /registra una nota interna para el equipo que trabaja en este pedido/i,
+    ),
+  ).toHaveCount(0);
+  const commentsListHeading = commentsPanel.getByRole("heading", {
+    name: /^conversaci.n interna$/i,
+  });
+  const commentsComposerHeading = commentsPanel.getByRole("heading", {
+    name: /^comenta$/i,
+  });
+  const commentsTextbox = commentsPanel.getByLabel(/^comentario$/i);
+
+  await expect(commentsListHeading).toBeVisible();
+  await expect(commentsComposerHeading).toBeVisible();
+  await expectBefore(commentsListHeading, commentsComposerHeading);
+  await expectBefore(commentsComposerHeading, commentsTextbox);
   const visualComment =
     `Comentario QA visual ${runId} con una linea suficientemente larga ` +
     "para revisar wrapping sin overflow en el panel contextual.";
-  await commentsPanel.getByLabel(/^comentario$/i).fill(visualComment);
+  await commentsTextbox.fill(visualComment);
   await commentsPanel
     .getByRole("button", { name: /agregar comentario/i })
     .click();

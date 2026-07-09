@@ -302,12 +302,10 @@ export function InternalPedidoDetail({
       description:
         "Consulta los archivos asociados y agrega nuevos recursos al pedido.",
       content: (
-        <div className="space-y-8">
-          {fileUploadPanelContent}
-
+        <div className="flex h-full min-h-0 flex-col">
           <section
             aria-labelledby="pedido-files-list-title"
-            className="border-t border-border pt-6"
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1"
           >
             <h3
               id="pedido-files-list-title"
@@ -324,6 +322,10 @@ export function InternalPedidoDetail({
               />
             </div>
           </section>
+
+          <div className="mt-4 shrink-0 border-t border-border pt-4">
+            {fileUploadPanelContent}
+          </div>
         </div>
       ),
     },
@@ -331,20 +333,18 @@ export function InternalPedidoDetail({
       id: "comentarios",
       title: "Comentarios",
       description:
-        "Consulta la conversacion interna y registra nuevas notas para el equipo.",
+        "Consulta la conversación interna y registra nuevas notas para el equipo.",
       content: (
-        <div className="space-y-8">
-          {commentComposerPanelContent}
-
+        <div className="flex h-full min-h-0 flex-col">
           <section
             aria-labelledby="pedido-comments-list-title"
-            className="border-t border-border pt-6"
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1"
           >
             <h3
               id="pedido-comments-list-title"
               className="text-base font-semibold text-text-primary"
             >
-              Conversacion interna
+              Conversación interna
             </h3>
 
             <div className="mt-4">
@@ -354,6 +354,10 @@ export function InternalPedidoDetail({
               />
             </div>
           </section>
+
+          <div className="mt-4 shrink-0 border-t border-border pt-4">
+            {commentComposerPanelContent}
+          </div>
         </div>
       ),
     },

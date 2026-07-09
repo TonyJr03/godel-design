@@ -33,6 +33,32 @@ async function clickFirstVisible(locator: Locator) {
   }).toPass({ timeout: 10_000 });
 }
 
+async function expectBefore(first: Locator, second: Locator) {
+  const secondHandle = await second.elementHandle();
+
+  if (!secondHandle) {
+    throw new Error(
+      "Expected second locator to resolve before comparing DOM order.",
+    );
+  }
+
+  const isBefore = await first.evaluate((firstElement, secondElement) => {
+    return Boolean(
+      firstElement.compareDocumentPosition(secondElement as Element) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+  }, secondHandle);
+
+  await secondHandle.dispose();
+  expect(isBefore).toBe(true);
+}
+
+async function getElementHeight(locator: Locator) {
+  return locator.evaluate((element) =>
+    (element as HTMLElement).getBoundingClientRect().height,
+  );
+}
+
 async function closeOpenPedidoDialog(page: Page) {
   const openDialog = page.getByRole("dialog");
 
@@ -245,8 +271,45 @@ async function expectPedidoStatusBlocked(page: Page, status: string) {
 
 async function createQuantifiedTask(page: Page) {
   const taskSection = await getPedidoTasksPanel(page);
+  const templateHeading = taskSection.getByRole("heading", {
+    name: /cargar tareas predeterminadas/i,
+  });
+  const registeredTasksHeading = taskSection.getByRole("heading", {
+    name: /^tareas registradas$/i,
+  });
+  const newTaskHeading = taskSection.getByRole("heading", {
+    name: /^nueva tarea$/i,
+  });
+  const newTaskInput = taskSection.getByRole("textbox", {
+    name: /nueva tarea/i,
+  });
 
-  await taskSection.getByLabel(/nueva tarea/i).fill(quantifiedTaskTitle);
+  await expect(
+    taskSection.getByText(/escribe cada paso del trabajo/i),
+  ).toHaveCount(0);
+  await expect(taskSection.getByText(/diseñar el logo/i)).toHaveCount(0);
+  await expect(taskSection.getByText(/imprimir 40 páginas/i)).toHaveCount(0);
+  await expect(taskSection.getByText(/encuadernar 2 libretas/i)).toHaveCount(0);
+  await expect(templateHeading).toBeVisible();
+  await expect(registeredTasksHeading).toBeVisible();
+  await expect(newTaskHeading).toBeVisible();
+  await expect(
+    taskSection.getByText(
+      /las tareas de la plantilla se agregar.n al final/i,
+    ),
+  ).toHaveCount(0);
+  await expect(
+    taskSection.locator('label[for="task-template-id"]'),
+  ).toHaveClass(/sr-only/);
+  await expect(taskSection.getByLabel(/seleccionar plantilla/i)).toBeVisible();
+  await expect(
+    taskSection.getByText(/si aplicas la misma plantilla/i),
+  ).toHaveCount(0);
+  await expectBefore(templateHeading, newTaskHeading);
+  await expectBefore(newTaskHeading, registeredTasksHeading);
+  await expectBefore(newTaskHeading, newTaskInput);
+
+  await newTaskInput.fill(quantifiedTaskTitle);
   await taskSection.getByRole("button", { name: /crear tarea/i }).click();
   await expect(taskSection).toBeVisible();
   await expect(
@@ -564,14 +627,54 @@ test("pedido workspace contextual panels are accessible", async ({ page }) => {
   ).toBeFocused();
   await expect(
     commentsDialog.getByRole("heading", { name: /^agregar comentario$/i }),
-  ).toBeVisible();
+  ).toHaveCount(0);
   await expect(
-    commentsDialog.getByRole("heading", { name: /^conversaci.n interna$/i }),
-  ).toBeVisible();
+    commentsDialog.getByText(
+      /registra una nota interna para el equipo que trabaja en este pedido/i,
+    ),
+  ).toHaveCount(0);
+  const commentsListTitle = commentsDialog.getByRole("heading", {
+    name: /^conversaci.n interna$/i,
+  });
+  const commentComposerTitle = commentsDialog.getByRole("heading", {
+    name: /^comenta$/i,
+  });
+  const commentTextbox = commentsDialog.getByRole("textbox", {
+    name: /^comentario$/i,
+  });
+  const multilineComment = `${workspaceCommentText}
+Línea adicional para comprobar crecimiento.
+Otra línea de QA para el textarea.`;
 
-  await commentsDialog
-    .getByRole("textbox", { name: /^comentario$/i })
-    .fill(workspaceCommentText);
+  await expect(commentsListTitle).toBeVisible();
+  await expect(commentComposerTitle).toBeVisible();
+  await expect(commentTextbox).toBeVisible();
+  await expectBefore(commentsListTitle, commentComposerTitle);
+  await expectBefore(commentComposerTitle, commentTextbox);
+  const commentsListSection = commentsListTitle.locator(
+    "xpath=ancestor::section[1]",
+  );
+  await expect(commentsListSection).toBeVisible();
+  await expect(async () => {
+    const overflowY = await commentsListSection.evaluate(
+      (element) => getComputedStyle(element).overflowY,
+    );
+
+    expect(overflowY).toMatch(/auto|scroll/i);
+  }).toPass();
+  await commentsListSection.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+  await expect(commentComposerTitle).toBeVisible();
+  await expect(commentTextbox).toBeVisible();
+  const initialCommentTextareaHeight = await getElementHeight(commentTextbox);
+  await commentTextbox.fill(multilineComment);
+  const expandedCommentTextareaHeight = await getElementHeight(commentTextbox);
+
+  expect(expandedCommentTextareaHeight).toBeGreaterThan(
+    initialCommentTextareaHeight,
+  );
+  expect(expandedCommentTextareaHeight).toBeLessThanOrEqual(160);
   await commentsDialog
     .getByRole("button", { name: /^agregar comentario$/i })
     .click();
@@ -589,6 +692,14 @@ test("pedido workspace contextual panels are accessible", async ({ page }) => {
   await expect(
     createdComment.getByText(/admin|supervisor|trabajador|equipo/i).first(),
   ).toBeVisible();
+  await expectBefore(createdComment, commentTextbox);
+  await expectBefore(commentsListTitle, commentTextbox);
+  await expect(commentTextbox).toHaveValue("");
+  const resetCommentTextareaHeight = await getElementHeight(commentTextbox);
+
+  expect(resetCommentTextareaHeight).toBeLessThanOrEqual(
+    initialCommentTextareaHeight + 6,
+  );
 
   await commentsDialog.getByRole("button", { name: /cerrar/i }).click();
   await expect(commentsDialog).toBeHidden();
@@ -605,10 +716,39 @@ test("pedido workspace contextual panels are accessible", async ({ page }) => {
   ).toBeFocused();
   await expect(
     filesDialog.getByRole("heading", { name: /^subir nuevo archivo$/i }),
-  ).toBeVisible();
+  ).toHaveCount(0);
   await expect(
-    filesDialog.getByRole("heading", { name: /^archivos asociados$/i }),
-  ).toBeVisible();
+    filesDialog.getByText(
+      /agrega archivos internos, avances o entregables seg.n el estado actual/i,
+    ),
+  ).toHaveCount(0);
+  const filesListTitle = filesDialog.getByRole("heading", {
+    name: /^archivos asociados$/i,
+  });
+  const fileInput = filesDialog.getByLabel(/^archivo$/i);
+
+  await expect(filesListTitle).toBeVisible();
+  if (await fileInput.isVisible().catch(() => false)) {
+    await expectBefore(filesListTitle, fileInput);
+    await expect(
+      filesDialog.getByText(/los archivos se guardar.n como/i),
+    ).toHaveCount(0);
+    const filesListSection = filesListTitle.locator(
+      "xpath=ancestor::section[1]",
+    );
+    await expect(filesListSection).toBeVisible();
+    await expect(async () => {
+      const overflowY = await filesListSection.evaluate(
+        (element) => getComputedStyle(element).overflowY,
+      );
+
+      expect(overflowY).toMatch(/auto|scroll/i);
+    }).toPass();
+    await filesListSection.evaluate((element) => {
+      element.scrollTop = element.scrollHeight;
+    });
+    await expect(fileInput).toBeVisible();
+  }
 
   const fileDownloadLinks = filesDialog.getByRole("link", {
     name: /descargar/i,
@@ -634,6 +774,48 @@ test("pedido workspace contextual panels are accessible", async ({ page }) => {
   await filesDialog.getByRole("button", { name: /cerrar/i }).click();
   await expect(filesDialog).toBeHidden();
   await expect(filesTrigger).toBeFocused();
+
+  const personnelTrigger = page.getByRole("button", { name: /personal/i });
+  await personnelTrigger.click();
+
+  const personnelDialog = page.getByRole("dialog", { name: /^personal$/i });
+  await expect(personnelDialog).toBeVisible();
+  await expect(
+    personnelDialog.getByText(
+      /usuarios internos que participan operativamente/i,
+    ),
+  ).toHaveCount(0);
+  await expect(
+    personnelDialog.getByText(/no hay personal asignado|asignado el/i),
+  ).toBeVisible();
+  const assignPersonnelSelect = personnelDialog.getByLabel(/asignar personal/i);
+  if (await assignPersonnelSelect.isVisible().catch(() => false)) {
+    await expect(assignPersonnelSelect).toBeVisible();
+    await personnelDialog.evaluate((dialog) => {
+      const scrollable = Array.from(dialog.querySelectorAll("div")).find(
+        (element) => {
+          const style = getComputedStyle(element);
+
+          return (
+            /auto|scroll/i.test(style.overflowY) &&
+            element.scrollHeight >= element.clientHeight
+          );
+        },
+      );
+
+      if (scrollable) {
+        scrollable.scrollTop = scrollable.scrollHeight;
+      }
+    });
+    await expect(assignPersonnelSelect).toBeVisible();
+  } else {
+    await expect(
+      personnelDialog.getByText(/no hay m.s usuarios disponibles/i),
+    ).toBeVisible();
+  }
+  await personnelDialog.getByRole("button", { name: /cerrar/i }).click();
+  await expect(personnelDialog).toBeHidden();
+  await expect(personnelTrigger).toBeFocused();
 
   const informationTrigger = page.getByRole("button", {
     name: /informaci.n/i,

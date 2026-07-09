@@ -43,6 +43,26 @@ async function clickFirstVisible(locator: Locator) {
   throw new Error("No visible element found for locator.");
 }
 
+async function expectBefore(first: Locator, second: Locator) {
+  const secondHandle = await second.elementHandle();
+
+  if (!secondHandle) {
+    throw new Error(
+      "Expected second locator to resolve before comparing DOM order.",
+    );
+  }
+
+  const isBefore = await first.evaluate((firstElement, secondElement) => {
+    return Boolean(
+      firstElement.compareDocumentPosition(secondElement as Element) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+  }, secondHandle);
+
+  await secondHandle.dispose();
+  expect(isBefore).toBe(true);
+}
+
 async function openPedidoPanel(
   page: Page,
   name: RegExp,
@@ -271,17 +291,51 @@ test("admin can apply a template to encargo and impresion has no selector", asyn
     `QA Pedido Template Encargo ${runId}`,
   );
   const tasksPanel = await openPedidoPanel(page, /^tareas$/i, /tareas/i);
+  const templateHeading = tasksPanel.getByRole("heading", {
+    name: /cargar tareas predeterminadas/i,
+  });
+  const registeredTasksHeading = tasksPanel.getByRole("heading", {
+    name: /^tareas registradas$/i,
+  });
+  const newTaskHeading = tasksPanel.getByRole("heading", {
+    name: /^nueva tarea$/i,
+  });
+
   await expect(
-    tasksPanel.getByRole("heading", { name: /cargar tareas predeterminadas/i }),
-  ).toBeVisible();
+    tasksPanel.getByText(/escribe cada paso del trabajo/i),
+  ).toHaveCount(0);
+  await expect(tasksPanel.getByText(/dise.ar el logo/i)).toHaveCount(0);
+  await expect(tasksPanel.getByText(/imprimir 40 p.ginas/i)).toHaveCount(0);
+  await expect(tasksPanel.getByText(/encuadernar 2 libretas/i)).toHaveCount(0);
+  await expect(templateHeading).toBeVisible();
+  await expect(
+    tasksPanel.getByText(/las tareas de la plantilla se agregar.n al final/i),
+  ).toHaveCount(0);
+  await expect(
+    tasksPanel.locator('label[for="task-template-id"]'),
+  ).toHaveClass(/sr-only/);
+  await expect(tasksPanel.getByLabel(/seleccionar plantilla/i)).toBeVisible();
+  await expect(
+    tasksPanel.getByText(/si aplicas la misma plantilla/i),
+  ).toHaveCount(0);
+  await expect(registeredTasksHeading).toBeVisible();
+  await expect(newTaskHeading).toBeVisible();
+  await expectBefore(templateHeading, newTaskHeading);
+  await expectBefore(newTaskHeading, registeredTasksHeading);
+  await expect(tasksPanel.getByText(/progreso:/i)).toBeVisible();
   await selectTaskTemplate(page, templateName);
   await page.getByRole("button", { name: /aplicar plantilla/i }).click();
   await expect(tasksPanel).toBeVisible();
   await expect(
     tasksPanel.getByText(/se agreg. 1 tarea desde la plantilla/i),
   ).toBeVisible({ timeout: 15_000 });
+  await expect(tasksPanel.getByText(quantifiedTaskTitle)).toBeVisible({
+    timeout: 15_000,
+  });
+  await expectBefore(newTaskHeading, registeredTasksHeading);
   await page.reload();
-  await expect(await getPedidoTaskItem(page, quantifiedTaskTitle)).toBeVisible();
+  const copiedTask = await getPedidoTaskItem(page, quantifiedTaskTitle);
+  await expect(copiedTask).toBeVisible();
 
   await createManualPedido(
     page,

@@ -66,58 +66,37 @@ export function PedidoWorkerAssignmentForm({
     (trabajador) => !assignedIds.has(trabajador.id),
   );
   const isPanelPresentation = presentation === "panel";
-
-  return (
-    <section
+  const assignMessage = assignState.message ? (
+    <div
       className={
-        isPanelPresentation
-          ? "min-w-0"
-          : "rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6"
+        assignState.ok
+          ? "rounded-(--radius-control) border border-success/30 bg-success-soft px-4 py-3 text-sm leading-6 text-success"
+          : "rounded-(--radius-control) border border-danger/30 bg-danger-soft px-4 py-3 text-sm leading-6 text-danger"
       }
+      role={assignState.ok ? "status" : "alert"}
+      aria-live="polite"
     >
-      <div>
-        {!isPanelPresentation ? (
-          <h2 className="text-lg font-semibold text-text-primary">
-            Personal asignado
-          </h2>
-        ) : null}
-        <p
-          className={[
-            "text-sm leading-6 text-text-secondary",
-            isPanelPresentation ? "" : "mt-2",
-          ]
-            .filter(Boolean)
-            .join(" ")}
-        >
-          Usuarios internos que participan operativamente en este pedido.
-        </p>
-      </div>
-
-      {assignState.message ? (
-        <div
-          className={
-            assignState.ok
-              ? "mt-5 rounded-(--radius-control) border border-success/30 bg-success-soft px-4 py-3 text-sm leading-6 text-success"
-              : "mt-5 rounded-(--radius-control) border border-danger/30 bg-danger-soft px-4 py-3 text-sm leading-6 text-danger"
-          }
-          role={assignState.ok ? "status" : "alert"}
-          aria-live="polite"
-        >
-          {assignState.message}
-        </div>
-      ) : null}
-
-      {removeState.message ? (
-        <div
-          className={
-            removeState.ok
-              ? "mt-5 rounded-(--radius-control) border border-success/30 bg-success-soft px-4 py-3 text-sm leading-6 text-success"
-              : "mt-5 rounded-(--radius-control) border border-danger/30 bg-danger-soft px-4 py-3 text-sm leading-6 text-danger"
-          }
-          role={removeState.ok ? "status" : "alert"}
-          aria-live="polite"
-        >
-          {removeState.message}
+      {assignState.message}
+    </div>
+  ) : null;
+  const removeMessage = removeState.message ? (
+    <div
+      className={
+        removeState.ok
+          ? "rounded-(--radius-control) border border-success/30 bg-success-soft px-4 py-3 text-sm leading-6 text-success"
+          : "rounded-(--radius-control) border border-danger/30 bg-danger-soft px-4 py-3 text-sm leading-6 text-danger"
+      }
+      role={removeState.ok ? "status" : "alert"}
+      aria-live="polite"
+    >
+      {removeState.message}
+    </div>
+  ) : null;
+  const assignmentsContent = (
+    <>
+      {removeMessage ? (
+        <div className={isPanelPresentation ? "" : "mt-5"}>
+          {removeMessage}
         </div>
       ) : null}
 
@@ -178,72 +157,118 @@ export function PedidoWorkerAssignmentForm({
           No hay personal asignado a este pedido.
         </p>
       )}
-
-      {canManage ? (
-        <form
-          action={assignFormAction}
-          aria-busy={assigning}
-          className="mt-6 border-t border-border pt-5"
-        >
-          {loadAssignableError ? (
-            <p className="rounded-(--radius-control) border border-danger/30 bg-danger-soft px-4 py-3 text-sm leading-6 text-danger">
-              {loadAssignableError}
-            </p>
-          ) : availableWorkers.length === 0 ? (
-            <p className="rounded-(--radius-control) border border-warning/30 bg-warning-soft px-4 py-3 text-sm leading-6 text-text-primary">
-              No hay más usuarios disponibles para asignar.
-            </p>
-          ) : (
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
-              <div className="w-full max-w-sm">
-                <label
-                  htmlFor="assigned_profile_id"
-                  className="text-sm font-medium text-text-primary"
-                >
-                  Asignar personal
-                </label>
-                <select
-                  id="assigned_profile_id"
-                  name="assigned_profile_id"
-                  defaultValue=""
-                  disabled={assigning}
-                  required
-                  aria-invalid={Boolean(assignedProfileError)}
-                  aria-describedby={
-                    assignedProfileError ? "assigned-profile-id-error" : undefined
-                  }
-                  className="mt-2 min-h-11 w-full rounded-(--radius-control) border border-border-strong bg-surface px-3 py-2 text-sm text-text-primary shadow-(--shadow-soft) disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted"
-                >
-                  <option value="" disabled>
-                    Selecciona un usuario
-                  </option>
-                  {availableWorkers.map((trabajador) => (
-                    <option key={trabajador.id} value={trabajador.id}>
-                      {trabajador.full_name} · {ROLE_LABELS[trabajador.role]}
-                    </option>
-                  ))}
-                </select>
-                {assignedProfileError ? (
-                  <p
-                    id="assigned-profile-id-error"
-                    className="mt-2 text-sm leading-5 text-danger"
-                  >
-                    {assignedProfileError}
-                  </p>
-                ) : null}
-              </div>
-
-              <button
-                type="submit"
-                disabled={assigning}
-                className="inline-flex min-h-11 w-full items-center justify-center rounded-(--radius-control) bg-brand-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-primary-hover disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-              >
-                {assigning ? "Asignando..." : "Asignar personal"}
-              </button>
-            </div>
-          )}
-        </form>
+    </>
+  );
+  const assignmentForm = canManage ? (
+    <form action={assignFormAction} aria-busy={assigning}>
+      {assignMessage ? (
+        <div className={isPanelPresentation ? "mb-4" : "mb-5"}>
+          {assignMessage}
+        </div>
       ) : null}
+
+      {loadAssignableError ? (
+        <p className="rounded-(--radius-control) border border-danger/30 bg-danger-soft px-4 py-3 text-sm leading-6 text-danger">
+          {loadAssignableError}
+        </p>
+      ) : availableWorkers.length === 0 ? (
+        <p className="rounded-(--radius-control) border border-warning/30 bg-warning-soft px-4 py-3 text-sm leading-6 text-text-primary">
+          No hay más usuarios disponibles para asignar.
+        </p>
+      ) : (
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+          <div className="w-full max-w-sm">
+            <label
+              htmlFor="assigned_profile_id"
+              className="text-sm font-medium text-text-primary"
+            >
+              Asignar personal
+            </label>
+            <select
+              id="assigned_profile_id"
+              name="assigned_profile_id"
+              defaultValue=""
+              disabled={assigning}
+              required
+              aria-invalid={Boolean(assignedProfileError)}
+              aria-describedby={
+                assignedProfileError ? "assigned-profile-id-error" : undefined
+              }
+              className="mt-2 min-h-11 w-full rounded-(--radius-control) border border-border-strong bg-surface px-3 py-2 text-sm text-text-primary shadow-(--shadow-soft) disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted"
+            >
+              <option value="" disabled>
+                Selecciona un usuario
+              </option>
+              {availableWorkers.map((trabajador) => (
+                <option key={trabajador.id} value={trabajador.id}>
+                  {trabajador.full_name} · {ROLE_LABELS[trabajador.role]}
+                </option>
+              ))}
+            </select>
+            {assignedProfileError ? (
+              <p
+                id="assigned-profile-id-error"
+                className="mt-2 text-sm leading-5 text-danger"
+              >
+                {assignedProfileError}
+              </p>
+            ) : null}
+          </div>
+
+          <button
+            type="submit"
+            disabled={assigning}
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-(--radius-control) bg-brand-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-primary-hover disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+          >
+            {assigning ? "Asignando..." : "Asignar personal"}
+          </button>
+        </div>
+      )}
+    </form>
+  ) : null;
+
+  return (
+    <section
+      className={
+        isPanelPresentation
+          ? "flex h-full min-h-0 min-w-0 flex-col"
+          : "rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6"
+      }
+    >
+      {!isPanelPresentation ? (
+        <div>
+          <h2 className="text-lg font-semibold text-text-primary">
+            Personal asignado
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-text-secondary">
+            Usuarios internos que participan operativamente en este pedido.
+          </p>
+        </div>
+      ) : null}
+
+      {isPanelPresentation ? (
+        <>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
+            {assignmentsContent}
+          </div>
+
+          {assignmentForm ? (
+            <div className="mt-4 shrink-0 border-t border-border pt-4">
+              {assignmentForm}
+            </div>
+          ) : null}
+        </>
+      ) : (
+        <>
+          {assignMessage ? <div className="mt-5">{assignMessage}</div> : null}
+          {assignmentsContent}
+          {assignmentForm ? (
+            <div className="mt-6 border-t border-border pt-5">
+              {assignmentForm}
+            </div>
+          ) : null}
+        </>
+      )}
     </section>
   );
 }

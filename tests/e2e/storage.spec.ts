@@ -49,6 +49,26 @@ async function expectDownloadLinksUseInternalRoute(
   }
 }
 
+async function expectBefore(first: Locator, second: Locator) {
+  const secondHandle = await second.elementHandle();
+
+  if (!secondHandle) {
+    throw new Error(
+      "Expected second locator to resolve before comparing DOM order.",
+    );
+  }
+
+  const isBefore = await first.evaluate((firstElement, secondElement) => {
+    return Boolean(
+      firstElement.compareDocumentPosition(secondElement as Element) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+  }, secondHandle);
+
+  await secondHandle.dispose();
+  expect(isBefore).toBe(true);
+}
+
 async function expectNoDownloadSurface(page: Page) {
   const hrefs = await page.locator("a").evaluateAll((links) =>
     links
@@ -88,7 +108,17 @@ test("admin sees safe pedido storage panel when a pedido exists", async ({
   await expectNoStorageLeakTextIn(storageDialog);
   await expect(
     storageDialog.getByRole("heading", { name: /^subir nuevo archivo$/i }),
-  ).toBeVisible();
+  ).toHaveCount(0);
+  await expect(
+    storageDialog.getByText(
+      /agrega archivos internos, avances o entregables seg.n el estado actual/i,
+    ),
+  ).toHaveCount(0);
+  const filesListTitle = storageDialog.getByRole("heading", {
+    name: /^archivos asociados$/i,
+  });
+
+  await expect(filesListTitle).toBeVisible();
 
   const downloadLinks = storageDialog.getByRole("link", { name: /descargar/i });
 
@@ -106,6 +136,18 @@ test("admin sees safe pedido storage panel when a pedido exists", async ({
   const fileInput = storageDialog.getByLabel(/^archivo$/i);
 
   if (await fileInput.isVisible().catch(() => false)) {
+    await expectBefore(filesListTitle, fileInput);
+    await expect(
+      storageDialog.getByText(/los archivos se guardar.n como/i),
+    ).toHaveCount(0);
+    const filesListSection = filesListTitle.locator(
+      "xpath=ancestor::section[1]",
+    );
+    await filesListSection.evaluate((element) => {
+      element.scrollTop = element.scrollHeight;
+    });
+    await expect(fileInput).toBeVisible();
+
     const qaFileName = `qa-storage-panel-${runId}.png`;
 
     await fileInput.setInputFiles({
@@ -123,6 +165,7 @@ test("admin sees safe pedido storage panel when a pedido exists", async ({
     await expect(storageDialog.getByText(qaFileName)).toBeVisible({
       timeout: 15_000,
     });
+    await expectBefore(filesListTitle, fileInput);
     await expectDownloadLinksUseInternalRoute(
       storageDialog,
       /\/dashboard\/pedidos\/[^/]+\/archivos\/[^/]+\/download$/,

@@ -61,50 +61,53 @@ export function PedidoFileUploadForm({
   const canShowUploadForm = canUpload && visibilityResult.ok;
   const uploadContextMessage = getUploadContextMessage(pedidoStatus);
   const isPanel = presentation === "panel";
-  const titleId = isPanel
-    ? "pedido-file-upload-panel-title"
-    : "pedido-file-upload-title";
+  const titleId = "pedido-file-upload-title";
   const fileInputId = isPanel ? "pedido-file-panel" : "pedido-file";
-  const Heading = isPanel ? "h3" : "h2";
+  const shouldShowUploadContext = !isPanel || !visibilityResult.ok;
 
   return (
     <section
-      aria-labelledby={titleId}
+      aria-label={isPanel ? "Subir archivo" : undefined}
+      aria-labelledby={isPanel ? undefined : titleId}
       className={
         isPanel
           ? "min-w-0"
           : "rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6"
       }
     >
-      <div>
-        <Heading
-          id={titleId}
-          className={
-            isPanel
-              ? "text-base font-semibold text-text-primary"
-              : "text-lg font-semibold text-text-primary"
-          }
-        >
-          {isPanel ? "Subir nuevo archivo" : "Subir archivo"}
-        </Heading>
-        <p className="mt-2 text-sm leading-6 text-text-secondary">
-          Agrega archivos internos, avances o entregables según el estado
-          actual.
-        </p>
-      </div>
+      {!isPanel ? (
+        <div>
+          <h2
+            id={titleId}
+            className="text-lg font-semibold text-text-primary"
+          >
+            Subir archivo
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-text-secondary">
+            Agrega archivos internos, avances o entregables según el estado
+            actual.
+          </p>
+        </div>
+      ) : null}
 
-      <p
-        className={`mt-5 rounded-md border px-4 py-3 text-sm leading-6 ${
-          visibilityResult.ok
-            ? "border-info/30 bg-info-soft text-text-primary"
-            : "border-border bg-surface-muted text-text-secondary"
-        }`}
-      >
-        {uploadContextMessage}
-      </p>
+      {shouldShowUploadContext ? (
+        <p
+          className={`${isPanel ? "" : "mt-5"} rounded-md border text-sm leading-6 ${
+            visibilityResult.ok
+              ? "border-info/30 bg-info-soft px-4 py-3 text-text-primary"
+              : "border-border bg-surface-muted px-4 py-3 text-text-secondary"
+          }`}
+        >
+          {uploadContextMessage}
+        </p>
+      ) : null}
 
       {canShowUploadForm ? (
-        <form action={formAction} aria-busy={pending} className="mt-5">
+        <form
+          action={formAction}
+          aria-busy={pending}
+          className={shouldShowUploadContext ? "mt-5" : ""}
+        >
           {state.message ? (
             <div
               className={
@@ -119,7 +122,14 @@ export function PedidoFileUploadForm({
             </div>
           ) : null}
 
-          <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+          <div
+            className={[
+              state.message || !isPanel ? "mt-4" : "",
+              "grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+          >
             <div>
               <label
                 htmlFor={fileInputId}

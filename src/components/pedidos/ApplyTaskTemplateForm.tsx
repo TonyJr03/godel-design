@@ -13,6 +13,7 @@ type ApplyTaskTemplateFormProps = {
   action: PedidoDetailAction<ApplyTaskTemplateActionState>;
   templates: ActiveTaskTemplateForOrder[];
   loadError?: string;
+  presentation?: "card" | "panel";
 };
 
 const initialState: ApplyTaskTemplateActionState = {
@@ -28,28 +29,33 @@ export function ApplyTaskTemplateForm({
   action,
   templates,
   loadError,
+  presentation = "card",
 }: ApplyTaskTemplateFormProps) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const templateError = state.fieldErrors?.template_id;
   const hasTemplates = templates.length > 0;
+  const isPanelPresentation = presentation === "panel";
 
   return (
-    <div className="rounded-(--radius-card) border border-border bg-surface-raised p-4">
+    <div
+      className={
+        isPanelPresentation
+          ? "min-w-0"
+          : "rounded-(--radius-card) border border-border bg-surface-raised p-4"
+      }
+    >
       <div>
         <h3 className="text-base font-semibold text-text-primary">
           Cargar tareas predeterminadas
         </h3>
-        <p className="mt-2 text-sm leading-6 text-text-secondary">
-          Las tareas de la plantilla se agregarán al final de las tareas
-          actuales. Luego podrás editarlas, completarlas o eliminarlas
-          normalmente.
-        </p>
+        {!isPanelPresentation ? (
+          <p className="mt-2 text-sm leading-6 text-text-secondary">
+            Las tareas de la plantilla se agregarán al final de las tareas
+            actuales. Luego podrás editarlas, completarlas o eliminarlas
+            normalmente.
+          </p>
+        ) : null}
       </div>
-
-      <Alert variant="warning" className="mt-4">
-        Si aplicas la misma plantilla más de una vez, las tareas se agregarán
-        nuevamente.
-      </Alert>
 
       {loadError ? (
         <Alert variant="danger" className="mt-4">
@@ -79,7 +85,11 @@ export function ApplyTaskTemplateForm({
             <div>
               <label
                 htmlFor="task-template-id"
-                className="text-sm font-medium text-text-primary"
+                className={
+                  isPanelPresentation
+                    ? "sr-only"
+                    : "text-sm font-medium text-text-primary"
+                }
               >
                 Seleccionar plantilla
               </label>
@@ -93,7 +103,7 @@ export function ApplyTaskTemplateForm({
                 aria-describedby={
                   templateError ? "task-template-id-error" : undefined
                 }
-                className="mt-2"
+                className={isPanelPresentation ? "" : "mt-2"}
               >
                 <option value="" disabled>
                   Selecciona una plantilla
