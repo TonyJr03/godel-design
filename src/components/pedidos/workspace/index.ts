@@ -6,8 +6,3 @@ export { PedidoInformationPanel } from "./PedidoInformationPanel";
 export { PedidoTasksPreview } from "./PedidoTasksPreview";
 export { PedidoWorkspaceHeader } from "./PedidoWorkspaceHeader";
 export { PedidoWorkspaceMain } from "./PedidoWorkspaceMain";
-export { PedidoWorkspaceSummary } from "./PedidoWorkspaceSummary";
-export {
-  getPedidoPrimaryWorkspaceAction,
-  type PedidoPrimaryWorkspaceAction,
-} from "./getPedidoPrimaryWorkspaceAction";

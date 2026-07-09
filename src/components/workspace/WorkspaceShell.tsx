@@ -9,7 +9,7 @@ const MOBILE_WORKSPACE_BAR_CONTENT_OFFSET_CLASS =
 
 type WorkspaceShellProps = {
   header: ReactNode;
-  summary: ReactNode;
+  summary?: ReactNode;
   main: ReactNode;
   children?: ReactNode;
   className?: string;
@@ -38,7 +38,7 @@ export function WorkspaceShell({
         .join(" ")}
     >
       <div className="min-w-0">{header}</div>
-      <div className="min-w-0">{summary}</div>
+      {summary ? <div className="min-w-0">{summary}</div> : null}
       {hasActions ? <WorkspaceTabletToolbar /> : null}
       <div
         className={[

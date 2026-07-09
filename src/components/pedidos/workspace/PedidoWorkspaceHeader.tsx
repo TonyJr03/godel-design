@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
+import { CopyableCode } from "@/components/common/CopyableCode";
 import { PedidoWorkflowTypeBadge } from "@/components/pedidos/PedidoWorkflowTypeBadge";
 import { PriorityBadge, StatusBadge } from "@/components/ui";
-import { WorkspaceActionTrigger } from "@/components/workspace";
 import type { InternalPedidoDetail } from "@/lib/pedidos";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("es", {
@@ -19,56 +19,73 @@ function formatDate(value: string | null): string | null {
 
 type PedidoWorkspaceHeaderProps = {
   pedido: InternalPedidoDetail;
-  primaryActionLabel?: string;
 };
 
 export function PedidoWorkspaceHeader({
   pedido,
-  primaryActionLabel,
 }: PedidoWorkspaceHeaderProps) {
-  const estimatedDeliveryDate = formatDate(pedido.estimated_delivery_date);
+  const hasActualDeliveryDate =
+    pedido.status === "entregado" && Boolean(pedido.actual_delivery_date);
+  const deliveryDate = formatDate(
+    hasActualDeliveryDate
+      ? pedido.actual_delivery_date
+      : pedido.estimated_delivery_date,
+  );
+  const deliveryLabel = hasActualDeliveryDate
+    ? "Fecha de entrega"
+    : "Entrega estimada";
 
   return (
-    <header className="min-w-0 space-y-4">
-      <Link
-        href="/dashboard/pedidos"
-        className="inline-flex min-h-11 items-center gap-2 rounded-(--radius-control) border border-border-strong bg-surface px-4 text-sm font-semibold text-text-primary transition-colors hover:bg-surface-muted"
-      >
-        <ArrowLeft aria-hidden="true" className="h-4 w-4" strokeWidth={1.75} />
-        Volver a pedidos
-      </Link>
-
+    <header className="min-w-0">
       <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <p className="font-mono text-sm font-semibold text-brand-primary">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <p className="inline-flex min-h-11 items-center font-mono text-base font-semibold text-brand-primary">
               {pedido.order_number}
             </p>
-            <PedidoWorkflowTypeBadge workflowType={pedido.workflow_type} />
-            <StatusBadge status={pedido.status} />
-            <PriorityBadge priority={pedido.priority} />
+            <PedidoWorkflowTypeBadge
+              workflowType={pedido.workflow_type}
+              className="px-3 py-1.5 text-sm"
+            />
+            <StatusBadge
+              status={pedido.status}
+              className="px-3 py-1.5 text-sm"
+            />
+            <PriorityBadge
+              priority={pedido.priority}
+              className="px-3 py-1.5 text-sm"
+            />
+            <CopyableCode
+              code={pedido.public_reference}
+              presentation="inline"
+            />
           </div>
 
           <h1 className="mt-3 wrap-break-word text-3xl font-semibold tracking-tight text-text-primary sm:text-4xl">
             {pedido.title}
           </h1>
 
-          {estimatedDeliveryDate ? (
+          {deliveryDate ? (
             <p className="mt-3 text-sm leading-6 text-text-secondary">
-              Entrega estimada:{" "}
+              {deliveryLabel}:{" "}
               <span className="font-semibold text-text-primary">
-                {estimatedDeliveryDate}
+                {deliveryDate}
               </span>
             </p>
           ) : null}
         </div>
 
-        {primaryActionLabel ? (
-          <WorkspaceActionTrigger
-            label={primaryActionLabel}
-            className="w-full lg:w-auto"
+        <Link
+          href="/dashboard/pedidos"
+          className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-(--radius-control) border border-border-strong bg-surface px-4 text-sm font-semibold text-text-primary transition-colors hover:bg-surface-muted lg:w-auto"
+        >
+          <ArrowLeft
+            aria-hidden="true"
+            className="h-4 w-4"
+            strokeWidth={1.75}
           />
-        ) : null}
+          Volver a pedidos
+        </Link>
       </div>
     </header>
   );

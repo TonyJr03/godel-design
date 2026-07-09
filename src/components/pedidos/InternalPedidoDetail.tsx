@@ -23,14 +23,12 @@ import { WORKFLOW_TYPES } from "@/lib/workflow-types";
 
 import { PedidoStatusForm } from "./PedidoStatusForm";
 import {
-  getPedidoPrimaryWorkspaceAction,
   PedidoCommentsPanel,
   PedidoFilesPanel,
   PedidoHistoryTimeline,
   PedidoInformationPanel,
   PedidoWorkspaceHeader,
   PedidoWorkspaceMain,
-  PedidoWorkspaceSummary,
 } from "./workspace";
 
 type InternalPedidoDetailProps = {
@@ -72,11 +70,6 @@ export function InternalPedidoDetail({
 }: InternalPedidoDetailProps) {
   const isPrintWorkflow = pedido.workflow_type === WORKFLOW_TYPES.IMPRESION;
   const safeTaskProgress = taskProgress ?? EMPTY_PEDIDO_TASKS_PROGRESS;
-  const primaryAction = getPedidoPrimaryWorkspaceAction({
-    pedido,
-    taskProgress,
-    tasksLoadError,
-  });
   const compactActionIds = isPrintWorkflow
     ? ["estado", "archivos", "pagos"]
     : ["estado", "tareas", "archivos"];
@@ -270,27 +263,13 @@ export function InternalPedidoDetail({
     <WorkspaceController
       actions={workspaceActions}
       panels={workspacePanels}
-      primaryActionId={primaryAction?.id}
       tabletActionIds={compactActionIds}
       mobileActionIds={compactActionIds}
     >
       <article>
         <WorkspaceShell
           hasActions
-          header={
-            <PedidoWorkspaceHeader
-              pedido={pedido}
-              primaryActionLabel={primaryAction?.label}
-            />
-          }
-          summary={
-            <PedidoWorkspaceSummary
-              pedido={pedido}
-              taskProgress={taskProgress}
-              tasksLoadError={tasksLoadError}
-              filesLoadError={filesLoadError}
-            />
-          }
+          header={<PedidoWorkspaceHeader pedido={pedido} />}
           main={
             <PedidoWorkspaceMain
               pedido={pedido}

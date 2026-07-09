@@ -98,6 +98,33 @@ async function expectStatusMessage(page: Page, message: RegExp) {
   });
 }
 
+function getPedidoHeader(page: Page) {
+  return page.locator("article header").first();
+}
+
+async function expectCompactPedidoHeader(page: Page, title: string) {
+  const header = getPedidoHeader(page);
+  const backLink = header.getByRole("link", { name: /volver a pedidos/i });
+
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: title,
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(backLink).toBeVisible();
+  await expect(backLink).toHaveAttribute("href", "/dashboard/pedidos");
+  await expect(
+    header.getByRole("button", {
+      name: /copiar c.digo de seguimiento/i,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /^resumen operativo$/i }),
+  ).toHaveCount(0);
+}
+
 async function fillPublicContact(
   page: Page,
   {
@@ -386,6 +413,7 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   ).toBeVisible();
   qaState.convertedPedidoReference = await extractPublicReference(page);
   expect(qaState.convertedPedidoReference).toBe(qaState.encargoReference);
+  await expectCompactPedidoHeader(page, convertedPedidoTitle);
   await expect(page.getByText(/pedido convertido qa/i)).toBeVisible();
 
   const manualEncargo = await createManualPedido(
@@ -398,6 +426,7 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   qaState.manualEncargoUrl = manualEncargo.url;
   qaState.assignedPedidoUrl = manualEncargo.url;
 
+  await expectCompactPedidoHeader(page, manualEncargoTitle);
   await expectPedidoStatusBlocked(page, "en_produccion");
   await expect(page.getByText(/revisarse antes de pasar/i)).toBeVisible();
   await updatePedidoStatus(page, "en_revision");
@@ -443,6 +472,7 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   qaState.manualImpresionReference = manualImpresion.reference;
   qaState.manualImpresionUrl = manualImpresion.url;
   qaState.unassignedPedidoUrl = manualImpresion.url;
+  await expectCompactPedidoHeader(page, manualImpresionTitle);
   await expect(
     page.getByText(/este tipo de pedido no requiere tareas/i),
   ).toBeVisible();
@@ -510,6 +540,9 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   ).toHaveCount(0);
   await expect(
     page.getByRole("heading", { name: /^agregar comentario$/i }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: /^resumen operativo$/i }),
   ).toHaveCount(0);
   await captureViewport(page, "pedido-main-no-aportes-tablet", {
     width: 900,

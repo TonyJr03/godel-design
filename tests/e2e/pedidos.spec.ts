@@ -17,18 +17,20 @@ const quantifiedTaskTitle = `QA Tarea Focal Imprimir 5 hojas ${runLabel}`;
 const workspaceCommentText = `QA comentario workspace ${runLabel}`;
 
 async function clickFirstVisible(locator: Locator) {
-  const count = await locator.count();
+  await expect(async () => {
+    const count = await locator.count();
 
-  for (let index = 0; index < count; index += 1) {
-    const candidate = locator.nth(index);
+    for (let index = 0; index < count; index += 1) {
+      const candidate = locator.nth(index);
 
-    if (await candidate.isVisible().catch(() => false)) {
-      await candidate.click();
-      return;
+      if (await candidate.isVisible().catch(() => false)) {
+        await candidate.click();
+        return;
+      }
     }
-  }
 
-  throw new Error("No visible element found for locator.");
+    throw new Error("No visible element found for locator.");
+  }).toPass({ timeout: 10_000 });
 }
 
 async function closeOpenPedidoDialog(page: Page) {
@@ -81,10 +83,44 @@ async function getPedidoStatusPanel(page: Page) {
   return openPedidoPanel(page, /^estado$/i);
 }
 
+function getPedidoHeader(page: Page) {
+  return page.locator("article header").first();
+}
+
 async function expectStatusMessage(page: Page, message: RegExp) {
   await expect(page.getByText(message).first()).toBeVisible({
     timeout: 15_000,
   });
+}
+
+async function expectCompactPedidoHeader(
+  page: Page,
+  title: string,
+  deliveryLabel: RegExp = /entrega estimada:/i,
+) {
+  const header = getPedidoHeader(page);
+  const backLink = header.getByRole("link", { name: /volver a pedidos/i });
+
+  await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+  await expect(
+    page.getByRole("heading", { level: 1, name: title, exact: true }),
+  ).toBeVisible();
+  await expect(backLink).toBeVisible();
+  await expect(backLink).toHaveAttribute("href", "/dashboard/pedidos");
+  await expect(header.getByText(deliveryLabel)).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /^resumen operativo$/i }),
+  ).toHaveCount(0);
+  await expect(
+    header.getByRole("button", {
+      name: /revisar estado|crear tareas|actualizar tareas|revisar pago|completar entrega|avanzar pedido/i,
+    }),
+  ).toHaveCount(0);
+  await expect(
+    header.getByRole("button", {
+      name: /copiar c.digo de seguimiento/i,
+    }),
+  ).toBeVisible();
 }
 
 async function expectPedidosListLoaded(page: Page) {
@@ -286,41 +322,45 @@ test("admin can create and manage focal internal pedidos", async ({ page }) => {
     "500",
   );
 
-  const reviewStatusCta = page.getByRole("button", {
-    name: /revisar estado/i,
+  await expectCompactPedidoHeader(page, encargoTitle);
+  const copyReferenceButton = getPedidoHeader(page).getByRole("button", {
+    name: /copiar c.digo de seguimiento/i,
   });
-  await expect(reviewStatusCta).toBeVisible();
-  await reviewStatusCta.click();
+  await copyReferenceButton.click();
+  await expect(getPedidoHeader(page).getByRole("status")).toContainText(
+    /c.digo copiado/i,
+  );
+  await expect(copyReferenceButton).toBeVisible();
+  await copyReferenceButton.focus();
+  await page.keyboard.press("Enter");
+  await expect(getPedidoHeader(page).getByRole("status")).toContainText(
+    /c.digo copiado/i,
+  );
+  await expect(copyReferenceButton).toBeFocused();
+
+  const reviewStatusPanel = await getPedidoStatusPanel(page);
   await expect(
-    page.getByRole("dialog", { name: /^estado$/i }).getByText(/debe revisarse/i),
+    reviewStatusPanel.getByText(/debe revisarse/i),
   ).toBeVisible();
   await updatePedidoStatus(page, "en_revision");
 
-  const createTasksCta = page.getByRole("button", { name: /crear tareas/i });
-  await expect(createTasksCta).toBeVisible();
-  await createTasksCta.click();
-  await expect(page.getByRole("dialog", { name: /^tareas$/i })).toBeVisible();
+  await expectCompactPedidoHeader(page, encargoTitle);
+  await expect(await getPedidoTasksPanel(page)).toBeVisible();
 
   await expectPedidoStatusBlocked(page, "en_produccion");
   await createQuantifiedTask(page);
   await updatePedidoStatus(page, "en_produccion");
 
-  const updateTasksCta = page.getByRole("button", {
-    name: /actualizar tareas/i,
-  });
-  await expect(updateTasksCta).toBeVisible();
-  await updateTasksCta.click();
-  await expect(page.getByRole("dialog", { name: /^tareas$/i })).toBeVisible();
+  await expectCompactPedidoHeader(page, encargoTitle);
+  await expect(await getPedidoTasksPanel(page)).toBeVisible();
 
   await expectPedidoStatusBlocked(page, "listo_entrega");
   await completeQuantifiedTask(page);
   await updatePedidoStatus(page, "listo_entrega");
 
-  const reviewPaymentCta = page.getByRole("button", { name: /revisar pago/i });
-  await expect(reviewPaymentCta).toBeVisible();
-  await reviewPaymentCta.click();
+  await expectCompactPedidoHeader(page, encargoTitle);
   await expect(
-    page.getByRole("dialog", { name: /^pagos$/i }).getByText(/^sin pagar$/i),
+    (await getPedidoPaymentPanel(page)).getByText(/^sin pagar$/i),
   ).toBeVisible();
 
   await updatePayment(page, "250", "0");
@@ -338,8 +378,7 @@ test("admin can create and manage focal internal pedidos", async ({ page }) => {
     impresionTitle,
     "300",
   );
-  await expect(page.getByRole("button", { name: /revisar estado/i }))
-    .toBeVisible();
+  await expectCompactPedidoHeader(page, impresionTitle);
   await expect(page.getByRole("button", { name: /^tareas/i })).toHaveCount(0);
   const printStatusPanel = await openPedidoPanel(page, /^estado$/i);
   await expect(
@@ -701,4 +740,32 @@ test("pedido access follows current role boundaries", async ({ page }) => {
     await expect(page.getByText(/404|no se encontr|no tienes acceso/i))
       .toBeVisible();
   }
+});
+
+test("pedido delivered header shows actual delivery date", async ({ page }) => {
+  test.setTimeout(120_000);
+
+  test.skip(
+    !impresionDetailUrl,
+    "The focal impresion pedido was not created.",
+  );
+
+  await loginAs(page, "admin");
+  await page.goto(impresionDetailUrl);
+  await expectCompactPedidoHeader(page, impresionTitle);
+
+  await updatePedidoStatus(page, "en_revision");
+  await updatePedidoStatus(page, "en_produccion");
+  await updatePedidoStatus(page, "listo_entrega");
+  await updatePayment(page, "300", "0");
+  await updatePedidoStatus(page, "entregado");
+
+  const header = getPedidoHeader(page);
+
+  await expectCompactPedidoHeader(
+    page,
+    impresionTitle,
+    /fecha de entrega:/i,
+  );
+  await expect(header.getByText(/entrega estimada:/i)).toHaveCount(0);
 });
