@@ -300,7 +300,7 @@ Pedido:
 
 Solicitud:
 
-- Reutiliza `SolicitudFilesSection`.
+- Reutiliza `SolicitudFilesPanel`.
 - Lista completa.
 - Descarga por `/dashboard/solicitudes/[id]/archivos/[fileId]/download`.
 - Sin subida interna en la versión actual.
@@ -375,12 +375,13 @@ Ubicación:
 
 Requisitos:
 
-Nota vigente 4.5: el rail desktop aprobado es icon-only. Cada boton conserva
-`aria-label` y `title` con label, `statusLabel`, badge real, motivo de bloqueo
-cuando aplique y estado activo. Los tonos no son la unica senal visual.
+Nota vigente 4.5: el rail desktop aprobado es icon-only. Usa una columna
+compacta de botones con target mínimo de 44 px. Cada botón conserva
+`aria-label` y `title` con label, `statusLabel`, badge real cuando exista,
+motivo de bloqueo cuando aplique, estado activo y foco visible. El tono es una
+señal complementaria, nunca la única.
 
-- Icono y label visible en cada acción.
-- No usar columna de solo iconos.
+- Icono visible en cada acción.
 - Target mínimo 44 px.
 - Estado activo con borde/superficie/texto, no solo color.
 - Contadores opcionales en texto o badge.
@@ -486,7 +487,7 @@ Requisitos:
 
 ## 14. Cabecera y resumen de solicitud
 
-La solicitud se migrará después de validar pedido. Debe mostrar:
+El workspace interno de Solicitud muestra:
 
 - Botón para volver a `/dashboard/solicitudes`.
 - Referencia pública copiable inline; la referencia interna completa queda en
@@ -523,13 +524,13 @@ abrir Convertir o renderizar conversión como acción destacada.
 
 | Panel | Icono Lucide | Propósito | Roles | Modo | Componente actual |
 | --- | --- | --- | --- | --- | --- |
-| Estado | `GitBranch` | Gestionar revisión | admin, supervisor | Gestión | `SolicitudStatusForm` |
-| Cliente | `ContactRound` | Asociar, consultar o crear cliente | admin, supervisor | Gestión | `SolicitudClienteForm` |
-| Archivos | `Files` | Consultar archivos recibidos | admin, supervisor | Lectura/descarga | `SolicitudFilesSection` |
-| Comentarios | `MessageSquare` | Notas internas | admin, supervisor | Gestión append-only | `SolicitudCommentsPanel` + `SolicitudCommentComposer` |
-| Historial | `History` | Eventos de solicitud | admin, supervisor | Lectura | `SolicitudHistorySection` |
-| Información | `Info` | Contacto y metadata | admin, supervisor | Lectura | Bloques actuales |
-| Convertir | `ArrowRightCircle` | Conversión a pedido | admin, supervisor | Gestión condicionada | `SolicitudConvertPedidoForm` |
+| Estado | `GitBranch` | Gestionar revisión | admin, supervisor | `scroll` | `SolicitudStatusForm` |
+| Cliente | `ContactRound` | Asociar, consultar o crear cliente | admin, supervisor | `scroll` | `SolicitudClienteForm` |
+| Conversión | `ArrowRightCircle` | Conversión a pedido | admin, supervisor | `scroll` | `SolicitudConvertPedidoForm` |
+| Archivos | `Files` | Consultar archivos recibidos | admin, supervisor | `scroll` | `SolicitudFilesPanel` |
+| Comentarios | `MessageSquare` | Notas internas | admin, supervisor | `fill` | `SolicitudCommentsPanel` + `SolicitudCommentComposer` |
+| Historial | `History` | Eventos de solicitud | admin, supervisor | `scroll` | `SolicitudHistoryTimeline` |
+| Información | `Info` | Contacto y metadata | admin, supervisor | `scroll` | `SolicitudInformationPanel` |
 
 Matriz de conversión por estado:
 
@@ -546,44 +547,44 @@ Matriz de conversión por estado:
 ### Nota vigente 6.1: workspace interno de Solicitudes
 
 El detalle interno de solicitud usa las primitivas comunes del workspace, pero
-mantiene cabecera, contenido y paneles especificos de solicitudes. No se crea un
+mantiene cabecera, contenido y paneles específicos de solicitudes. No se crea un
 workspace universal entre pedidos y solicitudes.
 
 Cabecera:
 
-- Enlace "Volver a solicitudes" textual en movil/tablet, antes de la metadata.
-- Boton "Volver a solicitudes" a la derecha desde `xl`.
-- Referencia publica copiable inline con `CopyableCode`.
+- Enlace "Volver a solicitudes" textual en móvil/tablet, antes de la metadata.
+- Botón "Volver a solicitudes" a la derecha desde `xl`.
+- Referencia pública copiable inline con `CopyableCode`.
 - Workflow, estado y tipo de servicio.
 - `h1` como `Solicitud de {client_name}`.
-- Fecha de recepcion y fecha deseada, con "No definida" cuando no exista.
+- Fecha de recepción y fecha deseada, con "No definida" cuando no exista.
 
 No debe mostrar la referencia interna corta como identidad principal ni repetir
 la metadata en una tarjeta de resumen separada. El UUID completo vive solo en
-Informacion, como metadata secundaria monoespaciada y con `break-all`.
+Información, como metadata secundaria monoespaciada y con `break-all`.
 
 Contenido permanente:
 
-- Descripcion completa y observaciones.
-- Contacto recibido desde el formulario publico: nombre, telefono y correo.
-- Archivos recientes, maximo tres, con descarga privada.
+- Descripción completa y observaciones.
+- Contacto recibido desde el formulario público: nombre, teléfono y correo.
+- Archivos recientes, máximo tres, con descarga privada.
 
-Desktop `xl` usa dos columnas: descripcion con mayor ancho a la izquierda, y
-contacto/archivos en columna derecha compacta. Tablet y movil usan orden lineal:
-descripcion, observaciones, contacto y archivos. El contacto recibido no se
+Desktop `xl` usa dos columnas: descripción con mayor ancho a la izquierda, y
+contacto/archivos en columna derecha compacta. Tablet y móvil usan orden lineal:
+descripción, observaciones, contacto y archivos. El contacto recibido no se
 mezcla con cliente interno asociado.
 
 Orden de acciones:
 
 1. Estado.
 2. Cliente.
-3. Conversion.
+3. Conversión.
 4. Archivos.
 5. Comentarios.
 6. Historial.
-7. Informacion.
+7. Información.
 
-Acciones prioritarias para tablet y movil:
+Acciones prioritarias para tablet y móvil:
 
 ```ts
 ["estado", "cliente", "conversion"]
@@ -595,27 +596,27 @@ Paneles de 6.1:
 | --- | --- | --- | --- |
 | Estado | `estado` | `scroll` | `SolicitudStatusForm` |
 | Cliente | `cliente` | `scroll` | `SolicitudClienteForm` |
-| Conversion | `convertir` | `scroll` | `SolicitudConvertPedidoForm` |
-| Archivos | `archivos` | `scroll` | `SolicitudFilesSection` |
+| Conversión | `convertir` | `scroll` | `SolicitudConvertPedidoForm` |
+| Archivos | `archivos` | `scroll` | `SolicitudFilesPanel` |
 | Comentarios | `comentarios` | `fill` | `SolicitudCommentsPanel` + `SolicitudCommentComposer` |
-| Historial | `historial` | `scroll` | `SolicitudHistorySection` |
-| Informacion | `informacion` | `scroll` | `SolicitudInformationPanel` |
+| Historial | `historial` | `scroll` | `SolicitudHistoryTimeline` |
+| Información | `informacion` | `scroll` | `SolicitudInformationPanel` |
 
 Tratamiento de acciones:
 
-- Estado: `nueva` usa warning y "Pendiente de revision"; `aprobada` y
+- Estado: `nueva` usa warning y "Pendiente de revisión"; `aprobada` y
   `convertida` usan success; `rechazada` usa danger.
 - Cliente: danger si falla la carga de cliente/listado; success si existe
-  cliente asociado; warning solo si la solicitud esta aprobada y falta cliente;
+  cliente asociado; warning solo si la solicitud está aprobada y falta cliente;
   neutral para ausencia no bloqueante.
-- Conversion: success si ya existe pedido; warning si esta lista para convertir
-  o falta cliente; neutral si requiere aprobacion o esta rechazada.
+- Conversión: success si ya existe pedido; warning si está lista para convertir
+  o falta cliente; neutral si requiere aprobación o está rechazada.
 - Archivos, Comentarios e Historial usan badge de cantidad y danger en error de
   carga.
-- Informacion permanece neutral.
+- Información permanece neutral.
 
-La conversion no se deshabilita como accion: el panel explica por que todavia no
-puede convertir. En `convertida`, Informacion muestra "Ver pedido generado" con
+La conversión no se deshabilita como acción: el panel explica por qué todavía no
+puede convertir. En `convertida`, Información muestra "Ver pedido generado" con
 enlace a `/dashboard/pedidos/{converted_order_id}`.
 
 Permisos, transiciones, Server Actions, servicios, RLS, RPC y Storage no cambian
