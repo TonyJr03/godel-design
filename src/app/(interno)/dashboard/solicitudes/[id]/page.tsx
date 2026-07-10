@@ -94,48 +94,44 @@ export default async function DashboardSolicitudDetallePage({
   );
 
   return (
-    <div className="space-y-8">
-      <InternalSolicitudDetail
-        solicitud={result.solicitud}
-        updateStatusAction={updateStatusAction}
-        createCommentAction={createCommentAction}
-        clientePanelContent={
-          clienteAsociadoLoadError ? (
-            <Alert variant="danger">{clienteAsociadoLoadError}</Alert>
-          ) : (
-            <SolicitudClienteForm
-              associateClienteAction={associateClienteAction}
-              createClienteAction={createClienteAction}
-              clienteAsociado={clienteAsociado}
-              clientesDisponibles={
-                clientesResult.ok ? clientesResult.clientes : []
-              }
-              clientesLoadError={clientesLoadError}
-              presentation="panel"
-            />
-          )
-        }
-        conversionPanelContent={
-          <SolicitudConvertPedidoForm
-            convertAction={convertAction}
-            status={result.solicitud.status}
-            clienteId={result.solicitud.cliente_id}
-            convertedOrderId={result.solicitud.converted_order_id}
-            workflowType={result.solicitud.workflow_type}
-            serviceType={result.solicitud.service_type}
-            solicitudDescription={result.solicitud.description}
-            solicitudDesiredDate={result.solicitud.desired_date}
+    <InternalSolicitudDetail
+      solicitud={result.solicitud}
+      updateStatusAction={updateStatusAction}
+      createCommentAction={createCommentAction}
+      clientePanelContent={
+        clienteAsociadoLoadError ? (
+          <Alert variant="danger">{clienteAsociadoLoadError}</Alert>
+        ) : (
+          <SolicitudClienteForm
+            associateClienteAction={associateClienteAction}
+            createClienteAction={createClienteAction}
+            clienteAsociado={clienteAsociado}
+            clientesDisponibles={clientesResult.ok ? clientesResult.clientes : []}
+            clientesLoadError={clientesLoadError}
             presentation="panel"
           />
-        }
-        files={files}
-        filesLoadError={filesLoadError}
-        comments={comments}
-        commentsLoadError={commentsLoadError}
-        history={history}
-        historyLoadError={historyLoadError}
-        clienteLoadError={clienteLoadError}
-      />
-    </div>
+        )
+      }
+      conversionPanelContent={
+        <SolicitudConvertPedidoForm
+          convertAction={convertAction}
+          status={result.solicitud.status}
+          clienteId={result.solicitud.cliente_id}
+          convertedOrderId={result.solicitud.converted_order_id}
+          workflowType={result.solicitud.workflow_type}
+          serviceType={result.solicitud.service_type}
+          solicitudDescription={result.solicitud.description}
+          solicitudDesiredDate={result.solicitud.desired_date}
+          presentation="panel"
+        />
+      }
+      files={files}
+      filesLoadError={filesLoadError}
+      comments={comments}
+      commentsLoadError={commentsLoadError}
+      history={history}
+      historyLoadError={historyLoadError}
+      clienteLoadError={clienteLoadError}
+    />
   );
 }

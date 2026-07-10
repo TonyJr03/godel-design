@@ -114,6 +114,70 @@ async function openPedidoPanel(
   return dialog;
 }
 
+async function openSolicitudPanel(
+  page: Page,
+  name: RegExp,
+  triggerName = name,
+): Promise<Locator> {
+  const openDialog = page.getByRole("dialog");
+
+  if ((await openDialog.count()) > 0) {
+    const closeButton = openDialog.getByRole("button", { name: /cerrar/i });
+
+    if (await closeButton.isVisible().catch(() => false)) {
+      await closeButton.click();
+      await expect(openDialog).toBeHidden();
+    }
+  }
+
+  const triggers = page.getByRole("button", { name: triggerName });
+  let openedFromDirectTrigger = false;
+  const triggerCount = await triggers.count();
+
+  for (let index = 0; index < triggerCount; index += 1) {
+    const trigger = triggers.nth(index);
+
+    if (await trigger.isVisible().catch(() => false)) {
+      await trigger.click();
+      openedFromDirectTrigger = true;
+      break;
+    }
+  }
+
+  if (!openedFromDirectTrigger) {
+    const moreTriggers = page.getByRole("button", { name: /m.s acciones/i });
+    const moreTriggerCount = await moreTriggers.count();
+    let openedMore = false;
+
+    for (let index = 0; index < moreTriggerCount; index += 1) {
+      const moreTrigger = moreTriggers.nth(index);
+
+      if (await moreTrigger.isVisible().catch(() => false)) {
+        await moreTrigger.focus();
+        await page.keyboard.press("Enter");
+        openedMore = true;
+        break;
+      }
+    }
+
+    if (!openedMore) {
+      throw new Error("No visible solicitud workspace trigger found.");
+    }
+
+    const moreDialog = page.getByRole("dialog", { name: /^m.s acciones$/i });
+
+    await expect(moreDialog).toBeVisible();
+    await clickFirstVisible(moreDialog.getByRole("button", { name: triggerName }));
+  }
+
+  const dialog = page.getByRole("dialog", { name });
+
+  await expect(dialog).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(1);
+
+  return dialog;
+}
+
 async function expectStatusMessage(page: Page, message: RegExp) {
   await expect(page.getByText(message).first()).toBeVisible({
     timeout: 15_000,
@@ -226,13 +290,13 @@ async function openPedidoDetailFromSearch(
 }
 
 async function updateSolicitudStatus(page: Page, status: string) {
-  const form = page.locator("form").filter({
-    has: page.getByLabel(/siguiente estado/i),
-  }).first();
+  const section = await openSolicitudPanel(page, /^estado$/i, /^estado/i);
 
-  await form.getByLabel(/siguiente estado/i).selectOption(status);
-  await form.getByRole("button", { name: /actualizar estado/i }).click();
-  await expectStatusMessage(page, /estado actualizado correctamente/i);
+  await section.getByLabel(/siguiente estado/i).selectOption(status);
+  await section.getByRole("button", { name: /actualizar estado/i }).click();
+  await expect(
+    section.getByText(/estado actualizado correctamente/i),
+  ).toBeVisible({ timeout: 15_000 });
   await page.reload();
 }
 
@@ -514,24 +578,101 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   await expect(page.getByRole("link", { name: /usuarios/i })).toBeVisible();
   await captureViewport(page, "admin-dashboard-desktop", { width: 1366, height: 768 });
   await captureViewport(page, "admin-dashboard-mobile", { width: 390, height: 844 });
-  await page.setViewportSize({ width: 1366, height: 768 });
-
+  await page.setViewportSize({ width: 1440, height: 900 });
   await openSolicitudDetail(page, encargoName);
+  await expectNoHorizontalOverflow(page);
+  await expectNoDocumentScroll(page);
+  await captureViewport(page, "solicitud-workspace-desktop-1440", {
+    width: 1440,
+    height: 900,
+  });
+  await captureViewport(page, "solicitud-workspace-desktop-1366", {
+    width: 1366,
+    height: 768,
+  });
+  await expectNoHorizontalOverflow(page);
+  await expectNoDocumentScroll(page);
+  await captureViewport(page, "solicitud-workspace-tablet-900", {
+    width: 900,
+    height: 1000,
+  });
+  await captureViewport(page, "solicitud-workspace-tablet-780", {
+    width: 780,
+    height: 1000,
+  });
+  await captureViewport(page, "solicitud-workspace-mobile-375", {
+    width: 375,
+    height: 812,
+  });
+  await page.setViewportSize({ width: 1366, height: 768 });
   await updateSolicitudStatus(page, "en_revision");
   await updateSolicitudStatus(page, "contactada");
   await updateSolicitudStatus(page, "aprobada");
-  await page.getByRole("button", { name: /crear cliente desde esta solicitud/i }).click();
-  await expectStatusMessage(page, /cliente creado y asociado correctamente/i);
+  const solicitudClientePanel = await openSolicitudPanel(
+    page,
+    /^cliente$/i,
+    /cliente/i,
+  );
+
+  await solicitudClientePanel
+    .getByRole("button", { name: /crear cliente desde esta solicitud/i })
+    .click();
+  await expect(
+    solicitudClientePanel.getByText(/cliente creado y asociado correctamente/i),
+  ).toBeVisible({ timeout: 15_000 });
   await page.reload();
-  await page.getByLabel(/t.tulo del pedido/i).fill(convertedPedidoTitle);
-  await page.getByLabel(/prioridad/i).selectOption("normal");
-  await page.getByLabel(/monto total a pagar/i).fill("1200");
-  await page.getByLabel(/fecha estimada de entrega/i).fill(futureDate);
-  await page.getByLabel(/descripci.n del pedido/i).fill(
+  await expect(
+    page.getByRole("button", { name: /cliente.*cliente asociado/i }).first(),
+  ).toBeVisible();
+  await captureViewport(page, "solicitud-cliente-success", {
+    width: 1440,
+    height: 900,
+  });
+  await page.setViewportSize({ width: 375, height: 812 });
+  const solicitudCommentsPanel = await openSolicitudPanel(
+    page,
+    /^comentarios$/i,
+    /comentarios/i,
+  );
+
+  await expect(
+    solicitudCommentsPanel.getByRole("heading", { name: /^comenta$/i }),
+  ).toBeVisible();
+  await captureViewport(page, "solicitud-comentarios-panel-mobile", {
+    width: 375,
+    height: 812,
+  });
+  await solicitudCommentsPanel.getByRole("button", { name: /cerrar/i }).click();
+  await page.setViewportSize({ width: 1366, height: 768 });
+  const solicitudConversionPanel = await openSolicitudPanel(
+    page,
+    /^conversi.n$/i,
+    /conversi.n/i,
+  );
+
+  await solicitudConversionPanel
+    .getByLabel(/t.tulo del pedido/i)
+    .fill(convertedPedidoTitle);
+  await solicitudConversionPanel.getByLabel(/prioridad/i).selectOption("normal");
+  await solicitudConversionPanel.getByLabel(/monto total a pagar/i).fill("1200");
+  await solicitudConversionPanel
+    .getByLabel(/fecha estimada de entrega/i)
+    .fill(futureDate);
+  await solicitudConversionPanel.getByLabel(/descripci.n del pedido/i).fill(
     `Pedido convertido desde solicitud QA ${runId}`,
   );
-  await page.getByRole("button", { name: /convertir en pedido/i }).click();
-  await expectStatusMessage(page, /pedido creado correctamente/i);
+  await solicitudConversionPanel
+    .getByRole("button", { name: /convertir en pedido/i })
+    .click();
+  await expect(
+    solicitudConversionPanel.getByText(/pedido creado correctamente/i),
+  ).toBeVisible({ timeout: 20_000 });
+  await page.reload();
+  await captureViewport(page, "solicitud-convertida", {
+    width: 1440,
+    height: 900,
+  });
+  await openSolicitudPanel(page, /^conversi.n$/i, /conversi.n/i);
   await page.getByRole("link", { name: /^ver pedido$/i }).click();
   await expect(
     page.getByRole("heading", {
@@ -544,6 +685,26 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   expect(qaState.convertedPedidoReference).toBe(qaState.encargoReference);
   await expectCompactPedidoHeader(page, convertedPedidoTitle);
   await expect(page.getByText(/pedido convertido qa/i)).toBeVisible();
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openSolicitudDetail(page, impresionName);
+  await expect(
+    page.getByRole("heading", { name: /^datos de impresi.n solicitada$/i }),
+  ).toBeVisible();
+  const solicitudFilesPanel = await openSolicitudPanel(
+    page,
+    /^archivos$/i,
+    /archivos/i,
+  );
+
+  await expect(
+    solicitudFilesPanel.getByRole("link", { name: /descargar/i }).first(),
+  ).toBeVisible();
+  await captureViewport(page, "solicitud-impresion-archivos", {
+    width: 1440,
+    height: 900,
+  });
+  await solicitudFilesPanel.getByRole("button", { name: /cerrar/i }).click();
 
   const manualEncargo = await createManualPedido(
     page,

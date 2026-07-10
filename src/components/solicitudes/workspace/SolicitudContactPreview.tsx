@@ -20,10 +20,11 @@ export function SolicitudContactPreview({
         Contacto recibido
       </h2>
 
-      <MetadataGrid className="mt-5 sm:grid-cols-1">
+      <MetadataGrid className="mt-5">
         <MetadataItem label="Nombre" value={solicitud.client_name} />
         <MetadataItem label="Teléfono" value={solicitud.client_phone} />
         <MetadataItem
+          className="min-w-0 sm:col-span-2"
           label="Correo electrónico"
           value={solicitud.client_email ?? "No informado"}
         />

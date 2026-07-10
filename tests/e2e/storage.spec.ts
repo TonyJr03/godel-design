@@ -81,6 +81,47 @@ async function expectNoDownloadSurface(page: Page) {
   );
 }
 
+async function openSolicitudPanel(
+  page: Page,
+  name: RegExp,
+  triggerName = name,
+): Promise<Locator> {
+  const currentDialog = page.getByRole("dialog");
+
+  if ((await currentDialog.count()) > 0) {
+    const closeButton = currentDialog.getByRole("button", { name: /cerrar/i });
+
+    if (await closeButton.isVisible().catch(() => false)) {
+      await closeButton.click();
+      await expect(currentDialog).toBeHidden();
+    }
+  }
+
+  const triggers = page.getByRole("button", { name: triggerName });
+
+  await expect(async () => {
+    const count = await triggers.count();
+
+    for (let index = 0; index < count; index += 1) {
+      const trigger = triggers.nth(index);
+
+      if (await trigger.isVisible().catch(() => false)) {
+        await trigger.click();
+        return;
+      }
+    }
+
+    throw new Error("No visible solicitud workspace trigger found.");
+  }).toPass();
+
+  const dialog = page.getByRole("dialog", { name });
+
+  await expect(dialog).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(1);
+
+  return dialog;
+}
+
 test("admin sees safe pedido storage panel when a pedido exists", async ({
   page,
 }) => {
@@ -199,16 +240,33 @@ test("admin sees safe solicitud storage section when a solicitud exists", async 
     page.getByRole("heading", { name: /solicitud de/i }),
   ).toBeVisible();
 
-  const storageSection = page.locator("section").filter({
-    has: page.getByRole("heading", { name: /archivos de la solicitud/i }),
-  }).first();
-
-  await expect(storageSection).toBeVisible();
-  await expectNoStorageLeakTextIn(storageSection);
-  await expectDownloadLinksUseInternalRoute(
-    storageSection,
-    /\/dashboard\/solicitudes\/[^/]+\/archivos\/[^/]+\/download$/,
+  const storageDialog = await openSolicitudPanel(
+    page,
+    /^archivos$/i,
+    /archivos/i,
   );
+
+  await expectNoStorageLeakTextIn(storageDialog);
+  await expect(
+    storageDialog.getByRole("heading", { name: /archivos de la solicitud/i }),
+  ).toHaveCount(0);
+  await expect(storageDialog.getByLabel(/^archivo$/i)).toHaveCount(0);
+  await expect(
+    storageDialog.getByRole("heading", { name: /subir/i }),
+  ).toHaveCount(0);
+
+  const downloadLinks = storageDialog.getByRole("link", { name: /descargar/i });
+
+  if ((await downloadLinks.count()) > 0) {
+    await expectDownloadLinksUseInternalRoute(
+      storageDialog,
+      /\/dashboard\/solicitudes\/[^/]+\/archivos\/[^/]+\/download$/,
+    );
+  } else {
+    await expect(
+      storageDialog.getByText(/no hay archivos asociados|todav.a no hay archivos/i),
+    ).toBeVisible();
+  }
 });
 
 test("public solicitud rejects blocked file upload safely", async ({ page }) => {

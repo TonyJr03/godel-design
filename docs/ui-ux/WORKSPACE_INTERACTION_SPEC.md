@@ -722,6 +722,64 @@ heading visible. La presentacion card conserva su descripcion. Las subtareas
 6.1 a 6.4 no ejecutan E2E ni Full Visual QA; esa validacion queda concentrada
 en 6.5.
 
+### Nota vigente 6.5: QA funcional, responsive y visual de Solicitudes
+
+Correcciones cerradas en 6.5:
+
+- El detalle exitoso de `/dashboard/solicitudes/[id]` ya no envuelve
+  `InternalSolicitudDetail` en un `div.space-y-8`; esto elimina el scroll
+  documental desktop innecesario sin ocultar overflow global ni recortar
+  contenido.
+- `SolicitudContactPreview` usa la grilla responsive normal y el item
+  `Correo electronico` ocupa dos columnas desde `sm`, evitando que el correo
+  quede limitado a media tarjeta.
+- Los tests de Solicitudes, Storage y Full Visual QA abren Estado, Cliente,
+  Conversion, Archivos, Comentarios, Historial e Informacion mediante triggers
+  visibles del workspace o el selector `Mas`; no buscan formularios antiguos en
+  el cuerpo permanente.
+
+Comprobaciones automatizadas de cierre:
+
+```text
+npm.cmd run diff:check
+npm.cmd run verify
+npx.cmd playwright test tests/e2e/solicitudes-internas.spec.ts --project=chromium --workers=1
+npx.cmd playwright test tests/e2e/storage.spec.ts --project=chromium --workers=1
+npx.cmd playwright test tests/e2e/full-visual-qa.spec.ts --project=chromium --workers=1
+```
+
+Cobertura verificada:
+
+- Encargo: estados `nueva -> en_revision -> contactada -> aprobada`,
+  asociacion/creacion de cliente, comentarios consecutivos con reset, conversion
+  a pedido y estado `convertida`.
+- Impresion: datos de impresion solicitada, archivo recibido, panel Archivos con
+  descarga privada, rechazo y conversion no disponible.
+- Roles: `admin` gestiona el flujo completo, `supervisor` consulta listado y
+  detalle, `trabajador` queda denegado en listado y detalle de Solicitudes.
+- Responsive: desktop `1440x900` y `1366x768` sin overflow horizontal ni scroll
+  documental; tablet `900x1000` y `780x1000` con toolbar en una fila; movil
+  `375x812` con barra inferior, selector `Mas`, retorno al selector y un solo
+  dialog.
+- Accesibilidad funcional: los triggers conservan `statusLabel`; Escape y el
+  boton `Cerrar` restauran foco al trigger visible.
+- Storage: rutas internas `/dashboard/solicitudes/{solicitudId}/archivos/{fileId}/download`,
+  sin `file_path`, bucket, signed URL ni superficie de subida interna.
+
+Screenshots inspeccionados:
+
+```text
+test-results/beta-1-8-3-solicitud-workspace-desktop-1440.png
+test-results/beta-1-8-3-solicitud-workspace-desktop-1366.png
+test-results/beta-1-8-3-solicitud-workspace-tablet-900.png
+test-results/beta-1-8-3-solicitud-workspace-tablet-780.png
+test-results/beta-1-8-3-solicitud-workspace-mobile-375.png
+test-results/beta-1-8-3-solicitud-cliente-success.png
+test-results/beta-1-8-3-solicitud-comentarios-panel-mobile.png
+test-results/beta-1-8-3-solicitud-impresion-archivos.png
+test-results/beta-1-8-3-solicitud-convertida.png
+```
+
 ## 17. Apertura del panel contextual
 
 Flujo:
