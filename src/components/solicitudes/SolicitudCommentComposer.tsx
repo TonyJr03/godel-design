@@ -73,14 +73,9 @@ export function SolicitudCommentComposer({
       }
     >
       {isPanel ? (
-        <div>
-          <h3 id={titleId} className="text-sm font-semibold text-text-primary">
-            Comenta
-          </h3>
-          <p className="mt-1 text-sm leading-5 text-text-secondary">
-            Agrega una nota interna sobre esta solicitud.
-          </p>
-        </div>
+        <h3 id={titleId} className="text-sm font-semibold text-text-primary">
+          Comenta
+        </h3>
       ) : (
         <div>
           <h2 id={titleId} className="text-lg font-semibold text-text-primary">

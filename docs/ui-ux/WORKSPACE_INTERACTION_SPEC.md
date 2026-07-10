@@ -605,9 +605,9 @@ Tratamiento de acciones:
 
 - Estado: `nueva` usa warning y "Pendiente de revision"; `aprobada` y
   `convertida` usan success; `rechazada` usa danger.
-- Cliente: danger si falla la carga de cliente/listado; warning solo si la
-  solicitud esta aprobada y falta cliente; neutral para ausencia no bloqueante o
-  cliente asociado.
+- Cliente: danger si falla la carga de cliente/listado; success si existe
+  cliente asociado; warning solo si la solicitud esta aprobada y falta cliente;
+  neutral para ausencia no bloqueante.
 - Conversion: success si ya existe pedido; warning si esta lista para convertir
   o falta cliente; neutral si requiere aprobacion o esta rechazada.
 - Archivos, Comentarios e Historial usan badge de cantidad y danger en error de
@@ -666,6 +666,61 @@ Comentarios queda dividido en `SolicitudCommentsPanel` y
 `SolicitudCommentComposer`. El panel usa `contentMode: "fill"`: la conversacion
 interna se desplaza dentro del panel y el composer queda fijo abajo, con textarea
 compacto autoajustable, feedback accesible y la misma Server Action existente.
+
+### Nota vigente 6.4: estados, workflows y senales de Solicitudes
+
+Matriz de Estado:
+
+```text
+nueva -> warning / Pendiente de revision
+en_revision -> neutral / En revision
+contactada -> neutral / Cliente contactado
+aprobada -> success / Solicitud aprobada
+rechazada -> danger / Solicitud rechazada
+convertida -> success / Solicitud convertida
+```
+
+Matriz de Cliente:
+
+```text
+error cargando cliente o listado -> danger / No se pudo cargar el cliente
+cliente asociado -> success / Cliente asociado
+aprobada sin cliente -> warning / Falta asociar cliente
+ausencia no bloqueante -> neutral
+```
+
+El error de carga conserva prioridad sobre `cliente_id`, porque la entidad
+asociada no pudo comprobarse correctamente. Cliente asociado usa `success` como
+condicion completada y mantiene `statusLabel`; el tono no sustituye el texto
+accesible.
+
+Matriz de Conversion:
+
+```text
+pedido creado -> success / Pedido creado
+lista para convertir -> warning / Lista para convertir
+falta cliente -> warning / Falta asociar cliente
+requiere aprobacion -> neutral / Requiere aprobacion
+rechazada -> neutral / Conversion no disponible
+convertida sin pedido enlazado -> neutral / Conversion no disponible
+```
+
+La comprobacion de `converted_order_id` ocurre antes que el resto. Si una
+solicitud aparece como `convertida` sin `converted_order_id`, la accion de
+Conversion se muestra como no disponible; el formulario existente no permite
+crear otro pedido porque solo renderiza la conversion cuando `status ===
+"aprobada"`, hay cliente asociado y no hay pedido actual.
+
+Encargo e Impresion conservan el mismo catalogo de acciones: Estado, Cliente,
+Conversion, Archivos, Comentarios, Historial e Informacion. Encargo mantiene
+`Trabajo solicitado` y requisitos operativos de conversion; Impresion mantiene
+`Datos de impresion solicitada`, el titulo predeterminado `Pedido de impresion`
+y la ausencia de Tareas en el workspace de Solicitudes.
+
+El composer de comentarios en presentacion panel muestra solo `Comenta` como
+heading visible. La presentacion card conserva su descripcion. Las subtareas
+6.1 a 6.4 no ejecutan E2E ni Full Visual QA; esa validacion queda concentrada
+en 6.5.
 
 ## 17. Apertura del panel contextual
 

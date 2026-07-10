@@ -104,6 +104,7 @@ function getClienteActionState({
 
   if (solicitud.cliente_id) {
     return {
+      tone: "success",
       statusLabel: "Cliente asociado",
     };
   }
@@ -142,7 +143,7 @@ function getConversionActionState(
     };
   }
 
-  if (solicitud.status === "rechazada") {
+  if (solicitud.status === "rechazada" || solicitud.status === "convertida") {
     return {
       statusLabel: "Conversión no disponible",
     };
