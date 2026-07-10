@@ -59,6 +59,24 @@ export default async function DashboardSolicitudDetallePage({
     clienteAsociadoResult && clienteAsociadoResult.ok
       ? clienteAsociadoResult.cliente
       : null;
+  const clienteAsociadoLoadError =
+    clienteAsociadoResult && !clienteAsociadoResult.ok
+      ? clienteAsociadoResult.message
+      : undefined;
+  const clientesLoadError = clientesResult.ok
+    ? undefined
+    : clientesResult.message;
+  const clienteLoadError = clienteAsociadoLoadError ?? clientesLoadError;
+  const files = filesResult.ok ? filesResult.files : [];
+  const comments = commentsResult.ok ? commentsResult.comments : [];
+  const history = historyResult.ok ? historyResult.history : [];
+  const filesLoadError = filesResult.ok
+    ? undefined
+    : "No se pudieron cargar los archivos de la solicitud.";
+  const commentsLoadError = commentsResult.ok
+    ? undefined
+    : commentsResult.message;
+  const historyLoadError = historyResult.ok ? undefined : historyResult.message;
   const solicitudId = result.solicitud.id;
   const associateClienteAction = associateSolicitudClienteAction.bind(
     null,
@@ -83,18 +101,22 @@ export default async function DashboardSolicitudDetallePage({
       <InternalSolicitudDetail
         solicitud={result.solicitud}
         updateStatusAction={updateStatusAction}
-        clienteSection={
-          <SolicitudClienteForm
-            associateClienteAction={associateClienteAction}
-            createClienteAction={createClienteAction}
-            clienteAsociado={clienteAsociado}
-            clientesDisponibles={
-              clientesResult.ok ? clientesResult.clientes : []
-            }
-            clientesLoadError={clientesResult.ok ? null : clientesResult.message}
-          />
+        clientePanelContent={
+          clienteAsociadoLoadError ? (
+            <Alert variant="danger">{clienteAsociadoLoadError}</Alert>
+          ) : (
+            <SolicitudClienteForm
+              associateClienteAction={associateClienteAction}
+              createClienteAction={createClienteAction}
+              clienteAsociado={clienteAsociado}
+              clientesDisponibles={
+                clientesResult.ok ? clientesResult.clientes : []
+              }
+              clientesLoadError={clientesLoadError}
+            />
+          )
         }
-        conversionSection={
+        conversionPanelContent={
           <SolicitudConvertPedidoForm
             convertAction={convertAction}
             status={result.solicitud.status}
@@ -106,30 +128,33 @@ export default async function DashboardSolicitudDetallePage({
             solicitudDesiredDate={result.solicitud.desired_date}
           />
         }
-        filesSection={
+        filesPanelContent={
           <SolicitudFilesSection
             solicitudId={result.solicitud.id}
-            files={filesResult.ok ? filesResult.files : []}
-            loadError={
-              filesResult.ok
-                ? undefined
-                : "No se pudieron cargar los archivos de la solicitud."
-            }
+            files={files}
+            loadError={filesLoadError}
           />
         }
-        commentsSection={
+        commentsPanelContent={
           <SolicitudCommentsSection
             createCommentAction={createCommentAction}
-            comments={commentsResult.ok ? commentsResult.comments : []}
-            loadError={commentsResult.ok ? undefined : commentsResult.message}
+            comments={comments}
+            loadError={commentsLoadError}
           />
         }
-        historySection={
+        historyPanelContent={
           <SolicitudHistorySection
-            history={historyResult.ok ? historyResult.history : []}
-            loadError={historyResult.ok ? undefined : historyResult.message}
+            history={history}
+            loadError={historyLoadError}
           />
         }
+        files={files}
+        filesLoadError={filesLoadError}
+        comments={comments}
+        commentsLoadError={commentsLoadError}
+        history={history}
+        historyLoadError={historyLoadError}
+        clienteLoadError={clienteLoadError}
       />
     </div>
   );

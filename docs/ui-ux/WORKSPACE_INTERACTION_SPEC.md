@@ -489,7 +489,8 @@ Requisitos:
 La solicitud se migrará después de validar pedido. Debe mostrar:
 
 - Botón para volver a `/dashboard/solicitudes`.
-- Referencia interna corta.
+- Referencia pública copiable inline; la referencia interna completa queda en
+  Información.
 - Cliente capturado.
 - Servicio con `getSolicitudServiceTypeLabel`.
 - Workflow `encargo`/`impresion`.
@@ -541,6 +542,90 @@ Matriz de conversión por estado:
 | `aprobada` con cliente | Abrir convertir | Visible gestionable | No ocultar |
 | `rechazada` | Sin CTA de conversión | Oculto o lectura bloqueada | Cerrada |
 | `convertida` | Ver pedido | Panel en lectura con enlace | No permitir nueva conversión |
+
+### Nota vigente 6.1: workspace interno de Solicitudes
+
+El detalle interno de solicitud usa las primitivas comunes del workspace, pero
+mantiene cabecera, contenido y paneles especificos de solicitudes. No se crea un
+workspace universal entre pedidos y solicitudes.
+
+Cabecera:
+
+- Enlace "Volver a solicitudes" textual en movil/tablet, antes de la metadata.
+- Boton "Volver a solicitudes" a la derecha desde `xl`.
+- Referencia publica copiable inline con `CopyableCode`.
+- Workflow, estado y tipo de servicio.
+- `h1` como `Solicitud de {client_name}`.
+- Fecha de recepcion y fecha deseada, con "No definida" cuando no exista.
+
+No debe mostrar la referencia interna corta como identidad principal ni repetir
+la metadata en una tarjeta de resumen separada. El UUID completo vive solo en
+Informacion, como metadata secundaria monoespaciada y con `break-all`.
+
+Contenido permanente:
+
+- Descripcion completa y observaciones.
+- Contacto recibido desde el formulario publico: nombre, telefono y correo.
+- Archivos recientes, maximo tres, con descarga privada.
+
+Desktop `xl` usa dos columnas: descripcion con mayor ancho a la izquierda, y
+contacto/archivos en columna derecha compacta. Tablet y movil usan orden lineal:
+descripcion, observaciones, contacto y archivos. El contacto recibido no se
+mezcla con cliente interno asociado.
+
+Orden de acciones:
+
+1. Estado.
+2. Cliente.
+3. Conversion.
+4. Archivos.
+5. Comentarios.
+6. Historial.
+7. Informacion.
+
+Acciones prioritarias para tablet y movil:
+
+```ts
+["estado", "cliente", "conversion"]
+```
+
+Paneles de 6.1:
+
+| Panel | Icono | Modo | Contenido |
+| --- | --- | --- | --- |
+| Estado | `estado` | `scroll` | `SolicitudStatusForm` |
+| Cliente | `cliente` | `scroll` | `SolicitudClienteForm` |
+| Conversion | `convertir` | `scroll` | `SolicitudConvertPedidoForm` |
+| Archivos | `archivos` | `scroll` | `SolicitudFilesSection` |
+| Comentarios | `comentarios` | `scroll` | `SolicitudCommentsSection` |
+| Historial | `historial` | `scroll` | `SolicitudHistorySection` |
+| Informacion | `informacion` | `scroll` | `SolicitudInformationPanel` |
+
+Tratamiento de acciones:
+
+- Estado: `nueva` usa warning y "Pendiente de revision"; `aprobada` y
+  `convertida` usan success; `rechazada` usa danger.
+- Cliente: danger si falla la carga de cliente/listado; warning solo si la
+  solicitud esta aprobada y falta cliente; neutral para ausencia no bloqueante o
+  cliente asociado.
+- Conversion: success si ya existe pedido; warning si esta lista para convertir
+  o falta cliente; neutral si requiere aprobacion o esta rechazada.
+- Archivos, Comentarios e Historial usan badge de cantidad y danger en error de
+  carga.
+- Informacion permanece neutral.
+
+La conversion no se deshabilita como accion: el panel explica por que todavia no
+puede convertir. En `convertida`, Informacion muestra "Ver pedido generado" con
+enlace a `/dashboard/pedidos/{converted_order_id}`.
+
+Permisos, transiciones, Server Actions, servicios, RLS, RPC y Storage no cambian
+en 6.1. Los formularios existentes se reutilizan temporalmente dentro de los
+paneles aunque conserven tarjeta exterior; la simplificacion interna queda para
+6.2/6.3.
+
+Politica de pruebas: las subtareas 6.1 a 6.4 no ejecutan E2E ni Full Visual QA.
+La validacion integral responsive, accesible, visual y por estados se concentra
+en 6.5.
 
 ## 17. Apertura del panel contextual
 
