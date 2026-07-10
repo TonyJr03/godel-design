@@ -1,4 +1,5 @@
 export { SolicitudContactPreview } from "./SolicitudContactPreview";
+export { SolicitudCommentsPanel } from "./SolicitudCommentsPanel";
 export { SolicitudDescriptionPreview } from "./SolicitudDescriptionPreview";
 export { SolicitudFilesPanel } from "./SolicitudFilesPanel";
 export { SolicitudFilesPreview } from "./SolicitudFilesPreview";

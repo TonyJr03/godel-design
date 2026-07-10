@@ -5,6 +5,7 @@ import type {
   SolicitudDetailAction,
   UpdateSolicitudStatusActionState,
 } from "@/app/(interno)/dashboard/solicitudes/[id]/actions";
+import { StatusBadge } from "@/components/ui";
 import {
   getAllowedSolicitudStatusTransitions,
   isSolicitudClosedStatus,
@@ -15,6 +16,7 @@ import type { Enums } from "@/types/database";
 type SolicitudStatusFormProps = {
   updateStatusAction: SolicitudDetailAction<UpdateSolicitudStatusActionState>;
   currentStatus: Enums<"solicitud_estado">;
+  presentation?: "card" | "panel";
 };
 
 const initialState: UpdateSolicitudStatusActionState = {
@@ -53,6 +55,7 @@ function getClosedStatusMessage(status: Enums<"solicitud_estado">): string {
 export function SolicitudStatusForm({
   updateStatusAction,
   currentStatus,
+  presentation = "card",
 }: SolicitudStatusFormProps) {
   const [state, formAction, pending] = useActionState(
     updateStatusAction,
@@ -60,10 +63,22 @@ export function SolicitudStatusForm({
   );
   const transitionOptions = getAllowedSolicitudStatusTransitions(currentStatus);
   const canManageManually = transitionOptions.length > 0;
+  const isPanel = presentation === "panel";
+  const statusSummary = isPanel ? (
+    <div className="rounded-(--radius-control) border border-border bg-surface-muted px-4 py-3">
+      <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+        Estado actual
+      </p>
+      <div className="mt-2">
+        <StatusBadge status={currentStatus} />
+      </div>
+    </div>
+  ) : null;
 
   if (isSolicitudClosedStatus(currentStatus)) {
     return (
       <div className="space-y-4">
+        {statusSummary}
         <ActionMessage state={state} />
         <p className="rounded-(--radius-control) border border-warning/30 bg-warning-soft px-4 py-3 text-sm leading-6 text-text-primary">
           {getClosedStatusMessage(currentStatus)}
@@ -74,6 +89,7 @@ export function SolicitudStatusForm({
 
   return (
     <form action={formAction} aria-busy={pending} className="space-y-4">
+      {statusSummary}
       <ActionMessage state={state} />
 
       {currentStatus === "aprobada" ? (

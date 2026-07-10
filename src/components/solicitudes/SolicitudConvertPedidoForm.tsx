@@ -27,6 +27,7 @@ type SolicitudConvertPedidoFormProps = {
   serviceType: string;
   solicitudDescription: string;
   solicitudDesiredDate: string | null;
+  presentation?: "card" | "panel";
 };
 
 const DEFAULT_PRINT_PEDIDO_TITLE = "Pedido de impresión";
@@ -51,6 +52,7 @@ export function SolicitudConvertPedidoForm({
   serviceType,
   solicitudDescription,
   solicitudDesiredDate,
+  presentation = "card",
 }: SolicitudConvertPedidoFormProps) {
   const [state, formAction, pending] = useActionState(
     convertAction,
@@ -75,13 +77,28 @@ export function SolicitudConvertPedidoForm({
     state.values?.estimated_delivery_date ?? solicitudDesiredDate ?? "";
   const serviceTypeLabel = getSolicitudServiceTypeLabel(serviceType);
   const todayInputDate = getTodayDateInputValue();
+  const isPanel = presentation === "panel";
 
   return (
-    <section className="rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6">
-      <h2 className="text-lg font-semibold text-text-primary">
-        Conversión a pedido
-      </h2>
-      <p className="mt-2 text-sm leading-6 text-text-secondary">
+    <section
+      className={
+        isPanel
+          ? "space-y-5"
+          : "rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6"
+      }
+    >
+      {isPanel ? null : (
+        <h2 className="text-lg font-semibold text-text-primary">
+          Conversión a pedido
+        </h2>
+      )}
+      <p
+        className={
+          isPanel
+            ? "text-sm leading-6 text-text-secondary"
+            : "mt-2 text-sm leading-6 text-text-secondary"
+        }
+      >
         Para convertir la solicitud debe estar aprobada, tener un cliente
         asociado y contar con la información operativa necesaria. El tipo de
         servicio seleccionado por el cliente es solo una referencia.

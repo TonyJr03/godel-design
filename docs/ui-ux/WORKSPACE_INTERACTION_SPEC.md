@@ -526,7 +526,7 @@ abrir Convertir o renderizar conversión como acción destacada.
 | Estado | `GitBranch` | Gestionar revisión | admin, supervisor | Gestión | `SolicitudStatusForm` |
 | Cliente | `ContactRound` | Asociar, consultar o crear cliente | admin, supervisor | Gestión | `SolicitudClienteForm` |
 | Archivos | `Files` | Consultar archivos recibidos | admin, supervisor | Lectura/descarga | `SolicitudFilesSection` |
-| Comentarios | `MessageSquare` | Notas internas | admin, supervisor | Gestión append-only | `SolicitudCommentsSection` |
+| Comentarios | `MessageSquare` | Notas internas | admin, supervisor | Gestión append-only | `SolicitudCommentsPanel` + `SolicitudCommentComposer` |
 | Historial | `History` | Eventos de solicitud | admin, supervisor | Lectura | `SolicitudHistorySection` |
 | Información | `Info` | Contacto y metadata | admin, supervisor | Lectura | Bloques actuales |
 | Convertir | `ArrowRightCircle` | Conversión a pedido | admin, supervisor | Gestión condicionada | `SolicitudConvertPedidoForm` |
@@ -597,7 +597,7 @@ Paneles de 6.1:
 | Cliente | `cliente` | `scroll` | `SolicitudClienteForm` |
 | Conversion | `convertir` | `scroll` | `SolicitudConvertPedidoForm` |
 | Archivos | `archivos` | `scroll` | `SolicitudFilesSection` |
-| Comentarios | `comentarios` | `scroll` | `SolicitudCommentsSection` |
+| Comentarios | `comentarios` | `fill` | `SolicitudCommentsPanel` + `SolicitudCommentComposer` |
 | Historial | `historial` | `scroll` | `SolicitudHistorySection` |
 | Informacion | `informacion` | `scroll` | `SolicitudInformationPanel` |
 
@@ -644,8 +644,28 @@ workflow, servicio, estado, fechas, enlace a pedido convertido cuando exista y
 UUID interno como metadata secundaria. No incluye `reviewed_by`, datos completos
 de cliente ni acciones de gestion.
 
-Comentarios sigue usando temporalmente `SolicitudCommentsSection` hasta 6.3.
 Archivos, Historial e Informacion usan `contentMode: "scroll"`.
+
+### Nota vigente 6.3: paneles de gestion de Solicitudes
+
+Estado usa `SolicitudStatusForm` con `presentation="panel"` dentro del panel
+contextual. El formulario muestra primero el estado actual, conserva solo las
+transiciones permitidas y no cambia reglas de dominio ni Server Actions.
+
+Cliente usa `SolicitudClienteForm` con `presentation="panel"`. El contenido se
+organiza en una sola columna: cliente asociado, asociacion de cliente existente
+y creacion desde la solicitud. Si falla la carga del cliente asociado, la pagina
+sigue mostrando solo el error y no renderiza controles basados en un estado
+desconocido.
+
+Conversion usa `SolicitudConvertPedidoForm` con `presentation="panel"` para
+eliminar tarjeta exterior y heading duplicado. Mantiene los requisitos
+existentes: solicitud aprobada, cliente asociado y ausencia de pedido convertido.
+
+Comentarios queda dividido en `SolicitudCommentsPanel` y
+`SolicitudCommentComposer`. El panel usa `contentMode: "fill"`: la conversacion
+interna se desplaza dentro del panel y el composer queda fijo abajo, con textarea
+compacto autoajustable, feedback accesible y la misma Server Action existente.
 
 ## 17. Apertura del panel contextual
 

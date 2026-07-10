@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import type {
+  CreateSolicitudCommentActionState,
   SolicitudDetailAction,
   UpdateSolicitudStatusActionState,
 } from "@/app/(interno)/dashboard/solicitudes/[id]/actions";
@@ -17,8 +18,10 @@ import type {
 } from "@/lib/solicitudes";
 import type { SolicitudFileListItem } from "@/lib/storage";
 
+import { SolicitudCommentComposer } from "./SolicitudCommentComposer";
 import { SolicitudStatusForm } from "./SolicitudStatusForm";
 import {
+  SolicitudCommentsPanel,
   SolicitudFilesPanel,
   SolicitudHistoryTimeline,
   SolicitudInformationPanel,
@@ -29,9 +32,9 @@ import {
 type InternalSolicitudDetailProps = {
   solicitud: InternalSolicitudDetailData;
   updateStatusAction: SolicitudDetailAction<UpdateSolicitudStatusActionState>;
+  createCommentAction: SolicitudDetailAction<CreateSolicitudCommentActionState>;
   clientePanelContent: ReactNode;
   conversionPanelContent: ReactNode;
-  commentsPanelContent: ReactNode;
   files: readonly SolicitudFileListItem[];
   filesLoadError?: string;
   comments: readonly SolicitudComment[];
@@ -153,9 +156,9 @@ function getConversionActionState(
 export function InternalSolicitudDetail({
   solicitud,
   updateStatusAction,
+  createCommentAction,
   clientePanelContent,
   conversionPanelContent,
-  commentsPanelContent,
   files,
   filesLoadError,
   comments,
@@ -239,6 +242,7 @@ export function InternalSolicitudDetail({
         <SolicitudStatusForm
           updateStatusAction={updateStatusAction}
           currentStatus={solicitud.status}
+          presentation="panel"
         />
       ),
     },
@@ -274,7 +278,34 @@ export function InternalSolicitudDetail({
       title: "Comentarios",
       description:
         "Consulta y registra comentarios internos para el equipo.",
-      content: commentsPanelContent,
+      contentMode: "fill",
+      content: (
+        <div className="flex h-full min-h-0 flex-col">
+          <section
+            aria-labelledby="solicitud-comments-list-title"
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1"
+          >
+            <h3
+              id="solicitud-comments-list-title"
+              className="text-base font-semibold text-text-primary"
+            >
+              Conversación interna
+            </h3>
+            <div className="mt-4">
+              <SolicitudCommentsPanel
+                comments={comments}
+                loadError={commentsLoadError}
+              />
+            </div>
+          </section>
+          <div className="mt-4 shrink-0 border-t border-border pt-4">
+            <SolicitudCommentComposer
+              createCommentAction={createCommentAction}
+              presentation="panel"
+            />
+          </div>
+        </div>
+      ),
     },
     historial: {
       id: "historial",

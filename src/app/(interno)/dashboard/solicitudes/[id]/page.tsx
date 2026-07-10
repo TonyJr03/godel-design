@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 
 import { SolicitudClienteForm } from "@/components/solicitudes/SolicitudClienteForm";
-import { SolicitudCommentsSection } from "@/components/solicitudes/SolicitudCommentsSection";
 import { SolicitudConvertPedidoForm } from "@/components/solicitudes/SolicitudConvertPedidoForm";
 import { InternalSolicitudDetail } from "@/components/solicitudes/InternalSolicitudDetail";
 import { Alert } from "@/components/ui";
@@ -99,6 +98,7 @@ export default async function DashboardSolicitudDetallePage({
       <InternalSolicitudDetail
         solicitud={result.solicitud}
         updateStatusAction={updateStatusAction}
+        createCommentAction={createCommentAction}
         clientePanelContent={
           clienteAsociadoLoadError ? (
             <Alert variant="danger">{clienteAsociadoLoadError}</Alert>
@@ -111,6 +111,7 @@ export default async function DashboardSolicitudDetallePage({
                 clientesResult.ok ? clientesResult.clientes : []
               }
               clientesLoadError={clientesLoadError}
+              presentation="panel"
             />
           )
         }
@@ -124,13 +125,7 @@ export default async function DashboardSolicitudDetallePage({
             serviceType={result.solicitud.service_type}
             solicitudDescription={result.solicitud.description}
             solicitudDesiredDate={result.solicitud.desired_date}
-          />
-        }
-        commentsPanelContent={
-          <SolicitudCommentsSection
-            createCommentAction={createCommentAction}
-            comments={comments}
-            loadError={commentsLoadError}
+            presentation="panel"
           />
         }
         files={files}
