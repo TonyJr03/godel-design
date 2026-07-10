@@ -19,6 +19,8 @@ import type { SolicitudFileListItem } from "@/lib/storage";
 
 import { SolicitudStatusForm } from "./SolicitudStatusForm";
 import {
+  SolicitudFilesPanel,
+  SolicitudHistoryTimeline,
   SolicitudInformationPanel,
   SolicitudWorkspaceHeader,
   SolicitudWorkspaceMain,
@@ -29,9 +31,7 @@ type InternalSolicitudDetailProps = {
   updateStatusAction: SolicitudDetailAction<UpdateSolicitudStatusActionState>;
   clientePanelContent: ReactNode;
   conversionPanelContent: ReactNode;
-  filesPanelContent: ReactNode;
   commentsPanelContent: ReactNode;
-  historyPanelContent: ReactNode;
   files: readonly SolicitudFileListItem[];
   filesLoadError?: string;
   comments: readonly SolicitudComment[];
@@ -155,9 +155,7 @@ export function InternalSolicitudDetail({
   updateStatusAction,
   clientePanelContent,
   conversionPanelContent,
-  filesPanelContent,
   commentsPanelContent,
-  historyPanelContent,
   files,
   filesLoadError,
   comments,
@@ -263,7 +261,13 @@ export function InternalSolicitudDetail({
       title: "Archivos",
       description:
         "Consulta los archivos privados enviados con esta solicitud.",
-      content: filesPanelContent,
+      content: (
+        <SolicitudFilesPanel
+          solicitudId={solicitud.id}
+          files={files}
+          loadError={filesLoadError}
+        />
+      ),
     },
     comentarios: {
       id: "comentarios",
@@ -276,7 +280,12 @@ export function InternalSolicitudDetail({
       id: "historial",
       title: "Historial",
       description: "Eventos operativos registrados para esta solicitud.",
-      content: historyPanelContent,
+      content: (
+        <SolicitudHistoryTimeline
+          history={history}
+          loadError={historyLoadError}
+        />
+      ),
     },
     informacion: {
       id: "informacion",

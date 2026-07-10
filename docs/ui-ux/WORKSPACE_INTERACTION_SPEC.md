@@ -627,6 +627,26 @@ Politica de pruebas: las subtareas 6.1 a 6.4 no ejecutan E2E ni Full Visual QA.
 La validacion integral responsive, accesible, visual y por estados se concentra
 en 6.5.
 
+### Nota vigente 6.2: paneles de consulta de Solicitudes
+
+Archivos usa `SolicitudFilesPanel` dentro del workspace contextual. Renderiza la
+lista completa sin tarjeta exterior, sombra, heading principal ni descripcion
+duplicada; el titulo y descripcion los provee `WorkspaceContextDialog`. No
+admite subida interna y conserva descargas por route handler privado:
+`/dashboard/solicitudes/[id]/archivos/[fileId]/download`.
+
+Historial usa `SolicitudHistoryTimeline`. Renderiza una timeline compacta sin
+tarjeta exterior ni heading duplicado, conserva el orden recibido y mantiene los
+resumenes derivados de metadata, actor, rol y fecha.
+
+Informacion permanece como panel secundario solo lectura: referencia publica,
+workflow, servicio, estado, fechas, enlace a pedido convertido cuando exista y
+UUID interno como metadata secundaria. No incluye `reviewed_by`, datos completos
+de cliente ni acciones de gestion.
+
+Comentarios sigue usando temporalmente `SolicitudCommentsSection` hasta 6.3.
+Archivos, Historial e Informacion usan `contentMode: "scroll"`.
+
 ## 17. Apertura del panel contextual
 
 Flujo:

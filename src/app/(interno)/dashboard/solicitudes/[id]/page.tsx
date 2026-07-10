@@ -3,9 +3,7 @@ import { notFound } from "next/navigation";
 import { SolicitudClienteForm } from "@/components/solicitudes/SolicitudClienteForm";
 import { SolicitudCommentsSection } from "@/components/solicitudes/SolicitudCommentsSection";
 import { SolicitudConvertPedidoForm } from "@/components/solicitudes/SolicitudConvertPedidoForm";
-import { SolicitudHistorySection } from "@/components/solicitudes/SolicitudHistorySection";
 import { InternalSolicitudDetail } from "@/components/solicitudes/InternalSolicitudDetail";
-import { SolicitudFilesSection } from "@/components/storage/SolicitudFilesSection";
 import { Alert } from "@/components/ui";
 import { getInternalClienteById, listInternalClientes } from "@/lib/clientes";
 import {
@@ -128,24 +126,11 @@ export default async function DashboardSolicitudDetallePage({
             solicitudDesiredDate={result.solicitud.desired_date}
           />
         }
-        filesPanelContent={
-          <SolicitudFilesSection
-            solicitudId={result.solicitud.id}
-            files={files}
-            loadError={filesLoadError}
-          />
-        }
         commentsPanelContent={
           <SolicitudCommentsSection
             createCommentAction={createCommentAction}
             comments={comments}
             loadError={commentsLoadError}
-          />
-        }
-        historyPanelContent={
-          <SolicitudHistorySection
-            history={history}
-            loadError={historyLoadError}
           />
         }
         files={files}

@@ -31,9 +31,9 @@ function PanelSection({
   children: ReactNode;
 }) {
   return (
-    <section className="border-t border-border pt-5 first:border-t-0 first:pt-0">
+    <section className="border-t border-border pt-4 first:border-t-0 first:pt-0">
       <h3 className="text-base font-semibold text-text-primary">{title}</h3>
-      <div className="mt-4 rounded-(--radius-control) border border-border bg-surface-muted p-4">
+      <div className="mt-3 rounded-(--radius-control) border border-border bg-surface-muted p-3">
         {children}
       </div>
     </section>
@@ -44,7 +44,7 @@ export function SolicitudInformationPanel({
   solicitud,
 }: SolicitudInformationPanelProps) {
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-4">
       <PanelSection title="Solicitud">
         <MetadataGrid className="sm:grid-cols-1">
           <MetadataItem
