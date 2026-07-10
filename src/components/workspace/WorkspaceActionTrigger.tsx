@@ -2,37 +2,16 @@
 
 import { WorkspaceIcon } from "./WorkspaceIcon";
 import { useWorkspace } from "./workspace-context";
-import type { WorkspaceAction } from "./types";
+import {
+  getWorkspaceActionToneClasses,
+  getWorkspaceActionVisibleBadge,
+} from "./workspace-action-presentation";
 
 type WorkspaceActionTriggerProps = {
   actionId?: string;
   label?: string;
   className?: string;
 };
-
-function getTriggerToneClasses(action: WorkspaceAction, isActive: boolean) {
-  if (action.disabled) {
-    return "border-border bg-surface-muted text-text-secondary";
-  }
-
-  if (isActive) {
-    return "border-brand-primary bg-brand-primary-soft text-brand-primary";
-  }
-
-  if (action.tone === "warning") {
-    return "border-warning bg-warning-soft text-warning hover:bg-surface";
-  }
-
-  if (action.tone === "danger") {
-    return "border-danger bg-danger-soft text-danger hover:bg-surface";
-  }
-
-  if (action.tone === "success") {
-    return "border-success bg-success-soft text-success hover:bg-surface";
-  }
-
-  return "border-border-strong bg-surface text-text-primary hover:bg-brand-primary-soft hover:text-brand-primary";
-}
 
 export function WorkspaceActionTrigger({
   actionId,
@@ -54,6 +33,7 @@ export function WorkspaceActionTrigger({
   }
 
   const isActive = activePanelId === action.id;
+  const visibleBadge = getWorkspaceActionVisibleBadge(action);
 
   return (
     <span className="inline-flex flex-col items-start gap-1">
@@ -63,7 +43,7 @@ export function WorkspaceActionTrigger({
         aria-pressed={isActive}
         className={[
           "inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-(--radius-control) border px-4 text-sm font-semibold transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-70",
-          getTriggerToneClasses(action, isActive),
+          getWorkspaceActionToneClasses(action, isActive, "trigger"),
           className,
         ]
           .filter(Boolean)
@@ -73,9 +53,9 @@ export function WorkspaceActionTrigger({
       >
         <WorkspaceIcon name={action.icon} className="h-5 w-5" />
         <span>{label ?? action.label}</span>
-        {typeof action.badge === "number" ? (
+        {visibleBadge ? (
           <span className="rounded-full border border-current px-2 py-0.5 text-xs">
-            {action.badge}
+            {visibleBadge}
           </span>
         ) : null}
         {isActive ? <span className="text-xs">Activo</span> : null}

@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
+import { resolve } from "node:path";
 
 import { expectNoTechnicalLeakText } from "./helpers/assertions";
 import { loginAs } from "./helpers/auth";
@@ -145,6 +146,142 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(dimensions.scrollWidth).toBeLessThanOrEqual(
     dimensions.clientWidth + 1,
   );
+}
+
+async function expectFillPanelSingleScroll(
+  dialog: Locator,
+  footerElement: Locator,
+) {
+  await expect(footerElement).toBeVisible();
+
+  const footerHandle = await footerElement.elementHandle();
+
+  if (!footerHandle) {
+    throw new Error("Expected footer element to resolve.");
+  }
+
+  const metrics = await dialog.evaluate((dialogElement, footer) => {
+    const footerNode = footer as HTMLElement;
+    const scrollContainers = Array.from(
+      dialogElement.querySelectorAll<HTMLElement>("*"),
+    ).filter((element) => /auto|scroll/i.test(getComputedStyle(element).overflowY));
+
+    return {
+      scrollContainerCount: scrollContainers.length,
+      scrollContainersContainingFooter: scrollContainers.filter((element) =>
+        element.contains(footerNode),
+      ).length,
+      hasHorizontalOverflow:
+        dialogElement.scrollWidth > dialogElement.clientWidth + 1,
+    };
+  }, footerHandle);
+
+  await footerHandle.dispose();
+
+  expect(metrics.scrollContainerCount).toBeGreaterThanOrEqual(1);
+  expect(metrics.scrollContainersContainingFooter).toBe(0);
+  expect(metrics.hasHorizontalOverflow).toBe(false);
+}
+
+async function getRequiredBox(locator: Locator) {
+  const box = await locator.boundingBox();
+
+  expect(box).not.toBeNull();
+
+  return box as NonNullable<typeof box>;
+}
+
+async function expectBadgeInTopRight(button: Locator) {
+  const badge = button.locator("[data-workspace-action-badge]");
+
+  await expect(badge).toBeVisible();
+
+  const buttonBox = await getRequiredBox(button);
+  const badgeBox = await getRequiredBox(badge);
+  const badgeCenterX = badgeBox.x + badgeBox.width / 2;
+  const badgeCenterY = badgeBox.y + badgeBox.height / 2;
+  const maxSiblingButtonHeight = await button.evaluate((element) => {
+    const parent = element.parentElement;
+
+    if (!parent) {
+      return element.getBoundingClientRect().height;
+    }
+
+    return Math.max(
+      ...Array.from(parent.querySelectorAll<HTMLElement>("button"))
+        .filter((candidate) => candidate.offsetParent !== null)
+        .map((candidate) => candidate.getBoundingClientRect().height),
+    );
+  });
+
+  expect(badgeCenterX).toBeGreaterThan(buttonBox.x + buttonBox.width * 0.6);
+  expect(badgeCenterY).toBeLessThan(buttonBox.y + buttonBox.height * 0.4);
+  expect(buttonBox.height).toBeLessThanOrEqual(maxSiblingButtonHeight + 1);
+}
+
+async function expectSingleRow(locator: Locator) {
+  const rows = await locator.evaluate((element) => {
+    const buttons = Array.from(
+      element.querySelectorAll<HTMLElement>('button:not([aria-hidden="true"])'),
+    ).filter((button) => button.offsetParent !== null);
+
+    return Array.from(
+      new Set(buttons.map((button) => Math.round(button.getBoundingClientRect().top))),
+    ).length;
+  });
+
+  expect(rows).toBe(1);
+}
+
+async function expectBackLinkVariant(
+  page: Page,
+  variant: "text" | "button",
+) {
+  const header = getPedidoHeader(page);
+  const backLink = header.getByRole("link", { name: /volver a pedidos/i });
+
+  await expect(backLink).toBeVisible();
+  await expect(backLink).toHaveAttribute("href", "/dashboard/pedidos");
+
+  const metrics = await backLink.evaluate((element) => {
+    const link = element as HTMLElement;
+    const style = getComputedStyle(link);
+    const box = link.getBoundingClientRect();
+    const orderNumber =
+      link.parentElement?.querySelector("p")?.getBoundingClientRect() ?? null;
+
+    return {
+      borderTopWidth: style.borderTopWidth,
+      width: box.width,
+      x: box.x,
+      orderNumberY: orderNumber?.y ?? null,
+      linkY: box.y,
+    };
+  });
+
+  if (variant === "text") {
+    expect(metrics.borderTopWidth).toBe("0px");
+    expect(metrics.width).toBeLessThan(page.viewportSize()!.width * 0.75);
+    expect(metrics.orderNumberY).not.toBeNull();
+    expect(metrics.linkY).toBeLessThan(metrics.orderNumberY as number);
+    return;
+  }
+
+  expect(metrics.borderTopWidth).not.toBe("0px");
+}
+
+async function getVisibleToolbarButtons(toolbar: Locator) {
+  return toolbar
+    .getByRole("button")
+    .evaluateAll((buttons) =>
+      buttons
+        .filter((button) => (button as HTMLElement).offsetParent !== null)
+        .map((button) => button.getAttribute("aria-label") ?? button.textContent ?? ""),
+    );
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 async function expectStatusMessage(page: Page, message: RegExp) {
@@ -542,6 +679,7 @@ test("pedido workspace contextual panels are accessible", async ({ page }) => {
       exact: true,
     }),
   ).toBeVisible();
+  await expectBackLinkVariant(page, "button");
   await expectNoDocumentScroll(page);
 
   const desktopRail = getWorkspaceRail(page);
@@ -649,6 +787,7 @@ Otra línea de QA para el textarea.`;
   await expect(commentsListTitle).toBeVisible();
   await expect(commentComposerTitle).toBeVisible();
   await expect(commentTextbox).toBeVisible();
+  await expectFillPanelSingleScroll(commentsDialog, commentComposerTitle);
   await expectBefore(commentsListTitle, commentComposerTitle);
   await expectBefore(commentComposerTitle, commentTextbox);
   const commentsListSection = commentsListTitle.locator(
@@ -729,6 +868,7 @@ Otra línea de QA para el textarea.`;
 
   await expect(filesListTitle).toBeVisible();
   if (await fileInput.isVisible().catch(() => false)) {
+    await expectFillPanelSingleScroll(filesDialog, fileInput);
     await expectBefore(filesListTitle, fileInput);
     await expect(
       filesDialog.getByText(/los archivos se guardar.n como/i),
@@ -748,6 +888,14 @@ Otra línea de QA para el textarea.`;
       element.scrollTop = element.scrollHeight;
     });
     await expect(fileInput).toBeVisible();
+    await fileInput.setInputFiles(
+      resolve(process.cwd(), "tests/e2e/fixtures/sample-print-request.pdf"),
+    );
+    await filesDialog.getByRole("button", { name: /subir archivo/i }).click();
+    await expect(filesDialog).toBeVisible();
+    await expect(
+      filesDialog.getByText(/archivo subido correctamente/i),
+    ).toBeVisible({ timeout: 15_000 });
   }
 
   const fileDownloadLinks = filesDialog.getByRole("link", {
@@ -790,6 +938,7 @@ Otra línea de QA para el textarea.`;
   ).toBeVisible();
   const assignPersonnelSelect = personnelDialog.getByLabel(/asignar personal/i);
   if (await assignPersonnelSelect.isVisible().catch(() => false)) {
+    await expectFillPanelSingleScroll(personnelDialog, assignPersonnelSelect);
     await expect(assignPersonnelSelect).toBeVisible();
     await personnelDialog.evaluate((dialog) => {
       const scrollable = Array.from(dialog.querySelectorAll("div")).find(
@@ -809,9 +958,12 @@ Otra línea de QA para el textarea.`;
     });
     await expect(assignPersonnelSelect).toBeVisible();
   } else {
-    await expect(
-      personnelDialog.getByText(/no hay m.s usuarios disponibles/i),
-    ).toBeVisible();
+    const unavailableMessage = personnelDialog.getByText(
+      /no hay m.s usuarios disponibles/i,
+    );
+
+    await expect(unavailableMessage).toBeVisible();
+    await expectFillPanelSingleScroll(personnelDialog, unavailableMessage);
   }
   await personnelDialog.getByRole("button", { name: /cerrar/i }).click();
   await expect(personnelDialog).toBeHidden();
@@ -820,6 +972,14 @@ Otra línea de QA para el textarea.`;
   const informationTrigger = page.getByRole("button", {
     name: /informaci.n/i,
   });
+  const neutralInformationTrigger = getRailAction(page, /^informaci.n$/i);
+
+  await expect(neutralInformationTrigger).toBeVisible();
+  await expect(
+    getWorkspaceRail(page).getByRole("button", {
+      name: /informaci.n.*sin cliente asociado/i,
+    }),
+  ).toHaveCount(0);
   await informationTrigger.click();
 
   const informationDialog = page.getByRole("dialog", {
@@ -868,6 +1028,7 @@ Otra línea de QA para el textarea.`;
   await expect(historyDialog).toBeHidden();
   await expect(historyTrigger).toBeFocused();
 
+  await page.reload();
   await page.setViewportSize({ width: 900, height: 1000 });
   await page.goto(encargoDetailUrl);
   await expect(
@@ -877,6 +1038,7 @@ Otra línea de QA para el textarea.`;
       exact: true,
     }),
   ).toBeVisible();
+  await expectBackLinkVariant(page, "text");
   await expectNoHorizontalOverflow(page);
   const tabletActionToolbar = page.getByRole("navigation", {
     name: /acciones del workspace/i,
@@ -885,17 +1047,135 @@ Otra línea de QA para el textarea.`;
     tabletActionToolbar.getByRole("button", { name: /^estado/i }),
   ).toBeVisible();
   await expect(
-    tabletActionToolbar.getByRole("button", { name: /^tareas/i }),
+    tabletActionToolbar.getByRole("button", {
+      name: /tareas.*tareas completadas/i,
+    }),
   ).toBeVisible();
   await expect(
     tabletActionToolbar.getByRole("button", { name: /archivos/i }),
   ).toBeVisible();
+  const tabletFilesButton = tabletActionToolbar.getByRole("button", {
+    name: /archivos.*1/i,
+  });
+
+  await expect(tabletFilesButton).toBeVisible();
+  await expectBadgeInTopRight(tabletFilesButton);
   await expect(
     tabletActionToolbar.getByRole("button", { name: /m.s/i }),
   ).toBeVisible();
+  await expectSingleRow(tabletActionToolbar);
+
+  await page.setViewportSize({ width: 780, height: 1000 });
+  await page.goto(encargoDetailUrl);
+  await expectNoHorizontalOverflow(page);
+  const narrowTabletToolbar = page.getByRole("navigation", {
+    name: /acciones del workspace/i,
+  });
+
+  await expect(async () => {
+    const labels = await getVisibleToolbarButtons(narrowTabletToolbar);
+
+    expect(labels.some((label) => /^estado/i.test(label))).toBe(true);
+    expect(labels.some((label) => /^tareas/i.test(label))).toBe(true);
+    expect(labels.some((label) => /^archivos/i.test(label))).toBe(true);
+    expect(labels.some((label) => /m.s acciones/i.test(label))).toBe(true);
+  }).toPass();
+  await expectSingleRow(narrowTabletToolbar);
+
+  const narrowLabels = await getVisibleToolbarButtons(narrowTabletToolbar);
+  const narrowDirectLabels = narrowLabels.filter(
+    (label) => !/m.s acciones/i.test(label),
+  );
+  const narrowMoreButton = narrowTabletToolbar.getByRole("button", {
+    name: /m.s acciones/i,
+  });
+
+  await narrowMoreButton.click();
+  const narrowMoreDialog = page.getByRole("dialog", {
+    name: /^m.s acciones$/i,
+  });
+  await expect(narrowMoreDialog).toBeVisible();
+
+  for (const label of narrowDirectLabels) {
+    const baseLabel = label.split(" - ")[0] ?? label;
+
+    await expect(
+      narrowMoreDialog.getByRole("button", {
+        name: new RegExp(`^${escapeRegExp(baseLabel)}`, "i"),
+      }),
+    ).toHaveCount(0);
+  }
+
+  await expect(
+    narrowMoreDialog.getByRole("button", { name: /informaci.n/i }),
+  ).toBeVisible();
+  await narrowMoreDialog.getByRole("button", { name: /informaci.n/i }).click();
+  const narrowInformationDialog = page.getByRole("dialog", {
+    name: /^informaci.n$/i,
+  });
+
+  await expect(narrowInformationDialog).toBeVisible();
+  await narrowInformationDialog.getByRole("button", { name: /volver/i }).click();
+  await expect(narrowMoreDialog).toBeVisible();
+  await expect(
+    narrowMoreDialog.getByRole("button", { name: /informaci.n/i }),
+  ).toBeVisible();
+  await narrowMoreDialog.getByRole("button", { name: /cerrar/i }).click();
+  await expect(narrowMoreDialog).toBeHidden();
+
+  await page.setViewportSize({ width: 1270, height: 1000 });
+  await page.goto(encargoDetailUrl);
+  await expectNoHorizontalOverflow(page);
+  const wideTabletToolbar = page.getByRole("navigation", {
+    name: /acciones del workspace/i,
+  });
+
+  await expect(async () => {
+    const labels = await getVisibleToolbarButtons(wideTabletToolbar);
+    const directLabels = labels.filter(
+      (label) => !/m.s acciones/i.test(label),
+    );
+
+    expect(directLabels.length).toBeGreaterThan(narrowDirectLabels.length);
+    expect(directLabels[0]).toMatch(/^estado/i);
+    expect(directLabels[1]).toMatch(/^tareas/i);
+    expect(directLabels[2]).toMatch(/^archivos/i);
+  }).toPass();
+  await expectSingleRow(wideTabletToolbar);
+
+  const wideMoreButton = wideTabletToolbar.getByRole("button", {
+    name: /m.s acciones/i,
+  });
+
+  if ((await wideMoreButton.count()) > 0) {
+    await wideMoreButton.click();
+    const wideMoreDialog = page.getByRole("dialog", {
+      name: /^m.s acciones$/i,
+    });
+
+    await expect(wideMoreDialog).toBeVisible();
+
+    const wideLabels = await getVisibleToolbarButtons(wideTabletToolbar);
+    const wideDirectLabels = wideLabels.filter(
+      (label) => !/m.s acciones/i.test(label),
+    );
+
+    for (const label of wideDirectLabels) {
+      const baseLabel = label.split(" - ")[0] ?? label;
+
+      await expect(
+        wideMoreDialog.getByRole("button", {
+          name: new RegExp(`^${escapeRegExp(baseLabel)}`, "i"),
+        }),
+      ).toHaveCount(0);
+    }
+
+    await wideMoreDialog.getByRole("button", { name: /cerrar/i }).click();
+  }
 
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto(encargoDetailUrl);
+  await expectBackLinkVariant(page, "text");
   await expectNoHorizontalOverflow(page);
 
   const mobileActionBar = page.getByRole("navigation", {
@@ -925,7 +1205,13 @@ Otra línea de QA para el textarea.`;
 
   await expect(mobileStatusTrigger).toBeVisible();
   await expect(mobileTasksTrigger).toBeVisible();
+  await expect(
+    mobileActionBar.getByRole("button", {
+      name: /tareas.*tareas completadas/i,
+    }),
+  ).toBeVisible();
   await expect(mobileFilesTrigger).toBeVisible();
+  await expectBadgeInTopRight(mobileFilesTrigger);
   await expect(mobileMoreTrigger).toBeVisible();
   await expect(mobileCommentsDirectTrigger).toHaveCount(0);
   await expect(mobileHistoryTrigger).toHaveCount(0);
@@ -1018,6 +1304,45 @@ test("pedido access follows current role boundaries", async ({ page }) => {
     await expectNoTechnicalLeakText(page);
   }
 
+  if (encargoDetailUrl) {
+    await page.goto(encargoDetailUrl);
+    await expect(
+      page.getByRole("heading", {
+        level: 1,
+        name: encargoTitle,
+        exact: true,
+      }),
+    ).toBeVisible();
+
+    const supervisorStatusPanel = await getPedidoStatusPanel(page);
+    await expect(supervisorStatusPanel.getByLabel(/^estado$/i)).toBeVisible();
+
+    const supervisorPaymentPanel = await getPedidoPaymentPanel(page);
+    await expect(
+      supervisorPaymentPanel.getByRole("button", {
+        name: /actualizar pago/i,
+      }),
+    ).toBeVisible();
+
+    const supervisorPersonnelPanel = await openPedidoPanel(
+      page,
+      /^personal$/i,
+      /personal/i,
+    );
+    const supervisorAssignSelect =
+      supervisorPersonnelPanel.getByLabel(/asignar personal/i);
+
+    if (await supervisorAssignSelect.isVisible().catch(() => false)) {
+      await expect(supervisorAssignSelect).toBeVisible();
+    } else {
+      await expect(
+        supervisorPersonnelPanel.getByText(
+          /no hay m.s usuarios disponibles para asignar/i,
+        ),
+      ).toBeVisible();
+    }
+  }
+
   await loginAs(page, "worker");
   await page.goto("/dashboard/pedidos");
   await expectPedidosListLoaded(page);
@@ -1037,6 +1362,64 @@ test("pedido access follows current role boundaries", async ({ page }) => {
         exact: true,
       }),
     ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: /^trabajo solicitado$/i }),
+    ).toBeVisible();
+    await expectNoTechnicalLeakText(page);
+
+    const workerTasksPanel = await getPedidoTasksPanel(page);
+    await expect(
+      workerTasksPanel.getByRole("heading", {
+        name: /^tareas registradas$/i,
+      }),
+    ).toBeVisible();
+
+    const workerFilesPanel = await openPedidoPanel(
+      page,
+      /^archivos$/i,
+      /archivos/i,
+    );
+    await expect(
+      workerFilesPanel.getByRole("heading", {
+        name: /^archivos asociados$/i,
+      }),
+    ).toBeVisible();
+
+    const workerCommentsPanel = await openPedidoPanel(
+      page,
+      /^comentarios$/i,
+      /comentarios/i,
+    );
+    await expect(
+      workerCommentsPanel.getByRole("textbox", { name: /^comentario$/i }),
+    ).toBeVisible();
+
+    const workerPersonnelPanel = await openPedidoPanel(
+      page,
+      /^personal$/i,
+      /personal/i,
+    );
+    await expect(
+      workerPersonnelPanel.getByLabel(/asignar personal/i),
+    ).toHaveCount(0);
+    await expect(
+      workerPersonnelPanel.getByRole("button", { name: /quitar/i }),
+    ).toHaveCount(0);
+
+    const workerPaymentPanel = await getPedidoPaymentPanel(page);
+    await expect(
+      workerPaymentPanel.getByRole("button", {
+        name: /actualizar pago/i,
+      }),
+    ).toHaveCount(0);
+
+    const workerHistoryPanel = await openPedidoPanel(
+      page,
+      /^historial$/i,
+      /historial/i,
+    );
+    await expect(workerHistoryPanel.getByText(/pedido/i).first())
+      .toBeVisible();
     await expectNoTechnicalLeakText(page);
   }
 

@@ -85,8 +85,12 @@ export default async function DashboardPedidoDetallePage({
     ? await listActiveTaskTemplatesForOrder()
     : null;
   const pedidoId = result.pedido.id;
-  const assignWorkerAction = assignPedidoWorkerAction.bind(null, pedidoId);
-  const removeWorkerAction = removePedidoWorkerAction.bind(null, pedidoId);
+  const assignWorkerAction = canManagePedidos
+    ? assignPedidoWorkerAction.bind(null, pedidoId)
+    : undefined;
+  const removeWorkerAction = canManagePedidos
+    ? removePedidoWorkerAction.bind(null, pedidoId)
+    : undefined;
   const createTaskAction = createPedidoTaskAction.bind(null, pedidoId);
   const applyTemplateAction = applyTaskTemplateAction.bind(null, pedidoId);
   const taskActions = {
@@ -98,7 +102,9 @@ export default async function DashboardPedidoDetallePage({
   };
   const createCommentAction = createPedidoCommentAction.bind(null, pedidoId);
   const updateStatusAction = updatePedidoStatusAction.bind(null, pedidoId);
-  const updatePaymentAction = updatePedidoPaymentAction.bind(null, pedidoId);
+  const updatePaymentAction = canManagePayments
+    ? updatePedidoPaymentAction.bind(null, pedidoId)
+    : undefined;
   const uploadFileAction = uploadPedidoFileAction.bind(null, pedidoId);
 
   return (
@@ -123,19 +129,27 @@ export default async function DashboardPedidoDetallePage({
       comments={commentsResult.ok ? commentsResult.comments : []}
       commentsLoadError={commentsResult.ok ? undefined : commentsResult.message}
       personnelPanelContent={
-        <PedidoWorkerAssignmentForm
-          presentation="panel"
-          assignWorkerAction={assignWorkerAction}
-          removeWorkerAction={removeWorkerAction}
-          asignaciones={result.pedido.pedido_trabajadores}
-          canManage={canManagePedidos}
-          trabajadores={workersResult?.ok ? workersResult.workers : []}
-          loadAssignableError={
-            canManagePedidos && workersResult && !workersResult.ok
-              ? workersResult.message
-              : undefined
-          }
-        />
+        canManagePedidos && assignWorkerAction && removeWorkerAction ? (
+          <PedidoWorkerAssignmentForm
+            presentation="panel"
+            assignWorkerAction={assignWorkerAction}
+            removeWorkerAction={removeWorkerAction}
+            asignaciones={result.pedido.pedido_trabajadores}
+            canManage
+            trabajadores={workersResult?.ok ? workersResult.workers : []}
+            loadAssignableError={
+              workersResult && !workersResult.ok
+                ? workersResult.message
+                : undefined
+            }
+          />
+        ) : (
+          <PedidoWorkerAssignmentForm
+            presentation="panel"
+            asignaciones={result.pedido.pedido_trabajadores}
+            canManage={false}
+          />
+        )
       }
       paymentPanelContent={
         <PedidoPaymentSection

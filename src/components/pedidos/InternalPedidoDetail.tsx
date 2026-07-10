@@ -190,12 +190,6 @@ export function InternalPedidoDetail({
         statusLabel: "No se pudo cargar el historial",
       }
     : {};
-  const informationActionState: WorkspaceActionState = !pedido.cliente_id
-    ? {
-        tone: "warning",
-        statusLabel: "Sin cliente asociado",
-      }
-    : {};
   const compactActionIds = isPrintWorkflow
     ? ["estado", "archivos", "pagos"]
     : ["estado", "tareas", "archivos"];
@@ -264,7 +258,6 @@ export function InternalPedidoDetail({
       id: "informacion",
       label: "Información",
       icon: "informacion",
-      ...informationActionState,
     },
   ];
   const workspacePanels: Readonly<Record<string, WorkspacePanel>> = {
@@ -301,6 +294,7 @@ export function InternalPedidoDetail({
       title: "Archivos",
       description:
         "Consulta los archivos asociados y agrega nuevos recursos al pedido.",
+      contentMode: "fill",
       content: (
         <div className="flex h-full min-h-0 flex-col">
           <section
@@ -334,6 +328,7 @@ export function InternalPedidoDetail({
       title: "Comentarios",
       description:
         "Consulta la conversación interna y registra nuevas notas para el equipo.",
+      contentMode: "fill",
       content: (
         <div className="flex h-full min-h-0 flex-col">
           <section
@@ -366,6 +361,7 @@ export function InternalPedidoDetail({
       title: "Personal",
       description:
         "Consulta y administra las personas asignadas al pedido.",
+      contentMode: "fill",
       content: personnelPanelContent,
     },
     pagos: {

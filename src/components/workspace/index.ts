@@ -4,6 +4,7 @@ export type {
   WorkspaceControllerProps,
   WorkspaceIconName,
   WorkspacePanel,
+  WorkspacePanelContentMode,
 } from "./types";
 export { MobileWorkspaceBar } from "./MobileWorkspaceBar";
 export { WorkspaceActionRail } from "./WorkspaceActionRail";

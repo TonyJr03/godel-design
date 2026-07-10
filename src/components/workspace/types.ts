@@ -39,10 +39,13 @@ export type WorkspaceAction = WorkspaceActionBase &
       }
   );
 
+export type WorkspacePanelContentMode = "scroll" | "fill";
+
 export type WorkspacePanel = {
   id: string;
   title: string;
   description?: string;
+  contentMode?: WorkspacePanelContentMode;
   content: ReactNode;
 };
 

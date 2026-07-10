@@ -179,6 +179,28 @@ async function assertNoPublicSensitiveData(page: Page) {
   }
 }
 
+async function expectNoHorizontalOverflow(page: Page) {
+  const dimensions = await page.evaluate(() => ({
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }));
+
+  expect(dimensions.scrollWidth).toBeLessThanOrEqual(
+    dimensions.clientWidth + 1,
+  );
+}
+
+async function expectNoDocumentScroll(page: Page) {
+  const dimensions = await page.evaluate(() => ({
+    innerHeight: window.innerHeight,
+    scrollHeight: document.documentElement.scrollHeight,
+  }));
+
+  expect(dimensions.scrollHeight).toBeLessThanOrEqual(
+    dimensions.innerHeight + 2,
+  );
+}
+
 async function openSolicitudDetail(page: Page, query: string) {
   await page.goto(`/dashboard/solicitudes?q=${encodeURIComponent(query)}`);
   await page.getByRole("link", { name: /ver solicitud/i }).first().click();
@@ -295,6 +317,91 @@ async function captureViewport(page: Page, name: string, viewport: { width: numb
   qaState.screenshots.push(`test-results/beta-1-8-3-${name}.png`);
 }
 
+async function getRequiredBox(locator: Locator) {
+  const box = await locator.boundingBox();
+
+  expect(box).not.toBeNull();
+
+  return box as NonNullable<typeof box>;
+}
+
+async function expectBadgeInTopRight(button: Locator) {
+  const badge = button.locator("[data-workspace-action-badge]");
+
+  await expect(badge).toBeVisible();
+
+  const buttonBox = await getRequiredBox(button);
+  const badgeBox = await getRequiredBox(badge);
+  const badgeCenterX = badgeBox.x + badgeBox.width / 2;
+  const badgeCenterY = badgeBox.y + badgeBox.height / 2;
+
+  expect(badgeCenterX).toBeGreaterThan(buttonBox.x + buttonBox.width * 0.6);
+  expect(badgeCenterY).toBeLessThan(buttonBox.y + buttonBox.height * 0.4);
+}
+
+async function expectSingleRow(locator: Locator) {
+  const rows = await locator.evaluate((element) => {
+    const buttons = Array.from(element.querySelectorAll<HTMLElement>("button"))
+      .filter((button) => button.offsetParent !== null);
+
+    return Array.from(
+      new Set(buttons.map((button) => Math.round(button.getBoundingClientRect().top))),
+    ).length;
+  });
+
+  expect(rows).toBe(1);
+}
+
+async function expectBackLinkVariant(
+  page: Page,
+  variant: "text" | "button",
+) {
+  const header = getPedidoHeader(page);
+  const backLink = header.getByRole("link", { name: /volver a pedidos/i });
+
+  await expect(backLink).toBeVisible();
+  await expect(backLink).toHaveAttribute("href", "/dashboard/pedidos");
+
+  const metrics = await backLink.evaluate((element) => {
+    const link = element as HTMLElement;
+    const style = getComputedStyle(link);
+    const box = link.getBoundingClientRect();
+    const orderNumber =
+      link.parentElement?.querySelector("p")?.getBoundingClientRect() ?? null;
+
+    return {
+      borderTopWidth: style.borderTopWidth,
+      width: box.width,
+      orderNumberY: orderNumber?.y ?? null,
+      linkY: box.y,
+    };
+  });
+
+  if (variant === "text") {
+    expect(metrics.borderTopWidth).toBe("0px");
+    expect(metrics.width).toBeLessThan(page.viewportSize()!.width * 0.75);
+    expect(metrics.orderNumberY).not.toBeNull();
+    expect(metrics.linkY).toBeLessThan(metrics.orderNumberY as number);
+    return;
+  }
+
+  expect(metrics.borderTopWidth).not.toBe("0px");
+}
+
+async function getVisibleToolbarButtonLabels(toolbar: Locator) {
+  return toolbar
+    .getByRole("button")
+    .evaluateAll((buttons) =>
+      buttons
+        .filter((button) => (button as HTMLElement).offsetParent !== null)
+        .map((button) => button.getAttribute("aria-label") ?? button.textContent ?? ""),
+    );
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 async function expectPedidoStatusBlocked(page: Page, status: string) {
   const option = (await openPedidoPanel(page, /^estado$/i)).locator(
     `option[value="${status}"]`,
@@ -337,7 +444,7 @@ async function selectFirstAssignableWorker(page: Page) {
 }
 
 test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
-  test.setTimeout(300_000);
+  test.setTimeout(420_000);
 
   const encargoName = `Cliente QA Encargo Playwright ${runId}`;
   const impresionName = `Cliente QA Impresion Playwright ${runId}`;
@@ -449,6 +556,11 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   qaState.assignedPedidoUrl = manualEncargo.url;
 
   await expectCompactPedidoHeader(page, manualEncargoTitle);
+  await expectBackLinkVariant(page, "button");
+  await captureViewport(page, "pedido-header-volver-desktop", {
+    width: 1440,
+    height: 900,
+  });
   await expect(
     page.getByRole("heading", { name: /^trabajo solicitado$/i }),
   ).toBeVisible();
@@ -474,7 +586,6 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   await expect(page.getByText(/revisarse antes de pasar/i)).toBeVisible();
   await updatePedidoStatus(page, "en_revision");
   await expectPedidoStatusBlocked(page, "en_produccion");
-  await expect(page.getByText(/tarea/i).first()).toBeVisible();
 
   const taskSection = await openPedidoPanel(page, /^tareas$/i, /tareas/i);
   const taskTemplateHeading = taskSection.getByRole("heading", {
@@ -510,12 +621,12 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   await page.reload();
   await updatePedidoStatus(page, "en_produccion");
   await expectPedidoStatusBlocked(page, "listo_entrega");
-  await page.getByLabel(/actualizar progreso/i).fill("10");
-  await page
-    .locator("form")
-    .filter({ has: page.getByLabel(/actualizar progreso/i) })
-    .getByRole("button", { name: /guardar/i })
-    .click();
+  const progressPanel = await openPedidoPanel(page, /^tareas$/i, /tareas/i);
+  const progressInput = progressPanel.getByLabel(/actualizar progreso/i);
+  const progressForm = progressInput.locator("xpath=ancestor::form[1]");
+
+  await progressInput.fill("10");
+  await progressForm.getByRole("button", { name: /guardar/i }).click();
   await expectStatusMessage(page, /progreso actualizado correctamente/i);
   await page.reload();
   await updatePedidoStatus(page, "listo_entrega");
@@ -610,6 +721,124 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
     width: 1440,
     height: 1000,
   });
+  await filesPanel.getByRole("button", { name: /cerrar/i }).click();
+  await expect(filesPanel).toBeHidden();
+
+  await page.setViewportSize({ width: 900, height: 1000 });
+  await page.goto(qaState.manualImpresionUrl as string);
+  await expectNoHorizontalOverflow(page);
+  await expectBackLinkVariant(page, "text");
+  const tabletBadgeToolbar = page.getByRole("navigation", {
+    name: /acciones del workspace/i,
+  });
+  const tabletFilesButton = tabletBadgeToolbar.getByRole("button", {
+    name: /archivos.*1/i,
+  });
+
+  await expect(tabletFilesButton).toBeVisible();
+  await expectBadgeInTopRight(tabletFilesButton);
+  await expectSingleRow(tabletBadgeToolbar);
+  await captureViewport(page, "pedido-toolbar-tablet-badge-volver", {
+    width: 900,
+    height: 1000,
+  });
+
+  await page.setViewportSize({ width: 780, height: 1000 });
+  await page.goto(qaState.manualEncargoUrl as string);
+  await expectNoHorizontalOverflow(page);
+  await expectBackLinkVariant(page, "text");
+  const narrowTabletToolbar = page.getByRole("navigation", {
+    name: /acciones del workspace/i,
+  });
+
+  await expect(async () => {
+    const labels = await getVisibleToolbarButtonLabels(narrowTabletToolbar);
+
+    expect(labels.some((label) => /^estado/i.test(label))).toBe(true);
+    expect(labels.some((label) => /^tareas/i.test(label))).toBe(true);
+    expect(labels.some((label) => /^archivos/i.test(label))).toBe(true);
+    expect(labels.some((label) => /m.s acciones/i.test(label))).toBe(true);
+  }).toPass();
+  await expectSingleRow(narrowTabletToolbar);
+  await captureViewport(page, "pedido-toolbar-tablet-narrow", {
+    width: 780,
+    height: 1000,
+  });
+
+  const narrowDirectLabels = (await getVisibleToolbarButtonLabels(
+    narrowTabletToolbar,
+  )).filter((label) => !/m.s acciones/i.test(label));
+
+  await narrowTabletToolbar
+    .getByRole("button", { name: /m.s acciones/i })
+    .click();
+  const narrowMoreDialog = page.getByRole("dialog", {
+    name: /^m.s acciones$/i,
+  });
+
+  await expect(narrowMoreDialog).toBeVisible();
+  for (const label of narrowDirectLabels) {
+    const baseLabel = label.split(" - ")[0] ?? label;
+
+    await expect(
+      narrowMoreDialog.getByRole("button", {
+        name: new RegExp(`^${escapeRegExp(baseLabel)}`, "i"),
+      }),
+    ).toHaveCount(0);
+  }
+  await expect(
+    narrowMoreDialog.getByRole("button", { name: /informaci.n/i }),
+  ).toBeVisible();
+  await captureViewport(page, "pedido-toolbar-more-remaining-tablet", {
+    width: 780,
+    height: 1000,
+  });
+  await narrowMoreDialog.getByRole("button", { name: /cerrar/i }).click();
+
+  await page.setViewportSize({ width: 1270, height: 1000 });
+  await page.goto(qaState.manualEncargoUrl as string);
+  await expectNoHorizontalOverflow(page);
+  const wideTabletToolbar = page.getByRole("navigation", {
+    name: /acciones del workspace/i,
+  });
+
+  await expect(async () => {
+    const wideLabels = await getVisibleToolbarButtonLabels(wideTabletToolbar);
+    const wideDirectLabels = wideLabels.filter(
+      (label) => !/m.s acciones/i.test(label),
+    );
+
+    expect(wideDirectLabels.length).toBeGreaterThan(narrowDirectLabels.length);
+    expect(wideDirectLabels[0]).toMatch(/^estado/i);
+    expect(wideDirectLabels[1]).toMatch(/^tareas/i);
+    expect(wideDirectLabels[2]).toMatch(/^archivos/i);
+  }).toPass();
+  await expectSingleRow(wideTabletToolbar);
+  await captureViewport(page, "pedido-toolbar-tablet-wide", {
+    width: 1270,
+    height: 1000,
+  });
+
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto(qaState.manualImpresionUrl as string);
+  await expectNoHorizontalOverflow(page);
+  await expectBackLinkVariant(page, "text");
+  const mobileBadgeWorkspaceNav = page.getByRole("navigation", {
+    name: /acciones del workspace/i,
+  });
+  const mobileFilesButton = mobileBadgeWorkspaceNav.getByRole("button", {
+    name: /archivos.*1/i,
+  });
+
+  await expect(mobileFilesButton).toBeVisible();
+  await expectBadgeInTopRight(mobileFilesButton);
+  await captureViewport(page, "pedido-toolbar-mobile-badge-volver", {
+    width: 375,
+    height: 812,
+  });
+
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(qaState.manualEncargoUrl as string);
 
   const commentsPanel = await openPedidoPanel(
     page,
@@ -654,6 +883,97 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   });
   await commentsPanel.getByRole("button", { name: /cerrar/i }).click();
   await expect(commentsPanel).toBeHidden();
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const personalPanel = await openPedidoPanel(page, /^personal$/i, /personal/i);
+  await expect(
+    personalPanel.getByText(/no hay personal asignado|asignado el/i),
+  ).toBeVisible();
+  await captureViewport(page, "pedido-personal-panel-desktop", {
+    width: 1440,
+    height: 900,
+  });
+  await personalPanel.getByRole("button", { name: /cerrar/i }).click();
+
+  const historyPanel = await openPedidoPanel(page, /^historial$/i, /historial/i);
+  await expect(
+    historyPanel.getByRole("heading", { name: /^historial$/i }),
+  ).toBeVisible();
+  await historyPanel.getByRole("button", { name: /cerrar/i }).click();
+
+  await expect(
+    page.getByRole("button", { name: /^informaci.n$/i }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /informaci.n.*sin cliente asociado/i }),
+  ).toHaveCount(0);
+  const informationPanel = await openPedidoPanel(
+    page,
+    /^informaci.n$/i,
+    /informaci.n/i,
+  );
+  await expect(
+    informationPanel.getByRole("heading", { name: /^cliente$/i }),
+  ).toBeVisible();
+  await expect(
+    informationPanel.getByText(/este pedido no tiene cliente asociado/i),
+  ).toBeVisible();
+  await captureViewport(page, "pedido-informacion-no-cliente-neutral-desktop", {
+    width: 1440,
+    height: 900,
+  });
+  await informationPanel.getByRole("button", { name: /cerrar/i }).click();
+
+  await page.setViewportSize({ width: 900, height: 1000 });
+  await page.goto(qaState.manualImpresionUrl as string);
+  await expectNoHorizontalOverflow(page);
+  const tabletWorkspaceNav = page.getByRole("navigation", {
+    name: /acciones del workspace/i,
+  });
+  await expect(
+    tabletWorkspaceNav.getByRole("button", { name: /^estado/i }),
+  ).toBeVisible();
+  await expect(
+    tabletWorkspaceNav.getByRole("button", { name: /archivos/i }),
+  ).toBeVisible();
+  await tabletWorkspaceNav.getByRole("button", { name: /m.s/i }).click();
+  const tabletMoreDialog = page.getByRole("dialog", {
+    name: /^m.s acciones$/i,
+  });
+  await expect(tabletMoreDialog).toBeVisible();
+  await tabletMoreDialog.getByRole("button", { name: /cerrar/i }).click();
+
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto(qaState.manualImpresionUrl as string);
+  await expectNoHorizontalOverflow(page);
+  const mobileWorkspaceNav = page.getByRole("navigation", {
+    name: /acciones del workspace/i,
+  });
+  await expect(
+    mobileWorkspaceNav.getByRole("button", { name: /^estado/i }),
+  ).toBeVisible();
+  const mobileMoreButton = mobileWorkspaceNav.getByRole("button", {
+    name: /m.s/i,
+  });
+
+  await mobileMoreButton.focus();
+  await page.keyboard.press("Enter");
+  const mobileMoreDialog = page.getByRole("dialog", {
+    name: /^m.s acciones$/i,
+  });
+  await expect(mobileMoreDialog).toBeVisible();
+  await mobileMoreDialog.getByRole("button", { name: /informaci.n/i }).click();
+  const mobileInfoDialog = page.getByRole("dialog", {
+    name: /^informaci.n$/i,
+  });
+  await expect(mobileInfoDialog).toBeVisible();
+  await mobileInfoDialog.getByRole("button", { name: /volver/i }).click();
+  await expect(mobileMoreDialog).toBeVisible();
+  await mobileMoreDialog.getByRole("button", { name: /cerrar/i }).click();
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(qaState.manualImpresionUrl as string);
+  await expectNoDocumentScroll(page);
   await expect(
     page.getByRole("heading", { name: /^aportes al pedido$/i }),
   ).toHaveCount(0);
@@ -672,6 +992,7 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   });
   await expect(page.locator("body")).not.toContainText(/file_path/i);
 
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(qaState.manualEncargoUrl);
   await selectFirstAssignableWorker(page);
 

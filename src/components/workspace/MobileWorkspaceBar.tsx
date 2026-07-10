@@ -4,7 +4,12 @@ import { Ellipsis } from "lucide-react";
 
 import { WorkspaceIcon } from "./WorkspaceIcon";
 import { useWorkspace } from "./workspace-context";
-import type { WorkspaceAction } from "./types";
+import {
+  getWorkspaceActionAccessibleName,
+  getOrderedWorkspaceActions,
+  getWorkspaceActionToneClasses,
+  getWorkspaceActionVisibleBadge,
+} from "./workspace-action-presentation";
 
 const GRID_COLUMN_CLASSES = {
   1: "grid-cols-1",
@@ -12,22 +17,6 @@ const GRID_COLUMN_CLASSES = {
   3: "grid-cols-3",
   4: "grid-cols-4",
 } as const;
-
-function getDirectActions(
-  actions: readonly WorkspaceAction[],
-  preferredIds: readonly string[] | undefined,
-) {
-  const orderedActions =
-    preferredIds && preferredIds.length > 0
-      ? preferredIds
-          .map((actionId) =>
-            actions.find((action) => action.id === actionId),
-          )
-          .filter((action): action is WorkspaceAction => Boolean(action))
-      : actions;
-
-  return orderedActions.filter((action) => !action.disabled).slice(0, 3);
-}
 
 export function MobileWorkspaceBar() {
   const {
@@ -38,10 +27,13 @@ export function MobileWorkspaceBar() {
     openAction,
     openMore,
   } = useWorkspace();
-  const directActions = getDirectActions(actions, mobileActionIds);
+  const orderedActions = getOrderedWorkspaceActions(actions, mobileActionIds);
+  const directActions = orderedActions
+    .filter((action) => !action.disabled)
+    .slice(0, 3);
   const directActionIds = new Set(directActions.map((action) => action.id));
   const hasMore = actions.some(
-    (action) => !action.disabled && !directActionIds.has(action.id),
+    (action) => !directActionIds.has(action.id),
   );
   const visibleItemCount = directActions.length + (hasMore ? 1 : 0);
 
@@ -64,26 +56,37 @@ export function MobileWorkspaceBar() {
       >
         {directActions.map((action) => {
           const isActive = activePanelId === action.id;
+          const accessibleName = getWorkspaceActionAccessibleName(action, {
+            includeDisabledReason: true,
+            activeLabel: isActive ? "Activo" : undefined,
+          });
+          const visibleBadge = getWorkspaceActionVisibleBadge(action);
 
           return (
             <button
               key={action.id}
               type="button"
+              aria-label={accessibleName}
               aria-current={isActive ? "true" : undefined}
               aria-pressed={isActive}
               className={[
-                "flex min-h-11 cursor-pointer flex-col items-center justify-center gap-1 rounded-(--radius-control) px-2 text-xs font-semibold transition-colors duration-200",
-                isActive
-                  ? "bg-brand-primary-soft text-brand-primary"
-                  : "text-text-primary hover:bg-brand-primary-soft hover:text-brand-primary",
+                "relative flex min-h-11 cursor-pointer flex-col items-center justify-center gap-1 overflow-visible rounded-(--radius-control) px-2 text-xs font-semibold transition-colors duration-200",
+                getWorkspaceActionToneClasses(action, isActive, "mobile"),
               ].join(" ")}
               onClick={(event) => openAction(action.id, event.currentTarget)}
             >
               <WorkspaceIcon name={action.icon} className="h-5 w-5" />
               <span className="text-center leading-tight">{action.label}</span>
-              {typeof action.badge === "number" ? (
-                <span className="rounded-full border border-current px-1.5 py-0.5 text-[0.6875rem] leading-none">
-                  {action.badge}
+              {action.statusLabel ? (
+                <span className="sr-only">{action.statusLabel}</span>
+              ) : null}
+              {visibleBadge ? (
+                <span
+                  aria-hidden="true"
+                  data-workspace-action-badge
+                  className="absolute -right-0.5 -top-0.5 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full border border-surface bg-current px-1 text-[0.65rem] font-bold leading-none"
+                >
+                  <span className="text-surface">{visibleBadge}</span>
                 </span>
               ) : null}
               {isActive ? <span className="sr-only">Activo</span> : null}
@@ -94,14 +97,21 @@ export function MobileWorkspaceBar() {
         {hasMore ? (
           <button
             type="button"
+            aria-label={isMoreOpen ? "Más acciones - Activo" : "Más acciones"}
             aria-pressed={isMoreOpen}
             className={[
-              "flex min-h-11 cursor-pointer flex-col items-center justify-center gap-1 rounded-(--radius-control) px-2 text-xs font-semibold transition-colors duration-200",
+              "relative flex min-h-11 cursor-pointer flex-col items-center justify-center gap-1 overflow-visible rounded-(--radius-control) px-2 text-xs font-semibold transition-colors duration-200",
               isMoreOpen
                 ? "bg-brand-primary-soft text-brand-primary"
                 : "text-text-primary hover:bg-brand-primary-soft hover:text-brand-primary",
             ].join(" ")}
-            onClick={(event) => openMore(event.currentTarget, "mobile")}
+            onClick={(event) =>
+              openMore(
+                event.currentTarget,
+                "mobile",
+                directActions.map((action) => action.id),
+              )
+            }
           >
             <Ellipsis
               aria-hidden="true"

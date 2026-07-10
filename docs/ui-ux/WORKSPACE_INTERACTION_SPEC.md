@@ -49,12 +49,16 @@ No cambian:
 La composición de escritorio queda unificada así:
 
 1. Cabecera del workspace.
-2. Resumen operativo a todo el ancho.
-3. Debajo, dos columnas: contenido principal y action rail.
+2. Contenido principal permanente.
+3. Action rail icon-only desde `xl`.
 
 El resumen operativo no debe vivir en una columna intermedia. Su función es dar
 contexto transversal antes de que el usuario elija trabajar en el contenido
 principal o abrir un panel contextual.
+
+Nota vigente 4.5: esa banda ya no forma parte del diseno aprobado. La
+implementacion final usa cabecera compacta sin CTA primaria ni resumen operativo
+permanente.
 
 Estructura conceptual:
 
@@ -62,9 +66,8 @@ Estructura conceptual:
 +------------------------------------------------------------------+
 | Cabecera                                                         |
 +------------------------------------------------------------------+
-| Resumen operativo a todo el ancho                                |
 +----------------------------------------------------+-------------+
-| Contenido principal                                | Action rail |
+| Contenido principal                                | Rail iconos |
 |                                                    |             |
 +----------------------------------------------------+-------------+
 ```
@@ -83,9 +86,14 @@ Contenido exacto:
 - Badge de workflow: `Encargo` o `Impresion`.
 - Estado operativo con `StatusBadge`.
 - Prioridad con `PriorityBadge`.
-- Entrega estimada.
+- Fecha estimada o fecha real de entrega cuando exista.
+- Referencia publica copiable inline.
+- Sin CTA primaria de gestion ni avisos criticos verticales bajo la cabecera.
 - Acción principal cuando exista.
 - Indicadores críticos.
+
+Nota vigente 4.5: los dos bullets anteriores son historicos y no aplican al
+workspace final.
 
 Las acciones principales de la cabecera no ejecutan mutaciones directamente.
 Solo abren el panel correspondiente. Las transiciones continúan controladas por
@@ -133,6 +141,11 @@ Tipografía conceptual:
 - Metadata crítica: 14 px, en una línea envolvente.
 
 ## 5. Resumen operativo del pedido
+
+Estado vigente 4.5: este bloque fue retirado del workspace de pedidos. La
+pantalla final no renderiza resumen operativo permanente ni bloque visual
+"Flujo directo de impresion"; el flujo `impresion` se expresa mediante la
+composicion principal de descripcion y archivos.
 
 El resumen operativo es una banda compacta bajo la cabecera y ocupa todo el
 ancho disponible antes de la división en columnas. Debe permitir entender el
@@ -355,12 +368,16 @@ Notas:
 Ubicación:
 
 - Dentro del área de detalle, a la derecha del contenido principal desde `xl`.
-- Debajo del resumen operativo de ancho completo.
+- Junto al contenido principal, dentro de la superficie contenida.
 - No reemplaza el sidebar global.
-- Ancho conceptual: 12-16rem.
+- Ancho conceptual: columna compacta icon-only.
 - Sticky dentro de la altura útil cuando no genere doble scroll confuso.
 
 Requisitos:
+
+Nota vigente 4.5: el rail desktop aprobado es icon-only. Cada boton conserva
+`aria-label` y `title` con label, `statusLabel`, badge real, motivo de bloqueo
+cuando aplique y estado activo. Los tonos no son la unica senal visual.
 
 - Icono y label visible en cada acción.
 - No usar columna de solo iconos.
@@ -390,13 +407,25 @@ comunicación, asignación, finanzas, auditoría y contexto secundario.
 
 Entre `md` y antes de `xl`:
 
-- Cabecera y resumen compactos.
-- Toolbar contextual horizontal bajo el resumen.
+Nota vigente 4.5: tablet conserva toolbar textual de una sola fila con icono y
+label visibles. `statusLabel`, estado activo y badge real deben estar en el
+nombre accesible y `title`; el badge visual se renderiza flotante en la esquina
+superior derecha para no cambiar la altura del boton. El dialog lateral usa el
+mismo contrato de contenido `scroll`/`fill`.
+
+- Cabecera compacta con enlace textual "Volver a pedidos" antes de la metadata.
+- Toolbar contextual horizontal bajo la cabecera.
 - Drawer desde la derecha.
 - Acciones menos frecuentes bajo "Más" si no hay espacio.
 - No mantener simultáneamente sidebar global y action rail ancho.
 - El documento puede tener scroll normal.
 - El drawer puede tener scroll interno.
+- La toolbar mide ancho real disponible con `ResizeObserver` y
+  `requestAnimationFrame`: muestra siempre las tres primeras acciones
+  disponibles, agrega acciones si caben y reserva "Mas" solo cuando quedan
+  acciones ocultas.
+- "Mas" contiene exactamente las acciones que no quedaron directas, incluidas
+  acciones deshabilitadas si existen. No duplica acciones directas.
 
 Toolbar sugerida:
 
@@ -408,6 +437,12 @@ Toolbar sugerida:
 ## 13. Barra móvil
 
 La barra inferior muestra máximo cuatro accesos.
+
+Nota vigente 4.5: movil mantiene maximo tres acciones directas mas "Mas",
+safe-area, icono y texto. Cada accion directa tiene tono discreto, badge visual
+flotante en esquina superior derecha limitado a `99+` y nombre accesible con el
+valor real. El badge no debe aparecer bajo la etiqueta ni aumentar la altura del
+boton.
 
 `encargo`:
 
@@ -430,7 +465,9 @@ al selector de "Más" sin cerrar el dialog/sheet. No se permiten diálogos
 anidados.
 
 Operaciones habituales dentro de "Más": Personal, Pagos, Historial,
-Información y Comentarios cuando Comentarios no está fijo.
+Información y Comentarios cuando Comentarios no está fijo. Al abrir un panel
+desde "Mas" y volver, el selector conserva la misma lista secundaria que tenia
+la superficie que lo abrio.
 
 Requisitos:
 
@@ -568,6 +605,12 @@ No introducir Radix, Headless UI, shadcn/ui ni librerías de tooltips.
 
 ## 20. Scroll del panel
 
+- El panel usa `contentMode: "scroll"` por defecto.
+- En `contentMode: "fill"`, el cuerpo generico del dialog usa
+  `overflow-hidden` y el contenido inmediato `min-h-0 flex-1`.
+- Comentarios, Archivos y Personal de pedidos usan `fill`: solo la zona central
+  lista/comentario/asignaciones desplaza; el footer de formulario queda visible.
+- El selector "Mas acciones" siempre usa `scroll`.
 - Header del panel estable.
 - Contenido con scroll interno cuando sea necesario.
 - Acciones de formulario visibles cuando el formulario lo requiera.
@@ -754,15 +797,19 @@ type WorkspaceAction = {
   label: string;
   icon: WorkspaceIconName;
   badge?: number;
+  statusLabel?: string;
   tone?: "default" | "warning" | "danger" | "success";
   disabled?: boolean;
   disabledReason?: string;
 };
 
+type WorkspacePanelContentMode = "scroll" | "fill";
+
 type WorkspacePanel = {
   id: string;
   title: string;
   description?: string;
+  contentMode?: WorkspacePanelContentMode;
   content: ReactNode;
 };
 
@@ -776,6 +823,10 @@ type WorkspaceControllerProps = {
 Los metadatos de acciones deben ser serializables. El contenido del panel puede
 ser `ReactNode`. No crear un registro universal que importe todo Lucide; usar
 mapas estáticos pequeños en los componentes cliente que renderizan iconos.
+
+`contentMode` por defecto es `scroll`. Usar `fill` solo cuando el contenido del
+panel ya define una zona central con scroll y un footer fijo, como Comentarios,
+Archivos y Personal.
 
 Contrato de `disabled`:
 
@@ -793,7 +844,7 @@ Contrato de `disabled`:
 | `impresion` | Muestra flujo directo; no trata ausencia de tareas como problema. |
 | Pedido manual | Origen indica "Pedido creado manualmente"; inicia en `creado`. |
 | Pedido desde solicitud | Información muestra solicitud origen; inicia `solicitud_recibida`. |
-| Sin cliente | Resumen y panel Información muestran "Sin cliente asociado". |
+| Sin cliente | Panel Información muestra el mensaje normal de cliente no asociado; la acción Información permanece neutral y no muestra warning. |
 | Sin personal | Resumen advierte; panel Personal muestra estado vacío. |
 | Sin tareas | En encargo activo es advertencia; en impresión no aplica. |
 | Sin archivos | Vista rápida y panel muestran vacío sin bloquear. |

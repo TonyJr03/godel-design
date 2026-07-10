@@ -17,6 +17,38 @@ function formatDate(value: string | null): string | null {
   return value ? DATE_FORMATTER.format(new Date(value)) : null;
 }
 
+function BackToPedidosLink({ presentation }: { presentation: "text" | "button" }) {
+  if (presentation === "text") {
+    return (
+      <Link
+        href="/dashboard/pedidos"
+        className="inline-flex min-h-11 w-fit items-center gap-2 font-mono text-base font-semibold text-brand-primary transition-colors hover:text-brand-primary-hover hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background xl:hidden"
+      >
+        <ArrowLeft
+          aria-hidden="true"
+          className="h-4 w-4"
+          strokeWidth={1.75}
+        />
+        Volver a pedidos
+      </Link>
+    );
+  }
+
+  return (
+    <Link
+      href="/dashboard/pedidos"
+      className="hidden min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-(--radius-control) border border-border-strong bg-surface px-4 text-sm font-semibold text-text-primary transition-colors hover:bg-surface-muted xl:inline-flex xl:w-auto"
+    >
+      <ArrowLeft
+        aria-hidden="true"
+        className="h-4 w-4"
+        strokeWidth={1.75}
+      />
+      Volver a pedidos
+    </Link>
+  );
+}
+
 type PedidoWorkspaceHeaderProps = {
   pedido: InternalPedidoDetail;
 };
@@ -37,8 +69,10 @@ export function PedidoWorkspaceHeader({
 
   return (
     <header className="min-w-0">
-      <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <div className="flex min-w-0 flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div className="min-w-0 flex-1">
+          <BackToPedidosLink presentation="text" />
+
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <p className="inline-flex min-h-11 items-center font-mono text-base font-semibold text-brand-primary">
               {pedido.order_number}
@@ -75,17 +109,7 @@ export function PedidoWorkspaceHeader({
           ) : null}
         </div>
 
-        <Link
-          href="/dashboard/pedidos"
-          className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-(--radius-control) border border-border-strong bg-surface px-4 text-sm font-semibold text-text-primary transition-colors hover:bg-surface-muted lg:w-auto"
-        >
-          <ArrowLeft
-            aria-hidden="true"
-            className="h-4 w-4"
-            strokeWidth={1.75}
-          />
-          Volver a pedidos
-        </Link>
+        <BackToPedidosLink presentation="button" />
       </div>
     </header>
   );

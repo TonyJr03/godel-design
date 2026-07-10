@@ -21,6 +21,7 @@ export type WorkspaceContextValue = {
   openMore: (
     trigger?: HTMLElement | null,
     scope?: WorkspaceMoreScope,
+    directActionIds?: readonly string[],
   ) => void;
   closePanel: () => void;
   returnToMore: () => void;

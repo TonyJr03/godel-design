@@ -9,6 +9,11 @@ import type {
 } from "./workspace-context";
 import { WorkspaceContextDialog } from "./WorkspaceContextDialog";
 import { WorkspaceIcon } from "./WorkspaceIcon";
+import {
+  getWorkspaceActionAccessibleName,
+  getWorkspaceActionToneClasses,
+  getWorkspaceActionVisibleBadge,
+} from "./workspace-action-presentation";
 import type {
   WorkspaceAction,
   WorkspaceControllerProps,
@@ -17,56 +22,13 @@ import type {
 
 type WorkspaceOpenView =
   | { type: "panel"; panelId: string; origin: WorkspacePanelOrigin }
-  | { type: "more"; scope: WorkspaceMoreScope };
+  | {
+      type: "more";
+      scope: WorkspaceMoreScope;
+      directActionIds: readonly string[];
+    };
 
 type WorkspaceView = WorkspaceOpenView | { type: "closed" };
-
-function getCompactGroups(
-  actions: readonly WorkspaceAction[],
-  preferredIds: readonly string[] | undefined,
-  maxDirectActions: number,
-) {
-  const orderedActions =
-    preferredIds && preferredIds.length > 0
-      ? preferredIds
-          .map((actionId) =>
-            actions.find((action) => action.id === actionId),
-          )
-          .filter((action): action is WorkspaceAction => Boolean(action))
-      : actions;
-
-  const directActions = orderedActions
-    .filter((action) => !action.disabled)
-    .slice(0, maxDirectActions);
-  const directActionIds = new Set(directActions.map((action) => action.id));
-  const secondaryActions = actions.filter(
-    (action) => !directActionIds.has(action.id),
-  );
-
-  return { directActions, secondaryActions };
-}
-
-function getActionToneClasses(action: WorkspaceAction) {
-  const tone = action.tone ?? "default";
-
-  if (action.disabled) {
-    return "border-border bg-surface-muted text-text-secondary";
-  }
-
-  if (tone === "warning") {
-    return "border-warning bg-warning-soft text-warning hover:bg-surface";
-  }
-
-  if (tone === "danger") {
-    return "border-danger bg-danger-soft text-danger hover:bg-surface";
-  }
-
-  if (tone === "success") {
-    return "border-success bg-success-soft text-success hover:bg-surface";
-  }
-
-  return "border-border bg-surface text-text-primary hover:bg-brand-primary-soft hover:text-brand-primary";
-}
 
 function getActionAccessibleName(
   action: WorkspaceAction,
@@ -96,8 +58,10 @@ export function WorkspaceController({
   const [view, setView] = useState<WorkspaceView>({ type: "closed" });
   const [renderedView, setRenderedView] =
     useState<WorkspaceOpenView | null>(null);
-  const [lastMoreScope, setLastMoreScope] =
-    useState<WorkspaceMoreScope>("mobile");
+  const [lastMoreView, setLastMoreView] = useState<Extract<
+    WorkspaceOpenView,
+    { type: "more" }
+  > | null>(null);
 
   const restoreTriggerFocus = useCallback(() => {
     const trigger = triggerRef.current;
@@ -161,15 +125,19 @@ export function WorkspaceController({
     (
       trigger?: HTMLElement | null,
       scope: WorkspaceMoreScope = "mobile",
+      directActionIds: readonly string[] = [],
     ) => {
       if (trigger) {
         triggerRef.current = trigger;
       }
 
-      setLastMoreScope(scope);
+      const nextView: WorkspaceOpenView = {
+        type: "more",
+        scope,
+        directActionIds: [...directActionIds],
+      };
 
-      const nextView: WorkspaceOpenView = { type: "more", scope };
-
+      setLastMoreView(nextView);
       setRenderedView(nextView);
       setView(nextView);
     },
@@ -177,14 +145,16 @@ export function WorkspaceController({
   );
 
   const returnToMore = useCallback(() => {
-    const nextView: WorkspaceOpenView = {
-      type: "more",
-      scope: lastMoreScope,
-    };
+    const nextView: WorkspaceOpenView =
+      lastMoreView ?? {
+        type: "more",
+        scope: "mobile",
+        directActionIds: [],
+      };
 
     setRenderedView(nextView);
     setView(nextView);
-  }, [lastMoreScope]);
+  }, [lastMoreView]);
 
   const isDialogOpen = view.type !== "closed";
 
@@ -258,14 +228,13 @@ export function WorkspaceController({
 
   const renderedPanel =
     renderedView?.type === "panel" ? panels[renderedView.panelId] : null;
-  const moreScope =
+  const renderedMoreView =
     renderedView?.type === "more"
-      ? renderedView.scope
-      : lastMoreScope;
-  const moreGroups = getCompactGroups(
-    actions,
-    moreScope === "tablet" ? tabletActionIds : mobileActionIds,
-    3,
+      ? renderedView
+      : lastMoreView;
+  const directActionIdSet = new Set(renderedMoreView?.directActionIds ?? []);
+  const secondaryActions = actions.filter(
+    (action) => !directActionIdSet.has(action.id),
   );
 
   return (
@@ -276,6 +245,11 @@ export function WorkspaceController({
         isOpen={isDialogOpen}
         title={getDialogTitle(renderedView, renderedPanel)}
         description={renderedPanel?.description}
+        contentMode={
+          renderedView?.type === "more"
+            ? "scroll"
+            : renderedPanel?.contentMode ?? "scroll"
+        }
         showBackButton={
           renderedView?.type === "panel" && renderedView.origin === "more"
         }
@@ -289,7 +263,7 @@ export function WorkspaceController({
       >
         {renderedView?.type === "more" ? (
           <WorkspaceMoreList
-            actions={moreGroups.secondaryActions}
+            actions={secondaryActions}
             panels={panels}
             onOpenAction={(actionId) => openAction(actionId, null, "more")}
           />
@@ -335,10 +309,12 @@ function WorkspaceMoreList({
         const hasPanel = Boolean(panels[action.id]);
         const isDisabled = action.disabled || !hasPanel;
         const disabledReason = action.disabledReason ?? "Panel no disponible.";
-        const accessibleName = getActionAccessibleName(
-          action,
-          isDisabled ? disabledReason : undefined,
-        );
+        const accessibleName = hasPanel
+          ? getWorkspaceActionAccessibleName(action, {
+              includeDisabledReason: isDisabled,
+            })
+          : getActionAccessibleName(action, disabledReason);
+        const visibleBadge = getWorkspaceActionVisibleBadge(action);
 
         return (
           <button
@@ -347,7 +323,7 @@ function WorkspaceMoreList({
             aria-label={accessibleName}
             className={[
               "flex min-h-11 w-full cursor-pointer items-start gap-3 rounded-(--radius-control) border px-3 py-3 text-left transition-colors duration-200 disabled:cursor-not-allowed",
-              getActionToneClasses(action),
+              getWorkspaceActionToneClasses(action, false, "tablet"),
               isDisabled ? "opacity-75" : "",
             ]
               .filter(Boolean)
@@ -362,9 +338,9 @@ function WorkspaceMoreList({
             <span className="min-w-0 flex-1">
               <span className="flex items-center gap-2 font-semibold">
                 <span>{action.label}</span>
-                {typeof action.badge === "number" ? (
+                {visibleBadge ? (
                   <span className="rounded-full border border-current px-2 py-0.5 text-xs">
-                    {action.badge}
+                    {visibleBadge}
                   </span>
                 ) : null}
               </span>

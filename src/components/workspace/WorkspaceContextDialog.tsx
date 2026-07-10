@@ -10,11 +10,14 @@ import {
   useRef,
 } from "react";
 
+import type { WorkspacePanelContentMode } from "./types";
+
 type WorkspaceContextDialogProps = {
   dialogRef: RefObject<HTMLDialogElement | null>;
   isOpen: boolean;
   title: string;
   description?: string;
+  contentMode?: WorkspacePanelContentMode;
   showBackButton: boolean;
   children: ReactNode;
   onBack: () => void;
@@ -28,6 +31,7 @@ export function WorkspaceContextDialog({
   isOpen,
   title,
   description,
+  contentMode = "scroll",
   showBackButton,
   children,
   onBack,
@@ -104,8 +108,20 @@ export function WorkspaceContextDialog({
           </div>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-5">
-          {children}
+        <div
+          className={
+            contentMode === "fill"
+              ? "flex min-h-0 flex-1 flex-col overflow-hidden px-4 py-5 sm:px-5"
+              : "min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-5"
+          }
+        >
+          <div
+            className={
+              contentMode === "fill" ? "min-h-0 flex-1" : "min-w-0"
+            }
+          >
+            {children}
+          </div>
         </div>
       </div>
     </dialog>

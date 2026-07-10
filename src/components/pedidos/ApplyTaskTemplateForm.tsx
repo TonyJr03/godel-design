@@ -71,7 +71,7 @@ export function ApplyTaskTemplateForm({
       ) : null}
 
       {hasTemplates ? (
-        <form action={formAction} aria-busy={pending} className="mt-5">
+        <form action={formAction} aria-busy={pending} className="mt-4">
           {state.message ? (
             <Alert
               variant={state.ok ? "success" : "danger"}
@@ -81,7 +81,14 @@ export function ApplyTaskTemplateForm({
             </Alert>
           ) : null}
 
-          <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+          <div
+            className={[
+              state.message ? "mt-4" : "",
+              "grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+          >
             <div>
               <label
                 htmlFor="task-template-id"
