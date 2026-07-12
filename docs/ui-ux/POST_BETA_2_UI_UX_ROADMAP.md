@@ -821,6 +821,7 @@ Cliente | Teléfono | Correo electrónico | Creación | Actualización
 Subtareas:
 
 * 10.2.1 Listado de Clientes — Completado.
+* 10.2.2 Detalle de Cliente limpio — Completado.
 
 Priorizar:
 

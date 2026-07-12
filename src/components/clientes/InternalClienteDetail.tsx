@@ -46,10 +46,7 @@ export function InternalClienteDetail({
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <DetailPanel
-          title="Datos de contacto"
-          description="Información disponible para coordinar el trabajo con este cliente."
-        >
+        <DetailPanel title="Datos de contacto">
           <MetadataGrid>
             <MetadataItem label="Teléfono" value={cliente.phone} />
             <MetadataItem
@@ -59,24 +56,21 @@ export function InternalClienteDetail({
           </MetadataGrid>
         </DetailPanel>
 
-        <DetailPanel
-          title="Registro"
-          description="Metadata secundaria de la ficha."
-          className="lg:row-span-2"
-        >
-          <MetadataGrid className="sm:grid-cols-1">
+        <DetailPanel title="Registro" className="lg:row-span-2">
+          <MetadataGrid>
             <MetadataItem
               label="Creación"
               value={formatAppDateTime(cliente.created_at, "No definida")}
             />
             <MetadataItem
-              label="Última actualización"
+              label="Actualización"
               value={formatAppDateTime(cliente.updated_at, "No definida")}
             />
             <MetadataItem
               label="Identificador interno"
+              className="min-w-0 sm:col-span-2"
               value={
-                <span className="break-all font-mono text-xs text-text-secondary">
+                <span className="block w-full max-w-full break-all font-mono text-xs leading-6 text-text-secondary">
                   {cliente.id}
                 </span>
               }
@@ -84,10 +78,7 @@ export function InternalClienteDetail({
           </MetadataGrid>
         </DetailPanel>
 
-        <DetailPanel
-          title="Notas"
-          description="Contexto operativo registrado para este cliente."
-        >
+        <DetailPanel title="Notas">
           {cliente.notes ? (
             <p className="whitespace-pre-line text-sm leading-7 text-text-primary">
               {cliente.notes}
