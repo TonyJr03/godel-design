@@ -381,6 +381,8 @@ Usan altura contenida en escritorio y scroll interno:
 
 Reglas:
 
+- `DashboardLayout` no detecta rutas ni decide el modo de página.
+- El modo se declara por composición: las páginas `flow` renderizan su contenido natural y los workspaces contenidos usan `WorkspaceShell`.
 - El shell no debe imponer `overflow-hidden` global a todas las páginas.
 - Cada workspace conserva su `WorkspaceShell desktopMode="contained"`.
 - Las páginas `flow` no deben heredar padding inferior de barras de workspace.
@@ -395,6 +397,7 @@ Reglas:
 - El cambio de ancho del sidebar debe permitir que el contenido use el espacio liberado.
 - No debe aparecer overflow horizontal.
 - Los workspaces no deben ganar scroll documental innecesario.
+- La altura contenida de `WorkspaceShell` aplica solo en escritorio `xl`; móvil y tablet conservan flujo documental.
 - Las páginas `flow` sí pueden crecer verticalmente.
 - El sidebar desktop puede tener scroll interno si su contenido excede la altura disponible, sin arrastrar el contenido principal.
 - El shell no debe asumir que todas las páginas tienen la misma estrategia de altura.
