@@ -239,7 +239,7 @@ Según el alcance, deben existir:
 | 7     | Integración del shell interno                | Cerrada   |
 | 8     | Arquitectura común de listados               | Cerrada   |
 | 9     | Listados operativos de Pedidos y Solicitudes | Cerrada   |
-| 10    | Listados administrativos                     | Pendiente |
+| 10    | Listados administrativos                     | En curso  |
 | 11    | Dashboard operativo                          | Pendiente |
 | 12    | Páginas internas secundarias                 | Pendiente |
 | 13    | Área pública                                 | Pendiente |
@@ -792,49 +792,117 @@ Pedidos y Solicitudes pueden gestionarse desde sus listados con una jerarquía c
 
 ## Etapa 10 — Listados administrativos
 
+### Estado
+
+En curso.
+
 ### Objetivo
 
-Aplicar la arquitectura de listados a módulos administrativos de menor complejidad.
+Reorganizar y rediseñar las superficies administrativas internas, manteniendo Clientes como módulo propio y moviendo Usuarios y Plantillas bajo Configuración.
 
-### 10.1 Clientes
+### 10.1 Plan técnico
+
+Estado: Completado.
+
+Documento:
+
+```text
+docs/ui-ux/ADMIN_CONFIG_STAGE_10_PLAN.md
+```
+
+### 10.2 Clientes
+
+Columnas finales:
+
+```text
+Cliente | Teléfono | Correo electrónico | Creación | Actualización
+```
 
 Priorizar:
 
-* nombre;
-* teléfono;
-* correo;
-* solicitudes asociadas;
-* pedidos asociados;
-* última actividad;
-* acción de detalle;
-* creación de cliente.
+* listado con patrón común;
+* fila/card clicable hacia detalle;
+* detalle más limpio;
+* eliminación de textos redundantes;
+* identificador interno completo;
+* pedidos vinculados al cliente;
+* creación y edición existentes.
 
-### 10.2 Usuarios
+### 10.3 Configuración hub
 
 Priorizar:
 
-* nombre;
+* `/dashboard/configuracion` se convierte en hub;
+* muestra acceso a Usuarios;
+* muestra acceso a Plantillas;
+* cada opción se presenta como card/list item clicable;
+* no es un dashboard analítico;
+* admin-only.
+
+### 10.4 Usuarios dentro de Configuración
+
+Ruta final:
+
+```text
+/dashboard/configuracion/usuarios
+```
+
+Columnas finales:
+
+```text
+Usuario | Rol | Teléfono | Estado | Creación | Actualización
+```
+
+Priorizar:
+
+* usuario con avatar/iniciales, nombre y UUID completo;
 * rol;
+* teléfono;
 * estado;
-* fecha de creación;
-* acción de detalle;
-* acción de edición;
-* restricciones administrativas.
+* no mostrar email;
+* fila/card abre edición directamente;
+* creación en `/dashboard/configuracion/usuarios/nuevo`;
+* edición en `/dashboard/configuracion/usuarios/[id]/editar`;
+* redirecciones legacy temporales desde `/dashboard/usuarios`;
+* eliminación de Usuarios como entrada principal del sidebar al cierre.
 
-### 10.3 Configuración y plantillas
+### 10.5 Plantillas dentro de Configuración
+
+Ruta final:
+
+```text
+/dashboard/configuracion/plantillas
+```
+
+Columnas finales:
+
+```text
+Plantilla | Descripción | Estado | Tareas | Creación | Actualización
+```
 
 Priorizar:
 
-* nombre de plantilla;
-* workflow;
-* estado;
-* cantidad de tareas;
-* acceso al detalle;
-* acciones permitidas.
+* listado con buscador;
+* sin filtros por ahora;
+* sin workflow;
+* fila/card abre gestión de plantilla;
+* creación en `/dashboard/configuracion/plantillas/nueva`;
+* gestión en `/dashboard/configuracion/plantillas/[id]`;
+* la pantalla `[id]` unifica edición, activación/desactivación y tareas.
+
+### 10.6 Limpieza y cierre
+
+Priorizar:
+
+* eliminar rutas legacy de usuarios al cierre;
+* actualizar sidebar;
+* actualizar permisos de rutas sin cambiar matriz de permisos;
+* actualizar tests;
+* QA responsive y por rol.
 
 ### Criterio de cierre
 
-Todos los listados administrativos comparten una estructura consistente y mantienen sus necesidades específicas.
+Clientes, Usuarios y Plantillas quedan integrados en una estructura consistente; Configuración funciona como hub admin-only; Usuarios deja de ser entrada principal del sidebar; y no se modifican permisos, RLS ni modelo de datos.
 
 ---
 
