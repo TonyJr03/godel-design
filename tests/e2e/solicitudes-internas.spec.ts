@@ -145,15 +145,22 @@ async function expectSolicitudesListLoaded(page: Page) {
   await expectNoTechnicalLeakText(page);
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 async function openSolicitudDetail(page: Page, query: string, expectedName: string) {
   await page.goto(`/dashboard/solicitudes?q=${encodeURIComponent(query)}`);
   await expectSolicitudesListLoaded(page);
 
-  const solicitudRow = page.getByRole("row").filter({ hasText: expectedName })
+  const solicitudLink = page
+    .getByRole("link", {
+      name: new RegExp(`abrir solicitud de ${escapeRegExp(expectedName)}`, "i"),
+    })
     .first();
 
-  await expect(solicitudRow).toBeVisible({ timeout: 15_000 });
-  await solicitudRow.getByRole("link", { name: /ver solicitud/i }).click();
+  await expect(solicitudLink).toBeVisible({ timeout: 15_000 });
+  await solicitudLink.click();
   await expect(
     page.getByRole("heading", {
       name: new RegExp(`solicitud de ${expectedName}`, "i"),

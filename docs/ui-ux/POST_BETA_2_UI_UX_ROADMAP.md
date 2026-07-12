@@ -750,6 +750,8 @@ Entrega: 18 jul
 
 ### 9.2 Listado de Solicitudes
 
+Estado: Completado.
+
 Debe aplicar la estructura final definida en la especificación de listados:
 
 ```text

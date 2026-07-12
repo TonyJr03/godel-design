@@ -1,13 +1,14 @@
-import Link from "next/link";
-
-import { Card } from "@/components/ui/Card";
+import {
+  ClickableTableRow,
+  ListingCardLink,
+} from "@/components/listing";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { WorkflowTypeBadge } from "@/components/ui/WorkflowTypeBadge";
 import {
   getSolicitudServiceTypeLabel,
   type InternalSolicitud,
 } from "@/lib/solicitudes";
-import { WorkflowTypeBadge } from "./WorkflowTypeBadge";
 
 type InternalSolicitudesListProps = {
   solicitudes: InternalSolicitud[];
@@ -22,13 +23,6 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("es", {
   timeZone: "UTC",
 });
 
-const actionLinkClasses =
-  "inline-flex min-h-11 items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-4 text-sm font-semibold text-brand-primary transition-colors duration-200 hover:border-brand-primary hover:bg-brand-primary-soft";
-
-function formatShortReference(id: string): string {
-  return id.slice(0, 8).toUpperCase();
-}
-
 function formatDate(value: string | null): string {
   if (!value) {
     return "No definida";
@@ -37,9 +31,15 @@ function formatDate(value: string | null): string {
   return DATE_FORMATTER.format(new Date(value));
 }
 
+function getContactPreview(solicitud: InternalSolicitud): string {
+  return solicitud.client_email
+    ? `${solicitud.client_phone} · ${solicitud.client_email}`
+    : solicitud.client_phone;
+}
+
 export function InternalSolicitudesList({
   solicitudes,
-  emptyMessage = "Cuando entren solicitudes públicas, aparecerán aquí ordenadas por fecha de creación.",
+  emptyMessage = "Cuando entren solicitudes públicas, aparecerán aquí para revisión.",
   hasActiveFilters = false,
 }: InternalSolicitudesListProps) {
   if (solicitudes.length === 0) {
@@ -48,8 +48,8 @@ export function InternalSolicitudesList({
         variant={hasActiveFilters ? "search" : "default"}
         title={
           hasActiveFilters
-            ? "Sin resultados para estos filtros"
-            : "No hay solicitudes para mostrar"
+            ? "No encontramos solicitudes con estos filtros."
+            : "No hay solicitudes registradas todavía."
         }
         description={emptyMessage}
       />
@@ -58,78 +58,52 @@ export function InternalSolicitudesList({
 
   return (
     <>
-      <div className="grid gap-4 xl:hidden" aria-label="Solicitudes">
+      <div className="grid gap-3 xl:hidden" aria-label="Solicitudes">
         {solicitudes.map((solicitud) => (
-          <Card
-            as="article"
+          <ListingCardLink
+            href={`/dashboard/solicitudes/${solicitud.id}`}
             key={solicitud.id}
-            padding="sm"
-            className="shadow-(--shadow-soft)"
+            aria-label={`Abrir solicitud de ${solicitud.client_name}`}
+            className="space-y-3"
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="font-mono text-xs font-semibold text-text-muted">
-                  {formatShortReference(solicitud.id)}
-                </p>
-                <h2 className="mt-1 text-lg font-semibold text-text-primary">
+                <h2 className="line-clamp-2 text-base font-semibold text-text-primary">
                   {solicitud.client_name}
                 </h2>
+                <p className="mt-1 truncate text-sm text-text-secondary">
+                  {getContactPreview(solicitud)}
+                </p>
               </div>
-              <div className="flex flex-wrap justify-end gap-2">
-                <WorkflowTypeBadge workflowType={solicitud.workflow_type} />
-                <StatusBadge status={solicitud.status} />
-              </div>
+              <StatusBadge status={solicitud.status} />
             </div>
 
-            <dl className="mt-4 grid gap-3 text-sm">
-              <div>
-                <dt className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-                  Servicio
-                </dt>
-                <dd className="mt-1 text-text-primary">
-                  {getSolicitudServiceTypeLabel(solicitud.service_type)}
-                </dd>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <dt className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-                    Creación
-                  </dt>
-                  <dd className="mt-1 text-text-primary">
-                    {formatDate(solicitud.created_at)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-                    Deseada
-                  </dt>
-                  <dd className="mt-1 text-text-primary">
-                    {formatDate(solicitud.desired_date)}
-                  </dd>
-                </div>
-              </div>
-            </dl>
-
-            <div className="mt-4 border-t border-border pt-4">
-              <Link
-                href={`/dashboard/solicitudes/${solicitud.id}`}
-                className={`${actionLinkClasses} w-full`}
-              >
-                Ver solicitud
-              </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-medium text-text-primary">
+                {getSolicitudServiceTypeLabel(solicitud.service_type)}
+              </span>
+              <WorkflowTypeBadge workflowType={solicitud.workflow_type} />
             </div>
-          </Card>
+
+            <p className="text-sm text-text-secondary">
+              Recibida: {formatDate(solicitud.created_at)}
+            </p>
+          </ListingCardLink>
         ))}
       </div>
 
       <div className="hidden overflow-hidden rounded-(--radius-card) border border-border bg-surface shadow-(--shadow-soft) xl:block">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-border text-sm">
+          <table className="min-w-full table-fixed divide-y divide-border text-sm">
+            <colgroup>
+              <col className="w-[26%]" />
+              <col className="w-[30%]" />
+              <col className="w-[20%]" />
+              <col className="w-[12%]" />
+              <col className="w-[12%]" />
+            </colgroup>
             <thead className="bg-surface-muted text-left text-xs font-semibold uppercase tracking-wide text-text-secondary">
               <tr>
-                <th scope="col" className="px-4 py-3">
-                  Ref.
-                </th>
                 <th scope="col" className="px-4 py-3">
                   Cliente
                 </th>
@@ -140,49 +114,41 @@ export function InternalSolicitudesList({
                   Servicio
                 </th>
                 <th scope="col" className="px-4 py-3">
-                  Tipo
-                </th>
-                <th scope="col" className="px-4 py-3">
                   Estado
                 </th>
                 <th scope="col" className="px-4 py-3">
-                  Creación
-                </th>
-                <th scope="col" className="px-4 py-3">
-                  Deseada
-                </th>
-                <th scope="col" className="px-4 py-3 text-right">
-                  Acción
+                  Recibida
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border bg-surface">
               {solicitudes.map((solicitud) => (
-                <tr
+                <ClickableTableRow
                   key={solicitud.id}
-                  className="align-top transition-colors duration-200 hover:bg-brand-primary-soft/50"
+                  href={`/dashboard/solicitudes/${solicitud.id}`}
+                  label={`Abrir solicitud de ${solicitud.client_name}`}
+                  className="align-top"
                 >
-                  <td className="whitespace-nowrap px-4 py-4 font-mono text-xs font-semibold text-text-secondary">
-                    {formatShortReference(solicitud.id)}
-                  </td>
                   <td className="px-4 py-4 font-semibold text-text-primary">
-                    {solicitud.client_name}
+                    <div className="truncate">{solicitud.client_name}</div>
                   </td>
                   <td className="px-4 py-4 text-text-secondary">
-                    <div>{solicitud.client_phone}</div>
+                    <div className="truncate">{solicitud.client_phone}</div>
                     {solicitud.client_email ? (
-                      <div className="mt-1 text-xs text-text-muted">
+                      <div className="mt-1 truncate text-xs text-text-muted">
                         {solicitud.client_email}
                       </div>
                     ) : null}
                   </td>
                   <td className="px-4 py-4 text-text-secondary">
-                    {getSolicitudServiceTypeLabel(solicitud.service_type)}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-4">
-                    <WorkflowTypeBadge
-                      workflowType={solicitud.workflow_type}
-                    />
+                    <div className="truncate font-medium text-text-primary">
+                      {getSolicitudServiceTypeLabel(solicitud.service_type)}
+                    </div>
+                    <div className="mt-2">
+                      <WorkflowTypeBadge
+                        workflowType={solicitud.workflow_type}
+                      />
+                    </div>
                   </td>
                   <td className="whitespace-nowrap px-4 py-4">
                     <StatusBadge status={solicitud.status} />
@@ -190,18 +156,7 @@ export function InternalSolicitudesList({
                   <td className="whitespace-nowrap px-4 py-4 text-text-secondary">
                     {formatDate(solicitud.created_at)}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-4 text-text-secondary">
-                    {formatDate(solicitud.desired_date)}
-                  </td>
-                  <td className="px-4 py-4 text-right">
-                    <Link
-                      href={`/dashboard/solicitudes/${solicitud.id}`}
-                      className={actionLinkClasses}
-                    >
-                      Ver solicitud
-                    </Link>
-                  </td>
-                </tr>
+                </ClickableTableRow>
               ))}
             </tbody>
           </table>

@@ -4,16 +4,13 @@ import {
 } from "@/components/listing";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { WorkflowTypeBadge } from "@/components/ui/WorkflowTypeBadge";
 import { formatMoney } from "@/lib/format/money";
 import {
   PEDIDO_PAYMENT_STATUS_LABELS,
   type InternalPedido,
 } from "@/lib/pedidos";
-import {
-  WORKFLOW_TYPES,
-  WORKFLOW_TYPE_LABELS,
-  type WorkflowType,
-} from "@/lib/workflow-types";
+import { WORKFLOW_TYPE_LABELS } from "@/lib/workflow-types";
 
 type InternalPedidosListProps = {
   pedidos: InternalPedido[];
@@ -27,12 +24,6 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("es", {
   year: "numeric",
   timeZone: "UTC",
 });
-
-const workflowTypeClasses: Record<WorkflowType, string> = {
-  [WORKFLOW_TYPES.ENCARGO]: "border-info/30 bg-info-soft text-info",
-  [WORKFLOW_TYPES.IMPRESION]:
-    "border-brand-accent/30 bg-brand-accent-soft text-brand-accent",
-};
 
 function formatDate(value: string | null): string {
   if (!value) {
@@ -70,19 +61,6 @@ function getPaymentPendingLabel(pedido: InternalPedido): string | null {
   }
 
   return `Pendiente: ${formatMoney(pedido.payment.pendingAmount)}`;
-}
-
-function WorkflowTypePill({ workflowType }: { workflowType: WorkflowType }) {
-  return (
-    <span
-      className={[
-        "inline-flex rounded-(--radius-control) border px-2.5 py-1 text-xs font-semibold",
-        workflowTypeClasses[workflowType],
-      ].join(" ")}
-    >
-      {WORKFLOW_TYPE_LABELS[workflowType]}
-    </span>
-  );
 }
 
 function PaymentBadge({
@@ -170,7 +148,14 @@ export function InternalPedidosList({
 
       <div className="hidden overflow-hidden rounded-(--radius-card) border border-border bg-surface shadow-(--shadow-soft) xl:block">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-border text-sm">
+          <table className="min-w-full table-fixed divide-y divide-border text-sm">
+            <colgroup>
+              <col className="w-[18%]" />
+              <col className="w-[40%]" />
+              <col className="w-[14%]" />
+              <col className="w-[14%]" />
+              <col className="w-[14%]" />
+            </colgroup>
             <thead className="bg-surface-muted text-left text-xs font-semibold uppercase tracking-wide text-text-secondary">
               <tr>
                 <th scope="col" className="px-4 py-3">
@@ -199,15 +184,15 @@ export function InternalPedidosList({
                   className="align-top"
                 >
                   <td className="whitespace-nowrap px-4 py-4">
-                    <div className="font-semibold text-text-primary">
+                    <div className="truncate font-semibold text-text-primary">
                       {pedido.order_number}
                     </div>
                     <div className="mt-2">
-                      <WorkflowTypePill workflowType={pedido.workflow_type} />
+                      <WorkflowTypeBadge workflowType={pedido.workflow_type} />
                     </div>
                   </td>
-                  <td className="min-w-80 px-4 py-4 text-text-secondary">
-                    <div className="font-semibold text-text-primary">
+                  <td className="px-4 py-4 text-text-secondary">
+                    <div className="truncate font-semibold text-text-primary">
                       {pedido.title}
                     </div>
                     <p className="mt-1 line-clamp-2 text-xs leading-5 text-text-muted">
