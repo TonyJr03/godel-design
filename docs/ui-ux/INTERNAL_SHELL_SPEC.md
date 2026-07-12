@@ -441,6 +441,7 @@ Viewports mínimos para validar:
 - Sigue apuntando a `#main-content`.
 - Al activarlo debe enfocar el `main`.
 - Debe ser visible sobre sidebar y header.
+- Debe tener indicador de foco visible además de aparecer en pantalla.
 
 ### Usuario
 
@@ -448,6 +449,19 @@ Viewports mínimos para validar:
 - Texto truncado visualmente.
 - Nombre completo accesible.
 - La línea inferior separa solo el logout; no debe aparecer una línea encima del bloque de usuario.
+
+### Navegación móvil
+
+- Mantiene `<details>` y `<summary>` como control nativo de apertura.
+- El summary comunica `Menú` de forma visible.
+- Los enlaces cierran el panel al activarse.
+- La QA completa de teclado y roles queda para 7.6.
+
+### Logout
+
+- Mantiene formulario con Server Action.
+- El botón conserva `type="submit"`.
+- El modo compacto conserva nombre accesible y texto `sr-only`.
 
 ## 14. Movimiento
 
