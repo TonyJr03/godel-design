@@ -402,7 +402,7 @@ No debe aparecer overflow horizontal en móviles.
 
 ## 17. Componentes comunes propuestos
 
-Componentes candidatos, sin implementación en esta subtarea:
+Componentes candidatos. La Etapa 8.2 implementa el subconjunto inicial y el resto se creará solo si hace falta:
 
 ```text
 src/components/listing/

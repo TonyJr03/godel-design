@@ -676,7 +676,7 @@ docs/ui-ux/INTERNAL_LISTINGS_SPEC.md
 Posibles componentes comunes dentro de:
 
 ```text
-src/components/lists/
+src/components/listing/
 ```
 
 ### Criterio de cierre
