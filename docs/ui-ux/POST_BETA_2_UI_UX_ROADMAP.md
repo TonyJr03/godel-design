@@ -839,6 +839,8 @@ Priorizar:
 
 ### 10.3 Configuración hub
 
+Estado: Completado.
+
 Priorizar:
 
 * `/dashboard/configuracion` se convierte en hub;

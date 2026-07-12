@@ -1,23 +1,15 @@
-import { TaskTemplatesSection } from "@/components/configuracion/TaskTemplatesSection";
-import { Alert } from "@/components/ui/Alert";
+import { ConfigurationHub } from "@/components/configuracion/ConfigurationHub";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { listTaskTemplates } from "@/lib/task-templates";
 
-export default async function DashboardConfiguracionPage() {
-  const result = await listTaskTemplates();
-
+export default function DashboardConfiguracionPage() {
   return (
     <div className="space-y-8">
       <PageHeader
         title="Configuración"
-        description="Ajustes operativos del sistema interno."
+        description="Entrada a las secciones internas de configuración del sistema."
       />
 
-      {!result.ok ? (
-        <Alert variant="danger">{result.message}</Alert>
-      ) : (
-        <TaskTemplatesSection templates={result.templates} />
-      )}
+      <ConfigurationHub />
     </div>
   );
 }
