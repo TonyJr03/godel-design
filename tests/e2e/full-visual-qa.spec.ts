@@ -267,7 +267,12 @@ async function expectNoDocumentScroll(page: Page) {
 
 async function openSolicitudDetail(page: Page, query: string) {
   await page.goto(`/dashboard/solicitudes?q=${encodeURIComponent(query)}`);
-  await page.getByRole("link", { name: /ver solicitud/i }).first().click();
+  await page
+    .getByRole("link", {
+      name: new RegExp(`abrir solicitud de ${escapeRegExp(query)}`, "i"),
+    })
+    .first()
+    .click();
   await expect(page.getByRole("heading", { name: /solicitud de/i })).toBeVisible();
 }
 
@@ -277,7 +282,7 @@ async function openPedidoDetailFromSearch(
   expectedTitle?: string,
 ) {
   await page.goto(`/dashboard/pedidos?q=${encodeURIComponent(query)}`);
-  await page.getByRole("link", { name: /ver pedido/i }).first().click();
+  await page.getByRole("link", { name: /abrir pedido/i }).first().click();
   const heading = expectedTitle
     ? page.getByRole("heading", {
         level: 1,

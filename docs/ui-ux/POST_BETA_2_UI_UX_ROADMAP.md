@@ -238,7 +238,7 @@ Según el alcance, deben existir:
 | 6     | Workspace de Solicitudes                     | Cerrada   |
 | 7     | Integración del shell interno                | Cerrada   |
 | 8     | Arquitectura común de listados               | Cerrada   |
-| 9     | Listados operativos de Pedidos y Solicitudes | En curso  |
+| 9     | Listados operativos de Pedidos y Solicitudes | Cerrada   |
 | 10    | Listados administrativos                     | Pendiente |
 | 11    | Dashboard operativo                          | Pendiente |
 | 12    | Páginas internas secundarias                 | Pendiente |
@@ -698,6 +698,10 @@ La Etapa 9 aplicará este patrón a Pedidos y Solicitudes. La Etapa 10 aplicará
 
 ## Etapa 9 — Listados operativos de Pedidos y Solicitudes
 
+### Estado
+
+Cerrada.
+
 ### Objetivo
 
 Rediseñar los dos listados más importantes para la operación diaria.
@@ -763,6 +767,12 @@ La columna `Cliente` muestra el nombre de quien envía la solicitud. La columna 
 La columna `Servicio` muestra el servicio solicitado y también debe reflejar encargo/impresión con color/acento y texto accesible. La columna `Estado` usa badge. La columna `Recibida` usa `created_at`.
 
 `desired_date` no es columna principal. Referencia pública, asociación de cliente y disponibilidad de conversión tampoco son columnas base del listado. Esos datos viven en el workspace de la solicitud o pueden aparecer solo como señales secundarias justificadas.
+
+### 9.3 QA y cierre de listados operativos
+
+Estado: Completado.
+
+Pedidos y Solicitudes quedan validados en conjunto con el patrón común de `ListingPageHeader`, `ListingToolbar`, filas/cards clicables, columnas reducidas y `WorkflowTypeBadge` común.
 
 ### Casos destacados
 

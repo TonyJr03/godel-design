@@ -64,10 +64,10 @@ export function InternalSolicitudesList({
             href={`/dashboard/solicitudes/${solicitud.id}`}
             key={solicitud.id}
             aria-label={`Abrir solicitud de ${solicitud.client_name}`}
-            className="space-y-3"
+            className="space-y-3 overflow-hidden"
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <h2 className="line-clamp-2 text-base font-semibold text-text-primary">
                   {solicitud.client_name}
                 </h2>

@@ -118,10 +118,10 @@ export function InternalPedidosList({
             href={`/dashboard/pedidos/${pedido.id}`}
             key={pedido.id}
             aria-label={`Abrir pedido ${pedido.order_number}`}
-            className="space-y-3"
+            className="space-y-3 overflow-hidden"
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-brand-primary">
                   {pedido.order_number}{" "}
                   <span className="text-text-muted">·</span>{" "}
@@ -150,11 +150,11 @@ export function InternalPedidosList({
         <div className="overflow-x-auto">
           <table className="min-w-full table-fixed divide-y divide-border text-sm">
             <colgroup>
-              <col className="w-[10%]" />
-              <col className="w-[60%]" />
-              <col className="w-[10%]" />
-              <col className="w-[10%]" />
-              <col className="w-[10%]" />
+              <col className="w-[12%]" />
+              <col className="w-[52%]" />
+              <col className="w-[12%]" />
+              <col className="w-[12%]" />
+              <col className="w-[12%]" />
             </colgroup>
             <thead className="bg-surface-muted text-left text-xs font-semibold uppercase tracking-wide text-text-secondary">
               <tr>
