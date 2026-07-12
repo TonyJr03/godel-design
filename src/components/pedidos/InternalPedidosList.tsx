@@ -150,11 +150,11 @@ export function InternalPedidosList({
         <div className="overflow-x-auto">
           <table className="min-w-full table-fixed divide-y divide-border text-sm">
             <colgroup>
-              <col className="w-[18%]" />
-              <col className="w-[40%]" />
-              <col className="w-[14%]" />
-              <col className="w-[14%]" />
-              <col className="w-[14%]" />
+              <col className="w-[10%]" />
+              <col className="w-[60%]" />
+              <col className="w-[10%]" />
+              <col className="w-[10%]" />
+              <col className="w-[10%]" />
             </colgroup>
             <thead className="bg-surface-muted text-left text-xs font-semibold uppercase tracking-wide text-text-secondary">
               <tr>

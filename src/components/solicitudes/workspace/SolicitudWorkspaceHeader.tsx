@@ -3,10 +3,9 @@ import { ArrowLeft } from "lucide-react";
 
 import { CopyableCode } from "@/components/common/CopyableCode";
 import { StatusBadge } from "@/components/ui";
+import { WorkflowTypeBadge } from "@/components/ui/WorkflowTypeBadge";
 import type { InternalSolicitudDetail } from "@/lib/solicitudes";
 import { getSolicitudServiceTypeLabel } from "@/lib/solicitudes";
-
-import { WorkflowTypeBadge } from "../WorkflowTypeBadge";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("es", {
   day: "2-digit",

@@ -96,8 +96,8 @@ export function InternalSolicitudesList({
         <div className="overflow-x-auto">
           <table className="min-w-full table-fixed divide-y divide-border text-sm">
             <colgroup>
-              <col className="w-[26%]" />
-              <col className="w-[30%]" />
+              <col className="w-[24%]" />
+              <col className="w-[32%]" />
               <col className="w-[20%]" />
               <col className="w-[12%]" />
               <col className="w-[12%]" />

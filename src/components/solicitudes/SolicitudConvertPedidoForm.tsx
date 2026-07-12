@@ -6,7 +6,7 @@ import type {
   ConvertSolicitudToPedidoActionState,
   SolicitudDetailAction,
 } from "@/app/(interno)/dashboard/solicitudes/[id]/actions";
-import { WorkflowTypeBadge } from "@/components/solicitudes/WorkflowTypeBadge";
+import { WorkflowTypeBadge } from "@/components/ui/WorkflowTypeBadge";
 import { PEDIDO_PRIORITY_LABELS } from "@/lib/pedidos/labels";
 import { PEDIDO_PRIORITIES } from "@/lib/pedidos/status";
 import { getSolicitudServiceTypeLabel } from "@/lib/solicitudes/labels";
