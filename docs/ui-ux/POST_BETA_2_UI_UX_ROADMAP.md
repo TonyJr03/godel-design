@@ -236,8 +236,8 @@ Según el alcance, deben existir:
 | 4     | Primitivas compartidas de workspace          | Cerrada   |
 | 5     | Workspace de Pedidos                         | Cerrada   |
 | 6     | Workspace de Solicitudes                     | Cerrada   |
-| 7     | Integración del shell interno                | Siguiente |
-| 8     | Arquitectura común de listados               | Pendiente |
+| 7     | Integración del shell interno                | Cerrada   |
+| 8     | Arquitectura común de listados               | En curso  |
 | 9     | Listados operativos de Pedidos y Solicitudes | Pendiente |
 | 10    | Listados administrativos                     | Pendiente |
 | 11    | Dashboard operativo                          | Pendiente |
@@ -463,9 +463,11 @@ Cerrada.
 
 ---
 
-# 7. Etapas pendientes
-
 ## Etapa 7 — Integración del shell interno
+
+### Estado
+
+Cerrada.
 
 ### Objetivo
 
@@ -586,11 +588,17 @@ Probar el shell completo en todos los breakpoints y roles.
 
 ---
 
+# 7. Etapas activas y pendientes
+
 ## Etapa 8 — Arquitectura común de listados
 
 ### Objetivo
 
 Definir una arquitectura visual y técnica compartida para los listados internos antes de rediseñar cada dominio.
+
+### Estado
+
+En curso.
 
 ### Listados incluidos en la auditoría
 
@@ -662,7 +670,7 @@ Los nombres definitivos se decidirán después de la auditoría.
 ### Entregables
 
 ```text
-docs/ui-ux/INTERNAL_LISTS_SPEC.md
+docs/ui-ux/INTERNAL_LISTINGS_SPEC.md
 ```
 
 Posibles componentes comunes dentro de:
@@ -674,6 +682,17 @@ src/components/lists/
 ### Criterio de cierre
 
 Existe un contrato documentado y probado para construir los listados operativos y administrativos sin duplicación innecesaria.
+
+### Decisiones documentadas en Etapa 8
+
+* búsqueda compacta;
+* filtros compactos;
+* chips de filtros activos;
+* filas y cards clicables;
+* columnas reducidas;
+* URL con `searchParams`.
+
+La Etapa 9 aplicará este patrón a Pedidos y Solicitudes. La Etapa 10 aplicará el mismo patrón a Clientes, Usuarios y Configuración / plantillas.
 
 ---
 
@@ -687,27 +706,25 @@ Rediseñar los dos listados más importantes para la operación diaria.
 
 ### 9.1 Listado de Pedidos
 
-Debe permitir reconocer rápidamente:
+Debe aplicar la estructura final definida en la especificación de listados:
 
-* número de pedido;
-* título;
-* workflow;
-* cliente;
-* estado;
-* prioridad;
-* progreso;
-* pago;
-* personal;
-* fecha de entrega;
-* alertas operativas.
+```text
+Pedido | Trabajo | Estado | Pago | Entrega
+```
+
+La columna `Pedido` muestra `order_number`. No muestra UUIDs ni referencias internas cortas. El tipo de flujo puede reflejarse mediante color/acento, azul para encargo y naranja para impresión, siempre con texto accesible y nunca solo con color.
+
+La columna `Trabajo` muestra el título del pedido y una descripción breve. La columna `Estado` usa badge. La columna `Pago` usa badge. La columna `Entrega` muestra la fecha estimada de entrega y debe llamarse `Entrega`, no `Entrega estimada`.
+
+Prioridad, progreso, personal, cliente y alertas operativas no son columnas base del listado. Esos datos viven en el workspace del pedido o pueden aparecer solo como señales secundarias puntuales si se justifican durante la Etapa 9.
 
 ### Jerarquía orientativa
 
 ```text
-P-26-0347 · Título del pedido
-Cliente · Encargo · Prioridad alta
-[En producción] [60 %] [Pago parcial]
-Entrega: 18 jul · Personal: Ana, Pedro
+P-26-0347 · Encargo
+Título del pedido · descripción breve
+[En producción] [Pago parcial]
+Entrega: 18 jul
 ```
 
 ### Casos destacados
@@ -731,17 +748,17 @@ Entrega: 18 jul · Personal: Ana, Pedro
 
 ### 9.2 Listado de Solicitudes
 
-Debe priorizar:
+Debe aplicar la estructura final definida en la especificación de listados:
 
-* referencia pública;
-* cliente;
-* workflow;
-* servicio;
-* estado;
-* fecha de recepción;
-* fecha deseada;
-* asociación de cliente;
-* disponibilidad de conversión.
+```text
+Cliente | Contacto | Servicio | Estado | Recibida
+```
+
+La columna `Cliente` muestra el nombre de quien envía la solicitud. La columna `Contacto` muestra el teléfono principal; el email puede mostrarse como texto secundario discreto si existe.
+
+La columna `Servicio` muestra el servicio solicitado y también debe reflejar encargo/impresión con color/acento y texto accesible. La columna `Estado` usa badge. La columna `Recibida` usa `created_at`.
+
+`desired_date` no es columna principal. Referencia pública, asociación de cliente y disponibilidad de conversión tampoco son columnas base del listado. Esos datos viven en el workspace de la solicitud o pueden aparecer solo como señales secundarias justificadas.
 
 ### Casos destacados
 
@@ -1319,28 +1336,26 @@ No introducir paginación, caché, virtualización o paralelización compleja si
 
 La siguiente etapa oficial de esta iniciativa es:
 
-# Etapa 7 — Integración del shell interno
+# Etapa 8 — Arquitectura común de listados
 
-Su primera subtarea será:
+Su primera subtarea es:
 
 ```text
-7.1 — Auditoría y especificación del shell interno
+8.1 — Especificación de arquitectura común de listados internos
 ```
 
-El primer entregable será:
+El primer entregable es:
 
 ```text
-docs/ui-ux/INTERNAL_SHELL_SPEC.md
+docs/ui-ux/INTERNAL_LISTINGS_SPEC.md
 ```
 
 Después se revisarán progresivamente:
 
-* shell desktop;
-* navegación móvil;
-* modos de scroll;
-* accesibilidad;
-* integración con workspaces;
-* QA y cierre.
+* primitivas comunes mínimas;
+* aplicación a Pedidos y Solicitudes;
+* aplicación a listados administrativos;
+* QA responsive y accesible por etapa.
 
 ---
 
