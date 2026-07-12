@@ -381,6 +381,16 @@ async function captureViewport(page: Page, name: string, viewport: { width: numb
   qaState.screenshots.push(`test-results/beta-1-8-3-${name}.png`);
 }
 
+async function captureNamedScreenshot(
+  page: Page,
+  path: string,
+  viewport: { width: number; height: number },
+) {
+  await page.setViewportSize(viewport);
+  await page.screenshot({ path, fullPage: true });
+  qaState.screenshots.push(path);
+}
+
 async function getRequiredBox(locator: Locator) {
   const box = await locator.boundingBox();
 
@@ -576,6 +586,27 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   await expect(page.getByRole("link", { name: /solicitudes/i })).toBeVisible();
   await expect(page.getByRole("link", { name: /pedidos/i })).toBeVisible();
   await expect(page.getByRole("link", { name: /usuarios/i })).toBeVisible();
+  await captureNamedScreenshot(
+    page,
+    "test-results/beta-2-shell-dashboard-desktop-expanded-1366.png",
+    { width: 1366, height: 768 },
+  );
+  await page.getByRole("button", { name: /contraer barra lateral/i }).click();
+  await captureNamedScreenshot(
+    page,
+    "test-results/beta-2-shell-dashboard-desktop-collapsed-1366.png",
+    { width: 1366, height: 768 },
+  );
+  await page.getByRole("button", { name: /expandir barra lateral/i }).click();
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto("/dashboard");
+  await page.locator("summary").filter({ hasText: /men/i }).click();
+  await captureNamedScreenshot(
+    page,
+    "test-results/beta-2-shell-dashboard-mobile-menu-375.png",
+    { width: 375, height: 812 },
+  );
+  await page.goto("/dashboard");
   await captureViewport(page, "admin-dashboard-desktop", { width: 1366, height: 768 });
   await captureViewport(page, "admin-dashboard-mobile", { width: 390, height: 844 });
   await page.setViewportSize({ width: 1440, height: 900 });

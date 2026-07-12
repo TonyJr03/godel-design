@@ -516,6 +516,9 @@ Viewports mínimos para validar:
 - Pruebas responsive.
 - Screenshots.
 - Full Visual QA si corresponde.
+- Cierre documentado en `docs/ui-ux/INTERNAL_SHELL_QA_REPORT.md`.
+- La navegacion movil con `<details>` queda aceptada para esta etapa si la QA focal y Full Visual QA pasan.
+- Cualquier deuda aceptada del shell queda registrada en el reporte de QA.
 
 ## 16. Riesgos
 
