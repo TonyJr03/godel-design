@@ -22,7 +22,7 @@ export function DashboardSidebar({
 
   return (
     <>
-      <DashboardMobileNav items={visibleNavItems} />
+      <DashboardMobileNav items={visibleNavItems} profile={profile} />
       <DashboardDesktopSidebar
         items={visibleNavItems}
         profile={profile}

@@ -46,13 +46,12 @@ El shell no contiene lógica de negocio. Su responsabilidad es componer navegaci
 ### `DashboardMobileNav`
 
 - Usa `<details>`.
-- Muestra texto plano `Godel Diseño`.
-- Muestra subtítulo `Gestión operativa`.
+- Muestra el logo horizontal para fondo oscuro.
 - Muestra botón `Menú` con icono de Lucide.
 - Lista los enlaces visibles por rol.
 - Cierra al navegar mediante `DashboardNavLink`.
-- No muestra todavía usuario autenticado.
-- No usa todavía logo.
+- Muestra usuario autenticado y rol legible dentro del menú.
+- Mantiene logout separado del bloque de usuario.
 
 ### `DashboardNavLink`
 
@@ -331,6 +330,7 @@ La navegación móvil debe:
 - Cerrar al navegar.
 - Mostrar información de usuario.
 - Mostrar logout.
+- Separar solo el logout con una línea, sin poner borde encima del usuario.
 - No interferir con la barra móvil de workspaces.
 - No producir doble navegación visible.
 
@@ -340,6 +340,8 @@ Pendiente de validación futura:
 - Si se necesita un componente cliente dedicado.
 
 No se debe introducir un drawer avanzado sin evidencia.
+
+La convivencia final con barras móviles de workspace, dialogs y bottom sheets se validará en la QA responsive de 7.6.
 
 ## 11. Modos de página
 
