@@ -237,8 +237,8 @@ Según el alcance, deben existir:
 | 5     | Workspace de Pedidos                         | Cerrada   |
 | 6     | Workspace de Solicitudes                     | Cerrada   |
 | 7     | Integración del shell interno                | Cerrada   |
-| 8     | Arquitectura común de listados               | En curso  |
-| 9     | Listados operativos de Pedidos y Solicitudes | Pendiente |
+| 8     | Arquitectura común de listados               | Cerrada   |
+| 9     | Listados operativos de Pedidos y Solicitudes | En curso  |
 | 10    | Listados administrativos                     | Pendiente |
 | 11    | Dashboard operativo                          | Pendiente |
 | 12    | Páginas internas secundarias                 | Pendiente |
@@ -598,7 +598,7 @@ Definir una arquitectura visual y técnica compartida para los listados internos
 
 ### Estado
 
-En curso.
+Cerrada.
 
 ### Listados incluidos en la auditoría
 
@@ -705,6 +705,8 @@ Rediseñar los dos listados más importantes para la operación diaria.
 ---
 
 ### 9.1 Listado de Pedidos
+
+Estado: Completado.
 
 Debe aplicar la estructura final definida en la especificación de listados:
 

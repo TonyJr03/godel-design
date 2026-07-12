@@ -1,17 +1,19 @@
-import Link from "next/link";
-
-import { Card } from "@/components/ui/Card";
+import {
+  ClickableTableRow,
+  ListingCardLink,
+} from "@/components/listing";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { PriorityBadge } from "@/components/ui/PriorityBadge";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { formatMoney } from "@/lib/format/money";
 import {
   PEDIDO_PAYMENT_STATUS_LABELS,
   type InternalPedido,
 } from "@/lib/pedidos";
-import { getSolicitudServiceTypeLabel } from "@/lib/solicitudes";
-import { WORKFLOW_TYPES } from "@/lib/workflow-types";
-import { PedidoWorkflowTypeBadge } from "./PedidoWorkflowTypeBadge";
+import {
+  WORKFLOW_TYPES,
+  WORKFLOW_TYPE_LABELS,
+  type WorkflowType,
+} from "@/lib/workflow-types";
 
 type InternalPedidosListProps = {
   pedidos: InternalPedido[];
@@ -26,12 +28,11 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("es", {
   timeZone: "UTC",
 });
 
-const actionLinkClasses =
-  "inline-flex min-h-11 items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-4 text-sm font-semibold text-brand-primary transition-colors duration-200 hover:border-brand-primary hover:bg-brand-primary-soft";
-
-function formatShortReference(id: string): string {
-  return id.slice(0, 8).toUpperCase();
-}
+const workflowTypeClasses: Record<WorkflowType, string> = {
+  [WORKFLOW_TYPES.ENCARGO]: "border-info/30 bg-info-soft text-info",
+  [WORKFLOW_TYPES.IMPRESION]:
+    "border-brand-accent/30 bg-brand-accent-soft text-brand-accent",
+};
 
 function formatDate(value: string | null): string {
   if (!value) {
@@ -39,67 +40,6 @@ function formatDate(value: string | null): string {
   }
 
   return DATE_FORMATTER.format(new Date(value));
-}
-
-function getTrabajadoresLabel(pedido: InternalPedido): string {
-  if (pedido.pedido_trabajadores.length === 0) {
-    return "Sin asignar";
-  }
-
-  return pedido.pedido_trabajadores
-    .map((asignacion) =>
-      asignacion.perfiles?.full_name?.trim()
-        ? asignacion.perfiles.full_name
-        : "Usuario asignado",
-    )
-    .join(", ");
-}
-
-function getClienteLabel(pedido: InternalPedido): string {
-  if (pedido.clientes?.name) {
-    return pedido.clientes.name;
-  }
-
-  return pedido.cliente_id ? "Cliente asociado" : "Sin cliente asociado";
-}
-
-function getProgressLabel(pedido: InternalPedido): string {
-  if (pedido.workflow_type === WORKFLOW_TYPES.IMPRESION) {
-    return "Flujo directo";
-  }
-
-  if (!pedido.taskProgress.hasTasks) {
-    return "Sin tareas";
-  }
-
-  if (pedido.taskProgress.isComplete) {
-    return `${pedido.taskProgress.completedTasks} de ${pedido.taskProgress.totalTasks} tareas completadas`;
-  }
-
-  return `${pedido.taskProgress.progressPercentage}% completado · ${pedido.taskProgress.pendingTasks} pendientes`;
-}
-
-function getProgressBadgeClasses(pedido: InternalPedido): string {
-  if (pedido.workflow_type === WORKFLOW_TYPES.IMPRESION) {
-    return "border-brand-accent/30 bg-brand-accent-soft text-brand-accent";
-  }
-
-  return pedido.taskProgress.isComplete
-    ? "border-success/30 bg-success-soft text-success"
-    : "border-border-strong bg-surface-muted text-text-secondary";
-}
-
-function ProgressBadge({ pedido }: { pedido: InternalPedido }) {
-  return (
-    <span
-      className={[
-        "inline-flex rounded-(--radius-control) border px-2.5 py-1 text-xs font-semibold",
-        getProgressBadgeClasses(pedido),
-      ].join(" ")}
-    >
-      {getProgressLabel(pedido)}
-    </span>
-  );
 }
 
 function getPaymentBadgeClasses(pedido: InternalPedido): string {
@@ -132,8 +72,27 @@ function getPaymentPendingLabel(pedido: InternalPedido): string | null {
   return `Pendiente: ${formatMoney(pedido.payment.pendingAmount)}`;
 }
 
-function PaymentBadge({ pedido }: { pedido: InternalPedido }) {
-  const pendingLabel = getPaymentPendingLabel(pedido);
+function WorkflowTypePill({ workflowType }: { workflowType: WorkflowType }) {
+  return (
+    <span
+      className={[
+        "inline-flex rounded-(--radius-control) border px-2.5 py-1 text-xs font-semibold",
+        workflowTypeClasses[workflowType],
+      ].join(" ")}
+    >
+      {WORKFLOW_TYPE_LABELS[workflowType]}
+    </span>
+  );
+}
+
+function PaymentBadge({
+  pedido,
+  compact = false,
+}: {
+  pedido: InternalPedido;
+  compact?: boolean;
+}) {
+  const pendingLabel = compact ? null : getPaymentPendingLabel(pedido);
 
   return (
     <div className="inline-flex flex-col items-start gap-1">
@@ -156,7 +115,7 @@ function PaymentBadge({ pedido }: { pedido: InternalPedido }) {
 
 export function InternalPedidosList({
   pedidos,
-  emptyMessage = "Cuando existan pedidos internos, aparecerán aquí ordenados por fecha de creación.",
+  emptyMessage = "Crea el primer pedido para comenzar a gestionar el trabajo.",
   hasActiveFilters = false,
 }: InternalPedidosListProps) {
   if (pedidos.length === 0) {
@@ -165,8 +124,8 @@ export function InternalPedidosList({
         variant={hasActiveFilters ? "search" : "default"}
         title={
           hasActiveFilters
-            ? "Sin resultados para estos filtros"
-            : "No hay pedidos para mostrar"
+            ? "No encontramos pedidos con estos filtros."
+            : "No hay pedidos registrados todavía."
         }
         description={emptyMessage}
       />
@@ -175,89 +134,47 @@ export function InternalPedidosList({
 
   return (
     <>
-      <div className="grid gap-4 xl:hidden" aria-label="Pedidos">
+      <div className="grid gap-3 xl:hidden" aria-label="Pedidos">
         {pedidos.map((pedido) => (
-          <Card
-            as="article"
+          <ListingCardLink
+            href={`/dashboard/pedidos/${pedido.id}`}
             key={pedido.id}
-            padding="sm"
-            className="shadow-(--shadow-soft)"
+            aria-label={`Abrir pedido ${pedido.order_number}`}
+            className="space-y-3"
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-brand-primary">
-                  {pedido.order_number}
+                  {pedido.order_number}{" "}
+                  <span className="text-text-muted">·</span>{" "}
+                  <span className="text-text-secondary">
+                    {WORKFLOW_TYPE_LABELS[pedido.workflow_type]}
+                  </span>
                 </p>
-                <h2 className="mt-1 text-lg font-semibold text-text-primary">
+                <h2 className="mt-1 line-clamp-2 text-base font-semibold text-text-primary">
                   {pedido.title}
                 </h2>
-                <p className="mt-1 text-sm text-text-secondary">
-                  {getClienteLabel(pedido)}
-                </p>
               </div>
               <div className="flex flex-wrap justify-end gap-2">
-                <PedidoWorkflowTypeBadge
-                  workflowType={pedido.workflow_type}
-                />
                 <StatusBadge status={pedido.status} />
-                <PriorityBadge priority={pedido.priority} />
+                <PaymentBadge pedido={pedido} compact />
               </div>
             </div>
 
-            <div className="mt-4">
-              <div className="flex flex-wrap gap-2">
-                <ProgressBadge pedido={pedido} />
-                <PaymentBadge pedido={pedido} />
-              </div>
-            </div>
-
-            <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <dt className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-                  Entrega estimada
-                </dt>
-                <dd className="mt-1 text-text-primary">
-                  {formatDate(pedido.estimated_delivery_date)}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-                  Personal
-                </dt>
-                <dd className="mt-1 text-text-primary">
-                  {getTrabajadoresLabel(pedido)}
-                </dd>
-              </div>
-            </dl>
-
-            <div className="mt-4 border-t border-border pt-4">
-              <Link
-                href={`/dashboard/pedidos/${pedido.id}`}
-                className={`${actionLinkClasses} w-full`}
-              >
-                Ver pedido
-              </Link>
-            </div>
-          </Card>
+            <p className="text-sm text-text-secondary">
+              Entrega: {formatDate(pedido.estimated_delivery_date)}
+            </p>
+          </ListingCardLink>
         ))}
       </div>
 
       <div className="hidden overflow-hidden rounded-(--radius-card) border border-border bg-surface shadow-(--shadow-soft) xl:block">
         <div className="overflow-x-auto">
-          <table className="min-w-300 divide-y divide-border text-sm">
+          <table className="min-w-full divide-y divide-border text-sm">
             <thead className="bg-surface-muted text-left text-xs font-semibold uppercase tracking-wide text-text-secondary">
               <tr>
                 <th scope="col" className="px-4 py-3">
                   Pedido
-                </th>
-                <th scope="col" className="px-4 py-3">
-                  Tipo
-                </th>
-                <th scope="col" className="px-4 py-3">
-                  Cliente
-                </th>
-                <th scope="col" className="px-4 py-3">
-                  Solicitud
                 </th>
                 <th scope="col" className="px-4 py-3">
                   Trabajo
@@ -266,74 +183,30 @@ export function InternalPedidosList({
                   Estado
                 </th>
                 <th scope="col" className="px-4 py-3">
-                  Prioridad
-                </th>
-                <th scope="col" className="px-4 py-3">
-                  Progreso
-                </th>
-                <th scope="col" className="px-4 py-3">
                   Pago
                 </th>
                 <th scope="col" className="px-4 py-3">
-                  Personal
-                </th>
-                <th scope="col" className="px-4 py-3">
-                  Creación
-                </th>
-                <th scope="col" className="px-4 py-3">
-                  Entrega estimada
-                </th>
-                <th scope="col" className="px-4 py-3 text-right">
-                  Acción
+                  Entrega
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border bg-surface">
               {pedidos.map((pedido) => (
-                <tr
+                <ClickableTableRow
                   key={pedido.id}
-                  className="align-top transition-colors duration-200 hover:bg-brand-primary-soft/50"
+                  href={`/dashboard/pedidos/${pedido.id}`}
+                  label={`Abrir pedido ${pedido.order_number}`}
+                  className="align-top"
                 >
                   <td className="whitespace-nowrap px-4 py-4">
                     <div className="font-semibold text-text-primary">
                       {pedido.order_number}
                     </div>
-                    <div className="mt-1 font-mono text-xs text-text-muted">
-                      {formatShortReference(pedido.id)}
+                    <div className="mt-2">
+                      <WorkflowTypePill workflowType={pedido.workflow_type} />
                     </div>
                   </td>
-                  <td className="whitespace-nowrap px-4 py-4">
-                    <PedidoWorkflowTypeBadge
-                      workflowType={pedido.workflow_type}
-                    />
-                  </td>
-                  <td className="px-4 py-4 text-text-secondary">
-                    {getClienteLabel(pedido)}
-                  </td>
-                  <td className="px-4 py-4 text-text-secondary">
-                    {pedido.solicitudes ? (
-                      <div>
-                        <div>
-                          {getSolicitudServiceTypeLabel(
-                            pedido.solicitudes.service_type,
-                          )}
-                        </div>
-                        <div className="mt-1 font-mono text-xs text-text-muted">
-                          {formatShortReference(pedido.solicitudes.id)}
-                        </div>
-                      </div>
-                    ) : pedido.solicitud_id ? (
-                      <div>
-                        <div>Solicitud asociada</div>
-                        <div className="mt-1 font-mono text-xs text-text-muted">
-                          {formatShortReference(pedido.solicitud_id)}
-                        </div>
-                      </div>
-                    ) : (
-                      "Manual"
-                    )}
-                  </td>
-                  <td className="min-w-64 px-4 py-4 text-text-secondary">
+                  <td className="min-w-80 px-4 py-4 text-text-secondary">
                     <div className="font-semibold text-text-primary">
                       {pedido.title}
                     </div>
@@ -345,32 +218,12 @@ export function InternalPedidosList({
                     <StatusBadge status={pedido.status} />
                   </td>
                   <td className="whitespace-nowrap px-4 py-4">
-                    <PriorityBadge priority={pedido.priority} />
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-4">
-                    <ProgressBadge pedido={pedido} />
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-4">
-                    <PaymentBadge pedido={pedido} />
-                  </td>
-                  <td className="px-4 py-4 text-text-secondary">
-                    {getTrabajadoresLabel(pedido)}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-4 text-text-secondary">
-                    {formatDate(pedido.created_at)}
+                    <PaymentBadge pedido={pedido} compact />
                   </td>
                   <td className="whitespace-nowrap px-4 py-4 text-text-secondary">
                     {formatDate(pedido.estimated_delivery_date)}
                   </td>
-                  <td className="px-4 py-4 text-right">
-                    <Link
-                      href={`/dashboard/pedidos/${pedido.id}`}
-                      className={actionLinkClasses}
-                    >
-                      Ver pedido
-                    </Link>
-                  </td>
-                </tr>
+                </ClickableTableRow>
               ))}
             </tbody>
           </table>
