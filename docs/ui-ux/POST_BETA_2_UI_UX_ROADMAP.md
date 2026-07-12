@@ -822,6 +822,7 @@ Subtareas:
 
 * 10.2.1 Listado de Clientes — Completado.
 * 10.2.2 Detalle de Cliente limpio — Completado.
+* 10.2.3 Pedidos vinculados en Cliente — Completado.
 
 Priorizar:
 
