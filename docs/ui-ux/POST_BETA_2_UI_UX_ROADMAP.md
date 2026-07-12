@@ -818,6 +818,10 @@ Columnas finales:
 Cliente | Teléfono | Correo electrónico | Creación | Actualización
 ```
 
+Subtareas:
+
+* 10.2.1 Listado de Clientes — Completado.
+
 Priorizar:
 
 * listado con patrón común;

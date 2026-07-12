@@ -1,6 +1,7 @@
-import Link from "next/link";
-
-import { Card } from "@/components/ui/Card";
+import {
+  ClickableTableRow,
+  ListingCardLink,
+} from "@/components/listing";
 import { EmptyState } from "@/components/ui/EmptyState";
 import type { InternalCliente } from "@/lib/clientes";
 
@@ -17,15 +18,20 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("es", {
   timeZone: "UTC",
 });
 
-const actionLinkClasses =
-  "inline-flex min-h-11 items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-4 text-sm font-semibold text-brand-primary transition-colors duration-200 hover:border-brand-primary hover:bg-brand-primary-soft";
-
 function formatDate(value: string | null): string {
   if (!value) {
     return "No definida";
   }
 
   return DATE_FORMATTER.format(new Date(value));
+}
+
+function getClienteHref(cliente: InternalCliente): string {
+  return `/dashboard/clientes/${cliente.id}`;
+}
+
+function getClienteLabel(cliente: InternalCliente): string {
+  return `Abrir cliente ${cliente.name}`;
 }
 
 export function InternalClientesList({
@@ -39,8 +45,8 @@ export function InternalClientesList({
         variant={hasActiveFilters ? "search" : "default"}
         title={
           hasActiveFilters
-            ? "Sin resultados para esta búsqueda"
-            : "No hay clientes para mostrar"
+            ? "No encontramos clientes con esta búsqueda."
+            : "No hay clientes registrados todavía."
         }
         description={emptyMessage}
       />
@@ -49,58 +55,43 @@ export function InternalClientesList({
 
   return (
     <>
-      <div className="grid gap-4 xl:hidden" aria-label="Clientes">
+      <div className="grid gap-3 xl:hidden" aria-label="Clientes">
         {clientes.map((cliente) => (
-          <Card
-            as="article"
+          <ListingCardLink
+            href={getClienteHref(cliente)}
             key={cliente.id}
-            padding="sm"
-            className="shadow-(--shadow-soft)"
+            aria-label={getClienteLabel(cliente)}
+            className="space-y-3 overflow-hidden"
           >
-            <h2 className="text-lg font-semibold text-text-primary">
-              {cliente.name}
-            </h2>
-
-            <dl className="mt-4 grid gap-3 text-sm">
-              <div>
-                <dt className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-                  Teléfono
-                </dt>
-                <dd className="mt-1 text-text-primary">{cliente.phone}</dd>
-              </div>
-              <div>
-                <dt className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-                  Correo electrónico
-                </dt>
-                <dd className="mt-1 wrap-break-word text-text-primary">
-                  {cliente.email ?? "No definido"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-                  Actualización
-                </dt>
-                <dd className="mt-1 text-text-primary">
-                  {formatDate(cliente.updated_at)}
-                </dd>
-              </div>
-            </dl>
-
-            <div className="mt-4 border-t border-border pt-4">
-              <Link
-                href={`/dashboard/clientes/${cliente.id}`}
-                className={`${actionLinkClasses} w-full`}
-              >
-                Ver cliente
-              </Link>
+            <div className="min-w-0">
+              <h2 className="truncate text-base font-semibold text-text-primary">
+                {cliente.name}
+              </h2>
+              <p className="mt-1 truncate text-sm text-text-secondary">
+                {cliente.phone}
+              </p>
+              <p className="mt-1 truncate text-sm text-text-secondary">
+                {cliente.email ?? "No definido"}
+              </p>
             </div>
-          </Card>
+
+            <p className="text-sm text-text-secondary">
+              Actualización: {formatDate(cliente.updated_at)}
+            </p>
+          </ListingCardLink>
         ))}
       </div>
 
       <div className="hidden overflow-hidden rounded-(--radius-card) border border-border bg-surface shadow-(--shadow-soft) xl:block">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-border text-sm">
+          <table className="min-w-full table-fixed divide-y divide-border text-sm">
+            <colgroup>
+              <col className="w-[26%]" />
+              <col className="w-[16%]" />
+              <col className="w-[30%]" />
+              <col className="w-[14%]" />
+              <col className="w-[14%]" />
+            </colgroup>
             <thead className="bg-surface-muted text-left text-xs font-semibold uppercase tracking-wide text-text-secondary">
               <tr>
                 <th scope="col" className="px-4 py-3">
@@ -118,25 +109,26 @@ export function InternalClientesList({
                 <th scope="col" className="px-4 py-3">
                   Actualización
                 </th>
-                <th scope="col" className="px-4 py-3 text-right">
-                  Acción
-                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border bg-surface">
               {clientes.map((cliente) => (
-                <tr
+                <ClickableTableRow
                   key={cliente.id}
-                  className="align-top transition-colors duration-200 hover:bg-brand-primary-soft/50"
+                  href={getClienteHref(cliente)}
+                  label={getClienteLabel(cliente)}
+                  className="align-top"
                 >
                   <td className="px-4 py-4 font-semibold text-text-primary">
-                    {cliente.name}
+                    <div className="truncate">{cliente.name}</div>
                   </td>
                   <td className="whitespace-nowrap px-4 py-4 text-text-secondary">
-                    {cliente.phone}
+                    <div className="truncate">{cliente.phone}</div>
                   </td>
                   <td className="px-4 py-4 text-text-secondary">
-                    {cliente.email ?? "No definido"}
+                    <div className="truncate">
+                      {cliente.email ?? "No definido"}
+                    </div>
                   </td>
                   <td className="whitespace-nowrap px-4 py-4 text-text-secondary">
                     {formatDate(cliente.created_at)}
@@ -144,15 +136,7 @@ export function InternalClientesList({
                   <td className="whitespace-nowrap px-4 py-4 text-text-secondary">
                     {formatDate(cliente.updated_at)}
                   </td>
-                  <td className="px-4 py-4 text-right">
-                    <Link
-                      href={`/dashboard/clientes/${cliente.id}`}
-                      className={actionLinkClasses}
-                    >
-                      Ver cliente
-                    </Link>
-                  </td>
-                </tr>
+                </ClickableTableRow>
               ))}
             </tbody>
           </table>
