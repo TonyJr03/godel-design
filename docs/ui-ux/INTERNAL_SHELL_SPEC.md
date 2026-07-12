@@ -37,7 +37,7 @@ El shell no contiene lógica de negocio. Su responsabilidad es componer navegaci
 - Filtra `dashboardNavItems` por `canAccessDashboardRoute(role, item.href)`.
 - Renderiza `DashboardMobileNav`.
 - Renderiza un sidebar desktop fijo desde `md`.
-- Usa el ancho actual `w-72`, equivalente a `18rem / 288px`.
+- Usa el ancho expandido `w-64`, equivalente a `16rem / 256px`.
 - Usa `md:sticky`, `md:top-0` y `md:h-screen`.
 - Muestra texto plano `Godel Diseño`.
 - Muestra el subtítulo `Gestión operativa`.
@@ -169,13 +169,14 @@ El sidebar desktop tendrá dos estados. Ambos deben conservar navegación, logou
 Ancho conceptual:
 
 ```text
-18rem / 288px
+16rem / 256px
 ```
 
 Contenido:
 
 - Logo horizontal para fondo oscuro.
 - Botón para colapsar.
+- Logo y botón se alinean en la misma fila.
 - Navegación con icono y texto.
 - Item activo claramente visible.
 - Usuario autenticado.
@@ -193,7 +194,7 @@ Ancho conceptual:
 Contenido:
 
 - Símbolo `godel-diseno-mark.png`.
-- Botón para expandir.
+- Botón para expandir en la misma zona de marca.
 - Navegación solo con iconos.
 - Item activo claramente visible.
 - Icono de usuario.
@@ -201,7 +202,9 @@ Contenido:
 - Nombres accesibles completos.
 - `title` o tooltip sencillo para usuarios de ratón.
 
-El colapso no debe ocultar funcionalidad y no debe aplicarse en móvil.
+El botón de expandir en modo colapsado debe estar centrado sobre la marca y aparecer con hover o foco sobre la zona de marca, sin ocupar una fila propia ni desplazar la navegación. Tras contraer la barra, debe evitar quedar visible inmediatamente hasta que el puntero salga y vuelva a entrar, manteniendo aparición por teclado. Los estilos de foco deben usar indicadores visibles sin combinaciones conflictivas de clases CSS.
+
+El colapso no debe ocultar funcionalidad y no debe aplicarse en móvil. En modo colapsado, un clic en espacios vacíos del sidebar puede expandir la barra, pero no debe interferir con enlaces, botones, formularios ni logout.
 
 ## 7. Persistencia del colapso
 
@@ -383,7 +386,7 @@ Reglas:
 
 ## 12. Geometría, ancho y scroll
 
-- Sidebar expandido ocupa `18rem`.
+- Sidebar expandido ocupa `16rem`.
 - Sidebar colapsado ocupa `5rem`.
 - `main` usa `min-w-0`.
 - El contenido conserva `max-w-screen-2xl`.
@@ -439,6 +442,7 @@ Viewports mínimos para validar:
 - Bloque informativo, no interactivo.
 - Texto truncado visualmente.
 - Nombre completo accesible.
+- La línea inferior separa solo el logout; no debe aparecer una línea encima del bloque de usuario.
 
 ## 14. Movimiento
 

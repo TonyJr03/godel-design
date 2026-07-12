@@ -18,7 +18,7 @@ type DashboardNavLinkProps = {
   href: string;
   label: string;
   icon: DashboardNavIconName;
-  variant?: "desktop" | "mobile";
+  variant?: "desktop" | "desktopCollapsed" | "mobile";
 };
 
 const NAV_ICONS = {
@@ -33,6 +33,13 @@ const NAV_ICONS = {
 const variantClasses = {
   desktop: {
     base: "min-h-11 border-l-4 px-3 py-2.5",
+    active:
+      "border-brand-accent bg-surface text-brand-primary-hover shadow-(--shadow-soft)",
+    inactive:
+      "border-transparent text-white/80 hover:border-white/25 hover:bg-white/10 hover:text-white",
+  },
+  desktopCollapsed: {
+    base: "min-h-11 justify-center border-l-4 px-2 py-2.5",
     active:
       "border-brand-accent bg-surface text-brand-primary-hover shadow-(--shadow-soft)",
     inactive:
@@ -65,18 +72,20 @@ export function DashboardNavLink({
   const isActive = isActivePath(pathname, href);
   const classes = variantClasses[variant];
   const Icon = NAV_ICONS[icon];
+  const isCollapsed = variant === "desktopCollapsed";
 
   return (
     <Link
       href={href}
       aria-current={isActive ? "page" : undefined}
+      title={isCollapsed ? label : undefined}
       onClick={(event) => {
         if (variant === "mobile") {
           event.currentTarget.closest("details")?.removeAttribute("open");
         }
       }}
       className={[
-        "flex items-center gap-3 rounded-(--radius-control) text-sm font-semibold transition-[background-color,border-color,color,box-shadow] duration-200",
+        "flex items-center gap-3 rounded-(--radius-control) text-sm font-semibold transition-[background-color,border-color,color,box-shadow] duration-200 focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2 motion-reduce:transition-none",
         classes.base,
         isActive ? classes.active : classes.inactive,
       ].join(" ")}
@@ -86,7 +95,7 @@ export function DashboardNavLink({
         className="size-5 shrink-0"
         strokeWidth={1.75}
       />
-      <span>{label}</span>
+      <span className={isCollapsed ? "sr-only" : undefined}>{label}</span>
     </Link>
   );
 }
