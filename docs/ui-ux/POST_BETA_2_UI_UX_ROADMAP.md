@@ -812,6 +812,8 @@ docs/ui-ux/ADMIN_CONFIG_STAGE_10_PLAN.md
 
 ### 10.2 Clientes
 
+Estado: Cerrado.
+
 Columnas finales:
 
 ```text
@@ -823,6 +825,7 @@ Subtareas:
 * 10.2.1 Listado de Clientes — Completado.
 * 10.2.2 Detalle de Cliente limpio — Completado.
 * 10.2.3 Pedidos vinculados en Cliente — Completado.
+* 10.2.4 QA de Clientes — Completado.
 
 Priorizar:
 
