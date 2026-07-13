@@ -20,10 +20,6 @@ const simpleTaskTitle = `Disenar arte final QA ${runLabel}`;
 const editedTaskTitle = `Disenar arte final aprobado QA ${runLabel}`;
 const quantifiedTaskTitle = `Imprimir 10 hojas QA ${runLabel}`;
 
-function getTemplateCard(page: Page, name = templateName) {
-  return page.locator("article").filter({ hasText: name }).first();
-}
-
 function getTaskItem(page: Page, title: string) {
   return page.locator("li").filter({ hasText: title }).first();
 }
@@ -43,7 +39,7 @@ async function clickFirstVisible(locator: Locator) {
   throw new Error("No visible element found for locator.");
 }
 
-async function expectBefore(first: Locator, second: Locator) {
+async function isBefore(first: Locator, second: Locator) {
   const secondHandle = await second.elementHandle();
 
   if (!secondHandle) {
@@ -60,7 +56,13 @@ async function expectBefore(first: Locator, second: Locator) {
   }, secondHandle);
 
   await secondHandle.dispose();
-  expect(isBefore).toBe(true);
+  return isBefore;
+}
+
+async function expectBefore(first: Locator, second: Locator) {
+  await expect
+    .poll(() => isBefore(first, second), { timeout: 15_000 })
+    .toBe(true);
 }
 
 async function openPedidoPanel(
@@ -96,14 +98,29 @@ async function getPedidoTaskItem(page: Page, title: string) {
     .first();
 }
 
-async function expectConfigurationLoaded(page: Page) {
+async function expectConfigurationHubLoaded(page: Page) {
   await expect(page).toHaveURL(/\/dashboard\/configuracion/);
   await expect(
     page.getByRole("heading", { name: /configuraci.n/i }),
   ).toBeVisible();
+  await expect(page.getByRole("link", { name: /usuarios/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /plantillas/i })).toBeVisible();
+  await expectNoVisibleSensitiveText(page);
+}
+
+async function expectTemplatesListingLoaded(page: Page) {
+  await expect(page).toHaveURL(/\/dashboard\/configuracion\/plantillas/);
   await expect(
-    page.getByRole("heading", { name: /^plantillas de tareas$/i }),
+    page.getByRole("heading", { name: /^plantillas$/i }),
   ).toBeVisible();
+  await expect(page.getByLabel(/buscar plantillas/i)).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /nueva plantilla/i }),
+  ).toBeVisible();
+  await expect(page.getByText(/^acción$/i)).toHaveCount(0);
+  await expect(
+    page.getByRole("link", { name: /gestionar tareas/i }),
+  ).toHaveCount(0);
   await expectNoVisibleSensitiveText(page);
 }
 
@@ -170,7 +187,7 @@ test("admin can access configuration and non-admin roles are blocked", async ({
 }) => {
   await loginAs(page, "admin");
   await page.goto("/dashboard/configuracion");
-  await expectConfigurationLoaded(page);
+  await expectConfigurationHubLoaded(page);
 
   await loginAs(page, "supervisor");
   await page.goto("/dashboard/configuracion");
@@ -186,7 +203,16 @@ test("admin can create and manage a task template", async ({ page }) => {
 
   await loginAs(page, "admin");
   await page.goto("/dashboard/configuracion");
-  await expectConfigurationLoaded(page);
+  await expectConfigurationHubLoaded(page);
+
+  await page.getByRole("link", { name: /plantillas/i }).click();
+  await expectTemplatesListingLoaded(page);
+
+  await page.getByRole("link", { name: /nueva plantilla/i }).click();
+  await expect(page).toHaveURL(/\/dashboard\/configuracion\/plantillas\/nueva/);
+  await expect(
+    page.getByRole("heading", { level: 1, name: /nueva plantilla/i }),
+  ).toBeVisible();
 
   await page.getByRole("textbox", { name: /^nombre$/i }).fill(templateName);
   await page
@@ -197,84 +223,139 @@ test("admin can create and manage a task template", async ({ page }) => {
     page.getByText(/plantilla creada correctamente/i),
   ).toBeVisible({ timeout: 15_000 });
 
-  let templateCard = getTemplateCard(page);
-  await expect(templateCard).toBeVisible();
+  await page.getByRole("link", { name: /volver a plantillas/i }).click();
+  await expectTemplatesListingLoaded(page);
+
+  await page.getByLabel(/buscar plantillas/i).fill(templateName);
+  await page.getByLabel(/buscar plantillas/i).press("Enter");
+  await expect(page).toHaveURL(/\/dashboard\/configuracion\/plantillas\?q=/);
   await expect(
-    templateCard.locator("p").filter({ hasText: templateDescription }),
+    page.getByRole("link", { name: new RegExp(templateName, "i") }),
   ).toBeVisible();
 
-  await templateCard.getByText(/^editar$/i).click();
-  await templateCard.getByLabel(/descripci.n/i).fill(editedTemplateDescription);
-  await templateCard
-    .getByRole("button", { name: /guardar cambios/i })
+  await page.goto("/dashboard/configuracion/plantillas");
+  await expectTemplatesListingLoaded(page);
+
+  await page
+    .getByRole("link", {
+      name: new RegExp(`abrir plantilla ${templateName}`, "i"),
+    })
     .click();
+  await expect(page).toHaveURL(/\/dashboard\/configuracion\/plantillas\/[^/]+$/);
   await expect(
-    templateCard.getByText(/plantilla actualizada correctamente/i),
-  ).toBeVisible({ timeout: 15_000 });
-
-  await templateCard.getByRole("button", { name: /desactivar/i }).click();
-  await expect(
-    templateCard.getByText(/plantilla desactivada correctamente/i),
-  ).toBeVisible({ timeout: 15_000 });
-  await page.reload();
-
-  templateCard = getTemplateCard(page);
-  await expect(
-    templateCard.getByRole("button", { name: /activar/i }),
+    page.getByRole("heading", { name: templateName, exact: true }),
   ).toBeVisible();
-  await templateCard.getByRole("button", { name: /activar/i }).click();
   await expect(
-    templateCard.getByText(/plantilla activada correctamente/i),
-  ).toBeVisible({ timeout: 15_000 });
-
-  await getTemplateCard(page)
-    .getByRole("link", { name: /gestionar tareas/i })
-    .click();
+    page.getByText(/configuraci.n \/ plantillas de tareas/i),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /editar plantilla/i }),
+  ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: /tareas de la plantilla/i }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /nueva tarea/i }),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: /registro/i })).toBeVisible();
+
+  await page.getByRole("link", { name: /editar plantilla/i }).click();
+  await expect(page).toHaveURL(
+    /\/dashboard\/configuracion\/plantillas\/[^/]+\/editar/,
+  );
+  await expect(
+    page.getByRole("heading", { name: /editar plantilla/i }),
+  ).toBeVisible();
+  await page.getByLabel(/descripci.n/i).fill(editedTemplateDescription);
+  await page.getByRole("combobox", { name: /estado/i }).selectOption("false");
+  await page.getByRole("button", { name: /guardar cambios/i }).click();
+  await expect(
+    page.getByText(/plantilla actualizada correctamente/i),
+  ).toBeVisible({ timeout: 15_000 });
+
+  await page.getByRole("link", { name: /volver a la plantilla/i }).click();
+  await expect(page.getByText(editedTemplateDescription)).toBeVisible();
+  await expect(page.getByText(/^inactiva$/i).first()).toBeVisible();
+
+  await page.getByRole("link", { name: /editar plantilla/i }).click();
+  await page.getByRole("combobox", { name: /estado/i }).selectOption("true");
+  await page.getByRole("button", { name: /guardar cambios/i }).click();
+  await expect(
+    page.getByText(/plantilla actualizada correctamente/i),
+  ).toBeVisible({ timeout: 15_000 });
+
+  await page.getByRole("link", { name: /volver a la plantilla/i }).click();
+  await expect(page.getByText(/^activa$/i).first()).toBeVisible();
+  await expect(page.getByText(editedTemplateDescription)).toBeVisible();
   await expectNoVisibleSensitiveText(page);
 
   await page.getByLabel(/nueva tarea/i).fill(simpleTaskTitle);
-  await page.getByRole("button", { name: /agregar tarea/i }).click();
-  await expect(page.getByText(/tarea agregada correctamente/i)).toBeVisible({
-    timeout: 15_000,
-  });
+  await page.getByRole("button", { name: /^agregar$/i }).click();
+  await expect(
+    page.getByText(/tarea agregada correctamente/i),
+  ).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText(simpleTaskTitle)).toBeVisible();
 
   await page.getByLabel(/nueva tarea/i).fill(quantifiedTaskTitle);
-  await page.getByRole("button", { name: /agregar tarea/i }).click();
+  await page.getByRole("button", { name: /^agregar$/i }).click();
   await expect(page.getByText(/tarea agregada correctamente/i)).toBeVisible({
     timeout: 15_000,
   });
   await expect(page.getByText(quantifiedTaskTitle)).toBeVisible();
-  await expect(page.getByText(/cuantificada/i).first()).toBeVisible();
+  await expect(page.getByText(/cuantificada/i)).toHaveCount(0);
 
   await getTaskItem(page, quantifiedTaskTitle)
-    .getByRole("button", { name: /subir/i })
+    .getByRole("button", { name: /subir tarea/i })
     .click();
-  await expect(page.getByText(/orden actualizado correctamente/i)).toBeVisible({
-    timeout: 15_000,
-  });
   await expect(page.getByText(simpleTaskTitle)).toBeVisible();
   await expect(page.getByText(quantifiedTaskTitle)).toBeVisible();
+  await expectBefore(
+    getTaskItem(page, quantifiedTaskTitle),
+    getTaskItem(page, simpleTaskTitle),
+  );
 
   const simpleTask = getTaskItem(page, simpleTaskTitle);
-  await simpleTask.getByText(/^editar$/i).click();
+  await simpleTask
+    .getByRole("button", {
+      name: new RegExp(`editar tarea ${simpleTaskTitle}`, "i"),
+    })
+    .click();
   await simpleTask.getByLabel(/editar tarea/i).fill(editedTaskTitle);
   await simpleTask.getByRole("button", { name: /guardar tarea/i }).click();
-  await expect(page.getByText(/tarea actualizada correctamente/i)).toBeVisible({
+  await expect(page.getByText(editedTaskTitle)).toBeVisible({
     timeout: 15_000,
   });
-  await expect(page.getByText(editedTaskTitle)).toBeVisible();
 
   await getTaskItem(page, editedTaskTitle)
-    .getByRole("button", { name: /eliminar/i })
+    .getByRole("button", {
+      name: new RegExp(`eliminar tarea ${editedTaskTitle}`, "i"),
+    })
     .click();
   await expect(page.getByText(editedTaskTitle)).toHaveCount(0, {
     timeout: 15_000,
   });
   await expect(page.getByText(quantifiedTaskTitle)).toBeVisible();
+
+  const currentWorkspaceUrl = page.url();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(currentWorkspaceUrl);
+  await expect(
+    page.getByRole("heading", { name: /tareas de la plantilla/i }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /nueva tarea/i }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /editar tarea/i }).first(),
+  ).toBeVisible();
+  const dimensions = await page.evaluate(() => ({
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }));
+
+  expect(dimensions.scrollWidth).toBeLessThanOrEqual(
+    dimensions.clientWidth + 1,
+  );
   await expectNoVisibleSensitiveText(page);
 });
 

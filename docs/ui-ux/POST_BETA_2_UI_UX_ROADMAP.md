@@ -888,11 +888,14 @@ Priorizar:
 
 ### 10.5 Plantillas dentro de Configuración
 
+Estado: Cerrado.
+
 Subtareas:
 
 * 10.5.1 Listado de Plantillas dentro de Configuración — Completado.
 * 10.5.2 Workspace de gestión de Plantilla — Completado.
 * 10.5.3 Reestructuración del workspace de Plantilla — Completado.
+* 10.5.4 QA y cierre de Plantillas — Completado.
 
 Ruta final:
 
