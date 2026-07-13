@@ -852,6 +852,10 @@ Priorizar:
 
 ### 10.4 Usuarios dentro de Configuración
 
+Subtareas:
+
+* 10.4.1 Listado de Usuarios dentro de Configuración — Completado.
+
 Ruta final:
 
 ```text

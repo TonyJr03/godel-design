@@ -1,6 +1,7 @@
-import Link from "next/link";
-
-import { Card } from "@/components/ui/Card";
+import {
+  ClickableTableRow,
+  ListingCardLink,
+} from "@/components/listing";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ROLE_LABELS } from "@/lib/permissions";
@@ -18,9 +19,6 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("es", {
   year: "numeric",
   timeZone: "UTC",
 });
-
-const actionLinkClasses =
-  "inline-flex min-h-11 items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-4 text-sm font-semibold text-brand-primary transition-colors duration-200 hover:border-brand-primary hover:bg-brand-primary-soft";
 
 function formatDate(value: string | null): string {
   if (!value) {
@@ -40,6 +38,14 @@ function getInitials(name: string): string {
   return words.map((word) => word[0]?.toUpperCase() ?? "").join("") || "US";
 }
 
+function getUserEditHref(user: InternalUser): string {
+  return `/dashboard/configuracion/usuarios/${user.id}/editar`;
+}
+
+function getUserLabel(user: InternalUser): string {
+  return `Editar usuario ${user.full_name}`;
+}
+
 function UserIdentity({ user }: { user: InternalUser }) {
   return (
     <div className="flex min-w-0 items-center gap-3">
@@ -47,9 +53,11 @@ function UserIdentity({ user }: { user: InternalUser }) {
         {getInitials(user.full_name)}
       </div>
       <div className="min-w-0">
-        <div className="font-semibold text-text-primary">{user.full_name}</div>
-        <div className="mt-1 font-mono text-xs text-text-muted">
-          {user.id.slice(0, 8).toUpperCase()}
+        <div className="truncate font-semibold text-text-primary">
+          {user.full_name}
+        </div>
+        <div className="mt-1 break-all font-mono text-xs text-text-muted">
+          {user.id}
         </div>
       </div>
     </div>
@@ -77,22 +85,23 @@ export function InternalUsersList({
 
   return (
     <>
-      <div className="grid gap-4 xl:hidden" aria-label="Usuarios internos">
+      <div className="grid gap-3 xl:hidden" aria-label="Usuarios internos">
         {users.map((user) => (
-          <Card
-            as="article"
+          <ListingCardLink
+            href={getUserEditHref(user)}
             key={user.id}
-            padding="sm"
-            className="shadow-(--shadow-soft)"
+            aria-label={getUserLabel(user)}
+            className="space-y-4 overflow-hidden"
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <UserIdentity user={user} />
               <StatusBadge
                 status={user.is_active ? "activo" : "inactivo"}
+                className="shrink-0"
               />
             </div>
 
-            <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+            <dl className="grid grid-cols-2 gap-3 text-sm">
               <div>
                 <dt className="text-xs font-semibold uppercase tracking-wide text-text-muted">
                   Rol
@@ -118,22 +127,21 @@ export function InternalUsersList({
                 </dd>
               </div>
             </dl>
-
-            <div className="mt-4 border-t border-border pt-4">
-              <Link
-                href={`/dashboard/usuarios/${user.id}`}
-                className={`${actionLinkClasses} w-full`}
-              >
-                Ver usuario
-              </Link>
-            </div>
-          </Card>
+          </ListingCardLink>
         ))}
       </div>
 
       <div className="hidden overflow-hidden rounded-(--radius-card) border border-border bg-surface shadow-(--shadow-soft) xl:block">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-border text-sm">
+          <table className="min-w-full table-fixed divide-y divide-border text-sm">
+            <colgroup>
+              <col className="w-[34%]" />
+              <col className="w-[13%]" />
+              <col className="w-[15%]" />
+              <col className="w-[12%]" />
+              <col className="w-[13%]" />
+              <col className="w-[13%]" />
+            </colgroup>
             <thead className="bg-surface-muted text-left text-xs font-semibold uppercase tracking-wide text-text-secondary">
               <tr>
                 <th scope="col" className="px-4 py-3">
@@ -154,16 +162,15 @@ export function InternalUsersList({
                 <th scope="col" className="px-4 py-3">
                   Actualización
                 </th>
-                <th scope="col" className="px-4 py-3 text-right">
-                  Acción
-                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border bg-surface">
               {users.map((user) => (
-                <tr
+                <ClickableTableRow
                   key={user.id}
-                  className="align-top transition-colors duration-200 hover:bg-brand-primary-soft/50"
+                  href={getUserEditHref(user)}
+                  label={getUserLabel(user)}
+                  className="align-top"
                 >
                   <td className="px-4 py-4">
                     <UserIdentity user={user} />
@@ -172,7 +179,9 @@ export function InternalUsersList({
                     {ROLE_LABELS[user.role]}
                   </td>
                   <td className="whitespace-nowrap px-4 py-4 text-text-secondary">
-                    {user.phone?.trim() || "Sin teléfono"}
+                    <div className="truncate">
+                      {user.phone?.trim() || "Sin teléfono"}
+                    </div>
                   </td>
                   <td className="whitespace-nowrap px-4 py-4">
                     <StatusBadge
@@ -185,15 +194,7 @@ export function InternalUsersList({
                   <td className="whitespace-nowrap px-4 py-4 text-text-secondary">
                     {formatDate(user.updated_at)}
                   </td>
-                  <td className="px-4 py-4 text-right">
-                    <Link
-                      href={`/dashboard/usuarios/${user.id}`}
-                      className={actionLinkClasses}
-                    >
-                      Ver usuario
-                    </Link>
-                  </td>
-                </tr>
+                </ClickableTableRow>
               ))}
             </tbody>
           </table>
