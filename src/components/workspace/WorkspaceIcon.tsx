@@ -1,13 +1,17 @@
 import {
+  AlertTriangle,
   ArrowRight,
+  ClipboardList,
   ContactRound,
   CreditCard,
   Files,
   GitBranch,
   History,
   Info,
+  LayoutDashboard,
   ListChecks,
   MessageSquare,
+  PackageCheck,
   UsersRound,
   type LucideIcon,
 } from "lucide-react";
@@ -30,6 +34,10 @@ const workspaceIcons: Record<WorkspaceIconName, LucideIcon> = {
   informacion: Info,
   cliente: ContactRound,
   convertir: ArrowRight,
+  alerta: AlertTriangle,
+  solicitudes: ClipboardList,
+  entrega: PackageCheck,
+  dashboard: LayoutDashboard,
 };
 
 export function WorkspaceIcon({ name, className }: WorkspaceIconProps) {

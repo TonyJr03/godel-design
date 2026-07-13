@@ -1,12 +1,13 @@
 import Link from "next/link";
+import { ExternalLink } from "lucide-react";
 
+import { Alert } from "@/components/ui/Alert";
+import { EmptyState } from "@/components/ui/EmptyState";
 import type {
   DashboardRecentActivityItem,
   GetDashboardRecentActivityResult,
 } from "@/lib/dashboard";
 import { formatAppDateTime } from "@/lib/utils";
-import { Alert } from "@/components/ui/Alert";
-import { EmptyState } from "@/components/ui/EmptyState";
 
 import { DashboardSection } from "./DashboardSection";
 
@@ -93,9 +94,15 @@ export function DashboardRecentActivity({
               </div>
               <Link
                 href={item.href}
-                className="inline-flex min-h-11 items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-3 text-sm font-semibold text-brand-primary transition-colors duration-200 hover:border-brand-primary hover:bg-brand-primary-soft"
+                aria-label={`${getLinkLabel(item.source)}: ${item.title}`}
+                title={getLinkLabel(item.source)}
+                className="inline-flex min-h-11 min-w-11 items-center justify-center justify-self-start rounded-(--radius-control) border border-border-strong bg-surface text-brand-primary transition-colors duration-200 hover:border-brand-primary hover:bg-brand-primary-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:justify-self-end"
               >
-                {getLinkLabel(item.source)}
+                <ExternalLink
+                  aria-hidden="true"
+                  className="h-4 w-4"
+                  strokeWidth={1.75}
+                />
               </Link>
             </article>
           ))}

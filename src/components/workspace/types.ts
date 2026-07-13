@@ -10,7 +10,11 @@ export type WorkspaceIconName =
   | "historial"
   | "informacion"
   | "cliente"
-  | "convertir";
+  | "convertir"
+  | "alerta"
+  | "solicitudes"
+  | "entrega"
+  | "dashboard";
 
 export type WorkspaceActionTone =
   | "default"

@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 import {
   WorkspaceController,
   WorkspaceShell,
@@ -15,7 +13,9 @@ import type {
 import { DashboardAttentionPanel } from "./DashboardAttentionPanel";
 import { DashboardOverview } from "./DashboardOverview";
 import { DashboardPedidoBoard } from "./DashboardPedidoBoard";
+import { DashboardPendingRequestsPanel } from "./DashboardPendingRequestsPanel";
 import { DashboardRecentActivity } from "./DashboardRecentActivity";
+import { DashboardReadyOrdersPanel } from "./DashboardReadyOrdersPanel";
 
 type DashboardWorkspaceProps = {
   summaryResult: GetDashboardSummaryResult;
@@ -61,57 +61,6 @@ function getActivityCount(
   return activityResult.ok ? activityResult.activity.items.length : undefined;
 }
 
-function SolicitudesPendientesPanel({
-  workItemsResult,
-}: {
-  workItemsResult: GetDashboardWorkItemsResult;
-}) {
-  const count = getSolicitudesPendientesCount(workItemsResult) ?? 0;
-
-  return (
-    <div className="rounded-(--radius-control) border border-border bg-surface-muted px-4 py-3">
-      <p className="text-sm font-semibold text-text-primary">
-        {count.toLocaleString("es")} solicitudes requieren atención.
-      </p>
-      <p className="mt-2 text-sm leading-6 text-text-secondary">
-        El listado detallado se mantiene en el contenido principal hasta que el
-        panel final se implemente en la siguiente subtarea.
-      </p>
-    </div>
-  );
-}
-
-function PedidosListosPanel({
-  workItemsResult,
-}: {
-  workItemsResult: GetDashboardWorkItemsResult;
-}) {
-  const readyGroup = workItemsResult.ok
-    ? workItemsResult.workItems.pedidoBoard.listosEntrega
-    : null;
-  const totalCount = readyGroup?.totalCount ?? 0;
-  const moreHref =
-    readyGroup?.moreHref ?? "/dashboard/pedidos?status=listo_entrega";
-
-  return (
-    <div className="rounded-(--radius-control) border border-border bg-surface-muted px-4 py-3">
-      <p className="text-sm font-semibold text-text-primary">
-        {totalCount.toLocaleString("es")} pedidos listos para entrega.
-      </p>
-      <p className="mt-2 text-sm leading-6 text-text-secondary">
-        Las cards compactas se incorporarán en el tablero final. Por ahora, el
-        acceso filtrado permite revisar estos pedidos en el listado existente.
-      </p>
-      <Link
-        href={moreHref}
-        className="mt-4 inline-flex min-h-11 items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-4 text-sm font-semibold text-brand-primary transition-colors duration-200 hover:border-brand-primary hover:bg-brand-primary-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-      >
-        Ver pedidos listos
-      </Link>
-    </div>
-  );
-}
-
 export function DashboardWorkspace({
   summaryResult,
   workItemsResult,
@@ -136,9 +85,7 @@ export function DashboardWorkspace({
             id: "pendingRequests",
             title: "Solicitudes pendientes",
             description: "Solicitudes que todavía requieren gestión.",
-            content: (
-              <SolicitudesPendientesPanel workItemsResult={workItemsResult} />
-            ),
+            content: <DashboardPendingRequestsPanel result={workItemsResult} />,
           },
         }),
     readyOrders: {
@@ -147,7 +94,7 @@ export function DashboardWorkspace({
       description: workerDashboard
         ? "Pedidos asignados en estado listo para entrega."
         : "Pedidos terminados pendientes de entrega.",
-      content: <PedidosListosPanel workItemsResult={workItemsResult} />,
+      content: <DashboardReadyOrdersPanel result={workItemsResult} />,
     },
     history: {
       id: "history",
@@ -166,7 +113,7 @@ export function DashboardWorkspace({
     {
       id: "attention",
       label: "Atención",
-      icon: "estado",
+      icon: "alerta",
       statusLabel: "Prioridades",
       tone: "warning",
     },
@@ -176,7 +123,7 @@ export function DashboardWorkspace({
           {
             id: "pendingRequests",
             label: "Solicitudes",
-            icon: "cliente",
+            icon: "solicitudes",
             badge: getSolicitudesPendientesCount(workItemsResult),
             statusLabel: "Pendientes",
             tone: "warning",
@@ -185,7 +132,7 @@ export function DashboardWorkspace({
     {
       id: "readyOrders",
       label: "Entregas",
-      icon: "tareas",
+      icon: "entrega",
       badge: getPedidosListosCount(workItemsResult),
       statusLabel: "Listos",
       tone: "success",
@@ -200,7 +147,7 @@ export function DashboardWorkspace({
     {
       id: "summary",
       label: "Resumen",
-      icon: "informacion",
+      icon: "dashboard",
       statusLabel: "Métricas",
     },
   ];
