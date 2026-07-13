@@ -12,6 +12,14 @@ type DashboardPendingRequestsPanelProps = {
   result: GetDashboardWorkItemsResult;
 };
 
+function getWorkflowCardClasses(
+  workflowType: DashboardPendingSolicitudItem["workflowType"],
+) {
+  return workflowType === "impresion"
+    ? "border-l-brand-accent"
+    : "border-l-info";
+}
+
 function formatDate(value: string | null): string {
   if (!value) {
     return "Sin fecha";
@@ -34,7 +42,10 @@ function DashboardPendingRequestCard({
     <Link
       href={solicitud.href}
       aria-label={`Abrir solicitud de ${solicitud.clienteNombre}`}
-      className="group block min-w-0 rounded-(--radius-card) border border-border bg-surface p-4 shadow-(--shadow-soft) transition-[background-color,border-color,box-shadow] duration-200 hover:border-brand-primary hover:bg-brand-primary-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      className={[
+        "group block min-w-0 rounded-(--radius-card) border border-l-4 border-border bg-surface p-4 shadow-(--shadow-soft) transition-[background-color,box-shadow] duration-200 hover:bg-brand-primary-soft hover:shadow-(--shadow-soft) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        getWorkflowCardClasses(solicitud.workflowType),
+      ].join(" ")}
     >
       <article className="min-w-0">
         <div className="flex min-w-0 items-start justify-between gap-3">
@@ -94,7 +105,8 @@ export function DashboardPendingRequestsPanel({
     );
   }
 
-  const solicitudes = result.workItems.solicitudesPendientes;
+  const group = result.workItems.solicitudesPendientesGroup;
+  const solicitudes = group.items;
 
   if (solicitudes.length === 0) {
     return (
@@ -108,13 +120,24 @@ export function DashboardPendingRequestsPanel({
   }
 
   return (
-    <div className="grid min-w-0 gap-3">
-      {solicitudes.map((solicitud) => (
-        <DashboardPendingRequestCard
-          key={solicitud.id}
-          solicitud={solicitud}
-        />
-      ))}
+    <div className="min-w-0 space-y-3">
+      <div className="grid min-w-0 gap-3">
+        {solicitudes.map((solicitud) => (
+          <DashboardPendingRequestCard
+            key={solicitud.id}
+            solicitud={solicitud}
+          />
+        ))}
+      </div>
+
+      {group.moreCount > 0 ? (
+        <Link
+          href={group.moreHref}
+          className="inline-flex min-h-10 items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-3 text-sm font-semibold text-brand-primary transition-colors duration-200 hover:border-brand-primary hover:bg-brand-primary-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          +{group.moreCount.toLocaleString("es")} solicitudes más
+        </Link>
+      ) : null}
     </div>
   );
 }

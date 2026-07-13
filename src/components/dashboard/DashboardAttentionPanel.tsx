@@ -94,69 +94,43 @@ export function DashboardAttentionPanel({
 
   if (items.length === 0) {
     return (
-      <section
-        aria-labelledby="dashboard-attention-title"
-        className="rounded-(--radius-card) border border-success/30 bg-success-soft p-5"
-      >
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-success">
-          Operación al día
-        </p>
-        <h2
-          id="dashboard-attention-title"
-          className="mt-2 text-xl font-semibold text-text-primary"
-        >
+      <div className="rounded-(--radius-control) border border-success/30 bg-success-soft px-4 py-3">
+        <p className="text-sm font-semibold text-text-primary">
           No hay incidencias prioritarias
-        </h2>
-        <p className="mt-2 text-sm leading-6 text-text-secondary">
+        </p>
+        <p className="mt-1 text-sm leading-6 text-text-secondary">
           Los indicadores actuales no muestran atrasos, entregas próximas ni
           trabajo pendiente de organizar.
         </p>
-      </section>
+      </div>
     );
   }
 
   return (
-    <section
-      aria-labelledby="dashboard-attention-title"
-      className="rounded-(--radius-card) border border-brand-accent/30 bg-brand-accent-soft p-5 shadow-(--shadow-soft) sm:p-6"
-    >
-      <div className="max-w-3xl">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-accent">
-          Atención operativa
-        </p>
-        <h2
-          id="dashboard-attention-title"
-          className="mt-2 text-xl font-semibold text-text-primary"
+    <div className="grid gap-3">
+      {items.map((item) => (
+        <article
+          key={item.label}
+          className={[
+            "rounded-(--radius-control) border bg-surface px-4 py-3",
+            toneClasses[item.tone],
+          ].join(" ")}
         >
-          Revisa estos puntos primero
-        </h2>
-        <p className="mt-2 text-sm leading-6 text-text-secondary">
-          Indicadores con trabajo pendiente según el estado actual de la
-          operación.
-        </p>
-      </div>
-
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        {items.map((item) => (
-          <article
-            key={item.label}
-            className={[
-              "rounded-(--radius-control) border bg-surface/80 p-4",
-              toneClasses[item.tone],
-            ].join(" ")}
-          >
-            <p className="text-sm font-semibold text-text-primary">
-              {item.label}
-            </p>
-            <p className="mt-2 text-3xl font-semibold tracking-tight">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-text-primary">
+                {item.label}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-text-secondary">
+                {item.detail}
+              </p>
+            </div>
+            <span className="shrink-0 text-2xl font-semibold tracking-tight text-text-primary">
               {item.value.toLocaleString("es")}
-            </p>
-            <p className="mt-2 text-xs leading-5 text-text-secondary">
-              {item.detail}
-            </p>
-          </article>
-        ))}
-      </div>
-    </section>
+            </span>
+          </div>
+        </article>
+      ))}
+    </div>
   );
 }

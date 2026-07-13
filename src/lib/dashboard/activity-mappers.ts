@@ -7,7 +7,7 @@ import type { Json, Tables } from "@/types/database";
 import type { DashboardRecentActivityItem } from "./types";
 
 type PedidoActivityPedido =
-  | Pick<Tables<"pedidos">, "id" | "order_number" | "title">
+  | Pick<Tables<"pedidos">, "id" | "order_number" | "title" | "workflow_type">
   | null;
 
 export type PedidoActivityRow = Pick<
@@ -140,6 +140,12 @@ function getSolicitudTitle(row: SolicitudActivityRow): string {
   }
 
   return "Solicitud";
+}
+
+function getSolicitudWorkflowType(
+  serviceType: string | null,
+): "encargo" | "impresion" {
+  return serviceType === "Impresion" ? "impresion" : "encargo";
 }
 
 function buildPedidoDescription(row: PedidoActivityRow): string {
@@ -318,6 +324,7 @@ export function mapPedidoHistoryRowToDashboardActivity(
   return {
     id: `pedido-${row.id}`,
     source: "pedido",
+    workflowType: row.pedidos?.workflow_type ?? "encargo",
     action: row.action,
     href: `/dashboard/pedidos/${row.pedido_id}`,
     title: getPedidoTitle(row),
@@ -332,6 +339,9 @@ export function mapSolicitudHistoryRowToDashboardActivity(
   return {
     id: `solicitud-${row.id}`,
     source: "solicitud",
+    workflowType: getSolicitudWorkflowType(
+      row.solicitudes?.service_type ?? null,
+    ),
     action: row.action,
     href: `/dashboard/solicitudes/${row.solicitud_id}`,
     title: getSolicitudTitle(row),

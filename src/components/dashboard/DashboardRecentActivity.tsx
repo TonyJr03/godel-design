@@ -21,9 +21,17 @@ const SOURCE_LABELS: Record<DashboardRecentActivityItem["source"], string> = {
 };
 
 const sourceClasses: Record<DashboardRecentActivityItem["source"], string> = {
-  pedido: "border-brand-primary/30 bg-brand-primary-soft text-brand-primary",
-  solicitud: "border-brand-accent/30 bg-brand-accent-soft text-brand-accent",
+  pedido: "border-border bg-surface-muted text-text-primary",
+  solicitud: "border-border bg-surface-muted text-text-primary",
 };
+
+function getWorkflowBorderClass(
+  workflowType: DashboardRecentActivityItem["workflowType"],
+) {
+  return workflowType === "impresion"
+    ? "border-l-brand-accent"
+    : "border-l-info";
+}
 
 function getLinkLabel(source: DashboardRecentActivityItem["source"]): string {
   return source === "pedido" ? "Ver pedido" : "Ver solicitud";
@@ -60,9 +68,7 @@ export function DashboardRecentActivity({
               key={item.id}
               className={[
                 "relative grid gap-3 border-l-4 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start sm:p-5",
-                item.source === "pedido"
-                  ? "border-l-brand-primary"
-                  : "border-l-brand-accent",
+                getWorkflowBorderClass(item.workflowType),
                 index > 0 ? "border-t border-t-border" : "",
               ]
                 .filter(Boolean)

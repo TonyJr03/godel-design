@@ -26,6 +26,7 @@ import type {
   DashboardPedidoBoardGroupKey,
   DashboardPedidoWorkItem,
   DashboardPendingSolicitudItem,
+  DashboardPendingSolicitudesGroup,
   GetDashboardWorkItemsResult,
 } from "./types";
 
@@ -193,6 +194,12 @@ function sortPedidosByAttention(
   });
 }
 
+function getSolicitudWorkflowType(
+  serviceType: string | null,
+): "encargo" | "impresion" {
+  return serviceType === "Impresion" ? "impresion" : "encargo";
+}
+
 function mapSolicitudItem(
   solicitud: PendingSolicitudRow,
 ): DashboardPendingSolicitudItem {
@@ -202,6 +209,7 @@ function mapSolicitudItem(
     clienteNombre: solicitud.client_name,
     clienteTelefono: solicitud.client_phone,
     tipoServicio: getSolicitudServiceTypeLabel(solicitud.service_type),
+    workflowType: getSolicitudWorkflowType(solicitud.service_type),
     status: solicitud.status,
     createdAt: solicitud.created_at,
     fechaDeseada: solicitud.desired_date,
@@ -343,7 +351,7 @@ function buildPedidoBoard(
 }
 
 async function listManagementPendingSolicitudes(): Promise<
-  DashboardPendingSolicitudItem[]
+  DashboardPendingSolicitudesGroup
 > {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -362,14 +370,21 @@ async function listManagementPendingSolicitudes(): Promise<
     );
   }
 
-  return sortPendingSolicitudes(
+  const solicitudes = sortPendingSolicitudes(
     (data ?? []).filter(
       (solicitud) =>
         solicitud.status !== "aprobada" || !solicitud.converted_order_id,
     ),
-  )
-    .slice(0, PENDING_SOLICITUDES_LIMIT)
-    .map(mapSolicitudItem);
+  ).map(mapSolicitudItem);
+  const items = solicitudes.slice(0, PENDING_SOLICITUDES_LIMIT);
+
+  return {
+    items,
+    totalCount: solicitudes.length,
+    visibleLimit: PENDING_SOLICITUDES_LIMIT,
+    moreCount: Math.max(0, solicitudes.length - items.length),
+    moreHref: "/dashboard/solicitudes",
+  };
 }
 
 async function listManagementAttentionPedidos(
@@ -505,7 +520,7 @@ export async function loadDashboardWorkItems(
 
   try {
     if (context.kind === "management") {
-      const [solicitudesPendientes, pedidosAtencion, pedidoBoardItems] =
+      const [solicitudesPendientesGroup, pedidosAtencion, pedidoBoardItems] =
         await Promise.all([
           listManagementPendingSolicitudes(),
           listManagementAttentionPedidos(today, nextSevenDays),
@@ -518,7 +533,8 @@ export async function loadDashboardWorkItems(
         workItems: {
           kind: "management",
           role: context.role,
-          solicitudesPendientes,
+          solicitudesPendientes: solicitudesPendientesGroup.items,
+          solicitudesPendientesGroup,
           pedidosAtencion,
           pedidoBoard: buildPedidoBoard(pedidoBoardItems),
           generatedAt: new Date().toISOString(),

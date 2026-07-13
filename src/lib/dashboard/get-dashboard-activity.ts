@@ -23,7 +23,7 @@ const PEDIDO_ACTIVITY_SELECT = `
   new_value,
   metadata,
   created_at,
-  pedidos(id, order_number, title)
+  pedidos(id, order_number, title, workflow_type)
 `;
 
 const SOLICITUD_ACTIVITY_SELECT = `

@@ -42,7 +42,7 @@ function getSolicitudesPendientesCount(
     return undefined;
   }
 
-  return workItemsResult.workItems.solicitudesPendientes.length;
+  return workItemsResult.workItems.solicitudesPendientesGroup.totalCount;
 }
 
 function getPedidosListosCount(

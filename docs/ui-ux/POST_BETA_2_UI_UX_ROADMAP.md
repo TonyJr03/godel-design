@@ -967,6 +967,8 @@ docs/ui-ux/DASHBOARD_WORKSPACE_STAGE_11_PLAN.md
 * 11.4.2 Scroll natural, rail fijo y ajuste visual de cards — Completado.
 * 11.5 Paneles laterales — Completado.
   Nota: Los paneles de solicitudes pendientes, pedidos listos, historial y resumen quedaron dentro del sistema Workspace; los iconos del dashboard fueron especializados.
+* 11.5.1 Corrección visual y datos de paneles — Completado.
+* 11.5.2 Badge total y hover de cards en paneles — Completado.
 * 11.6 Variante trabajador — Pendiente.
 * 11.7 QA y cierre — Pendiente.
 

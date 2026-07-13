@@ -11,6 +11,14 @@ type DashboardReadyOrdersPanelProps = {
   result: GetDashboardWorkItemsResult;
 };
 
+function getWorkflowCardClasses(
+  workflowType: DashboardPedidoWorkItem["workflowType"],
+) {
+  return workflowType === "impresion"
+    ? "border-l-brand-accent"
+    : "border-l-info";
+}
+
 function formatDate(value: string | null): string {
   if (!value) {
     return "Sin fecha";
@@ -73,7 +81,10 @@ function DashboardReadyOrderCard({
     <Link
       href={pedido.href}
       aria-label={`Abrir pedido ${pedido.numeroPedido}`}
-      className="group block min-w-0 rounded-(--radius-card) border border-border bg-surface p-4 shadow-(--shadow-soft) transition-[background-color,border-color,box-shadow] duration-200 hover:border-brand-primary hover:bg-brand-primary-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      className={[
+        "group block min-w-0 rounded-(--radius-card) border border-l-4 border-border bg-surface p-4 shadow-(--shadow-soft) transition-[background-color,box-shadow] duration-200 hover:bg-brand-primary-soft hover:shadow-(--shadow-soft) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        getWorkflowCardClasses(pedido.workflowType),
+      ].join(" ")}
     >
       <article className="min-w-0">
         <div className="flex min-w-0 items-start justify-between gap-3">

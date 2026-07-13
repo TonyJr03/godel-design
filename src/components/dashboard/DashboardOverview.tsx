@@ -4,7 +4,6 @@ import {
   DashboardSummaryCards,
   type DashboardSummaryCard,
 } from "./DashboardSummaryCards";
-import { DashboardSection } from "./DashboardSection";
 
 type DashboardOverviewProps = {
   result: GetDashboardSummaryResult;
@@ -155,12 +154,5 @@ export function DashboardOverview({ result }: DashboardOverviewProps) {
       ? getManagementCards(result.summary.metrics)
       : getWorkerCards(result.summary.metrics);
 
-  return (
-    <DashboardSection
-      title="Resumen operativo"
-      description="Métricas de contexto para entender el volumen y estado general del trabajo."
-    >
-      <DashboardSummaryCards cards={cards} />
-    </DashboardSection>
-  );
+  return <DashboardSummaryCards cards={cards} compact />;
 }

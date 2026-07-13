@@ -6,6 +6,7 @@ export type {
   DashboardPedidoBoardGroupKey,
   DashboardPedidoWorkItem,
   DashboardPendingSolicitudItem,
+  DashboardPendingSolicitudesGroup,
   DashboardRecentActivityItem,
   GetDashboardRecentActivityResult,
   GetDashboardSummaryResult,

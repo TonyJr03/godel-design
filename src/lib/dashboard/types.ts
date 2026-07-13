@@ -97,6 +97,7 @@ export type DashboardPendingSolicitudItem = {
   clienteNombre: string;
   clienteTelefono: string;
   tipoServicio: string;
+  workflowType: Enums<"workflow_type">;
   status: Enums<"solicitud_estado">;
   createdAt: string;
   fechaDeseada: string | null;
@@ -158,10 +159,19 @@ export type DashboardPedidoBoard = {
   listosEntrega: DashboardPedidoBoardGroup;
 };
 
+export type DashboardPendingSolicitudesGroup = {
+  items: DashboardPendingSolicitudItem[];
+  totalCount: number;
+  visibleLimit: number;
+  moreCount: number;
+  moreHref: string;
+};
+
 export type ManagementDashboardWorkItems = {
   kind: "management";
   role: ManagementDashboardRole;
   solicitudesPendientes: DashboardPendingSolicitudItem[];
+  solicitudesPendientesGroup: DashboardPendingSolicitudesGroup;
   pedidosAtencion: DashboardPedidoWorkItem[];
   pedidoBoard: DashboardPedidoBoard;
   generatedAt: string;
@@ -201,6 +211,7 @@ export type DashboardActivitySource = "pedido" | "solicitud";
 export type DashboardRecentActivityItem = {
   id: string;
   source: DashboardActivitySource;
+  workflowType: Enums<"workflow_type">;
   action:
     | Enums<"pedido_historial_action">
     | Enums<"solicitud_historial_action">;

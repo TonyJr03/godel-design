@@ -7,26 +7,50 @@ export type DashboardSummaryCard = {
 
 type DashboardSummaryCardsProps = {
   cards: DashboardSummaryCard[];
+  compact?: boolean;
 };
 
-export function DashboardSummaryCards({ cards }: DashboardSummaryCardsProps) {
+export function DashboardSummaryCards({
+  cards,
+  compact = false,
+}: DashboardSummaryCardsProps) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+    <div
+      className={
+        compact
+          ? "grid gap-3"
+          : "grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
+      }
+    >
       {cards.map((card) => (
         <article
           key={card.title}
           className={[
-            "min-h-40 rounded-(--radius-card) border p-5 shadow-(--shadow-soft)",
+            compact
+              ? "min-h-0 rounded-(--radius-card) border p-4 shadow-(--shadow-soft)"
+              : "min-h-40 rounded-(--radius-card) border p-5 shadow-(--shadow-soft)",
             toneClasses[card.tone ?? "neutral"],
           ].join(" ")}
         >
           <p className="text-sm font-semibold text-text-secondary">
             {card.title}
           </p>
-          <p className="mt-4 text-3xl font-semibold tracking-tight text-text-primary">
+          <p
+            className={
+              compact
+                ? "mt-2 text-2xl font-semibold tracking-tight text-text-primary"
+                : "mt-4 text-3xl font-semibold tracking-tight text-text-primary"
+            }
+          >
             {card.value.toLocaleString("es")}
           </p>
-          <p className="mt-3 text-sm leading-6 text-text-secondary">
+          <p
+            className={
+              compact
+                ? "mt-2 text-xs leading-5 text-text-secondary"
+                : "mt-3 text-sm leading-6 text-text-secondary"
+            }
+          >
             {card.description}
           </p>
         </article>
