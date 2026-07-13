@@ -39,7 +39,7 @@ function getAttentionItems(
         tone: "warning",
       },
       {
-        label: "Sin tareas",
+        label: "Asignados sin tareas",
         value: metrics.pedidosAsignadosSinTareas,
         detail: "Asignados pendientes de organización de tareas.",
         tone: "warning",
@@ -91,16 +91,20 @@ export function DashboardAttentionPanel({
   }
 
   const items = getAttentionItems(result);
+  const isWorkerSummary = result.summary.kind === "worker";
 
   if (items.length === 0) {
     return (
       <div className="rounded-(--radius-control) border border-success/30 bg-success-soft px-4 py-3">
         <p className="text-sm font-semibold text-text-primary">
-          No hay incidencias prioritarias
+          {isWorkerSummary
+            ? "No tienes incidencias prioritarias"
+            : "No hay incidencias prioritarias"}
         </p>
         <p className="mt-1 text-sm leading-6 text-text-secondary">
-          Los indicadores actuales no muestran atrasos, entregas próximas ni
-          trabajo pendiente de organizar.
+          {isWorkerSummary
+            ? "Tus pedidos asignados no muestran atrasos, entregas próximas ni trabajo pendiente de organizar."
+            : "Los indicadores actuales no muestran atrasos, entregas próximas ni trabajo pendiente de organizar."}
         </p>
       </div>
     );

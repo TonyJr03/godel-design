@@ -75,7 +75,9 @@ export function DashboardWorkspace({
     attention: {
       id: "attention",
       title: "Atención operativa",
-      description: "Señales prioritarias para revisar primero.",
+      description: workerDashboard
+        ? "Señales prioritarias de tus pedidos asignados."
+        : "Señales prioritarias para revisar primero.",
       content: <DashboardAttentionPanel result={summaryResult} />,
     },
     ...(workerDashboard
@@ -99,7 +101,9 @@ export function DashboardWorkspace({
     history: {
       id: "history",
       title: "Historial",
-      description: "Actividad reciente de pedidos y solicitudes.",
+      description: workerDashboard
+        ? "Actividad reciente de tus pedidos asignados."
+        : "Actividad reciente de pedidos y solicitudes.",
       content: <DashboardRecentActivity result={activityResult} />,
     },
     summary: {
@@ -114,7 +118,7 @@ export function DashboardWorkspace({
       id: "attention",
       label: "Atención",
       icon: "alerta",
-      statusLabel: "Prioridades",
+      statusLabel: workerDashboard ? "Mis prioridades" : "Prioridades",
       tone: "warning",
     },
     ...(workerDashboard
@@ -134,7 +138,7 @@ export function DashboardWorkspace({
       label: "Entregas",
       icon: "entrega",
       badge: getPedidosListosCount(workItemsResult),
-      statusLabel: "Listos",
+      statusLabel: workerDashboard ? "Mis listos" : "Listos",
       tone: "success",
     },
     {
@@ -142,13 +146,13 @@ export function DashboardWorkspace({
       label: "Historial",
       icon: "historial",
       badge: getActivityCount(activityResult),
-      statusLabel: "Actividad",
+      statusLabel: workerDashboard ? "Mi actividad" : "Actividad",
     },
     {
       id: "summary",
       label: "Resumen",
       icon: "dashboard",
-      statusLabel: "Métricas",
+      statusLabel: workerDashboard ? "Mis métricas" : "Métricas",
     },
   ];
   const compactActionIds = workerDashboard
@@ -164,7 +168,7 @@ export function DashboardWorkspace({
       </h1>
       <p className="mt-3 max-w-3xl text-sm leading-6 text-text-secondary">
         {workerDashboard
-          ? "Resumen de los pedidos en los que estás asignado."
+          ? "Pedidos donde participas, entregas próximas y señales que requieren tu atención."
           : "Vista diaria de pedidos activos, solicitudes pendientes y señales operativas."}
       </p>
     </header>

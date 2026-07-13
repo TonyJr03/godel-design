@@ -969,7 +969,7 @@ docs/ui-ux/DASHBOARD_WORKSPACE_STAGE_11_PLAN.md
   Nota: Los paneles de solicitudes pendientes, pedidos listos, historial y resumen quedaron dentro del sistema Workspace; los iconos del dashboard fueron especializados.
 * 11.5.1 Corrección visual y datos de paneles — Completado.
 * 11.5.2 Badge total y hover de cards en paneles — Completado.
-* 11.6 Variante trabajador — Pendiente.
+* 11.6 Variante trabajador — Completado.
 * 11.7 QA y cierre — Pendiente.
 
 ### Decisiones iniciales de workspace

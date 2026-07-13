@@ -51,15 +51,25 @@ export function DashboardRecentActivity({
     );
   }
 
+  const isWorkerActivity = result.activity.kind === "worker";
+
   return (
     <DashboardSection
       title="Actividad reciente"
-      description="Últimos movimientos relevantes registrados en solicitudes y pedidos."
+      description={
+        isWorkerActivity
+          ? "Últimos movimientos relevantes registrados en tus pedidos asignados."
+          : "Últimos movimientos relevantes registrados en solicitudes y pedidos."
+      }
     >
       {result.activity.items.length === 0 ? (
         <EmptyState
           title="Sin actividad reciente"
-          description="Todavía no hay movimientos recientes para mostrar."
+          description={
+            isWorkerActivity
+              ? "Sin actividad reciente en tus pedidos asignados."
+              : "Todavía no hay movimientos recientes para mostrar."
+          }
         />
       ) : (
         <div className="overflow-hidden rounded-(--radius-card) border border-border bg-surface shadow-(--shadow-soft)">

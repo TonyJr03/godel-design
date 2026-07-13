@@ -129,12 +129,17 @@ export function DashboardReadyOrdersPanel({
   }
 
   const group = result.workItems.pedidoBoard.listosEntrega;
+  const isWorkerPanel = result.workItems.kind === "worker";
 
   if (group.items.length === 0) {
     return (
       <EmptyState
         title="Sin pedidos listos"
-        description="No hay pedidos listos para entrega en este momento."
+        description={
+          isWorkerPanel
+            ? "No tienes pedidos listos para entrega."
+            : "No hay pedidos listos para entrega en este momento."
+        }
         variant="search"
         className="p-4 shadow-none"
       />

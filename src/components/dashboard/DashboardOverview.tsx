@@ -92,7 +92,7 @@ function getWorkerCards(
 ): DashboardSummaryCard[] {
   return [
     {
-      title: "Pedidos asignados",
+      title: "Tus pedidos asignados",
       value: metrics.totalPedidosAsignados,
       description: "Total de pedidos en los que estás asignado.",
       tone: "neutral",
@@ -104,7 +104,7 @@ function getWorkerCards(
       tone: "info",
     },
     {
-      title: "En producción",
+      title: "Asignados en producción",
       value: metrics.pedidosAsignadosEnProduccion,
       description: "Tus pedidos asignados que están en producción.",
       tone: "info",

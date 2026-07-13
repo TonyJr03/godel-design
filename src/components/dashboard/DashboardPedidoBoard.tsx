@@ -17,6 +17,7 @@ type DashboardPedidoBoardSectionVariant = "compact" | "wide";
 type DashboardPedidoBoardSectionProps = {
   group: DashboardPedidoBoardGroup;
   variant: DashboardPedidoBoardSectionVariant;
+  isWorkerBoard: boolean;
   showProgress?: boolean;
 };
 
@@ -46,16 +47,25 @@ function getPedidoSubtitle(pedido: DashboardPedidoWorkItem): string {
   );
 }
 
-function getEmptyMessage(group: DashboardPedidoBoardGroup): string {
+function getEmptyMessage(
+  group: DashboardPedidoBoardGroup,
+  isWorkerBoard: boolean,
+): string {
   if (group.key === "nuevos") {
-    return "Sin pedidos nuevos.";
+    return isWorkerBoard
+      ? "Sin pedidos nuevos asignados."
+      : "Sin pedidos nuevos.";
   }
 
   if (group.key === "enRevision") {
-    return "Sin pedidos en revisión.";
+    return isWorkerBoard
+      ? "Sin pedidos asignados en revisión."
+      : "Sin pedidos en revisión.";
   }
 
-  return "Sin pedidos en producción.";
+  return isWorkerBoard
+    ? "Sin pedidos asignados en producción."
+    : "Sin pedidos en producción.";
 }
 
 function hasActivePedidos(board: DashboardPedidoBoardData): boolean {
@@ -175,6 +185,7 @@ function DashboardPedidoCard({
 function DashboardPedidoBoardSection({
   group,
   variant,
+  isWorkerBoard,
   showProgress = false,
 }: DashboardPedidoBoardSectionProps) {
   const visibleItems = group.items.slice(
@@ -214,7 +225,7 @@ function DashboardPedidoBoardSection({
       ) : (
         <div className="mt-3 rounded-(--radius-control) border border-border bg-surface px-3 py-2">
           <p className="text-sm text-text-secondary">
-            {getEmptyMessage(group)}
+            {getEmptyMessage(group, isWorkerBoard)}
           </p>
         </div>
       )}
@@ -247,18 +258,21 @@ export function DashboardPedidoBoard({ result }: DashboardPedidoBoardProps) {
   }
 
   const board = result.workItems.pedidoBoard;
+  const isWorkerBoard = result.workItems.kind === "worker";
   const hasPedidos = hasActivePedidos(board);
 
   return (
     <section aria-labelledby="dashboard-pedido-board-title" className="min-w-0">
       <h2 id="dashboard-pedido-board-title" className="sr-only">
-        Pedidos activos
+        {isWorkerBoard ? "Mis pedidos asignados" : "Pedidos activos"}
       </h2>
 
       {!hasPedidos ? (
         <div className="rounded-(--radius-control) border border-border bg-surface-muted px-4 py-3">
           <p className="text-sm text-text-secondary">
-            No hay pedidos activos en seguimiento.
+            {isWorkerBoard
+              ? "No hay pedidos asignados en seguimiento."
+              : "No hay pedidos activos en seguimiento."}
           </p>
         </div>
       ) : null}
@@ -267,10 +281,12 @@ export function DashboardPedidoBoard({ result }: DashboardPedidoBoardProps) {
         <DashboardPedidoBoardSection
           group={board.nuevos}
           variant="compact"
+          isWorkerBoard={isWorkerBoard}
         />
         <DashboardPedidoBoardSection
           group={board.enRevision}
           variant="compact"
+          isWorkerBoard={isWorkerBoard}
         />
       </div>
 
@@ -278,6 +294,7 @@ export function DashboardPedidoBoard({ result }: DashboardPedidoBoardProps) {
         <DashboardPedidoBoardSection
           group={board.enProduccion}
           variant="wide"
+          isWorkerBoard={isWorkerBoard}
           showProgress
         />
       </div>
