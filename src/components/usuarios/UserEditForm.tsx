@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useActionState } from "react";
 
-import type { UpdateUserActionState } from "@/app/(interno)/dashboard/usuarios/[id]/editar/actions";
 import {
   Alert,
   Button,
@@ -13,32 +12,41 @@ import {
   Input,
   Select,
 } from "@/components/ui";
-import type { InternalUserDetail, UserField } from "@/lib/usuarios";
+import type { BaseActionState } from "@/lib/actions/action-state";
+import type {
+  InternalUserDetail,
+  UserField,
+  UserFieldErrors,
+} from "@/lib/usuarios";
 
 type UserEditFormProps = {
   user: InternalUserDetail;
-  updateAction: (
-    state: UpdateUserActionState,
-    formData: FormData,
-  ) => Promise<UpdateUserActionState>;
+  updateAction: UserEditFormAction;
   backHref?: string;
   backLabel?: string;
 };
 
-const initialState: UpdateUserActionState = {
+export type UserEditFormActionState = BaseActionState<UserFieldErrors>;
+
+type UserEditFormAction = (
+  state: UserEditFormActionState,
+  formData: FormData,
+) => Promise<UserEditFormActionState>;
+
+const initialState: UserEditFormActionState = {
   ok: false,
   message: "",
 };
 
-function getFieldError(state: UpdateUserActionState, field: UserField) {
+function getFieldError(state: UserEditFormActionState, field: UserField) {
   return state.fieldErrors?.[field];
 }
 
 export function UserEditForm({
   user,
   updateAction,
-  backHref = `/dashboard/usuarios/${user.id}`,
-  backLabel = "Volver al detalle",
+  backHref = "/dashboard/configuracion/usuarios",
+  backLabel = "Volver a usuarios",
 }: UserEditFormProps) {
   const [state, formAction, pending] = useActionState(
     updateAction,

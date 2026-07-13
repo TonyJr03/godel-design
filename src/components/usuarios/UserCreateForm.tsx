@@ -4,10 +4,6 @@ import Link from "next/link";
 import { useActionState } from "react";
 
 import {
-  createUserProfileAction,
-  type CreateUserProfileActionState,
-} from "@/app/(interno)/dashboard/usuarios/nuevo/actions";
-import {
   Alert,
   Button,
   FormActions,
@@ -16,31 +12,36 @@ import {
   Input,
   Select,
 } from "@/components/ui";
-import type { UserField } from "@/lib/usuarios";
+import type { BaseActionState } from "@/lib/actions/action-state";
+import type { UserField, UserFieldErrors } from "@/lib/usuarios";
 
 type UserCreateFormProps = {
-  createAction?: (
-    state: CreateUserProfileActionState,
-    formData: FormData,
-  ) => Promise<CreateUserProfileActionState>;
+  createAction: UserCreateFormAction;
   backHref?: string;
   backLabel?: string;
 };
 
-const initialState: CreateUserProfileActionState = {
+export type UserCreateFormActionState = BaseActionState<UserFieldErrors>;
+
+type UserCreateFormAction = (
+  state: UserCreateFormActionState,
+  formData: FormData,
+) => Promise<UserCreateFormActionState>;
+
+const initialState: UserCreateFormActionState = {
   ok: false,
   message: "",
 };
 
-function getFieldError(state: CreateUserProfileActionState, field: UserField) {
+function getFieldError(state: UserCreateFormActionState, field: UserField) {
   return state.fieldErrors?.[field];
 }
 
 export function UserCreateForm({
-  createAction = createUserProfileAction,
-  backHref = "/dashboard/usuarios",
-  backLabel = "Volver al listado",
-}: UserCreateFormProps = {}) {
+  createAction,
+  backHref = "/dashboard/configuracion/usuarios",
+  backLabel = "Volver a usuarios",
+}: UserCreateFormProps) {
   const [state, formAction, pending] = useActionState(
     createAction,
     initialState,

@@ -3,7 +3,6 @@ export type DashboardNavIconName =
   | "solicitudes"
   | "pedidos"
   | "clientes"
-  | "usuarios"
   | "configuracion";
 
 export const dashboardNavItems = [

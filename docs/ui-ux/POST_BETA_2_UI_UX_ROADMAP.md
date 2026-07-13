@@ -852,11 +852,14 @@ Priorizar:
 
 ### 10.4 Usuarios dentro de Configuración
 
+Estado: Cerrado.
+
 Subtareas:
 
 * 10.4.1 Listado de Usuarios dentro de Configuración — Completado.
 * 10.4.2 Creación y edición de Usuarios en Configuración — Completado.
 * 10.4.3 Limpieza de navegación y rutas legacy de Usuarios — Completado.
+* 10.4.4 Eliminación definitiva de legacy y QA de Usuarios — Completado.
 
 Ruta final:
 
@@ -880,8 +883,8 @@ Priorizar:
 * fila/card abre edición directamente;
 * creación en `/dashboard/configuracion/usuarios/nuevo`;
 * edición en `/dashboard/configuracion/usuarios/[id]/editar`;
-* redirecciones legacy temporales desde `/dashboard/usuarios`;
-* eliminación de Usuarios como entrada principal del sidebar al cierre.
+* rutas legacy de Usuarios eliminadas;
+* Usuarios eliminado como entrada principal del sidebar.
 
 ### 10.5 Plantillas dentro de Configuración
 

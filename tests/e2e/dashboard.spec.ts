@@ -68,6 +68,21 @@ test("admin sees the global dashboard with management sections", async ({
   await expect(page.locator('a[href^="/dashboard/clientes"]')).not.toHaveCount(
     0,
   );
+  await expect(page.locator('a[href^="/dashboard/configuracion"]')).not.toHaveCount(
+    0,
+  );
+  await expect(page.locator('a[href^="/dashboard/configuracion/usuarios"]')).toHaveCount(
+    0,
+  );
+  await expect(page.getByRole("link", { name: /^usuarios$/i })).toHaveCount(0);
+
+  await page.getByRole("link", { name: /configuración/i }).first().click();
+  await expect(
+    page.getByRole("heading", { name: /configuración/i }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: /usuarios/i }).click();
+  await expect(page).toHaveURL(/\/dashboard\/configuracion\/usuarios/);
+  await expect(page.getByRole("heading", { name: /^usuarios$/i })).toBeVisible();
 });
 
 test("supervisor sees the global dashboard without admin-only navigation", async ({
@@ -80,7 +95,6 @@ test("supervisor sees the global dashboard without admin-only navigation", async
     page.getByRole("heading", { name: /trabajo pendiente/i }),
   ).toBeVisible();
   await expectNoDashboardLinks(page, [
-    "/dashboard/usuarios",
     "/dashboard/configuracion",
   ]);
 });
@@ -96,7 +110,6 @@ test("worker sees only assigned-work dashboard context", async ({ page }) => {
   await expectNoDashboardLinks(page, [
     "/dashboard/solicitudes",
     "/dashboard/clientes",
-    "/dashboard/usuarios",
     "/dashboard/configuracion",
   ]);
 });
@@ -110,6 +123,10 @@ test("protected dashboard routes remain limited by role", async ({ page }) => {
   await expectAccessLimitedPage(page);
 
   await loginAs(page, "supervisor");
-  await page.goto("/dashboard/usuarios");
+  await page.goto("/dashboard/configuracion/usuarios");
+  await expectAccessLimitedPage(page);
+
+  await loginAs(page, "worker");
+  await page.goto("/dashboard/configuracion/usuarios");
   await expectAccessLimitedPage(page);
 });

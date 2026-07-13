@@ -12,26 +12,45 @@ test("admin can access usuarios and see safe profile validation", async ({
 }) => {
   await loginAs(page, "admin");
 
-  await page.goto("/dashboard/usuarios");
+  await page.goto("/dashboard/configuracion/usuarios");
   await expect(
-    page.getByRole("heading", { name: /usuarios internos/i }),
+    page.getByRole("heading", { name: /^usuarios$/i }),
   ).toBeVisible();
   await expect(page.getByLabel(/buscar usuarios/i)).toBeVisible();
-  await expect(page.getByLabel(/^rol$/i)).toBeVisible();
-  await expect(page.getByLabel(/^estado$/i)).toBeVisible();
+  const toolbar = page
+    .getByRole("region", { name: /búsqueda y filtros/i })
+    .first();
+  await toolbar.locator("summary").click();
+  await expect(toolbar.getByLabel(/^rol$/i)).toBeVisible();
+  await expect(toolbar.getByLabel(/^estado$/i)).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /nuevo usuario/i }),
+  ).toBeVisible();
+  await expect(page.getByText(/^acción$/i)).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /ver usuario/i })).toHaveCount(0);
   await expectNoVisibleSensitiveText(page);
+
+  const editUserLinks = page.getByRole("link", { name: /editar usuario/i });
+  if ((await editUserLinks.count()) > 0) {
+    await editUserLinks.first().click();
+    await expect(page).toHaveURL(
+      /\/dashboard\/configuracion\/usuarios\/[^/]+\/editar/,
+    );
+    await page.goto("/dashboard/configuracion/usuarios");
+  }
 
   const unlikelyQuery = createUnlikelyQaQuery("usuarios-sin-resultados");
   await page.getByLabel(/buscar usuarios/i).fill(unlikelyQuery);
-  await expect(page).toHaveURL(/\/dashboard\/usuarios\?q=/);
+  await page.getByLabel(/buscar usuarios/i).press("Enter");
+  await expect(page).toHaveURL(/\/dashboard\/configuracion\/usuarios\?q=/);
   await expect(
     page.getByText(/sin resultados|no se encontraron usuarios/i).first(),
   ).toBeVisible();
   await expectNoVisibleSensitiveText(page);
 
-  await page.goto("/dashboard/usuarios/nuevo");
+  await page.goto("/dashboard/configuracion/usuarios/nuevo");
   await expect(
-    page.getByRole("heading", { name: /nuevo perfil interno/i }),
+    page.getByRole("heading", { name: /nuevo usuario/i }),
   ).toBeVisible();
   await expect(page.getByText(/no crea credenciales/i)).toBeVisible();
   await expect(page.getByLabel(/uuid del usuario auth/i)).toBeVisible();
@@ -49,13 +68,13 @@ test("admin can access usuarios and see safe profile validation", async ({
 test("supervisor cannot access usuarios", async ({ page }) => {
   await loginAs(page, "supervisor");
 
-  await page.goto("/dashboard/usuarios");
+  await page.goto("/dashboard/configuracion/usuarios");
   await expectAccessLimitedPage(page);
 });
 
 test("worker cannot access usuarios", async ({ page }) => {
   await loginAs(page, "worker");
 
-  await page.goto("/dashboard/usuarios");
+  await page.goto("/dashboard/configuracion/usuarios");
   await expectAccessLimitedPage(page);
 });

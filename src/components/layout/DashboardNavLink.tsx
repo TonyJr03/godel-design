@@ -8,7 +8,6 @@ import {
   LayoutDashboard,
   Package,
   Settings,
-  UserCog,
   type LucideIcon,
 } from "lucide-react";
 
@@ -26,7 +25,6 @@ const NAV_ICONS = {
   solicitudes: ClipboardList,
   pedidos: Package,
   clientes: ContactRound,
-  usuarios: UserCog,
   configuracion: Settings,
 } satisfies Record<DashboardNavIconName, LucideIcon>;
 

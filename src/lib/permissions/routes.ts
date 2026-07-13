@@ -25,10 +25,6 @@ const dashboardRouteRules: readonly DashboardRouteRule[] = [
     roles: ["admin", "supervisor"],
   },
   {
-    prefix: "/dashboard/usuarios",
-    roles: ["admin"],
-  },
-  {
     prefix: "/dashboard/configuracion",
     roles: ["admin"],
   },
