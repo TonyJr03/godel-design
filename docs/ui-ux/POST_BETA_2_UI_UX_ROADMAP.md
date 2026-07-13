@@ -888,6 +888,10 @@ Priorizar:
 
 ### 10.5 Plantillas dentro de Configuración
 
+Subtareas:
+
+* 10.5.1 Listado de Plantillas dentro de Configuración — Completado.
+
 Ruta final:
 
 ```text

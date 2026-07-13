@@ -25,6 +25,7 @@ export function revalidateConfiguracionUsuarioEdit(userId: string) {
 
 export function revalidateTaskTemplatesList() {
   revalidatePath("/dashboard/configuracion");
+  revalidatePath("/dashboard/configuracion/plantillas");
 }
 
 export function revalidateTaskTemplateDetail(templateId: string) {

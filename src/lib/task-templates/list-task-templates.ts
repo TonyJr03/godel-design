@@ -12,14 +12,22 @@ import type {
 } from "./types";
 
 export type ListTaskTemplatesResult = ServiceResult<
-  { templates: TaskTemplateListItem[] },
+  { templates: TaskTemplateListItem[]; q: string | null },
   ListTaskTemplatesErrorReason
 >;
+
+export type ListTaskTemplatesOptions = {
+  q?: string | null;
+};
 
 const GENERIC_LIST_ERROR =
   "No se pudieron cargar las plantillas. Inténtalo nuevamente.";
 
-export async function listTaskTemplates(): Promise<ListTaskTemplatesResult> {
+export async function listTaskTemplates(
+  options: ListTaskTemplatesOptions = {},
+): Promise<ListTaskTemplatesResult> {
+  const q = options.q?.trim() || null;
+  const normalizedQuery = q?.toLowerCase() ?? null;
   const profile = await getCurrentProfile();
 
   if (!profile) {
@@ -55,7 +63,18 @@ export async function listTaskTemplates(): Promise<ListTaskTemplatesResult> {
     }
 
     const templateRows = templates ?? [];
-    const templateIds = templateRows.map((template) => template.id);
+    const filteredTemplateRows = normalizedQuery
+      ? templateRows.filter((template) => {
+          const name = template.name.toLowerCase();
+          const description = template.description?.toLowerCase() ?? "";
+
+          return (
+            name.includes(normalizedQuery) ||
+            description.includes(normalizedQuery)
+          );
+        })
+      : templateRows;
+    const templateIds = filteredTemplateRows.map((template) => template.id);
     const tasksCountByTemplate = new Map<string, number>();
 
     if (templateIds.length > 0) {
@@ -80,10 +99,11 @@ export async function listTaskTemplates(): Promise<ListTaskTemplatesResult> {
     }
 
     return serviceSuccess({
-      templates: templateRows.map((template) => ({
+      templates: filteredTemplateRows.map((template) => ({
         ...template,
         tasksCount: tasksCountByTemplate.get(template.id) ?? 0,
       })),
+      q,
     });
   } catch (error) {
     console.error("Unexpected error listing task templates", error);
