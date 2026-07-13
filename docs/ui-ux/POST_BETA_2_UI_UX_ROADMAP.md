@@ -240,7 +240,7 @@ Según el alcance, deben existir:
 | 8     | Arquitectura común de listados               | Cerrada   |
 | 9     | Listados operativos de Pedidos y Solicitudes | Cerrada   |
 | 10    | Listados administrativos                     | Cerrada   |
-| 11    | Dashboard operativo                          | Pendiente |
+| 11    | Dashboard operativo                          | En curso  |
 | 12    | Páginas internas secundarias                 | Pendiente |
 | 13    | Área pública                                 | Pendiente |
 | 14    | Estados transversales y resiliencia UI       | Pendiente |
@@ -940,9 +940,40 @@ Clientes, Usuarios y Plantillas quedaron integrados en una estructura consistent
 
 ## Etapa 11 — Dashboard operativo
 
+### Estado
+
+En curso.
+
 ### Objetivo
 
 Reorganizar el dashboard para que cada rol identifique rápidamente qué necesita atención y cuál es su siguiente acción.
+
+La Etapa 11 transforma el dashboard desde una página vertical larga hacia un workspace operativo. Los pedidos activos pasan a ser el foco principal y la información secundaria se mueve a paneles.
+
+### Documento principal
+
+```text
+docs/ui-ux/DASHBOARD_WORKSPACE_STAGE_11_PLAN.md
+```
+
+### Subtareas
+
+* 11.1 Plan técnico del Dashboard Workspace — Completado.
+* 11.2 Contrato de datos del dashboard — Pendiente.
+* 11.3 Shell del Dashboard Workspace — Pendiente.
+* 11.4 Tablero principal de pedidos — Pendiente.
+* 11.5 Paneles laterales — Pendiente.
+* 11.6 Variante trabajador — Pendiente.
+* 11.7 QA y cierre — Pendiente.
+
+### Decisiones iniciales de workspace
+
+* Pedidos nuevos incluye `creado` y `solicitud_recibida`.
+* El área principal se organiza en Nuevos, En revisión y En producción.
+* Pedidos listos para entrega, estado `listo_entrega`, se mueven a panel lateral.
+* El orden de paneles laterales es Atención operativa, Solicitudes pendientes, Pedidos listos para entrega, Historial y Resumen operativo.
+* Historial conserva origen `pedido` / `solicitud` y pasa a usar navegación icon-only con nombre accesible.
+* No se introducen gráficos innecesarios, analítica avanzada, cambios de RLS ni cambios de permisos.
 
 ### Admin y supervisor
 
