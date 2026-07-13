@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Pencil } from "lucide-react";
 
 import { StatusBadge } from "@/components/ui";
 import type { TaskTemplateDetail } from "@/lib/task-templates";
@@ -30,6 +30,19 @@ function BackToPlantillasLink({
   );
 }
 
+function EditPlantillaLink({ templateId }: { templateId: string }) {
+  return (
+    <Link
+      href={`/dashboard/configuracion/plantillas/${templateId}/editar`}
+      className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-(--radius-control) bg-brand-primary text-sm font-semibold text-white transition-colors duration-200 hover:bg-brand-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      aria-label="Editar plantilla"
+      title="Editar plantilla"
+    >
+      <Pencil className="size-5" aria-hidden="true" />
+    </Link>
+  );
+}
+
 export function TaskTemplateDetailHeader({
   template,
 }: TaskTemplateDetailHeaderProps) {
@@ -40,26 +53,36 @@ export function TaskTemplateDetailHeader({
           <div className="min-w-0 flex-1">
             <BackToPlantillasLink presentation="text" />
 
-            <p className="mt-2 text-sm font-semibold text-brand-primary">
-              Configuración / Plantillas de tareas
-            </p>
-            <div className="mt-2 flex flex-wrap items-center gap-3">
-              <h1 className="text-3xl font-semibold tracking-tight text-text-primary">
-                {template.name}
-              </h1>
-              <StatusBadge
-                status={template.is_active ? "activo" : "inactivo"}
-                label={template.is_active ? "Activa" : "Inactiva"}
-              />
+            <div className="mt-2 flex min-w-0 items-start gap-3 xl:block">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-3">
+                  <p className="text-sm font-semibold text-brand-primary">
+                    Configuración / Plantillas de tareas
+                  </p>
+                  <StatusBadge
+                    status={template.is_active ? "activo" : "inactivo"}
+                    label={template.is_active ? "Activa" : "Inactiva"}
+                  />
+                </div>
+
+                <h1 className="mt-2 break-words text-3xl font-semibold tracking-tight text-text-primary">
+                  {template.name}
+                </h1>
+                <p className="mt-3 max-w-3xl break-words text-base leading-7 text-text-secondary">
+                  {template.description?.trim() ||
+                    "Sin descripción interna definida."}
+                </p>
+              </div>
+
+              <div className="shrink-0 xl:hidden">
+                <EditPlantillaLink templateId={template.id} />
+              </div>
             </div>
-            <p className="mt-3 max-w-3xl text-base leading-7 text-text-secondary">
-              {template.description?.trim() ||
-                "Sin descripción interna definida."}
-            </p>
           </div>
 
-          <div className="hidden shrink-0 xl:block">
+          <div className="hidden shrink-0 items-center gap-2 xl:flex">
             <BackToPlantillasLink presentation="button" />
+            <EditPlantillaLink templateId={template.id} />
           </div>
         </div>
       </header>

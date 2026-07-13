@@ -58,15 +58,19 @@ export async function updateTaskTemplate(
   }
 
   const supabase = await createClient();
+  const valuesToUpdate = {
+    name: validation.data.name,
+    description: validation.data.description,
+    updated_by: profile.id,
+    ...(typeof input.isActive === "boolean"
+      ? { is_active: input.isActive }
+      : {}),
+  };
 
   try {
     const { data, error } = await supabase
       .from("trabajo_plantillas")
-      .update({
-        name: validation.data.name,
-        description: validation.data.description,
-        updated_by: profile.id,
-      })
+      .update(valuesToUpdate)
       .eq("id", templateId)
       .select("id")
       .maybeSingle();

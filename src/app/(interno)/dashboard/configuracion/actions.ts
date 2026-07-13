@@ -45,10 +45,17 @@ export async function updateTaskTemplateAction(
   formData: FormData,
 ): Promise<TaskTemplateActionState> {
   const templateId = getFormValue(formData, "template_id");
+  const isActiveValue = getFormValue(formData, "is_active");
   const result = await updateTaskTemplate({
     id: templateId,
     name: getFormValue(formData, "name"),
     description: getFormValue(formData, "description"),
+    isActive:
+      isActiveValue === "true"
+        ? true
+        : isActiveValue === "false"
+          ? false
+          : null,
   });
 
   if (!result.ok) {

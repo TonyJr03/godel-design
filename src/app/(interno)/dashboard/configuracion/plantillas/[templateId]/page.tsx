@@ -7,15 +7,13 @@ import {
   updateTaskTemplateTaskAction,
 } from "@/app/(interno)/dashboard/configuracion/plantillas/[templateId]/actions";
 import { TaskTemplateDetailHeader } from "@/components/configuracion/TaskTemplateDetailHeader";
-import { TaskTemplateForm } from "@/components/configuracion/TaskTemplateForm";
-import { TaskTemplateStatusToggleForm } from "@/components/configuracion/TaskTemplateStatusToggleForm";
+import { TaskTemplateTaskForm } from "@/components/configuracion/TaskTemplateTaskForm";
 import { TaskTemplateTasksSection } from "@/components/configuracion/TaskTemplateTasksSection";
 import {
   Alert,
   DetailPanel,
   MetadataGrid,
   MetadataItem,
-  StatusBadge,
 } from "@/components/ui";
 import {
   getTaskTemplateById,
@@ -61,47 +59,22 @@ export default async function TaskTemplateDetailPage({
     <div className="space-y-8">
       <TaskTemplateDetailHeader template={templateResult.template} />
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
-        <div className="space-y-6">
-          <DetailPanel title="Datos de la plantilla">
-            <TaskTemplateForm
-              mode="edit"
-              layout="inline"
-              template={templateResult.template}
-            />
-          </DetailPanel>
-
+      <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
+        <div className="min-w-0">
           <TaskTemplateTasksSection
-            createTaskAction={createTaskAction}
             taskActions={taskActions}
             tasks={tasksResult.ok ? tasksResult.tasks : []}
             loadError={tasksResult.ok ? undefined : tasksResult.message}
           />
         </div>
 
-        <aside className="space-y-6">
-          <DetailPanel title="Estado">
-            <div className="space-y-5">
-              <div className="flex flex-wrap items-center gap-3">
-                <StatusBadge
-                  status={
-                    templateResult.template.is_active ? "activo" : "inactivo"
-                  }
-                  label={
-                    templateResult.template.is_active ? "Activa" : "Inactiva"
-                  }
-                />
-                <p className="text-sm leading-6 text-text-secondary">
-                  {templateResult.template.is_active
-                    ? "Disponible para aplicarse en pedidos compatibles."
-                    : "No estará disponible para nuevas aplicaciones."}
-                </p>
-              </div>
-
-              <TaskTemplateStatusToggleForm
-                template={templateResult.template}
-              />
-            </div>
+        <aside className="min-w-0 space-y-6 xl:sticky xl:top-24 xl:self-start">
+          <DetailPanel title="Nueva tarea">
+            <TaskTemplateTaskForm
+              mode="create"
+              action={createTaskAction}
+              variant="compact"
+            />
           </DetailPanel>
 
           <DetailPanel title="Registro">

@@ -14,6 +14,7 @@ import {
   FormField,
   FormSection,
   Input,
+  Select,
   Textarea,
 } from "@/components/ui";
 import type {
@@ -24,7 +25,7 @@ import type {
 
 type EditableTaskTemplate = Pick<
   TaskTemplateListItem | TaskTemplateDetail,
-  "id" | "name" | "description"
+  "id" | "name" | "description" | "is_active"
 >;
 
 type TaskTemplateFormProps =
@@ -32,11 +33,13 @@ type TaskTemplateFormProps =
       mode: "create";
       layout?: "section";
       template?: never;
+      includeStatus?: never;
     }
   | {
       mode: "edit";
-      layout?: "inline";
+      layout?: "inline" | "section";
       template: EditableTaskTemplate;
+      includeStatus?: boolean;
     };
 
 const initialState: TaskTemplateActionState = {
@@ -55,15 +58,18 @@ function TaskTemplateFields({
   state,
   template,
   fieldPrefix,
+  includeStatus = false,
 }: {
   state: TaskTemplateActionState;
   template?: EditableTaskTemplate;
   fieldPrefix: string;
+  includeStatus?: boolean;
 }) {
   const nameError = getFieldError(state, "name");
   const descriptionError = getFieldError(state, "description");
   const nameId = `${fieldPrefix}-name`;
   const descriptionId = `${fieldPrefix}-description`;
+  const statusId = `${fieldPrefix}-status`;
 
   return (
     <div className="grid gap-5">
@@ -100,6 +106,24 @@ function TaskTemplateFields({
           />
         )}
       </FormField>
+
+      {includeStatus && template ? (
+        <FormField id={statusId} label="Estado" required>
+          {({ describedBy, invalid }) => (
+            <Select
+              id={statusId}
+              name="is_active"
+              required
+              defaultValue={template.is_active ? "true" : "false"}
+              invalid={invalid}
+              aria-describedby={describedBy}
+            >
+              <option value="true">Activo</option>
+              <option value="false">Inactivo</option>
+            </Select>
+          )}
+        </FormField>
+      ) : null}
     </div>
   );
 }
@@ -108,6 +132,7 @@ export function TaskTemplateForm({
   mode,
   layout = mode === "create" ? "section" : "inline",
   template,
+  includeStatus = false,
 }: TaskTemplateFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const fieldPrefix = useId();
@@ -138,6 +163,7 @@ export function TaskTemplateForm({
         state={state}
         template={template}
         fieldPrefix={fieldPrefix}
+        includeStatus={!isCreate && includeStatus}
       />
 
       <FormActions
@@ -164,8 +190,12 @@ export function TaskTemplateForm({
     <form ref={formRef} action={formAction} aria-busy={pending}>
       {layout === "section" ? (
         <FormSection
-          title="Nueva plantilla"
-          description="Crea una cabecera reutilizable para encargos internos."
+          title={isCreate ? "Nueva plantilla" : "Datos de la plantilla"}
+          description={
+            isCreate
+              ? "Crea una cabecera reutilizable para encargos internos."
+              : "Actualiza la información y disponibilidad de la plantilla."
+          }
         >
           {content}
         </FormSection>

@@ -17,11 +17,13 @@ type TaskTemplateTaskFormProps =
   | {
       mode: "create";
       action: TaskTemplateDetailAction<CreateTaskTemplateTaskActionState>;
+      variant?: "default" | "compact";
       task?: never;
     }
   | {
       mode: "edit";
       action: TaskTemplateDetailAction<UpdateTaskTemplateTaskActionState>;
+      variant?: "default";
       task: TaskTemplateTask;
     };
 
@@ -48,6 +50,7 @@ function getFieldError(
 export function TaskTemplateTaskForm({
   mode,
   action,
+  variant = "default",
   task,
 }: TaskTemplateTaskFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
@@ -58,6 +61,7 @@ export function TaskTemplateTaskForm({
     isCreate ? createInitialState : updateInitialState,
   );
   const titleError = getFieldError(state, "title");
+  const isCompact = variant === "compact";
 
   useEffect(() => {
     if (isCreate && state.ok) {
@@ -82,7 +86,7 @@ export function TaskTemplateTaskForm({
           required
           error={titleError}
           help={
-            isCreate
+            isCreate && !isCompact
               ? "Ejemplos: Revisar diseño enviado por el cliente, Imprimir 100 páginas."
               : undefined
           }
@@ -107,18 +111,24 @@ export function TaskTemplateTaskForm({
 
         <FormActions
           note={
-            isCreate
+            isCreate && !isCompact
               ? "Si el texto contiene una cantidad entera positiva, la tarea será cuantificada."
               : undefined
           }
         >
-          <Button type="submit" disabled={pending} className="w-full sm:w-auto">
+          <Button
+            type="submit"
+            disabled={pending}
+            className={isCompact ? "w-full" : "w-full sm:w-auto"}
+          >
             {pending
               ? isCreate
                 ? "Agregando..."
                 : "Guardando..."
               : isCreate
-                ? "Agregar tarea"
+                ? isCompact
+                  ? "Agregar"
+                  : "Agregar tarea"
                 : "Guardar tarea"}
           </Button>
         </FormActions>

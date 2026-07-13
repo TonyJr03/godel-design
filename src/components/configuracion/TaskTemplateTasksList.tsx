@@ -1,6 +1,14 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
+import {
+  ArrowDown,
+  ArrowUp,
+  Check,
+  Pencil,
+  Trash2,
+  X,
+} from "lucide-react";
 
 import type {
   DeleteTaskTemplateTaskActionState,
@@ -8,8 +16,7 @@ import type {
   TaskTemplateDetailAction,
   UpdateTaskTemplateTaskActionState,
 } from "@/app/(interno)/dashboard/configuracion/plantillas/[templateId]/actions";
-import { TaskTemplateTaskForm } from "@/components/configuracion/TaskTemplateTaskForm";
-import { Alert, Button, EmptyState, StatusBadge } from "@/components/ui";
+import { Button, EmptyState } from "@/components/ui";
 import type { TaskTemplateTask } from "@/lib/task-templates";
 
 export type TaskTemplateTaskItemActions = {
@@ -33,36 +40,41 @@ const moveInitialState: MoveTaskTemplateTaskActionState = {
   message: "",
 };
 
-function formatTargetQuantity(task: TaskTemplateTask): string {
-  if (task.task_type !== "cuantificada") {
-    return "Sin cantidad";
-  }
-
-  return `${task.target_quantity ?? 0}`;
-}
+const updateInitialState: UpdateTaskTemplateTaskActionState = {
+  ok: false,
+  message: "",
+};
 
 function TaskHiddenFields({ taskId }: { taskId: string }) {
   return <input type="hidden" name="task_id" value={taskId} />;
 }
 
-function ActionMessage({
-  state,
+function InlineActionError({
+  message,
 }: {
-  state: DeleteTaskTemplateTaskActionState | MoveTaskTemplateTaskActionState;
+  message: string | undefined;
 }) {
-  if (!state.message) {
+  if (!message) {
     return null;
   }
 
   return (
-    <Alert
-      variant={state.ok ? "success" : "danger"}
+    <p
+      className="mt-2 max-w-full break-words text-xs font-semibold text-danger"
       aria-live="polite"
-      className="py-2"
     >
-      {state.message}
-    </Alert>
+      {message}
+    </p>
   );
+}
+
+function iconButtonClassName(tone: "default" | "danger" = "default") {
+  return [
+    "h-10 w-10 px-0",
+    tone === "danger" ? "text-white" : undefined,
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 function MoveTaskTemplateTaskForm({
@@ -80,9 +92,12 @@ function MoveTaskTemplateTaskForm({
     action,
     moveInitialState,
   );
+  const isUp = direction === "up";
+  const label = `${isUp ? "Subir" : "Bajar"} tarea ${task.title}`;
+  const Icon = isUp ? ArrowUp : ArrowDown;
 
   return (
-    <form action={formAction} aria-busy={pending} className="space-y-2">
+    <form action={formAction} aria-busy={pending} className="min-w-0">
       <TaskHiddenFields taskId={task.id} />
       <input type="hidden" name="direction" value={direction} />
       <Button
@@ -90,15 +105,13 @@ function MoveTaskTemplateTaskForm({
         variant="secondary"
         size="sm"
         disabled={disabled || pending}
-        className="w-full sm:w-auto"
+        className={iconButtonClassName()}
+        aria-label={label}
+        title={label}
       >
-        {pending
-          ? "Moviendo..."
-          : direction === "up"
-            ? "Subir"
-            : "Bajar"}
+        <Icon className="size-4" aria-hidden="true" />
       </Button>
-      <ActionMessage state={state} />
+      {!state.ok ? <InlineActionError message={state.message} /> : null}
     </form>
   );
 }
@@ -114,21 +127,178 @@ function DeleteTaskTemplateTaskForm({
     action,
     deleteInitialState,
   );
+  const label = `Eliminar tarea ${task.title}`;
 
   return (
-    <form action={formAction} aria-busy={pending} className="space-y-2">
+    <form action={formAction} aria-busy={pending} className="min-w-0">
       <TaskHiddenFields taskId={task.id} />
       <Button
         type="submit"
         variant="danger"
         size="sm"
         disabled={pending}
-        className="w-full sm:w-auto"
+        className={iconButtonClassName("danger")}
+        aria-label={label}
+        title={label}
       >
-        {pending ? "Eliminando..." : "Eliminar"}
+        <Trash2 className="size-4" aria-hidden="true" />
       </Button>
-      <ActionMessage state={state} />
+      {!state.ok ? <InlineActionError message={state.message} /> : null}
     </form>
+  );
+}
+
+function UpdateTaskTemplateTaskInlineForm({
+  task,
+  action,
+  onCancel,
+  onSaved,
+}: {
+  task: TaskTemplateTask;
+  action: TaskTemplateDetailAction<UpdateTaskTemplateTaskActionState>;
+  onCancel: () => void;
+  onSaved: () => void;
+}) {
+  const [state, formAction, pending] = useActionState(
+    action,
+    updateInitialState,
+  );
+  const [title, setTitle] = useState(task.title);
+  const titleError = state.fieldErrors?.title;
+
+  useEffect(() => {
+    if (state.ok) {
+      onSaved();
+    }
+  }, [onSaved, state.ok]);
+
+  return (
+    <form
+      action={formAction}
+      aria-busy={pending}
+      className="min-w-0 md:flex md:items-center md:gap-2"
+    >
+      <TaskHiddenFields taskId={task.id} />
+      <div className="min-w-0 flex-1">
+        <label className="sr-only" htmlFor={`task-title-${task.id}`}>
+          Editar tarea {task.title}
+        </label>
+        <input
+          id={`task-title-${task.id}`}
+          name="title"
+          type="text"
+          required
+          maxLength={160}
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+          disabled={pending}
+          aria-invalid={titleError ? true : undefined}
+          className="min-h-10 w-full rounded-(--radius-control) border border-border-strong bg-surface px-3 text-sm text-text-primary transition-colors focus:border-brand-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        />
+        <InlineActionError
+          message={titleError ?? (!state.ok ? state.message : undefined)}
+        />
+      </div>
+
+      <div className="mt-2 flex shrink-0 items-center gap-1 md:mt-0">
+        <Button
+          type="submit"
+          variant="primary"
+          size="sm"
+          disabled={pending}
+          className={iconButtonClassName()}
+          aria-label={`Guardar tarea ${task.title}`}
+          title={`Guardar tarea ${task.title}`}
+        >
+          <Check className="size-4" aria-hidden="true" />
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          disabled={pending}
+          className={iconButtonClassName()}
+          aria-label="Cancelar edición"
+          title="Cancelar edición"
+          onClick={onCancel}
+        >
+          <X className="size-4" aria-hidden="true" />
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function TaskTemplateTaskRow({
+  task,
+  index,
+  isFirst,
+  isLast,
+  actions,
+}: {
+  task: TaskTemplateTask;
+  index: number;
+  isFirst: boolean;
+  isLast: boolean;
+  actions: TaskTemplateTaskItemActions;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+
+  return (
+    <li className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 px-4 py-3 md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center">
+      <span className="row-span-2 mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-(--radius-control) bg-brand-primary-soft text-sm font-semibold text-brand-primary md:row-span-1 md:mt-0">
+        {index + 1}
+      </span>
+
+      {isEditing ? (
+        <div className="col-start-2 min-w-0 md:col-span-2 md:col-start-auto">
+          <UpdateTaskTemplateTaskInlineForm
+            task={task}
+            action={actions.update}
+            onCancel={() => setIsEditing(false)}
+            onSaved={() => setIsEditing(false)}
+          />
+        </div>
+      ) : (
+        <>
+          <div className="min-w-0 py-1.5 md:py-0">
+            <p className="break-words text-sm font-semibold leading-6 text-text-primary md:truncate">
+              {task.title}
+            </p>
+          </div>
+
+          <div className="col-start-2 flex min-w-0 flex-wrap items-center gap-1 md:col-start-auto md:flex-nowrap md:justify-end">
+            <MoveTaskTemplateTaskForm
+              task={task}
+              direction="up"
+              action={actions.move}
+              disabled={isFirst}
+            />
+            <MoveTaskTemplateTaskForm
+              task={task}
+              direction="down"
+              action={actions.move}
+              disabled={isLast}
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className={iconButtonClassName()}
+              aria-label={`Editar tarea ${task.title}`}
+              title={`Editar tarea ${task.title}`}
+              onClick={() => setIsEditing(true)}
+            >
+              <Pencil className="size-4" aria-hidden="true" />
+            </Button>
+            <DeleteTaskTemplateTaskForm
+              task={task}
+              action={actions.delete}
+            />
+          </div>
+        </>
+      )}
+    </li>
   );
 }
 
@@ -146,72 +316,20 @@ export function TaskTemplateTasksList({
   }
 
   return (
-    <ol className="space-y-3" aria-label="Tareas de la plantilla">
-      {tasks.map((task, index) => {
-        const isFirst = index === 0;
-        const isLast = index === tasks.length - 1;
-        const isQuantified = task.task_type === "cuantificada";
-
-        return (
-          <li
-            key={task.id}
-            className="rounded-(--radius-card) border border-border bg-surface p-4"
-          >
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex size-8 items-center justify-center rounded-(--radius-control) bg-brand-primary-soft text-sm font-semibold text-brand-primary">
-                    {index + 1}
-                  </span>
-                  <StatusBadge
-                    status={isQuantified ? "en_progreso" : "pendiente"}
-                    label={isQuantified ? "Cuantificada" : "Simple"}
-                  />
-                  <span className="rounded-(--radius-control) border border-border bg-surface-muted px-2.5 py-1 text-xs font-semibold text-text-secondary">
-                    {formatTargetQuantity(task)}
-                  </span>
-                </div>
-
-                <p className="mt-3 text-base font-semibold leading-6 text-text-primary">
-                  {task.title}
-                </p>
-              </div>
-
-              <div className="grid gap-2 sm:grid-cols-3 lg:w-auto lg:min-w-80">
-                <MoveTaskTemplateTaskForm
-                  task={task}
-                  direction="up"
-                  action={actions.move}
-                  disabled={isFirst}
-                />
-                <MoveTaskTemplateTaskForm
-                  task={task}
-                  direction="down"
-                  action={actions.move}
-                  disabled={isLast}
-                />
-                <DeleteTaskTemplateTaskForm
-                  task={task}
-                  action={actions.delete}
-                />
-              </div>
-            </div>
-
-            <details className="mt-3 border-t border-border pt-3">
-              <summary className="inline-flex min-h-10 cursor-pointer items-center rounded-(--radius-control) border border-border-strong bg-surface px-3 text-sm font-semibold text-brand-primary transition-colors duration-200 hover:border-brand-primary hover:bg-brand-primary-soft">
-                Editar
-              </summary>
-              <div className="mt-4 max-w-3xl rounded-(--radius-control) bg-surface-muted/50 p-4">
-                <TaskTemplateTaskForm
-                  mode="edit"
-                  action={actions.update}
-                  task={task}
-                />
-              </div>
-            </details>
-          </li>
-        );
-      })}
+    <ol
+      className="divide-y divide-border overflow-hidden rounded-(--radius-card) border border-border bg-surface"
+      aria-label="Tareas de la plantilla"
+    >
+      {tasks.map((task, index) => (
+        <TaskTemplateTaskRow
+          key={task.id}
+          task={task}
+          index={index}
+          isFirst={index === 0}
+          isLast={index === tasks.length - 1}
+          actions={actions}
+        />
+      ))}
     </ol>
   );
 }

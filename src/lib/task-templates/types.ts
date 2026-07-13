@@ -99,6 +99,7 @@ export type TaskTemplateTaskActionValues = {
 
 export type UpdateTaskTemplateInput = TaskTemplateInput & {
   id?: string | null;
+  isActive?: boolean | null;
 };
 
 export type ToggleTaskTemplateActiveInput = {
