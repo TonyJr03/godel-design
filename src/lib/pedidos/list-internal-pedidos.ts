@@ -11,6 +11,8 @@ import {
   getPedidoSearchServiceTypeValues,
   getPedidoTextSearchCondition,
   getSolicitudServiceTypeSearchPattern,
+  INTERNAL_PEDIDO_NEW_STATUS_FILTER,
+  INTERNAL_PEDIDO_NEW_STATUS_FILTER_STATUSES,
   normalizeInternalPedidosFilters,
   REFERENCE_SCAN_LIMIT,
 } from "./list-internal-pedidos-filters";
@@ -27,14 +29,18 @@ import type {
 
 export {
   INTERNAL_PEDIDO_ESTADOS,
+  INTERNAL_PEDIDO_NEW_STATUS_FILTER,
+  INTERNAL_PEDIDO_NEW_STATUS_FILTER_STATUSES,
   INTERNAL_PEDIDO_PAYMENT_STATUSES,
   isInternalPedidoEstado,
+  isInternalPedidoStatusFilter,
   isInternalPedidoPaymentStatus,
 } from "./list-internal-pedidos-filters";
 export type {
   InternalPedido,
   InternalPedidoEstado,
   InternalPedidoPaymentSummary,
+  InternalPedidoStatusFilter,
   InternalPedidoTrabajador,
   ListInternalPedidosErrorReason,
   ListInternalPedidosOptions,
@@ -145,7 +151,11 @@ export async function listInternalPedidos(
         .order("created_at", { ascending: false })
         .limit(limit);
 
-      if (selectedEstado) {
+      if (selectedEstado === INTERNAL_PEDIDO_NEW_STATUS_FILTER) {
+        query = query.in("status", [
+          ...INTERNAL_PEDIDO_NEW_STATUS_FILTER_STATUSES,
+        ]);
+      } else if (selectedEstado) {
         query = query.eq("status", selectedEstado);
       }
 

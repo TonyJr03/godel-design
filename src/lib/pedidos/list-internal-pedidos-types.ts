@@ -5,6 +5,7 @@ import type { PedidoTasksProgress } from "./task-progress";
 import type { PedidoPaymentStatus, PedidoStatus } from "./status";
 
 export type InternalPedidoEstado = PedidoStatus;
+export type InternalPedidoStatusFilter = InternalPedidoEstado | "nuevo";
 
 type PedidoCliente = Pick<Tables<"clientes">, "id" | "name"> | null;
 type PedidoSolicitud =
@@ -74,7 +75,7 @@ export type ListInternalPedidosOptions = {
 
 export type ListInternalPedidosMeta = {
   q: string | null;
-  status: InternalPedidoEstado | null;
+  status: InternalPedidoStatusFilter | null;
   workflowType: WorkflowType | null;
   paymentStatus: PedidoPaymentStatus | null;
   ignoredInvalidEstado: boolean;

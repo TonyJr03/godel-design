@@ -9,6 +9,7 @@ import { InternalPedidosList } from "@/components/pedidos/InternalPedidosList";
 import { Alert } from "@/components/ui/Alert";
 import {
   INTERNAL_PEDIDO_ESTADOS,
+  INTERNAL_PEDIDO_NEW_STATUS_FILTER,
   INTERNAL_PEDIDO_PAYMENT_STATUSES,
   PEDIDO_PAYMENT_STATUS_LABELS,
   PEDIDO_STATUS_LABELS,
@@ -28,6 +29,17 @@ type DashboardPedidosPageProps = {
     payment_status?: string | string[] | undefined;
   }>;
 };
+
+const PEDIDO_STATUS_FILTER_OPTIONS = [
+  { value: INTERNAL_PEDIDO_NEW_STATUS_FILTER, label: "Nuevo" },
+  ...INTERNAL_PEDIDO_ESTADOS.filter(
+    (status) =>
+      status !== "creado" && status !== "solicitud_recibida",
+  ).map((status) => ({
+    value: status,
+    label: PEDIDO_STATUS_LABELS[status],
+  })),
+];
 
 export default async function DashboardPedidosPage({
   searchParams,
@@ -72,10 +84,7 @@ export default async function DashboardPedidosPage({
                 value: result.status ?? "",
                 options: [
                   { value: "", label: "Todos los estados" },
-                  ...INTERNAL_PEDIDO_ESTADOS.map((estadoOption) => ({
-                    value: estadoOption,
-                    label: PEDIDO_STATUS_LABELS[estadoOption],
-                  })),
+                  ...PEDIDO_STATUS_FILTER_OPTIONS,
                 ],
               },
               {

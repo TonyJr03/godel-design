@@ -68,7 +68,12 @@ export function WorkspaceActionRail({
 
   return (
     <aside
-      className="hidden min-w-0 xl:block xl:h-full xl:min-h-0"
+      className={[
+        "hidden min-w-0 xl:block",
+        isIconRail
+          ? "xl:sticky xl:top-6 xl:h-[calc(100dvh-3rem)] xl:self-start"
+          : "xl:h-full xl:min-h-0",
+      ].join(" ")}
       aria-label="Acciones del workspace"
     >
       <div

@@ -3,6 +3,7 @@ import { normalizeSearchQuery } from "@/lib/utils";
 import { isWorkflowType } from "@/lib/workflow-types";
 import type {
   InternalPedidoEstado,
+  InternalPedidoStatusFilter,
   ListInternalPedidosMeta,
   ListInternalPedidosOptions,
 } from "./list-internal-pedidos-types";
@@ -18,6 +19,9 @@ const MAX_LIMIT = 100;
 export const REFERENCE_SCAN_LIMIT = 500;
 export const INTERNAL_PEDIDO_ESTADOS = PEDIDO_STATUSES;
 export const INTERNAL_PEDIDO_PAYMENT_STATUSES = PEDIDO_PAYMENT_STATUSES;
+export const INTERNAL_PEDIDO_NEW_STATUS_FILTER = "nuevo" as const;
+export const INTERNAL_PEDIDO_NEW_STATUS_FILTER_STATUSES: readonly InternalPedidoEstado[] =
+  ["creado", "solicitud_recibida"];
 
 export type NormalizedInternalPedidosFilters = ListInternalPedidosMeta & {
   limit: number;
@@ -43,6 +47,15 @@ export function isInternalPedidoEstado(
   return INTERNAL_PEDIDO_ESTADOS.includes(status as InternalPedidoEstado);
 }
 
+export function isInternalPedidoStatusFilter(
+  status: string | null | undefined,
+): status is InternalPedidoStatusFilter {
+  return (
+    status === INTERNAL_PEDIDO_NEW_STATUS_FILTER ||
+    isInternalPedidoEstado(status)
+  );
+}
+
 export function isInternalPedidoPaymentStatus(
   status: string | null | undefined,
 ): status is PedidoPaymentStatus {
@@ -55,7 +68,7 @@ export function normalizeInternalPedidosFilters(
   options: ListInternalPedidosOptions,
 ): NormalizedInternalPedidosFilters {
   const q = normalizeSearchQuery(options.q);
-  const selectedEstado = isInternalPedidoEstado(options.status)
+  const selectedEstado = isInternalPedidoStatusFilter(options.status)
     ? options.status
     : null;
   const selectedWorkflowType = isWorkflowType(options.workflowType)
