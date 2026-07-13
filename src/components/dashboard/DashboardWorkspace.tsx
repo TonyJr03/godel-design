@@ -14,8 +14,8 @@ import type {
 
 import { DashboardAttentionPanel } from "./DashboardAttentionPanel";
 import { DashboardOverview } from "./DashboardOverview";
+import { DashboardPedidoBoard } from "./DashboardPedidoBoard";
 import { DashboardRecentActivity } from "./DashboardRecentActivity";
-import { DashboardWorkPanels } from "./DashboardWorkPanels";
 
 type DashboardWorkspaceProps = {
   summaryResult: GetDashboardSummaryResult;
@@ -233,7 +233,7 @@ export function DashboardWorkspace({
     >
       <WorkspaceShell
         header={header}
-        main={<DashboardWorkPanels result={workItemsResult} />}
+        main={<DashboardPedidoBoard result={workItemsResult} />}
         hasActions
         railPresentation="icons"
         desktopMode="flow"

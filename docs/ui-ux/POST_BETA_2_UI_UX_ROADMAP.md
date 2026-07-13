@@ -962,7 +962,7 @@ docs/ui-ux/DASHBOARD_WORKSPACE_STAGE_11_PLAN.md
 * 11.2 Contrato de datos del dashboard — Completado.
 * 11.3 Shell del Dashboard Workspace — Completado.
 * 11.3.1 Alineación real con patrón Workspace — Completado.
-* 11.4 Tablero principal de pedidos — Pendiente.
+* 11.4 Tablero principal de pedidos — Completado.
 * 11.5 Paneles laterales — Pendiente.
 * 11.6 Variante trabajador — Pendiente.
 * 11.7 QA y cierre — Pendiente.
