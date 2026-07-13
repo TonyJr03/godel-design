@@ -146,7 +146,7 @@ export function TaskTemplateTasksList({
   }
 
   return (
-    <ol className="space-y-4" aria-label="Tareas de la plantilla">
+    <ol className="space-y-3" aria-label="Tareas de la plantilla">
       {tasks.map((task, index) => {
         const isFirst = index === 0;
         const isLast = index === tasks.length - 1;
@@ -155,7 +155,7 @@ export function TaskTemplateTasksList({
         return (
           <li
             key={task.id}
-            className="rounded-(--radius-card) border border-border bg-surface p-4 shadow-(--shadow-soft)"
+            className="rounded-(--radius-card) border border-border bg-surface p-4"
           >
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0 flex-1">
@@ -177,7 +177,7 @@ export function TaskTemplateTasksList({
                 </p>
               </div>
 
-              <div className="grid gap-2 sm:grid-cols-3 lg:w-auto">
+              <div className="grid gap-2 sm:grid-cols-3 lg:w-auto lg:min-w-80">
                 <MoveTaskTemplateTaskForm
                   task={task}
                   direction="up"
@@ -197,11 +197,11 @@ export function TaskTemplateTasksList({
               </div>
             </div>
 
-            <details className="mt-4 border-t border-border pt-4">
+            <details className="mt-3 border-t border-border pt-3">
               <summary className="inline-flex min-h-10 cursor-pointer items-center rounded-(--radius-control) border border-border-strong bg-surface px-3 text-sm font-semibold text-brand-primary transition-colors duration-200 hover:border-brand-primary hover:bg-brand-primary-soft">
                 Editar
               </summary>
-              <div className="mt-4 max-w-3xl">
+              <div className="mt-4 max-w-3xl rounded-(--radius-control) bg-surface-muted/50 p-4">
                 <TaskTemplateTaskForm
                   mode="edit"
                   action={actions.update}

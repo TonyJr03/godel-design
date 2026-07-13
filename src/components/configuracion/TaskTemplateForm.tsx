@@ -18,8 +18,14 @@ import {
 } from "@/components/ui";
 import type {
   TaskTemplateField,
+  TaskTemplateDetail,
   TaskTemplateListItem,
 } from "@/lib/task-templates";
+
+type EditableTaskTemplate = Pick<
+  TaskTemplateListItem | TaskTemplateDetail,
+  "id" | "name" | "description"
+>;
 
 type TaskTemplateFormProps =
   | {
@@ -30,7 +36,7 @@ type TaskTemplateFormProps =
   | {
       mode: "edit";
       layout?: "inline";
-      template: TaskTemplateListItem;
+      template: EditableTaskTemplate;
     };
 
 const initialState: TaskTemplateActionState = {
@@ -51,7 +57,7 @@ function TaskTemplateFields({
   fieldPrefix,
 }: {
   state: TaskTemplateActionState;
-  template?: TaskTemplateListItem;
+  template?: EditableTaskTemplate;
   fieldPrefix: string;
 }) {
   const nameError = getFieldError(state, "name");
