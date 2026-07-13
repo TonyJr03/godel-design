@@ -1,4 +1,5 @@
 import type { Role } from "@/lib/permissions";
+import type { InternalPedidoPaymentSummary } from "@/lib/pedidos";
 import type { Enums } from "@/types/database";
 
 export type DashboardRole = Extract<
@@ -107,11 +108,14 @@ export type DashboardPedidoWorkItem = {
   href: string;
   numeroPedido: string;
   title: string;
+  workflowType: Enums<"workflow_type">;
+  descriptionSnippet: string | null;
   status: Enums<"pedido_estado">;
   priority: Enums<"pedido_prioridad">;
   fechaEntregaEstimada: string | null;
   createdAt: string;
   clienteNombre: string | null;
+  payment: InternalPedidoPaymentSummary;
   progress: {
     totalTasks: number;
     completedTasks: number;
@@ -130,11 +134,36 @@ export type DashboardPedidoWorkItem = {
   };
 };
 
+export type DashboardPedidoBoardGroupKey =
+  | "nuevos"
+  | "enRevision"
+  | "enProduccion"
+  | "listosEntrega";
+
+export type DashboardPedidoBoardGroup = {
+  key: DashboardPedidoBoardGroupKey;
+  title: string;
+  statuses: Enums<"pedido_estado">[];
+  items: DashboardPedidoWorkItem[];
+  totalCount: number;
+  visibleLimit: number;
+  moreCount: number;
+  moreHref: string;
+};
+
+export type DashboardPedidoBoard = {
+  nuevos: DashboardPedidoBoardGroup;
+  enRevision: DashboardPedidoBoardGroup;
+  enProduccion: DashboardPedidoBoardGroup;
+  listosEntrega: DashboardPedidoBoardGroup;
+};
+
 export type ManagementDashboardWorkItems = {
   kind: "management";
   role: ManagementDashboardRole;
   solicitudesPendientes: DashboardPendingSolicitudItem[];
   pedidosAtencion: DashboardPedidoWorkItem[];
+  pedidoBoard: DashboardPedidoBoard;
   generatedAt: string;
 };
 
@@ -142,6 +171,7 @@ export type WorkerDashboardWorkItems = {
   kind: "worker";
   role: WorkerDashboardRole;
   pedidosAsignados: DashboardPedidoWorkItem[];
+  pedidoBoard: DashboardPedidoBoard;
   generatedAt: string;
 };
 

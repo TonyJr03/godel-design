@@ -959,7 +959,7 @@ docs/ui-ux/DASHBOARD_WORKSPACE_STAGE_11_PLAN.md
 ### Subtareas
 
 * 11.1 Plan técnico del Dashboard Workspace — Completado.
-* 11.2 Contrato de datos del dashboard — Pendiente.
+* 11.2 Contrato de datos del dashboard — Completado.
 * 11.3 Shell del Dashboard Workspace — Pendiente.
 * 11.4 Tablero principal de pedidos — Pendiente.
 * 11.5 Paneles laterales — Pendiente.
