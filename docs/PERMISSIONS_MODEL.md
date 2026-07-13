@@ -89,8 +89,8 @@ sistema web de gestión operativa de Godel Diseño.
 | `/dashboard/solicitudes` | `admin`, `supervisor` |
 | `/dashboard/pedidos` | `admin`, `supervisor`, `trabajador` |
 | `/dashboard/clientes` | `admin`, `supervisor` |
-| `/dashboard/usuarios` | `admin` |
 | `/dashboard/configuracion` | `admin` |
+| `/dashboard/configuracion/usuarios` | `admin` |
 
 Las subrutas heredan la regla de la sección padre. Por ejemplo, `/dashboard/pedidos/123` usa la regla de `/dashboard/pedidos`.
 
@@ -185,7 +185,7 @@ puede modificar sus tareas. `anon` no tiene `execute` sobre esta RPC.
 
 ## Gestión de Usuarios Internos
 
-La Fase 12 mantiene la matriz actual: solo `admin` tiene `usuarios.view`, `usuarios.manage` y acceso a `/dashboard/usuarios`.
+La Fase 12 mantiene la matriz actual: solo `admin` tiene `usuarios.view`, `usuarios.manage` y acceso a `/dashboard/configuracion/usuarios`.
 
 La estrategia vigente gestiona únicamente `public.perfiles`. La creación de
 usuarios en Supabase Auth queda fuera de la app y se realiza manualmente desde
@@ -199,13 +199,13 @@ Las acciones del módulo de usuarios validan permisos server-side:
 
 `supervisor` y `trabajador` no deben gestionar usuarios. El acceso parcial de `trabajador` a perfiles asignados por pedido existe solo para mostrar información operativa mínima en pedidos, no para listar ni administrar personal.
 
-La subfase 12.2 implementa el listado read-only de usuarios internos en `/dashboard/usuarios`. La carga se hace server-side desde `public.perfiles`, valida `usuarios.view`, respeta RLS, no consulta `auth.users`, no muestra email y no implementa creación ni edición.
+La subfase 12.2 implementa el listado read-only de usuarios internos en `/dashboard/configuracion/usuarios`. La carga se hace server-side desde `public.perfiles`, valida `usuarios.view`, respeta RLS, no consulta `auth.users`, no muestra email y no implementa creación ni edición.
 
-La subfase 12.3 implementa el detalle read-only en `/dashboard/usuarios/[id]` con las mismas reglas: solo `admin`, validación server-side de `usuarios.view`, consulta limitada a `public.perfiles`, sin email, sin `auth.users`, sin service role y sin acciones de modificación.
+La subfase 12.3 implementó la carga read-only de usuario por UUID con las mismas reglas: solo `admin`, validación server-side de `usuarios.view`, consulta limitada a `public.perfiles`, sin email, sin `auth.users`, sin service role y sin acciones de modificación. En la estructura actual, el listado abre la edición directamente.
 
-La subfase 12.4 implementa edición controlada en `/dashboard/usuarios/[id]/editar`. Solo `admin` puede editar mediante validación server-side de `usuarios.manage`. La edición se limita a `full_name`, `phone`, `avatar_url`, `role` e `is_active`, no consulta `auth.users`, no muestra email, no cambia contraseñas, no elimina usuarios y no usa service role key. El servicio impide desactivar el propio admin, quitarse el rol admin y dejar el sistema sin al menos un admin activo.
+La subfase 12.4 implementa edición controlada en `/dashboard/configuracion/usuarios/[id]/editar`. Solo `admin` puede editar mediante validación server-side de `usuarios.manage`. La edición se limita a `full_name`, `phone`, `avatar_url`, `role` e `is_active`, no consulta `auth.users`, no muestra email, no cambia contraseñas, no elimina usuarios y no usa service role key. El servicio impide desactivar el propio admin, quitarse el rol admin y dejar el sistema sin al menos un admin activo.
 
-La subfase 12.5 implementa creación de perfil interno en `/dashboard/usuarios/nuevo` para usuarios Auth ya existentes. Solo `admin` puede crear perfiles mediante validación server-side de `usuarios.manage`. La app no crea credenciales, no consulta `auth.users`, no pide email ni contraseña, no envía invitaciones y no usa service role key. El UUID se valida por formato y la base confirma su existencia mediante la clave foránea de `public.perfiles.id`.
+La subfase 12.5 implementa creación de perfil interno en `/dashboard/configuracion/usuarios/nuevo` para usuarios Auth ya existentes. Solo `admin` puede crear perfiles mediante validación server-side de `usuarios.manage`. La app no crea credenciales, no consulta `auth.users`, no pide email ni contraseña, no envía invitaciones y no usa service role key. El UUID se valida por formato y la base confirma su existencia mediante la clave foránea de `public.perfiles.id`.
 
 ## Uso en módulos
 

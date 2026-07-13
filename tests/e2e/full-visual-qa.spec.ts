@@ -590,7 +590,7 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   await loginAs(page, "admin");
   await expect(page.getByRole("link", { name: /solicitudes/i })).toBeVisible();
   await expect(page.getByRole("link", { name: /pedidos/i })).toBeVisible();
-  await expect(page.getByRole("link", { name: /usuarios/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /configuraci.n/i })).toBeVisible();
   await captureNamedScreenshot(
     page,
     "test-results/beta-2-shell-dashboard-desktop-expanded-1366.png",
@@ -1197,7 +1197,7 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   await loginAs(page, "supervisor");
   await expect(page.getByRole("link", { name: /pedidos/i })).toBeVisible();
   await expect(page.getByRole("link", { name: /usuarios/i })).toHaveCount(0);
-  await page.goto("/dashboard/usuarios");
+  await page.goto("/dashboard/configuracion/usuarios");
   await expect(page.getByText(/esta secci.n no est. disponible|acceso limitado/i).first()).toBeVisible();
   await openPedidoDetailFromSearch(page, manualImpresionTitle, manualImpresionTitle);
 

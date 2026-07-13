@@ -56,8 +56,8 @@ La matriz de rutas actual queda asi:
 | `/dashboard/solicitudes` | `admin`, `supervisor` |
 | `/dashboard/pedidos` | `admin`, `supervisor`, `trabajador` |
 | `/dashboard/clientes` | `admin`, `supervisor` |
-| `/dashboard/usuarios` | `admin` |
 | `/dashboard/configuracion` | `admin` |
+| `/dashboard/configuracion/usuarios` | `admin` |
 
 Las subrutas heredan la regla del prefijo. En Beta 2.5.4 se mantiene
 explicitamente el comportamiento de `/dashboard/pedidos/nuevo`: el rol
@@ -69,7 +69,7 @@ resuelve cambiando permisos ni rutas en esta subfase.
 ## Usuarios internos
 
 `usuarios.view` y `usuarios.manage` pertenecen solo a `admin`. La ruta
-`/dashboard/usuarios` tambien esta limitada a `admin`.
+`/dashboard/configuracion/usuarios` tambien esta limitada a `admin`.
 
 La gestion de usuarios internos opera sobre `public.perfiles`, sin crear
 usuarios Auth desde la app y sin usar service role key. Las Server Actions del
@@ -79,19 +79,19 @@ La subfase 12.2 usa `usuarios.view` para el listado read-only de perfiles
 internos. La pagina carga datos server-side, consulta solo `public.perfiles`,
 no consulta `auth.users` y no expone correos electronicos.
 
-La subfase 12.3 usa el mismo permiso para el detalle read-only de
-`/dashboard/usuarios/[id]`. El servicio valida UUID, respeta RLS y no habilita
-acciones de edicion, cambio de rol ni activacion.
+La subfase 12.3 introdujo la carga read-only de perfil por UUID. En la estructura
+actual esa carga alimenta la edicion desde Configuracion, con validacion de UUID
+y respeto de RLS.
 
 La subfase 12.4 usa `usuarios.manage` para editar perfiles internos en
-`/dashboard/usuarios/[id]/editar`. El servicio actualiza solo campos permitidos
-de `public.perfiles` y aplica guardas para conservar al menos un administrador
-activo.
+`/dashboard/configuracion/usuarios/[id]/editar`. El servicio actualiza solo
+campos permitidos de `public.perfiles` y aplica guardas para conservar al menos
+un administrador activo.
 
 La subfase 12.5 usa `usuarios.manage` para crear perfiles internos en
-`/dashboard/usuarios/nuevo`. La app inserta solo en `public.perfiles`, no crea
-usuarios Auth, no consulta `auth.users`, no pide email ni contrasena y no usa
-service role key.
+`/dashboard/configuracion/usuarios/nuevo`. La app inserta solo en
+`public.perfiles`, no crea usuarios Auth, no consulta `auth.users`, no pide
+email ni contrasena y no usa service role key.
 
 ## Relacion con RLS
 

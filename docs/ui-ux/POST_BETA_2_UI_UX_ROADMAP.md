@@ -239,7 +239,7 @@ Según el alcance, deben existir:
 | 7     | Integración del shell interno                | Cerrada   |
 | 8     | Arquitectura común de listados               | Cerrada   |
 | 9     | Listados operativos de Pedidos y Solicitudes | Cerrada   |
-| 10    | Listados administrativos                     | En curso  |
+| 10    | Listados administrativos                     | Cerrada   |
 | 11    | Dashboard operativo                          | Pendiente |
 | 12    | Páginas internas secundarias                 | Pendiente |
 | 13    | Área pública                                 | Pendiente |
@@ -794,7 +794,7 @@ Pedidos y Solicitudes pueden gestionarse desde sus listados con una jerarquía c
 
 ### Estado
 
-En curso.
+Cerrada.
 
 ### Objetivo
 
@@ -916,10 +916,12 @@ Priorizar:
 * sin workflow;
 * fila/card abre gestión de plantilla;
 * creación en `/dashboard/configuracion/plantillas/nueva`;
-* gestión en `/dashboard/configuracion/plantillas/[id]`;
-* la pantalla `[id]` unifica edición, activación/desactivación y tareas.
+* gestión de tareas en `/dashboard/configuracion/plantillas/[id]`;
+* edición de datos y estado en `/dashboard/configuracion/plantillas/[id]/editar`.
 
 ### 10.6 Limpieza y cierre
+
+Estado: Completado.
 
 Priorizar:
 
@@ -928,10 +930,11 @@ Priorizar:
 * actualizar permisos de rutas sin cambiar matriz de permisos;
 * actualizar tests;
 * QA responsive y por rol.
+* 10.6 Limpieza y cierre — Completado.
 
 ### Criterio de cierre
 
-Clientes, Usuarios y Plantillas quedan integrados en una estructura consistente; Configuración funciona como hub admin-only; Usuarios deja de ser entrada principal del sidebar; y no se modifican permisos, RLS ni modelo de datos.
+Clientes, Usuarios y Plantillas quedaron integrados en una estructura consistente; Configuración funciona como hub admin-only; Usuarios dejó de ser entrada principal del sidebar; Plantillas tiene listado, creación, workspace de tareas y edición separada; no se modificaron permisos, RLS ni modelo de datos.
 
 ---
 
