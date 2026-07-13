@@ -18,6 +18,15 @@ import {
 } from "@/components/ui";
 import type { UserField } from "@/lib/usuarios";
 
+type UserCreateFormProps = {
+  createAction?: (
+    state: CreateUserProfileActionState,
+    formData: FormData,
+  ) => Promise<CreateUserProfileActionState>;
+  backHref?: string;
+  backLabel?: string;
+};
+
 const initialState: CreateUserProfileActionState = {
   ok: false,
   message: "",
@@ -27,9 +36,13 @@ function getFieldError(state: CreateUserProfileActionState, field: UserField) {
   return state.fieldErrors?.[field];
 }
 
-export function UserCreateForm() {
+export function UserCreateForm({
+  createAction = createUserProfileAction,
+  backHref = "/dashboard/usuarios",
+  backLabel = "Volver al listado",
+}: UserCreateFormProps = {}) {
   const [state, formAction, pending] = useActionState(
-    createUserProfileAction,
+    createAction,
     initialState,
   );
 
@@ -178,10 +191,10 @@ export function UserCreateForm() {
 
           <FormActions note="Los campos marcados con * son obligatorios.">
             <Link
-              href="/dashboard/usuarios"
+              href={backHref}
               className="inline-flex min-h-11 w-full items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-5 text-sm font-semibold text-text-primary transition-colors hover:bg-surface-muted sm:w-auto"
             >
-              Volver al listado
+              {backLabel}
             </Link>
             <Button type="submit" disabled={pending} className="w-full sm:w-auto">
               {pending ? "Creando..." : "Crear perfil"}

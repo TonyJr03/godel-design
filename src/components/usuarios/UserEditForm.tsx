@@ -21,6 +21,8 @@ type UserEditFormProps = {
     state: UpdateUserActionState,
     formData: FormData,
   ) => Promise<UpdateUserActionState>;
+  backHref?: string;
+  backLabel?: string;
 };
 
 const initialState: UpdateUserActionState = {
@@ -32,7 +34,12 @@ function getFieldError(state: UpdateUserActionState, field: UserField) {
   return state.fieldErrors?.[field];
 }
 
-export function UserEditForm({ user, updateAction }: UserEditFormProps) {
+export function UserEditForm({
+  user,
+  updateAction,
+  backHref = `/dashboard/usuarios/${user.id}`,
+  backLabel = "Volver al detalle",
+}: UserEditFormProps) {
   const [state, formAction, pending] = useActionState(
     updateAction,
     initialState,
@@ -169,10 +176,10 @@ export function UserEditForm({ user, updateAction }: UserEditFormProps) {
 
           <FormActions note="Los campos marcados con * son obligatorios.">
             <Link
-              href={`/dashboard/usuarios/${user.id}`}
+              href={backHref}
               className="inline-flex min-h-11 w-full items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-5 text-sm font-semibold text-text-primary transition-colors hover:bg-surface-muted sm:w-auto"
             >
-              Volver al detalle
+              {backLabel}
             </Link>
             <Button type="submit" disabled={pending} className="w-full sm:w-auto">
               {pending ? "Guardando..." : "Guardar cambios"}

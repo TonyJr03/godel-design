@@ -855,6 +855,7 @@ Priorizar:
 Subtareas:
 
 * 10.4.1 Listado de Usuarios dentro de Configuración — Completado.
+* 10.4.2 Creación y edición de Usuarios en Configuración — Completado.
 
 Ruta final:
 

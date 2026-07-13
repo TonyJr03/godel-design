@@ -18,6 +18,15 @@ export function revalidateUsuariosList() {
   revalidatePath("/dashboard/usuarios");
 }
 
+export function revalidateConfiguracionUsuariosList() {
+  revalidatePath("/dashboard/configuracion/usuarios");
+}
+
+export function revalidateConfiguracionUsuarioEdit(userId: string) {
+  revalidateConfiguracionUsuariosList();
+  revalidatePath(`/dashboard/configuracion/usuarios/${userId}/editar`);
+}
+
 export function revalidateTaskTemplatesList() {
   revalidatePath("/dashboard/configuracion");
 }
