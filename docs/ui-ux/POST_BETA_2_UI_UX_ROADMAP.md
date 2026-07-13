@@ -856,6 +856,7 @@ Subtareas:
 
 * 10.4.1 Listado de Usuarios dentro de Configuración — Completado.
 * 10.4.2 Creación y edición de Usuarios en Configuración — Completado.
+* 10.4.3 Limpieza de navegación y rutas legacy de Usuarios — Completado.
 
 Ruta final:
 
