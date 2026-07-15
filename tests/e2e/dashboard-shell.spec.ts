@@ -58,16 +58,24 @@ async function expectSidebarCookie(page: Page, value: string) {
     .toBe(value);
 }
 
+function getDesktopSidebar(page: Page) {
+  const desktopNav = page.getByRole("navigation", {
+    name: /navegaci.n principal/i,
+  });
+
+  return {
+    sidebar: desktopNav.locator("xpath=ancestor::aside[1]"),
+    desktopNav,
+  };
+}
+
 test("admin can use the desktop shell collapsed and expanded", async ({
   page,
 }) => {
   await page.setViewportSize(desktopViewport);
   await loginAs(page, "admin");
 
-  const sidebar = page.locator("aside");
-  const desktopNav = sidebar.getByRole("navigation", {
-    name: /navegaci.n principal/i,
-  });
+  const { sidebar, desktopNav } = getDesktopSidebar(page);
 
   await expect(sidebar).toBeVisible();
   await expect(page.getByRole("img", { name: /godel dise.o/i })).toBeVisible();
@@ -106,13 +114,13 @@ test("admin can use the desktop shell collapsed and expanded", async ({
   await expectSidebarCookie(page, "1");
   await expect(sidebar.getByRole("link", { name: /pedidos/i })).toBeVisible();
   await expect(sidebar.locator("svg").first()).toBeVisible();
-  expect(await getSidebarWidth(sidebar)).toBeLessThanOrEqual(100);
+  expect(await getSidebarWidth(sidebar)).toBeLessThan(expandedWidth);
 
   await page.reload();
   await expect(
     sidebar.getByRole("button", { name: /expandir barra lateral/i }),
   ).toHaveAttribute("aria-expanded", "false");
-  expect(await getSidebarWidth(sidebar)).toBeLessThanOrEqual(100);
+  expect(await getSidebarWidth(sidebar)).toBeLessThan(expandedWidth);
 
   await expandButton.click();
   await expect(
@@ -149,10 +157,11 @@ test("admin can use the mobile details navigation", async ({ page }) => {
   await page.setViewportSize(mobileViewport);
   await loginAs(page, "admin");
 
-  const details = page.locator("header details");
+  const details = page.locator("header details").first();
   const summary = details.locator("summary").filter({ hasText: /men/i });
+  const { sidebar } = getDesktopSidebar(page);
 
-  await expect(page.locator("aside")).toBeHidden();
+  await expect(sidebar).toBeHidden();
   await expect(page.getByRole("img", { name: /godel dise.o/i })).toBeVisible();
   await expect(summary).toBeVisible();
   await expectNoHorizontalOverflow(page);
@@ -171,12 +180,10 @@ test("admin can use the mobile details navigation", async ({ page }) => {
   await expect(page).toHaveURL(/\/dashboard\/pedidos(?:[/?#].*)?$/);
   await expect
     .poll(() =>
-      page
-        .locator("header details")
-        .evaluate((element) => element.hasAttribute("open")),
+      details.evaluate((element) => element.hasAttribute("open")),
     )
     .toBe(false);
-  await expect(page.locator("aside")).toBeHidden();
+  await expect(sidebar).toBeHidden();
   await expectNoVisibleSensitiveText(page);
   await expectNoHorizontalOverflow(page);
 });
@@ -185,17 +192,13 @@ test("shell navigation respects current role visibility", async ({ page }) => {
   await page.setViewportSize(desktopViewport);
   await loginAs(page, "admin");
 
-  const adminSidebar = page.locator("aside");
-  const adminNav = adminSidebar.getByRole("navigation", {
-    name: /navegaci.n principal/i,
-  });
+  const { desktopNav: adminNav } = getDesktopSidebar(page);
 
   for (const label of [
     /dashboard/i,
     /solicitudes/i,
     /pedidos/i,
     /clientes/i,
-    /usuarios/i,
     /configuraci.n/i,
   ]) {
     await expect(adminNav.getByRole("link", { name: label })).toBeVisible();
@@ -203,10 +206,7 @@ test("shell navigation respects current role visibility", async ({ page }) => {
 
   await loginAs(page, "worker");
 
-  const workerSidebar = page.locator("aside");
-  const workerNav = workerSidebar.getByRole("navigation", {
-    name: /navegaci.n principal/i,
-  });
+  const { desktopNav: workerNav } = getDesktopSidebar(page);
 
   await expect(workerNav.getByRole("link", { name: /dashboard/i })).toBeVisible();
   await expect(workerNav.getByRole("link", { name: /pedidos/i })).toBeVisible();

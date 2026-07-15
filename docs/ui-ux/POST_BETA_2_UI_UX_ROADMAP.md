@@ -240,7 +240,7 @@ Según el alcance, deben existir:
 | 8     | Arquitectura común de listados               | Cerrada   |
 | 9     | Listados operativos de Pedidos y Solicitudes | Cerrada   |
 | 10    | Listados administrativos                     | Cerrada   |
-| 11    | Dashboard operativo                          | En curso  |
+| 11    | Dashboard operativo                          | Completada |
 | 12    | Páginas internas secundarias                 | Pendiente |
 | 13    | Área pública                                 | Pendiente |
 | 14    | Estados transversales y resiliencia UI       | Pendiente |
@@ -942,7 +942,7 @@ Clientes, Usuarios y Plantillas quedaron integrados en una estructura consistent
 
 ### Estado
 
-En curso.
+Completada.
 
 ### Objetivo
 
@@ -970,7 +970,7 @@ docs/ui-ux/DASHBOARD_WORKSPACE_STAGE_11_PLAN.md
 * 11.5.1 Corrección visual y datos de paneles — Completado.
 * 11.5.2 Badge total y hover de cards en paneles — Completado.
 * 11.6 Variante trabajador — Completado.
-* 11.7 QA y cierre — Pendiente.
+* 11.7 QA y cierre — Completado.
 
 ### Decisiones iniciales de workspace
 
@@ -1028,7 +1028,7 @@ No debe recibir información global innecesaria.
 
 ### Criterio de cierre
 
-Cada rol puede comprender su situación operativa y acceder a sus tareas prioritarias desde el dashboard.
+El dashboard quedó reorganizado como workspace operativo centrado en pedidos activos, con paneles contextuales para atención, solicitudes, entregas, historial y resumen. La vista diferencia admin/supervisor y trabajador, conserva permisos/RLS existentes, usa el patrón Workspace validado y queda documentada mediante reporte QA de Etapa 11.
 
 ---
 

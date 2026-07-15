@@ -10,7 +10,7 @@ test.describe.configure({ mode: "serial" });
 
 const managementDashboardCards = [
   /solicitudes nuevas/i,
-  /pedidos activos/i,
+  /^pedidos activos$/i,
   /clientes registrados/i,
 ];
 
@@ -21,14 +21,18 @@ const workerForbiddenText = [
   /clientes registrados/i,
 ];
 
-async function expectDashboardLoaded(page: Page, heading: RegExp) {
+async function expectDashboardLoaded(
+  page: Page,
+  heading: RegExp,
+  boardHeading: RegExp = /pedidos activos/i,
+) {
   await expect(page).toHaveURL(/\/dashboard(?:\/)?(?:[?#].*)?$/);
   await expect(page.getByRole("heading", { name: heading })).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: /resumen operativo/i }),
+    page.getByRole("heading", { name: boardHeading }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: /actividad reciente/i }),
+    page.getByRole("button", { name: /historial/i }),
   ).toBeVisible();
   await expectNoVisibleSensitiveText(page);
 }
@@ -54,12 +58,16 @@ test("admin sees the global dashboard with management sections", async ({
 
   await expectDashboardLoaded(page, /dashboard operativo/i);
   await expect(
-    page.getByRole("heading", { name: /trabajo pendiente/i }),
+    page.getByRole("button", { name: /solicitudes/i }),
   ).toBeVisible();
+  await expect(page.getByRole("button", { name: /entregas/i })).toBeVisible();
+  await page.getByRole("button", { name: /resumen/i }).click();
 
   for (const card of managementDashboardCards) {
     await expect(page.getByText(card).first()).toBeVisible();
   }
+
+  await page.getByRole("button", { name: /^cerrar$/i }).click();
 
   await expect(page.locator('a[href^="/dashboard/solicitudes"]')).not.toHaveCount(
     0,
@@ -92,7 +100,7 @@ test("supervisor sees the global dashboard without admin-only navigation", async
 
   await expectDashboardLoaded(page, /dashboard operativo/i);
   await expect(
-    page.getByRole("heading", { name: /trabajo pendiente/i }),
+    page.getByRole("button", { name: /solicitudes/i }),
   ).toBeVisible();
   await expectNoDashboardLinks(page, [
     "/dashboard/configuracion",
@@ -102,10 +110,16 @@ test("supervisor sees the global dashboard without admin-only navigation", async
 test("worker sees only assigned-work dashboard context", async ({ page }) => {
   await loginAs(page, "worker");
 
-  await expectDashboardLoaded(page, /mi trabajo asignado/i);
+  await expectDashboardLoaded(
+    page,
+    /mi trabajo asignado/i,
+    /mis pedidos asignados/i,
+  );
   await expect(
-    page.getByRole("heading", { name: /trabajo que requiere seguimiento/i }),
-  ).toBeVisible();
+    page.getByRole("button", { name: /solicitudes/i }),
+  ).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /entregas/i })).toBeVisible();
+  await page.getByRole("button", { name: /resumen/i }).click();
   await expectBodyNotToMatch(page, workerForbiddenText);
   await expectNoDashboardLinks(page, [
     "/dashboard/solicitudes",

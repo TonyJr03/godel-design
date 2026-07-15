@@ -588,9 +588,9 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   await expect(page.getByText(/c.digo no encontrado/i)).toBeVisible();
 
   await loginAs(page, "admin");
-  await expect(page.getByRole("link", { name: /solicitudes/i })).toBeVisible();
-  await expect(page.getByRole("link", { name: /pedidos/i })).toBeVisible();
-  await expect(page.getByRole("link", { name: /configuraci.n/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /^solicitudes$/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /^pedidos$/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /^configuraci.n$/i })).toBeVisible();
   await captureNamedScreenshot(
     page,
     "test-results/beta-2-shell-dashboard-desktop-expanded-1366.png",
@@ -1195,7 +1195,7 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
 
   await logout(page);
   await loginAs(page, "supervisor");
-  await expect(page.getByRole("link", { name: /pedidos/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /^pedidos$/i })).toBeVisible();
   await expect(page.getByRole("link", { name: /usuarios/i })).toHaveCount(0);
   await page.goto("/dashboard/configuracion/usuarios");
   await expect(page.getByText(/esta secci.n no est. disponible|acceso limitado/i).first()).toBeVisible();
@@ -1203,7 +1203,7 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
 
   await logout(page);
   await loginAs(page, "worker");
-  await expect(page.getByRole("link", { name: /pedidos/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /^pedidos$/i })).toBeVisible();
   await expect(page.getByRole("link", { name: /solicitudes/i })).toHaveCount(0);
   await page.goto("/dashboard/pedidos/nuevo");
   await expect(page.getByText(/no tienes permiso para crear pedidos/i)).toBeVisible();
