@@ -113,7 +113,7 @@ export function InternalClienteDetail({
             </DetailPanel>
           </div>
 
-          <DetailPanel title="Registro" className="order-2 lg:order-none">
+          <DetailPanel title="Registro" className="order-2 lg:order-0">
             <MetadataGrid>
               <MetadataItem
                 label="Creación"

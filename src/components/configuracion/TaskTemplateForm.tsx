@@ -12,7 +12,6 @@ import {
   Button,
   FormActions,
   FormField,
-  FormSection,
   Input,
   Select,
   Textarea,
@@ -29,7 +28,6 @@ type EditableTaskTemplate = Pick<
 >;
 
 type TaskTemplateFormCommonProps = {
-  compact?: boolean;
   onSuccess?: (state: TaskTemplateActionState) => void;
   onDirtyChange?: (dirty: boolean) => void;
 };
@@ -38,13 +36,11 @@ type TaskTemplateFormProps = TaskTemplateFormCommonProps &
   (
     | {
       mode: "create";
-      layout?: "inline" | "section";
       template?: never;
       includeStatus?: never;
     }
     | {
       mode: "edit";
-      layout?: "inline" | "section";
       template: EditableTaskTemplate;
       includeStatus?: boolean;
     }
@@ -67,13 +63,11 @@ function TaskTemplateFields({
   template,
   fieldPrefix,
   includeStatus = false,
-  compact = false,
 }: {
   state: TaskTemplateActionState;
   template?: EditableTaskTemplate;
   fieldPrefix: string;
   includeStatus?: boolean;
-  compact?: boolean;
 }) {
   const nameError = getFieldError(state, "name");
   const descriptionError = getFieldError(state, "description");
@@ -82,13 +76,13 @@ function TaskTemplateFields({
   const statusId = `${fieldPrefix}-status`;
 
   return (
-    <div className={compact ? "grid gap-4" : "grid gap-5"}>
+    <div className="grid gap-4">
       <FormField
         id={nameId}
         label="Nombre"
         required
         error={nameError}
-        compact={compact}
+        compact
       >
         {({ describedBy, invalid }) => (
           <Input
@@ -109,7 +103,7 @@ function TaskTemplateFields({
         id={descriptionId}
         label="Descripción"
         error={descriptionError}
-        compact={compact}
+        compact
       >
         {({ describedBy, invalid }) => (
           <Textarea
@@ -119,13 +113,13 @@ function TaskTemplateFields({
             defaultValue={template?.description ?? ""}
             invalid={invalid}
             aria-describedby={describedBy}
-            className={compact ? "min-h-20" : "min-h-24"}
+            className="min-h-20"
           />
         )}
       </FormField>
 
       {includeStatus && template ? (
-        <FormField id={statusId} label="Estado" required compact={compact}>
+        <FormField id={statusId} label="Estado" required compact>
           {({ describedBy, invalid }) => (
             <Select
               id={statusId}
@@ -147,10 +141,8 @@ function TaskTemplateFields({
 
 export function TaskTemplateForm({
   mode,
-  layout = mode === "create" ? "section" : "inline",
   template,
   includeStatus = false,
-  compact = false,
   onSuccess,
   onDirtyChange,
 }: TaskTemplateFormProps) {
@@ -172,49 +164,6 @@ export function TaskTemplateForm({
     }
   }, [isCreate, onDirtyChange, onSuccess, state]);
 
-  const content = (
-    <div className={compact ? "space-y-4" : "space-y-5"}>
-      {state.message ? (
-        <Alert variant={state.ok ? "success" : "danger"} aria-live="polite">
-          {state.message}
-        </Alert>
-      ) : null}
-
-      {template ? (
-        <input type="hidden" name="template_id" value={template.id} />
-      ) : null}
-
-      <TaskTemplateFields
-        state={state}
-        template={template}
-        fieldPrefix={fieldPrefix}
-        includeStatus={!isCreate && includeStatus}
-        compact={compact}
-      />
-
-      <FormActions
-        compact={compact}
-        note={
-          compact
-            ? undefined
-            : isCreate
-              ? "Después de crearla, usa Gestionar tareas para definir su flujo."
-            : undefined
-        }
-      >
-        <Button type="submit" disabled={pending} className="w-full sm:w-auto">
-          {pending
-            ? isCreate
-              ? "Creando..."
-              : "Guardando..."
-            : isCreate
-              ? "Crear plantilla"
-              : "Guardar cambios"}
-        </Button>
-      </FormActions>
-    </div>
-  );
-
   return (
     <form
       ref={formRef}
@@ -222,21 +171,36 @@ export function TaskTemplateForm({
       aria-busy={pending}
       onChange={() => onDirtyChange?.(true)}
     >
-      {layout === "section" ? (
-        <FormSection
-          title={isCreate ? "Nueva plantilla" : "Datos de la plantilla"}
-          description={
-            isCreate
-              ? "Crea una cabecera reutilizable para encargos internos."
-              : "Actualiza la información y disponibilidad de la plantilla."
-          }
-          compact={compact}
-        >
-          {content}
-        </FormSection>
-      ) : (
-        content
-      )}
+      <div className="space-y-4">
+        {state.message ? (
+          <Alert variant={state.ok ? "success" : "danger"} aria-live="polite">
+            {state.message}
+          </Alert>
+        ) : null}
+
+        {template ? (
+          <input type="hidden" name="template_id" value={template.id} />
+        ) : null}
+
+        <TaskTemplateFields
+          state={state}
+          template={template}
+          fieldPrefix={fieldPrefix}
+          includeStatus={!isCreate && includeStatus}
+        />
+
+        <FormActions compact note={undefined}>
+          <Button type="submit" disabled={pending} className="w-full sm:w-auto">
+            {pending
+              ? isCreate
+                ? "Creando..."
+                : "Guardando..."
+              : isCreate
+                ? "Crear plantilla"
+                : "Guardar cambios"}
+          </Button>
+        </FormActions>
+      </div>
     </form>
   );
 }

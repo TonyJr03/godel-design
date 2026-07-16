@@ -9,18 +9,16 @@ export function revalidateClienteDetail(clienteId: string) {
   revalidatePath(`/dashboard/clientes/${clienteId}`);
 }
 
-export function revalidateClienteEdit(clienteId: string) {
+export function revalidateClienteForm(clienteId: string) {
   revalidateClienteDetail(clienteId);
-  revalidatePath(`/dashboard/clientes/${clienteId}/editar`);
 }
 
 export function revalidateConfiguracionUsuariosList() {
   revalidatePath("/dashboard/configuracion/usuarios");
 }
 
-export function revalidateConfiguracionUsuarioEdit(userId: string) {
+export function revalidateConfiguracionUsuario() {
   revalidateConfiguracionUsuariosList();
-  revalidatePath(`/dashboard/configuracion/usuarios/${userId}/editar`);
 }
 
 export function revalidateTaskTemplatesList() {

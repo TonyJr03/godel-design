@@ -6,7 +6,7 @@ import { useCallback, useState } from "react";
 
 import { InternalFormDialog } from "@/components/forms";
 import { Alert } from "@/components/ui/Alert";
-import type { CreatePedidoActionState } from "@/app/(interno)/dashboard/pedidos/nuevo/actions";
+import type { CreatePedidoActionState } from "@/app/(interno)/dashboard/pedidos/actions";
 import type { PedidoPrioridad } from "@/lib/pedidos";
 
 import { PedidoForm, type PedidoFormCliente } from "./PedidoForm";
@@ -73,7 +73,6 @@ export function PedidoCreateDialogButton({
             <PedidoForm
               clientes={clientes}
               prioridades={prioridades}
-              compact
               onDirtyChange={setHasUnsavedChanges}
               onSuccess={handleSuccess}
             />

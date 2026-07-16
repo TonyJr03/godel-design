@@ -50,7 +50,6 @@ export function UserEditDialogButton({
           <UserEditForm
             user={user}
             updateAction={updateAction}
-            compact
             onDirtyChange={setHasUnsavedChanges}
             onSuccess={() => {
               setHasUnsavedChanges(false);

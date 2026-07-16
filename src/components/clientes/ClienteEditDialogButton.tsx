@@ -47,7 +47,6 @@ export function ClienteEditDialogButton({
         {isOpen ? (
           <ClienteEditForm
             cliente={cliente}
-            compact
             onDirtyChange={setHasUnsavedChanges}
             onSuccess={() => {
               setHasUnsavedChanges(false);

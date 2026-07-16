@@ -47,10 +47,8 @@ export function TaskTemplateEditDialogButton({
         {isOpen ? (
           <TaskTemplateForm
             mode="edit"
-            layout="inline"
             template={template}
             includeStatus
-            compact
             onDirtyChange={setHasUnsavedChanges}
             onSuccess={() => {
               setHasUnsavedChanges(false);

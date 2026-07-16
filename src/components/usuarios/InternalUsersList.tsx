@@ -59,7 +59,7 @@ function UserIdentity({ user }: { user: InternalUser }) {
 export function InternalUsersList({
   users,
   getUpdateAction,
-  emptyMessage = "No hay perfiles internos para mostrar.",
+  emptyMessage = "Los perfiles internos aparecerán aquí cuando se registren en el sistema.",
   hasActiveFilters = false,
 }: InternalUsersListProps) {
   if (users.length === 0) {
@@ -68,8 +68,8 @@ export function InternalUsersList({
         variant={hasActiveFilters ? "search" : "default"}
         title={
           hasActiveFilters
-            ? "Sin resultados para estos filtros"
-            : "No hay usuarios para mostrar"
+            ? "No encontramos usuarios con estos filtros."
+            : "No hay usuarios registrados todavía."
         }
         description={emptyMessage}
       />

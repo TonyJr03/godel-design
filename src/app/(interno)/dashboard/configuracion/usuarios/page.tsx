@@ -8,8 +8,7 @@ import { InternalUsersList } from "@/components/usuarios/InternalUsersList";
 import { listInternalUsers } from "@/lib/usuarios";
 import { getSingleSearchParam } from "@/lib/utils";
 
-import { updateUserAction } from "./[id]/editar/actions";
-import { createUserProfileAction } from "./nuevo/actions";
+import { createUserProfileAction, updateUserAction } from "./actions";
 
 type DashboardConfiguracionUsuariosPageProps = {
   searchParams: Promise<{

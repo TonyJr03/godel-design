@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 
 import {
   Alert,
@@ -17,9 +16,7 @@ import type { UserField, UserFieldErrors } from "@/lib/usuarios";
 
 type UserCreateFormProps = {
   createAction: UserCreateFormAction;
-  backHref?: string;
-  backLabel?: string;
-  compact?: boolean;
+  onSuccess?: (state: UserCreateFormActionState) => void;
   onDirtyChange?: (dirty: boolean) => void;
 };
 
@@ -41,15 +38,22 @@ function getFieldError(state: UserCreateFormActionState, field: UserField) {
 
 export function UserCreateForm({
   createAction,
-  backHref = "/dashboard/configuracion/usuarios",
-  backLabel = "Volver a usuarios",
-  compact = false,
+  onSuccess,
   onDirtyChange,
 }: UserCreateFormProps) {
   const [state, formAction, pending] = useActionState(
     createAction,
     initialState,
   );
+
+  useEffect(() => {
+    if (!state.ok) {
+      return;
+    }
+
+    onDirtyChange?.(false);
+    onSuccess?.(state);
+  }, [onDirtyChange, onSuccess, state]);
 
   const idError = getFieldError(state, "id");
   const fullNameError = getFieldError(state, "full_name");
@@ -62,21 +66,13 @@ export function UserCreateForm({
     <form
       action={formAction}
       aria-busy={pending}
-      className={compact ? "w-full" : "max-w-3xl"}
+      className="w-full"
       onChange={() => onDirtyChange?.(true)}
     >
-      <FormSection
-        compact={compact}
-        title={compact ? undefined : "Crear perfil para usuario Auth existente"}
-        description={
-          compact
-            ? undefined
-            : "Solo se guardarán datos del perfil interno en public.perfiles."
-        }
-      >
-        <div className={compact ? "space-y-4" : "space-y-6"}>
+      <FormSection compact>
+        <div className="space-y-4">
           {state.message ? (
-            <Alert variant="danger" aria-live="polite">
+            <Alert variant={state.ok ? "success" : "danger"} aria-live="polite">
               {state.message}
             </Alert>
           ) : null}
@@ -86,12 +82,7 @@ export function UserCreateForm({
             registra su perfil interno.
           </Alert>
 
-          <div
-            className={[
-              "grid sm:grid-cols-2",
-              compact ? "gap-4" : "gap-5",
-            ].join(" ")}
-          >
+          <div className="grid gap-4 sm:grid-cols-2">
             <FormField
               id="id"
               label="UUID del usuario Auth"
@@ -99,7 +90,7 @@ export function UserCreateForm({
               error={idError}
               help="Pega el UUID del usuario creado en Supabase Auth."
               className="sm:col-span-2"
-              compact={compact}
+              compact
             >
               {({ describedBy, invalid }) => (
                 <Input
@@ -121,7 +112,7 @@ export function UserCreateForm({
               error={fullNameError}
               errorId="full-name-error"
               className="sm:col-span-2"
-              compact={compact}
+              compact
             >
               {({ describedBy, invalid }) => (
                 <Input
@@ -141,7 +132,7 @@ export function UserCreateForm({
               id="phone"
               label="Teléfono"
               error={phoneError}
-              compact={compact}
+              compact
             >
               {({ describedBy, invalid }) => (
                 <Input
@@ -162,7 +153,7 @@ export function UserCreateForm({
               label="URL de avatar"
               error={avatarUrlError}
               errorId="avatar-url-error"
-              compact={compact}
+              compact
             >
               {({ describedBy, invalid }) => (
                 <Input
@@ -182,7 +173,7 @@ export function UserCreateForm({
               label="Rol"
               required
               error={roleError}
-              compact={compact}
+              compact
             >
               {({ describedBy, invalid }) => (
                 <Select
@@ -206,7 +197,7 @@ export function UserCreateForm({
               required
               error={activeError}
               errorId="active-error"
-              compact={compact}
+              compact
             >
               {({ describedBy, invalid }) => (
                 <Select
@@ -224,22 +215,7 @@ export function UserCreateForm({
             </FormField>
           </div>
 
-          <FormActions
-            compact={compact}
-            note={
-              compact
-                ? undefined
-                : "Los campos marcados con * son obligatorios."
-            }
-          >
-            {!compact ? (
-              <Link
-                href={backHref}
-                className="inline-flex min-h-11 w-full items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-5 text-sm font-semibold text-text-primary transition-colors hover:bg-surface-muted sm:w-auto"
-              >
-                {backLabel}
-              </Link>
-            ) : null}
+          <FormActions compact note={undefined}>
             <Button type="submit" disabled={pending} className="w-full sm:w-auto">
               {pending ? "Creando..." : "Crear perfil"}
             </Button>

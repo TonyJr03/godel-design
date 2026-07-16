@@ -40,8 +40,6 @@ export function TaskTemplateCreateDialogButton() {
         {isOpen ? (
           <TaskTemplateForm
             mode="create"
-            layout="inline"
-            compact
             onDirtyChange={setHasUnsavedChanges}
             onSuccess={() => {
               setHasUnsavedChanges(false);

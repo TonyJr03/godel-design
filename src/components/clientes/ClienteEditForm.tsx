@@ -5,7 +5,7 @@ import { useActionState, useEffect } from "react";
 import {
   updateClienteAction,
   type UpdateClienteActionState,
-} from "@/app/(interno)/dashboard/clientes/[id]/editar/actions";
+} from "@/app/(interno)/dashboard/clientes/actions";
 import {
   Alert,
   Button,
@@ -19,7 +19,6 @@ import type { ClienteField, InternalClienteDetail } from "@/lib/clientes";
 
 type ClienteEditFormProps = {
   cliente: InternalClienteDetail;
-  compact?: boolean;
   onSuccess?: (state: UpdateClienteActionState) => void;
   onDirtyChange?: (dirty: boolean) => void;
 };
@@ -35,7 +34,6 @@ function getFieldError(state: UpdateClienteActionState, field: ClienteField) {
 
 export function ClienteEditForm({
   cliente,
-  compact = false,
   onSuccess,
   onDirtyChange,
 }: ClienteEditFormProps) {
@@ -60,13 +58,13 @@ export function ClienteEditForm({
     <form
       action={formAction}
       aria-busy={pending}
-      className={compact ? "w-full" : "max-w-3xl"}
+      className="w-full"
       onChange={() => onDirtyChange?.(true)}
     >
       <input type="hidden" name="cliente_id" value={cliente.id} />
 
-      <FormSection compact={compact}>
-        <div className={compact ? "space-y-4" : "space-y-6"}>
+      <FormSection compact>
+        <div className="space-y-4">
           {state.message ? (
             <Alert
               variant={state.ok ? "success" : "danger"}
@@ -76,19 +74,14 @@ export function ClienteEditForm({
             </Alert>
           ) : null}
 
-          <div
-            className={[
-              "grid sm:grid-cols-2",
-              compact ? "gap-4" : "gap-5",
-            ].join(" ")}
-          >
+          <div className="grid gap-4 sm:grid-cols-2">
             <FormField
               id="name"
               label="Nombre"
               required
               error={nombreError}
               className="sm:col-span-2"
-              compact={compact}
+              compact
             >
               {({ describedBy, invalid }) => (
                 <Input
@@ -110,7 +103,7 @@ export function ClienteEditForm({
               label="Teléfono"
               required
               error={telefonoError}
-              compact={compact}
+              compact
             >
               {({ describedBy, invalid }) => (
                 <Input
@@ -132,7 +125,7 @@ export function ClienteEditForm({
               id="email"
               label="Correo electrónico"
               error={emailError}
-              compact={compact}
+              compact
             >
               {({ describedBy, invalid }) => (
                 <Input
@@ -154,7 +147,7 @@ export function ClienteEditForm({
               label="Notas"
               error={notasError}
               className="sm:col-span-2"
-              compact={compact}
+              compact
             >
               {({ describedBy, invalid }) => (
                 <Textarea
@@ -169,14 +162,7 @@ export function ClienteEditForm({
             </FormField>
           </div>
 
-          <FormActions
-            compact={compact}
-            note={
-              compact
-                ? undefined
-                : "Los campos marcados con * son obligatorios."
-            }
-          >
+          <FormActions compact note={undefined}>
             <Button type="submit" disabled={pending} className="w-full sm:w-auto">
               {pending ? "Guardando..." : "Guardar cambios"}
             </Button>

@@ -1038,7 +1038,7 @@ El dashboard quedó reorganizado como workspace operativo centrado en pedidos ac
 
 Consolidar la experiencia de formularios internos y páginas secundarias que no forman parte de listados principales, dashboard operativo ni área pública.
 
-La decisión principal de esta etapa es avanzar hacia un enfoque modal-first: las acciones internas de crear y editar deben abrirse preferentemente como dialog o drawer contextual cuando sea técnicamente razonable, manteniendo rutas fallback durante la migración.
+La decisión principal de esta etapa es avanzar hacia un enfoque modal-first: las acciones internas de crear y editar deben abrirse preferentemente como dialog o drawer contextual cuando sea técnicamente razonable. En 12.8.2 las rutas fallback de crear/editar se retiran durante el desarrollo y los dialogs contextuales quedan como flujo oficial.
 
 Documento principal:
 
@@ -1059,6 +1059,10 @@ docs/ui-ux/INTERNAL_FORMS_STAGE_12_PLAN.md
 * 12.7.2 Solicitudes: formularios operativos en paneles — Completado.
 * 12.8 Pantallas internas transversales — En curso.
 * 12.8.1 Auditoría de pantallas internas transversales — Completado.
+* 12.8.2 Retiro de fallbacks obsoletos y not-found interno — Completado.
+* 12.8.2.1 Limpieza de lógica heredada de fallbacks eliminados — Completado.
+* 12.8.2.2 Ajuste de flujo de usuario y tipos estrictos — Completado.
+* 12.8.2.3 Eliminación de componentes legacy inline de plantillas — Completado.
 * 12.9 QA y cierre — Pendiente.
 
 ### Alcance
@@ -1127,9 +1131,12 @@ docs/ui-ux/INTERNAL_FORMS_STAGE_12_PLAN.md
 
 ### Restricciones
 
-* No borrar rutas existentes de golpe.
-* Mantener rutas fallback durante la migración.
+* No borrar rutas existentes de golpe salvo decisión explícita de etapa, como el retiro de fallbacks obsoletos en 12.8.2.
+* Mantener los componentes y Server Actions reutilizados por dialogs aunque se retiren rutas fallback.
 * No romper Server Actions.
+* Corrección 12.8.2.1: las Server Actions de crear/editar se reubicaron en módulos estables del área correspondiente y se retiraron props/ramas visuales heredadas de página completa.
+* Corrección 12.8.2.2: la creación de usuarios ya no redirige a `/editar`; el dialog maneja éxito/cierre/refresco y `TaskTemplateForm` no acepta props desconocidas.
+* Corrección 12.8.2.3: los componentes legacy inline `TaskTemplatesList` y `TaskTemplatesSection` fueron eliminados; plantillas usa el listado interno y dialogs contextuales.
 * No cambiar permisos, RLS, RPCs, Storage ni modelo de datos.
 * No convertir formularios largos en modales pequeños.
 * En mobile, usar drawer o full-screen modal cuando el contenido lo requiera.
@@ -1138,7 +1145,7 @@ docs/ui-ux/INTERNAL_FORMS_STAGE_12_PLAN.md
 
 ### Criterio de cierre
 
-Los formularios internos siguen una estrategia consistente: crear/editar corto se resuelve de forma contextual con fallback, los formularios largos usan drawer amplio o página fallback, las acciones operativas permanecen cerca del contexto de trabajo y todas las superficies conservan accesibilidad, responsive, permisos y seguridad.
+Los formularios internos siguen una estrategia consistente: crear/editar corto se resuelve de forma contextual mediante dialogs, los formularios largos usan drawer amplio o superficie contextual adecuada, las acciones operativas permanecen cerca del contexto de trabajo y todas las superficies conservan accesibilidad, responsive, permisos y seguridad.
 
 ---
 

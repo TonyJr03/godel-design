@@ -4,7 +4,7 @@
 
 La Etapa 12 consolida formularios internos y páginas secundarias después del cierre de workspaces, listados administrativos y dashboard operativo.
 
-El objetivo principal es mover progresivamente las acciones internas de crear, editar y operar hacia dialog o drawer contextual cuando sea técnicamente razonable, sin eliminar de golpe las rutas existentes ni alterar reglas de dominio.
+El objetivo principal es mover progresivamente las acciones internas de crear, editar y operar hacia dialog o drawer contextual cuando sea técnicamente razonable. Originalmente las rutas fallback se conservaron durante la migración; en 12.8.2 las páginas fallback de crear/editar fueron retiradas y los dialogs contextuales quedaron como flujo oficial.
 
 Esta subtarea es solo documental. No implementa cambios visuales ni modifica código de aplicación.
 
@@ -18,7 +18,7 @@ Incluido en esta etapa:
 - formularios operativos dentro de workspaces de Pedidos;
 - formularios operativos dentro de workspaces de Solicitudes;
 - formularios de Configuración y Plantillas;
-- pantallas internas secundarias que sirven como fallback durante la migración.
+- pantallas internas secundarias y decisiones transversales derivadas de la migración.
 
 Excluido de esta etapa:
 
@@ -34,12 +34,12 @@ Esos formularios públicos y de autenticación pertenecen a la Etapa 13 o a fluj
 
 | Área | Componente | Ruta o lugar actual | Tipo | Contexto actual | Complejidad | Decisión candidata | Problemas visuales detectados | Textos redundantes o placeholders confusos | Riesgos técnicos |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Clientes | `ClienteForm` | `/dashboard/clientes/nuevo` | Crear | Página completa | Simple | Dialog desde listado, drawer en mobile, mantener ruta fallback | Página aislada para una captura corta; botón de regreso ocupa jerarquía de acción primaria | Nota fija de campos obligatorios repetida; sin placeholder problemático | Importa action de la ruta actual; modalización debe desacoplar o pasar action por props sin romper Server Actions |
-| Clientes | `ClienteEditForm` | `/dashboard/clientes/[id]/editar` | Editar | Página completa | Simple | Dialog desde detalle/listado, drawer en mobile, mantener ruta fallback | Edición corta en pantalla completa; regreso manual al detalle | Nota fija repetida; sin placeholder problemático | Usa hidden `cliente_id`; en dialog debe preservar contexto, revalidación y retorno de foco |
+| Clientes | `ClienteForm` | `/dashboard/clientes/nuevo` | Crear | Página completa retirada en 12.8.2 | Simple | Dialog desde listado, drawer en mobile; fallback retirado en 12.8.2 | Página aislada para una captura corta; botón de regreso ocupa jerarquía de acción primaria | Nota fija de campos obligatorios repetida; sin placeholder problemático | Importa action de la ruta actual; modalización debe desacoplar o pasar action por props sin romper Server Actions |
+| Clientes | `ClienteEditForm` | `/dashboard/clientes/[id]/editar` | Editar | Página completa retirada en 12.8.2 | Simple | Dialog desde detalle/listado; fallback retirado en 12.8.2 | Edición corta en pantalla completa; regreso manual al detalle | Nota fija repetida; sin placeholder problemático | Usa hidden `cliente_id`; en dialog debe preservar contexto, revalidación y retorno de foco |
 | Solicitudes | `SolicitudClienteForm` | Panel Cliente en `/dashboard/solicitudes/[id]` | Asociación y creación derivada | Workspace panel | Media | Mantener en drawer/panel contextual; no llevar a página completa | Dos acciones compiten en el mismo panel: asociar existente y crear desde solicitud | Descripción de "Crear desde esta solicitud" aporta, pero puede compactarse | Dos Server Actions en un mismo componente; cuidado con mensajes simultáneos y estado de cliente ya asociado |
-| Usuarios | `UserCreateForm` | `/dashboard/configuracion/usuarios/nuevo` | Crear perfil interno | Página completa | Media | Dialog desde listado de usuarios, mantener ruta fallback | Flujo técnico ocupa página completa; alerta informativa grande | Placeholder de UUID parece dato real aunque cumple formato; textos sobre Supabase Auth son necesarios pero densos | Admin-only; depende de usuario Auth existente; no cambiar permisos ni tocar `auth.users` |
-| Usuarios | `UserEditForm` | `/dashboard/configuracion/usuarios/[id]/editar` | Editar perfil interno | Página completa | Media | Dialog desde listado; mantener ruta fallback | Edición operativa corta con explicación técnica visible | Muestra UUID completo en descripción; alerta sobre credenciales puede compactarse | Restricción de último admin vive en servidor; no convertir UI en autoridad |
-| Pedidos | `PedidoForm` | `/dashboard/pedidos/nuevo` | Crear pedido manual | Página completa | Alta | Dialog contextual desde listado, mantener ruta fallback | Formulario largo con varias secciones; page header + advertencia + form generan mucho scroll | Varias descripciones de sección son útiles pero largas; placeholder "Pedido de impresión" puede parecer valor final | Tiene tabs client-side, reset tras éxito, link al detalle del pedido creado y public reference; modalización requiere manejo cuidadoso de éxito, foco y navegación |
+| Usuarios | `UserCreateForm` | `/dashboard/configuracion/usuarios/nuevo` | Crear perfil interno | Página completa retirada en 12.8.2 | Media | Dialog desde listado de usuarios; fallback retirado en 12.8.2 | Flujo técnico ocupa página completa; alerta informativa grande | Placeholder de UUID parece dato real aunque cumple formato; textos sobre Supabase Auth son necesarios pero densos | Admin-only; depende de usuario Auth existente; no cambiar permisos ni tocar `auth.users` |
+| Usuarios | `UserEditForm` | `/dashboard/configuracion/usuarios/[id]/editar` | Editar perfil interno | Página completa retirada en 12.8.2 | Media | Dialog desde listado; fallback retirado en 12.8.2 | Edición operativa corta con explicación técnica visible | Muestra UUID completo en descripción; alerta sobre credenciales puede compactarse | Restricción de último admin vive en servidor; no convertir UI en autoridad |
+| Pedidos | `PedidoForm` | `/dashboard/pedidos/nuevo` | Crear pedido manual | Página completa retirada en 12.8.2 | Alta | Dialog contextual desde listado; fallback retirado en 12.8.2 | Formulario largo con varias secciones; page header + advertencia + form generan mucho scroll | Varias descripciones de sección son útiles pero largas; placeholder "Pedido de impresión" puede parecer valor final | Tiene tabs client-side, reset tras éxito, link al detalle del pedido creado y public reference; modalización requiere manejo cuidadoso de éxito, foco y navegación |
 | Pedidos | `PedidoStatusForm` | Panel Estado en `/dashboard/pedidos/[id]` | Acción operativa | Workspace panel | Media | Mantener en panel/drawer contextual | Ya está integrado al workspace; mensajes de bloqueo pueden acumularse | Textos de contexto son útiles; algunos avisos podrían priorizarse | Transiciones dependen de estado, tareas y pago; no duplicar reglas fuera del servidor |
 | Pedidos | `PedidoPaymentForm` | Dentro de `PedidoPaymentSection`, panel Pagos | Acción operativa | Workspace panel inline | Simple | Mantener inline dentro del panel Pagos | Inputs numéricos correctos, pero la nota de montos acumulados podría tener menor peso visual | Nota necesaria; sin placeholder problemático | Importes acumulados y total no editable; riesgo de error si se interpreta como abono incremental |
 | Pedidos | `PedidoWorkerAssignmentForm` | Panel Personal en `/dashboard/pedidos/[id]` | Acción operativa | Workspace panel | Media | Mantener en panel/drawer contextual | Lista y asignación conviven bien, pero en mobile puede crecer por asignaciones | Texto "Selecciona un usuario" correcto; sin placeholders problemáticos | Dos acciones separadas: asignar y quitar; manejo de estados simultáneos y permisos |
@@ -51,7 +51,7 @@ Esos formularios públicos y de autenticación pertenecen a la Etapa 13 o a fluj
 | Solicitudes | `SolicitudStatusForm` | Panel Estado en `/dashboard/solicitudes/[id]` | Acción operativa | Workspace panel | Simple | Mantener en panel/drawer contextual | Ya es compacto | Texto de estado actual adecuado | Transiciones cerradas no deben habilitarse por UI |
 | Solicitudes | `SolicitudConvertPedidoForm` | Panel Conversión en `/dashboard/solicitudes/[id]` | Conversión | Workspace panel | Alta | Drawer ancho o full-screen mobile dentro del workspace; no modal pequeño | Formulario largo dentro de panel; mucha ayuda debajo de cada campo | Help text repetido en campos de conversión; algunos textos pueden compactarse | Crea pedido desde solicitud; depende de estado aprobado y cliente asociado; no cambiar Server Action ni permisos |
 | Solicitudes | `SolicitudCommentComposer` | Panel Comentarios de solicitud | Comentario | Composer fijo en panel | Simple | Mantener inline/fijo en panel | Ya es compacto | Título "Comenta" podría ser más específico | Reset y resize client-side; no debe interferir con scroll del panel |
-| Configuración | `TaskTemplateForm` | `/dashboard/configuracion/plantillas/nueva`, `/dashboard/configuracion/plantillas/[templateId]/editar`, `TaskTemplatesSection`, `TaskTemplatesList` | Crear/editar | Página completa e inline | Media | Dialog/drawer para crear/editar desde listado; mantener rutas fallback | Ya soporta `layout` section/inline; buen punto de partida para modalización | Nota tras crear es útil; descripción puede compactarse | Action común create/update; cuidado con campos hidden y estado activo solo en edición |
+| Configuración | `TaskTemplateForm` | `/dashboard/configuracion/plantillas/nueva`, `/dashboard/configuracion/plantillas/[templateId]/editar`, `InternalTaskTemplatesList` | Crear/editar | Página completa retirada en 12.8.2 | Media | Dialog/drawer para crear/editar desde listado; fallbacks retirados en 12.8.2; legacy inline retirado en 12.8.2.3 | Formulario reutilizado por dialogs; no conserva props de layout legacy | Nota tras crear es útil; descripción puede compactarse | Action común create/update; cuidado con campos hidden y estado activo solo en edición |
 | Configuración | `TaskTemplateTaskForm` | Aside "Nueva tarea" en `/dashboard/configuracion/plantillas/[templateId]` | Crear/editar tarea | Panel lateral/compacto | Simple | Mantener inline; drawer solo si se agregan campos futuros | Variante compacta funciona bien; no necesita página propia | Placeholder "Ej. Imprimir 100 páginas" es ejemplo claro, pero puede confundirse con dato si se abusa | Cuantificación automática por texto; no ocultar ayuda en variante completa |
 | Configuración | `TaskTemplateTasksList` forms internos | Lista de tareas de plantilla | Mover/editar/eliminar | Inline por item | Media | Mantener inline con icon buttons; considerar confirmación para eliminar | Buen uso de iconos; errores inline pueden ocupar filas | Sin placeholder problemático | Múltiples forms por fila; preservar orden, foco y errores por tarea |
 
@@ -74,21 +74,21 @@ Las acciones internas de crear y editar deben abrirse preferentemente como dialo
 
 Aplicación práctica:
 
-- Crear/editar clientes: dialog en desktop; drawer o full-screen modal en mobile; rutas actuales quedan como fallback.
-- Crear/editar usuarios: dialog contextual consistente con Clientes; rutas actuales quedan como fallback.
-- Crear pedido manual: dialog contextual desde listado con formulario compacto; ruta actual queda como fallback.
-- Crear/editar plantillas: dialog o drawer desde listado/configuración; rutas actuales quedan como fallback.
+- Crear/editar clientes: dialog en desktop; drawer o full-screen modal en mobile; las rutas fallback fueron retiradas en 12.8.2.
+- Crear/editar usuarios: dialog contextual consistente con Clientes; las rutas fallback fueron retiradas en 12.8.2.
+- Crear pedido manual: dialog contextual desde listado con formulario compacto; la ruta fallback fue retirada en 12.8.2.
+- Crear/editar plantillas: dialog o drawer desde listado/configuración; las rutas fallback fueron retiradas en 12.8.2.
 - Acciones operativas en workspaces: mantener panel/drawer contextual existente.
 - Comentarios, archivos, pagos simples y tareas pequeñas: mantener inline cuando el contexto permanente aporta más que un modal.
 
 Reglas de migración:
 
-- No borrar rutas existentes de golpe.
-- Mantener rutas fallback mientras se migra cada dominio.
+- No borrar rutas existentes de golpe sin decisión explícita de etapa.
+- En 12.8.2, retirar las páginas fallback de crear/editar y conservar los componentes de formulario reutilizados por dialogs.
 - No romper Server Actions ni su ubicación server-side.
 - No cambiar permisos, RLS, RPCs ni modelo de datos.
 - No convertir formularios largos en modales pequeños.
-- En mobile, preferir drawer full-screen o ruta fallback cuando el formulario requiera mucho scroll.
+- En mobile, preferir drawer full-screen o superficie contextual adecuada cuando el formulario requiera mucho scroll.
 - Preservar retorno de foco al cerrar dialog/drawer.
 - No crear un formulario universal excesivamente configurable.
 
@@ -148,7 +148,7 @@ Usar drawer cuando el formulario necesita más contexto, tiene mensajes técnico
 
 Mantener inline cuando la acción es parte del flujo continuo de trabajo y perdería claridad al separarse del panel.
 
-### Mantener página fallback
+### Páginas fallback retiradas en 12.8.2
 
 - `/dashboard/clientes/nuevo`
 - `/dashboard/clientes/[id]/editar`
@@ -158,7 +158,7 @@ Mantener inline cuando la acción es parte del flujo continuo de trabajo y perde
 - `/dashboard/configuracion/plantillas/nueva`
 - `/dashboard/configuracion/plantillas/[templateId]/editar`
 
-Las rutas fallback deben seguir disponibles durante la migración y servir para deep links, errores de carga, mobile complejo o recuperación.
+Las rutas fallback se conservaron durante la migración inicial. En 12.8.2 fueron retiradas porque los dialogs contextuales pasaron a ser el flujo oficial de crear/editar durante el desarrollo del sistema.
 
 ## 8. Riesgos detectados
 
@@ -178,9 +178,9 @@ Las rutas fallback deben seguir disponibles durante la migración y servir para 
 | --- | --- | --- | --- |
 | 12.1 | Auditoría y especificación de formularios internos | Inventariar formularios, clasificar patrones y fijar estrategia modal-first con fallback | Completado |
 | 12.2 | Primitivas comunes de formularios internos | Definir dialog/drawer, footer de acciones, confirmación de cambios y reglas de foco | Completado |
-| 12.3 | Clientes: crear/editar en dialog/drawer | Abrir crear/editar cliente desde listado/detalle manteniendo rutas fallback | Completado |
+| 12.3 | Clientes: crear/editar en dialog/drawer | Abrir crear/editar cliente desde listado/detalle; fallbacks retirados en 12.8.2 | Completado |
 | 12.4 | Usuarios: crear/editar en dialog/drawer | Abrir crear/editar usuario desde configuración con tratamiento técnico y admin-only | Completado |
-| 12.5 | Pedido manual: formulario compacto contextual | Abrir creación manual desde listado en dialog manteniendo ruta fallback | Completado |
+| 12.5 | Pedido manual: formulario compacto contextual | Abrir creación manual desde listado en dialog; fallback retirado en 12.8.2 | Completado |
 | 12.6 | Configuración/plantillas: formularios compactos | Consolidar crear/editar plantilla y tareas sin romper gestión inline | Completado |
 | 12.7 | Formularios operativos en workspaces/paneles | Pulir Estado, Cliente, Conversión, Tareas, Archivos, Comentarios, Personal y Pagos | En curso |
 | 12.8 | Pantallas internas transversales | Revisar páginas fallback, acceso denegado, sin permisos, vacíos, regresos y cabeceras | Pendiente |
@@ -197,7 +197,7 @@ Primitivas comunes creadas:
 
 Decisión:
 
-Estas primitivas no sustituyen las rutas fallback ni modifican Server Actions. Se usarán progresivamente desde 12.3, empezando por formularios cortos de crear/editar y manteniendo inline las acciones operativas que dependen del contexto permanente del workspace.
+Estas primitivas se introdujeron sin sustituir inicialmente las rutas fallback ni modificar Server Actions. En 12.8.2 las páginas fallback de crear/editar fueron retiradas; las Server Actions de esos formularios se reubicaron en módulos estables y se conservaron los componentes reutilizados por dialogs.
 
 ## 11. Subtarea 12.3 - Clientes
 
@@ -207,8 +207,8 @@ Decisiones implementadas:
 - `ClienteEditForm` soporta modo compacto para uso contextual.
 - La creación de cliente desde `/dashboard/clientes` abre un dialog contextual mediante `ClienteCreateDialogButton`.
 - La edición desde el detalle de cliente abre un dialog contextual mediante `ClienteEditDialogButton`.
-- Las rutas fallback `/dashboard/clientes/nuevo` y `/dashboard/clientes/[id]/editar` se mantienen sin cambios de ruta.
-- No se modificaron Server Actions, validadores, permisos, consultas, RLS ni modelo de datos.
+- Actualización 12.8.2: las rutas fallback `/dashboard/clientes/nuevo` y `/dashboard/clientes/[id]/editar` fueron retiradas; los dialogs contextuales quedan como flujo oficial.
+- No se modificaron validadores, permisos, consultas, RLS ni modelo de datos. Las Server Actions de formularios retirados fueron reubicadas en módulos estables.
 
 ## 12. Subtarea 12.4 - Usuarios
 
@@ -218,11 +218,12 @@ Decisiones implementadas:
 - `UserEditForm` soporta modo compacto para uso contextual.
 - La creación desde `/dashboard/configuracion/usuarios` abre un dialog contextual.
 - La edición desde el listado de usuarios abre un dialog contextual.
-- La creación conserva el redirect existente de la Server Action.
+- La creación ya no redirige a la ruta fallback de edición; el dialog cierra y refresca el listado al guardar.
 - La edición cierra el dialog y refresca el listado.
-- Las rutas fallback `/dashboard/configuracion/usuarios/nuevo` y `/dashboard/configuracion/usuarios/[id]/editar` se mantienen.
+- Actualización 12.8.2: las rutas fallback `/dashboard/configuracion/usuarios/nuevo` y `/dashboard/configuracion/usuarios/[id]/editar` fueron retiradas; los dialogs contextuales quedan como flujo oficial.
 - El campo UUID ya no usa un placeholder que parezca dato real; queda explicado mediante help text.
-- No se modificaron Server Actions, permisos, consultas, RLS ni modelo de datos.
+- Corrección 12.8.2.2: la Server Action de creación de usuarios devuelve estado de éxito para el dialog en vez de redirigir a `/dashboard/configuracion/usuarios/[id]/editar`.
+- No se modificaron permisos, consultas, RLS ni modelo de datos.
 
 ## 13. Subtarea 12.5 - Pedido manual
 
@@ -230,13 +231,13 @@ Decisiones implementadas:
 
 - `PedidoForm` soporta modo compacto para uso contextual.
 - La creación manual desde `/dashboard/pedidos` abre un dialog contextual mediante `PedidoCreateDialogButton`.
-- La ruta fallback `/dashboard/pedidos/nuevo` se mantiene con `PedidoForm` en modo normal.
+- Actualización 12.8.2: la ruta fallback `/dashboard/pedidos/nuevo` fue retirada; el dialog contextual queda como flujo oficial.
 - La creación exitosa desde el dialog navega al detalle del pedido creado cuando la Server Action devuelve `pedidoId`.
 - El formulario compacto reduce descripciones, gaps y altura de tabs sin ocultar labels ni errores.
 - El placeholder confuso `Pedido de impresión` fue eliminado; queda una ayuda textual para el título predeterminado.
 - Corrección 12.5.1: el modo compacto de `PedidoForm` usa una sola card, selector de tipo en línea, precio integrado en datos del pedido y acciones finales sin sección propia.
 - Corrección 12.5.2: el formulario compacto mantiene una sola card, pero separa internamente Tipo, Datos del encargo/impresión, Datos del pedido y acciones con divisores suaves. Los datos específicos del tipo aparecen antes de los datos generales del pedido.
-- No se modificaron Server Actions, permisos, consultas, RLS ni modelo de datos.
+- No se modificaron permisos, consultas, RLS ni modelo de datos. Las Server Actions de formularios retirados fueron reubicadas en módulos estables.
 
 ## 14. Subtarea 12.6 - Configuración/plantillas
 
@@ -246,10 +247,11 @@ Decisiones implementadas:
 - El listado de plantillas mantiene cards y filas clickeables hacia el detalle.
 - La creación de plantilla se abre en dialog contextual desde el botón `+` del listado.
 - La edición de plantilla se abre en dialog contextual desde el detalle de la plantilla.
-- Las rutas fallback `/dashboard/configuracion/plantillas/nueva` y `/dashboard/configuracion/plantillas/[templateId]/editar` se mantienen.
+- Actualización 12.8.2: las rutas fallback `/dashboard/configuracion/plantillas/nueva` y `/dashboard/configuracion/plantillas/[templateId]/editar` fueron retiradas; los dialogs contextuales quedan como flujo oficial.
+- Corrección 12.8.2.3: se eliminaron los componentes legacy inline `TaskTemplatesList` y `TaskTemplatesSection`; el listado oficial usa `InternalTaskTemplatesList` y los dialogs contextuales.
 - Las tareas de plantilla se mantienen inline en el detalle para conservar orden y contexto operativo.
 - `TaskTemplateTaskForm` elimina el placeholder de ejemplo concreto.
-- No se modificaron Server Actions, permisos, consultas, RLS ni modelo de datos.
+- No se modificaron permisos, consultas, RLS ni modelo de datos. Las Server Actions de formularios retirados fueron reubicadas en módulos estables.
 
 ## 15. Subtarea 12.7.1 - Pedidos - Formularios operativos en paneles
 
@@ -284,9 +286,15 @@ Decisiones implementadas:
 
 ## 17. Criterios de cierre de la Etapa 12
 
-- Las rutas fallback siguen disponibles o quedan redirigidas con decisión explícita.
+Corrección 12.8.2.1: además de retirar las páginas fallback, se eliminaron ramas visuales y props heredadas de página completa en formularios de crear/editar. Las Server Actions se reubicaron en módulos estables del área correspondiente, sin alterar su lógica.
+
+Corrección 12.8.2.2: la creación de usuarios se ajustó al flujo contextual sin redirect a `/editar`, la revalidación dejó de apuntar a fallbacks retirados y `TaskTemplateForm` dejó de aceptar props desconocidas.
+
+Corrección 12.8.2.3: se eliminaron los componentes legacy inline de plantillas `TaskTemplatesList` y `TaskTemplatesSection`; el flujo oficial queda en listado interno y dialogs contextuales.
+
+- Las rutas fallback de crear/editar fueron retiradas en 12.8.2 con decisión explícita.
 - Crear/editar corto se resuelve contextual cuando aporte valor.
-- Formularios largos usan drawer ancho, full-screen mobile o página fallback.
+- Formularios largos usan drawer ancho, full-screen mobile o superficie contextual adecuada.
 - Workspaces conservan paneles operativos sin perder contexto.
 - No se modifican permisos, RLS, RPCs, Storage ni modelo de datos.
 - No se exponen datos sensibles ni errores crudos.
