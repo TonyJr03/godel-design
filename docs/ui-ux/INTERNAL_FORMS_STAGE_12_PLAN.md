@@ -177,7 +177,7 @@ Las rutas fallback deben seguir disponibles durante la migración y servir para 
 | Subtarea | Nombre | Objetivo | Estado |
 | --- | --- | --- | --- |
 | 12.1 | Auditoría y especificación de formularios internos | Inventariar formularios, clasificar patrones y fijar estrategia modal-first con fallback | Completado |
-| 12.2 | Primitivas comunes de formularios internos | Definir dialog/drawer, footer de acciones, confirmación de cambios y reglas de foco | Pendiente |
+| 12.2 | Primitivas comunes de formularios internos | Definir dialog/drawer, footer de acciones, confirmación de cambios y reglas de foco | Completado |
 | 12.3 | Clientes: crear/editar en dialog/drawer | Abrir crear/editar cliente desde listado/detalle manteniendo rutas fallback | Pendiente |
 | 12.4 | Usuarios: crear/editar en dialog/drawer | Abrir crear/editar usuario desde configuración con tratamiento técnico y admin-only | Pendiente |
 | 12.5 | Pedido manual: formulario compacto contextual | Compactar `PedidoForm` y decidir drawer ancho vs página fallback principal | Pendiente |
@@ -186,7 +186,20 @@ Las rutas fallback deben seguir disponibles durante la migración y servir para 
 | 12.8 | Pantallas internas transversales | Revisar páginas fallback, acceso denegado, sin permisos, vacíos, regresos y cabeceras | Pendiente |
 | 12.9 | QA y cierre | Validar responsive, accesibilidad, foco, permisos visibles, errores y rutas fallback | Pendiente |
 
-## 10. Criterios de cierre de la Etapa 12
+## 10. Subtarea 12.2 - Primitivas comunes
+
+Primitivas comunes creadas:
+
+- `InternalFormDialog`;
+- `InternalFormDrawer`;
+- `InternalFormShell`;
+- variantes compactas opcionales de `FormField`, `FormSection` y `FormActions`.
+
+Decisión:
+
+Estas primitivas no sustituyen las rutas fallback ni modifican Server Actions. Se usarán progresivamente desde 12.3, empezando por formularios cortos de crear/editar y manteniendo inline las acciones operativas que dependen del contexto permanente del workspace.
+
+## 11. Criterios de cierre de la Etapa 12
 
 - Las rutas fallback siguen disponibles o quedan redirigidas con decisión explícita.
 - Crear/editar corto se resuelve contextual cuando aporte valor.
@@ -198,4 +211,3 @@ Las rutas fallback deben seguir disponibles durante la migración y servir para 
 - Hay foco visible, retorno de foco y cierre claro.
 - No hay overflow horizontal en mobile.
 - La documentación y el roadmap quedan sincronizados.
-

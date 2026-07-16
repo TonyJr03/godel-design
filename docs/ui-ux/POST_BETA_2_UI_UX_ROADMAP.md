@@ -1049,7 +1049,7 @@ docs/ui-ux/INTERNAL_FORMS_STAGE_12_PLAN.md
 ### Subtareas
 
 * 12.1 Auditoría y especificación de formularios internos — Completado.
-* 12.2 Primitivas comunes de formularios internos — Pendiente.
+* 12.2 Primitivas comunes de formularios internos — Completado.
 * 12.3 Clientes: crear/editar en dialog/drawer — Pendiente.
 * 12.4 Usuarios: crear/editar en dialog/drawer — Pendiente.
 * 12.5 Pedido manual: formulario compacto contextual — Pendiente.
