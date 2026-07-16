@@ -122,7 +122,7 @@ export function InternalFormDialog({
       ref={dialogRef}
       aria-describedby={description ? descriptionId : undefined}
       aria-labelledby={titleId}
-      className="fixed inset-0 m-auto hidden max-h-[min(92dvh,42rem)] w-[min(calc(100vw-1.5rem),40rem)] max-w-none overflow-hidden rounded-(--radius-card) border border-border bg-surface p-0 text-text-primary shadow-(--shadow-soft) backdrop:bg-text-primary/35 open:flex"
+      className="fixed inset-0 m-auto hidden max-h-[min(92dvh,42rem)] w-[min(calc(100vw-1.5rem),40rem)] max-w-none overflow-hidden whitespace-normal rounded-(--radius-card) border border-border bg-surface p-0 text-left text-text-primary shadow-(--shadow-soft) backdrop:bg-text-primary/35 open:flex"
       onCancel={handleCancel}
       onClick={(event) => {
         if (event.target === event.currentTarget) {
@@ -131,7 +131,7 @@ export function InternalFormDialog({
       }}
       onClose={handleNativeClose}
     >
-      <div className="flex min-h-0 w-full flex-col">
+      <div className="flex min-h-0 w-full flex-col whitespace-normal text-left">
         <header className="shrink-0 border-b border-border bg-surface-raised px-4 py-4 sm:px-5">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -171,4 +171,3 @@ export function InternalFormDialog({
     </dialog>
   );
 }
-

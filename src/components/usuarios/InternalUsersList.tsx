@@ -1,14 +1,14 @@
-import {
-  ClickableTableRow,
-  ListingCardLink,
-} from "@/components/listing";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ROLE_LABELS } from "@/lib/permissions";
 import type { InternalUser } from "@/lib/usuarios";
 
+import { UserEditDialogButton } from "./UserEditDialogButton";
+import type { UserEditFormAction } from "./UserEditForm";
+
 type InternalUsersListProps = {
   users: InternalUser[];
+  getUpdateAction: (userId: string) => UserEditFormAction;
   emptyMessage?: string;
   hasActiveFilters?: boolean;
 };
@@ -38,14 +38,6 @@ function getInitials(name: string): string {
   return words.map((word) => word[0]?.toUpperCase() ?? "").join("") || "US";
 }
 
-function getUserEditHref(user: InternalUser): string {
-  return `/dashboard/configuracion/usuarios/${user.id}/editar`;
-}
-
-function getUserLabel(user: InternalUser): string {
-  return `Editar usuario ${user.full_name}`;
-}
-
 function UserIdentity({ user }: { user: InternalUser }) {
   return (
     <div className="flex min-w-0 items-center gap-3">
@@ -66,6 +58,7 @@ function UserIdentity({ user }: { user: InternalUser }) {
 
 export function InternalUsersList({
   users,
+  getUpdateAction,
   emptyMessage = "No hay perfiles internos para mostrar.",
   hasActiveFilters = false,
 }: InternalUsersListProps) {
@@ -87,18 +80,19 @@ export function InternalUsersList({
     <>
       <div className="grid gap-3 xl:hidden" aria-label="Usuarios internos">
         {users.map((user) => (
-          <ListingCardLink
-            href={getUserEditHref(user)}
+          <article
             key={user.id}
-            aria-label={getUserLabel(user)}
-            className="space-y-4 overflow-hidden"
+            className="space-y-4 overflow-hidden rounded-(--radius-card) border border-border bg-surface p-4 shadow-(--shadow-soft)"
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <UserIdentity user={user} />
-              <StatusBadge
-                status={user.is_active ? "activo" : "inactivo"}
-                className="shrink-0"
-              />
+              <div className="flex shrink-0 items-center gap-2">
+                <StatusBadge status={user.is_active ? "activo" : "inactivo"} />
+                <UserEditDialogButton
+                  user={user}
+                  updateAction={getUpdateAction(user.id)}
+                />
+              </div>
             </div>
 
             <dl className="grid grid-cols-2 gap-3 text-sm">
@@ -127,7 +121,7 @@ export function InternalUsersList({
                 </dd>
               </div>
             </dl>
-          </ListingCardLink>
+          </article>
         ))}
       </div>
 
@@ -135,12 +129,13 @@ export function InternalUsersList({
         <div className="overflow-x-auto">
           <table className="min-w-full table-fixed divide-y divide-border text-sm">
             <colgroup>
-              <col className="w-[34%]" />
+              <col className="w-[30%]" />
               <col className="w-[13%]" />
               <col className="w-[15%]" />
               <col className="w-[12%]" />
               <col className="w-[13%]" />
               <col className="w-[13%]" />
+              <col className="w-[4%]" />
             </colgroup>
             <thead className="bg-surface-muted text-left text-xs font-semibold uppercase tracking-wide text-text-secondary">
               <tr>
@@ -162,16 +157,14 @@ export function InternalUsersList({
                 <th scope="col" className="px-4 py-3">
                   Actualización
                 </th>
+                <th scope="col" className="px-4 py-3 text-right">
+                  Acción
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border bg-surface">
               {users.map((user) => (
-                <ClickableTableRow
-                  key={user.id}
-                  href={getUserEditHref(user)}
-                  label={getUserLabel(user)}
-                  className="align-top"
-                >
+                <tr key={user.id} className="align-top">
                   <td className="px-4 py-4">
                     <UserIdentity user={user} />
                   </td>
@@ -194,7 +187,13 @@ export function InternalUsersList({
                   <td className="whitespace-nowrap px-4 py-4 text-text-secondary">
                     {formatDate(user.updated_at)}
                   </td>
-                </ClickableTableRow>
+                  <td className="whitespace-nowrap px-4 py-4 text-right">
+                    <UserEditDialogButton
+                      user={user}
+                      updateAction={getUpdateAction(user.id)}
+                    />
+                  </td>
+                </tr>
               ))}
             </tbody>
           </table>

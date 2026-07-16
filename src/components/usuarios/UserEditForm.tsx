@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 
 import {
   Alert,
@@ -24,11 +24,14 @@ type UserEditFormProps = {
   updateAction: UserEditFormAction;
   backHref?: string;
   backLabel?: string;
+  compact?: boolean;
+  onSuccess?: (state: UserEditFormActionState) => void;
+  onDirtyChange?: (dirty: boolean) => void;
 };
 
 export type UserEditFormActionState = BaseActionState<UserFieldErrors>;
 
-type UserEditFormAction = (
+export type UserEditFormAction = (
   state: UserEditFormActionState,
   formData: FormData,
 ) => Promise<UserEditFormActionState>;
@@ -47,11 +50,21 @@ export function UserEditForm({
   updateAction,
   backHref = "/dashboard/configuracion/usuarios",
   backLabel = "Volver a usuarios",
+  compact = false,
+  onSuccess,
+  onDirtyChange,
 }: UserEditFormProps) {
   const [state, formAction, pending] = useActionState(
     updateAction,
     initialState,
   );
+
+  useEffect(() => {
+    if (state.ok) {
+      onDirtyChange?.(false);
+      onSuccess?.(state);
+    }
+  }, [onDirtyChange, onSuccess, state]);
 
   const fullNameError = getFieldError(state, "full_name");
   const phoneError = getFieldError(state, "phone");
@@ -60,14 +73,22 @@ export function UserEditForm({
   const activeError = getFieldError(state, "is_active");
 
   return (
-    <form action={formAction} aria-busy={pending} className="max-w-3xl">
+    <form
+      action={formAction}
+      aria-busy={pending}
+      className={compact ? "w-full" : "max-w-3xl"}
+      onChange={() => onDirtyChange?.(true)}
+    >
       <FormSection
-        title="Datos del perfil interno"
+        compact={compact}
+        title={compact ? undefined : "Datos del perfil interno"}
         description={
-          <span className="break-all font-mono text-xs">{user.id}</span>
+          compact ? undefined : (
+            <span className="break-all font-mono text-xs">{user.id}</span>
+          )
         }
       >
-        <div className="space-y-6">
+        <div className={compact ? "space-y-4" : "space-y-6"}>
           {state.message ? (
             <Alert
               variant={state.ok ? "success" : "danger"}
@@ -77,12 +98,17 @@ export function UserEditForm({
             </Alert>
           ) : null}
 
-          <Alert variant="info">
-            Esta pantalla gestiona el perfil interno. Las credenciales de acceso
-            se administran fuera de esta aplicación.
+          <Alert variant="info" className="wrap-break-word leading-6">
+            Esta acción solo actualiza el perfil interno. Las credenciales se
+            gestionan fuera.
           </Alert>
 
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div
+            className={[
+              "grid sm:grid-cols-2",
+              compact ? "gap-4" : "gap-5",
+            ].join(" ")}
+          >
             <FormField
               id="full_name"
               label="Nombre completo"
@@ -90,6 +116,7 @@ export function UserEditForm({
               error={fullNameError}
               errorId="full-name-error"
               className="sm:col-span-2"
+              compact={compact}
             >
               {({ describedBy, invalid }) => (
                 <Input
@@ -106,7 +133,12 @@ export function UserEditForm({
               )}
             </FormField>
 
-            <FormField id="phone" label="Teléfono" error={phoneError}>
+            <FormField
+              id="phone"
+              label="Teléfono"
+              error={phoneError}
+              compact={compact}
+            >
               {({ describedBy, invalid }) => (
                 <Input
                   id="phone"
@@ -127,6 +159,7 @@ export function UserEditForm({
               label="URL de avatar"
               error={avatarUrlError}
               errorId="avatar-url-error"
+              compact={compact}
             >
               {({ describedBy, invalid }) => (
                 <Input
@@ -142,7 +175,13 @@ export function UserEditForm({
               )}
             </FormField>
 
-            <FormField id="role" label="Rol" required error={roleError}>
+            <FormField
+              id="role"
+              label="Rol"
+              required
+              error={roleError}
+              compact={compact}
+            >
               {({ describedBy, invalid }) => (
                 <Select
                   id="role"
@@ -165,6 +204,7 @@ export function UserEditForm({
               required
               error={activeError}
               errorId="active-error"
+              compact={compact}
             >
               {({ describedBy, invalid }) => (
                 <Select
@@ -182,13 +222,22 @@ export function UserEditForm({
             </FormField>
           </div>
 
-          <FormActions note="Los campos marcados con * son obligatorios.">
-            <Link
-              href={backHref}
-              className="inline-flex min-h-11 w-full items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-5 text-sm font-semibold text-text-primary transition-colors hover:bg-surface-muted sm:w-auto"
-            >
-              {backLabel}
-            </Link>
+          <FormActions
+            compact={compact}
+            note={
+              compact
+                ? undefined
+                : "Los campos marcados con * son obligatorios."
+            }
+          >
+            {!compact ? (
+              <Link
+                href={backHref}
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-5 text-sm font-semibold text-text-primary transition-colors hover:bg-surface-muted sm:w-auto"
+              >
+                {backLabel}
+              </Link>
+            ) : null}
             <Button type="submit" disabled={pending} className="w-full sm:w-auto">
               {pending ? "Guardando..." : "Guardar cambios"}
             </Button>

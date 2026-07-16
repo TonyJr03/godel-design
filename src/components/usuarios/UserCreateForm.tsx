@@ -19,11 +19,13 @@ type UserCreateFormProps = {
   createAction: UserCreateFormAction;
   backHref?: string;
   backLabel?: string;
+  compact?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
 };
 
 export type UserCreateFormActionState = BaseActionState<UserFieldErrors>;
 
-type UserCreateFormAction = (
+export type UserCreateFormAction = (
   state: UserCreateFormActionState,
   formData: FormData,
 ) => Promise<UserCreateFormActionState>;
@@ -41,6 +43,8 @@ export function UserCreateForm({
   createAction,
   backHref = "/dashboard/configuracion/usuarios",
   backLabel = "Volver a usuarios",
+  compact = false,
+  onDirtyChange,
 }: UserCreateFormProps) {
   const [state, formAction, pending] = useActionState(
     createAction,
@@ -55,30 +59,47 @@ export function UserCreateForm({
   const activeError = getFieldError(state, "is_active");
 
   return (
-    <form action={formAction} aria-busy={pending} className="max-w-3xl">
+    <form
+      action={formAction}
+      aria-busy={pending}
+      className={compact ? "w-full" : "max-w-3xl"}
+      onChange={() => onDirtyChange?.(true)}
+    >
       <FormSection
-        title="Crear perfil para usuario Auth existente"
-        description="Solo se guardarán datos del perfil interno en public.perfiles."
+        compact={compact}
+        title={compact ? undefined : "Crear perfil para usuario Auth existente"}
+        description={
+          compact
+            ? undefined
+            : "Solo se guardarán datos del perfil interno en public.perfiles."
+        }
       >
-        <div className="space-y-6">
+        <div className={compact ? "space-y-4" : "space-y-6"}>
           {state.message ? (
             <Alert variant="danger" aria-live="polite">
               {state.message}
             </Alert>
           ) : null}
 
-          <Alert variant="info">
-            Primero crea el usuario en Supabase Auth y copia aquí su UUID. Esta
-            pantalla no crea credenciales ni contraseñas.
+          <Alert variant="info" className="wrap-break-word leading-6">
+            El usuario debe existir previamente en Supabase Auth. Aquí solo se
+            registra su perfil interno.
           </Alert>
 
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div
+            className={[
+              "grid sm:grid-cols-2",
+              compact ? "gap-4" : "gap-5",
+            ].join(" ")}
+          >
             <FormField
               id="id"
               label="UUID del usuario Auth"
               required
               error={idError}
+              help="Pega el UUID del usuario creado en Supabase Auth."
               className="sm:col-span-2"
+              compact={compact}
             >
               {({ describedBy, invalid }) => (
                 <Input
@@ -86,7 +107,6 @@ export function UserCreateForm({
                   name="id"
                   type="text"
                   required
-                  placeholder="00000000-0000-0000-0000-000000000000"
                   invalid={invalid}
                   aria-describedby={describedBy}
                   className="font-mono"
@@ -101,6 +121,7 @@ export function UserCreateForm({
               error={fullNameError}
               errorId="full-name-error"
               className="sm:col-span-2"
+              compact={compact}
             >
               {({ describedBy, invalid }) => (
                 <Input
@@ -116,7 +137,12 @@ export function UserCreateForm({
               )}
             </FormField>
 
-            <FormField id="phone" label="Teléfono" error={phoneError}>
+            <FormField
+              id="phone"
+              label="Teléfono"
+              error={phoneError}
+              compact={compact}
+            >
               {({ describedBy, invalid }) => (
                 <Input
                   id="phone"
@@ -136,6 +162,7 @@ export function UserCreateForm({
               label="URL de avatar"
               error={avatarUrlError}
               errorId="avatar-url-error"
+              compact={compact}
             >
               {({ describedBy, invalid }) => (
                 <Input
@@ -150,7 +177,13 @@ export function UserCreateForm({
               )}
             </FormField>
 
-            <FormField id="role" label="Rol" required error={roleError}>
+            <FormField
+              id="role"
+              label="Rol"
+              required
+              error={roleError}
+              compact={compact}
+            >
               {({ describedBy, invalid }) => (
                 <Select
                   id="role"
@@ -173,6 +206,7 @@ export function UserCreateForm({
               required
               error={activeError}
               errorId="active-error"
+              compact={compact}
             >
               {({ describedBy, invalid }) => (
                 <Select
@@ -190,13 +224,22 @@ export function UserCreateForm({
             </FormField>
           </div>
 
-          <FormActions note="Los campos marcados con * son obligatorios.">
-            <Link
-              href={backHref}
-              className="inline-flex min-h-11 w-full items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-5 text-sm font-semibold text-text-primary transition-colors hover:bg-surface-muted sm:w-auto"
-            >
-              {backLabel}
-            </Link>
+          <FormActions
+            compact={compact}
+            note={
+              compact
+                ? undefined
+                : "Los campos marcados con * son obligatorios."
+            }
+          >
+            {!compact ? (
+              <Link
+                href={backHref}
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-5 text-sm font-semibold text-text-primary transition-colors hover:bg-surface-muted sm:w-auto"
+              >
+                {backLabel}
+              </Link>
+            ) : null}
             <Button type="submit" disabled={pending} className="w-full sm:w-auto">
               {pending ? "Creando..." : "Crear perfil"}
             </Button>

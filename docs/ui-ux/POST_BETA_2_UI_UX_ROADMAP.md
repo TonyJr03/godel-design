@@ -1051,7 +1051,7 @@ docs/ui-ux/INTERNAL_FORMS_STAGE_12_PLAN.md
 * 12.1 Auditoría y especificación de formularios internos — Completado.
 * 12.2 Primitivas comunes de formularios internos — Completado.
 * 12.3 Clientes: crear/editar en dialog/drawer — Completado.
-* 12.4 Usuarios: crear/editar en dialog/drawer — Pendiente.
+* 12.4 Usuarios: crear/editar en dialog/drawer — Completado.
 * 12.5 Pedido manual: formulario compacto contextual — Pendiente.
 * 12.6 Configuración/plantillas: formularios compactos — Pendiente.
 * 12.7 Formularios operativos en workspaces/paneles — Pendiente.

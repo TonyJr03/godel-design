@@ -1,14 +1,15 @@
-import Link from "next/link";
-import { Plus } from "lucide-react";
-
 import {
   ListingPageHeader,
   ListingToolbar,
 } from "@/components/listing";
 import { Alert } from "@/components/ui/Alert";
+import { UserCreateDialogButton } from "@/components/usuarios/UserCreateDialogButton";
 import { InternalUsersList } from "@/components/usuarios/InternalUsersList";
 import { listInternalUsers } from "@/lib/usuarios";
 import { getSingleSearchParam } from "@/lib/utils";
+
+import { updateUserAction } from "./[id]/editar/actions";
+import { createUserProfileAction } from "./nuevo/actions";
 
 type DashboardConfiguracionUsuariosPageProps = {
   searchParams: Promise<{
@@ -37,14 +38,7 @@ export default async function DashboardConfiguracionUsuariosPage({
         title="Usuarios"
         description="Gestiona perfiles internos, roles y estado del equipo."
         action={
-          <Link
-            href="/dashboard/configuracion/usuarios/nuevo"
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-(--radius-control) bg-brand-primary text-sm font-semibold text-white transition-colors duration-200 hover:bg-brand-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            aria-label="Nuevo usuario"
-            title="Nuevo usuario"
-          >
-            <Plus className="size-5" aria-hidden="true" />
-          </Link>
+          <UserCreateDialogButton createAction={createUserProfileAction} />
         }
         toolbar={
           <ListingToolbar
@@ -100,6 +94,7 @@ export default async function DashboardConfiguracionUsuariosPage({
       ) : (
         <InternalUsersList
           users={result.users}
+          getUpdateAction={(userId) => updateUserAction.bind(null, userId)}
           hasActiveFilters={Boolean(searchValue || roleValue || activeValue)}
           emptyMessage={
             searchValue || roleValue || activeValue
