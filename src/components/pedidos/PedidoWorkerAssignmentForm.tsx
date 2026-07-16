@@ -6,6 +6,7 @@ import type {
   PedidoDetailAction,
   RemovePedidoWorkerActionState,
 } from "@/app/(interno)/dashboard/pedidos/[id]/actions";
+import { Alert, Button, FormField, Select } from "@/components/ui";
 import type { InternalPedidoDetailTrabajador } from "@/lib/pedidos";
 import type { AssignableWorker } from "@/lib/pedidos/list-assignable-workers";
 import { ROLE_LABELS } from "@/lib/permissions";
@@ -64,17 +65,12 @@ function AssignmentMessage({
   message: string;
 }) {
   return (
-    <div
-      className={
-        ok
-          ? "rounded-(--radius-control) border border-success/30 bg-success-soft px-4 py-3 text-sm leading-6 text-success"
-          : "rounded-(--radius-control) border border-danger/30 bg-danger-soft px-4 py-3 text-sm leading-6 text-danger"
-      }
-      role={ok ? "status" : "alert"}
+    <Alert
+      variant={ok ? "success" : "danger"}
       aria-live="polite"
     >
       {message}
-    </div>
+    </Alert>
   );
 }
 
@@ -258,60 +254,52 @@ function ManagedPedidoWorkerAssignmentForm({
       ) : null}
 
       {loadAssignableError ? (
-        <p className="rounded-(--radius-control) border border-danger/30 bg-danger-soft px-4 py-3 text-sm leading-6 text-danger">
+        <Alert variant="danger">
           {loadAssignableError}
-        </p>
+        </Alert>
       ) : availableWorkers.length === 0 ? (
-        <p className="rounded-(--radius-control) border border-warning/30 bg-warning-soft px-4 py-3 text-sm leading-6 text-text-primary">
-          No hay mas usuarios disponibles para asignar.
-        </p>
+        <Alert variant="warning">
+          No hay más usuarios disponibles para asignar.
+        </Alert>
       ) : (
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
-          <div className="w-full max-w-sm">
-            <label
-              htmlFor="assigned_profile_id"
-              className="text-sm font-medium text-text-primary"
-            >
-              Asignar personal
-            </label>
-            <select
-              id="assigned_profile_id"
-              name="assigned_profile_id"
-              defaultValue=""
-              disabled={assigning}
-              required
-              aria-invalid={Boolean(assignedProfileError)}
-              aria-describedby={
-                assignedProfileError ? "assigned-profile-id-error" : undefined
-              }
-              className="mt-2 min-h-11 w-full rounded-(--radius-control) border border-border-strong bg-surface px-3 py-2 text-sm text-text-primary shadow-(--shadow-soft) disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted"
-            >
-              <option value="" disabled>
-                Selecciona un usuario
-              </option>
-              {availableWorkers.map((trabajador) => (
-                <option key={trabajador.id} value={trabajador.id}>
-                  {trabajador.full_name} - {ROLE_LABELS[trabajador.role]}
-                </option>
-              ))}
-            </select>
-            {assignedProfileError ? (
-              <p
-                id="assigned-profile-id-error"
-                className="mt-2 text-sm leading-5 text-danger"
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+          <FormField
+            id="assigned_profile_id"
+            label="Asignar personal"
+            required
+            error={assignedProfileError}
+            errorId="assigned-profile-id-error"
+            compact
+          >
+            {({ describedBy, invalid }) => (
+              <Select
+                id="assigned_profile_id"
+                name="assigned_profile_id"
+                defaultValue=""
+                disabled={assigning}
+                required
+                invalid={invalid}
+                aria-describedby={describedBy}
               >
-                {assignedProfileError}
-              </p>
-            ) : null}
-          </div>
+                <option value="" disabled>
+                  Selecciona un usuario
+                </option>
+                {availableWorkers.map((trabajador) => (
+                  <option key={trabajador.id} value={trabajador.id}>
+                    {trabajador.full_name} - {ROLE_LABELS[trabajador.role]}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </FormField>
 
-          <button
+          <Button
             type="submit"
             disabled={assigning}
-            className="inline-flex min-h-11 w-full items-center justify-center rounded-(--radius-control) bg-brand-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-primary-hover disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+            className="w-full sm:w-auto"
           >
             {assigning ? "Asignando..." : "Asignar personal"}
-          </button>
+          </Button>
         </div>
       )}
     </form>
@@ -330,7 +318,6 @@ function ManagedPedidoWorkerAssignmentForm({
         </>
       ) : (
         <>
-          {assignMessage ? <div className="mt-5">{assignMessage}</div> : null}
           {assignmentsContent}
           <div className="mt-6 border-t border-border pt-5">
             {assignmentForm}

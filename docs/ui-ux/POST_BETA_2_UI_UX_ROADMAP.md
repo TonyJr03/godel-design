@@ -1054,7 +1054,8 @@ docs/ui-ux/INTERNAL_FORMS_STAGE_12_PLAN.md
 * 12.4 Usuarios: crear/editar en dialog/drawer — Completado.
 * 12.5 Pedido manual: formulario compacto contextual — Completado.
 * 12.6 Configuración/plantillas: formularios compactos — Completado.
-* 12.7 Formularios operativos en workspaces/paneles — Pendiente.
+* 12.7 Formularios operativos en workspaces/paneles — En curso.
+* 12.7.1 Pedidos: formularios operativos en paneles — Completado.
 * 12.8 Pantallas internas transversales — Pendiente.
 * 12.9 QA y cierre — Pendiente.
 
@@ -1532,10 +1533,10 @@ No introducir paginación, caché, virtualización o paralelización compleja si
 La siguiente subtarea oficial de esta iniciativa es:
 
 ```text
-12.2 — Primitivas comunes de formularios internos
+12.7 — Formularios operativos en workspaces/paneles
 ```
 
-El siguiente entregable debe definir las primitivas mínimas para dialogs, drawers, acciones de formulario, cierre, retorno de foco, confirmación de cambios sin guardar y comportamiento responsive.
+El siguiente entregable debe continuar con los formularios operativos pendientes en workspaces, manteniendo las acciones inline cuando dependan del contexto permanente del panel.
 
 ---
 

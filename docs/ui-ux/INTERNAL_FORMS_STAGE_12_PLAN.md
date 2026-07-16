@@ -182,7 +182,7 @@ Las rutas fallback deben seguir disponibles durante la migración y servir para 
 | 12.4 | Usuarios: crear/editar en dialog/drawer | Abrir crear/editar usuario desde configuración con tratamiento técnico y admin-only | Completado |
 | 12.5 | Pedido manual: formulario compacto contextual | Abrir creación manual desde listado en dialog manteniendo ruta fallback | Completado |
 | 12.6 | Configuración/plantillas: formularios compactos | Consolidar crear/editar plantilla y tareas sin romper gestión inline | Completado |
-| 12.7 | Formularios operativos en workspaces/paneles | Pulir Estado, Cliente, Conversión, Tareas, Archivos, Comentarios, Personal y Pagos | Pendiente |
+| 12.7 | Formularios operativos en workspaces/paneles | Pulir Estado, Cliente, Conversión, Tareas, Archivos, Comentarios, Personal y Pagos | En curso |
 | 12.8 | Pantallas internas transversales | Revisar páginas fallback, acceso denegado, sin permisos, vacíos, regresos y cabeceras | Pendiente |
 | 12.9 | QA y cierre | Validar responsive, accesibilidad, foco, permisos visibles, errores y rutas fallback | Pendiente |
 
@@ -251,7 +251,21 @@ Decisiones implementadas:
 - `TaskTemplateTaskForm` elimina el placeholder de ejemplo concreto.
 - No se modificaron Server Actions, permisos, consultas, RLS ni modelo de datos.
 
-## 15. Criterios de cierre de la Etapa 12
+## 15. Subtarea 12.7.1 - Pedidos - Formularios operativos en paneles
+
+Decisiones implementadas:
+
+- Los formularios operativos de Pedidos permanecen inline dentro de los paneles del workspace.
+- No se introdujeron dialogs, drawers ni rutas nuevas para Estado, Pagos, Personal, Tareas, Comentarios o Archivos.
+- `PedidoStatusForm` usa mensajes y campo compacto comunes sin alterar transiciones ni reglas de bloqueo.
+- `PedidoPaymentForm` reduce altura y conserva los importes acumulados con los mismos nombres de campos.
+- `PedidoWorkerAssignmentForm` compacta la asignación de personal, mantiene lista y acciones de quitar inline, y corrige el texto de disponibilidad.
+- `ApplyTaskTemplateForm` usa campo compacto común sin mover la aplicación de plantillas fuera del panel de tareas.
+- `PedidoTasksSection` elimina el placeholder de ejemplo concreto en el campo de nueva tarea.
+- `PedidoCommentComposer`, `PedidoFileUploadForm` y `PedidoTaskItem` se mantienen inline y sin cambios estructurales.
+- No se modificaron Server Actions, permisos, consultas, RLS, Supabase, Storage ni modelo de datos.
+
+## 16. Criterios de cierre de la Etapa 12
 
 - Las rutas fallback siguen disponibles o quedan redirigidas con decisión explícita.
 - Crear/editar corto se resuelve contextual cuando aporte valor.

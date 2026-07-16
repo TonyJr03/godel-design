@@ -203,7 +203,6 @@ export function PedidoTasksSection({
                     required
                     disabled={pending}
                     defaultValue={state.values?.title ?? ""}
-                    placeholder="Ej. Imprimir 40 páginas"
                     aria-invalid={Boolean(titleError)}
                     aria-describedby={
                       titleError ? "pedido-task-title-error" : undefined

@@ -6,7 +6,7 @@ import type {
   ApplyTaskTemplateActionState,
   PedidoDetailAction,
 } from "@/app/(interno)/dashboard/pedidos/[id]/actions";
-import { Alert, Button, Select } from "@/components/ui";
+import { Alert, Button, FormField, Select } from "@/components/ui";
 import type { ActiveTaskTemplateForOrder } from "@/lib/task-templates";
 
 type ApplyTaskTemplateFormProps = {
@@ -89,52 +89,40 @@ export function ApplyTaskTemplateForm({
               .filter(Boolean)
               .join(" ")}
           >
-            <div>
-              <label
-                htmlFor="task-template-id"
-                className={
-                  isPanelPresentation
-                    ? "sr-only"
-                    : "text-sm font-medium text-text-primary"
-                }
-              >
-                Seleccionar plantilla
-              </label>
-              <Select
-                id="task-template-id"
-                name="template_id"
-                required
-                disabled={pending}
-                defaultValue=""
-                invalid={Boolean(templateError)}
-                aria-describedby={
-                  templateError ? "task-template-id-error" : undefined
-                }
-                className={isPanelPresentation ? "" : "mt-2"}
-              >
-                <option value="" disabled>
-                  Selecciona una plantilla
-                </option>
-                {templates.map((template) => (
-                  <option key={template.id} value={template.id}>
-                    {template.name} · {formatTasksCount(template.tasksCount)}
-                  </option>
-                ))}
-              </Select>
-              {templateError ? (
-                <p
-                  id="task-template-id-error"
-                  className="mt-2 text-sm leading-5 text-danger"
+            <FormField
+              id="task-template-id"
+              label="Seleccionar plantilla"
+              required
+              error={templateError}
+              errorId="task-template-id-error"
+              compact
+            >
+              {({ describedBy, invalid }) => (
+                <Select
+                  id="task-template-id"
+                  name="template_id"
+                  required
+                  disabled={pending}
+                  defaultValue=""
+                  invalid={invalid}
+                  aria-describedby={describedBy}
                 >
-                  {templateError}
-                </p>
-              ) : null}
-            </div>
+                  <option value="" disabled>
+                    Selecciona una plantilla
+                  </option>
+                  {templates.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {template.name} · {formatTasksCount(template.tasksCount)}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </FormField>
 
             <Button
               type="submit"
               disabled={pending}
-              className="w-full lg:w-auto"
+              className="w-full sm:w-auto"
             >
               {pending ? "Aplicando..." : "Aplicar plantilla"}
             </Button>
