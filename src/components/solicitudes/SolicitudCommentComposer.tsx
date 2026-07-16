@@ -5,6 +5,7 @@ import type {
   CreateSolicitudCommentActionState,
   SolicitudDetailAction,
 } from "@/app/(interno)/dashboard/solicitudes/[id]/actions";
+import { Alert, Button } from "@/components/ui";
 
 type SolicitudCommentComposerProps = {
   createCommentAction: SolicitudDetailAction<CreateSolicitudCommentActionState>;
@@ -95,17 +96,12 @@ export function SolicitudCommentComposer({
         className={isPanel ? "mt-3" : "mt-5"}
       >
         {state.message ? (
-          <div
-            className={
-              state.ok
-                ? "rounded-(--radius-control) border border-success/30 bg-success-soft px-4 py-3 text-sm leading-6 text-success"
-                : "rounded-(--radius-control) border border-danger/30 bg-danger-soft px-4 py-3 text-sm leading-6 text-danger"
-            }
-            role={state.ok ? "status" : "alert"}
+          <Alert
+            variant={state.ok ? "success" : "danger"}
             aria-live="polite"
           >
             {state.message}
-          </div>
+          </Alert>
         ) : null}
 
         <div
@@ -157,18 +153,18 @@ export function SolicitudCommentComposer({
             ) : null}
           </div>
 
-          <button
+          <Button
             type="submit"
             disabled={pending}
             className={[
-              "inline-flex min-h-11 w-full cursor-pointer items-center justify-center rounded-(--radius-control) bg-brand-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-primary-hover disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto",
+              "w-full sm:w-auto",
               isPanel ? "" : "mt-4",
             ]
               .filter(Boolean)
               .join(" ")}
           >
             {pending ? "Agregando..." : "Agregar comentario"}
-          </button>
+          </Button>
         </div>
       </form>
     </section>

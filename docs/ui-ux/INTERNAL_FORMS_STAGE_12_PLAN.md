@@ -265,7 +265,24 @@ Decisiones implementadas:
 - `PedidoCommentComposer`, `PedidoFileUploadForm` y `PedidoTaskItem` se mantienen inline y sin cambios estructurales.
 - No se modificaron Server Actions, permisos, consultas, RLS, Supabase, Storage ni modelo de datos.
 
-## 16. Criterios de cierre de la Etapa 12
+## 16. Subtarea 12.7.2 - Solicitudes - Formularios operativos en paneles
+
+Decisiones implementadas:
+
+- Los formularios operativos de Solicitudes permanecen inline dentro de los paneles del workspace.
+- No se introdujeron dialogs, drawers ni rutas nuevas para Estado, Cliente, Conversión o Comentarios.
+- `SolicitudStatusForm` usa mensajes, selector y acción compacta comunes sin alterar transiciones.
+- `SolicitudClienteForm` mantiene los bloques Cliente asociado, Asociar cliente existente y Crear desde esta solicitud en una sola superficie con separadores internos.
+- La asociación de cliente existente usa campo compacto común y conserva el nombre `cliente_id`.
+- La creación de cliente desde solicitud queda como acción secundaria inline, sin campos nuevos.
+- `SolicitudConvertPedidoForm` reduce redundancia y organiza el formulario con contexto compacto, `Datos del encargo` o `Datos de impresión`, `Datos del pedido` y acción final.
+- El precio se presenta como un único campo `Precio del pedido` manteniendo el nombre `total_amount`.
+- El título de impresión ya no aparece visualmente prellenado con `Pedido de impresión`; la regla queda explicada como ayuda.
+- `SolicitudCommentComposer` conserva el composer inline y el autoajuste del textarea.
+- Corrección 12.7.2.1: el formulario de conversión a pedido se reorganizó para alinearse con la creación manual de pedido. `Datos del encargo` o `Datos de impresión` contiene título y descripción, y `Datos del pedido` contiene prioridad, fecha estimada y precio. Las solicitudes de impresión también cargan la descripción original en el textarea.
+- No se modificaron Server Actions, permisos, consultas, RLS, Supabase, Storage ni modelo de datos.
+
+## 17. Criterios de cierre de la Etapa 12
 
 - Las rutas fallback siguen disponibles o quedan redirigidas con decisión explícita.
 - Crear/editar corto se resuelve contextual cuando aporte valor.

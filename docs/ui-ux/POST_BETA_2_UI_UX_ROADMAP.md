@@ -1056,6 +1056,7 @@ docs/ui-ux/INTERNAL_FORMS_STAGE_12_PLAN.md
 * 12.6 Configuración/plantillas: formularios compactos — Completado.
 * 12.7 Formularios operativos en workspaces/paneles — En curso.
 * 12.7.1 Pedidos: formularios operativos en paneles — Completado.
+* 12.7.2 Solicitudes: formularios operativos en paneles — Completado.
 * 12.8 Pantallas internas transversales — Pendiente.
 * 12.9 QA y cierre — Pendiente.
 
