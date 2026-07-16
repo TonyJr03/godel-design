@@ -39,7 +39,7 @@ Esos formularios públicos y de autenticación pertenecen a la Etapa 13 o a fluj
 | Solicitudes | `SolicitudClienteForm` | Panel Cliente en `/dashboard/solicitudes/[id]` | Asociación y creación derivada | Workspace panel | Media | Mantener en drawer/panel contextual; no llevar a página completa | Dos acciones compiten en el mismo panel: asociar existente y crear desde solicitud | Descripción de "Crear desde esta solicitud" aporta, pero puede compactarse | Dos Server Actions en un mismo componente; cuidado con mensajes simultáneos y estado de cliente ya asociado |
 | Usuarios | `UserCreateForm` | `/dashboard/configuracion/usuarios/nuevo` | Crear perfil interno | Página completa | Media | Dialog desde listado de usuarios, mantener ruta fallback | Flujo técnico ocupa página completa; alerta informativa grande | Placeholder de UUID parece dato real aunque cumple formato; textos sobre Supabase Auth son necesarios pero densos | Admin-only; depende de usuario Auth existente; no cambiar permisos ni tocar `auth.users` |
 | Usuarios | `UserEditForm` | `/dashboard/configuracion/usuarios/[id]/editar` | Editar perfil interno | Página completa | Media | Dialog desde listado; mantener ruta fallback | Edición operativa corta con explicación técnica visible | Muestra UUID completo en descripción; alerta sobre credenciales puede compactarse | Restricción de último admin vive en servidor; no convertir UI en autoridad |
-| Pedidos | `PedidoForm` | `/dashboard/pedidos/nuevo` | Crear pedido manual | Página completa | Alta | Drawer ancho o página fallback principal; no usar modal pequeño | Formulario largo con varias secciones; page header + advertencia + form generan mucho scroll | Varias descripciones de sección son útiles pero largas; placeholder "Pedido de impresión" puede parecer valor final | Tiene tabs client-side, reset tras éxito, link al pedido creado y public reference; modalización requiere manejo cuidadoso de éxito, foco y navegación |
+| Pedidos | `PedidoForm` | `/dashboard/pedidos/nuevo` | Crear pedido manual | Página completa | Alta | Dialog contextual desde listado, mantener ruta fallback | Formulario largo con varias secciones; page header + advertencia + form generan mucho scroll | Varias descripciones de sección son útiles pero largas; placeholder "Pedido de impresión" puede parecer valor final | Tiene tabs client-side, reset tras éxito, link al detalle del pedido creado y public reference; modalización requiere manejo cuidadoso de éxito, foco y navegación |
 | Pedidos | `PedidoStatusForm` | Panel Estado en `/dashboard/pedidos/[id]` | Acción operativa | Workspace panel | Media | Mantener en panel/drawer contextual | Ya está integrado al workspace; mensajes de bloqueo pueden acumularse | Textos de contexto son útiles; algunos avisos podrían priorizarse | Transiciones dependen de estado, tareas y pago; no duplicar reglas fuera del servidor |
 | Pedidos | `PedidoPaymentForm` | Dentro de `PedidoPaymentSection`, panel Pagos | Acción operativa | Workspace panel inline | Simple | Mantener inline dentro del panel Pagos | Inputs numéricos correctos, pero la nota de montos acumulados podría tener menor peso visual | Nota necesaria; sin placeholder problemático | Importes acumulados y total no editable; riesgo de error si se interpreta como abono incremental |
 | Pedidos | `PedidoWorkerAssignmentForm` | Panel Personal en `/dashboard/pedidos/[id]` | Acción operativa | Workspace panel | Media | Mantener en panel/drawer contextual | Lista y asignación conviven bien, pero en mobile puede crecer por asignaciones | Texto "Selecciona un usuario" correcto; sin placeholders problemáticos | Dos acciones separadas: asignar y quitar; manejo de estados simultáneos y permisos |
@@ -76,7 +76,7 @@ Aplicación práctica:
 
 - Crear/editar clientes: dialog en desktop; drawer o full-screen modal en mobile; rutas actuales quedan como fallback.
 - Crear/editar usuarios: dialog contextual consistente con Clientes; rutas actuales quedan como fallback.
-- Crear pedido manual: drawer ancho o página fallback principal; no comprimir en dialog pequeño.
+- Crear pedido manual: dialog contextual desde listado con formulario compacto; ruta actual queda como fallback.
 - Crear/editar plantillas: dialog o drawer desde listado/configuración; rutas actuales quedan como fallback.
 - Acciones operativas en workspaces: mantener panel/drawer contextual existente.
 - Comentarios, archivos, pagos simples y tareas pequeñas: mantener inline cuando el contexto permanente aporta más que un modal.
@@ -119,13 +119,13 @@ Reglas de migración:
 - `ClienteEditForm`
 - `UserCreateForm`
 - `UserEditForm`
+- `PedidoForm` en modo compacto desde el listado.
 - `TaskTemplateForm` en modo create/edit cuando se lance desde listados.
 
 Usar dialog cuando el formulario sea corto, reversible y no requiera comparación extensa con datos de la página.
 
 ### Drawer
 
-- `PedidoForm` si se invoca desde el listado como creación rápida, con fallback fuerte a página completa.
 - `SolicitudConvertPedidoForm`
 - `SolicitudClienteForm`
 
@@ -180,7 +180,7 @@ Las rutas fallback deben seguir disponibles durante la migración y servir para 
 | 12.2 | Primitivas comunes de formularios internos | Definir dialog/drawer, footer de acciones, confirmación de cambios y reglas de foco | Completado |
 | 12.3 | Clientes: crear/editar en dialog/drawer | Abrir crear/editar cliente desde listado/detalle manteniendo rutas fallback | Completado |
 | 12.4 | Usuarios: crear/editar en dialog/drawer | Abrir crear/editar usuario desde configuración con tratamiento técnico y admin-only | Completado |
-| 12.5 | Pedido manual: formulario compacto contextual | Compactar `PedidoForm` y decidir drawer ancho vs página fallback principal | Pendiente |
+| 12.5 | Pedido manual: formulario compacto contextual | Abrir creación manual desde listado en dialog manteniendo ruta fallback | Completado |
 | 12.6 | Configuración/plantillas: formularios compactos | Consolidar crear/editar plantilla y tareas sin romper gestión inline | Pendiente |
 | 12.7 | Formularios operativos en workspaces/paneles | Pulir Estado, Cliente, Conversión, Tareas, Archivos, Comentarios, Personal y Pagos | Pendiente |
 | 12.8 | Pantallas internas transversales | Revisar páginas fallback, acceso denegado, sin permisos, vacíos, regresos y cabeceras | Pendiente |
@@ -224,7 +224,21 @@ Decisiones implementadas:
 - El campo UUID ya no usa un placeholder que parezca dato real; queda explicado mediante help text.
 - No se modificaron Server Actions, permisos, consultas, RLS ni modelo de datos.
 
-## 13. Criterios de cierre de la Etapa 12
+## 13. Subtarea 12.5 - Pedido manual
+
+Decisiones implementadas:
+
+- `PedidoForm` soporta modo compacto para uso contextual.
+- La creación manual desde `/dashboard/pedidos` abre un dialog contextual mediante `PedidoCreateDialogButton`.
+- La ruta fallback `/dashboard/pedidos/nuevo` se mantiene con `PedidoForm` en modo normal.
+- La creación exitosa desde el dialog navega al detalle del pedido creado cuando la Server Action devuelve `pedidoId`.
+- El formulario compacto reduce descripciones, gaps y altura de tabs sin ocultar labels ni errores.
+- El placeholder confuso `Pedido de impresión` fue eliminado; queda una ayuda textual para el título predeterminado.
+- Corrección 12.5.1: el modo compacto de `PedidoForm` usa una sola card, selector de tipo en línea, precio integrado en datos del pedido y acciones finales sin sección propia.
+- Corrección 12.5.2: el formulario compacto mantiene una sola card, pero separa internamente Tipo, Datos del encargo/impresión, Datos del pedido y acciones con divisores suaves. Los datos específicos del tipo aparecen antes de los datos generales del pedido.
+- No se modificaron Server Actions, permisos, consultas, RLS ni modelo de datos.
+
+## 14. Criterios de cierre de la Etapa 12
 
 - Las rutas fallback siguen disponibles o quedan redirigidas con decisión explícita.
 - Crear/editar corto se resuelve contextual cuando aporte valor.

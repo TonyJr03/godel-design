@@ -240,7 +240,7 @@ Según el alcance, deben existir:
 | 8     | Arquitectura común de listados               | Cerrada   |
 | 9     | Listados operativos de Pedidos y Solicitudes | Cerrada   |
 | 10    | Listados administrativos                     | Cerrada   |
-| 11    | Dashboard operativo                          | Completada |
+| 11    | Dashboard operativo                          | Cerrada   |
 | 12    | Formularios internos y páginas secundarias   | En curso |
 | 13    | Área pública                                 | Pendiente |
 | 14    | Estados transversales y resiliencia UI       | Pendiente |
@@ -1052,7 +1052,7 @@ docs/ui-ux/INTERNAL_FORMS_STAGE_12_PLAN.md
 * 12.2 Primitivas comunes de formularios internos — Completado.
 * 12.3 Clientes: crear/editar en dialog/drawer — Completado.
 * 12.4 Usuarios: crear/editar en dialog/drawer — Completado.
-* 12.5 Pedido manual: formulario compacto contextual — Pendiente.
+* 12.5 Pedido manual: formulario compacto contextual — Completado.
 * 12.6 Configuración/plantillas: formularios compactos — Pendiente.
 * 12.7 Formularios operativos en workspaces/paneles — Pendiente.
 * 12.8 Pantallas internas transversales — Pendiente.

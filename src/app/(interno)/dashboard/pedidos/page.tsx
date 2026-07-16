@@ -1,16 +1,17 @@
-import Link from "next/link";
-import { Plus } from "lucide-react";
-
 import {
   ListingPageHeader,
   ListingToolbar,
 } from "@/components/listing";
 import { InternalPedidosList } from "@/components/pedidos/InternalPedidosList";
+import { PedidoCreateDialogButton } from "@/components/pedidos/PedidoCreateDialogButton";
+import type { PedidoFormCliente } from "@/components/pedidos/PedidoForm";
 import { Alert } from "@/components/ui/Alert";
+import { listInternalClientes } from "@/lib/clientes";
 import {
   INTERNAL_PEDIDO_ESTADOS,
   INTERNAL_PEDIDO_NEW_STATUS_FILTER,
   INTERNAL_PEDIDO_PAYMENT_STATUSES,
+  PEDIDO_PRIORIDADES,
   PEDIDO_PAYMENT_STATUS_LABELS,
   PEDIDO_STATUS_LABELS,
   listInternalPedidos,
@@ -49,12 +50,21 @@ export default async function DashboardPedidosPage({
   const status = getSingleSearchParam(params.status);
   const workflowType = getSingleSearchParam(params.workflow_type);
   const paymentStatus = getSingleSearchParam(params.payment_status);
-  const result = await listInternalPedidos({
-    q,
-    status,
-    workflowType,
-    paymentStatus,
-  });
+  const [result, clientesResult] = await Promise.all([
+    listInternalPedidos({
+      q,
+      status,
+      workflowType,
+      paymentStatus,
+    }),
+    listInternalClientes({ limit: 100 }),
+  ]);
+  const clientes: PedidoFormCliente[] = clientesResult.ok
+    ? clientesResult.clientes.map((cliente) => ({
+        id: cliente.id,
+        name: cliente.name,
+      }))
+    : [];
   const searchValue = result.q ?? "";
 
   return (
@@ -63,14 +73,13 @@ export default async function DashboardPedidosPage({
         title="Pedidos"
         description="Listado interno de pedidos oficiales para seguimiento operativo."
         action={
-          <Link
-            href="/dashboard/pedidos/nuevo"
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-(--radius-control) bg-brand-primary text-sm font-semibold text-white transition-colors duration-200 hover:bg-brand-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            aria-label="Nuevo pedido"
-            title="Nuevo pedido"
-          >
-            <Plus className="size-5" aria-hidden="true" />
-          </Link>
+          <PedidoCreateDialogButton
+            clientes={clientes}
+            prioridades={PEDIDO_PRIORIDADES}
+            clientesLoadError={
+              !clientesResult.ok ? clientesResult.message : undefined
+            }
+          />
         }
         toolbar={
           <ListingToolbar
