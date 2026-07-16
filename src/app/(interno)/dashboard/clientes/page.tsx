@@ -1,6 +1,4 @@
-import Link from "next/link";
-import { Plus } from "lucide-react";
-
+import { ClienteCreateDialogButton } from "@/components/clientes/ClienteCreateDialogButton";
 import { InternalClientesList } from "@/components/clientes/InternalClientesList";
 import {
   ListingPageHeader,
@@ -29,16 +27,7 @@ export default async function DashboardClientesPage({
       <ListingPageHeader
         title="Clientes"
         description="Listado interno de clientes registrados para consulta operativa."
-        action={
-          <Link
-            href="/dashboard/clientes/nuevo"
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-(--radius-control) bg-brand-primary text-sm font-semibold text-white transition-colors duration-200 hover:bg-brand-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            aria-label="Nuevo cliente"
-            title="Nuevo cliente"
-          >
-            <Plus className="size-5" aria-hidden="true" />
-          </Link>
-        }
+        action={<ClienteCreateDialogButton />}
         toolbar={
           <ListingToolbar
             searchLabel="Buscar clientes"

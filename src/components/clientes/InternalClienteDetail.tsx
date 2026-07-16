@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { ArrowLeft, Pencil } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
 import { DetailPanel, MetadataGrid, MetadataItem } from "@/components/ui";
 import { WorkflowTypeBadge } from "@/components/ui/WorkflowTypeBadge";
 import type { InternalClienteDetail } from "@/lib/clientes";
 import { formatAppDateTime } from "@/lib/utils";
+import { ClienteEditDialogButton } from "./ClienteEditDialogButton";
 
 type InternalClienteDetailProps = {
   cliente: InternalClienteDetail;
@@ -50,19 +51,6 @@ function BackToClientesLink({
   );
 }
 
-function EditClienteLink({ clienteId }: { clienteId: string }) {
-  return (
-    <Link
-      href={`/dashboard/clientes/${clienteId}/editar`}
-      className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-(--radius-control) bg-brand-primary text-sm font-semibold text-white transition-colors duration-200 hover:bg-brand-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-      aria-label="Editar cliente"
-      title="Editar cliente"
-    >
-      <Pencil className="size-5" aria-hidden="true" />
-    </Link>
-  );
-}
-
 export function InternalClienteDetail({
   cliente,
 }: InternalClienteDetailProps) {
@@ -87,14 +75,14 @@ export function InternalClienteDetail({
               </div>
 
               <div className="shrink-0 xl:hidden">
-                <EditClienteLink clienteId={cliente.id} />
+                <ClienteEditDialogButton cliente={cliente} />
               </div>
             </div>
           </div>
 
           <div className="hidden shrink-0 items-center gap-2 xl:flex">
             <BackToClientesLink presentation="button" />
-            <EditClienteLink clienteId={cliente.id} />
+            <ClienteEditDialogButton cliente={cliente} />
           </div>
         </div>
       </header>
