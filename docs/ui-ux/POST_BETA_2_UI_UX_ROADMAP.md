@@ -241,7 +241,7 @@ Según el alcance, deben existir:
 | 9     | Listados operativos de Pedidos y Solicitudes | Cerrada   |
 | 10    | Listados administrativos                     | Cerrada   |
 | 11    | Dashboard operativo                          | Completada |
-| 12    | Páginas internas secundarias                 | Pendiente |
+| 12    | Formularios internos y páginas secundarias   | En curso |
 | 13    | Área pública                                 | Pendiente |
 | 14    | Estados transversales y resiliencia UI       | Pendiente |
 | 15    | Optimización basada en mediciones            | Pendiente |
@@ -1032,11 +1032,31 @@ El dashboard quedó reorganizado como workspace operativo centrado en pedidos ac
 
 ---
 
-## Etapa 12 — Páginas internas secundarias
+## Etapa 12 — Formularios internos y páginas secundarias
 
 ### Objetivo
 
-Consolidar las páginas internas que no son workspaces, listados principales ni dashboard.
+Consolidar la experiencia de formularios internos y páginas secundarias que no forman parte de listados principales, dashboard operativo ni área pública.
+
+La decisión principal de esta etapa es avanzar hacia un enfoque modal-first: las acciones internas de crear y editar deben abrirse preferentemente como dialog o drawer contextual cuando sea técnicamente razonable, manteniendo rutas fallback durante la migración.
+
+Documento principal:
+
+```text
+docs/ui-ux/INTERNAL_FORMS_STAGE_12_PLAN.md
+```
+
+### Subtareas
+
+* 12.1 Auditoría y especificación de formularios internos — Completado.
+* 12.2 Primitivas comunes de formularios internos — Pendiente.
+* 12.3 Clientes: crear/editar en dialog/drawer — Pendiente.
+* 12.4 Usuarios: crear/editar en dialog/drawer — Pendiente.
+* 12.5 Pedido manual: formulario compacto contextual — Pendiente.
+* 12.6 Configuración/plantillas: formularios compactos — Pendiente.
+* 12.7 Formularios operativos en workspaces/paneles — Pendiente.
+* 12.8 Pantallas internas transversales — Pendiente.
+* 12.9 QA y cierre — Pendiente.
 
 ### Alcance
 
@@ -1067,6 +1087,19 @@ Consolidar las páginas internas que no son workspaces, listados principales ni 
 * tareas de plantilla;
 * formularios asociados.
 
+#### Formularios operativos en workspaces
+
+* estado de pedido;
+* pagos;
+* asignación de personal;
+* tareas de pedido;
+* aplicación de plantillas;
+* comentarios;
+* archivos;
+* estado de solicitud;
+* asociación de cliente;
+* conversión de solicitud a pedido.
+
 #### Pantallas internas transversales
 
 * acceso denegado;
@@ -1089,9 +1122,20 @@ Consolidar las páginas internas que no son workspaces, listados principales ni 
 * navegación de regreso;
 * confirmaciones.
 
+### Restricciones
+
+* No borrar rutas existentes de golpe.
+* Mantener rutas fallback durante la migración.
+* No romper Server Actions.
+* No cambiar permisos, RLS, RPCs, Storage ni modelo de datos.
+* No convertir formularios largos en modales pequeños.
+* En mobile, usar drawer o full-screen modal cuando el contenido lo requiera.
+* Mantener inline los formularios operativos que dependen del contexto permanente del workspace.
+* Excluir formularios públicos, login y consulta pública de estado; pertenecen a Etapa 13.
+
 ### Criterio de cierre
 
-Todas las páginas internas secundarias siguen la misma identidad y conservan una composición clara y accesible.
+Los formularios internos siguen una estrategia consistente: crear/editar corto se resuelve de forma contextual con fallback, los formularios largos usan drawer amplio o página fallback, las acciones operativas permanecen cerca del contexto de trabajo y todas las superficies conservan accesibilidad, responsive, permisos y seguridad.
 
 ---
 
@@ -1485,28 +1529,13 @@ No introducir paginación, caché, virtualización o paralelización compleja si
 
 # 14. Próxima etapa activa
 
-La siguiente etapa oficial de esta iniciativa es:
-
-# Etapa 8 — Arquitectura común de listados
-
-Su primera subtarea es:
+La siguiente subtarea oficial de esta iniciativa es:
 
 ```text
-8.1 — Especificación de arquitectura común de listados internos
+12.2 — Primitivas comunes de formularios internos
 ```
 
-El primer entregable es:
-
-```text
-docs/ui-ux/INTERNAL_LISTINGS_SPEC.md
-```
-
-Después se revisarán progresivamente:
-
-* primitivas comunes mínimas;
-* aplicación a Pedidos y Solicitudes;
-* aplicación a listados administrativos;
-* QA responsive y accesible por etapa.
+El siguiente entregable debe definir las primitivas mínimas para dialogs, drawers, acciones de formulario, cierre, retorno de foco, confirmación de cambios sin guardar y comportamiento responsive.
 
 ---
 
