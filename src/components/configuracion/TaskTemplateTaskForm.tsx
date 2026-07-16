@@ -85,6 +85,7 @@ export function TaskTemplateTaskForm({
           label={isCreate ? "Nueva tarea" : "Editar tarea"}
           required
           error={titleError}
+          compact={isCompact}
           help={
             isCreate && !isCompact
               ? "Ejemplos: Revisar diseño enviado por el cliente, Imprimir 100 páginas."
@@ -101,7 +102,6 @@ export function TaskTemplateTaskForm({
               defaultValue={
                 state.values?.title ?? (task ? task.title : "")
               }
-              placeholder="Ej. Imprimir 100 páginas"
               invalid={invalid}
               disabled={pending}
               aria-describedby={describedBy}
@@ -110,6 +110,7 @@ export function TaskTemplateTaskForm({
         </FormField>
 
         <FormActions
+          compact={isCompact}
           note={
             isCreate && !isCompact
               ? "Si el texto contiene una cantidad entera positiva, la tarea será cuantificada."

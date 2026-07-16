@@ -1,6 +1,4 @@
-import Link from "next/link";
-import { Plus } from "lucide-react";
-
+import { TaskTemplateCreateDialogButton } from "@/components/configuracion/TaskTemplateCreateDialogButton";
 import { InternalTaskTemplatesList } from "@/components/configuracion/InternalTaskTemplatesList";
 import {
   ListingPageHeader,
@@ -29,16 +27,7 @@ export default async function DashboardConfiguracionPlantillasPage({
       <ListingPageHeader
         title="Plantillas"
         description="Gestiona plantillas de tareas de producción."
-        action={
-          <Link
-            href="/dashboard/configuracion/plantillas/nueva"
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-(--radius-control) bg-brand-primary text-sm font-semibold text-white transition-colors duration-200 hover:bg-brand-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            aria-label="Nueva plantilla"
-            title="Nueva plantilla"
-          >
-            <Plus className="size-5" aria-hidden="true" />
-          </Link>
-        }
+        action={<TaskTemplateCreateDialogButton />}
         toolbar={
           <ListingToolbar
             searchLabel="Buscar plantillas"

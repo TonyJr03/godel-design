@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { ArrowLeft, Pencil } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
+import { TaskTemplateEditDialogButton } from "@/components/configuracion/TaskTemplateEditDialogButton";
 import { StatusBadge } from "@/components/ui";
 import type { TaskTemplateDetail } from "@/lib/task-templates";
 
@@ -26,19 +27,6 @@ function BackToPlantillasLink({
         strokeWidth={1.75}
       />
       Volver a plantillas
-    </Link>
-  );
-}
-
-function EditPlantillaLink({ templateId }: { templateId: string }) {
-  return (
-    <Link
-      href={`/dashboard/configuracion/plantillas/${templateId}/editar`}
-      className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-(--radius-control) bg-brand-primary text-sm font-semibold text-white transition-colors duration-200 hover:bg-brand-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-      aria-label="Editar plantilla"
-      title="Editar plantilla"
-    >
-      <Pencil className="size-5" aria-hidden="true" />
     </Link>
   );
 }
@@ -75,14 +63,14 @@ export function TaskTemplateDetailHeader({
               </div>
 
               <div className="shrink-0 xl:hidden">
-                <EditPlantillaLink templateId={template.id} />
+                <TaskTemplateEditDialogButton template={template} />
               </div>
             </div>
           </div>
 
           <div className="hidden shrink-0 items-center gap-2 xl:flex">
             <BackToPlantillasLink presentation="button" />
-            <EditPlantillaLink templateId={template.id} />
+            <TaskTemplateEditDialogButton template={template} />
           </div>
         </div>
       </header>

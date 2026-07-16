@@ -181,7 +181,7 @@ Las rutas fallback deben seguir disponibles durante la migración y servir para 
 | 12.3 | Clientes: crear/editar en dialog/drawer | Abrir crear/editar cliente desde listado/detalle manteniendo rutas fallback | Completado |
 | 12.4 | Usuarios: crear/editar en dialog/drawer | Abrir crear/editar usuario desde configuración con tratamiento técnico y admin-only | Completado |
 | 12.5 | Pedido manual: formulario compacto contextual | Abrir creación manual desde listado en dialog manteniendo ruta fallback | Completado |
-| 12.6 | Configuración/plantillas: formularios compactos | Consolidar crear/editar plantilla y tareas sin romper gestión inline | Pendiente |
+| 12.6 | Configuración/plantillas: formularios compactos | Consolidar crear/editar plantilla y tareas sin romper gestión inline | Completado |
 | 12.7 | Formularios operativos en workspaces/paneles | Pulir Estado, Cliente, Conversión, Tareas, Archivos, Comentarios, Personal y Pagos | Pendiente |
 | 12.8 | Pantallas internas transversales | Revisar páginas fallback, acceso denegado, sin permisos, vacíos, regresos y cabeceras | Pendiente |
 | 12.9 | QA y cierre | Validar responsive, accesibilidad, foco, permisos visibles, errores y rutas fallback | Pendiente |
@@ -238,7 +238,20 @@ Decisiones implementadas:
 - Corrección 12.5.2: el formulario compacto mantiene una sola card, pero separa internamente Tipo, Datos del encargo/impresión, Datos del pedido y acciones con divisores suaves. Los datos específicos del tipo aparecen antes de los datos generales del pedido.
 - No se modificaron Server Actions, permisos, consultas, RLS ni modelo de datos.
 
-## 14. Criterios de cierre de la Etapa 12
+## 14. Subtarea 12.6 - Configuración/plantillas
+
+Decisiones implementadas:
+
+- `TaskTemplateForm` soporta modo compacto para uso contextual.
+- El listado de plantillas mantiene cards y filas clickeables hacia el detalle.
+- La creación de plantilla se abre en dialog contextual desde el botón `+` del listado.
+- La edición de plantilla se abre en dialog contextual desde el detalle de la plantilla.
+- Las rutas fallback `/dashboard/configuracion/plantillas/nueva` y `/dashboard/configuracion/plantillas/[templateId]/editar` se mantienen.
+- Las tareas de plantilla se mantienen inline en el detalle para conservar orden y contexto operativo.
+- `TaskTemplateTaskForm` elimina el placeholder de ejemplo concreto.
+- No se modificaron Server Actions, permisos, consultas, RLS ni modelo de datos.
+
+## 15. Criterios de cierre de la Etapa 12
 
 - Las rutas fallback siguen disponibles o quedan redirigidas con decisión explícita.
 - Crear/editar corto se resuelve contextual cuando aporte valor.

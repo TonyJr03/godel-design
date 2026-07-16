@@ -1053,7 +1053,7 @@ docs/ui-ux/INTERNAL_FORMS_STAGE_12_PLAN.md
 * 12.3 Clientes: crear/editar en dialog/drawer — Completado.
 * 12.4 Usuarios: crear/editar en dialog/drawer — Completado.
 * 12.5 Pedido manual: formulario compacto contextual — Completado.
-* 12.6 Configuración/plantillas: formularios compactos — Pendiente.
+* 12.6 Configuración/plantillas: formularios compactos — Completado.
 * 12.7 Formularios operativos en workspaces/paneles — Pendiente.
 * 12.8 Pantallas internas transversales — Pendiente.
 * 12.9 QA y cierre — Pendiente.
