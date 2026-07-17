@@ -29,10 +29,10 @@ export default function Home() {
                 Enviar solicitud
               </Link>
               <Link
-                href="/login"
+                href="/estado"
                 className="inline-flex min-h-12 items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-6 text-base font-semibold text-text-primary transition-colors hover:bg-surface-muted"
               >
-                Acceso interno
+                Consultar estado
               </Link>
             </div>
             <p className="mt-4 text-sm leading-6 text-text-secondary">

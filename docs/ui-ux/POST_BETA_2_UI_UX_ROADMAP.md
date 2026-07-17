@@ -1188,7 +1188,7 @@ docs/ui-ux/PUBLIC_AREA_STAGE_13_PLAN.md
 ### Subtareas
 
 * 13.1 Auditoría y especificación de separación pública / login / interna — Completado.
-* 13.2 Marco público y puerta interna — Pendiente.
+* 13.2 Marco público y puerta interna — Completado.
 * 13.3 Home pública — Pendiente.
 * 13.4 Solicitud pública — Pendiente.
 * 13.5 Consulta pública de estado — Pendiente.
@@ -1216,8 +1216,8 @@ docs/ui-ux/PUBLIC_AREA_STAGE_13_PLAN.md
 La entrada pública al sistema presenta una experiencia clara, profesional,
 segura y coherente con la identidad visual general; `/login` funciona como
 puerta interna separada de la navegación pública; `/estado` conserva el DTO
-público mínimo; y no se introducen catálogo, carrito, pagos, panel de cliente ni
-datos públicos adicionales.
+público mínimo; no se introducen catálogo, carrito, pagos, panel de cliente ni
+datos públicos adicionales; y el área pública no enlaza visualmente al login.
 
 ---
 
@@ -1584,9 +1584,8 @@ La siguiente subtarea oficial de esta iniciativa es:
 13.2 — Marco público y puerta interna
 ```
 
-El siguiente entregable debe separar visualmente la cabecera pública del login,
-manteniendo `/login` como puerta interna y sin mover rutas ni cambiar
-autenticación.
+El siguiente entregable debe continuar con la home pública sin exponer enlaces
+visibles hacia `/login` y sin mover rutas ni cambiar autenticación.
 
 ---
 

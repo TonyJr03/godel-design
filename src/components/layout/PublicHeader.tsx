@@ -1,13 +1,13 @@
 import Link from "next/link";
 
-export type PublicHeaderCurrentPage = "home" | "solicitud" | "login";
+export type PublicHeaderCurrentPage = "home" | "solicitud" | "estado";
 
 type PublicHeaderProps = {
   currentPage?: PublicHeaderCurrentPage;
 };
 
 const baseNavLinkClass =
-  "inline-flex min-h-11 items-center rounded-(--radius-control) px-3 transition-colors";
+  "inline-flex min-h-11 items-center rounded-(--radius-control) px-2 transition-colors sm:px-3";
 
 function getNavLinkClass(isCurrent: boolean) {
   return [
@@ -21,20 +21,20 @@ function getNavLinkClass(isCurrent: boolean) {
 export function PublicHeader({ currentPage }: PublicHeaderProps) {
   return (
     <header className="border-b border-border bg-surface-raised">
-      <div className="mx-auto flex min-h-18 w-full max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+      <div className="mx-auto flex min-h-18 w-full max-w-6xl items-center justify-between gap-2 px-4 py-3 sm:gap-4 sm:px-6">
         <Link
           href="/"
-          className="group inline-flex min-h-11 items-center gap-3 rounded-(--radius-control)"
+          className="group inline-flex min-h-11 min-w-0 items-center gap-2 rounded-(--radius-control) sm:gap-3"
         >
           <span
             className="h-8 w-1 rounded-full bg-brand-accent"
             aria-hidden="true"
           />
-          <span>
-            <span className="block text-base font-semibold text-text-primary">
+          <span className="min-w-0">
+            <span className="block truncate text-base font-semibold text-text-primary">
               Godel Diseño
             </span>
-            <span className="block text-xs text-text-secondary">
+            <span className="hidden text-xs text-text-secondary min-[420px]:block">
               Producción personalizada
             </span>
           </span>
@@ -59,12 +59,11 @@ export function PublicHeader({ currentPage }: PublicHeaderProps) {
             <span className="hidden sm:inline">Enviar solicitud</span>
           </Link>
           <Link
-            href="/login"
-            aria-current={currentPage === "login" ? "page" : undefined}
-            className={getNavLinkClass(currentPage === "login")}
+            href="/estado"
+            aria-current={currentPage === "estado" ? "page" : undefined}
+            className={`${getNavLinkClass(currentPage === "estado")} hidden sm:inline-flex`}
           >
-            <span className="sm:hidden">Acceso</span>
-            <span className="hidden sm:inline">Acceso interno</span>
+            Estado
           </Link>
         </nav>
       </div>

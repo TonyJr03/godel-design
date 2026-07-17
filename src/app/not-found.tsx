@@ -43,8 +43,8 @@ export default function NotFound() {
             <Link href="/solicitud" className={secondaryLinkClasses}>
               Enviar una solicitud
             </Link>
-            <Link href="/login" className={secondaryLinkClasses}>
-              Acceso interno
+            <Link href="/estado" className={secondaryLinkClasses}>
+              Consultar estado
             </Link>
           </div>
 
