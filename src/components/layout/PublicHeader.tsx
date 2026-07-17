@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 export type PublicHeaderCurrentPage = "home" | "solicitud" | "estado";
@@ -7,41 +8,37 @@ type PublicHeaderProps = {
 };
 
 const baseNavLinkClass =
-  "inline-flex min-h-11 items-center rounded-(--radius-control) px-2 transition-colors sm:px-3";
+  "min-h-10 items-center rounded-(--radius-control) px-3 text-sm font-semibold transition-colors duration-200";
 
 function getNavLinkClass(isCurrent: boolean) {
   return [
     baseNavLinkClass,
     isCurrent
-      ? "bg-brand-primary-soft text-brand-primary"
-      : "text-text-secondary hover:bg-surface-muted hover:text-text-primary",
+      ? "bg-surface text-brand-primary shadow-(--shadow-soft)"
+      : "text-white/85 hover:bg-white/10 hover:text-white",
   ].join(" ");
 }
 
 export function PublicHeader({ currentPage }: PublicHeaderProps) {
   return (
-    <header className="border-b border-border bg-surface-raised">
-      <div className="mx-auto flex min-h-18 w-full max-w-6xl items-center justify-between gap-2 px-4 py-3 sm:gap-4 sm:px-6">
+    <header className="sticky top-0 z-50 border-b border-white/15 bg-brand-primary-hover text-white">
+      <div className="mx-auto flex min-h-18 w-full max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:gap-5 sm:px-6">
         <Link
           href="/"
-          className="group inline-flex min-h-11 min-w-0 items-center gap-2 rounded-(--radius-control) sm:gap-3"
+          className="inline-flex min-h-11 min-w-0 items-center rounded-(--radius-control) transition-opacity duration-200 hover:opacity-90"
         >
-          <span
-            className="h-8 w-1 rounded-full bg-brand-accent"
-            aria-hidden="true"
+          <Image
+            src="/brand/godel-diseno-horizontal-on-dark.png"
+            alt="Godel Diseño"
+            width={164}
+            height={48}
+            className="h-8 w-auto shrink-0 sm:h-9"
+            priority
           />
-          <span className="min-w-0">
-            <span className="block truncate text-base font-semibold text-text-primary">
-              Godel Diseño
-            </span>
-            <span className="hidden text-xs text-text-secondary min-[420px]:block">
-              Producción personalizada
-            </span>
-          </span>
         </Link>
         <nav
           aria-label="Navegación pública"
-          className="flex items-center gap-1 text-sm font-medium sm:gap-2"
+          className="flex items-center gap-1 sm:gap-2"
         >
           <Link
             href="/"
@@ -53,7 +50,7 @@ export function PublicHeader({ currentPage }: PublicHeaderProps) {
           <Link
             href="/solicitud"
             aria-current={currentPage === "solicitud" ? "page" : undefined}
-            className={getNavLinkClass(currentPage === "solicitud")}
+            className={`${getNavLinkClass(currentPage === "solicitud")} inline-flex`}
           >
             <span className="sm:hidden">Solicitud</span>
             <span className="hidden sm:inline">Enviar solicitud</span>
@@ -61,7 +58,7 @@ export function PublicHeader({ currentPage }: PublicHeaderProps) {
           <Link
             href="/estado"
             aria-current={currentPage === "estado" ? "page" : undefined}
-            className={`${getNavLinkClass(currentPage === "estado")} hidden sm:inline-flex`}
+            className={`${getNavLinkClass(currentPage === "estado")} inline-flex`}
           >
             Estado
           </Link>

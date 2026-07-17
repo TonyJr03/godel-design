@@ -232,6 +232,59 @@ Nota de implementación 13.3:
 - Se mantuvieron solo acciones públicas.
 - No se agregó catálogo, carrito, pagos, panel de cliente ni acceso interno.
 
+Corrección 13.3.1:
+
+- Se redefinió la home pública hacia una identidad visual más atractiva.
+- Se tomó inspiración del logo: azul, naranja, gris carbón y geometría diagonal.
+- Se mantuvo la separación estricta con el área interna.
+- Se mantuvieron solo acciones públicas.
+- No se agregó catálogo, carrito, pagos, panel de cliente ni datos públicos nuevos.
+
+Corrección 13.3.2:
+
+- Se refinó la home hacia una identidad pública más luminosa.
+- Se redujo el uso de carbón/negro dominante.
+- Se consolidó azul como color principal y naranja como acento.
+- Se mejoraron header, footer, seguimiento y CTA final.
+- Se añadieron placeholders visuales para redes sociales porque no existen URLs oficiales configuradas.
+- Se mantuvo la separación estricta con el área interna.
+
+Corrección 13.3.3:
+
+- Se adoptó azul como fondo protagonista de la landing.
+- Se eliminaron fondos hueso/beige y bloques carbón dominantes.
+- Se reforzó header y footer como elementos de marca.
+- Se añadieron iconos SVG para redes sociales en el footer.
+- Se mantuvo separación estricta con el área interna.
+- No se agregó catálogo, carrito, pagos, panel de cliente ni datos públicos nuevos.
+
+Corrección 13.3.4:
+
+- El header público quedó sticky para permanecer visible durante el scroll.
+- El footer público se extrajo como componente reutilizable.
+- El hero se limpió para priorizar mensaje y marca.
+- El proceso se movió a una sección propia debajo del hero.
+- Se mantuvo separación estricta con el área interna.
+- No se agregó catálogo, carrito, pagos, panel de cliente ni datos públicos nuevos.
+
+Corrección 13.3.5:
+
+- Se integró la pieza de marca del hero con el fondo azul.
+- Se eliminó la caja blanca dominante del logo.
+- Se mantuvo el hero limpio y orientado a marca.
+
+Corrección 13.3.6:
+
+- Se eliminó el contenedor translúcido del logo del hero.
+- El logo quedó integrado directamente sobre el fondo azul.
+- Se aumentó el protagonismo visual de la marca.
+
+Corrección 13.3.7:
+
+- El logo grande del hero se definió como recurso decorativo solo para desktop.
+- En mobile/tablet se oculta para priorizar mensaje, CTAs y velocidad de lectura.
+- Se mantiene la jerarquía responsive sin añadir contenido nuevo.
+
 ### 13.4 - Solicitud pública
 
 - Rediseñar composición de `/solicitud` sin cambiar Server Action ni contrato de
