@@ -5,7 +5,7 @@ export type CurrentUser = User;
 
 export type CurrentProfile = Pick<
   Tables<"perfiles">,
-  "id" | "role" | "is_active"
+  "id" | "full_name" | "role" | "is_active"
 >;
 
 export type CurrentUserWithProfile = {

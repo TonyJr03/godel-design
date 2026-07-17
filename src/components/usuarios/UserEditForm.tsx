@@ -1,9 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 
-import type { UpdateUserActionState } from "@/app/(interno)/dashboard/usuarios/[id]/editar/actions";
 import {
   Alert,
   Button,
@@ -13,30 +11,53 @@ import {
   Input,
   Select,
 } from "@/components/ui";
-import type { InternalUserDetail, UserField } from "@/lib/usuarios";
+import type { BaseActionState } from "@/lib/actions/action-state";
+import type {
+  InternalUserDetail,
+  UserField,
+  UserFieldErrors,
+} from "@/lib/usuarios";
 
 type UserEditFormProps = {
   user: InternalUserDetail;
-  updateAction: (
-    state: UpdateUserActionState,
-    formData: FormData,
-  ) => Promise<UpdateUserActionState>;
+  updateAction: UserEditFormAction;
+  onSuccess?: (state: UserEditFormActionState) => void;
+  onDirtyChange?: (dirty: boolean) => void;
 };
 
-const initialState: UpdateUserActionState = {
+export type UserEditFormActionState = BaseActionState<UserFieldErrors>;
+
+export type UserEditFormAction = (
+  state: UserEditFormActionState,
+  formData: FormData,
+) => Promise<UserEditFormActionState>;
+
+const initialState: UserEditFormActionState = {
   ok: false,
   message: "",
 };
 
-function getFieldError(state: UpdateUserActionState, field: UserField) {
+function getFieldError(state: UserEditFormActionState, field: UserField) {
   return state.fieldErrors?.[field];
 }
 
-export function UserEditForm({ user, updateAction }: UserEditFormProps) {
+export function UserEditForm({
+  user,
+  updateAction,
+  onSuccess,
+  onDirtyChange,
+}: UserEditFormProps) {
   const [state, formAction, pending] = useActionState(
     updateAction,
     initialState,
   );
+
+  useEffect(() => {
+    if (state.ok) {
+      onDirtyChange?.(false);
+      onSuccess?.(state);
+    }
+  }, [onDirtyChange, onSuccess, state]);
 
   const fullNameError = getFieldError(state, "full_name");
   const phoneError = getFieldError(state, "phone");
@@ -45,14 +66,14 @@ export function UserEditForm({ user, updateAction }: UserEditFormProps) {
   const activeError = getFieldError(state, "is_active");
 
   return (
-    <form action={formAction} aria-busy={pending} className="max-w-3xl">
-      <FormSection
-        title="Datos del perfil interno"
-        description={
-          <span className="break-all font-mono text-xs">{user.id}</span>
-        }
-      >
-        <div className="space-y-6">
+    <form
+      action={formAction}
+      aria-busy={pending}
+      className="w-full"
+      onChange={() => onDirtyChange?.(true)}
+    >
+      <FormSection compact>
+        <div className="space-y-4">
           {state.message ? (
             <Alert
               variant={state.ok ? "success" : "danger"}
@@ -62,12 +83,12 @@ export function UserEditForm({ user, updateAction }: UserEditFormProps) {
             </Alert>
           ) : null}
 
-          <Alert variant="info">
-            Esta pantalla gestiona el perfil interno. Las credenciales de acceso
-            se administran fuera de esta aplicación.
+          <Alert variant="info" className="wrap-break-word leading-6">
+            Esta acción solo actualiza el perfil interno. Las credenciales se
+            gestionan fuera.
           </Alert>
 
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             <FormField
               id="full_name"
               label="Nombre completo"
@@ -75,6 +96,7 @@ export function UserEditForm({ user, updateAction }: UserEditFormProps) {
               error={fullNameError}
               errorId="full-name-error"
               className="sm:col-span-2"
+              compact
             >
               {({ describedBy, invalid }) => (
                 <Input
@@ -91,7 +113,12 @@ export function UserEditForm({ user, updateAction }: UserEditFormProps) {
               )}
             </FormField>
 
-            <FormField id="phone" label="Teléfono" error={phoneError}>
+            <FormField
+              id="phone"
+              label="Teléfono"
+              error={phoneError}
+              compact
+            >
               {({ describedBy, invalid }) => (
                 <Input
                   id="phone"
@@ -112,6 +139,7 @@ export function UserEditForm({ user, updateAction }: UserEditFormProps) {
               label="URL de avatar"
               error={avatarUrlError}
               errorId="avatar-url-error"
+              compact
             >
               {({ describedBy, invalid }) => (
                 <Input
@@ -127,7 +155,13 @@ export function UserEditForm({ user, updateAction }: UserEditFormProps) {
               )}
             </FormField>
 
-            <FormField id="role" label="Rol" required error={roleError}>
+            <FormField
+              id="role"
+              label="Rol"
+              required
+              error={roleError}
+              compact
+            >
               {({ describedBy, invalid }) => (
                 <Select
                   id="role"
@@ -150,6 +184,7 @@ export function UserEditForm({ user, updateAction }: UserEditFormProps) {
               required
               error={activeError}
               errorId="active-error"
+              compact
             >
               {({ describedBy, invalid }) => (
                 <Select
@@ -167,13 +202,7 @@ export function UserEditForm({ user, updateAction }: UserEditFormProps) {
             </FormField>
           </div>
 
-          <FormActions note="Los campos marcados con * son obligatorios.">
-            <Link
-              href={`/dashboard/usuarios/${user.id}`}
-              className="inline-flex min-h-11 w-full items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-5 text-sm font-semibold text-text-primary transition-colors hover:bg-surface-muted sm:w-auto"
-            >
-              Volver al detalle
-            </Link>
+          <FormActions compact note={undefined}>
             <Button type="submit" disabled={pending} className="w-full sm:w-auto">
               {pending ? "Guardando..." : "Guardar cambios"}
             </Button>

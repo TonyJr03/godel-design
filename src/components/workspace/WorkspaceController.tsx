@@ -1,0 +1,363 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import { WorkspaceContext } from "./workspace-context";
+import type {
+  WorkspaceMoreScope,
+  WorkspacePanelOrigin,
+} from "./workspace-context";
+import { WorkspaceContextDialog } from "./WorkspaceContextDialog";
+import { WorkspaceIcon } from "./WorkspaceIcon";
+import {
+  getWorkspaceActionAccessibleName,
+  getWorkspaceActionToneClasses,
+  getWorkspaceActionVisibleBadge,
+} from "./workspace-action-presentation";
+import type {
+  WorkspaceAction,
+  WorkspaceControllerProps,
+  WorkspacePanel,
+} from "./types";
+
+type WorkspaceOpenView =
+  | { type: "panel"; panelId: string; origin: WorkspacePanelOrigin }
+  | {
+      type: "more";
+      scope: WorkspaceMoreScope;
+      directActionIds: readonly string[];
+    };
+
+type WorkspaceView = WorkspaceOpenView | { type: "closed" };
+
+function getActionAccessibleName(
+  action: WorkspaceAction,
+  disabledReason?: string,
+) {
+  return [
+    action.label,
+    action.statusLabel,
+    disabledReason,
+    typeof action.badge === "number" ? String(action.badge) : null,
+  ]
+    .filter((part): part is string => Boolean(part))
+    .join(" — ");
+}
+
+export function WorkspaceController({
+  actions,
+  panels,
+  primaryActionId,
+  tabletActionIds,
+  mobileActionIds,
+  children,
+}: WorkspaceControllerProps) {
+  const dialogRef = useRef<HTMLDialogElement | null>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
+  const bodyOverflowRef = useRef<string | null>(null);
+  const [view, setView] = useState<WorkspaceView>({ type: "closed" });
+  const [renderedView, setRenderedView] =
+    useState<WorkspaceOpenView | null>(null);
+  const [lastMoreView, setLastMoreView] = useState<Extract<
+    WorkspaceOpenView,
+    { type: "more" }
+  > | null>(null);
+
+  const restoreTriggerFocus = useCallback(() => {
+    const trigger = triggerRef.current;
+
+    if (!trigger) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      trigger.focus({ preventScroll: true });
+      triggerRef.current = null;
+    });
+  }, []);
+
+  const syncClosedState = useCallback(() => {
+    setView({ type: "closed" });
+    setRenderedView(null);
+    restoreTriggerFocus();
+  }, [restoreTriggerFocus]);
+
+  const closePanel = useCallback(() => {
+    const dialog = dialogRef.current;
+
+    if (dialog?.open) {
+      dialog.close();
+      return;
+    }
+
+    syncClosedState();
+  }, [syncClosedState]);
+
+  const openAction = useCallback(
+    (
+      actionId: string,
+      trigger?: HTMLElement | null,
+      origin: WorkspacePanelOrigin = "direct",
+    ) => {
+      const action = actions.find((item) => item.id === actionId);
+
+      if (!action || action.disabled || !panels[actionId]) {
+        return;
+      }
+
+      if (trigger) {
+        triggerRef.current = trigger;
+      }
+
+      const nextView: WorkspaceOpenView = {
+        type: "panel",
+        panelId: actionId,
+        origin,
+      };
+
+      setRenderedView(nextView);
+      setView(nextView);
+    },
+    [actions, panels],
+  );
+
+  const openMore = useCallback(
+    (
+      trigger?: HTMLElement | null,
+      scope: WorkspaceMoreScope = "mobile",
+      directActionIds: readonly string[] = [],
+    ) => {
+      if (trigger) {
+        triggerRef.current = trigger;
+      }
+
+      const nextView: WorkspaceOpenView = {
+        type: "more",
+        scope,
+        directActionIds: [...directActionIds],
+      };
+
+      setLastMoreView(nextView);
+      setRenderedView(nextView);
+      setView(nextView);
+    },
+    [],
+  );
+
+  const returnToMore = useCallback(() => {
+    const nextView: WorkspaceOpenView =
+      lastMoreView ?? {
+        type: "more",
+        scope: "mobile",
+        directActionIds: [],
+      };
+
+    setRenderedView(nextView);
+    setView(nextView);
+  }, [lastMoreView]);
+
+  const isDialogOpen = view.type !== "closed";
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+
+    if (!dialog || !isDialogOpen || dialog.open) {
+      return;
+    }
+
+    dialog.showModal();
+  }, [isDialogOpen, renderedView]);
+
+  useEffect(() => {
+    if (!isDialogOpen) {
+      if (bodyOverflowRef.current !== null) {
+        document.body.style.overflow = bodyOverflowRef.current;
+        bodyOverflowRef.current = null;
+      }
+
+      return;
+    }
+
+    if (bodyOverflowRef.current === null) {
+      bodyOverflowRef.current = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+    }
+
+    return () => {
+      if (bodyOverflowRef.current !== null) {
+        document.body.style.overflow = bodyOverflowRef.current;
+        bodyOverflowRef.current = null;
+      }
+    };
+  }, [isDialogOpen]);
+
+  useEffect(() => {
+    return () => {
+      if (bodyOverflowRef.current !== null) {
+        document.body.style.overflow = bodyOverflowRef.current;
+        bodyOverflowRef.current = null;
+      }
+    };
+  }, []);
+
+  const contextValue = useMemo(
+    () => ({
+      actions,
+      activePanelId: view.type === "panel" ? view.panelId : null,
+      primaryActionId,
+      tabletActionIds,
+      mobileActionIds,
+      openAction,
+      openMore,
+      closePanel,
+      returnToMore,
+      isMoreOpen: view.type === "more",
+    }),
+    [
+      actions,
+      closePanel,
+      mobileActionIds,
+      openAction,
+      openMore,
+      primaryActionId,
+      returnToMore,
+      tabletActionIds,
+      view,
+    ],
+  );
+
+  const renderedPanel =
+    renderedView?.type === "panel" ? panels[renderedView.panelId] : null;
+  const renderedMoreView =
+    renderedView?.type === "more"
+      ? renderedView
+      : lastMoreView;
+  const directActionIdSet = new Set(renderedMoreView?.directActionIds ?? []);
+  const secondaryActions = actions.filter(
+    (action) => !directActionIdSet.has(action.id),
+  );
+
+  return (
+    <WorkspaceContext.Provider value={contextValue}>
+      {children}
+      <WorkspaceContextDialog
+        dialogRef={dialogRef}
+        isOpen={isDialogOpen}
+        title={getDialogTitle(renderedView, renderedPanel)}
+        description={renderedPanel?.description}
+        contentMode={
+          renderedView?.type === "more"
+            ? "scroll"
+            : renderedPanel?.contentMode ?? "scroll"
+        }
+        showBackButton={
+          renderedView?.type === "panel" && renderedView.origin === "more"
+        }
+        onBack={returnToMore}
+        onCancel={(event) => {
+          event.preventDefault();
+          closePanel();
+        }}
+        onNativeClose={syncClosedState}
+        onRequestClose={closePanel}
+      >
+        {renderedView?.type === "more" ? (
+          <WorkspaceMoreList
+            actions={secondaryActions}
+            panels={panels}
+            onOpenAction={(actionId) => openAction(actionId, null, "more")}
+          />
+        ) : (
+          renderedPanel?.content ?? null
+        )}
+      </WorkspaceContextDialog>
+    </WorkspaceContext.Provider>
+  );
+}
+
+function getDialogTitle(
+  renderedView: WorkspaceOpenView | null,
+  panel: WorkspacePanel | null,
+) {
+  if (renderedView?.type === "more") {
+    return "Más acciones";
+  }
+
+  return panel?.title ?? "Panel contextual";
+}
+
+function WorkspaceMoreList({
+  actions,
+  panels,
+  onOpenAction,
+}: {
+  actions: readonly WorkspaceAction[];
+  panels: Readonly<Record<string, WorkspacePanel>>;
+  onOpenAction: (actionId: string) => void;
+}) {
+  if (actions.length === 0) {
+    return (
+      <p className="rounded-(--radius-control) border border-border bg-surface-muted px-4 py-3 text-sm text-text-secondary">
+        No hay acciones adicionales.
+      </p>
+    );
+  }
+
+  return (
+    <div className="grid gap-3">
+      {actions.map((action) => {
+        const hasPanel = Boolean(panels[action.id]);
+        const isDisabled = action.disabled || !hasPanel;
+        const disabledReason = action.disabledReason ?? "Panel no disponible.";
+        const accessibleName = hasPanel
+          ? getWorkspaceActionAccessibleName(action, {
+              includeDisabledReason: isDisabled,
+            })
+          : getActionAccessibleName(action, disabledReason);
+        const visibleBadge = getWorkspaceActionVisibleBadge(action);
+
+        return (
+          <button
+            key={action.id}
+            type="button"
+            aria-label={accessibleName}
+            className={[
+              "flex min-h-11 w-full cursor-pointer items-start gap-3 rounded-(--radius-control) border px-3 py-3 text-left transition-colors duration-200 disabled:cursor-not-allowed",
+              getWorkspaceActionToneClasses(action, false, "tablet"),
+              isDisabled ? "opacity-75" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            disabled={isDisabled}
+            onClick={() => onOpenAction(action.id)}
+          >
+            <WorkspaceIcon
+              name={action.icon}
+              className="mt-0.5 h-5 w-5 shrink-0"
+            />
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center gap-2 font-semibold">
+                <span>{action.label}</span>
+                {visibleBadge ? (
+                  <span className="rounded-full border border-current px-2 py-0.5 text-xs">
+                    {visibleBadge}
+                  </span>
+                ) : null}
+              </span>
+              {action.statusLabel ? (
+                <span className="mt-1 block text-xs leading-5 text-text-secondary">
+                  {action.statusLabel}
+                </span>
+              ) : null}
+              {isDisabled ? (
+                <span className="mt-1 block text-xs leading-5 text-text-secondary">
+                  {disabledReason}
+                </span>
+              ) : null}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}

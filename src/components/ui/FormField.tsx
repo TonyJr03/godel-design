@@ -18,17 +18,26 @@ export type FormFieldProps = {
   errorId?: string;
   children: ReactNode | ((props: FormFieldRenderProps) => ReactNode);
   className?: string;
+  compact?: boolean;
 };
 
 export function FieldHelp({
   id,
   children,
+  compact = false,
 }: {
   id: string;
   children: ReactNode;
+  compact?: boolean;
 }) {
   return (
-    <p id={id} className="mt-2 text-sm leading-5 text-text-secondary">
+    <p
+      id={id}
+      className={[
+        compact ? "mt-1" : "mt-2",
+        "text-sm leading-5 text-text-secondary",
+      ].join(" ")}
+    >
       {children}
     </p>
   );
@@ -37,12 +46,20 @@ export function FieldHelp({
 export function FieldError({
   id,
   children,
+  compact = false,
 }: {
   id: string;
   children: ReactNode;
+  compact?: boolean;
 }) {
   return (
-    <p id={id} className="mt-2 text-sm font-medium leading-5 text-danger">
+    <p
+      id={id}
+      className={[
+        compact ? "mt-1" : "mt-2",
+        "text-sm font-medium leading-5 text-danger",
+      ].join(" ")}
+    >
       {children}
     </p>
   );
@@ -59,6 +76,7 @@ export function FormField({
   errorId: providedErrorId,
   children,
   className,
+  compact = false,
 }: FormFieldProps) {
   const helpId = help ? (providedHelpId ?? `${id}-help`) : undefined;
   const errorId = error ? (providedErrorId ?? `${id}-error`) : undefined;
@@ -82,11 +100,19 @@ export function FormField({
           <span className="ml-1 font-normal text-text-muted">(opcional)</span>
         ) : null}
       </label>
-      <div className="mt-2">
+      <div className={compact ? "mt-1.5" : "mt-2"}>
         {typeof children === "function" ? children(renderProps) : children}
       </div>
-      {error && errorId ? <FieldError id={errorId}>{error}</FieldError> : null}
-      {help && helpId ? <FieldHelp id={helpId}>{help}</FieldHelp> : null}
+      {error && errorId ? (
+        <FieldError id={errorId} compact={compact}>
+          {error}
+        </FieldError>
+      ) : null}
+      {help && helpId ? (
+        <FieldHelp id={helpId} compact={compact}>
+          {help}
+        </FieldHelp>
+      ) : null}
     </div>
   );
 }

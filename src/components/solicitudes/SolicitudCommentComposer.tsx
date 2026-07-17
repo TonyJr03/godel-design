@@ -1,0 +1,172 @@
+"use client";
+
+import { useActionState, useEffect, useRef } from "react";
+import type {
+  CreateSolicitudCommentActionState,
+  SolicitudDetailAction,
+} from "@/app/(interno)/dashboard/solicitudes/[id]/actions";
+import { Alert, Button } from "@/components/ui";
+
+type SolicitudCommentComposerProps = {
+  createCommentAction: SolicitudDetailAction<CreateSolicitudCommentActionState>;
+  presentation?: "card" | "panel";
+};
+
+const initialState: CreateSolicitudCommentActionState = {
+  ok: false,
+  message: "",
+  values: {
+    content: "",
+  },
+};
+
+export function SolicitudCommentComposer({
+  createCommentAction,
+  presentation = "card",
+}: SolicitudCommentComposerProps) {
+  const formRef = useRef<HTMLFormElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [state, formAction, pending] = useActionState(
+    createCommentAction,
+    initialState,
+  );
+  const contenidoError = state.fieldErrors?.content;
+  const isPanel = presentation === "panel";
+  const titleId = isPanel
+    ? "solicitud-comment-composer-panel-title"
+    : "solicitud-comment-composer-title";
+  const textareaId = isPanel
+    ? "solicitud-comment-content-panel"
+    : "solicitud-comment-content";
+  const errorId = isPanel
+    ? "solicitud-comment-content-panel-error"
+    : "solicitud-comment-content-error";
+
+  function resizeTextarea(textarea: HTMLTextAreaElement) {
+    const maxHeight = 144;
+
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
+    textarea.style.overflowY =
+      textarea.scrollHeight > maxHeight ? "auto" : "hidden";
+  }
+
+  useEffect(() => {
+    if (!state.ok) {
+      return;
+    }
+
+    formRef.current?.reset();
+
+    if (isPanel && textareaRef.current) {
+      textareaRef.current.style.height = "";
+      textareaRef.current.style.overflowY = "hidden";
+    }
+  }, [state, isPanel]);
+
+  return (
+    <section
+      aria-labelledby={titleId}
+      className={
+        isPanel
+          ? "min-w-0"
+          : "rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6"
+      }
+    >
+      {isPanel ? (
+        <h3 id={titleId} className="text-sm font-semibold text-text-primary">
+          Comenta
+        </h3>
+      ) : (
+        <div>
+          <h2 id={titleId} className="text-lg font-semibold text-text-primary">
+            Agregar comentario
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-text-secondary">
+            Registra una nota interna para el equipo que trabaja en esta
+            solicitud.
+          </p>
+        </div>
+      )}
+
+      <form
+        ref={formRef}
+        action={formAction}
+        aria-busy={pending}
+        className={isPanel ? "mt-3" : "mt-5"}
+      >
+        {state.message ? (
+          <Alert
+            variant={state.ok ? "success" : "danger"}
+            aria-live="polite"
+          >
+            {state.message}
+          </Alert>
+        ) : null}
+
+        <div
+          className={[
+            state.message || !isPanel ? "mt-4" : "",
+            isPanel ? "flex flex-col gap-3 sm:flex-row sm:items-end" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
+          <div className={isPanel ? "flex-1" : ""}>
+            <label
+              htmlFor={textareaId}
+              className={
+                isPanel
+                  ? "sr-only"
+                  : "text-sm font-medium text-text-primary"
+              }
+            >
+              Comentario
+            </label>
+            <textarea
+              ref={textareaRef}
+              id={textareaId}
+              name="content"
+              rows={isPanel ? 1 : 4}
+              maxLength={2000}
+              required
+              disabled={pending}
+              defaultValue={state.values?.content ?? ""}
+              onInput={(event) => {
+                if (isPanel) {
+                  resizeTextarea(event.currentTarget);
+                }
+              }}
+              aria-invalid={Boolean(contenidoError)}
+              aria-describedby={contenidoError ? errorId : undefined}
+              className={[
+                "block w-full rounded-(--radius-control) border border-border-strong bg-surface px-3 py-2 text-sm text-text-primary shadow-(--shadow-soft) placeholder:text-text-muted disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted",
+                isPanel
+                  ? "min-h-11 max-h-36 resize-none overflow-hidden"
+                  : "mt-2 min-h-28 resize-y",
+              ].join(" ")}
+            />
+            {contenidoError ? (
+              <p id={errorId} className="mt-2 text-sm leading-5 text-danger">
+                {contenidoError}
+              </p>
+            ) : null}
+          </div>
+
+          <Button
+            type="submit"
+            disabled={pending}
+            className={[
+              "w-full sm:w-auto",
+              isPanel ? "" : "mt-4",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+          >
+            {pending ? "Agregando..." : "Agregar comentario"}
+          </Button>
+        </div>
+      </form>
+    </section>
+  );
+}

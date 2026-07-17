@@ -1,3 +1,5 @@
+import { cookies } from "next/headers";
+
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { SkipLink } from "@/components/layout/SkipLink";
 import { getCurrentProfile } from "@/lib/auth";
@@ -8,11 +10,17 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }>) {
   const profile = await getCurrentProfile();
+  const cookieStore = await cookies();
+  const initialSidebarCollapsed =
+    cookieStore.get("godel_sidebar_collapsed")?.value === "1";
 
   return (
     <div className="min-h-screen bg-background text-text-primary md:flex">
       <SkipLink />
-      <DashboardSidebar role={profile?.role ?? null} />
+      <DashboardSidebar
+        profile={profile}
+        initialSidebarCollapsed={initialSidebarCollapsed}
+      />
       <main
         id="main-content"
         tabIndex={-1}

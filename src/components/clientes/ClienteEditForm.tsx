@@ -1,11 +1,11 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 
 import {
   updateClienteAction,
   type UpdateClienteActionState,
-} from "@/app/(interno)/dashboard/clientes/[id]/editar/actions";
+} from "@/app/(interno)/dashboard/clientes/actions";
 import {
   Alert,
   Button,
@@ -19,6 +19,8 @@ import type { ClienteField, InternalClienteDetail } from "@/lib/clientes";
 
 type ClienteEditFormProps = {
   cliente: InternalClienteDetail;
+  onSuccess?: (state: UpdateClienteActionState) => void;
+  onDirtyChange?: (dirty: boolean) => void;
 };
 
 const initialState: UpdateClienteActionState = {
@@ -30,11 +32,22 @@ function getFieldError(state: UpdateClienteActionState, field: ClienteField) {
   return state.fieldErrors?.[field];
 }
 
-export function ClienteEditForm({ cliente }: ClienteEditFormProps) {
+export function ClienteEditForm({
+  cliente,
+  onSuccess,
+  onDirtyChange,
+}: ClienteEditFormProps) {
   const [state, formAction, pending] = useActionState(
     updateClienteAction,
     initialState,
   );
+
+  useEffect(() => {
+    if (state.ok) {
+      onDirtyChange?.(false);
+      onSuccess?.(state);
+    }
+  }, [onDirtyChange, onSuccess, state]);
 
   const nombreError = getFieldError(state, "name");
   const telefonoError = getFieldError(state, "phone");
@@ -42,11 +55,16 @@ export function ClienteEditForm({ cliente }: ClienteEditFormProps) {
   const notasError = getFieldError(state, "notes");
 
   return (
-    <form action={formAction} aria-busy={pending} className="max-w-3xl">
+    <form
+      action={formAction}
+      aria-busy={pending}
+      className="w-full"
+      onChange={() => onDirtyChange?.(true)}
+    >
       <input type="hidden" name="cliente_id" value={cliente.id} />
 
-      <FormSection>
-        <div className="space-y-6">
+      <FormSection compact>
+        <div className="space-y-4">
           {state.message ? (
             <Alert
               variant={state.ok ? "success" : "danger"}
@@ -56,13 +74,14 @@ export function ClienteEditForm({ cliente }: ClienteEditFormProps) {
             </Alert>
           ) : null}
 
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             <FormField
               id="name"
               label="Nombre"
               required
               error={nombreError}
               className="sm:col-span-2"
+              compact
             >
               {({ describedBy, invalid }) => (
                 <Input
@@ -84,6 +103,7 @@ export function ClienteEditForm({ cliente }: ClienteEditFormProps) {
               label="Teléfono"
               required
               error={telefonoError}
+              compact
             >
               {({ describedBy, invalid }) => (
                 <Input
@@ -101,7 +121,12 @@ export function ClienteEditForm({ cliente }: ClienteEditFormProps) {
               )}
             </FormField>
 
-            <FormField id="email" label="Correo electrónico" error={emailError}>
+            <FormField
+              id="email"
+              label="Correo electrónico"
+              error={emailError}
+              compact
+            >
               {({ describedBy, invalid }) => (
                 <Input
                   id="email"
@@ -122,6 +147,7 @@ export function ClienteEditForm({ cliente }: ClienteEditFormProps) {
               label="Notas"
               error={notasError}
               className="sm:col-span-2"
+              compact
             >
               {({ describedBy, invalid }) => (
                 <Textarea
@@ -136,7 +162,7 @@ export function ClienteEditForm({ cliente }: ClienteEditFormProps) {
             </FormField>
           </div>
 
-          <FormActions note="Los campos marcados con * son obligatorios.">
+          <FormActions compact note={undefined}>
             <Button type="submit" disabled={pending} className="w-full sm:w-auto">
               {pending ? "Guardando..." : "Guardar cambios"}
             </Button>

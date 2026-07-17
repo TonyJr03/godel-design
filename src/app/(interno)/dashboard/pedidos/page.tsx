@@ -1,12 +1,17 @@
-import Link from "next/link";
-
-import { ListFiltersBar } from "@/components/common/ListFiltersBar";
+import {
+  ListingPageHeader,
+  ListingToolbar,
+} from "@/components/listing";
 import { InternalPedidosList } from "@/components/pedidos/InternalPedidosList";
+import { PedidoCreateDialogButton } from "@/components/pedidos/PedidoCreateDialogButton";
+import type { PedidoFormCliente } from "@/components/pedidos/PedidoForm";
 import { Alert } from "@/components/ui/Alert";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { listInternalClientes } from "@/lib/clientes";
 import {
   INTERNAL_PEDIDO_ESTADOS,
+  INTERNAL_PEDIDO_NEW_STATUS_FILTER,
   INTERNAL_PEDIDO_PAYMENT_STATUSES,
+  PEDIDO_PRIORIDADES,
   PEDIDO_PAYMENT_STATUS_LABELS,
   PEDIDO_STATUS_LABELS,
   listInternalPedidos,
@@ -26,6 +31,17 @@ type DashboardPedidosPageProps = {
   }>;
 };
 
+const PEDIDO_STATUS_FILTER_OPTIONS = [
+  { value: INTERNAL_PEDIDO_NEW_STATUS_FILTER, label: "Nuevo" },
+  ...INTERNAL_PEDIDO_ESTADOS.filter(
+    (status) =>
+      status !== "creado" && status !== "solicitud_recibida",
+  ).map((status) => ({
+    value: status,
+    label: PEDIDO_STATUS_LABELS[status],
+  })),
+];
+
 export default async function DashboardPedidosPage({
   searchParams,
 }: DashboardPedidosPageProps) {
@@ -34,75 +50,83 @@ export default async function DashboardPedidosPage({
   const status = getSingleSearchParam(params.status);
   const workflowType = getSingleSearchParam(params.workflow_type);
   const paymentStatus = getSingleSearchParam(params.payment_status);
-  const result = await listInternalPedidos({
-    q,
-    status,
-    workflowType,
-    paymentStatus,
-  });
+  const [result, clientesResult] = await Promise.all([
+    listInternalPedidos({
+      q,
+      status,
+      workflowType,
+      paymentStatus,
+    }),
+    listInternalClientes({ limit: 100 }),
+  ]);
+  const clientes: PedidoFormCliente[] = clientesResult.ok
+    ? clientesResult.clientes.map((cliente) => ({
+        id: cliente.id,
+        name: cliente.name,
+      }))
+    : [];
   const searchValue = result.q ?? "";
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <PageHeader
-          title="Pedidos"
-          description="Listado interno de pedidos oficiales para seguimiento operativo."
-        />
-        <Link
-          href="/dashboard/pedidos/nuevo"
-          className="inline-flex min-h-11 items-center justify-center rounded-(--radius-control) bg-brand-primary px-4 text-sm font-semibold text-white transition-colors duration-200 hover:bg-brand-primary-hover"
-        >
-          Nuevo pedido
-        </Link>
-      </div>
-
-      <ListFiltersBar
-        searchLabel="Buscar pedidos"
-        searchPlaceholder="Número, cliente, solicitud o trabajo"
-        initialQuery={searchValue}
-        filters={[
-          {
-            name: "status",
-            label: "Estado",
-            value: result.status ?? "",
-            options: [
-              { value: "", label: "Todos los estados" },
-              ...INTERNAL_PEDIDO_ESTADOS.map((estadoOption) => ({
-                value: estadoOption,
-                label: PEDIDO_STATUS_LABELS[estadoOption],
-              })),
-            ],
-          },
-          {
-            name: "workflow_type",
-            label: "Tipo",
-            value: result.workflowType ?? "",
-            options: [
-              { value: "", label: "Todos los tipos" },
+      <ListingPageHeader
+        title="Pedidos"
+        description="Listado interno de pedidos oficiales para seguimiento operativo."
+        action={
+          <PedidoCreateDialogButton
+            clientes={clientes}
+            prioridades={PEDIDO_PRIORIDADES}
+            clientesLoadError={
+              !clientesResult.ok ? clientesResult.message : undefined
+            }
+          />
+        }
+        toolbar={
+          <ListingToolbar
+            searchLabel="Buscar pedidos"
+            searchPlaceholder="Buscar pedido"
+            initialQuery={searchValue}
+            filters={[
               {
-                value: WORKFLOW_TYPES.ENCARGO,
-                label: `${WORKFLOW_TYPE_LABELS.encargo}s`,
+                name: "status",
+                label: "Estado",
+                value: result.status ?? "",
+                options: [
+                  { value: "", label: "Todos los estados" },
+                  ...PEDIDO_STATUS_FILTER_OPTIONS,
+                ],
               },
               {
-                value: WORKFLOW_TYPES.IMPRESION,
-                label: "Impresiones",
+                name: "workflow_type",
+                label: "Tipo",
+                value: result.workflowType ?? "",
+                options: [
+                  { value: "", label: "Todos los tipos" },
+                  {
+                    value: WORKFLOW_TYPES.ENCARGO,
+                    label: `${WORKFLOW_TYPE_LABELS.encargo}s`,
+                  },
+                  {
+                    value: WORKFLOW_TYPES.IMPRESION,
+                    label: "Impresiones",
+                  },
+                ],
               },
-            ],
-          },
-          {
-            name: "payment_status",
-            label: "Pago",
-            value: result.paymentStatus ?? "",
-            options: [
-              { value: "", label: "Todos los pagos" },
-              ...INTERNAL_PEDIDO_PAYMENT_STATUSES.map((paymentOption) => ({
-                value: paymentOption,
-                label: PEDIDO_PAYMENT_STATUS_LABELS[paymentOption],
-              })),
-            ],
-          },
-        ]}
+              {
+                name: "payment_status",
+                label: "Pago",
+                value: result.paymentStatus ?? "",
+                options: [
+                  { value: "", label: "Todos los pagos" },
+                  ...INTERNAL_PEDIDO_PAYMENT_STATUSES.map((paymentOption) => ({
+                    value: paymentOption,
+                    label: PEDIDO_PAYMENT_STATUS_LABELS[paymentOption],
+                  })),
+                ],
+              },
+            ]}
+          />
+        }
       />
 
       {result.ok && result.ignoredInvalidEstado ? (
@@ -136,10 +160,10 @@ export default async function DashboardPedidosPage({
           )}
           emptyMessage={
             searchValue ||
-            result.status ||
-            result.workflowType ||
-            result.paymentStatus
-              ? "No se encontraron pedidos con los filtros aplicados."
+              result.status ||
+              result.workflowType ||
+              result.paymentStatus
+              ? "Prueba limpiar los filtros o cambiar la búsqueda."
               : undefined
           }
         />

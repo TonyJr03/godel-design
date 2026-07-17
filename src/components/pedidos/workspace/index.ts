@@ -1,0 +1,9 @@
+export { PedidoCommentsPanel } from "./PedidoCommentsPanel";
+export { PedidoDescriptionPreview } from "./PedidoDescriptionPreview";
+export { PedidoFilesPanel } from "./PedidoFilesPanel";
+export { PedidoFilesPreview } from "./PedidoFilesPreview";
+export { PedidoHistoryTimeline } from "./PedidoHistoryTimeline";
+export { PedidoInformationPanel } from "./PedidoInformationPanel";
+export { PedidoTasksPreview } from "./PedidoTasksPreview";
+export { PedidoWorkspaceHeader } from "./PedidoWorkspaceHeader";
+export { PedidoWorkspaceMain } from "./PedidoWorkspaceMain";

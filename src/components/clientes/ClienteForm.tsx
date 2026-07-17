@@ -5,7 +5,7 @@ import { useActionState, useEffect, useRef } from "react";
 import {
   createClienteAction,
   type CreateClienteActionState,
-} from "@/app/(interno)/dashboard/clientes/nuevo/actions";
+} from "@/app/(interno)/dashboard/clientes/actions";
 import {
   Alert,
   Button,
@@ -17,6 +17,11 @@ import {
 } from "@/components/ui";
 import type { ClienteField } from "@/lib/clientes";
 
+type ClienteFormProps = {
+  onSuccess?: (state: CreateClienteActionState) => void;
+  onDirtyChange?: (dirty: boolean) => void;
+};
+
 const initialState: CreateClienteActionState = {
   ok: false,
   message: "",
@@ -26,7 +31,10 @@ function getFieldError(state: CreateClienteActionState, field: ClienteField) {
   return state.fieldErrors?.[field];
 }
 
-export function ClienteForm() {
+export function ClienteForm({
+  onSuccess,
+  onDirtyChange,
+}: ClienteFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction, pending] = useActionState(
     createClienteAction,
@@ -36,8 +44,10 @@ export function ClienteForm() {
   useEffect(() => {
     if (state.ok) {
       formRef.current?.reset();
+      onDirtyChange?.(false);
+      onSuccess?.(state);
     }
-  }, [state.ok]);
+  }, [onDirtyChange, onSuccess, state]);
 
   const nombreError = getFieldError(state, "name");
   const telefonoError = getFieldError(state, "phone");
@@ -49,10 +59,11 @@ export function ClienteForm() {
       ref={formRef}
       action={formAction}
       aria-busy={pending}
-      className="max-w-3xl"
+      className="w-full"
+      onChange={() => onDirtyChange?.(true)}
     >
-      <FormSection>
-        <div className="space-y-6">
+      <FormSection compact>
+        <div className="space-y-4">
           {state.message ? (
             <Alert
               variant={state.ok ? "success" : "danger"}
@@ -62,13 +73,14 @@ export function ClienteForm() {
             </Alert>
           ) : null}
 
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             <FormField
               id="name"
               label="Nombre"
               required
               error={nombreError}
               className="sm:col-span-2"
+              compact
             >
               {({ describedBy, invalid }) => (
                 <Input
@@ -89,6 +101,7 @@ export function ClienteForm() {
               label="Teléfono"
               required
               error={telefonoError}
+              compact
             >
               {({ describedBy, invalid }) => (
                 <Input
@@ -105,7 +118,12 @@ export function ClienteForm() {
               )}
             </FormField>
 
-            <FormField id="email" label="Correo electrónico" error={emailError}>
+            <FormField
+              id="email"
+              label="Correo electrónico"
+              error={emailError}
+              compact
+            >
               {({ describedBy, invalid }) => (
                 <Input
                   id="email"
@@ -125,6 +143,7 @@ export function ClienteForm() {
               label="Notas"
               error={notasError}
               className="sm:col-span-2"
+              compact
             >
               {({ describedBy, invalid }) => (
                 <Textarea
@@ -138,7 +157,7 @@ export function ClienteForm() {
             </FormField>
           </div>
 
-          <FormActions note="Los campos marcados con * son obligatorios.">
+          <FormActions compact note={undefined}>
             <Button type="submit" disabled={pending} className="w-full sm:w-auto">
               {pending ? "Creando..." : "Crear cliente"}
             </Button>

@@ -65,7 +65,7 @@ Aunque existen grants de tabla para `authenticated`, RLS es la defensa real que 
 
 ## Permisos de Ruta y Dominio
 
-La ruta `/dashboard/usuarios` está permitida solo para `admin` mediante `canAccessDashboardRoute(role, pathname)`. El proxy usa esa misma función para bloquear acceso directo por URL.
+La ruta `/dashboard/configuracion/usuarios` está permitida solo para `admin` mediante `canAccessDashboardRoute(role, pathname)`. El proxy usa esa misma función para bloquear acceso directo por URL.
 
 Los permisos de dominio ya existen:
 
@@ -173,7 +173,7 @@ Esta decisión es consistente con el estado actual del proyecto:
 - ya existe `public.perfiles`;
 - ya existe RLS suficiente para que `admin` gestione perfiles;
 - ya existen permisos `usuarios.view` y `usuarios.manage`;
-- la ruta `/dashboard/usuarios` ya está limitada a `admin`;
+- la ruta `/dashboard/configuracion/usuarios` ya está limitada a `admin`;
 - el proyecto evita service role key hasta ahora.
 
 El usuario Auth se crea manualmente fuera de la app. Después, un admin mantiene
@@ -248,7 +248,7 @@ Solo debería considerarse service role si el proyecto necesita alta completa de
 
 ## Estado de Implementación de 12.2
 
-El listado interno de usuarios está implementado en `/dashboard/usuarios` para perfiles con rol `admin`.
+El listado interno de usuarios está implementado en `/dashboard/configuracion/usuarios` para perfiles con rol `admin`.
 
 La consulta se realiza server-side mediante el cliente normal de Supabase y respeta RLS. Selecciona únicamente columnas de `public.perfiles`: `id`, `full_name`, `role`, `phone`, `avatar_url`, `is_active`, `created_at` y `updated_at`.
 
@@ -268,15 +268,15 @@ El listado no consulta `auth.users`, no muestra email, no crea usuarios, no edit
 
 ## Estado de Implementación de 12.3
 
-El detalle read-only de usuario está implementado en `/dashboard/usuarios/[id]` para perfiles con rol `admin`.
+La carga read-only de usuario por UUID se mantiene para alimentar la edición de perfiles desde `/dashboard/configuracion/usuarios/[id]/editar`.
 
 La carga se realiza server-side mediante el cliente normal de Supabase y respeta RLS. El servicio valida formato UUID, valida `usuarios.view` y consulta únicamente `public.perfiles` con las columnas `id`, `full_name`, `role`, `phone`, `avatar_url`, `is_active`, `created_at` y `updated_at`.
 
-El detalle muestra nombre, rol, teléfono, estado, avatar si existe como enlace seguro, fechas de creación y actualización, e identificador completo. No consulta `auth.users`, no muestra email, no crea usuarios, no edita perfiles, no cambia roles, no activa o desactiva perfiles y no usa service role key.
+La carga valida formato UUID, valida `usuarios.view`, consulta únicamente `public.perfiles` y no consulta `auth.users`, no muestra email, no crea usuarios y no usa service role key.
 
 ## Estado de Implementación de 12.4
 
-La edición controlada de perfiles internos está implementada en `/dashboard/usuarios/[id]/editar` para perfiles con rol `admin`.
+La edición controlada de perfiles internos está implementada en `/dashboard/configuracion/usuarios/[id]/editar` para perfiles con rol `admin`.
 
 Campos editables:
 
@@ -300,7 +300,7 @@ La edición no consulta `auth.users`, no muestra email, no cambia contraseñas, 
 
 ## Estado de Implementación de 12.5
 
-La creación de perfiles internos está implementada en `/dashboard/usuarios/nuevo` para perfiles con rol `admin`.
+La creación de perfiles internos está implementada en `/dashboard/configuracion/usuarios/nuevo` para perfiles con rol `admin`.
 
 Esta pantalla no crea usuarios Auth, no consulta `auth.users`, no pide email, no pide contraseña, no envía invitaciones y no usa service role key. El admin debe crear primero el usuario en Supabase Auth desde Supabase Studio o CLI, copiar su UUID y pegarlo en la app.
 

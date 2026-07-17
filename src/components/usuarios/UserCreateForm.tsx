@@ -1,12 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 
-import {
-  createUserProfileAction,
-  type CreateUserProfileActionState,
-} from "@/app/(interno)/dashboard/usuarios/nuevo/actions";
 import {
   Alert,
   Button,
@@ -16,22 +11,49 @@ import {
   Input,
   Select,
 } from "@/components/ui";
-import type { UserField } from "@/lib/usuarios";
+import type { BaseActionState } from "@/lib/actions/action-state";
+import type { UserField, UserFieldErrors } from "@/lib/usuarios";
 
-const initialState: CreateUserProfileActionState = {
+type UserCreateFormProps = {
+  createAction: UserCreateFormAction;
+  onSuccess?: (state: UserCreateFormActionState) => void;
+  onDirtyChange?: (dirty: boolean) => void;
+};
+
+export type UserCreateFormActionState = BaseActionState<UserFieldErrors>;
+
+export type UserCreateFormAction = (
+  state: UserCreateFormActionState,
+  formData: FormData,
+) => Promise<UserCreateFormActionState>;
+
+const initialState: UserCreateFormActionState = {
   ok: false,
   message: "",
 };
 
-function getFieldError(state: CreateUserProfileActionState, field: UserField) {
+function getFieldError(state: UserCreateFormActionState, field: UserField) {
   return state.fieldErrors?.[field];
 }
 
-export function UserCreateForm() {
+export function UserCreateForm({
+  createAction,
+  onSuccess,
+  onDirtyChange,
+}: UserCreateFormProps) {
   const [state, formAction, pending] = useActionState(
-    createUserProfileAction,
+    createAction,
     initialState,
   );
+
+  useEffect(() => {
+    if (!state.ok) {
+      return;
+    }
+
+    onDirtyChange?.(false);
+    onSuccess?.(state);
+  }, [onDirtyChange, onSuccess, state]);
 
   const idError = getFieldError(state, "id");
   const fullNameError = getFieldError(state, "full_name");
@@ -41,30 +63,34 @@ export function UserCreateForm() {
   const activeError = getFieldError(state, "is_active");
 
   return (
-    <form action={formAction} aria-busy={pending} className="max-w-3xl">
-      <FormSection
-        title="Crear perfil para usuario Auth existente"
-        description="Solo se guardarán datos del perfil interno en public.perfiles."
-      >
-        <div className="space-y-6">
+    <form
+      action={formAction}
+      aria-busy={pending}
+      className="w-full"
+      onChange={() => onDirtyChange?.(true)}
+    >
+      <FormSection compact>
+        <div className="space-y-4">
           {state.message ? (
-            <Alert variant="danger" aria-live="polite">
+            <Alert variant={state.ok ? "success" : "danger"} aria-live="polite">
               {state.message}
             </Alert>
           ) : null}
 
-          <Alert variant="info">
-            Primero crea el usuario en Supabase Auth y copia aquí su UUID. Esta
-            pantalla no crea credenciales ni contraseñas.
+          <Alert variant="info" className="wrap-break-word leading-6">
+            El usuario debe existir previamente en Supabase Auth. Aquí solo se
+            registra su perfil interno.
           </Alert>
 
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             <FormField
               id="id"
               label="UUID del usuario Auth"
               required
               error={idError}
+              help="Pega el UUID del usuario creado en Supabase Auth."
               className="sm:col-span-2"
+              compact
             >
               {({ describedBy, invalid }) => (
                 <Input
@@ -72,7 +98,6 @@ export function UserCreateForm() {
                   name="id"
                   type="text"
                   required
-                  placeholder="00000000-0000-0000-0000-000000000000"
                   invalid={invalid}
                   aria-describedby={describedBy}
                   className="font-mono"
@@ -87,6 +112,7 @@ export function UserCreateForm() {
               error={fullNameError}
               errorId="full-name-error"
               className="sm:col-span-2"
+              compact
             >
               {({ describedBy, invalid }) => (
                 <Input
@@ -102,7 +128,12 @@ export function UserCreateForm() {
               )}
             </FormField>
 
-            <FormField id="phone" label="Teléfono" error={phoneError}>
+            <FormField
+              id="phone"
+              label="Teléfono"
+              error={phoneError}
+              compact
+            >
               {({ describedBy, invalid }) => (
                 <Input
                   id="phone"
@@ -122,6 +153,7 @@ export function UserCreateForm() {
               label="URL de avatar"
               error={avatarUrlError}
               errorId="avatar-url-error"
+              compact
             >
               {({ describedBy, invalid }) => (
                 <Input
@@ -136,7 +168,13 @@ export function UserCreateForm() {
               )}
             </FormField>
 
-            <FormField id="role" label="Rol" required error={roleError}>
+            <FormField
+              id="role"
+              label="Rol"
+              required
+              error={roleError}
+              compact
+            >
               {({ describedBy, invalid }) => (
                 <Select
                   id="role"
@@ -159,6 +197,7 @@ export function UserCreateForm() {
               required
               error={activeError}
               errorId="active-error"
+              compact
             >
               {({ describedBy, invalid }) => (
                 <Select
@@ -176,13 +215,7 @@ export function UserCreateForm() {
             </FormField>
           </div>
 
-          <FormActions note="Los campos marcados con * son obligatorios.">
-            <Link
-              href="/dashboard/usuarios"
-              className="inline-flex min-h-11 w-full items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-5 text-sm font-semibold text-text-primary transition-colors hover:bg-surface-muted sm:w-auto"
-            >
-              Volver al listado
-            </Link>
+          <FormActions compact note={undefined}>
             <Button type="submit" disabled={pending} className="w-full sm:w-auto">
               {pending ? "Creando..." : "Crear perfil"}
             </Button>

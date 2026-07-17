@@ -327,7 +327,7 @@ No se creó RPC nueva porque las policies existentes ya restringen inserción, a
 
 ## Comentarios Internos
 
-`/dashboard/pedidos/[id]` incluye `PedidoCommentsSection` para listar y agregar comentarios internos del pedido.
+`/dashboard/pedidos/[id]` separa `PedidoCommentsPanel` para la lectura en el workspace y `PedidoCommentComposer` para agregar comentarios internos del pedido.
 
 `listPedidoComments` carga comentarios server-side desde `pedido_comentarios`, valida UUID, perfil interno, permiso `pedidos.view` y acceso al pedido. La consulta respeta RLS y ordena por `created_at` ascendente para lectura tipo conversación.
 

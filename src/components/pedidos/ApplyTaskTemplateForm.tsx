@@ -6,13 +6,14 @@ import type {
   ApplyTaskTemplateActionState,
   PedidoDetailAction,
 } from "@/app/(interno)/dashboard/pedidos/[id]/actions";
-import { Alert, Button, Select } from "@/components/ui";
+import { Alert, Button, FormField, Select } from "@/components/ui";
 import type { ActiveTaskTemplateForOrder } from "@/lib/task-templates";
 
 type ApplyTaskTemplateFormProps = {
   action: PedidoDetailAction<ApplyTaskTemplateActionState>;
   templates: ActiveTaskTemplateForOrder[];
   loadError?: string;
+  presentation?: "card" | "panel";
 };
 
 const initialState: ApplyTaskTemplateActionState = {
@@ -28,28 +29,33 @@ export function ApplyTaskTemplateForm({
   action,
   templates,
   loadError,
+  presentation = "card",
 }: ApplyTaskTemplateFormProps) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const templateError = state.fieldErrors?.template_id;
   const hasTemplates = templates.length > 0;
+  const isPanelPresentation = presentation === "panel";
 
   return (
-    <div className="rounded-(--radius-card) border border-border bg-surface-raised p-4">
+    <div
+      className={
+        isPanelPresentation
+          ? "min-w-0"
+          : "rounded-(--radius-card) border border-border bg-surface-raised p-4"
+      }
+    >
       <div>
         <h3 className="text-base font-semibold text-text-primary">
           Cargar tareas predeterminadas
         </h3>
-        <p className="mt-2 text-sm leading-6 text-text-secondary">
-          Las tareas de la plantilla se agregarán al final de las tareas
-          actuales. Luego podrás editarlas, completarlas o eliminarlas
-          normalmente.
-        </p>
+        {!isPanelPresentation ? (
+          <p className="mt-2 text-sm leading-6 text-text-secondary">
+            Las tareas de la plantilla se agregarán al final de las tareas
+            actuales. Luego podrás editarlas, completarlas o eliminarlas
+            normalmente.
+          </p>
+        ) : null}
       </div>
-
-      <Alert variant="warning" className="mt-4">
-        Si aplicas la misma plantilla más de una vez, las tareas se agregarán
-        nuevamente.
-      </Alert>
 
       {loadError ? (
         <Alert variant="danger" className="mt-4">
@@ -65,7 +71,7 @@ export function ApplyTaskTemplateForm({
       ) : null}
 
       {hasTemplates ? (
-        <form action={formAction} aria-busy={pending} className="mt-5">
+        <form action={formAction} aria-busy={pending} className="mt-4">
           {state.message ? (
             <Alert
               variant={state.ok ? "success" : "danger"}
@@ -75,49 +81,48 @@ export function ApplyTaskTemplateForm({
             </Alert>
           ) : null}
 
-          <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-            <div>
-              <label
-                htmlFor="task-template-id"
-                className="text-sm font-medium text-text-primary"
-              >
-                Seleccionar plantilla
-              </label>
-              <Select
-                id="task-template-id"
-                name="template_id"
-                required
-                disabled={pending}
-                defaultValue=""
-                invalid={Boolean(templateError)}
-                aria-describedby={
-                  templateError ? "task-template-id-error" : undefined
-                }
-                className="mt-2"
-              >
-                <option value="" disabled>
-                  Selecciona una plantilla
-                </option>
-                {templates.map((template) => (
-                  <option key={template.id} value={template.id}>
-                    {template.name} · {formatTasksCount(template.tasksCount)}
-                  </option>
-                ))}
-              </Select>
-              {templateError ? (
-                <p
-                  id="task-template-id-error"
-                  className="mt-2 text-sm leading-5 text-danger"
+          <div
+            className={[
+              state.message ? "mt-4" : "",
+              "grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+          >
+            <FormField
+              id="task-template-id"
+              label="Seleccionar plantilla"
+              required
+              error={templateError}
+              errorId="task-template-id-error"
+              compact
+            >
+              {({ describedBy, invalid }) => (
+                <Select
+                  id="task-template-id"
+                  name="template_id"
+                  required
+                  disabled={pending}
+                  defaultValue=""
+                  invalid={invalid}
+                  aria-describedby={describedBy}
                 >
-                  {templateError}
-                </p>
-              ) : null}
-            </div>
+                  <option value="" disabled>
+                    Selecciona una plantilla
+                  </option>
+                  {templates.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {template.name} · {formatTasksCount(template.tasksCount)}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </FormField>
 
             <Button
               type="submit"
               disabled={pending}
-              className="w-full lg:w-auto"
+              className="w-full sm:w-auto"
             >
               {pending ? "Aplicando..." : "Aplicar plantilla"}
             </Button>

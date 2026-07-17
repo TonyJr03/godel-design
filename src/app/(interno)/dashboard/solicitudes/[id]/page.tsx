@@ -1,11 +1,8 @@
 import { notFound } from "next/navigation";
 
 import { SolicitudClienteForm } from "@/components/solicitudes/SolicitudClienteForm";
-import { SolicitudCommentsSection } from "@/components/solicitudes/SolicitudCommentsSection";
 import { SolicitudConvertPedidoForm } from "@/components/solicitudes/SolicitudConvertPedidoForm";
-import { SolicitudHistorySection } from "@/components/solicitudes/SolicitudHistorySection";
 import { InternalSolicitudDetail } from "@/components/solicitudes/InternalSolicitudDetail";
-import { SolicitudFilesSection } from "@/components/storage/SolicitudFilesSection";
 import { Alert } from "@/components/ui";
 import { getInternalClienteById, listInternalClientes } from "@/lib/clientes";
 import {
@@ -59,6 +56,24 @@ export default async function DashboardSolicitudDetallePage({
     clienteAsociadoResult && clienteAsociadoResult.ok
       ? clienteAsociadoResult.cliente
       : null;
+  const clienteAsociadoLoadError =
+    clienteAsociadoResult && !clienteAsociadoResult.ok
+      ? clienteAsociadoResult.message
+      : undefined;
+  const clientesLoadError = clientesResult.ok
+    ? undefined
+    : clientesResult.message;
+  const clienteLoadError = clienteAsociadoLoadError ?? clientesLoadError;
+  const files = filesResult.ok ? filesResult.files : [];
+  const comments = commentsResult.ok ? commentsResult.comments : [];
+  const history = historyResult.ok ? historyResult.history : [];
+  const filesLoadError = filesResult.ok
+    ? undefined
+    : "No se pudieron cargar los archivos de la solicitud.";
+  const commentsLoadError = commentsResult.ok
+    ? undefined
+    : commentsResult.message;
+  const historyLoadError = historyResult.ok ? undefined : historyResult.message;
   const solicitudId = result.solicitud.id;
   const associateClienteAction = associateSolicitudClienteAction.bind(
     null,
@@ -79,58 +94,44 @@ export default async function DashboardSolicitudDetallePage({
   );
 
   return (
-    <div className="space-y-8">
-      <InternalSolicitudDetail
-        solicitud={result.solicitud}
-        updateStatusAction={updateStatusAction}
-        clienteSection={
+    <InternalSolicitudDetail
+      solicitud={result.solicitud}
+      updateStatusAction={updateStatusAction}
+      createCommentAction={createCommentAction}
+      clientePanelContent={
+        clienteAsociadoLoadError ? (
+          <Alert variant="danger">{clienteAsociadoLoadError}</Alert>
+        ) : (
           <SolicitudClienteForm
             associateClienteAction={associateClienteAction}
             createClienteAction={createClienteAction}
             clienteAsociado={clienteAsociado}
-            clientesDisponibles={
-              clientesResult.ok ? clientesResult.clientes : []
-            }
-            clientesLoadError={clientesResult.ok ? null : clientesResult.message}
+            clientesDisponibles={clientesResult.ok ? clientesResult.clientes : []}
+            clientesLoadError={clientesLoadError}
+            presentation="panel"
           />
-        }
-        conversionSection={
-          <SolicitudConvertPedidoForm
-            convertAction={convertAction}
-            status={result.solicitud.status}
-            clienteId={result.solicitud.cliente_id}
-            convertedOrderId={result.solicitud.converted_order_id}
-            workflowType={result.solicitud.workflow_type}
-            serviceType={result.solicitud.service_type}
-            solicitudDescription={result.solicitud.description}
-            solicitudDesiredDate={result.solicitud.desired_date}
-          />
-        }
-        filesSection={
-          <SolicitudFilesSection
-            solicitudId={result.solicitud.id}
-            files={filesResult.ok ? filesResult.files : []}
-            loadError={
-              filesResult.ok
-                ? undefined
-                : "No se pudieron cargar los archivos de la solicitud."
-            }
-          />
-        }
-        commentsSection={
-          <SolicitudCommentsSection
-            createCommentAction={createCommentAction}
-            comments={commentsResult.ok ? commentsResult.comments : []}
-            loadError={commentsResult.ok ? undefined : commentsResult.message}
-          />
-        }
-        historySection={
-          <SolicitudHistorySection
-            history={historyResult.ok ? historyResult.history : []}
-            loadError={historyResult.ok ? undefined : historyResult.message}
-          />
-        }
-      />
-    </div>
+        )
+      }
+      conversionPanelContent={
+        <SolicitudConvertPedidoForm
+          convertAction={convertAction}
+          status={result.solicitud.status}
+          clienteId={result.solicitud.cliente_id}
+          convertedOrderId={result.solicitud.converted_order_id}
+          workflowType={result.solicitud.workflow_type}
+          serviceType={result.solicitud.service_type}
+          solicitudDescription={result.solicitud.description}
+          solicitudDesiredDate={result.solicitud.desired_date}
+          presentation="panel"
+        />
+      }
+      files={files}
+      filesLoadError={filesLoadError}
+      comments={comments}
+      commentsLoadError={commentsLoadError}
+      history={history}
+      historyLoadError={historyLoadError}
+      clienteLoadError={clienteLoadError}
+    />
   );
 }

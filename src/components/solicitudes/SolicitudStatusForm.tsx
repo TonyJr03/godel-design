@@ -5,16 +5,18 @@ import type {
   SolicitudDetailAction,
   UpdateSolicitudStatusActionState,
 } from "@/app/(interno)/dashboard/solicitudes/[id]/actions";
+import { Alert, Button, FormField, Select, StatusBadge } from "@/components/ui";
+import { SOLICITUD_STATUS_LABELS } from "@/lib/solicitudes/labels";
 import {
   getAllowedSolicitudStatusTransitions,
   isSolicitudClosedStatus,
 } from "@/lib/solicitudes/status";
-import { SOLICITUD_STATUS_LABELS } from "@/lib/solicitudes/labels";
 import type { Enums } from "@/types/database";
 
 type SolicitudStatusFormProps = {
   updateStatusAction: SolicitudDetailAction<UpdateSolicitudStatusActionState>;
   currentStatus: Enums<"solicitud_estado">;
+  presentation?: "card" | "panel";
 };
 
 const initialState: UpdateSolicitudStatusActionState = {
@@ -28,17 +30,12 @@ function ActionMessage({ state }: { state: UpdateSolicitudStatusActionState }) {
   }
 
   return (
-    <div
-      className={
-        state.ok
-          ? "rounded-(--radius-control) border border-success/30 bg-success-soft px-4 py-3 text-sm leading-6 text-success"
-          : "rounded-(--radius-control) border border-danger/30 bg-danger-soft px-4 py-3 text-sm leading-6 text-danger"
-      }
-      role={state.ok ? "status" : "alert"}
+    <Alert
+      variant={state.ok ? "success" : "danger"}
       aria-live="polite"
     >
       {state.message}
-    </div>
+    </Alert>
   );
 }
 
@@ -53,6 +50,7 @@ function getClosedStatusMessage(status: Enums<"solicitud_estado">): string {
 export function SolicitudStatusForm({
   updateStatusAction,
   currentStatus,
+  presentation = "card",
 }: SolicitudStatusFormProps) {
   const [state, formAction, pending] = useActionState(
     updateStatusAction,
@@ -60,60 +58,79 @@ export function SolicitudStatusForm({
   );
   const transitionOptions = getAllowedSolicitudStatusTransitions(currentStatus);
   const canManageManually = transitionOptions.length > 0;
+  const isPanel = presentation === "panel";
+  const transitionReason = transitionOptions.find(
+    (option) => option.reason,
+  )?.reason;
+  const statusSummary = isPanel ? (
+    <div className="rounded-(--radius-control) border border-border bg-surface-muted px-4 py-3">
+      <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+        Estado actual
+      </p>
+      <div className="mt-2">
+        <StatusBadge status={currentStatus} />
+      </div>
+    </div>
+  ) : null;
 
   if (isSolicitudClosedStatus(currentStatus)) {
     return (
       <div className="space-y-4">
+        {statusSummary}
         <ActionMessage state={state} />
-        <p className="rounded-(--radius-control) border border-warning/30 bg-warning-soft px-4 py-3 text-sm leading-6 text-text-primary">
+        <Alert variant="warning">
           {getClosedStatusMessage(currentStatus)}
-        </p>
+        </Alert>
       </div>
     );
   }
 
   return (
     <form action={formAction} aria-busy={pending} className="space-y-4">
+      {statusSummary}
       <ActionMessage state={state} />
 
       {currentStatus === "aprobada" ? (
-        <p className="rounded-(--radius-control) border border-success/30 bg-success-soft px-4 py-3 text-sm leading-6 text-text-primary">
+        <Alert variant="success">
           Esta solicitud puede convertirse en pedido desde la sección de
           conversión.
-        </p>
+        </Alert>
       ) : null}
 
-      <div className="max-w-sm">
-        <label htmlFor="status" className="text-sm font-medium text-text-primary">
-          Siguiente estado
-        </label>
-        <select
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+        <FormField
           id="status"
-          name="status"
-          defaultValue={transitionOptions[0]?.status}
-          disabled={!canManageManually || pending}
-          className="mt-2 min-h-11 w-full rounded-(--radius-control) border border-border-strong bg-surface px-3 py-2 text-sm text-text-primary shadow-(--shadow-soft) disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted"
+          label="Siguiente estado"
+          required
+          help={transitionReason}
+          compact
         >
-          {transitionOptions.map((option) => (
-            <option key={option.status} value={option.status}>
-              {SOLICITUD_STATUS_LABELS[option.status]}
-            </option>
-          ))}
-        </select>
-        {transitionOptions.some((option) => option.reason) ? (
-          <p className="mt-2 text-sm leading-5 text-text-secondary">
-            {transitionOptions.find((option) => option.reason)?.reason}
-          </p>
-        ) : null}
-      </div>
+          {({ describedBy }) => (
+            <Select
+              id="status"
+              name="status"
+              defaultValue={transitionOptions[0]?.status}
+              disabled={!canManageManually || pending}
+              required
+              aria-describedby={describedBy}
+            >
+              {transitionOptions.map((option) => (
+                <option key={option.status} value={option.status}>
+                  {SOLICITUD_STATUS_LABELS[option.status]}
+                </option>
+              ))}
+            </Select>
+          )}
+        </FormField>
 
-      <button
-        type="submit"
-        disabled={!canManageManually || pending}
-        className="inline-flex min-h-11 w-full items-center justify-center rounded-(--radius-control) bg-brand-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-primary-hover disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-      >
-        {pending ? "Actualizando..." : "Actualizar estado"}
-      </button>
+        <Button
+          type="submit"
+          disabled={!canManageManually || pending}
+          className="w-full sm:w-auto"
+        >
+          {pending ? "Actualizando..." : "Actualizar estado"}
+        </Button>
+      </div>
     </form>
   );
 }

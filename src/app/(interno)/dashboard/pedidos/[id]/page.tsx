@@ -1,11 +1,10 @@
 import { notFound } from "next/navigation";
+import { PedidoCommentComposer } from "@/components/pedidos/PedidoCommentComposer";
 import { InternalPedidoDetail } from "@/components/pedidos/InternalPedidoDetail";
-import { PedidoCommentsSection } from "@/components/pedidos/PedidoCommentsSection";
-import { PedidoHistorySection } from "@/components/pedidos/PedidoHistorySection";
 import { PedidoPaymentSection } from "@/components/pedidos/PedidoPaymentSection";
 import { PedidoTasksSection } from "@/components/pedidos/PedidoTasksSection";
 import { PedidoWorkerAssignmentForm } from "@/components/pedidos/PedidoWorkerAssignmentForm";
-import { PedidoFilesSection } from "@/components/storage/PedidoFilesSection";
+import { PedidoFileUploadForm } from "@/components/storage/PedidoFileUploadForm";
 import { Alert, PageHeader } from "@/components/ui";
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import {
@@ -86,8 +85,12 @@ export default async function DashboardPedidoDetallePage({
     ? await listActiveTaskTemplatesForOrder()
     : null;
   const pedidoId = result.pedido.id;
-  const assignWorkerAction = assignPedidoWorkerAction.bind(null, pedidoId);
-  const removeWorkerAction = removePedidoWorkerAction.bind(null, pedidoId);
+  const assignWorkerAction = canManagePedidos
+    ? assignPedidoWorkerAction.bind(null, pedidoId)
+    : undefined;
+  const removeWorkerAction = canManagePedidos
+    ? removePedidoWorkerAction.bind(null, pedidoId)
+    : undefined;
   const createTaskAction = createPedidoTaskAction.bind(null, pedidoId);
   const applyTemplateAction = applyTaskTemplateAction.bind(null, pedidoId);
   const taskActions = {
@@ -99,42 +102,67 @@ export default async function DashboardPedidoDetallePage({
   };
   const createCommentAction = createPedidoCommentAction.bind(null, pedidoId);
   const updateStatusAction = updatePedidoStatusAction.bind(null, pedidoId);
-  const updatePaymentAction = updatePedidoPaymentAction.bind(null, pedidoId);
+  const updatePaymentAction = canManagePayments
+    ? updatePedidoPaymentAction.bind(null, pedidoId)
+    : undefined;
   const uploadFileAction = uploadPedidoFileAction.bind(null, pedidoId);
 
   return (
     <InternalPedidoDetail
-        pedido={result.pedido}
-        updateStatusAction={updateStatusAction}
-        taskProgress={tasksResult.ok ? tasksResult.progress : undefined}
-        tasksLoadError={
-          tasksResult.ok
-            ? undefined
-            : "No se pudieron cargar las tareas del pedido."
-        }
-        workerAssignmentSection={
+      pedido={result.pedido}
+      updateStatusAction={updateStatusAction}
+      taskProgress={tasksResult.ok ? tasksResult.progress : undefined}
+      tasksLoadError={
+        tasksResult.ok
+          ? undefined
+          : "No se pudieron cargar las tareas del pedido."
+      }
+      tasks={tasksResult.ok ? tasksResult.tasks : []}
+      history={historyResult.ok ? historyResult.history : []}
+      historyLoadError={historyResult.ok ? undefined : historyResult.message}
+      files={filesResult.ok ? filesResult.files : []}
+      filesLoadError={
+        filesResult.ok
+          ? undefined
+          : "No se pudieron cargar los archivos del pedido."
+      }
+      comments={commentsResult.ok ? commentsResult.comments : []}
+      commentsLoadError={commentsResult.ok ? undefined : commentsResult.message}
+      personnelPanelContent={
+        canManagePedidos && assignWorkerAction && removeWorkerAction ? (
           <PedidoWorkerAssignmentForm
+            presentation="panel"
             assignWorkerAction={assignWorkerAction}
             removeWorkerAction={removeWorkerAction}
             asignaciones={result.pedido.pedido_trabajadores}
-            canManage={canManagePedidos}
+            canManage
             trabajadores={workersResult?.ok ? workersResult.workers : []}
             loadAssignableError={
-              canManagePedidos && workersResult && !workersResult.ok
+              workersResult && !workersResult.ok
                 ? workersResult.message
                 : undefined
             }
           />
-        }
-        paymentSection={
-          <PedidoPaymentSection
-            payment={result.pedido.payment}
-            canManage={canManagePayments}
-            updatePaymentAction={updatePaymentAction}
+        ) : (
+          <PedidoWorkerAssignmentForm
+            presentation="panel"
+            asignaciones={result.pedido.pedido_trabajadores}
+            canManage={false}
           />
-        }
-        tasksSection={
+        )
+      }
+      paymentPanelContent={
+        <PedidoPaymentSection
+          presentation="panel"
+          payment={result.pedido.payment}
+          canManage={canManagePayments}
+          updatePaymentAction={updatePaymentAction}
+        />
+      }
+      tasksPanelContent={
+        result.pedido.workflow_type === WORKFLOW_TYPES.ENCARGO ? (
           <PedidoTasksSection
+            presentation="panel"
             applyTaskTemplateAction={
               shouldLoadTaskTemplates ? applyTemplateAction : undefined
             }
@@ -161,36 +189,22 @@ export default async function DashboardPedidoDetallePage({
                 : "No se pudieron cargar las tareas del pedido."
             }
           />
-        }
-        commentsSection={
-          <PedidoCommentsSection
-            createCommentAction={createCommentAction}
-            comments={commentsResult.ok ? commentsResult.comments : []}
-            loadError={
-              commentsResult.ok ? undefined : commentsResult.message
-            }
-          />
-        }
-        historySection={
-          <PedidoHistorySection
-            history={historyResult.ok ? historyResult.history : []}
-            loadError={historyResult.ok ? undefined : historyResult.message}
-          />
-        }
-        filesSection={
-          <PedidoFilesSection
-            pedidoId={result.pedido.id}
-            uploadFileAction={uploadFileAction}
-            pedidoStatus={result.pedido.status}
-            files={filesResult.ok ? filesResult.files : []}
-            canUpload={profile !== null}
-            loadError={
-              filesResult.ok
-                ? undefined
-                : "No se pudieron cargar los archivos del pedido."
-            }
-          />
-        }
+        ) : undefined
+      }
+      commentComposerPanelContent={
+        <PedidoCommentComposer
+          presentation="panel"
+          createCommentAction={createCommentAction}
+        />
+      }
+      fileUploadPanelContent={
+        <PedidoFileUploadForm
+          presentation="panel"
+          uploadFileAction={uploadFileAction}
+          pedidoStatus={result.pedido.status}
+          canUpload={profile !== null}
+        />
+      }
     />
   );
 }

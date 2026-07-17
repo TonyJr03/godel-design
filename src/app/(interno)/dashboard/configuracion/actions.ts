@@ -5,7 +5,10 @@ import {
   actionSuccess,
   type BaseActionState,
 } from "@/lib/actions/action-state";
-import { revalidateTaskTemplatesList } from "@/lib/actions/revalidation";
+import {
+  revalidateTaskTemplateDetail,
+  revalidateTaskTemplatesList,
+} from "@/lib/actions/revalidation";
 import {
   createTaskTemplate,
   toggleTaskTemplateActive,
@@ -41,10 +44,18 @@ export async function updateTaskTemplateAction(
   _prevState: TaskTemplateActionState,
   formData: FormData,
 ): Promise<TaskTemplateActionState> {
+  const templateId = getFormValue(formData, "template_id");
+  const isActiveValue = getFormValue(formData, "is_active");
   const result = await updateTaskTemplate({
-    id: getFormValue(formData, "template_id"),
+    id: templateId,
     name: getFormValue(formData, "name"),
     description: getFormValue(formData, "description"),
+    isActive:
+      isActiveValue === "true"
+        ? true
+        : isActiveValue === "false"
+          ? false
+          : null,
   });
 
   if (!result.ok) {
@@ -53,7 +64,7 @@ export async function updateTaskTemplateAction(
     });
   }
 
-  revalidateTaskTemplatesList();
+  revalidateTaskTemplateDetail(templateId);
 
   return actionSuccess("Plantilla actualizada correctamente.");
 }
@@ -62,9 +73,10 @@ export async function toggleTaskTemplateActiveAction(
   _prevState: TaskTemplateActionState,
   formData: FormData,
 ): Promise<TaskTemplateActionState> {
+  const templateId = getFormValue(formData, "template_id");
   const isActiveValue = getFormValue(formData, "is_active");
   const result = await toggleTaskTemplateActive({
-    id: getFormValue(formData, "template_id"),
+    id: templateId,
     isActive:
       isActiveValue === "true"
         ? true
@@ -77,7 +89,7 @@ export async function toggleTaskTemplateActiveAction(
     return actionFailure(result.message);
   }
 
-  revalidateTaskTemplatesList();
+  revalidateTaskTemplateDetail(templateId);
 
   return actionSuccess(
     isActiveValue === "true"

@@ -7,6 +7,7 @@ import type {
   CreateClienteFromSolicitudActionState,
   SolicitudDetailAction,
 } from "@/app/(interno)/dashboard/solicitudes/[id]/actions";
+import { Alert, Button, FormField, Select } from "@/components/ui";
 import type { InternalCliente, InternalClienteDetail } from "@/lib/clientes";
 
 type SolicitudClienteFormProps = {
@@ -19,6 +20,7 @@ type SolicitudClienteFormProps = {
   clienteAsociado: InternalClienteDetail | null;
   clientesDisponibles: InternalCliente[];
   clientesLoadError?: string | null;
+  presentation?: "card" | "panel";
 };
 
 const initialAssociateState: AssociateSolicitudClienteActionState = {
@@ -31,12 +33,76 @@ const initialCreateState: CreateClienteFromSolicitudActionState = {
   message: "",
 };
 
+function ActionAlert({
+  ok,
+  message,
+  className,
+}: {
+  ok: boolean;
+  message: string;
+  className?: string;
+}) {
+  if (!message) {
+    return null;
+  }
+
+  return (
+    <Alert
+      variant={ok ? "success" : "danger"}
+      aria-live="polite"
+      className={className}
+    >
+      {message}
+    </Alert>
+  );
+}
+
+function ClienteAsociadoBlock({
+  clienteAsociado,
+  compact = false,
+}: {
+  clienteAsociado: InternalClienteDetail | null;
+  compact?: boolean;
+}) {
+  return (
+    <section aria-labelledby="solicitud-cliente-asociado-title">
+      <h3
+        id="solicitud-cliente-asociado-title"
+        className={compact ? "text-sm font-semibold text-text-primary" : "text-base font-semibold text-text-primary"}
+      >
+        Cliente asociado
+      </h3>
+
+      {clienteAsociado ? (
+        <div className="mt-3 rounded-(--radius-control) border border-success/30 bg-success-soft p-4 text-sm text-text-primary">
+          <p className="font-semibold">{clienteAsociado.name}</p>
+          <p className="mt-1">{clienteAsociado.phone}</p>
+          {clienteAsociado.email ? (
+            <p className="mt-1">{clienteAsociado.email}</p>
+          ) : null}
+          <Link
+            href={`/dashboard/clientes/${clienteAsociado.id}`}
+            className="mt-3 inline-flex min-h-10 items-center text-sm font-semibold text-brand-primary underline-offset-4 hover:underline"
+          >
+            Ver cliente
+          </Link>
+        </div>
+      ) : (
+        <p className="mt-2 text-sm leading-6 text-text-secondary">
+          Esta solicitud todavía no tiene un cliente interno asociado.
+        </p>
+      )}
+    </section>
+  );
+}
+
 export function SolicitudClienteForm({
   associateClienteAction,
   createClienteAction,
   clienteAsociado,
   clientesDisponibles,
   clientesLoadError,
+  presentation = "card",
 }: SolicitudClienteFormProps) {
   const [associateState, associateAction, associatePending] = useActionState(
     associateClienteAction,
@@ -48,6 +114,106 @@ export function SolicitudClienteForm({
   );
   const hasClientes = clientesDisponibles.length > 0;
   const hasClienteAsociado = Boolean(clienteAsociado);
+  const associateButtonLabel = hasClienteAsociado
+    ? "Actualizar cliente asociado"
+    : "Asociar cliente";
+
+  if (presentation === "panel") {
+    return (
+      <section className="space-y-5">
+        <ClienteAsociadoBlock clienteAsociado={clienteAsociado} compact />
+
+        <form
+          action={associateAction}
+          aria-busy={associatePending}
+          className="border-t border-border pt-5"
+        >
+          <h3 className="text-sm font-semibold text-text-primary">
+            Asociar cliente existente
+          </h3>
+
+          {clientesLoadError ? (
+            <Alert variant="danger" className="mt-3">
+              {clientesLoadError}
+            </Alert>
+          ) : null}
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+            <FormField
+              id="cliente_id"
+              label="Cliente existente"
+              required
+              compact
+            >
+              {({ describedBy }) => (
+                <Select
+                  id="cliente_id"
+                  name="cliente_id"
+                  defaultValue={clienteAsociado?.id ?? ""}
+                  disabled={!hasClientes || associatePending}
+                  required
+                  aria-describedby={describedBy}
+                >
+                  <option value="" disabled>
+                    Selecciona un cliente
+                  </option>
+                  {clientesDisponibles.map((cliente) => (
+                    <option key={cliente.id} value={cliente.id}>
+                      {cliente.name} - {cliente.phone}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </FormField>
+
+            <Button
+              type="submit"
+              disabled={!hasClientes || associatePending}
+              className="w-full sm:w-auto"
+            >
+              {associatePending ? "Guardando..." : associateButtonLabel}
+            </Button>
+          </div>
+
+          <ActionAlert
+            ok={associateState.ok}
+            message={associateState.message}
+            className="mt-3"
+          />
+        </form>
+
+        <form
+          action={createAction}
+          aria-busy={createPending}
+          className="border-t border-border pt-5"
+        >
+          <h3 className="text-sm font-semibold text-text-primary">
+            Crear desde esta solicitud
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-text-secondary">
+            Crea un cliente básico con los datos de contacto de esta solicitud.
+          </p>
+
+          <ActionAlert
+            ok={createState.ok}
+            message={createState.message}
+            className="mt-3"
+          />
+
+          <Button
+            type="submit"
+            variant="secondary"
+            disabled={hasClienteAsociado || createPending}
+            className="mt-4 w-full"
+          >
+            {createPending
+              ? "Creando..."
+              : "Crear cliente desde esta solicitud"}
+          </Button>
+        </form>
+      </section>
+    );
+  }
 
   return (
     <section className="rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6">
@@ -55,82 +221,53 @@ export function SolicitudClienteForm({
         Cliente asociado
       </h2>
 
-      {clienteAsociado ? (
-        <div className="mt-4 rounded-(--radius-control) border border-success/30 bg-success-soft p-4 text-sm text-text-primary">
-          <p className="font-semibold">{clienteAsociado.name}</p>
-          <p className="mt-1">{clienteAsociado.phone}</p>
-          {clienteAsociado.email ? (
-            <p className="mt-1">{clienteAsociado.email}</p>
-          ) : null}
-          <Link
-            href={`/dashboard/clientes/${clienteAsociado.id}`}
-            className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-brand-primary underline-offset-4 hover:underline"
-          >
-            Ver cliente
-          </Link>
-        </div>
-      ) : (
-        <p className="mt-2 text-sm leading-6 text-text-secondary">
-          Esta solicitud todavía no tiene un cliente interno asociado.
-        </p>
-      )}
+      <div className="mt-4">
+        <ClienteAsociadoBlock clienteAsociado={clienteAsociado} />
+      </div>
 
       <div className="mt-6 grid gap-5 lg:grid-cols-2">
         <form action={associateAction} aria-busy={associatePending}>
-          <label
-            htmlFor="cliente_id"
-            className="text-sm font-medium text-text-primary"
-          >
-            Cliente existente
-          </label>
-          <select
-            id="cliente_id"
-            name="cliente_id"
-            defaultValue={clienteAsociado?.id ?? ""}
-            disabled={!hasClientes || associatePending}
-            className="mt-2 min-h-11 w-full rounded-(--radius-control) border border-border-strong bg-surface px-3 py-2 text-sm text-text-primary shadow-(--shadow-soft) disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted"
-          >
-            <option value="" disabled>
-              Selecciona un cliente
-            </option>
-            {clientesDisponibles.map((cliente) => (
-              <option key={cliente.id} value={cliente.id}>
-                {cliente.name} · {cliente.phone}
-              </option>
-            ))}
-          </select>
-
           {clientesLoadError ? (
-            <p className="mt-2 text-sm leading-5 text-danger">
+            <Alert variant="danger" className="mb-4">
               {clientesLoadError}
-            </p>
+            </Alert>
           ) : null}
 
-          {associateState.message ? (
-            <p
-              className={`mt-3 rounded-md border px-4 py-3 text-sm leading-6 ${
-                associateState.ok
-                  ? "border-success/30 bg-success-soft text-success"
-                  : "border-danger/30 bg-danger-soft text-danger"
-              }`}
-              role={associateState.ok ? "status" : "alert"}
-              aria-live="polite"
-            >
-              {associateState.message}
-            </p>
-          ) : null}
+          <FormField id="cliente_id" label="Cliente existente" required>
+            {({ describedBy }) => (
+              <Select
+                id="cliente_id"
+                name="cliente_id"
+                defaultValue={clienteAsociado?.id ?? ""}
+                disabled={!hasClientes || associatePending}
+                required
+                aria-describedby={describedBy}
+              >
+                <option value="" disabled>
+                  Selecciona un cliente
+                </option>
+                {clientesDisponibles.map((cliente) => (
+                  <option key={cliente.id} value={cliente.id}>
+                    {cliente.name} · {cliente.phone}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </FormField>
 
-          <button
+          <ActionAlert
+            ok={associateState.ok}
+            message={associateState.message}
+            className="mt-3"
+          />
+
+          <Button
             type="submit"
             disabled={!hasClientes || associatePending}
-            className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-(--radius-control) bg-brand-primary px-4 text-sm font-semibold text-white transition-colors hover:bg-brand-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-4 w-full"
           >
-            {associatePending
-              ? "Guardando..."
-              : hasClienteAsociado
-                ? "Actualizar cliente asociado"
-                : "Asociar cliente"}
-          </button>
+            {associatePending ? "Guardando..." : associateButtonLabel}
+          </Button>
         </form>
 
         <form action={createAction} aria-busy={createPending}>
@@ -138,33 +275,25 @@ export function SolicitudClienteForm({
             Crear desde la solicitud
           </h3>
           <p className="mt-2 text-sm leading-6 text-text-secondary">
-            Crea un cliente básico usando el nombre, teléfono y correo ya
-            guardados en esta solicitud.
+            Crea un cliente básico con los datos de contacto de esta solicitud.
           </p>
 
-          {createState.message ? (
-            <p
-              className={`mt-3 rounded-md border px-4 py-3 text-sm leading-6 ${
-                createState.ok
-                  ? "border-success/30 bg-success-soft text-success"
-                  : "border-danger/30 bg-danger-soft text-danger"
-              }`}
-              role={createState.ok ? "status" : "alert"}
-              aria-live="polite"
-            >
-              {createState.message}
-            </p>
-          ) : null}
+          <ActionAlert
+            ok={createState.ok}
+            message={createState.message}
+            className="mt-3"
+          />
 
-          <button
+          <Button
             type="submit"
+            variant="secondary"
             disabled={hasClienteAsociado || createPending}
-            className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-4 text-sm font-semibold text-text-primary transition-colors hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-4 w-full"
           >
             {createPending
               ? "Creando..."
               : "Crear cliente desde esta solicitud"}
-          </button>
+          </Button>
         </form>
       </div>
     </section>

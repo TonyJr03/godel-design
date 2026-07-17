@@ -7,7 +7,10 @@ import {
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
-import type { InternalClienteDetail } from "./types";
+import type {
+  InternalClienteDetail,
+  InternalClienteLinkedPedido,
+} from "./types";
 
 export type GetInternalClienteByIdErrorReason =
   | "unauthorized"
@@ -25,6 +28,8 @@ export type GetInternalClienteByIdResult = ServiceResult<
 
 const GENERIC_DETAIL_ERROR =
   "No se pudo cargar el cliente. Inténtalo nuevamente.";
+
+type InternalClienteDetailRow = Omit<InternalClienteDetail, "pedidos">;
 
 export async function getInternalClienteById(
   id: string,
@@ -55,7 +60,7 @@ export async function getInternalClienteById(
       .from("clientes")
       .select("id, name, phone, email, notes, created_at, updated_at")
       .eq("id", clienteId)
-      .maybeSingle<InternalClienteDetail>();
+      .maybeSingle<InternalClienteDetailRow>();
 
     if (error) {
       console.error("Error loading internal cliente detail", error);
@@ -67,8 +72,25 @@ export async function getInternalClienteById(
       return serviceFailure("not_found", "El cliente solicitado no existe.");
     }
 
+    const { data: pedidos, error: pedidosError } = await supabase
+      .from("pedidos")
+      .select("id, title, workflow_type, created_at")
+      .eq("cliente_id", clienteId)
+      .order("created_at", { ascending: false })
+      .limit(8)
+      .returns<InternalClienteLinkedPedido[]>();
+
+    if (pedidosError) {
+      console.error("Error loading linked pedidos for cliente", pedidosError);
+
+      return serviceFailure("error", GENERIC_DETAIL_ERROR);
+    }
+
     return serviceSuccess({
-      cliente: data,
+      cliente: {
+        ...data,
+        pedidos: pedidos ?? [],
+      },
     });
   } catch (error) {
     console.error("Unexpected error loading internal cliente detail", error);

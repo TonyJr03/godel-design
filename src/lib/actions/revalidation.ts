@@ -9,32 +9,26 @@ export function revalidateClienteDetail(clienteId: string) {
   revalidatePath(`/dashboard/clientes/${clienteId}`);
 }
 
-export function revalidateClienteEdit(clienteId: string) {
+export function revalidateClienteForm(clienteId: string) {
   revalidateClienteDetail(clienteId);
-  revalidatePath(`/dashboard/clientes/${clienteId}/editar`);
 }
 
-export function revalidateUsuariosList() {
-  revalidatePath("/dashboard/usuarios");
+export function revalidateConfiguracionUsuariosList() {
+  revalidatePath("/dashboard/configuracion/usuarios");
+}
+
+export function revalidateConfiguracionUsuario() {
+  revalidateConfiguracionUsuariosList();
 }
 
 export function revalidateTaskTemplatesList() {
   revalidatePath("/dashboard/configuracion");
+  revalidatePath("/dashboard/configuracion/plantillas");
 }
 
 export function revalidateTaskTemplateDetail(templateId: string) {
   revalidateTaskTemplatesList();
   revalidatePath(`/dashboard/configuracion/plantillas/${templateId}`);
-}
-
-export function revalidateUsuarioDetail(userId: string) {
-  revalidateUsuariosList();
-  revalidatePath(`/dashboard/usuarios/${userId}`);
-}
-
-export function revalidateUsuarioEdit(userId: string) {
-  revalidateUsuarioDetail(userId);
-  revalidatePath(`/dashboard/usuarios/${userId}/editar`);
 }
 
 export function revalidatePedidoDetail(pedidoId: string) {

@@ -3,7 +3,6 @@ export type DashboardNavIconName =
   | "solicitudes"
   | "pedidos"
   | "clientes"
-  | "usuarios"
   | "configuracion";
 
 export const dashboardNavItems = [
@@ -15,7 +14,6 @@ export const dashboardNavItems = [
   },
   { href: "/dashboard/pedidos", label: "Pedidos", icon: "pedidos" },
   { href: "/dashboard/clientes", label: "Clientes", icon: "clientes" },
-  { href: "/dashboard/usuarios", label: "Usuarios", icon: "usuarios" },
   {
     href: "/dashboard/configuracion",
     label: "Configuración",

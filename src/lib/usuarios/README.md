@@ -20,20 +20,18 @@ contrasena, no usa `service_role` y no agrega `SUPABASE_SERVICE_ROLE_KEY`.
 
 ## Rutas internas
 
-- `/dashboard/usuarios`: listado interno de perfiles.
-- `/dashboard/usuarios/nuevo`: formulario para crear perfil interno de un
+- `/dashboard/configuracion/usuarios`: listado interno de perfiles.
+- `/dashboard/configuracion/usuarios/nuevo`: formulario para crear perfil interno de un
   usuario Auth existente.
-- `/dashboard/usuarios/[id]`: detalle interno del perfil.
-- `/dashboard/usuarios/[id]/editar`: edicion interna de perfil, rol y estado.
+- `/dashboard/configuracion/usuarios/[id]/editar`: edicion interna de perfil, rol y estado.
 
-Las rutas viven en `src/app/(interno)/dashboard/usuarios` y deben seguir delegando en
-servicios de `src/lib/usuarios`. Las Server Actions son adaptadores finos:
-leen `FormData`, llaman servicios y revalidan rutas.
+Las rutas viven en `src/app/(interno)/dashboard/configuracion/usuarios` y deben
+seguir delegando en servicios de `src/lib/usuarios`. Las Server Actions son
+adaptadores finos: leen `FormData`, llaman servicios y revalidan rutas.
 
 ## Componentes principales
 
 - `InternalUsersList`: listado responsive de perfiles internos.
-- `InternalUserDetail`: detalle interno de perfil.
 - `UserCreateForm`: formulario de creacion de perfil.
 - `UserEditForm`: formulario de edicion de perfil, rol y estado.
 

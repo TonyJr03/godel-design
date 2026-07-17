@@ -4,7 +4,6 @@ import {
   DashboardSummaryCards,
   type DashboardSummaryCard,
 } from "./DashboardSummaryCards";
-import { DashboardSection } from "./DashboardSection";
 
 type DashboardOverviewProps = {
   result: GetDashboardSummaryResult;
@@ -93,7 +92,7 @@ function getWorkerCards(
 ): DashboardSummaryCard[] {
   return [
     {
-      title: "Pedidos asignados",
+      title: "Tus pedidos asignados",
       value: metrics.totalPedidosAsignados,
       description: "Total de pedidos en los que estás asignado.",
       tone: "neutral",
@@ -105,7 +104,7 @@ function getWorkerCards(
       tone: "info",
     },
     {
-      title: "En producción",
+      title: "Asignados en producción",
       value: metrics.pedidosAsignadosEnProduccion,
       description: "Tus pedidos asignados que están en producción.",
       tone: "info",
@@ -155,12 +154,5 @@ export function DashboardOverview({ result }: DashboardOverviewProps) {
       ? getManagementCards(result.summary.metrics)
       : getWorkerCards(result.summary.metrics);
 
-  return (
-    <DashboardSection
-      title="Resumen operativo"
-      description="Métricas de contexto para entender el volumen y estado general del trabajo."
-    >
-      <DashboardSummaryCards cards={cards} />
-    </DashboardSection>
-  );
+  return <DashboardSummaryCards cards={cards} compact />;
 }

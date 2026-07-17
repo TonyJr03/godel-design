@@ -49,12 +49,16 @@ No cambian:
 La composición de escritorio queda unificada así:
 
 1. Cabecera del workspace.
-2. Resumen operativo a todo el ancho.
-3. Debajo, dos columnas: contenido principal y action rail.
+2. Contenido principal permanente.
+3. Action rail icon-only desde `xl`.
 
 El resumen operativo no debe vivir en una columna intermedia. Su función es dar
 contexto transversal antes de que el usuario elija trabajar en el contenido
 principal o abrir un panel contextual.
+
+Nota vigente 4.5: esa banda ya no forma parte del diseno aprobado. La
+implementacion final usa cabecera compacta sin CTA primaria ni resumen operativo
+permanente.
 
 Estructura conceptual:
 
@@ -62,9 +66,8 @@ Estructura conceptual:
 +------------------------------------------------------------------+
 | Cabecera                                                         |
 +------------------------------------------------------------------+
-| Resumen operativo a todo el ancho                                |
 +----------------------------------------------------+-------------+
-| Contenido principal                                | Action rail |
+| Contenido principal                                | Rail iconos |
 |                                                    |             |
 +----------------------------------------------------+-------------+
 ```
@@ -83,9 +86,14 @@ Contenido exacto:
 - Badge de workflow: `Encargo` o `Impresion`.
 - Estado operativo con `StatusBadge`.
 - Prioridad con `PriorityBadge`.
-- Entrega estimada.
+- Fecha estimada o fecha real de entrega cuando exista.
+- Referencia publica copiable inline.
+- Sin CTA primaria de gestion ni avisos criticos verticales bajo la cabecera.
 - Acción principal cuando exista.
 - Indicadores críticos.
+
+Nota vigente 4.5: los dos bullets anteriores son historicos y no aplican al
+workspace final.
 
 Las acciones principales de la cabecera no ejecutan mutaciones directamente.
 Solo abren el panel correspondiente. Las transiciones continúan controladas por
@@ -133,6 +141,11 @@ Tipografía conceptual:
 - Metadata crítica: 14 px, en una línea envolvente.
 
 ## 5. Resumen operativo del pedido
+
+Estado vigente 4.5: este bloque fue retirado del workspace de pedidos. La
+pantalla final no renderiza resumen operativo permanente ni bloque visual
+"Flujo directo de impresion"; el flujo `impresion` se expresa mediante la
+composicion principal de descripcion y archivos.
 
 El resumen operativo es una banda compacta bajo la cabecera y ocupa todo el
 ancho disponible antes de la división en columnas. Debe permitir entender el
@@ -287,7 +300,7 @@ Pedido:
 
 Solicitud:
 
-- Reutiliza `SolicitudFilesSection`.
+- Reutiliza `SolicitudFilesPanel`.
 - Lista completa.
 - Descarga por `/dashboard/solicitudes/[id]/archivos/[fileId]/download`.
 - Sin subida interna en la versión actual.
@@ -355,15 +368,20 @@ Notas:
 Ubicación:
 
 - Dentro del área de detalle, a la derecha del contenido principal desde `xl`.
-- Debajo del resumen operativo de ancho completo.
+- Junto al contenido principal, dentro de la superficie contenida.
 - No reemplaza el sidebar global.
-- Ancho conceptual: 12-16rem.
+- Ancho conceptual: columna compacta icon-only.
 - Sticky dentro de la altura útil cuando no genere doble scroll confuso.
 
 Requisitos:
 
-- Icono y label visible en cada acción.
-- No usar columna de solo iconos.
+Nota vigente 4.5: el rail desktop aprobado es icon-only. Usa una columna
+compacta de botones con target mínimo de 44 px. Cada botón conserva
+`aria-label` y `title` con label, `statusLabel`, badge real cuando exista,
+motivo de bloqueo cuando aplique, estado activo y foco visible. El tono es una
+señal complementaria, nunca la única.
+
+- Icono visible en cada acción.
 - Target mínimo 44 px.
 - Estado activo con borde/superficie/texto, no solo color.
 - Contadores opcionales en texto o badge.
@@ -390,13 +408,25 @@ comunicación, asignación, finanzas, auditoría y contexto secundario.
 
 Entre `md` y antes de `xl`:
 
-- Cabecera y resumen compactos.
-- Toolbar contextual horizontal bajo el resumen.
+Nota vigente 4.5: tablet conserva toolbar textual de una sola fila con icono y
+label visibles. `statusLabel`, estado activo y badge real deben estar en el
+nombre accesible y `title`; el badge visual se renderiza flotante en la esquina
+superior derecha para no cambiar la altura del boton. El dialog lateral usa el
+mismo contrato de contenido `scroll`/`fill`.
+
+- Cabecera compacta con enlace textual "Volver a pedidos" antes de la metadata.
+- Toolbar contextual horizontal bajo la cabecera.
 - Drawer desde la derecha.
 - Acciones menos frecuentes bajo "Más" si no hay espacio.
 - No mantener simultáneamente sidebar global y action rail ancho.
 - El documento puede tener scroll normal.
 - El drawer puede tener scroll interno.
+- La toolbar mide ancho real disponible con `ResizeObserver` y
+  `requestAnimationFrame`: muestra siempre las tres primeras acciones
+  disponibles, agrega acciones si caben y reserva "Mas" solo cuando quedan
+  acciones ocultas.
+- "Mas" contiene exactamente las acciones que no quedaron directas, incluidas
+  acciones deshabilitadas si existen. No duplica acciones directas.
 
 Toolbar sugerida:
 
@@ -408,6 +438,12 @@ Toolbar sugerida:
 ## 13. Barra móvil
 
 La barra inferior muestra máximo cuatro accesos.
+
+Nota vigente 4.5: movil mantiene maximo tres acciones directas mas "Mas",
+safe-area, icono y texto. Cada accion directa tiene tono discreto, badge visual
+flotante en esquina superior derecha limitado a `99+` y nombre accesible con el
+valor real. El badge no debe aparecer bajo la etiqueta ni aumentar la altura del
+boton.
 
 `encargo`:
 
@@ -430,7 +466,9 @@ al selector de "Más" sin cerrar el dialog/sheet. No se permiten diálogos
 anidados.
 
 Operaciones habituales dentro de "Más": Personal, Pagos, Historial,
-Información y Comentarios cuando Comentarios no está fijo.
+Información y Comentarios cuando Comentarios no está fijo. Al abrir un panel
+desde "Mas" y volver, el selector conserva la misma lista secundaria que tenia
+la superficie que lo abrio.
 
 Requisitos:
 
@@ -449,10 +487,11 @@ Requisitos:
 
 ## 14. Cabecera y resumen de solicitud
 
-La solicitud se migrará después de validar pedido. Debe mostrar:
+El workspace interno de Solicitud muestra:
 
 - Botón para volver a `/dashboard/solicitudes`.
-- Referencia interna corta.
+- Referencia pública copiable inline; la referencia interna completa queda en
+  Información.
 - Cliente capturado.
 - Servicio con `getSolicitudServiceTypeLabel`.
 - Workflow `encargo`/`impresion`.
@@ -485,13 +524,13 @@ abrir Convertir o renderizar conversión como acción destacada.
 
 | Panel | Icono Lucide | Propósito | Roles | Modo | Componente actual |
 | --- | --- | --- | --- | --- | --- |
-| Estado | `GitBranch` | Gestionar revisión | admin, supervisor | Gestión | `SolicitudStatusForm` |
-| Cliente | `ContactRound` | Asociar, consultar o crear cliente | admin, supervisor | Gestión | `SolicitudClienteForm` |
-| Archivos | `Files` | Consultar archivos recibidos | admin, supervisor | Lectura/descarga | `SolicitudFilesSection` |
-| Comentarios | `MessageSquare` | Notas internas | admin, supervisor | Gestión append-only | `SolicitudCommentsSection` |
-| Historial | `History` | Eventos de solicitud | admin, supervisor | Lectura | `SolicitudHistorySection` |
-| Información | `Info` | Contacto y metadata | admin, supervisor | Lectura | Bloques actuales |
-| Convertir | `ArrowRightCircle` | Conversión a pedido | admin, supervisor | Gestión condicionada | `SolicitudConvertPedidoForm` |
+| Estado | `GitBranch` | Gestionar revisión | admin, supervisor | `scroll` | `SolicitudStatusForm` |
+| Cliente | `ContactRound` | Asociar, consultar o crear cliente | admin, supervisor | `scroll` | `SolicitudClienteForm` |
+| Conversión | `ArrowRightCircle` | Conversión a pedido | admin, supervisor | `scroll` | `SolicitudConvertPedidoForm` |
+| Archivos | `Files` | Consultar archivos recibidos | admin, supervisor | `scroll` | `SolicitudFilesPanel` |
+| Comentarios | `MessageSquare` | Notas internas | admin, supervisor | `fill` | `SolicitudCommentsPanel` + `SolicitudCommentComposer` |
+| Historial | `History` | Eventos de solicitud | admin, supervisor | `scroll` | `SolicitudHistoryTimeline` |
+| Información | `Info` | Contacto y metadata | admin, supervisor | `scroll` | `SolicitudInformationPanel` |
 
 Matriz de conversión por estado:
 
@@ -504,6 +543,243 @@ Matriz de conversión por estado:
 | `aprobada` con cliente | Abrir convertir | Visible gestionable | No ocultar |
 | `rechazada` | Sin CTA de conversión | Oculto o lectura bloqueada | Cerrada |
 | `convertida` | Ver pedido | Panel en lectura con enlace | No permitir nueva conversión |
+
+### Nota vigente 6.1: workspace interno de Solicitudes
+
+El detalle interno de solicitud usa las primitivas comunes del workspace, pero
+mantiene cabecera, contenido y paneles específicos de solicitudes. No se crea un
+workspace universal entre pedidos y solicitudes.
+
+Cabecera:
+
+- Enlace "Volver a solicitudes" textual en móvil/tablet, antes de la metadata.
+- Botón "Volver a solicitudes" a la derecha desde `xl`.
+- Referencia pública copiable inline con `CopyableCode`.
+- Workflow, estado y tipo de servicio.
+- `h1` como `Solicitud de {client_name}`.
+- Fecha de recepción y fecha deseada, con "No definida" cuando no exista.
+
+No debe mostrar la referencia interna corta como identidad principal ni repetir
+la metadata en una tarjeta de resumen separada. El UUID completo vive solo en
+Información, como metadata secundaria monoespaciada y con `break-all`.
+
+Contenido permanente:
+
+- Descripción completa y observaciones.
+- Contacto recibido desde el formulario público: nombre, teléfono y correo.
+- Archivos recientes, máximo tres, con descarga privada.
+
+Desktop `xl` usa dos columnas: descripción con mayor ancho a la izquierda, y
+contacto/archivos en columna derecha compacta. Tablet y móvil usan orden lineal:
+descripción, observaciones, contacto y archivos. El contacto recibido no se
+mezcla con cliente interno asociado.
+
+Orden de acciones:
+
+1. Estado.
+2. Cliente.
+3. Conversión.
+4. Archivos.
+5. Comentarios.
+6. Historial.
+7. Información.
+
+Acciones prioritarias para tablet y móvil:
+
+```ts
+["estado", "cliente", "conversion"]
+```
+
+Paneles de 6.1:
+
+| Panel | Icono | Modo | Contenido |
+| --- | --- | --- | --- |
+| Estado | `estado` | `scroll` | `SolicitudStatusForm` |
+| Cliente | `cliente` | `scroll` | `SolicitudClienteForm` |
+| Conversión | `convertir` | `scroll` | `SolicitudConvertPedidoForm` |
+| Archivos | `archivos` | `scroll` | `SolicitudFilesPanel` |
+| Comentarios | `comentarios` | `fill` | `SolicitudCommentsPanel` + `SolicitudCommentComposer` |
+| Historial | `historial` | `scroll` | `SolicitudHistoryTimeline` |
+| Información | `informacion` | `scroll` | `SolicitudInformationPanel` |
+
+Tratamiento de acciones:
+
+- Estado: `nueva` usa warning y "Pendiente de revisión"; `aprobada` y
+  `convertida` usan success; `rechazada` usa danger.
+- Cliente: danger si falla la carga de cliente/listado; success si existe
+  cliente asociado; warning solo si la solicitud está aprobada y falta cliente;
+  neutral para ausencia no bloqueante.
+- Conversión: success si ya existe pedido; warning si está lista para convertir
+  o falta cliente; neutral si requiere aprobación o está rechazada.
+- Archivos, Comentarios e Historial usan badge de cantidad y danger en error de
+  carga.
+- Información permanece neutral.
+
+La conversión no se deshabilita como acción: el panel explica por qué todavía no
+puede convertir. En `convertida`, Información muestra "Ver pedido generado" con
+enlace a `/dashboard/pedidos/{converted_order_id}`.
+
+Permisos, transiciones, Server Actions, servicios, RLS, RPC y Storage no cambian
+en 6.1. Los formularios existentes se reutilizan temporalmente dentro de los
+paneles aunque conserven tarjeta exterior; la simplificacion interna queda para
+6.2/6.3.
+
+Politica de pruebas: las subtareas 6.1 a 6.4 no ejecutan E2E ni Full Visual QA.
+La validacion integral responsive, accesible, visual y por estados se concentra
+en 6.5.
+
+### Nota vigente 6.2: paneles de consulta de Solicitudes
+
+Archivos usa `SolicitudFilesPanel` dentro del workspace contextual. Renderiza la
+lista completa sin tarjeta exterior, sombra, heading principal ni descripcion
+duplicada; el titulo y descripcion los provee `WorkspaceContextDialog`. No
+admite subida interna y conserva descargas por route handler privado:
+`/dashboard/solicitudes/[id]/archivos/[fileId]/download`.
+
+Historial usa `SolicitudHistoryTimeline`. Renderiza una timeline compacta sin
+tarjeta exterior ni heading duplicado, conserva el orden recibido y mantiene los
+resumenes derivados de metadata, actor, rol y fecha.
+
+Informacion permanece como panel secundario solo lectura: referencia publica,
+workflow, servicio, estado, fechas, enlace a pedido convertido cuando exista y
+UUID interno como metadata secundaria. No incluye `reviewed_by`, datos completos
+de cliente ni acciones de gestion.
+
+Archivos, Historial e Informacion usan `contentMode: "scroll"`.
+
+### Nota vigente 6.3: paneles de gestion de Solicitudes
+
+Estado usa `SolicitudStatusForm` con `presentation="panel"` dentro del panel
+contextual. El formulario muestra primero el estado actual, conserva solo las
+transiciones permitidas y no cambia reglas de dominio ni Server Actions.
+
+Cliente usa `SolicitudClienteForm` con `presentation="panel"`. El contenido se
+organiza en una sola columna: cliente asociado, asociacion de cliente existente
+y creacion desde la solicitud. Si falla la carga del cliente asociado, la pagina
+sigue mostrando solo el error y no renderiza controles basados en un estado
+desconocido.
+
+Conversion usa `SolicitudConvertPedidoForm` con `presentation="panel"` para
+eliminar tarjeta exterior y heading duplicado. Mantiene los requisitos
+existentes: solicitud aprobada, cliente asociado y ausencia de pedido convertido.
+
+Comentarios queda dividido en `SolicitudCommentsPanel` y
+`SolicitudCommentComposer`. El panel usa `contentMode: "fill"`: la conversacion
+interna se desplaza dentro del panel y el composer queda fijo abajo, con textarea
+compacto autoajustable, feedback accesible y la misma Server Action existente.
+
+### Nota vigente 6.4: estados, workflows y senales de Solicitudes
+
+Matriz de Estado:
+
+```text
+nueva -> warning / Pendiente de revision
+en_revision -> neutral / En revision
+contactada -> neutral / Cliente contactado
+aprobada -> success / Solicitud aprobada
+rechazada -> danger / Solicitud rechazada
+convertida -> success / Solicitud convertida
+```
+
+Matriz de Cliente:
+
+```text
+error cargando cliente o listado -> danger / No se pudo cargar el cliente
+cliente asociado -> success / Cliente asociado
+aprobada sin cliente -> warning / Falta asociar cliente
+ausencia no bloqueante -> neutral
+```
+
+El error de carga conserva prioridad sobre `cliente_id`, porque la entidad
+asociada no pudo comprobarse correctamente. Cliente asociado usa `success` como
+condicion completada y mantiene `statusLabel`; el tono no sustituye el texto
+accesible.
+
+Matriz de Conversion:
+
+```text
+pedido creado -> success / Pedido creado
+lista para convertir -> warning / Lista para convertir
+falta cliente -> warning / Falta asociar cliente
+requiere aprobacion -> neutral / Requiere aprobacion
+rechazada -> neutral / Conversion no disponible
+convertida sin pedido enlazado -> neutral / Conversion no disponible
+```
+
+La comprobacion de `converted_order_id` ocurre antes que el resto. Si una
+solicitud aparece como `convertida` sin `converted_order_id`, la accion de
+Conversion se muestra como no disponible; el formulario existente no permite
+crear otro pedido porque solo renderiza la conversion cuando `status ===
+"aprobada"`, hay cliente asociado y no hay pedido actual.
+
+Encargo e Impresion conservan el mismo catalogo de acciones: Estado, Cliente,
+Conversion, Archivos, Comentarios, Historial e Informacion. Encargo mantiene
+`Trabajo solicitado` y requisitos operativos de conversion; Impresion mantiene
+`Datos de impresion solicitada`, el titulo predeterminado `Pedido de impresion`
+y la ausencia de Tareas en el workspace de Solicitudes.
+
+El composer de comentarios en presentacion panel muestra solo `Comenta` como
+heading visible. La presentacion card conserva su descripcion. Las subtareas
+6.1 a 6.4 no ejecutan E2E ni Full Visual QA; esa validacion queda concentrada
+en 6.5.
+
+### Nota vigente 6.5: QA funcional, responsive y visual de Solicitudes
+
+Correcciones cerradas en 6.5:
+
+- El detalle exitoso de `/dashboard/solicitudes/[id]` ya no envuelve
+  `InternalSolicitudDetail` en un `div.space-y-8`; esto elimina el scroll
+  documental desktop innecesario sin ocultar overflow global ni recortar
+  contenido.
+- `SolicitudContactPreview` usa la grilla responsive normal y el item
+  `Correo electronico` ocupa dos columnas desde `sm`, evitando que el correo
+  quede limitado a media tarjeta.
+- Los tests de Solicitudes, Storage y Full Visual QA abren Estado, Cliente,
+  Conversion, Archivos, Comentarios, Historial e Informacion mediante triggers
+  visibles del workspace o el selector `Mas`; no buscan formularios antiguos en
+  el cuerpo permanente.
+
+Comprobaciones automatizadas de cierre:
+
+```text
+npm.cmd run diff:check
+npm.cmd run verify
+npx.cmd playwright test tests/e2e/solicitudes-internas.spec.ts --project=chromium --workers=1
+npx.cmd playwright test tests/e2e/storage.spec.ts --project=chromium --workers=1
+npx.cmd playwright test tests/e2e/full-visual-qa.spec.ts --project=chromium --workers=1
+```
+
+Cobertura verificada:
+
+- Encargo: estados `nueva -> en_revision -> contactada -> aprobada`,
+  asociacion/creacion de cliente, comentarios consecutivos con reset, conversion
+  a pedido y estado `convertida`.
+- Impresion: datos de impresion solicitada, archivo recibido, panel Archivos con
+  descarga privada, rechazo y conversion no disponible.
+- Roles: `admin` gestiona el flujo completo, `supervisor` consulta listado y
+  detalle, `trabajador` queda denegado en listado y detalle de Solicitudes.
+- Responsive: desktop `1440x900` y `1366x768` sin overflow horizontal ni scroll
+  documental; tablet `900x1000` y `780x1000` con toolbar en una fila; movil
+  `375x812` con barra inferior, selector `Mas`, retorno al selector y un solo
+  dialog.
+- Accesibilidad funcional: los triggers conservan `statusLabel`; Escape y el
+  boton `Cerrar` restauran foco al trigger visible.
+- Storage: rutas internas `/dashboard/solicitudes/{solicitudId}/archivos/{fileId}/download`,
+  sin `file_path`, bucket, signed URL ni superficie de subida interna.
+
+Screenshots inspeccionados:
+
+```text
+test-results/beta-1-8-3-solicitud-workspace-desktop-1440.png
+test-results/beta-1-8-3-solicitud-workspace-desktop-1366.png
+test-results/beta-1-8-3-solicitud-workspace-tablet-900.png
+test-results/beta-1-8-3-solicitud-workspace-tablet-780.png
+test-results/beta-1-8-3-solicitud-workspace-mobile-375.png
+test-results/beta-1-8-3-solicitud-cliente-success.png
+test-results/beta-1-8-3-solicitud-comentarios-panel-mobile.png
+test-results/beta-1-8-3-solicitud-impresion-archivos.png
+test-results/beta-1-8-3-solicitud-convertida.png
+```
 
 ## 17. Apertura del panel contextual
 
@@ -568,6 +844,12 @@ No introducir Radix, Headless UI, shadcn/ui ni librerías de tooltips.
 
 ## 20. Scroll del panel
 
+- El panel usa `contentMode: "scroll"` por defecto.
+- En `contentMode: "fill"`, el cuerpo generico del dialog usa
+  `overflow-hidden` y el contenido inmediato `min-h-0 flex-1`.
+- Comentarios, Archivos y Personal de pedidos usan `fill`: solo la zona central
+  lista/comentario/asignaciones desplaza; el footer de formulario queda visible.
+- El selector "Mas acciones" siempre usa `scroll`.
 - Header del panel estable.
 - Contenido con scroll interno cuando sea necesario.
 - Acciones de formulario visibles cuando el formulario lo requiera.
@@ -754,15 +1036,19 @@ type WorkspaceAction = {
   label: string;
   icon: WorkspaceIconName;
   badge?: number;
+  statusLabel?: string;
   tone?: "default" | "warning" | "danger" | "success";
   disabled?: boolean;
   disabledReason?: string;
 };
 
+type WorkspacePanelContentMode = "scroll" | "fill";
+
 type WorkspacePanel = {
   id: string;
   title: string;
   description?: string;
+  contentMode?: WorkspacePanelContentMode;
   content: ReactNode;
 };
 
@@ -776,6 +1062,10 @@ type WorkspaceControllerProps = {
 Los metadatos de acciones deben ser serializables. El contenido del panel puede
 ser `ReactNode`. No crear un registro universal que importe todo Lucide; usar
 mapas estáticos pequeños en los componentes cliente que renderizan iconos.
+
+`contentMode` por defecto es `scroll`. Usar `fill` solo cuando el contenido del
+panel ya define una zona central con scroll y un footer fijo, como Comentarios,
+Archivos y Personal.
 
 Contrato de `disabled`:
 
@@ -793,7 +1083,7 @@ Contrato de `disabled`:
 | `impresion` | Muestra flujo directo; no trata ausencia de tareas como problema. |
 | Pedido manual | Origen indica "Pedido creado manualmente"; inicia en `creado`. |
 | Pedido desde solicitud | Información muestra solicitud origen; inicia `solicitud_recibida`. |
-| Sin cliente | Resumen y panel Información muestran "Sin cliente asociado". |
+| Sin cliente | Panel Información muestra el mensaje normal de cliente no asociado; la acción Información permanece neutral y no muestra warning. |
 | Sin personal | Resumen advierte; panel Personal muestra estado vacío. |
 | Sin tareas | En encargo activo es advertencia; en impresión no aplica. |
 | Sin archivos | Vista rápida y panel muestran vacío sin bloquear. |

@@ -1,3 +1,4 @@
+import type { WorkflowType } from "@/lib/workflow-types";
 import type { Tables } from "@/types/database";
 
 export type InternalCliente = Pick<
@@ -14,4 +15,13 @@ export type InternalClienteDetail = Pick<
   | "notes"
   | "created_at"
   | "updated_at"
->;
+> & {
+  pedidos: InternalClienteLinkedPedido[];
+};
+
+export type InternalClienteLinkedPedido = Pick<
+  Tables<"pedidos">,
+  "id" | "title" | "created_at"
+> & {
+  workflow_type: WorkflowType;
+};

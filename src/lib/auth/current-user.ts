@@ -11,7 +11,7 @@ export type {
   CurrentUserWithProfile,
 } from "./types";
 
-const CURRENT_PROFILE_SELECT = "id, role, is_active";
+const CURRENT_PROFILE_SELECT = "id, full_name, role, is_active";
 
 async function getActiveProfileByUserId(
   userId: string,

@@ -1,7 +1,9 @@
-import { ListFiltersBar } from "@/components/common/ListFiltersBar";
+import {
+  ListingPageHeader,
+  ListingToolbar,
+} from "@/components/listing";
 import { InternalSolicitudesList } from "@/components/solicitudes/InternalSolicitudesList";
 import { Alert } from "@/components/ui/Alert";
-import { PageHeader } from "@/components/ui/PageHeader";
 import {
   INTERNAL_SOLICITUD_ESTADOS,
   SOLICITUD_STATUS_LABELS,
@@ -37,45 +39,46 @@ export default async function DashboardSolicitudesPage({
 
   return (
     <div className="space-y-8">
-      <PageHeader
+      <ListingPageHeader
         title="Solicitudes"
         description="Listado interno de solicitudes recibidas por el formulario público."
-      />
-
-      <ListFiltersBar
-        searchLabel="Buscar solicitudes"
-        searchPlaceholder="Referencia, cliente, servicio o descripción"
-        initialQuery={searchValue}
-        filters={[
-          {
-            name: "status",
-            label: "Estado",
-            value: result.status ?? "",
-            options: [
-              { value: "", label: "Todos los estados" },
-              ...INTERNAL_SOLICITUD_ESTADOS.map((estadoOption) => ({
-                value: estadoOption,
-                label: SOLICITUD_STATUS_LABELS[estadoOption],
-              })),
-            ],
-          },
-          {
-            name: "workflow_type",
-            label: "Tipo",
-            value: result.workflowType ?? "",
-            options: [
-              { value: "", label: "Todos los tipos" },
+        toolbar={
+          <ListingToolbar
+            searchLabel="Buscar solicitudes"
+            searchPlaceholder="Buscar solicitud"
+            initialQuery={searchValue}
+            filters={[
               {
-                value: WORKFLOW_TYPES.ENCARGO,
-                label: `${WORKFLOW_TYPE_LABELS.encargo}s`,
+                name: "status",
+                label: "Estado",
+                value: result.status ?? "",
+                options: [
+                  { value: "", label: "Todos los estados" },
+                  ...INTERNAL_SOLICITUD_ESTADOS.map((estadoOption) => ({
+                    value: estadoOption,
+                    label: SOLICITUD_STATUS_LABELS[estadoOption],
+                  })),
+                ],
               },
               {
-                value: WORKFLOW_TYPES.IMPRESION,
-                label: "Impresiones",
+                name: "workflow_type",
+                label: "Tipo",
+                value: result.workflowType ?? "",
+                options: [
+                  { value: "", label: "Todos los tipos" },
+                  {
+                    value: WORKFLOW_TYPES.ENCARGO,
+                    label: `${WORKFLOW_TYPE_LABELS.encargo}s`,
+                  },
+                  {
+                    value: WORKFLOW_TYPES.IMPRESION,
+                    label: "Impresiones",
+                  },
+                ],
               },
-            ],
-          },
-        ]}
+            ]}
+          />
+        }
       />
 
       {result.ok && result.ignoredInvalidEstado ? (
@@ -100,7 +103,7 @@ export default async function DashboardSolicitudesPage({
           )}
           emptyMessage={
             searchValue || result.status || result.workflowType
-              ? "No se encontraron solicitudes con los filtros aplicados."
+              ? "Prueba limpiar los filtros o cambiar la búsqueda."
               : undefined
           }
         />

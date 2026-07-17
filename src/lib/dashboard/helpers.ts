@@ -42,6 +42,30 @@ export const PENDING_REVIEW_PEDIDO_STATUSES: readonly PedidoEstado[] = [
   "solicitud_recibida",
 ];
 
+export const DASHBOARD_PEDIDO_NEW_STATUSES: readonly PedidoEstado[] = [
+  "creado",
+  "solicitud_recibida",
+];
+
+export const DASHBOARD_PEDIDO_REVIEW_STATUSES: readonly PedidoEstado[] = [
+  "en_revision",
+];
+
+export const DASHBOARD_PEDIDO_PRODUCTION_STATUSES: readonly PedidoEstado[] = [
+  "en_produccion",
+];
+
+export const DASHBOARD_PEDIDO_READY_STATUSES: readonly PedidoEstado[] = [
+  "listo_entrega",
+];
+
+export const DASHBOARD_PEDIDO_GROUP_LIMITS = {
+  nuevos: 4,
+  enRevision: 4,
+  enProduccion: 6,
+  listosEntrega: 6,
+} as const;
+
 export const PEDIDO_STATUSES_WITHOUT_TASKS_ATTENTION: readonly PedidoEstado[] = [
   ...PENDING_REVIEW_PEDIDO_STATUSES,
   "en_revision",

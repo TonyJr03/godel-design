@@ -1,72 +1,132 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
 
 import type {
   PedidoDetailAction,
   UpdatePedidoStatusActionState,
 } from "@/app/(interno)/dashboard/pedidos/[id]/actions";
-import { CopyableCode } from "@/components/common/CopyableCode";
 import {
-  DetailPanel,
-  MetadataGrid,
-  MetadataItem,
-  PriorityBadge,
-  StatusBadge,
-} from "@/components/ui";
+  WorkspaceController,
+  WorkspaceShell,
+  type WorkspaceAction,
+  type WorkspacePanel,
+} from "@/components/workspace";
 import type {
   InternalPedidoDetail as InternalPedidoDetailData,
-  PedidoStatusTransitionContext,
+  InternalPedidoPayment,
+  PedidoComment,
+  PedidoHistoryItem,
+  PedidoTask,
+  PedidoTasksProgress,
 } from "@/lib/pedidos";
 import {
-  SOLICITUD_STATUS_LABELS,
-  getSolicitudServiceTypeLabel,
-} from "@/lib/solicitudes";
-import { formatAppDateTime } from "@/lib/utils";
-import {
-  WORKFLOW_TYPES,
-  WORKFLOW_TYPE_LABELS,
-} from "@/lib/workflow-types";
-import { PedidoWorkflowTypeBadge } from "./PedidoWorkflowTypeBadge";
+  EMPTY_PEDIDO_TASKS_PROGRESS,
+  isPedidoActiveStatus,
+  type PedidoStatus,
+} from "@/lib/pedidos";
+import type { PedidoFileListItem } from "@/lib/storage";
+import { getTodayDateInputValue } from "@/lib/utils";
+import { WORKFLOW_TYPES } from "@/lib/workflow-types";
+
 import { PedidoStatusForm } from "./PedidoStatusForm";
+import {
+  PedidoCommentsPanel,
+  PedidoFilesPanel,
+  PedidoHistoryTimeline,
+  PedidoInformationPanel,
+  PedidoWorkspaceHeader,
+  PedidoWorkspaceMain,
+} from "./workspace";
 
 type InternalPedidoDetailProps = {
   pedido: InternalPedidoDetailData;
   updateStatusAction: PedidoDetailAction<UpdatePedidoStatusActionState>;
-  taskProgress?: PedidoStatusTransitionContext | null;
+  taskProgress?: PedidoTasksProgress | null;
   tasksLoadError?: string;
-  workerAssignmentSection?: ReactNode;
-  paymentSection?: ReactNode;
-  tasksSection?: ReactNode;
-  filesSection?: ReactNode;
-  commentsSection?: ReactNode;
-  historySection?: ReactNode;
+  tasks: readonly PedidoTask[];
+  history: readonly PedidoHistoryItem[];
+  historyLoadError?: string;
+  files: readonly PedidoFileListItem[];
+  filesLoadError?: string;
+  comments: readonly PedidoComment[];
+  commentsLoadError?: string;
+  personnelPanelContent: ReactNode;
+  paymentPanelContent: ReactNode;
+  tasksPanelContent?: ReactNode;
+  fileUploadPanelContent: ReactNode;
+  commentComposerPanelContent: ReactNode;
 };
 
-const DATE_FORMATTER = new Intl.DateTimeFormat("es", {
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-  timeZone: "UTC",
-});
+type WorkspaceActionState = Pick<WorkspaceAction, "tone" | "statusLabel">;
 
-function formatShortReference(id: string): string {
-  return id.slice(0, 8).toUpperCase();
-}
-
-function formatDate(value: string | null): string {
-  return value ? DATE_FORMATTER.format(new Date(value)) : "No definida";
-}
-
-function getProgressLabel(
-  progress: PedidoStatusTransitionContext | null | undefined,
-) {
-  if (!progress?.hasTasks) {
-    return "Sin tareas";
+function getTaskActionState({
+  isPrintWorkflow,
+  isActivePedido,
+  status,
+  progress,
+  loadError,
+}: {
+  isPrintWorkflow: boolean;
+  isActivePedido: boolean;
+  status: PedidoStatus;
+  progress: PedidoTasksProgress;
+  loadError?: string;
+}): WorkspaceActionState {
+  if (isPrintWorkflow) {
+    return {};
   }
 
-  return progress.isComplete
-    ? "Tareas completadas"
-    : `${Math.round(progress.progressPercentage)}% completado`;
+  if (loadError) {
+    return {
+      tone: "danger",
+      statusLabel: "No se pudieron cargar las tareas",
+    };
+  }
+
+  if (isActivePedido && !progress.hasTasks) {
+    return {
+      tone: "warning",
+      statusLabel: "Sin tareas registradas",
+    };
+  }
+
+  if (status === "en_produccion" && progress.hasTasks && !progress.isComplete) {
+    return {
+      tone: "warning",
+      statusLabel: "Tareas pendientes",
+    };
+  }
+
+  if (progress.hasTasks && progress.isComplete) {
+    return {
+      tone: "success",
+      statusLabel: "Tareas completadas",
+    };
+  }
+
+  return {};
+}
+
+function getPaymentActionState(
+  payment: InternalPedidoPayment,
+): WorkspaceActionState {
+  if (!payment.isAvailable) {
+    return {
+      tone: "danger",
+      statusLabel: "Resumen financiero no disponible",
+    };
+  }
+
+  if (payment.paymentStatus === "pagado") {
+    return {
+      tone: "success",
+      statusLabel: "Pago completado",
+    };
+  }
+
+  return {
+    tone: "warning",
+    statusLabel: "Pago pendiente",
+  };
 }
 
 export function InternalPedidoDetail({
@@ -74,272 +134,288 @@ export function InternalPedidoDetail({
   updateStatusAction,
   taskProgress,
   tasksLoadError,
-  workerAssignmentSection,
-  paymentSection,
-  tasksSection,
-  filesSection,
-  commentsSection,
-  historySection,
+  tasks,
+  history,
+  historyLoadError,
+  files,
+  filesLoadError,
+  comments,
+  commentsLoadError,
+  personnelPanelContent,
+  paymentPanelContent,
+  tasksPanelContent,
+  fileUploadPanelContent,
+  commentComposerPanelContent,
 }: InternalPedidoDetailProps) {
-  const isPrintWorkflow =
-    pedido.workflow_type === WORKFLOW_TYPES.IMPRESION;
+  const isPrintWorkflow = pedido.workflow_type === WORKFLOW_TYPES.IMPRESION;
+  const safeTaskProgress = taskProgress ?? EMPTY_PEDIDO_TASKS_PROGRESS;
+  const isActivePedido = isPedidoActiveStatus(pedido.status);
+  const today = getTodayDateInputValue();
+  const estimatedDeliveryDate =
+    pedido.estimated_delivery_date?.slice(0, 10) ?? null;
+  const isEstimatedDeliveryOverdue =
+    isActivePedido &&
+    estimatedDeliveryDate !== null &&
+    estimatedDeliveryDate < today;
+  const taskActionState = getTaskActionState({
+    isPrintWorkflow,
+    isActivePedido,
+    status: pedido.status,
+    progress: safeTaskProgress,
+    loadError: tasksLoadError,
+  });
+  const filesActionState: WorkspaceActionState = filesLoadError
+    ? {
+        tone: "danger",
+        statusLabel: "No se pudieron cargar los archivos",
+      }
+    : {};
+  const commentsActionState: WorkspaceActionState = commentsLoadError
+    ? {
+        tone: "danger",
+        statusLabel: "No se pudieron cargar los comentarios",
+      }
+    : {};
+  const personalActionState: WorkspaceActionState =
+    isActivePedido && pedido.pedido_trabajadores.length === 0
+      ? {
+          tone: "warning",
+          statusLabel: "Sin personal asignado",
+        }
+      : {};
+  const paymentActionState = getPaymentActionState(pedido.payment);
+  const historyActionState: WorkspaceActionState = historyLoadError
+    ? {
+        tone: "danger",
+        statusLabel: "No se pudo cargar el historial",
+      }
+    : {};
+  const compactActionIds = isPrintWorkflow
+    ? ["estado", "archivos", "pagos"]
+    : ["estado", "tareas", "archivos"];
+  const workspaceActions: readonly WorkspaceAction[] = [
+    {
+      id: "estado",
+      label: "Estado",
+      icon: "estado",
+      tone: isEstimatedDeliveryOverdue ? "warning" : undefined,
+      statusLabel: isEstimatedDeliveryOverdue
+        ? "Fecha estimada vencida"
+        : undefined,
+    },
+    ...(!isPrintWorkflow && tasksPanelContent
+      ? [
+          {
+            id: "tareas",
+            label: "Tareas",
+            icon: "tareas",
+            ...taskActionState,
+            badge:
+              !tasksLoadError && safeTaskProgress.pendingTasks
+                ? safeTaskProgress.pendingTasks
+                : undefined,
+          } satisfies WorkspaceAction,
+        ]
+      : []),
+    {
+      id: "archivos",
+      label: "Archivos",
+      icon: "archivos",
+      ...filesActionState,
+      badge: files.length > 0 ? files.length : undefined,
+    },
+    {
+      id: "comentarios",
+      label: "Comentarios",
+      icon: "comentarios",
+      ...commentsActionState,
+      badge: comments.length > 0 ? comments.length : undefined,
+    },
+    {
+      id: "personal",
+      label: "Personal",
+      icon: "personal",
+      ...personalActionState,
+      badge:
+        pedido.pedido_trabajadores.length > 0
+          ? pedido.pedido_trabajadores.length
+          : undefined,
+    },
+    {
+      id: "pagos",
+      label: "Pagos",
+      icon: "pagos",
+      ...paymentActionState,
+    },
+    {
+      id: "historial",
+      label: "Historial",
+      icon: "historial",
+      ...historyActionState,
+      badge: history.length > 0 ? history.length : undefined,
+    },
+    {
+      id: "informacion",
+      label: "Información",
+      icon: "informacion",
+    },
+  ];
+  const workspacePanels: Readonly<Record<string, WorkspacePanel>> = {
+    estado: {
+      id: "estado",
+      title: "Estado",
+      description:
+        "Consulta el estado actual y aplica una transición permitida.",
+      content: (
+        <PedidoStatusForm
+          presentation="panel"
+          updateStatusAction={updateStatusAction}
+          estadoActual={pedido.status}
+          workflowType={pedido.workflow_type}
+          paymentStatus={pedido.payment.paymentStatus}
+          taskProgress={taskProgress}
+          tasksLoadError={tasksLoadError}
+        />
+      ),
+    },
+    ...(tasksPanelContent
+      ? {
+          tareas: {
+            id: "tareas",
+            title: "Tareas",
+            description:
+              "Organiza el trabajo, actualiza cantidades y controla el avance.",
+            content: tasksPanelContent,
+          },
+        }
+      : {}),
+    archivos: {
+      id: "archivos",
+      title: "Archivos",
+      description:
+        "Consulta los archivos asociados y agrega nuevos recursos al pedido.",
+      contentMode: "fill",
+      content: (
+        <div className="flex h-full min-h-0 flex-col">
+          <section
+            aria-labelledby="pedido-files-list-title"
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1"
+          >
+            <h3
+              id="pedido-files-list-title"
+              className="text-base font-semibold text-text-primary"
+            >
+              Archivos asociados
+            </h3>
+
+            <div className="mt-4">
+              <PedidoFilesPanel
+                pedidoId={pedido.id}
+                files={files}
+                loadError={filesLoadError}
+              />
+            </div>
+          </section>
+
+          <div className="mt-4 shrink-0 border-t border-border pt-4">
+            {fileUploadPanelContent}
+          </div>
+        </div>
+      ),
+    },
+    comentarios: {
+      id: "comentarios",
+      title: "Comentarios",
+      description:
+        "Consulta la conversación interna y registra nuevas notas para el equipo.",
+      contentMode: "fill",
+      content: (
+        <div className="flex h-full min-h-0 flex-col">
+          <section
+            aria-labelledby="pedido-comments-list-title"
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1"
+          >
+            <h3
+              id="pedido-comments-list-title"
+              className="text-base font-semibold text-text-primary"
+            >
+              Conversación interna
+            </h3>
+
+            <div className="mt-4">
+              <PedidoCommentsPanel
+                comments={comments}
+                loadError={commentsLoadError}
+              />
+            </div>
+          </section>
+
+          <div className="mt-4 shrink-0 border-t border-border pt-4">
+            {commentComposerPanelContent}
+          </div>
+        </div>
+      ),
+    },
+    personal: {
+      id: "personal",
+      title: "Personal",
+      description:
+        "Consulta y administra las personas asignadas al pedido.",
+      contentMode: "fill",
+      content: personnelPanelContent,
+    },
+    pagos: {
+      id: "pagos",
+      title: "Pagos",
+      description:
+        "Consulta el resumen financiero y registra los importes recibidos.",
+      content: paymentPanelContent,
+    },
+    historial: {
+      id: "historial",
+      title: "Historial",
+      description: "Eventos operativos registrados para este pedido.",
+      content: (
+        <PedidoHistoryTimeline
+          history={history}
+          loadError={historyLoadError}
+        />
+      ),
+    },
+    informacion: {
+      id: "informacion",
+      title: "Información",
+      description:
+        "Datos completos del cliente, el origen y el registro del pedido.",
+      content: <PedidoInformationPanel pedido={pedido} />,
+    },
+  };
 
   return (
-    <article className="space-y-6">
-      <header className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-3">
-            <p className="font-mono text-sm font-semibold text-brand-primary">
-              {pedido.order_number}
-            </p>
-            <PedidoWorkflowTypeBadge workflowType={pedido.workflow_type} />
-            <StatusBadge status={pedido.status} />
-            <PriorityBadge priority={pedido.priority} />
-          </div>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-text-primary">
-            Detalle del pedido
-          </h1>
-          <p className="mt-3 max-w-3xl text-base leading-7 text-text-secondary">
-            Consulta la información del trabajo y su seguimiento operativo.
-          </p>
-        </div>
-        <Link
-          href="/dashboard/pedidos"
-          className="inline-flex min-h-11 items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-4 text-sm font-semibold text-text-primary transition-colors hover:bg-surface-muted"
-        >
-          Volver a pedidos
-        </Link>
-      </header>
-
-      <CopyableCode
-        code={pedido.public_reference}
-        helperText="Comparte este código con el cliente para consultar el estado público. El número de pedido se mantiene como referencia operativa interna."
-        className="border-brand-primary/20 bg-brand-primary-soft"
-      />
-
-      <section className="rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6">
-        <MetadataGrid className="lg:grid-cols-5">
-          <MetadataItem
-            label="Cliente"
-            value={pedido.clientes?.name ?? "Sin cliente asociado"}
-          />
-          <MetadataItem
-            label="Tipo de pedido"
-            value={WORKFLOW_TYPE_LABELS[pedido.workflow_type]}
-          />
-          <MetadataItem
-            label={isPrintWorkflow ? "Operación" : "Progreso"}
-            value={
-              isPrintWorkflow
-                ? "Flujo directo de impresión"
-                : getProgressLabel(taskProgress)
-            }
-          />
-          <MetadataItem
-            label="Entrega estimada"
-            value={formatDate(pedido.estimated_delivery_date)}
-          />
-          <MetadataItem
-            label="Personal asignado"
-            value={
-              pedido.pedido_trabajadores.length > 0
-                ? pedido.pedido_trabajadores
-                    .map(
-                      (assignment) =>
-                        assignment.perfiles?.full_name ?? "Perfil no disponible",
-                    )
-                    .join(", ")
-                : "Sin personal asignado"
-            }
-          />
-        </MetadataGrid>
-      </section>
-
-      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
-        <div className="order-2 min-w-0 space-y-6 xl:col-start-1 xl:row-start-1">
-          <DetailPanel
-            title={
-              isPrintWorkflow
-                ? "Datos del pedido de impresión"
-                : "Datos del encargo"
-            }
-            description={
-              isPrintWorkflow
-                ? "Especificaciones registradas para preparar este pedido de impresión."
-                : "Título y descripción operativa del trabajo solicitado."
-            }
-          >
-            <h3 className="text-xl font-semibold text-text-primary">
-              {pedido.title}
-            </h3>
-            <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-text-secondary">
-              {pedido.description}
-            </p>
-          </DetailPanel>
-
-          {isPrintWorkflow ? (
-            <section className="rounded-(--radius-card) border border-brand-accent/30 bg-brand-accent-soft p-5 sm:p-6">
-              <h2 className="text-lg font-semibold text-text-primary">
-                Flujo directo de impresión
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-text-secondary">
-                Las tareas detalladas no se muestran como bloque principal para
-                este tipo de pedido en esta etapa.
-              </p>
-            </section>
-          ) : (
-            tasksSection
-          )}
-          {filesSection}
-          {commentsSection}
-          {historySection}
-        </div>
-
-        <aside className="contents min-w-0 xl:col-start-2 xl:row-start-1 xl:block xl:space-y-6">
-          <div className="order-1 space-y-6 xl:block">
-            <PedidoStatusForm
-              updateStatusAction={updateStatusAction}
-              estadoActual={pedido.status}
-              workflowType={pedido.workflow_type}
-              paymentStatus={pedido.payment.paymentStatus}
-              taskProgress={taskProgress}
+    <WorkspaceController
+      actions={workspaceActions}
+      panels={workspacePanels}
+      tabletActionIds={compactActionIds}
+      mobileActionIds={compactActionIds}
+    >
+      <article>
+        <WorkspaceShell
+          hasActions
+          desktopMode="contained"
+          railPresentation="icons"
+          header={<PedidoWorkspaceHeader pedido={pedido} />}
+          main={
+            <PedidoWorkspaceMain
+              pedido={pedido}
+              tasks={tasks}
+              taskProgress={safeTaskProgress}
               tasksLoadError={tasksLoadError}
+              files={files}
+              filesLoadError={filesLoadError}
             />
-
-            {paymentSection}
-
-            {workerAssignmentSection}
-          </div>
-
-          <div className="order-3 space-y-6 xl:block">
-            <DetailPanel title="Cliente" description="Contacto asociado al pedido.">
-            {pedido.clientes ? (
-              <MetadataGrid className="sm:grid-cols-1">
-                <MetadataItem
-                  label="Nombre"
-                  value={
-                    <Link
-                      href={`/dashboard/clientes/${pedido.clientes.id}`}
-                      className="inline-flex min-h-11 items-center font-semibold text-brand-primary underline-offset-4 hover:underline"
-                    >
-                      {pedido.clientes.name}
-                    </Link>
-                  }
-                />
-                <MetadataItem label="Teléfono" value={pedido.clientes.phone} />
-                <MetadataItem
-                  label="Correo electrónico"
-                  value={pedido.clientes.email ?? "No definido"}
-                />
-              </MetadataGrid>
-            ) : (
-              <p className="text-sm leading-6 text-text-secondary">
-                {pedido.cliente_id
-                  ? "El pedido tiene un cliente asociado, pero sus datos no están disponibles."
-                  : "Este pedido no tiene cliente asociado."}
-              </p>
-            )}
-            </DetailPanel>
-
-            <DetailPanel
-              title="Solicitud de origen"
-              description="Referencia de entrada del trabajo."
-            >
-            {pedido.solicitudes ? (
-              <MetadataGrid className="sm:grid-cols-1">
-                <MetadataItem
-                  label="Servicio"
-                  value={
-                    <Link
-                      href={`/dashboard/solicitudes/${pedido.solicitudes.id}`}
-                      className="inline-flex min-h-11 items-center font-semibold text-brand-primary underline-offset-4 hover:underline"
-                    >
-                      {getSolicitudServiceTypeLabel(
-                        pedido.solicitudes.service_type,
-                      )}
-                    </Link>
-                  }
-                />
-                <MetadataItem
-                  label="Tipo de solicitud"
-                  value={
-                    WORKFLOW_TYPE_LABELS[
-                      pedido.solicitudes.workflow_type
-                    ]
-                  }
-                />
-                <MetadataItem
-                  label="Cliente capturado"
-                  value={pedido.solicitudes.client_name}
-                />
-                <MetadataItem
-                  label="Estado"
-                  value={
-                    <StatusBadge
-                      status={pedido.solicitudes.status}
-                      label={
-                        SOLICITUD_STATUS_LABELS[pedido.solicitudes.status]
-                      }
-                    />
-                  }
-                />
-                <MetadataItem
-                  label="Fecha deseada"
-                  value={formatDate(pedido.solicitudes.desired_date)}
-                />
-                <MetadataItem
-                  label="Descripción original"
-                  value={
-                    <span className="whitespace-pre-line">
-                      {pedido.solicitudes.description}
-                    </span>
-                  }
-                />
-              </MetadataGrid>
-            ) : (
-              <p className="text-sm leading-6 text-text-secondary">
-                {pedido.solicitud_id
-                  ? "La solicitud asociada no está disponible para mostrar."
-                  : "Pedido creado manualmente, sin solicitud de origen."}
-              </p>
-            )}
-            </DetailPanel>
-
-            <DetailPanel title="Metadata" description="Información técnica secundaria.">
-            <MetadataGrid className="sm:grid-cols-1">
-              <MetadataItem
-                label="Referencia interna"
-                value={formatShortReference(pedido.id)}
-              />
-              <MetadataItem
-                label="Creación"
-                value={formatAppDateTime(pedido.created_at, "No definida")}
-              />
-              <MetadataItem
-                label="Entrega real"
-                value={formatDate(pedido.actual_delivery_date)}
-              />
-              <MetadataItem
-                label="Creado por"
-                value={pedido.creador?.full_name ?? "No definido"}
-              />
-              <MetadataItem
-                label="Última actualización"
-                value={formatAppDateTime(pedido.updated_at, "No definida")}
-              />
-              <MetadataItem
-                label="Identificador interno"
-                value={
-                  <span className="break-all font-mono text-xs text-text-secondary">
-                    {pedido.id}
-                  </span>
-                }
-              />
-            </MetadataGrid>
-            </DetailPanel>
-          </div>
-        </aside>
-      </div>
-    </article>
+          }
+        />
+      </article>
+    </WorkspaceController>
   );
 }
