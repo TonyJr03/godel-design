@@ -225,6 +225,13 @@ Corrección 13.2.1:
 - Mantener solo acciones públicas como alternativas secundarias.
 - Revisar footer público y responsive.
 
+Nota de implementación 13.3:
+
+- La home pública fue compactada y orientada a solicitud y seguimiento.
+- Se eliminaron repeticiones del proceso.
+- Se mantuvieron solo acciones públicas.
+- No se agregó catálogo, carrito, pagos, panel de cliente ni acceso interno.
+
 ### 13.4 - Solicitud pública
 
 - Rediseñar composición de `/solicitud` sin cambiar Server Action ni contrato de

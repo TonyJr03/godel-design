@@ -1189,7 +1189,7 @@ docs/ui-ux/PUBLIC_AREA_STAGE_13_PLAN.md
 
 * 13.1 Auditoría y especificación de separación pública / login / interna — Completado.
 * 13.2 Marco público y puerta interna — Completado.
-* 13.3 Home pública — Pendiente.
+* 13.3 Home pública — Completado.
 * 13.4 Solicitud pública — Pendiente.
 * 13.5 Consulta pública de estado — Pendiente.
 * 13.6 404 pública y estados públicos — Pendiente.
