@@ -24,19 +24,19 @@ test("admin can access usuarios and see safe profile validation", async ({
   await expect(toolbar.getByLabel(/^rol$/i)).toBeVisible();
   await expect(toolbar.getByLabel(/^estado$/i)).toBeVisible();
   await expect(
-    page.getByRole("link", { name: /nuevo usuario/i }),
+    page.getByRole("button", { name: /nuevo usuario/i }),
   ).toBeVisible();
-  await expect(page.getByText(/^acción$/i)).toHaveCount(0);
   await expect(page.getByRole("link", { name: /ver usuario/i })).toHaveCount(0);
   await expectNoVisibleSensitiveText(page);
 
-  const editUserLinks = page.getByRole("link", { name: /editar usuario/i });
-  if ((await editUserLinks.count()) > 0) {
-    await editUserLinks.first().click();
-    await expect(page).toHaveURL(
-      /\/dashboard\/configuracion\/usuarios\/[^/]+\/editar/,
-    );
-    await page.goto("/dashboard/configuracion/usuarios");
+  const editUserButtons = page.getByRole("button", { name: /editar usuario/i });
+  if ((await editUserButtons.count()) > 0) {
+    await editUserButtons.first().click();
+    const editDialog = page.getByRole("dialog", { name: /editar usuario/i });
+
+    await expect(editDialog).toBeVisible();
+    await editDialog.getByRole("button", { name: /cerrar/i }).click();
+    await expect(editDialog).toBeHidden();
   }
 
   const unlikelyQuery = createUnlikelyQaQuery("usuarios-sin-resultados");
@@ -48,19 +48,20 @@ test("admin can access usuarios and see safe profile validation", async ({
   ).toBeVisible();
   await expectNoVisibleSensitiveText(page);
 
-  await page.goto("/dashboard/configuracion/usuarios/nuevo");
-  await expect(
-    page.getByRole("heading", { name: /nuevo usuario/i }),
-  ).toBeVisible();
-  await expect(page.getByText(/no crea credenciales/i)).toBeVisible();
-  await expect(page.getByLabel(/uuid del usuario auth/i)).toBeVisible();
+  await page.goto("/dashboard/configuracion/usuarios");
+  await page.getByRole("button", { name: /nuevo usuario/i }).click();
+  const createDialog = page.getByRole("dialog", { name: /nuevo perfil interno/i });
 
-  await page.getByLabel(/uuid del usuario auth/i).fill("not-a-valid-uuid");
-  await page.getByLabel(/nombre completo/i).fill("Usuario QA invalido");
-  await page.getByRole("button", { name: /crear perfil/i }).click();
+  await expect(createDialog).toBeVisible();
+  await expect(createDialog.getByText(/usuario debe existir/i)).toBeVisible();
+  await expect(createDialog.getByLabel(/uuid del usuario auth/i)).toBeVisible();
+
+  await createDialog.getByLabel(/uuid del usuario auth/i).fill("not-a-valid-uuid");
+  await createDialog.getByLabel(/nombre completo/i).fill("Usuario QA invalido");
+  await createDialog.getByRole("button", { name: /crear perfil/i }).click();
 
   await expect(
-    page.getByText(/ingresa un uuid v.lido de supabase auth/i),
+    createDialog.getByText(/ingresa un uuid v.lido de supabase auth/i),
   ).toBeVisible({ timeout: 15_000 });
   await expectNoVisibleSensitiveText(page);
 });

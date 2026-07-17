@@ -253,6 +253,8 @@ Según el alcance, deben existir:
 
 ## Etapa 0 — Auditoría posterior a Beta 2
 
+Estado: Completado.
+
 ### Objetivo
 
 Analizar el estado real del proyecto antes del rediseño y determinar qué partes podían modificarse sin romper la arquitectura estabilizada.
@@ -1034,6 +1036,8 @@ El dashboard quedó reorganizado como workspace operativo centrado en pedidos ac
 
 ## Etapa 12 — Formularios internos y páginas secundarias
 
+Estado: Completado.
+
 ### Objetivo
 
 Consolidar la experiencia de formularios internos y páginas secundarias que no forman parte de listados principales, dashboard operativo ni área pública.
@@ -1054,16 +1058,16 @@ docs/ui-ux/INTERNAL_FORMS_STAGE_12_PLAN.md
 * 12.4 Usuarios: crear/editar en dialog/drawer — Completado.
 * 12.5 Pedido manual: formulario compacto contextual — Completado.
 * 12.6 Configuración/plantillas: formularios compactos — Completado.
-* 12.7 Formularios operativos en workspaces/paneles — En curso.
+* 12.7 Formularios operativos en workspaces/paneles — Completado.
 * 12.7.1 Pedidos: formularios operativos en paneles — Completado.
 * 12.7.2 Solicitudes: formularios operativos en paneles — Completado.
-* 12.8 Pantallas internas transversales — En curso.
+* 12.8 Pantallas internas transversales — Completado.
 * 12.8.1 Auditoría de pantallas internas transversales — Completado.
 * 12.8.2 Retiro de fallbacks obsoletos y not-found interno — Completado.
 * 12.8.2.1 Limpieza de lógica heredada de fallbacks eliminados — Completado.
 * 12.8.2.2 Ajuste de flujo de usuario y tipos estrictos — Completado.
 * 12.8.2.3 Eliminación de componentes legacy inline de plantillas — Completado.
-* 12.9 QA y cierre — Pendiente.
+* 12.9 QA y cierre — Completado.
 
 ### Alcance
 

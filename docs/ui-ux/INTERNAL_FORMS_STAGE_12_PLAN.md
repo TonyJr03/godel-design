@@ -286,6 +286,8 @@ Decisiones implementadas:
 
 ## 17. Criterios de cierre de la Etapa 12
 
+Cierre: ver `docs/ui-ux/STAGE_12_QA_CLOSURE.md`.
+
 Corrección 12.8.2.1: además de retirar las páginas fallback, se eliminaron ramas visuales y props heredadas de página completa en formularios de crear/editar. Las Server Actions se reubicaron en módulos estables del área correspondiente, sin alterar su lógica.
 
 Corrección 12.8.2.2: la creación de usuarios se ajustó al flujo contextual sin redirect a `/editar`, la revalidación dejó de apuntar a fallbacks retirados y `TaskTemplateForm` dejó de aceptar props desconocidas.

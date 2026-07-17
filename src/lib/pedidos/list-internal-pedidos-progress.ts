@@ -13,6 +13,8 @@ const TASK_PROGRESS_SELECT = `
   is_completed
 `;
 
+const TASK_PROGRESS_PEDIDO_ID_BATCH_SIZE = 50;
+
 export async function loadTaskProgressByPedidoId(
   supabase: Awaited<ReturnType<typeof createClient>>,
   pedidoIds: string[],
@@ -21,19 +23,33 @@ export async function loadTaskProgressByPedidoId(
     return new Map();
   }
 
-  const { data, error } = await supabase
-    .from("pedido_tareas")
-    .select(TASK_PROGRESS_SELECT)
-    .in("pedido_id", pedidoIds)
-    .returns<PedidoTaskProgressByPedidoInput[]>();
+  const tasks: PedidoTaskProgressByPedidoInput[] = [];
 
-  if (error) {
-    throw new Error(
-      `progreso de tareas de pedidos: ${
-        error.message ?? "Supabase query error"
-      }`,
+  for (
+    let startIndex = 0;
+    startIndex < pedidoIds.length;
+    startIndex += TASK_PROGRESS_PEDIDO_ID_BATCH_SIZE
+  ) {
+    const pedidoIdBatch = pedidoIds.slice(
+      startIndex,
+      startIndex + TASK_PROGRESS_PEDIDO_ID_BATCH_SIZE,
     );
+    const { data, error } = await supabase
+      .from("pedido_tareas")
+      .select(TASK_PROGRESS_SELECT)
+      .in("pedido_id", pedidoIdBatch)
+      .returns<PedidoTaskProgressByPedidoInput[]>();
+
+    if (error) {
+      throw new Error(
+        `progreso de tareas de pedidos: ${
+          error.message ?? "Supabase query error"
+        }`,
+      );
+    }
+
+    tasks.push(...(data ?? []));
   }
 
-  return calculatePedidoTasksProgressByPedidoId(pedidoIds, data ?? []);
+  return calculatePedidoTasksProgressByPedidoId(pedidoIds, tasks);
 }

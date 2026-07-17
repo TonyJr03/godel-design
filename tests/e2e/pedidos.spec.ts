@@ -284,12 +284,6 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-async function expectStatusMessage(page: Page, message: RegExp) {
-  await expect(page.getByText(message).first()).toBeVisible({
-    timeout: 15_000,
-  });
-}
-
 async function expectCompactPedidoHeader(
   page: Page,
   title: string,
@@ -333,35 +327,36 @@ async function createManualPedido(
   title: string,
   total = "500",
 ) {
-  await page.goto("/dashboard/pedidos/nuevo");
-  await expect(
-    page.getByRole("heading", { name: /nuevo pedido/i }),
-  ).toBeVisible();
+  await page.goto("/dashboard/pedidos");
+  await page.getByRole("button", { name: /nuevo pedido/i }).click();
+  const dialog = page.getByRole("dialog", { name: /nuevo pedido/i });
+
+  await expect(dialog).toBeVisible();
 
   if (workflow === "impresion") {
-    await page.getByRole("tab", { name: /impresi.n/i }).click();
-    await page.getByLabel(/cantidad de copias/i).fill("8");
-    await page.getByLabel(/modo de color/i).selectOption("color");
-    await page.getByLabel(/tama.o de papel/i).selectOption("carta");
-    await page.getByLabel(/caras/i).selectOption("una_cara");
-    await page
+    await dialog.getByRole("tab", { name: /impresi.n/i }).click();
+    await dialog.getByLabel(/cantidad de copias/i).fill("8");
+    await dialog.getByLabel(/modo de color/i).selectOption("color");
+    await dialog.getByLabel(/tama.o de papel/i).selectOption("carta");
+    await dialog.getByLabel(/caras/i).selectOption("una_cara");
+    await dialog
       .getByLabel(/observaciones/i)
       .fill(`Pedido de impresion focal para ${clienteLabel}`);
   } else {
-    await page.getByRole("tab", { name: /encargo/i }).click();
-    await page
+    await dialog.getByRole("tab", { name: /encargo/i }).click();
+    await dialog
       .getByRole("textbox", { name: /descripci.n/i })
       .fill(`Encargo focal para ${clienteLabel}`);
   }
 
-  await page.getByLabel(/prioridad/i).selectOption("normal");
-  await page.getByLabel(/fecha estimada de entrega/i).fill(futureDate);
-  await page.getByLabel(/monto total a pagar/i).fill(total);
-  await page.getByLabel(/t.tulo del trabajo/i).fill(title);
-  await page.getByRole("button", { name: /crear pedido/i }).click();
-  await expectStatusMessage(page, /pedido creado correctamente/i);
-
-  await page.getByRole("link", { name: /ver detalle del pedido/i }).click();
+  await dialog.getByLabel(/prioridad/i).selectOption("normal");
+  await dialog.locator('input[name="estimated_delivery_date"]').fill(futureDate);
+  await dialog.locator('input[name="total_amount"]').fill(total);
+  await dialog.getByLabel(/t.tulo del trabajo/i).fill(title);
+  await dialog.getByRole("button", { name: /crear pedido/i }).click();
+  await expect(page).toHaveURL(/\/dashboard\/pedidos\/[^/]+$/, {
+    timeout: 15_000,
+  });
   await expect(
     page.getByRole("heading", {
       level: 1,
@@ -384,7 +379,7 @@ async function updatePedidoStatus(page: Page, status: string) {
     entregado: /estado actual:\s*entregado/i,
   };
 
-  await section.getByLabel(/^estado$/i).selectOption(status);
+  await section.locator('select[name="status"]').selectOption(status);
   await section.getByRole("button", { name: /actualizar estado/i }).click();
   await expect(section).toBeVisible();
   await expect(section.getByText(statusLabels[status])).toBeVisible({
@@ -437,7 +432,7 @@ async function createQuantifiedTask(page: Page) {
   ).toHaveCount(0);
   await expect(
     taskSection.locator('label[for="task-template-id"]'),
-  ).toHaveClass(/sr-only/);
+  ).toBeVisible();
   await expect(taskSection.getByLabel(/seleccionar plantilla/i)).toBeVisible();
   await expect(
     taskSection.getByText(/si aplicas la misma plantilla/i),
@@ -546,7 +541,7 @@ test("admin can create and manage focal internal pedidos", async ({ page }) => {
   await page.goto("/dashboard/pedidos");
   await expectPedidosListLoaded(page);
   await expect(
-    page.getByRole("link", { name: /nuevo pedido/i }),
+    page.getByRole("button", { name: /nuevo pedido/i }),
   ).toBeVisible();
 
   encargoDetailUrl = await createManualPedido(
@@ -1289,7 +1284,7 @@ test("pedido access follows current role boundaries", async ({ page }) => {
   await page.goto("/dashboard/pedidos");
   await expectPedidosListLoaded(page);
   await expect(
-    page.getByRole("link", { name: /nuevo pedido/i }),
+    page.getByRole("button", { name: /nuevo pedido/i }),
   ).toBeVisible();
 
   if (impresionDetailUrl) {
@@ -1315,7 +1310,9 @@ test("pedido access follows current role boundaries", async ({ page }) => {
     ).toBeVisible();
 
     const supervisorStatusPanel = await getPedidoStatusPanel(page);
-    await expect(supervisorStatusPanel.getByLabel(/^estado$/i)).toBeVisible();
+    await expect(
+      supervisorStatusPanel.locator('select[name="status"]'),
+    ).toBeVisible();
 
     const supervisorPaymentPanel = await getPedidoPaymentPanel(page);
     await expect(
@@ -1349,7 +1346,7 @@ test("pedido access follows current role boundaries", async ({ page }) => {
 
   await page.goto("/dashboard/pedidos/nuevo");
   await expect(
-    page.getByText(/no tienes permiso para crear pedidos/i),
+    page.getByText(/no encontramos este recurso interno/i),
   ).toBeVisible();
   await expectNoTechnicalLeakText(page);
 
@@ -1425,11 +1422,11 @@ test("pedido access follows current role boundaries", async ({ page }) => {
 
   if (impresionDetailUrl) {
     await page.goto(impresionDetailUrl);
-    await expect(page.getByText(/404|no se encontr|no tienes acceso/i))
+    await expect(page.getByText(/404|no encontramos|no tienes acceso/i))
       .toBeVisible();
   } else if (encargoDetailUrl) {
     await page.goto(encargoDetailUrl);
-    await expect(page.getByText(/404|no se encontr|no tienes acceso/i))
+    await expect(page.getByText(/404|no encontramos|no tienes acceso/i))
       .toBeVisible();
   }
 });

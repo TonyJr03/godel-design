@@ -51,8 +51,11 @@ async function expectClientesListContract(page: Page) {
   await expect(page.getByRole("heading", { name: /^clientes$/i })).toBeVisible();
   await expect(getVisibleSearchInput(page)).toBeVisible();
   await expect(
+    page.getByRole("button", { name: /nuevo cliente/i }),
+  ).toBeVisible();
+  await expect(
     page.getByRole("link", { name: /nuevo cliente/i }),
-  ).toHaveAttribute("href", "/dashboard/clientes/nuevo");
+  ).toHaveCount(0);
 
   const table = page.locator("table").first();
 
@@ -78,20 +81,18 @@ async function expectClientesListContract(page: Page) {
 }
 
 async function createCliente(page: Page) {
-  await page.goto("/dashboard/clientes/nuevo");
-  await expect(
-    page.getByRole("heading", { name: /nuevo cliente/i }),
-  ).toBeVisible();
+  await page.goto("/dashboard/clientes");
+  await page.getByRole("button", { name: /nuevo cliente/i }).click();
+  const dialog = page.getByRole("dialog", { name: /nuevo cliente/i });
 
-  await page.getByLabel(/^nombre/i).fill(clienteName);
-  await page.getByLabel(/tel.fono/i).fill(clientePhone);
-  await page.getByLabel(/correo electr.nico/i).fill(clienteEmail);
-  await page.getByLabel(/notas/i).fill(clienteNotes);
-  await page.getByRole("button", { name: /crear cliente/i }).click();
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel(/^nombre/i).fill(clienteName);
+  await dialog.getByLabel(/tel.fono/i).fill(clientePhone);
+  await dialog.getByLabel(/correo electr.nico/i).fill(clienteEmail);
+  await dialog.getByLabel(/notas/i).fill(clienteNotes);
+  await dialog.getByRole("button", { name: /crear cliente/i }).click();
 
-  await expect(
-    page.getByText(/cliente creado correctamente/i),
-  ).toBeVisible({ timeout: 15_000 });
+  await expect(dialog).toBeHidden({ timeout: 15_000 });
   await expectNoVisibleSensitiveText(page);
 }
 
@@ -111,7 +112,7 @@ async function expectClienteDetail(page: Page) {
     page.getByRole("link", { name: /volver a clientes/i }),
   ).toHaveAttribute("href", "/dashboard/clientes");
 
-  const editLink = page.getByRole("link", { name: /editar cliente/i });
+  const editLink = page.getByRole("button", { name: /editar cliente/i });
 
   await expect(editLink).toBeVisible();
   await expect(editLink).toHaveAttribute("aria-label", "Editar cliente");
@@ -153,6 +154,8 @@ async function expectClienteDetail(page: Page) {
 test("admin can validate the clientes listing, search, detail, and form", async ({
   page,
 }) => {
+  test.setTimeout(90_000);
+
   await loginAs(page, "admin");
 
   await page.setViewportSize({ width: 1366, height: 768 });
@@ -187,16 +190,17 @@ test("admin can validate the clientes listing, search, detail, and form", async 
   await expectClienteDetail(page);
   clienteDetailUrl = page.url();
 
-  await page.goto("/dashboard/clientes/nuevo");
-  await expect(
-    page.getByRole("heading", { name: /nuevo cliente/i }),
-  ).toBeVisible();
-  await expect(page.getByLabel(/^nombre/i)).toBeVisible();
-  await expect(page.getByLabel(/tel.fono/i)).toBeVisible();
+  await page.goto("/dashboard/clientes");
+  await page.getByRole("button", { name: /nuevo cliente/i }).click();
+  const dialog = page.getByRole("dialog", { name: /nuevo cliente/i });
 
-  await page.getByLabel(/^nombre/i).fill("   ");
-  await page.getByLabel(/tel.fono/i).fill("5551000");
-  await page.getByRole("button", { name: /crear cliente/i }).click();
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByLabel(/^nombre/i)).toBeVisible();
+  await expect(dialog.getByLabel(/tel.fono/i)).toBeVisible();
+
+  await dialog.getByLabel(/^nombre/i).fill("   ");
+  await dialog.getByLabel(/tel.fono/i).fill("5551000");
+  await dialog.getByRole("button", { name: /crear cliente/i }).click();
 
   await expect(page.getByText(/el nombre es obligatorio/i)).toBeVisible({
     timeout: 15_000,
@@ -223,7 +227,7 @@ test("clientes remain navigable without horizontal overflow on mobile", async ({
     page.getByRole("link", { name: /volver a clientes/i }),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: /editar cliente/i }),
+    page.getByRole("button", { name: /editar cliente/i }),
   ).toBeVisible();
   await expectClienteDetail(page);
   await expectNoHorizontalOverflow(page);

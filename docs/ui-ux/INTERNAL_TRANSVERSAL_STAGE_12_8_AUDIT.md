@@ -159,3 +159,5 @@ La creación de usuarios se alineó con el flujo contextual: la Server Action de
 Corrección 12.8.2.3:
 
 Se eliminaron los componentes legacy inline `TaskTemplatesList` y `TaskTemplatesSection` porque el flujo oficial de plantillas queda resuelto por `InternalTaskTemplatesList` y dialogs contextuales de crear/editar.
+
+Cierre: ver `docs/ui-ux/STAGE_12_QA_CLOSURE.md`.

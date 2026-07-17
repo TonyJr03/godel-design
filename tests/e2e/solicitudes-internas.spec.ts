@@ -409,12 +409,14 @@ test("admin can manage solicitud workspace panels end to end", async ({
   );
 
   await expect(conversionDialog.getByText(/pedido de encargo/i)).toBeVisible();
-  await expect(conversionDialog.getByText(/tipo de servicio/i).first())
+  await expect(conversionDialog.getByText(/datos del encargo/i).first())
     .toBeVisible();
   await conversionDialog.getByLabel(/t.tulo del pedido/i).fill(pedidoTitle);
   await conversionDialog.getByLabel(/prioridad/i).selectOption("normal");
-  await conversionDialog.getByLabel(/monto total a pagar/i).fill("900");
-  await conversionDialog.getByLabel(/fecha estimada de entrega/i).fill(futureDate);
+  await conversionDialog.getByLabel(/precio del pedido/i).fill("900");
+  await conversionDialog
+    .locator('input[name="estimated_delivery_date"]')
+    .fill(futureDate);
   await conversionDialog
     .getByLabel(/descripci.n del pedido/i)
     .fill(pedidoDescription);

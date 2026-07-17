@@ -115,7 +115,7 @@ async function expectTemplatesListingLoaded(page: Page) {
   ).toBeVisible();
   await expect(page.getByLabel(/buscar plantillas/i)).toBeVisible();
   await expect(
-    page.getByRole("link", { name: /nueva plantilla/i }),
+    page.getByRole("button", { name: /nueva plantilla/i }),
   ).toBeVisible();
   await expect(page.getByText(/^acción$/i)).toHaveCount(0);
   await expect(
@@ -129,35 +129,35 @@ async function createManualPedido(
   workflow: "encargo" | "impresion",
   title: string,
 ) {
-  await page.goto("/dashboard/pedidos/nuevo");
-  await expect(
-    page.getByRole("heading", { name: /nuevo pedido/i }),
-  ).toBeVisible();
+  await page.goto("/dashboard/pedidos");
+  await page.getByRole("button", { name: /nuevo pedido/i }).click();
+  const dialog = page.getByRole("dialog", { name: /nuevo pedido/i });
+
+  await expect(dialog).toBeVisible();
 
   if (workflow === "impresion") {
-    await page.getByRole("tab", { name: /impresi.n/i }).click();
-    await page.getByLabel(/cantidad de copias/i).fill("8");
-    await page.getByLabel(/modo de color/i).selectOption("color");
-    await page.getByLabel(/tama.o de papel/i).selectOption("carta");
-    await page.getByLabel(/caras/i).selectOption("una_cara");
-    await page.getByLabel(/observaciones/i).fill(`QA impresion ${runId}`);
+    await dialog.getByRole("tab", { name: /impresi.n/i }).click();
+    await dialog.getByLabel(/cantidad de copias/i).fill("8");
+    await dialog.getByLabel(/modo de color/i).selectOption("color");
+    await dialog.getByLabel(/tama.o de papel/i).selectOption("carta");
+    await dialog.getByLabel(/caras/i).selectOption("una_cara");
+    await dialog.getByLabel(/observaciones/i).fill(`QA impresion ${runId}`);
   } else {
-    await page.getByRole("tab", { name: /encargo/i }).click();
-    await page
+    await dialog.getByRole("tab", { name: /encargo/i }).click();
+    await dialog
       .getByRole("textbox", { name: /descripci.n/i })
       .fill(`Pedido QA para aplicar plantilla ${runId}`);
   }
 
-  await page.getByLabel(/prioridad/i).selectOption("normal");
-  await page.getByLabel(/fecha estimada de entrega/i).fill(futureDate);
-  await page.getByLabel(/monto total a pagar/i).fill("750");
-  await page.getByLabel(/t.tulo del trabajo/i).fill(title);
-  await page.getByRole("button", { name: /crear pedido/i }).click();
-  await expect(page.getByText(/pedido creado correctamente/i)).toBeVisible({
+  await dialog.getByLabel(/prioridad/i).selectOption("normal");
+  await dialog.locator('input[name="estimated_delivery_date"]').fill(futureDate);
+  await dialog.locator('input[name="total_amount"]').fill("750");
+  await dialog.getByLabel(/t.tulo del trabajo/i).fill(title);
+  await dialog.getByRole("button", { name: /crear pedido/i }).click();
+  await expect(page).toHaveURL(/\/dashboard\/pedidos\/[^/]+$/, {
     timeout: 15_000,
   });
 
-  await page.getByRole("link", { name: /ver detalle del pedido/i }).click();
   await expect(
     page.getByRole("heading", {
       level: 1,
@@ -208,22 +208,17 @@ test("admin can create and manage a task template", async ({ page }) => {
   await page.getByRole("link", { name: /plantillas/i }).click();
   await expectTemplatesListingLoaded(page);
 
-  await page.getByRole("link", { name: /nueva plantilla/i }).click();
-  await expect(page).toHaveURL(/\/dashboard\/configuracion\/plantillas\/nueva/);
-  await expect(
-    page.getByRole("heading", { level: 1, name: /nueva plantilla/i }),
-  ).toBeVisible();
+  await page.getByRole("button", { name: /nueva plantilla/i }).click();
+  const createDialog = page.getByRole("dialog", { name: /nueva plantilla/i });
 
-  await page.getByRole("textbox", { name: /^nombre$/i }).fill(templateName);
-  await page
+  await expect(createDialog).toBeVisible();
+
+  await createDialog.getByRole("textbox", { name: /^nombre$/i }).fill(templateName);
+  await createDialog
     .getByRole("textbox", { name: /descripci.n/i })
     .fill(templateDescription);
-  await page.getByRole("button", { name: /crear plantilla/i }).click();
-  await expect(
-    page.getByText(/plantilla creada correctamente/i),
-  ).toBeVisible({ timeout: 15_000 });
-
-  await page.getByRole("link", { name: /volver a plantillas/i }).click();
+  await createDialog.getByRole("button", { name: /crear plantilla/i }).click();
+  await expect(createDialog).toBeHidden({ timeout: 15_000 });
   await expectTemplatesListingLoaded(page);
 
   await page.getByLabel(/buscar plantillas/i).fill(templateName);
@@ -249,7 +244,7 @@ test("admin can create and manage a task template", async ({ page }) => {
     page.getByText(/configuraci.n \/ plantillas de tareas/i),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: /editar plantilla/i }),
+    page.getByRole("button", { name: /editar plantilla/i }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: /tareas de la plantilla/i }),
@@ -259,32 +254,22 @@ test("admin can create and manage a task template", async ({ page }) => {
   ).toBeVisible();
   await expect(page.getByRole("heading", { name: /registro/i })).toBeVisible();
 
-  await page.getByRole("link", { name: /editar plantilla/i }).click();
-  await expect(page).toHaveURL(
-    /\/dashboard\/configuracion\/plantillas\/[^/]+\/editar/,
-  );
-  await expect(
-    page.getByRole("heading", { name: /editar plantilla/i }),
-  ).toBeVisible();
-  await page.getByLabel(/descripci.n/i).fill(editedTemplateDescription);
-  await page.getByRole("combobox", { name: /estado/i }).selectOption("false");
-  await page.getByRole("button", { name: /guardar cambios/i }).click();
-  await expect(
-    page.getByText(/plantilla actualizada correctamente/i),
-  ).toBeVisible({ timeout: 15_000 });
+  await page.getByRole("button", { name: /editar plantilla/i }).click();
+  let editDialog = page.getByRole("dialog", { name: /editar plantilla/i });
 
-  await page.getByRole("link", { name: /volver a la plantilla/i }).click();
+  await expect(editDialog).toBeVisible();
+  await editDialog.getByLabel(/descripci.n/i).fill(editedTemplateDescription);
+  await editDialog.getByRole("combobox", { name: /estado/i }).selectOption("false");
+  await editDialog.getByRole("button", { name: /guardar cambios/i }).click();
+  await expect(editDialog).toBeHidden({ timeout: 15_000 });
   await expect(page.getByText(editedTemplateDescription)).toBeVisible();
   await expect(page.getByText(/^inactiva$/i).first()).toBeVisible();
 
-  await page.getByRole("link", { name: /editar plantilla/i }).click();
-  await page.getByRole("combobox", { name: /estado/i }).selectOption("true");
-  await page.getByRole("button", { name: /guardar cambios/i }).click();
-  await expect(
-    page.getByText(/plantilla actualizada correctamente/i),
-  ).toBeVisible({ timeout: 15_000 });
-
-  await page.getByRole("link", { name: /volver a la plantilla/i }).click();
+  await page.getByRole("button", { name: /editar plantilla/i }).click();
+  editDialog = page.getByRole("dialog", { name: /editar plantilla/i });
+  await editDialog.getByRole("combobox", { name: /estado/i }).selectOption("true");
+  await editDialog.getByRole("button", { name: /guardar cambios/i }).click();
+  await expect(editDialog).toBeHidden({ timeout: 15_000 });
   await expect(page.getByText(/^activa$/i).first()).toBeVisible();
   await expect(page.getByText(editedTemplateDescription)).toBeVisible();
   await expectNoVisibleSensitiveText(page);
@@ -394,7 +379,7 @@ test("admin can apply a template to encargo and impresion has no selector", asyn
   ).toHaveCount(0);
   await expect(
     tasksPanel.locator('label[for="task-template-id"]'),
-  ).toHaveClass(/sr-only/);
+  ).toBeVisible();
   await expect(tasksPanel.getByLabel(/seleccionar plantilla/i)).toBeVisible();
   await expect(
     tasksPanel.getByText(/si aplicas la misma plantilla/i),

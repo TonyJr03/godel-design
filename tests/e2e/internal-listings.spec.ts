@@ -85,8 +85,10 @@ async function expectListingContract(page: Page, contract: ListingContract) {
 
   if (contract.hasPrimaryAction) {
     await expect(
-      page.getByRole("link", { name: /nuevo pedido/i }),
-    ).toHaveAttribute("href", "/dashboard/pedidos/nuevo");
+      page.getByRole("button", { name: /nuevo pedido/i }),
+    ).toBeVisible();
+    await expect(page.getByRole("link", { name: /nuevo pedido/i }))
+      .toHaveCount(0);
   } else {
     await expect(page.getByRole("link", { name: /nueva solicitud/i })).toHaveCount(0);
   }

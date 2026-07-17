@@ -316,7 +316,7 @@ async function updatePedidoStatus(page: Page, status: string) {
     cancelado: /estado actual:\s*cancelado/i,
   };
 
-  await section.getByLabel(/^estado$/i).selectOption(status);
+  await section.locator('select[name="status"]').selectOption(status);
   await section.getByRole("button", { name: /actualizar estado/i }).click();
   await expect(section.getByText(statusLabels[status])).toBeVisible({
     timeout: 15_000,
@@ -340,32 +340,36 @@ async function createManualPedido(
   title: string,
   total: string,
 ) {
-  await page.goto("/dashboard/pedidos/nuevo");
-  await expect(page.getByRole("heading", { name: /nuevo pedido/i })).toBeVisible();
+  await page.goto("/dashboard/pedidos");
+  await page.getByRole("button", { name: /nuevo pedido/i }).click();
+  const dialog = page.getByRole("dialog", { name: /nuevo pedido/i });
+
+  await expect(dialog).toBeVisible();
 
   if (workflow === "impresion") {
-    await page.getByRole("tab", { name: /impresi.n/i }).click();
-    await page.getByLabel(/cantidad de copias/i).fill("8");
-    await page.getByLabel(/modo de color/i).selectOption("color");
-    await page.getByLabel(/tama.o de papel/i).selectOption("carta");
-    await page.getByLabel(/caras/i).selectOption("una_cara");
-    await page.getByLabel(/observaciones/i).fill(`QA impresion ${runId}`);
+    await dialog.getByRole("tab", { name: /impresi.n/i }).click();
+    await dialog.getByLabel(/cantidad de copias/i).fill("8");
+    await dialog.getByLabel(/modo de color/i).selectOption("color");
+    await dialog.getByLabel(/tama.o de papel/i).selectOption("carta");
+    await dialog.getByLabel(/caras/i).selectOption("una_cara");
+    await dialog.getByLabel(/observaciones/i).fill(`QA impresion ${runId}`);
   } else {
-    await page.getByRole("tab", { name: /encargo/i }).click();
-    await page
+    await dialog.getByRole("tab", { name: /encargo/i }).click();
+    await dialog
       .getByRole("textbox", { name: /descripci.n/i })
       .fill(`Descripcion QA ${runId}`);
   }
 
-  await page.getByLabel(/prioridad/i).selectOption("normal");
-  await page.getByLabel(/fecha estimada de entrega/i).fill(futureDate);
-  await page.getByLabel(/monto total a pagar/i).fill(total);
-  await page.getByLabel(/t.tulo del trabajo/i).fill(title);
-  await page.getByRole("button", { name: /crear pedido/i }).click();
-  await expectStatusMessage(page, /pedido creado correctamente/i);
+  await dialog.getByLabel(/prioridad/i).selectOption("normal");
+  await dialog.locator('input[name="estimated_delivery_date"]').fill(futureDate);
+  await dialog.locator('input[name="total_amount"]').fill(total);
+  await dialog.getByLabel(/t.tulo del trabajo/i).fill(title);
+  await dialog.getByRole("button", { name: /crear pedido/i }).click();
+  await expect(page).toHaveURL(/\/dashboard\/pedidos\/[^/]+$/, {
+    timeout: 15_000,
+  });
 
   const reference = await extractPublicReference(page);
-  await page.getByRole("link", { name: /ver detalle del pedido/i }).click();
   await expect(
     page.getByRole("heading", {
       level: 1,
@@ -690,9 +694,9 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
     .getByLabel(/t.tulo del pedido/i)
     .fill(convertedPedidoTitle);
   await solicitudConversionPanel.getByLabel(/prioridad/i).selectOption("normal");
-  await solicitudConversionPanel.getByLabel(/monto total a pagar/i).fill("1200");
+  await solicitudConversionPanel.getByLabel(/precio del pedido/i).fill("1200");
   await solicitudConversionPanel
-    .getByLabel(/fecha estimada de entrega/i)
+    .locator('input[name="estimated_delivery_date"]')
     .fill(futureDate);
   await solicitudConversionPanel.getByLabel(/descripci.n del pedido/i).fill(
     `Pedido convertido desde solicitud QA ${runId}`,
@@ -1206,7 +1210,7 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   await expect(page.getByRole("link", { name: /^pedidos$/i })).toBeVisible();
   await expect(page.getByRole("link", { name: /solicitudes/i })).toHaveCount(0);
   await page.goto("/dashboard/pedidos/nuevo");
-  await expect(page.getByText(/no tienes permiso para crear pedidos/i)).toBeVisible();
+  await expect(page.getByText(/no encontramos este recurso interno/i)).toBeVisible();
   await page.goto(qaState.assignedPedidoUrl as string);
   await expect(
     page.getByRole("heading", {
@@ -1216,7 +1220,7 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
     }),
   ).toBeVisible();
   await page.goto(qaState.unassignedPedidoUrl as string);
-  await expect(page.getByText(/404|no se encontr|no tienes acceso/i)).toBeVisible();
+  await expect(page.getByText(/404|no encontramos|no tienes acceso/i)).toBeVisible();
 
   for (const reference of [
     qaState.convertedPedidoReference,
