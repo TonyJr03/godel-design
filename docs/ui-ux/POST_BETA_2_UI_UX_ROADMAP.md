@@ -1267,7 +1267,7 @@ docs/ui-ux/TRANSVERSAL_STATES_STAGE_14_PLAN.md
 
 * 14.1 Auditoría de estados transversales — Completado.
 * 14.2 Matriz de estados y decisiones UI — Completado.
-* 14.3 App Router states por segmento — Propuesto.
+* 14.3 App Router states por segmento — Completado.
 * 14.4 Estados vacíos y sin resultados — Propuesto.
 * 14.5 Errores de datos y retry seguro — Propuesto.
 * 14.6 Pending y action feedback — Propuesto.
@@ -1301,6 +1301,24 @@ adelante.
 La matriz separa reglas por zona, retry, skeleton/loading, errores, seguridad y
 accesibilidad. Las subtareas futuras permanecen propuestas y no se consideran
 implementadas por esta documentación.
+
+### Nota de implementación 14.3
+
+Se implementaron estados App Router segmentados para la entrada operativa
+interna y la consulta pública dinámica:
+
+```text
+src/app/(interno)/dashboard/loading.tsx
+src/app/(interno)/dashboard/error.tsx
+src/app/(publico)/estado/loading.tsx
+src/app/(publico)/estado/error.tsx
+```
+
+Dashboard incorpora fallback de carga y error de render dentro del layout
+interno existente, sin duplicar sidebar. `/estado` incorpora fallback de carga y
+error público con `PublicHeader currentPage="estado"` y `PublicFooter`. No se
+agregaron skeletons globales, componentes genéricos nuevos ni cambios de
+Server Actions, RLS, Storage, permisos, DTO público o lógica de dominio.
 
 ### Criterio de cierre
 
@@ -1633,13 +1651,13 @@ No introducir paginación, caché, virtualización o paralelización compleja si
 La siguiente subtarea oficial de esta iniciativa es:
 
 ```text
-14.3 — App Router states por segmento
+14.4 — Estados vacíos y sin resultados
 ```
 
-El siguiente entregable debe evaluar e implementar, solo donde aporte valor,
-`loading.tsx`, `error.tsx` y `not-found.tsx` por segmento según la matriz
-documentada en `docs/ui-ux/TRANSVERSAL_STATES_DECISION_MATRIX.md`, sin modificar
-Server Actions, RLS, Storage, permisos, DTO público ni lógica de dominio.
+El siguiente entregable debe normalizar estados vacíos y sin resultados donde la
+matriz documentada en `docs/ui-ux/TRANSVERSAL_STATES_DECISION_MATRIX.md` lo
+justifique, sin modificar Server Actions, RLS, Storage, permisos, DTO público ni
+lógica de dominio.
 
 ---
 

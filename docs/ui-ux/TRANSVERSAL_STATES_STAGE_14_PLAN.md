@@ -213,7 +213,7 @@ docs/ui-ux/TRANSVERSAL_STATES_DECISION_MATRIX.md
 | --- | --- | --- | --- |
 | 14.1 | Auditoría de estados transversales | Inventariar estados, rutas, inconsistencias y plan de trabajo. | Completado |
 | 14.2 | Matriz de estados y decisiones UI | Definir cuándo usar loading, error, empty, not-found, permisos, acceso denegado, retry y degradación segura. | Completado |
-| 14.3 | App Router states por segmento | Agregar o ajustar `loading.tsx`, `error.tsx` y `not-found.tsx` solo en segmentos justificados. | Propuesta |
+| 14.3 | App Router states por segmento | Agregar o ajustar `loading.tsx`, `error.tsx` y `not-found.tsx` solo en segmentos justificados. | Completado |
 | 14.4 | Estados vacíos y sin resultados | Normalizar empty states de listados, dashboard y paneles sin crear abstracción excesiva. | Propuesta |
 | 14.5 | Errores de datos y retry seguro | Definir patrón de retry para lecturas y errores temporales sin reintentar mutaciones peligrosas. | Propuesta |
 | 14.6 | Pending y action feedback | Normalizar pending copy, `aria-busy`, disabled states, éxitos y errores de formularios. | Propuesta |
@@ -233,6 +233,44 @@ La matriz también fija reglas por zona, retry, skeleton/loading, errores,
 seguridad y accesibilidad. Las subtareas futuras deben implementar sobre este
 contrato sin cambiar Server Actions, RLS, Storage, permisos, DTO público ni
 lógica de dominio.
+
+### Nota de implementación 14.3
+
+Se agregaron App Router states segmentados mínimos en:
+
+- `src/app/(interno)/dashboard/loading.tsx`.
+- `src/app/(interno)/dashboard/error.tsx`.
+- `src/app/(publico)/estado/loading.tsx`.
+- `src/app/(publico)/estado/error.tsx`.
+
+Dashboard recibe `loading.tsx` y `error.tsx` porque es la entrada operativa
+interna, depende de datos compuestos y ya había fallos parciales controlados por
+panel, pero no un fallback de render de segmento. El estado de carga se renderiza
+dentro del layout interno existente, sin duplicar sidebar, y el error ofrece
+`reset()` con un mensaje seguro.
+
+`/estado` recibe `loading.tsx` y `error.tsx` porque es una ruta pública dinámica
+con consulta de seguimiento. El fallback conserva `PublicHeader
+currentPage="estado"` y `PublicFooter`, mantiene acciones públicas y evita
+enlaces a la puerta interna o mensajes de permisos.
+
+No se agregaron skeletons globales ni componentes genéricos nuevos. Los estados
+son ligeros, usan primitivas existentes y no simulan datos reales. Tampoco se
+tocaron Server Actions, queries, DTO público, RLS, Storage, permisos, rutas
+existentes ni lógica de dominio.
+
+### Corrección 14.3.1
+
+Los `loading.tsx` segmentados de dashboard y `/estado` se compactaron para
+evitar una interrupción visual fuerte durante la navegación. Se retiraron las
+cards grandes que simulaban contenido y se reemplazaron por loaders discretos
+con anillo animado y el mark de marca `godel-diseno-mark.png`.
+
+El loading interno queda centrado dentro del layout existente, sin duplicar
+sidebar ni ocupar una pantalla completa. El loading público conserva
+`PublicHeader currentPage="estado"` y `PublicFooter`, pero elimina el hero grande
+y usa un panel breve con copy seguro. No se tocaron error boundaries, dominio,
+DTO público, RLS, Storage, permisos ni Server Actions.
 
 ## 10. Criterios de cierre de Etapa 14
 
