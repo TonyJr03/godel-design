@@ -33,7 +33,7 @@ export function PublicHeader({ currentPage }: PublicHeaderProps) {
             width={164}
             height={48}
             className="h-8 w-auto shrink-0 sm:h-9"
-            priority
+            loading="eager"
           />
         </Link>
         <nav

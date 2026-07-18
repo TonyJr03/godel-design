@@ -41,6 +41,7 @@ export function DashboardMobileNav({
               width={160}
               height={61}
               className="h-10 w-auto object-contain"
+              loading="eager"
             />
           </span>
           <span className="inline-flex min-h-11 items-center gap-2 rounded-(--radius-control) border border-white/25 bg-white/10 px-3 py-2 text-sm font-semibold">

@@ -24,7 +24,7 @@ export default function DashboardLoading() {
             height={34}
             aria-hidden="true"
             className="h-8 w-8 object-contain"
-            priority
+            loading="eager"
           />
         </div>
         <h1
