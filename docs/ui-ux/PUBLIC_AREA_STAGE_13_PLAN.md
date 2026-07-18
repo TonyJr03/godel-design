@@ -322,6 +322,19 @@ Nota de implementación 13.5:
 - Mantener acciones a inicio, solicitud y consulta de estado.
 - Alinear alerts y estados públicos de éxito/error.
 
+Nota de implementación 13.6:
+
+- La 404 pública se alineó con la identidad visual pública.
+- Usa `PublicHeader` y `PublicFooter`.
+- Mantiene solo acciones públicas.
+- No expone ni enlaza el área interna.
+
+Corrección 13.6.1:
+
+- Se integraron las acciones públicas dentro del hero 404.
+- Se eliminó la card inferior separada.
+- Se simplificó la composición para reducir scroll en desktop y mantener claridad en mobile.
+
 ### 13.7 - QA responsive y accesibilidad pública
 
 - Validar rutas públicas y login en 375, 768, 1024 y 1440 px.
