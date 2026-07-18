@@ -308,6 +308,14 @@ Nota de implementación 13.4:
 - Revisar jerarquía del resultado y progreso.
 - No exponer pagos, `order_number`, contacto, archivos ni datos internos.
 
+Nota de implementación 13.5:
+
+- `/estado` se alineó visualmente con la identidad pública de la home y de `/solicitud`.
+- Se mantuvo el DTO público mínimo.
+- Se mejoraron estado inicial, errores y resultado público.
+- Se agregó el footer público reutilizable.
+- No se expusieron datos internos ni nuevos campos públicos.
+
 ### 13.6 - 404 pública y estados públicos
 
 - Ajustar 404 pública como estado seguro para usuario externo.

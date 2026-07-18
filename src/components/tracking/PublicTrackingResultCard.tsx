@@ -38,17 +38,22 @@ function PublicProgress({
     const progressValue = clampProgress(progress.percentage);
 
     return (
-      <section className="rounded-(--radius-control) border border-border bg-surface-raised p-4">
+      <section className="rounded-(--radius-card) border border-brand-primary/12 bg-brand-primary-soft p-4 sm:p-5">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-          <h3 className="text-sm font-semibold text-text-primary">
-            {progress.label}
-          </h3>
-          <p className="text-sm font-semibold text-brand-primary">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-brand-accent">
+              Avance público
+            </p>
+            <h3 className="mt-1 text-sm font-semibold text-text-primary">
+              {progress.label}
+            </h3>
+          </div>
+          <p className="text-2xl font-semibold tracking-tight text-brand-primary">
             {progressValue}%
           </p>
         </div>
         <div
-          className="mt-3 h-3 overflow-hidden rounded-full bg-surface-muted"
+          className="mt-4 h-3 overflow-hidden rounded-full bg-surface"
           role="progressbar"
           aria-label={progress.label}
           aria-valuemin={0}
@@ -56,7 +61,7 @@ function PublicProgress({
           aria-valuenow={progressValue}
         >
           <div
-            className="h-full rounded-full bg-brand-primary transition-[width] duration-300"
+            className="h-full rounded-full bg-brand-primary transition-[width] duration-300 motion-reduce:transition-none"
             style={{ width: `${progressValue}%` }}
           />
         </div>
@@ -65,8 +70,9 @@ function PublicProgress({
   }
 
   return (
-    <section className="rounded-(--radius-control) border border-info/30 bg-info-soft px-4 py-3 text-sm leading-6 text-text-primary">
-      {progress.label}
+    <section className="rounded-(--radius-card) border border-info/30 bg-info-soft px-4 py-3 text-sm leading-6 text-text-primary">
+      <p className="font-semibold text-info">Avance público</p>
+      <p className="mt-1">{progress.label}</p>
     </section>
   );
 }
@@ -77,35 +83,42 @@ export function PublicTrackingResultCard({
   const isPedido = trackingStatus.kind === "pedido";
 
   return (
-    <Card as="article" variant="raised" padding="lg" className="space-y-6">
-      <header className="space-y-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-brand-accent">
-              Resultado encontrado
-            </p>
-            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-text-primary">
+    <Card
+      as="article"
+      variant="raised"
+      padding="lg"
+      className="overflow-hidden border-brand-primary/12 bg-surface"
+    >
+      <header className="space-y-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-brand-accent">
+                Resultado encontrado
+              </p>
+              <span className="inline-flex min-h-8 w-fit items-center rounded-(--radius-control) border border-brand-primary/20 bg-brand-primary-soft px-3 text-xs font-semibold text-brand-primary">
+                {isPedido ? "Pedido" : "Solicitud"}
+              </span>
+            </div>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-text-primary">
               {trackingStatus.statusLabel}
             </h2>
           </div>
-          <span className="inline-flex min-h-9 w-fit items-center rounded-(--radius-control) border border-brand-primary/20 bg-brand-primary-soft px-3 text-sm font-semibold text-brand-primary">
-            {isPedido ? "Pedido" : "Solicitud"}
-          </span>
+          <div className="w-full rounded-(--radius-control) border border-brand-primary/15 bg-brand-primary-soft px-4 py-3 sm:w-auto sm:min-w-56">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-text-secondary">
+              Código de seguimiento
+            </p>
+            <p className="mt-1 wrap-break-word font-mono text-lg font-semibold text-brand-primary">
+              {trackingStatus.publicReference}
+            </p>
+          </div>
         </div>
         <p className="max-w-2xl text-sm leading-6 text-text-secondary">
           {trackingStatus.statusDescription}
         </p>
       </header>
 
-      <MetadataGrid>
-        <MetadataItem
-          label="Código de seguimiento"
-          value={
-            <span className="font-mono font-semibold">
-              {trackingStatus.publicReference}
-            </span>
-          }
-        />
+      <MetadataGrid className="mt-6 rounded-(--radius-card) border border-border bg-surface-raised p-4 sm:p-5">
         <MetadataItem label="Tipo" value={isPedido ? "Pedido" : "Solicitud"} />
         <MetadataItem label="Flujo" value={trackingStatus.workflowLabel} />
         <MetadataItem
@@ -135,7 +148,9 @@ export function PublicTrackingResultCard({
         ) : null}
       </MetadataGrid>
 
-      <PublicProgress progress={trackingStatus.progress} />
+      <div className="mt-6">
+        <PublicProgress progress={trackingStatus.progress} />
+      </div>
     </Card>
   );
 }
