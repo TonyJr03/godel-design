@@ -241,8 +241,8 @@ Según el alcance, deben existir:
 | 9     | Listados operativos de Pedidos y Solicitudes | Cerrada   |
 | 10    | Listados administrativos                     | Cerrada   |
 | 11    | Dashboard operativo                          | Cerrada   |
-| 12    | Formularios internos y páginas secundarias   | En curso |
-| 13    | Área pública                                 | Pendiente |
+| 12    | Formularios internos y páginas secundarias   | Cerrada   |
+| 13    | Área pública                                 | Completada |
 | 14    | Estados transversales y resiliencia UI       | Pendiente |
 | 15    | Optimización basada en mediciones            | Pendiente |
 | 16    | QA integral y cierre del rediseño            | Pendiente |
@@ -1155,21 +1155,49 @@ Los formularios internos siguen una estrategia consistente: crear/editar corto s
 
 ## Etapa 13 — Consolidación del área pública
 
+### Estado
+
+Completada.
+
 ### Objetivo
 
 Alinear visualmente las pantallas públicas con la calidad alcanzada en el área interna.
+
+La decisión principal de esta etapa es separar visualmente tres zonas sin mover
+URLs: área pública para clientes, puerta interna en `/login` y área interna
+autenticada en `/dashboard/**`. El login conserva la URL `/login`, pero debe
+tratarse como acceso interno, no como página pública de marketing.
+
+Documento principal:
+
+```text
+docs/ui-ux/PUBLIC_AREA_STAGE_13_PLAN.md
+```
 
 ### Alcance
 
 * página principal;
 * formulario público de solicitud;
 * consulta de estado;
-* login;
-* acceso denegado cuando corresponda;
-* 404;
+* login como puerta interna;
+* 404 pública;
 * cabecera pública;
 * estados de éxito y error;
 * responsive.
+
+### Subtareas
+
+* 13.1 Auditoría y especificación de separación pública / login / interna — Completado.
+* 13.2 Marco público y puerta interna — Completado.
+* 13.3 Home pública — Completado.
+  Nota: 13.3.2 refinó la home hacia una identidad pública más luminosa sin cambiar rutas ni ampliar alcance público.
+  Nota: 13.3.3 reforzó azul como protagonista visual, header/footer de marca e iconos SVG sociales sin avanzar subtareas posteriores.
+  Nota: 13.3.4 dejó el header sticky, extrajo el footer público reutilizable y limpió el hero moviendo el proceso a sección propia.
+* 13.4 Solicitud pública — Completado.
+* 13.5 Consulta pública de estado — Completado.
+* 13.6 404 pública y estados públicos — Completado.
+* 13.7 QA responsive y accesibilidad pública — Completado.
+* 13.8 Cierre de Etapa 13 — Completado.
 
 ### Restricciones
 
@@ -1178,11 +1206,21 @@ Alinear visualmente las pantallas públicas con la calidad alcanzada en el área
 * No añadir pagos.
 * No crear panel de cliente.
 * No ampliar datos públicos.
+* No cambiar Server Actions.
+* No cambiar RLS.
+* No cambiar Storage.
+* No cambiar permisos.
+* No tocar lógica de dominio.
+* No mover rutas en esta etapa sin decisión explícita.
 * Mantener tracking mínimo y seguro.
 
 ### Criterio de cierre
 
-La entrada pública al sistema presenta una experiencia clara, profesional, segura y coherente con la identidad visual general.
+La entrada pública al sistema presenta una experiencia clara, profesional,
+segura y coherente con la identidad visual general; `/login` funciona como
+puerta interna separada de la navegación pública; `/estado` conserva el DTO
+público mínimo; no se introducen catálogo, carrito, pagos, panel de cliente ni
+datos públicos adicionales; y el área pública no enlaza visualmente al login.
 
 ---
 
@@ -1546,10 +1584,11 @@ No introducir paginación, caché, virtualización o paralelización compleja si
 La siguiente subtarea oficial de esta iniciativa es:
 
 ```text
-12.7 — Formularios operativos en workspaces/paneles
+13.2 — Marco público y puerta interna
 ```
 
-El siguiente entregable debe continuar con los formularios operativos pendientes en workspaces, manteniendo las acciones inline cuando dependan del contexto permanente del panel.
+El siguiente entregable debe continuar con la home pública sin exponer enlaces
+visibles hacia `/login` y sin mover rutas ni cambiar autenticación.
 
 ---
 

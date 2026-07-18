@@ -37,7 +37,7 @@ export function PublicTrackingSearchForm({
           name="ref"
           type="text"
           defaultValue={defaultReference}
-          placeholder="GD-8F3A-92BC"
+          placeholder="GD-XXXX-XXXX"
           autoComplete="off"
           autoCapitalize="characters"
           spellCheck={false}
