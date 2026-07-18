@@ -140,14 +140,14 @@ export function PublicSolicitudForm() {
       ref={formRef}
       action={formAction}
       aria-busy={pending}
-      className="space-y-6"
+      className="space-y-5 sm:space-y-6"
     >
       {state.message ? (
         <Alert
           variant={state.ok ? "success" : "danger"}
           title={state.ok ? "Hemos recibido tu solicitud" : "Revisa la solicitud"}
           aria-live="polite"
-          className="px-5 py-4"
+          className="px-5 py-4 shadow-(--shadow-soft)"
         >
           <p className="leading-6">{state.message}</p>
           {state.ok && state.publicReference ? (
@@ -156,7 +156,7 @@ export function PublicSolicitudForm() {
                 code={state.publicReference}
                 label="Código de seguimiento"
                 helperText="Guarda este código. Lo usarás para consultar el estado de tu solicitud o pedido cuando la consulta esté disponible en el sistema."
-                className="border-success/20 bg-surface"
+                className="border-success/25 bg-surface shadow-(--shadow-soft)"
               />
               {typeof state.uploadedFilesCount === "number" ? (
                 <p className="text-sm text-text-secondary">
@@ -192,13 +192,14 @@ export function PublicSolicitudForm() {
       <FormSection
         title="¿Qué necesitas?"
         description="Elige la opción que mejor describe tu solicitud. Ambas llegan al mismo equipo para su revisión."
+        className="border-brand-primary/12"
       >
         <input type="hidden" name="workflow_type" value={workflowType} />
         <div
           role="tablist"
           aria-label="Tipo de solicitud"
           aria-describedby={workflowTypeError ? "workflow_type-error" : undefined}
-          className="grid gap-2 rounded-(--radius-card) border border-border bg-surface-muted p-2 sm:grid-cols-2"
+          className="grid gap-2 rounded-(--radius-card) border border-brand-primary/15 bg-brand-primary-soft p-2 sm:grid-cols-2"
         >
           {WORKFLOW_TABS.map((tab) => {
             const isActive = workflowType === tab.value;
@@ -221,17 +222,17 @@ export function PublicSolicitudForm() {
                   handleWorkflowTabKeyDown(event, tab.value)
                 }
                 className={[
-                  "min-h-24 cursor-pointer rounded-(--radius-control) border px-4 py-3 text-left transition-[background-color,border-color,box-shadow,color] duration-200 disabled:cursor-not-allowed disabled:opacity-60",
+                  "min-h-24 cursor-pointer rounded-(--radius-control) border px-4 py-3 text-left transition-[background-color,border-color,box-shadow,color] duration-200 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-60",
                   isActive
-                    ? "border-brand-primary bg-surface text-brand-primary shadow-(--shadow-soft)"
-                    : "border-transparent bg-transparent text-text-primary hover:border-border-strong hover:bg-surface/70",
+                    ? "border-brand-primary bg-brand-primary text-white shadow-(--shadow-soft)"
+                    : "border-transparent bg-surface text-text-primary hover:border-brand-primary/35 hover:bg-surface-raised",
                 ].join(" ")}
               >
                 <span className="block text-sm font-semibold">{tab.label}</span>
                 <span
                   className={[
                     "mt-1 block text-sm leading-5",
-                    isActive ? "text-text-primary" : "text-text-secondary",
+                    isActive ? "text-white/80" : "text-text-secondary",
                   ].join(" ")}
                 >
                   {tab.description}
@@ -248,6 +249,7 @@ export function PublicSolicitudForm() {
       <FormSection
         title="1. Datos de contacto"
         description="Indícanos cómo podemos comunicarnos contigo para revisar la solicitud."
+        className="border-brand-primary/12"
       >
         <div className="grid gap-5 sm:grid-cols-2">
           <FormField
@@ -322,6 +324,7 @@ export function PublicSolicitudForm() {
           <FormSection
             title="2. Datos de impresión"
             description="Indica cómo debemos preparar el documento. Confirmaremos contigo cualquier detalle antes de producirlo."
+            className="border-brand-primary/12"
           >
             <div className="grid gap-5 sm:grid-cols-2">
               <FormField
@@ -452,6 +455,7 @@ export function PublicSolicitudForm() {
           <FormSection
             title="2. Detalles del encargo"
             description="No necesitas tenerlo todo decidido. Comparte lo que sabes y aclararemos el resto contigo."
+            className="border-brand-primary/12"
           >
             <div className="grid gap-5 sm:grid-cols-2">
               <FormField
@@ -554,6 +558,7 @@ export function PublicSolicitudForm() {
               ? "Adjunta el documento que deseas imprimir. El archivo es obligatorio para enviar esta solicitud."
               : "Adjunta diseños, imágenes, logos, documentos o referencias que nos ayuden a entender mejor el trabajo."
           }
+          className="border-brand-primary/12"
         >
           <FormField
             id="files"
@@ -590,7 +595,7 @@ export function PublicSolicitudForm() {
                 invalid={invalid}
                 aria-describedby={describedBy}
                 disabled={pending}
-                className="min-h-12 cursor-pointer p-1 text-sm file:mr-3 file:min-h-10 file:cursor-pointer file:rounded-(--radius-control) file:border-0 file:bg-brand-primary-soft file:px-4 file:text-sm file:font-semibold file:text-brand-primary hover:file:bg-info-soft"
+                className="min-h-12 cursor-pointer p-1 text-sm file:mr-3 file:min-h-10 file:cursor-pointer file:rounded-(--radius-control) file:border-0 file:bg-brand-primary file:px-4 file:text-sm file:font-semibold file:text-white hover:file:bg-brand-primary-hover"
               />
             )}
           </FormField>
@@ -600,8 +605,9 @@ export function PublicSolicitudForm() {
       <FormSection
         title="4. Revisa y envía"
         description="Al enviar, registraremos la solicitud para que el equipo pueda revisarla y contactarte."
+        className="border-brand-primary/12"
       >
-        <div className="rounded-(--radius-control) border border-border bg-surface-raised px-4 py-3 text-sm leading-6 text-text-secondary">
+        <div className="rounded-(--radius-control) border border-brand-primary/15 bg-brand-primary-soft px-4 py-3 text-sm leading-6 text-text-secondary">
           <p>
             La solicitud no confirma todavía el precio, la fecha ni el inicio
             del trabajo. Esos detalles se acordarán contigo antes de preparar
@@ -616,7 +622,7 @@ export function PublicSolicitudForm() {
             type="submit"
             size="lg"
             disabled={pending}
-            className="w-full sm:w-auto"
+            className="w-full shadow-(--shadow-soft) sm:w-auto sm:min-w-56"
           >
             {pending ? "Enviando solicitud..." : "Enviar solicitud"}
           </Button>

@@ -1193,7 +1193,7 @@ docs/ui-ux/PUBLIC_AREA_STAGE_13_PLAN.md
   Nota: 13.3.2 refinó la home hacia una identidad pública más luminosa sin cambiar rutas ni ampliar alcance público.
   Nota: 13.3.3 reforzó azul como protagonista visual, header/footer de marca e iconos SVG sociales sin avanzar subtareas posteriores.
   Nota: 13.3.4 dejó el header sticky, extrajo el footer público reutilizable y limpió el hero moviendo el proceso a sección propia.
-* 13.4 Solicitud pública — Pendiente.
+* 13.4 Solicitud pública — Completado.
 * 13.5 Consulta pública de estado — Pendiente.
 * 13.6 404 pública y estados públicos — Pendiente.
 * 13.7 QA responsive y accesibilidad pública — Pendiente.

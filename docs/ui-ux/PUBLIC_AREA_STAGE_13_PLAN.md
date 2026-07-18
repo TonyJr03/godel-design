@@ -293,6 +293,14 @@ Corrección 13.3.7:
 - Preservar tabs, validaciones, archivos, pending, éxito y errores.
 - Revisar mobile y accesibilidad.
 
+Nota de implementación 13.4:
+
+- `/solicitud` se alineó visualmente con la identidad pública de la home.
+- Se mantuvo el contrato funcional del formulario público.
+- Se conservaron seguridad, validaciones, archivos y mensajes.
+- Se agregó el footer público reutilizable.
+- No se tocaron Server Actions, RLS, Storage, permisos ni modelo de datos.
+
 ### 13.5 - Consulta pública de estado
 
 - Consolidar formulario, resultado, estado inicial y errores.
