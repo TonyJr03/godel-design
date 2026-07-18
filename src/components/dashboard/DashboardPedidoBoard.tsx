@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Alert } from "@/components/ui/Alert";
+import { EmptyState } from "@/components/ui/EmptyState";
 import type {
   DashboardPedidoBoard as DashboardPedidoBoardData,
   DashboardPedidoBoardGroup,
@@ -268,36 +269,44 @@ export function DashboardPedidoBoard({ result }: DashboardPedidoBoardProps) {
       </h2>
 
       {!hasPedidos ? (
-        <div className="rounded-(--radius-control) border border-border bg-surface-muted px-4 py-3">
-          <p className="text-sm text-text-secondary">
-            {isWorkerBoard
-              ? "No hay pedidos asignados en seguimiento."
-              : "No hay pedidos activos en seguimiento."}
-          </p>
-        </div>
-      ) : null}
+        <EmptyState
+          title={
+            isWorkerBoard
+              ? "No tienes pedidos activos asignados"
+              : "No hay pedidos activos"
+          }
+          description={
+            isWorkerBoard
+              ? "No hay pedidos asignados que requieran seguimiento en este momento."
+              : "No hay pedidos nuevos, en revisión ni en producción en este momento."
+          }
+          className="p-4 shadow-none"
+        />
+      ) : (
+        <>
+          <div className="grid min-w-0 gap-3 xl:grid-cols-2">
+            <DashboardPedidoBoardSection
+              group={board.nuevos}
+              variant="compact"
+              isWorkerBoard={isWorkerBoard}
+            />
+            <DashboardPedidoBoardSection
+              group={board.enRevision}
+              variant="compact"
+              isWorkerBoard={isWorkerBoard}
+            />
+          </div>
 
-      <div className="grid min-w-0 gap-3 xl:grid-cols-2">
-        <DashboardPedidoBoardSection
-          group={board.nuevos}
-          variant="compact"
-          isWorkerBoard={isWorkerBoard}
-        />
-        <DashboardPedidoBoardSection
-          group={board.enRevision}
-          variant="compact"
-          isWorkerBoard={isWorkerBoard}
-        />
-      </div>
-
-      <div className="mt-3">
-        <DashboardPedidoBoardSection
-          group={board.enProduccion}
-          variant="wide"
-          isWorkerBoard={isWorkerBoard}
-          showProgress
-        />
-      </div>
+          <div className="mt-3">
+            <DashboardPedidoBoardSection
+              group={board.enProduccion}
+              variant="wide"
+              isWorkerBoard={isWorkerBoard}
+              showProgress
+            />
+          </div>
+        </>
+      )}
     </section>
   );
 }

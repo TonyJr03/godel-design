@@ -1268,7 +1268,7 @@ docs/ui-ux/TRANSVERSAL_STATES_STAGE_14_PLAN.md
 * 14.1 Auditoría de estados transversales — Completado.
 * 14.2 Matriz de estados y decisiones UI — Completado.
 * 14.3 App Router states por segmento — Completado.
-* 14.4 Estados vacíos y sin resultados — Propuesto.
+* 14.4 Estados vacíos y sin resultados — Completado.
 * 14.5 Errores de datos y retry seguro — Propuesto.
 * 14.6 Pending y action feedback — Propuesto.
 * 14.7 Fallos parciales en dashboard y workspaces — Propuesto.
@@ -1319,6 +1319,16 @@ interno existente, sin duplicar sidebar. `/estado` incorpora fallback de carga y
 error público con `PublicHeader currentPage="estado"` y `PublicFooter`. No se
 agregaron skeletons globales, componentes genéricos nuevos ni cambios de
 Server Actions, RLS, Storage, permisos, DTO público o lógica de dominio.
+
+### Nota de implementación 14.4
+
+Se normalizaron estados vacíos del dashboard sin cambiar dominio ni datos. Los
+paneles de solicitudes pendientes y pedidos listos dejaron de usar estado de
+búsqueda cuando representan ausencia real, y el tablero de pedidos activos
+muestra un único `EmptyState` compacto cuando no existe ningún pedido en sus
+grupos. Los listados internos se conservaron porque ya diferencian filtros sin
+resultados de ausencia real, y los workspaces mantienen estados inline para
+secciones secundarias.
 
 ### Criterio de cierre
 
@@ -1651,13 +1661,13 @@ No introducir paginación, caché, virtualización o paralelización compleja si
 La siguiente subtarea oficial de esta iniciativa es:
 
 ```text
-14.4 — Estados vacíos y sin resultados
+14.5 — Errores de datos y retry seguro
 ```
 
-El siguiente entregable debe normalizar estados vacíos y sin resultados donde la
-matriz documentada en `docs/ui-ux/TRANSVERSAL_STATES_DECISION_MATRIX.md` lo
-justifique, sin modificar Server Actions, RLS, Storage, permisos, DTO público ni
-lógica de dominio.
+El siguiente entregable debe definir y aplicar retry seguro para lecturas y
+errores de datos donde la matriz documentada en
+`docs/ui-ux/TRANSVERSAL_STATES_DECISION_MATRIX.md` lo justifique, sin modificar
+Server Actions, RLS, Storage, permisos, DTO público ni lógica de dominio.
 
 ---
 

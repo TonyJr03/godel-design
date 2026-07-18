@@ -140,7 +140,6 @@ export function DashboardReadyOrdersPanel({
             ? "No tienes pedidos listos para entrega."
             : "No hay pedidos listos para entrega en este momento."
         }
-        variant="search"
         className="p-4 shadow-none"
       />
     );

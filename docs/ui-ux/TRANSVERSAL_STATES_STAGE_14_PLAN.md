@@ -1,4 +1,4 @@
-# Etapa 14.1 - Auditoría de estados transversales y resiliencia UI
+# Etapa 14 — Estados transversales y resiliencia UI
 
 ## 1. Objetivo
 
@@ -214,7 +214,7 @@ docs/ui-ux/TRANSVERSAL_STATES_DECISION_MATRIX.md
 | 14.1 | Auditoría de estados transversales | Inventariar estados, rutas, inconsistencias y plan de trabajo. | Completado |
 | 14.2 | Matriz de estados y decisiones UI | Definir cuándo usar loading, error, empty, not-found, permisos, acceso denegado, retry y degradación segura. | Completado |
 | 14.3 | App Router states por segmento | Agregar o ajustar `loading.tsx`, `error.tsx` y `not-found.tsx` solo en segmentos justificados. | Completado |
-| 14.4 | Estados vacíos y sin resultados | Normalizar empty states de listados, dashboard y paneles sin crear abstracción excesiva. | Propuesta |
+| 14.4 | Estados vacíos y sin resultados | Normalizar empty states de listados, dashboard y paneles sin crear abstracción excesiva. | Completado |
 | 14.5 | Errores de datos y retry seguro | Definir patrón de retry para lecturas y errores temporales sin reintentar mutaciones peligrosas. | Propuesta |
 | 14.6 | Pending y action feedback | Normalizar pending copy, `aria-busy`, disabled states, éxitos y errores de formularios. | Propuesta |
 | 14.7 | Fallos parciales en dashboard y workspaces | Consolidar degradación segura para paneles secundarios, previews y action rail. | Propuesta |
@@ -271,6 +271,28 @@ sidebar ni ocupar una pantalla completa. El loading público conserva
 `PublicHeader currentPage="estado"` y `PublicFooter`, pero elimina el hero grande
 y usa un panel breve con copy seguro. No se tocaron error boundaries, dominio,
 DTO público, RLS, Storage, permisos ni Server Actions.
+
+### Nota de implementación 14.4
+
+Se normalizó la diferencia entre ausencia real de datos y búsqueda sin
+resultados sin ampliar `EmptyState` ni crear componentes nuevos. Los listados
+principales de pedidos, solicitudes, clientes, usuarios y plantillas se
+conservaron porque ya usan `EmptyState` `search` únicamente cuando existen
+filtros o búsqueda activos, y `default` para ausencia real.
+
+En dashboard se corrigió la semántica de los paneles de solicitudes pendientes y
+pedidos listos para entrega: ambos dejan de usar `variant="search"` porque no
+representan una búsqueda filtrada. El tablero de pedidos activos también se
+consolidó para que, cuando no haya pedidos en ningún grupo, muestre un único
+`EmptyState` compacto con copy específico por rol en lugar de renderizar el aviso
+general y las tres secciones vacías.
+
+Los estados inline de archivos, comentarios, historial, tareas, personal y
+plantillas en workspaces se mantuvieron porque son secciones secundarias con
+contexto propio y mensajes compactos. Cuando existe `loadError`, el error sigue
+teniendo prioridad mediante `Alert` y no se muestra simultáneamente un empty
+state. No se modificaron dominio, permisos, RLS, Storage, DTO público, queries
+ni Server Actions.
 
 ## 10. Criterios de cierre de Etapa 14
 

@@ -113,7 +113,6 @@ export function DashboardPendingRequestsPanel({
       <EmptyState
         title="Sin solicitudes pendientes"
         description="No hay solicitudes abiertas que requieran gestión inmediata."
-        variant="search"
         className="p-4 shadow-none"
       />
     );
