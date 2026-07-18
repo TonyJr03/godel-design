@@ -243,7 +243,7 @@ Según el alcance, deben existir:
 | 11    | Dashboard operativo                          | Cerrada   |
 | 12    | Formularios internos y páginas secundarias   | Cerrada   |
 | 13    | Área pública                                 | Completada |
-| 14    | Estados transversales y resiliencia UI       | Pendiente |
+| 14    | Estados transversales y resiliencia UI       | En curso |
 | 15    | Optimización basada en mediciones            | Pendiente |
 | 16    | QA integral y cierre del rediseño            | Pendiente |
 
@@ -1226,9 +1226,19 @@ datos públicos adicionales; y el área pública no enlaza visualmente al login.
 
 ## Etapa 14 — Estados transversales y resiliencia UI
 
+### Estado
+
+En curso.
+
 ### Objetivo
 
 Especializar los estados de transición, error y ausencia de datos en toda la aplicación.
+
+Documento principal:
+
+```text
+docs/ui-ux/TRANSVERSAL_STATES_STAGE_14_PLAN.md
+```
 
 ### Alcance
 
@@ -1252,6 +1262,32 @@ Especializar los estados de transición, error y ausencia de datos en toda la ap
 * No reemplazar errores útiles por mensajes genéricos.
 * Diferenciar error de permisos, error de red, ausencia y recurso inexistente.
 * Mantener los datos ya disponibles cuando una carga secundaria falle.
+
+### Subtareas
+
+* 14.1 Auditoría de estados transversales — Completado.
+* 14.2 Matriz de estados y decisiones UI — Propuesto.
+* 14.3 App Router states por segmento — Propuesto.
+* 14.4 Estados vacíos y sin resultados — Propuesto.
+* 14.5 Errores de datos y retry seguro — Propuesto.
+* 14.6 Pending y action feedback — Propuesto.
+* 14.7 Fallos parciales en dashboard y workspaces — Propuesto.
+* 14.8 Permisos, acceso denegado y recurso inexistente — Propuesto.
+* 14.9 Confirmaciones y acciones destructivas — Propuesto.
+* 14.10 QA y cierre de Etapa 14 — Propuesto.
+
+### Nota de auditoría 14.1
+
+La auditoría confirmó que no existen `loading.tsx`, `error.tsx` ni
+`global-error.tsx` segmentados; sí existen 404 pública, 404 interna, páginas de
+acceso denegado y sin permisos, `EmptyState`, `Alert`, pending states extendidos
+con `useActionState`, fallos parciales en workspaces/dashboard y degradación
+segura en la solicitud pública cuando fallan archivos adjuntos.
+
+Los problemas principales detectados son falta de estrategia segmentada para
+carga/error inicial, ausencia de retry transversal, mezcla de patrones de vacíos
+en dashboard, diferencias entre pending de toolbars, confirmaciones destructivas
+no normalizadas y fallos parciales resueltos por dominio sin contrato común.
 
 ### Criterio de cierre
 
@@ -1584,11 +1620,14 @@ No introducir paginación, caché, virtualización o paralelización compleja si
 La siguiente subtarea oficial de esta iniciativa es:
 
 ```text
-13.2 — Marco público y puerta interna
+14.2 — Matriz de estados y decisiones UI
 ```
 
-El siguiente entregable debe continuar con la home pública sin exponer enlaces
-visibles hacia `/login` y sin mover rutas ni cambiar autenticación.
+El siguiente entregable debe definir la matriz de decisión para carga inicial,
+carga parcial, error de acción, error de datos, sin resultados, sin permisos,
+acceso denegado, recurso inexistente, confirmación, éxito, error temporal y
+degradación segura, sin modificar Server Actions, RLS, Storage, permisos, DTO
+público ni lógica de dominio.
 
 ---
 
