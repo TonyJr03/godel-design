@@ -15,6 +15,12 @@ queries, componentes, estilos ni lógica de dominio.
 
 ## 2. Alcance auditado
 
+Documento de decisión derivado de esta auditoría:
+
+```text
+docs/ui-ux/TRANSVERSAL_STATES_DECISION_MATRIX.md
+```
+
 ### Rutas revisadas
 
 - Área pública: `/`, `/solicitud`, `/estado` y 404 pública.
@@ -206,7 +212,7 @@ queries, componentes, estilos ni lógica de dominio.
 | Subtarea | Nombre | Objetivo | Estado |
 | --- | --- | --- | --- |
 | 14.1 | Auditoría de estados transversales | Inventariar estados, rutas, inconsistencias y plan de trabajo. | Completado |
-| 14.2 | Matriz de estados y decisiones UI | Definir cuándo usar loading, error, empty, not-found, permisos, acceso denegado, retry y degradación segura. | Propuesta |
+| 14.2 | Matriz de estados y decisiones UI | Definir cuándo usar loading, error, empty, not-found, permisos, acceso denegado, retry y degradación segura. | Completado |
 | 14.3 | App Router states por segmento | Agregar o ajustar `loading.tsx`, `error.tsx` y `not-found.tsx` solo en segmentos justificados. | Propuesta |
 | 14.4 | Estados vacíos y sin resultados | Normalizar empty states de listados, dashboard y paneles sin crear abstracción excesiva. | Propuesta |
 | 14.5 | Errores de datos y retry seguro | Definir patrón de retry para lecturas y errores temporales sin reintentar mutaciones peligrosas. | Propuesta |
@@ -215,6 +221,18 @@ queries, componentes, estilos ni lógica de dominio.
 | 14.8 | Permisos, acceso denegado y recurso inexistente | Alinear `/sin-permisos`, `/acceso-denegado`, 404 pública e interna y estados embebidos de permiso. | Propuesta |
 | 14.9 | Confirmaciones y acciones destructivas | Revisar cierre con cambios, eliminaciones inline y feedback posterior sin tocar reglas de dominio. | Propuesta |
 | 14.10 | QA y cierre de Etapa 14 | Validar rutas críticas, responsive, accesibilidad, seguridad visual y documentación de cierre. | Propuesta |
+
+### Nota de implementación 14.2
+
+Se creó `docs/ui-ux/TRANSVERSAL_STATES_DECISION_MATRIX.md` como contrato base
+para las subtareas 14.3 en adelante. La matriz define cuándo usar `loading.tsx`,
+`error.tsx`, `not-found.tsx`, `EmptyState`, `Alert`, estados inline, pending,
+retry, navegación de regreso, confirmación y conservación de datos parciales.
+
+La matriz también fija reglas por zona, retry, skeleton/loading, errores,
+seguridad y accesibilidad. Las subtareas futuras deben implementar sobre este
+contrato sin cambiar Server Actions, RLS, Storage, permisos, DTO público ni
+lógica de dominio.
 
 ## 10. Criterios de cierre de Etapa 14
 

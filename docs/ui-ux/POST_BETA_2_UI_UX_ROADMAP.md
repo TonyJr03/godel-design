@@ -1266,7 +1266,7 @@ docs/ui-ux/TRANSVERSAL_STATES_STAGE_14_PLAN.md
 ### Subtareas
 
 * 14.1 Auditoría de estados transversales — Completado.
-* 14.2 Matriz de estados y decisiones UI — Propuesto.
+* 14.2 Matriz de estados y decisiones UI — Completado.
 * 14.3 App Router states por segmento — Propuesto.
 * 14.4 Estados vacíos y sin resultados — Propuesto.
 * 14.5 Errores de datos y retry seguro — Propuesto.
@@ -1288,6 +1288,19 @@ Los problemas principales detectados son falta de estrategia segmentada para
 carga/error inicial, ausencia de retry transversal, mezcla de patrones de vacíos
 en dashboard, diferencias entre pending de toolbars, confirmaciones destructivas
 no normalizadas y fallos parciales resueltos por dominio sin contrato común.
+
+### Nota de implementación 14.2
+
+Se creó `docs/ui-ux/TRANSVERSAL_STATES_DECISION_MATRIX.md` como matriz
+documental de decisiones UI. Queda adoptada como contrato base para decidir
+entre `loading.tsx`, `error.tsx`, `not-found.tsx`, `EmptyState`, `Alert`,
+estado inline, pending, retry, navegación de regreso, confirmación y
+conservación de datos parciales antes de implementar las subtareas 14.3 en
+adelante.
+
+La matriz separa reglas por zona, retry, skeleton/loading, errores, seguridad y
+accesibilidad. Las subtareas futuras permanecen propuestas y no se consideran
+implementadas por esta documentación.
 
 ### Criterio de cierre
 
@@ -1620,14 +1633,13 @@ No introducir paginación, caché, virtualización o paralelización compleja si
 La siguiente subtarea oficial de esta iniciativa es:
 
 ```text
-14.2 — Matriz de estados y decisiones UI
+14.3 — App Router states por segmento
 ```
 
-El siguiente entregable debe definir la matriz de decisión para carga inicial,
-carga parcial, error de acción, error de datos, sin resultados, sin permisos,
-acceso denegado, recurso inexistente, confirmación, éxito, error temporal y
-degradación segura, sin modificar Server Actions, RLS, Storage, permisos, DTO
-público ni lógica de dominio.
+El siguiente entregable debe evaluar e implementar, solo donde aporte valor,
+`loading.tsx`, `error.tsx` y `not-found.tsx` por segmento según la matriz
+documentada en `docs/ui-ux/TRANSVERSAL_STATES_DECISION_MATRIX.md`, sin modificar
+Server Actions, RLS, Storage, permisos, DTO público ni lógica de dominio.
 
 ---
 
