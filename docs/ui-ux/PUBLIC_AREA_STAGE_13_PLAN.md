@@ -342,6 +342,15 @@ Corrección 13.6.1:
 - Ejecutar pruebas focales permitidas según cambios de código de esa subtarea.
 - No ejecutar Full Visual QA salvo cierre o decisión explícita.
 
+Nota de implementación 13.7:
+
+- Rutas revisadas: `/`, `/solicitud`, `/estado`, `/estado?ref=INVALIDA` y `/no-existe`.
+- Breakpoints revisados: 1440x900, 1024x768, 768x1024 y 390x844.
+- Hallazgos: no se detectó overflow horizontal; `PublicHeader` sticky y `PublicFooter` se mantienen consistentes; la navegación pública no expone enlaces internos; `/estado` conserva datos públicos mínimos; la 404 conserva acciones públicas integradas en el hero.
+- Correcciones mínimas: no fueron necesarias correcciones de código en 13.7.
+- Búsquedas: sin coincidencias en fugas público/interno ni datos sensibles de tracking; la búsqueda de contrato de `PublicSolicitudForm` confirmó `submitPublicSolicitudAction`, `workflow_type`, `STORAGE_FILE_INPUT_ACCEPT`, `name` e `id`.
+- Estado recomendado: avanzar a 13.8 Cierre de Etapa 13.
+
 ### 13.8 - Cierre de Etapa 13
 
 - Documentar resultados, decisiones finales y deuda aceptada.

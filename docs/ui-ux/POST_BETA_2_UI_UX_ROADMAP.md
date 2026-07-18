@@ -1196,7 +1196,7 @@ docs/ui-ux/PUBLIC_AREA_STAGE_13_PLAN.md
 * 13.4 Solicitud pública — Completado.
 * 13.5 Consulta pública de estado — Completado.
 * 13.6 404 pública y estados públicos — Completado.
-* 13.7 QA responsive y accesibilidad pública — Pendiente.
+* 13.7 QA responsive y accesibilidad pública — Completado.
 * 13.8 Cierre de Etapa 13 — Pendiente.
 
 ### Restricciones
