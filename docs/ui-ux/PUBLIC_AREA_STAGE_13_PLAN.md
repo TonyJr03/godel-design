@@ -359,6 +359,15 @@ Nota de implementación 13.7:
 - Confirmar que no se alteraron dominio, permisos, RLS, Storage ni datos
   públicos.
 
+Nota de cierre 13.8:
+
+- La Etapa 13 queda cerrada y documentada en `docs/ui-ux/STAGE_13_QA_CLOSURE.md`.
+- Se validaron `/`, `/solicitud`, `/estado`, `/estado?ref=INVALIDA`, `/no-existe` y `/login`.
+- Se confirmó la separación entre área pública, puerta interna y dashboard autenticado.
+- No se detectaron enlaces públicos hacia `/login` ni exposición de datos privados en `/estado`.
+- No se modificaron dominio, Server Actions, DTO público, queries, auth, permisos, RLS, Storage, modelo de datos ni rutas.
+- Queda como pendiente no bloqueante revisar el teardown de Playwright cuando los tests visibles terminan correctamente pero el proceso alcanza timeout local.
+
 ## 10. Criterios de cierre de Etapa 13
 
 La Etapa 13 se considera cerrada cuando:

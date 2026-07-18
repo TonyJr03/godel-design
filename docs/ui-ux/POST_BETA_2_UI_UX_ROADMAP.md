@@ -242,7 +242,7 @@ Según el alcance, deben existir:
 | 10    | Listados administrativos                     | Cerrada   |
 | 11    | Dashboard operativo                          | Cerrada   |
 | 12    | Formularios internos y páginas secundarias   | Cerrada   |
-| 13    | Área pública                                 | En curso |
+| 13    | Área pública                                 | Completada |
 | 14    | Estados transversales y resiliencia UI       | Pendiente |
 | 15    | Optimización basada en mediciones            | Pendiente |
 | 16    | QA integral y cierre del rediseño            | Pendiente |
@@ -1157,7 +1157,7 @@ Los formularios internos siguen una estrategia consistente: crear/editar corto s
 
 ### Estado
 
-En curso.
+Completada.
 
 ### Objetivo
 
@@ -1197,7 +1197,7 @@ docs/ui-ux/PUBLIC_AREA_STAGE_13_PLAN.md
 * 13.5 Consulta pública de estado — Completado.
 * 13.6 404 pública y estados públicos — Completado.
 * 13.7 QA responsive y accesibilidad pública — Completado.
-* 13.8 Cierre de Etapa 13 — Pendiente.
+* 13.8 Cierre de Etapa 13 — Completado.
 
 ### Restricciones
 
