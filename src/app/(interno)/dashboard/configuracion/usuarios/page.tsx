@@ -3,6 +3,7 @@ import {
   ListingToolbar,
 } from "@/components/listing";
 import { Alert } from "@/components/ui/Alert";
+import { ReadErrorAlert } from "@/components/ui/ReadErrorAlert";
 import { UserCreateDialogButton } from "@/components/usuarios/UserCreateDialogButton";
 import { InternalUsersList } from "@/components/usuarios/InternalUsersList";
 import { listInternalUsers } from "@/lib/usuarios";
@@ -89,7 +90,13 @@ export default async function DashboardConfiguracionUsuariosPage({
       ) : null}
 
       {!result.ok ? (
-        <Alert variant="danger">{result.message}</Alert>
+        <ReadErrorAlert
+          variant="danger"
+          title="No se pudieron cargar los usuarios"
+          retryable={result.reason === "error"}
+        >
+          <p>{result.message}</p>
+        </ReadErrorAlert>
       ) : (
         <InternalUsersList
           users={result.users}

@@ -1269,7 +1269,7 @@ docs/ui-ux/TRANSVERSAL_STATES_STAGE_14_PLAN.md
 * 14.2 Matriz de estados y decisiones UI — Completado.
 * 14.3 App Router states por segmento — Completado.
 * 14.4 Estados vacíos y sin resultados — Completado.
-* 14.5 Errores de datos y retry seguro — Propuesto.
+* 14.5 Errores de datos y retry seguro — Completado.
 * 14.6 Pending y action feedback — Propuesto.
 * 14.7 Fallos parciales en dashboard y workspaces — Propuesto.
 * 14.8 Permisos, acceso denegado y recurso inexistente — Propuesto.
@@ -1329,6 +1329,16 @@ muestra un único `EmptyState` compacto cuando no existe ningún pedido en sus
 grupos. Los listados internos se conservaron porque ya diferencian filtros sin
 resultados de ausencia real, y los workspaces mantienen estados inline para
 secciones secundarias.
+
+### Nota de implementación 14.5
+
+Se incorporó `ReadErrorAlert` como patrón de retry seguro para errores
+controlados de lectura. El retry usa `router.refresh()` con pending visible y
+solo aparece cuando `result.reason === "error"`; permisos, acceso denegado,
+códigos públicos inválidos, recursos no encontrados, filtros inválidos,
+validaciones y mutaciones quedan sin retry. Se aplicó a dashboard, listados
+internos principales y error temporal de `/estado`, sin tocar dominio,
+servicios, Server Actions, RLS, Storage, permisos ni DTO público.
 
 ### Criterio de cierre
 
@@ -1661,11 +1671,11 @@ No introducir paginación, caché, virtualización o paralelización compleja si
 La siguiente subtarea oficial de esta iniciativa es:
 
 ```text
-14.5 — Errores de datos y retry seguro
+14.6 — Pending y action feedback
 ```
 
-El siguiente entregable debe definir y aplicar retry seguro para lecturas y
-errores de datos donde la matriz documentada en
+El siguiente entregable debe normalizar copy de pending, `aria-busy`, disabled
+states, éxitos y errores de formularios donde la matriz documentada en
 `docs/ui-ux/TRANSVERSAL_STATES_DECISION_MATRIX.md` lo justifique, sin modificar
 Server Actions, RLS, Storage, permisos, DTO público ni lógica de dominio.
 

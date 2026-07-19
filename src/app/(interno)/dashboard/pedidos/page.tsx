@@ -6,6 +6,7 @@ import { InternalPedidosList } from "@/components/pedidos/InternalPedidosList";
 import { PedidoCreateDialogButton } from "@/components/pedidos/PedidoCreateDialogButton";
 import type { PedidoFormCliente } from "@/components/pedidos/PedidoForm";
 import { Alert } from "@/components/ui/Alert";
+import { ReadErrorAlert } from "@/components/ui/ReadErrorAlert";
 import { listInternalClientes } from "@/lib/clientes";
 import {
   INTERNAL_PEDIDO_ESTADOS,
@@ -148,7 +149,13 @@ export default async function DashboardPedidosPage({
       ) : null}
 
       {!result.ok ? (
-        <Alert variant="danger">{result.message}</Alert>
+        <ReadErrorAlert
+          variant="danger"
+          title="No se pudieron cargar los pedidos"
+          retryable={result.reason === "error"}
+        >
+          <p>{result.message}</p>
+        </ReadErrorAlert>
       ) : (
         <InternalPedidosList
           pedidos={result.pedidos}

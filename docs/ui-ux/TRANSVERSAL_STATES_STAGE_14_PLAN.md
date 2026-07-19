@@ -215,7 +215,7 @@ docs/ui-ux/TRANSVERSAL_STATES_DECISION_MATRIX.md
 | 14.2 | Matriz de estados y decisiones UI | Definir cuándo usar loading, error, empty, not-found, permisos, acceso denegado, retry y degradación segura. | Completado |
 | 14.3 | App Router states por segmento | Agregar o ajustar `loading.tsx`, `error.tsx` y `not-found.tsx` solo en segmentos justificados. | Completado |
 | 14.4 | Estados vacíos y sin resultados | Normalizar empty states de listados, dashboard y paneles sin crear abstracción excesiva. | Completado |
-| 14.5 | Errores de datos y retry seguro | Definir patrón de retry para lecturas y errores temporales sin reintentar mutaciones peligrosas. | Propuesta |
+| 14.5 | Errores de datos y retry seguro | Definir patrón de retry para lecturas y errores temporales sin reintentar mutaciones peligrosas. | Completado |
 | 14.6 | Pending y action feedback | Normalizar pending copy, `aria-busy`, disabled states, éxitos y errores de formularios. | Propuesta |
 | 14.7 | Fallos parciales en dashboard y workspaces | Consolidar degradación segura para paneles secundarios, previews y action rail. | Propuesta |
 | 14.8 | Permisos, acceso denegado y recurso inexistente | Alinear `/sin-permisos`, `/acceso-denegado`, 404 pública e interna y estados embebidos de permiso. | Propuesta |
@@ -293,6 +293,31 @@ contexto propio y mensajes compactos. Cuando existe `loadError`, el error sigue
 teniendo prioridad mediante `Alert` y no se muestra simultáneamente un empty
 state. No se modificaron dominio, permisos, RLS, Storage, DTO público, queries
 ni Server Actions.
+
+### Nota de implementación 14.5
+
+Se creó `src/components/ui/ReadErrorAlert.tsx` como primitiva estrecha para
+errores controlados de lectura. Es un Client Component que compone `Alert` y
+`Button`, usa `useTransition` para el estado pending visible y ejecuta
+`router.refresh()` como único mecanismo de retry. No recibe callbacks, no hace
+fetch propio, no conoce Supabase/PostgreSQL/Storage y no reintenta mutaciones.
+
+La clasificación queda fijada como contrato de implementación: solo se muestra
+retry cuando `result.reason === "error"`. Los casos `unauthorized`, `forbidden`,
+`invalid_reference`, `not_found`, filtros inválidos, validaciones, credenciales
+y accesos denegados no ofrecen retry porque requieren corregir datos, navegar a
+un contexto seguro o resolver permisos fuera de la UI.
+
+El patrón se aplicó a errores de lectura del dashboard, listados internos de
+pedidos, solicitudes, clientes, usuarios y plantillas, y al error temporal de
+consulta pública en `/estado`. En `DashboardAttentionPanel` se eliminó el
+`return null` ante error para no ocultar fallos operativos ni mostrar estados
+positivos falsos. Los fallos parciales de workspaces quedan pospuestos para
+14.7, donde se revisarán paneles, previews y action rail con contrato común.
+
+No se modificaron dominio, servicios, queries, permisos, RLS, Storage, DTO
+público, Server Actions, formularios, loaders ni error boundaries. La siguiente
+subtarea oficial pasa a ser `14.6 — Pending y action feedback`.
 
 ## 10. Criterios de cierre de Etapa 14
 

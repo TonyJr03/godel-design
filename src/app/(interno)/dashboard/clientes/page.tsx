@@ -4,7 +4,7 @@ import {
   ListingPageHeader,
   ListingToolbar,
 } from "@/components/listing";
-import { Alert } from "@/components/ui/Alert";
+import { ReadErrorAlert } from "@/components/ui/ReadErrorAlert";
 import { listInternalClientes } from "@/lib/clientes";
 import { getSingleSearchParam } from "@/lib/utils";
 
@@ -38,7 +38,13 @@ export default async function DashboardClientesPage({
       />
 
       {!result.ok ? (
-        <Alert variant="danger">{result.message}</Alert>
+        <ReadErrorAlert
+          variant="danger"
+          title="No se pudieron cargar los clientes"
+          retryable={result.reason === "error"}
+        >
+          <p>{result.message}</p>
+        </ReadErrorAlert>
       ) : (
         <InternalClientesList
           clientes={result.clientes}

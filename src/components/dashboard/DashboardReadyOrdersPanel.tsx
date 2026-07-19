@@ -1,7 +1,7 @@
 import Link from "next/link";
 
-import { Alert } from "@/components/ui/Alert";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ReadErrorAlert } from "@/components/ui/ReadErrorAlert";
 import type {
   DashboardPedidoWorkItem,
   GetDashboardWorkItemsResult,
@@ -116,15 +116,13 @@ export function DashboardReadyOrdersPanel({
 }: DashboardReadyOrdersPanelProps) {
   if (!result.ok) {
     return (
-      <Alert
+      <ReadErrorAlert
         variant="warning"
         title="No se pudieron cargar los pedidos listos"
+        retryable={result.reason === "error"}
       >
-        <p>
-          Intenta recargar la página o contacta al administrador si el problema
-          continúa.
-        </p>
-      </Alert>
+        <p>{result.message}</p>
+      </ReadErrorAlert>
     );
   }
 

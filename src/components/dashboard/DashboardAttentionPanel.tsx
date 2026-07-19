@@ -1,4 +1,5 @@
 import type { GetDashboardSummaryResult } from "@/lib/dashboard";
+import { ReadErrorAlert } from "@/components/ui/ReadErrorAlert";
 
 type DashboardAttentionPanelProps = {
   result: GetDashboardSummaryResult;
@@ -87,7 +88,15 @@ export function DashboardAttentionPanel({
   result,
 }: DashboardAttentionPanelProps) {
   if (!result.ok) {
-    return null;
+    return (
+      <ReadErrorAlert
+        variant="danger"
+        title="No se pudo cargar la atención operativa"
+        retryable={result.reason === "error"}
+      >
+        <p>{result.message}</p>
+      </ReadErrorAlert>
+    );
   }
 
   const items = getAttentionItems(result);

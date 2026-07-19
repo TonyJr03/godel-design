@@ -1,7 +1,7 @@
 import Link from "next/link";
 
-import { Alert } from "@/components/ui/Alert";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ReadErrorAlert } from "@/components/ui/ReadErrorAlert";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import type {
   DashboardPendingSolicitudItem,
@@ -88,12 +88,13 @@ export function DashboardPendingRequestsPanel({
 }: DashboardPendingRequestsPanelProps) {
   if (!result.ok) {
     return (
-      <Alert variant="warning" title="No se pudieron cargar las solicitudes">
-        <p>
-          Intenta recargar la página o contacta al administrador si el problema
-          continúa.
-        </p>
-      </Alert>
+      <ReadErrorAlert
+        variant="warning"
+        title="No se pudieron cargar las solicitudes"
+        retryable={result.reason === "error"}
+      >
+        <p>{result.message}</p>
+      </ReadErrorAlert>
     );
   }
 

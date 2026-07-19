@@ -4,6 +4,7 @@ import {
 } from "@/components/listing";
 import { InternalSolicitudesList } from "@/components/solicitudes/InternalSolicitudesList";
 import { Alert } from "@/components/ui/Alert";
+import { ReadErrorAlert } from "@/components/ui/ReadErrorAlert";
 import {
   INTERNAL_SOLICITUD_ESTADOS,
   SOLICITUD_STATUS_LABELS,
@@ -94,7 +95,13 @@ export default async function DashboardSolicitudesPage({
       ) : null}
 
       {!result.ok ? (
-        <Alert variant="danger">{result.message}</Alert>
+        <ReadErrorAlert
+          variant="danger"
+          title="No se pudieron cargar las solicitudes"
+          retryable={result.reason === "error"}
+        >
+          <p>{result.message}</p>
+        </ReadErrorAlert>
       ) : (
         <InternalSolicitudesList
           solicitudes={result.solicitudes}

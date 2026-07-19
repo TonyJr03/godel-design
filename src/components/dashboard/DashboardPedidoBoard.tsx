@@ -1,7 +1,7 @@
 import Link from "next/link";
 
-import { Alert } from "@/components/ui/Alert";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ReadErrorAlert } from "@/components/ui/ReadErrorAlert";
 import type {
   DashboardPedidoBoard as DashboardPedidoBoardData,
   DashboardPedidoBoardGroup,
@@ -246,15 +246,13 @@ function DashboardPedidoBoardSection({
 export function DashboardPedidoBoard({ result }: DashboardPedidoBoardProps) {
   if (!result.ok) {
     return (
-      <Alert
+      <ReadErrorAlert
         variant="warning"
         title="No se pudo cargar el tablero de pedidos"
+        retryable={result.reason === "error"}
       >
-        <p>
-          Intenta recargar la página o contacta al administrador si el problema
-          continúa.
-        </p>
-      </Alert>
+        <p>{result.message}</p>
+      </ReadErrorAlert>
     );
   }
 
