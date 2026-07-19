@@ -36,10 +36,14 @@ const initialCreateState: CreateClienteFromSolicitudActionState = {
 function ActionAlert({
   ok,
   message,
+  successTitle,
+  errorTitle,
   className,
 }: {
   ok: boolean;
   message: string;
+  successTitle: string;
+  errorTitle: string;
   className?: string;
 }) {
   if (!message) {
@@ -49,10 +53,11 @@ function ActionAlert({
   return (
     <Alert
       variant={ok ? "success" : "danger"}
+      title={ok ? successTitle : errorTitle}
       aria-live="polite"
       className={className}
     >
-      {message}
+      <p>{message}</p>
     </Alert>
   );
 }
@@ -171,13 +176,21 @@ export function SolicitudClienteForm({
               disabled={!hasClientes || associatePending}
               className="w-full sm:w-auto"
             >
-              {associatePending ? "Guardando..." : associateButtonLabel}
+              {associatePending
+                ? hasClienteAsociado
+                  ? "Actualizando asociación..."
+                  : "Asociando cliente..."
+                : associateButtonLabel}
             </Button>
           </div>
 
           <ActionAlert
             ok={associateState.ok}
             message={associateState.message}
+            successTitle={
+              hasClienteAsociado ? "Asociación actualizada" : "Cliente asociado"
+            }
+            errorTitle="No se pudo asociar el cliente"
             className="mt-3"
           />
         </form>
@@ -197,6 +210,8 @@ export function SolicitudClienteForm({
           <ActionAlert
             ok={createState.ok}
             message={createState.message}
+            successTitle="Cliente creado"
+            errorTitle="No se pudo crear el cliente"
             className="mt-3"
           />
 
@@ -207,7 +222,7 @@ export function SolicitudClienteForm({
             className="mt-4 w-full"
           >
             {createPending
-              ? "Creando..."
+              ? "Creando cliente..."
               : "Crear cliente desde esta solicitud"}
           </Button>
         </form>
@@ -258,6 +273,10 @@ export function SolicitudClienteForm({
           <ActionAlert
             ok={associateState.ok}
             message={associateState.message}
+            successTitle={
+              hasClienteAsociado ? "Asociación actualizada" : "Cliente asociado"
+            }
+            errorTitle="No se pudo asociar el cliente"
             className="mt-3"
           />
 
@@ -266,7 +285,11 @@ export function SolicitudClienteForm({
             disabled={!hasClientes || associatePending}
             className="mt-4 w-full"
           >
-            {associatePending ? "Guardando..." : associateButtonLabel}
+            {associatePending
+              ? hasClienteAsociado
+                ? "Actualizando asociación..."
+                : "Asociando cliente..."
+              : associateButtonLabel}
           </Button>
         </form>
 
@@ -281,6 +304,8 @@ export function SolicitudClienteForm({
           <ActionAlert
             ok={createState.ok}
             message={createState.message}
+            successTitle="Cliente creado"
+            errorTitle="No se pudo crear el cliente"
             className="mt-3"
           />
 
@@ -291,7 +316,7 @@ export function SolicitudClienteForm({
             className="mt-4 w-full"
           >
             {createPending
-              ? "Creando..."
+              ? "Creando cliente..."
               : "Crear cliente desde esta solicitud"}
           </Button>
         </form>

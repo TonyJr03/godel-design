@@ -7,6 +7,7 @@ import type { ActiveListingFilter } from "./types";
 export type ActiveFilterChipsProps = {
   filters: readonly ActiveListingFilter[];
   clearLabel?: string;
+  disabled?: boolean;
   onClear?: () => void;
   onRemoveFilter?: (key: string) => void;
 };
@@ -14,6 +15,7 @@ export type ActiveFilterChipsProps = {
 export function ActiveFilterChips({
   filters,
   clearLabel = "Limpiar filtros",
+  disabled = false,
   onClear,
   onRemoveFilter,
 }: ActiveFilterChipsProps) {
@@ -39,7 +41,8 @@ export function ActiveFilterChips({
               <button
                 type="button"
                 onClick={() => onRemoveFilter(filter.key)}
-                className="inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-(--radius-control) text-text-muted transition-colors duration-200 hover:bg-surface hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                disabled={disabled}
+                className="inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-(--radius-control) text-text-muted transition-colors duration-200 hover:bg-surface hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
                 aria-label={`Quitar ${label}`}
                 title={`Quitar ${label}`}
               >
@@ -54,7 +57,8 @@ export function ActiveFilterChips({
         <button
           type="button"
           onClick={onClear}
-          className="inline-flex min-h-9 cursor-pointer items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-3 py-1 text-xs font-semibold text-brand-primary transition-colors duration-200 hover:border-brand-primary hover:bg-brand-primary-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          disabled={disabled}
+          className="inline-flex min-h-9 cursor-pointer items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-3 py-1 text-xs font-semibold text-brand-primary transition-colors duration-200 hover:border-brand-primary hover:bg-brand-primary-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
         >
           {clearLabel}
         </button>

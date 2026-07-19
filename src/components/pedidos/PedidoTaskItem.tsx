@@ -141,7 +141,13 @@ export function PedidoTaskItem({
                   disabled={completionPending}
                   className="inline-flex min-h-11 items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-3 text-sm font-medium text-text-primary transition-colors hover:bg-brand-primary-soft disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {task.is_completed ? "Reabrir" : "Marcar como completada"}
+                  {completionPending
+                    ? task.is_completed
+                      ? "Reabriendo..."
+                      : "Completando..."
+                    : task.is_completed
+                      ? "Reabrir"
+                      : "Marcar como completada"}
                 </button>
               </form>
             ) : null}
@@ -153,7 +159,7 @@ export function PedidoTaskItem({
                 disabled={deletePending}
                 className="inline-flex min-h-11 items-center justify-center rounded-(--radius-control) border border-danger/30 bg-surface px-3 text-sm font-medium text-danger transition-colors hover:bg-danger-soft disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Eliminar
+                {deletePending ? "Eliminando..." : "Eliminar"}
               </button>
             </form>
           </div>
@@ -216,7 +222,7 @@ export function PedidoTaskItem({
               disabled={progressPending}
               className="inline-flex min-h-11 items-center justify-center rounded-(--radius-control) bg-brand-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Guardar
+              {progressPending ? "Guardando progreso..." : "Guardar"}
             </button>
           </div>
         </form>
@@ -267,7 +273,7 @@ export function PedidoTaskItem({
               disabled={titlePending}
               className="inline-flex min-h-11 items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-4 py-2 text-sm font-semibold text-text-primary transition-colors hover:bg-brand-primary-soft disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Guardar
+              {titlePending ? "Guardando título..." : "Guardar"}
             </button>
           </div>
         </form>

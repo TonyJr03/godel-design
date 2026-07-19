@@ -5,6 +5,7 @@ import {
   ArrowDown,
   ArrowUp,
   Check,
+  LoaderCircle,
   Pencil,
   Trash2,
   X,
@@ -61,6 +62,7 @@ function InlineActionError({
   return (
     <p
       className="mt-2 max-w-full break-words text-xs font-semibold text-danger"
+      role="alert"
       aria-live="polite"
     >
       {message}
@@ -94,6 +96,7 @@ function MoveTaskTemplateTaskForm({
   );
   const isUp = direction === "up";
   const label = `${isUp ? "Subir" : "Bajar"} tarea ${task.title}`;
+  const pendingLabel = `Moviendo tarea ${task.title}...`;
   const Icon = isUp ? ArrowUp : ArrowDown;
 
   return (
@@ -106,10 +109,17 @@ function MoveTaskTemplateTaskForm({
         size="sm"
         disabled={disabled || pending}
         className={iconButtonClassName()}
-        aria-label={label}
-        title={label}
+        aria-label={pending ? pendingLabel : label}
+        title={pending ? pendingLabel : label}
       >
-        <Icon className="size-4" aria-hidden="true" />
+        {pending ? (
+          <LoaderCircle
+            className="size-4 animate-spin motion-reduce:animate-none"
+            aria-hidden="true"
+          />
+        ) : (
+          <Icon className="size-4" aria-hidden="true" />
+        )}
       </Button>
       {!state.ok ? <InlineActionError message={state.message} /> : null}
     </form>
@@ -128,6 +138,7 @@ function DeleteTaskTemplateTaskForm({
     deleteInitialState,
   );
   const label = `Eliminar tarea ${task.title}`;
+  const pendingLabel = `Eliminando tarea ${task.title}...`;
 
   return (
     <form action={formAction} aria-busy={pending} className="min-w-0">
@@ -138,10 +149,17 @@ function DeleteTaskTemplateTaskForm({
         size="sm"
         disabled={pending}
         className={iconButtonClassName("danger")}
-        aria-label={label}
-        title={label}
+        aria-label={pending ? pendingLabel : label}
+        title={pending ? pendingLabel : label}
       >
-        <Trash2 className="size-4" aria-hidden="true" />
+        {pending ? (
+          <LoaderCircle
+            className="size-4 animate-spin motion-reduce:animate-none"
+            aria-hidden="true"
+          />
+        ) : (
+          <Trash2 className="size-4" aria-hidden="true" />
+        )}
       </Button>
       {!state.ok ? <InlineActionError message={state.message} /> : null}
     </form>
@@ -207,10 +225,25 @@ function UpdateTaskTemplateTaskInlineForm({
           size="sm"
           disabled={pending}
           className={iconButtonClassName()}
-          aria-label={`Guardar tarea ${task.title}`}
-          title={`Guardar tarea ${task.title}`}
+          aria-label={
+            pending
+              ? `Guardando tarea ${task.title}...`
+              : `Guardar tarea ${task.title}`
+          }
+          title={
+            pending
+              ? `Guardando tarea ${task.title}...`
+              : `Guardar tarea ${task.title}`
+          }
         >
-          <Check className="size-4" aria-hidden="true" />
+          {pending ? (
+            <LoaderCircle
+              className="size-4 animate-spin motion-reduce:animate-none"
+              aria-hidden="true"
+            />
+          ) : (
+            <Check className="size-4" aria-hidden="true" />
+          )}
         </Button>
         <Button
           type="button"

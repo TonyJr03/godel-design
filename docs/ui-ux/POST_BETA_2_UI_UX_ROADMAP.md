@@ -1270,7 +1270,7 @@ docs/ui-ux/TRANSVERSAL_STATES_STAGE_14_PLAN.md
 * 14.3 App Router states por segmento — Completado.
 * 14.4 Estados vacíos y sin resultados — Completado.
 * 14.5 Errores de datos y retry seguro — Completado.
-* 14.6 Pending y action feedback — Propuesto.
+* 14.6 Pending y action feedback — Completado.
 * 14.7 Fallos parciales en dashboard y workspaces — Propuesto.
 * 14.8 Permisos, acceso denegado y recurso inexistente — Propuesto.
 * 14.9 Confirmaciones y acciones destructivas — Propuesto.
@@ -1339,6 +1339,17 @@ códigos públicos inválidos, recursos no encontrados, filtros inválidos,
 validaciones y mutaciones quedan sin retry. Se aplicó a dashboard, listados
 internos principales y error temporal de `/estado`, sin tocar dominio,
 servicios, Server Actions, RLS, Storage, permisos ni DTO público.
+
+### Nota de implementación 14.6
+
+Se normalizó el pending y feedback de acciones sin crear componentes nuevos:
+pending copy contextual, `aria-busy`, botones deshabilitados, títulos en alerts
+de éxito/error, comentarios/archivos/tareas con primitivas existentes, acciones
+inline e icon-only con feedback accesible, filtros con estado
+`Actualizando resultados...` y chips bloqueados durante transición. La
+conversión de solicitud ya no muestra dos éxitos simultáneos. No se agregaron
+retry automático, confirmaciones ni cambios de dominio, Server Actions, RLS,
+Storage, permisos, queries o DTO público.
 
 ### Criterio de cierre
 
@@ -1671,11 +1682,11 @@ No introducir paginación, caché, virtualización o paralelización compleja si
 La siguiente subtarea oficial de esta iniciativa es:
 
 ```text
-14.6 — Pending y action feedback
+14.7 — Fallos parciales en dashboard y workspaces
 ```
 
-El siguiente entregable debe normalizar copy de pending, `aria-busy`, disabled
-states, éxitos y errores de formularios donde la matriz documentada en
+El siguiente entregable debe consolidar la degradación segura para fallos
+parciales en dashboard y workspaces donde la matriz documentada en
 `docs/ui-ux/TRANSVERSAL_STATES_DECISION_MATRIX.md` lo justifique, sin modificar
 Server Actions, RLS, Storage, permisos, DTO público ni lógica de dominio.
 

@@ -216,7 +216,7 @@ docs/ui-ux/TRANSVERSAL_STATES_DECISION_MATRIX.md
 | 14.3 | App Router states por segmento | Agregar o ajustar `loading.tsx`, `error.tsx` y `not-found.tsx` solo en segmentos justificados. | Completado |
 | 14.4 | Estados vacíos y sin resultados | Normalizar empty states de listados, dashboard y paneles sin crear abstracción excesiva. | Completado |
 | 14.5 | Errores de datos y retry seguro | Definir patrón de retry para lecturas y errores temporales sin reintentar mutaciones peligrosas. | Completado |
-| 14.6 | Pending y action feedback | Normalizar pending copy, `aria-busy`, disabled states, éxitos y errores de formularios. | Propuesta |
+| 14.6 | Pending y action feedback | Normalizar pending copy, `aria-busy`, disabled states, éxitos y errores de formularios. | Completado |
 | 14.7 | Fallos parciales en dashboard y workspaces | Consolidar degradación segura para paneles secundarios, previews y action rail. | Propuesta |
 | 14.8 | Permisos, acceso denegado y recurso inexistente | Alinear `/sin-permisos`, `/acceso-denegado`, 404 pública e interna y estados embebidos de permiso. | Propuesta |
 | 14.9 | Confirmaciones y acciones destructivas | Revisar cierre con cambios, eliminaciones inline y feedback posterior sin tocar reglas de dominio. | Propuesta |
@@ -316,8 +316,40 @@ positivos falsos. Los fallos parciales de workspaces quedan pospuestos para
 14.7, donde se revisarán paneles, previews y action rail con contrato común.
 
 No se modificaron dominio, servicios, queries, permisos, RLS, Storage, DTO
-público, Server Actions, formularios, loaders ni error boundaries. La siguiente
-subtarea oficial pasa a ser `14.6 — Pending y action feedback`.
+público, Server Actions, formularios, loaders ni error boundaries.
+
+### Nota de implementación 14.6
+
+Se normalizó el feedback de mutaciones sin crear componentes nuevos. Los
+formularios principales y operativos conservan `useActionState`, `aria-busy`,
+botón submit deshabilitado y contratos `FormData`, pero ahora usan pending copy
+contextual por familia: crear cliente, crear pedido, crear plantilla, crear
+perfil, guardar cambios, actualizar estado, actualizar pago, agregar
+comentario, subir archivo, convertir en pedido, asociar cliente, asignar
+personal, quitar, completar, reabrir, eliminar, guardar progreso, guardar
+título, mover tarea y aplicar plantilla.
+
+Los resultados principales de acciones ahora usan `Alert` con título contextual
+de éxito o error. Comentarios, archivos y creación de tareas se alinearon con
+las primitivas `Alert` y `Button` cuando ya existía un bloque manual
+equivalente. Las acciones inline de tareas permanecen compactas y mantienen
+pending independiente por formulario; las acciones icon-only de tareas de
+plantilla comunican pending con texto accesible, `title`, botón deshabilitado y
+un spinner discreto respetando `motion-reduce`.
+
+`ListingToolbar` mantiene `useTransition`, `router.replace`, URL existente y
+campo de búsqueda editable, pero anuncia `Actualizando resultados...` con
+`role="status"` y deshabilita selects, limpieza y chips mientras la transición
+está pendiente. `ActiveFilterChips` acepta `disabled` para evitar acciones
+repetidas durante la actualización.
+
+Se corrigió la duplicación de éxito en la conversión de solicitud: tras crear el
+pedido se muestra un único bloque positivo con mensaje de la acción y enlace al
+pedido. El aviso persistente de solicitud ya convertida se conserva para cargas
+posteriores. No se agregó retry automático, no se añadieron confirmaciones, no
+se tocaron dominio, acciones, permisos, RLS, Storage, queries ni DTOs. La
+siguiente subtarea oficial pasa a ser `14.7 — Fallos parciales en dashboard y
+workspaces`.
 
 ## 10. Criterios de cierre de Etapa 14
 

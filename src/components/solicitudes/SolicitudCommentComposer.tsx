@@ -98,9 +98,14 @@ export function SolicitudCommentComposer({
         {state.message ? (
           <Alert
             variant={state.ok ? "success" : "danger"}
+            title={
+              state.ok
+                ? "Comentario agregado"
+                : "No se pudo agregar el comentario"
+            }
             aria-live="polite"
           >
-            {state.message}
+            <p>{state.message}</p>
           </Alert>
         ) : null}
 
@@ -163,7 +168,7 @@ export function SolicitudCommentComposer({
               .filter(Boolean)
               .join(" ")}
           >
-            {pending ? "Agregando..." : "Agregar comentario"}
+            {pending ? "Agregando comentario..." : "Agregar comentario"}
           </Button>
         </div>
       </form>

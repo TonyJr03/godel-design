@@ -60,16 +60,21 @@ function getAssignedUserName(
 function AssignmentMessage({
   ok,
   message,
+  successTitle,
+  errorTitle,
 }: {
   ok: boolean;
   message: string;
+  successTitle: string;
+  errorTitle: string;
 }) {
   return (
     <Alert
       variant={ok ? "success" : "danger"}
+      title={ok ? successTitle : errorTitle}
       aria-live="polite"
     >
-      {message}
+      <p>{message}</p>
     </Alert>
   );
 }
@@ -126,7 +131,7 @@ function AssignmentList({
             </div>
 
             {canManage && removeFormAction ? (
-              <form action={removeFormAction}>
+              <form action={removeFormAction} aria-busy={removing}>
                 <input
                   type="hidden"
                   name="assigned_profile_id"
@@ -137,7 +142,7 @@ function AssignmentList({
                   disabled={removing}
                   className="inline-flex min-h-11 items-center justify-center rounded-(--radius-control) border border-danger/30 bg-surface px-3 text-xs font-semibold text-danger transition-colors hover:bg-danger-soft disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Quitar
+                  {removing ? "Quitando..." : "Quitar"}
                 </button>
               </form>
             ) : null}
@@ -225,10 +230,20 @@ function ManagedPedidoWorkerAssignmentForm({
   );
   const isPanelPresentation = presentation === "panel";
   const removeMessage = removeState.message ? (
-    <AssignmentMessage ok={removeState.ok} message={removeState.message} />
+    <AssignmentMessage
+      ok={removeState.ok}
+      message={removeState.message}
+      successTitle="Asignación eliminada"
+      errorTitle="No se pudo quitar la asignación"
+    />
   ) : null;
   const assignMessage = assignState.message ? (
-    <AssignmentMessage ok={assignState.ok} message={assignState.message} />
+    <AssignmentMessage
+      ok={assignState.ok}
+      message={assignState.message}
+      successTitle="Personal asignado"
+      errorTitle="No se pudo asignar el personal"
+    />
   ) : null;
   const assignmentsContent = (
     <>
@@ -298,7 +313,7 @@ function ManagedPedidoWorkerAssignmentForm({
             disabled={assigning}
             className="w-full sm:w-auto"
           >
-            {assigning ? "Asignando..." : "Asignar personal"}
+            {assigning ? "Asignando personal..." : "Asignar personal"}
           </Button>
         </div>
       )}

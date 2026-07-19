@@ -75,9 +75,14 @@ export function ApplyTaskTemplateForm({
           {state.message ? (
             <Alert
               variant={state.ok ? "success" : "danger"}
+              title={
+                state.ok
+                  ? "Plantilla aplicada"
+                  : "No se pudo aplicar la plantilla"
+              }
               aria-live="polite"
             >
-              {state.message}
+              <p>{state.message}</p>
             </Alert>
           ) : null}
 
@@ -124,7 +129,7 @@ export function ApplyTaskTemplateForm({
               disabled={pending}
               className="w-full sm:w-auto"
             >
-              {pending ? "Aplicando..." : "Aplicar plantilla"}
+              {pending ? "Aplicando plantilla..." : "Aplicar plantilla"}
             </Button>
           </div>
         </form>

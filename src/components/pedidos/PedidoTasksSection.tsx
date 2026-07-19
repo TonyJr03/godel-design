@@ -14,6 +14,7 @@ import {
 import type { PedidoTask } from "@/lib/pedidos/list-pedido-tasks";
 import type { PedidoTasksProgress } from "@/lib/pedidos/task-progress";
 import type { ActiveTaskTemplateForOrder } from "@/lib/task-templates";
+import { Alert, Button } from "@/components/ui";
 import { ApplyTaskTemplateForm } from "./ApplyTaskTemplateForm";
 import { PedidoProgressBar } from "./PedidoProgressBar";
 import {
@@ -163,17 +164,13 @@ export function PedidoTasksSection({
               className="mt-4"
             >
               {state.message ? (
-                <div
-                  className={
-                    state.ok
-                      ? "rounded-(--radius-control) border border-success/30 bg-success-soft px-4 py-3 text-sm leading-6 text-success"
-                      : "rounded-(--radius-control) border border-danger/30 bg-danger-soft px-4 py-3 text-sm leading-6 text-danger"
-                  }
-                  role={state.ok ? "status" : "alert"}
+                <Alert
+                  variant={state.ok ? "success" : "danger"}
+                  title={state.ok ? "Tarea creada" : "No se pudo crear la tarea"}
                   aria-live="polite"
                 >
-                  {state.message}
-                </div>
+                  <p>{state.message}</p>
+                </Alert>
               ) : null}
 
               <div
@@ -223,13 +220,13 @@ export function PedidoTasksSection({
                     </p>
                   ) : null}
                 </div>
-                <button
+                <Button
                   type="submit"
                   disabled={pending}
-                  className="inline-flex min-h-11 w-full items-center justify-center rounded-(--radius-control) bg-brand-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-primary-hover disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto"
+                  className="w-full lg:w-auto"
                 >
-                  {pending ? "Creando..." : "Crear tarea"}
-                </button>
+                  {pending ? "Creando tarea..." : "Crear tarea"}
+                </Button>
               </div>
             </form>
           </section>

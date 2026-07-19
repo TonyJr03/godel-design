@@ -8,6 +8,7 @@ import type {
 import type { PedidoStatus } from "@/lib/pedidos";
 import { STORAGE_FILE_INPUT_ACCEPT } from "@/lib/storage/constants";
 import { getPedidoFileVisibilityForStatus } from "@/lib/storage/file-validation";
+import { Alert, Button } from "@/components/ui";
 
 type PedidoFileUploadFormProps = {
   uploadFileAction: PedidoDetailAction<UploadPedidoFileActionState>;
@@ -109,17 +110,13 @@ export function PedidoFileUploadForm({
           className={shouldShowUploadContext ? "mt-5" : ""}
         >
           {state.message ? (
-            <div
-              className={
-                state.ok
-                  ? "rounded-(--radius-control) border border-success/30 bg-success-soft px-4 py-3 text-sm leading-6 text-success"
-                  : "rounded-(--radius-control) border border-danger/30 bg-danger-soft px-4 py-3 text-sm leading-6 text-danger"
-              }
-              role={state.ok ? "status" : "alert"}
+            <Alert
+              variant={state.ok ? "success" : "danger"}
+              title={state.ok ? "Archivo subido" : "No se pudo subir el archivo"}
               aria-live="polite"
             >
-              {state.message}
-            </div>
+              <p>{state.message}</p>
+            </Alert>
           ) : null}
 
           <div
@@ -148,13 +145,13 @@ export function PedidoFileUploadForm({
               />
             </div>
 
-            <button
+            <Button
               type="submit"
               disabled={pending}
-              className="inline-flex min-h-11 w-full cursor-pointer items-center justify-center rounded-(--radius-control) bg-brand-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-primary-hover disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto"
+              className="w-full lg:w-auto"
             >
-              {pending ? "Subiendo..." : "Subir archivo"}
-            </button>
+              {pending ? "Subiendo archivo..." : "Subir archivo"}
+            </Button>
           </div>
         </form>
       ) : null}
