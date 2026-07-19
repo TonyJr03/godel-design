@@ -219,7 +219,7 @@ docs/ui-ux/TRANSVERSAL_STATES_DECISION_MATRIX.md
 | 14.6 | Pending y action feedback | Normalizar pending copy, `aria-busy`, disabled states, éxitos y errores de formularios. | Completado |
 | 14.7 | Fallos parciales en dashboard y workspaces | Consolidar degradación segura para paneles secundarios, previews y action rail. | Completado |
 | 14.8 | Permisos, acceso denegado y recurso inexistente | Alinear `/sin-permisos`, `/acceso-denegado`, 404 pública e interna y estados embebidos de permiso. | Completado |
-| 14.9 | Confirmaciones y acciones destructivas | Revisar cierre con cambios, eliminaciones inline y feedback posterior sin tocar reglas de dominio. | Propuesta |
+| 14.9 | Confirmaciones y acciones destructivas | Revisar cierre con cambios, eliminaciones inline y feedback posterior sin tocar reglas de dominio. | Completado |
 | 14.10 | QA y cierre de Etapa 14 | Validar rutas críticas, responsive, accesibilidad, seguridad visual y documentación de cierre. | Propuesta |
 
 ### Nota de implementación 14.2
@@ -415,6 +415,36 @@ o bloquean acciones localmente sin mostrar alertas ruidosas de permisos.
 No se modificaron roles, permisos, RLS, Storage, DTO público, Server Actions,
 servicios de dominio, queries ni modelo de datos. La siguiente subtarea oficial
 pasa a ser `14.9 — Confirmaciones y acciones destructivas`.
+
+### Nota de implementación 14.9
+
+Se incorporó una confirmación inline específica para eliminaciones permanentes
+de tareas en pedidos y plantillas, sin crear dialogs nuevos ni portales. La
+confirmación muestra el nombre de la tarea afectada, enfoca inicialmente
+`Cancelar`, permite cancelar con botón o `Escape`, bloquea doble envío durante
+pending y mantiene errores controlados dentro de la propia confirmación.
+
+En tareas de pedido, el primer clic en `Eliminar` solo abre la confirmación
+contextual. Mientras está abierta se conserva la información básica de la tarea
+y se ocultan temporalmente otros formularios del item para evitar acciones
+simultáneas. Al cancelar, la tarea sigue visible y el foco vuelve al disparador;
+al confirmar, la revalidación server-side sigue retirando la tarea y el panel
+muestra feedback `Tarea eliminada` cerca de `Tareas registradas`.
+
+En tareas de plantilla, la papelera abre la confirmación en la misma fila,
+conservando visible el número de orden y sustituyendo título/controles mientras
+se decide la eliminación. El éxito se anuncia por encima de la lista y se
+conserva aunque la eliminación deje la plantilla sin tareas, permitiendo que el
+`EmptyState` existente aparezca debajo.
+
+Se mantiene `window.confirm` para el descarte simple de cambios sin guardar en
+`InternalFormDialog` e `InternalFormDrawer`. No se agregaron confirmaciones a
+acciones reversibles o ya explícitas como mover, editar, completar, reabrir,
+actualizar progreso, aplicar plantilla, cambiar estado, actualizar pago,
+asignar personal, quitar personal, activar/inactivar o cerrar workspaces. No se
+modificaron Server Actions, servicios, permisos, RLS, Storage, DTO público,
+queries, rutas ni lógica de dominio. La siguiente subtarea oficial pasa a ser
+`14.10 — QA y cierre de Etapa 14`.
 
 ## 10. Criterios de cierre de Etapa 14
 

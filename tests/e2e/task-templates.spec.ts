@@ -209,8 +209,50 @@ test("admin can create and manage a task template", async ({ page }) => {
   await expectTemplatesListingLoaded(page);
 
   await page.getByRole("button", { name: /nueva plantilla/i }).click();
-  const createDialog = page.getByRole("dialog", { name: /nueva plantilla/i });
+  let createDialog = page.getByRole("dialog", { name: /nueva plantilla/i });
 
+  await expect(createDialog).toBeVisible();
+
+  const draftName = `QA Draft Template ${runId}`;
+  const newTemplateTrigger = page.getByRole("button", {
+    name: /nueva plantilla/i,
+  });
+
+  await createDialog.getByRole("textbox", { name: /^nombre$/i }).fill(draftName);
+  let dismissMessage = "";
+  const dismissCloseConfirmation = new Promise<void>((resolve) => {
+    page.once("dialog", async (dialog) => {
+      dismissMessage = dialog.message();
+      await dialog.dismiss();
+      resolve();
+    });
+  });
+  await createDialog.getByRole("button", { name: /cerrar/i }).click();
+  await dismissCloseConfirmation;
+
+  expect(dismissMessage).toMatch(/cambios sin guardar/i);
+  await expect(createDialog).toBeVisible();
+  await expect(
+    createDialog.getByRole("textbox", { name: /^nombre$/i }),
+  ).toHaveValue(draftName);
+
+  let acceptMessage = "";
+  const acceptCloseConfirmation = new Promise<void>((resolve) => {
+    page.once("dialog", async (dialog) => {
+      acceptMessage = dialog.message();
+      await dialog.accept();
+      resolve();
+    });
+  });
+  await createDialog.getByRole("button", { name: /cerrar/i }).click();
+  await acceptCloseConfirmation;
+
+  expect(acceptMessage).toMatch(/cambios sin guardar/i);
+  await expect(createDialog).toBeHidden();
+  await expect(newTemplateTrigger).toBeFocused();
+
+  await newTemplateTrigger.click();
+  createDialog = page.getByRole("dialog", { name: /nueva plantilla/i });
   await expect(createDialog).toBeVisible();
 
   await createDialog.getByRole("textbox", { name: /^nombre$/i }).fill(templateName);
@@ -311,15 +353,40 @@ test("admin can create and manage a task template", async ({ page }) => {
     timeout: 15_000,
   });
 
-  await getTaskItem(page, editedTaskTitle)
-    .getByRole("button", {
-      name: new RegExp(`eliminar tarea ${editedTaskTitle}`, "i"),
-    })
+  const editedTask = getTaskItem(page, editedTaskTitle);
+  const deleteEditedTaskButton = editedTask.getByRole("button", {
+    name: new RegExp(`eliminar tarea ${editedTaskTitle}`, "i"),
+  });
+
+  await deleteEditedTaskButton.click();
+  let deleteConfirmation = editedTask.locator("form").filter({
+    hasText: /eliminar esta tarea de la plantilla/i,
+  });
+
+  await expect(deleteConfirmation).toBeVisible();
+  await expect(deleteConfirmation.getByText(editedTaskTitle)).toBeVisible();
+  await expect(
+    deleteConfirmation.getByRole("button", { name: /cancelar/i }),
+  ).toBeFocused();
+  await deleteConfirmation.getByRole("button", { name: /cancelar/i }).click();
+  await expect(editedTask).toBeVisible();
+  await expect(deleteEditedTaskButton).toBeFocused();
+
+  await deleteEditedTaskButton.click();
+  deleteConfirmation = editedTask.locator("form").filter({
+    hasText: /eliminar esta tarea de la plantilla/i,
+  });
+  await deleteConfirmation
+    .getByRole("button", { name: /^eliminar tarea$/i })
     .click();
+  await expect(page.getByText("Tarea eliminada", { exact: true })).toBeVisible(
+    { timeout: 15_000 },
+  );
   await expect(page.getByText(editedTaskTitle)).toHaveCount(0, {
     timeout: 15_000,
   });
   await expect(page.getByText(quantifiedTaskTitle)).toBeVisible();
+  await expectNoVisibleSensitiveText(page);
 
   const currentWorkspaceUrl = page.url();
   await page.setViewportSize({ width: 390, height: 844 });

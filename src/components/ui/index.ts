@@ -7,6 +7,7 @@ export * from "./FormActions";
 export * from "./FormField";
 export * from "./FormSection";
 export * from "./Input";
+export * from "./InlineDeleteConfirmation";
 export * from "./MetadataGrid";
 export * from "./PageHeader";
 export * from "./PlaceholderCard";

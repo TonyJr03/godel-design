@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import type {
   ApplyTaskTemplateActionState,
   CreatePedidoTaskActionState,
@@ -64,6 +64,7 @@ export function PedidoTasksSection({
     createTaskAction,
     createInitialState,
   );
+  const [deleteFeedback, setDeleteFeedback] = useState("");
   const titleError = state.fieldErrors?.title;
   const canManageTasks = canManagePedidoTasksInStatus(pedidoStatus);
   const blockedReason = getPedidoTaskManagementBlockedReason(pedidoStatus);
@@ -246,6 +247,12 @@ export function PedidoTasksSection({
           Tareas registradas
         </h3>
 
+        {deleteFeedback ? (
+          <Alert variant="success" title="Tarea eliminada" className="mt-4">
+            <p>{deleteFeedback}</p>
+          </Alert>
+        ) : null}
+
         <div className="mt-4">
           <PedidoProgressBar {...progress} />
         </div>
@@ -258,6 +265,8 @@ export function PedidoTasksSection({
                 task={task}
                 canManage={canManageTasks}
                 actions={taskActions}
+                onDeleteIntent={() => setDeleteFeedback("")}
+                onDeleteSuccess={setDeleteFeedback}
               />
             ))}
           </ul>

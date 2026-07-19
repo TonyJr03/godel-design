@@ -1273,7 +1273,7 @@ docs/ui-ux/TRANSVERSAL_STATES_STAGE_14_PLAN.md
 * 14.6 Pending y action feedback — Completado.
 * 14.7 Fallos parciales en dashboard y workspaces — Completado.
 * 14.8 Permisos, acceso denegado y recurso inexistente — Completado.
-* 14.9 Confirmaciones y acciones destructivas — Propuesto.
+* 14.9 Confirmaciones y acciones destructivas — Completado.
 * 14.10 QA y cierre de Etapa 14 — Propuesto.
 
 ### Nota de auditoría 14.1
@@ -1378,6 +1378,22 @@ evita copy de permisos y el 404 público mantiene solo rutas públicas. En
 `pedidos.manage`. No se modificaron roles, permisos, RLS, Storage, DTO público,
 Server Actions, servicios, queries ni lógica de dominio. La siguiente subtarea
 activa es 14.9.
+
+### Nota de implementación 14.9
+
+Se consolidaron confirmaciones inline para eliminaciones permanentes de tareas
+de pedido y tareas de plantilla. Ambas muestran el nombre de la tarea, enfocan
+`Cancelar` al abrir, permiten cancelar con botón o `Escape`, mantienen el error
+de acción dentro de la confirmación, bloquean doble envío durante pending y
+muestran feedback success posterior aunque la fila desaparezca por revalidación.
+
+Se conserva `window.confirm` para cerrar dialogs/drawers con cambios sin
+guardar. No se añadieron confirmaciones a acciones reversibles o ya explícitas
+como mover, editar, completar, reabrir, actualizar progreso, aplicar plantilla,
+cambiar estado, actualizar pago, asignar/quitar personal, activar/inactivar o
+cerrar workspaces. No se modificaron Server Actions, servicios, permisos, RLS,
+Storage, DTO público, queries, rutas ni lógica de dominio. La siguiente subtarea
+activa es 14.10.
 
 ### Criterio de cierre
 
