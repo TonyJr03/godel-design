@@ -1,4 +1,4 @@
-import { Alert } from "@/components/ui";
+import { ReadErrorAlert } from "@/components/ui";
 import {
   PEDIDO_HISTORY_ACTION_LABELS,
   PEDIDO_STATUS_LABELS,
@@ -10,6 +10,7 @@ import { formatAppDateTime } from "@/lib/utils";
 type PedidoHistoryTimelineProps = {
   history: readonly PedidoHistoryItem[];
   loadError?: string;
+  loadErrorRetryable?: boolean;
 };
 
 function formatHistoryValue(value: string | null): string {
@@ -137,9 +138,18 @@ function getActorRole(item: PedidoHistoryItem): string | null {
 export function PedidoHistoryTimeline({
   history,
   loadError,
+  loadErrorRetryable = false,
 }: PedidoHistoryTimelineProps) {
   if (loadError) {
-    return <Alert variant="danger">{loadError}</Alert>;
+    return (
+      <ReadErrorAlert
+        variant="warning"
+        title="No se pudo cargar el historial"
+        retryable={loadErrorRetryable}
+      >
+        <p>{loadError}</p>
+      </ReadErrorAlert>
+    );
   }
 
   if (history.length === 0) {

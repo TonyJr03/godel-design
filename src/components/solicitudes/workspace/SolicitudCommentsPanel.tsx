@@ -1,4 +1,4 @@
-import { Alert } from "@/components/ui";
+import { ReadErrorAlert } from "@/components/ui";
 import { ROLE_SHORT_LABELS } from "@/lib/permissions";
 import type { SolicitudComment } from "@/lib/solicitudes";
 import { formatAppDateTime } from "@/lib/utils";
@@ -6,6 +6,7 @@ import { formatAppDateTime } from "@/lib/utils";
 type SolicitudCommentsPanelProps = {
   comments: readonly SolicitudComment[];
   loadError?: string;
+  loadErrorRetryable?: boolean;
 };
 
 function getAuthorName(comment: SolicitudComment): string {
@@ -21,9 +22,18 @@ function getAuthorRole(comment: SolicitudComment): string {
 export function SolicitudCommentsPanel({
   comments,
   loadError,
+  loadErrorRetryable = false,
 }: SolicitudCommentsPanelProps) {
   if (loadError) {
-    return <Alert variant="danger">{loadError}</Alert>;
+    return (
+      <ReadErrorAlert
+        variant="warning"
+        title="No se pudieron cargar los comentarios"
+        retryable={loadErrorRetryable}
+      >
+        <p>{loadError}</p>
+      </ReadErrorAlert>
+    );
   }
 
   if (comments.length === 0) {

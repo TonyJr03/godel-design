@@ -81,9 +81,9 @@ docs/ui-ux/TRANSVERSAL_STATES_DECISION_MATRIX.md
 | Solicitud detalle no encontrada | `dashboard/solicitudes/[id]/page.tsx` | `notFound()` para `invalid_id` y `not_found`; otros errores muestran `Alert danger`. | Correcto. |
 | Cliente detalle no encontrado | `dashboard/clientes/[id]/page.tsx` | `notFound()` para `invalid_id` y `not_found`; otros errores muestran `Alert danger` con header. | Correcto. |
 | Plantilla detalle no encontrada | `configuracion/plantillas/[templateId]/page.tsx` | `notFound()` para `invalid_id` y `not_found`; otros errores muestran `Alert danger`. | Correcto, aunque sin header si falla la plantilla. |
-| Fallos parciales en Pedido | `InternalPedidoDetail` y workspace de pedido | Tareas, archivos, comentarios e historial aceptan `loadError`; action rail marca `danger`; datos disponibles permanecen. | Buen modelo de degradación segura. |
-| Fallos parciales en Solicitud | `InternalSolicitudDetail` y workspace de solicitud | Archivos, comentarios, historial y cliente aceptan `loadError`; action rail marca `danger`. | Buen modelo, con diferencia en tratamiento del cliente asociado. |
-| Fallos parciales en Plantillas | `TaskTemplateTasksSection` | Si fallan tareas, muestra `Alert danger` y conserva detalle de plantilla/aside. | Correcto; no marca estado de acción global. |
+| Fallos parciales en Pedido | `InternalPedidoDetail` y workspace de pedido | Tareas, archivos, comentarios, historial, personal disponible y plantillas aplicables aceptan `loadError` y retry seguro; action rail diferencia `danger` y `warning`. | Modelo consolidado de degradación segura. |
+| Fallos parciales en Solicitud | `InternalSolicitudDetail` y workspace de solicitud | Archivos, comentarios, historial, cliente asociado y listado de clientes aceptan `loadError` y retry seguro; action rail diferencia cliente no cargado y listado no disponible. | Modelo consolidado, con mensajes separados para cliente asociado y listado. |
+| Fallos parciales en Plantillas | `TaskTemplateTasksSection` | Si fallan tareas, muestra `ReadErrorAlert`, conserva detalle de plantilla/aside y bloquea temporalmente la creación de nueva tarea. | Correcto; evita calcular orden sin lista confiable. |
 | Subida pública parcial | `submitPublicSolicitudAction` y `PublicSolicitudForm` | Solicitud queda exitosa con warning de archivos fallidos y código público. | Buen caso de degradación segura pública. |
 | Descarga privada fallida | route handlers de archivos | Respuesta 403/500 con mensaje seguro genérico. | Correcto para seguridad; UI de enlace no anticipa fallo ni retry. |
 | Confirmación de cierre | `InternalFormDialog`, `InternalFormDrawer` | `window.confirm` si hay cambios sin guardar. | Existe solo para cierre con cambios. Eliminaciones inline no tienen confirmación contextual uniforme. |
@@ -217,7 +217,7 @@ docs/ui-ux/TRANSVERSAL_STATES_DECISION_MATRIX.md
 | 14.4 | Estados vacíos y sin resultados | Normalizar empty states de listados, dashboard y paneles sin crear abstracción excesiva. | Completado |
 | 14.5 | Errores de datos y retry seguro | Definir patrón de retry para lecturas y errores temporales sin reintentar mutaciones peligrosas. | Completado |
 | 14.6 | Pending y action feedback | Normalizar pending copy, `aria-busy`, disabled states, éxitos y errores de formularios. | Completado |
-| 14.7 | Fallos parciales en dashboard y workspaces | Consolidar degradación segura para paneles secundarios, previews y action rail. | Propuesta |
+| 14.7 | Fallos parciales en dashboard y workspaces | Consolidar degradación segura para paneles secundarios, previews y action rail. | Completado |
 | 14.8 | Permisos, acceso denegado y recurso inexistente | Alinear `/sin-permisos`, `/acceso-denegado`, 404 pública e interna y estados embebidos de permiso. | Propuesta |
 | 14.9 | Confirmaciones y acciones destructivas | Revisar cierre con cambios, eliminaciones inline y feedback posterior sin tocar reglas de dominio. | Propuesta |
 | 14.10 | QA y cierre de Etapa 14 | Validar rutas críticas, responsive, accesibilidad, seguridad visual y documentación de cierre. | Propuesta |
@@ -347,9 +347,40 @@ Se corrigió la duplicación de éxito en la conversión de solicitud: tras crea
 pedido se muestra un único bloque positivo con mensaje de la acción y enlace al
 pedido. El aviso persistente de solicitud ya convertida se conserva para cargas
 posteriores. No se agregó retry automático, no se añadieron confirmaciones, no
-se tocaron dominio, acciones, permisos, RLS, Storage, queries ni DTOs. La
-siguiente subtarea oficial pasa a ser `14.7 — Fallos parciales en dashboard y
-workspaces`.
+se tocaron dominio, acciones, permisos, RLS, Storage, queries ni DTOs.
+
+### Nota de implementación 14.7
+
+Se consolidó la degradación segura de lecturas parciales en dashboard,
+workspaces de pedidos y solicitudes, creación manual de pedidos y detalle de
+plantillas. El recurso principal se conserva cuando falla una lectura
+secundaria, y los paneles afectados usan `ReadErrorAlert` con retry únicamente
+cuando el resultado fallido tiene `reason === "error"`.
+
+El action rail del dashboard y de los workspaces se alineó con los paneles
+fallidos: errores completos de tareas, archivos, comentarios, historial o
+resultados del dashboard usan `danger`; degradaciones de plantillas aplicables,
+personal disponible o listado de clientes usan `warning`. No se derivan badges
+desde resultados fallidos.
+
+Las acciones no dependientes se preservan durante la degradación: subir archivos
+y agregar comentarios siguen disponibles aunque falle el listado previo, y
+quitar personal asignado sigue disponible aunque no cargue el listado de
+candidatos. Las acciones dependientes se bloquean de forma localizada: crear un
+pedido sin clientes cargados, asociar un cliente existente sin listado
+confiable, aplicar plantillas sin plantillas cargadas y crear tareas de
+plantilla sin conocer la lista actual.
+
+En pedidos de encargo se agregó un bloqueo defensivo local para avances de
+estado que dependen de tareas desconocidas: `en_revision -> en_produccion` y
+`en_produccion -> listo_entrega` se deshabilitan temporalmente cuando no se pudo
+cargar el progreso de tareas. Cancelación y transiciones no dependientes se
+mantienen disponibles, y la validación server-side sigue siendo la autoridad.
+
+No se crearon componentes nuevos, no se agregaron fetches cliente, polling,
+retry automático de mutaciones, confirmaciones ni cambios de servicios, Server
+Actions, dominio, permisos, RLS, Storage, queries o DTOs. La siguiente subtarea
+oficial pasa a ser `14.8 — Permisos, acceso denegado y recurso inexistente`.
 
 ## 10. Criterios de cierre de Etapa 14
 

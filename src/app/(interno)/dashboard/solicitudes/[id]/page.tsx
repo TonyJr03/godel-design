@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { SolicitudClienteForm } from "@/components/solicitudes/SolicitudClienteForm";
 import { SolicitudConvertPedidoForm } from "@/components/solicitudes/SolicitudConvertPedidoForm";
 import { InternalSolicitudDetail } from "@/components/solicitudes/InternalSolicitudDetail";
-import { Alert } from "@/components/ui";
+import { Alert, ReadErrorAlert } from "@/components/ui";
 import { getInternalClienteById, listInternalClientes } from "@/lib/clientes";
 import {
   getInternalSolicitudById,
@@ -56,17 +56,27 @@ export default async function DashboardSolicitudDetallePage({
     clienteAsociadoResult && clienteAsociadoResult.ok
       ? clienteAsociadoResult.cliente
       : null;
-  const clienteAsociadoLoadError =
+  const clienteDetailLoadError =
     clienteAsociadoResult && !clienteAsociadoResult.ok
       ? clienteAsociadoResult.message
       : undefined;
-  const clientesLoadError = clientesResult.ok
+  const clienteDetailLoadRetryable =
+    clienteAsociadoResult !== null &&
+    !clienteAsociadoResult.ok &&
+    clienteAsociadoResult.reason === "error";
+  const clientesListLoadError = clientesResult.ok
     ? undefined
     : clientesResult.message;
-  const clienteLoadError = clienteAsociadoLoadError ?? clientesLoadError;
+  const clientesListLoadRetryable =
+    !clientesResult.ok && clientesResult.reason === "error";
   const files = filesResult.ok ? filesResult.files : [];
   const comments = commentsResult.ok ? commentsResult.comments : [];
   const history = historyResult.ok ? historyResult.history : [];
+  const filesLoadRetryable = !filesResult.ok && filesResult.reason === "error";
+  const commentsLoadRetryable =
+    !commentsResult.ok && commentsResult.reason === "error";
+  const historyLoadRetryable =
+    !historyResult.ok && historyResult.reason === "error";
   const filesLoadError = filesResult.ok
     ? undefined
     : "No se pudieron cargar los archivos de la solicitud.";
@@ -99,15 +109,22 @@ export default async function DashboardSolicitudDetallePage({
       updateStatusAction={updateStatusAction}
       createCommentAction={createCommentAction}
       clientePanelContent={
-        clienteAsociadoLoadError ? (
-          <Alert variant="danger">{clienteAsociadoLoadError}</Alert>
+        clienteDetailLoadError ? (
+          <ReadErrorAlert
+            variant="warning"
+            title="No se pudo cargar el cliente asociado"
+            retryable={clienteDetailLoadRetryable}
+          >
+            <p>{clienteDetailLoadError}</p>
+          </ReadErrorAlert>
         ) : (
           <SolicitudClienteForm
             associateClienteAction={associateClienteAction}
             createClienteAction={createClienteAction}
             clienteAsociado={clienteAsociado}
             clientesDisponibles={clientesResult.ok ? clientesResult.clientes : []}
-            clientesLoadError={clientesLoadError}
+            clientesLoadError={clientesListLoadError}
+            clientesLoadRetryable={clientesListLoadRetryable}
             presentation="panel"
           />
         )
@@ -127,11 +144,15 @@ export default async function DashboardSolicitudDetallePage({
       }
       files={files}
       filesLoadError={filesLoadError}
+      filesLoadRetryable={filesLoadRetryable}
       comments={comments}
       commentsLoadError={commentsLoadError}
+      commentsLoadRetryable={commentsLoadRetryable}
       history={history}
       historyLoadError={historyLoadError}
-      clienteLoadError={clienteLoadError}
+      historyLoadRetryable={historyLoadRetryable}
+      clienteDetailLoadError={clienteDetailLoadError}
+      clientesListLoadError={clientesListLoadError}
     />
   );
 }

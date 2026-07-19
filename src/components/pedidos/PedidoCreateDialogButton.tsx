@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 
 import { InternalFormDialog } from "@/components/forms";
-import { Alert } from "@/components/ui/Alert";
+import { ReadErrorAlert } from "@/components/ui/ReadErrorAlert";
 import type { CreatePedidoActionState } from "@/app/(interno)/dashboard/pedidos/actions";
 import type { PedidoPrioridad } from "@/lib/pedidos";
 
@@ -15,12 +15,14 @@ type PedidoCreateDialogButtonProps = {
   clientes: PedidoFormCliente[];
   prioridades: readonly PedidoPrioridad[];
   clientesLoadError?: string;
+  clientesLoadRetryable?: boolean;
 };
 
 export function PedidoCreateDialogButton({
   clientes,
   prioridades,
   clientesLoadError,
+  clientesLoadRetryable = false,
 }: PedidoCreateDialogButtonProps) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
@@ -68,14 +70,21 @@ export function PedidoCreateDialogButton({
         {isOpen ? (
           <div className="space-y-4">
             {clientesLoadError ? (
-              <Alert variant="warning">{clientesLoadError}</Alert>
-            ) : null}
-            <PedidoForm
-              clientes={clientes}
-              prioridades={prioridades}
-              onDirtyChange={setHasUnsavedChanges}
-              onSuccess={handleSuccess}
-            />
+              <ReadErrorAlert
+                variant="warning"
+                title="No se pudieron cargar los clientes"
+                retryable={clientesLoadRetryable}
+              >
+                <p>{clientesLoadError}</p>
+              </ReadErrorAlert>
+            ) : (
+              <PedidoForm
+                clientes={clientes}
+                prioridades={prioridades}
+                onDirtyChange={setHasUnsavedChanges}
+                onSuccess={handleSuccess}
+              />
+            )}
           </div>
         ) : null}
       </InternalFormDialog>

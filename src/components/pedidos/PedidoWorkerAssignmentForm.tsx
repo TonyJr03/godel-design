@@ -6,7 +6,7 @@ import type {
   PedidoDetailAction,
   RemovePedidoWorkerActionState,
 } from "@/app/(interno)/dashboard/pedidos/[id]/actions";
-import { Alert, Button, FormField, Select } from "@/components/ui";
+import { Alert, Button, FormField, ReadErrorAlert, Select } from "@/components/ui";
 import type { InternalPedidoDetailTrabajador } from "@/lib/pedidos";
 import type { AssignableWorker } from "@/lib/pedidos/list-assignable-workers";
 import { ROLE_LABELS } from "@/lib/permissions";
@@ -23,6 +23,7 @@ type PedidoWorkerAssignmentManageProps = PedidoWorkerAssignmentBaseProps & {
   removeWorkerAction: PedidoDetailAction<RemovePedidoWorkerActionState>;
   trabajadores: AssignableWorker[];
   loadAssignableError?: string;
+  loadAssignableErrorRetryable?: boolean;
 };
 
 type PedidoWorkerAssignmentReadOnlyProps = PedidoWorkerAssignmentBaseProps & {
@@ -211,6 +212,7 @@ function ManagedPedidoWorkerAssignmentForm({
   asignaciones,
   trabajadores,
   loadAssignableError,
+  loadAssignableErrorRetryable = false,
   presentation = "card",
 }: PedidoWorkerAssignmentManageProps) {
   const [assignState, assignFormAction, assigning] = useActionState(
@@ -269,9 +271,13 @@ function ManagedPedidoWorkerAssignmentForm({
       ) : null}
 
       {loadAssignableError ? (
-        <Alert variant="danger">
-          {loadAssignableError}
-        </Alert>
+        <ReadErrorAlert
+          variant="warning"
+          title="No se pudo cargar el personal disponible"
+          retryable={loadAssignableErrorRetryable}
+        >
+          <p>{loadAssignableError}</p>
+        </ReadErrorAlert>
       ) : availableWorkers.length === 0 ? (
         <Alert variant="warning">
           No hay más usuarios disponibles para asignar.

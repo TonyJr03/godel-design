@@ -118,8 +118,12 @@ export function DashboardWorkspace({
       id: "attention",
       label: "Atención",
       icon: "alerta",
-      statusLabel: workerDashboard ? "Mis prioridades" : "Prioridades",
-      tone: "warning",
+      statusLabel: !summaryResult.ok
+        ? "Atención no disponible"
+        : workerDashboard
+          ? "Mis prioridades"
+          : "Prioridades",
+      tone: !summaryResult.ok ? "danger" : "warning",
     },
     ...(workerDashboard
       ? []
@@ -128,31 +132,51 @@ export function DashboardWorkspace({
             id: "pendingRequests",
             label: "Solicitudes",
             icon: "solicitudes",
-            badge: getSolicitudesPendientesCount(workItemsResult),
-            statusLabel: "Pendientes",
-            tone: "warning",
+            badge: workItemsResult.ok
+              ? getSolicitudesPendientesCount(workItemsResult)
+              : undefined,
+            statusLabel: workItemsResult.ok
+              ? "Pendientes"
+              : "Solicitudes no disponibles",
+            tone: workItemsResult.ok ? "warning" : "danger",
           } satisfies WorkspaceAction,
         ]),
     {
       id: "readyOrders",
       label: "Entregas",
       icon: "entrega",
-      badge: getPedidosListosCount(workItemsResult),
-      statusLabel: workerDashboard ? "Mis listos" : "Listos",
-      tone: "success",
+      badge: workItemsResult.ok
+        ? getPedidosListosCount(workItemsResult)
+        : undefined,
+      statusLabel: !workItemsResult.ok
+        ? "Entregas no disponibles"
+        : workerDashboard
+          ? "Mis listos"
+          : "Listos",
+      tone: workItemsResult.ok ? "success" : "danger",
     },
     {
       id: "history",
       label: "Historial",
       icon: "historial",
-      badge: getActivityCount(activityResult),
-      statusLabel: workerDashboard ? "Mi actividad" : "Actividad",
+      badge: activityResult.ok ? getActivityCount(activityResult) : undefined,
+      statusLabel: activityResult.ok
+        ? workerDashboard
+          ? "Mi actividad"
+          : "Actividad"
+        : "Actividad no disponible",
+      tone: activityResult.ok ? undefined : "danger",
     },
     {
       id: "summary",
       label: "Resumen",
       icon: "dashboard",
-      statusLabel: workerDashboard ? "Mis métricas" : "Métricas",
+      statusLabel: summaryResult.ok
+        ? workerDashboard
+          ? "Mis métricas"
+          : "Métricas"
+        : "Resumen no disponible",
+      tone: summaryResult.ok ? undefined : "danger",
     },
   ];
   const compactActionIds = workerDashboard

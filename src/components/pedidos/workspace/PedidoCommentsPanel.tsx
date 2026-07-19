@@ -1,4 +1,4 @@
-import { Alert } from "@/components/ui";
+import { ReadErrorAlert } from "@/components/ui";
 import type { PedidoComment } from "@/lib/pedidos";
 import { ROLE_SHORT_LABELS } from "@/lib/permissions";
 import { formatAppDateTime } from "@/lib/utils";
@@ -6,6 +6,7 @@ import { formatAppDateTime } from "@/lib/utils";
 type PedidoCommentsPanelProps = {
   comments: readonly PedidoComment[];
   loadError?: string;
+  loadErrorRetryable?: boolean;
 };
 
 function getAuthorName(comment: PedidoComment): string {
@@ -21,13 +22,18 @@ function getAuthorRole(comment: PedidoComment): string {
 export function PedidoCommentsPanel({
   comments,
   loadError,
+  loadErrorRetryable = false,
 }: PedidoCommentsPanelProps) {
   return (
     <div>
       {loadError ? (
-        <Alert variant="danger">
-          {loadError}
-        </Alert>
+        <ReadErrorAlert
+          variant="warning"
+          title="No se pudieron cargar los comentarios"
+          retryable={loadErrorRetryable}
+        >
+          <p>{loadError}</p>
+        </ReadErrorAlert>
       ) : null}
 
       {comments.length > 0 ? (

@@ -37,11 +37,15 @@ type InternalSolicitudDetailProps = {
   conversionPanelContent: ReactNode;
   files: readonly SolicitudFileListItem[];
   filesLoadError?: string;
+  filesLoadRetryable?: boolean;
   comments: readonly SolicitudComment[];
   commentsLoadError?: string;
+  commentsLoadRetryable?: boolean;
   history: readonly SolicitudHistoryItem[];
   historyLoadError?: string;
-  clienteLoadError?: string;
+  historyLoadRetryable?: boolean;
+  clienteDetailLoadError?: string;
+  clientesListLoadError?: string;
 };
 
 type WorkspaceActionState = Pick<WorkspaceAction, "tone" | "statusLabel">;
@@ -90,15 +94,24 @@ function getStatusActionState(
 
 function getClienteActionState({
   solicitud,
-  clienteLoadError,
+  clienteDetailLoadError,
+  clientesListLoadError,
 }: {
   solicitud: InternalSolicitudDetailData;
-  clienteLoadError?: string;
+  clienteDetailLoadError?: string;
+  clientesListLoadError?: string;
 }): WorkspaceActionState {
-  if (clienteLoadError) {
+  if (clienteDetailLoadError) {
     return {
       tone: "danger",
       statusLabel: "No se pudo cargar el cliente",
+    };
+  }
+
+  if (clientesListLoadError) {
+    return {
+      tone: "warning",
+      statusLabel: "Listado de clientes no disponible",
     };
   }
 
@@ -162,11 +175,15 @@ export function InternalSolicitudDetail({
   conversionPanelContent,
   files,
   filesLoadError,
+  filesLoadRetryable = false,
   comments,
   commentsLoadError,
+  commentsLoadRetryable = false,
   history,
   historyLoadError,
-  clienteLoadError,
+  historyLoadRetryable = false,
+  clienteDetailLoadError,
+  clientesListLoadError,
 }: InternalSolicitudDetailProps) {
   const compactActionIds = ["estado", "cliente", "conversion"];
   const filesActionState: WorkspaceActionState = filesLoadError
@@ -198,7 +215,11 @@ export function InternalSolicitudDetail({
       id: "cliente",
       label: "Cliente",
       icon: "cliente",
-      ...getClienteActionState({ solicitud, clienteLoadError }),
+      ...getClienteActionState({
+        solicitud,
+        clienteDetailLoadError,
+        clientesListLoadError,
+      }),
     },
     {
       id: "conversion",
@@ -271,6 +292,7 @@ export function InternalSolicitudDetail({
           solicitudId={solicitud.id}
           files={files}
           loadError={filesLoadError}
+          loadErrorRetryable={filesLoadRetryable}
         />
       ),
     },
@@ -296,6 +318,7 @@ export function InternalSolicitudDetail({
               <SolicitudCommentsPanel
                 comments={comments}
                 loadError={commentsLoadError}
+                loadErrorRetryable={commentsLoadRetryable}
               />
             </div>
           </section>
@@ -316,6 +339,7 @@ export function InternalSolicitudDetail({
         <SolicitudHistoryTimeline
           history={history}
           loadError={historyLoadError}
+          loadErrorRetryable={historyLoadRetryable}
         />
       ),
     },
@@ -346,6 +370,7 @@ export function InternalSolicitudDetail({
               solicitud={solicitud}
               files={files}
               filesLoadError={filesLoadError}
+              filesLoadRetryable={filesLoadRetryable}
             />
           }
         />

@@ -1271,7 +1271,7 @@ docs/ui-ux/TRANSVERSAL_STATES_STAGE_14_PLAN.md
 * 14.4 Estados vacíos y sin resultados — Completado.
 * 14.5 Errores de datos y retry seguro — Completado.
 * 14.6 Pending y action feedback — Completado.
-* 14.7 Fallos parciales en dashboard y workspaces — Propuesto.
+* 14.7 Fallos parciales en dashboard y workspaces — Completado.
 * 14.8 Permisos, acceso denegado y recurso inexistente — Propuesto.
 * 14.9 Confirmaciones y acciones destructivas — Propuesto.
 * 14.10 QA y cierre de Etapa 14 — Propuesto.
@@ -1350,6 +1350,16 @@ inline e icon-only con feedback accesible, filtros con estado
 conversión de solicitud ya no muestra dos éxitos simultáneos. No se agregaron
 retry automático, confirmaciones ni cambios de dominio, Server Actions, RLS,
 Storage, permisos, queries o DTO público.
+
+### Nota de implementación 14.7
+
+Se consolidaron fallos parciales en dashboard, workspaces de pedidos y
+solicitudes, creación manual de pedidos y detalle de plantillas. Las lecturas
+secundarias fallidas usan `ReadErrorAlert` con retry solo para
+`reason === "error"`, el action rail refleja paneles fallidos, las acciones no
+dependientes permanecen disponibles y las acciones que necesitan datos no
+cargados se bloquean con explicación localizada. No se modificaron servicios,
+Server Actions, permisos, RLS, Storage, queries, DTOs ni lógica de dominio.
 
 ### Criterio de cierre
 
@@ -1682,11 +1692,11 @@ No introducir paginación, caché, virtualización o paralelización compleja si
 La siguiente subtarea oficial de esta iniciativa es:
 
 ```text
-14.7 — Fallos parciales en dashboard y workspaces
+14.8 — Permisos, acceso denegado y recurso inexistente
 ```
 
-El siguiente entregable debe consolidar la degradación segura para fallos
-parciales en dashboard y workspaces donde la matriz documentada en
+El siguiente entregable debe alinear permisos, acceso denegado y recursos
+inexistentes donde la matriz documentada en
 `docs/ui-ux/TRANSVERSAL_STATES_DECISION_MATRIX.md` lo justifique, sin modificar
 Server Actions, RLS, Storage, permisos, DTO público ni lógica de dominio.
 

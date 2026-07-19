@@ -1,4 +1,4 @@
-import { Alert } from "@/components/ui";
+import { ReadErrorAlert } from "@/components/ui";
 import {
   STORAGE_FILE_CATEGORY_LABELS,
   type PedidoFileListItem,
@@ -9,6 +9,7 @@ type PedidoFilesPreviewProps = {
   pedidoId: string;
   files: readonly PedidoFileListItem[];
   loadError?: string;
+  loadErrorRetryable?: boolean;
 };
 
 function getUploaderLabel(file: PedidoFileListItem): string {
@@ -37,6 +38,7 @@ export function PedidoFilesPreview({
   pedidoId,
   files,
   loadError,
+  loadErrorRetryable = false,
 }: PedidoFilesPreviewProps) {
   const previewFiles = getPreviewFiles(files);
   const hiddenFilesCount = Math.max(files.length - previewFiles.length, 0);
@@ -54,9 +56,14 @@ export function PedidoFilesPreview({
       </h2>
 
       {loadError ? (
-        <Alert variant="danger" className="mt-5">
-          {loadError}
-        </Alert>
+        <ReadErrorAlert
+          variant="warning"
+          title="No se pudieron cargar los archivos"
+          retryable={loadErrorRetryable}
+          className="mt-5"
+        >
+          <p>{loadError}</p>
+        </ReadErrorAlert>
       ) : (
         <div className="mt-5 min-h-0 xl:flex-1 xl:overflow-y-auto xl:overscroll-contain">
           {previewFiles.length > 0 ? (

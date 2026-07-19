@@ -66,6 +66,8 @@ export default async function DashboardPedidosPage({
         name: cliente.name,
       }))
     : [];
+  const clientesLoadRetryable =
+    !clientesResult.ok && clientesResult.reason === "error";
   const searchValue = result.q ?? "";
 
   return (
@@ -80,6 +82,7 @@ export default async function DashboardPedidosPage({
             clientesLoadError={
               !clientesResult.ok ? clientesResult.message : undefined
             }
+            clientesLoadRetryable={clientesLoadRetryable}
           />
         }
         toolbar={

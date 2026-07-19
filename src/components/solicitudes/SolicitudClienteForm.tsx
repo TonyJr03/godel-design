@@ -7,7 +7,7 @@ import type {
   CreateClienteFromSolicitudActionState,
   SolicitudDetailAction,
 } from "@/app/(interno)/dashboard/solicitudes/[id]/actions";
-import { Alert, Button, FormField, Select } from "@/components/ui";
+import { Alert, Button, FormField, ReadErrorAlert, Select } from "@/components/ui";
 import type { InternalCliente, InternalClienteDetail } from "@/lib/clientes";
 
 type SolicitudClienteFormProps = {
@@ -20,6 +20,7 @@ type SolicitudClienteFormProps = {
   clienteAsociado: InternalClienteDetail | null;
   clientesDisponibles: InternalCliente[];
   clientesLoadError?: string | null;
+  clientesLoadRetryable?: boolean;
   presentation?: "card" | "panel";
 };
 
@@ -107,6 +108,7 @@ export function SolicitudClienteForm({
   clienteAsociado,
   clientesDisponibles,
   clientesLoadError,
+  clientesLoadRetryable = false,
   presentation = "card",
 }: SolicitudClienteFormProps) {
   const [associateState, associateAction, associatePending] = useActionState(
@@ -138,9 +140,14 @@ export function SolicitudClienteForm({
           </h3>
 
           {clientesLoadError ? (
-            <Alert variant="danger" className="mt-3">
-              {clientesLoadError}
-            </Alert>
+            <ReadErrorAlert
+              variant="warning"
+              title="No se pudieron cargar los clientes"
+              retryable={clientesLoadRetryable}
+              className="mt-3"
+            >
+              <p>{clientesLoadError}</p>
+            </ReadErrorAlert>
           ) : null}
 
           <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
@@ -243,9 +250,14 @@ export function SolicitudClienteForm({
       <div className="mt-6 grid gap-5 lg:grid-cols-2">
         <form action={associateAction} aria-busy={associatePending}>
           {clientesLoadError ? (
-            <Alert variant="danger" className="mb-4">
-              {clientesLoadError}
-            </Alert>
+            <ReadErrorAlert
+              variant="warning"
+              title="No se pudieron cargar los clientes"
+              retryable={clientesLoadRetryable}
+              className="mb-4"
+            >
+              <p>{clientesLoadError}</p>
+            </ReadErrorAlert>
           ) : null}
 
           <FormField id="cliente_id" label="Cliente existente" required>

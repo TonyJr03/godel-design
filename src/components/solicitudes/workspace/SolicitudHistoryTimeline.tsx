@@ -1,4 +1,4 @@
-import { Alert } from "@/components/ui";
+import { ReadErrorAlert } from "@/components/ui";
 import { ROLE_SHORT_LABELS } from "@/lib/permissions";
 import {
   SOLICITUD_HISTORY_ACTION_LABELS,
@@ -11,6 +11,7 @@ import { formatAppDateTime } from "@/lib/utils";
 type SolicitudHistoryTimelineProps = {
   history: readonly SolicitudHistoryItem[];
   loadError?: string;
+  loadErrorRetryable?: boolean;
 };
 
 function getActorName(item: SolicitudHistoryItem): string {
@@ -164,9 +165,18 @@ function getHistorySummary(item: SolicitudHistoryItem): string {
 export function SolicitudHistoryTimeline({
   history,
   loadError,
+  loadErrorRetryable = false,
 }: SolicitudHistoryTimelineProps) {
   if (loadError) {
-    return <Alert variant="danger">{loadError}</Alert>;
+    return (
+      <ReadErrorAlert
+        variant="warning"
+        title="No se pudo cargar el historial"
+        retryable={loadErrorRetryable}
+      >
+        <p>{loadError}</p>
+      </ReadErrorAlert>
+    );
   }
 
   if (history.length === 0) {

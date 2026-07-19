@@ -14,7 +14,7 @@ import {
 import type { PedidoTask } from "@/lib/pedidos/list-pedido-tasks";
 import type { PedidoTasksProgress } from "@/lib/pedidos/task-progress";
 import type { ActiveTaskTemplateForOrder } from "@/lib/task-templates";
-import { Alert, Button } from "@/components/ui";
+import { Alert, Button, ReadErrorAlert } from "@/components/ui";
 import { ApplyTaskTemplateForm } from "./ApplyTaskTemplateForm";
 import { PedidoProgressBar } from "./PedidoProgressBar";
 import {
@@ -30,8 +30,10 @@ type PedidoTasksSectionProps = {
   tasks: PedidoTask[];
   progress: PedidoTasksProgress;
   loadError?: string;
+  loadErrorRetryable?: boolean;
   taskTemplates?: ActiveTaskTemplateForOrder[];
   taskTemplatesLoadError?: string;
+  taskTemplatesLoadRetryable?: boolean;
   presentation?: "card" | "panel";
 };
 
@@ -51,8 +53,10 @@ export function PedidoTasksSection({
   tasks,
   progress,
   loadError,
+  loadErrorRetryable = false,
   taskTemplates = [],
   taskTemplatesLoadError,
+  taskTemplatesLoadRetryable = false,
   presentation = "card",
 }: PedidoTasksSectionProps) {
   const formRef = useRef<HTMLFormElement>(null);
@@ -85,17 +89,14 @@ export function PedidoTasksSection({
             Tareas del pedido
           </h2>
         ) : null}
-        <p
-          className={[
-            "rounded-(--radius-control) border border-danger/30 bg-danger-soft px-4 py-3 text-sm leading-6 text-danger",
-            isPanelPresentation ? "" : "mt-5",
-          ]
-            .filter(Boolean)
-            .join(" ")}
-          role="alert"
+        <ReadErrorAlert
+          variant="warning"
+          title="No se pudieron cargar las tareas"
+          retryable={loadErrorRetryable}
+          className={isPanelPresentation ? "" : "mt-5"}
         >
-          {loadError}
-        </p>
+          <p>{loadError}</p>
+        </ReadErrorAlert>
       </section>
     );
   }
@@ -145,6 +146,7 @@ export function PedidoTasksSection({
               action={applyTaskTemplateAction}
               templates={taskTemplates}
               loadError={taskTemplatesLoadError}
+              loadErrorRetryable={taskTemplatesLoadRetryable}
               presentation={isPanelPresentation ? "panel" : "card"}
             />
           ) : null}

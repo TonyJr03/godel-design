@@ -48,6 +48,8 @@ export default async function TaskTemplateDetailPage({
     return <Alert variant="danger">{templateResult.message}</Alert>;
   }
 
+  const tasksLoadRetryable =
+    !tasksResult.ok && tasksResult.reason === "error";
   const createTaskAction = createTaskTemplateTaskAction.bind(null, templateId);
   const taskActions = {
     delete: deleteTaskTemplateTaskAction.bind(null, templateId),
@@ -65,16 +67,26 @@ export default async function TaskTemplateDetailPage({
             taskActions={taskActions}
             tasks={tasksResult.ok ? tasksResult.tasks : []}
             loadError={tasksResult.ok ? undefined : tasksResult.message}
+            loadErrorRetryable={tasksLoadRetryable}
           />
         </div>
 
         <aside className="min-w-0 space-y-6 xl:sticky xl:top-24 xl:self-start">
           <DetailPanel title="Nueva tarea">
-            <TaskTemplateTaskForm
-              mode="create"
-              action={createTaskAction}
-              variant="compact"
-            />
+            {tasksResult.ok ? (
+              <TaskTemplateTaskForm
+                mode="create"
+                action={createTaskAction}
+                variant="compact"
+              />
+            ) : (
+              <Alert
+                variant="warning"
+                title="Creación temporalmente no disponible"
+              >
+                Carga las tareas actuales antes de agregar una nueva.
+              </Alert>
+            )}
           </DetailPanel>
 
           <DetailPanel title="Registro">

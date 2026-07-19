@@ -5,7 +5,7 @@ import type {
   PedidoDetailAction,
   UpdatePedidoStatusActionState,
 } from "@/app/(interno)/dashboard/pedidos/[id]/actions";
-import { Alert, Button, FormField, Select } from "@/components/ui";
+import { Alert, Button, FormField, ReadErrorAlert, Select } from "@/components/ui";
 import { PEDIDO_STATUS_LABELS } from "@/lib/pedidos/labels";
 import {
   DELIVERY_PAYMENT_PENDING_REASON,
@@ -27,6 +27,7 @@ type PedidoStatusFormProps = {
   paymentStatus?: PedidoPaymentStatus;
   taskProgress?: PedidoStatusTransitionContext | null;
   tasksLoadError?: string;
+  tasksLoadRetryable?: boolean;
   presentation?: "card" | "panel";
 };
 
@@ -35,6 +36,9 @@ const initialState: UpdatePedidoStatusActionState = {
   message: "",
 };
 
+const TASKS_UNAVAILABLE_TRANSITION_REASON =
+  "No se puede validar este avance mientras las tareas no estén disponibles.";
+
 export function PedidoStatusForm({
   updateStatusAction,
   estadoActual,
@@ -42,6 +46,7 @@ export function PedidoStatusForm({
   paymentStatus,
   taskProgress,
   tasksLoadError,
+  tasksLoadRetryable = false,
   presentation = "card",
 }: PedidoStatusFormProps) {
   const [state, formAction, pending] = useActionState(
@@ -50,13 +55,33 @@ export function PedidoStatusForm({
   );
   const estadoError = state.fieldErrors?.status;
   const isClosed = isPedidoClosedStatus(estadoActual);
-  const statusOptions = getAllowedPedidoStatusTransitions(
+  const baseStatusOptions = getAllowedPedidoStatusTransitions(
     estadoActual,
     taskProgress,
     workflowType,
     paymentStatus,
   );
   const isPrintWorkflow = workflowType === WORKFLOW_TYPES.IMPRESION;
+  const shouldBlockTaskDependentTransitions =
+    !isClosed &&
+    !isPrintWorkflow &&
+    Boolean(tasksLoadError) &&
+    (estadoActual === "en_revision" || estadoActual === "en_produccion");
+  const statusOptions = baseStatusOptions.map((option) => {
+    const isTaskDependentTransition =
+      (estadoActual === "en_revision" && option.status === "en_produccion") ||
+      (estadoActual === "en_produccion" && option.status === "listo_entrega");
+
+    if (!shouldBlockTaskDependentTransitions || !isTaskDependentTransition) {
+      return option;
+    }
+
+    return {
+      ...option,
+      disabled: true,
+      reason: TASKS_UNAVAILABLE_TRANSITION_REASON,
+    };
+  });
   const statusReasons = statusOptions
     .filter((option) => option.reason)
     .map((option) => option.reason as string);
@@ -121,10 +146,16 @@ export function PedidoStatusForm({
         ) : null}
 
         {!isClosed && !isPrintWorkflow && tasksLoadError ? (
-          <Alert variant="warning">
-            No se pudo cargar el progreso de tareas. La validación final se
-            realizará en servidor.
-          </Alert>
+          <ReadErrorAlert
+            title="Progreso de tareas no disponible"
+            retryable={tasksLoadRetryable}
+          >
+            <p>{tasksLoadError}</p>
+            <p>
+              Los cambios de estado que dependen de las tareas se
+              deshabilitaron temporalmente.
+            </p>
+          </ReadErrorAlert>
         ) : null}
 
         {!isClosed && blocksDeliveryByPayment ? (

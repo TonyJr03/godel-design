@@ -15,8 +15,10 @@ type PedidoWorkspaceMainProps = {
   tasks: readonly PedidoTask[];
   taskProgress: PedidoTasksProgress;
   tasksLoadError?: string;
+  tasksLoadRetryable?: boolean;
   files: readonly PedidoFileListItem[];
   filesLoadError?: string;
+  filesLoadRetryable?: boolean;
 };
 
 export function PedidoWorkspaceMain({
@@ -24,8 +26,10 @@ export function PedidoWorkspaceMain({
   tasks,
   taskProgress,
   tasksLoadError,
+  tasksLoadRetryable = false,
   files,
   filesLoadError,
+  filesLoadRetryable = false,
 }: PedidoWorkspaceMainProps) {
   const isPrintWorkflow =
     pedido.workflow_type === WORKFLOW_TYPES.IMPRESION;
@@ -42,6 +46,7 @@ export function PedidoWorkspaceMain({
           pedidoId={pedido.id}
           files={files}
           loadError={filesLoadError}
+          loadErrorRetryable={filesLoadRetryable}
         />
       </div>
     );
@@ -59,12 +64,14 @@ export function PedidoWorkspaceMain({
           tasks={tasks}
           progress={taskProgress}
           loadError={tasksLoadError}
+          loadErrorRetryable={tasksLoadRetryable}
         />
 
         <PedidoFilesPreview
           pedidoId={pedido.id}
           files={files}
           loadError={filesLoadError}
+          loadErrorRetryable={filesLoadRetryable}
         />
       </div>
     </div>
