@@ -9,6 +9,10 @@ export {
   isTrabajador,
 } from "./permissions";
 export { ROLE_LABELS, ROLE_SHORT_LABELS } from "./labels";
-export { canAccessDashboardRoute } from "./routes";
+export {
+  DASHBOARD_NOT_FOUND_FALLBACK_PATH,
+  canAccessDashboardRoute,
+  isKnownDashboardRoute,
+} from "./routes";
 
 export type { Permission, Role } from "./permissions";

@@ -1272,7 +1272,7 @@ docs/ui-ux/TRANSVERSAL_STATES_STAGE_14_PLAN.md
 * 14.5 Errores de datos y retry seguro — Completado.
 * 14.6 Pending y action feedback — Completado.
 * 14.7 Fallos parciales en dashboard y workspaces — Completado.
-* 14.8 Permisos, acceso denegado y recurso inexistente — Propuesto.
+* 14.8 Permisos, acceso denegado y recurso inexistente — Completado.
 * 14.9 Confirmaciones y acciones destructivas — Propuesto.
 * 14.10 QA y cierre de Etapa 14 — Propuesto.
 
@@ -1360,6 +1360,24 @@ secundarias fallidas usan `ReadErrorAlert` con retry solo para
 dependientes permanecen disponibles y las acciones que necesitan datos no
 cargados se bloquean con explicación localizada. No se modificaron servicios,
 Server Actions, permisos, RLS, Storage, queries, DTOs ni lógica de dominio.
+
+### Nota de implementación 14.8
+
+Se alinearon permisos, acceso denegado y recurso inexistente. El proxy conserva
+la separación entre `/login`, `/acceso-denegado` y `/sin-permisos`, pero ahora
+reescribe rutas internas desconocidas hacia el 404 interno sin cambiar la URL
+visible. Las páginas transversales de acceso se validan server-side para evitar
+estados imposibles y usan `EmptyState` con un único `h1`, copy seguro, acciones
+de regreso y cierre de sesión.
+
+Los Server Components internos clasifican `unauthorized`, `forbidden`,
+`invalid_id` y `not_found` antes de mostrar errores de lectura. El 404 interno
+evita copy de permisos y el 404 público mantiene solo rutas públicas. En
+`/dashboard/pedidos`, trabajadores ven el listado sin cargar clientes ni mostrar
+`Nuevo pedido`, porque la creación manual queda como capacidad embebida de
+`pedidos.manage`. No se modificaron roles, permisos, RLS, Storage, DTO público,
+Server Actions, servicios, queries ni lógica de dominio. La siguiente subtarea
+activa es 14.9.
 
 ### Criterio de cierre
 

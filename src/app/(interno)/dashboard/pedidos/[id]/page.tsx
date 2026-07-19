@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { PedidoCommentComposer } from "@/components/pedidos/PedidoCommentComposer";
 import { InternalPedidoDetail } from "@/components/pedidos/InternalPedidoDetail";
 import { PedidoPaymentSection } from "@/components/pedidos/PedidoPaymentSection";
@@ -53,6 +53,14 @@ export default async function DashboardPedidoDetallePage({
   const result = await getInternalPedidoById(id);
 
   if (!result.ok) {
+    if (result.reason === "unauthorized") {
+      redirect("/login");
+    }
+
+    if (result.reason === "forbidden") {
+      redirect("/sin-permisos");
+    }
+
     if (result.reason === "invalid_id" || result.reason === "not_found") {
       notFound();
     }

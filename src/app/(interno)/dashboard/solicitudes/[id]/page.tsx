@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { SolicitudClienteForm } from "@/components/solicitudes/SolicitudClienteForm";
 import { SolicitudConvertPedidoForm } from "@/components/solicitudes/SolicitudConvertPedidoForm";
@@ -30,6 +30,14 @@ export default async function DashboardSolicitudDetallePage({
 }: DashboardSolicitudDetallePageProps) {
   const { id } = await params;
   const result = await getInternalSolicitudById(id);
+
+  if (!result.ok && result.reason === "unauthorized") {
+    redirect("/login");
+  }
+
+  if (!result.ok && result.reason === "forbidden") {
+    redirect("/sin-permisos");
+  }
 
   if (!result.ok && ["invalid_id", "not_found"].includes(result.reason)) {
     notFound();

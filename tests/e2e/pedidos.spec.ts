@@ -1343,6 +1343,16 @@ test("pedido access follows current role boundaries", async ({ page }) => {
   await loginAs(page, "worker");
   await page.goto("/dashboard/pedidos");
   await expectPedidosListLoaded(page);
+  await expect(
+    page.getByRole("button", { name: /nuevo pedido/i }),
+  ).toHaveCount(0);
+  await expect(page.getByText(/no tienes permiso para ver clientes/i))
+    .toHaveCount(0);
+  await expect(page.getByText(/no se pudieron cargar los clientes/i))
+    .toHaveCount(0);
+  await expect(page.getByRole("button", { name: /reintentar/i })).toHaveCount(
+    0,
+  );
 
   await page.goto("/dashboard/pedidos/nuevo");
   await expect(

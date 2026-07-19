@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+
 import {
   ListingPageHeader,
   ListingToolbar,
@@ -27,6 +29,15 @@ export default async function DashboardConfiguracionUsuariosPage({
   const role = getSingleSearchParam(params.role);
   const active = getSingleSearchParam(params.active);
   const result = await listInternalUsers({ q, role, active });
+
+  if (!result.ok && result.reason === "unauthorized") {
+    redirect("/login");
+  }
+
+  if (!result.ok && result.reason === "forbidden") {
+    redirect("/sin-permisos");
+  }
+
   const searchValue = result.q ?? "";
   const roleValue = result.role ?? "";
   const activeValue =

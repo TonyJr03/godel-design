@@ -1,6 +1,10 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
-import { canAccessDashboardRoute } from "@/lib/permissions";
+import {
+  DASHBOARD_NOT_FOUND_FALLBACK_PATH,
+  canAccessDashboardRoute,
+  isKnownDashboardRoute,
+} from "@/lib/permissions";
 import type { Database } from "@/types/database";
 
 type CookieToSet = {
@@ -59,7 +63,9 @@ export async function updateSession(request: NextRequest) {
   );
 
   const pathname = request.nextUrl.pathname;
-  const isDashboardRoute = pathname.startsWith(protectedPathPrefix);
+  const isDashboardRoute =
+    pathname === protectedPathPrefix ||
+    pathname.startsWith(`${protectedPathPrefix}/`);
   const isLoginRoute = pathname === loginPath;
   const isDeniedRoute = pathname === deniedPath;
   const isNoPermissionsRoute = pathname === noPermissionsPath;
@@ -101,6 +107,18 @@ export async function updateSession(request: NextRequest) {
 
       return applySessionCookies(
         NextResponse.redirect(redirectUrl),
+        cookiesToSet,
+        headersToSet,
+      );
+    }
+
+    if (isDashboardRoute && profile && !isKnownDashboardRoute(pathname)) {
+      const rewriteUrl = request.nextUrl.clone();
+      rewriteUrl.pathname = DASHBOARD_NOT_FOUND_FALLBACK_PATH;
+      rewriteUrl.search = "";
+
+      return applySessionCookies(
+        NextResponse.rewrite(rewriteUrl),
         cookiesToSet,
         headersToSet,
       );

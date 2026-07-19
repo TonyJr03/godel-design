@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import {
   createTaskTemplateTaskAction,
@@ -35,6 +35,14 @@ export default async function TaskTemplateDetailPage({
     getTaskTemplateById(templateId),
     listTaskTemplateTasks(templateId),
   ]);
+
+  if (!templateResult.ok && templateResult.reason === "unauthorized") {
+    redirect("/login");
+  }
+
+  if (!templateResult.ok && templateResult.reason === "forbidden") {
+    redirect("/sin-permisos");
+  }
 
   if (
     !templateResult.ok &&

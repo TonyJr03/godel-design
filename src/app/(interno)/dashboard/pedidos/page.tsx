@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+
 import {
   ListingPageHeader,
   ListingToolbar,
@@ -7,7 +9,12 @@ import { PedidoCreateDialogButton } from "@/components/pedidos/PedidoCreateDialo
 import type { PedidoFormCliente } from "@/components/pedidos/PedidoForm";
 import { Alert } from "@/components/ui/Alert";
 import { ReadErrorAlert } from "@/components/ui/ReadErrorAlert";
-import { listInternalClientes } from "@/lib/clientes";
+import { getCurrentProfile } from "@/lib/auth/current-user";
+import {
+  listInternalClientes,
+  type ListInternalClientesResult,
+} from "@/lib/clientes";
+import { hasPermission } from "@/lib/permissions";
 import {
   INTERNAL_PEDIDO_ESTADOS,
   INTERNAL_PEDIDO_NEW_STATUS_FILTER,
@@ -51,23 +58,49 @@ export default async function DashboardPedidosPage({
   const status = getSingleSearchParam(params.status);
   const workflowType = getSingleSearchParam(params.workflow_type);
   const paymentStatus = getSingleSearchParam(params.payment_status);
-  const [result, clientesResult] = await Promise.all([
-    listInternalPedidos({
-      q,
-      status,
-      workflowType,
-      paymentStatus,
-    }),
-    listInternalClientes({ limit: 100 }),
-  ]);
-  const clientes: PedidoFormCliente[] = clientesResult.ok
+  const result = await listInternalPedidos({
+    q,
+    status,
+    workflowType,
+    paymentStatus,
+  });
+
+  if (!result.ok && result.reason === "unauthorized") {
+    redirect("/login");
+  }
+
+  if (!result.ok && result.reason === "forbidden") {
+    redirect("/sin-permisos");
+  }
+
+  const profile = await getCurrentProfile();
+  const canCreatePedido =
+    profile !== null && hasPermission(profile.role, "pedidos.manage");
+  const clientesResult: ListInternalClientesResult | null = canCreatePedido
+    ? await listInternalClientes({ limit: 100 })
+    : null;
+
+  if (clientesResult && !clientesResult.ok) {
+    if (clientesResult.reason === "unauthorized") {
+      redirect("/login");
+    }
+  }
+
+  const canShowCreatePedidoAction =
+    canCreatePedido &&
+    (clientesResult === null ||
+      clientesResult.ok ||
+      clientesResult.reason === "error");
+  const clientes: PedidoFormCliente[] = clientesResult?.ok
     ? clientesResult.clientes.map((cliente) => ({
         id: cliente.id,
         name: cliente.name,
       }))
     : [];
   const clientesLoadRetryable =
-    !clientesResult.ok && clientesResult.reason === "error";
+    clientesResult !== null &&
+    !clientesResult.ok &&
+    clientesResult.reason === "error";
   const searchValue = result.q ?? "";
 
   return (
@@ -76,14 +109,18 @@ export default async function DashboardPedidosPage({
         title="Pedidos"
         description="Listado interno de pedidos oficiales para seguimiento operativo."
         action={
-          <PedidoCreateDialogButton
-            clientes={clientes}
-            prioridades={PEDIDO_PRIORIDADES}
-            clientesLoadError={
-              !clientesResult.ok ? clientesResult.message : undefined
-            }
-            clientesLoadRetryable={clientesLoadRetryable}
-          />
+          canShowCreatePedidoAction ? (
+            <PedidoCreateDialogButton
+              clientes={clientes}
+              prioridades={PEDIDO_PRIORIDADES}
+              clientesLoadError={
+                clientesResult && !clientesResult.ok
+                  ? clientesResult.message
+                  : undefined
+              }
+              clientesLoadRetryable={clientesLoadRetryable}
+            />
+          ) : undefined
         }
         toolbar={
           <ListingToolbar

@@ -218,7 +218,7 @@ docs/ui-ux/TRANSVERSAL_STATES_DECISION_MATRIX.md
 | 14.5 | Errores de datos y retry seguro | Definir patrón de retry para lecturas y errores temporales sin reintentar mutaciones peligrosas. | Completado |
 | 14.6 | Pending y action feedback | Normalizar pending copy, `aria-busy`, disabled states, éxitos y errores de formularios. | Completado |
 | 14.7 | Fallos parciales en dashboard y workspaces | Consolidar degradación segura para paneles secundarios, previews y action rail. | Completado |
-| 14.8 | Permisos, acceso denegado y recurso inexistente | Alinear `/sin-permisos`, `/acceso-denegado`, 404 pública e interna y estados embebidos de permiso. | Propuesta |
+| 14.8 | Permisos, acceso denegado y recurso inexistente | Alinear `/sin-permisos`, `/acceso-denegado`, 404 pública e interna y estados embebidos de permiso. | Completado |
 | 14.9 | Confirmaciones y acciones destructivas | Revisar cierre con cambios, eliminaciones inline y feedback posterior sin tocar reglas de dominio. | Propuesta |
 | 14.10 | QA y cierre de Etapa 14 | Validar rutas críticas, responsive, accesibilidad, seguridad visual y documentación de cierre. | Propuesta |
 
@@ -381,6 +381,40 @@ No se crearon componentes nuevos, no se agregaron fetches cliente, polling,
 retry automático de mutaciones, confirmaciones ni cambios de servicios, Server
 Actions, dominio, permisos, RLS, Storage, queries o DTOs. La siguiente subtarea
 oficial pasa a ser `14.8 — Permisos, acceso denegado y recurso inexistente`.
+
+### Nota de implementación 14.8
+
+Se consolidó la clasificación transversal entre login, acceso denegado, sin
+permisos, recurso inexistente y acción embebida no disponible. El proxy conserva
+`/login` para usuarios no autenticados, `/acceso-denegado` para cuentas sin
+perfil interno activo, `/sin-permisos` para rutas conocidas sin permiso y
+reescribe rutas internas desconocidas hacia el fallback interno de 404 sin
+cambiar la URL visible.
+
+Las páginas `/acceso-denegado` y `/sin-permisos` se validan a sí mismas para
+evitar estados imposibles: una sesión ausente vuelve a `/login`, un perfil
+interno activo no permanece en acceso denegado y una cuenta sin perfil activo no
+permanece en sin permisos. Ambas usan `EmptyState` con `titleAs="h1"`, copy
+seguro, navegación de regreso y cierre de sesión, sin retry ni detalles de
+roles, permisos internos, RLS, Supabase, Storage o UUIDs.
+
+Los Server Components internos clasifican `ServiceResult` antes de mostrar
+errores de lectura: `unauthorized` redirige a `/login`, `forbidden` redirige a
+`/sin-permisos`, `invalid_id` y `not_found` usan `notFound()`, y solo
+`reason === "error"` queda para `ReadErrorAlert` o errores controlados. El 404
+interno mantiene enlaces a dashboard y pedidos sin mencionar permisos, y el 404
+público conserva header/footer y solo enlaza a rutas públicas.
+
+En `/dashboard/pedidos` la creación manual queda tratada como capacidad
+embebida: trabajadores pueden ver el listado, pero no se carga el listado de
+clientes ni se renderiza `Nuevo pedido` si no tienen `pedidos.manage`. Los
+paneles embebidos de pagos, personal, tareas, archivos, comentarios e historial
+fueron revisados y se mantienen sin cambios porque ya conservan datos de lectura
+o bloquean acciones localmente sin mostrar alertas ruidosas de permisos.
+
+No se modificaron roles, permisos, RLS, Storage, DTO público, Server Actions,
+servicios de dominio, queries ni modelo de datos. La siguiente subtarea oficial
+pasa a ser `14.9 — Confirmaciones y acciones destructivas`.
 
 ## 10. Criterios de cierre de Etapa 14
 

@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+
 import { ClienteCreateDialogButton } from "@/components/clientes/ClienteCreateDialogButton";
 import { InternalClientesList } from "@/components/clientes/InternalClientesList";
 import {
@@ -20,6 +22,15 @@ export default async function DashboardClientesPage({
   const params = await searchParams;
   const q = getSingleSearchParam(params.q);
   const result = await listInternalClientes({ q });
+
+  if (!result.ok && result.reason === "unauthorized") {
+    redirect("/login");
+  }
+
+  if (!result.ok && result.reason === "forbidden") {
+    redirect("/sin-permisos");
+  }
+
   const searchValue = result.q ?? "";
 
   return (
