@@ -6,13 +6,14 @@ import type {
   ApplyTaskTemplateActionState,
   PedidoDetailAction,
 } from "@/app/(interno)/dashboard/pedidos/[id]/actions";
-import { Alert, Button, FormField, Select } from "@/components/ui";
+import { Alert, Button, FormField, ReadErrorAlert, Select } from "@/components/ui";
 import type { ActiveTaskTemplateForOrder } from "@/lib/task-templates";
 
 type ApplyTaskTemplateFormProps = {
   action: PedidoDetailAction<ApplyTaskTemplateActionState>;
   templates: ActiveTaskTemplateForOrder[];
   loadError?: string;
+  loadErrorRetryable?: boolean;
   presentation?: "card" | "panel";
 };
 
@@ -29,6 +30,7 @@ export function ApplyTaskTemplateForm({
   action,
   templates,
   loadError,
+  loadErrorRetryable = false,
   presentation = "card",
 }: ApplyTaskTemplateFormProps) {
   const [state, formAction, pending] = useActionState(action, initialState);
@@ -58,9 +60,14 @@ export function ApplyTaskTemplateForm({
       </div>
 
       {loadError ? (
-        <Alert variant="danger" className="mt-4">
-          {loadError}
-        </Alert>
+        <ReadErrorAlert
+          variant="warning"
+          title="No se pudieron cargar las plantillas"
+          retryable={loadErrorRetryable}
+          className="mt-4"
+        >
+          <p>{loadError}</p>
+        </ReadErrorAlert>
       ) : null}
 
       {!loadError && !hasTemplates ? (
@@ -70,14 +77,19 @@ export function ApplyTaskTemplateForm({
         </Alert>
       ) : null}
 
-      {hasTemplates ? (
+      {!loadError && hasTemplates ? (
         <form action={formAction} aria-busy={pending} className="mt-4">
           {state.message ? (
             <Alert
               variant={state.ok ? "success" : "danger"}
+              title={
+                state.ok
+                  ? "Plantilla aplicada"
+                  : "No se pudo aplicar la plantilla"
+              }
               aria-live="polite"
             >
-              {state.message}
+              <p>{state.message}</p>
             </Alert>
           ) : null}
 
@@ -124,7 +136,7 @@ export function ApplyTaskTemplateForm({
               disabled={pending}
               className="w-full sm:w-auto"
             >
-              {pending ? "Aplicando..." : "Aplicar plantilla"}
+              {pending ? "Aplicando plantilla..." : "Aplicar plantilla"}
             </Button>
           </div>
         </form>

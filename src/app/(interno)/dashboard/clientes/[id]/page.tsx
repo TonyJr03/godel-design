@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { InternalClienteDetail } from "@/components/clientes/InternalClienteDetail";
 import { Alert, PageHeader } from "@/components/ui";
@@ -17,6 +17,14 @@ export default async function DashboardClienteDetailPage({
   const result = await getInternalClienteById(id);
 
   if (!result.ok) {
+    if (result.reason === "unauthorized") {
+      redirect("/login");
+    }
+
+    if (result.reason === "forbidden") {
+      redirect("/sin-permisos");
+    }
+
     if (result.reason === "invalid_id" || result.reason === "not_found") {
       notFound();
     }

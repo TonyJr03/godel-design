@@ -100,6 +100,10 @@ export function ListingToolbar({
   }
 
   function updateFilter(name: string, value: string) {
+    if (isPending) {
+      return;
+    }
+
     const nextParams = new URLSearchParams(searchParams.toString());
 
     if (value) {
@@ -122,6 +126,10 @@ export function ListingToolbar({
   }
 
   function clearFilters() {
+    if (isPending) {
+      return;
+    }
+
     const nextParams = new URLSearchParams(searchParams.toString());
 
     nextParams.delete("q");
@@ -142,6 +150,11 @@ export function ListingToolbar({
           role="search"
           onSubmit={(event) => {
             event.preventDefault();
+
+            if (isPending) {
+              return;
+            }
+
             const formData = new FormData(event.currentTarget);
             const nextQuery = String(formData.get("q") ?? "");
 
@@ -189,10 +202,11 @@ export function ListingToolbar({
                     <select
                       id={`listing-filter-${filter.name}`}
                       value={filter.value}
+                      disabled={isPending}
                       onChange={(event) =>
                         updateFilter(filter.name, event.target.value)
                       }
-                      className="mt-1 min-h-11 w-full rounded-(--radius-control) border border-border-strong bg-surface px-3 text-sm text-text-primary transition-colors duration-200 hover:border-brand-primary focus:border-brand-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                      className="mt-1 min-h-11 w-full rounded-(--radius-control) border border-border-strong bg-surface px-3 text-sm text-text-primary transition-colors duration-200 hover:border-brand-primary focus:border-brand-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted"
                     >
                       {filter.options.map((option) => (
                         <option key={option.value} value={option.value}>
@@ -208,7 +222,8 @@ export function ListingToolbar({
                 <button
                   type="button"
                   onClick={clearFilters}
-                  className="mt-3 inline-flex min-h-10 w-full cursor-pointer items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-3 text-sm font-semibold text-brand-primary transition-colors duration-200 hover:border-brand-primary hover:bg-brand-primary-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                  disabled={isPending}
+                  className="mt-3 inline-flex min-h-10 w-full cursor-pointer items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-3 text-sm font-semibold text-brand-primary transition-colors duration-200 hover:border-brand-primary hover:bg-brand-primary-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {clearLabel}
                 </button>
@@ -223,11 +238,20 @@ export function ListingToolbar({
           <ActiveFilterChips
             filters={activeFilters}
             clearLabel={clearLabel}
+            disabled={isPending}
             onClear={clearFilters}
             onRemoveFilter={removeFilter}
           />
         </div>
       ) : null}
+
+      <p
+        className="mt-2 min-h-5 text-xs font-medium text-text-muted"
+        role="status"
+        aria-live="polite"
+      >
+        {isPending ? "Actualizando resultados..." : ""}
+      </p>
     </section>
   );
 }

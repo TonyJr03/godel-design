@@ -1,6 +1,6 @@
 import { Download } from "lucide-react";
 
-import { Alert } from "@/components/ui";
+import { ReadErrorAlert } from "@/components/ui";
 import {
   STORAGE_FILE_CATEGORY_LABELS,
   type SolicitudFileListItem,
@@ -11,6 +11,7 @@ type SolicitudFilesPanelProps = {
   solicitudId: string;
   files: readonly SolicitudFileListItem[];
   loadError?: string;
+  loadErrorRetryable?: boolean;
 };
 
 function formatFileSize(value: number | null): string {
@@ -43,12 +44,17 @@ export function SolicitudFilesPanel({
   solicitudId,
   files,
   loadError,
+  loadErrorRetryable = false,
 }: SolicitudFilesPanelProps) {
   if (loadError) {
     return (
-      <Alert variant="danger">
-        No se pudieron cargar los archivos de la solicitud.
-      </Alert>
+      <ReadErrorAlert
+        variant="warning"
+        title="No se pudieron cargar los archivos"
+        retryable={loadErrorRetryable}
+      >
+        <p>{loadError}</p>
+      </ReadErrorAlert>
     );
   }
 

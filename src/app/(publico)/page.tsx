@@ -100,7 +100,7 @@ export default function Home() {
                 width={420}
                 height={124}
                 className="mx-auto h-auto w-full max-w-80 sm:max-w-96"
-                priority
+                loading="eager"
               />
               <p className="mt-7 text-sm font-semibold uppercase tracking-[0.14em] text-white">
                 Producción personalizada

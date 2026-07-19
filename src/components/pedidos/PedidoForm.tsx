@@ -154,7 +154,11 @@ export function PedidoForm({
   const todayInputDate = getTodayDateInputValue();
 
   const statusAlert = state.message ? (
-    <Alert variant={state.ok ? "success" : "danger"} aria-live="polite">
+    <Alert
+      variant={state.ok ? "success" : "danger"}
+      title={state.ok ? "Pedido creado" : "No se pudo crear el pedido"}
+      aria-live="polite"
+    >
       <p>{state.message}</p>
       {state.ok && state.publicReference ? (
         <CopyableCode
@@ -544,7 +548,7 @@ export function PedidoForm({
 
           <FormActions compact note={undefined}>
             <Button type="submit" disabled={pending} className="w-full sm:w-auto">
-              {pending ? "Creando..." : "Crear pedido"}
+              {pending ? "Creando pedido..." : "Crear pedido"}
             </Button>
           </FormActions>
         </div>

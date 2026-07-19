@@ -4,7 +4,7 @@ import { PublicFooter } from "@/components/layout/PublicFooter";
 import { PublicHeader } from "@/components/layout/PublicHeader";
 import { PublicTrackingResultCard } from "@/components/tracking/PublicTrackingResultCard";
 import { PublicTrackingSearchForm } from "@/components/tracking/PublicTrackingSearchForm";
-import { Alert, Card } from "@/components/ui";
+import { Alert, Card, ReadErrorAlert } from "@/components/ui";
 import { getPublicTrackingStatus } from "@/lib/public-tracking";
 
 export const dynamic = "force-dynamic";
@@ -69,9 +69,19 @@ export default async function EstadoPage({ searchParams }: EstadoPageProps) {
     </section>
   ) : trackingResult.ok ? (
     <PublicTrackingResultCard trackingStatus={trackingResult.trackingStatus} />
+  ) : trackingResult.reason === "error" ? (
+    <ReadErrorAlert
+      variant="warning"
+      title="Consulta no disponible"
+      retryable
+      retryLabel="Reintentar consulta"
+      pendingLabel="Consultando..."
+    >
+      <p className="leading-6">{trackingResult.message}</p>
+    </ReadErrorAlert>
   ) : (
     <Alert
-      variant={trackingResult.reason === "error" ? "warning" : "danger"}
+      variant="danger"
       title={
         trackingResult.reason === "not_found"
           ? "Código no encontrado"

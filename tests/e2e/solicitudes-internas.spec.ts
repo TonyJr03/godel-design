@@ -426,6 +426,18 @@ test("admin can manage solicitud workspace panels end to end", async ({
   await expect(
     conversionDialog.getByText(/pedido creado correctamente/i),
   ).toBeVisible({ timeout: 20_000 });
+  await expect(conversionDialog.getByText(/^pedido creado$/i)).toBeVisible();
+  await expect(
+    conversionDialog.getByText(/solicitud convertida/i),
+  ).toHaveCount(0);
+  await expect(
+    conversionDialog.getByText(/la solicitud debe estar aprobada/i),
+  ).toHaveCount(0);
+  await expect(
+    conversionDialog.getByRole("button", {
+      name: /convertir en pedido/i,
+    }),
+  ).toHaveCount(0);
   const pedidoLink = conversionDialog.getByRole("link", {
     name: /^ver pedido$/i,
   });

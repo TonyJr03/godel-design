@@ -1,10 +1,12 @@
+import { redirect } from "next/navigation";
+
 import { TaskTemplateCreateDialogButton } from "@/components/configuracion/TaskTemplateCreateDialogButton";
 import { InternalTaskTemplatesList } from "@/components/configuracion/InternalTaskTemplatesList";
 import {
   ListingPageHeader,
   ListingToolbar,
 } from "@/components/listing";
-import { Alert } from "@/components/ui/Alert";
+import { ReadErrorAlert } from "@/components/ui/ReadErrorAlert";
 import { listTaskTemplates } from "@/lib/task-templates";
 import { getSingleSearchParam } from "@/lib/utils";
 
@@ -20,6 +22,15 @@ export default async function DashboardConfiguracionPlantillasPage({
   const params = await searchParams;
   const q = getSingleSearchParam(params.q);
   const result = await listTaskTemplates({ q });
+
+  if (!result.ok && result.reason === "unauthorized") {
+    redirect("/login");
+  }
+
+  if (!result.ok && result.reason === "forbidden") {
+    redirect("/sin-permisos");
+  }
+
   const searchValue = q?.trim() ?? "";
 
   return (
@@ -38,7 +49,13 @@ export default async function DashboardConfiguracionPlantillasPage({
       />
 
       {!result.ok ? (
-        <Alert variant="danger">{result.message}</Alert>
+        <ReadErrorAlert
+          variant="danger"
+          title="No se pudieron cargar las plantillas"
+          retryable={result.reason === "error"}
+        >
+          <p>{result.message}</p>
+        </ReadErrorAlert>
       ) : (
         <InternalTaskTemplatesList
           templates={result.templates}

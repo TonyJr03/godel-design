@@ -51,6 +51,32 @@ async function expectNoDashboardLinks(page: Page, hrefs: string[]) {
   }
 }
 
+async function expectInternalNotFoundPage(page: Page, pathname: string) {
+  await expect(page).toHaveURL(new RegExp(`${pathname}(?:[?#].*)?$`));
+  await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: /no encontramos este recurso interno/i,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /volver al dashboard/i }),
+  ).toHaveAttribute("href", "/dashboard");
+  await expect(page.getByRole("link", { name: /ir a pedidos/i })).toHaveAttribute(
+    "href",
+    "/dashboard/pedidos",
+  );
+  await expect(page).not.toHaveURL(/\/sin-permisos/);
+  await expect(page.getByRole("button", { name: /reintentar/i })).toHaveCount(
+    0,
+  );
+  await expect(page.getByRole("link", { name: /reintentar/i })).toHaveCount(0);
+  await expect(page.getByText(/permiso requerido|sesi.n sigue activa/i))
+    .toHaveCount(0);
+  await expectNoVisibleSensitiveText(page);
+}
+
 test("admin sees the global dashboard with management sections", async ({
   page,
 }) => {
@@ -143,4 +169,24 @@ test("protected dashboard routes remain limited by role", async ({ page }) => {
   await loginAs(page, "worker");
   await page.goto("/dashboard/configuracion/usuarios");
   await expectAccessLimitedPage(page);
+});
+
+test("unknown internal dashboard routes render the internal not found state", async ({
+  page,
+}) => {
+  const unknownPath = "/dashboard/ruta-inexistente-qa";
+
+  await loginAs(page, "worker");
+  await page.goto(unknownPath);
+  await expectInternalNotFoundPage(page, unknownPath);
+
+  await loginAs(page, "admin");
+  await page.goto(unknownPath);
+  await expectInternalNotFoundPage(page, unknownPath);
+});
+
+test("active internal users do not stay on access-denied", async ({ page }) => {
+  await loginAs(page, "admin");
+  await page.goto("/acceso-denegado");
+  await expectDashboardLoaded(page, /dashboard operativo/i);
 });

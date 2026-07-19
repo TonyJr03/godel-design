@@ -1,10 +1,11 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import {
   ArrowDown,
   ArrowUp,
   Check,
+  LoaderCircle,
   Pencil,
   Trash2,
   X,
@@ -16,7 +17,12 @@ import type {
   TaskTemplateDetailAction,
   UpdateTaskTemplateTaskActionState,
 } from "@/app/(interno)/dashboard/configuracion/plantillas/[templateId]/actions";
-import { Button, EmptyState } from "@/components/ui";
+import {
+  Alert,
+  Button,
+  EmptyState,
+  InlineDeleteConfirmation,
+} from "@/components/ui";
 import type { TaskTemplateTask } from "@/lib/task-templates";
 
 export type TaskTemplateTaskItemActions = {
@@ -61,6 +67,7 @@ function InlineActionError({
   return (
     <p
       className="mt-2 max-w-full break-words text-xs font-semibold text-danger"
+      role="alert"
       aria-live="polite"
     >
       {message}
@@ -94,6 +101,7 @@ function MoveTaskTemplateTaskForm({
   );
   const isUp = direction === "up";
   const label = `${isUp ? "Subir" : "Bajar"} tarea ${task.title}`;
+  const pendingLabel = `Moviendo tarea ${task.title}...`;
   const Icon = isUp ? ArrowUp : ArrowDown;
 
   return (
@@ -106,42 +114,17 @@ function MoveTaskTemplateTaskForm({
         size="sm"
         disabled={disabled || pending}
         className={iconButtonClassName()}
-        aria-label={label}
-        title={label}
+        aria-label={pending ? pendingLabel : label}
+        title={pending ? pendingLabel : label}
       >
-        <Icon className="size-4" aria-hidden="true" />
-      </Button>
-      {!state.ok ? <InlineActionError message={state.message} /> : null}
-    </form>
-  );
-}
-
-function DeleteTaskTemplateTaskForm({
-  task,
-  action,
-}: {
-  task: TaskTemplateTask;
-  action: TaskTemplateDetailAction<DeleteTaskTemplateTaskActionState>;
-}) {
-  const [state, formAction, pending] = useActionState(
-    action,
-    deleteInitialState,
-  );
-  const label = `Eliminar tarea ${task.title}`;
-
-  return (
-    <form action={formAction} aria-busy={pending} className="min-w-0">
-      <TaskHiddenFields taskId={task.id} />
-      <Button
-        type="submit"
-        variant="danger"
-        size="sm"
-        disabled={pending}
-        className={iconButtonClassName("danger")}
-        aria-label={label}
-        title={label}
-      >
-        <Trash2 className="size-4" aria-hidden="true" />
+        {pending ? (
+          <LoaderCircle
+            className="size-4 animate-spin motion-reduce:animate-none"
+            aria-hidden="true"
+          />
+        ) : (
+          <Icon className="size-4" aria-hidden="true" />
+        )}
       </Button>
       {!state.ok ? <InlineActionError message={state.message} /> : null}
     </form>
@@ -207,10 +190,25 @@ function UpdateTaskTemplateTaskInlineForm({
           size="sm"
           disabled={pending}
           className={iconButtonClassName()}
-          aria-label={`Guardar tarea ${task.title}`}
-          title={`Guardar tarea ${task.title}`}
+          aria-label={
+            pending
+              ? `Guardando tarea ${task.title}...`
+              : `Guardar tarea ${task.title}`
+          }
+          title={
+            pending
+              ? `Guardando tarea ${task.title}...`
+              : `Guardar tarea ${task.title}`
+          }
         >
-          <Check className="size-4" aria-hidden="true" />
+          {pending ? (
+            <LoaderCircle
+              className="size-4 animate-spin motion-reduce:animate-none"
+              aria-hidden="true"
+            />
+          ) : (
+            <Check className="size-4" aria-hidden="true" />
+          )}
         </Button>
         <Button
           type="button"
@@ -235,14 +233,33 @@ function TaskTemplateTaskRow({
   isFirst,
   isLast,
   actions,
+  onDeleteIntent,
+  onDeleteSuccess,
 }: {
   task: TaskTemplateTask;
   index: number;
   isFirst: boolean;
   isLast: boolean;
   actions: TaskTemplateTaskItemActions;
+  onDeleteIntent: () => void;
+  onDeleteSuccess: (message: string) => void;
 }) {
   const [isEditing, setIsEditing] = useState(false);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const deleteTriggerRef = useRef<HTMLButtonElement | null>(null);
+
+  function openDeleteConfirmation() {
+    onDeleteIntent();
+    setIsEditing(false);
+    setIsConfirmingDelete(true);
+  }
+
+  function cancelDeleteConfirmation() {
+    setIsConfirmingDelete(false);
+    window.requestAnimationFrame(() => {
+      deleteTriggerRef.current?.focus({ preventScroll: true });
+    });
+  }
 
   return (
     <li className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 px-4 py-3 md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center">
@@ -250,7 +267,31 @@ function TaskTemplateTaskRow({
         {index + 1}
       </span>
 
-      {isEditing ? (
+      {isConfirmingDelete ? (
+        <div className="col-start-2 min-w-0 md:col-span-2 md:col-start-auto">
+          <InlineDeleteConfirmation
+            action={actions.delete}
+            initialState={deleteInitialState}
+            title="¿Eliminar esta tarea de la plantilla?"
+            description={
+              <p>
+                Se eliminará “{task.title}” de esta plantilla y dejará de
+                incluirse en futuras aplicaciones. Esta acción no se puede
+                deshacer.
+              </p>
+            }
+            confirmLabel="Eliminar tarea"
+            pendingLabel="Eliminando tarea..."
+            onCancel={cancelDeleteConfirmation}
+            onSuccess={(message) => {
+              setIsConfirmingDelete(false);
+              onDeleteSuccess(message);
+            }}
+          >
+            <TaskHiddenFields taskId={task.id} />
+          </InlineDeleteConfirmation>
+        </div>
+      ) : isEditing ? (
         <div className="col-start-2 min-w-0 md:col-span-2 md:col-start-auto">
           <UpdateTaskTemplateTaskInlineForm
             task={task}
@@ -291,10 +332,19 @@ function TaskTemplateTaskRow({
             >
               <Pencil className="size-4" aria-hidden="true" />
             </Button>
-            <DeleteTaskTemplateTaskForm
-              task={task}
-              action={actions.delete}
-            />
+            <button
+              ref={deleteTriggerRef}
+              type="button"
+              className={[
+                "inline-flex items-center justify-center gap-2 rounded-(--radius-control) bg-danger font-semibold text-white transition-[background-color,border-color,color,filter] duration-200 hover:brightness-90 active:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+                iconButtonClassName("danger"),
+              ].join(" ")}
+              aria-label={`Eliminar tarea ${task.title}`}
+              title={`Eliminar tarea ${task.title}`}
+              onClick={openDeleteConfirmation}
+            >
+              <Trash2 className="size-4" aria-hidden="true" />
+            </button>
           </div>
         </>
       )}
@@ -306,30 +356,48 @@ export function TaskTemplateTasksList({
   tasks,
   actions,
 }: TaskTemplateTasksListProps) {
+  const [deleteFeedback, setDeleteFeedback] = useState("");
+
   if (tasks.length === 0) {
     return (
-      <EmptyState
-        title="Esta plantilla todavía no tiene tareas"
-        description="Agrega la primera tarea para definir el flujo predeterminado."
-      />
+      <div className="space-y-4">
+        {deleteFeedback ? (
+          <Alert variant="success" title="Tarea eliminada">
+            <p>{deleteFeedback}</p>
+          </Alert>
+        ) : null}
+        <EmptyState
+          title="Esta plantilla todavía no tiene tareas"
+          description="Agrega la primera tarea para definir el flujo predeterminado."
+        />
+      </div>
     );
   }
 
   return (
-    <ol
-      className="divide-y divide-border overflow-hidden rounded-(--radius-card) border border-border bg-surface"
-      aria-label="Tareas de la plantilla"
-    >
-      {tasks.map((task, index) => (
-        <TaskTemplateTaskRow
-          key={task.id}
-          task={task}
-          index={index}
-          isFirst={index === 0}
-          isLast={index === tasks.length - 1}
-          actions={actions}
-        />
-      ))}
-    </ol>
+    <div className="space-y-4">
+      {deleteFeedback ? (
+        <Alert variant="success" title="Tarea eliminada">
+          <p>{deleteFeedback}</p>
+        </Alert>
+      ) : null}
+      <ol
+        className="divide-y divide-border overflow-hidden rounded-(--radius-card) border border-border bg-surface"
+        aria-label="Tareas de la plantilla"
+      >
+        {tasks.map((task, index) => (
+          <TaskTemplateTaskRow
+            key={task.id}
+            task={task}
+            index={index}
+            isFirst={index === 0}
+            isLast={index === tasks.length - 1}
+            actions={actions}
+            onDeleteIntent={() => setDeleteFeedback("")}
+            onDeleteSuccess={setDeleteFeedback}
+          />
+        ))}
+      </ol>
+    </div>
   );
 }

@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { PedidoCommentComposer } from "@/components/pedidos/PedidoCommentComposer";
 import { InternalPedidoDetail } from "@/components/pedidos/InternalPedidoDetail";
 import { PedidoPaymentSection } from "@/components/pedidos/PedidoPaymentSection";
@@ -53,6 +53,14 @@ export default async function DashboardPedidoDetallePage({
   const result = await getInternalPedidoById(id);
 
   if (!result.ok) {
+    if (result.reason === "unauthorized") {
+      redirect("/login");
+    }
+
+    if (result.reason === "forbidden") {
+      redirect("/sin-permisos");
+    }
+
     if (result.reason === "invalid_id" || result.reason === "not_found") {
       notFound();
     }
@@ -84,6 +92,18 @@ export default async function DashboardPedidoDetallePage({
   const taskTemplatesResult = shouldLoadTaskTemplates
     ? await listActiveTaskTemplatesForOrder()
     : null;
+  const workersLoadRetryable =
+    workersResult !== null && !workersResult.ok && workersResult.reason === "error";
+  const tasksLoadRetryable = !tasksResult.ok && tasksResult.reason === "error";
+  const filesLoadRetryable = !filesResult.ok && filesResult.reason === "error";
+  const commentsLoadRetryable =
+    !commentsResult.ok && commentsResult.reason === "error";
+  const historyLoadRetryable =
+    !historyResult.ok && historyResult.reason === "error";
+  const taskTemplatesLoadRetryable =
+    taskTemplatesResult !== null &&
+    !taskTemplatesResult.ok &&
+    taskTemplatesResult.reason === "error";
   const pedidoId = result.pedido.id;
   const assignWorkerAction = canManagePedidos
     ? assignPedidoWorkerAction.bind(null, pedidoId)
@@ -117,17 +137,29 @@ export default async function DashboardPedidoDetallePage({
           ? undefined
           : "No se pudieron cargar las tareas del pedido."
       }
+      tasksLoadRetryable={tasksLoadRetryable}
       tasks={tasksResult.ok ? tasksResult.tasks : []}
       history={historyResult.ok ? historyResult.history : []}
       historyLoadError={historyResult.ok ? undefined : historyResult.message}
+      historyLoadRetryable={historyLoadRetryable}
       files={filesResult.ok ? filesResult.files : []}
       filesLoadError={
         filesResult.ok
           ? undefined
           : "No se pudieron cargar los archivos del pedido."
       }
+      filesLoadRetryable={filesLoadRetryable}
       comments={commentsResult.ok ? commentsResult.comments : []}
       commentsLoadError={commentsResult.ok ? undefined : commentsResult.message}
+      commentsLoadRetryable={commentsLoadRetryable}
+      personnelLoadError={
+        workersResult && !workersResult.ok ? workersResult.message : undefined
+      }
+      taskTemplatesLoadError={
+        taskTemplatesResult && !taskTemplatesResult.ok
+          ? taskTemplatesResult.message
+          : undefined
+      }
       personnelPanelContent={
         canManagePedidos && assignWorkerAction && removeWorkerAction ? (
           <PedidoWorkerAssignmentForm
@@ -142,6 +174,7 @@ export default async function DashboardPedidoDetallePage({
                 ? workersResult.message
                 : undefined
             }
+            loadAssignableErrorRetryable={workersLoadRetryable}
           />
         ) : (
           <PedidoWorkerAssignmentForm
@@ -178,6 +211,7 @@ export default async function DashboardPedidoDetallePage({
                 ? taskTemplatesResult.message
                 : undefined
             }
+            taskTemplatesLoadRetryable={taskTemplatesLoadRetryable}
             progress={
               tasksResult.ok
                 ? tasksResult.progress
@@ -188,6 +222,7 @@ export default async function DashboardPedidoDetallePage({
                 ? undefined
                 : "No se pudieron cargar las tareas del pedido."
             }
+            loadErrorRetryable={tasksLoadRetryable}
           />
         ) : undefined
       }

@@ -1,10 +1,12 @@
+import { redirect } from "next/navigation";
+
 import { ClienteCreateDialogButton } from "@/components/clientes/ClienteCreateDialogButton";
 import { InternalClientesList } from "@/components/clientes/InternalClientesList";
 import {
   ListingPageHeader,
   ListingToolbar,
 } from "@/components/listing";
-import { Alert } from "@/components/ui/Alert";
+import { ReadErrorAlert } from "@/components/ui/ReadErrorAlert";
 import { listInternalClientes } from "@/lib/clientes";
 import { getSingleSearchParam } from "@/lib/utils";
 
@@ -20,6 +22,15 @@ export default async function DashboardClientesPage({
   const params = await searchParams;
   const q = getSingleSearchParam(params.q);
   const result = await listInternalClientes({ q });
+
+  if (!result.ok && result.reason === "unauthorized") {
+    redirect("/login");
+  }
+
+  if (!result.ok && result.reason === "forbidden") {
+    redirect("/sin-permisos");
+  }
+
   const searchValue = result.q ?? "";
 
   return (
@@ -38,7 +49,13 @@ export default async function DashboardClientesPage({
       />
 
       {!result.ok ? (
-        <Alert variant="danger">{result.message}</Alert>
+        <ReadErrorAlert
+          variant="danger"
+          title="No se pudieron cargar los clientes"
+          retryable={result.reason === "error"}
+        >
+          <p>{result.message}</p>
+        </ReadErrorAlert>
       ) : (
         <InternalClientesList
           clientes={result.clientes}

@@ -1,5 +1,5 @@
 import type { GetDashboardSummaryResult } from "@/lib/dashboard";
-import { Alert } from "@/components/ui/Alert";
+import { ReadErrorAlert } from "@/components/ui/ReadErrorAlert";
 import {
   DashboardSummaryCards,
   type DashboardSummaryCard,
@@ -140,12 +140,13 @@ function getWorkerCards(
 export function DashboardOverview({ result }: DashboardOverviewProps) {
   if (!result.ok) {
     return (
-      <Alert variant="danger" title="No se pudo cargar el resumen del dashboard">
-        <p>
-          Intenta recargar la página o contacta al administrador si el problema
-          continúa.
-        </p>
-      </Alert>
+      <ReadErrorAlert
+        variant="danger"
+        title="No se pudo cargar el resumen del dashboard"
+        retryable={result.reason === "error"}
+      >
+        <p>{result.message}</p>
+      </ReadErrorAlert>
     );
   }
 

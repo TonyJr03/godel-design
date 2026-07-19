@@ -1,8 +1,11 @@
+import { redirect } from "next/navigation";
+
 import {
   ListingPageHeader,
   ListingToolbar,
 } from "@/components/listing";
 import { Alert } from "@/components/ui/Alert";
+import { ReadErrorAlert } from "@/components/ui/ReadErrorAlert";
 import { UserCreateDialogButton } from "@/components/usuarios/UserCreateDialogButton";
 import { InternalUsersList } from "@/components/usuarios/InternalUsersList";
 import { listInternalUsers } from "@/lib/usuarios";
@@ -26,6 +29,15 @@ export default async function DashboardConfiguracionUsuariosPage({
   const role = getSingleSearchParam(params.role);
   const active = getSingleSearchParam(params.active);
   const result = await listInternalUsers({ q, role, active });
+
+  if (!result.ok && result.reason === "unauthorized") {
+    redirect("/login");
+  }
+
+  if (!result.ok && result.reason === "forbidden") {
+    redirect("/sin-permisos");
+  }
+
   const searchValue = result.q ?? "";
   const roleValue = result.role ?? "";
   const activeValue =
@@ -89,7 +101,13 @@ export default async function DashboardConfiguracionUsuariosPage({
       ) : null}
 
       {!result.ok ? (
-        <Alert variant="danger">{result.message}</Alert>
+        <ReadErrorAlert
+          variant="danger"
+          title="No se pudieron cargar los usuarios"
+          retryable={result.reason === "error"}
+        >
+          <p>{result.message}</p>
+        </ReadErrorAlert>
       ) : (
         <InternalUsersList
           users={result.users}

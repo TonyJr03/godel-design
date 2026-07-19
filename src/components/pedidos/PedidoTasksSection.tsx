@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import type {
   ApplyTaskTemplateActionState,
   CreatePedidoTaskActionState,
@@ -14,6 +14,7 @@ import {
 import type { PedidoTask } from "@/lib/pedidos/list-pedido-tasks";
 import type { PedidoTasksProgress } from "@/lib/pedidos/task-progress";
 import type { ActiveTaskTemplateForOrder } from "@/lib/task-templates";
+import { Alert, Button, ReadErrorAlert } from "@/components/ui";
 import { ApplyTaskTemplateForm } from "./ApplyTaskTemplateForm";
 import { PedidoProgressBar } from "./PedidoProgressBar";
 import {
@@ -29,8 +30,10 @@ type PedidoTasksSectionProps = {
   tasks: PedidoTask[];
   progress: PedidoTasksProgress;
   loadError?: string;
+  loadErrorRetryable?: boolean;
   taskTemplates?: ActiveTaskTemplateForOrder[];
   taskTemplatesLoadError?: string;
+  taskTemplatesLoadRetryable?: boolean;
   presentation?: "card" | "panel";
 };
 
@@ -50,8 +53,10 @@ export function PedidoTasksSection({
   tasks,
   progress,
   loadError,
+  loadErrorRetryable = false,
   taskTemplates = [],
   taskTemplatesLoadError,
+  taskTemplatesLoadRetryable = false,
   presentation = "card",
 }: PedidoTasksSectionProps) {
   const formRef = useRef<HTMLFormElement>(null);
@@ -59,6 +64,7 @@ export function PedidoTasksSection({
     createTaskAction,
     createInitialState,
   );
+  const [deleteFeedback, setDeleteFeedback] = useState("");
   const titleError = state.fieldErrors?.title;
   const canManageTasks = canManagePedidoTasksInStatus(pedidoStatus);
   const blockedReason = getPedidoTaskManagementBlockedReason(pedidoStatus);
@@ -84,17 +90,14 @@ export function PedidoTasksSection({
             Tareas del pedido
           </h2>
         ) : null}
-        <p
-          className={[
-            "rounded-(--radius-control) border border-danger/30 bg-danger-soft px-4 py-3 text-sm leading-6 text-danger",
-            isPanelPresentation ? "" : "mt-5",
-          ]
-            .filter(Boolean)
-            .join(" ")}
-          role="alert"
+        <ReadErrorAlert
+          variant="warning"
+          title="No se pudieron cargar las tareas"
+          retryable={loadErrorRetryable}
+          className={isPanelPresentation ? "" : "mt-5"}
         >
-          {loadError}
-        </p>
+          <p>{loadError}</p>
+        </ReadErrorAlert>
       </section>
     );
   }
@@ -144,6 +147,7 @@ export function PedidoTasksSection({
               action={applyTaskTemplateAction}
               templates={taskTemplates}
               loadError={taskTemplatesLoadError}
+              loadErrorRetryable={taskTemplatesLoadRetryable}
               presentation={isPanelPresentation ? "panel" : "card"}
             />
           ) : null}
@@ -163,17 +167,13 @@ export function PedidoTasksSection({
               className="mt-4"
             >
               {state.message ? (
-                <div
-                  className={
-                    state.ok
-                      ? "rounded-(--radius-control) border border-success/30 bg-success-soft px-4 py-3 text-sm leading-6 text-success"
-                      : "rounded-(--radius-control) border border-danger/30 bg-danger-soft px-4 py-3 text-sm leading-6 text-danger"
-                  }
-                  role={state.ok ? "status" : "alert"}
+                <Alert
+                  variant={state.ok ? "success" : "danger"}
+                  title={state.ok ? "Tarea creada" : "No se pudo crear la tarea"}
                   aria-live="polite"
                 >
-                  {state.message}
-                </div>
+                  <p>{state.message}</p>
+                </Alert>
               ) : null}
 
               <div
@@ -223,13 +223,13 @@ export function PedidoTasksSection({
                     </p>
                   ) : null}
                 </div>
-                <button
+                <Button
                   type="submit"
                   disabled={pending}
-                  className="inline-flex min-h-11 w-full items-center justify-center rounded-(--radius-control) bg-brand-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-primary-hover disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto"
+                  className="w-full lg:w-auto"
                 >
-                  {pending ? "Creando..." : "Crear tarea"}
-                </button>
+                  {pending ? "Creando tarea..." : "Crear tarea"}
+                </Button>
               </div>
             </form>
           </section>
@@ -247,6 +247,12 @@ export function PedidoTasksSection({
           Tareas registradas
         </h3>
 
+        {deleteFeedback ? (
+          <Alert variant="success" title="Tarea eliminada" className="mt-4">
+            <p>{deleteFeedback}</p>
+          </Alert>
+        ) : null}
+
         <div className="mt-4">
           <PedidoProgressBar {...progress} />
         </div>
@@ -259,6 +265,8 @@ export function PedidoTasksSection({
                 task={task}
                 canManage={canManageTasks}
                 actions={taskActions}
+                onDeleteIntent={() => setDeleteFeedback("")}
+                onDeleteSuccess={setDeleteFeedback}
               />
             ))}
           </ul>

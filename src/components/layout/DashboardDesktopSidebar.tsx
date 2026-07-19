@@ -123,6 +123,7 @@ export function DashboardDesktopSidebar({
               width={180}
               height={68}
               className="h-12 w-auto object-contain"
+              loading="eager"
             />
           )}
         </Link>

@@ -46,7 +46,7 @@ export default function NotFound() {
                     404
                   </p>
                   <p className="mt-2 text-sm font-semibold uppercase tracking-[0.16em] text-white/78">
-                    Sin resultado
+                    Ruta inexistente
                   </p>
                 </div>
                 <p className="max-w-sm text-sm leading-6 text-white/82">

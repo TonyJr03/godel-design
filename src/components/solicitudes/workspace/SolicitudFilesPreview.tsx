@@ -1,4 +1,4 @@
-import { Alert } from "@/components/ui";
+import { ReadErrorAlert } from "@/components/ui";
 import {
   STORAGE_FILE_CATEGORY_LABELS,
   type SolicitudFileListItem,
@@ -9,6 +9,7 @@ type SolicitudFilesPreviewProps = {
   solicitudId: string;
   files: readonly SolicitudFileListItem[];
   loadError?: string;
+  loadErrorRetryable?: boolean;
 };
 
 function formatFileSize(value: number | null): string {
@@ -41,6 +42,7 @@ export function SolicitudFilesPreview({
   solicitudId,
   files,
   loadError,
+  loadErrorRetryable = false,
 }: SolicitudFilesPreviewProps) {
   const previewFiles = files.slice(0, 3);
   const hiddenFilesCount = Math.max(files.length - previewFiles.length, 0);
@@ -58,9 +60,14 @@ export function SolicitudFilesPreview({
       </h2>
 
       {loadError ? (
-        <Alert variant="danger" className="mt-5">
-          No se pudieron cargar los archivos de la solicitud.
-        </Alert>
+        <ReadErrorAlert
+          variant="warning"
+          title="No se pudieron cargar los archivos"
+          retryable={loadErrorRetryable}
+          className="mt-5"
+        >
+          <p>{loadError}</p>
+        </ReadErrorAlert>
       ) : (
         <div className="mt-5 min-h-0 xl:flex-1 xl:overflow-y-auto xl:overscroll-contain">
           {previewFiles.length > 0 ? (

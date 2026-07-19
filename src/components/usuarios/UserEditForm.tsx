@@ -77,9 +77,14 @@ export function UserEditForm({
           {state.message ? (
             <Alert
               variant={state.ok ? "success" : "danger"}
+              title={
+                state.ok
+                  ? "Cambios guardados"
+                  : "No se pudieron guardar los cambios"
+              }
               aria-live="polite"
             >
-              {state.message}
+              <p>{state.message}</p>
             </Alert>
           ) : null}
 
@@ -204,7 +209,7 @@ export function UserEditForm({
 
           <FormActions compact note={undefined}>
             <Button type="submit" disabled={pending} className="w-full sm:w-auto">
-              {pending ? "Guardando..." : "Guardar cambios"}
+              {pending ? "Guardando cambios..." : "Guardar cambios"}
             </Button>
           </FormActions>
         </div>

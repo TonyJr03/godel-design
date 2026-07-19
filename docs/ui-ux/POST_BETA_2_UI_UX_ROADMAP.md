@@ -243,7 +243,7 @@ Según el alcance, deben existir:
 | 11    | Dashboard operativo                          | Cerrada   |
 | 12    | Formularios internos y páginas secundarias   | Cerrada   |
 | 13    | Área pública                                 | Completada |
-| 14    | Estados transversales y resiliencia UI       | Pendiente |
+| 14    | Estados transversales y resiliencia UI       | Cerrada |
 | 15    | Optimización basada en mediciones            | Pendiente |
 | 16    | QA integral y cierre del rediseño            | Pendiente |
 
@@ -1226,9 +1226,19 @@ datos públicos adicionales; y el área pública no enlaza visualmente al login.
 
 ## Etapa 14 — Estados transversales y resiliencia UI
 
+### Estado
+
+Cerrada.
+
 ### Objetivo
 
 Especializar los estados de transición, error y ausencia de datos en toda la aplicación.
+
+Documento principal:
+
+```text
+docs/ui-ux/TRANSVERSAL_STATES_STAGE_14_PLAN.md
+```
 
 ### Alcance
 
@@ -1252,6 +1262,159 @@ Especializar los estados de transición, error y ausencia de datos en toda la ap
 * No reemplazar errores útiles por mensajes genéricos.
 * Diferenciar error de permisos, error de red, ausencia y recurso inexistente.
 * Mantener los datos ya disponibles cuando una carga secundaria falle.
+
+### Subtareas
+
+* 14.1 Auditoría de estados transversales — Completado.
+* 14.2 Matriz de estados y decisiones UI — Completado.
+* 14.3 App Router states por segmento — Completado.
+* 14.4 Estados vacíos y sin resultados — Completado.
+* 14.5 Errores de datos y retry seguro — Completado.
+* 14.6 Pending y action feedback — Completado.
+* 14.7 Fallos parciales en dashboard y workspaces — Completado.
+* 14.8 Permisos, acceso denegado y recurso inexistente — Completado.
+* 14.9 Confirmaciones y acciones destructivas — Completado.
+* 14.10 QA y cierre de Etapa 14 — Completado.
+
+### Nota de auditoría 14.1
+
+La auditoría confirmó que no existen `loading.tsx`, `error.tsx` ni
+`global-error.tsx` segmentados; sí existen 404 pública, 404 interna, páginas de
+acceso denegado y sin permisos, `EmptyState`, `Alert`, pending states extendidos
+con `useActionState`, fallos parciales en workspaces/dashboard y degradación
+segura en la solicitud pública cuando fallan archivos adjuntos.
+
+Los problemas principales detectados son falta de estrategia segmentada para
+carga/error inicial, ausencia de retry transversal, mezcla de patrones de vacíos
+en dashboard, diferencias entre pending de toolbars, confirmaciones destructivas
+no normalizadas y fallos parciales resueltos por dominio sin contrato común.
+
+### Nota de implementación 14.2
+
+Se creó `docs/ui-ux/TRANSVERSAL_STATES_DECISION_MATRIX.md` como matriz
+documental de decisiones UI. Queda adoptada como contrato base para decidir
+entre `loading.tsx`, `error.tsx`, `not-found.tsx`, `EmptyState`, `Alert`,
+estado inline, pending, retry, navegación de regreso, confirmación y
+conservación de datos parciales antes de implementar las subtareas 14.3 en
+adelante.
+
+La matriz separa reglas por zona, retry, skeleton/loading, errores, seguridad y
+accesibilidad. Las subtareas futuras permanecen propuestas y no se consideran
+implementadas por esta documentación.
+
+### Nota de implementación 14.3
+
+Se implementaron estados App Router segmentados para la entrada operativa
+interna y la consulta pública dinámica:
+
+```text
+src/app/(interno)/dashboard/loading.tsx
+src/app/(interno)/dashboard/error.tsx
+src/app/(publico)/estado/loading.tsx
+src/app/(publico)/estado/error.tsx
+```
+
+Dashboard incorpora fallback de carga y error de render dentro del layout
+interno existente, sin duplicar sidebar. `/estado` incorpora fallback de carga y
+error público con `PublicHeader currentPage="estado"` y `PublicFooter`. No se
+agregaron skeletons globales, componentes genéricos nuevos ni cambios de
+Server Actions, RLS, Storage, permisos, DTO público o lógica de dominio.
+
+### Nota de implementación 14.4
+
+Se normalizaron estados vacíos del dashboard sin cambiar dominio ni datos. Los
+paneles de solicitudes pendientes y pedidos listos dejaron de usar estado de
+búsqueda cuando representan ausencia real, y el tablero de pedidos activos
+muestra un único `EmptyState` compacto cuando no existe ningún pedido en sus
+grupos. Los listados internos se conservaron porque ya diferencian filtros sin
+resultados de ausencia real, y los workspaces mantienen estados inline para
+secciones secundarias.
+
+### Nota de implementación 14.5
+
+Se incorporó `ReadErrorAlert` como patrón de retry seguro para errores
+controlados de lectura. El retry usa `router.refresh()` con pending visible y
+solo aparece cuando `result.reason === "error"`; permisos, acceso denegado,
+códigos públicos inválidos, recursos no encontrados, filtros inválidos,
+validaciones y mutaciones quedan sin retry. Se aplicó a dashboard, listados
+internos principales y error temporal de `/estado`, sin tocar dominio,
+servicios, Server Actions, RLS, Storage, permisos ni DTO público.
+
+### Nota de implementación 14.6
+
+Se normalizó el pending y feedback de acciones sin crear componentes nuevos:
+pending copy contextual, `aria-busy`, botones deshabilitados, títulos en alerts
+de éxito/error, comentarios/archivos/tareas con primitivas existentes, acciones
+inline e icon-only con feedback accesible, filtros con estado
+`Actualizando resultados...` y chips bloqueados durante transición. La
+conversión de solicitud ya no muestra dos éxitos simultáneos. No se agregaron
+retry automático, confirmaciones ni cambios de dominio, Server Actions, RLS,
+Storage, permisos, queries o DTO público.
+
+### Nota de implementación 14.7
+
+Se consolidaron fallos parciales en dashboard, workspaces de pedidos y
+solicitudes, creación manual de pedidos y detalle de plantillas. Las lecturas
+secundarias fallidas usan `ReadErrorAlert` con retry solo para
+`reason === "error"`, el action rail refleja paneles fallidos, las acciones no
+dependientes permanecen disponibles y las acciones que necesitan datos no
+cargados se bloquean con explicación localizada. No se modificaron servicios,
+Server Actions, permisos, RLS, Storage, queries, DTOs ni lógica de dominio.
+
+### Nota de implementación 14.8
+
+Se alinearon permisos, acceso denegado y recurso inexistente. El proxy conserva
+la separación entre `/login`, `/acceso-denegado` y `/sin-permisos`, pero ahora
+reescribe rutas internas desconocidas hacia el 404 interno sin cambiar la URL
+visible. Las páginas transversales de acceso se validan server-side para evitar
+estados imposibles y usan `EmptyState` con un único `h1`, copy seguro, acciones
+de regreso y cierre de sesión.
+
+Los Server Components internos clasifican `unauthorized`, `forbidden`,
+`invalid_id` y `not_found` antes de mostrar errores de lectura. El 404 interno
+evita copy de permisos y el 404 público mantiene solo rutas públicas. En
+`/dashboard/pedidos`, trabajadores ven el listado sin cargar clientes ni mostrar
+`Nuevo pedido`, porque la creación manual queda como capacidad embebida de
+`pedidos.manage`. No se modificaron roles, permisos, RLS, Storage, DTO público,
+Server Actions, servicios, queries ni lógica de dominio. La siguiente subtarea
+activa es 14.9.
+
+### Nota de implementación 14.9
+
+Se consolidaron confirmaciones inline para eliminaciones permanentes de tareas
+de pedido y tareas de plantilla. Ambas muestran el nombre de la tarea, enfocan
+`Cancelar` al abrir, permiten cancelar con botón o `Escape`, mantienen el error
+de acción dentro de la confirmación, bloquean doble envío durante pending y
+muestran feedback success posterior aunque la fila desaparezca por revalidación.
+
+Se conserva `window.confirm` para cerrar dialogs/drawers con cambios sin
+guardar. No se añadieron confirmaciones a acciones reversibles o ya explícitas
+como mover, editar, completar, reabrir, actualizar progreso, aplicar plantilla,
+cambiar estado, actualizar pago, asignar/quitar personal, activar/inactivar o
+cerrar workspaces. No se modificaron Server Actions, servicios, permisos, RLS,
+Storage, DTO público, queries, rutas ni lógica de dominio. La siguiente subtarea
+activa es 14.10.
+
+### Nota de cierre 14.10
+
+La Etapa 14 queda cerrada con QA documentado en:
+
+```text
+docs/ui-ux/STAGE_14_QA_CLOSURE.md
+```
+
+Resultado final: aprobado. `diff:check`, `verify`, auditorías, Full Visual QA y
+suite E2E Chromium serial terminaron con código 0. El resultado final de la
+suite serial fue `43 passed`, `3 skipped`, `0 failed`.
+
+Durante el cierre se corrigió únicamente un defecto del harness visual en
+`tests/e2e/full-visual-qa.spec.ts`, relacionado con la espera de acciones del
+workspace de solicitudes después del loading segmentado. No se modificó código
+de aplicación, Server Actions, servicios, permisos, RLS, Storage, DTO público,
+queries, rutas ni lógica de dominio.
+
+La siguiente etapa oficial es `Etapa 15 — Optimización basada en mediciones`.
+No queda iniciada desde este cierre.
 
 ### Criterio de cierre
 
@@ -1581,14 +1744,15 @@ No introducir paginación, caché, virtualización o paralelización compleja si
 
 # 14. Próxima etapa activa
 
-La siguiente subtarea oficial de esta iniciativa es:
+La siguiente etapa oficial de esta iniciativa es:
 
 ```text
-13.2 — Marco público y puerta interna
+Etapa 15 — Optimización basada en mediciones
 ```
 
-El siguiente entregable debe continuar con la home pública sin exponer enlaces
-visibles hacia `/login` y sin mover rutas ni cambiar autenticación.
+La Etapa 15 debe comenzar con mediciones reales de rendimiento, bundle,
+navegación, consultas y coste de QA antes de proponer optimizaciones. No queda
+iniciada por el cierre de Etapa 14.
 
 ---
 

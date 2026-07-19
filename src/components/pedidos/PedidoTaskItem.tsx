@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useRef, useState } from "react";
 import type {
   DeletePedidoTaskActionState,
   PedidoDetailAction,
@@ -8,6 +8,7 @@ import type {
   UpdatePedidoTaskProgressActionState,
   UpdatePedidoTaskTitleActionState,
 } from "@/app/(interno)/dashboard/pedidos/[id]/actions";
+import { InlineDeleteConfirmation } from "@/components/ui/InlineDeleteConfirmation";
 import type { PedidoTask } from "@/lib/pedidos/list-pedido-tasks";
 
 export type PedidoTaskItemActions = {
@@ -22,6 +23,8 @@ type PedidoTaskItemProps = {
   task: PedidoTask;
   canManage: boolean;
   actions: PedidoTaskItemActions;
+  onDeleteIntent: () => void;
+  onDeleteSuccess: (message: string) => void;
 };
 
 const titleInitialState: UpdatePedidoTaskTitleActionState = {
@@ -80,7 +83,11 @@ export function PedidoTaskItem({
   task,
   canManage,
   actions,
+  onDeleteIntent,
+  onDeleteSuccess,
 }: PedidoTaskItemProps) {
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const deleteTriggerRef = useRef<HTMLButtonElement | null>(null);
   const [titleState, titleAction, titlePending] = useActionState(
     actions.updateTitle,
     titleInitialState,
@@ -93,15 +100,23 @@ export function PedidoTaskItem({
     task.is_completed ? actions.reopen : actions.complete,
     completionInitialState,
   );
-  const [deleteState, deleteAction, deletePending] = useActionState(
-    actions.delete,
-    deleteInitialState,
-  );
   const isQuantified = task.task_type === "cuantificada";
   const targetQuantity = task.target_quantity ?? 0;
   const completedQuantity = task.completed_quantity ?? 0;
   const titleError = titleState.fieldErrors?.title;
   const progressError = progressState.fieldErrors?.completed_quantity;
+
+  function openDeleteConfirmation() {
+    onDeleteIntent();
+    setIsConfirmingDelete(true);
+  }
+
+  function cancelDeleteConfirmation() {
+    setIsConfirmingDelete(false);
+    window.requestAnimationFrame(() => {
+      deleteTriggerRef.current?.focus({ preventScroll: true });
+    });
+  }
 
   return (
     <li className="rounded-(--radius-control) border border-border bg-surface-muted p-4">
@@ -131,7 +146,7 @@ export function PedidoTaskItem({
           ) : null}
         </div>
 
-        {canManage ? (
+        {canManage && !isConfirmingDelete ? (
           <div className="flex flex-wrap gap-2">
             {!isQuantified || task.is_completed ? (
               <form action={completionAction} aria-busy={completionPending}>
@@ -141,33 +156,59 @@ export function PedidoTaskItem({
                   disabled={completionPending}
                   className="inline-flex min-h-11 items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-3 text-sm font-medium text-text-primary transition-colors hover:bg-brand-primary-soft disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {task.is_completed ? "Reabrir" : "Marcar como completada"}
+                  {completionPending
+                    ? task.is_completed
+                      ? "Reabriendo..."
+                      : "Completando..."
+                    : task.is_completed
+                      ? "Reabrir"
+                      : "Marcar como completada"}
                 </button>
               </form>
             ) : null}
 
-            <form action={deleteAction} aria-busy={deletePending}>
-              <TaskHiddenFields taskId={task.id} />
-              <button
-                type="submit"
-                disabled={deletePending}
-                className="inline-flex min-h-11 items-center justify-center rounded-(--radius-control) border border-danger/30 bg-surface px-3 text-sm font-medium text-danger transition-colors hover:bg-danger-soft disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Eliminar
-              </button>
-            </form>
+            <button
+              ref={deleteTriggerRef}
+              type="button"
+              aria-label={`Eliminar tarea ${task.title}`}
+              className="inline-flex min-h-11 items-center justify-center rounded-(--radius-control) border border-danger/30 bg-surface px-3 text-sm font-medium text-danger transition-colors hover:bg-danger-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={openDeleteConfirmation}
+            >
+              Eliminar
+            </button>
           </div>
         ) : null}
       </div>
 
-      {canManage ? (
-        <div className="mt-4 grid gap-3">
-          <ActionMessage state={completionState} />
-          <ActionMessage state={deleteState} />
+      {canManage && isConfirmingDelete ? (
+        <div className="mt-4 border-t border-border pt-4">
+          <InlineDeleteConfirmation
+            action={actions.delete}
+            initialState={deleteInitialState}
+            title="¿Eliminar esta tarea?"
+            description={
+              <p>
+                Se eliminará “{task.title}” de este pedido. Esta acción no se
+                puede deshacer.
+              </p>
+            }
+            confirmLabel="Eliminar tarea"
+            pendingLabel="Eliminando tarea..."
+            onCancel={cancelDeleteConfirmation}
+            onSuccess={onDeleteSuccess}
+          >
+            <TaskHiddenFields taskId={task.id} />
+          </InlineDeleteConfirmation>
         </div>
       ) : null}
 
-      {canManage && isQuantified ? (
+      {canManage && !isConfirmingDelete ? (
+        <div className="mt-4 grid gap-3">
+          <ActionMessage state={completionState} />
+        </div>
+      ) : null}
+
+      {canManage && isQuantified && !isConfirmingDelete ? (
         <form
           action={progressAction}
           aria-busy={progressPending}
@@ -216,13 +257,13 @@ export function PedidoTaskItem({
               disabled={progressPending}
               className="inline-flex min-h-11 items-center justify-center rounded-(--radius-control) bg-brand-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Guardar
+              {progressPending ? "Guardando progreso..." : "Guardar"}
             </button>
           </div>
         </form>
       ) : null}
 
-      {canManage ? (
+      {canManage && !isConfirmingDelete ? (
         <form
           action={titleAction}
           aria-busy={titlePending}
@@ -267,7 +308,7 @@ export function PedidoTaskItem({
               disabled={titlePending}
               className="inline-flex min-h-11 items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-4 py-2 text-sm font-semibold text-text-primary transition-colors hover:bg-brand-primary-soft disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Guardar
+              {titlePending ? "Guardando título..." : "Guardar"}
             </button>
           </div>
         </form>

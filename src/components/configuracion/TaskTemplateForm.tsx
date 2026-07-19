@@ -173,8 +173,20 @@ export function TaskTemplateForm({
     >
       <div className="space-y-4">
         {state.message ? (
-          <Alert variant={state.ok ? "success" : "danger"} aria-live="polite">
-            {state.message}
+          <Alert
+            variant={state.ok ? "success" : "danger"}
+            title={
+              state.ok
+                ? isCreate
+                  ? "Plantilla creada"
+                  : "Cambios guardados"
+                : isCreate
+                  ? "No se pudo crear la plantilla"
+                  : "No se pudieron guardar los cambios"
+            }
+            aria-live="polite"
+          >
+            <p>{state.message}</p>
           </Alert>
         ) : null}
 
@@ -193,8 +205,8 @@ export function TaskTemplateForm({
           <Button type="submit" disabled={pending} className="w-full sm:w-auto">
             {pending
               ? isCreate
-                ? "Creando..."
-                : "Guardando..."
+                ? "Creando plantilla..."
+                : "Guardando cambios..."
               : isCreate
                 ? "Crear plantilla"
                 : "Guardar cambios"}

@@ -95,9 +95,23 @@ export async function expectNoVisibleSensitiveText(page: Page) {
 }
 
 export async function expectAccessLimitedPage(page: Page) {
-  await expect(page).toHaveURL(/\/sin-permisos/);
+  await expect(page).toHaveURL(/\/sin-permisos(?:[/?#].*)?$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
   await expect(
-    page.getByText(/esta secci.n no est. disponible|acceso limitado/i).first(),
+    page.getByRole("heading", {
+      level: 1,
+      name: /esta secci.n no est. disponible para tu usuario/i,
+    }),
   ).toBeVisible();
+  await expect(
+    page.getByText(/tu sesi.n sigue activa/i).first(),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /volver al dashboard/i }),
+  ).toHaveAttribute("href", "/dashboard");
+  await expect(page.getByRole("button", { name: /reintentar/i })).toHaveCount(
+    0,
+  );
+  await expect(page.getByRole("link", { name: /reintentar/i })).toHaveCount(0);
   await expectNoInternalSensitiveText(page);
 }

@@ -7,7 +7,7 @@ import type {
   CreateClienteFromSolicitudActionState,
   SolicitudDetailAction,
 } from "@/app/(interno)/dashboard/solicitudes/[id]/actions";
-import { Alert, Button, FormField, Select } from "@/components/ui";
+import { Alert, Button, FormField, ReadErrorAlert, Select } from "@/components/ui";
 import type { InternalCliente, InternalClienteDetail } from "@/lib/clientes";
 
 type SolicitudClienteFormProps = {
@@ -20,6 +20,7 @@ type SolicitudClienteFormProps = {
   clienteAsociado: InternalClienteDetail | null;
   clientesDisponibles: InternalCliente[];
   clientesLoadError?: string | null;
+  clientesLoadRetryable?: boolean;
   presentation?: "card" | "panel";
 };
 
@@ -36,10 +37,14 @@ const initialCreateState: CreateClienteFromSolicitudActionState = {
 function ActionAlert({
   ok,
   message,
+  successTitle,
+  errorTitle,
   className,
 }: {
   ok: boolean;
   message: string;
+  successTitle: string;
+  errorTitle: string;
   className?: string;
 }) {
   if (!message) {
@@ -49,10 +54,11 @@ function ActionAlert({
   return (
     <Alert
       variant={ok ? "success" : "danger"}
+      title={ok ? successTitle : errorTitle}
       aria-live="polite"
       className={className}
     >
-      {message}
+      <p>{message}</p>
     </Alert>
   );
 }
@@ -102,6 +108,7 @@ export function SolicitudClienteForm({
   clienteAsociado,
   clientesDisponibles,
   clientesLoadError,
+  clientesLoadRetryable = false,
   presentation = "card",
 }: SolicitudClienteFormProps) {
   const [associateState, associateAction, associatePending] = useActionState(
@@ -133,9 +140,14 @@ export function SolicitudClienteForm({
           </h3>
 
           {clientesLoadError ? (
-            <Alert variant="danger" className="mt-3">
-              {clientesLoadError}
-            </Alert>
+            <ReadErrorAlert
+              variant="warning"
+              title="No se pudieron cargar los clientes"
+              retryable={clientesLoadRetryable}
+              className="mt-3"
+            >
+              <p>{clientesLoadError}</p>
+            </ReadErrorAlert>
           ) : null}
 
           <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
@@ -171,13 +183,21 @@ export function SolicitudClienteForm({
               disabled={!hasClientes || associatePending}
               className="w-full sm:w-auto"
             >
-              {associatePending ? "Guardando..." : associateButtonLabel}
+              {associatePending
+                ? hasClienteAsociado
+                  ? "Actualizando asociación..."
+                  : "Asociando cliente..."
+                : associateButtonLabel}
             </Button>
           </div>
 
           <ActionAlert
             ok={associateState.ok}
             message={associateState.message}
+            successTitle={
+              hasClienteAsociado ? "Asociación actualizada" : "Cliente asociado"
+            }
+            errorTitle="No se pudo asociar el cliente"
             className="mt-3"
           />
         </form>
@@ -197,6 +217,8 @@ export function SolicitudClienteForm({
           <ActionAlert
             ok={createState.ok}
             message={createState.message}
+            successTitle="Cliente creado"
+            errorTitle="No se pudo crear el cliente"
             className="mt-3"
           />
 
@@ -207,7 +229,7 @@ export function SolicitudClienteForm({
             className="mt-4 w-full"
           >
             {createPending
-              ? "Creando..."
+              ? "Creando cliente..."
               : "Crear cliente desde esta solicitud"}
           </Button>
         </form>
@@ -228,9 +250,14 @@ export function SolicitudClienteForm({
       <div className="mt-6 grid gap-5 lg:grid-cols-2">
         <form action={associateAction} aria-busy={associatePending}>
           {clientesLoadError ? (
-            <Alert variant="danger" className="mb-4">
-              {clientesLoadError}
-            </Alert>
+            <ReadErrorAlert
+              variant="warning"
+              title="No se pudieron cargar los clientes"
+              retryable={clientesLoadRetryable}
+              className="mb-4"
+            >
+              <p>{clientesLoadError}</p>
+            </ReadErrorAlert>
           ) : null}
 
           <FormField id="cliente_id" label="Cliente existente" required>
@@ -258,6 +285,10 @@ export function SolicitudClienteForm({
           <ActionAlert
             ok={associateState.ok}
             message={associateState.message}
+            successTitle={
+              hasClienteAsociado ? "Asociación actualizada" : "Cliente asociado"
+            }
+            errorTitle="No se pudo asociar el cliente"
             className="mt-3"
           />
 
@@ -266,7 +297,11 @@ export function SolicitudClienteForm({
             disabled={!hasClientes || associatePending}
             className="mt-4 w-full"
           >
-            {associatePending ? "Guardando..." : associateButtonLabel}
+            {associatePending
+              ? hasClienteAsociado
+                ? "Actualizando asociación..."
+                : "Asociando cliente..."
+              : associateButtonLabel}
           </Button>
         </form>
 
@@ -281,6 +316,8 @@ export function SolicitudClienteForm({
           <ActionAlert
             ok={createState.ok}
             message={createState.message}
+            successTitle="Cliente creado"
+            errorTitle="No se pudo crear el cliente"
             className="mt-3"
           />
 
@@ -291,7 +328,7 @@ export function SolicitudClienteForm({
             className="mt-4 w-full"
           >
             {createPending
-              ? "Creando..."
+              ? "Creando cliente..."
               : "Crear cliente desde esta solicitud"}
           </Button>
         </form>

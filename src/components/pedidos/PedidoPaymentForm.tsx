@@ -38,9 +38,12 @@ export function PedidoPaymentForm({
       {state.message ? (
         <Alert
           variant={state.ok ? "success" : "danger"}
+          title={
+            state.ok ? "Pago actualizado" : "No se pudo actualizar el pago"
+          }
           aria-live="polite"
         >
-          {state.message}
+          <p>{state.message}</p>
         </Alert>
       ) : null}
 
@@ -105,7 +108,7 @@ export function PedidoPaymentForm({
         disabled={pending}
         className="mt-4 w-full sm:w-auto"
       >
-        {pending ? "Actualizando..." : "Actualizar pago"}
+        {pending ? "Actualizando pago..." : "Actualizar pago"}
       </Button>
     </form>
   );

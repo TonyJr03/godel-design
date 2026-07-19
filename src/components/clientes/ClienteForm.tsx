@@ -67,9 +67,10 @@ export function ClienteForm({
           {state.message ? (
             <Alert
               variant={state.ok ? "success" : "danger"}
+              title={state.ok ? "Cliente creado" : "No se pudo crear el cliente"}
               aria-live="polite"
             >
-              {state.message}
+              <p>{state.message}</p>
             </Alert>
           ) : null}
 
@@ -159,7 +160,7 @@ export function ClienteForm({
 
           <FormActions compact note={undefined}>
             <Button type="submit" disabled={pending} className="w-full sm:w-auto">
-              {pending ? "Creando..." : "Crear cliente"}
+              {pending ? "Creando cliente..." : "Crear cliente"}
             </Button>
           </FormActions>
         </div>

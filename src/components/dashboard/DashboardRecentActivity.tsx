@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 
-import { Alert } from "@/components/ui/Alert";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ReadErrorAlert } from "@/components/ui/ReadErrorAlert";
 import type {
   DashboardRecentActivityItem,
   GetDashboardRecentActivityResult,
@@ -42,12 +42,13 @@ export function DashboardRecentActivity({
 }: DashboardRecentActivityProps) {
   if (!result.ok) {
     return (
-      <Alert variant="warning" title="No se pudo cargar la actividad reciente">
-        <p>
-          Intenta recargar la página o contacta al administrador si el problema
-          continúa.
-        </p>
-      </Alert>
+      <ReadErrorAlert
+        variant="warning"
+        title="No se pudo cargar la actividad reciente"
+        retryable={result.reason === "error"}
+      >
+        <p>{result.message}</p>
+      </ReadErrorAlert>
     );
   }
 

@@ -75,8 +75,20 @@ export function TaskTemplateTaskForm({
 
       <div className="space-y-4">
         {state.message ? (
-          <Alert variant={state.ok ? "success" : "danger"} aria-live="polite">
-            {state.message}
+          <Alert
+            variant={state.ok ? "success" : "danger"}
+            title={
+              state.ok
+                ? isCreate
+                  ? "Tarea creada"
+                  : "Cambios guardados"
+                : isCreate
+                  ? "No se pudo crear la tarea"
+                  : "No se pudieron guardar los cambios"
+            }
+            aria-live="polite"
+          >
+            <p>{state.message}</p>
           </Alert>
         ) : null}
 
@@ -124,8 +136,8 @@ export function TaskTemplateTaskForm({
           >
             {pending
               ? isCreate
-                ? "Agregando..."
-                : "Guardando..."
+                ? "Agregando tarea..."
+                : "Guardando tarea..."
               : isCreate
                 ? isCompact
                   ? "Agregar"

@@ -11,6 +11,7 @@ export type EmptyStateProps = Omit<HTMLAttributes<HTMLElement>, "title"> & {
   description: ReactNode;
   action?: ReactNode;
   eyebrow?: ReactNode;
+  titleAs?: "h1" | "h2";
   variant?: EmptyStateVariant;
 };
 
@@ -33,10 +34,13 @@ export function EmptyState({
   description,
   action,
   eyebrow,
+  titleAs = "h2",
   variant = "default",
   className,
   ...props
 }: EmptyStateProps) {
+  const Title = titleAs;
+
   return (
     <section
       className={[
@@ -58,7 +62,7 @@ export function EmptyState({
           {eyebrow}
         </p>
       ) : null}
-      <h2
+      <Title
         className={[
           "text-xl font-semibold text-text-primary",
           eyebrow ? "mt-3" : "",
@@ -67,7 +71,7 @@ export function EmptyState({
           .join(" ")}
       >
         {title}
-      </h2>
+      </Title>
       <div className="mt-2 max-w-2xl text-sm leading-6 text-text-secondary">
         {description}
       </div>

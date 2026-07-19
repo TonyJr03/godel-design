@@ -72,8 +72,12 @@ export function UserCreateForm({
       <FormSection compact>
         <div className="space-y-4">
           {state.message ? (
-            <Alert variant={state.ok ? "success" : "danger"} aria-live="polite">
-              {state.message}
+            <Alert
+              variant={state.ok ? "success" : "danger"}
+              title={state.ok ? "Perfil creado" : "No se pudo crear el perfil"}
+              aria-live="polite"
+            >
+              <p>{state.message}</p>
             </Alert>
           ) : null}
 
@@ -217,7 +221,7 @@ export function UserCreateForm({
 
           <FormActions compact note={undefined}>
             <Button type="submit" disabled={pending} className="w-full sm:w-auto">
-              {pending ? "Creando..." : "Crear perfil"}
+              {pending ? "Creando perfil..." : "Crear perfil"}
             </Button>
           </FormActions>
         </div>

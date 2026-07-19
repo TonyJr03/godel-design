@@ -1,11 +1,12 @@
 import { PedidoProgressBar } from "@/components/pedidos/PedidoProgressBar";
-import { Alert } from "@/components/ui";
+import { ReadErrorAlert } from "@/components/ui";
 import type { PedidoTask, PedidoTasksProgress } from "@/lib/pedidos";
 
 type PedidoTasksPreviewProps = {
   tasks: readonly PedidoTask[];
   progress: PedidoTasksProgress;
   loadError?: string;
+  loadErrorRetryable?: boolean;
 };
 
 function getTaskGroup(task: PedidoTask): number {
@@ -58,6 +59,7 @@ export function PedidoTasksPreview({
   tasks,
   progress,
   loadError,
+  loadErrorRetryable = false,
 }: PedidoTasksPreviewProps) {
   const previewTasks = getPreviewTasks(tasks);
   const hiddenTasksCount = Math.max(tasks.length - previewTasks.length, 0);
@@ -75,9 +77,14 @@ export function PedidoTasksPreview({
       </h2>
 
       {loadError ? (
-        <Alert variant="danger" className="mt-5">
-          {loadError}
-        </Alert>
+        <ReadErrorAlert
+          variant="warning"
+          title="No se pudieron cargar las tareas"
+          retryable={loadErrorRetryable}
+          className="mt-5"
+        >
+          <p>{loadError}</p>
+        </ReadErrorAlert>
       ) : (
         <>
           <div className="mt-5 shrink-0">

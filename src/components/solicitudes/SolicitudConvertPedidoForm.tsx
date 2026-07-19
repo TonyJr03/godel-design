@@ -70,6 +70,7 @@ export function SolicitudConvertPedidoForm({
   const estimatedDeliveryDateError =
     state.fieldErrors?.estimated_delivery_date;
   const isPrintWorkflow = workflowType === WORKFLOW_TYPES.IMPRESION;
+  const hasFreshConversionSuccess = state.ok && Boolean(state.pedidoId);
   const titleValue = state.values?.title ?? "";
   const descriptionValue = state.values?.description ?? solicitudDescription;
   const totalAmountValue = state.values?.total_amount ?? "";
@@ -97,6 +98,7 @@ export function SolicitudConvertPedidoForm({
       {state.message ? (
         <Alert
           variant={state.ok ? "success" : "danger"}
+          title={state.ok ? "Pedido creado" : "No se pudo convertir la solicitud"}
           aria-live="polite"
           className={isPanel ? "" : "mt-4"}
         >
@@ -104,6 +106,7 @@ export function SolicitudConvertPedidoForm({
           {state.ok && currentPedidoId ? (
             <Link
               href={`/dashboard/pedidos/${currentPedidoId}`}
+              aria-label="Ver pedido"
               className="mt-2 inline-flex min-h-10 items-center text-sm font-semibold text-brand-primary underline underline-offset-4"
             >
               Ver pedido {state.numeroPedido}
@@ -112,8 +115,12 @@ export function SolicitudConvertPedidoForm({
         </Alert>
       ) : null}
 
-      {currentPedidoId ? (
-        <Alert variant="success" className={isPanel ? "" : "mt-4"}>
+      {hasFreshConversionSuccess ? null : currentPedidoId ? (
+        <Alert
+          variant="success"
+          title="Solicitud convertida"
+          className={isPanel ? "" : "mt-4"}
+        >
           <p>Esta solicitud ya fue convertida en pedido.</p>
           <Link
             href={`/dashboard/pedidos/${currentPedidoId}`}
@@ -305,7 +312,7 @@ export function SolicitudConvertPedidoForm({
               disabled={!canConvert || pending}
               className="w-full"
             >
-              {pending ? "Convirtiendo..." : "Convertir en pedido"}
+              {pending ? "Convirtiendo en pedido..." : "Convertir en pedido"}
             </Button>
           </div>
         </form>

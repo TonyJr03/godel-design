@@ -32,9 +32,12 @@ function ActionMessage({ state }: { state: UpdateSolicitudStatusActionState }) {
   return (
     <Alert
       variant={state.ok ? "success" : "danger"}
+      title={
+        state.ok ? "Estado actualizado" : "No se pudo actualizar el estado"
+      }
       aria-live="polite"
     >
-      {state.message}
+      <p>{state.message}</p>
     </Alert>
   );
 }
@@ -128,7 +131,7 @@ export function SolicitudStatusForm({
           disabled={!canManageManually || pending}
           className="w-full sm:w-auto"
         >
-          {pending ? "Actualizando..." : "Actualizar estado"}
+          {pending ? "Actualizando estado..." : "Actualizar estado"}
         </Button>
       </div>
     </form>

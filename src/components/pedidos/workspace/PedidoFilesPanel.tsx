@@ -1,4 +1,4 @@
-import { Alert } from "@/components/ui";
+import { ReadErrorAlert } from "@/components/ui";
 import {
   STORAGE_FILE_CATEGORY_LABELS,
   type PedidoFileListItem,
@@ -9,6 +9,7 @@ type PedidoFilesPanelProps = {
   pedidoId: string;
   files: readonly PedidoFileListItem[];
   loadError?: string;
+  loadErrorRetryable?: boolean;
 };
 
 function formatFileSize(value: number | null): string {
@@ -51,15 +52,20 @@ export function PedidoFilesPanel({
   pedidoId,
   files,
   loadError,
+  loadErrorRetryable = false,
 }: PedidoFilesPanelProps) {
   const sortedFiles = getSortedFiles(files);
 
   return (
     <div>
       {loadError ? (
-        <Alert variant="danger">
-          {loadError}
-        </Alert>
+        <ReadErrorAlert
+          variant="warning"
+          title="No se pudieron cargar los archivos"
+          retryable={loadErrorRetryable}
+        >
+          <p>{loadError}</p>
+        </ReadErrorAlert>
       ) : null}
 
       {sortedFiles.length > 0 ? (

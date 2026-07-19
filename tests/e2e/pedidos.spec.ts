@@ -14,6 +14,7 @@ const futureDate = getFutureDateInputValue(30);
 const clienteLabel = `QA Cliente Focal ${runId}`;
 const encargoTitle = `QA Pedido Focal Encargo ${runId}`;
 const impresionTitle = `QA Pedido Focal Impresion ${runId}`;
+const disposableTaskTitle = `QA Tarea Desechable ${runLabel}`;
 const quantifiedTaskTitle = `QA Tarea Focal Imprimir 5 hojas ${runLabel}`;
 const workspaceCommentText = `QA comentario workspace ${runLabel}`;
 
@@ -453,6 +454,67 @@ async function createQuantifiedTask(page: Page) {
   await expect(task.getByText(/cuantificada/i)).toBeVisible();
 }
 
+async function createAndDeleteDisposableTask(page: Page) {
+  let taskSection = await getPedidoTasksPanel(page);
+  const newTaskInput = taskSection.getByRole("textbox", {
+    name: /nueva tarea/i,
+  });
+
+  await newTaskInput.fill(disposableTaskTitle);
+  await taskSection.getByRole("button", { name: /crear tarea/i }).click();
+  await expect(taskSection).toBeVisible();
+  await expect(
+    taskSection.getByText(/tarea creada correctamente/i),
+  ).toBeVisible({ timeout: 15_000 });
+  await page.reload();
+
+  taskSection = await getPedidoTasksPanel(page);
+  const task = taskSection.locator("li").filter({ hasText: disposableTaskTitle });
+  const deleteButton = task.getByRole("button", {
+    name: new RegExp(`eliminar tarea ${escapeRegExp(disposableTaskTitle)}`, "i"),
+  });
+
+  await expect(task).toBeVisible();
+  await deleteButton.click();
+  let confirmation = task.locator("form").filter({
+    hasText: /eliminar esta tarea/i,
+  });
+
+  await expect(confirmation).toBeVisible();
+  await expect(confirmation.getByText(disposableTaskTitle)).toBeVisible();
+  await expect(
+    confirmation.getByRole("button", { name: /cancelar/i }),
+  ).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(confirmation).toBeHidden();
+  await expect(taskSection).toBeVisible();
+  await expect(
+    taskSection.getByRole("heading", { name: /^tareas$/i }),
+  ).toBeVisible();
+  await expect(task).toBeVisible();
+  await expect(deleteButton).toBeFocused();
+
+  await deleteButton.click();
+  confirmation = task.locator("form").filter({
+    hasText: /eliminar esta tarea/i,
+  });
+  await expect(confirmation).toBeVisible();
+  await confirmation
+    .getByRole("button", { name: /^eliminar tarea$/i })
+    .click();
+  await expect(
+    taskSection.getByText("Tarea eliminada", { exact: true }),
+  ).toBeVisible({ timeout: 15_000 });
+  await expect(taskSection.getByText(/tarea eliminada correctamente/i))
+    .toBeVisible();
+  await expect(task).toHaveCount(0, { timeout: 15_000 });
+  await expect(
+    taskSection.getByRole("heading", { name: /^tareas registradas$/i }),
+  ).toBeVisible();
+  await expect(taskSection.getByText(/progreso:/i)).toBeVisible();
+  await expectNoTechnicalLeakText(page);
+}
+
 async function completeQuantifiedTask(page: Page) {
   const task = await getPedidoTaskItem(page, quantifiedTaskTitle);
   const progressForm = task.locator("form").filter({
@@ -586,6 +648,7 @@ test("admin can create and manage focal internal pedidos", async ({ page }) => {
   await expect(await getPedidoTasksPanel(page)).toBeVisible();
 
   await expectPedidoStatusBlocked(page, "en_produccion");
+  await createAndDeleteDisposableTask(page);
   await createQuantifiedTask(page);
   await updatePedidoStatus(page, "en_produccion");
 
@@ -1343,6 +1406,16 @@ test("pedido access follows current role boundaries", async ({ page }) => {
   await loginAs(page, "worker");
   await page.goto("/dashboard/pedidos");
   await expectPedidosListLoaded(page);
+  await expect(
+    page.getByRole("button", { name: /nuevo pedido/i }),
+  ).toHaveCount(0);
+  await expect(page.getByText(/no tienes permiso para ver clientes/i))
+    .toHaveCount(0);
+  await expect(page.getByText(/no se pudieron cargar los clientes/i))
+    .toHaveCount(0);
+  await expect(page.getByRole("button", { name: /reintentar/i })).toHaveCount(
+    0,
+  );
 
   await page.goto("/dashboard/pedidos/nuevo");
   await expect(

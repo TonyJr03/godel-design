@@ -42,13 +42,19 @@ type InternalPedidoDetailProps = {
   updateStatusAction: PedidoDetailAction<UpdatePedidoStatusActionState>;
   taskProgress?: PedidoTasksProgress | null;
   tasksLoadError?: string;
+  tasksLoadRetryable?: boolean;
   tasks: readonly PedidoTask[];
   history: readonly PedidoHistoryItem[];
   historyLoadError?: string;
+  historyLoadRetryable?: boolean;
   files: readonly PedidoFileListItem[];
   filesLoadError?: string;
+  filesLoadRetryable?: boolean;
   comments: readonly PedidoComment[];
   commentsLoadError?: string;
+  commentsLoadRetryable?: boolean;
+  personnelLoadError?: string;
+  taskTemplatesLoadError?: string;
   personnelPanelContent: ReactNode;
   paymentPanelContent: ReactNode;
   tasksPanelContent?: ReactNode;
@@ -134,13 +140,19 @@ export function InternalPedidoDetail({
   updateStatusAction,
   taskProgress,
   tasksLoadError,
+  tasksLoadRetryable = false,
   tasks,
   history,
   historyLoadError,
+  historyLoadRetryable = false,
   files,
   filesLoadError,
+  filesLoadRetryable = false,
   comments,
   commentsLoadError,
+  commentsLoadRetryable = false,
+  personnelLoadError,
+  taskTemplatesLoadError,
   personnelPanelContent,
   paymentPanelContent,
   tasksPanelContent,
@@ -164,6 +176,13 @@ export function InternalPedidoDetail({
     progress: safeTaskProgress,
     loadError: tasksLoadError,
   });
+  const taskTemplatesActionState: WorkspaceActionState =
+    !tasksLoadError && taskTemplatesLoadError
+      ? {
+          tone: "warning",
+          statusLabel: "Plantillas no disponibles",
+        }
+      : {};
   const filesActionState: WorkspaceActionState = filesLoadError
     ? {
         tone: "danger",
@@ -176,8 +195,12 @@ export function InternalPedidoDetail({
         statusLabel: "No se pudieron cargar los comentarios",
       }
     : {};
-  const personalActionState: WorkspaceActionState =
-    isActivePedido && pedido.pedido_trabajadores.length === 0
+  const personalActionState: WorkspaceActionState = personnelLoadError
+    ? {
+        tone: "warning",
+        statusLabel: "Personal disponible no cargado",
+      }
+    : isActivePedido && pedido.pedido_trabajadores.length === 0
       ? {
           tone: "warning",
           statusLabel: "Sin personal asignado",
@@ -210,8 +233,11 @@ export function InternalPedidoDetail({
             label: "Tareas",
             icon: "tareas",
             ...taskActionState,
+            ...taskTemplatesActionState,
             badge:
-              !tasksLoadError && safeTaskProgress.pendingTasks
+              !tasksLoadError &&
+              !taskTemplatesLoadError &&
+              safeTaskProgress.pendingTasks
                 ? safeTaskProgress.pendingTasks
                 : undefined,
           } satisfies WorkspaceAction,
@@ -275,6 +301,7 @@ export function InternalPedidoDetail({
           paymentStatus={pedido.payment.paymentStatus}
           taskProgress={taskProgress}
           tasksLoadError={tasksLoadError}
+          tasksLoadRetryable={tasksLoadRetryable}
         />
       ),
     },
@@ -313,6 +340,7 @@ export function InternalPedidoDetail({
                 pedidoId={pedido.id}
                 files={files}
                 loadError={filesLoadError}
+                loadErrorRetryable={filesLoadRetryable}
               />
             </div>
           </section>
@@ -346,6 +374,7 @@ export function InternalPedidoDetail({
               <PedidoCommentsPanel
                 comments={comments}
                 loadError={commentsLoadError}
+                loadErrorRetryable={commentsLoadRetryable}
               />
             </div>
           </section>
@@ -379,6 +408,7 @@ export function InternalPedidoDetail({
         <PedidoHistoryTimeline
           history={history}
           loadError={historyLoadError}
+          loadErrorRetryable={historyLoadRetryable}
         />
       ),
     },
@@ -410,8 +440,10 @@ export function InternalPedidoDetail({
               tasks={tasks}
               taskProgress={safeTaskProgress}
               tasksLoadError={tasksLoadError}
+              tasksLoadRetryable={tasksLoadRetryable}
               files={files}
               filesLoadError={filesLoadError}
+              filesLoadRetryable={filesLoadRetryable}
             />
           }
         />
