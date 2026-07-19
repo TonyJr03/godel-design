@@ -242,9 +242,9 @@ Según el alcance, deben existir:
 | 10    | Listados administrativos                     | Cerrada   |
 | 11    | Dashboard operativo                          | Cerrada   |
 | 12    | Formularios internos y páginas secundarias   | Cerrada   |
-| 13    | Área pública                                 | Completada |
+| 13    | Área pública                                 | Cerrada |
 | 14    | Estados transversales y resiliencia UI       | Cerrada |
-| 15    | Optimización basada en mediciones            | Pendiente |
+| 15    | Optimización basada en mediciones            | En curso |
 | 16    | QA integral y cierre del rediseño            | Pendiente |
 
 ---
@@ -1424,9 +1424,34 @@ La aplicación responde de forma consistente y comprensible ante cargas, errores
 
 ## Etapa 15 — Optimización basada en mediciones
 
+### Estado
+
+En curso.
+
 ### Objetivo
 
 Mejorar rendimiento únicamente después de disponer de evidencia.
+
+Documento principal:
+
+```text
+docs/performance/PERFORMANCE_STAGE_15_PLAN.md
+```
+
+Linea base inicial:
+
+```text
+docs/performance/PERFORMANCE_BASELINE.md
+```
+
+### Subtareas
+
+* 15.1 Auditoría y línea base — Completado.
+* 15.2 Harness y criterios de decisión — Siguiente.
+* 15.3 Bundle y JavaScript cliente — Condicionada a hallazgos aprobados.
+* 15.4 Render servidor y carga de datos — Condicionada a hallazgos aprobados.
+* 15.5 PostgreSQL y escala de listados — Condicionada a hallazgos aprobados.
+* 15.6 Coste de QA, regresión y cierre — Condicionada a hallazgos aprobados.
 
 ### Aspectos medibles
 
