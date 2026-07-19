@@ -111,8 +111,8 @@ La comparacion valida requiere:
 | Subtarea | Nombre | Objetivo | Estado |
 | --- | --- | --- | --- |
 | 15.1 | Auditoria y linea base | Crear protocolo, baseline y matriz inicial sin optimizar | Completada |
-| 15.2 | Harness y criterios de decision | Aislar mediciones de navegacion, SQL y bundle para comparar cambios | Siguiente |
-| 15.3 | Bundle y JavaScript cliente | Reducir JS solo donde 15.1/15.2 lo justifiquen | Condicionada |
+| 15.2 | Harness y criterios de decision | Aislar mediciones de navegacion, SQL y bundle para comparar cambios | Completada |
+| 15.3 | Bundle y JavaScript cliente | Reducir JS solo donde 15.1/15.2 lo justifiquen | Condicionada / posible siguiente |
 | 15.4 | Render servidor y carga de datos | Revisar loaders secuenciales o payloads con metricas | Condicionada |
 | 15.5 | PostgreSQL y escala de listados | Evaluar indices, filtros y paginacion con datos medidos | Condicionada |
 | 15.6 | Coste de QA, regresion y cierre | Reducir coste de QA sin perder cobertura critica | Condicionada |
@@ -195,3 +195,36 @@ La Etapa 15 se cierra cuando:
 - La suite o conjunto de pruebas acordado pasa.
 - El coste de QA queda caracterizado y, si se modifica, medido.
 
+## 14. Actualizacion 15.2
+
+Fecha: 2026-07-19
+
+La subtarea 15.2 queda completada con harness local reproducible:
+
+- `playwright.performance.config.ts` para Chromium, un worker, `next start` de
+  produccion en `127.0.0.1:3100` y sin reutilizar servidor existente.
+- `tests/performance/navigation-baseline.spec.ts` para navegacion cold y
+  transiciones cliente.
+- Scripts en `scripts/performance/` para analyzer, snapshots SQL, diff SQL y
+  runner principal.
+- Protocolo en `docs/performance/PERFORMANCE_MEASUREMENT_PROTOCOL.md`.
+- Scripts npm `perf:*` agregados.
+
+Resultados finales documentados en:
+
+```text
+docs/performance/PERFORMANCE_BASELINE.md
+```
+
+Evidencia candidata:
+
+- 15.3 puede investigarse si se define una hipotesis concreta sobre el bundle de
+  `/dashboard/pedidos/[id]` o `/dashboard/solicitudes/[id]`.
+- 15.4 no queda habilitada todavia por navegacion: los detalles internos son
+  medibles, pero no prueban problema server-side critico.
+- 15.5 requiere atribucion SQL focal antes de proponer indices o cambios de
+  consulta.
+- 15.6 no debe iniciarse desde 15.2; el coste QA integral no se midio aqui.
+
+No se inicia 15.3 automaticamente. La siguiente subtarea debe elegirse con una
+hipotesis medible y un before/after definido.

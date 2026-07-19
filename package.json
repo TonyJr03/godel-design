@@ -16,6 +16,11 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:report": "playwright show-report",
     "diff:check": "git diff --check",
+    "perf:bundle": "next experimental-analyze --output && node scripts/performance/summarize-next-analyze.mjs",
+    "perf:navigation": "playwright test --config=playwright.performance.config.ts",
+    "perf:pg:snapshot": "node scripts/performance/pg-stat-snapshot.mjs",
+    "perf:pg:diff": "node scripts/performance/pg-stat-diff.mjs",
+    "perf:measure": "node scripts/performance/run-performance-harness.mjs",
     "audit:security": "node scripts/audit-security.mjs",
     "audit:client-supabase": "node scripts/audit-client-supabase.mjs",
     "audit:public-tracking": "node scripts/audit-public-tracking.mjs"

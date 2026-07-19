@@ -508,3 +508,154 @@ Client Components, mapa de carga, auditoria DB/queries, recuentos QA, coste de
 QA y matriz de candidatos. La siguiente subtarea debe ser 15.2: harness y
 criterios de decision.
 
+## 19. Resultados 15.2 - Harness y criterios de decision
+
+Fecha: 2026-07-19
+
+Estado: completado.
+
+Commit base de medicion:
+
+```text
+b0b23eaafc15e6c6a0e70769a57608aa479381dd docs: establecer linea base de rendimiento
+```
+
+Artefactos locales generados:
+
+```text
+.next/diagnostics/performance/navigation-results.json
+.next/diagnostics/performance/bundle-summary.json
+.next/diagnostics/performance/pg-stat-before.json
+.next/diagnostics/performance/pg-stat-after.json
+.next/diagnostics/performance/pg-stat-diff.json
+.next/diagnostics/performance/run-metadata.json
+```
+
+Estos artefactos estan bajo `.next/`, ignorado por git. No se agregan cookies,
+storage state, SQL completo ni UUIDs descubiertos a documentacion versionada.
+
+### 19.1 Comandos y codigos
+
+| Comando | Codigo | Resultado |
+| --- | ---: | --- |
+| `npm.cmd run perf:measure` | 0 | Build, analyzer, bundle summary, SQL before/after/diff y navegacion completados. |
+| `npm.cmd run perf:navigation` segunda corrida | 0 | 2 tests passed, 38.3 s. |
+| `npm.cmd run diff:check` | 0 | Sin errores de whitespace; aviso CRLF normal de `package.json`. |
+| `npm.cmd run verify` | 0 | `eslint` y `next build` aprobados. |
+| `npm.cmd run audit:security` | 0 | Coincidencias documentales esperadas; requiere revision manual. |
+| `npm.cmd run audit:client-supabase` | 0 | Sin coincidencias. |
+| `npm.cmd run audit:public-tracking` | 0 | Sin coincidencias. |
+
+El harness principal registro:
+
+| Fase | Duracion | Codigo |
+| --- | ---: | ---: |
+| Build | 10,344 ms | 0 |
+| `next experimental-analyze --output` | 3,752 ms | 0 |
+| Bundle summary | 159 ms | 0 |
+| `pg_stat` before | 227 ms | 0 |
+| Navegacion | 34,408 ms | 0 |
+| `pg_stat` after | 247 ms | 0 |
+| `pg_stat` diff | 94 ms | 0 |
+
+### 19.2 Navegacion final
+
+La tabla usa la segunda corrida de `npm.cmd run perf:navigation`.
+
+| Modo | Ruta | Mediana ms | Min | Max | Spread | Fallos | Estado | Transfer mediana bytes |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | --- | ---: |
+| Cold document | `/` | 127 | 118 | 133 | 0.118 | 0 | Stable | 222,251 |
+| Cold document | `/solicitud` | 141 | 128 | 143 | 0.106 | 0 | Stable | 197,419 |
+| Cold document | `/estado` | 134 | 129 | 433 | 2.269 | 0 | Unreliable | 221,654 |
+| Cold document | `/dashboard` | 491 | 463 | 514 | 0.104 | 0 | Stable | 248,898 |
+| Cold document | `/dashboard/pedidos` | 469 | 429 | 505 | 0.162 | 0 | Noisy | 302,109 |
+| Cold document | `/dashboard/solicitudes` | 456 | 441 | 525 | 0.184 | 0 | Noisy | 286,684 |
+| Cold document | `/dashboard/pedidos/[id]` | 190 | 185 | 204 | 0.100 | 0 | Stable | 238,239 |
+| Cold document | `/dashboard/solicitudes/[id]` | 188 | 184 | 194 | 0.053 | 0 | Stable | 236,016 |
+| Client transition | `/dashboard -> /dashboard/pedidos` | 420 | 407 | 422 | 0.036 | 0 | Stable | 84,943 |
+| Client transition | `/dashboard -> /dashboard/solicitudes` | 412 | 396 | 421 | 0.061 | 0 | Stable | 70,695 |
+| Client transition | `/dashboard/pedidos -> /dashboard/pedidos/[id]` | 215 | 194 | 225 | 0.144 | 0 | Stable | 28,888 |
+
+Interpretacion:
+
+- La mayoria de rutas internas criticas ya son estables o ruidosas controladas
+  en la corrida final.
+- `/estado` cold no es aceptable como baseline para aprobar optimizaciones hasta
+  repetir o aislar ruido.
+- Las transiciones cliente desde dashboard a listados son estables.
+- La transicion cliente desde pedidos a detalle es medible, pero ruidosa.
+
+### 19.3 Bundle final
+
+El resumen usa el analyzer oficial de Next.js. Los bytes son grafo de analyzer,
+no transferencia de red.
+
+| Ruta | Client graph bytes | Server graph bytes | Sources |
+| --- | ---: | ---: | ---: |
+| `/` | 848,250 | 641,298 | 590 |
+| `/solicitud` | 876,448 | 949,771 | 732 |
+| `/estado` | 888,725 | 935,456 | 673 |
+| `/dashboard` | 896,447 | 1,175,524 | 901 |
+| `/dashboard/pedidos` | 912,886 | 1,143,472 | 878 |
+| `/dashboard/pedidos/[id]` | 946,656 | 1,277,536 | 978 |
+| `/dashboard/solicitudes` | 881,713 | 1,070,551 | 817 |
+| `/dashboard/solicitudes/[id]` | 931,197 | 1,220,020 | 944 |
+
+Las rutas con mayor superficie cliente siguen siendo los detalles internos de
+pedidos y solicitudes.
+
+### 19.4 SQL final
+
+`pg_stat_statements` fue comparable:
+
+```text
+stats_reset = 2026-07-19T14:23:20.370161+00:00
+rowCount = 62
+```
+
+Top deltas anonimizados por `queryid`:
+
+| Queryid | Delta calls | Delta total ms | Delta mean ms | Delta rows |
+| --- | ---: | ---: | ---: | ---: |
+| `8304524537248439887` | 38 | 3,603.480 | 94.828 | 38 |
+| `-5075751444235376341` | 19 | 2,240.923 | 117.943 | 19 |
+| `5001894152916096478` | 19 | 1,792.051 | 94.318 | 19 |
+| `-7277926250533030293` | 19 | 1,452.785 | 76.462 | 19 |
+| `-2408961981334374729` | 19 | 1,435.685 | 75.562 | 19 |
+
+No se documenta el SQL normalizado completo. La atribucion exacta por flujo
+requiere revisar el artefacto local y, si se propone optimizacion SQL, crear una
+medicion focal antes/despues.
+
+### 19.5 Limitaciones y advertencias
+
+- Entorno local Windows; no representa produccion.
+- El dataset QA local acumula datos de pruebas.
+- `audit:security` reporta coincidencias documentales esperadas y requiere
+  revision manual.
+- Playwright debe poder cerrar el `next start`; en sandbox restringido, la
+  segunda navegacion necesito permisos elevados para terminar con codigo 0.
+- Node 24 mostro `DEP0190` al cerrar comandos con shell interno de tooling; no
+  afecto codigos ni artefactos.
+- No se ejecuto suite E2E completa por instruccion explicita de 15.2.
+
+### 19.6 Decision por candidatos 15.1
+
+| ID | Decision 15.2 |
+| --- | --- |
+| P15-C01 | Mantener como candidato de 15.3: `/dashboard/pedidos/[id]` sigue siendo mayor client graph, pero necesita hipotesis concreta por fuente antes de tocar UI. |
+| P15-C02 | Mantener como candidato de 15.3: `/dashboard/solicitudes/[id]` es segunda mayor superficie cliente y navegacion cold estable. |
+| P15-C03 | Sin accion: analyzer no muestra decision suficiente para `lucide-react` por si solo. |
+| P15-C04 | Posponer 15.4: detalle pedido medible, pero la mediana local no prueba problema server-side por si sola. |
+| P15-C05 | Posponer 15.4: detalle solicitud estable; no hay evidencia fuerte de waterfall critico. |
+| P15-C06 | Mantener para investigacion focal: SQL muestra deltas relevantes, pero aun falta atribucion segura por flujo. |
+| P15-C07 | Sin decision: el harness 15.2 midio admin, no flujo worker asignado. |
+| P15-C08 | Sin decision: no se midio busqueda `q` con volumen escalado. |
+| P15-C09 | Mantener sin cambios: no aparecio evidencia nueva de problema en plantillas. |
+| P15-C10 | Sin decision: coste QA integral no se midio en esta subtarea. |
+| P15-C11 | Cerrado: el harness controla puerto 3100 y falla si esta ocupado. |
+| P15-C12 | Mantener observacion: transferencias de listados ya son medibles, sin umbral de optimizacion aprobado. |
+
+Proxima subtarea recomendada: preparar una investigacion focal de 15.3 solo si
+se elige una hipotesis concreta sobre bundle de detalles internos. No iniciar
+optimizacion sin nuevo antes/despues.

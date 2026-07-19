@@ -1447,8 +1447,8 @@ docs/performance/PERFORMANCE_BASELINE.md
 ### Subtareas
 
 * 15.1 Auditoría y línea base — Completado.
-* 15.2 Harness y criterios de decisión — Siguiente.
-* 15.3 Bundle y JavaScript cliente — Condicionada a hallazgos aprobados.
+* 15.2 Harness y criterios de decisión — Completado.
+* 15.3 Bundle y JavaScript cliente — Condicionada / posible siguiente si se define hipótesis medible.
 * 15.4 Render servidor y carga de datos — Condicionada a hallazgos aprobados.
 * 15.5 PostgreSQL y escala de listados — Condicionada a hallazgos aprobados.
 * 15.6 Coste de QA, regresión y cierre — Condicionada a hallazgos aprobados.
@@ -1490,6 +1490,24 @@ docs/performance/PERFORMANCE_BASELINE.md
 ### Criterio de cierre
 
 Las optimizaciones realizadas poseen una causa medida, un resultado verificable y no degradan seguridad ni mantenibilidad.
+
+### Actualización 15.2
+
+La subtarea `15.2 Harness y criterios de decisión` queda completada con:
+
+```text
+docs/performance/PERFORMANCE_MEASUREMENT_PROTOCOL.md
+docs/performance/PERFORMANCE_BASELINE.md
+playwright.performance.config.ts
+tests/performance/navigation-baseline.spec.ts
+scripts/performance/
+```
+
+El harness mide navegación cold, transiciones cliente, bundle analyzer y delta
+SQL local en `.next/diagnostics/performance/`. La siguiente subtarea candidata
+es `15.3 Bundle y JavaScript cliente`, pero no debe iniciarse sin una hipótesis
+concreta sobre `/dashboard/pedidos/[id]` o `/dashboard/solicitudes/[id]` y un
+before/after definido.
 
 ---
 
