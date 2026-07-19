@@ -17,20 +17,28 @@ const sql = `
 select json_build_object(
   'capturedAt', now(),
   'statsReset', (select stats_reset from pg_stat_statements_info),
+  'dealloc', (select dealloc from pg_stat_statements_info),
   'rows', coalesce(
     (
       select json_agg(row_to_json(snapshot_rows))
       from (
         select
+          dbid::text as "dbid",
+          userid::text as "userid",
+          toplevel::boolean as "toplevel",
           queryid::text as "queryid",
           calls::bigint as "calls",
           total_exec_time::double precision as "totalExecTimeMs",
           rows::bigint as "rows",
           regexp_replace(query, '\\s+', ' ', 'g') as "normalizedQuery"
         from pg_stat_statements
-        where query not ilike '%pg_stat_statements%'
-        order by total_exec_time desc
-        limit 250
+        where dbid = (
+          select oid
+          from pg_database
+          where datname = current_database()
+        )
+          and query not ilike '%pg_stat_statements%'
+        order by dbid, userid, toplevel, queryid
       ) as snapshot_rows
     ),
     '[]'::json
@@ -79,21 +87,35 @@ try {
 }
 
 const rows = Array.isArray(payload.rows) ? payload.rows : [];
+const toStatKey = (row) =>
+  `${row.dbid}:${row.userid}:${row.toplevel}:${row.queryid}`;
 const snapshot = {
   label,
   container,
   capturedAt: payload.capturedAt,
   statsReset: payload.statsReset,
+  dealloc: Number(payload.dealloc),
   rowCount: rows.length,
-  rows: rows.map((row) => ({
-    queryid: String(row.queryid),
-    calls: Number(row.calls),
-    totalExecTimeMs: Number(row.totalExecTimeMs),
-    rows: Number(row.rows),
-    normalizedQuery: String(row.normalizedQuery ?? ""),
-    capturedAt: payload.capturedAt,
-    statsReset: payload.statsReset,
-  })),
+  rows: rows.map((row) => {
+    const normalized = {
+      dbid: String(row.dbid),
+      userid: String(row.userid),
+      toplevel: Boolean(row.toplevel),
+      queryid: String(row.queryid),
+      calls: Number(row.calls),
+      totalExecTimeMs: Number(row.totalExecTimeMs),
+      rows: Number(row.rows),
+      normalizedQuery: String(row.normalizedQuery ?? ""),
+      capturedAt: payload.capturedAt,
+      statsReset: payload.statsReset,
+      dealloc: Number(payload.dealloc),
+    };
+
+    return {
+      statKey: toStatKey(normalized),
+      ...normalized,
+    };
+  }),
 };
 
 ensurePerformanceDir();
@@ -102,5 +124,5 @@ const outputPath = join(performanceDir, `pg-stat-${label}.json`);
 writeFileSync(outputPath, `${JSON.stringify(snapshot, null, 2)}\n`);
 
 console.log(
-  `pg_stat_statements ${label}: ${snapshot.rowCount} rows, statsReset=${snapshot.statsReset}`,
+  `pg_stat_statements ${label}: ${snapshot.rowCount} rows, statsReset=${snapshot.statsReset}, dealloc=${snapshot.dealloc}`,
 );

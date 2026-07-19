@@ -572,9 +572,9 @@ La tabla usa la segunda corrida de `npm.cmd run perf:navigation`.
 | Cold document | `/dashboard/solicitudes` | 456 | 441 | 525 | 0.184 | 0 | Noisy | 286,684 |
 | Cold document | `/dashboard/pedidos/[id]` | 190 | 185 | 204 | 0.100 | 0 | Stable | 238,239 |
 | Cold document | `/dashboard/solicitudes/[id]` | 188 | 184 | 194 | 0.053 | 0 | Stable | 236,016 |
-| Client transition | `/dashboard -> /dashboard/pedidos` | 420 | 407 | 422 | 0.036 | 0 | Stable | 84,943 |
-| Client transition | `/dashboard -> /dashboard/solicitudes` | 412 | 396 | 421 | 0.061 | 0 | Stable | 70,695 |
-| Client transition | `/dashboard/pedidos -> /dashboard/pedidos/[id]` | 215 | 194 | 225 | 0.144 | 0 | Stable | 28,888 |
+| Client transition | `/dashboard -> /dashboard/pedidos` | 427 | 406 | 462 | 0.131 | 0 | Stable | 82,246 |
+| Client transition | `/dashboard -> /dashboard/solicitudes` | 372 | 368 | 387 | 0.051 | 0 | Stable | 65,555 |
+| Client transition | `/dashboard/pedidos -> /dashboard/pedidos/[id]` | 189 | 176 | 2,103 | 10.196 | 0 | Unreliable | 28,885 |
 
 Interpretacion:
 
@@ -583,7 +583,9 @@ Interpretacion:
 - `/estado` cold no es aceptable como baseline para aprobar optimizaciones hasta
   repetir o aislar ruido.
 - Las transiciones cliente desde dashboard a listados son estables.
-- La transicion cliente desde pedidos a detalle es medible, pero ruidosa.
+- La transicion cliente desde pedidos a detalle es medible, pero la corrida
+  corregida queda `unreliable` por un outlier de 2,103 ms; no usarla para
+  aprobar optimizaciones sin repetir o aislar ruido.
 
 ### 19.3 Bundle final
 
@@ -659,3 +661,214 @@ medicion focal antes/despues.
 Proxima subtarea recomendada: preparar una investigacion focal de 15.3 solo si
 se elige una hipotesis concreta sobre bundle de detalles internos. No iniciar
 optimizacion sin nuevo antes/despues.
+
+## 20. Correccion 15.2.1 - Confiabilidad del harness
+
+Fecha: 2026-07-19
+
+Estado: completado tras validacion.
+
+Commit base:
+
+```text
+68afb3855f9477616d660f98a7d87c59b73e996f test: establecer harness de medicion
+```
+
+### 20.1 Correcciones aplicadas
+
+- Las muestras de navegacion fallidas ya no quedan como fallos silenciosos:
+  primero se guardan en `navigation-results.json`, luego se cierra
+  contexto/pagina y finalmente el spec falla con codigo distinto de cero.
+- Los warmups fallidos se registran como `sample: 0`, `phase: warmup` y tambien
+  fallan el comando.
+- `PERF_FORCE_NAV_FAILURE=1` activa una prueba negativa local que usa un heading
+  inexistente sin modificar la aplicacion.
+- Los snapshots SQL capturan `dbid`, `userid`, `toplevel`, `queryid`, `calls`,
+  `totalExecTimeMs`, `rows`, `normalizedQuery`, `statsReset` y `dealloc`.
+- El diff SQL usa clave compuesta `dbid:userid:toplevel:queryid`, incorpora
+  entradas nuevas del snapshot posterior contra contadores anteriores en cero,
+  ignora deltas negativos y falla si cambia `statsReset` o `dealloc`.
+- El resumen de analyzer falla si falta cualquier `analyze.data` critico; no
+  fabrica valores cero ni escribe un resumen valido incompleto.
+
+### 20.2 Prueba negativa
+
+Comando:
+
+```text
+$env:PERF_FORCE_NAV_FAILURE='1'; npm.cmd run perf:navigation
+```
+
+Resultado:
+
+- Codigo: distinto de cero.
+- Fallo esperado: `cold-document-navigation`, ruta `/`, `warmup`,
+  heading inexistente forzado.
+- `navigation-results.json` con `success: false` para `sample: 0`.
+- Storage state eliminado.
+- Puerto 3100 libre al finalizar.
+
+### 20.3 Corrida normal final
+
+Comandos:
+
+| Comando | Codigo | Resultado |
+| --- | ---: | --- |
+| `npm.cmd run diff:check` | 0 | Sin errores; warnings CRLF normales en Windows. |
+| `npm.cmd run verify` | 0 | `eslint` y `next build` aprobados. |
+| `npm.cmd run audit:security` | 0 | Coincidencias documentales esperadas; requiere revision manual. |
+| `npm.cmd run audit:client-supabase` | 0 | Sin coincidencias. |
+| `npm.cmd run audit:public-tracking` | 0 | Sin coincidencias. |
+| `npm.cmd run perf:measure` | 0 | Harness completo aprobado. |
+| `npm.cmd run perf:navigation` | 0 | Segunda corrida normal aprobada, 2 tests passed. |
+
+Navegacion normal:
+
+- Muestras fallidas: 0.
+- Storage state residual: no.
+- Puerto 3100 al final: libre.
+
+SQL normal:
+
+```text
+before rows = 226
+after rows = 226
+diff rows = 56
+comparable = true
+dealloc before = 0
+dealloc after = 0
+```
+
+Top deltas anonimizados por clave compuesta:
+
+| Stat key | Delta calls | Delta total ms | Delta mean ms |
+| --- | ---: | ---: | ---: |
+| `5:16444:true:8304524537248439887` | 38 | 3,594.767 | 94.599 |
+| `5:16444:true:-5075751444235376341` | 19 | 2,185.412 | 115.022 |
+| `5:16444:true:5001894152916096478` | 19 | 1,856.817 | 97.727 |
+| `5:16444:true:-2408961981334374729` | 19 | 1,482.599 | 78.032 |
+| `5:16444:true:-7277926250533030293` | 19 | 1,408.441 | 74.128 |
+
+Analyzer:
+
+- Rutas criticas encontradas: 8.
+- Rutas criticas ausentes: 0.
+- `clientGraphBytes` y `serverGraphBytes` siguen siendo superficie del grafo de
+  analyzer, no transferencia de navegador.
+
+No se inicia 15.3 desde esta correccion.
+
+## 21. Correccion 15.2.2 - Ventana temporal de transiciones cliente
+
+Fecha: 2026-07-19
+
+Estado: completado tras validacion.
+
+Commit base:
+
+```text
+1f65fd9f74325befc5b20c630f0e04c75e2c94f0 fix: reforzar confiabilidad del harness
+```
+
+### 21.1 Defecto corregido
+
+El modo `client-prefetched-navigation` iniciaba `wallTimeMs` antes de
+`page.goto(origin.path)`. Por eso la metrica de transicion mezclaba carga y
+preparacion de origen con la interaccion real.
+
+La ventana corregida empieza despues de cargar la ruta origen, esperar su
+condicion canonica, localizar el enlace y resolver `href`. `sinceStartTime`,
+`startedAt` y el timer de `wallTimeMs` se capturan inmediatamente antes del
+`click` y del `Promise.all([page.waitForURL(...), link.click()])`. La ventana
+termina despues de URL objetivo y condicion canonica del destino listas.
+
+Si falla la preparacion previa al click, la muestra queda marcada como
+`setup failed: ...`; si falla despues del inicio de la interaccion, queda como
+`transition failed: ...`. En ambos casos el error se sanea, se preserva la
+muestra fallida, se cierran pagina/contexto y el spec falla con codigo distinto
+de cero.
+
+### 21.2 Prueba negativa
+
+Comando:
+
+```text
+$env:PERF_FORCE_NAV_FAILURE='1'; npm.cmd run perf:navigation
+```
+
+Resultado:
+
+- Codigo: 1, esperado.
+- Fallo esperado: `cold-document-navigation`, ruta `/`, `sample: 0`,
+  `phase: warmup`, heading inexistente forzado.
+- `navigation-results.json` preservo una muestra fallida sin fabricar muestra
+  exitosa de tiempo cero.
+- Storage state residual: no.
+- Puerto 3100 al final: libre.
+
+### 21.3 Corrida normal final
+
+Comandos:
+
+| Comando | Codigo | Resultado |
+| --- | ---: | --- |
+| `npm.cmd run diff:check` | 0 | Sin errores; warnings CRLF normales en Windows. |
+| `npm.cmd run verify` | 0 | `eslint` y `next build` aprobados. |
+| `npm.cmd run audit:security` | 0 | Coincidencias documentales esperadas; requiere revision manual. |
+| `npm.cmd run audit:client-supabase` | 0 | Sin coincidencias. |
+| `npm.cmd run audit:public-tracking` | 0 | Sin coincidencias. |
+| `npm.cmd run perf:measure` | 0 | Build, analyzer, SQL before/after/diff y navegacion completados. |
+| `npm.cmd run perf:navigation` | 0 | Corrida normal independiente aprobada, 2 tests passed. |
+
+Navegacion normal final:
+
+```text
+sampleCount = 55
+failedSamples = 0
+summaryCount = 11
+storage state residual = false
+port 3100 connections = 0
+```
+
+Transiciones cliente corregidas:
+
+| Transicion | Mediana ms | Min | Max | Spread | Fallos | Estado | Transfer mediana bytes |
+| --- | ---: | ---: | ---: | ---: | ---: | --- | ---: |
+| `/dashboard -> /dashboard/pedidos` | 427 | 406 | 462 | 0.131 | 0 | Stable | 82,246 |
+| `/dashboard -> /dashboard/solicitudes` | 372 | 368 | 387 | 0.051 | 0 | Stable | 65,555 |
+| `/dashboard/pedidos -> /dashboard/pedidos/[id]` | 189 | 176 | 2,103 | 10.196 | 0 | Unreliable | 28,885 |
+
+Las dos transiciones desde dashboard son estables en la ventana corregida. La
+transicion de listado de pedidos a detalle tiene mediana baja, pero no es
+estable por el outlier de 2,103 ms.
+
+SQL normal:
+
+```text
+before rows = 226
+after rows = 226
+diff rows = 56
+comparable = true
+stats_reset = 2026-07-19T14:23:20.370161+00:00
+dealloc = 0
+```
+
+Top deltas anonimizados por clave compuesta:
+
+| Stat key | Delta calls | Delta total ms | Delta mean ms |
+| --- | ---: | ---: | ---: |
+| `5:16444:true:8304524537248439887` | 38 | 16,584.269 | 436.428 |
+| `5:16444:true:-5075751444235376341` | 19 | 10,225.281 | 538.173 |
+| `5:16444:true:5001894152916096478` | 19 | 8,396.936 | 441.944 |
+| `5:16444:true:-2408961981334374729` | 19 | 6,315.172 | 332.377 |
+| `5:16444:true:-7277926250533030293` | 19 | 6,279.586 | 330.505 |
+
+Analyzer:
+
+- Rutas criticas encontradas: 8.
+- Rutas criticas ausentes: 0.
+- Los bytes de analyzer permanecen iguales a la corrida 15.2: solo se corrigio
+  la ventana temporal de transiciones cliente.
+
+15.2 queda completada tras 15.2.1 y 15.2.2. 15.3 sigue condicionada y no se
+inicia desde esta correccion.

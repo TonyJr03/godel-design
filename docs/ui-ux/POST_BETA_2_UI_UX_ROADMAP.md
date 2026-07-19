@@ -1447,7 +1447,7 @@ docs/performance/PERFORMANCE_BASELINE.md
 ### Subtareas
 
 * 15.1 Auditoría y línea base — Completado.
-* 15.2 Harness y criterios de decisión — Completado.
+* 15.2 Harness y criterios de decisión — Completado tras correcciones 15.2.1 y 15.2.2.
 * 15.3 Bundle y JavaScript cliente — Condicionada / posible siguiente si se define hipótesis medible.
 * 15.4 Render servidor y carga de datos — Condicionada a hallazgos aprobados.
 * 15.5 PostgreSQL y escala de listados — Condicionada a hallazgos aprobados.
@@ -1508,6 +1508,16 @@ SQL local en `.next/diagnostics/performance/`. La siguiente subtarea candidata
 es `15.3 Bundle y JavaScript cliente`, pero no debe iniciarse sin una hipótesis
 concreta sobre `/dashboard/pedidos/[id]` o `/dashboard/solicitudes/[id]` y un
 before/after definido.
+
+Corrección 15.2.1 completada: el harness ahora falla ante muestras de
+navegación inválidas, cuenta con prueba negativa controlada, compara SQL por
+clave compuesta `dbid:userid:toplevel:queryid` y falla si falta una ruta
+crítica del analyzer. No se inicia 15.3 desde esta corrección.
+
+Corrección 15.2.2 completada: las transiciones cliente miden solo la ventana
+de interacción real, desde justo antes del click hasta URL objetivo y condición
+canónica lista. La carga/preparación de origen queda fuera de `wallTimeMs`.
+15.2 permanece cerrada; 15.3 no se inicia sin hipótesis medible.
 
 ---
 

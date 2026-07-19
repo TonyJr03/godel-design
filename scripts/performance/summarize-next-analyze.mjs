@@ -182,6 +182,18 @@ if (!existsSync(analyzeDir)) {
 
 ensurePerformanceDir();
 
+const routes = criticalRoutes.map(summarizeRoute);
+const missingRoutes = routes.filter((route) => route.missing);
+
+if (missingRoutes.length > 0) {
+  for (const route of missingRoutes) {
+    console.error(
+      `Missing analyzer data for ${route.route}: expected ${route.relativeDataFile}`,
+    );
+  }
+  process.exit(1);
+}
+
 const summary = {
   generatedAt: new Date().toISOString(),
   nextVersion: readNextVersion(),
@@ -189,7 +201,7 @@ const summary = {
   analyzerDirectory: ".next/diagnostics/analyze",
   note:
     "Next analyzer graph bytes are build graph sizes, not browser network transfer bytes.",
-  routes: criticalRoutes.map(summarizeRoute),
+  routes,
 };
 
 writeFileSync(

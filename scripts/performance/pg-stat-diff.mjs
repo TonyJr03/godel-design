@@ -23,17 +23,29 @@ function isHarnessQuery(row) {
   );
 }
 
+function statKey(row) {
+  return (
+    row.statKey ||
+    `${row.dbid}:${row.userid}:${row.toplevel}:${row.queryid}`
+  );
+}
+
 const before = readSnapshot(beforePath);
 const after = readSnapshot(afterPath);
 const resetChanged = before.statsReset !== after.statsReset;
+const deallocChanged = Number(before.dealloc) !== Number(after.dealloc);
 
-if (resetChanged) {
+if (resetChanged || deallocChanged) {
   const payload = {
     generatedAt: new Date().toISOString(),
     comparable: false,
-    reason: "pg_stat_statements stats_reset changed between snapshots.",
+    reason: resetChanged
+      ? "pg_stat_statements stats_reset changed between snapshots."
+      : "pg_stat_statements dealloc changed between snapshots.",
     beforeStatsReset: before.statsReset,
     afterStatsReset: after.statsReset,
+    beforeDealloc: before.dealloc,
+    afterDealloc: after.dealloc,
     rows: [],
   };
 
@@ -46,29 +58,34 @@ if (resetChanged) {
 const beforeRows = new Map(
   (Array.isArray(before.rows) ? before.rows : [])
     .filter((row) => !isHarnessQuery(row))
-    .map((row) => [String(row.queryid), row]),
+    .map((row) => [statKey(row), row]),
 );
 
 const rows = (Array.isArray(after.rows) ? after.rows : [])
   .filter((row) => !isHarnessQuery(row))
   .map((afterRow) => {
-    const beforeRow = beforeRows.get(String(afterRow.queryid));
+    const key = statKey(afterRow);
+    const beforeRow = beforeRows.get(key);
 
-    if (!beforeRow) {
-      return null;
-    }
-
-    const deltaCalls = Number(afterRow.calls) - Number(beforeRow.calls);
+    const beforeCalls = Number(beforeRow?.calls ?? 0);
+    const beforeTotalExecTimeMs = Number(beforeRow?.totalExecTimeMs ?? 0);
+    const beforeRowsCount = Number(beforeRow?.rows ?? 0);
+    const deltaCalls = Number(afterRow.calls) - beforeCalls;
     const deltaTotalExecTimeMs =
-      Number(afterRow.totalExecTimeMs) - Number(beforeRow.totalExecTimeMs);
-    const deltaRows = Number(afterRow.rows) - Number(beforeRow.rows);
+      Number(afterRow.totalExecTimeMs) - beforeTotalExecTimeMs;
+    const deltaRows = Number(afterRow.rows) - beforeRowsCount;
 
     if (deltaCalls < 0 || deltaTotalExecTimeMs < 0 || deltaRows < 0) {
       return null;
     }
 
     return {
+      statKey: key,
+      dbid: String(afterRow.dbid),
+      userid: String(afterRow.userid),
+      toplevel: Boolean(afterRow.toplevel),
       queryid: String(afterRow.queryid),
+      isNewEntry: !beforeRow,
       deltaCalls,
       deltaTotalExecTimeMs,
       deltaRows,
@@ -78,6 +95,7 @@ const rows = (Array.isArray(after.rows) ? after.rows : [])
       beforeCapturedAt: before.capturedAt,
       afterCapturedAt: after.capturedAt,
       statsReset: after.statsReset,
+      dealloc: after.dealloc,
     };
   })
   .filter(Boolean)
@@ -92,6 +110,7 @@ const payload = {
   beforeCapturedAt: before.capturedAt,
   afterCapturedAt: after.capturedAt,
   statsReset: after.statsReset,
+  dealloc: after.dealloc,
   rowCount: rows.length,
   rows,
 };
@@ -102,7 +121,7 @@ writeFileSync(outputPath, `${JSON.stringify(payload, null, 2)}\n`);
 console.log(`pg_stat diff: ${rows.length} comparable query windows`);
 for (const row of rows.slice(0, 10)) {
   console.log(
-    `queryid=${row.queryid} calls=+${row.deltaCalls} totalMs=+${row.deltaTotalExecTimeMs.toFixed(
+    `statKey=${row.statKey} calls=+${row.deltaCalls} totalMs=+${row.deltaTotalExecTimeMs.toFixed(
       3,
     )} meanMs=${row.deltaMeanExecTimeMs.toFixed(3)} rows=+${row.deltaRows}`,
   );

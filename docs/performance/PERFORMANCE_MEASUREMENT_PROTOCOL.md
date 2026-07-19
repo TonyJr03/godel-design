@@ -96,12 +96,35 @@ Modos:
 - `client-prefetched-navigation`: transicion por enlace real desde la UI,
   preservando el prefetch de Next.js.
 
+En `client-prefetched-navigation`, `wallTimeMs` comienza inmediatamente antes
+del click sobre el enlace real y finaliza cuando la URL objetivo y la condicion
+canonica del destino estan listas. La carga, espera del heading, localizacion
+del enlace y preparacion de la ruta de origen quedan fuera de la metrica.
+Resource Timing y `wallTimeMs` comparten la misma ventana logica: el inicio de
+la interaccion medida.
+
 Cada ruta o transicion usa 1 warmup excluido y 5 muestras medidas. Se registran
 wall time, eventos de navegacion, bytes de documento, scripts, estilos, imagenes,
 fuentes, fetch/RSC, recursos, HTTP status, exito y error.
 
+Una muestra fallida se conserva en `navigation-results.json` con `success:
+false`, mensaje de error saneado y clasificacion `unreliable`; despues de
+registrarla y cerrar contexto/pagina, el spec falla con codigo distinto de cero.
+Un warmup fallido tambien se registra como `sample: 0` y provoca fallo del
+comando. La ruta, modo, numero de muestra y causa deben aparecer en el error sin
+UUIDs, cookies ni credenciales.
+
 No se usan `waitForTimeout`; las esperas se basan en URL, headings o regiones
 canonicas.
+
+Prueba negativa local:
+
+```text
+$env:PERF_FORCE_NAV_FAILURE="1"; npm.cmd run perf:navigation
+```
+
+La variable esta desactivada por defecto. Cuando se activa, una ruta publica usa
+un heading inexistente para demostrar que el harness no oculta fallos.
 
 ## 6. Bundle
 
@@ -117,7 +140,8 @@ Next.js 16 escribe la salida en `.next/diagnostics/analyze`. El script
 
 Estos bytes son del grafo del analyzer, no transferencia de red ni First Load
 JS. La metrica es explicativa y experimental; si el formato de Next cambia, el
-script debe fallar.
+script debe fallar. Si falta el `analyze.data` de una ruta critica, el resumen
+no se escribe como valido y el comando termina con codigo distinto de cero.
 
 ## 7. SQL
 
@@ -125,10 +149,23 @@ Los snapshots SQL usan `docker exec` contra el contenedor local
 `supabase_db_godel-design` por defecto. No usan credenciales externas ni
 `service_role`.
 
-`pg-stat-snapshot.mjs` captura `pg_stat_statements` antes y despues del flujo.
-No resetea estadisticas ni modifica datos. `pg-stat-diff.mjs` calcula deltas por
-`queryid`, ignora deltas negativos y falla si `stats_reset` cambia entre
-snapshots.
+`pg-stat-snapshot.mjs` captura `pg_stat_statements` antes y despues del flujo,
+filtrado a la base actual. No resetea estadisticas ni modifica datos.
+
+La identidad local de cada fila es compuesta:
+
+```text
+dbid:userid:toplevel:queryid
+```
+
+El snapshot conserva `dbid`, `userid`, `toplevel`, `queryid`, `calls`,
+`totalExecTimeMs`, `rows`, `normalizedQuery`, `statsReset` y `dealloc`.
+
+`pg-stat-diff.mjs` calcula deltas por esa clave compuesta, ignora deltas
+negativos y falla si `statsReset` cambia. Si `dealloc` cambia, la ventana se
+declara no confiable y el comando falla. Cuando aparece una entrada nueva en el
+snapshot posterior y la ventana es comparable, se calculan deltas contra
+contadores anteriores en cero.
 
 El diff de consola es anonimizado. El SQL normalizado completo queda solo en el
 artefacto local ignorado por git.

@@ -23,6 +23,7 @@ type NavigationSample = {
   route: string;
   role: Role;
   sample: number;
+  phase: "warmup" | "measured";
   mode: Mode;
   startedAt: string;
   wallTimeMs: number;
@@ -44,6 +45,7 @@ type NavigationSample = {
 };
 
 const SAMPLE_COUNT = 5;
+const FORCE_NAV_FAILURE = process.env.PERF_FORCE_NAV_FAILURE === "1";
 const perfDir = resolve(process.cwd(), ".next", "diagnostics", "performance");
 const storageStatePath = join(perfDir, "performance-auth-state.json");
 const outputPath = join(perfDir, "navigation-results.json");
@@ -226,6 +228,58 @@ async function collectBrowserMetrics(page: Page, sinceStartTime?: number) {
   }, sinceStartTime);
 }
 
+function emptyBrowserMetrics(): Awaited<ReturnType<typeof collectBrowserMetrics>> {
+  return {
+    responseStartMs: null,
+    domContentLoadedMs: null,
+    loadEventMs: null,
+    navigationTransferBytes: 0,
+    navigationEncodedBytes: 0,
+    navigationDecodedBytes: 0,
+    scriptTransferBytes: 0,
+    styleTransferBytes: 0,
+    imageTransferBytes: 0,
+    fontTransferBytes: 0,
+    fetchTransferBytes: 0,
+    resourceCount: 0,
+  };
+}
+
+async function collectBrowserMetricsSafely(
+  page: Page,
+  sinceStartTime?: number,
+) {
+  try {
+    return await collectBrowserMetrics(page, sinceStartTime);
+  } catch {
+    return emptyBrowserMetrics();
+  }
+}
+
+function sanitizeMeasurementError(value: unknown) {
+  const message = value instanceof Error ? value.message : String(value);
+
+  return message
+    .replace(/\u001b\[[0-9;]*m/g, "")
+    .replace(
+      /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/gi,
+      "[uuid]",
+    )
+    .replace(/(password|contrase(?:ñ|n)a)[^,\n\r]*/gi, "$1=[redacted]")
+    .slice(0, 1200);
+}
+
+function measurementFailureMessage(
+  mode: Mode,
+  route: string,
+  sample: number,
+  cause: string,
+) {
+  const phase = sample === 0 ? "warmup" : `sample ${sample}`;
+
+  return `Performance navigation failed: mode=${mode}; route=${route}; ${phase}; cause=${cause}`;
+}
+
 function recordSample(
   config: RouteConfig,
   mode: Mode,
@@ -241,6 +295,7 @@ function recordSample(
     route: config.label,
     role: config.role,
     sample,
+    phase: sample === 0 ? "warmup" : "measured",
     mode,
     startedAt,
     wallTimeMs: Math.round(wallTimeMs),
@@ -268,6 +323,7 @@ async function measureColdRoute(
   sample: number,
   includeSample: boolean,
 ) {
+  const mode: Mode = "cold-document-navigation";
   const context = await browser.newContext({
     baseURL: "http://127.0.0.1:3100",
     storageState: route.role === "admin" ? storageStatePath : undefined,
@@ -279,6 +335,8 @@ async function measureColdRoute(
   let httpStatus: number | null = null;
   let error: string | null = null;
   let success = false;
+  let metrics: Awaited<ReturnType<typeof collectBrowserMetrics>> =
+    emptyBrowserMetrics();
 
   try {
     const response = await page.goto(route.path, { waitUntil: "load" });
@@ -286,24 +344,32 @@ async function measureColdRoute(
     await waitForRoute(page, route);
     success = true;
   } catch (caught) {
-    error = caught instanceof Error ? caught.message : String(caught);
+    error = sanitizeMeasurementError(caught);
+  } finally {
+    const wallTimeMs = nodePerformance.now() - start;
+    metrics = await collectBrowserMetricsSafely(page);
+
+    if (includeSample || !success) {
+      recordSample(
+        route,
+        mode,
+        sample,
+        startedAt,
+        wallTimeMs,
+        httpStatus,
+        metrics,
+        success,
+        error,
+      );
+    }
+
+    await page.close().catch(() => undefined);
+    await context.close().catch(() => undefined);
   }
 
-  const wallTimeMs = nodePerformance.now() - start;
-  const metrics = await collectBrowserMetrics(page);
-  await context.close();
-
-  if (includeSample) {
-    recordSample(
-      route,
-      "cold-document-navigation",
-      sample,
-      startedAt,
-      wallTimeMs,
-      httpStatus,
-      metrics,
-      success,
-      error,
+  if (!success) {
+    throw new Error(
+      measurementFailureMessage(mode, route.label, sample, error ?? "unknown"),
     );
   }
 }
@@ -318,6 +384,7 @@ async function measureClientTransition(
   deriveTargetFromLink = false,
   targetPathPrefix?: string,
 ) {
+  const mode: Mode = "client-prefetched-navigation";
   const context = await browser.newContext({
     baseURL: "http://127.0.0.1:3100",
     storageState: storageStatePath,
@@ -331,18 +398,23 @@ async function measureClientTransition(
     heading: target.heading,
     waitForAnyH1: target.waitForAnyH1,
   };
-  const startedAt = new Date().toISOString();
+  let startedAt = new Date().toISOString();
   let error: string | null = null;
   let success = false;
   let sinceStartTime = 0;
   let targetPath = target.path;
+  let metrics: Awaited<ReturnType<typeof collectBrowserMetrics>> =
+    emptyBrowserMetrics();
+  let wallTimeMs = 0;
+  let transitionStarted = false;
+  let transitionStart = 0;
 
-  await page.goto(origin.path, { waitUntil: "load" });
-  await waitForRoute(page, origin);
-
-  const start = nodePerformance.now();
+  const setupStart = nodePerformance.now();
 
   try {
+    await page.goto(origin.path, { waitUntil: "load" });
+    await waitForRoute(page, origin);
+
     const link = page.locator(linkSelector).first();
     await expect(link).toBeVisible({ timeout: 20_000 });
     if (deriveTargetFromLink) {
@@ -353,6 +425,9 @@ async function measureClientTransition(
       targetPath = new URL(href, "http://127.0.0.1:3100").pathname;
     }
     sinceStartTime = await page.evaluate(() => window.performance.now());
+    startedAt = new Date().toISOString();
+    transitionStart = nodePerformance.now();
+    transitionStarted = true;
     await Promise.all([
       page.waitForURL(
         (url) =>
@@ -371,34 +446,45 @@ async function measureClientTransition(
       targetPath = new URL(page.url()).pathname;
     }
     await waitForRoute(page, { ...target, path: targetPath });
+    wallTimeMs = nodePerformance.now() - transitionStart;
     success = true;
   } catch (caught) {
-    error = caught instanceof Error ? caught.message : String(caught);
+    wallTimeMs =
+      nodePerformance.now() - (transitionStarted ? transitionStart : setupStart);
+    error = `${transitionStarted ? "transition" : "setup"} failed: ${sanitizeMeasurementError(
+      caught,
+    )}`;
+  } finally {
+    metrics = await collectBrowserMetricsSafely(page, sinceStartTime);
+    await page.close().catch(() => undefined);
+    await context.close().catch(() => undefined);
+
+    if (includeSample || !success) {
+      recordSample(
+        config,
+        mode,
+        sample,
+        startedAt,
+        wallTimeMs,
+        null,
+        {
+          ...metrics,
+          responseStartMs: null,
+          domContentLoadedMs: null,
+          loadEventMs: null,
+          navigationTransferBytes: 0,
+          navigationEncodedBytes: 0,
+          navigationDecodedBytes: 0,
+        },
+        success,
+        error,
+      );
+    }
   }
 
-  const wallTimeMs = nodePerformance.now() - start;
-  const metrics = await collectBrowserMetrics(page, sinceStartTime);
-  await context.close();
-
-  if (includeSample) {
-    recordSample(
-      config,
-      "client-prefetched-navigation",
-      sample,
-      startedAt,
-      wallTimeMs,
-      null,
-      {
-        ...metrics,
-        responseStartMs: null,
-        domContentLoadedMs: null,
-        loadEventMs: null,
-        navigationTransferBytes: 0,
-        navigationEncodedBytes: 0,
-        navigationDecodedBytes: 0,
-      },
-      success,
-      error,
+  if (!success) {
+    throw new Error(
+      measurementFailureMessage(mode, config.label, sample, error ?? "unknown"),
     );
   }
 }
@@ -412,9 +498,13 @@ test.beforeAll(async ({ browser }) => {
   });
   const page = await context.newPage();
 
-  await loginAs(page, "admin");
-  await context.storageState({ path: storageStatePath });
-  await context.close();
+  try {
+    await loginAs(page, "admin");
+    await context.storageState({ path: storageStatePath });
+  } finally {
+    await page.close().catch(() => undefined);
+    await context.close().catch(() => undefined);
+  }
 
   const discoveryContext = await browser.newContext({
     baseURL: "http://127.0.0.1:3100",
@@ -423,20 +513,25 @@ test.beforeAll(async ({ browser }) => {
   });
   const discoveryPage = await discoveryContext.newPage();
 
-  discoveredPedidoPath = await discoverDetailPath(
-    discoveryPage,
-    "/dashboard/pedidos",
-    "/dashboard/pedidos",
-  );
-  discoveredSolicitudPath = await discoverDetailPath(
-    discoveryPage,
-    "/dashboard/solicitudes",
-    "/dashboard/solicitudes",
-  );
-  await discoveryContext.close();
+  try {
+    discoveredPedidoPath = await discoverDetailPath(
+      discoveryPage,
+      "/dashboard/pedidos",
+      "/dashboard/pedidos",
+    );
+    discoveredSolicitudPath = await discoverDetailPath(
+      discoveryPage,
+      "/dashboard/solicitudes",
+      "/dashboard/solicitudes",
+    );
+  } finally {
+    await discoveryPage.close().catch(() => undefined);
+    await discoveryContext.close().catch(() => undefined);
+  }
 });
 
 test.afterAll(() => {
+  mkdirSync(perfDir, { recursive: true });
   rmSync(storageStatePath, { force: true });
   writeFileSync(
     outputPath,
@@ -465,7 +560,9 @@ test("records cold document navigation baseline", async ({ browser }) => {
       label: "/",
       path: "/",
       role: "public",
-      heading: /da forma a tu idea con una solicitud clara/i,
+      heading: FORCE_NAV_FAILURE
+        ? /heading inexistente forzado por PERF_FORCE_NAV_FAILURE/i
+        : /da forma a tu idea con una solicitud clara/i,
     },
     {
       label: "/solicitud",
@@ -598,12 +695,12 @@ test("records client transition baseline", async ({ browser }) => {
       browser,
       transition.origin,
       transition.target,
-        transition.selector,
-        0,
-        false,
-        transition.deriveTargetFromLink,
-        transition.targetPathPrefix,
-      );
+      transition.selector,
+      0,
+      false,
+      transition.deriveTargetFromLink,
+      transition.targetPathPrefix,
+    );
 
     for (let sample = 1; sample <= SAMPLE_COUNT; sample += 1) {
       await measureClientTransition(

@@ -111,7 +111,7 @@ La comparacion valida requiere:
 | Subtarea | Nombre | Objetivo | Estado |
 | --- | --- | --- | --- |
 | 15.1 | Auditoria y linea base | Crear protocolo, baseline y matriz inicial sin optimizar | Completada |
-| 15.2 | Harness y criterios de decision | Aislar mediciones de navegacion, SQL y bundle para comparar cambios | Completada |
+| 15.2 | Harness y criterios de decision | Aislar mediciones de navegacion, SQL y bundle para comparar cambios | Completada tras 15.2.1 y 15.2.2 |
 | 15.3 | Bundle y JavaScript cliente | Reducir JS solo donde 15.1/15.2 lo justifiquen | Condicionada / posible siguiente |
 | 15.4 | Render servidor y carga de datos | Revisar loaders secuenciales o payloads con metricas | Condicionada |
 | 15.5 | PostgreSQL y escala de listados | Evaluar indices, filtros y paginacion con datos medidos | Condicionada |
@@ -228,3 +228,52 @@ Evidencia candidata:
 
 No se inicia 15.3 automaticamente. La siguiente subtarea debe elegirse con una
 hipotesis medible y un before/after definido.
+
+## 15. Correccion 15.2.1
+
+Fecha: 2026-07-19
+
+La correccion 15.2.1 refuerza la confiabilidad del harness:
+
+- Las navegaciones fallidas ahora hacen fallar `perf:navigation` despues de
+  guardar evidencia parcial y cerrar contextos.
+- Existe prueba negativa controlada con `PERF_FORCE_NAV_FAILURE=1`.
+- SQL usa identidad compuesta `dbid:userid:toplevel:queryid`, conserva
+  `dealloc` y falla ventanas no comparables.
+- Analyzer falla si falta una ruta critica.
+
+Validacion final:
+
+- Prueba negativa: codigo distinto de cero, muestra fallida preservada, storage
+  state eliminado y puerto 3100 libre.
+- `npm.cmd run diff:check`: 0.
+- `npm.cmd run verify`: 0.
+- Auditorias de seguridad, cliente Supabase y tracking publico: 0.
+- `npm.cmd run perf:measure`: 0.
+- `npm.cmd run perf:navigation`: 0.
+
+15.2 queda completada. 15.3 sigue condicionada y no se inicia desde esta
+correccion.
+
+## 16. Correccion 15.2.2
+
+Fecha: 2026-07-19
+
+La correccion 15.2.2 ajusta la ventana temporal de
+`client-prefetched-navigation`: `wallTimeMs`, `startedAt` y `sinceStartTime`
+representan ahora la misma interaccion logica, desde justo antes del click
+hasta URL objetivo y condicion canonica listas. La carga de origen, espera del
+heading, busqueda del enlace y resolucion de `href` quedan fuera de la metrica.
+
+Validacion final:
+
+- Prueba negativa: codigo 1 esperado, muestra fallida preservada, storage state
+  eliminado y puerto 3100 libre.
+- `npm.cmd run diff:check`: 0.
+- `npm.cmd run verify`: 0.
+- Auditorias de seguridad, cliente Supabase y tracking publico: 0.
+- `npm.cmd run perf:measure`: 0.
+- `npm.cmd run perf:navigation`: 0.
+
+15.2 queda completada tras 15.2.1 y 15.2.2. 15.3 sigue condicionada y no se
+inicia desde esta correccion.
