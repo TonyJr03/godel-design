@@ -130,24 +130,21 @@ async function openSolicitudPanel(
     }
   }
 
-  const triggers = page.getByRole("button", { name: triggerName });
-  let openedFromDirectTrigger = false;
-  const triggerCount = await triggers.count();
+  await expect(async () => {
+    const triggers = page.getByRole("button", { name: triggerName });
+    const triggerCount = await triggers.count();
 
-  for (let index = 0; index < triggerCount; index += 1) {
-    const trigger = triggers.nth(index);
+    for (let index = 0; index < triggerCount; index += 1) {
+      const trigger = triggers.nth(index);
 
-    if (await trigger.isVisible().catch(() => false)) {
-      await trigger.click();
-      openedFromDirectTrigger = true;
-      break;
+      if (await trigger.isVisible().catch(() => false)) {
+        await trigger.click();
+        return;
+      }
     }
-  }
 
-  if (!openedFromDirectTrigger) {
     const moreTriggers = page.getByRole("button", { name: /m.s acciones/i });
     const moreTriggerCount = await moreTriggers.count();
-    let openedMore = false;
 
     for (let index = 0; index < moreTriggerCount; index += 1) {
       const moreTrigger = moreTriggers.nth(index);
@@ -155,20 +152,21 @@ async function openSolicitudPanel(
       if (await moreTrigger.isVisible().catch(() => false)) {
         await moreTrigger.focus();
         await page.keyboard.press("Enter");
-        openedMore = true;
-        break;
+
+        const moreDialog = page.getByRole("dialog", {
+          name: /^m.s acciones$/i,
+        });
+
+        await expect(moreDialog).toBeVisible();
+        await clickFirstVisible(
+          moreDialog.getByRole("button", { name: triggerName }),
+        );
+        return;
       }
     }
 
-    if (!openedMore) {
-      throw new Error("No visible solicitud workspace trigger found.");
-    }
-
-    const moreDialog = page.getByRole("dialog", { name: /^m.s acciones$/i });
-
-    await expect(moreDialog).toBeVisible();
-    await clickFirstVisible(moreDialog.getByRole("button", { name: triggerName }));
-  }
+    throw new Error("No visible solicitud workspace trigger found.");
+  }).toPass({ timeout: 15_000 });
 
   const dialog = page.getByRole("dialog", { name });
 

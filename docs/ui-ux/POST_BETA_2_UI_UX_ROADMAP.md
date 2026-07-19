@@ -243,7 +243,7 @@ Según el alcance, deben existir:
 | 11    | Dashboard operativo                          | Cerrada   |
 | 12    | Formularios internos y páginas secundarias   | Cerrada   |
 | 13    | Área pública                                 | Completada |
-| 14    | Estados transversales y resiliencia UI       | En curso |
+| 14    | Estados transversales y resiliencia UI       | Cerrada |
 | 15    | Optimización basada en mediciones            | Pendiente |
 | 16    | QA integral y cierre del rediseño            | Pendiente |
 
@@ -1228,7 +1228,7 @@ datos públicos adicionales; y el área pública no enlaza visualmente al login.
 
 ### Estado
 
-En curso.
+Cerrada.
 
 ### Objetivo
 
@@ -1274,7 +1274,7 @@ docs/ui-ux/TRANSVERSAL_STATES_STAGE_14_PLAN.md
 * 14.7 Fallos parciales en dashboard y workspaces — Completado.
 * 14.8 Permisos, acceso denegado y recurso inexistente — Completado.
 * 14.9 Confirmaciones y acciones destructivas — Completado.
-* 14.10 QA y cierre de Etapa 14 — Propuesto.
+* 14.10 QA y cierre de Etapa 14 — Completado.
 
 ### Nota de auditoría 14.1
 
@@ -1394,6 +1394,27 @@ cambiar estado, actualizar pago, asignar/quitar personal, activar/inactivar o
 cerrar workspaces. No se modificaron Server Actions, servicios, permisos, RLS,
 Storage, DTO público, queries, rutas ni lógica de dominio. La siguiente subtarea
 activa es 14.10.
+
+### Nota de cierre 14.10
+
+La Etapa 14 queda cerrada con QA documentado en:
+
+```text
+docs/ui-ux/STAGE_14_QA_CLOSURE.md
+```
+
+Resultado final: aprobado. `diff:check`, `verify`, auditorías, Full Visual QA y
+suite E2E Chromium serial terminaron con código 0. El resultado final de la
+suite serial fue `43 passed`, `3 skipped`, `0 failed`.
+
+Durante el cierre se corrigió únicamente un defecto del harness visual en
+`tests/e2e/full-visual-qa.spec.ts`, relacionado con la espera de acciones del
+workspace de solicitudes después del loading segmentado. No se modificó código
+de aplicación, Server Actions, servicios, permisos, RLS, Storage, DTO público,
+queries, rutas ni lógica de dominio.
+
+La siguiente etapa oficial es `Etapa 15 — Optimización basada en mediciones`.
+No queda iniciada desde este cierre.
 
 ### Criterio de cierre
 
@@ -1723,16 +1744,15 @@ No introducir paginación, caché, virtualización o paralelización compleja si
 
 # 14. Próxima etapa activa
 
-La siguiente subtarea oficial de esta iniciativa es:
+La siguiente etapa oficial de esta iniciativa es:
 
 ```text
-14.8 — Permisos, acceso denegado y recurso inexistente
+Etapa 15 — Optimización basada en mediciones
 ```
 
-El siguiente entregable debe alinear permisos, acceso denegado y recursos
-inexistentes donde la matriz documentada en
-`docs/ui-ux/TRANSVERSAL_STATES_DECISION_MATRIX.md` lo justifique, sin modificar
-Server Actions, RLS, Storage, permisos, DTO público ni lógica de dominio.
+La Etapa 15 debe comenzar con mediciones reales de rendimiento, bundle,
+navegación, consultas y coste de QA antes de proponer optimizaciones. No queda
+iniciada por el cierre de Etapa 14.
 
 ---
 

@@ -220,7 +220,7 @@ docs/ui-ux/TRANSVERSAL_STATES_DECISION_MATRIX.md
 | 14.7 | Fallos parciales en dashboard y workspaces | Consolidar degradación segura para paneles secundarios, previews y action rail. | Completado |
 | 14.8 | Permisos, acceso denegado y recurso inexistente | Alinear `/sin-permisos`, `/acceso-denegado`, 404 pública e interna y estados embebidos de permiso. | Completado |
 | 14.9 | Confirmaciones y acciones destructivas | Revisar cierre con cambios, eliminaciones inline y feedback posterior sin tocar reglas de dominio. | Completado |
-| 14.10 | QA y cierre de Etapa 14 | Validar rutas críticas, responsive, accesibilidad, seguridad visual y documentación de cierre. | Propuesta |
+| 14.10 | QA y cierre de Etapa 14 | Validar rutas críticas, responsive, accesibilidad, seguridad visual y documentación de cierre. | Completado |
 
 ### Nota de implementación 14.2
 
@@ -445,6 +445,33 @@ asignar personal, quitar personal, activar/inactivar o cerrar workspaces. No se
 modificaron Server Actions, servicios, permisos, RLS, Storage, DTO público,
 queries, rutas ni lógica de dominio. La siguiente subtarea oficial pasa a ser
 `14.10 — QA y cierre de Etapa 14`.
+
+### Nota de cierre 14.10
+
+La Etapa 14 queda cerrada con documento de QA:
+
+```text
+docs/ui-ux/STAGE_14_QA_CLOSURE.md
+```
+
+El cierre validó cargas segmentadas, error boundaries, errores controlados de
+datos, retry seguro, estados vacíos, resultados sin coincidencias, pending,
+feedback de acciones, fallos parciales, permisos, acceso denegado, 404 pública e
+interna, confirmaciones, responsive, accesibilidad focal, seguridad visual y
+consistencia documental.
+
+Resultado final: aprobado. `diff:check`, `verify`, auditorías, Full Visual QA y
+suite E2E Chromium serial terminaron con código 0. La suite final reportó `43
+passed`, `3 skipped`, `0 failed`. No quedan bloqueantes.
+
+Durante el cierre se corrigió únicamente un defecto del harness visual en
+`tests/e2e/full-visual-qa.spec.ts`: el helper de solicitudes ahora espera a que
+las acciones del workspace reaparezcan después del loading segmentado antes de
+abrir paneles. No se modificó código de aplicación, Server Actions, servicios,
+permisos, RLS, Storage, DTO público, queries, rutas ni lógica de dominio.
+
+La siguiente etapa recomendada es `Etapa 15 — Optimización basada en
+mediciones`, sin iniciarla desde este cierre.
 
 ## 10. Criterios de cierre de Etapa 14
 

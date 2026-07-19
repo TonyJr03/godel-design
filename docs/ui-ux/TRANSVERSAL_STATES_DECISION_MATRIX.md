@@ -419,3 +419,19 @@ mostrar una salida segura, retry o navegación.
 3. Definir cuándo basta confirmación simple y cuándo se necesita contexto más
    accesible.
 4. No reintentar ni confirmar automáticamente mutaciones.
+
+## 12. Cierre de Etapa 14
+
+Estado: 14.10 completado.
+
+Documento de cierre:
+
+```text
+docs/ui-ux/STAGE_14_QA_CLOSURE.md
+```
+
+La matriz queda confirmada como contrato base de estados transversales para la
+aplicación. El cierre no altera las decisiones funcionales de este documento:
+solo registra que `diff:check`, `verify`, auditorías, Full Visual QA y suite E2E
+Chromium serial finalizaron con resultado aprobado, sin bloqueantes y sin
+iniciar la Etapa 15.
