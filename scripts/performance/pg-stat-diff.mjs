@@ -1,20 +1,94 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
-import { ensurePerformanceDir, performanceDir } from "./shared.mjs";
+import {
+  ensureParentDir,
+  ensurePerformanceDir,
+  performanceDir,
+} from "./shared.mjs";
 
-const beforePath = resolve(
-  process.argv[2] || join(performanceDir, "pg-stat-before.json"),
-);
-const afterPath = resolve(
-  process.argv[3] || join(performanceDir, "pg-stat-after.json"),
-);
-const outputPath = resolve(
-  process.argv[4] || join(performanceDir, "pg-stat-diff.json"),
-);
+function usage() {
+  console.error(
+    [
+      "Usage:",
+      "  node scripts/performance/pg-stat-diff.mjs [beforePath afterPath outputPath]",
+      "  node scripts/performance/pg-stat-diff.mjs --before <path> --after <path> --output <path>",
+    ].join("\n"),
+  );
+}
+
+function parseArgs(argv) {
+  if (argv.length === 0) {
+    return {
+      beforePath: join(performanceDir, "pg-stat-before.json"),
+      afterPath: join(performanceDir, "pg-stat-after.json"),
+      outputPath: join(performanceDir, "pg-stat-diff.json"),
+    };
+  }
+
+  if (argv.length > 0 && !argv[0].startsWith("--")) {
+    if (argv.length > 3) {
+      throw new Error("Too many positional arguments.");
+    }
+
+    return {
+      beforePath: argv[0] || join(performanceDir, "pg-stat-before.json"),
+      afterPath: argv[1] || join(performanceDir, "pg-stat-after.json"),
+      outputPath: argv[2] || join(performanceDir, "pg-stat-diff.json"),
+    };
+  }
+
+  let beforePath = null;
+  let afterPath = null;
+  let outputPath = null;
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+
+    if (arg === "--before") {
+      beforePath = argv[index + 1] ?? null;
+      index += 1;
+      continue;
+    }
+
+    if (arg === "--after") {
+      afterPath = argv[index + 1] ?? null;
+      index += 1;
+      continue;
+    }
+
+    if (arg === "--output") {
+      outputPath = argv[index + 1] ?? null;
+      index += 1;
+      continue;
+    }
+
+    throw new Error(`Invalid argument: ${arg}`);
+  }
+
+  if (!beforePath || !afterPath || !outputPath) {
+    throw new Error("--before, --after and --output are required together.");
+  }
+
+  return { beforePath, afterPath, outputPath };
+}
+
+let paths;
+
+try {
+  paths = parseArgs(process.argv.slice(2));
+} catch (error) {
+  usage();
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(1);
+}
+
+const beforePath = resolve(paths.beforePath);
+const afterPath = resolve(paths.afterPath);
+const outputPath = resolve(paths.outputPath);
 
 function readSnapshot(pathname) {
-  return JSON.parse(readFileSync(pathname, "utf8"));
+  return JSON.parse(readFileSync(pathname, "utf8").replace(/^\uFEFF/, ""));
 }
 
 function isHarnessQuery(row) {
@@ -50,6 +124,7 @@ if (resetChanged || deallocChanged) {
   };
 
   ensurePerformanceDir();
+  ensureParentDir(outputPath);
   writeFileSync(outputPath, `${JSON.stringify(payload, null, 2)}\n`);
   console.error(payload.reason);
   process.exit(1);
@@ -116,6 +191,7 @@ const payload = {
 };
 
 ensurePerformanceDir();
+ensureParentDir(outputPath);
 writeFileSync(outputPath, `${JSON.stringify(payload, null, 2)}\n`);
 
 console.log(`pg_stat diff: ${rows.length} comparable query windows`);

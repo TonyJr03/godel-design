@@ -19,6 +19,8 @@
     "perf:bundle": "next experimental-analyze --output && node scripts/performance/summarize-next-analyze.mjs",
     "perf:navigation": "playwright test tests/performance/navigation-baseline.spec.ts --config=playwright.performance.config.ts",
     "perf:pedido-panels": "playwright test tests/performance/pedido-panel-loading.spec.ts --config=playwright.performance.config.ts",
+    "perf:sql-flows": "playwright test tests/performance/sql-flow-attribution.spec.ts --config=playwright.performance.config.ts",
+    "perf:sql-summary": "node scripts/performance/summarize-sql-flow-attribution.mjs",
     "perf:client-graphs": "node scripts/performance/compare-client-graphs.mjs",
     "perf:client-evidence": "node scripts/performance/summarize-client-evidence.mjs",
     "perf:pg:snapshot": "node scripts/performance/pg-stat-snapshot.mjs",

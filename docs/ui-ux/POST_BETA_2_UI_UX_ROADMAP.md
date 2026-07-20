@@ -1450,7 +1450,7 @@ docs/performance/PERFORMANCE_BASELINE.md
 * 15.2 Harness y criterios de decisión — Completado tras correcciones 15.2.1 y 15.2.2.
 * 15.3 Bundle y JavaScript cliente — Completado: 15.3.2 medido y revertido.
 * 15.4 Render servidor y carga de datos — Condicionada a hallazgos aprobados.
-* 15.5 PostgreSQL y escala de listados — Condicionada a hallazgos aprobados.
+* 15.5 PostgreSQL y escala de listados — En curso: 15.5.1 completada con candidato material.
 * 15.6 Coste de QA, regresión y cierre — Condicionada a hallazgos aprobados.
 
 ### Aspectos medibles
@@ -1532,6 +1532,16 @@ cold de script de `/dashboard/pedidos/[id]` quedó sin reducción medible
 grafo cliente. P15-C01 queda descartado y 15.3 se cierra sin optimización de
 aplicación. Se conserva únicamente el tooling focal de medición. La siguiente
 investigación recomendada es `15.5.1 - SQL focal de listados / dashboard`.
+
+Actualización 15.5.1 completada: la atribución SQL focal midió `dashboard`,
+`pedidos-default`, `pedidos-search`, `solicitudes-default` y
+`solicitudes-search` con tres cargas documentales por flujo y ventanas
+comparables de `pg_stat_statements`. El resultado es: existe candidato SQL
+material para 15.5.2. El candidato único seleccionado es
+`dashboard-summary / queryid 8304524537248439887`. No se implementó
+optimización SQL ni cambio de aplicación. 15.5 queda en curso hacia
+`15.5.2 - Plan y prueba focal del candidato dashboard-summary
+8304524537248439887`; 15.4 permanece condicionada y 15.6 no se inicia.
 
 ---
 

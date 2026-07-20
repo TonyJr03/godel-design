@@ -1035,3 +1035,75 @@ recomendada:
 ```text
 15.5.1 - SQL focal de listados / dashboard
 ```
+
+## 24. Resultados 15.5.1 - Atribucion SQL focal
+
+Fecha: 2026-07-20
+
+Estado: completado tras medicion valida.
+
+Documento de decision:
+
+```text
+docs/performance/SQL_FLOW_ATTRIBUTION.md
+```
+
+Commit medido:
+
+```text
+44887979312e42e2aeee872f35bf341500b45a6d
+```
+
+Artefactos locales:
+
+```text
+.next/diagnostics/performance/sql-flow-attribution/
+```
+
+La subtarea midio cinco flujos con admin, un warmup fuera de ventana y tres
+cargas documentales por flujo. Las cinco ventanas fueron comparables:
+`statsReset` y `dealloc` no cambiaron.
+
+### 24.1 Resultados por flujo
+
+| Flujo | Comparable | Statements | Calls | Total SQL ms | Rows | Categoria dominante |
+| --- | --- | ---: | ---: | ---: | ---: | --- |
+| `dashboard` | Si | 23 | 255 | 2,382.034 | 252 | `dashboard-summary` |
+| `pedidos-default` | Si | 12 | 100 | 86.776 | 97 | `pedidos-main` |
+| `pedidos-search` | Si | 14 | 123 | 383.652 | 120 | `pedidos-search-reference` |
+| `solicitudes-default` | Si | 11 | 89 | 86.724 | 86 | `solicitudes-main` |
+| `solicitudes-search` | Si | 11 | 105 | 267.868 | 102 | `solicitudes-search-reference` |
+
+No se documentan SQL completo, terminos de busqueda, UUIDs, emails, telefonos ni
+datos de clientes. El SQL normalizado completo queda solo en `.next`, ignorado
+por git.
+
+### 24.2 Decision
+
+Resultado:
+
+```text
+Existe candidato SQL material para 15.5.2
+```
+
+El candidato unico seleccionado para la siguiente subtarea es:
+
+```text
+dashboard-summary / queryid 8304524537248439887
+```
+
+Evidencia:
+
+- Flujo: `dashboard`.
+- Delta total: 620.100 ms.
+- Delta medio: 103.350 ms.
+- Calls: 6.
+- Rows: 6.
+- Participacion: 26.0% del tiempo SQL del flujo `dashboard`.
+
+No se implemento ningun cambio SQL ni de aplicacion. 15.5 sigue en curso y la
+siguiente subtarea recomendada es:
+
+```text
+15.5.2 - Plan y prueba focal del candidato dashboard-summary 8304524537248439887
+```

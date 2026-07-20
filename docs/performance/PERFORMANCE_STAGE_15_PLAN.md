@@ -337,3 +337,45 @@ La siguiente investigacion recomendada es:
 ```text
 15.5.1 - SQL focal de listados / dashboard
 ```
+
+## 19. Atribucion SQL 15.5.1
+
+Fecha: 2026-07-20
+
+La subtarea 15.5.1 atribuyo deltas de `pg_stat_statements` a cinco flujos
+concretos: `dashboard`, `pedidos-default`, `pedidos-search`,
+`solicitudes-default` y `solicitudes-search`.
+
+Documento de decision:
+
+```text
+docs/performance/SQL_FLOW_ATTRIBUTION.md
+```
+
+Tooling agregado:
+
+```text
+tests/performance/sql-flow-attribution.spec.ts
+scripts/performance/summarize-sql-flow-attribution.mjs
+npm.cmd run perf:sql-flows
+npm.cmd run perf:sql-summary
+```
+
+Resultado:
+
+```text
+Existe candidato SQL material para 15.5.2
+```
+
+El candidato unico seleccionado es `dashboard-summary / queryid
+8304524537248439887`, con 620.100 ms de delta total, 103.350 ms de delta medio,
+6 calls y 26.0% del tiempo SQL del flujo `dashboard`.
+
+No se implemento optimizacion SQL ni cambio de aplicacion. 15.4 permanece
+condicionada, 15.5 sigue en curso y 15.6 no se inicia desde esta subtarea.
+
+La siguiente subtarea recomendada es:
+
+```text
+15.5.2 - Plan y prueba focal del candidato dashboard-summary 8304524537248439887
+```
