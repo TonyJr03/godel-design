@@ -1448,7 +1448,7 @@ docs/performance/PERFORMANCE_BASELINE.md
 
 * 15.1 Auditoría y línea base — Completado.
 * 15.2 Harness y criterios de decisión — Completado tras correcciones 15.2.1 y 15.2.2.
-* 15.3 Bundle y JavaScript cliente — En curso: candidato 15.3.2 definido.
+* 15.3 Bundle y JavaScript cliente — Completado: 15.3.2 medido y revertido.
 * 15.4 Render servidor y carga de datos — Condicionada a hallazgos aprobados.
 * 15.5 PostgreSQL y escala de listados — Condicionada a hallazgos aprobados.
 * 15.6 Coste de QA, regresión y cierre — Condicionada a hallazgos aprobados.
@@ -1524,6 +1524,14 @@ P15-C01 (`/dashboard/pedidos/[id]`) como candidato material para una 15.3.2
 acotada a paneles cliente de pedido. P15-C02 queda descartado para 15.3 por
 tamaño exclusivo de dominio insuficiente. No se implementó optimización y no se
 inician 15.4 ni 15.5 desde esta subtarea.
+
+Actualización 15.3.2 completada: la separación medida de paneles cliente de
+pedido se ejecutó como experimento reversible y se revirtió. La transferencia
+cold de script de `/dashboard/pedidos/[id]` quedó sin reducción medible
+(178,463 bytes before y after), mientras el analyzer aumentó la superficie del
+grafo cliente. P15-C01 queda descartado y 15.3 se cierra sin optimización de
+aplicación. Se conserva únicamente el tooling focal de medición. La siguiente
+investigación recomendada es `15.5.1 - SQL focal de listados / dashboard`.
 
 ---
 

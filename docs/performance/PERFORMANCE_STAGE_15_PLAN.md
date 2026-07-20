@@ -112,7 +112,7 @@ La comparacion valida requiere:
 | --- | --- | --- | --- |
 | 15.1 | Auditoria y linea base | Crear protocolo, baseline y matriz inicial sin optimizar | Completada |
 | 15.2 | Harness y criterios de decision | Aislar mediciones de navegacion, SQL y bundle para comparar cambios | Completada tras 15.2.1 y 15.2.2 |
-| 15.3 | Bundle y JavaScript cliente | Reducir JS solo donde 15.1/15.2 lo justifiquen | En curso: candidato 15.3.2 definido |
+| 15.3 | Bundle y JavaScript cliente | Reducir JS solo donde 15.1/15.2 lo justifiquen | Completada: 15.3.2 medida y revertida |
 | 15.4 | Render servidor y carga de datos | Revisar loaders secuenciales o payloads con metricas | Condicionada |
 | 15.5 | PostgreSQL y escala de listados | Evaluar indices, filtros y paginacion con datos medidos | Condicionada |
 | 15.6 | Coste de QA, regresion y cierre | Reducir coste de QA sin perder cobertura critica | Condicionada |
@@ -300,3 +300,40 @@ Resultado:
 
 15.3 queda en curso solo para preparar 15.3.2. No se implementa optimizacion en
 15.3.1 y no se inicia 15.4 ni 15.5 desde esta subtarea.
+
+## 18. Separacion 15.3.2
+
+Fecha: 2026-07-20
+
+La subtarea 15.3.2 probo de forma reversible la separacion de paneles cliente
+de pedido. El cambio de aplicacion se midio y se revirtio.
+
+Resultado final:
+
+```text
+Optimizacion medida y revertida
+```
+
+Resumen de decision:
+
+- `/dashboard/pedidos/[id]` mantuvo `medianScriptTransferBytes` en 178,463
+  bytes before y after; reduccion: 0 bytes.
+- `medianColdWallTimeMs` no degrado: 121 ms -> 119 ms.
+- `clientGraphBytes` aumento: 946,656 -> 953,499.
+- `exclusiveApplicationCompressedBytes` aumento: 20,979 -> 22,579.
+- Los paneles no presentaron mejora de transferencia y Tareas/Personal
+  quedaron por encima de 250 ms en primera apertura.
+
+P15-C01 queda descartado para 15.3. Se conserva solo tooling de medicion:
+
+```text
+tests/performance/pedido-panel-loading.spec.ts
+scripts/performance/compare-client-experiment.mjs
+npm.cmd run perf:pedido-panels
+```
+
+La siguiente investigacion recomendada es:
+
+```text
+15.5.1 - SQL focal de listados / dashboard
+```

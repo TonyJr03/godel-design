@@ -938,3 +938,100 @@ Siguiente subtarea propuesta:
 ```
 
 No se inicia 15.4 ni 15.5 desde 15.3.1.
+
+## 23. Resultados 15.3.2 - Separacion medida de paneles cliente de pedido
+
+Fecha: 2026-07-20
+
+Estado: completado con optimizacion revertida.
+
+Resultado final:
+
+```text
+Optimizacion medida y revertida
+```
+
+Commit base de medicion:
+
+```text
+e0c6f49caaff193eae5ac72bc926fbcc46ea838b perf: atribuir JavaScript cliente por ruta
+```
+
+Artefactos locales:
+
+```text
+.next/diagnostics/performance/15.3.2-before/
+.next/diagnostics/performance/15.3.2-after/
+.next/diagnostics/performance/15.3.2-comparison.json
+.next/diagnostics/performance/pedido-panel-results.json
+```
+
+### 23.1 Tooling agregado
+
+- `tests/performance/pedido-panel-loading.spec.ts`: mide apertura de paneles de
+  pedido con 1 warmup y 5 muestras, contexto nuevo, cache fresca, mismo pedido
+  descubierto desde `/dashboard/pedidos` y sin mutaciones.
+- `npm.cmd run perf:pedido-panels`: ejecuta solo el harness focal de paneles.
+- `npm.cmd run perf:navigation`: ahora apunta explicitamente a
+  `tests/performance/navigation-baseline.spec.ts`, preservando el contrato de
+  55 muestras.
+- `scripts/performance/compare-client-experiment.mjs`: compara snapshots
+  before/after sin mezclar porcentajes de analyzer con porcentajes de red.
+
+### 23.2 Resultado de la ruta objetivo
+
+| Metrica `/dashboard/pedidos/[id]` | Before | After | Delta | Decision |
+| --- | ---: | ---: | ---: | --- |
+| Median script transfer bytes | 178,463 | 178,463 | 0 | Falla umbral |
+| Median total transfer bytes | 232,743 | 232,742 | -1 | Sin impacto |
+| Median cold wall ms | 121 | 119 | -2 | No degrada |
+| Client graph bytes | 946,656 | 953,499 | +6,843 | Evidencia auxiliar negativa |
+| App exclusive compressed bytes | 20,979 | 22,579 | +1,600 | Evidencia auxiliar negativa |
+
+La reduccion requerida era `>= 10,240` bytes o `>= 5%` de transferencia de
+script. La reduccion medida fue `0` bytes.
+
+### 23.3 Controles
+
+| Ruta control | Script before | Script after | Delta |
+| --- | ---: | ---: | ---: |
+| `/dashboard/pedidos` | 175,788 | 175,788 | 0 |
+| `/dashboard/solicitudes/[id]` | 179,970 | 179,970 | 0 |
+
+Los controles no degradaron en transferencia de script.
+
+### 23.4 Paneles
+
+| Panel | Median wall after ms | Median script after bytes | Failures | Stability |
+| --- | ---: | ---: | ---: | --- |
+| Estado | 29 | 0 | 0 | unreliable |
+| Tareas | 358 | 4,222 | 0 | stable |
+| Personal | 362 | 2,590 | 0 | stable |
+| Archivos | 48 | 2,299 | 0 | unreliable |
+| Comentarios | 58 | 1,645 | 0 | unreliable |
+| Pagos | 50 | 1,184 | 0 | unreliable |
+
+Aunque no hubo fallos funcionales, los paneles diferidos no cumplieron el
+criterio de primera apertura `<= 250 ms` para Tareas y Personal, ni el criterio
+de estabilidad para varios paneles. La transferencia por panel no mejoro frente
+al before.
+
+### 23.5 Decision
+
+Se aplica la regla de abandono:
+
+- No se alcanza el umbral de reduccion de transferencia.
+- El analyzer aumenta superficie cliente de la ruta objetivo.
+- La primera apertura de paneles no mejora de forma aceptable.
+- La complejidad adicional no queda justificada por beneficio medible.
+
+Por tanto, se revierten los cambios de aplicacion y no se conserva la
+separacion de paneles cliente de pedido. P15-C01 queda descartado para 15.3.
+El tooling de medicion se conserva porque es pequeno, focal y reutilizable.
+
+15.3 queda completada sin optimizacion de aplicacion. Siguiente subtarea
+recomendada:
+
+```text
+15.5.1 - SQL focal de listados / dashboard
+```

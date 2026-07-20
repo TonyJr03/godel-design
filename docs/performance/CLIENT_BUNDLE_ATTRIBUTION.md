@@ -307,3 +307,40 @@ Existe candidato material para 15.3.2, limitado a P15-C01:
 ```
 
 No se implementa ninguna optimizacion en 15.3.1.
+
+## 19. Actualizacion 15.3.2
+
+Fecha: 2026-07-20
+
+Resultado final:
+
+```text
+Optimizacion medida y revertida
+```
+
+Se ejecuto el experimento reversible de separacion de paneles cliente de pedido
+con `next/dynamic` en wrappers de dominio. La aplicacion quedo revertida porque
+la mejora objetivo no aparecio en transferencia real:
+
+| Metrica `/dashboard/pedidos/[id]` | Before | After | Delta |
+| --- | ---: | ---: | ---: |
+| Median script transfer bytes | 178,463 | 178,463 | 0 |
+| Median cold wall ms | 121 | 119 | -2 |
+| Client graph bytes | 946,656 | 953,499 | +6,843 |
+| App exclusive compressed bytes | 20,979 | 22,579 | +1,600 |
+
+Los controles no degradaron en transferencia de script, pero P15-C01 no alcanzo
+el umbral minimo de reduccion (`>= 10 KiB` o `>= 5%`). Los paneles tampoco
+aportaron evidencia favorable: las aperturas medidas siguieron descargando los
+mismos bytes de script por panel y varios paneles quedaron por encima de 250 ms
+o con estabilidad `unreliable` por ruido local.
+
+Decision:
+
+- P15-C01 queda descartado para 15.3.
+- No se conserva ningun wrapper diferido ni cambio de aplicacion.
+- Se conserva el harness focal de paneles y el comparador before/after porque
+  son pequenos y reutilizables.
+- 15.3 queda cerrada sin optimizacion de aplicacion.
+- Siguiente investigacion recomendada: `15.5.1 - SQL focal de listados /
+  dashboard`, empezando por los deltas observados en `pg_stat_statements`.
