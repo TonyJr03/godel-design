@@ -18,6 +18,8 @@
     "diff:check": "git diff --check",
     "perf:bundle": "next experimental-analyze --output && node scripts/performance/summarize-next-analyze.mjs",
     "perf:navigation": "playwright test --config=playwright.performance.config.ts",
+    "perf:client-graphs": "node scripts/performance/compare-client-graphs.mjs",
+    "perf:client-evidence": "node scripts/performance/summarize-client-evidence.mjs",
     "perf:pg:snapshot": "node scripts/performance/pg-stat-snapshot.mjs",
     "perf:pg:diff": "node scripts/performance/pg-stat-diff.mjs",
     "perf:measure": "node scripts/performance/run-performance-harness.mjs",

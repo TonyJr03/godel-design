@@ -112,7 +112,7 @@ La comparacion valida requiere:
 | --- | --- | --- | --- |
 | 15.1 | Auditoria y linea base | Crear protocolo, baseline y matriz inicial sin optimizar | Completada |
 | 15.2 | Harness y criterios de decision | Aislar mediciones de navegacion, SQL y bundle para comparar cambios | Completada tras 15.2.1 y 15.2.2 |
-| 15.3 | Bundle y JavaScript cliente | Reducir JS solo donde 15.1/15.2 lo justifiquen | Condicionada / posible siguiente |
+| 15.3 | Bundle y JavaScript cliente | Reducir JS solo donde 15.1/15.2 lo justifiquen | En curso: candidato 15.3.2 definido |
 | 15.4 | Render servidor y carga de datos | Revisar loaders secuenciales o payloads con metricas | Condicionada |
 | 15.5 | PostgreSQL y escala de listados | Evaluar indices, filtros y paginacion con datos medidos | Condicionada |
 | 15.6 | Coste de QA, regresion y cierre | Reducir coste de QA sin perder cobertura critica | Condicionada |
@@ -277,3 +277,26 @@ Validacion final:
 
 15.2 queda completada tras 15.2.1 y 15.2.2. 15.3 sigue condicionada y no se
 inicia desde esta correccion.
+
+## 17. Atribucion 15.3.1
+
+Fecha: 2026-07-19
+
+La subtarea 15.3.1 compara grafos cliente por fuente normalizada, cruza el
+analyzer con transferencia real de navegacion cold y documenta la decision en:
+
+```text
+docs/performance/CLIENT_BUNDLE_ATTRIBUTION.md
+```
+
+Resultado:
+
+- P15-C01 (`/dashboard/pedidos/[id]`) se confirma como candidato material para
+  15.3.2 por el grupo de paneles cliente de pedido.
+- P15-C02 (`/dashboard/solicitudes/[id]`) no justifica optimizacion propia: el
+  dominio solicitud exclusivo queda por debajo del umbral.
+- `WorkspaceController`, Workspace shell, componentes UI compartidos y
+  `lucide-react` no se proponen como objetivos de optimizacion.
+
+15.3 queda en curso solo para preparar 15.3.2. No se implementa optimizacion en
+15.3.1 y no se inicia 15.4 ni 15.5 desde esta subtarea.

@@ -872,3 +872,69 @@ Analyzer:
 
 15.2 queda completada tras 15.2.1 y 15.2.2. 15.3 sigue condicionada y no se
 inicia desde esta correccion.
+
+## 22. Resultados 15.3.1 - Atribucion de bundle cliente
+
+Fecha: 2026-07-19
+
+Estado: decision arquitectonica completada, sin cambios de aplicacion.
+
+Commit base:
+
+```text
+c720ae5fef5784991252d265180612088ad08b66 fix: reforzar confiabilidad del harness
+```
+
+Artefactos locales:
+
+```text
+.next/diagnostics/performance/client-graph-comparison.json
+.next/diagnostics/performance/client-evidence-summary.json
+```
+
+Documento de decision:
+
+```text
+docs/performance/CLIENT_BUNDLE_ATTRIBUTION.md
+```
+
+Comparaciones realizadas:
+
+| Comparacion | Shared sources | Only target | Exclusive compressed | App exclusive compressed |
+| --- | ---: | ---: | ---: | ---: |
+| Pedido detalle vs listado | 262 | 33 | 22,700 | 20,979 |
+| Solicitud detalle vs listado | 253 | 35 | 19,776 | 17,758 |
+| Pedido detalle vs solicitud detalle | 282 | 13 | 12,592 | 12,592 |
+| Pedido detalle vs dashboard | 274 | 21 | 15,861 | 15,564 |
+| Solicitud detalle vs dashboard | 274 | 14 | 9,602 | 9,305 |
+
+Evidencia cold final:
+
+| Ruta | Client graph bytes | Median cold ms | Median script transfer | Median total transfer | Spread | Stability |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| `/dashboard` | 896,447 | 429 | 164,090 | 250,931 | 0.023 | stable |
+| `/dashboard/pedidos` | 912,886 | 460 | 168,425 | 302,080 | 0.043 | stable |
+| `/dashboard/pedidos/[id]` | 946,656 | 126 | 177,068 | 238,236 | 0.048 | stable |
+| `/dashboard/solicitudes` | 881,713 | 449 | 160,309 | 286,661 | 0.036 | stable |
+| `/dashboard/solicitudes/[id]` | 931,197 | 124 | 172,566 | 236,013 | 0.097 | stable |
+
+Decision:
+
+- P15-C01 se confirma como candidato material para 15.3.2: separar de forma
+  medida el grupo de paneles cliente de pedido, sin cambiar contratos de Server
+  Actions, foco, dialog, pending, errores parciales, responsive ni
+  accesibilidad.
+- P15-C02 se descarta para optimizacion 15.3: el dominio solicitud exclusivo
+  suma 5,818 bytes comprimidos y no alcanza umbral.
+- Workspace es compartido entre detalles: 9 fuentes, 20,026 bytes, 8,440 bytes
+  comprimidos. No dividir `WorkspaceController` en 15.3.
+- `lucide-react` no es material: 1,721 bytes comprimidos exclusivos en pedido
+  detalle vs listado y 2,018 en solicitud detalle vs listado.
+
+Siguiente subtarea propuesta:
+
+```text
+15.3.2 - Separacion medida de paneles cliente de pedido
+```
+
+No se inicia 15.4 ni 15.5 desde 15.3.1.
