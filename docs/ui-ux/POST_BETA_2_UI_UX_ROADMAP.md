@@ -242,10 +242,10 @@ Según el alcance, deben existir:
 | 10    | Listados administrativos                     | Cerrada   |
 | 11    | Dashboard operativo                          | Cerrada   |
 | 12    | Formularios internos y páginas secundarias   | Cerrada   |
-| 13    | Área pública                                 | Completada |
+| 13    | Área pública                                 | Cerrada |
 | 14    | Estados transversales y resiliencia UI       | Cerrada |
-| 15    | Optimización basada en mediciones            | Pendiente |
-| 16    | QA integral y cierre del rediseño            | Pendiente |
+| 15    | Optimización basada en mediciones            | Cerrada |
+| 16    | QA integral y cierre del rediseño            | Siguiente |
 
 ---
 
@@ -1413,8 +1413,8 @@ workspace de solicitudes después del loading segmentado. No se modificó códig
 de aplicación, Server Actions, servicios, permisos, RLS, Storage, DTO público,
 queries, rutas ni lógica de dominio.
 
-La siguiente etapa oficial es `Etapa 15 — Optimización basada en mediciones`.
-No queda iniciada desde este cierre.
+La etapa siguiente a este cierre fue `Etapa 15 — Optimización basada en
+mediciones`, actualmente cerrada.
 
 ### Criterio de cierre
 
@@ -1424,47 +1424,43 @@ La aplicación responde de forma consistente y comprensible ante cargas, errores
 
 ## Etapa 15 — Optimización basada en mediciones
 
+### Estado
+
+Cerrada.
+
 ### Objetivo
 
-Mejorar rendimiento únicamente después de disponer de evidencia.
+Validar mediante mediciones si existían problemas materiales de rendimiento
+antes de introducir optimizaciones.
 
-### Aspectos medibles
+Documento principal:
 
-* tamaño de bundle;
-* componentes cliente;
-* consultas secuenciales;
-* serialización;
-* tiempo de navegación;
-* tiempo de carga;
-* render;
-* revalidaciones;
-* carga de datos secundarios;
-* rendimiento de listas;
-* coste de Full Visual QA.
+```text
+docs/performance/PERFORMANCE_STAGE_15_PLAN.md
+```
 
-### Posibles acciones
+Documentos de cierre:
 
-* paralelizar loaders independientes;
-* reducir límites cliente;
-* dividir componentes;
-* eliminar JavaScript innecesario;
-* optimizar consultas;
-* introducir paginación;
-* revisar índices;
-* revisar caché;
-* consolidar formatters;
-* reducir renders.
+```text
+docs/performance/PERFORMANCE_BASELINE.md
+docs/performance/STAGE_15_CLOSURE.md
+```
 
-### Restricciones
+### Resumen
 
-* No modificar consultas sin medir.
-* No introducir caché compleja por intuición.
-* No añadir virtualización para volúmenes pequeños.
-* No sacrificar claridad arquitectónica por microoptimizaciones.
+Se estableció una línea base, se ejecutaron experimentos medidos y no se
+conservaron optimizaciones de aplicación porque no produjeron una mejora
+material. El trabajo adicional queda diferido hasta que exista evidencia de una
+necesidad real.
 
-### Criterio de cierre
+El tooling y la documentación experimental completos fueron archivados en el tag
+local:
 
-Las optimizaciones realizadas poseen una causa medida, un resultado verificable y no degradan seguridad ni mantenibilidad.
+```text
+stage-15-performance-exploration
+```
+
+La siguiente etapa activa es la Etapa 16.
 
 ---
 
@@ -1747,12 +1743,11 @@ No introducir paginación, caché, virtualización o paralelización compleja si
 La siguiente etapa oficial de esta iniciativa es:
 
 ```text
-Etapa 15 — Optimización basada en mediciones
+Etapa 16 — QA integral y cierre del rediseño
 ```
 
-La Etapa 15 debe comenzar con mediciones reales de rendimiento, bundle,
-navegación, consultas y coste de QA antes de proponer optimizaciones. No queda
-iniciada por el cierre de Etapa 14.
+La Etapa 16 debe validar el sistema completo después del cierre de las etapas
+visuales y de la limpieza de la Etapa 15. No queda completada desde este cierre.
 
 ---
 
