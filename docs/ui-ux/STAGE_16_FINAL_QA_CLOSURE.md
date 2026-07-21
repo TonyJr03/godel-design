@@ -2,6 +2,8 @@
 
 Fecha de ejecucion local: 2026-07-20
 
+Correccion posterior de cierre: 2026-07-21.
+
 ## 1. Estado
 
 Etapa cerrada.
@@ -119,6 +121,25 @@ contenido critico inaccesible.
 | `npm.cmd run test:e2e:chromium:serial` | 20:12:39 | 20:18:55 | 376.3s | 0 | Aprobado | 43 passed, 3 skipped, 0 failed. |
 | `npm.cmd run diff:check` final | 20:21:53 | 20:21:53 | 0.6s | 0 | Aprobado | Ejecutado despues de documentar el cierre. |
 
+Correccion posterior del 2026-07-21:
+
+| Comando | Inicio | Fin | Duracion | Codigo | Resultado | Observaciones |
+| --- | --- | --- | --- | --- | --- | --- |
+| `npm.cmd run diff:check` | 14:16:58 | 14:16:59 | 0.5s | 0 | Aprobado | Aviso LF/CRLF de Git en Windows, no bloqueante. |
+| `npm.cmd run verify` | 14:17:06 | 14:17:24 | 18.3s | 0 | Aprobado | Lint, build y TypeScript pasaron. |
+| `npx.cmd playwright test tests/e2e/internal-listings.spec.ts --project=chromium --workers=1` | 14:17:34 | 14:18:14 | 40.1s | 0 | Aprobado | 4 passed. Incluye regresion de IDs unicos y una sola instancia DOM por control. |
+| `npx.cmd playwright test tests/e2e/clientes.spec.ts --project=chromium --workers=1` | 14:18:23 | 14:18:48 | 24.5s | 0 | Aprobado | 4 passed. |
+| `npx.cmd playwright test tests/e2e/usuarios.spec.ts --project=chromium --workers=1` | 14:18:59 | 14:19:16 | 16.8s | 0 | Aprobado | 3 passed. |
+| `npx.cmd playwright test tests/e2e/task-templates.spec.ts --project=chromium --workers=1` | 14:19:24 | 14:20:08 | 44.1s | 0 | Aprobado | 3 passed. |
+| `npx.cmd playwright test tests/e2e/full-visual-qa.spec.ts --project=chromium --workers=1` | 14:20:15 | 14:22:08 | 113.1s | 0 | Aprobado | 1 passed. |
+| `npm.cmd run diff:check` final | 14:22:33 | 14:22:33 | 0.5s | 0 | Aprobado | Primera bateria final. |
+| `npm.cmd run verify` final | 14:22:39 | 14:22:58 | 18.8s | 0 | Aprobado | Lint, build y TypeScript pasaron. |
+| `npm.cmd run audit:security` final | 14:23:05 | 14:23:05 | 0.5s | 0 | Aprobado con revision manual | Coincidencias documentales y FK esperadas. |
+| `npm.cmd run audit:client-supabase` final | 14:23:12 | 14:23:12 | 0.5s | 0 | Aprobado | Sin coincidencias. |
+| `npm.cmd run audit:public-tracking` final | 14:23:19 | 14:23:20 | 0.4s | 0 | Aprobado | Sin coincidencias. |
+| `npm.cmd run test:e2e:chromium:serial` final | 14:23:29 | 14:30:13 | 404.6s | 0 | Aprobado | 44 passed, 3 skipped, 0 failed. |
+| `npm.cmd run diff:check` post-documentacion | 14:31:24 | 14:31:24 | 0.5s | 0 | Aprobado | Ejecutado despues de actualizar cierre y roadmap. |
+
 ## 9. Suite E2E
 
 Inventario real bajo `tests/e2e/`:
@@ -139,8 +160,8 @@ Inventario real bajo `tests/e2e/`:
 
 Resultado serial final:
 
-- Total: 46 tests.
-- Aprobados: 43.
+- Total: 47 tests.
+- Aprobados: 44.
 - Omitidos: 3.
 - Fallidos: 0.
 
@@ -253,6 +274,7 @@ Cobertura:
 | Bloqueante | Ninguno | No aplica |
 | Mayor | Ninguno | No aplica |
 | Menor | Falta de captura exacta `1024x768` en Full Visual QA | Corregido |
+| Menor | IDs duplicados y controles redundantes en cabeceras responsive de listados | Corregido antes de la integracion final |
 | Harness o entorno | Aviso LF/CRLF de Git en Windows | Documentado, no bloqueante |
 
 ## 15. Correcciones realizadas
@@ -267,6 +289,33 @@ Motivo: cubrir de forma exacta el breakpoint oficial `1024x768`.
 
 No se modifico codigo de aplicacion, dominio, Server Actions, servicios, RLS,
 Storage, permisos, rutas, tipos ni configuracion.
+
+Correccion posterior:
+
+- Causa: `ListingPageHeader` renderizaba `action` y `toolbar` en dos posiciones
+  responsive distintas. Aunque una copia quedara oculta por CSS, ambas instancias
+  permanecian en el DOM.
+- Componentes afectados: `ListingPageHeader` y `ListingToolbar`.
+- Usos afectados: `/dashboard/pedidos`, `/dashboard/solicitudes`,
+  `/dashboard/clientes`, `/dashboard/configuracion/usuarios` y
+  `/dashboard/configuracion/plantillas`.
+- Solucion: `ListingPageHeader` usa una sola composicion responsive en CSS Grid,
+  con una sola aparicion JSX de `{toolbar}` y una sola aparicion JSX de
+  `{action}`.
+- IDs robustos: `ListingToolbar` usa `useId()` para prefijar el buscador y cada
+  filtro, conservando `name="q"`, nombres de filtros, query params y
+  comportamiento de navegacion.
+- Regresion E2E: `internal-listings.spec.ts` agrega
+  `expectUniqueFormControlIds` y valida `input[id]`, `select[id]`,
+  `textarea[id]` y `button[id]`, ademas de una sola instancia DOM de
+  `input[name="q"]` y de las acciones primarias.
+- Resultado por ruta: los cinco listados afectados pasaron en 1366x768 y
+  390x844, sin IDs duplicados, sin controles ocultos duplicados y sin overflow
+  horizontal.
+- Validacion equivalente automatizada aprobada mediante inspeccion del DOM.
+- Validacion final del panel Issues de Chrome DevTools pendiente de confirmacion
+  humana, porque Codex no dispone de acceso verificable a ese panel en esta
+  sesion.
 
 ## 16. Pendientes no bloqueantes
 
@@ -311,6 +360,8 @@ Cumplidos:
 - responsive validado;
 - navegacion por teclado operativa;
 - foco y dialogs funcionales;
+- cabeceras de listados sin controles duplicados;
+- IDs de controles de formulario unicos;
 - screenshots revisados;
 - sin bloqueantes;
 - documento final completo;

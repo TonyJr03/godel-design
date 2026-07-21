@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useTransition } from "react";
+import { useId, useMemo, useTransition } from "react";
 import { Search, SlidersHorizontal } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
@@ -37,8 +37,10 @@ export function ListingToolbar({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
+  const toolbarId = useId();
   const currentQuery = normalizeQuery(searchParams.get("q") ?? "");
   const searchInputKey = `${currentQuery}:${normalizeQuery(initialQuery)}`;
+  const searchInputId = `${toolbarId}-search`;
 
   const activeFilters = useMemo<ActiveListingFilter[]>(() => {
     const nextFilters: ActiveListingFilter[] = [];
@@ -161,7 +163,7 @@ export function ListingToolbar({
             updateSearch(nextQuery);
           }}
         >
-          <label htmlFor="listing-search" className="sr-only">
+          <label htmlFor={searchInputId} className="sr-only">
             {searchLabel}
           </label>
           <div className="relative">
@@ -171,7 +173,7 @@ export function ListingToolbar({
             />
             <input
               key={searchInputKey}
-              id="listing-search"
+              id={searchInputId}
               name="q"
               type="search"
               defaultValue={currentQuery}
@@ -191,31 +193,35 @@ export function ListingToolbar({
 
             <div className="mt-2 w-full rounded-(--radius-card) border border-border bg-surface p-3 shadow-(--shadow-soft) sm:absolute sm:right-0 sm:z-20 sm:w-72">
               <div className="space-y-3">
-                {filters.map((filter) => (
-                  <div key={filter.name}>
-                    <label
-                      htmlFor={`listing-filter-${filter.name}`}
-                      className="block text-xs font-semibold text-text-secondary"
-                    >
-                      {filter.label}
-                    </label>
-                    <select
-                      id={`listing-filter-${filter.name}`}
-                      value={filter.value}
-                      disabled={isPending}
-                      onChange={(event) =>
-                        updateFilter(filter.name, event.target.value)
-                      }
-                      className="mt-1 min-h-11 w-full rounded-(--radius-control) border border-border-strong bg-surface px-3 text-sm text-text-primary transition-colors duration-200 hover:border-brand-primary focus:border-brand-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted"
-                    >
-                      {filter.options.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ))}
+                {filters.map((filter) => {
+                  const filterId = `${toolbarId}-filter-${filter.name}`;
+
+                  return (
+                    <div key={filter.name}>
+                      <label
+                        htmlFor={filterId}
+                        className="block text-xs font-semibold text-text-secondary"
+                      >
+                        {filter.label}
+                      </label>
+                      <select
+                        id={filterId}
+                        value={filter.value}
+                        disabled={isPending}
+                        onChange={(event) =>
+                          updateFilter(filter.name, event.target.value)
+                        }
+                        className="mt-1 min-h-11 w-full rounded-(--radius-control) border border-border-strong bg-surface px-3 text-sm text-text-primary transition-colors duration-200 hover:border-brand-primary focus:border-brand-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted"
+                      >
+                        {filter.options.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                })}
               </div>
 
               {activeFilterCount > 0 ? (

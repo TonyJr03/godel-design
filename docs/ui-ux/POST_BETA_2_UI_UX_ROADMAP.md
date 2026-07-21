@@ -1579,7 +1579,7 @@ Resultado de pruebas:
 * validacion tecnica aprobada;
 * auditorias aprobadas o revisadas en contexto;
 * Full Visual QA aprobada con `1 passed`;
-* suite Chromium serial aprobada con `43 passed`, `3 skipped`, `0 failed`;
+* suite Chromium serial aprobada con `44 passed`, `3 skipped`, `0 failed`;
 * 26 screenshots generados y revisados en `test-results/`.
 
 Roles validados:
@@ -1606,6 +1606,8 @@ Incidencias:
 * Bloqueantes: ninguno.
 * Mayores: ninguno.
 * Menores corregidos: se agrego una captura exacta `1024x768` al Full Visual QA.
+* Menores corregidos: eliminacion de controles duplicados e IDs repetidos en
+  cabeceras responsive de listados.
 * Harness o entorno: aviso LF/CRLF de Git en Windows, no bloqueante.
 
 Deuda aceptada:

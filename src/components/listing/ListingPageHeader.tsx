@@ -14,31 +14,28 @@ export function ListingPageHeader({
   toolbar,
 }: ListingPageHeaderProps) {
   return (
-    <header className="space-y-4">
-      <div className="lg:flex lg:items-start lg:justify-between lg:gap-6">
-        <div className="min-w-0 max-w-3xl">
-          <div className="flex items-start justify-between gap-4 lg:block">
-            <h1 className="text-3xl font-semibold tracking-tight text-text-primary">
-              {title}
-            </h1>
-            {action ? <div className="shrink-0 lg:hidden">{action}</div> : null}
-          </div>
-          {description ? (
-            <p className="mt-2 text-sm leading-6 text-text-secondary sm:text-base sm:leading-7">
-              {description}
-            </p>
-          ) : null}
+    <header className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-3 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-start lg:gap-x-3 lg:gap-y-2">
+      <h1 className="col-start-1 row-start-1 min-w-0 max-w-3xl text-3xl font-semibold tracking-tight text-text-primary">
+        {title}
+      </h1>
+
+      {action ? (
+        <div className="col-start-2 row-start-1 shrink-0 justify-self-end lg:col-start-3">
+          {action}
         </div>
+      ) : null}
 
-        {toolbar || action ? (
-          <div className="hidden shrink-0 items-start gap-3 lg:flex">
-            {toolbar ? <div className="min-w-0">{toolbar}</div> : null}
-            {action ? <div className="shrink-0">{action}</div> : null}
-          </div>
-        ) : null}
-      </div>
+      {description ? (
+        <p className="col-span-2 min-w-0 max-w-3xl text-sm leading-6 text-text-secondary sm:text-base sm:leading-7 lg:col-span-1 lg:col-start-1 lg:row-start-2">
+          {description}
+        </p>
+      ) : null}
 
-      {toolbar ? <div className="lg:hidden">{toolbar}</div> : null}
+      {toolbar ? (
+        <div className="col-span-2 min-w-0 lg:col-span-1 lg:col-start-2 lg:row-start-1 lg:w-72 lg:justify-self-end xl:w-79">
+          {toolbar}
+        </div>
+      ) : null}
     </header>
   );
 }
