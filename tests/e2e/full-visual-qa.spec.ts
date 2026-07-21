@@ -615,6 +615,7 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   );
   await page.goto("/dashboard");
   await captureViewport(page, "admin-dashboard-desktop", { width: 1366, height: 768 });
+  await captureViewport(page, "admin-dashboard-tablet-1024", { width: 1024, height: 768 });
   await captureViewport(page, "admin-dashboard-mobile", { width: 390, height: 844 });
   await page.setViewportSize({ width: 1440, height: 900 });
   await openSolicitudDetail(page, encargoName);

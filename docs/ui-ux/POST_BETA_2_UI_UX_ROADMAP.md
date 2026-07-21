@@ -3,7 +3,7 @@
 **Proyecto:** Sistema Web de Gestión para Godel Diseño
 **Repositorio:** `godel-design`
 **Documento:** Roadmap de rediseño y consolidación UI/UX posterior a Beta 2
-**Estado:** Activo
+**Estado:** Cerrado
 **Versión:** 1.0
 **Fecha:** 10 de julio de 2026
 
@@ -245,7 +245,7 @@ Según el alcance, deben existir:
 | 13    | Área pública                                 | Cerrada |
 | 14    | Estados transversales y resiliencia UI       | Cerrada |
 | 15    | Optimización basada en mediciones            | Cerrada |
-| 16    | QA integral y cierre del rediseño            | Siguiente |
+| 16    | QA integral y cierre del rediseño            | Cerrada |
 
 ---
 
@@ -1460,11 +1460,15 @@ local:
 stage-15-performance-exploration
 ```
 
-La siguiente etapa activa es la Etapa 16.
+La etapa siguiente fue la Etapa 16, actualmente cerrada.
 
 ---
 
 ## Etapa 16 — QA integral y cierre del rediseño
+
+### Estado
+
+Cerrada.
 
 ### Objetivo
 
@@ -1543,6 +1547,80 @@ Validar el sistema completo después de todas las etapas visuales.
 ### Criterio de cierre
 
 El rediseño se considera terminado cuando todas las rutas críticas son utilizables, consistentes, accesibles y responsive sin regresiones funcionales o de seguridad.
+
+### Resultado de cierre
+
+Resultado final: aprobado.
+
+Documento de cierre:
+
+```text
+docs/ui-ux/STAGE_16_FINAL_QA_CLOSURE.md
+```
+
+Base validada:
+
+```text
+952fc80 docs: cerrar etapa 15 de optimizacion medida
+```
+
+Pruebas ejecutadas:
+
+* `npm.cmd run diff:check`;
+* `npm.cmd run verify`;
+* `npm.cmd run audit:security`;
+* `npm.cmd run audit:client-supabase`;
+* `npm.cmd run audit:public-tracking`;
+* `npx.cmd playwright test tests/e2e/full-visual-qa.spec.ts --project=chromium --workers=1`;
+* `npm.cmd run test:e2e:chromium:serial`.
+
+Resultado de pruebas:
+
+* validacion tecnica aprobada;
+* auditorias aprobadas o revisadas en contexto;
+* Full Visual QA aprobada con `1 passed`;
+* suite Chromium serial aprobada con `43 passed`, `3 skipped`, `0 failed`;
+* 26 screenshots generados y revisados en `test-results/`.
+
+Roles validados:
+
+* `admin`;
+* `supervisor`;
+* `trabajador`;
+* usuario no autenticado.
+
+Breakpoints validados:
+
+```text
+1440 × 900
+1366 × 768
+1024 × 768
+900 × 1000
+780 × 1000
+390 × 844
+375 × 812
+```
+
+Incidencias:
+
+* Bloqueantes: ninguno.
+* Mayores: ninguno.
+* Menores corregidos: se agrego una captura exacta `1024x768` al Full Visual QA.
+* Harness o entorno: aviso LF/CRLF de Git en Windows, no bloqueante.
+
+Deuda aceptada:
+
+* No se agrega deuda nueva.
+* Permanece la deuda existente de dividir el Full Visual QA en specs mas pequeños
+  cuando la suite crezca.
+
+Estado final de la iniciativa:
+
+```text
+Etapas 0-16: Cerradas
+Proxima etapa activa: Ninguna
+Rediseño UI/UX posterior a Beta 2: Completado
+```
 
 ---
 
@@ -1738,22 +1816,17 @@ No introducir paginación, caché, virtualización o paralelización compleja si
 
 ---
 
-# 14. Próxima etapa activa
+# 14. Cierre de la iniciativa
 
-La siguiente etapa oficial de esta iniciativa es:
+No existe proxima etapa activa para este roadmap.
 
 ```text
-Etapa 16 — QA integral y cierre del rediseño
+Etapas 0-16: Cerradas
+Proxima etapa activa: Ninguna
+Rediseño UI/UX posterior a Beta 2: Completado
 ```
 
-La Etapa 16 debe validar el sistema completo después del cierre de las etapas
-visuales y de la limpieza de la Etapa 15. No queda completada desde este cierre.
-
----
-
-# 15. Cierre esperado de la iniciativa
-
-Al finalizar la Etapa 16, Godel Diseño deberá contar con una interfaz:
+Godel Diseño cuenta con una interfaz:
 
 * operativamente clara;
 * visualmente consistente;
@@ -1767,4 +1840,5 @@ Al finalizar la Etapa 16, Godel Diseño deberá contar con una interfaz:
 * validada por roles;
 * respaldada por pruebas automatizadas y evidencia visual.
 
-El resultado final no debe ser únicamente una aplicación que funciona, sino un sistema que el personal de Godel Diseño pueda utilizar diariamente de forma cómoda, comprensible y confiable.
+El resultado final es un sistema que el personal de Godel Diseño puede utilizar
+diariamente de forma cómoda, comprensible y confiable.
