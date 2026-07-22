@@ -1,5 +1,6 @@
 import type {
   PedidoCommentFieldErrors,
+  PedidoEditFieldErrors,
   PedidoPaymentFieldErrors,
   PedidoStatusFieldErrors,
   PedidoTaskFieldErrors,
@@ -27,6 +28,12 @@ export type UpdatePedidoPaymentActionState = {
     paidCashAmount: string;
     paidTransferAmount: string;
   };
+};
+
+export type UpdatePedidoDataActionState = {
+  ok: boolean;
+  message: string;
+  fieldErrors?: PedidoEditFieldErrors;
 };
 
 export type AssignPedidoWorkerActionState = {

@@ -6,6 +6,7 @@ export type {
   DeletePedidoTaskActionState,
   PedidoDetailAction,
   TogglePedidoTaskCompletionActionState,
+  UpdatePedidoDataActionState,
   UpdatePedidoPaymentActionState,
   UpdatePedidoStatusActionState,
   UpdatePedidoTaskProgressActionState,
@@ -15,6 +16,7 @@ export type {
 } from "./actions/shared";
 
 export { createPedidoCommentAction } from "./actions/comment-actions";
+export { updatePedidoDataAction } from "./actions/edit-actions";
 export { uploadPedidoFileAction } from "./actions/file-actions";
 export { updatePedidoPaymentAction } from "./actions/payment-actions";
 export { updatePedidoStatusAction } from "./actions/status-actions";
