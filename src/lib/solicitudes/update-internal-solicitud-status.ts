@@ -36,21 +36,61 @@ export type UpdateInternalSolicitudStatusResult = ServiceResult<
 const GENERIC_UPDATE_ERROR =
   "No se pudo actualizar el estado. Inténtalo nuevamente.";
 
-const SAFE_RPC_STATUS_MESSAGES = [
-  "Transición de estado no permitida.",
-  "No se puede cambiar el estado de una solicitud cerrada.",
-  "El estado convertida solo se asigna al convertir la solicitud en pedido.",
+const SAFE_RPC_FORBIDDEN_MESSAGES = [
   "No tienes permiso para cambiar el estado de esta solicitud.",
+  "Usuario inactivo o sin perfil valido",
+  "Usuario inactivo o sin perfil válido",
+  "Usuario sin perfil valido",
+  "Usuario sin perfil válido",
 ] as const;
 
-function getSafeRpcStatusErrorMessage(errorMessage: string | undefined): string {
-  const message = errorMessage?.trim();
+const SAFE_RPC_TRANSITION_MESSAGES = [
+  "Transición de estado no permitida.",
+  "Transicion de estado no permitida.",
+  "La solicitud ya está cerrada.",
+  "No se puede cambiar el estado de una solicitud cerrada.",
+  "No se puede cambiar desde el estado actual.",
+  "El estado convertida solo se asigna al convertir la solicitud en pedido.",
+] as const;
 
-  return (
-    SAFE_RPC_STATUS_MESSAGES.find((safeMessage) =>
-      message?.includes(safeMessage),
-    ) ?? GENERIC_UPDATE_ERROR
+type ClassifiedRpcStatusError = {
+  reason: Extract<
+    UpdateInternalSolicitudStatusErrorReason,
+    "forbidden" | "transition" | "error"
+  >;
+  message: string;
+};
+
+function classifyRpcStatusError(
+  errorMessage: string | undefined,
+): ClassifiedRpcStatusError {
+  const message = errorMessage?.trim();
+  const forbiddenMessage = SAFE_RPC_FORBIDDEN_MESSAGES.find((safeMessage) =>
+    message?.includes(safeMessage),
   );
+
+  if (forbiddenMessage) {
+    return {
+      reason: "forbidden",
+      message: "No tienes permiso para cambiar el estado de solicitudes.",
+    };
+  }
+
+  const transitionMessage = SAFE_RPC_TRANSITION_MESSAGES.find((safeMessage) =>
+    message?.includes(safeMessage),
+  );
+
+  if (transitionMessage) {
+    return {
+      reason: "transition",
+      message: transitionMessage,
+    };
+  }
+
+  return {
+    reason: "error",
+    message: GENERIC_UPDATE_ERROR,
+  };
 }
 
 export async function updateInternalSolicitudStatus({
@@ -117,13 +157,9 @@ export async function updateInternalSolicitudStatus({
 
     if (error) {
       console.error("Error updating internal solicitud status", error);
-      const message = getSafeRpcStatusErrorMessage(error.message);
+      const classifiedError = classifyRpcStatusError(error.message);
 
-      if (message !== GENERIC_UPDATE_ERROR) {
-        return serviceFailure("transition", message);
-      }
-
-      return serviceFailure("error", GENERIC_UPDATE_ERROR);
+      return serviceFailure(classifiedError.reason, classifiedError.message);
     }
 
     return serviceSuccess({ status: normalizedStatus });

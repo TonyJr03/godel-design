@@ -41,7 +41,7 @@ export async function ensureSolicitudReviewStarted({
     return serviceSuccess({ status: result.status });
   }
 
-  if (result.reason !== "transition" || result.message.includes("permiso")) {
+  if (result.reason !== "transition") {
     return result;
   }
 

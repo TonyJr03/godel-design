@@ -41,16 +41,10 @@ export async function updateSolicitudStatusAction(
   });
 
   if (!result.ok) {
-    return {
-      ok: false,
-      message: result.message,
-    };
+    return actionFailure(result.message);
   }
 
   revalidateSolicitudDetail(solicitudId);
 
-  return {
-    ok: true,
-    message: "Estado actualizado correctamente.",
-  };
+  return actionSuccess("Estado actualizado correctamente.");
 }
