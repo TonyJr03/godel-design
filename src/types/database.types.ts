@@ -770,6 +770,26 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      actualizar_datos_pedido: {
+        Args: {
+          p_description: string
+          p_estimated_delivery_date: string
+          p_pedido_id: string
+          p_priority: Database["public"]["Enums"]["pedido_prioridad"]
+          p_title: string
+          p_total_amount: number
+        }
+        Returns: {
+          description: string
+          estimated_delivery_date: string
+          paid_at: string
+          payment_status: Database["public"]["Enums"]["pedido_pago_estado"]
+          pedido_id: string
+          priority: Database["public"]["Enums"]["pedido_prioridad"]
+          title: string
+          total_amount: number
+        }[]
+      }
       actualizar_estado_pedido: {
         Args: {
           p_nuevo_estado: Database["public"]["Enums"]["pedido_estado"]
@@ -1021,6 +1041,7 @@ export type Database = {
         | "tarea_reabierta"
         | "tarea_progreso_actualizado"
         | "pago_actualizado"
+        | "pedido_actualizado"
       pedido_pago_estado: "sin_pago" | "parcial" | "pagado"
       pedido_prioridad: "baja" | "normal" | "alta" | "urgente"
       pedido_tarea_tipo: "simple" | "cuantificada"
@@ -1199,6 +1220,7 @@ export const Constants = {
         "tarea_reabierta",
         "tarea_progreso_actualizado",
         "pago_actualizado",
+        "pedido_actualizado",
       ],
       pedido_pago_estado: ["sin_pago", "parcial", "pagado"],
       pedido_prioridad: ["baja", "normal", "alta", "urgente"],
