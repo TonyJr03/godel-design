@@ -16,6 +16,7 @@ import {
   EMPTY_PEDIDO_TASKS_PROGRESS,
   canManagePedidoTasksInStatus,
   getInternalPedidoById,
+  isPedidoClosedStatus,
   listAssignableWorkers,
   listPedidoComments,
   listPedidoHistory,
@@ -33,6 +34,7 @@ import {
   deletePedidoTaskAction,
   removePedidoWorkerAction,
   reopenPedidoTaskAction,
+  updatePedidoDataAction,
   updatePedidoPaymentAction,
   updatePedidoStatusAction,
   updatePedidoTaskProgressAction,
@@ -79,6 +81,8 @@ export default async function DashboardPedidoDetallePage({
   const profile = await getCurrentProfile();
   const canManagePedidos =
     profile !== null && hasPermission(profile.role, "pedidos.manage");
+  const canEditPedido =
+    canManagePedidos && !isPedidoClosedStatus(result.pedido.status);
   const canManagePayments =
     profile !== null && (isAdmin(profile.role) || isSupervisor(profile.role));
   const workersResult = canManagePedidos ? await listAssignableWorkers() : null;
@@ -125,11 +129,15 @@ export default async function DashboardPedidoDetallePage({
   const updatePaymentAction = canManagePayments
     ? updatePedidoPaymentAction.bind(null, pedidoId)
     : undefined;
+  const editPedidoAction = canEditPedido
+    ? updatePedidoDataAction.bind(null, pedidoId)
+    : undefined;
   const uploadFileAction = uploadPedidoFileAction.bind(null, pedidoId);
 
   return (
     <InternalPedidoDetail
       pedido={result.pedido}
+      updatePedidoDataAction={editPedidoAction}
       updateStatusAction={updateStatusAction}
       taskProgress={tasksResult.ok ? tasksResult.progress : undefined}
       tasksLoadError={

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 
 import { CopyableCode } from "@/components/common/CopyableCode";
@@ -51,10 +52,12 @@ function BackToPedidosLink({ presentation }: { presentation: "text" | "button" }
 
 type PedidoWorkspaceHeaderProps = {
   pedido: InternalPedidoDetail;
+  editControl?: ReactNode;
 };
 
 export function PedidoWorkspaceHeader({
   pedido,
+  editControl,
 }: PedidoWorkspaceHeaderProps) {
   const hasActualDeliveryDate =
     pedido.status === "entregado" && Boolean(pedido.actual_delivery_date);
@@ -73,40 +76,48 @@ export function PedidoWorkspaceHeader({
         <div className="min-w-0 flex-1">
           <BackToPedidosLink presentation="text" />
 
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <p className="inline-flex min-h-11 items-center font-mono text-base font-semibold text-brand-primary">
-              {pedido.order_number}
-            </p>
-            <WorkflowTypeBadge
-              workflowType={pedido.workflow_type}
-              className="px-3 py-1.5 text-sm"
-            />
-            <StatusBadge
-              status={pedido.status}
-              className="px-3 py-1.5 text-sm"
-            />
-            <PriorityBadge
-              priority={pedido.priority}
-              className="px-3 py-1.5 text-sm"
-            />
-            <CopyableCode
-              code={pedido.public_reference}
-              presentation="inline"
-            />
+          <div className="flex min-w-0 items-start justify-between gap-3 xl:mt-0">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <p className="inline-flex min-h-11 items-center font-mono text-base font-semibold text-brand-primary">
+                  {pedido.order_number}
+                </p>
+                <WorkflowTypeBadge
+                  workflowType={pedido.workflow_type}
+                  className="px-3 py-1.5 text-sm"
+                />
+                <StatusBadge
+                  status={pedido.status}
+                  className="px-3 py-1.5 text-sm"
+                />
+                <PriorityBadge
+                  priority={pedido.priority}
+                  className="px-3 py-1.5 text-sm"
+                />
+                <CopyableCode
+                  code={pedido.public_reference}
+                  presentation="inline"
+                />
+              </div>
+
+              <h1 className="mt-3 wrap-break-word text-3xl font-semibold tracking-tight text-text-primary sm:text-4xl">
+                {pedido.title}
+              </h1>
+
+              {deliveryDate ? (
+                <p className="mt-3 text-sm leading-6 text-text-secondary">
+                  {deliveryLabel}:{" "}
+                  <span className="font-semibold text-text-primary">
+                    {deliveryDate}
+                  </span>
+                </p>
+              ) : null}
+            </div>
+
+            {editControl ? (
+              <div className="shrink-0">{editControl}</div>
+            ) : null}
           </div>
-
-          <h1 className="mt-3 wrap-break-word text-3xl font-semibold tracking-tight text-text-primary sm:text-4xl">
-            {pedido.title}
-          </h1>
-
-          {deliveryDate ? (
-            <p className="mt-3 text-sm leading-6 text-text-secondary">
-              {deliveryLabel}:{" "}
-              <span className="font-semibold text-text-primary">
-                {deliveryDate}
-              </span>
-            </p>
-          ) : null}
         </div>
 
         <BackToPedidosLink presentation="button" />

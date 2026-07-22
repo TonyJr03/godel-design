@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import type {
   PedidoDetailAction,
+  UpdatePedidoDataActionState,
   UpdatePedidoStatusActionState,
 } from "@/app/(interno)/dashboard/pedidos/[id]/actions";
 import {
@@ -27,6 +28,7 @@ import type { PedidoFileListItem } from "@/lib/storage";
 import { getTodayDateInputValue } from "@/lib/utils";
 import { WORKFLOW_TYPES } from "@/lib/workflow-types";
 
+import { PedidoEditDialogButton } from "./PedidoEditDialogButton";
 import { PedidoStatusForm } from "./PedidoStatusForm";
 import {
   PedidoCommentsPanel,
@@ -39,6 +41,7 @@ import {
 
 type InternalPedidoDetailProps = {
   pedido: InternalPedidoDetailData;
+  updatePedidoDataAction?: PedidoDetailAction<UpdatePedidoDataActionState>;
   updateStatusAction: PedidoDetailAction<UpdatePedidoStatusActionState>;
   taskProgress?: PedidoTasksProgress | null;
   tasksLoadError?: string;
@@ -137,6 +140,7 @@ function getPaymentActionState(
 
 export function InternalPedidoDetail({
   pedido,
+  updatePedidoDataAction,
   updateStatusAction,
   taskProgress,
   tasksLoadError,
@@ -216,6 +220,9 @@ export function InternalPedidoDetail({
   const compactActionIds = isPrintWorkflow
     ? ["estado", "archivos", "pagos"]
     : ["estado", "tareas", "archivos"];
+  const editControl = updatePedidoDataAction ? (
+    <PedidoEditDialogButton pedido={pedido} action={updatePedidoDataAction} />
+  ) : undefined;
   const workspaceActions: readonly WorkspaceAction[] = [
     {
       id: "estado",
@@ -433,7 +440,9 @@ export function InternalPedidoDetail({
           hasActions
           desktopMode="contained"
           railPresentation="icons"
-          header={<PedidoWorkspaceHeader pedido={pedido} />}
+          header={
+            <PedidoWorkspaceHeader pedido={pedido} editControl={editControl} />
+          }
           main={
             <PedidoWorkspaceMain
               pedido={pedido}

@@ -9,7 +9,7 @@ import type {
   UpdatePedidoDataActionState,
 } from "@/app/(interno)/dashboard/pedidos/[id]/actions";
 import { InternalFormDialog } from "@/components/forms";
-import type { InternalPedidoDetail } from "@/lib/pedidos";
+import type { InternalPedidoDetail } from "@/lib/pedidos/get-internal-pedido-detail-types";
 
 import { PedidoEditForm } from "./PedidoEditForm";
 

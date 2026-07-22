@@ -17,11 +17,13 @@ import {
   Textarea,
 } from "@/components/ui";
 import {
-  PEDIDO_PRIORIDADES,
-  PEDIDO_PRIORITY_LABELS,
   type InternalPedidoDetail,
+} from "@/lib/pedidos/get-internal-pedido-detail-types";
+import { PEDIDO_PRIORITY_LABELS } from "@/lib/pedidos/labels";
+import {
+  PEDIDO_PRIORIDADES,
   type PedidoEditField,
-} from "@/lib/pedidos";
+} from "@/lib/pedidos/order-validation";
 
 type PedidoEditFormProps = {
   pedido: InternalPedidoDetail;
@@ -159,7 +161,6 @@ export function PedidoEditForm({
             <FormField
               id="estimated_delivery_date"
               label="Fecha estimada de entrega"
-              help="Si cambias esta fecha, selecciona hoy o una fecha futura."
               error={fechaEntregaError}
               compact
             >
