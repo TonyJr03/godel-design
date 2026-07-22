@@ -118,6 +118,7 @@ manualmente.
 | `tarea_reabierta` |
 | `tarea_progreso_actualizado` |
 | `pago_actualizado` |
+| `pedido_actualizado` |
 
 ### `solicitud_historial_action`
 
@@ -311,6 +312,9 @@ manualmente.
 - En pedidos de tipo `encargo`, las tareas modelan el progreso real y condicionan el avance operativo mediante `public.actualizar_estado_pedido`.
 - En pedidos de tipo `impresion`, las tareas no son obligatorias y el pedido puede avanzar por los mismos estados generales sin crearlas.
 - `public.actualizar_estado_pedido` bloquea el pedido con `FOR UPDATE` y las tareas existentes con `FOR SHARE` durante la decisión.
+- Los datos editables del pedido (`title`, `description`, `priority` y
+  `estimated_delivery_date`) se actualizan de forma controlada mediante
+  `public.actualizar_datos_pedido`.
 - Para marcar `entregado`, `public.actualizar_estado_pedido` exige que
   `pedido_pagos.payment_status = 'pagado'`; los pedidos con total cero cumplen
   esta regla porque el resumen financiero queda `pagado`.
@@ -372,6 +376,14 @@ No es una tabla de movimientos, abonos individuales ni comprobantes.
 - La actualizacion interna de pagos usa `public.actualizar_pago_pedido` para
   modificar solo efectivo y transferencia acumulados, mantener `updated_by` y
   registrar historial en una sola transaccion.
+- El precio total puede editarse de forma controlada mediante
+  `public.actualizar_datos_pedido`, de manera atómica con la actualización de
+  los datos básicos en `pedidos`.
+- La RPC no permite reducir `total_amount` por debajo de
+  `paid_cash_amount + paid_transfer_amount`.
+- Si el precio cambia, `public.actualizar_datos_pedido` actualiza `updated_by`.
+- El trigger financiero recalcula `payment_status` y `paid_at` después del
+  cambio de precio.
 - El estado de pago `pagado` es condicion para que
   `public.actualizar_estado_pedido` pueda cerrar el pedido como `entregado`.
 - El listado interno puede leer este resumen para mostrar y filtrar estado de
@@ -835,7 +847,51 @@ El diagnóstico y diseño actualizado para comentarios internos e historial oper
   lo asocia a la solicitud de forma atómica.
 - `public.actualizar_estado_pedido` serializa cambios de estado y valida tareas
   y pago completo antes de entregar.
+- `public.actualizar_datos_pedido` serializa la edición controlada de datos
+  básicos y precio total en pedidos activos.
 - `public.actualizar_estado_solicitud` controla las transiciones manuales.
+
+### `public.actualizar_datos_pedido`
+
+RPC transaccional para editar datos básicos y precio total de un pedido activo.
+
+Argumentos:
+
+- `p_pedido_id uuid`;
+- `p_title text`;
+- `p_description text`;
+- `p_priority public.pedido_prioridad`;
+- `p_estimated_delivery_date date`;
+- `p_total_amount numeric`.
+
+Retorna una fila con `pedido_id`, `title`, `description`, `priority`,
+`estimated_delivery_date`, `total_amount`, `payment_status` y `paid_at`.
+
+Contrato:
+
+- es `security definer` y fija `search_path = public, private`;
+- revoca ejecución a `public`, `anon` y `authenticated`, y luego concede
+  `execute` únicamente a `authenticated`;
+- requiere sesión autenticada con usuario interno activo;
+- permite solamente `admin` o `supervisor`;
+- bloquea `pedidos` y `pedido_pagos` con `FOR UPDATE`;
+- rechaza pedidos `entregado` o `cancelado`;
+- valida título, descripción, prioridad, fecha estimada y precio total;
+- permite `estimated_delivery_date = null`;
+- permite conservar una fecha estimada vencida existente, pero si cambia exige
+  que el nuevo valor no sea anterior a la fecha de negocio actual;
+- rechaza `p_total_amount` menor que efectivo pagado más transferencia pagada;
+- actualiza `pedidos` y, si cambia el precio, `pedido_pagos.total_amount` y
+  `updated_by`;
+- deja que triggers de `updated_at` y del resumen financiero mantengan
+  timestamps, `payment_status` y `paid_at`;
+- si no detecta cambios reales, retorna el estado actual sin insertar historial;
+- cuando hay cambios, inserta exactamente un evento `pedido_actualizado` en
+  `pedido_historial`, con `metadata.changed_fields` y metadatos estructurados.
+
+La metadata guarda valores anterior/nuevo para título, prioridad, fecha estimada
+y precio total. Para descripción guarda solo `{ changed: true }`, de modo que el
+historial no conserva los textos completos anterior y nuevo.
 
 La evolución del esquema debe hacerse mediante nuevas migraciones y mantener
 alineados los tipos generados de Supabase.

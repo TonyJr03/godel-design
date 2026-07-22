@@ -52,7 +52,8 @@ separacion es intencional y evita un `types.ts` unico demasiado grande.
 | `list-internal-pedidos-mappers.ts` | Mappers del listado y resumen financiero de tarjetas/tabla. |
 | `list-internal-pedidos-progress.ts` | Carga agregada de progreso de tareas para listados. |
 | `list-internal-pedidos-filters.ts` | Normalización y validación de filtros del listado. |
-| `rpc.ts` | Wrappers tipados de RPCs usadas por Pedidos. |
+| `rpc.ts` | Wrappers tipados de RPCs usadas por Pedidos, incluido `actualizar_datos_pedido` con adaptación localizada de nulabilidad del tipo generado. |
+| `update-internal-pedido.ts` | Servicio de edición controlada de datos básicos y precio mediante RPC transaccional. |
 | `update-internal-pedido-status.ts` | Servicio de cambio de estado; valida permiso/acceso y delega en RPC. |
 | `status.ts` | Estados, transiciones permitidas y reglas auxiliares de estado/tareas/pago. |
 | `update-pedido-payment.ts` | Orquestador de actualización de pagos acumulados. |
@@ -76,7 +77,7 @@ separacion es intencional y evita un `types.ts` unico demasiado grande.
 | `list-pedido-comments.ts` | Loader de comentarios internos de pedido. |
 | `create-pedido-comment.ts` | Servicio para agregar comentarios internos append-only. |
 | `list-pedido-history.ts` | Loader del historial visible mediante RPC segura. |
-| `order-validation.ts` | Validaciones de creación/conversión de pedidos e impresión. |
+| `order-validation.ts` | Validaciones separadas de creación, conversión y edición de pedidos e impresión. |
 | `labels.ts` | Labels visibles de estados, prioridades, pagos e historial. |
 | `index.ts` | Punto de exportación pública del dominio. |
 
@@ -201,11 +202,61 @@ solo a `authenticated`.
 
 Cuando un pedido muestra datos de su solicitud origen, el tipo de servicio debe renderizarse con `getSolicitudServiceTypeLabel` desde `src/lib/solicitudes/labels.ts` para evitar valores técnicos o históricos sin tildes en listados, detalles y dashboard.
 
+## Edición de Pedido
+
+El flujo de edición controlada es:
+
+```text
+PedidoEditForm
+→ updatePedidoDataAction
+→ updateInternalPedido
+→ updatePedidoDataRpc
+→ public.actualizar_datos_pedido
+```
+
+`page.tsx` carga el pedido en Server Component, valida acceso y enlaza
+`pedidoId` a `updatePedidoDataAction`. El formulario no envía el UUID en
+`FormData`; solo envía `title`, `description`, `priority`,
+`estimated_delivery_date` y `total_amount`.
+
+El botón `Editar pedido` se renderiza de forma condicional para usuarios con
+`pedidos.manage` y pedidos activos. En la práctica lo reciben `admin` y
+`supervisor`; `trabajador` puede leer pedidos asignados, pero no ve el control
+ni puede ejecutar la operación en `updateInternalPedido` o en PostgreSQL.
+`entregado` y `cancelado` son estados cerrados y bloquean la edición.
+
+`updateInternalPedido` valida usuario interno activo, permiso, UUID y campos de
+edición con `validatePedidoUpdateInput`. Mapea errores seguros de la RPC a
+mensajes de formulario sin exponer errores SQL ni metadata cruda. Los
+componentes cliente importan tipos, labels y validaciones desde módulos directos
+para no arrastrar módulos server-only desde el barrel del dominio.
+
+La fecha estimada puede quedar `null`. Si el pedido tiene una fecha estimada
+vencida existente, el formulario permite conservarla y por eso no usa
+`min={today}`. Si la fecha cambia, la RPC compara el valor nuevo con la fecha de
+negocio actual y rechaza valores anteriores.
+
+El precio total se modifica en este flujo, no en `PedidoPaymentSection`. La RPC
+no permite que `total_amount` quede por debajo de
+`paid_cash_amount + paid_transfer_amount`. Si el precio cambia, actualiza
+`pedido_pagos.total_amount` y `updated_by`, y deja que el trigger financiero
+recalcule `payment_status` y `paid_at`.
+
+La RPC bloquea `pedidos` y `pedido_pagos` con `FOR UPDATE` y confirma datos,
+precio e historial en una sola transacción. Si no hay cambios reales, no crea
+historial. Si hay cambios, registra exactamente un evento `pedido_actualizado`
+con `metadata.changed_fields`. Para descripción guarda solo
+`{ changed: true }`, sin persistir los textos completos anterior y nuevo.
+
+Después de una actualización correcta, la action revalida `/dashboard`,
+`/dashboard/pedidos` y el detalle del pedido para sincronizar dashboard, listado
+y pantalla actual.
+
 ## Pago del Pedido
 
 `/dashboard/pedidos/[id]` incluye `PedidoPaymentSection`.
 
-La pagina del detalle enlaza `pedido_id` a `updatePedidoPaymentAction`; el formulario envia unicamente `paid_cash_amount` y `paid_transfer_amount` como montos acumulados actuales. No acepta `total_amount`, `payment_status`, `paid_at`, `updated_by` ni campos de historial desde el cliente.
+La pagina del detalle enlaza `pedido_id` a `updatePedidoPaymentAction`; el formulario envia unicamente `paid_cash_amount` y `paid_transfer_amount` como montos acumulados actuales. No acepta `payment_status`, `paid_at`, `updated_by` ni campos de historial desde el cliente. El precio total se edita únicamente desde el diálogo `Editar pedido`, mediante `public.actualizar_datos_pedido`, y no puede quedar por debajo del total pagado.
 
 `updatePedidoPayment` valida UUID, usuario interno activo, rol `admin` o `supervisor`, formato numerico, montos no negativos, maximo dos decimales y que efectivo mas transferencia no supere el total. Despues delega en `public.actualizar_pago_pedido`, que repite permisos en base de datos, actualiza solo efectivo y transferencia, deja que el trigger calcule `payment_status` y registra `pago_actualizado` en `pedido_historial`.
 
@@ -347,7 +398,8 @@ Las actions son adaptadores finos: leen solo los campos editables, delegan la
 autorización y la mutación en servicios server-side o RPCs, y revalidan
 `/dashboard`, `/dashboard/pedidos` y el detalle. Desde Beta 2.3.1 están
 divididas por familia en `src/app/(interno)/dashboard/pedidos/[id]/actions/`:
-estado, tareas, pagos, archivos, comentarios, asignaciones y plantillas.
+edición, estado, tareas, pagos, archivos, comentarios, asignaciones y
+plantillas.
 
 Los comentarios son append-only. No hay edición, eliminación, menciones, notificaciones, adjuntos ni registro automático adicional de historial en esta subfase.
 
@@ -357,7 +409,19 @@ Los comentarios son append-only. No hay edición, eliminación, menciones, notif
 
 `listPedidoHistory` carga el historial server-side mediante la RPC segura `public.listar_pedido_historial`. Valida UUID, perfil interno, permiso `pedidos.view` y acceso al pedido. La RPC valida `private.can_access_pedido`, no abre `perfiles` globalmente y devuelve solo datos mínimos del actor: nombre y rol.
 
-El historial es append-only. No hay edición ni eliminación. Los cambios de estado se registran mediante `public.actualizar_estado_pedido`. Los eventos de tareas se muestran con resúmenes controlados y título de tarea cuando existe, sin renderizar JSON ni metadata cruda.
+El historial es append-only. No hay edición ni eliminación. Los cambios de
+estado se registran mediante `public.actualizar_estado_pedido`. La edición
+controlada de datos básicos y precio registra `pedido_actualizado` mediante
+`public.actualizar_datos_pedido` solo cuando hay cambios reales. Los eventos de
+tareas se muestran con resúmenes controlados y título de tarea cuando existe,
+sin renderizar JSON ni metadata cruda.
+
+Para `pedido_actualizado`, la UI reconstruye el resumen visible desde
+`metadata.changed_fields` con etiquetas controladas: `título`, `descripción`,
+`prioridad`, `fecha estimada` y `precio`. No muestra identificadores técnicos
+como `total_amount` o `estimated_delivery_date`. La descripción se registra
+como `{ changed: true }`, sin guardar los textos completos anterior y nuevo en
+historial.
 
 Desde Fase 11.7A, la base de datos registra automáticamente estos eventos de pedido mediante triggers controlados:
 
@@ -381,6 +445,8 @@ la URL y respeta RLS; `trabajador` solo recibe pedidos asignados.
 - `admin` y `supervisor` pueden ver el detalle de cualquier pedido.
 - `admin` y `supervisor` pueden crear pedidos manuales.
 - `admin` y `supervisor` pueden convertir solicitudes aprobadas en pedidos.
+- `admin` y `supervisor` pueden editar datos básicos y precio de pedidos
+  activos.
 - `admin` y `supervisor` pueden cambiar el estado de cualquier pedido.
 - `admin` y `supervisor` pueden asignar o remover personal interno activo de un pedido.
 - `admin` y `supervisor` pueden ver y agregar comentarios internos en cualquier pedido.
@@ -394,9 +460,11 @@ la URL y respeta RLS; `trabajador` solo recibe pedidos asignados.
 - `trabajador` puede gestionar tareas solo de pedidos asignados y en un estado permitido.
 - `trabajador` puede ver y agregar comentarios internos solo en pedidos asignados.
 - `trabajador` puede ver historial interno solo de pedidos asignados.
-- `trabajador` no puede crear, convertir, asignar ni remover asignaciones de pedidos.
+- `trabajador` no puede crear, convertir, editar datos básicos o precio,
+  asignar ni remover asignaciones de pedidos.
 - usuarios anónimos no pueden leer ni crear pedidos.
 
 ## Fuera de Esta Subfase
 
-La edición general, la eliminación, notificaciones e historial avanzado quedan para próximas subfases.
+La eliminación, notificaciones, edición de campos fuera del alcance controlado e
+historial avanzado quedan para próximas subfases.
