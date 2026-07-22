@@ -13,6 +13,14 @@ type PedidoHistoryTimelineProps = {
   loadErrorRetryable?: boolean;
 };
 
+const PEDIDO_UPDATED_FIELD_LABELS = {
+  title: "título",
+  description: "descripción",
+  priority: "prioridad",
+  estimated_delivery_date: "fecha estimada",
+  total_amount: "precio",
+} as const;
+
 function formatHistoryValue(value: string | null): string {
   if (!value) {
     return "sin dato";
@@ -34,11 +42,36 @@ function getHistoryMetadataString(
   return typeof value === "string" && value.trim() ? value : null;
 }
 
+function getHistoryMetadataStringArray(
+  metadata: PedidoHistoryItem["metadata"],
+  key: string,
+): string[] {
+  if (typeof metadata !== "object" || metadata === null || Array.isArray(metadata)) {
+    return [];
+  }
+
+  const value = (metadata as Record<string, unknown>)[key];
+
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter(
+    (entry): entry is string => typeof entry === "string" && Boolean(entry.trim()),
+  );
+}
+
 function getHistoryTaskTitle(
   item: PedidoHistoryItem,
   fallback: string | null,
 ): string | null {
   return getHistoryMetadataString(item.metadata, "title") ?? fallback;
+}
+
+function isPedidoUpdatedField(
+  field: string,
+): field is keyof typeof PEDIDO_UPDATED_FIELD_LABELS {
+  return Object.prototype.hasOwnProperty.call(PEDIDO_UPDATED_FIELD_LABELS, field);
 }
 
 function getHistorySummary(item: PedidoHistoryItem): string {
@@ -122,6 +155,21 @@ function getHistorySummary(item: PedidoHistoryItem): string {
 
   if (item.action === "pago_actualizado") {
     return "Pago del pedido actualizado.";
+  }
+
+  if (item.action === "pedido_actualizado") {
+    const labels = getHistoryMetadataStringArray(
+      item.metadata,
+      "changed_fields",
+    ).flatMap((field) =>
+      isPedidoUpdatedField(field) ? [PEDIDO_UPDATED_FIELD_LABELS[field]] : [],
+    );
+
+    if (labels.length === 0) {
+      return "Datos del pedido actualizados.";
+    }
+
+    return `Datos del pedido actualizados: ${labels.join(", ")}.`;
   }
 
   return item.summary || "Evento registrado en el pedido.";
