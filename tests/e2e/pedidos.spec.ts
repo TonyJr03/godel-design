@@ -355,6 +355,18 @@ async function createManualPedido(
   await dialog.locator('input[name="total_amount"]').fill(total);
   await dialog.getByLabel(/t.tulo del trabajo/i).fill(title);
   await dialog.getByRole("button", { name: /crear pedido/i }).click();
+  await expect(dialog).toBeHidden({ timeout: 15_000 });
+  await expectPedidosListLoaded(page);
+  await expect(page).not.toHaveURL(/\/dashboard\/pedidos\/[^/]+$/);
+
+  const createdPedidoLink = page
+    .getByRole("link")
+    .filter({ hasText: title })
+    .first();
+
+  await expect(createdPedidoLink).toBeVisible();
+  await expect(createdPedidoLink.getByText(/^Creado$/i)).toBeVisible();
+  await createdPedidoLink.click();
   await expect(page).toHaveURL(/\/dashboard\/pedidos\/[^/]+$/, {
     timeout: 15_000,
   });
