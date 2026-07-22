@@ -6,6 +6,7 @@ export type {
   WorkspacePanel,
   WorkspacePanelContentMode,
 } from "./types";
+export { AutoReviewOnOpen } from "./AutoReviewOnOpen";
 export { MobileWorkspaceBar } from "./MobileWorkspaceBar";
 export { WorkspaceActionRail } from "./WorkspaceActionRail";
 export { WorkspaceActionTrigger } from "./WorkspaceActionTrigger";
