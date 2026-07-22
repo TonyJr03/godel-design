@@ -37,6 +37,7 @@ export {
   type CreatePedidoFromSolicitudResult,
 } from "./create-pedido-from-solicitud";
 export {
+  PEDIDO_EDIT_FIELDS,
   PEDIDO_FIELDS,
   PEDIDO_PRIORIDADES,
   PRINT_COLOR_MODE_OPTIONS,
@@ -44,15 +45,21 @@ export {
   PRINT_SIDES_OPTIONS,
   isPedidoPrioridad,
   validatePedidoInput,
+  validatePedidoUpdateInput,
   type CreatePedidoData,
   type CreatePedidoInput,
+  type PedidoEditField,
+  type PedidoEditFieldErrors,
   type PedidoField,
   type PedidoFieldErrors,
   type PedidoPrioridad,
   type PrintColorMode,
   type PrintPaperSize,
   type PrintSides,
+  type UpdatePedidoData,
+  type UpdatePedidoInput,
   type ValidatePedidoInputResult,
+  type ValidatePedidoUpdateInputResult,
 } from "./order-validation";
 export {
   PEDIDO_HISTORY_ACTION_LABELS,
@@ -77,6 +84,12 @@ export {
   type PedidoStatusTransitionContext,
   type PedidoStatusTransitionOption,
 } from "./status";
+export {
+  updateInternalPedido,
+  type UpdateInternalPedidoErrorReason,
+  type UpdateInternalPedidoInput,
+  type UpdateInternalPedidoResult,
+} from "./update-internal-pedido";
 export {
   updateInternalPedidoStatus,
   type PedidoStatusFieldErrors,

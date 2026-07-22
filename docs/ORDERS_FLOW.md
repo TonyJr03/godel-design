@@ -23,16 +23,15 @@ El módulo de pedidos incluye actualmente:
 - filtro por estado de pago en listado interno;
 - código público de seguimiento visible y copiable en el detalle interno;
 - resumen financiero base 1:1 en `pedido_pagos`;
-- visualizacion y actualizacion interna de pagos acumulados;
+- visualización y actualización interna de pagos acumulados;
+- edición controlada de datos básicos y precio en pedidos activos;
 - visibilidad limitada para trabajadores asignados.
 
 Todavía no incluye:
 
-- edición general de pedido;
 - eliminación de pedido;
 - filtros o reportes avanzados sobre historial;
 - tabla de movimientos o abonos individuales;
-- edicion del total financiero desde el detalle;
 - notificaciones;
 - reportes o estadísticas;
 - responsables funcionales avanzados por pedido.
@@ -155,14 +154,19 @@ desde solicitudes aplica la misma regla mediante
 El detalle interno del pedido muestra total, efectivo, transferencia, total
 pagado, pendiente, estado y fecha de pago completo si aplica. `admin` y
 `supervisor` pueden actualizar los montos acumulados `paid_cash_amount` y
-`paid_transfer_amount` mediante `public.actualizar_pago_pedido`; el total no se
-edita desde esta pantalla. La RPC valida permisos, montos no negativos, maximo
-dos decimales y que la suma pagada no supere `total_amount`. El trigger de
-`pedido_pagos` recalcula `payment_status` y `paid_at`. Cada actualizacion
-registra historial con `pago_actualizado`. Todavia no hay movimientos o abonos
-individuales. Para marcar un pedido como `entregado`, el pago debe estar
-completo: `pedido_pagos.payment_status = 'pagado'`. Los pedidos con
-`total_amount = 0` cumplen esta regla porque quedan `pagado`.
+`paid_transfer_amount` mediante `PedidoPaymentSection` y
+`public.actualizar_pago_pedido`. Ese flujo modifica pagos recibidos, no el
+precio total. El diálogo `Editar pedido` modifica el precio total de forma
+controlada mediante `public.actualizar_datos_pedido`; nunca permite dejarlo por
+debajo del efectivo pagado más la transferencia pagada. Las RPCs validan
+permisos, montos no negativos, máximo dos decimales y consistencia financiera.
+El trigger de `pedido_pagos` recalcula `payment_status` y `paid_at`. Cada
+actualización de efectivo o transferencia registra historial con
+`pago_actualizado`; cada guardado real de datos básicos o precio registra
+`pedido_actualizado`. Todavía no hay movimientos o abonos individuales. Para
+marcar un pedido como `entregado`, el pago debe estar completo:
+`pedido_pagos.payment_status = 'pagado'`. Los pedidos con `total_amount = 0`
+cumplen esta regla porque quedan `pagado`.
 
 El listado interno de pedidos muestra el estado de pago resumido y permite
 filtrar por `sin_pago`, `parcial` o `pagado` mediante `payment_status`. Este
@@ -320,11 +324,59 @@ visibles para ambos tipos.
 
 Un trabajador no puede ver pedidos no asignados, pero sí puede ver el cliente,
 la solicitud relacionada, los comentarios internos y los archivos de pedidos
-que tiene asignados. No se implementa edición general.
+que tiene asignados. Puede leer sus pedidos asignados, pero no recibe el control
+de edición ni puede ejecutar la operación en servicios de dominio o PostgreSQL.
 
 Las acciones y validaciones de tareas no cambian. Una impresión puede conservar
 tareas existentes, pero no las necesita para avanzar entre revisión, producción
 y listo para entrega.
+
+## Edición de pedidos
+
+El detalle permite edición controlada de datos básicos y precio en pedidos
+activos. Los usuarios con `pedidos.manage`, actualmente `admin` y `supervisor`,
+pueden modificar desde el diálogo `Editar pedido`:
+
+- título;
+- descripción;
+- prioridad;
+- fecha estimada de entrega;
+- precio total.
+
+Quedan fuera de este formulario: cliente, tipo de flujo, estado, tareas,
+personal, archivos y pagos recibidos. Esos datos siguen gestionándose por sus
+flujos propios o no son editables en esta superficie.
+
+La página server-side carga y valida el pedido, enlaza `pedido_id` a
+`updatePedidoDataAction` y renderiza el botón de edición solo cuando el usuario
+puede gestionar el pedido y el estado está activo. El formulario no envía el UUID
+del pedido en `FormData`; solo envía los campos editables. El diálogo conserva
+la confirmación de cierre con cambios sin guardar.
+
+Los estados `entregado` y `cancelado` son cerrados y no admiten esta edición. La
+RPC `public.actualizar_datos_pedido` repite la autorización: requiere usuario
+interno activo y permite solamente `admin` o `supervisor`. Además bloquea
+`pedidos` y `pedido_pagos` con `FOR UPDATE`, valida los campos y ejecuta los
+cambios en una única transacción.
+
+La fecha estimada puede ser `null`. Si el pedido ya tiene una fecha estimada
+vencida, el formulario permite conservarla; por eso la UI de edición no usa
+`min={today}`. Si la fecha cambia, la RPC compara el valor nuevo con la fecha de
+negocio actual y rechaza valores anteriores.
+
+El precio total puede cambiar solo si no queda por debajo de lo ya pagado:
+`paid_cash_amount + paid_transfer_amount`. Si el precio cambia, la RPC actualiza
+`pedido_pagos.total_amount` y `updated_by`, y deja que el trigger financiero
+recalcule `payment_status` y `paid_at`.
+
+Si el guardado no produce cambios reales, la RPC retorna los datos actuales y no
+inserta historial. Cuando hay cambios, registra exactamente un evento
+`pedido_actualizado` con `metadata.changed_fields`. Para la descripción guarda
+solo `{ changed: true }`, sin persistir en historial los textos completos
+anterior y nuevo. La capa de presentación reconstruye el resumen visible desde
+`changed_fields` usando etiquetas controladas: `título`, `descripción`,
+`prioridad`, `fecha estimada` y `precio`; no renderiza metadata cruda ni
+identificadores técnicos como `total_amount` o `estimated_delivery_date`.
 
 ## Comentarios internos de pedido
 
@@ -361,9 +413,15 @@ Desde Fase 11.7A, el historial de pedidos registra automáticamente:
 - `archivo_subido` al subir archivos propios de pedido;
 - eventos de creación, actualización, eliminación, completado, reapertura y
   progreso de tareas;
-- cambios de estado mediante la RPC existente `public.actualizar_estado_pedido`.
+- cambios de estado mediante la RPC existente `public.actualizar_estado_pedido`;
+- edición controlada de datos básicos y precio mediante
+  `public.actualizar_datos_pedido`, que inserta `pedido_actualizado`.
 
-No se crea trigger de actualización de estado para evitar duplicar los eventos que ya registra la RPC. Los archivos heredados de solicitudes con `visibility = "cliente_solicitud"` no generan `archivo_subido` del pedido.
+No se crea trigger de actualización de estado para evitar duplicar los eventos
+que ya registra la RPC. `pedido_actualizado` también se inserta explícitamente
+por RPC, no por trigger, para guardar una sola fila con el conjunto completo de
+campos modificados. Los archivos heredados de solicitudes con
+`visibility = "cliente_solicitud"` no generan `archivo_subido` del pedido.
 
 ## Archivos privados de pedido
 
@@ -625,7 +683,6 @@ Aclaraciones:
 
 ## Qué no incluye esta fase
 
-- edición general de pedido;
 - eliminación;
 - filtros o reportes avanzados de historial;
 - edición o eliminación de comentarios internos;
@@ -644,7 +701,8 @@ Más adelante se podrá:
 - implementar notificaciones;
 - agregar reportes de producción;
 - crear vistas por carga de trabajo;
-- implementar edición controlada de campos del pedido.
+- ampliar la edición controlada hacia campos adicionales si existe una regla de
+  negocio clara.
 
 El diseño técnico de comentarios internos e historial para la Fase 11 se documenta en `docs/COMMENTS_AND_HISTORY_MODEL.md`.
 

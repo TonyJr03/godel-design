@@ -51,4 +51,5 @@ export const PEDIDO_HISTORY_ACTION_LABELS: Record<
   tarea_reabierta: "Tarea reabierta",
   tarea_progreso_actualizado: "Progreso de tarea actualizado",
   pago_actualizado: "Pago actualizado",
+  pedido_actualizado: "Pedido actualizado",
 };

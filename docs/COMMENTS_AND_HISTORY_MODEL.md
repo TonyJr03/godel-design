@@ -56,6 +56,7 @@ El proyecto no parte de cero. La migración inicial creó estructuras relacionad
 - existe la tabla `solicitud_historial`;
 - existe el enum `solicitud_historial_action`;
 - existe la RPC `public.actualizar_estado_pedido`;
+- existe la RPC `public.actualizar_datos_pedido`;
 - existe la RPC `public.actualizar_estado_solicitud`;
 - existe RLS para `pedido_comentarios`;
 - existe RLS para `pedido_historial`;
@@ -153,11 +154,41 @@ El insert de `pedidos` activa `pedido_creado`. El update que establece a la vez
 `archivos.pedido_id` no genera `archivo_subido`, porque no inserta un archivo
 nuevo ni altera su visibilidad.
 
+### RPC `actualizar_datos_pedido`
+
+La RPC `public.actualizar_datos_pedido` ejecuta de forma atómica la edición
+controlada de datos básicos y precio total de un pedido activo. Valida usuario
+interno activo, permite solo `admin` o `supervisor`, bloquea `pedidos` y
+`pedido_pagos` con `FOR UPDATE`, actualiza ambas tablas cuando corresponde y
+registra historial dentro de la misma transacción.
+
+Cuando el guardado contiene cambios reales, inserta exactamente un evento
+`pedido_actualizado` con `actor_id = auth.uid()`. Si el guardado es no-op,
+retorna los datos actuales sin insertar evento.
+
+La metadata es estructurada. `metadata.changed_fields` conserva el orden de los
+campos modificados. Para título, prioridad, fecha estimada y precio total se
+guardan valores anterior y nuevo. Para descripción se guarda solo
+`{ changed: true }`, de modo que no quedan almacenados en el historial los textos
+completos anterior y nuevo.
+
+El resumen visible no depende del `summary` persistido para este evento. La UI
+lo reconstruye desde `metadata.changed_fields` usando etiquetas controladas:
+`título`, `descripción`, `prioridad`, `fecha estimada` y `precio`. Si la metadata
+falta, es inválida o no contiene campos conocidos, la presentación muestra el
+fallback seguro `Datos del pedido actualizados.`. No se renderiza metadata cruda
+ni identificadores técnicos como `total_amount` o `estimated_delivery_date`.
+
+Este evento se inserta explícitamente desde la RPC, no mediante trigger, para
+garantizar una sola fila con el conjunto completo de campos modificados.
+
 ### Acciones y Servicios Actuales
 
 Las acciones y servicios actuales no aceptan datos de historial desde formularios. El historial se registra mediante RPCs, triggers privados o servicios server-side controlados:
 
 - `updateInternalPedidoStatus` llama a `public.actualizar_estado_pedido`, que registra cambios de estado de pedido;
+- `updateInternalPedido` llama a `public.actualizar_datos_pedido`, que registra
+  `pedido_actualizado` cuando hay cambios reales;
 - la creación de pedidos, asignación/remoción de personal y subida de archivos propios de pedido se registran por triggers;
 - las acciones de tareas de pedido delegan en servicios server-side y los eventos se registran por triggers sobre `pedido_tareas`;
 - las mutaciones bloqueadas por el estado del pedido no alcanzan esos triggers
@@ -538,8 +569,9 @@ Eventos mínimos:
 | `tarea_completada` | Una tarea pasa a completada. | tarea, usuario, fecha y estado. |
 | `tarea_reabierta` | Una tarea completada vuelve a abierta. | tarea y estado anterior/nuevo. |
 | `tarea_progreso_actualizado` | Cambia el avance numérico de una tarea cuantificada. | título de tarea, cantidad anterior y cantidad nueva. |
+| `pedido_actualizado` | Guardado real desde la edición controlada del pedido. | campos modificados, actor y metadata estructurada segura. |
 
-La RPC actual cubre cambios de estado de pedido con el enum simplificado de fases generales y valida las transiciones según tareas. Los eventos de tareas quedan conectados mediante triggers de base de datos; los servicios server-side y la UI del detalle de pedido ya pueden listar, crear, actualizar, completar, reabrir y eliminar tareas.
+La RPC actual cubre cambios de estado de pedido con el enum simplificado de fases generales y valida las transiciones según tareas. Los eventos de tareas quedan conectados mediante triggers de base de datos; los servicios server-side y la UI del detalle de pedido ya pueden listar, crear, actualizar, completar, reabrir y eliminar tareas. `pedido_actualizado` se inserta explícitamente por `public.actualizar_datos_pedido`, no por trigger, para garantizar una sola fila con el conjunto completo de campos modificados.
 
 ### Solicitudes
 

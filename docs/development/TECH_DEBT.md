@@ -179,9 +179,11 @@ Estado actual:
 - La creacion manual ya registra precio inicial.
 - El detalle interno permite a `admin` y `supervisor` actualizar efectivo y
   transferencia acumulados.
+- El detalle interno permite a `admin` y `supervisor` editar de forma
+  controlada el precio total de pedidos activos, con historial y límite para no
+  quedar por debajo de lo ya pagado.
 - El listado interno muestra y filtra estado de pago.
 - La entrega queda bloqueada si el pago no esta completo.
-- No existe todavia edicion controlada del total.
 
 ### 11. Movimientos, comprobantes y cierre operativo
 
@@ -194,15 +196,15 @@ Propuesta futura:
 
 - Agregar tabla de movimientos de pago o abonos si se requiere trazabilidad por
   transaccion.
-- Definir edicion controlada del total despues de creado el pedido, con permisos
-  e historial especificos.
 - Modelar comprobantes de transferencia y adjuntos asociados.
 - Definir impresion o generacion de recibos.
 - Evaluar cierre de caja por dia, usuario o turno.
 - Agregar metricas financieras al dashboard cuando haya necesidad real: pedidos
   pendientes de pago, monto pendiente total y monto cobrado.
 - Evaluar exportes financieros y filtros avanzados por deuda o monto pendiente.
-- Endurecer auditoria historica para ediciones de precio y pagos.
+- Endurecer auditoria contable o financiera para movimientos, comprobantes y
+  ajustes de pago; el historial actual ya registra cambios de precio de forma
+  operativa.
 
 ## Hallazgos de auditoria Tools 2.1 - Preparacion Beta
 
