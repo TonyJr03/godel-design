@@ -1,5 +1,6 @@
 import {
   hasFieldErrors,
+  isValidIsoDate,
   isValidUuid,
   normalizeMultilineText,
   normalizeOptionalMultilineText,
@@ -53,9 +54,18 @@ export const PEDIDO_FIELDS = [
   "print_notes",
 ] as const;
 
+export const PEDIDO_EDIT_FIELDS = [
+  "title",
+  "description",
+  "total_amount",
+  "priority",
+  "estimated_delivery_date",
+] as const;
+
 export const PEDIDO_PRIORIDADES = PEDIDO_PRIORITIES;
 
 export type PedidoField = (typeof PEDIDO_FIELDS)[number];
+export type PedidoEditField = (typeof PEDIDO_EDIT_FIELDS)[number];
 export type PedidoPrioridad = PedidoPriority;
 
 export type CreatePedidoInput = {
@@ -101,10 +111,34 @@ export type CreatePedidoData =
   | CreateImpresionPedidoData;
 
 export type PedidoFieldErrors = Partial<Record<PedidoField, string>>;
+export type PedidoEditFieldErrors = Partial<
+  Record<PedidoEditField, string>
+>;
 
 export type ValidatePedidoInputResult = ValidationResult<
   CreatePedidoData,
   PedidoFieldErrors
+>;
+
+export type UpdatePedidoInput = {
+  title?: unknown;
+  description?: unknown;
+  total_amount?: unknown;
+  priority?: unknown;
+  estimated_delivery_date?: unknown;
+};
+
+export type UpdatePedidoData = {
+  title: string;
+  description: string;
+  total_amount: number;
+  priority: PedidoPrioridad;
+  estimated_delivery_date: string | null;
+};
+
+export type ValidatePedidoUpdateInputResult = ValidationResult<
+  UpdatePedidoData,
+  PedidoEditFieldErrors
 >;
 
 const MAX_TITULO_LENGTH = 160;
@@ -374,5 +408,56 @@ export function validatePedidoInput(
     workflow_type: WORKFLOW_TYPES.ENCARGO,
     title,
     description,
+  });
+}
+
+export function validatePedidoUpdateInput(
+  input: UpdatePedidoInput,
+): ValidatePedidoUpdateInputResult {
+  const title = normalizeSingleLineText(input.title);
+  const description = normalizeMultilineText(input.description);
+  const priority = normalizeSingleLineText(input.priority);
+  const estimatedDeliveryDate = normalizeOptionalSingleLineText(
+    input.estimated_delivery_date,
+  );
+  const totalAmountValidation = validatePedidoTotalAmount(
+    input.total_amount,
+  );
+  const fieldErrors: PedidoEditFieldErrors = {};
+
+  if (!title) {
+    fieldErrors.title = "El título del pedido es obligatorio.";
+  } else if (title.length > MAX_TITULO_LENGTH) {
+    fieldErrors.title = `El título no puede superar ${MAX_TITULO_LENGTH} caracteres.`;
+  }
+
+  if (!description) {
+    fieldErrors.description = "La descripción del pedido es obligatoria.";
+  } else if (description.length > MAX_DESCRIPCION_LENGTH) {
+    fieldErrors.description = `La descripción no puede superar ${MAX_DESCRIPCION_LENGTH} caracteres.`;
+  }
+
+  if (!isPedidoPrioridad(priority)) {
+    fieldErrors.priority = "Selecciona una prioridad válida.";
+  }
+
+  if (!totalAmountValidation.ok) {
+    fieldErrors.total_amount = totalAmountValidation.error;
+  }
+
+  if (estimatedDeliveryDate && !isValidIsoDate(estimatedDeliveryDate)) {
+    fieldErrors.estimated_delivery_date = "Selecciona una fecha válida.";
+  }
+
+  if (hasFieldErrors(fieldErrors)) {
+    return validationFailure(fieldErrors);
+  }
+
+  return validationSuccess({
+    title,
+    description,
+    total_amount: totalAmountValidation.ok ? totalAmountValidation.value : 0,
+    priority: priority as PedidoPrioridad,
+    estimated_delivery_date: estimatedDeliveryDate,
   });
 }

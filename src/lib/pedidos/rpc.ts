@@ -112,6 +112,48 @@ export function updatePedidoPaymentRpc(
   );
 }
 
+export type UpdatePedidoDataRpcRow = {
+  pedido_id: string;
+  title: string;
+  description: string;
+  priority: Enums<"pedido_prioridad">;
+  estimated_delivery_date: string | null;
+  total_amount: number;
+  payment_status: Enums<"pedido_pago_estado">;
+  paid_at: string | null;
+};
+
+type UpdatePedidoDataRpcResult = {
+  data: UpdatePedidoDataRpcRow[] | null;
+  error: { message?: string } | null;
+};
+
+type UpdatePedidoDataRpcArgs = {
+  p_pedido_id: string;
+  p_title: string;
+  p_description: string;
+  p_priority: Enums<"pedido_prioridad">;
+  p_estimated_delivery_date: string | null;
+  p_total_amount: number;
+};
+
+type UpdatePedidoDataRpcClient = {
+  rpc(
+    fn: "actualizar_datos_pedido",
+    args: UpdatePedidoDataRpcArgs,
+  ): PromiseLike<UpdatePedidoDataRpcResult>;
+};
+
+export function updatePedidoDataRpc(
+  supabase: SupabaseClient,
+  args: UpdatePedidoDataRpcArgs,
+) {
+  return (supabase as unknown as UpdatePedidoDataRpcClient).rpc(
+    "actualizar_datos_pedido",
+    args,
+  );
+}
+
 export type PedidoCommentsRpcRow = Pick<
   Tables<"pedido_comentarios">,
   "id" | "content" | "created_at"
