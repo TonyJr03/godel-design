@@ -12,6 +12,10 @@ const runId = createQaRunId();
 const runLabel = createQaRunLabel(runId);
 const futureDate = getFutureDateInputValue(30);
 const clienteLabel = `QA Cliente Focal ${runId}`;
+const selectorClientePhone = `555${runId.slice(-7)}`;
+const selectorClienteEmail = `qa-pedido-selector-${runId}@example.com`;
+const selectorPedidoTitle = `QA Pedido Selector Cliente ${runId}`;
+const selectorClienteNotes = `Notas QA selector de pedidos ${runLabel}.`;
 const encargoTitle = `QA Pedido Focal Encargo ${runId}`;
 const impresionTitle = `QA Pedido Focal Impresion ${runId}`;
 const disposableTaskTitle = `QA Tarea Desechable ${runLabel}`;
@@ -844,6 +848,41 @@ async function createManualPedido(
   };
 }
 
+async function createClienteForPedidoSelector(page: Page) {
+  await page.goto("/dashboard/clientes");
+  await page.getByRole("button", { name: /nuevo cliente/i }).click();
+  const dialog = page.getByRole("dialog", { name: /nuevo cliente/i });
+
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel(/^nombre/i).fill(clienteLabel);
+  await dialog.getByLabel(/tel.fono/i).fill(selectorClientePhone);
+  await dialog.getByLabel(/correo electr.nico/i).fill(selectorClienteEmail);
+  await dialog.getByLabel(/notas/i).fill(selectorClienteNotes);
+  await dialog.getByRole("button", { name: /crear cliente/i }).click();
+  await expect(dialog).toBeHidden({ timeout: 15_000 });
+  await expectNoTechnicalLeakText(page);
+}
+
+function getClienteCombobox(dialog: Locator) {
+  return dialog.getByRole("combobox", { name: /^cliente/i });
+}
+
+function getClienteHiddenInput(dialog: Locator) {
+  return dialog.locator('input[type="hidden"][name="cliente_id"]');
+}
+
+function getClienteListbox(dialog: Locator) {
+  return dialog.getByRole("listbox");
+}
+
+function getClienteOption(dialog: Locator, label: string | RegExp) {
+  const name = typeof label === "string"
+    ? new RegExp(escapeRegExp(label), "i")
+    : label;
+
+  return dialog.getByRole("option", { name });
+}
+
 async function updatePedidoStatus(page: Page, status: string) {
   const section = await getPedidoStatusPanel(page);
 
@@ -1329,6 +1368,432 @@ let encargoOrderNumber = "";
 let impresionDetailUrl = "";
 let impresionOrderNumber = "";
 let assignedEncargoDetailUrl = "";
+
+test("admin can search and select a cliente asynchronously when creating a pedido", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+
+  await loginAs(page, "admin");
+  await createClienteForPedidoSelector(page);
+
+  const selectorRequests: string[] = [];
+
+  page.on("request", (request) => {
+    if (request.url().includes("/api/internal/selectors/clientes")) {
+      selectorRequests.push(request.url());
+    }
+  });
+
+  await page.goto("/dashboard/pedidos");
+  await expectPedidosListLoaded(page);
+  await page.getByRole("button", { name: /nuevo pedido/i }).click();
+
+  const dialog = page.getByRole("dialog", { name: /nuevo pedido/i });
+  const combobox = getClienteCombobox(dialog);
+  const hiddenInput = getClienteHiddenInput(dialog);
+
+  await expect(dialog).toBeVisible();
+  await expect(combobox).toBeVisible();
+  expect(selectorRequests).toHaveLength(0);
+
+  const initialRequestPromise = page.waitForRequest((request) =>
+    request.url().includes("/api/internal/selectors/clientes"),
+  );
+
+  await combobox.focus();
+
+  const initialRequest = await initialRequestPromise;
+  const initialUrl = new URL(initialRequest.url());
+
+  expect(initialUrl.searchParams.get("q") ?? "").toBe("");
+  await expect(combobox).toHaveAttribute("aria-expanded", "true");
+  await expect(combobox).toHaveAttribute("aria-autocomplete", "list");
+
+  let listbox = getClienteListbox(dialog);
+
+  await expect(listbox).toBeVisible();
+  const controlsId = await combobox.getAttribute("aria-controls");
+
+  expect(controlsId).toBeTruthy();
+  await expect(listbox).toHaveAttribute("id", controlsId as string);
+  await expect(getClienteOption(dialog, "Sin cliente asociado")).toBeVisible();
+  await expect(async () => {
+    const optionCount = await listbox.getByRole("option").count();
+
+    expect(optionCount).toBeGreaterThanOrEqual(2);
+    expect(optionCount).toBeLessThanOrEqual(21);
+  }).toPass({ timeout: 10_000 });
+
+  const initialOptionCount = await listbox.getByRole("option").count();
+
+  expect(initialOptionCount).toBeLessThanOrEqual(21);
+
+  await combobox.press("ArrowDown");
+  const arrowDownActiveDescendant =
+    await combobox.getAttribute("aria-activedescendant");
+
+  expect(arrowDownActiveDescendant).toBeTruthy();
+
+  await combobox.press("End");
+  const endActiveDescendant =
+    await combobox.getAttribute("aria-activedescendant");
+
+  expect(endActiveDescendant).toBeTruthy();
+
+  if (initialOptionCount > 2) {
+    expect(endActiveDescendant).not.toBe(arrowDownActiveDescendant);
+  }
+
+  await combobox.press("Home");
+  await expect(combobox).toHaveAttribute(
+    "aria-activedescendant",
+    /-option-0$/,
+  );
+  await combobox.press("Escape");
+  await expect(combobox).toHaveAttribute("aria-expanded", "false");
+  await expect(combobox).toBeFocused();
+
+  await combobox.click();
+  listbox = getClienteListbox(dialog);
+  await expect(listbox).toBeVisible();
+
+  const previousVisibleOptionTexts = await listbox
+    .getByRole("option")
+    .evaluateAll((options) => {
+      return options
+        .map((option) => option.textContent?.replace(/\s+/g, " ").trim() ?? "")
+        .filter((text) => text && !/Sin cliente asociado/i.test(text));
+    });
+  expect(previousVisibleOptionTexts.length).toBeGreaterThan(0);
+
+  const inputContainer = combobox.locator("xpath=parent::*");
+  const delayedQuery = selectorClientePhone;
+  let releaseDelayedRequest: (() => void) | null = null;
+  let delayedRequestStarted = false;
+
+  await page.route("**/api/internal/selectors/clientes**", async (route) => {
+    const url = new URL(route.request().url());
+
+    if (
+      url.searchParams.get("q") === delayedQuery &&
+      !delayedRequestStarted
+    ) {
+      delayedRequestStarted = true;
+
+      await new Promise<void>((resolve) => {
+        releaseDelayedRequest = resolve;
+      });
+    }
+
+    await route.continue();
+  });
+
+  const delayedResponsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+
+    return (
+      url.pathname === "/api/internal/selectors/clientes" &&
+      url.searchParams.get("q") === delayedQuery
+    );
+  });
+
+  await combobox.fill(delayedQuery);
+  await expect(async () => {
+    expect(delayedRequestStarted).toBe(true);
+  }).toPass({ timeout: 10_000 });
+
+  try {
+    await expect(inputContainer.locator(".animate-spin")).toBeVisible();
+    await expect(listbox).toBeVisible();
+    const pendingVisibleOptionTexts = await listbox
+      .getByRole("option")
+      .evaluateAll((options) => {
+        return options
+          .map(
+            (option) => option.textContent?.replace(/\s+/g, " ").trim() ?? "",
+          )
+          .filter((text) => text && !/Sin cliente asociado/i.test(text));
+      });
+
+    expect(
+      pendingVisibleOptionTexts.some((text) =>
+        previousVisibleOptionTexts.includes(text),
+      ),
+    ).toBe(true);
+    await expect(listbox.getByText(/Cargando/i)).toHaveCount(0);
+    await expect(listbox).toHaveAttribute("aria-busy", "true");
+  } finally {
+    (releaseDelayedRequest as (() => void) | null)?.();
+  }
+
+  await delayedResponsePromise;
+  await expect(inputContainer.locator(".animate-spin")).toHaveCount(0);
+  await expect(getClienteListbox(dialog)).not.toHaveAttribute(
+    "aria-busy",
+    "true",
+  );
+  await expect(getClienteOption(dialog, clienteLabel)).toBeVisible({
+    timeout: 15_000,
+  });
+
+  const emailResponsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+
+    return (
+      url.pathname === "/api/internal/selectors/clientes" &&
+      url.searchParams.get("q") === selectorClienteEmail
+    );
+  });
+
+  await combobox.fill(selectorClienteEmail);
+  await emailResponsePromise;
+  await expect(getClienteOption(dialog, clienteLabel)).toBeVisible();
+
+  const nameResponsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+
+    return (
+      url.pathname === "/api/internal/selectors/clientes" &&
+      url.searchParams.get("q") === clienteLabel
+    );
+  });
+
+  await combobox.fill(clienteLabel);
+  await nameResponsePromise;
+  await expect(getClienteOption(dialog, "Sin cliente asociado")).toHaveCount(0);
+  await expect(getClienteOption(dialog, clienteLabel)).toBeVisible();
+
+  listbox = getClienteListbox(dialog);
+  const firstOptionText = await listbox.getByRole("option").first().innerText();
+
+  expect(firstOptionText).not.toMatch(/Sin cliente asociado/i);
+  await expect(combobox).toHaveAttribute("aria-activedescendant", /-option-0$/);
+  await expect(dialog.locator('[aria-live="polite"]')).toBeVisible();
+
+  await combobox.press("Enter");
+  await expect(combobox).toHaveValue(clienteLabel);
+  await expect(combobox).toHaveAttribute("aria-expanded", "false");
+  await expect(combobox).toBeFocused();
+
+  const selectedClienteId = await hiddenInput.inputValue();
+
+  expect(selectedClienteId).toMatch(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+  );
+
+  await combobox.click();
+  await expect(getClienteOption(dialog, clienteLabel)).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+
+  await combobox.fill(`${clienteLabel} editado`);
+  await expect(hiddenInput).toHaveValue("");
+  expect(await hiddenInput.inputValue()).not.toBe(selectedClienteId);
+  await expect(combobox).toHaveAttribute("aria-expanded", "true");
+
+  await combobox.fill("");
+  await expect(getClienteOption(dialog, "Sin cliente asociado")).toBeVisible();
+  await getClienteOption(dialog, "Sin cliente asociado").click();
+  await expect(combobox).toHaveValue("");
+  await expect(hiddenInput).toHaveValue("");
+  await expect(combobox).toHaveAttribute("aria-expanded", "false");
+
+  const resetNameResponsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+
+    return (
+      url.pathname === "/api/internal/selectors/clientes" &&
+      url.searchParams.get("q") === clienteLabel
+    );
+  });
+
+  await combobox.fill(clienteLabel);
+  await resetNameResponsePromise;
+  await expect(getClienteOption(dialog, clienteLabel)).toBeVisible();
+  await combobox.press("Enter");
+
+  const resetClienteId = await hiddenInput.inputValue();
+
+  expect(resetClienteId).toMatch(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+  );
+
+  await dialog.locator("form").evaluate((form) => {
+    (form as HTMLFormElement).reset();
+  });
+
+  await expect(combobox).toHaveValue("");
+  await expect(hiddenInput).toHaveValue("");
+  await expect(combobox).toHaveAttribute("aria-expanded", "false");
+  await expect(inputContainer.locator(".animate-spin")).toHaveCount(0);
+  await expect(getClienteListbox(dialog)).toHaveCount(0);
+  await expect(dialog.getByText(/no se pudieron cargar los clientes/i))
+    .toHaveCount(0);
+
+  const finalNameResponsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+
+    return (
+      url.pathname === "/api/internal/selectors/clientes" &&
+      url.searchParams.get("q") === clienteLabel
+    );
+  });
+
+  await combobox.fill(clienteLabel);
+  await finalNameResponsePromise;
+  await expect(getClienteOption(dialog, clienteLabel)).toBeVisible();
+  await combobox.press("Enter");
+
+  const finalClienteId = await hiddenInput.inputValue();
+
+  expect(finalClienteId).toBe(selectedClienteId);
+
+  await dialog.getByRole("tab", { name: /encargo/i }).click();
+  await dialog.getByLabel(/t.tulo del trabajo/i).fill(selectorPedidoTitle);
+  await dialog
+    .getByRole("textbox", { name: /descripci.n/i })
+    .fill("Pedido creado para validar el selector asincrono de cliente.");
+  await dialog.getByLabel(/prioridad/i).selectOption("normal");
+  await dialog.locator('input[name="estimated_delivery_date"]').fill(futureDate);
+  await dialog.locator('input[name="total_amount"]').fill("125");
+  await dialog.getByRole("button", { name: /crear pedido/i }).click();
+
+  await expect(dialog).toBeHidden({ timeout: 15_000 });
+  await expectPedidosListLoaded(page);
+  await expectNoTechnicalLeakText(page);
+
+  const createdPedidoLink = page
+    .getByRole("link", { name: /abrir pedido/i })
+    .filter({ hasText: selectorPedidoTitle })
+    .first();
+
+  await expect(createdPedidoLink).toBeVisible();
+  await createdPedidoLink.click();
+  await expect(page).toHaveURL(/\/dashboard\/pedidos\/[^/]+$/);
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: selectorPedidoTitle,
+      exact: true,
+    }),
+  ).toBeVisible();
+
+  const informationDialog = await openPedidoPanel(
+    page,
+    /^informaci.n$/i,
+    /informaci.n/i,
+  );
+  const clienteLink = informationDialog.getByRole("link", {
+    name: new RegExp(escapeRegExp(clienteLabel), "i"),
+  });
+
+  await expect(clienteLink).toBeVisible();
+  await expect(clienteLink).toHaveAttribute(
+    "href",
+    `/dashboard/clientes/${selectedClienteId}`,
+  );
+  await informationDialog.getByRole("button", { name: /cerrar/i }).click();
+  await expect(informationDialog).toBeHidden();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/dashboard/pedidos");
+  await expectPedidosListLoaded(page);
+  await expectNoHorizontalOverflow(page);
+  await page.getByRole("button", { name: /nuevo pedido/i }).click();
+
+  const mobileDialog = page.getByRole("dialog", { name: /nuevo pedido/i });
+  const mobileCombobox = getClienteCombobox(mobileDialog);
+  const mobileInputContainer = mobileCombobox.locator("xpath=parent::*");
+
+  await expect(mobileDialog).toBeVisible();
+  await expect(mobileCombobox).toBeVisible();
+
+  const mobileRequestPromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+
+    return (
+      url.pathname === "/api/internal/selectors/clientes" &&
+      (url.searchParams.get("q") ?? "") === ""
+    );
+  });
+
+  await mobileCombobox.focus();
+  await mobileRequestPromise;
+
+  const mobileListbox = getClienteListbox(mobileDialog);
+
+  await expect(mobileListbox).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+  await expectNoLocatorHorizontalOverflow(mobileDialog);
+  await expectNoLocatorHorizontalOverflow(mobileListbox);
+
+  const mobileDialogBox = await getRequiredBox(mobileDialog);
+  const mobileListboxBox = await getRequiredBox(mobileListbox);
+
+  expect(mobileListboxBox.x).toBeGreaterThanOrEqual(mobileDialogBox.x - 1);
+  expect(mobileListboxBox.x + mobileListboxBox.width).toBeLessThanOrEqual(
+    mobileDialogBox.x + mobileDialogBox.width + 1,
+  );
+
+  const mobileInputMetrics = await mobileCombobox.evaluate((input) => {
+    const box = input.getBoundingClientRect();
+    const style = getComputedStyle(input);
+
+    return {
+      paddingRight: Number.parseFloat(style.paddingRight),
+      width: box.width,
+    };
+  });
+
+  expect(mobileInputMetrics.paddingRight).toBeGreaterThanOrEqual(40);
+  expect(mobileInputMetrics.width).toBeGreaterThan(0);
+
+  let releaseMobileDelayedRequest: (() => void) | null = null;
+  let mobileDelayedRequestStarted = false;
+  const mobileDelayedQuery = selectorClientePhone.slice(0, 8);
+
+  await page.route("**/api/internal/selectors/clientes**", async (route) => {
+    const url = new URL(route.request().url());
+
+    if (
+      url.searchParams.get("q") === mobileDelayedQuery &&
+      !mobileDelayedRequestStarted
+    ) {
+      mobileDelayedRequestStarted = true;
+
+      await new Promise<void>((resolve) => {
+        releaseMobileDelayedRequest = resolve;
+      });
+    }
+
+    await route.continue();
+  });
+
+  await mobileCombobox.fill(mobileDelayedQuery);
+  await expect(async () => {
+    expect(mobileDelayedRequestStarted).toBe(true);
+  }).toPass({ timeout: 10_000 });
+
+  try {
+    const spinner = mobileInputContainer.locator(".animate-spin");
+
+    await expect(spinner).toBeVisible();
+
+    const inputBox = await getRequiredBox(mobileCombobox);
+    const spinnerBox = await getRequiredBox(spinner);
+
+    expect(spinnerBox.x).toBeGreaterThan(inputBox.x + inputBox.width - 40);
+    expect(spinnerBox.x + spinnerBox.width).toBeLessThanOrEqual(
+      inputBox.x + inputBox.width,
+    );
+  } finally {
+    (releaseMobileDelayedRequest as (() => void) | null)?.();
+  }
+
+  await expect(mobileInputContainer.locator(".animate-spin")).toHaveCount(0);
+});
 
 test("admin can create and manage focal internal pedidos", async ({ page }) => {
   test.setTimeout(180_000);
