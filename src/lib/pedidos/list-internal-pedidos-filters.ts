@@ -100,10 +100,6 @@ export function getClienteSearchCondition(q: string): string {
   return `name.ilike.*${q}*,phone.ilike.*${q}*,email.ilike.*${q}*`;
 }
 
-export function getPedidoTextSearchCondition(q: string): string {
-  return `order_number.ilike.*${q}*,title.ilike.*${q}*,description.ilike.*${q}*`;
-}
-
 export function buildPedidoSearchCondition(
   q: string,
   clienteIds: readonly string[],

@@ -703,18 +703,21 @@ async function findPedidoWithCliente(page: Page) {
       .locator("section")
       .filter({ has: informationDialog.getByRole("heading", { name: /^cliente$/i }) })
       .getByRole("link");
+    let clienteName = "";
 
     if (await clienteLink.isVisible().catch(() => false)) {
-      const clienteName = (await clienteLink.innerText()).trim();
-
-      await informationDialog.getByRole("button", { name: /cerrar/i }).click();
-
-      if (clienteName) {
-        return { orderNumber, clienteName };
-      }
+      clienteName = (await clienteLink.innerText()).trim();
     }
 
-    await informationDialog.getByRole("button", { name: /cerrar/i }).click();
+    const closeButton = informationDialog.getByRole("button", {
+      name: /cerrar/i,
+    });
+
+    await closeButton.click();
+
+    if (clienteName) {
+      return { orderNumber, clienteName };
+    }
   }
 
   return null;
@@ -751,23 +754,27 @@ async function findPedidoWithSolicitud(page: Page) {
     });
     const solicitudLink = solicitudSection
       .getByRole("link", { name: /personalizaci.n|impresi.n|dise.o/i });
+    let serviceLabel = "";
+    let solicitudId = "";
 
     if (await solicitudLink.isVisible().catch(() => false)) {
-      const serviceLabel = (await solicitudLink.innerText()).trim();
+      serviceLabel = (await solicitudLink.innerText()).trim();
       const href = await solicitudLink.getAttribute("href");
 
-      await informationDialog.getByRole("button", { name: /cerrar/i }).click();
-
-      const solicitudId = href?.match(
+      solicitudId = href?.match(
         /\/dashboard\/solicitudes\/([0-9a-f-]{36})/i,
-      )?.[1];
-
-      if (serviceLabel && solicitudId) {
-        return { orderNumber, serviceLabel, solicitudId };
-      }
+      )?.[1] ?? "";
     }
 
-    await informationDialog.getByRole("button", { name: /cerrar/i }).click();
+    const closeButton = informationDialog.getByRole("button", {
+      name: /cerrar/i,
+    });
+
+    await closeButton.click();
+
+    if (serviceLabel && solicitudId) {
+      return { orderNumber, serviceLabel, solicitudId };
+    }
   }
 
   return null;
@@ -1660,7 +1667,7 @@ test("pedido search resolves related cliente data", async ({ page }) => {
   if (pedidoWithCliente === null) {
     test.skip(
       true,
-      "La bÃºsqueda relacional requiere un pedido con cliente asociado.",
+      "La búsqueda relacional requiere un pedido con cliente asociado.",
     );
     return;
   }
@@ -1682,7 +1689,7 @@ test("pedido search resolves related solicitud data", async ({ page }) => {
   if (pedidoWithSolicitud === null) {
     test.skip(
       true,
-      "La bÃºsqueda por solicitud requiere un pedido con solicitud asociada.",
+      "La búsqueda por solicitud requiere un pedido con solicitud asociada.",
     );
     return;
   }
@@ -1713,7 +1720,7 @@ test("admin can navigate between pedidos pages", async ({ page }) => {
 
   test.skip(
     await hasEmptyPedidosState(page),
-    "La navegaciÃ³n de pedidos requiere pedidos visibles.",
+    "La navegación de pedidos requiere pedidos visibles.",
   );
 
   const initialPageInfo = await getPedidosPaginationPageInfo(page);
@@ -1721,7 +1728,7 @@ test("admin can navigate between pedidos pages", async ({ page }) => {
 
   test.skip(
     initialPageInfo.totalPages < 2,
-    "La navegaciÃ³n de pedidos requiere al menos 51 pedidos visibles.",
+    "La navegación de pedidos requiere al menos 51 pedidos visibles.",
   );
 
   expect(initialPageInfo.currentPage).toBe(1);
@@ -1780,7 +1787,7 @@ test("pedido pagination preserves the active search", async ({ page }) => {
 
   test.skip(
     !selectedQuery,
-    "La preservaciÃ³n de bÃºsqueda requiere un tÃ©rmino con mÃ¡s de una pÃ¡gina.",
+    "La preservación de búsqueda requiere un término con más de una página.",
   );
 
   await expect(page.getByLabel(/buscar pedidos/i)).toHaveValue(selectedQuery);
@@ -1819,7 +1826,7 @@ test("pedido filters remove pagination from the URL", async ({ page }) => {
 
   test.skip(
     pageInfo.totalPages < 2,
-    "El reinicio de filtros requiere al menos dos pÃ¡ginas.",
+    "El reinicio de filtros requiere al menos dos páginas.",
   );
 
   await page.goto("/dashboard/pedidos?page=2");
