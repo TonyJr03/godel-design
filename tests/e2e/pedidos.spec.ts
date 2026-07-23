@@ -15,6 +15,7 @@ const clienteLabel = `QA Cliente Focal ${runId}`;
 const encargoTitle = `QA Pedido Focal Encargo ${runId}`;
 const impresionTitle = `QA Pedido Focal Impresion ${runId}`;
 const disposableTaskTitle = `QA Tarea Desechable ${runLabel}`;
+const editedDisposableTaskTitle = `QA Tarea Desechable Editada ${runLabel}`;
 const quantifiedTaskTitle = `QA Tarea Focal Imprimir 5 hojas ${runLabel}`;
 const workspaceCommentText = `QA comentario workspace ${runLabel}`;
 
@@ -300,6 +301,96 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function taskTitlePattern(title: string) {
+  return new RegExp(escapeRegExp(title), "i");
+}
+
+function taskProgressPattern(
+  completedQuantity: number,
+  targetQuantity: number,
+  status: "Pendiente" | "Completada",
+) {
+  return new RegExp(
+    `${completedQuantity}\\s+de\\s+${targetQuantity}\\s+(?:\\S+\\s+)?${status}`,
+    "i",
+  );
+}
+
+function getPedidoTaskItemInPanel(taskSection: Locator, title: string) {
+  return taskSection.locator("li").filter({ hasText: title }).first();
+}
+
+async function expectNoLocatorHorizontalOverflow(locator: Locator) {
+  const dimensions = await locator.evaluate((element) => ({
+    clientWidth: (element as HTMLElement).clientWidth,
+    scrollWidth: (element as HTMLElement).scrollWidth,
+  }));
+
+  expect(dimensions.scrollWidth).toBeLessThanOrEqual(
+    dimensions.clientWidth + 1,
+  );
+}
+
+async function expectPedidoTaskActionOrder(
+  task: Locator,
+  expectedLabels: RegExp[],
+) {
+  await expect(async () => {
+    const labels = await task.getByRole("button").evaluateAll((buttons) =>
+      buttons
+        .filter((button) => (button as HTMLElement).offsetParent !== null)
+        .map((button) => {
+          const element = button as HTMLElement;
+
+          return element.getAttribute("aria-label") ?? element.innerText;
+        }),
+    );
+
+    expect(labels).toHaveLength(expectedLabels.length);
+
+    for (const [index, expectedLabel] of expectedLabels.entries()) {
+      expect(labels[index]).toMatch(expectedLabel);
+    }
+  }).toPass({ timeout: 10_000 });
+}
+
+async function expectNoPedidoTaskTechnicalBadges(task: Locator) {
+  await expect(task.getByText(/^Simple$/i)).toHaveCount(0);
+  await expect(task.getByText(/^Cuantificada$/i)).toHaveCount(0);
+}
+
+async function expectPedidoTaskButtonHasPrimaryTone(button: Locator) {
+  await expect(button).toHaveClass(/bg-brand-primary/);
+}
+
+async function expectPedidoTaskButtonHasNoPrimaryTone(button: Locator) {
+  await expect(button).not.toHaveClass(/bg-brand-primary/);
+}
+
+function expectedCompleteTaskOrder(title: string) {
+  return [
+    new RegExp(`marcar como completada tarea ${escapeRegExp(title)}`, "i"),
+    new RegExp(`editar tarea ${escapeRegExp(title)}`, "i"),
+    new RegExp(`eliminar tarea ${escapeRegExp(title)}`, "i"),
+  ];
+}
+
+function expectedProgressTaskOrder(title: string) {
+  return [
+    new RegExp(`actualizar progreso de tarea ${escapeRegExp(title)}`, "i"),
+    new RegExp(`editar tarea ${escapeRegExp(title)}`, "i"),
+    new RegExp(`eliminar tarea ${escapeRegExp(title)}`, "i"),
+  ];
+}
+
+function expectedReopenTaskOrder(title: string) {
+  return [
+    new RegExp(`reabrir tarea ${escapeRegExp(title)}`, "i"),
+    new RegExp(`editar tarea ${escapeRegExp(title)}`, "i"),
+    new RegExp(`eliminar tarea ${escapeRegExp(title)}`, "i"),
+  ];
+}
+
 async function expectCompactPedidoHeader(
   page: Page,
   title: string,
@@ -518,8 +609,32 @@ async function createQuantifiedTask(page: Page) {
   ).toBeVisible({ timeout: 15_000 });
   await page.reload();
   const task = await getPedidoTaskItem(page, quantifiedTaskTitle);
+  const progressButton = task.getByRole("button", {
+    name: new RegExp(
+      `actualizar progreso de tarea ${escapeRegExp(quantifiedTaskTitle)}`,
+      "i",
+    ),
+  });
+  const editButton = task.getByRole("button", {
+    name: new RegExp(`editar tarea ${escapeRegExp(quantifiedTaskTitle)}`, "i"),
+  });
+  const deleteButton = task.getByRole("button", {
+    name: new RegExp(`eliminar tarea ${escapeRegExp(quantifiedTaskTitle)}`, "i"),
+  });
+
   await expect(task).toBeVisible();
-  await expect(task.getByText(/cuantificada/i)).toBeVisible();
+  await expect(task.getByText(taskProgressPattern(0, 5, "Pendiente")))
+    .toBeVisible();
+  await expectNoPedidoTaskTechnicalBadges(task);
+  await expectPedidoTaskActionOrder(
+    task,
+    expectedProgressTaskOrder(quantifiedTaskTitle),
+  );
+  await expect(progressButton).toBeVisible();
+  await expect(editButton).toBeVisible();
+  await expect(deleteButton).toBeVisible();
+  await expectPedidoTaskButtonHasPrimaryTone(progressButton);
+  await expectPedidoTaskButtonHasNoPrimaryTone(editButton);
 }
 
 async function createAndDeleteDisposableTask(page: Page) {
@@ -537,19 +652,151 @@ async function createAndDeleteDisposableTask(page: Page) {
   await page.reload();
 
   taskSection = await getPedidoTasksPanel(page);
-  const task = taskSection.locator("li").filter({ hasText: disposableTaskTitle });
-  const deleteButton = task.getByRole("button", {
-    name: new RegExp(`eliminar tarea ${escapeRegExp(disposableTaskTitle)}`, "i"),
+  let taskTitle = disposableTaskTitle;
+  let task = getPedidoTaskItemInPanel(taskSection, taskTitle);
+  let completeButton = task.getByRole("button", {
+    name: new RegExp(
+      `marcar como completada tarea ${escapeRegExp(taskTitle)}`,
+      "i",
+    ),
+  });
+  let editButton = task.getByRole("button", {
+    name: new RegExp(`editar tarea ${escapeRegExp(taskTitle)}`, "i"),
+  });
+  let deleteButton = task.getByRole("button", {
+    name: new RegExp(`eliminar tarea ${escapeRegExp(taskTitle)}`, "i"),
   });
 
   await expect(task).toBeVisible();
+  await expect(task.getByText(/^Pendiente$/i)).toBeVisible();
+  await expectNoPedidoTaskTechnicalBadges(task);
+  await expectPedidoTaskActionOrder(task, expectedCompleteTaskOrder(taskTitle));
+  await expect(completeButton).toBeVisible();
+  await expect(editButton).toBeVisible();
+  await expect(deleteButton).toBeVisible();
+  await expectPedidoTaskButtonHasPrimaryTone(completeButton);
+  await expectPedidoTaskButtonHasNoPrimaryTone(editButton);
+
+  await completeButton.click();
+  await expect(async () => {
+    const completedTask = getPedidoTaskItemInPanel(taskSection, taskTitle);
+    const reopenButton = completedTask.getByRole("button", {
+      name: new RegExp(`reabrir tarea ${escapeRegExp(taskTitle)}`, "i"),
+    });
+    const completedEditButton = completedTask.getByRole("button", {
+      name: new RegExp(`editar tarea ${escapeRegExp(taskTitle)}`, "i"),
+    });
+
+    await expect(completedTask.getByText(/^Completada$/i)).toBeVisible();
+    await expectPedidoTaskActionOrder(
+      completedTask,
+      expectedReopenTaskOrder(taskTitle),
+    );
+    await expect(reopenButton).toBeVisible();
+    await expectPedidoTaskButtonHasNoPrimaryTone(reopenButton);
+    await expectPedidoTaskButtonHasNoPrimaryTone(completedEditButton);
+  }).toPass({ timeout: 15_000 });
+
+  const reopenButton = task.getByRole("button", {
+    name: new RegExp(`reabrir tarea ${escapeRegExp(taskTitle)}`, "i"),
+  });
+
+  await reopenButton.click();
+  await expect(async () => {
+    const pendingTask = getPedidoTaskItemInPanel(taskSection, taskTitle);
+
+    await expect(pendingTask.getByText(/^Pendiente$/i)).toBeVisible();
+    await expectPedidoTaskActionOrder(
+      pendingTask,
+      expectedCompleteTaskOrder(taskTitle),
+    );
+  }).toPass({ timeout: 15_000 });
+
+  editButton = task.getByRole("button", {
+    name: new RegExp(`editar tarea ${escapeRegExp(taskTitle)}`, "i"),
+  });
+  await editButton.click();
+
+  let titleInput = task.getByRole("textbox", {
+    name: new RegExp(`editar tarea ${escapeRegExp(taskTitle)}`, "i"),
+  });
+
+  await expect(titleInput).toBeVisible();
+  await expect(titleInput).toBeFocused();
+  await expect(
+    task.getByText(/n.*meros del t.*tulo definen la cantidad de la tarea/i),
+  ).toBeVisible();
+  await expect(
+    task.getByRole("button", {
+      name: new RegExp(
+        `marcar como completada tarea ${escapeRegExp(taskTitle)}`,
+        "i",
+      ),
+    }),
+  ).toHaveCount(0);
+  await expect(
+    task.getByRole("button", {
+      name: new RegExp(`editar tarea ${escapeRegExp(taskTitle)}`, "i"),
+    }),
+  ).toHaveCount(0);
+  await expect(
+    task.getByRole("button", {
+      name: new RegExp(`eliminar tarea ${escapeRegExp(taskTitle)}`, "i"),
+    }),
+  ).toHaveCount(0);
+
+  await page.keyboard.press("Escape");
+  await expect(titleInput).toHaveCount(0);
+  await expect(task.getByText(taskTitlePattern(taskTitle))).toBeVisible();
+  editButton = task.getByRole("button", {
+    name: new RegExp(`editar tarea ${escapeRegExp(taskTitle)}`, "i"),
+  });
+  await expect(editButton).toBeFocused();
+
+  await editButton.click();
+  titleInput = task.getByRole("textbox", {
+    name: new RegExp(`editar tarea ${escapeRegExp(taskTitle)}`, "i"),
+  });
+  await expect(titleInput).toBeVisible();
+  await titleInput.fill(editedDisposableTaskTitle);
+  await task
+    .getByRole("button", {
+      name: new RegExp(`guardar tarea ${escapeRegExp(taskTitle)}`, "i"),
+    })
+    .click();
+  await expect(async () => {
+    await expect(
+      taskSection.getByText(taskTitlePattern(editedDisposableTaskTitle)),
+    ).toBeVisible();
+  }).toPass({ timeout: 15_000 });
+
+  taskTitle = editedDisposableTaskTitle;
+  task = getPedidoTaskItemInPanel(taskSection, taskTitle);
+  completeButton = task.getByRole("button", {
+    name: new RegExp(
+      `marcar como completada tarea ${escapeRegExp(taskTitle)}`,
+      "i",
+    ),
+  });
+  editButton = task.getByRole("button", {
+    name: new RegExp(`editar tarea ${escapeRegExp(taskTitle)}`, "i"),
+  });
+  deleteButton = task.getByRole("button", {
+    name: new RegExp(`eliminar tarea ${escapeRegExp(taskTitle)}`, "i"),
+  });
+
+  await expect(task).toBeVisible();
+  await expectPedidoTaskActionOrder(task, expectedCompleteTaskOrder(taskTitle));
+  await expect(completeButton).toBeVisible();
+  await expect(editButton).toBeVisible();
+  await expect(deleteButton).toBeVisible();
   await deleteButton.click();
   let confirmation = task.locator("form").filter({
     hasText: /eliminar esta tarea/i,
   });
 
   await expect(confirmation).toBeVisible();
-  await expect(confirmation.getByText(disposableTaskTitle)).toBeVisible();
+  await expect(confirmation.getByText(taskTitlePattern(taskTitle))).toBeVisible();
   await expect(
     confirmation.getByRole("button", { name: /cancelar/i }),
   ).toBeFocused();
@@ -584,22 +831,84 @@ async function createAndDeleteDisposableTask(page: Page) {
 }
 
 async function completeQuantifiedTask(page: Page) {
-  const task = await getPedidoTaskItem(page, quantifiedTaskTitle);
-  const progressForm = task.locator("form").filter({
-    hasText: /actualizar progreso/i,
+  const taskSection = await getPedidoTasksPanel(page);
+  const task = getPedidoTaskItemInPanel(taskSection, quantifiedTaskTitle);
+  let progressButton = task.getByRole("button", {
+    name: new RegExp(
+      `actualizar progreso de tarea ${escapeRegExp(quantifiedTaskTitle)}`,
+      "i",
+    ),
   });
 
-  await task.getByLabel(/actualizar progreso/i).fill("5");
-  await progressForm.getByRole("button", { name: /guardar/i }).click();
-  const tasksPanel = page.getByRole("dialog", { name: /^tareas$/i });
-  await expect(tasksPanel).toBeVisible();
-  await expect(
-    tasksPanel.getByText(/progreso actualizado correctamente/i),
-  ).toBeVisible({ timeout: 15_000 });
-  await page.reload();
-  await expect(
-    (await getPedidoTaskItem(page, quantifiedTaskTitle)).getByText(/5\s*\/\s*5/i),
-  ).toBeVisible();
+  await expect(task).toBeVisible();
+  await expectPedidoTaskActionOrder(
+    task,
+    expectedProgressTaskOrder(quantifiedTaskTitle),
+  );
+  await expectPedidoTaskButtonHasPrimaryTone(progressButton);
+  await progressButton.click();
+
+  let progressInput = task.getByRole("spinbutton", {
+    name: new RegExp(
+      `actualizar progreso de tarea ${escapeRegExp(quantifiedTaskTitle)}`,
+      "i",
+    ),
+  });
+
+  await expect(progressInput).toBeVisible();
+  await expect(progressInput).toBeFocused();
+  await expect(progressInput).toHaveValue("0");
+  await expect(progressInput).toHaveAttribute("max", "5");
+  await expect(task.getByText(/^de 5$/i)).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(progressInput).toHaveCount(0);
+  await expect(task.getByText(taskProgressPattern(0, 5, "Pendiente")))
+    .toBeVisible();
+  progressButton = task.getByRole("button", {
+    name: new RegExp(
+      `actualizar progreso de tarea ${escapeRegExp(quantifiedTaskTitle)}`,
+      "i",
+    ),
+  });
+  await expect(progressButton).toBeFocused();
+  await expectPedidoTaskActionOrder(
+    task,
+    expectedProgressTaskOrder(quantifiedTaskTitle),
+  );
+
+  await progressButton.click();
+  progressInput = task.getByRole("spinbutton", {
+    name: new RegExp(
+      `actualizar progreso de tarea ${escapeRegExp(quantifiedTaskTitle)}`,
+      "i",
+    ),
+  });
+  await expect(progressInput).toBeVisible();
+  await progressInput.fill("5");
+  await task
+    .getByRole("button", {
+      name: new RegExp(
+        `guardar progreso de tarea ${escapeRegExp(quantifiedTaskTitle)}`,
+        "i",
+      ),
+    })
+    .click();
+
+  await expect(async () => {
+    const completedTask = getPedidoTaskItemInPanel(
+      taskSection,
+      quantifiedTaskTitle,
+    );
+
+    await expect(completedTask.getByRole("spinbutton")).toHaveCount(0);
+    await expect(completedTask.getByText(taskProgressPattern(5, 5, "Completada")))
+      .toBeVisible();
+    await expectPedidoTaskActionOrder(
+      completedTask,
+      expectedReopenTaskOrder(quantifiedTaskTitle),
+    );
+  }).toPass({ timeout: 15_000 });
 }
 
 async function updatePayment(page: Page, cash: string, transfer = "0") {
@@ -1318,7 +1627,8 @@ Otra línea de QA para el textarea.`;
     await wideMoreDialog.getByRole("button", { name: /cerrar/i }).click();
   }
 
-  await page.setViewportSize({ width: 375, height: 812 });
+  await returnPedidoToProduction(page);
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(encargoDetailUrl);
   await expectBackLinkVariant(page, "text");
   await expectNoHorizontalOverflow(page);
@@ -1361,6 +1671,34 @@ Otra línea de QA para el textarea.`;
   await expect(mobileCommentsDirectTrigger).toHaveCount(0);
   await expect(mobileHistoryTrigger).toHaveCount(0);
   await expect(mobileInformationDirectTrigger).toHaveCount(0);
+
+  await mobileTasksTrigger.click();
+  const mobileTasksDialog = page.getByRole("dialog", { name: /^tareas$/i });
+  const mobileQuantifiedTask = getPedidoTaskItemInPanel(
+    mobileTasksDialog,
+    quantifiedTaskTitle,
+  );
+
+  await expect(mobileTasksDialog).toBeVisible();
+  await expectNoLocatorHorizontalOverflow(mobileTasksDialog);
+  await expect(mobileQuantifiedTask).toBeVisible();
+  await expect(
+    mobileQuantifiedTask.getByRole("button", {
+      name: new RegExp(`reabrir tarea ${escapeRegExp(quantifiedTaskTitle)}`, "i"),
+    }),
+  ).toBeVisible();
+  await expect(
+    mobileQuantifiedTask.getByRole("button", {
+      name: new RegExp(`editar tarea ${escapeRegExp(quantifiedTaskTitle)}`, "i"),
+    }),
+  ).toBeVisible();
+  await expect(
+    mobileQuantifiedTask.getByRole("button", {
+      name: new RegExp(`eliminar tarea ${escapeRegExp(quantifiedTaskTitle)}`, "i"),
+    }),
+  ).toBeVisible();
+  await mobileTasksDialog.getByRole("button", { name: /cerrar/i }).click();
+  await expect(mobileTasksDialog).toBeHidden();
 
   await mobileMoreTrigger.focus();
   await page.keyboard.press("Enter");
@@ -1425,6 +1763,8 @@ Otra línea de QA para el textarea.`;
   ).toBeLessThanOrEqual((actionBarBox?.y ?? 0) + 2);
 
   await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto(encargoDetailUrl);
+  await updatePedidoStatus(page, "listo_entrega");
 });
 
 test("pedido access follows current role boundaries", async ({ page }) => {

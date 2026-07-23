@@ -258,7 +258,10 @@ export function PedidoTasksSection({
         </div>
 
         {tasks.length > 0 ? (
-          <ul className="mt-5 space-y-4">
+          <ul
+            className="mt-5 divide-y divide-border overflow-hidden rounded-(--radius-card) border border-border bg-surface"
+            aria-label="Tareas del pedido"
+          >
             {tasks.map((task) => (
               <PedidoTaskItem
                 key={task.id}

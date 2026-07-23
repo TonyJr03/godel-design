@@ -241,6 +241,84 @@ impide consultar tareas existentes.
 
 La UI no permite seleccionar `task_type`, `target_quantity`, autorías, fechas técnicas ni `sort_order`. La página enlaza `pedido_id` a las Server Actions; los formularios solo envían `task_id`, `title` o `completed_quantity` según la operación, y las actions delegan la validación en servicios server-side.
 
+La interfaz vigente de gestion en el panel Tareas presenta las tareas registradas
+como una lista compacta unificada: un solo contenedor con borde y divisores
+entre filas. Cada `PedidoTaskItem` actua como fila interna, no como card grande
+independiente. La fila muestra el titulo y un texto secundario con estado o
+progreso. El tipo tecnico `simple` o `cuantificada` no se muestra como badge
+visible, aunque continua existiendo en los datos, servicios, constraints,
+RLS y reglas de avance.
+
+Texto secundario vigente por fila:
+
+```text
+Tarea simple pendiente:
+Pendiente
+
+Tarea simple completada:
+Completada
+
+Tarea cuantificada pendiente:
+{completed_quantity} de {target_quantity} · Pendiente
+
+Tarea cuantificada completada:
+{completed_quantity} de {target_quantity} · Completada
+```
+
+Las acciones de cada fila son icon-only, pero los iconos no sustituyen el
+nombre accesible: cada boton conserva `aria-label` y `title`. El orden visual,
+de DOM y de teclado es siempre:
+
+```text
+1. Accion operativa
+2. Editar
+3. Eliminar
+```
+
+La accion operativa depende del estado de la tarea:
+
+```text
+simple pendiente       -> Completar
+cuantificada pendiente -> Actualizar progreso
+completada             -> Reabrir
+```
+
+Tonos visuales vigentes:
+
+```text
+Completar            -> primary
+Actualizar progreso  -> primary
+Reabrir              -> secondary
+Editar               -> secondary
+Eliminar             -> danger
+```
+
+La edicion se realiza inline. `Editar` sustituye temporalmente el titulo por un
+input inline. En tareas cuantificadas pendientes, `Actualizar progreso`
+sustituye temporalmente el texto secundario por un editor numerico. Cada fila
+mantiene modos mutuamente excluyentes: lectura, edicion de titulo, edicion de
+progreso o confirmacion de eliminacion. `Escape` cancela los editores; cancelar
+o guardar correctamente devuelve el foco al trigger correspondiente. Si una
+Action falla, el editor permanece abierto, conserva el valor introducido y
+muestra el error asociado al campo o a la operacion. Durante pending se
+deshabilitan acciones incompatibles y el spinner respeta `prefers-reduced-motion`.
+Eliminar conserva la confirmacion destructiva inline.
+
+La edicion de titulo muestra este aviso contextual:
+
+```text
+Los números del título definen la cantidad de la tarea y pueden reiniciar su progreso.
+```
+
+Ese aviso refleja una regla ya existente: la interpretacion del titulo sigue
+viviendo exclusivamente en servicios server-side. La UI no determina por si
+misma si una tarea es simple o cuantificada.
+
+En `listo_entrega`, `entregado` y `cancelado`, las filas quedan en modo lectura:
+siguen mostrando titulo, estado y progreso cuantificado cuando corresponda, pero
+no presentan acciones de mutacion. Una correccion de tareas en `listo_entrega`
+requiere volver primero a `en_produccion`.
+
 ## Plantillas de tareas para encargos
 
 El modelo de datos incluye `trabajo_plantillas` y `trabajo_plantilla_tareas` como base para trabajos predeterminados de encargos. Estas plantillas no son pedidos reales, no tienen estado operativo y sus tareas no tienen progreso.
@@ -760,8 +838,9 @@ Desde 13.6I, el dashboard y los paneles operativos también consideran tareas: p
 
 Evidencia e2e focal reciente:
 
-- `tests/e2e/pedidos.spec.ts` — 4 passed. Cubre autoavance, ausencia de selector,
-  avance lineal, cancelación, tareas, pago, retorno a producción y creación
+- `tests/e2e/pedidos.spec.ts` — 4 passed, 0 failed, 0 skipped en Chromium con
+  1 worker. Cubre autoavance, ausencia de selector, avance lineal,
+  cancelación, tareas compactas e inline, pago, retorno a producción y creación
   manual permaneciendo en el listado.
 - `tests/e2e/pedido-edit.spec.ts` — 4 passed. Cubre edición controlada y
   sincronización del detalle/listado relacionada con pedidos activos.

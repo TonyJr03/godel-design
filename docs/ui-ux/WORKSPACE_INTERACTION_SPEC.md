@@ -242,6 +242,91 @@ Reglas:
 - En `listo_entrega`, `entregado` y `cancelado` el panel queda en lectura.
 - La autoridad final sigue en servicios/RLS/RPC.
 
+Especificacion visual vigente:
+
+- `PedidoTasksSection` mantiene la creacion de tareas, la aplicacion de
+  plantillas y la barra de progreso global.
+- Las tareas registradas viven en una unica superficie con borde y divisores
+  entre filas.
+- Cada `PedidoTaskItem` es una fila compacta, no una card independiente.
+- En escritorio, la fila coloca contenido y acciones en columnas: titulo y
+  estado/progreso a la izquierda, acciones a la derecha.
+- En movil, el titulo y el estado/progreso conservan ancho disponible y las
+  acciones pueden pasar debajo y envolver sin producir overflow horizontal.
+
+Jerarquia conceptual de una fila:
+
+```text
+Titulo de la tarea                    [operativa] [editar] [eliminar]
+Estado o progreso
+```
+
+El texto secundario comunica siempre el estado con texto visible. Para tareas
+cuantificadas usa el formato `{completed_quantity} de {target_quantity} ·
+Pendiente` o `{completed_quantity} de {target_quantity} · Completada`. El tipo
+tecnico `simple` o `cuantificada` no aparece como badge visible, aunque sigue
+existiendo en el DTO y en las reglas server-side.
+
+El orden de acciones de una fila coincide visualmente con el orden del DOM y el
+orden de teclado. No se usan clases CSS para alterar artificialmente el orden.
+Editar siempre ocupa la segunda posicion y Eliminar siempre la ultima. La
+primera accion depende de la tarea:
+
+```text
+simple pendiente       -> Completar
+cuantificada pendiente -> Actualizar progreso
+completada             -> Reabrir
+```
+
+Los tonos vigentes son: Completar y Actualizar progreso en `primary`; Reabrir y
+Editar en `secondary`; Eliminar en `danger`. Todos los botones de fila son
+icon-only, con iconos decorativos y nombre accesible completo mediante
+`aria-label` y `title`.
+
+Estados conceptuales por fila:
+
+```ts
+"idle"
+"edit-title"
+"edit-progress"
+"confirm-delete"
+```
+
+Estos estados son mutuamente excluyentes: una fila no edita titulo y progreso a
+la vez, ni confirma eliminacion mientras edita. En `edit-title`, el titulo se
+sustituye por un input inline con foco automatico. En `edit-progress`, el texto
+secundario de una tarea cuantificada se sustituye por el editor numerico. `Enter`
+envia el formulario, `Escape` cancela, y cancelar o guardar correctamente
+devuelve el foco al trigger correspondiente. Los errores quedan asociados al
+campo, mantienen abierto el editor y conservan el valor introducido. Pending es
+visible y accesible; las acciones incompatibles se deshabilitan y los spinners
+respetan reduced motion. La eliminacion conserva confirmacion destructiva
+inline.
+
+La edicion de titulo muestra la advertencia contextual:
+
+```text
+Los números del título definen la cantidad de la tarea y pueden reiniciar su progreso.
+```
+
+Esa advertencia no mueve reglas al cliente: la deteccion de numeros y la
+decision `simple`/`cuantificada` siguen exclusivamente en servicios server-side.
+
+Limites arquitectonicos:
+
+- Esta compactacion no cambia Server Actions.
+- No cambia servicios.
+- No cambia validaciones.
+- No cambia RLS.
+- No cambia RPC.
+- No cambia base de datos.
+- No generaliza el componente con las tareas de plantilla.
+
+Las tareas de plantilla y las tareas de pedido comparten un patron visual, pero
+conservan componentes separados. Las tareas de pedido tienen progreso,
+completar, reabrir y bloqueos por estado; las plantillas no tienen ese mismo
+dominio operativo.
+
 ## 7. Área principal de pedido `impresion`
 
 La impresión no debe presentarse como un encargo incompleto. Debe priorizar:

@@ -588,6 +588,7 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   const convertedPedidoTitle = `Pedido convertido QA ${runId}`;
   const manualEncargoTitle = `Pedido QA Encargo Playwright ${runId}`;
   const manualImpresionTitle = `Pedido QA Impresion Playwright ${runId}`;
+  const visualTaskTitle = "Imprimir 10 paginas";
 
   await page.goto("/solicitud");
   await fillPublicContact(page, {
@@ -870,19 +871,65 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   await expectBefore(newTaskHeading, registeredTasksHeading);
   await taskSection
     .getByRole("textbox", { name: /nueva tarea/i })
-    .fill("Imprimir 10 paginas");
+    .fill(visualTaskTitle);
   await taskSection.getByRole("button", { name: /crear tarea/i }).click();
   await expectStatusMessage(page, /tarea creada correctamente/i);
   await page.reload();
   await updatePedidoStatus(page, "en_produccion");
   await expectPedidoStatusBlocked(page, "listo_entrega");
   const progressPanel = await openPedidoPanel(page, /^tareas$/i, /tareas/i);
-  const progressInput = progressPanel.getByLabel(/actualizar progreso/i);
-  const progressForm = progressInput.locator("xpath=ancestor::form[1]");
+  const task = progressPanel
+    .locator("li")
+    .filter({ hasText: visualTaskTitle })
+    .first();
+  const progressButton = task.getByRole("button", {
+    name: new RegExp(
+      `actualizar progreso de tarea ${escapeRegExp(visualTaskTitle)}`,
+      "i",
+    ),
+  });
 
+  await expect(task).toBeVisible();
+  await expect(
+    task.getByText(/0\s+de\s+10\s+(?:\S+\s+)?Pendiente/i),
+  ).toBeVisible();
+  await expect(progressButton).toBeVisible();
+  await progressButton.click();
+
+  const progressInput = task.getByRole("spinbutton", {
+    name: new RegExp(
+      `actualizar progreso de tarea ${escapeRegExp(visualTaskTitle)}`,
+      "i",
+    ),
+  });
+
+  await expect(progressInput).toBeVisible();
+  await expect(progressInput).toHaveValue("0");
+  await expect(progressInput).toHaveAttribute("max", "10");
   await progressInput.fill("10");
-  await progressForm.getByRole("button", { name: /guardar/i }).click();
+  await task
+    .getByRole("button", {
+      name: new RegExp(
+        `guardar progreso de tarea ${escapeRegExp(visualTaskTitle)}`,
+        "i",
+      ),
+    })
+    .click();
   await expectStatusMessage(page, /progreso actualizado correctamente/i);
+  await expect(async () => {
+    await expect(task.getByRole("spinbutton")).toHaveCount(0);
+    await expect(
+      task.getByText(/10\s+de\s+10\s+(?:\S+\s+)?Completada/i),
+    ).toBeVisible();
+    await expect(
+      task.getByRole("button", {
+        name: new RegExp(
+          `reabrir tarea ${escapeRegExp(visualTaskTitle)}`,
+          "i",
+        ),
+      }),
+    ).toBeVisible();
+  }).toPass({ timeout: 15_000 });
   await page.reload();
   await updatePedidoStatus(page, "listo_entrega");
   await expect(
