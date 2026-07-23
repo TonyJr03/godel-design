@@ -1,4 +1,4 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import {
   expectAccessLimitedPage,
@@ -45,6 +45,110 @@ function escapeRegExp(value: string) {
 
 function getVisibleSearchInput(page: Page) {
   return page.locator('input[name="q"]:visible');
+}
+
+function getClientesPagination(page: Page) {
+  return page.getByRole("navigation", {
+    name: /paginación de clientes/i,
+  });
+}
+
+function getPreviousPageControl(page: Page) {
+  return getClientesPagination(page).getByLabel("Ir a la página anterior", {
+    exact: true,
+  });
+}
+
+function getNextPageControl(page: Page) {
+  return getClientesPagination(page).getByLabel("Ir a la página siguiente", {
+    exact: true,
+  });
+}
+
+function getPreviousPageLink(page: Page) {
+  return getClientesPagination(page).getByRole("link", {
+    name: "Ir a la página anterior",
+  });
+}
+
+function getNextPageLink(page: Page) {
+  return getClientesPagination(page).getByRole("link", {
+    name: "Ir a la página siguiente",
+  });
+}
+
+async function getClientesPaginationPageInfo(page: Page) {
+  const pagination = getClientesPagination(page);
+  const text = await pagination
+    .getByText(/Página\s+\d+\s+de\s+\d+/i)
+    .innerText();
+  const match = text.match(/Página\s+(\d+)\s+de\s+(\d+)/i);
+
+  expect(match, `Unexpected pagination page text: ${text}`).not.toBeNull();
+
+  return {
+    currentPage: Number(match?.[1]),
+    totalPages: Number(match?.[2]),
+  };
+}
+
+async function getClientesPaginationSummary(page: Page) {
+  const pagination = getClientesPagination(page);
+  const text = await pagination
+    .getByText(/Mostrando\s+\d+–\d+\s+de\s+\d+\s+clientes/i)
+    .innerText();
+  const match = text.match(/Mostrando\s+(\d+)–(\d+)\s+de\s+(\d+)\s+clientes/i);
+
+  expect(match, `Unexpected pagination summary text: ${text}`).not.toBeNull();
+
+  return {
+    startItem: Number(match?.[1]),
+    endItem: Number(match?.[2]),
+    totalCount: Number(match?.[3]),
+  };
+}
+
+async function expectTouchTarget(control: Locator) {
+  const box = await control.boundingBox();
+
+  expect(box).not.toBeNull();
+  expect(box?.width).toBeGreaterThanOrEqual(40);
+  expect(box?.height).toBeGreaterThanOrEqual(40);
+}
+
+async function expectDisabledPaginationControl(control: Locator) {
+  await expect(control).toBeVisible();
+  await expect(control).toHaveAttribute("aria-disabled", "true");
+  await expect(control).not.toHaveAttribute("href", /.+/);
+  await expectTouchTarget(control);
+}
+
+async function expectCompactPaginationA11y(page: Page) {
+  const pagination = getClientesPagination(page);
+
+  await expect(pagination).toBeVisible();
+  await expect(
+    pagination.getByText(/Página\s+\d+\s+de\s+\d+/i),
+  ).toBeVisible();
+  await expect(
+    pagination.getByText(/Mostrando\s+\d+–\d+\s+de\s+\d+\s+clientes/i),
+  ).toBeVisible();
+  await expect(pagination.getByText(/^Anterior$/i)).toHaveCount(0);
+  await expect(pagination.getByText(/^Siguiente$/i)).toHaveCount(0);
+
+  for (const control of [
+    getPreviousPageControl(page),
+    getNextPageControl(page),
+  ]) {
+    await expect(control).toHaveClass(/rounded-full/);
+    await expectTouchTarget(control);
+  }
+}
+
+async function getCurrentClientesUrl(page: Page) {
+  await expect(page).toHaveURL(/\/dashboard\/clientes/);
+
+  return new URL(page.url());
 }
 
 async function expectClientesListContract(page: Page) {
@@ -206,6 +310,252 @@ test("admin can validate the clientes listing, search, detail, and form", async 
     timeout: 15_000,
   });
   await expectNoVisibleSensitiveText(page);
+});
+
+test("admin can validate clientes pagination and canonical URLs", async ({
+  page,
+}) => {
+  await loginAs(page, "admin");
+
+  await page.goto("/dashboard/clientes");
+  await expect(page.getByRole("heading", { name: /^clientes$/i })).toBeVisible();
+
+  if (
+    await page
+      .getByText(/no hay clientes registrados todav/i)
+      .first()
+      .isVisible()
+  ) {
+    test.skip(true, "La paginación requiere al menos un cliente visible.");
+  }
+
+  await expectCompactPaginationA11y(page);
+
+  const pageInfo = await getClientesPaginationPageInfo(page);
+  const summary = await getClientesPaginationSummary(page);
+
+  console.info(
+    `[clientes pagination] totalCount=${summary.totalCount} totalPages=${pageInfo.totalPages}`,
+  );
+
+  expect(pageInfo.currentPage).toBe(1);
+  expect(pageInfo.totalPages).toBeGreaterThanOrEqual(1);
+  expect(summary.startItem).toBe(1);
+  expect(summary.endItem).toBe(Math.min(50, summary.totalCount));
+
+  await expectDisabledPaginationControl(getPreviousPageControl(page));
+  await expect(getPreviousPageLink(page)).toHaveCount(0);
+
+  await page.goto("/dashboard/clientes?page=1");
+  await expect(page).toHaveURL(/\/dashboard\/clientes$/);
+
+  await page.goto("/dashboard/clientes?page=abc");
+  await expect(page).toHaveURL(/\/dashboard\/clientes$/);
+
+  await page.goto("/dashboard/clientes?q=a&page=abc");
+  await expect.poll(async () => {
+    const url = await getCurrentClientesUrl(page);
+
+    return {
+      page: url.searchParams.get("page"),
+      q: url.searchParams.get("q"),
+    };
+  }).toEqual({
+    page: null,
+    q: "a",
+  });
+
+  const outOfRangePage = pageInfo.totalPages + 1;
+  const expectedPageParam =
+    pageInfo.totalPages > 1 ? String(pageInfo.totalPages) : null;
+
+  await page.goto(`/dashboard/clientes?page=${outOfRangePage}`);
+
+  await expect.poll(() => {
+    const url = new URL(page.url());
+
+    return {
+      page: url.searchParams.get("page"),
+      pathname: url.pathname,
+    };
+  }).toEqual({
+    page: expectedPageParam,
+    pathname: "/dashboard/clientes",
+  });
+  await expect(
+    page.getByRole("alert").filter({
+      hasText: /no se pudieron cargar los clientes/i,
+    }),
+  ).toHaveCount(0);
+  await expectCompactPaginationA11y(page);
+
+  const lastPageInfo = await getClientesPaginationPageInfo(page);
+  const lastPageSummary = await getClientesPaginationSummary(page);
+  const lastPageUrl = await getCurrentClientesUrl(page);
+
+  expect(lastPageInfo.currentPage).toBe(lastPageInfo.totalPages);
+  expect(lastPageSummary.endItem).toBe(lastPageSummary.totalCount);
+  expect(lastPageUrl.searchParams.get("page")).toBe(
+    lastPageInfo.totalPages > 1 ? String(lastPageInfo.totalPages) : null,
+  );
+  await expectDisabledPaginationControl(getNextPageControl(page));
+  await expect(getNextPageLink(page)).toHaveCount(0);
+});
+
+test("admin can navigate between cliente pages", async ({ page }) => {
+  await loginAs(page, "admin");
+
+  await page.goto("/dashboard/clientes");
+  await expectCompactPaginationA11y(page);
+
+  const initialPageInfo = await getClientesPaginationPageInfo(page);
+  const initialSummary = await getClientesPaginationSummary(page);
+
+  test.skip(
+    initialPageInfo.totalPages < 2,
+    "La navegación a página 2 requiere al menos 51 clientes visibles.",
+  );
+
+  expect(initialPageInfo.currentPage).toBe(1);
+  expect(initialSummary.startItem).toBe(1);
+  expect(initialSummary.endItem).toBe(50);
+  await expectDisabledPaginationControl(getPreviousPageControl(page));
+
+  const nextLink = getNextPageLink(page);
+
+  await expect(nextLink).toBeVisible();
+  await expect(nextLink).toHaveAttribute("title", "Página siguiente");
+  await expectTouchTarget(nextLink);
+  await nextLink.click();
+  await expect(page).toHaveURL(/\/dashboard\/clientes\?page=2$/);
+
+  await expectCompactPaginationA11y(page);
+
+  const secondPageInfo = await getClientesPaginationPageInfo(page);
+  const secondPageSummary = await getClientesPaginationSummary(page);
+
+  expect(secondPageInfo.currentPage).toBe(2);
+  expect(secondPageInfo.totalPages).toBe(initialPageInfo.totalPages);
+  expect(secondPageSummary.startItem).toBe(51);
+  expect(secondPageSummary.endItem).toBe(
+    Math.min(100, initialSummary.totalCount),
+  );
+  expect(secondPageSummary.totalCount).toBe(initialSummary.totalCount);
+
+  const previousLink = getPreviousPageLink(page);
+
+  await expect(previousLink).toBeVisible();
+  await expect(previousLink).toHaveAttribute("href", "/dashboard/clientes");
+  await expectTouchTarget(previousLink);
+
+  if (secondPageInfo.totalPages === 2) {
+    await expectDisabledPaginationControl(getNextPageControl(page));
+    await expect(getNextPageLink(page)).toHaveCount(0);
+  } else {
+    await expect(getNextPageLink(page)).toHaveAttribute(
+      "href",
+      "/dashboard/clientes?page=3",
+    );
+  }
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/dashboard/clientes?page=2");
+  await expectCompactPaginationA11y(page);
+  await expect(getPreviousPageControl(page)).toBeVisible();
+  await expect(getNextPageControl(page)).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+
+  await previousLink.click();
+  await expect(page).toHaveURL(/\/dashboard\/clientes$/);
+});
+
+test("cliente pagination preserves the active search", async ({ page }) => {
+  await loginAs(page, "admin");
+
+  const candidateQueries = ["5", "a", "e", "o"];
+  let selectedQuery: string | null = null;
+
+  for (const query of candidateQueries) {
+    await page.goto(`/dashboard/clientes?q=${encodeURIComponent(query)}`);
+    await expect(page.getByRole("heading", { name: /^clientes$/i })).toBeVisible();
+
+    if (
+      await page
+        .getByText(/no encontramos clientes|sin resultados|no se encontraron clientes/i)
+        .first()
+        .isVisible()
+    ) {
+      continue;
+    }
+
+    await expect(getClientesPagination(page)).toBeVisible();
+
+    const pageInfo = await getClientesPaginationPageInfo(page);
+
+    if (pageInfo.totalPages > 1) {
+      selectedQuery = query;
+      break;
+    }
+  }
+
+  test.skip(
+    selectedQuery === null,
+    "Ninguna búsqueda candidata produjo más de una página de clientes.",
+  );
+
+  const query = selectedQuery ?? "";
+
+  await expect(getVisibleSearchInput(page)).toHaveValue(query);
+  await expect(getNextPageLink(page)).toBeVisible();
+  await getNextPageLink(page).click();
+  await expectCompactPaginationA11y(page);
+
+  await expect.poll(() => {
+    const url = new URL(page.url());
+
+    return {
+      page: url.searchParams.get("page"),
+      q: url.searchParams.get("q"),
+    };
+  }).toEqual({
+    page: "2",
+    q: query,
+  });
+
+  const pageInfo = await getClientesPaginationPageInfo(page);
+
+  expect(pageInfo.currentPage).toBe(2);
+  await expect(getVisibleSearchInput(page)).toHaveValue(query);
+});
+
+test("cliente search removes pagination from the URL", async ({ page }) => {
+  await loginAs(page, "admin");
+
+  await page.goto("/dashboard/clientes?page=2");
+  const pageInfo = await getClientesPaginationPageInfo(page);
+
+  test.skip(
+    pageInfo.totalPages < 2,
+    "El reinicio desde página 2 requiere al menos 51 clientes visibles.",
+  );
+
+  const resetQuery = "qa";
+  const searchInput = getVisibleSearchInput(page);
+
+  await searchInput.fill(resetQuery);
+  await searchInput.press("Enter");
+
+  await expect.poll(async () => {
+    const url = await getCurrentClientesUrl(page);
+
+    return {
+      page: url.searchParams.get("page"),
+      q: url.searchParams.get("q"),
+    };
+  }).toEqual({
+    page: null,
+    q: resetQuery,
+  });
 });
 
 test("clientes remain navigable without horizontal overflow on mobile", async ({

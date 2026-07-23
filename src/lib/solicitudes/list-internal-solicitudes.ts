@@ -1,6 +1,13 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
 import {
+  createPaginationMeta,
+  getPaginationRange,
+  INTERNAL_LIST_PAGE_SIZE,
+  normalizePageParam,
+  type PaginationMeta,
+} from "@/lib/pagination";
+import {
   serviceFailure,
   serviceSuccess,
   type ServiceResult,
@@ -23,6 +30,7 @@ export type ListInternalSolicitudesOptions = {
   q?: string | null;
   status?: string | null;
   workflowType?: string | null;
+  page?: string | number | null;
   limit?: number;
 };
 
@@ -40,12 +48,14 @@ export type ListInternalSolicitudesErrorReason =
   | "error";
 
 export type ListInternalSolicitudesResult = ServiceResult<
-  { solicitudes: InternalSolicitud[] } & ListInternalSolicitudesMeta,
+  {
+    solicitudes: InternalSolicitud[];
+    pagination: PaginationMeta;
+  } & ListInternalSolicitudesMeta,
   ListInternalSolicitudesErrorReason,
   Partial<ListInternalSolicitudesMeta>
 >;
 
-const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 const REFERENCE_SCAN_LIMIT = 500;
 const GENERIC_LIST_ERROR =
@@ -55,10 +65,10 @@ const SOLICITUDES_SELECT =
 
 function normalizeLimit(limit: number | undefined): number {
   if (!Number.isFinite(limit)) {
-    return DEFAULT_LIMIT;
+    return INTERNAL_LIST_PAGE_SIZE;
   }
 
-  const finiteLimit = limit ?? DEFAULT_LIMIT;
+  const finiteLimit = limit ?? INTERNAL_LIST_PAGE_SIZE;
 
   return Math.min(Math.max(Math.trunc(finiteLimit), 1), MAX_LIMIT);
 }
@@ -69,31 +79,59 @@ export function isInternalSolicitudEstado(
   return INTERNAL_SOLICITUD_ESTADOS.includes(status as InternalSolicitudEstado);
 }
 
-function mergeSolicitudes(
-  groups: InternalSolicitud[][],
-  limit: number,
-): InternalSolicitud[] {
-  const byId = new Map<string, InternalSolicitud>();
+function canMatchVisibleSolicitudReference(query: string): boolean {
+  const compactQuery = query.replace(/-/g, "").toLowerCase();
 
-  for (const group of groups) {
-    for (const solicitud of group) {
-      byId.set(solicitud.id, solicitud);
-    }
-  }
-
-  return [...byId.values()]
-    .sort((left, right) => right.created_at.localeCompare(left.created_at))
-    .slice(0, limit);
+  return (
+    compactQuery.length >= 4 &&
+    /^[0-9a-f]+$/.test(compactQuery)
+  );
 }
 
 function matchesVisibleSolicitudReference(id: string, query: string): boolean {
   const compactQuery = query.replace(/-/g, "").toLowerCase();
 
   return (
-    compactQuery.length >= 4 &&
-    /^[0-9a-f]+$/.test(compactQuery) &&
+    canMatchVisibleSolicitudReference(query) &&
     id.replace(/-/g, "").toLowerCase().startsWith(compactQuery)
   );
+}
+
+function formatPostgrestInValue(value: string): string {
+  return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
+function buildSolicitudSearchCondition(
+  q: string | null,
+  referenceIds: string[],
+): string | null {
+  if (!q) {
+    return null;
+  }
+
+  const conditions = [
+    `client_name.ilike.*${q}*`,
+    `client_phone.ilike.*${q}*`,
+    `client_email.ilike.*${q}*`,
+    `service_type.ilike.*${q}*`,
+    `description.ilike.*${q}*`,
+    `notes.ilike.*${q}*`,
+  ];
+  const serviceTypeValues = getSolicitudServiceTypeSearchValues(q);
+
+  if (serviceTypeValues.length > 0) {
+    conditions.push(
+      `service_type.in.(${serviceTypeValues
+        .map(formatPostgrestInValue)
+        .join(",")})`,
+    );
+  }
+
+  if (referenceIds.length > 0) {
+    conditions.push(`id.in.(${referenceIds.join(",")})`);
+  }
+
+  return conditions.join(",");
 }
 
 export async function listInternalSolicitudes(
@@ -136,117 +174,129 @@ export async function listInternalSolicitudes(
   }
 
   const limit = normalizeLimit(options.limit);
+  const requestedPage = normalizePageParam(options.page);
   const supabase = await createClient();
 
   try {
-    let baseQuery = supabase
-      .from("solicitudes")
-      .select(SOLICITUDES_SELECT)
-      .order("created_at", { ascending: false })
-      .limit(limit);
+    let referenceIds: string[] = [];
 
-    if (selectedEstado) {
-      baseQuery = baseQuery.eq("status", selectedEstado);
-    }
+    if (q && canMatchVisibleSolicitudReference(q)) {
+      let referenceQuery = supabase
+        .from("solicitudes")
+        .select("id")
+        .order("created_at", { ascending: false })
+        .limit(REFERENCE_SCAN_LIMIT);
 
-    if (selectedWorkflowType) {
-      baseQuery = baseQuery.eq("workflow_type", selectedWorkflowType);
-    }
+      if (selectedEstado) {
+        referenceQuery = referenceQuery.eq("status", selectedEstado);
+      }
 
-    if (!q) {
-      const { data, error } =
-        await baseQuery.returns<InternalSolicitud[]>();
+      if (selectedWorkflowType) {
+        referenceQuery = referenceQuery.eq(
+          "workflow_type",
+          selectedWorkflowType,
+        );
+      }
 
-      if (error) {
-        console.error("Error listing internal solicitudes", error);
+      const { data: referenceRows, error: referenceError } =
+        await referenceQuery.returns<Array<{ id: string }>>();
+
+      if (referenceError) {
+        console.error(
+          "Error resolving visible solicitud references",
+          referenceError,
+        );
 
         return serviceFailure("error", GENERIC_LIST_ERROR, meta);
       }
 
-      return serviceSuccess({
-        solicitudes: data ?? [],
-        ...meta,
-      });
+      referenceIds = (referenceRows ?? [])
+        .filter((solicitud) =>
+          matchesVisibleSolicitudReference(solicitud.id, q),
+        )
+        .map((solicitud) => solicitud.id);
     }
 
-    let textQuery = supabase
+    const searchCondition = buildSolicitudSearchCondition(q, referenceIds);
+    let countQuery = supabase
       .from("solicitudes")
-      .select(SOLICITUDES_SELECT)
-      .or(
-        `client_name.ilike.*${q}*,client_phone.ilike.*${q}*,client_email.ilike.*${q}*,service_type.ilike.*${q}*,description.ilike.*${q}*,notes.ilike.*${q}*`,
-      )
-      .order("created_at", { ascending: false })
-      .limit(limit);
-    let referenceQuery = supabase
-      .from("solicitudes")
-      .select(SOLICITUDES_SELECT)
-      .order("created_at", { ascending: false })
-      .limit(REFERENCE_SCAN_LIMIT);
+      .select("id", { count: "exact", head: true });
 
     if (selectedEstado) {
-      textQuery = textQuery.eq("status", selectedEstado);
-      referenceQuery = referenceQuery.eq("status", selectedEstado);
+      countQuery = countQuery.eq("status", selectedEstado);
     }
 
     if (selectedWorkflowType) {
-      textQuery = textQuery.eq("workflow_type", selectedWorkflowType);
-      referenceQuery = referenceQuery.eq(
+      countQuery = countQuery.eq(
         "workflow_type",
         selectedWorkflowType,
       );
     }
 
-    const serviceTypeValues = getSolicitudServiceTypeSearchValues(q);
-    let serviceTypeQuery =
-      serviceTypeValues.length > 0
-        ? supabase
-            .from("solicitudes")
-            .select(SOLICITUDES_SELECT)
-            .in("service_type", serviceTypeValues)
-            .order("created_at", { ascending: false })
-            .limit(limit)
-        : null;
-
-    if (serviceTypeQuery && selectedEstado) {
-      serviceTypeQuery = serviceTypeQuery.eq("status", selectedEstado);
+    if (searchCondition) {
+      countQuery = countQuery.or(searchCondition);
     }
 
-    if (serviceTypeQuery && selectedWorkflowType) {
-      serviceTypeQuery = serviceTypeQuery.eq(
-        "workflow_type",
-        selectedWorkflowType,
-      );
-    }
+    const { error: countError, count } = await countQuery;
 
-    const [textResult, referenceResult, serviceTypeResult] = await Promise.all([
-      textQuery.returns<InternalSolicitud[]>(),
-      referenceQuery.returns<InternalSolicitud[]>(),
-      serviceTypeQuery
-        ? serviceTypeQuery.returns<InternalSolicitud[]>()
-        : Promise.resolve({ data: [] as InternalSolicitud[], error: null }),
-    ]);
-    const searchError =
-      textResult.error ?? referenceResult.error ?? serviceTypeResult.error;
-
-    if (searchError) {
-      console.error("Error searching internal solicitudes", searchError);
+    if (countError) {
+      console.error("Error counting internal solicitudes", countError);
 
       return serviceFailure("error", GENERIC_LIST_ERROR, meta);
     }
 
-    const referenceMatches = (referenceResult.data ?? []).filter((solicitud) =>
-      matchesVisibleSolicitudReference(solicitud.id, q),
+    const pagination = createPaginationMeta({
+      page: requestedPage,
+      pageSize: limit,
+      totalCount: count,
+    });
+
+    if (pagination.totalCount === 0) {
+      return serviceSuccess({
+        solicitudes: [],
+        pagination,
+        ...meta,
+      });
+    }
+
+    let dataQuery = supabase
+      .from("solicitudes")
+      .select(SOLICITUDES_SELECT);
+
+    if (selectedEstado) {
+      dataQuery = dataQuery.eq("status", selectedEstado);
+    }
+
+    if (selectedWorkflowType) {
+      dataQuery = dataQuery.eq(
+        "workflow_type",
+        selectedWorkflowType,
+      );
+    }
+
+    if (searchCondition) {
+      dataQuery = dataQuery.or(searchCondition);
+    }
+
+    const { from, to } = getPaginationRange(
+      pagination.page,
+      pagination.pageSize,
     );
+    const { data, error } = await dataQuery
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .range(from, to)
+      .returns<InternalSolicitud[]>();
+
+    if (error) {
+      console.error("Error listing internal solicitudes page", error);
+
+      return serviceFailure("error", GENERIC_LIST_ERROR, meta);
+    }
 
     return serviceSuccess({
-      solicitudes: mergeSolicitudes(
-        [
-          textResult.data ?? [],
-          serviceTypeResult.data ?? [],
-          referenceMatches,
-        ],
-        limit,
-      ),
+      solicitudes: data ?? [],
+      pagination,
       ...meta,
     });
   } catch (error) {

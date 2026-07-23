@@ -1,3 +1,4 @@
+import { INTERNAL_LIST_PAGE_SIZE } from "@/lib/pagination";
 import { getSolicitudServiceTypeSearchValues } from "@/lib/solicitudes";
 import { normalizeSearchQuery } from "@/lib/utils";
 import { isWorkflowType } from "@/lib/workflow-types";
@@ -13,7 +14,6 @@ import {
   type PedidoPaymentStatus,
 } from "./status";
 
-const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 
 export const REFERENCE_SCAN_LIMIT = 500;
@@ -33,10 +33,10 @@ type SearchIdRow = {
 
 function normalizeLimit(limit: number | undefined): number {
   if (!Number.isFinite(limit)) {
-    return DEFAULT_LIMIT;
+    return INTERNAL_LIST_PAGE_SIZE;
   }
 
-  const finiteLimit = limit ?? DEFAULT_LIMIT;
+  const finiteLimit = limit ?? INTERNAL_LIST_PAGE_SIZE;
 
   return Math.min(Math.max(Math.trunc(finiteLimit), 1), MAX_LIMIT);
 }
@@ -100,8 +100,26 @@ export function getClienteSearchCondition(q: string): string {
   return `name.ilike.*${q}*,phone.ilike.*${q}*,email.ilike.*${q}*`;
 }
 
-export function getPedidoTextSearchCondition(q: string): string {
-  return `order_number.ilike.*${q}*,title.ilike.*${q}*,description.ilike.*${q}*`;
+export function buildPedidoSearchCondition(
+  q: string,
+  clienteIds: readonly string[],
+  solicitudIds: readonly string[],
+): string {
+  const conditions = [
+    `order_number.ilike.*${q}*`,
+    `title.ilike.*${q}*`,
+    `description.ilike.*${q}*`,
+  ];
+
+  if (clienteIds.length > 0) {
+    conditions.push(`cliente_id.in.(${clienteIds.join(",")})`);
+  }
+
+  if (solicitudIds.length > 0) {
+    conditions.push(`solicitud_id.in.(${solicitudIds.join(",")})`);
+  }
+
+  return conditions.join(",");
 }
 
 export function getSolicitudServiceTypeSearchPattern(q: string): string {
@@ -112,12 +130,20 @@ export function getPedidoSearchServiceTypeValues(q: string): string[] {
   return getSolicitudServiceTypeSearchValues(q);
 }
 
-export function matchesVisibleReference(id: string, query: string): boolean {
+export function canMatchVisibleReference(query: string): boolean {
   const compactQuery = query.replace(/-/g, "").toLowerCase();
 
   return (
     compactQuery.length >= 4 &&
-    /^[0-9a-f]+$/.test(compactQuery) &&
+    /^[0-9a-f]+$/.test(compactQuery)
+  );
+}
+
+export function matchesVisibleReference(id: string, query: string): boolean {
+  const compactQuery = query.replace(/-/g, "").toLowerCase();
+
+  return (
+    canMatchVisibleReference(query) &&
     id.replace(/-/g, "").toLowerCase().startsWith(compactQuery)
   );
 }

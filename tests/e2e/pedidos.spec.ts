@@ -428,6 +428,358 @@ async function expectPedidosListLoaded(page: Page) {
   await expectNoTechnicalLeakText(page);
 }
 
+async function getCurrentPedidoOrderNumber(page: Page) {
+  const orderNumber = (
+    await getPedidoHeader(page).locator("p").first().innerText()
+  ).trim();
+
+  expect(orderNumber).not.toBe("");
+
+  return orderNumber;
+}
+
+function getPedidosPagination(page: Page) {
+  return page.getByRole("navigation", {
+    name: /paginaci.n de pedidos/i,
+  });
+}
+
+async function getPedidosPaginationPageInfo(page: Page) {
+  const pagination = getPedidosPagination(page);
+  const text = await pagination
+    .getByText(/P.gina\s+\d+\s+de\s+\d+/i)
+    .innerText();
+  const match = text.match(/P.gina\s+(\d+)\s+de\s+(\d+)/i);
+
+  expect(match, `Unexpected pagination page text: ${text}`).not.toBeNull();
+
+  return {
+    currentPage: Number(match?.[1]),
+    totalPages: Number(match?.[2]),
+  };
+}
+
+async function getPedidosPaginationSummary(page: Page) {
+  const pagination = getPedidosPagination(page);
+  const text = await pagination
+    .getByText(/Mostrando\s+\d+[–â€“]\d+\s+de\s+\d+\s+pedidos/i)
+    .innerText();
+  const match = text.match(
+    /Mostrando\s+(\d+)[–â€“](\d+)\s+de\s+(\d+)\s+pedidos/i,
+  );
+
+  expect(match, `Unexpected pagination summary text: ${text}`).not.toBeNull();
+
+  return {
+    startItem: Number(match?.[1]),
+    endItem: Number(match?.[2]),
+    totalCount: Number(match?.[3]),
+  };
+}
+
+function getPreviousPedidoPageControl(page: Page) {
+  return getPedidosPagination(page).getByLabel(/Ir a la p.gina anterior/i);
+}
+
+function getNextPedidoPageControl(page: Page) {
+  return getPedidosPagination(page).getByLabel(/Ir a la p.gina siguiente/i);
+}
+
+function getPreviousPedidoPageLink(page: Page) {
+  return getPedidosPagination(page).getByRole("link", {
+    name: /Ir a la p.gina anterior/i,
+  });
+}
+
+function getNextPedidoPageLink(page: Page) {
+  return getPedidosPagination(page).getByRole("link", {
+    name: /Ir a la p.gina siguiente/i,
+  });
+}
+
+async function expectPaginationTouchTarget(control: Locator) {
+  const box = await control.boundingBox();
+
+  expect(box).not.toBeNull();
+  expect(box?.width).toBeGreaterThanOrEqual(40);
+  expect(box?.height).toBeGreaterThanOrEqual(40);
+}
+
+async function expectDisabledPaginationControl(control: Locator) {
+  await expect(control).toBeVisible();
+  await expect(control).toHaveAttribute("aria-disabled", "true");
+  await expect(control).not.toHaveAttribute("href", /.+/);
+  await expectPaginationTouchTarget(control);
+}
+
+async function expectPedidosPaginationA11y(page: Page) {
+  const pagination = getPedidosPagination(page);
+
+  await expect(pagination).toBeVisible();
+  await expect(pagination.getByText(/P.gina\s+\d+\s+de\s+\d+/i)).toBeVisible();
+  await expect(
+    pagination.getByText(/Mostrando\s+\d+[–â€“]\d+\s+de\s+\d+\s+pedidos/i),
+  ).toBeVisible();
+
+  for (const control of [
+    getPreviousPedidoPageControl(page),
+    getNextPedidoPageControl(page),
+  ]) {
+    await expect(control).toBeVisible();
+    await expectPaginationTouchTarget(control);
+  }
+}
+
+async function getCurrentPedidosUrl(page: Page) {
+  await expect(page).toHaveURL(/\/dashboard\/pedidos/);
+
+  return new URL(page.url());
+}
+
+async function expectNoPedidosLoadError(page: Page) {
+  await expect(
+    page.getByRole("alert").filter({
+      hasText: /no se pudieron cargar los pedidos/i,
+    }),
+  ).toHaveCount(0);
+}
+
+function getPedidoListLink(page: Page, orderNumber: string) {
+  return page.getByRole("link", {
+    name: new RegExp(`Abrir pedido ${escapeRegExp(orderNumber)}`, "i"),
+  });
+}
+
+function getPedidosFiltersToggle(page: Page) {
+  return page.locator("summary").filter({ hasText: /^Filtros/i });
+}
+
+async function hasEmptyPedidosState(page: Page) {
+  return page
+    .getByText(/no hay pedidos registrados todav|no encontramos pedidos/i)
+    .first()
+    .isVisible()
+    .catch(() => false);
+}
+
+async function getVisiblePedidoListTexts(page: Page) {
+  return page
+    .getByRole("link", { name: /Abrir pedido /i })
+    .evaluateAll((elements) =>
+      elements
+        .filter((element) => (element as HTMLElement).offsetParent !== null)
+        .map((element) => element.textContent ?? ""),
+    );
+}
+
+async function expectOnlyVisiblePedidosWithText(
+  page: Page,
+  expectedText: RegExp,
+  unexpectedText?: RegExp,
+) {
+  const pedidoTexts = await getVisiblePedidoListTexts(page);
+
+  expect(pedidoTexts.length).toBeGreaterThan(0);
+
+  for (const text of pedidoTexts) {
+    expect(text).toMatch(expectedText);
+
+    if (unexpectedText) {
+      expect(text).not.toMatch(unexpectedText);
+    }
+  }
+}
+
+async function expectCanonicalLastPedidosPage(
+  page: Page,
+  expectedParams: Record<string, string>,
+) {
+  await expectPedidosListLoaded(page);
+  await expectNoPedidosLoadError(page);
+
+  const empty = await hasEmptyPedidosState(page);
+
+  if (empty) {
+    const url = await getCurrentPedidosUrl(page);
+
+    for (const [key, value] of Object.entries(expectedParams)) {
+      expect(url.searchParams.get(key)).toBe(value);
+    }
+
+    expect(url.searchParams.has("page")).toBe(false);
+
+    return null;
+  }
+
+  const pageInfo = await getPedidosPaginationPageInfo(page);
+  const summary = await getPedidosPaginationSummary(page);
+  const url = await getCurrentPedidosUrl(page);
+
+  for (const [key, value] of Object.entries(expectedParams)) {
+    expect(url.searchParams.get(key)).toBe(value);
+  }
+
+  if (pageInfo.totalPages > 1) {
+    expect(url.searchParams.get("page")).toBe(String(pageInfo.totalPages));
+  } else {
+    expect(url.searchParams.has("page")).toBe(false);
+  }
+
+  expect(pageInfo.currentPage).toBe(pageInfo.totalPages);
+  expect(summary.endItem).toBe(summary.totalCount);
+  await expectDisabledPaginationControl(getNextPedidoPageControl(page));
+
+  return { pageInfo, summary };
+}
+
+async function submitPedidoSearch(page: Page, query: string) {
+  await page.goto(`/dashboard/pedidos?q=${encodeURIComponent(query)}`);
+  await expectPedidosListLoaded(page);
+  await expectNoPedidosLoadError(page);
+}
+
+async function loadPedidoSearchCandidate(page: Page, query: string) {
+  await page.goto(`/dashboard/pedidos?q=${encodeURIComponent(query)}`);
+  await expectPedidosListLoaded(page);
+
+  if (
+    await page
+      .getByRole("alert")
+      .filter({ hasText: /no se pudieron cargar los pedidos/i })
+      .isVisible()
+      .catch(() => false)
+  ) {
+    return null;
+  }
+
+  if (await hasEmptyPedidosState(page)) {
+    return null;
+  }
+
+  return getPedidosPaginationPageInfo(page);
+}
+
+async function getVisiblePedidoOrderNumbers(page: Page) {
+  return page
+    .getByRole("link", { name: /Abrir pedido /i })
+    .evaluateAll((elements) =>
+      elements
+        .filter((element) => (element as HTMLElement).offsetParent !== null)
+        .map((element) =>
+          (element.getAttribute("aria-label") ?? "").replace(
+            /^Abrir pedido\s+/i,
+            "",
+          ),
+        )
+        .filter(Boolean),
+    );
+}
+
+async function findPedidoWithCliente(page: Page) {
+  await page.goto("/dashboard/pedidos", { waitUntil: "domcontentloaded" });
+  await expectPedidosListLoaded(page);
+
+  const orderNumbers = await getVisiblePedidoOrderNumbers(page);
+  let checkedCount = 0;
+
+  for (const orderNumber of orderNumbers) {
+    checkedCount += 1;
+
+    if (checkedCount > 8) {
+      break;
+    }
+
+    await page.goto("/dashboard/pedidos", { waitUntil: "domcontentloaded" });
+    await expectPedidosListLoaded(page);
+    await getPedidoListLink(page, orderNumber).click();
+    await expect(page).toHaveURL(/\/dashboard\/pedidos\/[^/]+$/);
+
+    const informationDialog = await openPedidoPanel(
+      page,
+      /^informaci.n$/i,
+      /informaci.n/i,
+    );
+    const clienteLink = informationDialog
+      .locator("section")
+      .filter({ has: informationDialog.getByRole("heading", { name: /^cliente$/i }) })
+      .getByRole("link");
+    let clienteName = "";
+
+    if (await clienteLink.isVisible().catch(() => false)) {
+      clienteName = (await clienteLink.innerText()).trim();
+    }
+
+    const closeButton = informationDialog.getByRole("button", {
+      name: /cerrar/i,
+    });
+
+    await closeButton.click();
+
+    if (clienteName) {
+      return { orderNumber, clienteName };
+    }
+  }
+
+  return null;
+}
+
+async function findPedidoWithSolicitud(page: Page) {
+  await page.goto("/dashboard/pedidos", { waitUntil: "domcontentloaded" });
+  await expectPedidosListLoaded(page);
+
+  const orderNumbers = await getVisiblePedidoOrderNumbers(page);
+  let checkedCount = 0;
+
+  for (const orderNumber of orderNumbers) {
+    checkedCount += 1;
+
+    if (checkedCount > 8) {
+      break;
+    }
+
+    await page.goto("/dashboard/pedidos", { waitUntil: "domcontentloaded" });
+    await expectPedidosListLoaded(page);
+    await getPedidoListLink(page, orderNumber).click();
+    await expect(page).toHaveURL(/\/dashboard\/pedidos\/[^/]+$/);
+
+    const informationDialog = await openPedidoPanel(
+      page,
+      /^informaci.n$/i,
+      /informaci.n/i,
+    );
+    const solicitudSection = informationDialog.locator("section").filter({
+      has: informationDialog.getByRole("heading", {
+        name: /solicitud de origen/i,
+      }),
+    });
+    const solicitudLink = solicitudSection
+      .getByRole("link", { name: /personalizaci.n|impresi.n|dise.o/i });
+    let serviceLabel = "";
+    let solicitudId = "";
+
+    if (await solicitudLink.isVisible().catch(() => false)) {
+      serviceLabel = (await solicitudLink.innerText()).trim();
+      const href = await solicitudLink.getAttribute("href");
+
+      solicitudId = href?.match(
+        /\/dashboard\/solicitudes\/([0-9a-f-]{36})/i,
+      )?.[1] ?? "";
+    }
+
+    const closeButton = informationDialog.getByRole("button", {
+      name: /cerrar/i,
+    });
+
+    await closeButton.click();
+
+    if (serviceLabel && solicitudId) {
+      return { orderNumber, serviceLabel, solicitudId };
+    }
+  }
+
+  return null;
+}
+
 async function createManualPedido(
   page: Page,
   workflow: "encargo" | "impresion",
@@ -486,7 +838,10 @@ async function createManualPedido(
   await updatePedidoStatus(page, "en_revision");
   await expectNoTechnicalLeakText(page);
 
-  return page.url();
+  return {
+    detailUrl: page.url(),
+    orderNumber: await getCurrentPedidoOrderNumber(page),
+  };
 }
 
 async function updatePedidoStatus(page: Page, status: string) {
@@ -970,7 +1325,9 @@ async function assignFirstAvailableWorker(page: Page) {
 }
 
 let encargoDetailUrl = "";
+let encargoOrderNumber = "";
 let impresionDetailUrl = "";
+let impresionOrderNumber = "";
 let assignedEncargoDetailUrl = "";
 
 test("admin can create and manage focal internal pedidos", async ({ page }) => {
@@ -983,12 +1340,14 @@ test("admin can create and manage focal internal pedidos", async ({ page }) => {
     page.getByRole("button", { name: /nuevo pedido/i }),
   ).toBeVisible();
 
-  encargoDetailUrl = await createManualPedido(
+  const encargoFixture = await createManualPedido(
     page,
     "encargo",
     encargoTitle,
     "500",
   );
+  encargoDetailUrl = encargoFixture.detailUrl;
+  encargoOrderNumber = encargoFixture.orderNumber;
 
   await expectCompactPedidoHeader(page, encargoTitle);
   await expect(
@@ -1074,12 +1433,14 @@ test("admin can create and manage focal internal pedidos", async ({ page }) => {
     assignedEncargoDetailUrl = page.url();
   }
 
-  impresionDetailUrl = await createManualPedido(
+  const impresionFixture = await createManualPedido(
     page,
     "impresion",
     impresionTitle,
     "300",
   );
+  impresionDetailUrl = impresionFixture.detailUrl;
+  impresionOrderNumber = impresionFixture.orderNumber;
   await expectCompactPedidoHeader(page, impresionTitle);
   await expect(page.getByRole("button", { name: /^tareas/i })).toHaveCount(0);
   await expect(
@@ -1116,6 +1477,391 @@ test("admin can create and manage focal internal pedidos", async ({ page }) => {
     page.getByRole("button", { name: /aplicar plantilla/i }),
   ).toHaveCount(0);
   await expectNoTechnicalLeakText(page);
+});
+
+test("admin can validate pedidos pagination and canonical URLs", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+
+  await loginAs(page, "admin");
+  expect(encargoOrderNumber).not.toBe("");
+  expect(impresionOrderNumber).not.toBe("");
+  await page.goto("/dashboard/pedidos");
+  await expectPedidosListLoaded(page);
+  await expectNoPedidosLoadError(page);
+
+  if (!(await hasEmptyPedidosState(page))) {
+    await expectPedidosPaginationA11y(page);
+
+    const pageInfo = await getPedidosPaginationPageInfo(page);
+    const summary = await getPedidosPaginationSummary(page);
+
+    expect(pageInfo.currentPage).toBe(1);
+    expect(pageInfo.totalPages).toBeGreaterThanOrEqual(1);
+    expect(summary.startItem).toBe(1);
+    expect(summary.endItem).toBe(Math.min(50, summary.totalCount));
+    await expectDisabledPaginationControl(getPreviousPedidoPageControl(page));
+    await expectNoHorizontalOverflow(page);
+
+    console.info(
+      `[pedidos pagination] totalCount=${summary.totalCount} totalPages=${pageInfo.totalPages}`,
+    );
+
+    await page.goto("/dashboard/pedidos?page=1");
+    await expectPedidosListLoaded(page);
+    expect((await getCurrentPedidosUrl(page)).pathname).toBe(
+      "/dashboard/pedidos",
+    );
+    expect((await getCurrentPedidosUrl(page)).search).toBe("");
+
+    await page.goto("/dashboard/pedidos?page=abc");
+    await expectPedidosListLoaded(page);
+    expect((await getCurrentPedidosUrl(page)).pathname).toBe(
+      "/dashboard/pedidos",
+    );
+    expect((await getCurrentPedidosUrl(page)).search).toBe("");
+
+    const outOfRangePage = pageInfo.totalPages + 1;
+
+    await page.goto(`/dashboard/pedidos?page=${outOfRangePage}`);
+    await expectPedidosListLoaded(page);
+    await expectNoPedidosLoadError(page);
+
+    const lastUrl = await getCurrentPedidosUrl(page);
+    const lastPageInfo = await getPedidosPaginationPageInfo(page);
+    const lastSummary = await getPedidosPaginationSummary(page);
+
+    expect(lastUrl.pathname).toBe("/dashboard/pedidos");
+    if (pageInfo.totalPages > 1) {
+      expect(lastUrl.searchParams.get("page")).toBe(String(pageInfo.totalPages));
+    } else {
+      expect(lastUrl.searchParams.has("page")).toBe(false);
+    }
+    expect(lastPageInfo.currentPage).toBe(pageInfo.totalPages);
+    expect(lastSummary.endItem).toBe(summary.totalCount);
+    await expectDisabledPaginationControl(getNextPedidoPageControl(page));
+  }
+
+  await page.goto("/dashboard/pedidos?payment_status=pagado&page=999999");
+  const paidLast = await expectCanonicalLastPedidosPage(page, {
+    payment_status: "pagado",
+  });
+
+  if (paidLast) {
+    await expectOnlyVisiblePedidosWithText(
+      page,
+      /Pagado/i,
+      /Sin pagar|Pago parcial/i,
+    );
+  }
+
+  await page.goto(
+    `/dashboard/pedidos?q=${encodeURIComponent(
+      encargoTitle,
+    )}&payment_status=pagado&page=999999`,
+  );
+  await expectPedidosListLoaded(page);
+  await expectNoPedidosLoadError(page);
+
+  const paidSearchUrl = await getCurrentPedidosUrl(page);
+
+  expect(paidSearchUrl.searchParams.get("q")).toBe(encargoTitle);
+  expect(paidSearchUrl.searchParams.get("payment_status")).toBe("pagado");
+  expect(paidSearchUrl.searchParams.has("page")).toBe(false);
+  await expect(getPedidoListLink(page, encargoOrderNumber)).toBeVisible();
+  await expect(getPedidoListLink(page, encargoOrderNumber)).toContainText(
+    /Pagado/i,
+  );
+
+  await page.goto(
+    `/dashboard/pedidos?q=${encodeURIComponent(
+      encargoTitle,
+    )}&payment_status=sin_pago`,
+  );
+  await expectPedidosListLoaded(page);
+  await expectNoPedidosLoadError(page);
+  expect(await hasEmptyPedidosState(page)).toBe(true);
+  await expect(getPedidoListLink(page, encargoOrderNumber)).toHaveCount(0);
+
+  const filterScenarios: Array<{
+    url: string;
+    params: Record<string, string>;
+    expected: RegExp;
+    unexpected?: RegExp;
+  }> = [
+    {
+      url: "/dashboard/pedidos?status=nuevo&page=999999",
+      params: { status: "nuevo" },
+      expected: /Creado|Solicitud recibida/i,
+      unexpected:
+        /En revisi.n|En producci.n|Listo para entrega|Entregado|Cancelado/i,
+    },
+    {
+      url: "/dashboard/pedidos?workflow_type=encargo&page=999999",
+      params: { workflow_type: "encargo" },
+      expected: /Encargo/i,
+    },
+    {
+      url: "/dashboard/pedidos?payment_status=sin_pago&page=999999",
+      params: { payment_status: "sin_pago" },
+      expected: /Sin pagar/i,
+      unexpected: /Pagado|Pago parcial/i,
+    },
+  ];
+
+  for (const scenario of filterScenarios) {
+    await page.goto(scenario.url);
+    const last = await expectCanonicalLastPedidosPage(page, scenario.params);
+
+    if (last) {
+      await expectOnlyVisiblePedidosWithText(
+        page,
+        scenario.expected,
+        scenario.unexpected,
+      );
+    }
+  }
+
+  await page.goto(
+    "/dashboard/pedidos?status=invalido&workflow_type=desconocido&payment_status=incorrecto&page=abc",
+  );
+  await expectPedidosListLoaded(page);
+  await expectNoPedidosLoadError(page);
+  await expect(page.getByText(/filtro de estado no es v.lido/i)).toBeVisible();
+  await expect(page.getByText(/filtro de tipo no es v.lido/i)).toBeVisible();
+  await expect(page.getByText(/filtro de pago no es v.lido/i)).toBeVisible();
+
+  const invalidUrl = await getCurrentPedidosUrl(page);
+
+  expect(invalidUrl.searchParams.get("status")).toBe("invalido");
+  expect(invalidUrl.searchParams.get("workflow_type")).toBe("desconocido");
+  expect(invalidUrl.searchParams.get("payment_status")).toBe("incorrecto");
+  expect(invalidUrl.searchParams.has("page")).toBe(false);
+});
+
+test("pedido search preserves direct search capabilities", async ({ page }) => {
+  test.setTimeout(90_000);
+
+  test.skip(!encargoOrderNumber, "The focal encargo order number is missing.");
+
+  await loginAs(page, "admin");
+
+  for (const query of [
+    encargoOrderNumber,
+    encargoTitle,
+    `Encargo focal para ${clienteLabel}`,
+  ]) {
+    await submitPedidoSearch(page, query);
+    await expect(getPedidoListLink(page, encargoOrderNumber)).toBeVisible();
+  }
+});
+
+test("pedido search resolves related cliente data", async ({ page }) => {
+  test.setTimeout(120_000);
+
+  await loginAs(page, "admin");
+
+  const pedidoWithCliente = await findPedidoWithCliente(page);
+
+  if (pedidoWithCliente === null) {
+    test.skip(
+      true,
+      "La búsqueda relacional requiere un pedido con cliente asociado.",
+    );
+    return;
+  }
+
+  await submitPedidoSearch(page, pedidoWithCliente.clienteName);
+  await expect(
+    getPedidoListLink(page, pedidoWithCliente.orderNumber),
+  ).toBeVisible();
+  console.info("[pedidos pagination] cliente relational search executed");
+});
+
+test("pedido search resolves related solicitud data", async ({ page }) => {
+  test.setTimeout(120_000);
+
+  await loginAs(page, "admin");
+
+  const pedidoWithSolicitud = await findPedidoWithSolicitud(page);
+
+  if (pedidoWithSolicitud === null) {
+    test.skip(
+      true,
+      "La búsqueda por solicitud requiere un pedido con solicitud asociada.",
+    );
+    return;
+  }
+
+  await submitPedidoSearch(page, pedidoWithSolicitud.serviceLabel);
+  await expect(
+    getPedidoListLink(page, pedidoWithSolicitud.orderNumber),
+  ).toBeVisible();
+
+  const solicitudReferenceQuery = pedidoWithSolicitud.solicitudId
+    .replace(/-/g, "")
+    .slice(0, 8);
+
+  await submitPedidoSearch(page, solicitudReferenceQuery);
+  await expect(
+    getPedidoListLink(page, pedidoWithSolicitud.orderNumber),
+  ).toBeVisible();
+  console.info("[pedidos pagination] solicitud relational search executed");
+});
+
+test("admin can navigate between pedidos pages", async ({ page }) => {
+  test.setTimeout(90_000);
+
+  await loginAs(page, "admin");
+  await page.goto("/dashboard/pedidos");
+  await expectPedidosListLoaded(page);
+  await expectNoPedidosLoadError(page);
+
+  test.skip(
+    await hasEmptyPedidosState(page),
+    "La navegación de pedidos requiere pedidos visibles.",
+  );
+
+  const initialPageInfo = await getPedidosPaginationPageInfo(page);
+  const initialSummary = await getPedidosPaginationSummary(page);
+
+  test.skip(
+    initialPageInfo.totalPages < 2,
+    "La navegación de pedidos requiere al menos 51 pedidos visibles.",
+  );
+
+  expect(initialPageInfo.currentPage).toBe(1);
+  expect(initialSummary.startItem).toBe(1);
+  expect(initialSummary.endItem).toBe(50);
+  await expectDisabledPaginationControl(getPreviousPedidoPageControl(page));
+  await expectPaginationTouchTarget(getNextPedidoPageLink(page));
+
+  await getNextPedidoPageLink(page).click();
+  await expect
+    .poll(async () => (await getCurrentPedidosUrl(page)).searchParams.get("page"))
+    .toBe("2");
+
+  const secondPageInfo = await getPedidosPaginationPageInfo(page);
+  const secondSummary = await getPedidosPaginationSummary(page);
+
+  expect(secondPageInfo.currentPage).toBe(2);
+  expect(secondPageInfo.totalPages).toBe(initialPageInfo.totalPages);
+  expect(secondSummary.startItem).toBe(51);
+  expect(secondSummary.endItem).toBe(
+    Math.min(100, initialSummary.totalCount),
+  );
+  expect(secondSummary.totalCount).toBe(initialSummary.totalCount);
+  await expectPaginationTouchTarget(getPreviousPedidoPageLink(page));
+
+  if (initialPageInfo.totalPages === 2) {
+    await expectDisabledPaginationControl(getNextPedidoPageControl(page));
+  } else {
+    await expect(getNextPedidoPageLink(page)).toHaveAttribute(
+      "href",
+      /page=3/,
+    );
+  }
+
+  await getPreviousPedidoPageLink(page).click();
+  await expect
+    .poll(async () => (await getCurrentPedidosUrl(page)).search)
+    .toBe("");
+});
+
+test("pedido pagination preserves the active search", async ({ page }) => {
+  test.setTimeout(120_000);
+
+  await loginAs(page, "admin");
+
+  let selectedQuery = "";
+
+  for (const query of ["a", "e", "i", "o", "5"]) {
+    const pageInfo = await loadPedidoSearchCandidate(page, query);
+
+    if (pageInfo && pageInfo.totalPages > 1) {
+      selectedQuery = query;
+      break;
+    }
+  }
+
+  test.skip(
+    !selectedQuery,
+    "La preservación de búsqueda requiere un término con más de una página.",
+  );
+
+  await expect(page.getByLabel(/buscar pedidos/i)).toHaveValue(selectedQuery);
+  await getNextPedidoPageLink(page).click();
+
+  await expect
+    .poll(async () => {
+      const url = await getCurrentPedidosUrl(page);
+
+      return {
+        page: url.searchParams.get("page"),
+        q: url.searchParams.get("q"),
+      };
+    })
+    .toEqual({ page: "2", q: selectedQuery });
+
+  const secondPageInfo = await getPedidosPaginationPageInfo(page);
+
+  expect(secondPageInfo.currentPage).toBe(2);
+  await expect(page.getByLabel(/buscar pedidos/i)).toHaveValue(selectedQuery);
+});
+
+test("pedido filters remove pagination from the URL", async ({ page }) => {
+  test.setTimeout(90_000);
+
+  await loginAs(page, "admin");
+  await page.goto("/dashboard/pedidos");
+  await expectPedidosListLoaded(page);
+
+  test.skip(
+    await hasEmptyPedidosState(page),
+    "El reinicio de filtros requiere pedidos visibles.",
+  );
+
+  const pageInfo = await getPedidosPaginationPageInfo(page);
+
+  test.skip(
+    pageInfo.totalPages < 2,
+    "El reinicio de filtros requiere al menos dos páginas.",
+  );
+
+  await page.goto("/dashboard/pedidos?page=2");
+  await expectPedidosListLoaded(page);
+  await getPedidosFiltersToggle(page).click();
+  await page.getByLabel(/^Tipo$/i).selectOption("encargo");
+
+  await expect
+    .poll(async () => {
+      const url = await getCurrentPedidosUrl(page);
+
+      return {
+        page: url.searchParams.get("page"),
+        workflowType: url.searchParams.get("workflow_type"),
+      };
+    })
+    .toEqual({ page: null, workflowType: "encargo" });
+});
+
+test("pedidos pagination remains usable on mobile", async ({ page }) => {
+  test.setTimeout(90_000);
+
+  await loginAs(page, "admin");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/dashboard/pedidos");
+  await expectPedidosListLoaded(page);
+  await expect(page.getByRole("heading", { name: /^pedidos$/i })).toBeVisible();
+  await expect(page.getByLabel(/buscar pedidos/i)).toBeVisible();
+  await expect(getPedidosFiltersToggle(page)).toBeVisible();
+
+  if (!(await hasEmptyPedidosState(page))) {
+    await expectPedidosPaginationA11y(page);
+  }
+
+  await expectNoHorizontalOverflow(page);
 });
 
 test("pedido workspace contextual panels are accessible", async ({ page }) => {

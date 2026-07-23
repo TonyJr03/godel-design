@@ -1,4 +1,11 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
+import {
+  createPaginationMeta,
+  getPaginationRange,
+  INTERNAL_LIST_PAGE_SIZE,
+  normalizePageParam,
+  type PaginationMeta,
+} from "@/lib/pagination";
 import { hasPermission } from "@/lib/permissions/permissions";
 import {
   serviceFailure,
@@ -19,6 +26,7 @@ export type ListInternalUsersOptions = {
   q?: string | null;
   role?: string | null;
   active?: string | null;
+  page?: string | number | null;
   limit?: number;
 };
 
@@ -36,22 +44,21 @@ export type ListInternalUsersErrorReason =
   | "error";
 
 export type ListInternalUsersResult = ServiceResult<
-  { users: InternalUser[] } & ListInternalUsersMeta,
+  { users: InternalUser[]; pagination: PaginationMeta } & ListInternalUsersMeta,
   ListInternalUsersErrorReason,
   ListInternalUsersMeta
 >;
 
-const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 100;
 const GENERIC_LIST_ERROR =
   "No se pudieron cargar los usuarios internos. Inténtalo nuevamente.";
 
 function normalizeLimit(limit: number | undefined): number {
   if (!Number.isFinite(limit)) {
-    return DEFAULT_LIMIT;
+    return INTERNAL_LIST_PAGE_SIZE;
   }
 
-  const finiteLimit = limit ?? DEFAULT_LIMIT;
+  const finiteLimit = limit ?? INTERNAL_LIST_PAGE_SIZE;
 
   return Math.min(Math.max(Math.trunc(finiteLimit), 1), MAX_LIMIT);
 }
@@ -104,39 +111,88 @@ export async function listInternalUsers(
   }
 
   const limit = normalizeLimit(options.limit);
+  const requestedPage = normalizePageParam(options.page);
   const supabase = await createClient();
 
   try {
-    let query = supabase
+    const searchCondition = q
+      ? `full_name.ilike.*${q}*,phone.ilike.*${q}*`
+      : null;
+    let countQuery = supabase
       .from("perfiles")
-      .select(
-        "id, full_name, role, phone, avatar_url, is_active, created_at, updated_at",
-      )
-      .order("full_name", { ascending: true })
-      .limit(limit);
+      .select("id", { count: "exact", head: true });
 
-    if (q) {
-      query = query.or(`full_name.ilike.*${q}*,phone.ilike.*${q}*`);
+    if (searchCondition) {
+      countQuery = countQuery.or(searchCondition);
     }
 
     if (role) {
-      query = query.eq("role", role);
+      countQuery = countQuery.eq("role", role);
     }
 
     if (active !== null) {
-      query = query.eq("is_active", active);
+      countQuery = countQuery.eq("is_active", active);
     }
 
-    const { data, error } = await query.returns<InternalUser[]>();
+    const { error: countError, count } = await countQuery;
+
+    if (countError) {
+      console.error("Error counting internal users", countError);
+
+      return serviceFailure("error", GENERIC_LIST_ERROR, meta);
+    }
+
+    const pagination = createPaginationMeta({
+      page: requestedPage,
+      pageSize: limit,
+      totalCount: count,
+    });
+
+    if (pagination.totalCount === 0) {
+      return serviceSuccess({
+        users: [],
+        pagination,
+        ...meta,
+      });
+    }
+
+    let dataQuery = supabase
+      .from("perfiles")
+      .select(
+        "id, full_name, role, phone, avatar_url, is_active, created_at, updated_at",
+      );
+
+    if (searchCondition) {
+      dataQuery = dataQuery.or(searchCondition);
+    }
+
+    if (role) {
+      dataQuery = dataQuery.eq("role", role);
+    }
+
+    if (active !== null) {
+      dataQuery = dataQuery.eq("is_active", active);
+    }
+
+    const { from, to } = getPaginationRange(
+      pagination.page,
+      pagination.pageSize,
+    );
+    const { data, error } = await dataQuery
+      .order("full_name", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to)
+      .returns<InternalUser[]>();
 
     if (error) {
-      console.error("Error listing internal users", error);
+      console.error("Error listing internal users page", error);
 
       return serviceFailure("error", GENERIC_LIST_ERROR, meta);
     }
 
     return serviceSuccess({
       users: data ?? [],
+      pagination,
       ...meta,
     });
   } catch (error) {

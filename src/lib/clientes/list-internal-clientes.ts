@@ -1,6 +1,13 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
 import {
+  createPaginationMeta,
+  getPaginationRange,
+  INTERNAL_LIST_PAGE_SIZE,
+  normalizePageParam,
+  type PaginationMeta,
+} from "@/lib/pagination";
+import {
   serviceFailure,
   serviceSuccess,
   type ServiceResult,
@@ -11,6 +18,7 @@ import type { InternalCliente } from "./types";
 
 export type ListInternalClientesOptions = {
   q?: string | null;
+  page?: string | number | null;
   limit?: number;
 };
 
@@ -23,6 +31,7 @@ export type ListInternalClientesResult = ServiceResult<
   {
     clientes: InternalCliente[];
     q: string | null;
+    pagination: PaginationMeta;
   },
   ListInternalClientesErrorReason,
   {
@@ -30,17 +39,16 @@ export type ListInternalClientesResult = ServiceResult<
   }
 >;
 
-const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 const GENERIC_LIST_ERROR =
   "No se pudieron cargar los clientes. Inténtalo nuevamente.";
 
 function normalizeLimit(limit: number | undefined): number {
   if (!Number.isFinite(limit)) {
-    return DEFAULT_LIMIT;
+    return INTERNAL_LIST_PAGE_SIZE;
   }
 
-  const finiteLimit = limit ?? DEFAULT_LIMIT;
+  const finiteLimit = limit ?? INTERNAL_LIST_PAGE_SIZE;
 
   return Math.min(Math.max(Math.trunc(finiteLimit), 1), MAX_LIMIT);
 }
@@ -66,25 +74,63 @@ export async function listInternalClientes(
   }
 
   const limit = normalizeLimit(options.limit);
+  const requestedPage = normalizePageParam(options.page);
   const supabase = await createClient();
 
   try {
-    let query = supabase
+    const searchCondition = q
+      ? `name.ilike.*${q}*,phone.ilike.*${q}*,email.ilike.*${q}*,notes.ilike.*${q}*`
+      : null;
+    let countQuery = supabase
       .from("clientes")
-      .select("id, name, phone, email, created_at, updated_at")
-      .order("name", { ascending: true })
-      .limit(limit);
+      .select("id", { count: "exact", head: true });
 
-    if (q) {
-      query = query.or(
-        `name.ilike.*${q}*,phone.ilike.*${q}*,email.ilike.*${q}*,notes.ilike.*${q}*`,
-      );
+    if (searchCondition) {
+      countQuery = countQuery.or(searchCondition);
     }
 
-    const { data, error } = await query.returns<InternalCliente[]>();
+    const { error: countError, count } = await countQuery;
+
+    if (countError) {
+      console.error("Error counting internal clientes", countError);
+
+      return serviceFailure("error", GENERIC_LIST_ERROR, { q });
+    }
+
+    const pagination = createPaginationMeta({
+      page: requestedPage,
+      pageSize: limit,
+      totalCount: count,
+    });
+
+    if (pagination.totalCount === 0) {
+      return serviceSuccess({
+        clientes: [],
+        q,
+        pagination,
+      });
+    }
+
+    let dataQuery = supabase
+      .from("clientes")
+      .select("id, name, phone, email, created_at, updated_at");
+
+    if (searchCondition) {
+      dataQuery = dataQuery.or(searchCondition);
+    }
+
+    const { from, to } = getPaginationRange(
+      pagination.page,
+      pagination.pageSize,
+    );
+    const { data, error } = await dataQuery
+      .order("name", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to)
+      .returns<InternalCliente[]>();
 
     if (error) {
-      console.error("Error listing internal clientes", error);
+      console.error("Error listing internal clientes page", error);
 
       return serviceFailure("error", GENERIC_LIST_ERROR, { q });
     }
@@ -92,6 +138,7 @@ export async function listInternalClientes(
     return serviceSuccess({
       clientes: data ?? [],
       q,
+      pagination,
     });
   } catch (error) {
     console.error("Unexpected error listing internal clientes", error);
