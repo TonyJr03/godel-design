@@ -7,14 +7,9 @@ import {
 } from "@/components/listing";
 import { InternalPedidosList } from "@/components/pedidos/InternalPedidosList";
 import { PedidoCreateDialogButton } from "@/components/pedidos/PedidoCreateDialogButton";
-import type { PedidoFormCliente } from "@/components/pedidos/PedidoForm";
 import { Alert } from "@/components/ui/Alert";
 import { ReadErrorAlert } from "@/components/ui/ReadErrorAlert";
 import { getCurrentProfile } from "@/lib/auth/current-user";
-import {
-  listInternalClientes,
-  type ListInternalClientesResult,
-} from "@/lib/clientes";
 import { normalizePageParam } from "@/lib/pagination";
 import { hasPermission } from "@/lib/permissions";
 import {
@@ -140,31 +135,6 @@ export default async function DashboardPedidosPage({
   const profile = await getCurrentProfile();
   const canCreatePedido =
     profile !== null && hasPermission(profile.role, "pedidos.manage");
-  const clientesResult: ListInternalClientesResult | null = canCreatePedido
-    ? await listInternalClientes({ limit: 100 })
-    : null;
-
-  if (clientesResult && !clientesResult.ok) {
-    if (clientesResult.reason === "unauthorized") {
-      redirect("/login");
-    }
-  }
-
-  const canShowCreatePedidoAction =
-    canCreatePedido &&
-    (clientesResult === null ||
-      clientesResult.ok ||
-      clientesResult.reason === "error");
-  const clientes: PedidoFormCliente[] = clientesResult?.ok
-    ? clientesResult.clientes.map((cliente) => ({
-        id: cliente.id,
-        name: cliente.name,
-      }))
-    : [];
-  const clientesLoadRetryable =
-    clientesResult !== null &&
-    !clientesResult.ok &&
-    clientesResult.reason === "error";
   const searchValue = result.q ?? "";
 
   return (
@@ -173,17 +143,8 @@ export default async function DashboardPedidosPage({
         title="Pedidos"
         description="Listado interno de pedidos oficiales para seguimiento operativo."
         action={
-          canShowCreatePedidoAction ? (
-            <PedidoCreateDialogButton
-              clientes={clientes}
-              prioridades={PEDIDO_PRIORIDADES}
-              clientesLoadError={
-                clientesResult && !clientesResult.ok
-                  ? clientesResult.message
-                  : undefined
-              }
-              clientesLoadRetryable={clientesLoadRetryable}
-            />
+          canCreatePedido ? (
+            <PedidoCreateDialogButton prioridades={PEDIDO_PRIORIDADES} />
           ) : undefined
         }
         toolbar={

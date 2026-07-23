@@ -13,6 +13,7 @@ import {
   createPedidoAction,
   type CreatePedidoActionState,
 } from "@/app/(interno)/dashboard/pedidos/actions";
+import { ClienteAsyncSelect } from "@/components/clientes/ClienteAsyncSelect";
 import { CopyableCode } from "@/components/common/CopyableCode";
 import {
   Alert,
@@ -38,13 +39,7 @@ import {
   type WorkflowType,
 } from "@/lib/workflow-types";
 
-export type PedidoFormCliente = {
-  id: string;
-  name: string;
-};
-
 type PedidoFormProps = {
-  clientes: PedidoFormCliente[];
   prioridades: readonly PedidoPrioridad[];
   onSuccess?: (state: CreatePedidoActionState) => void;
   onDirtyChange?: (dirty: boolean) => void;
@@ -75,7 +70,6 @@ const separatedBlockClassName = "space-y-3 border-t border-border pt-5";
 const headingClassName = "text-base font-semibold text-text-primary";
 
 export function PedidoForm({
-  clientes,
   prioridades,
   onSuccess,
   onDirtyChange,
@@ -461,20 +455,14 @@ export function PedidoForm({
                 compact
               >
                 {({ describedBy, invalid }) => (
-                  <Select
+                  <ClienteAsyncSelect
                     id="cliente_id"
                     name="cliente_id"
-                    defaultValue=""
+                    allowEmpty
                     invalid={invalid}
-                    aria-describedby={describedBy}
-                  >
-                    <option value="">Sin cliente asociado</option>
-                    {clientes.map((cliente) => (
-                      <option key={cliente.id} value={cliente.id}>
-                        {cliente.name}
-                      </option>
-                    ))}
-                  </Select>
+                    ariaDescribedBy={describedBy}
+                    onValueChange={() => onDirtyChange?.(true)}
+                  />
                 )}
               </FormField>
 
