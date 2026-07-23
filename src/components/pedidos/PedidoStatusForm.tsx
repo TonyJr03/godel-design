@@ -1,20 +1,19 @@
 "use client";
 
-import { useActionState } from "react";
+import type { ReactNode } from "react";
+
 import type {
   PedidoDetailAction,
   UpdatePedidoStatusActionState,
 } from "@/app/(interno)/dashboard/pedidos/[id]/actions";
-import { Alert, Button, FormField, ReadErrorAlert, Select } from "@/components/ui";
-import { PEDIDO_STATUS_LABELS } from "@/lib/pedidos/labels";
+import { Alert, ReadErrorAlert } from "@/components/ui";
 import {
-  DELIVERY_PAYMENT_PENDING_REASON,
-  getAllowedPedidoStatusTransitions,
-  isPedidoClosedStatus,
-  type PedidoPaymentStatus,
-  type PedidoStatus,
-  type PedidoStatusTransitionContext,
-} from "@/lib/pedidos/status";
+  StatusFlowPanel,
+  type StatusFlowPanelTermination,
+  type StatusFlowPanelTransition,
+} from "@/components/workspace";
+import { PEDIDO_STATUS_LABELS } from "@/lib/pedidos/labels";
+import type { PedidoStatus, PedidoStatusFlow } from "@/lib/pedidos/status";
 import {
   WORKFLOW_TYPES,
   type WorkflowType,
@@ -22,222 +21,176 @@ import {
 
 type PedidoStatusFormProps = {
   updateStatusAction: PedidoDetailAction<UpdatePedidoStatusActionState>;
-  estadoActual: PedidoStatus;
+  flow: PedidoStatusFlow;
   workflowType: WorkflowType;
-  paymentStatus?: PedidoPaymentStatus;
-  taskProgress?: PedidoStatusTransitionContext | null;
   tasksLoadError?: string;
   tasksLoadRetryable?: boolean;
-  presentation?: "card" | "panel";
 };
 
-const initialState: UpdatePedidoStatusActionState = {
-  ok: false,
-  message: "",
+type TransitionCopy = Pick<
+  StatusFlowPanelTransition,
+  "buttonLabel" | "pendingLabel"
+>;
+
+const PRIMARY_TRANSITION_COPY: Partial<Record<PedidoStatus, TransitionCopy>> = {
+  en_produccion: {
+    buttonLabel: "Pasar a producción",
+    pendingLabel: "Pasando a producción...",
+  },
+  listo_entrega: {
+    buttonLabel: "Marcar como listo para entrega",
+    pendingLabel: "Marcando como listo...",
+  },
+  entregado: {
+    buttonLabel: "Marcar como entregado",
+    pendingLabel: "Marcando como entregado...",
+  },
 };
 
-const TASKS_UNAVAILABLE_TRANSITION_REASON =
-  "No se puede validar este avance mientras las tareas no estén disponibles.";
+function getClosedStatusMessage(flow: PedidoStatusFlow): string | null {
+  if (!flow.isClosed) {
+    return null;
+  }
+
+  if (flow.currentStatus === "entregado") {
+    return "Este pedido fue entregado y no admite más cambios de estado.";
+  }
+
+  return "Este pedido fue cancelado y no admite más cambios de estado.";
+}
+
+function getPrimaryTransition(
+  flow: PedidoStatusFlow,
+): StatusFlowPanelTransition | undefined {
+  if (!flow.advance) {
+    return undefined;
+  }
+
+  const statusLabel = PEDIDO_STATUS_LABELS[flow.advance.status];
+  const copy = PRIMARY_TRANSITION_COPY[flow.advance.status] ?? {
+    buttonLabel: `Avanzar a ${statusLabel}`,
+    pendingLabel: "Avanzando...",
+  };
+
+  return {
+    status: flow.advance.status,
+    statusLabel,
+    buttonLabel: copy.buttonLabel,
+    pendingLabel: copy.pendingLabel,
+    enabled: flow.advance.enabled,
+    blockedReason: flow.advance.blockedReason,
+  };
+}
+
+function getSecondaryTransition(
+  flow: PedidoStatusFlow,
+): StatusFlowPanelTransition | undefined {
+  if (!flow.backward) {
+    return undefined;
+  }
+
+  const statusLabel = PEDIDO_STATUS_LABELS[flow.backward.status];
+
+  return {
+    status: flow.backward.status,
+    statusLabel,
+    buttonLabel:
+      flow.backward.status === "en_produccion"
+        ? "Volver a producción"
+        : `Volver a ${statusLabel}`,
+    pendingLabel:
+      flow.backward.status === "en_produccion"
+        ? "Volviendo a producción..."
+        : "Volviendo...",
+    enabled: flow.backward.enabled,
+    blockedReason: flow.backward.blockedReason,
+    variant: "secondary",
+  };
+}
+
+function getTermination(
+  flow: PedidoStatusFlow,
+): StatusFlowPanelTermination | undefined {
+  if (!flow.termination) {
+    return undefined;
+  }
+
+  return {
+    status: flow.termination.status,
+    triggerLabel: "Cancelar pedido",
+    title: "¿Cancelar este pedido?",
+    description:
+      "El pedido quedará cerrado y no podrá continuar su producción ni marcarse como entregado.",
+    confirmLabel: "Sí, cancelar pedido",
+    pendingLabel: "Cancelando pedido...",
+  };
+}
+
+function getNotice({
+  flow,
+  workflowType,
+  tasksLoadError,
+  tasksLoadRetryable,
+}: {
+  flow: PedidoStatusFlow;
+  workflowType: WorkflowType;
+  tasksLoadError?: string;
+  tasksLoadRetryable: boolean;
+}) {
+  const notices: ReactNode[] = [];
+  const shouldShowTaskLoadError = workflowType !== WORKFLOW_TYPES.IMPRESION;
+
+  if (flow.automaticAdvance && !flow.advance) {
+    notices.push(
+      <Alert key="automatic-review" variant="info">
+        <p>La revisión se inicia automáticamente al abrir este detalle.</p>
+      </Alert>,
+    );
+  }
+
+  if (!flow.isClosed && shouldShowTaskLoadError && tasksLoadError) {
+    notices.push(
+      <ReadErrorAlert
+        key="tasks-load-error"
+        title="Progreso de tareas no disponible"
+        retryable={tasksLoadRetryable}
+      >
+        <p>{tasksLoadError}</p>
+        <p>
+          Los avances dependientes de tareas están deshabilitados temporalmente.
+        </p>
+      </ReadErrorAlert>,
+    );
+  }
+
+  if (notices.length === 0) {
+    return undefined;
+  }
+
+  return <div className="space-y-3">{notices}</div>;
+}
 
 export function PedidoStatusForm({
   updateStatusAction,
-  estadoActual,
+  flow,
   workflowType,
-  paymentStatus,
-  taskProgress,
   tasksLoadError,
   tasksLoadRetryable = false,
-  presentation = "card",
 }: PedidoStatusFormProps) {
-  const [state, formAction, pending] = useActionState(
-    updateStatusAction,
-    initialState,
-  );
-  const estadoError = state.fieldErrors?.status;
-  const isClosed = isPedidoClosedStatus(estadoActual);
-  const baseStatusOptions = getAllowedPedidoStatusTransitions(
-    estadoActual,
-    taskProgress,
-    workflowType,
-    paymentStatus,
-  );
-  const isPrintWorkflow = workflowType === WORKFLOW_TYPES.IMPRESION;
-  const shouldBlockTaskDependentTransitions =
-    !isClosed &&
-    !isPrintWorkflow &&
-    Boolean(tasksLoadError) &&
-    (estadoActual === "en_revision" || estadoActual === "en_produccion");
-  const statusOptions = baseStatusOptions.map((option) => {
-    const isTaskDependentTransition =
-      (estadoActual === "en_revision" && option.status === "en_produccion") ||
-      (estadoActual === "en_produccion" && option.status === "listo_entrega");
-
-    if (!shouldBlockTaskDependentTransitions || !isTaskDependentTransition) {
-      return option;
-    }
-
-    return {
-      ...option,
-      disabled: true,
-      reason: TASKS_UNAVAILABLE_TRANSITION_REASON,
-    };
-  });
-  const statusReasons = statusOptions
-    .filter((option) => option.reason)
-    .map((option) => option.reason as string);
-  const blocksDeliveryByPayment = statusReasons.includes(
-    DELIVERY_PAYMENT_PENDING_REASON,
-  );
-  const visibleStatusReasons = statusReasons.filter(
-    (reason) => reason !== DELIVERY_PAYMENT_PENDING_REASON,
-  );
-  const hasEnabledTransition = statusOptions.some(
-    (option) => !option.isCurrent && !option.disabled,
-  );
-  const isPanelPresentation = presentation === "panel";
-
   return (
-    <section
-      className={
-        isPanelPresentation
-          ? "min-w-0"
-          : "rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6"
-      }
-    >
-      {!isPanelPresentation ? (
-        <h2 className="text-lg font-semibold text-text-primary">
-          Estado del pedido
-        </h2>
-      ) : null}
-
-      <p
-        className={[
-          "text-sm leading-6 text-text-secondary",
-          isPanelPresentation ? "" : "mt-2",
-        ]
-          .filter(Boolean)
-          .join(" ")}
-      >
-        Estado actual:{" "}
-        <span className="font-semibold text-text-primary">
-          {PEDIDO_STATUS_LABELS[estadoActual]}
-        </span>
-      </p>
-
-      <div className="mt-4 space-y-3">
-        {isClosed ? (
-          <Alert variant="info">
-            Este pedido está cerrado y no admite cambios de estado.
-          </Alert>
-        ) : null}
-
-        {estadoActual === "creado" ? (
-          <Alert variant="info">
-            Este pedido fue creado manualmente y aún debe revisarse antes de
-            pasar a producción.
-          </Alert>
-        ) : null}
-
-        {!isClosed && isPrintWorkflow ? (
-          <Alert variant="info">
-            Este pedido es de impresión directa y no requiere tareas para
-            avanzar.
-          </Alert>
-        ) : null}
-
-        {!isClosed && !isPrintWorkflow && tasksLoadError ? (
-          <ReadErrorAlert
-            title="Progreso de tareas no disponible"
-            retryable={tasksLoadRetryable}
-          >
-            <p>{tasksLoadError}</p>
-            <p>
-              Los cambios de estado que dependen de las tareas se
-              deshabilitaron temporalmente.
-            </p>
-          </ReadErrorAlert>
-        ) : null}
-
-        {!isClosed && blocksDeliveryByPayment ? (
-          <Alert variant="warning" title="Pago pendiente">
-            Este pedido todavía no puede marcarse como entregado porque el pago
-            no está completo.
-          </Alert>
-        ) : null}
-
-        {!isClosed && visibleStatusReasons.length > 0
-          ? visibleStatusReasons.map((reason) => (
-              <Alert key={reason} variant="warning">
-                {reason}
-              </Alert>
-            ))
-          : null}
-      </div>
-
-      {!isClosed ? (
-        <form
-          action={formAction}
-          aria-busy={pending}
-          className="mt-5 space-y-4"
-        >
-          {state.message ? (
-            <Alert
-              variant={state.ok ? "success" : "danger"}
-              title={
-                state.ok
-                  ? "Estado actualizado"
-                  : "No se pudo actualizar el estado"
-              }
-              aria-live="polite"
-            >
-              <p>{state.message}</p>
-            </Alert>
-          ) : null}
-
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-            <FormField
-              id="status"
-              label="Estado"
-              required
-              error={estadoError}
-              errorId="status-pedido-error"
-              compact
-            >
-              {({ describedBy, invalid }) => (
-                <Select
-                  id="status"
-                  name="status"
-                  defaultValue={estadoActual}
-                  disabled={pending}
-                  required
-                  invalid={invalid}
-                  aria-describedby={describedBy}
-                >
-                  {statusOptions.map((option) => (
-                    <option
-                      key={option.status}
-                      value={option.status}
-                      disabled={option.disabled}
-                    >
-                      {option.isCurrent
-                        ? `${PEDIDO_STATUS_LABELS[option.status]} (actual)`
-                        : PEDIDO_STATUS_LABELS[option.status]}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </FormField>
-
-            <Button
-              type="submit"
-              disabled={pending || !hasEnabledTransition}
-              className="w-full sm:w-auto"
-            >
-              {pending ? "Actualizando estado..." : "Actualizar estado"}
-            </Button>
-          </div>
-        </form>
-      ) : null}
-    </section>
+    <StatusFlowPanel
+      action={updateStatusAction}
+      currentStatus={flow.currentStatus}
+      primaryTransition={getPrimaryTransition(flow)}
+      secondaryTransition={getSecondaryTransition(flow)}
+      termination={getTermination(flow)}
+      notice={getNotice({
+        flow,
+        workflowType,
+        tasksLoadError,
+        tasksLoadRetryable,
+      })}
+      closedMessage={getClosedStatusMessage(flow)}
+    />
   );
 }

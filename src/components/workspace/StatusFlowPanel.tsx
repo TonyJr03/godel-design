@@ -95,9 +95,13 @@ function StatusSummary({ currentStatus }: { currentStatus: string }) {
 function TransitionButton({
   transition,
   pending,
+  disabled,
+  onActivate,
 }: {
   transition: StatusFlowPanelTransition;
   pending: boolean;
+  disabled: boolean;
+  onActivate: (transition: StatusFlowPanelTransition) => void;
 }) {
   return (
     <Button
@@ -105,8 +109,9 @@ function TransitionButton({
       name="status"
       value={transition.status}
       variant={transition.variant ?? "primary"}
-      disabled={!transition.enabled || pending}
+      disabled={!transition.enabled || disabled}
       className="w-full sm:w-auto"
+      onClick={() => onActivate(transition)}
     >
       {pending ? transition.pendingLabel : transition.buttonLabel}
     </Button>
@@ -123,6 +128,33 @@ function DirectStatusTransitionForm({
   secondaryTransition?: StatusFlowPanelTransition;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
+  const [activeStatus, setActiveStatus] = useState<string | null>(null);
+  const wasPendingRef = useRef(false);
+  const normalizedSecondaryTransition = secondaryTransition
+    ? {
+        ...secondaryTransition,
+        variant: secondaryTransition.variant ?? "secondary",
+      }
+    : undefined;
+  const transitions = [
+    primaryTransition,
+    ...(normalizedSecondaryTransition ? [normalizedSecondaryTransition] : []),
+  ];
+  const activeTransition = transitions.find(
+    (transition) => transition.status === activeStatus,
+  );
+
+  useEffect(() => {
+    if (wasPendingRef.current && !pending) {
+      setActiveStatus(null);
+    }
+
+    wasPendingRef.current = pending;
+  }, [pending]);
+
+  function handleTransitionActivate(transition: StatusFlowPanelTransition) {
+    setActiveStatus(transition.status);
+  }
 
   return (
     <form action={formAction} aria-busy={pending} className="space-y-4">
@@ -133,7 +165,7 @@ function DirectStatusTransitionForm({
           Siguiente estado
         </p>
         <div className="mt-2">
-        <StatusBadge
+          <StatusBadge
             status={primaryTransition.status}
             label={primaryTransition.statusLabel}
           />
@@ -148,20 +180,26 @@ function DirectStatusTransitionForm({
         ) : null}
 
         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-          <TransitionButton transition={primaryTransition} pending={pending} />
-          {secondaryTransition ? (
+          <TransitionButton
+            transition={primaryTransition}
+            pending={pending && activeStatus === primaryTransition.status}
+            disabled={pending}
+            onActivate={handleTransitionActivate}
+          />
+          {normalizedSecondaryTransition ? (
             <TransitionButton
-              transition={{
-                ...secondaryTransition,
-                variant: secondaryTransition.variant ?? "secondary",
-              }}
-              pending={pending}
+              transition={normalizedSecondaryTransition}
+              pending={
+                pending && activeStatus === normalizedSecondaryTransition.status
+              }
+              disabled={pending}
+              onActivate={handleTransitionActivate}
             />
           ) : null}
         </div>
-        {pending ? (
+        {pending && activeTransition ? (
           <p role="status" aria-live="polite" className="sr-only">
-            {primaryTransition.pendingLabel}
+            {activeTransition.pendingLabel}
           </p>
         ) : null}
       </div>
@@ -223,7 +261,7 @@ function StatusTerminationConfirmation({
             ref={cancelButtonRef}
             type="button"
             disabled={pending}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-(--radius-control) border border-border-strong bg-surface px-4 text-sm font-semibold text-text-primary transition-[background-color,border-color,color,filter] duration-200 hover:bg-surface-muted active:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-(--radius-control) border border-border-strong bg-surface px-4 text-sm font-semibold text-text-primary transition-[background-color,border-color,color,filter] duration-200 hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background active:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
             onClick={onCancel}
           >
             Cancelar
@@ -286,7 +324,7 @@ function StatusTerminationSection({
         <button
           ref={triggerRef}
           type="button"
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-(--radius-control) bg-danger px-4 text-sm font-semibold text-white transition-[background-color,border-color,color,filter] duration-200 hover:brightness-90 active:brightness-95"
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-(--radius-control) bg-danger px-4 text-sm font-semibold text-white transition-[background-color,border-color,color,filter] duration-200 hover:brightness-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background active:brightness-95"
           onClick={() => setIsConfirming(true)}
         >
           {termination.triggerLabel}

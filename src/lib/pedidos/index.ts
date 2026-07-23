@@ -80,6 +80,7 @@ export {
   DELIVERY_PAYMENT_PENDING_REASON,
   canManagePedidoTasksInStatus,
   getAllowedPedidoStatusTransitions,
+  getPedidoStatusFlow,
   getPedidoTaskManagementBlockedReason,
   isPedidoActiveStatus,
   isPedidoClosedStatus,
@@ -89,6 +90,9 @@ export {
   type PedidoPriority,
   type PedidoPaymentStatus,
   type PedidoStatus,
+  type PedidoStatusFlow,
+  type PedidoStatusFlowAction,
+  type PedidoStatusFlowContext,
   type PedidoStatusTransitionContext,
   type PedidoStatusTransitionOption,
 } from "./status";
