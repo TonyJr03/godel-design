@@ -78,31 +78,21 @@ export async function listInternalClientes(
   const supabase = await createClient();
 
   try {
-    const buildClientesQuery = () => {
-      let query = supabase
-        .from("clientes")
-        .select("id, name, phone, email, created_at, updated_at", {
-          count: "exact",
-        });
+    const searchCondition = q
+      ? `name.ilike.*${q}*,phone.ilike.*${q}*,email.ilike.*${q}*,notes.ilike.*${q}*`
+      : null;
+    let countQuery = supabase
+      .from("clientes")
+      .select("id", { count: "exact", head: true });
 
-      if (q) {
-        query = query.or(
-          `name.ilike.*${q}*,phone.ilike.*${q}*,email.ilike.*${q}*,notes.ilike.*${q}*`,
-        );
-      }
+    if (searchCondition) {
+      countQuery = countQuery.or(searchCondition);
+    }
 
-      return query
-        .order("name", { ascending: true })
-        .order("id", { ascending: true });
-    };
+    const { error: countError, count } = await countQuery;
 
-    const { from, to } = getPaginationRange(requestedPage, limit);
-    const { data, error, count } = await buildClientesQuery()
-      .range(from, to)
-      .returns<InternalCliente[]>();
-
-    if (error) {
-      console.error("Error listing internal clientes", error);
+    if (countError) {
+      console.error("Error counting internal clientes", countError);
 
       return serviceFailure("error", GENERIC_LIST_ERROR, { q });
     }
@@ -113,24 +103,36 @@ export async function listInternalClientes(
       totalCount: count,
     });
 
-    if (pagination.totalCount > 0 && pagination.page !== requestedPage) {
-      const lastPageRange = getPaginationRange(pagination.page, limit);
-      const { data: lastPageData, error: lastPageError } =
-        await buildClientesQuery()
-          .range(lastPageRange.from, lastPageRange.to)
-          .returns<InternalCliente[]>();
-
-      if (lastPageError) {
-        console.error("Error listing internal clientes last page", lastPageError);
-
-        return serviceFailure("error", GENERIC_LIST_ERROR, { q });
-      }
-
+    if (pagination.totalCount === 0) {
       return serviceSuccess({
-        clientes: lastPageData ?? [],
+        clientes: [],
         q,
         pagination,
       });
+    }
+
+    let dataQuery = supabase
+      .from("clientes")
+      .select("id, name, phone, email, created_at, updated_at");
+
+    if (searchCondition) {
+      dataQuery = dataQuery.or(searchCondition);
+    }
+
+    const { from, to } = getPaginationRange(
+      pagination.page,
+      pagination.pageSize,
+    );
+    const { data, error } = await dataQuery
+      .order("name", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to)
+      .returns<InternalCliente[]>();
+
+    if (error) {
+      console.error("Error listing internal clientes page", error);
+
+      return serviceFailure("error", GENERIC_LIST_ERROR, { q });
     }
 
     return serviceSuccess({

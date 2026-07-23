@@ -366,16 +366,27 @@ test("admin can validate clientes pagination and canonical URLs", async ({
   });
 
   const outOfRangePage = pageInfo.totalPages + 1;
+  const expectedPageParam =
+    pageInfo.totalPages > 1 ? String(pageInfo.totalPages) : null;
 
   await page.goto(`/dashboard/clientes?page=${outOfRangePage}`);
-  if ((await getClientesPagination(page).count()) === 0) {
-    test.info().annotations.push({
-      type: "warning",
-      description:
-        "La URL fuera de rango muestra error de carga en vez de canonicalizar.",
-    });
-    await page.goto(`/dashboard/clientes?page=${pageInfo.totalPages}`);
-  }
+
+  await expect.poll(() => {
+    const url = new URL(page.url());
+
+    return {
+      page: url.searchParams.get("page"),
+      pathname: url.pathname,
+    };
+  }).toEqual({
+    page: expectedPageParam,
+    pathname: "/dashboard/clientes",
+  });
+  await expect(
+    page.getByRole("alert").filter({
+      hasText: /no se pudieron cargar los clientes/i,
+    }),
+  ).toHaveCount(0);
   await expectCompactPaginationA11y(page);
 
   const lastPageInfo = await getClientesPaginationPageInfo(page);
@@ -466,12 +477,18 @@ test("cliente pagination preserves the active search", async ({ page }) => {
 
   for (const query of candidateQueries) {
     await page.goto(`/dashboard/clientes?q=${encodeURIComponent(query)}`);
+    await expect(page.getByRole("heading", { name: /^clientes$/i })).toBeVisible();
 
-    const pagination = getClientesPagination(page);
-
-    if ((await pagination.count()) === 0) {
+    if (
+      await page
+        .getByText(/no encontramos clientes|sin resultados|no se encontraron clientes/i)
+        .first()
+        .isVisible()
+    ) {
       continue;
     }
+
+    await expect(getClientesPagination(page)).toBeVisible();
 
     const pageInfo = await getClientesPaginationPageInfo(page);
 
