@@ -6,7 +6,6 @@ import { useCallback, useState } from "react";
 
 import { InternalFormDialog } from "@/components/forms";
 import { ReadErrorAlert } from "@/components/ui/ReadErrorAlert";
-import type { CreatePedidoActionState } from "@/app/(interno)/dashboard/pedidos/actions";
 import type { PedidoPrioridad } from "@/lib/pedidos";
 
 import { PedidoForm, type PedidoFormCliente } from "./PedidoForm";
@@ -34,14 +33,8 @@ export function PedidoCreateDialogButton({
   }, []);
 
   const handleSuccess = useCallback(
-    (state: CreatePedidoActionState) => {
+    () => {
       setHasUnsavedChanges(false);
-
-      if (state.pedidoId) {
-        router.push(`/dashboard/pedidos/${state.pedidoId}`);
-        return;
-      }
-
       setIsOpen(false);
       router.refresh();
     },

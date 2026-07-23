@@ -1,9 +1,32 @@
 "use server";
 
+import { actionFailure, actionSuccess } from "@/lib/actions/action-state";
 import { revalidateSolicitudDetail } from "@/lib/actions/revalidation";
-import { updateInternalSolicitudStatus } from "@/lib/solicitudes";
+import {
+  ensureSolicitudReviewStarted,
+  updateInternalSolicitudStatus,
+} from "@/lib/solicitudes";
 import { getFormValue } from "@/lib/utils";
 import type { UpdateSolicitudStatusActionState } from "./shared";
+
+type StartSolicitudReviewOnOpenActionState = {
+  ok: boolean;
+  message: string;
+};
+
+export async function startSolicitudReviewOnOpenAction(
+  solicitudId: string,
+): Promise<StartSolicitudReviewOnOpenActionState> {
+  const result = await ensureSolicitudReviewStarted({ solicitudId });
+
+  if (!result.ok) {
+    return actionFailure(result.message);
+  }
+
+  revalidateSolicitudDetail(solicitudId);
+
+  return actionSuccess("Revisión iniciada.");
+}
 
 export async function updateSolicitudStatusAction(
   solicitudId: string,
@@ -18,16 +41,10 @@ export async function updateSolicitudStatusAction(
   });
 
   if (!result.ok) {
-    return {
-      ok: false,
-      message: result.message,
-    };
+    return actionFailure(result.message);
   }
 
   revalidateSolicitudDetail(solicitudId);
 
-  return {
-    ok: true,
-    message: "Estado actualizado correctamente.",
-  };
+  return actionSuccess("Estado actualizado correctamente.");
 }

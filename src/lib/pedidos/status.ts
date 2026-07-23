@@ -13,10 +13,40 @@ export type PedidoStatus = Enums<"pedido_estado">;
 export type PedidoPriority = Enums<"pedido_prioridad">;
 export type PedidoPaymentStatus = Enums<"pedido_pago_estado">;
 
+export const PEDIDO_INITIAL_STATUSES = [
+  "creado",
+  "solicitud_recibida",
+] as const satisfies readonly PedidoStatus[];
+
+export const DELIVERY_PAYMENT_PENDING_REASON =
+  "El pedido debe estar completamente pagado antes de marcarlo como entregado.";
+
+export const PEDIDO_TASKS_UNAVAILABLE_REASON =
+  "No se puede validar este avance mientras las tareas no estén disponibles.";
+
+export const PEDIDO_TASKS_REQUIRED_REASON =
+  "Agrega al menos una tarea antes de pasar a producción.";
+
+export const PEDIDO_TASKS_INCOMPLETE_REASON =
+  "Completa todas las tareas antes de marcar el pedido como listo para entrega.";
+
+export const PEDIDO_PAYMENT_UNAVAILABLE_REASON =
+  "No se puede validar el pago del pedido en este momento.";
+
+export type PedidoInitialStatus = (typeof PEDIDO_INITIAL_STATUSES)[number];
+
 export type PedidoStatusTransitionContext = {
   hasTasks: boolean;
   isComplete: boolean;
   progressPercentage: number;
+};
+
+export type PedidoStatusFlowContext = {
+  workflowType?: WorkflowType;
+  taskProgress?: PedidoStatusTransitionContext | null;
+  tasksAvailable?: boolean;
+  paymentStatus?: PedidoPaymentStatus;
+  paymentAvailable?: boolean;
 };
 
 export type PedidoStatusTransitionOption = {
@@ -26,13 +56,40 @@ export type PedidoStatusTransitionOption = {
   reason?: string;
 };
 
-export const DELIVERY_PAYMENT_PENDING_REASON =
-  "El pedido debe estar completamente pagado antes de marcarlo como entregado.";
+export type PedidoStatusFlowAction = {
+  status: PedidoStatus;
+  enabled: boolean;
+  blockedReason?: string;
+};
+
+export type PedidoStatusFlow = {
+  currentStatus: PedidoStatus;
+  isInitial: boolean;
+  isClosed: boolean;
+  automaticAdvance: PedidoStatusFlowAction | null;
+  advance: PedidoStatusFlowAction | null;
+  backward: PedidoStatusFlowAction | null;
+  termination: PedidoStatusFlowAction | null;
+};
+
+type NormalizedPedidoStatusFlowContext = {
+  workflowType: WorkflowType;
+  taskProgress: PedidoStatusTransitionContext | null;
+  tasksAvailable: boolean;
+  paymentStatus?: PedidoPaymentStatus;
+  paymentAvailable: boolean;
+};
 
 export function isPedidoStatus(
   value: string | null | undefined,
 ): value is PedidoStatus {
   return PEDIDO_STATUSES.includes(value as PedidoStatus);
+}
+
+export function isPedidoInitialStatus(
+  status: PedidoStatus,
+): status is PedidoInitialStatus {
+  return PEDIDO_INITIAL_STATUSES.includes(status as PedidoInitialStatus);
 }
 
 export function isPedidoClosedStatus(status: PedidoStatus): boolean {
@@ -78,6 +135,147 @@ function buildStatusOption(
     status,
     ...options,
   };
+}
+
+function buildPedidoFlowAction(
+  status: PedidoStatus,
+  options?: Omit<PedidoStatusFlowAction, "status">,
+): PedidoStatusFlowAction {
+  return {
+    status,
+    enabled: options?.enabled ?? true,
+    ...(options?.blockedReason ? { blockedReason: options.blockedReason } : {}),
+  };
+}
+
+function getPedidoReviewAdvanceAction(
+  context: NormalizedPedidoStatusFlowContext,
+): PedidoStatusFlowAction {
+  if (context.workflowType === WORKFLOW_TYPES.IMPRESION) {
+    return buildPedidoFlowAction("en_produccion");
+  }
+
+  if (!context.tasksAvailable || !context.taskProgress) {
+    return buildPedidoFlowAction("en_produccion", {
+      enabled: false,
+      blockedReason: PEDIDO_TASKS_UNAVAILABLE_REASON,
+    });
+  }
+
+  if (!context.taskProgress.hasTasks) {
+    return buildPedidoFlowAction("en_produccion", {
+      enabled: false,
+      blockedReason: PEDIDO_TASKS_REQUIRED_REASON,
+    });
+  }
+
+  return buildPedidoFlowAction("en_produccion");
+}
+
+function getPedidoProductionAdvanceAction(
+  context: NormalizedPedidoStatusFlowContext,
+): PedidoStatusFlowAction {
+  if (context.workflowType === WORKFLOW_TYPES.IMPRESION) {
+    return buildPedidoFlowAction("listo_entrega");
+  }
+
+  if (!context.tasksAvailable || !context.taskProgress) {
+    return buildPedidoFlowAction("listo_entrega", {
+      enabled: false,
+      blockedReason: PEDIDO_TASKS_UNAVAILABLE_REASON,
+    });
+  }
+
+  if (!context.taskProgress.hasTasks || !context.taskProgress.isComplete) {
+    return buildPedidoFlowAction("listo_entrega", {
+      enabled: false,
+      blockedReason: PEDIDO_TASKS_INCOMPLETE_REASON,
+    });
+  }
+
+  return buildPedidoFlowAction("listo_entrega");
+}
+
+function getPedidoDeliveryAdvanceAction(
+  context: NormalizedPedidoStatusFlowContext,
+): PedidoStatusFlowAction {
+  if (!context.paymentAvailable || context.paymentStatus === undefined) {
+    return buildPedidoFlowAction("entregado", {
+      enabled: false,
+      blockedReason: PEDIDO_PAYMENT_UNAVAILABLE_REASON,
+    });
+  }
+
+  if (context.paymentStatus !== "pagado") {
+    return buildPedidoFlowAction("entregado", {
+      enabled: false,
+      blockedReason: DELIVERY_PAYMENT_PENDING_REASON,
+    });
+  }
+
+  return buildPedidoFlowAction("entregado");
+}
+
+export function getPedidoStatusFlow(
+  currentStatus: PedidoStatus,
+  context?: PedidoStatusFlowContext,
+): PedidoStatusFlow {
+  const flowContext: NormalizedPedidoStatusFlowContext = {
+    workflowType: context?.workflowType ?? WORKFLOW_TYPES.ENCARGO,
+    taskProgress: context?.taskProgress ?? null,
+    tasksAvailable: context?.tasksAvailable ?? true,
+    paymentStatus: context?.paymentStatus,
+    paymentAvailable: context?.paymentAvailable ?? true,
+  };
+
+  const baseFlow: PedidoStatusFlow = {
+    currentStatus,
+    isInitial: isPedidoInitialStatus(currentStatus),
+    isClosed: isPedidoClosedStatus(currentStatus),
+    automaticAdvance: null,
+    advance: null,
+    backward: null,
+    termination: null,
+  };
+
+  if (baseFlow.isClosed) {
+    return baseFlow;
+  }
+
+  if (currentStatus === "creado" || currentStatus === "solicitud_recibida") {
+    return {
+      ...baseFlow,
+      automaticAdvance: buildPedidoFlowAction("en_revision"),
+      termination: buildPedidoFlowAction("cancelado"),
+    };
+  }
+
+  if (currentStatus === "en_revision") {
+    return {
+      ...baseFlow,
+      advance: getPedidoReviewAdvanceAction(flowContext),
+      termination: buildPedidoFlowAction("cancelado"),
+    };
+  }
+
+  if (currentStatus === "en_produccion") {
+    return {
+      ...baseFlow,
+      advance: getPedidoProductionAdvanceAction(flowContext),
+      termination: buildPedidoFlowAction("cancelado"),
+    };
+  }
+
+  if (currentStatus === "listo_entrega") {
+    return {
+      ...baseFlow,
+      advance: getPedidoDeliveryAdvanceAction(flowContext),
+      backward: buildPedidoFlowAction("en_produccion"),
+      termination: buildPedidoFlowAction("cancelado"),
+    };
+  }
+
+  return baseFlow;
 }
 
 export function getAllowedPedidoStatusTransitions(

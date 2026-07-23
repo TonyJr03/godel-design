@@ -11,6 +11,11 @@ import {
   type WorkspaceAction,
   type WorkspacePanel,
 } from "@/components/workspace";
+import {
+  getSolicitudStatusFlow,
+  SOLICITUD_STATUS_LABELS,
+  type SolicitudStatusFlow,
+} from "@/lib/solicitudes";
 import type {
   InternalSolicitudDetail as InternalSolicitudDetailData,
   SolicitudComment,
@@ -50,36 +55,31 @@ type InternalSolicitudDetailProps = {
 
 type WorkspaceActionState = Pick<WorkspaceAction, "tone" | "statusLabel">;
 
-function getStatusActionState(
-  status: InternalSolicitudDetailData["status"],
-): WorkspaceActionState {
-  if (status === "nueva") {
+function getStatusActionState(flow: SolicitudStatusFlow): WorkspaceActionState {
+  if (flow.isInitial) {
     return {
       tone: "warning",
-      statusLabel: "Pendiente de revisión",
+      statusLabel: "Iniciando revisión",
     };
   }
 
-  if (status === "en_revision") {
+  if (flow.advance?.enabled) {
     return {
-      statusLabel: "En revisión",
+      tone: "warning",
+      statusLabel: `Puede avanzar a ${
+        SOLICITUD_STATUS_LABELS[flow.advance.status]
+      }`,
     };
   }
 
-  if (status === "contactada") {
-    return {
-      statusLabel: "Cliente contactado",
-    };
-  }
-
-  if (status === "aprobada") {
+  if (flow.externalNextStep) {
     return {
       tone: "success",
-      statusLabel: "Solicitud aprobada",
+      statusLabel: "Lista para convertir",
     };
   }
 
-  if (status === "rechazada") {
+  if (flow.currentStatus === "rechazada") {
     return {
       tone: "danger",
       statusLabel: "Solicitud rechazada",
@@ -186,6 +186,7 @@ export function InternalSolicitudDetail({
   clientesListLoadError,
 }: InternalSolicitudDetailProps) {
   const compactActionIds = ["estado", "cliente", "conversion"];
+  const statusFlow = getSolicitudStatusFlow(solicitud.status);
   const filesActionState: WorkspaceActionState = filesLoadError
     ? {
         tone: "danger",
@@ -209,7 +210,7 @@ export function InternalSolicitudDetail({
       id: "estado",
       label: "Estado",
       icon: "estado",
-      ...getStatusActionState(solicitud.status),
+      ...getStatusActionState(statusFlow),
     },
     {
       id: "cliente",
@@ -259,11 +260,11 @@ export function InternalSolicitudDetail({
       id: "estado",
       title: "Estado",
       description:
-        "Consulta el estado actual y aplica una transición permitida.",
+        "Consulta el estado actual y avanza el flujo mediante las acciones disponibles.",
       content: (
         <SolicitudStatusForm
           updateStatusAction={updateStatusAction}
-          currentStatus={solicitud.status}
+          flow={statusFlow}
           presentation="panel"
         />
       ),

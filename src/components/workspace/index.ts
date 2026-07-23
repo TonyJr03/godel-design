@@ -6,7 +6,16 @@ export type {
   WorkspacePanel,
   WorkspacePanelContentMode,
 } from "./types";
+export { AutoReviewOnOpen } from "./AutoReviewOnOpen";
 export { MobileWorkspaceBar } from "./MobileWorkspaceBar";
+export {
+  StatusFlowPanel,
+  type StatusFlowPanelAction,
+  type StatusFlowPanelActionState,
+  type StatusFlowPanelProps,
+  type StatusFlowPanelTermination,
+  type StatusFlowPanelTransition,
+} from "./StatusFlowPanel";
 export { WorkspaceActionRail } from "./WorkspaceActionRail";
 export { WorkspaceActionTrigger } from "./WorkspaceActionTrigger";
 export { WorkspaceController } from "./WorkspaceController";

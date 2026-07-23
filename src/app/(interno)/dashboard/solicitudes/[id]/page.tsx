@@ -4,9 +4,11 @@ import { SolicitudClienteForm } from "@/components/solicitudes/SolicitudClienteF
 import { SolicitudConvertPedidoForm } from "@/components/solicitudes/SolicitudConvertPedidoForm";
 import { InternalSolicitudDetail } from "@/components/solicitudes/InternalSolicitudDetail";
 import { Alert, ReadErrorAlert } from "@/components/ui";
+import { AutoReviewOnOpen } from "@/components/workspace";
 import { getInternalClienteById, listInternalClientes } from "@/lib/clientes";
 import {
   getInternalSolicitudById,
+  isSolicitudInitialStatus,
   listSolicitudComments,
   listSolicitudHistory,
 } from "@/lib/solicitudes";
@@ -18,6 +20,7 @@ import {
   createSolicitudCommentAction,
   updateSolicitudStatusAction,
 } from "./actions";
+import { startSolicitudReviewOnOpenAction } from "./actions/status-actions";
 
 type DashboardSolicitudDetallePageProps = {
   params: Promise<{
@@ -110,57 +113,69 @@ export default async function DashboardSolicitudDetallePage({
     null,
     solicitudId,
   );
+  const shouldStartReviewOnOpen = isSolicitudInitialStatus(
+    result.solicitud.status,
+  );
+  const startReviewOnOpenAction = startSolicitudReviewOnOpenAction.bind(
+    null,
+    solicitudId,
+  );
 
   return (
-    <InternalSolicitudDetail
-      solicitud={result.solicitud}
-      updateStatusAction={updateStatusAction}
-      createCommentAction={createCommentAction}
-      clientePanelContent={
-        clienteDetailLoadError ? (
-          <ReadErrorAlert
-            variant="warning"
-            title="No se pudo cargar el cliente asociado"
-            retryable={clienteDetailLoadRetryable}
-          >
-            <p>{clienteDetailLoadError}</p>
-          </ReadErrorAlert>
-        ) : (
-          <SolicitudClienteForm
-            associateClienteAction={associateClienteAction}
-            createClienteAction={createClienteAction}
-            clienteAsociado={clienteAsociado}
-            clientesDisponibles={clientesResult.ok ? clientesResult.clientes : []}
-            clientesLoadError={clientesListLoadError}
-            clientesLoadRetryable={clientesListLoadRetryable}
+    <>
+      {shouldStartReviewOnOpen ? (
+        <AutoReviewOnOpen action={startReviewOnOpenAction} />
+      ) : null}
+      <InternalSolicitudDetail
+        solicitud={result.solicitud}
+        updateStatusAction={updateStatusAction}
+        createCommentAction={createCommentAction}
+        clientePanelContent={
+          clienteDetailLoadError ? (
+            <ReadErrorAlert
+              variant="warning"
+              title="No se pudo cargar el cliente asociado"
+              retryable={clienteDetailLoadRetryable}
+            >
+              <p>{clienteDetailLoadError}</p>
+            </ReadErrorAlert>
+          ) : (
+            <SolicitudClienteForm
+              associateClienteAction={associateClienteAction}
+              createClienteAction={createClienteAction}
+              clienteAsociado={clienteAsociado}
+              clientesDisponibles={clientesResult.ok ? clientesResult.clientes : []}
+              clientesLoadError={clientesListLoadError}
+              clientesLoadRetryable={clientesListLoadRetryable}
+              presentation="panel"
+            />
+          )
+        }
+        conversionPanelContent={
+          <SolicitudConvertPedidoForm
+            convertAction={convertAction}
+            status={result.solicitud.status}
+            clienteId={result.solicitud.cliente_id}
+            convertedOrderId={result.solicitud.converted_order_id}
+            workflowType={result.solicitud.workflow_type}
+            serviceType={result.solicitud.service_type}
+            solicitudDescription={result.solicitud.description}
+            solicitudDesiredDate={result.solicitud.desired_date}
             presentation="panel"
           />
-        )
-      }
-      conversionPanelContent={
-        <SolicitudConvertPedidoForm
-          convertAction={convertAction}
-          status={result.solicitud.status}
-          clienteId={result.solicitud.cliente_id}
-          convertedOrderId={result.solicitud.converted_order_id}
-          workflowType={result.solicitud.workflow_type}
-          serviceType={result.solicitud.service_type}
-          solicitudDescription={result.solicitud.description}
-          solicitudDesiredDate={result.solicitud.desired_date}
-          presentation="panel"
-        />
-      }
-      files={files}
-      filesLoadError={filesLoadError}
-      filesLoadRetryable={filesLoadRetryable}
-      comments={comments}
-      commentsLoadError={commentsLoadError}
-      commentsLoadRetryable={commentsLoadRetryable}
-      history={history}
-      historyLoadError={historyLoadError}
-      historyLoadRetryable={historyLoadRetryable}
-      clienteDetailLoadError={clienteDetailLoadError}
-      clientesListLoadError={clientesListLoadError}
-    />
+        }
+        files={files}
+        filesLoadError={filesLoadError}
+        filesLoadRetryable={filesLoadRetryable}
+        comments={comments}
+        commentsLoadError={commentsLoadError}
+        commentsLoadRetryable={commentsLoadRetryable}
+        history={history}
+        historyLoadError={historyLoadError}
+        historyLoadRetryable={historyLoadRetryable}
+        clienteDetailLoadError={clienteDetailLoadError}
+        clientesListLoadError={clientesListLoadError}
+      />
+    </>
   );
 }

@@ -93,6 +93,16 @@ async function createManualPedido(page: Page) {
     initialDescription,
   );
   await dialog.getByRole("button", { name: /crear pedido/i }).click();
+  await expect(dialog).toBeHidden({ timeout: 15_000 });
+  await expect(page).toHaveURL(/\/dashboard\/pedidos(?:[/?#].*)?$/);
+
+  const createdPedidoLink = page
+    .getByRole("link")
+    .filter({ hasText: initialTitle })
+    .first();
+
+  await expect(createdPedidoLink).toBeVisible();
+  await createdPedidoLink.click();
   await expect(page).toHaveURL(/\/dashboard\/pedidos\/[^/]+$/, {
     timeout: 15_000,
   });
@@ -103,6 +113,7 @@ async function createManualPedido(page: Page) {
       exact: true,
     }),
   ).toBeVisible();
+  await updatePedidoStatus(page, "en_revision", /^En revisi.n$/i);
 
   return page.url();
 }
@@ -194,16 +205,61 @@ async function updatePayment(page: Page, cash: string, transfer = "0") {
 }
 
 async function updatePedidoStatus(page: Page, status: string, label: RegExp) {
-  const statusDialog = await openPedidoPanel(page, /^estado$/i);
+  const statusDialog = await openPedidoPanel(page, /^estado$/i, /^estado/i);
+  const statusButtons: Record<string, RegExp> = {
+    en_revision: /pasar a producci.n/i,
+    en_produccion: /pasar a producci.n/i,
+    listo_entrega: /marcar como listo para entrega/i,
+    entregado: /marcar como entregado/i,
+  };
 
-  await statusDialog.locator('select[name="status"]').selectOption(status);
-  await statusDialog
-    .getByRole("button", { name: /actualizar estado/i })
-    .click();
-  await expect(statusDialog.getByText(label)).toBeVisible({
+  await expect(statusDialog.locator('select[name="status"]')).toHaveCount(0);
+
+  if (status === "en_revision") {
+    await expect(statusDialog.getByText(label).first()).toBeVisible({
+      timeout: 15_000,
+    });
+    await page.reload();
+    return;
+  }
+
+  if (status === "cancelado") {
+    await statusDialog.getByRole("button", { name: /cancelar pedido/i }).click();
+    await expect(statusDialog.getByText(/cancelar este pedido/i)).toBeVisible();
+    await expect(statusDialog.getByRole("button", { name: /^cancelar$/i }))
+      .toBeVisible();
+    await statusDialog.getByRole("button", { name: /^cancelar$/i }).click();
+    await expect(statusDialog.getByText(/cancelar este pedido/i)).toHaveCount(0);
+    await expect(
+      statusDialog.getByRole("button", { name: /cancelar pedido/i }),
+    ).toBeVisible();
+    await statusDialog.getByRole("button", { name: /cancelar pedido/i }).click();
+    await statusDialog
+      .getByRole("button", { name: /s.?, cancelar pedido/i })
+      .click();
+  } else {
+    const buttonName = statusButtons[status];
+
+    if (!buttonName) {
+      throw new Error(`Unsupported pedido status transition: ${status}`);
+    }
+
+    await statusDialog.getByRole("button", { name: buttonName }).click();
+  }
+
+  await expect(statusDialog.getByText(label).first()).toBeVisible({
     timeout: 15_000,
   });
-  await page.reload();
+
+  if (status === "cancelado") {
+    await expect(
+      statusDialog.getByRole("button", { name: /cancelar pedido/i }),
+    ).toHaveCount(0);
+    await expect(
+      statusDialog.getByRole("button", { name: /avanzar|marcar|pasar/i }),
+    ).toHaveCount(0);
+    await expect(statusDialog.getByText(/zona delicada/i)).toHaveCount(0);
+  }
 }
 
 async function assignTrabajador(page: Page) {
@@ -442,7 +498,7 @@ test("admin cannot lower total below paid amount and cannot edit closed order", 
 
   await expect(priceUpdateEvent).toHaveCount(1);
   await expectNoTechnicalPedidoFieldNames(updateEventsAfterPrice);
-  await updatePedidoStatus(page, "cancelado", /estado actual:\s*cancelado/i);
+  await updatePedidoStatus(page, "cancelado", /^Cancelado$/i);
 
   await expect(
     page.getByRole("heading", { level: 1, name: updatedTitle, exact: true }),

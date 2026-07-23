@@ -186,7 +186,7 @@ pendiente; los pagos siguen siendo informacion interna.
 | `entregado` | Pedido entregado. |
 | `cancelado` | Pedido cancelado. |
 
-Un pedido manual inicia en `creado`. Un pedido convertido desde solicitud inicia en `solicitud_recibida`. El flujo esperado es `creado` -> `en_revision` -> `en_produccion` -> `listo_entrega` -> `entregado` para pedidos manuales y `solicitud_recibida` -> `en_revision` -> `en_produccion` -> `listo_entrega` -> `entregado` para pedidos convertidos. `cancelado` funciona como salida lateral desde los estados activos.
+Un pedido manual inicia en `creado`. Un pedido convertido desde solicitud inicia en `solicitud_recibida`. Ambos estados iniciales pasan automáticamente a `en_revision` al abrir el detalle interno real. El flujo esperado es `creado` o `solicitud_recibida` -> `en_revision` -> `en_produccion` -> `listo_entrega` -> `entregado`. `listo_entrega` puede volver a `en_produccion` para correcciones y `cancelado` funciona como salida lateral desde estados activos.
 
 Los estados de pedido representan solo la fase general del flujo operativo. La
 RPC `public.actualizar_estado_pedido` aplica las reglas operativas fuertes y usa
@@ -194,8 +194,8 @@ RPC `public.actualizar_estado_pedido` aplica las reglas operativas fuertes y usa
 
 Reglas de transición vigentes:
 
-- `creado` puede pasar a `en_revision` o `cancelado`.
-- `solicitud_recibida` puede pasar a `en_revision` o `cancelado`.
+- `creado` pasa a `en_revision` al abrir el detalle real, o puede terminar en `cancelado`.
+- `solicitud_recibida` pasa a `en_revision` al abrir el detalle real, o puede terminar en `cancelado`.
 - `en_revision` puede pasar a `en_produccion` o `cancelado`.
 - `en_produccion` puede pasar a `listo_entrega` o `cancelado`.
 - `listo_entrega` puede pasar a `entregado`, volver a `en_produccion` o pasar a `cancelado`.
@@ -209,9 +209,10 @@ desde `listo_entrega`, sin saltos directos desde producción, y requiere pago
 completo.
 
 La UI del detalle usa el flujo, el progreso y el estado de pago ya cargados
-para orientar al usuario, pero la validación real está en la RPC. Un trabajador
-asignado puede cambiar estado siguiendo las mismas reglas; un trabajador no
-asignado no accede al pedido.
+para orientar al usuario con botones directos, no con selector de estados. Los
+botones bloqueados muestran el motivo visible, pero la validación real está en
+la RPC. Un trabajador asignado puede cambiar estado siguiendo las mismas reglas;
+un trabajador no asignado no accede al pedido.
 
 ## Modelo base de tareas
 
@@ -273,7 +274,7 @@ Flujo completo vigente:
 
 Archivos principales:
 
-- Página: `src/app/dashboard/pedidos/page.tsx`
+- Página: `src/app/(interno)/dashboard/pedidos/page.tsx`
 - Servicio: `src/lib/pedidos/list-internal-pedidos.ts`
 - Componente: `src/components/pedidos/InternalPedidosList.tsx`
 
@@ -305,6 +306,7 @@ El cálculo y la carga real de tareas no cambian.
 Archivos principales:
 
 - Ruta: `/dashboard/pedidos/[id]`
+- Página: `src/app/(interno)/dashboard/pedidos/[id]/page.tsx`
 - Servicio: `src/lib/pedidos/get-internal-pedido-by-id.ts`
 - Componente: `src/components/pedidos/InternalPedidoDetail.tsx`
 
@@ -321,6 +323,11 @@ de tareas. La página sigue cargando el progreso, pero el formulario de estado
 usa `workflow_type` para no bloquear impresiones por ausencia de tareas.
 Asignación, archivos, comentarios, historial y cambio de estado permanecen
 visibles para ambos tipos.
+
+Si el pedido llega al detalle en `creado` o `solicitud_recibida`, la página
+incluye `AutoReviewOnOpen`. El componente solo se monta en esos estados
+iniciales y llama a la Server Action enlazada al UUID después de que el cliente
+cargó el detalle real; no se ejecuta durante render server-side ni por prefetch.
 
 Un trabajador no puede ver pedidos no asignados, pero sí puede ver el cliente,
 la solicitud relacionada, los comentarios internos y los archivos de pedidos
@@ -385,7 +392,7 @@ Archivos principales:
 - Listado: `src/lib/pedidos/list-pedido-comments.ts`
 - Creación: `src/lib/pedidos/create-pedido-comment.ts`
 - Componente: `src/components/pedidos/PedidoCommentsSection.tsx`
-- Action: `src/app/dashboard/pedidos/[id]/actions.ts`
+- Action: `src/app/(interno)/dashboard/pedidos/[id]/actions/comment-actions.ts`
 
 El detalle de pedido permite ver y agregar comentarios internos asociados al pedido. Los comentarios son visibles solo para usuarios internos con acceso al pedido: `admin` y `supervisor` en cualquier pedido, y `trabajador` solo en pedidos asignados.
 
@@ -454,7 +461,7 @@ Desde Fase 11.7B, la conversión de una solicitud a pedido registra `convertida_
 Archivos principales:
 
 - Ruta: `/dashboard/pedidos/nuevo`
-- Action: `src/app/dashboard/pedidos/nuevo/actions.ts`
+- Action: `src/app/(interno)/dashboard/pedidos/nuevo/actions.ts`
 - Servicio: `src/lib/pedidos/create-internal-pedido.ts`
 - Formulario: `src/components/pedidos/PedidoForm.tsx`
 - Validación: `src/lib/pedidos/order-validation.ts`
@@ -499,6 +506,12 @@ código puede compartirse con el cliente y consultarse en la página pública
 `/estado` mediante el parámetro `ref`, por ejemplo
 `/estado?ref=GD-8F3A-92BC`.
 
+Después de crear un pedido manual, la UI cierra el diálogo, permanece en
+`/dashboard/pedidos`, refresca el listado y muestra el pedido en estado
+`creado`. La creación ya no abre automáticamente el detalle. El pedido permanece
+en `creado` hasta que un usuario con acceso abra manualmente su detalle; ese
+primer acceso real dispara el inicio automático de revisión.
+
 La capa de consulta pública por `public_reference` existe a nivel server-side
 mediante la RPC controlada `public.consultar_estado_publico` y se usa desde
 `src/lib/public-tracking`; la UI pública no consulta Supabase desde componentes
@@ -521,7 +534,7 @@ Archivos principales:
 
 - Servicio: `src/lib/pedidos/create-pedido-from-solicitud.ts`
 - Componente: `src/components/solicitudes/SolicitudConvertPedidoForm.tsx`
-- Action: `src/app/dashboard/solicitudes/[id]/actions.ts`
+- Action: `src/app/(interno)/dashboard/solicitudes/[id]/actions/conversion-actions.ts`
 
 La conversión requiere `solicitudes.manage` y `pedidos.manage`. Solo se permite convertir solicitudes con estado `aprobada` y `cliente_id` asociado. La página enlaza `solicitud_id` a la action y el formulario envía únicamente `title`, `description`, `total_amount`, `priority` y `estimated_delivery_date`; no envía `workflow_type`.
 
@@ -587,13 +600,40 @@ Flujos relacionados:
 
 Archivos principales:
 
-- Action: `src/app/dashboard/pedidos/[id]/actions.ts`
+- Action: `src/app/(interno)/dashboard/pedidos/[id]/actions/status-actions.ts`
+- Auto inicio: `src/components/workspace/AutoReviewOnOpen.tsx`
 - Servicio: `src/lib/pedidos/update-internal-pedido-status.ts`
+- Inicio idempotente: `src/lib/pedidos/ensure-pedido-review-started.ts`
 - Componente: `src/components/pedidos/PedidoStatusForm.tsx`
+- Panel compartido: `src/components/workspace/StatusFlowPanel.tsx`
 - Estados: `src/lib/pedidos/status.ts`
 - RPC: `public.actualizar_estado_pedido`
 
-La página enlaza `pedido_id` a la action, que acepta únicamente `status` desde el formulario. El estado se valida server-side contra el enum real simplificado. La actualización usa la RPC segura `public.actualizar_estado_pedido`, que evita abrir un `UPDATE` amplio sobre `pedidos` para trabajadores.
+La página enlaza `pedido_id` a la action, que acepta únicamente `status` desde
+el formulario. `PedidoStatusForm` recibe el `PedidoStatusFlow` calculado en
+`src/lib/pedidos/status.ts` y lo adapta a `StatusFlowPanel`: no hay selector de
+estados, sino acción directa principal, acción secundaria opcional, bloqueo
+visible y zona delicada para cancelar. El estado se valida server-side contra el
+enum real simplificado. La actualización usa la RPC segura
+`public.actualizar_estado_pedido`, que evita abrir un `UPDATE` amplio sobre
+`pedidos` para trabajadores.
+
+El inicio automático de revisión usa este recorrido:
+
+```text
+AutoReviewOnOpen
+-> startPedidoReviewOnOpenAction
+-> ensurePedidoReviewStarted
+-> updateInternalPedidoStatus
+-> public.actualizar_estado_pedido
+```
+
+Solo aplica a `creado -> en_revision` y `solicitud_recibida -> en_revision`,
+después del montaje del cliente en el detalle real. No ocurre durante render ni
+por prefetch. Usa los permisos actuales del usuario; un trabajador asignado
+conserva las capacidades que la RPC ya permite y no se agregan cambios de RLS.
+Es idempotente y no degrada pedidos avanzados a `en_revision`: si otro usuario
+ya movió el pedido, el servicio relee el estado y finaliza como procesado.
 
 La RPC bloquea la fila del pedido con `FOR UPDATE` antes de leer su estado. Dos
 transiciones simultáneas quedan serializadas: la segunda petición valida contra
@@ -605,11 +645,17 @@ solo cuando `pedidos.workflow_type = 'encargo'`. Las impresiones pueden pasar de
 `en_revision` a `en_produccion` y de `en_produccion` a `listo_entrega` sin
 tareas, pero no pueden saltar directamente a `entregado`.
 
+El action rail y el panel derivan del mismo objeto de flujo. El rail puede
+mostrar `Iniciando revisión`, `Puede avanzar a {estado}`, `Avance bloqueado`,
+`Pedido entregado` o `Pedido cancelado`; si la fecha estimada está vencida, el
+texto se combina como `· Fecha estimada vencida`. Ese texto orienta la operación
+visible y no reemplaza validaciones server-side.
+
 Para pasar de `listo_entrega` a `entregado`, la RPC tambien valida
 `pedido_pagos.payment_status = 'pagado'`. Si el resumen financiero no existe o
 el pago esta `sin_pago` o `parcial`, la transicion falla aunque el usuario tenga
 permiso para cambiar estado. La UI muestra un aviso de pago pendiente y
-deshabilita la opcion `entregado`, pero la autoridad final es
+deshabilita el botón `entregado` con motivo visible, pero la autoridad final es
 `public.actualizar_estado_pedido`. La consulta publica `/estado` no expone
 informacion de pago.
 
@@ -640,7 +686,7 @@ Archivos principales:
 - Servicio de asignación: `src/lib/pedidos/assign-internal-pedido-worker.ts`
 - Servicio de remoción: `src/lib/pedidos/remove-internal-pedido-worker.ts`
 - Componente: `src/components/pedidos/PedidoWorkerAssignmentForm.tsx`
-- Action: `src/app/dashboard/pedidos/[id]/actions.ts`
+- Action: `src/app/(interno)/dashboard/pedidos/[id]/actions/worker-actions.ts`
 
 Solo `admin` y `supervisor` pueden asignar o remover personal. El listado devuelve perfiles activos con rol `admin`, `supervisor` o `trabajador`. El servicio valida UUID de pedido y usuario, verifica que el usuario exista, esté activo y tenga un rol asignable, y no reemplaza automáticamente otras asignaciones.
 
@@ -712,6 +758,14 @@ Desde 13.6I, el dashboard y los paneles operativos también consideran tareas: p
 
 ## Pruebas manuales recomendadas
 
+Evidencia e2e focal reciente:
+
+- `tests/e2e/pedidos.spec.ts` — 4 passed. Cubre autoavance, ausencia de selector,
+  avance lineal, cancelación, tareas, pago, retorno a producción y creación
+  manual permaneciendo en el listado.
+- `tests/e2e/pedido-edit.spec.ts` — 4 passed. Cubre edición controlada y
+  sincronización del detalle/listado relacionada con pedidos activos.
+
 - Verificar que `admin` ve todos los pedidos.
 - Verificar que `supervisor` ve todos los pedidos.
 - Verificar que `trabajador` ve solo pedidos asignados.
@@ -752,11 +806,15 @@ Desde 13.6I, el dashboard y los paneles operativos también consideran tareas: p
 - Cambiar estado como `admin`.
 - Cambiar estado como `supervisor`.
 - Cambiar estado como trabajador asignado.
-- Cambiar un pedido manual de `creado` a `en_revision`.
+- Crear un pedido manual y confirmar que permanece en `/dashboard/pedidos`, refresca el listado y queda en `creado`.
+- Abrir manualmente el detalle de un pedido `creado` y confirmar el autoavance a `en_revision`.
+- Reabrir el detalle y confirmar que no se duplica el avance ni el historial.
 - Intentar pasar de `creado` directamente a `en_produccion` y confirmar el bloqueo.
 - Cancelar un pedido desde `creado` y confirmar que queda cerrado.
 - Cambiar estado entre `solicitud_recibida`, `en_revision`, `en_produccion`, `listo_entrega`, `entregado` y `cancelado`.
-- Confirmar que el selector no muestra estados eliminados.
+- Confirmar que el panel de Estado no usa selector y muestra botones directos.
+- Confirmar bloqueos visibles por tareas y pago pendiente.
+- Confirmar que `listo_entrega` puede volver a `en_produccion`.
 - Confirmar que listados y filtros no muestran estados eliminados.
 - Confirmar que el dashboard no muestra tarjeta de diseño.
 - Confirmar que las métricas de activos, producción, listos, atrasados y próximos a entrega funcionan.

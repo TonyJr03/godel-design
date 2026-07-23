@@ -55,7 +55,8 @@ separacion es intencional y evita un `types.ts` unico demasiado grande.
 | `rpc.ts` | Wrappers tipados de RPCs usadas por Pedidos, incluido `actualizar_datos_pedido` con adaptación localizada de nulabilidad del tipo generado. |
 | `update-internal-pedido.ts` | Servicio de edición controlada de datos básicos y precio mediante RPC transaccional. |
 | `update-internal-pedido-status.ts` | Servicio de cambio de estado; valida permiso/acceso y delega en RPC. |
-| `status.ts` | Estados, transiciones permitidas y reglas auxiliares de estado/tareas/pago. |
+| `ensure-pedido-review-started.ts` | Garantia idempotente de inicio de revision al abrir el detalle interno real. |
+| `status.ts` | Estados, estados iniciales, `PedidoStatusFlow`, contexto de tareas/pago y helpers temporales de compatibilidad. |
 | `update-pedido-payment.ts` | Orquestador de actualización de pagos acumulados. |
 | `payment-validation.ts` | Validación y normalización de montos de pago. |
 | `payment-errors.ts` | Mensajes seguros y allowlist de errores de pago. |
@@ -175,6 +176,12 @@ El precio total es obligatorio, puede ser `0` y no puede ser negativo.
 
 El número de pedido (`order_number`) no se acepta desde formularios ni se genera en TypeScript. La base de datos lo asigna al insertar el pedido con formato `P-YY-XXXX`, usando un contador anual transaccional y el año de la fecha de negocio `America/Havana`.
 
+Al crear desde el diálogo/listado, la UI cierra el diálogo, permanece en
+`/dashboard/pedidos`, refresca el listado y muestra el pedido en `creado`. La
+creación devuelve IDs seguros para sincronizar la vista, pero ya no abre el
+detalle automaticamente. El pedido permanece `creado` hasta que alguien abra
+manualmente su detalle; esa apertura real inicia la revision.
+
 `estimated_delivery_date` es opcional, pero si se informa debe ser una fecha válida e igual o posterior al día actual. La validación usa los helpers centralizados de `src/lib/validators/date.ts`, apoyados en `src/lib/utils/date.ts` para calcular el día actual local. El `min` del formulario es solo una ayuda visual.
 
 ## Conversión Desde Solicitud
@@ -268,6 +275,14 @@ El detalle muestra total, efectivo, transferencia, total pagado, pendiente, esta
 
 La página del detalle enlaza `pedido_id` a `updatePedidoStatusAction`; el formulario envía únicamente `status`. La action delega en `updateInternalPedidoStatus`, que valida `pedidos.change_status`, UUID y estado real, verifica acceso al pedido y usa la RPC segura existente `public.actualizar_estado_pedido`.
 
+Los estados iniciales `creado` y `solicitud_recibida` pasan a `en_revision` al
+abrir el detalle interno real mediante `ensurePedidoReviewStarted`. El helper
+reutiliza el mismo servicio manual y la misma RPC; si una transicion de inicio
+falla por estado obsoleto, relee `id,status` y considera exito cuando el pedido
+ya no esta en estado inicial. No oculta errores reales de autenticacion,
+permisos, lectura o infraestructura, y nunca degrada un pedido avanzado a
+`en_revision`.
+
 Los estados vigentes de pedido son `creado`, `solicitud_recibida`, `en_revision`, `en_produccion`, `listo_entrega`, `entregado` y `cancelado`. La RPC es la autoridad para validar transiciones: `creado` avanza a `en_revision` o `cancelado`; `solicitud_recibida` avanza a `en_revision` o `cancelado`; `en_revision` avanza a `en_produccion` o `cancelado`; `en_produccion` avanza a `listo_entrega` o `cancelado`; `listo_entrega` avanza a `entregado`, vuelve a `en_produccion` o pasa a `cancelado`.
 
 Un pedido manual no puede pasar directamente de `creado` a producción: primero
@@ -277,16 +292,22 @@ que existan tareas y todas estén completas para pasar a `listo_entrega`. Los
 pedidos con `workflow_type = impresion` pueden realizar esas dos transiciones
 sin tareas.
 
+`status.ts` calcula `PedidoStatusFlow` con el contexto de workflow, tareas y
+pago: accion principal, retorno a produccion desde `listo_entrega`, terminacion,
+motivos de bloqueo visibles y estados cerrados. Los helpers antiguos se
+conservan temporalmente para compatibilidad, pero las reglas de negocio siguen
+en servicios/RPC y no en componentes.
+
 Las transiciones disponibles no cambian: `entregado` solo se permite desde
 `listo_entrega`, por lo que una impresión tampoco puede saltar directamente
 desde `en_produccion`. `entregado` y `cancelado` son estados cerrados y no
-admiten cambios posteriores. La UI usa `workflow_type` para orientar y
-deshabilitar opciones, pero la validación real está en
-`public.actualizar_estado_pedido`.
+admiten cambios posteriores. La UI usa `workflow_type`, tareas y pago para
+orientar y deshabilitar botones con motivo visible, pero la validación real está
+en `public.actualizar_estado_pedido`.
 
 Para marcar `entregado`, el pedido debe tener
-`pedido_pagos.payment_status = 'pagado'`. La UI deshabilita la opción de
-entrega y muestra aviso cuando el pago está pendiente, pero la RPC repite la
+`pedido_pagos.payment_status = 'pagado'`. La UI deshabilita el botón de entrega
+con motivo visible cuando el pago está pendiente, pero la RPC repite la
 validación como autoridad final. Si falta el resumen financiero, la entrega se
 bloquea de forma segura. Los pedidos con `total_amount = 0` pueden entregarse
 porque el trigger los mantiene como `pagado`.

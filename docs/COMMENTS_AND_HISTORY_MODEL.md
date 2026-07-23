@@ -125,9 +125,21 @@ Si el estado enviado es igual al estado actual, la RPC retorna el pedido sin ins
 La fecha real al entregar usa `private.current_business_date()` con zona
 `America/Havana`. Esto no cambia el contenido ni el número de eventos.
 
+El autoavance al abrir el detalle no introduce triggers ni eventos nuevos:
+`AutoReviewOnOpen` llama a la Server Action de apertura, que termina usando esta
+misma RPC. El actor del evento es `auth.uid()` del usuario que abrió el detalle.
+Los componentes, actions y servicios de garantía no insertan historial por su
+cuenta.
+
+La RPC bloquea con `FOR UPDATE` y mantiene el no-op para mismo estado. Si dos
+usuarios abren el mismo pedido inicial, una transición efectiva puede registrar
+`estado_cambiado`; la otra puede recibir una transición obsoleta, releer el
+pedido y finalizar si ya salió de `creado` o `solicitud_recibida`. Reabrir o
+refrescar un detalle que ya dejó el estado inicial no duplica eventos.
+
 ### RPC `actualizar_estado_solicitud`
 
-La RPC `public.actualizar_estado_solicitud` valida las transiciones manuales de solicitudes. Solo `admin` y `supervisor` activos pueden ejecutarla. La UI muestra las opciones permitidas, pero la autoridad real es la RPC.
+La RPC `public.actualizar_estado_solicitud` valida las transiciones de solicitudes. Solo `admin` y `supervisor` activos pueden ejecutarla. La UI muestra acciones directas permitidas, pero la autoridad real es la RPC.
 
 Reglas vigentes:
 
@@ -139,6 +151,14 @@ Reglas vigentes:
 - `convertida` solo se asigna por el flujo formal de conversión a pedido.
 
 La RPC actualiza `solicitudes.status` y `reviewed_by`. El evento `estado_cambiado` se registra mediante el trigger privado existente sobre `solicitudes.status`, por lo que la RPC no inserta historial manualmente. Si el estado enviado es igual al actual, retorna la solicitud sin duplicar historial.
+
+El autoavance al abrir el detalle (`nueva -> en_revision`) usa la misma RPC
+existente. No hay trigger adicional, evento especial ni inserción de historial
+desde componentes, actions o servicios de garantía; el actor es `auth.uid()` del
+usuario que abrió el detalle. La transición se serializa con `FOR UPDATE` y el
+mismo estado es no-op. Si una apertura concurrente ya movió la solicitud fuera
+de `nueva`, la segunda llamada relee `id,status` y termina como procesada sin
+crear otro `estado_cambiado`.
 
 ### RPC `convertir_solicitud_a_pedido`
 
@@ -153,6 +173,9 @@ El insert de `pedidos` activa `pedido_creado`. El update que establece a la vez
 `estado_cambiado` para evitar duplicación. La actualización de
 `archivos.pedido_id` no genera `archivo_subido`, porque no inserta un archivo
 nuevo ni altera su visibilidad.
+
+La conversión conserva su evento especializado; `convertida` no es una
+transición manual del panel de Estado.
 
 ### RPC `actualizar_datos_pedido`
 

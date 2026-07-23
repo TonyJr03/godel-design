@@ -211,21 +211,105 @@ async function expectNoDocumentScroll(page: Page) {
   );
 }
 
+const SOLICITUD_STATUS_LABELS: Record<string, RegExp> = {
+  en_revision: /^En revisi.n$/i,
+  contactada: /^Contactada$/i,
+  aprobada: /^Aprobada$/i,
+  rechazada: /^Rechazada$/i,
+  convertida: /^Convertida$/i,
+};
+
+const SOLICITUD_STATUS_BUTTONS: Record<string, RegExp> = {
+  contactada: /avanzar a contactada/i,
+  aprobada: /avanzar a aprobada/i,
+};
+
+async function expectSolicitudStatusPanel(
+  page: Page,
+  status: string,
+): Promise<Locator> {
+  const dialog = await openSolicitudPanel(page, /^estado$/i, /^estado/i);
+
+  await expect(dialog.locator('select[name="status"]')).toHaveCount(0);
+  await expect(
+    dialog.getByText(SOLICITUD_STATUS_LABELS[status]).first(),
+  ).toBeVisible({ timeout: 15_000 });
+  await expectNoTechnicalLeakText(page);
+
+  return dialog;
+}
+
 async function updateSolicitudStatus(
   page: Page,
   status: string,
   visibleLabel: RegExp,
 ) {
-  const dialog = await openSolicitudPanel(page, /^estado$/i, /^estado/i);
+  if (status === "en_revision") {
+    const dialog = await expectSolicitudStatusPanel(page, status);
 
-  await dialog.getByLabel(/siguiente estado/i).selectOption(status);
-  await dialog.getByRole("button", { name: /actualizar estado/i }).click();
-  await expect(
-    dialog.getByText(/estado actualizado correctamente/i),
-  ).toBeVisible({ timeout: 15_000 });
+    await expect(
+      dialog.getByRole("button", { name: SOLICITUD_STATUS_BUTTONS.contactada }),
+    ).toBeVisible();
+    await expect(dialog.getByText(/no se pudo actualizar el estado/i))
+      .toHaveCount(0);
+    await page.reload();
+    await expectSolicitudStatusPanel(page, status);
+    return;
+  }
+
+  if (status === "rechazada") {
+    const dialog = await expectSolicitudStatusPanel(page, "en_revision");
+
+    await dialog.getByRole("button", { name: /rechazar solicitud/i }).click();
+    await expect(
+      dialog.getByRole("group", { name: /rechazar esta solicitud/i }),
+    ).toBeVisible();
+    await expect(dialog.getByRole("button", { name: /^cancelar$/i }))
+      .toBeVisible();
+    await dialog.getByRole("button", { name: /^cancelar$/i }).click();
+    await expect(
+      dialog.getByRole("group", { name: /rechazar esta solicitud/i }),
+    ).toHaveCount(0);
+    await expect(
+      dialog.getByRole("button", { name: /rechazar solicitud/i }),
+    ).toBeVisible();
+    await dialog.getByRole("button", { name: /rechazar solicitud/i }).click();
+    await expect(
+      dialog.getByRole("group", { name: /rechazar esta solicitud/i }),
+    ).toBeVisible();
+    await dialog
+      .getByRole("button", { name: /s.?, rechazar solicitud/i })
+      .click();
+    await expect(
+      dialog.getByText(SOLICITUD_STATUS_LABELS.rechazada).first(),
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(
+      dialog.getByRole("button", { name: /rechazar solicitud/i }),
+    ).toHaveCount(0);
+    await expect(
+      dialog.getByRole("button", { name: /avanzar a/i }),
+    ).toHaveCount(0);
+    await expect(dialog.getByText(/zona delicada/i)).toHaveCount(0);
+    await expectNoTechnicalLeakText(page);
+    await dialog.getByRole("button", { name: /cerrar/i }).click();
+    await expect(dialog).toBeHidden();
+    return;
+  }
+
+  const dialog = await openSolicitudPanel(page, /^estado$/i, /^estado/i);
+  const buttonName = SOLICITUD_STATUS_BUTTONS[status];
+
+  if (!buttonName) {
+    throw new Error(`Unsupported solicitud status transition: ${status}`);
+  }
+
+  await expect(dialog.locator('select[name="status"]')).toHaveCount(0);
+  await expect(dialog.getByRole("button", { name: buttonName })).toBeVisible();
+  await dialog.getByRole("button", { name: buttonName }).click();
   await expect(dialog).toBeVisible();
-  await page.reload();
-  await expect(page.getByText(visibleLabel).first()).toBeVisible();
+  await expect(
+    dialog.getByText(SOLICITUD_STATUS_LABELS[status] ?? visibleLabel).first(),
+  ).toBeVisible({ timeout: 15_000 });
   await expectNoTechnicalLeakText(page);
 }
 
@@ -289,9 +373,24 @@ test("admin can manage solicitud workspace panels end to end", async ({
   await updateSolicitudStatus(page, "en_revision", /en revisi.n/i);
   await updateSolicitudStatus(page, "contactada", /contactada/i);
   await updateSolicitudStatus(page, "aprobada", /aprobada/i);
+  const approvedStatusDialog = await openSolicitudPanel(
+    page,
+    /^estado$/i,
+    /^estado/i,
+  );
+
+  await expect(approvedStatusDialog.locator('select[name="status"]'))
+    .toHaveCount(0);
+  await expect(
+    approvedStatusDialog.getByText(/convertirla en pedido desde la secci.n conversi.n/i),
+  ).toBeVisible();
+  await expect(
+    approvedStatusDialog.getByRole("button", { name: /convertida/i }),
+  ).toHaveCount(0);
+  await approvedStatusDialog.getByRole("button", { name: /cerrar/i }).click();
   await expectDesktopTrigger(
     page,
-    /estado.*solicitud aprobada/i,
+    /estado.*lista para convertir/i,
     /border-success/,
   );
   await expectDesktopTrigger(
@@ -670,7 +769,7 @@ test("impresion workflow supports files and rejected closed state", async ({
   );
   const estadoDialog = await openSolicitudPanel(page, /^estado$/i, /^estado/i);
 
-  await expect(estadoDialog.getByText(/no admite cambios de estado/i))
+  await expect(estadoDialog.getByText(/no admite m.s cambios de estado/i))
     .toBeVisible();
   await estadoDialog.getByRole("button", { name: /cerrar/i }).click();
   const conversionDialog = await openSolicitudPanel(

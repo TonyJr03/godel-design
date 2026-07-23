@@ -19,6 +19,12 @@ export {
 export { createPublicSolicitud } from "./create-public-solicitud";
 export { getInternalSolicitudById } from "./get-internal-solicitud-by-id";
 export {
+  ensureSolicitudReviewStarted,
+  type EnsureSolicitudReviewStartedErrorReason,
+  type EnsureSolicitudReviewStartedInput,
+  type EnsureSolicitudReviewStartedResult,
+} from "./ensure-solicitud-review-started";
+export {
   listSolicitudComments,
   type ListSolicitudCommentsErrorReason,
   type ListSolicitudCommentsResult,
@@ -50,6 +56,8 @@ export {
   MANUAL_SOLICITUD_STATUSES,
   SOLICITUD_STATUSES,
   getAllowedSolicitudStatusTransitions,
+  getSolicitudStatusFlow,
+  isSolicitudInitialStatus,
   isManualSolicitudStatus,
   isSolicitudClosedStatus,
   isSolicitudStatus,
@@ -78,8 +86,12 @@ export type {
   GetInternalSolicitudByIdResult,
 } from "./get-internal-solicitud-by-id";
 export type { InternalSolicitud, InternalSolicitudDetail } from "./types";
+export type { SolicitudInitialStatus } from "./status";
+export type { SolicitudExternalStatusStep } from "./status";
 export type { ManualSolicitudStatus } from "./status";
 export type { SolicitudStatus } from "./status";
+export type { SolicitudStatusFlow } from "./status";
+export type { SolicitudStatusFlowAction } from "./status";
 export type { SolicitudStatusTransitionOption } from "./status";
 export type {
   UpdateInternalSolicitudStatusErrorReason,

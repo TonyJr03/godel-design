@@ -21,8 +21,11 @@ import type {
 } from "@/lib/pedidos";
 import {
   EMPTY_PEDIDO_TASKS_PROGRESS,
+  getPedidoStatusFlow,
   isPedidoActiveStatus,
+  PEDIDO_STATUS_LABELS,
   type PedidoStatus,
+  type PedidoStatusFlow,
 } from "@/lib/pedidos";
 import type { PedidoFileListItem } from "@/lib/storage";
 import { getTodayDateInputValue } from "@/lib/utils";
@@ -138,6 +141,45 @@ function getPaymentActionState(
   };
 }
 
+function getPedidoStatusActionState({
+  flow,
+  isEstimatedDeliveryOverdue,
+}: {
+  flow: PedidoStatusFlow;
+  isEstimatedDeliveryOverdue: boolean;
+}): WorkspaceActionState {
+  let tone: WorkspaceActionState["tone"];
+  let statusLabel: string | undefined;
+
+  if (flow.currentStatus === "cancelado") {
+    tone = "danger";
+    statusLabel = "Pedido cancelado";
+  } else if (flow.currentStatus === "entregado") {
+    tone = "success";
+    statusLabel = "Pedido entregado";
+  } else if (flow.advance?.enabled) {
+    tone = "warning";
+    statusLabel = `Puede avanzar a ${PEDIDO_STATUS_LABELS[flow.advance.status]}`;
+  } else if (flow.isInitial) {
+    tone = "warning";
+    statusLabel = "Iniciando revisión";
+  } else if (flow.advance) {
+    statusLabel = "Avance bloqueado";
+  }
+
+  if (isEstimatedDeliveryOverdue) {
+    statusLabel = statusLabel
+      ? `${statusLabel} · Fecha estimada vencida`
+      : "Fecha estimada vencida";
+    tone = tone ?? "warning";
+  }
+
+  return {
+    ...(tone ? { tone } : {}),
+    ...(statusLabel ? { statusLabel } : {}),
+  };
+}
+
 export function InternalPedidoDetail({
   pedido,
   updatePedidoDataAction,
@@ -166,6 +208,15 @@ export function InternalPedidoDetail({
   const isPrintWorkflow = pedido.workflow_type === WORKFLOW_TYPES.IMPRESION;
   const safeTaskProgress = taskProgress ?? EMPTY_PEDIDO_TASKS_PROGRESS;
   const isActivePedido = isPedidoActiveStatus(pedido.status);
+  const statusFlow = getPedidoStatusFlow(pedido.status, {
+    workflowType: pedido.workflow_type,
+    taskProgress: tasksLoadError ? null : taskProgress ?? null,
+    tasksAvailable: !tasksLoadError,
+    paymentStatus: pedido.payment.isAvailable
+      ? pedido.payment.paymentStatus
+      : undefined,
+    paymentAvailable: pedido.payment.isAvailable,
+  });
   const today = getTodayDateInputValue();
   const estimatedDeliveryDate =
     pedido.estimated_delivery_date?.slice(0, 10) ?? null;
@@ -173,6 +224,10 @@ export function InternalPedidoDetail({
     isActivePedido &&
     estimatedDeliveryDate !== null &&
     estimatedDeliveryDate < today;
+  const statusActionState = getPedidoStatusActionState({
+    flow: statusFlow,
+    isEstimatedDeliveryOverdue,
+  });
   const taskActionState = getTaskActionState({
     isPrintWorkflow,
     isActivePedido,
@@ -228,10 +283,7 @@ export function InternalPedidoDetail({
       id: "estado",
       label: "Estado",
       icon: "estado",
-      tone: isEstimatedDeliveryOverdue ? "warning" : undefined,
-      statusLabel: isEstimatedDeliveryOverdue
-        ? "Fecha estimada vencida"
-        : undefined,
+      ...statusActionState,
     },
     ...(!isPrintWorkflow && tasksPanelContent
       ? [
@@ -298,15 +350,12 @@ export function InternalPedidoDetail({
       id: "estado",
       title: "Estado",
       description:
-        "Consulta el estado actual y aplica una transición permitida.",
+        "Consulta el estado actual y avanza el flujo mediante las acciones disponibles.",
       content: (
         <PedidoStatusForm
-          presentation="panel"
           updateStatusAction={updateStatusAction}
-          estadoActual={pedido.status}
+          flow={statusFlow}
           workflowType={pedido.workflow_type}
-          paymentStatus={pedido.payment.paymentStatus}
-          taskProgress={taskProgress}
           tasksLoadError={tasksLoadError}
           tasksLoadRetryable={tasksLoadRetryable}
         />
