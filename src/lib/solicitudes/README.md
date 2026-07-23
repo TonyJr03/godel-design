@@ -42,6 +42,7 @@ La conversion Solicitud -> Pedido se dispara desde el detalle interno de una sol
 | `list-internal-solicitudes.ts` | Listado interno con filtros, busqueda server-side, permisos y DTO acotado. |
 | `get-internal-solicitud-by-id.ts` | Loader server-side del detalle interno con validacion de UUID, perfil activo y permiso. |
 | `update-internal-solicitud-status.ts` | Valida cambio de estado y delega la transicion en RPC segura. |
+| `ensure-solicitud-review-started.ts` | Garantia idempotente de inicio de revision al abrir el detalle interno real. |
 | `associate-solicitud-cliente.ts` | Asocia una solicitud a un cliente existente con permisos internos. |
 | `create-cliente-from-solicitud.ts` | Crea cliente basico desde datos ya guardados en la solicitud y asocia mediante RPC transaccional. |
 | `create-solicitud-comment.ts` | Crea comentarios internos append-only. |
@@ -49,7 +50,7 @@ La conversion Solicitud -> Pedido se dispara desde el detalle interno de una sol
 | `list-solicitud-history.ts` | Lista historial interno mediante RPC y mapea metadata relacionada para UI interna. |
 | `rpc.ts` | Centraliza wrappers tipados/casteados de RPCs del dominio. |
 | `labels.ts` | Traduce estados, servicios e historial a textos visibles. |
-| `status.ts` | Define estados, transiciones manuales y estados cerrados del dominio. |
+| `status.ts` | Define estados, estados iniciales, `SolicitudStatusFlow`, transiciones lineales y helpers temporales de compatibilidad. |
 
 ## Flujo publico `/solicitud`
 
@@ -99,7 +100,23 @@ Familias actuales:
 
 ## Estados y conversion
 
-Los cambios manuales de estado se validan en `status.ts` y `update-internal-solicitud-status.ts`. El estado `convertida` no se asigna manualmente desde UI; queda reservado para la conversion formal a pedido.
+Las solicitudes publicas se crean como `nueva`. Al abrir por primera vez el
+detalle interno real, `ensureSolicitudReviewStarted` intenta iniciar
+`nueva -> en_revision` reutilizando `updateInternalSolicitudStatus` y la RPC
+`public.actualizar_estado_solicitud`. No escribe tablas directamente ni mueve
+reglas al componente cliente.
+
+`status.ts` identifica estados iniciales, estados cerrados y el
+`SolicitudStatusFlow` explicito que consumen los adaptadores de UI. Mantiene
+helpers antiguos de transiciones mientras existan imports compatibles, pero el
+flujo vigente es lineal: `nueva -> en_revision` automatico, `contactada` por
+accion directa, `aprobada` por accion directa y `convertida` solo por conversion
+formal.
+
+`ensureSolicitudReviewStarted` relee `id,status` solo cuando una transicion de
+inicio falla por razon recuperable. Si la solicitud ya no esta en estado inicial,
+la operacion se considera procesada. No oculta errores reales de autenticacion,
+permisos, lectura o infraestructura.
 
 La conversion Solicitud -> Pedido:
 

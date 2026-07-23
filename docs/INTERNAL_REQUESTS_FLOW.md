@@ -46,7 +46,7 @@ El rol `trabajador` no debe acceder a esta sección. Puede ver datos de una soli
 
 | Pieza | Archivo |
 | --- | --- |
-| Página | `src/app/dashboard/solicitudes/page.tsx` |
+| Página | `src/app/(interno)/dashboard/solicitudes/page.tsx` |
 | Servicio | `src/lib/solicitudes/list-internal-solicitudes.ts` |
 | Componente | `src/components/solicitudes/InternalSolicitudesList.tsx` |
 
@@ -112,7 +112,7 @@ visible y labels de servicio.
 | Pieza | Archivo |
 | --- | --- |
 | Ruta | `/dashboard/solicitudes/[id]` |
-| Página | `src/app/dashboard/solicitudes/[id]/page.tsx` |
+| Página | `src/app/(interno)/dashboard/solicitudes/[id]/page.tsx` |
 | Servicio | `src/lib/solicitudes/get-internal-solicitud-by-id.ts` |
 | Componente | `src/components/solicitudes/InternalSolicitudDetail.tsx` |
 
@@ -181,9 +181,13 @@ la marca de conversión.
 
 | Pieza | Archivo |
 | --- | --- |
-| Server Action | `src/app/dashboard/solicitudes/[id]/actions.ts` |
+| Server Actions | `src/app/(interno)/dashboard/solicitudes/[id]/actions/status-actions.ts` |
+| Facade de actions | `src/app/(interno)/dashboard/solicitudes/[id]/actions.ts` |
+| Auto inicio | `src/components/workspace/AutoReviewOnOpen.tsx` |
 | Servicio | `src/lib/solicitudes/update-internal-solicitud-status.ts` |
+| Inicio idempotente | `src/lib/solicitudes/ensure-solicitud-review-started.ts` |
 | Componente | `src/components/solicitudes/SolicitudStatusForm.tsx` |
+| Panel compartido | `src/components/workspace/StatusFlowPanel.tsx` |
 | Helpers | `src/lib/solicitudes/status.ts` |
 | RPC | `public.actualizar_estado_solicitud` |
 
@@ -197,7 +201,41 @@ El cambio de estado:
 - revalida `/dashboard`, `/dashboard/solicitudes` y `/dashboard/solicitudes/[id]`;
 - no usa service role key.
 
-La RPC es la autoridad de transiciones. La UI solo muestra las opciones permitidas para orientar al usuario, pero los saltos inválidos también fallan server-side.
+La RPC es la autoridad de transiciones. La UI no usa `<select>` para estados:
+`SolicitudStatusForm` adapta el `SolicitudStatusFlow` calculado en
+`src/lib/solicitudes/status.ts` al panel presentacional `StatusFlowPanel`. El
+panel muestra estado actual, siguiente estado y botones directos de avance o
+rechazo. Cada botón envía `status` con su destino; los saltos inválidos también
+fallan server-side.
+
+## Inicio automático de revisión
+
+La solicitud pública siempre se crea como `nueva`. El primer acceso real al
+detalle interno inicia la revisión automáticamente después del montaje del
+cliente:
+
+```text
+detalle server-side cargado
+-> AutoReviewOnOpen se monta
+-> Server Action enlazada al UUID
+-> ensureSolicitudReviewStarted
+-> updateInternalSolicitudStatus
+-> public.actualizar_estado_solicitud
+-> revalidación
+-> router.refresh()
+```
+
+Esto no ocurre durante el render de Server Components, no se dispara por
+prefetch de Next, no se dispara por consultar el listado y no hace updates
+directos a tablas desde TypeScript. La escritura sigue pasando por el servicio
+de dominio, la RPC y RLS con el usuario autenticado actual; no usa
+`service_role`.
+
+`ensureSolicitudReviewStarted` intenta solo `nueva -> en_revision`. Si otra
+apertura concurrente ya movió la solicitud fuera de `nueva`, la segunda llamada
+relee `id,status` y considera el inicio procesado. La RPC bloquea la fila con
+`FOR UPDATE`, el mismo estado es no-op, y solo un cambio efectivo genera
+historial `estado_cambiado`; reabrir o refrescar el detalle no duplica eventos.
 
 ## Comentarios e historial de solicitudes
 
@@ -244,16 +282,22 @@ No hay comentarios públicos de clientes.
 | `rechazada` | Solicitud no aceptada o descartada. |
 | `convertida` | Solicitud ya convertida en pedido interno. |
 
-## Transiciones manuales permitidas
+## Flujo lineal vigente
 
-El selector manual no permite cambios libres. Solo se aceptan estas transiciones:
+El flujo operativo lineal de solicitudes es:
 
-- `nueva` -> `en_revision` o `rechazada`;
-- `en_revision` -> `contactada` o `rechazada`;
-- `contactada` -> `aprobada` o `rechazada`;
-- `aprobada` -> `rechazada`.
+```text
+nueva -> en_revision -> contactada -> aprobada -> convertida
+```
 
-`rechazada` y `convertida` son estados cerrados y no admiten cambios manuales. `convertida` no aparece en el selector ni se acepta en la RPC manual; ese estado queda reservado para el flujo formal de conversión a pedido.
+`nueva -> en_revision` ocurre automáticamente al abrir el detalle real. Después,
+la UI ofrece una acción directa para avanzar a `contactada` y otra para avanzar
+a `aprobada`. `aprobada` no tiene transición manual a `convertida`; ese estado
+solo se alcanza mediante la conversión formal a pedido.
+
+El rechazo vive en una zona delicada separada, con confirmación inline, y puede
+ejecutarse desde estados activos permitidos por la RPC. `rechazada` y
+`convertida` son estados cerrados y no muestran acciones de estado.
 
 ## Permisos
 
@@ -341,6 +385,12 @@ El diseño del dashboard operativo para la Fase 13 se documenta en `docs/DASHBOA
 
 ## Pruebas manuales recomendadas
 
+Evidencia e2e focal reciente:
+
+- `tests/e2e/solicitudes-internas.spec.ts` — 4 passed. Cubre autoavance al abrir,
+  idempotencia básica al reabrir, ausencia de selector, avance lineal, rechazo y
+  conversión formal.
+
 - Admin ve el listado de solicitudes.
 - Supervisor ve el listado de solicitudes.
 - Trabajador no puede entrar a `/dashboard/solicitudes`.
@@ -358,12 +408,12 @@ El diseño del dashboard operativo para la Fase 13 se documenta en `docs/DASHBOA
 - Un id inválido muestra 404.
 - Admin cambia el estado de una solicitud.
 - Supervisor cambia el estado de una solicitud.
-- Solicitud `nueva` permite pasar a `en_revision` o `rechazada`.
-- Solicitud `nueva` no permite pasar directo a `aprobada`.
-- Solicitud `en_revision` permite pasar a `contactada` o `rechazada`.
-- Solicitud `contactada` permite pasar a `aprobada` o `rechazada`.
-- Solicitud `aprobada` permite rechazar o convertir a pedido.
-- `convertida` no aparece en el selector.
+- Abrir una solicitud `nueva` y confirmar el autoavance a `en_revision`.
+- Reabrir la solicitud y confirmar que no duplica historial.
+- Confirmar que el panel de Estado no usa selector y muestra acciones directas.
+- Solicitud `en_revision` permite avanzar a `contactada` o rechazar desde zona delicada.
+- Solicitud `contactada` permite avanzar a `aprobada` o rechazar desde zona delicada.
+- Solicitud `aprobada` permite convertir a pedido y no permite marcar `convertida` manualmente.
 - Solicitud `convertida` no permite cambios manuales.
 - Solicitud `rechazada` no permite cambios manuales.
 - Un intento manipulado de enviar `convertida` falla server-side.

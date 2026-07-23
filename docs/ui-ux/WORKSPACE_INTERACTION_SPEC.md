@@ -544,6 +544,42 @@ Matriz de conversión por estado:
 | `rechazada` | Sin CTA de conversión | Oculto o lectura bloqueada | Cerrada |
 | `convertida` | Ver pedido | Panel en lectura con enlace | No permitir nueva conversión |
 
+### Nota vigente: panel lineal de Estado
+
+`StatusFlowPanel` es un patrón presentacional compartido para solicitudes y
+pedidos. No es una máquina de estados y no contiene reglas de dominio: recibe
+transiciones ya calculadas por `SolicitudStatusForm` o `PedidoStatusForm`.
+
+Estructura del panel:
+
+- Estado actual.
+- Siguiente estado.
+- Acción directa principal.
+- Acción secundaria opcional.
+- Motivo de bloqueo cuando una regla impide avanzar.
+- Zona delicada para rechazo o cancelación.
+- Confirmación inline para acciones destructivas.
+
+No hay selector de estados ni hidden input de destino permanente. Cada botón
+envía el destino con `name="status"` y `value`, y avance y terminación usan
+formularios separados. Solo el botón activado muestra texto pending; las demás
+acciones mantienen su etiqueta estable. La confirmación destructiva soporta foco
+inicial, Escape y devolución de foco al disparador.
+
+En solicitudes, `nueva -> en_revision` ocurre automáticamente al abrir el
+detalle real. El panel ofrece avanzar a `contactada` y luego a `aprobada`; en
+`aprobada` muestra el aviso de conversión cuando corresponde, pero no permite
+marcar `convertida` manualmente. El rechazo vive en zona delicada y
+`rechazada`/`convertida` quedan cerradas.
+
+En pedidos, `creado` y `solicitud_recibida` autoavanzan a `en_revision` al
+abrir el detalle real. El panel permite avanzar linealmente, volver de
+`listo_entrega` a `en_produccion`, muestra bloqueos por tareas y pago, separa
+la cancelación en zona delicada y deja `entregado`/`cancelado` cerrados.
+
+El action rail y el panel de Estado derivan del mismo objeto de flujo, por lo
+que el resumen compacto y la acción del panel no deben contradecirse.
+
 ### Nota vigente 6.1: workspace interno de Solicitudes
 
 El detalle interno de solicitud usa las primitivas comunes del workspace, pero
@@ -604,7 +640,7 @@ Paneles de 6.1:
 
 Tratamiento de acciones:
 
-- Estado: `nueva` usa warning y "Pendiente de revisión"; `aprobada` y
+- Estado: `nueva` usa warning y "Iniciando revisión"; `aprobada` y
   `convertida` usan success; `rechazada` usa danger.
 - Cliente: danger si falla la carga de cliente/listado; success si existe
   cliente asociado; warning solo si la solicitud está aprobada y falta cliente;
@@ -1081,8 +1117,8 @@ Contrato de `disabled`:
 | --- | --- |
 | `encargo` | Muestra progreso y vista rápida de tareas; panel Tareas prominente. |
 | `impresion` | Muestra flujo directo; no trata ausencia de tareas como problema. |
-| Pedido manual | Origen indica "Pedido creado manualmente"; inicia en `creado`. |
-| Pedido desde solicitud | Información muestra solicitud origen; inicia `solicitud_recibida`. |
+| Pedido manual | Origen indica "Pedido creado manualmente"; se crea en `creado`, permanece en listado y autoavanza a revisión al abrir detalle real. |
+| Pedido desde solicitud | Información muestra solicitud origen; inicia `solicitud_recibida` y autoavanza a revisión al abrir detalle real. |
 | Sin cliente | Panel Información muestra el mensaje normal de cliente no asociado; la acción Información permanece neutral y no muestra warning. |
 | Sin personal | Resumen advierte; panel Personal muestra estado vacío. |
 | Sin tareas | En encargo activo es advertencia; en impresión no aplica. |
@@ -1099,7 +1135,7 @@ Contrato de `disabled`:
 
 | Caso | Comportamiento |
 | --- | --- |
-| `nueva` | CTA abre Estado; conversión no disponible. |
+| `nueva` | CTA abre Estado; al montar el detalle real autoavanza a `en_revision`; conversión no disponible. |
 | `en_revision` | CTA abre Estado; conversión no disponible. |
 | `contactada` | CTA abre Estado; conversión no disponible. |
 | `aprobada` | Si tiene cliente, conversión es acción principal; si no, asociar cliente. |
