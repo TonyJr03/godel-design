@@ -56,6 +56,7 @@ export {
   MANUAL_SOLICITUD_STATUSES,
   SOLICITUD_STATUSES,
   getAllowedSolicitudStatusTransitions,
+  getSolicitudStatusFlow,
   isSolicitudInitialStatus,
   isManualSolicitudStatus,
   isSolicitudClosedStatus,
@@ -86,8 +87,11 @@ export type {
 } from "./get-internal-solicitud-by-id";
 export type { InternalSolicitud, InternalSolicitudDetail } from "./types";
 export type { SolicitudInitialStatus } from "./status";
+export type { SolicitudExternalStatusStep } from "./status";
 export type { ManualSolicitudStatus } from "./status";
 export type { SolicitudStatus } from "./status";
+export type { SolicitudStatusFlow } from "./status";
+export type { SolicitudStatusFlowAction } from "./status";
 export type { SolicitudStatusTransitionOption } from "./status";
 export type {
   UpdateInternalSolicitudStatusErrorReason,

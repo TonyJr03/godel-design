@@ -1,139 +1,108 @@
 "use client";
 
-import { useActionState } from "react";
 import type {
   SolicitudDetailAction,
   UpdateSolicitudStatusActionState,
 } from "@/app/(interno)/dashboard/solicitudes/[id]/actions";
-import { Alert, Button, FormField, Select, StatusBadge } from "@/components/ui";
-import { SOLICITUD_STATUS_LABELS } from "@/lib/solicitudes/labels";
+import { Alert } from "@/components/ui";
 import {
-  getAllowedSolicitudStatusTransitions,
-  isSolicitudClosedStatus,
-} from "@/lib/solicitudes/status";
-import type { Enums } from "@/types/database";
+  StatusFlowPanel,
+  type StatusFlowPanelTermination,
+  type StatusFlowPanelTransition,
+} from "@/components/workspace";
+import { SOLICITUD_STATUS_LABELS } from "@/lib/solicitudes/labels";
+import type { SolicitudStatusFlow } from "@/lib/solicitudes/status";
 
 type SolicitudStatusFormProps = {
   updateStatusAction: SolicitudDetailAction<UpdateSolicitudStatusActionState>;
-  currentStatus: Enums<"solicitud_estado">;
+  flow: SolicitudStatusFlow;
   presentation?: "card" | "panel";
 };
 
-const initialState: UpdateSolicitudStatusActionState = {
-  ok: false,
-  message: "",
-};
-
-function ActionMessage({ state }: { state: UpdateSolicitudStatusActionState }) {
-  if (!state.message) {
+function getClosedStatusMessage(flow: SolicitudStatusFlow): string | null {
+  if (!flow.isClosed) {
     return null;
   }
 
-  return (
-    <Alert
-      variant={state.ok ? "success" : "danger"}
-      title={
-        state.ok ? "Estado actualizado" : "No se pudo actualizar el estado"
-      }
-      aria-live="polite"
-    >
-      <p>{state.message}</p>
-    </Alert>
-  );
-}
-
-function getClosedStatusMessage(status: Enums<"solicitud_estado">): string {
-  if (status === "convertida") {
+  if (flow.currentStatus === "convertida") {
     return "Esta solicitud ya fue convertida en pedido.";
   }
 
-  return "Esta solicitud fue rechazada y no admite cambios de estado.";
+  return "Esta solicitud fue rechazada y no admite más cambios de estado.";
+}
+
+function getPrimaryTransition(
+  flow: SolicitudStatusFlow,
+): StatusFlowPanelTransition | undefined {
+  if (!flow.advance) {
+    return undefined;
+  }
+
+  const statusLabel = SOLICITUD_STATUS_LABELS[flow.advance.status];
+
+  return {
+    status: flow.advance.status,
+    statusLabel,
+    buttonLabel: `Avanzar a ${statusLabel}`,
+    pendingLabel: "Avanzando...",
+    enabled: flow.advance.enabled,
+    blockedReason: flow.advance.blockedReason,
+  };
+}
+
+function getTermination(
+  flow: SolicitudStatusFlow,
+): StatusFlowPanelTermination | undefined {
+  if (!flow.termination) {
+    return undefined;
+  }
+
+  return {
+    status: flow.termination.status,
+    triggerLabel: "Rechazar solicitud",
+    title: "¿Rechazar esta solicitud?",
+    description:
+      "La solicitud quedará cerrada y no podrá continuar su flujo ni convertirse en pedido.",
+    confirmLabel: "Sí, rechazar solicitud",
+    pendingLabel: "Rechazando solicitud...",
+  };
+}
+
+function getNotice(flow: SolicitudStatusFlow) {
+  if (flow.automaticAdvance && !flow.advance) {
+    return (
+      <Alert variant="info">
+        <p>La revisión se inicia automáticamente al abrir este detalle.</p>
+      </Alert>
+    );
+  }
+
+  if (flow.externalNextStep) {
+    return (
+      <Alert variant="success">
+        <p>
+          La solicitud está aprobada. El siguiente paso es convertirla en pedido
+          desde la sección Conversión.
+        </p>
+      </Alert>
+    );
+  }
+
+  return undefined;
 }
 
 export function SolicitudStatusForm({
   updateStatusAction,
-  currentStatus,
-  presentation = "card",
+  flow,
 }: SolicitudStatusFormProps) {
-  const [state, formAction, pending] = useActionState(
-    updateStatusAction,
-    initialState,
-  );
-  const transitionOptions = getAllowedSolicitudStatusTransitions(currentStatus);
-  const canManageManually = transitionOptions.length > 0;
-  const isPanel = presentation === "panel";
-  const transitionReason = transitionOptions.find(
-    (option) => option.reason,
-  )?.reason;
-  const statusSummary = isPanel ? (
-    <div className="rounded-(--radius-control) border border-border bg-surface-muted px-4 py-3">
-      <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-        Estado actual
-      </p>
-      <div className="mt-2">
-        <StatusBadge status={currentStatus} />
-      </div>
-    </div>
-  ) : null;
-
-  if (isSolicitudClosedStatus(currentStatus)) {
-    return (
-      <div className="space-y-4">
-        {statusSummary}
-        <ActionMessage state={state} />
-        <Alert variant="warning">
-          {getClosedStatusMessage(currentStatus)}
-        </Alert>
-      </div>
-    );
-  }
-
   return (
-    <form action={formAction} aria-busy={pending} className="space-y-4">
-      {statusSummary}
-      <ActionMessage state={state} />
-
-      {currentStatus === "aprobada" ? (
-        <Alert variant="success">
-          Esta solicitud puede convertirse en pedido desde la sección de
-          conversión.
-        </Alert>
-      ) : null}
-
-      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-        <FormField
-          id="status"
-          label="Siguiente estado"
-          required
-          help={transitionReason}
-          compact
-        >
-          {({ describedBy }) => (
-            <Select
-              id="status"
-              name="status"
-              defaultValue={transitionOptions[0]?.status}
-              disabled={!canManageManually || pending}
-              required
-              aria-describedby={describedBy}
-            >
-              {transitionOptions.map((option) => (
-                <option key={option.status} value={option.status}>
-                  {SOLICITUD_STATUS_LABELS[option.status]}
-                </option>
-              ))}
-            </Select>
-          )}
-        </FormField>
-
-        <Button
-          type="submit"
-          disabled={!canManageManually || pending}
-          className="w-full sm:w-auto"
-        >
-          {pending ? "Actualizando estado..." : "Actualizar estado"}
-        </Button>
-      </div>
-    </form>
+    <StatusFlowPanel
+      action={updateStatusAction}
+      currentStatus={flow.currentStatus}
+      primaryTransition={getPrimaryTransition(flow)}
+      termination={getTermination(flow)}
+      notice={getNotice(flow)}
+      closedMessage={getClosedStatusMessage(flow)}
+    />
   );
 }
