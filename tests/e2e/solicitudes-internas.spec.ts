@@ -200,6 +200,136 @@ async function expectNoHorizontalOverflow(page: Page) {
   );
 }
 
+function getSolicitudDetailLink(page: Page, clientName: string) {
+  return page.getByRole("link", {
+    name: new RegExp(`abrir solicitud de ${escapeRegExp(clientName)}`, "i"),
+  });
+}
+
+function getVisibleSearchInput(page: Page) {
+  return page.locator('input[name="q"]:visible');
+}
+
+function getSolicitudesPagination(page: Page) {
+  return page.getByRole("navigation", {
+    name: /paginaci.n de solicitudes/i,
+  });
+}
+
+async function getSolicitudesPaginationPageInfo(page: Page) {
+  const pagination = getSolicitudesPagination(page);
+  const text = await pagination
+    .getByText(/P.gina\s+\d+\s+de\s+\d+/i)
+    .innerText();
+  const match = text.match(/P.gina\s+(\d+)\s+de\s+(\d+)/i);
+
+  expect(match, `Unexpected pagination page text: ${text}`).not.toBeNull();
+
+  return {
+    currentPage: Number(match?.[1]),
+    totalPages: Number(match?.[2]),
+  };
+}
+
+async function getSolicitudesPaginationSummary(page: Page) {
+  const pagination = getSolicitudesPagination(page);
+  const text = await pagination
+    .getByText(/Mostrando\s+\d+–\d+\s+de\s+\d+\s+solicitudes/i)
+    .innerText();
+  const match = text.match(
+    /Mostrando\s+(\d+)–(\d+)\s+de\s+(\d+)\s+solicitudes/i,
+  );
+
+  expect(match, `Unexpected pagination summary text: ${text}`).not.toBeNull();
+
+  return {
+    startItem: Number(match?.[1]),
+    endItem: Number(match?.[2]),
+    totalCount: Number(match?.[3]),
+  };
+}
+
+function getPreviousSolicitudPageControl(page: Page) {
+  return getSolicitudesPagination(page).getByLabel(/Ir a la p.gina anterior/i);
+}
+
+function getNextSolicitudPageControl(page: Page) {
+  return getSolicitudesPagination(page).getByLabel(/Ir a la p.gina siguiente/i);
+}
+
+function getPreviousSolicitudPageLink(page: Page) {
+  return getSolicitudesPagination(page).getByRole("link", {
+    name: /Ir a la p.gina anterior/i,
+  });
+}
+
+function getNextSolicitudPageLink(page: Page) {
+  return getSolicitudesPagination(page).getByRole("link", {
+    name: /Ir a la p.gina siguiente/i,
+  });
+}
+
+async function expectTouchTarget(locator: Locator) {
+  const box = await locator.boundingBox();
+
+  expect(box).not.toBeNull();
+  expect(box?.width).toBeGreaterThanOrEqual(40);
+  expect(box?.height).toBeGreaterThanOrEqual(40);
+}
+
+async function expectDisabledPaginationControl(locator: Locator) {
+  await expect(locator).toBeVisible();
+  await expect(locator).toHaveAttribute("aria-disabled", "true");
+  await expect(locator).not.toHaveAttribute("href", /.+/);
+  await expectTouchTarget(locator);
+}
+
+async function expectSolicitudesPaginationA11y(page: Page) {
+  const pagination = getSolicitudesPagination(page);
+
+  await expect(pagination).toBeVisible();
+  await expect(pagination.getByText(/P.gina\s+\d+\s+de\s+\d+/i)).toBeVisible();
+  await expect(
+    pagination.getByText(/Mostrando\s+\d+–\d+\s+de\s+\d+\s+solicitudes/i),
+  ).toBeVisible();
+
+  for (const control of [
+    getPreviousSolicitudPageControl(page),
+    getNextSolicitudPageControl(page),
+  ]) {
+    await expect(control).toBeVisible();
+    await expectTouchTarget(control);
+  }
+}
+
+async function getCurrentSolicitudesUrl(page: Page) {
+  await expect(page).toHaveURL(/\/dashboard\/solicitudes/);
+
+  return new URL(page.url());
+}
+
+async function expectNoSolicitudesLoadError(page: Page) {
+  await expect(
+    page.getByRole("alert").filter({
+      hasText: /no se pudieron cargar las solicitudes/i,
+    }),
+  ).toHaveCount(0);
+}
+
+async function expectSolicitudVisible(page: Page, clientName: string) {
+  await expect(getSolicitudDetailLink(page, clientName)).toBeVisible({
+    timeout: 15_000,
+  });
+}
+
+async function hasEmptySolicitudesState(page: Page) {
+  return page
+    .getByText(/no hay solicitudes registradas todav|no encontramos solicitudes/i)
+    .first()
+    .isVisible()
+    .catch(() => false);
+}
+
 async function expectNoDocumentScroll(page: Page) {
   const dimensions = await page.evaluate(() => ({
     innerHeight: window.innerHeight,
@@ -601,6 +731,407 @@ test("admin can manage solicitud workspace panels end to end", async ({
   await historyDialog.getByRole("button", { name: /cerrar/i }).click();
 
   await expectSolicitudFilesPanel(page, false);
+});
+
+test("admin can validate solicitudes pagination and canonical URLs", async ({
+  page,
+}) => {
+  await loginAs(page, "admin");
+
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.goto("/dashboard/solicitudes");
+  await expectSolicitudesListLoaded(page);
+
+  let totalPages = 1;
+  let totalCount = 0;
+
+  if (!(await hasEmptySolicitudesState(page))) {
+    await expectSolicitudesPaginationA11y(page);
+
+    const pageInfo = await getSolicitudesPaginationPageInfo(page);
+    const summary = await getSolicitudesPaginationSummary(page);
+
+    totalPages = pageInfo.totalPages;
+    totalCount = summary.totalCount;
+
+    console.info(
+      `[solicitudes pagination] totalCount=${totalCount} totalPages=${totalPages}`,
+    );
+
+    expect(pageInfo.currentPage).toBe(1);
+    expect(pageInfo.totalPages).toBeGreaterThanOrEqual(1);
+    expect(summary.startItem).toBe(1);
+    expect(summary.endItem).toBe(Math.min(50, summary.totalCount));
+    await expectDisabledPaginationControl(
+      getPreviousSolicitudPageControl(page),
+    );
+    await expect(getPreviousSolicitudPageLink(page)).toHaveCount(0);
+    await expectNoHorizontalOverflow(page);
+  }
+
+  await page.goto("/dashboard/solicitudes?page=1");
+  await expect.poll(async () => {
+    const url = await getCurrentSolicitudesUrl(page);
+
+    return {
+      pathname: url.pathname,
+      search: url.search,
+    };
+  }).toEqual({
+    pathname: "/dashboard/solicitudes",
+    search: "",
+  });
+
+  await page.goto("/dashboard/solicitudes?page=abc");
+  await expect.poll(async () => {
+    const url = await getCurrentSolicitudesUrl(page);
+
+    return {
+      pathname: url.pathname,
+      search: url.search,
+    };
+  }).toEqual({
+    pathname: "/dashboard/solicitudes",
+    search: "",
+  });
+
+  await page.goto(`/dashboard/solicitudes?page=${totalPages + 1}`);
+  await expect.poll(async () => {
+    const url = await getCurrentSolicitudesUrl(page);
+
+    return {
+      page: url.searchParams.get("page"),
+      pathname: url.pathname,
+    };
+  }).toEqual({
+    page: totalPages > 1 ? String(totalPages) : null,
+    pathname: "/dashboard/solicitudes",
+  });
+  await expectNoSolicitudesLoadError(page);
+
+  if (!(await hasEmptySolicitudesState(page))) {
+    const lastPageInfo = await getSolicitudesPaginationPageInfo(page);
+    const lastPageSummary = await getSolicitudesPaginationSummary(page);
+
+    expect(lastPageInfo.currentPage).toBe(lastPageInfo.totalPages);
+    expect(lastPageSummary.endItem).toBe(lastPageSummary.totalCount);
+    await expectDisabledPaginationControl(getNextSolicitudPageControl(page));
+    await expect(getNextSolicitudPageLink(page)).toHaveCount(0);
+  }
+
+  await page.goto(
+    "/dashboard/solicitudes?workflow_type=encargo&status=convertida&page=999999",
+  );
+  await expectSolicitudesListLoaded(page);
+  await expectNoSolicitudesLoadError(page);
+
+  const validFilterPageInfo = (await getSolicitudesPagination(page)
+    .isVisible()
+    .catch(() => false))
+    ? await getSolicitudesPaginationPageInfo(page)
+    : { totalPages: 1 };
+
+  await expect.poll(async () => {
+    const url = await getCurrentSolicitudesUrl(page);
+
+    return {
+      page: url.searchParams.get("page"),
+      status: url.searchParams.get("status"),
+      workflowType: url.searchParams.get("workflow_type"),
+    };
+  }).toEqual({
+    page:
+      validFilterPageInfo.totalPages > 1
+        ? String(validFilterPageInfo.totalPages)
+        : null,
+    status: "convertida",
+    workflowType: "encargo",
+  });
+  if (validFilterPageInfo.totalPages === 1) {
+    await expectSolicitudVisible(page, encargoName);
+  }
+
+  await page.goto(
+    `/dashboard/solicitudes?q=${encodeURIComponent(
+      encargoName,
+    )}&workflow_type=encargo&status=convertida`,
+  );
+  await expectSolicitudesListLoaded(page);
+  await expectNoSolicitudesLoadError(page);
+  await expectSolicitudVisible(page, encargoName);
+
+  await page.goto(
+    "/dashboard/solicitudes?status=invalido&workflow_type=desconocido&page=abc",
+  );
+  await expectSolicitudesListLoaded(page);
+  await expect(page.getByText(/filtro de estado no es v.lido/i)).toBeVisible();
+  await expect(page.getByText(/filtro de tipo no es v.lido/i)).toBeVisible();
+  await expectNoSolicitudesLoadError(page);
+  await expect.poll(async () => {
+    const url = await getCurrentSolicitudesUrl(page);
+
+    return {
+      page: url.searchParams.get("page"),
+      status: url.searchParams.get("status"),
+      workflowType: url.searchParams.get("workflow_type"),
+    };
+  }).toEqual({
+    page: null,
+    status: "invalido",
+    workflowType: "desconocido",
+  });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/dashboard/solicitudes");
+  await expectSolicitudesListLoaded(page);
+  if (!(await hasEmptySolicitudesState(page))) {
+    await expectSolicitudesPaginationA11y(page);
+    await expectNoHorizontalOverflow(page);
+  }
+});
+
+test("solicitud search preserves direct and mapped search capabilities", async ({
+  page,
+}) => {
+  await loginAs(page, "admin");
+
+  const directQueries = [
+    encargoName,
+    encargoPhone,
+    encargoEmail,
+    encargoDescription,
+    encargoNotes,
+  ];
+
+  for (const query of directQueries) {
+    await page.goto(`/dashboard/solicitudes?q=${encodeURIComponent(query)}`);
+    await expectSolicitudesListLoaded(page);
+    await expectNoSolicitudesLoadError(page);
+    await expectSolicitudVisible(page, encargoName);
+  }
+
+  await page.goto(
+    `/dashboard/solicitudes?q=${encodeURIComponent("personalización")}`,
+  );
+  await expectSolicitudesListLoaded(page);
+  await expectNoSolicitudesLoadError(page);
+  await expect.poll(async () => {
+    const url = await getCurrentSolicitudesUrl(page);
+
+    return url.searchParams.get("q");
+  }).toBe("personalización");
+  await expectSolicitudVisible(page, encargoName);
+
+  const solicitudId = new URL(encargoDetailUrl).pathname.split("/").pop() ?? "";
+
+  expect(solicitudId).toMatch(/^[0-9a-f-]{8,}$/i);
+
+  const referenceQuery = solicitudId.replace(/-/g, "").slice(0, 8);
+
+  await page.goto(
+    `/dashboard/solicitudes?q=${encodeURIComponent(referenceQuery)}`,
+  );
+  await expectSolicitudesListLoaded(page);
+  await expectNoSolicitudesLoadError(page);
+  await expect.poll(async () => {
+    const url = await getCurrentSolicitudesUrl(page);
+
+    return url.searchParams.get("q");
+  }).toBe(referenceQuery);
+  await expectSolicitudVisible(page, encargoName);
+
+  await page.goto(
+    `/dashboard/solicitudes?q=${encodeURIComponent(
+      encargoName,
+    )}&workflow_type=encargo&status=convertida`,
+  );
+  await expectSolicitudesListLoaded(page);
+  await expectNoSolicitudesLoadError(page);
+  await expectSolicitudVisible(page, encargoName);
+
+  await page.goto(
+    `/dashboard/solicitudes?q=${encodeURIComponent(
+      encargoName,
+    )}&workflow_type=impresion&status=convertida`,
+  );
+  await expectSolicitudesListLoaded(page);
+  await expectNoSolicitudesLoadError(page);
+  await expect(hasEmptySolicitudesState(page)).resolves.toBe(true);
+  await expect(getSolicitudDetailLink(page, encargoName)).toHaveCount(0);
+});
+
+test("admin can navigate between solicitudes pages", async ({ page }) => {
+  await loginAs(page, "admin");
+
+  await page.goto("/dashboard/solicitudes");
+  await expectSolicitudesListLoaded(page);
+
+  if (await hasEmptySolicitudesState(page)) {
+    test.skip(
+      true,
+      "La navegación de solicitudes requiere al menos 51 solicitudes visibles.",
+    );
+  }
+
+  await expectSolicitudesPaginationA11y(page);
+
+  const initialPageInfo = await getSolicitudesPaginationPageInfo(page);
+  const initialSummary = await getSolicitudesPaginationSummary(page);
+
+  test.skip(
+    initialPageInfo.totalPages < 2,
+    "La navegación de solicitudes requiere al menos 51 solicitudes visibles.",
+  );
+
+  expect(initialPageInfo.currentPage).toBe(1);
+  expect(initialSummary.startItem).toBe(1);
+  expect(initialSummary.endItem).toBe(50);
+  await expectDisabledPaginationControl(getPreviousSolicitudPageControl(page));
+  await expect(getNextSolicitudPageLink(page)).toBeVisible();
+  await expectTouchTarget(getNextSolicitudPageLink(page));
+
+  await getNextSolicitudPageLink(page).click();
+  await expect.poll(async () => {
+    const url = await getCurrentSolicitudesUrl(page);
+
+    return url.searchParams.get("page");
+  }).toBe("2");
+
+  const secondPageInfo = await getSolicitudesPaginationPageInfo(page);
+  const secondSummary = await getSolicitudesPaginationSummary(page);
+
+  expect(secondPageInfo.currentPage).toBe(2);
+  expect(secondPageInfo.totalPages).toBe(initialPageInfo.totalPages);
+  expect(secondSummary.startItem).toBe(51);
+  expect(secondSummary.endItem).toBe(Math.min(100, initialSummary.totalCount));
+  expect(secondSummary.totalCount).toBe(initialSummary.totalCount);
+  await expect(getPreviousSolicitudPageLink(page)).toBeVisible();
+  await expectTouchTarget(getPreviousSolicitudPageLink(page));
+
+  if (secondPageInfo.totalPages === 2) {
+    await expectDisabledPaginationControl(getNextSolicitudPageControl(page));
+    await expect(getNextSolicitudPageLink(page)).toHaveCount(0);
+  } else {
+    await expect(getNextSolicitudPageLink(page)).toHaveAttribute(
+      "href",
+      "/dashboard/solicitudes?page=3",
+    );
+  }
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/dashboard/solicitudes?page=2");
+  await expectSolicitudesListLoaded(page);
+  await expectSolicitudesPaginationA11y(page);
+  await expect(getVisibleSearchInput(page)).toBeVisible();
+  await expect(page.getByText(/^Filtros/i)).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+
+  await getPreviousSolicitudPageLink(page).click();
+  await expect.poll(async () => {
+    const url = await getCurrentSolicitudesUrl(page);
+
+    return {
+      page: url.searchParams.get("page"),
+      pathname: url.pathname,
+    };
+  }).toEqual({
+    page: null,
+    pathname: "/dashboard/solicitudes",
+  });
+});
+
+test("solicitud pagination preserves the active search", async ({ page }) => {
+  await loginAs(page, "admin");
+
+  const candidateQueries = ["a", "e", "i", "o", "5"];
+  let selectedQuery: string | null = null;
+
+  for (const query of candidateQueries) {
+    await page.goto(`/dashboard/solicitudes?q=${encodeURIComponent(query)}`);
+    await expectSolicitudesListLoaded(page);
+
+    if (await hasEmptySolicitudesState(page)) {
+      continue;
+    }
+
+    await expect(getSolicitudesPagination(page)).toBeVisible();
+
+    const pageInfo = await getSolicitudesPaginationPageInfo(page);
+
+    if (pageInfo.totalPages > 1) {
+      selectedQuery = query;
+      break;
+    }
+  }
+
+  test.skip(
+    selectedQuery === null,
+    "Ninguna búsqueda candidata produjo más de una página de solicitudes.",
+  );
+
+  const query = selectedQuery ?? "";
+
+  await expect(getVisibleSearchInput(page)).toHaveValue(query);
+  await expect(getNextSolicitudPageLink(page)).toBeVisible();
+  await getNextSolicitudPageLink(page).click();
+  await expectSolicitudesPaginationA11y(page);
+
+  await expect.poll(async () => {
+    const url = await getCurrentSolicitudesUrl(page);
+
+    return {
+      page: url.searchParams.get("page"),
+      q: url.searchParams.get("q"),
+    };
+  }).toEqual({
+    page: "2",
+    q: query,
+  });
+
+  const pageInfo = await getSolicitudesPaginationPageInfo(page);
+
+  expect(pageInfo.currentPage).toBe(2);
+  await expect(getVisibleSearchInput(page)).toHaveValue(query);
+});
+
+test("solicitud filters remove pagination from the URL", async ({ page }) => {
+  await loginAs(page, "admin");
+
+  await page.goto("/dashboard/solicitudes?page=2");
+  await expectSolicitudesListLoaded(page);
+
+  if (await hasEmptySolicitudesState(page)) {
+    test.skip(
+      true,
+      "El reinicio desde página 2 requiere al menos 51 solicitudes visibles.",
+    );
+  }
+
+  const pageInfo = await getSolicitudesPaginationPageInfo(page);
+
+  test.skip(
+    pageInfo.totalPages < 2,
+    "El reinicio desde página 2 requiere al menos 51 solicitudes visibles.",
+  );
+
+  const toolbar = page
+    .getByRole("region", { name: /b.squeda y filtros/i })
+    .first();
+
+  await toolbar.locator("summary").click();
+  await toolbar.getByLabel(/^tipo$/i).selectOption("encargo");
+
+  await expect.poll(async () => {
+    const url = await getCurrentSolicitudesUrl(page);
+
+    return {
+      page: url.searchParams.get("page"),
+      workflowType: url.searchParams.get("workflow_type"),
+    };
+  }).toEqual({
+    page: null,
+    workflowType: "encargo",
+  });
 });
 
 test("solicitud workspace responsive behavior and focus restoration", async ({
