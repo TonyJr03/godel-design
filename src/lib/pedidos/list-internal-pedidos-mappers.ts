@@ -62,23 +62,6 @@ export function mapPaymentSummary(
   };
 }
 
-export function mergePedidos(
-  groups: InternalPedidoRow[][],
-  limit: number,
-): InternalPedidoRow[] {
-  const byId = new Map<string, InternalPedidoRow>();
-
-  for (const group of groups) {
-    for (const pedido of group) {
-      byId.set(pedido.id, pedido);
-    }
-  }
-
-  return [...byId.values()]
-    .sort((left, right) => right.created_at.localeCompare(left.created_at))
-    .slice(0, limit);
-}
-
 export function mapInternalPedidos(
   pedidos: InternalPedidoRow[],
   progressByPedidoId: Map<string, PedidoTasksProgress>,

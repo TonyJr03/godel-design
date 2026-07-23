@@ -1,5 +1,6 @@
 import type { ServiceResult } from "@/lib/service-results";
 import type { WorkflowType } from "@/lib/workflow-types";
+import type { PaginationMeta } from "@/lib/pagination";
 import type { Tables } from "@/types/database";
 import type { PedidoTasksProgress } from "./task-progress";
 import type { PedidoPaymentStatus, PedidoStatus } from "./status";
@@ -70,6 +71,7 @@ export type ListInternalPedidosOptions = {
   status?: string | null;
   workflowType?: string | null;
   paymentStatus?: string | null;
+  page?: string | number | null;
   limit?: number;
 };
 
@@ -89,7 +91,10 @@ export type ListInternalPedidosErrorReason =
   | "error";
 
 export type ListInternalPedidosResult = ServiceResult<
-  { pedidos: InternalPedido[] } & ListInternalPedidosMeta,
+  {
+    pedidos: InternalPedido[];
+    pagination: PaginationMeta;
+  } & ListInternalPedidosMeta,
   ListInternalPedidosErrorReason,
   ListInternalPedidosMeta
 >;
