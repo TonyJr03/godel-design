@@ -182,6 +182,31 @@ async function expectStatusMessage(page: Page, message: RegExp) {
   });
 }
 
+const SOLICITUD_STATUS_BUTTONS: Record<string, RegExp> = {
+  contactada: /avanzar a contactada/i,
+  aprobada: /avanzar a aprobada/i,
+};
+
+const SOLICITUD_STATUS_LABELS: Record<string, RegExp> = {
+  en_revision: /^En revisi.n$/i,
+  contactada: /^Contactada$/i,
+  aprobada: /^Aprobada$/i,
+};
+
+const PEDIDO_STATUS_LABELS: Record<string, RegExp> = {
+  en_revision: /^En revisi.n$/i,
+  en_produccion: /^En producci.n$/i,
+  listo_entrega: /^Listo para entrega$/i,
+  entregado: /^Entregado$/i,
+  cancelado: /^Cancelado$/i,
+};
+
+const PEDIDO_STATUS_BUTTONS: Record<string, RegExp> = {
+  en_produccion: /pasar a producci.n/i,
+  listo_entrega: /marcar como listo para entrega/i,
+  entregado: /marcar como entregado/i,
+};
+
 function getPedidoHeader(page: Page) {
   return page.locator("article header").first();
 }
@@ -295,31 +320,50 @@ async function openPedidoDetailFromSearch(
 async function updateSolicitudStatus(page: Page, status: string) {
   const section = await openSolicitudPanel(page, /^estado$/i, /^estado/i);
 
-  await section.getByLabel(/siguiente estado/i).selectOption(status);
-  await section.getByRole("button", { name: /actualizar estado/i }).click();
-  await expect(
-    section.getByText(/estado actualizado correctamente/i),
-  ).toBeVisible({ timeout: 15_000 });
-  await page.reload();
+  await expect(section.locator('select[name="status"]')).toHaveCount(0);
+
+  if (status === "en_revision") {
+    await expect(
+      section.getByText(SOLICITUD_STATUS_LABELS.en_revision).first(),
+    ).toBeVisible({ timeout: 15_000 });
+    await page.reload();
+    return;
+  }
+
+  const buttonName = SOLICITUD_STATUS_BUTTONS[status];
+
+  if (!buttonName) {
+    throw new Error(`Unsupported solicitud status transition: ${status}`);
+  }
+
+  await section.getByRole("button", { name: buttonName }).click();
+  await expect(section.getByText(SOLICITUD_STATUS_LABELS[status]).first())
+    .toBeVisible({ timeout: 15_000 });
 }
 
 async function updatePedidoStatus(page: Page, status: string) {
-  const section = await openPedidoPanel(page, /^estado$/i);
-  const statusLabels: Record<string, RegExp> = {
-    creado: /estado actual:\s*creado/i,
-    en_revision: /estado actual:\s*en revisi.n/i,
-    en_produccion: /estado actual:\s*en producci.n/i,
-    listo_entrega: /estado actual:\s*listo para entrega/i,
-    entregado: /estado actual:\s*entregado/i,
-    cancelado: /estado actual:\s*cancelado/i,
-  };
+  const section = await openPedidoPanel(page, /^estado$/i, /^estado/i);
 
-  await section.locator('select[name="status"]').selectOption(status);
-  await section.getByRole("button", { name: /actualizar estado/i }).click();
-  await expect(section.getByText(statusLabels[status])).toBeVisible({
+  await expect(section.locator('select[name="status"]')).toHaveCount(0);
+
+  if (status === "en_revision") {
+    await expect(
+      section.getByText(PEDIDO_STATUS_LABELS.en_revision).first(),
+    ).toBeVisible({ timeout: 15_000 });
+    await page.reload();
+    return;
+  }
+
+  const buttonName = PEDIDO_STATUS_BUTTONS[status];
+
+  if (!buttonName) {
+    throw new Error(`Unsupported pedido status transition: ${status}`);
+  }
+
+  await section.getByRole("button", { name: buttonName }).click();
+  await expect(section.getByText(PEDIDO_STATUS_LABELS[status]).first()).toBeVisible({
     timeout: 15_000,
   });
-  await page.reload();
 }
 
 async function updatePayment(page: Page, cash: string, transfer = "0") {
@@ -363,6 +407,16 @@ async function createManualPedido(
   await dialog.locator('input[name="total_amount"]').fill(total);
   await dialog.getByLabel(/t.tulo del trabajo/i).fill(title);
   await dialog.getByRole("button", { name: /crear pedido/i }).click();
+  await expect(dialog).toBeHidden({ timeout: 15_000 });
+  await expect(page).toHaveURL(/\/dashboard\/pedidos(?:[/?#].*)?$/);
+
+  const createdPedidoLink = page
+    .getByRole("link")
+    .filter({ hasText: title })
+    .first();
+
+  await expect(createdPedidoLink).toBeVisible();
+  await createdPedidoLink.click();
   await expect(page).toHaveURL(/\/dashboard\/pedidos\/[^/]+$/, {
     timeout: 15_000,
   });
@@ -375,6 +429,7 @@ async function createManualPedido(
       exact: true,
     }),
   ).toBeVisible();
+  await updatePedidoStatus(page, "en_revision");
 
   return {
     reference,
@@ -484,15 +539,16 @@ function escapeRegExp(value: string) {
 }
 
 async function expectPedidoStatusBlocked(page: Page, status: string) {
-  const option = (await openPedidoPanel(page, /^estado$/i)).locator(
-    `option[value="${status}"]`,
-  );
+  const section = await openPedidoPanel(page, /^estado$/i, /^estado/i);
+  const buttonName = PEDIDO_STATUS_BUTTONS[status];
 
-  if ((await option.count()) === 0) {
-    return;
+  if (!buttonName) {
+    throw new Error(`Unsupported blocked pedido status: ${status}`);
   }
 
-  await expect(option).toBeDisabled();
+  await expect(section.locator('select[name="status"]')).toHaveCount(0);
+  await expect(section.getByRole("button", { name: buttonName }))
+    .toBeDisabled();
 }
 
 async function selectFirstAssignableWorker(page: Page) {
@@ -783,7 +839,6 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
     workspaceRail.getByRole("button", { name: /pagos.*pago pendiente/i }),
   ).toBeVisible();
   await expectPedidoStatusBlocked(page, "en_produccion");
-  await expect(page.getByText(/revisarse antes de pasar/i)).toBeVisible();
   await updatePedidoStatus(page, "en_revision");
   await expectPedidoStatusBlocked(page, "en_produccion");
 
@@ -851,8 +906,8 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   ).toBeVisible();
   await updatePedidoStatus(page, "entregado");
   await expect(
-    (await openPedidoPanel(page, /^estado$/i)).getByText(
-      /este pedido est. cerrado/i,
+    (await openPedidoPanel(page, /^estado$/i, /^estado/i)).getByText(
+      /este pedido fue entregado y no admite/i,
     ),
   ).toBeVisible();
 

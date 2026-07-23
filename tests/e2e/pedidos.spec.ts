@@ -108,8 +108,23 @@ async function getPedidoPaymentPanel(page: Page) {
 }
 
 async function getPedidoStatusPanel(page: Page) {
-  return openPedidoPanel(page, /^estado$/i);
+  return openPedidoPanel(page, /^estado$/i, /^estado/i);
 }
+
+const PEDIDO_STATUS_LABELS: Record<string, RegExp> = {
+  creado: /^Creado$/i,
+  en_revision: /^En revisi.n$/i,
+  en_produccion: /^En producci.n$/i,
+  listo_entrega: /^Listo para entrega$/i,
+  entregado: /^Entregado$/i,
+  cancelado: /^Cancelado$/i,
+};
+
+const PEDIDO_STATUS_BUTTONS: Record<string, RegExp> = {
+  en_produccion: /pasar a producci.n/i,
+  listo_entrega: /marcar como listo para entrega/i,
+  entregado: /marcar como entregado/i,
+};
 
 function getPedidoHeader(page: Page) {
   return page.locator("article header").first();
@@ -377,6 +392,7 @@ async function createManualPedido(
       exact: true,
     }),
   ).toBeVisible();
+  await updatePedidoStatus(page, "en_revision");
   await expectNoTechnicalLeakText(page);
 
   return page.url();
@@ -384,34 +400,74 @@ async function createManualPedido(
 
 async function updatePedidoStatus(page: Page, status: string) {
   const section = await getPedidoStatusPanel(page);
-  const statusLabels: Record<string, RegExp> = {
-    creado: /estado actual:\s*creado/i,
-    en_revision: /estado actual:\s*en revisi.n/i,
-    en_produccion: /estado actual:\s*en producci.n/i,
-    listo_entrega: /estado actual:\s*listo para entrega/i,
-    entregado: /estado actual:\s*entregado/i,
-  };
 
-  await section.locator('select[name="status"]').selectOption(status);
-  await section.getByRole("button", { name: /actualizar estado/i }).click();
+  await expect(section.locator('select[name="status"]')).toHaveCount(0);
+
+  if (status === "en_revision") {
+    await expect(
+      section.getByText(PEDIDO_STATUS_LABELS.en_revision).first(),
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(section.getByText(/no se pudo actualizar el estado/i))
+      .toHaveCount(0);
+    await page.reload();
+    return;
+  }
+
+  if (status === "cancelado") {
+    await section.getByRole("button", { name: /cancelar pedido/i }).click();
+    await expect(section.getByText(/cancelar este pedido/i)).toBeVisible();
+    await expect(section.getByRole("button", { name: /^cancelar$/i }))
+      .toBeVisible();
+    await section
+      .getByRole("button", { name: /s.?, cancelar pedido/i })
+      .click();
+  } else {
+    const buttonName = PEDIDO_STATUS_BUTTONS[status];
+
+    if (!buttonName) {
+      throw new Error(`Unsupported pedido status transition: ${status}`);
+    }
+
+    await expect(section.getByRole("button", { name: buttonName }))
+      .toBeVisible();
+    await section.getByRole("button", { name: buttonName }).click();
+  }
+
   await expect(section).toBeVisible();
-  await expect(section.getByText(statusLabels[status])).toBeVisible({
+  await expect(section.getByText(PEDIDO_STATUS_LABELS[status]).first()).toBeVisible({
     timeout: 15_000,
   });
-  await page.reload();
 }
 
 async function expectPedidoStatusBlocked(page: Page, status: string) {
   const section = await getPedidoStatusPanel(page);
-  const option = section.locator(
-    `option[value="${status}"]`,
-  );
+  const buttonName = PEDIDO_STATUS_BUTTONS[status];
 
-  if ((await option.count()) === 0) {
-    return;
+  if (!buttonName) {
+    throw new Error(`Unsupported blocked pedido status: ${status}`);
   }
 
-  await expect(option).toBeDisabled();
+  await expect(section.locator('select[name="status"]')).toHaveCount(0);
+  await expect(section.getByRole("button", { name: buttonName }))
+    .toBeDisabled();
+  await expect(section.getByText(/agrega al menos una tarea|completa todas las tareas|pagad|validar el pago/i))
+    .toBeVisible();
+}
+
+async function returnPedidoToProduction(page: Page) {
+  const section = await getPedidoStatusPanel(page);
+
+  await expect(section.locator('select[name="status"]')).toHaveCount(0);
+  await expect(
+    section.getByText(PEDIDO_STATUS_LABELS.listo_entrega).first(),
+  ).toBeVisible();
+  await section.getByRole("button", { name: /volver a producci.n/i }).click();
+  await expect(
+    section.getByText(PEDIDO_STATUS_LABELS.en_produccion).first(),
+  ).toBeVisible({ timeout: 15_000 });
+  await expect(
+    section.getByRole("button", { name: PEDIDO_STATUS_BUTTONS.listo_entrega }),
+  ).toBeVisible();
 }
 
 async function createQuantifiedTask(page: Page) {
@@ -651,9 +707,16 @@ test("admin can create and manage focal internal pedidos", async ({ page }) => {
   await expect(copyReferenceButton).toBeFocused();
 
   const reviewStatusPanel = await getPedidoStatusPanel(page);
+  await expect(reviewStatusPanel.locator('select[name="status"]'))
+    .toHaveCount(0);
   await expect(
-    reviewStatusPanel.getByText(/debe revisarse/i),
+    reviewStatusPanel.getByText(PEDIDO_STATUS_LABELS.en_revision).first(),
   ).toBeVisible();
+  await expect(
+    reviewStatusPanel.getByRole("button", {
+      name: PEDIDO_STATUS_BUTTONS.en_produccion,
+    }),
+  ).toBeDisabled();
   await updatePedidoStatus(page, "en_revision");
 
   await expectCompactPedidoHeader(page, encargoTitle);
@@ -673,11 +736,14 @@ test("admin can create and manage focal internal pedidos", async ({ page }) => {
   await expectPedidoStatusBlocked(page, "listo_entrega");
   await completeQuantifiedTask(page);
   await updatePedidoStatus(page, "listo_entrega");
+  await returnPedidoToProduction(page);
+  await updatePedidoStatus(page, "listo_entrega");
 
   await expectCompactPedidoHeader(page, encargoTitle);
   await expect(
     (await getPedidoPaymentPanel(page)).getByText(/^sin pagar$/i),
   ).toBeVisible();
+  await expectPedidoStatusBlocked(page, "entregado");
 
   await updatePayment(page, "250", "0");
   await expect(
@@ -719,11 +785,20 @@ test("admin can create and manage focal internal pedidos", async ({ page }) => {
   await expect(getRailAction(page, /^estado/i)).toBeVisible();
   await expect(getRailAction(page, /^archivos/i)).toBeVisible();
   await expect(getRailAction(page, /^pagos/i)).toBeVisible();
-  const printStatusPanel = await openPedidoPanel(page, /^estado$/i);
+  const printStatusPanel = await openPedidoPanel(page, /^estado$/i, /^estado/i);
   await expect(
     printStatusPanel.getByText(
       /este pedido es de impresi.n directa y no requiere tareas/i,
     ),
+  ).toHaveCount(0);
+  await expect(printStatusPanel.locator('select[name="status"]')).toHaveCount(0);
+  await expect(
+    printStatusPanel.getByText(PEDIDO_STATUS_LABELS.en_revision).first(),
+  ).toBeVisible();
+  await expect(
+    printStatusPanel.getByRole("button", {
+      name: PEDIDO_STATUS_BUTTONS.en_produccion,
+    }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: /cargar tareas predeterminadas/i }),
@@ -1385,8 +1460,10 @@ test("pedido access follows current role boundaries", async ({ page }) => {
     ).toBeVisible();
 
     const supervisorStatusPanel = await getPedidoStatusPanel(page);
+    await expect(supervisorStatusPanel.locator('select[name="status"]'))
+      .toHaveCount(0);
     await expect(
-      supervisorStatusPanel.locator('select[name="status"]'),
+      supervisorStatusPanel.getByText(PEDIDO_STATUS_LABELS.listo_entrega).first(),
     ).toBeVisible();
 
     const supervisorPaymentPanel = await getPedidoPaymentPanel(page);
