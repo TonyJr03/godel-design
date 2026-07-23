@@ -20,6 +20,21 @@ const simpleTaskTitle = `Disenar arte final QA ${runLabel}`;
 const editedTaskTitle = `Disenar arte final aprobado QA ${runLabel}`;
 const quantifiedTaskTitle = `Imprimir 10 hojas QA ${runLabel}`;
 
+async function expectNoHorizontalOverflow(page: Page) {
+  const dimensions = await page.evaluate(() => ({
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }));
+
+  expect(dimensions.scrollWidth).toBeLessThanOrEqual(
+    dimensions.clientWidth + 1,
+  );
+}
+
+function getPedidoTitleText(page: Page, title: string) {
+  return page.getByText(title, { exact: true });
+}
+
 function getTaskItem(page: Page, title: string) {
   return page.locator("li").filter({ hasText: title }).first();
 }
@@ -124,6 +139,112 @@ async function expectTemplatesListingLoaded(page: Page) {
   await expectNoVisibleSensitiveText(page);
 }
 
+function getPagination(page: Page) {
+  return page.getByRole("navigation", {
+    name: /paginaci.n de plantillas/i,
+  });
+}
+
+async function getPaginationPageInfo(page: Page) {
+  const pagination = getPagination(page);
+  const text = await pagination
+    .getByText(/P.gina\s+\d+\s+de\s+\d+/i)
+    .innerText();
+  const match = text.match(/P.gina\s+(\d+)\s+de\s+(\d+)/i);
+
+  expect(match, `Unexpected pagination page text: ${text}`).not.toBeNull();
+
+  return {
+    currentPage: Number(match?.[1]),
+    totalPages: Number(match?.[2]),
+  };
+}
+
+async function getPaginationSummary(page: Page) {
+  const pagination = getPagination(page);
+  const text = await pagination
+    .getByText(/Mostrando\s+\d+–\d+\s+de\s+\d+\s+plantillas/i)
+    .innerText();
+  const match = text.match(
+    /Mostrando\s+(\d+)–(\d+)\s+de\s+(\d+)\s+plantillas/i,
+  );
+
+  expect(match, `Unexpected pagination summary text: ${text}`).not.toBeNull();
+
+  return {
+    startItem: Number(match?.[1]),
+    endItem: Number(match?.[2]),
+    totalCount: Number(match?.[3]),
+  };
+}
+
+function getPreviousPageControl(page: Page) {
+  return getPagination(page).getByLabel(/Ir a la p.gina anterior/i);
+}
+
+function getNextPageControl(page: Page) {
+  return getPagination(page).getByLabel(/Ir a la p.gina siguiente/i);
+}
+
+function getPreviousPageLink(page: Page) {
+  return getPagination(page).getByRole("link", {
+    name: /Ir a la p.gina anterior/i,
+  });
+}
+
+function getNextPageLink(page: Page) {
+  return getPagination(page).getByRole("link", {
+    name: /Ir a la p.gina siguiente/i,
+  });
+}
+
+async function expectTouchTarget(locator: Locator) {
+  const box = await locator.boundingBox();
+
+  expect(box).not.toBeNull();
+  expect(box?.width).toBeGreaterThanOrEqual(40);
+  expect(box?.height).toBeGreaterThanOrEqual(40);
+}
+
+async function expectDisabledControl(locator: Locator) {
+  await expect(locator).toBeVisible();
+  await expect(locator).toHaveAttribute("aria-disabled", "true");
+  await expect(locator).not.toHaveAttribute("href", /.+/);
+  await expectTouchTarget(locator);
+}
+
+async function expectPaginationA11y(page: Page) {
+  const pagination = getPagination(page);
+
+  await expect(pagination).toBeVisible();
+  await expect(pagination.getByText(/P.gina\s+\d+\s+de\s+\d+/i)).toBeVisible();
+  await expect(
+    pagination.getByText(/Mostrando\s+\d+–\d+\s+de\s+\d+\s+plantillas/i),
+  ).toBeVisible();
+
+  for (const control of [
+    getPreviousPageControl(page),
+    getNextPageControl(page),
+  ]) {
+    await expect(control).toBeVisible();
+    await expectTouchTarget(control);
+  }
+}
+
+async function getCurrentTemplatesUrl(page: Page) {
+  await expect(page).toHaveURL(/\/dashboard\/configuracion\/plantillas/);
+
+  return new URL(page.url());
+}
+
+async function hasEmptyTemplatesState(page: Page) {
+  return page
+    .getByText(/no hay plantillas de tareas todav|no encontramos plantillas/i)
+    .first()
+    .isVisible()
+    .catch(() => false);
+}
+
 async function createManualPedido(
   page: Page,
   workflow: "encargo" | "impresion",
@@ -154,9 +275,15 @@ async function createManualPedido(
   await dialog.locator('input[name="total_amount"]').fill("750");
   await dialog.getByLabel(/t.tulo del trabajo/i).fill(title);
   await dialog.getByRole("button", { name: /crear pedido/i }).click();
-  await expect(page).toHaveURL(/\/dashboard\/pedidos\/[^/]+$/, {
+  await expect(dialog).toBeHidden({ timeout: 30_000 });
+  await expect(page).toHaveURL(/\/dashboard\/pedidos(\/[^/]+)?$/, {
     timeout: 15_000,
   });
+
+  if (!/\/dashboard\/pedidos\/[^/]+$/.test(new URL(page.url()).pathname)) {
+    await clickFirstVisible(getPedidoTitleText(page, title));
+    await expect(page).toHaveURL(/\/dashboard\/pedidos\/[^/]+$/);
+  }
 
   await expect(
     page.getByRole("heading", {
@@ -270,7 +397,9 @@ test("admin can create and manage a task template", async ({ page }) => {
     page.getByRole("link", { name: new RegExp(templateName, "i") }),
   ).toBeVisible();
 
-  await page.goto("/dashboard/configuracion/plantillas");
+  await page.goto(
+    `/dashboard/configuracion/plantillas?q=${encodeURIComponent(templateName)}`,
+  );
   await expectTemplatesListingLoaded(page);
 
   await page
@@ -400,15 +529,253 @@ test("admin can create and manage a task template", async ({ page }) => {
   await expect(
     page.getByRole("button", { name: /editar tarea/i }).first(),
   ).toBeVisible();
-  const dimensions = await page.evaluate(() => ({
-    clientWidth: document.documentElement.clientWidth,
-    scrollWidth: document.documentElement.scrollWidth,
-  }));
-
-  expect(dimensions.scrollWidth).toBeLessThanOrEqual(
-    dimensions.clientWidth + 1,
-  );
+  await expectNoHorizontalOverflow(page);
   await expectNoVisibleSensitiveText(page);
+});
+
+test("admin can validate task template pagination and canonical URLs", async ({
+  page,
+}) => {
+  await loginAs(page, "admin");
+
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.goto("/dashboard/configuracion/plantillas");
+  await expectTemplatesListingLoaded(page);
+
+  let totalPages = 1;
+  let totalCount = 0;
+
+  if (!(await hasEmptyTemplatesState(page))) {
+    await expectPaginationA11y(page);
+
+    const pageInfo = await getPaginationPageInfo(page);
+    const summary = await getPaginationSummary(page);
+
+    totalPages = pageInfo.totalPages;
+    totalCount = summary.totalCount;
+
+    console.info(
+      `[plantillas pagination] totalCount=${totalCount} totalPages=${totalPages}`,
+    );
+
+    expect(pageInfo.currentPage).toBe(1);
+    expect(pageInfo.totalPages).toBeGreaterThanOrEqual(1);
+    expect(summary.startItem).toBe(1);
+    expect(summary.endItem).toBe(Math.min(50, summary.totalCount));
+    await expectDisabledControl(getPreviousPageControl(page));
+    await expect(getPreviousPageLink(page)).toHaveCount(0);
+    await expectNoHorizontalOverflow(page);
+  }
+
+  await page.goto("/dashboard/configuracion/plantillas?page=1");
+  await expect.poll(async () => {
+    const url = await getCurrentTemplatesUrl(page);
+
+    return {
+      pathname: url.pathname,
+      search: url.search,
+    };
+  }).toEqual({
+    pathname: "/dashboard/configuracion/plantillas",
+    search: "",
+  });
+
+  await page.goto("/dashboard/configuracion/plantillas?page=abc");
+  await expect.poll(async () => {
+    const url = await getCurrentTemplatesUrl(page);
+
+    return {
+      pathname: url.pathname,
+      search: url.search,
+    };
+  }).toEqual({
+    pathname: "/dashboard/configuracion/plantillas",
+    search: "",
+  });
+
+  await page.goto(
+    `/dashboard/configuracion/plantillas?page=${totalPages + 1}`,
+  );
+  await expect.poll(async () => {
+    const url = await getCurrentTemplatesUrl(page);
+
+    return {
+      page: url.searchParams.get("page"),
+      pathname: url.pathname,
+    };
+  }).toEqual({
+    page: totalPages > 1 ? String(totalPages) : null,
+    pathname: "/dashboard/configuracion/plantillas",
+  });
+  await expect(
+    page.getByRole("alert").filter({
+      hasText: /no se pudieron cargar las plantillas/i,
+    }),
+  ).toHaveCount(0);
+
+  if (!(await hasEmptyTemplatesState(page))) {
+    const lastPageInfo = await getPaginationPageInfo(page);
+    const lastPageSummary = await getPaginationSummary(page);
+
+    expect(lastPageInfo.currentPage).toBe(lastPageInfo.totalPages);
+    expect(lastPageSummary.endItem).toBe(lastPageSummary.totalCount);
+    await expectDisabledControl(getNextPageControl(page));
+    await expect(getNextPageLink(page)).toHaveCount(0);
+  }
+
+  await page.goto(
+    `/dashboard/configuracion/plantillas?q=${encodeURIComponent(
+      templateName,
+    )}&page=999999`,
+  );
+  await expect(
+    page.getByRole("alert").filter({
+      hasText: /no se pudieron cargar las plantillas/i,
+    }),
+  ).toHaveCount(0);
+  await expect.poll(async () => {
+    const url = await getCurrentTemplatesUrl(page);
+
+    return {
+      page: url.searchParams.get("page"),
+      q: url.searchParams.get("q"),
+    };
+  }).toEqual({
+    page: null,
+    q: templateName,
+  });
+  await expect(
+    page.getByRole("link", {
+      name: new RegExp(`abrir plantilla ${templateName}`, "i"),
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /abrir plantilla/i }),
+  ).toHaveCount(1);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/dashboard/configuracion/plantillas");
+  if (!(await hasEmptyTemplatesState(page))) {
+    await expectPaginationA11y(page);
+    await expectNoHorizontalOverflow(page);
+  }
+});
+
+test("task template pagination preserves the active search", async ({ page }) => {
+  await loginAs(page, "admin");
+
+  const candidateQueries = ["a", "e", "i", "o"];
+  let selectedQuery: string | null = null;
+
+  for (const query of candidateQueries) {
+    await page.goto(
+      `/dashboard/configuracion/plantillas?q=${encodeURIComponent(query)}`,
+    );
+    await expectTemplatesListingLoaded(page);
+
+    if (await hasEmptyTemplatesState(page)) {
+      continue;
+    }
+
+    await expect(getPagination(page)).toBeVisible();
+
+    const pageInfo = await getPaginationPageInfo(page);
+
+    if (pageInfo.totalPages > 1) {
+      selectedQuery = query;
+      break;
+    }
+  }
+
+  test.skip(
+    selectedQuery === null,
+    "Ninguna busqueda candidata produjo mas de una pagina de plantillas.",
+  );
+
+  const query = selectedQuery ?? "";
+
+  await expect(page.locator('input[name="q"]:visible')).toHaveValue(query);
+  await expect(getNextPageLink(page)).toBeVisible();
+  await getNextPageLink(page).click();
+  await expectPaginationA11y(page);
+
+  await expect.poll(async () => {
+    const url = await getCurrentTemplatesUrl(page);
+
+    return {
+      page: url.searchParams.get("page"),
+      q: url.searchParams.get("q"),
+    };
+  }).toEqual({
+    page: "2",
+    q: query,
+  });
+  await expect(page.locator('input[name="q"]:visible')).toHaveValue(query);
+});
+
+test("admin can navigate between task template pages", async ({ page }) => {
+  await loginAs(page, "admin");
+
+  await page.goto("/dashboard/configuracion/plantillas");
+  await expectTemplatesListingLoaded(page);
+
+  if (await hasEmptyTemplatesState(page)) {
+    test.skip(
+      true,
+      "La navegacion de plantillas requiere al menos 51 plantillas visibles.",
+    );
+  }
+
+  await expectPaginationA11y(page);
+
+  const initialPageInfo = await getPaginationPageInfo(page);
+  const initialSummary = await getPaginationSummary(page);
+
+  test.skip(
+    initialPageInfo.totalPages < 2,
+    "La navegacion de plantillas requiere al menos 51 plantillas visibles.",
+  );
+
+  expect(initialPageInfo.currentPage).toBe(1);
+  expect(initialSummary.startItem).toBe(1);
+  expect(initialSummary.endItem).toBe(50);
+  await expect(getNextPageLink(page)).toBeVisible();
+  await getNextPageLink(page).click();
+
+  await expect.poll(async () => {
+    const url = await getCurrentTemplatesUrl(page);
+
+    return url.searchParams.get("page");
+  }).toBe("2");
+
+  const secondPageInfo = await getPaginationPageInfo(page);
+  const secondSummary = await getPaginationSummary(page);
+
+  expect(secondPageInfo.currentPage).toBe(2);
+  expect(secondPageInfo.totalPages).toBe(initialPageInfo.totalPages);
+  expect(secondSummary.startItem).toBe(51);
+  expect(secondSummary.endItem).toBe(Math.min(100, initialSummary.totalCount));
+  expect(secondSummary.totalCount).toBe(initialSummary.totalCount);
+  await expect(getPreviousPageLink(page)).toBeVisible();
+  await expectTouchTarget(getPreviousPageLink(page));
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/dashboard/configuracion/plantillas?page=2");
+  await expectPaginationA11y(page);
+  await expectNoHorizontalOverflow(page);
+
+  await getPreviousPageLink(page).click();
+  await expect.poll(async () => {
+    const url = await getCurrentTemplatesUrl(page);
+
+    return {
+      page: url.searchParams.get("page"),
+      pathname: url.pathname,
+    };
+  }).toEqual({
+    page: null,
+    pathname: "/dashboard/configuracion/plantillas",
+  });
 });
 
 test("admin can apply a template to encargo and impresion has no selector", async ({
