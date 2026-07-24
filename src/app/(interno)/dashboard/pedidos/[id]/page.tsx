@@ -24,7 +24,6 @@ import {
   listPedidoTasks,
 } from "@/lib/pedidos";
 import { listPedidoFiles } from "@/lib/storage";
-import { listActiveTaskTemplatesForOrder } from "@/lib/task-templates";
 import { WORKFLOW_TYPES } from "@/lib/workflow-types";
 import {
   applyTaskTemplateAction,
@@ -91,22 +90,15 @@ export default async function DashboardPedidoDetallePage({
   const filesResult = await listPedidoFiles(result.pedido.id);
   const commentsResult = await listPedidoComments(result.pedido.id);
   const historyResult = await listPedidoHistory(result.pedido.id);
-  const shouldLoadTaskTemplates =
+  const shouldEnableTaskTemplateAction =
     result.pedido.workflow_type === WORKFLOW_TYPES.ENCARGO &&
     canManagePedidoTasksInStatus(result.pedido.status);
-  const taskTemplatesResult = shouldLoadTaskTemplates
-    ? await listActiveTaskTemplatesForOrder()
-    : null;
   const tasksLoadRetryable = !tasksResult.ok && tasksResult.reason === "error";
   const filesLoadRetryable = !filesResult.ok && filesResult.reason === "error";
   const commentsLoadRetryable =
     !commentsResult.ok && commentsResult.reason === "error";
   const historyLoadRetryable =
     !historyResult.ok && historyResult.reason === "error";
-  const taskTemplatesLoadRetryable =
-    taskTemplatesResult !== null &&
-    !taskTemplatesResult.ok &&
-    taskTemplatesResult.reason === "error";
   const pedidoId = result.pedido.id;
   const assignWorkerAction = canManagePedidos
     ? assignPedidoWorkerAction.bind(null, pedidoId)
@@ -168,11 +160,6 @@ export default async function DashboardPedidoDetallePage({
         comments={commentsResult.ok ? commentsResult.comments : []}
         commentsLoadError={commentsResult.ok ? undefined : commentsResult.message}
         commentsLoadRetryable={commentsLoadRetryable}
-        taskTemplatesLoadError={
-          taskTemplatesResult && !taskTemplatesResult.ok
-            ? taskTemplatesResult.message
-            : undefined
-        }
         personnelPanelContent={
           canManagePedidos && assignWorkerAction && removeWorkerAction ? (
             <PedidoWorkerAssignmentForm
@@ -202,23 +189,15 @@ export default async function DashboardPedidoDetallePage({
         tasksPanelContent={
           result.pedido.workflow_type === WORKFLOW_TYPES.ENCARGO ? (
             <PedidoTasksSection
+              pedidoId={pedidoId}
               presentation="panel"
               applyTaskTemplateAction={
-                shouldLoadTaskTemplates ? applyTemplateAction : undefined
+                shouldEnableTaskTemplateAction ? applyTemplateAction : undefined
               }
               createTaskAction={createTaskAction}
               taskActions={taskActions}
               pedidoStatus={result.pedido.status}
               tasks={tasksResult.ok ? tasksResult.tasks : []}
-              taskTemplates={
-                taskTemplatesResult?.ok ? taskTemplatesResult.templates : []
-              }
-              taskTemplatesLoadError={
-                taskTemplatesResult && !taskTemplatesResult.ok
-                  ? taskTemplatesResult.message
-                  : undefined
-              }
-              taskTemplatesLoadRetryable={taskTemplatesLoadRetryable}
               progress={
                 tasksResult.ok
                   ? tasksResult.progress

@@ -13,7 +13,6 @@ import {
 } from "@/lib/pedidos/status";
 import type { PedidoTask } from "@/lib/pedidos/list-pedido-tasks";
 import type { PedidoTasksProgress } from "@/lib/pedidos/task-progress";
-import type { ActiveTaskTemplateForOrder } from "@/lib/task-templates";
 import { Alert, Button, ReadErrorAlert } from "@/components/ui";
 import { ApplyTaskTemplateForm } from "./ApplyTaskTemplateForm";
 import { PedidoProgressBar } from "./PedidoProgressBar";
@@ -23,6 +22,7 @@ import {
 } from "./PedidoTaskItem";
 
 type PedidoTasksSectionProps = {
+  pedidoId: string;
   applyTaskTemplateAction?: PedidoDetailAction<ApplyTaskTemplateActionState>;
   createTaskAction: PedidoDetailAction<CreatePedidoTaskActionState>;
   taskActions: PedidoTaskItemActions;
@@ -31,9 +31,6 @@ type PedidoTasksSectionProps = {
   progress: PedidoTasksProgress;
   loadError?: string;
   loadErrorRetryable?: boolean;
-  taskTemplates?: ActiveTaskTemplateForOrder[];
-  taskTemplatesLoadError?: string;
-  taskTemplatesLoadRetryable?: boolean;
   presentation?: "card" | "panel";
 };
 
@@ -46,6 +43,7 @@ const createInitialState: CreatePedidoTaskActionState = {
 };
 
 export function PedidoTasksSection({
+  pedidoId,
   applyTaskTemplateAction,
   createTaskAction,
   taskActions,
@@ -54,9 +52,6 @@ export function PedidoTasksSection({
   progress,
   loadError,
   loadErrorRetryable = false,
-  taskTemplates = [],
-  taskTemplatesLoadError,
-  taskTemplatesLoadRetryable = false,
   presentation = "card",
 }: PedidoTasksSectionProps) {
   const formRef = useRef<HTMLFormElement>(null);
@@ -144,10 +139,8 @@ export function PedidoTasksSection({
         >
           {applyTaskTemplateAction ? (
             <ApplyTaskTemplateForm
+              pedidoId={pedidoId}
               action={applyTaskTemplateAction}
-              templates={taskTemplates}
-              loadError={taskTemplatesLoadError}
-              loadErrorRetryable={taskTemplatesLoadRetryable}
               presentation={isPanelPresentation ? "panel" : "card"}
             />
           ) : null}

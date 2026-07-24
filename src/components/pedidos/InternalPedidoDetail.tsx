@@ -59,7 +59,6 @@ type InternalPedidoDetailProps = {
   comments: readonly PedidoComment[];
   commentsLoadError?: string;
   commentsLoadRetryable?: boolean;
-  taskTemplatesLoadError?: string;
   personnelPanelContent: ReactNode;
   paymentPanelContent: ReactNode;
   tasksPanelContent?: ReactNode;
@@ -196,7 +195,6 @@ export function InternalPedidoDetail({
   comments,
   commentsLoadError,
   commentsLoadRetryable = false,
-  taskTemplatesLoadError,
   personnelPanelContent,
   paymentPanelContent,
   tasksPanelContent,
@@ -233,13 +231,6 @@ export function InternalPedidoDetail({
     progress: safeTaskProgress,
     loadError: tasksLoadError,
   });
-  const taskTemplatesActionState: WorkspaceActionState =
-    !tasksLoadError && taskTemplatesLoadError
-      ? {
-          tone: "warning",
-          statusLabel: "Plantillas no disponibles",
-        }
-      : {};
   const filesActionState: WorkspaceActionState = filesLoadError
     ? {
         tone: "danger",
@@ -286,11 +277,8 @@ export function InternalPedidoDetail({
             label: "Tareas",
             icon: "tareas",
             ...taskActionState,
-            ...taskTemplatesActionState,
             badge:
-              !tasksLoadError &&
-              !taskTemplatesLoadError &&
-              safeTaskProgress.pendingTasks
+              !tasksLoadError && safeTaskProgress.pendingTasks
                 ? safeTaskProgress.pendingTasks
                 : undefined,
           } satisfies WorkspaceAction,
