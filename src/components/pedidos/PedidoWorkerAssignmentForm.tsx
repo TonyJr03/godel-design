@@ -6,9 +6,9 @@ import type {
   PedidoDetailAction,
   RemovePedidoWorkerActionState,
 } from "@/app/(interno)/dashboard/pedidos/[id]/actions";
-import { Alert, Button, FormField, ReadErrorAlert, Select } from "@/components/ui";
+import { PedidoWorkerAsyncSelect } from "@/components/pedidos/PedidoWorkerAsyncSelect";
+import { Alert, Button, FormField } from "@/components/ui";
 import type { InternalPedidoDetailTrabajador } from "@/lib/pedidos";
-import type { AssignableWorker } from "@/lib/pedidos/list-assignable-workers";
 import { ROLE_LABELS } from "@/lib/permissions";
 import { formatAppDateTime } from "@/lib/utils";
 
@@ -19,19 +19,16 @@ type PedidoWorkerAssignmentBaseProps = {
 
 type PedidoWorkerAssignmentManageProps = PedidoWorkerAssignmentBaseProps & {
   canManage: true;
+  pedidoId: string;
   assignWorkerAction: PedidoDetailAction<AssignPedidoWorkerActionState>;
   removeWorkerAction: PedidoDetailAction<RemovePedidoWorkerActionState>;
-  trabajadores: AssignableWorker[];
-  loadAssignableError?: string;
-  loadAssignableErrorRetryable?: boolean;
 };
 
 type PedidoWorkerAssignmentReadOnlyProps = PedidoWorkerAssignmentBaseProps & {
   canManage: false;
   assignWorkerAction?: never;
   removeWorkerAction?: never;
-  trabajadores?: never;
-  loadAssignableError?: never;
+  pedidoId?: never;
 };
 
 type PedidoWorkerAssignmentFormProps =
@@ -207,12 +204,10 @@ function PedidoWorkerAssignmentsReadOnly({
 }
 
 function ManagedPedidoWorkerAssignmentForm({
+  pedidoId,
   assignWorkerAction,
   removeWorkerAction,
   asignaciones,
-  trabajadores,
-  loadAssignableError,
-  loadAssignableErrorRetryable = false,
   presentation = "card",
 }: PedidoWorkerAssignmentManageProps) {
   const [assignState, assignFormAction, assigning] = useActionState(
@@ -224,12 +219,11 @@ function ManagedPedidoWorkerAssignmentForm({
     initialRemoveState,
   );
   const assignedProfileError = assignState.fieldErrors?.assigned_profile_id;
-  const assignedIds = new Set(
-    asignaciones.map((asignacion) => asignacion.assigned_profile_id),
-  );
-  const availableWorkers = trabajadores.filter(
-    (trabajador) => !assignedIds.has(trabajador.id),
-  );
+  const assignmentSelectorKey =
+    asignaciones
+      .map((asignacion) => asignacion.assigned_profile_id)
+      .sort()
+      .join(":") || "sin-personal-asignado";
   const isPanelPresentation = presentation === "panel";
   const removeMessage = removeState.message ? (
     <AssignmentMessage
@@ -270,59 +264,37 @@ function ManagedPedidoWorkerAssignmentForm({
         </div>
       ) : null}
 
-      {loadAssignableError ? (
-        <ReadErrorAlert
-          variant="warning"
-          title="No se pudo cargar el personal disponible"
-          retryable={loadAssignableErrorRetryable}
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+        <FormField
+          id="assigned_profile_id"
+          label="Asignar personal"
+          required
+          error={assignedProfileError}
+          errorId="assigned-profile-id-error"
+          compact
         >
-          <p>{loadAssignableError}</p>
-        </ReadErrorAlert>
-      ) : availableWorkers.length === 0 ? (
-        <Alert variant="warning">
-          No hay más usuarios disponibles para asignar.
-        </Alert>
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-          <FormField
-            id="assigned_profile_id"
-            label="Asignar personal"
-            required
-            error={assignedProfileError}
-            errorId="assigned-profile-id-error"
-            compact
-          >
-            {({ describedBy, invalid }) => (
-              <Select
-                id="assigned_profile_id"
-                name="assigned_profile_id"
-                defaultValue=""
-                disabled={assigning}
-                required
-                invalid={invalid}
-                aria-describedby={describedBy}
-              >
-                <option value="" disabled>
-                  Selecciona un usuario
-                </option>
-                {availableWorkers.map((trabajador) => (
-                  <option key={trabajador.id} value={trabajador.id}>
-                    {trabajador.full_name} - {ROLE_LABELS[trabajador.role]}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </FormField>
+          {({ describedBy, invalid }) => (
+            <PedidoWorkerAsyncSelect
+              key={assignmentSelectorKey}
+              pedidoId={pedidoId}
+              id="assigned_profile_id"
+              name="assigned_profile_id"
+              required
+              disabled={assigning}
+              invalid={invalid}
+              ariaDescribedBy={describedBy}
+            />
+          )}
+        </FormField>
 
-          <Button
-            type="submit"
-            disabled={assigning}
-            className="w-full sm:w-auto"
-          >
-            {assigning ? "Asignando personal..." : "Asignar personal"}
-          </Button>
-        </div>
-      )}
+        <Button
+          type="submit"
+          disabled={assigning}
+          className="w-full sm:mt-[26px] sm:w-auto sm:self-start"
+        >
+          {assigning ? "Asignando personal..." : "Asignar personal"}
+        </Button>
+      </div>
     </form>
   );
 

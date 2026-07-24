@@ -59,7 +59,6 @@ type InternalPedidoDetailProps = {
   comments: readonly PedidoComment[];
   commentsLoadError?: string;
   commentsLoadRetryable?: boolean;
-  personnelLoadError?: string;
   taskTemplatesLoadError?: string;
   personnelPanelContent: ReactNode;
   paymentPanelContent: ReactNode;
@@ -197,7 +196,6 @@ export function InternalPedidoDetail({
   comments,
   commentsLoadError,
   commentsLoadRetryable = false,
-  personnelLoadError,
   taskTemplatesLoadError,
   personnelPanelContent,
   paymentPanelContent,
@@ -254,12 +252,8 @@ export function InternalPedidoDetail({
         statusLabel: "No se pudieron cargar los comentarios",
       }
     : {};
-  const personalActionState: WorkspaceActionState = personnelLoadError
-    ? {
-        tone: "warning",
-        statusLabel: "Personal disponible no cargado",
-      }
-    : isActivePedido && pedido.pedido_trabajadores.length === 0
+  const personalActionState: WorkspaceActionState =
+    isActivePedido && pedido.pedido_trabajadores.length === 0
       ? {
           tone: "warning",
           statusLabel: "Sin personal asignado",

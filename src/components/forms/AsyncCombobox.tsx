@@ -20,6 +20,8 @@ export type AsyncComboboxOption = {
   description?: string;
 };
 
+export type AsyncComboboxListboxPlacement = "bottom" | "top";
+
 export type AsyncComboboxProps = {
   id: string;
   name: string;
@@ -34,6 +36,7 @@ export type AsyncComboboxProps = {
   ariaDescribedBy?: string;
   allowClear?: boolean;
   clearLabel?: string;
+  listboxPlacement?: AsyncComboboxListboxPlacement;
   loadOptions: (
     query: string,
     signal: AbortSignal,
@@ -76,6 +79,7 @@ export function AsyncCombobox({
   ariaDescribedBy,
   allowClear = false,
   clearLabel = DEFAULT_CLEAR_LABEL,
+  listboxPlacement = "bottom",
   loadOptions,
   onValueChange,
 }: AsyncComboboxProps) {
@@ -484,8 +488,59 @@ export function AsyncCombobox({
       ) : null}
     </>
   );
+  const listboxPanel = showListbox ? (
+    <div
+      className={[
+        "min-w-0 overflow-hidden rounded-(--radius-card) border border-border bg-surface shadow-(--shadow-soft)",
+        listboxPlacement === "top"
+          ? "absolute inset-x-0 bottom-[calc(100%+0.375rem)] z-20"
+          : "mt-1.5",
+      ].join(" ")}
+    >
+      {errorMessage ? (
+        <div
+          aria-busy={isLoading || undefined}
+          className={[
+            "space-y-2 px-3 py-3 text-sm",
+            options.length > 0 ? "border-b border-border" : undefined,
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
+          <p className="text-danger">{errorMessage}</p>
+          <button
+            type="button"
+            onMouseDown={handleOptionMouseDown}
+            onClick={() => void loadOptionsForQuery(trimmedQuery)}
+            className="inline-flex min-h-9 cursor-pointer items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-3 text-sm font-semibold text-brand-primary transition-colors duration-200 hover:border-brand-primary hover:bg-brand-primary-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+          >
+            Reintentar
+          </button>
+        </div>
+      ) : null}
+      {hasListbox ? (
+        <ul
+          id={listboxId}
+          role="listbox"
+          aria-busy={isLoading || undefined}
+          className={[
+            "max-h-60 min-w-0 overflow-y-auto overflow-x-hidden py-1",
+            isLoading && displayOptions.length === 0 ? "min-h-12" : undefined,
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
+          {listboxContent}
+        </ul>
+      ) : null}
+    </div>
+  ) : null;
+
   return (
-    <div className="min-w-0" onBlur={handleBlur}>
+    <div
+      className={listboxPlacement === "top" ? "relative min-w-0" : "min-w-0"}
+      onBlur={handleBlur}
+    >
       <input
         type="hidden"
         name={name}
@@ -534,46 +589,7 @@ export function AsyncCombobox({
         ) : null}
       </div>
 
-      {showListbox ? (
-        <div className="mt-1.5 min-w-0 overflow-hidden rounded-(--radius-card) border border-border bg-surface shadow-(--shadow-soft)">
-          {errorMessage ? (
-            <div
-              aria-busy={isLoading || undefined}
-              className={[
-                "space-y-2 px-3 py-3 text-sm",
-                options.length > 0 ? "border-b border-border" : undefined,
-              ]
-                .filter(Boolean)
-                .join(" ")}
-            >
-              <p className="text-danger">{errorMessage}</p>
-              <button
-                type="button"
-                onMouseDown={handleOptionMouseDown}
-                onClick={() => void loadOptionsForQuery(trimmedQuery)}
-                className="inline-flex min-h-9 cursor-pointer items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-3 text-sm font-semibold text-brand-primary transition-colors duration-200 hover:border-brand-primary hover:bg-brand-primary-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-              >
-                Reintentar
-              </button>
-            </div>
-          ) : null}
-          {hasListbox ? (
-            <ul
-              id={listboxId}
-              role="listbox"
-              aria-busy={isLoading || undefined}
-              className={[
-                "max-h-60 min-w-0 overflow-y-auto overflow-x-hidden py-1",
-                isLoading && displayOptions.length === 0 ? "min-h-12" : undefined,
-              ]
-                .filter(Boolean)
-                .join(" ")}
-            >
-              {listboxContent}
-            </ul>
-          ) : null}
-        </div>
-      ) : null}
+      {listboxPanel}
 
       <p id={statusId} className="sr-only" aria-live="polite">
         {liveMessage}

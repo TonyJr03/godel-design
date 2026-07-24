@@ -19,7 +19,6 @@ import {
   getInternalPedidoById,
   isPedidoClosedStatus,
   isPedidoInitialStatus,
-  listAssignableWorkers,
   listPedidoComments,
   listPedidoHistory,
   listPedidoTasks,
@@ -88,7 +87,6 @@ export default async function DashboardPedidoDetallePage({
     canManagePedidos && !isPedidoClosedStatus(result.pedido.status);
   const canManagePayments =
     profile !== null && (isAdmin(profile.role) || isSupervisor(profile.role));
-  const workersResult = canManagePedidos ? await listAssignableWorkers() : null;
   const tasksResult = await listPedidoTasks(result.pedido.id);
   const filesResult = await listPedidoFiles(result.pedido.id);
   const commentsResult = await listPedidoComments(result.pedido.id);
@@ -99,8 +97,6 @@ export default async function DashboardPedidoDetallePage({
   const taskTemplatesResult = shouldLoadTaskTemplates
     ? await listActiveTaskTemplatesForOrder()
     : null;
-  const workersLoadRetryable =
-    workersResult !== null && !workersResult.ok && workersResult.reason === "error";
   const tasksLoadRetryable = !tasksResult.ok && tasksResult.reason === "error";
   const filesLoadRetryable = !filesResult.ok && filesResult.reason === "error";
   const commentsLoadRetryable =
@@ -172,9 +168,6 @@ export default async function DashboardPedidoDetallePage({
         comments={commentsResult.ok ? commentsResult.comments : []}
         commentsLoadError={commentsResult.ok ? undefined : commentsResult.message}
         commentsLoadRetryable={commentsLoadRetryable}
-        personnelLoadError={
-          workersResult && !workersResult.ok ? workersResult.message : undefined
-        }
         taskTemplatesLoadError={
           taskTemplatesResult && !taskTemplatesResult.ok
             ? taskTemplatesResult.message
@@ -183,18 +176,12 @@ export default async function DashboardPedidoDetallePage({
         personnelPanelContent={
           canManagePedidos && assignWorkerAction && removeWorkerAction ? (
             <PedidoWorkerAssignmentForm
+              pedidoId={pedidoId}
               presentation="panel"
               assignWorkerAction={assignWorkerAction}
               removeWorkerAction={removeWorkerAction}
               asignaciones={result.pedido.pedido_trabajadores}
               canManage
-              trabajadores={workersResult?.ok ? workersResult.workers : []}
-              loadAssignableError={
-                workersResult && !workersResult.ok
-                  ? workersResult.message
-                  : undefined
-              }
-              loadAssignableErrorRetryable={workersLoadRetryable}
             />
           ) : (
             <PedidoWorkerAssignmentForm
