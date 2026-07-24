@@ -15,6 +15,9 @@ const clienteLabel = `QA Cliente Focal ${runId}`;
 const selectorClientePhone = `555${runId.slice(-7)}`;
 const selectorClienteEmail = `qa-pedido-selector-${runId}@example.com`;
 const selectorPedidoTitle = `QA Pedido Selector Cliente ${runId}`;
+const workerSelectorPedidoTitle = `QA Pedido Selector Personal ${runId}`;
+const workerSelectorPedidoDescription =
+  `Pedido para validar personal asincrono ${runId}`;
 const selectorClienteNotes = `Notas QA selector de pedidos ${runLabel}.`;
 const encargoTitle = `QA Pedido Focal Encargo ${runId}`;
 const impresionTitle = `QA Pedido Focal Impresion ${runId}`;
@@ -22,6 +25,8 @@ const disposableTaskTitle = `QA Tarea Desechable ${runLabel}`;
 const editedDisposableTaskTitle = `QA Tarea Desechable Editada ${runLabel}`;
 const quantifiedTaskTitle = `QA Tarea Focal Imprimir 5 hojas ${runLabel}`;
 const workspaceCommentText = `QA comentario workspace ${runLabel}`;
+const uuidPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 async function clickFirstVisible(locator: Locator) {
   await expect(async () => {
@@ -863,6 +868,49 @@ async function createClienteForPedidoSelector(page: Page) {
   await expectNoTechnicalLeakText(page);
 }
 
+async function createPedidoForWorkerSelector(page: Page) {
+  await loginAs(page, "admin");
+  await page.goto("/dashboard/pedidos");
+  await expectPedidosListLoaded(page);
+  await page.getByRole("button", { name: /nuevo pedido/i }).click();
+
+  const dialog = page.getByRole("dialog", { name: /nuevo pedido/i });
+
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("tab", { name: /encargo/i }).click();
+  await dialog.getByLabel(/t.tulo del trabajo/i).fill(workerSelectorPedidoTitle);
+  await dialog
+    .getByRole("textbox", { name: /descripci.n/i })
+    .fill(workerSelectorPedidoDescription);
+  await dialog.getByLabel(/prioridad/i).selectOption("normal");
+  await dialog.locator('input[name="estimated_delivery_date"]').fill(futureDate);
+  await dialog.locator('input[name="total_amount"]').fill("150");
+  await dialog.getByRole("button", { name: /crear pedido/i }).click();
+  await expect(dialog).toBeHidden({ timeout: 15_000 });
+  await expectPedidosListLoaded(page);
+
+  const createdPedidoLink = page
+    .getByRole("link", { name: /abrir pedido/i })
+    .filter({ hasText: workerSelectorPedidoTitle })
+    .first();
+
+  await expect(createdPedidoLink).toBeVisible();
+  await createdPedidoLink.click();
+  await expect(page).toHaveURL(/\/dashboard\/pedidos\/[^/]+$/, {
+    timeout: 15_000,
+  });
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: workerSelectorPedidoTitle,
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expectNoTechnicalLeakText(page);
+
+  return page.url();
+}
+
 function getClienteCombobox(dialog: Locator) {
   return dialog.getByRole("combobox", { name: /^cliente/i });
 }
@@ -881,6 +929,111 @@ function getClienteOption(dialog: Locator, label: string | RegExp) {
     : label;
 
   return dialog.getByRole("option", { name });
+}
+
+function getWorkerCombobox(dialog: Locator) {
+  return dialog.getByRole("combobox", { name: /^asignar personal$/i });
+}
+
+function getWorkerAssignForm(dialog: Locator) {
+  return getWorkerCombobox(dialog).locator("xpath=ancestor::form[1]");
+}
+
+function getWorkerHiddenInput(dialog: Locator) {
+  return getWorkerAssignForm(dialog).locator(
+    'input[type="hidden"][name="assigned_profile_id"]',
+  );
+}
+
+function getWorkerListbox(dialog: Locator) {
+  return dialog.getByRole("listbox");
+}
+
+function getWorkerOption(dialog: Locator, name: string | RegExp) {
+  const optionName = typeof name === "string"
+    ? new RegExp(escapeRegExp(name), "i")
+    : name;
+
+  return dialog.getByRole("option", { name: optionName });
+}
+
+function getWorkerAssignButton(dialog: Locator) {
+  return getWorkerAssignForm(dialog).getByRole("button", {
+    name: /^asignar personal$/i,
+  });
+}
+
+async function expectWorkerListboxContainedInDialog(
+  listbox: Locator,
+  dialog: Locator,
+) {
+  const dialogBox = await getRequiredBox(dialog);
+  const listboxBox = await getRequiredBox(listbox);
+
+  expect(listboxBox.x).toBeGreaterThanOrEqual(dialogBox.x - 1);
+  expect(listboxBox.x + listboxBox.width).toBeLessThanOrEqual(
+    dialogBox.x + dialogBox.width + 1,
+  );
+  expect(listboxBox.y).toBeGreaterThanOrEqual(dialogBox.y - 1);
+
+  return { dialogBox, listboxBox };
+}
+
+async function expectWorkerListboxScrollBehavior(listbox: Locator) {
+  const options = listbox.getByRole("option");
+  const optionCount = await options.count();
+
+  expect(optionCount).toBeGreaterThan(0);
+  await expect(options.first()).toBeVisible();
+  await options.last().scrollIntoViewIfNeeded();
+  await expect(options.last()).toBeVisible();
+
+  const metrics = await listbox.evaluate((element) => {
+    const htmlElement = element as HTMLElement;
+    const style = getComputedStyle(htmlElement);
+
+    return {
+      clientHeight: htmlElement.clientHeight,
+      scrollHeight: htmlElement.scrollHeight,
+      overflowY: style.overflowY,
+    };
+  });
+
+  expect(metrics.scrollHeight).toBeGreaterThanOrEqual(metrics.clientHeight);
+
+  if (optionCount >= 8 || metrics.scrollHeight > metrics.clientHeight + 1) {
+    expect(metrics.overflowY).toMatch(/auto|scroll/i);
+  }
+}
+
+async function expectWorkerListboxAboveInput(
+  listbox: Locator,
+  combobox: Locator,
+) {
+  const inputBox = await getRequiredBox(combobox);
+  const listboxBox = await getRequiredBox(listbox);
+  const topGap = inputBox.y - (listboxBox.y + listboxBox.height);
+
+  expect(listboxBox.y + listboxBox.height).toBeLessThanOrEqual(
+    inputBox.y - 4,
+  );
+  expect(topGap).toBeGreaterThanOrEqual(4);
+  expect(topGap).toBeLessThanOrEqual(8);
+
+  return { inputBox, listboxBox, topGap };
+}
+
+async function expectAllWorkerSelectorRequestsUsePedidoId(
+  urls: string[],
+  pedidoId: string,
+) {
+  expect(urls.length).toBeGreaterThan(0);
+
+  for (const requestUrl of urls) {
+    const url = new URL(requestUrl);
+
+    expect(url.searchParams.get("pedido_id")).toBe(pedidoId);
+  }
 }
 
 async function updatePedidoStatus(page: Page, status: string) {
@@ -1320,37 +1473,53 @@ async function updatePayment(page: Page, cash: string, transfer = "0") {
 
 async function assignFirstAvailableWorker(page: Page) {
   const section = await openPedidoPanel(page, /^personal$/i, /personal/i);
-  const select = section.getByLabel(/asignar personal/i);
+  const combobox = getWorkerCombobox(section);
 
-  if ((await select.count()) === 0) {
+  if ((await combobox.count()) === 0) {
     await expect(
       section.getByText(/no hay m.s usuarios disponibles|no hay personal/i),
     ).toBeVisible();
     return false;
   }
 
-  const value = await select.evaluate((element) => {
-    const htmlSelect = element as HTMLSelectElement;
-    const options = Array.from(htmlSelect.options).filter(
-      (option) => !option.disabled && option.value,
-    );
+  const pedidoId = page.url().match(/\/dashboard\/pedidos\/([0-9a-f-]+)/i)
+    ?.[1];
+
+  expect(pedidoId).toMatch(uuidPattern);
+
+  const responsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
 
     return (
-      options.find((option) => /trabajador/i.test(option.textContent ?? ""))
-        ?.value ??
-      options[0]?.value ??
-      ""
+      url.pathname === "/api/internal/selectors/personal-asignable" &&
+      url.searchParams.get("pedido_id") === pedidoId &&
+      (url.searchParams.get("q") ?? "") === ""
     );
   });
 
-  if (!value) {
+  await combobox.focus();
+  await responsePromise;
+
+  const listbox = getWorkerListbox(section);
+
+  await expect(listbox).toBeVisible();
+
+  const options = listbox.getByRole("option");
+  const optionCount = await options.count();
+
+  if (optionCount === 0) {
     await expect(
       section.getByText(/no hay m.s usuarios disponibles para asignar/i),
     ).toBeVisible();
     return false;
   }
 
-  await select.selectOption(value);
+  const workerOption = (await getWorkerOption(section, /trabajador/i).count()) > 0
+    ? getWorkerOption(section, /trabajador/i).first()
+    : options.first();
+
+  await workerOption.click();
+  await expect(getWorkerHiddenInput(section)).toHaveValue(uuidPattern);
   await section.getByRole("button", { name: /asignar personal/i }).click();
   await expect(section).toBeVisible();
   await expect(
@@ -1794,6 +1963,615 @@ test("admin can search and select a cliente asynchronously when creating a pedid
 
   await expect(mobileInputContainer.locator(".animate-spin")).toHaveCount(0);
 });
+
+test(
+  "admin can assign and remove personal with the async worker selector",
+  async ({ page }) => {
+    test.setTimeout(180_000);
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await loginAs(page, "admin");
+
+    const forbiddenBackendMessages = [
+      /PGRST103/i,
+      /Requested range not satisfiable/i,
+      /Error searching assignable workers for selector/i,
+      /Unexpected error searching assignable workers for selector/i,
+      /Error listing existing pedido worker assignments for selector/i,
+      /No se pudo cargar el personal asignable/i,
+    ];
+    const backendErrors: string[] = [];
+
+    page.on("console", (message) => {
+      const text = message.text();
+
+      if (forbiddenBackendMessages.some((pattern) => pattern.test(text))) {
+        backendErrors.push(text);
+      }
+    });
+
+    page.on("pageerror", (error) => {
+      const text = error.message;
+
+      if (forbiddenBackendMessages.some((pattern) => pattern.test(text))) {
+        backendErrors.push(text);
+      }
+    });
+
+    const workerSelectorDetailUrl = await createPedidoForWorkerSelector(page);
+    const workerSelectorRequests: string[] = [];
+
+    page.on("request", (request) => {
+      if (
+        request.url().includes(
+          "/api/internal/selectors/personal-asignable",
+        )
+      ) {
+        workerSelectorRequests.push(request.url());
+      }
+    });
+
+    await page.goto(workerSelectorDetailUrl);
+    await expect(
+      page.getByRole("heading", {
+        level: 1,
+        name: workerSelectorPedidoTitle,
+        exact: true,
+      }),
+    ).toBeVisible();
+
+    const pedidoIdMatch = page
+      .url()
+      .match(/\/dashboard\/pedidos\/([0-9a-f-]+)/i);
+    const workerSelectorPedidoId = pedidoIdMatch?.[1] ?? "";
+
+    expect(workerSelectorPedidoId).toMatch(uuidPattern);
+    expect(workerSelectorRequests).toHaveLength(0);
+
+    const personnelDialog = await openPedidoPanel(
+      page,
+      /^personal$/i,
+      /personal/i,
+    );
+
+    await expect(
+      personnelDialog.getByText(
+        /No hay personal asignado a este pedido\./i,
+      ),
+    ).toBeVisible();
+    await expect(
+      personnelDialog.getByText(/^Asignar personal$/i),
+    ).toBeVisible();
+    expect(workerSelectorRequests).toHaveLength(0);
+
+    const combobox = getWorkerCombobox(personnelDialog);
+    const hiddenInput = getWorkerHiddenInput(personnelDialog);
+    const assignButton = getWorkerAssignButton(personnelDialog);
+    const assignForm = getWorkerAssignForm(personnelDialog);
+
+    await expect(combobox).toBeVisible();
+    await expect(hiddenInput).toHaveValue("");
+    await expect(combobox).toHaveValue("");
+
+    const initialInputBox = await getRequiredBox(combobox);
+    const initialButtonBox = await getRequiredBox(assignButton);
+    const initialFormBox = await getRequiredBox(assignForm);
+    const initialDialogBox = await getRequiredBox(personnelDialog);
+
+    expect(Math.abs(initialButtonBox.y - initialInputBox.y))
+      .toBeLessThanOrEqual(4);
+    expect(initialButtonBox.x).toBeGreaterThan(
+      initialInputBox.x + initialInputBox.width - 1,
+    );
+
+    const initialResponsePromise = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+
+      return (
+        url.pathname === "/api/internal/selectors/personal-asignable" &&
+        url.searchParams.get("pedido_id") === workerSelectorPedidoId &&
+        (url.searchParams.get("q") ?? "") === ""
+      );
+    });
+
+    await combobox.focus();
+    const initialResponse = await initialResponsePromise;
+    const initialResponseBody = await initialResponse.json() as {
+      options?: Array<{ value?: string; label?: string; description?: string }>;
+    };
+
+    expect(workerSelectorRequests).toHaveLength(1);
+    await expectAllWorkerSelectorRequestsUsePedidoId(
+      workerSelectorRequests,
+      workerSelectorPedidoId,
+    );
+    await expect(combobox).toHaveAttribute("aria-expanded", "true");
+    await expect(combobox).toHaveAttribute("aria-autocomplete", "list");
+    await expect(combobox).toHaveAttribute("aria-required", "true");
+
+    let workerListbox = getWorkerListbox(personnelDialog);
+    const controlsId = await combobox.getAttribute("aria-controls");
+
+    expect(controlsId).toBeTruthy();
+    await expect(workerListbox).toHaveAttribute("id", controlsId as string);
+    await expect(workerListbox).toBeVisible();
+    await expect(getWorkerOption(personnelDialog, "Sin cliente asociado"))
+      .toHaveCount(0);
+    await expect(workerListbox.getByText(/Cargando/i)).toHaveCount(0);
+    await expect(personnelDialog.locator('[aria-live="polite"]'))
+      .toHaveCount(1);
+
+    const initialWorkerOptionCount =
+      await workerListbox.getByRole("option").count();
+
+    expect(initialWorkerOptionCount).toBeGreaterThanOrEqual(1);
+    expect(initialWorkerOptionCount).toBeLessThanOrEqual(20);
+    expect(initialResponseBody.options?.length).toBe(initialWorkerOptionCount);
+
+    const {
+      inputBox: openInputBox,
+      listboxBox,
+      topGap,
+    } = await expectWorkerListboxAboveInput(workerListbox, combobox);
+    const openButtonBox = await getRequiredBox(assignButton);
+    const openFormBox = await getRequiredBox(assignForm);
+    const openDialogBox = await getRequiredBox(personnelDialog);
+
+    expect(Math.abs(openInputBox.y - initialInputBox.y)).toBeLessThanOrEqual(2);
+    expect(Math.abs(openButtonBox.y - initialButtonBox.y))
+      .toBeLessThanOrEqual(2);
+    expect(Math.abs(openFormBox.height - initialFormBox.height))
+      .toBeLessThanOrEqual(2);
+    expect(Math.abs(openFormBox.y - initialFormBox.y)).toBeLessThanOrEqual(2);
+    expect(Math.abs(openDialogBox.height - initialDialogBox.height))
+      .toBeLessThanOrEqual(2);
+    await expectWorkerListboxContainedInDialog(workerListbox, personnelDialog);
+    await expectWorkerListboxScrollBehavior(workerListbox);
+
+    const firstOption = workerListbox.getByRole("option").first();
+    const selectedWorkerName = (
+      await firstOption.locator("span").first().innerText()
+    ).trim();
+    const selectedWorkerRoleLabel = (
+      await firstOption.locator("span").nth(1).innerText()
+    ).trim();
+
+    expect(selectedWorkerName.length).toBeGreaterThanOrEqual(2);
+    expect(selectedWorkerRoleLabel).toMatch(
+      /^(Administrador|Supervisor|Trabajador)$/i,
+    );
+
+    await combobox.press("ArrowDown");
+    const arrowDownActiveDescendant =
+      await combobox.getAttribute("aria-activedescendant");
+
+    expect(arrowDownActiveDescendant).toBeTruthy();
+
+    await combobox.press("End");
+    const endActiveDescendant =
+      await combobox.getAttribute("aria-activedescendant");
+
+    expect(endActiveDescendant).toBeTruthy();
+
+    if (initialWorkerOptionCount > 1) {
+      expect(endActiveDescendant).not.toBe(arrowDownActiveDescendant);
+    }
+
+    await combobox.press("Home");
+    await expect(combobox).toHaveAttribute(
+      "aria-activedescendant",
+      /-option-0$/,
+    );
+    await expect(firstOption).toHaveAttribute("aria-selected", "false");
+    await combobox.press("Escape");
+    await expect(combobox).toHaveAttribute("aria-expanded", "false");
+    await expect(combobox).toBeFocused();
+
+    await assignButton.click();
+    await expect(personnelDialog).toBeVisible();
+    await expect(combobox).toBeFocused();
+    await expect(hiddenInput).toHaveValue("");
+    await expect(combobox).toHaveJSProperty(
+      "validationMessage",
+      "Selecciona una opcion de la lista.",
+    );
+
+    const freeTextQuery = `zz-personal-${runId}`;
+    const freeTextResponsePromise = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+
+      return (
+        url.pathname === "/api/internal/selectors/personal-asignable" &&
+        url.searchParams.get("pedido_id") === workerSelectorPedidoId &&
+        url.searchParams.get("q") === freeTextQuery
+      );
+    });
+
+    await combobox.fill(freeTextQuery);
+    await freeTextResponsePromise;
+    await expect(hiddenInput).toHaveValue("");
+    await assignButton.click();
+    await expect(personnelDialog).toBeVisible();
+    await expect(combobox).toHaveJSProperty(
+      "validationMessage",
+      "Selecciona una opcion de la lista.",
+    );
+    await expect(
+      personnelDialog.getByText(/Personal asignado correctamente\./i),
+    ).toHaveCount(0);
+
+    const resetEmptyResponsePromise = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+
+      return (
+        url.pathname === "/api/internal/selectors/personal-asignable" &&
+        url.searchParams.get("pedido_id") === workerSelectorPedidoId &&
+        (url.searchParams.get("q") ?? "") === ""
+      );
+    });
+
+    await combobox.fill("");
+    await resetEmptyResponsePromise;
+    await expect(hiddenInput).toHaveValue("");
+    workerListbox = getWorkerListbox(personnelDialog);
+    await expect(workerListbox).toBeVisible();
+
+    const requestCountBeforeShortQuery = workerSelectorRequests.length;
+
+    await combobox.fill("z");
+    await expect(
+      getWorkerListbox(personnelDialog).getByText(
+        /Escribe al menos 2 caracteres\./i,
+      ),
+    ).toBeVisible();
+    expect(workerSelectorRequests).toHaveLength(requestCountBeforeShortQuery);
+    await expect(hiddenInput).toHaveValue("");
+
+    const restoreOptionsResponsePromise = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+
+      return (
+        url.pathname === "/api/internal/selectors/personal-asignable" &&
+        url.searchParams.get("pedido_id") === workerSelectorPedidoId &&
+        url.searchParams.get("q") === selectedWorkerName
+      );
+    });
+
+    await combobox.fill(selectedWorkerName);
+    await restoreOptionsResponsePromise;
+    workerListbox = getWorkerListbox(personnelDialog);
+    await expect(getWorkerOption(personnelDialog, selectedWorkerName))
+      .toBeVisible();
+
+    const previousVisibleOptionTexts = await workerListbox
+      .getByRole("option")
+      .evaluateAll((options) =>
+        options.map(
+          (option) => option.textContent?.replace(/\s+/g, " ").trim() ?? "",
+        ),
+      );
+    const delayedWorkerQuery = selectedWorkerName.length > 2
+      ? selectedWorkerName.slice(0, 2)
+      : `${selectedWorkerName}a`;
+    let releaseDelayedRequest: (() => void) | null = null;
+    let delayedRequestStarted = false;
+
+    await page.route(
+      "**/api/internal/selectors/personal-asignable**",
+      async (route) => {
+        const url = new URL(route.request().url());
+
+        if (
+          url.searchParams.get("pedido_id") === workerSelectorPedidoId &&
+          url.searchParams.get("q") === delayedWorkerQuery &&
+          !delayedRequestStarted
+        ) {
+          delayedRequestStarted = true;
+
+          await new Promise<void>((resolve) => {
+            releaseDelayedRequest = resolve;
+          });
+        }
+
+        await route.continue();
+      },
+    );
+
+    const delayedWorkerResponsePromise = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+
+      return (
+        url.pathname === "/api/internal/selectors/personal-asignable" &&
+        url.searchParams.get("pedido_id") === workerSelectorPedidoId &&
+        url.searchParams.get("q") === delayedWorkerQuery
+      );
+    });
+
+    await combobox.fill(delayedWorkerQuery);
+    await expect(async () => {
+      expect(delayedRequestStarted).toBe(true);
+    }).toPass({ timeout: 10_000 });
+
+    try {
+      await expect(combobox.locator("xpath=parent::*").locator(".animate-spin"))
+        .toBeVisible();
+      await expect(workerListbox).toHaveAttribute("aria-busy", "true");
+      const pendingVisibleOptionTexts = await workerListbox
+        .getByRole("option")
+        .evaluateAll((options) =>
+          options.map(
+            (option) => option.textContent?.replace(/\s+/g, " ").trim() ?? "",
+          ),
+        );
+
+      expect(
+        pendingVisibleOptionTexts.some((text) =>
+          previousVisibleOptionTexts.includes(text),
+        ),
+      ).toBe(true);
+      await expect(workerListbox.getByText(/Cargando/i)).toHaveCount(0);
+
+      const pendingInputBox = await getRequiredBox(combobox);
+      const pendingButtonBox = await getRequiredBox(assignButton);
+      const pendingFormBox = await getRequiredBox(assignForm);
+
+      await expectWorkerListboxAboveInput(workerListbox, combobox);
+      expect(Math.abs(pendingInputBox.y - initialInputBox.y))
+        .toBeLessThanOrEqual(2);
+      expect(Math.abs(pendingButtonBox.y - initialButtonBox.y))
+        .toBeLessThanOrEqual(2);
+      expect(Math.abs(pendingFormBox.height - initialFormBox.height))
+        .toBeLessThanOrEqual(2);
+    } finally {
+      (releaseDelayedRequest as (() => void) | null)?.();
+    }
+
+    await delayedWorkerResponsePromise;
+    await expect(combobox.locator("xpath=parent::*").locator(".animate-spin"))
+      .toHaveCount(0);
+    await expect(getWorkerListbox(personnelDialog)).not.toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
+
+    const nameResponsePromise = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+
+      return (
+        url.pathname === "/api/internal/selectors/personal-asignable" &&
+        url.searchParams.get("pedido_id") === workerSelectorPedidoId &&
+        url.searchParams.get("q") === selectedWorkerName
+      );
+    });
+
+    await combobox.fill(selectedWorkerName);
+    const nameResponse = await nameResponsePromise;
+    const nameResponseBody = await nameResponse.json() as {
+      options?: Array<{ value?: string; label?: string; description?: string }>;
+    };
+
+    await expect(getWorkerOption(personnelDialog, selectedWorkerName))
+      .toBeVisible();
+    await expect(getWorkerOption(personnelDialog, selectedWorkerRoleLabel))
+      .toBeVisible();
+    await expect(combobox).toHaveAttribute(
+      "aria-activedescendant",
+      /-option-0$/,
+    );
+    await expectWorkerListboxAboveInput(getWorkerListbox(personnelDialog), combobox);
+
+    await combobox.press("Enter");
+    await expect(combobox).toHaveValue(selectedWorkerName);
+    await expect(combobox).toHaveAttribute("aria-expanded", "false");
+    await expect(combobox).toBeFocused();
+
+    const selectedWorkerId = await hiddenInput.inputValue();
+
+    expect(selectedWorkerId).toMatch(uuidPattern);
+    expect(
+      nameResponseBody.options?.some(
+        (option) =>
+          option.value === selectedWorkerId &&
+          option.label === selectedWorkerName &&
+          option.description === selectedWorkerRoleLabel,
+      ),
+    ).toBe(true);
+
+    await combobox.click();
+    await expect(getWorkerOption(personnelDialog, selectedWorkerName))
+      .toHaveAttribute("aria-selected", "true");
+    await combobox.press("Escape");
+
+    await assignButton.click();
+    await expect(
+      personnelDialog.getByText(/Personal asignado correctamente\./i),
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(
+      personnelDialog.getByText(/No hay personal asignado a este pedido\./i),
+    ).toHaveCount(0);
+
+    const assignmentRow = personnelDialog
+      .locator("li")
+      .filter({ hasText: selectedWorkerName })
+      .first();
+
+    await expect(assignmentRow).toBeVisible();
+    await expect(assignmentRow.getByText(selectedWorkerRoleLabel))
+      .toBeVisible();
+    await expect(assignmentRow.getByRole("button", { name: /^Quitar$/i }))
+      .toBeVisible();
+    await expect(getWorkerCombobox(personnelDialog)).toHaveValue("");
+    await expect(getWorkerHiddenInput(personnelDialog)).toHaveValue("");
+    await expect(getWorkerCombobox(personnelDialog)).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+
+    const exclusionResponsePromise = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+
+      return (
+        url.pathname === "/api/internal/selectors/personal-asignable" &&
+        url.searchParams.get("pedido_id") === workerSelectorPedidoId &&
+        url.searchParams.get("q") === selectedWorkerName
+      );
+    });
+
+    const postAssignCombobox = getWorkerCombobox(personnelDialog);
+
+    await postAssignCombobox.focus();
+    await postAssignCombobox.fill(selectedWorkerName);
+    const exclusionResponse = await exclusionResponsePromise;
+    const exclusionBody = await exclusionResponse.json() as {
+      options?: Array<{ value?: string; label?: string; description?: string }>;
+    };
+
+    expect(exclusionBody.options ?? []).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ value: selectedWorkerId }),
+      ]),
+    );
+    await expect(getWorkerOption(personnelDialog, selectedWorkerName))
+      .toHaveCount(0);
+    if ((exclusionBody.options ?? []).length === 0) {
+      await expect(
+        getWorkerListbox(personnelDialog).getByText(
+          /No hay usuarios disponibles con esa busqueda\./i,
+        ),
+      ).toBeVisible();
+    }
+
+    await postAssignCombobox.press("Escape");
+    await assignmentRow.getByRole("button", { name: /^Quitar$/i }).click();
+    await expect(
+      personnelDialog.getByText(/Asignaci.n removida correctamente\./i),
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(assignmentRow).toHaveCount(0);
+    await expect(
+      personnelDialog.getByText(
+        /No hay personal asignado a este pedido\./i,
+      ),
+    ).toBeVisible();
+    await expect(getWorkerCombobox(personnelDialog)).toHaveValue("");
+    await expect(getWorkerHiddenInput(personnelDialog)).toHaveValue("");
+
+    const reappearanceResponsePromise = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+
+      return (
+        url.pathname === "/api/internal/selectors/personal-asignable" &&
+        url.searchParams.get("pedido_id") === workerSelectorPedidoId &&
+        url.searchParams.get("q") === selectedWorkerName
+      );
+    });
+
+    const postRemoveCombobox = getWorkerCombobox(personnelDialog);
+
+    await postRemoveCombobox.focus();
+    await postRemoveCombobox.fill(selectedWorkerName);
+    await reappearanceResponsePromise;
+    await expect(getWorkerOption(personnelDialog, selectedWorkerName))
+      .toBeVisible();
+    await expect(getWorkerOption(personnelDialog, selectedWorkerRoleLabel))
+      .toBeVisible();
+    await expectWorkerListboxAboveInput(
+      getWorkerListbox(personnelDialog),
+      postRemoveCombobox,
+    );
+
+    await personnelDialog.getByRole("button", { name: /cerrar/i }).click();
+    await expect(personnelDialog).toBeHidden();
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(workerSelectorDetailUrl);
+    await expectNoHorizontalOverflow(page);
+    await page.getByRole("button", { name: /m.s acciones/i }).click();
+    const mobileMoreDialog = page.getByRole("dialog", {
+      name: /^m.s acciones$/i,
+    });
+
+    await expect(mobileMoreDialog).toBeVisible();
+    await mobileMoreDialog.getByRole("button", { name: /personal/i }).click();
+
+    const mobilePersonnelDialog = page.getByRole("dialog", {
+      name: /^personal$/i,
+    });
+
+    await expect(mobilePersonnelDialog).toBeVisible();
+    const mobileCombobox = getWorkerCombobox(mobilePersonnelDialog);
+    const mobileHiddenInput = getWorkerHiddenInput(mobilePersonnelDialog);
+    const mobileAssignButton = getWorkerAssignButton(mobilePersonnelDialog);
+    const mobileAssignForm = getWorkerAssignForm(mobilePersonnelDialog);
+
+    await expect(mobileCombobox).toBeVisible();
+    await expect(mobileAssignButton).toBeVisible();
+    await expect(mobileHiddenInput).toHaveValue("");
+
+    const mobileInitialInputBox = await getRequiredBox(mobileCombobox);
+    const mobileInitialButtonBox = await getRequiredBox(mobileAssignButton);
+    const mobileInitialFormBox = await getRequiredBox(mobileAssignForm);
+
+    expect(mobileInitialButtonBox.y).toBeGreaterThan(
+      mobileInitialInputBox.y + mobileInitialInputBox.height - 1,
+    );
+    expect(mobileInitialButtonBox.width).toBeGreaterThanOrEqual(
+      mobileInitialInputBox.width - 4,
+    );
+    await expectNoHorizontalOverflow(page);
+
+    const mobileInitialResponsePromise = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+
+      return (
+        url.pathname === "/api/internal/selectors/personal-asignable" &&
+        url.searchParams.get("pedido_id") === workerSelectorPedidoId &&
+        (url.searchParams.get("q") ?? "") === ""
+      );
+    });
+
+    await mobileCombobox.focus();
+    await mobileInitialResponsePromise;
+
+    const mobileListbox = getWorkerListbox(mobilePersonnelDialog);
+
+    await expect(mobileListbox).toBeVisible();
+    await expectWorkerListboxAboveInput(mobileListbox, mobileCombobox);
+    const mobileOpenInputBox = await getRequiredBox(mobileCombobox);
+    const mobileOpenButtonBox = await getRequiredBox(mobileAssignButton);
+    const mobileOpenFormBox = await getRequiredBox(mobileAssignForm);
+
+    expect(Math.abs(mobileOpenInputBox.y - mobileInitialInputBox.y))
+      .toBeLessThanOrEqual(2);
+    expect(Math.abs(mobileOpenButtonBox.y - mobileInitialButtonBox.y))
+      .toBeLessThanOrEqual(2);
+    expect(Math.abs(mobileOpenFormBox.height - mobileInitialFormBox.height))
+      .toBeLessThanOrEqual(2);
+    await expectWorkerListboxContainedInDialog(
+      mobileListbox,
+      mobilePersonnelDialog,
+    );
+    await expectWorkerListboxScrollBehavior(mobileListbox);
+    await expectNoHorizontalOverflow(page);
+
+    await expectAllWorkerSelectorRequestsUsePedidoId(
+      workerSelectorRequests,
+      workerSelectorPedidoId,
+    );
+    expect(backendErrors).toHaveLength(0);
+
+    console.info(
+      [
+        `[worker selector] pedidoId=${workerSelectorPedidoId}`,
+        `initialOptions=${initialWorkerOptionCount}`,
+        `selectedWorker=${selectedWorkerName}`,
+        `selectedRole=${selectedWorkerRoleLabel}`,
+        `selectedWorkerId=${selectedWorkerId}`,
+        `topGap=${topGap}`,
+        `listboxBottom=${listboxBox.y + listboxBox.height}`,
+      ].join(" "),
+    );
+  },
+);
 
 test("admin can create and manage focal internal pedidos", async ({ page }) => {
   test.setTimeout(180_000);
