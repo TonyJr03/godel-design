@@ -14,6 +14,7 @@ type ClienteAsyncSelectProps = {
   invalid?: boolean;
   ariaDescribedBy?: string;
   allowEmpty?: boolean;
+  required?: boolean;
   onValueChange?: (option: ClienteSelectorOption | null) => void;
 };
 
@@ -98,6 +99,7 @@ export function ClienteAsyncSelect({
   invalid = false,
   ariaDescribedBy,
   allowEmpty = false,
+  required = false,
   onValueChange,
 }: ClienteAsyncSelectProps) {
   return (
@@ -113,6 +115,7 @@ export function ClienteAsyncSelect({
       invalid={invalid}
       ariaDescribedBy={ariaDescribedBy}
       allowClear={allowEmpty}
+      required={required}
       clearLabel="Sin cliente asociado"
       loadOptions={loadClienteOptions}
       onValueChange={(option: AsyncComboboxOption | null) => {

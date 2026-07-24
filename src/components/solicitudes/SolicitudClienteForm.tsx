@@ -7,8 +7,12 @@ import type {
   CreateClienteFromSolicitudActionState,
   SolicitudDetailAction,
 } from "@/app/(interno)/dashboard/solicitudes/[id]/actions";
-import { Alert, Button, FormField, ReadErrorAlert, Select } from "@/components/ui";
-import type { InternalCliente, InternalClienteDetail } from "@/lib/clientes";
+import { ClienteAsyncSelect } from "@/components/clientes/ClienteAsyncSelect";
+import { Alert, Button, FormField } from "@/components/ui";
+import type {
+  ClienteSelectorOption,
+  InternalClienteDetail,
+} from "@/lib/clientes";
 
 type SolicitudClienteFormProps = {
   associateClienteAction: SolicitudDetailAction<
@@ -18,9 +22,6 @@ type SolicitudClienteFormProps = {
     CreateClienteFromSolicitudActionState
   >;
   clienteAsociado: InternalClienteDetail | null;
-  clientesDisponibles: InternalCliente[];
-  clientesLoadError?: string | null;
-  clientesLoadRetryable?: boolean;
   presentation?: "card" | "panel";
 };
 
@@ -106,9 +107,6 @@ export function SolicitudClienteForm({
   associateClienteAction,
   createClienteAction,
   clienteAsociado,
-  clientesDisponibles,
-  clientesLoadError,
-  clientesLoadRetryable = false,
   presentation = "card",
 }: SolicitudClienteFormProps) {
   const [associateState, associateAction, associatePending] = useActionState(
@@ -119,11 +117,19 @@ export function SolicitudClienteForm({
     createClienteAction,
     initialCreateState,
   );
-  const hasClientes = clientesDisponibles.length > 0;
   const hasClienteAsociado = Boolean(clienteAsociado);
   const associateButtonLabel = hasClienteAsociado
-    ? "Actualizar cliente asociado"
+    ? "Actualizar cliente"
     : "Asociar cliente";
+  const clienteAsociadoOption: ClienteSelectorOption | null = clienteAsociado
+    ? {
+        value: clienteAsociado.id,
+        label: clienteAsociado.name,
+        description: [clienteAsociado.phone, clienteAsociado.email]
+          .filter(Boolean)
+          .join(" · "),
+      }
+    : null;
 
   if (presentation === "panel") {
     return (
@@ -139,49 +145,31 @@ export function SolicitudClienteForm({
             Asociar cliente existente
           </h3>
 
-          {clientesLoadError ? (
-            <ReadErrorAlert
-              variant="warning"
-              title="No se pudieron cargar los clientes"
-              retryable={clientesLoadRetryable}
-              className="mt-3"
-            >
-              <p>{clientesLoadError}</p>
-            </ReadErrorAlert>
-          ) : null}
-
-          <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+          <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
             <FormField
               id="cliente_id"
               label="Cliente existente"
               required
               compact
             >
-              {({ describedBy }) => (
-                <Select
+              {({ describedBy, invalid }) => (
+                <ClienteAsyncSelect
+                  key={clienteAsociado?.id ?? "sin-cliente-asociado"}
                   id="cliente_id"
                   name="cliente_id"
-                  defaultValue={clienteAsociado?.id ?? ""}
-                  disabled={!hasClientes || associatePending}
+                  defaultOption={clienteAsociadoOption}
                   required
-                  aria-describedby={describedBy}
-                >
-                  <option value="" disabled>
-                    Selecciona un cliente
-                  </option>
-                  {clientesDisponibles.map((cliente) => (
-                    <option key={cliente.id} value={cliente.id}>
-                      {cliente.name} - {cliente.phone}
-                    </option>
-                  ))}
-                </Select>
+                  disabled={associatePending}
+                  invalid={invalid}
+                  ariaDescribedBy={describedBy}
+                />
               )}
             </FormField>
 
             <Button
               type="submit"
-              disabled={!hasClientes || associatePending}
-              className="w-full sm:w-auto"
+              disabled={associatePending}
+              className="w-full sm:mt-[26px] sm:w-auto sm:self-start"
             >
               {associatePending
                 ? hasClienteAsociado
@@ -249,36 +237,18 @@ export function SolicitudClienteForm({
 
       <div className="mt-6 grid gap-5 lg:grid-cols-2">
         <form action={associateAction} aria-busy={associatePending}>
-          {clientesLoadError ? (
-            <ReadErrorAlert
-              variant="warning"
-              title="No se pudieron cargar los clientes"
-              retryable={clientesLoadRetryable}
-              className="mb-4"
-            >
-              <p>{clientesLoadError}</p>
-            </ReadErrorAlert>
-          ) : null}
-
           <FormField id="cliente_id" label="Cliente existente" required>
-            {({ describedBy }) => (
-              <Select
+            {({ describedBy, invalid }) => (
+              <ClienteAsyncSelect
+                key={clienteAsociado?.id ?? "sin-cliente-asociado"}
                 id="cliente_id"
                 name="cliente_id"
-                defaultValue={clienteAsociado?.id ?? ""}
-                disabled={!hasClientes || associatePending}
+                defaultOption={clienteAsociadoOption}
                 required
-                aria-describedby={describedBy}
-              >
-                <option value="" disabled>
-                  Selecciona un cliente
-                </option>
-                {clientesDisponibles.map((cliente) => (
-                  <option key={cliente.id} value={cliente.id}>
-                    {cliente.name} · {cliente.phone}
-                  </option>
-                ))}
-              </Select>
+                disabled={associatePending}
+                invalid={invalid}
+                ariaDescribedBy={describedBy}
+              />
             )}
           </FormField>
 
@@ -294,7 +264,7 @@ export function SolicitudClienteForm({
 
           <Button
             type="submit"
-            disabled={!hasClientes || associatePending}
+            disabled={associatePending}
             className="mt-4 w-full"
           >
             {associatePending

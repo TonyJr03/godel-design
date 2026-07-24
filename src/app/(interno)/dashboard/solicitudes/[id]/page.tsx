@@ -5,7 +5,7 @@ import { SolicitudConvertPedidoForm } from "@/components/solicitudes/SolicitudCo
 import { InternalSolicitudDetail } from "@/components/solicitudes/InternalSolicitudDetail";
 import { Alert, ReadErrorAlert } from "@/components/ui";
 import { AutoReviewOnOpen } from "@/components/workspace";
-import { getInternalClienteById, listInternalClientes } from "@/lib/clientes";
+import { getInternalClienteById } from "@/lib/clientes";
 import {
   getInternalSolicitudById,
   isSolicitudInitialStatus,
@@ -54,15 +54,15 @@ export default async function DashboardSolicitudDetallePage({
     );
   }
 
-  const [clientesResult, clienteAsociadoResult] = await Promise.all([
-    listInternalClientes({ limit: 50 }),
-    result.solicitud.cliente_id
-      ? getInternalClienteById(result.solicitud.cliente_id)
-      : Promise.resolve(null),
-  ]);
-  const filesResult = await listSolicitudFiles(result.solicitud.id);
-  const commentsResult = await listSolicitudComments(result.solicitud.id);
-  const historyResult = await listSolicitudHistory(result.solicitud.id);
+  const [clienteAsociadoResult, filesResult, commentsResult, historyResult] =
+    await Promise.all([
+      result.solicitud.cliente_id
+        ? getInternalClienteById(result.solicitud.cliente_id)
+        : Promise.resolve(null),
+      listSolicitudFiles(result.solicitud.id),
+      listSolicitudComments(result.solicitud.id),
+      listSolicitudHistory(result.solicitud.id),
+    ]);
   const clienteAsociado =
     clienteAsociadoResult && clienteAsociadoResult.ok
       ? clienteAsociadoResult.cliente
@@ -75,11 +75,6 @@ export default async function DashboardSolicitudDetallePage({
     clienteAsociadoResult !== null &&
     !clienteAsociadoResult.ok &&
     clienteAsociadoResult.reason === "error";
-  const clientesListLoadError = clientesResult.ok
-    ? undefined
-    : clientesResult.message;
-  const clientesListLoadRetryable =
-    !clientesResult.ok && clientesResult.reason === "error";
   const files = filesResult.ok ? filesResult.files : [];
   const comments = commentsResult.ok ? commentsResult.comments : [];
   const history = historyResult.ok ? historyResult.history : [];
@@ -144,9 +139,6 @@ export default async function DashboardSolicitudDetallePage({
               associateClienteAction={associateClienteAction}
               createClienteAction={createClienteAction}
               clienteAsociado={clienteAsociado}
-              clientesDisponibles={clientesResult.ok ? clientesResult.clientes : []}
-              clientesLoadError={clientesListLoadError}
-              clientesLoadRetryable={clientesListLoadRetryable}
               presentation="panel"
             />
           )
@@ -174,7 +166,6 @@ export default async function DashboardSolicitudDetallePage({
         historyLoadError={historyLoadError}
         historyLoadRetryable={historyLoadRetryable}
         clienteDetailLoadError={clienteDetailLoadError}
-        clientesListLoadError={clientesListLoadError}
       />
     </>
   );
