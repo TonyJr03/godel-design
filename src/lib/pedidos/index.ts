@@ -119,13 +119,12 @@ export {
   type UpdatedPedidoPayment,
 } from "./update-pedido-payment";
 export {
-  listAssignableWorkers,
-  listAssignableOrderUsers,
-  type AssignableOrderUser,
-  type AssignableWorker,
-  type ListAssignableWorkersErrorReason,
-  type ListAssignableWorkersResult,
-} from "./list-assignable-workers";
+  searchAssignableWorkersForSelector,
+  type AssignableWorkerSelectorOption,
+  type SearchAssignableWorkersForSelectorErrorReason,
+  type SearchAssignableWorkersForSelectorOptions,
+  type SearchAssignableWorkersForSelectorResult,
+} from "./search-assignable-workers-for-selector";
 export {
   ASSIGNABLE_ORDER_USER_ROLES,
   isAssignableOrderUserRole,

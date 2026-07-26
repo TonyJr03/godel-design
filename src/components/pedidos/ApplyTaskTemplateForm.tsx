@@ -1,19 +1,17 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 
 import type {
   ApplyTaskTemplateActionState,
   PedidoDetailAction,
 } from "@/app/(interno)/dashboard/pedidos/[id]/actions";
-import { Alert, Button, FormField, ReadErrorAlert, Select } from "@/components/ui";
-import type { ActiveTaskTemplateForOrder } from "@/lib/task-templates";
+import { Alert, Button, FormField } from "@/components/ui";
+import { PedidoTaskTemplateAsyncSelect } from "./PedidoTaskTemplateAsyncSelect";
 
 type ApplyTaskTemplateFormProps = {
+  pedidoId: string;
   action: PedidoDetailAction<ApplyTaskTemplateActionState>;
-  templates: ActiveTaskTemplateForOrder[];
-  loadError?: string;
-  loadErrorRetryable?: boolean;
   presentation?: "card" | "panel";
 };
 
@@ -22,21 +20,21 @@ const initialState: ApplyTaskTemplateActionState = {
   message: "",
 };
 
-function formatTasksCount(count: number): string {
-  return count === 1 ? "1 tarea" : `${count} tareas`;
-}
-
 export function ApplyTaskTemplateForm({
+  pedidoId,
   action,
-  templates,
-  loadError,
-  loadErrorRetryable = false,
   presentation = "card",
 }: ApplyTaskTemplateFormProps) {
+  const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction, pending] = useActionState(action, initialState);
   const templateError = state.fieldErrors?.template_id;
-  const hasTemplates = templates.length > 0;
   const isPanelPresentation = presentation === "panel";
+
+  useEffect(() => {
+    if (state.ok) {
+      formRef.current?.reset();
+    }
+  }, [state.ok]);
 
   return (
     <div
@@ -59,88 +57,64 @@ export function ApplyTaskTemplateForm({
         ) : null}
       </div>
 
-      {loadError ? (
-        <ReadErrorAlert
-          variant="warning"
-          title="No se pudieron cargar las plantillas"
-          retryable={loadErrorRetryable}
-          className="mt-4"
-        >
-          <p>{loadError}</p>
-        </ReadErrorAlert>
-      ) : null}
-
-      {!loadError && !hasTemplates ? (
-        <Alert variant="info" className="mt-4">
-          No hay plantillas activas con tareas configuradas. Configura
-          plantillas de tareas desde Configuración para usarlas aquí.
-        </Alert>
-      ) : null}
-
-      {!loadError && hasTemplates ? (
-        <form action={formAction} aria-busy={pending} className="mt-4">
-          {state.message ? (
-            <Alert
-              variant={state.ok ? "success" : "danger"}
-              title={
-                state.ok
-                  ? "Plantilla aplicada"
-                  : "No se pudo aplicar la plantilla"
-              }
-              aria-live="polite"
-            >
-              <p>{state.message}</p>
-            </Alert>
-          ) : null}
-
-          <div
-            className={[
-              state.message ? "mt-4" : "",
-              "grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end",
-            ]
-              .filter(Boolean)
-              .join(" ")}
+      <form
+        ref={formRef}
+        action={formAction}
+        aria-busy={pending}
+        className="mt-4"
+      >
+        {state.message ? (
+          <Alert
+            variant={state.ok ? "success" : "danger"}
+            title={
+              state.ok
+                ? "Plantilla aplicada"
+                : "No se pudo aplicar la plantilla"
+            }
+            aria-live="polite"
           >
-            <FormField
-              id="task-template-id"
-              label="Seleccionar plantilla"
-              required
-              error={templateError}
-              errorId="task-template-id-error"
-              compact
-            >
-              {({ describedBy, invalid }) => (
-                <Select
-                  id="task-template-id"
-                  name="template_id"
-                  required
-                  disabled={pending}
-                  defaultValue=""
-                  invalid={invalid}
-                  aria-describedby={describedBy}
-                >
-                  <option value="" disabled>
-                    Selecciona una plantilla
-                  </option>
-                  {templates.map((template) => (
-                    <option key={template.id} value={template.id}>
-                      {template.name} · {formatTasksCount(template.tasksCount)}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </FormField>
+            <p>{state.message}</p>
+          </Alert>
+        ) : null}
 
-            <Button
-              type="submit"
-              disabled={pending}
-              className="w-full sm:w-auto"
-            >
-              {pending ? "Aplicando plantilla..." : "Aplicar plantilla"}
-            </Button>
-          </div>
-        </form>
-      ) : null}
+        <div
+          className={[
+            state.message ? "mt-4" : "",
+            "grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
+          <FormField
+            id="task-template-id"
+            label="Seleccionar plantilla"
+            required
+            error={templateError}
+            errorId="task-template-id-error"
+            compact
+          >
+            {({ describedBy, invalid }) => (
+              <PedidoTaskTemplateAsyncSelect
+                pedidoId={pedidoId}
+                id="task-template-id"
+                name="template_id"
+                required
+                disabled={pending}
+                invalid={invalid}
+                ariaDescribedBy={describedBy}
+              />
+            )}
+          </FormField>
+
+          <Button
+            type="submit"
+            disabled={pending}
+            className="w-full lg:mt-[26px] lg:w-auto lg:self-start"
+          >
+            {pending ? "Aplicando plantilla..." : "Aplicar plantilla"}
+          </Button>
+        </div>
+      </form>
     </div>
   );
 }

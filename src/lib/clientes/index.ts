@@ -29,4 +29,11 @@ export {
   type ListInternalClientesOptions,
   type ListInternalClientesResult,
 } from "./list-internal-clientes";
+export {
+  searchClientesForSelector,
+  type ClienteSelectorOption,
+  type SearchClientesForSelectorErrorReason,
+  type SearchClientesForSelectorOptions,
+  type SearchClientesForSelectorResult,
+} from "./search-clientes-for-selector";
 export type { InternalCliente, InternalClienteDetail } from "./types";

@@ -25,6 +25,23 @@ const impresionPhone = `556${runId.slice(-7)}`;
 const impresionEmail = createQaEmail("qa-solicitud-impresion", runId);
 const pedidoTitle = `QA Pedido Desde Solicitud ${runId}`;
 const pedidoDescription = `Pedido convertido desde ${encargoDescription}`;
+const selectorSolicitudName = `QA Solicitud Selector ${runId}`;
+const selectorSolicitudPhone = `557${runId.slice(-7)}`;
+const selectorSolicitudEmail = `qa-solicitud-selector-${runId}@example.com`;
+const selectorSolicitudDescription =
+  `QA Solicitud para selector asincrono ${runId}`;
+const selectorClienteAName = `QA Cliente Selector A ${runId}`;
+const selectorClienteAPhone = `558${runId.slice(-7)}`;
+const selectorClienteAEmail =
+  `qa-selector-cliente-a-${runId}@example.com`;
+const selectorClienteANotes = `Notas QA selector cliente A ${runId}`;
+const selectorClienteBName = `QA Cliente Selector B ${runId}`;
+const selectorClienteBPhone = `559${runId.slice(-7)}`;
+const selectorClienteBEmail =
+  `qa-selector-cliente-b-${runId}@example.com`;
+const selectorClienteBNotes = `Notas QA selector cliente B ${runId}`;
+const uuidPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 let encargoReference = "";
 let impresionReference = "";
@@ -109,6 +126,36 @@ async function createPublicEncargo(page: Page) {
   return extractPublicReference(page);
 }
 
+async function createPublicSelectorSolicitud(page: Page) {
+  await page.goto("/solicitud");
+  await expect(
+    page.getByRole("heading", { name: /qu. necesitas preparar/i }),
+  ).toBeVisible();
+
+  await page.getByRole("tab", { name: /encargo personalizado/i }).click();
+  await page.getByLabel(/nombre del cliente/i).fill(selectorSolicitudName);
+  await page.getByLabel(/tel.fono|telefono/i).fill(selectorSolicitudPhone);
+  await page
+    .getByLabel(/correo electr.nico|correo electronico/i)
+    .fill(selectorSolicitudEmail);
+  await page.getByLabel(/tipo de servicio/i).selectOption("Personalizacion");
+  await page.getByLabel(/fecha deseada/i).fill(futureDate);
+  await page
+    .getByLabel(/descripci.n del trabajo/i)
+    .fill(selectorSolicitudDescription);
+  await page
+    .getByLabel(/observaciones adicionales/i)
+    .fill(`QA selector asincrono ${runId}`);
+  await page.getByRole("button", { name: /enviar solicitud/i }).click();
+
+  await expect(page.getByText(/hemos recibido tu solicitud/i)).toBeVisible({
+    timeout: 15_000,
+  });
+  await expectNoTechnicalLeakText(page);
+
+  return extractPublicReference(page);
+}
+
 async function createPublicImpresion(page: Page) {
   await page.goto("/solicitud");
   await page.getByRole("tab", { name: /impresi.n/i }).click();
@@ -136,6 +183,29 @@ async function createPublicImpresion(page: Page) {
   return extractPublicReference(page);
 }
 
+async function createInternalClienteForSelector(
+  page: Page,
+  cliente: {
+    name: string;
+    phone: string;
+    email: string;
+    notes: string;
+  },
+) {
+  await page.goto("/dashboard/clientes");
+  await page.getByRole("button", { name: /nuevo cliente/i }).click();
+  const dialog = page.getByRole("dialog", { name: /nuevo cliente/i });
+
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel(/^nombre/i).fill(cliente.name);
+  await dialog.getByLabel(/tel.fono/i).fill(cliente.phone);
+  await dialog.getByLabel(/correo electr.nico/i).fill(cliente.email);
+  await dialog.getByLabel(/notas/i).fill(cliente.notes);
+  await dialog.getByRole("button", { name: /crear cliente/i }).click();
+  await expect(dialog).toBeHidden({ timeout: 15_000 });
+  await expectNoTechnicalLeakText(page);
+}
+
 async function expectSolicitudesListLoaded(page: Page) {
   await expect(page).toHaveURL(/\/dashboard\/solicitudes(?:[/?#].*)?$/);
   await expect(
@@ -147,6 +217,34 @@ async function expectSolicitudesListLoaded(page: Page) {
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function getSolicitudClienteCombobox(dialog: Locator) {
+  return dialog.getByRole("combobox", { name: /^cliente existente/i });
+}
+
+function getSolicitudClienteHiddenInput(dialog: Locator) {
+  return dialog.locator('input[type="hidden"][name="cliente_id"]');
+}
+
+function getSolicitudClienteListbox(dialog: Locator) {
+  return dialog.getByRole("listbox");
+}
+
+function getSolicitudClienteOption(dialog: Locator, name: string | RegExp) {
+  const optionName = typeof name === "string"
+    ? new RegExp(escapeRegExp(name), "i")
+    : name;
+
+  return dialog.getByRole("option", { name: optionName });
+}
+
+async function getRequiredBox(locator: Locator) {
+  const box = await locator.boundingBox();
+
+  expect(box).not.toBeNull();
+
+  return box!;
 }
 
 async function openSolicitudDetail(page: Page, query: string, expectedName: string) {
@@ -470,6 +568,334 @@ async function expectSolicitudFilesPanel(page: Page, hasFiles: boolean) {
   await expect(dialog).toBeHidden();
 }
 
+test("admin can associate and update a cliente asynchronously from a solicitud", async ({
+  page,
+}) => {
+  test.setTimeout(180_000);
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const selectorReference = await createPublicSelectorSolicitud(page);
+
+  await loginAs(page, "admin");
+  await createInternalClienteForSelector(page, {
+    name: selectorClienteAName,
+    phone: selectorClienteAPhone,
+    email: selectorClienteAEmail,
+    notes: selectorClienteANotes,
+  });
+  await createInternalClienteForSelector(page, {
+    name: selectorClienteBName,
+    phone: selectorClienteBPhone,
+    email: selectorClienteBEmail,
+    notes: selectorClienteBNotes,
+  });
+
+  const selectorRequests: string[] = [];
+
+  page.on("request", (request) => {
+    if (request.url().includes("/api/internal/selectors/clientes")) {
+      selectorRequests.push(request.url());
+    }
+  });
+
+  const selectorDetailUrl = await openSolicitudDetail(
+    page,
+    selectorSolicitudName,
+    selectorSolicitudName,
+  );
+
+  await expect(page.getByText(selectorReference).first()).toBeVisible();
+  expect(selectorRequests).toHaveLength(0);
+
+  const dialog = await openSolicitudPanel(page, /^cliente$/i, /cliente/i);
+  const combobox = getSolicitudClienteCombobox(dialog);
+  const hiddenInput = getSolicitudClienteHiddenInput(dialog);
+  const associateButton = dialog.getByRole("button", {
+    name: /^asociar cliente$/i,
+  });
+
+  await expect(
+    dialog.getByText(
+      /esta solicitud todav.a no tiene un cliente interno asociado/i,
+    ),
+  ).toBeVisible();
+  await expect(associateButton).toBeVisible();
+  await expect(combobox).toHaveValue("");
+  await expect(hiddenInput).toHaveValue("");
+  expect(selectorRequests).toHaveLength(0);
+
+  const inputBox = await getRequiredBox(combobox);
+  const initialButtonBox = await getRequiredBox(associateButton);
+  const buttonAlignmentTolerance = 4;
+
+  expect(Math.abs(initialButtonBox.y - inputBox.y)).toBeLessThanOrEqual(
+    buttonAlignmentTolerance,
+  );
+  expect(initialButtonBox.x).toBeGreaterThan(inputBox.x + inputBox.width - 1);
+
+  const initialResponsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+
+    return (
+      url.pathname === "/api/internal/selectors/clientes" &&
+      (url.searchParams.get("q") ?? "") === ""
+    );
+  });
+
+  await combobox.focus();
+  await initialResponsePromise;
+  await expect(combobox).toHaveAttribute("aria-expanded", "true");
+  await expect(combobox).toHaveAttribute("aria-autocomplete", "list");
+  await expect(combobox).toHaveAttribute("aria-required", "true");
+
+  let listbox = getSolicitudClienteListbox(dialog);
+
+  await expect(listbox).toBeVisible();
+  const controlsId = await combobox.getAttribute("aria-controls");
+
+  expect(controlsId).toBeTruthy();
+  await expect(listbox).toHaveAttribute("id", controlsId as string);
+  await expect(getSolicitudClienteOption(dialog, "Sin cliente asociado"))
+    .toHaveCount(0);
+  await expect(listbox.getByText(/Cargando/i)).toHaveCount(0);
+  await expect(async () => {
+    const optionCount = await listbox.getByRole("option").count();
+
+    expect(optionCount).toBeGreaterThanOrEqual(1);
+    expect(optionCount).toBeLessThanOrEqual(20);
+  }).toPass({ timeout: 10_000 });
+
+  const openButtonBox = await getRequiredBox(associateButton);
+  const openListboxBox = await getRequiredBox(listbox);
+
+  expect(Math.abs(openButtonBox.y - initialButtonBox.y))
+    .toBeLessThanOrEqual(buttonAlignmentTolerance);
+  expect(openButtonBox.x).toBeGreaterThan(inputBox.x + inputBox.width - 1);
+  expect(openButtonBox.y).toBeLessThan(openListboxBox.y);
+
+  await combobox.press("ArrowDown");
+  const arrowActiveDescendant =
+    await combobox.getAttribute("aria-activedescendant");
+
+  expect(arrowActiveDescendant).toBeTruthy();
+  await combobox.press("End");
+  expect(await combobox.getAttribute("aria-activedescendant")).toBeTruthy();
+  await combobox.press("Home");
+  await expect(combobox).toHaveAttribute("aria-activedescendant", /-option-0$/);
+  await combobox.press("Escape");
+  await expect(combobox).toHaveAttribute("aria-expanded", "false");
+  await expect(combobox).toBeFocused();
+
+  await associateButton.click();
+  await expect(dialog).toBeVisible();
+  await expect(combobox).toBeFocused();
+  expect(await combobox.evaluate((input) =>
+    (input as HTMLInputElement).validationMessage,
+  )).toContain("Selecciona una opcion de la lista.");
+  await expect(hiddenInput).toHaveValue("");
+
+  const freeTextQuery = `zz-selector-${runId}`;
+  const freeTextResponsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+
+    return (
+      url.pathname === "/api/internal/selectors/clientes" &&
+      url.searchParams.get("q") === freeTextQuery
+    );
+  });
+
+  await combobox.fill(freeTextQuery);
+  await freeTextResponsePromise;
+  await associateButton.click();
+  await expect(dialog).toBeVisible();
+  await expect(hiddenInput).toHaveValue("");
+  expect(await combobox.evaluate((input) =>
+    (input as HTMLInputElement).validationMessage,
+  )).toContain("Selecciona una opcion de la lista.");
+  await expect(dialog.getByText(/cliente asociado correctamente/i))
+    .toHaveCount(0);
+
+  const emailResponsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+
+    return (
+      url.pathname === "/api/internal/selectors/clientes" &&
+      url.searchParams.get("q") === selectorClienteAEmail
+    );
+  });
+
+  await combobox.fill(selectorClienteAEmail);
+  await emailResponsePromise;
+  await expect(getSolicitudClienteOption(dialog, selectorClienteAName))
+    .toBeVisible();
+
+  const searchedButtonBox = await getRequiredBox(associateButton);
+
+  expect(Math.abs(searchedButtonBox.y - initialButtonBox.y))
+    .toBeLessThanOrEqual(buttonAlignmentTolerance);
+  expect(searchedButtonBox.x).toBeGreaterThan(inputBox.x + inputBox.width - 1);
+
+  const phoneResponsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+
+    return (
+      url.pathname === "/api/internal/selectors/clientes" &&
+      url.searchParams.get("q") === selectorClienteAPhone
+    );
+  });
+
+  await combobox.fill(selectorClienteAPhone);
+  await phoneResponsePromise;
+  await expect(getSolicitudClienteOption(dialog, selectorClienteAName))
+    .toBeVisible();
+
+  const nameResponsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+
+    return (
+      url.pathname === "/api/internal/selectors/clientes" &&
+      url.searchParams.get("q") === selectorClienteAName
+    );
+  });
+
+  await combobox.fill(selectorClienteAName);
+  await nameResponsePromise;
+  listbox = getSolicitudClienteListbox(dialog);
+  const firstOptionText = await listbox.getByRole("option").first().innerText();
+
+  expect(firstOptionText).toContain(selectorClienteAName);
+  await expect(combobox).toHaveAttribute("aria-activedescendant", /-option-0$/);
+  await expect(dialog.locator('[aria-live="polite"]')).toBeVisible();
+  await expect(getSolicitudClienteOption(dialog, selectorClienteAName))
+    .toBeVisible();
+  await combobox.press("Enter");
+  await expect(combobox).toHaveValue(selectorClienteAName);
+  await expect(combobox).toHaveAttribute("aria-expanded", "false");
+  await expect(combobox).toBeFocused();
+
+  const selectedClienteAId = await hiddenInput.inputValue();
+
+  expect(selectedClienteAId).toMatch(uuidPattern);
+  await associateButton.click();
+  await expect(
+    dialog.getByText(/cliente asociado correctamente/i),
+  ).toBeVisible({ timeout: 15_000 });
+
+  const clienteBlock = dialog.getByRole("region", {
+    name: /^cliente asociado$/i,
+  });
+
+  await expect(clienteBlock.getByText(selectorClienteAName)).toBeVisible();
+  await expect(clienteBlock.getByText(selectorClienteAPhone)).toBeVisible();
+  await expect(clienteBlock.getByText(selectorClienteAEmail)).toBeVisible();
+
+  const clienteALink = clienteBlock.getByRole("link", { name: /ver cliente/i });
+
+  await expect(clienteALink).toBeVisible();
+  await expect(clienteALink).toHaveAttribute(
+    "href",
+    `/dashboard/clientes/${selectedClienteAId}`,
+  );
+  await expect(combobox).toHaveValue(selectorClienteAName);
+  await expect(hiddenInput).toHaveValue(selectedClienteAId);
+
+  const updateButton = dialog.getByRole("button", {
+    name: /^actualizar cliente$/i,
+  });
+
+  await expect(updateButton).toBeVisible();
+  const selectedAResponsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+
+    return (
+      url.pathname === "/api/internal/selectors/clientes" &&
+      url.searchParams.get("q") === selectorClienteAName
+    );
+  });
+
+  await combobox.click();
+  await selectedAResponsePromise;
+  await expect(getSolicitudClienteOption(dialog, selectorClienteAName))
+    .toHaveAttribute("aria-selected", "true");
+
+  const clienteBResponsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+
+    return (
+      url.pathname === "/api/internal/selectors/clientes" &&
+      url.searchParams.get("q") === selectorClienteBName
+    );
+  });
+
+  await combobox.fill(selectorClienteBName);
+  await clienteBResponsePromise;
+  await expect(getSolicitudClienteOption(dialog, selectorClienteBName))
+    .toBeVisible();
+  await expect(combobox).toHaveAttribute("aria-activedescendant", /-option-0$/);
+  await combobox.press("Enter");
+  await expect(combobox).toHaveValue(selectorClienteBName);
+
+  const selectedClienteBId = await hiddenInput.inputValue();
+
+  expect(selectedClienteBId).toMatch(uuidPattern);
+  expect(selectedClienteBId).not.toBe(selectedClienteAId);
+  await updateButton.click();
+  await expect(
+    dialog.getByText(/cliente asociado correctamente/i),
+  ).toBeVisible({ timeout: 15_000 });
+  await expect(clienteBlock.getByText(selectorClienteBName)).toBeVisible();
+  await expect(clienteBlock.getByText(selectorClienteAName)).toHaveCount(0);
+  await expect(clienteBlock.getByText(selectorClienteBPhone)).toBeVisible();
+  await expect(clienteBlock.getByText(selectorClienteBEmail)).toBeVisible();
+
+  const clienteBLink = clienteBlock.getByRole("link", { name: /ver cliente/i });
+
+  await expect(clienteBLink).toHaveAttribute(
+    "href",
+    `/dashboard/clientes/${selectedClienteBId}`,
+  );
+  await expect(combobox).toHaveValue(selectorClienteBName);
+  await expect(hiddenInput).toHaveValue(selectedClienteBId);
+  await expect(updateButton).toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(selectorDetailUrl);
+  await expectNoHorizontalOverflow(page);
+  const mobileDialog = await openSolicitudPanel(page, /^cliente$/i, /cliente/i);
+  const mobileCombobox = getSolicitudClienteCombobox(mobileDialog);
+  const mobileHiddenInput = getSolicitudClienteHiddenInput(mobileDialog);
+  const mobileUpdateButton = mobileDialog.getByRole("button", {
+    name: /^actualizar cliente$/i,
+  });
+
+  await expect(mobileCombobox).toBeVisible();
+  await expect(mobileCombobox).toHaveValue(selectorClienteBName);
+  await expect(mobileHiddenInput).toHaveValue(selectedClienteBId);
+  await expect(mobileUpdateButton).toBeVisible();
+
+  const mobileInputBox = await getRequiredBox(mobileCombobox);
+  const mobileButtonBox = await getRequiredBox(mobileUpdateButton);
+  const mobileDialogBox = await getRequiredBox(mobileDialog);
+
+  expect(mobileButtonBox.y).toBeGreaterThan(mobileInputBox.y);
+  expect(mobileButtonBox.width).toBeGreaterThanOrEqual(
+    mobileDialogBox.width - 48,
+  );
+  await mobileCombobox.focus();
+  const mobileListbox = getSolicitudClienteListbox(mobileDialog);
+
+  await expect(mobileListbox).toBeVisible();
+
+  const mobileListboxBox = await getRequiredBox(mobileListbox);
+
+  expect(mobileListboxBox.x).toBeGreaterThanOrEqual(mobileDialogBox.x - 1);
+  expect(mobileListboxBox.x + mobileListboxBox.width).toBeLessThanOrEqual(
+    mobileDialogBox.x + mobileDialogBox.width + 1,
+  );
+  await expectNoHorizontalOverflow(page);
+  await expectNoTechnicalLeakText(page);
+});
+
 test("admin can manage solicitud workspace panels end to end", async ({
   page,
 }) => {
@@ -557,9 +983,30 @@ test("admin can manage solicitud workspace panels end to end", async ({
 
   await expect(associatedClienteDialog.getByText(encargoName).first())
     .toBeVisible();
+  const associatedClienteCombobox = getSolicitudClienteCombobox(
+    associatedClienteDialog,
+  );
+  const associatedClienteHiddenInput = getSolicitudClienteHiddenInput(
+    associatedClienteDialog,
+  );
+  const associatedClienteId = await associatedClienteHiddenInput.inputValue();
+  const associatedClienteLink = associatedClienteDialog.getByRole("link", {
+    name: /ver cliente/i,
+  });
+
+  expect(associatedClienteId).toMatch(uuidPattern);
+  await expect(associatedClienteCombobox).toHaveValue(encargoName);
+  await expect(associatedClienteHiddenInput).toHaveValue(associatedClienteId);
   await expect(
-    associatedClienteDialog.getByRole("link", { name: /ver cliente/i }),
+    associatedClienteDialog.getByRole("button", {
+      name: /^actualizar cliente$/i,
+    }),
   ).toBeVisible();
+  await expect(associatedClienteLink).toBeVisible();
+  await expect(associatedClienteLink).toHaveAttribute(
+    "href",
+    `/dashboard/clientes/${associatedClienteId}`,
+  );
   await associatedClienteDialog.getByRole("button", { name: /cerrar/i }).click();
   await expect(associatedClienteDialog).toBeHidden();
   await expectDesktopTrigger(

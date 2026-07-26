@@ -1,4 +1,9 @@
 export {
+  AsyncCombobox,
+  type AsyncComboboxOption,
+  type AsyncComboboxProps,
+} from "./AsyncCombobox";
+export {
   InternalFormDialog,
   type InternalFormDialogProps,
 } from "./InternalFormDialog";

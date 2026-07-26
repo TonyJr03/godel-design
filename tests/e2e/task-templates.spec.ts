@@ -80,6 +80,29 @@ async function expectBefore(first: Locator, second: Locator) {
     .toBe(true);
 }
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+async function getRequiredBox(locator: Locator) {
+  const box = await locator.boundingBox();
+
+  expect(box).not.toBeNull();
+
+  return box as NonNullable<typeof box>;
+}
+
+async function expectNoLocatorHorizontalOverflow(locator: Locator) {
+  const dimensions = await locator.evaluate((element) => ({
+    clientWidth: (element as HTMLElement).clientWidth,
+    scrollWidth: (element as HTMLElement).scrollWidth,
+  }));
+
+  expect(dimensions.scrollWidth).toBeLessThanOrEqual(
+    dimensions.clientWidth + 1,
+  );
+}
+
 async function openPedidoPanel(
   page: Page,
   name: RegExp,
@@ -104,13 +127,6 @@ async function openPedidoPanel(
   await expect(page.getByRole("dialog")).toHaveCount(1);
 
   return dialog;
-}
-
-async function getPedidoTaskItem(page: Page, title: string) {
-  return (await openPedidoPanel(page, /^tareas$/i, /tareas/i))
-    .locator("li")
-    .filter({ hasText: title })
-    .first();
 }
 
 async function expectConfigurationHubLoaded(page: Page) {
@@ -294,19 +310,68 @@ async function createManualPedido(
   ).toBeVisible();
 }
 
-async function selectTaskTemplate(page: Page, name: string) {
-  const select = page.getByLabel(/seleccionar plantilla/i);
-  const templateId = await select.evaluate((element, templateNameToFind) => {
-    const htmlSelect = element as HTMLSelectElement;
-    const option = Array.from(htmlSelect.options).find((candidate) =>
-      candidate.textContent?.includes(templateNameToFind),
-    );
+function getTaskTemplateCombobox(tasksPanel: Locator) {
+  return tasksPanel.getByRole("combobox", {
+    name: /seleccionar plantilla/i,
+  });
+}
 
-    return option?.value ?? "";
-  }, name);
+function getTaskTemplateForm(tasksPanel: Locator) {
+  return getTaskTemplateCombobox(tasksPanel).locator("xpath=ancestor::form[1]");
+}
 
-  expect(templateId, `template option for ${name} should exist`).toBeTruthy();
-  await select.selectOption(templateId);
+function getTaskTemplateHiddenInput(tasksPanel: Locator) {
+  return getTaskTemplateForm(tasksPanel).locator(
+    'input[type="hidden"][name="template_id"]',
+  );
+}
+
+function getTaskTemplateListbox(tasksPanel: Locator) {
+  return getTaskTemplateForm(tasksPanel).getByRole("listbox");
+}
+
+function getTaskTemplateOption(tasksPanel: Locator, name: string | RegExp) {
+  const optionName = typeof name === "string"
+    ? new RegExp(escapeRegExp(name), "i")
+    : name;
+
+  return getTaskTemplateForm(tasksPanel).getByRole("option", {
+    name: optionName,
+  });
+}
+
+function getApplyTaskTemplateButton(tasksPanel: Locator) {
+  return getTaskTemplateForm(tasksPanel).getByRole("button", {
+    name: /^aplicar plantilla$/i,
+  });
+}
+
+async function expectTaskTemplateRequestsUsePedidoId(
+  requestUrls: string[],
+  pedidoId: string,
+) {
+  for (const requestUrl of requestUrls) {
+    const url = new URL(requestUrl);
+
+    expect(url.searchParams.get("pedido_id")).toBe(pedidoId);
+  }
+}
+
+async function expectTaskTemplateListboxBelowInput(
+  listbox: Locator,
+  combobox: Locator,
+) {
+  const inputBox = await getRequiredBox(combobox);
+  const listboxBox = await getRequiredBox(listbox);
+  const bottomGap = listboxBox.y - (inputBox.y + inputBox.height);
+
+  expect(listboxBox.y).toBeGreaterThanOrEqual(
+    inputBox.y + inputBox.height + 4,
+  );
+  expect(bottomGap).toBeGreaterThanOrEqual(4);
+  expect(bottomGap).toBeLessThanOrEqual(10);
+
+  return { inputBox, listboxBox, bottomGap };
 }
 
 test("admin can access configuration and non-admin roles are blocked", async ({
@@ -778,18 +843,67 @@ test("admin can navigate between task template pages", async ({ page }) => {
   });
 });
 
-test("admin can apply a template to encargo and impresion has no selector", async ({
+test("admin can apply a template with the async selector and impresion has no selector", async ({
   page,
 }) => {
   test.setTimeout(180_000);
 
+  await page.setViewportSize({ width: 1440, height: 900 });
   await loginAs(page, "admin");
+
+  const forbiddenBackendMessages = [
+    /PGRST103/i,
+    /Requested range not satisfiable/i,
+    /Error checking pedido before task template selector search/i,
+    /Error searching task templates for selector/i,
+    /Unexpected error searching task templates for selector/i,
+    /No se pudieron cargar las plantillas disponibles/i,
+  ];
+  const backendErrors: string[] = [];
+  const taskTemplateSelectorRequests: string[] = [];
+
+  page.on("console", (message) => {
+    const text = message.text();
+
+    if (forbiddenBackendMessages.some((pattern) => pattern.test(text))) {
+      backendErrors.push(text);
+    }
+  });
+
+  page.on("pageerror", (error) => {
+    const text = error.message;
+
+    if (forbiddenBackendMessages.some((pattern) => pattern.test(text))) {
+      backendErrors.push(text);
+    }
+  });
+
+  page.on("request", (request) => {
+    if (
+      request.url().includes(
+        "/api/internal/selectors/plantillas-tareas",
+      )
+    ) {
+      taskTemplateSelectorRequests.push(request.url());
+    }
+  });
 
   await createManualPedido(
     page,
     "encargo",
     `QA Pedido Template Encargo ${runId}`,
   );
+  const pedidoIdMatch = page
+    .url()
+    .match(/\/dashboard\/pedidos\/([0-9a-f-]+)/i);
+  const templateSelectorPedidoId = pedidoIdMatch?.[1] ?? "";
+  const encargoDetailUrl = page.url();
+
+  expect(templateSelectorPedidoId).toMatch(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+  );
+  expect(taskTemplateSelectorRequests).toHaveLength(0);
+
   const tasksPanel = await openPedidoPanel(page, /^tareas$/i, /tareas/i);
   const templateHeading = tasksPanel.getByRole("heading", {
     name: /cargar tareas predeterminadas/i,
@@ -814,7 +928,19 @@ test("admin can apply a template to encargo and impresion has no selector", asyn
   await expect(
     tasksPanel.locator('label[for="task-template-id"]'),
   ).toBeVisible();
-  await expect(tasksPanel.getByLabel(/seleccionar plantilla/i)).toBeVisible();
+  expect(taskTemplateSelectorRequests).toHaveLength(0);
+
+  const combobox = getTaskTemplateCombobox(tasksPanel);
+  const hiddenInput = getTaskTemplateHiddenInput(tasksPanel);
+  const applyButton = getApplyTaskTemplateButton(tasksPanel);
+  const applyForm = getTaskTemplateForm(tasksPanel);
+
+  await expect(combobox).toBeVisible();
+  await expect(applyButton).toBeVisible();
+  await expect(combobox).toHaveValue("");
+  await expect(hiddenInput).toHaveValue("");
+  await expect(combobox).toHaveAttribute("aria-expanded", "false");
+  await expect(getTaskTemplateListbox(tasksPanel)).toHaveCount(0);
   await expect(
     tasksPanel.getByText(/si aplicas la misma plantilla/i),
   ).toHaveCount(0);
@@ -823,20 +949,340 @@ test("admin can apply a template to encargo and impresion has no selector", asyn
   await expectBefore(templateHeading, newTaskHeading);
   await expectBefore(newTaskHeading, registeredTasksHeading);
   await expect(tasksPanel.getByText(/progreso:/i)).toBeVisible();
-  await selectTaskTemplate(page, templateName);
-  await page.getByRole("button", { name: /aplicar plantilla/i }).click();
+
+  const initialInputBox = await getRequiredBox(combobox);
+  const initialButtonBox = await getRequiredBox(applyButton);
+  const initialFormBox = await getRequiredBox(applyForm);
+
+  expect(Math.abs(initialButtonBox.y - initialInputBox.y))
+    .toBeLessThanOrEqual(4);
+  expect(initialButtonBox.x).toBeGreaterThan(
+    initialInputBox.x + initialInputBox.width - 1,
+  );
+
+  const initialResponsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+
+    return (
+      url.pathname === "/api/internal/selectors/plantillas-tareas" &&
+      url.searchParams.get("pedido_id") === templateSelectorPedidoId &&
+      (url.searchParams.get("q") ?? "") === ""
+    );
+  });
+
+  await applyButton.click();
+  await expect(tasksPanel).toBeVisible();
+  await expect(combobox).toBeFocused();
+  await expect(hiddenInput).toHaveValue("");
+  await expect(combobox).toHaveValue("");
+  await expect(
+    tasksPanel.getByText(/se agreg. 1 tarea desde la plantilla/i),
+  ).toHaveCount(0);
+
+  const validationMessage = await combobox.evaluate(
+    (element) => (element as HTMLInputElement).validationMessage,
+  );
+
+  expect(validationMessage).toContain("Selecciona una opcion de la lista.");
+
+  const initialResponse = await initialResponsePromise;
+  const initialBody = (await initialResponse.json()) as {
+    options?: unknown;
+  };
+
+  expect(Array.isArray(initialBody.options)).toBe(true);
+
+  const initialOptions = initialBody.options as Array<Record<string, unknown>>;
+
+  expect(initialOptions.length).toBeGreaterThanOrEqual(1);
+  expect(initialOptions.length).toBeLessThanOrEqual(20);
+
+  for (const option of initialOptions) {
+    expect(Object.keys(option).sort()).toEqual([
+      "description",
+      "label",
+      "value",
+    ]);
+    expect(option.value).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+    expect(typeof option.label).toBe("string");
+    expect((option.label as string).trim()).not.toBe("");
+    expect(option.description).toMatch(/^\d+ tareas?$/);
+    expect(option.description).not.toBe(editedTemplateDescription);
+  }
+
+  await expectTaskTemplateRequestsUsePedidoId(
+    taskTemplateSelectorRequests,
+    templateSelectorPedidoId,
+  );
+  await expect(combobox).toHaveAttribute("aria-expanded", "true");
+  await expect(combobox).toHaveAttribute("aria-autocomplete", "list");
+  await expect(combobox).toHaveAttribute("aria-required", "true");
+
+  let listbox = getTaskTemplateListbox(tasksPanel);
+  const controlsId = await combobox.getAttribute("aria-controls");
+
+  expect(controlsId).toBeTruthy();
+  await expect(listbox).toHaveAttribute("id", controlsId as string);
+  await expect(listbox).toBeVisible();
+  await expect(listbox.getByRole("option")).toHaveCount(initialOptions.length);
+
+  const {
+    inputBox: openInputBox,
+    listboxBox,
+    bottomGap,
+  } = await expectTaskTemplateListboxBelowInput(listbox, combobox);
+  const openButtonBox = await getRequiredBox(applyButton);
+  const openFormBox = await getRequiredBox(applyForm);
+  const dialogBox = await getRequiredBox(tasksPanel);
+
+  expect(Math.abs(openInputBox.y - initialInputBox.y)).toBeLessThanOrEqual(2);
+  expect(Math.abs(openButtonBox.y - initialButtonBox.y)).toBeLessThanOrEqual(2);
+  expect(openFormBox.height).toBeGreaterThan(initialFormBox.height);
+  await expectNoHorizontalOverflow(page);
+  await expectNoLocatorHorizontalOverflow(tasksPanel);
+  await expectNoLocatorHorizontalOverflow(listbox);
+  expect(listboxBox.x).toBeGreaterThanOrEqual(dialogBox.x - 1);
+  expect(listboxBox.x + listboxBox.width).toBeLessThanOrEqual(
+    dialogBox.x + dialogBox.width + 1,
+  );
+
+  await combobox.press("Escape");
+  await expect(combobox).toHaveAttribute("aria-expanded", "false");
+  await combobox.fill("");
+
+  const requestsBeforeShortQuery = taskTemplateSelectorRequests.length;
+  const oneCharacterQuery = templateName.slice(0, 1);
+  const twoCharacterQuery = templateName.slice(0, 2);
+
+  await combobox.fill(oneCharacterQuery);
+  await expect(
+    getTaskTemplateListbox(tasksPanel).getByText(
+      /Escribe al menos 2 caracteres\./i,
+    ),
+  ).toBeVisible();
+
+  const twoCharacterResponsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+
+    return (
+      url.pathname === "/api/internal/selectors/plantillas-tareas" &&
+      url.searchParams.get("pedido_id") === templateSelectorPedidoId &&
+      url.searchParams.get("q") === twoCharacterQuery
+    );
+  });
+
+  await combobox.fill(twoCharacterQuery);
+  await twoCharacterResponsePromise;
+
+  const newRequests = taskTemplateSelectorRequests.slice(
+    requestsBeforeShortQuery,
+  );
+  const searchRequests = newRequests
+    .map((requestUrl) => new URL(requestUrl))
+    .filter((url) => url.searchParams.has("q"));
+
+  expect(searchRequests).toHaveLength(1);
+  expect(searchRequests[0].searchParams.get("q")).toBe(twoCharacterQuery);
+  expect(
+    searchRequests.some(
+      (url) => url.searchParams.get("q") === oneCharacterQuery,
+    ),
+  ).toBe(false);
+  await expect(hiddenInput).toHaveValue("");
+
+  const unmatchedQuery = `zz-template-${runId}`;
+  const unmatchedResponsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+
+    return (
+      url.pathname === "/api/internal/selectors/plantillas-tareas" &&
+      url.searchParams.get("pedido_id") === templateSelectorPedidoId &&
+      url.searchParams.get("q") === unmatchedQuery
+    );
+  });
+
+  await combobox.fill(unmatchedQuery);
+  await unmatchedResponsePromise;
+  await expect(
+    getTaskTemplateListbox(tasksPanel).getByText(
+      /No hay plantillas activas con tareas para esa busqueda\./i,
+    ),
+  ).toBeVisible();
+  await expect(hiddenInput).toHaveValue("");
+  await applyButton.click();
+  await expect(combobox).toBeFocused();
+  await expect(hiddenInput).toHaveValue("");
+  const freeTextValidationMessage = await combobox.evaluate(
+    (element) => (element as HTMLInputElement).validationMessage,
+  );
+
+  expect(freeTextValidationMessage).toContain(
+    "Selecciona una opcion de la lista.",
+  );
+  await expect(
+    tasksPanel.getByText(/se agreg. 1 tarea desde la plantilla/i),
+  ).toHaveCount(0);
+
+  const focalResponsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+
+    return (
+      url.pathname === "/api/internal/selectors/plantillas-tareas" &&
+      url.searchParams.get("pedido_id") === templateSelectorPedidoId &&
+      url.searchParams.get("q") === templateName
+    );
+  });
+
+  await combobox.fill(templateName);
+  await focalResponsePromise;
+
+  listbox = getTaskTemplateListbox(tasksPanel);
+  const focalOption = getTaskTemplateOption(tasksPanel, templateName);
+
+  await expect(focalOption).toHaveCount(1);
+  await expect(focalOption).toBeVisible();
+  await expect(focalOption.locator("span").first()).toHaveText(templateName);
+  await expect(focalOption.locator("span").nth(1)).toHaveText("1 tarea");
+  await expect(combobox).toHaveAttribute(
+    "aria-activedescendant",
+    /-option-0$/,
+  );
+  await expectTaskTemplateListboxBelowInput(listbox, combobox);
+
+  await combobox.press("Enter");
+  await expect(combobox).toHaveValue(templateName);
+  await expect(combobox).toHaveAttribute("aria-expanded", "false");
+  await expect(combobox).toBeFocused();
+
+  const selectedTemplateId = await hiddenInput.inputValue();
+
+  expect(selectedTemplateId).toMatch(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+  );
+
+  await combobox.click();
+  await expect(getTaskTemplateOption(tasksPanel, templateName)).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await combobox.press("Escape");
+
+  await expect(
+    tasksPanel.locator("li").filter({ hasText: quantifiedTaskTitle }),
+  ).toHaveCount(0);
+  await applyButton.click();
   await expect(tasksPanel).toBeVisible();
   await expect(
     tasksPanel.getByText(/se agreg. 1 tarea desde la plantilla/i),
   ).toBeVisible({ timeout: 15_000 });
-  await expect(tasksPanel.getByText(quantifiedTaskTitle)).toBeVisible({
-    timeout: 15_000,
-  });
-  await expectBefore(newTaskHeading, registeredTasksHeading);
-  await page.reload();
-  const copiedTask = await getPedidoTaskItem(page, quantifiedTaskTitle);
-  await expect(copiedTask).toBeVisible();
+  const copiedTaskRows = tasksPanel
+    .locator("li")
+    .filter({ hasText: quantifiedTaskTitle });
 
+  await expect(copiedTaskRows).toHaveCount(1, { timeout: 15_000 });
+  await expect(copiedTaskRows.first()).toContainText(
+    /0\s+de\s+10\s+(?:\S+\s+)?Pendiente/i,
+  );
+  await expect(combobox).toHaveValue("");
+  await expect(hiddenInput).toHaveValue("");
+  await expect(combobox).toHaveAttribute("aria-expanded", "false");
+  await expect(combobox.locator("xpath=parent::*").locator(".animate-spin"))
+    .toHaveCount(0);
+  await expect(applyButton).toBeEnabled();
+  await expectBefore(newTaskHeading, registeredTasksHeading);
+
+  const secondFocalResponsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+
+    return (
+      url.pathname === "/api/internal/selectors/plantillas-tareas" &&
+      url.searchParams.get("pedido_id") === templateSelectorPedidoId &&
+      url.searchParams.get("q") === templateName
+    );
+  });
+
+  await combobox.focus();
+  await combobox.fill(templateName);
+  await secondFocalResponsePromise;
+  await expect(getTaskTemplateOption(tasksPanel, templateName)).toBeVisible();
+  await combobox.press("Enter");
+  await expect(hiddenInput).toHaveValue(selectedTemplateId);
+  await applyButton.click();
+  await expect(
+    tasksPanel.getByText(/se agreg. 1 tarea desde la plantilla/i),
+  ).toBeVisible({ timeout: 15_000 });
+  await expect(copiedTaskRows).toHaveCount(2, { timeout: 15_000 });
+  await expect(combobox).toHaveValue("");
+  await expect(hiddenInput).toHaveValue("");
+  await expect(combobox).toHaveAttribute("aria-expanded", "false");
+  await expect(combobox.locator("xpath=parent::*").locator(".animate-spin"))
+    .toHaveCount(0);
+  await expect(applyButton).toBeEnabled();
+
+  await expectTaskTemplateRequestsUsePedidoId(
+    taskTemplateSelectorRequests,
+    templateSelectorPedidoId,
+  );
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(encargoDetailUrl);
+  const mobileTasksPanel = await openPedidoPanel(page, /^tareas$/i, /tareas/i);
+  const mobileCombobox = getTaskTemplateCombobox(mobileTasksPanel);
+  const mobileHiddenInput = getTaskTemplateHiddenInput(mobileTasksPanel);
+  const mobileApplyButton = getApplyTaskTemplateButton(mobileTasksPanel);
+  const mobileApplyForm = getTaskTemplateForm(mobileTasksPanel);
+
+  await expect(mobileCombobox).toBeVisible();
+  await expect(mobileApplyButton).toBeVisible();
+  await expect(mobileHiddenInput).toHaveValue("");
+
+  const mobileInitialInputBox = await getRequiredBox(mobileCombobox);
+  const mobileInitialButtonBox = await getRequiredBox(mobileApplyButton);
+  const mobileInitialFormBox = await getRequiredBox(mobileApplyForm);
+
+  expect(mobileInitialButtonBox.y).toBeGreaterThan(
+    mobileInitialInputBox.y + mobileInitialInputBox.height - 1,
+  );
+  expect(mobileInitialButtonBox.width).toBeGreaterThanOrEqual(
+    mobileInitialFormBox.width - 4,
+  );
+  await expectNoHorizontalOverflow(page);
+
+  const mobileFocalResponsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+
+    return (
+      url.pathname === "/api/internal/selectors/plantillas-tareas" &&
+      url.searchParams.get("pedido_id") === templateSelectorPedidoId &&
+      url.searchParams.get("q") === templateName
+    );
+  });
+
+  await mobileCombobox.focus();
+  await mobileCombobox.fill(templateName);
+  await mobileFocalResponsePromise;
+
+  const mobileListbox = getTaskTemplateListbox(mobileTasksPanel);
+  const { listboxBox: mobileListboxBox } =
+    await expectTaskTemplateListboxBelowInput(mobileListbox, mobileCombobox);
+  const mobileDialogBox = await getRequiredBox(mobileTasksPanel);
+
+  await expect(mobileListbox).toBeVisible();
+  expect(mobileListboxBox.x).toBeGreaterThanOrEqual(mobileDialogBox.x - 1);
+  expect(mobileListboxBox.x + mobileListboxBox.width).toBeLessThanOrEqual(
+    mobileDialogBox.x + mobileDialogBox.width + 1,
+  );
+  await expectNoHorizontalOverflow(page);
+  await expectNoLocatorHorizontalOverflow(mobileTasksPanel);
+  await expectNoLocatorHorizontalOverflow(mobileListbox);
+  await expect(getTaskTemplateOption(mobileTasksPanel, templateName))
+    .toBeVisible();
+  await expect(getTaskTemplateOption(mobileTasksPanel, /1 tarea/i))
+    .toBeVisible();
+
+  const requestsBeforeImpresion = taskTemplateSelectorRequests.length;
   await createManualPedido(
     page,
     "impresion",
@@ -856,6 +1302,25 @@ test("admin can apply a template to encargo and impresion has no selector", asyn
     page.getByRole("heading", { name: /cargar tareas predeterminadas/i }),
   ).toHaveCount(0);
   await expect(
+    page.getByRole("combobox", { name: /seleccionar plantilla/i }),
+  ).toHaveCount(0);
+  await expect(
+    page.locator('input[type="hidden"][name="template_id"]'),
+  ).toHaveCount(0);
+  await expect(
     page.getByRole("button", { name: /aplicar plantilla/i }),
   ).toHaveCount(0);
+  expect(taskTemplateSelectorRequests).toHaveLength(requestsBeforeImpresion);
+  expect(backendErrors).toEqual([]);
+
+  console.info(
+    [
+      `[task template selector] pedidoId=${templateSelectorPedidoId}`,
+      `initialOptions=${initialOptions.length}`,
+      `template=${templateName}`,
+      `templateTasks=1`,
+      `templateId=${selectedTemplateId}`,
+      `bottomGap=${bottomGap}`,
+    ].join(" "),
+  );
 });

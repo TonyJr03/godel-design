@@ -50,7 +50,6 @@ type InternalSolicitudDetailProps = {
   historyLoadError?: string;
   historyLoadRetryable?: boolean;
   clienteDetailLoadError?: string;
-  clientesListLoadError?: string;
 };
 
 type WorkspaceActionState = Pick<WorkspaceAction, "tone" | "statusLabel">;
@@ -95,23 +94,14 @@ function getStatusActionState(flow: SolicitudStatusFlow): WorkspaceActionState {
 function getClienteActionState({
   solicitud,
   clienteDetailLoadError,
-  clientesListLoadError,
 }: {
   solicitud: InternalSolicitudDetailData;
   clienteDetailLoadError?: string;
-  clientesListLoadError?: string;
 }): WorkspaceActionState {
   if (clienteDetailLoadError) {
     return {
       tone: "danger",
       statusLabel: "No se pudo cargar el cliente",
-    };
-  }
-
-  if (clientesListLoadError) {
-    return {
-      tone: "warning",
-      statusLabel: "Listado de clientes no disponible",
     };
   }
 
@@ -183,7 +173,6 @@ export function InternalSolicitudDetail({
   historyLoadError,
   historyLoadRetryable = false,
   clienteDetailLoadError,
-  clientesListLoadError,
 }: InternalSolicitudDetailProps) {
   const compactActionIds = ["estado", "cliente", "conversion"];
   const statusFlow = getSolicitudStatusFlow(solicitud.status);
@@ -219,7 +208,6 @@ export function InternalSolicitudDetail({
       ...getClienteActionState({
         solicitud,
         clienteDetailLoadError,
-        clientesListLoadError,
       }),
     },
     {

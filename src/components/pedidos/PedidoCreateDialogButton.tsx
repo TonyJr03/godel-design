@@ -5,23 +5,16 @@ import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 
 import { InternalFormDialog } from "@/components/forms";
-import { ReadErrorAlert } from "@/components/ui/ReadErrorAlert";
 import type { PedidoPrioridad } from "@/lib/pedidos";
 
-import { PedidoForm, type PedidoFormCliente } from "./PedidoForm";
+import { PedidoForm } from "./PedidoForm";
 
 type PedidoCreateDialogButtonProps = {
-  clientes: PedidoFormCliente[];
   prioridades: readonly PedidoPrioridad[];
-  clientesLoadError?: string;
-  clientesLoadRetryable?: boolean;
 };
 
 export function PedidoCreateDialogButton({
-  clientes,
   prioridades,
-  clientesLoadError,
-  clientesLoadRetryable = false,
 }: PedidoCreateDialogButtonProps) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
@@ -62,22 +55,11 @@ export function PedidoCreateDialogButton({
       >
         {isOpen ? (
           <div className="space-y-4">
-            {clientesLoadError ? (
-              <ReadErrorAlert
-                variant="warning"
-                title="No se pudieron cargar los clientes"
-                retryable={clientesLoadRetryable}
-              >
-                <p>{clientesLoadError}</p>
-              </ReadErrorAlert>
-            ) : (
-              <PedidoForm
-                clientes={clientes}
-                prioridades={prioridades}
-                onDirtyChange={setHasUnsavedChanges}
-                onSuccess={handleSuccess}
-              />
-            )}
+            <PedidoForm
+              prioridades={prioridades}
+              onDirtyChange={setHasUnsavedChanges}
+              onSuccess={handleSuccess}
+            />
           </div>
         ) : null}
       </InternalFormDialog>

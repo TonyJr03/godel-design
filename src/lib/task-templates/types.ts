@@ -34,13 +34,6 @@ export type TaskTemplateTask = Pick<
   | "updated_at"
 >;
 
-export type ActiveTaskTemplateForOrder = Pick<
-  Tables<"trabajo_plantillas">,
-  "id" | "name" | "description"
-> & {
-  tasksCount: number;
-};
-
 export type TaskTemplateField = "name" | "description";
 
 export type TaskTemplateFieldErrors = Partial<
@@ -188,10 +181,6 @@ export type ReorderTaskTemplateTaskErrorReason =
   | "invalid_id"
   | "validation"
   | "not_found"
-  | "error";
-
-export type ListActiveTaskTemplatesForOrderErrorReason =
-  | "unauthorized"
   | "error";
 
 export type ApplyTaskTemplateToPedidoErrorReason =
