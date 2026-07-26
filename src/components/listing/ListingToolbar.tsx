@@ -198,24 +198,26 @@ export function ListingToolbar({
       </div>
 
       {activeFilterCount > 0 ? (
-        <div className="mt-3">
+        <div className="mt-2">
           <ActiveFilterChips
             filters={activeFilters}
             clearLabel={clearLabel}
             disabled={isPending}
+            isPending={isPending}
             onClear={clearFilters}
             onRemoveFilter={removeFilter}
           />
         </div>
       ) : null}
 
-      <p
-        className="mt-2 min-h-5 text-xs font-medium text-text-muted"
+      <span
+        className="sr-only size-0"
         role="status"
         aria-live="polite"
+        aria-atomic="true"
       >
         {isPending ? "Actualizando resultados..." : ""}
-      </p>
+      </span>
     </section>
   );
 }

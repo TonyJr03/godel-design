@@ -14,21 +14,23 @@ export function ListingPageHeader({
   toolbar,
 }: ListingPageHeaderProps) {
   return (
-    <header className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-3 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-start lg:gap-x-3 lg:gap-y-2">
-      <h1 className="col-start-1 row-start-1 min-w-0 max-w-3xl text-3xl font-semibold tracking-tight text-text-primary">
-        {title}
-      </h1>
+    <header className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-3 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-start lg:gap-x-3">
+      <div className="col-start-1 row-start-1 min-w-0 max-w-3xl">
+        <h1 className="min-w-0 text-3xl font-semibold tracking-tight text-text-primary">
+          {title}
+        </h1>
+
+        {description ? (
+          <p className="mt-3 min-w-0 text-sm leading-6 text-text-secondary sm:text-base sm:leading-7">
+            {description}
+          </p>
+        ) : null}
+      </div>
 
       {action ? (
         <div className="col-start-2 row-start-1 shrink-0 justify-self-end lg:col-start-3">
           {action}
         </div>
-      ) : null}
-
-      {description ? (
-        <p className="col-span-2 min-w-0 max-w-3xl text-sm leading-6 text-text-secondary sm:text-base sm:leading-7 lg:col-span-1 lg:col-start-1 lg:row-start-2">
-          {description}
-        </p>
       ) : null}
 
       {toolbar ? (
