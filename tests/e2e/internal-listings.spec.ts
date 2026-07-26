@@ -147,7 +147,9 @@ function getVisibleSearchInput(page: Page) {
 }
 
 function getVisibleFiltersTrigger(page: Page) {
-  return page.locator("summary:visible").filter({ hasText: /^filtros/i });
+  return page.getByRole("button", {
+    name: /^filtros(?:, \d+ activos?)?$/i,
+  });
 }
 
 async function expectListingContract(page: Page, contract: ListingContract) {
@@ -239,7 +241,7 @@ async function expectListingHeaderControls(
   await expect(page.locator('input[name="q"]')).toHaveCount(1);
   await expect(page.getByLabel(contract.searchLabel)).toBeVisible();
 
-  const filterTriggers = page.locator("summary").filter({ hasText: /^filtros/i });
+  const filterTriggers = getVisibleFiltersTrigger(page);
 
   await expect(filterTriggers).toHaveCount(contract.hasFilters ? 1 : 0);
 
@@ -252,6 +254,27 @@ async function expectListingHeaderControls(
   }
 
   await expectNoHorizontalOverflow(page);
+}
+
+async function expectFiltersPopoverDismissal(page: Page) {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.goto("/dashboard/pedidos");
+
+  const trigger = getVisibleFiltersTrigger(page);
+  const panel = page.getByRole("dialog", { name: /^filtros$/i });
+
+  await expect(trigger).toBeVisible();
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+
+  await trigger.click();
+
+  await expect(trigger).toHaveAttribute("aria-expanded", "true");
+  await expect(panel).toBeVisible();
+
+  await page.keyboard.press("Escape");
+
+  await expect(panel).toBeHidden();
+  await expect(trigger).toBeFocused();
 }
 
 test.describe("internal operational listings", () => {
@@ -288,5 +311,11 @@ test.describe("internal operational listings", () => {
         await expectListingHeaderControls(page, contract);
       }
     }
+  });
+
+  test("filters popover opens and restores focus on Escape", async ({
+    page,
+  }) => {
+    await expectFiltersPopoverDismissal(page);
   });
 });

@@ -1,10 +1,11 @@
 "use client";
 
 import { useId, useMemo, useTransition } from "react";
-import { Search, SlidersHorizontal } from "lucide-react";
+import { Search } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { ActiveFilterChips } from "./ActiveFilterChips";
+import { ListingFilterPopover } from "./ListingFilterPopover";
 import type { ActiveListingFilter, ListingFilterConfig } from "./types";
 
 export type ListingToolbarProps = {
@@ -69,8 +70,9 @@ export function ListingToolbar({
   }, [currentQuery, filters]);
 
   const activeFilterCount = activeFilters.length;
-  const filtersLabel =
-    activeFilterCount > 0 ? `Filtros ${activeFilterCount}` : "Filtros";
+  const activeFacetCount = filters.filter((filter) =>
+    Boolean(filter.value),
+  ).length;
 
   function replaceSearchParams(nextParams: URLSearchParams) {
     const queryString = nextParams.toString();
@@ -146,7 +148,7 @@ export function ListingToolbar({
 
   return (
     <section aria-label="Búsqueda y filtros" aria-busy={isPending}>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+      <div className="flex items-start gap-2">
         <form
           className="min-w-0 flex-1"
           role="search"
@@ -185,57 +187,13 @@ export function ListingToolbar({
         </form>
 
         {filters.length > 0 ? (
-          <details className="group relative sm:w-auto">
-            <summary className="inline-flex min-h-11 w-full cursor-pointer list-none items-center justify-center gap-2 rounded-(--radius-control) border border-border-strong bg-surface px-3 text-sm font-semibold text-text-primary transition-colors duration-200 hover:border-brand-primary hover:bg-brand-primary-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:w-auto [&::-webkit-details-marker]:hidden">
-              <SlidersHorizontal className="size-4" aria-hidden="true" />
-              <span>{filtersLabel}</span>
-            </summary>
-
-            <div className="mt-2 w-full rounded-(--radius-card) border border-border bg-surface p-3 shadow-(--shadow-soft) sm:absolute sm:right-0 sm:z-20 sm:w-72">
-              <div className="space-y-3">
-                {filters.map((filter) => {
-                  const filterId = `${toolbarId}-filter-${filter.name}`;
-
-                  return (
-                    <div key={filter.name}>
-                      <label
-                        htmlFor={filterId}
-                        className="block text-xs font-semibold text-text-secondary"
-                      >
-                        {filter.label}
-                      </label>
-                      <select
-                        id={filterId}
-                        value={filter.value}
-                        disabled={isPending}
-                        onChange={(event) =>
-                          updateFilter(filter.name, event.target.value)
-                        }
-                        className="mt-1 min-h-11 w-full rounded-(--radius-control) border border-border-strong bg-surface px-3 text-sm text-text-primary transition-colors duration-200 hover:border-brand-primary focus:border-brand-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted"
-                      >
-                        {filter.options.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {activeFilterCount > 0 ? (
-                <button
-                  type="button"
-                  onClick={clearFilters}
-                  disabled={isPending}
-                  className="mt-3 inline-flex min-h-10 w-full cursor-pointer items-center justify-center rounded-(--radius-control) border border-border-strong bg-surface px-3 text-sm font-semibold text-brand-primary transition-colors duration-200 hover:border-brand-primary hover:bg-brand-primary-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {clearLabel}
-                </button>
-              ) : null}
-            </div>
-          </details>
+          <ListingFilterPopover
+            filters={filters}
+            activeFacetCount={activeFacetCount}
+            disabled={isPending}
+            idPrefix={toolbarId}
+            onFilterChange={updateFilter}
+          />
         ) : null}
       </div>
 
