@@ -32,8 +32,8 @@ tareas normales del pedido.
 - `update-task-template-task.ts`: edicion de tarea de plantilla.
 - `delete-task-template-task.ts`: eliminacion y normalizacion de orden.
 - `reorder-task-template-task.ts`: movimiento arriba/abajo.
-- `list-active-task-templates-for-order.ts`: selector de plantillas activas con
-  tareas para pedidos.
+- `search-active-task-templates-for-selector.ts`: busqueda asincrona de
+  plantillas activas con tareas para el selector de detalle de pedido.
 - `apply-task-template-to-pedido.ts`: aplicacion transaccional mediante RPC.
 
 ## Contratos y validaciones
@@ -43,7 +43,6 @@ tareas normales del pedido.
 - `TaskTemplateListItem`
 - `TaskTemplateDetail`
 - `TaskTemplateTask`
-- `ActiveTaskTemplateForOrder`
 - inputs de mutacion y aplicacion
 - `TaskTemplateFieldErrors`
 - `TaskTemplateTaskFieldErrors`
@@ -125,8 +124,22 @@ orden.
 
 ## Relacion con Pedidos y workflow_type
 
-`list-active-task-templates-for-order.ts` entrega plantillas activas con al menos
-una tarea para el selector del detalle de pedido.
+`search-active-task-templates-for-selector.ts` entrega opciones reducidas para
+el selector asincrono del detalle de pedido. La busqueda se expone mediante el
+endpoint interno `/api/internal/selectors/plantillas-tareas`, que requiere
+`pedido_id`, normaliza la consulta y delega en el servicio server-side.
+
+El servicio valida UUID, usuario interno activo y acceso al pedido mediante RLS.
+Despues filtra por `workflow_type = encargo`, estado administrable, plantillas
+activas y existencia de tareas con relacion `!inner`. La respuesta enviada al
+navegador se reduce a:
+
+```ts
+{ value, label, description }
+```
+
+La descripcion indica `1 tarea` o `N tareas`. El detalle de pedido no precarga
+plantillas al renderizar; las opciones se cargan bajo demanda desde el selector.
 
 `apply-task-template-to-pedido.ts` valida UUIDs y perfil interno activo, y luego
 llama la RPC `aplicar_plantilla_tareas_pedido`. La copia real a `pedido_tareas`
