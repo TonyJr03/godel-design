@@ -64,6 +64,11 @@ export function WorkspaceContextDialog({
       aria-labelledby={titleId}
       className="fixed inset-x-0 bottom-0 top-auto m-0 hidden max-h-[min(88dvh,42rem)] w-full max-w-none flex-col overflow-hidden rounded-t-(--radius-card) border border-border bg-surface p-0 text-text-primary shadow-(--shadow-soft) backdrop:bg-text-primary/35 open:flex md:inset-y-0 md:left-auto md:right-0 md:my-0 md:ml-auto md:mr-0 md:h-dvh md:max-h-dvh md:w-[min(30rem,calc(100vw-2rem))] md:rounded-l-(--radius-card) md:rounded-tr-none md:border-y-0 md:border-r-0"
       onCancel={onCancel}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) {
+          onRequestClose();
+        }
+      }}
       onClose={onNativeClose}
     >
       <div className="flex min-h-0 flex-1 flex-col">

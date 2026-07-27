@@ -29,7 +29,7 @@ La revisión de los listados actuales de Pedidos y Solicitudes muestra problemas
 - Se mezclan datos primarios y secundarios.
 - Las acciones ocupan una columna innecesaria.
 
-`ListFiltersBar` no se elimina en esta etapa. Queda documentado como patrón a reemplazar gradualmente durante las etapas de implementación.
+El antiguo `ListFiltersBar` fue retirado después de migrar los listados al patrón `ListingPageHeader` + `ListingToolbar` + `ListingFilterPopover` + `ActiveFilterChips`. Esta sección conserva el contexto del problema que motivó el rediseño.
 
 ## 3. Principios de diseño
 
@@ -58,8 +58,8 @@ Página de listado
 │   ├── búsqueda
 │   └── botón de filtros
 ├── Filtros activos
-│   ├── chips compactos
-│   └── limpiar filtros
+│   ├── chips compactos en una línea desplazable
+│   └── acción global icon-only para limpiar
 ├── Resultados
 │   ├── tabla desktop
 │   ├── cards mobile/tablet
@@ -130,46 +130,64 @@ La búsqueda no debe convertir la página completa en Client Component. La UI pu
 
 ## 7. Filtros compactos
 
-Los selectores visibles actuales serán reemplazados por un botón compacto de filtros.
+Los selectores visibles actuales serán reemplazados por un botón compacto de filtros icon-only.
 
 Patrón base:
 
 ```text
-[Buscar...] [Filtros]
+[Buscar...] [botón Filtros]
 ```
 
 El botón de filtros debe:
 
 - abrir un panel o dropdown de filtros;
-- mostrar indicador cuando haya filtros activos;
-- mostrar número si hay más de un filtro activo;
-- permitir limpiar filtros;
+- ser icon-only visualmente, con `aria-label` y `title` explícitos;
+- exponer `aria-expanded`, `aria-controls` y `aria-haspopup="dialog"`;
+- tener target mínimo de 44 x 44 px;
+- mostrar badge flotante decorativo con la cantidad de facetas activas;
+- excluir la búsqueda `q` del contador del badge;
 - ser accesible por teclado.
 
 Ejemplos:
 
 ```text
-Filtros
-Filtros 1
-Filtros 3
+aria-label="Filtros"
+aria-label="Filtros, 1 activo"
+aria-label="Filtros, 3 activos"
 ```
+
+El popover de filtros debe ser compacto, no modal, con `role="dialog"`, nombre accesible, labels asociados a sus selects y cierre mediante el trigger, clic exterior o Escape. Escape devuelve el foco al trigger. El clic exterior cierra el popover sin robar foco artificialmente.
+
+Los selects dentro del popover deben ser compactos. No debe existir un botón interno de limpiar filtros dentro del popover; la limpieza global vive junto a los chips activos.
 
 No se deben introducir librerías externas para este patrón. No se usarán filtros siempre visibles como solución principal.
 
 ## 8. Filtros activos y limpieza
 
-Los filtros activos deben mostrarse como chips compactos solo cuando existan filtros aplicados.
+Los filtros activos deben mostrarse como chips compactos solo cuando existan búsqueda o filtros aplicados.
 
 Ejemplo:
 
 ```text
+Búsqueda: agenda
 Estado: En producción
 Pago: Pendiente
 Tipo: Encargo
-Limpiar filtros
+[botón Limpiar filtros]
 ```
 
-En desktop pueden ir debajo del toolbar si hace falta. En mobile deben mantenerse compactos y no crear un bloque gigante.
+La banda de filtros activos debe:
+
+- vivir debajo del toolbar sin separar el título de su descripción;
+- mantenerse en una sola línea;
+- desplazar internamente los chips cuando no quepan;
+- mantener visible el botón global de limpieza;
+- exponer contenedor `Filtros activos` y lista `Criterios activos`;
+- dar a cada chip una acción `Quitar ...` con nombre accesible.
+
+El botón global de limpieza debe ser icon-only, usar una brocha como icono decorativo y conservar nombre accesible y `title`. Durante una actualización pendiente muestra spinner decorativo, `aria-busy` y cambia su nombre accesible a `Actualizando resultados`.
+
+El estado de actualización de resultados debe anunciarse con `role="status"` no visible y no reservar una fila visual. El desplazamiento de resultados al aparecer la banda debe limitarse a una fila compacta.
 
 La acción de limpieza debe retirar `q`, filtros de entidad y `page` cuando exista paginación futura.
 

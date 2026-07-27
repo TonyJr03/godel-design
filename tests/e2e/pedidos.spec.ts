@@ -217,6 +217,53 @@ async function getRequiredBox(locator: Locator) {
   return box as NonNullable<typeof box>;
 }
 
+async function clickDialogBackdrop(page: Page, dialog: Locator) {
+  const dialogBox = await getRequiredBox(dialog);
+  const viewport = page.viewportSize();
+
+  expect(viewport).not.toBeNull();
+
+  let clickX: number;
+  let clickY: number;
+
+  if (dialogBox.x >= 16) {
+    clickX = Math.max(4, dialogBox.x - 12);
+    clickY = Math.min(
+      viewport!.height - 4,
+      dialogBox.y + Math.min(40, dialogBox.height / 2),
+    );
+  } else if (dialogBox.y >= 16) {
+    clickX = Math.min(
+      viewport!.width - 4,
+      dialogBox.x + dialogBox.width / 2,
+    );
+    clickY = Math.max(4, dialogBox.y - 12);
+  } else {
+    throw new Error(
+      "No exterior viewport area available for dialog backdrop click.",
+    );
+  }
+
+  expect(clickX).toBeGreaterThanOrEqual(0);
+  expect(clickX).toBeLessThanOrEqual(viewport!.width);
+  expect(clickY).toBeGreaterThanOrEqual(0);
+  expect(clickY).toBeLessThanOrEqual(viewport!.height);
+
+  const isOutside =
+    clickX < dialogBox.x ||
+    clickX > dialogBox.x + dialogBox.width ||
+    clickY < dialogBox.y ||
+    clickY > dialogBox.y + dialogBox.height;
+
+  expect(isOutside).toBe(true);
+
+  await page.mouse.click(clickX, clickY);
+}
+
+async function getBodyOverflow(page: Page) {
+  return page.evaluate(() => document.body.style.overflow);
+}
+
 async function expectBadgeInTopRight(button: Locator) {
   const badge = button.locator("[data-workspace-action-badge]");
 
@@ -560,7 +607,7 @@ function getPedidoListLink(page: Page, orderNumber: string) {
 }
 
 function getPedidosFiltersToggle(page: Page) {
-  return page.locator("summary").filter({ hasText: /^Filtros/i });
+  return page.getByRole("button", { name: /^filtros\b/i });
 }
 
 async function hasEmptyPedidosState(page: Page) {
@@ -3104,6 +3151,130 @@ test("pedidos pagination remains usable on mobile", async ({ page }) => {
     await expectPedidosPaginationA11y(page);
   }
 
+  await expectNoHorizontalOverflow(page);
+});
+
+test("pedido workspace drawer closes from backdrop and preserves focus", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+
+  test.skip(!encargoDetailUrl, "The focal encargo pedido was not created.");
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await loginAs(page, "admin");
+  await page.goto(encargoDetailUrl);
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: encargoTitle,
+      exact: true,
+    }),
+  ).toBeVisible();
+
+  const informationTrigger = getRailAction(page, /informaci.n/i);
+  const initialBodyOverflow = await getBodyOverflow(page);
+
+  await expect(informationTrigger).toBeVisible();
+  await informationTrigger.click();
+
+  const informationDialog = page.getByRole("dialog", {
+    name: /^informaci.n$/i,
+  });
+  const informationHeading = informationDialog.getByRole("heading", {
+    name: /^informaci.n$/i,
+  });
+
+  await expect(informationDialog).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(1);
+  await expect(informationHeading).toBeVisible();
+  await expect(informationHeading).toBeFocused();
+  await expect(informationTrigger).toHaveAttribute("aria-pressed", "true");
+  expect(await getBodyOverflow(page)).toBe("hidden");
+
+  await informationHeading.click();
+  await expect(informationDialog).toBeVisible();
+
+  await clickDialogBackdrop(page, informationDialog);
+  await expect(informationDialog).toBeHidden();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(informationTrigger).toBeFocused();
+  await expect(informationTrigger).toHaveAttribute("aria-pressed", "false");
+  await expect(informationTrigger).not.toHaveAttribute("aria-current", "true");
+  expect(await getBodyOverflow(page)).toBe(initialBodyOverflow);
+
+  await informationTrigger.click();
+  await expect(informationDialog).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(1);
+  expect(await getBodyOverflow(page)).toBe("hidden");
+
+  await page.keyboard.press("Escape");
+  await expect(informationDialog).toBeHidden();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(informationTrigger).toBeFocused();
+  expect(await getBodyOverflow(page)).toBe(initialBodyOverflow);
+});
+
+test("pedido mobile more actions bottom sheet closes from backdrop", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+
+  test.skip(!encargoDetailUrl, "The focal encargo pedido was not created.");
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await loginAs(page, "admin");
+  await page.goto(encargoDetailUrl);
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: encargoTitle,
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+
+  const mobileActionBar = page.getByRole("navigation", {
+    name: /acciones del workspace/i,
+  });
+  const moreTrigger = mobileActionBar.getByRole("button", {
+    name: /m.s acciones/i,
+  });
+  const initialBodyOverflow = await getBodyOverflow(page);
+
+  await expect(moreTrigger).toBeVisible();
+  await moreTrigger.click();
+
+  const moreDialog = page.getByRole("dialog", { name: /^m.s acciones$/i });
+  const moreHeading = moreDialog.getByRole("heading", {
+    name: /^m.s acciones$/i,
+  });
+
+  await expect(moreDialog).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(1);
+  await expect(moreHeading).toBeVisible();
+  expect(await getBodyOverflow(page)).toBe("hidden");
+
+  const dialogBox = await getRequiredBox(moreDialog);
+  const viewport = page.viewportSize();
+
+  expect(viewport).not.toBeNull();
+  expect(dialogBox.x).toBeLessThanOrEqual(1);
+  expect(dialogBox.y).toBeGreaterThanOrEqual(16);
+  expect(dialogBox.width).toBeGreaterThanOrEqual(viewport!.width - 2);
+  expect(dialogBox.y + dialogBox.height).toBeLessThanOrEqual(
+    viewport!.height + 2,
+  );
+
+  await moreHeading.click();
+  await expect(moreDialog).toBeVisible();
+
+  await clickDialogBackdrop(page, moreDialog);
+  await expect(moreDialog).toBeHidden();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(moreTrigger).toBeFocused();
+  await expect(moreTrigger).toHaveAttribute("aria-pressed", "false");
+  expect(await getBodyOverflow(page)).toBe(initialBodyOverflow);
   await expectNoHorizontalOverflow(page);
 });
 

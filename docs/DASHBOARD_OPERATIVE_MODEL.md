@@ -317,10 +317,11 @@ Queda fuera del alcance actual:
 
 ## Relación con listados y búsquedas
 
-Los listados de solicitudes, pedidos y clientes usan `ListFiltersBar` para
-sincronizar búsqueda y filtros con la URL. La búsqueda se ejecuta server-side
-tras un debounce de 200 ms; el componente cliente no consulta Supabase. En
-pedidos, RLS limita al trabajador a pedidos asignados.
+Los listados operativos sincronizan búsqueda, filtros y paginación con la URL.
+`ListingToolbar` controla la interacción cliente, `ListingFilterPopover`
+concentra los filtros compactos y las consultas se ejecutan server-side desde
+los servicios correspondientes. Los componentes cliente no consultan Supabase.
+En pedidos, RLS limita al trabajador a pedidos asignados.
 
 ## Cierre
 

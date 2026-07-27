@@ -66,6 +66,10 @@ async function clickFirstVisible(locator: Locator) {
   }).toPass();
 }
 
+function getSolicitudesFiltersToggle(page: Page) {
+  return page.getByRole("button", { name: /^filtros\b/i });
+}
+
 async function openSolicitudPanel(
   page: Page,
   name: RegExp,
@@ -1470,7 +1474,7 @@ test("admin can navigate between solicitudes pages", async ({ page }) => {
   await expectSolicitudesListLoaded(page);
   await expectSolicitudesPaginationA11y(page);
   await expect(getVisibleSearchInput(page)).toBeVisible();
-  await expect(page.getByText(/^Filtros/i)).toBeVisible();
+  await expect(getSolicitudesFiltersToggle(page)).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
   await getPreviousSolicitudPageLink(page).click();
@@ -1565,7 +1569,7 @@ test("solicitud filters remove pagination from the URL", async ({ page }) => {
     .getByRole("region", { name: /b.squeda y filtros/i })
     .first();
 
-  await toolbar.locator("summary").click();
+  await toolbar.getByRole("button", { name: /^filtros\b/i }).click();
   await toolbar.getByLabel(/^tipo$/i).selectOption("encargo");
 
   await expect.poll(async () => {
