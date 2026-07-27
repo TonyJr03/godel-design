@@ -933,8 +933,11 @@ Debe cerrar mediante:
 
 - Botón visible "Cerrar".
 - Tecla Escape.
+- Clic sobre el backdrop del `<dialog>`.
 
-No cerrar por clic accidental en backdrop en la primera versión. El cierre
+El clic dentro de la superficie del panel no debe cerrar el dialog. El clic sobre
+backdrop usa la misma semántica que el botón "Cerrar": solicita el cierre al
+controlador, no cierra directamente desde el componente de dialog. El cierre
 automático después de una acción exitosa queda como evolución futura, fuera del
 alcance inicial.
 
@@ -943,8 +946,12 @@ Al cerrar:
 - Limpiar `activePanel`.
 - Llamar `dialog.close()` si sigue abierto.
 - Devolver foco al trigger.
+- Restaurar el scroll del `body` al valor previo a la apertura.
 - Conservar posición del workspace.
 - No resetear formularios salvo que el formulario actual ya lo haga.
+
+Este contrato aplica igual en drawer desktop/tablet, bottom sheet móvil y la
+vista "Más acciones".
 
 ## 19. Semántica del panel
 
@@ -956,6 +963,9 @@ Requisitos:
 - `aria-labelledby`.
 - Descripción con `aria-describedby` cuando aplique.
 - Botón "Cerrar" con nombre accesible.
+- Cierre por Escape.
+- Cierre por backdrop.
+- Clic interior preservado.
 - Foco visible.
 - Contenido estructurado por headings.
 - Formularios existentes con labels actuales.
@@ -1448,6 +1458,8 @@ Requisitos obligatorios:
 - Navegación completa por teclado.
 - Foco visible.
 - Escape cierra dialog.
+- Clic sobre backdrop cierra dialog.
+- Clic dentro de la superficie del dialog no cierra.
 - Retorno de foco al trigger.
 - Título accesible del dialog.
 - Targets mínimos de 44 px.
@@ -1478,7 +1490,7 @@ comportamiento modal nativo. Al cerrar, vuelve a la acción que lo abrió.
 | --- | --- | --- | --- | --- | --- | --- |
 | WorkspaceShell/Header | Pedido | admin/supervisor/trabajador | encargo/impresion | `pedidos.spec.ts`, `dashboard.spec.ts` | desktop/tablet/móvil | 1440, tablet, 375 |
 | Action rail | Pedido | todos | encargo/impresion | `pedidos.spec.ts` | foco, activo, badges | desktop |
-| Context dialog | Pedido/Solicitud | todos permitidos | ambos | `storage.spec.ts`, `pedidos.spec.ts` | Escape, retorno foco | desktop/móvil |
+| Context dialog | Pedido/Solicitud | todos permitidos | ambos | `storage.spec.ts`, `pedidos.spec.ts` | Escape, backdrop, retorno foco | desktop/móvil |
 | Tareas | Pedido | admin/supervisor/trabajador asignado | encargo | `task-templates.spec.ts`, `pedidos.spec.ts` | crear/editar/progreso | desktop/móvil |
 | Archivos | Pedido/Solicitud | roles permitidos | ambos | `storage.spec.ts` | descarga, subida pedido | desktop/móvil |
 | Solicitud | Solicitud | admin/supervisor | encargo/impresion | `solicitudes-internas.spec.ts` | conversión | desktop/móvil |
@@ -1488,7 +1500,9 @@ comportamiento modal nativo. Al cerrar, vuelve a la acción que lo abrió.
 ## 38. Casos manuales
 
 - Abrir y cerrar cada panel.
+- Cerrar con backdrop.
 - Cerrar con Escape.
+- Confirmar que clic interior no cierra.
 - Verificar retorno de foco.
 - Interactuar con formularios dentro del panel.
 - Ver mensajes de error.

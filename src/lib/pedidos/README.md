@@ -144,7 +144,7 @@ Pedidos. Durante Beta 2.3 el dominio quedó ordenado en subfases pequeñas:
 
 El servicio valida `pedidos.view`, permite buscar por `q`, filtrar por `pedido_estado`, ordena por `created_at`, limita la carga y respeta RLS como defensa final. La búsqueda cubre número de pedido, título, descripción, cliente asociado y referencia o tipo de servicio de la solicitud origen. Las relaciones con cliente y solicitud siguen siendo opcionales, por lo que los pedidos manuales sin cliente no desaparecen.
 
-También carga el progreso agregado de tareas en una consulta adicional por lote para que el listado muestre `Sin tareas`, porcentaje o `100% completado` sin exponer detalles completos de tareas. La búsqueda se combina con el filtro de estado mediante la barra común, que actualiza `q` tras 200 ms, aplica el estado inmediatamente, muestra `Buscando...` durante la espera y permite limpiar ambos controles. La consulta continúa server-side, no es un buscador global y no usa service role key.
+También carga el progreso agregado de tareas en una consulta adicional por lote para que el listado muestre `Sin tareas`, porcentaje o `100% completado` sin exponer detalles completos de tareas. La búsqueda y el filtro de estado se sincronizan con `searchParams` mediante `ListingToolbar`: la búsqueda se envía de forma explícita, los filtros viven en un popover compacto, los criterios activos se muestran como chips y la limpieza global remueve `q`, filtros de entidad y `page`. La consulta continúa server-side, no es un buscador global y no usa service role key.
 
 ## `getInternalPedidoById`
 
@@ -457,8 +457,9 @@ Los archivos heredados desde solicitudes con `visibility = "cliente_solicitud"` 
 La subida de archivos propios del pedido no permite elegir categoría. El servicio deriva `interno_pedido` para `creado`, `solicitud_recibida` y `en_revision`; `avance` para `en_produccion`; y `final_entrega` para `listo_entrega`. Los pedidos `entregado` o `cancelado` bloquean nuevas subidas. Un trabajador asignado puede subir la categoría correspondiente, incluida `interno_pedido`, mientras RLS y Storage bloquean pedidos no asignados y rutas que no coincidan con el estado.
 
 El listado de pedidos combina búsqueda server-side y filtro por estado mediante
-`ListFiltersBar`. La búsqueda usa un debounce de 200 ms, conserva los filtros en
-la URL y respeta RLS; `trabajador` solo recibe pedidos asignados.
+`ListingToolbar`. La búsqueda explícita, el popover de filtros y los chips
+activos conservan los criterios en la URL; la limpieza global remueve búsqueda,
+filtros y paginación, y `trabajador` solo recibe pedidos asignados por RLS.
 
 ## Alcance por Rol
 

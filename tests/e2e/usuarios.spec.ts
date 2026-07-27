@@ -135,7 +135,7 @@ test("admin can access usuarios and see safe profile validation", async ({
   const toolbar = page
     .getByRole("region", { name: /búsqueda y filtros/i })
     .first();
-  await toolbar.locator("summary").click();
+  await toolbar.getByRole("button", { name: /^filtros\b/i }).click();
   await expect(toolbar.getByLabel(/^rol$/i)).toBeVisible();
   await expect(toolbar.getByLabel(/^estado$/i)).toBeVisible();
   await expect(
@@ -425,7 +425,7 @@ test("usuario filters remove pagination from the URL", async ({ page }) => {
     .getByRole("region", { name: /b.squeda y filtros/i })
     .first();
 
-  await toolbar.locator("summary").click();
+  await toolbar.getByRole("button", { name: /^filtros\b/i }).click();
   await toolbar.getByLabel(/^estado$/i).selectOption("true");
 
   await expect.poll(async () => {
