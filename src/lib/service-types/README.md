@@ -40,10 +40,22 @@ se modela con `is_publicly_available = false`, no eliminando la fila.
 - `listPublicServiceTypes()`: devuelve servicios publicamente disponibles sin
   requerir autenticacion.
 - `listInternalServiceTypes()`: requiere perfil interno activo y
-  `configuracion.view`; devuelve servicios publicos y ocultos.
+  `configuracion.view`; devuelve servicios publicos y ocultos con busqueda,
+  filtro de disponibilidad publica, paginacion interna y conteo global de
+  encargos disponibles publicamente.
 - `createServiceType()`: requiere `configuracion.manage`, valida nombre,
   descripcion y disponibilidad publica, y crea servicios de flujo `encargo`.
 - `updateServiceType()`: requiere `configuracion.manage`, valida UUID e input, y
   actualiza nombre, descripcion y disponibilidad publica.
 
-Las UI todavia no consumen este dominio en la etapa actual.
+## UI interna
+
+La administracion del catalogo vive en
+`/dashboard/configuracion/servicios`. La ruta exige acceso interno y delega las
+mutaciones en server actions finas que revalidan el hub de configuracion y el
+listado de servicios.
+
+La UI no permite cambiar `workflow_type`: los nuevos servicios se crean como
+`encargo` y `Impresion` se representa como servicio de sistema. Ocultar un
+servicio solo cambia su disponibilidad publica; no elimina filas ni altera
+solicitudes o pedidos existentes.

@@ -1,4 +1,5 @@
 import type { Enums, Tables } from "@/types/database";
+import type { PaginationMeta } from "@/lib/pagination";
 
 export type WorkflowType = Enums<"workflow_type">;
 
@@ -36,6 +37,27 @@ export type ServiceTypeField = "name" | "description" | "isPubliclyAvailable";
 export type ServiceTypeFieldErrors = Partial<
   Record<ServiceTypeField, string>
 >;
+
+export type ServiceTypeAvailabilityFilter = "public" | "hidden";
+
+export type ListInternalServiceTypesOptions = {
+  q?: string | null;
+  availability?: string | null;
+  page?: string | number | null;
+  limit?: number;
+};
+
+export type ListInternalServiceTypesMeta = {
+  q: string | null;
+  availability: ServiceTypeAvailabilityFilter | null;
+  ignoredInvalidAvailability: boolean;
+};
+
+export type ListInternalServiceTypesData = ListInternalServiceTypesMeta & {
+  serviceTypes: InternalServiceType[];
+  pagination: PaginationMeta;
+  publicEncargoCount: number;
+};
 
 export type CreateServiceTypeInput = {
   name?: unknown;
