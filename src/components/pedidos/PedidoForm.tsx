@@ -18,7 +18,6 @@ import { CopyableCode } from "@/components/common/CopyableCode";
 import {
   Alert,
   Button,
-  FieldError,
   FormActions,
   FormField,
   FormSection,
@@ -33,6 +32,7 @@ import {
   PRINT_PAPER_SIZE_OPTIONS,
   PRINT_SIDES_OPTIONS,
 } from "@/lib/pedidos/order-validation";
+import type { OperationalServiceType } from "@/lib/service-types/types";
 import { getTodayDateInputValue } from "@/lib/utils";
 import {
   WORKFLOW_TYPES,
@@ -41,6 +41,7 @@ import {
 
 type PedidoFormProps = {
   prioridades: readonly PedidoPrioridad[];
+  serviceTypes: OperationalServiceType[];
   onSuccess?: (state: CreatePedidoActionState) => void;
   onDirtyChange?: (dirty: boolean) => void;
 };
@@ -50,19 +51,26 @@ const initialState: CreatePedidoActionState = {
   message: "",
 };
 
-const WORKFLOW_TABS = [
-  {
-    value: WORKFLOW_TYPES.ENCARGO,
-    label: "Encargo",
-  },
-  {
-    value: WORKFLOW_TYPES.IMPRESION,
-    label: "Impresión",
-  },
-] as const;
+const WORKFLOW_TAB_LABELS: Record<WorkflowType, string> = {
+  [WORKFLOW_TYPES.ENCARGO]: "Encargo",
+  [WORKFLOW_TYPES.IMPRESION]: "Impresión",
+};
 
 function getFieldError(state: CreatePedidoActionState, field: PedidoField) {
   return state.fieldErrors?.[field];
+}
+
+function getAvailableWorkflows({
+  encargoServices,
+  printService,
+}: {
+  encargoServices: OperationalServiceType[];
+  printService?: OperationalServiceType;
+}): WorkflowType[] {
+  return [
+    ...(encargoServices.length > 0 ? [WORKFLOW_TYPES.ENCARGO] : []),
+    ...(printService ? [WORKFLOW_TYPES.IMPRESION] : []),
+  ];
 }
 
 const blockClassName = "space-y-3";
@@ -71,23 +79,49 @@ const headingClassName = "text-base font-semibold text-text-primary";
 
 export function PedidoForm({
   prioridades,
+  serviceTypes,
   onSuccess,
   onDirtyChange,
 }: PedidoFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const workflowTabRefs = useRef<
-    Record<WorkflowType, HTMLButtonElement | null>
-  >({
-    encargo: null,
-    impresion: null,
+    Partial<Record<WorkflowType, HTMLButtonElement | null>>
+  >({});
+  const encargoServices = serviceTypes.filter(
+    (serviceType) => serviceType.workflowType === WORKFLOW_TYPES.ENCARGO,
+  );
+  const printService = serviceTypes.find(
+    (serviceType) => serviceType.workflowType === WORKFLOW_TYPES.IMPRESION,
+  );
+  const availableWorkflows = getAvailableWorkflows({
+    encargoServices,
+    printService,
   });
+  const initialWorkflow =
+    availableWorkflows[0] ?? WORKFLOW_TYPES.ENCARGO;
   const [workflowType, setWorkflowType] = useState<WorkflowType>(
-    WORKFLOW_TYPES.ENCARGO,
+    initialWorkflow,
+  );
+  const [selectedEncargoServiceId, setSelectedEncargoServiceId] = useState(
+    encargoServices[0]?.id ?? "",
   );
   const [state, formAction, pending] = useActionState(
     createPedidoAction,
     initialState,
   );
+  const currentWorkflow = availableWorkflows.includes(workflowType)
+    ? workflowType
+    : initialWorkflow;
+  const selectedEncargoService =
+    encargoServices.find(
+      (serviceType) => serviceType.id === selectedEncargoServiceId,
+    ) ??
+    encargoServices[0] ??
+    null;
+  const activeService =
+    currentWorkflow === WORKFLOW_TYPES.IMPRESION
+      ? printService
+      : selectedEncargoService;
 
   useEffect(() => {
     if (state.ok) {
@@ -98,7 +132,7 @@ export function PedidoForm({
   }, [onDirtyChange, onSuccess, state]);
 
   function selectWorkflow(nextWorkflowType: WorkflowType, moveFocus = false) {
-    if (nextWorkflowType !== workflowType) {
+    if (nextWorkflowType !== currentWorkflow) {
       onDirtyChange?.(true);
     }
 
@@ -113,26 +147,28 @@ export function PedidoForm({
     event: KeyboardEvent<HTMLButtonElement>,
     currentWorkflowType: WorkflowType,
   ) {
-    let nextWorkflowType: WorkflowType | null = null;
+    const currentIndex = availableWorkflows.indexOf(currentWorkflowType);
+    let nextIndex: number | null = null;
 
-    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
-      nextWorkflowType =
-        currentWorkflowType === WORKFLOW_TYPES.ENCARGO
-          ? WORKFLOW_TYPES.IMPRESION
-          : WORKFLOW_TYPES.ENCARGO;
+    if (event.key === "ArrowLeft") {
+      nextIndex =
+        (currentIndex - 1 + availableWorkflows.length) %
+        availableWorkflows.length;
+    } else if (event.key === "ArrowRight") {
+      nextIndex = (currentIndex + 1) % availableWorkflows.length;
     } else if (event.key === "Home") {
-      nextWorkflowType = WORKFLOW_TYPES.ENCARGO;
+      nextIndex = 0;
     } else if (event.key === "End") {
-      nextWorkflowType = WORKFLOW_TYPES.IMPRESION;
+      nextIndex = availableWorkflows.length - 1;
     }
 
-    if (nextWorkflowType) {
+    if (nextIndex !== null) {
       event.preventDefault();
-      selectWorkflow(nextWorkflowType, true);
+      selectWorkflow(availableWorkflows[nextIndex], true);
     }
   }
 
-  const workflowTypeError = getFieldError(state, "workflow_type");
+  const serviceIdError = getFieldError(state, "service_id");
   const clienteError = getFieldError(state, "cliente_id");
   const tituloError = getFieldError(state, "title");
   const descripcionError = getFieldError(state, "description");
@@ -144,7 +180,7 @@ export function PedidoForm({
   const printPaperSizeError = getFieldError(state, "print_paper_size");
   const printSidesError = getFieldError(state, "print_sides");
   const printNotesError = getFieldError(state, "print_notes");
-  const isPrintWorkflow = workflowType === WORKFLOW_TYPES.IMPRESION;
+  const isPrintWorkflow = currentWorkflow === WORKFLOW_TYPES.IMPRESION;
   const todayInputDate = getTodayDateInputValue();
 
   const statusAlert = state.message ? (
@@ -173,24 +209,24 @@ export function PedidoForm({
     </Alert>
   ) : null;
 
-  const workflowButtons = WORKFLOW_TABS.map((tab) => {
-    const isActive = workflowType === tab.value;
+  const workflowButtons = availableWorkflows.map((workflow) => {
+    const isActive = currentWorkflow === workflow;
 
     return (
       <button
-        key={tab.value}
+        key={workflow}
         ref={(element) => {
-          workflowTabRefs.current[tab.value] = element;
+          workflowTabRefs.current[workflow] = element;
         }}
-        id={`pedido-workflow-tab-${tab.value}`}
+        id={`pedido-workflow-tab-${workflow}`}
         type="button"
         role="tab"
         aria-selected={isActive}
-        aria-controls={`pedido-workflow-panel-${tab.value}`}
+        aria-controls={`pedido-workflow-panel-${workflow}`}
         tabIndex={isActive ? 0 : -1}
         disabled={pending}
-        onClick={() => selectWorkflow(tab.value)}
-        onKeyDown={(event) => handleWorkflowTabKeyDown(event, tab.value)}
+        onClick={() => selectWorkflow(workflow)}
+        onKeyDown={(event) => handleWorkflowTabKeyDown(event, workflow)}
         className={[
           "min-h-10 cursor-pointer rounded-(--radius-control) border px-3 text-sm font-semibold transition-[background-color,border-color,box-shadow,color] duration-200 disabled:cursor-not-allowed disabled:opacity-60",
           isActive
@@ -198,7 +234,9 @@ export function PedidoForm({
             : "border-transparent bg-transparent text-text-primary hover:border-border-strong hover:bg-surface/70",
         ].join(" ")}
       >
-        <span className="block text-sm font-semibold">{tab.label}</span>
+        <span className="block text-sm font-semibold">
+          {WORKFLOW_TAB_LABELS[workflow]}
+        </span>
       </button>
     );
   });
@@ -215,8 +253,6 @@ export function PedidoForm({
         <div className="space-y-5">
           {statusAlert}
 
-          <input type="hidden" name="workflow_type" value={workflowType} />
-
           <div className={blockClassName}>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <span className={headingClassName}>
@@ -229,26 +265,27 @@ export function PedidoForm({
               <div
                 role="tablist"
                 aria-label="Tipo de pedido"
-                aria-describedby={
-                  workflowTypeError ? "workflow_type-error" : undefined
-                }
-                className="grid w-full grid-cols-2 gap-2 rounded-(--radius-control) border border-border bg-surface-muted p-1 sm:w-auto sm:min-w-72"
+                className={[
+                  "grid w-full gap-2 rounded-(--radius-control) border border-border bg-surface-muted p-1 sm:w-auto sm:min-w-72",
+                  availableWorkflows.length > 1 ? "grid-cols-2" : "grid-cols-1",
+                ].join(" ")}
               >
                 {workflowButtons}
               </div>
             </div>
 
-            {workflowTypeError ? (
-              <FieldError id="workflow_type-error" compact>
-                {workflowTypeError}
-              </FieldError>
+
+            {!activeService ? (
+              <Alert variant="warning">
+                No hay servicios disponibles para este tipo de pedido.
+              </Alert>
             ) : null}
           </div>
 
           <div
-            id={`pedido-workflow-panel-${workflowType}`}
+            id={`pedido-workflow-panel-${currentWorkflow}`}
             role="tabpanel"
-            aria-labelledby={`pedido-workflow-tab-${workflowType}`}
+            aria-labelledby={`pedido-workflow-tab-${currentWorkflow}`}
             className={separatedBlockClassName}
           >
             <h3 className={headingClassName}>
@@ -466,6 +503,64 @@ export function PedidoForm({
                 )}
               </FormField>
 
+              {isPrintWorkflow ? (
+                <FormField
+                  id="service_id_display"
+                  label="Servicio"
+                  required
+                  error={serviceIdError}
+                  errorId="service_id-error"
+                  compact
+                >
+                  {({ describedBy, invalid }) => (
+                    <>
+                      <Input
+                        id="service_id_display"
+                        type="text"
+                        value={printService?.name ?? "Impresión"}
+                        readOnly
+                        invalid={invalid}
+                        aria-describedby={describedBy}
+                      />
+                      <input
+                        type="hidden"
+                        name="service_id"
+                        value={printService?.id ?? ""}
+                      />
+                    </>
+                  )}
+                </FormField>
+              ) : (
+                <FormField
+                  id="service_id"
+                  label="Servicio"
+                  required
+                  error={serviceIdError}
+                  compact
+                >
+                  {({ describedBy, invalid }) => (
+                    <Select
+                      id="service_id"
+                      name="service_id"
+                      value={selectedEncargoService?.id ?? ""}
+                      required
+                      invalid={invalid}
+                      aria-describedby={describedBy}
+                      onChange={(event) => {
+                        setSelectedEncargoServiceId(event.target.value);
+                        onDirtyChange?.(true);
+                      }}
+                    >
+                      {encargoServices.map((serviceType) => (
+                        <option key={serviceType.id} value={serviceType.id}>
+                          {serviceType.name}
+                        </option>
+                      ))}
+                    </Select>
+                  )}
+                </FormField>
+              )}
+
               <FormField
                 id="priority"
                 label="Prioridad"
@@ -535,7 +630,11 @@ export function PedidoForm({
           </div>
 
           <FormActions compact note={undefined}>
-            <Button type="submit" disabled={pending} className="w-full sm:w-auto">
+            <Button
+              type="submit"
+              disabled={pending || !activeService}
+              className="w-full sm:w-auto"
+            >
               {pending ? "Creando pedido..." : "Crear pedido"}
             </Button>
           </FormActions>

@@ -3,7 +3,6 @@ import { mapPaymentSummary } from "@/lib/pedidos/list-internal-pedidos-mappers";
 import { loadTaskProgressByPedidoId } from "@/lib/pedidos/list-internal-pedidos-progress";
 import type { PedidoTasksProgress } from "@/lib/pedidos";
 import type { PedidoPaymentRow } from "@/lib/pedidos/list-internal-pedidos-types";
-import { getSolicitudServiceTypeLabel } from "@/lib/solicitudes";
 import type { Tables } from "@/types/database";
 import type { DashboardContext } from "./context";
 import {
@@ -35,12 +34,14 @@ type PendingSolicitudRow = Pick<
   | "id"
   | "client_name"
   | "client_phone"
-  | "service_type"
+  | "workflow_type"
   | "status"
   | "created_at"
   | "desired_date"
   | "converted_order_id"
->;
+> & {
+  service: Pick<Tables<"tipos_servicio">, "name" | "workflow_type"> | null;
+};
 
 type PedidoClienteRow = Pick<Tables<"clientes">, "name"> | null;
 
@@ -194,12 +195,6 @@ function sortPedidosByAttention(
   });
 }
 
-function getSolicitudWorkflowType(
-  serviceType: string | null,
-): "encargo" | "impresion" {
-  return serviceType === "Impresion" ? "impresion" : "encargo";
-}
-
 function mapSolicitudItem(
   solicitud: PendingSolicitudRow,
 ): DashboardPendingSolicitudItem {
@@ -208,8 +203,8 @@ function mapSolicitudItem(
     href: `/dashboard/solicitudes/${solicitud.id}`,
     clienteNombre: solicitud.client_name,
     clienteTelefono: solicitud.client_phone,
-    tipoServicio: getSolicitudServiceTypeLabel(solicitud.service_type),
-    workflowType: getSolicitudWorkflowType(solicitud.service_type),
+    tipoServicio: solicitud.service?.name ?? "Servicio no disponible",
+    workflowType: solicitud.service?.workflow_type ?? solicitud.workflow_type,
     status: solicitud.status,
     createdAt: solicitud.created_at,
     fechaDeseada: solicitud.desired_date,
@@ -357,7 +352,20 @@ async function listManagementPendingSolicitudes(): Promise<
   const { data, error } = await supabase
     .from("solicitudes")
     .select(
-      "id, client_name, client_phone, service_type, status, created_at, desired_date, converted_order_id",
+      `
+        id,
+        client_name,
+        client_phone,
+        workflow_type,
+        status,
+        created_at,
+        desired_date,
+        converted_order_id,
+        service:tipos_servicio!solicitudes_service_id_fkey(
+          name,
+          workflow_type
+        )
+      `,
     )
     .in("status", WORK_PENDING_SOLICITUD_STATUSES)
     .order("created_at", { ascending: false })

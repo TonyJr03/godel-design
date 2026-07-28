@@ -99,7 +99,7 @@ Propuesta futura:
 Estado actual:
 
 - `workflow_type` gobierna la variante operativa.
-- `service_type` conserva un uso descriptivo.
+- `service_id` identifica el servicio concreto en el catálogo.
 - Ambos flujos comparten entidades, permisos y estados generales.
 - Los encargos requieren tareas para avanzar.
 - Las impresiones pueden avanzar sin tareas obligatorias.

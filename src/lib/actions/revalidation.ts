@@ -26,6 +26,12 @@ export function revalidateTaskTemplatesList() {
   revalidatePath("/dashboard/configuracion/plantillas");
 }
 
+export function revalidateServiceTypesAdmin() {
+  revalidatePath("/dashboard/configuracion");
+  revalidatePath("/dashboard/configuracion/servicios");
+  revalidatePath("/solicitud");
+}
+
 export function revalidateTaskTemplateDetail(templateId: string) {
   revalidateTaskTemplatesList();
   revalidatePath(`/dashboard/configuracion/plantillas/${templateId}`);

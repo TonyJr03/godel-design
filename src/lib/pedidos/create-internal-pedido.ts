@@ -1,5 +1,6 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
+import { getOperationalServiceTypeById } from "@/lib/service-types";
 import {
   serviceFailure,
   serviceSuccess,
@@ -17,6 +18,7 @@ export type CreateInternalPedidoErrorReason =
   | "unauthorized"
   | "forbidden"
   | "validation"
+  | "invalid_id"
   | "not_found"
   | "error";
 
@@ -66,7 +68,30 @@ export async function createInternalPedido(
     return serviceFailure("forbidden", "No tienes permiso para crear pedidos.");
   }
 
-  const validation = validatePedidoInput(input);
+  const serviceId =
+    typeof input.service_id === "string" ? input.service_id : "";
+  const serviceResult = await getOperationalServiceTypeById(serviceId);
+
+  if (!serviceResult.ok) {
+    const reason =
+      serviceResult.reason === "invalid_id" ? "invalid_id" : serviceResult.reason;
+
+    if (reason === "unauthorized" || reason === "forbidden") {
+      return serviceFailure(reason, serviceResult.message);
+    }
+
+    return serviceFailure(reason, serviceResult.message, {
+      fieldErrors: {
+        service_id: serviceResult.message,
+      },
+    });
+  }
+
+  const validation = validatePedidoInput(input, {
+    id: serviceResult.serviceType.id,
+    name: serviceResult.serviceType.name,
+    workflowType: serviceResult.serviceType.workflowType,
+  });
 
   if (!validation.ok) {
     return serviceFailure("validation", "Revisa los datos del pedido.", {
@@ -97,7 +122,7 @@ export async function createInternalPedido(
   try {
     const supabase = await createClient();
     const { data, error } = await createManualPedidoRpc(supabase, {
-      p_workflow_type: validation.data.workflow_type,
+      p_service_id: validation.data.service_id,
       p_cliente_id: validation.data.cliente_id,
       p_title: validation.data.title,
       p_description: validation.data.description,

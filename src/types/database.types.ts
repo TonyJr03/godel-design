@@ -410,6 +410,7 @@ export type Database = {
           order_number: string
           priority: Database["public"]["Enums"]["pedido_prioridad"]
           public_reference: string
+          service_id: string
           solicitud_id: string | null
           status: Database["public"]["Enums"]["pedido_estado"]
           title: string
@@ -427,6 +428,7 @@ export type Database = {
           order_number?: string
           priority?: Database["public"]["Enums"]["pedido_prioridad"]
           public_reference?: string
+          service_id: string
           solicitud_id?: string | null
           status?: Database["public"]["Enums"]["pedido_estado"]
           title: string
@@ -444,6 +446,7 @@ export type Database = {
           order_number?: string
           priority?: Database["public"]["Enums"]["pedido_prioridad"]
           public_reference?: string
+          service_id?: string
           solicitud_id?: string | null
           status?: Database["public"]["Enums"]["pedido_estado"]
           title?: string
@@ -463,6 +466,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedidos_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "tipos_servicio"
             referencedColumns: ["id"]
           },
           {
@@ -611,7 +621,7 @@ export type Database = {
           notes: string | null
           public_reference: string
           reviewed_by: string | null
-          service_type: string
+          service_id: string
           status: Database["public"]["Enums"]["solicitud_estado"]
           updated_at: string
           workflow_type: Database["public"]["Enums"]["workflow_type"]
@@ -629,7 +639,7 @@ export type Database = {
           notes?: string | null
           public_reference?: string
           reviewed_by?: string | null
-          service_type: string
+          service_id: string
           status?: Database["public"]["Enums"]["solicitud_estado"]
           updated_at?: string
           workflow_type?: Database["public"]["Enums"]["workflow_type"]
@@ -647,7 +657,7 @@ export type Database = {
           notes?: string | null
           public_reference?: string
           reviewed_by?: string | null
-          service_type?: string
+          service_id?: string
           status?: Database["public"]["Enums"]["solicitud_estado"]
           updated_at?: string
           workflow_type?: Database["public"]["Enums"]["workflow_type"]
@@ -670,6 +680,64 @@ export type Database = {
           {
             foreignKeyName: "solicitudes_reviewed_by_fkey"
             columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "tipos_servicio"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tipos_servicio: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string
+          id: string
+          is_publicly_available: boolean
+          name: string
+          updated_at: string
+          updated_by: string | null
+          workflow_type: Database["public"]["Enums"]["workflow_type"]
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description: string
+          id?: string
+          is_publicly_available?: boolean
+          name: string
+          updated_at?: string
+          updated_by?: string | null
+          workflow_type: Database["public"]["Enums"]["workflow_type"]
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          id?: string
+          is_publicly_available?: boolean
+          name?: string
+          updated_at?: string
+          updated_by?: string | null
+          workflow_type?: Database["public"]["Enums"]["workflow_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tipos_servicio_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tipos_servicio_updated_by_fkey"
+            columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "perfiles"
             referencedColumns: ["id"]
@@ -776,6 +844,7 @@ export type Database = {
           p_estimated_delivery_date: string
           p_pedido_id: string
           p_priority: Database["public"]["Enums"]["pedido_prioridad"]
+          p_service_id: string
           p_title: string
           p_total_amount: number
         }
@@ -786,8 +855,10 @@ export type Database = {
           payment_status: Database["public"]["Enums"]["pedido_pago_estado"]
           pedido_id: string
           priority: Database["public"]["Enums"]["pedido_prioridad"]
+          service_id: string
           title: string
           total_amount: number
+          workflow_type: Database["public"]["Enums"]["workflow_type"]
         }[]
       }
       actualizar_estado_pedido: {
@@ -806,6 +877,7 @@ export type Database = {
           order_number: string
           priority: Database["public"]["Enums"]["pedido_prioridad"]
           public_reference: string
+          service_id: string
           solicitud_id: string | null
           status: Database["public"]["Enums"]["pedido_estado"]
           title: string
@@ -837,7 +909,7 @@ export type Database = {
           notes: string | null
           public_reference: string
           reviewed_by: string | null
-          service_type: string
+          service_id: string
           status: Database["public"]["Enums"]["solicitud_estado"]
           updated_at: string
           workflow_type: Database["public"]["Enums"]["workflow_type"]
@@ -898,6 +970,7 @@ export type Database = {
           p_description: string
           p_estimated_delivery_date: string
           p_priority: Database["public"]["Enums"]["pedido_prioridad"]
+          p_service_id: string
           p_solicitud_id: string
           p_title: string
           p_total_amount: number
@@ -913,6 +986,7 @@ export type Database = {
           order_number: string
           priority: Database["public"]["Enums"]["pedido_prioridad"]
           public_reference: string
+          service_id: string
           solicitud_id: string | null
           status: Database["public"]["Enums"]["pedido_estado"]
           title: string
@@ -950,9 +1024,9 @@ export type Database = {
           p_description: string
           p_estimated_delivery_date: string
           p_priority: Database["public"]["Enums"]["pedido_prioridad"]
+          p_service_id: string
           p_title: string
           p_total_amount: number
-          p_workflow_type: Database["public"]["Enums"]["workflow_type"]
         }
         Returns: {
           order_number: string

@@ -13,6 +13,7 @@ export async function updatePedidoDataAction(
 ): Promise<UpdatePedidoDataActionState> {
   const title = getFormValue(formData, "title");
   const description = getFormValue(formData, "description");
+  const serviceId = getFormValue(formData, "service_id");
   const totalAmount = getFormValue(formData, "total_amount");
   const priority = getFormValue(formData, "priority");
   const estimatedDeliveryDate = getFormValue(
@@ -21,6 +22,7 @@ export async function updatePedidoDataAction(
   );
   const result = await updateInternalPedido({
     pedidoId,
+    service_id: serviceId,
     title,
     description,
     total_amount: totalAmount,

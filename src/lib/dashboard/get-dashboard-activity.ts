@@ -35,7 +35,15 @@ const SOLICITUD_ACTIVITY_SELECT = `
   new_value,
   metadata,
   created_at,
-  solicitudes(id, client_name, service_type)
+  solicitudes(
+    id,
+    client_name,
+    workflow_type,
+    service:tipos_servicio!solicitudes_service_id_fkey(
+      name,
+      workflow_type
+    )
+  )
 `;
 
 const GENERIC_ACTIVITY_ERROR =

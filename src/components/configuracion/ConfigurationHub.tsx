@@ -8,6 +8,11 @@ const configurationItems = [
     href: "/dashboard/configuracion/usuarios",
   },
   {
+    title: "Servicios",
+    description: "Gestiona el catálogo de servicios y su disponibilidad pública.",
+    href: "/dashboard/configuracion/servicios",
+  },
+  {
     title: "Plantillas",
     description: "Gestiona plantillas de tareas de producción.",
     href: "/dashboard/configuracion/plantillas",

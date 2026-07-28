@@ -10,6 +10,7 @@ import {
   type PrintSides,
   type PublicImpresionSolicitudData,
   type PublicSolicitudFieldErrors,
+  type PublicSolicitudResolvedService,
 } from "./public-request-validation-types";
 
 export type PrintSolicitudValidationData = {
@@ -35,6 +36,7 @@ function getOptionLabel<
 }
 
 function buildPrintDescription(input: {
+  serviceName: string;
   copies: number;
   colorMode: PrintColorMode;
   paperSize: PrintPaperSize;
@@ -42,7 +44,7 @@ function buildPrintDescription(input: {
   notes: string | null;
 }): string {
   return [
-    "Tipo de trabajo: Impresión",
+    `Tipo de trabajo: ${input.serviceName}`,
     "",
     `Cantidad de copias: ${input.copies}`,
     `Modo de color: ${getOptionLabel(input.colorMode, PRINT_COLOR_MODE_OPTIONS)}`,
@@ -95,6 +97,11 @@ export function validateImpresionSolicitudFields(
     sides = input.printSidesValue;
   }
 
+  if (!input.hasFiles) {
+    fieldErrors.files =
+      "Para solicitar una impresión debes adjuntar el documento a imprimir.";
+  }
+
   return {
     copies,
     colorMode,
@@ -106,6 +113,7 @@ export function validateImpresionSolicitudFields(
 export function buildImpresionSolicitudData(
   input: NormalizedPublicSolicitudInput,
   printData: PrintSolicitudValidationData,
+  service: PublicSolicitudResolvedService,
 ): PublicImpresionSolicitudData {
   const copies = printData.copies as number;
   const colorMode = printData.colorMode as PrintColorMode;
@@ -113,12 +121,13 @@ export function buildImpresionSolicitudData(
   const sides = printData.sides as PrintSides;
 
   return {
+    service_id: service.id,
     workflow_type: WORKFLOW_TYPES.IMPRESION,
     client_name: input.client_name,
     client_phone: input.client_phone,
     client_email: input.client_email,
-    service_type: "Impresion",
     description: buildPrintDescription({
+      serviceName: service.name,
       copies,
       colorMode,
       paperSize,

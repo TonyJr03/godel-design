@@ -21,7 +21,7 @@ export async function createPedidoAction(
   formData: FormData,
 ): Promise<CreatePedidoActionState> {
   const result = await createInternalPedido({
-    workflow_type: getFormValue(formData, "workflow_type"),
+    service_id: getFormValue(formData, "service_id"),
     cliente_id: getFormValue(formData, "cliente_id"),
     title: getFormValue(formData, "title"),
     description: getFormValue(formData, "description"),

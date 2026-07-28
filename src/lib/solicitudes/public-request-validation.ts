@@ -21,6 +21,7 @@ import {
   PUBLIC_SOLICITUD_VALIDATION_ERROR_MESSAGE,
   type PublicSolicitudFieldErrors,
   type PublicSolicitudInput,
+  type PublicSolicitudResolvedService,
   type ValidatePublicSolicitudInputResult,
 } from "./public-request-validation-types";
 
@@ -38,11 +39,13 @@ export type {
   PublicSolicitudField,
   PublicSolicitudFieldErrors,
   PublicSolicitudInput,
+  PublicSolicitudResolvedService,
   ValidatePublicSolicitudInputResult,
 } from "./public-request-validation-types";
 
 export function validatePublicSolicitudInput(
   input: PublicSolicitudInput,
+  service: PublicSolicitudResolvedService,
 ): ValidatePublicSolicitudInputResult {
   const fieldErrors: PublicSolicitudFieldErrors = {};
   const normalizedInput = normalizePublicSolicitudInput(input);
@@ -50,11 +53,11 @@ export function validatePublicSolicitudInput(
 
   validateCommonPublicSolicitudFields(normalizedInput, fieldErrors);
 
-  if (normalizedInput.workflowTypeValue === WORKFLOW_TYPES.ENCARGO) {
+  if (service.workflowType === WORKFLOW_TYPES.ENCARGO) {
     validateEncargoSolicitudFields(normalizedInput, fieldErrors);
   }
 
-  if (normalizedInput.workflowTypeValue === WORKFLOW_TYPES.IMPRESION) {
+  if (service.workflowType === WORKFLOW_TYPES.IMPRESION) {
     printData = validateImpresionSolicitudFields(
       normalizedInput,
       fieldErrors,
@@ -68,13 +71,13 @@ export function validatePublicSolicitudInput(
   }
 
   if (
-    normalizedInput.workflowTypeValue === WORKFLOW_TYPES.IMPRESION &&
+    service.workflowType === WORKFLOW_TYPES.IMPRESION &&
     printData
   ) {
     return validationSuccess(
-      buildImpresionSolicitudData(normalizedInput, printData),
+      buildImpresionSolicitudData(normalizedInput, printData, service),
     );
   }
 
-  return validationSuccess(buildEncargoSolicitudData(normalizedInput));
+  return validationSuccess(buildEncargoSolicitudData(normalizedInput, service));
 }

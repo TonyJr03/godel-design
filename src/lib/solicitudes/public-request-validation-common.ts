@@ -5,7 +5,6 @@ import {
   normalizeOptionalSingleLineText,
   normalizeSingleLineText,
 } from "@/lib/validators";
-import { isWorkflowType } from "@/lib/workflow-types";
 import {
   PUBLIC_SOLICITUD_FIELD_LIMITS,
   type PublicSolicitudFieldErrors,
@@ -13,14 +12,14 @@ import {
 } from "./public-request-validation-types";
 
 export type NormalizedPublicSolicitudInput = {
-  workflowTypeValue: string;
+  service_id: string;
   client_name: string;
   client_phone: string;
   client_email: string | null;
-  service_type: string;
   description: string;
   desired_date: string | null;
   notes: string | null;
+  hasFiles: boolean;
   printCopiesValue: string;
   printColorModeValue: string;
   printPaperSizeValue: string;
@@ -31,14 +30,14 @@ export function normalizePublicSolicitudInput(
   input: PublicSolicitudInput,
 ): NormalizedPublicSolicitudInput {
   return {
-    workflowTypeValue: normalizeSingleLineText(input.workflow_type),
+    service_id: normalizeSingleLineText(input.service_id),
     client_name: normalizeSingleLineText(input.client_name),
     client_phone: normalizeSingleLineText(input.client_phone),
     client_email: normalizeOptionalSingleLineText(input.client_email),
-    service_type: normalizeSingleLineText(input.service_type),
     description: normalizeMultilineText(input.description),
     desired_date: normalizeOptionalSingleLineText(input.desired_date),
     notes: normalizeOptionalMultilineText(input.notes),
+    hasFiles: input.hasFiles === true,
     printCopiesValue: normalizeSingleLineText(input.print_copies),
     printColorModeValue: normalizeSingleLineText(input.print_color_mode),
     printPaperSizeValue: normalizeSingleLineText(input.print_paper_size),
@@ -50,11 +49,6 @@ export function validateCommonPublicSolicitudFields(
   input: NormalizedPublicSolicitudInput,
   fieldErrors: PublicSolicitudFieldErrors,
 ) {
-  if (!isWorkflowType(input.workflowTypeValue)) {
-    fieldErrors.workflow_type =
-      "Selecciona si necesitas un encargo personalizado o una impresión.";
-  }
-
   if (!input.client_name) {
     fieldErrors.client_name = "Ingresa el nombre del cliente.";
   } else if (

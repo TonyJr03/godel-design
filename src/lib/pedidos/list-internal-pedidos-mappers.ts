@@ -1,3 +1,4 @@
+import { mapNullableInternalServiceReference } from "@/lib/service-types";
 import type { PedidoTasksProgress } from "./task-progress";
 import type {
   InternalPedido,
@@ -66,9 +67,10 @@ export function mapInternalPedidos(
   pedidos: InternalPedidoRow[],
   progressByPedidoId: Map<string, PedidoTasksProgress>,
 ): InternalPedido[] {
-  return pedidos.map((pedido) => ({
+  return pedidos.map(({ payment, service, ...pedido }) => ({
     ...pedido,
-    payment: mapPaymentSummary(pedido.payment),
+    service: mapNullableInternalServiceReference(service),
+    payment: mapPaymentSummary(payment),
     taskProgress: progressByPedidoId.get(pedido.id) ?? EMPTY_TASK_PROGRESS,
   }));
 }

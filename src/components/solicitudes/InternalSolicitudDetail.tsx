@@ -337,7 +337,9 @@ export function InternalSolicitudDetail({
       title: "Información",
       description:
         "Datos completos de la solicitud y su metadata secundaria.",
-      content: <SolicitudInformationPanel solicitud={solicitud} />,
+      content: (
+        <SolicitudInformationPanel solicitud={solicitud} />
+      ),
     },
   };
 

@@ -538,7 +538,9 @@ export function AsyncCombobox({
 
   return (
     <div
-      className={listboxPlacement === "top" ? "relative min-w-0" : "min-w-0"}
+      className={
+        listboxPlacement === "top" ? "relative min-w-0 w-full" : "min-w-0 w-full"
+      }
       onBlur={handleBlur}
     >
       <input
@@ -548,7 +550,7 @@ export function AsyncCombobox({
         disabled={disabled}
       />
 
-      <div className="relative">
+      <div className="relative min-w-0">
         <input
           ref={inputRef}
           id={id}

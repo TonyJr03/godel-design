@@ -13,14 +13,12 @@ import {
   validateStorageFile,
 } from "@/lib/storage";
 import { getFormValue } from "@/lib/utils";
-import { WORKFLOW_TYPES } from "@/lib/workflow-types";
 
 export type PublicSolicitudSubmittedValues = {
-  workflow_type: string;
+  service_id: string;
   client_name: string;
   client_phone: string;
   client_email: string;
-  service_type: string;
   description: string;
   desired_date: string;
   notes: string;
@@ -44,11 +42,10 @@ export type SubmitPublicSolicitudActionState = {
 
 function getSubmittedValues(formData: FormData): PublicSolicitudSubmittedValues {
   return {
-    workflow_type: getFormValue(formData, "workflow_type"),
+    service_id: getFormValue(formData, "service_id"),
     client_name: getFormValue(formData, "client_name"),
     client_phone: getFormValue(formData, "client_phone"),
     client_email: getFormValue(formData, "client_email"),
-    service_type: getFormValue(formData, "service_type"),
     description: getFormValue(formData, "description"),
     desired_date: getFormValue(formData, "desired_date"),
     notes: getFormValue(formData, "notes"),
@@ -92,13 +89,13 @@ function validateSolicitudFilesBeforeCreate(files: File[]) {
 
 function buildCreatePublicSolicitudInput(
   values: PublicSolicitudSubmittedValues,
+  hasFiles: boolean,
 ): PublicSolicitudInput {
   return {
-    workflow_type: values.workflow_type,
+    service_id: values.service_id,
     client_name: values.client_name,
     client_phone: values.client_phone,
     client_email: values.client_email,
-    service_type: values.service_type,
     description: values.description,
     desired_date: values.desired_date,
     notes: values.notes,
@@ -106,6 +103,7 @@ function buildCreatePublicSolicitudInput(
     print_color_mode: values.print_color_mode,
     print_paper_size: values.print_paper_size,
     print_sides: values.print_sides,
+    hasFiles,
   };
 }
 
@@ -176,21 +174,7 @@ export async function submitPublicSolicitudAction(
 ): Promise<SubmitPublicSolicitudActionState> {
   const values = getSubmittedValues(formData);
   const files = getSolicitudFiles(formData);
-
-  if (
-    values.workflow_type === WORKFLOW_TYPES.IMPRESION &&
-    files.length === 0
-  ) {
-    return buildPublicSolicitudFieldErrorState({
-      message: "Adjunta el documento que deseas imprimir.",
-      fieldErrors: {
-        files:
-          "Para solicitar una impresión debes adjuntar el documento a imprimir.",
-      },
-      values,
-    });
-  }
-
+  const hasFiles = files.length > 0;
   const filesError = validateSolicitudFilesBeforeCreate(files);
 
   if (filesError) {
@@ -204,7 +188,7 @@ export async function submitPublicSolicitudAction(
   }
 
   const result = await createPublicSolicitud(
-    buildCreatePublicSolicitudInput(values),
+    buildCreatePublicSolicitudInput(values, hasFiles),
   );
 
   if (!result.ok) {

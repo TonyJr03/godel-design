@@ -2,23 +2,16 @@ import { validateOptionalFutureDate } from "@/lib/validators";
 import { WORKFLOW_TYPES } from "@/lib/workflow-types";
 import type { NormalizedPublicSolicitudInput } from "./public-request-validation-common";
 import {
-  PUBLIC_SOLICITUD_FIELD_LIMITS,
   type PublicEncargoSolicitudData,
+  type PublicSolicitudResolvedService,
   type PublicSolicitudFieldErrors,
+  PUBLIC_SOLICITUD_FIELD_LIMITS,
 } from "./public-request-validation-types";
 
 export function validateEncargoSolicitudFields(
   input: NormalizedPublicSolicitudInput,
   fieldErrors: PublicSolicitudFieldErrors,
 ) {
-  if (!input.service_type) {
-    fieldErrors.service_type = "Selecciona o indica el tipo de servicio.";
-  } else if (
-    input.service_type.length > PUBLIC_SOLICITUD_FIELD_LIMITS.service_type
-  ) {
-    fieldErrors.service_type = "El tipo de servicio es demasiado largo.";
-  }
-
   if (!input.description) {
     fieldErrors.description = "Describe el trabajo solicitado.";
   } else if (
@@ -43,13 +36,14 @@ export function validateEncargoSolicitudFields(
 
 export function buildEncargoSolicitudData(
   input: NormalizedPublicSolicitudInput,
+  service: PublicSolicitudResolvedService,
 ): PublicEncargoSolicitudData {
   return {
+    service_id: service.id,
     workflow_type: WORKFLOW_TYPES.ENCARGO,
     client_name: input.client_name,
     client_phone: input.client_phone,
     client_email: input.client_email,
-    service_type: input.service_type,
     description: input.description,
     desired_date: input.desired_date,
     notes: input.notes,

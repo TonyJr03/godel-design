@@ -44,13 +44,8 @@ export {
   listInternalSolicitudes,
 } from "./list-internal-solicitudes";
 export {
-  ENCARGO_SERVICE_TYPE_OPTIONS,
   SOLICITUD_HISTORY_ACTION_LABELS,
-  SOLICITUD_SERVICE_TYPE_LABELS,
-  SOLICITUD_SERVICE_TYPE_OPTIONS,
   SOLICITUD_STATUS_LABELS,
-  getSolicitudServiceTypeLabel,
-  getSolicitudServiceTypeSearchValues,
 } from "./labels";
 export {
   MANUAL_SOLICITUD_STATUSES,

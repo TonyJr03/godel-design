@@ -35,8 +35,10 @@ negocio y criterios de seguridad.
 | `encargo` | Trabajo personalizado o complejo. |
 | `impresion` | Trabajo directo de impresión. |
 
-`workflow_type` diferencia la variante del flujo operativo. No reemplaza
-`service_type`, que sigue describiendo el servicio específico solicitado.
+`workflow_type` diferencia la variante del flujo operativo. En el contrato
+vigente se mantiene materializado en `solicitudes` y `pedidos`, pero se
+sincroniza desde `tipos_servicio` mediante `service_id`. El nombre visible del
+servicio se obtiene por la relación canónica con el catálogo.
 
 ### `solicitud_estado`
 
@@ -176,7 +178,7 @@ manualmente.
 | `id` | `uuid` | Identificador único del cliente. |
 | `name` | `text` | Nombre del cliente o contacto. |
 | `phone` | `text` | Teléfono principal. |
-| `email` | `text nullable` | Correo opcional. |
+| `email` | `text nullable` | Correo electrónico opcional. |
 | `notes` | `text nullable` | Notas internas simples. |
 | `created_at` | `timestamptz` | Fecha de creación. |
 | `updated_at` | `timestamptz` | Fecha de última actualización. |
@@ -197,6 +199,61 @@ manualmente.
 - Usuarios internos autorizados pueden consultar clientes según su rol.
 - Trabajadores solo deberían ver datos de clientes relacionados con pedidos asignados.
 
+### `tipos_servicio`
+
+**Propósito:** Catálogo transversal y administrable de servicios concretos para
+Solicitudes y Pedidos.
+
+| Campo | Tipo sugerido | Notas |
+|---|---|---|
+| `id` | `uuid` | Identificador único del servicio. |
+| `name` | `text` | Nombre visible, único por `lower(btrim(name))`. |
+| `description` | `text` | Descripción breve del servicio. |
+| `workflow_type` | `workflow_type` | Flujo operativo derivado hacia solicitudes y pedidos. |
+| `is_publicly_available` | `boolean` | Disponibilidad para experiencias públicas; no invalida uso interno. |
+| `created_by` | `uuid nullable` | Perfil interno que creó el servicio, si aplica. |
+| `updated_by` | `uuid nullable` | Perfil interno que actualizó el servicio, si aplica. |
+| `created_at` | `timestamptz` | Fecha de creación. |
+| `updated_at` | `timestamptz` | Fecha de última actualización. |
+
+**Claves foráneas:**
+
+- `tipos_servicio.created_by` -> `perfiles.id` con `on delete set null`.
+- `tipos_servicio.updated_by` -> `perfiles.id` con `on delete set null`.
+
+**Reglas importantes:**
+
+- `name` no puede quedar vacío tras `trim` y debe medir entre 2 y 120
+  caracteres.
+- `description` no puede quedar vacía tras `trim` y tiene máximo 500 caracteres.
+- Los nombres son únicos ignorando mayúsculas y espacios exteriores mediante el
+  índice funcional `tipos_servicio_name_normalized_key`.
+- Existe exactamente un servicio con `workflow_type = impresion`, protegido por
+  el índice parcial `tipos_servicio_single_print_service`.
+- `workflow_type` es inmutable una vez creada la fila; el trigger privado
+  `private.prevent_tipos_servicio_workflow_type_change()` rechaza cambios.
+- Crear servicios desde el dominio server-side siempre usa
+  `workflow_type = encargo`.
+- `is_publicly_available = false` solo oculta el servicio de la oferta pública;
+  el servicio sigue siendo válido para uso interno e histórico.
+- No hay eliminación desde la aplicación. Un servicio se retira de la oferta
+  pública cambiando `is_publicly_available`.
+- El contrato vigente usa `service_id` como referencia obligatoria en
+  Solicitudes y Pedidos.
+- Las UI vigentes consumen este catálogo en el formulario público y en los
+  formularios internos de Solicitudes y Pedidos.
+
+**Notas de seguridad:**
+
+- RLS está activo.
+- `anon` puede leer solo servicios con `is_publicly_available = true`.
+- `authenticated` puede leer todos los servicios cuando tiene perfil activo.
+- Solo `admin` interno activo puede insertar o actualizar.
+- La política de insert solo permite `workflow_type = encargo`; el servicio de
+  impresión se crea por migración.
+- No existe política DELETE y no se conceden privilegios DELETE a `anon` ni a
+  `authenticated`.
+
 ### `solicitudes`
 
 **Propósito:** Registra solicitudes públicas recibidas antes de convertirse en pedidos oficiales.
@@ -204,13 +261,13 @@ manualmente.
 | Campo | Tipo sugerido | Notas |
 |---|---|---|
 | `id` | `uuid` | Identificador único de la solicitud. |
-| `public_reference` | `text` | Codigo publico de seguimiento con formato `GD-XXXX-XXXX`. |
+| `public_reference` | `text` | Código público de seguimiento con formato `GD-XXXX-XXXX`. |
 | `cliente_id` | `uuid nullable` | Cliente asociado si ya existe o se crea uno. |
 | `client_name` | `text` | Nombre capturado desde el formulario público. |
 | `client_phone` | `text` | Teléfono capturado desde el formulario público. |
-| `client_email` | `text nullable` | Correo opcional capturado desde el formulario público. |
+| `client_email` | `text nullable` | Correo electrónico opcional capturado desde el formulario público. |
 | `workflow_type` | `workflow_type` | Variante del flujo operativo; por defecto `encargo`. |
-| `service_type` | `text` | Tipo de servicio solicitado. |
+| `service_id` | `uuid` | Servicio normalizado y obligatorio en el catálogo. |
 | `description` | `text` | Descripción del trabajo solicitado. |
 | `desired_date` | `date nullable` | Fecha deseada por el cliente. |
 | `notes` | `text nullable` | Observaciones adicionales. |
@@ -223,17 +280,18 @@ manualmente.
 **Claves foráneas:**
 
 - `solicitudes.cliente_id` -> `clientes.id`.
+- `solicitudes.service_id` -> `tipos_servicio.id` con `on delete restrict`.
 - `solicitudes.reviewed_by` -> `perfiles.id`.
 - `solicitudes.converted_order_id` -> `pedidos.id`.
 
 **Reglas importantes:**
 
 - Una solicitud no se convierte automáticamente en pedido.
-- Toda solicitud tiene `public_reference`, un codigo publico no secuencial con
+- Toda solicitud tiene `public_reference`, un código público no secuencial con
   formato `GD-XXXX-XXXX`.
 - `public_reference` no es el UUID interno, no deriva del `id` y no usa la
   numeracion interna de pedidos.
-- El detalle interno puede mostrar `public_reference` como codigo copiable para
+- El detalle interno puede mostrar `public_reference` como código copiable para
   compartir con el cliente; las referencias cortas derivadas del UUID quedan
   solo como identificadores internos.
 - Solo `admin` o `supervisor` pueden aprobar, rechazar o convertir solicitudes.
@@ -242,14 +300,21 @@ manualmente.
 - Transiciones manuales permitidas: `nueva` -> `en_revision` o `rechazada`; `en_revision` -> `contactada` o `rechazada`; `contactada` -> `aprobada` o `rechazada`; `aprobada` -> `rechazada`.
 - `rechazada` y `convertida` son estados cerrados. `convertida` solo se asigna desde el flujo formal de conversión a pedido.
 - `quantity` fue eliminado del modelo de solicitudes. Las cantidades, medidas y requisitos se deben explicar dentro de `description` o `notes`.
-- `service_type` sigue siendo una referencia inicial del tipo de trabajo solicitado.
-- `workflow_type` diferencia el flujo operativo general del servicio específico.
+- `service_id` es la referencia normalizada y obligatoria a `tipos_servicio`.
+- Los listados y detalles internos deben preferir
+  `service_id -> tipos_servicio.name` para el nombre visible del servicio.
+- Si `service_id` tiene valor, un trigger de base de datos sincroniza
+  `workflow_type` desde `tipos_servicio`.
+- `workflow_type` diferencia el flujo operativo general y queda materializado
+  para compatibilidad y consultas operativas.
 - Los registros existentes quedan como `encargo`.
-- La conversión conserva el `workflow_type` de la solicitud.
+- La conversión permite confirmar o cambiar el servicio dentro del mismo
+  `workflow_type` de la solicitud.
 - En encargos, la conversión exige `title` y `description` definidos por el usuario interno.
 - En impresiones, la conversión usa el título operativo predeterminado `Pedido de impresión` y conserva la descripción estructurada de la solicitud.
 - `priority` se valida contra el enum real. `estimated_delivery_date` es opcional y no puede ser anterior al día actual si se informa.
-- `service_type` describe el servicio solicitado; no decide el flujo ni se usa como título automático.
+- El nombre del servicio no se persiste como texto duplicado en solicitudes; se
+  obtiene desde `tipos_servicio.name`.
 
 **Notas de seguridad:**
 
@@ -265,10 +330,11 @@ manualmente.
 |---|---|---|
 | `id` | `uuid` | Identificador único del pedido. |
 | `order_number` | `text unique` | Número operativo interno y único, con formato `P-YY-XXXX`. |
-| `public_reference` | `text` | Codigo publico de seguimiento con formato `GD-XXXX-XXXX`. |
+| `public_reference` | `text` | Código público de seguimiento con formato `GD-XXXX-XXXX`. |
 | `cliente_id` | `uuid nullable` | Cliente asociado; opcional en pedidos manuales y requerido en pedidos convertidos desde solicitud. |
 | `solicitud_id` | `uuid nullable` | Solicitud origen si el pedido fue convertido. |
 | `workflow_type` | `workflow_type` | Variante del flujo operativo; por defecto `encargo`. |
+| `service_id` | `uuid` | Servicio normalizado y obligatorio en el catálogo. |
 | `title` | `text` | Nombre breve del pedido. |
 | `description` | `text` | Detalle del trabajo. |
 | `status` | `pedido_estado` | Estado operativo del pedido. |
@@ -283,22 +349,31 @@ manualmente.
 
 - `pedidos.cliente_id` -> `clientes.id`.
 - `pedidos.solicitud_id` -> `solicitudes.id`.
+- `pedidos.service_id` -> `tipos_servicio.id` con `on delete restrict`.
 - `pedidos.created_by` -> `perfiles.id`.
 
 **Reglas importantes:**
 
 - `order_number` debe ser único y cumplir el formato `P-YY-XXXX`.
 - `order_number` se genera en base de datos al insertar el pedido. La secuencia reinicia cada año según `private.current_business_date()`, con zona `America/Havana`, y se controla con `pedido_contadores` para proteger la concurrencia.
-- Todo pedido tiene `public_reference`, un codigo publico no secuencial con
+- Todo pedido tiene `public_reference`, un código público no secuencial con
   formato `GD-XXXX-XXXX`.
 - `public_reference` no reemplaza `order_number`: `order_number` sigue siendo la
   numeracion interna operativa y `public_reference` queda reservado para
-  seguimiento publico.
+  seguimiento público.
 - El detalle interno del pedido muestra ambos conceptos separados:
-  `order_number` como referencia operativa y `public_reference` como codigo
+  `order_number` como referencia operativa y `public_reference` como código
   copiable para el cliente.
 - Un pedido puede crearse manualmente o a partir de una solicitud.
-- `workflow_type` distingue encargos personalizados o complejos de trabajos directos de impresión, sin describir el servicio específico.
+- `service_id` es la referencia normalizada a `tipos_servicio` para pedidos
+  nuevos y convertidos. Permanece nullable solo por compatibilidad con datos
+  históricos.
+- Los listados internos filtran por `service_id` y la búsqueda por servicio
+  resuelve `tipos_servicio.name` antes de consultar `pedidos.service_id`.
+- Si `service_id` tiene valor, un trigger de base de datos sincroniza
+  `workflow_type` desde `tipos_servicio`.
+- `workflow_type` distingue encargos personalizados o complejos de trabajos
+  directos de impresión y queda materializado para compatibilidad operativa.
 - Los registros existentes quedan como `encargo`.
 - Un pedido manual puede quedar sin cliente asociado (`cliente_id = null`).
 - La conversión desde solicitud exige que la solicitud tenga `cliente_id` asociado.
@@ -312,8 +387,8 @@ manualmente.
 - En pedidos de tipo `encargo`, las tareas modelan el progreso real y condicionan el avance operativo mediante `public.actualizar_estado_pedido`.
 - En pedidos de tipo `impresion`, las tareas no son obligatorias y el pedido puede avanzar por los mismos estados generales sin crearlas.
 - `public.actualizar_estado_pedido` bloquea el pedido con `FOR UPDATE` y las tareas existentes con `FOR SHARE` durante la decisión.
-- Los datos editables del pedido (`title`, `description`, `priority` y
-  `estimated_delivery_date`) se actualizan de forma controlada mediante
+- Los datos editables del pedido (`service_id`, `title`, `description`,
+  `priority` y `estimated_delivery_date`) se actualizan de forma controlada mediante
   `public.actualizar_datos_pedido`.
 - Para marcar `entregado`, `public.actualizar_estado_pedido` exige que
   `pedido_pagos.payment_status = 'pagado'`; los pedidos con total cero cumplen
@@ -322,6 +397,8 @@ manualmente.
 - Los cambios importantes de estado se registran en `pedido_historial`.
 - La creación y la presentación se adaptan a cada `workflow_type`, pero no hay estados exclusivos de impresión.
 - Los detalles específicos de impresión se guardan como descripción estructurada; no existen tablas normalizadas específicas de impresión.
+- La creación manual y la conversión desde solicitudes reciben `service_id`;
+  las RPCs derivan y protegen `workflow_type` desde `tipos_servicio`.
 
 **Notas de seguridad:**
 
@@ -368,11 +445,11 @@ No es una tabla de movimientos, abonos individuales ni comprobantes.
 - El trigger `private.set_pedido_payment_status()` recalcula siempre
   `payment_status` y mantiene `paid_at` coherente.
 - Los pedidos existentes se rellenan con total cero y estado `pagado`.
-- La creacion manual usa `public.crear_pedido_manual` para crear el pedido y su
-  resumen financiero en una sola transaccion.
-- La conversion desde solicitud usa `public.convertir_solicitud_a_pedido` para
-  crear el pedido, su resumen financiero y asociar archivos en una sola
-  transaccion.
+- La creacion manual usa `public.crear_pedido_manual(p_service_id, ...)` para
+  crear el pedido y su resumen financiero en una sola transaccion.
+- La conversión desde solicitud usa
+  `public.convertir_solicitud_a_pedido(p_service_id, ...)` para crear el pedido,
+  su resumen financiero y asociar archivos en una sola transaccion.
 - La actualizacion interna de pagos usa `public.actualizar_pago_pedido` para
   modificar solo efectivo y transferencia acumulados, mantener `updated_by` y
   registrar historial en una sola transaccion.
@@ -388,11 +465,11 @@ No es una tabla de movimientos, abonos individuales ni comprobantes.
   `public.actualizar_estado_pedido` pueda cerrar el pedido como `entregado`.
 - El listado interno puede leer este resumen para mostrar y filtrar estado de
   pago. Esa visibilidad sigue limitada por acceso interno al pedido; no forma
-  parte del seguimiento publico.
+  parte del seguimiento público.
 
 **Notas de seguridad:**
 
-- RLS esta activo.
+- RLS está activo.
 - Usuarios anonimos no acceden.
 - Usuarios internos activos pueden leer el resumen si ya pueden acceder al pedido.
 - Las modificaciones directas quedan restringidas a `admin` y `supervisor`.
@@ -501,14 +578,14 @@ No es una tabla de movimientos, abonos individuales ni comprobantes.
 
 ### `trabajo_plantillas`
 
-**Proposito:** Guarda la cabecera de plantillas de tareas para encargos, tambien llamadas trabajos predeterminados. Una plantilla no es un pedido real, no tiene estado operativo y no representa trabajo en curso.
+**Propósito:** Guarda la cabecera de plantillas de tareas para encargos, también llamadas trabajos predeterminados. Una plantilla no es un pedido real, no tiene estado operativo y no representa trabajo en curso.
 
 | Campo | Tipo sugerido | Notas |
 |---|---|---|
 | `id` | `uuid` | Identificador unico de la plantilla. |
 | `name` | `text` | Nombre visible de la plantilla. |
 | `description` | `text nullable` | Descripcion interna opcional. |
-| `is_active` | `boolean` | Permite ocultar plantillas sin eliminar su definicion historica. |
+| `is_active` | `boolean` | Permite ocultar plantillas sin eliminar su definición histórica. |
 | `created_by` | `uuid nullable` | Perfil interno que creo la plantilla. |
 | `updated_by` | `uuid nullable` | Perfil interno que actualizo la plantilla. |
 | `created_at` | `timestamptz` | Fecha de creacion. |
@@ -522,7 +599,7 @@ No es una tabla de movimientos, abonos individuales ni comprobantes.
 **Reglas importantes:**
 
 - El nombre no puede quedar vacio tras `trim` y debe medir entre 2 y 120 caracteres.
-- La descripcion es opcional y tiene limite de 2000 caracteres.
+- La descripción es opcional y tiene límite de 2000 caracteres.
 - Las plantillas se usan como moldes para crear tareas nuevas en pedidos de tipo `encargo`.
 - Aplicar una plantilla copia sus tareas a `pedido_tareas` mediante la RPC transaccional `public.aplicar_plantilla_tareas_pedido`.
 - La copia agrega tareas al final del pedido y no reemplaza ni borra tareas existentes.
@@ -531,7 +608,7 @@ No es una tabla de movimientos, abonos individuales ni comprobantes.
 
 **Notas de seguridad:**
 
-- RLS esta activo.
+- RLS está activo.
 - Usuarios internos autenticados y activos pueden leer plantillas activas.
 - `admin` puede leer plantillas activas e inactivas y gestionarlas.
 - Usuarios anonimos no acceden.
@@ -572,7 +649,7 @@ No es una tabla de movimientos, abonos individuales ni comprobantes.
 
 **Notas de seguridad:**
 
-- RLS esta activo.
+- RLS está activo.
 - La lectura sigue la visibilidad de la plantilla padre: plantillas activas para usuarios internos activos y todas para `admin`.
 - Crear, actualizar o eliminar tareas de plantilla queda reservado a `admin`, equivalente SQL del permiso `configuracion.manage`.
 - Usuarios anonimos no acceden.
@@ -754,6 +831,8 @@ No es una tabla de movimientos, abonos individuales ni comprobantes.
 
 - Un cliente puede tener muchas solicitudes.
 - Un cliente puede tener muchos pedidos.
+- Un tipo de servicio puede estar asociado a muchas solicitudes.
+- Un tipo de servicio puede estar asociado a muchos pedidos.
 - Una solicitud puede convertirse en un pedido.
 - Una solicitud convertida y su pedido asociado comparten `public_reference`.
 - Un pedido puede tener varios usuarios internos asignados.
@@ -792,7 +871,7 @@ policies de Storage y validaciones server-side.
 | `supervisor` | Puede gestionar solicitudes, clientes operativos, pedidos, asignaciones, archivos, comentarios e historial. |
 | `trabajador` | Solo puede ver pedidos asignados y datos relacionados necesarios para trabajar. |
 | Cliente externo | Solo puede insertar solicitudes públicas y hasta cinco archivos válidos mediante el flujo controlado. |
-| Usuario no autenticado | No puede leer información interna. |
+| Usuario no autenticado | Puede leer servicios públicamente disponibles y no puede leer información interna. |
 
 El bucket `godel-files` es privado. Las descargas internas validan permisos y
 generan URLs firmadas de duración limitada; no hay lectura ni listado público.
@@ -806,12 +885,16 @@ generan URLs firmadas de duración limitada; no hay lectura ni listado público.
 | `solicitudes` | `status, created_at` |
 | `solicitudes` | `public_reference` unico |
 | `solicitudes` | `converted_order_id` único cuando no es `null` |
+| `solicitudes` | `service_id` |
 | `pedidos` | `cliente_id` |
 | `pedidos` | `created_at` |
 | `pedidos` | `status, created_at` |
 | `pedidos` | `estimated_delivery_date` para pedidos activos |
 | `pedidos` | `public_reference` unico |
 | `pedidos` | `solicitud_id` único cuando no es `null` |
+| `pedidos` | `service_id` |
+| `tipos_servicio` | `lower(btrim(name))` único |
+| `tipos_servicio` | `workflow_type` único solo para `impresion` |
 | `pedido_pagos` | `pedido_id` clave primaria |
 | `pedido_pagos` | `payment_status` |
 | `pedido_trabajadores` | `assigned_profile_id` |
@@ -840,32 +923,36 @@ El diagnóstico y diseño actualizado para comentarios internos e historial oper
 ## Operaciones transaccionales principales
 
 - `public.convertir_solicitud_a_pedido` crea el pedido, marca la solicitud como
-  convertida y hereda sus archivos dentro de una sola transacción.
-- En la conversion de solicitud a pedido, el pedido hereda exactamente el
-  `public_reference` de la solicitud; no se genera un codigo nuevo.
+  convertida, guarda el `service_id` elegido y hereda sus archivos dentro de
+  una sola transacción.
+- En la conversión de solicitud a pedido, el pedido hereda exactamente el
+  `public_reference` de la solicitud; no se genera un código nuevo.
 - `public.crear_cliente_desde_solicitud` crea el cliente, registra historial y
   lo asocia a la solicitud de forma atómica.
 - `public.actualizar_estado_pedido` serializa cambios de estado y valida tareas
   y pago completo antes de entregar.
-- `public.actualizar_datos_pedido` serializa la edición controlada de datos
-  básicos y precio total en pedidos activos.
+- `public.actualizar_datos_pedido` serializa la edición controlada de servicio,
+  datos básicos y precio total en pedidos activos.
 - `public.actualizar_estado_solicitud` controla las transiciones manuales.
 
 ### `public.actualizar_datos_pedido`
 
-RPC transaccional para editar datos básicos y precio total de un pedido activo.
+RPC transaccional para editar servicio, datos básicos y precio total de un
+pedido activo.
 
 Argumentos:
 
 - `p_pedido_id uuid`;
+- `p_service_id uuid`;
 - `p_title text`;
 - `p_description text`;
 - `p_priority public.pedido_prioridad`;
 - `p_estimated_delivery_date date`;
 - `p_total_amount numeric`.
 
-Retorna una fila con `pedido_id`, `title`, `description`, `priority`,
-`estimated_delivery_date`, `total_amount`, `payment_status` y `paid_at`.
+Retorna una fila con `pedido_id`, `service_id`, `workflow_type`, `title`,
+`description`, `priority`, `estimated_delivery_date`, `total_amount`,
+`payment_status` y `paid_at`.
 
 Contrato:
 
@@ -876,6 +963,10 @@ Contrato:
 - permite solamente `admin` o `supervisor`;
 - bloquea `pedidos` y `pedido_pagos` con `FOR UPDATE`;
 - rechaza pedidos `entregado` o `cancelado`;
+- resuelve `p_service_id` contra `tipos_servicio`, incluyendo servicios ocultos
+  públicamente;
+- rechaza cambiar el servicio a otro `workflow_type`; `pedidos.workflow_type`
+  permanece fijo y protegido por la base;
 - valida título, descripción, prioridad, fecha estimada y precio total;
 - permite `estimated_delivery_date = null`;
 - permite conservar una fecha estimada vencida existente, pero si cambia exige
@@ -889,9 +980,9 @@ Contrato:
 - cuando hay cambios, inserta exactamente un evento `pedido_actualizado` en
   `pedido_historial`, con `metadata.changed_fields` y metadatos estructurados.
 
-La metadata guarda valores anterior/nuevo para título, prioridad, fecha estimada
-y precio total. Para descripción guarda solo `{ changed: true }`, de modo que el
-historial no conserva los textos completos anterior y nuevo.
+La metadata guarda valores anterior/nuevo para servicio, título, prioridad,
+fecha estimada y precio total. Para descripción guarda solo `{ changed: true }`,
+de modo que el historial no conserva los textos completos anterior y nuevo.
 
 La evolución del esquema debe hacerse mediante nuevas migraciones y mantener
 alineados los tipos generados de Supabase.

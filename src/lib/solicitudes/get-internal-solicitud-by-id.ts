@@ -7,7 +7,8 @@ import {
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
-import type { InternalSolicitudDetail } from "./types";
+import { mapInternalSolicitudDetail } from "./mappers";
+import type { InternalSolicitudDetail, InternalSolicitudDetailRow } from "./types";
 
 export type GetInternalSolicitudByIdErrorReason =
   | "unauthorized"
@@ -53,10 +54,33 @@ export async function getInternalSolicitudById(
     const { data, error } = await supabase
       .from("solicitudes")
       .select(
-        "id, public_reference, cliente_id, client_name, client_phone, client_email, workflow_type, service_type, description, desired_date, notes, status, converted_order_id, reviewed_by, created_at, updated_at",
+        `
+          id,
+          public_reference,
+          cliente_id,
+          client_name,
+          client_phone,
+          client_email,
+          workflow_type,
+          service_id,
+          description,
+          desired_date,
+          notes,
+          status,
+          converted_order_id,
+          reviewed_by,
+          created_at,
+          updated_at,
+          service:tipos_servicio!solicitudes_service_id_fkey(
+            id,
+            name,
+            workflow_type,
+            is_publicly_available
+          )
+        `,
       )
       .eq("id", id)
-      .returns<InternalSolicitudDetail>()
+      .returns<InternalSolicitudDetailRow>()
       .maybeSingle();
 
     if (error) {
@@ -69,7 +93,7 @@ export async function getInternalSolicitudById(
       return serviceFailure("not_found", "La solicitud no existe.");
     }
 
-    return serviceSuccess({ solicitud: data });
+    return serviceSuccess({ solicitud: mapInternalSolicitudDetail(data) });
   } catch (error) {
     console.error("Unexpected error loading internal solicitud detail", error);
 

@@ -1,23 +1,31 @@
 import type { Enums, Tables } from "@/types/database";
+import type {
+  InternalServiceReference,
+  InternalServiceReferenceRow,
+} from "@/lib/service-types";
 
 type PedidoClienteDetail =
   | Pick<Tables<"clientes">, "id" | "name" | "phone" | "email">
   | null;
 
+type PedidoSolicitudBase = Pick<
+  Tables<"solicitudes">,
+  | "id"
+  | "service_id"
+  | "workflow_type"
+  | "desired_date"
+>;
+
 type PedidoSolicitudDetail =
-  | Pick<
-      Tables<"solicitudes">,
-      | "id"
-      | "client_name"
-      | "client_phone"
-      | "client_email"
-      | "workflow_type"
-      | "service_type"
-      | "description"
-      | "status"
-      | "desired_date"
-      | "created_at"
-    >
+  | (PedidoSolicitudBase & {
+      service: InternalServiceReference | null;
+    })
+  | null;
+
+type PedidoSolicitudDetailRow =
+  | (PedidoSolicitudBase & {
+      service: InternalServiceReferenceRow | null;
+    })
   | null;
 
 type PedidoProfileDetail =
@@ -62,6 +70,7 @@ export type InternalPedidoDetail = Pick<
   | "public_reference"
   | "cliente_id"
   | "solicitud_id"
+  | "service_id"
   | "workflow_type"
   | "title"
   | "description"
@@ -74,10 +83,17 @@ export type InternalPedidoDetail = Pick<
   | "updated_at"
 > & {
   clientes: PedidoClienteDetail;
+  service: InternalServiceReference | null;
   solicitudes: PedidoSolicitudDetail;
   creador: PedidoProfileDetail;
   pedido_trabajadores: InternalPedidoDetailTrabajador[];
   payment: InternalPedidoPayment;
 };
 
-export type InternalPedidoDetailRow = Omit<InternalPedidoDetail, "payment">;
+export type InternalPedidoDetailRow = Omit<
+  InternalPedidoDetail,
+  "payment" | "service" | "solicitudes"
+> & {
+  service: InternalServiceReferenceRow | null;
+  solicitudes: PedidoSolicitudDetailRow;
+};

@@ -13,7 +13,6 @@ import {
 } from "@/lib/validators";
 import {
   WORKFLOW_TYPES,
-  isWorkflowType,
   type WorkflowType,
 } from "@/lib/workflow-types";
 import { PEDIDO_PRIORITIES, type PedidoPriority } from "./status";
@@ -40,7 +39,7 @@ export type PrintPaperSize = (typeof PRINT_PAPER_SIZE_OPTIONS)[number]["value"];
 export type PrintSides = (typeof PRINT_SIDES_OPTIONS)[number]["value"];
 
 export const PEDIDO_FIELDS = [
-  "workflow_type",
+  "service_id",
   "cliente_id",
   "title",
   "description",
@@ -55,6 +54,7 @@ export const PEDIDO_FIELDS = [
 ] as const;
 
 export const PEDIDO_EDIT_FIELDS = [
+  "service_id",
   "title",
   "description",
   "total_amount",
@@ -68,8 +68,14 @@ export type PedidoField = (typeof PEDIDO_FIELDS)[number];
 export type PedidoEditField = (typeof PEDIDO_EDIT_FIELDS)[number];
 export type PedidoPrioridad = PedidoPriority;
 
+export type PedidoResolvedService = {
+  id: string;
+  name: string;
+  workflowType: WorkflowType;
+};
+
 export type CreatePedidoInput = {
-  workflow_type?: unknown;
+  service_id?: unknown;
   cliente_id?: unknown;
   title?: unknown;
   description?: unknown;
@@ -84,6 +90,7 @@ export type CreatePedidoInput = {
 };
 
 type CreatePedidoCommonData = {
+  service_id: string;
   workflow_type: WorkflowType;
   cliente_id: string | null;
   title: string;
@@ -121,6 +128,7 @@ export type ValidatePedidoInputResult = ValidationResult<
 >;
 
 export type UpdatePedidoInput = {
+  service_id?: unknown;
   title?: unknown;
   description?: unknown;
   total_amount?: unknown;
@@ -129,6 +137,7 @@ export type UpdatePedidoInput = {
 };
 
 export type UpdatePedidoData = {
+  service_id: string;
   title: string;
   description: string;
   total_amount: number;
@@ -235,6 +244,7 @@ function getOptionLabel<
 }
 
 function buildPrintDescription(input: {
+  serviceName: string;
   copies: number;
   colorMode: PrintColorMode;
   paperSize: PrintPaperSize;
@@ -242,7 +252,7 @@ function buildPrintDescription(input: {
   notes: string | null;
 }): string {
   return [
-    "Tipo de trabajo: Impresión",
+    `Tipo de trabajo: ${input.serviceName}`,
     "",
     `Cantidad de copias: ${input.copies}`,
     `Modo de color: ${getOptionLabel(input.colorMode, PRINT_COLOR_MODE_OPTIONS)}`,
@@ -256,8 +266,8 @@ function buildPrintDescription(input: {
 
 export function validatePedidoInput(
   input: CreatePedidoInput,
+  service: PedidoResolvedService,
 ): ValidatePedidoInputResult {
-  const workflowTypeValue = normalizeSingleLineText(input.workflow_type);
   const clienteId = normalizeOptionalSingleLineText(input.cliente_id);
   const title = normalizeSingleLineText(input.title);
   const description = normalizeMultilineText(input.description);
@@ -271,11 +281,6 @@ export function validatePedidoInput(
   const printSidesValue = normalizeSingleLineText(input.print_sides);
   const printNotes = normalizeOptionalMultilineText(input.print_notes);
   const fieldErrors: PedidoFieldErrors = {};
-
-  if (!isWorkflowType(workflowTypeValue)) {
-    fieldErrors.workflow_type =
-      "Selecciona si el pedido es un encargo o una impresión.";
-  }
 
   if (clienteId && !isValidUuid(clienteId)) {
     fieldErrors.cliente_id =
@@ -306,7 +311,7 @@ export function validatePedidoInput(
     }
   }
 
-  if (workflowTypeValue === WORKFLOW_TYPES.ENCARGO) {
+  if (service.workflowType === WORKFLOW_TYPES.ENCARGO) {
     if (!title) {
       fieldErrors.title = "El título del trabajo es obligatorio.";
     } else if (title.length > MAX_TITULO_LENGTH) {
@@ -325,7 +330,7 @@ export function validatePedidoInput(
   let printPaperSize: PrintPaperSize | null = null;
   let printSides: PrintSides | null = null;
 
-  if (workflowTypeValue === WORKFLOW_TYPES.IMPRESION) {
+  if (service.workflowType === WORKFLOW_TYPES.IMPRESION) {
     if (title.length > MAX_TITULO_LENGTH) {
       fieldErrors.title = `El título no puede superar ${MAX_TITULO_LENGTH} caracteres.`;
     }
@@ -375,14 +380,17 @@ export function validatePedidoInput(
   }
 
   const commonData = {
+    service_id: service.id,
+    workflow_type: service.workflowType,
     cliente_id: clienteId,
     total_amount: totalAmountValidation.ok ? totalAmountValidation.value : 0,
     priority: priority as PedidoPrioridad,
     estimated_delivery_date: fechaEntregaEstimada,
   };
 
-  if (workflowTypeValue === WORKFLOW_TYPES.IMPRESION) {
+  if (service.workflowType === WORKFLOW_TYPES.IMPRESION) {
     const printData = {
+      serviceName: service.name,
       copies: printCopies as number,
       colorMode: printColorMode as PrintColorMode,
       paperSize: printPaperSize as PrintPaperSize,
@@ -414,6 +422,7 @@ export function validatePedidoInput(
 export function validatePedidoUpdateInput(
   input: UpdatePedidoInput,
 ): ValidatePedidoUpdateInputResult {
+  const serviceId = normalizeSingleLineText(input.service_id);
   const title = normalizeSingleLineText(input.title);
   const description = normalizeMultilineText(input.description);
   const priority = normalizeSingleLineText(input.priority);
@@ -424,6 +433,12 @@ export function validatePedidoUpdateInput(
     input.total_amount,
   );
   const fieldErrors: PedidoEditFieldErrors = {};
+
+  if (!serviceId) {
+    fieldErrors.service_id = "Selecciona un servicio.";
+  } else if (!isValidUuid(serviceId)) {
+    fieldErrors.service_id = "Selecciona un servicio válido.";
+  }
 
   if (!title) {
     fieldErrors.title = "El título del pedido es obligatorio.";
@@ -454,6 +469,7 @@ export function validatePedidoUpdateInput(
   }
 
   return validationSuccess({
+    service_id: serviceId,
     title,
     description,
     total_amount: totalAmountValidation.ok ? totalAmountValidation.value : 0,

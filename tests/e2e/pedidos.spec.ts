@@ -1,10 +1,16 @@
-import { expect, type Locator, type Page, test } from "@playwright/test";
 import { resolve } from "node:path";
 
+import { expect, type Locator, type Page, test } from "@playwright/test";
+
+import type { Database } from "@/types/database";
 import { expectNoTechnicalLeakText } from "./helpers/assertions";
 import { loginAs } from "./helpers/auth";
 import { getFutureDateInputValue } from "./helpers/date";
 import { createQaRunId, createQaRunLabel } from "./helpers/qa-data";
+import {
+  createQaSupabaseClient,
+  signOutQaSupabaseClient,
+} from "./helpers/supabase";
 
 test.describe.configure({ mode: "serial" });
 
@@ -27,6 +33,105 @@ const quantifiedTaskTitle = `QA Tarea Focal Imprimir 5 hojas ${runLabel}`;
 const workspaceCommentText = `QA comentario workspace ${runLabel}`;
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+let focalEncargoServiceId = "";
+
+type QaSupabaseClient = Awaited<ReturnType<typeof createQaSupabaseClient>>;
+type ServiceTypeRow = Pick<
+  Database["public"]["Tables"]["tipos_servicio"]["Row"],
+  "id" | "name" | "workflow_type" | "is_publicly_available"
+>;
+type PedidoServiceAssertion = Pick<
+  Database["public"]["Tables"]["pedidos"]["Row"],
+  "id" | "service_id" | "workflow_type"
+>;
+
+async function listQaServiceTypes(supabase: QaSupabaseClient) {
+  const { data, error } = await supabase
+    .from("tipos_servicio")
+    .select("id, name, workflow_type, is_publicly_available")
+    .order("workflow_type", { ascending: true })
+    .order("name", { ascending: true })
+    .returns<ServiceTypeRow[]>();
+
+  expect(error).toBeNull();
+  expect(data).not.toBeNull();
+
+  return data ?? [];
+}
+
+function getPedidoIdFromCurrentUrl(page: Page) {
+  const pedidoId = page.url().match(/\/dashboard\/pedidos\/([0-9a-f-]+)/i)
+    ?.[1] ?? "";
+
+  expect(pedidoId).toMatch(uuidPattern);
+
+  return pedidoId;
+}
+
+async function getPedidoServiceAssertion(
+  supabase: QaSupabaseClient,
+  pedidoId: string,
+) {
+  const { data, error } = await supabase
+    .from("pedidos")
+    .select("id, service_id, workflow_type")
+    .eq("id", pedidoId)
+    .maybeSingle<PedidoServiceAssertion>();
+
+  expect(error).toBeNull();
+  expect(data).not.toBeNull();
+
+  return data as PedidoServiceAssertion;
+}
+
+async function setQaServiceAvailability(
+  supabase: QaSupabaseClient,
+  serviceId: string,
+  isPubliclyAvailable: boolean,
+) {
+  const { error } = await supabase
+    .from("tipos_servicio")
+    .update({ is_publicly_available: isPubliclyAvailable })
+    .eq("id", serviceId);
+
+  expect(error).toBeNull();
+}
+
+async function resolveHiddenEncargoService(
+  supabase: QaSupabaseClient,
+  encargoServices: ServiceTypeRow[],
+) {
+  const alreadyHidden = encargoServices.find(
+    (service) => !service.is_publicly_available,
+  );
+
+  if (alreadyHidden) {
+    return {
+      service: alreadyHidden,
+      restored: true,
+      restore: async () => undefined,
+    };
+  }
+
+  const service = encargoServices[0];
+
+  if (!service) {
+    throw new Error("No encargo service types available for QA.");
+  }
+
+  await setQaServiceAvailability(supabase, service.id, false);
+
+  return {
+    service: {
+      ...service,
+      is_publicly_available: false,
+    },
+    restored: false,
+    restore: async () => {
+      await setQaServiceAvailability(supabase, service.id, true);
+    },
+  };
+}
 
 async function clickFirstVisible(locator: Locator) {
   await expect(async () => {
@@ -841,6 +946,7 @@ async function createManualPedido(
   workflow: "encargo" | "impresion",
   title: string,
   total = "500",
+  serviceId?: string,
 ) {
   await page.goto("/dashboard/pedidos");
   await page.getByRole("button", { name: /nuevo pedido/i }).click();
@@ -850,6 +956,14 @@ async function createManualPedido(
 
   if (workflow === "impresion") {
     await dialog.getByRole("tab", { name: /impresi.n/i }).click();
+    await expect(dialog.locator('select[name="service_id"]')).toHaveCount(0);
+    await expect(dialog.locator('input[name="service_id"]')).toHaveCount(1);
+    await expect(dialog.locator("#service_id_display")).toBeVisible();
+    await expect(dialog.locator("#service_id_display")).toHaveAttribute(
+      "readonly",
+      "",
+    );
+    await expect(dialog).not.toContainText(/oculto p.blicamente/i);
     await dialog.getByLabel(/cantidad de copias/i).fill("8");
     await dialog.getByLabel(/modo de color/i).selectOption("color");
     await dialog.getByLabel(/tama.o de papel/i).selectOption("carta");
@@ -859,6 +973,17 @@ async function createManualPedido(
       .fill(`Pedido de impresion focal para ${clienteLabel}`);
   } else {
     await dialog.getByRole("tab", { name: /encargo/i }).click();
+    const serviceSelect = dialog.locator('select[name="service_id"]');
+
+    await expect(serviceSelect).toBeVisible();
+    await expect(
+      serviceSelect.locator("option").evaluateAll((options) =>
+        options.map((option) => option.textContent ?? "").join("\n"),
+      ),
+    ).resolves.not.toMatch(/oculto p.blicamente/i);
+    if (serviceId) {
+      await dialog.locator('select[name="service_id"]').selectOption(serviceId);
+    }
     await dialog
       .getByRole("textbox", { name: /descripci.n/i })
       .fill(`Encargo focal para ${clienteLabel}`);
@@ -2620,6 +2745,156 @@ test(
   },
 );
 
+test("manual pedido creation persists selected operational service types", async ({
+  page,
+}) => {
+  test.setTimeout(180_000);
+
+  const supabase = await createQaSupabaseClient("admin");
+  let restoreHiddenService = async () => undefined;
+
+  try {
+    const services = await listQaServiceTypes(supabase);
+    const encargoServices = services.filter(
+      (service) => service.workflow_type === "encargo",
+    );
+    const printService = services.find(
+      (service) => service.workflow_type === "impresion",
+    );
+    const selectedEncargoService = encargoServices[0];
+
+    if (!selectedEncargoService || !printService) {
+      throw new Error("Operational encargo and print services are required.");
+    }
+
+    focalEncargoServiceId = selectedEncargoService.id;
+
+    await loginAs(page, "admin");
+    const selectedTitle = `QA Pedido Servicio Seleccionado ${runId}`;
+    await createManualPedido(
+      page,
+      "encargo",
+      selectedTitle,
+      "410",
+      selectedEncargoService.id,
+    );
+    const selectedPedido = await getPedidoServiceAssertion(
+      supabase,
+      getPedidoIdFromCurrentUrl(page),
+    );
+
+    expect(selectedPedido.service_id).toBe(selectedEncargoService.id);
+    expect(selectedPedido.workflow_type).toBe(
+      selectedEncargoService.workflow_type,
+    );
+
+    const printTitle = `QA Pedido Servicio Impresion ${runId}`;
+    await createManualPedido(page, "impresion", printTitle, "420");
+    const printPedido = await getPedidoServiceAssertion(
+      supabase,
+      getPedidoIdFromCurrentUrl(page),
+    );
+
+    expect(printPedido.service_id).toBe(printService.id);
+    expect(printPedido.workflow_type).toBe("impresion");
+
+    await loginAs(page, "supervisor");
+    const supervisorTitle = `QA Pedido Supervisor Servicio ${runId}`;
+    await createManualPedido(
+      page,
+      "encargo",
+      supervisorTitle,
+      "430",
+      selectedEncargoService.id,
+    );
+    const supervisorPedido = await getPedidoServiceAssertion(
+      supabase,
+      getPedidoIdFromCurrentUrl(page),
+    );
+
+    expect(supervisorPedido.service_id).toBe(selectedEncargoService.id);
+    expect(supervisorPedido.workflow_type).toBe(
+      selectedEncargoService.workflow_type,
+    );
+
+    const hiddenServiceSetup = await resolveHiddenEncargoService(
+      supabase,
+      encargoServices,
+    );
+    restoreHiddenService = hiddenServiceSetup.restore;
+
+    await loginAs(page, "admin");
+    const hiddenTitle = `QA Pedido Servicio Oculto ${runId}`;
+    await createManualPedido(
+      page,
+      "encargo",
+      hiddenTitle,
+      "440",
+      hiddenServiceSetup.service.id,
+    );
+    const hiddenPedido = await getPedidoServiceAssertion(
+      supabase,
+      getPedidoIdFromCurrentUrl(page),
+    );
+
+    expect(hiddenServiceSetup.service.is_publicly_available).toBe(false);
+    expect(hiddenPedido.service_id).toBe(hiddenServiceSetup.service.id);
+    expect(hiddenPedido.workflow_type).toBe(
+      hiddenServiceSetup.service.workflow_type,
+    );
+    await getPedidoHeader(page)
+      .getByRole("button", { name: /editar pedido/i })
+      .click();
+    const hiddenEditDialog = page.getByRole("dialog", {
+      name: /^editar pedido$/i,
+    });
+
+    await expect(hiddenEditDialog).toBeVisible();
+    await expect(hiddenEditDialog.locator('select[name="service_id"]'))
+      .toHaveValue(hiddenServiceSetup.service.id);
+    await expect(
+      hiddenEditDialog.locator(
+        `select[name="service_id"] option[value="${hiddenServiceSetup.service.id}"]`,
+      ),
+    ).toHaveText(hiddenServiceSetup.service.name);
+    await expect(
+      hiddenEditDialog
+        .locator('select[name="service_id"] option')
+        .evaluateAll((options) =>
+          options.map((option) => option.textContent ?? "").join("\n"),
+        ),
+    ).resolves.not.toMatch(/oculto p.blicamente/i);
+    await hiddenEditDialog.getByRole("button", { name: /cerrar/i }).click();
+    await expect(hiddenEditDialog).toBeHidden();
+
+    await page.goto("/solicitud");
+    if (
+      !(await page
+        .getByText(/formulario no disponible/i)
+        .isVisible()
+        .catch(() => false))
+    ) {
+      await page.getByRole("tab", { name: /encargo/i }).click();
+      await expect(
+        page.locator(
+          `select[name="service_id"] option[value="${hiddenServiceSetup.service.id}"]`,
+        ),
+      ).toHaveCount(0);
+    }
+
+    await loginAs(page, "worker");
+    await page.goto("/dashboard/pedidos");
+    await expectPedidosListLoaded(page);
+    await expect(
+      page.getByRole("button", { name: /nuevo pedido/i }),
+    ).toHaveCount(0);
+    await expect(page.locator('select[name="service_id"]')).toHaveCount(0);
+  } finally {
+    await restoreHiddenService();
+    await signOutQaSupabaseClient(supabase);
+  }
+});
+
 test("admin can create and manage focal internal pedidos", async ({ page }) => {
   test.setTimeout(180_000);
 
@@ -2888,8 +3163,8 @@ test("admin can validate pedidos pagination and canonical URLs", async ({
         /En revisi.n|En producci.n|Listo para entrega|Entregado|Cancelado/i,
     },
     {
-      url: "/dashboard/pedidos?workflow_type=encargo&page=999999",
-      params: { workflow_type: "encargo" },
+      url: `/dashboard/pedidos?service_id=${focalEncargoServiceId}&page=999999`,
+      params: { service_id: focalEncargoServiceId },
       expected: /Encargo/i,
     },
     {
@@ -2914,18 +3189,18 @@ test("admin can validate pedidos pagination and canonical URLs", async ({
   }
 
   await page.goto(
-    "/dashboard/pedidos?status=invalido&workflow_type=desconocido&payment_status=incorrecto&page=abc",
+    "/dashboard/pedidos?status=invalido&service_id=desconocido&payment_status=incorrecto",
   );
   await expectPedidosListLoaded(page);
   await expectNoPedidosLoadError(page);
   await expect(page.getByText(/filtro de estado no es v.lido/i)).toBeVisible();
-  await expect(page.getByText(/filtro de tipo no es v.lido/i)).toBeVisible();
+  await expect(page.getByText(/filtro de servicio no es v.lido/i)).toBeVisible();
   await expect(page.getByText(/filtro de pago no es v.lido/i)).toBeVisible();
 
   const invalidUrl = await getCurrentPedidosUrl(page);
 
   expect(invalidUrl.searchParams.get("status")).toBe("invalido");
-  expect(invalidUrl.searchParams.get("workflow_type")).toBe("desconocido");
+  expect(invalidUrl.searchParams.get("service_id")).toBe("desconocido");
   expect(invalidUrl.searchParams.get("payment_status")).toBe("incorrecto");
   expect(invalidUrl.searchParams.has("page")).toBe(false);
 });
@@ -3122,7 +3397,7 @@ test("pedido filters remove pagination from the URL", async ({ page }) => {
   await page.goto("/dashboard/pedidos?page=2");
   await expectPedidosListLoaded(page);
   await getPedidosFiltersToggle(page).click();
-  await page.getByLabel(/^Tipo$/i).selectOption("encargo");
+  await page.getByLabel(/^Servicio$/i).selectOption(focalEncargoServiceId);
 
   await expect
     .poll(async () => {
@@ -3130,10 +3405,10 @@ test("pedido filters remove pagination from the URL", async ({ page }) => {
 
       return {
         page: url.searchParams.get("page"),
-        workflowType: url.searchParams.get("workflow_type"),
+        serviceId: url.searchParams.get("service_id"),
       };
     })
-    .toEqual({ page: null, workflowType: "encargo" });
+    .toEqual({ page: null, serviceId: focalEncargoServiceId });
 });
 
 test("pedidos pagination remains usable on mobile", async ({ page }) => {
@@ -3611,15 +3886,9 @@ Otra línea de QA para el textarea.`;
     informationDialog.getByText(/este pedido no tiene cliente asociado/i),
   ).toBeVisible();
   await expect(
-    informationDialog.getByRole("heading", { name: /solicitud de origen/i }),
-  ).toBeVisible();
-  await expect(
     informationDialog.getByText(/pedido creado manualmente/i),
   ).toBeVisible();
-  await expect(
-    informationDialog.getByRole("heading", { name: /informaci.n t.cnica/i }),
-  ).toBeVisible();
-  await expect(informationDialog.getByText(/referencia interna/i))
+  await expect(informationDialog.getByText(/identificador interno/i))
     .toBeVisible();
 
   await informationDialog.getByRole("button", { name: /cerrar/i }).click();

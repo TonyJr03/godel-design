@@ -4,6 +4,7 @@ import {
   serviceSuccess,
   type ServiceResult,
 } from "@/lib/service-results";
+import { getPublicServiceTypeById } from "@/lib/service-types";
 import { createClient } from "@/lib/supabase/server";
 import type { TablesInsert } from "@/types/database";
 import {
@@ -59,7 +60,22 @@ function isPublicReferenceConflict(error: {
 export async function createPublicSolicitud(
   input: PublicSolicitudInput,
 ): Promise<CreatePublicSolicitudResult> {
-  const validation = validatePublicSolicitudInput(input);
+  const serviceResult = await getPublicServiceTypeById(
+    typeof input.service_id === "string" ? input.service_id : "",
+  );
+
+  if (!serviceResult.ok) {
+    return serviceFailure("validation", serviceResult.message, {
+      fieldErrors: {
+        service_id: serviceResult.message,
+      },
+    });
+  }
+
+  const validation = validatePublicSolicitudInput(
+    input,
+    serviceResult.serviceType,
+  );
 
   if (!validation.ok) {
     return serviceFailure("validation", validation.message, {
@@ -75,11 +91,11 @@ export async function createPublicSolicitud(
   const solicitudInsert: TablesInsert<"solicitudes"> = {
     id: solicitudId,
     cliente_id: null,
+    service_id: validation.data.service_id,
     client_name: validation.data.client_name,
     client_phone: validation.data.client_phone,
     client_email: validation.data.client_email,
     workflow_type: validation.data.workflow_type,
-    service_type: validation.data.service_type,
     description: validation.data.description,
     desired_date: validation.data.desired_date,
     notes: validation.data.notes,

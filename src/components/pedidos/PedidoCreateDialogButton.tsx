@@ -1,20 +1,27 @@
 "use client";
 
 import { Plus } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 
 import { InternalFormDialog } from "@/components/forms";
+import { Alert } from "@/components/ui";
 import type { PedidoPrioridad } from "@/lib/pedidos";
+import type { OperationalServiceType } from "@/lib/service-types";
 
 import { PedidoForm } from "./PedidoForm";
 
 type PedidoCreateDialogButtonProps = {
   prioridades: readonly PedidoPrioridad[];
+  serviceTypes: OperationalServiceType[];
+  serviceTypesLoadError?: string;
 };
 
 export function PedidoCreateDialogButton({
   prioridades,
+  serviceTypes,
+  serviceTypesLoadError,
 }: PedidoCreateDialogButtonProps) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
@@ -55,11 +62,36 @@ export function PedidoCreateDialogButton({
       >
         {isOpen ? (
           <div className="space-y-4">
-            <PedidoForm
-              prioridades={prioridades}
-              onDirtyChange={setHasUnsavedChanges}
-              onSuccess={handleSuccess}
-            />
+            {serviceTypesLoadError ? (
+              <Alert
+                variant="warning"
+                title="No se pudo cargar el catálogo de servicios"
+              >
+                <div className="space-y-3">
+                  <p>{serviceTypesLoadError}</p>
+                  <Link
+                    href="/dashboard/pedidos"
+                    className="inline-flex min-h-10 items-center text-sm font-semibold text-brand-primary underline underline-offset-4"
+                  >
+                    Reintentar
+                  </Link>
+                </div>
+              </Alert>
+            ) : serviceTypes.length === 0 ? (
+              <Alert
+                variant="warning"
+                title="Creación temporalmente no disponible"
+              >
+                No hay servicios disponibles para crear pedidos.
+              </Alert>
+            ) : (
+              <PedidoForm
+                prioridades={prioridades}
+                serviceTypes={serviceTypes}
+                onDirtyChange={setHasUnsavedChanges}
+                onSuccess={handleSuccess}
+              />
+            )}
           </div>
         ) : null}
       </InternalFormDialog>

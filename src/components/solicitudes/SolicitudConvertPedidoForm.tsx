@@ -6,6 +6,7 @@ import type {
   ConvertSolicitudToPedidoActionState,
   SolicitudDetailAction,
 } from "@/app/(interno)/dashboard/solicitudes/[id]/actions";
+import { InternalServiceDisplay } from "@/components/service-types/InternalServiceDisplay";
 import {
   Alert,
   Button,
@@ -17,7 +18,11 @@ import {
 import { WorkflowTypeBadge } from "@/components/ui/WorkflowTypeBadge";
 import { PEDIDO_PRIORITY_LABELS } from "@/lib/pedidos/labels";
 import { PEDIDO_PRIORITIES } from "@/lib/pedidos/status";
-import { getSolicitudServiceTypeLabel } from "@/lib/solicitudes/labels";
+import type {
+  InternalServiceReference,
+  OperationalServiceType,
+} from "@/lib/service-types/types";
+import { SERVICE_UNAVAILABLE_LABEL } from "@/lib/service-types/labels";
 import { getTodayDateInputValue } from "@/lib/utils";
 import {
   WORKFLOW_TYPES,
@@ -28,11 +33,15 @@ import type { Enums } from "@/types/database";
 
 type SolicitudConvertPedidoFormProps = {
   convertAction: SolicitudDetailAction<ConvertSolicitudToPedidoActionState>;
+  retryHref: string;
   status: Enums<"solicitud_estado">;
   clienteId: string | null;
   convertedOrderId: string | null;
   workflowType: WorkflowType;
-  serviceType: string;
+  solicitudServiceId: string | null;
+  serviceTypes: OperationalServiceType[];
+  serviceTypesLoadError?: string;
+  solicitudService: InternalServiceReference | null;
   solicitudDescription: string;
   solicitudDesiredDate: string | null;
   presentation?: "card" | "panel";
@@ -47,11 +56,15 @@ const initialState: ConvertSolicitudToPedidoActionState = {
 
 export function SolicitudConvertPedidoForm({
   convertAction,
+  retryHref,
   status,
   clienteId,
   convertedOrderId,
   workflowType,
-  serviceType,
+  solicitudServiceId,
+  serviceTypes,
+  serviceTypesLoadError,
+  solicitudService,
   solicitudDescription,
   solicitudDesiredDate,
   presentation = "card",
@@ -65,6 +78,7 @@ export function SolicitudConvertPedidoForm({
     status === "aprobada" && Boolean(clienteId) && !currentPedidoId;
   const titleError = state.fieldErrors?.title;
   const descriptionError = state.fieldErrors?.description;
+  const serviceIdError = state.fieldErrors?.service_id;
   const totalAmountError = state.fieldErrors?.total_amount;
   const priorityError = state.fieldErrors?.priority;
   const estimatedDeliveryDateError =
@@ -73,14 +87,23 @@ export function SolicitudConvertPedidoForm({
   const hasFreshConversionSuccess = state.ok && Boolean(state.pedidoId);
   const titleValue = state.values?.title ?? "";
   const descriptionValue = state.values?.description ?? solicitudDescription;
+  const workflowServices = serviceTypes.filter(
+    (service) => service.workflowType === workflowType,
+  );
+  const defaultService =
+    workflowServices.find((service) => service.id === solicitudServiceId) ??
+    workflowServices[0] ??
+    null;
+  const selectedServiceId = state.values?.service_id ?? defaultService?.id ?? "";
+  const selectedService =
+    workflowServices.find((service) => service.id === selectedServiceId) ??
+    defaultService;
   const totalAmountValue = state.values?.total_amount ?? "";
   const priorityValue = state.values?.priority ?? "normal";
   const estimatedDeliveryDateValue =
     state.values?.estimated_delivery_date ?? solicitudDesiredDate ?? "";
-  const serviceTypeLabel = getSolicitudServiceTypeLabel(serviceType);
   const todayInputDate = getTodayDateInputValue();
   const isPanel = presentation === "panel";
-
   return (
     <section
       className={
@@ -137,6 +160,28 @@ export function SolicitudConvertPedidoForm({
         <Alert variant="warning" className={isPanel ? "" : "mt-4"}>
           Asocia un cliente antes de convertir esta solicitud en pedido.
         </Alert>
+      ) : serviceTypesLoadError ? (
+        <Alert
+          variant="warning"
+          title="No se pudo cargar el catálogo de servicios"
+          className={isPanel ? "" : "mt-4"}
+        >
+          <p>{serviceTypesLoadError}</p>
+          <Link
+            href={retryHref}
+            className="mt-2 inline-flex min-h-10 items-center text-sm font-semibold text-brand-primary underline underline-offset-4"
+          >
+            Reintentar
+          </Link>
+        </Alert>
+      ) : !defaultService ? (
+        <Alert
+          variant="warning"
+          title="Conversión temporalmente no disponible"
+          className={isPanel ? "" : "mt-4"}
+        >
+          <p>No hay servicios disponibles para este tipo de solicitud.</p>
+        </Alert>
       ) : (
         <form action={formAction} aria-busy={pending} className="space-y-5">
           <div className="rounded-(--radius-control) border border-border bg-surface-muted px-4 py-3 text-sm leading-6 text-text-secondary">
@@ -146,8 +191,12 @@ export function SolicitudConvertPedidoForm({
               </span>
               <WorkflowTypeBadge workflowType={workflowType} />
             </p>
-            <p className="mt-1">Solicitud: {serviceTypeLabel}</p>
+            <p className="mt-1 flex flex-wrap items-center gap-1.5">
+              <span>Solicitud:</span>
+              <InternalServiceDisplay service={solicitudService} compact />
+            </p>
           </div>
+
 
           <section
             aria-labelledby="convert-workflow-data-title"
@@ -231,6 +280,61 @@ export function SolicitudConvertPedidoForm({
             </h3>
 
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              {isPrintWorkflow ? (
+                <FormField
+                  id="service_id_display"
+                  label="Servicio"
+                  required
+                  error={serviceIdError}
+                  errorId="convert-service-id-error"
+                  compact
+                >
+                  {({ describedBy, invalid }) => (
+                    <>
+                      <Input
+                        id="service_id_display"
+                        type="text"
+                        value={selectedService?.name ?? SERVICE_UNAVAILABLE_LABEL}
+                        readOnly
+                        invalid={invalid}
+                        aria-describedby={describedBy}
+                      />
+                      <input
+                        type="hidden"
+                        name="service_id"
+                        value={selectedServiceId}
+                      />
+                    </>
+                  )}
+                </FormField>
+              ) : (
+                <FormField
+                  id="service_id"
+                  label="Servicio"
+                  required
+                  error={serviceIdError}
+                  errorId="convert-service-id-error"
+                  compact
+                >
+                  {({ describedBy, invalid }) => (
+                    <Select
+                      id="service_id"
+                      name="service_id"
+                      required
+                      defaultValue={selectedServiceId}
+                      invalid={invalid}
+                      aria-describedby={describedBy}
+                    >
+                      {workflowServices.map((service) => (
+                        <option key={service.id} value={service.id}>
+                          {service.name}
+                        </option>
+                      ))}
+                    </Select>
+                  )}
+                </FormField>
+              )}
+
               <FormField
                 id="priority"
                 label="Prioridad"
@@ -285,7 +389,6 @@ export function SolicitudConvertPedidoForm({
                 error={totalAmountError}
                 errorId="convert-total-amount-error"
                 helpId="convert-total-amount-help"
-                className="sm:col-span-2"
                 compact
               >
                 {({ describedBy, invalid }) => (

@@ -2,6 +2,7 @@ import { resolve } from "node:path";
 
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
+import type { Database } from "@/types/database";
 import {
   expectAccessLimitedPage,
   expectNoStorageLeakTextIn,
@@ -10,6 +11,10 @@ import {
 import { loginAs } from "./helpers/auth";
 import { getFutureDateInputValue } from "./helpers/date";
 import { createQaEmail, createQaRunId } from "./helpers/qa-data";
+import {
+  createQaSupabaseClient,
+  signOutQaSupabaseClient,
+} from "./helpers/supabase";
 
 test.describe.configure({ mode: "serial" });
 
@@ -42,12 +47,177 @@ const selectorClienteBEmail =
 const selectorClienteBNotes = `Notas QA selector cliente B ${runId}`;
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const missingServiceId = "00000000-0000-4000-8000-000000000000";
+
+type QaSupabaseClient = Awaited<ReturnType<typeof createQaSupabaseClient>>;
+type ServiceTypeRow = Pick<
+  Database["public"]["Tables"]["tipos_servicio"]["Row"],
+  "id" | "name" | "workflow_type" | "is_publicly_available"
+>;
+type SolicitudServiceAssertion = Pick<
+  Database["public"]["Tables"]["solicitudes"]["Row"],
+  | "id"
+  | "service_id"
+  | "workflow_type"
+  | "status"
+  | "converted_order_id"
+>;
+type PedidoConversionAssertion = Pick<
+  Database["public"]["Tables"]["pedidos"]["Row"],
+  | "id"
+  | "solicitud_id"
+  | "service_id"
+  | "workflow_type"
+  | "title"
+  | "description"
+>;
 
 let encargoReference = "";
 let impresionReference = "";
 let encargoDetailUrl = "";
 let impresionDetailUrl = "";
 let convertedPedidoUrl = "";
+let focalSolicitudServiceId = "";
+
+async function listQaServiceTypes(supabase: QaSupabaseClient) {
+  const { data, error } = await supabase
+    .from("tipos_servicio")
+    .select("id, name, workflow_type, is_publicly_available")
+    .order("workflow_type", { ascending: true })
+    .order("name", { ascending: true })
+    .returns<ServiceTypeRow[]>();
+
+  expect(error).toBeNull();
+  expect(data).not.toBeNull();
+
+  return data ?? [];
+}
+
+async function setQaServiceAvailability(
+  supabase: QaSupabaseClient,
+  serviceId: string,
+  isPubliclyAvailable: boolean,
+) {
+  const { error } = await supabase
+    .from("tipos_servicio")
+    .update({ is_publicly_available: isPubliclyAvailable })
+    .eq("id", serviceId);
+
+  expect(error).toBeNull();
+}
+
+async function resolveHiddenEncargoService(
+  supabase: QaSupabaseClient,
+  encargoServices: ServiceTypeRow[],
+) {
+  const alreadyHidden = encargoServices.find(
+    (service) => !service.is_publicly_available,
+  );
+
+  if (alreadyHidden) {
+    return {
+      service: alreadyHidden,
+      restore: async () => undefined,
+    };
+  }
+
+  const service = encargoServices[0];
+
+  if (!service) {
+    throw new Error("No encargo service types available for QA.");
+  }
+
+  await setQaServiceAvailability(supabase, service.id, false);
+
+  return {
+    service: {
+      ...service,
+      is_publicly_available: false,
+    },
+    restore: async () => {
+      await setQaServiceAvailability(supabase, service.id, true);
+    },
+  };
+}
+
+async function createApprovedQaSolicitud({
+  supabase,
+  service,
+  label,
+  description,
+}: {
+  supabase: QaSupabaseClient;
+  service: ServiceTypeRow;
+  label: string;
+  description: string;
+}) {
+  const { data: cliente, error: clienteError } = await supabase
+    .from("clientes")
+    .insert({
+      name: `QA Cliente ${label} ${runId}`,
+      phone: `56${runId.slice(-7)}`,
+      email: createQaEmail(`qa-cliente-${label}`, runId),
+      notes: `Cliente QA para conversion ${label} ${runId}`,
+    })
+    .select("id")
+    .single<{ id: string }>();
+
+  expect(clienteError).toBeNull();
+  expect(cliente).not.toBeNull();
+
+  const { data: solicitud, error: solicitudError } = await supabase
+    .from("solicitudes")
+    .insert({
+      cliente_id: cliente!.id,
+      client_name: `QA Cliente ${label} ${runId}`,
+      client_phone: `56${runId.slice(-7)}`,
+      client_email: createQaEmail(`qa-solicitud-${label}`, runId),
+      service_id: service.id,
+      workflow_type: service.workflow_type,
+      description,
+      desired_date: futureDate,
+      notes: `Solicitud QA ${label} ${runId}`,
+      status: "aprobada",
+    })
+    .select("id, service_id, workflow_type, status, converted_order_id")
+    .single<SolicitudServiceAssertion>();
+
+  expect(solicitudError).toBeNull();
+  expect(solicitud).not.toBeNull();
+
+  return solicitud as SolicitudServiceAssertion;
+}
+
+async function getSolicitudServiceAssertion(
+  supabase: QaSupabaseClient,
+  solicitudId: string,
+) {
+  const { data, error } = await supabase
+    .from("solicitudes")
+    .select("id, service_id, workflow_type, status, converted_order_id")
+    .eq("id", solicitudId)
+    .maybeSingle<SolicitudServiceAssertion>();
+
+  expect(error).toBeNull();
+  expect(data).not.toBeNull();
+
+  return data as SolicitudServiceAssertion;
+}
+
+async function getPedidosForSolicitud(
+  supabase: QaSupabaseClient,
+  solicitudId: string,
+) {
+  const { data, error } = await supabase
+    .from("pedidos")
+    .select("id, solicitud_id, service_id, workflow_type, title, description")
+    .eq("solicitud_id", solicitudId)
+    .returns<PedidoConversionAssertion[]>();
+
+  expect(error).toBeNull();
+
+  return data ?? [];
+}
 
 async function clickFirstVisible(locator: Locator) {
   await expect(async () => {
@@ -112,11 +282,22 @@ async function createPublicEncargo(page: Page) {
     page.getByRole("heading", { name: /qu. necesitas preparar/i }),
   ).toBeVisible();
 
-  await page.getByRole("tab", { name: /encargo personalizado/i }).click();
+  if (
+    await page
+      .getByText(/formulario no disponible/i)
+      .isVisible()
+      .catch(() => false)
+  ) {
+    test.skip(true, "No public service types are available in this database.");
+  }
+
+  await page.getByRole("tab", { name: /encargo/i }).click();
   await page.getByLabel(/nombre del cliente/i).fill(encargoName);
   await page.getByLabel(/tel.fono|telefono/i).fill(encargoPhone);
   await page.getByLabel(/correo electr.nico|correo electronico/i).fill(encargoEmail);
-  await page.getByLabel(/tipo de servicio/i).selectOption("Personalizacion");
+  const serviceSelect = page.getByLabel(/^servicio/i);
+  await expect(serviceSelect).toBeVisible();
+  focalSolicitudServiceId = await serviceSelect.inputValue();
   await page.getByLabel(/fecha deseada/i).fill(futureDate);
   await page.getByLabel(/descripci.n del trabajo/i).fill(encargoDescription);
   await page.getByLabel(/observaciones adicionales/i).fill(encargoNotes);
@@ -136,13 +317,22 @@ async function createPublicSelectorSolicitud(page: Page) {
     page.getByRole("heading", { name: /qu. necesitas preparar/i }),
   ).toBeVisible();
 
-  await page.getByRole("tab", { name: /encargo personalizado/i }).click();
+  if (
+    await page
+      .getByText(/formulario no disponible/i)
+      .isVisible()
+      .catch(() => false)
+  ) {
+    test.skip(true, "No public service types are available in this database.");
+  }
+
+  await page.getByRole("tab", { name: /encargo/i }).click();
   await page.getByLabel(/nombre del cliente/i).fill(selectorSolicitudName);
   await page.getByLabel(/tel.fono|telefono/i).fill(selectorSolicitudPhone);
   await page
     .getByLabel(/correo electr.nico|correo electronico/i)
     .fill(selectorSolicitudEmail);
-  await page.getByLabel(/tipo de servicio/i).selectOption("Personalizacion");
+  await expect(page.getByLabel(/^servicio/i)).toBeVisible();
   await page.getByLabel(/fecha deseada/i).fill(futureDate);
   await page
     .getByLabel(/descripci.n del trabajo/i)
@@ -900,6 +1090,319 @@ test("admin can associate and update a cliente asynchronously from a solicitud",
   await expectNoTechnicalLeakText(page);
 });
 
+test("conversion preserves original solicitud service and can use another encargo service", async ({
+  page,
+}) => {
+  test.setTimeout(180_000);
+
+  const supabase = await createQaSupabaseClient("admin");
+  let restoreHiddenService = async () => undefined;
+
+  try {
+    const services = await listQaServiceTypes(supabase);
+    const encargoServices = services.filter(
+      (service) => service.workflow_type === "encargo",
+    );
+    const originalService = encargoServices[0];
+    const alternateService = encargoServices.find(
+      (service) => service.id !== originalService?.id,
+    );
+
+    if (!originalService || !alternateService) {
+      throw new Error("At least two encargo services are required for QA.");
+    }
+
+    const solicitud = await createApprovedQaSolicitud({
+      supabase,
+      service: originalService,
+      label: "conversion-cambio",
+      description: `QA conversion cambio servicio ${runId}`,
+    });
+
+    await loginAs(page, "admin");
+    await page.goto(`/dashboard/solicitudes/${solicitud.id}`);
+    const conversionDialog = await openSolicitudPanel(
+      page,
+      /^conversi.n$/i,
+      /conversi.n/i,
+    );
+    const serviceSelect = conversionDialog.locator('select[name="service_id"]');
+
+    await expect(serviceSelect).toHaveValue(originalService.id);
+    await expect(
+      conversionDialog.getByLabel(/entrega estimada\s*\(opcional\)/i),
+    ).toBeVisible();
+    await expect(
+      serviceSelect.locator("option").evaluateAll((options) =>
+        options.map((option) => option.textContent ?? "").join("\n"),
+      ),
+    ).resolves.not.toMatch(/oculto p.blicamente/i);
+    await serviceSelect.selectOption(alternateService.id);
+    await conversionDialog
+      .getByLabel(/t.tulo del pedido/i)
+      .fill(`QA Pedido Conversion Servicio ${runId}`);
+    await conversionDialog.getByLabel(/prioridad/i).selectOption("normal");
+    await conversionDialog.getByLabel(/precio del pedido/i).fill("710");
+    await conversionDialog
+      .locator('input[name="estimated_delivery_date"]')
+      .fill(futureDate);
+    await conversionDialog
+      .getByLabel(/descripci.n del pedido/i)
+      .fill(`QA pedido con servicio alterno ${runId}`);
+    await conversionDialog
+      .getByRole("button", { name: /convertir en pedido/i })
+      .click();
+    await expect(
+      conversionDialog.getByText(/pedido creado correctamente/i),
+    ).toBeVisible({ timeout: 20_000 });
+
+    const convertedSolicitud = await getSolicitudServiceAssertion(
+      supabase,
+      solicitud.id,
+    );
+    const convertedPedidos = await getPedidosForSolicitud(
+      supabase,
+      solicitud.id,
+    );
+
+    expect(convertedSolicitud.service_id).toBe(originalService.id);
+    expect(convertedSolicitud.workflow_type).toBe(originalService.workflow_type);
+    expect(convertedSolicitud.status).toBe("convertida");
+    expect(convertedPedidos).toHaveLength(1);
+    expect(convertedPedidos[0]?.service_id).toBe(alternateService.id);
+    expect(convertedPedidos[0]?.workflow_type).toBe(
+      convertedSolicitud.workflow_type,
+    );
+    expect(convertedPedidos[0]?.service_id).not.toBe(
+      convertedSolicitud.service_id,
+    );
+
+    const hiddenServiceSetup = await resolveHiddenEncargoService(
+      supabase,
+      encargoServices,
+    );
+    restoreHiddenService = hiddenServiceSetup.restore;
+
+    const hiddenSourceService =
+      encargoServices.find(
+        (service) => service.id !== hiddenServiceSetup.service.id,
+      ) ?? originalService;
+    const hiddenSolicitud = await createApprovedQaSolicitud({
+      supabase,
+      service: hiddenSourceService,
+      label: "conversion-oculto",
+      description: `QA conversion servicio oculto ${runId}`,
+    });
+
+    await page.goto(`/dashboard/solicitudes/${hiddenSolicitud.id}`);
+    const hiddenDialog = await openSolicitudPanel(
+      page,
+      /^conversi.n$/i,
+      /conversi.n/i,
+    );
+    const hiddenOption = hiddenDialog.locator(
+      `select[name="service_id"] option[value="${hiddenServiceSetup.service.id}"]`,
+    );
+
+    await expect(hiddenOption).toHaveText(hiddenServiceSetup.service.name);
+    await expect(
+      hiddenDialog
+        .locator('select[name="service_id"] option')
+        .evaluateAll((options) =>
+          options.map((option) => option.textContent ?? "").join("\n"),
+        ),
+    ).resolves.not.toMatch(/oculto p.blicamente/i);
+    await hiddenDialog
+      .locator('select[name="service_id"]')
+      .selectOption(hiddenServiceSetup.service.id);
+    await hiddenDialog
+      .getByLabel(/t.tulo del pedido/i)
+      .fill(`QA Pedido Servicio Oculto ${runId}`);
+    await hiddenDialog.getByLabel(/prioridad/i).selectOption("normal");
+    await hiddenDialog.getByLabel(/precio del pedido/i).fill("720");
+    await hiddenDialog
+      .locator('input[name="estimated_delivery_date"]')
+      .fill(futureDate);
+    await hiddenDialog
+      .getByLabel(/descripci.n del pedido/i)
+      .fill(`QA conversion con servicio oculto ${runId}`);
+    await hiddenDialog
+      .getByRole("button", { name: /convertir en pedido/i })
+      .click();
+    await expect(
+      hiddenDialog.getByText(/pedido creado correctamente/i),
+    ).toBeVisible({ timeout: 20_000 });
+
+    const hiddenPedidos = await getPedidosForSolicitud(
+      supabase,
+      hiddenSolicitud.id,
+    );
+
+    expect(hiddenServiceSetup.service.is_publicly_available).toBe(false);
+    expect(hiddenPedidos).toHaveLength(1);
+    expect(hiddenPedidos[0]?.service_id).toBe(hiddenServiceSetup.service.id);
+    expect(hiddenPedidos[0]?.workflow_type).toBe("encargo");
+  } finally {
+    await restoreHiddenService();
+    await signOutQaSupabaseClient(supabase);
+  }
+});
+
+test("conversion rejects incompatible workflow and keeps print service semantics", async ({
+  page,
+}) => {
+  test.setTimeout(180_000);
+
+  const supabase = await createQaSupabaseClient("admin");
+
+  try {
+    const services = await listQaServiceTypes(supabase);
+    const encargoService = services.find(
+      (service) => service.workflow_type === "encargo",
+    );
+    const printService = services.find(
+      (service) => service.workflow_type === "impresion",
+    );
+
+    if (!encargoService || !printService) {
+      throw new Error("Operational encargo and print services are required.");
+    }
+
+    const incompatibleSolicitud = await createApprovedQaSolicitud({
+      supabase,
+      service: encargoService,
+      label: "conversion-incompatible",
+      description: `QA conversion incompatible ${runId}`,
+    });
+
+    await loginAs(page, "admin");
+    await page.goto(`/dashboard/solicitudes/${incompatibleSolicitud.id}`);
+    const incompatibleDialog = await openSolicitudPanel(
+      page,
+      /^conversi.n$/i,
+      /conversi.n/i,
+    );
+
+    await incompatibleDialog.locator("form").evaluate((form, printServiceId) => {
+      const select = form.querySelector(
+        'select[name="service_id"]',
+      ) as HTMLSelectElement | null;
+
+      if (!select) {
+        throw new Error("service_id select was not found.");
+      }
+
+      select.add(new Option("QA servicio incompatible", printServiceId, true, true), 0);
+      select.value = printServiceId;
+    }, printService.id);
+    await incompatibleDialog
+      .getByLabel(/t.tulo del pedido/i)
+      .fill(`QA Pedido Incompatible ${runId}`);
+    await incompatibleDialog.getByLabel(/prioridad/i).selectOption("normal");
+    await incompatibleDialog.getByLabel(/precio del pedido/i).fill("730");
+    await incompatibleDialog
+      .locator('input[name="estimated_delivery_date"]')
+      .fill(futureDate);
+    await incompatibleDialog
+      .getByLabel(/descripci.n del pedido/i)
+      .fill(`QA pedido incompatible ${runId}`);
+    await incompatibleDialog
+      .getByRole("button", { name: /convertir en pedido/i })
+      .click();
+    await expect(
+      incompatibleDialog.locator("#convert-service-id-error"),
+    ).toContainText(/no corresponde al tipo de trabajo/i, {
+      timeout: 20_000,
+    });
+    await expectNoTechnicalLeakText(page);
+
+    const rejectedSolicitud = await getSolicitudServiceAssertion(
+      supabase,
+      incompatibleSolicitud.id,
+    );
+    const rejectedPedidos = await getPedidosForSolicitud(
+      supabase,
+      incompatibleSolicitud.id,
+    );
+
+    expect(rejectedSolicitud.service_id).toBe(encargoService.id);
+    expect(rejectedSolicitud.workflow_type).toBe("encargo");
+    expect(rejectedSolicitud.status).toBe("aprobada");
+    expect(rejectedSolicitud.converted_order_id).toBeNull();
+    expect(rejectedPedidos).toHaveLength(0);
+
+    const printDescription = `QA solicitud impresion convertida ${runId}`;
+    const printSolicitud = await createApprovedQaSolicitud({
+      supabase,
+      service: printService,
+      label: "conversion-impresion",
+      description: printDescription,
+    });
+
+    await page.goto(`/dashboard/solicitudes/${printSolicitud.id}`);
+    const printDialog = await openSolicitudPanel(
+      page,
+      /^conversi.n$/i,
+      /conversi.n/i,
+    );
+
+    await expect(
+      printDialog.locator('input[name="service_id"]'),
+    ).toHaveValue(printService.id);
+    await expect(printDialog.locator("#service_id_display")).toHaveValue(
+      printService.name,
+    );
+    await expect(printDialog.locator('select[name="service_id"]')).toHaveCount(
+      0,
+    );
+    await expect(printDialog).not.toContainText(/oculto p.blicamente/i);
+    await printDialog.getByLabel(/prioridad/i).selectOption("normal");
+    await printDialog.getByLabel(/precio del pedido/i).fill("740");
+    await printDialog
+      .locator('input[name="estimated_delivery_date"]')
+      .fill(futureDate);
+    await printDialog
+      .getByRole("button", { name: /convertir en pedido/i })
+      .click();
+    await expect(
+      printDialog.getByText(/pedido creado correctamente/i),
+    ).toBeVisible({ timeout: 20_000 });
+
+    const printPedidos = await getPedidosForSolicitud(
+      supabase,
+      printSolicitud.id,
+    );
+
+    expect(printPedidos).toHaveLength(1);
+    expect(printPedidos[0]?.service_id).toBe(printService.id);
+    expect(printPedidos[0]?.workflow_type).toBe("impresion");
+    expect(printPedidos[0]?.title).toBe("Pedido de impresión");
+    expect(printPedidos[0]?.description).toBe(printDescription);
+
+    const { error: duplicateError } = await supabase.rpc(
+      "convertir_solicitud_a_pedido",
+      {
+        p_solicitud_id: printSolicitud.id,
+        p_service_id: printService.id,
+        p_title: "Pedido duplicado",
+        p_description: "Intento duplicado",
+        p_priority: "normal",
+        p_estimated_delivery_date: futureDate,
+        p_total_amount: 1,
+      },
+    );
+
+    expect(duplicateError?.message).toContain(
+      "Esta solicitud ya fue convertida en pedido.",
+    );
+    expect(await getPedidosForSolicitud(supabase, printSolicitud.id))
+      .toHaveLength(1);
+    await expectNoTechnicalLeakText(page);
+  } finally {
+    await signOutQaSupabaseClient(supabase);
+  }
+});
+
 test("admin can manage solicitud workspace panels end to end", async ({
   page,
 }) => {
@@ -1163,9 +1666,6 @@ test("admin can manage solicitud workspace panels end to end", async ({
   await expect(infoDialog.getByText(/encargo/i).first()).toBeVisible();
   await expect(infoDialog.getByText(/convertida/i).first()).toBeVisible();
   await expect(infoDialog.getByText(/identificador interno/i)).toBeVisible();
-  await expect(
-    infoDialog.getByRole("link", { name: /ver pedido generado/i }),
-  ).toBeVisible();
   await infoDialog.getByRole("button", { name: /cerrar/i }).click();
 
   const historyDialog = await openSolicitudPanel(
@@ -1271,7 +1771,7 @@ test("admin can validate solicitudes pagination and canonical URLs", async ({
   }
 
   await page.goto(
-    "/dashboard/solicitudes?workflow_type=encargo&status=convertida&page=999999",
+    `/dashboard/solicitudes?service_id=${focalSolicitudServiceId}&status=convertida&page=999999`,
   );
   await expectSolicitudesListLoaded(page);
   await expectNoSolicitudesLoadError(page);
@@ -1288,7 +1788,7 @@ test("admin can validate solicitudes pagination and canonical URLs", async ({
     return {
       page: url.searchParams.get("page"),
       status: url.searchParams.get("status"),
-      workflowType: url.searchParams.get("workflow_type"),
+      serviceId: url.searchParams.get("service_id"),
     };
   }).toEqual({
     page:
@@ -1296,7 +1796,7 @@ test("admin can validate solicitudes pagination and canonical URLs", async ({
         ? String(validFilterPageInfo.totalPages)
         : null,
     status: "convertida",
-    workflowType: "encargo",
+    serviceId: focalSolicitudServiceId,
   });
   if (validFilterPageInfo.totalPages === 1) {
     await expectSolicitudVisible(page, encargoName);
@@ -1305,18 +1805,18 @@ test("admin can validate solicitudes pagination and canonical URLs", async ({
   await page.goto(
     `/dashboard/solicitudes?q=${encodeURIComponent(
       encargoName,
-    )}&workflow_type=encargo&status=convertida`,
+    )}&service_id=${focalSolicitudServiceId}&status=convertida`,
   );
   await expectSolicitudesListLoaded(page);
   await expectNoSolicitudesLoadError(page);
   await expectSolicitudVisible(page, encargoName);
 
   await page.goto(
-    "/dashboard/solicitudes?status=invalido&workflow_type=desconocido&page=abc",
+    "/dashboard/solicitudes?status=invalido&service_id=desconocido",
   );
   await expectSolicitudesListLoaded(page);
   await expect(page.getByText(/filtro de estado no es v.lido/i)).toBeVisible();
-  await expect(page.getByText(/filtro de tipo no es v.lido/i)).toBeVisible();
+  await expect(page.getByText(/filtro de servicio no es v.lido/i)).toBeVisible();
   await expectNoSolicitudesLoadError(page);
   await expect.poll(async () => {
     const url = await getCurrentSolicitudesUrl(page);
@@ -1324,12 +1824,12 @@ test("admin can validate solicitudes pagination and canonical URLs", async ({
     return {
       page: url.searchParams.get("page"),
       status: url.searchParams.get("status"),
-      workflowType: url.searchParams.get("workflow_type"),
+      serviceId: url.searchParams.get("service_id"),
     };
   }).toEqual({
     page: null,
     status: "invalido",
-    workflowType: "desconocido",
+    serviceId: "desconocido",
   });
 
   await page.setViewportSize({ width: 390, height: 844 });
@@ -1361,18 +1861,6 @@ test("solicitud search preserves direct and mapped search capabilities", async (
     await expectSolicitudVisible(page, encargoName);
   }
 
-  await page.goto(
-    `/dashboard/solicitudes?q=${encodeURIComponent("personalización")}`,
-  );
-  await expectSolicitudesListLoaded(page);
-  await expectNoSolicitudesLoadError(page);
-  await expect.poll(async () => {
-    const url = await getCurrentSolicitudesUrl(page);
-
-    return url.searchParams.get("q");
-  }).toBe("personalización");
-  await expectSolicitudVisible(page, encargoName);
-
   const solicitudId = new URL(encargoDetailUrl).pathname.split("/").pop() ?? "";
 
   expect(solicitudId).toMatch(/^[0-9a-f-]{8,}$/i);
@@ -1394,7 +1882,7 @@ test("solicitud search preserves direct and mapped search capabilities", async (
   await page.goto(
     `/dashboard/solicitudes?q=${encodeURIComponent(
       encargoName,
-    )}&workflow_type=encargo&status=convertida`,
+    )}&service_id=${focalSolicitudServiceId}&status=convertida`,
   );
   await expectSolicitudesListLoaded(page);
   await expectNoSolicitudesLoadError(page);
@@ -1403,7 +1891,7 @@ test("solicitud search preserves direct and mapped search capabilities", async (
   await page.goto(
     `/dashboard/solicitudes?q=${encodeURIComponent(
       encargoName,
-    )}&workflow_type=impresion&status=convertida`,
+    )}&service_id=${missingServiceId}&status=convertida`,
   );
   await expectSolicitudesListLoaded(page);
   await expectNoSolicitudesLoadError(page);
@@ -1570,18 +2058,18 @@ test("solicitud filters remove pagination from the URL", async ({ page }) => {
     .first();
 
   await toolbar.getByRole("button", { name: /^filtros\b/i }).click();
-  await toolbar.getByLabel(/^tipo$/i).selectOption("encargo");
+  await toolbar.getByLabel(/^servicio$/i).selectOption(focalSolicitudServiceId);
 
   await expect.poll(async () => {
     const url = await getCurrentSolicitudesUrl(page);
 
     return {
       page: url.searchParams.get("page"),
-      workflowType: url.searchParams.get("workflow_type"),
+      serviceId: url.searchParams.get("service_id"),
     };
   }).toEqual({
     page: null,
-    workflowType: "encargo",
+    serviceId: focalSolicitudServiceId,
   });
 });
 

@@ -14,6 +14,7 @@ type PedidoHistoryTimelineProps = {
 };
 
 const PEDIDO_UPDATED_FIELD_LABELS = {
+  service_id: "servicio",
   title: "título",
   description: "descripción",
   priority: "prioridad",

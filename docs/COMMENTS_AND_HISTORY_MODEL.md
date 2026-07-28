@@ -190,14 +190,14 @@ Cuando el guardado contiene cambios reales, inserta exactamente un evento
 retorna los datos actuales sin insertar evento.
 
 La metadata es estructurada. `metadata.changed_fields` conserva el orden de los
-campos modificados. Para título, prioridad, fecha estimada y precio total se
-guardan valores anterior y nuevo. Para descripción se guarda solo
+campos modificados. Para servicio, título, prioridad, fecha estimada y precio
+total se guardan valores anterior y nuevo. Para descripción se guarda solo
 `{ changed: true }`, de modo que no quedan almacenados en el historial los textos
 completos anterior y nuevo.
 
 El resumen visible no depende del `summary` persistido para este evento. La UI
 lo reconstruye desde `metadata.changed_fields` usando etiquetas controladas:
-`título`, `descripción`, `prioridad`, `fecha estimada` y `precio`. Si la metadata
+`servicio`, `título`, `descripción`, `prioridad`, `fecha estimada` y `precio`. Si la metadata
 falta, es inválida o no contiene campos conocidos, la presentación muestra el
 fallback seguro `Datos del pedido actualizados.`. No se renderiza metadata cruda
 ni identificadores técnicos como `total_amount` o `estimated_delivery_date`.
@@ -602,7 +602,7 @@ Eventos mínimos:
 
 | Evento | Cuándo registrar | Datos mínimos |
 | --- | --- | --- |
-| `solicitud_creada` | Solicitud pública creada. | `solicitud_id`, `service_type`, origen público; no guarda `quantity`. |
+| `solicitud_creada` | Solicitud pública creada. | `solicitud_id`, `service_id`, nombre del servicio, origen público; no guarda `quantity`. |
 | `archivos_adjuntados` | Cliente adjunta uno o varios archivos a la solicitud. | archivos, nombres seguros, solicitud. |
 | `estado_cambiado` | Admin o supervisor cambia estado. | estado anterior, estado nuevo, usuario. |
 | `cliente_asociado` | Se asocia cliente existente. | cliente, usuario. |
@@ -751,7 +751,7 @@ Estado:
 - como el historial visible muestra el evento más reciente primero, el par se ve como `cliente_asociado` y después `cliente_creado_desde_solicitud` cuando ambos pertenecen al mismo cliente;
 - los eventos públicos usan `actor_id = null` cuando no existe usuario autenticado;
 - la conversión a pedido evita duplicar `estado_cambiado` cuando el mismo update marca la solicitud como `convertida`;
-- los resúmenes visibles se enriquecen con datos mínimos de `metadata`, cliente y pedido; el título mostrado corresponde a `pedidos.title`, no a `solicitudes.service_type`;
+- los resúmenes visibles se enriquecen con datos mínimos de `metadata`, cliente y pedido; el título mostrado corresponde a `pedidos.title`, no al nombre del servicio de la solicitud;
 - no abre lectura pública ni inserción anónima directa sobre `solicitud_historial`.
 
 ### Fase 11.8: Documentación y Cierre
