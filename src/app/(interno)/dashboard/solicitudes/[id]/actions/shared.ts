@@ -28,6 +28,7 @@ export type ConvertSolicitudToPedidoActionState = {
   values?: {
     title: string;
     description: string;
+    service_id: string;
     total_amount: string | number;
     priority: string;
     estimated_delivery_date: string | null;

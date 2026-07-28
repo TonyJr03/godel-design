@@ -160,19 +160,22 @@ El trabajador tampoco accede al módulo general de usuarios. RLS de `perfiles` s
 
 `/dashboard/pedidos/nuevo` permite crear pedidos manuales con cliente registrado o sin cliente asociado.
 
-La action `createPedidoAction` lee únicamente `workflow_type`, `cliente_id`,
+La action `createPedidoAction` lee únicamente `service_id`, `cliente_id`,
 `title`, `description`, `total_amount`, `priority`,
 `estimated_delivery_date` y los campos de impresión cuando aplica, y delega en
 `createInternalPedido`.
 
-`createInternalPedido` requiere `pedidos.manage`, valida el input, valida el
+`createInternalPedido` requiere `pedidos.manage`, resuelve el servicio operativo
+interno, valida el input según el `workflow_type` del servicio, valida el
 cliente solo cuando se envía `cliente_id` y delega la escritura en
-`public.crear_pedido_manual`. Esa RPC crea el pedido con estado inicial
+`public.crear_pedido_manual(p_service_id, ...)`. Esa RPC crea el pedido con estado inicial
 `creado`, guarda `solicitud_id` como `null`, no asigna personal y crea el
 resumen financiero en `pedido_pagos` con `paid_cash_amount = 0` y
 `paid_transfer_amount = 0`. Si no se selecciona cliente, guarda
 `cliente_id = null`; no captura datos temporales de cliente desde el formulario.
-El precio total es obligatorio, puede ser `0` y no puede ser negativo.
+El precio total es obligatorio, puede ser `0` y no puede ser negativo. La base
+sincroniza `pedidos.workflow_type` desde `pedidos.service_id`; los servicios
+ocultos públicamente siguen siendo válidos para uso interno.
 
 El número de pedido (`order_number`) no se acepta desde formularios ni se genera en TypeScript. La base de datos lo asigna al insertar el pedido con formato `P-YY-XXXX`, usando un contador anual transaccional y el año de la fecha de negocio `America/Havana`.
 
@@ -188,19 +191,20 @@ manualmente su detalle; esa apertura real inicia la revision.
 
 `createPedidoFromSolicitud` convierte una solicitud aprobada en pedido desde el detalle de solicitud. Conserva la validación de input y permisos, pero no escribe tablas directamente.
 
-La página del detalle enlaza `solicitud_id` a la action; el formulario envía únicamente `title`, `description`, `total_amount`, `priority` y `estimated_delivery_date`. El servicio requiere `solicitudes.manage` y `pedidos.manage`, valida el UUID enlazado y los campos editables, y delega en `public.convertir_solicitud_a_pedido`.
+La página del detalle enlaza `solicitud_id` a la action; el formulario envía únicamente `service_id`, `title`, `description`, `total_amount`, `priority` y `estimated_delivery_date`. El servicio requiere `solicitudes.manage` y `pedidos.manage`, valida el UUID enlazado, resuelve el servicio interno seleccionado, exige que pertenezca al mismo `workflow_type` de la solicitud y delega en `public.convertir_solicitud_a_pedido(p_service_id, ...)`.
 
 La RPC bloquea la solicitud con `FOR UPDATE`, exige usuario activo `admin` o
 `supervisor`, estado `aprobada`, cliente asociado y ausencia de conversiones
 previas. Después crea el pedido con `solicitud_id` y estado
-`solicitud_recibida`, crea `pedido_pagos` con el precio total, actualiza la
+`solicitud_recibida`, guarda el `service_id` elegido, deriva/protege el
+`workflow_type` desde `tipos_servicio`, crea `pedido_pagos` con el precio total, actualiza la
 solicitud a `convertida` con `converted_order_id` y completa
 `archivos.pedido_id` para los archivos `cliente_solicitud`. Todas las
 escrituras se confirman o revierten juntas.
 
 `priority` es obligatoria, inicia visualmente en `normal` y se valida contra las prioridades reales del enum. `total_amount` tambien es obligatorio, permite `0`, rechaza negativos, valores no numericos y mas de 2 decimales. `estimated_delivery_date` es opcional; si se informa debe ser una fecha válida e igual o posterior al día actual. El servicio usa los helpers de `src/lib/validators/date.ts` y la RPC repite la regla con la fecha de negocio de `America/Havana`.
 
-`service_type` es solo referencia inicial de la solicitud y no se usa como título automático. El usuario interno debe definir el título real del pedido y puede ajustar la descripción operativa antes de convertir. La conversión no acepta `order_number`, `status`, `cliente_id`, `created_by`, `converted_order_id` ni campos de archivos desde el formulario. El número de pedido se asigna en base de datos y el estado inicial del pedido convertido sigue siendo `solicitud_recibida`.
+`service_type` es solo referencia histórica de la solicitud y no se usa como título automático. El usuario interno debe definir el título real del pedido y puede ajustar la descripción operativa antes de convertir. Para encargos puede confirmar o cambiar el servicio dentro del mismo workflow; para impresiones se usa el servicio de impresión existente. La conversión no acepta `order_number`, `status`, `cliente_id`, `workflow_type`, `created_by`, `converted_order_id` ni campos de archivos desde el formulario. El número de pedido se asigna en base de datos y el estado inicial del pedido convertido sigue siendo `solicitud_recibida`.
 
 La herencia de archivos es solo de metadata: conserva bucket, ruta,
 visibilidad y autor, sin mover ni copiar objetos de Storage. La RPC es

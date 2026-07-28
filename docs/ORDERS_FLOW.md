@@ -145,11 +145,11 @@ la base de datos calcula `sin_pago`, `parcial` o `pagado` segun
 registrar montos negativos ni pagar mas que el total.
 
 En la creacion manual se define el precio total del pedido. La RPC
-`public.crear_pedido_manual` crea `pedidos` y `pedido_pagos` en una unica
+`public.crear_pedido_manual(p_service_id, ...)` crea `pedidos` y `pedido_pagos` en una unica
 transaccion: con precio `0`, el resumen queda `pagado`; con precio mayor que
 `0`, queda `sin_pago` porque todavia no se registra pago inicial. La conversion
 desde solicitudes aplica la misma regla mediante
-`public.convertir_solicitud_a_pedido`.
+`public.convertir_solicitud_a_pedido(p_service_id, ...)`.
 
 El detalle interno del pedido muestra total, efectivo, transferencia, total
 pagado, pendiente, estado y fecha de pago completo si aplica. `admin` y
@@ -546,9 +546,10 @@ Archivos principales:
 - Numeración: `private.generar_numero_pedido()` y `public.pedido_contadores`
 
 La creación manual requiere `pedidos.manage`, por lo que solo `admin` y
-`supervisor` pueden usarla. El formulario permite elegir mediante pestañas
-entre `Encargo` e `Impresión`. Ambos tipos viven en la tabla `pedidos` y su
-diferencia formal se guarda en `workflow_type`.
+`supervisor` pueden usarla. El formulario permite elegir servicios operativos:
+varios servicios de `encargo` o el servicio único de `impresion`. El formulario
+envía `service_id`; la base deriva y protege `workflow_type` desde
+`tipos_servicio`.
 
 Ambas variantes permiten seleccionar un cliente existente o dejar
 `Sin cliente asociado`; no aceptan estado, `solicitud_id`, número de pedido ni
@@ -558,7 +559,7 @@ existen campos temporales de cliente en este flujo.
 
 La creacion manual exige `total_amount`, permite `0` y rechaza valores
 negativos o no numericos. El servicio server-side valida el monto y llama a
-`public.crear_pedido_manual`, que inserta el pedido y su resumen financiero en
+`public.crear_pedido_manual(p_service_id, ...)`, que inserta el pedido y su resumen financiero en
 `pedido_pagos` dentro de la misma transaccion. No se registra pago inicial:
 `paid_cash_amount = 0` y `paid_transfer_amount = 0`. Por eso, un pedido manual
 con precio `0` queda `pagado`; con precio mayor que `0`, queda `sin_pago`.
@@ -614,20 +615,23 @@ Archivos principales:
 - Componente: `src/components/solicitudes/SolicitudConvertPedidoForm.tsx`
 - Action: `src/app/(interno)/dashboard/solicitudes/[id]/actions/conversion-actions.ts`
 
-La conversión requiere `solicitudes.manage` y `pedidos.manage`. Solo se permite convertir solicitudes con estado `aprobada` y `cliente_id` asociado. La página enlaza `solicitud_id` a la action y el formulario envía únicamente `title`, `description`, `total_amount`, `priority` y `estimated_delivery_date`; no envía `workflow_type`.
+La conversión requiere `solicitudes.manage` y `pedidos.manage`. Solo se permite convertir solicitudes con estado `aprobada` y `cliente_id` asociado. La página enlaza `solicitud_id` a la action y el formulario envía únicamente `service_id`, `title`, `description`, `total_amount`, `priority` y `estimated_delivery_date`; no envía `workflow_type`.
 
 `createPedidoFromSolicitud` conserva la validación de UX y la comprobación de
-permisos, pero la escritura se ejecuta exclusivamente mediante
-`public.convertir_solicitud_a_pedido(uuid, text, text,
+permisos, resuelve el servicio interno y exige que pertenezca al mismo workflow
+de la solicitud, pero la escritura se ejecuta exclusivamente mediante
+`public.convertir_solicitud_a_pedido(uuid, uuid, text, text,
 public.pedido_prioridad, date, numeric)`. La RPC es transaccional, bloquea la
 solicitud con `FOR UPDATE` y evita que dos intentos simultáneos creen pedidos
 distintos.
 
 `priority` es obligatoria, inicia visualmente en `normal` y se valida contra las prioridades reales del enum. `total_amount` tambien es obligatorio, permite `0`, rechaza negativos, valores no numericos y mas de 2 decimales. `estimated_delivery_date` es opcional; si se informa debe ser una fecha válida e igual o posterior al día actual. La UI limita el calendario desde hoy; el servicio valida con `src/lib/validators/date.ts` y la RPC repite la regla usando la fecha de negocio de `America/Havana`.
 
-`service_type` queda como referencia inicial elegida por el cliente. No se usa
-como título automático del pedido. En encargos, el usuario interno debe definir
-`title` y `description`. En impresiones, el título es opcional y usa
+`service_type` queda como referencia historica elegida por el cliente. No se usa
+como título automático del pedido. En encargos, el usuario interno puede
+confirmar o cambiar el servicio dentro del mismo workflow y debe definir
+`title` y `description`. En impresiones, se usa el servicio de impresion
+existente, el título es opcional y usa
 `Pedido de impresión` cuando queda vacío; la descripción se precarga desde la
 solicitud y puede ajustarse. Si se envía vacía, el servidor usa la descripción
 original de la solicitud. El formulario no acepta `order_number`, `status`,
@@ -640,7 +644,9 @@ Al convertir:
 
 - se crea un pedido con `pedidos.solicitud_id`;
 - se copia `solicitudes.public_reference` a `pedidos.public_reference`;
-- se copia `solicitudes.workflow_type` a `pedidos.workflow_type`;
+- se guarda el `service_id` elegido en `pedidos.service_id`;
+- se deriva `pedidos.workflow_type` desde `tipos_servicio` y se valida que
+  coincida con `solicitudes.workflow_type`;
 - se usa el `title` definido por el usuario interno;
 - se guarda la descripción operativa enviada desde el formulario de conversión;
 - se crea `pedido_pagos` con `total_amount`, efectivo `0` y transferencia `0`;
@@ -870,7 +876,8 @@ Evidencia e2e focal reciente:
 - Verificar que la conversión de un encargo exige título y descripción.
 - Verificar que una impresión usa `Pedido de impresión` si el título queda vacío.
 - Verificar que una impresión conserva la descripción original si se envía vacía.
-- Verificar que el pedido convertido conserva el `workflow_type` de la solicitud.
+- Verificar que el pedido convertido guarda `service_id` y conserva un
+  `workflow_type` consistente con la solicitud.
 - Verificar que la conversión muestra prioridad con valor `normal`.
 - Verificar que la conversión permite fecha estimada opcional.
 - Convertir sin fecha estimada y confirmar que el pedido queda sin fecha.

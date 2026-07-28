@@ -1,5 +1,6 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
+import { getOperationalServiceTypeById } from "@/lib/service-types";
 import {
   serviceFailure,
   serviceSuccess,
@@ -24,6 +25,7 @@ import { convertSolicitudToPedidoRpc } from "./rpc";
 
 export type CreatePedidoFromSolicitudInput = {
   solicitudId: string;
+  serviceId?: string | null;
   title?: string | null;
   description?: string | null;
   totalAmount?: string | null;
@@ -32,6 +34,7 @@ export type CreatePedidoFromSolicitudInput = {
 };
 
 export type CreatePedidoFromSolicitudField =
+  | "service_id"
   | "title"
   | "description"
   | "total_amount"
@@ -45,6 +48,7 @@ export type CreatePedidoFromSolicitudFieldErrors = Partial<
 export type CreatePedidoFromSolicitudValues = {
   title: string;
   description: string;
+  service_id: string;
   total_amount: string | number;
   priority: string;
   estimated_delivery_date: string | null;
@@ -155,6 +159,15 @@ const SAFE_RPC_CONVERSION_ERRORS = [
     message: "Asocia un cliente antes de convertir esta solicitud en pedido.",
     reason: "missing_client",
   },
+  {
+    message: "El servicio seleccionado no existe.",
+    reason: "not_found",
+  },
+  {
+    message:
+      "El servicio seleccionado no corresponde al tipo de trabajo de la solicitud.",
+    reason: "validation",
+  },
 ] as const satisfies ReadonlyArray<{
   message: string;
   reason: CreatePedidoFromSolicitudErrorReason;
@@ -173,6 +186,10 @@ function validateConversionInput(
   solicitud: {
     workflow_type: WorkflowType;
     description: string;
+  },
+  service: {
+    id: string;
+    workflowType: WorkflowType;
   },
 ) {
   const submittedTitle = normalizeSingleLineText(input.title);
@@ -196,10 +213,16 @@ function validateConversionInput(
   const values = {
     title,
     description,
+    service_id: service.id,
     total_amount: totalAmountValue,
     priority,
     estimated_delivery_date: estimatedDeliveryDate,
   };
+
+  if (service.workflowType !== solicitud.workflow_type) {
+    fieldErrors.service_id =
+      "El servicio seleccionado no corresponde al tipo de trabajo de la solicitud.";
+  }
 
   if (!title) {
     fieldErrors.title = "El título del pedido es obligatorio.";
@@ -282,7 +305,7 @@ export async function createPedidoFromSolicitud(
   try {
     const { data: solicitud, error: solicitudError } = await supabase
       .from("solicitudes")
-      .select("workflow_type, description")
+      .select("service_id, workflow_type, description")
       .eq("id", solicitudId)
       .maybeSingle();
 
@@ -299,7 +322,37 @@ export async function createPedidoFromSolicitud(
       return serviceFailure("not_found", "La solicitud no existe.");
     }
 
-    const validation = validateConversionInput(input, solicitud);
+    const submittedServiceId = normalizeSingleLineText(input.serviceId);
+    const fallbackServiceId =
+      typeof solicitud.service_id === "string" ? solicitud.service_id : "";
+    const serviceResult = await getOperationalServiceTypeById(
+      submittedServiceId || fallbackServiceId,
+    );
+
+    if (!serviceResult.ok) {
+      const fieldErrors = {
+        service_id: serviceResult.message,
+      };
+
+      return serviceFailure(serviceResult.reason, serviceResult.message, {
+        fieldErrors,
+        values: {
+          title: normalizeSingleLineText(input.title),
+          description: normalizeMultilineText(input.description),
+          service_id: submittedServiceId,
+          total_amount: normalizeSingleLineText(input.totalAmount),
+          priority: normalizeSingleLineText(input.priority),
+          estimated_delivery_date: normalizeOptionalSingleLineText(
+            input.estimatedDeliveryDate,
+          ),
+        },
+      });
+    }
+
+    const validation = validateConversionInput(input, solicitud, {
+      id: serviceResult.serviceType.id,
+      workflowType: serviceResult.serviceType.workflowType,
+    });
 
     if (!validation.ok) {
       return serviceFailure("validation", "Revisa los datos del pedido.", {
@@ -310,6 +363,7 @@ export async function createPedidoFromSolicitud(
 
     const { data: pedido, error } = await convertSolicitudToPedidoRpc(supabase, {
       p_solicitud_id: solicitudId,
+      p_service_id: validation.values.service_id,
       p_title: validation.values.title,
       p_description: validation.values.description,
       p_priority: validation.values.priority,

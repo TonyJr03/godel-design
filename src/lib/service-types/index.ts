@@ -14,16 +14,25 @@ export {
   listPublicServiceTypes,
   type ListPublicServiceTypesResult,
 } from "./list-public-service-types";
+export {
+  getOperationalServiceTypeById,
+  listOperationalServiceTypes,
+  type GetOperationalServiceTypeByIdResult,
+  type ListOperationalServiceTypesResult,
+} from "./operational-service-types";
 export type {
   CreateServiceTypeErrorReason,
   CreateServiceTypeInput,
+  GetOperationalServiceTypeByIdErrorReason,
   GetPublicServiceTypeByIdErrorReason,
   InternalServiceType,
   ListInternalServiceTypesData,
   ListInternalServiceTypesErrorReason,
   ListInternalServiceTypesMeta,
   ListInternalServiceTypesOptions,
+  ListOperationalServiceTypesErrorReason,
   ListPublicServiceTypesErrorReason,
+  OperationalServiceType,
   PublicServiceType,
   ServiceTypeAvailabilityFilter,
   ServiceTypeField,

@@ -112,11 +112,20 @@ async function createPublicEncargo(page: Page) {
     page.getByRole("heading", { name: /qu. necesitas preparar/i }),
   ).toBeVisible();
 
-  await page.getByRole("tab", { name: /encargo personalizado/i }).click();
+  if (
+    await page
+      .getByText(/formulario no disponible/i)
+      .isVisible()
+      .catch(() => false)
+  ) {
+    test.skip(true, "No public service types are available in this database.");
+  }
+
+  await page.getByRole("tab", { name: /encargo/i }).click();
   await page.getByLabel(/nombre del cliente/i).fill(encargoName);
   await page.getByLabel(/tel.fono|telefono/i).fill(encargoPhone);
   await page.getByLabel(/correo electr.nico|correo electronico/i).fill(encargoEmail);
-  await page.getByLabel(/tipo de servicio/i).selectOption("Personalizacion");
+  await expect(page.getByLabel(/^servicio/i)).toBeVisible();
   await page.getByLabel(/fecha deseada/i).fill(futureDate);
   await page.getByLabel(/descripci.n del trabajo/i).fill(encargoDescription);
   await page.getByLabel(/observaciones adicionales/i).fill(encargoNotes);
@@ -136,13 +145,22 @@ async function createPublicSelectorSolicitud(page: Page) {
     page.getByRole("heading", { name: /qu. necesitas preparar/i }),
   ).toBeVisible();
 
-  await page.getByRole("tab", { name: /encargo personalizado/i }).click();
+  if (
+    await page
+      .getByText(/formulario no disponible/i)
+      .isVisible()
+      .catch(() => false)
+  ) {
+    test.skip(true, "No public service types are available in this database.");
+  }
+
+  await page.getByRole("tab", { name: /encargo/i }).click();
   await page.getByLabel(/nombre del cliente/i).fill(selectorSolicitudName);
   await page.getByLabel(/tel.fono|telefono/i).fill(selectorSolicitudPhone);
   await page
     .getByLabel(/correo electr.nico|correo electronico/i)
     .fill(selectorSolicitudEmail);
-  await page.getByLabel(/tipo de servicio/i).selectOption("Personalizacion");
+  await expect(page.getByLabel(/^servicio/i)).toBeVisible();
   await page.getByLabel(/fecha deseada/i).fill(futureDate);
   await page
     .getByLabel(/descripci.n del trabajo/i)

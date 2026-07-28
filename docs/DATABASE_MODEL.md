@@ -302,8 +302,8 @@ Solicitudes y Pedidos.
 - Transiciones manuales permitidas: `nueva` -> `en_revision` o `rechazada`; `en_revision` -> `contactada` o `rechazada`; `contactada` -> `aprobada` o `rechazada`; `aprobada` -> `rechazada`.
 - `rechazada` y `convertida` son estados cerrados. `convertida` solo se asigna desde el flujo formal de conversión a pedido.
 - `quantity` fue eliminado del modelo de solicitudes. Las cantidades, medidas y requisitos se deben explicar dentro de `description` o `notes`.
-- `service_id` se agregó como referencia normalizada a `tipos_servicio`, pero
-  permanece nullable durante la migración expand.
+- `service_id` es la referencia normalizada a `tipos_servicio` para solicitudes
+  nuevas. Permanece nullable solo por compatibilidad con datos históricos.
 - `service_type` se conserva temporalmente y todavía es el campo usado por la
   aplicación vigente; será eliminado en una migración contract posterior.
 - Si `service_id` tiene valor, un trigger de base de datos sincroniza
@@ -311,14 +311,13 @@ Solicitudes y Pedidos.
 - `workflow_type` diferencia el flujo operativo general y queda materializado
   para compatibilidad y consultas operativas.
 - Los registros existentes quedan como `encargo`.
-- La conversión conserva el `workflow_type` de la solicitud.
+- La conversión permite confirmar o cambiar el servicio dentro del mismo
+  `workflow_type` de la solicitud.
 - En encargos, la conversión exige `title` y `description` definidos por el usuario interno.
 - En impresiones, la conversión usa el título operativo predeterminado `Pedido de impresión` y conserva la descripción estructurada de la solicitud.
 - `priority` se valida contra el enum real. `estimated_delivery_date` es opcional y no puede ser anterior al día actual si se informa.
-- En la etapa expand no se ha completado la migración funcional de UI: el
-  formulario público todavía no usa `tipos_servicio`.
-- `service_type` describe el servicio solicitado en la aplicación vigente; no
-  decide el flujo ni se usa como título automático.
+- `service_type` describe el servicio solicitado como texto histórico; no decide
+  el flujo ni se usa como título automático.
 
 **Notas de seguridad:**
 
@@ -369,8 +368,9 @@ Solicitudes y Pedidos.
   `order_number` como referencia operativa y `public_reference` como codigo
   copiable para el cliente.
 - Un pedido puede crearse manualmente o a partir de una solicitud.
-- `service_id` se agregó como referencia normalizada a `tipos_servicio`, pero
-  permanece nullable durante la migración expand.
+- `service_id` es la referencia normalizada a `tipos_servicio` para pedidos
+  nuevos y convertidos. Permanece nullable solo por compatibilidad con datos
+  históricos.
 - Si `service_id` tiene valor, un trigger de base de datos sincroniza
   `workflow_type` desde `tipos_servicio`.
 - `workflow_type` distingue encargos personalizados o complejos de trabajos
@@ -398,8 +398,8 @@ Solicitudes y Pedidos.
 - Los cambios importantes de estado se registran en `pedido_historial`.
 - La creación y la presentación se adaptan a cada `workflow_type`, pero no hay estados exclusivos de impresión.
 - Los detalles específicos de impresión se guardan como descripción estructurada; no existen tablas normalizadas específicas de impresión.
-- La etapa expand no cambia la creación manual ni la conversión desde
-  solicitudes; esos flujos todavía no reciben `service_id` desde la UI vigente.
+- La creación manual y la conversión desde solicitudes reciben `service_id`;
+  las RPCs derivan y protegen `workflow_type` desde `tipos_servicio`.
 
 **Notas de seguridad:**
 
@@ -446,11 +446,11 @@ No es una tabla de movimientos, abonos individuales ni comprobantes.
 - El trigger `private.set_pedido_payment_status()` recalcula siempre
   `payment_status` y mantiene `paid_at` coherente.
 - Los pedidos existentes se rellenan con total cero y estado `pagado`.
-- La creacion manual usa `public.crear_pedido_manual` para crear el pedido y su
-  resumen financiero en una sola transaccion.
-- La conversion desde solicitud usa `public.convertir_solicitud_a_pedido` para
-  crear el pedido, su resumen financiero y asociar archivos en una sola
-  transaccion.
+- La creacion manual usa `public.crear_pedido_manual(p_service_id, ...)` para
+  crear el pedido y su resumen financiero en una sola transaccion.
+- La conversion desde solicitud usa
+  `public.convertir_solicitud_a_pedido(p_service_id, ...)` para crear el pedido,
+  su resumen financiero y asociar archivos en una sola transaccion.
 - La actualizacion interna de pagos usa `public.actualizar_pago_pedido` para
   modificar solo efectivo y transferencia acumulados, mantener `updated_by` y
   registrar historial en una sola transaccion.
@@ -924,7 +924,8 @@ El diagnóstico y diseño actualizado para comentarios internos e historial oper
 ## Operaciones transaccionales principales
 
 - `public.convertir_solicitud_a_pedido` crea el pedido, marca la solicitud como
-  convertida y hereda sus archivos dentro de una sola transacción.
+  convertida, guarda el `service_id` elegido y hereda sus archivos dentro de
+  una sola transacción.
 - En la conversion de solicitud a pedido, el pedido hereda exactamente el
   `public_reference` de la solicitud; no se genera un codigo nuevo.
 - `public.crear_cliente_desde_solicitud` crea el cliente, registra historial y

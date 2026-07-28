@@ -32,6 +32,10 @@ export type InternalServiceType = PublicServiceType & {
   updatedAt: string;
 };
 
+export type OperationalServiceType = PublicServiceType & {
+  isPubliclyAvailable: boolean;
+};
+
 export type ServiceTypeField = "name" | "description" | "isPubliclyAvailable";
 
 export type ServiceTypeFieldErrors = Partial<
@@ -81,6 +85,18 @@ export type ValidServiceTypeInput = {
 export type ListPublicServiceTypesErrorReason = "error";
 
 export type GetPublicServiceTypeByIdErrorReason =
+  | "invalid_id"
+  | "not_found"
+  | "error";
+
+export type ListOperationalServiceTypesErrorReason =
+  | "unauthorized"
+  | "forbidden"
+  | "error";
+
+export type GetOperationalServiceTypeByIdErrorReason =
+  | "unauthorized"
+  | "forbidden"
   | "invalid_id"
   | "not_found"
   | "error";

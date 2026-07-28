@@ -6,6 +6,7 @@ import { InternalSolicitudDetail } from "@/components/solicitudes/InternalSolici
 import { Alert, ReadErrorAlert } from "@/components/ui";
 import { AutoReviewOnOpen } from "@/components/workspace";
 import { getInternalClienteById } from "@/lib/clientes";
+import { listOperationalServiceTypes } from "@/lib/service-types";
 import {
   getInternalSolicitudById,
   isSolicitudInitialStatus,
@@ -54,14 +55,20 @@ export default async function DashboardSolicitudDetallePage({
     );
   }
 
-  const [clienteAsociadoResult, filesResult, commentsResult, historyResult] =
-    await Promise.all([
+  const [
+    clienteAsociadoResult,
+    filesResult,
+    commentsResult,
+    historyResult,
+    serviceTypesResult,
+  ] = await Promise.all([
       result.solicitud.cliente_id
         ? getInternalClienteById(result.solicitud.cliente_id)
         : Promise.resolve(null),
       listSolicitudFiles(result.solicitud.id),
       listSolicitudComments(result.solicitud.id),
       listSolicitudHistory(result.solicitud.id),
+      listOperationalServiceTypes(),
     ]);
   const clienteAsociado =
     clienteAsociadoResult && clienteAsociadoResult.ok
@@ -150,6 +157,13 @@ export default async function DashboardSolicitudDetallePage({
             clienteId={result.solicitud.cliente_id}
             convertedOrderId={result.solicitud.converted_order_id}
             workflowType={result.solicitud.workflow_type}
+            solicitudServiceId={result.solicitud.service_id}
+            serviceTypes={
+              serviceTypesResult.ok ? serviceTypesResult.serviceTypes : []
+            }
+            serviceTypesLoadError={
+              serviceTypesResult.ok ? undefined : serviceTypesResult.message
+            }
             serviceType={result.solicitud.service_type}
             solicitudDescription={result.solicitud.description}
             solicitudDesiredDate={result.solicitud.desired_date}

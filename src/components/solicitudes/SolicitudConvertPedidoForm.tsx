@@ -17,6 +17,7 @@ import {
 import { WorkflowTypeBadge } from "@/components/ui/WorkflowTypeBadge";
 import { PEDIDO_PRIORITY_LABELS } from "@/lib/pedidos/labels";
 import { PEDIDO_PRIORITIES } from "@/lib/pedidos/status";
+import type { OperationalServiceType } from "@/lib/service-types";
 import { getSolicitudServiceTypeLabel } from "@/lib/solicitudes/labels";
 import { getTodayDateInputValue } from "@/lib/utils";
 import {
@@ -32,6 +33,9 @@ type SolicitudConvertPedidoFormProps = {
   clienteId: string | null;
   convertedOrderId: string | null;
   workflowType: WorkflowType;
+  solicitudServiceId: string | null;
+  serviceTypes: OperationalServiceType[];
+  serviceTypesLoadError?: string;
   serviceType: string;
   solicitudDescription: string;
   solicitudDesiredDate: string | null;
@@ -51,6 +55,9 @@ export function SolicitudConvertPedidoForm({
   clienteId,
   convertedOrderId,
   workflowType,
+  solicitudServiceId,
+  serviceTypes,
+  serviceTypesLoadError,
   serviceType,
   solicitudDescription,
   solicitudDesiredDate,
@@ -65,6 +72,7 @@ export function SolicitudConvertPedidoForm({
     status === "aprobada" && Boolean(clienteId) && !currentPedidoId;
   const titleError = state.fieldErrors?.title;
   const descriptionError = state.fieldErrors?.description;
+  const serviceIdError = state.fieldErrors?.service_id;
   const totalAmountError = state.fieldErrors?.total_amount;
   const priorityError = state.fieldErrors?.priority;
   const estimatedDeliveryDateError =
@@ -73,6 +81,17 @@ export function SolicitudConvertPedidoForm({
   const hasFreshConversionSuccess = state.ok && Boolean(state.pedidoId);
   const titleValue = state.values?.title ?? "";
   const descriptionValue = state.values?.description ?? solicitudDescription;
+  const workflowServices = serviceTypes.filter(
+    (service) => service.workflowType === workflowType,
+  );
+  const defaultService =
+    workflowServices.find((service) => service.id === solicitudServiceId) ??
+    workflowServices[0] ??
+    null;
+  const selectedServiceId = state.values?.service_id ?? defaultService?.id ?? "";
+  const selectedService =
+    workflowServices.find((service) => service.id === selectedServiceId) ??
+    defaultService;
   const totalAmountValue = state.values?.total_amount ?? "";
   const priorityValue = state.values?.priority ?? "normal";
   const estimatedDeliveryDateValue =
@@ -137,6 +156,22 @@ export function SolicitudConvertPedidoForm({
         <Alert variant="warning" className={isPanel ? "" : "mt-4"}>
           Asocia un cliente antes de convertir esta solicitud en pedido.
         </Alert>
+      ) : serviceTypesLoadError ? (
+        <Alert
+          variant="warning"
+          title="No se pudo cargar el catálogo de servicios"
+          className={isPanel ? "" : "mt-4"}
+        >
+          <p>{serviceTypesLoadError}</p>
+        </Alert>
+      ) : !defaultService ? (
+        <Alert
+          variant="warning"
+          title="Conversión temporalmente no disponible"
+          className={isPanel ? "" : "mt-4"}
+        >
+          <p>No hay servicios disponibles para este tipo de solicitud.</p>
+        </Alert>
       ) : (
         <form action={formAction} aria-busy={pending} className="space-y-5">
           <div className="rounded-(--radius-control) border border-border bg-surface-muted px-4 py-3 text-sm leading-6 text-text-secondary">
@@ -148,6 +183,76 @@ export function SolicitudConvertPedidoForm({
             </p>
             <p className="mt-1">Solicitud: {serviceTypeLabel}</p>
           </div>
+
+          <section
+            aria-labelledby="convert-service-title"
+            className="border-t border-border pt-5"
+          >
+            <h3
+              id="convert-service-title"
+              className="text-base font-semibold text-text-primary"
+            >
+              Servicio del pedido
+            </h3>
+
+            {isPrintWorkflow ? (
+              <div className="mt-4 rounded-(--radius-control) border border-border bg-surface-muted px-4 py-3 text-sm leading-6 text-text-secondary">
+                <input type="hidden" name="service_id" value={selectedServiceId} />
+                <p>
+                  <span className="font-semibold text-text-primary">
+                    Servicio:
+                  </span>{" "}
+                  {selectedService?.name ?? serviceTypeLabel}
+                  {selectedService && !selectedService.isPubliclyAvailable ? (
+                    <span className="ml-1 text-text-muted">
+                      Oculto públicamente
+                    </span>
+                  ) : null}
+                </p>
+                {selectedService?.description ? (
+                  <p className="mt-1">{selectedService.description}</p>
+                ) : null}
+                {serviceIdError ? (
+                  <p
+                    id="convert-service-id-error"
+                    className="mt-2 text-sm font-medium text-danger"
+                  >
+                    {serviceIdError}
+                  </p>
+                ) : null}
+              </div>
+            ) : (
+              <FormField
+                id="service_id"
+                label="Servicio"
+                required
+                error={serviceIdError}
+                errorId="convert-service-id-error"
+                className="mt-4"
+                compact
+              >
+                {({ describedBy, invalid }) => (
+                  <Select
+                    id="service_id"
+                    name="service_id"
+                    required
+                    defaultValue={selectedServiceId}
+                    invalid={invalid}
+                    aria-describedby={describedBy}
+                  >
+                    {workflowServices.map((service) => (
+                      <option key={service.id} value={service.id}>
+                        {service.name}
+                        {service.isPubliclyAvailable
+                          ? ""
+                          : " - Oculto publicamente"}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </FormField>
+            )}
+          </section>
 
           <section
             aria-labelledby="convert-workflow-data-title"

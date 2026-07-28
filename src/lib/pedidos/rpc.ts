@@ -13,7 +13,7 @@ type CreateManualPedidoRpcResult = {
 };
 
 type CreateManualPedidoRpcArgs = {
-  p_workflow_type: Enums<"workflow_type">;
+  p_service_id: string;
   p_cliente_id: string | null;
   p_title: string;
   p_description: string;
@@ -51,6 +51,7 @@ type ConvertSolicitudToPedidoRpcResult = {
 
 type ConvertSolicitudToPedidoRpcArgs = {
   p_solicitud_id: string;
+  p_service_id: string;
   p_title: string;
   p_description: string;
   p_priority: Enums<"pedido_prioridad">;

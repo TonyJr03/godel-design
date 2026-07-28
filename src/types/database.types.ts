@@ -971,6 +971,7 @@ export type Database = {
           p_description: string
           p_estimated_delivery_date: string
           p_priority: Database["public"]["Enums"]["pedido_prioridad"]
+          p_service_id: string
           p_solicitud_id: string
           p_title: string
           p_total_amount: number
@@ -1024,9 +1025,9 @@ export type Database = {
           p_description: string
           p_estimated_delivery_date: string
           p_priority: Database["public"]["Enums"]["pedido_prioridad"]
+          p_service_id: string
           p_title: string
           p_total_amount: number
-          p_workflow_type: Database["public"]["Enums"]["workflow_type"]
         }
         Returns: {
           order_number: string

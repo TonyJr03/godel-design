@@ -89,7 +89,7 @@ export function FormField({
   };
 
   return (
-    <div className={className}>
+    <div className={["min-w-0", className].filter(Boolean).join(" ")}>
       <label htmlFor={id} className="text-sm font-medium text-text-primary">
         {label}
         {required ? (
@@ -100,7 +100,7 @@ export function FormField({
           <span className="ml-1 font-normal text-text-muted">(opcional)</span>
         ) : null}
       </label>
-      <div className={compact ? "mt-1.5" : "mt-2"}>
+      <div className={[compact ? "mt-1.5" : "mt-2", "min-w-0"].join(" ")}>
         {typeof children === "function" ? children(renderProps) : children}
       </div>
       {error && errorId ? (

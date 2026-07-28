@@ -50,6 +50,12 @@ se modela con `is_publicly_available = false`, no eliminando la fila.
 - `getPublicServiceTypeById()`: resuelve server-side un servicio publico por
   UUID, filtrando `is_publicly_available = true`; se usa para crear solicitudes
   publicas sin confiar en datos enviados por el cliente.
+- `listOperationalServiceTypes()`: requiere perfil interno activo y permiso
+  operativo de pedidos o solicitudes; devuelve servicios publicos y ocultos
+  para creacion manual y conversion interna.
+- `getOperationalServiceTypeById()`: resuelve server-side un servicio por UUID
+  para operaciones internas, sin filtrar por disponibilidad publica. Se usa
+  antes de crear o convertir pedidos para enviar `service_id` a las RPCs.
 - `listInternalServiceTypes()`: requiere perfil interno activo y
   `configuracion.view`; devuelve servicios publicos y ocultos con busqueda,
   filtro de disponibilidad publica, paginacion interna y conteo global de

@@ -12,6 +12,7 @@ export async function convertSolicitudToPedidoAction(
 ): Promise<ConvertSolicitudToPedidoActionState> {
   const title = getFormValue(formData, "title");
   const description = getFormValue(formData, "description");
+  const serviceId = getFormValue(formData, "service_id");
   const totalAmount = getFormValue(formData, "total_amount");
   const priority = getFormValue(formData, "priority");
   const estimatedDeliveryDate = getFormValue(
@@ -20,6 +21,7 @@ export async function convertSolicitudToPedidoAction(
   );
   const result = await createPedidoFromSolicitud({
     solicitudId,
+    serviceId,
     title,
     description,
     totalAmount,
@@ -35,6 +37,7 @@ export async function convertSolicitudToPedidoAction(
       values: result.values ?? {
         title,
         description,
+        service_id: serviceId,
         total_amount: totalAmount,
         priority,
         estimated_delivery_date: estimatedDeliveryDate || null,

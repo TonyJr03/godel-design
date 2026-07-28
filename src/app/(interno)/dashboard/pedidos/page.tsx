@@ -21,6 +21,7 @@ import {
   PEDIDO_STATUS_LABELS,
   listInternalPedidos,
 } from "@/lib/pedidos";
+import { listOperationalServiceTypes } from "@/lib/service-types";
 import { getSingleSearchParam } from "@/lib/utils";
 import {
   WORKFLOW_TYPES,
@@ -106,6 +107,7 @@ export default async function DashboardPedidosPage({
     paymentStatus,
     page,
   });
+  const serviceTypesResult = await listOperationalServiceTypes();
 
   if (!result.ok && result.reason === "unauthorized") {
     redirect("/login");
@@ -144,7 +146,19 @@ export default async function DashboardPedidosPage({
         description="Listado interno de pedidos oficiales para seguimiento operativo."
         action={
           canCreatePedido ? (
-            <PedidoCreateDialogButton prioridades={PEDIDO_PRIORIDADES} />
+            <PedidoCreateDialogButton
+              prioridades={PEDIDO_PRIORIDADES}
+              serviceTypes={
+                serviceTypesResult.ok
+                  ? serviceTypesResult.serviceTypes
+                  : []
+              }
+              serviceTypesLoadError={
+                serviceTypesResult.ok
+                  ? undefined
+                  : serviceTypesResult.message
+              }
+            />
           ) : undefined
         }
         toolbar={
