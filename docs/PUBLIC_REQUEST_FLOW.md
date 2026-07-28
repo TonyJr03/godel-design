@@ -35,11 +35,11 @@ Reglas de disponibilidad:
 - Si falla la lectura del catalogo, no se asumen servicios hardcodeados y se
   muestra un estado reintentable.
 
-Nuevo contrato de entrada publica:
+Contrato de entrada publica:
 
 - El formulario envia `service_id`.
-- El formulario no envia `workflow_type` ni `service_type` como fuente de
-  verdad.
+- El formulario no envia `workflow_type` ni el nombre del servicio como fuente
+  de verdad.
 - La Server Action calcula `hasFiles` desde `files.length > 0`.
 - `createPublicSolicitud` resuelve `service_id` con
   `getPublicServiceTypeById()`, filtrando explicitamente
@@ -51,8 +51,7 @@ Nuevo contrato de entrada publica:
 Insercion en `solicitudes`:
 
 - `service_id` guarda el servicio resuelto.
-- `service_type` sigue presente temporalmente por compatibilidad expand y guarda
-  el nombre resuelto del servicio.
+- La columna textual legacy del nombre de servicio fue eliminada por Contract.
 - `workflow_type` se deriva del servicio y el trigger de base lo sincroniza de
   nuevo desde `service_id`.
 
@@ -60,13 +59,11 @@ RLS de defensa en profundidad:
 
 - `solicitudes_insert_public` aplica a `anon` y `authenticated`.
 - Exige `service_id is not null`.
-- Exige que el servicio exista, este publico y coincida con `workflow_type` y
-  `service_type`.
+- Exige que el servicio exista, este publico y coincida con `workflow_type`.
 - Un servicio oculto o una combinacion manipulada no puede crear solicitud.
 
-Pedidos todavia no esta integrado con el catalogo configurable en alta manual,
-conversion, edicion o filtros. La migracion expand sigue abierta: `service_type`
-no se elimina y `service_id` aun no se contrae a `NOT NULL`.
+Solicitudes y Pedidos usan `service_id` obligatorio. Los servicios ocultos
+siguen disponibles para flujos internos y el servicio de Impresion es unico.
 
 ## Alcance actual
 
@@ -145,7 +142,7 @@ El formulario público no envía:
 
 - `id`
 - `workflow_type`
-- `service_type`
+- nombre del servicio
 - `public_reference`
 - `status`
 - `cliente_id`
@@ -186,8 +183,8 @@ La validación de `desired_date` usa los helpers de fecha de
 el día actual local. Trabaja con valores `YYYY-MM-DD` de inputs HTML y evita
 convertir a UTC con `toISOString()`.
 
-`service_type` queda como campo temporal de compatibilidad expand y guarda el
-nombre resuelto del catálogo. El cliente no lo envía como autoridad.
+El nombre visible del servicio se obtiene desde `tipos_servicio`. El cliente no
+lo envía como autoridad ni se persiste en una columna textual de Solicitudes.
 
 No se usan dependencias externas para esta validación.
 
@@ -223,8 +220,7 @@ Responsabilidades:
 - Resolver `service_id` mediante `getPublicServiceTypeById()`.
 - Rechazar servicios inexistentes, inválidos u ocultos públicamente.
 - Crear la solicitud en Supabase.
-- Guardar `service_id`, `service_type` con el nombre resuelto y
-  `workflow_type` derivado del servicio.
+- Guardar `service_id` y `workflow_type` derivado del servicio.
 - Construir server-side la descripción estructurada para impresiones.
 - Insertar el detalle del trabajo sin agregar columnas específicas de
   impresión.
@@ -245,8 +241,8 @@ Desde Fase 11.7B, la inserción de la solicitud registra automáticamente el eve
 La conversión interna conserva el `workflow_type` de la solicitud. En encargos,
 el equipo define el título operativo; en impresiones se usa el título
 predeterminado `Pedido de impresión` y se conserva la descripción estructurada.
-`service_type` queda como referencia descriptiva del servicio y no decide el
-flujo ni el título del pedido.
+El servicio de la solicitud queda referenciado por `service_id`; su nombre se
+lee desde `tipos_servicio` y no decide el título del pedido.
 
 ## Decisión sobre clientes
 
@@ -378,8 +374,8 @@ Si la solicitud se convierte en pedido, los archivos se heredan por metadatos: s
    calcula `hasFiles`.
 6. El servicio resuelve `service_id`, valida los datos según el workflow real y
    construye la descripción de impresión cuando aplica.
-7. El servicio inserta la solicitud con `service_id`, `service_type`,
-   `workflow_type` y estado `nueva`.
+7. El servicio inserta la solicitud con `service_id`, `workflow_type` y estado
+   `nueva`.
 8. La base de datos registra `solicitud_creada` en el historial interno.
 9. Si hay archivos, la action los sube al bucket privado y registra metadatos.
 10. La base de datos registra `archivos_adjuntados` por cada archivo aceptado.
@@ -393,7 +389,7 @@ Si la solicitud se convierte en pedido, los archivos se heredan por metadatos: s
 
 ## Relación con el flujo interno
 
-El listado, detalle, archivos, comentarios, historial y conversión a pedido se gestionan desde el dashboard interno. El detalle interno de solicitud muestra el mismo `public_reference` como código copiable para que el equipo pueda compartirlo con el cliente sin usar el UUID ni una referencia corta derivada. Los valores visibles de `service_type` deben mostrarse mediante los labels centralizados de `src/lib/solicitudes/labels.ts`, sin cambiar el valor técnico guardado en la solicitud.
+El listado, detalle, archivos, comentarios, historial y conversión a pedido se gestionan desde el dashboard interno. El detalle interno de solicitud muestra el mismo `public_reference` como código copiable para que el equipo pueda compartirlo con el cliente sin usar el UUID ni una referencia corta derivada. El nombre visible del servicio se obtiene desde la relación con `tipos_servicio`.
 
 ## Pruebas Manuales Recomendadas
 

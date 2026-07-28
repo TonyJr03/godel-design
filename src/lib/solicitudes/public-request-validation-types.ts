@@ -49,7 +49,6 @@ export type PublicSolicitudCommonData = {
   client_phone: string;
   client_email: string | null;
   workflow_type: WorkflowType;
-  service_type: string;
 };
 
 export type PublicEncargoSolicitudData = PublicSolicitudCommonData & {

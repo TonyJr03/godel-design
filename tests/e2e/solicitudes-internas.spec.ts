@@ -173,7 +173,6 @@ async function createApprovedQaSolicitud({
       client_phone: `56${runId.slice(-7)}`,
       client_email: createQaEmail(`qa-solicitud-${label}`, runId),
       service_id: service.id,
-      service_type: service.name,
       workflow_type: service.workflow_type,
       description,
       desired_date: futureDate,

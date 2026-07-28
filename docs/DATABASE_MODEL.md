@@ -35,11 +35,10 @@ negocio y criterios de seguridad.
 | `encargo` | Trabajo personalizado o complejo. |
 | `impresion` | Trabajo directo de impresión. |
 
-`workflow_type` diferencia la variante del flujo operativo. En la etapa expand
-del catálogo de servicios se mantiene materializado en `solicitudes` y
-`pedidos`, pero se deriva desde `tipos_servicio` cuando existe `service_id`.
-`solicitudes.service_type` sigue temporalmente presente para compatibilidad con
-la aplicación vigente.
+`workflow_type` diferencia la variante del flujo operativo. En el contrato
+vigente se mantiene materializado en `solicitudes` y `pedidos`, pero se
+sincroniza desde `tipos_servicio` mediante `service_id`. El nombre visible del
+servicio se obtiene por la relación canónica con el catálogo.
 
 ### `solicitud_estado`
 
@@ -239,10 +238,10 @@ Solicitudes y Pedidos.
   el servicio sigue siendo válido para uso interno e histórico.
 - No hay eliminación desde la aplicación. Un servicio se retira de la oferta
   pública cambiando `is_publicly_available`.
-- La etapa actual es expand: las columnas `service_id` en Solicitudes y Pedidos
-  permanecen nullable para compatibilidad temporal.
-- Las UI vigentes todavía no consumen este catálogo; el formulario público y
-  los formularios internos siguen usando los campos actuales.
+- El contrato vigente usa `service_id` como referencia obligatoria en
+  Solicitudes y Pedidos.
+- Las UI vigentes consumen este catálogo en el formulario público y en los
+  formularios internos de Solicitudes y Pedidos.
 
 **Notas de seguridad:**
 
@@ -268,8 +267,7 @@ Solicitudes y Pedidos.
 | `client_phone` | `text` | Teléfono capturado desde el formulario público. |
 | `client_email` | `text nullable` | Correo electrónico opcional capturado desde el formulario público. |
 | `workflow_type` | `workflow_type` | Variante del flujo operativo; por defecto `encargo`. |
-| `service_id` | `uuid nullable` | Servicio normalizado durante la migración expand. |
-| `service_type` | `text` | Tipo de servicio solicitado. |
+| `service_id` | `uuid` | Servicio normalizado y obligatorio en el catálogo. |
 | `description` | `text` | Descripción del trabajo solicitado. |
 | `desired_date` | `date nullable` | Fecha deseada por el cliente. |
 | `notes` | `text nullable` | Observaciones adicionales. |
@@ -302,13 +300,9 @@ Solicitudes y Pedidos.
 - Transiciones manuales permitidas: `nueva` -> `en_revision` o `rechazada`; `en_revision` -> `contactada` o `rechazada`; `contactada` -> `aprobada` o `rechazada`; `aprobada` -> `rechazada`.
 - `rechazada` y `convertida` son estados cerrados. `convertida` solo se asigna desde el flujo formal de conversión a pedido.
 - `quantity` fue eliminado del modelo de solicitudes. Las cantidades, medidas y requisitos se deben explicar dentro de `description` o `notes`.
-- `service_id` es la referencia normalizada a `tipos_servicio` para solicitudes
-  nuevas. Permanece nullable solo por compatibilidad con datos históricos.
+- `service_id` es la referencia normalizada y obligatoria a `tipos_servicio`.
 - Los listados y detalles internos deben preferir
   `service_id -> tipos_servicio.name` para el nombre visible del servicio.
-- `service_type` se conserva temporalmente como compatibilidad expand de
-  escritura hasta una migración contract posterior, pero los listados y detalles
-  internos nuevos no lo usan como búsqueda ni fallback visual.
 - Si `service_id` tiene valor, un trigger de base de datos sincroniza
   `workflow_type` desde `tipos_servicio`.
 - `workflow_type` diferencia el flujo operativo general y queda materializado
@@ -319,8 +313,8 @@ Solicitudes y Pedidos.
 - En encargos, la conversión exige `title` y `description` definidos por el usuario interno.
 - En impresiones, la conversión usa el título operativo predeterminado `Pedido de impresión` y conserva la descripción estructurada de la solicitud.
 - `priority` se valida contra el enum real. `estimated_delivery_date` es opcional y no puede ser anterior al día actual si se informa.
-- `service_type` describe el servicio solicitado como texto histórico; no decide
-  el flujo ni se usa como título automático.
+- El nombre del servicio no se persiste como texto duplicado en solicitudes; se
+  obtiene desde `tipos_servicio.name`.
 
 **Notas de seguridad:**
 
@@ -340,7 +334,7 @@ Solicitudes y Pedidos.
 | `cliente_id` | `uuid nullable` | Cliente asociado; opcional en pedidos manuales y requerido en pedidos convertidos desde solicitud. |
 | `solicitud_id` | `uuid nullable` | Solicitud origen si el pedido fue convertido. |
 | `workflow_type` | `workflow_type` | Variante del flujo operativo; por defecto `encargo`. |
-| `service_id` | `uuid nullable` | Servicio normalizado durante la migración expand. |
+| `service_id` | `uuid` | Servicio normalizado y obligatorio en el catálogo. |
 | `title` | `text` | Nombre breve del pedido. |
 | `description` | `text` | Detalle del trabajo. |
 | `status` | `pedido_estado` | Estado operativo del pedido. |

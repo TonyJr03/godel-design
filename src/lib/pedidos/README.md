@@ -145,8 +145,8 @@ Pedidos. Durante Beta 2.3 el dominio quedó ordenado en subfases pequeñas:
 El listado usa `pedidos.service_id` como filtro canonico de servicio y carga la
 relación `tipos_servicio!pedidos_service_id_fkey` para mostrar el nombre real
 del servicio propio del Pedido. La búsqueda por servicio resuelve primero
-`tipos_servicio.name` y luego filtra por `pedidos.service_id`; ya no usa
-`solicitudes.service_type` para identificar el servicio del Pedido.
+`tipos_servicio.name` y luego filtra por `pedidos.service_id`; la Solicitud
+origen también expone su servicio desde la relación de catálogo.
 
 El servicio valida `pedidos.view`, permite buscar por `q`, filtrar por `pedido_estado`, ordena por `created_at`, limita la carga y respeta RLS como defensa final. La búsqueda cubre número de pedido, título, descripción, cliente asociado, referencia pública de la solicitud origen y nombre del servicio confirmado del Pedido. La relación con cliente sigue siendo opcional, por lo que los pedidos manuales sin cliente no desaparecen.
 
@@ -160,8 +160,7 @@ El detalle distingue `pedido.service`, que representa el servicio confirmado del
 Pedido, de `pedido.solicitudes.service`, que representa el servicio solicitado
 originalmente. Ambos se cargan por relaciones explicitas con `tipos_servicio`.
 Si cualquiera de esas relaciones canónicas está ausente, la UI muestra
-`Servicio no disponible`; no se infiere desde `workflow_type` ni desde
-`solicitudes.service_type`.
+`Servicio no disponible`; no se infiere desde `workflow_type`.
 
 Valida UUID, obtiene el perfil actual, valida `pedidos.view`, carga pedido, cliente, solicitud, personal asignado y resumen financiero. Usa la relación explícita `solicitudes!pedidos_solicitud_id_fkey` para evitar ambigüedades. Si el registro de `pedido_pagos` falta por una inconsistencia, el detalle no rompe la página y marca el pago como no disponible.
 
@@ -217,7 +216,7 @@ escrituras se confirman o revierten juntas.
 
 `priority` es obligatoria, inicia visualmente en `normal` y se valida contra las prioridades reales del enum. `total_amount` también es obligatorio, permite `0`, rechaza negativos, valores no numéricos y más de 2 decimales. `estimated_delivery_date` es opcional; si se informa debe ser una fecha válida e igual o posterior al día actual. El servicio usa los helpers de `src/lib/validators/date.ts` y la RPC repite la regla con la fecha de negocio de `America/Havana`.
 
-`service_type` es solo referencia histórica de la solicitud y no se usa como título automático. El usuario interno debe definir el título real del pedido y puede ajustar la descripción operativa antes de convertir. Para encargos puede confirmar o cambiar el servicio dentro del mismo workflow; para impresiones se usa el servicio de impresión existente. La conversión no acepta `order_number`, `status`, `cliente_id`, `workflow_type`, `created_by`, `converted_order_id` ni campos de archivos desde el formulario. El número de pedido se asigna en base de datos y el estado inicial del pedido convertido sigue siendo `solicitud_recibida`.
+El usuario interno debe definir el título real del pedido y puede ajustar la descripción operativa antes de convertir. Para encargos puede confirmar o cambiar el servicio dentro del mismo workflow sin modificar el servicio original de la Solicitud; para impresiones se usa el servicio de impresión existente. La conversión no acepta `order_number`, `status`, `cliente_id`, `workflow_type`, `created_by`, `converted_order_id` ni campos de archivos desde el formulario. El número de pedido se asigna en base de datos y el estado inicial del pedido convertido sigue siendo `solicitud_recibida`.
 
 La herencia de archivos es solo de metadata: conserva bucket, ruta,
 visibilidad y autor, sin mover ni copiar objetos de Storage. La RPC es

@@ -40,8 +40,9 @@ Todavía no incluye:
 
 `pedidos.workflow_type` diferencia la variante operativa del pedido:
 `encargo` para trabajos personalizados o complejos e `impresion` para trabajos
-directos de impresión. Este discriminador no reemplaza `service_type`, que
-continúa siendo la referencia al servicio específico de la solicitud origen.
+directos de impresión. Este discriminador no reemplaza la referencia al
+servicio concreto: el pedido conserva `service_id` como relación canónica con
+`tipos_servicio`.
 
 Los pedidos existentes quedan como `encargo`. La creación manual y la conversión
 desde solicitud guardan el flujo correspondiente. El listado y el detalle
@@ -660,10 +661,9 @@ distintos.
 
 `priority` es obligatoria, inicia visualmente en `normal` y se valida contra las prioridades reales del enum. `total_amount` también es obligatorio, permite `0`, rechaza negativos, valores no numéricos y más de 2 decimales. `estimated_delivery_date` es opcional; si se informa debe ser una fecha válida e igual o posterior al día actual. La UI limita el calendario desde hoy; el servicio valida con `src/lib/validators/date.ts` y la RPC repite la regla usando la fecha de negocio de `America/Havana`.
 
-`service_type` queda como referencia histórica elegida por el cliente hasta la
-etapa contract. No se usa como título automático ni como fallback visual de las
-lecturas internas nuevas. En encargos, el usuario interno puede
-confirmar o cambiar el servicio dentro del mismo workflow y debe definir
+El servicio solicitado se lee desde la relación canónica de la solicitud con
+`tipos_servicio`. No se usa como título automático. En encargos, el usuario
+interno puede confirmar o cambiar el servicio dentro del mismo workflow y debe definir
 `title` y `description`. En impresiones, se usa el servicio de impresion
 existente, el título es opcional y usa
 `Pedido de impresión` cuando queda vacío; la descripción se precarga desde la
@@ -921,7 +921,8 @@ Evidencia e2e focal reciente:
 - Convertir sin fecha estimada y confirmar que el pedido queda sin fecha.
 - Convertir con fecha estimada de hoy o futura y confirmar que se guarda.
 - Forzar una fecha estimada pasada y confirmar error server-side.
-- Verificar que el pedido convertido no usa `service_type` como título automático.
+- Verificar que el pedido convertido no usa el nombre del servicio como título
+  automático.
 - Verificar que la descripción ajustada se guarda en el pedido.
 - Verificar que se crea pedido con `solicitud_id`.
 - Verificar que la solicitud queda `convertida`.

@@ -1,8 +1,5 @@
 import { PEDIDO_STATUS_LABELS } from "@/lib/pedidos";
-import {
-  SOLICITUD_STATUS_LABELS,
-  getSolicitudServiceTypeLabel,
-} from "@/lib/solicitudes";
+import { SOLICITUD_STATUS_LABELS } from "@/lib/solicitudes";
 import type { Json, Tables } from "@/types/database";
 import type { DashboardRecentActivityItem } from "./types";
 
@@ -25,7 +22,9 @@ export type PedidoActivityRow = Pick<
 };
 
 type SolicitudActivitySolicitud =
-  | Pick<Tables<"solicitudes">, "id" | "client_name" | "service_type">
+  | (Pick<Tables<"solicitudes">, "id" | "client_name" | "workflow_type"> & {
+      service: Pick<Tables<"tipos_servicio">, "name" | "workflow_type"> | null;
+    })
   | null;
 
 export type SolicitudActivityRow = Pick<
@@ -134,18 +133,12 @@ function getPedidoTitle(row: PedidoActivityRow): string {
 
 function getSolicitudTitle(row: SolicitudActivityRow): string {
   if (row.solicitudes) {
-    return `${row.solicitudes.client_name} · ${getSolicitudServiceTypeLabel(
-      row.solicitudes.service_type,
-    )}`;
+    return `${row.solicitudes.client_name} · ${
+      row.solicitudes.service?.name ?? "Servicio no disponible"
+    }`;
   }
 
   return "Solicitud";
-}
-
-function getSolicitudWorkflowType(
-  serviceType: string | null,
-): "encargo" | "impresion" {
-  return serviceType === "Impresion" ? "impresion" : "encargo";
 }
 
 function buildPedidoDescription(row: PedidoActivityRow): string {
@@ -339,9 +332,10 @@ export function mapSolicitudHistoryRowToDashboardActivity(
   return {
     id: `solicitud-${row.id}`,
     source: "solicitud",
-    workflowType: getSolicitudWorkflowType(
-      row.solicitudes?.service_type ?? null,
-    ),
+    workflowType:
+      row.solicitudes?.service?.workflow_type ??
+      row.solicitudes?.workflow_type ??
+      "encargo",
     action: row.action,
     href: `/dashboard/solicitudes/${row.solicitud_id}`,
     title: getSolicitudTitle(row),

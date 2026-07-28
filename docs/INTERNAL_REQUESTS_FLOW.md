@@ -66,7 +66,9 @@ El listado:
 - permite limpiar búsqueda, estado y servicio en una sola acción;
 - no consulta Supabase desde componentes cliente.
 
-`quantity` fue eliminado de solicitudes. El detalle de cantidades, medidas o requisitos debe revisarse en `description` o `notes`. `service_type` queda como columna física temporal hasta contract, pero no es fuente de lectura para listados y detalles internos nuevos.
+`quantity` fue eliminado de solicitudes. El detalle de cantidades, medidas o
+requisitos debe revisarse en `description` o `notes`. El servicio se identifica
+por `service_id` y el nombre visible se obtiene desde `tipos_servicio`.
 
 Desde la etapa de integración de servicios internos, listados y detalles deben
 preferir la relación canónica `service_id -> tipos_servicio.name`.
@@ -441,7 +443,8 @@ Evidencia e2e focal reciente:
 - Forzar una fecha estimada pasada y confirmar error server-side.
 - La creación manual de pedidos puede quedar sin cliente asociado.
 - Intentar convertir sin título muestra error.
-- Confirmar que el pedido creado usa el título escrito, no `service_type`.
+- Confirmar que el pedido creado usa el título escrito, no el nombre del servicio
+  como título automático.
 - Confirmar que la descripción del pedido se guarda correctamente.
 
 ## Cierre

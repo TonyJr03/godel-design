@@ -578,7 +578,7 @@ El workspace interno de Solicitud muestra:
 - Referencia pública copiable inline; la referencia interna completa queda en
   Información.
 - Cliente capturado.
-- Servicio con `getSolicitudServiceTypeLabel`.
+- Servicio desde la relación canónica `service_id -> tipos_servicio.name`.
 - Workflow `encargo`/`impresion`.
 - Estado.
 - Recepción.

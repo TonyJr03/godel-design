@@ -75,16 +75,15 @@ La action pública:
 
 La validacion definitiva ocurre server-side. El formulario no acepta como fuente
 de verdad campos tecnicos como `id`, `status`, `cliente_id`, `reviewed_by`,
-`converted_order_id`, `workflow_type`, `service_type`, `bucket`, `file_path` o
+`converted_order_id`, `workflow_type`, nombre del servicio, `bucket`, `file_path` o
 `uploaded_by`.
 
 `createPublicSolicitud` resuelve el servicio mediante
 `getPublicServiceTypeById(service_id)` antes de validar el workflow. Un servicio
 oculto, inexistente o con UUID invalido se rechaza como error de `service_id`.
-Las solicitudes nuevas insertan `service_id`, guardan `service_type` como nombre
-resuelto temporal para compatibilidad expand y guardan `workflow_type` derivado
-del servicio. El trigger de base de datos vuelve a sincronizar `workflow_type`
-desde `service_id` como defensa adicional.
+Las solicitudes nuevas insertan `service_id` y `workflow_type` derivado del
+servicio. El trigger de base de datos vuelve a sincronizar `workflow_type` desde
+`service_id` como defensa adicional.
 
 `desired_date` es opcional; si se informa debe ser una fecha valida igual o posterior al dia actual. El `min` del formulario es ayuda de UX, no autoridad. Las pruebas e2e deben usar fechas futuras dinamicas.
 
@@ -99,11 +98,10 @@ del filtro falla, el listado, la búsqueda y el filtro de estado siguen
 disponibles y la UI muestra un aviso parcial reintentable.
 
 La búsqueda por servicio resuelve `tipos_servicio.name` y aplica coincidencias
-por `solicitudes.service_id`. Durante expand, `solicitudes.service_type`
-permanece fisicamente como compatibilidad de escritura hasta la etapa contract,
-pero los listados y detalles internos nuevos no lo usan como búsqueda ni como
-fallback visual. `workflow_type` queda como clasificación operativa secundaria
-y ya no es filtro del listado.
+por `solicitudes.service_id`. Contract eliminó la columna textual legacy; los
+listados y detalles internos usan la relación de catálogo como fuente
+canónica. `workflow_type` queda como clasificación operativa secundaria y ya no
+es filtro del listado.
 
 El detalle interno carga la relación
 `tipos_servicio!solicitudes_service_id_fkey`. El panel Informacion se organiza

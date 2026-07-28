@@ -44,7 +44,6 @@ export function buildEncargoSolicitudData(
     client_name: input.client_name,
     client_phone: input.client_phone,
     client_email: input.client_email,
-    service_type: service.name,
     description: input.description,
     desired_date: input.desired_date,
     notes: input.notes,

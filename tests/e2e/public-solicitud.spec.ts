@@ -348,15 +348,10 @@ test("hidden service disappears publicly and concurrent submit is rejected", asy
     .fill("Intento concurrente con servicio oculto.");
   await page.locator("form").evaluate((formElement) => {
     const workflowInput = document.createElement("input");
-    const serviceTypeInput = document.createElement("input");
 
     workflowInput.type = "hidden";
     workflowInput.name = "workflow_type";
     workflowInput.value = "impresion";
-    serviceTypeInput.type = "hidden";
-    serviceTypeInput.name = "service_type";
-    serviceTypeInput.value = "Servicio falsificado";
-    formElement.prepend(serviceTypeInput);
     formElement.prepend(workflowInput);
   });
 
@@ -392,7 +387,7 @@ test("hidden service disappears publicly and concurrent submit is rejected", asy
   await adminPage.close();
 });
 
-test("manipulated workflow_type and service_type do not alter resolved service", async ({
+test("manipulated workflow_type does not alter the resolved service", async ({
   page,
 }) => {
   await page.goto("/solicitud");
@@ -406,15 +401,10 @@ test("manipulated workflow_type and service_type do not alter resolved service",
     .fill("Encargo con campos manipulados ignorados.");
   await page.locator("form").evaluate((formElement) => {
     const workflowInput = document.createElement("input");
-    const serviceTypeInput = document.createElement("input");
 
     workflowInput.type = "hidden";
     workflowInput.name = "workflow_type";
     workflowInput.value = "impresion";
-    serviceTypeInput.type = "hidden";
-    serviceTypeInput.name = "service_type";
-    serviceTypeInput.value = "Impresión";
-    formElement.prepend(serviceTypeInput);
     formElement.prepend(workflowInput);
   });
   await page.getByRole("button", { name: /enviar solicitud/i }).click();

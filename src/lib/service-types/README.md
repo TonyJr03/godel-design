@@ -6,10 +6,9 @@
 `tipos_servicio`. El catálogo describe servicios concretos que pueden quedar
 asociados tanto a `solicitudes` como a `pedidos`.
 
-Esta etapa implementa el estado expand: `solicitudes.service_id` y
-`pedidos.service_id` existen como columnas nullable, mientras
-`solicitudes.service_type` sigue presente temporalmente para compatibilidad
-expand. Las solicitudes públicas nuevas ya envían `service_id`; el servidor
+Contract consolidó el catálogo: `solicitudes.service_id` y
+`pedidos.service_id` son obligatorios. La columna textual legacy de Solicitudes
+fue eliminada; las solicitudes públicas envían `service_id` y el servidor
 resuelve nombre y `workflow_type` desde `tipos_servicio`.
 
 ## Disponibilidad pública y uso interno
@@ -89,8 +88,6 @@ Las lecturas internas de Pedidos y Solicitudes usan la referencia segura
 centraliza en `labels.ts` y se muestra como información textual, no solo por
 color.
 
-Durante el estado expand, `solicitudes.service_type` permanece físicamente para
-compatibilidad de escritura hasta la etapa contract, pero las lecturas internas
-nuevas de listados y detalles usan `service_id` como fuente canónica. Si una
-relación canónica falta, se presenta como `Servicio no disponible`; no se
-infiere el servicio a partir de `workflow_type` ni de `service_type`.
+Las lecturas internas nuevas de listados y detalles usan `service_id` como
+fuente canónica. Si una relación canónica falta, se presenta como `Servicio no
+disponible`; no se infiere el servicio a partir de `workflow_type`.

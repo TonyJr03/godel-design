@@ -96,7 +96,6 @@ export async function createPublicSolicitud(
     client_phone: validation.data.client_phone,
     client_email: validation.data.client_email,
     workflow_type: validation.data.workflow_type,
-    service_type: validation.data.service_type,
     description: validation.data.description,
     desired_date: validation.data.desired_date,
     notes: validation.data.notes,
