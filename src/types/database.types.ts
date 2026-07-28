@@ -847,6 +847,7 @@ export type Database = {
           p_estimated_delivery_date: string
           p_pedido_id: string
           p_priority: Database["public"]["Enums"]["pedido_prioridad"]
+          p_service_id: string
           p_title: string
           p_total_amount: number
         }
@@ -857,8 +858,10 @@ export type Database = {
           payment_status: Database["public"]["Enums"]["pedido_pago_estado"]
           pedido_id: string
           priority: Database["public"]["Enums"]["pedido_prioridad"]
+          service_id: string
           title: string
           total_amount: number
+          workflow_type: Database["public"]["Enums"]["workflow_type"]
         }[]
       }
       actualizar_estado_pedido: {

@@ -18,7 +18,6 @@ import { CopyableCode } from "@/components/common/CopyableCode";
 import {
   Alert,
   Button,
-  FieldError,
   FormActions,
   FormField,
   FormSection,
@@ -33,7 +32,7 @@ import {
   PRINT_PAPER_SIZE_OPTIONS,
   PRINT_SIDES_OPTIONS,
 } from "@/lib/pedidos/order-validation";
-import type { OperationalServiceType } from "@/lib/service-types";
+import type { OperationalServiceType } from "@/lib/service-types/types";
 import { getTodayDateInputValue } from "@/lib/utils";
 import {
   WORKFLOW_TYPES,
@@ -275,66 +274,6 @@ export function PedidoForm({
               </div>
             </div>
 
-            {isPrintWorkflow ? (
-              <div className="rounded-(--radius-control) border border-border bg-surface-muted px-4 py-3 text-sm leading-6 text-text-secondary">
-                <input
-                  type="hidden"
-                  name="service_id"
-                  value={printService?.id ?? ""}
-                />
-                <p>
-                  <span className="font-semibold text-text-primary">
-                    Servicio:
-                  </span>{" "}
-                  {printService?.name ?? "Impresión"}
-                  {printService && !printService.isPubliclyAvailable ? (
-                    <span className="ml-1 text-text-muted">
-                      Oculto públicamente
-                    </span>
-                  ) : null}
-                </p>
-                {printService?.description ? (
-                  <p className="mt-1">{printService.description}</p>
-                ) : null}
-                {serviceIdError ? (
-                  <FieldError id="service_id-error" compact>
-                    {serviceIdError}
-                  </FieldError>
-                ) : null}
-              </div>
-            ) : (
-              <FormField
-                id="service_id"
-                label="Servicio"
-                required
-                error={serviceIdError}
-                compact
-              >
-                {({ describedBy, invalid }) => (
-                  <Select
-                    id="service_id"
-                    name="service_id"
-                    value={selectedEncargoService?.id ?? ""}
-                    required
-                    invalid={invalid}
-                    aria-describedby={describedBy}
-                    onChange={(event) => {
-                      setSelectedEncargoServiceId(event.target.value);
-                      onDirtyChange?.(true);
-                    }}
-                  >
-                    {encargoServices.map((serviceType) => (
-                      <option key={serviceType.id} value={serviceType.id}>
-                        {serviceType.name}
-                        {serviceType.isPubliclyAvailable
-                          ? ""
-                          : " - Oculto públicamente"}
-                      </option>
-                    ))}
-                  </Select>
-                )}
-              </FormField>
-            )}
 
             {!activeService ? (
               <Alert variant="warning">
@@ -563,6 +502,64 @@ export function PedidoForm({
                   />
                 )}
               </FormField>
+
+              {isPrintWorkflow ? (
+                <FormField
+                  id="service_id_display"
+                  label="Servicio"
+                  required
+                  error={serviceIdError}
+                  errorId="service_id-error"
+                  compact
+                >
+                  {({ describedBy, invalid }) => (
+                    <>
+                      <Input
+                        id="service_id_display"
+                        type="text"
+                        value={printService?.name ?? "Impresión"}
+                        readOnly
+                        invalid={invalid}
+                        aria-describedby={describedBy}
+                      />
+                      <input
+                        type="hidden"
+                        name="service_id"
+                        value={printService?.id ?? ""}
+                      />
+                    </>
+                  )}
+                </FormField>
+              ) : (
+                <FormField
+                  id="service_id"
+                  label="Servicio"
+                  required
+                  error={serviceIdError}
+                  compact
+                >
+                  {({ describedBy, invalid }) => (
+                    <Select
+                      id="service_id"
+                      name="service_id"
+                      value={selectedEncargoService?.id ?? ""}
+                      required
+                      invalid={invalid}
+                      aria-describedby={describedBy}
+                      onChange={(event) => {
+                        setSelectedEncargoServiceId(event.target.value);
+                        onDirtyChange?.(true);
+                      }}
+                    >
+                      {encargoServices.map((serviceType) => (
+                        <option key={serviceType.id} value={serviceType.id}>
+                          {serviceType.name}
+                        </option>
+                      ))}
+                    </Select>
+                  )}
+                </FormField>
+              )}
 
               <FormField
                 id="priority"

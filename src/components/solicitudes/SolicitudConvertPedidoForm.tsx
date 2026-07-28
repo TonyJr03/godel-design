@@ -21,7 +21,7 @@ import { PEDIDO_PRIORITIES } from "@/lib/pedidos/status";
 import type {
   InternalServiceReference,
   OperationalServiceType,
-} from "@/lib/service-types";
+} from "@/lib/service-types/types";
 import { SERVICE_UNAVAILABLE_LABEL } from "@/lib/service-types/labels";
 import { getTodayDateInputValue } from "@/lib/utils";
 import {
@@ -104,10 +104,6 @@ export function SolicitudConvertPedidoForm({
     state.values?.estimated_delivery_date ?? solicitudDesiredDate ?? "";
   const todayInputDate = getTodayDateInputValue();
   const isPanel = presentation === "panel";
-  const serviceSelectErrorId = serviceIdError
-    ? "convert-service-id-error"
-    : undefined;
-
   return (
     <section
       className={
@@ -201,86 +197,6 @@ export function SolicitudConvertPedidoForm({
             </p>
           </div>
 
-          <section
-            aria-labelledby={
-              isPrintWorkflow ? "convert-service-title" : undefined
-            }
-            className="border-t border-border pt-5"
-          >
-            {isPrintWorkflow ? (
-              <h3
-                id="convert-service-title"
-                className="text-base font-semibold text-text-primary"
-              >
-                Servicio del pedido
-              </h3>
-            ) : null}
-
-            {isPrintWorkflow ? (
-              <div className="mt-4 rounded-(--radius-control) border border-border bg-surface-muted px-4 py-3 text-sm leading-6 text-text-secondary">
-                <input type="hidden" name="service_id" value={selectedServiceId} />
-                <p>
-                  <span className="font-semibold text-text-primary">
-                    Servicio:
-                  </span>{" "}
-                  {selectedService?.name ?? SERVICE_UNAVAILABLE_LABEL}
-                  {selectedService && !selectedService.isPubliclyAvailable ? (
-                    <span className="ml-1 text-text-muted">
-                      Oculto públicamente
-                    </span>
-                  ) : null}
-                </p>
-                {selectedService?.description ? (
-                  <p className="mt-1">{selectedService.description}</p>
-                ) : null}
-                {serviceIdError ? (
-                  <p
-                    id="convert-service-id-error"
-                    className="mt-2 text-sm font-medium text-danger"
-                  >
-                    {serviceIdError}
-                  </p>
-                ) : null}
-              </div>
-            ) : (
-              <div className="space-y-1.5">
-                <label
-                  htmlFor="service_id"
-                  className="text-base font-semibold text-text-primary"
-                >
-                  Servicio del pedido
-                  <span className="ml-1 text-danger" aria-hidden="true">
-                    *
-                  </span>
-                </label>
-                <Select
-                  id="service_id"
-                  name="service_id"
-                  required
-                  defaultValue={selectedServiceId}
-                  invalid={Boolean(serviceIdError)}
-                  aria-describedby={serviceSelectErrorId}
-                >
-                  {workflowServices.map((service) => (
-                    <option key={service.id} value={service.id}>
-                      {service.name}
-                      {service.isPubliclyAvailable
-                        ? ""
-                        : " - Oculto públicamente"}
-                    </option>
-                  ))}
-                </Select>
-                {serviceIdError ? (
-                  <p
-                    id="convert-service-id-error"
-                    className="text-sm font-medium leading-5 text-danger"
-                  >
-                    {serviceIdError}
-                  </p>
-                ) : null}
-              </div>
-            )}
-          </section>
 
           <section
             aria-labelledby="convert-workflow-data-title"
@@ -364,6 +280,61 @@ export function SolicitudConvertPedidoForm({
             </h3>
 
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              {isPrintWorkflow ? (
+                <FormField
+                  id="service_id_display"
+                  label="Servicio"
+                  required
+                  error={serviceIdError}
+                  errorId="convert-service-id-error"
+                  compact
+                >
+                  {({ describedBy, invalid }) => (
+                    <>
+                      <Input
+                        id="service_id_display"
+                        type="text"
+                        value={selectedService?.name ?? SERVICE_UNAVAILABLE_LABEL}
+                        readOnly
+                        invalid={invalid}
+                        aria-describedby={describedBy}
+                      />
+                      <input
+                        type="hidden"
+                        name="service_id"
+                        value={selectedServiceId}
+                      />
+                    </>
+                  )}
+                </FormField>
+              ) : (
+                <FormField
+                  id="service_id"
+                  label="Servicio"
+                  required
+                  error={serviceIdError}
+                  errorId="convert-service-id-error"
+                  compact
+                >
+                  {({ describedBy, invalid }) => (
+                    <Select
+                      id="service_id"
+                      name="service_id"
+                      required
+                      defaultValue={selectedServiceId}
+                      invalid={invalid}
+                      aria-describedby={describedBy}
+                    >
+                      {workflowServices.map((service) => (
+                        <option key={service.id} value={service.id}>
+                          {service.name}
+                        </option>
+                      ))}
+                    </Select>
+                  )}
+                </FormField>
+              )}
+
               <FormField
                 id="priority"
                 label="Prioridad"
@@ -418,7 +389,6 @@ export function SolicitudConvertPedidoForm({
                 error={totalAmountError}
                 errorId="convert-total-amount-error"
                 helpId="convert-total-amount-help"
-                className="sm:col-span-2"
                 compact
               >
                 {({ describedBy, invalid }) => (

@@ -251,8 +251,14 @@ PedidoEditForm
 
 `page.tsx` carga el pedido en Server Component, valida acceso y enlaza
 `pedidoId` a `updatePedidoDataAction`. El formulario no envía el UUID en
-`FormData`; solo envía `title`, `description`, `priority`,
+`FormData`; solo envía `service_id`, `title`, `description`, `priority`,
 `estimated_delivery_date` y `total_amount`.
+
+El servicio puede cambiarse solo dentro del mismo `workflow_type` del pedido.
+`updateInternalPedido` resuelve el servicio operativo sin filtrar por
+disponibilidad pública, por lo que `admin` y `supervisor` pueden usar servicios
+visibles u ocultos internamente. En pedidos de impresión, la UI muestra el
+servicio fijo de solo lectura.
 
 El botón `Editar pedido` se renderiza de forma condicional para usuarios con
 `pedidos.manage` y pedidos activos. En la práctica lo reciben `admin` y

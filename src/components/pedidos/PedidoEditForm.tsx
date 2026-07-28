@@ -16,18 +16,23 @@ import {
   Select,
   Textarea,
 } from "@/components/ui";
-import {
-  type InternalPedidoDetail,
-} from "@/lib/pedidos/get-internal-pedido-detail-types";
+import type { InternalPedidoDetail } from "@/lib/pedidos/get-internal-pedido-detail-types";
 import { PEDIDO_PRIORITY_LABELS } from "@/lib/pedidos/labels";
 import {
   PEDIDO_PRIORIDADES,
   type PedidoEditField,
 } from "@/lib/pedidos/order-validation";
+import {
+  SERVICE_UNAVAILABLE_LABEL,
+} from "@/lib/service-types/labels";
+import type { OperationalServiceType } from "@/lib/service-types/types";
+import { WORKFLOW_TYPES } from "@/lib/workflow-types";
 
 type PedidoEditFormProps = {
   pedido: InternalPedidoDetail;
   action: PedidoDetailAction<UpdatePedidoDataActionState>;
+  serviceTypes: OperationalServiceType[];
+  serviceTypesLoadError?: string;
   onSuccess?: (state: UpdatePedidoDataActionState) => void;
   onDirtyChange?: (dirty: boolean) => void;
 };
@@ -47,6 +52,8 @@ function getFieldError(
 export function PedidoEditForm({
   pedido,
   action,
+  serviceTypes,
+  serviceTypesLoadError,
   onSuccess,
   onDirtyChange,
 }: PedidoEditFormProps) {
@@ -59,11 +66,28 @@ export function PedidoEditForm({
     }
   }, [onDirtyChange, onSuccess, state]);
 
+  const serviceIdError = getFieldError(state, "service_id");
   const tituloError = getFieldError(state, "title");
   const descripcionError = getFieldError(state, "description");
   const totalAmountError = getFieldError(state, "total_amount");
   const prioridadError = getFieldError(state, "priority");
   const fechaEntregaError = getFieldError(state, "estimated_delivery_date");
+  const isPrintWorkflow = pedido.workflow_type === WORKFLOW_TYPES.IMPRESION;
+  const workflowServices = serviceTypes.filter(
+    (service) => service.workflowType === pedido.workflow_type,
+  );
+  const currentService = workflowServices.find(
+    (service) => service.id === pedido.service_id,
+  );
+  const fixedServiceName =
+    currentService?.name ?? pedido.service?.name ?? SERVICE_UNAVAILABLE_LABEL;
+  const shouldUseFixedService =
+    isPrintWorkflow || Boolean(serviceTypesLoadError) || !currentService;
+  const hasEditableServiceOptions =
+    !shouldUseFixedService && workflowServices.length > 0;
+  const canSubmit = Boolean(
+    hasEditableServiceOptions || (shouldUseFixedService && pedido.service_id),
+  );
 
   return (
     <form
@@ -85,6 +109,33 @@ export function PedidoEditForm({
               aria-live="polite"
             >
               <p>{state.message}</p>
+            </Alert>
+          ) : null}
+
+          {serviceTypesLoadError ? (
+            <Alert
+              variant={pedido.service_id ? "warning" : "danger"}
+              title="No se pudo cargar el catálogo de servicios"
+            >
+              <p>{serviceTypesLoadError}</p>
+              {pedido.service_id ? (
+                <p className="mt-1">
+                  Puedes guardar los demás campos. El servicio actual se
+                  conservará sin cambios.
+                </p>
+              ) : (
+                <p className="mt-1">
+                  El pedido no tiene un servicio válido para conservar. Vuelve a
+                  intentar cuando el catálogo esté disponible.
+                </p>
+              )}
+            </Alert>
+          ) : null}
+
+          {!serviceTypesLoadError && !currentService && pedido.service_id ? (
+            <Alert variant="warning">
+              El servicio actual no está disponible en el catálogo. Puedes
+              guardar los demás campos conservando el servicio actual.
             </Alert>
           ) : null}
 
@@ -132,6 +183,59 @@ export function PedidoEditForm({
                 />
               )}
             </FormField>
+
+            {hasEditableServiceOptions ? (
+              <FormField
+                id="service_id"
+                label="Servicio"
+                required
+                error={serviceIdError}
+                compact
+              >
+                {({ describedBy, invalid }) => (
+                  <Select
+                    id="service_id"
+                    name="service_id"
+                    required
+                    defaultValue={pedido.service_id ?? ""}
+                    invalid={invalid}
+                    aria-describedby={describedBy}
+                  >
+                    {workflowServices.map((service) => (
+                      <option key={service.id} value={service.id}>
+                        {service.name}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </FormField>
+            ) : (
+              <FormField
+                id="service_id_display"
+                label="Servicio"
+                required
+                error={serviceIdError}
+                compact
+              >
+                {({ describedBy, invalid }) => (
+                  <>
+                    <Input
+                      id="service_id_display"
+                      type="text"
+                      readOnly
+                      value={fixedServiceName}
+                      invalid={invalid}
+                      aria-describedby={describedBy}
+                    />
+                    <input
+                      type="hidden"
+                      name="service_id"
+                      value={pedido.service_id ?? ""}
+                    />
+                  </>
+                )}
+              </FormField>
+            )}
 
             <FormField
               id="priority"
@@ -201,7 +305,11 @@ export function PedidoEditForm({
           </div>
 
           <FormActions compact note={undefined}>
-            <Button type="submit" disabled={pending} className="w-full sm:w-auto">
+            <Button
+              type="submit"
+              disabled={pending || !canSubmit}
+              className="w-full sm:w-auto"
+            >
               {pending ? "Guardando cambios..." : "Guardar cambios"}
             </Button>
           </FormActions>

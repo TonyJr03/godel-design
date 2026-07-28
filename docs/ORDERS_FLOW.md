@@ -452,6 +452,11 @@ Quedan fuera de este formulario: cliente, tipo de flujo, estado, tareas,
 personal, archivos y pagos recibidos. Esos datos siguen gestionándose por sus
 flujos propios o no son editables en esta superficie.
 
+El servicio confirmado del Pedido también es editable desde este diálogo. El
+cambio solo se permite dentro del mismo `workflow_type` del pedido; operaciones
+internas pueden elegir servicios públicos u ocultos. En pedidos de impresión el
+servicio permanece fijo y se muestra como campo de solo lectura.
+
 La página server-side carga y valida el pedido, enlaza `pedido_id` a
 `updatePedidoDataAction` y renderiza el botón de edición solo cuando el usuario
 puede gestionar el pedido y el estado está activo. El formulario no envía el UUID
@@ -480,7 +485,7 @@ inserta historial. Cuando hay cambios, registra exactamente un evento
 solo `{ changed: true }`, sin persistir en historial los textos completos
 anterior y nuevo. La capa de presentación reconstruye el resumen visible desde
 `changed_fields` usando etiquetas controladas: `título`, `descripción`,
-`prioridad`, `fecha estimada` y `precio`; no renderiza metadata cruda ni
+`servicio`, `prioridad`, `fecha estimada` y `precio`; no renderiza metadata cruda ni
 identificadores técnicos como `total_amount` o `estimated_delivery_date`.
 
 ## Comentarios internos de pedido
@@ -571,6 +576,10 @@ varios servicios de `encargo` o el servicio único de `impresion`. El formulario
 envía `service_id`; la base deriva y protege `workflow_type` desde
 `tipos_servicio`.
 
+La composición visual de datos operativos usa dos filas consistentes:
+`Servicio` junto a `Prioridad`, y `Fecha estimada de entrega` junto a `Precio
+del pedido`. En impresión, `Servicio` se muestra fijo de solo lectura.
+
 Ambas variantes permiten seleccionar un cliente existente o dejar
 `Sin cliente asociado`; no aceptan estado, `solicitud_id`, número de pedido ni
 personal asignado. El pedido manual se crea con `solicitud_id = null`, estado
@@ -636,6 +645,10 @@ Archivos principales:
 - Action: `src/app/(interno)/dashboard/solicitudes/[id]/actions/conversion-actions.ts`
 
 La conversión requiere `solicitudes.manage` y `pedidos.manage`. Solo se permite convertir solicitudes con estado `aprobada` y `cliente_id` asociado. La página enlaza `solicitud_id` a la action y el formulario envía únicamente `service_id`, `title`, `description`, `total_amount`, `priority` y `estimated_delivery_date`; no envía `workflow_type`.
+
+El bloque de datos operativos conserva la misma composición visual que la
+creación y la edición de pedidos: servicio/prioridad y fecha/precio en dos
+filas. En impresión, el servicio confirmado se presenta como solo lectura.
 
 `createPedidoFromSolicitud` conserva la validación de UX y la comprobación de
 permisos, resuelve el servicio interno y exige que pertenezca al mismo workflow

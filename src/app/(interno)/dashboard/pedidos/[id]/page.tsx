@@ -13,6 +13,7 @@ import {
   isAdmin,
   isSupervisor,
 } from "@/lib/permissions/permissions";
+import { listOperationalServiceTypes } from "@/lib/service-types";
 import {
   EMPTY_PEDIDO_TASKS_PROGRESS,
   canManagePedidoTasksInStatus,
@@ -128,6 +129,9 @@ export default async function DashboardPedidoDetallePage({
   const editPedidoAction = canEditPedido
     ? updatePedidoDataAction.bind(null, pedidoId)
     : undefined;
+  const editServiceTypesResult = canEditPedido
+    ? await listOperationalServiceTypes()
+    : null;
   const uploadFileAction = uploadPedidoFileAction.bind(null, pedidoId);
 
   return (
@@ -138,6 +142,16 @@ export default async function DashboardPedidoDetallePage({
       <InternalPedidoDetail
         pedido={result.pedido}
         updatePedidoDataAction={editPedidoAction}
+        editServiceTypes={
+          editServiceTypesResult?.ok
+            ? editServiceTypesResult.serviceTypes
+            : []
+        }
+        editServiceTypesLoadError={
+          editServiceTypesResult && !editServiceTypesResult.ok
+            ? editServiceTypesResult.message
+            : undefined
+        }
         updateStatusAction={updateStatusAction}
         taskProgress={tasksResult.ok ? tasksResult.progress : undefined}
         tasksLoadError={

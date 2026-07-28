@@ -393,8 +393,8 @@ Solicitudes y Pedidos.
 - En pedidos de tipo `encargo`, las tareas modelan el progreso real y condicionan el avance operativo mediante `public.actualizar_estado_pedido`.
 - En pedidos de tipo `impresion`, las tareas no son obligatorias y el pedido puede avanzar por los mismos estados generales sin crearlas.
 - `public.actualizar_estado_pedido` bloquea el pedido con `FOR UPDATE` y las tareas existentes con `FOR SHARE` durante la decisión.
-- Los datos editables del pedido (`title`, `description`, `priority` y
-  `estimated_delivery_date`) se actualizan de forma controlada mediante
+- Los datos editables del pedido (`service_id`, `title`, `description`,
+  `priority` y `estimated_delivery_date`) se actualizan de forma controlada mediante
   `public.actualizar_datos_pedido`.
 - Para marcar `entregado`, `public.actualizar_estado_pedido` exige que
   `pedido_pagos.payment_status = 'pagado'`; los pedidos con total cero cumplen
@@ -937,25 +937,28 @@ El diagnóstico y diseño actualizado para comentarios internos e historial oper
   lo asocia a la solicitud de forma atómica.
 - `public.actualizar_estado_pedido` serializa cambios de estado y valida tareas
   y pago completo antes de entregar.
-- `public.actualizar_datos_pedido` serializa la edición controlada de datos
-  básicos y precio total en pedidos activos.
+- `public.actualizar_datos_pedido` serializa la edición controlada de servicio,
+  datos básicos y precio total en pedidos activos.
 - `public.actualizar_estado_solicitud` controla las transiciones manuales.
 
 ### `public.actualizar_datos_pedido`
 
-RPC transaccional para editar datos básicos y precio total de un pedido activo.
+RPC transaccional para editar servicio, datos básicos y precio total de un
+pedido activo.
 
 Argumentos:
 
 - `p_pedido_id uuid`;
+- `p_service_id uuid`;
 - `p_title text`;
 - `p_description text`;
 - `p_priority public.pedido_prioridad`;
 - `p_estimated_delivery_date date`;
 - `p_total_amount numeric`.
 
-Retorna una fila con `pedido_id`, `title`, `description`, `priority`,
-`estimated_delivery_date`, `total_amount`, `payment_status` y `paid_at`.
+Retorna una fila con `pedido_id`, `service_id`, `workflow_type`, `title`,
+`description`, `priority`, `estimated_delivery_date`, `total_amount`,
+`payment_status` y `paid_at`.
 
 Contrato:
 
@@ -966,6 +969,10 @@ Contrato:
 - permite solamente `admin` o `supervisor`;
 - bloquea `pedidos` y `pedido_pagos` con `FOR UPDATE`;
 - rechaza pedidos `entregado` o `cancelado`;
+- resuelve `p_service_id` contra `tipos_servicio`, incluyendo servicios ocultos
+  públicamente;
+- rechaza cambiar el servicio a otro `workflow_type`; `pedidos.workflow_type`
+  permanece fijo y protegido por la base;
 - valida título, descripción, prioridad, fecha estimada y precio total;
 - permite `estimated_delivery_date = null`;
 - permite conservar una fecha estimada vencida existente, pero si cambia exige
@@ -979,9 +986,9 @@ Contrato:
 - cuando hay cambios, inserta exactamente un evento `pedido_actualizado` en
   `pedido_historial`, con `metadata.changed_fields` y metadatos estructurados.
 
-La metadata guarda valores anterior/nuevo para título, prioridad, fecha estimada
-y precio total. Para descripción guarda solo `{ changed: true }`, de modo que el
-historial no conserva los textos completos anterior y nuevo.
+La metadata guarda valores anterior/nuevo para servicio, título, prioridad,
+fecha estimada y precio total. Para descripción guarda solo `{ changed: true }`,
+de modo que el historial no conserva los textos completos anterior y nuevo.
 
 La evolución del esquema debe hacerse mediante nuevas migraciones y mantener
 alineados los tipos generados de Supabase.

@@ -54,6 +54,7 @@ export const PEDIDO_FIELDS = [
 ] as const;
 
 export const PEDIDO_EDIT_FIELDS = [
+  "service_id",
   "title",
   "description",
   "total_amount",
@@ -127,6 +128,7 @@ export type ValidatePedidoInputResult = ValidationResult<
 >;
 
 export type UpdatePedidoInput = {
+  service_id?: unknown;
   title?: unknown;
   description?: unknown;
   total_amount?: unknown;
@@ -135,6 +137,7 @@ export type UpdatePedidoInput = {
 };
 
 export type UpdatePedidoData = {
+  service_id: string;
   title: string;
   description: string;
   total_amount: number;
@@ -419,6 +422,7 @@ export function validatePedidoInput(
 export function validatePedidoUpdateInput(
   input: UpdatePedidoInput,
 ): ValidatePedidoUpdateInputResult {
+  const serviceId = normalizeSingleLineText(input.service_id);
   const title = normalizeSingleLineText(input.title);
   const description = normalizeMultilineText(input.description);
   const priority = normalizeSingleLineText(input.priority);
@@ -429,6 +433,12 @@ export function validatePedidoUpdateInput(
     input.total_amount,
   );
   const fieldErrors: PedidoEditFieldErrors = {};
+
+  if (!serviceId) {
+    fieldErrors.service_id = "Selecciona un servicio.";
+  } else if (!isValidUuid(serviceId)) {
+    fieldErrors.service_id = "Selecciona un servicio válido.";
+  }
 
   if (!title) {
     fieldErrors.title = "El título del pedido es obligatorio.";
@@ -459,6 +469,7 @@ export function validatePedidoUpdateInput(
   }
 
   return validationSuccess({
+    service_id: serviceId,
     title,
     description,
     total_amount: totalAmountValidation.ok ? totalAmountValidation.value : 0,

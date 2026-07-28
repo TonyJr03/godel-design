@@ -19,6 +19,7 @@ import type {
   PedidoTask,
   PedidoTasksProgress,
 } from "@/lib/pedidos";
+import type { OperationalServiceType } from "@/lib/service-types";
 import {
   EMPTY_PEDIDO_TASKS_PROGRESS,
   getPedidoStatusFlow,
@@ -45,6 +46,8 @@ import {
 type InternalPedidoDetailProps = {
   pedido: InternalPedidoDetailData;
   updatePedidoDataAction?: PedidoDetailAction<UpdatePedidoDataActionState>;
+  editServiceTypes?: OperationalServiceType[];
+  editServiceTypesLoadError?: string;
   updateStatusAction: PedidoDetailAction<UpdatePedidoStatusActionState>;
   taskProgress?: PedidoTasksProgress | null;
   tasksLoadError?: string;
@@ -181,6 +184,8 @@ function getPedidoStatusActionState({
 export function InternalPedidoDetail({
   pedido,
   updatePedidoDataAction,
+  editServiceTypes = [],
+  editServiceTypesLoadError,
   updateStatusAction,
   taskProgress,
   tasksLoadError,
@@ -261,7 +266,12 @@ export function InternalPedidoDetail({
     ? ["estado", "archivos", "pagos"]
     : ["estado", "tareas", "archivos"];
   const editControl = updatePedidoDataAction ? (
-    <PedidoEditDialogButton pedido={pedido} action={updatePedidoDataAction} />
+    <PedidoEditDialogButton
+      pedido={pedido}
+      action={updatePedidoDataAction}
+      serviceTypes={editServiceTypes}
+      serviceTypesLoadError={editServiceTypesLoadError}
+    />
   ) : undefined;
   const workspaceActions: readonly WorkspaceAction[] = [
     {

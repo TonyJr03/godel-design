@@ -190,14 +190,14 @@ Cuando el guardado contiene cambios reales, inserta exactamente un evento
 retorna los datos actuales sin insertar evento.
 
 La metadata es estructurada. `metadata.changed_fields` conserva el orden de los
-campos modificados. Para título, prioridad, fecha estimada y precio total se
-guardan valores anterior y nuevo. Para descripción se guarda solo
+campos modificados. Para servicio, título, prioridad, fecha estimada y precio
+total se guardan valores anterior y nuevo. Para descripción se guarda solo
 `{ changed: true }`, de modo que no quedan almacenados en el historial los textos
 completos anterior y nuevo.
 
 El resumen visible no depende del `summary` persistido para este evento. La UI
 lo reconstruye desde `metadata.changed_fields` usando etiquetas controladas:
-`título`, `descripción`, `prioridad`, `fecha estimada` y `precio`. Si la metadata
+`servicio`, `título`, `descripción`, `prioridad`, `fecha estimada` y `precio`. Si la metadata
 falta, es inválida o no contiene campos conocidos, la presentación muestra el
 fallback seguro `Datos del pedido actualizados.`. No se renderiza metadata cruda
 ni identificadores técnicos como `total_amount` o `estimated_delivery_date`.

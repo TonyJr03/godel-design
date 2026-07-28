@@ -10,17 +10,22 @@ import type {
 } from "@/app/(interno)/dashboard/pedidos/[id]/actions";
 import { InternalFormDialog } from "@/components/forms";
 import type { InternalPedidoDetail } from "@/lib/pedidos/get-internal-pedido-detail-types";
+import type { OperationalServiceType } from "@/lib/service-types";
 
 import { PedidoEditForm } from "./PedidoEditForm";
 
 type PedidoEditDialogButtonProps = {
   pedido: InternalPedidoDetail;
   action: PedidoDetailAction<UpdatePedidoDataActionState>;
+  serviceTypes: OperationalServiceType[];
+  serviceTypesLoadError?: string;
 };
 
 export function PedidoEditDialogButton({
   pedido,
   action,
+  serviceTypes,
+  serviceTypesLoadError,
 }: PedidoEditDialogButtonProps) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
@@ -46,7 +51,7 @@ export function PedidoEditDialogButton({
       <InternalFormDialog
         isOpen={isOpen}
         title="Editar pedido"
-        description="Actualiza los datos básicos y el precio del pedido."
+        description="Actualiza el servicio, los datos básicos y el precio del pedido."
         onClose={closeDialog}
         hasUnsavedChanges={hasUnsavedChanges}
       >
@@ -54,6 +59,8 @@ export function PedidoEditDialogButton({
           <PedidoEditForm
             pedido={pedido}
             action={action}
+            serviceTypes={serviceTypes}
+            serviceTypesLoadError={serviceTypesLoadError}
             onDirtyChange={setHasUnsavedChanges}
             onSuccess={() => {
               setHasUnsavedChanges(false);

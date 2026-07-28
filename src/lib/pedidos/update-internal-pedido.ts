@@ -1,11 +1,13 @@
 import { getCurrentProfile } from "@/lib/auth/current-user";
 import { hasPermission } from "@/lib/permissions/permissions";
+import { getOperationalServiceTypeById } from "@/lib/service-types";
 import {
   serviceFailure,
   serviceSuccess,
   type ServiceResult,
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
+import type { Tables } from "@/types/database";
 import { isValidUuid } from "@/lib/validators";
 import {
   validatePedidoUpdateInput,
@@ -46,6 +48,18 @@ type SafeRpcUpdatePedidoError = {
 };
 
 const RPC_FIELD_VALIDATION_ERRORS = [
+  {
+    message: "El servicio seleccionado no existe",
+    field: "service_id",
+    fieldMessage: "El servicio seleccionado no existe.",
+  },
+  {
+    message:
+      "El servicio seleccionado no corresponde al tipo de trabajo del pedido",
+    field: "service_id",
+    fieldMessage:
+      "El servicio seleccionado no corresponde al tipo de trabajo del pedido.",
+  },
   {
     message: "El titulo del pedido es obligatorio",
     field: "title",
@@ -222,8 +236,70 @@ export async function updateInternalPedido(
   const supabase = await createClient();
 
   try {
+    const { data: currentPedido, error: pedidoError } = await supabase
+      .from("pedidos")
+      .select("id, workflow_type")
+      .eq("id", pedidoId)
+      .maybeSingle<Pick<Tables<"pedidos">, "id" | "workflow_type">>();
+
+    if (pedidoError) {
+      console.error("Error loading pedido workflow before update", pedidoError);
+
+      return serviceFailure("error", GENERIC_UPDATE_ERROR);
+    }
+
+    if (!currentPedido) {
+      return serviceFailure(
+        "not_found",
+        "El pedido solicitado no existe o no tienes acceso.",
+      );
+    }
+
+    const serviceResult = await getOperationalServiceTypeById(
+      validation.data.service_id,
+    );
+
+    if (!serviceResult.ok) {
+      if (
+        serviceResult.reason === "invalid_id" ||
+        serviceResult.reason === "not_found"
+      ) {
+        return serviceFailure("validation", "Revisa los datos del pedido.", {
+          fieldErrors: {
+            service_id: "El servicio seleccionado no existe.",
+          },
+        });
+      }
+
+      if (serviceResult.reason === "unauthorized") {
+        return serviceFailure(
+          "unauthorized",
+          "Debes iniciar sesión con un usuario interno activo.",
+        );
+      }
+
+      if (serviceResult.reason === "forbidden") {
+        return serviceFailure(
+          "forbidden",
+          "No tienes permiso para editar pedidos.",
+        );
+      }
+
+      return serviceFailure("error", GENERIC_UPDATE_ERROR);
+    }
+
+    if (serviceResult.serviceType.workflowType !== currentPedido.workflow_type) {
+      return serviceFailure("validation", "Revisa los datos del pedido.", {
+        fieldErrors: {
+          service_id:
+            "El servicio seleccionado no corresponde al tipo de trabajo del pedido.",
+        },
+      });
+    }
+
     const { data, error } = await updatePedidoDataRpc(supabase, {
       p_pedido_id: pedidoId,
+      p_service_id: serviceResult.serviceType.id,
       p_title: validation.data.title,
       p_description: validation.data.description,
       p_priority: validation.data.priority,
