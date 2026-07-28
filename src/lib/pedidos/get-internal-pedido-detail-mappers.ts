@@ -1,3 +1,4 @@
+import { mapNullableInternalServiceReference } from "@/lib/service-types";
 import type {
   InternalPedidoDetail,
   InternalPedidoDetailRow,
@@ -45,8 +46,17 @@ export function mapInternalPedidoDetail(
   pedido: InternalPedidoDetailRow,
   payment: PedidoDetailPaymentRow | null,
 ): InternalPedidoDetail {
+  const { service, solicitudes, ...pedidoFields } = pedido;
+
   return {
-    ...pedido,
+    ...pedidoFields,
+    service: mapNullableInternalServiceReference(service),
+    solicitudes: solicitudes
+      ? {
+          ...solicitudes,
+          service: mapNullableInternalServiceReference(solicitudes.service),
+        }
+      : null,
     payment: payment ? mapPaymentRow(payment) : getMissingPayment(),
   };
 }

@@ -2,9 +2,9 @@ import {
   ClickableTableRow,
   ListingCardLink,
 } from "@/components/listing";
+import { InternalServiceDisplay } from "@/components/service-types/InternalServiceDisplay";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { WorkflowTypeBadge } from "@/components/ui/WorkflowTypeBadge";
 import {
   getSolicitudServiceTypeLabel,
   type InternalSolicitud,
@@ -79,10 +79,12 @@ export function InternalSolicitudesList({
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm font-medium text-text-primary">
-                {getSolicitudServiceTypeLabel(solicitud.service_type)}
-              </span>
-              <WorkflowTypeBadge workflowType={solicitud.workflow_type} />
+              <InternalServiceDisplay
+                service={solicitud.service}
+                fallback={getSolicitudServiceTypeLabel(solicitud.service_type)}
+                compact
+                showWorkflow
+              />
             </div>
 
             <p className="text-sm text-text-secondary">
@@ -141,14 +143,13 @@ export function InternalSolicitudesList({
                     ) : null}
                   </td>
                   <td className="px-4 py-4 text-text-secondary">
-                    <div className="truncate font-medium text-text-primary">
-                      {getSolicitudServiceTypeLabel(solicitud.service_type)}
-                    </div>
-                    <div className="mt-2">
-                      <WorkflowTypeBadge
-                        workflowType={solicitud.workflow_type}
-                      />
-                    </div>
+                    <InternalServiceDisplay
+                      service={solicitud.service}
+                      fallback={getSolicitudServiceTypeLabel(
+                        solicitud.service_type,
+                      )}
+                      showWorkflow
+                    />
                   </td>
                   <td className="whitespace-nowrap px-4 py-4">
                     <StatusBadge status={solicitud.status} />

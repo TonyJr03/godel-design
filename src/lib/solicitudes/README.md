@@ -92,6 +92,24 @@ desde `service_id` como defensa adicional.
 
 `/dashboard/solicitudes` y `/dashboard/solicitudes/[id]` cargan datos server-side. Los servicios validan UUID, perfil interno activo y permisos antes de leer o mutar.
 
+El listado interno usa `service_id` como filtro canonico de servicio. Las
+opciones del filtro salen de `listInternalServiceTypeOptions()`, un loader
+read-only separado de las operaciones de creacion o conversion. Si el catalogo
+del filtro falla, el listado, la busqueda y el filtro de estado siguen
+disponibles y la UI muestra un aviso parcial reintentable.
+
+La busqueda por servicio resuelve `tipos_servicio.name` y aplica coincidencias
+por `solicitudes.service_id`. Durante expand, `solicitudes.service_type`
+permanece como compatibilidad secundaria y fallback visual, pero no reemplaza
+la relacion canonica. `workflow_type` queda como clasificacion operativa
+secundaria y ya no es filtro del listado.
+
+El detalle interno carga la relacion
+`tipos_servicio!solicitudes_service_id_fkey`. El panel Informacion se organiza
+como Trabajo solicitado, Contacto recibido, Relaciones y Registro; muestra el
+servicio canonico, identifica servicios ocultos, conserva `Referencia publica`
+e `Identificador interno`, y no agrega una referencia interna corta.
+
 Permisos habituales:
 
 - `solicitudes.view` para listado, detalle, comentarios e historial;

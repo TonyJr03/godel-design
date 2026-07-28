@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 import { CopyableCode } from "@/components/common/CopyableCode";
+import { InternalServiceDisplay } from "@/components/service-types/InternalServiceDisplay";
 import { StatusBadge } from "@/components/ui";
 import { WorkflowTypeBadge } from "@/components/ui/WorkflowTypeBadge";
 import type { InternalSolicitudDetail } from "@/lib/solicitudes";
@@ -85,7 +86,11 @@ export function SolicitudWorkspaceHeader({
               className="px-3 py-1.5 text-sm"
             />
             <span className="inline-flex rounded-(--radius-control) border border-border bg-surface-muted px-3 py-1.5 text-sm font-semibold leading-none text-text-secondary">
-              {serviceTypeLabel}
+              <InternalServiceDisplay
+                service={solicitud.service}
+                fallback={serviceTypeLabel}
+                compact
+              />
             </span>
           </div>
 

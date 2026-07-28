@@ -15,6 +15,21 @@ export {
   type ListPublicServiceTypesResult,
 } from "./list-public-service-types";
 export {
+  listInternalServiceTypeOptions,
+  type ListInternalServiceTypeOptionsResult,
+} from "./list-internal-service-type-options";
+export {
+  HIDDEN_SERVICE_LABEL,
+  SERVICE_UNAVAILABLE_LABEL,
+  getInternalServiceDisplayName,
+  getInternalServiceOptionLabel,
+  getWorkflowTypeLabel,
+} from "./labels";
+export {
+  mapInternalServiceReference,
+  mapNullableInternalServiceReference,
+} from "./mappers";
+export {
   getOperationalServiceTypeById,
   listOperationalServiceTypes,
   type GetOperationalServiceTypeByIdResult,
@@ -25,11 +40,15 @@ export type {
   CreateServiceTypeInput,
   GetOperationalServiceTypeByIdErrorReason,
   GetPublicServiceTypeByIdErrorReason,
+  InternalServiceReference,
+  InternalServiceReferenceRow,
+  InternalServiceTypeOption,
   InternalServiceType,
   ListInternalServiceTypesData,
   ListInternalServiceTypesErrorReason,
   ListInternalServiceTypesMeta,
   ListInternalServiceTypesOptions,
+  ListInternalServiceTypeOptionsErrorReason,
   ListOperationalServiceTypesErrorReason,
   ListPublicServiceTypesErrorReason,
   OperationalServiceType,

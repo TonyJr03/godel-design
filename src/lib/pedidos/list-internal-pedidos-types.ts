@@ -1,6 +1,9 @@
-import type { ServiceResult } from "@/lib/service-results";
-import type { WorkflowType } from "@/lib/workflow-types";
 import type { PaginationMeta } from "@/lib/pagination";
+import type {
+  InternalServiceReference,
+  InternalServiceReferenceRow,
+} from "@/lib/service-types";
+import type { ServiceResult } from "@/lib/service-results";
 import type { Tables } from "@/types/database";
 import type { PedidoTasksProgress } from "./task-progress";
 import type { PedidoPaymentStatus, PedidoStatus } from "./status";
@@ -10,7 +13,12 @@ export type InternalPedidoStatusFilter = InternalPedidoEstado | "nuevo";
 
 type PedidoCliente = Pick<Tables<"clientes">, "id" | "name"> | null;
 type PedidoSolicitud =
-  | Pick<Tables<"solicitudes">, "id" | "service_type">
+  | Pick<
+      Tables<"solicitudes">,
+      "id" | "service_id" | "service_type" | "workflow_type"
+    > & {
+      service: InternalServiceReferenceRow | null;
+    }
   | null;
 type PedidoTrabajadorProfile =
   | Pick<Tables<"perfiles">, "id" | "full_name">
@@ -47,6 +55,7 @@ export type InternalPedidoRow = Pick<
   | "order_number"
   | "cliente_id"
   | "solicitud_id"
+  | "service_id"
   | "workflow_type"
   | "title"
   | "description"
@@ -56,12 +65,25 @@ export type InternalPedidoRow = Pick<
   | "created_at"
 > & {
   clientes: PedidoCliente;
+  service: InternalServiceReferenceRow | null;
   solicitudes: PedidoSolicitud;
   pedido_trabajadores: InternalPedidoTrabajador[];
   payment: PedidoPaymentRow | PedidoPaymentRow[] | null;
 };
 
-export type InternalPedido = Omit<InternalPedidoRow, "payment"> & {
+export type InternalPedidoSolicitud = Omit<
+  NonNullable<PedidoSolicitud>,
+  "service"
+> & {
+  service: InternalServiceReference | null;
+};
+
+export type InternalPedido = Omit<
+  InternalPedidoRow,
+  "payment" | "service" | "solicitudes"
+> & {
+  service: InternalServiceReference | null;
+  solicitudes: InternalPedidoSolicitud | null;
   payment: InternalPedidoPaymentSummary;
   taskProgress: PedidoTasksProgress;
 };
@@ -69,7 +91,7 @@ export type InternalPedido = Omit<InternalPedidoRow, "payment"> & {
 export type ListInternalPedidosOptions = {
   q?: string | null;
   status?: string | null;
-  workflowType?: string | null;
+  serviceId?: string | null;
   paymentStatus?: string | null;
   page?: string | number | null;
   limit?: number;
@@ -78,10 +100,10 @@ export type ListInternalPedidosOptions = {
 export type ListInternalPedidosMeta = {
   q: string | null;
   status: InternalPedidoStatusFilter | null;
-  workflowType: WorkflowType | null;
+  serviceId: string | null;
   paymentStatus: PedidoPaymentStatus | null;
   ignoredInvalidEstado: boolean;
-  ignoredInvalidWorkflowType: boolean;
+  ignoredInvalidServiceId: boolean;
   ignoredInvalidPaymentStatus: boolean;
 };
 

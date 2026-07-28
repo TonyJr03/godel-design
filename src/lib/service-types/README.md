@@ -56,6 +56,10 @@ se modela con `is_publicly_available = false`, no eliminando la fila.
 - `getOperationalServiceTypeById()`: resuelve server-side un servicio por UUID
   para operaciones internas, sin filtrar por disponibilidad publica. Se usa
   antes de crear o convertir pedidos para enviar `service_id` a las RPCs.
+- `listInternalServiceTypeOptions()`: requiere solo perfil interno activo y
+  devuelve opciones read-only seguras para filtros internos. No concede
+  capacidades de gestion, no pagina, incluye servicios publicos y ocultos, y
+  ordena por `workflow_type`, nombre e ID.
 - `listInternalServiceTypes()`: requiere perfil interno activo y
   `configuracion.view`; devuelve servicios publicos y ocultos con busqueda,
   filtro de disponibilidad publica, paginacion interna y conteo global de
@@ -76,3 +80,17 @@ La UI no permite cambiar `workflow_type`: los nuevos servicios se crean como
 `encargo` y `Impresion` se representa como servicio de sistema. Ocultar un
 servicio solo cambia su disponibilidad publica; no elimina filas ni altera
 solicitudes o pedidos existentes.
+
+## Lecturas internas y presentacion
+
+Las lecturas internas de Pedidos y Solicitudes usan la referencia segura
+`InternalServiceReference` para mostrar el servicio canonico desde
+`service_id -> tipos_servicio.name`. El texto `Oculto públicamente` se
+centraliza en `labels.ts` y se muestra como informacion textual, no solo por
+color.
+
+Durante el estado expand, si una Solicitud no trae la relacion canonica, la UI
+puede usar `solicitudes.service_type` como fallback de compatibilidad mediante
+los labels del dominio Solicitudes. Para Pedidos, la ausencia de relacion se
+presenta como `Servicio no disponible`; no se infiere el servicio a partir de
+`workflow_type`.

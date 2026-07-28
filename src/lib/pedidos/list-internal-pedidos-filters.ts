@@ -1,7 +1,6 @@
 import { INTERNAL_LIST_PAGE_SIZE } from "@/lib/pagination";
-import { getSolicitudServiceTypeSearchValues } from "@/lib/solicitudes";
 import { normalizeSearchQuery } from "@/lib/utils";
-import { isWorkflowType } from "@/lib/workflow-types";
+import { isValidUuid } from "@/lib/validators";
 import type {
   InternalPedidoEstado,
   InternalPedidoStatusFilter,
@@ -71,8 +70,8 @@ export function normalizeInternalPedidosFilters(
   const selectedEstado = isInternalPedidoStatusFilter(options.status)
     ? options.status
     : null;
-  const selectedWorkflowType = isWorkflowType(options.workflowType)
-    ? options.workflowType
+  const selectedServiceId = options.serviceId && isValidUuid(options.serviceId)
+    ? options.serviceId
     : null;
   const selectedPaymentStatus = isInternalPedidoPaymentStatus(
     options.paymentStatus,
@@ -83,12 +82,10 @@ export function normalizeInternalPedidosFilters(
   return {
     q,
     status: selectedEstado,
-    workflowType: selectedWorkflowType,
+    serviceId: selectedServiceId,
     paymentStatus: selectedPaymentStatus,
     ignoredInvalidEstado: Boolean(options.status && !selectedEstado),
-    ignoredInvalidWorkflowType: Boolean(
-      options.workflowType && !selectedWorkflowType,
-    ),
+    ignoredInvalidServiceId: Boolean(options.serviceId && !selectedServiceId),
     ignoredInvalidPaymentStatus: Boolean(
       options.paymentStatus && !selectedPaymentStatus,
     ),
@@ -104,6 +101,7 @@ export function buildPedidoSearchCondition(
   q: string,
   clienteIds: readonly string[],
   solicitudIds: readonly string[],
+  serviceIds: readonly string[],
 ): string {
   const conditions = [
     `order_number.ilike.*${q}*`,
@@ -119,15 +117,11 @@ export function buildPedidoSearchCondition(
     conditions.push(`solicitud_id.in.(${solicitudIds.join(",")})`);
   }
 
+  if (serviceIds.length > 0) {
+    conditions.push(`service_id.in.(${serviceIds.join(",")})`);
+  }
+
   return conditions.join(",");
-}
-
-export function getSolicitudServiceTypeSearchPattern(q: string): string {
-  return `%${q}%`;
-}
-
-export function getPedidoSearchServiceTypeValues(q: string): string[] {
-  return getSolicitudServiceTypeSearchValues(q);
 }
 
 export function canMatchVisibleReference(query: string): boolean {

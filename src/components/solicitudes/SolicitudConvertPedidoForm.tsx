@@ -6,6 +6,7 @@ import type {
   ConvertSolicitudToPedidoActionState,
   SolicitudDetailAction,
 } from "@/app/(interno)/dashboard/solicitudes/[id]/actions";
+import { InternalServiceDisplay } from "@/components/service-types/InternalServiceDisplay";
 import {
   Alert,
   Button,
@@ -17,7 +18,10 @@ import {
 import { WorkflowTypeBadge } from "@/components/ui/WorkflowTypeBadge";
 import { PEDIDO_PRIORITY_LABELS } from "@/lib/pedidos/labels";
 import { PEDIDO_PRIORITIES } from "@/lib/pedidos/status";
-import type { OperationalServiceType } from "@/lib/service-types";
+import type {
+  InternalServiceReference,
+  OperationalServiceType,
+} from "@/lib/service-types";
 import { getSolicitudServiceTypeLabel } from "@/lib/solicitudes/labels";
 import { getTodayDateInputValue } from "@/lib/utils";
 import {
@@ -37,6 +41,7 @@ type SolicitudConvertPedidoFormProps = {
   solicitudServiceId: string | null;
   serviceTypes: OperationalServiceType[];
   serviceTypesLoadError?: string;
+  solicitudService: InternalServiceReference | null;
   serviceType: string;
   solicitudDescription: string;
   solicitudDesiredDate: string | null;
@@ -60,6 +65,7 @@ export function SolicitudConvertPedidoForm({
   solicitudServiceId,
   serviceTypes,
   serviceTypesLoadError,
+  solicitudService,
   serviceType,
   solicitudDescription,
   solicitudDesiredDate,
@@ -192,7 +198,14 @@ export function SolicitudConvertPedidoForm({
               </span>
               <WorkflowTypeBadge workflowType={workflowType} />
             </p>
-            <p className="mt-1">Solicitud: {serviceTypeLabel}</p>
+            <p className="mt-1 flex flex-wrap items-center gap-1.5">
+              <span>Solicitud:</span>
+              <InternalServiceDisplay
+                service={solicitudService}
+                fallback={serviceTypeLabel}
+                compact
+              />
+            </p>
           </div>
 
           <section

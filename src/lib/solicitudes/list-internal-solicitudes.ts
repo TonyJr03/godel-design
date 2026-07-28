@@ -14,13 +14,11 @@ import {
 } from "@/lib/service-results";
 import { createClient } from "@/lib/supabase/server";
 import { normalizeSearchQuery } from "@/lib/utils";
-import {
-  isWorkflowType,
-  type WorkflowType,
-} from "@/lib/workflow-types";
+import { isValidUuid } from "@/lib/validators";
 import { getSolicitudServiceTypeSearchValues } from "./labels";
+import { mapInternalSolicitud } from "./mappers";
 import { SOLICITUD_STATUSES, type SolicitudStatus } from "./status";
-import type { InternalSolicitud } from "./types";
+import type { InternalSolicitud, InternalSolicitudRow } from "./types";
 
 export const INTERNAL_SOLICITUD_ESTADOS = SOLICITUD_STATUSES;
 
@@ -29,7 +27,7 @@ export type InternalSolicitudEstado = SolicitudStatus;
 export type ListInternalSolicitudesOptions = {
   q?: string | null;
   status?: string | null;
-  workflowType?: string | null;
+  serviceId?: string | null;
   page?: string | number | null;
   limit?: number;
 };
@@ -37,9 +35,9 @@ export type ListInternalSolicitudesOptions = {
 type ListInternalSolicitudesMeta = {
   q: string | null;
   status: InternalSolicitudEstado | null;
-  workflowType: WorkflowType | null;
+  serviceId: string | null;
   ignoredInvalidEstado: boolean;
-  ignoredInvalidWorkflowType: boolean;
+  ignoredInvalidServiceId: boolean;
 };
 
 export type ListInternalSolicitudesErrorReason =
@@ -60,8 +58,24 @@ const MAX_LIMIT = 100;
 const REFERENCE_SCAN_LIMIT = 500;
 const GENERIC_LIST_ERROR =
   "No se pudieron cargar las solicitudes. Inténtalo nuevamente.";
-const SOLICITUDES_SELECT =
-  "id, client_name, client_phone, client_email, workflow_type, service_type, status, created_at, desired_date";
+const SOLICITUDES_SELECT = `
+  id,
+  client_name,
+  client_phone,
+  client_email,
+  workflow_type,
+  service_id,
+  service_type,
+  status,
+  created_at,
+  desired_date,
+  service:tipos_servicio!solicitudes_service_id_fkey(
+    id,
+    name,
+    workflow_type,
+    is_publicly_available
+  )
+`;
 
 function normalizeLimit(limit: number | undefined): number {
   if (!Number.isFinite(limit)) {
@@ -104,6 +118,7 @@ function formatPostgrestInValue(value: string): string {
 function buildSolicitudSearchCondition(
   q: string | null,
   referenceIds: string[],
+  serviceIds: string[],
 ): string | null {
   if (!q) {
     return null;
@@ -113,6 +128,7 @@ function buildSolicitudSearchCondition(
     `client_name.ilike.*${q}*`,
     `client_phone.ilike.*${q}*`,
     `client_email.ilike.*${q}*`,
+    `public_reference.ilike.*${q}*`,
     `service_type.ilike.*${q}*`,
     `description.ilike.*${q}*`,
     `notes.ilike.*${q}*`,
@@ -131,6 +147,10 @@ function buildSolicitudSearchCondition(
     conditions.push(`id.in.(${referenceIds.join(",")})`);
   }
 
+  if (serviceIds.length > 0) {
+    conditions.push(`service_id.in.(${serviceIds.join(",")})`);
+  }
+
   return conditions.join(",");
 }
 
@@ -141,19 +161,17 @@ export async function listInternalSolicitudes(
   const selectedEstado = isInternalSolicitudEstado(options.status)
     ? options.status
     : null;
-  const selectedWorkflowType = isWorkflowType(options.workflowType)
-    ? options.workflowType
+  const selectedServiceId = options.serviceId && isValidUuid(options.serviceId)
+    ? options.serviceId
     : null;
   const ignoredInvalidEstado = Boolean(options.status && !selectedEstado);
-  const ignoredInvalidWorkflowType = Boolean(
-    options.workflowType && !selectedWorkflowType,
-  );
+  const ignoredInvalidServiceId = Boolean(options.serviceId && !selectedServiceId);
   const meta = {
     q,
     status: selectedEstado,
-    workflowType: selectedWorkflowType,
+    serviceId: selectedServiceId,
     ignoredInvalidEstado,
-    ignoredInvalidWorkflowType,
+    ignoredInvalidServiceId,
   };
   const profile = await getCurrentProfile();
 
@@ -179,6 +197,27 @@ export async function listInternalSolicitudes(
 
   try {
     let referenceIds: string[] = [];
+    let serviceIds: string[] = [];
+
+    if (q) {
+      const { data: serviceRows, error: serviceRowsError } = await supabase
+        .from("tipos_servicio")
+        .select("id")
+        .ilike("name", `%${q}%`)
+        .limit(REFERENCE_SCAN_LIMIT)
+        .returns<Array<{ id: string }>>();
+
+      if (serviceRowsError) {
+        console.error(
+          "Error resolving solicitud search services",
+          serviceRowsError,
+        );
+
+        return serviceFailure("error", GENERIC_LIST_ERROR, meta);
+      }
+
+      serviceIds = (serviceRows ?? []).map((service) => service.id);
+    }
 
     if (q && canMatchVisibleSolicitudReference(q)) {
       let referenceQuery = supabase
@@ -191,11 +230,8 @@ export async function listInternalSolicitudes(
         referenceQuery = referenceQuery.eq("status", selectedEstado);
       }
 
-      if (selectedWorkflowType) {
-        referenceQuery = referenceQuery.eq(
-          "workflow_type",
-          selectedWorkflowType,
-        );
+      if (selectedServiceId) {
+        referenceQuery = referenceQuery.eq("service_id", selectedServiceId);
       }
 
       const { data: referenceRows, error: referenceError } =
@@ -217,7 +253,11 @@ export async function listInternalSolicitudes(
         .map((solicitud) => solicitud.id);
     }
 
-    const searchCondition = buildSolicitudSearchCondition(q, referenceIds);
+    const searchCondition = buildSolicitudSearchCondition(
+      q,
+      referenceIds,
+      serviceIds,
+    );
     let countQuery = supabase
       .from("solicitudes")
       .select("id", { count: "exact", head: true });
@@ -226,11 +266,8 @@ export async function listInternalSolicitudes(
       countQuery = countQuery.eq("status", selectedEstado);
     }
 
-    if (selectedWorkflowType) {
-      countQuery = countQuery.eq(
-        "workflow_type",
-        selectedWorkflowType,
-      );
+    if (selectedServiceId) {
+      countQuery = countQuery.eq("service_id", selectedServiceId);
     }
 
     if (searchCondition) {
@@ -267,11 +304,8 @@ export async function listInternalSolicitudes(
       dataQuery = dataQuery.eq("status", selectedEstado);
     }
 
-    if (selectedWorkflowType) {
-      dataQuery = dataQuery.eq(
-        "workflow_type",
-        selectedWorkflowType,
-      );
+    if (selectedServiceId) {
+      dataQuery = dataQuery.eq("service_id", selectedServiceId);
     }
 
     if (searchCondition) {
@@ -286,7 +320,7 @@ export async function listInternalSolicitudes(
       .order("created_at", { ascending: false })
       .order("id", { ascending: false })
       .range(from, to)
-      .returns<InternalSolicitud[]>();
+      .returns<InternalSolicitudRow[]>();
 
     if (error) {
       console.error("Error listing internal solicitudes page", error);
@@ -295,7 +329,7 @@ export async function listInternalSolicitudes(
     }
 
     return serviceSuccess({
-      solicitudes: data ?? [],
+      solicitudes: (data ?? []).map(mapInternalSolicitud),
       pagination,
       ...meta,
     });

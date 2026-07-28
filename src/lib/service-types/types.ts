@@ -36,6 +36,20 @@ export type OperationalServiceType = PublicServiceType & {
   isPubliclyAvailable: boolean;
 };
 
+export type InternalServiceReferenceRow = Pick<
+  Tables<"tipos_servicio">,
+  "id" | "name" | "workflow_type" | "is_publicly_available"
+>;
+
+export type InternalServiceReference = {
+  id: string;
+  name: string;
+  workflowType: WorkflowType;
+  isPubliclyAvailable: boolean;
+};
+
+export type InternalServiceTypeOption = InternalServiceReference;
+
 export type ServiceTypeField = "name" | "description" | "isPubliclyAvailable";
 
 export type ServiceTypeFieldErrors = Partial<
@@ -92,6 +106,10 @@ export type GetPublicServiceTypeByIdErrorReason =
 export type ListOperationalServiceTypesErrorReason =
   | "unauthorized"
   | "forbidden"
+  | "error";
+
+export type ListInternalServiceTypeOptionsErrorReason =
+  | "unauthorized"
   | "error";
 
 export type GetOperationalServiceTypeByIdErrorReason =

@@ -55,11 +55,11 @@ El listado:
 - carga server-side;
 - consulta hasta 50 solicitudes;
 - ordena por `created_at` descendente;
-- muestra referencia corta, cliente, teléfono, email, tipo de solicitud, tipo
-  de servicio, estado, fecha de creación y fecha deseada;
+- muestra referencia corta, cliente, teléfono, email, servicio, tipo de trabajo
+  como dato secundario, estado, fecha de creación y fecha deseada;
 - permite buscar mediante `q` por referencia visible, cliente, teléfono, correo,
   tipo de servicio, descripción o notas;
-- permite filtrar por estado y por tipo de solicitud;
+- permite filtrar por estado y por servicio;
 - combina búsqueda, estado y `workflow_type` conservando los parámetros GET;
 - usa la barra común de listados: la búsqueda actualiza `q` tras 200 ms sin
   escritura y el selector de estado actualiza la URL inmediatamente;
@@ -69,6 +69,18 @@ El listado:
 `quantity` fue eliminado de solicitudes. El detalle de cantidades, medidas o requisitos debe revisarse en `description` o `notes`. `service_type` es solo una referencia inicial elegida por el cliente, no el título automático del pedido.
 
 Los listados, detalles, historial y conversión deben renderizar `service_type` mediante `getSolicitudServiceTypeLabel` desde `src/lib/solicitudes/labels.ts`, para mantener tildes y `ñ` correctas sin modificar el valor técnico guardado.
+
+Desde la etapa de integracion de servicios internos, listados y detalles deben
+preferir la relacion canonica `service_id -> tipos_servicio.name`.
+`service_type` permanece temporalmente como fallback expand, pero el filtro
+visible del listado es `service_id` y `workflow_type` queda como clasificacion
+operativa secundaria. Las URLs heredadas con `workflow_type` se canonicalizan
+eliminando ese parametro sin convertirlo a un servicio concreto.
+
+La busqueda por servicio resuelve primero `tipos_servicio.name` y aplica los IDs
+resultantes contra `solicitudes.service_id`. Si falla el catalogo de opciones
+del filtro, el listado sigue disponible con busqueda y estado, y la UI omite
+temporalmente el filtro Servicio con un aviso reintentable.
 
 ## Filtro por estado
 
@@ -94,18 +106,20 @@ del servidor muestra el estado discreto `Buscando...`.
 
 No es un buscador global. Si el volumen crece significativamente, podrán evaluarse índices o búsqueda especializada en una fase posterior sin cambiar el contrato `q`.
 
-## Filtro por tipo de solicitud
+## Filtro por servicio
+
+El filtro vigente del listado interno es `service_id`; `workflow_type` se
+elimina por canonicalizacion cuando aparece en una URL heredada.
 
 URLs soportadas:
 
-- `/dashboard/solicitudes?workflow_type=encargo`
-- `/dashboard/solicitudes?workflow_type=impresion`
-- `/dashboard/solicitudes?status=nueva&workflow_type=impresion`
+- `/dashboard/solicitudes?service_id=<uuid>`
+- `/dashboard/solicitudes?status=nueva&service_id=<uuid>`
 
-El filtro se valida contra el enum formal `workflow_type`. Un valor inválido se
-ignora de forma segura y la página muestra una advertencia. El filtro se aplica
-en la consulta general y en todas las ramas de búsqueda por texto, referencia
-visible y labels de servicio.
+El filtro se valida como UUID. Un valor invalido se ignora de forma segura y la
+pagina muestra una advertencia. El filtro se aplica en conteo, consulta
+paginada, busqueda y paginacion. Si el catalogo de opciones falla, el listado
+sigue visible y el filtro Servicio se omite temporalmente.
 
 ## Detalle interno
 
@@ -396,9 +410,9 @@ Evidencia e2e focal reciente:
 - Trabajador no puede entrar a `/dashboard/solicitudes`.
 - Buscar solicitudes por referencia, cliente, teléfono, correo, servicio y descripción.
 - Filtrar por `Encargo` y por `Impresión`.
-- Combinar estado y tipo de solicitud.
-- Combinar `q`, estado y tipo, y luego limpiar todos los filtros.
-- Forzar un `workflow_type` inválido y confirmar que se ignora con advertencia.
+- Combinar estado y servicio.
+- Combinar `q`, estado y servicio, y luego limpiar todos los filtros.
+- Forzar un `service_id` inválido y confirmar que se ignora con advertencia.
 - Admin abre el detalle de una solicitud.
 - Supervisor abre el detalle de una solicitud.
 - Admin descarga un archivo de solicitud.

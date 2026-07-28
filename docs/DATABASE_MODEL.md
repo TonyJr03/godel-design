@@ -304,8 +304,10 @@ Solicitudes y Pedidos.
 - `quantity` fue eliminado del modelo de solicitudes. Las cantidades, medidas y requisitos se deben explicar dentro de `description` o `notes`.
 - `service_id` es la referencia normalizada a `tipos_servicio` para solicitudes
   nuevas. Permanece nullable solo por compatibilidad con datos históricos.
-- `service_type` se conserva temporalmente y todavía es el campo usado por la
-  aplicación vigente; será eliminado en una migración contract posterior.
+- Los listados y detalles internos deben preferir
+  `service_id -> tipos_servicio.name` para el nombre visible del servicio.
+- `service_type` se conserva temporalmente como compatibilidad expand y fallback
+  visual legacy; será eliminado en una migración contract posterior.
 - Si `service_id` tiene valor, un trigger de base de datos sincroniza
   `workflow_type` desde `tipos_servicio`.
 - `workflow_type` diferencia el flujo operativo general y queda materializado
@@ -371,6 +373,8 @@ Solicitudes y Pedidos.
 - `service_id` es la referencia normalizada a `tipos_servicio` para pedidos
   nuevos y convertidos. Permanece nullable solo por compatibilidad con datos
   históricos.
+- Los listados internos filtran por `service_id` y la busqueda por servicio
+  resuelve `tipos_servicio.name` antes de consultar `pedidos.service_id`.
 - Si `service_id` tiene valor, un trigger de base de datos sincroniza
   `workflow_type` desde `tipos_servicio`.
 - `workflow_type` distingue encargos personalizados o complejos de trabajos

@@ -15,8 +15,6 @@ import {
   canMatchVisibleReference,
   collectSolicitudSearchIds,
   getClienteSearchCondition,
-  getPedidoSearchServiceTypeValues,
-  getSolicitudServiceTypeSearchPattern,
   INTERNAL_PEDIDO_NEW_STATUS_FILTER,
   INTERNAL_PEDIDO_NEW_STATUS_FILTER_STATUSES,
   normalizeInternalPedidosFilters,
@@ -57,6 +55,7 @@ const BASE_PEDIDOS_SELECT = `
   order_number,
   cliente_id,
   solicitud_id,
+  service_id,
   workflow_type,
   title,
   description,
@@ -65,7 +64,24 @@ const BASE_PEDIDOS_SELECT = `
   estimated_delivery_date,
   created_at,
   clientes(id, name),
-  solicitudes!pedidos_solicitud_id_fkey(id, service_type),
+  service:tipos_servicio!pedidos_service_id_fkey(
+    id,
+    name,
+    workflow_type,
+    is_publicly_available
+  ),
+  solicitudes!pedidos_solicitud_id_fkey(
+    id,
+    service_id,
+    service_type,
+    workflow_type,
+    service:tipos_servicio!solicitudes_service_id_fkey(
+      id,
+      name,
+      workflow_type,
+      is_publicly_available
+    )
+  ),
   payment:pedido_pagos(
     total_amount,
     paid_cash_amount,
@@ -79,6 +95,7 @@ const BASE_PEDIDOS_SELECT_WITH_PAYMENT_FILTER = `
   order_number,
   cliente_id,
   solicitud_id,
+  service_id,
   workflow_type,
   title,
   description,
@@ -87,7 +104,24 @@ const BASE_PEDIDOS_SELECT_WITH_PAYMENT_FILTER = `
   estimated_delivery_date,
   created_at,
   clientes(id, name),
-  solicitudes!pedidos_solicitud_id_fkey(id, service_type),
+  service:tipos_servicio!pedidos_service_id_fkey(
+    id,
+    name,
+    workflow_type,
+    is_publicly_available
+  ),
+  solicitudes!pedidos_solicitud_id_fkey(
+    id,
+    service_id,
+    service_type,
+    workflow_type,
+    service:tipos_servicio!solicitudes_service_id_fkey(
+      id,
+      name,
+      workflow_type,
+      is_publicly_available
+    )
+  ),
   payment:pedido_pagos!inner(
     total_amount,
     paid_cash_amount,
@@ -119,7 +153,7 @@ export async function listInternalPedidos(
   const {
     q,
     status: selectedEstado,
-    workflowType: selectedWorkflowType,
+    serviceId: selectedServiceId,
     paymentStatus: selectedPaymentStatus,
   } = meta;
   const profile = await getCurrentProfile();
@@ -146,6 +180,7 @@ export async function listInternalPedidos(
   try {
     let clienteIds: string[] = [];
     let solicitudIds: string[] = [];
+    let serviceIds: string[] = [];
 
     if (q) {
       const { data: clientes, error: clientesError } = await supabase
@@ -163,26 +198,34 @@ export async function listInternalPedidos(
 
       clienteIds = (clientes ?? []).map((cliente) => cliente.id);
 
-      const serviceTypeValues = getPedidoSearchServiceTypeValues(q);
-      const solicitudesTextQuery =
-        serviceTypeValues.length > 0
-          ? supabase
-              .from("solicitudes")
-              .select("id")
-              .in("service_type", serviceTypeValues)
-              .limit(REFERENCE_SCAN_LIMIT)
-          : supabase
-              .from("solicitudes")
-              .select("id")
-              .ilike("service_type", getSolicitudServiceTypeSearchPattern(q))
-              .limit(REFERENCE_SCAN_LIMIT);
-      const { data: solicitudesText, error: solicitudesTextError } =
-        await solicitudesTextQuery.returns<Array<{ id: string }>>();
+      const { data: serviceRows, error: serviceRowsError } = await supabase
+        .from("tipos_servicio")
+        .select("id")
+        .ilike("name", `%${q}%`)
+        .limit(REFERENCE_SCAN_LIMIT)
+        .returns<Array<{ id: string }>>();
 
-      if (solicitudesTextError) {
+      if (serviceRowsError) {
+        console.error("Error resolving pedido search services", serviceRowsError);
+
+        return serviceFailure("error", GENERIC_LIST_ERROR, meta);
+      }
+
+      serviceIds = (serviceRows ?? []).map((service) => service.id);
+      const {
+        data: solicitudesPublicReference,
+        error: solicitudesPublicReferenceError,
+      } = await supabase
+        .from("solicitudes")
+        .select("id")
+        .ilike("public_reference", `%${q}%`)
+        .limit(REFERENCE_SCAN_LIMIT)
+        .returns<Array<{ id: string }>>();
+
+      if (solicitudesPublicReferenceError) {
         console.error(
-          "Error resolving pedido search relations",
-          solicitudesTextError,
+          "Error resolving pedido search solicitud references",
+          solicitudesPublicReferenceError,
         );
 
         return serviceFailure("error", GENERIC_LIST_ERROR, meta);
@@ -215,7 +258,7 @@ export async function listInternalPedidos(
 
       solicitudIds = [
         ...collectSolicitudSearchIds(
-          solicitudesText ?? [],
+          solicitudesPublicReference ?? [],
           solicitudesReference,
           q,
         ),
@@ -223,7 +266,7 @@ export async function listInternalPedidos(
     }
 
     const searchCondition = q
-      ? buildPedidoSearchCondition(q, clienteIds, solicitudIds)
+      ? buildPedidoSearchCondition(q, clienteIds, solicitudIds, serviceIds)
       : null;
 
     const buildCountQuery = () => {
@@ -246,8 +289,8 @@ export async function listInternalPedidos(
         query = query.eq("status", selectedEstado);
       }
 
-      if (selectedWorkflowType) {
-        query = query.eq("workflow_type", selectedWorkflowType);
+      if (selectedServiceId) {
+        query = query.eq("service_id", selectedServiceId);
       }
 
       if (selectedPaymentStatus) {
@@ -278,8 +321,8 @@ export async function listInternalPedidos(
         query = query.eq("status", selectedEstado);
       }
 
-      if (selectedWorkflowType) {
-        query = query.eq("workflow_type", selectedWorkflowType);
+      if (selectedServiceId) {
+        query = query.eq("service_id", selectedServiceId);
       }
 
       if (selectedPaymentStatus) {

@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 
 import { CopyableCode } from "@/components/common/CopyableCode";
+import { InternalServiceDisplay } from "@/components/service-types/InternalServiceDisplay";
 import { PriorityBadge, StatusBadge } from "@/components/ui";
 import { WorkflowTypeBadge } from "@/components/ui/WorkflowTypeBadge";
 import type { InternalPedidoDetail } from "@/lib/pedidos";
@@ -82,6 +83,9 @@ export function PedidoWorkspaceHeader({
                 <p className="inline-flex min-h-11 items-center font-mono text-base font-semibold text-brand-primary">
                   {pedido.order_number}
                 </p>
+                <span className="inline-flex min-h-11 items-center">
+                  <InternalServiceDisplay service={pedido.service} compact />
+                </span>
                 <WorkflowTypeBadge
                   workflowType={pedido.workflow_type}
                   className="px-3 py-1.5 text-sm"

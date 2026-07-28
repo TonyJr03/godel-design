@@ -54,7 +54,7 @@ y se abordarán en una subfase posterior.
 
 | Ruta | Uso |
 |---|---|
-| `/dashboard/pedidos` | Listado interno de pedidos con búsqueda textual y filtros por estado y tipo de flujo. |
+| `/dashboard/pedidos` | Listado interno de pedidos con búsqueda textual y filtros por estado, pago y servicio. |
 | `/dashboard/pedidos/[id]` | Detalle interno, cambio de estado y asignación de personal para `admin` y `supervisor`. |
 | `/dashboard/pedidos/nuevo` | Creación manual de pedido. |
 
@@ -170,7 +170,7 @@ cumplen esta regla porque quedan `pagado`.
 
 El listado interno de pedidos muestra el estado de pago resumido y permite
 filtrar por `sin_pago`, `parcial` o `pagado` mediante `payment_status`. Este
-filtro se combina con busqueda textual, estado operativo y `workflow_type`.
+filtro se combina con busqueda textual, estado operativo y `service_id`.
 La consulta publica `/estado` no muestra importes, estado de pago ni deuda
 pendiente; los pagos siguen siendo informacion interna.
 
@@ -357,10 +357,22 @@ Archivos principales:
 - Componente: `src/components/pedidos/InternalPedidosList.tsx`
 
 El listado carga server-side. `admin` y `supervisor` ven todos los pedidos;
-`trabajador` ve solo pedidos asignados. La búsqueda usa `q` y cubre número de
-pedido, título, descripción, cliente asociado y referencia o tipo de servicio de
-la solicitud origen. La búsqueda y los filtros por estado y `workflow_type`
-conviven mediante parámetros GET.
+`trabajador` ve solo pedidos asignados. La busqueda usa `q` y cubre numero de
+pedido, titulo, descripcion, cliente asociado, referencia visible de la
+solicitud origen y nombre del servicio propio del Pedido. La busqueda y los
+filtros por estado, pago y `service_id` conviven mediante parametros GET.
+
+Desde la integracion de servicios internos, el filtro visible de servicio usa
+`service_id` y no `workflow_type`. La busqueda por servicio resuelve
+`tipos_servicio.name` y aplica esos IDs contra `pedidos.service_id`, de modo que
+el resultado corresponde al servicio propio confirmado del Pedido. El
+`workflow_type` sigue visible como badge operativo secundario y las URLs
+heredadas que lo incluyen se canonicalizan eliminando ese parametro.
+
+Si el catalogo read-only de servicios falla al cargar las opciones del filtro,
+el listado continua disponible con busqueda, estado y pago, y la UI muestra un
+aviso parcial reintentable. Los servicios ocultos publicamente siguen visibles
+internamente y se identifican con texto explicito.
 
 La barra común actualiza `q` con `router.replace` tras 200 ms sin escritura,
 aplica los selectores de estado y tipo inmediatamente y permite limpiar todos
@@ -394,6 +406,13 @@ personal asignado, comentarios internos y archivos privados. También muestra
 `pedidos.public_reference` en un bloque copiable para compartir con el cliente.
 `order_number` se conserva como número operativo interno y no se usa como código
 público de seguimiento. La descripción conserva su estructura y saltos de línea.
+
+El detalle carga `pedidos.service_id -> tipos_servicio` como servicio propio del
+Pedido y, si existe solicitud origen, carga tambien
+`solicitudes.service_id -> tipos_servicio` como servicio solicitado. El panel
+Informacion distingue ambos valores, organiza Trabajo, Cliente, Origen y
+Registro, conserva el UUID completo como `Identificador interno` y elimina la
+referencia interna corta.
 
 En encargos se mantiene el bloque completo de tareas y su progreso. En
 impresiones se presenta una nota de flujo directo en lugar del bloque principal
@@ -640,6 +659,12 @@ archivos ni otros campos técnicos.
 
 Cuando el pedido muestra datos de la solicitud origen, el tipo de servicio se renderiza con `getSolicitudServiceTypeLabel` desde `src/lib/solicitudes/labels.ts`; el valor guardado en `service_type` no se renombra ni se usa como título automático.
 
+En la lectura actual, el resumen de conversion y el detalle usan la relacion
+canonica de la Solicitud (`solicitudes.service_id -> tipos_servicio`) y dejan
+`service_type` solo como fallback expand. El servicio confirmado del Pedido
+puede diferir del servicio solicitado si ambos pertenecen al mismo
+`workflow_type`.
+
 Al convertir:
 
 - se crea un pedido con `pedidos.solicitud_id`;
@@ -856,8 +881,8 @@ Evidencia e2e focal reciente:
 - Verificar que `trabajador` ve solo pedidos asignados.
 - Probar el filtro por estado.
 - Filtrar por `Encargo` y por `Impresión`.
-- Combinar búsqueda, estado y tipo de flujo.
-- Forzar un `workflow_type` inválido y confirmar que se ignora con advertencia.
+- Combinar búsqueda, estado, pago y servicio.
+- Forzar un `service_id` inválido y confirmar que se ignora con advertencia.
 - Buscar por número `P-YY-XXXX`, título, descripción y cliente.
 - Buscar por referencia o servicio de la solicitud origen.
 - Combinar búsqueda con estado y limpiar los filtros.

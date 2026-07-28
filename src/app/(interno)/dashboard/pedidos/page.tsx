@@ -21,17 +21,18 @@ import {
   PEDIDO_STATUS_LABELS,
   listInternalPedidos,
 } from "@/lib/pedidos";
-import { listOperationalServiceTypes } from "@/lib/service-types";
-import { getSingleSearchParam } from "@/lib/utils";
 import {
-  WORKFLOW_TYPES,
-  WORKFLOW_TYPE_LABELS,
-} from "@/lib/workflow-types";
+  getInternalServiceOptionLabel,
+  listInternalServiceTypeOptions,
+  listOperationalServiceTypes,
+} from "@/lib/service-types";
+import { getSingleSearchParam } from "@/lib/utils";
 
 type DashboardPedidosPageProps = {
   searchParams: Promise<{
     q?: string | string[] | undefined;
     status?: string | string[] | undefined;
+    service_id?: string | string[] | undefined;
     workflow_type?: string | string[] | undefined;
     payment_status?: string | string[] | undefined;
     page?: string | string[] | undefined;
@@ -54,13 +55,13 @@ const PEDIDO_STATUS_FILTER_OPTIONS = [
 function buildPedidosCanonicalHref({
   q,
   status,
-  workflowType,
+  serviceId,
   paymentStatus,
   page,
 }: {
   q: string | null;
   status: string | undefined;
-  workflowType: string | undefined;
+  serviceId: string | undefined;
   paymentStatus: string | undefined;
   page: number;
 }): string {
@@ -74,8 +75,8 @@ function buildPedidosCanonicalHref({
     params.set("status", status);
   }
 
-  if (workflowType) {
-    params.set("workflow_type", workflowType);
+  if (serviceId) {
+    params.set("service_id", serviceId);
   }
 
   if (paymentStatus) {
@@ -97,17 +98,22 @@ export default async function DashboardPedidosPage({
   const params = await searchParams;
   const q = getSingleSearchParam(params.q);
   const status = getSingleSearchParam(params.status);
-  const workflowType = getSingleSearchParam(params.workflow_type);
+  const serviceId = getSingleSearchParam(params.service_id);
+  const legacyWorkflowType = getSingleSearchParam(params.workflow_type);
   const paymentStatus = getSingleSearchParam(params.payment_status);
   const page = getSingleSearchParam(params.page);
   const result = await listInternalPedidos({
     q,
     status,
-    workflowType,
+    serviceId,
     paymentStatus,
     page,
   });
-  const serviceTypesResult = await listOperationalServiceTypes();
+  const [operationalServiceTypesResult, filterServiceTypesResult] =
+    await Promise.all([
+      listOperationalServiceTypes(),
+      listInternalServiceTypeOptions(),
+    ]);
 
   if (!result.ok && result.reason === "unauthorized") {
     redirect("/login");
@@ -117,11 +123,11 @@ export default async function DashboardPedidosPage({
     redirect("/sin-permisos");
   }
 
-  if (result.ok && page !== undefined) {
+  if (result.ok && (page !== undefined || legacyWorkflowType !== undefined)) {
     const canonicalHref = buildPedidosCanonicalHref({
       q: result.q,
       status,
-      workflowType,
+      serviceId: result.serviceId ?? undefined,
       paymentStatus,
       page: result.pagination.page,
     });
@@ -129,7 +135,11 @@ export default async function DashboardPedidosPage({
     const currentPageIsCanonical =
       result.pagination.page > 1 && page === String(result.pagination.page);
 
-    if (!currentPageIsCanonical || requestedPage !== result.pagination.page) {
+    if (
+      legacyWorkflowType !== undefined ||
+      !currentPageIsCanonical ||
+      requestedPage !== result.pagination.page
+    ) {
       redirect(canonicalHref);
     }
   }
@@ -149,14 +159,14 @@ export default async function DashboardPedidosPage({
             <PedidoCreateDialogButton
               prioridades={PEDIDO_PRIORIDADES}
               serviceTypes={
-                serviceTypesResult.ok
-                  ? serviceTypesResult.serviceTypes
+                operationalServiceTypesResult.ok
+                  ? operationalServiceTypesResult.serviceTypes
                   : []
               }
               serviceTypesLoadError={
-                serviceTypesResult.ok
+                operationalServiceTypesResult.ok
                   ? undefined
-                  : serviceTypesResult.message
+                  : operationalServiceTypesResult.message
               }
             />
           ) : undefined
@@ -176,22 +186,24 @@ export default async function DashboardPedidosPage({
                   ...PEDIDO_STATUS_FILTER_OPTIONS,
                 ],
               },
-              {
-                name: "workflow_type",
-                label: "Tipo",
-                value: result.workflowType ?? "",
-                options: [
-                  { value: "", label: "Todos los tipos" },
-                  {
-                    value: WORKFLOW_TYPES.ENCARGO,
-                    label: `${WORKFLOW_TYPE_LABELS.encargo}s`,
-                  },
-                  {
-                    value: WORKFLOW_TYPES.IMPRESION,
-                    label: "Impresiones",
-                  },
-                ],
-              },
+              ...(filterServiceTypesResult.ok
+                ? [
+                    {
+                      name: "service_id",
+                      label: "Servicio",
+                      value: result.serviceId ?? "",
+                      options: [
+                        { value: "", label: "Todos los servicios" },
+                        ...filterServiceTypesResult.serviceTypes.map(
+                          (service) => ({
+                            value: service.id,
+                            label: getInternalServiceOptionLabel(service),
+                          }),
+                        ),
+                      ],
+                    },
+                  ]
+                : []),
               {
                 name: "payment_status",
                 label: "Pago",
@@ -215,9 +227,9 @@ export default async function DashboardPedidosPage({
         </Alert>
       ) : null}
 
-      {result.ok && result.ignoredInvalidWorkflowType ? (
+      {result.ok && result.ignoredInvalidServiceId ? (
         <Alert variant="warning">
-          El filtro de tipo no es válido y fue ignorado.
+          El filtro de servicio no es válido y fue ignorado.
         </Alert>
       ) : null}
 
@@ -225,6 +237,19 @@ export default async function DashboardPedidosPage({
         <Alert variant="warning">
           El filtro de pago no es válido y fue ignorado.
         </Alert>
+      ) : null}
+
+      {result.ok && !filterServiceTypesResult.ok ? (
+        <ReadErrorAlert
+          variant="warning"
+          title="No se pudieron cargar los servicios del filtro"
+          retryable={filterServiceTypesResult.reason === "error"}
+        >
+          <p>
+            El listado sigue disponible. El filtro Servicio se omitió
+            temporalmente.
+          </p>
+        </ReadErrorAlert>
       ) : null}
 
       {!result.ok ? (
@@ -240,15 +265,15 @@ export default async function DashboardPedidosPage({
           <InternalPedidosList
             pedidos={result.pedidos}
             hasActiveFilters={Boolean(
-              searchValue ||
+                searchValue ||
                 result.status ||
-                result.workflowType ||
+                result.serviceId ||
                 result.paymentStatus,
             )}
             emptyMessage={
               searchValue ||
                 result.status ||
-                result.workflowType ||
+                result.serviceId ||
                 result.paymentStatus
                 ? "Prueba limpiar los filtros o cambiar la búsqueda."
                 : undefined
@@ -262,7 +287,7 @@ export default async function DashboardPedidosPage({
               query={{
                 q: result.q,
                 status,
-                workflow_type: workflowType,
+                service_id: result.serviceId,
                 payment_status: paymentStatus,
               }}
               itemLabel="pedidos"

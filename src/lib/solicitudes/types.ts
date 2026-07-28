@@ -1,6 +1,10 @@
+import type {
+  InternalServiceReference,
+  InternalServiceReferenceRow,
+} from "@/lib/service-types";
 import type { Tables } from "@/types/database";
 
-export type InternalSolicitud = Pick<
+export type InternalSolicitudRow = Pick<
   Tables<"solicitudes">,
   | "id"
   | "client_name"
@@ -12,9 +16,15 @@ export type InternalSolicitud = Pick<
   | "status"
   | "created_at"
   | "desired_date"
->;
+> & {
+  service: InternalServiceReferenceRow | null;
+};
 
-export type InternalSolicitudDetail = Pick<
+export type InternalSolicitud = Omit<InternalSolicitudRow, "service"> & {
+  service: InternalServiceReference | null;
+};
+
+export type InternalSolicitudDetailRow = Pick<
   Tables<"solicitudes">,
   | "id"
   | "public_reference"
@@ -33,4 +43,13 @@ export type InternalSolicitudDetail = Pick<
   | "reviewed_by"
   | "created_at"
   | "updated_at"
->;
+> & {
+  service: InternalServiceReferenceRow | null;
+};
+
+export type InternalSolicitudDetail = Omit<
+  InternalSolicitudDetailRow,
+  "service"
+> & {
+  service: InternalServiceReference | null;
+};

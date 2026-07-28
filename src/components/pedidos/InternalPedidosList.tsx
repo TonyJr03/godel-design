@@ -2,6 +2,7 @@ import {
   ClickableTableRow,
   ListingCardLink,
 } from "@/components/listing";
+import { InternalServiceDisplay } from "@/components/service-types/InternalServiceDisplay";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { WorkflowTypeBadge } from "@/components/ui/WorkflowTypeBadge";
@@ -10,7 +11,6 @@ import {
   PEDIDO_PAYMENT_STATUS_LABELS,
   type InternalPedido,
 } from "@/lib/pedidos";
-import { WORKFLOW_TYPE_LABELS } from "@/lib/workflow-types";
 
 type InternalPedidosListProps = {
   pedidos: InternalPedido[];
@@ -123,15 +123,18 @@ export function InternalPedidosList({
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-brand-primary">
-                  {pedido.order_number}{" "}
-                  <span className="text-text-muted">·</span>{" "}
-                  <span className="text-text-secondary">
-                    {WORKFLOW_TYPE_LABELS[pedido.workflow_type]}
-                  </span>
+                  {pedido.order_number}
                 </p>
                 <h2 className="mt-1 line-clamp-2 text-base font-semibold text-text-primary">
                   {pedido.title}
                 </h2>
+                <div className="mt-2">
+                  <InternalServiceDisplay
+                    service={pedido.service}
+                    compact
+                    showWorkflow
+                  />
+                </div>
               </div>
               <div className="flex flex-wrap justify-end gap-2">
                 <StatusBadge status={pedido.status} />
@@ -151,10 +154,11 @@ export function InternalPedidosList({
           <table className="min-w-full table-fixed divide-y divide-border text-sm">
             <colgroup>
               <col className="w-[12%]" />
-              <col className="w-[52%]" />
+              <col className="w-[38%]" />
+              <col className="w-[18%]" />
+              <col className="w-[11%]" />
               <col className="w-[12%]" />
-              <col className="w-[12%]" />
-              <col className="w-[12%]" />
+              <col className="w-[9%]" />
             </colgroup>
             <thead className="bg-surface-muted text-left text-xs font-semibold uppercase tracking-wide text-text-secondary">
               <tr>
@@ -163,6 +167,9 @@ export function InternalPedidosList({
                 </th>
                 <th scope="col" className="px-4 py-3">
                   Trabajo
+                </th>
+                <th scope="col" className="px-4 py-3">
+                  Servicio
                 </th>
                 <th scope="col" className="px-4 py-3">
                   Estado
@@ -198,6 +205,12 @@ export function InternalPedidosList({
                     <p className="mt-1 line-clamp-2 text-xs leading-5 text-text-muted">
                       {pedido.description}
                     </p>
+                  </td>
+                  <td className="px-4 py-4 text-text-secondary">
+                    <InternalServiceDisplay
+                      service={pedido.service}
+                      showWorkflow
+                    />
                   </td>
                   <td className="whitespace-nowrap px-4 py-4">
                     <StatusBadge status={pedido.status} />

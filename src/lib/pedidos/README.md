@@ -142,6 +142,12 @@ Pedidos. Durante Beta 2.3 el dominio quedó ordenado en subfases pequeñas:
 
 `listInternalPedidos` carga el listado de pedidos desde Server Components usando el cliente de Supabase configurado en `src/lib/supabase/server.ts`.
 
+El listado usa `pedidos.service_id` como filtro canonico de servicio y carga la
+relacion `tipos_servicio!pedidos_service_id_fkey` para mostrar el nombre real
+del servicio propio del Pedido. La busqueda por servicio resuelve primero
+`tipos_servicio.name` y luego filtra por `pedidos.service_id`; ya no usa
+`solicitudes.service_type` para identificar el servicio del Pedido.
+
 El servicio valida `pedidos.view`, permite buscar por `q`, filtrar por `pedido_estado`, ordena por `created_at`, limita la carga y respeta RLS como defensa final. La búsqueda cubre número de pedido, título, descripción, cliente asociado y referencia o tipo de servicio de la solicitud origen. Las relaciones con cliente y solicitud siguen siendo opcionales, por lo que los pedidos manuales sin cliente no desaparecen.
 
 También carga el progreso agregado de tareas en una consulta adicional por lote para que el listado muestre `Sin tareas`, porcentaje o `100% completado` sin exponer detalles completos de tareas. La búsqueda y el filtro de estado se sincronizan con `searchParams` mediante `ListingToolbar`: la búsqueda se envía de forma explícita, los filtros viven en un popover compacto, los criterios activos se muestran como chips y la limpieza global remueve `q`, filtros de entidad y `page`. La consulta continúa server-side, no es un buscador global y no usa service role key.
@@ -149,6 +155,13 @@ También carga el progreso agregado de tareas en una consulta adicional por lote
 ## `getInternalPedidoById`
 
 `getInternalPedidoById` carga el detalle interno de un pedido para `/dashboard/pedidos/[id]`.
+
+El detalle distingue `pedido.service`, que representa el servicio confirmado del
+Pedido, de `pedido.solicitudes.service`, que representa el servicio solicitado
+originalmente. Ambos se cargan por relaciones explicitas con `tipos_servicio`.
+Durante expand, si la solicitud origen no trae relacion canonica, se permite el
+fallback visual de `solicitudes.service_type`; para el Pedido el fallback es
+`Servicio no disponible` y no se infiere desde `workflow_type`.
 
 Valida UUID, obtiene el perfil actual, valida `pedidos.view`, carga pedido, cliente, solicitud, personal asignado y resumen financiero. Usa la relación explícita `solicitudes!pedidos_solicitud_id_fkey` para evitar ambigüedades. Si el registro de `pedido_pagos` falta por una inconsistencia, el detalle no rompe la página y marca el pago como no disponible.
 
@@ -211,7 +224,15 @@ visibilidad y autor, sin mover ni copiar objetos de Storage. La RPC es
 `security definer`, revoca ejecución a `public` y `anon`, y concede `execute`
 solo a `authenticated`.
 
-Cuando un pedido muestra datos de su solicitud origen, el tipo de servicio debe renderizarse con `getSolicitudServiceTypeLabel` desde `src/lib/solicitudes/labels.ts` para evitar valores técnicos o históricos sin tildes en listados, detalles y dashboard.
+Cuando un pedido muestra datos de su solicitud origen, el servicio solicitado
+debe renderizarse desde la relacion canonica de la Solicitud y solo usar
+`getSolicitudServiceTypeLabel` sobre `solicitudes.service_type` como fallback
+expand. El servicio del Pedido y el servicio solicitado son conceptos
+distintos.
+
+El panel Informacion del Pedido usa la estructura Trabajo, Cliente, Origen y
+Registro. Conserva `Identificador interno` con el UUID completo y elimina la
+referencia interna corta de ocho caracteres.
 
 ## Edición de Pedido
 

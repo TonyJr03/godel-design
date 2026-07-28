@@ -8,6 +8,7 @@ export const PEDIDO_DETAIL_SELECT = `
   public_reference,
   cliente_id,
   solicitud_id,
+  service_id,
   workflow_type,
   title,
   description,
@@ -19,13 +20,26 @@ export const PEDIDO_DETAIL_SELECT = `
   created_at,
   updated_at,
   clientes(id, name, phone, email),
+  service:tipos_servicio!pedidos_service_id_fkey(
+    id,
+    name,
+    workflow_type,
+    is_publicly_available
+  ),
   solicitudes!pedidos_solicitud_id_fkey(
     id,
     client_name,
     client_phone,
     client_email,
+    service_id,
     workflow_type,
     service_type,
+    service:tipos_servicio!solicitudes_service_id_fkey(
+      id,
+      name,
+      workflow_type,
+      is_publicly_available
+    ),
     description,
     status,
     desired_date,
