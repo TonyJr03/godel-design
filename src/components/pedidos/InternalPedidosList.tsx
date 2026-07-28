@@ -2,7 +2,6 @@ import {
   ClickableTableRow,
   ListingCardLink,
 } from "@/components/listing";
-import { InternalServiceDisplay } from "@/components/service-types/InternalServiceDisplay";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { WorkflowTypeBadge } from "@/components/ui/WorkflowTypeBadge";
@@ -11,6 +10,7 @@ import {
   PEDIDO_PAYMENT_STATUS_LABELS,
   type InternalPedido,
 } from "@/lib/pedidos";
+import { getInternalServiceDisplayName } from "@/lib/service-types";
 
 type InternalPedidosListProps = {
   pedidos: InternalPedido[];
@@ -91,6 +91,21 @@ function PaymentBadge({
   );
 }
 
+function PedidoServiceSummary({ pedido }: { pedido: InternalPedido }) {
+  return (
+    <div className="min-w-0">
+      <div className="truncate font-medium text-text-primary">
+        {getInternalServiceDisplayName(pedido.service)}
+      </div>
+      {pedido.service ? (
+        <div className="mt-2">
+          <WorkflowTypeBadge workflowType={pedido.service.workflowType} />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function InternalPedidosList({
   pedidos,
   emptyMessage = "Crea el primer pedido para comenzar a gestionar el trabajo.",
@@ -129,11 +144,7 @@ export function InternalPedidosList({
                   {pedido.title}
                 </h2>
                 <div className="mt-2">
-                  <InternalServiceDisplay
-                    service={pedido.service}
-                    compact
-                    showWorkflow
-                  />
+                  <PedidoServiceSummary pedido={pedido} />
                 </div>
               </div>
               <div className="flex flex-wrap justify-end gap-2">
@@ -194,9 +205,6 @@ export function InternalPedidosList({
                     <div className="truncate font-semibold text-text-primary">
                       {pedido.order_number}
                     </div>
-                    <div className="mt-2">
-                      <WorkflowTypeBadge workflowType={pedido.workflow_type} />
-                    </div>
                   </td>
                   <td className="px-4 py-4 text-text-secondary">
                     <div className="truncate font-semibold text-text-primary">
@@ -207,10 +215,7 @@ export function InternalPedidosList({
                     </p>
                   </td>
                   <td className="px-4 py-4 text-text-secondary">
-                    <InternalServiceDisplay
-                      service={pedido.service}
-                      showWorkflow
-                    />
+                    <PedidoServiceSummary pedido={pedido} />
                   </td>
                   <td className="whitespace-nowrap px-4 py-4">
                     <StatusBadge status={pedido.status} />

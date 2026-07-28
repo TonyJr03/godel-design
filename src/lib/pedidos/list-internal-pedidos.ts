@@ -70,18 +70,6 @@ const BASE_PEDIDOS_SELECT = `
     workflow_type,
     is_publicly_available
   ),
-  solicitudes!pedidos_solicitud_id_fkey(
-    id,
-    service_id,
-    service_type,
-    workflow_type,
-    service:tipos_servicio!solicitudes_service_id_fkey(
-      id,
-      name,
-      workflow_type,
-      is_publicly_available
-    )
-  ),
   payment:pedido_pagos(
     total_amount,
     paid_cash_amount,
@@ -109,18 +97,6 @@ const BASE_PEDIDOS_SELECT_WITH_PAYMENT_FILTER = `
     name,
     workflow_type,
     is_publicly_available
-  ),
-  solicitudes!pedidos_solicitud_id_fkey(
-    id,
-    service_id,
-    service_type,
-    workflow_type,
-    service:tipos_servicio!solicitudes_service_id_fkey(
-      id,
-      name,
-      workflow_type,
-      is_publicly_available
-    )
   ),
   payment:pedido_pagos!inner(
     total_amount,

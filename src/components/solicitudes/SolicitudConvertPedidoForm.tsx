@@ -22,7 +22,7 @@ import type {
   InternalServiceReference,
   OperationalServiceType,
 } from "@/lib/service-types";
-import { getSolicitudServiceTypeLabel } from "@/lib/solicitudes/labels";
+import { SERVICE_UNAVAILABLE_LABEL } from "@/lib/service-types/labels";
 import { getTodayDateInputValue } from "@/lib/utils";
 import {
   WORKFLOW_TYPES,
@@ -42,7 +42,6 @@ type SolicitudConvertPedidoFormProps = {
   serviceTypes: OperationalServiceType[];
   serviceTypesLoadError?: string;
   solicitudService: InternalServiceReference | null;
-  serviceType: string;
   solicitudDescription: string;
   solicitudDesiredDate: string | null;
   presentation?: "card" | "panel";
@@ -66,7 +65,6 @@ export function SolicitudConvertPedidoForm({
   serviceTypes,
   serviceTypesLoadError,
   solicitudService,
-  serviceType,
   solicitudDescription,
   solicitudDesiredDate,
   presentation = "card",
@@ -104,7 +102,6 @@ export function SolicitudConvertPedidoForm({
   const priorityValue = state.values?.priority ?? "normal";
   const estimatedDeliveryDateValue =
     state.values?.estimated_delivery_date ?? solicitudDesiredDate ?? "";
-  const serviceTypeLabel = getSolicitudServiceTypeLabel(serviceType);
   const todayInputDate = getTodayDateInputValue();
   const isPanel = presentation === "panel";
   const serviceSelectErrorId = serviceIdError
@@ -200,11 +197,7 @@ export function SolicitudConvertPedidoForm({
             </p>
             <p className="mt-1 flex flex-wrap items-center gap-1.5">
               <span>Solicitud:</span>
-              <InternalServiceDisplay
-                service={solicitudService}
-                fallback={serviceTypeLabel}
-                compact
-              />
+              <InternalServiceDisplay service={solicitudService} compact />
             </p>
           </div>
 
@@ -230,7 +223,7 @@ export function SolicitudConvertPedidoForm({
                   <span className="font-semibold text-text-primary">
                     Servicio:
                   </span>{" "}
-                  {selectedService?.name ?? serviceTypeLabel}
+                  {selectedService?.name ?? SERVICE_UNAVAILABLE_LABEL}
                   {selectedService && !selectedService.isPubliclyAvailable ? (
                     <span className="ml-1 text-text-muted">
                       Oculto públicamente

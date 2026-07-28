@@ -67,15 +67,9 @@ export function mapInternalPedidos(
   pedidos: InternalPedidoRow[],
   progressByPedidoId: Map<string, PedidoTasksProgress>,
 ): InternalPedido[] {
-  return pedidos.map(({ payment, service, solicitudes, ...pedido }) => ({
+  return pedidos.map(({ payment, service, ...pedido }) => ({
     ...pedido,
     service: mapNullableInternalServiceReference(service),
-    solicitudes: solicitudes
-      ? {
-          ...solicitudes,
-          service: mapNullableInternalServiceReference(solicitudes.service),
-        }
-      : null,
     payment: mapPaymentSummary(payment),
     taskProgress: progressByPedidoId.get(pedido.id) ?? EMPTY_TASK_PROGRESS,
   }));

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 
 import { InternalServiceDisplay } from "@/components/service-types/InternalServiceDisplay";
@@ -7,15 +8,10 @@ import {
   PriorityBadge,
   StatusBadge,
 } from "@/components/ui";
-import { InformationPanelSection } from "@/components/workspace/InformationPanelSection";
 import {
   PEDIDO_PRIORITY_LABELS,
   type InternalPedidoDetail,
 } from "@/lib/pedidos";
-import {
-  SOLICITUD_STATUS_LABELS,
-  getSolicitudServiceTypeLabel,
-} from "@/lib/solicitudes";
 import { formatAppDateTime } from "@/lib/utils";
 import { WORKFLOW_TYPE_LABELS } from "@/lib/workflow-types";
 
@@ -45,11 +41,29 @@ function InternalId({ id }: { id: string }) {
   );
 }
 
+function PanelSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="border-t border-border pt-5 first:border-t-0 first:pt-0">
+      <h3 className="text-base font-semibold text-text-primary">{title}</h3>
+
+      <div className="mt-4 rounded-(--radius-control) border border-border bg-surface-muted p-4">
+        {children}
+      </div>
+    </section>
+  );
+}
+
 export function PedidoInformationPanel({ pedido }: PedidoInformationPanelProps) {
   return (
     <div className="grid gap-5">
-      <InformationPanelSection title="Trabajo">
-        <MetadataGrid className="sm:grid-cols-1">
+      <PanelSection title="Trabajo">
+        <MetadataGrid>
           <MetadataItem
             label="Servicio"
             value={
@@ -85,11 +99,11 @@ export function PedidoInformationPanel({ pedido }: PedidoInformationPanelProps) 
             value={formatDate(pedido.actual_delivery_date)}
           />
         </MetadataGrid>
-      </InformationPanelSection>
+      </PanelSection>
 
-      <InformationPanelSection title="Cliente">
+      <PanelSection title="Cliente">
         {pedido.clientes ? (
-          <MetadataGrid className="sm:grid-cols-1">
+          <MetadataGrid>
             <MetadataItem
               label="Nombre"
               value={
@@ -103,6 +117,7 @@ export function PedidoInformationPanel({ pedido }: PedidoInformationPanelProps) 
             />
             <MetadataItem label="Teléfono" value={pedido.clientes.phone} />
             <MetadataItem
+              className="sm:col-span-2"
               label="Correo electrónico"
               value={pedido.clientes.email ?? "No definido"}
             />
@@ -114,19 +129,19 @@ export function PedidoInformationPanel({ pedido }: PedidoInformationPanelProps) 
               : "Este pedido no tiene cliente asociado."}
           </p>
         )}
-      </InformationPanelSection>
+      </PanelSection>
 
-      <InformationPanelSection title="Origen">
+      <PanelSection title="Origen">
         {pedido.solicitudes ? (
-          <MetadataGrid className="sm:grid-cols-1">
+          <MetadataGrid>
             <MetadataItem
-              label="Origen"
+              label="Solicitud de origen"
               value={
                 <Link
                   href={`/dashboard/solicitudes/${pedido.solicitudes.id}`}
                   className={metadataLinkClassName}
                 >
-                  Solicitud
+                  Ver solicitud
                 </Link>
               }
             />
@@ -135,9 +150,6 @@ export function PedidoInformationPanel({ pedido }: PedidoInformationPanelProps) 
               value={
                 <InternalServiceDisplay
                   service={pedido.solicitudes.service}
-                  fallback={getSolicitudServiceTypeLabel(
-                    pedido.solicitudes.service_type,
-                  )}
                   showWorkflow={false}
                 />
               }
@@ -147,25 +159,8 @@ export function PedidoInformationPanel({ pedido }: PedidoInformationPanelProps) 
               value={WORKFLOW_TYPE_LABELS[pedido.solicitudes.workflow_type]}
             />
             <MetadataItem
-              label="Estado de la solicitud"
-              value={
-                <StatusBadge
-                  status={pedido.solicitudes.status}
-                  label={SOLICITUD_STATUS_LABELS[pedido.solicitudes.status]}
-                />
-              }
-            />
-            <MetadataItem
               label="Fecha deseada"
               value={formatDate(pedido.solicitudes.desired_date)}
-            />
-            <MetadataItem
-              label="Descripción original"
-              value={
-                <span className="whitespace-pre-line">
-                  {pedido.solicitudes.description}
-                </span>
-              }
             />
           </MetadataGrid>
         ) : (
@@ -175,10 +170,10 @@ export function PedidoInformationPanel({ pedido }: PedidoInformationPanelProps) 
               : "Pedido creado manualmente, sin solicitud de origen."}
           </p>
         )}
-      </InformationPanelSection>
+      </PanelSection>
 
-      <InformationPanelSection title="Registro">
-        <MetadataGrid className="sm:grid-cols-1">
+      <PanelSection title="Registro">
+        <MetadataGrid>
           <MetadataItem
             label="Creación"
             value={formatAppDateTime(pedido.created_at, "No definida")}
@@ -196,7 +191,7 @@ export function PedidoInformationPanel({ pedido }: PedidoInformationPanelProps) 
             value={<InternalId id={pedido.id} />}
           />
         </MetadataGrid>
-      </InformationPanelSection>
+      </PanelSection>
     </div>
   );
 }

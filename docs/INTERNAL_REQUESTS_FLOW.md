@@ -55,31 +55,28 @@ El listado:
 - carga server-side;
 - consulta hasta 50 solicitudes;
 - ordena por `created_at` descendente;
-- muestra referencia corta, cliente, teléfono, email, servicio, tipo de trabajo
+- muestra cliente, teléfono, correo electrónico, servicio, tipo de trabajo
   como dato secundario, estado, fecha de creación y fecha deseada;
-- permite buscar mediante `q` por referencia visible, cliente, teléfono, correo,
-  tipo de servicio, descripción o notas;
+- permite buscar mediante `q` por referencia visible, cliente, teléfono, correo electrónico,
+  nombre del servicio, descripción o notas;
 - permite filtrar por estado y por servicio;
-- combina búsqueda, estado y `workflow_type` conservando los parámetros GET;
+- combina búsqueda, estado y `service_id` conservando los parámetros GET;
 - usa la barra común de listados: la búsqueda actualiza `q` tras 200 ms sin
   escritura y el selector de estado actualiza la URL inmediatamente;
-- permite limpiar búsqueda, estado y tipo en una sola acción;
+- permite limpiar búsqueda, estado y servicio en una sola acción;
 - no consulta Supabase desde componentes cliente.
 
-`quantity` fue eliminado de solicitudes. El detalle de cantidades, medidas o requisitos debe revisarse en `description` o `notes`. `service_type` es solo una referencia inicial elegida por el cliente, no el título automático del pedido.
+`quantity` fue eliminado de solicitudes. El detalle de cantidades, medidas o requisitos debe revisarse en `description` o `notes`. `service_type` queda como columna física temporal hasta contract, pero no es fuente de lectura para listados y detalles internos nuevos.
 
-Los listados, detalles, historial y conversión deben renderizar `service_type` mediante `getSolicitudServiceTypeLabel` desde `src/lib/solicitudes/labels.ts`, para mantener tildes y `ñ` correctas sin modificar el valor técnico guardado.
+Desde la etapa de integración de servicios internos, listados y detalles deben
+preferir la relación canónica `service_id -> tipos_servicio.name`.
+Si la relación canónica no existe, el servicio se presenta como
+`Servicio no disponible`. El filtro visible del listado es `service_id` y
+`workflow_type` queda como clasificación operativa secundaria.
 
-Desde la etapa de integracion de servicios internos, listados y detalles deben
-preferir la relacion canonica `service_id -> tipos_servicio.name`.
-`service_type` permanece temporalmente como fallback expand, pero el filtro
-visible del listado es `service_id` y `workflow_type` queda como clasificacion
-operativa secundaria. Las URLs heredadas con `workflow_type` se canonicalizan
-eliminando ese parametro sin convertirlo a un servicio concreto.
-
-La busqueda por servicio resuelve primero `tipos_servicio.name` y aplica los IDs
-resultantes contra `solicitudes.service_id`. Si falla el catalogo de opciones
-del filtro, el listado sigue disponible con busqueda y estado, y la UI omite
+La búsqueda por servicio resuelve primero `tipos_servicio.name` y aplica los IDs
+resultantes contra `solicitudes.service_id`. Si falla el catálogo de opciones
+del filtro, el listado sigue disponible con búsqueda y estado, y la UI omite
 temporalmente el filtro Servicio con un aviso reintentable.
 
 ## Filtro por estado
@@ -97,7 +94,7 @@ URLs soportadas:
 `convertida` aparece como filtro porque es el estado resultante del flujo formal
 de conversión a pedido. No puede establecerse manualmente.
 
-La búsqueda se ejecuta server-side, normaliza y limita el texto recibido y respeta permiso y RLS. Para tipos de servicio también considera los labels visibles, por lo que una búsqueda como “diseño” puede encontrar valores históricos sin tilde. La referencia corta se resuelve desde los primeros caracteres del UUID accesible.
+La búsqueda se ejecuta server-side, normaliza y limita el texto recibido y respeta permiso y RLS. Para servicios resuelve coincidencias por `tipos_servicio.name` y aplica los IDs contra `solicitudes.service_id`. La referencia corta se resuelve desde los primeros caracteres del UUID accesible.
 
 La barra de búsqueda es un componente cliente únicamente para sincronizar los
 controles con la URL mediante `router.replace`. No consulta Supabase ni filtra
@@ -108,8 +105,8 @@ No es un buscador global. Si el volumen crece significativamente, podrán evalua
 
 ## Filtro por servicio
 
-El filtro vigente del listado interno es `service_id`; `workflow_type` se
-elimina por canonicalizacion cuando aparece en una URL heredada.
+El filtro vigente del listado interno es `service_id`; `workflow_type` no se
+procesa como parámetro de filtro.
 
 URLs soportadas:
 
@@ -117,8 +114,8 @@ URLs soportadas:
 - `/dashboard/solicitudes?status=nueva&service_id=<uuid>`
 
 El filtro se valida como UUID. Un valor invalido se ignora de forma segura y la
-pagina muestra una advertencia. El filtro se aplica en conteo, consulta
-paginada, busqueda y paginacion. Si el catalogo de opciones falla, el listado
+página muestra una advertencia. El filtro se aplica en conteo, consulta
+paginada, búsqueda y paginación. Si el catálogo de opciones falla, el listado
 sigue visible y el filtro Servicio se omite temporalmente.
 
 ## Detalle interno
@@ -154,7 +151,7 @@ el servicio recupera la descripción original.
 
 La prioridad inicia en `normal` y se valida contra el enum real de prioridades.
 El precio total es obligatorio, puede ser `0`, no puede ser negativo ni tener
-mas de 2 decimales, y se guarda en `pedido_pagos` al confirmar la conversion.
+más de 2 decimales, y se guarda en `pedido_pagos` al confirmar la conversión.
 También permite definir `estimated_delivery_date` de forma opcional; si se
 informa, debe ser igual o posterior al día actual y se valida server-side con
 `src/lib/validators/date.ts`.

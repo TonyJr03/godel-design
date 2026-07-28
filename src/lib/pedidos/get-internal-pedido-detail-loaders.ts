@@ -28,22 +28,15 @@ export const PEDIDO_DETAIL_SELECT = `
   ),
   solicitudes!pedidos_solicitud_id_fkey(
     id,
-    client_name,
-    client_phone,
-    client_email,
     service_id,
     workflow_type,
-    service_type,
+    desired_date,
     service:tipos_servicio!solicitudes_service_id_fkey(
       id,
       name,
       workflow_type,
       is_publicly_available
-    ),
-    description,
-    status,
-    desired_date,
-    created_at
+    )
   ),
   creador:perfiles!pedidos_created_by_fkey(id, full_name),
   pedido_trabajadores(

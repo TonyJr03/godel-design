@@ -9,19 +9,12 @@ type PedidoClienteDetail =
   | null;
 
 type PedidoSolicitudBase = Pick<
-      Tables<"solicitudes">,
-      | "id"
-      | "client_name"
-      | "client_phone"
-      | "client_email"
-      | "service_id"
-      | "workflow_type"
-      | "service_type"
-      | "description"
-      | "status"
-      | "desired_date"
-      | "created_at"
-    >;
+  Tables<"solicitudes">,
+  | "id"
+  | "service_id"
+  | "workflow_type"
+  | "desired_date"
+>;
 
 type PedidoSolicitudDetail =
   | (PedidoSolicitudBase & {

@@ -6,7 +6,6 @@ import { InternalServiceDisplay } from "@/components/service-types/InternalServi
 import { StatusBadge } from "@/components/ui";
 import { WorkflowTypeBadge } from "@/components/ui/WorkflowTypeBadge";
 import type { InternalSolicitudDetail } from "@/lib/solicitudes";
-import { getSolicitudServiceTypeLabel } from "@/lib/solicitudes";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("es", {
   day: "2-digit",
@@ -62,10 +61,6 @@ type SolicitudWorkspaceHeaderProps = {
 export function SolicitudWorkspaceHeader({
   solicitud,
 }: SolicitudWorkspaceHeaderProps) {
-  const serviceTypeLabel = getSolicitudServiceTypeLabel(
-    solicitud.service_type,
-  );
-
   return (
     <header className="min-w-0">
       <div className="flex min-w-0 flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
@@ -88,7 +83,6 @@ export function SolicitudWorkspaceHeader({
             <span className="inline-flex rounded-(--radius-control) border border-border bg-surface-muted px-3 py-1.5 text-sm font-semibold leading-none text-text-secondary">
               <InternalServiceDisplay
                 service={solicitud.service}
-                fallback={serviceTypeLabel}
                 compact
               />
             </span>

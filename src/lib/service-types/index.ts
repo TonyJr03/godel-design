@@ -23,7 +23,6 @@ export {
   SERVICE_UNAVAILABLE_LABEL,
   getInternalServiceDisplayName,
   getInternalServiceOptionLabel,
-  getWorkflowTypeLabel,
 } from "./labels";
 export {
   mapInternalServiceReference,

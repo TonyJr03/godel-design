@@ -25,7 +25,6 @@ type DashboardSolicitudesPageProps = {
     q?: string | string[] | undefined;
     status?: string | string[] | undefined;
     service_id?: string | string[] | undefined;
-    workflow_type?: string | string[] | undefined;
     page?: string | string[] | undefined;
   }>;
 };
@@ -75,7 +74,6 @@ export default async function DashboardSolicitudesPage({
   const q = getSingleSearchParam(params.q);
   const status = getSingleSearchParam(params.status);
   const serviceId = getSingleSearchParam(params.service_id);
-  const legacyWorkflowType = getSingleSearchParam(params.workflow_type);
   const page = getSingleSearchParam(params.page);
   const result = await listInternalSolicitudes({
     q,
@@ -83,7 +81,6 @@ export default async function DashboardSolicitudesPage({
     serviceId,
     page,
   });
-  const serviceTypesResult = await listInternalServiceTypeOptions();
 
   if (!result.ok && result.reason === "unauthorized") {
     redirect("/login");
@@ -95,7 +92,7 @@ export default async function DashboardSolicitudesPage({
 
   const searchValue = result.q ?? "";
 
-  if (result.ok && (page !== undefined || legacyWorkflowType !== undefined)) {
+  if (result.ok && page !== undefined) {
     const canonicalHref = buildSolicitudesCanonicalHref({
       q: result.q,
       status,
@@ -107,13 +104,14 @@ export default async function DashboardSolicitudesPage({
       result.pagination.page > 1 && page === String(result.pagination.page);
 
     if (
-      legacyWorkflowType !== undefined ||
       !currentPageIsCanonical ||
       requestedPage !== result.pagination.page
     ) {
       redirect(canonicalHref);
     }
   }
+
+  const serviceTypesResult = await listInternalServiceTypeOptions();
 
   return (
     <div className="space-y-8">

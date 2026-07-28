@@ -5,7 +5,6 @@ import type {
   SolicitudDetailAction,
   UpdateSolicitudStatusActionState,
 } from "@/app/(interno)/dashboard/solicitudes/[id]/actions";
-import type { InternalCliente } from "@/lib/clientes";
 import {
   WorkspaceController,
   WorkspaceShell,
@@ -40,7 +39,6 @@ type InternalSolicitudDetailProps = {
   updateStatusAction: SolicitudDetailAction<UpdateSolicitudStatusActionState>;
   createCommentAction: SolicitudDetailAction<CreateSolicitudCommentActionState>;
   clientePanelContent: ReactNode;
-  clienteAsociado?: Pick<InternalCliente, "id" | "name"> | null;
   conversionPanelContent: ReactNode;
   files: readonly SolicitudFileListItem[];
   filesLoadError?: string;
@@ -164,7 +162,6 @@ export function InternalSolicitudDetail({
   updateStatusAction,
   createCommentAction,
   clientePanelContent,
-  clienteAsociado,
   conversionPanelContent,
   files,
   filesLoadError,
@@ -341,10 +338,7 @@ export function InternalSolicitudDetail({
       description:
         "Datos completos de la solicitud y su metadata secundaria.",
       content: (
-        <SolicitudInformationPanel
-          solicitud={solicitud}
-          clienteAsociado={clienteAsociado}
-        />
+        <SolicitudInformationPanel solicitud={solicitud} />
       ),
     },
   };

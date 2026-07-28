@@ -5,10 +5,7 @@ import {
 import { InternalServiceDisplay } from "@/components/service-types/InternalServiceDisplay";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import {
-  getSolicitudServiceTypeLabel,
-  type InternalSolicitud,
-} from "@/lib/solicitudes";
+import type { InternalSolicitud } from "@/lib/solicitudes";
 
 type InternalSolicitudesListProps = {
   solicitudes: InternalSolicitud[];
@@ -81,7 +78,6 @@ export function InternalSolicitudesList({
             <div className="flex flex-wrap items-center gap-2">
               <InternalServiceDisplay
                 service={solicitud.service}
-                fallback={getSolicitudServiceTypeLabel(solicitud.service_type)}
                 compact
                 showWorkflow
               />
@@ -145,9 +141,6 @@ export function InternalSolicitudesList({
                   <td className="px-4 py-4 text-text-secondary">
                     <InternalServiceDisplay
                       service={solicitud.service}
-                      fallback={getSolicitudServiceTypeLabel(
-                        solicitud.service_type,
-                      )}
                       showWorkflow
                     />
                   </td>

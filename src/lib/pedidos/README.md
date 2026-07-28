@@ -143,12 +143,12 @@ Pedidos. Durante Beta 2.3 el dominio quedó ordenado en subfases pequeñas:
 `listInternalPedidos` carga el listado de pedidos desde Server Components usando el cliente de Supabase configurado en `src/lib/supabase/server.ts`.
 
 El listado usa `pedidos.service_id` como filtro canonico de servicio y carga la
-relacion `tipos_servicio!pedidos_service_id_fkey` para mostrar el nombre real
-del servicio propio del Pedido. La busqueda por servicio resuelve primero
+relación `tipos_servicio!pedidos_service_id_fkey` para mostrar el nombre real
+del servicio propio del Pedido. La búsqueda por servicio resuelve primero
 `tipos_servicio.name` y luego filtra por `pedidos.service_id`; ya no usa
 `solicitudes.service_type` para identificar el servicio del Pedido.
 
-El servicio valida `pedidos.view`, permite buscar por `q`, filtrar por `pedido_estado`, ordena por `created_at`, limita la carga y respeta RLS como defensa final. La búsqueda cubre número de pedido, título, descripción, cliente asociado y referencia o tipo de servicio de la solicitud origen. Las relaciones con cliente y solicitud siguen siendo opcionales, por lo que los pedidos manuales sin cliente no desaparecen.
+El servicio valida `pedidos.view`, permite buscar por `q`, filtrar por `pedido_estado`, ordena por `created_at`, limita la carga y respeta RLS como defensa final. La búsqueda cubre número de pedido, título, descripción, cliente asociado, referencia pública de la solicitud origen y nombre del servicio confirmado del Pedido. La relación con cliente sigue siendo opcional, por lo que los pedidos manuales sin cliente no desaparecen.
 
 También carga el progreso agregado de tareas en una consulta adicional por lote para que el listado muestre `Sin tareas`, porcentaje o `100% completado` sin exponer detalles completos de tareas. La búsqueda y el filtro de estado se sincronizan con `searchParams` mediante `ListingToolbar`: la búsqueda se envía de forma explícita, los filtros viven en un popover compacto, los criterios activos se muestran como chips y la limpieza global remueve `q`, filtros de entidad y `page`. La consulta continúa server-side, no es un buscador global y no usa service role key.
 
@@ -159,9 +159,9 @@ También carga el progreso agregado de tareas en una consulta adicional por lote
 El detalle distingue `pedido.service`, que representa el servicio confirmado del
 Pedido, de `pedido.solicitudes.service`, que representa el servicio solicitado
 originalmente. Ambos se cargan por relaciones explicitas con `tipos_servicio`.
-Durante expand, si la solicitud origen no trae relacion canonica, se permite el
-fallback visual de `solicitudes.service_type`; para el Pedido el fallback es
-`Servicio no disponible` y no se infiere desde `workflow_type`.
+Si cualquiera de esas relaciones canónicas está ausente, la UI muestra
+`Servicio no disponible`; no se infiere desde `workflow_type` ni desde
+`solicitudes.service_type`.
 
 Valida UUID, obtiene el perfil actual, valida `pedidos.view`, carga pedido, cliente, solicitud, personal asignado y resumen financiero. Usa la relación explícita `solicitudes!pedidos_solicitud_id_fkey` para evitar ambigüedades. Si el registro de `pedido_pagos` falta por una inconsistencia, el detalle no rompe la página y marca el pago como no disponible.
 
@@ -215,7 +215,7 @@ solicitud a `convertida` con `converted_order_id` y completa
 `archivos.pedido_id` para los archivos `cliente_solicitud`. Todas las
 escrituras se confirman o revierten juntas.
 
-`priority` es obligatoria, inicia visualmente en `normal` y se valida contra las prioridades reales del enum. `total_amount` tambien es obligatorio, permite `0`, rechaza negativos, valores no numericos y mas de 2 decimales. `estimated_delivery_date` es opcional; si se informa debe ser una fecha válida e igual o posterior al día actual. El servicio usa los helpers de `src/lib/validators/date.ts` y la RPC repite la regla con la fecha de negocio de `America/Havana`.
+`priority` es obligatoria, inicia visualmente en `normal` y se valida contra las prioridades reales del enum. `total_amount` también es obligatorio, permite `0`, rechaza negativos, valores no numéricos y más de 2 decimales. `estimated_delivery_date` es opcional; si se informa debe ser una fecha válida e igual o posterior al día actual. El servicio usa los helpers de `src/lib/validators/date.ts` y la RPC repite la regla con la fecha de negocio de `America/Havana`.
 
 `service_type` es solo referencia histórica de la solicitud y no se usa como título automático. El usuario interno debe definir el título real del pedido y puede ajustar la descripción operativa antes de convertir. Para encargos puede confirmar o cambiar el servicio dentro del mismo workflow; para impresiones se usa el servicio de impresión existente. La conversión no acepta `order_number`, `status`, `cliente_id`, `workflow_type`, `created_by`, `converted_order_id` ni campos de archivos desde el formulario. El número de pedido se asigna en base de datos y el estado inicial del pedido convertido sigue siendo `solicitud_recibida`.
 
@@ -225,14 +225,17 @@ visibilidad y autor, sin mover ni copiar objetos de Storage. La RPC es
 solo a `authenticated`.
 
 Cuando un pedido muestra datos de su solicitud origen, el servicio solicitado
-debe renderizarse desde la relacion canonica de la Solicitud y solo usar
-`getSolicitudServiceTypeLabel` sobre `solicitudes.service_type` como fallback
-expand. El servicio del Pedido y el servicio solicitado son conceptos
-distintos.
+debe renderizarse desde la relación canónica de la Solicitud. El servicio del
+Pedido y el servicio solicitado son conceptos distintos.
 
 El panel Informacion del Pedido usa la estructura Trabajo, Cliente, Origen y
 Registro. Conserva `Identificador interno` con el UUID completo y elimina la
 referencia interna corta de ocho caracteres.
+
+En el listado de Pedidos, la columna Pedido muestra solo `order_number`. El
+workflow se presenta únicamente junto al nombre del servicio en la columna
+Servicio, y la disponibilidad pública del catálogo se omite en esta superficie
+operativa para evitar ruido visual.
 
 ## Edición de Pedido
 
@@ -288,9 +291,9 @@ y pantalla actual.
 
 `/dashboard/pedidos/[id]` incluye `PedidoPaymentSection`.
 
-La pagina del detalle enlaza `pedido_id` a `updatePedidoPaymentAction`; el formulario envia unicamente `paid_cash_amount` y `paid_transfer_amount` como montos acumulados actuales. No acepta `payment_status`, `paid_at`, `updated_by` ni campos de historial desde el cliente. El precio total se edita únicamente desde el diálogo `Editar pedido`, mediante `public.actualizar_datos_pedido`, y no puede quedar por debajo del total pagado.
+La página del detalle enlaza `pedido_id` a `updatePedidoPaymentAction`; el formulario envía únicamente `paid_cash_amount` y `paid_transfer_amount` como montos acumulados actuales. No acepta `payment_status`, `paid_at`, `updated_by` ni campos de historial desde el cliente. El precio total se edita únicamente desde el diálogo `Editar pedido`, mediante `public.actualizar_datos_pedido`, y no puede quedar por debajo del total pagado.
 
-`updatePedidoPayment` valida UUID, usuario interno activo, rol `admin` o `supervisor`, formato numerico, montos no negativos, maximo dos decimales y que efectivo mas transferencia no supere el total. Despues delega en `public.actualizar_pago_pedido`, que repite permisos en base de datos, actualiza solo efectivo y transferencia, deja que el trigger calcule `payment_status` y registra `pago_actualizado` en `pedido_historial`.
+`updatePedidoPayment` valida UUID, usuario interno activo, rol `admin` o `supervisor`, formato numérico, montos no negativos, máximo dos decimales y que efectivo más transferencia no supere el total. Después delega en `public.actualizar_pago_pedido`, que repite permisos en base de datos, actualiza solo efectivo y transferencia, deja que el trigger calcule `payment_status` y registra `pago_actualizado` en `pedido_historial`.
 
 El detalle muestra total, efectivo, transferencia, total pagado, pendiente, estado y fecha de pago completo si aplica. Los trabajadores pueden leer pagos de pedidos asignados segun RLS, pero no ven formulario ni pueden actualizar pagos server-side.
 
@@ -304,7 +307,7 @@ Los estados iniciales `creado` y `solicitud_recibida` pasan a `en_revision` al
 abrir el detalle interno real mediante `ensurePedidoReviewStarted`. El helper
 reutiliza el mismo servicio manual y la misma RPC; si una transicion de inicio
 falla por estado obsoleto, relee `id,status` y considera exito cuando el pedido
-ya no esta en estado inicial. No oculta errores reales de autenticacion,
+ya no está en estado inicial. No oculta errores reales de autenticación,
 permisos, lectura o infraestructura, y nunca degrada un pedido avanzado a
 `en_revision`.
 
@@ -318,7 +321,7 @@ pedidos con `workflow_type = impresion` pueden realizar esas dos transiciones
 sin tareas.
 
 `status.ts` calcula `PedidoStatusFlow` con el contexto de workflow, tareas y
-pago: accion principal, retorno a produccion desde `listo_entrega`, terminacion,
+pago: acción principal, retorno a producción desde `listo_entrega`, terminación,
 motivos de bloqueo visibles y estados cerrados. Los helpers antiguos se
 conservan temporalmente para compatibilidad, pero las reglas de negocio siguen
 en servicios/RPC y no en componentes.

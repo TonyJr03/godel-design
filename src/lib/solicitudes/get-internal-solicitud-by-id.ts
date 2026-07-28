@@ -63,7 +63,6 @@ export async function getInternalSolicitudById(
           client_email,
           workflow_type,
           service_id,
-          service_type,
           description,
           desired_date,
           notes,

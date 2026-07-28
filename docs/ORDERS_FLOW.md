@@ -95,7 +95,7 @@ Campos principales usados actualmente en `pedidos`:
 |---|---|
 | `id` | Identificador interno del pedido. |
 | `order_number` | Número operativo interno generado por la base de datos. |
-| `public_reference` | Codigo publico de seguimiento con formato `GD-XXXX-XXXX`. |
+| `public_reference` | Código público de seguimiento con formato `GD-XXXX-XXXX`. |
 | `cliente_id` | Cliente asociado al pedido; puede ser `null` en pedidos manuales. |
 | `solicitud_id` | Solicitud origen; puede ser `null` en pedidos manuales. |
 | `workflow_type` | Flujo operativo: `encargo` o `impresion`. |
@@ -131,7 +131,7 @@ Las tablas oficiales normalizadas para comentarios e historial de pedidos son `p
 
 Todo pedido tiene un resumen financiero unico en `pedido_pagos`. Esta tabla
 separa el dominio financiero del dominio operativo: `pedidos` conserva estado,
-flujo, cliente, descripcion, fechas y asignaciones; `pedido_pagos` conserva el
+flujo, cliente, descripción, fechas y asignaciones; `pedido_pagos` conserva el
 precio total, los montos pagados por efectivo y transferencia, el estado de pago
 calculado y la fecha de pago completo si aplica.
 
@@ -142,12 +142,12 @@ resumen queda `pagado` y `paid_at` se setea porque no existe monto pendiente.
 El estado financiero no se envia desde la UI ni lo decide la aplicacion:
 la base de datos calcula `sin_pago`, `parcial` o `pagado` segun
 `total_amount`, `paid_cash_amount` y `paid_transfer_amount`. No se permite
-registrar montos negativos ni pagar mas que el total.
+registrar montos negativos ni pagar más que el total.
 
 En la creacion manual se define el precio total del pedido. La RPC
 `public.crear_pedido_manual(p_service_id, ...)` crea `pedidos` y `pedido_pagos` en una unica
 transaccion: con precio `0`, el resumen queda `pagado`; con precio mayor que
-`0`, queda `sin_pago` porque todavia no se registra pago inicial. La conversion
+`0`, queda `sin_pago` porque todavía no se registra pago inicial. La conversión
 desde solicitudes aplica la misma regla mediante
 `public.convertir_solicitud_a_pedido(p_service_id, ...)`.
 
@@ -170,8 +170,8 @@ cumplen esta regla porque quedan `pagado`.
 
 El listado interno de pedidos muestra el estado de pago resumido y permite
 filtrar por `sin_pago`, `parcial` o `pagado` mediante `payment_status`. Este
-filtro se combina con busqueda textual, estado operativo y `service_id`.
-La consulta publica `/estado` no muestra importes, estado de pago ni deuda
+filtro se combina con búsqueda textual, estado operativo y `service_id`.
+La consulta pública `/estado` no muestra importes, estado de pago ni deuda
 pendiente; los pagos siguen siendo informacion interna.
 
 ## Estados de pedido
@@ -244,9 +244,9 @@ La UI no permite seleccionar `task_type`, `target_quantity`, autorías, fechas t
 La interfaz vigente de gestion en el panel Tareas presenta las tareas registradas
 como una lista compacta unificada: un solo contenedor con borde y divisores
 entre filas. Cada `PedidoTaskItem` actua como fila interna, no como card grande
-independiente. La fila muestra el titulo y un texto secundario con estado o
+independiente. La fila muestra el título y un texto secundario con estado o
 progreso. El tipo tecnico `simple` o `cuantificada` no se muestra como badge
-visible, aunque continua existiendo en los datos, servicios, constraints,
+visible, aunque continúa existiendo en los datos, servicios, constraints,
 RLS y reglas de avance.
 
 Texto secundario vigente por fila:
@@ -275,7 +275,7 @@ de DOM y de teclado es siempre:
 3. Eliminar
 ```
 
-La accion operativa depende del estado de la tarea:
+La acción operativa depende del estado de la tarea:
 
 ```text
 simple pendiente       -> Completar
@@ -293,10 +293,10 @@ Editar               -> secondary
 Eliminar             -> danger
 ```
 
-La edicion se realiza inline. `Editar` sustituye temporalmente el titulo por un
+La edición se realiza inline. `Editar` sustituye temporalmente el título por un
 input inline. En tareas cuantificadas pendientes, `Actualizar progreso`
 sustituye temporalmente el texto secundario por un editor numerico. Cada fila
-mantiene modos mutuamente excluyentes: lectura, edicion de titulo, edicion de
+mantiene modos mutuamente excluyentes: lectura, edición de título, edición de
 progreso o confirmacion de eliminacion. `Escape` cancela los editores; cancelar
 o guardar correctamente devuelve el foco al trigger correspondiente. Si una
 Action falla, el editor permanece abierto, conserva el valor introducido y
@@ -304,18 +304,18 @@ muestra el error asociado al campo o a la operacion. Durante pending se
 deshabilitan acciones incompatibles y el spinner respeta `prefers-reduced-motion`.
 Eliminar conserva la confirmacion destructiva inline.
 
-La edicion de titulo muestra este aviso contextual:
+La edición de título muestra este aviso contextual:
 
 ```text
 Los números del título definen la cantidad de la tarea y pueden reiniciar su progreso.
 ```
 
-Ese aviso refleja una regla ya existente: la interpretacion del titulo sigue
+Ese aviso refleja una regla ya existente: la interpretación del título sigue
 viviendo exclusivamente en servicios server-side. La UI no determina por si
 misma si una tarea es simple o cuantificada.
 
 En `listo_entrega`, `entregado` y `cancelado`, las filas quedan en modo lectura:
-siguen mostrando titulo, estado y progreso cuantificado cuando corresponda, pero
+siguen mostrando título, estado y progreso cuantificado cuando corresponda, pero
 no presentan acciones de mutacion. Una correccion de tareas en `listo_entrega`
 requiere volver primero a `en_produccion`.
 
@@ -325,17 +325,17 @@ El modelo de datos incluye `trabajo_plantillas` y `trabajo_plantilla_tareas` com
 
 `/dashboard/configuracion` permite a `admin` gestionar la cabecera de estas plantillas: nombre, descripción y estado activa/inactiva. El listado muestra también la cantidad de tareas asociadas.
 
-Desde Alfa 3.3, cada plantilla tiene un detalle en `/dashboard/configuracion/plantillas/[templateId]` para definir sus tareas internas. Las tareas se listan por `sort_order`, pueden ser `simple` o `cuantificada` y usan el mismo parseo de titulo que las tareas de pedido: un entero positivo independiente convierte la tarea en cuantificada y guarda `target_quantity`.
+Desde Alfa 3.3, cada plantilla tiene un detalle en `/dashboard/configuracion/plantillas/[templateId]` para definir sus tareas internas. Las tareas se listan por `sort_order`, pueden ser `simple` o `cuantificada` y usan el mismo parseo de título que las tareas de pedido: un entero positivo independiente convierte la tarea en cuantificada y guarda `target_quantity`.
 
 El admin puede agregar, editar, eliminar y mover tareas arriba o abajo. No hay drag and drop ni campos de progreso. Eliminar una tarea de plantilla no toca pedidos ni `pedido_tareas`; el orden restante se normaliza para mantener una secuencia simple.
 
-Desde Alfa 3.4, el detalle de un pedido de tipo `encargo` muestra un selector para aplicar plantillas activas con tareas cuando el usuario puede gestionar tareas y el estado del pedido permite mutarlas. La accion server-side llama a la RPC transaccional `public.aplicar_plantilla_tareas_pedido(p_pedido_id uuid, p_template_id uuid)`.
+Desde Alfa 3.4, el detalle de un pedido de tipo `encargo` muestra un selector para aplicar plantillas activas con tareas cuando el usuario puede gestionar tareas y el estado del pedido permite mutarlas. La acción server-side llama a la RPC transaccional `public.aplicar_plantilla_tareas_pedido(p_pedido_id uuid, p_template_id uuid)`.
 
 La RPC copia las tareas de `trabajo_plantilla_tareas` al final de `pedido_tareas`, preserva el orden relativo de la plantilla y calcula `sort_order` despues del maximo actual del pedido. No reemplaza ni borra tareas existentes. Las tareas copiadas quedan como tareas normales del pedido: se pueden editar, completar, reabrir, actualizar progreso o eliminar, y cuentan para el progreso y las reglas de avance de encargos.
 
-La copia no crea una relacion viva con la plantilla. Editar, reordenar, desactivar o eliminar tareas internas de una plantilla no modifica tareas ya copiadas a pedidos. Aplicar la misma plantilla mas de una vez puede duplicar tareas en esta version; la UI lo advierte antes de aplicar.
+La copia no crea una relación viva con la plantilla. Editar, reordenar, desactivar o eliminar tareas internas de una plantilla no modifica tareas ya copiadas a pedidos. Aplicar la misma plantilla más de una vez puede duplicar tareas en esta versión; la UI lo advierte antes de aplicar.
 
-La aplicacion de plantillas no esta disponible para pedidos `impresion`. La UI no muestra el selector en impresiones y la RPC tambien bloquea cualquier intento backend cuando `pedidos.workflow_type <> 'encargo'`.
+La aplicación de plantillas no está disponible para pedidos `impresion`. La UI no muestra el selector en impresiones y la RPC también bloquea cualquier intento backend cuando `pedidos.workflow_type <> 'encargo'`.
 
 Flujo completo vigente:
 
@@ -346,7 +346,7 @@ Flujo completo vigente:
 5. El sistema copia las tareas al final de `pedido_tareas`.
 6. Las tareas copiadas quedan editables y se comportan como tareas normales.
 7. El flujo no aplica a pedidos de `impresion`.
-8. Aplicar dos veces la misma plantilla puede duplicar tareas en esta version.
+8. Aplicar dos veces la misma plantilla puede duplicar tareas en esta versión.
 
 ## Listado interno
 
@@ -357,34 +357,35 @@ Archivos principales:
 - Componente: `src/components/pedidos/InternalPedidosList.tsx`
 
 El listado carga server-side. `admin` y `supervisor` ven todos los pedidos;
-`trabajador` ve solo pedidos asignados. La busqueda usa `q` y cubre numero de
-pedido, titulo, descripcion, cliente asociado, referencia visible de la
-solicitud origen y nombre del servicio propio del Pedido. La busqueda y los
-filtros por estado, pago y `service_id` conviven mediante parametros GET.
+`trabajador` ve solo pedidos asignados. La búsqueda usa `q` y cubre número de
+pedido, título, descripción, cliente asociado, referencia visible de la
+solicitud origen y nombre del servicio propio del Pedido. La búsqueda y los
+filtros por estado, pago y `service_id` conviven mediante parámetros GET.
 
-Desde la integracion de servicios internos, el filtro visible de servicio usa
-`service_id` y no `workflow_type`. La busqueda por servicio resuelve
+Desde la integración de servicios internos, el filtro visible de servicio usa
+`service_id` y no `workflow_type`. La búsqueda por servicio resuelve
 `tipos_servicio.name` y aplica esos IDs contra `pedidos.service_id`, de modo que
 el resultado corresponde al servicio propio confirmado del Pedido. El
-`workflow_type` sigue visible como badge operativo secundario y las URLs
-heredadas que lo incluyen se canonicalizan eliminando ese parametro.
+`workflow_type` sigue visible como badge operativo secundario, pero no se
+procesa como parámetro de filtro.
 
-Si el catalogo read-only de servicios falla al cargar las opciones del filtro,
-el listado continua disponible con busqueda, estado y pago, y la UI muestra un
-aviso parcial reintentable. Los servicios ocultos publicamente siguen visibles
-internamente y se identifican con texto explicito.
+Si el catálogo read-only de servicios falla al cargar las opciones del filtro,
+el listado continúa disponible con búsqueda, estado y pago, y la UI muestra un
+aviso parcial reintentable. Los servicios ocultos públicamente siguen visibles
+internamente en las opciones del filtro; en filas y tarjetas de Pedidos se omite
+la disponibilidad pública para reducir ruido visual.
 
 La barra común actualiza `q` con `router.replace` tras 200 ms sin escritura,
-aplica los selectores de estado y tipo inmediatamente y permite limpiar todos
+aplica los selectores de estado, servicio y pago inmediatamente y permite limpiar todos
 los controles.
 El componente cliente solo sincroniza la URL: la consulta, los permisos y el
 filtrado continúan en el servidor. Durante la espera muestra `Buscando...`.
 
 Las relaciones de cliente y solicitud se mantienen opcionales: buscar no convierte los joins en internos ni oculta pedidos manuales sin cliente. El componente visual no consulta Supabase y RLS sigue limitando al trabajador a pedidos asignados. No es un buscador global; índices o búsqueda avanzada quedan como mejora futura si aumenta el volumen.
 
-Cada pedido muestra un badge `Encargo` o `Impresión`, tanto en tarjetas
-responsive como en la tabla de escritorio. Un valor inválido de
-`workflow_type` en la URL se ignora de forma segura y produce una advertencia.
+Cada pedido muestra `order_number` sin badge debajo en la columna Pedido. El
+badge `Encargo` o `Impresión` se muestra únicamente junto al nombre del servicio
+en tarjetas responsive y en la columna Servicio de la tabla de escritorio.
 
 Para encargos, el listado mantiene el progreso operativo basado en tareas:
 `Sin tareas`, porcentaje o tareas completadas. Para impresiones muestra
@@ -408,7 +409,7 @@ personal asignado, comentarios internos y archivos privados. También muestra
 público de seguimiento. La descripción conserva su estructura y saltos de línea.
 
 El detalle carga `pedidos.service_id -> tipos_servicio` como servicio propio del
-Pedido y, si existe solicitud origen, carga tambien
+Pedido y, si existe solicitud origen, carga también
 `solicitudes.service_id -> tipos_servicio` como servicio solicitado. El panel
 Informacion distingue ambos valores, organiza Trabajo, Cliente, Origen y
 Registro, conserva el UUID completo como `Identificador interno` y elimina la
@@ -577,7 +578,7 @@ inicial `creado` y `cliente_id = null` cuando no se selecciona cliente. No
 existen campos temporales de cliente en este flujo.
 
 La creacion manual exige `total_amount`, permite `0` y rechaza valores
-negativos o no numericos. El servicio server-side valida el monto y llama a
+negativos o no numéricos. El servicio server-side valida el monto y llama a
 `public.crear_pedido_manual(p_service_id, ...)`, que inserta el pedido y su resumen financiero en
 `pedido_pagos` dentro de la misma transaccion. No se registra pago inicial:
 `paid_cash_amount = 0` y `paid_transfer_amount = 0`. Por eso, un pedido manual
@@ -597,8 +598,8 @@ tareas, el progreso, los estados ni sus reglas.
 
 El número operativo interno del pedido se asigna en base de datos al insertar, con formato `P-YY-XXXX`. El contador es anual, se guarda en `public.pedido_contadores` y se incrementa dentro de la transacción para proteger la concurrencia. El año se obtiene mediante `private.current_business_date()` y no depende del día UTC de la sesión. La app no envía `order_number`.
 
-El pedido manual tambien obtiene `public_reference` propio con formato
-`GD-XXXX-XXXX`. Ese codigo no es secuencial, no reemplaza a `order_number` y
+El pedido manual también obtiene `public_reference` propio con formato
+`GD-XXXX-XXXX`. Ese código no es secuencial, no reemplaza a `order_number` y
 se muestra en el mensaje de éxito del formulario con opción de copiar. Este
 código puede compartirse con el cliente y consultarse en la página pública
 `/estado` mediante el parámetro `ref`, por ejemplo
@@ -644,10 +645,11 @@ public.pedido_prioridad, date, numeric)`. La RPC es transaccional, bloquea la
 solicitud con `FOR UPDATE` y evita que dos intentos simultáneos creen pedidos
 distintos.
 
-`priority` es obligatoria, inicia visualmente en `normal` y se valida contra las prioridades reales del enum. `total_amount` tambien es obligatorio, permite `0`, rechaza negativos, valores no numericos y mas de 2 decimales. `estimated_delivery_date` es opcional; si se informa debe ser una fecha válida e igual o posterior al día actual. La UI limita el calendario desde hoy; el servicio valida con `src/lib/validators/date.ts` y la RPC repite la regla usando la fecha de negocio de `America/Havana`.
+`priority` es obligatoria, inicia visualmente en `normal` y se valida contra las prioridades reales del enum. `total_amount` también es obligatorio, permite `0`, rechaza negativos, valores no numéricos y más de 2 decimales. `estimated_delivery_date` es opcional; si se informa debe ser una fecha válida e igual o posterior al día actual. La UI limita el calendario desde hoy; el servicio valida con `src/lib/validators/date.ts` y la RPC repite la regla usando la fecha de negocio de `America/Havana`.
 
-`service_type` queda como referencia historica elegida por el cliente. No se usa
-como título automático del pedido. En encargos, el usuario interno puede
+`service_type` queda como referencia histórica elegida por el cliente hasta la
+etapa contract. No se usa como título automático ni como fallback visual de las
+lecturas internas nuevas. En encargos, el usuario interno puede
 confirmar o cambiar el servicio dentro del mismo workflow y debe definir
 `title` y `description`. En impresiones, se usa el servicio de impresion
 existente, el título es opcional y usa
@@ -657,12 +659,10 @@ original de la solicitud. El formulario no acepta `order_number`, `status`,
 `cliente_id`, `workflow_type`, `created_by`, `converted_order_id`, campos de
 archivos ni otros campos técnicos.
 
-Cuando el pedido muestra datos de la solicitud origen, el tipo de servicio se renderiza con `getSolicitudServiceTypeLabel` desde `src/lib/solicitudes/labels.ts`; el valor guardado en `service_type` no se renombra ni se usa como título automático.
-
-En la lectura actual, el resumen de conversion y el detalle usan la relacion
-canonica de la Solicitud (`solicitudes.service_id -> tipos_servicio`) y dejan
-`service_type` solo como fallback expand. El servicio confirmado del Pedido
-puede diferir del servicio solicitado si ambos pertenecen al mismo
+En la lectura actual, el resumen de conversión y el detalle usan la relación
+canónica de la Solicitud (`solicitudes.service_id -> tipos_servicio`). Si esa
+relación falta, la UI muestra `Servicio no disponible`. El servicio confirmado
+del Pedido puede diferir del servicio solicitado si ambos pertenecen al mismo
 `workflow_type`.
 
 Al convertir:
@@ -760,12 +760,12 @@ mostrar `Iniciando revisión`, `Puede avanzar a {estado}`, `Avance bloqueado`,
 texto se combina como `· Fecha estimada vencida`. Ese texto orienta la operación
 visible y no reemplaza validaciones server-side.
 
-Para pasar de `listo_entrega` a `entregado`, la RPC tambien valida
+Para pasar de `listo_entrega` a `entregado`, la RPC también valida
 `pedido_pagos.payment_status = 'pagado'`. Si el resumen financiero no existe o
-el pago esta `sin_pago` o `parcial`, la transicion falla aunque el usuario tenga
+el pago está `sin_pago` o `parcial`, la transición falla aunque el usuario tenga
 permiso para cambiar estado. La UI muestra un aviso de pago pendiente y
 deshabilita el botón `entregado` con motivo visible, pero la autoridad final es
-`public.actualizar_estado_pedido`. La consulta publica `/estado` no expone
+`public.actualizar_estado_pedido`. La consulta pública `/estado` no expone
 informacion de pago.
 
 Antes de contar tareas, la RPC bloquea las tareas existentes con `FOR SHARE`.
@@ -783,7 +783,7 @@ Un trabajador solo puede cambiar el estado de pedidos asignados. Con múltiples 
 
 Este flujo no modifica solicitudes ni `converted_order_id`, no cambia roles reales y no modifica permisos reales.
 
-El bloqueo por pago pendiente solo afecta al flujo interno. La ruta publica
+El bloqueo por pago pendiente solo afecta al flujo interno. La ruta pública
 `/estado` puede seguir mostrando el estado operativo del pedido, pero no expone
 el resumen financiero ni el motivo de pago pendiente.
 

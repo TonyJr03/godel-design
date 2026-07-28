@@ -132,7 +132,6 @@ export default async function DashboardSolicitudDetallePage({
         solicitud={result.solicitud}
         updateStatusAction={updateStatusAction}
         createCommentAction={createCommentAction}
-        clienteAsociado={clienteAsociado}
         clientePanelContent={
           clienteDetailLoadError ? (
             <ReadErrorAlert
@@ -167,7 +166,6 @@ export default async function DashboardSolicitudDetallePage({
               serviceTypesResult.ok ? undefined : serviceTypesResult.message
             }
             solicitudService={result.solicitud.service}
-            serviceType={result.solicitud.service_type}
             solicitudDescription={result.solicitud.description}
             solicitudDesiredDate={result.solicitud.desired_date}
             presentation="panel"

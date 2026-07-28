@@ -12,14 +12,6 @@ export type InternalPedidoEstado = PedidoStatus;
 export type InternalPedidoStatusFilter = InternalPedidoEstado | "nuevo";
 
 type PedidoCliente = Pick<Tables<"clientes">, "id" | "name"> | null;
-type PedidoSolicitud =
-  | Pick<
-      Tables<"solicitudes">,
-      "id" | "service_id" | "service_type" | "workflow_type"
-    > & {
-      service: InternalServiceReferenceRow | null;
-    }
-  | null;
 type PedidoTrabajadorProfile =
   | Pick<Tables<"perfiles">, "id" | "full_name">
   | null;
@@ -66,24 +58,15 @@ export type InternalPedidoRow = Pick<
 > & {
   clientes: PedidoCliente;
   service: InternalServiceReferenceRow | null;
-  solicitudes: PedidoSolicitud;
   pedido_trabajadores: InternalPedidoTrabajador[];
   payment: PedidoPaymentRow | PedidoPaymentRow[] | null;
 };
 
-export type InternalPedidoSolicitud = Omit<
-  NonNullable<PedidoSolicitud>,
-  "service"
-> & {
-  service: InternalServiceReference | null;
-};
-
 export type InternalPedido = Omit<
   InternalPedidoRow,
-  "payment" | "service" | "solicitudes"
+  "payment" | "service"
 > & {
   service: InternalServiceReference | null;
-  solicitudes: InternalPedidoSolicitud | null;
   payment: InternalPedidoPaymentSummary;
   taskProgress: PedidoTasksProgress;
 };

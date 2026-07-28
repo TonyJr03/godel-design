@@ -15,7 +15,6 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { normalizeSearchQuery } from "@/lib/utils";
 import { isValidUuid } from "@/lib/validators";
-import { getSolicitudServiceTypeSearchValues } from "./labels";
 import { mapInternalSolicitud } from "./mappers";
 import { SOLICITUD_STATUSES, type SolicitudStatus } from "./status";
 import type { InternalSolicitud, InternalSolicitudRow } from "./types";
@@ -65,7 +64,6 @@ const SOLICITUDES_SELECT = `
   client_email,
   workflow_type,
   service_id,
-  service_type,
   status,
   created_at,
   desired_date,
@@ -111,10 +109,6 @@ function matchesVisibleSolicitudReference(id: string, query: string): boolean {
   );
 }
 
-function formatPostgrestInValue(value: string): string {
-  return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
-}
-
 function buildSolicitudSearchCondition(
   q: string | null,
   referenceIds: string[],
@@ -129,19 +123,9 @@ function buildSolicitudSearchCondition(
     `client_phone.ilike.*${q}*`,
     `client_email.ilike.*${q}*`,
     `public_reference.ilike.*${q}*`,
-    `service_type.ilike.*${q}*`,
     `description.ilike.*${q}*`,
     `notes.ilike.*${q}*`,
   ];
-  const serviceTypeValues = getSolicitudServiceTypeSearchValues(q);
-
-  if (serviceTypeValues.length > 0) {
-    conditions.push(
-      `service_type.in.(${serviceTypeValues
-        .map(formatPostgrestInValue)
-        .join(",")})`,
-    );
-  }
 
   if (referenceIds.length > 0) {
     conditions.push(`id.in.(${referenceIds.join(",")})`);

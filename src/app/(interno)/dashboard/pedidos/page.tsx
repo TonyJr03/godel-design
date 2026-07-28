@@ -33,7 +33,6 @@ type DashboardPedidosPageProps = {
     q?: string | string[] | undefined;
     status?: string | string[] | undefined;
     service_id?: string | string[] | undefined;
-    workflow_type?: string | string[] | undefined;
     payment_status?: string | string[] | undefined;
     page?: string | string[] | undefined;
   }>;
@@ -99,7 +98,6 @@ export default async function DashboardPedidosPage({
   const q = getSingleSearchParam(params.q);
   const status = getSingleSearchParam(params.status);
   const serviceId = getSingleSearchParam(params.service_id);
-  const legacyWorkflowType = getSingleSearchParam(params.workflow_type);
   const paymentStatus = getSingleSearchParam(params.payment_status);
   const page = getSingleSearchParam(params.page);
   const result = await listInternalPedidos({
@@ -109,11 +107,6 @@ export default async function DashboardPedidosPage({
     paymentStatus,
     page,
   });
-  const [operationalServiceTypesResult, filterServiceTypesResult] =
-    await Promise.all([
-      listOperationalServiceTypes(),
-      listInternalServiceTypeOptions(),
-    ]);
 
   if (!result.ok && result.reason === "unauthorized") {
     redirect("/login");
@@ -123,7 +116,7 @@ export default async function DashboardPedidosPage({
     redirect("/sin-permisos");
   }
 
-  if (result.ok && (page !== undefined || legacyWorkflowType !== undefined)) {
+  if (result.ok && page !== undefined) {
     const canonicalHref = buildPedidosCanonicalHref({
       q: result.q,
       status,
@@ -136,7 +129,6 @@ export default async function DashboardPedidosPage({
       result.pagination.page > 1 && page === String(result.pagination.page);
 
     if (
-      legacyWorkflowType !== undefined ||
       !currentPageIsCanonical ||
       requestedPage !== result.pagination.page
     ) {
@@ -147,6 +139,10 @@ export default async function DashboardPedidosPage({
   const profile = await getCurrentProfile();
   const canCreatePedido =
     profile !== null && hasPermission(profile.role, "pedidos.manage");
+  const filterServiceTypesResult = await listInternalServiceTypeOptions();
+  const operationalServiceTypesResult = canCreatePedido
+    ? await listOperationalServiceTypes()
+    : null;
   const searchValue = result.q ?? "";
 
   return (
@@ -159,14 +155,14 @@ export default async function DashboardPedidosPage({
             <PedidoCreateDialogButton
               prioridades={PEDIDO_PRIORIDADES}
               serviceTypes={
-                operationalServiceTypesResult.ok
+                operationalServiceTypesResult?.ok
                   ? operationalServiceTypesResult.serviceTypes
                   : []
               }
               serviceTypesLoadError={
-                operationalServiceTypesResult.ok
+                operationalServiceTypesResult?.ok
                   ? undefined
-                  : operationalServiceTypesResult.message
+                  : operationalServiceTypesResult?.message
               }
             />
           ) : undefined
