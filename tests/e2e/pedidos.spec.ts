@@ -33,6 +33,7 @@ const quantifiedTaskTitle = `QA Tarea Focal Imprimir 5 hojas ${runLabel}`;
 const workspaceCommentText = `QA comentario workspace ${runLabel}`;
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+let focalEncargoServiceId = "";
 
 type QaSupabaseClient = Awaited<ReturnType<typeof createQaSupabaseClient>>;
 type ServiceTypeRow = Pick<
@@ -955,6 +956,14 @@ async function createManualPedido(
 
   if (workflow === "impresion") {
     await dialog.getByRole("tab", { name: /impresi.n/i }).click();
+    await expect(dialog.locator('select[name="service_id"]')).toHaveCount(0);
+    await expect(dialog.locator('input[name="service_id"]')).toHaveCount(1);
+    await expect(dialog.locator("#service_id_display")).toBeVisible();
+    await expect(dialog.locator("#service_id_display")).toHaveAttribute(
+      "readonly",
+      "",
+    );
+    await expect(dialog).not.toContainText(/oculto p.blicamente/i);
     await dialog.getByLabel(/cantidad de copias/i).fill("8");
     await dialog.getByLabel(/modo de color/i).selectOption("color");
     await dialog.getByLabel(/tama.o de papel/i).selectOption("carta");
@@ -964,6 +973,14 @@ async function createManualPedido(
       .fill(`Pedido de impresion focal para ${clienteLabel}`);
   } else {
     await dialog.getByRole("tab", { name: /encargo/i }).click();
+    const serviceSelect = dialog.locator('select[name="service_id"]');
+
+    await expect(serviceSelect).toBeVisible();
+    await expect(
+      serviceSelect.locator("option").evaluateAll((options) =>
+        options.map((option) => option.textContent ?? "").join("\n"),
+      ),
+    ).resolves.not.toMatch(/oculto p.blicamente/i);
     if (serviceId) {
       await dialog.locator('select[name="service_id"]').selectOption(serviceId);
     }
@@ -2750,6 +2767,8 @@ test("manual pedido creation persists selected operational service types", async
       throw new Error("Operational encargo and print services are required.");
     }
 
+    focalEncargoServiceId = selectedEncargoService.id;
+
     await loginAs(page, "admin");
     const selectedTitle = `QA Pedido Servicio Seleccionado ${runId}`;
     await createManualPedido(
@@ -2823,6 +2842,45 @@ test("manual pedido creation persists selected operational service types", async
     expect(hiddenPedido.workflow_type).toBe(
       hiddenServiceSetup.service.workflow_type,
     );
+    await getPedidoHeader(page)
+      .getByRole("button", { name: /editar pedido/i })
+      .click();
+    const hiddenEditDialog = page.getByRole("dialog", {
+      name: /^editar pedido$/i,
+    });
+
+    await expect(hiddenEditDialog).toBeVisible();
+    await expect(hiddenEditDialog.locator('select[name="service_id"]'))
+      .toHaveValue(hiddenServiceSetup.service.id);
+    await expect(
+      hiddenEditDialog.locator(
+        `select[name="service_id"] option[value="${hiddenServiceSetup.service.id}"]`,
+      ),
+    ).toHaveText(hiddenServiceSetup.service.name);
+    await expect(
+      hiddenEditDialog
+        .locator('select[name="service_id"] option')
+        .evaluateAll((options) =>
+          options.map((option) => option.textContent ?? "").join("\n"),
+        ),
+    ).resolves.not.toMatch(/oculto p.blicamente/i);
+    await hiddenEditDialog.getByRole("button", { name: /cerrar/i }).click();
+    await expect(hiddenEditDialog).toBeHidden();
+
+    await page.goto("/solicitud");
+    if (
+      !(await page
+        .getByText(/formulario no disponible/i)
+        .isVisible()
+        .catch(() => false))
+    ) {
+      await page.getByRole("tab", { name: /encargo/i }).click();
+      await expect(
+        page.locator(
+          `select[name="service_id"] option[value="${hiddenServiceSetup.service.id}"]`,
+        ),
+      ).toHaveCount(0);
+    }
 
     await loginAs(page, "worker");
     await page.goto("/dashboard/pedidos");
@@ -3105,8 +3163,8 @@ test("admin can validate pedidos pagination and canonical URLs", async ({
         /En revisi.n|En producci.n|Listo para entrega|Entregado|Cancelado/i,
     },
     {
-      url: "/dashboard/pedidos?workflow_type=encargo&page=999999",
-      params: { workflow_type: "encargo" },
+      url: `/dashboard/pedidos?service_id=${focalEncargoServiceId}&page=999999`,
+      params: { service_id: focalEncargoServiceId },
       expected: /Encargo/i,
     },
     {
@@ -3131,18 +3189,18 @@ test("admin can validate pedidos pagination and canonical URLs", async ({
   }
 
   await page.goto(
-    "/dashboard/pedidos?status=invalido&workflow_type=desconocido&payment_status=incorrecto&page=abc",
+    "/dashboard/pedidos?status=invalido&service_id=desconocido&payment_status=incorrecto",
   );
   await expectPedidosListLoaded(page);
   await expectNoPedidosLoadError(page);
   await expect(page.getByText(/filtro de estado no es v.lido/i)).toBeVisible();
-  await expect(page.getByText(/filtro de tipo no es v.lido/i)).toBeVisible();
+  await expect(page.getByText(/filtro de servicio no es v.lido/i)).toBeVisible();
   await expect(page.getByText(/filtro de pago no es v.lido/i)).toBeVisible();
 
   const invalidUrl = await getCurrentPedidosUrl(page);
 
   expect(invalidUrl.searchParams.get("status")).toBe("invalido");
-  expect(invalidUrl.searchParams.get("workflow_type")).toBe("desconocido");
+  expect(invalidUrl.searchParams.get("service_id")).toBe("desconocido");
   expect(invalidUrl.searchParams.get("payment_status")).toBe("incorrecto");
   expect(invalidUrl.searchParams.has("page")).toBe(false);
 });
@@ -3339,7 +3397,7 @@ test("pedido filters remove pagination from the URL", async ({ page }) => {
   await page.goto("/dashboard/pedidos?page=2");
   await expectPedidosListLoaded(page);
   await getPedidosFiltersToggle(page).click();
-  await page.getByLabel(/^Tipo$/i).selectOption("encargo");
+  await page.getByLabel(/^Servicio$/i).selectOption(focalEncargoServiceId);
 
   await expect
     .poll(async () => {
@@ -3347,10 +3405,10 @@ test("pedido filters remove pagination from the URL", async ({ page }) => {
 
       return {
         page: url.searchParams.get("page"),
-        workflowType: url.searchParams.get("workflow_type"),
+        serviceId: url.searchParams.get("service_id"),
       };
     })
-    .toEqual({ page: null, workflowType: "encargo" });
+    .toEqual({ page: null, serviceId: focalEncargoServiceId });
 });
 
 test("pedidos pagination remains usable on mobile", async ({ page }) => {
@@ -3828,15 +3886,9 @@ Otra línea de QA para el textarea.`;
     informationDialog.getByText(/este pedido no tiene cliente asociado/i),
   ).toBeVisible();
   await expect(
-    informationDialog.getByRole("heading", { name: /solicitud de origen/i }),
-  ).toBeVisible();
-  await expect(
     informationDialog.getByText(/pedido creado manualmente/i),
   ).toBeVisible();
-  await expect(
-    informationDialog.getByRole("heading", { name: /informaci.n t.cnica/i }),
-  ).toBeVisible();
-  await expect(informationDialog.getByText(/referencia interna/i))
+  await expect(informationDialog.getByText(/identificador interno/i))
     .toBeVisible();
 
   await informationDialog.getByRole("button", { name: /cerrar/i }).click();

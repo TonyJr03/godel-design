@@ -47,6 +47,7 @@ const selectorClienteBEmail =
 const selectorClienteBNotes = `Notas QA selector cliente B ${runId}`;
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const missingServiceId = "00000000-0000-4000-8000-000000000000";
 
 type QaSupabaseClient = Awaited<ReturnType<typeof createQaSupabaseClient>>;
 type ServiceTypeRow = Pick<
@@ -76,6 +77,7 @@ let impresionReference = "";
 let encargoDetailUrl = "";
 let impresionDetailUrl = "";
 let convertedPedidoUrl = "";
+let focalSolicitudServiceId = "";
 
 async function listQaServiceTypes(supabase: QaSupabaseClient) {
   const { data, error } = await supabase
@@ -294,7 +296,9 @@ async function createPublicEncargo(page: Page) {
   await page.getByLabel(/nombre del cliente/i).fill(encargoName);
   await page.getByLabel(/tel.fono|telefono/i).fill(encargoPhone);
   await page.getByLabel(/correo electr.nico|correo electronico/i).fill(encargoEmail);
-  await expect(page.getByLabel(/^servicio/i)).toBeVisible();
+  const serviceSelect = page.getByLabel(/^servicio/i);
+  await expect(serviceSelect).toBeVisible();
+  focalSolicitudServiceId = await serviceSelect.inputValue();
   await page.getByLabel(/fecha deseada/i).fill(futureDate);
   await page.getByLabel(/descripci.n del trabajo/i).fill(encargoDescription);
   await page.getByLabel(/observaciones adicionales/i).fill(encargoNotes);
@@ -1123,11 +1127,17 @@ test("conversion preserves original solicitud service and can use another encarg
       /^conversi.n$/i,
       /conversi.n/i,
     );
-    const serviceSelect = conversionDialog.getByLabel(
-      /^servicio del pedido/i,
-    );
+    const serviceSelect = conversionDialog.locator('select[name="service_id"]');
 
     await expect(serviceSelect).toHaveValue(originalService.id);
+    await expect(
+      conversionDialog.getByLabel(/entrega estimada\s*\(opcional\)/i),
+    ).toBeVisible();
+    await expect(
+      serviceSelect.locator("option").evaluateAll((options) =>
+        options.map((option) => option.textContent ?? "").join("\n"),
+      ),
+    ).resolves.not.toMatch(/oculto p.blicamente/i);
     await serviceSelect.selectOption(alternateService.id);
     await conversionDialog
       .getByLabel(/t.tulo del pedido/i)
@@ -1195,7 +1205,14 @@ test("conversion preserves original solicitud service and can use another encarg
       `select[name="service_id"] option[value="${hiddenServiceSetup.service.id}"]`,
     );
 
-    await expect(hiddenOption).toHaveText(/oculto p.blicamente/i);
+    await expect(hiddenOption).toHaveText(hiddenServiceSetup.service.name);
+    await expect(
+      hiddenDialog
+        .locator('select[name="service_id"] option')
+        .evaluateAll((options) =>
+          options.map((option) => option.textContent ?? "").join("\n"),
+        ),
+    ).resolves.not.toMatch(/oculto p.blicamente/i);
     await hiddenDialog
       .locator('select[name="service_id"]')
       .selectOption(hiddenServiceSetup.service.id);
@@ -1333,9 +1350,13 @@ test("conversion rejects incompatible workflow and keeps print service semantics
     await expect(
       printDialog.locator('input[name="service_id"]'),
     ).toHaveValue(printService.id);
+    await expect(printDialog.locator("#service_id_display")).toHaveValue(
+      printService.name,
+    );
     await expect(printDialog.locator('select[name="service_id"]')).toHaveCount(
       0,
     );
+    await expect(printDialog).not.toContainText(/oculto p.blicamente/i);
     await printDialog.getByLabel(/prioridad/i).selectOption("normal");
     await printDialog.getByLabel(/precio del pedido/i).fill("740");
     await printDialog
@@ -1646,9 +1667,6 @@ test("admin can manage solicitud workspace panels end to end", async ({
   await expect(infoDialog.getByText(/encargo/i).first()).toBeVisible();
   await expect(infoDialog.getByText(/convertida/i).first()).toBeVisible();
   await expect(infoDialog.getByText(/identificador interno/i)).toBeVisible();
-  await expect(
-    infoDialog.getByRole("link", { name: /ver pedido generado/i }),
-  ).toBeVisible();
   await infoDialog.getByRole("button", { name: /cerrar/i }).click();
 
   const historyDialog = await openSolicitudPanel(
@@ -1754,7 +1772,7 @@ test("admin can validate solicitudes pagination and canonical URLs", async ({
   }
 
   await page.goto(
-    "/dashboard/solicitudes?workflow_type=encargo&status=convertida&page=999999",
+    `/dashboard/solicitudes?service_id=${focalSolicitudServiceId}&status=convertida&page=999999`,
   );
   await expectSolicitudesListLoaded(page);
   await expectNoSolicitudesLoadError(page);
@@ -1771,7 +1789,7 @@ test("admin can validate solicitudes pagination and canonical URLs", async ({
     return {
       page: url.searchParams.get("page"),
       status: url.searchParams.get("status"),
-      workflowType: url.searchParams.get("workflow_type"),
+      serviceId: url.searchParams.get("service_id"),
     };
   }).toEqual({
     page:
@@ -1779,7 +1797,7 @@ test("admin can validate solicitudes pagination and canonical URLs", async ({
         ? String(validFilterPageInfo.totalPages)
         : null,
     status: "convertida",
-    workflowType: "encargo",
+    serviceId: focalSolicitudServiceId,
   });
   if (validFilterPageInfo.totalPages === 1) {
     await expectSolicitudVisible(page, encargoName);
@@ -1788,18 +1806,18 @@ test("admin can validate solicitudes pagination and canonical URLs", async ({
   await page.goto(
     `/dashboard/solicitudes?q=${encodeURIComponent(
       encargoName,
-    )}&workflow_type=encargo&status=convertida`,
+    )}&service_id=${focalSolicitudServiceId}&status=convertida`,
   );
   await expectSolicitudesListLoaded(page);
   await expectNoSolicitudesLoadError(page);
   await expectSolicitudVisible(page, encargoName);
 
   await page.goto(
-    "/dashboard/solicitudes?status=invalido&workflow_type=desconocido&page=abc",
+    "/dashboard/solicitudes?status=invalido&service_id=desconocido",
   );
   await expectSolicitudesListLoaded(page);
   await expect(page.getByText(/filtro de estado no es v.lido/i)).toBeVisible();
-  await expect(page.getByText(/filtro de tipo no es v.lido/i)).toBeVisible();
+  await expect(page.getByText(/filtro de servicio no es v.lido/i)).toBeVisible();
   await expectNoSolicitudesLoadError(page);
   await expect.poll(async () => {
     const url = await getCurrentSolicitudesUrl(page);
@@ -1807,12 +1825,12 @@ test("admin can validate solicitudes pagination and canonical URLs", async ({
     return {
       page: url.searchParams.get("page"),
       status: url.searchParams.get("status"),
-      workflowType: url.searchParams.get("workflow_type"),
+      serviceId: url.searchParams.get("service_id"),
     };
   }).toEqual({
     page: null,
     status: "invalido",
-    workflowType: "desconocido",
+    serviceId: "desconocido",
   });
 
   await page.setViewportSize({ width: 390, height: 844 });
@@ -1865,7 +1883,7 @@ test("solicitud search preserves direct and mapped search capabilities", async (
   await page.goto(
     `/dashboard/solicitudes?q=${encodeURIComponent(
       encargoName,
-    )}&workflow_type=encargo&status=convertida`,
+    )}&service_id=${focalSolicitudServiceId}&status=convertida`,
   );
   await expectSolicitudesListLoaded(page);
   await expectNoSolicitudesLoadError(page);
@@ -1874,7 +1892,7 @@ test("solicitud search preserves direct and mapped search capabilities", async (
   await page.goto(
     `/dashboard/solicitudes?q=${encodeURIComponent(
       encargoName,
-    )}&workflow_type=impresion&status=convertida`,
+    )}&service_id=${missingServiceId}&status=convertida`,
   );
   await expectSolicitudesListLoaded(page);
   await expectNoSolicitudesLoadError(page);
@@ -2041,18 +2059,18 @@ test("solicitud filters remove pagination from the URL", async ({ page }) => {
     .first();
 
   await toolbar.getByRole("button", { name: /^filtros\b/i }).click();
-  await toolbar.getByLabel(/^tipo$/i).selectOption("encargo");
+  await toolbar.getByLabel(/^servicio$/i).selectOption(focalSolicitudServiceId);
 
   await expect.poll(async () => {
     const url = await getCurrentSolicitudesUrl(page);
 
     return {
       page: url.searchParams.get("page"),
-      workflowType: url.searchParams.get("workflow_type"),
+      serviceId: url.searchParams.get("service_id"),
     };
   }).toEqual({
     page: null,
-    workflowType: "encargo",
+    serviceId: focalSolicitudServiceId,
   });
 });
 

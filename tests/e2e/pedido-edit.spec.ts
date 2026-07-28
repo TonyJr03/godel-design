@@ -1,9 +1,14 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
+import type { Database } from "@/types/database";
 import { expectNoTechnicalLeakText } from "./helpers/assertions";
 import { loginAs } from "./helpers/auth";
 import { getFutureDateInputValue } from "./helpers/date";
 import { createQaRunId, createQaRunLabel } from "./helpers/qa-data";
+import {
+  createQaSupabaseClient,
+  signOutQaSupabaseClient,
+} from "./helpers/supabase";
 
 test.describe.configure({ mode: "serial" });
 
@@ -19,6 +24,104 @@ const updatedDescription = `Descripcion editada por admin ${runLabel}`;
 const supervisorDescription = `Descripcion editada por supervisor ${runLabel}`;
 let pedidoDetailUrl = "";
 let workerWasAssigned = false;
+
+type QaSupabaseClient = Awaited<ReturnType<typeof createQaSupabaseClient>>;
+type ServiceTypeRow = Pick<
+  Database["public"]["Tables"]["tipos_servicio"]["Row"],
+  "id" | "name" | "workflow_type" | "is_publicly_available"
+>;
+type PedidoEditAssertion = Pick<
+  Database["public"]["Tables"]["pedidos"]["Row"],
+  | "id"
+  | "service_id"
+  | "workflow_type"
+  | "title"
+  | "description"
+  | "priority"
+  | "estimated_delivery_date"
+>;
+type PedidoHistoryAssertion = Pick<
+  Database["public"]["Tables"]["pedido_historial"]["Row"],
+  "id" | "action" | "summary" | "metadata"
+>;
+type WorkerProfileAssertion = Pick<
+  Database["public"]["Tables"]["perfiles"]["Row"],
+  "id" | "full_name"
+>;
+
+async function listQaServiceTypes(supabase: QaSupabaseClient) {
+  const { data, error } = await supabase
+    .from("tipos_servicio")
+    .select("id, name, workflow_type, is_publicly_available")
+    .order("workflow_type", { ascending: true })
+    .order("name", { ascending: true })
+    .returns<ServiceTypeRow[]>();
+
+  expect(error).toBeNull();
+  expect(data).not.toBeNull();
+
+  return data ?? [];
+}
+
+function getPedidoIdFromCurrentUrl(page: Page) {
+  const pedidoId = page.url().match(/\/dashboard\/pedidos\/([0-9a-f-]+)/i)
+    ?.[1] ?? "";
+
+  expect(pedidoId).toMatch(/^[0-9a-f-]{36}$/i);
+
+  return pedidoId;
+}
+
+async function getPedidoAssertion(
+  supabase: QaSupabaseClient,
+  pedidoId: string,
+) {
+  const { data, error } = await supabase
+    .from("pedidos")
+    .select(
+      "id, service_id, workflow_type, title, description, priority, estimated_delivery_date",
+    )
+    .eq("id", pedidoId)
+    .maybeSingle<PedidoEditAssertion>();
+
+  expect(error).toBeNull();
+  expect(data).not.toBeNull();
+
+  return data as PedidoEditAssertion;
+}
+
+async function getPedidoUpdateHistoryRows(
+  supabase: QaSupabaseClient,
+  pedidoId: string,
+) {
+  const { data, error } = await supabase
+    .from("pedido_historial")
+    .select("id, action, summary, metadata")
+    .eq("pedido_id", pedidoId)
+    .eq("action", "pedido_actualizado")
+    .order("created_at", { ascending: true })
+    .returns<PedidoHistoryAssertion[]>();
+
+  expect(error).toBeNull();
+
+  return data ?? [];
+}
+
+async function getAssignableWorkerProfile(supabase: QaSupabaseClient) {
+  const { data, error } = await supabase
+    .from("perfiles")
+    .select("id, full_name")
+    .eq("role", "trabajador")
+    .eq("is_active", true)
+    .order("full_name", { ascending: true })
+    .limit(1)
+    .maybeSingle<WorkerProfileAssertion>();
+
+  expect(error).toBeNull();
+  expect(data).not.toBeNull();
+
+  return data as WorkerProfileAssertion;
+}
 
 async function clickFirstVisible(locator: Locator) {
   await expect(async () => {
@@ -75,7 +178,7 @@ async function openPedidoPanel(
   return dialog;
 }
 
-async function createManualPedido(page: Page) {
+async function createManualPedido(page: Page, serviceId?: string) {
   await page.goto("/dashboard/pedidos");
   await page.getByRole("button", { name: /nuevo pedido/i }).click();
 
@@ -83,6 +186,9 @@ async function createManualPedido(page: Page) {
 
   await expect(dialog).toBeVisible();
   await dialog.getByRole("tab", { name: /encargo/i }).click();
+  if (serviceId) {
+    await dialog.locator('select[name="service_id"]').selectOption(serviceId);
+  }
   await dialog.getByLabel(/prioridad/i).selectOption("normal");
   await dialog
     .locator('input[name="estimated_delivery_date"]')
@@ -188,7 +294,7 @@ async function expectNoTechnicalPedidoFieldNames(updateEvents: Locator) {
   const text = (await updateEvents.allInnerTexts()).join("\n");
 
   expect(text).not.toMatch(
-    /\b(?:title|description|estimated_delivery_date|total_amount)\b/i,
+    /\b(?:service_id|title|description|estimated_delivery_date|total_amount)\b/i,
   );
 }
 
@@ -262,27 +368,20 @@ async function updatePedidoStatus(page: Page, status: string, label: RegExp) {
   }
 }
 
-async function assignTrabajador(page: Page) {
+async function assignTrabajador(page: Page, workerName: string) {
   const personnelDialog = await openPedidoPanel(page, /^personal$/i, /personal/i);
-  const select = personnelDialog.getByLabel(/asignar personal/i);
-
-  await expect(select).toBeVisible();
-
-  const trabajadorValue = await select.evaluate((element) => {
-    const htmlSelect = element as HTMLSelectElement;
-    const trabajadorOption = Array.from(htmlSelect.options).find(
-      (option) =>
-        !option.disabled &&
-        Boolean(option.value) &&
-        /trabajador/i.test(option.textContent ?? ""),
-    );
-
-    return trabajadorOption?.value ?? "";
+  const workerSearch = personnelDialog.getByRole("combobox", {
+    name: /asignar personal/i,
   });
 
-  expect(trabajadorValue).not.toBe("");
-
-  await select.selectOption(trabajadorValue);
+  await expect(workerSearch).toBeVisible();
+  await workerSearch.fill(workerName);
+  await expect(
+    personnelDialog.getByRole("option", { name: new RegExp(workerName, "i") }),
+  ).toBeVisible({ timeout: 15_000 });
+  await personnelDialog
+    .getByRole("option", { name: new RegExp(workerName, "i") })
+    .click();
   await personnelDialog
     .getByRole("button", { name: /asignar personal/i })
     .click();
@@ -299,8 +398,29 @@ test("admin edits order data and records one sanitized history event", async ({
 }) => {
   test.setTimeout(180_000);
 
+  const supabase = await createQaSupabaseClient("admin");
+  const services = await listQaServiceTypes(supabase);
+  const encargoServices = services.filter(
+    (service) => service.workflow_type === "encargo",
+  );
+  const initialService = encargoServices[0];
+  const updatedService = encargoServices.find(
+    (service) => service.id !== initialService?.id,
+  );
+  const printService = services.find(
+    (service) => service.workflow_type === "impresion",
+  );
+  const workerProfile = await getAssignableWorkerProfile(supabase);
+
+  if (!initialService || !updatedService || !printService) {
+    throw new Error(
+      "At least two encargo services and one print service are required.",
+    );
+  }
+
   await loginAs(page, "admin");
-  pedidoDetailUrl = await createManualPedido(page);
+  pedidoDetailUrl = await createManualPedido(page, initialService.id);
+  const pedidoId = getPedidoIdFromCurrentUrl(page);
   await expectNoTechnicalLeakText(page);
 
   await expect(
@@ -322,6 +442,17 @@ test("admin edits order data and records one sanitized history event", async ({
   await expect(
     editDialog.locator('input[name="estimated_delivery_date"]'),
   ).not.toHaveAttribute("min");
+  const initialServiceSelect = editDialog.locator('select[name="service_id"]');
+
+  await expect(initialServiceSelect).toHaveValue(initialService.id);
+  await expect(
+    initialServiceSelect.locator(`option[value="${updatedService.id}"]`),
+  ).toHaveText(updatedService.name);
+  await expect(
+    initialServiceSelect.locator("option").evaluateAll((options) =>
+      options.map((option) => option.textContent ?? "").join("\n"),
+    ),
+  ).resolves.not.toMatch(/oculto p.blicamente/i);
 
   await editDialog.getByLabel(/t.tulo/i).fill(`${initialTitle} sin guardar`);
   page.once("dialog", async (dialog) => {
@@ -351,6 +482,9 @@ test("admin edits order data and records one sanitized history event", async ({
 
   await editDialog.getByLabel(/t.tulo/i).fill(updatedTitle);
   await editDialog.getByLabel(/descripci.n/i).fill(updatedDescription);
+  await editDialog
+    .locator('select[name="service_id"]')
+    .selectOption(updatedService.id);
   await editDialog.getByLabel(/prioridad/i).selectOption("alta");
   await editDialog
     .locator('input[name="estimated_delivery_date"]')
@@ -366,7 +500,17 @@ test("admin edits order data and records one sanitized history event", async ({
     }),
   ).toBeVisible({ timeout: 15_000 });
   await expect(getPedidoHeader(page).getByText(/^Alta$/i)).toBeVisible();
+  await expect(getPedidoHeader(page).getByText(updatedService.name)).toBeVisible();
   await expectNoTechnicalLeakText(page);
+
+  let pedidoAssertion = await getPedidoAssertion(supabase, pedidoId);
+
+  expect(pedidoAssertion.service_id).toBe(updatedService.id);
+  expect(pedidoAssertion.workflow_type).toBe("encargo");
+  expect(pedidoAssertion.title).toBe(updatedTitle);
+  expect(pedidoAssertion.description).toBe(updatedDescription);
+  expect(pedidoAssertion.priority).toBe("alta");
+  expect(pedidoAssertion.estimated_delivery_date).toBe(updatedDeliveryDate);
 
   await expect(
     getPedidoHeader(page).getByRole("button", { name: /editar pedido/i }),
@@ -383,6 +527,9 @@ test("admin edits order data and records one sanitized history event", async ({
     deliveryDate: updatedDeliveryDate,
     totalAmount: "650",
   });
+  await expect(editDialog.locator('select[name="service_id"]')).toHaveValue(
+    updatedService.id,
+  );
   await submitEditDialog(editDialog);
   await expect(editDialog).toBeHidden({ timeout: 15_000 });
 
@@ -390,15 +537,54 @@ test("admin edits order data and records one sanitized history event", async ({
   const updateEvent = updateEvents.first();
 
   await expect(updateEvent).toContainText(
-    /Datos del pedido actualizados:\s*título,\s*descripción,\s*prioridad,\s*fecha estimada,\s*precio\./i,
+    /Datos del pedido actualizados:\s*servicio,\s*t.tulo,\s*descripci.n,\s*prioridad,\s*fecha estimada,\s*precio\./i,
   );
+  await expect(updateEvent).toContainText(/servicio/i);
   await expect(updateEvent).not.toContainText(initialDescription);
   await expect(updateEvent).not.toContainText(updatedDescription);
   await expectNoTechnicalPedidoFieldNames(updateEvents);
   await expectNoTechnicalLeakText(page);
 
-  await assignTrabajador(page);
+  const historyRows = await getPedidoUpdateHistoryRows(supabase, pedidoId);
+
+  expect(historyRows).toHaveLength(1);
+  expect(historyRows[0]?.summary).toContain("servicio");
+  expect(historyRows[0]?.metadata).toMatchObject({
+    changed_fields: [
+      "service_id",
+      "title",
+      "description",
+      "priority",
+      "estimated_delivery_date",
+      "total_amount",
+    ],
+  });
+
+  const { error: incompatibleError } = await supabase.rpc(
+    "actualizar_datos_pedido",
+    {
+      p_pedido_id: pedidoId,
+      p_service_id: printService.id,
+      p_title: updatedTitle,
+      p_description: updatedDescription,
+      p_priority: "alta",
+      p_estimated_delivery_date: updatedDeliveryDate,
+      p_total_amount: 650,
+    },
+  );
+
+  expect(incompatibleError?.message).toContain(
+    "El servicio seleccionado no corresponde al tipo de trabajo del pedido",
+  );
+  pedidoAssertion = await getPedidoAssertion(supabase, pedidoId);
+  expect(pedidoAssertion.service_id).toBe(updatedService.id);
+  expect(pedidoAssertion.workflow_type).toBe("encargo");
+  await expect(getPedidoUpdateHistoryRows(supabase, pedidoId)).resolves
+    .toHaveLength(1);
+
+  await assignTrabajador(page, workerProfile.full_name);
   workerWasAssigned = true;
+  await signOutQaSupabaseClient(supabase);
 });
 
 test("supervisor can edit an active order", async ({ page }) => {
@@ -439,8 +625,11 @@ test("assigned worker can read but cannot edit order data", async ({ page }) => 
   test.skip(!pedidoDetailUrl, "Admin setup did not create an order.");
   test.skip(!workerWasAssigned, "Admin setup did not assign a worker.");
 
+  const supabase = await createQaSupabaseClient("worker");
+
   await loginAs(page, "worker");
   await page.goto(pedidoDetailUrl);
+  const pedidoId = getPedidoIdFromCurrentUrl(page);
   await expect(
     page.getByRole("heading", { level: 1, name: updatedTitle, exact: true }),
   ).toBeVisible();
@@ -450,7 +639,22 @@ test("assigned worker can read but cannot edit order data", async ({ page }) => 
   await expect(
     page.getByRole("dialog", { name: /^editar pedido$/i }),
   ).toHaveCount(0);
+  const pedidoAssertion = await getPedidoAssertion(supabase, pedidoId);
+  const { error } = await supabase.rpc("actualizar_datos_pedido", {
+    p_pedido_id: pedidoId,
+    p_service_id: pedidoAssertion.service_id ?? "",
+    p_title: pedidoAssertion.title,
+    p_description: pedidoAssertion.description,
+    p_priority: pedidoAssertion.priority,
+    p_estimated_delivery_date: pedidoAssertion.estimated_delivery_date,
+    p_total_amount: 650,
+  });
+
+  expect(error?.message).toContain(
+    "No tienes permiso para actualizar datos de pedidos",
+  );
   await expectNoTechnicalLeakText(page);
+  await signOutQaSupabaseClient(supabase);
 });
 
 test("admin cannot lower total below paid amount and cannot edit closed order", async ({
@@ -459,8 +663,11 @@ test("admin cannot lower total below paid amount and cannot edit closed order", 
   test.setTimeout(120_000);
   test.skip(!pedidoDetailUrl, "Admin setup did not create an order.");
 
+  const supabase = await createQaSupabaseClient("admin");
+
   await loginAs(page, "admin");
   await page.goto(pedidoDetailUrl);
+  const pedidoId = getPedidoIdFromCurrentUrl(page);
   await updatePayment(page, "300");
 
   let editDialog = await openEditDialog(page);
@@ -507,6 +714,24 @@ test("admin cannot lower total below paid amount and cannot edit closed order", 
   await expect(page.getByRole("button", { name: /editar pedido/i })).toHaveCount(
     0,
   );
+  const closedPedido = await getPedidoAssertion(supabase, pedidoId);
+  const { error: closedError } = await supabase.rpc(
+    "actualizar_datos_pedido",
+    {
+      p_pedido_id: pedidoId,
+      p_service_id: closedPedido.service_id ?? "",
+      p_title: updatedTitle,
+      p_description: supervisorDescription,
+      p_priority: closedPedido.priority,
+      p_estimated_delivery_date: closedPedido.estimated_delivery_date,
+      p_total_amount: 700,
+    },
+  );
+
+  expect(closedError?.message).toContain(
+    "No se pueden editar datos de un pedido cerrado",
+  );
   await expect(getWorkspaceRail(page)).toBeVisible();
   await expectNoTechnicalLeakText(page);
+  await signOutQaSupabaseClient(supabase);
 });
