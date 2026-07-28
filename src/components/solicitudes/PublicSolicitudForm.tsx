@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import {
   useActionState,
   useEffect,
@@ -11,19 +12,6 @@ import {
   submitPublicSolicitudAction,
   type SubmitPublicSolicitudActionState,
 } from "@/app/(publico)/solicitud/actions";
-import {
-  PRINT_COLOR_MODE_OPTIONS,
-  PRINT_PAPER_SIZE_OPTIONS,
-  PRINT_SIDES_OPTIONS,
-  type PublicSolicitudField,
-} from "@/lib/solicitudes/public-request-validation";
-import { ENCARGO_SERVICE_TYPE_OPTIONS } from "@/lib/solicitudes/labels";
-import { STORAGE_FILE_INPUT_ACCEPT } from "@/lib/storage/constants";
-import { getTodayDateInputValue } from "@/lib/utils";
-import {
-  WORKFLOW_TYPES,
-  type WorkflowType,
-} from "@/lib/workflow-types";
 import { CopyableCode } from "@/components/common/CopyableCode";
 import {
   Alert,
@@ -36,24 +24,44 @@ import {
   Select,
   Textarea,
 } from "@/components/ui";
+import type { PublicServiceType } from "@/lib/service-types";
+import {
+  PRINT_COLOR_MODE_OPTIONS,
+  PRINT_PAPER_SIZE_OPTIONS,
+  PRINT_SIDES_OPTIONS,
+  type PublicSolicitudField,
+} from "@/lib/solicitudes/public-request-validation";
+import { STORAGE_FILE_INPUT_ACCEPT } from "@/lib/storage/constants";
+import { getTodayDateInputValue } from "@/lib/utils";
+import {
+  WORKFLOW_TYPES,
+  type WorkflowType,
+} from "@/lib/workflow-types";
+
+type PublicSolicitudFormProps = {
+  serviceTypes: PublicServiceType[];
+};
 
 const initialState: SubmitPublicSolicitudActionState = {
   ok: false,
   message: "",
 };
 
-const WORKFLOW_TABS = [
-  {
-    value: WORKFLOW_TYPES.ENCARGO,
+const workflowCopy = {
+  [WORKFLOW_TYPES.ENCARGO]: {
     label: "Encargo personalizado",
-    description: "Diseño, personalización, rotulación u otro trabajo a medida.",
+    description:
+      "Cuéntanos los detalles del trabajo a medida que necesitas preparar.",
   },
-  {
-    value: WORKFLOW_TYPES.IMPRESION,
+  [WORKFLOW_TYPES.IMPRESION]: {
     label: "Impresión",
-    description: "Envía un documento listo para imprimir con sus indicaciones.",
+    description:
+      "Envía un documento listo para imprimir con sus indicaciones.",
   },
-] as const;
+} as const satisfies Record<
+  WorkflowType,
+  { label: string; description: string }
+>;
 
 function getFieldError(
   state: SubmitPublicSolicitudActionState,
@@ -62,27 +70,105 @@ function getFieldError(
   return state.fieldErrors?.[field];
 }
 
-export function PublicSolicitudForm() {
+function getAvailableWorkflows({
+  encargoServices,
+  printService,
+}: {
+  encargoServices: PublicServiceType[];
+  printService?: PublicServiceType;
+}): WorkflowType[] {
+  return [
+    ...(encargoServices.length > 0 ? [WORKFLOW_TYPES.ENCARGO] : []),
+    ...(printService ? [WORKFLOW_TYPES.IMPRESION] : []),
+  ];
+}
+
+function getServiceById(serviceTypes: PublicServiceType[], serviceId?: string) {
+  if (!serviceId) {
+    return undefined;
+  }
+
+  return serviceTypes.find((serviceType) => serviceType.id === serviceId);
+}
+
+export function PublicSolicitudForm({
+  serviceTypes,
+}: PublicSolicitudFormProps) {
+  const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
+  const lastServiceIdErrorRefreshStateRef =
+    useRef<SubmitPublicSolicitudActionState | null>(null);
   const workflowTabRefs = useRef<
-    Record<WorkflowType, HTMLButtonElement | null>
-  >({
-    encargo: null,
-    impresion: null,
-  });
-  const [workflowType, setWorkflowType] = useState<WorkflowType>(
-    WORKFLOW_TYPES.ENCARGO,
+    Partial<Record<WorkflowType, HTMLButtonElement | null>>
+  >({});
+  const encargoServices = serviceTypes.filter(
+    (serviceType) => serviceType.workflowType === WORKFLOW_TYPES.ENCARGO,
   );
+  const printService = serviceTypes.find(
+    (serviceType) => serviceType.workflowType === WORKFLOW_TYPES.IMPRESION,
+  );
+  const availableWorkflows = getAvailableWorkflows({
+    encargoServices,
+    printService,
+  });
   const [state, formAction, pending] = useActionState(
     submitPublicSolicitudAction,
     initialState,
   );
+  const preservedService = getServiceById(
+    serviceTypes,
+    state.values?.service_id,
+  );
+  const initialWorkflow =
+    preservedService?.workflowType ??
+    availableWorkflows[0] ??
+    WORKFLOW_TYPES.ENCARGO;
+  const [workflowType, setWorkflowType] =
+    useState<WorkflowType>(initialWorkflow);
+  const initialEncargoServiceId =
+    preservedService?.workflowType === WORKFLOW_TYPES.ENCARGO
+      ? preservedService.id
+      : encargoServices[0]?.id ?? "";
+  const [selectedEncargoServiceId, setSelectedEncargoServiceId] = useState(
+    initialEncargoServiceId,
+  );
+  const currentWorkflow = availableWorkflows.includes(workflowType)
+    ? workflowType
+    : initialWorkflow;
+  const effectiveSelectedEncargoServiceId = encargoServices.some(
+    (serviceType) => serviceType.id === selectedEncargoServiceId,
+  )
+    ? selectedEncargoServiceId
+    : encargoServices[0]?.id ?? "";
+  const selectedEncargoService =
+    encargoServices.find(
+      (serviceType) => serviceType.id === effectiveSelectedEncargoServiceId,
+    ) ??
+    encargoServices[0] ??
+    null;
+  const activeService =
+    currentWorkflow === WORKFLOW_TYPES.IMPRESION
+      ? printService
+      : selectedEncargoService;
+  const hasTwoWorkflows = availableWorkflows.length > 1;
+  const serviceIdError = getFieldError(state, "service_id");
 
   useEffect(() => {
     if (state.ok) {
       formRef.current?.reset();
     }
   }, [state.ok]);
+
+  useEffect(() => {
+    if (
+      !state.ok &&
+      serviceIdError &&
+      lastServiceIdErrorRefreshStateRef.current !== state
+    ) {
+      lastServiceIdErrorRefreshStateRef.current = state;
+      router.refresh();
+    }
+  }, [router, serviceIdError, state]);
 
   function selectWorkflow(nextWorkflowType: WorkflowType, moveFocus = false) {
     setWorkflowType(nextWorkflowType);
@@ -94,32 +180,32 @@ export function PublicSolicitudForm() {
 
   function handleWorkflowTabKeyDown(
     event: KeyboardEvent<HTMLButtonElement>,
-    currentWorkflowType: WorkflowType,
+    currentTabWorkflowType: WorkflowType,
   ) {
-    let nextWorkflowType: WorkflowType | null = null;
+    const currentIndex = availableWorkflows.indexOf(currentTabWorkflowType);
+    let nextIndex: number | null = null;
 
-    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
-      nextWorkflowType =
-        currentWorkflowType === WORKFLOW_TYPES.ENCARGO
-          ? WORKFLOW_TYPES.IMPRESION
-          : WORKFLOW_TYPES.ENCARGO;
+    if (event.key === "ArrowLeft") {
+      nextIndex =
+        (currentIndex - 1 + availableWorkflows.length) %
+        availableWorkflows.length;
+    } else if (event.key === "ArrowRight") {
+      nextIndex = (currentIndex + 1) % availableWorkflows.length;
     } else if (event.key === "Home") {
-      nextWorkflowType = WORKFLOW_TYPES.ENCARGO;
+      nextIndex = 0;
     } else if (event.key === "End") {
-      nextWorkflowType = WORKFLOW_TYPES.IMPRESION;
+      nextIndex = availableWorkflows.length - 1;
     }
 
-    if (nextWorkflowType) {
+    if (nextIndex !== null) {
       event.preventDefault();
-      selectWorkflow(nextWorkflowType, true);
+      selectWorkflow(availableWorkflows[nextIndex], true);
     }
   }
 
-  const workflowTypeError = getFieldError(state, "workflow_type");
   const nombreError = getFieldError(state, "client_name");
   const telefonoError = getFieldError(state, "client_phone");
   const emailError = getFieldError(state, "client_email");
-  const tipoServicioError = getFieldError(state, "service_type");
   const descripcionError = getFieldError(state, "description");
   const fechaDeseadaError = getFieldError(state, "desired_date");
   const observacionesError = getFieldError(state, "notes");
@@ -128,7 +214,7 @@ export function PublicSolicitudForm() {
   const printPaperSizeError = getFieldError(state, "print_paper_size");
   const printSidesError = getFieldError(state, "print_sides");
   const filesError = getFieldError(state, "files");
-  const isPrintWorkflow = workflowType === WORKFLOW_TYPES.IMPRESION;
+  const isPrintWorkflow = currentWorkflow === WORKFLOW_TYPES.IMPRESION;
   const todayInputDate = getTodayDateInputValue();
   const formKey = state.ok
     ? `success-${state.solicitudId ?? "ok"}`
@@ -191,59 +277,72 @@ export function PublicSolicitudForm() {
 
       <FormSection
         title="¿Qué necesitas?"
-        description="Elige la opción que mejor describe tu solicitud. Ambas llegan al mismo equipo para su revisión."
+        description={
+          hasTwoWorkflows
+            ? "Elige la opción que mejor describe tu solicitud."
+            : workflowCopy[currentWorkflow].description
+        }
         className="border-brand-primary/12"
       >
-        <input type="hidden" name="workflow_type" value={workflowType} />
-        <div
-          role="tablist"
-          aria-label="Tipo de solicitud"
-          aria-describedby={workflowTypeError ? "workflow_type-error" : undefined}
-          className="grid gap-2 rounded-(--radius-card) border border-brand-primary/15 bg-brand-primary-soft p-2 sm:grid-cols-2"
-        >
-          {WORKFLOW_TABS.map((tab) => {
-            const isActive = workflowType === tab.value;
+        {hasTwoWorkflows ? (
+          <div
+            role="tablist"
+            aria-label="Tipo de solicitud"
+            className="grid gap-2 rounded-(--radius-card) border border-brand-primary/15 bg-brand-primary-soft p-2 sm:grid-cols-2"
+          >
+            {availableWorkflows.map((availableWorkflow) => {
+              const tab = workflowCopy[availableWorkflow];
+              const isActive = currentWorkflow === availableWorkflow;
 
-            return (
-              <button
-                key={tab.value}
-                ref={(element) => {
-                  workflowTabRefs.current[tab.value] = element;
-                }}
-                id={`workflow-tab-${tab.value}`}
-                type="button"
-                role="tab"
-                aria-selected={isActive}
-                aria-controls={`workflow-panel-${tab.value}`}
-                tabIndex={isActive ? 0 : -1}
-                disabled={pending}
-                onClick={() => selectWorkflow(tab.value)}
-                onKeyDown={(event) =>
-                  handleWorkflowTabKeyDown(event, tab.value)
-                }
-                className={[
-                  "min-h-24 cursor-pointer rounded-(--radius-control) border px-4 py-3 text-left transition-[background-color,border-color,box-shadow,color] duration-200 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-60",
-                  isActive
-                    ? "border-brand-primary bg-brand-primary text-white shadow-(--shadow-soft)"
-                    : "border-transparent bg-surface text-text-primary hover:border-brand-primary/35 hover:bg-surface-raised",
-                ].join(" ")}
-              >
-                <span className="block text-sm font-semibold">{tab.label}</span>
-                <span
+              return (
+                <button
+                  key={availableWorkflow}
+                  ref={(element) => {
+                    workflowTabRefs.current[availableWorkflow] = element;
+                  }}
+                  id={`workflow-tab-${availableWorkflow}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  aria-controls={`workflow-panel-${availableWorkflow}`}
+                  tabIndex={isActive ? 0 : -1}
+                  disabled={pending}
+                  onClick={() => selectWorkflow(availableWorkflow)}
+                  onKeyDown={(event) =>
+                    handleWorkflowTabKeyDown(event, availableWorkflow)
+                  }
                   className={[
-                    "mt-1 block text-sm leading-5",
-                    isActive ? "text-white/80" : "text-text-secondary",
+                    "min-h-24 cursor-pointer rounded-(--radius-control) border px-4 py-3 text-left transition-[background-color,border-color,box-shadow,color] duration-200 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-60",
+                    isActive
+                      ? "border-brand-primary bg-brand-primary text-white shadow-(--shadow-soft)"
+                      : "border-transparent bg-surface text-text-primary hover:border-brand-primary/35 hover:bg-surface-raised",
                   ].join(" ")}
                 >
-                  {tab.description}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-        {workflowTypeError ? (
-          <FieldError id="workflow_type-error">{workflowTypeError}</FieldError>
-        ) : null}
+                  <span className="block text-sm font-semibold">
+                    {tab.label}
+                  </span>
+                  <span
+                    className={[
+                      "mt-1 block text-sm leading-5",
+                      isActive ? "text-white/80" : "text-text-secondary",
+                    ].join(" ")}
+                  >
+                    {tab.description}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="rounded-(--radius-card) border border-brand-primary/15 bg-brand-primary-soft p-4">
+            <p className="text-sm font-semibold text-text-primary">
+              {workflowCopy[currentWorkflow].label}
+            </p>
+            <p className="mt-1 text-sm leading-6 text-text-secondary">
+              {workflowCopy[currentWorkflow].description}
+            </p>
+          </div>
+        )}
       </FormSection>
 
       <FormSection
@@ -315,17 +414,27 @@ export function PublicSolicitudForm() {
       </FormSection>
 
       <div
-        id={`workflow-panel-${workflowType}`}
-        role="tabpanel"
-        aria-labelledby={`workflow-tab-${workflowType}`}
+        id={`workflow-panel-${currentWorkflow}`}
+        role={hasTwoWorkflows ? "tabpanel" : undefined}
+        aria-labelledby={
+          hasTwoWorkflows ? `workflow-tab-${currentWorkflow}` : undefined
+        }
         className="space-y-6"
       >
-        {isPrintWorkflow ? (
+        {isPrintWorkflow && printService ? (
           <FormSection
             title="2. Datos de impresión"
             description="Indica cómo debemos preparar el documento. Confirmaremos contigo cualquier detalle antes de producirlo."
             className="border-brand-primary/12"
           >
+            <input type="hidden" name="service_id" value={printService.id} />
+            {serviceIdError ? (
+              <div className="mb-5">
+                <FieldError id="service_id-error">
+                  {serviceIdError}
+                </FieldError>
+              </div>
+            ) : null}
             <div className="grid gap-5 sm:grid-cols-2">
               <FormField
                 id="print_copies"
@@ -451,7 +560,7 @@ export function PublicSolicitudForm() {
               </FormField>
             </div>
           </FormSection>
-        ) : (
+        ) : selectedEncargoService ? (
           <FormSection
             title="2. Detalles del encargo"
             description="No necesitas tenerlo todo decidido. Comparte lo que sabes y aclararemos el resto contigo."
@@ -459,26 +568,26 @@ export function PublicSolicitudForm() {
           >
             <div className="grid gap-5 sm:grid-cols-2">
               <FormField
-                id="service_type"
-                label="Tipo de servicio"
+                id="service_id"
+                label="Servicio"
                 required
-                error={tipoServicioError}
+                error={serviceIdError}
               >
                 {({ describedBy, invalid }) => (
                   <Select
-                    id="service_type"
-                    name="service_type"
+                    id="service_id"
+                    name="service_id"
                     required
                     invalid={invalid}
                     aria-describedby={describedBy}
-                    defaultValue={state.values?.service_type ?? ""}
+                    value={selectedEncargoService.id}
+                    onChange={(event) =>
+                      setSelectedEncargoServiceId(event.target.value)
+                    }
                   >
-                    <option value="" disabled>
-                      Selecciona una opción
-                    </option>
-                    {ENCARGO_SERVICE_TYPE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
+                    {encargoServices.map((serviceType) => (
+                      <option key={serviceType.id} value={serviceType.id}>
+                        {serviceType.name}
                       </option>
                     ))}
                   </Select>
@@ -545,7 +654,7 @@ export function PublicSolicitudForm() {
               </FormField>
             </div>
           </FormSection>
-        )}
+        ) : null}
 
         <FormSection
           title={
@@ -590,7 +699,6 @@ export function PublicSolicitudForm() {
                 name="files"
                 type="file"
                 multiple
-                required={isPrintWorkflow}
                 accept={STORAGE_FILE_INPUT_ACCEPT}
                 invalid={invalid}
                 aria-describedby={describedBy}
@@ -621,7 +729,7 @@ export function PublicSolicitudForm() {
           <Button
             type="submit"
             size="lg"
-            disabled={pending}
+            disabled={pending || !activeService}
             className="w-full shadow-(--shadow-soft) sm:w-auto sm:min-w-56"
           >
             {pending ? "Enviando solicitud..." : "Enviar solicitud"}

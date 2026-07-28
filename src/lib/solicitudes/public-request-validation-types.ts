@@ -23,11 +23,10 @@ export type PrintPaperSize = (typeof PRINT_PAPER_SIZE_OPTIONS)[number]["value"];
 export type PrintSides = (typeof PRINT_SIDES_OPTIONS)[number]["value"];
 
 export type PublicSolicitudInput = {
-  workflow_type?: unknown;
+  service_id?: unknown;
   client_name?: unknown;
   client_phone?: unknown;
   client_email?: unknown;
-  service_type?: unknown;
   description?: unknown;
   desired_date?: unknown;
   notes?: unknown;
@@ -35,19 +34,26 @@ export type PublicSolicitudInput = {
   print_color_mode?: unknown;
   print_paper_size?: unknown;
   print_sides?: unknown;
-  files?: unknown;
+  hasFiles: boolean;
+};
+
+export type PublicSolicitudResolvedService = {
+  id: string;
+  name: string;
+  workflowType: WorkflowType;
 };
 
 export type PublicSolicitudCommonData = {
+  service_id: string;
   client_name: string;
   client_phone: string;
   client_email: string | null;
   workflow_type: WorkflowType;
+  service_type: string;
 };
 
 export type PublicEncargoSolicitudData = PublicSolicitudCommonData & {
   workflow_type: typeof WORKFLOW_TYPES.ENCARGO;
-  service_type: string;
   description: string;
   desired_date: string | null;
   notes: string | null;
@@ -55,7 +61,6 @@ export type PublicEncargoSolicitudData = PublicSolicitudCommonData & {
 
 export type PublicImpresionSolicitudData = PublicSolicitudCommonData & {
   workflow_type: typeof WORKFLOW_TYPES.IMPRESION;
-  service_type: "Impresion";
   description: string;
   desired_date: null;
   notes: string | null;
@@ -69,7 +74,7 @@ export type PublicSolicitudData =
   | PublicEncargoSolicitudData
   | PublicImpresionSolicitudData;
 
-export type PublicSolicitudField = keyof PublicSolicitudInput;
+export type PublicSolicitudField = keyof PublicSolicitudInput | "files";
 
 export type PublicSolicitudFieldErrors = Partial<
   Record<PublicSolicitudField, string>
@@ -85,7 +90,6 @@ export const PUBLIC_SOLICITUD_FIELD_LIMITS = {
   client_name: 120,
   client_phone: 40,
   client_email: 254,
-  service_type: 120,
   description: 2000,
   notes: 1000,
   print_copies: 10000,

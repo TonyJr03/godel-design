@@ -10,6 +10,64 @@ El objetivo es dejar documentado el flujo actual, los datos que se guardan, las
 validaciones aplicadas, las decisiones técnicas tomadas y lo que queda pendiente
 para fases posteriores.
 
+## Actualizacion Etapa 3: catalogo configurable
+
+Desde la Etapa 3, `/solicitud` ya no usa opciones hardcodeadas para servicios
+nuevos. La pagina carga server-side `tipos_servicio` mediante
+`listPublicServiceTypes()` y solo renderiza servicios con
+`is_publicly_available = true`.
+
+Matriz de visibilidad del catalogo:
+
+- `anon`: solo servicios publicos.
+- `authenticated` sin perfil interno activo: solo servicios publicos.
+- `authenticated` con perfil interno activo: servicios publicos por la politica
+  publica y catalogo completo por la politica interna.
+
+Reglas de disponibilidad:
+
+- Encargo aparece solo si existe al menos un servicio publico con
+  `workflow_type = encargo`.
+- Impresion aparece solo si el servicio unico de `workflow_type = impresion`
+  esta publico.
+- Si no hay servicios publicos, no se renderiza el formulario y se muestra un
+  estado publico seguro.
+- Si falla la lectura del catalogo, no se asumen servicios hardcodeados y se
+  muestra un estado reintentable.
+
+Nuevo contrato de entrada publica:
+
+- El formulario envia `service_id`.
+- El formulario no envia `workflow_type` ni `service_type` como fuente de
+  verdad.
+- La Server Action calcula `hasFiles` desde `files.length > 0`.
+- `createPublicSolicitud` resuelve `service_id` con
+  `getPublicServiceTypeById()`, filtrando explicitamente
+  `is_publicly_available = true`.
+- El servidor valida los campos segun el workflow resuelto desde el servicio.
+- Impresion exige archivo con base en `hasFiles`, no en un workflow enviado por
+  el cliente.
+
+Insercion en `solicitudes`:
+
+- `service_id` guarda el servicio resuelto.
+- `service_type` sigue presente temporalmente por compatibilidad expand y guarda
+  el nombre resuelto del servicio.
+- `workflow_type` se deriva del servicio y el trigger de base lo sincroniza de
+  nuevo desde `service_id`.
+
+RLS de defensa en profundidad:
+
+- `solicitudes_insert_public` aplica a `anon` y `authenticated`.
+- Exige `service_id is not null`.
+- Exige que el servicio exista, este publico y coincida con `workflow_type` y
+  `service_type`.
+- Un servicio oculto o una combinacion manipulada no puede crear solicitud.
+
+Pedidos todavia no esta integrado con el catalogo configurable en alta manual,
+conversion, edicion o filtros. La migracion expand sigue abierta: `service_type`
+no se elimina y `service_id` aun no se contrae a `NOT NULL`.
+
 ## Alcance actual
 
 El flujo actual permite:
@@ -36,9 +94,12 @@ Todavía no incluye:
 
 ## Tipo de flujo operativo
 
-`/solicitud` permite elegir mediante pestañas entre `Encargo personalizado` e
-`Impresión`. Ambas variantes crean registros en la misma tabla `solicitudes`;
-la diferencia formal se guarda en `workflow_type`.
+`/solicitud` carga el catálogo público desde `tipos_servicio`. Cuando hay
+servicios públicos de Encargo e Impresión disponibles, permite elegir mediante
+pestañas entre ambos workflows. Si solo hay uno disponible, muestra solamente
+esa variante. Todas las variantes crean registros en la misma tabla
+`solicitudes`; la diferencia formal se guarda en `workflow_type`, derivado
+server-side desde el servicio resuelto.
 
 `encargo` representa trabajos personalizados o complejos y conserva el
 formulario general. `impresion` representa trabajos directos de impresión,
@@ -60,11 +121,10 @@ impresión en esta subfase.
 
 | Campo | Requerido | Descripción |
 |---|---|---|
-| `workflow_type` | Sí | Variante validada: `encargo` o `impresion` |
+| `service_id` | Sí | Servicio público seleccionado |
 | `client_name` | Sí | Nombre del cliente o negocio |
 | `client_phone` | Sí | Teléfono de contacto |
 | `client_email` | No | Correo opcional |
-| `service_type` | En encargo | Tipo de trabajo solicitado |
 | `description` | En encargo | Descripción del encargo, incluyendo cantidades, medidas o requisitos cuando apliquen |
 | `desired_date` | No | Fecha deseada del encargo; si se informa debe ser igual o posterior al día actual |
 | `print_copies` | En impresión | Cantidad entera entre 1 y 10000 |
@@ -84,6 +144,8 @@ crear una columna nueva.
 El formulario público no envía:
 
 - `id`
+- `workflow_type`
+- `service_type`
 - `public_reference`
 - `status`
 - `cliente_id`
@@ -104,10 +166,13 @@ Reglas generales:
 - `client_name` es requerido.
 - `client_phone` es requerido.
 - `client_email` es opcional, pero si existe debe tener formato básico válido.
-- `workflow_type` es requerido y solo admite `encargo` o `impresion`.
-- En encargos, `service_type` y `description` son requeridos.
+- `service_id` es requerido y debe resolver a un servicio público vigente.
+- El workflow se recibe desde el servicio resuelto, no desde el formulario.
+- En encargos, `description` es requerido.
 - En impresiones, cantidad, color, papel, caras y al menos un archivo son
   requeridos.
+- El requisito de archivo en impresiones se valida con `hasFiles`, calculado en
+  servidor desde `files.length > 0`.
 - La descripción de impresión se construye en servidor y no se acepta como
   fuente de verdad desde un campo oculto del cliente.
 - `desired_date` es opcional, pero debe ser válida e igual o posterior al día
@@ -121,7 +186,8 @@ La validación de `desired_date` usa los helpers de fecha de
 el día actual local. Trabaja con valores `YYYY-MM-DD` de inputs HTML y evita
 convertir a UTC con `toISOString()`.
 
-`service_type` funciona como referencia inicial del cliente; el detalle real del trabajo vive en `description` y, si hace falta, en `notes`.
+`service_type` queda como campo temporal de compatibilidad expand y guarda el
+nombre resuelto del catálogo. El cliente no lo envía como autoridad.
 
 No se usan dependencias externas para esta validación.
 
@@ -129,14 +195,13 @@ No se usan dependencias externas para esta validación.
 
 El formulario usa:
 
-- `src/app/solicitud/actions.ts`
+- `src/app/(publico)/solicitud/actions.ts`
 
 La Server Action:
 
 - Recibe `FormData`.
 - Convierte los campos del formulario en input controlado.
-- Valida `workflow_type` como input no confiable.
-- Exige al menos un archivo antes de crear una solicitud de impresión.
+- Calcula `hasFiles` desde la lista real de archivos válidos.
 - No lee ni devuelve `quantity`.
 - Llama al servicio de creación.
 - Devuelve errores controlados para la UI.
@@ -155,8 +220,11 @@ El servicio está en:
 Responsabilidades:
 
 - Validar el input recibido.
+- Resolver `service_id` mediante `getPublicServiceTypeById()`.
+- Rechazar servicios inexistentes, inválidos u ocultos públicamente.
 - Crear la solicitud en Supabase.
-- Guardar `workflow_type` según la variante validada.
+- Guardar `service_id`, `service_type` con el nombre resuelto y
+  `workflow_type` derivado del servicio.
 - Construir server-side la descripción estructurada para impresiones.
 - Insertar el detalle del trabajo sin agregar columnas específicas de
   impresión.
@@ -302,14 +370,18 @@ Si la solicitud se convierte en pedido, los archivos se heredan por metadatos: s
 ## Flujo Funcional Actual
 
 1. Cliente entra a `/solicitud`.
-2. Elige `Encargo personalizado` o `Impresión`.
-3. Completa los campos de la variante seleccionada.
+2. La página carga los servicios públicos desde el catálogo.
+3. El cliente elige un servicio público disponible; si hay dos workflows,
+   también puede alternar entre Encargo e Impresión.
 4. El componente cliente llama a la Server Action.
-5. La action convierte `FormData` en input y valida los archivos.
-6. El servicio valida los datos y construye la descripción de impresión cuando aplica.
-7. El servicio inserta la solicitud con estado `nueva`.
+5. La action convierte `FormData` en input, valida los archivos recibidos y
+   calcula `hasFiles`.
+6. El servicio resuelve `service_id`, valida los datos según el workflow real y
+   construye la descripción de impresión cuando aplica.
+7. El servicio inserta la solicitud con `service_id`, `service_type`,
+   `workflow_type` y estado `nueva`.
 8. La base de datos registra `solicitud_creada` en el historial interno.
-9. Si hay archivos, la action los valida, sube al bucket privado y registra metadatos.
+9. Si hay archivos, la action los sube al bucket privado y registra metadatos.
 10. La base de datos registra `archivos_adjuntados` por cada archivo aceptado.
 11. La UI muestra éxito, el `public_reference` con opción de copiar y la
     cantidad de archivos recibidos.

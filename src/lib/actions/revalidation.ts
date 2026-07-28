@@ -29,6 +29,7 @@ export function revalidateTaskTemplatesList() {
 export function revalidateServiceTypesAdmin() {
   revalidatePath("/dashboard/configuracion");
   revalidatePath("/dashboard/configuracion/servicios");
+  revalidatePath("/solicitud");
 }
 
 export function revalidateTaskTemplateDetail(templateId: string) {

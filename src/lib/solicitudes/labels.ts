@@ -8,11 +8,6 @@ export const SOLICITUD_SERVICE_TYPE_OPTIONS = [
   { value: "Otro", label: "Otro" },
 ] as const;
 
-export const ENCARGO_SERVICE_TYPE_OPTIONS =
-  SOLICITUD_SERVICE_TYPE_OPTIONS.filter(
-    (option) => option.value !== "Impresion",
-  );
-
 export const SOLICITUD_SERVICE_TYPE_LABELS: Record<string, string> = {
   Impresion: "Impresión",
   impresion: "Impresión",

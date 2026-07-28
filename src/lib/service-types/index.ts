@@ -7,12 +7,17 @@ export {
   type ListInternalServiceTypesResult,
 } from "./list-internal-service-types";
 export {
+  getPublicServiceTypeById,
+  type GetPublicServiceTypeByIdResult,
+} from "./get-public-service-type-by-id";
+export {
   listPublicServiceTypes,
   type ListPublicServiceTypesResult,
 } from "./list-public-service-types";
 export type {
   CreateServiceTypeErrorReason,
   CreateServiceTypeInput,
+  GetPublicServiceTypeByIdErrorReason,
   InternalServiceType,
   ListInternalServiceTypesData,
   ListInternalServiceTypesErrorReason,

@@ -35,7 +35,7 @@ La conversion Solicitud -> Pedido se dispara desde el detalle interno de una sol
 | `create-public-solicitud.ts` | Crea solicitudes publicas, genera `public_reference`, inserta con cliente normal de Supabase y devuelve resultado seguro. |
 | `public-request-validation.ts` | Orquesta la validacion publica y delega reglas comunes o por workflow. |
 | `public-request-validation-types.ts` | Tipos, opciones y limites del formulario publico. |
-| `public-request-validation-common.ts` | Normalizacion y validacion comun de contacto, workflow y campos compartidos. |
+| `public-request-validation-common.ts` | Normalizacion y validacion comun de contacto y campos compartidos. |
 | `public-request-validation-encargo.ts` | Reglas y DTO para solicitudes de encargo personalizado. |
 | `public-request-validation-impresion.ts` | Reglas, opciones y descripcion server-side para solicitudes de impresion. |
 | `types.ts` | DTOs internos del dominio, como `InternalSolicitud` e `InternalSolicitudDetail`. |
@@ -56,15 +56,35 @@ La conversion Solicitud -> Pedido se dispara desde el detalle interno de una sol
 
 `/solicitud` renderiza `PublicSolicitudForm` y usa `src/app/(publico)/solicitud/actions.ts` como Server Action publica. El componente cliente solo maneja interaccion, tabs, inputs, archivos seleccionados y mensajes; no consulta Supabase.
 
+La pagina carga server-side el catalogo desde `tipos_servicio` mediante
+`listPublicServiceTypes()`. Solo se muestran servicios con
+`is_publicly_available = true`: Encargo aparece si existe al menos un servicio
+publico de flujo `encargo`, e Impresion aparece solo si el servicio unico de
+flujo `impresion` esta publico. Si no hay servicios publicos o el catalogo no
+puede cargarse, no se renderiza el formulario.
+
 La action publica:
 
 - lee solo campos permitidos desde `FormData`;
+- recibe `service_id` como entrada editable;
 - pre-valida archivos cuando aplica;
+- calcula `hasFiles` desde los archivos recibidos;
 - llama `createPublicSolicitud`;
 - coordina la subida de archivos publicos de solicitud;
 - devuelve mensajes seguros para la UI.
 
-La validacion definitiva ocurre server-side. El formulario no acepta como fuente de verdad campos tecnicos como `id`, `status`, `cliente_id`, `reviewed_by`, `converted_order_id`, `bucket`, `file_path` o `uploaded_by`.
+La validacion definitiva ocurre server-side. El formulario no acepta como fuente
+de verdad campos tecnicos como `id`, `status`, `cliente_id`, `reviewed_by`,
+`converted_order_id`, `workflow_type`, `service_type`, `bucket`, `file_path` o
+`uploaded_by`.
+
+`createPublicSolicitud` resuelve el servicio mediante
+`getPublicServiceTypeById(service_id)` antes de validar el workflow. Un servicio
+oculto, inexistente o con UUID invalido se rechaza como error de `service_id`.
+Las solicitudes nuevas insertan `service_id`, guardan `service_type` como nombre
+resuelto temporal para compatibilidad expand y guardan `workflow_type` derivado
+del servicio. El trigger de base de datos vuelve a sincronizar `workflow_type`
+desde `service_id` como defensa adicional.
 
 `desired_date` es opcional; si se informa debe ser una fecha valida igual o posterior al dia actual. El `min` del formulario es ayuda de UX, no autoridad. Las pruebas e2e deben usar fechas futuras dinamicas.
 

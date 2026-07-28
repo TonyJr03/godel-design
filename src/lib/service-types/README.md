@@ -8,8 +8,9 @@ asociados tanto a `solicitudes` como a `pedidos`.
 
 Esta etapa implementa el estado expand: `solicitudes.service_id` y
 `pedidos.service_id` existen como columnas nullable, mientras
-`solicitudes.service_type` sigue presente temporalmente y continua siendo el
-campo usado por la aplicacion vigente.
+`solicitudes.service_type` sigue presente temporalmente para compatibilidad
+expand. Las solicitudes publicas nuevas ya envian `service_id`; el servidor
+resuelve nombre y `workflow_type` desde `tipos_servicio`.
 
 ## Disponibilidad publica y uso interno
 
@@ -20,6 +21,13 @@ para uso interno, historico y operativo.
 El listado publico filtra explicitamente por `is_publicly_available = true` para
 no depender solo de RLS cuando una persona interna visita una ruta publica con
 sesion activa.
+
+La matriz vigente es:
+
+- `anon`: lee solo servicios publicos.
+- `authenticated` sin perfil interno activo: lee solo servicios publicos.
+- `authenticated` con perfil interno activo: lee servicios publicos por la
+  politica publica y todos los servicios por la politica interna.
 
 ## workflow_type
 
@@ -39,6 +47,9 @@ se modela con `is_publicly_available = false`, no eliminando la fila.
 
 - `listPublicServiceTypes()`: devuelve servicios publicamente disponibles sin
   requerir autenticacion.
+- `getPublicServiceTypeById()`: resuelve server-side un servicio publico por
+  UUID, filtrando `is_publicly_available = true`; se usa para crear solicitudes
+  publicas sin confiar en datos enviados por el cliente.
 - `listInternalServiceTypes()`: requiere perfil interno activo y
   `configuracion.view`; devuelve servicios publicos y ocultos con busqueda,
   filtro de disponibilidad publica, paginacion interna y conteo global de

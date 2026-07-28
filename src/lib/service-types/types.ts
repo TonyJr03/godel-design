@@ -80,6 +80,11 @@ export type ValidServiceTypeInput = {
 
 export type ListPublicServiceTypesErrorReason = "error";
 
+export type GetPublicServiceTypeByIdErrorReason =
+  | "invalid_id"
+  | "not_found"
+  | "error";
+
 export type ListInternalServiceTypesErrorReason =
   | "unauthorized"
   | "forbidden"
