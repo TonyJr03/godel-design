@@ -410,7 +410,7 @@ export type Database = {
           order_number: string
           priority: Database["public"]["Enums"]["pedido_prioridad"]
           public_reference: string
-          service_id: string | null
+          service_id: string
           solicitud_id: string | null
           status: Database["public"]["Enums"]["pedido_estado"]
           title: string
@@ -428,7 +428,7 @@ export type Database = {
           order_number?: string
           priority?: Database["public"]["Enums"]["pedido_prioridad"]
           public_reference?: string
-          service_id?: string | null
+          service_id: string
           solicitud_id?: string | null
           status?: Database["public"]["Enums"]["pedido_estado"]
           title: string
@@ -446,7 +446,7 @@ export type Database = {
           order_number?: string
           priority?: Database["public"]["Enums"]["pedido_prioridad"]
           public_reference?: string
-          service_id?: string | null
+          service_id?: string
           solicitud_id?: string | null
           status?: Database["public"]["Enums"]["pedido_estado"]
           title?: string
@@ -621,8 +621,7 @@ export type Database = {
           notes: string | null
           public_reference: string
           reviewed_by: string | null
-          service_id: string | null
-          service_type: string
+          service_id: string
           status: Database["public"]["Enums"]["solicitud_estado"]
           updated_at: string
           workflow_type: Database["public"]["Enums"]["workflow_type"]
@@ -640,8 +639,7 @@ export type Database = {
           notes?: string | null
           public_reference?: string
           reviewed_by?: string | null
-          service_id?: string | null
-          service_type: string
+          service_id: string
           status?: Database["public"]["Enums"]["solicitud_estado"]
           updated_at?: string
           workflow_type?: Database["public"]["Enums"]["workflow_type"]
@@ -659,8 +657,7 @@ export type Database = {
           notes?: string | null
           public_reference?: string
           reviewed_by?: string | null
-          service_id?: string | null
-          service_type?: string
+          service_id?: string
           status?: Database["public"]["Enums"]["solicitud_estado"]
           updated_at?: string
           workflow_type?: Database["public"]["Enums"]["workflow_type"]
@@ -880,7 +877,7 @@ export type Database = {
           order_number: string
           priority: Database["public"]["Enums"]["pedido_prioridad"]
           public_reference: string
-          service_id: string | null
+          service_id: string
           solicitud_id: string | null
           status: Database["public"]["Enums"]["pedido_estado"]
           title: string
@@ -912,8 +909,7 @@ export type Database = {
           notes: string | null
           public_reference: string
           reviewed_by: string | null
-          service_id: string | null
-          service_type: string
+          service_id: string
           status: Database["public"]["Enums"]["solicitud_estado"]
           updated_at: string
           workflow_type: Database["public"]["Enums"]["workflow_type"]
@@ -990,7 +986,7 @@ export type Database = {
           order_number: string
           priority: Database["public"]["Enums"]["pedido_prioridad"]
           public_reference: string
-          service_id: string | null
+          service_id: string
           solicitud_id: string | null
           status: Database["public"]["Enums"]["pedido_estado"]
           title: string
