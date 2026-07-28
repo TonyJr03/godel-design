@@ -153,6 +153,7 @@ export default async function DashboardSolicitudDetallePage({
         conversionPanelContent={
           <SolicitudConvertPedidoForm
             convertAction={convertAction}
+            retryHref={`/dashboard/solicitudes/${solicitudId}`}
             status={result.solicitud.status}
             clienteId={result.solicitud.cliente_id}
             convertedOrderId={result.solicitud.converted_order_id}

@@ -54,7 +54,7 @@ const initialState: CreatePedidoActionState = {
 
 const WORKFLOW_TAB_LABELS: Record<WorkflowType, string> = {
   [WORKFLOW_TYPES.ENCARGO]: "Encargo",
-  [WORKFLOW_TYPES.IMPRESION]: "Impresion",
+  [WORKFLOW_TYPES.IMPRESION]: "Impresión",
 };
 
 function getFieldError(state: CreatePedidoActionState, field: PedidoField) {
@@ -286,10 +286,10 @@ export function PedidoForm({
                   <span className="font-semibold text-text-primary">
                     Servicio:
                   </span>{" "}
-                  {printService?.name ?? "Impresion"}
+                  {printService?.name ?? "Impresión"}
                   {printService && !printService.isPubliclyAvailable ? (
                     <span className="ml-1 text-text-muted">
-                      Oculto publicamente
+                      Oculto públicamente
                     </span>
                   ) : null}
                 </p>
@@ -328,7 +328,7 @@ export function PedidoForm({
                         {serviceType.name}
                         {serviceType.isPubliclyAvailable
                           ? ""
-                          : " - Oculto publicamente"}
+                          : " - Oculto públicamente"}
                       </option>
                     ))}
                   </Select>

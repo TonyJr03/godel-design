@@ -29,6 +29,7 @@ import type { Enums } from "@/types/database";
 
 type SolicitudConvertPedidoFormProps = {
   convertAction: SolicitudDetailAction<ConvertSolicitudToPedidoActionState>;
+  retryHref: string;
   status: Enums<"solicitud_estado">;
   clienteId: string | null;
   convertedOrderId: string | null;
@@ -51,6 +52,7 @@ const initialState: ConvertSolicitudToPedidoActionState = {
 
 export function SolicitudConvertPedidoForm({
   convertAction,
+  retryHref,
   status,
   clienteId,
   convertedOrderId,
@@ -99,6 +101,9 @@ export function SolicitudConvertPedidoForm({
   const serviceTypeLabel = getSolicitudServiceTypeLabel(serviceType);
   const todayInputDate = getTodayDateInputValue();
   const isPanel = presentation === "panel";
+  const serviceSelectErrorId = serviceIdError
+    ? "convert-service-id-error"
+    : undefined;
 
   return (
     <section
@@ -163,6 +168,12 @@ export function SolicitudConvertPedidoForm({
           className={isPanel ? "" : "mt-4"}
         >
           <p>{serviceTypesLoadError}</p>
+          <Link
+            href={retryHref}
+            className="mt-2 inline-flex min-h-10 items-center text-sm font-semibold text-brand-primary underline underline-offset-4"
+          >
+            Reintentar
+          </Link>
         </Alert>
       ) : !defaultService ? (
         <Alert
@@ -185,15 +196,19 @@ export function SolicitudConvertPedidoForm({
           </div>
 
           <section
-            aria-labelledby="convert-service-title"
+            aria-labelledby={
+              isPrintWorkflow ? "convert-service-title" : undefined
+            }
             className="border-t border-border pt-5"
           >
-            <h3
-              id="convert-service-title"
-              className="text-base font-semibold text-text-primary"
-            >
-              Servicio del pedido
-            </h3>
+            {isPrintWorkflow ? (
+              <h3
+                id="convert-service-title"
+                className="text-base font-semibold text-text-primary"
+              >
+                Servicio del pedido
+              </h3>
+            ) : null}
 
             {isPrintWorkflow ? (
               <div className="mt-4 rounded-(--radius-control) border border-border bg-surface-muted px-4 py-3 text-sm leading-6 text-text-secondary">
@@ -222,35 +237,42 @@ export function SolicitudConvertPedidoForm({
                 ) : null}
               </div>
             ) : (
-              <FormField
-                id="service_id"
-                label="Servicio"
-                required
-                error={serviceIdError}
-                errorId="convert-service-id-error"
-                className="mt-4"
-                compact
-              >
-                {({ describedBy, invalid }) => (
-                  <Select
-                    id="service_id"
-                    name="service_id"
-                    required
-                    defaultValue={selectedServiceId}
-                    invalid={invalid}
-                    aria-describedby={describedBy}
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="service_id"
+                  className="text-base font-semibold text-text-primary"
+                >
+                  Servicio del pedido
+                  <span className="ml-1 text-danger" aria-hidden="true">
+                    *
+                  </span>
+                </label>
+                <Select
+                  id="service_id"
+                  name="service_id"
+                  required
+                  defaultValue={selectedServiceId}
+                  invalid={Boolean(serviceIdError)}
+                  aria-describedby={serviceSelectErrorId}
+                >
+                  {workflowServices.map((service) => (
+                    <option key={service.id} value={service.id}>
+                      {service.name}
+                      {service.isPubliclyAvailable
+                        ? ""
+                        : " - Oculto públicamente"}
+                    </option>
+                  ))}
+                </Select>
+                {serviceIdError ? (
+                  <p
+                    id="convert-service-id-error"
+                    className="text-sm font-medium leading-5 text-danger"
                   >
-                    {workflowServices.map((service) => (
-                      <option key={service.id} value={service.id}>
-                        {service.name}
-                        {service.isPubliclyAvailable
-                          ? ""
-                          : " - Oculto publicamente"}
-                      </option>
-                    ))}
-                  </Select>
-                )}
-              </FormField>
+                    {serviceIdError}
+                  </p>
+                ) : null}
+              </div>
             )}
           </section>
 
