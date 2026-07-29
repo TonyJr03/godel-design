@@ -84,8 +84,8 @@ export function PedidoTasksPreview({
         </ReadErrorAlert>
       ) : (
         <>
-          <div className="mt-5 shrink-0">
-            <PedidoProgressBar {...progress} />
+          <div className="mt-4 shrink-0">
+            <PedidoProgressBar {...progress} presentation="inline" />
           </div>
 
           <div className="mt-5 min-h-0 xl:flex-1 xl:overflow-y-auto xl:overscroll-contain">
