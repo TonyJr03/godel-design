@@ -114,17 +114,28 @@ drift en el calculo de progreso de tareas.
 
 ## Actividad Reciente
 
-`admin` y `supervisor` ven actividad reciente de pedidos y solicitudes.
+`admin` y `supervisor` ven actividad reciente combinada de pedidos y
+solicitudes. El historial usa una ventana movil de 7 dias exactos, calculada
+como 168 horas desde el instante de carga. Si existen 20 o mas eventos
+accesibles dentro de esa ventana, se devuelven todos. Si hay menos de 20, se
+completa con los eventos anteriores mas recientes hasta llegar a 20 cuando
+existan. Si existen menos de 20 eventos totales, se muestra todo lo disponible.
 
 `trabajador` ve unicamente actividad reciente de pedidos accesibles por RLS, es
-decir, pedidos asignados.
+decir, pedidos asignados. No recibe historial de solicitudes ni actividad de
+pedidos no accesibles.
 
 El tablero de trabajador aplica la misma separacion entre conteos exactos y
 previews limitados, pero todo conteo y candidato se filtra server-side con
 `pedido_trabajadores.assigned_profile_id = perfil actual`. RLS sigue siendo la
 defensa final y el trabajador no recibe pedidos no asignados.
 
-`get-dashboard-activity.ts` conserva queries, limites, orden y reglas por rol.
+`get-dashboard-activity.ts` pagina server-side la actividad semanal por rangos
+tecnicos para evitar limites silenciosos de PostgREST. Las consultas de respaldo
+solo se ejecutan cuando la ventana semanal tiene menos de 20 eventos y se
+limitan a los 20 eventos mas recientes por fuente. No hay paginacion visual en
+esta etapa: el panel contextual usa su scroll interno.
+
 `activity-mappers.ts` transforma rows de historial a DTOs visibles mediante
 allowlist. Puede convertir a texto campos controlados como `file_name`, `title`,
 `client_name`, `pedido_numero` y `order_number`, pero no entrega metadata cruda

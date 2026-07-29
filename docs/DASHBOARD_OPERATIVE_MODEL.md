@@ -234,6 +234,30 @@ En el dashboard de trabajador, los conteos y previews del tablero usan el mismo
 contrato pero se filtran server-side por `pedido_trabajadores.assigned_profile_id`
 del perfil actual, manteniendo RLS como defensa final.
 
+El historial del dashboard usa una ventana movil exacta de 7 dias, equivalente
+a 168 horas desde el instante de carga. Para `admin` y `supervisor` combina
+eventos de `pedido_historial` y `solicitud_historial`, deduplica por el
+identificador seguro del DTO y ordena globalmente de mas reciente a mas antiguo.
+Para `trabajador` usa solo `pedido_historial` accesible por RLS, por lo que no
+incluye solicitudes ni pedidos no asignados.
+
+La regla de visibilidad es:
+
+```text
+si la ventana de 7 dias tiene 20 o mas eventos:
+  mostrar todos los eventos de esa ventana
+si la ventana tiene menos de 20 eventos:
+  completar con los eventos anteriores mas recientes hasta 20
+si existen menos de 20 eventos totales:
+  mostrar todos los existentes
+```
+
+Las consultas semanales se paginan server-side por rangos tecnicos para evitar
+limites silenciosos de una sola respuesta de PostgREST. Las consultas de
+respaldo se limitan a los 20 eventos mas recientes por fuente y solo se ejecutan
+cuando la ventana semanal no llega al minimo. Esta etapa no agrega paginacion
+visual, boton de cargar mas, filtros ni agrupacion por dia.
+
 ## Métricas futuras
 
 Quedan para fases posteriores:

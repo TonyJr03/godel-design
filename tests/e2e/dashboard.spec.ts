@@ -33,6 +33,8 @@ const workerForbiddenText = [
 
 const pendingSolicitudesVisibleLimit = 8;
 const readyOrdersVisibleLimit = 8;
+const activityMinimumVisibleCount = 20;
+const activityWindowMs = 7 * 24 * 60 * 60 * 1000;
 
 async function resolveQaCount(label: string, query: QaCountQuery) {
   const { count, error } = await query;
@@ -141,6 +143,96 @@ async function countWorkerAssignedReadyOrders(supabase: QaSupabaseClient) {
   );
 }
 
+async function countRows(
+  label: string,
+  query: QaCountQuery,
+): Promise<number> {
+  return resolveQaCount(label, query);
+}
+
+async function countManagementActivity(
+  supabase: QaSupabaseClient,
+  activitySince: string,
+) {
+  const [
+    weeklyPedidoCount,
+    weeklySolicitudCount,
+    totalPedidoCount,
+    totalSolicitudCount,
+  ] = await Promise.all([
+    countRows(
+      "actividad semanal de pedidos",
+      supabase
+        .from("pedido_historial")
+        .select("id", { count: "exact", head: true })
+        .gte("created_at", activitySince),
+    ),
+    countRows(
+      "actividad semanal de solicitudes",
+      supabase
+        .from("solicitud_historial")
+        .select("id", { count: "exact", head: true })
+        .gte("created_at", activitySince),
+    ),
+    countRows(
+      "actividad total de pedidos",
+      supabase
+        .from("pedido_historial")
+        .select("id", { count: "exact", head: true }),
+    ),
+    countRows(
+      "actividad total de solicitudes",
+      supabase
+        .from("solicitud_historial")
+        .select("id", { count: "exact", head: true }),
+    ),
+  ]);
+
+  return {
+    weeklyCount: weeklyPedidoCount + weeklySolicitudCount,
+    totalCount: totalPedidoCount + totalSolicitudCount,
+  };
+}
+
+async function countWorkerActivity(
+  supabase: QaSupabaseClient,
+  activitySince: string,
+) {
+  const [weeklyCount, totalCount] = await Promise.all([
+    countRows(
+      "actividad semanal de pedidos del trabajador",
+      supabase
+        .from("pedido_historial")
+        .select("id", { count: "exact", head: true })
+        .gte("created_at", activitySince),
+    ),
+    countRows(
+      "actividad total de pedidos del trabajador",
+      supabase
+        .from("pedido_historial")
+        .select("id", { count: "exact", head: true }),
+    ),
+  ]);
+
+  return { weeklyCount, totalCount };
+}
+
+function getActivitySinceForQa() {
+  return new Date(Date.now() - activityWindowMs).toISOString();
+}
+
+function getExpectedActivityVisibleCount({
+  weeklyCount,
+  totalCount,
+}: {
+  weeklyCount: number;
+  totalCount: number;
+}) {
+  return weeklyCount >= activityMinimumVisibleCount
+    ? weeklyCount
+    : Math.min(activityMinimumVisibleCount, totalCount);
+}
+
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -189,6 +281,23 @@ async function expectMoreLink(
   }
 
   await expect(dialog.getByRole("link", { name: morePattern })).toHaveCount(0);
+}
+
+async function expectHistoryPanel(
+  page: Page,
+  expectedVisibleCount: number,
+) {
+  await openWorkspaceAction(page, /historial/i);
+
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("heading", { name: /^historial$/i }))
+    .toBeVisible();
+  await expect(
+    dialog.getByRole("heading", { name: /^actividad reciente$/i }),
+  ).toHaveCount(0);
+  await expect(dialog.getByTestId("dashboard-activity-item")).toHaveCount(
+    expectedVisibleCount,
+  );
 }
 
 async function expectDashboardLoaded(
@@ -343,6 +452,26 @@ test("management dashboard badges and more links use exact counts", async ({
   );
 });
 
+test("admin history panel follows the rolling activity window", async ({
+  page,
+}) => {
+  const activitySince = getActivitySinceForQa();
+  const supabase = await createQaSupabaseClient("admin");
+  let expectedVisibleCount = 0;
+
+  try {
+    expectedVisibleCount = getExpectedActivityVisibleCount(
+      await countManagementActivity(supabase, activitySince),
+    );
+  } finally {
+    await signOutQaSupabaseClient(supabase);
+  }
+
+  await loginAs(page, "admin");
+  await expectDashboardLoaded(page, /dashboard operativo/i);
+  await expectHistoryPanel(page, expectedVisibleCount);
+});
+
 test("supervisor sees the global dashboard without admin-only navigation", async ({
   page,
 }) => {
@@ -408,6 +537,32 @@ test("worker ready-orders badge counts only assigned pedidos", async ({
     assignedReadyOrdersCount,
     readyOrdersVisibleLimit,
   );
+});
+
+test("worker history panel only shows accessible pedido activity", async ({
+  page,
+}) => {
+  const activitySince = getActivitySinceForQa();
+  const supabase = await createQaSupabaseClient("worker");
+  let expectedVisibleCount = 0;
+
+  try {
+    expectedVisibleCount = getExpectedActivityVisibleCount(
+      await countWorkerActivity(supabase, activitySince),
+    );
+  } finally {
+    await signOutQaSupabaseClient(supabase);
+  }
+
+  await loginAs(page, "worker");
+  await expectDashboardLoaded(
+    page,
+    /mi trabajo asignado/i,
+    /mis pedidos asignados/i,
+  );
+  await expectHistoryPanel(page, expectedVisibleCount);
+  await expect(page.getByRole("dialog").getByText(/^solicitud$/i))
+    .toHaveCount(0);
 });
 
 test("protected dashboard routes remain limited by role", async ({ page }) => {
