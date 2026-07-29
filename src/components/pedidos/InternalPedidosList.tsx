@@ -160,7 +160,7 @@ export function InternalPedidosList({
             >
               <p
                 data-listing-card-part="order-number"
-                className="min-w-0 font-mono text-sm font-semibold text-brand-primary"
+                className="shrink-0 whitespace-nowrap font-mono text-base font-semibold text-brand-primary"
               >
                 {pedido.order_number}
               </p>
@@ -175,7 +175,7 @@ export function InternalPedidosList({
 
             <h2
               data-listing-card-part="title"
-              className="block min-w-0 line-clamp-2 text-base font-semibold text-text-primary"
+              className="min-w-0 line-clamp-2 text-base font-semibold text-text-primary"
             >
               {pedido.title}
             </h2>

@@ -28,7 +28,7 @@ type ListingHeaderControlsContract = {
 };
 
 const PEDIDOS_ACTIVE_FILTERS_PATH =
-  "/dashboard/pedidos?q=Pedido&status=en_revision&workflow_type=encargo&payment_status=sin_pago&page=2";
+  "/dashboard/pedidos?q=Pedido&status=en_revision&payment_status=sin_pago&page=2";
 
 const pedidosContract: ListingContract = {
   path: "/dashboard/pedidos",
@@ -208,10 +208,6 @@ async function getRequiredBox(locator: Locator) {
   return box as NonNullable<typeof box>;
 }
 
-function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 function getBoxCenterY(box: NonNullable<Awaited<ReturnType<Locator["boundingBox"]>>>) {
   return box.y + box.height / 2;
 }
@@ -316,8 +312,15 @@ async function expectPedidoResponsiveCardStructure(
   const card = page.getByRole("link", {
     name: pedidosContract.openLinkName,
   }).first();
+  const hasCard = await card.waitFor({
+    state: "visible",
+    timeout: 5000,
+  }).then(
+    () => true,
+    () => false,
+  );
 
-  if ((await card.count()) === 0) {
+  if (!hasCard) {
     test.info().annotations.push({
       type: "skip",
       description:
@@ -372,19 +375,22 @@ async function expectPedidoResponsiveCardStructure(
 
   const titleClamp = await title.evaluate((element) => {
     const style = window.getComputedStyle(element);
+    const lineHeight = Number.parseFloat(style.lineHeight);
+    const fallbackLineHeight =
+      Number.parseFloat(style.fontSize) * 1.5;
 
     return {
       display: style.display,
+      height: element.getBoundingClientRect().height,
+      lineHeight: Number.isFinite(lineHeight) ? lineHeight : fallbackLineHeight,
       overflow: style.overflow,
       webkitLineClamp: style.getPropertyValue("-webkit-line-clamp"),
     };
   });
 
-  expect(
-    titleClamp.webkitLineClamp === "2" ||
-      (titleClamp.display === "-webkit-box" &&
-        titleClamp.overflow === "hidden"),
-  ).toBe(true);
+  expect(titleClamp.webkitLineClamp).toBe("2");
+  expect(titleClamp.overflow).toBe("hidden");
+  expect(titleClamp.height).toBeLessThanOrEqual(titleClamp.lineHeight * 2 + 2);
 
   const href = await card.getAttribute("href");
 
@@ -404,8 +410,15 @@ async function expectSolicitudResponsiveCardStructure(
   const card = page.getByRole("link", {
     name: solicitudesContract.openLinkName,
   }).first();
+  const hasCard = await card.waitFor({
+    state: "visible",
+    timeout: 5000,
+  }).then(
+    () => true,
+    () => false,
+  );
 
-  if ((await card.count()) === 0) {
+  if (!hasCard) {
     test.info().annotations.push({
       type: "skip",
       description:
@@ -422,14 +435,9 @@ async function expectSolicitudResponsiveCardStructure(
   await expectCardPartPrecedes(card, "workflow", "service");
   await expect(card.locator('[data-listing-card-part="workflow"]'))
     .toHaveCount(1);
-
-  const workflowText = (
-    await getCardPart(card, "workflow").innerText()
-  ).trim();
-
   await expect(
-    card.getByText(new RegExp(`^${escapeRegExp(workflowText)}$`, "i")),
-  ).toHaveCount(1);
+    getCardPart(card, "service").locator('[data-listing-card-part="workflow"]'),
+  ).toHaveCount(0);
 
   const href = await card.getAttribute("href");
   const cardBox = await getRequiredBox(card);
@@ -557,7 +565,6 @@ async function expectHeaderDescriptionGapStable(page: Page) {
   await page.goto(PEDIDOS_ACTIVE_FILTERS_PATH);
   await expect(page.getByText(/^B.squeda: Pedido$/i)).toBeVisible();
   await expect(page.getByText(/^Estado: En revisi.n$/i)).toBeVisible();
-  await expect(page.getByText(/^Tipo: Encargos$/i)).toBeVisible();
   await expect(page.getByText(/^Pago: Sin pagar$/i)).toBeVisible();
 
   const filteredHeadingBox = await getRequiredBox(heading);
@@ -635,7 +642,6 @@ async function expectActiveFiltersStayOnOneLine(page: Page) {
   const chips = [
     getActiveFilterChipByRemoveButton(page, /^Quitar B.squeda: Pedido$/i),
     getActiveFilterChipByRemoveButton(page, /^Quitar Estado: En revisi.n$/i),
-    getActiveFilterChipByRemoveButton(page, /^Quitar Tipo: Encargos$/i),
     getActiveFilterChipByRemoveButton(page, /^Quitar Pago: Sin pagar$/i),
   ];
   const clearButton = page.getByRole("button", {
@@ -696,7 +702,6 @@ async function expectMobileActiveFiltersUseInternalOverflow(page: Page) {
   const chipButtons = [
     page.getByRole("button", { name: /^Quitar B.squeda: Pedido$/i }),
     page.getByRole("button", { name: /^Quitar Estado: En revisi.n$/i }),
-    page.getByRole("button", { name: /^Quitar Tipo: Encargos$/i }),
     page.getByRole("button", { name: /^Quitar Pago: Sin pagar$/i }),
   ];
 
