@@ -19,7 +19,7 @@ export function SolicitudWorkspaceMain({
   filesLoadRetryable = false,
 }: SolicitudWorkspaceMainProps) {
   return (
-    <div className="grid min-w-0 gap-5 xl:h-full xl:min-h-0 xl:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.8fr)] xl:grid-rows-[auto_minmax(0,1fr)]">
+    <div className="grid min-w-0 gap-5 xl:h-full xl:min-h-0 xl:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.8fr)] xl:grid-rows-[minmax(0,2fr)_minmax(0,3fr)]">
       <SolicitudDescriptionPreview
         solicitud={solicitud}
         className="xl:row-span-2"

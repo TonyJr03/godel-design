@@ -17,7 +17,7 @@ export function PedidoDescriptionPreview({
     <section
       aria-labelledby="pedido-description-preview-title"
       className={[
-        "flex min-h-0 flex-col rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6",
+        "flex min-h-0 flex-col rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6 xl:h-full xl:overflow-hidden",
         className,
       ]
         .filter(Boolean)
@@ -30,7 +30,7 @@ export function PedidoDescriptionPreview({
         {title}
       </h2>
 
-      <div className="mt-4 min-h-0 xl:flex-1 xl:overflow-y-auto">
+      <div className="mt-4 min-h-0 xl:flex-1 xl:overflow-y-auto xl:overscroll-contain">
         <p className="whitespace-pre-wrap wrap-break-word text-sm leading-7 text-text-secondary">
           {content}
         </p>
