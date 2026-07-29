@@ -109,7 +109,7 @@ export function DashboardPendingRequestsPanel({
   const group = result.workItems.solicitudesPendientesGroup;
   const solicitudes = group.items;
 
-  if (solicitudes.length === 0) {
+  if (group.totalCount === 0 && solicitudes.length === 0) {
     return (
       <EmptyState
         title="Sin solicitudes pendientes"

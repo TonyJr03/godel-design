@@ -182,6 +182,7 @@ La primera versión funcional del dashboard debe ser deliberadamente simple. Des
 - sección de "Mis pedidos asignados" para `trabajador`;
 - actividad reciente mínima desde historial de pedidos y solicitudes, incluyendo eventos de tareas con títulos seguros;
 - pedidos manuales con `cliente_id = null` visibles como `Sin cliente asociado`;
+- conteos exactos separados de previews limitados en solicitudes pendientes y tablero de pedidos;
 - tipos de servicio de solicitudes renderizados mediante labels visibles, no como valores técnicos crudos;
 - actividad reciente avanzada queda para una subfase posterior;
 - sin gráficos;
@@ -212,6 +213,26 @@ la métrica de pedidos sin tareas y las señales de atención usan
 tareas obligatorias. `creado` y `solicitud_recibida` se consideran estados
 activos equivalentes en atención operativa, sin implementar gráficos avanzados,
 reportes financieros ni productividad.
+
+Los paneles operativos no deben inferir totales desde muestras limitadas. La
+regla vigente para solicitudes pendientes y tablero de pedidos es:
+
+```text
+totalCount = conteo exacto realizado server-side en Supabase
+items      = DTOs limitados que renderiza la interfaz
+moreCount  = max(0, totalCount - items.length)
+```
+
+Solicitudes pendientes muestra hasta 8 elementos y cuenta `nueva`,
+`en_revision`, `contactada` y `aprobada` solo cuando
+`converted_order_id IS NULL`. El preview prioriza solicitudes `nueva` y luego el
+resto por fecha reciente. Los grupos del tablero de pedidos se consultan de
+forma independiente para preservar conteos exactos y evitar que un grupo consuma
+el cupo de otro. Los pedidos listos para entrega muestran hasta 8 elementos.
+
+En el dashboard de trabajador, los conteos y previews del tablero usan el mismo
+contrato pero se filtran server-side por `pedido_trabajadores.assigned_profile_id`
+del perfil actual, manteniendo RLS como defensa final.
 
 ## Métricas futuras
 

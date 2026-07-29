@@ -86,6 +86,19 @@ usuarios/perfiles globales ni pedidos no asignados desde esta capa.
 
 - pedidos asignados que requieren seguimiento.
 
+Los grupos operativos separan siempre conteos y previews:
+
+- `totalCount`: conteo exacto server-side con Supabase y RLS.
+- `items`: DTOs limitados que necesita renderizar la UI.
+- `moreCount`: `max(0, totalCount - items.length)`.
+
+Solicitudes pendientes muestra hasta 8 solicitudes. El conteo incluye `nueva`,
+`en_revision`, `contactada` y `aprobada` solo cuando
+`converted_order_id IS NULL`; el preview prioriza `nueva` y luego el resto por
+fecha reciente. El tablero de pedidos consulta cada grupo por separado
+(`nuevos`, `enRevision`, `enProduccion`, `listosEntrega`) para que un grupo no
+consuma el cupo de otro. `listosEntrega` muestra hasta 8 pedidos.
+
 Los pedidos se priorizan por revision pendiente, atraso, entrega proxima,
 revision sin tareas, produccion con tareas pendientes y listo para entrega.
 Desde Beta 2.7.4, las senales "sin tareas" usan `workflow_type`: solo
@@ -105,6 +118,11 @@ drift en el calculo de progreso de tareas.
 
 `trabajador` ve unicamente actividad reciente de pedidos accesibles por RLS, es
 decir, pedidos asignados.
+
+El tablero de trabajador aplica la misma separacion entre conteos exactos y
+previews limitados, pero todo conteo y candidato se filtra server-side con
+`pedido_trabajadores.assigned_profile_id = perfil actual`. RLS sigue siendo la
+defensa final y el trabajador no recibe pedidos no asignados.
 
 `get-dashboard-activity.ts` conserva queries, limites, orden y reglas por rol.
 `activity-mappers.ts` transforma rows de historial a DTOs visibles mediante

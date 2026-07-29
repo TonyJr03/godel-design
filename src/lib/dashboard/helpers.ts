@@ -63,7 +63,7 @@ export const DASHBOARD_PEDIDO_GROUP_LIMITS = {
   nuevos: 4,
   enRevision: 4,
   enProduccion: 6,
-  listosEntrega: 6,
+  listosEntrega: 8,
 } as const;
 
 export const PEDIDO_STATUSES_WITHOUT_TASKS_ATTENTION: readonly PedidoEstado[] = [

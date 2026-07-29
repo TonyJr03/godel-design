@@ -17,7 +17,6 @@ import {
   isPedidoPendingReview,
   isPedidoProximoEntrega,
   type PedidoEstado,
-  WORK_PENDING_SOLICITUD_STATUSES,
 } from "./helpers";
 import type {
   DashboardPedidoBoard,
@@ -65,11 +64,17 @@ type PedidoWorkWithProgress = PedidoWorkRow & {
   progress: PedidoTasksProgress;
 };
 
-const PENDING_SOLICITUDES_LIMIT = 6;
-const PENDING_SOLICITUDES_QUERY_LIMIT = 24;
+type CountQuery = PromiseLike<{
+  count: number | null;
+  error: { message?: string } | null;
+}>;
+
+type DashboardSupabaseClient = Awaited<ReturnType<typeof createClient>>;
+
+const PENDING_SOLICITUDES_LIMIT = 8;
 const PEDIDOS_ATTENTION_LIMIT = 8;
 const PEDIDOS_ATTENTION_QUERY_LIMIT = 40;
-const PEDIDOS_BOARD_QUERY_LIMIT = 80;
+const PEDIDOS_BOARD_GROUP_QUERY_MULTIPLIER = 8;
 
 const PEDIDOS_WORK_SELECT = `
   id,
@@ -95,6 +100,58 @@ const ASSIGNED_PEDIDOS_WORK_SELECT = `
   pedido_trabajadores!inner(assigned_profile_id)
 `;
 
+const PENDING_SOLICITUD_SELECT = `
+  id,
+  client_name,
+  client_phone,
+  workflow_type,
+  status,
+  created_at,
+  desired_date,
+  converted_order_id,
+  service:tipos_servicio!solicitudes_service_id_fkey(
+    name,
+    workflow_type
+  )
+`;
+
+const PEDIDO_BOARD_GROUP_CONFIGS = [
+  {
+    key: "nuevos",
+    title: "Nuevos",
+    statuses: DASHBOARD_PEDIDO_NEW_STATUSES,
+    visibleLimit: DASHBOARD_PEDIDO_GROUP_LIMITS.nuevos,
+    moreHref: "/dashboard/pedidos",
+  },
+  {
+    key: "enRevision",
+    title: "En revisión",
+    statuses: DASHBOARD_PEDIDO_REVIEW_STATUSES,
+    visibleLimit: DASHBOARD_PEDIDO_GROUP_LIMITS.enRevision,
+    moreHref: "/dashboard/pedidos?status=en_revision",
+  },
+  {
+    key: "enProduccion",
+    title: "En producción",
+    statuses: DASHBOARD_PEDIDO_PRODUCTION_STATUSES,
+    visibleLimit: DASHBOARD_PEDIDO_GROUP_LIMITS.enProduccion,
+    moreHref: "/dashboard/pedidos?status=en_produccion",
+  },
+  {
+    key: "listosEntrega",
+    title: "Listos para entrega",
+    statuses: DASHBOARD_PEDIDO_READY_STATUSES,
+    visibleLimit: DASHBOARD_PEDIDO_GROUP_LIMITS.listosEntrega,
+    moreHref: "/dashboard/pedidos?status=listo_entrega",
+  },
+] as const satisfies readonly {
+  key: DashboardPedidoBoardGroupKey;
+  title: string;
+  statuses: readonly PedidoEstado[];
+  visibleLimit: number;
+  moreHref: string;
+}[];
+
 const GENERIC_WORK_ITEMS_ERROR =
   "No se pudieron cargar los paneles operativos. Inténtalo nuevamente.";
 const EMPTY_TASK_PROGRESS: PedidoTasksProgress = {
@@ -105,6 +162,23 @@ const EMPTY_TASK_PROGRESS: PedidoTasksProgress = {
   hasTasks: false,
   isComplete: false,
 };
+
+async function resolveCount(label: string, query: CountQuery): Promise<number> {
+  const { count, error } = await query;
+
+  if (error) {
+    throw new Error(`${label}: ${error.message ?? "Supabase count error"}`);
+  }
+
+  return count ?? 0;
+}
+
+function getPedidoBoardCandidateLimit(visibleLimit: number): number {
+  return Math.max(
+    visibleLimit,
+    visibleLimit * PEDIDOS_BOARD_GROUP_QUERY_MULTIPLIER,
+  );
+}
 
 function isReviewWithoutRequiredTasks(pedido: PedidoWorkWithProgress): boolean {
   return (
@@ -256,7 +330,7 @@ function mapPedidoItem(
 }
 
 async function attachTaskProgressToPedidos(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  supabase: DashboardSupabaseClient,
   pedidos: PedidoWorkRow[],
 ): Promise<PedidoWorkWithProgress[]> {
   if (pedidos.length === 0) {
@@ -279,118 +353,147 @@ function buildPedidoBoardGroup({
   key,
   title,
   statuses,
-  pedidos,
+  items,
+  totalCount,
   visibleLimit,
   moreHref,
 }: {
   key: DashboardPedidoBoardGroupKey;
   title: string;
   statuses: readonly PedidoEstado[];
-  pedidos: DashboardPedidoWorkItem[];
+  items: DashboardPedidoWorkItem[];
+  totalCount: number;
   visibleLimit: number;
   moreHref: string;
 }): DashboardPedidoBoardGroup {
-  const groupItems = pedidos.filter((pedido) =>
-    statuses.includes(pedido.status),
-  );
+  const visibleItems = items.slice(0, visibleLimit);
 
   return {
     key,
     title,
     statuses: [...statuses],
-    items: groupItems.slice(0, visibleLimit),
-    totalCount: groupItems.length,
+    items: visibleItems,
+    totalCount,
     visibleLimit,
-    moreCount: Math.max(0, groupItems.length - visibleLimit),
+    moreCount: Math.max(0, totalCount - visibleItems.length),
     moreHref,
   };
 }
 
-function buildPedidoBoard(
-  pedidos: DashboardPedidoWorkItem[],
-): DashboardPedidoBoard {
-  return {
-    nuevos: buildPedidoBoardGroup({
-      key: "nuevos",
-      title: "Nuevos",
-      statuses: DASHBOARD_PEDIDO_NEW_STATUSES,
-      pedidos,
-      visibleLimit: DASHBOARD_PEDIDO_GROUP_LIMITS.nuevos,
-      moreHref: "/dashboard/pedidos",
-    }),
-    enRevision: buildPedidoBoardGroup({
-      key: "enRevision",
-      title: "En revisión",
-      statuses: DASHBOARD_PEDIDO_REVIEW_STATUSES,
-      pedidos,
-      visibleLimit: DASHBOARD_PEDIDO_GROUP_LIMITS.enRevision,
-      moreHref: "/dashboard/pedidos?status=en_revision",
-    }),
-    enProduccion: buildPedidoBoardGroup({
-      key: "enProduccion",
-      title: "En producción",
-      statuses: DASHBOARD_PEDIDO_PRODUCTION_STATUSES,
-      pedidos,
-      visibleLimit: DASHBOARD_PEDIDO_GROUP_LIMITS.enProduccion,
-      moreHref: "/dashboard/pedidos?status=en_produccion",
-    }),
-    listosEntrega: buildPedidoBoardGroup({
-      key: "listosEntrega",
-      title: "Listos para entrega",
-      statuses: DASHBOARD_PEDIDO_READY_STATUSES,
-      pedidos,
-      visibleLimit: DASHBOARD_PEDIDO_GROUP_LIMITS.listosEntrega,
-      moreHref: "/dashboard/pedidos?status=listo_entrega",
-    }),
-  };
+async function countManagementPendingSolicitudes(
+  supabase: DashboardSupabaseClient,
+): Promise<number> {
+  const [nuevas, enRevision, contactadas, aprobadasSinConvertir] =
+    await Promise.all([
+      resolveCount(
+        "solicitudes nuevas pendientes",
+        supabase
+          .from("solicitudes")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "nueva"),
+      ),
+      resolveCount(
+        "solicitudes en revision pendientes",
+        supabase
+          .from("solicitudes")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "en_revision"),
+      ),
+      resolveCount(
+        "solicitudes contactadas pendientes",
+        supabase
+          .from("solicitudes")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "contactada"),
+      ),
+      resolveCount(
+        "solicitudes aprobadas sin convertir",
+        supabase
+          .from("solicitudes")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "aprobada")
+          .is("converted_order_id", null),
+      ),
+    ]);
+
+  return nuevas + enRevision + contactadas + aprobadasSinConvertir;
+}
+
+async function listPendingSolicitudRowsByStatus(
+  supabase: DashboardSupabaseClient,
+  status: PendingSolicitudRow["status"],
+  limit: number,
+): Promise<PendingSolicitudRow[]> {
+  if (limit <= 0) {
+    return [];
+  }
+
+  let query = supabase
+    .from("solicitudes")
+    .select(PENDING_SOLICITUD_SELECT)
+    .eq("status", status)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (status === "aprobada") {
+    query = query.is("converted_order_id", null);
+  }
+
+  const { data, error } = await query.returns<PendingSolicitudRow[]>();
+
+  if (error) {
+    throw new Error(
+      `solicitudes pendientes ${status}: ${
+        error.message ?? "Supabase query error"
+      }`,
+    );
+  }
+
+  return data ?? [];
 }
 
 async function listManagementPendingSolicitudes(): Promise<
   DashboardPendingSolicitudesGroup
 > {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("solicitudes")
-    .select(
-      `
-        id,
-        client_name,
-        client_phone,
-        workflow_type,
-        status,
-        created_at,
-        desired_date,
-        converted_order_id,
-        service:tipos_servicio!solicitudes_service_id_fkey(
-          name,
-          workflow_type
-        )
-      `,
-    )
-    .in("status", WORK_PENDING_SOLICITUD_STATUSES)
-    .order("created_at", { ascending: false })
-    .limit(PENDING_SOLICITUDES_QUERY_LIMIT)
-    .returns<PendingSolicitudRow[]>();
-
-  if (error) {
-    throw new Error(
-      `solicitudes pendientes: ${error.message ?? "Supabase query error"}`,
-    );
-  }
-
-  const solicitudes = sortPendingSolicitudes(
-    (data ?? []).filter(
-      (solicitud) =>
-        solicitud.status !== "aprobada" || !solicitud.converted_order_id,
-    ),
-  ).map(mapSolicitudItem);
+  const totalCount = await countManagementPendingSolicitudes(supabase);
+  const nuevas = await listPendingSolicitudRowsByStatus(
+    supabase,
+    "nueva",
+    PENDING_SOLICITUDES_LIMIT,
+  );
+  const remainingLimit = Math.max(0, PENDING_SOLICITUDES_LIMIT - nuevas.length);
+  const otherRows =
+    remainingLimit > 0
+      ? await Promise.all([
+          listPendingSolicitudRowsByStatus(
+            supabase,
+            "en_revision",
+            remainingLimit,
+          ),
+          listPendingSolicitudRowsByStatus(
+            supabase,
+            "contactada",
+            remainingLimit,
+          ),
+          listPendingSolicitudRowsByStatus(
+            supabase,
+            "aprobada",
+            remainingLimit,
+          ),
+        ])
+      : [];
+  const solicitudes = sortPendingSolicitudes([
+    ...nuevas,
+    ...otherRows.flat(),
+  ]).map(mapSolicitudItem);
   const items = solicitudes.slice(0, PENDING_SOLICITUDES_LIMIT);
 
   return {
     items,
-    totalCount: solicitudes.length,
+    totalCount,
     visibleLimit: PENDING_SOLICITUDES_LIMIT,
-    moreCount: Math.max(0, solicitudes.length - items.length),
+    moreCount: Math.max(0, totalCount - items.length),
     moreHref: "/dashboard/solicitudes",
   };
 }
@@ -424,35 +527,45 @@ async function listManagementAttentionPedidos(
     .map((pedido) => mapPedidoItem(pedido, today, nextSevenDays));
 }
 
-async function listManagementPedidoBoardItems(
-  today: string,
-  nextSevenDays: string,
-): Promise<DashboardPedidoWorkItem[]> {
-  const supabase = await createClient();
+async function countManagementPedidoBoardGroup(
+  supabase: DashboardSupabaseClient,
+  statuses: readonly PedidoEstado[],
+): Promise<number> {
+  return resolveCount(
+    `pedidos del tablero ${statuses.join(",")}`,
+    supabase
+      .from("pedidos")
+      .select("id", { count: "exact", head: true })
+      .in("status", [...statuses]),
+  );
+}
+
+async function listManagementPedidoBoardGroupRows(
+  supabase: DashboardSupabaseClient,
+  statuses: readonly PedidoEstado[],
+  candidateLimit: number,
+): Promise<PedidoWorkRow[]> {
   const { data, error } = await supabase
     .from("pedidos")
     .select(PEDIDOS_WORK_SELECT)
-    .in("status", [
-      ...DASHBOARD_PEDIDO_NEW_STATUSES,
-      ...DASHBOARD_PEDIDO_REVIEW_STATUSES,
-      ...DASHBOARD_PEDIDO_PRODUCTION_STATUSES,
-      ...DASHBOARD_PEDIDO_READY_STATUSES,
-    ])
+    .in("status", [...statuses])
+    .order("estimated_delivery_date", {
+      ascending: true,
+      nullsFirst: false,
+    })
     .order("created_at", { ascending: false })
-    .limit(PEDIDOS_BOARD_QUERY_LIMIT)
+    .limit(candidateLimit)
     .returns<PedidoWorkRow[]>();
 
   if (error) {
     throw new Error(
-      `pedidos del tablero: ${error.message ?? "Supabase query error"}`,
+      `pedidos del tablero ${statuses.join(",")}: ${
+        error.message ?? "Supabase query error"
+      }`,
     );
   }
 
-  const pedidos = await attachTaskProgressToPedidos(supabase, data ?? []);
-
-  return sortPedidosByAttention(pedidos, today, nextSevenDays).map((pedido) =>
-    mapPedidoItem(pedido, today, nextSevenDays),
-  );
+  return data ?? [];
 }
 
 async function listWorkerAssignedPedidos(
@@ -486,39 +599,161 @@ async function listWorkerAssignedPedidos(
     .map((pedido) => mapPedidoItem(pedido, today, nextSevenDays));
 }
 
-async function listWorkerPedidoBoardItems(
+async function countWorkerPedidoBoardGroup(
+  supabase: DashboardSupabaseClient,
   workerProfileId: string,
-  today: string,
-  nextSevenDays: string,
-): Promise<DashboardPedidoWorkItem[]> {
-  const supabase = await createClient();
+  statuses: readonly PedidoEstado[],
+): Promise<number> {
+  return resolveCount(
+    `pedidos asignados del tablero ${statuses.join(",")}`,
+    supabase
+      .from("pedidos")
+      .select("id, pedido_trabajadores!inner(assigned_profile_id)", {
+        count: "exact",
+        head: true,
+      })
+      .eq("pedido_trabajadores.assigned_profile_id", workerProfileId)
+      .in("status", [...statuses]),
+  );
+}
+
+async function listWorkerPedidoBoardGroupRows(
+  supabase: DashboardSupabaseClient,
+  workerProfileId: string,
+  statuses: readonly PedidoEstado[],
+  candidateLimit: number,
+): Promise<PedidoWorkRow[]> {
   const { data, error } = await supabase
     .from("pedidos")
     .select(ASSIGNED_PEDIDOS_WORK_SELECT)
     .eq("pedido_trabajadores.assigned_profile_id", workerProfileId)
-    .in("status", [
-      ...DASHBOARD_PEDIDO_NEW_STATUSES,
-      ...DASHBOARD_PEDIDO_REVIEW_STATUSES,
-      ...DASHBOARD_PEDIDO_PRODUCTION_STATUSES,
-      ...DASHBOARD_PEDIDO_READY_STATUSES,
-    ])
+    .in("status", [...statuses])
+    .order("estimated_delivery_date", {
+      ascending: true,
+      nullsFirst: false,
+    })
     .order("created_at", { ascending: false })
-    .limit(PEDIDOS_BOARD_QUERY_LIMIT)
+    .limit(candidateLimit)
     .returns<PedidoWorkRow[]>();
 
   if (error) {
     throw new Error(
-      `pedidos asignados del tablero: ${
+      `pedidos asignados del tablero ${statuses.join(",")}: ${
         error.message ?? "Supabase query error"
       }`,
     );
   }
 
-  const pedidos = await attachTaskProgressToPedidos(supabase, data ?? []);
+  return data ?? [];
+}
 
-  return sortPedidosByAttention(pedidos, today, nextSevenDays).map((pedido) =>
-    mapPedidoItem(pedido, today, nextSevenDays),
+async function loadManagementPedidoBoardGroup(
+  supabase: DashboardSupabaseClient,
+  config: (typeof PEDIDO_BOARD_GROUP_CONFIGS)[number],
+  today: string,
+  nextSevenDays: string,
+): Promise<DashboardPedidoBoardGroup> {
+  const candidateLimit = getPedidoBoardCandidateLimit(config.visibleLimit);
+  const [totalCount, rows] = await Promise.all([
+    countManagementPedidoBoardGroup(supabase, config.statuses),
+    listManagementPedidoBoardGroupRows(
+      supabase,
+      config.statuses,
+      candidateLimit,
+    ),
+  ]);
+  const pedidos = await attachTaskProgressToPedidos(supabase, rows);
+  const items = sortPedidosByAttention(pedidos, today, nextSevenDays)
+    .slice(0, config.visibleLimit)
+    .map((pedido) => mapPedidoItem(pedido, today, nextSevenDays));
+
+  return buildPedidoBoardGroup({
+    key: config.key,
+    title: config.title,
+    statuses: config.statuses,
+    items,
+    totalCount,
+    visibleLimit: config.visibleLimit,
+    moreHref: config.moreHref,
+  });
+}
+
+async function loadWorkerPedidoBoardGroup(
+  supabase: DashboardSupabaseClient,
+  workerProfileId: string,
+  config: (typeof PEDIDO_BOARD_GROUP_CONFIGS)[number],
+  today: string,
+  nextSevenDays: string,
+): Promise<DashboardPedidoBoardGroup> {
+  const candidateLimit = getPedidoBoardCandidateLimit(config.visibleLimit);
+  const [totalCount, rows] = await Promise.all([
+    countWorkerPedidoBoardGroup(supabase, workerProfileId, config.statuses),
+    listWorkerPedidoBoardGroupRows(
+      supabase,
+      workerProfileId,
+      config.statuses,
+      candidateLimit,
+    ),
+  ]);
+  const pedidos = await attachTaskProgressToPedidos(supabase, rows);
+  const items = sortPedidosByAttention(pedidos, today, nextSevenDays)
+    .slice(0, config.visibleLimit)
+    .map((pedido) => mapPedidoItem(pedido, today, nextSevenDays));
+
+  return buildPedidoBoardGroup({
+    key: config.key,
+    title: config.title,
+    statuses: config.statuses,
+    items,
+    totalCount,
+    visibleLimit: config.visibleLimit,
+    moreHref: config.moreHref,
+  });
+}
+
+async function loadManagementPedidoBoard(
+  today: string,
+  nextSevenDays: string,
+): Promise<DashboardPedidoBoard> {
+  const supabase = await createClient();
+  const [nuevos, enRevision, enProduccion, listosEntrega] = await Promise.all(
+    PEDIDO_BOARD_GROUP_CONFIGS.map((config) =>
+      loadManagementPedidoBoardGroup(supabase, config, today, nextSevenDays),
+    ),
   );
+
+  return {
+    nuevos,
+    enRevision,
+    enProduccion,
+    listosEntrega,
+  };
+}
+
+async function loadWorkerPedidoBoard(
+  workerProfileId: string,
+  today: string,
+  nextSevenDays: string,
+): Promise<DashboardPedidoBoard> {
+  const supabase = await createClient();
+  const [nuevos, enRevision, enProduccion, listosEntrega] = await Promise.all(
+    PEDIDO_BOARD_GROUP_CONFIGS.map((config) =>
+      loadWorkerPedidoBoardGroup(
+        supabase,
+        workerProfileId,
+        config,
+        today,
+        nextSevenDays,
+      ),
+    ),
+  );
+
+  return {
+    nuevos,
+    enRevision,
+    enProduccion,
+    listosEntrega,
+  };
 }
 
 export async function loadDashboardWorkItems(
@@ -528,11 +763,11 @@ export async function loadDashboardWorkItems(
 
   try {
     if (context.kind === "management") {
-      const [solicitudesPendientesGroup, pedidosAtencion, pedidoBoardItems] =
+      const [solicitudesPendientesGroup, pedidosAtencion, pedidoBoard] =
         await Promise.all([
           listManagementPendingSolicitudes(),
           listManagementAttentionPedidos(today, nextSevenDays),
-          listManagementPedidoBoardItems(today, nextSevenDays),
+          loadManagementPedidoBoard(today, nextSevenDays),
         ]);
 
       return {
@@ -544,15 +779,15 @@ export async function loadDashboardWorkItems(
           solicitudesPendientes: solicitudesPendientesGroup.items,
           solicitudesPendientesGroup,
           pedidosAtencion,
-          pedidoBoard: buildPedidoBoard(pedidoBoardItems),
+          pedidoBoard,
           generatedAt: new Date().toISOString(),
         },
       };
     }
 
-    const [pedidosAsignados, pedidoBoardItems] = await Promise.all([
+    const [pedidosAsignados, pedidoBoard] = await Promise.all([
       listWorkerAssignedPedidos(context.profile.id, today, nextSevenDays),
-      listWorkerPedidoBoardItems(context.profile.id, today, nextSevenDays),
+      loadWorkerPedidoBoard(context.profile.id, today, nextSevenDays),
     ]);
 
     return {
@@ -562,7 +797,7 @@ export async function loadDashboardWorkItems(
         kind: "worker",
         role: "trabajador",
         pedidosAsignados,
-        pedidoBoard: buildPedidoBoard(pedidoBoardItems),
+        pedidoBoard,
         generatedAt: new Date().toISOString(),
       },
     };

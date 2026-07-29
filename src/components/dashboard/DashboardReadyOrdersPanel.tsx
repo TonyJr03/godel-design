@@ -129,7 +129,7 @@ export function DashboardReadyOrdersPanel({
   const group = result.workItems.pedidoBoard.listosEntrega;
   const isWorkerPanel = result.workItems.kind === "worker";
 
-  if (group.items.length === 0) {
+  if (group.totalCount === 0 && group.items.length === 0) {
     return (
       <EmptyState
         title="Sin pedidos listos"
