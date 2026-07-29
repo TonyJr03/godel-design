@@ -10,6 +10,7 @@ import { loginAs } from "./helpers/auth";
 
 type ListingContract = {
   path: string;
+  cardsLabel: string;
   heading: RegExp;
   expectedHeaders: RegExp[];
   forbiddenHeaders: RegExp[];
@@ -31,8 +32,16 @@ const PEDIDOS_ACTIVE_FILTERS_PATH =
 
 const pedidosContract: ListingContract = {
   path: "/dashboard/pedidos",
+  cardsLabel: "Pedidos",
   heading: /^pedidos$/i,
-  expectedHeaders: [/^pedido$/i, /^trabajo$/i, /^estado$/i, /^pago$/i, /^entrega$/i],
+  expectedHeaders: [
+    /^pedido$/i,
+    /^trabajo$/i,
+    /^servicio$/i,
+    /^estado$/i,
+    /^pago$/i,
+    /^entrega$/i,
+  ],
   forbiddenHeaders: [
     /^cliente$/i,
     /^solicitud$/i,
@@ -52,6 +61,7 @@ const pedidosContract: ListingContract = {
 
 const solicitudesContract: ListingContract = {
   path: "/dashboard/solicitudes",
+  cardsLabel: "Solicitudes",
   heading: /^solicitudes$/i,
   expectedHeaders: [
     /^cliente$/i,
@@ -103,6 +113,11 @@ const listingHeaderControlsContracts: ListingHeaderControlsContract[] = [
     hasFilters: false,
     primaryActionName: "Nueva plantilla",
   },
+];
+
+const responsiveListingViewports = [
+  { width: 390, height: 844 },
+  { width: 1024, height: 768 },
 ];
 
 async function expectNoHorizontalOverflow(page: Page) {
@@ -193,8 +208,235 @@ async function getRequiredBox(locator: Locator) {
   return box as NonNullable<typeof box>;
 }
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function getBoxCenterY(box: NonNullable<Awaited<ReturnType<Locator["boundingBox"]>>>) {
   return box.y + box.height / 2;
+}
+
+function getCardPart(card: Locator, part: string) {
+  return card.locator(`[data-listing-card-part="${part}"]`).first();
+}
+
+async function expectCardPartPrecedes(
+  card: Locator,
+  firstPart: string,
+  secondPart: string,
+) {
+  const precedes = await card.evaluate(
+    (element, parts) => {
+      const first = element.querySelector(
+        `[data-listing-card-part="${parts.firstPart}"]`,
+      );
+      const second = element.querySelector(
+        `[data-listing-card-part="${parts.secondPart}"]`,
+      );
+
+      return Boolean(
+        first &&
+          second &&
+          (first.compareDocumentPosition(second) &
+            Node.DOCUMENT_POSITION_FOLLOWING) !==
+            0,
+      );
+    },
+    { firstPart, secondPart },
+  );
+
+  expect(precedes, `${firstPart} should precede ${secondPart}`).toBe(true);
+}
+
+async function expectVisibleCardsBelowXl(
+  page: Page,
+  contract: ListingContract,
+  viewport: { width: number; height: number },
+) {
+  await page.setViewportSize(viewport);
+  await page.goto(contract.path);
+  await expect(page.getByRole("heading", { name: contract.heading }))
+    .toBeVisible();
+  await expect(getVisibleSearchInput(page)).toBeVisible();
+  await expect(getVisibleFiltersTrigger(page)).toBeVisible();
+  await expect(page.locator("table").first()).toBeHidden();
+
+  for (const forbiddenCommand of contract.forbiddenCommands) {
+    await expect(page.getByRole("link", { name: forbiddenCommand })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: forbiddenCommand }))
+      .toHaveCount(0);
+  }
+
+  const cards = page.locator(`div[aria-label="${contract.cardsLabel}"]`);
+  const detailLink = page.getByRole("link", {
+    name: contract.openLinkName,
+  }).first();
+
+  if ((await detailLink.count()) > 0) {
+    await expect(cards).toBeVisible();
+    await expect(detailLink).toBeVisible();
+  } else {
+    await expect(page.getByText(contract.emptyText).first()).toBeVisible();
+  }
+
+  await expectNoHorizontalOverflow(page);
+}
+
+async function expectDesktopTableLayout(page: Page, contract: ListingContract) {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(contract.path);
+
+  const table = page.locator("table").first();
+
+  await expect(table).toBeVisible();
+  await expect(page.locator(`div[aria-label="${contract.cardsLabel}"]`))
+    .toBeHidden();
+
+  for (const header of contract.expectedHeaders) {
+    await expect(table.getByRole("columnheader", { name: header }))
+      .toBeVisible();
+  }
+
+  for (const forbiddenHeader of contract.forbiddenHeaders) {
+    await expect(table.getByRole("columnheader", { name: forbiddenHeader }))
+      .toHaveCount(0);
+  }
+
+  await expectNoHorizontalOverflow(page);
+}
+
+async function expectPedidoResponsiveCardStructure(
+  page: Page,
+  viewport: { width: number; height: number },
+) {
+  await page.setViewportSize(viewport);
+  await page.goto(pedidosContract.path);
+  await expect(page.locator("table").first()).toBeHidden();
+
+  const card = page.getByRole("link", {
+    name: pedidosContract.openLinkName,
+  }).first();
+
+  if ((await card.count()) === 0) {
+    test.info().annotations.push({
+      type: "skip",
+      description:
+        "No existing pedidos were available for responsive card content checks.",
+    });
+    await expect(page.getByText(pedidosContract.emptyText).first())
+      .toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    return;
+  }
+
+  await expect(card).toBeVisible();
+
+  for (const part of ["header", "title", "service-meta", "date"]) {
+    await expect(getCardPart(card, part)).toBeVisible();
+  }
+
+  const directParts = await card.evaluate((element) =>
+    Array.from(element.children)
+      .map((child) => child.getAttribute("data-listing-card-part"))
+      .filter(Boolean),
+  );
+
+  expect(directParts).toEqual([
+    "header",
+    "title",
+    "service-meta",
+    "date",
+  ]);
+  await expectCardPartPrecedes(card, "order-number", "badges");
+  await expectCardPartPrecedes(card, "workflow", "service");
+
+  const titleIsInsideHeader = await card.evaluate((element) => {
+    const header = element.querySelector('[data-listing-card-part="header"]');
+    const title = element.querySelector('[data-listing-card-part="title"]');
+
+    return Boolean(header && title && header.contains(title));
+  });
+
+  expect(titleIsInsideHeader).toBe(false);
+
+  const title = getCardPart(card, "title");
+  const cardBox = await getRequiredBox(card);
+  const titleBox = await getRequiredBox(title);
+  const leftInset = Math.max(titleBox.x - cardBox.x, 1);
+  const rightInset = cardBox.x + cardBox.width - (titleBox.x + titleBox.width);
+
+  expect(rightInset).toBeLessThanOrEqual(leftInset * 2.5);
+  expect(titleBox.width).toBeGreaterThanOrEqual(
+    cardBox.width - leftInset * 4,
+  );
+
+  const titleClamp = await title.evaluate((element) => {
+    const style = window.getComputedStyle(element);
+
+    return {
+      display: style.display,
+      overflow: style.overflow,
+      webkitLineClamp: style.getPropertyValue("-webkit-line-clamp"),
+    };
+  });
+
+  expect(
+    titleClamp.webkitLineClamp === "2" ||
+      (titleClamp.display === "-webkit-box" &&
+        titleClamp.overflow === "hidden"),
+  ).toBe(true);
+
+  const href = await card.getAttribute("href");
+
+  expect(href).toMatch(/^\/dashboard\/pedidos\/[^/]+/);
+  expect(cardBox.height).toBeGreaterThanOrEqual(44);
+  await expectNoHorizontalOverflow(page);
+}
+
+async function expectSolicitudResponsiveCardStructure(
+  page: Page,
+  viewport: { width: number; height: number },
+) {
+  await page.setViewportSize(viewport);
+  await page.goto(solicitudesContract.path);
+  await expect(page.locator("table").first()).toBeHidden();
+
+  const card = page.getByRole("link", {
+    name: solicitudesContract.openLinkName,
+  }).first();
+
+  if ((await card.count()) === 0) {
+    test.info().annotations.push({
+      type: "skip",
+      description:
+        "No existing solicitudes were available for responsive card content checks.",
+    });
+    await expect(page.getByText(solicitudesContract.emptyText).first())
+      .toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    return;
+  }
+
+  await expect(card).toBeVisible();
+  await expect(getCardPart(card, "service-meta")).toBeVisible();
+  await expectCardPartPrecedes(card, "workflow", "service");
+  await expect(card.locator('[data-listing-card-part="workflow"]'))
+    .toHaveCount(1);
+
+  const workflowText = (
+    await getCardPart(card, "workflow").innerText()
+  ).trim();
+
+  await expect(
+    card.getByText(new RegExp(`^${escapeRegExp(workflowText)}$`, "i")),
+  ).toHaveCount(1);
+
+  const href = await card.getAttribute("href");
+  const cardBox = await getRequiredBox(card);
+
+  expect(href).toMatch(/^\/dashboard\/solicitudes\/[^/]+/);
+  expect(cardBox.height).toBeGreaterThanOrEqual(44);
+  await expectNoHorizontalOverflow(page);
 }
 
 async function expectListingContract(page: Page, contract: ListingContract) {
@@ -234,30 +476,6 @@ async function expectListingContract(page: Page, contract: ListingContract) {
 
     await expect(page.getByRole("link", { name: contract.openLinkName }).first())
       .toBeVisible();
-  } else {
-    await expect(page.getByText(contract.emptyText).first()).toBeVisible();
-  }
-
-  await expectNoHorizontalOverflow(page);
-}
-
-async function expectListingMobileContract(page: Page, contract: ListingContract) {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto(contract.path);
-  await expect(page.getByRole("heading", { name: contract.heading })).toBeVisible();
-  await expect(getVisibleSearchInput(page)).toBeVisible();
-  await expect(getVisibleFiltersTrigger(page)).toBeVisible();
-
-  for (const forbiddenCommand of contract.forbiddenCommands) {
-    await expect(page.getByRole("link", { name: forbiddenCommand })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: forbiddenCommand }))
-      .toHaveCount(0);
-  }
-
-  const detailLink = page.getByRole("link", { name: contract.openLinkName }).first();
-
-  if ((await detailLink.count()) > 0) {
-    await expect(detailLink).toBeVisible();
   } else {
     await expect(page.getByText(contract.emptyText).first()).toBeVisible();
   }
@@ -607,14 +825,36 @@ test.describe("internal operational listings", () => {
   });
 
   test("desktop listings keep compact operational contracts", async ({ page }) => {
-    await page.setViewportSize({ width: 1366, height: 768 });
+    await page.setViewportSize({ width: 1440, height: 900 });
     await expectListingContract(page, pedidosContract);
     await expectListingContract(page, solicitudesContract);
+    await expectDesktopTableLayout(page, pedidosContract);
+    await expectDesktopTableLayout(page, solicitudesContract);
   });
 
-  test("mobile listings stay compact and clickable", async ({ page }) => {
-    await expectListingMobileContract(page, pedidosContract);
-    await expectListingMobileContract(page, solicitudesContract);
+  test("mobile and tablet listings stay compact and clickable below xl", async ({
+    page,
+  }) => {
+    for (const viewport of responsiveListingViewports) {
+      await expectVisibleCardsBelowXl(page, pedidosContract, viewport);
+      await expectVisibleCardsBelowXl(page, solicitudesContract, viewport);
+    }
+  });
+
+  test("pedido responsive cards keep approved hierarchy below xl", async ({
+    page,
+  }) => {
+    for (const viewport of responsiveListingViewports) {
+      await expectPedidoResponsiveCardStructure(page, viewport);
+    }
+  });
+
+  test("solicitud responsive cards show workflow before service below xl", async ({
+    page,
+  }) => {
+    for (const viewport of responsiveListingViewports) {
+      await expectSolicitudResponsiveCardStructure(page, viewport);
+    }
   });
 
   test("listing search persists in URL", async ({ page }) => {

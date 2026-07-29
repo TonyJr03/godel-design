@@ -5,6 +5,7 @@ import {
 import { InternalServiceDisplay } from "@/components/service-types/InternalServiceDisplay";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { WorkflowTypeBadge } from "@/components/ui/WorkflowTypeBadge";
 import type { InternalSolicitud } from "@/lib/solicitudes";
 
 type InternalSolicitudesListProps = {
@@ -75,12 +76,16 @@ export function InternalSolicitudesList({
               <StatusBadge status={solicitud.status} />
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <InternalServiceDisplay
-                service={solicitud.service}
-                compact
-                showWorkflow
-              />
+            <div
+              data-listing-card-part="service-meta"
+              className="flex min-w-0 flex-wrap items-center gap-2"
+            >
+              <span data-listing-card-part="workflow" className="shrink-0">
+                <WorkflowTypeBadge workflowType={solicitud.workflow_type} />
+              </span>
+              <span data-listing-card-part="service" className="min-w-0">
+                <InternalServiceDisplay service={solicitud.service} compact />
+              </span>
             </div>
 
             <p className="text-sm text-text-secondary">

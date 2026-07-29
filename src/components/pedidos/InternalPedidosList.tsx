@@ -106,6 +106,25 @@ function PedidoServiceSummary({ pedido }: { pedido: InternalPedido }) {
   );
 }
 
+function PedidoResponsiveServiceMeta({ pedido }: { pedido: InternalPedido }) {
+  return (
+    <div
+      data-listing-card-part="service-meta"
+      className="flex min-w-0 flex-wrap items-center gap-2"
+    >
+      <span data-listing-card-part="workflow" className="shrink-0">
+        <WorkflowTypeBadge workflowType={pedido.workflow_type} />
+      </span>
+      <span
+        data-listing-card-part="service"
+        className="min-w-0 wrap-break-word text-sm font-medium text-text-primary"
+      >
+        {getInternalServiceDisplayName(pedido.service)}
+      </span>
+    </div>
+  );
+}
+
 export function InternalPedidosList({
   pedidos,
   emptyMessage = "Crea el primer pedido para comenzar a gestionar el trabajo.",
@@ -135,25 +154,38 @@ export function InternalPedidosList({
             aria-label={`Abrir pedido ${pedido.order_number}`}
             className="space-y-3 overflow-hidden"
           >
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-brand-primary">
-                  {pedido.order_number}
-                </p>
-                <h2 className="mt-1 line-clamp-2 text-base font-semibold text-text-primary">
-                  {pedido.title}
-                </h2>
-                <div className="mt-2">
-                  <PedidoServiceSummary pedido={pedido} />
-                </div>
-              </div>
-              <div className="flex flex-wrap justify-end gap-2">
+            <div
+              data-listing-card-part="header"
+              className="flex min-w-0 flex-wrap items-start justify-between gap-3"
+            >
+              <p
+                data-listing-card-part="order-number"
+                className="min-w-0 font-mono text-sm font-semibold text-brand-primary"
+              >
+                {pedido.order_number}
+              </p>
+              <div
+                data-listing-card-part="badges"
+                className="flex flex-wrap justify-end gap-2"
+              >
                 <StatusBadge status={pedido.status} />
                 <PaymentBadge pedido={pedido} compact />
               </div>
             </div>
 
-            <p className="text-sm text-text-secondary">
+            <h2
+              data-listing-card-part="title"
+              className="block min-w-0 line-clamp-2 text-base font-semibold text-text-primary"
+            >
+              {pedido.title}
+            </h2>
+
+            <PedidoResponsiveServiceMeta pedido={pedido} />
+
+            <p
+              data-listing-card-part="date"
+              className="text-sm text-text-secondary"
+            >
               Entrega: {formatDate(pedido.estimated_delivery_date)}
             </p>
           </ListingCardLink>
