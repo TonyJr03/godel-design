@@ -175,6 +175,10 @@ manualmente.
 - `private.current_user_role()` solo devuelve rol si el perfil está activo y no tiene contraseña temporal pendiente.
 - `private.current_user_is_active()` usa la misma semántica operativa: `is_active = true` y `must_change_password = false`.
 - La aplicación todavía no crea usuarios Auth desde la UI ni usa service role key en código.
+- `authenticated` conserva `SELECT` e `INSERT` transitorio sobre `perfiles`, pero no tiene `UPDATE` completo de tabla.
+- La actualización normal de `perfiles` queda concedida por columnas únicamente para `full_name`, `phone`, `avatar_url`, `role` e `is_active`.
+- `id`, `must_change_password`, `created_by`, `created_at` y `updated_at` son campos protegidos frente a actualizaciones directas de sesiones normales.
+- El `INSERT` normal se conserva temporalmente para el alta legacy por UUID hasta que el nuevo flujo administrativo lo reemplace por completo.
 
 **Provisionamiento Auth -> perfil:**
 
@@ -184,7 +188,7 @@ manualmente.
 - Si existe, exige `version = 1`, `source = "admin_dashboard"`, `new.email` presente, `full_name` no vacío y dentro de 120 caracteres, opcionales `phone` y `avatar_url` dentro de límites, rol `admin`, `supervisor` o `trabajador`, `created_by` con UUID válido y admin creador existente, activo y sin cambio pendiente.
 - Inserta `id = new.id`, datos normalizados, `is_active = true`, `must_change_password = true` y `created_by`.
 - No inserta email, contraseña, tokens ni metadata duplicada.
-- La función es `SECURITY DEFINER`, tiene `search_path` fijado, revoca ejecución a `public`, `anon` y `authenticated`, y concede ejecución técnica solo a `supabase_auth_admin`.
+- La función es `SECURITY DEFINER`, fija `search_path = ''`, revoca ejecución a `public`, `anon` y `authenticated`, y concede ejecución técnica solo a `supabase_auth_admin`.
 
 ### `clientes`
 
@@ -967,7 +971,7 @@ Retorna:
 
 Contrato:
 
-- es `security definer` y fija `search_path = public, private`;
+- es `security definer` y fija `search_path = ''`;
 - revoca ejecución a `public`, `anon` y `authenticated`;
 - concede `execute` únicamente a `service_role`;
 - exige que `public.perfiles.id = p_user_id` exista, esté activo y tenga `must_change_password = true`;

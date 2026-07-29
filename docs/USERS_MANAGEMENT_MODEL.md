@@ -67,6 +67,18 @@ Aunque existen grants de tabla para `authenticated`, RLS es la defensa real que 
 
 `perfiles_select_visible` conserva la lectura de la fila propia mediante `id = auth.uid()`. Esto permite detectar el estado de onboarding aunque `must_change_password = true`, sin convertir al usuario temporal en admin, supervisor o trabajador operativo.
 
+El rol SQL `authenticated` no conserva `UPDATE` completo de tabla sobre `public.perfiles`. Para sesiones normales, la actualización directa por PostgREST queda limitada por grant de columnas a:
+
+- `full_name`;
+- `phone`;
+- `avatar_url`;
+- `role`;
+- `is_active`.
+
+Los campos `must_change_password` y `created_by` son protegidos. No son actualizables por una sesión normal, aunque el usuario sea admin y RLS permita operar sobre la fila. `must_change_password` solo debe completarse mediante la RPC privilegiada futura, después de que el cambio real de contraseña haya finalizado correctamente.
+
+El `INSERT` normal sobre `perfiles` para `authenticated` se conserva de forma transitoria mientras siga existiendo el alta legacy por UUID de un usuario Auth ya creado. Ese permiso debe revisarse y retirarse cuando el nuevo flujo administrativo con Auth Admin API reemplace completamente al anterior.
+
 ## Base para Creación Administrativa Segura
 
 La decisión arquitectónica evoluciona hacia un alta directa futura desde el dashboard administrativo: un admin autorizado creará el usuario Auth con correo y contraseña temporal mediante Admin API en código estrictamente server-side. Esa llamada todavía no existe en esta etapa.
@@ -187,9 +199,9 @@ Complejidad: alta.
 
 ## Decisión Vigente para el MVP
 
-Godel Diseño mantiene operativa la gestión de perfiles existente, pero adopta como siguiente dirección la creación administrativa directa con contraseña temporal. La etapa actual implementa solo la base de datos y el contrato de seguridad.
+Godel Diseño mantiene operativa la gestión de perfiles existente, pero adopta como objetivo de primera producción la creación administrativa directa con contraseña temporal. La etapa foundation actual implementa solo la base de datos y el contrato de seguridad.
 
-El alta completa desde UI todavía no está disponible. Hasta terminar las etapas posteriores, la aplicación no crea usuarios Auth, no pide contraseñas, no llama a Admin API y no incorpora `SUPABASE_SERVICE_ROLE_KEY` en código.
+El alta completa desde UI todavía no está disponible en esta etapa. La siguiente etapa introducirá la clave administrativa de forma aislada y solo server-side para llamar a Admin API; todavía no existe en el código actual.
 
 ## Operaciones Implementadas
 
@@ -207,15 +219,15 @@ El alta completa desde UI todavía no está disponible. Hasta terminar las etapa
 
 ## Fuera de Alcance Inicial
 
-Queda explícitamente fuera del MVP:
+Queda explícitamente fuera de esta etapa foundation:
 
-- crear usuarios Auth desde la app;
+- implementar la creación de usuarios Auth desde la app;
 - enviar invitaciones desde la app;
 - cambiar contraseñas desde la app, salvo la futura etapa protegida de cambio inicial;
 - eliminar usuarios físicamente;
 - exponer emails de Auth si no forman parte de `perfiles`;
-- agregar `SUPABASE_SERVICE_ROLE_KEY`;
-- usar service role key;
+- agregar la clave administrativa en esta etapa;
+- usar service role key desde componentes cliente o código no aislado;
 - cambiar la matriz de permisos;
 - convertir `perfiles` en un sistema avanzado de recursos humanos.
 
