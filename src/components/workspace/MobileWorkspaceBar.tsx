@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { Ellipsis } from "lucide-react";
 
 import { WorkspaceIcon } from "./WorkspaceIcon";
@@ -17,6 +18,8 @@ const GRID_COLUMN_CLASSES = {
   3: "grid-cols-3",
   4: "grid-cols-4",
 } as const;
+const MOBILE_WORKSPACE_BAR_SCROLL_CLEARANCE =
+  "calc(6rem + env(safe-area-inset-bottom))";
 
 export function MobileWorkspaceBar() {
   const {
@@ -36,6 +39,39 @@ export function MobileWorkspaceBar() {
     (action) => !directActionIds.has(action.id),
   );
   const visibleItemCount = directActions.length + (hasMore ? 1 : 0);
+
+  useEffect(() => {
+    if (visibleItemCount === 0) {
+      return undefined;
+    }
+
+    const root = document.documentElement;
+    const body = document.body;
+    const mobileViewportQuery = window.matchMedia("(max-width: 767.98px)");
+    const previousRootScrollPaddingBottom = root.style.scrollPaddingBottom;
+    const previousBodyScrollPaddingBottom = body.style.scrollPaddingBottom;
+    const applyScrollClearance = () => {
+      if (mobileViewportQuery.matches) {
+        root.style.scrollPaddingBottom =
+          MOBILE_WORKSPACE_BAR_SCROLL_CLEARANCE;
+        body.style.scrollPaddingBottom =
+          MOBILE_WORKSPACE_BAR_SCROLL_CLEARANCE;
+        return;
+      }
+
+      root.style.scrollPaddingBottom = previousRootScrollPaddingBottom;
+      body.style.scrollPaddingBottom = previousBodyScrollPaddingBottom;
+    };
+
+    applyScrollClearance();
+    mobileViewportQuery.addEventListener("change", applyScrollClearance);
+
+    return () => {
+      mobileViewportQuery.removeEventListener("change", applyScrollClearance);
+      root.style.scrollPaddingBottom = previousRootScrollPaddingBottom;
+      body.style.scrollPaddingBottom = previousBodyScrollPaddingBottom;
+    };
+  }, [visibleItemCount]);
 
   if (visibleItemCount === 0) {
     return null;
