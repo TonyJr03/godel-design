@@ -20,7 +20,7 @@ Los reportes avanzados quedan fuera de esta fase. No se deben implementar gráfi
 
 ## Diagnóstico del estado actual
 
-La ruta `/dashboard` muestra tarjetas reales de resumen operativo, paneles operativos simples y actividad reciente mínima usando `getDashboard()`. Este servicio agregador obtiene un contexto compartido de perfil/rol una sola vez y luego carga resumen, paneles y actividad en paralelo. La página sigue siendo un Server Component: carga datos en servidor y los entrega a componentes presentacionales sin consultas desde cliente.
+La ruta `/dashboard` muestra tarjetas reales de resumen operativo, paneles operativos contextuales, tableros agrupados por rol y actividad reciente con ventana móvil de 7 días, completada con al menos 20 movimientos recientes cuando existen. Este servicio agregador obtiene un contexto compartido de perfil/rol una sola vez y luego carga resumen, paneles y actividad en paralelo. La página sigue siendo un Server Component: carga datos en servidor y los entrega a componentes presentacionales sin consultas desde cliente.
 
 El layout de dashboard (`src/app/dashboard/layout.tsx`) obtiene el perfil actual con `getCurrentProfile()` y pasa el rol al sidebar. La navegación visible se filtra con `canAccessDashboardRoute`.
 
@@ -175,15 +175,15 @@ El trabajador no debe ver:
 La primera versión funcional del dashboard debe ser deliberadamente simple. Desde Fase 13.4 ya se muestran tarjetas reales y paneles operativos para `admin`, `supervisor` y `trabajador`:
 
 - tarjetas de resumen por rol;
-- métricas globales de solicitudes, pedidos y clientes para `admin` y `supervisor`;
-- métricas de pedidos asignados para `trabajador`, incluyendo asignados pendientes de revisión o en revisión sin tareas;
-- sección de "Solicitudes pendientes" para `admin` y `supervisor`;
-- sección de "Pedidos que requieren atención" para `admin` y `supervisor`;
-- sección de "Mis pedidos asignados" para `trabajador`;
-- actividad reciente mínima desde historial de pedidos y solicitudes, incluyendo eventos de tareas con títulos seguros;
+- panel contextual de atención;
+- solicitudes pendientes contextuales para `admin` y `supervisor`;
+- pedidos listos contextuales;
+- tablero principal de pedidos activos agrupados;
+- tablero de pedidos asignados agrupados para `trabajador`;
+- historial dinámico de 7 días con mínimo de 20 movimientos recientes cuando existen;
+- conteos exactos separados de previews limitados;
 - pedidos manuales con `cliente_id = null` visibles como `Sin cliente asociado`;
 - tipos de servicio de solicitudes renderizados mediante labels visibles, no como valores técnicos crudos;
-- actividad reciente avanzada queda para una subfase posterior;
 - sin gráficos;
 - sin reportes avanzados;
 - sin notificaciones.
@@ -212,6 +212,50 @@ la métrica de pedidos sin tareas y las señales de atención usan
 tareas obligatorias. `creado` y `solicitud_recibida` se consideran estados
 activos equivalentes en atención operativa, sin implementar gráficos avanzados,
 reportes financieros ni productividad.
+
+Los paneles operativos no deben inferir totales desde muestras limitadas. La
+regla vigente para solicitudes pendientes y tablero de pedidos es:
+
+```text
+totalCount = conteo exacto realizado server-side en Supabase
+items      = DTOs limitados que renderiza la interfaz
+moreCount  = max(0, totalCount - items.length)
+```
+
+Solicitudes pendientes muestra hasta 8 elementos y cuenta `nueva`,
+`en_revision`, `contactada` y `aprobada` solo cuando
+`converted_order_id IS NULL`. El preview prioriza solicitudes `nueva` y luego el
+resto por fecha reciente. Los grupos del tablero de pedidos se consultan de
+forma independiente para preservar conteos exactos y evitar que un grupo consuma
+el cupo de otro. Los pedidos listos para entrega muestran hasta 8 elementos.
+
+En el dashboard de trabajador, los conteos y previews del tablero usan el mismo
+contrato pero se filtran server-side por `pedido_trabajadores.assigned_profile_id`
+del perfil actual, manteniendo RLS como defensa final.
+
+El historial del dashboard usa una ventana movil exacta de 7 dias, equivalente
+a 168 horas desde el instante de carga. Para `admin` y `supervisor` combina
+eventos de `pedido_historial` y `solicitud_historial`, deduplica por el
+identificador seguro del DTO y ordena globalmente de mas reciente a mas antiguo.
+Para `trabajador` usa solo `pedido_historial` accesible por RLS, por lo que no
+incluye solicitudes ni pedidos no asignados.
+
+La regla de visibilidad es:
+
+```text
+si la ventana de 7 dias tiene 20 o mas eventos:
+  mostrar todos los eventos de esa ventana
+si la ventana tiene menos de 20 eventos:
+  completar con los eventos anteriores mas recientes hasta 20
+si existen menos de 20 eventos totales:
+  mostrar todos los existentes
+```
+
+Las consultas semanales se paginan server-side por rangos tecnicos para evitar
+limites silenciosos de una sola respuesta de PostgREST. Las consultas de
+respaldo se limitan a los 20 eventos mas recientes por fuente y solo se ejecutan
+cuando la ventana semanal no llega al minimo. Esta etapa no agrega paginacion
+visual, boton de cargar mas, filtros ni agrupacion por dia.
 
 ## Métricas futuras
 
@@ -244,8 +288,10 @@ src/lib/dashboard/helpers.ts
 src/lib/dashboard/types.ts
 src/lib/dashboard/index.ts
 src/components/dashboard/DashboardAttentionPanel.tsx
-src/components/dashboard/DashboardSummaryCards.tsx
-src/components/dashboard/DashboardWorkPanels.tsx
+src/components/dashboard/DashboardWorkspace.tsx
+src/components/dashboard/DashboardPedidoBoard.tsx
+src/components/dashboard/DashboardPendingRequestsPanel.tsx
+src/components/dashboard/DashboardReadyOrdersPanel.tsx
 src/components/dashboard/DashboardRecentActivity.tsx
 ```
 
@@ -254,12 +300,14 @@ Responsabilidades:
 | Archivo | Responsabilidad |
 | --- | --- |
 | `get-dashboard-summary.ts` | Conteos agregados para admin y supervisor. |
-| `get-dashboard-work-items.ts` | Listas operativas por rol: solicitudes pendientes y pedidos que requieren atención. |
-| `get-worker-dashboard.ts` | Resumen y lista breve de pedidos asignados al trabajador. |
-| `get-dashboard-activity.ts` | Actividad reciente mínima desde `pedido_historial` y `solicitud_historial`. |
+| `get-dashboard-work-items.ts` | Grupo de solicitudes pendientes y tablero de pedidos agrupado por rol. |
+| `get-worker-dashboard.ts` | Resumen de pedidos asignados al trabajador. |
+| `get-dashboard-activity.ts` | Actividad con ventana móvil de 7 días y respaldo mínimo de 20 movimientos recientes por rol/RLS desde `pedido_historial` y `solicitud_historial`. |
 | `types.ts` | Tipos compartidos del dashboard. |
-| `DashboardSummaryCards.tsx` | Tarjetas de resumen sin consultas directas. |
-| `DashboardWorkPanels.tsx` | Paneles operativos simples sin consultas directas. |
+| `DashboardWorkspace.tsx` | Workspace vigente que compone acciones, paneles contextuales y tablero principal. |
+| `DashboardPedidoBoard.tsx` | Tablero principal de pedidos agrupados sin consultas directas. |
+| `DashboardPendingRequestsPanel.tsx` | Panel contextual de solicitudes pendientes sin consultas directas. |
+| `DashboardReadyOrdersPanel.tsx` | Panel contextual de pedidos listos sin consultas directas. |
 | `DashboardRecentActivity.tsx` | Lista simple de actividad reciente sin mostrar metadata cruda. |
 | `DashboardAttentionPanel.tsx` | Indicadores prioritarios por rol. |
 | `activity-mappers.ts` | Mappers seguros de historial hacia textos visibles sin metadata cruda. |
@@ -267,8 +315,8 @@ Responsabilidades:
 
 El dashboard de trabajador no usa un panel separado llamado
 `WorkerDashboardPanel.tsx`. La vista worker esta integrada en
-`DashboardOverview`, `DashboardAttentionPanel` y `DashboardWorkPanels` usando
-DTOs `kind: "worker"`.
+`DashboardWorkspace`, `DashboardOverview`, `DashboardAttentionPanel` y
+`DashboardPedidoBoard` usando DTOs `kind: "worker"`.
 
 ## Reglas de seguridad
 
@@ -294,7 +342,7 @@ DTOs `kind: "worker"`.
 2. Fase 13.2: servicios server-side de resumen por rol, sin UI compleja.
 3. Fase 13.3: tarjetas MVP por rol en `/dashboard`.
 4. Fase 13.4: paneles operativos por rol en `/dashboard`.
-5. Fase 13.5: actividad reciente mínima en `/dashboard`.
+5. Fase 13.5: actividad reciente en `/dashboard`.
 6. Fase 13.6: refinamiento de listas, criterios de atención y actividad según tareas de pedido.
 7. Fase 13.7: documentación, pruebas manuales y cierre.
 
@@ -329,9 +377,9 @@ Actualizacion Beta 2.7.6: la deuda de `workflow_type` en metricas de tareas
 quedo corregida en Beta 2.7.4. El dashboard usa
 `doesPedidoWorkflowRequireTasks()` para que solo `workflow_type = encargo`
 requiera tareas obligatorias; `workflow_type = impresion` puede avanzar sin
-tareas internas. La vista worker esta integrada en `DashboardOverview`,
-`DashboardAttentionPanel` y `DashboardWorkPanels`; no existe un componente
-`WorkerDashboardPanel.tsx`.
+tareas internas. La vista worker esta integrada en `DashboardWorkspace`,
+`DashboardOverview`, `DashboardAttentionPanel` y `DashboardPedidoBoard`; no
+existe un componente `WorkerDashboardPanel.tsx`.
 
 El dashboard operativo funciona como una capa de lectura server-side sobre los
 módulos existentes. Muestra trabajo pendiente y pedidos relevantes por rol sin

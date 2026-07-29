@@ -19,7 +19,7 @@ delega el render en componentes presentacionales.
 | `get-dashboard.ts` | Orquestador. Resuelve contexto una vez y carga summary, work-items y actividad en paralelo. |
 | `get-dashboard-summary.ts` | Summary global para `admin`/`supervisor`; reutiliza progreso de tareas desde Pedidos. |
 | `get-worker-dashboard.ts` | Summary de trabajador limitado a pedidos asignados. |
-| `get-dashboard-work-items.ts` | Solicitudes/pedidos de atencion para management y pedidos asignados para worker. |
+| `get-dashboard-work-items.ts` | Grupo de solicitudes pendientes y tablero de pedidos agrupado por rol. |
 | `get-dashboard-activity.ts` | Queries de actividad reciente por rol. Delega transformaciones seguras en mappers. |
 | `activity-mappers.ts` | Mappers seguros de historial de pedidos/solicitudes hacia texto visible. |
 | `helpers.ts` | Fechas, estados operativos y `doesPedidoWorkflowRequireTasks()`. |
@@ -79,12 +79,25 @@ usuarios/perfiles globales ni pedidos no asignados desde esta capa.
 
 `admin` y `supervisor` reciben:
 
-- solicitudes pendientes;
-- pedidos que requieren atencion.
+- grupo de solicitudes pendientes;
+- tablero de pedidos agrupado.
 
 `trabajador` recibe:
 
-- pedidos asignados que requieren seguimiento.
+- tablero de pedidos asignados agrupado.
+
+Los grupos operativos separan siempre conteos y previews:
+
+- `totalCount`: conteo exacto server-side con Supabase y RLS.
+- `items`: DTOs limitados que necesita renderizar la UI.
+- `moreCount`: `max(0, totalCount - items.length)`.
+
+Solicitudes pendientes muestra hasta 8 solicitudes. El conteo incluye `nueva`,
+`en_revision`, `contactada` y `aprobada` solo cuando
+`converted_order_id IS NULL`; el preview prioriza `nueva` y luego el resto por
+fecha reciente. El tablero de pedidos consulta cada grupo por separado
+(`nuevos`, `enRevision`, `enProduccion`, `listosEntrega`) para que un grupo no
+consuma el cupo de otro. `listosEntrega` muestra hasta 8 pedidos.
 
 Los pedidos se priorizan por revision pendiente, atraso, entrega proxima,
 revision sin tareas, produccion con tareas pendientes y listo para entrega.
@@ -101,12 +114,28 @@ drift en el calculo de progreso de tareas.
 
 ## Actividad Reciente
 
-`admin` y `supervisor` ven actividad reciente de pedidos y solicitudes.
+`admin` y `supervisor` ven actividad reciente combinada de pedidos y
+solicitudes. El historial usa una ventana movil de 7 dias exactos, calculada
+como 168 horas desde el instante de carga. Si existen 20 o mas eventos
+accesibles dentro de esa ventana, se devuelven todos. Si hay menos de 20, se
+completa con los eventos anteriores mas recientes hasta llegar a 20 cuando
+existan. Si existen menos de 20 eventos totales, se muestra todo lo disponible.
 
 `trabajador` ve unicamente actividad reciente de pedidos accesibles por RLS, es
-decir, pedidos asignados.
+decir, pedidos asignados. No recibe historial de solicitudes ni actividad de
+pedidos no accesibles.
 
-`get-dashboard-activity.ts` conserva queries, limites, orden y reglas por rol.
+El tablero de trabajador aplica la misma separacion entre conteos exactos y
+previews limitados, pero todo conteo y candidato se filtra server-side con
+`pedido_trabajadores.assigned_profile_id = perfil actual`. RLS sigue siendo la
+defensa final y el trabajador no recibe pedidos no asignados.
+
+`get-dashboard-activity.ts` pagina server-side la actividad semanal por rangos
+tecnicos para evitar limites silenciosos de PostgREST. Las consultas de respaldo
+solo se ejecutan cuando la ventana semanal tiene menos de 20 eventos y se
+limitan a los 20 eventos mas recientes por fuente. No hay paginacion visual en
+esta etapa: el panel contextual usa su scroll interno.
+
 `activity-mappers.ts` transforma rows de historial a DTOs visibles mediante
 allowlist. Puede convertir a texto campos controlados como `file_name`, `title`,
 `client_name`, `pedido_numero` y `order_number`, pero no entrega metadata cruda
@@ -141,7 +170,7 @@ tecnicos permanecen fuera de los componentes.
 | --- | --- | --- |
 | `admin` | Dashboard global, solicitudes pendientes, pedidos de atencion, actividad de pedidos/solicitudes y navegacion completa. | Secretos, datos Auth, metadata cruda, Storage interno o errores tecnicos. |
 | `supervisor` | Dashboard global, solicitudes pendientes, pedidos de atencion, actividad de pedidos/solicitudes, solicitudes, pedidos y clientes. | Usuarios, configuracion, secretos, datos Auth, Storage interno o metadata cruda. |
-| `trabajador` | Resumen de pedidos asignados, pedidos asignados que requieren seguimiento y actividad de pedidos accesibles. | Solicitudes generales, clientes globales, usuarios/perfiles globales, configuracion, pedidos no asignados, metricas financieras agregadas. |
+| `trabajador` | Resumen de pedidos asignados, tablero de pedidos asignados y actividad de pedidos accesibles. | Solicitudes generales, clientes globales, usuarios/perfiles globales, configuracion, pedidos no asignados, metricas financieras agregadas. |
 
 Los permisos no dependen solo del sidebar: proxy, loaders server-side y RLS
 deben mantenerse alineados.

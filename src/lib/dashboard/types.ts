@@ -170,9 +170,7 @@ export type DashboardPendingSolicitudesGroup = {
 export type ManagementDashboardWorkItems = {
   kind: "management";
   role: ManagementDashboardRole;
-  solicitudesPendientes: DashboardPendingSolicitudItem[];
   solicitudesPendientesGroup: DashboardPendingSolicitudesGroup;
-  pedidosAtencion: DashboardPedidoWorkItem[];
   pedidoBoard: DashboardPedidoBoard;
   generatedAt: string;
 };
@@ -180,7 +178,6 @@ export type ManagementDashboardWorkItems = {
 export type WorkerDashboardWorkItems = {
   kind: "worker";
   role: WorkerDashboardRole;
-  pedidosAsignados: DashboardPedidoWorkItem[];
   pedidoBoard: DashboardPedidoBoard;
   generatedAt: string;
 };
