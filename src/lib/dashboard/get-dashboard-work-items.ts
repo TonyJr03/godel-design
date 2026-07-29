@@ -72,8 +72,6 @@ type CountQuery = PromiseLike<{
 type DashboardSupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
 const PENDING_SOLICITUDES_LIMIT = 8;
-const PEDIDOS_ATTENTION_LIMIT = 8;
-const PEDIDOS_ATTENTION_QUERY_LIMIT = 40;
 const PEDIDOS_BOARD_GROUP_QUERY_MULTIPLIER = 8;
 
 const PEDIDOS_WORK_SELECT = `
@@ -498,35 +496,6 @@ async function listManagementPendingSolicitudes(): Promise<
   };
 }
 
-async function listManagementAttentionPedidos(
-  today: string,
-  nextSevenDays: string,
-): Promise<DashboardPedidoWorkItem[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("pedidos")
-    .select(PEDIDOS_WORK_SELECT)
-    .neq("status", "entregado")
-    .neq("status", "cancelado")
-    .order("created_at", { ascending: false })
-    .limit(PEDIDOS_ATTENTION_QUERY_LIMIT)
-    .returns<PedidoWorkRow[]>();
-
-  if (error) {
-    throw new Error(
-      `pedidos que requieren atención: ${
-        error.message ?? "Supabase query error"
-      }`,
-    );
-  }
-
-  const pedidos = await attachTaskProgressToPedidos(supabase, data ?? []);
-
-  return sortPedidosByAttention(pedidos, today, nextSevenDays)
-    .slice(0, PEDIDOS_ATTENTION_LIMIT)
-    .map((pedido) => mapPedidoItem(pedido, today, nextSevenDays));
-}
-
 async function countManagementPedidoBoardGroup(
   supabase: DashboardSupabaseClient,
   statuses: readonly PedidoEstado[],
@@ -566,37 +535,6 @@ async function listManagementPedidoBoardGroupRows(
   }
 
   return data ?? [];
-}
-
-async function listWorkerAssignedPedidos(
-  workerProfileId: string,
-  today: string,
-  nextSevenDays: string,
-): Promise<DashboardPedidoWorkItem[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("pedidos")
-    .select(ASSIGNED_PEDIDOS_WORK_SELECT)
-    .eq("pedido_trabajadores.assigned_profile_id", workerProfileId)
-    .neq("status", "entregado")
-    .neq("status", "cancelado")
-    .order("created_at", { ascending: false })
-    .limit(PEDIDOS_ATTENTION_QUERY_LIMIT)
-    .returns<PedidoWorkRow[]>();
-
-  if (error) {
-    throw new Error(
-      `pedidos asignados del trabajador: ${
-        error.message ?? "Supabase query error"
-      }`,
-    );
-  }
-
-  const pedidos = await attachTaskProgressToPedidos(supabase, data ?? []);
-
-  return sortPedidosByAttention(pedidos, today, nextSevenDays)
-    .slice(0, PEDIDOS_ATTENTION_LIMIT)
-    .map((pedido) => mapPedidoItem(pedido, today, nextSevenDays));
 }
 
 async function countWorkerPedidoBoardGroup(
@@ -763,12 +701,10 @@ export async function loadDashboardWorkItems(
 
   try {
     if (context.kind === "management") {
-      const [solicitudesPendientesGroup, pedidosAtencion, pedidoBoard] =
-        await Promise.all([
-          listManagementPendingSolicitudes(),
-          listManagementAttentionPedidos(today, nextSevenDays),
-          loadManagementPedidoBoard(today, nextSevenDays),
-        ]);
+      const [solicitudesPendientesGroup, pedidoBoard] = await Promise.all([
+        listManagementPendingSolicitudes(),
+        loadManagementPedidoBoard(today, nextSevenDays),
+      ]);
 
       return {
         ok: true,
@@ -776,19 +712,18 @@ export async function loadDashboardWorkItems(
         workItems: {
           kind: "management",
           role: context.role,
-          solicitudesPendientes: solicitudesPendientesGroup.items,
           solicitudesPendientesGroup,
-          pedidosAtencion,
           pedidoBoard,
           generatedAt: new Date().toISOString(),
         },
       };
     }
 
-    const [pedidosAsignados, pedidoBoard] = await Promise.all([
-      listWorkerAssignedPedidos(context.profile.id, today, nextSevenDays),
-      loadWorkerPedidoBoard(context.profile.id, today, nextSevenDays),
-    ]);
+    const pedidoBoard = await loadWorkerPedidoBoard(
+      context.profile.id,
+      today,
+      nextSevenDays,
+    );
 
     return {
       ok: true,
@@ -796,7 +731,6 @@ export async function loadDashboardWorkItems(
       workItems: {
         kind: "worker",
         role: "trabajador",
-        pedidosAsignados,
         pedidoBoard,
         generatedAt: new Date().toISOString(),
       },

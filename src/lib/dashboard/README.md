@@ -19,7 +19,7 @@ delega el render en componentes presentacionales.
 | `get-dashboard.ts` | Orquestador. Resuelve contexto una vez y carga summary, work-items y actividad en paralelo. |
 | `get-dashboard-summary.ts` | Summary global para `admin`/`supervisor`; reutiliza progreso de tareas desde Pedidos. |
 | `get-worker-dashboard.ts` | Summary de trabajador limitado a pedidos asignados. |
-| `get-dashboard-work-items.ts` | Solicitudes/pedidos de atencion para management y pedidos asignados para worker. |
+| `get-dashboard-work-items.ts` | Grupo de solicitudes pendientes y tablero de pedidos agrupado por rol. |
 | `get-dashboard-activity.ts` | Queries de actividad reciente por rol. Delega transformaciones seguras en mappers. |
 | `activity-mappers.ts` | Mappers seguros de historial de pedidos/solicitudes hacia texto visible. |
 | `helpers.ts` | Fechas, estados operativos y `doesPedidoWorkflowRequireTasks()`. |
@@ -79,12 +79,12 @@ usuarios/perfiles globales ni pedidos no asignados desde esta capa.
 
 `admin` y `supervisor` reciben:
 
-- solicitudes pendientes;
-- pedidos que requieren atencion.
+- grupo de solicitudes pendientes;
+- tablero de pedidos agrupado.
 
 `trabajador` recibe:
 
-- pedidos asignados que requieren seguimiento.
+- tablero de pedidos asignados agrupado.
 
 Los grupos operativos separan siempre conteos y previews:
 
@@ -170,7 +170,7 @@ tecnicos permanecen fuera de los componentes.
 | --- | --- | --- |
 | `admin` | Dashboard global, solicitudes pendientes, pedidos de atencion, actividad de pedidos/solicitudes y navegacion completa. | Secretos, datos Auth, metadata cruda, Storage interno o errores tecnicos. |
 | `supervisor` | Dashboard global, solicitudes pendientes, pedidos de atencion, actividad de pedidos/solicitudes, solicitudes, pedidos y clientes. | Usuarios, configuracion, secretos, datos Auth, Storage interno o metadata cruda. |
-| `trabajador` | Resumen de pedidos asignados, pedidos asignados que requieren seguimiento y actividad de pedidos accesibles. | Solicitudes generales, clientes globales, usuarios/perfiles globales, configuracion, pedidos no asignados, metricas financieras agregadas. |
+| `trabajador` | Resumen de pedidos asignados, tablero de pedidos asignados y actividad de pedidos accesibles. | Solicitudes generales, clientes globales, usuarios/perfiles globales, configuracion, pedidos no asignados, metricas financieras agregadas. |
 
 Los permisos no dependen solo del sidebar: proxy, loaders server-side y RLS
 deben mantenerse alineados.
