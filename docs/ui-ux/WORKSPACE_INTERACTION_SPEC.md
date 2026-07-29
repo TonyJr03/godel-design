@@ -56,9 +56,23 @@ El resumen operativo no debe vivir en una columna intermedia. Su función es dar
 contexto transversal antes de que el usuario elija trabajar en el contenido
 principal o abrir un panel contextual.
 
-Nota vigente 4.5: esa banda ya no forma parte del diseno aprobado. La
-implementacion final usa cabecera compacta sin CTA primaria ni resumen operativo
+Nota vigente 4.5: esa banda ya no forma parte del diseño aprobado. La
+implementación final usa cabecera compacta sin CTA primaria ni resumen operativo
 permanente.
+
+Contrato vigente de contención:
+
+- Solicitudes y Pedidos usan `desktopMode="contained"`.
+- Desde `xl`, el workspace ocupa la altura disponible del viewport; la cabecera
+  consume su altura natural y el área principal consume el espacio restante.
+- El contenido principal no tiene scroll global propio. Cada sección permanente
+  ocupa su celda, conserva encabezado fijo y desplaza solo su cuerpo cuando el
+  contenido no cabe.
+- El action rail contenido usa la altura asignada por el grid; no calcula una
+  altura independiente desde el viewport ni aumenta la altura del área principal.
+- Dashboard usa `desktopMode="flow"` y conserva scroll documental con rail sticky
+  basado en viewport. El modo contenido no es una regla universal para todos los
+  workspaces.
 
 Estructura conceptual:
 
@@ -144,51 +158,47 @@ Tipografía conceptual:
 
 Estado vigente 4.5: este bloque fue retirado del workspace de pedidos. La
 pantalla final no renderiza resumen operativo permanente ni bloque visual
-"Flujo directo de impresion"; el flujo `impresion` se expresa mediante la
-composicion principal de descripcion y archivos.
+equivalente entre cabecera y contenido principal. Sus datos se distribuyen entre
+las superficies vigentes:
 
-El resumen operativo es una banda compacta bajo la cabecera y ocupa todo el
-ancho disponible antes de la división en columnas. Debe permitir entender el
-estado del trabajo sin abrir paneles.
+- La cabecera conserva identidad operativa, estado, prioridad, fechas relevantes
+  y referencia pública.
+- En `encargo`, el progreso vive en `Tareas del pedido`.
+- Información, cliente, personal, pagos y solicitud de origen viven en sus
+  paneles o secciones correspondientes.
+- Archivos y tareas se muestran en el contenido principal cuando aplican, sin
+  crear una banda intermedia.
 
-Datos siempre visibles cuando existan:
-
-- Cliente o "Sin cliente asociado".
-- Personal asignado o "Sin personal asignado".
-- Progreso.
-- Estado de pago.
-- Entrega estimada.
-- Referencia pública `public_reference`.
-- Acción de copiar referencia.
-- Advertencias operativas.
-
-Datos condicionados:
-
-| Dato | Visibilidad |
-| --- | --- |
-| Cliente | Visible para todo rol que accede al pedido; trabajador solo en pedidos asignados. |
-| Personal asignado | Visible para todo rol con acceso al pedido. Gestión solo `admin`/`supervisor`. |
-| Progreso por tareas | Visible en `encargo`; en `impresion` se muestra "Flujo directo". |
-| Estado de pago | Visible en pedido; gestión solo `admin`/`supervisor`. |
-| Referencia pública | Visible y copiable para roles con acceso al pedido. |
-| Solicitud de origen | Visible si existe; se consulta en panel Información. |
-| Metadata técnica | No domina el resumen; va al panel Información. |
-
-El resumen no debe exponer `file_path`, bucket, UUIDs como dato primario ni
-información financiera pública. La referencia pública es `public_reference`, no
-`order_number`.
+Las reglas de seguridad se mantienen: no exponer `file_path`, bucket, UUIDs como
+dato primario ni información financiera pública. La referencia pública es
+`public_reference`, no `order_number`.
 
 ## 6. Área principal de pedido `encargo`
 
-El contenido permanente de un `encargo` debe mostrar:
+El contenido permanente de un `encargo` usa esta composición:
+
+```text
++----------------------------------------------------+
+| Trabajo solicitado                                 |
++------------------------+---------------------------+
+| Tareas del pedido      | Archivos asociados        |
++------------------------+---------------------------+
+```
+
+Debe mostrar:
 
 - Descripción y especificaciones del trabajo.
-- Progreso global.
-- Tareas pendientes, parcialmente avanzadas o completadas.
-- Archivos recientes según criterio determinista.
+- Progreso global en presentación inline dentro de `Tareas del pedido`.
+- Todas las tareas cargadas: pendientes, parcialmente avanzadas o completadas.
+- Todos los archivos asociados según criterio determinista.
 - Advertencias que bloqueen avance.
 
-### Vista rápida de tareas
+Desde `xl`, la descripción superior conserva altura compacta y Tareas/Archivos
+consumen la altura restante. Ambas secciones tienen encabezado fijo y cuerpo
+desplazable independiente. Por debajo de `xl`, las cards crecen según su
+contenido y el documento desplaza normalmente.
+
+### Tareas del pedido
 
 Debe permitir entender:
 
@@ -198,19 +208,36 @@ Debe permitir entender:
 - Progreso porcentual.
 - Siguiente acción operativa.
 
-Contenido recomendado:
+Contenido vigente:
 
-- Barra de progreso existente (`PedidoProgressBar`).
-- Hasta 3-5 tareas prioritarias: pendientes primero, después parcialmente
-  avanzadas cuando tengan cantidades, y por último completadas si ayudan a
-  explicar el estado.
-- Estado textual: `Sin tareas`, `0% completado`, `Tareas completadas`.
-- CTA textual hacia panel Tareas.
+- `PedidoProgressBar` con `presentation="inline"`.
+- Todas las tareas cargadas.
+- Orden operativo: pendientes primero, después parcialmente avanzadas cuando
+  tengan cantidades, y por último completadas.
+- `sort_order` dentro de cada grupo.
+- Estado textual por tarea.
 
 No debe incluir todos los formularios de gestión en el cuerpo principal.
 No se introduce ningún estado de dominio adicional para tareas; las categorías
 visuales se derivan de los datos actuales: pendientes, parcialmente avanzadas
 por cantidades y completadas.
+
+La sección principal es una vista operativa de lectura. La gestión completa
+continúa dentro del panel Tareas.
+
+### Progreso de tareas
+
+`PedidoProgressBar` tiene dos presentaciones:
+
+- `inline`, usada por `PedidoTasksPreview`: track horizontal, relleno y
+  porcentaje final en una sola línea; sin card, resumen, badge ni texto
+  adicional. Permanece fijo bajo el encabezado mientras la lista de tareas se
+  desplaza.
+- `detailed`, usada por defecto y consumida por `PedidoTasksSection`: card con
+  resumen de tareas, porcentaje, badge de pendientes o completadas y barra de
+  mayor jerarquía.
+
+Ambas variantes exponen semántica accesible de `progressbar`.
 
 ### Gestión completa de tareas
 
@@ -338,8 +365,21 @@ La impresión no debe presentarse como un encargo incompleto. Debe priorizar:
 - Entrega.
 - Estado operativo.
 
+Desde `xl`, la composición permanente conserva dos columnas:
+
+```text
++------------------------+---------------------------+
+| Descripción            | Archivos asociados        |
++------------------------+---------------------------+
+```
+
+Ambas secciones consumen la altura disponible, conservan encabezado fijo y
+desplazan su cuerpo cuando sea necesario. Por debajo de `xl`, las cards crecen y
+el documento desplaza normalmente.
+
 No mostrar "Sin tareas" como deficiencia. La ausencia de tareas es normal para
-`impresion`. La UI debe decir "Flujo directo de impresión" o equivalente.
+`impresion` y se expresa mediante la composición del workflow: descripción y
+archivos asociados, sin bloque permanente adicional.
 
 Tareas:
 
@@ -351,22 +391,23 @@ Tareas:
 
 ## 8. Archivos principales
 
-### Vista rápida
+### Lista principal
 
-Debe mostrar una cantidad limitada de archivos recientes usando un criterio
-determinista:
+Debe mostrar todos los archivos cargados usando un criterio determinista:
 
-- Archivos recientes primero.
+- Orden descendente por `created_at`.
 - Categorías existentes.
 - Fecha.
 - Autor cuando esté disponible.
-- Cantidad limitada para no convertir el área principal en una lista completa.
+- Descarga y metadata disponibles.
+- Lista desplazable internamente desde `xl` cuando no quepa en la celda asignada.
 
-La selección de la vista rápida se deriva de datos existentes y no requiere
-campos nuevos.
+La lista principal se deriva de datos existentes y no requiere campos nuevos.
+Para solicitud, el encabezado vigente es `Archivos adjuntos`. Para pedido, el
+encabezado vigente es `Archivos asociados`.
 
 Para pedido, reutiliza datos de `listPedidoFiles`. Para solicitud, reutiliza
-`listSolicitudFiles`. La vista rápida nunca recibe ni muestra `file_path`,
+`listSolicitudFiles`. La lista principal nunca recibe ni muestra `file_path`,
 bucket, signed URL o metadata sensible.
 
 ### Gestión completa
@@ -389,6 +430,9 @@ Solicitud:
 - Lista completa.
 - Descarga por `/dashboard/solicitudes/[id]/archivos/[fileId]/download`.
 - Sin subida interna en la versión actual.
+
+El panel Archivos sigue siendo la vista contextual completa de consulta y
+gestión/subida cuando aplique; no sustituye ni limita la lista principal.
 
 No cambiar contratos de Storage ni exponer `file_path`.
 
@@ -456,7 +500,6 @@ Ubicación:
 - Junto al contenido principal, dentro de la superficie contenida.
 - No reemplaza el sidebar global.
 - Ancho conceptual: columna compacta icon-only.
-- Sticky dentro de la altura útil cuando no genere doble scroll confuso.
 
 Requisitos:
 
@@ -474,6 +517,16 @@ señal complementaria, nunca la única.
 - Foco visible.
 - Hover discreto.
 - Al abrir un panel, solo un panel queda activo.
+
+Contrato de altura:
+
+- En workspaces contenidos, como Solicitudes y Pedidos, el rail ocupa la altura
+  entregada por el grid, puede encogerse con el área principal y no declara una
+  altura propia basada en viewport. No usa posición sticky ni debe aumentar la
+  altura del grid. Si las acciones no caben, desplaza verticalmente dentro de su
+  propio contenedor.
+- En workspaces flow, como Dashboard, el rail conserva posición sticky y puede
+  usar altura basada en viewport sin alterar el scroll documental.
 
 Orden:
 
@@ -596,10 +649,26 @@ Contenido permanente:
 - Descripción.
 - Observaciones.
 - Datos esenciales.
-- Archivos recientes según criterio determinista.
+- Archivos adjuntos según criterio determinista.
 - Advertencias de revisión.
 - Estado de asociación de cliente.
 - Estado de conversión cuando sea relevante.
+
+Desde `xl`, la composición permanente es:
+
+```text
++-------------------------+---------------------+
+|                         | Contacto recibido   |
+| Trabajo solicitado      +---------------------+
+|                         | Archivos adjuntos   |
++-------------------------+---------------------+
+```
+
+La descripción ocupa la columna izquierda y ambas filas. Contacto y Archivos
+ocupan la columna derecha con proporción aproximada `2fr / 3fr`. Cada sección
+ocupa toda su celda, conserva encabezado fijo y desplaza solo su cuerpo desde
+`xl`. Por debajo de `xl`, la composición vuelve al flujo documental normal:
+descripción, observaciones, contacto y archivos crecen según su contenido.
 
 La conversión no debe quedar escondida si es la siguiente acción principal.
 Cuando `status = aprobada` y existe cliente asociado, el CTA principal debe
@@ -688,12 +757,16 @@ Contenido permanente:
 
 - Descripción completa y observaciones.
 - Contacto recibido desde el formulario público: nombre, teléfono y correo.
-- Archivos recientes, máximo tres, con descarga privada.
+- Todos los archivos adjuntos, ordenados por `created_at` descendente, con
+  descarga privada.
 
 Desktop `xl` usa dos columnas: descripción con mayor ancho a la izquierda, y
-contacto/archivos en columna derecha compacta. Tablet y móvil usan orden lineal:
-descripción, observaciones, contacto y archivos. El contacto recibido no se
-mezcla con cliente interno asociado.
+contacto/archivos en columna derecha compacta. La derecha usa dos filas
+acotadas, con proporción aproximada Contacto `2fr` y Archivos `3fr`. Cada
+sección ocupa su celda, mantiene encabezado fijo y desplaza su cuerpo desde
+`xl`. Tablet y móvil usan orden lineal: descripción, observaciones, contacto y
+archivos, con scroll documental normal. El contacto recibido no se mezcla con
+cliente interno asociado.
 
 Orden de acciones:
 
@@ -1210,17 +1283,17 @@ Contrato de `disabled`:
 
 | Caso | Comportamiento |
 | --- | --- |
-| `encargo` | Muestra progreso y vista rápida de tareas; panel Tareas prominente. |
+| `encargo` | Muestra progreso inline y todas las tareas cargadas; panel Tareas prominente. |
 | `impresion` | Muestra flujo directo; no trata ausencia de tareas como problema. |
 | Pedido manual | Origen indica "Pedido creado manualmente"; se crea en `creado`, permanece en listado y autoavanza a revisión al abrir detalle real. |
 | Pedido desde solicitud | Información muestra solicitud origen; inicia `solicitud_recibida` y autoavanza a revisión al abrir detalle real. |
 | Sin cliente | Panel Información muestra el mensaje normal de cliente no asociado; la acción Información permanece neutral y no muestra warning. |
-| Sin personal | Resumen advierte; panel Personal muestra estado vacío. |
+| Sin personal | Cabecera o Estado pueden advertir; panel Personal muestra estado vacío. |
 | Sin tareas | En encargo activo es advertencia; en impresión no aplica. |
-| Sin archivos | Vista rápida y panel muestran vacío sin bloquear. |
+| Sin archivos | Lista principal y panel muestran vacío sin bloquear. |
 | Sin comentarios | Panel muestra vacío; formulario sigue disponible si hay acceso. |
 | Sin historial visible | Panel Historial muestra vacío. |
-| Pago pendiente | Resumen y Estado advierten si bloquea entrega; Pagos es acción importante. |
+| Pago pendiente | Estado advierte si bloquea entrega; Pagos es acción importante. |
 | Pago parcial | Igual que pendiente para entrega. |
 | Entregado | Estado cerrado; tareas/archivos en lectura o sin subida. |
 | Cancelado | Estado cerrado; sin mutaciones operativas. |
@@ -1266,20 +1339,16 @@ No implementar loading boundaries todavía.
 
 ```text
 +------------------------------------------------------------------+
-| [Volver] P-26-0347 · Encargo · En produccion · Alta [Abrir tareas] |
-| Titulo real del pedido                                            |
-+------------------------------------------------------------------+
-| Resumen operativo                                                 |
-| Cliente · Personal · Entrega · Pago · Ref publica [Copiar]        |
-| Avisos criticos compactos                                         |
+| [Volver] P-26-0347 · Encargo · En producción · Alta [Abrir tareas] |
+| Título real del pedido                                            |
 +----------------------------------------------------+-------------+
 | Trabajo solicitado                                | Action rail |
-| Descripcion                                       | Estado      |
-| Progreso y tareas proximas                        | Tareas      |
-| Archivos recientes                                | Archivos    |
-| Advertencias de avance                            | Comentarios |
-|                                                    | Personal    |
-|                                                    | Pagos       |
+| Descripción compacta                              | Estado      |
+|                                                    | Tareas      |
+| Tareas del pedido | Archivos asociados           | Archivos    |
+| Progreso inline   | Lista completa               | Comentarios |
+| Lista completa    | con scroll interno           | Personal    |
+| con scroll interno |                              | Pagos       |
 |                                                    | Historial   |
 |                                                    | Informacion |
 +----------------------------------------------------+-------------+
@@ -1289,13 +1358,12 @@ No implementar loading boundaries todavía.
 
 ```text
 [Volver] P-26-0347 · Encargo
-Titulo real del pedido
-[Resumen compacto a todo el ancho]
+Título real del pedido
 [Estado] [Tareas] [Archivos] [Mas]
 
 Trabajo solicitado
-Progreso y tareas proximas
-Archivos recientes
+Tareas del pedido
+Archivos asociados
 
 Drawer derecho al abrir accion
 ```
@@ -1305,12 +1373,11 @@ Drawer derecho al abrir accion
 ```text
 [Volver]
 P-26-0347 · Encargo · Estado
-Titulo real del pedido
-[Resumen compacto]
+Título real del pedido
 
 Trabajo solicitado
-Tareas proximas
-Archivos recientes
+Tareas del pedido
+Archivos asociados
 
                  bottom bar
 [Estado] [Tareas] [Archivos] [Mas]
@@ -1343,15 +1410,14 @@ Movil:
 ### Pedido `impresion` desktop
 
 ```text
-[Volver] P-26-0350 · Impresion · En produccion [Abrir estado]
-Pedido de impresion
-[Resumen operativo a todo el ancho: cliente, entrega, pago, ref publica]
+[Volver] P-26-0350 · Impresión · En producción [Abrir estado]
+Pedido de impresión
 
 +----------------------------------------------------+-------------+
-| Descripcion y especificaciones                     | Action rail |
-| Flujo directo de impresion                         | Estado      |
-| Archivos recientes                                 | Archivos    |
-| Entrega                                            | Comentarios |
+| Descripción y especificaciones                     | Action rail |
+|                                                    | Estado      |
+|                                                    | Archivos    |
+| Archivos asociados                                 | Comentarios |
 |                                                    | Personal    |
 |                                                    | Pagos       |
 |                                                    | Historial   |
@@ -1363,11 +1429,10 @@ Pedido de impresion
 
 ```text
 [Volver]
-P-26-0350 · Impresion
-Pedido de impresion
-[Resumen compacto]
-Descripcion / especificaciones
-Archivos recientes
+P-26-0350 · Impresión
+Pedido de impresión
+Descripción / especificaciones
+Archivos asociados
 
 [Estado] [Archivos] [Comentarios] [Mas]
 ```
@@ -1375,15 +1440,14 @@ Archivos recientes
 ### Solicitud desktop
 
 ```text
-[Volver] Ref interna · Encargo · Nueva [Abrir estado]
+[Volver] GD-AB12-CD34 · Encargo · Nueva [Abrir estado]
 Solicitud de Cliente
-[Resumen operativo: servicio, recepcion, fecha deseada, ref publica]
 
 +----------------------------------------------------+-------------+
-| Descripcion y observaciones                        | Action rail |
-| Archivos recientes                                 | Estado      |
-| Advertencias de revision                           | Cliente     |
-|                                                    | Archivos    |
+| Descripción y observaciones                        | Action rail |
+|                                                    | Estado      |
+|                                 Contacto recibido  | Cliente     |
+|                                 Archivos adjuntos  | Archivos    |
 |                                                    | Comentarios |
 |                                                    | Historial   |
 |                                                    | Info        |
@@ -1397,9 +1461,9 @@ Solicitud de Cliente
 [Volver]
 Solicitud de Cliente
 Estado · servicio · fecha
-[Resumen contacto/ref]
-Descripcion
-Archivos
+Descripción
+Contacto recibido
+Archivos adjuntos
 
 [Estado] [Cliente] [Archivos] [Mas]
 ```
@@ -1432,10 +1496,18 @@ No crear nuevos breakpoints salvo necesidad demostrada.
 
 La altura útil debe calcularse con CSS flexible:
 
-- `min-height` basado en viewport solo para shells, no para formularios largos.
+- En Solicitudes y Pedidos desde `xl`, el shell contenido usa altura basada en
+  viewport, reserva la cabecera y entrega el espacio restante al grid principal.
+- Las tarjetas del área principal ocupan la altura de su celda, permiten
+  encogerse y desplazan solo el cuerpo interno; el encabezado permanece fijo.
+- El rail contenido ocupa la altura asignada por el grid, no usa altura propia de
+  viewport ni sticky.
+- En Dashboard, el shell flow conserva scroll documental y el rail puede ser
+  sticky con altura basada en viewport.
 - Evitar valores rígidos que rompan zoom o pantallas pequeñas.
-- En desktop, action rail y panel pueden usar `position: sticky` con offsets
-  derivados del layout real.
+- En tablet y móvil no se fuerza la altura del workspace: las cards crecen según
+  su contenido, el documento desplaza normalmente y se evitan multiples zonas
+  pequeñas de scroll fuera de paneles/sheets.
 - En móvil, el contenido recibe padding inferior por barra y safe area.
 - El panel contextual puede limitarse con `max-height: min(...)` y scroll
   interno.
@@ -1518,11 +1590,15 @@ comportamiento modal nativo. Al cerrar, vuelve a la acción que lo abrió.
 - Confirmar que "Más" abre selector, permite elegir panel y permite volver.
 - Confirmar que la barra móvil no tapa contenido.
 
-## 39. Plan de implementación posterior
+## 39. Registro histórico del plan de implementación
+
+Esta sección se conserva únicamente como registro histórico de la secuencia
+utilizada para construir los workspaces. Las etapas descritas ya fueron
+ejecutadas y no representan trabajo pendiente ni el roadmap vigente.
 
 ### Etapa 4.1
 
-Crear primitivas estructurales sin migrar toda la pantalla.
+Se crearon primitivas estructurales sin migrar toda la pantalla.
 
 Alcance:
 
@@ -1541,14 +1617,14 @@ Cierre:
 
 ### Etapa 4.2
 
-Migrar lectura y composición principal del pedido `encargo`.
+Se migró la lectura y composición principal del pedido `encargo`.
 
 Alcance:
 
 - `PedidoWorkspaceHeader`.
-- `WorkspaceSummary`.
 - `PedidoWorkspaceMain`.
-- Vista rápida de tareas y archivos.
+- Secciones permanentes de tareas y archivos con listas completas y scroll
+  interno desde `xl`.
 - Mantener paneles actuales aun si siguen bajo la página.
 
 Cierre:
@@ -1558,7 +1634,7 @@ Cierre:
 
 ### Etapa 4.3
 
-Incorporar paneles de consulta.
+Se incorporaron paneles de consulta.
 
 Alcance:
 
@@ -1574,7 +1650,7 @@ Cierre:
 
 ### Etapa 4.4
 
-Incorporar paneles de gestión.
+Se incorporaron paneles de gestión.
 
 Alcance:
 
@@ -1591,7 +1667,7 @@ Cierre:
 
 ### Etapa 4.5
 
-Validar roles y pedido `impresion`.
+Se validaron roles y pedido `impresion`.
 
 Alcance:
 
@@ -1607,7 +1683,7 @@ Cierre:
 
 ### Etapa 5
 
-Migrar solicitud usando el patrón validado.
+Se migró solicitud usando el patrón validado.
 
 Alcance:
 

@@ -822,10 +822,10 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
     page.getByRole("heading", { name: /^trabajo solicitado$/i }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: /^tareas pr.ximas$/i }),
+    page.getByRole("heading", { name: /^tareas del pedido$/i }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: /^archivos recientes$/i }),
+    page.getByRole("heading", { name: /^archivos asociados$/i }),
   ).toBeVisible();
   const workspaceRail = page.getByRole("complementary", {
     name: /acciones del workspace/i,
@@ -975,7 +975,7 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
     page.getByRole("heading", { name: /descripci.n y especificaciones/i }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: /archivos recientes/i }),
+    page.getByRole("heading", { name: /archivos asociados/i }),
   ).toBeVisible();
   await expect(page.getByRole("button", { name: /^tareas/i })).toHaveCount(0);
   await expect(

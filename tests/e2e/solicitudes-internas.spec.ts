@@ -1420,7 +1420,7 @@ test("admin can manage solicitud workspace panels end to end", async ({
     .toBeVisible();
   await expect(page.getByRole("heading", { name: /^contacto recibido$/i }))
     .toBeVisible();
-  await expect(page.getByRole("heading", { name: /^archivos recientes$/i }))
+  await expect(page.getByRole("heading", { name: /^archivos adjuntos$/i }))
     .toBeVisible();
   await expect(page.getByText(encargoDescription).first()).toBeVisible();
   await expect(page.getByText(encargoNotes).first()).toBeVisible();

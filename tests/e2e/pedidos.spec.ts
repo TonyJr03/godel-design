@@ -3015,7 +3015,7 @@ test("admin can create and manage focal internal pedidos", async ({ page }) => {
     page.getByRole("heading", { name: /descripci.n y especificaciones/i }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: /archivos recientes/i }),
+    page.getByRole("heading", { name: /archivos asociados/i }),
   ).toBeVisible();
   await expect(getRailAction(page, /^estado/i)).toBeVisible();
   await expect(getRailAction(page, /^archivos/i)).toBeVisible();
@@ -4174,7 +4174,7 @@ Otra línea de QA para el textarea.`;
   await expect(mobileMoreTrigger).toBeFocused();
 
   const lastMainContent = page.getByRole("region", {
-    name: /archivos recientes/i,
+    name: /archivos asociados/i,
   });
 
   await expect(

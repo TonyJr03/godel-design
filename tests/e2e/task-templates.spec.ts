@@ -1295,7 +1295,7 @@ test("admin can apply a template with the async selector and impresion has no se
     page.getByRole("heading", { name: /descripci.n y especificaciones/i }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: /archivos recientes/i }),
+    page.getByRole("heading", { name: /archivos asociados/i }),
   ).toBeVisible();
   await expect(page.getByRole("button", { name: /^tareas/i })).toHaveCount(0);
   await expect(
