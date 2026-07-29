@@ -31,7 +31,10 @@ export function DashboardMobileNav({
   const session = getSessionSummary(profile);
 
   return (
-    <header className="border-b border-brand-primary bg-brand-primary-hover text-white md:hidden">
+    <header
+      data-dashboard-mobile-nav
+      className="sticky top-0 z-40 border-b border-brand-primary bg-brand-primary-hover text-white md:hidden"
+    >
       <details>
         <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-primary-hover [&::-webkit-details-marker]:hidden">
           <span className="inline-flex min-w-0 items-center">

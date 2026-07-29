@@ -7,6 +7,7 @@ test.describe.configure({ mode: "serial" });
 
 const desktopViewport = { width: 1366, height: 768 };
 const mobileViewport = { width: 375, height: 812 };
+const stickyMobileViewport = { width: 390, height: 844 };
 
 async function expectNoHorizontalOverflow(page: Page) {
   const dimensions = await page.evaluate(() => ({
@@ -67,6 +68,21 @@ function getDesktopSidebar(page: Page) {
     sidebar: desktopNav.locator("xpath=ancestor::aside[1]"),
     desktopNav,
   };
+}
+
+function getMobileHeader(page: Page) {
+  return page.locator("[data-dashboard-mobile-nav]");
+}
+
+async function expectMobileHeaderSticksToTop(page: Page, header: Locator) {
+  await expect(header).toBeVisible();
+  await expect(header).toHaveCSS("position", "sticky");
+  await expect(header).toHaveCSS("top", "0px");
+
+  const box = await header.boundingBox();
+
+  expect(box).not.toBeNull();
+  expect(Math.abs((box?.y ?? 0) - 0)).toBeLessThanOrEqual(1);
 }
 
 test("admin can use the desktop shell collapsed and expanded", async ({
@@ -154,16 +170,44 @@ test("admin can use the desktop shell collapsed and expanded", async ({
 });
 
 test("admin can use the mobile details navigation", async ({ page }) => {
-  await page.setViewportSize(mobileViewport);
+  await page.setViewportSize(stickyMobileViewport);
   await loginAs(page, "admin");
+  await page.goto("/dashboard");
 
-  const details = page.locator("header details").first();
+  const header = getMobileHeader(page);
+  const details = header.locator("details").first();
   const summary = details.locator("summary").filter({ hasText: /men/i });
   const { sidebar } = getDesktopSidebar(page);
 
   await expect(sidebar).toBeHidden();
   await expect(page.getByRole("img", { name: /godel dise.o/i })).toBeVisible();
   await expect(summary).toBeVisible();
+  await expectMobileHeaderSticksToTop(page, header);
+  await expectNoHorizontalOverflow(page);
+
+  await page.evaluate(() => {
+    const spacer = document.createElement("div");
+
+    spacer.dataset.qaScrollSpacer = "true";
+    spacer.style.height = "1600px";
+    document.querySelector("#main-content")?.append(spacer);
+  });
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          document.documentElement.scrollHeight >
+          window.innerHeight + 1000,
+      ),
+    )
+    .toBe(true);
+
+  await page.evaluate(() => window.scrollTo(0, 640));
+  await expectMobileHeaderSticksToTop(page, header);
+  await expectNoHorizontalOverflow(page);
+
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await expectMobileHeaderSticksToTop(page, header);
   await expectNoHorizontalOverflow(page);
 
   await summary.click();
@@ -183,6 +227,7 @@ test("admin can use the mobile details navigation", async ({ page }) => {
       details.evaluate((element) => element.hasAttribute("open")),
     )
     .toBe(false);
+  await expectMobileHeaderSticksToTop(page, header);
   await expect(sidebar).toBeHidden();
   await expectNoVisibleSensitiveText(page);
   await expectNoHorizontalOverflow(page);

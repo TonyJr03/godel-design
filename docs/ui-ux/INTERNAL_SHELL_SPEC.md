@@ -331,7 +331,13 @@ La navegación móvil debe:
 - Mostrar información de usuario.
 - Mostrar logout.
 - Separar solo el logout con una línea, sin poner borde encima del usuario.
+- Usar un header `sticky` con `top: 0` para permanecer visible durante el
+  scroll documental.
+- Permanecer por encima del contenido normal sin usar `fixed`.
+- Resolver su comportamiento sin estado cliente, listeners de scroll,
+  `IntersectionObserver`, portales ni compensaciones manuales de padding.
 - No interferir con la barra móvil de workspaces.
+- No interferir con dialogs nativos.
 - No producir doble navegación visible.
 
 Pendiente de validación futura:
@@ -341,7 +347,10 @@ Pendiente de validación futura:
 
 No se debe introducir un drawer avanzado sin evidencia.
 
-La convivencia final con barras móviles de workspace, dialogs y bottom sheets se validará en la QA responsive de 7.6.
+La convivencia final con barras móviles de workspace, dialogs y bottom sheets
+se validará en la QA responsive de 7.6. El header móvil queda sobre el
+contenido normal, por debajo del skip link, y no sustituye la barra inferior de
+workspace.
 
 ## 11. Modos de página
 

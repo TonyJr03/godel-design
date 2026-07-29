@@ -249,6 +249,47 @@ Reglas:
 
 Las cards no deben intentar replicar todas las columnas de escritorio. Deben ayudar a reconocer el registro y abrir su workspace.
 
+### Contrato vigente por debajo de `xl`
+
+El corte responsive real de Pedidos y Solicitudes esta en `xl`. Por tanto,
+anchos como `1024px` continuan usando cards y no tabla. La tabla desktop
+comienza desde `xl` y mantiene sus columnas, datos de dominio, navegacion,
+filtros y paginacion sin cambios.
+
+#### Pedido
+
+La card responsive de Pedido conserva esta jerarquia:
+
+```text
+Numero + Estado/Pago
+Titulo a ancho completo
+Workflow + Servicio
+Entrega
+```
+
+Reglas vigentes:
+
+- La primera fila contiene el numero de pedido y el grupo Estado/Pago.
+- Los badges no comparten fila ni ancho con el titulo.
+- El titulo vive en una fila independiente, ocupa el ancho interno disponible
+  de la card y conserva maximo dos lineas.
+- La metadata muestra primero workflow y despues servicio.
+- La fecha de entrega permanece como ultima fila.
+- No se muestra descripcion ni boton "Ver".
+- La card completa sigue abriendo el detalle.
+
+#### Solicitud
+
+La card responsive de Solicitud conserva cliente, contacto, Estado y fecha
+recibida. La metadata vigente muestra:
+
+```text
+Workflow + Servicio
+```
+
+en ese orden. No se duplica el workflow dentro de la presentacion del servicio,
+no cambia el fallback del servicio y la card completa sigue abriendo el detalle.
+
 ## 12. Fila y card clicable
 
 ### Cards
