@@ -6,6 +6,7 @@ import type { WorkspaceAction } from "./types";
 
 type WorkspaceActionRailProps = {
   presentation?: "labeled" | "icons";
+  contained?: boolean;
 };
 
 function getRailToneClasses(action: WorkspaceAction, isActive: boolean) {
@@ -62,18 +63,19 @@ function getActionAccessibleName(action: WorkspaceAction) {
 
 export function WorkspaceActionRail({
   presentation = "labeled",
+  contained = false,
 }: WorkspaceActionRailProps) {
   const { actions, activePanelId, openAction } = useWorkspace();
   const isIconRail = presentation === "icons";
+  const asideLayoutClasses = isIconRail
+    ? contained
+      ? "xl:h-full xl:min-h-0 xl:self-stretch"
+      : "xl:sticky xl:top-6 xl:h-[calc(100dvh-3rem)] xl:self-start"
+    : "xl:h-full xl:min-h-0";
 
   return (
     <aside
-      className={[
-        "hidden min-w-0 xl:block",
-        isIconRail
-          ? "xl:sticky xl:top-6 xl:h-[calc(100dvh-3rem)] xl:self-start"
-          : "xl:h-full xl:min-h-0",
-      ].join(" ")}
+      className={["hidden min-w-0 xl:block", asideLayoutClasses].join(" ")}
       aria-label="Acciones del workspace"
     >
       <div
