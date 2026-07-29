@@ -11,24 +11,26 @@ export function SolicitudContactPreview({
   return (
     <section
       aria-labelledby="solicitud-contact-preview-title"
-      className="rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6"
+      className="flex min-h-0 flex-col rounded-(--radius-card) border border-border bg-surface p-5 shadow-(--shadow-soft) sm:p-6 xl:h-full xl:overflow-hidden"
     >
       <h2
         id="solicitud-contact-preview-title"
-        className="text-lg font-semibold text-text-primary"
+        className="shrink-0 text-lg font-semibold text-text-primary"
       >
         Contacto recibido
       </h2>
 
-      <MetadataGrid className="mt-5">
-        <MetadataItem label="Nombre" value={solicitud.client_name} />
-        <MetadataItem label="Teléfono" value={solicitud.client_phone} />
-        <MetadataItem
-          className="min-w-0 sm:col-span-2"
-          label="Correo electrónico"
-          value={solicitud.client_email ?? "No informado"}
-        />
-      </MetadataGrid>
+      <div className="mt-5 min-h-0 xl:flex-1 xl:overflow-y-auto xl:overscroll-contain">
+        <MetadataGrid>
+          <MetadataItem label="Nombre" value={solicitud.client_name} />
+          <MetadataItem label="Teléfono" value={solicitud.client_phone} />
+          <MetadataItem
+            className="min-w-0 sm:col-span-2"
+            label="Correo electrónico"
+            value={solicitud.client_email ?? "No informado"}
+          />
+        </MetadataGrid>
+      </div>
     </section>
   );
 }

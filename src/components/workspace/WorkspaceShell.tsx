@@ -73,13 +73,18 @@ export function WorkspaceShell({
       >
         <div
           className={
-            isContained ? "min-w-0 xl:min-h-0 xl:overflow-hidden" : "min-w-0"
+            isContained
+              ? "min-w-0 xl:h-full xl:min-h-0 xl:overflow-hidden"
+              : "min-w-0"
           }
         >
           {main}
         </div>
         {hasActions ? (
-          <WorkspaceActionRail presentation={railPresentation} />
+          <WorkspaceActionRail
+            presentation={railPresentation}
+            contained={isContained}
+          />
         ) : null}
       </div>
       {children ? <div className="min-w-0">{children}</div> : null}

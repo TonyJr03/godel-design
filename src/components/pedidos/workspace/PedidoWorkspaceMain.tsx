@@ -36,7 +36,7 @@ export function PedidoWorkspaceMain({
 
   if (isPrintWorkflow) {
     return (
-      <div className="grid min-w-0 gap-5 xl:h-full xl:min-h-0 xl:grid-cols-2">
+      <div className="grid min-w-0 gap-5 xl:h-full xl:min-h-0 xl:grid-cols-2 xl:grid-rows-[minmax(0,1fr)]">
         <PedidoDescriptionPreview
           title="Descripción y especificaciones"
           description={pedido.description}
@@ -59,7 +59,7 @@ export function PedidoWorkspaceMain({
         description={pedido.description}
       />
 
-      <div className="grid min-w-0 gap-5 lg:grid-cols-2 xl:h-full xl:min-h-0">
+      <div className="grid min-w-0 gap-5 lg:grid-cols-2 xl:h-full xl:min-h-0 xl:grid-rows-[minmax(0,1fr)]">
         <PedidoTasksPreview
           tasks={tasks}
           progress={taskProgress}
