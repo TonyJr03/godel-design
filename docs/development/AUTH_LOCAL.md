@@ -2,16 +2,23 @@
 
 ## Propósito
 
-Este documento describe cómo crear usuarios internos de prueba en Supabase local para validar el login y el acceso al dashboard del sistema operativo de Godel Diseño.
+Este documento describe cómo mantener usuarios internos de prueba en Supabase local para validar el login y el acceso al dashboard del sistema operativo de Godel Diseño.
 
 ## Concepto principal
 
 Para acceder al sistema interno hacen falta dos cosas:
 
 - Un usuario en Supabase Auth.
-- Un perfil asociado en `public.perfiles` con `is_active = true`.
+- Un perfil asociado en `public.perfiles` con `is_active = true` y `must_change_password = false`.
 
-Supabase Auth confirma la identidad del usuario. La tabla `public.perfiles` controla el acceso interno básico al dashboard.
+Supabase Auth confirma la identidad del usuario. La tabla `public.perfiles` controla el acceso interno básico al dashboard. Desde la base de creación administrativa segura, un perfil con `must_change_password = true` puede leer su propia fila para onboarding, pero no puede operar en pedidos, solicitudes, clientes, usuarios, archivos u otras entidades internas.
+
+El signup local versionado está deshabilitado en `supabase/config.toml`:
+
+- `[auth].enable_signup = false`;
+- `[auth.email].enable_signup = false`.
+
+Durante esta etapa se conservan los usuarios de desarrollo existentes. No se deben crear nuevos usuarios mediante signup público.
 
 ## Requisitos previos
 
@@ -41,10 +48,10 @@ Ver estado:
 npx supabase status
 ```
 
-Reiniciar la base local si hace falta:
+Aplicar migraciones pendientes sin borrar datos locales:
 
 ```cmd
-npx supabase db reset
+npx supabase migration up --local
 ```
 
 Iniciar Next.js:
@@ -67,19 +74,13 @@ Desde Studio puedes usar:
 - Table Editor
 - SQL Editor
 
-## Crear usuario en Supabase Auth
+## Signup local deshabilitado
 
-1. Abrir Supabase Studio.
-2. Ir a Authentication > Users.
-3. Crear un usuario nuevo.
-4. Usar un correo de prueba, por ejemplo:
-   - `admin@godel.test`
-   - `supervisor@godel.test`
-   - `trabajador@godel.test`
-5. Definir una contraseña de desarrollo.
-6. Copiar el UUID del usuario creado.
+El signup público por email no está disponible en local. No uses el formulario público de signup ni flujos equivalentes para crear usuarios internos nuevos.
 
-Estos usuarios son solo para desarrollo local.
+La creación administrativa directa con correo y contraseña temporal se implementará en una etapa posterior. En esa etapa, el futuro flujo creará el usuario Auth con Admin API server-side, enviará metadata segura en `raw_app_meta_data.godel_provisioning` y el trigger de base creará el perfil con `must_change_password = true`.
+
+Los usuarios de desarrollo que ya existían antes de este cambio no requieren cambio de contraseña inicial y sus perfiles permanecen con `must_change_password = false`.
 
 ## Crear perfil asociado en `public.perfiles`
 
@@ -92,19 +93,22 @@ insert into public.perfiles (
   id,
   full_name,
   role,
-  is_active
+  is_active,
+  must_change_password
 )
 values (
   'PEGA_AQUI_EL_UUID_DEL_USUARIO',
   'Administrador Godel',
   'admin',
-  true
+  true,
+  false
 )
 on conflict (id) do update
 set
   full_name = excluded.full_name,
   role = excluded.role,
   is_active = excluded.is_active,
+  must_change_password = excluded.must_change_password,
   updated_at = now();
 ```
 
@@ -121,54 +125,60 @@ En Fase 3 todavía no se aplican permisos por rol en la interfaz, pero los roles
 Admin:
 
 ```sql
-insert into public.perfiles (id, full_name, role, is_active)
+insert into public.perfiles (id, full_name, role, is_active, must_change_password)
 values (
   'UUID_DEL_USUARIO_ADMIN',
   'Administrador Godel',
   'admin',
-  true
+  true,
+  false
 )
 on conflict (id) do update
 set
   full_name = excluded.full_name,
   role = excluded.role,
   is_active = excluded.is_active,
+  must_change_password = excluded.must_change_password,
   updated_at = now();
 ```
 
 Supervisor:
 
 ```sql
-insert into public.perfiles (id, full_name, role, is_active)
+insert into public.perfiles (id, full_name, role, is_active, must_change_password)
 values (
   'UUID_DEL_USUARIO_SUPERVISOR',
   'Supervisor Godel',
   'supervisor',
-  true
+  true,
+  false
 )
 on conflict (id) do update
 set
   full_name = excluded.full_name,
   role = excluded.role,
   is_active = excluded.is_active,
+  must_change_password = excluded.must_change_password,
   updated_at = now();
 ```
 
 Trabajador:
 
 ```sql
-insert into public.perfiles (id, full_name, role, is_active)
+insert into public.perfiles (id, full_name, role, is_active, must_change_password)
 values (
   'UUID_DEL_USUARIO_TRABAJADOR',
   'Trabajador Godel',
   'trabajador',
-  true
+  true,
+  false
 )
 on conflict (id) do update
 set
   full_name = excluded.full_name,
   role = excluded.role,
   is_active = excluded.is_active,
+  must_change_password = excluded.must_change_password,
   updated_at = now();
 ```
 
@@ -181,6 +191,8 @@ El sistema lo redirige a `/acceso-denegado`.
 ## Usuario inactivo
 
 Si `is_active = false`, el usuario no puede acceder al dashboard y será redirigido a `/acceso-denegado`.
+
+Si `must_change_password = true`, el usuario tiene una contraseña temporal pendiente. RLS bloquea la operación interna aunque pueda leer su propia fila para completar onboarding en una etapa posterior.
 
 Desactivar un usuario:
 
@@ -200,8 +212,8 @@ where id = 'UUID_DEL_USUARIO';
 
 ## Flujo de prueba recomendado
 
-1. Crear usuario en Auth.
-2. Crear perfil asociado en `perfiles`.
+1. Usar un usuario de desarrollo existente.
+2. Confirmar que su perfil en `perfiles` tiene `is_active = true` y `must_change_password = false`.
 3. Ejecutar `npm run dev`.
 4. Ir a `/login`.
 5. Iniciar sesión.
@@ -209,30 +221,32 @@ where id = 'UUID_DEL_USUARIO';
 7. Cerrar sesión.
 8. Probar usuario sin perfil.
 9. Probar usuario inactivo.
+10. Probar perfil con `must_change_password = true` solo cuando exista la pantalla de onboarding correspondiente.
 
 ## Problemas comunes
 
 - Si el login funciona pero va a `/acceso-denegado`, falta perfil o está inactivo.
 - Si el dashboard redirige a `/login`, no hay sesión válida.
 - Si no se puede crear el perfil, revisar que el UUID sea correcto.
-- Si no aparecen tablas, revisar que se haya ejecutado `npx supabase db reset`.
+- Si no aparecen cambios de schema, revisar que se haya ejecutado `npx supabase migration up --local`.
 - Si Supabase no abre, revisar Docker Desktop.
 
 ## Seguridad
 
 - No usar service role key en frontend.
 - No crear signup público.
+- No crear nuevos usuarios mediante signup público local.
 - No subir `.env.local`.
 - Los usuarios de prueba no deben usarse como credenciales reales de producción.
 
 ## Qué queda fuera
 
-- Gestión de usuarios desde panel admin.
+- Alta completa de usuarios Auth desde panel admin.
 - Invitaciones por correo.
 - Recuperación de contraseña.
-- Permisos por rol.
+- Cambio inicial real de contraseña desde UI.
 - Auditoría avanzada.
-- Creación automática de perfiles.
+- Cliente Admin API server-side y secret asociada.
 
 ## Cierre
 

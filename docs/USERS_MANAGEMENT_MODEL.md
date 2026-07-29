@@ -33,10 +33,12 @@ La tabla actual contiene:
 | `phone` | `text nullable` | Teléfono opcional. |
 | `avatar_url` | `text nullable` | URL o ruta opcional de avatar. |
 | `is_active` | `boolean` | Control de acceso interno sin eliminar el usuario Auth. |
+| `must_change_password` | `boolean` | Bloquea operación interna mientras el usuario conserva una contraseña temporal. |
+| `created_by` | `uuid nullable` | Admin interno que originó la creación administrativa; referencia `perfiles.id` con `on delete set null`. |
 | `created_at` | `timestamptz` | Fecha de creación del perfil. |
 | `updated_at` | `timestamptz` | Fecha de última actualización; se mantiene con trigger. |
 
-El MVP de gestión de perfiles no necesita campos adicionales. Para fases futuras podrían evaluarse `position`, `notes`, `last_seen_at` y `created_by`, pero no son necesarios para listar y mantener usuarios internos en la primera versión.
+Los perfiles existentes quedan con `must_change_password = false`. Los usuarios creados en el futuro por el flujo administrativo directo empezarán con `must_change_password = true` y `created_by` informado.
 
 ## Roles
 
@@ -62,6 +64,26 @@ Las políticas actuales permiten:
 La policy vigente de lectura es `perfiles_select_visible`. Sustituyó a la policy inicial para permitir que trabajadores vean datos básicos del personal asignado a pedidos que pueden acceder, sin habilitar navegación general por todos los perfiles.
 
 Aunque existen grants de tabla para `authenticated`, RLS es la defensa real que limita filas y operaciones.
+
+`perfiles_select_visible` conserva la lectura de la fila propia mediante `id = auth.uid()`. Esto permite detectar el estado de onboarding aunque `must_change_password = true`, sin convertir al usuario temporal en admin, supervisor o trabajador operativo.
+
+## Base para Creación Administrativa Segura
+
+La decisión arquitectónica evoluciona hacia un alta directa futura desde el dashboard administrativo: un admin autorizado creará el usuario Auth con correo y contraseña temporal mediante Admin API en código estrictamente server-side. Esa llamada todavía no existe en esta etapa.
+
+La base vigente queda preparada así:
+
+- `auth.users` seguirá siendo la fuente de identidad, correo y credenciales.
+- `public.perfiles` seguirá siendo la fuente de rol, estado operativo y datos internos.
+- Un trigger `AFTER INSERT` sobre `auth.users` crea el perfil solo cuando `raw_app_meta_data.godel_provisioning` trae el marcador administrativo esperado.
+- Usuarios Auth sin ese marcador no reciben perfil automático ni acceso interno.
+- `must_change_password = true` bloquea operación interna por RLS: `private.current_user_role()` no devuelve rol y `private.current_user_is_active()` devuelve falso operativo.
+- `created_by` identifica al admin creador y exige que sea `admin`, activo y sin cambio de contraseña pendiente.
+- `public.complete_initial_password_change(uuid)` existe solo para uso futuro desde una Server Action protegida posterior a `auth.updateUser({ password })`.
+- La RPC no se concede a `authenticated`; solo `service_role` puede ejecutarla.
+- El signup público local queda deshabilitado en `supabase/config.toml`.
+
+La funcionalidad está incompleta hasta implementar las etapas posteriores: cliente Supabase Admin aislado, Server Action protegida, formulario con correo y contraseña temporal, cambio inicial real de contraseña, controles operativos y pruebas E2E.
 
 ## Permisos de Ruta y Dominio
 
@@ -165,19 +187,9 @@ Complejidad: alta.
 
 ## Decisión Vigente para el MVP
 
-Godel Diseño usa la Opción A: gestión de perfiles únicamente.
+Godel Diseño mantiene operativa la gestión de perfiles existente, pero adopta como siguiente dirección la creación administrativa directa con contraseña temporal. La etapa actual implementa solo la base de datos y el contrato de seguridad.
 
-Esta decisión es consistente con el estado actual del proyecto:
-
-- ya existe Supabase Auth;
-- ya existe `public.perfiles`;
-- ya existe RLS suficiente para que `admin` gestione perfiles;
-- ya existen permisos `usuarios.view` y `usuarios.manage`;
-- la ruta `/dashboard/configuracion/usuarios` ya está limitada a `admin`;
-- el proyecto evita service role key hasta ahora.
-
-El usuario Auth se crea manualmente fuera de la app. Después, un admin mantiene
-el perfil interno desde el dashboard.
+El alta completa desde UI todavía no está disponible. Hasta terminar las etapas posteriores, la aplicación no crea usuarios Auth, no pide contraseñas, no llama a Admin API y no incorpora `SUPABASE_SERVICE_ROLE_KEY` en código.
 
 ## Operaciones Implementadas
 
@@ -199,7 +211,7 @@ Queda explícitamente fuera del MVP:
 
 - crear usuarios Auth desde la app;
 - enviar invitaciones desde la app;
-- cambiar contraseñas desde la app;
+- cambiar contraseñas desde la app, salvo la futura etapa protegida de cambio inicial;
 - eliminar usuarios físicamente;
 - exponer emails de Auth si no forman parte de `perfiles`;
 - agregar `SUPABASE_SERVICE_ROLE_KEY`;
@@ -232,7 +244,7 @@ Las operaciones cumplen estas reglas:
 | 12.4 | Edición de perfil operativo: nombre, teléfono, avatar, rol y estado. Implementada con guardas para no dejar el sistema sin administrador activo. |
 | 12.5 | Creación de perfil interno para usuario Auth existente. Implementada sin crear credenciales, sin consultar `auth.users` y sin service role key. |
 | 12.6 | Revisión de seguridad, pruebas y documentación final. |
-| Futura | Creación completa o invitaciones, solo si se acepta introducir service role server-side. |
+| Futura | Creación administrativa completa con Admin API server-side, contraseña temporal y cambio inicial obligatorio. |
 
 ## Criterio para Adoptar Service Role en el Futuro
 

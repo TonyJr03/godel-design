@@ -488,9 +488,11 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string
+          created_by: string | null
           full_name: string
           id: string
           is_active: boolean
+          must_change_password: boolean
           phone: string | null
           role: Database["public"]["Enums"]["app_role"]
           updated_at: string
@@ -498,9 +500,11 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           created_at?: string
+          created_by?: string | null
           full_name: string
           id: string
           is_active?: boolean
+          must_change_password?: boolean
           phone?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
@@ -508,14 +512,24 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           created_at?: string
+          created_by?: string | null
           full_name?: string
           id?: string
           is_active?: boolean
+          must_change_password?: boolean
           phone?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "perfiles_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       solicitud_comentarios: {
         Row: {
@@ -949,6 +963,10 @@ export type Database = {
       aplicar_plantilla_tareas_pedido: {
         Args: { p_pedido_id: string; p_template_id: string }
         Returns: number
+      }
+      complete_initial_password_change: {
+        Args: { p_user_id: string }
+        Returns: string
       }
       consultar_estado_publico: {
         Args: { p_public_reference: string }

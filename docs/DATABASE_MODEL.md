@@ -147,18 +147,23 @@ manualmente.
 | `phone` | `text nullable` | Teléfono de contacto. |
 | `avatar_url` | `text nullable` | URL o ruta de avatar si aplica. |
 | `is_active` | `boolean` | Permite desactivar usuarios sin eliminarlos. |
+| `must_change_password` | `boolean` | Indica contraseña temporal pendiente; por defecto `false`. |
+| `created_by` | `uuid nullable` | Admin interno que creó el perfil mediante el flujo administrativo seguro. |
 | `created_at` | `timestamptz` | Fecha de creación del perfil. |
 | `updated_at` | `timestamptz` | Fecha de última actualización. |
 
 **Claves foráneas:**
 
 - `perfiles.id` -> `auth.users.id`.
+- `perfiles.created_by` -> `perfiles.id` con `on delete set null`.
 
 **Reglas importantes:**
 
 - Cada usuario autenticado interno debe tener un perfil.
 - El rol debe controlarse desde el backend o mediante reglas seguras, nunca solo desde el frontend.
-- `is_active` debe considerarse en permisos y consultas internas.
+- `is_active` y `must_change_password = false` definen si el perfil puede operar.
+- `created_by` no puede ser igual a `id`.
+- Los perfiles existentes conservan `must_change_password = false`.
 
 **Notas de seguridad:**
 
@@ -166,8 +171,20 @@ manualmente.
 - Los usuarios autenticados podrían leer su propio perfil.
 - El acceso a perfiles de otros usuarios debe depender del rol.
 - En el modelo vigente de RLS, `admin` y `supervisor` pueden leer perfiles internos; `trabajador` puede leer su propio perfil y datos básicos de perfiles asignados a pedidos que puede acceder.
-- La aplicación gestiona `public.perfiles`, sin crear usuarios Auth desde la app
-  y sin usar service role key.
+- `perfiles_select_visible` permite que un usuario lea su propia fila aunque tenga `must_change_password = true`, para poder detectar onboarding sin ganar acceso operativo.
+- `private.current_user_role()` solo devuelve rol si el perfil está activo y no tiene contraseña temporal pendiente.
+- `private.current_user_is_active()` usa la misma semántica operativa: `is_active = true` y `must_change_password = false`.
+- La aplicación todavía no crea usuarios Auth desde la UI ni usa service role key en código.
+
+**Provisionamiento Auth -> perfil:**
+
+- El trigger `on_auth_user_created_provision_internal_profile` corre `AFTER INSERT` sobre `auth.users`.
+- La función `private.provision_internal_profile_from_auth_user()` lee exclusivamente `auth.users.raw_app_meta_data.godel_provisioning`.
+- Si no existe el marcador, devuelve `new` y no crea perfil.
+- Si existe, exige `version = 1`, `source = "admin_dashboard"`, `new.email` presente, `full_name` no vacío y dentro de 120 caracteres, opcionales `phone` y `avatar_url` dentro de límites, rol `admin`, `supervisor` o `trabajador`, `created_by` con UUID válido y admin creador existente, activo y sin cambio pendiente.
+- Inserta `id = new.id`, datos normalizados, `is_active = true`, `must_change_password = true` y `created_by`.
+- No inserta email, contraseña, tokens ni metadata duplicada.
+- La función es `SECURITY DEFINER`, tiene `search_path` fijado, revoca ejecución a `public`, `anon` y `authenticated`, y concede ejecución técnica solo a `supabase_auth_admin`.
 
 ### `clientes`
 
@@ -934,6 +951,29 @@ El diagnóstico y diseño actualizado para comentarios internos e historial oper
 - `public.actualizar_datos_pedido` serializa la edición controlada de servicio,
   datos básicos y precio total en pedidos activos.
 - `public.actualizar_estado_solicitud` controla las transiciones manuales.
+- `public.complete_initial_password_change` finaliza el bloqueo por contraseña temporal solo para perfiles activos y pendientes, y está reservada a `service_role`.
+
+### `public.complete_initial_password_change`
+
+RPC mínima para una etapa posterior de cambio inicial de contraseña.
+
+Argumentos:
+
+- `p_user_id uuid`.
+
+Retorna:
+
+- `uuid` del perfil actualizado.
+
+Contrato:
+
+- es `security definer` y fija `search_path = public, private`;
+- revoca ejecución a `public`, `anon` y `authenticated`;
+- concede `execute` únicamente a `service_role`;
+- exige que `public.perfiles.id = p_user_id` exista, esté activo y tenga `must_change_password = true`;
+- cambia solo `must_change_password = false`; `updated_at` lo mantiene el trigger vigente de la tabla;
+- no modifica rol, nombre, teléfono, avatar, `is_active` ni `created_by`;
+- no debe ser llamada directamente por usuarios autenticados porque todavía no prueba que la contraseña se haya cambiado.
 
 ### `public.actualizar_datos_pedido`
 
