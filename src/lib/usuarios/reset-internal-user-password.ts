@@ -111,6 +111,11 @@ type PasswordResetAuditState = {
   currentMustChangePassword: boolean;
 };
 
+type PasswordResetAuditStateResult =
+  | { ok: true; found: true; state: PasswordResetAuditState }
+  | { ok: true; found: false }
+  | { ok: false; reason: "query_error" | "invalid_response" };
+
 type PasswordResetTerminalStatus =
   | "succeeded"
   | "failed"
@@ -146,6 +151,8 @@ const ROLLBACK_ERROR_MESSAGE =
   "No se pudo restablecer la contraseña temporal y el usuario quedó bloqueado preventivamente. Requiere revisión administrativa.";
 const COMPLETION_ERROR_MESSAGE =
   "La contraseña temporal se actualizó, pero el usuario quedó bloqueado para proteger su acceso. No repitas la operación. Requiere revisión administrativa.";
+const INDETERMINATE_COMPLETION_ERROR_MESSAGE =
+  "No pudimos confirmar el resultado del cambio de contraseña. El usuario quedó bloqueado para proteger su acceso. No repitas la operación. Requiere revisión administrativa.";
 const AUTH_RATE_LIMIT_CODES = new Set([
   "over_request_rate_limit",
   "over_email_send_rate_limit",
@@ -213,6 +220,19 @@ function isAuthUserNotFoundError(error: ErrorLike): boolean {
     code === "not_found" ||
     error.status === 404 ||
     message.includes("user not found")
+  );
+}
+
+function isIndeterminateAuthMutationError(error: ErrorLike): boolean {
+  const name = normalizeErrorToken(error.name);
+  const status = getErrorStatus(error);
+
+  return (
+    name === "authretryablefetcherror" ||
+    name === "authunknownerror" ||
+    status === 0 ||
+    status === 408 ||
+    (typeof status === "number" && status >= 500 && status <= 599)
   );
 }
 
@@ -328,7 +348,7 @@ async function getPasswordResetAuditState(
     attemptId: string;
     targetId: string;
   },
-): Promise<PasswordResetAuditState | null> {
+): Promise<PasswordResetAuditStateResult> {
   try {
     const { data, error } = await supabase.rpc(
       "get_internal_user_password_reset_state",
@@ -343,13 +363,13 @@ async function getPasswordResetAuditState(
         code: error.code,
       });
 
-      return null;
+      return { ok: false, reason: "query_error" };
     }
 
     const state = data?.[0];
 
     if (!state) {
-      return null;
+      return { ok: true, found: false };
     }
 
     if (
@@ -365,24 +385,28 @@ async function getPasswordResetAuditState(
         name: "InvalidPasswordResetStateResponse",
       });
 
-      return null;
+      return { ok: false, reason: "invalid_response" };
     }
 
     return {
-      attemptId: state.attempt_id,
-      status: state.status,
-      targetProfileId: state.target_profile_id,
-      previousIsActive: state.previous_is_active,
-      previousMustChangePassword: state.previous_must_change_password,
-      currentIsActive: state.current_is_active,
-      currentMustChangePassword: state.current_must_change_password,
+      ok: true,
+      found: true,
+      state: {
+        attemptId: state.attempt_id,
+        status: state.status,
+        targetProfileId: state.target_profile_id,
+        previousIsActive: state.previous_is_active,
+        previousMustChangePassword: state.previous_must_change_password,
+        currentIsActive: state.current_is_active,
+        currentMustChangePassword: state.current_must_change_password,
+      },
     };
   } catch (error) {
     logSanitizedResetError("resetInternalUserPassword.audit.state", {
       name: error instanceof Error ? error.name : "UnexpectedAuditStateError",
     });
 
-    return null;
+    return { ok: false, reason: "query_error" };
   }
 }
 
@@ -546,7 +570,7 @@ async function markAttentionRequired(
 
   const state = await getPasswordResetAuditState(supabase, input);
 
-  if (state && isAttentionRequiredAuditState(state)) {
+  if (state.ok && state.found && isAttentionRequiredAuditState(state.state)) {
     return true;
   }
 
@@ -568,19 +592,19 @@ async function returnFailureAfterRollback(
     failure: MappedAuthFailure;
   },
 ): Promise<ResetInternalUserPasswordResult> {
-  const rollback = await completePasswordResetWithRetry(supabase, {
+  await completePasswordResetWithRetry(supabase, {
     attemptId: input.attemptId,
     status: "failed",
     errorCode: input.failure.auditErrorCode,
   });
 
-  if (rollback.ok) {
-    return input.failure.result;
-  }
-
   const rollbackState = await getPasswordResetAuditState(supabase, input);
 
-  if (rollbackState && isFailedAuditState(rollbackState)) {
+  if (
+    rollbackState.ok &&
+    rollbackState.found &&
+    isFailedAuditState(rollbackState.state)
+  ) {
     return input.failure.result;
   }
 
@@ -600,6 +624,7 @@ async function returnCompletionFailure(
   input: {
     attemptId: string;
     targetId: string;
+    message?: string;
   },
 ): Promise<ResetInternalUserPasswordResult> {
   await markAttentionRequired(supabase, {
@@ -607,9 +632,13 @@ async function returnCompletionFailure(
     errorCode: "finalization_failed",
   });
 
-  return serviceFailure("completion_error", COMPLETION_ERROR_MESSAGE, {
-    passwordChanged: true,
-  });
+  return serviceFailure(
+    "completion_error",
+    input.message ?? COMPLETION_ERROR_MESSAGE,
+    {
+      passwordChanged: true,
+    },
+  );
 }
 
 async function recoverUnconfirmedBegin(
@@ -621,39 +650,46 @@ async function recoverUnconfirmedBegin(
 ): Promise<BeginPasswordResetAttempt> {
   const state = await getPasswordResetAuditState(supabase, input);
 
-  if (!state) {
+  if (!state.ok) {
+    return { ok: false, reason: "rollback_error" };
+  }
+
+  if (!state.found) {
     return { ok: false, reason: "error" };
   }
 
-  if (state.status === "rate_limited") {
+  if (state.state.status === "rate_limited") {
     return {
       ok: true,
       allowed: false,
-      attemptId: state.attemptId,
+      attemptId: state.state.attemptId,
       limitedScope: null,
-      previousIsActive: state.previousIsActive,
-      previousMustChangePassword: state.previousMustChangePassword,
+      previousIsActive: state.state.previousIsActive,
+      previousMustChangePassword: state.state.previousMustChangePassword,
     };
   }
 
   if (
-    state.status === "pending" &&
-    state.currentIsActive === false &&
-    state.currentMustChangePassword === true
+    state.state.status === "pending" &&
+    state.state.currentIsActive === false &&
+    state.state.currentMustChangePassword === true
   ) {
-    const rollback = await completePasswordResetWithRetry(supabase, {
+    await completePasswordResetWithRetry(supabase, {
       attemptId: input.attemptId,
       status: "failed",
       errorCode: "unexpected_error",
     });
 
-    if (rollback.ok) {
-      return { ok: false, reason: "error" };
-    }
-
     const rollbackState = await getPasswordResetAuditState(supabase, input);
 
-    if (rollbackState && isFailedAuditState(rollbackState)) {
+    if (!rollbackState.ok) {
+      return { ok: false, reason: "rollback_error" };
+    }
+
+    if (
+      rollbackState.found &&
+      isFailedAuditState(rollbackState.state)
+    ) {
       return { ok: false, reason: "error" };
     }
 
@@ -709,6 +745,7 @@ export async function resetInternalUserPassword(
   let targetId = "";
   let attemptConfirmed = false;
   let passwordChanged = false;
+  let authPasswordUpdateStarted = false;
 
   try {
     const currentProfile = await getCurrentProfile();
@@ -789,8 +826,30 @@ export async function resetInternalUserPassword(
 
     try {
       const admin = createAdminClient();
-      const { data: authUserData, error: getUserError } =
-        await admin.auth.admin.getUserById(targetId);
+      let authUserData: Awaited<
+        ReturnType<typeof admin.auth.admin.getUserById>
+      >["data"];
+      let getUserError: Awaited<
+        ReturnType<typeof admin.auth.admin.getUserById>
+      >["error"];
+
+      try {
+        ({ data: authUserData, error: getUserError } =
+          await admin.auth.admin.getUserById(targetId));
+      } catch (error) {
+        logSanitizedResetError("resetInternalUserPassword.auth.getUser", {
+          name: error instanceof Error ? error.name : "UnexpectedGetUserError",
+        });
+
+        return returnFailureAfterRollback(supabase, {
+          attemptId,
+          targetId,
+          failure: {
+            result: serviceFailure("auth_error", GENERIC_RESET_ERROR),
+            auditErrorCode: "auth_error",
+          },
+        });
+      }
 
       if (getUserError) {
         return returnFailureAfterRollback(supabase, {
@@ -839,18 +898,56 @@ export async function resetInternalUserPassword(
         });
       }
 
-      const { error: updateUserError } = await admin.auth.admin.updateUserById(
-        targetId,
-        {
-          password: validation.data.password,
-        },
-      );
+      let updateUserData: Awaited<
+        ReturnType<typeof admin.auth.admin.updateUserById>
+      >["data"];
+      let updateUserError: Awaited<
+        ReturnType<typeof admin.auth.admin.updateUserById>
+      >["error"];
+
+      try {
+        authPasswordUpdateStarted = true;
+        ({ data: updateUserData, error: updateUserError } =
+          await admin.auth.admin.updateUserById(targetId, {
+            password: validation.data.password,
+          }));
+      } catch (error) {
+        logSanitizedResetError("resetInternalUserPassword.auth.update", {
+          name: error instanceof Error ? error.name : "UnexpectedUpdateUserError",
+        });
+
+        return returnCompletionFailure(supabase, {
+          attemptId,
+          targetId,
+          message: INDETERMINATE_COMPLETION_ERROR_MESSAGE,
+        });
+      }
 
       if (updateUserError) {
+        if (isIndeterminateAuthMutationError(updateUserError)) {
+          return returnCompletionFailure(supabase, {
+            attemptId,
+            targetId,
+            message: INDETERMINATE_COMPLETION_ERROR_MESSAGE,
+          });
+        }
+
         return returnFailureAfterRollback(supabase, {
           attemptId,
           targetId,
           failure: mapAuthFailure(updateUserError),
+        });
+      }
+
+      if (!updateUserData.user || updateUserData.user.id !== targetId) {
+        logSanitizedResetError("resetInternalUserPassword.auth.update", {
+          name: "UnconfirmedUpdateUserResponse",
+        });
+
+        return returnCompletionFailure(supabase, {
+          attemptId,
+          targetId,
+          message: INDETERMINATE_COMPLETION_ERROR_MESSAGE,
         });
       }
     } catch {
@@ -889,7 +986,11 @@ export async function resetInternalUserPassword(
       targetId,
     });
 
-    if (finalState && isSucceededAuditState(finalState)) {
+    if (
+      finalState.ok &&
+      finalState.found &&
+      isSucceededAuditState(finalState.state)
+    ) {
       return serviceSuccess({
         userId: targetId,
         wasActive: auditAttempt.previousIsActive,
@@ -910,6 +1011,14 @@ export async function resetInternalUserPassword(
 
     if (passwordChanged) {
       return returnCompletionFailure(supabase, { attemptId, targetId });
+    }
+
+    if (authPasswordUpdateStarted) {
+      return returnCompletionFailure(supabase, {
+        attemptId,
+        targetId,
+        message: INDETERMINATE_COMPLETION_ERROR_MESSAGE,
+      });
     }
 
     return returnFailureAfterRollback(supabase, {

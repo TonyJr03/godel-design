@@ -327,6 +327,14 @@ No se usa para tablas, Storage, Functions, RPCs, `createUser`, `deleteUser`,
 `listUsers`, invitaciones ni enlaces. El payload de actualización contiene solo
 `{ password }`: no envía email, rol, metadata, `email_confirm`, sesión ni token.
 
+La respuesta de `updateUserById` solo se considera confirmada cuando no devuelve
+error, devuelve `user` y `user.id` coincide con el objetivo. Rechazos definitivos
+de Auth, como `user_not_found`, `weak_password`, rate limit u otros 4xx estables
+permiten cerrar la auditoría como `failed` y restaurar el perfil. Resultados
+inciertos, como errores de red, `AuthRetryableFetchError`, `AuthUnknownError`,
+`status = 0`, `408`, `5xx`, excepciones durante `updateUserById`, usuario nulo
+o UUID diferente, no ejecutan rollback ordinario.
+
 La RPC de inicio recibe el UUID del intento desde el servicio. Si la respuesta se
 pierde, el servicio reintenta con el mismo `attemptId` y la RPC recupera el
 intento idempotentemente sin insertar otra auditoría ni volver a modificar el
@@ -350,12 +358,19 @@ estado actual del perfil coherente con cada terminal. Una respuesta nula, vacía
 o con UUID distinto desde `complete_internal_user_password_reset` se trata como
 fallo de confirmación.
 
-Si Auth cambió la contraseña pero la finalización no puede confirmarse, el
-servicio no intenta restaurar la contraseña anterior. Intenta marcar
+Si Auth cambió la contraseña o el resultado de la mutación no puede confirmarse,
+el servicio no intenta restaurar la contraseña anterior. Intenta marcar
 `attention_required`, devuelve `completion_error`, `passwordChanged = true` y el
-mensaje crítico que indica no repetir la operación. Si Auth no cambió pero no se
+mensaje crítico que indica no repetir la operación. En resultados inciertos,
+`passwordChanged = true` no afirma cambio confirmado: bloquea el reenvío porque
+la contraseña pudo haber cambiado. Si Auth no cambió pero no se
 pudo restaurar el perfil, intenta `attention_required` con `rollback_failed` y
 devuelve `rollback_error`.
+
+La consulta de estado de auditoría distingue explícitamente entre intento no
+encontrado y error de consulta o respuesta inválida. Si un inicio queda incierto
+y la consulta de estado falla, el servicio devuelve `rollback_error` preventivo
+y no llama Auth Admin.
 
 Estados de auditoría: `pending`, `succeeded`, `failed`, `rate_limited` y
 `attention_required`. Rate limits: 3 intentos reales por actor en 10 minutos, 3

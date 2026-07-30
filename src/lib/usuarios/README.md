@@ -178,6 +178,21 @@ perfil tenga el estado esperado. Éxito exige auditoría `succeeded`, rollback
 ordinario exige auditoría `failed`, y los casos críticos intentan quedar en
 `attention_required`.
 
+`updateUserById` también se confirma de forma explícita: no debe devolver error,
+debe devolver `user` y `user.id` debe coincidir con el objetivo. Rechazos
+definitivos de Auth, como `user_not_found`, `weak_password`, rate limit u otros
+4xx estables, cierran `failed` y restauran el perfil. Errores de red,
+`AuthRetryableFetchError`, `AuthUnknownError`, `status = 0`, `408`, `5xx`,
+excepciones durante la llamada, usuario nulo o UUID distinto se tratan como
+resultado incierto: no hay rollback ordinario, se intenta `attention_required` y
+`passwordChanged = true` solo bloquea reintentos porque la contraseña pudo haber
+cambiado.
+
+La consulta de auditoría diferencia `not_found` de errores de consulta o
+respuestas inválidas. Si `begin` pudo haber mutado el perfil pero el estado no
+puede comprobarse, el servicio devuelve `rollback_error` preventivo y no llama
+Auth Admin.
+
 No se envía correo, invitación, recuperación ni magic link. El administrador
 entrega la contraseña temporal por un canal externo seguro. La contraseña no se
 almacena, no se registra, no se devuelve, no queda en estado React y se limpia

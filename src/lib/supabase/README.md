@@ -41,6 +41,11 @@ confirmación usan el cliente server-side normal. No se envía correo ni
 recuperación por email, no se devuelve la contraseña y no se registra ningún
 valor sensible.
 
+En ese flujo, Auth Admin solo se considera confirmado cuando `updateUserById`
+devuelve el usuario objetivo. Si la mutación queda incierta, el servicio no usa
+el cliente Admin para compensar ni restaurar credenciales; bloquea el perfil por
+auditoría con `attention_required`.
+
 ## Tipos generados
 
 `src/types/database.types.ts` es generado automáticamente por Supabase CLI a partir del esquema de la base de datos. No debe editarse manualmente salvo una necesidad puntual de formato o compatibilidad.

@@ -189,10 +189,18 @@ function scanAllowedAdminClientConstruction(text, relativeFile, violations) {
   }
 
   const calls = collectContentPatternMatches(text, createAdminClientCallPattern);
-  const canonicalConstructionPattern = new RegExp(
+  const exactConstructionPattern = new RegExp(
+    `\\bconst\\s+${policy.variableName}\\s*=\\s*createAdminClient\\s*\\(\\s*\\)\\s*;?`,
+    "gs",
+  );
+  const legacyCompatibleConstructionPattern = new RegExp(
     `\\b(?:const\\s+${policy.variableName}|${policy.variableName})\\s*=\\s*createAdminClient\\s*\\(\\s*\\)\\s*;?`,
     "gs",
   );
+  const canonicalConstructionPattern =
+    relativeFile === resetInternalUserPasswordFile
+      ? exactConstructionPattern
+      : legacyCompatibleConstructionPattern;
   const canonicalConstructions = collectContentPatternMatches(
     text,
     canonicalConstructionPattern,

@@ -259,6 +259,17 @@ El cierre se confirma por UUID exacto devuelto desde
 `public.get_internal_user_password_reset_state`. No se acepta solo el estado del
 perfil como prueba de éxito o rollback.
 
+La respuesta de `updateUserById` debe traer `user.id` igual al objetivo. Un
+rechazo definitivo de Auth restaura el perfil con `failed`; un resultado
+incierto, como error de red, excepción durante la llamada, usuario ausente o UUID
+distinto, deja el intento en `attention_required`. En ese caso
+`passwordChanged = true` bloquea el reenvío aunque el cambio no pueda afirmarse
+con certeza.
+
+La consulta de auditoría diferencia intento no encontrado de error de consulta.
+Si `begin` pudo haber mutado el perfil y esa consulta falla, el servicio devuelve
+`rollback_error` y no llama Auth Admin.
+
 No se debe ejecutar recuperación por email, invitación ni magic link. La
 contraseña temporal no se registra, no se devuelve y el formulario la limpia
 tras cada respuesta.
