@@ -144,9 +144,10 @@ El formulario crea:
 El formulario no envía correo ni invitación. Entrega la contraseña temporal por
 un canal externo seguro. El sistema no la muestra de nuevo.
 
-La pantalla de cambio inicial real de contraseña todavía no está implementada.
-Por eso los usuarios nuevos creados por este flujo quedan bloqueados para
-operación interna hasta completar la etapa de onboarding.
+La pantalla de cambio inicial real de contraseña está implementada en
+`/cambiar-contrasena-inicial`. Los usuarios nuevos creados por este flujo pueden
+iniciar sesión con la contraseña temporal, pero quedan obligados a reemplazarla
+antes de acceder al dashboard.
 
 ## Seed o reparación puntual de desarrollo
 
@@ -201,8 +202,9 @@ Si `is_active = false`, el usuario no puede acceder al dashboard y será
 redirigido a `/acceso-denegado`.
 
 Si `must_change_password = true`, el usuario tiene una contraseña temporal
-pendiente. RLS bloquea la operación interna aunque pueda leer su propia fila
-para completar onboarding en una etapa posterior.
+pendiente. El proxy lo redirige a `/cambiar-contrasena-inicial`, RLS bloquea la
+operación interna y la pantalla solo completa el onboarding después de
+`auth.updateUser` exitoso con la contraseña temporal actual.
 
 Desactivar un usuario:
 
@@ -232,16 +234,21 @@ where id = 'UUID_DEL_USUARIO';
 8. Crear un usuario nuevo con correo y contraseña temporal.
 9. Confirmar que aparece en el listado como activo y con cambio inicial pendiente.
 10. Cerrar sesión.
-11. Probar usuario sin perfil.
-12. Probar usuario inactivo.
-
-No hagas pruebas E2E completas ni visual QA si la tarea actual solo pide validar
-la conexión del alta segura.
+11. Iniciar sesión con el usuario nuevo y confirmar redirección a
+    `/cambiar-contrasena-inicial`.
+12. Probar errores visibles con contraseña temporal incorrecta o nueva
+    contraseña débil.
+13. Cambiar la contraseña temporal por una contraseña nueva válida.
+14. Confirmar redirección a `/dashboard` y que `must_change_password = false`.
+15. Probar usuario sin perfil.
+16. Probar usuario inactivo.
 
 ## Problemas comunes
 
-- Si el login funciona pero va a `/acceso-denegado`, falta perfil, está inactivo
-  o conserva `must_change_password = true`.
+- Si el login funciona pero va a `/acceso-denegado`, falta perfil o está
+  inactivo.
+- Si el login funciona pero vuelve siempre a `/cambiar-contrasena-inicial`, el
+  perfil conserva `must_change_password = true` o falló la finalización del RPC.
 - Si el dashboard redirige a `/login`, no hay sesión válida.
 - Si el alta falla por configuración, revisar `SUPABASE_SECRET_KEY` local sin
   imprimir su valor.
@@ -266,11 +273,10 @@ la conexión del alta segura.
 
 - Invitaciones por correo.
 - Recuperación de contraseña.
-- Cambio inicial real de contraseña desde UI.
-- Onboarding que complete `must_change_password = false` después del cambio real.
+- Cambios de contraseña de autoservicio fuera del primer acceso obligatorio.
 
 ## Cierre
 
-El alta administrativa segura ya está conectada a la UI, pero el flujo completo
-no debe considerarse listo para producción hasta implementar el cambio inicial
-obligatorio de contraseña.
+El alta administrativa segura ya está conectada a la UI y el primer acceso
+obligatorio completa `must_change_password = false` después de cambiar la
+contraseña temporal.

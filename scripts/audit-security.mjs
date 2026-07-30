@@ -6,9 +6,13 @@ const roots = process.argv.slice(2);
 const auditRoots = roots.length > 0 ? roots : defaultRoots;
 
 const allowedSecretEnvFile = normalizePath("src/lib/supabase/admin.ts");
+const initialPasswordCompletionFile = normalizePath(
+  "src/lib/auth/complete-initial-password-change.ts",
+);
 const allowedAdminConsumerFiles = new Set([
   normalizePath("src/lib/supabase/admin.ts"),
   normalizePath("src/lib/usuarios/create-internal-user.ts"),
+  initialPasswordCompletionFile,
 ]);
 const secretReferencePattern = /\bSUPABASE_SECRET_KEY\b/g;
 const legacySecretPattern = /\bSUPABASE_SERVICE_ROLE_KEY\b/g;
@@ -20,6 +24,8 @@ const expectedReferencePattern =
 const componentAdminPattern =
   /\b(?:auth\.admin|createAdminClient|SUPABASE_SECRET_KEY)\b/g;
 const adminConsumerPattern = /\b(?:auth\.admin|createAdminClient)\b/g;
+const initialPasswordForbiddenAdminPattern =
+  /\b(?:auth\.admin\.(?:createUser|updateUserById|deleteUser)|privilegedClient\s*\.\s*(?:from|storage)\b|createAdminClient\(\)\s*\.\s*(?:from|storage)\b)/g;
 const directSecretEnvPattern = /\bprocess\.env\.SUPABASE_SECRET_KEY\b/g;
 
 function normalizePath(path) {
@@ -132,6 +138,18 @@ function scanFile(file) {
         relativeFile,
         lineNumber,
         "unauthorized-admin-api-consumer",
+      );
+    }
+
+    if (
+      relativeFile === initialPasswordCompletionFile &&
+      collectPatternMatches(line, initialPasswordForbiddenAdminPattern).length > 0
+    ) {
+      addViolation(
+        violations,
+        relativeFile,
+        lineNumber,
+        "forbidden-initial-password-admin-operation",
       );
     }
 

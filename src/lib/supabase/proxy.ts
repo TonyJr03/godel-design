@@ -15,6 +15,7 @@ type CookieToSet = {
 
 const protectedPathPrefix = "/dashboard";
 const loginPath = "/login";
+const initialPasswordChangePath = "/cambiar-contrasena-inicial";
 const deniedPath = "/acceso-denegado";
 const noPermissionsPath = "/sin-permisos";
 
@@ -67,6 +68,7 @@ export async function updateSession(request: NextRequest) {
     pathname === protectedPathPrefix ||
     pathname.startsWith(`${protectedPathPrefix}/`);
   const isLoginRoute = pathname === loginPath;
+  const isInitialPasswordChangeRoute = pathname === initialPasswordChangePath;
   const isDeniedRoute = pathname === deniedPath;
   const isNoPermissionsRoute = pathname === noPermissionsPath;
 
@@ -79,7 +81,7 @@ export async function updateSession(request: NextRequest) {
     return response;
   }
 
-  if (isDashboardRoute && !isAuthenticated) {
+  if ((isDashboardRoute || isInitialPasswordChangeRoute) && !isAuthenticated) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = loginPath;
     redirectUrl.search = "";
@@ -91,16 +93,17 @@ export async function updateSession(request: NextRequest) {
     );
   }
 
-  if ((isDashboardRoute || isLoginRoute) && authenticatedUserId) {
+  if (
+    (isDashboardRoute || isLoginRoute || isInitialPasswordChangeRoute) &&
+    authenticatedUserId
+  ) {
     const { data: profile, error: profileError } = await supabase
       .from("perfiles")
-      .select("id, role, is_active")
+      .select("id, role, is_active, must_change_password")
       .eq("id", authenticatedUserId)
       .maybeSingle();
 
-    const hasActiveProfile = Boolean(profile?.is_active && !profileError);
-
-    if (!hasActiveProfile) {
+    if (profileError || !profile?.is_active) {
       const redirectUrl = request.nextUrl.clone();
       redirectUrl.pathname = deniedPath;
       redirectUrl.search = "";
@@ -112,7 +115,37 @@ export async function updateSession(request: NextRequest) {
       );
     }
 
-    if (isDashboardRoute && profile && !isKnownDashboardRoute(pathname)) {
+    const activeProfile = profile;
+
+    if (activeProfile.must_change_password === true) {
+      if (isInitialPasswordChangeRoute) {
+        return response;
+      }
+
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = initialPasswordChangePath;
+      redirectUrl.search = "";
+
+      return applySessionCookies(
+        NextResponse.redirect(redirectUrl),
+        cookiesToSet,
+        headersToSet,
+      );
+    }
+
+    if (isInitialPasswordChangeRoute) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = protectedPathPrefix;
+      redirectUrl.search = "";
+
+      return applySessionCookies(
+        NextResponse.redirect(redirectUrl),
+        cookiesToSet,
+        headersToSet,
+      );
+    }
+
+    if (isDashboardRoute && !isKnownDashboardRoute(pathname)) {
       const rewriteUrl = request.nextUrl.clone();
       rewriteUrl.pathname = DASHBOARD_NOT_FOUND_FALLBACK_PATH;
       rewriteUrl.search = "";
@@ -126,8 +159,7 @@ export async function updateSession(request: NextRequest) {
 
     if (
       isDashboardRoute &&
-      profile &&
-      !canAccessDashboardRoute(profile.role, pathname)
+      !canAccessDashboardRoute(activeProfile.role, pathname)
     ) {
       const redirectUrl = request.nextUrl.clone();
       redirectUrl.pathname = noPermissionsPath;

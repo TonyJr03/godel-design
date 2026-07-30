@@ -1053,7 +1053,8 @@ Contrato:
 
 ### `public.complete_initial_password_change`
 
-RPC mínima para una etapa posterior de cambio inicial de contraseña.
+RPC mínima para finalizar el cambio inicial obligatorio de contraseña después
+de que Supabase Auth haya confirmado el cambio real con `auth.updateUser`.
 
 Argumentos:
 
@@ -1068,10 +1069,13 @@ Contrato:
 - es `security definer` y fija `search_path = ''`;
 - revoca ejecución a `public`, `anon` y `authenticated`;
 - concede `execute` únicamente a `service_role`;
-- exige que `public.perfiles.id = p_user_id` exista, esté activo y tenga `must_change_password = true`;
-- cambia solo `must_change_password = false`; `updated_at` lo mantiene el trigger vigente de la tabla;
+- exige que `public.perfiles.id = p_user_id` exista y esté activo;
+- es idempotente: si `must_change_password = false`, retorna el UUID sin cambios;
+- si `must_change_password = true`, cambia solo `must_change_password = false`; `updated_at` lo mantiene el trigger vigente de la tabla;
 - no modifica rol, nombre, teléfono, avatar, `is_active` ni `created_by`;
-- no debe ser llamada directamente por usuarios autenticados porque todavía no prueba que la contraseña se haya cambiado.
+- no debe ser llamada directamente por usuarios autenticados porque la prueba del
+  cambio real de contraseña ocurre en el servicio server-side antes de invocar
+  la RPC privilegiada.
 
 ### `public.actualizar_datos_pedido`
 

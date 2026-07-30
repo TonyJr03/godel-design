@@ -17,7 +17,11 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 No se reexporta desde `index.ts`, `client.ts` ni `server.ts`.
 
-Las operaciones normales de datos continúan usando los clientes con RLS. El cliente Admin se reserva exclusivamente para operaciones de `auth.admin` en etapas posteriores. No debe usarse para pedidos, solicitudes, perfiles, Storage ni consultas normales a tablas.
+Las operaciones normales de datos continúan usando los clientes con RLS. El
+cliente Admin se reserva para operaciones aisladas de Auth Admin y para la RPC
+privilegiada `public.complete_initial_password_change` después de
+`auth.updateUser` exitoso. No debe usarse para pedidos, solicitudes, Storage ni
+consultas normales a tablas.
 
 ## Tipos generados
 
@@ -38,9 +42,14 @@ npx supabase gen types typescript --local > src\types\database.types.ts
 `src/lib/supabase/proxy.ts` contiene la lógica de actualización de sesión con `@supabase/ssr` y la protección básica de rutas.
 
 - `/dashboard` y sus subrutas requieren autenticación.
-- `/`, `/login`, `/solicitud` y assets estáticos permanecen públicos, salvo que `/login` redirige a `/dashboard` cuando ya existe una sesión.
+- `/cambiar-contrasena-inicial` requiere autenticación y perfil activo con
+  `must_change_password = true`.
+- `/`, `/login`, `/solicitud` y assets estáticos permanecen públicos, salvo que
+  `/login` redirige a `/dashboard` cuando ya existe una sesión completa.
 - Auth por sí solo no basta para entrar al dashboard: el usuario también debe tener una fila propia en `public.perfiles` con `is_active = true`.
 - `perfiles.is_active` controla el acceso interno básico.
+- `perfiles.must_change_password = true` redirige login y dashboard a
+  `/cambiar-contrasena-inicial` hasta completar el primer cambio de contraseña.
 - El proxy valida acceso por rol a rutas de dashboard usando `canAccessDashboardRoute`.
 - Si el usuario tiene sesión y perfil activo, pero su rol no permite la ruta solicitada, se redirige a `/sin-permisos`.
 - No se usa service role key; el proxy solo usa `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.

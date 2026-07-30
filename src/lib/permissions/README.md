@@ -34,6 +34,11 @@ perfil activo confirma que existe una fila interna en `public.perfiles` para
 ese usuario y que `is_active = true`. La autorización por rol decide qué puede
 ver o ejecutar ese perfil activo según `perfiles.role`.
 
+Un perfil con `must_change_password = true` todavía no se considera operativo.
+Puede completar `/cambiar-contrasena-inicial`, pero no debe entrar al dashboard
+ni ejecutar flujos internos hasta que el cambio real de contraseña finalice y la
+RPC privilegiada marque `must_change_password = false`.
+
 Los helpers de permisos trabajan con roles válidos del sistema y devuelven
 booleanos. Los helpers de rutas permiten evaluar si un rol puede acceder
 conceptualmente a una ruta del dashboard, pero no hacen redirecciones ni
@@ -44,7 +49,10 @@ no permitidos según el rol. Esto es una mejora de UX, no la única protección.
 
 La protección real por URL directa se realiza en el proxy de Next.js. El proxy
 también usa `canAccessDashboardRoute`, de modo que la navegación y el bloqueo
-de rutas comparten la misma fuente de reglas.
+de rutas comparten la misma fuente de reglas. El proxy resuelve primero el
+estado de primer acceso: usuarios activos con `must_change_password = true` son
+redirigidos a `/cambiar-contrasena-inicial` antes de evaluar rutas del
+dashboard.
 
 ## Rutas del dashboard
 
@@ -95,6 +103,11 @@ usa `usuarios.manage` desde `/dashboard/configuracion/usuarios`, crea el usuario
 Auth con correo y contraseña temporal en servidor, y deja que el trigger de base
 provisione el perfil interno. La app no consulta `auth.users`, no inserta
 manualmente en `perfiles` y no expone el cliente Admin a componentes.
+
+El cambio inicial obligatorio usa `/cambiar-contrasena-inicial` y no depende de
+`usuarios.manage`: el propio usuario autenticado cambia su contraseña temporal
+mediante Auth, y el servicio server-side finaliza `must_change_password` con el
+RPC privilegiado correspondiente.
 
 ## Relación con RLS
 

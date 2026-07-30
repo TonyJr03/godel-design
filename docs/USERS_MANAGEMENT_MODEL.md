@@ -77,8 +77,9 @@ PostgREST queda limitada por grant de columnas a:
 
 Los campos `id`, `must_change_password`, `created_by`, `created_at` y
 `updated_at` son protegidos frente a sesiones normales. `must_change_password`
-solo debe completarse mediante la RPC privilegiada futura, después de que el
-cambio real de contraseña haya finalizado correctamente.
+solo se completa mediante la RPC privilegiada
+`public.complete_initial_password_change(uuid)`, después de que
+`auth.updateUser` haya cambiado correctamente la contraseña.
 
 El `INSERT` normal sobre `perfiles` para `authenticated` está retirado. El flujo
 legacy por UUID de usuario Auth existente queda histórico y no es la ruta
@@ -131,8 +132,8 @@ no se usa.
 - `must_change_password = true` bloquea operación interna por RLS.
 - `created_by` identifica al admin creador y exige que sea `admin`, activo y sin
   cambio de contraseña pendiente.
-- `public.complete_initial_password_change(uuid)` existe solo para una etapa
-  futura posterior a `auth.updateUser({ password })`.
+- `public.complete_initial_password_change(uuid)` completa el onboarding después
+  de `auth.updateUser({ current_password, password })` exitoso.
 - `private.internal_user_creation_audit` registra intentos de alta sin almacenar
   email, contraseña, metadata, tokens ni payloads completos.
 - `public.begin_internal_user_creation_attempt` reserva cada intento permitido y
@@ -145,9 +146,10 @@ no se usa.
 - `createInternalUser()` es el único consumidor productivo autorizado del
   cliente Admin.
 
-El alta no está lista para merge productivo hasta completar la pantalla de
-cambio inicial real de contraseña y el onboarding protegido. La UI ya muestra el
-estado pendiente cuando `must_change_password = true`.
+El primer acceso obligatorio vive en `/cambiar-contrasena-inicial`. Un usuario
+activo con `must_change_password = true` puede iniciar sesión, pero el proxy y
+el layout del dashboard lo redirigen a esa ruta hasta cambiar la contraseña
+temporal.
 
 ## Permisos
 
@@ -177,7 +179,8 @@ no se considera una barrera de seguridad suficiente.
 - impedir que el único admin se quite su propio rol `admin`;
 - bloquear eliminación física de perfiles;
 - validar todo en Server Actions con `usuarios.view` o `usuarios.manage`;
-- mostrar en listado el estado de cambio inicial pendiente.
+- mostrar en listado el estado de cambio inicial pendiente;
+- completar el cambio inicial obligatorio desde `/cambiar-contrasena-inicial`.
 
 ## Servicio `createInternalUser`
 
@@ -238,10 +241,36 @@ Los errores desconocidos devuelven un mensaje genérico. El log sanitizado puede
 incluir únicamente `context`, `name`, `code` y `status`; no incluye correo,
 contraseña, metadata, URL, headers, request, response body, tokens ni stack.
 
+## Servicio `completeInitialPasswordChange`
+
+`completeInitialPasswordChange(input)` es un servicio server-only exportado desde
+`src/lib/auth`. Usa el cliente server-side normal para leer la sesión, validar la
+fila propia de `public.perfiles` y ejecutar `auth.updateUser` con
+`current_password`. Solo después de que Auth confirme el cambio construye
+`createAdminClient()` para llamar exclusivamente al RPC
+`public.complete_initial_password_change`.
+
+La entrada permitida es `current_password`, `password` y
+`password_confirmation`. Las contraseñas no se recortan ni se transforman. La
+nueva contraseña debe medir entre 12 y 72 caracteres, incluir minúscula,
+mayúscula, número y carácter no alfanumérico, ser distinta de la contraseña
+temporal y no ser igual al correo del usuario ignorando mayúsculas. La
+confirmación debe coincidir exactamente.
+
+Si Auth cambia la contraseña pero el RPC no consigue completar
+`must_change_password = false`, el servicio devuelve `completion_error` con
+`passwordChanged = true` y un mensaje que indica cerrar sesión y contactar al
+administrador. No vuelve a usar la contraseña temporal ni intenta recrear
+credenciales.
+
+Razones de error actuales: `unauthorized`, `inactive`, `not_required`,
+`validation_error`, `invalid_current_password`, `weak_password`, `rate_limited`,
+`auth_error` y `completion_error`.
+
 ## Fuera de Alcance Actual
 
 - enviar invitaciones desde la app;
-- cambiar contraseñas desde la app, salvo la futura etapa protegida de cambio inicial;
+- cambiar contraseñas desde la app fuera de la etapa protegida de cambio inicial;
 - eliminar usuarios físicamente;
 - exponer emails de Auth si no forman parte de `perfiles`;
 - agregar consumidores productivos adicionales de la clave administrativa;
@@ -256,7 +285,8 @@ contraseña, metadata, URL, headers, request, response body, tokens ni stack.
 - usar el cliente server-side normal de Supabase para tablas y RPCs;
 - depender de RLS como defensa final;
 - reservar y finalizar intentos de alta por RPC auditada;
-- construir el cliente Admin solo después de autorización, validación y rate limit;
+- construir el cliente Admin solo después de autorización, validación y rate
+  limit en el alta, o después de `auth.updateUser` exitoso en el cambio inicial;
 - no aceptar `id` desde el formulario de alta;
 - no insertar manualmente en `perfiles` durante el alta completa;
 - limitar las columnas actualizables;
@@ -275,7 +305,7 @@ contraseña, metadata, URL, headers, request, response body, tokens ni stack.
 | 12.5 | Creación legacy de perfil interno para usuario Auth existente. Retirada del flujo vigente tras conectar el alta segura. |
 | 12.6 | Revisión de seguridad, pruebas y documentación final. |
 | 12.7 | Conexión productiva de la creación administrativa completa a Server Action/UI con correo y contraseña temporal. |
-| Futura | Cambio inicial obligatorio de contraseña y onboarding protegido. |
+| 12.8 | Cambio inicial obligatorio de contraseña y onboarding protegido. |
 
 ## Estados Implementados por Subfase
 
@@ -350,6 +380,17 @@ formulario crea el acceso Auth y el perfil interno en un solo flujo server-side:
 Server Action -> `createInternalUser()` -> Auth Admin -> trigger de perfil.
 
 El usuario nuevo queda activo y con `must_change_password = true`. La pantalla
-de cambio inicial de contraseña todavía no está implementada, por lo que esta
-rama no debe considerarse lista para merge productivo hasta completar ese
-onboarding.
+de cambio inicial de contraseña está implementada en
+`/cambiar-contrasena-inicial` y completa `must_change_password = false` solo
+después de cambiar realmente la contraseña temporal.
+
+### 12.8 Cambio Inicial Obligatorio
+
+La ruta `/cambiar-contrasena-inicial` permite a usuarios autenticados, activos y
+pendientes reemplazar la contraseña temporal. Usuarios sin sesión van a
+`/login`, usuarios sin perfil activo van a `/acceso-denegado` y usuarios que ya
+completaron el cambio vuelven a `/dashboard`.
+
+El proxy redirige a esta ruta cuando una sesión activa conserva
+`must_change_password = true`. El layout de `/dashboard` repite la defensa
+server-side antes de renderizar navegación o contenido operativo.
