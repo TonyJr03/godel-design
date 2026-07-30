@@ -94,9 +94,11 @@ La base vigente queda preparada así:
 - `public.complete_initial_password_change(uuid)` existe solo para uso futuro desde una Server Action protegida posterior a `auth.updateUser({ password })`.
 - La RPC no se concede a `authenticated`; solo `service_role` puede ejecutarla.
 - El signup público local queda deshabilitado en `supabase/config.toml`.
-- La clave administrativa aislada ya forma parte del contrato técnico mediante `SUPABASE_SECRET_KEY` y `createAdminClient()`, pero todavía no tiene consumidores productivos.
+- La clave administrativa aislada forma parte del contrato técnico mediante `SUPABASE_SECRET_KEY` y `createAdminClient()`.
+- `createInternalUser()` es el único consumidor productivo autorizado del cliente Admin. Todavía no está conectado a una Server Action ni a la interfaz.
+- El servicio valida autorización antes de construir el cliente Admin y usa la Admin API solo para `auth.admin.createUser`.
 
-La funcionalidad está incompleta hasta implementar las etapas posteriores: servicio de alta, Server Action protegida, formulario con correo y contraseña temporal, cambio inicial real de contraseña, controles operativos y pruebas E2E.
+La funcionalidad sigue incompleta hasta implementar las etapas posteriores: Server Action protegida, formulario con correo y contraseña temporal, cambio inicial real de contraseña, rate limiting funcional, auditoría operativa y pruebas E2E.
 
 ## Permisos de Ruta y Dominio
 
@@ -202,12 +204,13 @@ Complejidad: alta.
 
 Godel Diseño mantiene operativa la gestión de perfiles existente, pero adopta como objetivo de primera producción la creación administrativa directa con contraseña temporal. La etapa foundation actual implementa solo la base de datos y el contrato de seguridad.
 
-El alta completa desde UI todavía no está disponible en esta etapa. La clave administrativa aislada ya existe como contrato técnico, pero `createAdminClient()` aún no tiene consumidores productivos; la próxima etapa implementará el servicio de alta que lo usará para Admin API.
+El alta completa desde UI todavía no está disponible en esta etapa. La clave administrativa aislada ya existe como contrato técnico y el servicio backend `createInternalUser()` ya la usa para Admin API, pero el formulario y las Server Actions productivas siguen sin consumirlo.
 
 ## Operaciones Implementadas
 
 - listar usuarios internos desde `perfiles`;
 - ver detalle de usuario;
+- crear usuarios Auth internos desde servicio backend aislado, sin consumidor UI todavía;
 - crear perfil interno para un usuario Auth existente;
 - editar `full_name`;
 - editar campos opcionales existentes como `phone` y `avatar_url` si se decide exponerlos;
@@ -218,16 +221,94 @@ El alta completa desde UI todavía no está disponible en esta etapa. La clave a
 - bloquear eliminación física de perfiles;
 - validar todo en Server Actions con `usuarios.view` o `usuarios.manage`.
 
+## Servicio `createInternalUser`
+
+`createInternalUser(input)` es un servicio server-only exportado desde
+`src/lib/usuarios`. Su firma devuelve un `ServiceResult` con éxito mínimo
+`{ userId }` o errores controlados. No devuelve contraseña, sesión, token,
+objeto completo de Auth, headers, metadata ni email confirmado.
+
+Orden de defensa:
+
+1. carga el perfil actual con `getCurrentProfile()`;
+2. rechaza ausencia de perfil como `unauthorized`;
+3. rechaza `must_change_password = true` como `onboarding_required`;
+4. exige `usuarios.manage`;
+5. valida entrada;
+6. construye `createAdminClient()`;
+7. llama a `auth.admin.createUser`;
+8. valida que Auth devuelva un UUID;
+9. retorna solo `{ userId }`.
+
+La entrada permitida del alta completa es correo, contraseña temporal,
+confirmación de contraseña, nombre completo, teléfono opcional, avatar opcional,
+rol y confirmación explícita para rol `admin`. No acepta `id`, `is_active`,
+`must_change_password`, `created_by` ni otros campos técnicos.
+
+El correo se normaliza con `trim` y minúsculas. Debe ser obligatorio, de una
+sola línea, máximo 254 caracteres, sin espacios, con una sola `@`, dominio no
+vacío y estructura básica razonable.
+
+La contraseña temporal no se recorta ni se transforma. Debe medir entre 12 y 72
+caracteres, incluir minúscula, mayúscula, número y carácter no alfanumérico, no
+ser idéntica al correo ignorando mayúsculas, y coincidir exactamente con su
+confirmación. La contraseña no se registra, documenta con ejemplos reales,
+devuelve ni incorpora a metadata.
+
+Cuando el rol solicitado es `admin`, el servicio exige
+`confirm_admin = "true"` con un mensaje seguro de confirmación de acceso
+administrativo completo. Para `supervisor` y `trabajador`, ese campo se ignora.
+
+La llamada a Auth usa exclusivamente:
+
+```ts
+admin.auth.admin.createUser({
+  email,
+  password,
+  email_confirm: true,
+  app_metadata: {
+    godel_provisioning: {
+      version: 1,
+      source: "admin_dashboard",
+      full_name,
+      phone,
+      avatar_url,
+      role,
+      created_by: currentProfile.id,
+    },
+  },
+});
+```
+
+`email_confirm = true` significa confirmación administrativa sin envío de email;
+no afirma que la persona verificó manualmente el correo. El servicio no usa
+`user_metadata`, `signUp`, invitaciones, enlaces, inserción manual en
+`perfiles` ni la RPC de cambio inicial. El trigger Auth -> perfil crea la fila
+con `is_active = true`, `must_change_password = true` y `created_by` del admin
+operativo.
+
+Razones de error actuales: `unauthorized`, `forbidden`,
+`onboarding_required`, `validation_error`, `already_exists`, `rate_limited`,
+`configuration_error`, `auth_error` y `error`. Los códigos Auth `email_exists`,
+`user_already_exists`, `identity_already_exists` y `conflict` se tratan como
+duplicado con error de campo `email`; `weak_password` vuelve como
+`validation_error`; estatus `429` y códigos `over_*_rate_limit` vuelven como
+`rate_limited`.
+
+Los errores desconocidos devuelven un mensaje genérico. El log sanitizado puede
+incluir únicamente `context`, `name`, `code` y `status`; no incluye correo,
+contraseña, metadata, URL, headers, request, response body, tokens ni stack.
+
 ## Fuera de Alcance Inicial
 
 Queda explícitamente fuera de esta etapa foundation:
 
-- implementar la creación de usuarios Auth desde la app;
+- conectar la creación de usuarios Auth a UI o Server Actions productivas;
 - enviar invitaciones desde la app;
 - cambiar contraseñas desde la app, salvo la futura etapa protegida de cambio inicial;
 - eliminar usuarios físicamente;
 - exponer emails de Auth si no forman parte de `perfiles`;
-- agregar consumidores productivos de la clave administrativa en esta etapa;
+- agregar consumidores productivos adicionales de la clave administrativa;
 - usar service role key desde componentes cliente o código no aislado;
 - cambiar la matriz de permisos;
 - convertir `perfiles` en un sistema avanzado de recursos humanos.

@@ -1,11 +1,13 @@
 # Usuarios y perfiles
 
 `src/lib/usuarios` contiene la logica server-side del dominio interno de
-usuarios/perfiles del dashboard. La app gestiona filas de `public.perfiles`;
-Supabase Auth sigue siendo la autoridad de identidad y credenciales.
+usuarios/perfiles del dashboard. Supabase Auth sigue siendo la autoridad de
+identidad y credenciales; `public.perfiles` sigue siendo la autoridad de rol,
+estado operativo y datos internos.
 
-Este dominio no crea usuarios Auth, no consulta `auth.users`, no pide email ni
-contrasena, no usa `service_role` y no agrega `SUPABASE_SERVICE_ROLE_KEY`.
+El dominio mantiene el flujo legacy de perfiles por UUID y suma
+`createInternalUser` como servicio backend aislado para crear usuarios Auth con
+contraseña temporal. El formulario actual todavia no consume ese servicio.
 
 ## Mapa de archivos
 
@@ -15,6 +17,7 @@ contrasena, no usa `service_role` y no agrega `SUPABASE_SERVICE_ROLE_KEY`.
 - `user-validation.ts`: normalizacion y validacion de input editable.
 - `list-internal-users.ts`: listado interno de perfiles.
 - `get-internal-user-by-id.ts`: detalle interno por UUID de perfil.
+- `create-internal-user.ts`: alta administrativa Auth + perfil por trigger.
 - `create-internal-user-profile.ts`: creacion de fila en `public.perfiles`.
 - `update-internal-user.ts`: actualizacion de perfil, rol y estado.
 
@@ -44,12 +47,23 @@ deciden permisos criticos y no deben reutilizarse en rutas publicas.
   para dashboard.
 - `getInternalUserById` valida UUID, requiere `usuarios.view` y devuelve el
   detalle interno del perfil.
+- `createInternalUser` autentica al admin actual, valida que su perfil exista,
+  este activo, no tenga `must_change_password` pendiente y posea
+  `usuarios.manage`; despues valida correo, contraseña temporal y perfil antes
+  de llamar a Admin API.
 - `createInternalUserProfile` requiere `usuarios.manage`, valida input e
   inserta solo en `public.perfiles`.
 - `updateInternalUser` requiere `usuarios.manage`, valida UUID e input, y
   actualiza solo campos permitidos de perfil.
 
-La creacion de un perfil no crea credenciales Auth. El `id` recibido debe
+`createInternalUser` usa exclusivamente `app_metadata.godel_provisioning` con
+`version = 1`, `source = "admin_dashboard"`, datos de perfil normalizados y
+`created_by` del admin operativo. La llamada usa `email_confirm = true` para
+confirmacion administrativa sin envio de email. No usa `user_metadata`, no
+inserta manualmente en `perfiles`, no ejecuta RPC de cambio inicial, no devuelve
+password ni objeto Auth completo y retorna solo `{ userId }`.
+
+La creacion legacy de un perfil no crea credenciales Auth. El `id` recibido debe
 corresponder a un usuario Auth existente por la foreign key de base de datos.
 Los errores de FK o unique se devuelven como mensajes seguros.
 
@@ -58,10 +72,10 @@ Los errores de FK o unique se devuelven como mensajes seguros.
 `types.ts` centraliza los DTOs internos del dominio. Los roles se obtienen desde
 `roles.ts` para mantener alineacion con los tipos generados de base de datos.
 
-`user-validation.ts` normaliza texto, valida UUID, valida rol y convierte el
-estado activo/inactivo desde los valores de formulario esperados. Los cambios
-de rol o de estado son sensibles y deben permanecer detras de
-`usuarios.manage`.
+`user-validation.ts` conserva los contratos legacy y agrega un contrato separado
+para alta completa: normaliza correo con `trim` y minusculas, no altera la
+contraseña temporal, exige confirmacion exacta y requiere confirmacion explicita
+cuando el rol nuevo es `admin`.
 
 ## Revalidacion
 
@@ -81,11 +95,15 @@ La edicion de usuarios conserva guardas criticas:
 
 - un administrador no puede desactivarse a si mismo;
 - un administrador no puede quitarse su propio rol admin;
-- el sistema debe conservar al menos un administrador activo.
+- el sistema debe conservar al menos un administrador operativo.
 
 Estas guardas viven en servidor y se complementan con restricciones/triggers de
 base de datos. No deben moverse a componentes ni relajarse como cambio menor de
 UI.
+
+Un administrador operativo es `role = admin`, `is_active = true` y
+`must_change_password = false`. Un admin con contraseña temporal pendiente no
+impide actualizar al ultimo administrador real.
 
 ## Datos visibles en dashboard
 
@@ -105,13 +123,20 @@ datos de Supabase Auth.
 ## Seguridad
 
 - Validar perfil activo y permisos en servidor.
+- Rechazar operaciones administrativas si el admin actual conserva
+  `must_change_password = true`.
 - Mantener `usuarios.view` para lecturas internas.
 - Mantener `usuarios.manage` para creacion/edicion.
 - Usar RLS como defensa final.
-- No usar `service_role`.
+- Usar `createAdminClient` solo en `create-internal-user.ts` y solo para Admin
+  API de Auth.
 - No agregar `SUPABASE_SERVICE_ROLE_KEY`.
 - No consultar `auth.users`.
 - No consultar Supabase desde componentes cliente.
+- No insertar manualmente en `perfiles` desde el alta completa; el trigger de
+  Auth es la unica ruta de provisionamiento.
+- Mantener errores y logs sanitizados: los logs pueden incluir solo contexto,
+  nombre, codigo y estado; nunca correo, contraseña, metadata, tokens o payloads.
 - No cambiar roles o permisos sin fase explicita con TypeScript, SQL/RLS,
   documentacion y QA por rol.
 
@@ -123,13 +148,18 @@ mantenerse pequena y centrada en permisos, visibilidad y errores seguros.
 
 ## Que no hacer
 
-- No crear usuarios Auth desde la app.
-- No pedir email/password en formularios de perfiles internos.
+- No conectar todavia `createInternalUser` al formulario actual.
 - No consultar `auth.users` desde app code.
-- No usar `service_role` para saltar RLS.
+- No usar el cliente Admin para consultas de tablas.
 - No exponer perfiles internos en rutas publicas.
 - No mover permisos a componentes.
 - No confiar en ocultar botones como seguridad.
 - No cambiar la matriz de permisos sin fase explicita.
 - No crear `src/services`.
 - No mezclar refactors de usuarios con cambios de auth, RLS o permisos.
+
+## Pendiente antes de UI
+
+Antes de conectar el formulario productivo faltan rate limiting funcional,
+auditoria de operaciones de alta, Server Action fina, pantalla de cambio inicial
+de contraseña y QA E2E del flujo completo.

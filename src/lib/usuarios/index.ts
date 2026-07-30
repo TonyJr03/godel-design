@@ -1,3 +1,4 @@
+export { createInternalUser } from "./create-internal-user";
 export { createInternalUserProfile } from "./create-internal-user-profile";
 export { getInternalUserById } from "./get-internal-user-by-id";
 export {
@@ -7,6 +8,12 @@ export {
 export { listInternalUsers } from "./list-internal-users";
 export { updateInternalUser } from "./update-internal-user";
 export { validateUserInput } from "./user-validation";
+
+export type {
+  CreateInternalUserErrorReason,
+  CreateInternalUserInput,
+  CreateInternalUserResult,
+} from "./create-internal-user";
 
 export type {
   CreateInternalUserProfileErrorReason,
@@ -37,10 +44,14 @@ export type {
 export type {
   CreateUserProfileData,
   CreateUserProfileInput,
+  CreateInternalUserData,
+  CreateInternalUserField,
+  CreateInternalUserFieldErrors,
   UpdateUserData,
   UpdateUserInput,
   UserField,
   UserFieldErrors,
+  ValidateCreateInternalUserInputResult,
   ValidateCreateUserProfileInputResult,
   ValidateUserInputResult,
 } from "./user-validation";

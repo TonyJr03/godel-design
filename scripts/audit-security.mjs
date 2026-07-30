@@ -6,6 +6,10 @@ const roots = process.argv.slice(2);
 const auditRoots = roots.length > 0 ? roots : defaultRoots;
 
 const allowedSecretEnvFile = normalizePath("src/lib/supabase/admin.ts");
+const allowedAdminConsumerFiles = new Set([
+  normalizePath("src/lib/supabase/admin.ts"),
+  normalizePath("src/lib/usuarios/create-internal-user.ts"),
+]);
 const secretReferencePattern = /\bSUPABASE_SECRET_KEY\b/g;
 const legacySecretPattern = /\bSUPABASE_SERVICE_ROLE_KEY\b/g;
 const publicSecretPattern =
@@ -15,6 +19,7 @@ const expectedReferencePattern =
   /\b(?:service_role|SUPABASE_SECRET_KEY|SUPABASE_SERVICE_ROLE_KEY|auth\.users)\b/g;
 const componentAdminPattern =
   /\b(?:auth\.admin|createAdminClient|SUPABASE_SECRET_KEY)\b/g;
+const adminConsumerPattern = /\b(?:auth\.admin|createAdminClient)\b/g;
 const directSecretEnvPattern = /\bprocess\.env\.SUPABASE_SECRET_KEY\b/g;
 
 function normalizePath(path) {
@@ -35,6 +40,10 @@ function isDocumentationFile(path) {
 
 function isAllowedSecretEnvFile(path) {
   return path === allowedSecretEnvFile;
+}
+
+function isAllowedAdminConsumerFile(path) {
+  return allowedAdminConsumerFiles.has(path);
 }
 
 function listFiles(path) {
@@ -109,6 +118,20 @@ function scanFile(file) {
         relativeFile,
         lineNumber,
         "admin-api-in-client-components",
+      );
+    }
+
+    if (
+      isWithin(relativeFile, "src") &&
+      !isDocumentationFile(relativeFile) &&
+      !isAllowedAdminConsumerFile(relativeFile) &&
+      collectPatternMatches(line, adminConsumerPattern).length > 0
+    ) {
+      addViolation(
+        violations,
+        relativeFile,
+        lineNumber,
+        "unauthorized-admin-api-consumer",
       );
     }
 
