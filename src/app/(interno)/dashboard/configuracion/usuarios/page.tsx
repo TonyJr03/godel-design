@@ -5,6 +5,7 @@ import {
   ListingPagination,
   ListingToolbar,
 } from "@/components/listing";
+import { BackToConfigurationLink } from "@/components/configuracion/BackToConfigurationLink";
 import { Alert } from "@/components/ui/Alert";
 import { ReadErrorAlert } from "@/components/ui/ReadErrorAlert";
 import { InternalUsersList } from "@/components/usuarios/InternalUsersList";
@@ -105,41 +106,49 @@ export default async function DashboardConfiguracionUsuariosPage({
 
   return (
     <div className="space-y-8">
-      <ListingPageHeader
-        title="Usuarios"
-        description="Crea usuarios internos y gestiona sus roles y estado operativo."
-        action={<UserCreateDialogButton createAction={createUserAction} />}
-        toolbar={
-          <ListingToolbar
-            searchLabel="Buscar usuarios"
-            searchPlaceholder="Nombre o teléfono"
-            initialQuery={searchValue}
-            filters={[
-              {
-                name: "role",
-                label: "Rol",
-                value: roleValue,
-                options: [
-                  { value: "", label: "Todos los roles" },
-                  { value: "admin", label: "Administrador" },
-                  { value: "supervisor", label: "Supervisor" },
-                  { value: "trabajador", label: "Trabajador" },
-                ],
-              },
-              {
-                name: "active",
-                label: "Estado",
-                value: activeValue,
-                options: [
-                  { value: "", label: "Todos" },
-                  { value: "true", label: "Activos" },
-                  { value: "false", label: "Inactivos" },
-                ],
-              },
-            ]}
-          />
-        }
-      />
+      <div className="space-y-4">
+        <BackToConfigurationLink presentation="text" />
+        <ListingPageHeader
+          title="Usuarios"
+          description="Crea usuarios internos y gestiona sus roles y estado operativo."
+          action={
+            <div className="flex items-center gap-2">
+              <UserCreateDialogButton createAction={createUserAction} />
+              <BackToConfigurationLink presentation="button" />
+            </div>
+          }
+          toolbar={
+            <ListingToolbar
+              searchLabel="Buscar usuarios"
+              searchPlaceholder="Nombre o teléfono"
+              initialQuery={searchValue}
+              filters={[
+                {
+                  name: "role",
+                  label: "Rol",
+                  value: roleValue,
+                  options: [
+                    { value: "", label: "Todos los roles" },
+                    { value: "admin", label: "Administrador" },
+                    { value: "supervisor", label: "Supervisor" },
+                    { value: "trabajador", label: "Trabajador" },
+                  ],
+                },
+                {
+                  name: "active",
+                  label: "Estado",
+                  value: activeValue,
+                  options: [
+                    { value: "", label: "Todos" },
+                    { value: "true", label: "Activos" },
+                    { value: "false", label: "Inactivos" },
+                  ],
+                },
+              ]}
+            />
+          }
+        />
+      </div>
 
       <Alert variant="info">
         Los usuarios nuevos se crean con una contraseña temporal y deberán

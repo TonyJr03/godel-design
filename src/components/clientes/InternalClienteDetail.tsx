@@ -81,8 +81,8 @@ export function InternalClienteDetail({
           </div>
 
           <div className="hidden shrink-0 items-center gap-2 xl:flex">
-            <BackToClientesLink presentation="button" />
             <ClienteEditDialogButton cliente={cliente} />
+            <BackToClientesLink presentation="button" />
           </div>
         </div>
       </header>

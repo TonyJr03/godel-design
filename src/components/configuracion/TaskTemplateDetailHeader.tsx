@@ -53,10 +53,10 @@ export function TaskTemplateDetailHeader({
                   />
                 </div>
 
-                <h1 className="mt-2 break-words text-3xl font-semibold tracking-tight text-text-primary">
+                <h1 className="mt-2 wrap-break-word text-3xl font-semibold tracking-tight text-text-primary">
                   {template.name}
                 </h1>
-                <p className="mt-3 max-w-3xl break-words text-base leading-7 text-text-secondary">
+                <p className="mt-3 max-w-3xl wrap-break-word text-base leading-7 text-text-secondary">
                   {template.description?.trim() ||
                     "Sin descripción interna definida."}
                 </p>
@@ -69,8 +69,8 @@ export function TaskTemplateDetailHeader({
           </div>
 
           <div className="hidden shrink-0 items-center gap-2 xl:flex">
-            <BackToPlantillasLink presentation="button" />
             <TaskTemplateEditDialogButton template={template} />
+            <BackToPlantillasLink presentation="button" />
           </div>
         </div>
       </header>

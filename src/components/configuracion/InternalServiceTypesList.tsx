@@ -72,7 +72,7 @@ export function InternalServiceTypesList({
               key={serviceType.id}
               className="rounded-(--radius-card) border border-border bg-surface p-4 shadow-(--shadow-soft)"
             >
-              <div className="flex items-start justify-between gap-3">
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
                 <div className="min-w-0">
                   <h2 className="truncate text-base font-semibold text-text-primary">
                     {serviceType.name}
@@ -82,20 +82,21 @@ export function InternalServiceTypesList({
                       Servicio del sistema
                     </p>
                   ) : null}
+                  <p className="mt-2 line-clamp-3 text-sm leading-6 text-text-secondary">
+                    {formatDescription(serviceType.description)}
+                  </p>
                 </div>
-                <ServiceTypeEditDialogButton
-                  serviceType={serviceType}
-                  isLastPublicEncargo={
-                    serviceType.workflowType === "encargo" &&
-                    serviceType.isPubliclyAvailable &&
-                    publicEncargoCount === 1
-                  }
-                />
+                <div className="shrink-0">
+                  <ServiceTypeEditDialogButton
+                    serviceType={serviceType}
+                    isLastPublicEncargo={
+                      serviceType.workflowType === "encargo" &&
+                      serviceType.isPubliclyAvailable &&
+                      publicEncargoCount === 1
+                    }
+                  />
+                </div>
               </div>
-
-              <p className="mt-3 line-clamp-3 text-sm leading-6 text-text-secondary">
-                {formatDescription(serviceType.description)}
-              </p>
 
               <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
                 <div>
