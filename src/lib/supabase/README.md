@@ -36,9 +36,10 @@ por archivo:
   contraseña temporal administrativa.
 
 El restablecimiento administrativo no usa el cliente Admin para tablas, Storage,
-Functions ni RPCs; las RPCs de inicio/finalización y las postcondiciones usan el
-cliente server-side normal. No se envía correo ni recuperación por email, no se
-devuelve la contraseña y no se registra ningún valor sensible.
+Functions ni RPCs; las RPCs de inicio, finalización, consulta de estado y
+confirmación usan el cliente server-side normal. No se envía correo ni
+recuperación por email, no se devuelve la contraseña y no se registra ningún
+valor sensible.
 
 ## Tipos generados
 

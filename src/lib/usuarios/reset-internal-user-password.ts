@@ -1,5 +1,7 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
+
 import type { AuthError } from "@supabase/supabase-js";
 
 import { getCurrentProfile } from "@/lib/auth/current-user";
@@ -84,8 +86,30 @@ type BeginPasswordResetAttempt =
     }
   | {
       ok: false;
-      reason: "not_found" | "already_in_progress" | "auth_error" | "error";
+      reason:
+        | "not_found"
+        | "already_in_progress"
+        | "auth_error"
+        | "rollback_error"
+        | "error";
     };
+
+type PasswordResetAuditStatus =
+  | "pending"
+  | "succeeded"
+  | "failed"
+  | "rate_limited"
+  | "attention_required";
+
+type PasswordResetAuditState = {
+  attemptId: string;
+  status: PasswordResetAuditStatus;
+  targetProfileId: string;
+  previousIsActive: boolean;
+  previousMustChangePassword: boolean;
+  currentIsActive: boolean;
+  currentMustChangePassword: boolean;
+};
 
 type PasswordResetTerminalStatus =
   | "succeeded"
@@ -102,6 +126,10 @@ type PasswordResetErrorCode =
   | "unexpected_error"
   | "finalization_failed"
   | "rollback_failed";
+
+type CompleteAttemptResult =
+  | { ok: true; attemptId: string }
+  | { ok: false; reason: "not_found" | "conflict" | "error" };
 
 type MappedAuthFailure = {
   result: Extract<ResetInternalUserPasswordResult, { ok: false }>;
@@ -122,6 +150,13 @@ const AUTH_RATE_LIMIT_CODES = new Set([
   "over_request_rate_limit",
   "over_email_send_rate_limit",
   "over_sms_send_rate_limit",
+]);
+const PASSWORD_RESET_AUDIT_STATUSES = new Set<PasswordResetAuditStatus>([
+  "pending",
+  "succeeded",
+  "failed",
+  "rate_limited",
+  "attention_required",
 ]);
 
 function getErrorCode(error: ErrorLike): string | undefined {
@@ -244,14 +279,125 @@ function mapAuthFailure(error: AuthError): MappedAuthFailure {
   };
 }
 
-async function beginPasswordResetAttempt(
+function isPasswordResetAuditStatus(
+  status: unknown,
+): status is PasswordResetAuditStatus {
+  return (
+    typeof status === "string" &&
+    PASSWORD_RESET_AUDIT_STATUSES.has(status as PasswordResetAuditStatus)
+  );
+}
+
+function mapLimitedScope(
+  scope: unknown,
+): "actor" | "target" | "global" | null {
+  return scope === "actor" || scope === "target" || scope === "global"
+    ? scope
+    : null;
+}
+
+function isSucceededAuditState(state: PasswordResetAuditState): boolean {
+  return (
+    state.status === "succeeded" &&
+    state.currentIsActive === state.previousIsActive &&
+    state.currentMustChangePassword === true
+  );
+}
+
+function isFailedAuditState(state: PasswordResetAuditState): boolean {
+  return (
+    state.status === "failed" &&
+    state.currentIsActive === state.previousIsActive &&
+    state.currentMustChangePassword === state.previousMustChangePassword
+  );
+}
+
+function isAttentionRequiredAuditState(
+  state: PasswordResetAuditState,
+): boolean {
+  return (
+    state.status === "attention_required" &&
+    state.currentIsActive === false &&
+    state.currentMustChangePassword === true
+  );
+}
+
+async function getPasswordResetAuditState(
   supabase: SupabaseServerClient,
-  targetId: string,
+  input: {
+    attemptId: string;
+    targetId: string;
+  },
+): Promise<PasswordResetAuditState | null> {
+  try {
+    const { data, error } = await supabase.rpc(
+      "get_internal_user_password_reset_state",
+      {
+        p_attempt_id: input.attemptId,
+      },
+    );
+
+    if (error) {
+      logSanitizedResetError("resetInternalUserPassword.audit.state", {
+        name: "PostgrestError",
+        code: error.code,
+      });
+
+      return null;
+    }
+
+    const state = data?.[0];
+
+    if (!state) {
+      return null;
+    }
+
+    if (
+      state.attempt_id !== input.attemptId ||
+      state.target_profile_id !== input.targetId ||
+      !isPasswordResetAuditStatus(state.status) ||
+      typeof state.previous_is_active !== "boolean" ||
+      typeof state.previous_must_change_password !== "boolean" ||
+      typeof state.current_is_active !== "boolean" ||
+      typeof state.current_must_change_password !== "boolean"
+    ) {
+      logSanitizedResetError("resetInternalUserPassword.audit.state", {
+        name: "InvalidPasswordResetStateResponse",
+      });
+
+      return null;
+    }
+
+    return {
+      attemptId: state.attempt_id,
+      status: state.status,
+      targetProfileId: state.target_profile_id,
+      previousIsActive: state.previous_is_active,
+      previousMustChangePassword: state.previous_must_change_password,
+      currentIsActive: state.current_is_active,
+      currentMustChangePassword: state.current_must_change_password,
+    };
+  } catch (error) {
+    logSanitizedResetError("resetInternalUserPassword.audit.state", {
+      name: error instanceof Error ? error.name : "UnexpectedAuditStateError",
+    });
+
+    return null;
+  }
+}
+
+async function beginPasswordResetOnce(
+  supabase: SupabaseServerClient,
+  input: {
+    targetId: string;
+    attemptId: string;
+  },
 ): Promise<BeginPasswordResetAttempt> {
   const { data, error } = await supabase.rpc(
     "begin_internal_user_password_reset",
     {
-      p_target_profile_id: targetId,
+      p_target_profile_id: input.targetId,
+      p_attempt_id: input.attemptId,
     },
   );
 
@@ -261,7 +407,12 @@ async function beginPasswordResetAttempt(
 
   const attempt = data?.[0];
 
-  if (!attempt?.attempt_id) {
+  if (
+    !attempt ||
+    attempt.attempt_id !== input.attemptId ||
+    typeof attempt.previous_is_active !== "boolean" ||
+    typeof attempt.previous_must_change_password !== "boolean"
+  ) {
     logSanitizedResetError("resetInternalUserPassword.audit.begin", {
       name: "InvalidPasswordResetBeginResponse",
     });
@@ -269,7 +420,7 @@ async function beginPasswordResetAttempt(
     return { ok: false, reason: "error" };
   }
 
-  if (attempt.allowed) {
+  if (attempt.allowed === true) {
     return {
       ok: true,
       allowed: true,
@@ -279,19 +430,22 @@ async function beginPasswordResetAttempt(
     };
   }
 
-  return {
-    ok: true,
-    allowed: false,
-    attemptId: attempt.attempt_id,
-    limitedScope:
-      attempt.limited_scope === "actor" ||
-      attempt.limited_scope === "target" ||
-      attempt.limited_scope === "global"
-        ? attempt.limited_scope
-        : null,
-    previousIsActive: attempt.previous_is_active,
-    previousMustChangePassword: attempt.previous_must_change_password,
-  };
+  if (attempt.allowed === false) {
+    return {
+      ok: true,
+      allowed: false,
+      attemptId: attempt.attempt_id,
+      limitedScope: mapLimitedScope(attempt.limited_scope),
+      previousIsActive: attempt.previous_is_active,
+      previousMustChangePassword: attempt.previous_must_change_password,
+    };
+  }
+
+  logSanitizedResetError("resetInternalUserPassword.audit.begin", {
+    name: "InvalidPasswordResetBeginAllowedFlag",
+  });
+
+  return { ok: false, reason: "error" };
 }
 
 async function completePasswordResetAttempt(
@@ -301,7 +455,7 @@ async function completePasswordResetAttempt(
     status: PasswordResetTerminalStatus;
     errorCode: PasswordResetErrorCode | null;
   },
-): Promise<boolean> {
+): Promise<CompleteAttemptResult> {
   const args: {
     p_attempt_id: string;
     p_status: string;
@@ -316,7 +470,7 @@ async function completePasswordResetAttempt(
   }
 
   try {
-    const { error } = await supabase.rpc(
+    const { data, error } = await supabase.rpc(
       "complete_internal_user_password_reset",
       args,
     );
@@ -327,17 +481,33 @@ async function completePasswordResetAttempt(
         code: error.code,
       });
 
-      return false;
+      if (normalizeErrorToken(error.code) === "p0002") {
+        return { ok: false, reason: "not_found" };
+      }
+
+      if (normalizeErrorToken(error.code) === "p0001") {
+        return { ok: false, reason: "conflict" };
+      }
+
+      return { ok: false, reason: "error" };
     }
+
+    if (data !== input.attemptId) {
+      logSanitizedResetError("resetInternalUserPassword.audit.complete", {
+        name: "InvalidPasswordResetCompleteResponse",
+      });
+
+      return { ok: false, reason: "conflict" };
+    }
+
+    return { ok: true, attemptId: data };
   } catch (error) {
     logSanitizedResetError("resetInternalUserPassword.audit.complete", {
       name: error instanceof Error ? error.name : "UnexpectedAuditError",
     });
 
-    return false;
+    return { ok: false, reason: "error" };
   }
-
-  return true;
 }
 
 async function completePasswordResetWithRetry(
@@ -347,61 +517,47 @@ async function completePasswordResetWithRetry(
     status: PasswordResetTerminalStatus;
     errorCode: PasswordResetErrorCode | null;
   },
-): Promise<boolean> {
-  const firstAttemptOk = await completePasswordResetAttempt(supabase, input);
+): Promise<CompleteAttemptResult> {
+  const firstAttempt = await completePasswordResetAttempt(supabase, input);
 
-  if (firstAttemptOk) {
-    return true;
+  if (firstAttempt.ok) {
+    return firstAttempt;
   }
 
   return completePasswordResetAttempt(supabase, input);
 }
 
-async function hasProfileState(
-  supabase: SupabaseServerClient,
-  targetId: string,
-  expected: {
-    isActive: boolean;
-    mustChangePassword: boolean;
-  },
-): Promise<boolean> {
-  const { data, error } = await supabase
-    .from("perfiles")
-    .select("is_active, must_change_password")
-    .eq("id", targetId)
-    .maybeSingle<{
-      is_active: boolean | null;
-      must_change_password: boolean | null;
-    }>();
-
-  if (error) {
-    logSanitizedResetError("resetInternalUserPassword.profile.confirm", {
-      name: "PostgrestError",
-      code: error.code,
-    });
-
-    return false;
-  }
-
-  return (
-    data?.is_active === expected.isActive &&
-    data.must_change_password === expected.mustChangePassword
-  );
-}
-
 async function markAttentionRequired(
   supabase: SupabaseServerClient,
-  attemptId: string,
-  errorCode: Extract<
-    PasswordResetErrorCode,
-    "finalization_failed" | "rollback_failed"
-  >,
-): Promise<void> {
+  input: {
+    attemptId: string;
+    targetId: string;
+    errorCode: Extract<
+      PasswordResetErrorCode,
+      "finalization_failed" | "rollback_failed"
+    >;
+  },
+): Promise<boolean> {
   await completePasswordResetWithRetry(supabase, {
-    attemptId,
+    attemptId: input.attemptId,
     status: "attention_required",
-    errorCode,
+    errorCode: input.errorCode,
   });
+
+  const state = await getPasswordResetAuditState(supabase, input);
+
+  if (state && isAttentionRequiredAuditState(state)) {
+    return true;
+  }
+
+  logSanitizedResetError(
+    "resetInternalUserPassword.attention.unconfirmed",
+    {
+      name: "UnconfirmedAttentionRequiredState",
+    },
+  );
+
+  return false;
 }
 
 async function returnFailureAfterRollback(
@@ -409,256 +565,360 @@ async function returnFailureAfterRollback(
   input: {
     attemptId: string;
     targetId: string;
-    previousIsActive: boolean;
-    previousMustChangePassword: boolean;
     failure: MappedAuthFailure;
   },
 ): Promise<ResetInternalUserPasswordResult> {
-  const rollbackOk = await completePasswordResetWithRetry(supabase, {
+  const rollback = await completePasswordResetWithRetry(supabase, {
     attemptId: input.attemptId,
     status: "failed",
     errorCode: input.failure.auditErrorCode,
   });
 
-  if (
-    rollbackOk ||
-    (await hasProfileState(supabase, input.targetId, {
-      isActive: input.previousIsActive,
-      mustChangePassword: input.previousMustChangePassword,
-    }))
-  ) {
+  if (rollback.ok) {
     return input.failure.result;
   }
 
-  await markAttentionRequired(supabase, input.attemptId, "rollback_failed");
+  const rollbackState = await getPasswordResetAuditState(supabase, input);
+
+  if (rollbackState && isFailedAuditState(rollbackState)) {
+    return input.failure.result;
+  }
+
+  await markAttentionRequired(supabase, {
+    attemptId: input.attemptId,
+    targetId: input.targetId,
+    errorCode: "rollback_failed",
+  });
 
   return serviceFailure("rollback_error", ROLLBACK_ERROR_MESSAGE, {
     passwordChanged: false,
   });
 }
 
+async function returnCompletionFailure(
+  supabase: SupabaseServerClient,
+  input: {
+    attemptId: string;
+    targetId: string;
+  },
+): Promise<ResetInternalUserPasswordResult> {
+  await markAttentionRequired(supabase, {
+    ...input,
+    errorCode: "finalization_failed",
+  });
+
+  return serviceFailure("completion_error", COMPLETION_ERROR_MESSAGE, {
+    passwordChanged: true,
+  });
+}
+
+async function recoverUnconfirmedBegin(
+  supabase: SupabaseServerClient,
+  input: {
+    targetId: string;
+    attemptId: string;
+  },
+): Promise<BeginPasswordResetAttempt> {
+  const state = await getPasswordResetAuditState(supabase, input);
+
+  if (!state) {
+    return { ok: false, reason: "error" };
+  }
+
+  if (state.status === "rate_limited") {
+    return {
+      ok: true,
+      allowed: false,
+      attemptId: state.attemptId,
+      limitedScope: null,
+      previousIsActive: state.previousIsActive,
+      previousMustChangePassword: state.previousMustChangePassword,
+    };
+  }
+
+  if (
+    state.status === "pending" &&
+    state.currentIsActive === false &&
+    state.currentMustChangePassword === true
+  ) {
+    const rollback = await completePasswordResetWithRetry(supabase, {
+      attemptId: input.attemptId,
+      status: "failed",
+      errorCode: "unexpected_error",
+    });
+
+    if (rollback.ok) {
+      return { ok: false, reason: "error" };
+    }
+
+    const rollbackState = await getPasswordResetAuditState(supabase, input);
+
+    if (rollbackState && isFailedAuditState(rollbackState)) {
+      return { ok: false, reason: "error" };
+    }
+
+    await markAttentionRequired(supabase, {
+      ...input,
+      errorCode: "rollback_failed",
+    });
+
+    return { ok: false, reason: "rollback_error" };
+  }
+
+  return { ok: false, reason: "error" };
+}
+
+async function beginPasswordResetAttempt(
+  supabase: SupabaseServerClient,
+  input: {
+    targetId: string;
+    attemptId: string;
+  },
+): Promise<BeginPasswordResetAttempt> {
+  let shouldRecover = false;
+
+  for (let index = 0; index < 2; index += 1) {
+    try {
+      const attempt = await beginPasswordResetOnce(supabase, input);
+
+      if (attempt.ok || attempt.reason !== "error") {
+        return attempt;
+      }
+
+      shouldRecover = true;
+    } catch (error) {
+      shouldRecover = true;
+      logSanitizedResetError("resetInternalUserPassword.audit.begin", {
+        name: error instanceof Error ? error.name : "UnexpectedBeginError",
+      });
+    }
+  }
+
+  if (!shouldRecover) {
+    return { ok: false, reason: "error" };
+  }
+
+  return recoverUnconfirmedBegin(supabase, input);
+}
+
 export async function resetInternalUserPassword(
   input: ResetInternalUserPasswordInput,
 ): Promise<ResetInternalUserPasswordResult> {
-  const currentProfile = await getCurrentProfile();
-
-  if (!currentProfile) {
-    return serviceFailure("unauthorized", RESET_FORBIDDEN_MESSAGE);
-  }
-
-  if (currentProfile.must_change_password) {
-    return serviceFailure(
-      "onboarding_required",
-      "Completa el cambio de contraseña inicial antes de restablecer contraseñas.",
-    );
-  }
-
-  if (!hasPermission(currentProfile.role, "usuarios.manage")) {
-    return serviceFailure("forbidden", RESET_FORBIDDEN_MESSAGE);
-  }
-
-  const targetId = (input.id ?? "").trim();
-
-  if (!isValidUuid(targetId)) {
-    return serviceFailure("not_found", "El usuario solicitado no existe.");
-  }
-
-  if (targetId === currentProfile.id) {
-    return serviceFailure(
-      "self_reset_forbidden",
-      "No puedes restablecer tu propia contraseña.",
-    );
-  }
-
-  const validation = validateResetInternalUserPasswordInput(input);
-
-  if (!validation.ok) {
-    return serviceFailure(
-      "validation_error",
-      "Revisa los datos del formulario.",
-      {
-        fieldErrors: validation.fieldErrors,
-      },
-    );
-  }
-
-  const supabase = await createClient();
-  const auditAttempt = await beginPasswordResetAttempt(supabase, targetId);
-
-  if (!auditAttempt.ok) {
-    if (auditAttempt.reason === "not_found") {
-      return serviceFailure("not_found", "El usuario solicitado no existe.");
-    }
-
-    if (auditAttempt.reason === "already_in_progress") {
-      return serviceFailure(
-        "already_in_progress",
-        "Ya existe un restablecimiento de contraseña en curso para este usuario.",
-      );
-    }
-
-    return serviceFailure("error", GENERIC_RESET_ERROR);
-  }
-
-  if (!auditAttempt.allowed) {
-    return serviceFailure("rate_limited", RATE_LIMIT_RESET_ERROR);
-  }
-
-  let admin: ReturnType<typeof createAdminClient>;
-
-  try {
-    admin = createAdminClient();
-  } catch {
-    const failure: MappedAuthFailure = {
-      result: serviceFailure(
-        "configuration_error",
-        "El cliente administrativo de usuarios no está configurado.",
-      ),
-      auditErrorCode: "configuration_error",
-    };
-
-    return returnFailureAfterRollback(supabase, {
-      attemptId: auditAttempt.attemptId,
-      targetId,
-      previousIsActive: auditAttempt.previousIsActive,
-      previousMustChangePassword: auditAttempt.previousMustChangePassword,
-      failure,
-    });
-  }
-
+  const attemptId = randomUUID();
+  let supabase: SupabaseServerClient | null = null;
+  let targetId = "";
+  let attemptConfirmed = false;
   let passwordChanged = false;
 
   try {
-    const { data: authUserData, error: getUserError } =
-      await admin.auth.admin.getUserById(targetId);
+    const currentProfile = await getCurrentProfile();
 
-    if (getUserError) {
-      return returnFailureAfterRollback(supabase, {
-        attemptId: auditAttempt.attemptId,
-        targetId,
-        previousIsActive: auditAttempt.previousIsActive,
-        previousMustChangePassword: auditAttempt.previousMustChangePassword,
-        failure: mapAuthFailure(getUserError),
-      });
+    if (!currentProfile) {
+      return serviceFailure("unauthorized", RESET_FORBIDDEN_MESSAGE);
     }
 
-    const authUser = authUserData.user;
+    if (currentProfile.must_change_password) {
+      return serviceFailure(
+        "onboarding_required",
+        "Completa el cambio de contraseña inicial antes de restablecer contraseñas.",
+      );
+    }
 
-    if (!authUser) {
-      return returnFailureAfterRollback(supabase, {
-        attemptId: auditAttempt.attemptId,
-        targetId,
-        previousIsActive: auditAttempt.previousIsActive,
-        previousMustChangePassword: auditAttempt.previousMustChangePassword,
-        failure: {
-          result: serviceFailure(
-            "auth_user_not_found",
-            "No existe el usuario de autenticación asociado.",
-          ),
-          auditErrorCode: "auth_user_not_found",
+    if (!hasPermission(currentProfile.role, "usuarios.manage")) {
+      return serviceFailure("forbidden", RESET_FORBIDDEN_MESSAGE);
+    }
+
+    targetId = (input.id ?? "").trim();
+
+    if (!isValidUuid(targetId)) {
+      return serviceFailure("not_found", "El usuario solicitado no existe.");
+    }
+
+    if (targetId === currentProfile.id) {
+      return serviceFailure(
+        "self_reset_forbidden",
+        "No puedes restablecer tu propia contraseña.",
+      );
+    }
+
+    const validation = validateResetInternalUserPasswordInput(input);
+
+    if (!validation.ok) {
+      return serviceFailure(
+        "validation_error",
+        "Revisa los datos del formulario.",
+        {
+          fieldErrors: validation.fieldErrors,
         },
-      });
+      );
     }
 
-    if (
-      authUser.email &&
-      validation.data.password.toLowerCase() === authUser.email.toLowerCase()
-    ) {
-      return returnFailureAfterRollback(supabase, {
-        attemptId: auditAttempt.attemptId,
-        targetId,
-        previousIsActive: auditAttempt.previousIsActive,
-        previousMustChangePassword: auditAttempt.previousMustChangePassword,
-        failure: {
-          result: serviceFailure(
-            "validation_error",
-            "Revisa los datos del formulario.",
-            {
-              fieldErrors: {
-                password:
-                  "La contraseña temporal no puede ser igual al correo.",
-              },
-            },
-          ),
-          auditErrorCode: "email_password_match",
-        },
-      });
-    }
+    supabase = await createClient();
 
-    const { error: updateUserError } = await admin.auth.admin.updateUserById(
+    const auditAttempt = await beginPasswordResetAttempt(supabase, {
       targetId,
-      {
-        password: validation.data.password,
-      },
-    );
+      attemptId,
+    });
 
-    if (updateUserError) {
-      return returnFailureAfterRollback(supabase, {
-        attemptId: auditAttempt.attemptId,
+    if (!auditAttempt.ok) {
+      if (auditAttempt.reason === "not_found") {
+        return serviceFailure("not_found", "El usuario solicitado no existe.");
+      }
+
+      if (auditAttempt.reason === "already_in_progress") {
+        return serviceFailure(
+          "already_in_progress",
+          "Ya existe un restablecimiento de contraseña en curso para este usuario.",
+        );
+      }
+
+      if (auditAttempt.reason === "rollback_error") {
+        return serviceFailure("rollback_error", ROLLBACK_ERROR_MESSAGE, {
+          passwordChanged: false,
+        });
+      }
+
+      return serviceFailure("error", GENERIC_RESET_ERROR);
+    }
+
+    if (!auditAttempt.allowed) {
+      return serviceFailure("rate_limited", RATE_LIMIT_RESET_ERROR);
+    }
+
+    attemptConfirmed = true;
+
+    try {
+      const admin = createAdminClient();
+      const { data: authUserData, error: getUserError } =
+        await admin.auth.admin.getUserById(targetId);
+
+      if (getUserError) {
+        return returnFailureAfterRollback(supabase, {
+          attemptId,
+          targetId,
+          failure: mapAuthFailure(getUserError),
+        });
+      }
+
+      const authUser = authUserData.user;
+
+      if (!authUser) {
+        return returnFailureAfterRollback(supabase, {
+          attemptId,
+          targetId,
+          failure: {
+            result: serviceFailure(
+              "auth_user_not_found",
+              "No existe el usuario de autenticación asociado.",
+            ),
+            auditErrorCode: "auth_user_not_found",
+          },
+        });
+      }
+
+      if (
+        authUser.email &&
+        validation.data.password.toLowerCase() === authUser.email.toLowerCase()
+      ) {
+        return returnFailureAfterRollback(supabase, {
+          attemptId,
+          targetId,
+          failure: {
+            result: serviceFailure(
+              "validation_error",
+              "Revisa los datos del formulario.",
+              {
+                fieldErrors: {
+                  password:
+                    "La contraseña temporal no puede ser igual al correo.",
+                },
+              },
+            ),
+            auditErrorCode: "email_password_match",
+          },
+        });
+      }
+
+      const { error: updateUserError } = await admin.auth.admin.updateUserById(
         targetId,
-        previousIsActive: auditAttempt.previousIsActive,
-        previousMustChangePassword: auditAttempt.previousMustChangePassword,
-        failure: mapAuthFailure(updateUserError),
+        {
+          password: validation.data.password,
+        },
+      );
+
+      if (updateUserError) {
+        return returnFailureAfterRollback(supabase, {
+          attemptId,
+          targetId,
+          failure: mapAuthFailure(updateUserError),
+        });
+      }
+    } catch {
+      const failure: MappedAuthFailure = {
+        result: serviceFailure(
+          "configuration_error",
+          "El cliente administrativo de usuarios no está configurado.",
+        ),
+        auditErrorCode: "configuration_error",
+      };
+
+      return returnFailureAfterRollback(supabase, {
+        attemptId,
+        targetId,
+        failure,
       });
     }
 
     passwordChanged = true;
 
-    const finalizationOk = await completePasswordResetWithRetry(supabase, {
-      attemptId: auditAttempt.attemptId,
+    const finalization = await completePasswordResetWithRetry(supabase, {
+      attemptId,
       status: "succeeded",
       errorCode: null,
     });
 
-    const expectedFinalStateOk = await hasProfileState(supabase, targetId, {
-      isActive: auditAttempt.previousIsActive,
-      mustChangePassword: true,
-    });
-
-    if (finalizationOk || expectedFinalStateOk) {
+    if (finalization.ok) {
       return serviceSuccess({
         userId: targetId,
         wasActive: auditAttempt.previousIsActive,
       });
     }
 
-    await markAttentionRequired(
-      supabase,
-      auditAttempt.attemptId,
-      "finalization_failed",
-    );
-
-    return serviceFailure("completion_error", COMPLETION_ERROR_MESSAGE, {
-      passwordChanged: true,
+    const finalState = await getPasswordResetAuditState(supabase, {
+      attemptId,
+      targetId,
     });
+
+    if (finalState && isSucceededAuditState(finalState)) {
+      return serviceSuccess({
+        userId: targetId,
+        wasActive: auditAttempt.previousIsActive,
+      });
+    }
+
+    return returnCompletionFailure(supabase, { attemptId, targetId });
   } catch (error) {
     logSanitizedResetError("resetInternalUserPassword.unexpected", {
       name: error instanceof Error ? error.name : "UnexpectedResetError",
     });
 
-    if (passwordChanged) {
-      await markAttentionRequired(
-        supabase,
-        auditAttempt.attemptId,
-        "finalization_failed",
-      );
-
-      return serviceFailure("completion_error", COMPLETION_ERROR_MESSAGE, {
-        passwordChanged: true,
+    if (!supabase || !attemptConfirmed || !targetId) {
+      return serviceFailure("error", GENERIC_RESET_ERROR, {
+        passwordChanged: false,
       });
     }
 
-    const failure: MappedAuthFailure = {
-      result: serviceFailure("error", GENERIC_RESET_ERROR),
-      auditErrorCode: "unexpected_error",
-    };
+    if (passwordChanged) {
+      return returnCompletionFailure(supabase, { attemptId, targetId });
+    }
 
     return returnFailureAfterRollback(supabase, {
-      attemptId: auditAttempt.attemptId,
+      attemptId,
       targetId,
-      previousIsActive: auditAttempt.previousIsActive,
-      previousMustChangePassword: auditAttempt.previousMustChangePassword,
-      failure,
+      failure: {
+        result: serviceFailure("error", GENERIC_RESET_ERROR),
+        auditErrorCode: "unexpected_error",
+      },
     });
   }
 }

@@ -225,38 +225,47 @@ set is_active = true, updated_at = now()
 where id = 'UUID_DEL_USUARIO';
 ```
 
-## Restablecimiento administrativo de contrasena temporal
+## Restablecimiento administrativo de contraseña temporal
 
-Un administrador operativo puede restablecer la contrasena temporal de otro
+Un administrador operativo puede restablecer la contraseña temporal de otro
 usuario desde `/dashboard/configuracion/usuarios`, sin enviar correo. El UUID
 objetivo se liga en servidor y no viaja como input oculto.
 
 El flujo local es:
 
-1. el dialogo de restablecimiento valida contrasena, confirmacion y
-   confirmacion explicita;
-2. `public.begin_internal_user_password_reset` registra auditoria privada,
-   aplica rate limits y bloquea temporalmente el perfil objetivo con
-   `is_active = false` y `must_change_password = true`;
-3. el servicio usa Auth Admin solo para `getUserById` y `updateUserById`;
-4. `public.complete_internal_user_password_reset` restaura el estado activo
-   original y deja `must_change_password = true` si Auth cambio la contrasena;
-5. si Auth falla, restaura `is_active` y `must_change_password` previos;
-6. si la finalizacion queda en duda despues de cambiar Auth, el intento pasa a
+1. el diálogo de restablecimiento valida contraseña, confirmación y
+   confirmación explícita;
+2. el servicio genera `attemptId` con `randomUUID()` y llama
+   `public.begin_internal_user_password_reset` con `p_target_profile_id` y
+   `p_attempt_id`;
+3. la RPC registra auditoría privada, aplica rate limits, recupera
+   idempotentemente reintentos con el mismo `attemptId` y bloquea
+   temporalmente el perfil objetivo con `is_active = false` y
+   `must_change_password = true`;
+4. el servicio usa Auth Admin solo para `getUserById` y `updateUserById`;
+5. `public.complete_internal_user_password_reset` restaura el estado activo
+   original y deja `must_change_password = true` si Auth cambió la contraseña;
+6. si Auth falla, restaura `is_active` y `must_change_password` previos;
+7. si la finalización queda en duda después de cambiar Auth, el intento pasa a
    `attention_required` y el perfil queda bloqueado preventivamente.
 
 Usuarios activos vuelven a `is_active = true` y quedan obligados a
 `/cambiar-contrasena-inicial`. Usuarios inactivos permanecen inactivos y el
 login termina en `/acceso-denegado`. Usuarios que ya estaban pendientes pueden
-recibir otra contrasena temporal; la anterior deja de funcionar.
+recibir otra contraseña temporal; la anterior deja de funcionar.
 
-No se debe ejecutar recuperacion por email, invitacion ni magic link. La
-contrasena temporal no se registra, no se devuelve y el formulario la limpia
+El cierre se confirma por UUID exacto devuelto desde
+`complete_internal_user_password_reset` o por
+`public.get_internal_user_password_reset_state`. No se acepta solo el estado del
+perfil como prueba de éxito o rollback.
+
+No se debe ejecutar recuperación por email, invitación ni magic link. La
+contraseña temporal no se registra, no se devuelve y el formulario la limpia
 tras cada respuesta.
 
 Para QA automatizado usa solo Supabase local. Confirma que
 `NEXT_PUBLIC_SUPABASE_URL` apunta a `localhost` o `127.0.0.1` y aborta ante una
-URL remota. En `finally`, elimina usuarios Auth QA, perfiles QA y auditorias QA
+URL remota. En `finally`, elimina usuarios Auth QA, perfiles QA y auditorías QA
 identificadas, y confirma cero intentos `pending` de QA.
 
 ## Flujo de prueba recomendado

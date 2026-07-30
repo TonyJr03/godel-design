@@ -130,43 +130,56 @@ Un administrador operativo es `role = admin`, `is_active = true` y
 `must_change_password = false`. Un admin con contraseña temporal pendiente no
 impide actualizar al último administrador real.
 
-## Restablecimiento administrativo de contrasena temporal
+## Restablecimiento administrativo de contraseña temporal
 
-El restablecimiento de contrasena es una operacion separada de la edicion normal
+El restablecimiento de contraseña es una operación separada de la edición normal
 de perfil. No forma parte de `updateInternalUser`, no reutiliza
 `UserEditForm` y no modifica `full_name`, `phone`, `avatar_url`, `role` ni el
 estado activo original como dato de negocio.
 
 La ruta productiva es:
 
-1. dialogo `UserPasswordResetDialogButton`;
+1. diálogo `UserPasswordResetDialogButton`;
 2. formulario `UserPasswordResetForm`;
 3. Server Action `resetUserPasswordAction(userId, state, formData)`;
 4. servicio server-only `resetInternalUserPassword()`;
-5. RPC `public.begin_internal_user_password_reset`;
+5. RPC `public.begin_internal_user_password_reset` con `p_attempt_id`;
 6. Auth Admin `getUserById` y `updateUserById`;
 7. RPC `public.complete_internal_user_password_reset`.
 
-El UUID objetivo se liga desde la pagina con `.bind(null, userId)` y no se lee
-desde `FormData`. El formulario solo envia `password`,
+El UUID objetivo se liga desde la página con `.bind(null, userId)` y no se lee
+desde `FormData`. El formulario solo envía `password`,
 `password_confirmation` y `confirm_reset`.
 
-Solo un admin operativo con `usuarios.manage` puede ejecutar la operacion. El
+Solo un admin operativo con `usuarios.manage` puede ejecutar la operación. El
 servicio rechaza autorrestablecimiento, usuarios inexistentes, actores con
 onboarding pendiente y usuarios sin permiso. Puede aplicarse sobre usuarios
-activos o inactivos; si el usuario estaba inactivo, permanece inactivo despues
-del exito. Si ya tenia `must_change_password = true`, la operacion reemplaza la
-contrasena temporal pendiente y conserva el flag en `true`.
+activos o inactivos; si el usuario estaba inactivo, permanece inactivo después
+del éxito. Si ya tenía `must_change_password = true`, la operación reemplaza la
+contraseña temporal pendiente y conserva el flag en `true`.
 
-La RPC de inicio registra una auditoria privada, guarda `is_active` y
+El servicio genera `attemptId` con `randomUUID()` antes de iniciar y lo envía a
+`public.begin_internal_user_password_reset`. Si una respuesta de inicio se
+pierde, reintenta con el mismo UUID; la RPC recupera el intento idempotentemente
+sin insertar otra auditoría ni volver a alterar el perfil. La tabla privada
+tiene un índice único parcial que impide más de un `pending` por objetivo.
+
+La RPC de inicio registra una auditoría privada, guarda `is_active` y
 `must_change_password` previos, bloquea el perfil objetivo con `FOR UPDATE` y
 lo deja temporalmente con `is_active = false` y `must_change_password = true`
-antes de tocar Auth. Si Auth falla, la RPC de finalizacion restaura ambos
-valores previos. Si Auth cambia la contrasena, la finalizacion exitosa restaura
+antes de tocar Auth. Si Auth falla, la RPC de finalización restaura ambos
+valores previos. Si Auth cambia la contraseña, la finalización exitosa restaura
 solo `is_active` al valor anterior y mantiene `must_change_password = true`.
 
-No se envia correo, invitacion, recuperacion ni magic link. El administrador
-entrega la contrasena temporal por un canal externo seguro. La contrasena no se
+El servicio confirma `complete_internal_user_password_reset` solo si devuelve
+exactamente el `attemptId`. Si la respuesta es incierta, consulta
+`public.get_internal_user_password_reset_state`; no acepta únicamente que el
+perfil tenga el estado esperado. Éxito exige auditoría `succeeded`, rollback
+ordinario exige auditoría `failed`, y los casos críticos intentan quedar en
+`attention_required`.
+
+No se envía correo, invitación, recuperación ni magic link. El administrador
+entrega la contraseña temporal por un canal externo seguro. La contraseña no se
 almacena, no se registra, no se devuelve, no queda en estado React y se limpia
 del DOM tras cada respuesta del formulario.
 
@@ -175,21 +188,21 @@ del DOM tras cada respuesta del formulario.
 - `auth.admin.getUserById(targetId)`;
 - `auth.admin.updateUserById(targetId, { password })`.
 
-No usa el cliente Admin para tablas, Storage, Functions, RPCs, creacion,
-eliminacion, invitaciones, enlaces ni listados. Las RPCs y las consultas de
-postcondicion usan el cliente server-side normal con RLS.
+No usa el cliente Admin para tablas, Storage, Functions, RPCs, creación,
+eliminación, invitaciones, enlaces ni listados. Las RPCs y las consultas de
+confirmación usan el cliente server-side normal con RLS.
 
-La auditoria privada `private.internal_user_password_reset_audit` no guarda
-email, contrasena, hash, nombre, telefono, avatar, metadata, token, sesion,
+La auditoría privada `private.internal_user_password_reset_audit` no guarda
+email, contraseña, hash, nombre, teléfono, avatar, metadata, token, sesión,
 mensaje completo de proveedor ni stack. Sus estados son `pending`, `succeeded`,
 `failed`, `rate_limited` y `attention_required`. Los rate limits son 3 intentos
 reales por actor en 10 minutos, 3 intentos reales por objetivo en 1 hora y 20
 intentos reales globales en 1 hora; `rate_limited` no extiende ventanas futuras.
 
-`attention_required` representa un caso critico: la contrasena pudo cambiar en
+`attention_required` representa un caso crítico: la contraseña pudo cambiar en
 Auth o no se pudo restaurar el perfil, y el usuario queda bloqueado
 preventivamente con `is_active = false` y `must_change_password = true` para
-reconciliacion manual. La recuperacion por correo queda fuera de alcance.
+reconciliación manual. La recuperación por correo queda fuera de alcance.
 
 ## Datos visibles en dashboard
 

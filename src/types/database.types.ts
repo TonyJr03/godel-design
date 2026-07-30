@@ -973,7 +973,7 @@ export type Database = {
         }[]
       }
       begin_internal_user_password_reset: {
-        Args: { p_target_profile_id: string }
+        Args: { p_attempt_id: string; p_target_profile_id: string }
         Returns: {
           allowed: boolean
           attempt_id: string
@@ -1081,6 +1081,18 @@ export type Database = {
           order_number: string
           pedido_id: string
           public_reference: string
+        }[]
+      }
+      get_internal_user_password_reset_state: {
+        Args: { p_attempt_id: string }
+        Returns: {
+          attempt_id: string
+          current_is_active: boolean
+          current_must_change_password: boolean
+          previous_is_active: boolean
+          previous_must_change_password: boolean
+          status: string
+          target_profile_id: string
         }[]
       }
       listar_pedido_comentarios: {

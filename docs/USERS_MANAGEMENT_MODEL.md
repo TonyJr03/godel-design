@@ -292,8 +292,8 @@ Razones de error actuales: `unauthorized`, `inactive`, `not_required`,
 ## Servicio `resetInternalUserPassword`
 
 `resetInternalUserPassword(input)` es un servicio server-only exportado desde
-`src/lib/usuarios`. Implementa una operacion administrativa separada para
-reemplazar la contrasena de otro usuario por una nueva contrasena temporal. No
+`src/lib/usuarios`. Implementa una operación administrativa separada para
+reemplazar la contraseña de otro usuario por una nueva contraseña temporal. No
 forma parte de `updateInternalUser()` ni de `UserEditForm`.
 
 Entrada permitida: `id`, `password`, `password_confirmation` y `confirm_reset`.
@@ -307,42 +307,57 @@ Orden de defensa:
    `usuarios.manage`;
 3. valida UUID objetivo;
 4. rechaza autorrestablecimiento;
-5. valida contrasena temporal fuerte, confirmacion exacta y `confirm_reset`;
+5. valida contraseña temporal fuerte, confirmación exacta y `confirm_reset`;
 6. crea el cliente server-side normal;
-7. llama `public.begin_internal_user_password_reset`;
+7. genera `attemptId` con `randomUUID()` y llama
+   `public.begin_internal_user_password_reset` con `p_target_profile_id` y
+   `p_attempt_id`;
 8. rechaza `already_in_progress` y rate limits;
 9. crea `createAdminClient()`;
 10. llama `auth.admin.getUserById(targetId)`;
-11. rechaza contrasena igual al correo ignorando mayusculas;
+11. rechaza contraseña igual al correo ignorando mayúsculas;
 12. llama `auth.admin.updateUserById(targetId, { password })`;
 13. finaliza con `public.complete_internal_user_password_reset`;
-14. confirma la postcondicion con el cliente normal;
+14. confirma el cierre por UUID exacto o mediante
+    `public.get_internal_user_password_reset_state`;
 15. devuelve solo `{ userId, wasActive }`.
 
 El cliente Admin se usa exclusivamente para `getUserById` y `updateUserById`.
 No se usa para tablas, Storage, Functions, RPCs, `createUser`, `deleteUser`,
-`listUsers`, invitaciones ni enlaces. El payload de actualizacion contiene solo
-`{ password }`: no envia email, rol, metadata, `email_confirm`, sesion ni token.
+`listUsers`, invitaciones ni enlaces. El payload de actualización contiene solo
+`{ password }`: no envía email, rol, metadata, `email_confirm`, sesión ni token.
 
-La RPC de inicio guarda una auditoria privada sin datos personales, bloquea la
+La RPC de inicio recibe el UUID del intento desde el servicio. Si la respuesta se
+pierde, el servicio reintenta con el mismo `attemptId` y la RPC recupera el
+intento idempotentemente sin insertar otra auditoría ni volver a modificar el
+perfil. La tabla privada tiene un índice único parcial que impide más de un
+`pending` por objetivo.
+
+La RPC de inicio guarda una auditoría privada sin datos personales, bloquea la
 fila objetivo con `FOR UPDATE`, conserva `previous_is_active` y
 `previous_must_change_password`, y deja temporalmente el perfil con
 `is_active = false` y `must_change_password = true` antes de modificar Auth. Si
-Auth falla, la finalizacion `failed` restaura ambos valores previos.
+Auth falla, la finalización `failed` restaura ambos valores previos.
 
-Si Auth cambia la contrasena y la finalizacion se confirma, el usuario queda con
+Si Auth cambia la contraseña y la finalización se confirma, el usuario queda con
 `must_change_password = true`; `is_active` vuelve al valor original. Un usuario
 inactivo permanece inactivo. Un usuario ya pendiente puede recibir otra
-contrasena temporal, reemplazando la anterior.
+contraseña temporal, reemplazando la anterior.
 
-Si Auth cambio la contrasena pero la finalizacion no puede confirmarse, el
-servicio no intenta restaurar la contrasena anterior. Intenta marcar
+El servicio no acepta el estado del perfil como prueba aislada: éxito exige
+auditoría `succeeded` y rollback ordinario exige auditoría `failed`, con el
+estado actual del perfil coherente con cada terminal. Una respuesta nula, vacía
+o con UUID distinto desde `complete_internal_user_password_reset` se trata como
+fallo de confirmación.
+
+Si Auth cambió la contraseña pero la finalización no puede confirmarse, el
+servicio no intenta restaurar la contraseña anterior. Intenta marcar
 `attention_required`, devuelve `completion_error`, `passwordChanged = true` y el
-mensaje critico que indica no repetir la operacion. Si Auth no cambio pero no se
+mensaje crítico que indica no repetir la operación. Si Auth no cambió pero no se
 pudo restaurar el perfil, intenta `attention_required` con `rollback_failed` y
 devuelve `rollback_error`.
 
-Estados de auditoria: `pending`, `succeeded`, `failed`, `rate_limited` y
+Estados de auditoría: `pending`, `succeeded`, `failed`, `rate_limited` y
 `attention_required`. Rate limits: 3 intentos reales por actor en 10 minutos, 3
 intentos reales por objetivo en 1 hora y 20 intentos reales globales en 1 hora.
 Las filas `rate_limited` no extienden ventanas futuras.
@@ -353,8 +368,8 @@ Razones de error actuales: `unauthorized`, `forbidden`,
 `auth_user_not_found`, `auth_error`, `rollback_error`, `completion_error` y
 `error`.
 
-No se envia correo de recuperacion, invitacion, confirmacion ni magic link. La
-contrasena temporal nunca se registra, almacena, devuelve ni se muestra despues
+No se envía correo de recuperación, invitación, confirmación ni magic link. La
+contraseña temporal nunca se registra, almacena, devuelve ni se muestra después
 del submit; el formulario la limpia tras cada respuesta y no la guarda en estado
 React.
 

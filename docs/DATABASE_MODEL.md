@@ -270,6 +270,9 @@ para rollback transaccional.
 - `(actor_profile_id, created_at desc)`.
 - `(target_profile_id, created_at desc)`.
 - `(status, created_at desc)`.
+- `target_profile_id` único cuando `status = 'pending'`, para impedir más de
+  un intento pendiente por objetivo aun si una regresión futura omite la guarda
+  de la RPC.
 
 **Notas de seguridad:**
 
@@ -1113,6 +1116,7 @@ temporal antes de llamar a Auth Admin.
 Argumentos:
 
 - `p_target_profile_id uuid`.
+- `p_attempt_id uuid`, generado por el servicio de aplicación.
 
 Retorna:
 
@@ -1132,6 +1136,11 @@ Contrato:
 - exige actor `admin`, activo y sin cambio temporal pendiente;
 - rechaza objetivo nulo, inexistente o igual al actor;
 - serializa ventanas con `pg_advisory_xact_lock`;
+- si `p_attempt_id` ya existe para el mismo actor y objetivo, recupera
+  idempotentemente el intento `pending` o el bloqueo `rate_limited` sin insertar
+  otra auditoría ni volver a modificar el perfil;
+- si `p_attempt_id` existe para otro actor, otro objetivo o un estado terminal
+  distinto de `rate_limited`, falla de forma controlada;
 - bloquea el perfil objetivo con `FOR UPDATE`;
 - rechaza otro intento `pending` para el mismo objetivo con `reset_in_progress`;
 - aplica rate limits de 3 intentos reales por actor en 10 minutos, 3 intentos
@@ -1140,6 +1149,36 @@ Contrato:
 - si permite el intento, inserta auditoría `pending`, guarda estados previos y
   bloquea temporalmente el objetivo con `is_active = false` y
   `must_change_password = true`.
+
+### `public.get_internal_user_password_reset_state`
+
+RPC mínima para consultar el estado de un intento propio de restablecimiento sin
+exponer datos personales.
+
+Argumentos:
+
+- `p_attempt_id uuid`.
+
+Retorna:
+
+- `attempt_id uuid`;
+- `status text`;
+- `target_profile_id uuid`;
+- `previous_is_active boolean`;
+- `previous_must_change_password boolean`;
+- `current_is_active boolean`;
+- `current_must_change_password boolean`.
+
+Contrato:
+
+- es `SECURITY DEFINER` y fija `search_path = ''`;
+- revoca ejecución a `public`, `anon` y `service_role`;
+- concede `execute` únicamente a `authenticated`;
+- obtiene el actor exclusivamente con `auth.uid()`;
+- solo devuelve filas donde `actor_profile_id = auth.uid()`;
+- si el intento no existe o pertenece a otro actor, devuelve cero filas;
+- no devuelve `error_code`, email, contraseña, nombre, teléfono, avatar,
+  metadata, tokens ni datos personales.
 
 ### `public.complete_internal_user_password_reset`
 

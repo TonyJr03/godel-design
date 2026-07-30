@@ -114,7 +114,9 @@ El restablecimiento administrativo de contraseña temporal sí depende de
 admin operativo puede iniciar el flujo, no puede aplicarlo sobre su propio
 perfil y no envía correo. El servicio server-side y las RPCs vuelven a validar
 actor admin activo, `must_change_password = false`, objetivo existente, bloqueo
-temporal, rollback y estado final `must_change_password = true`.
+temporal, rollback y estado final `must_change_password = true`. La recuperación
+de intentos usa un `attemptId` generado por el servicio y una RPC de estado que
+solo devuelve intentos propios del actor, sin datos personales.
 
 ## Relación con RLS
 

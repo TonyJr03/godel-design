@@ -21,6 +21,29 @@ const allowedAdminConsumerFiles = new Set([
   initialPasswordCompletionFile,
   resetInternalUserPasswordFile,
 ]);
+const allowedAdminClientDeclarations = new Map([
+  [
+    createInternalUserFile,
+    {
+      variableName: "admin",
+      categoryPrefix: "create-internal-user",
+    },
+  ],
+  [
+    resetInternalUserPasswordFile,
+    {
+      variableName: "admin",
+      categoryPrefix: "reset-internal-user-password",
+    },
+  ],
+  [
+    initialPasswordCompletionFile,
+    {
+      variableName: "privilegedClient",
+      categoryPrefix: "initial-password",
+    },
+  ],
+]);
 const secretReferencePattern = /\bSUPABASE_SECRET_KEY\b/g;
 const legacySecretPattern = /\bSUPABASE_SERVICE_ROLE_KEY\b/g;
 const publicSecretPattern =
@@ -49,6 +72,9 @@ const forbiddenDirectAdminClientDataMemberPattern =
 const forbiddenPrivilegedFunctionsInvokePattern =
   /\b(?:admin|privilegedClient)\s*\.\s*functions\s*\.\s*invoke\b/gs;
 const directSecretEnvPattern = /\bprocess\.env\.SUPABASE_SECRET_KEY\b/g;
+const createAdminClientCallPattern = /\bcreateAdminClient\s*\(\s*\)/gs;
+const adminClientDeclarationPattern =
+  /\b(?:const|let|var)\s+([^=;\n]+?)\s*=\s*createAdminClient\s*\(\s*\)\s*;?/gs;
 
 function normalizePath(path) {
   return path.split(sep).join("/");
@@ -155,6 +181,58 @@ function scanInitialPasswordCompletionFile(text, relativeFile, violations) {
   }
 }
 
+function scanAllowedAdminClientConstruction(text, relativeFile, violations) {
+  const policy = allowedAdminClientDeclarations.get(relativeFile);
+
+  if (!policy) {
+    return;
+  }
+
+  const calls = collectContentPatternMatches(text, createAdminClientCallPattern);
+  const canonicalConstructionPattern = new RegExp(
+    `\\b(?:const\\s+${policy.variableName}|${policy.variableName})\\s*=\\s*createAdminClient\\s*\\(\\s*\\)\\s*;?`,
+    "gs",
+  );
+  const canonicalConstructions = collectContentPatternMatches(
+    text,
+    canonicalConstructionPattern,
+  );
+
+  if (calls.length !== 1) {
+    addViolation(
+      violations,
+      relativeFile,
+      calls[0] ? getApproximateLine(text, calls[0].index ?? 0) : 1,
+      `${policy.categoryPrefix}-invalid-admin-client-construction-count`,
+    );
+  }
+
+  if (canonicalConstructions.length !== 1) {
+    addViolation(
+      violations,
+      relativeFile,
+      calls[0] ? getApproximateLine(text, calls[0].index ?? 0) : 1,
+      `${policy.categoryPrefix}-invalid-admin-client-declaration`,
+    );
+  }
+
+  for (const match of collectContentPatternMatches(
+    text,
+    adminClientDeclarationPattern,
+  )) {
+    const declarationTarget = match[1]?.trim();
+
+    if (declarationTarget !== policy.variableName || !match[0].startsWith("const ")) {
+      addViolation(
+        violations,
+        relativeFile,
+        getApproximateLine(text, match.index ?? 0),
+        `${policy.categoryPrefix}-forbidden-admin-client-alias`,
+      );
+    }
+  }
+}
+
 function scanAdminAuthCapabilityFile(
   text,
   relativeFile,
@@ -179,16 +257,12 @@ function scanAdminAuthCapabilityFile(
     text,
     directAdminAuthAdminCallPattern,
   )) {
-    const methodName = match[1];
-
-    if (!allowedMethods.has(methodName)) {
-      addViolation(
-        violations,
-        relativeFile,
-        getApproximateLine(text, match.index ?? 0),
-        `${categoryPrefix}-forbidden-direct-auth-admin-method`,
-      );
-    }
+    addViolation(
+      violations,
+      relativeFile,
+      getApproximateLine(text, match.index ?? 0),
+      `${categoryPrefix}-forbidden-direct-auth-admin-method`,
+    );
   }
 
   for (const match of collectContentPatternMatches(
@@ -339,10 +413,12 @@ function scanFile(file) {
   });
 
   if (relativeFile === initialPasswordCompletionFile) {
+    scanAllowedAdminClientConstruction(text, relativeFile, violations);
     scanInitialPasswordCompletionFile(text, relativeFile, violations);
   }
 
   if (relativeFile === createInternalUserFile) {
+    scanAllowedAdminClientConstruction(text, relativeFile, violations);
     scanAdminAuthCapabilityFile(
       text,
       relativeFile,
@@ -353,6 +429,7 @@ function scanFile(file) {
   }
 
   if (relativeFile === resetInternalUserPasswordFile) {
+    scanAllowedAdminClientConstruction(text, relativeFile, violations);
     scanAdminAuthCapabilityFile(
       text,
       relativeFile,
