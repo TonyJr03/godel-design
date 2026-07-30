@@ -194,6 +194,42 @@ manualmente.
 - No inserta email, contraseña, tokens ni metadata duplicada.
 - La función es `SECURITY DEFINER`, fija `search_path = ''`, revoca ejecución a `public`, `anon` y `authenticated`, y concede ejecución técnica solo a `supabase_auth_admin`.
 
+### `private.internal_user_creation_audit`
+
+**Propósito:** Registra intentos de creación administrativa de usuarios internos y aplica rate limiting operativo antes de invocar Auth Admin.
+
+| Campo | Tipo sugerido | Notas |
+|---|---|---|
+| `id` | `uuid` | Identificador del intento. |
+| `actor_profile_id` | `uuid` | Admin operativo que inició el intento. |
+| `target_role` | `app_role` | Rol solicitado para el usuario nuevo. |
+| `target_auth_user_id` | `uuid nullable` | UUID Auth creado cuando aplica. |
+| `status` | `text` | `pending`, `succeeded`, `failed`, `rate_limited` o `compensation_failed`. |
+| `error_code` | `text nullable` | Código interno sanitizado de error. |
+| `created_at` | `timestamptz` | Fecha de reserva del intento. |
+| `completed_at` | `timestamptz nullable` | Fecha de finalización del intento. |
+
+**Claves foráneas:**
+
+- `internal_user_creation_audit.actor_profile_id` -> `public.perfiles.id` con `on delete restrict`.
+
+**Reglas importantes:**
+
+- La tabla vive en esquema `private` y no tiene acceso directo desde la aplicación.
+- No almacena email, contraseña temporal, metadata Auth, tokens, payloads completos ni mensajes externos.
+- Un intento inicia como `pending` mediante `public.begin_internal_user_creation_attempt`.
+- Solo los estados terminales `succeeded`, `failed`, `rate_limited` y `compensation_failed` tienen `completed_at`.
+- `rate_limited` no cuenta como intento real para las ventanas futuras; registra únicamente el bloqueo aplicado.
+- `compensation_failed` indica que se creó un usuario Auth pero falló la postcondición de perfil y también falló la eliminación compensatoria.
+
+**Notas de seguridad:**
+
+- Se revocan permisos directos a `public`, `anon`, `authenticated` y `service_role`.
+- El acceso operativo ocurre solo por RPCs `SECURITY DEFINER` con `search_path = ''`.
+- Las RPCs validan `auth.uid()` contra `public.perfiles`: rol `admin`, `is_active = true` y `must_change_password = false`.
+- El rate limit actual permite hasta 5 intentos reales por actor en 10 minutos y hasta 20 intentos reales globales en 1 hora.
+- Los contadores se serializan con advisory lock transaccional para evitar carreras simples entre solicitudes concurrentes.
+
 ### `clientes`
 
 **Propósito:** Almacena datos básicos de clientes externos sin crear cuentas de usuario para ellos.
@@ -960,6 +996,59 @@ El diagnóstico y diseño actualizado para comentarios internos e historial oper
   datos básicos y precio total en pedidos activos.
 - `public.actualizar_estado_solicitud` controla las transiciones manuales.
 - `public.complete_initial_password_change` finaliza el bloqueo por contraseña temporal solo para perfiles activos y pendientes, y está reservada a `service_role`.
+- `public.begin_internal_user_creation_attempt` reserva un intento auditado de alta interna y aplica rate limiting por admin y global.
+- `public.complete_internal_user_creation_attempt` finaliza el intento auditado con estado terminal.
+
+### `public.begin_internal_user_creation_attempt`
+
+RPC transaccional para reservar un intento de creación administrativa antes de llamar a Auth Admin.
+
+Argumentos:
+
+- `p_target_role public.app_role`.
+
+Retorna:
+
+- `allowed boolean`;
+- `attempt_id uuid`;
+- `limited_scope text nullable`, con `actor` o `global` cuando se bloquea.
+
+Contrato:
+
+- es `SECURITY DEFINER` y fija `search_path = ''`;
+- revoca ejecución a `public` y `anon`;
+- concede `execute` únicamente a `authenticated`;
+- exige sesión autenticada con perfil `admin`, activo y sin contraseña temporal pendiente;
+- registra `pending` si la operación queda permitida;
+- registra `rate_limited` con `actor_rate_limit` o `global_rate_limit` si se exceden las ventanas;
+- no usa ni requiere `service_role`.
+
+### `public.complete_internal_user_creation_attempt`
+
+RPC transaccional para cerrar el intento reservado después del resultado de Auth Admin y de la verificación de perfil.
+
+Argumentos:
+
+- `p_attempt_id uuid`;
+- `p_status text`, permitido solo `succeeded`, `failed` o `compensation_failed`;
+- `p_error_code text default null`;
+- `p_target_auth_user_id uuid default null`.
+
+Retorna:
+
+- `uuid` del intento actualizado.
+
+Contrato:
+
+- es `SECURITY DEFINER` y fija `search_path = ''`;
+- revoca ejecución a `public` y `anon`;
+- concede `execute` únicamente a `authenticated`;
+- exige sesión autenticada con perfil `admin`, activo y sin contraseña temporal pendiente;
+- solo permite finalizar intentos `pending` creados por el mismo `auth.uid()`;
+- `succeeded` exige `target_auth_user_id` y no acepta `error_code`;
+- `failed` exige un `error_code` controlado;
+- `compensation_failed` exige `target_auth_user_id` y `provisioning_compensation_failed`;
+- no expone email, contraseña, metadata ni respuesta Auth completa.
 
 ### `public.complete_initial_password_change`
 

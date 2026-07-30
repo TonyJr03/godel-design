@@ -96,12 +96,16 @@ La base vigente queda preparada así:
 - `created_by` identifica al admin creador y exige que sea `admin`, activo y sin cambio de contraseña pendiente.
 - `public.complete_initial_password_change(uuid)` existe solo para uso futuro desde una Server Action protegida posterior a `auth.updateUser({ password })`.
 - La RPC no se concede a `authenticated`; solo `service_role` puede ejecutarla.
+- `private.internal_user_creation_audit` registra intentos de alta administrativa sin almacenar email, contraseña, metadata, tokens ni payloads completos.
+- `public.begin_internal_user_creation_attempt` reserva cada intento permitido y aplica rate limiting antes de construir el cliente Admin.
+- `public.complete_internal_user_creation_attempt` finaliza el intento como `succeeded`, `failed` o `compensation_failed`.
+- El rate limit vigente permite hasta 5 intentos reales por admin en 10 minutos y hasta 20 intentos reales globales en 1 hora.
 - El signup público local queda deshabilitado en `supabase/config.toml`.
 - La clave administrativa aislada forma parte del contrato técnico mediante `SUPABASE_SECRET_KEY` y `createAdminClient()`.
 - `createInternalUser()` es el único consumidor productivo autorizado del cliente Admin. Todavía no está conectado a una Server Action ni a la interfaz.
 - El servicio valida autorización antes de construir el cliente Admin y usa la Admin API solo para `auth.admin.createUser` y la compensación `auth.admin.deleteUser` si falla la postcondición.
 
-La funcionalidad sigue incompleta hasta implementar las etapas posteriores: Server Action protegida, formulario con correo y contraseña temporal, cambio inicial real de contraseña, rate limiting funcional, auditoría operativa y pruebas E2E.
+La funcionalidad sigue incompleta hasta implementar las etapas posteriores: Server Action protegida, formulario con correo y contraseña temporal, cambio inicial real de contraseña y pruebas E2E del flujo productivo.
 
 ## Permisos de Ruta y Dominio
 
@@ -238,12 +242,16 @@ Orden de defensa:
 3. rechaza `must_change_password = true` como `onboarding_required`;
 4. exige `usuarios.manage`;
 5. valida entrada;
-6. construye `createAdminClient()`;
-7. llama a `auth.admin.createUser`;
-8. valida que Auth devuelva un UUID;
-9. consulta `public.perfiles` con el cliente server-side normal;
-10. valida la postcondición completa del perfil;
-11. retorna solo `{ userId }`.
+6. crea el cliente server-side normal de Supabase;
+7. llama a `public.begin_internal_user_creation_attempt`;
+8. devuelve `rate_limited` si la RPC bloquea por ventana temporal;
+9. construye `createAdminClient()`;
+10. llama a `auth.admin.createUser`;
+11. valida que Auth devuelva un UUID;
+12. consulta `public.perfiles` con el cliente server-side normal;
+13. valida la postcondición completa del perfil;
+14. finaliza la auditoría con `public.complete_internal_user_creation_attempt`;
+15. retorna solo `{ userId }`.
 
 La entrada permitida del alta completa es correo, contraseña temporal,
 confirmación de contraseña, nombre completo, teléfono opcional, avatar opcional,
@@ -306,6 +314,24 @@ coincidan con la entrada normalizada y el admin creador. Si la postcondición
 falla, intenta eliminar compensatoriamente el usuario Auth con Admin API y
 devuelve `provisioning_error` con un mensaje genérico.
 
+Antes de construir el cliente Admin, `createInternalUser()` reserva un intento
+en `private.internal_user_creation_audit` mediante el cliente server-side normal
+y la sesión del admin. La RPC permite como máximo 5 intentos reales por actor en
+10 minutos y 20 intentos reales globales en 1 hora. Los bloqueos quedan
+registrados como `rate_limited` con `actor_rate_limit` o `global_rate_limit`,
+pero no cuentan como intentos reales para las ventanas futuras.
+
+El servicio exige cerrar la auditoría antes de devolver éxito. Si no puede
+registrar `succeeded`, intenta compensar el usuario Auth creado y devuelve un
+error genérico de provisionamiento. Los estados terminales son:
+
+- `succeeded`, con `target_auth_user_id` y sin `error_code`;
+- `failed`, con códigos internos como `already_exists`, `weak_password`,
+  `auth_rate_limited`, `configuration_error`, `auth_error`,
+  `invalid_auth_response`, `provisioning_error` o `unexpected_error`;
+- `compensation_failed`, cuando existe usuario Auth creado pero falló la
+  eliminación compensatoria tras una postcondición inválida.
+
 Razones de error actuales: `unauthorized`, `forbidden`,
 `onboarding_required`, `validation_error`, `already_exists`, `rate_limited`,
 `configuration_error`, `provisioning_error`, `auth_error` y `error`. Los códigos Auth `email_exists`,
@@ -340,6 +366,8 @@ Las operaciones cumplen estas reglas:
 - validar `usuarios.view` para lectura y `usuarios.manage` para cambios;
 - usar el cliente server-side normal de Supabase;
 - depender de RLS como defensa final;
+- reservar y finalizar los intentos de alta completa por RPC auditada antes y
+  después de usar Auth Admin;
 - no aceptar `id` del usuario actual desde formularios cuando pueda obtenerse de la sesión;
 - validar UUIDs y payloads antes de consultar o actualizar;
 - limitar las columnas actualizables;
@@ -357,7 +385,7 @@ Las operaciones cumplen estas reglas:
 | 12.4 | Edición de perfil operativo: nombre, teléfono, avatar, rol y estado. Implementada con guardas para no dejar el sistema sin administrador activo. |
 | 12.5 | Creación de perfil interno para usuario Auth existente. Implementada sin crear credenciales, sin consultar `auth.users` y sin service role key. |
 | 12.6 | Revisión de seguridad, pruebas y documentación final. |
-| Futura | Creación administrativa completa con Admin API server-side, contraseña temporal y cambio inicial obligatorio. |
+| Futura | Conexión productiva de la creación administrativa completa a Server Action/UI y cambio inicial obligatorio. |
 
 ## Criterio para Adoptar Service Role en el Futuro
 
@@ -368,6 +396,7 @@ Solo debería considerarse service role si el proyecto necesita alta completa de
 - módulo aislado para Admin API;
 - validación server-side estricta de `admin`;
 - auditoría de operaciones sensibles;
+- rate limiting por actor y global antes de invocar Auth Admin;
 - pruebas de acceso negativo;
 - revisión de logs y errores para no exponer datos sensibles.
 

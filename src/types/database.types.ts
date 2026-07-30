@@ -964,8 +964,25 @@ export type Database = {
         Args: { p_pedido_id: string; p_template_id: string }
         Returns: number
       }
+      begin_internal_user_creation_attempt: {
+        Args: { p_target_role: Database["public"]["Enums"]["app_role"] }
+        Returns: {
+          allowed: boolean
+          attempt_id: string
+          limited_scope: string
+        }[]
+      }
       complete_initial_password_change: {
         Args: { p_user_id: string }
+        Returns: string
+      }
+      complete_internal_user_creation_attempt: {
+        Args: {
+          p_attempt_id: string
+          p_error_code?: string
+          p_status: string
+          p_target_auth_user_id?: string
+        }
         Returns: string
       }
       consultar_estado_publico: {

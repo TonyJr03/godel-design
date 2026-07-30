@@ -49,8 +49,9 @@ deciden permisos criticos y no deben reutilizarse en rutas publicas.
   detalle interno del perfil.
 - `createInternalUser` autentica al admin actual, valida que su perfil exista,
   este activo, no tenga `must_change_password` pendiente y posea
-  `usuarios.manage`; despues valida correo, contraseña temporal y perfil antes
-  de llamar a Admin API.
+  `usuarios.manage`; despues valida correo, contraseña temporal y perfil,
+  reserva auditoria/rate limit con el cliente server-side normal y recien
+  entonces llama a Admin API.
 - `createInternalUserProfile` requiere `usuarios.manage`, valida input e
   inserta solo en `public.perfiles`.
 - `updateInternalUser` requiere `usuarios.manage`, valida UUID e input, y
@@ -77,6 +78,21 @@ y verifica `id`, nombre, opcionales, rol, `is_active = true`,
 intenta eliminar compensatoriamente el Auth user y devuelve
 `provisioning_error` con un mensaje generico. Una identidad sin perfil nunca es
 resultado exitoso del servicio.
+
+Antes de construir `createAdminClient`, `createInternalUser` llama
+`public.begin_internal_user_creation_attempt` con el cliente server-side normal.
+La RPC registra el intento en `private.internal_user_creation_audit` y aplica
+rate limiting de 5 intentos reales por admin en 10 minutos y 20 intentos reales
+globales en 1 hora. Si se excede una ventana, el servicio devuelve
+`rate_limited` sin invocar Auth Admin.
+
+Despues de Auth Admin y de la verificacion de perfil, el servicio llama
+`public.complete_internal_user_creation_attempt` para cerrar la auditoria como
+`succeeded`, `failed` o `compensation_failed`. La auditoria no guarda correo,
+contraseña, metadata, tokens, payloads completos ni mensajes externos. El
+servicio solo devuelve exito despues de registrar `succeeded`; si ese cierre
+falla, intenta compensar el usuario Auth creado y devuelve un error generico de
+provisionamiento.
 
 La creacion legacy de un perfil no crea credenciales Auth. El `id` recibido debe
 corresponder a un usuario Auth existente por la foreign key de base de datos.
@@ -147,6 +163,8 @@ datos de Supabase Auth.
   API de Auth: `createUser` y compensacion `deleteUser`.
 - Consultar `perfiles` desde `createInternalUser` con el cliente server-side
   normal, no con el cliente Admin.
+- Usar el cliente server-side normal para las RPCs de auditoria/rate limiting
+  de alta completa; nunca el cliente Admin.
 - No agregar `SUPABASE_SERVICE_ROLE_KEY`.
 - No consultar `auth.users`.
 - No consultar Supabase desde componentes cliente.
@@ -177,6 +195,5 @@ mantenerse pequena y centrada en permisos, visibilidad y errores seguros.
 
 ## Pendiente antes de UI
 
-Antes de conectar el formulario productivo faltan rate limiting funcional,
-auditoria de operaciones de alta, Server Action fina, pantalla de cambio inicial
-de contraseña y QA E2E del flujo completo.
+Antes de conectar el formulario productivo faltan Server Action fina, pantalla
+de cambio inicial de contraseña y QA E2E del flujo completo.

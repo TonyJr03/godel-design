@@ -39,14 +39,16 @@ export type CreateInternalUserResult = ServiceResult<
   CreateInternalUserFieldErrors
 >;
 
-type SanitizedAuthError = {
+type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+
+type SanitizedError = {
   context: string;
   name?: string;
   code?: string;
   status?: number;
 };
 
-type AuthErrorLike = {
+type ErrorLike = {
   name?: unknown;
   code?: unknown;
   status?: unknown;
@@ -64,12 +66,46 @@ type ProvisionedProfile = Pick<
   | "created_by"
 >;
 
+type BeginCreationAttemptResult =
+  | {
+      ok: true;
+      allowed: true;
+      attemptId: string;
+    }
+  | {
+      ok: true;
+      allowed: false;
+      attemptId: string;
+    }
+  | {
+      ok: false;
+    };
+
+type AuditTerminalStatus = "succeeded" | "failed" | "compensation_failed";
+
+type AuditErrorCode =
+  | "already_exists"
+  | "weak_password"
+  | "auth_rate_limited"
+  | "configuration_error"
+  | "auth_error"
+  | "invalid_auth_response"
+  | "provisioning_error"
+  | "unexpected_error"
+  | "provisioning_compensation_failed";
+
+type MappedAuthFailure = Extract<CreateInternalUserResult, { ok: false }> & {
+  auditErrorCode: AuditErrorCode;
+};
+
 const GENERIC_CREATE_ERROR =
   "No se pudo crear el usuario interno. Intentalo nuevamente.";
 const PROVISIONING_CREATE_ERROR =
   "No se pudo completar la creacion del usuario interno.";
 const MANAGE_USERS_ERROR =
   "No tienes permiso para crear usuarios internos.";
+const RATE_LIMIT_CREATE_ERROR =
+  "Se alcanzo el limite temporal de creacion de usuarios. Intentalo mas tarde.";
 const AUTH_DUPLICATE_CODES = new Set([
   "email_exists",
   "user_already_exists",
@@ -82,37 +118,41 @@ const AUTH_RATE_LIMIT_CODES = new Set([
   "over_sms_send_rate_limit",
 ]);
 
-function getAuthErrorCode(error: AuthErrorLike): string | undefined {
+function getErrorCode(error: ErrorLike): string | undefined {
   return typeof error.code === "string" ? error.code : undefined;
 }
 
-function getAuthErrorStatus(error: AuthErrorLike): number | undefined {
+function getErrorStatus(error: ErrorLike): number | undefined {
   return typeof error.status === "number" ? error.status : undefined;
 }
 
-function toSanitizedAuthError(
-  context: string,
-  error: AuthErrorLike,
-): SanitizedAuthError {
+function toSanitizedError(context: string, error: ErrorLike): SanitizedError {
   return {
     context,
     name: typeof error.name === "string" ? error.name : undefined,
-    code: getAuthErrorCode(error),
-    status: getAuthErrorStatus(error),
+    code: getErrorCode(error),
+    status: getErrorStatus(error),
   };
 }
 
-function logSanitizedAuthError(context: string, error: AuthErrorLike): void {
-  console.error("Supabase Auth admin error", toSanitizedAuthError(context, error));
+function logSanitizedAuthError(context: string, error: ErrorLike): void {
+  console.error("Supabase Auth admin error", toSanitizedError(context, error));
+}
+
+function logSanitizedAuditError(context: string, error: ErrorLike): void {
+  console.error(
+    "Internal user creation audit error",
+    toSanitizedError(context, error),
+  );
 }
 
 function logSanitizedProvisioningError(
   context: string,
-  error: AuthErrorLike,
+  error: ErrorLike,
 ): void {
   console.error(
     "Internal user provisioning error",
-    toSanitizedAuthError(context, error),
+    toSanitizedError(context, error),
   );
 }
 
@@ -135,11 +175,11 @@ function profileMatchesProvisioning(
 }
 
 async function verifyProvisionedProfile(
+  supabase: SupabaseServerClient,
   userId: string,
   data: CreateInternalUserData,
   createdBy: string,
 ): Promise<boolean> {
-  const supabase = await createClient();
   const { data: profile, error } = await supabase
     .from("perfiles")
     .select(
@@ -179,7 +219,7 @@ async function verifyProvisionedProfile(
 async function compensateCreatedAuthUser(
   admin: ReturnType<typeof createAdminClient>,
   userId: string,
-): Promise<void> {
+): Promise<boolean> {
   try {
     const { error } = await admin.auth.admin.deleteUser(userId);
 
@@ -188,7 +228,11 @@ async function compensateCreatedAuthUser(
         "createInternalUser.compensation.deleteUser",
         error,
       );
+
+      return false;
     }
+
+    return true;
   } catch {
     logSanitizedProvisioningError(
       "createInternalUser.compensation.deleteUser",
@@ -196,46 +240,184 @@ async function compensateCreatedAuthUser(
         name: "UnexpectedDeleteUserError",
       },
     );
+
+    return false;
   }
 }
 
-function mapCreateUserAuthError(
-  error: AuthErrorLike,
-): Extract<CreateInternalUserResult, { ok: false }> {
-  const code = getAuthErrorCode(error);
-  const status = getAuthErrorStatus(error);
+async function beginCreationAttempt(
+  supabase: SupabaseServerClient,
+  targetRole: CreateInternalUserData["role"],
+): Promise<BeginCreationAttemptResult> {
+  const { data, error } = await supabase.rpc(
+    "begin_internal_user_creation_attempt",
+    {
+      p_target_role: targetRole,
+    },
+  );
+
+  if (error) {
+    logSanitizedAuditError("createInternalUser.audit.begin", {
+      name: "PostgrestError",
+      code: error.code,
+    });
+
+    return { ok: false };
+  }
+
+  const attempt = data?.[0];
+
+  if (!attempt?.attempt_id) {
+    logSanitizedAuditError("createInternalUser.audit.begin", {
+      name: "InvalidAuditBeginResponse",
+    });
+
+    return { ok: false };
+  }
+
+  return {
+    ok: true,
+    allowed: attempt.allowed,
+    attemptId: attempt.attempt_id,
+  };
+}
+
+async function completeCreationAttempt(
+  supabase: SupabaseServerClient,
+  input: {
+    attemptId: string;
+    status: AuditTerminalStatus;
+    errorCode: AuditErrorCode | null;
+    targetAuthUserId: string | null;
+  },
+): Promise<boolean> {
+  const args: {
+    p_attempt_id: string;
+    p_status: string;
+    p_error_code?: string;
+    p_target_auth_user_id?: string;
+  } = {
+    p_attempt_id: input.attemptId,
+    p_status: input.status,
+  };
+
+  if (input.errorCode) {
+    args.p_error_code = input.errorCode;
+  }
+
+  if (input.targetAuthUserId) {
+    args.p_target_auth_user_id = input.targetAuthUserId;
+  }
+
+  const { error } = await supabase.rpc(
+    "complete_internal_user_creation_attempt",
+    args,
+  );
+
+  if (error) {
+    logSanitizedAuditError("createInternalUser.audit.complete", {
+      name: "PostgrestError",
+      code: error.code,
+    });
+
+    return false;
+  }
+
+  return true;
+}
+
+async function finalizeFailedAttempt(
+  supabase: SupabaseServerClient,
+  attemptId: string,
+  errorCode: AuditErrorCode,
+  targetAuthUserId: string | null,
+): Promise<void> {
+  await completeCreationAttempt(supabase, {
+    attemptId,
+    status: "failed",
+    errorCode,
+    targetAuthUserId,
+  });
+}
+
+async function finalizeProvisioningFailure(
+  supabase: SupabaseServerClient,
+  attemptId: string,
+  compensationSucceeded: boolean,
+  targetAuthUserId: string,
+): Promise<void> {
+  if (compensationSucceeded) {
+    await finalizeFailedAttempt(
+      supabase,
+      attemptId,
+      "provisioning_error",
+      targetAuthUserId,
+    );
+
+    return;
+  }
+
+  await completeCreationAttempt(supabase, {
+    attemptId,
+    status: "compensation_failed",
+    errorCode: "provisioning_compensation_failed",
+    targetAuthUserId,
+  });
+}
+
+function mapCreateUserAuthError(error: ErrorLike): MappedAuthFailure {
+  const code = getErrorCode(error);
+  const status = getErrorStatus(error);
 
   if (code && AUTH_DUPLICATE_CODES.has(code)) {
-    return serviceFailure("already_exists", "Ya existe un usuario con ese correo.", {
-      fieldErrors: {
-        email: "Ya existe un usuario con ese correo.",
-      },
-    });
+    return {
+      ...serviceFailure("already_exists", "Ya existe un usuario con ese correo.", {
+        fieldErrors: {
+          email: "Ya existe un usuario con ese correo.",
+        },
+      }),
+      auditErrorCode: "already_exists",
+    };
   }
 
   if (code === "weak_password") {
-    return serviceFailure(
-      "validation_error",
-      "La contrasena temporal no cumple los requisitos de seguridad.",
-      {
-        fieldErrors: {
-          password:
-            "La contrasena temporal no cumple los requisitos de seguridad.",
+    return {
+      ...serviceFailure(
+        "validation_error",
+        "La contrasena temporal no cumple los requisitos de seguridad.",
+        {
+          fieldErrors: {
+            password:
+              "La contrasena temporal no cumple los requisitos de seguridad.",
+          },
         },
-      },
-    );
+      ),
+      auditErrorCode: "weak_password",
+    };
   }
 
   if ((code && AUTH_RATE_LIMIT_CODES.has(code)) || status === 429) {
-    return serviceFailure(
-      "rate_limited",
-      "Se alcanzaron los limites temporales de Auth. Intentalo mas tarde.",
-    );
+    return {
+      ...serviceFailure("rate_limited", RATE_LIMIT_CREATE_ERROR),
+      auditErrorCode: "auth_rate_limited",
+    };
   }
 
   logSanitizedAuthError("createInternalUser.auth.admin.createUser", error);
 
-  return serviceFailure("auth_error", GENERIC_CREATE_ERROR);
+  return {
+    ...serviceFailure("auth_error", GENERIC_CREATE_ERROR),
+    auditErrorCode: "auth_error",
+  };
+}
+
+function withoutAuditCode(
+  failure: MappedAuthFailure,
+): Extract<CreateInternalUserResult, { ok: false }> {
+  const { auditErrorCode, ...result } = failure;
+  void auditErrorCode;
+
+  return result;
 }
 
 export async function createInternalUser(
@@ -266,12 +448,33 @@ export async function createInternalUser(
     });
   }
 
+  const supabase = await createClient();
+  const auditAttempt = await beginCreationAttempt(
+    supabase,
+    validation.data.role,
+  );
+
+  if (!auditAttempt.ok) {
+    return serviceFailure("error", GENERIC_CREATE_ERROR);
+  }
+
+  if (!auditAttempt.allowed) {
+    return serviceFailure("rate_limited", RATE_LIMIT_CREATE_ERROR);
+  }
+
   let admin: ReturnType<typeof createAdminClient>;
   let createdUserId: string | null = null;
 
   try {
     admin = createAdminClient();
   } catch {
+    await finalizeFailedAttempt(
+      supabase,
+      auditAttempt.attemptId,
+      "configuration_error",
+      null,
+    );
+
     return serviceFailure(
       "configuration_error",
       "El cliente administrativo de usuarios no esta configurado.",
@@ -297,7 +500,16 @@ export async function createInternalUser(
     });
 
     if (error) {
-      return mapCreateUserAuthError(error);
+      const failure = mapCreateUserAuthError(error);
+
+      await finalizeFailedAttempt(
+        supabase,
+        auditAttempt.attemptId,
+        failure.auditErrorCode,
+        null,
+      );
+
+      return withoutAuditCode(failure);
     }
 
     if (!data.user?.id || !isValidUuid(data.user.id)) {
@@ -305,18 +517,49 @@ export async function createInternalUser(
         name: "InvalidAuthAdminResponse",
       });
 
+      await finalizeFailedAttempt(
+        supabase,
+        auditAttempt.attemptId,
+        "invalid_auth_response",
+        null,
+      );
+
       return serviceFailure("auth_error", GENERIC_CREATE_ERROR);
     }
 
     createdUserId = data.user.id;
 
     const profileWasProvisioned = await verifyProvisionedProfile(
+      supabase,
       createdUserId,
       validation.data,
       currentProfile.id,
     );
 
     if (!profileWasProvisioned) {
+      const compensationSucceeded = await compensateCreatedAuthUser(
+        admin,
+        createdUserId,
+      );
+
+      await finalizeProvisioningFailure(
+        supabase,
+        auditAttempt.attemptId,
+        compensationSucceeded,
+        createdUserId,
+      );
+
+      return serviceFailure("provisioning_error", PROVISIONING_CREATE_ERROR);
+    }
+
+    const auditCompleted = await completeCreationAttempt(supabase, {
+      attemptId: auditAttempt.attemptId,
+      status: "succeeded",
+      errorCode: null,
+      targetAuthUserId: createdUserId,
+    });
+
+    if (!auditCompleted) {
       await compensateCreatedAuthUser(admin, createdUserId);
 
       return serviceFailure("provisioning_error", PROVISIONING_CREATE_ERROR);
@@ -325,10 +568,27 @@ export async function createInternalUser(
     return serviceSuccess({ userId: createdUserId });
   } catch {
     if (createdUserId) {
-      await compensateCreatedAuthUser(admin, createdUserId);
+      const compensationSucceeded = await compensateCreatedAuthUser(
+        admin,
+        createdUserId,
+      );
+
+      await finalizeProvisioningFailure(
+        supabase,
+        auditAttempt.attemptId,
+        compensationSucceeded,
+        createdUserId,
+      );
 
       return serviceFailure("provisioning_error", PROVISIONING_CREATE_ERROR);
     }
+
+    await finalizeFailedAttempt(
+      supabase,
+      auditAttempt.attemptId,
+      "unexpected_error",
+      null,
+    );
 
     return serviceFailure("error", GENERIC_CREATE_ERROR);
   }
