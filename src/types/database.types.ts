@@ -972,6 +972,16 @@ export type Database = {
           limited_scope: string
         }[]
       }
+      begin_internal_user_password_reset: {
+        Args: { p_target_profile_id: string }
+        Returns: {
+          allowed: boolean
+          attempt_id: string
+          limited_scope: string
+          previous_is_active: boolean
+          previous_must_change_password: boolean
+        }[]
+      }
       complete_initial_password_change: {
         Args: { p_user_id: string }
         Returns: string
@@ -983,6 +993,10 @@ export type Database = {
           p_status: string
           p_target_auth_user_id?: string
         }
+        Returns: string
+      }
+      complete_internal_user_password_reset: {
+        Args: { p_attempt_id: string; p_error_code?: string; p_status: string }
         Returns: string
       }
       consultar_estado_publico: {

@@ -5,7 +5,9 @@ export {
   isInternalUserRole,
 } from "./roles";
 export { listInternalUsers } from "./list-internal-users";
+export { resetInternalUserPassword } from "./reset-internal-user-password";
 export { updateInternalUser } from "./update-internal-user";
+export { validateResetInternalUserPasswordInput } from "./reset-internal-user-password-validation";
 export { validateUserInput } from "./user-validation";
 
 export type {
@@ -25,6 +27,18 @@ export type {
   ListInternalUsersOptions,
   ListInternalUsersResult,
 } from "./list-internal-users";
+export type {
+  ResetInternalUserPasswordFailureReason,
+  ResetInternalUserPasswordInput,
+  ResetInternalUserPasswordResult,
+} from "./reset-internal-user-password";
+export type {
+  ResetInternalUserPasswordData,
+  ResetInternalUserPasswordField,
+  ResetInternalUserPasswordFieldErrors,
+  ResetInternalUserPasswordInput as ResetInternalUserPasswordValidationInput,
+  ValidateResetInternalUserPasswordInputResult,
+} from "./reset-internal-user-password-validation";
 export type { InternalUserRole } from "./roles";
 export type { InternalUser, InternalUserDetail } from "./types";
 

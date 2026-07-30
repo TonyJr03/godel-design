@@ -180,7 +180,8 @@ no se considera una barrera de seguridad suficiente.
 - bloquear eliminación física de perfiles;
 - validar todo en Server Actions con `usuarios.view` o `usuarios.manage`;
 - mostrar en listado el estado de cambio inicial pendiente;
-- completar el cambio inicial obligatorio desde `/cambiar-contrasena-inicial`.
+- completar el cambio inicial obligatorio desde `/cambiar-contrasena-inicial`;
+- restablecer administrativamente una nueva contraseña temporal sin enviar correo.
 
 ## Servicio `createInternalUser`
 
@@ -288,10 +289,80 @@ Razones de error actuales: `unauthorized`, `inactive`, `not_required`,
 `validation_error`, `invalid_current_password`, `weak_password`, `rate_limited`,
 `auth_error`, `completion_error` y `error`.
 
+## Servicio `resetInternalUserPassword`
+
+`resetInternalUserPassword(input)` es un servicio server-only exportado desde
+`src/lib/usuarios`. Implementa una operacion administrativa separada para
+reemplazar la contrasena de otro usuario por una nueva contrasena temporal. No
+forma parte de `updateInternalUser()` ni de `UserEditForm`.
+
+Entrada permitida: `id`, `password`, `password_confirmation` y `confirm_reset`.
+La Server Action liga `id` con `.bind(null, userId)` y no lo extrae desde
+`FormData`.
+
+Orden de defensa:
+
+1. carga `getCurrentProfile()`;
+2. exige actor autenticado, activo, `admin`, sin onboarding pendiente y con
+   `usuarios.manage`;
+3. valida UUID objetivo;
+4. rechaza autorrestablecimiento;
+5. valida contrasena temporal fuerte, confirmacion exacta y `confirm_reset`;
+6. crea el cliente server-side normal;
+7. llama `public.begin_internal_user_password_reset`;
+8. rechaza `already_in_progress` y rate limits;
+9. crea `createAdminClient()`;
+10. llama `auth.admin.getUserById(targetId)`;
+11. rechaza contrasena igual al correo ignorando mayusculas;
+12. llama `auth.admin.updateUserById(targetId, { password })`;
+13. finaliza con `public.complete_internal_user_password_reset`;
+14. confirma la postcondicion con el cliente normal;
+15. devuelve solo `{ userId, wasActive }`.
+
+El cliente Admin se usa exclusivamente para `getUserById` y `updateUserById`.
+No se usa para tablas, Storage, Functions, RPCs, `createUser`, `deleteUser`,
+`listUsers`, invitaciones ni enlaces. El payload de actualizacion contiene solo
+`{ password }`: no envia email, rol, metadata, `email_confirm`, sesion ni token.
+
+La RPC de inicio guarda una auditoria privada sin datos personales, bloquea la
+fila objetivo con `FOR UPDATE`, conserva `previous_is_active` y
+`previous_must_change_password`, y deja temporalmente el perfil con
+`is_active = false` y `must_change_password = true` antes de modificar Auth. Si
+Auth falla, la finalizacion `failed` restaura ambos valores previos.
+
+Si Auth cambia la contrasena y la finalizacion se confirma, el usuario queda con
+`must_change_password = true`; `is_active` vuelve al valor original. Un usuario
+inactivo permanece inactivo. Un usuario ya pendiente puede recibir otra
+contrasena temporal, reemplazando la anterior.
+
+Si Auth cambio la contrasena pero la finalizacion no puede confirmarse, el
+servicio no intenta restaurar la contrasena anterior. Intenta marcar
+`attention_required`, devuelve `completion_error`, `passwordChanged = true` y el
+mensaje critico que indica no repetir la operacion. Si Auth no cambio pero no se
+pudo restaurar el perfil, intenta `attention_required` con `rollback_failed` y
+devuelve `rollback_error`.
+
+Estados de auditoria: `pending`, `succeeded`, `failed`, `rate_limited` y
+`attention_required`. Rate limits: 3 intentos reales por actor en 10 minutos, 3
+intentos reales por objetivo en 1 hora y 20 intentos reales globales en 1 hora.
+Las filas `rate_limited` no extienden ventanas futuras.
+
+Razones de error actuales: `unauthorized`, `forbidden`,
+`onboarding_required`, `self_reset_forbidden`, `validation_error`, `not_found`,
+`already_in_progress`, `rate_limited`, `configuration_error`,
+`auth_user_not_found`, `auth_error`, `rollback_error`, `completion_error` y
+`error`.
+
+No se envia correo de recuperacion, invitacion, confirmacion ni magic link. La
+contrasena temporal nunca se registra, almacena, devuelve ni se muestra despues
+del submit; el formulario la limpia tras cada respuesta y no la guarda en estado
+React.
+
 ## Fuera de Alcance Actual
 
 - enviar invitaciones desde la app;
 - cambiar contraseñas desde la app fuera de la etapa protegida de cambio inicial;
+- recuperar contraseñas por correo;
 - eliminar usuarios físicamente;
 - exponer emails de Auth si no forman parte de `perfiles`;
 - agregar consumidores productivos adicionales de la clave administrativa;

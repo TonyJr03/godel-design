@@ -11,16 +11,18 @@ import {
 } from "@/lib/actions/revalidation";
 import {
   createInternalUser,
+  resetInternalUserPassword,
   updateInternalUser,
   type CreateInternalUserFieldErrors,
+  type ResetInternalUserPasswordFieldErrors,
   type UserFieldErrors,
 } from "@/lib/usuarios";
 import { getFormValue } from "@/lib/utils";
 
 export type CreateUserActionState =
   BaseActionState<CreateInternalUserFieldErrors> & {
-  userId?: string;
-};
+    userId?: string;
+  };
 
 export async function createUserAction(
   _prevState: CreateUserActionState,
@@ -78,4 +80,37 @@ export async function updateUserAction(
   revalidateConfiguracionUsuario();
 
   return actionSuccess("Usuario actualizado correctamente.");
+}
+
+export type ResetUserPasswordActionState =
+  BaseActionState<ResetInternalUserPasswordFieldErrors> & {
+    passwordChanged?: boolean;
+  };
+
+export async function resetUserPasswordAction(
+  userId: string,
+  _prevState: ResetUserPasswordActionState,
+  formData: FormData,
+): Promise<ResetUserPasswordActionState> {
+  const result = await resetInternalUserPassword({
+    id: userId,
+    password: getFormValue(formData, "password"),
+    password_confirmation: getFormValue(formData, "password_confirmation"),
+    confirm_reset: getFormValue(formData, "confirm_reset"),
+  });
+
+  if (!result.ok) {
+    return {
+      ...actionFailure(result.message, {
+        fieldErrors: result.fieldErrors,
+      }),
+      passwordChanged: result.passwordChanged,
+    };
+  }
+
+  revalidateConfiguracionUsuariosList();
+
+  return actionSuccess(
+    "Contraseña temporal restablecida. El usuario deberá cambiarla en su próximo acceso.",
+  );
 }

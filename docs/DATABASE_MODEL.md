@@ -231,6 +231,54 @@ manualmente.
 - El rate limit actual permite hasta 5 intentos reales por actor en 10 minutos y hasta 20 intentos reales globales en 1 hora.
 - Los contadores se serializan con advisory lock transaccional para evitar carreras simples entre solicitudes concurrentes.
 
+### `private.internal_user_password_reset_audit`
+
+**Propósito:** Registra intentos administrativos de restablecimiento de
+contraseña temporal y conserva el estado operativo anterior del perfil objetivo
+para rollback transaccional.
+
+| Campo | Tipo sugerido | Notas |
+|---|---|---|
+| `id` | `uuid` | Identificador del intento. |
+| `actor_profile_id` | `uuid` | Admin operativo que inicia la operación. |
+| `target_profile_id` | `uuid` | Perfil/Auth user objetivo. |
+| `status` | `text` | `pending`, `succeeded`, `failed`, `rate_limited` o `attention_required`. |
+| `error_code` | `text nullable` | Código sanitizado de máximo 64 caracteres, minúsculas, números y guion bajo. |
+| `previous_is_active` | `boolean` | Estado activo previo del objetivo. |
+| `previous_must_change_password` | `boolean` | Flag previo de cambio pendiente. |
+| `created_at` | `timestamptz` | Fecha de reserva o bloqueo por rate limit. |
+| `completed_at` | `timestamptz nullable` | Fecha de estado terminal. |
+
+**Claves foráneas:**
+
+- `actor_profile_id` -> `public.perfiles.id` con `on delete restrict`.
+- `target_profile_id` -> `public.perfiles.id` con `on delete restrict`.
+
+**Reglas importantes:**
+
+- `pending` exige `completed_at is null`.
+- Los estados terminales exigen `completed_at is not null`.
+- `succeeded` exige `error_code is null`.
+- `failed` y `attention_required` exigen `error_code` sanitizado.
+- `rate_limited` exige `actor_rate_limit`, `target_rate_limit` o
+  `global_rate_limit`.
+- No almacena email, contraseña, hash, nombre, teléfono, avatar, metadata,
+  token, sesión, mensaje completo de proveedor ni stack.
+
+**Índices:**
+
+- `(actor_profile_id, created_at desc)`.
+- `(target_profile_id, created_at desc)`.
+- `(status, created_at desc)`.
+
+**Notas de seguridad:**
+
+- Se revoca acceso directo a `public`, `anon`, `authenticated` y
+  `service_role`.
+- Ningún cliente consulta la tabla directamente.
+- El acceso ocurre solo por RPCs `SECURITY DEFINER` con `search_path = ''`.
+- `rate_limited` no cuenta como intento real para ventanas futuras.
+
 ### `clientes`
 
 **Propósito:** Almacena datos básicos de clientes externos sin crear cuentas de usuario para ellos.
@@ -999,6 +1047,12 @@ El diagnóstico y diseño actualizado para comentarios internos e historial oper
 - `public.complete_initial_password_change` finaliza el bloqueo por contraseña temporal solo para perfiles activos y pendientes, y está reservada a `service_role`.
 - `public.begin_internal_user_creation_attempt` reserva un intento auditado de alta interna y aplica rate limiting por admin y global.
 - `public.complete_internal_user_creation_attempt` finaliza el intento auditado con estado terminal.
+- `public.begin_internal_user_password_reset` reserva un restablecimiento
+  administrativo de contraseña temporal, aplica rate limiting por actor,
+  objetivo y global, y bloquea temporalmente el perfil objetivo.
+- `public.complete_internal_user_password_reset` finaliza el restablecimiento,
+  restaura estado anterior en fallo, confirma éxito con
+  `must_change_password = true` o deja `attention_required`.
 
 ### `public.begin_internal_user_creation_attempt`
 
@@ -1050,6 +1104,76 @@ Contrato:
 - `failed` exige un `error_code` controlado;
 - `compensation_failed` exige `target_auth_user_id` y `provisioning_compensation_failed`;
 - no expone email, contraseña, metadata ni respuesta Auth completa.
+
+### `public.begin_internal_user_password_reset`
+
+RPC transaccional para iniciar un restablecimiento administrativo de contraseña
+temporal antes de llamar a Auth Admin.
+
+Argumentos:
+
+- `p_target_profile_id uuid`.
+
+Retorna:
+
+- `allowed boolean`;
+- `attempt_id uuid`;
+- `limited_scope text nullable`, con `actor`, `target` o `global` cuando se
+  bloquea por rate limit;
+- `previous_is_active boolean`;
+- `previous_must_change_password boolean`.
+
+Contrato:
+
+- es `SECURITY DEFINER` y fija `search_path = ''`;
+- revoca ejecución a `public`, `anon` y `service_role`;
+- concede `execute` únicamente a `authenticated`;
+- obtiene el actor exclusivamente con `auth.uid()`;
+- exige actor `admin`, activo y sin cambio temporal pendiente;
+- rechaza objetivo nulo, inexistente o igual al actor;
+- serializa ventanas con `pg_advisory_xact_lock`;
+- bloquea el perfil objetivo con `FOR UPDATE`;
+- rechaza otro intento `pending` para el mismo objetivo con `reset_in_progress`;
+- aplica rate limits de 3 intentos reales por actor en 10 minutos, 3 intentos
+  reales por objetivo en 1 hora y 20 intentos reales globales en 1 hora;
+- no cuenta auditorías `rate_limited` para ventanas futuras;
+- si permite el intento, inserta auditoría `pending`, guarda estados previos y
+  bloquea temporalmente el objetivo con `is_active = false` y
+  `must_change_password = true`.
+
+### `public.complete_internal_user_password_reset`
+
+RPC transaccional para cerrar el intento reservado después del resultado de Auth
+Admin.
+
+Argumentos:
+
+- `p_attempt_id uuid`;
+- `p_status text`, permitido solo `succeeded`, `failed` o
+  `attention_required`;
+- `p_error_code text default null`.
+
+Retorna:
+
+- `uuid` del intento actualizado o ya finalizado con el mismo estado terminal.
+
+Contrato:
+
+- es `SECURITY DEFINER` y fija `search_path = ''`;
+- revoca ejecución a `public`, `anon` y `service_role`;
+- concede `execute` únicamente a `authenticated`;
+- obtiene el actor con `auth.uid()` y solo finaliza intentos del actor actual;
+- bloquea la auditoría y el perfil objetivo con `FOR UPDATE`;
+- solo modifica intentos `pending`;
+- es idempotente si se repite el mismo estado terminal y falla si se intenta
+  cambiar a otro estado terminal;
+- `succeeded` restaura `is_active` al valor previo, mantiene
+  `must_change_password = true`, limpia `error_code` y confirma el `UPDATE`;
+- `failed` restaura `is_active` y `must_change_password` previos y exige código
+  sanitizado;
+- `attention_required` conserva el objetivo bloqueado con `is_active = false` y
+  `must_change_password = true`, usando `finalization_failed` o
+  `rollback_failed`.
 
 ### `public.complete_initial_password_change`
 

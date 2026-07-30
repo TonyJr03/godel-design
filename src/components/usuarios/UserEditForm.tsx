@@ -90,7 +90,8 @@ export function UserEditForm({
 
           <Alert variant="info" className="wrap-break-word leading-6">
             Esta acción solo actualiza el perfil interno. Las credenciales se
-            gestionan fuera.
+            gestionan mediante la acción separada de restablecimiento de
+            contraseña temporal.
           </Alert>
 
           <div className="grid gap-4 sm:grid-cols-2">

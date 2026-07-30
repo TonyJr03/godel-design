@@ -26,6 +26,20 @@ En el servicio de cambio inicial, la auditoría estática solo permite
 bloquea otras RPCs, `from`, Storage y `auth.admin`. No debe usarse para pedidos,
 solicitudes, Storage ni consultas normales a tablas.
 
+Para usuarios internos hay dos consumidores productivos adicionales auditados
+por archivo:
+
+- `src/lib/usuarios/create-internal-user.ts` puede usar solo
+  `auth.admin.createUser` y `auth.admin.deleteUser` para alta y compensación.
+- `src/lib/usuarios/reset-internal-user-password.ts` puede usar solo
+  `auth.admin.getUserById` y `auth.admin.updateUserById` para reemplazar una
+  contraseña temporal administrativa.
+
+El restablecimiento administrativo no usa el cliente Admin para tablas, Storage,
+Functions ni RPCs; las RPCs de inicio/finalización y las postcondiciones usan el
+cliente server-side normal. No se envía correo ni recuperación por email, no se
+devuelve la contraseña y no se registra ningún valor sensible.
+
 ## Tipos generados
 
 `src/types/database.types.ts` es generado automáticamente por Supabase CLI a partir del esquema de la base de datos. No debe editarse manualmente salvo una necesidad puntual de formato o compatibilidad.

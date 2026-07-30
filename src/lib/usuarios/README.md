@@ -130,6 +130,67 @@ Un administrador operativo es `role = admin`, `is_active = true` y
 `must_change_password = false`. Un admin con contraseña temporal pendiente no
 impide actualizar al último administrador real.
 
+## Restablecimiento administrativo de contrasena temporal
+
+El restablecimiento de contrasena es una operacion separada de la edicion normal
+de perfil. No forma parte de `updateInternalUser`, no reutiliza
+`UserEditForm` y no modifica `full_name`, `phone`, `avatar_url`, `role` ni el
+estado activo original como dato de negocio.
+
+La ruta productiva es:
+
+1. dialogo `UserPasswordResetDialogButton`;
+2. formulario `UserPasswordResetForm`;
+3. Server Action `resetUserPasswordAction(userId, state, formData)`;
+4. servicio server-only `resetInternalUserPassword()`;
+5. RPC `public.begin_internal_user_password_reset`;
+6. Auth Admin `getUserById` y `updateUserById`;
+7. RPC `public.complete_internal_user_password_reset`.
+
+El UUID objetivo se liga desde la pagina con `.bind(null, userId)` y no se lee
+desde `FormData`. El formulario solo envia `password`,
+`password_confirmation` y `confirm_reset`.
+
+Solo un admin operativo con `usuarios.manage` puede ejecutar la operacion. El
+servicio rechaza autorrestablecimiento, usuarios inexistentes, actores con
+onboarding pendiente y usuarios sin permiso. Puede aplicarse sobre usuarios
+activos o inactivos; si el usuario estaba inactivo, permanece inactivo despues
+del exito. Si ya tenia `must_change_password = true`, la operacion reemplaza la
+contrasena temporal pendiente y conserva el flag en `true`.
+
+La RPC de inicio registra una auditoria privada, guarda `is_active` y
+`must_change_password` previos, bloquea el perfil objetivo con `FOR UPDATE` y
+lo deja temporalmente con `is_active = false` y `must_change_password = true`
+antes de tocar Auth. Si Auth falla, la RPC de finalizacion restaura ambos
+valores previos. Si Auth cambia la contrasena, la finalizacion exitosa restaura
+solo `is_active` al valor anterior y mantiene `must_change_password = true`.
+
+No se envia correo, invitacion, recuperacion ni magic link. El administrador
+entrega la contrasena temporal por un canal externo seguro. La contrasena no se
+almacena, no se registra, no se devuelve, no queda en estado React y se limpia
+del DOM tras cada respuesta del formulario.
+
+`resetInternalUserPassword` usa `createAdminClient()` exclusivamente para:
+
+- `auth.admin.getUserById(targetId)`;
+- `auth.admin.updateUserById(targetId, { password })`.
+
+No usa el cliente Admin para tablas, Storage, Functions, RPCs, creacion,
+eliminacion, invitaciones, enlaces ni listados. Las RPCs y las consultas de
+postcondicion usan el cliente server-side normal con RLS.
+
+La auditoria privada `private.internal_user_password_reset_audit` no guarda
+email, contrasena, hash, nombre, telefono, avatar, metadata, token, sesion,
+mensaje completo de proveedor ni stack. Sus estados son `pending`, `succeeded`,
+`failed`, `rate_limited` y `attention_required`. Los rate limits son 3 intentos
+reales por actor en 10 minutos, 3 intentos reales por objetivo en 1 hora y 20
+intentos reales globales en 1 hora; `rate_limited` no extiende ventanas futuras.
+
+`attention_required` representa un caso critico: la contrasena pudo cambiar en
+Auth o no se pudo restaurar el perfil, y el usuario queda bloqueado
+preventivamente con `is_active = false` y `must_change_password = true` para
+reconciliacion manual. La recuperacion por correo queda fuera de alcance.
+
 ## Datos visibles en dashboard
 
 En rutas internas puede mostrarse:
@@ -186,10 +247,3 @@ mantenerse pequeña y centrada en permisos, visibilidad y errores seguros.
 - No cambiar la matriz de permisos sin fase explícita.
 - No crear `src/services`.
 - No mezclar refactors de usuarios con cambios de auth, RLS o permisos.
-
-## Pendiente antes de merge productivo
-
-Falta implementar la pantalla de cambio inicial real de contraseña y el
-onboarding protegido que complete `must_change_password = false` después de que
-Auth confirme el cambio. Hasta cerrar esa etapa, el alta segura queda conectada
-pero no lista para producción completa.

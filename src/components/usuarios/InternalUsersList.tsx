@@ -5,10 +5,13 @@ import type { InternalUser } from "@/lib/usuarios";
 
 import { UserEditDialogButton } from "./UserEditDialogButton";
 import type { UserEditFormAction } from "./UserEditForm";
+import { UserPasswordResetDialogButton } from "./UserPasswordResetDialogButton";
+import type { UserPasswordResetFormAction } from "./UserPasswordResetForm";
 
 type InternalUsersListProps = {
   users: InternalUser[];
   getUpdateAction: (userId: string) => UserEditFormAction;
+  getResetPasswordAction: (userId: string) => UserPasswordResetFormAction;
   emptyMessage?: string;
   hasActiveFilters?: boolean;
 };
@@ -70,6 +73,7 @@ function UserStatusBadges({ user }: { user: InternalUser }) {
 export function InternalUsersList({
   users,
   getUpdateAction,
+  getResetPasswordAction,
   emptyMessage = "Los usuarios internos aparecerán aquí cuando se registren en el sistema.",
   hasActiveFilters = false,
 }: InternalUsersListProps) {
@@ -102,6 +106,10 @@ export function InternalUsersList({
                 <UserEditDialogButton
                   user={user}
                   updateAction={getUpdateAction(user.id)}
+                />
+                <UserPasswordResetDialogButton
+                  user={user}
+                  resetAction={getResetPasswordAction(user.id)}
                 />
               </div>
             </div>
@@ -146,7 +154,7 @@ export function InternalUsersList({
               <col className="w-[12%]" />
               <col className="w-[13%]" />
               <col className="w-[13%]" />
-              <col className="w-[4%]" />
+              <col className="w-[6rem]" />
             </colgroup>
             <thead className="bg-surface-muted text-left text-xs font-semibold uppercase tracking-wide text-text-secondary">
               <tr>
@@ -197,10 +205,16 @@ export function InternalUsersList({
                     {formatDate(user.updated_at)}
                   </td>
                   <td className="whitespace-nowrap px-4 py-4 text-right">
-                    <UserEditDialogButton
-                      user={user}
-                      updateAction={getUpdateAction(user.id)}
-                    />
+                    <div className="flex items-center justify-end gap-2">
+                      <UserEditDialogButton
+                        user={user}
+                        updateAction={getUpdateAction(user.id)}
+                      />
+                      <UserPasswordResetDialogButton
+                        user={user}
+                        resetAction={getResetPasswordAction(user.id)}
+                      />
+                    </div>
                   </td>
                 </tr>
               ))}

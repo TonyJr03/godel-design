@@ -13,7 +13,11 @@ import { normalizePageParam } from "@/lib/pagination";
 import { listInternalUsers } from "@/lib/usuarios";
 import { getSingleSearchParam } from "@/lib/utils";
 
-import { createUserAction, updateUserAction } from "./actions";
+import {
+  createUserAction,
+  resetUserPasswordAction,
+  updateUserAction,
+} from "./actions";
 
 type DashboardConfiguracionUsuariosPageProps = {
   searchParams: Promise<{
@@ -139,7 +143,8 @@ export default async function DashboardConfiguracionUsuariosPage({
 
       <Alert variant="info">
         Los usuarios nuevos se crean con una contraseña temporal y deberán
-        cambiarla antes de acceder al trabajo interno.
+        cambiarla antes de acceder al trabajo interno. Un administrador puede
+        restablecer una contraseña temporal sin enviar correo.
       </Alert>
 
       {result.ignoredInvalidRole ? (
@@ -167,6 +172,9 @@ export default async function DashboardConfiguracionUsuariosPage({
           <InternalUsersList
             users={result.users}
             getUpdateAction={(userId) => updateUserAction.bind(null, userId)}
+            getResetPasswordAction={(userId) =>
+              resetUserPasswordAction.bind(null, userId)
+            }
             hasActiveFilters={Boolean(searchValue || roleValue || activeValue)}
             emptyMessage={
               searchValue || roleValue || activeValue

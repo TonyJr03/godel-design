@@ -109,6 +109,13 @@ El cambio inicial obligatorio usa `/cambiar-contrasena-inicial` y no depende de
 mediante Auth, y el servicio server-side finaliza `must_change_password` con el
 RPC privilegiado correspondiente.
 
+El restablecimiento administrativo de contraseña temporal sí depende de
+`usuarios.manage` y vive como acción separada de la edición de perfil. Solo un
+admin operativo puede iniciar el flujo, no puede aplicarlo sobre su propio
+perfil y no envía correo. El servicio server-side y las RPCs vuelven a validar
+actor admin activo, `must_change_password = false`, objetivo existente, bloqueo
+temporal, rollback y estado final `must_change_password = true`.
+
 ## Relación con RLS
 
 Estos helpers no reemplazan Row Level Security. RLS sigue siendo la última

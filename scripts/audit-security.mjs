@@ -9,10 +9,17 @@ const allowedSecretEnvFile = normalizePath("src/lib/supabase/admin.ts");
 const initialPasswordCompletionFile = normalizePath(
   "src/lib/auth/complete-initial-password-change.ts",
 );
+const createInternalUserFile = normalizePath(
+  "src/lib/usuarios/create-internal-user.ts",
+);
+const resetInternalUserPasswordFile = normalizePath(
+  "src/lib/usuarios/reset-internal-user-password.ts",
+);
 const allowedAdminConsumerFiles = new Set([
   normalizePath("src/lib/supabase/admin.ts"),
-  normalizePath("src/lib/usuarios/create-internal-user.ts"),
+  createInternalUserFile,
   initialPasswordCompletionFile,
+  resetInternalUserPasswordFile,
 ]);
 const secretReferencePattern = /\bSUPABASE_SECRET_KEY\b/g;
 const legacySecretPattern = /\bSUPABASE_SERVICE_ROLE_KEY\b/g;
@@ -29,8 +36,18 @@ const initialPasswordForbiddenAdminPattern =
 const privilegedRpcPattern =
   /\bprivilegedClient\s*\.\s*rpc\s*\(\s*["']([^"']+)["']/gs;
 const forbiddenPrivilegedClientMemberPattern =
-  /\bprivilegedClient\s*\.\s*(?:from|storage|auth)\b/gs;
+  /\bprivilegedClient\s*\.\s*(?:from|storage|auth|functions)\b/gs;
 const forbiddenAuthAdminPattern = /\bauth\s*\.\s*admin\s*\./gs;
+const adminAuthAdminCallPattern =
+  /\badmin\s*\.\s*auth\s*\.\s*admin\s*\.\s*([A-Za-z0-9_]+)\s*\(/gs;
+const directAdminAuthAdminCallPattern =
+  /\bcreateAdminClient\s*\(\s*\)\s*\.\s*auth\s*\.\s*admin\s*\.\s*([A-Za-z0-9_]+)\s*\(/gs;
+const forbiddenAdminClientDataMemberPattern =
+  /\badmin\s*\.\s*(?:from|storage|functions|rpc)\b/gs;
+const forbiddenDirectAdminClientDataMemberPattern =
+  /\bcreateAdminClient\s*\(\s*\)\s*\.\s*(?:from|storage|functions|rpc)\b/gs;
+const forbiddenPrivilegedFunctionsInvokePattern =
+  /\b(?:admin|privilegedClient)\s*\.\s*functions\s*\.\s*invoke\b/gs;
 const directSecretEnvPattern = /\bprocess\.env\.SUPABASE_SECRET_KEY\b/g;
 
 function normalizePath(path) {
@@ -134,6 +151,79 @@ function scanInitialPasswordCompletionFile(text, relativeFile, violations) {
       relativeFile,
       getApproximateLine(text, match.index ?? 0),
       "forbidden-initial-password-auth-admin-operation",
+    );
+  }
+}
+
+function scanAdminAuthCapabilityFile(
+  text,
+  relativeFile,
+  violations,
+  allowedMethods,
+  categoryPrefix,
+) {
+  for (const match of collectContentPatternMatches(text, adminAuthAdminCallPattern)) {
+    const methodName = match[1];
+
+    if (!allowedMethods.has(methodName)) {
+      addViolation(
+        violations,
+        relativeFile,
+        getApproximateLine(text, match.index ?? 0),
+        `${categoryPrefix}-forbidden-auth-admin-method`,
+      );
+    }
+  }
+
+  for (const match of collectContentPatternMatches(
+    text,
+    directAdminAuthAdminCallPattern,
+  )) {
+    const methodName = match[1];
+
+    if (!allowedMethods.has(methodName)) {
+      addViolation(
+        violations,
+        relativeFile,
+        getApproximateLine(text, match.index ?? 0),
+        `${categoryPrefix}-forbidden-direct-auth-admin-method`,
+      );
+    }
+  }
+
+  for (const match of collectContentPatternMatches(
+    text,
+    forbiddenAdminClientDataMemberPattern,
+  )) {
+    addViolation(
+      violations,
+      relativeFile,
+      getApproximateLine(text, match.index ?? 0),
+      `${categoryPrefix}-forbidden-admin-client-data-method`,
+    );
+  }
+
+  for (const match of collectContentPatternMatches(
+    text,
+    forbiddenDirectAdminClientDataMemberPattern,
+  )) {
+    addViolation(
+      violations,
+      relativeFile,
+      getApproximateLine(text, match.index ?? 0),
+      `${categoryPrefix}-forbidden-direct-admin-client-data-method`,
+    );
+  }
+
+  for (const match of collectContentPatternMatches(
+    text,
+    forbiddenPrivilegedFunctionsInvokePattern,
+  )) {
+    addViolation(
+      violations,
+      relativeFile,
+      getApproximateLine(text, match.index ?? 0),
+      `${categoryPrefix}-forbidden-functions-invoke`,
     );
   }
 }
@@ -250,6 +340,26 @@ function scanFile(file) {
 
   if (relativeFile === initialPasswordCompletionFile) {
     scanInitialPasswordCompletionFile(text, relativeFile, violations);
+  }
+
+  if (relativeFile === createInternalUserFile) {
+    scanAdminAuthCapabilityFile(
+      text,
+      relativeFile,
+      violations,
+      new Set(["createUser", "deleteUser"]),
+      "create-internal-user",
+    );
+  }
+
+  if (relativeFile === resetInternalUserPasswordFile) {
+    scanAdminAuthCapabilityFile(
+      text,
+      relativeFile,
+      violations,
+      new Set(["getUserById", "updateUserById"]),
+      "reset-internal-user-password",
+    );
   }
 
   return { violations, expectedReferences };
