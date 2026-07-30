@@ -72,7 +72,7 @@ servicio se obtiene por la relación canónica con el catálogo.
 | `pagado` | No queda monto pendiente; incluye pedidos con `total_amount = 0`. |
 
 El estado se calcula en base de datos a partir de `total_amount`,
-`paid_cash_amount` y `paid_transfer_amount`; la aplicacion no lo decide
+`paid_cash_amount` y `paid_transfer_amount`; la aplicación no lo decide
 manualmente.
 
 ### `pedido_prioridad`
@@ -147,18 +147,23 @@ manualmente.
 | `phone` | `text nullable` | Teléfono de contacto. |
 | `avatar_url` | `text nullable` | URL o ruta de avatar si aplica. |
 | `is_active` | `boolean` | Permite desactivar usuarios sin eliminarlos. |
+| `must_change_password` | `boolean` | Indica contraseña temporal pendiente; por defecto `false`. |
+| `created_by` | `uuid nullable` | Admin interno que creó el perfil mediante el flujo administrativo seguro. |
 | `created_at` | `timestamptz` | Fecha de creación del perfil. |
 | `updated_at` | `timestamptz` | Fecha de última actualización. |
 
 **Claves foráneas:**
 
 - `perfiles.id` -> `auth.users.id`.
+- `perfiles.created_by` -> `perfiles.id` con `on delete set null`.
 
 **Reglas importantes:**
 
 - Cada usuario autenticado interno debe tener un perfil.
 - El rol debe controlarse desde el backend o mediante reglas seguras, nunca solo desde el frontend.
-- `is_active` debe considerarse en permisos y consultas internas.
+- `is_active` y `must_change_password = false` definen si el perfil puede operar.
+- `created_by` no puede ser igual a `id`.
+- Los perfiles existentes conservan `must_change_password = false`.
 
 **Notas de seguridad:**
 
@@ -166,8 +171,116 @@ manualmente.
 - Los usuarios autenticados podrían leer su propio perfil.
 - El acceso a perfiles de otros usuarios debe depender del rol.
 - En el modelo vigente de RLS, `admin` y `supervisor` pueden leer perfiles internos; `trabajador` puede leer su propio perfil y datos básicos de perfiles asignados a pedidos que puede acceder.
-- La aplicación gestiona `public.perfiles`, sin crear usuarios Auth desde la app
-  y sin usar service role key.
+- `perfiles_select_visible` permite que un usuario lea su propia fila aunque tenga `must_change_password = true`, para poder detectar onboarding sin ganar acceso operativo.
+- `private.current_user_role()` solo devuelve rol si el perfil está activo y no tiene contraseña temporal pendiente.
+- `private.current_user_is_active()` usa la misma semántica operativa: `is_active = true` y `must_change_password = false`.
+- La UI de Usuarios crea usuarios Auth por la Server Action de alta segura, que delega en `createInternalUser()`; el servicio usa Auth Admin mediante `createAdminClient()` solo para `auth.admin.createUser` y compensación `auth.admin.deleteUser`.
+- `authenticated` conserva `SELECT` sobre `perfiles`, pero no tiene `INSERT` ni `UPDATE` completo de tabla.
+- La actualización normal de `perfiles` queda concedida por columnas únicamente para `full_name`, `phone`, `avatar_url`, `role` e `is_active`.
+- `id`, `must_change_password`, `created_by`, `created_at` y `updated_at` son campos protegidos frente a actualizaciones directas de sesiones normales.
+- El `INSERT` normal desde sesiones `authenticated` está retirado; el alta productiva se provisiona por trigger desde Auth Admin.
+
+**Provisionamiento Auth -> perfil:**
+
+- El trigger `on_auth_user_created_provision_internal_profile` corre `AFTER INSERT` sobre `auth.users`.
+- El trigger `on_auth_user_app_metadata_provision_internal_profile` corre `AFTER UPDATE OF raw_app_meta_data` sobre `auth.users` solo cuando `raw_app_meta_data.godel_provisioning` pasa de ausente o nulo a presente.
+- Ambos triggers ejecutan la misma función validada `private.provision_internal_profile_from_auth_user()`.
+- La función `private.provision_internal_profile_from_auth_user()` lee exclusivamente `auth.users.raw_app_meta_data.godel_provisioning`.
+- Se conserva `app_metadata` en la Admin API porque es metadata administrativa; en Supabase se refleja en `raw_app_meta_data`.
+- En el entorno local, Auth Admin puede insertar primero el usuario y aplicar `app_metadata` en una actualización posterior. El trigger de `INSERT` cubre entornos donde el marcador esté disponible desde el inicio, y el trigger de `UPDATE` cubre la transición local.
+- Si no existe el marcador, devuelve `new` y no crea perfil.
+- Si existe, exige `version = 1`, `source = "admin_dashboard"`, `new.email` presente, `full_name` no vacío y dentro de 120 caracteres, opcionales `phone` y `avatar_url` dentro de límites, rol `admin`, `supervisor` o `trabajador`, `created_by` con UUID válido y admin creador existente, activo y sin cambio pendiente.
+- Inserta `id = new.id`, datos normalizados, `is_active = true`, `must_change_password = true` y `created_by`.
+- No inserta email, contraseña, tokens ni metadata duplicada.
+- La función es `SECURITY DEFINER`, fija `search_path = ''`, revoca ejecución a `public`, `anon` y `authenticated`, y concede ejecución técnica solo a `supabase_auth_admin`.
+
+### `private.internal_user_creation_audit`
+
+**Propósito:** Registra intentos de creación administrativa de usuarios internos y aplica rate limiting operativo antes de invocar Auth Admin.
+
+| Campo | Tipo sugerido | Notas |
+|---|---|---|
+| `id` | `uuid` | Identificador del intento. |
+| `actor_profile_id` | `uuid` | Admin operativo que inició el intento. |
+| `target_role` | `app_role` | Rol solicitado para el usuario nuevo. |
+| `target_auth_user_id` | `uuid nullable` | UUID Auth creado cuando aplica. |
+| `status` | `text` | `pending`, `succeeded`, `failed`, `rate_limited` o `compensation_failed`. |
+| `error_code` | `text nullable` | Código interno sanitizado de error. |
+| `created_at` | `timestamptz` | Fecha de reserva del intento. |
+| `completed_at` | `timestamptz nullable` | Fecha de finalización del intento. |
+
+**Claves foráneas:**
+
+- `internal_user_creation_audit.actor_profile_id` -> `public.perfiles.id` con `on delete restrict`.
+
+**Reglas importantes:**
+
+- La tabla vive en esquema `private` y no tiene acceso directo desde la aplicación.
+- No almacena email, contraseña temporal, metadata Auth, tokens, payloads completos ni mensajes externos.
+- Un intento inicia como `pending` mediante `public.begin_internal_user_creation_attempt`.
+- `pending` también puede representar una creación funcionalmente exitosa cuyo cierre de auditoría `succeeded` falló; debe reconciliarse operativamente y no implica automáticamente que Auth o el perfil hayan fallado.
+- Solo los estados terminales `succeeded`, `failed`, `rate_limited` y `compensation_failed` tienen `completed_at`.
+- `rate_limited` no cuenta como intento real para las ventanas futuras; registra únicamente el bloqueo aplicado.
+- `compensation_failed` indica que se creó un usuario Auth pero falló la postcondición de perfil y también falló la eliminación compensatoria.
+
+**Notas de seguridad:**
+
+- Se revocan permisos directos a `public`, `anon`, `authenticated` y `service_role`.
+- El acceso operativo ocurre solo por RPCs `SECURITY DEFINER` con `search_path = ''`.
+- Las RPCs validan `auth.uid()` contra `public.perfiles`: rol `admin`, `is_active = true` y `must_change_password = false`.
+- El rate limit actual permite hasta 5 intentos reales por actor en 10 minutos y hasta 20 intentos reales globales en 1 hora.
+- Los contadores se serializan con advisory lock transaccional para evitar carreras simples entre solicitudes concurrentes.
+
+### `private.internal_user_password_reset_audit`
+
+**Propósito:** Registra intentos administrativos de restablecimiento de
+contraseña temporal y conserva el estado operativo anterior del perfil objetivo
+para rollback transaccional.
+
+| Campo | Tipo sugerido | Notas |
+|---|---|---|
+| `id` | `uuid` | Identificador del intento. |
+| `actor_profile_id` | `uuid` | Admin operativo que inicia la operación. |
+| `target_profile_id` | `uuid` | Perfil/Auth user objetivo. |
+| `status` | `text` | `pending`, `succeeded`, `failed`, `rate_limited` o `attention_required`. |
+| `error_code` | `text nullable` | Código sanitizado de máximo 64 caracteres, minúsculas, números y guion bajo. |
+| `previous_is_active` | `boolean` | Estado activo previo del objetivo. |
+| `previous_must_change_password` | `boolean` | Flag previo de cambio pendiente. |
+| `created_at` | `timestamptz` | Fecha de reserva o bloqueo por rate limit. |
+| `completed_at` | `timestamptz nullable` | Fecha de estado terminal. |
+
+**Claves foráneas:**
+
+- `actor_profile_id` -> `public.perfiles.id` con `on delete restrict`.
+- `target_profile_id` -> `public.perfiles.id` con `on delete restrict`.
+
+**Reglas importantes:**
+
+- `pending` exige `completed_at is null`.
+- Los estados terminales exigen `completed_at is not null`.
+- `succeeded` exige `error_code is null`.
+- `failed` y `attention_required` exigen `error_code` sanitizado.
+- `rate_limited` exige `actor_rate_limit`, `target_rate_limit` o
+  `global_rate_limit`.
+- No almacena email, contraseña, hash, nombre, teléfono, avatar, metadata,
+  token, sesión, mensaje completo de proveedor ni stack.
+
+**Índices:**
+
+- `(actor_profile_id, created_at desc)`.
+- `(target_profile_id, created_at desc)`.
+- `(status, created_at desc)`.
+- `target_profile_id` único cuando `status = 'pending'`, para impedir más de
+  un intento pendiente por objetivo aun si una regresión futura omite la guarda
+  de la RPC.
+
+**Notas de seguridad:**
+
+- Se revoca acceso directo a `public`, `anon`, `authenticated` y
+  `service_role`.
+- Ningún cliente consulta la tabla directamente.
+- El acceso ocurre solo por RPCs `SECURITY DEFINER` con `search_path = ''`.
+- `rate_limited` no cuenta como intento real para ventanas futuras.
 
 ### `clientes`
 
@@ -290,7 +403,7 @@ Solicitudes y Pedidos.
 - Toda solicitud tiene `public_reference`, un código público no secuencial con
   formato `GD-XXXX-XXXX`.
 - `public_reference` no es el UUID interno, no deriva del `id` y no usa la
-  numeracion interna de pedidos.
+  numeración interna de pedidos.
 - El detalle interno puede mostrar `public_reference` como código copiable para
   compartir con el cliente; las referencias cortas derivadas del UUID quedan
   solo como identificadores internos.
@@ -359,7 +472,7 @@ Solicitudes y Pedidos.
 - Todo pedido tiene `public_reference`, un código público no secuencial con
   formato `GD-XXXX-XXXX`.
 - `public_reference` no reemplaza `order_number`: `order_number` sigue siendo la
-  numeracion interna operativa y `public_reference` queda reservado para
+  numeración interna operativa y `public_reference` queda reservado para
   seguimiento público.
 - El detalle interno del pedido muestra ambos conceptos separados:
   `order_number` como referencia operativa y `public_reference` como código
@@ -408,7 +521,7 @@ Solicitudes y Pedidos.
 
 ### `pedido_pagos`
 
-**Proposito:** Guarda el resumen financiero 1:1 de un pedido. `pedidos`
+**Propósito:** Guarda el resumen financiero 1:1 de un pedido. `pedidos`
 mantiene el dominio operativo y `pedido_pagos` mantiene el dominio financiero.
 No es una tabla de movimientos, abonos individuales ni comprobantes.
 
@@ -420,12 +533,12 @@ No es una tabla de movimientos, abonos individuales ni comprobantes.
 | `paid_transfer_amount` | `numeric(12,2)` | Monto pagado por transferencia. |
 | `payment_status` | `pedido_pago_estado` | Estado calculado por trigger. |
 | `paid_at` | `timestamptz nullable` | Fecha en que el resumen queda pagado. |
-| `created_by` | `uuid nullable` | Perfil interno que creo el resumen si aplica. |
-| `updated_by` | `uuid nullable` | Perfil interno que actualizo el resumen si aplica. |
-| `created_at` | `timestamptz` | Fecha de creacion. |
-| `updated_at` | `timestamptz` | Fecha de ultima actualizacion. |
+| `created_by` | `uuid nullable` | Perfil interno que creó el resumen si aplica. |
+| `updated_by` | `uuid nullable` | Perfil interno que actualizó el resumen si aplica. |
+| `created_at` | `timestamptz` | Fecha de creación. |
+| `updated_at` | `timestamptz` | Fecha de última actualización. |
 
-**Claves foraneas:**
+**Claves foráneas:**
 
 - `pedido_pagos.pedido_id` -> `pedidos.id` con `on delete cascade`.
 - `pedido_pagos.created_by` -> `perfiles.id`.
@@ -433,7 +546,7 @@ No es una tabla de movimientos, abonos individuales ni comprobantes.
 
 **Reglas importantes:**
 
-- Cada pedido debe tener un unico resumen financiero.
+- Cada pedido debe tener un único resumen financiero.
 - `total_amount >= 0`.
 - `paid_cash_amount >= 0`.
 - `paid_transfer_amount >= 0`.
@@ -445,14 +558,14 @@ No es una tabla de movimientos, abonos individuales ni comprobantes.
 - El trigger `private.set_pedido_payment_status()` recalcula siempre
   `payment_status` y mantiene `paid_at` coherente.
 - Los pedidos existentes se rellenan con total cero y estado `pagado`.
-- La creacion manual usa `public.crear_pedido_manual(p_service_id, ...)` para
-  crear el pedido y su resumen financiero en una sola transaccion.
+- La creación manual usa `public.crear_pedido_manual(p_service_id, ...)` para
+  crear el pedido y su resumen financiero en una sola transacción.
 - La conversión desde solicitud usa
   `public.convertir_solicitud_a_pedido(p_service_id, ...)` para crear el pedido,
-  su resumen financiero y asociar archivos en una sola transaccion.
-- La actualizacion interna de pagos usa `public.actualizar_pago_pedido` para
+  su resumen financiero y asociar archivos en una sola transacción.
+- La actualización interna de pagos usa `public.actualizar_pago_pedido` para
   modificar solo efectivo y transferencia acumulados, mantener `updated_by` y
-  registrar historial en una sola transaccion.
+  registrar historial en una sola transacción.
 - El precio total puede editarse de forma controlada mediante
   `public.actualizar_datos_pedido`, de manera atómica con la actualización de
   los datos básicos en `pedidos`.
@@ -461,7 +574,7 @@ No es una tabla de movimientos, abonos individuales ni comprobantes.
 - Si el precio cambia, `public.actualizar_datos_pedido` actualiza `updated_by`.
 - El trigger financiero recalcula `payment_status` y `paid_at` después del
   cambio de precio.
-- El estado de pago `pagado` es condicion para que
+- El estado de pago `pagado` es condición para que
   `public.actualizar_estado_pedido` pueda cerrar el pedido como `entregado`.
 - El listado interno puede leer este resumen para mostrar y filtrar estado de
   pago. Esa visibilidad sigue limitada por acceso interno al pedido; no forma
@@ -470,7 +583,7 @@ No es una tabla de movimientos, abonos individuales ni comprobantes.
 **Notas de seguridad:**
 
 - RLS está activo.
-- Usuarios anonimos no acceden.
+- Usuarios anónimos no acceden.
 - Usuarios internos activos pueden leer el resumen si ya pueden acceder al pedido.
 - Las modificaciones directas quedan restringidas a `admin` y `supervisor`.
 - No se usa `service_role` ni se consulta `auth.users` para este modelo.
@@ -582,65 +695,65 @@ No es una tabla de movimientos, abonos individuales ni comprobantes.
 
 | Campo | Tipo sugerido | Notas |
 |---|---|---|
-| `id` | `uuid` | Identificador unico de la plantilla. |
+| `id` | `uuid` | Identificador único de la plantilla. |
 | `name` | `text` | Nombre visible de la plantilla. |
-| `description` | `text nullable` | Descripcion interna opcional. |
+| `description` | `text nullable` | Descripción interna opcional. |
 | `is_active` | `boolean` | Permite ocultar plantillas sin eliminar su definición histórica. |
-| `created_by` | `uuid nullable` | Perfil interno que creo la plantilla. |
-| `updated_by` | `uuid nullable` | Perfil interno que actualizo la plantilla. |
-| `created_at` | `timestamptz` | Fecha de creacion. |
-| `updated_at` | `timestamptz` | Fecha de ultima actualizacion. |
+| `created_by` | `uuid nullable` | Perfil interno que creó la plantilla. |
+| `updated_by` | `uuid nullable` | Perfil interno que actualizó la plantilla. |
+| `created_at` | `timestamptz` | Fecha de creación. |
+| `updated_at` | `timestamptz` | Fecha de última actualización. |
 
-**Claves foraneas:**
+**Claves foráneas:**
 
 - `trabajo_plantillas.created_by` -> `perfiles.id`.
 - `trabajo_plantillas.updated_by` -> `perfiles.id`.
 
 **Reglas importantes:**
 
-- El nombre no puede quedar vacio tras `trim` y debe medir entre 2 y 120 caracteres.
+- El nombre no puede quedar vacío tras `trim` y debe medir entre 2 y 120 caracteres.
 - La descripción es opcional y tiene límite de 2000 caracteres.
 - Las plantillas se usan como moldes para crear tareas nuevas en pedidos de tipo `encargo`.
 - Aplicar una plantilla copia sus tareas a `pedido_tareas` mediante la RPC transaccional `public.aplicar_plantilla_tareas_pedido`.
 - La copia agrega tareas al final del pedido y no reemplaza ni borra tareas existentes.
 - Editar, desactivar o eliminar una plantilla no modifica pedidos existentes ni tareas ya copiadas.
-- No hay sincronizacion viva entre plantilla y pedido.
+- No hay sincronización viva entre plantilla y pedido.
 
 **Notas de seguridad:**
 
 - RLS está activo.
 - Usuarios internos autenticados y activos pueden leer plantillas activas.
 - `admin` puede leer plantillas activas e inactivas y gestionarlas.
-- Usuarios anonimos no acceden.
+- Usuarios anónimos no acceden.
 
 ### `trabajo_plantilla_tareas`
 
-**Proposito:** Guarda las tareas ordenadas de una plantilla. Estas filas describen tareas base para copiar a pedidos de tipo `encargo`, pero no guardan progreso real.
+**Propósito:** Guarda las tareas ordenadas de una plantilla. Estas filas describen tareas base para copiar a pedidos de tipo `encargo`, pero no guardan progreso real.
 
 | Campo | Tipo sugerido | Notas |
 |---|---|---|
-| `id` | `uuid` | Identificador unico de la tarea de plantilla. |
+| `id` | `uuid` | Identificador único de la tarea de plantilla. |
 | `template_id` | `uuid` | Plantilla a la que pertenece. |
 | `title` | `text` | Texto de la tarea predeterminada. |
 | `task_type` | `pedido_tarea_tipo` | Reutiliza el mismo enum que `pedido_tareas.task_type`. |
 | `target_quantity` | `integer nullable` | Cantidad objetivo para tareas cuantificadas. |
 | `sort_order` | `integer` | Orden dentro de la plantilla. |
-| `created_at` | `timestamptz` | Fecha de creacion. |
-| `updated_at` | `timestamptz` | Fecha de ultima actualizacion. |
+| `created_at` | `timestamptz` | Fecha de creación. |
+| `updated_at` | `timestamptz` | Fecha de última actualización. |
 
-**Claves foraneas:**
+**Claves foráneas:**
 
 - `trabajo_plantilla_tareas.template_id` -> `trabajo_plantillas.id` con `on delete cascade`.
 
 **Reglas importantes:**
 
-- `title` no puede estar vacio y tiene limite de 200 caracteres.
+- `title` no puede estar vacío y tiene límite de 200 caracteres.
 - `sort_order` no puede ser negativo.
 - Las tareas `simple` deben tener `target_quantity = null`.
 - Las tareas `cuantificada` requieren `target_quantity > 0`.
-- El orden visual se obtiene por `sort_order`, `created_at` e `id`; la gestion
+- El orden visual se obtiene por `sort_order`, `created_at` e `id`; la gestión
   actual permite mover tareas arriba o abajo y normaliza el orden tras eliminar.
-- La creacion y edicion desde Configuracion reutilizan el parseo de titulos de
+- La creación y edición desde Configuración reutilizan el parseo de títulos de
   `pedido_tareas`: un entero positivo independiente crea una tarea
   `cuantificada`; sin cantidad crea una tarea `simple`.
 - No existen `is_completed`, `completed_quantity`, `completed_at` ni `completed_by`, porque una plantilla no tiene avance.
@@ -652,7 +765,7 @@ No es una tabla de movimientos, abonos individuales ni comprobantes.
 - RLS está activo.
 - La lectura sigue la visibilidad de la plantilla padre: plantillas activas para usuarios internos activos y todas para `admin`.
 - Crear, actualizar o eliminar tareas de plantilla queda reservado a `admin`, equivalente SQL del permiso `configuracion.manage`.
-- Usuarios anonimos no acceden.
+- Usuarios anónimos no acceden.
 
 ### `archivos`
 
@@ -837,7 +950,7 @@ No es una tabla de movimientos, abonos individuales ni comprobantes.
 - Una solicitud convertida y su pedido asociado comparten `public_reference`.
 - Un pedido puede tener varios usuarios internos asignados.
 - Un usuario interno puede estar asignado a varios pedidos.
-- Un pedido tiene un resumen financiero unico en `pedido_pagos`.
+- Un pedido tiene un resumen financiero único en `pedido_pagos`.
 - Un pedido puede tener muchas tareas.
 - Una plantilla de trabajo puede tener muchas tareas predeterminadas.
 - Un pedido puede tener muchos archivos.
@@ -883,14 +996,14 @@ generan URLs firmadas de duración limitada; no hay lectura ni listado público.
 | `solicitudes` | `cliente_id` |
 | `solicitudes` | `created_at` |
 | `solicitudes` | `status, created_at` |
-| `solicitudes` | `public_reference` unico |
+| `solicitudes` | `public_reference` único |
 | `solicitudes` | `converted_order_id` único cuando no es `null` |
 | `solicitudes` | `service_id` |
 | `pedidos` | `cliente_id` |
 | `pedidos` | `created_at` |
 | `pedidos` | `status, created_at` |
 | `pedidos` | `estimated_delivery_date` para pedidos activos |
-| `pedidos` | `public_reference` unico |
+| `pedidos` | `public_reference` único |
 | `pedidos` | `solicitud_id` único cuando no es `null` |
 | `pedidos` | `service_id` |
 | `tipos_servicio` | `lower(btrim(name))` único |
@@ -934,6 +1047,203 @@ El diagnóstico y diseño actualizado para comentarios internos e historial oper
 - `public.actualizar_datos_pedido` serializa la edición controlada de servicio,
   datos básicos y precio total en pedidos activos.
 - `public.actualizar_estado_solicitud` controla las transiciones manuales.
+- `public.complete_initial_password_change` finaliza el bloqueo por contraseña temporal solo para perfiles activos y pendientes, y está reservada a `service_role`.
+- `public.begin_internal_user_creation_attempt` reserva un intento auditado de alta interna y aplica rate limiting por admin y global.
+- `public.complete_internal_user_creation_attempt` finaliza el intento auditado con estado terminal.
+- `public.begin_internal_user_password_reset` reserva un restablecimiento
+  administrativo de contraseña temporal, aplica rate limiting por actor,
+  objetivo y global, y bloquea temporalmente el perfil objetivo.
+- `public.complete_internal_user_password_reset` finaliza el restablecimiento,
+  restaura estado anterior en fallo, confirma éxito con
+  `must_change_password = true` o deja `attention_required`.
+
+### `public.begin_internal_user_creation_attempt`
+
+RPC transaccional para reservar un intento de creación administrativa antes de llamar a Auth Admin.
+
+Argumentos:
+
+- `p_target_role public.app_role`.
+
+Retorna:
+
+- `allowed boolean`;
+- `attempt_id uuid`;
+- `limited_scope text nullable`, con `actor` o `global` cuando se bloquea.
+
+Contrato:
+
+- es `SECURITY DEFINER` y fija `search_path = ''`;
+- revoca ejecución a `public` y `anon`;
+- concede `execute` únicamente a `authenticated`;
+- exige sesión autenticada con perfil `admin`, activo y sin contraseña temporal pendiente;
+- registra `pending` si la operación queda permitida;
+- registra `rate_limited` con `actor_rate_limit` o `global_rate_limit` si se exceden las ventanas;
+- no usa ni requiere `service_role`.
+
+### `public.complete_internal_user_creation_attempt`
+
+RPC transaccional para cerrar el intento reservado después del resultado de Auth Admin y de la verificación de perfil.
+
+Argumentos:
+
+- `p_attempt_id uuid`;
+- `p_status text`, permitido solo `succeeded`, `failed` o `compensation_failed`;
+- `p_error_code text default null`;
+- `p_target_auth_user_id uuid default null`.
+
+Retorna:
+
+- `uuid` del intento actualizado.
+
+Contrato:
+
+- es `SECURITY DEFINER` y fija `search_path = ''`;
+- revoca ejecución a `public` y `anon`;
+- concede `execute` únicamente a `authenticated`;
+- exige sesión autenticada con perfil `admin`, activo y sin contraseña temporal pendiente;
+- solo permite finalizar intentos `pending` creados por el mismo `auth.uid()`;
+- `succeeded` exige `target_auth_user_id` y no acepta `error_code`;
+- `failed` exige un `error_code` controlado;
+- `compensation_failed` exige `target_auth_user_id` y `provisioning_compensation_failed`;
+- no expone email, contraseña, metadata ni respuesta Auth completa.
+
+### `public.begin_internal_user_password_reset`
+
+RPC transaccional para iniciar un restablecimiento administrativo de contraseña
+temporal antes de llamar a Auth Admin.
+
+Argumentos:
+
+- `p_target_profile_id uuid`.
+- `p_attempt_id uuid`, generado por el servicio de aplicación.
+
+Retorna:
+
+- `allowed boolean`;
+- `attempt_id uuid`;
+- `limited_scope text nullable`, con `actor`, `target` o `global` cuando se
+  bloquea por rate limit;
+- `previous_is_active boolean`;
+- `previous_must_change_password boolean`.
+
+Contrato:
+
+- es `SECURITY DEFINER` y fija `search_path = ''`;
+- revoca ejecución a `public`, `anon` y `service_role`;
+- concede `execute` únicamente a `authenticated`;
+- obtiene el actor exclusivamente con `auth.uid()`;
+- exige actor `admin`, activo y sin cambio temporal pendiente;
+- rechaza objetivo nulo, inexistente o igual al actor;
+- serializa ventanas con `pg_advisory_xact_lock`;
+- si `p_attempt_id` ya existe para el mismo actor y objetivo, recupera
+  idempotentemente el intento `pending` o el bloqueo `rate_limited` sin insertar
+  otra auditoría ni volver a modificar el perfil;
+- si `p_attempt_id` existe para otro actor, otro objetivo o un estado terminal
+  distinto de `rate_limited`, falla de forma controlada;
+- bloquea el perfil objetivo con `FOR UPDATE`;
+- rechaza otro intento `pending` para el mismo objetivo con `reset_in_progress`;
+- aplica rate limits de 3 intentos reales por actor en 10 minutos, 3 intentos
+  reales por objetivo en 1 hora y 20 intentos reales globales en 1 hora;
+- no cuenta auditorías `rate_limited` para ventanas futuras;
+- si permite el intento, inserta auditoría `pending`, guarda estados previos y
+  bloquea temporalmente el objetivo con `is_active = false` y
+  `must_change_password = true`.
+
+### `public.get_internal_user_password_reset_state`
+
+RPC mínima para consultar el estado de un intento propio de restablecimiento sin
+exponer datos personales.
+
+Argumentos:
+
+- `p_attempt_id uuid`.
+
+Retorna:
+
+- `attempt_id uuid`;
+- `status text`;
+- `target_profile_id uuid`;
+- `previous_is_active boolean`;
+- `previous_must_change_password boolean`;
+- `current_is_active boolean`;
+- `current_must_change_password boolean`.
+
+Contrato:
+
+- es `SECURITY DEFINER` y fija `search_path = ''`;
+- revoca ejecución a `public`, `anon` y `service_role`;
+- concede `execute` únicamente a `authenticated`;
+- obtiene el actor exclusivamente con `auth.uid()`;
+- solo devuelve filas donde `actor_profile_id = auth.uid()`;
+- si el intento no existe o pertenece a otro actor, devuelve cero filas;
+- no devuelve `error_code`, email, contraseña, nombre, teléfono, avatar,
+  metadata, tokens ni datos personales.
+
+### `public.complete_internal_user_password_reset`
+
+RPC transaccional para cerrar el intento reservado después del resultado de Auth
+Admin.
+
+Argumentos:
+
+- `p_attempt_id uuid`;
+- `p_status text`, permitido solo `succeeded`, `failed` o
+  `attention_required`;
+- `p_error_code text default null`.
+
+Retorna:
+
+- `uuid` del intento actualizado o ya finalizado con el mismo estado terminal.
+
+Contrato:
+
+- es `SECURITY DEFINER` y fija `search_path = ''`;
+- revoca ejecución a `public`, `anon` y `service_role`;
+- concede `execute` únicamente a `authenticated`;
+- obtiene el actor con `auth.uid()` y solo finaliza intentos del actor actual;
+- bloquea la auditoría y el perfil objetivo con `FOR UPDATE`;
+- solo modifica intentos `pending`;
+- es idempotente si se repite el mismo estado terminal y falla si se intenta
+  cambiar a otro estado terminal;
+- `succeeded` restaura `is_active` al valor previo, mantiene
+  `must_change_password = true`, limpia `error_code` y confirma el `UPDATE`;
+- `failed` restaura `is_active` y `must_change_password` previos y exige código
+  sanitizado;
+- `attention_required` conserva el objetivo bloqueado con `is_active = false` y
+  `must_change_password = true`, usando `finalization_failed` o
+  `rollback_failed`.
+
+### `public.complete_initial_password_change`
+
+RPC mínima para finalizar el cambio inicial obligatorio de contraseña después
+de que Supabase Auth haya confirmado el cambio real con `auth.updateUser`.
+
+Argumentos:
+
+- `p_user_id uuid`.
+
+Retorna:
+
+- `uuid` del perfil actualizado.
+
+Contrato:
+
+- es `security definer` y fija `search_path = ''`;
+- revoca ejecución a `public`, `anon` y `authenticated`;
+- concede `execute` únicamente a `service_role`;
+- exige que `public.perfiles.id = p_user_id` exista y esté activo;
+- lee solo `id`, `is_active` y `must_change_password`, y bloquea la fila con
+  `FOR UPDATE` antes de validar el estado;
+- es idempotente: si `must_change_password = false`, retorna el UUID sin cambios;
+- si `must_change_password = true`, cambia solo `must_change_password = false`
+  y confirma el `UPDATE` con `RETURNING id`; `updated_at` lo mantiene el trigger
+  vigente de la tabla;
+- no devuelve éxito si la actualización esperada no retorna el perfil;
+- no modifica rol, nombre, teléfono, avatar, `is_active` ni `created_by`;
+- no debe ser llamada directamente por usuarios autenticados porque la prueba del
+  cambio real de contraseña ocurre en el servicio server-side antes de invocar
+  la RPC privilegiada.
 
 ### `public.actualizar_datos_pedido`
 

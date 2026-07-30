@@ -72,6 +72,7 @@ export async function login(
 ): Promise<LoginActionState> {
   const email = getFormValue(formData, "email").trim();
   const password = getFormValue(formData, "password");
+  let destinationPath = "/dashboard";
 
   if (!email || !password.trim()) {
     return {
@@ -113,7 +114,7 @@ export async function login(
 
     const { data: profile, error: profileError } = await supabase
       .from("perfiles")
-      .select("id, role, is_active")
+      .select("id, role, is_active, must_change_password")
       .eq("id", userId)
       .maybeSingle();
 
@@ -133,6 +134,10 @@ export async function login(
         message: INACTIVE_PROFILE_MESSAGE,
       };
     }
+
+    if (profile.must_change_password === true) {
+      destinationPath = "/cambiar-contrasena-inicial";
+    }
   } catch (error) {
     logUnexpectedLoginError("unexpected login failure", error);
 
@@ -142,7 +147,8 @@ export async function login(
   }
 
   revalidatePath("/dashboard");
-  redirect("/dashboard");
+  revalidatePath("/cambiar-contrasena-inicial");
+  redirect(destinationPath);
 }
 
 export async function logout() {

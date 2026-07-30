@@ -488,9 +488,11 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string
+          created_by: string | null
           full_name: string
           id: string
           is_active: boolean
+          must_change_password: boolean
           phone: string | null
           role: Database["public"]["Enums"]["app_role"]
           updated_at: string
@@ -498,9 +500,11 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           created_at?: string
+          created_by?: string | null
           full_name: string
           id: string
           is_active?: boolean
+          must_change_password?: boolean
           phone?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
@@ -508,14 +512,24 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           created_at?: string
+          created_by?: string | null
           full_name?: string
           id?: string
           is_active?: boolean
+          must_change_password?: boolean
           phone?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "perfiles_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       solicitud_comentarios: {
         Row: {
@@ -950,6 +964,41 @@ export type Database = {
         Args: { p_pedido_id: string; p_template_id: string }
         Returns: number
       }
+      begin_internal_user_creation_attempt: {
+        Args: { p_target_role: Database["public"]["Enums"]["app_role"] }
+        Returns: {
+          allowed: boolean
+          attempt_id: string
+          limited_scope: string
+        }[]
+      }
+      begin_internal_user_password_reset: {
+        Args: { p_attempt_id: string; p_target_profile_id: string }
+        Returns: {
+          allowed: boolean
+          attempt_id: string
+          limited_scope: string
+          previous_is_active: boolean
+          previous_must_change_password: boolean
+        }[]
+      }
+      complete_initial_password_change: {
+        Args: { p_user_id: string }
+        Returns: string
+      }
+      complete_internal_user_creation_attempt: {
+        Args: {
+          p_attempt_id: string
+          p_error_code?: string
+          p_status: string
+          p_target_auth_user_id?: string
+        }
+        Returns: string
+      }
+      complete_internal_user_password_reset: {
+        Args: { p_attempt_id: string; p_error_code?: string; p_status: string }
+        Returns: string
+      }
       consultar_estado_publico: {
         Args: { p_public_reference: string }
         Returns: {
@@ -1032,6 +1081,18 @@ export type Database = {
           order_number: string
           pedido_id: string
           public_reference: string
+        }[]
+      }
+      get_internal_user_password_reset_state: {
+        Args: { p_attempt_id: string }
+        Returns: {
+          attempt_id: string
+          current_is_active: boolean
+          current_must_change_password: boolean
+          previous_is_active: boolean
+          previous_must_change_password: boolean
+          status: string
+          target_profile_id: string
         }[]
       }
       listar_pedido_comentarios: {

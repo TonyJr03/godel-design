@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { SkipLink } from "@/components/layout/SkipLink";
@@ -10,6 +11,11 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }>) {
   const profile = await getCurrentProfile();
+
+  if (profile?.must_change_password === true) {
+    redirect("/cambiar-contrasena-inicial");
+  }
+
   const cookieStore = await cookies();
   const initialSidebarCollapsed =
     cookieStore.get("godel_sidebar_collapsed")?.value === "1";

@@ -53,7 +53,8 @@ async function countActiveAdmins(): Promise<
     .from("perfiles")
     .select("id", { count: "exact", head: true })
     .eq("role", "admin")
-    .eq("is_active", true);
+    .eq("is_active", true)
+    .eq("must_change_password", false);
 
   if (error || count === null) {
     console.error("Error counting active admins", error);
@@ -97,7 +98,9 @@ export async function updateInternalUser(
   try {
     const { data: currentUser, error: loadError } = await supabase
       .from("perfiles")
-      .select("id, full_name, role, phone, avatar_url, is_active")
+      .select(
+        "id, full_name, role, phone, avatar_url, is_active, must_change_password",
+      )
       .eq("id", userId)
       .maybeSingle<EditableUserProfile>();
 
@@ -121,9 +124,13 @@ export async function updateInternalUser(
 
     const isSelfUpdate = currentUser.id === profile.id;
     const targetIsActiveAdmin =
-      currentUser.role === "admin" && currentUser.is_active;
+      currentUser.role === "admin" &&
+      currentUser.is_active &&
+      !currentUser.must_change_password;
     const targetWillRemainActiveAdmin =
-      validation.data.role === "admin" && validation.data.is_active;
+      validation.data.role === "admin" &&
+      validation.data.is_active &&
+      !currentUser.must_change_password;
 
     if (isSelfUpdate && !validation.data.is_active) {
       return serviceFailure("self_guard", "No puedes desactivar tu propio usuario administrador.", {

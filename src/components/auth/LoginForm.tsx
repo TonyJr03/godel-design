@@ -2,7 +2,14 @@
 
 import { useActionState } from "react";
 import { login, type LoginActionState } from "@/app/(interno)/login/actions";
-import { Alert, Button, Card, FormField, Input } from "@/components/ui";
+import {
+  Alert,
+  Button,
+  Card,
+  FormField,
+  Input,
+  PasswordInput,
+} from "@/components/ui";
 
 const initialState: LoginActionState = {};
 
@@ -61,13 +68,13 @@ export function LoginForm() {
             required
             optional={false}
           >
-            <Input
+            <PasswordInput
               id="password"
               name="password"
-              type="password"
               autoComplete="current-password"
               required
               placeholder="Tu contraseña"
+              visibilityResetKey={state}
             />
           </FormField>
         </div>

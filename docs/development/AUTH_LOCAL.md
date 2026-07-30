@@ -1,17 +1,54 @@
-# Autenticación Local — Godel Diseño
+# Autenticación Local - Godel Diseño
 
 ## Propósito
 
-Este documento describe cómo crear usuarios internos de prueba en Supabase local para validar el login y el acceso al dashboard del sistema operativo de Godel Diseño.
+Este documento describe cómo mantener usuarios internos de prueba en Supabase
+local para validar login, acceso al dashboard y alta administrativa segura.
 
 ## Concepto principal
 
 Para acceder al sistema interno hacen falta dos cosas:
 
 - Un usuario en Supabase Auth.
-- Un perfil asociado en `public.perfiles` con `is_active = true`.
+- Un perfil asociado en `public.perfiles` con `is_active = true` y
+  `must_change_password = false`.
 
-Supabase Auth confirma la identidad del usuario. La tabla `public.perfiles` controla el acceso interno básico al dashboard.
+Supabase Auth confirma la identidad del usuario. `public.perfiles` controla el
+acceso interno básico al dashboard. Un perfil con `must_change_password = true`
+puede leer su propia fila para onboarding, pero no puede operar en pedidos,
+solicitudes, clientes, usuarios, archivos u otras entidades internas.
+
+## Signup público bloqueado y login habilitado
+
+El signup público local está bloqueado en `supabase/config.toml`, pero el
+provider email/password debe quedar disponible para que los usuarios existentes
+o creados mediante Admin API puedan iniciar sesión:
+
+```toml
+[auth]
+enable_signup = false
+
+[auth.email]
+enable_signup = true
+```
+
+`[auth].enable_signup = false` impide la creación pública de cuentas.
+`[auth.email].enable_signup = true` mantiene disponible el login por correo y
+contraseña. No habilita un formulario público de signup dentro de la app.
+
+La política local de contraseñas debe quedar alineada con la UI productiva:
+
+```toml
+[auth]
+minimum_password_length = 8
+password_requirements = "lower_upper_letters_digits_symbols"
+
+[auth.email]
+secure_password_change = true
+```
+
+La misma alineación de configuración hospedada queda pendiente de validar en
+preproducción; no se configura desde este repositorio local.
 
 ## Requisitos previos
 
@@ -41,10 +78,24 @@ Ver estado:
 npx supabase status
 ```
 
-Reiniciar la base local si hace falta:
+Obtener variables locales en formato de entorno:
 
 ```cmd
-npx supabase db reset
+npx supabase status -o env
+```
+
+Aplicar migraciones pendientes sin borrar datos locales:
+
+```cmd
+npx supabase migration up --local
+```
+
+Si cambias `supabase/config.toml`, reinicia Supabase para que Auth lea la
+configuración local:
+
+```cmd
+npx supabase stop
+npx supabase start
 ```
 
 Iniciar Next.js:
@@ -67,120 +118,112 @@ Desde Studio puedes usar:
 - Table Editor
 - SQL Editor
 
-## Crear usuario en Supabase Auth
+## Clave administrativa local
 
-1. Abrir Supabase Studio.
-2. Ir a Authentication > Users.
-3. Crear un usuario nuevo.
-4. Usar un correo de prueba, por ejemplo:
-   - `admin@godel.test`
-   - `supervisor@godel.test`
-   - `trabajador@godel.test`
-5. Definir una contraseña de desarrollo.
-6. Copiar el UUID del usuario creado.
+El alta administrativa segura usa el cliente Admin server-side. Para desarrollo
+local, `.env.local` debe definir:
 
-Estos usuarios son solo para desarrollo local.
+```text
+SUPABASE_SECRET_KEY=
+```
 
-## Crear perfil asociado en `public.perfiles`
+Obtén las variables locales con `npx supabase status -o env` y copia localmente
+el valor de `SECRET_KEY` a `SUPABASE_SECRET_KEY` en `.env.local`.
+`SERVICE_ROLE_KEY` queda como alternativa legacy local, pero el código del
+proyecto usa `SUPABASE_SECRET_KEY`.
+
+Reglas:
+
+- nunca versiones el valor real;
+- nunca lo muestres en reportes;
+- nunca lo compartas en prompts;
+- nunca uses prefijo `NEXT_PUBLIC`;
+- recuerda que la clave administrativa omite RLS;
+- el proyecto no está enlazado a Supabase remoto;
+- la configuración remota se realizará en preproducción.
+
+## Crear usuarios internos en local
+
+El flujo recomendado es entrar como admin operativo y usar el diálogo de
+Usuarios en `/dashboard/configuracion/usuarios`.
+
+El formulario crea:
+
+- el usuario Auth con correo y contraseña temporal;
+- el perfil interno por trigger de base;
+- `is_active = true`;
+- `must_change_password = true`;
+- `created_by` con el admin creador.
+
+El formulario no envía correo ni invitación. Entrega la contraseña temporal por
+un canal externo seguro. El sistema no la muestra de nuevo.
+
+La pantalla de cambio inicial real de contraseña está implementada en
+`/cambiar-contrasena-inicial`. Los usuarios nuevos creados por este flujo pueden
+iniciar sesión con la contraseña temporal, pero quedan obligados a reemplazarla
+antes de acceder al dashboard.
+
+## Seed o reparación puntual de desarrollo
+
+Para disponer de un admin inicial de desarrollo puede seguir siendo necesario
+crear manualmente un usuario Auth en Supabase Studio y asociarle un perfil. Este
+camino es solo para bootstrap local o reparación puntual; no es el flujo
+productivo de alta.
 
 El `id` del perfil debe coincidir exactamente con el UUID del usuario en Auth.
 
-Ejemplo para crear un perfil admin:
+Ejemplo para un perfil admin local existente:
 
 ```sql
 insert into public.perfiles (
   id,
   full_name,
   role,
-  is_active
+  is_active,
+  must_change_password
 )
 values (
   'PEGA_AQUI_EL_UUID_DEL_USUARIO',
   'Administrador Godel',
   'admin',
-  true
+  true,
+  false
 )
 on conflict (id) do update
 set
   full_name = excluded.full_name,
   role = excluded.role,
   is_active = excluded.is_active,
+  must_change_password = excluded.must_change_password,
   updated_at = now();
 ```
 
-## Ejemplos por rol
-
-Roles válidos:
-
-- `admin`
-- `supervisor`
-- `trabajador`
-
-En Fase 3 todavía no se aplican permisos por rol en la interfaz, pero los roles ya existen en la base para la Fase 4.
-
-Admin:
-
-```sql
-insert into public.perfiles (id, full_name, role, is_active)
-values (
-  'UUID_DEL_USUARIO_ADMIN',
-  'Administrador Godel',
-  'admin',
-  true
-)
-on conflict (id) do update
-set
-  full_name = excluded.full_name,
-  role = excluded.role,
-  is_active = excluded.is_active,
-  updated_at = now();
-```
-
-Supervisor:
-
-```sql
-insert into public.perfiles (id, full_name, role, is_active)
-values (
-  'UUID_DEL_USUARIO_SUPERVISOR',
-  'Supervisor Godel',
-  'supervisor',
-  true
-)
-on conflict (id) do update
-set
-  full_name = excluded.full_name,
-  role = excluded.role,
-  is_active = excluded.is_active,
-  updated_at = now();
-```
-
-Trabajador:
-
-```sql
-insert into public.perfiles (id, full_name, role, is_active)
-values (
-  'UUID_DEL_USUARIO_TRABAJADOR',
-  'Trabajador Godel',
-  'trabajador',
-  true
-)
-on conflict (id) do update
-set
-  full_name = excluded.full_name,
-  role = excluded.role,
-  is_active = excluded.is_active,
-  updated_at = now();
-```
+Los usuarios de desarrollo que ya existían antes de `must_change_password` no
+requieren cambio inicial y sus perfiles permanecen con
+`must_change_password = false`.
 
 ## Usuario sin perfil
 
-Un usuario que existe en Supabase Auth pero no tiene fila asociada en `public.perfiles` puede autenticarse en Auth, pero no puede acceder al dashboard.
+Un usuario que existe en Supabase Auth pero no tiene fila asociada en
+`public.perfiles` puede autenticarse en Auth, pero no puede acceder al
+dashboard.
 
 El sistema lo redirige a `/acceso-denegado`.
 
-## Usuario inactivo
+## Usuario inactivo o con onboarding pendiente
 
-Si `is_active = false`, el usuario no puede acceder al dashboard y será redirigido a `/acceso-denegado`.
+Si `is_active = false`, el usuario no puede acceder al dashboard y será
+redirigido a `/acceso-denegado`.
+
+Si `must_change_password = true`, el usuario tiene una contraseña temporal
+pendiente. El proxy lo redirige a `/cambiar-contrasena-inicial`, RLS bloquea la
+operación interna y la pantalla solo completa el onboarding después de
+ejecutar `auth.updateUser({ password })` con éxito en una sesión válida. Si Auth
+exige reautenticación por `secure_password_change`, el usuario debe volver a
+iniciar sesión con la contraseña temporal antes de continuar.
+La finalización en base bloquea la fila de `public.perfiles`, confirma el
+`UPDATE` con `RETURNING id` y no deja el perfil operativo si se desactiva en una
+carrera.
 
 Desactivar un usuario:
 
@@ -198,42 +241,127 @@ set is_active = true, updated_at = now()
 where id = 'UUID_DEL_USUARIO';
 ```
 
+## Restablecimiento administrativo de contraseña temporal
+
+Un administrador operativo puede restablecer la contraseña temporal de otro
+usuario desde `/dashboard/configuracion/usuarios`, sin enviar correo. El UUID
+objetivo se liga en servidor y no viaja como input oculto.
+
+El flujo local es:
+
+1. el diálogo de restablecimiento valida contraseña, confirmación y
+   confirmación explícita;
+2. el servicio genera `attemptId` con `randomUUID()` y llama
+   `public.begin_internal_user_password_reset` con `p_target_profile_id` y
+   `p_attempt_id`;
+3. la RPC registra auditoría privada, aplica rate limits, recupera
+   idempotentemente reintentos con el mismo `attemptId` y bloquea
+   temporalmente el perfil objetivo con `is_active = false` y
+   `must_change_password = true`;
+4. el servicio usa Auth Admin solo para `getUserById` y `updateUserById`;
+5. `public.complete_internal_user_password_reset` restaura el estado activo
+   original y deja `must_change_password = true` si Auth cambió la contraseña;
+6. si Auth falla, restaura `is_active` y `must_change_password` previos;
+7. si la finalización queda en duda después de cambiar Auth, el intento pasa a
+   `attention_required` y el perfil queda bloqueado preventivamente.
+
+Usuarios activos vuelven a `is_active = true` y quedan obligados a
+`/cambiar-contrasena-inicial`. Usuarios inactivos permanecen inactivos y el
+login termina en `/acceso-denegado`. Usuarios que ya estaban pendientes pueden
+recibir otra contraseña temporal; la anterior deja de funcionar.
+
+El cierre se confirma por UUID exacto devuelto desde
+`complete_internal_user_password_reset` o por
+`public.get_internal_user_password_reset_state`. No se acepta solo el estado del
+perfil como prueba de éxito o rollback.
+
+La respuesta de `updateUserById` debe traer `user.id` igual al objetivo. Un
+rechazo definitivo de Auth restaura el perfil con `failed`; un resultado
+incierto, como error de red, excepción durante la llamada, usuario ausente o UUID
+distinto, deja el intento en `attention_required`. En ese caso
+`passwordChanged = true` bloquea el reenvío aunque el cambio no pueda afirmarse
+con certeza.
+
+La consulta de auditoría diferencia intento no encontrado de error de consulta.
+Si `begin` pudo haber mutado el perfil y esa consulta falla, el servicio devuelve
+`rollback_error` y no llama Auth Admin.
+
+No se debe ejecutar recuperación por email, invitación ni magic link. La
+contraseña temporal no se registra, no se devuelve y el formulario la limpia
+tras cada respuesta.
+
+Para QA automatizado usa solo Supabase local. Confirma que
+`NEXT_PUBLIC_SUPABASE_URL` apunta a `localhost` o `127.0.0.1` y aborta ante una
+URL remota. En `finally`, elimina usuarios Auth QA, perfiles QA y auditorías QA
+identificadas, y confirma cero intentos `pending` de QA.
+
 ## Flujo de prueba recomendado
 
-1. Crear usuario en Auth.
-2. Crear perfil asociado en `perfiles`.
+1. Usar un usuario admin de desarrollo existente.
+2. Confirmar que su perfil tiene `is_active = true` y `must_change_password = false`.
 3. Ejecutar `npm run dev`.
 4. Ir a `/login`.
 5. Iniciar sesión.
 6. Confirmar redirección a `/dashboard`.
-7. Cerrar sesión.
-8. Probar usuario sin perfil.
-9. Probar usuario inactivo.
+7. Abrir `/dashboard/configuracion/usuarios`.
+8. Crear un usuario nuevo con correo y contraseña temporal.
+9. Confirmar que aparece en el listado como activo y con cambio inicial pendiente.
+10. Cerrar sesión.
+11. Iniciar sesión con el usuario nuevo y confirmar redirección a
+    `/cambiar-contrasena-inicial`.
+12. Probar errores visibles con nueva contraseña débil.
+13. Probar confirmación diferente y nueva contraseña igual al correo ignorando
+    mayúsculas.
+14. Cambiar la contraseña temporal por una contraseña nueva válida desde la
+    pantalla de cambio inicial.
+15. Cerrar sesión y confirmar que la contraseña temporal ya no inicia sesión.
+16. Iniciar sesión con la contraseña nueva y confirmar acceso.
+17. Confirmar redirección a `/dashboard` y que `must_change_password = false`.
+18. Confirmar que `/cambiar-contrasena-inicial` redirige a `/dashboard` después
+    de completar el cambio.
+19. Probar usuario sin perfil.
+20. Probar usuario inactivo.
+
+Los QA automatizados que creen usuarios temporales deben limpiar en `finally`:
+sesiones, usuario Auth, perfil asociado y auditorías de alta exclusivas del
+usuario QA. No documentes contraseñas, correos completos ni secretos.
 
 ## Problemas comunes
 
-- Si el login funciona pero va a `/acceso-denegado`, falta perfil o está inactivo.
+- Si el login funciona pero va a `/acceso-denegado`, falta perfil o está
+  inactivo.
+- Si el login funciona pero vuelve siempre a `/cambiar-contrasena-inicial`, el
+  perfil conserva `must_change_password = true` o falló la finalización del RPC.
+- Si la contraseña cambió en Auth pero falló la finalización del perfil, la UI
+  muestra un mensaje crítico y no debe reutilizar la contraseña temporal.
 - Si el dashboard redirige a `/login`, no hay sesión válida.
-- Si no se puede crear el perfil, revisar que el UUID sea correcto.
-- Si no aparecen tablas, revisar que se haya ejecutado `npx supabase db reset`.
+- Si el alta falla por configuración, revisar `SUPABASE_SECRET_KEY` local sin
+  imprimir su valor.
+- Si una prueba de login devuelve `email_provider_disabled`, revisar
+  `supabase/config.toml` y reiniciar Supabase local.
+- Si no aparecen cambios de schema, revisar que se haya ejecutado
+  `npx supabase migration up --local`.
 - Si Supabase no abre, revisar Docker Desktop.
 
 ## Seguridad
 
 - No usar service role key en frontend.
 - No crear signup público.
+- No crear nuevos usuarios mediante signup público local.
+- Mantener login email/password habilitado para usuarios existentes y creados
+  por Admin API.
 - No subir `.env.local`.
+- No imprimir secretos ni contraseñas reales.
 - Los usuarios de prueba no deben usarse como credenciales reales de producción.
 
 ## Qué queda fuera
 
-- Gestión de usuarios desde panel admin.
 - Invitaciones por correo.
 - Recuperación de contraseña.
-- Permisos por rol.
-- Auditoría avanzada.
-- Creación automática de perfiles.
+- Cambios de contraseña de autoservicio fuera del primer acceso obligatorio.
 
 ## Cierre
 
-La siguiente subfase será la revisión final de la Fase 3 antes de pasar a roles y permisos internos.
+El alta administrativa segura ya está conectada a la UI y el primer acceso
+obligatorio completa `must_change_password = false` después de cambiar la
+contraseña temporal.

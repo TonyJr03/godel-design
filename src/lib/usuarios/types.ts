@@ -8,6 +8,7 @@ export type InternalUser = Pick<
   | "phone"
   | "avatar_url"
   | "is_active"
+  | "must_change_password"
   | "created_at"
   | "updated_at"
 >;
@@ -15,6 +16,12 @@ export type InternalUser = Pick<
 export type InternalUserDetail = InternalUser;
 
 export type EditableUserProfile = Pick<
-  InternalUser,
-  "id" | "full_name" | "role" | "phone" | "avatar_url" | "is_active"
+  Tables<"perfiles">,
+  | "id"
+  | "full_name"
+  | "role"
+  | "phone"
+  | "avatar_url"
+  | "is_active"
+  | "must_change_password"
 >;
