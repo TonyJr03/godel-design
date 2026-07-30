@@ -174,7 +174,7 @@ manualmente.
 - `perfiles_select_visible` permite que un usuario lea su propia fila aunque tenga `must_change_password = true`, para poder detectar onboarding sin ganar acceso operativo.
 - `private.current_user_role()` solo devuelve rol si el perfil está activo y no tiene contraseña temporal pendiente.
 - `private.current_user_is_active()` usa la misma semántica operativa: `is_active = true` y `must_change_password = false`.
-- La aplicación todavía no crea usuarios Auth desde la UI ni usa service role key en código.
+- La UI todavía no crea usuarios Auth ni conecta el alta completa; el servicio backend aislado `createInternalUser()` sí usa Auth Admin mediante `createAdminClient()` solo para `auth.admin.createUser` y compensación `auth.admin.deleteUser`.
 - `authenticated` conserva `SELECT` e `INSERT` transitorio sobre `perfiles`, pero no tiene `UPDATE` completo de tabla.
 - La actualización normal de `perfiles` queda concedida por columnas únicamente para `full_name`, `phone`, `avatar_url`, `role` e `is_active`.
 - `id`, `must_change_password`, `created_by`, `created_at` y `updated_at` son campos protegidos frente a actualizaciones directas de sesiones normales.
@@ -218,6 +218,7 @@ manualmente.
 - La tabla vive en esquema `private` y no tiene acceso directo desde la aplicación.
 - No almacena email, contraseña temporal, metadata Auth, tokens, payloads completos ni mensajes externos.
 - Un intento inicia como `pending` mediante `public.begin_internal_user_creation_attempt`.
+- `pending` también puede representar una creación funcionalmente exitosa cuyo cierre de auditoría `succeeded` falló; debe reconciliarse operativamente y no implica automáticamente que Auth o el perfil hayan fallado.
 - Solo los estados terminales `succeeded`, `failed`, `rate_limited` y `compensation_failed` tienen `completed_at`.
 - `rate_limited` no cuenta como intento real para las ventanas futuras; registra únicamente el bloqueo aplicado.
 - `compensation_failed` indica que se creó un usuario Auth pero falló la postcondición de perfil y también falló la eliminación compensatoria.

@@ -89,10 +89,13 @@ globales en 1 hora. Si se excede una ventana, el servicio devuelve
 Despues de Auth Admin y de la verificacion de perfil, el servicio llama
 `public.complete_internal_user_creation_attempt` para cerrar la auditoria como
 `succeeded`, `failed` o `compensation_failed`. La auditoria no guarda correo,
-contraseña, metadata, tokens, payloads completos ni mensajes externos. El
-servicio solo devuelve exito despues de registrar `succeeded`; si ese cierre
-falla, intenta compensar el usuario Auth creado y devuelve un error generico de
-provisionamiento.
+contraseña, metadata, tokens, payloads completos ni mensajes externos. El exito
+funcional depende de Auth user creado y perfil correcto; el cierre `succeeded`
+es de mejor esfuerzo. Si ese cierre falla, el usuario Auth y el perfil se
+conservan, el servicio devuelve exito y la fila `pending` queda como señal para
+reconciliacion operativa posterior. La compensacion se reserva para fallos de
+provision: perfil ausente, perfil inconsistente o excepcion antes de confirmar
+correctamente la postcondicion.
 
 La creacion legacy de un perfil no crea credenciales Auth. El `id` recibido debe
 corresponder a un usuario Auth existente por la foreign key de base de datos.

@@ -13,12 +13,22 @@ Para acceder al sistema interno hacen falta dos cosas:
 
 Supabase Auth confirma la identidad del usuario. La tabla `public.perfiles` controla el acceso interno básico al dashboard. Desde la base de creación administrativa segura, un perfil con `must_change_password = true` puede leer su propia fila para onboarding, pero no puede operar en pedidos, solicitudes, clientes, usuarios, archivos u otras entidades internas.
 
-El signup local versionado está deshabilitado en `supabase/config.toml`:
+El signup público local está bloqueado en `supabase/config.toml`, pero el
+provider email/password debe quedar disponible para que los usuarios existentes
+puedan iniciar sesión:
 
-- `[auth].enable_signup = false`;
-- `[auth.email].enable_signup = false`.
+```toml
+[auth]
+enable_signup = false
 
-Durante esta etapa se conservan los usuarios de desarrollo existentes. No se deben crear nuevos usuarios mediante signup público.
+[auth.email]
+enable_signup = true
+```
+
+`[auth].enable_signup = false` impide la creación pública de cuentas.
+`[auth.email].enable_signup = true` mantiene disponible el login por correo y
+contraseña para usuarios ya existentes o creados mediante Admin API. No habilita
+un formulario público de signup dentro de la app.
 
 ## Requisitos previos
 
@@ -87,11 +97,29 @@ Desde Studio puedes usar:
 - Table Editor
 - SQL Editor
 
-## Signup local deshabilitado
+## Signup público bloqueado y login habilitado
 
-El signup público por email no está disponible en local. No uses el formulario público de signup ni flujos equivalentes para crear usuarios internos nuevos.
+El signup público por email no debe usarse en local para crear usuarios internos
+nuevos. La configuración global `[auth].enable_signup = false` debe mantenerse
+para bloquear ese flujo.
 
-La creación administrativa directa con correo y contraseña temporal se implementará en una etapa posterior. En esa etapa, el futuro flujo creará el usuario Auth con Admin API server-side, enviará metadata segura en `raw_app_meta_data.godel_provisioning` y el trigger de base creará el perfil con `must_change_password = true`.
+La configuración `[auth.email].enable_signup = true` debe mantenerse para que
+el inicio de sesión email/password siga disponible. Si una prueba de login
+devuelve `email_provider_disabled`, el provider quedó deshabilitado y hay que
+revisar `supabase/config.toml` y reiniciar Supabase local.
+
+La Admin API puede crear usuarios Auth desde código server-side aislado. El
+servicio backend `createInternalUser()` usa esa ruta con metadata segura en
+`raw_app_meta_data.godel_provisioning`; el trigger de base crea el perfil con
+`must_change_password = true`. La UI productiva de alta completa todavía no está
+conectada.
+
+Después de modificar `supabase/config.toml`, reinicia Supabase local con:
+
+```cmd
+npx.cmd supabase stop
+npx.cmd supabase start
+```
 
 Los usuarios de desarrollo que ya existían antes de este cambio no requieren cambio de contraseña inicial y sus perfiles permanecen con `must_change_password = false`.
 
@@ -269,17 +297,16 @@ where id = 'UUID_DEL_USUARIO';
 - No usar service role key en frontend.
 - No crear signup público.
 - No crear nuevos usuarios mediante signup público local.
+- Mantener login email/password habilitado para usuarios existentes.
 - No subir `.env.local`.
 - Los usuarios de prueba no deben usarse como credenciales reales de producción.
 
 ## Qué queda fuera
 
-- Alta completa de usuarios Auth desde panel admin.
 - Invitaciones por correo.
 - Recuperación de contraseña.
 - Cambio inicial real de contraseña desde UI.
-- Auditoría avanzada.
-- Cliente Admin API server-side y secret asociada.
+- Conexión UI productiva del alta completa de usuarios Auth desde panel admin.
 
 ## Cierre
 

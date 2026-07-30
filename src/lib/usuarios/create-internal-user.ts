@@ -309,15 +309,23 @@ async function completeCreationAttempt(
     args.p_target_auth_user_id = input.targetAuthUserId;
   }
 
-  const { error } = await supabase.rpc(
-    "complete_internal_user_creation_attempt",
-    args,
-  );
+  try {
+    const { error } = await supabase.rpc(
+      "complete_internal_user_creation_attempt",
+      args,
+    );
 
-  if (error) {
+    if (error) {
+      logSanitizedAuditError("createInternalUser.audit.complete", {
+        name: "PostgrestError",
+        code: error.code,
+      });
+
+      return false;
+    }
+  } catch (error) {
     logSanitizedAuditError("createInternalUser.audit.complete", {
-      name: "PostgrestError",
-      code: error.code,
+      name: error instanceof Error ? error.name : "UnexpectedAuditError",
     });
 
     return false;
@@ -552,18 +560,12 @@ export async function createInternalUser(
       return serviceFailure("provisioning_error", PROVISIONING_CREATE_ERROR);
     }
 
-    const auditCompleted = await completeCreationAttempt(supabase, {
+    await completeCreationAttempt(supabase, {
       attemptId: auditAttempt.attemptId,
       status: "succeeded",
       errorCode: null,
       targetAuthUserId: createdUserId,
     });
-
-    if (!auditCompleted) {
-      await compensateCreatedAuthUser(admin, createdUserId);
-
-      return serviceFailure("provisioning_error", PROVISIONING_CREATE_ERROR);
-    }
 
     return serviceSuccess({ userId: createdUserId });
   } catch {

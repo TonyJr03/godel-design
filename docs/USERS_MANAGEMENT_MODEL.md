@@ -250,7 +250,7 @@ Orden de defensa:
 11. valida que Auth devuelva un UUID;
 12. consulta `public.perfiles` con el cliente server-side normal;
 13. valida la postcondición completa del perfil;
-14. finaliza la auditoría con `public.complete_internal_user_creation_attempt`;
+14. intenta finalizar la auditoría con `public.complete_internal_user_creation_attempt`;
 15. retorna solo `{ userId }`.
 
 La entrada permitida del alta completa es correo, contraseña temporal,
@@ -321,9 +321,13 @@ y la sesión del admin. La RPC permite como máximo 5 intentos reales por actor 
 registrados como `rate_limited` con `actor_rate_limit` o `global_rate_limit`,
 pero no cuentan como intentos reales para las ventanas futuras.
 
-El servicio exige cerrar la auditoría antes de devolver éxito. Si no puede
-registrar `succeeded`, intenta compensar el usuario Auth creado y devuelve un
-error genérico de provisionamiento. Los estados terminales son:
+El éxito funcional depende de Auth user creado y perfil interno correctamente
+provisionado. El cierre de auditoría como `succeeded` es de mejor esfuerzo:
+si falla, el servicio conserva el usuario Auth y el perfil, devuelve éxito y la
+fila queda `pending` como señal para reconciliación operativa posterior. La
+compensación se reserva para fallos de provisión: perfil ausente, perfil que no
+coincide con la postcondición o excepción después de obtener un UUID Auth pero
+antes de confirmar correctamente el perfil. Los estados terminales son:
 
 - `succeeded`, con `target_auth_user_id` y sin `error_code`;
 - `failed`, con códigos internos como `already_exists`, `weak_password`,
