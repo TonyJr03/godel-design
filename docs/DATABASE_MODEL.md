@@ -183,7 +183,11 @@ manualmente.
 **Provisionamiento Auth -> perfil:**
 
 - El trigger `on_auth_user_created_provision_internal_profile` corre `AFTER INSERT` sobre `auth.users`.
+- El trigger `on_auth_user_app_metadata_provision_internal_profile` corre `AFTER UPDATE OF raw_app_meta_data` sobre `auth.users` solo cuando `raw_app_meta_data.godel_provisioning` pasa de ausente o nulo a presente.
+- Ambos triggers ejecutan la misma función validada `private.provision_internal_profile_from_auth_user()`.
 - La función `private.provision_internal_profile_from_auth_user()` lee exclusivamente `auth.users.raw_app_meta_data.godel_provisioning`.
+- Se conserva `app_metadata` en la Admin API porque es metadata administrativa; en Supabase se refleja en `raw_app_meta_data`.
+- En el entorno local, Auth Admin puede insertar primero el usuario y aplicar `app_metadata` en una actualización posterior. El trigger de `INSERT` cubre entornos donde el marcador esté disponible desde el inicio, y el trigger de `UPDATE` cubre la transición local.
 - Si no existe el marcador, devuelve `new` y no crea perfil.
 - Si existe, exige `version = 1`, `source = "admin_dashboard"`, `new.email` presente, `full_name` no vacío y dentro de 120 caracteres, opcionales `phone` y `avatar_url` dentro de límites, rol `admin`, `supervisor` o `trabajador`, `created_by` con UUID válido y admin creador existente, activo y sin cambio pendiente.
 - Inserta `id = new.id`, datos normalizados, `is_active = true`, `must_change_password = true` y `created_by`.

@@ -81,13 +81,16 @@ El `INSERT` normal sobre `perfiles` para `authenticated` se conserva de forma tr
 
 ## Base para Creación Administrativa Segura
 
-La decisión arquitectónica evoluciona hacia un alta directa futura desde el dashboard administrativo: un admin autorizado creará el usuario Auth con correo y contraseña temporal mediante Admin API en código estrictamente server-side. Esa llamada todavía no existe en esta etapa.
+La decisión arquitectónica evoluciona hacia un alta directa desde el dashboard administrativo: un admin autorizado crea el usuario Auth con correo y contraseña temporal mediante Admin API en código estrictamente server-side. El servicio backend ya existe, pero todavía no está conectado a una Server Action ni a la interfaz.
 
 La base vigente queda preparada así:
 
 - `auth.users` seguirá siendo la fuente de identidad, correo y credenciales.
 - `public.perfiles` seguirá siendo la fuente de rol, estado operativo y datos internos.
-- Un trigger `AFTER INSERT` sobre `auth.users` crea el perfil solo cuando `raw_app_meta_data.godel_provisioning` trae el marcador administrativo esperado.
+- Un trigger `AFTER INSERT` sobre `auth.users` crea el perfil cuando `raw_app_meta_data.godel_provisioning` trae el marcador administrativo esperado desde el inicio.
+- Un trigger complementario `AFTER UPDATE OF raw_app_meta_data` crea el perfil cuando el marcador aparece por primera vez en una actualización posterior de `app_metadata`.
+- Ambos triggers ejecutan la misma función validada `private.provision_internal_profile_from_auth_user()`.
+- Se conserva `app_metadata` porque el marcador es metadata administrativa; no se cambia a `user_metadata`.
 - Usuarios Auth sin ese marcador no reciben perfil automático ni acceso interno.
 - `must_change_password = true` bloquea operación interna por RLS: `private.current_user_role()` no devuelve rol y `private.current_user_is_active()` devuelve falso operativo.
 - `created_by` identifica al admin creador y exige que sea `admin`, activo y sin cambio de contraseña pendiente.
@@ -96,7 +99,7 @@ La base vigente queda preparada así:
 - El signup público local queda deshabilitado en `supabase/config.toml`.
 - La clave administrativa aislada forma parte del contrato técnico mediante `SUPABASE_SECRET_KEY` y `createAdminClient()`.
 - `createInternalUser()` es el único consumidor productivo autorizado del cliente Admin. Todavía no está conectado a una Server Action ni a la interfaz.
-- El servicio valida autorización antes de construir el cliente Admin y usa la Admin API solo para `auth.admin.createUser`.
+- El servicio valida autorización antes de construir el cliente Admin y usa la Admin API solo para `auth.admin.createUser` y la compensación `auth.admin.deleteUser` si falla la postcondición.
 
 La funcionalidad sigue incompleta hasta implementar las etapas posteriores: Server Action protegida, formulario con correo y contraseña temporal, cambio inicial real de contraseña, rate limiting funcional, auditoría operativa y pruebas E2E.
 
@@ -238,7 +241,9 @@ Orden de defensa:
 6. construye `createAdminClient()`;
 7. llama a `auth.admin.createUser`;
 8. valida que Auth devuelva un UUID;
-9. retorna solo `{ userId }`.
+9. consulta `public.perfiles` con el cliente server-side normal;
+10. valida la postcondición completa del perfil;
+11. retorna solo `{ userId }`.
 
 La entrada permitida del alta completa es correo, contraseña temporal,
 confirmación de contraseña, nombre completo, teléfono opcional, avatar opcional,
@@ -287,9 +292,23 @@ no afirma que la persona verificó manualmente el correo. El servicio no usa
 con `is_active = true`, `must_change_password = true` y `created_by` del admin
 operativo.
 
+El entorno local de Supabase Auth puede persistir `app_metadata` después del
+primer `INSERT` de `auth.users`; por eso existen dos triggers complementarios:
+uno de inserción y otro de transición de `raw_app_meta_data`. Ninguna identidad
+se considera creada correctamente hasta que `createInternalUser()` confirme que
+existe exactamente el perfil esperado.
+
+Después de obtener el UUID de Auth, `createInternalUser()` consulta
+`public.perfiles` mediante el cliente server-side normal, no con el cliente
+Admin. Selecciona solo `id`, `full_name`, `phone`, `avatar_url`, `role`,
+`is_active`, `must_change_password` y `created_by`, y comprueba que esos campos
+coincidan con la entrada normalizada y el admin creador. Si la postcondición
+falla, intenta eliminar compensatoriamente el usuario Auth con Admin API y
+devuelve `provisioning_error` con un mensaje genérico.
+
 Razones de error actuales: `unauthorized`, `forbidden`,
 `onboarding_required`, `validation_error`, `already_exists`, `rate_limited`,
-`configuration_error`, `auth_error` y `error`. Los códigos Auth `email_exists`,
+`configuration_error`, `provisioning_error`, `auth_error` y `error`. Los códigos Auth `email_exists`,
 `user_already_exists`, `identity_already_exists` y `conflict` se tratan como
 duplicado con error de campo `email`; `weak_password` vuelve como
 `validation_error`; estatus `429` y códigos `over_*_rate_limit` vuelven como

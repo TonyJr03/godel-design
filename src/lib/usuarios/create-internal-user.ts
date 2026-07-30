@@ -8,9 +8,12 @@ import {
   type ServiceResult,
 } from "@/lib/service-results";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { isValidUuid } from "@/lib/validators";
+import type { Tables } from "@/types/database";
 import {
   validateCreateInternalUserInput,
+  type CreateInternalUserData,
   type CreateInternalUserFieldErrors,
   type CreateInternalUserInput as CreateInternalUserValidationInput,
 } from "./user-validation";
@@ -25,6 +28,7 @@ export type CreateInternalUserErrorReason =
   | "already_exists"
   | "rate_limited"
   | "configuration_error"
+  | "provisioning_error"
   | "auth_error"
   | "error";
 
@@ -48,8 +52,22 @@ type AuthErrorLike = {
   status?: unknown;
 };
 
+type ProvisionedProfile = Pick<
+  Tables<"perfiles">,
+  | "id"
+  | "full_name"
+  | "phone"
+  | "avatar_url"
+  | "role"
+  | "is_active"
+  | "must_change_password"
+  | "created_by"
+>;
+
 const GENERIC_CREATE_ERROR =
   "No se pudo crear el usuario interno. Intentalo nuevamente.";
+const PROVISIONING_CREATE_ERROR =
+  "No se pudo completar la creacion del usuario interno.";
 const MANAGE_USERS_ERROR =
   "No tienes permiso para crear usuarios internos.";
 const AUTH_DUPLICATE_CODES = new Set([
@@ -86,6 +104,99 @@ function toSanitizedAuthError(
 
 function logSanitizedAuthError(context: string, error: AuthErrorLike): void {
   console.error("Supabase Auth admin error", toSanitizedAuthError(context, error));
+}
+
+function logSanitizedProvisioningError(
+  context: string,
+  error: AuthErrorLike,
+): void {
+  console.error(
+    "Internal user provisioning error",
+    toSanitizedAuthError(context, error),
+  );
+}
+
+function profileMatchesProvisioning(
+  profile: ProvisionedProfile,
+  userId: string,
+  data: CreateInternalUserData,
+  createdBy: string,
+): boolean {
+  return (
+    profile.id === userId &&
+    profile.full_name === data.full_name &&
+    profile.phone === data.phone &&
+    profile.avatar_url === data.avatar_url &&
+    profile.role === data.role &&
+    profile.is_active === true &&
+    profile.must_change_password === true &&
+    profile.created_by === createdBy
+  );
+}
+
+async function verifyProvisionedProfile(
+  userId: string,
+  data: CreateInternalUserData,
+  createdBy: string,
+): Promise<boolean> {
+  const supabase = await createClient();
+  const { data: profile, error } = await supabase
+    .from("perfiles")
+    .select(
+      "id, full_name, phone, avatar_url, role, is_active, must_change_password, created_by",
+    )
+    .eq("id", userId)
+    .maybeSingle<ProvisionedProfile>();
+
+  if (error) {
+    logSanitizedProvisioningError("createInternalUser.profileVerification", {
+      name: "PostgrestError",
+      code: error.code,
+    });
+
+    return false;
+  }
+
+  if (!profile) {
+    logSanitizedProvisioningError("createInternalUser.profileVerification", {
+      name: "ProvisionedProfileMissing",
+    });
+
+    return false;
+  }
+
+  if (!profileMatchesProvisioning(profile, userId, data, createdBy)) {
+    logSanitizedProvisioningError("createInternalUser.profileVerification", {
+      name: "ProvisionedProfileMismatch",
+    });
+
+    return false;
+  }
+
+  return true;
+}
+
+async function compensateCreatedAuthUser(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+): Promise<void> {
+  try {
+    const { error } = await admin.auth.admin.deleteUser(userId);
+
+    if (error) {
+      logSanitizedProvisioningError(
+        "createInternalUser.compensation.deleteUser",
+        error,
+      );
+    }
+  } catch {
+    logSanitizedProvisioningError(
+      "createInternalUser.compensation.deleteUser",
+      {
+        name: "UnexpectedDeleteUserError",
+      },
+    );
+  }
 }
 
 function mapCreateUserAuthError(
@@ -156,6 +267,7 @@ export async function createInternalUser(
   }
 
   let admin: ReturnType<typeof createAdminClient>;
+  let createdUserId: string | null = null;
 
   try {
     admin = createAdminClient();
@@ -196,8 +308,28 @@ export async function createInternalUser(
       return serviceFailure("auth_error", GENERIC_CREATE_ERROR);
     }
 
-    return serviceSuccess({ userId: data.user.id });
+    createdUserId = data.user.id;
+
+    const profileWasProvisioned = await verifyProvisionedProfile(
+      createdUserId,
+      validation.data,
+      currentProfile.id,
+    );
+
+    if (!profileWasProvisioned) {
+      await compensateCreatedAuthUser(admin, createdUserId);
+
+      return serviceFailure("provisioning_error", PROVISIONING_CREATE_ERROR);
+    }
+
+    return serviceSuccess({ userId: createdUserId });
   } catch {
+    if (createdUserId) {
+      await compensateCreatedAuthUser(admin, createdUserId);
+
+      return serviceFailure("provisioning_error", PROVISIONING_CREATE_ERROR);
+    }
+
     return serviceFailure("error", GENERIC_CREATE_ERROR);
   }
 }

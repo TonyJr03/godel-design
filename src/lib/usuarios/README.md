@@ -63,6 +63,21 @@ confirmacion administrativa sin envio de email. No usa `user_metadata`, no
 inserta manualmente en `perfiles`, no ejecuta RPC de cambio inicial, no devuelve
 password ni objeto Auth completo y retorna solo `{ userId }`.
 
+Supabase Auth local puede aplicar `app_metadata` despues del `INSERT` inicial
+de `auth.users`. La base por eso mantiene dos triggers complementarios:
+`AFTER INSERT` y `AFTER UPDATE OF raw_app_meta_data` cuando
+`godel_provisioning` aparece por primera vez. Ambos llaman la misma funcion
+privilegiada de provisionamiento y conservan `app_metadata` como metadata
+administrativa.
+
+`createInternalUser` no considera suficiente el objeto Auth retornado. Despues
+de validar el UUID consulta `public.perfiles` con el cliente server-side normal
+y verifica `id`, nombre, opcionales, rol, `is_active = true`,
+`must_change_password = true` y `created_by`. Si falta el perfil o no coincide,
+intenta eliminar compensatoriamente el Auth user y devuelve
+`provisioning_error` con un mensaje generico. Una identidad sin perfil nunca es
+resultado exitoso del servicio.
+
 La creacion legacy de un perfil no crea credenciales Auth. El `id` recibido debe
 corresponder a un usuario Auth existente por la foreign key de base de datos.
 Los errores de FK o unique se devuelven como mensajes seguros.
@@ -129,7 +144,9 @@ datos de Supabase Auth.
 - Mantener `usuarios.manage` para creacion/edicion.
 - Usar RLS como defensa final.
 - Usar `createAdminClient` solo en `create-internal-user.ts` y solo para Admin
-  API de Auth.
+  API de Auth: `createUser` y compensacion `deleteUser`.
+- Consultar `perfiles` desde `createInternalUser` con el cliente server-side
+  normal, no con el cliente Admin.
 - No agregar `SUPABASE_SERVICE_ROLE_KEY`.
 - No consultar `auth.users`.
 - No consultar Supabase desde componentes cliente.
