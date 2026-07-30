@@ -56,10 +56,21 @@ function UserIdentity({ user }: { user: InternalUser }) {
   );
 }
 
+function UserStatusBadges({ user }: { user: InternalUser }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      <StatusBadge status={user.is_active ? "activo" : "inactivo"} />
+      {user.must_change_password ? (
+        <StatusBadge status="pendiente" label="Cambio inicial pendiente" />
+      ) : null}
+    </div>
+  );
+}
+
 export function InternalUsersList({
   users,
   getUpdateAction,
-  emptyMessage = "Los perfiles internos aparecerán aquí cuando se registren en el sistema.",
+  emptyMessage = "Los usuarios internos apareceran aqui cuando se registren en el sistema.",
   hasActiveFilters = false,
 }: InternalUsersListProps) {
   if (users.length === 0) {
@@ -69,7 +80,7 @@ export function InternalUsersList({
         title={
           hasActiveFilters
             ? "No encontramos usuarios con estos filtros."
-            : "No hay usuarios registrados todavía."
+            : "No hay usuarios registrados todavia."
         }
         description={emptyMessage}
       />
@@ -86,8 +97,8 @@ export function InternalUsersList({
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <UserIdentity user={user} />
-              <div className="flex shrink-0 items-center gap-2">
-                <StatusBadge status={user.is_active ? "activo" : "inactivo"} />
+              <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                <UserStatusBadges user={user} />
                 <UserEditDialogButton
                   user={user}
                   updateAction={getUpdateAction(user.id)}
@@ -106,15 +117,15 @@ export function InternalUsersList({
               </div>
               <div>
                 <dt className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-                  Teléfono
+                  Telefono
                 </dt>
                 <dd className="mt-1 text-text-primary">
-                  {user.phone?.trim() || "Sin teléfono"}
+                  {user.phone?.trim() || "Sin telefono"}
                 </dd>
               </div>
               <div className="col-span-2">
                 <dt className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-                  Actualización
+                  Actualizacion
                 </dt>
                 <dd className="mt-1 text-text-primary">
                   {formatDate(user.updated_at)}
@@ -146,19 +157,19 @@ export function InternalUsersList({
                   Rol
                 </th>
                 <th scope="col" className="px-4 py-3">
-                  Teléfono
+                  Telefono
                 </th>
                 <th scope="col" className="px-4 py-3">
                   Estado
                 </th>
                 <th scope="col" className="px-4 py-3">
-                  Creación
+                  Creacion
                 </th>
                 <th scope="col" className="px-4 py-3">
-                  Actualización
+                  Actualizacion
                 </th>
                 <th scope="col" className="px-4 py-3 text-right">
-                  Acción
+                  Accion
                 </th>
               </tr>
             </thead>
@@ -173,13 +184,11 @@ export function InternalUsersList({
                   </td>
                   <td className="whitespace-nowrap px-4 py-4 text-text-secondary">
                     <div className="truncate">
-                      {user.phone?.trim() || "Sin teléfono"}
+                      {user.phone?.trim() || "Sin telefono"}
                     </div>
                   </td>
-                  <td className="whitespace-nowrap px-4 py-4">
-                    <StatusBadge
-                      status={user.is_active ? "activo" : "inactivo"}
-                    />
+                  <td className="px-4 py-4">
+                    <UserStatusBadges user={user} />
                   </td>
                   <td className="whitespace-nowrap px-4 py-4 text-text-secondary">
                     {formatDate(user.created_at)}

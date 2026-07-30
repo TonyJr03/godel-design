@@ -174,11 +174,11 @@ manualmente.
 - `perfiles_select_visible` permite que un usuario lea su propia fila aunque tenga `must_change_password = true`, para poder detectar onboarding sin ganar acceso operativo.
 - `private.current_user_role()` solo devuelve rol si el perfil está activo y no tiene contraseña temporal pendiente.
 - `private.current_user_is_active()` usa la misma semántica operativa: `is_active = true` y `must_change_password = false`.
-- La UI todavía no crea usuarios Auth ni conecta el alta completa; el servicio backend aislado `createInternalUser()` sí usa Auth Admin mediante `createAdminClient()` solo para `auth.admin.createUser` y compensación `auth.admin.deleteUser`.
-- `authenticated` conserva `SELECT` e `INSERT` transitorio sobre `perfiles`, pero no tiene `UPDATE` completo de tabla.
+- La UI de Usuarios crea usuarios Auth por la Server Action de alta segura, que delega en `createInternalUser()`; el servicio usa Auth Admin mediante `createAdminClient()` solo para `auth.admin.createUser` y compensacion `auth.admin.deleteUser`.
+- `authenticated` conserva `SELECT` sobre `perfiles`, pero no tiene `INSERT` ni `UPDATE` completo de tabla.
 - La actualización normal de `perfiles` queda concedida por columnas únicamente para `full_name`, `phone`, `avatar_url`, `role` e `is_active`.
 - `id`, `must_change_password`, `created_by`, `created_at` y `updated_at` son campos protegidos frente a actualizaciones directas de sesiones normales.
-- El `INSERT` normal se conserva temporalmente para el alta legacy por UUID hasta que el nuevo flujo administrativo lo reemplace por completo.
+- El `INSERT` normal desde sesiones `authenticated` esta retirado; el alta productiva se provisiona por trigger desde Auth Admin.
 
 **Provisionamiento Auth -> perfil:**
 

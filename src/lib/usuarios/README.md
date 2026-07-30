@@ -1,31 +1,28 @@
 # Usuarios y perfiles
 
 `src/lib/usuarios` contiene la logica server-side del dominio interno de
-usuarios/perfiles del dashboard. Supabase Auth sigue siendo la autoridad de
-identidad y credenciales; `public.perfiles` sigue siendo la autoridad de rol,
-estado operativo y datos internos.
+usuarios/perfiles del dashboard. Supabase Auth es la autoridad de identidad y
+credenciales; `public.perfiles` es la autoridad de rol, estado operativo y datos
+internos.
 
-El dominio mantiene el flujo legacy de perfiles por UUID y suma
-`createInternalUser` como servicio backend aislado para crear usuarios Auth con
-contraseña temporal. El formulario actual todavia no consume ese servicio.
+El alta productiva vigente crea el usuario Auth y el perfil interno desde un
+flujo server-side unico: Server Action -> `createInternalUser()` -> Auth Admin
+-> trigger de provisionamiento.
 
 ## Mapa de archivos
 
 - `index.ts`: barrel publico del dominio.
 - `types.ts`: DTOs internos de listado, detalle y formulario.
 - `roles.ts`: roles internos soportados, derivados de tipos generados.
-- `user-validation.ts`: normalizacion y validacion de input editable.
-- `list-internal-users.ts`: listado interno de perfiles.
-- `get-internal-user-by-id.ts`: detalle interno por UUID de perfil.
+- `user-validation.ts`: normalizacion y validacion de input editable y de alta.
+- `list-internal-users.ts`: listado interno de usuarios desde `public.perfiles`.
+- `get-internal-user-by-id.ts`: detalle interno por UUID de perfil/Auth.
 - `create-internal-user.ts`: alta administrativa Auth + perfil por trigger.
-- `create-internal-user-profile.ts`: creacion de fila en `public.perfiles`.
 - `update-internal-user.ts`: actualizacion de perfil, rol y estado.
 
 ## Rutas internas
 
-- `/dashboard/configuracion/usuarios`: listado interno de perfiles.
-- `/dashboard/configuracion/usuarios/nuevo`: formulario para crear perfil interno de un
-  usuario Auth existente.
+- `/dashboard/configuracion/usuarios`: listado interno y dialogo de alta segura.
 - `/dashboard/configuracion/usuarios/[id]/editar`: edicion interna de perfil, rol y estado.
 
 Las rutas viven en `src/app/(interno)/dashboard/configuracion/usuarios` y deben
@@ -34,8 +31,9 @@ adaptadores finos: leen `FormData`, llaman servicios y revalidan rutas.
 
 ## Componentes principales
 
-- `InternalUsersList`: listado responsive de perfiles internos.
-- `UserCreateForm`: formulario de creacion de perfil.
+- `InternalUsersList`: listado responsive de usuarios internos, incluyendo el
+  estado de cambio inicial pendiente.
+- `UserCreateForm`: formulario de alta segura con correo y contrasena temporal.
 - `UserEditForm`: formulario de edicion de perfil, rol y estado.
 
 Los componentes son UI. No consultan Supabase, no consultan `auth.users`, no
@@ -43,17 +41,13 @@ deciden permisos criticos y no deben reutilizarse en rutas publicas.
 
 ## Servicios
 
-- `listInternalUsers` requiere `usuarios.view` y devuelve perfiles internos
-  para dashboard.
-- `getInternalUserById` valida UUID, requiere `usuarios.view` y devuelve el
-  detalle interno del perfil.
+- `listInternalUsers` requiere `usuarios.view` y devuelve perfiles internos para dashboard.
+- `getInternalUserById` valida UUID, requiere `usuarios.view` y devuelve el detalle interno del perfil.
 - `createInternalUser` autentica al admin actual, valida que su perfil exista,
   este activo, no tenga `must_change_password` pendiente y posea
-  `usuarios.manage`; despues valida correo, contraseña temporal y perfil,
+  `usuarios.manage`; despues valida correo, contrasena temporal y perfil,
   reserva auditoria/rate limit con el cliente server-side normal y recien
   entonces llama a Admin API.
-- `createInternalUserProfile` requiere `usuarios.manage`, valida input e
-  inserta solo en `public.perfiles`.
 - `updateInternalUser` requiere `usuarios.manage`, valida UUID e input, y
   actualiza solo campos permitidos de perfil.
 
@@ -76,8 +70,7 @@ de validar el UUID consulta `public.perfiles` con el cliente server-side normal
 y verifica `id`, nombre, opcionales, rol, `is_active = true`,
 `must_change_password = true` y `created_by`. Si falta el perfil o no coincide,
 intenta eliminar compensatoriamente el Auth user y devuelve
-`provisioning_error` con un mensaje generico. Una identidad sin perfil nunca es
-resultado exitoso del servicio.
+`provisioning_error` con un mensaje generico.
 
 Antes de construir `createAdminClient`, `createInternalUser` llama
 `public.begin_internal_user_creation_attempt` con el cliente server-side normal.
@@ -89,27 +82,25 @@ globales en 1 hora. Si se excede una ventana, el servicio devuelve
 Despues de Auth Admin y de la verificacion de perfil, el servicio llama
 `public.complete_internal_user_creation_attempt` para cerrar la auditoria como
 `succeeded`, `failed` o `compensation_failed`. La auditoria no guarda correo,
-contraseña, metadata, tokens, payloads completos ni mensajes externos. El exito
+contrasena, metadata, tokens, payloads completos ni mensajes externos. El exito
 funcional depende de Auth user creado y perfil correcto; el cierre `succeeded`
 es de mejor esfuerzo. Si ese cierre falla, el usuario Auth y el perfil se
-conservan, el servicio devuelve exito y la fila `pending` queda como señal para
-reconciliacion operativa posterior. La compensacion se reserva para fallos de
-provision: perfil ausente, perfil inconsistente o excepcion antes de confirmar
-correctamente la postcondicion.
+conservan, el servicio devuelve exito y la fila `pending` queda como senal para
+reconciliacion operativa posterior.
 
-La creacion legacy de un perfil no crea credenciales Auth. El `id` recibido debe
-corresponder a un usuario Auth existente por la foreign key de base de datos.
-Los errores de FK o unique se devuelven como mensajes seguros.
+El flujo legacy de crear una fila de `public.perfiles` por UUID Auth ya fue
+retirado del dominio productivo. No debe reintroducirse como formulario,
+servicio ni Server Action.
 
 ## Tipos, roles y validacion
 
 `types.ts` centraliza los DTOs internos del dominio. Los roles se obtienen desde
 `roles.ts` para mantener alineacion con los tipos generados de base de datos.
 
-`user-validation.ts` conserva los contratos legacy y agrega un contrato separado
-para alta completa: normaliza correo con `trim` y minusculas, no altera la
-contraseña temporal, exige confirmacion exacta y requiere confirmacion explicita
-cuando el rol nuevo es `admin`.
+`user-validation.ts` mantiene el contrato de edicion y el contrato de alta
+completa: normaliza correo con `trim` y minusculas, no altera la contrasena
+temporal, exige confirmacion exacta y requiere confirmacion explicita cuando el
+rol nuevo es `admin`.
 
 ## Revalidacion
 
@@ -136,7 +127,7 @@ base de datos. No deben moverse a componentes ni relajarse como cambio menor de
 UI.
 
 Un administrador operativo es `role = admin`, `is_active = true` y
-`must_change_password = false`. Un admin con contraseña temporal pendiente no
+`must_change_password = false`. Un admin con contrasena temporal pendiente no
 impide actualizar al ultimo administrador real.
 
 ## Datos visibles en dashboard
@@ -146,13 +137,13 @@ En rutas internas puede mostrarse:
 - nombre para mostrar;
 - rol;
 - estado activo/inactivo;
+- estado de cambio inicial pendiente;
 - avatar sanitizado;
 - fecha de creacion;
-- UUID de perfil/Auth solo dentro del dashboard cuando el componente lo
-  necesite.
+- UUID de perfil/Auth solo dentro del dashboard cuando el componente lo necesite.
 
-La gestion interna de perfiles no muestra ni edita email, password u otros
-datos de Supabase Auth.
+La gestion interna de perfiles no muestra ni edita email, password u otros datos
+de Supabase Auth.
 
 ## Seguridad
 
@@ -166,15 +157,15 @@ datos de Supabase Auth.
   API de Auth: `createUser` y compensacion `deleteUser`.
 - Consultar `perfiles` desde `createInternalUser` con el cliente server-side
   normal, no con el cliente Admin.
-- Usar el cliente server-side normal para las RPCs de auditoria/rate limiting
-  de alta completa; nunca el cliente Admin.
+- Usar el cliente server-side normal para las RPCs de auditoria/rate limiting de
+  alta completa; nunca el cliente Admin.
 - No agregar `SUPABASE_SERVICE_ROLE_KEY`.
 - No consultar `auth.users`.
 - No consultar Supabase desde componentes cliente.
 - No insertar manualmente en `perfiles` desde el alta completa; el trigger de
   Auth es la unica ruta de provisionamiento.
 - Mantener errores y logs sanitizados: los logs pueden incluir solo contexto,
-  nombre, codigo y estado; nunca correo, contraseña, metadata, tokens o payloads.
+  nombre, codigo y estado; nunca correo, contrasena, metadata, tokens o payloads.
 - No cambiar roles o permisos sin fase explicita con TypeScript, SQL/RLS,
   documentacion y QA por rol.
 
@@ -186,7 +177,7 @@ mantenerse pequena y centrada en permisos, visibilidad y errores seguros.
 
 ## Que no hacer
 
-- No conectar todavia `createInternalUser` al formulario actual.
+- No reintroducir el alta legacy por UUID Auth manual.
 - No consultar `auth.users` desde app code.
 - No usar el cliente Admin para consultas de tablas.
 - No exponer perfiles internos en rutas publicas.
@@ -196,7 +187,9 @@ mantenerse pequena y centrada en permisos, visibilidad y errores seguros.
 - No crear `src/services`.
 - No mezclar refactors de usuarios con cambios de auth, RLS o permisos.
 
-## Pendiente antes de UI
+## Pendiente antes de merge productivo
 
-Antes de conectar el formulario productivo faltan Server Action fina, pantalla
-de cambio inicial de contraseña y QA E2E del flujo completo.
+Falta implementar la pantalla de cambio inicial real de contrasena y el
+onboarding protegido que complete `must_change_password = false` despues de que
+Auth confirme el cambio. Hasta cerrar esa etapa, el alta segura queda conectada
+pero no lista para produccion completa.

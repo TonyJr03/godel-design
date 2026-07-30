@@ -159,7 +159,7 @@ export async function listInternalUsers(
     let dataQuery = supabase
       .from("perfiles")
       .select(
-        "id, full_name, role, phone, avatar_url, is_active, created_at, updated_at",
+        "id, full_name, role, phone, avatar_url, is_active, must_change_password, created_at, updated_at",
       );
 
     if (searchCondition) {

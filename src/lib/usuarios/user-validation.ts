@@ -2,7 +2,6 @@ import {
   getTextInput,
   hasFieldErrors,
   isBasicEmail,
-  isValidUuid,
   normalizeOptionalSingleLineText,
   normalizeSingleLineText,
   validationFailure,
@@ -12,7 +11,6 @@ import {
 import { isInternalUserRole, type InternalUserRole } from "./roles";
 
 export const USER_FIELDS = [
-  "id",
   "full_name",
   "phone",
   "avatar_url",
@@ -52,14 +50,6 @@ export type UpdateUserData = {
   is_active: boolean;
 };
 
-export type CreateUserProfileInput = UpdateUserInput & {
-  id?: string | null;
-};
-
-export type CreateUserProfileData = UpdateUserData & {
-  id: string;
-};
-
 export type CreateInternalUserInput = {
   email?: string | null;
   password?: string | null;
@@ -87,11 +77,6 @@ export type CreateInternalUserFieldErrors = Partial<
 
 export type ValidateUserInputResult = ValidationResult<
   UpdateUserData,
-  UserFieldErrors
->;
-
-export type ValidateCreateUserProfileInputResult = ValidationResult<
-  CreateUserProfileData,
   UserFieldErrors
 >;
 
@@ -282,31 +267,6 @@ export function validateUserInput(
   return validationSuccess({
     ...profileValidation.data,
     is_active: isActive,
-  });
-}
-
-export function validateCreateUserProfileInput(
-  input: CreateUserProfileInput,
-): ValidateCreateUserProfileInputResult {
-  const id = normalizeSingleLineText(input.id);
-  const profileValidation = validateUserInput(input);
-  const fieldErrors: UserFieldErrors = profileValidation.ok
-    ? {}
-    : { ...profileValidation.fieldErrors };
-
-  if (!id) {
-    fieldErrors.id = "El UUID del usuario Auth es obligatorio.";
-  } else if (!isValidUuid(id)) {
-    fieldErrors.id = "Ingresa un UUID valido de Supabase Auth.";
-  }
-
-  if (!profileValidation.ok || hasFieldErrors(fieldErrors)) {
-    return validationFailure(fieldErrors);
-  }
-
-  return validationSuccess({
-    id,
-    ...profileValidation.data,
   });
 }
 

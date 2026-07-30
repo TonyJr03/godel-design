@@ -1,5 +1,4 @@
 export { createInternalUser } from "./create-internal-user";
-export { createInternalUserProfile } from "./create-internal-user-profile";
 export { getInternalUserById } from "./get-internal-user-by-id";
 export {
   INTERNAL_USER_ROLES,
@@ -14,12 +13,6 @@ export type {
   CreateInternalUserInput,
   CreateInternalUserResult,
 } from "./create-internal-user";
-
-export type {
-  CreateInternalUserProfileErrorReason,
-  CreateInternalUserProfileInput,
-  CreateInternalUserProfileResult,
-} from "./create-internal-user-profile";
 
 export type {
   GetInternalUserByIdErrorReason,
@@ -42,8 +35,6 @@ export type {
 } from "./update-internal-user";
 
 export type {
-  CreateUserProfileData,
-  CreateUserProfileInput,
   CreateInternalUserData,
   CreateInternalUserField,
   CreateInternalUserFieldErrors,
@@ -52,6 +43,5 @@ export type {
   UserField,
   UserFieldErrors,
   ValidateCreateInternalUserInputResult,
-  ValidateCreateUserProfileInputResult,
   ValidateUserInputResult,
 } from "./user-validation";

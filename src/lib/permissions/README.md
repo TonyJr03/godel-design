@@ -71,9 +71,11 @@ resuelve cambiando permisos ni rutas en esta subfase.
 `usuarios.view` y `usuarios.manage` pertenecen solo a `admin`. La ruta
 `/dashboard/configuracion/usuarios` tambien esta limitada a `admin`.
 
-La gestion de usuarios internos opera sobre `public.perfiles`, sin crear
-usuarios Auth desde la app y sin usar service role key. Las Server Actions del
-modulo validan permisos en servidor antes de leer o modificar perfiles.
+La gestion de usuarios internos opera sobre Supabase Auth y `public.perfiles`
+desde codigo server-side. La creacion segura de usuarios Auth entra por una
+Server Action fina que valida `usuarios.manage` y delega en `createInternalUser`;
+las ediciones normales siguen modificando solo campos permitidos de
+`public.perfiles`.
 
 La subfase 12.2 usa `usuarios.view` para el listado read-only de perfiles
 internos. La pagina carga datos server-side, consulta solo `public.perfiles`,
@@ -88,10 +90,11 @@ La subfase 12.4 usa `usuarios.manage` para editar perfiles internos en
 campos permitidos de `public.perfiles` y aplica guardas para conservar al menos
 un administrador activo.
 
-La subfase 12.5 usa `usuarios.manage` para crear perfiles internos en
-`/dashboard/configuracion/usuarios/nuevo`. La app inserta solo en
-`public.perfiles`, no crea usuarios Auth, no consulta `auth.users`, no pide
-email ni contrasena y no usa service role key.
+La subfase 12.5 dejo historico el flujo manual por UUID Auth. El alta vigente
+usa `usuarios.manage` desde `/dashboard/configuracion/usuarios`, crea el usuario
+Auth con correo y contrasena temporal en servidor, y deja que el trigger de base
+provisione el perfil interno. La app no consulta `auth.users`, no inserta
+manualmente en `perfiles` y no expone el cliente Admin a componentes.
 
 ## Relacion con RLS
 

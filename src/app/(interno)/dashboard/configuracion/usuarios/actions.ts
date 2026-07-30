@@ -10,27 +10,31 @@ import {
   revalidateConfiguracionUsuariosList,
 } from "@/lib/actions/revalidation";
 import {
-  createInternalUserProfile,
+  createInternalUser,
   updateInternalUser,
+  type CreateInternalUserFieldErrors,
   type UserFieldErrors,
 } from "@/lib/usuarios";
 import { getFormValue } from "@/lib/utils";
 
-export type CreateUserProfileActionState = BaseActionState<UserFieldErrors> & {
+export type CreateUserActionState =
+  BaseActionState<CreateInternalUserFieldErrors> & {
   userId?: string;
 };
 
-export async function createUserProfileAction(
-  _prevState: CreateUserProfileActionState,
+export async function createUserAction(
+  _prevState: CreateUserActionState,
   formData: FormData,
-): Promise<CreateUserProfileActionState> {
-  const result = await createInternalUserProfile({
-    id: getFormValue(formData, "id"),
+): Promise<CreateUserActionState> {
+  const result = await createInternalUser({
+    email: getFormValue(formData, "email"),
+    password: getFormValue(formData, "password"),
+    password_confirmation: getFormValue(formData, "password_confirmation"),
     full_name: getFormValue(formData, "full_name"),
     phone: getFormValue(formData, "phone"),
     avatar_url: getFormValue(formData, "avatar_url"),
     role: getFormValue(formData, "role"),
-    is_active: getFormValue(formData, "is_active"),
+    confirm_admin: getFormValue(formData, "confirm_admin"),
   });
 
   if (!result.ok) {
@@ -41,9 +45,12 @@ export async function createUserProfileAction(
 
   revalidateConfiguracionUsuariosList();
 
-  return actionSuccess("Usuario creado correctamente.", {
+  return actionSuccess(
+    "Usuario creado correctamente. Debera cambiar su contrasena temporal en el primer acceso.",
+    {
     userId: result.userId,
-  });
+    },
+  );
 }
 
 export type UpdateUserActionState = BaseActionState<UserFieldErrors>;

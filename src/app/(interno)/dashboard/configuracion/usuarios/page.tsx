@@ -7,13 +7,13 @@ import {
 } from "@/components/listing";
 import { Alert } from "@/components/ui/Alert";
 import { ReadErrorAlert } from "@/components/ui/ReadErrorAlert";
-import { UserCreateDialogButton } from "@/components/usuarios/UserCreateDialogButton";
 import { InternalUsersList } from "@/components/usuarios/InternalUsersList";
+import { UserCreateDialogButton } from "@/components/usuarios/UserCreateDialogButton";
 import { normalizePageParam } from "@/lib/pagination";
 import { listInternalUsers } from "@/lib/usuarios";
 import { getSingleSearchParam } from "@/lib/utils";
 
-import { createUserProfileAction, updateUserAction } from "./actions";
+import { createUserAction, updateUserAction } from "./actions";
 
 type DashboardConfiguracionUsuariosPageProps = {
   searchParams: Promise<{
@@ -103,14 +103,12 @@ export default async function DashboardConfiguracionUsuariosPage({
     <div className="space-y-8">
       <ListingPageHeader
         title="Usuarios"
-        description="Gestiona perfiles internos, roles y estado del equipo."
-        action={
-          <UserCreateDialogButton createAction={createUserProfileAction} />
-        }
+        description="Crea usuarios internos y gestiona sus roles y estado operativo."
+        action={<UserCreateDialogButton createAction={createUserAction} />}
         toolbar={
           <ListingToolbar
             searchLabel="Buscar usuarios"
-            searchPlaceholder="Nombre o teléfono"
+            searchPlaceholder="Nombre o telefono"
             initialQuery={searchValue}
             filters={[
               {
@@ -140,19 +138,19 @@ export default async function DashboardConfiguracionUsuariosPage({
       />
 
       <Alert variant="info">
-        Los usuarios Auth se crean fuera de esta aplicación. Aquí se gestionan
-        sus perfiles internos.
+        Los usuarios nuevos se crean con una contrasena temporal y deberan
+        cambiarla antes de acceder al trabajo interno.
       </Alert>
 
       {result.ignoredInvalidRole ? (
         <Alert variant="warning">
-          El filtro de rol no es válido y fue ignorado.
+          El filtro de rol no es valido y fue ignorado.
         </Alert>
       ) : null}
 
       {result.ignoredInvalidActive ? (
         <Alert variant="warning">
-          El filtro de estado no es válido y fue ignorado.
+          El filtro de estado no es valido y fue ignorado.
         </Alert>
       ) : null}
 
@@ -187,7 +185,7 @@ export default async function DashboardConfiguracionUsuariosPage({
                 active,
               }}
               itemLabel="usuarios"
-              ariaLabel="Paginación de usuarios"
+              ariaLabel="Paginacion de usuarios"
             />
           ) : null}
         </>
