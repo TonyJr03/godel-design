@@ -46,9 +46,9 @@ export async function createUserAction(
   revalidateConfiguracionUsuariosList();
 
   return actionSuccess(
-    "Usuario creado correctamente. Debera cambiar su contrasena temporal en el primer acceso.",
+    "Usuario creado correctamente. Deberá cambiar su contraseña temporal en el primer acceso.",
     {
-    userId: result.userId,
+      userId: result.userId,
     },
   );
 }

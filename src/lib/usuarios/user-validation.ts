@@ -147,7 +147,7 @@ function validateProfileFields(input: {
   }
 
   if (phone && phone.length > MAX_PHONE_LENGTH) {
-    fieldErrors.phone = `El telefono no puede superar ${MAX_PHONE_LENGTH} caracteres.`;
+    fieldErrors.phone = `El teléfono no puede superar ${MAX_PHONE_LENGTH} caracteres.`;
   }
 
   if (avatarUrl && avatarUrl.length > MAX_AVATAR_URL_LENGTH) {
@@ -155,7 +155,7 @@ function validateProfileFields(input: {
   }
 
   if (!role) {
-    fieldErrors.role = "Selecciona un rol valido.";
+    fieldErrors.role = "Selecciona un rol válido.";
   }
 
   if (!role || hasFieldErrors(fieldErrors)) {
@@ -188,15 +188,15 @@ function validateEmail(
   if (!email) {
     fieldErrors.email = "El correo es obligatorio.";
   } else if (EMAIL_LINE_BREAK_PATTERN.test(rawEmail)) {
-    fieldErrors.email = "El correo debe estar en una sola linea.";
+    fieldErrors.email = "El correo debe estar en una sola línea.";
   } else if (email.length > MAX_EMAIL_LENGTH) {
     fieldErrors.email = `El correo no puede superar ${MAX_EMAIL_LENGTH} caracteres.`;
   } else if (WHITESPACE_PATTERN.test(email)) {
     fieldErrors.email = "El correo no puede contener espacios.";
   } else if (atMatches.length !== 1 || !domain) {
-    fieldErrors.email = "Ingresa un correo valido.";
+    fieldErrors.email = "Ingresa un correo válido.";
   } else if (!isBasicEmail(email)) {
-    fieldErrors.email = "Ingresa un correo valido.";
+    fieldErrors.email = "Ingresa un correo válido.";
   }
 
   return fieldErrors.email ? null : email;
@@ -214,30 +214,30 @@ function validateTemporaryPassword(
       : "";
 
   if (!password) {
-    fieldErrors.password = "La contrasena temporal es obligatoria.";
+    fieldErrors.password = "La contraseña temporal es obligatoria.";
   } else if (password.length < MIN_TEMPORARY_PASSWORD_LENGTH) {
-    fieldErrors.password = `La contrasena temporal debe tener al menos ${MIN_TEMPORARY_PASSWORD_LENGTH} caracteres.`;
+    fieldErrors.password = `La contraseña temporal debe tener al menos ${MIN_TEMPORARY_PASSWORD_LENGTH} caracteres.`;
   } else if (password.length > MAX_TEMPORARY_PASSWORD_LENGTH) {
-    fieldErrors.password = `La contrasena temporal no puede superar ${MAX_TEMPORARY_PASSWORD_LENGTH} caracteres.`;
+    fieldErrors.password = `La contraseña temporal no puede superar ${MAX_TEMPORARY_PASSWORD_LENGTH} caracteres.`;
   } else if (!LOWERCASE_PATTERN.test(password)) {
-    fieldErrors.password = "La contrasena temporal debe incluir una minuscula.";
+    fieldErrors.password = "La contraseña temporal debe incluir una minúscula.";
   } else if (!UPPERCASE_PATTERN.test(password)) {
-    fieldErrors.password = "La contrasena temporal debe incluir una mayuscula.";
+    fieldErrors.password = "La contraseña temporal debe incluir una mayúscula.";
   } else if (!NUMBER_PATTERN.test(password)) {
-    fieldErrors.password = "La contrasena temporal debe incluir un numero.";
+    fieldErrors.password = "La contraseña temporal debe incluir un número.";
   } else if (!NON_ALPHANUMERIC_PATTERN.test(password)) {
     fieldErrors.password =
-      "La contrasena temporal debe incluir un caracter no alfanumerico.";
+      "La contraseña temporal debe incluir un carácter no alfanumérico.";
   } else if (email && password.toLowerCase() === email) {
     fieldErrors.password =
-      "La contrasena temporal no puede ser igual al correo.";
+      "La contraseña temporal no puede ser igual al correo.";
   }
 
   if (!confirmation) {
-    fieldErrors.password_confirmation = "Confirma la contrasena temporal.";
+    fieldErrors.password_confirmation = "Confirma la contraseña temporal.";
   } else if (password !== confirmation) {
     fieldErrors.password_confirmation =
-      "La confirmacion debe coincidir exactamente.";
+      "La confirmación debe coincidir exactamente.";
   }
 
   if (fieldErrors.password || fieldErrors.password_confirmation) {
@@ -257,7 +257,7 @@ export function validateUserInput(
   };
 
   if (isActive === null) {
-    fieldErrors.is_active = "Selecciona un estado valido.";
+    fieldErrors.is_active = "Selecciona un estado válido.";
   }
 
   if (!profileValidation.data || isActive === null || hasFieldErrors(fieldErrors)) {
@@ -285,7 +285,7 @@ export function validateCreateInternalUserInput(
     input.confirm_admin !== "true"
   ) {
     fieldErrors.confirm_admin =
-      "Confirma que el usuario tendra acceso administrativo completo.";
+      "Confirma que el usuario tendrá acceso administrativo completo.";
   }
 
   if (

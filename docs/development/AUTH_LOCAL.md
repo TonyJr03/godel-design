@@ -1,8 +1,8 @@
-# Autenticacion Local - Godel Diseno
+# Autenticación Local - Godel Diseño
 
-## Proposito
+## Propósito
 
-Este documento describe como mantener usuarios internos de prueba en Supabase
+Este documento describe cómo mantener usuarios internos de prueba en Supabase
 local para validar login, acceso al dashboard y alta administrativa segura.
 
 ## Concepto principal
@@ -14,15 +14,15 @@ Para acceder al sistema interno hacen falta dos cosas:
   `must_change_password = false`.
 
 Supabase Auth confirma la identidad del usuario. `public.perfiles` controla el
-acceso interno basico al dashboard. Un perfil con `must_change_password = true`
+acceso interno básico al dashboard. Un perfil con `must_change_password = true`
 puede leer su propia fila para onboarding, pero no puede operar en pedidos,
 solicitudes, clientes, usuarios, archivos u otras entidades internas.
 
-## Signup publico bloqueado y login habilitado
+## Signup público bloqueado y login habilitado
 
-El signup publico local esta bloqueado en `supabase/config.toml`, pero el
+El signup público local está bloqueado en `supabase/config.toml`, pero el
 provider email/password debe quedar disponible para que los usuarios existentes
-o creados mediante Admin API puedan iniciar sesion:
+o creados mediante Admin API puedan iniciar sesión:
 
 ```toml
 [auth]
@@ -32,17 +32,17 @@ enable_signup = false
 enable_signup = true
 ```
 
-`[auth].enable_signup = false` impide la creacion publica de cuentas.
+`[auth].enable_signup = false` impide la creación pública de cuentas.
 `[auth.email].enable_signup = true` mantiene disponible el login por correo y
-contrasena. No habilita un formulario publico de signup dentro de la app.
+contraseña. No habilita un formulario público de signup dentro de la app.
 
 ## Requisitos previos
 
-- Docker Desktop en ejecucion.
+- Docker Desktop en ejecución.
 - Supabase local iniciado.
 - Migraciones aplicadas.
 - `.env.local` configurado.
-- Next.js en ejecucion.
+- Next.js en ejecución.
 
 ## Comandos en CMD de Windows
 
@@ -77,7 +77,7 @@ npx supabase migration up --local
 ```
 
 Si cambias `supabase/config.toml`, reinicia Supabase para que Auth lea la
-configuracion local:
+configuración local:
 
 ```cmd
 npx supabase stop
@@ -92,7 +92,7 @@ npm run dev
 
 ## Supabase Studio
 
-Supabase Studio normalmente esta disponible en:
+Supabase Studio normalmente está disponible en:
 
 ```text
 http://localhost:54323
@@ -113,9 +113,9 @@ local, `.env.local` debe definir:
 SUPABASE_SECRET_KEY=
 ```
 
-Obten las variables locales con `npx supabase status -o env` y copia localmente
+Obtén las variables locales con `npx supabase status -o env` y copia localmente
 el valor de `SECRET_KEY` a `SUPABASE_SECRET_KEY` en `.env.local`.
-`SERVICE_ROLE_KEY` queda como alternativa legacy local, pero el codigo del
+`SERVICE_ROLE_KEY` queda como alternativa legacy local, pero el código del
 proyecto usa `SUPABASE_SECRET_KEY`.
 
 Reglas:
@@ -125,34 +125,34 @@ Reglas:
 - nunca lo compartas en prompts;
 - nunca uses prefijo `NEXT_PUBLIC`;
 - recuerda que la clave administrativa omite RLS;
-- el proyecto no esta enlazado a Supabase remoto;
-- la configuracion remota se realizara en preproduccion.
+- el proyecto no está enlazado a Supabase remoto;
+- la configuración remota se realizará en preproducción.
 
 ## Crear usuarios internos en local
 
-El flujo recomendado es entrar como admin operativo y usar el dialogo de
+El flujo recomendado es entrar como admin operativo y usar el diálogo de
 Usuarios en `/dashboard/configuracion/usuarios`.
 
 El formulario crea:
 
-- el usuario Auth con correo y contrasena temporal;
+- el usuario Auth con correo y contraseña temporal;
 - el perfil interno por trigger de base;
 - `is_active = true`;
 - `must_change_password = true`;
 - `created_by` con el admin creador.
 
-El formulario no envia correo ni invitacion. Entrega la contrasena temporal por
+El formulario no envía correo ni invitación. Entrega la contraseña temporal por
 un canal externo seguro. El sistema no la muestra de nuevo.
 
-La pantalla de cambio inicial real de contrasena todavia no esta implementada.
+La pantalla de cambio inicial real de contraseña todavía no está implementada.
 Por eso los usuarios nuevos creados por este flujo quedan bloqueados para
-operacion interna hasta completar la etapa de onboarding.
+operación interna hasta completar la etapa de onboarding.
 
-## Seed o reparacion puntual de desarrollo
+## Seed o reparación puntual de desarrollo
 
 Para disponer de un admin inicial de desarrollo puede seguir siendo necesario
 crear manualmente un usuario Auth en Supabase Studio y asociarle un perfil. Este
-camino es solo para bootstrap local o reparacion puntual; no es el flujo
+camino es solo para bootstrap local o reparación puntual; no es el flujo
 productivo de alta.
 
 El `id` del perfil debe coincidir exactamente con el UUID del usuario en Auth.
@@ -183,7 +183,7 @@ set
   updated_at = now();
 ```
 
-Los usuarios de desarrollo que ya existian antes de `must_change_password` no
+Los usuarios de desarrollo que ya existían antes de `must_change_password` no
 requieren cambio inicial y sus perfiles permanecen con
 `must_change_password = false`.
 
@@ -197,11 +197,11 @@ El sistema lo redirige a `/acceso-denegado`.
 
 ## Usuario inactivo o con onboarding pendiente
 
-Si `is_active = false`, el usuario no puede acceder al dashboard y sera
+Si `is_active = false`, el usuario no puede acceder al dashboard y será
 redirigido a `/acceso-denegado`.
 
-Si `must_change_password = true`, el usuario tiene una contrasena temporal
-pendiente. RLS bloquea la operacion interna aunque pueda leer su propia fila
+Si `must_change_password = true`, el usuario tiene una contraseña temporal
+pendiente. RLS bloquea la operación interna aunque pueda leer su propia fila
 para completar onboarding en una etapa posterior.
 
 Desactivar un usuario:
@@ -226,24 +226,24 @@ where id = 'UUID_DEL_USUARIO';
 2. Confirmar que su perfil tiene `is_active = true` y `must_change_password = false`.
 3. Ejecutar `npm run dev`.
 4. Ir a `/login`.
-5. Iniciar sesion.
-6. Confirmar redireccion a `/dashboard`.
+5. Iniciar sesión.
+6. Confirmar redirección a `/dashboard`.
 7. Abrir `/dashboard/configuracion/usuarios`.
-8. Crear un usuario nuevo con correo y contrasena temporal.
+8. Crear un usuario nuevo con correo y contraseña temporal.
 9. Confirmar que aparece en el listado como activo y con cambio inicial pendiente.
-10. Cerrar sesion.
+10. Cerrar sesión.
 11. Probar usuario sin perfil.
 12. Probar usuario inactivo.
 
 No hagas pruebas E2E completas ni visual QA si la tarea actual solo pide validar
-la conexion del alta segura.
+la conexión del alta segura.
 
 ## Problemas comunes
 
-- Si el login funciona pero va a `/acceso-denegado`, falta perfil, esta inactivo
+- Si el login funciona pero va a `/acceso-denegado`, falta perfil, está inactivo
   o conserva `must_change_password = true`.
-- Si el dashboard redirige a `/login`, no hay sesion valida.
-- Si el alta falla por configuracion, revisar `SUPABASE_SECRET_KEY` local sin
+- Si el dashboard redirige a `/login`, no hay sesión válida.
+- Si el alta falla por configuración, revisar `SUPABASE_SECRET_KEY` local sin
   imprimir su valor.
 - Si una prueba de login devuelve `email_provider_disabled`, revisar
   `supabase/config.toml` y reiniciar Supabase local.
@@ -254,23 +254,23 @@ la conexion del alta segura.
 ## Seguridad
 
 - No usar service role key en frontend.
-- No crear signup publico.
-- No crear nuevos usuarios mediante signup publico local.
+- No crear signup público.
+- No crear nuevos usuarios mediante signup público local.
 - Mantener login email/password habilitado para usuarios existentes y creados
   por Admin API.
 - No subir `.env.local`.
-- No imprimir secretos ni contrasenas reales.
-- Los usuarios de prueba no deben usarse como credenciales reales de produccion.
+- No imprimir secretos ni contraseñas reales.
+- Los usuarios de prueba no deben usarse como credenciales reales de producción.
 
-## Que queda fuera
+## Qué queda fuera
 
 - Invitaciones por correo.
-- Recuperacion de contrasena.
-- Cambio inicial real de contrasena desde UI.
-- Onboarding que complete `must_change_password = false` despues del cambio real.
+- Recuperación de contraseña.
+- Cambio inicial real de contraseña desde UI.
+- Onboarding que complete `must_change_password = false` después del cambio real.
 
 ## Cierre
 
-El alta administrativa segura ya esta conectada a la UI, pero el flujo completo
-no debe considerarse listo para produccion hasta implementar el cambio inicial
-obligatorio de contrasena.
+El alta administrativa segura ya está conectada a la UI, pero el flujo completo
+no debe considerarse listo para producción hasta implementar el cambio inicial
+obligatorio de contraseña.

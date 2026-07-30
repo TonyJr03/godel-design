@@ -70,7 +70,7 @@ function UserStatusBadges({ user }: { user: InternalUser }) {
 export function InternalUsersList({
   users,
   getUpdateAction,
-  emptyMessage = "Los usuarios internos apareceran aqui cuando se registren en el sistema.",
+  emptyMessage = "Los usuarios internos aparecerán aquí cuando se registren en el sistema.",
   hasActiveFilters = false,
 }: InternalUsersListProps) {
   if (users.length === 0) {
@@ -80,7 +80,7 @@ export function InternalUsersList({
         title={
           hasActiveFilters
             ? "No encontramos usuarios con estos filtros."
-            : "No hay usuarios registrados todavia."
+            : "No hay usuarios registrados todavía."
         }
         description={emptyMessage}
       />
@@ -117,15 +117,15 @@ export function InternalUsersList({
               </div>
               <div>
                 <dt className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-                  Telefono
+                  Teléfono
                 </dt>
                 <dd className="mt-1 text-text-primary">
-                  {user.phone?.trim() || "Sin telefono"}
+                  {user.phone?.trim() || "Sin teléfono"}
                 </dd>
               </div>
               <div className="col-span-2">
                 <dt className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-                  Actualizacion
+                  Actualización
                 </dt>
                 <dd className="mt-1 text-text-primary">
                   {formatDate(user.updated_at)}
@@ -157,19 +157,19 @@ export function InternalUsersList({
                   Rol
                 </th>
                 <th scope="col" className="px-4 py-3">
-                  Telefono
+                  Teléfono
                 </th>
                 <th scope="col" className="px-4 py-3">
                   Estado
                 </th>
                 <th scope="col" className="px-4 py-3">
-                  Creacion
+                  Creación
                 </th>
                 <th scope="col" className="px-4 py-3">
-                  Actualizacion
+                  Actualización
                 </th>
                 <th scope="col" className="px-4 py-3 text-right">
-                  Accion
+                  Acción
                 </th>
               </tr>
             </thead>
@@ -184,7 +184,7 @@ export function InternalUsersList({
                   </td>
                   <td className="whitespace-nowrap px-4 py-4 text-text-secondary">
                     <div className="truncate">
-                      {user.phone?.trim() || "Sin telefono"}
+                      {user.phone?.trim() || "Sin teléfono"}
                     </div>
                   </td>
                   <td className="px-4 py-4">

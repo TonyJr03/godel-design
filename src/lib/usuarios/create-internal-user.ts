@@ -99,13 +99,13 @@ type MappedAuthFailure = Extract<CreateInternalUserResult, { ok: false }> & {
 };
 
 const GENERIC_CREATE_ERROR =
-  "No se pudo crear el usuario interno. Intentalo nuevamente.";
+  "No se pudo crear el usuario interno. Inténtalo nuevamente.";
 const PROVISIONING_CREATE_ERROR =
-  "No se pudo completar la creacion del usuario interno.";
+  "No se pudo completar la creación del usuario interno.";
 const MANAGE_USERS_ERROR =
   "No tienes permiso para crear usuarios internos.";
 const RATE_LIMIT_CREATE_ERROR =
-  "Se alcanzo el limite temporal de creacion de usuarios. Intentalo mas tarde.";
+  "Se alcanzó el límite temporal de creación de usuarios. Inténtalo más tarde.";
 const AUTH_DUPLICATE_CODES = new Set([
   "email_exists",
   "user_already_exists",
@@ -392,11 +392,11 @@ function mapCreateUserAuthError(error: ErrorLike): MappedAuthFailure {
     return {
       ...serviceFailure(
         "validation_error",
-        "La contrasena temporal no cumple los requisitos de seguridad.",
+        "La contraseña temporal no cumple los requisitos de seguridad.",
         {
           fieldErrors: {
             password:
-              "La contrasena temporal no cumple los requisitos de seguridad.",
+              "La contraseña temporal no cumple los requisitos de seguridad.",
           },
         },
       ),
@@ -440,7 +440,7 @@ export async function createInternalUser(
   if (currentProfile.must_change_password) {
     return serviceFailure(
       "onboarding_required",
-      "Completa el cambio de contrasena inicial antes de crear usuarios.",
+      "Completa el cambio de contraseña inicial antes de crear usuarios.",
     );
   }
 
@@ -485,7 +485,7 @@ export async function createInternalUser(
 
     return serviceFailure(
       "configuration_error",
-      "El cliente administrativo de usuarios no esta configurado.",
+      "El cliente administrativo de usuarios no está configurado.",
     );
   }
 

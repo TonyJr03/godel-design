@@ -108,7 +108,7 @@ export default async function DashboardConfiguracionUsuariosPage({
         toolbar={
           <ListingToolbar
             searchLabel="Buscar usuarios"
-            searchPlaceholder="Nombre o telefono"
+            searchPlaceholder="Nombre o teléfono"
             initialQuery={searchValue}
             filters={[
               {
@@ -138,19 +138,19 @@ export default async function DashboardConfiguracionUsuariosPage({
       />
 
       <Alert variant="info">
-        Los usuarios nuevos se crean con una contrasena temporal y deberan
+        Los usuarios nuevos se crean con una contraseña temporal y deberán
         cambiarla antes de acceder al trabajo interno.
       </Alert>
 
       {result.ignoredInvalidRole ? (
         <Alert variant="warning">
-          El filtro de rol no es valido y fue ignorado.
+          El filtro de rol no es válido y fue ignorado.
         </Alert>
       ) : null}
 
       {result.ignoredInvalidActive ? (
         <Alert variant="warning">
-          El filtro de estado no es valido y fue ignorado.
+          El filtro de estado no es válido y fue ignorado.
         </Alert>
       ) : null}
 
@@ -185,7 +185,7 @@ export default async function DashboardConfiguracionUsuariosPage({
                 active,
               }}
               itemLabel="usuarios"
-              ariaLabel="Paginacion de usuarios"
+              ariaLabel="Paginación de usuarios"
             />
           ) : null}
         </>

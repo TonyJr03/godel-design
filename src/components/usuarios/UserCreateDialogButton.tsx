@@ -42,7 +42,7 @@ export function UserCreateDialogButton({
       <InternalFormDialog
         isOpen={isOpen}
         title="Nuevo usuario"
-        description="Crea el acceso del usuario y su perfil interno con una contrasena temporal."
+        description="Crea el acceso del usuario y su perfil interno con una contraseña temporal."
         onClose={closeDialog}
         hasUnsavedChanges={hasUnsavedChanges}
       >

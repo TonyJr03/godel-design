@@ -145,17 +145,17 @@ export function UserCreateForm({
           ) : null}
 
           <Alert variant="info" className="wrap-break-word leading-6">
-            Entrega esta contrasena al usuario por un canal seguro. El sistema
-            no volvera a mostrarla.
+            Entrega esta contraseña al usuario por un canal seguro. El sistema
+            no volverá a mostrarla.
           </Alert>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField
               id="email"
-              label="Correo electronico"
+              label="Correo electrónico"
               required
               error={emailError}
-              help="Se utilizara para iniciar sesion. No se enviara un correo de confirmacion."
+              help="Se utilizará para iniciar sesión. No se enviará un correo de confirmación."
               className="sm:col-span-2"
               compact
             >
@@ -175,10 +175,10 @@ export function UserCreateForm({
 
             <FormField
               id="password"
-              label="Contrasena temporal"
+              label="Contraseña temporal"
               required
               error={passwordError}
-              help="Entre 12 y 72 caracteres, con mayuscula, minuscula, numero y simbolo."
+              help="Entre 12 y 72 caracteres, con mayúscula, minúscula, número y símbolo."
               compact
             >
               {({ describedBy, invalid }) => (
@@ -198,7 +198,7 @@ export function UserCreateForm({
 
             <FormField
               id="password_confirmation"
-              label="Confirmar contrasena"
+              label="Confirmar contraseña"
               required
               error={passwordConfirmationError}
               compact
@@ -241,7 +241,7 @@ export function UserCreateForm({
               )}
             </FormField>
 
-            <FormField id="phone" label="Telefono" error={phoneError} compact>
+            <FormField id="phone" label="Teléfono" error={phoneError} compact>
               {({ describedBy, invalid }) => (
                 <Input
                   id="phone"
@@ -312,7 +312,7 @@ export function UserCreateForm({
                     className="mt-1 size-4 shrink-0 accent-brand-primary"
                   />
                   <span>
-                    Confirmo que este usuario tendra acceso administrativo
+                    Confirmo que este usuario tendrá acceso administrativo
                     completo.
                   </span>
                 </label>

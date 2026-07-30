@@ -72,7 +72,7 @@ servicio se obtiene por la relación canónica con el catálogo.
 | `pagado` | No queda monto pendiente; incluye pedidos con `total_amount = 0`. |
 
 El estado se calcula en base de datos a partir de `total_amount`,
-`paid_cash_amount` y `paid_transfer_amount`; la aplicacion no lo decide
+`paid_cash_amount` y `paid_transfer_amount`; la aplicación no lo decide
 manualmente.
 
 ### `pedido_prioridad`
@@ -174,11 +174,11 @@ manualmente.
 - `perfiles_select_visible` permite que un usuario lea su propia fila aunque tenga `must_change_password = true`, para poder detectar onboarding sin ganar acceso operativo.
 - `private.current_user_role()` solo devuelve rol si el perfil está activo y no tiene contraseña temporal pendiente.
 - `private.current_user_is_active()` usa la misma semántica operativa: `is_active = true` y `must_change_password = false`.
-- La UI de Usuarios crea usuarios Auth por la Server Action de alta segura, que delega en `createInternalUser()`; el servicio usa Auth Admin mediante `createAdminClient()` solo para `auth.admin.createUser` y compensacion `auth.admin.deleteUser`.
+- La UI de Usuarios crea usuarios Auth por la Server Action de alta segura, que delega en `createInternalUser()`; el servicio usa Auth Admin mediante `createAdminClient()` solo para `auth.admin.createUser` y compensación `auth.admin.deleteUser`.
 - `authenticated` conserva `SELECT` sobre `perfiles`, pero no tiene `INSERT` ni `UPDATE` completo de tabla.
 - La actualización normal de `perfiles` queda concedida por columnas únicamente para `full_name`, `phone`, `avatar_url`, `role` e `is_active`.
 - `id`, `must_change_password`, `created_by`, `created_at` y `updated_at` son campos protegidos frente a actualizaciones directas de sesiones normales.
-- El `INSERT` normal desde sesiones `authenticated` esta retirado; el alta productiva se provisiona por trigger desde Auth Admin.
+- El `INSERT` normal desde sesiones `authenticated` está retirado; el alta productiva se provisiona por trigger desde Auth Admin.
 
 **Provisionamiento Auth -> perfil:**
 
@@ -352,7 +352,7 @@ Solicitudes y Pedidos.
 - Toda solicitud tiene `public_reference`, un código público no secuencial con
   formato `GD-XXXX-XXXX`.
 - `public_reference` no es el UUID interno, no deriva del `id` y no usa la
-  numeracion interna de pedidos.
+  numeración interna de pedidos.
 - El detalle interno puede mostrar `public_reference` como código copiable para
   compartir con el cliente; las referencias cortas derivadas del UUID quedan
   solo como identificadores internos.
@@ -421,7 +421,7 @@ Solicitudes y Pedidos.
 - Todo pedido tiene `public_reference`, un código público no secuencial con
   formato `GD-XXXX-XXXX`.
 - `public_reference` no reemplaza `order_number`: `order_number` sigue siendo la
-  numeracion interna operativa y `public_reference` queda reservado para
+  numeración interna operativa y `public_reference` queda reservado para
   seguimiento público.
 - El detalle interno del pedido muestra ambos conceptos separados:
   `order_number` como referencia operativa y `public_reference` como código
@@ -470,7 +470,7 @@ Solicitudes y Pedidos.
 
 ### `pedido_pagos`
 
-**Proposito:** Guarda el resumen financiero 1:1 de un pedido. `pedidos`
+**Propósito:** Guarda el resumen financiero 1:1 de un pedido. `pedidos`
 mantiene el dominio operativo y `pedido_pagos` mantiene el dominio financiero.
 No es una tabla de movimientos, abonos individuales ni comprobantes.
 
@@ -482,12 +482,12 @@ No es una tabla de movimientos, abonos individuales ni comprobantes.
 | `paid_transfer_amount` | `numeric(12,2)` | Monto pagado por transferencia. |
 | `payment_status` | `pedido_pago_estado` | Estado calculado por trigger. |
 | `paid_at` | `timestamptz nullable` | Fecha en que el resumen queda pagado. |
-| `created_by` | `uuid nullable` | Perfil interno que creo el resumen si aplica. |
-| `updated_by` | `uuid nullable` | Perfil interno que actualizo el resumen si aplica. |
-| `created_at` | `timestamptz` | Fecha de creacion. |
-| `updated_at` | `timestamptz` | Fecha de ultima actualizacion. |
+| `created_by` | `uuid nullable` | Perfil interno que creó el resumen si aplica. |
+| `updated_by` | `uuid nullable` | Perfil interno que actualizó el resumen si aplica. |
+| `created_at` | `timestamptz` | Fecha de creación. |
+| `updated_at` | `timestamptz` | Fecha de última actualización. |
 
-**Claves foraneas:**
+**Claves foráneas:**
 
 - `pedido_pagos.pedido_id` -> `pedidos.id` con `on delete cascade`.
 - `pedido_pagos.created_by` -> `perfiles.id`.
@@ -495,7 +495,7 @@ No es una tabla de movimientos, abonos individuales ni comprobantes.
 
 **Reglas importantes:**
 
-- Cada pedido debe tener un unico resumen financiero.
+- Cada pedido debe tener un único resumen financiero.
 - `total_amount >= 0`.
 - `paid_cash_amount >= 0`.
 - `paid_transfer_amount >= 0`.
@@ -507,14 +507,14 @@ No es una tabla de movimientos, abonos individuales ni comprobantes.
 - El trigger `private.set_pedido_payment_status()` recalcula siempre
   `payment_status` y mantiene `paid_at` coherente.
 - Los pedidos existentes se rellenan con total cero y estado `pagado`.
-- La creacion manual usa `public.crear_pedido_manual(p_service_id, ...)` para
-  crear el pedido y su resumen financiero en una sola transaccion.
+- La creación manual usa `public.crear_pedido_manual(p_service_id, ...)` para
+  crear el pedido y su resumen financiero en una sola transacción.
 - La conversión desde solicitud usa
   `public.convertir_solicitud_a_pedido(p_service_id, ...)` para crear el pedido,
-  su resumen financiero y asociar archivos en una sola transaccion.
-- La actualizacion interna de pagos usa `public.actualizar_pago_pedido` para
+  su resumen financiero y asociar archivos en una sola transacción.
+- La actualización interna de pagos usa `public.actualizar_pago_pedido` para
   modificar solo efectivo y transferencia acumulados, mantener `updated_by` y
-  registrar historial en una sola transaccion.
+  registrar historial en una sola transacción.
 - El precio total puede editarse de forma controlada mediante
   `public.actualizar_datos_pedido`, de manera atómica con la actualización de
   los datos básicos en `pedidos`.
@@ -523,7 +523,7 @@ No es una tabla de movimientos, abonos individuales ni comprobantes.
 - Si el precio cambia, `public.actualizar_datos_pedido` actualiza `updated_by`.
 - El trigger financiero recalcula `payment_status` y `paid_at` después del
   cambio de precio.
-- El estado de pago `pagado` es condicion para que
+- El estado de pago `pagado` es condición para que
   `public.actualizar_estado_pedido` pueda cerrar el pedido como `entregado`.
 - El listado interno puede leer este resumen para mostrar y filtrar estado de
   pago. Esa visibilidad sigue limitada por acceso interno al pedido; no forma
@@ -532,7 +532,7 @@ No es una tabla de movimientos, abonos individuales ni comprobantes.
 **Notas de seguridad:**
 
 - RLS está activo.
-- Usuarios anonimos no acceden.
+- Usuarios anónimos no acceden.
 - Usuarios internos activos pueden leer el resumen si ya pueden acceder al pedido.
 - Las modificaciones directas quedan restringidas a `admin` y `supervisor`.
 - No se usa `service_role` ni se consulta `auth.users` para este modelo.
@@ -644,65 +644,65 @@ No es una tabla de movimientos, abonos individuales ni comprobantes.
 
 | Campo | Tipo sugerido | Notas |
 |---|---|---|
-| `id` | `uuid` | Identificador unico de la plantilla. |
+| `id` | `uuid` | Identificador único de la plantilla. |
 | `name` | `text` | Nombre visible de la plantilla. |
-| `description` | `text nullable` | Descripcion interna opcional. |
+| `description` | `text nullable` | Descripción interna opcional. |
 | `is_active` | `boolean` | Permite ocultar plantillas sin eliminar su definición histórica. |
-| `created_by` | `uuid nullable` | Perfil interno que creo la plantilla. |
-| `updated_by` | `uuid nullable` | Perfil interno que actualizo la plantilla. |
-| `created_at` | `timestamptz` | Fecha de creacion. |
-| `updated_at` | `timestamptz` | Fecha de ultima actualizacion. |
+| `created_by` | `uuid nullable` | Perfil interno que creó la plantilla. |
+| `updated_by` | `uuid nullable` | Perfil interno que actualizó la plantilla. |
+| `created_at` | `timestamptz` | Fecha de creación. |
+| `updated_at` | `timestamptz` | Fecha de última actualización. |
 
-**Claves foraneas:**
+**Claves foráneas:**
 
 - `trabajo_plantillas.created_by` -> `perfiles.id`.
 - `trabajo_plantillas.updated_by` -> `perfiles.id`.
 
 **Reglas importantes:**
 
-- El nombre no puede quedar vacio tras `trim` y debe medir entre 2 y 120 caracteres.
+- El nombre no puede quedar vacío tras `trim` y debe medir entre 2 y 120 caracteres.
 - La descripción es opcional y tiene límite de 2000 caracteres.
 - Las plantillas se usan como moldes para crear tareas nuevas en pedidos de tipo `encargo`.
 - Aplicar una plantilla copia sus tareas a `pedido_tareas` mediante la RPC transaccional `public.aplicar_plantilla_tareas_pedido`.
 - La copia agrega tareas al final del pedido y no reemplaza ni borra tareas existentes.
 - Editar, desactivar o eliminar una plantilla no modifica pedidos existentes ni tareas ya copiadas.
-- No hay sincronizacion viva entre plantilla y pedido.
+- No hay sincronización viva entre plantilla y pedido.
 
 **Notas de seguridad:**
 
 - RLS está activo.
 - Usuarios internos autenticados y activos pueden leer plantillas activas.
 - `admin` puede leer plantillas activas e inactivas y gestionarlas.
-- Usuarios anonimos no acceden.
+- Usuarios anónimos no acceden.
 
 ### `trabajo_plantilla_tareas`
 
-**Proposito:** Guarda las tareas ordenadas de una plantilla. Estas filas describen tareas base para copiar a pedidos de tipo `encargo`, pero no guardan progreso real.
+**Propósito:** Guarda las tareas ordenadas de una plantilla. Estas filas describen tareas base para copiar a pedidos de tipo `encargo`, pero no guardan progreso real.
 
 | Campo | Tipo sugerido | Notas |
 |---|---|---|
-| `id` | `uuid` | Identificador unico de la tarea de plantilla. |
+| `id` | `uuid` | Identificador único de la tarea de plantilla. |
 | `template_id` | `uuid` | Plantilla a la que pertenece. |
 | `title` | `text` | Texto de la tarea predeterminada. |
 | `task_type` | `pedido_tarea_tipo` | Reutiliza el mismo enum que `pedido_tareas.task_type`. |
 | `target_quantity` | `integer nullable` | Cantidad objetivo para tareas cuantificadas. |
 | `sort_order` | `integer` | Orden dentro de la plantilla. |
-| `created_at` | `timestamptz` | Fecha de creacion. |
-| `updated_at` | `timestamptz` | Fecha de ultima actualizacion. |
+| `created_at` | `timestamptz` | Fecha de creación. |
+| `updated_at` | `timestamptz` | Fecha de última actualización. |
 
-**Claves foraneas:**
+**Claves foráneas:**
 
 - `trabajo_plantilla_tareas.template_id` -> `trabajo_plantillas.id` con `on delete cascade`.
 
 **Reglas importantes:**
 
-- `title` no puede estar vacio y tiene limite de 200 caracteres.
+- `title` no puede estar vacío y tiene límite de 200 caracteres.
 - `sort_order` no puede ser negativo.
 - Las tareas `simple` deben tener `target_quantity = null`.
 - Las tareas `cuantificada` requieren `target_quantity > 0`.
-- El orden visual se obtiene por `sort_order`, `created_at` e `id`; la gestion
+- El orden visual se obtiene por `sort_order`, `created_at` e `id`; la gestión
   actual permite mover tareas arriba o abajo y normaliza el orden tras eliminar.
-- La creacion y edicion desde Configuracion reutilizan el parseo de titulos de
+- La creación y edición desde Configuración reutilizan el parseo de títulos de
   `pedido_tareas`: un entero positivo independiente crea una tarea
   `cuantificada`; sin cantidad crea una tarea `simple`.
 - No existen `is_completed`, `completed_quantity`, `completed_at` ni `completed_by`, porque una plantilla no tiene avance.
@@ -714,7 +714,7 @@ No es una tabla de movimientos, abonos individuales ni comprobantes.
 - RLS está activo.
 - La lectura sigue la visibilidad de la plantilla padre: plantillas activas para usuarios internos activos y todas para `admin`.
 - Crear, actualizar o eliminar tareas de plantilla queda reservado a `admin`, equivalente SQL del permiso `configuracion.manage`.
-- Usuarios anonimos no acceden.
+- Usuarios anónimos no acceden.
 
 ### `archivos`
 
@@ -899,7 +899,7 @@ No es una tabla de movimientos, abonos individuales ni comprobantes.
 - Una solicitud convertida y su pedido asociado comparten `public_reference`.
 - Un pedido puede tener varios usuarios internos asignados.
 - Un usuario interno puede estar asignado a varios pedidos.
-- Un pedido tiene un resumen financiero unico en `pedido_pagos`.
+- Un pedido tiene un resumen financiero único en `pedido_pagos`.
 - Un pedido puede tener muchas tareas.
 - Una plantilla de trabajo puede tener muchas tareas predeterminadas.
 - Un pedido puede tener muchos archivos.
@@ -945,14 +945,14 @@ generan URLs firmadas de duración limitada; no hay lectura ni listado público.
 | `solicitudes` | `cliente_id` |
 | `solicitudes` | `created_at` |
 | `solicitudes` | `status, created_at` |
-| `solicitudes` | `public_reference` unico |
+| `solicitudes` | `public_reference` único |
 | `solicitudes` | `converted_order_id` único cuando no es `null` |
 | `solicitudes` | `service_id` |
 | `pedidos` | `cliente_id` |
 | `pedidos` | `created_at` |
 | `pedidos` | `status, created_at` |
 | `pedidos` | `estimated_delivery_date` para pedidos activos |
-| `pedidos` | `public_reference` unico |
+| `pedidos` | `public_reference` único |
 | `pedidos` | `solicitud_id` único cuando no es `null` |
 | `pedidos` | `service_id` |
 | `tipos_servicio` | `lower(btrim(name))` único |
