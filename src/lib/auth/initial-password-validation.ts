@@ -1,11 +1,9 @@
 export type InitialPasswordChangeInput = {
-  current_password: string;
   password: string;
   password_confirmation: string;
 };
 
 export type InitialPasswordChangeField =
-  | "current_password"
   | "password"
   | "password_confirmation";
 
@@ -14,7 +12,6 @@ export type InitialPasswordChangeFieldErrors = Partial<
 >;
 
 export type ValidInitialPasswordChangeInput = {
-  currentPassword: string;
   password: string;
 };
 
@@ -34,34 +31,33 @@ type ValidateInitialPasswordChangeInputOptions = {
   email?: string | null;
 };
 
-const MIN_PASSWORD_LENGTH = 12;
+const MIN_PASSWORD_LENGTH = 8;
 const MAX_PASSWORD_LENGTH = 72;
 const LOWERCASE_PATTERN = /[a-z]/;
 const UPPERCASE_PATTERN = /[A-Z]/;
 const NUMBER_PATTERN = /\d/;
-const SPECIAL_CHARACTER_PATTERN = /[^A-Za-z0-9]/;
+const ALLOWED_PASSWORD_SYMBOLS =
+  "!@#$%^&*()_+-=[]{};'\\:\"|<>?,./`~";
+
+function hasAllowedPasswordSymbol(password: string): boolean {
+  return [...password].some((character) =>
+    ALLOWED_PASSWORD_SYMBOLS.includes(character),
+  );
+}
 
 export function validateInitialPasswordChangeInput(
   input: InitialPasswordChangeInput,
   options: ValidateInitialPasswordChangeInputOptions = {},
 ): ValidateInitialPasswordChangeInputResult {
   const fieldErrors: InitialPasswordChangeFieldErrors = {};
-  const currentPassword = input.current_password;
   const password = input.password;
   const passwordConfirmation = input.password_confirmation;
-
-  if (!currentPassword) {
-    fieldErrors.current_password = "Ingresa la contraseña temporal actual.";
-  } else if (currentPassword.length > MAX_PASSWORD_LENGTH) {
-    fieldErrors.current_password =
-      "La contraseña temporal no puede superar 72 caracteres.";
-  }
 
   if (!password) {
     fieldErrors.password = "Ingresa una nueva contraseña.";
   } else if (password.length < MIN_PASSWORD_LENGTH) {
     fieldErrors.password =
-      "La nueva contraseña debe tener al menos 12 caracteres.";
+      "La nueva contraseña debe tener al menos 8 caracteres.";
   } else if (password.length > MAX_PASSWORD_LENGTH) {
     fieldErrors.password =
       "La nueva contraseña no puede superar 72 caracteres.";
@@ -73,12 +69,9 @@ export function validateInitialPasswordChangeInput(
       "La nueva contraseña debe incluir al menos una letra mayúscula.";
   } else if (!NUMBER_PATTERN.test(password)) {
     fieldErrors.password = "La nueva contraseña debe incluir al menos un número.";
-  } else if (!SPECIAL_CHARACTER_PATTERN.test(password)) {
+  } else if (!hasAllowedPasswordSymbol(password)) {
     fieldErrors.password =
       "La nueva contraseña debe incluir al menos un carácter especial.";
-  } else if (password === currentPassword) {
-    fieldErrors.password =
-      "La nueva contraseña debe ser distinta de la contraseña temporal.";
   } else if (
     options.email &&
     password.toLowerCase() === options.email.toLowerCase()
@@ -104,7 +97,6 @@ export function validateInitialPasswordChangeInput(
   return {
     ok: true,
     data: {
-      currentPassword,
       password,
     },
     fieldErrors,

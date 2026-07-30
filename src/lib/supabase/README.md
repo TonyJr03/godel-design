@@ -20,7 +20,7 @@ No se reexporta desde `index.ts`, `client.ts` ni `server.ts`.
 Las operaciones normales de datos continúan usando los clientes con RLS. El
 cliente Admin se reserva para operaciones aisladas de Auth Admin y para la RPC
 privilegiada `public.complete_initial_password_change` después de
-verificar la contraseña temporal actual y completar `auth.updateUser` con éxito.
+completar `auth.updateUser({ password })` con éxito desde una sesión válida.
 En el servicio de cambio inicial, la auditoría estática solo permite
 `rpc("complete_initial_password_change", ...)` mediante el cliente privilegiado;
 bloquea otras RPCs, `from`, Storage y `auth.admin`. No debe usarse para pedidos,

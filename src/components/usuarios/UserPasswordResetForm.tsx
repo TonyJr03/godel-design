@@ -8,7 +8,7 @@ import {
   FormActions,
   FormField,
   FormSection,
-  Input,
+  PasswordInput,
 } from "@/components/ui";
 import type { ResetUserPasswordActionState } from "@/app/(interno)/dashboard/configuracion/usuarios/actions";
 import type {
@@ -36,6 +36,10 @@ const initialState: UserPasswordResetFormActionState = {
   ok: false,
   message: "",
 };
+const TEMPORARY_PASSWORD_REQUIREMENTS_ID =
+  "reset-user-password-requirements";
+const TEMPORARY_PASSWORD_REQUIREMENTS_TEXT =
+  "Usa al menos 8 caracteres e incluye mayúscula, minúscula, número y símbolo.";
 
 function getFieldError(
   state: UserPasswordResetFormActionState,
@@ -170,21 +174,23 @@ export function UserPasswordResetForm({
               label="Contraseña temporal"
               required
               error={passwordError}
-              help="La contraseña temporal debe tener entre 12 y 72 caracteres e incluir mayúscula, minúscula, número y símbolo."
               compact
             >
               {({ describedBy, invalid }) => (
-                <Input
+                <PasswordInput
                   id="password"
                   name="password"
-                  type="password"
                   autoComplete="new-password"
                   required
-                  minLength={12}
+                  minLength={8}
                   maxLength={72}
                   disabled={passwordChanged}
                   invalid={invalid}
-                  aria-describedby={describedBy}
+                  aria-describedby={joinDescriptionIds(
+                    describedBy,
+                    TEMPORARY_PASSWORD_REQUIREMENTS_ID,
+                  )}
+                  visibilityResetKey={state}
                 />
               )}
             </FormField>
@@ -197,20 +203,30 @@ export function UserPasswordResetForm({
               compact
             >
               {({ describedBy, invalid }) => (
-                <Input
+                <PasswordInput
                   id="password_confirmation"
                   name="password_confirmation"
-                  type="password"
                   autoComplete="new-password"
                   required
-                  minLength={12}
+                  minLength={8}
                   maxLength={72}
                   disabled={passwordChanged}
                   invalid={invalid}
-                  aria-describedby={describedBy}
+                  aria-describedby={joinDescriptionIds(
+                    describedBy,
+                    TEMPORARY_PASSWORD_REQUIREMENTS_ID,
+                  )}
+                  visibilityResetKey={state}
                 />
               )}
             </FormField>
+
+            <p
+              id={TEMPORARY_PASSWORD_REQUIREMENTS_ID}
+              className="text-sm leading-5 text-text-secondary sm:col-span-2"
+            >
+              {TEMPORARY_PASSWORD_REQUIREMENTS_TEXT}
+            </p>
 
             <div className="sm:col-span-2">
               <label
@@ -259,4 +275,10 @@ export function UserPasswordResetForm({
       </FormSection>
     </form>
   );
+}
+
+function joinDescriptionIds(
+  ...ids: Array<string | undefined>
+): string | undefined {
+  return ids.filter(Boolean).join(" ") || undefined;
 }

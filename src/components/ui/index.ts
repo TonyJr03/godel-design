@@ -10,6 +10,7 @@ export * from "./Input";
 export * from "./InlineDeleteConfirmation";
 export * from "./MetadataGrid";
 export * from "./PageHeader";
+export * from "./PasswordInput";
 export * from "./PlaceholderCard";
 export * from "./PriorityBadge";
 export * from "./ReadErrorAlert";

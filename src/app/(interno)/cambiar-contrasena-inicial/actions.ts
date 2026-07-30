@@ -22,7 +22,6 @@ export async function changeInitialPasswordAction(
   formData: FormData,
 ): Promise<InitialPasswordChangeActionState> {
   const result = await completeInitialPasswordChange({
-    current_password: getFormValue(formData, "current_password"),
     password: getFormValue(formData, "password"),
     password_confirmation: getFormValue(formData, "password_confirmation"),
   });

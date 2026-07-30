@@ -6,7 +6,7 @@ import type {
   InitialPasswordChangeActionState,
   changeInitialPasswordAction,
 } from "@/app/(interno)/cambiar-contrasena-inicial/actions";
-import { Alert, Button, FormField, Input } from "@/components/ui";
+import { Alert, Button, FormField, PasswordInput } from "@/components/ui";
 
 type InitialPasswordChangeFormProps = {
   action: typeof changeInitialPasswordAction;
@@ -15,6 +15,9 @@ type InitialPasswordChangeFormProps = {
 const INITIAL_STATE: InitialPasswordChangeActionState = {
   ok: false,
 };
+const PASSWORD_REQUIREMENTS_ID = "initial-password-requirements";
+const PASSWORD_REQUIREMENTS_TEXT =
+  "Usa al menos 8 caracteres e incluye mayúscula, minúscula, número y símbolo.";
 
 export function InitialPasswordChangeForm({
   action,
@@ -30,11 +33,6 @@ export function InitialPasswordChangeForm({
 
     formRef.current?.reset();
 
-    if (state.fieldErrors?.current_password) {
-      focusField(formRef.current, "current_password");
-      return;
-    }
-
     if (state.fieldErrors?.password) {
       focusField(formRef.current, "password");
       return;
@@ -45,7 +43,7 @@ export function InitialPasswordChangeForm({
       return;
     }
 
-    focusField(formRef.current, "current_password");
+    focusField(formRef.current, "password");
   }, [state]);
 
   return (
@@ -65,45 +63,26 @@ export function InitialPasswordChangeForm({
       ) : null}
 
       <FormField
-        id="current_password"
-        label="Contraseña temporal actual"
-        required
-        error={state.fieldErrors?.current_password}
-      >
-        {({ describedBy, invalid }) => (
-          <Input
-            id="current_password"
-            name="current_password"
-            type="password"
-            autoComplete="current-password"
-            required
-            maxLength={72}
-            disabled={disabled}
-            invalid={invalid}
-            aria-describedby={describedBy}
-          />
-        )}
-      </FormField>
-
-      <FormField
         id="password"
         label="Nueva contraseña"
         required
-        help="Usa al menos 12 caracteres con mayúscula, minúscula, número y carácter especial."
         error={state.fieldErrors?.password}
       >
         {({ describedBy, invalid }) => (
-          <Input
+          <PasswordInput
             id="password"
             name="password"
-            type="password"
             autoComplete="new-password"
             required
-            minLength={12}
+            minLength={8}
             maxLength={72}
             disabled={disabled}
             invalid={invalid}
-            aria-describedby={describedBy}
+            aria-describedby={joinDescriptionIds(
+              describedBy,
+              PASSWORD_REQUIREMENTS_ID,
+            )}
+            visibilityResetKey={state}
           />
         )}
       </FormField>
@@ -115,20 +94,30 @@ export function InitialPasswordChangeForm({
         error={state.fieldErrors?.password_confirmation}
       >
         {({ describedBy, invalid }) => (
-          <Input
+          <PasswordInput
             id="password_confirmation"
             name="password_confirmation"
-            type="password"
             autoComplete="new-password"
             required
-            minLength={12}
+            minLength={8}
             maxLength={72}
             disabled={disabled}
             invalid={invalid}
-            aria-describedby={describedBy}
+            aria-describedby={joinDescriptionIds(
+              describedBy,
+              PASSWORD_REQUIREMENTS_ID,
+            )}
+            visibilityResetKey={state}
           />
         )}
       </FormField>
+
+      <p
+        id={PASSWORD_REQUIREMENTS_ID}
+        className="text-sm leading-5 text-text-secondary"
+      >
+        {PASSWORD_REQUIREMENTS_TEXT}
+      </p>
 
       <Button type="submit" size="lg" className="w-full" disabled={disabled}>
         {pending ? "Actualizando..." : "Actualizar contraseña"}
@@ -143,4 +132,10 @@ function focusField(form: HTMLFormElement | null, name: string): void {
   if (field instanceof HTMLInputElement) {
     field.focus();
   }
+}
+
+function joinDescriptionIds(
+  ...ids: Array<string | undefined>
+): string | undefined {
+  return ids.filter(Boolean).join(" ") || undefined;
 }

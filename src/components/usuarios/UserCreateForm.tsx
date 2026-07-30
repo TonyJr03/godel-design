@@ -9,6 +9,7 @@ import {
   FormField,
   FormSection,
   Input,
+  PasswordInput,
   Select,
 } from "@/components/ui";
 import type { BaseActionState } from "@/lib/actions/action-state";
@@ -35,6 +36,10 @@ const initialState: UserCreateFormActionState = {
   ok: false,
   message: "",
 };
+const TEMPORARY_PASSWORD_REQUIREMENTS_ID =
+  "create-user-password-requirements";
+const TEMPORARY_PASSWORD_REQUIREMENTS_TEXT =
+  "Usa al menos 8 caracteres e incluye mayúscula, minúscula, número y símbolo.";
 
 function getFieldError(
   state: UserCreateFormActionState,
@@ -178,20 +183,22 @@ export function UserCreateForm({
               label="Contraseña temporal"
               required
               error={passwordError}
-              help="Entre 12 y 72 caracteres, con mayúscula, minúscula, número y símbolo."
               compact
             >
               {({ describedBy, invalid }) => (
-                <Input
+                <PasswordInput
                   id="password"
                   name="password"
-                  type="password"
                   autoComplete="new-password"
                   required
-                  minLength={12}
+                  minLength={8}
                   maxLength={72}
                   invalid={invalid}
-                  aria-describedby={describedBy}
+                  aria-describedby={joinDescriptionIds(
+                    describedBy,
+                    TEMPORARY_PASSWORD_REQUIREMENTS_ID,
+                  )}
+                  visibilityResetKey={state}
                 />
               )}
             </FormField>
@@ -204,19 +211,29 @@ export function UserCreateForm({
               compact
             >
               {({ describedBy, invalid }) => (
-                <Input
+                <PasswordInput
                   id="password_confirmation"
                   name="password_confirmation"
-                  type="password"
                   autoComplete="new-password"
                   required
-                  minLength={12}
+                  minLength={8}
                   maxLength={72}
                   invalid={invalid}
-                  aria-describedby={describedBy}
+                  aria-describedby={joinDescriptionIds(
+                    describedBy,
+                    TEMPORARY_PASSWORD_REQUIREMENTS_ID,
+                  )}
+                  visibilityResetKey={state}
                 />
               )}
             </FormField>
+
+            <p
+              id={TEMPORARY_PASSWORD_REQUIREMENTS_ID}
+              className="text-sm leading-5 text-text-secondary sm:col-span-2"
+            >
+              {TEMPORARY_PASSWORD_REQUIREMENTS_TEXT}
+            </p>
 
             <FormField
               id="full_name"
@@ -337,4 +354,10 @@ export function UserCreateForm({
       </FormSection>
     </form>
   );
+}
+
+function joinDescriptionIds(
+  ...ids: Array<string | undefined>
+): string | undefined {
+  return ids.filter(Boolean).join(" ") || undefined;
 }

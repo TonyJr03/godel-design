@@ -133,7 +133,7 @@ no se usa.
 - `created_by` identifica al admin creador y exige que sea `admin`, activo y sin
   cambio de contraseña pendiente.
 - `public.complete_initial_password_change(uuid)` completa el onboarding después
-  de `auth.updateUser({ current_password, password })` exitoso.
+  de `auth.updateUser({ password })` exitoso para la sesión autenticada.
 - `private.internal_user_creation_audit` registra intentos de alta sin almacenar
   email, contraseña, metadata, tokens ni payloads completos.
 - `public.begin_internal_user_creation_attempt` reserva cada intento permitido y
@@ -213,7 +213,7 @@ confirmación de contraseña, nombre completo, teléfono opcional, avatar opcion
 rol y confirmación explícita para rol `admin`. No acepta `id`, `is_active`,
 `must_change_password`, `created_by` ni otros campos técnicos.
 
-La contraseña temporal no se recorta ni se transforma. Debe medir entre 12 y 72
+La contraseña temporal no se recorta ni se transforma. Debe medir entre 8 y 72
 caracteres, incluir minúscula, mayúscula, número y carácter no alfanumérico, no
 ser idéntica al correo ignorando mayúsculas, y coincidir exactamente con su
 confirmación. La contraseña no se registra, no se documenta con ejemplos reales,
@@ -246,17 +246,17 @@ contraseña, metadata, URL, headers, request, response body, tokens ni stack.
 
 `completeInitialPasswordChange(input)` es un servicio server-only exportado desde
 `src/lib/auth`. Usa el cliente server-side normal para leer la sesión, validar la
-fila propia de `public.perfiles`, verificar la contraseña temporal actual con
-Supabase Auth y ejecutar `auth.updateUser` con `current_password`. Solo después
-de que Auth confirme el cambio construye `createAdminClient()` para llamar
-exclusivamente al RPC `public.complete_initial_password_change`.
+fila propia de `public.perfiles` y ejecutar `auth.updateUser({ password })`.
+El formulario no solicita la contraseña temporal actual; Supabase Auth exige
+reautenticación cuando `secure_password_change` aplica. Solo después de que Auth
+confirme el cambio construye `createAdminClient()` para llamar exclusivamente al
+RPC `public.complete_initial_password_change`.
 
-La entrada permitida es `current_password`, `password` y
-`password_confirmation`. Las contraseñas no se recortan ni se transforman. La
-nueva contraseña debe medir entre 12 y 72 caracteres, incluir minúscula,
-mayúscula, número y carácter no alfanumérico, ser distinta de la contraseña
-temporal y no ser igual al correo del usuario ignorando mayúsculas. La
-confirmación debe coincidir exactamente.
+La entrada permitida es `password` y `password_confirmation`. Las contraseñas no
+se recortan ni se transforman. La nueva contraseña debe medir entre 8 y 72
+caracteres, incluir minúscula, mayúscula, número y carácter no alfanumérico, y no
+ser igual al correo del usuario ignorando mayúsculas. La confirmación debe
+coincidir exactamente.
 
 Si Auth cambia la contraseña pero el RPC no consigue completar
 `must_change_password = false`, el servicio devuelve `completion_error` con
@@ -265,11 +265,11 @@ administrador. No vuelve a usar la contraseña temporal ni intenta recrear
 credenciales.
 
 El servicio mantiene una frontera de excepciones alrededor de cliente SSR,
-`getUser`, lectura de perfil, validación asociada al usuario, verificación de la
-contraseña actual, `auth.updateUser` y finalización del perfil. Antes de
-confirmar `auth.updateUser` devuelve un mensaje genérico sin `passwordChanged`.
-Después de confirmar que Auth cambió la contraseña del mismo usuario, cualquier
-excepción pasa a `completion_error` con `passwordChanged = true`.
+`getUser`, lectura de perfil, validación asociada al usuario, `auth.updateUser`
+y finalización del perfil. Antes de confirmar `auth.updateUser` devuelve un
+mensaje controlado sin `passwordChanged`. Después de confirmar que Auth cambió
+la contraseña del mismo usuario, cualquier excepción pasa a `completion_error`
+con `passwordChanged = true`.
 
 `passwordChanged` solo pasa a `true` cuando `auth.updateUser` no devuelve error
 y `updateResult.data.user?.id` coincide con el usuario autenticado.
@@ -286,8 +286,8 @@ El código Auth `same_password` se trata como reutilización de contraseña y
 devuelve `validation_error` con error de campo `password`, no `weak_password`.
 
 Razones de error actuales: `unauthorized`, `inactive`, `not_required`,
-`validation_error`, `invalid_current_password`, `weak_password`, `rate_limited`,
-`auth_error`, `completion_error` y `error`.
+`validation_error`, `reauthentication_required`, `weak_password`,
+`rate_limited`, `auth_error`, `completion_error` y `error`.
 
 ## Servicio `resetInternalUserPassword`
 
@@ -504,7 +504,7 @@ Server Action -> `createInternalUser()` -> Auth Admin -> trigger de perfil.
 El usuario nuevo queda activo y con `must_change_password = true`. La pantalla
 de cambio inicial de contraseña está implementada en
 `/cambiar-contrasena-inicial` y completa `must_change_password = false` solo
-después de cambiar realmente la contraseña temporal.
+después de cambiar realmente la contraseña desde una sesión válida.
 
 ### 12.8 Cambio Inicial Obligatorio
 

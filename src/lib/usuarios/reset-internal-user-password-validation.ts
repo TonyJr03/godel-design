@@ -33,12 +33,19 @@ export type ValidateResetInternalUserPasswordInputResult = ValidationResult<
   ResetInternalUserPasswordFieldErrors
 >;
 
-const MIN_TEMPORARY_PASSWORD_LENGTH = 12;
+const MIN_TEMPORARY_PASSWORD_LENGTH = 8;
 const MAX_TEMPORARY_PASSWORD_LENGTH = 72;
 const LOWERCASE_PATTERN = /[a-z]/;
 const UPPERCASE_PATTERN = /[A-Z]/;
 const NUMBER_PATTERN = /\d/;
-const NON_ALPHANUMERIC_PATTERN = /[^A-Za-z0-9]/;
+const ALLOWED_PASSWORD_SYMBOLS =
+  "!@#$%^&*()_+-=[]{};'\\:\"|<>?,./`~";
+
+function hasAllowedPasswordSymbol(password: string): boolean {
+  return [...password].some((character) =>
+    ALLOWED_PASSWORD_SYMBOLS.includes(character),
+  );
+}
 
 export function validateResetInternalUserPasswordInput(
   input: ResetInternalUserPasswordInput,
@@ -54,7 +61,7 @@ export function validateResetInternalUserPasswordInput(
     fieldErrors.password = "Ingresa una contraseña temporal.";
   } else if (password.length < MIN_TEMPORARY_PASSWORD_LENGTH) {
     fieldErrors.password =
-      "La contraseña temporal debe tener al menos 12 caracteres.";
+      "La contraseña temporal debe tener al menos 8 caracteres.";
   } else if (password.length > MAX_TEMPORARY_PASSWORD_LENGTH) {
     fieldErrors.password =
       "La contraseña temporal no puede superar 72 caracteres.";
@@ -66,7 +73,7 @@ export function validateResetInternalUserPasswordInput(
       "La contraseña temporal debe incluir una mayúscula.";
   } else if (!NUMBER_PATTERN.test(password)) {
     fieldErrors.password = "La contraseña temporal debe incluir un número.";
-  } else if (!NON_ALPHANUMERIC_PATTERN.test(password)) {
+  } else if (!hasAllowedPasswordSymbol(password)) {
     fieldErrors.password =
       "La contraseña temporal debe incluir un carácter no alfanumérico.";
   }

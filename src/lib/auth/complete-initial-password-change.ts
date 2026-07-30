@@ -18,7 +18,7 @@ export type CompleteInitialPasswordChangeFailureReason =
   | "inactive"
   | "not_required"
   | "validation_error"
-  | "invalid_current_password"
+  | "reauthentication_required"
   | "weak_password"
   | "rate_limited"
   | "auth_error"
@@ -116,21 +116,7 @@ export async function completeInitialPasswordChange(
       );
     }
 
-    const currentPasswordFailure = await verifyCurrentPassword(
-      supabase,
-      {
-        email: user.email,
-        id: user.id,
-      },
-      validation.data.currentPassword,
-    );
-
-    if (currentPasswordFailure) {
-      return currentPasswordFailure;
-    }
-
     const updateResult = await supabase.auth.updateUser({
-      current_password: validation.data.currentPassword,
       password: validation.data.password,
     });
 
@@ -192,14 +178,17 @@ function mapUpdatePasswordFailure(
       {
         fieldErrors: {
           password:
-            "La nueva contraseña debe ser diferente de la contraseña temporal.",
+            "La nueva contraseña debe ser diferente de la contraseña actual.",
         },
       },
     );
   }
 
   if (isReauthenticationNeededError(error)) {
-    return serviceFailure("auth_error", GENERIC_AUTH_ERROR_MESSAGE);
+    return serviceFailure(
+      "reauthentication_required",
+      "Por seguridad, vuelve a iniciar sesión con la contraseña temporal antes de continuar.",
+    );
   }
 
   if (isWeakPasswordError(error)) {
@@ -209,77 +198,6 @@ function mapUpdatePasswordFailure(
       {
         fieldErrors: {
           password: "La nueva contraseña no cumple los requisitos de seguridad.",
-        },
-      },
-    );
-  }
-
-  if (isInvalidCurrentPasswordError(error)) {
-    return serviceFailure(
-      "invalid_current_password",
-      "La contraseña temporal actual no es correcta.",
-      {
-        fieldErrors: {
-          current_password: "La contraseña temporal actual no es correcta.",
-        },
-      },
-    );
-  }
-
-  return serviceFailure("auth_error", GENERIC_AUTH_ERROR_MESSAGE);
-}
-
-async function verifyCurrentPassword(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  user: { email?: string; id: string },
-  currentPassword: string,
-): Promise<CompleteInitialPasswordChangeResult | null> {
-  if (!user.email) {
-    logSanitizedError("initial-password-change:missing-user-email", null);
-
-    return serviceFailure("auth_error", GENERIC_AUTH_ERROR_MESSAGE);
-  }
-
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: user.email,
-    password: currentPassword,
-  });
-
-  if (error) {
-    return mapCurrentPasswordVerificationFailure(error);
-  }
-
-  if (data.user?.id !== user.id) {
-    logSanitizedError(
-      "initial-password-change:current-password-user-mismatch",
-      null,
-    );
-
-    return serviceFailure("auth_error", GENERIC_AUTH_ERROR_MESSAGE);
-  }
-
-  return null;
-}
-
-function mapCurrentPasswordVerificationFailure(
-  error: AuthError,
-): CompleteInitialPasswordChangeResult {
-  logSanitizedError("initial-password-change:verify-current-password", error);
-
-  if (isRateLimitError(error)) {
-    return serviceFailure(
-      "rate_limited",
-      "Se alcanzó el límite temporal de intentos. Inténtalo más tarde.",
-    );
-  }
-
-  if (isInvalidCurrentPasswordError(error)) {
-    return serviceFailure(
-      "invalid_current_password",
-      "La contraseña temporal actual no es correcta.",
-      {
-        fieldErrors: {
-          current_password: "La contraseña temporal actual no es correcta.",
         },
       },
     );
@@ -369,17 +287,6 @@ async function hasCompletedProfileFlag(
   }
 
   return data?.must_change_password === false;
-}
-
-function isInvalidCurrentPasswordError(error: AuthError): boolean {
-  const code = normalizeErrorToken(error.code);
-  const message = normalizeErrorToken(error.message);
-
-  return (
-    code === "invalid_credentials" ||
-    message.includes("current_password") ||
-    message.includes("current password")
-  );
 }
 
 function isSamePasswordError(error: AuthError): boolean {

@@ -36,6 +36,20 @@ enable_signup = true
 `[auth.email].enable_signup = true` mantiene disponible el login por correo y
 contraseña. No habilita un formulario público de signup dentro de la app.
 
+La política local de contraseñas debe quedar alineada con la UI productiva:
+
+```toml
+[auth]
+minimum_password_length = 8
+password_requirements = "lower_upper_letters_digits_symbols"
+
+[auth.email]
+secure_password_change = true
+```
+
+La misma alineación de configuración hospedada queda pendiente de validar en
+preproducción; no se configura desde este repositorio local.
+
 ## Requisitos previos
 
 - Docker Desktop en ejecución.
@@ -204,7 +218,9 @@ redirigido a `/acceso-denegado`.
 Si `must_change_password = true`, el usuario tiene una contraseña temporal
 pendiente. El proxy lo redirige a `/cambiar-contrasena-inicial`, RLS bloquea la
 operación interna y la pantalla solo completa el onboarding después de
-verificar la contraseña temporal actual y ejecutar `auth.updateUser` con éxito.
+ejecutar `auth.updateUser({ password })` con éxito en una sesión válida. Si Auth
+exige reautenticación por `secure_password_change`, el usuario debe volver a
+iniciar sesión con la contraseña temporal antes de continuar.
 La finalización en base bloquea la fila de `public.perfiles`, confirma el
 `UPDATE` con `RETURNING id` y no deja el perfil operativo si se desactiva en una
 carrera.
@@ -293,11 +309,11 @@ identificadas, y confirma cero intentos `pending` de QA.
 10. Cerrar sesión.
 11. Iniciar sesión con el usuario nuevo y confirmar redirección a
     `/cambiar-contrasena-inicial`.
-12. Probar errores visibles con contraseña temporal incorrecta o nueva
-    contraseña débil.
-13. Probar nueva contraseña igual a la temporal, confirmación diferente y nueva
-    contraseña igual al correo ignorando mayúsculas.
-14. Cambiar la contraseña temporal por una contraseña nueva válida.
+12. Probar errores visibles con nueva contraseña débil.
+13. Probar confirmación diferente y nueva contraseña igual al correo ignorando
+    mayúsculas.
+14. Cambiar la contraseña temporal por una contraseña nueva válida desde la
+    pantalla de cambio inicial.
 15. Cerrar sesión y confirmar que la contraseña temporal ya no inicia sesión.
 16. Iniciar sesión con la contraseña nueva y confirmar acceso.
 17. Confirmar redirección a `/dashboard` y que `must_change_password = false`.

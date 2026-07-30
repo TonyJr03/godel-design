@@ -89,14 +89,21 @@ const MAX_FULL_NAME_LENGTH = 120;
 const MAX_PHONE_LENGTH = 40;
 const MAX_AVATAR_URL_LENGTH = 500;
 const MAX_EMAIL_LENGTH = 254;
-const MIN_TEMPORARY_PASSWORD_LENGTH = 12;
+const MIN_TEMPORARY_PASSWORD_LENGTH = 8;
 const MAX_TEMPORARY_PASSWORD_LENGTH = 72;
 const EMAIL_LINE_BREAK_PATTERN = /[\r\n]/;
 const WHITESPACE_PATTERN = /\s/;
 const LOWERCASE_PATTERN = /[a-z]/;
 const UPPERCASE_PATTERN = /[A-Z]/;
 const NUMBER_PATTERN = /\d/;
-const NON_ALPHANUMERIC_PATTERN = /[^A-Za-z0-9]/;
+const ALLOWED_PASSWORD_SYMBOLS =
+  "!@#$%^&*()_+-=[]{};'\\:\"|<>?,./`~";
+
+function hasAllowedPasswordSymbol(password: string): boolean {
+  return [...password].some((character) =>
+    ALLOWED_PASSWORD_SYMBOLS.includes(character),
+  );
+}
 
 function parseActiveValue(value: string | null | undefined): boolean | null {
   if (value === "true") {
@@ -225,7 +232,7 @@ function validateTemporaryPassword(
     fieldErrors.password = "La contraseña temporal debe incluir una mayúscula.";
   } else if (!NUMBER_PATTERN.test(password)) {
     fieldErrors.password = "La contraseña temporal debe incluir un número.";
-  } else if (!NON_ALPHANUMERIC_PATTERN.test(password)) {
+  } else if (!hasAllowedPasswordSymbol(password)) {
     fieldErrors.password =
       "La contraseña temporal debe incluir un carácter no alfanumérico.";
   } else if (email && password.toLowerCase() === email) {
