@@ -22,7 +22,8 @@ export type CompleteInitialPasswordChangeFailureReason =
   | "weak_password"
   | "rate_limited"
   | "auth_error"
-  | "completion_error";
+  | "completion_error"
+  | "error";
 
 export type CompleteInitialPasswordChangeResult = ServiceResult<
   Record<never, never>,
@@ -52,82 +53,124 @@ const COMPLETION_ERROR_MESSAGE =
 export async function completeInitialPasswordChange(
   input: InitialPasswordChangeInput,
 ): Promise<CompleteInitialPasswordChangeResult> {
-  const supabase = await createClient();
-  const { data: userData, error: userError } = await supabase.auth.getUser();
-  const user = userData.user;
+  let passwordChanged = false;
 
-  if (userError || !user) {
-    logSanitizedError("initial-password-change:get-user", userError);
+  try {
+    const supabase = await createClient();
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    const user = userData.user;
 
-    return serviceFailure(
-      "unauthorized",
-      "Inicia sesión para cambiar tu contraseña.",
-    );
-  }
+    if (userError) {
+      logSanitizedError("initial-password-change:get-user", userError);
 
-  const { data: profile, error: profileError } = await supabase
-    .from("perfiles")
-    .select("id, is_active, must_change_password")
-    .eq("id", user.id)
-    .maybeSingle<ProfilePasswordState>();
+      return serviceFailure("auth_error", GENERIC_AUTH_ERROR_MESSAGE);
+    }
 
-  if (profileError) {
-    logSanitizedError("initial-password-change:profile", profileError);
+    if (!user) {
+      return serviceFailure(
+        "unauthorized",
+        "Inicia sesión para cambiar tu contraseña.",
+      );
+    }
 
-    return serviceFailure(
-      "auth_error",
-      "No pudimos comprobar el estado de tu usuario. Inténtalo nuevamente.",
-    );
-  }
+    const { data: profile, error: profileError } = await supabase
+      .from("perfiles")
+      .select("id, is_active, must_change_password")
+      .eq("id", user.id)
+      .maybeSingle<ProfilePasswordState>();
 
-  if (!profile?.is_active) {
-    return serviceFailure(
-      "inactive",
-      "Tu usuario no tiene acceso interno activo. Contacta al administrador.",
-    );
-  }
+    if (profileError) {
+      logSanitizedError("initial-password-change:profile", profileError);
 
-  if (profile.must_change_password !== true) {
-    return serviceFailure(
-      "not_required",
-      "Tu contraseña inicial ya fue actualizada.",
-    );
-  }
+      return serviceFailure(
+        "auth_error",
+        "No pudimos comprobar el estado de tu usuario. Inténtalo nuevamente.",
+      );
+    }
 
-  const validation = validateInitialPasswordChangeInput(input, {
-    email: user.email,
-  });
+    if (!profile?.is_active) {
+      return serviceFailure(
+        "inactive",
+        "Tu usuario no tiene acceso interno activo. Contacta al administrador.",
+      );
+    }
 
-  if (!validation.ok) {
-    return serviceFailure("validation_error", "Revisa los datos del formulario.", {
-      fieldErrors: validation.fieldErrors,
+    if (profile.must_change_password !== true) {
+      return serviceFailure(
+        "not_required",
+        "Tu contraseña inicial ya fue actualizada.",
+      );
+    }
+
+    const validation = validateInitialPasswordChangeInput(input, {
+      email: user.email,
     });
-  }
 
-  const updateResult = await supabase.auth.updateUser({
-    current_password: validation.data.currentPassword,
-    password: validation.data.password,
-  });
+    if (!validation.ok) {
+      return serviceFailure(
+        "validation_error",
+        "Revisa los datos del formulario.",
+        {
+          fieldErrors: validation.fieldErrors,
+        },
+      );
+    }
 
-  if (updateResult.error) {
-    return mapUpdatePasswordFailure(updateResult.error);
-  }
+    const currentPasswordFailure = await verifyCurrentPassword(
+      supabase,
+      {
+        email: user.email,
+        id: user.id,
+      },
+      validation.data.currentPassword,
+    );
 
-  if (updateResult.data.user?.id !== user.id) {
-    logSanitizedError("initial-password-change:update-user-mismatch", null);
+    if (currentPasswordFailure) {
+      return currentPasswordFailure;
+    }
 
-    return serviceFailure("auth_error", GENERIC_AUTH_ERROR_MESSAGE);
-  }
+    const updateResult = await supabase.auth.updateUser({
+      current_password: validation.data.currentPassword,
+      password: validation.data.password,
+    });
 
-  const completionOk = await completeProfileFlagWithRetry(supabase, user.id);
+    if (updateResult.error) {
+      return mapUpdatePasswordFailure(updateResult.error);
+    }
 
-  if (!completionOk) {
+    if (updateResult.data.user?.id !== user.id) {
+      logSanitizedError("initial-password-change:update-user-mismatch", null);
+
+      return serviceFailure("auth_error", GENERIC_AUTH_ERROR_MESSAGE);
+    }
+
+    passwordChanged = true;
+
+    const completionOk = await completeProfileFlagWithRetry(supabase, user.id);
+
+    if (!completionOk) {
+      return serviceFailure("completion_error", COMPLETION_ERROR_MESSAGE, {
+        passwordChanged: true,
+      });
+    }
+
+    return serviceSuccess();
+  } catch (error) {
+    logSanitizedError(
+      passwordChanged
+        ? "initial-password-change:unexpected-after-auth-change"
+        : "initial-password-change:unexpected-before-auth-change",
+      error,
+    );
+
+    if (!passwordChanged) {
+      return serviceFailure("error", GENERIC_AUTH_ERROR_MESSAGE);
+    }
+
     return serviceFailure("completion_error", COMPLETION_ERROR_MESSAGE, {
       passwordChanged: true,
     });
   }
-
-  return serviceSuccess();
 }
 
 function mapUpdatePasswordFailure(
@@ -142,6 +185,23 @@ function mapUpdatePasswordFailure(
     );
   }
 
+  if (isSamePasswordError(error)) {
+    return serviceFailure(
+      "validation_error",
+      "Revisa los datos del formulario.",
+      {
+        fieldErrors: {
+          password:
+            "La nueva contraseña debe ser diferente de la contraseña temporal.",
+        },
+      },
+    );
+  }
+
+  if (isReauthenticationNeededError(error)) {
+    return serviceFailure("auth_error", GENERIC_AUTH_ERROR_MESSAGE);
+  }
+
   if (isWeakPasswordError(error)) {
     return serviceFailure(
       "weak_password",
@@ -151,6 +211,65 @@ function mapUpdatePasswordFailure(
           password: "La nueva contraseña no cumple los requisitos de seguridad.",
         },
       },
+    );
+  }
+
+  if (isInvalidCurrentPasswordError(error)) {
+    return serviceFailure(
+      "invalid_current_password",
+      "La contraseña temporal actual no es correcta.",
+      {
+        fieldErrors: {
+          current_password: "La contraseña temporal actual no es correcta.",
+        },
+      },
+    );
+  }
+
+  return serviceFailure("auth_error", GENERIC_AUTH_ERROR_MESSAGE);
+}
+
+async function verifyCurrentPassword(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  user: { email?: string; id: string },
+  currentPassword: string,
+): Promise<CompleteInitialPasswordChangeResult | null> {
+  if (!user.email) {
+    logSanitizedError("initial-password-change:missing-user-email", null);
+
+    return serviceFailure("auth_error", GENERIC_AUTH_ERROR_MESSAGE);
+  }
+
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password: currentPassword,
+  });
+
+  if (error) {
+    return mapCurrentPasswordVerificationFailure(error);
+  }
+
+  if (data.user?.id !== user.id) {
+    logSanitizedError(
+      "initial-password-change:current-password-user-mismatch",
+      null,
+    );
+
+    return serviceFailure("auth_error", GENERIC_AUTH_ERROR_MESSAGE);
+  }
+
+  return null;
+}
+
+function mapCurrentPasswordVerificationFailure(
+  error: AuthError,
+): CompleteInitialPasswordChangeResult {
+  logSanitizedError("initial-password-change:verify-current-password", error);
+
+  if (isRateLimitError(error)) {
+    return serviceFailure(
+      "rate_limited",
+      "Se alcanzó el límite temporal de intentos. Inténtalo más tarde.",
     );
   }
 
@@ -258,23 +377,24 @@ function isInvalidCurrentPasswordError(error: AuthError): boolean {
 
   return (
     code === "invalid_credentials" ||
-    code === "invalid_grant" ||
-    code === "invalid_password" ||
     message.includes("current_password") ||
     message.includes("current password")
   );
+}
+
+function isSamePasswordError(error: AuthError): boolean {
+  return normalizeErrorToken(error.code) === "same_password";
+}
+
+function isReauthenticationNeededError(error: AuthError): boolean {
+  return normalizeErrorToken(error.code) === "reauthentication_needed";
 }
 
 function isWeakPasswordError(error: AuthError): boolean {
   const code = normalizeErrorToken(error.code);
   const message = normalizeErrorToken(error.message);
 
-  return (
-    code === "weak_password" ||
-    code === "same_password" ||
-    message.includes("weak") ||
-    message.includes("same password")
-  );
+  return code === "weak_password" || message.includes("weak");
 }
 
 function isRateLimitError(error: AuthError): boolean {

@@ -245,10 +245,10 @@ contraseña, metadata, URL, headers, request, response body, tokens ni stack.
 
 `completeInitialPasswordChange(input)` es un servicio server-only exportado desde
 `src/lib/auth`. Usa el cliente server-side normal para leer la sesión, validar la
-fila propia de `public.perfiles` y ejecutar `auth.updateUser` con
-`current_password`. Solo después de que Auth confirme el cambio construye
-`createAdminClient()` para llamar exclusivamente al RPC
-`public.complete_initial_password_change`.
+fila propia de `public.perfiles`, verificar la contraseña temporal actual con
+Supabase Auth y ejecutar `auth.updateUser` con `current_password`. Solo después
+de que Auth confirme el cambio construye `createAdminClient()` para llamar
+exclusivamente al RPC `public.complete_initial_password_change`.
 
 La entrada permitida es `current_password`, `password` y
 `password_confirmation`. Las contraseñas no se recortan ni se transforman. La
@@ -263,9 +263,30 @@ Si Auth cambia la contraseña pero el RPC no consigue completar
 administrador. No vuelve a usar la contraseña temporal ni intenta recrear
 credenciales.
 
+El servicio mantiene una frontera de excepciones alrededor de cliente SSR,
+`getUser`, lectura de perfil, validación asociada al usuario, verificación de la
+contraseña actual, `auth.updateUser` y finalización del perfil. Antes de
+confirmar `auth.updateUser` devuelve un mensaje genérico sin `passwordChanged`.
+Después de confirmar que Auth cambió la contraseña del mismo usuario, cualquier
+excepción pasa a `completion_error` con `passwordChanged = true`.
+
+`passwordChanged` solo pasa a `true` cuando `auth.updateUser` no devuelve error
+y `updateResult.data.user?.id` coincide con el usuario autenticado.
+
+La RPC `public.complete_initial_password_change` bloquea la fila de
+`public.perfiles` con `FOR UPDATE`, lee solo `id`, `is_active` y
+`must_change_password`, y confirma el cambio con `UPDATE ... RETURNING id`.
+
+La auditoría estática permite en este servicio únicamente el uso del cliente
+privilegiado para `rpc("complete_initial_password_change", ...)`; bloquea otras
+RPCs, `from`, Storage y operaciones `auth.admin`.
+
+El código Auth `same_password` se trata como reutilización de contraseña y
+devuelve `validation_error` con error de campo `password`, no `weak_password`.
+
 Razones de error actuales: `unauthorized`, `inactive`, `not_required`,
 `validation_error`, `invalid_current_password`, `weak_password`, `rate_limited`,
-`auth_error` y `completion_error`.
+`auth_error`, `completion_error` y `error`.
 
 ## Fuera de Alcance Actual
 

@@ -26,6 +26,11 @@ const componentAdminPattern =
 const adminConsumerPattern = /\b(?:auth\.admin|createAdminClient)\b/g;
 const initialPasswordForbiddenAdminPattern =
   /\b(?:auth\.admin\.(?:createUser|updateUserById|deleteUser)|privilegedClient\s*\.\s*(?:from|storage)\b|createAdminClient\(\)\s*\.\s*(?:from|storage)\b)/g;
+const privilegedRpcPattern =
+  /\bprivilegedClient\s*\.\s*rpc\s*\(\s*["']([^"']+)["']/gs;
+const forbiddenPrivilegedClientMemberPattern =
+  /\bprivilegedClient\s*\.\s*(?:from|storage|auth)\b/gs;
+const forbiddenAuthAdminPattern = /\bauth\s*\.\s*admin\s*\./gs;
 const directSecretEnvPattern = /\bprocess\.env\.SUPABASE_SECRET_KEY\b/g;
 
 function normalizePath(path) {
@@ -86,6 +91,51 @@ function addViolation(violations, file, line, category) {
 
 function addExpectedReference(expectedReferences, file, line, category) {
   expectedReferences.push({ file, line, category });
+}
+
+function getApproximateLine(text, index) {
+  return text.slice(0, index).split(/\r?\n/).length;
+}
+
+function collectContentPatternMatches(text, pattern) {
+  pattern.lastIndex = 0;
+  return [...text.matchAll(pattern)];
+}
+
+function scanInitialPasswordCompletionFile(text, relativeFile, violations) {
+  for (const match of collectContentPatternMatches(text, privilegedRpcPattern)) {
+    const rpcName = match[1];
+
+    if (rpcName !== "complete_initial_password_change") {
+      addViolation(
+        violations,
+        relativeFile,
+        getApproximateLine(text, match.index ?? 0),
+        "unexpected-initial-password-privileged-rpc",
+      );
+    }
+  }
+
+  for (const match of collectContentPatternMatches(
+    text,
+    forbiddenPrivilegedClientMemberPattern,
+  )) {
+    addViolation(
+      violations,
+      relativeFile,
+      getApproximateLine(text, match.index ?? 0),
+      "forbidden-initial-password-privileged-client-method",
+    );
+  }
+
+  for (const match of collectContentPatternMatches(text, forbiddenAuthAdminPattern)) {
+    addViolation(
+      violations,
+      relativeFile,
+      getApproximateLine(text, match.index ?? 0),
+      "forbidden-initial-password-auth-admin-operation",
+    );
+  }
 }
 
 function scanFile(file) {
@@ -197,6 +247,10 @@ function scanFile(file) {
       );
     }
   });
+
+  if (relativeFile === initialPasswordCompletionFile) {
+    scanInitialPasswordCompletionFile(text, relativeFile, violations);
+  }
 
   return { violations, expectedReferences };
 }

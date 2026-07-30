@@ -204,7 +204,10 @@ redirigido a `/acceso-denegado`.
 Si `must_change_password = true`, el usuario tiene una contraseña temporal
 pendiente. El proxy lo redirige a `/cambiar-contrasena-inicial`, RLS bloquea la
 operación interna y la pantalla solo completa el onboarding después de
-`auth.updateUser` exitoso con la contraseña temporal actual.
+verificar la contraseña temporal actual y ejecutar `auth.updateUser` con éxito.
+La finalización en base bloquea la fila de `public.perfiles`, confirma el
+`UPDATE` con `RETURNING id` y no deja el perfil operativo si se desactiva en una
+carrera.
 
 Desactivar un usuario:
 
@@ -238,10 +241,20 @@ where id = 'UUID_DEL_USUARIO';
     `/cambiar-contrasena-inicial`.
 12. Probar errores visibles con contraseña temporal incorrecta o nueva
     contraseña débil.
-13. Cambiar la contraseña temporal por una contraseña nueva válida.
-14. Confirmar redirección a `/dashboard` y que `must_change_password = false`.
-15. Probar usuario sin perfil.
-16. Probar usuario inactivo.
+13. Probar nueva contraseña igual a la temporal, confirmación diferente y nueva
+    contraseña igual al correo ignorando mayúsculas.
+14. Cambiar la contraseña temporal por una contraseña nueva válida.
+15. Cerrar sesión y confirmar que la contraseña temporal ya no inicia sesión.
+16. Iniciar sesión con la contraseña nueva y confirmar acceso.
+17. Confirmar redirección a `/dashboard` y que `must_change_password = false`.
+18. Confirmar que `/cambiar-contrasena-inicial` redirige a `/dashboard` después
+    de completar el cambio.
+19. Probar usuario sin perfil.
+20. Probar usuario inactivo.
+
+Los QA automatizados que creen usuarios temporales deben limpiar en `finally`:
+sesiones, usuario Auth, perfil asociado y auditorías de alta exclusivas del
+usuario QA. No documentes contraseñas, correos completos ni secretos.
 
 ## Problemas comunes
 
@@ -249,6 +262,8 @@ where id = 'UUID_DEL_USUARIO';
   inactivo.
 - Si el login funciona pero vuelve siempre a `/cambiar-contrasena-inicial`, el
   perfil conserva `must_change_password = true` o falló la finalización del RPC.
+- Si la contraseña cambió en Auth pero falló la finalización del perfil, la UI
+  muestra un mensaje crítico y no debe reutilizar la contraseña temporal.
 - Si el dashboard redirige a `/login`, no hay sesión válida.
 - Si el alta falla por configuración, revisar `SUPABASE_SECRET_KEY` local sin
   imprimir su valor.

@@ -1070,8 +1070,13 @@ Contrato:
 - revoca ejecución a `public`, `anon` y `authenticated`;
 - concede `execute` únicamente a `service_role`;
 - exige que `public.perfiles.id = p_user_id` exista y esté activo;
+- lee solo `id`, `is_active` y `must_change_password`, y bloquea la fila con
+  `FOR UPDATE` antes de validar el estado;
 - es idempotente: si `must_change_password = false`, retorna el UUID sin cambios;
-- si `must_change_password = true`, cambia solo `must_change_password = false`; `updated_at` lo mantiene el trigger vigente de la tabla;
+- si `must_change_password = true`, cambia solo `must_change_password = false`
+  y confirma el `UPDATE` con `RETURNING id`; `updated_at` lo mantiene el trigger
+  vigente de la tabla;
+- no devuelve éxito si la actualización esperada no retorna el perfil;
 - no modifica rol, nombre, teléfono, avatar, `is_active` ni `created_by`;
 - no debe ser llamada directamente por usuarios autenticados porque la prueba del
   cambio real de contraseña ocurre en el servicio server-side antes de invocar
