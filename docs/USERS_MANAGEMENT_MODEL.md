@@ -94,8 +94,9 @@ La base vigente queda preparada así:
 - `public.complete_initial_password_change(uuid)` existe solo para uso futuro desde una Server Action protegida posterior a `auth.updateUser({ password })`.
 - La RPC no se concede a `authenticated`; solo `service_role` puede ejecutarla.
 - El signup público local queda deshabilitado en `supabase/config.toml`.
+- La clave administrativa aislada ya forma parte del contrato técnico mediante `SUPABASE_SECRET_KEY` y `createAdminClient()`, pero todavía no tiene consumidores productivos.
 
-La funcionalidad está incompleta hasta implementar las etapas posteriores: cliente Supabase Admin aislado, Server Action protegida, formulario con correo y contraseña temporal, cambio inicial real de contraseña, controles operativos y pruebas E2E.
+La funcionalidad está incompleta hasta implementar las etapas posteriores: servicio de alta, Server Action protegida, formulario con correo y contraseña temporal, cambio inicial real de contraseña, controles operativos y pruebas E2E.
 
 ## Permisos de Ruta y Dominio
 
@@ -136,7 +137,7 @@ También requerirían service role u otro flujo administrativo equivalente:
 - cambiar contraseñas de otros usuarios desde la app;
 - confirmar correos o manipular atributos administrativos de Auth.
 
-La service role key ignora RLS. Por eso no debe agregarse durante el MVP de perfiles.
+La clave administrativa ignora RLS. El proyecto la adopta para primera producción únicamente de forma aislada y server-side mediante `src/lib/supabase/admin.ts`; no debe usarse en frontend ni para consultas normales de tablas.
 
 ## Comparación de Opciones
 
@@ -201,7 +202,7 @@ Complejidad: alta.
 
 Godel Diseño mantiene operativa la gestión de perfiles existente, pero adopta como objetivo de primera producción la creación administrativa directa con contraseña temporal. La etapa foundation actual implementa solo la base de datos y el contrato de seguridad.
 
-El alta completa desde UI todavía no está disponible en esta etapa. La siguiente etapa introducirá la clave administrativa de forma aislada y solo server-side para llamar a Admin API; todavía no existe en el código actual.
+El alta completa desde UI todavía no está disponible en esta etapa. La clave administrativa aislada ya existe como contrato técnico, pero `createAdminClient()` aún no tiene consumidores productivos; la próxima etapa implementará el servicio de alta que lo usará para Admin API.
 
 ## Operaciones Implementadas
 
@@ -226,7 +227,7 @@ Queda explícitamente fuera de esta etapa foundation:
 - cambiar contraseñas desde la app, salvo la futura etapa protegida de cambio inicial;
 - eliminar usuarios físicamente;
 - exponer emails de Auth si no forman parte de `perfiles`;
-- agregar la clave administrativa en esta etapa;
+- agregar consumidores productivos de la clave administrativa en esta etapa;
 - usar service role key desde componentes cliente o código no aislado;
 - cambiar la matriz de permisos;
 - convertir `perfiles` en un sistema avanzado de recursos humanos.

@@ -4,13 +4,20 @@ Esta carpeta prepara la configuración base de Supabase para Next.js App Router.
 
 - Usa `src/lib/supabase/client.ts` en componentes cliente. Exporta `createClient()`, basado en `createBrowserClient`.
 - Usa `src/lib/supabase/server.ts` en Server Components, Server Actions y Route Handlers. Exporta `createClient()`, basado en `createServerClient`.
+- Usa `src/lib/supabase/admin.ts` solo desde servicios server-side cuando haga falta Supabase Auth Admin. Exporta `createAdminClient()`, basado en `@supabase/supabase-js`.
 - Usa `src/lib/supabase/index.ts` cuando prefieras imports con nombres explícitos: `createBrowserSupabaseClient` o `createServerSupabaseClient`.
 
-No se debe usar la service role key en frontend. Estos clientes usan solamente `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+No se debe usar la clave administrativa en frontend. Los clientes de navegador y SSR usan solamente `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
 
-La gestión de usuarios internos usa estos clientes normales y opera solo sobre
-`public.perfiles`. Crear usuarios en Supabase Auth desde la app requeriría Admin
-API y service role key server-side, por lo que queda fuera del MVP.
+El cliente Admin usa `SUPABASE_SECRET_KEY`, no usa `@supabase/ssr`, no lee cookies, no comparte sesiones de usuario, no persiste sesión, no renueva tokens y no detecta sesiones desde URL. Debe importarse directamente con:
+
+```ts
+import { createAdminClient } from "@/lib/supabase/admin";
+```
+
+No se reexporta desde `index.ts`, `client.ts` ni `server.ts`.
+
+Las operaciones normales de datos continúan usando los clientes con RLS. El cliente Admin se reserva exclusivamente para operaciones de `auth.admin` en etapas posteriores. No debe usarse para pedidos, solicitudes, perfiles, Storage ni consultas normales a tablas.
 
 ## Tipos generados
 

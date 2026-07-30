@@ -48,10 +48,23 @@ Ver estado:
 npx supabase status
 ```
 
+Obtener variables locales en formato de entorno:
+
+```cmd
+npx supabase status -o env
+```
+
 Aplicar migraciones pendientes sin borrar datos locales:
 
 ```cmd
 npx supabase migration up --local
+```
+
+Si cambias `supabase/config.toml`, reinicia Supabase para que Auth lea la configuración local:
+
+```cmd
+npx supabase stop
+npx supabase start
 ```
 
 Iniciar Next.js:
@@ -81,6 +94,26 @@ El signup público por email no está disponible en local. No uses el formulario
 La creación administrativa directa con correo y contraseña temporal se implementará en una etapa posterior. En esa etapa, el futuro flujo creará el usuario Auth con Admin API server-side, enviará metadata segura en `raw_app_meta_data.godel_provisioning` y el trigger de base creará el perfil con `must_change_password = true`.
 
 Los usuarios de desarrollo que ya existían antes de este cambio no requieren cambio de contraseña inicial y sus perfiles permanecen con `must_change_password = false`.
+
+## Clave administrativa local
+
+La Etapa 2 introduce el contrato técnico del cliente Admin server-side. Para desarrollo local, `.env.local` debe definir:
+
+```text
+SUPABASE_SECRET_KEY=
+```
+
+Obtén las variables locales con `npx supabase status -o env` y copia localmente el valor de `SECRET_KEY` a `SUPABASE_SECRET_KEY` en `.env.local`. `SERVICE_ROLE_KEY` queda como alternativa legacy local, pero el código del proyecto usa únicamente `SUPABASE_SECRET_KEY`.
+
+Reglas:
+
+- nunca versiones el valor real;
+- nunca lo muestres en reportes;
+- nunca lo compartas en prompts;
+- nunca uses prefijo `NEXT_PUBLIC`;
+- recuerda que la clave administrativa omite RLS;
+- el proyecto no está enlazado a Supabase remoto;
+- la configuración remota se realizará en preproducción.
 
 ## Crear perfil asociado en `public.perfiles`
 
