@@ -33,9 +33,9 @@ orquestador del flujo: validar perfil y permisos, validar input, consultar o
 mutar mediante Supabase/RPC, mapear DTOs seguros y devolver resultados
 controlados.
 
-Por su tamano, Pedidos usa archivos `*-types.ts` por subflujo, como
+Por su tamaño, Pedidos usa archivos `*-types.ts` por subflujo, como
 `list-internal-pedidos-types.ts` y `get-internal-pedido-detail-types.ts`. Esta
-separacion es intencional y evita un `types.ts` unico demasiado grande.
+separación es intencional y evita un `types.ts` único demasiado grande.
 
 ## Mapa de archivos
 
@@ -55,7 +55,7 @@ separacion es intencional y evita un `types.ts` unico demasiado grande.
 | `rpc.ts` | Wrappers tipados de RPCs usadas por Pedidos, incluido `actualizar_datos_pedido` con adaptación localizada de nulabilidad del tipo generado. |
 | `update-internal-pedido.ts` | Servicio de edición controlada de datos básicos y precio mediante RPC transaccional. |
 | `update-internal-pedido-status.ts` | Servicio de cambio de estado; valida permiso/acceso y delega en RPC. |
-| `ensure-pedido-review-started.ts` | Garantia idempotente de inicio de revision al abrir el detalle interno real. |
+| `ensure-pedido-review-started.ts` | Garantía idempotente de inicio de revisión al abrir el detalle interno real. |
 | `status.ts` | Estados, estados iniciales, `PedidoStatusFlow`, contexto de tareas/pago y helpers temporales de compatibilidad. |
 | `update-pedido-payment.ts` | Orquestador de actualización de pagos acumulados. |
 | `payment-validation.ts` | Validación y normalización de montos de pago. |
@@ -142,7 +142,7 @@ Pedidos. Durante Beta 2.3 el dominio quedó ordenado en subfases pequeñas:
 
 `listInternalPedidos` carga el listado de pedidos desde Server Components usando el cliente de Supabase configurado en `src/lib/supabase/server.ts`.
 
-El listado usa `pedidos.service_id` como filtro canonico de servicio y carga la
+El listado usa `pedidos.service_id` como filtro canónico de servicio y carga la
 relación `tipos_servicio!pedidos_service_id_fkey` para mostrar el nombre real
 del servicio propio del Pedido. La búsqueda por servicio resuelve primero
 `tipos_servicio.name` y luego filtra por `pedidos.service_id`; la Solicitud
@@ -158,7 +158,7 @@ También carga el progreso agregado de tareas en una consulta adicional por lote
 
 El detalle distingue `pedido.service`, que representa el servicio confirmado del
 Pedido, de `pedido.solicitudes.service`, que representa el servicio solicitado
-originalmente. Ambos se cargan por relaciones explicitas con `tipos_servicio`.
+originalmente. Ambos se cargan por relaciones explícitas con `tipos_servicio`.
 Si cualquiera de esas relaciones canónicas está ausente, la UI muestra
 `Servicio no disponible`; no se infiere desde `workflow_type`.
 
@@ -194,8 +194,8 @@ El número de pedido (`order_number`) no se acepta desde formularios ni se gener
 Al crear desde el diálogo/listado, la UI cierra el diálogo, permanece en
 `/dashboard/pedidos`, refresca el listado y muestra el pedido en `creado`. La
 creación devuelve IDs seguros para sincronizar la vista, pero ya no abre el
-detalle automaticamente. El pedido permanece `creado` hasta que alguien abra
-manualmente su detalle; esa apertura real inicia la revision.
+detalle automáticamente. El pedido permanece `creado` hasta que alguien abra
+manualmente su detalle; esa apertura real inicia la revisión.
 
 `estimated_delivery_date` es opcional, pero si se informa debe ser una fecha válida e igual o posterior al día actual. La validación usa los helpers centralizados de `src/lib/validators/date.ts`, apoyados en `src/lib/utils/date.ts` para calcular el día actual local. El `min` del formulario es solo una ayuda visual.
 
@@ -227,7 +227,7 @@ Cuando un pedido muestra datos de su solicitud origen, el servicio solicitado
 debe renderizarse desde la relación canónica de la Solicitud. El servicio del
 Pedido y el servicio solicitado son conceptos distintos.
 
-El panel Informacion del Pedido usa la estructura Trabajo, Cliente, Origen y
+El panel Información del Pedido usa la estructura Trabajo, Cliente, Origen y
 Registro. Conserva `Identificador interno` con el UUID completo y elimina la
 referencia interna corta de ocho caracteres.
 
@@ -300,7 +300,7 @@ La página del detalle enlaza `pedido_id` a `updatePedidoPaymentAction`; el form
 
 `updatePedidoPayment` valida UUID, usuario interno activo, rol `admin` o `supervisor`, formato numérico, montos no negativos, máximo dos decimales y que efectivo más transferencia no supere el total. Después delega en `public.actualizar_pago_pedido`, que repite permisos en base de datos, actualiza solo efectivo y transferencia, deja que el trigger calcule `payment_status` y registra `pago_actualizado` en `pedido_historial`.
 
-El detalle muestra total, efectivo, transferencia, total pagado, pendiente, estado y fecha de pago completo si aplica. Los trabajadores pueden leer pagos de pedidos asignados segun RLS, pero no ven formulario ni pueden actualizar pagos server-side.
+El detalle muestra total, efectivo, transferencia, total pagado, pendiente, estado y fecha de pago completo si aplica. Los trabajadores pueden leer pagos de pedidos asignados según RLS, pero no ven formulario ni pueden actualizar pagos server-side.
 
 ## Cambio de Estado
 
@@ -310,8 +310,8 @@ La página del detalle enlaza `pedido_id` a `updatePedidoStatusAction`; el formu
 
 Los estados iniciales `creado` y `solicitud_recibida` pasan a `en_revision` al
 abrir el detalle interno real mediante `ensurePedidoReviewStarted`. El helper
-reutiliza el mismo servicio manual y la misma RPC; si una transicion de inicio
-falla por estado obsoleto, relee `id,status` y considera exito cuando el pedido
+reutiliza el mismo servicio manual y la misma RPC; si una transición de inicio
+falla por estado obsoleto, relee `id,status` y considera éxito cuando el pedido
 ya no está en estado inicial. No oculta errores reales de autenticación,
 permisos, lectura o infraestructura, y nunca degrada un pedido avanzado a
 `en_revision`.

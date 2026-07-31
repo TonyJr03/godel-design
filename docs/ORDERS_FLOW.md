@@ -130,24 +130,24 @@ Las tablas oficiales normalizadas para comentarios e historial de pedidos son `p
 
 ## Modelo financiero base
 
-Todo pedido tiene un resumen financiero unico en `pedido_pagos`. Esta tabla
+Todo pedido tiene un resumen financiero único en `pedido_pagos`. Esta tabla
 separa el dominio financiero del dominio operativo: `pedidos` conserva estado,
 flujo, cliente, descripción, fechas y asignaciones; `pedido_pagos` conserva el
 precio total, los montos pagados por efectivo y transferencia, el estado de pago
 calculado y la fecha de pago completo si aplica.
 
-El precio total puede ser cero por reglas normales de negocio como cortesia,
+El precio total puede ser cero por reglas normales de negocio como cortesía,
 regalo, ajuste interno o trabajo sin cobro. Cuando `total_amount = 0`, el
 resumen queda `pagado` y `paid_at` se setea porque no existe monto pendiente.
 
-El estado financiero no se envia desde la UI ni lo decide la aplicacion:
-la base de datos calcula `sin_pago`, `parcial` o `pagado` segun
+El estado financiero no se envía desde la UI ni lo decide la aplicación:
+la base de datos calcula `sin_pago`, `parcial` o `pagado` según
 `total_amount`, `paid_cash_amount` y `paid_transfer_amount`. No se permite
 registrar montos negativos ni pagar más que el total.
 
-En la creacion manual se define el precio total del pedido. La RPC
-`public.crear_pedido_manual(p_service_id, ...)` crea `pedidos` y `pedido_pagos` en una unica
-transaccion: con precio `0`, el resumen queda `pagado`; con precio mayor que
+En la creación manual se define el precio total del pedido. La RPC
+`public.crear_pedido_manual(p_service_id, ...)` crea `pedidos` y `pedido_pagos` en una única
+transacción: con precio `0`, el resumen queda `pagado`; con precio mayor que
 `0`, queda `sin_pago` porque todavía no se registra pago inicial. La conversión
 desde solicitudes aplica la misma regla mediante
 `public.convertir_solicitud_a_pedido(p_service_id, ...)`.
@@ -173,7 +173,7 @@ El listado interno de pedidos muestra el estado de pago resumido y permite
 filtrar por `sin_pago`, `parcial` o `pagado` mediante `payment_status`. Este
 filtro se combina con búsqueda textual, estado operativo y `service_id`.
 La consulta pública `/estado` no muestra importes, estado de pago ni deuda
-pendiente; los pagos siguen siendo informacion interna.
+pendiente; los pagos siguen siendo información interna.
 
 ## Estados de pedido
 
@@ -242,11 +242,11 @@ impide consultar tareas existentes.
 
 La UI no permite seleccionar `task_type`, `target_quantity`, autorías, fechas técnicas ni `sort_order`. La página enlaza `pedido_id` a las Server Actions; los formularios solo envían `task_id`, `title` o `completed_quantity` según la operación, y las actions delegan la validación en servicios server-side.
 
-La interfaz vigente de gestion en el panel Tareas presenta las tareas registradas
+La interfaz vigente de gestión en el panel Tareas presenta las tareas registradas
 como una lista compacta unificada: un solo contenedor con borde y divisores
-entre filas. Cada `PedidoTaskItem` actua como fila interna, no como card grande
+entre filas. Cada `PedidoTaskItem` actúa como fila interna, no como card grande
 independiente. La fila muestra el título y un texto secundario con estado o
-progreso. El tipo tecnico `simple` o `cuantificada` no se muestra como badge
+progreso. El tipo técnico `simple` o `cuantificada` no se muestra como badge
 visible, aunque continúa existiendo en los datos, servicios, constraints,
 RLS y reglas de avance.
 
@@ -267,7 +267,7 @@ Tarea cuantificada completada:
 ```
 
 Las acciones de cada fila son icon-only, pero los iconos no sustituyen el
-nombre accesible: cada boton conserva `aria-label` y `title`. El orden visual,
+nombre accesible: cada botón conserva `aria-label` y `title`. El orden visual,
 de DOM y de teclado es siempre:
 
 ```text
@@ -298,12 +298,12 @@ La edición se realiza inline. `Editar` sustituye temporalmente el título por u
 input inline. En tareas cuantificadas pendientes, `Actualizar progreso`
 sustituye temporalmente el texto secundario por un editor numerico. Cada fila
 mantiene modos mutuamente excluyentes: lectura, edición de título, edición de
-progreso o confirmacion de eliminacion. `Escape` cancela los editores; cancelar
+progreso o confirmación de eliminación. `Escape` cancela los editores; cancelar
 o guardar correctamente devuelve el foco al trigger correspondiente. Si una
 Action falla, el editor permanece abierto, conserva el valor introducido y
-muestra el error asociado al campo o a la operacion. Durante pending se
+muestra el error asociado al campo o a la operación. Durante pending se
 deshabilitan acciones incompatibles y el spinner respeta `prefers-reduced-motion`.
-Eliminar conserva la confirmacion destructiva inline.
+Eliminar conserva la confirmación destructiva inline.
 
 La edición de título muestra este aviso contextual:
 
@@ -317,7 +317,7 @@ misma si una tarea es simple o cuantificada.
 
 En `listo_entrega`, `entregado` y `cancelado`, las filas quedan en modo lectura:
 siguen mostrando título, estado y progreso cuantificado cuando corresponda, pero
-no presentan acciones de mutacion. Una correccion de tareas en `listo_entrega`
+no presentan acciones de mutación. Una corrección de tareas en `listo_entrega`
 requiere volver primero a `en_produccion`.
 
 ## Plantillas de tareas para encargos
@@ -332,7 +332,7 @@ El admin puede agregar, editar, eliminar y mover tareas arriba o abajo. No hay d
 
 Desde Alfa 3.4, el detalle de un pedido de tipo `encargo` muestra un selector para aplicar plantillas activas con tareas cuando el usuario puede gestionar tareas y el estado del pedido permite mutarlas. La acción server-side llama a la RPC transaccional `public.aplicar_plantilla_tareas_pedido(p_pedido_id uuid, p_template_id uuid)`.
 
-La RPC copia las tareas de `trabajo_plantilla_tareas` al final de `pedido_tareas`, preserva el orden relativo de la plantilla y calcula `sort_order` despues del maximo actual del pedido. No reemplaza ni borra tareas existentes. Las tareas copiadas quedan como tareas normales del pedido: se pueden editar, completar, reabrir, actualizar progreso o eliminar, y cuentan para el progreso y las reglas de avance de encargos.
+La RPC copia las tareas de `trabajo_plantilla_tareas` al final de `pedido_tareas`, preserva el orden relativo de la plantilla y calcula `sort_order` después del máximo actual del pedido. No reemplaza ni borra tareas existentes. Las tareas copiadas quedan como tareas normales del pedido: se pueden editar, completar, reabrir, actualizar progreso o eliminar, y cuentan para el progreso y las reglas de avance de encargos.
 
 La copia no crea una relación viva con la plantilla. Editar, reordenar, desactivar o eliminar tareas internas de una plantilla no modifica tareas ya copiadas a pedidos. Aplicar la misma plantilla más de una vez puede duplicar tareas en esta versión; la UI lo advierte antes de aplicar.
 
@@ -340,7 +340,7 @@ La aplicación de plantillas no está disponible para pedidos `impresion`. La UI
 
 Flujo completo vigente:
 
-1. Un `admin` configura la plantilla en Configuracion.
+1. Un `admin` configura la plantilla en Configuración.
 2. Un `admin` define sus tareas internas ordenadas.
 3. Un usuario autorizado abre un pedido de tipo `encargo`.
 4. Si el estado permite gestionar tareas, selecciona una plantilla activa con tareas.
@@ -412,7 +412,7 @@ público de seguimiento. La descripción conserva su estructura y saltos de lín
 El detalle carga `pedidos.service_id -> tipos_servicio` como servicio propio del
 Pedido y, si existe solicitud origen, carga también
 `solicitudes.service_id -> tipos_servicio` como servicio solicitado. El panel
-Informacion distingue ambos valores, organiza Trabajo, Cliente, Origen y
+Información distingue ambos valores, organiza Trabajo, Cliente, Origen y
 Registro, conserva el UUID completo como `Identificador interno` y elimina la
 referencia interna corta.
 
@@ -450,7 +450,7 @@ pueden modificar desde el diálogo `Editar pedido`:
 - precio total.
 
 Quedan fuera de este formulario: cliente, tipo de flujo, estado, tareas,
-personal, archivos y pagos recibidos. Esos datos siguen gestionándose por sus
+personal, archivos y pagos recibidos. Esos datos siguen gestiónándose por sus
 flujos propios o no son editables en esta superficie.
 
 El servicio confirmado del Pedido también es editable desde este diálogo. El
@@ -587,13 +587,13 @@ personal asignado. El pedido manual se crea con `solicitud_id = null`, estado
 inicial `creado` y `cliente_id = null` cuando no se selecciona cliente. No
 existen campos temporales de cliente en este flujo.
 
-La creacion manual exige `total_amount`, permite `0` y rechaza valores
+La creación manual exige `total_amount`, permite `0` y rechaza valores
 negativos o no numéricos. El servicio server-side valida el monto y llama a
 `public.crear_pedido_manual(p_service_id, ...)`, que inserta el pedido y su resumen financiero en
-`pedido_pagos` dentro de la misma transaccion. No se registra pago inicial:
+`pedido_pagos` dentro de la misma transacción. No se registra pago inicial:
 `paid_cash_amount = 0` y `paid_transfer_amount = 0`. Por eso, un pedido manual
 con precio `0` queda `pagado`; con precio mayor que `0`, queda `sin_pago`.
-La actualizacion posterior de pago se realiza desde el detalle interno editando
+La actualización posterior de pago se realiza desde el detalle interno editando
 solo efectivo y transferencia acumulados.
 
 El encargo conserva título y descripción obligatorios. La impresión solicita
@@ -664,7 +664,7 @@ distintos.
 El servicio solicitado se lee desde la relación canónica de la solicitud con
 `tipos_servicio`. No se usa como título automático. En encargos, el usuario
 interno puede confirmar o cambiar el servicio dentro del mismo workflow y debe definir
-`title` y `description`. En impresiones, se usa el servicio de impresion
+`title` y `description`. En impresiones, se usa el servicio de impresión
 existente, el título es opcional y usa
 `Pedido de impresión` cuando queda vacío; la descripción se precarga desde la
 solicitud y puede ajustarse. Si se envía vacía, el servidor usa la descripción
@@ -698,7 +698,7 @@ Al convertir:
 - se evita doble conversión mediante validaciones y una restricción única existente;
 - no se asigna personal.
 
-Todas esas escrituras se confirman o revierten juntas. Si falla la creacion de
+Todas esas escrituras se confirman o revierten juntas. Si falla la creación de
 `pedido_pagos`, no queda pedido creado, solicitud convertida ni archivos
 asociados a un pedido incompleto. La herencia de archivos solo completa
 `archivos.pedido_id`; no cambia su ruta, bucket, visibilidad ni autor, y no
@@ -779,7 +779,7 @@ el pago está `sin_pago` o `parcial`, la transición falla aunque el usuario ten
 permiso para cambiar estado. La UI muestra un aviso de pago pendiente y
 deshabilita el botón `entregado` con motivo visible, pero la autoridad final es
 `public.actualizar_estado_pedido`. La consulta pública `/estado` no expone
-informacion de pago.
+información de pago.
 
 Antes de contar tareas, la RPC bloquea las tareas existentes con `FOR SHARE`.
 Así espera cambios o eliminaciones en curso y mantiene estables esas filas

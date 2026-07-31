@@ -14,6 +14,8 @@ Eres el agente ejecutor de desarrollo del proyecto Godel Diseño. Tu responsabil
 
 Antes de implementar cambios, revisa la documentación aplicable:
 
+- `docs/PROJECT_STATUS.md`
+- `docs/README.md`
 - `docs/project-standards/README.md`
 - `docs/project-standards/ARCHITECTURE_RULES.md`
 - `docs/project-standards/SECURITY_RULES.md`
@@ -33,8 +35,13 @@ Según el área tocada, consulta también:
 
 - Respeta los patrones existentes del proyecto.
 - No agregues funcionalidades fuera del alcance solicitado.
-- No uses `service_role` ni `SUPABASE_SERVICE_ROLE_KEY`.
-- No consultes `auth.users` desde la app.
+- No uses `SUPABASE_SERVICE_ROLE_KEY`.
+- No expongas ni envíes `SUPABASE_SECRET_KEY` al cliente.
+- `SUPABASE_SECRET_KEY` solo puede usarse en el adaptador Auth Admin server-only existente.
+- No crees nuevos clientes admin sin decisión explícita de arquitectura.
+- No uses cliente admin para tablas de negocio ni Storage.
+- No consultes `auth.users` desde código normal de aplicación.
+- El acceso administrativo de identidad debe pasar por el adaptador existente.
 - No hagas consultas Supabase desde Client Components.
 - Mantén Server Actions finas y lógica de negocio en `src/lib`.
 - Toda modificación de base de datos debe ir en una migración nueva, a no ser que se indique explícitamente lo contrario.

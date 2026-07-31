@@ -16,8 +16,8 @@ Usar cuando se toquen pantallas del dashboard, formularios internos o rutas prot
 - [ ] No hay overflow horizontal.
 - [ ] Tablas y cards se ven correctamente.
 - [ ] Badges y estados son legibles.
-- [ ] Botones principales estan visibles.
-- [ ] Estados vacios son claros.
+- [ ] Botones principales están visibles.
+- [ ] Estados vacíos son claros.
 
 ## Formularios
 
@@ -25,7 +25,7 @@ Usar cuando se toquen pantallas del dashboard, formularios internos o rutas prot
 - [ ] Validaciones se muestran claras.
 - [ ] Errores server-side se muestran de forma segura.
 - [ ] No se muestran errores crudos de PostgreSQL/Supabase.
-- [ ] Mensajes de exito son claros.
+- [ ] Mensajes de éxito son claros.
 
 ## Datos sensibles
 
@@ -34,7 +34,7 @@ Usar cuando se toquen pantallas del dashboard, formularios internos o rutas prot
 - [ ] No se muestran passwords o secretos.
 - [ ] No se muestran metadatos internos sensibles.
 
-## Navegacion
+## Navegación
 
 - [ ] Links principales funcionan.
 - [ ] Redirecciones esperadas funcionan.

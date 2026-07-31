@@ -242,13 +242,17 @@ de Supabase Auth.
 - Mantener `usuarios.view` para lecturas internas.
 - Mantener `usuarios.manage` para creación/edición.
 - Usar RLS como defensa final.
-- Usar `createAdminClient` solo en `create-internal-user.ts` y solo para Admin
-  API de Auth: `createUser` y compensación `deleteUser`.
+- Usar `createAdminClient` solo en adaptadores server-only del ciclo de
+  identidad: alta, compensación, reset administrativo y finalización del cambio
+  inicial cuando aplique.
+- Limitar Auth Admin a operaciones de identidad necesarias; no usarlo para
+  consultas generales.
 - Consultar `perfiles` desde `createInternalUser` con el cliente server-side
   normal, no con el cliente Admin.
 - Usar el cliente server-side normal para las RPCs de auditoría/rate limiting de
   alta completa; nunca el cliente Admin.
 - No agregar `SUPABASE_SERVICE_ROLE_KEY`.
+- No exponer `SUPABASE_SECRET_KEY` al cliente.
 - No consultar `auth.users`.
 - No consultar Supabase desde componentes cliente.
 - No insertar manualmente en `perfiles` desde el alta completa; el trigger de

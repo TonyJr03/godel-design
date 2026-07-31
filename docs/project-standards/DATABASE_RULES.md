@@ -2,21 +2,21 @@
 
 ## Migraciones
 
-- Toda modificacion de schema debe ir en una migracion nueva.
-- No edites migraciones historicas salvo instruccion explicita.
+- Toda modificación de schema debe ir en una migración nueva.
+- No edites migraciones históricas salvo instruccion explícita.
 - Las migraciones deben ser reproducibles desde cero.
 - Los nombres deben seguir el orden y estilo existente.
 
 ## RLS
 
 - Activa RLS en tablas sensibles.
-- No abras `anon` salvo casos publicos controlados.
+- No abras `anon` salvo casos públicos controlados.
 - Valida acceso interno por perfil activo y permisos.
 - Usa helpers existentes si existen.
 
 ## RPC
 
-- Usa RPC para operaciones transaccionales criticas.
+- Usa RPC para operaciones transaccionales críticas.
 - Valida `auth.uid()`.
 - Valida perfil interno activo.
 - Valida permisos.
@@ -33,12 +33,12 @@
 - Prueba migraciones localmente.
 - Usa `BEGIN`/`ROLLBACK` cuando hagas pruebas destructivas.
 - Prueba constraints.
-- Prueba casos validos e invalidos.
+- Prueba casos validos e inválidos.
 - Prueba permisos cuando aplique.
 
 ## QA de migraciones
 
-El procedimiento detallado de QA de migraciones esta definido en la skill local:
+El procedimiento detallado de QA de migraciones está definido en la skill local:
 
 - `.codex/skills/godel-supabase-migration-qa/SKILL.md`
 

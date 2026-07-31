@@ -23,7 +23,7 @@ inicial, el precio total y la fecha estimada del pedido.
 La solicitud no tiene precio propio. El usuario interno define `total_amount`
 en el momento de convertir y ese monto pertenece al pedido resultante mediante
 `pedido_pagos`. Si el precio es `0`, el resumen financiero queda `pagado`; si
-es mayor que `0`, queda `sin_pago` porque todavia no se registra pago inicial.
+es mayor que `0`, queda `sin_pago` porque todavía no se registra pago inicial.
 
 Las solicitudes de `Encargo` e `Impresión` continúan viviendo en la misma tabla
 `solicitudes`. La diferencia formal se guarda en `workflow_type` y se conserva
@@ -115,7 +115,7 @@ URLs soportadas:
 - `/dashboard/solicitudes?service_id=<uuid>`
 - `/dashboard/solicitudes?status=nueva&service_id=<uuid>`
 
-El filtro se valida como UUID. Un valor invalido se ignora de forma segura y la
+El filtro se valida como UUID. Un valor inválido se ignora de forma segura y la
 página muestra una advertencia. El filtro se aplica en conteo, consulta
 paginada, búsqueda y paginación. Si el catálogo de opciones falla, el listado
 sigue visible y el filtro Servicio se omite temporalmente.

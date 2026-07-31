@@ -271,7 +271,7 @@ para rollback transaccional.
 - `(target_profile_id, created_at desc)`.
 - `(status, created_at desc)`.
 - `target_profile_id` único cuando `status = 'pending'`, para impedir más de
-  un intento pendiente por objetivo aun si una regresión futura omite la guarda
+  un intento pendiente por objetivo aún si una regresión futura omite la guarda
   de la RPC.
 
 **Notas de seguridad:**

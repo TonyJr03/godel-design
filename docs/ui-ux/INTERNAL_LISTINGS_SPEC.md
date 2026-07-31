@@ -2,7 +2,7 @@
 
 ## 1. Propósito
 
-Definir el patrón común para los listados internos de Godel Diseño antes de rediseñar los listados reales.
+Definir el patrón común vigente para los listados internos de Godel Diseño.
 
 Esta especificación aplica a:
 
@@ -12,7 +12,7 @@ Esta especificación aplica a:
 - Usuarios.
 - Configuración y plantillas.
 
-El objetivo es establecer una arquitectura visual y funcional compartida para superficies operativas, manteniendo las páginas server-first, los filtros basados en URL y las reglas de dominio actuales. Esta subtarea no implementa componentes ni modifica listados existentes.
+El objetivo es mantener una arquitectura visual y funcional compartida para superficies operativas, con páginas server-first, filtros basados en URL y reglas de dominio actuales.
 
 ## 2. Problemas del patrón actual
 
@@ -251,14 +251,14 @@ Las cards no deben intentar replicar todas las columnas de escritorio. Deben ayu
 
 ### Contrato vigente por debajo de `xl`
 
-El corte responsive real de Pedidos y Solicitudes esta en `xl`. Por tanto,
-anchos como `1024px` continuan usando cards y no tabla. La tabla desktop
-comienza desde `xl` y mantiene sus columnas, datos de dominio, navegacion,
-filtros y paginacion sin cambios.
+El corte responsive real de Pedidos y Solicitudes está en `xl`. Por tanto,
+anchos como `1024px` continúan usando cards y no tabla. La tabla desktop
+comienza desde `xl` y mantiene sus columnas, datos de dominio, navegación,
+filtros y paginación sin cambios.
 
 #### Pedido
 
-La card responsive de Pedido conserva esta jerarquia:
+La card responsive de Pedido conserva esta jerarquía:
 
 ```text
 Numero + Estado/Pago
@@ -269,13 +269,13 @@ Entrega
 
 Reglas vigentes:
 
-- La primera fila contiene el numero de pedido y el grupo Estado/Pago.
-- Los badges no comparten fila ni ancho con el titulo.
-- El titulo vive en una fila independiente, ocupa el ancho interno disponible
-  de la card y conserva maximo dos lineas.
-- La metadata muestra primero workflow y despues servicio.
+- La primera fila contiene el número de pedido y el grupo Estado/Pago.
+- Los badges no comparten fila ni ancho con el título.
+- El título vive en una fila independiente, ocupa el ancho interno disponible
+  de la card y conserva máximo dos lineas.
+- La metadata muestra primero workflow y después servicio.
 - La fecha de entrega permanece como ultima fila.
-- No se muestra descripcion ni boton "Ver".
+- No se muestra descripción ni botón "Ver".
 - La card completa sigue abriendo el detalle.
 
 #### Solicitud
@@ -518,19 +518,7 @@ Configuración / plantillas
 
 ## 20. Criterios de aceptación
 
-La arquitectura de listados se considera definida cuando:
-
-- existe esta especificación;
-- se documentan los problemas actuales;
-- se documenta el patrón nuevo de header, búsqueda y filtros;
-- se documenta el uso de `searchParams`;
-- se documentan columnas finales de Pedidos;
-- se documentan columnas finales de Solicitudes;
-- se documenta fila/card clicable;
-- se documentan estados vacíos;
-- se documentan componentes comunes propuestos;
-- el roadmap UI/UX queda actualizado;
-- Etapa 7 queda marcada como cerrada;
-- Etapa 8 queda marcada como activa;
-- no se modifica código de aplicación;
-- `npm run diff:check` pasa.
+Esta especificación queda aceptada como contrato vigente de listados internos.
+El antiguo `ListFiltersBar` y los criterios de cierre de etapa quedan como
+contexto histórico; los planes y reportes completos están en
+`../archive/ui-ux-redesign/`.

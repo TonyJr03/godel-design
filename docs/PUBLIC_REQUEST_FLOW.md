@@ -10,45 +10,45 @@ El objetivo es dejar documentado el flujo actual, los datos que se guardan, las
 validaciones aplicadas, las decisiones técnicas tomadas y lo que queda pendiente
 para fases posteriores.
 
-## Actualizacion Etapa 3: catalogo configurable
+## Actualización Etapa 3: catálogo configurable
 
 Desde la Etapa 3, `/solicitud` ya no usa opciones hardcodeadas para servicios
-nuevos. La pagina carga server-side `tipos_servicio` mediante
+nuevos. La página carga server-side `tipos_servicio` mediante
 `listPublicServiceTypes()` y solo renderiza servicios con
 `is_publicly_available = true`.
 
-Matriz de visibilidad del catalogo:
+Matriz de visibilidad del catálogo:
 
-- `anon`: solo servicios publicos.
-- `authenticated` sin perfil interno activo: solo servicios publicos.
-- `authenticated` con perfil interno activo: servicios publicos por la politica
-  publica y catalogo completo por la politica interna.
+- `anon`: solo servicios públicos.
+- `authenticated` sin perfil interno activo: solo servicios públicos.
+- `authenticated` con perfil interno activo: servicios públicos por la política
+  pública y catálogo completo por la política interna.
 
 Reglas de disponibilidad:
 
-- Encargo aparece solo si existe al menos un servicio publico con
+- Encargo aparece solo si existe al menos un servicio público con
   `workflow_type = encargo`.
-- Impresion aparece solo si el servicio unico de `workflow_type = impresion`
-  esta publico.
-- Si no hay servicios publicos, no se renderiza el formulario y se muestra un
-  estado publico seguro.
-- Si falla la lectura del catalogo, no se asumen servicios hardcodeados y se
+- Impresión aparece solo si el servicio único de `workflow_type = impresion`
+  está público.
+- Si no hay servicios públicos, no se renderiza el formulario y se muestra un
+  estado público seguro.
+- Si falla la lectura del catálogo, no se asumen servicios hardcodeados y se
   muestra un estado reintentable.
 
-Contrato de entrada publica:
+Contrato de entrada pública:
 
-- El formulario envia `service_id`.
-- El formulario no envia `workflow_type` ni el nombre del servicio como fuente
+- El formulario envía `service_id`.
+- El formulario no envía `workflow_type` ni el nombre del servicio como fuente
   de verdad.
 - La Server Action calcula `hasFiles` desde `files.length > 0`.
 - `createPublicSolicitud` resuelve `service_id` con
-  `getPublicServiceTypeById()`, filtrando explicitamente
+  `getPublicServiceTypeById()`, filtrando explícitamente
   `is_publicly_available = true`.
-- El servidor valida los campos segun el workflow resuelto desde el servicio.
-- Impresion exige archivo con base en `hasFiles`, no en un workflow enviado por
+- El servidor valida los campos según el workflow resuelto desde el servicio.
+- Impresión exige archivo con base en `hasFiles`, no en un workflow enviado por
   el cliente.
 
-Insercion en `solicitudes`:
+Inserción en `solicitudes`:
 
 - `service_id` guarda el servicio resuelto.
 - La columna textual legacy del nombre de servicio fue eliminada por Contract.
@@ -59,11 +59,11 @@ RLS de defensa en profundidad:
 
 - `solicitudes_insert_public` aplica a `anon` y `authenticated`.
 - Exige `service_id is not null`.
-- Exige que el servicio exista, este publico y coincida con `workflow_type`.
-- Un servicio oculto o una combinacion manipulada no puede crear solicitud.
+- Exige que el servicio exista, esté público y coincida con `workflow_type`.
+- Un servicio oculto o una combinación manipulada no puede crear solicitud.
 
 Solicitudes y Pedidos usan `service_id` obligatorio. Los servicios ocultos
-siguen disponibles para flujos internos y el servicio de Impresion es unico.
+siguen disponibles para flujos internos y el servicio de Impresión es único.
 
 ## Alcance actual
 
@@ -229,11 +229,11 @@ Responsabilidades:
 - Establecer `reviewed_by = null`.
 - Establecer `converted_order_id = null`.
 - Generar server-side un `public_reference` no secuencial con formato
-  `GD-XXXX-XXXX` para devolverlo sin hacer lectura publica anonima.
-- La base de datos tambien tiene default para `public_reference` y valida el
+  `GD-XXXX-XXXX` para devolverlo sin hacer lectura pública anónima.
+- La base de datos también tiene default para `public_reference` y valida el
   formato como respaldo para otros inserts.
-- No usar el UUID interno ni sus primeros caracteres como codigo publico.
-  La lectura publica de solicitudes sigue cerrada por RLS.
+- No usar el UUID interno ni sus primeros caracteres como código público.
+  La lectura pública de solicitudes sigue cerrada por RLS.
 - Evitar un `.select()` público innecesario después del insert.
 
 Desde Fase 11.7B, la inserción de la solicitud registra automáticamente el evento `solicitud_creada` en `solicitud_historial`. Como el flujo es público, normalmente queda con `actor_id = null` y metadata mínima no sensible.

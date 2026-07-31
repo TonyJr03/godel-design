@@ -233,29 +233,29 @@ En el dashboard de trabajador, los conteos y previews del tablero usan el mismo
 contrato pero se filtran server-side por `pedido_trabajadores.assigned_profile_id`
 del perfil actual, manteniendo RLS como defensa final.
 
-El historial del dashboard usa una ventana movil exacta de 7 dias, equivalente
+El historial del dashboard usa una ventana móvil exacta de 7 días, equivalente
 a 168 horas desde el instante de carga. Para `admin` y `supervisor` combina
 eventos de `pedido_historial` y `solicitud_historial`, deduplica por el
-identificador seguro del DTO y ordena globalmente de mas reciente a mas antiguo.
+identificador seguro del DTO y ordena globalmente de más reciente a más antiguo.
 Para `trabajador` usa solo `pedido_historial` accesible por RLS, por lo que no
 incluye solicitudes ni pedidos no asignados.
 
 La regla de visibilidad es:
 
 ```text
-si la ventana de 7 dias tiene 20 o mas eventos:
+si la ventana de 7 días tiene 20 o más eventos:
   mostrar todos los eventos de esa ventana
 si la ventana tiene menos de 20 eventos:
-  completar con los eventos anteriores mas recientes hasta 20
+  completar con los eventos anteriores más recientes hasta 20
 si existen menos de 20 eventos totales:
   mostrar todos los existentes
 ```
 
-Las consultas semanales se paginan server-side por rangos tecnicos para evitar
-limites silenciosos de una sola respuesta de PostgREST. Las consultas de
-respaldo se limitan a los 20 eventos mas recientes por fuente y solo se ejecutan
-cuando la ventana semanal no llega al minimo. Esta etapa no agrega paginacion
-visual, boton de cargar mas, filtros ni agrupacion por dia.
+Las consultas semanales se paginan server-side por rangos técnicos para evitar
+límites silenciosos de una sola respuesta de PostgREST. Las consultas de
+respaldo se limitan a los 20 eventos más recientes por fuente y solo se ejecutan
+cuando la ventana semanal no llega al mínimo. Esta etapa no agrega paginación
+visual, botón de cargar más, filtros ni agrupación por día.
 
 ## Métricas futuras
 
@@ -314,7 +314,7 @@ Responsabilidades:
 | `helpers.ts` | Estados, ventanas de fecha y `doesPedidoWorkflowRequireTasks()`. |
 
 El dashboard de trabajador no usa un panel separado llamado
-`WorkerDashboardPanel.tsx`. La vista worker esta integrada en
+`WorkerDashboardPanel.tsx`. La vista worker está integrada en
 `DashboardWorkspace`, `DashboardOverview`, `DashboardAttentionPanel` y
 `DashboardPedidoBoard` usando DTOs `kind: "worker"`.
 
@@ -356,7 +356,8 @@ Queda fuera del alcance actual:
 - usar service role key;
 - consultar `auth.users`;
 - instalar dependencias;
-- modificar `docs/development/ROADMAP.md`;
+- modificar roadmaps históricos como fuente vigente; el estado general vive en
+  `PROJECT_STATUS.md` y los pendientes técnicos en `development/TECH_DEBT.md`;
 - implementar gráficos;
 - implementar reportes avanzados;
 - implementar notificaciones;
@@ -373,11 +374,11 @@ En pedidos, RLS limita al trabajador a pedidos asignados.
 
 ## Cierre
 
-Actualizacion Beta 2.7.6: la deuda de `workflow_type` en metricas de tareas
-quedo corregida en Beta 2.7.4. El dashboard usa
+Actualización Beta 2.7.6: la deuda de `workflow_type` en métricas de tareas
+quedó corregida en Beta 2.7.4. El dashboard usa
 `doesPedidoWorkflowRequireTasks()` para que solo `workflow_type = encargo`
 requiera tareas obligatorias; `workflow_type = impresion` puede avanzar sin
-tareas internas. La vista worker esta integrada en `DashboardWorkspace`,
+tareas internas. La vista worker está integrada en `DashboardWorkspace`,
 `DashboardOverview`, `DashboardAttentionPanel` y `DashboardPedidoBoard`; no
 existe un componente `WorkerDashboardPanel.tsx`.
 
