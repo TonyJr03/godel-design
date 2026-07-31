@@ -97,16 +97,16 @@ Contenido exacto:
 - Botón/enlace para volver a `/dashboard/pedidos`.
 - `order_number`, por ejemplo `P-26-0347`.
 - Título real del pedido.
-- Badge de workflow: `Encargo` o `Impresion`.
+- Badge de workflow: `Encargo` o `Impresión`.
 - Estado operativo con `StatusBadge`.
 - Prioridad con `PriorityBadge`.
 - Fecha estimada o fecha real de entrega cuando exista.
-- Referencia publica copiable inline.
-- Sin CTA primaria de gestion ni avisos criticos verticales bajo la cabecera.
+- Referencia pública copiable inline.
+- Sin CTA primaria de gestión ni avisos críticos verticales bajo la cabecera.
 - Acción principal cuando exista.
 - Indicadores críticos.
 
-Nota vigente 4.5: los dos bullets anteriores son historicos y no aplican al
+Nota vigente 4.5: los dos bullets anteriores son históricos y no aplican al
 workspace final.
 
 Las acciones principales de la cabecera no ejecutan mutaciones directamente.
@@ -271,14 +271,14 @@ Reglas:
 
 Especificacion visual vigente:
 
-- `PedidoTasksSection` mantiene la creacion de tareas, la aplicacion de
+- `PedidoTasksSection` mantiene la creación de tareas, la aplicación de
   plantillas y la barra de progreso global.
-- Las tareas registradas viven en una unica superficie con borde y divisores
+- Las tareas registradas viven en una única superficie con borde y divisores
   entre filas.
 - Cada `PedidoTaskItem` es una fila compacta, no una card independiente.
-- En escritorio, la fila coloca contenido y acciones en columnas: titulo y
+- En escritorio, la fila coloca contenido y acciones en columnas: título y
   estado/progreso a la izquierda, acciones a la derecha.
-- En movil, el titulo y el estado/progreso conservan ancho disponible y las
+- En móvil, el título y el estado/progreso conservan ancho disponible y las
   acciones pueden pasar debajo y envolver sin producir overflow horizontal.
 
 Jerarquia conceptual de una fila:
@@ -291,13 +291,13 @@ Estado o progreso
 El texto secundario comunica siempre el estado con texto visible. Para tareas
 cuantificadas usa el formato `{completed_quantity} de {target_quantity} ·
 Pendiente` o `{completed_quantity} de {target_quantity} · Completada`. El tipo
-tecnico `simple` o `cuantificada` no aparece como badge visible, aunque sigue
+técnico `simple` o `cuantificada` no aparece como badge visible, aunque sigue
 existiendo en el DTO y en las reglas server-side.
 
 El orden de acciones de una fila coincide visualmente con el orden del DOM y el
 orden de teclado. No se usan clases CSS para alterar artificialmente el orden.
 Editar siempre ocupa la segunda posicion y Eliminar siempre la ultima. La
-primera accion depende de la tarea:
+primera acción depende de la tarea:
 
 ```text
 simple pendiente       -> Completar
@@ -319,29 +319,29 @@ Estados conceptuales por fila:
 "confirm-delete"
 ```
 
-Estos estados son mutuamente excluyentes: una fila no edita titulo y progreso a
-la vez, ni confirma eliminacion mientras edita. En `edit-title`, el titulo se
-sustituye por un input inline con foco automatico. En `edit-progress`, el texto
+Estos estados son mutuamente excluyentes: una fila no edita título y progreso a
+la vez, ni confirma eliminación mientras edita. En `edit-title`, el título se
+sustituye por un input inline con foco automático. En `edit-progress`, el texto
 secundario de una tarea cuantificada se sustituye por el editor numerico. `Enter`
-envia el formulario, `Escape` cancela, y cancelar o guardar correctamente
+envía el formulario, `Escape` cancela, y cancelar o guardar correctamente
 devuelve el foco al trigger correspondiente. Los errores quedan asociados al
 campo, mantienen abierto el editor y conservan el valor introducido. Pending es
 visible y accesible; las acciones incompatibles se deshabilitan y los spinners
-respetan reduced motion. La eliminacion conserva confirmacion destructiva
+respetan reduced motion. La eliminación conserva confirmación destructiva
 inline.
 
-La edicion de titulo muestra la advertencia contextual:
+La edición de título muestra la advertencia contextual:
 
 ```text
 Los números del título definen la cantidad de la tarea y pueden reiniciar su progreso.
 ```
 
-Esa advertencia no mueve reglas al cliente: la deteccion de numeros y la
-decision `simple`/`cuantificada` siguen exclusivamente en servicios server-side.
+Esa advertencia no mueve reglas al cliente: la detección de numeros y la
+decisión `simple`/`cuantificada` siguen exclusivamente en servicios server-side.
 
-Limites arquitectonicos:
+Limites arquitectónicos:
 
-- Esta compactacion no cambia Server Actions.
+- Esta compactación no cambia Server Actions.
 - No cambia servicios.
 - No cambia validaciones.
 - No cambia RLS.
@@ -349,7 +349,7 @@ Limites arquitectonicos:
 - No cambia base de datos.
 - No generaliza el componente con las tareas de plantilla.
 
-Las tareas de plantilla y las tareas de pedido comparten un patron visual, pero
+Las tareas de plantilla y las tareas de pedido comparten un patrón visual, pero
 conservan componentes separados. Las tareas de pedido tienen progreso,
 completar, reabrir y bloqueos por estado; las plantillas no tienen ese mismo
 dominio operativo.
@@ -451,14 +451,14 @@ Orden inicial:
 
 | Panel | Icono Lucide | Roles | Workflows | Modo | Componente actual | Crítico | Vacío | Error | Indicador |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Estado | `GitBranch` o `RefreshCcw` | admin, supervisor, trabajador asignado | encargo, impresion | Gestión limitada | `PedidoStatusForm` | Transiciones permitidas, bloqueos por tareas/pago | Pedido cerrado sin acciones | Error action/status | Estado actual, bloqueo |
+| Estado | `GitBranch` o `RefreshCcw` | admin, supervisor, trabajador asignado | encargo, impresión | Gestión limitada | `PedidoStatusForm` | Transiciones permitidas, bloqueos por tareas/pago | Pedido cerrado sin acciones | Error action/status | Estado actual, bloqueo |
 | Tareas | `ListChecks` | admin, supervisor, trabajador asignado con acceso | encargo | Gestión según estado | `PedidoTasksSection` | Bloquea avance de encargo | Sin tareas | Error de carga/plantillas | Cantidad pendientes, % |
-| Archivos | `Files` o `Paperclip` | admin, supervisor, trabajador asignado | encargo, impresion | Gestión/subida según estado | `PedidoFilesSection` | Descarga y subida controlada | Sin archivos | Error de carga/subida | Cantidad |
-| Comentarios | `MessageSquare` | admin, supervisor, trabajador asignado | encargo, impresion | Gestión append-only | `PedidoCommentsSection` | Notas internas | Sin comentarios | Error de carga/action | Cantidad |
-| Personal | `UsersRound` | lectura todos; gestión admin/supervisor | encargo, impresion | Lectura/gestión | `PedidoWorkerAssignmentForm` | Asignación y acceso trabajador | Sin personal | Error personal asignable | Cantidad |
-| Pagos | `CreditCard` | lectura todos; gestión admin/supervisor | encargo, impresion | Lectura/gestión | `PedidoPaymentSection` | Pago bloquea entrega | Sin resumen financiero | Error action/missing payment | Estado pago |
-| Historial | `History` | admin, supervisor, trabajador asignado | encargo, impresion | Lectura | `PedidoHistorySection` | Auditoría | Sin eventos | Error de carga | Cantidad |
-| Información | `Info` | admin, supervisor, trabajador asignado | encargo, impresion | Lectura | Cliente, solicitud origen, metadata actuales | Contexto y trazabilidad | Sin cliente/origen | Error parcial futuro | Avisos |
+| Archivos | `Files` o `Paperclip` | admin, supervisor, trabajador asignado | encargo, impresión | Gestión/subida según estado | `PedidoFilesSection` | Descarga y subida controlada | Sin archivos | Error de carga/subida | Cantidad |
+| Comentarios | `MessageSquare` | admin, supervisor, trabajador asignado | encargo, impresión | Gestión append-only | `PedidoCommentsSection` | Notas internas | Sin comentarios | Error de carga/action | Cantidad |
+| Personal | `UsersRound` | lectura todos; gestión admin/supervisor | encargo, impresión | Lectura/gestión | `PedidoWorkerAssignmentForm` | Asignación y acceso trabajador | Sin personal | Error personal asignable | Cantidad |
+| Pagos | `CreditCard` | lectura todos; gestión admin/supervisor | encargo, impresión | Lectura/gestión | `PedidoPaymentSection` | Pago bloquea entrega | Sin resumen financiero | Error action/missing payment | Estado pago |
+| Historial | `History` | admin, supervisor, trabajador asignado | encargo, impresión | Lectura | `PedidoHistorySection` | Auditoría | Sin eventos | Error de carga | Cantidad |
+| Información | `Info` | admin, supervisor, trabajador asignado | encargo, impresión | Lectura | Cliente, solicitud origen, metadata actuales | Contexto y trazabilidad | Sin cliente/origen | Error parcial futuro | Avisos |
 
 El panel Tareas no debe aparecer en la barra móvil de `impresion` por defecto.
 Puede omitirse completamente del action rail en impresión o moverse a
@@ -549,7 +549,7 @@ Entre `md` y antes de `xl`:
 Nota vigente 4.5: tablet conserva toolbar textual de una sola fila con icono y
 label visibles. `statusLabel`, estado activo y badge real deben estar en el
 nombre accesible y `title`; el badge visual se renderiza flotante en la esquina
-superior derecha para no cambiar la altura del boton. El dialog lateral usa el
+superior derecha para no cambiar la altura del botón. El dialog lateral usa el
 mismo contrato de contenido `scroll`/`fill`.
 
 - Cabecera compacta con enlace textual "Volver a pedidos" antes de la metadata.
@@ -561,7 +561,7 @@ mismo contrato de contenido `scroll`/`fill`.
 - El drawer puede tener scroll interno.
 - La toolbar mide ancho real disponible con `ResizeObserver` y
   `requestAnimationFrame`: muestra siempre las tres primeras acciones
-  disponibles, agrega acciones si caben y reserva "Mas" solo cuando quedan
+  disponibles, agrega acciones si caben y reserva "Más" solo cuando quedan
   acciones ocultas.
 - "Mas" contiene exactamente las acciones que no quedaron directas, incluidas
   acciones deshabilitadas si existen. No duplica acciones directas.
@@ -577,11 +577,11 @@ Toolbar sugerida:
 
 La barra inferior muestra máximo cuatro accesos.
 
-Nota vigente 4.5: movil mantiene maximo tres acciones directas mas "Mas",
-safe-area, icono y texto. Cada accion directa tiene tono discreto, badge visual
+Nota vigente 4.5: móvil mantiene máximo tres acciones directas más "Más",
+safe-área, icono y texto. Cada acción directa tiene tono discreto, badge visual
 flotante en esquina superior derecha limitado a `99+` y nombre accesible con el
 valor real. El badge no debe aparecer bajo la etiqueta ni aumentar la altura del
-boton.
+botón.
 
 `encargo`:
 
@@ -606,12 +606,12 @@ anidados.
 Operaciones habituales dentro de "Más": Personal, Pagos, Historial,
 Información y Comentarios cuando Comentarios no está fijo. Al abrir un panel
 desde "Mas" y volver, el selector conserva la misma lista secundaria que tenia
-la superficie que lo abrio.
+la superficie que lo abrió.
 
 Requisitos:
 
-- Fixed bottom con safe area: `padding-bottom: env(safe-area-inset-bottom)`.
-- Altura conceptual: 56-64 px más safe area.
+- Fixed bottom con safe área: `padding-bottom: env(safe-area-inset-bottom)`.
+- Altura conceptual: 56-64 px más safe área.
 - Contenido principal con padding inferior suficiente para no quedar tapado.
 - Etiquetas visibles.
 - Iconos decorativos con `aria-hidden`.
@@ -818,15 +818,15 @@ en 6.1. Los formularios existentes se reutilizan temporalmente dentro de los
 paneles aunque conserven tarjeta exterior; la simplificacion interna queda para
 6.2/6.3.
 
-Politica de pruebas: las subtareas 6.1 a 6.4 no ejecutan E2E ni Full Visual QA.
-La validacion integral responsive, accesible, visual y por estados se concentra
+Política de pruebas: las subtareas 6.1 a 6.4 no ejecutan E2E ni Full Visual QA.
+La validación integral responsive, accesible, visual y por estados se concentra
 en 6.5.
 
 ### Nota vigente 6.2: paneles de consulta de Solicitudes
 
 Archivos usa `SolicitudFilesPanel` dentro del workspace contextual. Renderiza la
-lista completa sin tarjeta exterior, sombra, heading principal ni descripcion
-duplicada; el titulo y descripcion los provee `WorkspaceContextDialog`. No
+lista completa sin tarjeta exterior, sombra, heading principal ni descripción
+duplicada; el título y descripción los provee `WorkspaceContextDialog`. No
 admite subida interna y conserva descargas por route handler privado:
 `/dashboard/solicitudes/[id]/archivos/[fileId]/download`.
 
@@ -834,22 +834,22 @@ Historial usa `SolicitudHistoryTimeline`. Renderiza una timeline compacta sin
 tarjeta exterior ni heading duplicado, conserva el orden recibido y mantiene los
 resumenes derivados de metadata, actor, rol y fecha.
 
-Informacion permanece como panel secundario solo lectura: referencia publica,
+Información permanece como panel secundario solo lectura: referencia pública,
 workflow, servicio, estado, fechas, enlace a pedido convertido cuando exista y
 UUID interno como metadata secundaria. No incluye `reviewed_by`, datos completos
-de cliente ni acciones de gestion.
+de cliente ni acciones de gestión.
 
-Archivos, Historial e Informacion usan `contentMode: "scroll"`.
+Archivos, Historial e Información usan `contentMode: "scroll"`.
 
-### Nota vigente 6.3: paneles de gestion de Solicitudes
+### Nota vigente 6.3: paneles de gestión de Solicitudes
 
 Estado usa `SolicitudStatusForm` con `presentation="panel"` dentro del panel
 contextual. El formulario muestra primero el estado actual, conserva solo las
 transiciones permitidas y no cambia reglas de dominio ni Server Actions.
 
 Cliente usa `SolicitudClienteForm` con `presentation="panel"`. El contenido se
-organiza en una sola columna: cliente asociado, asociacion de cliente existente
-y creacion desde la solicitud. Si falla la carga del cliente asociado, la pagina
+organiza en una sola columna: cliente asociado, asociación de cliente existente
+y creación desde la solicitud. Si falla la carga del cliente asociado, la página
 sigue mostrando solo el error y no renderiza controles basados en un estado
 desconocido.
 
@@ -858,11 +858,11 @@ eliminar tarjeta exterior y heading duplicado. Mantiene los requisitos
 existentes: solicitud aprobada, cliente asociado y ausencia de pedido convertido.
 
 Comentarios queda dividido en `SolicitudCommentsPanel` y
-`SolicitudCommentComposer`. El panel usa `contentMode: "fill"`: la conversacion
+`SolicitudCommentComposer`. El panel usa `contentMode: "fill"`: la conversación
 interna se desplaza dentro del panel y el composer queda fijo abajo, con textarea
 compacto autoajustable, feedback accesible y la misma Server Action existente.
 
-### Nota vigente 6.4: estados, workflows y senales de Solicitudes
+### Nota vigente 6.4: estados, workflows y señales de Solicitudes
 
 Matriz de Estado:
 
@@ -886,7 +886,7 @@ ausencia no bloqueante -> neutral
 
 El error de carga conserva prioridad sobre `cliente_id`, porque la entidad
 asociada no pudo comprobarse correctamente. Cliente asociado usa `success` como
-condicion completada y mantiene `statusLabel`; el tono no sustituye el texto
+condición completada y mantiene `statusLabel`; el tono no sustituye el texto
 accesible.
 
 Matriz de Conversion:
@@ -895,26 +895,26 @@ Matriz de Conversion:
 pedido creado -> success / Pedido creado
 lista para convertir -> warning / Lista para convertir
 falta cliente -> warning / Falta asociar cliente
-requiere aprobacion -> neutral / Requiere aprobacion
+requiere aprobación -> neutral / Requiere aprobación
 rechazada -> neutral / Conversion no disponible
 convertida sin pedido enlazado -> neutral / Conversion no disponible
 ```
 
-La comprobacion de `converted_order_id` ocurre antes que el resto. Si una
-solicitud aparece como `convertida` sin `converted_order_id`, la accion de
+La comprobación de `converted_order_id` ocurre antes que el resto. Si una
+solicitud aparece como `convertida` sin `converted_order_id`, la acción de
 Conversion se muestra como no disponible; el formulario existente no permite
-crear otro pedido porque solo renderiza la conversion cuando `status ===
+crear otro pedido porque solo renderiza la conversión cuando `status ===
 "aprobada"`, hay cliente asociado y no hay pedido actual.
 
-Encargo e Impresion conservan el mismo catalogo de acciones: Estado, Cliente,
-Conversion, Archivos, Comentarios, Historial e Informacion. Encargo mantiene
-`Trabajo solicitado` y requisitos operativos de conversion; Impresion mantiene
-`Datos de impresion solicitada`, el titulo predeterminado `Pedido de impresion`
+Encargo e Impresión conservan el mismo catálogo de acciones: Estado, Cliente,
+Conversion, Archivos, Comentarios, Historial e Información. Encargo mantiene
+`Trabajo solicitado` y requisitos operativos de conversión; Impresión mantiene
+`Datos de impresion solicitada`, el título predeterminado `Pedido de impresion`
 y la ausencia de Tareas en el workspace de Solicitudes.
 
-El composer de comentarios en presentacion panel muestra solo `Comenta` como
-heading visible. La presentacion card conserva su descripcion. Las subtareas
-6.1 a 6.4 no ejecutan E2E ni Full Visual QA; esa validacion queda concentrada
+El composer de comentarios en presentación panel muestra solo `Comenta` como
+heading visible. La presentación card conserva su descripción. Las subtareas
+6.1 a 6.4 no ejecutan E2E ni Full Visual QA; esa validación queda concentrada
 en 6.5.
 
 ### Nota vigente 6.5: QA funcional, responsive y visual de Solicitudes
@@ -929,7 +929,7 @@ Correcciones cerradas en 6.5:
   `Correo electronico` ocupa dos columnas desde `sm`, evitando que el correo
   quede limitado a media tarjeta.
 - Los tests de Solicitudes, Storage y Full Visual QA abren Estado, Cliente,
-  Conversion, Archivos, Comentarios, Historial e Informacion mediante triggers
+  Conversion, Archivos, Comentarios, Historial e Información mediante triggers
   visibles del workspace o el selector `Mas`; no buscan formularios antiguos en
   el cuerpo permanente.
 
@@ -946,18 +946,18 @@ npx.cmd playwright test tests/e2e/full-visual-qa.spec.ts --project=chromium --wo
 Cobertura verificada:
 
 - Encargo: estados `nueva -> en_revision -> contactada -> aprobada`,
-  asociacion/creacion de cliente, comentarios consecutivos con reset, conversion
+  asociación/creación de cliente, comentarios consecutivos con reset, conversión
   a pedido y estado `convertida`.
-- Impresion: datos de impresion solicitada, archivo recibido, panel Archivos con
-  descarga privada, rechazo y conversion no disponible.
+- Impresión: datos de impresión solicitada, archivo recibido, panel Archivos con
+  descarga privada, rechazo y conversión no disponible.
 - Roles: `admin` gestiona el flujo completo, `supervisor` consulta listado y
   detalle, `trabajador` queda denegado en listado y detalle de Solicitudes.
 - Responsive: desktop `1440x900` y `1366x768` sin overflow horizontal ni scroll
-  documental; tablet `900x1000` y `780x1000` con toolbar en una fila; movil
+  documental; tablet `900x1000` y `780x1000` con toolbar en una fila; móvil
   `375x812` con barra inferior, selector `Mas`, retorno al selector y un solo
   dialog.
 - Accesibilidad funcional: los triggers conservan `statusLabel`; Escape y el
-  boton `Cerrar` restauran foco al trigger visible.
+  botón `Cerrar` restauran foco al trigger visible.
 - Storage: rutas internas `/dashboard/solicitudes/{solicitudId}/archivos/{fileId}/download`,
   sin `file_path`, bucket, signed URL ni superficie de subida interna.
 
@@ -1049,7 +1049,7 @@ No introducir Radix, Headless UI, shadcn/ui ni librerías de tooltips.
 ## 20. Scroll del panel
 
 - El panel usa `contentMode: "scroll"` por defecto.
-- En `contentMode: "fill"`, el cuerpo generico del dialog usa
+- En `contentMode: "fill"`, el cuerpo genérico del dialog usa
   `overflow-hidden` y el contenido inmediato `min-h-0 flex-1`.
 - Comentarios, Archivos y Personal de pedidos usan `fill`: solo la zona central
   lista/comentario/asignaciones desplaza; el footer de formulario queda visible.
@@ -1192,7 +1192,7 @@ historial del navegador y permisos de panel durante la migración inicial.
 `MobileWorkspaceBar`
 
 - Barra inferior con máximo cuatro accesos.
-- Usa safe area.
+- Usa safe área.
 - Recibe acciones ya filtradas.
 - Incluye "Más" como selector, no como panel de dominio.
 
@@ -1475,8 +1475,8 @@ Solicitud aprobada · Cliente asociado
 [CTA principal: Abrir convertir]
 
 Panel Convertir:
-- titulo
-- descripcion
+- título
+- descripción
 - prioridad
 - monto
 - fecha estimada
@@ -1506,9 +1506,9 @@ La altura útil debe calcularse con CSS flexible:
   sticky con altura basada en viewport.
 - Evitar valores rígidos que rompan zoom o pantallas pequeñas.
 - En tablet y móvil no se fuerza la altura del workspace: las cards crecen según
-  su contenido, el documento desplaza normalmente y se evitan multiples zonas
+  su contenido, el documento desplaza normalmente y se evitan múltiples zonas
   pequeñas de scroll fuera de paneles/sheets.
-- En móvil, el contenido recibe padding inferior por barra y safe area.
+- En móvil, el contenido recibe padding inferior por barra y safe área.
 - El panel contextual puede limitarse con `max-height: min(...)` y scroll
   interno.
 
@@ -1560,12 +1560,12 @@ comportamiento modal nativo. Al cerrar, vuelve a la acción que lo abrió.
 
 | Primitiva / área | Dominio | Rol | Workflow | Spec focal | Manual | Resolución |
 | --- | --- | --- | --- | --- | --- | --- |
-| WorkspaceShell/Header | Pedido | admin/supervisor/trabajador | encargo/impresion | `pedidos.spec.ts`, `dashboard.spec.ts` | desktop/tablet/móvil | 1440, tablet, 375 |
-| Action rail | Pedido | todos | encargo/impresion | `pedidos.spec.ts` | foco, activo, badges | desktop |
+| WorkspaceShell/Header | Pedido | admin/supervisor/trabajador | encargo/impresión | `pedidos.spec.ts`, `dashboard.spec.ts` | desktop/tablet/móvil | 1440, tablet, 375 |
+| Action rail | Pedido | todos | encargo/impresión | `pedidos.spec.ts` | foco, activo, badges | desktop |
 | Context dialog | Pedido/Solicitud | todos permitidos | ambos | `storage.spec.ts`, `pedidos.spec.ts` | Escape, backdrop, retorno foco | desktop/móvil |
 | Tareas | Pedido | admin/supervisor/trabajador asignado | encargo | `task-templates.spec.ts`, `pedidos.spec.ts` | crear/editar/progreso | desktop/móvil |
 | Archivos | Pedido/Solicitud | roles permitidos | ambos | `storage.spec.ts` | descarga, subida pedido | desktop/móvil |
-| Solicitud | Solicitud | admin/supervisor | encargo/impresion | `solicitudes-internas.spec.ts` | conversión | desktop/móvil |
+| Solicitud | Solicitud | admin/supervisor | encargo/impresión | `solicitudes-internas.spec.ts` | conversión | desktop/móvil |
 | Shell/roles | Transversal | todos | n/a | `dashboard.spec.ts` | visibilidad por rol | todas |
 | Cierre visual | Transversal | todos | ambos | `full-visual-qa.spec.ts` | solo al cierre de fase | 1440/375 |
 
@@ -1590,109 +1590,9 @@ comportamiento modal nativo. Al cerrar, vuelve a la acción que lo abrió.
 - Confirmar que "Más" abre selector, permite elegir panel y permite volver.
 - Confirmar que la barra móvil no tapa contenido.
 
-## 39. Registro histórico del plan de implementación
+## 39. Contexto histórico
 
-Esta sección se conserva únicamente como registro histórico de la secuencia
-utilizada para construir los workspaces. Las etapas descritas ya fueron
-ejecutadas y no representan trabajo pendiente ni el roadmap vigente.
-
-### Etapa 4.1
-
-Se crearon primitivas estructurales sin migrar toda la pantalla.
-
-Alcance:
-
-- `WorkspaceController`.
-- `WorkspaceActionRail`.
-- `WorkspaceContextDialog`.
-- `WorkspaceTabletToolbar`.
-- `MobileWorkspaceBar`.
-- Tipos conceptuales locales.
-
-Cierre:
-
-- Sin cambios funcionales.
-- Panel abre/cierra con contenido de prueba server-rendered.
-- Foco y Escape validados.
-
-### Etapa 4.2
-
-Se migró la lectura y composición principal del pedido `encargo`.
-
-Alcance:
-
-- `PedidoWorkspaceHeader`.
-- `PedidoWorkspaceMain`.
-- Secciones permanentes de tareas y archivos con listas completas y scroll
-  interno desde `xl`.
-- Mantener paneles actuales aun si siguen bajo la página.
-
-Cierre:
-
-- `pedidos.spec.ts` verde.
-- Desktop/móvil sin overflow.
-
-### Etapa 4.3
-
-Se incorporaron paneles de consulta.
-
-Alcance:
-
-- Archivos en lectura/descarga.
-- Comentarios lectura.
-- Historial.
-- Información.
-
-Cierre:
-
-- `storage.spec.ts` verde.
-- Escape y retorno de foco manual.
-
-### Etapa 4.4
-
-Se incorporaron paneles de gestión.
-
-Alcance:
-
-- Estado.
-- Tareas.
-- Personal.
-- Pagos.
-- Comentarios append-only.
-
-Cierre:
-
-- `pedidos.spec.ts`, `task-templates.spec.ts` y `storage.spec.ts` verdes.
-- Pending, error y éxito visibles dentro del panel.
-
-### Etapa 4.5
-
-Se validaron roles y pedido `impresion`.
-
-Alcance:
-
-- Action sets por workflow.
-- Trabajador asignado.
-- Estados cerrados.
-- Pago pendiente.
-
-Cierre:
-
-- Matriz por rol comprobada.
-- `dashboard.spec.ts` y `pedidos.spec.ts` verdes.
-
-### Etapa 5
-
-Se migró solicitud usando el patrón validado.
-
-Alcance:
-
-- `SolicitudWorkspaceHeader`.
-- `SolicitudWorkspaceMain`.
-- Paneles Estado, Cliente, Archivos, Comentarios, Historial, Información y
-  Convertir.
-
-Cierre:
-
-- `solicitudes-internas.spec.ts` y `storage.spec.ts` verdes.
-- Conversión visible cuando es acción principal.
+La secuencia de implementación de los workspaces ya fue ejecutada y no
+representa trabajo pendiente ni roadmap vigente. Los planes, auditorías y
+cierres completos del rediseño UI/UX están archivados en
+`../archive/ui-ux-redesign/`.

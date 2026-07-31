@@ -400,15 +400,15 @@ Si toca permisos:
 
 ## 15. Relación con otros documentos
 
-- [`docs/ui-ux/FASE_14_AUDITORIA_UI_UX.md`](ui-ux/FASE_14_AUDITORIA_UI_UX.md):
-  diagnóstico, checklist y avance de implementación.
 - [`docs/ui-ux/FASE_14_DESIGN_SYSTEM.md`](ui-ux/FASE_14_DESIGN_SYSTEM.md):
   definición detallada del sistema visual.
-- [`docs/ui-ux/FASE_14_REVISION_RESPONSIVE.md`](ui-ux/FASE_14_REVISION_RESPONSIVE.md):
-  matriz y hallazgos responsive.
-- [`docs/ui-ux/FASE_14_CIERRE_UI_UX.md`](ui-ux/FASE_14_CIERRE_UI_UX.md):
-  evidencia y conclusión de la Fase 14.
+- [`docs/archive/ui-ux-redesign/FASE_14_AUDITORIA_UI_UX.md`](archive/ui-ux-redesign/FASE_14_AUDITORIA_UI_UX.md):
+  origen histórico del diagnóstico visual.
+- [`docs/archive/ui-ux-redesign/FASE_14_REVISION_RESPONSIVE.md`](archive/ui-ux-redesign/FASE_14_REVISION_RESPONSIVE.md):
+  matriz histórica de revisión responsive.
+- [`docs/archive/ui-ux-redesign/FASE_14_CIERRE_UI_UX.md`](archive/ui-ux-redesign/FASE_14_CIERRE_UI_UX.md):
+  evidencia histórica de cierre.
 
 Este archivo resume las convenciones aplicables al trabajo diario. El design
-system contiene mayor detalle; la auditoría, la revisión responsive y el cierre
-documentan el proceso y las decisiones que originaron estas reglas.
+system contiene mayor detalle; los documentos archivados solo explican origen y
+contexto histórico.

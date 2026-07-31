@@ -1,4 +1,7 @@
-# Fase 14 — Sistema visual base
+# Sistema visual base
+
+Estado: contrato UI/UX vigente. Nacio durante Fase 14, pero ya no representa una
+lista de tareas pendiente ni una bitácora de subfase.
 
 ## 1. Concepto visual
 
@@ -720,21 +723,21 @@ ampliar excesivamente los campos.
 ## 20. Iconografia funcional
 
 Lucide React es la libreria de iconos funcionales del proyecto. Se usa para
-reforzar navegacion, acciones y estados de interfaz; no sustituye logotipos ni
-recursos propios de Godel Diseno.
+reforzar navegación, acciones y estados de interfaz; no sustituye logotipos ni
+recursos propios de Godel Diseño.
 
-### Tamanos
+### Tamaños
 
 - `16 px`: metadata y elementos auxiliares.
-- `20 px`: navegacion y botones.
-- `24 px`: encabezados de seccion y estados vacios.
-- Tamanos superiores se reservan para ilustraciones o estados vacios
+- `20 px`: navegación y botones.
+- `24 px`: encabezados de sección y estados vacíos.
+- Tamaños superiores se reservan para ilustraciones o estados vacíos
   justificados.
 
 ### Grosor
 
-El grosor base es `strokeWidth={1.75}`. Puede usarse `2` cuando el tamano
-pequeno o el contraste requiera mayor definicion, pero no debe variarse de
+El grosor base es `strokeWidth={1.75}`. Puede usarse `2` cuando el tamaño
+pequeno o el contraste requiera mayor definición, pero no debe variarse de
 forma arbitraria.
 
 ### Color
@@ -744,10 +747,10 @@ hexadecimales directamente en los iconos.
 
 ### Accesibilidad
 
-Cuando un icono acompana una etiqueta textual visible debe llevar
-`aria-hidden="true"`. Un futuro boton de solo icono debe tener nombre accesible
-mediante `aria-label`, target tactil minimo de 44 px y, si el significado no es
-evidente, tooltip. Ningun estado puede comunicarse solo mediante el dibujo.
+Cuando un icono acompaña una etiqueta textual visible debe llevar
+`aria-hidden="true"`. Un futuro botón de solo icono debe tener nombre accesible
+mediante `aria-label`, target tactil mínimo de 44 px y, si el significado no es
+evidente, tooltip. Ningún estado puede comunicarse solo mediante el dibujo.
 
 ### Imports
 
@@ -757,8 +760,8 @@ Usar imports directos desde `lucide-react`:
 import { LayoutDashboard, Package } from "lucide-react";
 ```
 
-No usar `import * as Icons from "lucide-react"`, el componente dinamico general
-de Lucide ni un catalogo que importe todos los iconos.
+No usar `import * as Icons from "lucide-react"`, el componente dinámico general
+de Lucide ni un catálogo que importe todos los iconos.
 
 ## 21. Estado final de Fase 14
 

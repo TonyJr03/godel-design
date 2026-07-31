@@ -1,284 +1,201 @@
-# Deuda tecnica pendiente
+# Deuda técnica activa
+
+Este es el registro único de deuda técnica viva de Godel Diseño. Contiene
+compromisos técnicos aceptados que pueden aumentar mantenimiento, fragilidad,
+coste de cambio o riesgo operativo si el proyecto crece. No incluye narrativas
+resueltas ni planes históricos completos.
+
+## Criterios
+
+- Deuda técnica: decisión temporal con coste técnico real.
+- Bloqueador de producción pública: deuda o riesgo que debe resolverse antes de
+  exponer el sistema a tráfico público no controlado.
+- Riesgo operativo: condición que puede dificultar soporte, monitoreo o limpieza.
+- Trabajo futuro que no es deuda: nueva capacidad de producto o negocio no
+  requerida por el alcance actual.
 
-Este documento concentra deuda tecnica conocida que no bloquea el MVP, pero que conviene tratar antes de despliegue productivo o cuando aumente el volumen real de uso.
+## Resumen
+
+| ID | Área | Severidad | Bloquea producción pública | Estado |
+| --- | --- | --- | --- | --- |
+| TD-UPLOAD-001 | Upload/Infraestructura | Alta | Sí, hasta validar la infraestructura o adoptar un flujo adecuado | Activa |
+| TD-QA-001 | QA | Media | No | Activa |
+| TD-QA-002 | QA/Auth | Media | No | Activa |
+| TD-QA-003 | QA/Datos | Media | No | Activa |
+| TD-QA-004 | QA/Storage | Media | No | Activa |
+| TD-TRACKING-001 | Tracking público | Media | No | Activa |
+| TD-QA-005 | QA visual | Media | No | Activa |
+| TD-TEMPLATES-001 | Plantillas | Media | No | Activa |
+| TD-STORAGE-001 | Storage/Postgres | Media | No | Activa |
+| TD-SECURITY-001 | Seguridad pública | Alta | Sí | Activa |
+| TD-STORAGE-002 | Escaneo de archivos | Media | Sí, con volumen de archivos | Activa |
+| TD-OBS-001 | Observabilidad | Media | No | Activa |
+| TD-DASHBOARD-001 | Métricas dashboard | Baja | No | Activa |
+| TD-DB-001 | Contrato RPC impresión | Baja/Media | No | Activa |
+| TD-ROUTES-001 | Acceso trabajador a ruta nueva | Baja | No | Activa |
 
-## Storage y subida de archivos
+## Bloqueadores antes de producción pública
 
-Estado actual:
+### TD-UPLOAD-001 - Archivos grandes procesados por Next
 
-- El bucket `godel-files` es privado.
-- No se usan URLs publicas permanentes.
-- Las descargas internas usan signed URLs de corta duracion.
-- La UI y los componentes no reciben `file_path`.
-- Las rutas de Storage se construyen server-side.
-- RLS, policies de Storage y validaciones server-side quedan como defensa final.
-- Las subidas actuales pasan por Server Actions.
+Las subidas actuales atraviesan Server Actions. `next.config.ts` permite hasta
+`110mb` en `serverActions.bodySizeLimit` y `proxyClientMaxBodySize` también está
+en `110mb`, mientras el sistema permite hasta cinco archivos de 20 MB. Este
+flujo es aceptable para MVP y QA local, pero antes de producción debe probarse
+en infraestructura real o reemplazarse por un flujo adecuado para archivos
+grandes.
 
-### 1. Archivos grandes procesados por Next
+### TD-SECURITY-001 - Protección antiabuso de rutas públicas
 
-Prioridad: Alta antes de produccion.
+Las rutas `/solicitud` y `/estado` no tienen todavía rate limiting, captcha,
+honeypot u otra protección antiabuso avanzada. Antes de exposición pública deben
+definirse mitigaciones por IP/proveedor, límites de frecuencia y criterio de
+auditoría o métricas de intentos fallidos.
 
-El flujo actual de subida usa Server Actions y aumenta `serverActions.bodySizeLimit` y `proxyClientMaxBodySize` para permitir hasta 5 archivos de 20 MB. Esto es aceptable para MVP y desarrollo local, pero no es ideal para produccion porque el servidor Next recibe y procesa cuerpos grandes.
+### TD-STORAGE-002 - Escaneo de archivos
 
-Propuesta futura:
+El MVP valida MIME, extensión, tamaño y permisos, pero no inspecciona contenido
+con antivirus ni motor especializado. Antes de producción pública con volumen
+real de archivos debe evaluarse escaneo, cuarentena o workflow operativo de
+revisión.
 
-- Evaluar subida directa/controlada a Supabase Storage mediante signed upload URLs o un flujo dedicado de carga.
-- Mantener la validacion de metadata y permisos en servidor.
-- Evitar que archivos grandes pasen completamente por Next cuando el proyecto este cerca de produccion.
+## Deudas activas
 
-### 2. Objetos huerfanos en subidas publicas
+### TD-UPLOAD-001 - Archivos grandes procesados por Next
 
-Prioridad: Media.
+- Área: Upload/Infraestructura.
+- Severidad: Alta.
+- Bloquea producción pública: Sí, hasta validar la infraestructura o adoptar un flujo adecuado.
+- Estado: Activa.
 
-En la subida publica de archivos de solicitud, si el objeto se sube correctamente al bucket pero falla la insercion de metadata en `archivos`, puede quedar un objeto huerfano. No se habilita eliminacion anonima, lo cual es correcto por seguridad, pero deja una deuda operativa.
+Las subidas actuales pasan por Server Actions. Para soportar el límite funcional
+de hasta cinco archivos de 20 MB, `next.config.ts` mantiene
+`serverActions.bodySizeLimit = "110mb"` y `proxyClientMaxBodySize = "110mb"`.
+Esto significa que Next puede recibir y procesar cuerpos grandes antes de que el
+archivo termine en Storage.
 
-Propuesta futura:
+El compromiso es razonable para MVP y QA local, pero en producción puede causar
+presión de memoria, timeouts o incompatibilidad con límites del hosting, proxy o
+plataforma de despliegue. Antes de exposición pública debe validarse con la
+infraestructura real.
 
-- Crear un flujo seguro de limpieza de objetos huerfanos.
-- Considerar una tabla o job de auditoria para objetos subidos sin metadata.
-- Mantener cerrada la eliminacion anonima.
+Solución recomendada:
 
-### 3. Limpieza best-effort en subidas internas
+- Evaluar upload directo y controlado a Supabase Storage mediante signed upload
+  URLs u otro flujo especializado.
+- Mantener validaciones de permisos y metadata en servidor.
+- No debilitar RLS, grants ni policies de Storage.
+- No abrir rutas privadas, `file_path` ni credenciales administrativas al cliente.
 
-Prioridad: Media.
+### TD-QA-001 - Suite e2e paralela no estable
 
-La subida interna de archivos de pedido intenta limpiar el objeto si falla la insercion de metadata, pero Storage y base de datos no son transaccionales entre si. Esa limpieza puede fallar y dejar objetos huerfanos.
+La suite e2e Chromium serial es estable, pero la suite completa en paralelo no
+debe usarse todavía como gate de CI. Requiere aislar usuarios, sesiones y datos
+mutantes antes de aumentar workers.
 
-Propuesta futura:
+### TD-QA-002 - Usuarios QA compartidos
 
-- Mantener la limpieza best-effort actual.
-- Agregar un proceso de reconciliacion para detectar objetos sin metadata.
-- Documentar el procedimiento manual de limpieza para administracion tecnica.
+Los specs autenticados usan usuarios compartidos por rol. Esto es suficiente en
+serial, pero puede interferir con ejecuciones concurrentes. Evaluar
+`storageState` por rol, usuarios por worker o una estrategia mixta.
 
-### 4. Eliminacion y ciclo de vida de archivos
+### TD-QA-003 - Datos QA persistentes y falta de cleanup
 
-Prioridad: Media.
+Pedidos, solicitudes, plantillas y otros registros QA quedan persistidos después
+de tests mutantes. Diseñar seed/cleanup seguro por prefijos QA, con allowlist
+estricta y sin borrado genérico agresivo.
 
-No hay eliminacion funcional de archivos ni edicion de metadata. Esto evita riesgos prematuros, pero en produccion hara falta decidir como se retiran archivos, quien puede hacerlo y como queda auditado.
+### TD-QA-004 - Fixtures parciales de Storage
 
-Propuesta futura:
+Algunos casos de Storage dependen de registros existentes o saltan si no hay
+datos adecuados. Crear fixtures estables de objeto y metadata para pedido y
+solicitud cuando se endurezca Storage QA.
 
-- Definir eliminacion controlada por rol.
-- Registrar historial de eliminacion si se habilita.
-- Decidir si se elimina fisicamente el objeto o si primero se marca metadata como inactiva.
+### TD-TRACKING-001 - Tracking focal con referencia real
 
-### 5. Antispam y limites del formulario publico
+El spec focal de `/estado` cubre principalmente referencia inválida; la
+referencia válida queda cubierta por full visual QA. Crear fixture focal estable
+si evoluciona el contrato público.
 
-Prioridad: Alta antes de produccion.
+### TD-QA-005 - Full visual QA grande
 
-El formulario publico permite crear solicitudes y adjuntar archivos dentro de limites definidos, pero todavia no hay captcha, rate limiting ni proteccion avanzada contra abuso.
+`full-visual-qa.spec.ts` conserva valor como aceptación transversal, pero cubre
+varios dominios en un recorrido mutante grande. Extraer flujos hacia specs
+focales solo cuando el diagnóstico o mantenimiento empiece a doler.
 
-Propuesta futura:
+### TD-TEMPLATES-001 - Operaciones secuenciales en tareas de plantilla
 
-- Agregar control anti-spam compatible con el despliegue.
-- Agregar rate limiting para `/solicitud`.
-- Revisar limites de cantidad/tamano segun infraestructura real.
+Crear, eliminar y reordenar tareas de plantilla usa varias operaciones
+secuenciales. Evaluar una RPC transaccional si aparecen concurrencia,
+inconsistencias de orden o errores intermedios reales.
 
-### 5.1 Proteccion de consulta publica por codigo
+### TD-STORAGE-001 - Reconciliación Storage/Postgres
 
-Prioridad: Alta antes de produccion.
+El upload de objeto en Storage y la inserción de metadata en Postgres no son una
+transacción única. Mantener cleanup best-effort, pero diseñar reconciliación o
+limpieza server-side para objetos huérfanos sin abrir borrado anónimo ni exponer
+rutas privadas.
 
-La consulta publica por `public_reference` usa una RPC controlada y no abre
-lectura anonima directa sobre tablas, pero antes de exponer una pagina publica
-conviene agregar defensas operativas contra abuso.
+### TD-OBS-001 - Observabilidad operativa limitada
 
-Propuesta futura:
+Logs, métricas, alertas y monitoreo agregado son limitados. Antes de
+preproducción conviene definir logs estructurados, métricas clave, alertas,
+monitoreo de errores y seguimiento de Storage/jobs.
 
-- Agregar rate limiting para la ruta `/estado`.
-- Evaluar captcha o desafio liviano si aparece enumeracion o abuso.
-- Considerar verificacion adicional por telefono u otro dato acordado si el
-  cliente exige mayor privacidad para ciertos trabajos.
-- Registrar auditoria o metricas agregadas de consultas fallidas por codigo,
-  cuidando no guardar datos personales innecesarios.
-- Hacer una inspeccion visual completa en escritorio y movil antes de
-  produccion para validar la posicion del bloque copiable en solicitudes,
-  pedidos, Home y `/estado`.
+### TD-DASHBOARD-001 - Métrica de pedidos sin tareas
 
-## Separacion Encargo / Impresion
+El dashboard genérico puede mezclar encargos e impresiones en indicadores donde
+la ausencia de tareas solo bloquea a encargos. Filtrar por `workflow_type =
+encargo` o reformular la métrica antes de usarla como indicador estricto.
 
-Estado actual:
+### TD-DB-001 - Contrato DB de conversión de impresión
 
-- `workflow_type` gobierna la variante operativa.
-- `service_id` identifica el servicio concreto en el catálogo.
-- Ambos flujos comparten entidades, permisos y estados generales.
-- Los encargos requieren tareas para avanzar.
-- Las impresiones pueden avanzar sin tareas obligatorias.
+La aplicación normaliza título y descripción de solicitudes de impresión antes
+de llamar a `convertir_solicitud_a_pedido`, pero la RPC exige esos campos no
+vacíos. Decidir si el fallback debe seguir solo en aplicación o reforzarse en el
+contrato transaccional.
 
-### 6. Normalizacion futura de detalles de impresion
+### TD-ROUTES-001 - Respuesta de trabajador en `/dashboard/pedidos/nuevo`
 
-Prioridad: Baja mientras no existan reportes especificos.
+Un trabajador puede recibir 200 en la ruta de nuevo pedido, aunque la pantalla
+muestra falta de permiso y no expone formulario. La operación está bloqueada por
+UI, action y servicio. Evaluar si conviene redirección o pantalla unificada de
+acceso denegado.
 
-Los detalles de impresion se guardan como una descripcion estructurada. Solo
-conviene normalizarlos en tablas o columnas propias si aparecen necesidades
-reales de busqueda, cotizacion, automatizacion o metricas por atributo.
+## Riesgos operativos
 
-### 7. Reconciliacion de solicitudes y archivos publicos
+- Drift entre permisos TypeScript, RLS y RPCs.
+- Cambios en `workflow_type` sin coordinar Pedidos, Dashboard, templates y QA.
+- Reintroducir Supabase en Client Components.
+- Crear `src/services` duplicando `src/lib`.
+- Exponer rows, errores crudos, `file_path`, bucket o signed URLs en superficies cliente.
+- Mover reglas críticas a UI o Server Actions sin defensa server-side/RLS.
+- Editar tipos generados o migraciones históricas sin fase explícita.
 
-Prioridad: Media.
+## Trabajo futuro que no es deuda técnica
 
-Ademas de detectar objetos huerfanos, conviene poder identificar solicitudes de
-impresion creadas correctamente cuyos archivos fallen despues durante la subida,
-para facilitar su recuperacion operativa sin debilitar las politicas publicas.
+- Catálogo comercial.
+- Tienda online.
+- Carrito.
+- Pagos online.
+- Nuevas funcionalidades comerciales.
+- Nuevas métricas de negocio.
+- Reportes avanzados.
+- Notificaciones reales.
+- Panel de cliente.
+- Normalización detallada de atributos de impresión sin necesidad real de búsqueda,
+  cotización, automatización o métricas.
+- Movimientos financieros, comprobantes y cierre de caja si el negocio lo requiere.
 
-### 8. Estados especificos o reducidos para impresion
+## Política de actualización
 
-Prioridad: Baja.
+- Cada deuda debe tener ID estable.
+- No agregar trabajo funcional futuro como deuda técnica.
+- Actualizar severidad si cambia el contexto.
+- Registrar el documento o commit donde se resuelva.
+- Revisar este registro al cerrar cada beta o fase de preproducción.
 
-Alfa 1 comparte los estados generales de pedido. Si la operacion real demuestra
-que impresion necesita menos etapas o estados propios, debe evaluarse con datos
-de uso antes de ampliar enums, RPCs y superficies de interfaz.
+## Contexto histórico
 
-### 9. Metricas separadas por flujo
-
-Prioridad: Baja.
-
-El dashboard sigue siendo generico. La metrica de pedidos sin tareas incluye
-actualmente encargos e impresiones, aunque la ausencia de tareas solo bloquea a
-los encargos. Debe filtrarse por `workflow_type = encargo` o reformularse antes
-de usarla como indicador estricto. La segmentacion y las metricas propias de
-impresion quedan pendientes hasta que exista una necesidad concreta.
-
-## Plantillas de tareas
-
-Estado actual:
-
-- Las plantillas activas con tareas se pueden aplicar a pedidos de tipo
-  `encargo`.
-- La aplicacion copia tareas al final de `pedido_tareas` y no mantiene
-  sincronizacion viva con la plantilla.
-- Aplicar la misma plantilla mas de una vez puede duplicar tareas.
-
-### 10. Duplicados y seleccion avanzada de plantillas
-
-Prioridad: Baja mientras el volumen de plantillas sea controlado.
-
-Alfa 3.4 permite duplicados al aplicar plantillas para no bloquear casos donde
-repetir un bloque de trabajo sea intencional. La UI advierte este comportamiento,
-pero no hace prevencion inteligente.
-
-Propuesta futura:
-
-- Evaluar prevencion opcional de duplicados al aplicar plantillas de tareas.
-- Considerar una confirmacion adicional cuando el pedido ya tiene tareas.
-- Evaluar filtros por tipo de trabajo, categoria de plantilla o contexto del
-  pedido si crece el catalogo.
-- Evaluar busqueda/filtro en el selector si aumenta el numero de plantillas.
-- Evaluar una previsualizacion de tareas antes de aplicar una plantilla.
-- Evaluar reordenamiento avanzado o drag and drop en Configuracion si la edicion
-  por botones deja de ser suficiente.
-- Hacer pruebas visuales mas amplias con datos reales antes de produccion.
-
-## Pagos y modelo financiero
-
-Estado actual:
-
-- `pedido_pagos` guarda un resumen financiero 1:1 por pedido.
-- El estado de pago se calcula en base de datos desde total, efectivo y
-  transferencia.
-- Los pedidos historicos quedan backfilled como `pagado` con total cero.
-- La creacion manual ya registra precio inicial.
-- El detalle interno permite a `admin` y `supervisor` actualizar efectivo y
-  transferencia acumulados.
-- El detalle interno permite a `admin` y `supervisor` editar de forma
-  controlada el precio total de pedidos activos, con historial y límite para no
-  quedar por debajo de lo ya pagado.
-- El listado interno muestra y filtra estado de pago.
-- La entrega queda bloqueada si el pago no esta completo.
-
-### 11. Movimientos, comprobantes y cierre operativo
-
-Prioridad: Media cuando el flujo financiero empiece a usarse en operacion real.
-
-El resumen actual cubre el estado financiero minimo, pero no reemplaza una
-contabilidad detallada ni una caja diaria.
-
-Propuesta futura:
-
-- Agregar tabla de movimientos de pago o abonos si se requiere trazabilidad por
-  transaccion.
-- Modelar comprobantes de transferencia y adjuntos asociados.
-- Definir impresion o generacion de recibos.
-- Evaluar cierre de caja por dia, usuario o turno.
-- Agregar metricas financieras al dashboard cuando haya necesidad real: pedidos
-  pendientes de pago, monto pendiente total y monto cobrado.
-- Evaluar exportes financieros y filtros avanzados por deuda o monto pendiente.
-- Endurecer auditoria contable o financiera para movimientos, comprobantes y
-  ajustes de pago; el historial actual ya registra cambios de precio de forma
-  operativa.
-
-## Hallazgos de auditoria Tools 2.1 - Preparacion Beta
-
-### 12. Revisar grants `anon` sobre tablas internas
-
-Estado Beta 1: resuelto para tablas publicas de negocio.
-
-Durante la auditoria se detecto que, en la base local efectiva, el rol `anon`
-conservaba privilegios SQL directos amplios sobre tablas internas como `pedidos`
-y `solicitudes`. RLS bloqueo las lecturas y escrituras comunes durante la
-prueba, por lo que no se confirmo una fuga funcional, pero el estado de grants
-contradice la regla de seguridad del proyecto de no abrir acceso anonimo directo
-sobre tablas internas.
-
-Accion tomada:
-
-Beta 1 consolido RLS/grants y hardening final. El QA de Beta 1.7 y Beta 1.8
-confirmo que `anon` no tiene `SELECT`, `UPDATE` ni `DELETE` sobre tablas publicas
-de negocio internas verificadas, no puede ejecutar RPCs internas y mantiene solo
-los accesos publicos controlados que necesita `/solicitud`, archivos publicos de
-solicitud y `consultar_estado_publico`.
-
-Observacion remanente:
-
-La ACL base de `storage.objects` sigue apareciendo en catalogo con grants
-administrados por Supabase, pero el acceso efectivo queda cerrado por RLS y por
-ausencia de policies anonimas de lectura/mutacion. Se mantiene como observacion
-operativa, no como bug funcional confirmado.
-
-### 13. Afinar acceso de trabajador a `/dashboard/pedidos/nuevo`
-
-Prioridad: Baja.
-
-Actualmente un trabajador puede recibir respuesta 200 al entrar en
-`/dashboard/pedidos/nuevo`, pero la pantalla muestra que no tiene permiso y no
-expone el formulario. Funcionalmente la operacion esta bloqueada por UI, action
-y servicio. En una fase futura se puede valorar si conviene aplicar una regla de
-ruta mas estricta, por ejemplo redireccion a una pantalla de acceso denegado.
-
-Accion futura post-Beta:
-
-Decidir si se mantiene el patron actual de mensaje en pagina o si se unifica con
-redirect/denegacion. Beta 1.8.3 valido que el trabajador no ve el formulario y
-la operacion queda bloqueada.
-
-### 14. Revisar contrato DB de `convertir_solicitud_a_pedido` para Impresion
-
-Prioridad: Baja/Media.
-
-La aplicacion normaliza titulo y descripcion para solicitudes de tipo Impresion
-antes de llamar a la RPC `convertir_solicitud_a_pedido`. El flujo normal
-funciona, pero la RPC exige titulo/descripcion no vacios directamente. Esto
-significa que parte del fallback funcional vive en la capa de aplicacion y no
-en el contrato de base de datos.
-
-Accion futura post-Beta:
-
-Decidir si la normalizacion debe seguir unicamente en la aplicacion o si la RPC
-debe reforzar tambien ese comportamiento para dejar el contrato transaccional
-mas autonomo. Beta 1.8.3 valido el flujo normal de conversion, por lo que no
-bloquea el cierre de Beta 1.
-
-## QA y automatizacion
-
-### 15. Dividir el full visual QA en specs mas pequenos
-
-Prioridad: Baja/Media antes de que crezca la suite.
-
-Beta 1.8.3 agrego un recorrido Playwright completo que valida solicitud publica,
-tracking, login, roles, conversion, pedidos, tareas, pagos, Storage y permisos.
-El spec funciona como prueba de cierre, pero es largo y crea datos reales de QA.
-
-Propuesta futura:
-
-- Dividir el recorrido en specs por dominio cuando aumente la frecuencia de QA.
-- Mantener un smoke rapido para desarrollo diario.
-- Reservar el full visual QA para cierres de fase o cambios transversales.
+- [BETA_2_TECHNICAL_DEBT.md](../archive/beta-2-architecture/BETA_2_TECHNICAL_DEBT.md)
+- [TECHNICAL_AUDIT.md](../archive/initial-development/TECHNICAL_AUDIT.md)

@@ -146,7 +146,7 @@ Si cambia la base de datos, regenera el archivo con:
 npm.cmd run types:supabase
 ```
 
-El script ejecuta la generacion limitada al schema publico:
+El script ejecuta la generación limitada al schema público:
 
 ```cmd
 supabase gen types typescript --local --schema public > src/types/database.types.ts
@@ -161,13 +161,13 @@ Los tipos de dominio deben derivar de `src/types/database.ts`.
 - Si hay conflictos de puertos, detener otros proyectos Supabase locales.
 - Si la base local queda inconsistente, usar `npx supabase db reset` teniendo en cuenta que reinicia los datos locales.
 
-## Nota historica
+## Nota histórica
 
-Este documento nacio durante la configuracion inicial local. En el estado actual
+Este documento nació durante la configuración inicial local. En el estado actual
 del proyecto ya existen login, logout, rutas protegidas, formularios reales,
-Storage privado, tracking publico y QA con Playwright. Las reglas permanentes
+Storage privado, tracking público y QA con Playwright. Las reglas permanentes
 siguen siendo: no subir `.env.local`, no usar service role key en frontend ni en
-codigo de aplicacion, y regenerar tipos mediante `npm.cmd run types:supabase`.
+código de aplicación, y regenerar tipos mediante `npm.cmd run types:supabase`.
 
 ## Cierre
 

@@ -129,8 +129,9 @@ SUPABASE_SECRET_KEY=
 
 Obtén las variables locales con `npx supabase status -o env` y copia localmente
 el valor de `SECRET_KEY` a `SUPABASE_SECRET_KEY` en `.env.local`.
-`SERVICE_ROLE_KEY` queda como alternativa legacy local, pero el código del
-proyecto usa `SUPABASE_SECRET_KEY`.
+El proyecto usa `SUPABASE_SECRET_KEY` exclusivamente en el adaptador Auth Admin
+server-only. No se configura `SUPABASE_SERVICE_ROLE_KEY` como variable
+alternativa de la aplicación.
 
 Reglas:
 
@@ -346,6 +347,8 @@ usuario QA. No documentes contraseñas, correos completos ni secretos.
 ## Seguridad
 
 - No usar service role key en frontend.
+- No configurar `SUPABASE_SERVICE_ROLE_KEY` como fallback de aplicación.
+- Usar `SUPABASE_SECRET_KEY` solo en el adaptador Auth Admin server-only.
 - No crear signup público.
 - No crear nuevos usuarios mediante signup público local.
 - Mantener login email/password habilitado para usuarios existentes y creados

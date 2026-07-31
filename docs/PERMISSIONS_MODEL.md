@@ -143,39 +143,39 @@ el detalle de solicitud o pedido para compartirlo con el cliente. Eso no cambia
 la matriz de permisos ni abre lecturas anónimas directas: el acceso público se
 mantiene limitado a la RPC de consulta por código.
 
-Los resumenes de pago de `pedido_pagos` son informacion interna del pedido. No
-hay policies ni grants para acceso anonimo. La lectura interna sigue el mismo
+Los resúmenes de pago de `pedido_pagos` son información interna del pedido. No
+hay policies ni grants para acceso anónimo. La lectura interna sigue el mismo
 alcance del pedido: `admin` y `supervisor` sobre cualquier pedido, y
 `trabajador` solo sobre pedidos asignados. El listado interno puede mostrar y
-filtrar el estado de pago dentro de ese mismo alcance. La actualizacion de pagos queda
+filtrar el estado de pago dentro de ese mismo alcance. La actualización de pagos queda
 restringida a `admin` y `supervisor`: la UI solo muestra el formulario a esos
 roles, el servicio server-side vuelve a validar el perfil activo y la RPC
 `public.actualizar_pago_pedido` repite la defensa en base de datos antes de
 actualizar efectivo o transferencia. Los trabajadores no actualizan pagos en
-esta version.
+esta versión.
 
-El cambio de estado a `entregado` requiere, ademas del permiso normal de cambio
-de estado y las reglas operativas del pedido, que el resumen financiero este
+El cambio de estado a `entregado` requiere, además del permiso normal de cambio
+de estado y las reglas operativas del pedido, que el resumen financiero esté
 completamente pagado (`pedido_pagos.payment_status = 'pagado'`). La RPC
-`public.actualizar_estado_pedido` valida esa condicion final; no basta con que
+`public.actualizar_estado_pedido` valida esa condición final; no basta con que
 la UI permita el cambio o con que el usuario tenga `pedidos.change_status`.
-La consulta publica `/estado` no expone informacion financiera.
+La consulta pública `/estado` no expone información financiera.
 
 Para plantillas de tareas de encargos, `trabajo_plantillas` y
 `trabajo_plantilla_tareas` tienen RLS activo. Usuarios internos autenticados y
 activos pueden leer plantillas activas y sus tareas para poder seleccionarlas en
 pedidos de tipo `encargo`. La pantalla `/dashboard/configuracion` usa
-`configuracion.view` para cargar la seccion y `configuracion.manage` para crear,
-editar nombre/descripcion, activar o desactivar plantillas y gestionar sus
+`configuracion.view` para cargar la sección y `configuracion.manage` para crear,
+editar nombre/descripción, activar o desactivar plantillas y gestionar sus
 tareas internas. La subruta
 `/dashboard/configuracion/plantillas/[templateId]` mantiene el mismo alcance:
 listar, crear, editar, eliminar y reordenar tareas de plantilla requiere
-configuracion/admin. En la matriz vigente esos permisos pertenecen solo a
+configuración/admin. En la matriz vigente esos permisos pertenecen solo a
 `admin`. `supervisor` y `trabajador` no pueden gestionar plantillas ni sus
 tareas internas. `anon` no tiene permisos ni policies de lectura o escritura
 sobre estas tablas.
 
-Aplicar una plantilla a un pedido no requiere permisos de configuracion, sino el
+Aplicar una plantilla a un pedido no requiere permisos de configuración, sino el
 mismo permiso efectivo que gestionar tareas del pedido. La RPC
 `public.aplicar_plantilla_tareas_pedido` valida `auth.uid()`, usuario interno
 activo, `private.can_manage_pedido_tasks(pedido_id)`, `workflow_type = encargo`,
@@ -185,27 +185,47 @@ puede modificar sus tareas. `anon` no tiene `execute` sobre esta RPC.
 
 ## Gestión de Usuarios Internos
 
-La Fase 12 mantiene la matriz actual: solo `admin` tiene `usuarios.view`, `usuarios.manage` y acceso a `/dashboard/configuracion/usuarios`.
+Solo `admin` tiene `usuarios.view`, `usuarios.manage` y acceso a
+`/dashboard/configuracion/usuarios`.
 
-La estrategia vigente gestiona únicamente `public.perfiles`. La creación de
-usuarios en Supabase Auth queda fuera de la app y se realiza manualmente desde
-Supabase Studio o CLI. Esta decisión evita introducir service role key y
-conserva RLS como defensa final.
+El flujo productivo vigente de alta es administrativo y server-only:
 
-Las acciones del módulo de usuarios validan permisos server-side:
+1. El admin operativo inicia el alta desde la UI interna.
+2. El servicio valida perfil activo, `must_change_password = false` y
+   `usuarios.manage`.
+3. La base registra auditoría privada y aplica rate limits.
+4. El adaptador Auth Admin crea la identidad en Supabase Auth.
+5. El trigger de Auth provisiona `public.perfiles`.
+6. El perfil queda con `is_active = true` y `must_change_password = true`.
+7. El usuario completa `/cambiar-contrasena-inicial` antes de operar.
 
-- `usuarios.view` para listar o ver detalles de perfiles.
-- `usuarios.manage` para editar perfil operativo, cambiar rol o activar/desactivar usuarios.
+Si el provisioning de perfil falla después de crear Auth, el servicio intenta
+compensar eliminando el usuario Auth. Si el estado queda incierto, la auditoría
+marca atención operativa sin exponer secretos ni payloads internos.
 
-`supervisor` y `trabajador` no deben gestionar usuarios. El acceso parcial de `trabajador` a perfiles asignados por pedido existe solo para mostrar información operativa mínima en pedidos, no para listar ni administrar personal.
+El reset administrativo de contraseña también es server-only, auditado y con
+rate limits. La RPC de inicio bloquea temporalmente el perfil objetivo; Auth
+Admin actualiza la contraseña; la RPC de cierre restaura el estado activo
+original y mantiene `must_change_password = true`. En casos inciertos, el perfil
+queda bloqueado preventivamente para reconciliación manual.
 
-La subfase 12.2 implementa el listado read-only de usuarios internos en `/dashboard/configuracion/usuarios`. La carga se hace server-side desde `public.perfiles`, valida `usuarios.view`, respeta RLS, no consulta `auth.users`, no muestra email y no implementa creación ni edición.
+Reglas del módulo:
 
-La subfase 12.3 implementó la carga read-only de usuario por UUID con las mismas reglas: solo `admin`, validación server-side de `usuarios.view`, consulta limitada a `public.perfiles`, sin email, sin `auth.users`, sin service role y sin acciones de modificación. En la estructura actual, el listado abre la edición directamente.
+- `usuarios.view` permite listar o ver detalles de perfiles.
+- `usuarios.manage` permite alta, edición de perfil operativo, cambio de rol,
+  activación/desactivación y reset administrativo.
+- `supervisor` y `trabajador` no gestionan usuarios.
+- Los componentes cliente no reciben ni manejan secretos.
+- No se inserta manualmente en `public.perfiles` en el flujo productivo de alta.
+- No se consulta `auth.users` desde código normal de aplicación.
+- El acceso administrativo de identidad pasa por el adaptador Auth Admin
+  existente.
 
-La subfase 12.4 implementa edición controlada en `/dashboard/configuracion/usuarios/[id]/editar`. Solo `admin` puede editar mediante validación server-side de `usuarios.manage`. La edición se limita a `full_name`, `phone`, `avatar_url`, `role` e `is_active`, no consulta `auth.users`, no muestra email, no cambia contraseñas, no elimina usuarios y no usa service role key. El servicio impide desactivar el propio admin, quitarse el rol admin y dejar el sistema sin al menos un admin activo.
+El flujo legacy de crear un perfil por UUID Auth existente queda fuera del flujo
+productivo. Solo puede usarse como bootstrap local o reparación puntual descrita
+en `development/AUTH_LOCAL.md`.
 
-La subfase 12.5 implementa creación de perfil interno en `/dashboard/configuracion/usuarios/nuevo` para usuarios Auth ya existentes. Solo `admin` puede crear perfiles mediante validación server-side de `usuarios.manage`. La app no crea credenciales, no consulta `auth.users`, no pide email ni contraseña, no envía invitaciones y no usa service role key. El UUID se valida por formato y la base confirma su existencia mediante la clave foránea de `public.perfiles.id`.
+Modelo detallado: [USERS_MANAGEMENT_MODEL.md](USERS_MANAGEMENT_MODEL.md).
 
 ## Uso en módulos
 
@@ -219,7 +239,8 @@ La subfase 12.5 implementa creación de perfil interno en `/dashboard/configurac
 El diseño del dashboard operativo se documenta en `docs/DASHBOARD_OPERATIVE_MODEL.md`. Ese modelo no cambia la matriz de permisos vigente: `admin` y `supervisor` pueden ver métricas globales de operación, mientras que `trabajador` solo puede recibir métricas y listas derivadas de pedidos asignados.
 
 Las consultas del dashboard se ejecutan server-side, usan el cliente normal de
-Supabase, respetan RLS, no consultan `auth.users` y no usan service role key.
+Supabase, respetan RLS, no consultan `auth.users` y no usan cliente
+administrativo.
 
 ## Qué no está incluido todavía
 
@@ -228,8 +249,10 @@ Supabase, respetan RLS, no consultan `auth.users` y no usan service role key.
 - Permisos granulares configurables por pedido desde interfaz administrativa.
 - Auditoría avanzada.
 - Permisos configurables desde base de datos.
-- Creación de credenciales Auth desde la app.
-- Invitaciones, cambio de contraseña y eliminación física de usuarios.
+- Invitaciones por correo, magic links o envío automático de credenciales.
+- Recuperación autónoma de contraseña por email.
+- Cambio voluntario de contraseña desde el perfil interno fuera del onboarding inicial.
+- Eliminación física de usuarios Auth.
 
 ## Evolución futura
 

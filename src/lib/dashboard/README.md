@@ -1,11 +1,11 @@
 # Servicios del Dashboard Operativo
 
-Esta capa contiene la logica server-side del dashboard operativo de Godel
-Diseno. Su responsabilidad es preparar DTOs seguros para `/dashboard`, separados
-por rol, sin convertir la pantalla en un modulo analitico complejo ni duplicar
+Esta capa contiene la lógica server-side del dashboard operativo de Godel
+Diseño. Su responsabilidad es preparar DTOs seguros para `/dashboard`, separados
+por rol, sin convertir la pantalla en un módulo analítico complejo ni duplicar
 reglas de otros dominios.
 
-`/dashboard` consume `getDashboard()` como fachada principal. La pagina es un
+`/dashboard` consume `getDashboard()` como fachada principal. La página es un
 Server Component: carga datos en servidor, recibe resultados controlados y
 delega el render en componentes presentacionales.
 
@@ -13,7 +13,7 @@ delega el render en componentes presentacionales.
 
 | Archivo | Responsabilidad |
 | --- | --- |
-| `index.ts` | API publica del dominio. Exporta `getDashboard()` y contratos consumidos por la UI. |
+| `index.ts` | API pública del dominio. Exporta `getDashboard()` y contratos consumidos por la UI. |
 | `types.ts` | DTOs y resultados discriminados para summary, work-items, actividad, roles `management`/`worker` y errores seguros. |
 | `context.ts` | `getDashboardContext()`: obtiene perfil activo, valida `dashboard.view` y clasifica el rol de dashboard. |
 | `get-dashboard.ts` | Orquestador. Resuelve contexto una vez y carga summary, work-items y actividad en paralelo. |
@@ -30,7 +30,7 @@ ruta sigue siendo `getDashboard()`.
 ## Contexto y roles
 
 `getDashboardContext()` usa el perfil interno activo y valida el permiso
-`dashboard.view`. Despues clasifica:
+`dashboard.view`. Después clasifica:
 
 - `management`: `admin` y `supervisor`.
 - `worker`: `trabajador`.
@@ -43,34 +43,34 @@ final.
 
 ### Management
 
-`admin` y `supervisor` reciben metricas globales de operacion:
+`admin` y `supervisor` reciben métricas globales de operación:
 
 - solicitudes nuevas;
 - solicitudes pendientes;
 - solicitudes aprobadas sin convertir;
 - pedidos activos;
-- pedidos en produccion;
+- pedidos en producción;
 - pedidos listos para entrega;
-- pedidos de tipo `encargo` pendientes de revision o en revision sin tareas;
+- pedidos de tipo `encargo` pendientes de revisión o en revisión sin tareas;
 - pedidos atrasados;
-- pedidos proximos a entrega;
+- pedidos próximos a entrega;
 - clientes registrados.
 
 `get-dashboard-summary.ts` usa varias queries independientes. Es aceptable para
-MVP; si crecen las metricas, se debe medir antes de optimizar y evaluar una RPC
-o agregacion dedicada solo en una fase explicita.
+MVP; si crecen las métricas, se debe medir antes de optimizar y evaluar una RPC
+o agregación dedicada solo en una fase explícita.
 
 ### Worker
 
-`trabajador` recibe solo metricas derivadas de pedidos asignados:
+`trabajador` recibe solo métricas derivadas de pedidos asignados:
 
 - total de pedidos asignados;
 - asignados activos;
-- asignados en produccion;
+- asignados en producción;
 - asignados listos para entrega;
 - asignados de tipo `encargo` sin tareas cuando corresponde;
 - asignados atrasados;
-- asignados proximos a entrega.
+- asignados próximos a entrega.
 
 El trabajador no recibe solicitudes generales, clientes globales,
 usuarios/perfiles globales ni pedidos no asignados desde esta capa.
@@ -99,10 +99,10 @@ fecha reciente. El tablero de pedidos consulta cada grupo por separado
 (`nuevos`, `enRevision`, `enProduccion`, `listosEntrega`) para que un grupo no
 consuma el cupo de otro. `listosEntrega` muestra hasta 8 pedidos.
 
-Los pedidos se priorizan por revision pendiente, atraso, entrega proxima,
-revision sin tareas, produccion con tareas pendientes y listo para entrega.
-Desde Beta 2.7.4, las senales "sin tareas" usan `workflow_type`: solo
-`encargo` requiere tareas obligatorias; `impresion` puede avanzar validamente
+Los pedidos se priorizan por revisión pendiente, atraso, entrega próxima,
+revisión sin tareas, producción con tareas pendientes y listo para entrega.
+Desde Beta 2.7.4, las señales "sin tareas" usan `workflow_type`: solo
+`encargo` requiere tareas obligatorias; `impresion` puede avanzar válidamente
 sin tareas internas.
 
 La regla vive en `doesPedidoWorkflowRequireTasks()` y hoy confirma
@@ -110,30 +110,30 @@ La regla vive en `doesPedidoWorkflowRequireTasks()` y hoy confirma
 son `encargo` e `impresion`.
 
 El dashboard reutiliza `loadTaskProgressByPedidoId` desde Pedidos para evitar
-drift en el calculo de progreso de tareas.
+drift en el cálculo de progreso de tareas.
 
 ## Actividad Reciente
 
 `admin` y `supervisor` ven actividad reciente combinada de pedidos y
-solicitudes. El historial usa una ventana movil de 7 dias exactos, calculada
-como 168 horas desde el instante de carga. Si existen 20 o mas eventos
+solicitudes. El historial usa una ventana móvil de 7 días exactos, calculada
+como 168 horas desde el instante de carga. Si existen 20 o más eventos
 accesibles dentro de esa ventana, se devuelven todos. Si hay menos de 20, se
-completa con los eventos anteriores mas recientes hasta llegar a 20 cuando
+completa con los eventos anteriores más recientes hasta llegar a 20 cuando
 existan. Si existen menos de 20 eventos totales, se muestra todo lo disponible.
 
-`trabajador` ve unicamente actividad reciente de pedidos accesibles por RLS, es
+`trabajador` ve únicamente actividad reciente de pedidos accesibles por RLS, es
 decir, pedidos asignados. No recibe historial de solicitudes ni actividad de
 pedidos no accesibles.
 
-El tablero de trabajador aplica la misma separacion entre conteos exactos y
+El tablero de trabajador aplica la misma separación entre conteos exactos y
 previews limitados, pero todo conteo y candidato se filtra server-side con
 `pedido_trabajadores.assigned_profile_id = perfil actual`. RLS sigue siendo la
 defensa final y el trabajador no recibe pedidos no asignados.
 
-`get-dashboard-activity.ts` pagina server-side la actividad semanal por rangos
-tecnicos para evitar limites silenciosos de PostgREST. Las consultas de respaldo
+`get-dashboard-activity.ts` página server-side la actividad semanal por rangos
+técnicos para evitar límites silenciosos de PostgREST. Las consultas de respaldo
 solo se ejecutan cuando la ventana semanal tiene menos de 20 eventos y se
-limitan a los 20 eventos mas recientes por fuente. No hay paginacion visual en
+limitan a los 20 eventos más recientes por fuente. No hay paginación visual en
 esta etapa: el panel contextual usa su scroll interno.
 
 `activity-mappers.ts` transforma rows de historial a DTOs visibles mediante
@@ -143,8 +143,8 @@ a componentes.
 
 ## DTOs y Errores Seguros
 
-`types.ts` se mantiene como archivo unico del dominio. La division en varios
-archivos de tipos no redujo complejidad real en Beta 2.7, asi que se conserva
+`types.ts` se mantiene como archivo único del dominio. La división en varios
+archivos de tipos no redujo complejidad real en Beta 2.7, así que se conserva
 la API local concentrada.
 
 Los DTOs visibles son allowlists. No deben exponer:
@@ -159,18 +159,18 @@ Los DTOs visibles son allowlists. No deben exponer:
 - `service_role`;
 - `SUPABASE_SERVICE_ROLE_KEY`;
 - errores SQL/Postgres/Supabase;
-- metricas financieras agregadas sin decision funcional explicita.
+- métricas financieras agregadas sin decisión funcional explícita.
 
 Los errores devueltos por loaders son mensajes seguros para UI. Los detalles
-tecnicos permanecen fuera de los componentes.
+técnicos permanecen fuera de los componentes.
 
 ## Visibilidad Por Rol
 
 | Rol | Puede ver | No debe recibir |
 | --- | --- | --- |
-| `admin` | Dashboard global, solicitudes pendientes, pedidos de atencion, actividad de pedidos/solicitudes y navegacion completa. | Secretos, datos Auth, metadata cruda, Storage interno o errores tecnicos. |
-| `supervisor` | Dashboard global, solicitudes pendientes, pedidos de atencion, actividad de pedidos/solicitudes, solicitudes, pedidos y clientes. | Usuarios, configuracion, secretos, datos Auth, Storage interno o metadata cruda. |
-| `trabajador` | Resumen de pedidos asignados, tablero de pedidos asignados y actividad de pedidos accesibles. | Solicitudes generales, clientes globales, usuarios/perfiles globales, configuracion, pedidos no asignados, metricas financieras agregadas. |
+| `admin` | Dashboard global, solicitudes pendientes, pedidos de atención, actividad de pedidos/solicitudes y navegación completa. | Secretos, datos Auth, metadata cruda, Storage interno o errores técnicos. |
+| `supervisor` | Dashboard global, solicitudes pendientes, pedidos de atención, actividad de pedidos/solicitudes, solicitudes, pedidos y clientes. | Usuarios, configuración, secretos, datos Auth, Storage interno o metadata cruda. |
+| `trabajador` | Resumen de pedidos asignados, tablero de pedidos asignados y actividad de pedidos accesibles. | Solicitudes generales, clientes globales, usuarios/perfiles globales, configuración, pedidos no asignados, métricas financieras agregadas. |
 
 Los permisos no dependen solo del sidebar: proxy, loaders server-side y RLS
 deben mantenerse alineados.
@@ -179,7 +179,7 @@ deben mantenerse alineados.
 
 - Pedidos: estados, labels, progreso de tareas, asignaciones, historial y
   `workflow_type`.
-- Solicitudes: solicitudes pendientes, conversion a pedidos e historial para
+- Solicitudes: solicitudes pendientes, conversión a pedidos e historial para
   management.
 - Clientes: conteos globales y nombres visibles en pedidos/work-items cuando el
   rol lo permite.
@@ -192,49 +192,49 @@ deben mantenerse alineados.
 
 ## QA E2E
 
-Beta 2.7.5 agrego `tests/e2e/dashboard.spec.ts` con cobertura focal:
+Beta 2.7.5 agregó `tests/e2e/dashboard.spec.ts` con cobertura focal:
 
 - dashboard admin;
 - dashboard supervisor;
 - dashboard trabajador;
 - rutas protegidas;
-- ausencia visible de terminos sensibles;
+- ausencia visible de términos sensibles;
 - visibilidad por rol;
-- trabajador sin solicitudes, clientes, usuarios ni configuracion global;
-- supervisor sin usuarios ni configuracion;
+- trabajador sin solicitudes, clientes, usuarios ni configuración global;
+- supervisor sin usuarios ni configuración;
 - admin con vista global esperada.
 
-Tambien se endurecio `tests/e2e/helpers/auth.ts` para ejecucion paralela:
+También se endureció `tests/e2e/helpers/auth.ts` para ejecución paralela:
 
 - limpia cookies y storage antes del login;
-- espera el boton habilitado;
+- espera el botón habilitado;
 - espera URL final `/dashboard`;
 - espera heading de dashboard renderizado.
 
-Despues del ajuste, la suite Chromium local paso 23/23 en paralelo. La
-estabilidad e2e paralela debe seguir observandose en CI.
+Después del ajuste, la suite Chromium local pasó 23/23 en paralelo. La
+estabilidad e2e paralela debe seguir observándose en CI.
 
-## Deudas Tecnicas Conocidas
+## Deudas Técnicas Conocidas
 
 - Summary management usa varias queries independientes; aceptable para MVP,
   medir antes de optimizar.
-- Si crecen metricas o volumen, evaluar RPC o agregacion dedicada en una fase
-  explicita.
-- El dashboard no debe convertirse en sistema analitico complejo sin decision
+- Si crecen métricas o volumen, evaluar RPC o agregación dedicada en una fase
+  explícita.
+- El dashboard no debe convertirse en sistema analítico complejo sin decisión
   funcional.
 - Full visual QA sigue dependiendo del build con Google Fonts/red.
 - Mantener vigilancia de QA por rol si cambian permisos, RLS o sidebar.
-- Cualquier cambio de permisos debe coordinar TypeScript, RLS, documentacion y
+- Cualquier cambio de permisos debe coordinar TypeScript, RLS, documentación y
   QA.
 
-## Que No Hacer
+## Qué no hacer
 
 - No consultar Supabase desde componentes.
 - No mover reglas de permisos a UI.
 - No exponer `metadata`, `file_path`, bucket ni signed URLs.
 - No agregar datos Auth ni `service_role`.
-- No agregar metricas financieras sin decision funcional explicita.
-- No crear `src/services` ni mover archivos por estetica.
-- No cambiar RLS, policies o migraciones desde este dominio sin fase explicita.
-- No convertir el dashboard en reporteria avanzada, graficos, exportaciones o
+- No agregar métricas financieras sin decisión funcional explícita.
+- No crear `src/services` ni mover archivos por estética.
+- No cambiar RLS, policies o migraciones desde este dominio sin fase explícita.
+- No convertir el dashboard en reportería avanzada, gráficos, exportaciones o
   notificaciones sin alcance funcional aprobado.
