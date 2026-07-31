@@ -127,18 +127,12 @@ async function expectFilterOptions(page: Page) {
   );
 }
 
-async function expectSeedServices(page: Page) {
+async function expectInitialServices(page: Page) {
   await page.setViewportSize({ width: 1366, height: 768 });
   await page.goto("/dashboard/configuracion/servicios");
   await expectServicesListingLoaded(page);
 
-  for (const service of [
-    "Impresión",
-    "Diseño gráfico",
-    "Personalización",
-    "Rotulación",
-    "Otro",
-  ]) {
+  for (const service of ["Impresión", "Otro"]) {
     await expect(
       page.locator("tr").filter({ hasText: service }).first(),
     ).toBeVisible();
@@ -150,6 +144,10 @@ async function expectSeedServices(page: Page) {
     .first();
 
   await expect(impresionRow.getByText(/servicio del sistema/i)).toBeVisible();
+
+  const otroRow = page.locator("tr").filter({ hasText: "Otro" }).first();
+
+  await expect(otroRow.getByText(/servicio del sistema/i)).toHaveCount(0);
 }
 
 test("admin can access servicios and non-admin roles are blocked", async ({
@@ -227,7 +225,7 @@ test("admin can create, search, hide and edit a service", async ({ page }) => {
   await loginAs(page, "admin");
   await page.goto("/dashboard/configuracion/servicios");
   await expectServicesListingLoaded(page);
-  await expectSeedServices(page);
+  await expectInitialServices(page);
 
   await page.getByRole("button", { name: /nuevo servicio/i }).click();
   let createDialog = page.getByRole("dialog", { name: /nuevo servicio/i });
@@ -440,7 +438,7 @@ test("servicios listing keeps accessible controls on mobile and desktop", async 
   await page.setViewportSize({ width: 1366, height: 768 });
   await page.goto("/dashboard/configuracion/servicios");
   await expectServicesListingLoaded(page);
-  await expectSeedServices(page);
+  await expectInitialServices(page);
   await expectNoHorizontalOverflow(page);
 
   if (!(await hasEmptyServiciosState(page))) {

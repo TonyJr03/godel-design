@@ -1,6 +1,6 @@
--- Beta 1 consolidated Storage layer.
--- Storage objects and public.archivos metadata are not transactional together.
--- A failed metadata insert after object upload can leave an orphan object.
+-- Baseline final 04 - Storage.
+-- ACTIVO: migracion consolidada para reconstruccion limpia del proyecto.
+-- Uses Supabase managed storage tables as existing platform objects; it does not redefine storage schema, storage tables or owners.
 -- Orphan cleanup, rate limiting and captcha are intentionally left as technical debt.
 
 do $$

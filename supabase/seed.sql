@@ -1,0 +1,16 @@
+-- Seed local de Godel Diseño.
+--
+-- La baseline productiva inserta los dos servicios iniciales Impresión y Otro desde
+-- 20260731000100_01_core_schema.sql.
+--
+-- PostgreSQL genera sus UUID con gen_random_uuid(); este seed no conoce ni
+-- depende de esos identificadores. El resto del catálogo se configura desde la
+-- aplicación.
+--
+-- Este archivo no crea usuarios Auth, perfiles, clientes, solicitudes,
+-- pedidos, archivos ni otros datos QA.
+--
+-- El bootstrap del administrador local se realiza mediante Supabase Auth
+-- Admin y una asociación controlada con public.perfiles.
+--
+-- Mantener este archivo sin secretos, contraseñas ni datos reales.
