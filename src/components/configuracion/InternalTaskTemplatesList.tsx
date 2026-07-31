@@ -72,20 +72,18 @@ export function InternalTaskTemplatesList({
             aria-label={getTemplateLabel(template)}
             className="space-y-4 overflow-hidden"
           >
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h2 className="truncate text-base font-semibold text-text-primary">
-                  {template.name}
-                </h2>
-                <p className="mt-2 line-clamp-2 text-sm leading-6 text-text-secondary">
-                  {formatDescription(template.description)}
-                </p>
-              </div>
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2">
+              <h2 className="min-w-0 truncate text-base font-semibold text-text-primary">
+                {template.name}
+              </h2>
               <StatusBadge
                 status={template.is_active ? "activo" : "inactivo"}
                 label={template.is_active ? "Activa" : "Inactiva"}
                 className="shrink-0"
               />
+              <p className="col-span-2 line-clamp-2 text-sm leading-6 text-text-secondary">
+                {formatDescription(template.description)}
+              </p>
             </div>
 
             <dl className="grid grid-cols-2 gap-3 text-sm">

@@ -41,7 +41,17 @@ function getInitials(name: string): string {
   return words.map((word) => word[0]?.toUpperCase() ?? "").join("") || "US";
 }
 
-function UserIdentity({ user }: { user: InternalUser }) {
+function UserIdentity({
+  user,
+  truncateId = false,
+}: {
+  user: InternalUser;
+  truncateId?: boolean;
+}) {
+  const idClassName = truncateId
+    ? "mt-1 truncate font-mono text-xs text-text-muted"
+    : "mt-1 break-all font-mono text-xs text-text-muted";
+
   return (
     <div className="flex min-w-0 items-center gap-3">
       <div className="flex size-11 shrink-0 items-center justify-center rounded-(--radius-control) bg-brand-primary-hover text-xs font-semibold text-white">
@@ -51,7 +61,7 @@ function UserIdentity({ user }: { user: InternalUser }) {
         <div className="truncate font-semibold text-text-primary">
           {user.full_name}
         </div>
-        <div className="mt-1 break-all font-mono text-xs text-text-muted">
+        <div className={idClassName} title={user.id}>
           {user.id}
         </div>
       </div>
@@ -99,10 +109,9 @@ export function InternalUsersList({
             key={user.id}
             className="space-y-4 overflow-hidden rounded-(--radius-card) border border-border bg-surface p-4 shadow-(--shadow-soft)"
           >
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <UserIdentity user={user} />
-              <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-                <UserStatusBadges user={user} />
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2">
+              <UserIdentity user={user} truncateId />
+              <div className="flex shrink-0 items-start justify-end gap-2">
                 <UserEditDialogButton
                   user={user}
                   updateAction={getUpdateAction(user.id)}
@@ -111,6 +120,10 @@ export function InternalUsersList({
                   user={user}
                   resetAction={getResetPasswordAction(user.id)}
                 />
+              </div>
+
+              <div className="col-span-2">
+                <UserStatusBadges user={user} />
               </div>
             </div>
 
@@ -148,12 +161,12 @@ export function InternalUsersList({
         <div className="overflow-x-auto">
           <table className="min-w-full table-fixed divide-y divide-border text-sm">
             <colgroup>
-              <col className="w-[30%]" />
-              <col className="w-[13%]" />
-              <col className="w-[15%]" />
+              <col className="w-[35%]" />
+              <col className="w-[12%]" />
               <col className="w-[12%]" />
               <col className="w-[13%]" />
-              <col className="w-[13%]" />
+              <col className="w-[12%]" />
+              <col className="w-[12%]" />
               <col className="w-[6rem]" />
             </colgroup>
             <thead className="bg-surface-muted text-left text-xs font-semibold uppercase tracking-wide text-text-secondary">

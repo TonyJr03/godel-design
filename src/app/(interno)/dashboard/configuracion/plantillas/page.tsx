@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import { BackToConfigurationLink } from "@/components/configuracion/BackToConfigurationLink";
 import { TaskTemplateCreateDialogButton } from "@/components/configuracion/TaskTemplateCreateDialogButton";
 import { InternalTaskTemplatesList } from "@/components/configuracion/InternalTaskTemplatesList";
 import {
@@ -73,18 +74,26 @@ export default async function DashboardConfiguracionPlantillasPage({
 
   return (
     <div className="space-y-8">
-      <ListingPageHeader
-        title="Plantillas"
-        description="Gestiona plantillas de tareas de producción."
-        action={<TaskTemplateCreateDialogButton />}
-        toolbar={
-          <ListingToolbar
-            searchLabel="Buscar plantillas"
-            searchPlaceholder="Nombre o descripción"
-            initialQuery={searchValue}
-          />
-        }
-      />
+      <div className="space-y-4">
+        <BackToConfigurationLink presentation="text" />
+        <ListingPageHeader
+          title="Plantillas"
+          description="Gestiona plantillas de tareas de producción."
+          action={
+            <div className="flex items-center gap-2">
+              <TaskTemplateCreateDialogButton />
+              <BackToConfigurationLink presentation="button" />
+            </div>
+          }
+          toolbar={
+            <ListingToolbar
+              searchLabel="Buscar plantillas"
+              searchPlaceholder="Nombre o descripción"
+              initialQuery={searchValue}
+            />
+          }
+        />
+      </div>
 
       {!result.ok ? (
         <ReadErrorAlert

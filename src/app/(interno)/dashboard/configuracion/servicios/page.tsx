@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import { BackToConfigurationLink } from "@/components/configuracion/BackToConfigurationLink";
 import { InternalServiceTypesList } from "@/components/configuracion/InternalServiceTypesList";
 import { ServiceTypeCreateDialogButton } from "@/components/configuracion/ServiceTypeCreateDialogButton";
 import {
@@ -95,26 +96,34 @@ export default async function DashboardConfiguracionServiciosPage({
 
   return (
     <div className="space-y-8">
-      <ListingPageHeader
-        title="Servicios"
-        description="Gestiona el catálogo de servicios y su disponibilidad pública."
-        action={<ServiceTypeCreateDialogButton />}
-        toolbar={
-          <ListingToolbar
-            searchLabel="Buscar servicios"
-            searchPlaceholder="Nombre o descripción"
-            initialQuery={searchValue}
-            filters={[
-              {
-                name: "availability",
-                label: "Disponibilidad pública",
-                value: availabilityValue,
-                options: availabilityFilterOptions,
-              },
-            ]}
-          />
-        }
-      />
+      <div className="space-y-4">
+        <BackToConfigurationLink presentation="text" />
+        <ListingPageHeader
+          title="Servicios"
+          description="Gestiona el catálogo de servicios y su disponibilidad pública."
+          action={
+            <div className="flex items-center gap-2">
+              <ServiceTypeCreateDialogButton />
+              <BackToConfigurationLink presentation="button" />
+            </div>
+          }
+          toolbar={
+            <ListingToolbar
+              searchLabel="Buscar servicios"
+              searchPlaceholder="Nombre o descripción"
+              initialQuery={searchValue}
+              filters={[
+                {
+                  name: "availability",
+                  label: "Disponibilidad pública",
+                  value: availabilityValue,
+                  options: availabilityFilterOptions,
+                },
+              ]}
+            />
+          }
+        />
+      </div>
 
       {result.ignoredInvalidAvailability ? (
         <Alert variant="warning" title="Filtro ignorado">
