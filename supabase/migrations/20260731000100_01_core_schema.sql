@@ -1,6 +1,6 @@
--- Beta 1 consolidated structural schema.
--- Scope: extensions, schemas, enums, tables, constraints, indexes, structural functions, and triggers.
--- Access-control DDL, business RPCs, Storage DDL, backfills, and application code are intentionally excluded.
+-- Baseline final 01 - Core schema.
+-- ACTIVO: migracion consolidada para reconstruccion limpia del proyecto.
+-- Excludes RLS/grants, business RPCs, Storage, Auth Admin audit tables, data migration updates, QA data and application code.
 
 create extension if not exists pgcrypto;
 
@@ -77,7 +77,8 @@ create type public.pedido_historial_action as enum (
   'tarea_completada',
   'tarea_reabierta',
   'tarea_progreso_actualizado',
-  'pago_actualizado'
+  'pago_actualizado',
+  'pedido_actualizado'
 );
 
 create type public.solicitud_historial_action as enum (
@@ -115,11 +116,19 @@ create table public.perfiles (
   phone text,
   avatar_url text,
   is_active boolean not null default true,
+  must_change_password boolean not null default false,
+  created_by uuid,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint perfiles_full_name_not_empty check (btrim(full_name) <> '')
+  constraint perfiles_full_name_not_empty check (btrim(full_name) <> ''),
+  constraint perfiles_created_by_not_self check (created_by is null or created_by <> id)
 );
 
+alter table public.perfiles
+add constraint perfiles_created_by_fkey
+foreign key (created_by)
+references public.perfiles(id)
+on delete set null;
 create trigger set_perfiles_updated_at
 before update on public.perfiles
 for each row
@@ -142,6 +151,55 @@ before update on public.clientes
 for each row
 execute function public.set_updated_at();
 
+create table public.tipos_servicio (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  description text not null,
+  workflow_type public.workflow_type not null,
+  is_publicly_available boolean not null default true,
+  created_by uuid references public.perfiles(id) on delete set null,
+  updated_by uuid references public.perfiles(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint tipos_servicio_name_length_check
+    check (length(btrim(name)) between 2 and 120),
+  constraint tipos_servicio_description_not_empty
+    check (btrim(description) <> ''),
+  constraint tipos_servicio_description_max_length
+    check (length(btrim(description)) <= 500)
+);
+
+create trigger set_tipos_servicio_updated_at
+before update on public.tipos_servicio
+for each row
+execute function public.set_updated_at();
+
+create unique index tipos_servicio_name_normalized_key
+on public.tipos_servicio (lower(btrim(name)));
+
+create unique index tipos_servicio_single_print_service
+on public.tipos_servicio (workflow_type)
+where workflow_type = 'impresion'::public.workflow_type;
+
+create or replace function private.prevent_tipos_servicio_workflow_type_change()
+returns trigger
+language plpgsql
+set search_path = public, private
+as $$
+begin
+  if old.workflow_type is distinct from new.workflow_type then
+    raise exception 'El tipo de flujo de un servicio no puede modificarse.'
+      using errcode = '23514';
+  end if;
+
+  return new;
+end;
+$$;
+
+create trigger prevent_tipos_servicio_workflow_type_change
+before update of workflow_type on public.tipos_servicio
+for each row
+execute function private.prevent_tipos_servicio_workflow_type_change();
 create table public.solicitudes (
   id uuid primary key default gen_random_uuid(),
   public_reference text not null default (
@@ -155,7 +213,7 @@ create table public.solicitudes (
   client_name text not null,
   client_phone text not null,
   client_email text,
-  service_type text not null,
+  service_id uuid not null references public.tipos_servicio(id) on delete restrict,
   description text not null,
   desired_date date,
   notes text,
@@ -169,7 +227,6 @@ create table public.solicitudes (
   constraint solicitudes_public_reference_key unique (public_reference),
   constraint solicitudes_client_name_not_empty check (btrim(client_name) <> ''),
   constraint solicitudes_client_phone_not_empty check (btrim(client_phone) <> ''),
-  constraint solicitudes_service_type_not_empty check (btrim(service_type) <> ''),
   constraint solicitudes_description_not_empty check (btrim(description) <> '')
 );
 
@@ -246,6 +303,7 @@ create table public.pedidos (
   ),
   cliente_id uuid references public.clientes(id) on delete set null,
   solicitud_id uuid references public.solicitudes(id) on delete set null,
+  service_id uuid not null references public.tipos_servicio(id) on delete restrict,
   title text not null,
   description text not null,
   status public.pedido_estado not null default 'solicitud_recibida',
@@ -280,6 +338,38 @@ add constraint solicitudes_converted_order_id_fkey
 foreign key (converted_order_id)
 references public.pedidos(id)
 on delete set null;
+
+insert into public.tipos_servicio (
+  name,
+  description,
+  workflow_type,
+  is_publicly_available,
+  created_by,
+  updated_by
+)
+values
+  (
+    'Impresión',
+    'Impresión de documentos y materiales proporcionados por el cliente.',
+    'impresion'::public.workflow_type,
+    true,
+    null,
+    null
+  ),
+  (
+    'Otro',
+    'Otros encargos personalizados no incluidos en los servicios configurados.',
+    'encargo'::public.workflow_type,
+    true,
+    null,
+    null
+  );
+
+comment on column public.solicitudes.service_id is
+  'Servicio canonico obligatorio de la solicitud; workflow_type se sincroniza desde tipos_servicio.';
+
+comment on column public.pedidos.service_id is
+  'Servicio canonico obligatorio del pedido; workflow_type se sincroniza desde tipos_servicio.';
 
 create table public.pedido_trabajadores (
   id uuid primary key default gen_random_uuid(),
@@ -561,41 +651,6 @@ before update on public.pedido_pagos
 for each row
 execute function public.set_updated_at();
 
-create or replace function private.generate_public_reference()
-returns text
-language plpgsql
-security definer
-set search_path = public, private
-as $$
-declare
-  v_code text;
-  v_attempt integer := 0;
-begin
-  loop
-    v_attempt := v_attempt + 1;
-    v_code := private.generate_public_reference_candidate();
-
-    if not exists (
-      select 1
-      from public.solicitudes
-      where public_reference = v_code
-    )
-    and not exists (
-      select 1
-      from public.pedidos
-      where public_reference = v_code
-    ) then
-      return v_code;
-    end if;
-
-    if v_attempt >= 50 then
-      raise exception 'No se pudo generar una referencia publica unica.'
-        using errcode = '23505';
-    end if;
-  end loop;
-end;
-$$;
-
 create or replace function private.generate_public_reference_candidate()
 returns text
 language plpgsql
@@ -606,7 +661,6 @@ declare
   v_alphabet constant text := 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   v_bytes bytea := extensions.gen_random_bytes(8);
   v_token text := '';
-  v_index integer;
 begin
   for v_index in 0..7 loop
     v_token := v_token ||
@@ -687,6 +741,34 @@ begin
 end;
 $$;
 
+create or replace function private.sync_workflow_type_from_service()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, private
+as $$
+declare
+  v_workflow_type public.workflow_type;
+begin
+  if new.service_id is null then
+    return new;
+  end if;
+
+  select ts.workflow_type
+  into v_workflow_type
+  from public.tipos_servicio as ts
+  where ts.id = new.service_id;
+
+  if not found then
+    raise exception 'El tipo de servicio seleccionado no existe.'
+      using errcode = '23503';
+  end if;
+
+  new.workflow_type := v_workflow_type;
+
+  return new;
+end;
+$$;
 create trigger set_solicitud_public_reference
 before insert on public.solicitudes
 for each row
@@ -696,6 +778,16 @@ create trigger set_pedido_public_reference
 before insert on public.pedidos
 for each row
 execute function private.set_pedido_public_reference();
+
+create trigger sync_solicitudes_workflow_type_from_service
+before insert or update of service_id, workflow_type on public.solicitudes
+for each row
+execute function private.sync_workflow_type_from_service();
+
+create trigger sync_pedidos_workflow_type_from_service
+before insert or update of service_id, workflow_type on public.pedidos
+for each row
+execute function private.sync_workflow_type_from_service();
 
 create or replace function private.ensure_active_order_assignment_profile()
 returns trigger
@@ -1149,7 +1241,18 @@ language plpgsql
 security definer
 set search_path = public, private
 as $$
+declare
+  v_service_name text;
 begin
+  select ts.name
+  into v_service_name
+  from public.tipos_servicio as ts
+  where ts.id = new.service_id;
+
+  if v_service_name is null then
+    raise exception 'No se pudo registrar historial: el servicio canonico de la solicitud no existe.';
+  end if;
+
   insert into public.solicitud_historial (
     solicitud_id,
     actor_id,
@@ -1163,12 +1266,14 @@ begin
     new.id,
     auth.uid(),
     'solicitud_creada'::public.solicitud_historial_action,
-    'Solicitud registrada: ' || new.service_type,
+    'Solicitud registrada: ' || v_service_name,
     null,
-    new.service_type,
+    v_service_name,
     jsonb_strip_nulls(
       jsonb_build_object(
-        'service_type', new.service_type,
+        'service_id', new.service_id,
+        'service_name', v_service_name,
+        'workflow_type', new.workflow_type,
         'origen', case
           when auth.uid() is null then 'publica'
           else 'interna'
@@ -1450,6 +1555,9 @@ on public.solicitudes(status, created_at desc, id desc);
 create index solicitudes_workflow_type_idx
 on public.solicitudes(workflow_type);
 
+create index solicitudes_service_id_idx
+on public.solicitudes(service_id);
+
 create unique index solicitudes_converted_order_id_unique_idx
 on public.solicitudes(converted_order_id)
 where converted_order_id is not null;
@@ -1476,6 +1584,9 @@ where solicitud_id is not null;
 
 create index pedidos_workflow_type_idx
 on public.pedidos(workflow_type);
+
+create index pedidos_service_id_idx
+on public.pedidos(service_id);
 
 create index pedido_trabajadores_assigned_profile_id_idx
 on public.pedido_trabajadores(assigned_profile_id);

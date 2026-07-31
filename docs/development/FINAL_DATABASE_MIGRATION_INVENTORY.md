@@ -250,12 +250,14 @@ Estado final efectivo:
 
 DML obligatorio a conservar en migraciones:
 
-- Servicios canonicos productivos iniciales: `Diseño gráfico`, `Personalización`, `Rotulación`, `Otro` como `encargo`; `Impresión` como `impresion`.
-- Los cinco servicios se insertan en `01_core_schema.sql`.
-- Los cinco forman parte del contrato productivo y no pertenecen al seed.
-- Usaran UUID literales estables definidos una sola vez durante la redaccion de 01.
-- La aplicacion no debe depender de esos UUID mediante constantes hardcodeadas.
+- Servicios iniciales productivos: `Impresión` como `impresion` y `Otro` como `encargo`.
+- Los dos servicios iniciales se insertan en `01_core_schema.sql`.
+- Los dos forman parte del contrato productivo inicial y no pertenecen al seed.
+- Sus IDs se generan normalmente con `default gen_random_uuid()`; no hay identificadores fijos para servicios.
+- Ninguna capa de aplicacion debe depender de IDs concretos de servicios.
 - `Impresión` continua identificandose operativamente por `workflow_type = impresion`.
+- `Otro` queda como alternativa inicial generica de encargo.
+- `Diseño gráfico`, `Personalización` y `Rotulación` pasan a configuracion operativa posterior desde la administracion de servicios.
 
 DML local de desarrollo que no debe migrar:
 
@@ -301,7 +303,7 @@ Distribucion final:
 
 DML obligatorio en migraciones consolidadas:
 
-- Servicios canonicos iniciales de `tipos_servicio`.
+- Dos servicios iniciales de `tipos_servicio`: `Impresión` y `Otro`.
 - Bucket privado `godel-files` y sus limites/MIME.
 - Grants/comments/assertions que forman parte del contrato de seguridad.
 
@@ -318,7 +320,7 @@ Estado de seed:
 - `supabase/config.toml` referencia `./seed.sql`.
 - Decision final: `CREAR_SEED_LOCAL_QA`.
 - `seed.sql` se creara durante la fase de implementacion/activacion y se ejecutara despues de las migraciones.
-- No contendra servicios canonicos ni creacion del bucket.
+- No contendra servicios iniciales, servicios operativos adicionales ni creacion del bucket.
 - Solo contendra datos locales/QA idempotentes.
 - No contendra credenciales, contrasenas, secretos ni datos reales.
 - El bootstrap de usuarios Auth con capacidad de login requiere una estrategia separada.
@@ -484,7 +486,7 @@ Dependencias delicadas detectadas:
 | Severidad | Riesgo | Evidencia | Accion propuesta |
 | --- | --- | --- | --- |
 | HIGH - reproducibilidad local y QA | `supabase/seed.sql` no existe aunque `config.toml` referencia `./seed.sql` | `Get-Content supabase/seed.sql` fallo por archivo inexistente | `CREAR_SEED_LOCAL_QA` durante implementacion/activacion; no bloquea baseline estructural; solo datos QA/local idempotentes y sin secretos |
-| HIGH | Datos QA presentes en base local, especialmente en `tipos_servicio`, no deben confundirse con DML obligatorio | Consulta local detecto 19 servicios, muchos `QA ...` ocultos | Consolidar solo servicios canonicos productivos; mover QA a seed si se decide |
+| HIGH | Datos QA presentes en base local, especialmente en `tipos_servicio`, no deben confundirse con DML obligatorio | Consulta local detecto 19 servicios, muchos `QA ...` ocultos | Consolidar solo los dos servicios iniciales productivos; los servicios operativos adicionales se configuran desde la aplicacion y los datos QA se moveran a seed si se decide |
 | HIGH | `PERMISSIONS_MODEL.md` conserva relato legacy de usuarios que contradice Auth Admin User Lifecycle | Secciones de Fase 12 dicen que la app no crea credenciales y usa UUID Auth existente | Corregir documentacion en fase documental posterior |
 | MEDIUM | Grants nativos de Storage aparecen amplios para `anon`/`authenticated` en `information_schema` | `storage.objects` muestra grants nativos amplios, pero el acceso efectivo debe evaluarse con RLS/policies | 06 debe verificar bucket privado, policies del proyecto, ausencia de lectura anonima, grants de funciones del proyecto y ausencia de uso general del cliente administrativo; no redefinir internamente `storage` |
 | MEDIUM | El CLI de Supabase dentro del sandbox falla sin permisos por telemetria | Error EPERM en `.supabase/telemetry.json` | Ejecutar comandos CLI con aprobacion o configurar telemetria local fuera de esta fase |
@@ -499,9 +501,9 @@ La baseline consolidada sera equivalente al estado final esperado si, ademas de 
 - no existe `private.generate_public_reference()` si continua sin callers;
 - `private.generate_public_reference_candidate()` no genera warnings de PL/pgSQL;
 - `npx.cmd supabase db lint --level warning --local` devuelve `[]`;
-- los cinco servicios canonicos tienen nombres exactos con acentos y UUID estables;
+- los dos servicios iniciales tienen nombres y descripciones exactas, IDs generados por `gen_random_uuid()` y ningun UUID literal de servicio;
 - el seed no participa en la definicion del esquema productivo;
-- los servicios canonicos y el bucket se crean por migraciones, no por seed.
+- los servicios iniciales y el bucket se crean por migraciones, no por seed.
 
 ## Confirmaciones de Fase
 

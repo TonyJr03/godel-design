@@ -1,6 +1,6 @@
--- Beta 1 consolidated security layer.
--- Contains security helpers, access helpers, table RLS, table policies and base grants.
--- Excludes business RPCs, Storage policies and final hardening.
+-- Baseline final 02 - Security, RLS and grants.
+-- ACTIVO: migracion consolidada para reconstruccion limpia del proyecto.
+-- Excludes business RPCs, Storage policies, Auth Admin lifecycle and final hardening assertions.
 
 create schema if not exists private;
 
@@ -14,6 +14,7 @@ grant usage on schema private to authenticated;
 revoke all on table
   public.perfiles,
   public.clientes,
+  public.tipos_servicio,
   public.solicitudes,
   public.pedido_contadores,
   public.pedidos,
@@ -58,7 +59,20 @@ to authenticated;
 
 grant insert on table public.solicitudes to anon;
 
-grant select, insert, update on table public.perfiles to authenticated;
+grant select on table public.tipos_servicio to anon;
+grant select, insert, update on table public.tipos_servicio to authenticated;
+
+grant select on table public.perfiles to authenticated;
+
+grant update (
+  full_name,
+  phone,
+  avatar_url,
+  role,
+  is_active
+)
+on table public.perfiles
+to authenticated;
 grant select, insert, update on table public.clientes to authenticated;
 grant select, insert, update, delete on table public.solicitudes to authenticated;
 grant select, insert, update, delete on table public.pedidos to authenticated;
@@ -84,6 +98,7 @@ as $$
   from public.perfiles as p
   where p.id = auth.uid()
     and p.is_active = true
+    and p.must_change_password = false
   limit 1;
 $$;
 
@@ -99,6 +114,7 @@ as $$
     from public.perfiles as p
     where p.id = auth.uid()
       and p.is_active = true
+      and p.must_change_password = false
   );
 $$;
 
@@ -387,6 +403,11 @@ revoke all on function private.can_insert_pedido_file_metadata(
 )
 from public, anon, authenticated;
 
+revoke all on function private.prevent_tipos_servicio_workflow_type_change()
+from public, anon, authenticated;
+
+revoke all on function private.sync_workflow_type_from_service()
+from public, anon, authenticated;
 grant execute on function private.current_user_role() to authenticated;
 grant execute on function private.current_user_is_active() to authenticated;
 grant execute on function private.is_admin() to authenticated;
@@ -419,6 +440,7 @@ grant execute on function private.can_insert_pedido_file_metadata(
 
 alter table public.perfiles enable row level security;
 alter table public.clientes enable row level security;
+alter table public.tipos_servicio enable row level security;
 alter table public.solicitudes enable row level security;
 alter table public.pedido_contadores enable row level security;
 alter table public.pedidos enable row level security;
@@ -449,16 +471,6 @@ using (
         and private.can_access_pedido(pt.pedido_id)
     )
   )
-);
-
-create policy perfiles_insert_admin
-on public.perfiles
-for insert
-to authenticated
-with check (
-  (select auth.uid()) is not null
-  and private.current_user_is_active()
-  and private.is_admin()
 );
 
 create policy perfiles_update_admin
@@ -519,19 +531,67 @@ with check (
   and private.is_admin_or_supervisor()
 );
 
+create policy tipos_servicio_select_public
+on public.tipos_servicio
+for select
+to anon, authenticated
+using (is_publicly_available = true);
+
+create policy tipos_servicio_select_internal
+on public.tipos_servicio
+for select
+to authenticated
+using (
+  (select auth.uid()) is not null
+  and private.current_user_is_active()
+);
+
+create policy tipos_servicio_insert_admin
+on public.tipos_servicio
+for insert
+to authenticated
+with check (
+  (select auth.uid()) is not null
+  and private.current_user_is_active()
+  and private.is_admin()
+  and workflow_type = 'encargo'::public.workflow_type
+);
+
+create policy tipos_servicio_update_admin
+on public.tipos_servicio
+for update
+to authenticated
+using (
+  (select auth.uid()) is not null
+  and private.current_user_is_active()
+  and private.is_admin()
+)
+with check (
+  (select auth.uid()) is not null
+  and private.current_user_is_active()
+  and private.is_admin()
+);
+
 create policy solicitudes_insert_public
 on public.solicitudes
 for insert
-to anon
+to anon, authenticated
 with check (
   status = 'nueva'::public.solicitud_estado
   and reviewed_by is null
   and converted_order_id is null
   and cliente_id is null
+  and service_id is not null
   and btrim(client_name) <> ''
   and btrim(client_phone) <> ''
-  and btrim(service_type) <> ''
   and btrim(description) <> ''
+  and exists (
+    select 1
+    from public.tipos_servicio as ts
+    where ts.id = public.solicitudes.service_id
+      and ts.is_publicly_available = true
+      and ts.workflow_type = public.solicitudes.workflow_type
+  )
 );
 
 create policy solicitudes_insert_manager

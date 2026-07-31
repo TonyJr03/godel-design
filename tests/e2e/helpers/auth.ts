@@ -65,7 +65,7 @@ export async function loginAs(page: Page, role: QaRole) {
   });
 
   await page.getByLabel(/correo/i).fill(credentials.email);
-  await page.getByLabel(/contrase.a|contrasena/i).fill(credentials.password);
+  await page.locator('input[name="password"]').fill(credentials.password);
 
   const submitButton = page.getByRole("button", {
     name: /entrar al workspace/i,

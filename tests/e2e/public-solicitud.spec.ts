@@ -63,7 +63,7 @@ async function fillContact(page: Page, suffix: string) {
     .fill(`cliente-${suffix}-${runId}@example.com`);
 }
 
-async function submitEncargo(page: Page, serviceName = "Diseño gráfico") {
+async function submitEncargo(page: Page, serviceName = "Otro") {
   await page.goto("/solicitud");
   await expectPublicCatalogLoaded(page);
   await fillContact(page, "encargo");
@@ -180,13 +180,7 @@ async function setAdminServiceAvailability(
 async function ensureRequiredPublicServices(page: Page) {
   await loginAs(page, "admin");
 
-  for (const serviceName of [
-    "Diseño gráfico",
-    "Personalización",
-    "Rotulación",
-    "Otro",
-    "Impresión",
-  ]) {
+  for (const serviceName of ["Otro", "Impresión"]) {
     await setAdminServiceAvailability(page, serviceName, true);
   }
 }
@@ -210,7 +204,7 @@ async function expectInternalSolicitud(
 
   await expect(row).toBeVisible({ timeout: 15_000 });
   await expect(
-    row.locator("span").filter({ hasText: expectedWorkflow }),
+    row.locator("span").filter({ hasText: expectedWorkflow }).last(),
   ).toBeVisible();
 }
 
@@ -240,31 +234,19 @@ test("public solicitud form renders the dynamic catalog", async ({ page }) => {
   await expect(getEncargoServiceSelect(page)).toBeVisible();
   await expect(getServiceIdControls(page)).toHaveCount(1);
 
-  for (const service of [
-    "Diseño gráfico",
-    "Personalización",
-    "Rotulación",
-    "Otro",
-  ]) {
-    await expect(getEncargoServiceSelect(page)).toContainText(service);
-  }
+  await expect(getEncargoServiceSelect(page)).toContainText("Otro");
 
   await getEncargoServiceSelect(page).selectOption({
-    label: "Personalización",
+    label: "Otro",
   });
   const selectedEncargoServiceId = await getServiceOptionValue(
     page,
-    "Personalización",
+    "Otro",
   );
 
   await expect(getEncargoServiceSelect(page)).toHaveValue(
     selectedEncargoServiceId,
   );
-  await expect(
-    page.getByText(
-      "Personalización de agendas, tazas, libretas y otros artículos.",
-    ),
-  ).toHaveCount(0);
 
   await page.getByRole("tab", { name: /impresi.n/i }).click();
   await expect(getServiceIdControls(page)).toHaveCount(1);
@@ -294,12 +276,12 @@ test("public solicitud form renders the dynamic catalog", async ({ page }) => {
 test("public encargo submit stores the selected catalog service", async ({
   page,
 }) => {
-  await submitEncargo(page, "Diseño gráfico");
+  await submitEncargo(page, "Otro");
 
   await expectInternalSolicitud(
     page,
     getQaClientName("encargo"),
-    "Diseño gráfico",
+    "Otro",
     /^encargo$/i,
   );
 });
@@ -425,7 +407,7 @@ test("authenticated visitor sees public services", async ({ page }) => {
   await loginAs(page, "admin");
   await page.goto("/solicitud");
   await expectPublicCatalogLoaded(page);
-  await expect(getEncargoServiceSelect(page)).toContainText("Diseño gráfico");
+  await expect(getEncargoServiceSelect(page)).toContainText("Otro");
   await expect(page.getByRole("tab", { name: /impresi.n/i })).toBeVisible();
   await expectNoVisibleSensitiveText(page);
 });
@@ -444,7 +426,7 @@ test("impresion availability can be hidden and restored safely", async ({
     await expect(
       page.getByRole("tab", { name: /impresi.n/i }),
     ).toHaveCount(0);
-    await expect(getEncargoServiceSelect(page)).toContainText("Diseño gráfico");
+    await expect(getEncargoServiceSelect(page)).toContainText("Otro");
   } finally {
     await setAdminServiceAvailability(page, "Impresión", true);
   }

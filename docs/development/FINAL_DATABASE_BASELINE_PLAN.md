@@ -278,20 +278,17 @@ Auth triggers: dos triggers sobre `auth.users`.
 
 Debe conservarse:
 
-- servicios canonicos iniciales de catalogo;
+- dos servicios iniciales de catalogo;
 - servicio unico `Impresión`;
 - bucket privado `godel-files`;
 - comments/assertions del contrato si se expresan como DDL/DML de metadata.
 
 Servicios productivos iniciales esperados:
 
-- `Diseño gráfico` (`encargo`, publico);
-- `Personalización` (`encargo`, publico);
-- `Rotulación` (`encargo`, publico);
 - `Otro` (`encargo`, publico);
 - `Impresión` (`impresion`, publico).
 
-Los cinco servicios canonicos se insertan en `01_core_schema.sql`, forman parte del contrato productivo y no pertenecen al seed. Usaran UUID literales estables definidos una sola vez durante la redaccion de 01. La aplicacion no debe depender de esos UUID mediante constantes hardcodeadas. `Impresión` continua identificandose operativamente por `workflow_type = impresion`.
+Los dos servicios iniciales se insertan en `01_core_schema.sql`, forman parte del contrato productivo inicial y no pertenecen al seed. Sus IDs se generan con `default gen_random_uuid()`; no hay identificadores fijos para servicios. Ninguna capa de aplicacion debe depender de IDs concretos. `Impresión` continua identificandose operativamente por `workflow_type = impresion`, y `Otro` queda como alternativa inicial generica de encargo. `Diseño gráfico`, `Personalización` y `Rotulación` pasan a configuracion operativa posterior desde la administracion de servicios.
 
 ## 11. Backfills Descartados
 
@@ -414,7 +411,7 @@ Contrato final:
 Seed local/QA:
 
 - se ejecutara despues de las migraciones;
-- no contendra servicios canonicos ni creacion del bucket;
+- no contendra servicios iniciales, servicios operativos adicionales ni creacion del bucket;
 - solo contendra datos locales/QA idempotentes;
 - no contendra credenciales, contrasenas, secretos ni datos reales;
 - el bootstrap de usuarios Auth con capacidad de login requiere una estrategia separada;
@@ -479,7 +476,7 @@ La baseline consolidada se considera equivalente si:
 - no existe `private.generate_public_reference()` si continua sin callers;
 - `private.generate_public_reference_candidate()` no genera warnings;
 - `npx.cmd supabase db lint --level warning --local` devuelve `[]`;
-- los cinco servicios tienen nombres exactos con acentos y UUID estables;
+- los dos servicios iniciales tienen nombres y descripciones exactas, IDs generados por `gen_random_uuid()` y ningun UUID literal de servicio;
 - el seed no participa en la definicion del esquema productivo;
 - auditorias y `verify` quedan aceptables.
 
@@ -529,7 +526,7 @@ Lista historica completa:
 | Elemento | Estado | Decision |
 | --- | --- | --- |
 | Auditorias privadas | RESUELTO | `private.internal_user_creation_audit` y `private.internal_user_password_reset_audit` se crean integramente en `05_auth_admin_user_lifecycle.sql`; no se crean parcialmente en 01. |
-| Servicios canonicos | RESUELTO | Cinco servicios canonicos con nombres exactos con acentos, UUID estables y DML en 01. |
+| Servicios iniciales | RESUELTO | Dos servicios iniciales con nombres y descripciones exactas, IDs generados por `gen_random_uuid()` y DML en 01; `Impresión` se identifica por `workflow_type = impresion` y `Otro` queda como encargo inicial. |
 | Seed | RESUELTO_PENDIENTE_DE_CONTENIDO | Se creara `seed.sql` solo para datos QA/locales; el contenido concreto se define despues de redactar la baseline. |
 | Activacion | RESUELTO | Redactar temporalmente las seis migraciones fuera de `supabase/migrations`, revisar estaticamente, reemplazar los 21 archivos mediante cambio atomico y ejecutar reset local solo despues de aprobacion explicita. |
 | Storage administrado | RESUELTO | Evaluar grants junto con RLS/policies; no redefinir internamente el schema administrado `storage`; 06 verifica bucket privado, policies del proyecto, ausencia de lectura anonima, grants de funciones del proyecto y ausencia de uso general del cliente administrativo. |
