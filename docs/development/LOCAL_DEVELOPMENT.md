@@ -124,7 +124,33 @@ Iniciar Supabase local:
 npx supabase start
 ```
 
-Más adelante se pueden configurar puertos distintos en `supabase/config.toml` si fuera necesario.
+### Conflictos ocasionales de puertos en Windows
+
+La configuración canónica y versionada de este proyecto usa el bloque de
+puertos `543xx` definido en `supabase/config.toml`. Ese bloque debe conservarse
+en el repositorio.
+
+En Windows, Docker Desktop o el propio sistema pueden reservar u ocupar
+temporalmente alguno de esos puertos. Si eso impide iniciar Supabase local, se
+puede usar de forma temporal otro bloque coherente en `supabase/config.toml`,
+por ejemplo `553xx`, solo para continuar trabajando en esa máquina.
+
+Después de cambiar puertos localmente, reinicia Supabase y consulta las
+variables reales de la instancia iniciada:
+
+```cmd
+npx supabase stop
+npx supabase start
+npx supabase status -o env
+```
+
+Actualiza `.env.local` con la URL y las claves que correspondan a la instancia
+realmente iniciada. No copies secretos, claves reales ni valores locales
+privados a la documentación.
+
+El cambio temporal de puertos no debe incluirse en commits. Antes de preparar un
+commit o entregar cambios, restaura `supabase/config.toml` al bloque canónico
+`543xx` y verifica el diff.
 
 ## Supabase Studio
 
