@@ -5,7 +5,7 @@ import type { QaRunContext } from "./qa-data";
 
 const PUBLIC_REFERENCE_PATTERN = /GD-[A-Z0-9]{4}-[A-Z0-9]{4}/;
 
-function getSolicitudData(qaRun: QaRunContext) {
+function getSolicitudData(qaRun: QaRunContext<"solicitudes">) {
   return {
     clientName: `${qaRun.ownershipPrefix} Cliente público`,
     clientPhone: qaRun.runId.slice(0, 14),
@@ -26,8 +26,12 @@ async function getPublicReference(page: Page) {
 
 export async function submitOwnedPublicEncargoSolicitud(
   page: Page,
-  qaRun: QaRunContext,
+  qaRun: QaRunContext<"solicitudes">,
 ) {
+  if (qaRun.scope !== "solicitudes") {
+    throw new Error("submitOwnedPublicEncargoSolicitud requires solicitudes scope.");
+  }
+
   const solicitudData = getSolicitudData(qaRun);
 
   await page.goto("/solicitud");

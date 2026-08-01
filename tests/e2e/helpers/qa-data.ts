@@ -1,10 +1,10 @@
 import { randomBytes } from "node:crypto";
 
-export type QaRunScope = "servicios" | "clientes" | "solicitudes";
+export type QaRunScope = "servicios" | "clientes" | "solicitudes" | "pedidos";
 
-export type QaRunContext = {
+export type QaRunContext<TScope extends QaRunScope = QaRunScope> = {
   runId: string;
-  scope: QaRunScope;
+  scope: TScope;
   ownershipPrefix: string;
 };
 
@@ -31,7 +31,9 @@ function assertQaRunId(runId: string) {
   return runId;
 }
 
-export function createQaRunContext(scope: QaRunScope): QaRunContext {
+export function createQaRunContext<TScope extends QaRunScope>(
+  scope: TScope,
+): QaRunContext<TScope> {
   const explicitRunId = process.env.GODEL_E2E_RUN_ID?.trim();
   const runId = explicitRunId
     ? assertQaRunId(explicitRunId)

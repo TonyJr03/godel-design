@@ -3,10 +3,10 @@
 ## Proposito
 
 Este documento registra el contrato implementado para ownership E2E y cleanup
-local de los scopes iniciales `servicios`, `clientes` y `solicitudes`. El
-objetivo es que cada corrida pueda identificar sus propios datos QA sin
-depender del primer registro visible y sin tocar datos canonicos u operativos
-relacionados.
+local de los scopes iniciales `servicios`, `clientes`, `solicitudes` y
+`pedidos`. El objetivo es que cada corrida pueda identificar sus propios datos
+QA sin depender del primer registro visible y sin tocar datos canonicos u
+operativos relacionados.
 
 ## Run ID
 
@@ -37,11 +37,16 @@ E2E-<scope>-<runId>
 El prefijo es ASCII, no contiene espacios, no incluye correos, UUID, tokens ni
 secretos, y permite busquedas exactas por corrida.
 
+El contexto de corrida usado por los specs esta tipado por scope para que los
+helpers reciban solo el ownership que pueden crear. Las guardas runtime
+mantienen la misma frontera cuando un helper se invoca fuera del tipo esperado.
+
 Scopes registrados:
 
 - `servicios`: `E2E-servicios-<runId>`
 - `clientes`: `E2E-clientes-<runId>`
 - `solicitudes`: `E2E-solicitudes-<runId>`
+- `pedidos`: `E2E-pedidos-<runId>`
 
 ## Scope Servicios
 
@@ -86,6 +91,35 @@ estado publico inicial `Solicitud recibida` y que la pagina no expone UUIDs,
 campos internos, rutas privadas, buckets, pagos, metadata ni errores de
 Supabase o PostgreSQL.
 
+## Scope Pedidos
+
+El spec focal de pedido manual crea mediante la UI productiva un pedido interno
+como administrador. El pedido usa el flujo `encargo`, selecciona el servicio
+canonico `Otro`, no selecciona cliente, no proviene de una solicitud y no
+adjunta archivos, tareas, comentarios ni personal asignado.
+
+Campos de ownership:
+
+- `title`: `E2E-pedidos-<runId> Pedido manual`
+- `description`: `E2E-pedidos-<runId> Encargo manual aislado`
+
+El pedido debe quedar en `status = creado`, `priority = normal`, sin fecha
+estimada ni fecha real de entrega, con `cliente_id` y `solicitud_id` en `null`.
+El servicio asociado debe seguir siendo `Otro` con `workflow_type = encargo`.
+
+El pago inicial permitido es exactamente una fila en `pedido_pagos` con
+`total_amount = 100.00`, pagos en efectivo y transferencia en cero,
+`payment_status = sin_pago`, `paid_at` en `null` y `created_by`/`updated_by`
+iguales al perfil administrador que creo el pedido.
+
+La baseline genera automaticamente un unico historial inicial `pedido_creado`
+al insertar el pedido. Ese evento se permite solo con el contrato exacto del
+trigger consolidado: actor administrador, resumen del numero real del pedido,
+`old_value` en `null`, `new_value` igual al numero de pedido y metadata con
+`order_number`, `title`, `solicitud_id: null` y `origen: manual`. Puede
+eliminarse junto con el padre porque `pedido_historial.pedido_id` tiene
+`ON DELETE CASCADE`. Cualquier historial adicional se rechaza.
+
 ## Cleanup Local
 
 Comando:
@@ -105,6 +139,7 @@ marcador esperado:
 - `scripts/sql/cleanup-local-e2e-servicios.sql`
 - `scripts/sql/cleanup-local-e2e-clientes.sql`
 - `scripts/sql/cleanup-local-e2e-solicitudes.sql`
+- `scripts/sql/cleanup-local-e2e-pedidos.sql`
 
 ## Guardas Locales
 
@@ -217,6 +252,49 @@ Antes de borrar, el SQL revisa directamente `storage.objects` en el bucket
 objetos huerfanos aunque no exista fila en `public.archivos`; el scope no borra
 objetos Storage.
 
+## Pedidos QA Aislados
+
+El cleanup de pedidos solo selecciona filas cuyo `title` coincide exactamente
+con:
+
+```text
+E2E-pedidos-<runId> Pedido manual
+```
+
+Cada candidato debe cumplir el contrato completo de ownership, mantenerse como
+pedido manual aislado y haber sido creado por un perfil activo con rol `admin`.
+No se selecciona por numero de pedido, referencia publica, fecha, UUID ni texto
+generico `E2E`.
+
+El SQL inspecciona las FKs entrantes actuales hacia `public.pedidos` y rechaza
+la ejecucion si aparece una relacion no contemplada. Las relaciones conocidas
+son:
+
+- `solicitudes.converted_order_id`
+- `pedido_trabajadores.pedido_id`
+- `pedido_tareas.pedido_id`
+- `archivos.pedido_id`
+- `pedido_comentarios.pedido_id`
+- `pedido_historial.pedido_id`
+- `pedido_pagos.pedido_id`
+
+`pedidos.cliente_id`, `pedidos.solicitud_id`, `pedidos.service_id` y
+`pedidos.created_by` son FKs salientes del pedido; se validan como parte del
+estado del candidato. Para este scope, `cliente_id` y `solicitud_id` deben
+permanecer en `null`.
+
+El cleanup permite eliminar por cascade solo el pago inicial exacto y el
+historial inicial exacto. Aborta si detecta solicitud convertida, personal
+asignado, tareas, metadata en `archivos`, comentarios, pago alterado o
+historial operativo.
+
+Antes de borrar, el SQL revisa directamente `storage.objects` en el bucket
+`godel-files` y aborta si existe cualquier objeto bajo `pedidos/<pedido_id>/`.
+Esta tarea no borra objetos Storage.
+
+`pedido_contadores` no se rebobina. Los numeros de pedido consumidos durante QA
+son monotónicos y su consumo es esperado.
+
 ## Idempotencia
 
 La primera ejecucion elimina los registros del scope y corrida indicada si no
@@ -227,6 +305,7 @@ con exit code `0`, elimina cero filas y vuelve a emitir el marcador del scope:
 E2E_CLEANUP_OK scope=servicios deleted=0
 E2E_CLEANUP_OK scope=clientes deleted=0
 E2E_CLEANUP_OK scope=solicitudes deleted=0
+E2E_CLEANUP_OK scope=pedidos deleted=0
 ```
 
 Cero candidatos no es error.
@@ -245,7 +324,13 @@ acceso general.
 
 Todavia no existe cleanup general para:
 
-- pedidos;
+- pedidos evolucionados;
+- pedidos con cliente;
+- pedidos convertidos desde solicitudes;
+- tareas;
+- asignaciones;
+- comentarios;
+- archivos;
 - solicitudes convertidas;
 - solicitudes con archivos;
 - objetos Storage;
