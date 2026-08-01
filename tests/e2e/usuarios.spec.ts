@@ -172,6 +172,9 @@ test("admin can access usuarios and validate the current user creation form", as
   await page.goto("/dashboard/configuracion/usuarios");
   await page.getByRole("button", { name: /nuevo usuario/i }).click();
   const createDialog = page.getByRole("dialog", { name: /nuevo usuario/i });
+  const roleSelect = createDialog.getByRole("combobox", {
+    name: /^rol\b/i,
+  });
 
   await expect(createDialog).toBeVisible();
   await expect(
@@ -187,7 +190,7 @@ test("admin can access usuarios and validate the current user creation form", as
   await expect(createDialog.getByLabel(/nombre completo/i)).toBeVisible();
   await expect(createDialog.getByLabel(/tel.fono/i)).toBeVisible();
   await expect(createDialog.getByLabel(/url de avatar/i)).toBeVisible();
-  await expect(createDialog.getByLabel(/^rol$/i)).toBeVisible();
+  await expect(roleSelect).toBeVisible();
   await expect(createDialog.getByLabel(/uuid del usuario auth/i)).toHaveCount(0);
   await expect(createDialog.getByText(/usuario debe existir/i)).toHaveCount(0);
   await expect(
@@ -226,7 +229,7 @@ test("admin can access usuarios and validate the current user creation form", as
   await createDialog
     .getByLabel(/nombre completo/i)
     .fill("Usuario QA de validacion");
-  await createDialog.getByLabel(/^rol$/i).selectOption("trabajador");
+  await roleSelect.selectOption("trabajador");
   await createDialog.getByRole("button", { name: /crear usuario/i }).click();
 
   await expect(createDialog).toBeVisible();
@@ -250,7 +253,7 @@ test("admin can access usuarios and validate the current user creation form", as
   await createDialog
     .getByLabel(/nombre completo/i)
     .fill("Usuario QA de validacion");
-  await createDialog.getByLabel(/^rol$/i).selectOption("trabajador");
+  await roleSelect.selectOption("trabajador");
   await createDialog.getByRole("button", { name: /crear usuario/i }).click();
 
   await expect(
@@ -265,18 +268,18 @@ test("admin can access usuarios and validate the current user creation form", as
   await expect(createDialog.getByLabel(/contrase.a temporal/i)).toHaveValue("");
   await expect(createDialog.getByLabel(/confirmar contrase.a/i)).toHaveValue("");
 
-  await createDialog.getByLabel(/^rol$/i).selectOption("admin");
+  await roleSelect.selectOption("admin");
   const confirmAdminCheckbox = createDialog.getByLabel(
     /acceso administrativo completo/i,
   );
 
   await expect(confirmAdminCheckbox).toBeVisible();
-  await expect(confirmAdminCheckbox).toBeRequired();
+  await expect(confirmAdminCheckbox).toHaveAttribute("required", "");
   await expect(
     createDialog.getByText(/acceso administrativo completo/i),
   ).toBeVisible();
 
-  await createDialog.getByLabel(/^rol$/i).selectOption("trabajador");
+  await roleSelect.selectOption("trabajador");
   await expect(confirmAdminCheckbox).toHaveCount(0);
   await expectNoVisibleSensitiveText(page);
 });
