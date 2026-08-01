@@ -3,9 +3,10 @@
 ## Proposito
 
 Este documento registra el contrato implementado para ownership E2E y cleanup
-local de los scopes iniciales `servicios` y `clientes`. El objetivo es que cada
-corrida pueda identificar sus propios datos QA sin depender del primer registro
-visible y sin tocar datos canonicos u operativos relacionados.
+local de los scopes iniciales `servicios`, `clientes` y `solicitudes`. El
+objetivo es que cada corrida pueda identificar sus propios datos QA sin
+depender del primer registro visible y sin tocar datos canonicos u operativos
+relacionados.
 
 ## Run ID
 
@@ -40,6 +41,7 @@ Scopes registrados:
 
 - `servicios`: `E2E-servicios-<runId>`
 - `clientes`: `E2E-clientes-<runId>`
+- `solicitudes`: `E2E-solicitudes-<runId>`
 
 ## Scope Servicios
 
@@ -63,6 +65,27 @@ campos de ownership:
 El spec no recibe secretos administrativos, no ejecuta Docker, no ejecuta
 `psql` y no realiza cleanup automatico en `afterAll`.
 
+## Scope Solicitudes
+
+El spec de tracking publico crea mediante la UI productiva una solicitud
+publica de tipo `encargo`, seleccionando el servicio canonico `Otro`, sin
+iniciar sesion y sin adjuntar archivos. El helper compartido solo devuelve el
+codigo publico de seguimiento para que `/estado` pueda validar el recorrido
+positivo.
+
+Campos de ownership:
+
+- `client_name`: `E2E-solicitudes-<runId> Cliente público`
+- `client_phone`: los primeros 14 digitos del run ID
+- `client_email`: `e2e-solicitudes-<runId>@example.com`
+- `description`: `E2E-solicitudes-<runId> Encargo público`
+- `notes`: `E2E-solicitudes-<runId> sin archivos`
+
+El tracking positivo confirma que la referencia corresponde a una solicitud en
+estado publico inicial `Solicitud recibida` y que la pagina no expone UUIDs,
+campos internos, rutas privadas, buckets, pagos, metadata ni errores de
+Supabase o PostgreSQL.
+
 ## Cleanup Local
 
 Comando:
@@ -81,6 +104,7 @@ marcador esperado:
 
 - `scripts/sql/cleanup-local-e2e-servicios.sql`
 - `scripts/sql/cleanup-local-e2e-clientes.sql`
+- `scripts/sql/cleanup-local-e2e-solicitudes.sql`
 
 ## Guardas Locales
 
@@ -152,6 +176,47 @@ son:
 - `solicitudes.cliente_id`
 - `pedidos.cliente_id`
 
+## Solicitudes QA Aisladas
+
+El cleanup de solicitudes solo selecciona filas cuyo `client_name` comienza
+exactamente por:
+
+```text
+E2E-solicitudes-<runId>
+```
+
+Cada candidato debe cumplir el contrato completo de ownership, mantenerse como
+`workflow_type = encargo`, `status = nueva`, servicio `Otro`, sin cliente
+asociado, sin pedido convertido, sin revisor y sin fecha deseada.
+
+El SQL inspecciona las FKs entrantes actuales hacia `public.solicitudes` y
+rechaza la ejecucion si aparece una relacion no contemplada. Las relaciones
+conocidas son:
+
+- `pedidos.solicitud_id`
+- `archivos.solicitud_id`
+- `solicitud_comentarios.solicitud_id`
+- `solicitud_historial.solicitud_id`
+
+`solicitudes.converted_order_id` es una FK saliente hacia `public.pedidos`; por
+eso se valida como parte del estado del candidato y debe permanecer en `null`.
+
+Aunque algunas relaciones tienen cascada o `ON DELETE SET NULL`, el cleanup no
+permite borrar o desvincular grafos operativos. Aborta si detecta cliente,
+pedido asociado, conversion, archivos o comentarios.
+
+La baseline genera automaticamente un unico evento inicial
+`solicitud_creada` en `solicitud_historial` al insertar la solicitud publica.
+Ese evento se permite solo con el contrato exacto de la solicitud recien creada
+y puede eliminarse junto con el padre porque `solicitud_historial.solicitud_id`
+tiene `ON DELETE CASCADE`. Cualquier historial operativo posterior se rechaza.
+
+Antes de borrar, el SQL revisa directamente `storage.objects` en el bucket
+`godel-files` y aborta si existe algun objeto bajo
+`solicitudes/<solicitud_id>/originales/`. Esta comprobacion protege contra
+objetos huerfanos aunque no exista fila en `public.archivos`; el scope no borra
+objetos Storage.
+
 ## Idempotencia
 
 La primera ejecucion elimina los registros del scope y corrida indicada si no
@@ -161,6 +226,7 @@ con exit code `0`, elimina cero filas y vuelve a emitir el marcador del scope:
 ```text
 E2E_CLEANUP_OK scope=servicios deleted=0
 E2E_CLEANUP_OK scope=clientes deleted=0
+E2E_CLEANUP_OK scope=solicitudes deleted=0
 ```
 
 Cero candidatos no es error.
@@ -179,13 +245,14 @@ acceso general.
 
 Todavia no existe cleanup general para:
 
-- solicitudes;
 - pedidos;
+- solicitudes convertidas;
+- solicitudes con archivos;
+- objetos Storage;
 - usuarios Auth;
 - perfiles;
-- Storage;
-- historiales;
+- historiales operativos;
 - auditorias.
 
 La expansion de ownership y cleanup para otros dominios queda prevista para
-tareas posteriores, despues de validar los scopes iniciales.
+tareas posteriores, despues de validar estos scopes aislados.

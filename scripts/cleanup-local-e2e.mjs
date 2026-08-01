@@ -12,6 +12,10 @@ const SCOPE_CONFIG = Object.freeze({
     sqlPath: "scripts/sql/cleanup-local-e2e-clientes.sql",
     markerPattern: /^E2E_CLEANUP_OK scope=clientes deleted=\d+$/,
   },
+  solicitudes: {
+    sqlPath: "scripts/sql/cleanup-local-e2e-solicitudes.sql",
+    markerPattern: /^E2E_CLEANUP_OK scope=solicitudes deleted=\d+$/,
+  },
 });
 const RUN_ID_PATTERN = /^\d{14}-[0-9a-f]{8}$/;
 const PROJECT_ID_PATTERN = /^[A-Za-z0-9_.-]+$/;
