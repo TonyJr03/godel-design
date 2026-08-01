@@ -5,7 +5,11 @@ import {
   expectNoVisibleSensitiveText,
 } from "./helpers/assertions";
 import { loginAs } from "./helpers/auth";
-import { createUnlikelyQaQuery } from "./helpers/qa-data";
+import {
+  createQaEmail,
+  createQaRunId,
+  createUnlikelyQaQuery,
+} from "./helpers/qa-data";
 
 async function expectNoHorizontalOverflow(page: Page) {
   const dimensions = await page.evaluate(() => ({
@@ -122,9 +126,11 @@ async function hasEmptyUsuariosState(page: Page) {
     .catch(() => false);
 }
 
-test("admin can access usuarios and see safe profile validation", async ({
+test("admin can access usuarios and validate the current user creation form", async ({
   page,
 }) => {
+  const runId = createQaRunId();
+
   await loginAs(page, "admin");
 
   await page.goto("/dashboard/configuracion/usuarios");
@@ -165,19 +171,113 @@ test("admin can access usuarios and see safe profile validation", async ({
 
   await page.goto("/dashboard/configuracion/usuarios");
   await page.getByRole("button", { name: /nuevo usuario/i }).click();
-  const createDialog = page.getByRole("dialog", { name: /nuevo perfil interno/i });
+  const createDialog = page.getByRole("dialog", { name: /nuevo usuario/i });
 
   await expect(createDialog).toBeVisible();
-  await expect(createDialog.getByText(/usuario debe existir/i)).toBeVisible();
-  await expect(createDialog.getByLabel(/uuid del usuario auth/i)).toBeVisible();
+  await expect(
+    createDialog.getByText(/crea el acceso del usuario y su perfil interno/i),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("dialog", { name: /nuevo perfil interno/i }),
+  ).toHaveCount(0);
 
-  await createDialog.getByLabel(/uuid del usuario auth/i).fill("not-a-valid-uuid");
-  await createDialog.getByLabel(/nombre completo/i).fill("Usuario QA invalido");
-  await createDialog.getByRole("button", { name: /crear perfil/i }).click();
+  await expect(createDialog.getByLabel(/correo electr.nico/i)).toBeVisible();
+  await expect(createDialog.getByLabel(/contrase.a temporal/i)).toBeVisible();
+  await expect(createDialog.getByLabel(/confirmar contrase.a/i)).toBeVisible();
+  await expect(createDialog.getByLabel(/nombre completo/i)).toBeVisible();
+  await expect(createDialog.getByLabel(/tel.fono/i)).toBeVisible();
+  await expect(createDialog.getByLabel(/url de avatar/i)).toBeVisible();
+  await expect(createDialog.getByLabel(/^rol$/i)).toBeVisible();
+  await expect(createDialog.getByLabel(/uuid del usuario auth/i)).toHaveCount(0);
+  await expect(createDialog.getByText(/usuario debe existir/i)).toHaveCount(0);
+  await expect(
+    createDialog.getByRole("button", { name: /crear perfil/i }),
+  ).toHaveCount(0);
+  await expect(
+    createDialog.getByRole("button", { name: /crear usuario/i }),
+  ).toBeVisible();
 
   await expect(
-    createDialog.getByText(/ingresa un uuid v.lido de supabase auth/i),
+    createDialog.getByText(/canal seguro/i),
+  ).toBeVisible();
+  await expect(
+    createDialog.getByText(/no volver. a mostrarla/i),
+  ).toBeVisible();
+  await expect(
+    createDialog.getByText(/al menos 8 caracteres/i),
+  ).toBeVisible();
+  await expect(createDialog.getByText(/may.scula/i)).toBeVisible();
+  await expect(createDialog.getByText(/min.scula/i)).toBeVisible();
+  await expect(createDialog.getByText(/n.mero/i)).toBeVisible();
+  await expect(createDialog.getByText(/s.mbolo/i)).toBeVisible();
+  await expect(createDialog).not.toContainText(
+    /\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/i,
+  );
+  await expect(createDialog).not.toContainText(
+    /\b(?:secret|token|service_role|auth\.users|file_path|bucket|storage\.objects)\b/i,
+  );
+  await expectNoVisibleSensitiveText(page);
+
+  await createDialog
+    .getByLabel(/correo electr.nico/i)
+    .fill(createQaEmail("usuario-validacion-debil", runId));
+  await createDialog.getByLabel(/contrase.a temporal/i).fill("Password1");
+  await createDialog.getByLabel(/confirmar contrase.a/i).fill("Password1");
+  await createDialog
+    .getByLabel(/nombre completo/i)
+    .fill("Usuario QA de validacion");
+  await createDialog.getByLabel(/^rol$/i).selectOption("trabajador");
+  await createDialog.getByRole("button", { name: /crear usuario/i }).click();
+
+  await expect(createDialog).toBeVisible();
+  await expect(
+    createDialog.getByText(/car.cter no alfanum.rico/i),
   ).toBeVisible({ timeout: 15_000 });
+  await expect(
+    createDialog.getByText(/supabase|auth admin|postgres|sqlstate/i),
+  ).toHaveCount(0);
+  await expect(
+    createDialog.getByText(/usuario creado correctamente/i),
+  ).toHaveCount(0);
+  await expect(createDialog.getByLabel(/contrase.a temporal/i)).toHaveValue("");
+  await expect(createDialog.getByLabel(/confirmar contrase.a/i)).toHaveValue("");
+
+  await createDialog
+    .getByLabel(/correo electr.nico/i)
+    .fill(createQaEmail("usuario-validacion-confirmacion", runId));
+  await createDialog.getByLabel(/contrase.a temporal/i).fill("QaTemporal1!");
+  await createDialog.getByLabel(/confirmar contrase.a/i).fill("QaTemporal2!");
+  await createDialog
+    .getByLabel(/nombre completo/i)
+    .fill("Usuario QA de validacion");
+  await createDialog.getByLabel(/^rol$/i).selectOption("trabajador");
+  await createDialog.getByRole("button", { name: /crear usuario/i }).click();
+
+  await expect(
+    createDialog.getByText(/confirmaci.n debe coincidir/i),
+  ).toBeVisible({ timeout: 15_000 });
+  await expect(
+    createDialog.getByText(/supabase|auth admin|postgres|sqlstate/i),
+  ).toHaveCount(0);
+  await expect(
+    createDialog.getByText(/usuario creado correctamente/i),
+  ).toHaveCount(0);
+  await expect(createDialog.getByLabel(/contrase.a temporal/i)).toHaveValue("");
+  await expect(createDialog.getByLabel(/confirmar contrase.a/i)).toHaveValue("");
+
+  await createDialog.getByLabel(/^rol$/i).selectOption("admin");
+  const confirmAdminCheckbox = createDialog.getByLabel(
+    /acceso administrativo completo/i,
+  );
+
+  await expect(confirmAdminCheckbox).toBeVisible();
+  await expect(confirmAdminCheckbox).toBeRequired();
+  await expect(
+    createDialog.getByText(/acceso administrativo completo/i),
+  ).toBeVisible();
+
+  await createDialog.getByLabel(/^rol$/i).selectOption("trabajador");
+  await expect(confirmAdminCheckbox).toHaveCount(0);
   await expectNoVisibleSensitiveText(page);
 });
 
