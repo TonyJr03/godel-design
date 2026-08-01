@@ -202,11 +202,20 @@ El bootstrap rechaza URLs remotas y solo permite Supabase en `localhost` o
 puertos canónicos `543xx` o con un bloque local temporal como `553xx` sin cambiar
 la configuración versionada.
 
-Este script usa Auth Admin y acceso local al contenedor Postgres únicamente como
-excepción local de QA para crear identidades Auth base y asociar sus perfiles.
-No crea datos de negocio, no reemplaza el flujo productivo de Auth Admin, no
-debe usarse en preproducción ni producción y no escribe valores en `.env.local`.
-`supabase/seed.sql` permanece libre de usuarios, contraseñas y secretos.
+Este script usa Auth Admin exclusivamente para preparar las identidades. Los
+perfiles QA se crean o actualizan con una transacción PostgreSQL ejecutada
+dentro del contenedor local de Supabase; no modifica grants, no instala ninguna
+RPC de bootstrap y no depende de `service_role` para escribir en
+`public.perfiles`. No requiere `psql` instalado en Windows porque usa el
+incluido en el contenedor. El script resuelve el contexto Docker efectivo,
+valida que use un endpoint local `npipe` o `unix`, y fija ese mismo contexto
+para verificar el contenedor y ejecutar `psql`. El bootstrap no funciona contra
+Supabase remoto.
+
+Sigue siendo una excepción exclusiva de tooling QA: no crea datos de negocio,
+no reemplaza el flujo productivo de Auth Admin, no debe usarse en preproducción
+ni producción y no escribe valores en `.env.local`. `supabase/seed.sql`
+permanece libre de usuarios, correos, contraseñas y secretos.
 
 Después del bootstrap, ejecuta los E2E que correspondan, por ejemplo:
 

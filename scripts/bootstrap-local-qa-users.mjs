@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { spawn } from "node:child_process";
+import { resolve } from "node:path";
 
 import { createClient } from "@supabase/supabase-js";
 
@@ -44,6 +44,13 @@ const ROLES = [
 ];
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
+const BOOTSTRAP_PROFILES_SQL_PATH = "scripts/sql/bootstrap-local-qa-profiles.sql";
+const DOCKER_LOCAL_ENDPOINT_PATTERN = /^(npipe|unix):\/\//i;
+const DOCKER_REMOTE_ENDPOINT_PATTERN = /^(tcp|ssh|https?):\/\//i;
+const JWT_PATTERN = /\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g;
+const PROJECT_ID_PATTERN = /^[A-Za-z0-9_.-]+$/;
+const SENSITIVE_VALUE_MIN_LENGTH = 4;
+const MAX_DIAGNOSTIC_LENGTH = 1200;
 const ADMIN_CLIENT_CONFIG = {
   auth: {
     persistSession: false,
@@ -54,6 +61,10 @@ const ADMIN_CLIENT_CONFIG = {
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const DIAGNOSTIC_UUID_PATTERN =
+  /\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/gi;
+const DIAGNOSTIC_EMAIL_PATTERN =
+  /[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+/gi;
 const LOWERCASE_PATTERN = /[a-z]/;
 const UPPERCASE_PATTERN = /[A-Z]/;
 const NUMBER_PATTERN = /\d/;
@@ -82,8 +93,10 @@ function getSanitizedError(error) {
   }
 
   return {
+    context: typeof error.context === "string" ? error.context : undefined,
     name: typeof error.name === "string" ? error.name : undefined,
     code: typeof error.code === "string" ? error.code : undefined,
+    detail: typeof error.detail === "string" ? error.detail : undefined,
     status: typeof error.status === "number" ? error.status : undefined,
   };
 }
@@ -249,7 +262,120 @@ function createPublicClient({ supabaseUrl, publishableKey }) {
   });
 }
 
-function getSupabaseDbContainerName() {
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function getSensitiveValues(config, additionalValues = []) {
+  return [
+    config.supabaseUrl,
+    config.publishableKey,
+    config.secretKey,
+    ...config.fixtures.flatMap((fixture) => [fixture.email, fixture.password]),
+    ...additionalValues,
+  ]
+    .filter((value) => typeof value === "string")
+    .map((value) => value.trim())
+    .filter((value) => value.length >= SENSITIVE_VALUE_MIN_LENGTH)
+    .sort((a, b) => b.length - a.length);
+}
+
+function sanitizeDiagnostic(value, sensitiveValues) {
+  let text = String(value ?? "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  for (const sensitiveValue of sensitiveValues) {
+    text = text.replace(
+      new RegExp(escapeRegExp(sensitiveValue), "g"),
+      "[redacted]",
+    );
+  }
+
+  text = text
+    .replace(JWT_PATTERN, "[redacted-jwt]")
+    .replace(DIAGNOSTIC_UUID_PATTERN, "[redacted-uuid]")
+    .replace(DIAGNOSTIC_EMAIL_PATTERN, "[redacted-email]");
+
+  if (text.length > MAX_DIAGNOSTIC_LENGTH) {
+    return `${text.slice(0, MAX_DIAGNOSTIC_LENGTH)}...`;
+  }
+
+  return text;
+}
+
+function formatProcessDiagnostic(
+  { command, code, stderr, stdout },
+  sensitiveValues,
+) {
+  const diagnostic = sanitizeDiagnostic(stderr || stdout, sensitiveValues);
+  const suffix = diagnostic ? `: ${diagnostic}` : "";
+
+  return `${command} exit=${code}${suffix}`;
+}
+
+async function runProcess(command, args, options = {}) {
+  const { input = "", sensitiveValues = [] } = options;
+
+  return new Promise((resolvePromise, rejectPromise) => {
+    const child = spawn(command, args, {
+      stdio: ["pipe", "pipe", "pipe"],
+      windowsHide: true,
+    });
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk.toString("utf8");
+    });
+
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk.toString("utf8");
+    });
+
+    child.on("error", (error) => {
+      rejectPromise(
+        new BootstrapError("No se pudo ejecutar tooling local.", {
+          context: command,
+          name: error?.name,
+          code: error?.code,
+        }),
+      );
+    });
+
+    child.on("close", (code) => {
+      resolvePromise({
+        code,
+        stdout,
+        stderr,
+        detail: formatProcessDiagnostic(
+          { command, code, stderr, stdout },
+          sensitiveValues,
+        ),
+      });
+    });
+
+    child.stdin.end(input);
+  });
+}
+
+async function runRequiredProcess(command, args, options = {}) {
+  const result = await runProcess(command, args, options);
+
+  if (result.code !== 0) {
+    fail(options.errorMessage ?? "No se pudo ejecutar tooling local.", {
+      context: options.context ?? command,
+      detail: result.detail,
+      status: result.code,
+    });
+  }
+
+  return result;
+}
+
+function readSupabaseProjectId() {
   const configPath = resolve(process.cwd(), "supabase/config.toml");
   const config = readFileSync(configPath, "utf8");
   const match = config.match(/^\s*project_id\s*=\s*"([^"]+)"\s*$/m);
@@ -258,23 +384,118 @@ function getSupabaseDbContainerName() {
     fail("No se pudo resolver el project_id local de Supabase.");
   }
 
-  return `supabase_db_${match[1]}`;
-}
-
-function quoteSqlLiteral(value) {
-  if (value === null) {
-    return "null";
+  if (!PROJECT_ID_PATTERN.test(match[1])) {
+    fail("El project_id local de Supabase usa caracteres no permitidos.");
   }
 
-  return `'${String(value).replaceAll("'", "''")}'`;
+  return match[1];
 }
 
-async function runLocalPostgres(sql) {
-  return new Promise((resolvePromise, rejectPromise) => {
-    const child = spawn("docker", [
+async function resolveLocalDockerContext(sensitiveValues) {
+  const contextResult = await runRequiredProcess(
+    "docker",
+    ["context", "show"],
+    {
+      context: "docker.context",
+      errorMessage: "No se pudo verificar el contexto Docker local.",
+      sensitiveValues,
+    },
+  );
+  const contextName = contextResult.stdout.trim();
+
+  if (!contextName) {
+    fail("No se pudo verificar el contexto Docker local.");
+  }
+
+  const endpointResult = await runRequiredProcess(
+    "docker",
+    [
+      "context",
+      "inspect",
+      contextName,
+      "--format",
+      "{{.Endpoints.docker.Host}}",
+    ],
+    {
+      context: "docker.context",
+      errorMessage: "No se pudo verificar el endpoint Docker local.",
+      sensitiveValues,
+    },
+  );
+  const endpoint = endpointResult.stdout.trim();
+
+  if (!endpoint) {
+    fail("No se pudo verificar el endpoint Docker local.");
+  }
+
+  if (
+    DOCKER_REMOTE_ENDPOINT_PATTERN.test(endpoint) ||
+    !DOCKER_LOCAL_ENDPOINT_PATTERN.test(endpoint)
+  ) {
+    fail("El contexto Docker debe usar un endpoint local npipe o unix.");
+  }
+
+  return contextName;
+}
+
+async function assertRunningDbContainer(
+  contextName,
+  containerName,
+  sensitiveValues,
+) {
+  const result = await runRequiredProcess(
+    "docker",
+    [
+      "--context",
+      contextName,
+      "inspect",
+      "--format",
+      "{{.State.Running}}",
+      containerName,
+    ],
+    {
+      context: "docker.inspect",
+      errorMessage: "No se pudo verificar el contenedor local de Postgres.",
+      sensitiveValues,
+    },
+  );
+
+  if (result.stdout.trim() !== "true") {
+    fail("El contenedor local de Postgres no esta en ejecucion.", {
+      context: "docker.inspect",
+      detail: "running=false",
+    });
+  }
+}
+
+async function runLocalQaProfilesBootstrap(config, userIds) {
+  const adminId = validateAuthUser({ id: userIds.get("admin") });
+  const supervisorId = validateAuthUser({ id: userIds.get("supervisor") });
+  const workerId = validateAuthUser({ id: userIds.get("trabajador") });
+  const sensitiveValues = getSensitiveValues(config, [
+    adminId,
+    supervisorId,
+    workerId,
+  ]);
+  const projectId = readSupabaseProjectId();
+  const containerName = `supabase_db_${projectId}`;
+  const sql = readFileSync(
+    resolve(process.cwd(), BOOTSTRAP_PROFILES_SQL_PATH),
+    "utf8",
+  );
+
+  const contextName = await resolveLocalDockerContext(sensitiveValues);
+
+  await assertRunningDbContainer(contextName, containerName, sensitiveValues);
+
+  const result = await runRequiredProcess(
+    "docker",
+    [
+      "--context",
+      contextName,
       "exec",
       "-i",
-      getSupabaseDbContainerName(),
+      containerName,
       "psql",
       "-U",
       "postgres",
@@ -282,48 +503,41 @@ async function runLocalPostgres(sql) {
       "postgres",
       "-v",
       "ON_ERROR_STOP=1",
+      "-v",
+      "VERBOSITY=terse",
+      "-v",
+      `admin_id=${adminId}`,
+      "-v",
+      `supervisor_id=${supervisorId}`,
+      "-v",
+      `worker_id=${workerId}`,
+      "-X",
       "-q",
       "-t",
       "-A",
       "-f",
       "-",
-    ]);
-    let stdout = "";
+    ],
+    {
+      context: "LocalQaProfilesError",
+      errorMessage: "No se pudieron preparar los perfiles QA locales.",
+      input: sql,
+      sensitiveValues,
+    },
+  );
 
-    child.stdout.on("data", (chunk) => {
-      stdout += chunk.toString("utf8");
+  if (
+    !result.stdout
+      .split(/\r?\n/)
+      .some((line) => line.trim() === "QA_PROFILES_OK")
+  ) {
+    fail("No se confirmo el bootstrap local de perfiles QA.", {
+      context: "LocalQaProfilesError",
+      detail: "missing_marker",
     });
+  }
 
-    child.on("error", (error) => {
-      rejectPromise(error);
-    });
-
-    child.on("close", (code) => {
-      if (code === 0) {
-        resolvePromise(stdout.trim());
-        return;
-      }
-
-      rejectPromise(
-        new BootstrapError("No se pudo ejecutar SQL local para perfiles QA.", {
-          name: "LocalPostgresError",
-          status: code,
-        }),
-      );
-    });
-
-    child.stdin.end(sql);
-  }).catch((error) => {
-    if (error instanceof BootstrapError) {
-      throw error;
-    }
-
-    fail("No se pudo ejecutar SQL local para perfiles QA.", {
-      name: error?.name,
-      code: error?.code,
-      status: error?.exitCode,
-    });
-  });
+  log("QA_PROFILES_OK");
 }
 
 async function listUsersByEmail(admin, email) {
@@ -406,84 +620,6 @@ async function prepareAuthUser(admin, fixture) {
   return userId;
 }
 
-async function upsertProfile(admin, fixture, userId, adminUserId) {
-  const expectedCreatedBy =
-    fixture.createdBy === "admin" ? adminUserId : fixture.createdBy;
-
-  void admin;
-
-  await runLocalPostgres(`
-insert into public.perfiles (
-  id,
-  full_name,
-  role,
-  is_active,
-  must_change_password,
-  created_by,
-  phone,
-  avatar_url
-)
-values (
-  ${quoteSqlLiteral(userId)}::uuid,
-  ${quoteSqlLiteral(fixture.label)},
-  ${quoteSqlLiteral(fixture.role)}::public.app_role,
-  true,
-  false,
-  ${quoteSqlLiteral(expectedCreatedBy)}::uuid,
-  null,
-  null
-)
-on conflict (id) do update
-set
-  full_name = excluded.full_name,
-  role = excluded.role,
-  is_active = excluded.is_active,
-  must_change_password = excluded.must_change_password,
-  created_by = excluded.created_by,
-  phone = excluded.phone,
-  avatar_url = excluded.avatar_url;
-`);
-}
-
-async function verifyProfile(admin, fixture, userId, adminUserId) {
-  const expectedCreatedBy =
-    fixture.createdBy === "admin" ? adminUserId : fixture.createdBy;
-  const profileJson = await runLocalPostgres(`
-select coalesce(
-  jsonb_build_object(
-    'id', p.id,
-    'full_name', p.full_name,
-    'role', p.role,
-    'is_active', p.is_active,
-    'must_change_password', p.must_change_password,
-    'created_by', p.created_by
-  )::text,
-  ''
-)
-from public.perfiles as p
-where p.id = ${quoteSqlLiteral(userId)}::uuid;
-`);
-
-  void admin;
-
-  if (!profileJson) {
-    fail(`No se pudo verificar el perfil de ${fixture.logLabel}.`);
-  }
-
-  const data = JSON.parse(profileJson);
-
-  if (
-    data.id !== userId ||
-    data.full_name !== fixture.label ||
-    data.role !== fixture.role ||
-    data.is_active !== true ||
-    data.must_change_password !== false ||
-    data.created_by !== expectedCreatedBy
-  ) {
-    fail(`El perfil de ${fixture.logLabel} no coincide con el contrato QA.`);
-  }
-}
-
 async function verifyLogin(config, fixture) {
   const supabase = createPublicClient(config);
   const { error } = await supabase.auth.signInWithPassword({
@@ -511,12 +647,7 @@ async function main() {
     log(`${fixture.logLabel} preparado.`);
   }
 
-  const adminUserId = userIds.get("admin");
-
-  for (const fixture of env.fixtures) {
-    await upsertProfile(admin, fixture, userIds.get(fixture.role), adminUserId);
-    await verifyProfile(admin, fixture, userIds.get(fixture.role), adminUserId);
-  }
+  await runLocalQaProfilesBootstrap(env, userIds);
 
   for (const fixture of env.fixtures) {
     await verifyLogin(env, fixture);
@@ -528,7 +659,13 @@ async function main() {
 
 main().catch((error) => {
   const sanitized = getSanitizedError(error.cause);
-  const detail = [sanitized.name, sanitized.code, sanitized.status]
+  const detail = [
+    sanitized.context,
+    sanitized.name,
+    sanitized.code,
+    sanitized.detail,
+    sanitized.status,
+  ]
     .filter(Boolean)
     .join(" ");
 
