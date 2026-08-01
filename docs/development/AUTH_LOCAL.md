@@ -164,6 +164,56 @@ La pantalla de cambio inicial real de contraseña está implementada en
 iniciar sesión con la contraseña temporal, pero quedan obligados a reemplazarla
 antes de acceder al dashboard.
 
+## Bootstrap reproducible de usuarios QA locales
+
+Después de ejecutar `npx supabase db reset`, las identidades de Supabase Auth no
+se reconstruyen desde `supabase/seed.sql`. Para preparar los usuarios base de
+QA local, usa el bootstrap reproducible:
+
+1. Inicia Supabase local:
+
+```cmd
+npx supabase start
+```
+
+2. Obtén las variables reales de la instancia local iniciada:
+
+```cmd
+npx supabase status -o env
+```
+
+3. Configura `.env.local` con `NEXT_PUBLIC_SUPABASE_URL`,
+   `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` y `SUPABASE_SECRET_KEY` de esa
+   instancia.
+4. Define también en `.env.local` las variables `GODEL_TEST_*` para admin,
+   supervisor y trabajador.
+5. Ejecuta:
+
+```cmd
+npm.cmd run qa:bootstrap
+```
+
+El script prepara los tres roles QA locales: administrador, supervisor y
+trabajador. Es idempotente, puede ejecutarse varias veces y actualiza las
+contraseñas QA existentes para que coincidan con `.env.local`.
+
+El bootstrap rechaza URLs remotas y solo permite Supabase en `localhost` o
+`127.0.0.1`, con cualquier puerto local válido. Esto permite trabajar con los
+puertos canónicos `543xx` o con un bloque local temporal como `553xx` sin cambiar
+la configuración versionada.
+
+Este script usa Auth Admin y acceso local al contenedor Postgres únicamente como
+excepción local de QA para crear identidades Auth base y asociar sus perfiles.
+No crea datos de negocio, no reemplaza el flujo productivo de Auth Admin, no
+debe usarse en preproducción ni producción y no escribe valores en `.env.local`.
+`supabase/seed.sql` permanece libre de usuarios, contraseñas y secretos.
+
+Después del bootstrap, ejecuta los E2E que correspondan, por ejemplo:
+
+```cmd
+npx.cmd playwright test tests/e2e/usuarios.spec.ts --project=chromium --workers=1
+```
+
 ## Seed o reparación puntual de desarrollo
 
 Para disponer de un admin inicial de desarrollo puede seguir siendo necesario

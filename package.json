@@ -16,6 +16,7 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:report": "playwright show-report",
     "diff:check": "git diff --check",
+    "qa:bootstrap": "node scripts/bootstrap-local-qa-users.mjs",
     "audit:security": "node scripts/audit-security.mjs",
     "audit:client-supabase": "node scripts/audit-client-supabase.mjs",
     "audit:public-tracking": "node scripts/audit-public-tracking.mjs"
