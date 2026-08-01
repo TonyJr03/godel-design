@@ -6,18 +6,21 @@ import {
 } from "./helpers/assertions";
 import { loginAs } from "./helpers/auth";
 import {
-  createQaRunId,
-  createQaRunLabel,
+  createQaRunContext,
   createUnlikelyQaQuery,
 } from "./helpers/qa-data";
 
 test.describe.configure({ mode: "serial" });
 
-const runId = createQaRunId();
-const runLabel = createQaRunLabel(runId);
-const serviceName = `QA Servicio ${runLabel}`;
-const serviceDescription = `Servicio QA creado por Playwright ${runId}`;
-const editedServiceDescription = `Servicio QA editado por Playwright ${runId}`;
+const qaRun = createQaRunContext("servicios");
+const { ownershipPrefix, runId } = qaRun;
+const serviceName = `${ownershipPrefix} Servicio configurable`;
+const serviceDescription = `${ownershipPrefix} creado por Playwright`;
+const editedServiceDescription = `${ownershipPrefix} editado por Playwright`;
+
+test.beforeAll(() => {
+  console.log(`[e2e:ownership] scope=servicios runId=${runId}`);
+});
 
 async function expectNoHorizontalOverflow(page: Page) {
   const dimensions = await page.evaluate(() => ({

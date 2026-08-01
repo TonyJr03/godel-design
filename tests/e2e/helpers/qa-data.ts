@@ -1,8 +1,47 @@
+import { randomBytes } from "node:crypto";
+
+export type QaRunScope = "servicios";
+
+export type QaRunContext = {
+  runId: string;
+  scope: QaRunScope;
+  ownershipPrefix: string;
+};
+
+const QA_RUN_ID_PATTERN = /^\d{14}-[0-9a-f]{8}$/;
+
 export function createQaRunId() {
   return new Date()
     .toISOString()
     .replace(/\D/g, "")
     .slice(0, 14);
+}
+
+function createTimestamp() {
+  return new Date().toISOString().replace(/\D/g, "").slice(0, 14);
+}
+
+function assertQaRunId(runId: string) {
+  if (!QA_RUN_ID_PATTERN.test(runId)) {
+    throw new Error(
+      "GODEL_E2E_RUN_ID must match YYYYMMDDHHMMSS-xxxxxxxx with lowercase hexadecimal suffix.",
+    );
+  }
+
+  return runId;
+}
+
+export function createQaRunContext(scope: QaRunScope): QaRunContext {
+  const explicitRunId = process.env.GODEL_E2E_RUN_ID?.trim();
+  const runId = explicitRunId
+    ? assertQaRunId(explicitRunId)
+    : `${createTimestamp()}-${randomBytes(4).toString("hex")}`;
+
+  return {
+    runId,
+    scope,
+    ownershipPrefix: `E2E-${scope}-${runId}`,
+  };
 }
 
 export function createQaRunLabel(runId: string) {
