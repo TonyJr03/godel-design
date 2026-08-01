@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 
-export type QaRunScope = "servicios";
+export type QaRunScope = "servicios" | "clientes";
 
 export type QaRunContext = {
   runId: string;

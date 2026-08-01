@@ -3,7 +3,16 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
-const ALLOWED_SCOPES = new Set(["servicios"]);
+const SCOPE_CONFIG = Object.freeze({
+  servicios: {
+    sqlPath: "scripts/sql/cleanup-local-e2e-servicios.sql",
+    markerPattern: /^E2E_CLEANUP_OK scope=servicios deleted=\d+$/,
+  },
+  clientes: {
+    sqlPath: "scripts/sql/cleanup-local-e2e-clientes.sql",
+    markerPattern: /^E2E_CLEANUP_OK scope=clientes deleted=\d+$/,
+  },
+});
 const RUN_ID_PATTERN = /^\d{14}-[0-9a-f]{8}$/;
 const PROJECT_ID_PATTERN = /^[A-Za-z0-9_.-]+$/;
 const DOCKER_CONTEXT_PATTERN = /^[A-Za-z0-9_.-]+$/;
@@ -15,7 +24,6 @@ const UUID_PATTERN =
 const EMAIL_PATTERN =
   /[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+/gi;
 const MAX_DIAGNOSTIC_LENGTH = 1200;
-const SQL_PATH = "scripts/sql/cleanup-local-e2e.sql";
 
 class E2eCleanupError extends Error {
   constructor(message, cause) {
@@ -29,6 +37,18 @@ function fail(message, cause) {
   throw new E2eCleanupError(message, cause);
 }
 
+function safeReadText(relativePath, context) {
+  try {
+    return readFileSync(resolve(process.cwd(), relativePath), "utf8");
+  } catch (error) {
+    fail("No se pudo leer un archivo requerido de cleanup E2E local.", {
+      context,
+      code: error?.code,
+      name: error?.name,
+    });
+  }
+}
+
 function readLocalEnvFile() {
   const envPath = resolve(process.cwd(), ".env.local");
 
@@ -37,7 +57,7 @@ function readLocalEnvFile() {
   }
 
   return new Map(
-    readFileSync(envPath, "utf8")
+    safeReadText(".env.local", "e2eCleanup.env")
       .split(/\r?\n/)
       .map((line) => line.trim())
       .filter((line) => line && !line.startsWith("#") && line.includes("="))
@@ -90,12 +110,14 @@ function parseArgs(args) {
   const runId = parsed.get("--run-id");
 
   if (!scope) {
-    fail("--scope servicios es obligatorio.");
+    fail("--scope es obligatorio.");
   }
 
-  if (!ALLOWED_SCOPES.has(scope)) {
+  if (!Object.hasOwn(SCOPE_CONFIG, scope)) {
     fail("Scope de cleanup E2E desconocido.");
   }
+
+  const scopeConfig = SCOPE_CONFIG[scope];
 
   if (!runId) {
     fail("--run-id es obligatorio.");
@@ -107,6 +129,7 @@ function parseArgs(args) {
 
   return {
     scope,
+    scopeConfig,
     runId,
     ownershipPrefix: `E2E-${scope}-${runId}`,
   };
@@ -143,8 +166,7 @@ function validateLocalSupabaseUrl(rawUrl) {
 }
 
 function readSupabaseProjectId() {
-  const configPath = resolve(process.cwd(), "supabase/config.toml");
-  const config = readFileSync(configPath, "utf8");
+  const config = safeReadText("supabase/config.toml", "e2eCleanup.config");
   const match = config.match(/^\s*project_id\s*=\s*"([^"]+)"\s*$/m);
 
   if (!match?.[1]) {
@@ -327,11 +349,12 @@ async function runCleanupSql({
   contextName,
   containerName,
   scope,
+  scopeConfig,
   runId,
   ownershipPrefix,
   sensitiveValues,
 }) {
-  const sql = readFileSync(resolve(process.cwd(), SQL_PATH), "utf8");
+  const sql = safeReadText(scopeConfig.sqlPath, "e2eCleanup.sql");
   const result = await runRequiredProcess(
     "docker",
     [
@@ -372,7 +395,7 @@ async function runCleanupSql({
   const marker = result.stdout
     .split(/\r?\n/)
     .map((line) => line.trim())
-    .find((line) => /^E2E_CLEANUP_OK scope=servicios deleted=\d+$/.test(line));
+    .find((line) => scopeConfig.markerPattern.test(line));
 
   if (!marker) {
     fail("No se confirmo el marcador de cleanup E2E local.", {

@@ -6,21 +6,24 @@ import {
 } from "./helpers/assertions";
 import { loginAs } from "./helpers/auth";
 import {
-  createQaRunId,
-  createQaRunLabel,
+  createQaRunContext,
   createUnlikelyQaQuery,
 } from "./helpers/qa-data";
 
 test.describe.configure({ mode: "serial" });
 
-const runId = createQaRunId();
-const runLabel = createQaRunLabel(runId);
-const clienteName = `QA Cliente Cierre ${runLabel}`;
-const clientePhone = `555${runId.slice(-7)}`;
-const clienteEmail = `qa-cliente-cierre-${runId}@example.com`;
-const clienteNotes = `Notas QA de cierre para cliente ${runLabel}.`;
+const qaRun = createQaRunContext("clientes");
+const { ownershipPrefix, runId } = qaRun;
+const clienteName = `${ownershipPrefix} Cliente focal`;
+const clientePhone = runId.slice(0, 14);
+const clienteEmail = `e2e-clientes-${runId}@example.com`;
+const clienteNotes = `${ownershipPrefix} creado por Playwright`;
 
 let clienteDetailUrl = "";
+
+test.beforeAll(() => {
+  console.log(`[e2e:ownership] scope=clientes runId=${runId}`);
+});
 
 async function expectNoHorizontalOverflow(page: Page) {
   const dimensions = await page.evaluate(() => ({
@@ -151,7 +154,7 @@ async function getCurrentClientesUrl(page: Page) {
   return new URL(page.url());
 }
 
-async function expectClientesListContract(page: Page) {
+async function expectClientesShellContract(page: Page) {
   await expect(page.getByRole("heading", { name: /^clientes$/i })).toBeVisible();
   await expect(getVisibleSearchInput(page)).toBeVisible();
   await expect(
@@ -160,7 +163,10 @@ async function expectClientesListContract(page: Page) {
   await expect(
     page.getByRole("link", { name: /nuevo cliente/i }),
   ).toHaveCount(0);
+  await expectNoVisibleSensitiveText(page);
+}
 
+async function expectClientesTableContract(page: Page) {
   const table = page.locator("table").first();
 
   await expect(table).toBeVisible();
@@ -264,8 +270,7 @@ test("admin can validate the clientes listing, search, detail, and form", async 
 
   await page.setViewportSize({ width: 1366, height: 768 });
   await page.goto("/dashboard/clientes");
-  await expectClientesListContract(page);
-  await expectNoVisibleSensitiveText(page);
+  await expectClientesShellContract(page);
   await expectNoHorizontalOverflow(page);
 
   const unlikelyQuery = createUnlikelyQaQuery(
@@ -284,8 +289,10 @@ test("admin can validate the clientes listing, search, detail, and form", async 
   await createCliente(page);
 
   await page.goto("/dashboard/clientes");
-  await expectClientesListContract(page);
+  await expectClientesShellContract(page);
+  await expectClientesTableContract(page);
   await searchCliente(page, clienteName);
+  await expectClientesTableContract(page);
 
   const clienteLink = getClienteDetailLink(page);
 

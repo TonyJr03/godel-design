@@ -1,11 +1,11 @@
-# PPO-00.4B1 - Ownership E2E y cleanup local piloto
+# PPO-00.4B - Ownership E2E y cleanup local
 
 ## Proposito
 
 Este documento registra el contrato implementado para ownership E2E y cleanup
-local piloto del dominio `servicios`. El objetivo es que cada corrida pueda
-identificar sus propios servicios QA sin depender del primer registro visible y
-sin tocar servicios canonicos.
+local de los scopes iniciales `servicios` y `clientes`. El objetivo es que cada
+corrida pueda identificar sus propios datos QA sin depender del primer registro
+visible y sin tocar datos canonicos u operativos relacionados.
 
 ## Run ID
 
@@ -27,14 +27,19 @@ invalido falla de forma explicita y no se reemplaza por otro ID.
 
 ## Ownership Prefix
 
-Para el scope piloto el prefijo es:
+El prefijo depende del scope:
 
 ```text
-E2E-servicios-<runId>
+E2E-<scope>-<runId>
 ```
 
 El prefijo es ASCII, no contiene espacios, no incluye correos, UUID, tokens ni
 secretos, y permite busquedas exactas por corrida.
+
+Scopes registrados:
+
+- `servicios`: `E2E-servicios-<runId>`
+- `clientes`: `E2E-clientes-<runId>`
 
 ## Scope Servicios
 
@@ -45,17 +50,37 @@ la corrida.
 El spec no recibe secretos administrativos, no ejecuta Docker, no ejecuta
 `psql` y no realiza cleanup automatico en `afterAll`.
 
+## Scope Clientes
+
+El spec de clientes crea mediante la UI productiva un cliente focal con estos
+campos de ownership:
+
+- `name`: `E2E-clientes-<runId> Cliente focal`
+- `email`: `e2e-clientes-<runId>@example.com`
+- `notes`: `E2E-clientes-<runId> creado por Playwright`
+- `phone`: solo digitos derivados del timestamp numerico del run ID
+
+El spec no recibe secretos administrativos, no ejecuta Docker, no ejecuta
+`psql` y no realiza cleanup automatico en `afterAll`.
+
 ## Cleanup Local
 
-Comando piloto:
+Comando:
 
 ```cmd
-npm.cmd run qa:e2e:cleanup -- --scope servicios --run-id <RUN_ID>
+npm.cmd run qa:e2e:cleanup -- --scope <scope> --run-id <RUN_ID>
 ```
 
-El comando requiere `--scope servicios` y `--run-id <RUN_ID>`. Rechaza scopes
+El comando requiere `--scope` y `--run-id <RUN_ID>`. Rechaza scopes
 desconocidos, argumentos duplicados, argumentos inesperados, run IDs invalidos,
 `--all` y cualquier intento de omitir guardas locales.
+
+Los scopes permitidos se definen en un registro cerrado dentro del tooling. El
+CLI no acepta paths SQL. Cada scope declara explicitamente su archivo SQL y su
+marcador esperado:
+
+- `scripts/sql/cleanup-local-e2e-servicios.sql`
+- `scripts/sql/cleanup-local-e2e-clientes.sql`
 
 ## Guardas Locales
 
@@ -102,14 +127,40 @@ Todos los candidatos deben ser `workflow_type = encargo`. Si algun candidato
 tiene solicitudes, pedidos u otra relacion dependiente detectada, el cleanup
 aborta y no borra nada.
 
+## Clientes QA Dinamicos
+
+El cleanup de clientes solo selecciona filas cuyo `name` comienza exactamente
+por:
+
+```text
+E2E-clientes-<runId>
+```
+
+Cada candidato debe cumplir el contrato completo de ownership: nombre con el
+prefijo de la corrida, correo exacto `e2e-clientes-<runId>@example.com`, notas
+con el mismo prefijo y telefono compuesto solo por digitos.
+
+Aunque la base define `ON DELETE SET NULL` para relaciones operativas, el
+cleanup E2E no permite desvinculacion silenciosa. Si un cliente candidato esta
+relacionado con una solicitud o un pedido, la transaccion aborta y no borra
+nada.
+
+El SQL tambien inspecciona las FKs actuales hacia `public.clientes` y rechaza
+la ejecucion si aparece una relacion no contemplada. Las relaciones conocidas
+son:
+
+- `solicitudes.cliente_id`
+- `pedidos.cliente_id`
+
 ## Idempotencia
 
-La primera ejecucion elimina los servicios de la corrida indicada si no tienen
-relaciones. La segunda ejecucion con el mismo run ID termina con exit code `0`,
-elimina cero filas y vuelve a emitir:
+La primera ejecucion elimina los registros del scope y corrida indicada si no
+tienen relaciones bloqueantes. La segunda ejecucion con el mismo run ID termina
+con exit code `0`, elimina cero filas y vuelve a emitir el marcador del scope:
 
 ```text
 E2E_CLEANUP_OK scope=servicios deleted=0
+E2E_CLEANUP_OK scope=clientes deleted=0
 ```
 
 Cero candidatos no es error.
@@ -117,7 +168,7 @@ Cero candidatos no es error.
 ## Frontera de Secretos
 
 Los specs y factories normales no reciben `SUPABASE_SECRET_KEY` ni
-`SUPABASE_SERVICE_ROLE_KEY`. El cleanup piloto tampoco necesita esas variables.
+`SUPABASE_SERVICE_ROLE_KEY`. El cleanup local tampoco necesita esas variables.
 
 Las mutaciones normales del spec se hacen por UI productiva con usuario QA
 autenticado. La eliminacion piloto se hace por tooling local PostgreSQL, con
@@ -128,7 +179,6 @@ acceso general.
 
 Todavia no existe cleanup general para:
 
-- clientes;
 - solicitudes;
 - pedidos;
 - usuarios Auth;
@@ -138,4 +188,4 @@ Todavia no existe cleanup general para:
 - auditorias.
 
 La expansion de ownership y cleanup para otros dominios queda prevista para
-PPO-00.4B2 y tareas posteriores, despues de validar este piloto de servicios.
+tareas posteriores, despues de validar los scopes iniciales.
