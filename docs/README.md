@@ -9,6 +9,18 @@ no son fuente primaria para implementar cambios actuales.
 - [Estado del proyecto](PROJECT_STATUS.md): estado vigente, baseline de base de datos,
   funcionalidades disponibles y prioridades de preproducción.
 
+## Preproducción y operación
+
+- [Índice de preproducción y operación](production/README.md): planes activos,
+  auditorías y documentos de puesta en operación.
+- [Roadmap PPO](production/PPO_ROADMAP.md): iniciativa de Preproducción y
+  Puesta en Operación.
+- [Plan de auditoría PPO-01](production/PPO_01_AUDIT_PLAN.md): contrato para
+  auditoría de infraestructura y conectividad.
+- [Informe de capacidad PPO-01](production/PPO_01_CAPACITY_REPORT.md):
+  plantilla de resultados aprobados.
+- [Cierre PPO-00](preproduction/PPO_00_CLOSURE.md): baseline local cerrada.
+
 ## Modelos funcionales actuales
 
 - [Modelo de base de datos](DATABASE_MODEL.md): modelo de datos y relaciones principales.
