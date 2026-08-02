@@ -5,7 +5,7 @@
 - Proyecto: Godel Diseño
 - Estado: Activo
 - Fecha de creación: 2026-07-21
-- Última revisión: 2026-08-01
+- Última revisión: 2026-08-02
 - Responsable técnico: Dirección Técnica de Godel Diseño
 - Arquitectura y supervisión: Arquitectura Senior / Orquestación Técnica
 - Implementación: Agente Codex en VS Code
@@ -102,6 +102,30 @@ no decide definitivamente el almacenamiento y no prueba todavía el dominio
 productivo.
 
 La ejecución real de la composición pertenece a PPO-02.
+
+Estado interno de PPO-01:
+
+| Bloque    | Estado |
+| --------- | ------ |
+| PPO-01A.1 | Cerrada |
+| PPO-01A.2 | Cerrada |
+| PPO-01B   | Cerrada — `development-laptop` Apta con condiciones |
+| PPO-01C   | Pendiente |
+| PPO-01D   | Pendiente |
+
+`development-laptop` ya demostró capacidad suficiente para construir y validar
+la composición contenerizada prevista para PPO-02: WSL2 y Docker con
+contenedores Linux están operativos, el build terminó correctamente y Supabase
+local coexistió con Next.js durante las mediciones controladas.
+
+La conectividad desde el contexto físico declarado `cuba` y con VPN confirmada
+manualmente como desconectada fue demostrada para los destinos ejecutados de
+GitHub, Vercel y Cloudflare. Las transferencias sintéticas de 20 MiB se
+completaron en descarga y carga. Supabase administrado permanece pendiente
+porque el proyecto administrado no estaba configurado.
+
+`company-host` todavía no ha sido auditado y PPO-01 no está cerrada. PPO-02
+permanece pendiente y no se declara iniciada.
 
 ## PPO-02 a PPO-10
 
