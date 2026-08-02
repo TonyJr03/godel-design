@@ -169,6 +169,86 @@ usarán como documentación final sin sanitización.
 
 El repositorio solo conservará resultados resumidos y aprobados.
 
+## Herramienta segura de inventario
+
+PPO-01A.2 introduce la herramienta local:
+
+```text
+scripts/preproduction/collect-host-audit.ps1
+```
+
+La herramienta acepta exclusivamente los hosts permitidos por el contrato de
+PPO-01:
+
+```text
+development-laptop
+company-host
+```
+
+Las evidencias se generan fuera del repositorio, en la ubicación local definida
+por la herramienta:
+
+```text
+%LOCALAPPDATA%\GodelDesign\PPO-01\host-audits\
+```
+
+Si `LOCALAPPDATA` no está disponible, se usa el fallback:
+
+```text
+%TEMP%\GodelDesign\PPO-01\host-audits\
+```
+
+Por cada ejecución se crea una carpeta por alias y timestamp UTC con dos
+archivos:
+
+```text
+host-audit.json
+host-audit-summary.md
+```
+
+La herramienta es compatible con Windows PowerShell 5.1 y PowerShell 7, usa
+sintaxis compatible con Windows PowerShell 5.1 y debe ejecutarse sin elevar
+privilegios.
+
+Límites de recopilación:
+
+- No cambia configuración del host.
+- No instala software.
+- No ejecuta benchmarks.
+- No realiza solicitudes de red ni pruebas de conectividad.
+- No reinicia servicios.
+- No detiene Docker ni WSL.
+- No enumera aplicaciones generales ni procesos.
+- No guarda salidas crudas de `wsl.exe`, `docker.exe` ni `powercfg.exe`.
+- No conserva identificadores personales, rutas personales, MAC, IPs, seriales,
+  tokens, claves ni endpoints Docker.
+- Los estados de energía solo se afirman cuando la sección de estados
+  disponibles de `powercfg.exe /A` puede interpretarse de forma fiable.
+- La presencia de un producto antivirus no implica afirmar protección activa;
+  el estado activo queda como desconocido salvo contrato fiable posterior.
+- Cada ejecución utiliza un directorio único y no reutiliza carpetas de
+  ejecuciones anteriores.
+- Las instalaciones WSL parcialmente interpretables se registran como
+  `partial`, sin ejecutar comandos dentro de distribuciones.
+
+Las salidas brutas no deben subirse al repositorio. Solo podrán trasladarse al
+repositorio resultados resumidos, sanitizados y aprobados en fases posteriores.
+
+La ejecución de PPO-01A.2 es una prueba técnica de la herramienta. No constituye
+la auditoría oficial de `development-laptop` ni de `company-host`; esas
+auditorías pertenecen a PPO-01B y PPO-01C.
+
+Ejemplo de ejecución:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File scripts/preproduction/collect-host-audit.ps1 `
+  -HostAlias development-laptop
+```
+
+`ExecutionPolicy Bypass` aplica solo al proceso lanzado y no modifica la
+política persistente del sistema.
+
 ## Clasificación final
 
 Cada host deberá clasificarse como:
