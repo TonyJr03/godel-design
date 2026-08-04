@@ -130,8 +130,8 @@ Contrato previsto para `app`:
 - Build de producción.
 - Dockerfile multi-stage.
 - Instalación reproducible mediante lockfile.
-- Candidato `output: "standalone"`, sujeto a confirmación final durante
-  PPO-02B con la documentación local de Next.js y una validación real.
+- `output: "standalone"` confirmado por PPO-02A.2 como base viable para el
+  Dockerfile de aplicación.
 - Runtime sin dependencias de desarrollo.
 - Usuario no root cuando sea técnicamente compatible.
 - Filesystem de aplicación sin datos operativos persistentes.
@@ -143,9 +143,11 @@ Contrato previsto para `app`:
 No se implementa todavía Dockerfile ni configuración de Next.js.
 
 La versión instalada de Next.js es `16.2.6`. Los metadatos reales del paquete y
-la documentación local de instalación declaran Node.js mínimo `>=20.9.0`; por
-ello, PPO-02 deberá usar una imagen Node compatible con ese mínimo y con las
-mediciones de PPO-02B.
+la documentación local de instalación declaran Node.js mínimo `>=20.9.0`. El
+spike PPO-02A.2 registró como imagen base candidata
+`node:24-bookworm-slim`, con digest
+`sha256:cd84903a12dbd26b46f1f3b8144a2568c41c5d37ddd0c7a80a34c7a19786b35f`.
+La imagen definitiva podrá fijarse con mayor precisión en PPO-02B.
 
 ## 7. Contenedor Nginx
 
@@ -227,8 +229,10 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 El código actual las usa en el cliente del navegador mediante
 `src/lib/supabase/client.ts` y también en clientes server-side ligados a sesión.
 La documentación local de Next.js indica que las variables `NEXT_PUBLIC_*`
-usadas por el navegador pueden incorporarse al bundle durante `next build`; su
-tratamiento exacto durante PPO-02B debe verificarse con la imagen construida.
+usadas por el navegador pueden incorporarse al bundle durante `next build`.
+PPO-02A.2 confirmó que los marcadores públicos de build aparecieron en salida
+server build y que los marcadores runtime no reescribieron assets cliente ya
+generados.
 
 Decisión provisional:
 
@@ -435,15 +439,60 @@ Checkpoints:
 - Estrategia de Supabase administrado resuelta.
 - Ningún despliegue en `company-host` declarado.
 
-## 21. Riesgos abiertos
+## 21. Resultados De PPO-02A.2
+
+El informe del spike vive en
+[PPO-02A.2 - Spike técnico de empaquetado](PPO_02_PACKAGING_SPIKE.md).
+
+Resultados confirmados:
+
+- `output: "standalone"` construyó correctamente en la imagen experimental.
+- El runtime standalone requirió copiar explícitamente `.next/standalone`,
+  `public` y `.next/static`.
+- El servidor inició con `node server.js`, `HOSTNAME=0.0.0.0` y `PORT=3000`.
+- La aplicación respondió un recurso estático con HTTP 200.
+- El runtime funcionó como usuario no root con UID efectivo `1000`.
+- La imagen base candidata es `node:24-bookworm-slim`.
+- `SUPABASE_SECRET_KEY` pudo inyectarse solo en runtime sin aparecer en la
+  imagen, filesystem, `docker history`, recursos estáticos ni logs.
+- Los marcadores públicos de build aparecieron en salida server build; los
+  marcadores públicos runtime no reescribieron assets cliente generados.
+- La conectividad local quedó clasificada como Caso B: el contenedor alcanzó
+  Supabase local mediante `host.docker.internal`, pero el host Windows no
+  alcanzó esa URL en la prueba ejecutada.
+
+Decisiones trasladadas a PPO-02B:
+
+- Mantener `output: "standalone"` para el Dockerfile de aplicación.
+- Usar familia `node:<major>-bookworm-slim`, evitando `node:latest` y Alpine en
+  la base inicial.
+- Copiar explícitamente `public` y `.next/static` junto al runtime standalone.
+- Ejecutar como usuario no root.
+- Inyectar secretos solo en runtime.
+- Tratar variables `NEXT_PUBLIC_*` como valores de build cuando formen parte de
+  salidas construidas, salvo diseño explícito alternativo.
+- No usar una única URL local de Supabase para navegador y contenedor sin
+  resolver el split-horizon observado.
+
+Siguiente checkpoint si no aparecen nuevos bloqueantes:
+
+```text
+PPO-02B.1 — Implementación del Dockerfile de aplicación
+```
+
+No se marca PPO-02 como cerrada.
+
+## 22. Riesgos abiertos
 
 | Clasificación | Riesgo | Tratamiento |
 | ------------- | ------ | ----------- |
 | condición | Supabase administrado pendiente. | Requerido antes de cerrar integración remota. |
-| condición | Variables `NEXT_PUBLIC_*` potencialmente ligadas al build. | Construir por entorno si quedan incorporadas al bundle. |
-| condición | Conectividad contenedor-Supabase local no validada. | Evaluar en Nivel 2 sin cambiar arquitectura productiva. |
+| condición | Variables `NEXT_PUBLIC_*` ligadas a salidas construidas cuando participan en build. | Construir por entorno o diseñar configuración pública explícita. |
+| condición | Conectividad local clasificada como Caso B. | Resolver split-horizon antes de usar una única URL local para navegador y contenedor. |
 | condición | Healthchecks inexistentes. | Implementar en fase posterior y excluirlos del proxy o permitirlos sin sesión. |
-| observación | `output: "standalone"` no confirmado aún en la configuración del proyecto. | Confirmar en PPO-02B con build real y documentación local. |
+| observación | `output: "standalone"` confirmado en spike, aún no implementado en el repo principal. | Implementar en PPO-02B.1 mediante Dockerfile definitivo. |
+| observación | Imagen base candidata registrada. | Fijar tag/digest definitivo en PPO-02B según criterio de mantenimiento. |
+| observación | Secreto runtime confirmado en spike. | Mantenerlo fuera de ARG, capas, logs y Nginx en PPO-02B/PPO-02C. |
 | observación | Body size transitorio. | No tratar `110mb` como límite funcional definitivo; resolver en PPO-03. |
 | observación | `company-host` no auditado. | Resolver en PPO-01C; no bloquea la preparación documental local. |
 | observación | Límites de recursos no probados con la composición. | Medir durante PPO-02C/PPO-02D. |

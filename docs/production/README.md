@@ -9,6 +9,7 @@ arquitectura operativa y puesta en operación de Godel Diseño.
 - [Plan de auditoría PPO-01](PPO_01_AUDIT_PLAN.md): contrato operativo para auditar infraestructura y conectividad.
 - [Informe de capacidad PPO-01](PPO_01_CAPACITY_REPORT.md): plantilla para resultados resumidos y aprobados.
 - [PPO-02 - Plan de contenerización](PPO_02_CONTAINERIZATION_PLAN.md): contrato activo para la base contenerizada local.
+- [PPO-02A.2 - Spike técnico de empaquetado](PPO_02_PACKAGING_SPIKE.md): evidencia sanitizada de standalone, variables, secreto runtime y conectividad local.
 - [Cierre PPO-00](../preproduction/PPO_00_CLOSURE.md): baseline local cerrada que habilita PPO-01.
 
 ## Diferencia entre carpetas

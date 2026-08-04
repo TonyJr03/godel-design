@@ -16,10 +16,17 @@ PPO-01C queda diferida temporalmente por disponibilidad de `company-host`.
 PPO-01D permanece pendiente y bloqueada hasta completar PPO-01C.
 
 PPO-02 está activa únicamente para construcción y validación local en
-`development-laptop`, por decisión expresa de Dirección Técnica. Esto no cierra
-PPO-01, no aprueba `company-host`, no declara despliegue en la empresa y no
-presenta Docker Compose, Nginx, Cloudflare Tunnel ni el nuevo flujo de archivos
-como implementados. No existe despliegue productivo. PPO-QA-01 queda diferida
+`development-laptop`, por decisión expresa de Dirección Técnica. PPO-02A.1
+queda cerrada y PPO-02A.2 fue ejecutada como spike técnico reversible. La
+evidencia soporta `output: "standalone"` para el empaquetado, la familia
+`node:<major>-bookworm-slim` como base candidata, usuario no root, copia
+explícita de `public` y `.next/static`, secretos solo en runtime y un resultado
+local de conectividad Caso B para Supabase local.
+
+Esto no cierra PPO-01, no aprueba `company-host`, no declara despliegue en la
+empresa y no presenta Dockerfile definitivo, Docker Compose, Nginx, Cloudflare
+Tunnel ni el nuevo flujo de archivos como implementados. No existe despliegue
+productivo. Supabase administrado permanece pendiente. PPO-QA-01 queda diferida
 sin bloquear la preparación local de PPO-02.
 
 Documentos vigentes:
@@ -28,6 +35,7 @@ Documentos vigentes:
 - [Plan de auditoría PPO-01](production/PPO_01_AUDIT_PLAN.md).
 - [Informe de capacidad PPO-01](production/PPO_01_CAPACITY_REPORT.md).
 - [Plan de contenerización PPO-02](production/PPO_02_CONTAINERIZATION_PLAN.md).
+- [Spike técnico de empaquetado PPO-02A.2](production/PPO_02_PACKAGING_SPIKE.md).
 - [Cierre PPO-00](preproduction/PPO_00_CLOSURE.md).
 
 ## Funcionalidades disponibles
@@ -94,7 +102,7 @@ de documentación está en [README.md](README.md).
 
 Prioridades antes de exposición productiva:
 
-- Aprobar el plan PPO-02A.1 y ejecutar como siguiente tarea técnica PPO-02A.2.
+- Ejecutar como siguiente checkpoint PPO-02B.1: implementación del Dockerfile de aplicación.
 - Hardening de preproducción.
 - Protección antiabuso en rutas públicas.
 - Estrategia operativa de archivos.
