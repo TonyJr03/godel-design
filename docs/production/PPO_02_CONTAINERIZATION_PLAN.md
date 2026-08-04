@@ -130,8 +130,7 @@ Contrato previsto para `app`:
 - Build de producción.
 - Dockerfile multi-stage.
 - Instalación reproducible mediante lockfile.
-- `output: "standalone"` confirmado por PPO-02A.2 como base viable para el
-  Dockerfile de aplicación.
+- `output: "standalone"` confirmado por PPO-02A.2 y activado en PPO-02B.1.
 - Runtime sin dependencias de desarrollo.
 - Usuario no root cuando sea técnicamente compatible.
 - Filesystem de aplicación sin datos operativos persistentes.
@@ -140,14 +139,15 @@ Contrato previsto para `app`:
 - Señal y apagado limpio.
 - Sin secretos copiados a la imagen.
 
-No se implementa todavía Dockerfile ni configuración de Next.js.
+PPO-02B.1 implementa el Dockerfile de aplicación y la configuración standalone
+de Next.js. No implementa todavía Nginx, Compose ni healthchecks.
 
 La versión instalada de Next.js es `16.2.6`. Los metadatos reales del paquete y
 la documentación local de instalación declaran Node.js mínimo `>=20.9.0`. El
 spike PPO-02A.2 registró como imagen base candidata
 `node:24-bookworm-slim`, con digest
 `sha256:cd84903a12dbd26b46f1f3b8144a2568c41c5d37ddd0c7a80a34c7a19786b35f`.
-La imagen definitiva podrá fijarse con mayor precisión en PPO-02B.
+PPO-02B.1 fija esta imagen como base definitiva inicial para `app`.
 
 ## 7. Contenedor Nginx
 
@@ -508,10 +508,50 @@ Decisiones trasladadas a PPO-02B:
 - Usar el contrato de PPO-02A.3 para separar endpoint público de navegador y
   endpoint server-only cuando el entorno local lo requiera.
 
+PPO-02B.1 queda ejecutada en
+[PPO-02B.1 - Informe de imagen app](PPO_02_APP_IMAGE_REPORT.md).
+
+Resultados confirmados:
+
+- Dockerfile multi-stage `base`, `deps`, `builder` y `runner` creado.
+- `.dockerignore` creado para reducir contexto y excluir `.env*`, docs, tests,
+  Supabase CLI, reportes y artefactos locales.
+- `output: "standalone"` activado en `next.config.ts` sin cambiar los límites
+  transitorios de 110 MB.
+- Imagen `godel-design-app:ppo-02b1` construida con la base fijada
+  `node:24-bookworm-slim@sha256:cd84903a12dbd26b46f1f3b8144a2568c41c5d37ddd0c7a80a34c7a19786b35f`.
+- Imagen final: 93.2 MiB de contenido, `linux/amd64`, usuario `node`, UID
+  efectivo `1000`, comando `node server.js`, puerto `3000/tcp`.
+- Segundo build sin cambios validó cache inicial: 3.2 s, `npm ci` y
+  `npm run build` cacheados.
+- Runtime respondió HTTP 200 para recurso de `public`, recurso
+  `/_next/static`, `/login` y `/_next/image`.
+- Split-horizon validado a nivel HTTP: host hacia `127.0.0.1:54321` y
+  contenedor hacia `host.docker.internal:54321` respondieron HTTP 200 en
+  `/auth/v1/health`.
+- `sharp@0.34.5` quedó presente en runtime standalone y `/_next/image` funcionó
+  sin error nativo.
+- `unrs-resolver@1.11.1` permanece como dependencia transitiva de tooling y no
+  quedó presente en runtime standalone.
+- No se usó `SUPABASE_SECRET_KEY` en build ni smoke runtime.
+- No se implementó Compose, Nginx ni healthchecks.
+
+Condiciones trasladadas a PPO-02B.2:
+
+- Resolver o aceptar explícitamente la presencia del nombre literal
+  `SUPABASE_SECRET_KEY` en chunks server-side standalone generados por el
+  adaptador Auth Admin existente. No se detectó valor real en imagen, history,
+  configuración, recursos cliente ni logs.
+- Mejorar captura sanitizada del log de build Docker; el primer build produjo
+  imagen, pero el wrapper inicial de PowerShell devolvió exit code `1` por
+  tratamiento de stream nativo y no conservó el log detallado.
+- Mantener validación posterior con Supabase administrado y Auth completo fuera
+  de PPO-02B.1.
+
 Siguiente checkpoint si no aparecen nuevos bloqueantes:
 
 ```text
-PPO-02B.1 — Implementación del Dockerfile de aplicación
+PPO-02B.2 — Endurecimiento y contrato operativo de la imagen app
 ```
 
 No se marca PPO-02 como cerrada.
@@ -524,10 +564,12 @@ No se marca PPO-02 como cerrada.
 | condición | Variables `NEXT_PUBLIC_*` ligadas a salidas construidas cuando participan en build. | Construir por entorno y mantener `SUPABASE_SERVER_URL` fuera del cliente. |
 | condición | Conectividad local clasificada como Caso B. | Contrato split-horizon formalizado en PPO-02A.3; validar su uso real en PPO-02B. |
 | condición | Build inicial afectado por `ECONNRESET`. | Usar reintentos npm acotados, cache de dependencias y no ocultar fallos deterministas; volver a medir en PPO-02B. |
-| condición | Política npm `allowScripts` pendiente para `sharp` y `unrs-resolver`. | Revisar lockfile y política npm, confirmar `sharp`, validar luego ruta real de optimización de imágenes o documentar que no aplica; no usar `--dangerously-allow-all-scripts`. |
+| condición | Política npm `allowScripts` pendiente para `sharp` y `unrs-resolver`. | `sharp` validado en runtime standalone; revisar política npm en PPO-02B.2 y no usar `--dangerously-allow-all-scripts`. |
+| condición | Nombre literal `SUPABASE_SECRET_KEY` presente en chunks server-side standalone. | Resolver o aceptar explícitamente en PPO-02B.2; no se detectó valor real en image config, history, recursos cliente ni logs. |
+| condición | Captura incompleta del log detallado del primer build Docker. | Mejorar wrapper de evidencia sanitizada en PPO-02B.2; segundo build cacheado validado correctamente. |
 | condición | Healthchecks inexistentes. | Implementar en fase posterior y excluirlos del proxy o permitirlos sin sesión. |
-| observación | `output: "standalone"` confirmado en spike, aún no implementado en el repo principal. | Implementar en PPO-02B.1 mediante Dockerfile definitivo. |
-| observación | Imagen base candidata registrada. | Fijar tag/digest definitivo en PPO-02B según criterio de mantenimiento. |
+| observación | `output: "standalone"` implementado para la imagen app. | Endurecer contrato operativo en PPO-02B.2. |
+| observación | Imagen base inicial fijada para `app`. | Revisar política de actualización de digest en endurecimiento posterior. |
 | observación | Secreto runtime confirmado en spike. | Mantenerlo fuera de ARG, capas, logs y Nginx en PPO-02B/PPO-02C. |
 | observación | Body size transitorio. | No tratar `110mb` como límite funcional definitivo; resolver en PPO-03. |
 | observación | `company-host` no auditado. | Resolver en PPO-01C; no bloquea la preparación documental local. |

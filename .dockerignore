@@ -1,0 +1,17 @@
+.git
+.github
+node_modules
+.next
+.env
+.env.*
+coverage
+playwright-report
+test-results
+tests
+docs
+supabase
+.codex
+.vscode
+*.log
+*.tar
+*.zip
