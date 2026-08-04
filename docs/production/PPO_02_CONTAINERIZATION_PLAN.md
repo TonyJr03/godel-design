@@ -227,7 +227,7 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 ```
 
 El código actual las usa en el cliente del navegador mediante
-`src/lib/supabase/client.ts` y también en clientes server-side ligados a sesión.
+`src/lib/supabase/client.ts`.
 La documentación local de Next.js indica que las variables `NEXT_PUBLIC_*`
 usadas por el navegador pueden incorporarse al bundle durante `next build`.
 PPO-02A.2 confirmó que los marcadores públicos de build aparecieron en salida
@@ -240,6 +240,27 @@ Decisión provisional:
   incorporadas al bundle.
 - No intentar sustituirlas arbitrariamente después del build.
 - No almacenar valores reales en Dockerfile, Compose o repositorio.
+
+### Endpoint server-side
+
+```text
+SUPABASE_SERVER_URL
+```
+
+PPO-02A.3 formaliza una separación por contexto:
+
+- El navegador usa `NEXT_PUBLIC_SUPABASE_URL`.
+- Server Components, Server Actions, Route Handlers, Proxy y Auth Admin usan
+  `SUPABASE_SERVER_URL` cuando esté definido.
+- Si `SUPABASE_SERVER_URL` está vacío, el servidor cae a
+  `NEXT_PUBLIC_SUPABASE_URL`.
+- `SUPABASE_SERVER_URL` es server-only, no lleva prefijo `NEXT_PUBLIC` y no debe
+  aparecer en el bundle cliente.
+- El fallback conserva el comportamiento normal con Supabase administrado, donde
+  normalmente no hace falta endpoint privado separado.
+- En desarrollo local contenerizado puede usarse para resolver el Caso B:
+  navegador contra `127.0.0.1` y servidor dentro del contenedor contra
+  `host.docker.internal`.
 
 ### Secretas server-only
 
@@ -439,7 +460,7 @@ Checkpoints:
 - Estrategia de Supabase administrado resuelta.
 - Ningún despliegue en `company-host` declarado.
 
-## 21. Resultados De PPO-02A.2
+## 21. Resultados De PPO-02A.2 Y PPO-02A.3
 
 El informe del spike vive en
 [PPO-02A.2 - Spike técnico de empaquetado](PPO_02_PACKAGING_SPIKE.md).
@@ -461,6 +482,19 @@ Resultados confirmados:
   Supabase local mediante `host.docker.internal`, pero el host Windows no
   alcanzó esa URL en la prueba ejecutada.
 
+PPO-02A.3 deja resuelto el contrato local para el Caso B:
+
+- `NEXT_PUBLIC_SUPABASE_URL` permanece como endpoint público del navegador.
+- `SUPABASE_SERVER_URL` queda como override server-only opcional para código
+  servidor.
+- El servidor cae a `NEXT_PUBLIC_SUPABASE_URL` cuando `SUPABASE_SERVER_URL` está
+  vacío, conservando compatibilidad con Supabase administrado.
+- El cliente de navegador no importa configuración server-only.
+- Auth Admin usa el endpoint server-side y mantiene `SUPABASE_SECRET_KEY` solo
+  en runtime server-side.
+- No se modifican RLS, permisos, topología, healthchecks ni decisiones de
+  Supabase administrado o autoalojado futuro.
+
 Decisiones trasladadas a PPO-02B:
 
 - Mantener `output: "standalone"` para el Dockerfile de aplicación.
@@ -470,9 +504,9 @@ Decisiones trasladadas a PPO-02B:
 - Ejecutar como usuario no root.
 - Inyectar secretos solo en runtime.
 - Tratar variables `NEXT_PUBLIC_*` como valores de build cuando formen parte de
-  salidas construidas, salvo diseño explícito alternativo.
-- No usar una única URL local de Supabase para navegador y contenedor sin
-  resolver el split-horizon observado.
+  salidas construidas.
+- Usar el contrato de PPO-02A.3 para separar endpoint público de navegador y
+  endpoint server-only cuando el entorno local lo requiera.
 
 Siguiente checkpoint si no aparecen nuevos bloqueantes:
 
@@ -487,8 +521,10 @@ No se marca PPO-02 como cerrada.
 | Clasificación | Riesgo | Tratamiento |
 | ------------- | ------ | ----------- |
 | condición | Supabase administrado pendiente. | Requerido antes de cerrar integración remota. |
-| condición | Variables `NEXT_PUBLIC_*` ligadas a salidas construidas cuando participan en build. | Construir por entorno o diseñar configuración pública explícita. |
-| condición | Conectividad local clasificada como Caso B. | Resolver split-horizon antes de usar una única URL local para navegador y contenedor. |
+| condición | Variables `NEXT_PUBLIC_*` ligadas a salidas construidas cuando participan en build. | Construir por entorno y mantener `SUPABASE_SERVER_URL` fuera del cliente. |
+| condición | Conectividad local clasificada como Caso B. | Contrato split-horizon formalizado en PPO-02A.3; validar su uso real en PPO-02B. |
+| condición | Build inicial afectado por `ECONNRESET`. | Usar reintentos npm acotados, cache de dependencias y no ocultar fallos deterministas; volver a medir en PPO-02B. |
+| condición | Política npm `allowScripts` pendiente para `sharp` y `unrs-resolver`. | Revisar lockfile y política npm, confirmar `sharp`, validar luego ruta real de optimización de imágenes o documentar que no aplica; no usar `--dangerously-allow-all-scripts`. |
 | condición | Healthchecks inexistentes. | Implementar en fase posterior y excluirlos del proxy o permitirlos sin sesión. |
 | observación | `output: "standalone"` confirmado en spike, aún no implementado en el repo principal. | Implementar en PPO-02B.1 mediante Dockerfile definitivo. |
 | observación | Imagen base candidata registrada. | Fijar tag/digest definitivo en PPO-02B según criterio de mantenimiento. |

@@ -5,6 +5,10 @@ import {
   canAccessDashboardRoute,
   isKnownDashboardRoute,
 } from "@/lib/permissions";
+import {
+  getSupabasePublishableKey,
+  getSupabaseServerUrl,
+} from "@/lib/supabase/server-config";
 import type { Database } from "@/types/database";
 
 type CookieToSet = {
@@ -41,8 +45,8 @@ export async function updateSession(request: NextRequest) {
   let headersToSet: Record<string, string> = {};
 
   const supabase = createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    getSupabaseServerUrl(),
+    getSupabasePublishableKey(),
     {
       cookies: {
         getAll() {

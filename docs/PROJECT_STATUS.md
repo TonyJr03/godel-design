@@ -17,11 +17,13 @@ PPO-01D permanece pendiente y bloqueada hasta completar PPO-01C.
 
 PPO-02 está activa únicamente para construcción y validación local en
 `development-laptop`, por decisión expresa de Dirección Técnica. PPO-02A.1
-queda cerrada y PPO-02A.2 fue ejecutada como spike técnico reversible. La
-evidencia soporta `output: "standalone"` para el empaquetado, la familia
+queda cerrada, PPO-02A.2 fue ejecutada como spike técnico reversible y
+PPO-02A.3 formalizó el contrato de endpoints Supabase por contexto. La evidencia
+soporta `output: "standalone"` para el empaquetado, la familia
 `node:<major>-bookworm-slim` como base candidata, usuario no root, copia
 explícita de `public` y `.next/static`, secretos solo en runtime y un resultado
-local de conectividad Caso B para Supabase local.
+local de conectividad Caso B para Supabase local resuelto mediante URL pública
+para navegador y override server-only opcional para servidor.
 
 Esto no cierra PPO-01, no aprueba `company-host`, no declara despliegue en la
 empresa y no presenta Dockerfile definitivo, Docker Compose, Nginx, Cloudflare
@@ -102,7 +104,7 @@ de documentación está en [README.md](README.md).
 
 Prioridades antes de exposición productiva:
 
-- Ejecutar como siguiente checkpoint PPO-02B.1: implementación del Dockerfile de aplicación.
+- Ejecutar como siguiente checkpoint PPO-02B.1: implementación del Dockerfile de aplicación, usando el contrato de endpoints Supabase aprobado en PPO-02A.3.
 - Hardening de preproducción.
 - Protección antiabuso en rutas públicas.
 - Estrategia operativa de archivos.

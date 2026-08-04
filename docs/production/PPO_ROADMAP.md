@@ -134,7 +134,9 @@ despliegue productivo ni despliegue en la empresa.
 ## PPO-02 a PPO-10
 
 - PPO-02: definirá Dockerfile, Compose, Nginx, redes, healthchecks y criterios
-  de reproducibilidad. El contrato activo vive en
+  de reproducibilidad. PPO-02A.3 ya formalizó la separación de endpoints
+  Supabase entre navegador y servidor para resolver el Caso B local. El contrato
+  activo vive en
   [PPO-02 - Plan de contenerización](PPO_02_CONTAINERIZATION_PLAN.md).
 - PPO-03: rediseñará sesiones de carga, transferencia directa, límites,
   formatos, cuarentena y almacenamiento.
