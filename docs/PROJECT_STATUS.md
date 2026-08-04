@@ -1,13 +1,30 @@
 # Estado del proyecto
 
-Última actualización: 2026-07-31
+Última actualización: 2026-08-02
 
 ## Estado general
 
 Godel Diseño está en estado de MVP interno funcional. La baseline final de base
 de datos está consolidada, el rediseño UI/UX está cerrado y la documentación
-vigente ya queda separada del archivo histórico. La siguiente etapa recomendada
-es preparación para preproducción.
+vigente ya queda separada del archivo histórico. La etapa activa es preparación
+para preproducción mediante PPO.
+
+PPO-00 está cerrada y su baseline local fue validada. PPO-01 continúa activa:
+PPO-01B quedó cerrada, `development-laptop` fue clasificada `Apta con
+condiciones` para construir y validar la composición contenerizada de PPO-02, y
+PPO-01C es el siguiente paso formal.
+
+PPO-02 no ha comenzado. PPO-01 no construye todavía la composición, no presenta
+Docker Compose, Nginx, Cloudflare Tunnel ni el nuevo flujo de archivos como
+implementados. No existe despliegue productivo. PPO-QA-01 queda diferida sin
+bloquear PPO-01.
+
+Documentos vigentes:
+
+- [Roadmap PPO](production/PPO_ROADMAP.md).
+- [Plan de auditoría PPO-01](production/PPO_01_AUDIT_PLAN.md).
+- [Informe de capacidad PPO-01](production/PPO_01_CAPACITY_REPORT.md).
+- [Cierre PPO-00](preproduction/PPO_00_CLOSURE.md).
 
 ## Funcionalidades disponibles
 
