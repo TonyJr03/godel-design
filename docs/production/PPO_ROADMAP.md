@@ -5,7 +5,7 @@
 - Proyecto: Godel Diseño
 - Estado: Activo
 - Fecha de creación: 2026-07-21
-- Última revisión: 2026-08-02
+- Última revisión: 2026-08-04
 - Responsable técnico: Dirección Técnica de Godel Diseño
 - Arquitectura y supervisión: Arquitectura Senior / Orquestación Técnica
 - Implementación: Agente Codex en VS Code
@@ -58,7 +58,7 @@ posteriores no se declaran implementadas en este roadmap.
 | --------- | ------------------------------------------- | --------- |
 | PPO-00    | Baseline local y formalización inicial      | Cerrada   |
 | PPO-01    | Auditoría de infraestructura y conectividad | Activa    |
-| PPO-02    | Base contenerizada reproducible             | Pendiente |
+| PPO-02    | Base contenerizada reproducible             | Activa — alcance local en `development-laptop` |
 | PPO-03    | Rediseño de cargas y almacenamiento         | Pendiente |
 | PPO-04    | Despliegue provisional en la empresa        | Pendiente |
 | PPO-05    | Seguridad pública                           | Pendiente |
@@ -110,8 +110,8 @@ Estado interno de PPO-01:
 | PPO-01A.1 | Cerrada |
 | PPO-01A.2 | Cerrada |
 | PPO-01B   | Cerrada — `development-laptop` Apta con condiciones |
-| PPO-01C   | Pendiente |
-| PPO-01D   | Pendiente |
+| PPO-01C   | Diferida temporalmente |
+| PPO-01D   | Pendiente, bloqueada por PPO-01C |
 
 `development-laptop` ya demostró capacidad suficiente para construir y validar
 la composición contenerizada prevista para PPO-02: WSL2 y Docker con
@@ -124,13 +124,18 @@ GitHub, Vercel y Cloudflare. Las transferencias sintéticas de 20 MiB se
 completaron en descarga y carga. Supabase administrado permanece pendiente
 porque el proyecto administrado no estaba configurado.
 
-`company-host` todavía no ha sido auditado y PPO-01 no está cerrada. PPO-02
-permanece pendiente y no se declara iniciada.
+`company-host` todavía no ha sido auditado y PPO-01 no está cerrada.
+
+Por decisión expresa de Dirección Técnica, PPO-02 queda autorizada en paralelo
+para construcción y validación local en `development-laptop`. Este inicio no
+implica cierre de PPO-01, no implica aprobación de `company-host` y no implica
+despliegue productivo ni despliegue en la empresa.
 
 ## PPO-02 a PPO-10
 
 - PPO-02: definirá Dockerfile, Compose, Nginx, redes, healthchecks y criterios
-  de reproducibilidad.
+  de reproducibilidad. El contrato activo vive en
+  [PPO-02 - Plan de contenerización](PPO_02_CONTAINERIZATION_PLAN.md).
 - PPO-03: rediseñará sesiones de carga, transferencia directa, límites,
   formatos, cuarentena y almacenamiento.
 - PPO-04: cubrirá despliegue provisional, Cloudflare Tunnel, dominio y

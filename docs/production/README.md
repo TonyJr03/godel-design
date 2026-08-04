@@ -8,6 +8,7 @@ arquitectura operativa y puesta en operación de Godel Diseño.
 - [Roadmap PPO](PPO_ROADMAP.md): iniciativa completa de Preproducción y Puesta en Operación.
 - [Plan de auditoría PPO-01](PPO_01_AUDIT_PLAN.md): contrato operativo para auditar infraestructura y conectividad.
 - [Informe de capacidad PPO-01](PPO_01_CAPACITY_REPORT.md): plantilla para resultados resumidos y aprobados.
+- [PPO-02 - Plan de contenerización](PPO_02_CONTAINERIZATION_PLAN.md): contrato activo para la base contenerizada local.
 - [Cierre PPO-00](../preproduction/PPO_00_CLOSURE.md): baseline local cerrada que habilita PPO-01.
 
 ## Diferencia entre carpetas

@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Última actualización: 2026-08-02
+Última actualización: 2026-08-04
 
 ## Estado general
 
@@ -12,18 +12,22 @@ para preproducción mediante PPO.
 PPO-00 está cerrada y su baseline local fue validada. PPO-01 continúa activa:
 PPO-01B quedó cerrada, `development-laptop` fue clasificada `Apta con
 condiciones` para construir y validar la composición contenerizada de PPO-02, y
-PPO-01C es el siguiente paso formal.
+PPO-01C queda diferida temporalmente por disponibilidad de `company-host`.
+PPO-01D permanece pendiente y bloqueada hasta completar PPO-01C.
 
-PPO-02 no ha comenzado. PPO-01 no construye todavía la composición, no presenta
-Docker Compose, Nginx, Cloudflare Tunnel ni el nuevo flujo de archivos como
-implementados. No existe despliegue productivo. PPO-QA-01 queda diferida sin
-bloquear PPO-01.
+PPO-02 está activa únicamente para construcción y validación local en
+`development-laptop`, por decisión expresa de Dirección Técnica. Esto no cierra
+PPO-01, no aprueba `company-host`, no declara despliegue en la empresa y no
+presenta Docker Compose, Nginx, Cloudflare Tunnel ni el nuevo flujo de archivos
+como implementados. No existe despliegue productivo. PPO-QA-01 queda diferida
+sin bloquear la preparación local de PPO-02.
 
 Documentos vigentes:
 
 - [Roadmap PPO](production/PPO_ROADMAP.md).
 - [Plan de auditoría PPO-01](production/PPO_01_AUDIT_PLAN.md).
 - [Informe de capacidad PPO-01](production/PPO_01_CAPACITY_REPORT.md).
+- [Plan de contenerización PPO-02](production/PPO_02_CONTAINERIZATION_PLAN.md).
 - [Cierre PPO-00](preproduction/PPO_00_CLOSURE.md).
 
 ## Funcionalidades disponibles
@@ -90,6 +94,7 @@ de documentación está en [README.md](README.md).
 
 Prioridades antes de exposición productiva:
 
+- Aprobar el plan PPO-02A.1 y ejecutar como siguiente tarea técnica PPO-02A.2.
 - Hardening de preproducción.
 - Protección antiabuso en rutas públicas.
 - Estrategia operativa de archivos.

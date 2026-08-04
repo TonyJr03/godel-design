@@ -1,0 +1,454 @@
+# PPO-02 - Plan de contenerización
+
+## Metadatos
+
+- Estado: Aprobado para preparación
+- Fase: PPO-02
+- Fecha de apertura: 2026-08-04
+- Host autorizado: `development-laptop`
+- `company-host`: pendiente de PPO-01C
+
+## Decisión de Dirección Técnica
+
+PPO-01C:
+
+```text
+Diferida temporalmente por disponibilidad de company-host.
+```
+
+PPO-01D:
+
+```text
+Pendiente y bloqueada hasta completar PPO-01C.
+```
+
+PPO-02:
+
+```text
+Autorizada en paralelo para desarrollo y validación local
+en development-laptop.
+```
+
+La similitud entre `development-laptop` y `company-host` es únicamente una
+hipótesis provisional de compatibilidad. No constituye evidencia, auditoría,
+sizing ni aprobación de despliegue. PPO-01 no queda cerrada y `company-host` no
+queda clasificada por este documento.
+
+## 1. Objetivo
+
+Definir la base contenerizada reproducible de Godel Diseño para construir la
+aplicación, ejecutar Next.js en modo producción, colocar Nginx como proxy
+inverso, aislar servicios mediante redes de Compose, introducir healthchecks,
+controlar variables, secretos y recursos, y preparar una base portable para un
+host Windows con WSL2 y Docker Desktop.
+
+PPO-02 no despliega todavía en la empresa. La preparación queda autorizada solo
+para construcción y validación en `development-laptop`.
+
+## 2. Alcance
+
+PPO-02 cubre el contrato y la validación posterior de:
+
+- Dockerfile de Next.js.
+- Build multi-stage.
+- Runtime mínimo.
+- Compose.
+- Nginx.
+- Red interna.
+- Puertos.
+- Healthchecks.
+- Variables de entorno.
+- Gestión segura de secretos.
+- Límites preliminares.
+- Logs.
+- Arranque, parada y reinicio.
+- Validación reproducible en `development-laptop`.
+
+## 3. Fuera de alcance
+
+Queda fuera de PPO-02A.1 y de la base local inicial:
+
+- Auditoría de `company-host`.
+- Despliegue en la empresa.
+- Cloudflare Tunnel.
+- Dominio.
+- TLS público.
+- Supabase self-hosted.
+- Base PostgreSQL local dentro de Compose.
+- Rediseño del flujo de archivos.
+- Límite final de archivos.
+- Backups.
+- Observabilidad completa.
+- UAT.
+- Producción.
+
+## 4. Hipótesis provisional
+
+- `development-laptop` es la única máquina aprobada para iniciar PPO-02.
+- `company-host` se considera provisionalmente compatible solo para orientar
+  portabilidad.
+- No se usan recursos supuestos de `company-host` para sizing.
+- No se autorizan rutas, volúmenes o puertos ligados a un equipo concreto.
+- Cualquier despliegue en la empresa permanece bloqueado hasta PPO-01C.
+
+## 5. Topología de servicios
+
+La topología objetivo inicial es:
+
+```text
+nginx
+  -> app
+      -> Supabase administrado externo
+```
+
+Servicios de Compose incluidos:
+
+```text
+nginx
+app
+```
+
+Servicios excluidos:
+
+```text
+postgres
+supabase
+storage
+auth
+studio
+kong
+realtime
+```
+
+Supabase local no forma parte de la composición productiva.
+
+## 6. Contenedor app
+
+Contrato previsto para `app`:
+
+- Next.js App Router.
+- Build de producción.
+- Dockerfile multi-stage.
+- Instalación reproducible mediante lockfile.
+- Candidato `output: "standalone"`, sujeto a confirmación final durante
+  PPO-02B con la documentación local de Next.js y una validación real.
+- Runtime sin dependencias de desarrollo.
+- Usuario no root cuando sea técnicamente compatible.
+- Filesystem de aplicación sin datos operativos persistentes.
+- Logs por stdout/stderr.
+- Puerto interno 3000.
+- Señal y apagado limpio.
+- Sin secretos copiados a la imagen.
+
+No se implementa todavía Dockerfile ni configuración de Next.js.
+
+La versión instalada de Next.js es `16.2.6`. Los metadatos reales del paquete y
+la documentación local de instalación declaran Node.js mínimo `>=20.9.0`; por
+ello, PPO-02 deberá usar una imagen Node compatible con ese mínimo y con las
+mediciones de PPO-02B.
+
+## 7. Contenedor Nginx
+
+Contrato previsto para `nginx`:
+
+- Único servicio con puerto publicado.
+- Proxy hacia `app:3000`.
+- Puerto externo configurable.
+- Valor local provisional recomendado: 8080.
+- Sin TLS en PPO-02.
+- Cabeceras de proxy necesarias.
+- Forwarding de host y protocolo.
+- Timeouts controlados.
+- Logs stdout/stderr.
+- Healthcheck.
+- Configuración inmutable incluida en la imagen o montada de forma controlada.
+- Sin acceso directo público al contenedor `app`.
+
+No se implementa todavía Nginx ni Compose.
+
+## 8. Redes
+
+- Se usará una red bridge interna para `nginx` y `app`.
+- Solo Nginx publicará puerto al host.
+- Next.js se descubrirá mediante nombre de servicio.
+- No se usarán IP fijas.
+- No se usarán hostnames reales.
+- No se usarán direcciones privadas del equipo.
+- No se dependerá de la red de Supabase CLI.
+
+## 9. Supabase
+
+Decisión:
+
+```text
+Supabase administrado es dependencia externa.
+No se incluye Supabase self-hosted en PPO-02.
+```
+
+Para la operación provisional, el backend externo será Supabase Free
+administrado. Esto incluye inicialmente PostgreSQL, Auth, Storage, APIs, RLS y
+RPC. Supabase administrado no se describe como solución definitiva, sino como
+backend externo provisional para la puesta en operación inicial.
+
+### Supabase local
+
+- Es una herramienta de desarrollo.
+- Se ejecuta fuera de la composición.
+- No representa arquitectura productiva.
+- Puede utilizarse en pruebas específicas cuando exista una ruta segura y
+  reproducible entre contenedor, navegador y host.
+
+### Supabase administrado
+
+- Es requerido antes de cerrar la integración remota.
+- Permanece pendiente de configuración.
+- No se considera fallo de PPO-02A.1.
+
+### Dirección estratégica futura
+
+Cuando se contrate el VPS, el objetivo será evaluar y preparar la migración
+hacia Supabase autoalojado en esa infraestructura, incluyendo una solución
+sostenible para PostgreSQL, Auth, APIs, Storage, backups y recuperación.
+
+Esta dirección futura no autoriza autoalojar Supabase en `company-host`, no
+forma parte de la implementación de PPO-02, no implica migración inmediata,
+deberá concretarse mediante diseño y ADR antes de la etapa del VPS, y requerirá
+una estrategia separada para migrar base de datos y objetos de Storage.
+
+## 10. Contrato de variables
+
+### Públicas y utilizadas por navegador
+
+```text
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+```
+
+El código actual las usa en el cliente del navegador mediante
+`src/lib/supabase/client.ts` y también en clientes server-side ligados a sesión.
+La documentación local de Next.js indica que las variables `NEXT_PUBLIC_*`
+usadas por el navegador pueden incorporarse al bundle durante `next build`; su
+tratamiento exacto durante PPO-02B debe verificarse con la imagen construida.
+
+Decisión provisional:
+
+- Construir imágenes por entorno cuando estas variables deban quedar
+  incorporadas al bundle.
+- No intentar sustituirlas arbitrariamente después del build.
+- No almacenar valores reales en Dockerfile, Compose o repositorio.
+
+### Secretas server-only
+
+```text
+SUPABASE_SECRET_KEY
+```
+
+Reglas:
+
+- Solo runtime.
+- Nunca `ARG`.
+- Nunca capa de imagen.
+- Nunca `NEXT_PUBLIC`.
+- Nunca archivo versionado.
+- Nunca log.
+- Solo accesible al contenedor `app`.
+- No accesible a Nginx.
+
+### QA
+
+Las variables `GODEL_TEST_*` no forman parte del runtime normal de PPO-02.
+
+## 11. Estrategia inicial de validación
+
+### Nivel 1 — Empaquetado
+
+- Imagen construye.
+- Contenedor inicia.
+- Proceso responde.
+- Liveness funciona.
+- No requiere Supabase administrado.
+
+### Nivel 2 — Integración local
+
+- Evaluar conexión desde contenedor a Supabase local.
+- Evaluar que navegador y servidor puedan usar endpoints coherentes.
+- No cambiar arquitectura productiva solo para acomodar una prueba local.
+- Cualquier necesidad de URL interna diferente debe ser un checkpoint
+  arquitectónico explícito.
+
+### Nivel 3 — Integración administrada
+
+- Configurar Supabase administrado.
+- Construir con variables públicas del entorno.
+- Inyectar secreto server-only en runtime.
+- Comprobar Auth y acceso básico.
+- Requerido antes del cierre de PPO-02, salvo nueva decisión expresa.
+
+Ningún nivel se declara ejecutado en PPO-02A.1.
+
+## 12. Healthchecks
+
+Rutas planificadas:
+
+```text
+/api/health/live
+/api/health/ready
+```
+
+### Liveness
+
+- Demuestra que el proceso Next.js responde.
+- No consulta Supabase.
+- No consulta base de datos.
+- No expone configuración.
+- Respuesta mínima.
+
+### Readiness
+
+- Demuestra que la aplicación tiene configuración mínima válida.
+- Podrá comprobar dependencia externa con timeout corto cuando se configure.
+- No expone URL, claves, project ref ni errores internos.
+- Debe distinguir degradación de proceso caído.
+
+`src/proxy.ts` deberá excluir explícitamente los healthchecks o tratarlos sin
+requerir sesión. No se implementan todavía route handlers ni cambios al proxy.
+
+## 13. Cargas y tamaño de cuerpo
+
+- `next.config.ts` mantiene actualmente límites transitorios de `110mb` para
+  `experimental.proxyClientMaxBodySize` y `experimental.serverActions.bodySizeLimit`.
+- PPO-02 no rediseña ese flujo.
+- Nginx no debe introducir una regresión con un límite inferior al
+  comportamiento actual.
+- El límite funcional previsto sigue siendo 20 MB por archivo.
+- PPO-03 definirá transferencia directa, semántica exacta en bytes y política
+  final.
+- No se afirma que 110 MB sea el límite funcional definitivo.
+
+## 14. Recursos
+
+Guardrails iniciales de `development-laptop`:
+
+```text
+Presupuesto agregado:
+hasta 4 vCPU
+hasta 4 GiB
+```
+
+- Aplicar límites por servicio.
+- No modificar todavía la asignación global de Docker Desktop.
+- Mantener margen mínimo aproximado de 6 GiB disponibles en el host.
+- Revisar valores con mediciones reales.
+- No aplicar estos valores automáticamente a `company-host`.
+- No fijar todavía el reparto exacto entre Nginx y app; queda como decisión de
+  PPO-02C.
+
+## 15. Persistencia
+
+- `app` y `nginx` serán stateless.
+- No se guardarán archivos de clientes dentro de contenedores.
+- No se usará el repositorio como volumen de datos.
+- No se persistirá `.next`.
+- No se persistirá `node_modules`.
+- No se contenerizará PostgreSQL.
+- No se crearán todavía volúmenes productivos de archivos.
+- Supabase Storage continúa siendo externo.
+
+## 16. Logs
+
+- Logs por stdout/stderr.
+- Sin archivos de log persistentes dentro del contenedor.
+- Sin tokens, cookies, claves ni cuerpos sensibles.
+- Nginx y app con logs separados.
+- Observabilidad avanzada diferida a PPO-07.
+
+## 17. Seguridad
+
+- Usuario no root cuando técnicamente sea compatible.
+- Imágenes con versiones controladas.
+- Lockfile obligatorio.
+- Contexto de build mínimo.
+- `.dockerignore`.
+- No montar Docker socket.
+- No modo privilegiado.
+- No `network_mode: host`.
+- No secretos en build args.
+- No puertos innecesarios.
+- No acceso directo al servicio app.
+- No credenciales hardcodeadas.
+
+## 18. Portabilidad hacia company-host
+
+La composición deberá:
+
+- No usar rutas personales.
+- No usar letras de unidad fijas.
+- No usar IP fijas.
+- No depender del nombre del equipo.
+- No requerir GPU.
+- No requerir herramientas instaladas dentro del host aparte de WSL2 y Docker
+  Desktop.
+- Permitir configuración mediante archivos externos no versionados.
+- Conservar puertos externos configurables.
+- Poder trasladarse sin editar código.
+
+Esto no demuestra capacidad de `company-host` ni reemplaza PPO-01C.
+
+## 19. Fases internas de PPO-02
+
+```text
+PPO-02A — Contrato y decisiones arquitectónicas
+PPO-02B — Imagen de aplicación
+PPO-02C — Nginx y Compose
+PPO-02D — Reproducibilidad y validación
+PPO-02E — Cierre
+```
+
+Checkpoints:
+
+- PPO-02A: contrato documental, decisiones, variables, riesgos y Definition of
+  Done.
+- PPO-02B: Dockerfile de aplicación, build multi-stage, runtime mínimo, usuario
+  no root y verificación de `output: "standalone"`.
+- PPO-02C: Nginx, Compose, red interna, puertos, límites por servicio y
+  políticas de reinicio.
+- PPO-02D: arranque/parada reproducibles, smoke local, healthchecks, logs y
+  mediciones iniciales.
+- PPO-02E: cierre documental, riesgos remanentes, estrategia de Supabase
+  administrado y preparación para la fase siguiente.
+
+## 20. Definition of Done de PPO-02
+
+- Imagen reproducible.
+- Next.js ejecutándose en producción.
+- Nginx como único punto publicado.
+- Red interna.
+- Healthchecks.
+- Variables clasificadas.
+- Secretos fuera de imágenes.
+- Build limpio.
+- Arranque y parada reproducibles.
+- Smoke local.
+- Límites observados.
+- Documentación.
+- Ausencia de datos sensibles.
+- Estrategia de Supabase administrado resuelta.
+- Ningún despliegue en `company-host` declarado.
+
+## 21. Riesgos abiertos
+
+| Clasificación | Riesgo | Tratamiento |
+| ------------- | ------ | ----------- |
+| condición | Supabase administrado pendiente. | Requerido antes de cerrar integración remota. |
+| condición | Variables `NEXT_PUBLIC_*` potencialmente ligadas al build. | Construir por entorno si quedan incorporadas al bundle. |
+| condición | Conectividad contenedor-Supabase local no validada. | Evaluar en Nivel 2 sin cambiar arquitectura productiva. |
+| condición | Healthchecks inexistentes. | Implementar en fase posterior y excluirlos del proxy o permitirlos sin sesión. |
+| observación | `output: "standalone"` no confirmado aún en la configuración del proyecto. | Confirmar en PPO-02B con build real y documentación local. |
+| observación | Body size transitorio. | No tratar `110mb` como límite funcional definitivo; resolver en PPO-03. |
+| observación | `company-host` no auditado. | Resolver en PPO-01C; no bloquea la preparación documental local. |
+| observación | Límites de recursos no probados con la composición. | Medir durante PPO-02C/PPO-02D. |
+| observación | Comportamiento de reinicio no validado. | Validar con Compose en PPO-02D. |
+| observación | PPO-QA-01 diferida. | Retomar antes del cierre definitivo de puesta en producción. |
+
+No existe un bloqueante para comenzar la preparación documental y el empaquetado
+básico local en `development-laptop`.
