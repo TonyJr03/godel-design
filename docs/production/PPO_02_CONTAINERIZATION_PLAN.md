@@ -5,6 +5,7 @@
 - Estado: Aprobado para preparación
 - Fase: PPO-02
 - Fecha de apertura: 2026-08-04
+- Última actualización: 2026-08-05
 - Host autorizado: `development-laptop`
 - `company-host`: pendiente de PPO-01C
 
@@ -169,7 +170,21 @@ Contrato previsto para `nginx`:
 - Configuración inmutable incluida en la imagen o montada de forma controlada.
 - Sin acceso directo público al contenedor `app`.
 
-No se implementa todavía Nginx ni Compose.
+PPO-02C.1 implementa la imagen y configuración de Nginx con
+`nginxinc/nginx-unprivileged:stable-bookworm`, fijada por digest
+`sha256:cd33960e98e93d4d63385790ff7f8f5bf2ca95184c581b7f42ae8aea1139fbfc`.
+La variante validada usa Nginx `1.28.0`, `linux/amd64`, usuario no root `101`,
+puerto 8080 y `STOPSIGNAL SIGQUIT`.
+
+La configuración proxy apunta a `app:3000`, conserva
+`client_max_body_size 110m`, timeouts de 300 s para cuerpos/respuesta,
+`proxy_connect_timeout 5s`, headers `Host`, `X-Real-IP`, `X-Forwarded-*`,
+soporte WebSocket mediante `map $http_upgrade $connection_upgrade`,
+`proxy_request_buffering off` y `server_tokens off`. No configura TLS, headers
+Cloudflare, autenticación en Nginx, CSP/HSTS, rutas de healthcheck ni recursos
+estáticos desde volumen separado.
+
+No se implementa todavía Compose.
 
 ## 8. Redes
 
@@ -570,10 +585,39 @@ Resultados confirmados:
 
 PPO-02B queda cerrada para la imagen `app`.
 
+PPO-02C.1 queda ejecutada en
+[PPO-02C.1 - Informe de imagen Nginx](PPO_02_NGINX_IMAGE_REPORT.md).
+
+Resultados confirmados:
+
+- Imagen `godel-design-nginx:ppo-02c1` construida sobre
+  `nginxinc/nginx-unprivileged:stable-bookworm` fijada por digest.
+- Build no cacheado y build cacheado finalizaron con exit code 0 y evidencia
+  sanitizada fuera del repositorio.
+- Red temporal `godel-ppo-02c1` creada solo para validación manual de
+  `godel-ppo-02c1-app` y `godel-ppo-02c1-nginx`.
+- El contenedor `app` no publicó puertos; Nginx fue el único punto publicado.
+- Nginx resolvió `app` mediante alias de red y no usó IP fija.
+- `nginx -t` validó sintaxis y `nginx -T` confirmó listen 8080, upstream
+  `app:3000`, headers forward, upgrade map, timeouts,
+  `client_max_body_size 110m`, `proxy_request_buffering off`,
+  `server_tokens off`, ausencia de TLS y ausencia de secretos.
+- Smokes vía Nginx: `/login`, recurso de `public`, recurso `/_next/static` y
+  `/_next/image` respondieron HTTP 200.
+- Header `Server`: `nginx`, sin versión.
+- `/dashboard` redirigió a `/login` sin perder el host original.
+- Fallo controlado del upstream: con `app` detenido, `/login` vía Nginx devolvió
+  HTTP 504, Nginx siguió ejecutándose y no registró secretos ni endpoints
+  Supabase completos; tras reiniciar `app`, `/login` recuperó HTTP 200.
+- Runtime Nginx validado con filesystem read-only, UID 101, tmpfs `/tmp`,
+  `--cap-drop=ALL`, `no-new-privileges`, `pids-limit=128`, sin mounts
+  persistentes, sin Docker socket y logs a stdout/stderr.
+- No se implementó Compose, TLS, Cloudflare Tunnel ni healthchecks.
+
 Siguiente checkpoint si no aparecen nuevos bloqueantes:
 
 ```text
-PPO-02C.1 - Implementación de la imagen y configuración de Nginx
+PPO-02C.2 - Implementación de Docker Compose y red interna
 ```
 
 No se marca PPO-02 como cerrada.
@@ -584,13 +628,15 @@ No se marca PPO-02 como cerrada.
 | ------------- | ------ | ----------- |
 | condición | Supabase administrado pendiente. | Requerido antes de cerrar integración remota. |
 | condición | Variables `NEXT_PUBLIC_*` ligadas a salidas construidas cuando participan en build. | Construir por entorno y mantener `SUPABASE_SERVER_URL` fuera del cliente. |
-| condición | Conectividad local clasificada como Caso B. | Contrato split-horizon formalizado en PPO-02A.3; validar su uso real en PPO-02B. |
+| condición | Conectividad local clasificada como Caso B. | Contrato split-horizon formalizado en PPO-02A.3 y validado localmente en PPO-02B/PPO-02C.1; falta Supabase administrado. |
+| condición | Docker Compose inexistente. | Implementar en PPO-02C.2 con red interna y Nginx como único punto publicado. |
 | observación | Build no cacheado de PPO-02B.2 completado sin `ECONNRESET`. | Mantener reintentos npm acotados, cache de dependencias y no ocultar fallos deterministas. |
 | observación | Política npm `allowScripts` pendiente para `sharp` y `unrs-resolver`. | `sharp` validado en runtime standalone; revisar política npm en una fase posterior y no usar `--dangerously-allow-all-scripts`. |
 | condición | Healthchecks inexistentes. | Implementar en fase posterior y excluirlos del proxy o permitirlos sin sesión. |
-| observación | `output: "standalone"` implementado para la imagen app. | Contrato operativo endurecido en PPO-02B.2; integrar detrás de Nginx en PPO-02C. |
+| observación | `output: "standalone"` implementado para la imagen app. | Contrato operativo endurecido en PPO-02B.2 e integrado manualmente detrás de Nginx en PPO-02C.1. |
+| observación | Imagen Nginx inicial fijada y validada. | Integrarla mediante Compose en PPO-02C.2 y mantener digest controlado. |
 | observación | Imagen base inicial fijada para `app`. | Revisar política de actualización de digest en endurecimiento posterior. |
-| observación | Secreto runtime confirmado en spike. | Mantenerlo fuera de ARG, capas, logs y Nginx en PPO-02B/PPO-02C. |
+| observación | Secreto runtime confirmado en spike. | Mantenerlo fuera de ARG, capas, logs y Nginx en fases posteriores. |
 | observación | Body size transitorio. | No tratar `110mb` como límite funcional definitivo; resolver en PPO-03. |
 | observación | `company-host` no auditado. | Resolver en PPO-01C; no bloquea la preparación documental local. |
 | observación | Límites de recursos no probados con la composición. | Medir durante PPO-02C/PPO-02D. |

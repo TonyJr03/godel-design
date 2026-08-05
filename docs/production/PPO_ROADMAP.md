@@ -5,7 +5,7 @@
 - Proyecto: Godel Diseño
 - Estado: Activo
 - Fecha de creación: 2026-07-21
-- Última revisión: 2026-08-04
+- Última revisión: 2026-08-05
 - Responsable técnico: Dirección Técnica de Godel Diseño
 - Arquitectura y supervisión: Arquitectura Senior / Orquestación Técnica
 - Implementación: Agente Codex en VS Code
@@ -72,6 +72,17 @@ posteriores no se declaran implementadas en este roadmap.
 PPO-QA-01 no bloquea PPO-01, conserva el trabajo archivado y deberá resolverse
 antes del cierre definitivo de la puesta en producción.
 
+Estado interno vigente de PPO-02:
+
+| Bloque    | Estado |
+| --------- | ------ |
+| PPO-02A   | Cerrada |
+| PPO-02B   | Cerrada para la imagen app |
+| PPO-02C.1 | Activa únicamente en `development-laptop` |
+
+Este avance no cierra PPO-01, no aprueba `company-host`, no implementa Docker
+Compose, no constituye despliegue y no configura Supabase administrado.
+
 ## PPO-00
 
 PPO-00 queda cerrada con una baseline local reproducible: puertos canónicos para
@@ -134,9 +145,10 @@ despliegue productivo ni despliegue en la empresa.
 ## PPO-02 a PPO-10
 
 - PPO-02: definirá Dockerfile, Compose, Nginx, redes, healthchecks y criterios
-  de reproducibilidad. PPO-02A.3 ya formalizó la separación de endpoints
-  Supabase entre navegador y servidor para resolver el Caso B local. El contrato
-  activo vive en
+  de reproducibilidad. PPO-02A queda cerrada, PPO-02B queda cerrada para la
+  imagen app y PPO-02C.1 queda activo únicamente en `development-laptop` para la
+  imagen Nginx. Esto no implementa Compose ni despliegue. El contrato activo
+  vive en
   [PPO-02 - Plan de contenerización](PPO_02_CONTAINERIZATION_PLAN.md).
 - PPO-03: rediseñará sesiones de carga, transferencia directa, límites,
   formatos, cuarentena y almacenamiento.

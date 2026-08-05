@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Última actualización: 2026-08-04
+Última actualización: 2026-08-05
 
 ## Estado general
 
@@ -18,21 +18,21 @@ PPO-01D permanece pendiente y bloqueada hasta completar PPO-01C.
 PPO-02 está activa únicamente para construcción y validación local en
 `development-laptop`, por decisión expresa de Dirección Técnica. PPO-02A.1
 queda cerrada, PPO-02A.2 fue ejecutada como spike técnico reversible,
-PPO-02A.3 formalizó el contrato de endpoints Supabase por contexto, PPO-02B.1
-implementó el Dockerfile inicial del servicio `app` y PPO-02B.2 endureció el
-contrato operativo de la imagen. La evidencia soporta `output: "standalone"`,
-la imagen base fijada `node:24-bookworm-slim`, usuario no root, copia explícita
-de `public` y `.next/static`, secretos fuera de build, imagen local
-`godel-design-app:ppo-02b2` validada, filesystem read-only con tmpfs mínimos,
-`STOPSIGNAL SIGTERM`, captura sanitizada de build y split-horizon HTTP validado
-entre host y contenedor.
+PPO-02A.3 formalizó el contrato de endpoints Supabase por contexto, PPO-02B
+quedó cerrada para la imagen `app` y PPO-02C.1 implementó la imagen y
+configuración de Nginx. La evidencia soporta `output: "standalone"`, imagen app
+endurecida `godel-design-app:ppo-02b2`, filesystem read-only con tmpfs mínimos,
+`STOPSIGNAL SIGTERM`, imagen Nginx no privilegiada
+`godel-design-nginx:ppo-02c1`, upstream `app:3000`, puerto interno 8080,
+Nginx como único punto publicado en la validación manual de dos contenedores y
+split-horizon HTTP validado entre host y contenedor.
 
 Esto no cierra PPO-01, no aprueba `company-host`, no declara despliegue en la
-empresa y no presenta Docker Compose, Nginx, Cloudflare Tunnel, healthchecks ni
-el nuevo flujo de archivos como implementados. No existe despliegue productivo.
-Supabase administrado permanece pendiente. PPO-02B queda cerrada para la imagen
-`app`; el siguiente checkpoint es PPO-02C.1 para imagen y configuración de
-Nginx. PPO-QA-01 queda diferida sin bloquear la preparación local de PPO-02.
+empresa y no presenta Docker Compose, Cloudflare Tunnel, healthchecks ni el
+nuevo flujo de archivos como implementados. No existe despliegue productivo.
+Supabase administrado permanece pendiente. PPO-02C.1 queda aprobada
+localmente; el siguiente checkpoint es PPO-02C.2 para Docker Compose y red
+interna. PPO-QA-01 queda diferida sin bloquear la preparación local de PPO-02.
 
 Documentos vigentes:
 
@@ -43,6 +43,7 @@ Documentos vigentes:
 - [Spike técnico de empaquetado PPO-02A.2](production/PPO_02_PACKAGING_SPIKE.md).
 - [Informe de imagen app PPO-02B.1](production/PPO_02_APP_IMAGE_REPORT.md).
 - [Informe de endurecimiento de imagen app PPO-02B.2](production/PPO_02_APP_IMAGE_HARDENING_REPORT.md).
+- [Informe de imagen Nginx PPO-02C.1](production/PPO_02_NGINX_IMAGE_REPORT.md).
 - [Cierre PPO-00](preproduction/PPO_00_CLOSURE.md).
 
 ## Funcionalidades disponibles
@@ -109,7 +110,7 @@ de documentación está en [README.md](README.md).
 
 Prioridades antes de exposición productiva:
 
-- Ejecutar como siguiente checkpoint PPO-02C.1: implementación de la imagen y configuración de Nginx.
+- Ejecutar como siguiente checkpoint PPO-02C.2: implementación de Docker Compose y red interna.
 - Hardening de preproducción.
 - Protección antiabuso en rutas públicas.
 - Estrategia operativa de archivos.
