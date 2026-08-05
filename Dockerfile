@@ -6,8 +6,10 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 FROM base AS deps
 COPY package.json package-lock.json ./
-RUN --mount=type=cache,target=/root/.npm \
+RUN --mount=type=cache,id=godel-design-npm,target=/root/.npm,sharing=locked \
   npm ci \
+    --no-audit \
+    --no-fund \
     --fetch-retries=3 \
     --fetch-retry-mintimeout=10000 \
     --fetch-retry-maxtimeout=60000
@@ -28,10 +30,14 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
+STOPSIGNAL SIGTERM
 
 COPY --from=builder --chown=node:node /app/.next/standalone ./
 COPY --from=builder --chown=node:node /app/public ./public
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
+RUN mkdir -p /app/.next/cache /tmp \
+  && chown node:node /app/.next/cache \
+  && chmod 1777 /tmp
 
 USER node
 EXPOSE 3000

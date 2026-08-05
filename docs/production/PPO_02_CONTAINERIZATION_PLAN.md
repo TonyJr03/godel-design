@@ -140,7 +140,10 @@ Contrato previsto para `app`:
 - Sin secretos copiados a la imagen.
 
 PPO-02B.1 implementa el Dockerfile de aplicación y la configuración standalone
-de Next.js. No implementa todavía Nginx, Compose ni healthchecks.
+de Next.js. PPO-02B.2 endurece el contrato operativo de la imagen `app` con
+build wrapper sanitizado, cache de dependencias, filesystem read-only, tmpfs
+mínimos, `STOPSIGNAL SIGTERM`, ejecución no root y validación de secretos solo
+runtime. No implementa todavía Nginx, Compose ni healthchecks.
 
 La versión instalada de Next.js es `16.2.6`. Los metadatos reales del paquete y
 la documentación local de instalación declaran Node.js mínimo `>=20.9.0`. El
@@ -536,22 +539,41 @@ Resultados confirmados:
 - No se usó `SUPABASE_SECRET_KEY` en build ni smoke runtime.
 - No se implementó Compose, Nginx ni healthchecks.
 
-Condiciones trasladadas a PPO-02B.2:
+PPO-02B.2 queda ejecutada en
+[PPO-02B.2 - Informe de endurecimiento de imagen app](PPO_02_APP_IMAGE_HARDENING_REPORT.md).
 
-- Resolver o aceptar explícitamente la presencia del nombre literal
-  `SUPABASE_SECRET_KEY` en chunks server-side standalone generados por el
-  adaptador Auth Admin existente. No se detectó valor real en imagen, history,
-  configuración, recursos cliente ni logs.
-- Mejorar captura sanitizada del log de build Docker; el primer build produjo
-  imagen, pero el wrapper inicial de PowerShell devolvió exit code `1` por
-  tratamiento de stream nativo y no conservó el log detallado.
-- Mantener validación posterior con Supabase administrado y Auth completo fuera
-  de PPO-02B.1.
+Resultados confirmados:
+
+- El Dockerfile conserva la imagen base fijada y agrega cache de `npm ci`,
+  reintentos npm acotados, `STOPSIGNAL SIGTERM` y preparación de tmpfs para
+  `/tmp` y `/app/.next/cache`.
+- El build wrapper `scripts/preproduction/build-app-image.ps1` captura exit code
+  real de Docker, conserva evidencia sanitizada fuera del repositorio y no lee
+  secretos.
+- La imagen `godel-design-app:ppo-02b2` construyó sin caché con exit code 0 y
+  luego reconstruyó con caché con exit code 0.
+- Runtime validado con `--read-only`, `--pids-limit=256`, `--cap-drop=ALL`,
+  `--security-opt no-new-privileges`, usuario `1000:1000` y tmpfs mínimos.
+- `/app` bloqueó escritura arbitraria; `/tmp` y `/app/.next/cache` permitieron
+  escritura temporal esperada.
+- Smokes HTTP validaron `public`, `/_next/static`, `/login`, `/_next/image` y
+  conectividad split-horizon hacia Supabase local.
+- `docker stop --time 10` terminó con exit code 0 y el contenedor salió con 143,
+  sin evidencia de `SIGKILL` ni `OOMKilled`.
+- Los nombres literales `SUPABASE_SECRET_KEY` y `SUPABASE_SERVER_URL` en chunks
+  server-side standalone quedan aceptados como comportamiento esperado. La
+  exposición prohibida sigue siendo la de valores reales.
+- No se detectaron valores reales de secretos ni endpoints server-only en
+  Dockerfile, build args, capas, configuración de imagen, `docker history`,
+  recursos cliente, recursos públicos, logs ni repositorio.
+- No se implementó Compose, Nginx ni healthchecks.
+
+PPO-02B queda cerrada para la imagen `app`.
 
 Siguiente checkpoint si no aparecen nuevos bloqueantes:
 
 ```text
-PPO-02B.2 — Endurecimiento y contrato operativo de la imagen app
+PPO-02C.1 - Implementación de la imagen y configuración de Nginx
 ```
 
 No se marca PPO-02 como cerrada.
@@ -563,12 +585,10 @@ No se marca PPO-02 como cerrada.
 | condición | Supabase administrado pendiente. | Requerido antes de cerrar integración remota. |
 | condición | Variables `NEXT_PUBLIC_*` ligadas a salidas construidas cuando participan en build. | Construir por entorno y mantener `SUPABASE_SERVER_URL` fuera del cliente. |
 | condición | Conectividad local clasificada como Caso B. | Contrato split-horizon formalizado en PPO-02A.3; validar su uso real en PPO-02B. |
-| condición | Build inicial afectado por `ECONNRESET`. | Usar reintentos npm acotados, cache de dependencias y no ocultar fallos deterministas; volver a medir en PPO-02B. |
-| condición | Política npm `allowScripts` pendiente para `sharp` y `unrs-resolver`. | `sharp` validado en runtime standalone; revisar política npm en PPO-02B.2 y no usar `--dangerously-allow-all-scripts`. |
-| condición | Nombre literal `SUPABASE_SECRET_KEY` presente en chunks server-side standalone. | Resolver o aceptar explícitamente en PPO-02B.2; no se detectó valor real en image config, history, recursos cliente ni logs. |
-| condición | Captura incompleta del log detallado del primer build Docker. | Mejorar wrapper de evidencia sanitizada en PPO-02B.2; segundo build cacheado validado correctamente. |
+| observación | Build no cacheado de PPO-02B.2 completado sin `ECONNRESET`. | Mantener reintentos npm acotados, cache de dependencias y no ocultar fallos deterministas. |
+| observación | Política npm `allowScripts` pendiente para `sharp` y `unrs-resolver`. | `sharp` validado en runtime standalone; revisar política npm en una fase posterior y no usar `--dangerously-allow-all-scripts`. |
 | condición | Healthchecks inexistentes. | Implementar en fase posterior y excluirlos del proxy o permitirlos sin sesión. |
-| observación | `output: "standalone"` implementado para la imagen app. | Endurecer contrato operativo en PPO-02B.2. |
+| observación | `output: "standalone"` implementado para la imagen app. | Contrato operativo endurecido en PPO-02B.2; integrar detrás de Nginx en PPO-02C. |
 | observación | Imagen base inicial fijada para `app`. | Revisar política de actualización de digest en endurecimiento posterior. |
 | observación | Secreto runtime confirmado en spike. | Mantenerlo fuera de ARG, capas, logs y Nginx en PPO-02B/PPO-02C. |
 | observación | Body size transitorio. | No tratar `110mb` como límite funcional definitivo; resolver en PPO-03. |

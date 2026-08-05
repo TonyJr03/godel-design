@@ -18,19 +18,21 @@ PPO-01D permanece pendiente y bloqueada hasta completar PPO-01C.
 PPO-02 está activa únicamente para construcción y validación local en
 `development-laptop`, por decisión expresa de Dirección Técnica. PPO-02A.1
 queda cerrada, PPO-02A.2 fue ejecutada como spike técnico reversible,
-PPO-02A.3 formalizó el contrato de endpoints Supabase por contexto y PPO-02B.1
-implementó el Dockerfile inicial del servicio `app`. La evidencia soporta
-`output: "standalone"`, la imagen base fijada `node:24-bookworm-slim`, usuario
-no root, copia explícita de `public` y `.next/static`, secretos fuera de build,
-imagen local `godel-design-app:ppo-02b1` validada y split-horizon HTTP validado
+PPO-02A.3 formalizó el contrato de endpoints Supabase por contexto, PPO-02B.1
+implementó el Dockerfile inicial del servicio `app` y PPO-02B.2 endureció el
+contrato operativo de la imagen. La evidencia soporta `output: "standalone"`,
+la imagen base fijada `node:24-bookworm-slim`, usuario no root, copia explícita
+de `public` y `.next/static`, secretos fuera de build, imagen local
+`godel-design-app:ppo-02b2` validada, filesystem read-only con tmpfs mínimos,
+`STOPSIGNAL SIGTERM`, captura sanitizada de build y split-horizon HTTP validado
 entre host y contenedor.
 
 Esto no cierra PPO-01, no aprueba `company-host`, no declara despliegue en la
 empresa y no presenta Docker Compose, Nginx, Cloudflare Tunnel, healthchecks ni
 el nuevo flujo de archivos como implementados. No existe despliegue productivo.
-Supabase administrado permanece pendiente. PPO-02B.1 queda aprobada con
-condiciones para endurecimiento posterior de imagen. PPO-QA-01 queda diferida
-sin bloquear la preparación local de PPO-02.
+Supabase administrado permanece pendiente. PPO-02B queda cerrada para la imagen
+`app`; el siguiente checkpoint es PPO-02C.1 para imagen y configuración de
+Nginx. PPO-QA-01 queda diferida sin bloquear la preparación local de PPO-02.
 
 Documentos vigentes:
 
@@ -40,6 +42,7 @@ Documentos vigentes:
 - [Plan de contenerización PPO-02](production/PPO_02_CONTAINERIZATION_PLAN.md).
 - [Spike técnico de empaquetado PPO-02A.2](production/PPO_02_PACKAGING_SPIKE.md).
 - [Informe de imagen app PPO-02B.1](production/PPO_02_APP_IMAGE_REPORT.md).
+- [Informe de endurecimiento de imagen app PPO-02B.2](production/PPO_02_APP_IMAGE_HARDENING_REPORT.md).
 - [Cierre PPO-00](preproduction/PPO_00_CLOSURE.md).
 
 ## Funcionalidades disponibles
@@ -106,7 +109,7 @@ de documentación está en [README.md](README.md).
 
 Prioridades antes de exposición productiva:
 
-- Ejecutar como siguiente checkpoint PPO-02B.2: endurecimiento y contrato operativo de la imagen app.
+- Ejecutar como siguiente checkpoint PPO-02C.1: implementación de la imagen y configuración de Nginx.
 - Hardening de preproducción.
 - Protección antiabuso en rutas públicas.
 - Estrategia operativa de archivos.

@@ -11,6 +11,7 @@ arquitectura operativa y puesta en operación de Godel Diseño.
 - [PPO-02 - Plan de contenerización](PPO_02_CONTAINERIZATION_PLAN.md): contrato activo para la base contenerizada local.
 - [PPO-02A.2 - Spike técnico de empaquetado](PPO_02_PACKAGING_SPIKE.md): evidencia sanitizada de standalone, variables, secreto runtime y conectividad local.
 - [PPO-02B.1 - Informe de imagen app](PPO_02_APP_IMAGE_REPORT.md): evidencia sanitizada del Dockerfile de aplicación, build, runtime, split-horizon y seguridad de imagen.
+- [PPO-02B.2 - Informe de endurecimiento de imagen app](PPO_02_APP_IMAGE_HARDENING_REPORT.md): evidencia sanitizada de build reproducido, runtime read-only, tmpfs mínimos, SIGTERM y contrato operativo de secretos.
 - [Cierre PPO-00](../preproduction/PPO_00_CLOSURE.md): baseline local cerrada que habilita PPO-01.
 
 ## Diferencia entre carpetas
