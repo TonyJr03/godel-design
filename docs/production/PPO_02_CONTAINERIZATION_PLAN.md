@@ -358,6 +358,10 @@ Rutas planificadas:
 `src/proxy.ts` deberá excluir explícitamente los healthchecks o tratarlos sin
 requerir sesión. No se implementan todavía route handlers ni cambios al proxy.
 
+PPO-02D.1 implementa las rutas `/api/health/live` y `/api/health/ready`, excluye
+los healthchecks del proxy y configura healthchecks Compose para `app` y
+`nginx` con `depends_on.app.condition = service_healthy`.
+
 ## 13. Cargas y tamaño de cuerpo
 
 - `next.config.ts` mantiene actualmente límites transitorios de `110mb` para
@@ -671,6 +675,17 @@ PPO-02C.2 queda cerrada con condiciones por la ausencia todavía esperada de
 healthchecks en esa fase, Supabase administrado, Auth completo, TLS, Cloudflare,
 `company-host`, despliegue y E2E completo.
 
+PPO-02C.3:
+
+```text
+Absorbida en PPO-02C.2 — límites y aislamiento validados
+```
+
+PPO-02C.2 ya validó CPU, memoria, `pids_limit`, `read_only`, tmpfs, usuarios no
+root, `cap_drop=ALL`, `no-new-privileges`, red dedicada, `app` sin puerto
+publicado, Nginx como única entrada, ausencia de Docker socket, ausencia de
+montajes persistentes, `docker stats` y límites efectivos vía Docker.
+
 PPO-02D.1 queda ejecutada en
 [PPO-02D.1 - Informe de healthchecks y dependencia operativa](PPO_02_HEALTHCHECK_REPORT.md).
 
@@ -732,19 +747,95 @@ PPO-02D.2 queda condicionada a que el proyecto Supabase Free administrado esté
 configurado y sus variables estén disponibles de forma segura. No se inicia en
 PPO-02D.1.
 
+PPO-02D.2 queda ejecutada en
+[PPO-02D.2 - Validación con Supabase administrado](PPO_02_MANAGED_SUPABASE_REPORT.md).
+
+Resultado anterior:
+
+```text
+manual_required
+```
+
+La validación administrada se detuvo antes de modificar el backend remoto porque
+`compose.env.local` no existe en la raíz del repositorio con las variables reales
+del proyecto Supabase Free administrado. El archivo queda formalizado como
+runtime local ignorado por Git mediante `.gitignore`, mientras
+`compose.env.example` permanece versionado como plantilla sin credenciales.
+
+No se ejecutaron `supabase migration list --linked`, `supabase db push --linked
+--dry-run`, `supabase db push --linked`, Compose administrado, Auth smoke, RLS
+smoke ni Storage smoke. No se aplicaron migraciones remotas, no se ejecutó seed,
+no se usaron banderas `--include-*` y no se modificó el backend administrado.
+
+Reanudación de PPO-02D.2:
+
+- `compose.env.local` existe, está ignorado por Git y cumple el contrato de
+  propiedades sin imprimir valores.
+- Supabase CLI está autenticada.
+- El proyecto enlazado coincide con el endpoint administrado configurado y es
+  accesible mediante `projects list`.
+- `migration list --linked` no completó porque falta una credencial de base de
+  datos no interactiva para la CLI.
+- No se ejecutó `db push --linked --dry-run`.
+- No se ejecutó `db push --linked`.
+- No se aplicaron migraciones remotas.
+- No se ejecutó seed.
+- No se ejecutó Compose administrado.
+
+Resultado de la reanudacion previa:
+
+```text
+manual_required
+```
+
+Continuacion de PPO-02D.2:
+
+- Direccion Tecnica declaro ejecutadas manualmente las operaciones PostgreSQL
+  remotas con VPN desactivado.
+- La baseline remota quedo declarada como 6/6 migraciones aplicadas, 0
+  pendientes y seed no aplicado.
+- Codex no reejecuto operaciones PostgreSQL administrativas con VPN activo.
+- La restriccion se clasifica como restriccion del canal administrativo
+  PostgreSQL a traves de ProTUN, no como fallo demostrado de HTTPS.
+- HTTPS administrado y `/auth/v1/health` fueron alcanzables desde Codex con VPN
+  activo usando publishable key.
+- El contenedor `app` tambien alcanzo `/auth/v1/health` con `apikey`.
+- `docker compose --env-file compose.env.local config --quiet` y `build`
+  finalizaron correctamente.
+- `docker compose --env-file compose.env.local up -d --wait --wait-timeout 120`
+  no completo porque `app` quedo `unhealthy`.
+- `/api/health/live` respondio HTTP 200 dentro de `app`.
+- `/api/health/ready` respondio HTTP 503 dentro de `app`.
+- La llamada directa desde `app` a `/auth/v1/health` sin `apikey` respondio
+  HTTP 401; con `apikey` respondio HTTP 200.
+- Nginx no quedo operativo porque depende de `app.service_healthy`.
+- Auth Admin sintetico no se ejecuto desde Codex por guardrail de
+  `SUPABASE_SECRET_KEY` fuera de flujos server-only auditados existentes.
+
+Resultado vigente:
+
+```text
+Bloqueada
+```
+
+El siguiente intento de PPO-02D.2 debe resolver la compatibilidad de readiness
+con Supabase administrado sin relajar el contrato de secretos ni la separacion
+de endpoints.
+
 No se marca PPO-02 como cerrada.
 
 ## 22. Riesgos abiertos
 
 | Clasificación | Riesgo | Tratamiento |
 | ------------- | ------ | ----------- |
-| condición | Supabase administrado pendiente. | Requerido antes de cerrar integración remota; siguiente checkpoint PPO-02D.2 solo cuando el proyecto Free administrado y sus variables estén disponibles de forma segura. |
+| bloqueante | Readiness administrado no aprueba. | PPO-02D.2 queda `Bloqueada`: HTTPS administrado funciona con VPN activo, pero `/api/health/ready` devuelve 503 porque la llamada server-side a `/auth/v1/health` no envía `apikey` y el backend administrado responde 401. |
+| condición | Supabase Free con límites operativos. | 500 MB de base de datos, 1 GB de Storage, 5 GB de egress, hasta 2 proyectos activos y posible pausa tras una semana de inactividad; aceptable para operación provisional, requiere seguimiento y no es backend definitivo. |
 | condición | Variables `NEXT_PUBLIC_*` ligadas a salidas construidas cuando participan en build. | Construir por entorno y mantener `SUPABASE_SERVER_URL` fuera del cliente. |
-| condición | Conectividad local clasificada como Caso B. | Contrato split-horizon formalizado en PPO-02A.3 y validado localmente en PPO-02B/PPO-02C.2; falta Supabase administrado. |
+| condición | ProTUN limita el canal PostgreSQL administrativo. | Dirección Técnica ejecutó migraciones manuales con VPN desactivado; Codex no debe reintentar operaciones PostgreSQL administrativas con VPN activo. |
 | observación | Docker Compose local implementado. | PPO-02C.2 valida red dedicada, app interna y Nginx como único punto publicado; no constituye despliegue. |
 | observación | Build no cacheado de PPO-02B.2 completado sin `ECONNRESET`. | Mantener reintentos npm acotados, cache de dependencias y no ocultar fallos deterministas. |
 | observación | Política npm `allowScripts` pendiente para `sharp` y `unrs-resolver`. | `sharp` validado en runtime standalone; revisar política npm en una fase posterior y no usar `--dangerously-allow-all-scripts`. |
-| observación | Healthchecks locales implementados. | Live/ready, healthchecks Compose y `service_healthy` validados en PPO-02D.1; falta validación con Supabase administrado. |
+| observación | Healthchecks locales implementados. | Live/ready, healthchecks Compose y `service_healthy` validados en PPO-02D.1; con Supabase administrado falta ajustar readiness. |
 | observación | `output: "standalone"` implementado para la imagen app. | Contrato operativo endurecido en PPO-02B.2 e integrado manualmente detrás de Nginx en PPO-02C.1. |
 | observación | Imagen Nginx inicial fijada y validada. | Integrada mediante Compose en PPO-02C.2; mantener digest controlado. |
 | observación | Imagen base inicial fijada para `app`. | Revisar política de actualización de digest en endurecimiento posterior. |
