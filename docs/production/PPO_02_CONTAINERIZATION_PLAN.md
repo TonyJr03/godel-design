@@ -358,6 +358,10 @@ Rutas planificadas:
 `src/proxy.ts` deberá excluir explícitamente los healthchecks o tratarlos sin
 requerir sesión. No se implementan todavía route handlers ni cambios al proxy.
 
+PPO-02D.1 implementa las rutas `/api/health/live` y `/api/health/ready`, excluye
+los healthchecks del proxy y configura healthchecks Compose para `app` y
+`nginx` con `depends_on.app.condition = service_healthy`.
+
 ## 13. Cargas y tamaño de cuerpo
 
 - `next.config.ts` mantiene actualmente límites transitorios de `110mb` para
@@ -671,6 +675,17 @@ PPO-02C.2 queda cerrada con condiciones por la ausencia todavía esperada de
 healthchecks en esa fase, Supabase administrado, Auth completo, TLS, Cloudflare,
 `company-host`, despliegue y E2E completo.
 
+PPO-02C.3:
+
+```text
+Absorbida en PPO-02C.2 — límites y aislamiento validados
+```
+
+PPO-02C.2 ya validó CPU, memoria, `pids_limit`, `read_only`, tmpfs, usuarios no
+root, `cap_drop=ALL`, `no-new-privileges`, red dedicada, `app` sin puerto
+publicado, Nginx como única entrada, ausencia de Docker socket, ausencia de
+montajes persistentes, `docker stats` y límites efectivos vía Docker.
+
 PPO-02D.1 queda ejecutada en
 [PPO-02D.1 - Informe de healthchecks y dependencia operativa](PPO_02_HEALTHCHECK_REPORT.md).
 
@@ -732,15 +747,60 @@ PPO-02D.2 queda condicionada a que el proyecto Supabase Free administrado esté
 configurado y sus variables estén disponibles de forma segura. No se inicia en
 PPO-02D.1.
 
+PPO-02D.2 queda ejecutada en
+[PPO-02D.2 - Validación con Supabase administrado](PPO_02_MANAGED_SUPABASE_REPORT.md).
+
+Resultado anterior:
+
+```text
+manual_required
+```
+
+La validación administrada se detuvo antes de modificar el backend remoto porque
+`compose.env.local` no existe en la raíz del repositorio con las variables reales
+del proyecto Supabase Free administrado. El archivo queda formalizado como
+runtime local ignorado por Git mediante `.gitignore`, mientras
+`compose.env.example` permanece versionado como plantilla sin credenciales.
+
+No se ejecutaron `supabase migration list --linked`, `supabase db push --linked
+--dry-run`, `supabase db push --linked`, Compose administrado, Auth smoke, RLS
+smoke ni Storage smoke. No se aplicaron migraciones remotas, no se ejecutó seed,
+no se usaron banderas `--include-*` y no se modificó el backend administrado.
+
+Reanudación de PPO-02D.2:
+
+- `compose.env.local` existe, está ignorado por Git y cumple el contrato de
+  propiedades sin imprimir valores.
+- Supabase CLI está autenticada.
+- El proyecto enlazado coincide con el endpoint administrado configurado y es
+  accesible mediante `projects list`.
+- `migration list --linked` no completó porque falta una credencial de base de
+  datos no interactiva para la CLI.
+- No se ejecutó `db push --linked --dry-run`.
+- No se ejecutó `db push --linked`.
+- No se aplicaron migraciones remotas.
+- No se ejecutó seed.
+- No se ejecutó Compose administrado.
+
+Resultado vigente:
+
+```text
+manual_required
+```
+
+El siguiente intento de PPO-02D.2 debe retomarse cuando exista una credencial de
+base de datos disponible para Supabase CLI de forma segura y no interactiva.
+
 No se marca PPO-02 como cerrada.
 
 ## 22. Riesgos abiertos
 
 | Clasificación | Riesgo | Tratamiento |
 | ------------- | ------ | ----------- |
-| condición | Supabase administrado pendiente. | Requerido antes de cerrar integración remota; siguiente checkpoint PPO-02D.2 solo cuando el proyecto Free administrado y sus variables estén disponibles de forma segura. |
+| condición | Supabase administrado pendiente de validación efectiva. | PPO-02D.2 quedó en `manual_required`; reintentar solo cuando exista credencial de base de datos no interactiva para Supabase CLI. |
+| condición | Supabase Free con límites operativos. | 500 MB de base de datos, 1 GB de Storage, 5 GB de egress, hasta 2 proyectos activos y posible pausa tras una semana de inactividad; aceptable para operación provisional, requiere seguimiento y no es backend definitivo. |
 | condición | Variables `NEXT_PUBLIC_*` ligadas a salidas construidas cuando participan en build. | Construir por entorno y mantener `SUPABASE_SERVER_URL` fuera del cliente. |
-| condición | Conectividad local clasificada como Caso B. | Contrato split-horizon formalizado en PPO-02A.3 y validado localmente en PPO-02B/PPO-02C.2; falta Supabase administrado. |
+| condición | Conectividad local clasificada como Caso B. | Contrato split-horizon formalizado en PPO-02A.3 y validado localmente en PPO-02B/PPO-02C.2/PPO-02D.1; falta Supabase administrado efectivo. |
 | observación | Docker Compose local implementado. | PPO-02C.2 valida red dedicada, app interna y Nginx como único punto publicado; no constituye despliegue. |
 | observación | Build no cacheado de PPO-02B.2 completado sin `ECONNRESET`. | Mantener reintentos npm acotados, cache de dependencias y no ocultar fallos deterministas. |
 | observación | Política npm `allowScripts` pendiente para `sharp` y `unrs-resolver`. | `sharp` validado en runtime standalone; revisar política npm en una fase posterior y no usar `--dangerously-allow-all-scripts`. |
