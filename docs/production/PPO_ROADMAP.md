@@ -78,10 +78,13 @@ Estado interno vigente de PPO-02:
 | --------- | ------ |
 | PPO-02A   | Cerrada |
 | PPO-02B   | Cerrada para la imagen app |
-| PPO-02C.1 | Activa únicamente en `development-laptop` |
+| PPO-02C.1 | Cerrada — validación local aprobada |
+| PPO-02C.2 | Cerrada — composición local aprobada |
 
-Este avance no cierra PPO-01, no aprueba `company-host`, no implementa Docker
-Compose, no constituye despliegue y no configura Supabase administrado.
+Este avance no cierra PPO-01, no aprueba `company-host`, no constituye
+despliegue y no configura Supabase administrado. PPO-02C.1 no constituye
+despliegue; PPO-02C.2 integra y valida Docker Compose solo localmente en
+`development-laptop`. PPO-02 general permanece activa.
 
 ## PPO-00
 
@@ -146,9 +149,9 @@ despliegue productivo ni despliegue en la empresa.
 
 - PPO-02: definirá Dockerfile, Compose, Nginx, redes, healthchecks y criterios
   de reproducibilidad. PPO-02A queda cerrada, PPO-02B queda cerrada para la
-  imagen app y PPO-02C.1 queda activo únicamente en `development-laptop` para la
-  imagen Nginx. Esto no implementa Compose ni despliegue. El contrato activo
-  vive en
+  imagen app, PPO-02C.1 queda cerrada para la validación local de la imagen
+  Nginx y PPO-02C.2 queda cerrada para la composición local. Esto no implementa
+  healthchecks ni despliegue. El contrato activo vive en
   [PPO-02 - Plan de contenerización](PPO_02_CONTAINERIZATION_PLAN.md).
 - PPO-03: rediseñará sesiones de carga, transferencia directa, límites,
   formatos, cuarentena y almacenamiento.

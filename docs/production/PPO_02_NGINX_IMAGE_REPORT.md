@@ -7,7 +7,7 @@
 - Fecha: 2026-08-05
 - Host: development-laptop
 
-## Decisión De Imagen
+## Decisión de imagen
 
 - Repositorio: `nginxinc/nginx-unprivileged`.
 - Etiqueta de resolución: `stable-bookworm`.
@@ -80,6 +80,10 @@ Imagen final conservada:
   `sha256:d45993410f1844c0f8741fb90182e91bf49e6b49c0d617c994343dfb66b1a20f`.
 - Tamaño inspeccionado: 72,409,540 bytes.
 - Tamaño mostrado por `docker images`: 279 MB.
+- Nota de lectura: los 72,409,540 bytes provienen del campo `Size` consultado
+  con `docker image inspect godel-design-nginx:ppo-02c1 --format '{{.Size}}'`.
+  Los 279 MB provienen de `docker images --format "{{.Repository}}:{{.Tag}} {{.ID}} {{.Size}}"`.
+  Son lecturas distintas y no se comparan como si tuvieran idéntica semántica.
 - Arquitectura: `linux/amd64`.
 - Usuario configurado: `101`.
 - Puerto expuesto: `8080/tcp`.
@@ -133,7 +137,7 @@ Smoke vía Nginx:
 - Logs: sin `EROFS`, sin `EACCES`, sin claves, sin endpoints Supabase completos
   y sin stack traces.
 
-## Validación De Nginx
+## Validación de Nginx
 
 - `nginx -t`: exit code 0.
 - Resultado: sintaxis correcta y prueba exitosa.
@@ -142,7 +146,7 @@ Smoke vía Nginx:
   `proxy_request_buffering off`, `server_tokens off`, ausencia de TLS y ausencia
   de secretos.
 
-## Fallo Del Upstream
+## Fallo del upstream
 
 Con Nginx en ejecución se detuvo temporalmente `godel-ppo-02c1-app` y se pidió
 `/login` mediante Nginx.

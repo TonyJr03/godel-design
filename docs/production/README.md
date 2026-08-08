@@ -13,6 +13,7 @@ arquitectura operativa y puesta en operación de Godel Diseño.
 - [PPO-02B.1 - Informe de imagen app](PPO_02_APP_IMAGE_REPORT.md): evidencia sanitizada del Dockerfile de aplicación, build, runtime, split-horizon y seguridad de imagen.
 - [PPO-02B.2 - Informe de endurecimiento de imagen app](PPO_02_APP_IMAGE_HARDENING_REPORT.md): evidencia sanitizada de build reproducido, runtime read-only, tmpfs mínimos, SIGTERM y contrato operativo de secretos.
 - [PPO-02C.1 - Informe de imagen Nginx](PPO_02_NGINX_IMAGE_REPORT.md): evidencia sanitizada de imagen Nginx no privilegiada, configuración proxy, smoke vía Nginx y fallo controlado de upstream.
+- [PPO-02C.2 - Informe de Docker Compose](PPO_02_COMPOSE_REPORT.md): evidencia sanitizada de composición local, red interna, Nginx como única entrada, DNS dinámico, smokes, recursos y limpieza.
 - [Cierre PPO-00](../preproduction/PPO_00_CLOSURE.md): baseline local cerrada que habilita PPO-01.
 
 ## Diferencia entre carpetas

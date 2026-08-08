@@ -184,7 +184,9 @@ soporte WebSocket mediante `map $http_upgrade $connection_upgrade`,
 Cloudflare, autenticación en Nginx, CSP/HSTS, rutas de healthcheck ni recursos
 estáticos desde volumen separado.
 
-No se implementa todavía Compose.
+PPO-02C.2 integra esta imagen mediante Docker Compose con resolución dinámica
+del servicio `app` por `resolver 127.0.0.11 valid=10s ipv6=off`, upstream
+`app_backend`, `zone app_backend 64k` y `server app:3000 resolve`.
 
 ## 8. Redes
 
@@ -614,10 +616,61 @@ Resultados confirmados:
   persistentes, sin Docker socket y logs a stdout/stderr.
 - No se implementó Compose, TLS, Cloudflare Tunnel ni healthchecks.
 
+PPO-02C.2 queda ejecutada en
+[PPO-02C.2 - Informe de Docker Compose y red interna](PPO_02_COMPOSE_REPORT.md).
+
+Resultados confirmados:
+
+- Composición final con exactamente dos servicios: `app` y `nginx`.
+- Proyecto Compose `godel-design-ppo-02c2`, elegido para evitar colisión con
+  recursos locales de Supabase etiquetados como `godel-design`.
+- Red bridge dedicada `stack`, efectiva como `godel-design-ppo-02c2_stack`.
+- `app` no publica puertos al host; Nginx publica únicamente
+  `127.0.0.1:57774->8080/tcp`.
+- No se declaran volúmenes persistentes, `container_name`, IP fija,
+  `network_mode: host`, red external ni healthchecks.
+- `app` usa `read_only`, usuario `1000:1000`, tmpfs `/tmp` y
+  `/app/.next/cache`, `cap_drop: ALL`, `no-new-privileges`, `pids_limit: 256`,
+  `cpus: 2.0` y `mem_limit: 2g`.
+- `nginx` usa `read_only`, usuario `101:101`, tmpfs `/tmp`,
+  `cap_drop: ALL`, `no-new-privileges`, `pids_limit: 128`, `cpus: 0.5` y
+  `mem_limit: 256m`.
+- `SUPABASE_SERVER_URL` estuvo disponible solo en `app` y
+  `SUPABASE_SECRET_KEY` quedó vacía durante el smoke local.
+- Nginx no recibió variables Supabase.
+- `docker compose --env-file <archivo-temporal> config --quiet` finalizó con
+  exit code 0; `config --services`, `config --networks`, `config --images` y
+  `config --volumes` confirmaron el contrato esperado.
+- `docker compose --env-file <archivo-temporal> build` finalizó con exit code 0
+  en 26.2 s y produjo `godel-design-app:ppo-02c2` y
+  `godel-design-nginx:ppo-02c2`.
+- Smokes vía Nginx: `/login`, recurso de `public`, recurso `/_next/static` y
+  `/_next/image` respondieron HTTP 200; `/dashboard` redirigió a `/login` con
+  HTTP 307.
+- Supabase local respondió HTTP 200 desde `app` mediante
+  `host.docker.internal:54321`.
+- `nginx -t` validó sintaxis y `nginx -T` confirmó resolver Docker, upstream
+  dinámico y `proxy_pass http://app_backend`.
+- La recreación de `app` cambió el ID del contenedor y Nginx recuperó `/login`
+  con HTTP 200 sin reinicio ni recarga. Docker reutilizó la misma IP, por lo que
+  no se declara demostrado un cambio efectivo de dirección.
+- Con `app` detenida, `/login` devolvió HTTP 504 y Nginx permaneció activo; tras
+  arrancar `app`, `/login` recuperó HTTP 200.
+- `restart app`, `restart nginx`, `up -d --force-recreate` y `stop/start`
+  mantuvieron recuperación local de `/login`.
+- `docker stats --no-stream` mostró una muestra instantánea de 0.00% CPU y
+  59.14 MiB / 2 GiB para `app`, y 0.03% CPU y 12.73 MiB / 256 MiB para Nginx.
+- `down --remove-orphans` eliminó los contenedores y la red del proyecto
+  aislado, conservó imágenes y no creó volúmenes del proyecto.
+- El archivo real `compose.local.env` fue eliminado; los resúmenes sanitizados
+  quedaron fuera del repositorio.
+- No se implementó TLS, Cloudflare Tunnel, Supabase administrado,
+  `company-host`, despliegue ni healthchecks.
+
 Siguiente checkpoint si no aparecen nuevos bloqueantes:
 
 ```text
-PPO-02C.2 - Implementación de Docker Compose y red interna
+PPO-02D.1 - Healthchecks y dependencia operativa
 ```
 
 No se marca PPO-02 como cerrada.
@@ -628,19 +681,20 @@ No se marca PPO-02 como cerrada.
 | ------------- | ------ | ----------- |
 | condición | Supabase administrado pendiente. | Requerido antes de cerrar integración remota. |
 | condición | Variables `NEXT_PUBLIC_*` ligadas a salidas construidas cuando participan en build. | Construir por entorno y mantener `SUPABASE_SERVER_URL` fuera del cliente. |
-| condición | Conectividad local clasificada como Caso B. | Contrato split-horizon formalizado en PPO-02A.3 y validado localmente en PPO-02B/PPO-02C.1; falta Supabase administrado. |
-| condición | Docker Compose inexistente. | Implementar en PPO-02C.2 con red interna y Nginx como único punto publicado. |
+| condición | Conectividad local clasificada como Caso B. | Contrato split-horizon formalizado en PPO-02A.3 y validado localmente en PPO-02B/PPO-02C.2; falta Supabase administrado. |
+| observación | Docker Compose local implementado. | PPO-02C.2 valida red dedicada, app interna y Nginx como único punto publicado; no constituye despliegue. |
 | observación | Build no cacheado de PPO-02B.2 completado sin `ECONNRESET`. | Mantener reintentos npm acotados, cache de dependencias y no ocultar fallos deterministas. |
 | observación | Política npm `allowScripts` pendiente para `sharp` y `unrs-resolver`. | `sharp` validado en runtime standalone; revisar política npm en una fase posterior y no usar `--dangerously-allow-all-scripts`. |
 | condición | Healthchecks inexistentes. | Implementar en fase posterior y excluirlos del proxy o permitirlos sin sesión. |
 | observación | `output: "standalone"` implementado para la imagen app. | Contrato operativo endurecido en PPO-02B.2 e integrado manualmente detrás de Nginx en PPO-02C.1. |
-| observación | Imagen Nginx inicial fijada y validada. | Integrarla mediante Compose en PPO-02C.2 y mantener digest controlado. |
+| observación | Imagen Nginx inicial fijada y validada. | Integrada mediante Compose en PPO-02C.2; mantener digest controlado. |
 | observación | Imagen base inicial fijada para `app`. | Revisar política de actualización de digest en endurecimiento posterior. |
 | observación | Secreto runtime confirmado en spike. | Mantenerlo fuera de ARG, capas, logs y Nginx en fases posteriores. |
 | observación | Body size transitorio. | No tratar `110mb` como límite funcional definitivo; resolver en PPO-03. |
 | observación | `company-host` no auditado. | Resolver en PPO-01C; no bloquea la preparación documental local. |
-| observación | Límites de recursos no probados con la composición. | Medir durante PPO-02C/PPO-02D. |
-| observación | Comportamiento de reinicio no validado. | Validar con Compose en PPO-02D. |
+| observación | Límites iniciales de recursos probados con muestra breve. | No interpretar la muestra como rendimiento definitivo ni trasladarla automáticamente a `company-host`. |
+| observación | Comportamiento de reinicio validado localmente sin healthchecks. | Formalizar healthchecks y dependencia operativa en PPO-02D.1. |
+| observación | Recreación de `app` no cambió IP en la muestra. | Se validó cambio de ID y recuperación sin reiniciar Nginx; repetir con escenarios de cambio efectivo en PPO-02D si aplica. |
 | observación | PPO-QA-01 diferida. | Retomar antes del cierre definitivo de puesta en producción. |
 
 No existe un bloqueante para comenzar la preparación documental y el empaquetado
