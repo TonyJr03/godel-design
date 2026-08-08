@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Última actualización: 2026-08-05
+Última actualización: 2026-08-08
 
 ## Estado general
 
@@ -20,22 +20,26 @@ PPO-02 está activa únicamente para construcción y validación local en
 queda cerrada, PPO-02A.2 fue ejecutada como spike técnico reversible,
 PPO-02A.3 formalizó el contrato de endpoints Supabase por contexto, PPO-02B
 quedó cerrada para la imagen `app`, PPO-02C.1 implementó la imagen y
-configuración de Nginx y PPO-02C.2 implementó Docker Compose y red interna
-local. La evidencia soporta `output: "standalone"`, imagen app endurecida
+configuración de Nginx, PPO-02C.2 implementó Docker Compose y red interna
+local, y PPO-02D.1 implementó healthchecks y dependencia operativa inicial. La
+evidencia soporta `output: "standalone"`, imagen app endurecida
 `godel-design-app:ppo-02b2`, filesystem read-only con tmpfs mínimos,
 `STOPSIGNAL SIGTERM`, imagen Nginx no privilegiada
 `godel-design-nginx:ppo-02c1`, Compose con `app` y `nginx`, red bridge dedicada
 `stack`, `app` sin puerto publicado, Nginx como único punto publicado en
-`127.0.0.1`, resolución dinámica `app_backend`, límites iniciales, reinicios,
-recreación local y split-horizon HTTP validado entre host y contenedor.
+`127.0.0.1`, resolución dinámica `app_backend`, liveness público, readiness
+dependiente de Supabase server-side, `depends_on` con `service_healthy`, límites
+iniciales, reinicios, recreación local y split-horizon HTTP validado entre host
+y contenedor.
 
 Esto no cierra PPO-01, no aprueba `company-host`, no declara despliegue en la
-empresa y no presenta Cloudflare Tunnel, healthchecks ni el nuevo flujo de
-archivos como implementados. No existe despliegue productivo. Supabase
-administrado permanece pendiente. PPO-02C.2 queda aprobada localmente con
-condiciones; el siguiente checkpoint es PPO-02D.1 para healthchecks y
-dependencia operativa. PPO-QA-01 queda diferida sin bloquear la preparación
-local de PPO-02.
+empresa y no presenta Cloudflare Tunnel ni el nuevo flujo de archivos como
+implementados. No existe despliegue productivo. Supabase administrado permanece
+pendiente. PPO-02D.1 queda aprobada localmente con condiciones; el siguiente
+checkpoint es PPO-02D.2 para validación con Supabase administrado, condicionado
+a que el proyecto Supabase Free administrado esté configurado y sus variables
+estén disponibles de forma segura. PPO-QA-01 queda diferida sin bloquear la
+preparación local de PPO-02.
 
 Documentos vigentes:
 
@@ -48,6 +52,7 @@ Documentos vigentes:
 - [Informe de endurecimiento de imagen app PPO-02B.2](production/PPO_02_APP_IMAGE_HARDENING_REPORT.md).
 - [Informe de imagen Nginx PPO-02C.1](production/PPO_02_NGINX_IMAGE_REPORT.md).
 - [Informe de Docker Compose PPO-02C.2](production/PPO_02_COMPOSE_REPORT.md).
+- [Informe de healthchecks PPO-02D.1](production/PPO_02_HEALTHCHECK_REPORT.md).
 - [Cierre PPO-00](preproduction/PPO_00_CLOSURE.md).
 
 ## Funcionalidades disponibles
@@ -114,7 +119,7 @@ de documentación está en [README.md](README.md).
 
 Prioridades antes de exposición productiva:
 
-- Ejecutar como siguiente checkpoint PPO-02D.1: healthchecks y dependencia operativa.
+- Ejecutar como siguiente checkpoint PPO-02D.2: validación con Supabase administrado cuando el proyecto y sus variables estén disponibles de forma segura.
 - Hardening de preproducción.
 - Protección antiabuso en rutas públicas.
 - Estrategia operativa de archivos.

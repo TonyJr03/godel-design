@@ -5,7 +5,7 @@
 - Estado: Aprobado para preparación
 - Fase: PPO-02
 - Fecha de apertura: 2026-08-04
-- Última actualización: 2026-08-05
+- Última actualización: 2026-08-08
 - Host autorizado: `development-laptop`
 - `company-host`: pendiente de PPO-01C
 
@@ -667,11 +667,70 @@ Resultados confirmados:
 - No se implementó TLS, Cloudflare Tunnel, Supabase administrado,
   `company-host`, despliegue ni healthchecks.
 
+PPO-02C.2 queda cerrada con condiciones por la ausencia todavía esperada de
+healthchecks en esa fase, Supabase administrado, Auth completo, TLS, Cloudflare,
+`company-host`, despliegue y E2E completo.
+
+PPO-02D.1 queda ejecutada en
+[PPO-02D.1 - Informe de healthchecks y dependencia operativa](PPO_02_HEALTHCHECK_REPORT.md).
+
+Resultados confirmados:
+
+- `GET /api/health/live` responde HTTP 200 con `{"status":"ok"}` y
+  `Cache-Control: no-store`.
+- `GET /api/health/ready` valida configuración mínima mediante
+  `getSupabaseServerUrl()` y `getSupabasePublishableKey()`, comprueba
+  conectividad HTTP a `/auth/v1/health` con timeout aproximado de 2000 ms y
+  responde HTTP 200 con `{"status":"ready"}` cuando la dependencia está
+  disponible.
+- Ante degradación de dependencia, readiness responde HTTP 503 con
+  `{"status":"not_ready"}`, sin exponer URL, hostname, IP, variable, status
+  upstream, excepción, project ref ni claves.
+- `src/proxy.ts` excluye `api/health(?:/|$)` del matcher y preserva las
+  exclusiones existentes para `_next/static`, `_next/image`, `favicon.ico` y
+  extensiones de imagen.
+- `app` incorpora healthcheck Compose con Node contra
+  `http://127.0.0.1:3000/api/health/ready`, `interval: 10s`, `timeout: 4s`,
+  `retries: 3` y `start_period: 15s`.
+- Nginx incorpora healthcheck Compose con `nginx -t`, `interval: 30s`,
+  `timeout: 3s`, `retries: 3` y `start_period: 5s`.
+- `nginx.depends_on.app.condition` queda en `service_healthy`; en el arranque
+  healthy observado, Compose esperó `app Healthy` antes de iniciar Nginx.
+- `docker compose --env-file <healthy-env> build` finalizó con exit code 0 en
+  20.2 s y produjo `godel-design-app:ppo-02d1` y
+  `godel-design-nginx:ppo-02d1`.
+- En estado healthy, `app` y Nginx alcanzaron health status `healthy`; solo
+  Nginx publicó puerto al host.
+- Live y ready respondieron HTTP 200 tanto vía Nginx como desde el contenedor
+  `app`.
+- Smokes vía Nginx: `/login` HTTP 200, `/dashboard` HTTP 307 a `/login`,
+  recurso `public` HTTP 200, `/_next/static` HTTP 200 y `/_next/image` HTTP 200.
+- Degradación controlada con `SUPABASE_SERVER_URL` sintético no disponible:
+  `app` permaneció ejecutándose y pasó a `unhealthy` en 32 s, Nginx permaneció
+  ejecutándose y `healthy`, live siguió en HTTP 200 y ready pasó a HTTP 503.
+- Recuperación con env healthy: `app` volvió a `healthy` en 5 s sin reiniciar
+  Nginx; live, ready y `/login` respondieron HTTP 200.
+- `restart app` y `restart nginx` recuperaron health status y smokes; se
+  registra que `docker compose restart` no reaplica cambios de variables, para
+  lo cual se requiere recreación.
+- `docker stats --no-stream` mostró una muestra instantánea de 0.00% CPU y
+  61.07 MiB / 2 GiB para `app`, y 0.00% CPU y 12.62 MiB / 256 MiB para Nginx.
+- `down --remove-orphans` eliminó contenedores y red del proyecto, conservó
+  imágenes, no creó volúmenes y no alteró Supabase local.
+- `compose.healthy.env` y `compose.degraded.env` fueron eliminados; solo quedan
+  resúmenes sanitizados fuera del repositorio.
+- No se implementó Supabase administrado, TLS, Cloudflare Tunnel,
+  `company-host`, despliegue ni E2E completo.
+
 Siguiente checkpoint si no aparecen nuevos bloqueantes:
 
 ```text
-PPO-02D.1 - Healthchecks y dependencia operativa
+PPO-02D.2 - Validación con Supabase administrado
 ```
+
+PPO-02D.2 queda condicionada a que el proyecto Supabase Free administrado esté
+configurado y sus variables estén disponibles de forma segura. No se inicia en
+PPO-02D.1.
 
 No se marca PPO-02 como cerrada.
 
@@ -679,13 +738,13 @@ No se marca PPO-02 como cerrada.
 
 | Clasificación | Riesgo | Tratamiento |
 | ------------- | ------ | ----------- |
-| condición | Supabase administrado pendiente. | Requerido antes de cerrar integración remota. |
+| condición | Supabase administrado pendiente. | Requerido antes de cerrar integración remota; siguiente checkpoint PPO-02D.2 solo cuando el proyecto Free administrado y sus variables estén disponibles de forma segura. |
 | condición | Variables `NEXT_PUBLIC_*` ligadas a salidas construidas cuando participan en build. | Construir por entorno y mantener `SUPABASE_SERVER_URL` fuera del cliente. |
 | condición | Conectividad local clasificada como Caso B. | Contrato split-horizon formalizado en PPO-02A.3 y validado localmente en PPO-02B/PPO-02C.2; falta Supabase administrado. |
 | observación | Docker Compose local implementado. | PPO-02C.2 valida red dedicada, app interna y Nginx como único punto publicado; no constituye despliegue. |
 | observación | Build no cacheado de PPO-02B.2 completado sin `ECONNRESET`. | Mantener reintentos npm acotados, cache de dependencias y no ocultar fallos deterministas. |
 | observación | Política npm `allowScripts` pendiente para `sharp` y `unrs-resolver`. | `sharp` validado en runtime standalone; revisar política npm en una fase posterior y no usar `--dangerously-allow-all-scripts`. |
-| condición | Healthchecks inexistentes. | Implementar en fase posterior y excluirlos del proxy o permitirlos sin sesión. |
+| observación | Healthchecks locales implementados. | Live/ready, healthchecks Compose y `service_healthy` validados en PPO-02D.1; falta validación con Supabase administrado. |
 | observación | `output: "standalone"` implementado para la imagen app. | Contrato operativo endurecido en PPO-02B.2 e integrado manualmente detrás de Nginx en PPO-02C.1. |
 | observación | Imagen Nginx inicial fijada y validada. | Integrada mediante Compose en PPO-02C.2; mantener digest controlado. |
 | observación | Imagen base inicial fijada para `app`. | Revisar política de actualización de digest en endurecimiento posterior. |
@@ -693,8 +752,8 @@ No se marca PPO-02 como cerrada.
 | observación | Body size transitorio. | No tratar `110mb` como límite funcional definitivo; resolver en PPO-03. |
 | observación | `company-host` no auditado. | Resolver en PPO-01C; no bloquea la preparación documental local. |
 | observación | Límites iniciales de recursos probados con muestra breve. | No interpretar la muestra como rendimiento definitivo ni trasladarla automáticamente a `company-host`. |
-| observación | Comportamiento de reinicio validado localmente sin healthchecks. | Formalizar healthchecks y dependencia operativa en PPO-02D.1. |
-| observación | Recreación de `app` no cambió IP en la muestra. | Se validó cambio de ID y recuperación sin reiniciar Nginx; repetir con escenarios de cambio efectivo en PPO-02D si aplica. |
+| observación | Comportamiento de reinicio validado localmente con healthchecks. | `restart app` y `restart nginx` recuperaron health status y smokes; para cambios de entorno se requiere recreación, no `restart`. |
+| observación | Recreación de `app` no cambió IP en la muestra. | Se validó cambio de ID y recuperación sin reiniciar Nginx; repetir con escenarios de cambio efectivo si aparece una prueba que fuerce cambio de dirección. |
 | observación | PPO-QA-01 diferida. | Retomar antes del cierre definitivo de puesta en producción. |
 
 No existe un bloqueante para comenzar la preparación documental y el empaquetado

@@ -5,7 +5,7 @@
 - Proyecto: Godel Diseño
 - Estado: Activo
 - Fecha de creación: 2026-07-21
-- Última revisión: 2026-08-05
+- Última revisión: 2026-08-08
 - Responsable técnico: Dirección Técnica de Godel Diseño
 - Arquitectura y supervisión: Arquitectura Senior / Orquestación Técnica
 - Implementación: Agente Codex en VS Code
@@ -79,12 +79,16 @@ Estado interno vigente de PPO-02:
 | PPO-02A   | Cerrada |
 | PPO-02B   | Cerrada para la imagen app |
 | PPO-02C.1 | Cerrada — validación local aprobada |
-| PPO-02C.2 | Cerrada — composición local aprobada |
+| PPO-02C.2 | Cerrada — composición local aprobada con condiciones |
+| PPO-02D.1 | Cerrada — healthchecks locales aprobados |
 
 Este avance no cierra PPO-01, no aprueba `company-host`, no constituye
 despliegue y no configura Supabase administrado. PPO-02C.1 no constituye
 despliegue; PPO-02C.2 integra y valida Docker Compose solo localmente en
-`development-laptop`. PPO-02 general permanece activa.
+`development-laptop`; PPO-02D.1 valida healthchecks locales y dependencia
+operativa inicial. PPO-02 general permanece activa. El siguiente checkpoint
+previsto es PPO-02D.2, condicionado a que el proyecto Supabase Free administrado
+esté configurado y sus variables estén disponibles de forma segura.
 
 ## PPO-00
 
@@ -150,8 +154,9 @@ despliegue productivo ni despliegue en la empresa.
 - PPO-02: definirá Dockerfile, Compose, Nginx, redes, healthchecks y criterios
   de reproducibilidad. PPO-02A queda cerrada, PPO-02B queda cerrada para la
   imagen app, PPO-02C.1 queda cerrada para la validación local de la imagen
-  Nginx y PPO-02C.2 queda cerrada para la composición local. Esto no implementa
-  healthchecks ni despliegue. El contrato activo vive en
+  Nginx, PPO-02C.2 queda cerrada para la composición local con condiciones y
+  PPO-02D.1 queda cerrada para healthchecks locales. Esto no implementa
+  Supabase administrado ni despliegue. El contrato activo vive en
   [PPO-02 - Plan de contenerización](PPO_02_CONTAINERIZATION_PLAN.md).
 - PPO-03: rediseñará sesiones de carga, transferencia directa, límites,
   formatos, cuarentena y almacenamiento.
