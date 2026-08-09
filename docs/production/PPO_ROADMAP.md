@@ -102,10 +102,14 @@ llamada server-side a `/auth/v1/health`. PPO-02E.1 formaliza el cierre y el
 handoff operativo. PPO-03 queda activa: PPO-03A.1 formalizó el contrato y
 PPO-03A.2 cerró aprobada con condiciones. El spike separó TUS autenticado por
 JWT para internos de TUS presigned para público y difirió la policy pública
-reservation-aware al alcance de PPO-03B. PPO-03B.1 ya validó localmente el
-control plane de sesiones/items y las policies operation-aware, incluido TUS
-interno `create`/`part` y TUS público firmado `/resumable/sign`; reserva, firma,
-transferencia y finalize de aplicación siguen sin implementar ni desplegar.
+reservation-aware al alcance de PPO-03B. PPO-03B.1 validó localmente el control
+plane de sesiones/items y policies operation-aware. PPO-03B.2A aplicó la
+migración 07 en administrado por Dirección Técnica; PPO-03B.2B confirmó por
+HTTPS control plane cerrado, reserva obligatoria y compatibilidad legacy con
+VPN activo, sin PostgreSQL remoto. La respuesta vacía al listado de una raíz
+sin staged no es evidencia concluyente, por lo que PPO-03B continúa activa y
+PPO-03C debe probar el primer presigned con una reserva real y no listado de
+staged.
 
 ## PPO-00
 
@@ -186,7 +190,9 @@ despliegue productivo ni despliegue en la empresa.
   (migración interna de Pedidos), PPO-03E (migración pública de Solicitudes),
   PPO-03F (expiración, reconciliación y cleanup) y PPO-03G (QA integral,
   retirada de 110 MB y cierre documental). PPO-03B y todas las subfases
-  posteriores permanecen pendientes de ejecución.
+  posteriores permanecen pendientes de ejecución. PPO-03B.2B no prueba
+  artificialmente el positivo presigned de `cargas/v1`: queda como gate
+  obligatorio de PPO-03C mediante sus RPCs reales de reserva.
 - PPO-04: cubrirá despliegue provisional, Cloudflare Tunnel, dominio y
   recuperación del host.
 - PPO-05: abordará antiabuso, rate limiting, seguridad pública y protección de

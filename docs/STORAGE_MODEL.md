@@ -63,6 +63,13 @@ Los objetos bajo esta raíz no son descargables hasta que un finalize futuro los
 marque `committed` y cree metadata coherente en `public.archivos`. Las rutas
 históricas bajo `solicitudes/` y `pedidos/` permanecen sin cambios en esta fase.
 
+PPO-03B.2B confirmó contra el backend administrado por HTTPS que `anon` y un
+usuario interno no pueden autorizar rutas `cargas/v1` sin reserva, y que la
+migración no rompió TUS legacy ni ZIP legacy. El listado HTTPS de una raíz sin
+staged devolvió una lista vacía; no se interpreta como prueba concluyente de
+ausencia de listado. PPO-03C deberá validar ese punto junto con la primera
+transferencia presigned creada por las RPCs reales de reserva.
+
 Estructura esperada dentro del bucket `godel-files`:
 
 ```text

@@ -112,7 +112,10 @@ la referencia v1.68.1 son `storage.tus.upload.create`,
 
 ## Pendiente
 
-- PPO-03B.2 pendiente — validación administrada de compatibilidad Storage.
+- PPO-03B.2B ejecutó validación HTTPS administrada sin administración
+  PostgreSQL remota. Confirmó control plane cerrado, reserva obligatoria para
+  `cargas/v1` y compatibilidad legacy; la evidencia concluyente de no listado
+  de staged queda pendiente para PPO-03C.
 - PPO-03C: Server Actions/RPCs finas para reservar, validar token, firmar y
   finalizar de forma idempotente.
 - PPO-03D y PPO-03E: migrar los flujos interno y público sin enviar bytes a

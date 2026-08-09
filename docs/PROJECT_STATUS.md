@@ -60,8 +60,14 @@ operation-aware de Storage, sin SQL remoto. El
 [contrato de cargas y almacenamiento](production/PPO_03_UPLOAD_STORAGE_CONTRACT.md)
 mantiene el path versionado con `storage_nonce`; no hay código de upload
 productivo cambiado, las cargas vigentes continúan atravesando Server Actions y
-se conservan los límites transitorios de 110 MB. PPO-03B continúa activa con
-reserva, firma, transferencia y finalize pendientes.
+se conservan los límites transitorios de 110 MB. PPO-03B.2B validó por HTTPS
+el backend administrado con VPN activo: control plane cerrado para `anon` y
+authenticated, rutas `cargas/v1` sin reserva rechazadas y compatibilidad legacy
+conservada. El listado HTTPS de una raíz vacía respondió `[]`, evidencia que no
+se acepta como concluyente; PPO-03B continúa activa hasta que PPO-03C aporte
+reserva real, presigned administrado y prueba concluyente de no listado de
+staged. Reserva, firma, transferencia y finalize de aplicación siguen
+pendientes.
 
 Documentos vigentes:
 
@@ -80,9 +86,10 @@ Documentos vigentes:
 - [Contrato PPO-03A.1 de cargas y almacenamiento](production/PPO_03_UPLOAD_STORAGE_CONTRACT.md).
 - [Informe de spike PPO-03A.2](production/PPO_03_TUS_SPIKE_REPORT.md).
 - [Informe DB/Storage PPO-03B.1](production/PPO_03_STORAGE_DB_REPORT.md).
+- [Validación HTTPS administrada PPO-03B.2B](production/PPO_03_STORAGE_MANAGED_REPORT.md).
 - [Cierre PPO-00](preproduction/PPO_00_CLOSURE.md).
 
-## PPO-03B.1
+## PPO-03B
 
 PPO-03B.1 está validada localmente tras corrección arquitectónica: la séptima migración crea el control plane
 privado de sesiones e items de carga y restringe las operaciones nuevas de
@@ -90,7 +97,10 @@ Storage por reserva, rol, estado, expiración y operación. TUS interno admite
 `create` y `part`; TUS público usa exclusivamente el endpoint firmado
 `/upload/resumable/sign`, sin TUS regular anónimo. No se ha aplicado SQL
 remoto ni se han cambiado los flujos actuales de upload; reserva, firma,
-transferencia y finalize siguen pendientes en PPO-03C.
+transferencia y finalize siguen pendientes en PPO-03C. PPO-03B.2A aplicó la
+migración 07 administrada por Dirección Técnica y PPO-03B.2B validó sus APIs
+HTTPS sin ejecutar PostgreSQL remoto; su evidencia y condición de listado están
+en [PPO-03B.2B](production/PPO_03_STORAGE_MANAGED_REPORT.md).
 
 ## Funcionalidades disponibles
 
