@@ -25,13 +25,16 @@ function notReadyResponse() {
 export async function GET() {
   try {
     const dependencyUrl = new URL(dependencyPath, getSupabaseServerUrl());
-    getSupabasePublishableKey();
+    const publishableKey = getSupabasePublishableKey();
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), readinessTimeoutMs);
 
     try {
       const response = await fetch(dependencyUrl, {
+        headers: {
+          apikey: publishableKey,
+        },
         cache: "no-store",
         signal: controller.signal,
       });

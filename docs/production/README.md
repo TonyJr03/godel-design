@@ -15,7 +15,7 @@ arquitectura operativa y puesta en operación de Godel Diseño.
 - [PPO-02C.1 - Informe de imagen Nginx](PPO_02_NGINX_IMAGE_REPORT.md): evidencia sanitizada de imagen Nginx no privilegiada, configuración proxy, smoke vía Nginx y fallo controlado de upstream.
 - [PPO-02C.2 - Informe de Docker Compose](PPO_02_COMPOSE_REPORT.md): evidencia sanitizada de composición local, red interna, Nginx como única entrada, DNS dinámico, smokes, recursos y limpieza.
 - [PPO-02D.1 - Informe de healthchecks](PPO_02_HEALTHCHECK_REPORT.md): evidencia sanitizada de liveness, readiness, healthchecks Compose, dependencia `service_healthy`, degradación y recuperación.
-- [PPO-02D.2 - Validación con Supabase administrado](PPO_02_MANAGED_SUPABASE_REPORT.md): resultado `Bloqueada` por readiness administrado; HTTPS con VPN activo funciona, baseline remota fue declarada aplicada manualmente y no se modifica backend remoto desde Codex.
+- [PPO-02D.2 - Validación con Supabase administrado](PPO_02_MANAGED_SUPABASE_REPORT.md): resultado `Aprobada con condiciones`; readiness administrado fue corregido con cabecera `apikey`, HTTPS con VPN activo funciona, baseline remota fue declarada aplicada manualmente y no se modifica backend remoto desde Codex.
 - [Cierre PPO-00](../preproduction/PPO_00_CLOSURE.md): baseline local cerrada que habilita PPO-01.
 
 ## Diferencia entre carpetas

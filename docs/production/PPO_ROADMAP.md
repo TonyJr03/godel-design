@@ -82,7 +82,7 @@ Estado interno vigente de PPO-02:
 | PPO-02C.2 | Cerrada — composición local aprobada con condiciones |
 | PPO-02C.3 | Absorbida en PPO-02C.2 — límites y aislamiento validados |
 | PPO-02D.1 | Cerrada — healthchecks locales aprobados |
-| PPO-02D.2 | Ejecutada — Bloqueada por readiness administrado |
+| PPO-02D.2 | Ejecutada — Aprobada con condiciones |
 
 Este avance no cierra PPO-01, no aprueba `company-host`, no constituye
 despliegue y no valida todavía el runtime administrado completo. PPO-02C.1 no constituye
@@ -94,12 +94,11 @@ ausencia de montajes persistentes, `docker stats` y límites efectivos vía
 Docker. PPO-02D.1 valida healthchecks locales y dependencia operativa inicial.
 PPO-02D.2 formaliza `compose.env.local` como archivo runtime ignorado por Git,
 valida sus propiedades, recibe evidencia manual de baseline remota aplicada 6/6
-sin seed, confirma que HTTPS administrado es alcanzable con VPN activo y
-clasifica ProTUN/PostgreSQL como restricción administrativa. Queda bloqueada
-porque `/api/health/ready` devuelve 503 contra Supabase administrado: la llamada
-server-side a `/auth/v1/health` no envía `apikey` y el backend administrado
-responde 401. PPO-02 general permanece activa. El siguiente checkpoint previsto
-es resolver PPO-02D.2 antes de pasar a PPO-02E.1.
+sin seed, confirma que HTTPS administrado es alcanzable con VPN activo,
+clasifica ProTUN/PostgreSQL como restricción administrativa y aprueba readiness
+administrado al enviar la publishable key existente como cabecera `apikey` en la
+llamada server-side a `/auth/v1/health`. PPO-02 general permanece activa. El
+siguiente checkpoint previsto es PPO-02E.1.
 
 ## PPO-00
 
@@ -167,9 +166,9 @@ despliegue productivo ni despliegue en la empresa.
   imagen app, PPO-02C.1 queda cerrada para la validación local de la imagen
   Nginx, PPO-02C.2 queda cerrada para la composición local con condiciones,
   PPO-02C.3 queda absorbida en PPO-02C.2, PPO-02D.1 queda cerrada para
-  healthchecks locales y PPO-02D.2 queda ejecutada con resultado `Bloqueada`.
-  Esto no implementa despliegue ni valida todavía el runtime administrado
-  completo. El contrato activo vive en
+  healthchecks locales y PPO-02D.2 queda ejecutada con resultado `Aprobada con
+  condiciones`. Esto no implementa despliegue, TLS, Cloudflare ni validación de
+  `company-host`. El contrato activo vive en
   [PPO-02 - Plan de contenerización](PPO_02_CONTAINERIZATION_PLAN.md).
 - PPO-03: rediseñará sesiones de carga, transferencia directa, límites,
   formatos, cuarentena y almacenamiento.

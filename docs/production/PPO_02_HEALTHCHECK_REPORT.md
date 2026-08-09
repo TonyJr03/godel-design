@@ -213,3 +213,9 @@ Aprobada con condiciones
 
 PPO-02D.1 queda cerrada como healthchecks locales aprobados. No se marca PPO-02
 como completa.
+
+Nota PPO-02D.2: el contrato de readiness contra Supabase administrado fue
+corregido posteriormente para enviar la publishable key existente como cabecera
+`apikey` en la llamada server-side a `/auth/v1/health`. La revalidacion
+administrada quedo documentada en
+[PPO-02D.2 - Validacion con Supabase administrado](PPO_02_MANAGED_SUPABASE_REPORT.md).

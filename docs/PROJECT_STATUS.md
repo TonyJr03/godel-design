@@ -23,11 +23,12 @@ quedó cerrada para la imagen `app`, PPO-02C.1 implementó la imagen y
 configuración de Nginx, PPO-02C.2 implementó Docker Compose y red interna
 local, PPO-02C.3 queda absorbida en PPO-02C.2 por validación de límites y
 aislamiento, PPO-02D.1 implementó healthchecks y dependencia operativa inicial,
-y PPO-02D.2 queda `Bloqueada`: Dirección Técnica declaró aplicada manualmente
-la baseline remota de seis migraciones con VPN desactivado, Codex validó HTTPS
-administrado con VPN activo y `compose.env.local` cumple el contrato local, pero
-la composición administrada no puede aprobarse porque `/api/health/ready`
-devuelve 503 contra Supabase administrado. La
+y PPO-02D.2 queda aprobada con condiciones: Dirección Técnica declaró aplicada
+manualmente la baseline remota de seis migraciones con VPN desactivado, Codex
+validó HTTPS administrado con VPN activo y `compose.env.local` cumple el
+contrato local; la composición administrada ya aprueba porque
+`/api/health/ready` envía la publishable key existente como cabecera `apikey` a
+`/auth/v1/health` y devuelve 200 contra Supabase administrado. La
 evidencia soporta `output: "standalone"`, imagen app endurecida
 `godel-design-app:ppo-02b2`, filesystem read-only con tmpfs mínimos,
 `STOPSIGNAL SIGTERM`, imagen Nginx no privilegiada
@@ -43,12 +44,12 @@ efectivos vía Docker y split-horizon HTTP validado entre host y contenedor.
 Esto no cierra PPO-01, no aprueba `company-host`, no declara despliegue en la
 empresa y no presenta Cloudflare Tunnel ni el nuevo flujo de archivos como
 implementados. No existe despliegue productivo. Supabase administrado ya tiene
-baseline remota declarada por Dirección Técnica y HTTPS alcanzable desde Codex
-con VPN activo, pero PPO-02D.2 no aprueba todavía el runtime contenerizado.
+baseline remota declarada por Dirección Técnica, HTTPS alcanzable desde Codex
+con VPN activo y runtime contenerizado validado localmente mediante Nginx.
 PPO-02D.1 queda aprobada localmente con condiciones; PPO-02D.2 formaliza
 `compose.env.local` como archivo runtime ignorado por Git, conserva la
-restricción ProTUN/PostgreSQL como condicion administrativa y bloquea el cierre
-por readiness administrado. PPO-QA-01 queda diferida sin bloquear la
+restricción ProTUN/PostgreSQL como condición administrativa y queda aprobada con
+condiciones. PPO-QA-01 queda diferida sin bloquear la
 preparación local de PPO-02.
 
 Documentos vigentes:
@@ -130,7 +131,7 @@ de documentación está en [README.md](README.md).
 
 Prioridades antes de exposición productiva:
 
-- Resolver PPO-02D.2: readiness administrado debe ser compatible con `/auth/v1/health` de Supabase administrado sin romper el contrato de secretos.
+- Preparar PPO-02E.1 sobre cierre documental, empaquetado operativo o siguiente checkpoint definido por Dirección Técnica.
 - Hardening de preproducción.
 - Protección antiabuso en rutas públicas.
 - Estrategia operativa de archivos.
