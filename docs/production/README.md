@@ -8,7 +8,7 @@ arquitectura operativa y puesta en operación de Godel Diseño.
 - [Roadmap PPO](PPO_ROADMAP.md): iniciativa completa de Preproducción y Puesta en Operación.
 - [Plan de auditoría PPO-01](PPO_01_AUDIT_PLAN.md): contrato operativo para auditar infraestructura y conectividad.
 - [Informe de capacidad PPO-01](PPO_01_CAPACITY_REPORT.md): plantilla para resultados resumidos y aprobados.
-- [PPO-02 - Plan de contenerización](PPO_02_CONTAINERIZATION_PLAN.md): contrato activo para la base contenerizada local.
+- [PPO-02 - Plan de contenerización](PPO_02_CONTAINERIZATION_PLAN.md): contrato y trazabilidad de la base contenerizada local cerrada con condiciones.
 - [PPO-02A.2 - Spike técnico de empaquetado](PPO_02_PACKAGING_SPIKE.md): evidencia sanitizada de standalone, variables, secreto runtime y conectividad local.
 - [PPO-02B.1 - Informe de imagen app](PPO_02_APP_IMAGE_REPORT.md): evidencia sanitizada del Dockerfile de aplicación, build, runtime, split-horizon y seguridad de imagen.
 - [PPO-02B.2 - Informe de endurecimiento de imagen app](PPO_02_APP_IMAGE_HARDENING_REPORT.md): evidencia sanitizada de build reproducido, runtime read-only, tmpfs mínimos, SIGTERM y contrato operativo de secretos.
@@ -16,6 +16,7 @@ arquitectura operativa y puesta en operación de Godel Diseño.
 - [PPO-02C.2 - Informe de Docker Compose](PPO_02_COMPOSE_REPORT.md): evidencia sanitizada de composición local, red interna, Nginx como única entrada, DNS dinámico, smokes, recursos y limpieza.
 - [PPO-02D.1 - Informe de healthchecks](PPO_02_HEALTHCHECK_REPORT.md): evidencia sanitizada de liveness, readiness, healthchecks Compose, dependencia `service_healthy`, degradación y recuperación.
 - [PPO-02D.2 - Validación con Supabase administrado](PPO_02_MANAGED_SUPABASE_REPORT.md): resultado `Aprobada con condiciones`; readiness administrado fue corregido con cabecera `apikey`, HTTPS con VPN activo funciona, baseline remota fue declarada aplicada manualmente y no se modifica backend remoto desde Codex.
+- [PPO-02E.1 - Cierre de base contenerizada reproducible](PPO_02_CLOSURE.md): cierre técnico y handoff operativo de PPO-02 como base local reproducible aprobada con condiciones.
 - [Cierre PPO-00](../preproduction/PPO_00_CLOSURE.md): baseline local cerrada que habilita PPO-01.
 
 ## Diferencia entre carpetas

@@ -15,20 +15,21 @@ condiciones` para construir y validar la composición contenerizada de PPO-02, y
 PPO-01C queda diferida temporalmente por disponibilidad de `company-host`.
 PPO-01D permanece pendiente y bloqueada hasta completar PPO-01C.
 
-PPO-02 está activa únicamente para construcción y validación local en
-`development-laptop`, por decisión expresa de Dirección Técnica. PPO-02A.1
-queda cerrada, PPO-02A.2 fue ejecutada como spike técnico reversible,
+PPO-02 queda cerrada como base contenerizada reproducible aprobada con
+condiciones para construcción y validación local en `development-laptop`.
+PPO-02A.1 queda cerrada, PPO-02A.2 fue ejecutada como spike técnico reversible,
 PPO-02A.3 formalizó el contrato de endpoints Supabase por contexto, PPO-02B
 quedó cerrada para la imagen `app`, PPO-02C.1 implementó la imagen y
-configuración de Nginx, PPO-02C.2 implementó Docker Compose y red interna
-local, PPO-02C.3 queda absorbida en PPO-02C.2 por validación de límites y
-aislamiento, PPO-02D.1 implementó healthchecks y dependencia operativa inicial,
-y PPO-02D.2 queda aprobada con condiciones: Dirección Técnica declaró aplicada
-manualmente la baseline remota de seis migraciones con VPN desactivado, Codex
-validó HTTPS administrado con VPN activo y `compose.env.local` cumple el
-contrato local; la composición administrada ya aprueba porque
-`/api/health/ready` envía la publishable key existente como cabecera `apikey` a
-`/auth/v1/health` y devuelve 200 contra Supabase administrado. La
+configuración de Nginx, PPO-02C.2 implementó Docker Compose y red interna local,
+PPO-02C.3 queda absorbida en PPO-02C.2 por validación de límites y aislamiento,
+PPO-02D.1 implementó healthchecks y dependencia operativa inicial, PPO-02D.2
+queda aprobada con condiciones y PPO-02E.1 formalizó el cierre y handoff
+operativo. Dirección Técnica declaró aplicada manualmente la baseline remota de
+seis migraciones con VPN desactivado; Codex validó HTTPS administrado con VPN
+activo y `compose.env.local` cumple el contrato local; la composición
+administrada aprueba porque `/api/health/ready` envía la publishable key
+existente como cabecera `apikey` a `/auth/v1/health` y devuelve 200 contra
+Supabase administrado. La
 evidencia soporta `output: "standalone"`, imagen app endurecida
 `godel-design-app:ppo-02b2`, filesystem read-only con tmpfs mínimos,
 `STOPSIGNAL SIGTERM`, imagen Nginx no privilegiada
@@ -49,8 +50,8 @@ con VPN activo y runtime contenerizado validado localmente mediante Nginx.
 PPO-02D.1 queda aprobada localmente con condiciones; PPO-02D.2 formaliza
 `compose.env.local` como archivo runtime ignorado por Git, conserva la
 restricción ProTUN/PostgreSQL como condición administrativa y queda aprobada con
-condiciones. PPO-QA-01 queda diferida sin bloquear la
-preparación local de PPO-02.
+condiciones. PPO-02E.1 cierra PPO-02 sin cerrar PPO-01. PPO-QA-01 queda diferida
+sin bloquear la transición hacia PPO-03.
 
 Documentos vigentes:
 
@@ -65,6 +66,7 @@ Documentos vigentes:
 - [Informe de Docker Compose PPO-02C.2](production/PPO_02_COMPOSE_REPORT.md).
 - [Informe de healthchecks PPO-02D.1](production/PPO_02_HEALTHCHECK_REPORT.md).
 - [Informe de Supabase administrado PPO-02D.2](production/PPO_02_MANAGED_SUPABASE_REPORT.md).
+- [Cierre de base contenerizada PPO-02E.1](production/PPO_02_CLOSURE.md).
 - [Cierre PPO-00](preproduction/PPO_00_CLOSURE.md).
 
 ## Funcionalidades disponibles
@@ -131,7 +133,7 @@ de documentación está en [README.md](README.md).
 
 Prioridades antes de exposición productiva:
 
-- Preparar PPO-02E.1 sobre cierre documental, empaquetado operativo o siguiente checkpoint definido por Dirección Técnica.
+- PPO-03 — rediseño de cargas y almacenamiento.
 - Hardening de preproducción.
 - Protección antiabuso en rutas públicas.
 - Estrategia operativa de archivos.

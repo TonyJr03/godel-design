@@ -1,8 +1,8 @@
-# PPO-02D.2 - Validacion con Supabase administrado
+# PPO-02D.2 - Validación con Supabase administrado
 
 ## Metadatos
 
-- Estado: Ejecutado - Aprobada con condiciones
+- Estado: Ejecutado — Aprobada con condiciones
 - Fase: PPO-02D.2
 - Fecha: 2026-08-08
 - Host: development-laptop
@@ -10,8 +10,8 @@
 
 ## Contexto
 
-PPO-02D.2 corrige y revalida el contrato de readiness contra Supabase
-administrado sin cambiar arquitectura, topologia, Compose ni politica de
+PPO-02D.2 corrigió y revalidó el contrato de readiness contra Supabase
+administrado sin cambiar arquitectura, topología, Compose ni política de
 secretos.
 
 El contexto de red declarado para Codex fue:
@@ -20,8 +20,8 @@ El contexto de red declarado para Codex fue:
 VPN activo / ProTUN
 ```
 
-Codex no desactivo el VPN y no ejecuto operaciones PostgreSQL administrativas
-remotas. La evidencia manual de Direccion Tecnica se toma como precondicion
+Codex no desactivó el VPN y no ejecutó operaciones PostgreSQL administrativas
+remotas. La evidencia manual de Dirección Técnica se tomó como precondición
 aprobada:
 
 - `dbPushSucceeded`: true.
@@ -30,7 +30,7 @@ aprobada:
 - `pendingMigrationsAfterPush`: 0.
 - `seedApplied`: false.
 
-No se ejecuto:
+No se ejecutó:
 
 - `supabase migration list --linked`.
 - `supabase db push`.
@@ -40,9 +40,9 @@ No se ejecuto:
 - `supabase migration repair`.
 - `supabase db diff`.
 - `psql` remoto.
-- conexion directa PostgreSQL remota.
+- conexión directa PostgreSQL remota.
 
-La restriccion ProTUN/PostgreSQL queda clasificada como condicion administrativa
+La restricción ProTUN/PostgreSQL queda clasificada como condición administrativa
 del canal PostgreSQL, no como fallo demostrado del runtime HTTPS.
 
 ## Cambio aplicado
@@ -55,7 +55,7 @@ Cambio exacto:
 
 - Se conserva `getSupabaseServerUrl()`.
 - Se usa el helper existente `getSupabasePublishableKey()`.
-- La llamada directa a `/auth/v1/health` envia solo:
+- La llamada directa a `/auth/v1/health` envía solo:
 
 ```ts
 headers: {
@@ -71,7 +71,7 @@ Se conserva:
 - `clearTimeout`.
 - respuestas seguras `ready` / `not_ready`.
 
-No se agrego:
+No se agregó:
 
 - `Authorization`.
 - `Bearer`.
@@ -81,20 +81,20 @@ No se agrego:
 - cliente admin.
 - uso de `SUPABASE_SECRET_KEY` para readiness.
 
-## Validaciones estaticas
+## Validaciones estáticas
 
 - `npm.cmd run lint`: OK.
 - `npm.cmd run build`: OK.
 - `npm.cmd run audit:security`: OK, 0 violaciones bloqueantes.
 - `npm.cmd run audit:client-supabase`: OK, sin coincidencias.
-- `git diff --check`: OK; solo aviso Git de normalizacion LF/CRLF en la ruta
+- `git diff --check`: OK; solo aviso Git de normalización LF/CRLF en la ruta
   editada.
 
-La busqueda focalizada en `src/app/api/health/ready/route.ts` confirmo que no
-aparecen `Authorization`, `Bearer`, `SUPABASE_SECRET_KEY` ni `createClient`; solo
-aparece `apikey` en la cabecera esperada.
+La búsqueda focalizada en `src/app/api/health/ready/route.ts` confirmó que no
+aparecen `Authorization`, `Bearer`, `SUPABASE_SECRET_KEY` ni `createClient`;
+solo aparece `apikey` en la cabecera esperada.
 
-## Validacion local
+## Validación local
 
 Supabase local existente estaba disponible en `127.0.0.1:54321`.
 
@@ -104,8 +104,8 @@ Resultados:
 - `next start` local temporal en puerto alterno contra Supabase local:
   `/api/health/ready` HTTP 200, `{"status":"ready"}`.
 
-El proceso local temporal fue apagado. No se ejecuto `supabase db reset` ni se
-altero Supabase local.
+El proceso local temporal fue apagado. No se ejecutó `supabase db reset` ni se
+alteró Supabase local.
 
 ## Supabase administrado por HTTPS
 
@@ -114,7 +114,7 @@ Con VPN activo y publishable key en cabecera `apikey`:
 - `/auth/v1/health`: HTTP 200.
 - `managedAuthHealthWithApiKey`: true.
 
-No se imprimieron URL completa, project ref ni claves en la documentacion.
+No se imprimieron URL completa, project ref ni claves en la documentación.
 
 ## Docker Compose administrado
 
@@ -132,8 +132,9 @@ Resultado de arranque:
   host.
 - `nginx`: `Up ... (healthy)`, publicado solo en `127.0.0.1:8080->8080/tcp`.
 
-El paso de build conserva una validacion existente de variables `NEXT_PUBLIC_*`.
-No se guardaron logs crudos y no se reproduce ningun valor en este reporte.
+El paso de build conserva una validación existente de variables
+`NEXT_PUBLIC_*`. No se guardaron logs crudos y no se reproduce ningún valor en
+este reporte.
 
 ## Healthchecks
 
@@ -142,7 +143,7 @@ Dentro de `app`:
 - `/api/health/live`: HTTP 200, `{"status":"ok"}`.
 - `/api/health/ready`: HTTP 200, `{"status":"ready"}`.
 
-Via Nginx:
+Vía Nginx:
 
 - `/api/health/live`: HTTP 200, `{"status":"ok"}`.
 - `/api/health/ready`: HTTP 200, `{"status":"ready"}`.
@@ -152,12 +153,12 @@ Via Nginx:
 
 Estabilidad:
 
-- 10 llamadas consecutivas a readiness via Nginx.
-- Exitos: 10.
+- 10 llamadas consecutivas a readiness vía Nginx.
+- Éxitos: 10.
 - Fallos: 0.
 - Latencia observada: 168 ms a 203 ms.
 
-## Smoke HTTP via Nginx
+## Smoke HTTP vía Nginx
 
 - `/login`: HTTP 200.
 - `/dashboard`: HTTP 307 hacia login.
@@ -165,7 +166,7 @@ Estabilidad:
 - `/_next/static`: HTTP 200.
 - `/_next/image`: HTTP 200.
 
-## Validaciones publicas de Supabase administrado
+## Validaciones públicas de Supabase administrado
 
 Sin secret key, sin cliente admin y sin SQL remoto:
 
@@ -174,8 +175,25 @@ Sin secret key, sin cliente admin y sin SQL remoto:
 - `anonClientesBlocked`: true, HTTP 401.
 - `invalidSignupRejected`: true, HTTP 422.
 
-El signup se valido con payload invalido para evitar crear usuarios sinteticos.
-No se creo usuario Auth, perfil de negocio, dato de negocio ni objeto Storage.
+Configuración manual declarada por Dirección Técnica:
+
+- `Allow new users to sign up = OFF`.
+- `Allow anonymous sign-ins = OFF`.
+
+Smoke automatizado:
+
+- payload inválido rechazado;
+- ningún usuario creado.
+
+Conclusión:
+
+- el smoke confirma rechazo seguro y ausencia de usuario residual;
+- no demuestra automáticamente la política de signup;
+- la política permanece como configuración manual a verificar nuevamente
+  mediante flujo autorizado antes de exposición pública o UAT.
+
+No se intentó verificar la política mediante usuarios administrativos durante
+PPO-02D.2.
 
 ## Seguridad runtime
 
@@ -187,7 +205,7 @@ Validaciones realizadas con salida booleana y sin imprimir valores:
 - `POSTGRES_PASSWORD`: ausente de runtime.
 - Nginx: sin variables Supabase.
 - `app`: sin puerto host publicado.
-- Nginx: unico punto publicado, ligado a `127.0.0.1`.
+- Nginx: único punto publicado, ligado a `127.0.0.1`.
 - `read_only`: true en `app` y Nginx.
 - `no-new-privileges`: true en `app` y Nginx.
 - Imagen app inspect/history: sin patrones de secret, DB password ni connection
@@ -197,45 +215,45 @@ Validaciones realizadas con salida booleana y sin imprimir valores:
 - Logs runtime: sin patrones de secret, DB password, connection string ni
   publishable key.
 
-## Degradacion y recuperacion
+## Degradación y recuperación
 
-Se creo un env temporal fuera del repositorio apuntando `SUPABASE_SERVER_URL` a
-un endpoint local cerrado. Se recreo solo `app`.
+Se creó un env temporal fuera del repositorio apuntando `SUPABASE_SERVER_URL` a
+un endpoint local cerrado. Se recreó solo `app`.
 
-Degradacion:
+Degradación:
 
 - `app`: `unhealthy`.
-- `/api/health/live` via Nginx: HTTP 200.
-- `/api/health/ready` via Nginx: HTTP 503.
+- `/api/health/live` vía Nginx: HTTP 200.
+- `/api/health/ready` vía Nginx: HTTP 503.
 - Resultado esperado: true.
 
-Recuperacion:
+Recuperación:
 
-- Se restauro `compose.env.local`.
-- Se recreo solo `app`.
+- Se restauró `compose.env.local`.
+- Se recreó solo `app`.
 - `app`: `healthy`.
 - Nginx: `healthy`.
-- `/api/health/ready` via Nginx: HTTP 200.
+- `/api/health/ready` vía Nginx: HTTP 200.
 - Resultado esperado: true.
 
-El env temporal fue eliminado. Nginx no se reinicio manualmente durante la
-recuperacion.
+El env temporal fue eliminado. Nginx no se reinició manualmente durante la
+recuperación.
 
 ## Recursos
 
-Muestra instantanea, no benchmark:
+Muestra instantánea, no benchmark:
 
 - `app`: 0.02% CPU, 60.37 MiB / 2 GiB.
 - `nginx`: 0.00% CPU, 21 MiB / 256 MiB.
 
-## Limites y condiciones
+## Límites y condiciones
 
-Quedan fuera de esta aprobacion:
+Quedan fuera de esta aprobación:
 
-- Auth Admin sintetico exacto.
-- Login/logout de usuario sintetico.
-- Borrado de usuario sintetico.
-- comprobacion administrativa exacta de Storage.
+- Auth Admin sintético exacto.
+- Login/logout de usuario sintético.
+- Borrado de usuario sintético.
+- comprobación administrativa exacta de Storage.
 - TLS.
 - Cloudflare Tunnel.
 - `company-host`.
@@ -243,11 +261,11 @@ Quedan fuera de esta aprobacion:
 - E2E completo.
 
 Estas condiciones no bloquean PPO-02D.2 porque el contrato de readiness
-administrado quedo corregido y revalidado con Supabase administrado Free.
+administrado quedó corregido y revalidado con Supabase administrado Free.
 
 ## Limpieza
 
-Se ejecuto:
+Se ejecutó:
 
 ```text
 docker compose --env-file compose.env.local down --remove-orphans
@@ -257,18 +275,18 @@ Resultado esperado:
 
 - Contenedores del proyecto: 0.
 - Red del proyecto: eliminada.
-- Volumenes del proyecto: 0.
-- Imagenes: conservadas.
+- Volúmenes del proyecto: 0.
+- Imágenes: conservadas.
 - Supabase local: no alterado.
 - Seed: no aplicado.
 - Datos de negocio: 0 creados.
-- Usuarios sinteticos: 0 creados.
+- Usuarios sintéticos: 0 creados.
 - Objetos Storage: 0 creados.
 - `compose.env.local`: conservado como archivo local ignorado.
 
 ## Evidencia sanitizada
 
-Se conservaron resumenes sanitizados fuera del repositorio:
+Se conservaron resúmenes sanitizados fuera del repositorio:
 
 - `managed-summary.md`.
 - `managed-summary.json`.
@@ -277,16 +295,17 @@ No se conservaron logs crudos ni valores sensibles.
 
 ## Resultado
 
-Clasificacion:
+Clasificación:
 
 ```text
 Aprobada con condiciones
 ```
 
 PPO-02D.2 queda aprobada con condiciones. El bloqueo anterior de readiness se
-resolvio enviando la publishable key existente como cabecera `apikey` en la
+resolvió enviando la publishable key existente como cabecera `apikey` en la
 llamada server-side a `/auth/v1/health`, de acuerdo con el contrato actual de
 Supabase para API keys.
 
-PPO-02 permanece activa y local. No se marca PPO-02 como cerrada. No se declara
-despliegue, TLS, Cloudflare ni aprobacion de `company-host`.
+PPO-02 permanecía activa y local al cierre de PPO-02D.2. El cierre formal se
+realiza en PPO-02E.1. No se declara despliegue, TLS, Cloudflare ni aprobación de
+`company-host`.

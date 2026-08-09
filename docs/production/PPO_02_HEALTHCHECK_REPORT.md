@@ -216,6 +216,6 @@ como completa.
 
 Nota PPO-02D.2: el contrato de readiness contra Supabase administrado fue
 corregido posteriormente para enviar la publishable key existente como cabecera
-`apikey` en la llamada server-side a `/auth/v1/health`. La revalidacion
-administrada quedo documentada en
-[PPO-02D.2 - Validacion con Supabase administrado](PPO_02_MANAGED_SUPABASE_REPORT.md).
+`apikey` en la llamada server-side a `/auth/v1/health`. La revalidación
+administrada quedó documentada en
+[PPO-02D.2 - Validación con Supabase administrado](PPO_02_MANAGED_SUPABASE_REPORT.md).

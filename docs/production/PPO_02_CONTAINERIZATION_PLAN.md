@@ -2,7 +2,7 @@
 
 ## Metadatos
 
-- Estado: Aprobado para preparación
+- Estado: Cerrada — Aprobada con condiciones
 - Fase: PPO-02
 - Fecha de apertura: 2026-08-04
 - Última actualización: 2026-08-08
@@ -223,8 +223,10 @@ backend externo provisional para la puesta en operación inicial.
 ### Supabase administrado
 
 - Es requerido antes de cerrar la integración remota.
-- Permanece pendiente de configuración.
-- No se considera fallo de PPO-02A.1.
+- Fue validado en PPO-02D.2 como backend provisional Supabase Free administrado.
+- La baseline remota quedó declarada manualmente como aplicada 6/6, con 0
+  migraciones pendientes y seed no aplicado.
+- No se considera backend definitivo.
 
 ### Dirección estratégica futura
 
@@ -782,37 +784,37 @@ Reanudación de PPO-02D.2:
 - No se ejecutó seed.
 - No se ejecutó Compose administrado.
 
-Resultado de la reanudacion previa:
+Resultado de la reanudación previa:
 
 ```text
 manual_required
 ```
 
-Continuacion de PPO-02D.2:
+Continuación de PPO-02D.2:
 
-- Direccion Tecnica declaro ejecutadas manualmente las operaciones PostgreSQL
+- Dirección Técnica declaró ejecutadas manualmente las operaciones PostgreSQL
   remotas con VPN desactivado.
-- La baseline remota quedo declarada como 6/6 migraciones aplicadas, 0
+- La baseline remota quedó declarada como 6/6 migraciones aplicadas, 0
   pendientes y seed no aplicado.
-- Codex no reejecuto operaciones PostgreSQL administrativas con VPN activo.
-- La restriccion se clasifica como restriccion del canal administrativo
-  PostgreSQL a traves de ProTUN, no como fallo demostrado de HTTPS.
+- Codex no reejecutó operaciones PostgreSQL administrativas con VPN activo.
+- La restricción se clasifica como restricción del canal administrativo
+  PostgreSQL a través de ProTUN, no como fallo demostrado de HTTPS.
 - HTTPS administrado y `/auth/v1/health` fueron alcanzables desde Codex con VPN
   activo usando publishable key.
-- El contenedor `app` tambien alcanzo `/auth/v1/health` con `apikey`.
+- El contenedor `app` también alcanzó `/auth/v1/health` con `apikey`.
 - `docker compose --env-file compose.env.local config --quiet` y `build`
   finalizaron correctamente.
 - `docker compose --env-file compose.env.local up -d --wait --wait-timeout 120`
-  no completo porque `app` quedo `unhealthy`.
-- `/api/health/live` respondio HTTP 200 dentro de `app`.
-- `/api/health/ready` respondio HTTP 503 dentro de `app`.
-- La llamada directa desde `app` a `/auth/v1/health` sin `apikey` respondio
-  HTTP 401; con `apikey` respondio HTTP 200.
-- Nginx no quedo operativo porque depende de `app.service_healthy`.
-- Auth Admin sintetico no se ejecuto desde Codex por guardrail de
+  no completó porque `app` quedó `unhealthy`.
+- `/api/health/live` respondió HTTP 200 dentro de `app`.
+- `/api/health/ready` respondió HTTP 503 dentro de `app`.
+- La llamada directa desde `app` a `/auth/v1/health` sin `apikey` respondió
+  HTTP 401; con `apikey` respondió HTTP 200.
+- Nginx no quedó operativo porque depende de `app.service_healthy`.
+- Auth Admin sintético no se ejecutó desde Codex por guardrail de
   `SUPABASE_SECRET_KEY` fuera de flujos server-only auditados existentes.
 
-Correccion y revalidacion de PPO-02D.2:
+Corrección y revalidación de PPO-02D.2:
 
 - `src/app/api/health/ready/route.ts` conserva `getSupabaseServerUrl()` y usa
   `getSupabasePublishableKey()` para enviar la publishable key existente como
@@ -820,14 +822,14 @@ Correccion y revalidacion de PPO-02D.2:
 - No se agregaron `Authorization`, `Bearer`, claves hardcodeadas, variables
   nuevas, cliente Supabase ni cliente admin.
 - `docker compose --env-file compose.env.local up -d --wait --wait-timeout 120`
-  completo correctamente con `app` y Nginx `healthy`.
-- `/api/health/ready` respondio HTTP 200 dentro de `app` y via Nginx contra
+  completó correctamente con `app` y Nginx `healthy`.
+- `/api/health/ready` respondió HTTP 200 dentro de `app` y vía Nginx contra
   Supabase administrado.
-- 10 llamadas consecutivas de readiness via Nginx completaron 10/10 exitos.
-- La degradacion controlada con `SUPABASE_SERVER_URL` temporal no disponible
+- 10 llamadas consecutivas de readiness vía Nginx completaron 10/10 éxitos.
+- La degradación controlada con `SUPABASE_SERVER_URL` temporal no disponible
   produjo `live` HTTP 200, `ready` HTTP 503 y `app` `unhealthy`; al restaurar
   `compose.env.local`, `app` y Nginx volvieron a `healthy`.
-- Auth Admin sintetico, usuario sintetico exacto y comprobacion administrativa
+- Auth Admin sintético, usuario sintético exacto y comprobación administrativa
   exacta de Storage quedan diferidos por guardrails de `SUPABASE_SECRET_KEY`.
 
 Resultado vigente:
@@ -836,13 +838,33 @@ Resultado vigente:
 Aprobada con condiciones
 ```
 
-El siguiente checkpoint previsto es PPO-02E.1. PPO-02D.2 no cierra PPO-02, no
-declara despliegue, no valida TLS, no habilita Cloudflare Tunnel y no aprueba
-`company-host`.
+Al cierre de PPO-02D.2, el siguiente checkpoint previsto era PPO-02E.1.
+PPO-02D.2 no cerraba PPO-02, no declaraba despliegue, no validaba TLS, no
+habilitaba Cloudflare Tunnel y no aprobaba `company-host`.
 
-No se marca PPO-02 como cerrada.
+En ese punto todavía no se marcaba PPO-02 como cerrada.
 
-## 22. Riesgos abiertos
+## 22. Cierre PPO-02E.1
+
+PPO-02E.1 queda ejecutada como cierre documental y handoff operativo de la base
+contenerizada reproducible.
+
+Documento de cierre:
+
+- [PPO-02 — Cierre de base contenerizada reproducible](PPO_02_CLOSURE.md).
+
+Resultado:
+
+```text
+PPO-02 — Cerrada
+Clasificación: Aprobada con condiciones
+```
+
+El cierre no modifica runtime, no introduce nuevas funcionalidades, no ejecuta
+migraciones remotas y no implementa PPO-03, PPO-04 ni PPO-05. Tampoco cierra
+PPO-01, no aprueba `company-host` y no constituye despliegue.
+
+## 23. Riesgos abiertos
 
 | Clasificación | Riesgo | Tratamiento |
 | ------------- | ------ | ----------- |
@@ -865,5 +887,5 @@ No se marca PPO-02 como cerrada.
 | observación | Recreación de `app` no cambió IP en la muestra. | Se validó cambio de ID y recuperación sin reiniciar Nginx; repetir con escenarios de cambio efectivo si aparece una prueba que fuerce cambio de dirección. |
 | observación | PPO-QA-01 diferida. | Retomar antes del cierre definitivo de puesta en producción. |
 
-No existe un bloqueante para comenzar la preparación documental y el empaquetado
-básico local en `development-laptop`.
+No existe un bloqueante dentro del alcance local de PPO-02 para formalizar el
+cierre y preparar la transición hacia PPO-03.
