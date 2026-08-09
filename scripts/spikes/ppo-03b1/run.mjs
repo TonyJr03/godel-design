@@ -8,7 +8,7 @@ import { createClient } from "@supabase/supabase-js";
 const execFileAsync = promisify(execFile);
 const BUCKET = "godel-files";
 const PAYLOAD_SIZE = 7 * 1024 * 1024;
-const FIRST_CHUNK_SIZE = 4 * 1024 * 1024;
+const FIRST_CHUNK_SIZE = 6 * 1024 * 1024;
 const TEST_EMAIL_NAME = "GODEL_TEST_ADMIN_EMAIL";
 const TEST_PASSWORD_NAME = "GODEL_TEST_ADMIN_PASSWORD";
 
@@ -74,6 +74,20 @@ async function createUpload({ endpoint, path, apiKey, authorization, signature }
 
   if (!location) throw new Error("TUS_POST_LOCATION_MISSING");
   return new URL(location, endpoint).toString();
+}
+
+async function assertRejectedCreate({ endpoint, path, apiKey, signature, label }) {
+  const headers = {
+    apikey: apiKey,
+    "Tus-Resumable": "1.0.0",
+    "Upload-Length": String(PAYLOAD_SIZE),
+    "Upload-Metadata": metadata(path),
+    "x-upsert": "false",
+  };
+
+  if (signature) headers["x-signature"] = signature;
+  const response = await fetch(endpoint, { method: "POST", headers });
+  if (response.ok) throw new Error(`${label}_WAS_ALLOWED`);
 }
 
 async function patchUpload(uploadUrl, payload, offset, length, apiKey, authorization, signature) {
@@ -143,7 +157,7 @@ async function transferWithResume(input) {
 async function psql(sql) {
   const projectId = readFileSync("supabase/config.toml", "utf8").match(/^\s*project_id\s*=\s*"([^"]+)"\s*$/m)?.[1];
   if (!projectId) throw new Error("PPO03B1_PROJECT_ID_MISSING");
-  await execFileAsync("docker", [
+  return execFileAsync("docker", [
     "exec",
     "-i",
     `supabase_db_${projectId}`,
@@ -158,6 +172,20 @@ async function psql(sql) {
     "-c",
     sql,
   ], { windowsHide: true });
+}
+
+async function verifyCleanup(ids, paths) {
+  const { stdout } = await psql(`
+    select concat_ws('|',
+      (select count(*) from storage.objects where bucket_id = '${BUCKET}' and name in ('${paths.internal}', '${paths.public}')),
+      (select count(*) from public.solicitudes where id = '${ids.solicitud}'),
+      (select count(*) from public.pedidos where id = '${ids.pedido}'),
+      (select count(*) from public.archivo_carga_sesiones where id in ('${ids.internalSession}', '${ids.publicSession}')),
+      (select count(*) from public.archivo_carga_items where id in ('${ids.internalItem}', '${ids.publicItem}'))
+    );
+  `);
+  const counts = stdout.match(/\d+\|\d+\|\d+\|\d+\|\d+/)?.[0];
+  if (counts !== "0|0|0|0|0") throw new Error("PPO03B1_CLEANUP_RESIDUE_DETECTED");
 }
 
 async function main() {
@@ -183,6 +211,8 @@ async function main() {
     public: `cargas/v1/${ids.publicSession}/${ids.publicItem}/${nonce()}-factura-agosto-2026.pdf`,
   };
   const payload = randomBytes(PAYLOAD_SIZE);
+
+  let outcome;
 
   try {
     const { data: auth, error: authError } = await admin.auth.signInWithPassword({ email, password });
@@ -236,6 +266,20 @@ async function main() {
     });
     if (regularAnon.ok) throw new Error("PPO03B1_ANON_REGULAR_TUS_WAS_ALLOWED");
 
+    await assertRejectedCreate({
+      endpoint: signed,
+      path: paths.public,
+      apiKey,
+      label: "PPO03B1_SIGNED_WITHOUT_SIGNATURE",
+    });
+    await assertRejectedCreate({
+      endpoint: signed,
+      path: paths.public,
+      apiKey,
+      signature: "invalid-signature",
+      label: "PPO03B1_SIGNED_INVALID_SIGNATURE",
+    });
+
     const internal = await transferWithResume({
       endpoint: regular,
       path: paths.internal,
@@ -265,13 +309,13 @@ async function main() {
       end $$;
     `);
 
-    console.log("internal_tus_post_patch_head_resume=true");
-    console.log("public_presigned_tus_post_patch_head_resume=true");
-    console.log("anon_regular_tus_rejected=true");
-    console.log("presigned_tus_path=/storage/v1/upload/resumable/sign");
-    console.log("cleanup_completed=true");
-    void internal;
-    void publicTransfer;
+    outcome = {
+      internal,
+      publicTransfer,
+      anonRegularRejected: true,
+      signedWithoutSignatureRejected: true,
+      signedInvalidSignatureRejected: true,
+    };
   } finally {
     const { error: removeError } = await admin.storage.from(BUCKET).remove([
       paths.internal,
@@ -285,8 +329,18 @@ async function main() {
       delete from public.pedidos where id = '${ids.pedido}';
       delete from public.solicitudes where id = '${ids.solicitud}';
     `);
+    await verifyCleanup(ids, paths);
     await admin.auth.signOut();
   }
+
+  if (!outcome) throw new Error("PPO03B1_SMOKE_OUTCOME_MISSING");
+  console.log("internal_tus_post_patch_head_resume=true");
+  console.log("public_presigned_tus_post_patch_head_resume=true");
+  console.log("anon_regular_tus_rejected=true");
+  console.log("signed_without_signature_rejected=true");
+  console.log("signed_invalid_signature_rejected=true");
+  console.log("presigned_tus_path=/storage/v1/upload/resumable/sign");
+  console.log("cleanup_completed=true");
 }
 
 main().catch((error) => {

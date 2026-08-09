@@ -2,7 +2,7 @@
 
 ## Resultado
 
-**Estado: validada localmente con advertencia de versión.**
+**Estado: PPO-03B.1 cerrada — validada localmente.**
 
 La migración incremental `20260809000100_07_ppo03b_upload_sessions_storage.sql`
 crea el control plane privado de PPO-03 para sesiones e items de carga y añade
@@ -49,8 +49,8 @@ nueva hasta que PPO-03C implemente finalize idempotente.
 
 1. `supabase db reset`: reconstrucción satisfactoria desde cero con las seis
    migraciones baseline y la séptima migración PPO-03B.1.
-2. `supabase gen types typescript --local`: tipos regenerados desde el esquema
-   resultante.
+2. `npm run types:supabase`: tipos regenerados desde el esquema resultante
+   mediante el comando canónico del repositorio (`--local --schema public`).
 3. `scripts/spikes/ppo-03b1/validate.sql`: prueba reversible (`BEGIN` /
    `ROLLBACK`) satisfactoria de:
    - tablas, enums, RLS, grants y helpers operation-aware;
@@ -87,18 +87,32 @@ La revisión arquitectónica corrigió la misma migración 07, aún no promovida
   policy DELETE, para que cleanup pueda borrar staged sin abrir lectura normal.
 
 El smoke real `npm run spike:ppo-03b1:local` usó payload de 7 MiB y confirmó
-POST, PATCH, interrupción, HEAD, reanudación, finalización, existencia del
-objeto y cleanup tanto para JWT interno como para TUS público firmado. También
-confirmó que el endpoint TUS regular anónimo rechaza el mismo path reservado.
+POST, PATCH inicial de 6 MiB, HEAD, reanudación, PATCH final de 1 MiB,
+finalización, existencia del objeto y cleanup tanto para JWT interno como para
+TUS público firmado. También confirmó que el endpoint TUS regular anónimo, el
+endpoint firmado sin `x-signature` y el endpoint firmado con firma inválida
+rechazan el mismo path reservado. `cleanup_completed=true` sólo se informa tras
+verificar cero objetos, solicitud, pedido, sesiones e items del fixture.
+
+El hardening final añadió una QA SQL reversible de las invariantes de sesión,
+los diez slots (0..9), tamaño, descriptor, MIME del bucket, staging,
+commit y acceso heredado solicitud → pedido. Durante ella se corrigió un
+defecto real: el `CHECK` de sesión pública ahora exige explícitamente
+`public_token_hash is not null`, ya que un `CHECK` que produce `NULL` no
+rechaza la fila en PostgreSQL.
 
 La CLI local es 2.109.1. PostgreSQL local se actualizó a 17.6.1.155; Storage API
 permanece en v1.62.5 mientras la referencia vinculada indica v1.68.1. Los
 helpers operation-aware requeridos existen y las pruebas pasaron, pero debe
 repetirse la validación con la imagen Storage vinculada antes de promover la
-migración fuera de desarrollo.
+migración fuera de desarrollo. Las operaciones críticas ya contrastadas contra
+la referencia v1.68.1 son `storage.tus.upload.create`,
+`storage.tus.upload.part`, `storage.tus.upload.get`,
+`/upload/resumable/sign` y `x-signature`.
 
 ## Pendiente
 
+- PPO-03B.2 pendiente — validación administrada de compatibilidad Storage.
 - PPO-03C: Server Actions/RPCs finas para reservar, validar token, firmar y
   finalizar de forma idempotente.
 - PPO-03D y PPO-03E: migrar los flujos interno y público sin enviar bytes a

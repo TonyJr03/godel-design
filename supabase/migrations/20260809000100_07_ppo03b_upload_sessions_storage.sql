@@ -34,6 +34,7 @@ create table public.archivo_carga_sesiones (
     or (
       pedido_id is null
       and created_by is null
+      and public_token_hash is not null
       and public_token_hash ~ '^[0-9a-f]{64}$'
     )
   ),
