@@ -65,15 +65,15 @@ PPO-03B.2B validó por HTTPS el backend administrado con VPN activo, control
 plane cerrado para `anon` y authenticated, rutas `cargas/v1` sin reserva
 rechazadas y compatibilidad legacy conservada. El listing devolvió cero objetos
 visibles; sin un staged real no prueba la enumeración de staged. PPO-03C.1
-ya implementó y validó localmente reserva, firma, transferencia y finalize;
-permanece pendiente el gate administrado.
+implementó y validó localmente reserva, firma, transferencia y finalize.
+PPO-03C.3A promovió manualmente la migración 08 y PPO-03C.3B completó el gate
+administrado de staged real, TUS y finalize por HTTPS.
 
 PPO-03C.1 queda cerrada y aprobada localmente. PPO-03C.2 queda cerrada y
-aprobada con condición de integración runtime en PPO-03D/E: aporta infraestructura
-TypeScript común de reserva, firma, TUS y finalize, sin integrar todavía los
-flujos productivos. PPO-03C permanece abierta; el gate restante es reserva real,
-staged real, presigned TUS administrado y staged no enumerable por actores no
-autorizados.
+aprobada con condición de integración runtime en PPO-03D/E. PPO-03C.3A promovió
+manualmente la migración 08 y PPO-03C.3B validó por HTTPS el recorrido real de
+reserva, TUS, staged aislado y finalize idempotente. PPO-03C queda cerrada;
+PPO-03D es la siguiente fase.
 
 Documentos vigentes:
 
@@ -93,6 +93,7 @@ Documentos vigentes:
 - [Informe de spike PPO-03A.2](production/PPO_03_TUS_SPIKE_REPORT.md).
 - [Informe DB/Storage PPO-03B.1](production/PPO_03_STORAGE_DB_REPORT.md).
 - [Validación HTTPS administrada PPO-03B.2B](production/PPO_03_STORAGE_MANAGED_REPORT.md).
+- [Gate HTTPS administrado PPO-03C.3B](production/PPO_03_CONTROL_PLANE_MANAGED_REPORT.md).
 - [Cierre PPO-00](preproduction/PPO_00_CLOSURE.md).
 
 ## PPO-03B — Cerrada
@@ -144,7 +145,7 @@ Estado correcto: seis migraciones baseline y dos migraciones incrementales PPO-0
 5. `20260731000500_05_auth_admin_user_lifecycle.sql`: ciclo Auth Admin, auditorías privadas, provisioning y reset.
 6. `20260731000600_06_final_hardening.sql`: assertions finales y hardening.
 7. `20260809000100_07_ppo03b_upload_sessions_storage.sql`: sesiones/items de carga, control plane privado y policies Storage operation-aware.
-8. `20260809000200_08_ppo03c_upload_control_plane.sql`: control plane de reserva y finalize, aprobada localmente y todavía no promovida al Supabase administrado.
+8. `20260809000200_08_ppo03c_upload_control_plane.sql`: control plane de reserva y finalize, promovida manualmente por Dirección Técnica en PPO-03C.3A y validada por HTTPS en PPO-03C.3B; es inmutable.
 
 ## Servicios iniciales
 

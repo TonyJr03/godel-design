@@ -22,6 +22,8 @@
     "spike:ppo-03b1:cleanup": "node scripts/spikes/ppo-03b1/cleanup-orphans.mjs",
     "spike:ppo-03b2:managed": "node scripts/spikes/ppo-03b2/run.mjs",
     "spike:ppo-03c1:local": "node scripts/spikes/ppo-03c1/run.mjs",
+    "spike:ppo-03c3:managed": "node scripts/spikes/ppo-03c3/run.mjs",
+    "spike:ppo-03c3:cleanup": "node scripts/spikes/ppo-03c3/cleanup.mjs",
     "diff:check": "git diff --check",
     "qa:bootstrap": "node scripts/bootstrap-local-qa-users.mjs",
     "audit:security": "node scripts/audit-security.mjs",

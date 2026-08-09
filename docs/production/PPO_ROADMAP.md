@@ -110,15 +110,17 @@ VPN activo, sin PostgreSQL remoto. El listing devolvió cero objetos visibles;
 sin staged real no prueba su enumeración, pero no evidencia una apertura.
 PPO-03B queda cerrada. PPO-03C.1 queda cerrada y aprobada localmente; PPO-03C.2
 queda cerrada y aprobada con condición de integración runtime en PPO-03D/E para
-la infraestructura TypeScript común. PPO-03C continúa abierta con el gate de reserva real, staged
-real, presigned TUS administrado y staged no enumerable por actores no autorizados.
+la infraestructura TypeScript común. PPO-03C.3A promovió manualmente la
+migración 08 y PPO-03C.3B cerró el gate HTTPS administrado de reserva real,
+TUS presigned, staged aislado y finalize idempotente. PPO-03C queda cerrada;
+PPO-03 permanece activa y PPO-03D es la siguiente fase.
 
 PPO-03C.1 implementó localmente el control plane de reserva y finalize y queda
-aprobada localmente. PPO-03C.2 implementó localmente la infraestructura
-TypeScript común y queda aprobada con condición de integración runtime en PPO-03D/E; PPO-03C continúa
-abierta y pendiente de integración de aplicación y del gate administrado: reserva
-real, staged real, presigned TUS administrado y staged no enumerable por actores
-no autorizados.
+aprobada localmente. PPO-03C.2 implementó la infraestructura TypeScript común y
+queda aprobada con condición de integración runtime en PPO-03D/E. PPO-03C.3B
+validó administradamente las RPCs, policies, Storage y TUS sin ejecutar el
+wrapper productivo; PPO-03C queda cerrada, PPO-03 permanece activa y PPO-03D
+es la siguiente fase.
 
 ## PPO-00
 
@@ -199,9 +201,10 @@ despliegue productivo ni despliegue en la empresa.
   (migración interna de Pedidos), PPO-03E (migración pública de Solicitudes),
   PPO-03F (expiración, reconciliación y cleanup) y PPO-03G (QA integral,
   retirada de 110 MB y cierre documental). PPO-03B queda cerrada. PPO-03B.2B
-  no prueba artificialmente el positivo presigned de `cargas/v1`: queda como
-  gate obligatorio de PPO-03C mediante sus RPCs reales de reserva, junto con
-  un staged no enumerable por actores no autorizados.
+  no probó artificialmente el positivo presigned de `cargas/v1`; PPO-03C.3B lo
+  validó mediante las RPCs reales de reserva, junto con staged no enumerable por
+  actores no autorizados. PPO-03D y PPO-03E siguen para integrar los flujos
+  productivos.
 - PPO-04: cubrirá despliegue provisional, Cloudflare Tunnel, dominio y
   recuperación del host.
 - PPO-05: abordará antiabuso, rate limiting, seguridad pública y protección de

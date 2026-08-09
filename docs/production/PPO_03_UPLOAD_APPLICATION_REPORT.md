@@ -20,8 +20,9 @@ La transferencia individual browser-to-Storage usa TUS con chunks de 6 MiB,
 público envía `apikey` y `x-signature`; el interno envía `apikey` y el JWT de la
 sesión. No se registran capability, hash, JWT ni headers sensibles.
 
-PPO-03C permanece abierta: PPO-03D y PPO-03E integrarán estos adaptadores en
-los flujos productivos, y el gate administrado continúa pendiente.
+PPO-03C.3B completó el gate administrado de reserva, TUS, staged y finalize.
+PPO-03D y PPO-03E integrarán estos adaptadores en los flujos productivos y
+mantienen pendiente únicamente su gate runtime browser específico.
 
 ## Hardening final
 

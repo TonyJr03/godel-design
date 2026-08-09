@@ -54,7 +54,8 @@ El QA reversible y el smoke cubren capability, orden, multi-item, retry,
 staging y cleanup.
 
 No se cambia ningún flujo productivo de UI, Server Actions ni límites heredados.
-PPO-03C.1 queda cerrada y aprobada localmente. PPO-03C.2 queda activa para
-implementar los adaptadores TypeScript comunes; PPO-03C permanece abierta. El
-gate pendiente es reserva real, staged real, presigned TUS administrado y staged
-no enumerable por actores no autorizados.
+PPO-03C.1 queda cerrada y aprobada localmente. PPO-03C.3A promovió manualmente
+la migración 08 y PPO-03C.3B validó el control plane administrado por HTTPS,
+incluidos reserva real, staged aislado, TUS y finalize idempotente. La evidencia
+vive en [PPO-03C.3B](PPO_03_CONTROL_PLANE_MANAGED_REPORT.md). PPO-03C queda
+cerrada; PPO-03D continúa como siguiente fase.
