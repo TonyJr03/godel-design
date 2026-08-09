@@ -5,7 +5,8 @@ arquitectura operativa y puesta en operación de Godel Diseño.
 
 ## Documentos vigentes
 
-- [PPO-03C.1 - Control plane DB de reservas y finalize](PPO_03_CONTROL_PLANE_REPORT.md): implementada localmente; pendiente de revisión arquitectónica e integración.
+- [PPO-03C.1 - Control plane DB de reservas y finalize](PPO_03_CONTROL_PLANE_REPORT.md): cerrada y aprobada localmente.
+- [PPO-03C.2 - Infraestructura TypeScript de cargas directas](PPO_03_UPLOAD_APPLICATION_REPORT.md): implementada localmente; pendiente de revisión arquitectónica antes de integrar UI.
 - [Roadmap PPO](PPO_ROADMAP.md): iniciativa completa de Preproducción y Puesta en Operación.
 - [PPO-03A.1 — Contrato de cargas y almacenamiento](PPO_03_UPLOAD_STORAGE_CONTRACT.md): arquitectura objetivo aprobada para transferencia directa, sesiones, finalización y reconciliación; no implementa todavía el nuevo flujo.
 - [PPO-03A.2 — Informe de spike TUS y signed upload token](PPO_03_TUS_SPIKE_REPORT.md): evidencia local y veredicto aprobado con condiciones; habilita el inicio de PPO-03B.

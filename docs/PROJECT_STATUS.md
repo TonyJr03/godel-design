@@ -68,7 +68,12 @@ visibles; sin un staged real no prueba la enumeración de staged. PPO-03C.1
 ya implementó y validó localmente reserva, firma, transferencia y finalize;
 permanece pendiente el gate administrado.
 
-PPO-03C.1 está implementada localmente y pendiente de revisión arquitectónica. No cierra PPO-03C ni modifica los flujos productivos actuales. El gate restante es reserva real, staged real, presigned TUS administrado y staged no enumerable por actores no autorizados.
+PPO-03C.1 queda cerrada y aprobada localmente. PPO-03C.2 queda cerrada y
+aprobada con condición de integración runtime en PPO-03D/E: aporta infraestructura
+TypeScript común de reserva, firma, TUS y finalize, sin integrar todavía los
+flujos productivos. PPO-03C permanece abierta; el gate restante es reserva real,
+staged real, presigned TUS administrado y staged no enumerable por actores no
+autorizados.
 
 Documentos vigentes:
 
@@ -130,7 +135,7 @@ tienda online ni un carrito.
 
 ## Baseline de base de datos
 
-Estado correcto: seis migraciones baseline y una migración incremental PPO-03B.1:
+Estado correcto: seis migraciones baseline y dos migraciones incrementales PPO-03:
 
 1. `20260731000100_01_core_schema.sql`: enums, tablas, constraints, triggers base y servicios iniciales.
 2. `20260731000200_02_security_rls_grants.sql`: RLS, policies y grants.
@@ -139,6 +144,7 @@ Estado correcto: seis migraciones baseline y una migración incremental PPO-03B.
 5. `20260731000500_05_auth_admin_user_lifecycle.sql`: ciclo Auth Admin, auditorías privadas, provisioning y reset.
 6. `20260731000600_06_final_hardening.sql`: assertions finales y hardening.
 7. `20260809000100_07_ppo03b_upload_sessions_storage.sql`: sesiones/items de carga, control plane privado y policies Storage operation-aware.
+8. `20260809000200_08_ppo03c_upload_control_plane.sql`: control plane de reserva y finalize, aprobada localmente y todavía no promovida al Supabase administrado.
 
 ## Servicios iniciales
 

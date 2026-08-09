@@ -6,6 +6,23 @@ export const MAX_STORAGE_FILE_SIZE_BYTES = 20 * 1024 * 1024;
 
 export const MAX_PUBLIC_SOLICITUD_FILES = 5;
 
+export const MAX_UPLOAD_SESSION_ITEMS = 10;
+
+export const TUS_CHUNK_SIZE_BYTES = 6 * 1024 * 1024;
+
+export const PPO03_MIME_BY_EXTENSION = {
+  pdf: "application/pdf",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  doc: "application/msword",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  zip: "application/zip",
+  rar: "application/vnd.rar",
+  cdr: "application/vnd.corel-draw",
+} as const;
+
 export const STORAGE_ROOTS = {
   solicitudes: "solicitudes",
   pedidos: "pedidos",

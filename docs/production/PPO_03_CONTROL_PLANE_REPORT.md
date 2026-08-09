@@ -1,7 +1,7 @@
 # PPO-03C.1 - Control plane DB de reservas y finalize
 
 Fecha: 2026-08-09  
-Estado: implementada localmente / pendiente revisión arquitectónica
+Estado: cerrada / aprobada localmente
 
 ## Alcance implementado
 
@@ -42,11 +42,6 @@ sesión, acceso vigente al pedido y visibilidad aún compatible con su estado.
   por anónimo y autenticado no autorizado es rechazada. El cleanup comprueba
   cero residuos en Storage, sesiones, items, archivos, solicitudes, pedidos e
   historiales asociados antes de imprimir `cleanup_completed=true`.
-- Validador SQL reversible: grants, helpers privados, descriptores, staging no
-  legible, mismatch de objeto, idempotencia e historial automático.
-- Smoke local: TUS firmado público y TUS autenticado interno con POST, PATCH,
-  HEAD, reanudación de 6 MiB más restante, staging no enumerable, finalize
-  concurrente idempotente y limpieza sin residuos.
 
 ## Límite y gate
 
@@ -59,5 +54,7 @@ El QA reversible y el smoke cubren capability, orden, multi-item, retry,
 staging y cleanup.
 
 No se cambia ningún flujo productivo de UI, Server Actions ni límites heredados.
-PPO-03C permanece abierta. El gate pendiente es reserva real, staged real,
-presigned TUS administrado y staged no enumerable por actores no autorizados.
+PPO-03C.1 queda cerrada y aprobada localmente. PPO-03C.2 queda activa para
+implementar los adaptadores TypeScript comunes; PPO-03C permanece abierta. El
+gate pendiente es reserva real, staged real, presigned TUS administrado y staged
+no enumerable por actores no autorizados.
