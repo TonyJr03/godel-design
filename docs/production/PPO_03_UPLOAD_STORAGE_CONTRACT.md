@@ -249,8 +249,11 @@ PPO-03B.1 aplica localmente la capacidad oficial operation-aware de Storage:
 <code>storage.allow_any_operation()</code> permite una lista explícita. La policy
 pública reservation-aware separa la firma
 <code>storage.object.sign_upload_url</code> de la creación TUS
-(<code>storage.tus.upload.create</code>). No habilita
-<code>storage.tus.upload.part</code> ni <code>storage.tus.upload.get</code>. La
+(<code>storage.tus.upload.create</code>) pública regular, que permanece
+bloqueada. Para TUS interno habilita exclusivamente
+<code>storage.tus.upload.create</code> y <code>storage.tus.upload.part</code>;
+no habilita <code>storage.tus.upload.get</code>. El navegador público usa el
+token firmado exclusivamente en <code>/storage/v1/upload/resumable/sign</code>. La
 firma validará bucket, path reservado, sesión pública, estado y expiración sin
 exigir metadata aún inexistente; la creación TUS añadirá MIME normalizado,
 metadata esperada y restricciones del item cuando esa información sea

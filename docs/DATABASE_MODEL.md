@@ -819,17 +819,20 @@ sigue siendo la única metadata de negocio de un objeto committed.
 | `archivo_carga_items` | Reserva por sesión con `sort_order` entre 0 y 9, path único, nombre/MIME/tamaño canónicos, `visibility`, estado `reserved`/`committed`/`expired`/`cancelled` y `archivo_id` nullable único cuando existe. |
 
 Los paths nuevos se restringen a
-`cargas/v1/{session_id}/{item_id}/{storage_nonce}-{safe_filename}`. El helper
+`cargas/v1/{session_id}/{item_id}/{storage_nonce}-{safe_filename}`. El
+`original_name` conserva el nombre visible del usuario, incluidos espacios,
+mayúsculas y Unicode razonable; no admite separadores de ruta ni controles. El helper
 SQL valida UUIDs, nonce hexadecimal de alta entropía, nombre sanitizado,
-extensión/MIME compatible y 20 MiB como máximo. PDF, JPG/JPEG, PNG, WEBP, DOC,
+extensión del path coherente con el nombre visible, MIME compatible y 20 MiB como máximo. PDF, JPG/JPEG, PNG, WEBP, DOC,
 DOCX, ZIP, RAR y CDR tienen combinaciones MIME canónicas explícitas.
 
 RLS queda activa y no hay grants directos a `anon` ni `authenticated`. Las
 policies de `storage.objects` consultan estos registros mediante helpers
 `security definer`: una reserva pública solo habilita firma y creación TUS;
 una reserva interna además exige usuario activo, acceso al pedido y visibilidad
-derivada de su estado. Lectura requiere item committed y metadata `archivos`
-coherente. No se habilitan operaciones TUS `part` ni `get` en esta fase.
+derivada de su estado, tanto para TUS `create` como `part`. Lectura requiere
+item committed y metadata `archivos` coherente, incluida la herencia
+solicitud→pedido. No se habilita TUS `get` en esta fase.
 
 ### `pedido_comentarios`
 

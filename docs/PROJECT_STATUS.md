@@ -84,9 +84,11 @@ Documentos vigentes:
 
 ## PPO-03B.1
 
-PPO-03B.1 está validada localmente: la séptima migración crea el control plane
+PPO-03B.1 está validada localmente tras corrección arquitectónica: la séptima migración crea el control plane
 privado de sesiones e items de carga y restringe las operaciones nuevas de
-Storage por reserva, rol, estado, expiración y operación. No se ha aplicado SQL
+Storage por reserva, rol, estado, expiración y operación. TUS interno admite
+`create` y `part`; TUS público usa exclusivamente el endpoint firmado
+`/upload/resumable/sign`, sin TUS regular anónimo. No se ha aplicado SQL
 remoto ni se han cambiado los flujos actuales de upload; reserva, firma,
 transferencia y finalize siguen pendientes en PPO-03C.
 

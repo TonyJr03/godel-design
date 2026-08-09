@@ -60,7 +60,7 @@ begin
 
   if (select public from storage.buckets where id = 'godel-files')
     or (select file_size_limit from storage.buckets where id = 'godel-files') <> 20971520
-    or not (select allowed_mime_types @> array['application/vnd.rar', 'application/vnd.corel-draw']::text[] from storage.buckets where id = 'godel-files') then
+    or not (select allowed_mime_types @> array['application/vnd.rar', 'application/vnd.corel-draw', 'application/x-zip-compressed']::text[] from storage.buckets where id = 'godel-files') then
     raise exception 'godel-files hardening is incomplete';
   end if;
 
@@ -78,19 +78,21 @@ begin
   insert into public.archivo_carga_sesiones (
     id, solicitud_id, public_token_hash, expires_at
   ) values (
-    v_public_session_id, v_solicitud_id, repeat('a', 64), now() + interval '15 minutes'
+    v_public_session_id, v_solicitud_id,
+    encode(digest(v_solicitud_id::text || clock_timestamp()::text, 'sha256'), 'hex'),
+    now() + interval '15 minutes'
   );
 
   insert into public.archivo_carga_items (
     id, session_id, sort_order, object_path, original_name, normalized_mime, expected_size, visibility
   ) values (
-    v_public_item_id, v_public_session_id, 0, v_public_path, 'qa-file.pdf', 'application/pdf', 1, 'cliente_solicitud'
+    v_public_item_id, v_public_session_id, 0, v_public_path, 'Factura Agosto 2026.pdf', 'application/pdf', 1, 'cliente_solicitud'
   );
 
   insert into public.archivo_carga_items (
     id, session_id, sort_order, object_path, original_name, normalized_mime, expected_size, visibility
   ) values (
-    v_public_part_item_id, v_public_session_id, 1, v_public_part_path, 'qa-file.pdf', 'application/pdf', 1, 'cliente_solicitud'
+    v_public_part_item_id, v_public_session_id, 1, v_public_part_path, 'Informe Técnico.PDF', 'application/pdf', 1, 'cliente_solicitud'
   );
 
   if not private.can_sign_ppo03_public_upload('godel-files', v_public_path) then
@@ -137,7 +139,9 @@ begin
   insert into public.archivo_carga_sesiones (
     id, solicitud_id, public_token_hash, status, created_at, expires_at
   ) values (
-    v_expired_session_id, v_solicitud_id, repeat('b', 64), 'expired', now() - interval '2 minutes', now() - interval '1 minute'
+    v_expired_session_id, v_solicitud_id,
+    encode(digest(v_expired_session_id::text || clock_timestamp()::text, 'sha256'), 'hex'),
+    'expired', now() - interval '2 minutes', now() - interval '1 minute'
   );
 
   insert into public.archivo_carga_items (
@@ -183,12 +187,11 @@ begin
       and policyname in (
         'godel_files_insert_ppo03_internal_tus',
         'godel_files_insert_ppo03_public_sign',
-        'godel_files_insert_ppo03_public_tus',
         'godel_files_select_ppo03_committed',
         'godel_files_delete_ppo03_managed'
       )
     group by schemaname, tablename
-    having count(*) = 5
+    having count(*) = 4
   ) then
     raise exception 'PPO-03B.1 Storage policies are missing';
   end if;

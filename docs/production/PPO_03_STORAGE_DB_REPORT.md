@@ -21,11 +21,12 @@ los flujos de aplicación.
 - RLS activa y revocación de CRUD directo para `anon` y `authenticated`.
 - Helpers privados para autorizar reserva pública, creación interna, lectura de
   objetos committed y borrado administrativo/supervisor.
-- Policies nuevas para firma pública, creación TUS pública, creación TUS
-  interna, lectura authenticated de committed y borrado administrativo. No se
-  habilitaron `storage.tus.upload.part` ni `storage.tus.upload.get`.
+- Policies nuevas para firma pública, creación TUS interna con `create` y
+  `part`, lectura authenticated de committed y borrado administrativo. No hay
+  policy TUS regular para `anon`, ni `storage.tus.upload.get` o delete TUS.
 - Bucket `godel-files` mantenido privado, limitado a 20 MiB y con MIME
-  canónicos para PDF, JPG/JPEG, PNG, WEBP, DOC, DOCX, ZIP, RAR y CDR.
+  canónicos para PDF, JPG/JPEG, PNG, WEBP, DOC, DOCX, ZIP, RAR y CDR, además
+  de `application/x-zip-compressed` para compatibilidad legacy.
 - Tipos regenerados en `src/types/database.types.ts`.
 
 ## Decisiones de seguridad
@@ -57,20 +58,44 @@ nueva hasta que PPO-03C implemente finalize idempotente.
    - hash público inválido, MIME/extensión no permitidos y path con item UUID
      incorrecto rechazados por constraints;
    - sesión expirada no elegible para firma;
-   - inserción real de Storage pública con
-     `storage.object.sign_upload_url`;
-   - inserción real interna con JWT de fixture y
-     `storage.tus.upload.create`;
-   - rechazo real de una inserción pública bajo
-     `storage.tus.upload.part`.
+   - firma pública bajo `storage.object.sign_upload_url`;
+   - inserción interna reservation-aware con `create` y prueba unitaria de
+     `part`; el transporte real se cubre en el smoke focal;
+   - ausencia de TUS regular público.
 4. `supabase db lint --local`: sin errores de esquema.
 5. `npm run lint` y `npm run build`: satisfactorios.
 
-La CLI local utilizó imágenes ya disponibles de Supabase PostgreSQL 17.6.1.143
-y Storage API v1.62.5 mientras la referencia vinculada indica versiones más
-recientes. Los helpers operation-aware requeridos existen y las pruebas pasaron,
-pero debe repetirse el reset con las imágenes vinculadas cuando su descarga local
-esté disponible antes de promover la migración fuera de desarrollo.
+## Corrección y revalidación
+
+La revisión arquitectónica corrigió la misma migración 07, aún no promovida:
+
+- TUS interno autoriza solamente `storage.tus.upload.create` y
+  `storage.tus.upload.part` con el helper reservation-aware existente.
+- Se eliminó la policy de TUS regular para `anon`. El flujo público obtiene la
+  firma bajo `storage.object.sign_upload_url` y transfiere solo mediante
+  `/storage/v1/upload/resumable/sign` con `x-signature`.
+- Se restauró `application/x-zip-compressed` en el bucket para no romper rutas
+  legacy; el descriptor nuevo mantiene ZIP normalizado como `application/zip`.
+- `original_name` preserva el nombre visible y valida extensión compatible de
+  forma case-insensitive; el segmento seguro sigue siendo exclusivo del path.
+- Un item no committed no puede tener `archivo_id`; un committed puede retener
+  histórico aunque esa FK quede nula por `ON DELETE SET NULL`.
+- Lectura verifica metadata exacta. Para archivos de solicitud heredados permite
+  al trabajador asignado del pedido leer el mismo objeto sin moverlo.
+- La preselección de Storage para `storage.object.delete` y
+  `storage.object.delete_many` usa la misma autorización administrativa que la
+  policy DELETE, para que cleanup pueda borrar staged sin abrir lectura normal.
+
+El smoke real `npm run spike:ppo-03b1:local` usó payload de 7 MiB y confirmó
+POST, PATCH, interrupción, HEAD, reanudación, finalización, existencia del
+objeto y cleanup tanto para JWT interno como para TUS público firmado. También
+confirmó que el endpoint TUS regular anónimo rechaza el mismo path reservado.
+
+La CLI local es 2.109.1. PostgreSQL local se actualizó a 17.6.1.155; Storage API
+permanece en v1.62.5 mientras la referencia vinculada indica v1.68.1. Los
+helpers operation-aware requeridos existen y las pruebas pasaron, pero debe
+repetirse la validación con la imagen Storage vinculada antes de promover la
+migración fuera de desarrollo.
 
 ## Pendiente
 

@@ -103,7 +103,8 @@ handoff operativo. PPO-03 queda activa: PPO-03A.1 formalizó el contrato y
 PPO-03A.2 cerró aprobada con condiciones. El spike separó TUS autenticado por
 JWT para internos de TUS presigned para público y difirió la policy pública
 reservation-aware al alcance de PPO-03B. PPO-03B.1 ya validó localmente el
-control plane de sesiones/items y las policies operation-aware; reserva, firma,
+control plane de sesiones/items y las policies operation-aware, incluido TUS
+interno `create`/`part` y TUS público firmado `/resumable/sign`; reserva, firma,
 transferencia y finalize de aplicación siguen sin implementar ni desplegar.
 
 ## PPO-00

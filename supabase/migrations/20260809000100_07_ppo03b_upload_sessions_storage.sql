@@ -80,20 +80,22 @@ immutable
 set search_path = public, private
 as $$
   select file_name is not null
-    and char_length(file_name) <= 120
-    and file_name ~ '^[a-z0-9][a-z0-9_-]{0,118}\.(pdf|jpg|jpeg|png|webp|doc|docx|zip|rar|cdr)$'
+    and char_length(btrim(file_name)) between 1 and 255
+    and file_name !~ E'[/\\\\]'
+    and file_name !~ '[[:cntrl:]]'
+    and file_name ~* '\.(pdf|jpg|jpeg|png|webp|doc|docx|zip|rar|cdr)$'
     and file_size > 0
     and file_size <= 20971520
     and (
-      (file_name ~ '\.pdf$' and mime_type = 'application/pdf')
-      or (file_name ~ '\.(jpg|jpeg)$' and mime_type = 'image/jpeg')
-      or (file_name ~ '\.png$' and mime_type = 'image/png')
-      or (file_name ~ '\.webp$' and mime_type = 'image/webp')
-      or (file_name ~ '\.doc$' and mime_type = 'application/msword')
-      or (file_name ~ '\.docx$' and mime_type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
-      or (file_name ~ '\.zip$' and mime_type = 'application/zip')
-      or (file_name ~ '\.rar$' and mime_type = 'application/vnd.rar')
-      or (file_name ~ '\.cdr$' and mime_type = 'application/vnd.corel-draw')
+      (file_name ~* '\.pdf$' and mime_type = 'application/pdf')
+      or (file_name ~* '\.(jpg|jpeg)$' and mime_type = 'image/jpeg')
+      or (file_name ~* '\.png$' and mime_type = 'image/png')
+      or (file_name ~* '\.webp$' and mime_type = 'image/webp')
+      or (file_name ~* '\.doc$' and mime_type = 'application/msword')
+      or (file_name ~* '\.docx$' and mime_type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+      or (file_name ~* '\.zip$' and mime_type = 'application/zip')
+      or (file_name ~* '\.rar$' and mime_type = 'application/vnd.rar')
+      or (file_name ~* '\.cdr$' and mime_type = 'application/vnd.corel-draw')
     );
 $$;
 
@@ -131,13 +133,14 @@ create table public.archivo_carga_items (
   ),
   constraint archivo_carga_items_object_path_shape_check check (
     private.is_ppo03_object_path(session_id, id, object_path)
+    and lower(regexp_replace(object_path, '^.*\.', '')) = lower(regexp_replace(original_name, '^.*\.', ''))
   ),
   constraint archivo_carga_items_descriptor_check check (
     private.is_valid_ppo03_file_descriptor(original_name, normalized_mime, expected_size)
   ),
   constraint archivo_carga_items_committed_at_status_check check (
     (status = 'committed' and committed_at is not null)
-    or (status <> 'committed' and committed_at is null)
+    or (status <> 'committed' and committed_at is null and archivo_id is null)
   ),
   constraint archivo_carga_items_session_sort_order_unique unique (session_id, sort_order),
   constraint archivo_carga_items_object_path_unique unique (object_path)
@@ -250,12 +253,27 @@ as $$
         and i.archivo_id is not null
         and a.bucket = object_bucket_id
         and a.file_path = object_name
+        and a.visibility = i.visibility
+        and a.file_name = i.original_name
+        and a.file_type = i.normalized_mime
+        and a.file_size = i.expected_size
         and (
-          (s.pedido_id is not null and private.can_access_pedido(s.pedido_id))
+          (
+            s.pedido_id is not null
+            and a.pedido_id = s.pedido_id
+            and private.can_access_pedido(s.pedido_id)
+          )
           or (
             s.solicitud_id is not null
-            and private.is_admin_or_supervisor()
             and a.solicitud_id = s.solicitud_id
+            and (
+              private.is_admin_or_supervisor()
+              or (
+                a.pedido_id is not null
+                and a.visibility = 'cliente_solicitud'::public.archivo_visibility
+                and private.can_access_pedido(a.pedido_id)
+              )
+            )
           )
         )
     );
@@ -301,7 +319,10 @@ on storage.objects
 for insert
 to authenticated
 with check (
-  storage.allow_only_operation('storage.tus.upload.create')
+  storage.allow_any_operation(array[
+    'storage.tus.upload.create',
+    'storage.tus.upload.part'
+  ])
   and private.can_create_ppo03_internal_upload(bucket_id, name)
 );
 
@@ -314,26 +335,26 @@ with check (
   and private.can_sign_ppo03_public_upload(bucket_id, name)
 );
 
-create policy godel_files_insert_ppo03_public_tus
-on storage.objects
-for insert
-to anon
-with check (
-  storage.allow_only_operation('storage.tus.upload.create')
-  and private.can_sign_ppo03_public_upload(bucket_id, name)
-);
-
 create policy godel_files_select_ppo03_committed
 on storage.objects
 for select
 to authenticated
 using (
-  storage.allow_any_operation(array[
-    'storage.object.sign',
-    'storage.object.get_signed',
-    'storage.object.get_authenticated'
-  ])
-  and private.can_read_ppo03_storage_object(bucket_id, name)
+  (
+    storage.allow_any_operation(array[
+      'storage.object.sign',
+      'storage.object.get_signed',
+      'storage.object.get_authenticated'
+    ])
+    and private.can_read_ppo03_storage_object(bucket_id, name)
+  )
+  or (
+    storage.allow_any_operation(array[
+      'storage.object.delete',
+      'storage.object.delete_many'
+    ])
+    and private.can_manage_ppo03_storage_object(bucket_id, name)
+  )
 );
 
 create policy godel_files_delete_ppo03_managed
@@ -356,6 +377,7 @@ set
     'application/msword',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'application/zip',
+    'application/x-zip-compressed',
     'application/vnd.rar',
     'application/vnd.corel-draw'
   ]

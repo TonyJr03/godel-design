@@ -53,9 +53,11 @@ cargas/v1/{session_id}/{item_id}/{storage_nonce}-{safe_filename}
 Solo un item `reserved` de una sesión `open` y no expirada puede autorizar esa
 ruta. La policy pública distingue `storage.object.sign_upload_url` de
 `storage.tus.upload.create`; la interna exige JWT normal, usuario activo,
-acceso al pedido y visibilidad derivada de su estado. No hay `SELECT` anónimo,
-no hay CRUD directo sobre las tablas de reserva y no se habilitan
-`storage.tus.upload.part` ni `storage.tus.upload.get` en PPO-03B.1.
+acceso al pedido y visibilidad derivada de su estado. Para TUS interno se
+habilitan exclusivamente `storage.tus.upload.create` y
+`storage.tus.upload.part`; no se habilita `storage.tus.upload.get`. El flujo
+público no habilita TUS regular anónimo: usa token firmado y
+`/storage/v1/upload/resumable/sign`.
 
 Los objetos bajo esta raíz no son descargables hasta que un finalize futuro los
 marque `committed` y cree metadata coherente en `public.archivos`. Las rutas

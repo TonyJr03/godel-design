@@ -179,27 +179,30 @@ function getQaCredentials(target) {
   return { email, password };
 }
 
-function getTusEndpoint(supabaseUrl) {
+function getTusEndpoint(supabaseUrl, mode) {
   const url = new URL(supabaseUrl);
 
   if (
     url.hostname.endsWith(".supabase.co") &&
     !url.hostname.includes(".storage.supabase.co")
   ) {
-    return (
+    const endpoint = (
       url.protocol +
       "//" +
       url.hostname.replace(".supabase.co", ".storage.supabase.co") +
       "/storage/v1/upload/resumable"
     );
+
+    return mode === "presigned" ? endpoint + "/sign" : endpoint;
   }
 
-  return url.origin + "/storage/v1/upload/resumable";
+  const endpoint = url.origin + "/storage/v1/upload/resumable";
+  return mode === "presigned" ? endpoint + "/sign" : endpoint;
 }
 
 function sanitizeDestination(endpoint, label) {
-  const protocol = new URL(endpoint).protocol;
-  return protocol + "//" + label + "-storage/storage/v1/upload/resumable";
+  const url = new URL(endpoint);
+  return url.protocol + "//" + label + "-storage" + url.pathname;
 }
 
 function getTransferSize(config) {
@@ -847,37 +850,42 @@ async function runTarget(config) {
   const client = makeClient(config);
   await signInAdmin(client, config.label);
   await cleanupStrandedPublicFixtures(client);
-  const endpoint = getTusEndpoint(config.url);
+  const authenticatedEndpoint = getTusEndpoint(config.url, "authenticated");
+  const presignedEndpoint = getTusEndpoint(config.url, "presigned");
   const browser = await chromium.launch({ headless: true });
   const { page, server } = await startHarnessPage(browser);
 
   try {
-    const internal = await runInternalCase({ config, client, page, endpoint });
+    const internal = await runInternalCase({
+      config,
+      client,
+      page,
+      endpoint: authenticatedEndpoint,
+    });
     const publicCase = await runPublicCase({
       config,
       adminClient: client,
       page,
-      endpoint,
+      endpoint: presignedEndpoint,
     });
     const authenticatedControl = await runAuthenticatedTransportControl({
       config,
       adminClient: client,
       page,
-      endpoint,
+      endpoint: authenticatedEndpoint,
     });
     const fileTypes = await inspectChromeFileTypes(page);
-    const tusRequests = await page.evaluate((expectedEndpoint) =>
+    const tusRequests = await page.evaluate(() =>
       window.__ppo03a2TusRequests
         .filter((request) => request.url.includes("/upload/resumable"))
         .map((request) => ({
           method: request.method,
-          matchesEndpointHost:
-            new URL(request.url).host === new URL(expectedEndpoint).host,
+          pathname: new URL(request.url).pathname,
           authorization: Boolean(request.headers.authorization),
           apiKey: Boolean(request.headers.apikey),
           signature: Boolean(request.headers["x-signature"]),
         })),
-    endpoint);
+    );
 
     const tusTransferRequests = tusRequests.filter((request) =>
       ["POST", "HEAD", "PATCH"].includes(request.method),
@@ -904,6 +912,12 @@ async function runTarget(config) {
       tusTransferRequests.some(
         (request) => request.authorization === request.signature,
       ) ||
+      requestModes.authenticated.some(
+        (request) => request.pathname !== new URL(authenticatedEndpoint).pathname,
+      ) ||
+      requestModes.presigned.some(
+        (request) => request.pathname !== new URL(presignedEndpoint).pathname,
+      ) ||
       Object.values(methodCounts.authenticated).some(
         (count) => count === 0,
       ) ||
@@ -915,7 +929,7 @@ async function runTarget(config) {
           JSON.stringify(
             tusTransferRequests.map((request) => ({
               method: request.method,
-              matchesEndpointHost: request.matchesEndpointHost,
+              pathname: request.pathname,
               signature: request.signature,
               authorization: request.authorization,
               apiKey: request.apiKey,
@@ -926,7 +940,8 @@ async function runTarget(config) {
 
     return {
       target: config.label,
-      destination: sanitizeDestination(endpoint, config.label),
+      authenticatedDestination: sanitizeDestination(authenticatedEndpoint, config.label),
+      presignedDestination: sanitizeDestination(presignedEndpoint, config.label),
       directStorageOnly: true,
       browserUsedApiKey: tusTransferRequests.every((request) => request.apiKey),
       tusMethodCounts: methodCounts,
@@ -969,7 +984,8 @@ async function runTarget(config) {
 
 function printSummary(result) {
   console.log("target=" + result.target);
-  console.log("destination=" + result.destination);
+  console.log("authenticated_destination=" + result.authenticatedDestination);
+  console.log("presigned_destination=" + result.presignedDestination);
   console.log("direct_storage_only=" + result.directStorageOnly);
   console.log("browser_apikey_header=" + result.browserUsedApiKey);
   console.log(

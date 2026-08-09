@@ -23,6 +23,15 @@ token, publishable key, contraseña, UUID ni host administrado.
 
 ## Historial y corrección arquitectónica
 
+Durante la revisión de PPO-03B.1 se detectó que la primera evidencia
+`presigned` de A.2 había usado erróneamente `/storage/v1/upload/resumable` con
+`x-signature`. Storage API monta el TUS firmado en
+`/storage/v1/upload/resumable/sign`; el harness fue corregido para separar el
+endpoint authenticated normal del endpoint firmado, sin registrar tokens ni la
+URL completa. La revalidación local de PPO-03B.1 confirmó el flujo público
+firmado real con POST, PATCH, HEAD, reanudación, objeto existente y cleanup,
+y confirmó que el mismo path por TUS regular anónimo es rechazado.
+
 El primer intento local demostró TUS presigned en una ruta pública controlada,
 pero no disponía de Pedido QA ni de credenciales administradas. El segundo intento
 añadió credenciales separadas, reanudación correcta y policy temporal local; al
