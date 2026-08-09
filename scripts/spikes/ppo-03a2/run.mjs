@@ -1,7 +1,7 @@
 import { chromium } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { randomBytes, randomUUID } from "node:crypto";
-import { exec } from "node:child_process";
+import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { createServer } from "node:http";
 import {
@@ -13,8 +13,12 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import {
+  cleanupLocalPublicPolicy,
+  installLocalPublicPolicy,
+} from "./local-policy.mjs";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 const MEBIBYTE = 1024 * 1024;
 const TUS_CHUNK_SIZE = 6 * MEBIBYTE;
 const INTERNAL_PAYLOAD_SIZE = 13 * MEBIBYTE;
@@ -108,13 +112,29 @@ function parseEnvOutput(output) {
 }
 
 async function getLocalConfig() {
-  const { stdout, stderr } = await execAsync(
-    "cmd.exe /d /s /c \"npx.cmd supabase status --output env\"",
-    {
-    cwd: process.cwd(),
-    windowsHide: true,
-    },
-  );
+  const configuredUrl = readEnvValue("NEXT_PUBLIC_SUPABASE_URL");
+  const configuredKey = readEnvValue("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY");
+
+  if (
+    configuredUrl &&
+    configuredKey &&
+    /^(https?:\/\/)(127\.0\.0\.1|localhost)(:|\/|$)/i.test(configuredUrl)
+  ) {
+    return { label: "local", url: configuredUrl, key: configuredKey };
+  }
+
+  let output;
+
+  try {
+    output = await execFileAsync("npx.cmd", ["supabase", "status", "--output", "env"], {
+      cwd: process.cwd(),
+      windowsHide: true,
+    });
+  } catch {
+    fail("No se pudo obtener la configuración pública de Supabase local.");
+  }
+
+  const { stdout, stderr } = output;
   const values = parseEnvOutput(stdout + "\n" + stderr);
   const url = values.get("API_URL");
   const key = values.get("PUBLISHABLE_KEY");
@@ -147,12 +167,13 @@ function getManagedConfig() {
   return { label: "managed", url, key };
 }
 
-function getQaCredentials() {
-  const email = readEnvValue("GODEL_TEST_ADMIN_EMAIL");
-  const password = readEnvValue("GODEL_TEST_ADMIN_PASSWORD");
+function getQaCredentials(target) {
+  const prefix = target === "managed" ? "GODEL_MANAGED_TEST_ADMIN" : "GODEL_TEST_ADMIN";
+  const email = readEnvValue(prefix + "_EMAIL");
+  const password = readEnvValue(prefix + "_PASSWORD");
 
   if (!email || !password) {
-    fail("Faltan las credenciales QA de admin para el spike.");
+    fail("Faltan las credenciales QA normales para el destino del spike.");
   }
 
   return { email, password };
@@ -179,6 +200,10 @@ function getTusEndpoint(supabaseUrl) {
 function sanitizeDestination(endpoint, label) {
   const protocol = new URL(endpoint).protocol;
   return protocol + "//" + label + "-storage/storage/v1/upload/resumable";
+}
+
+function getTransferSize(config) {
+  return config.label === "managed" ? PUBLIC_PAYLOAD_SIZE : INTERNAL_PAYLOAD_SIZE;
 }
 
 function getPedidoFolder(status) {
@@ -211,8 +236,8 @@ function makeClient(config) {
   });
 }
 
-async function signInAdmin(client) {
-  const credentials = getQaCredentials();
+async function signInAdmin(client, target) {
+  const credentials = getQaCredentials(target);
   const { error } = await client.auth.signInWithPassword(credentials);
 
   if (error) {
@@ -326,6 +351,9 @@ async function startHarnessPage(browser) {
       const record = { method: String(method), url: String(url), headers: {} };
       records.push(record);
       recordByRequest.set(this, record);
+      this.addEventListener("loadend", () => {
+        record.status = this.status;
+      });
       return originalOpen.call(this, method, url, ...rest);
     };
 
@@ -353,7 +381,6 @@ function makeBrowserUploadInput({
   token,
   path,
   size,
-  abortAfterFirstChunk,
   apiKey,
 }) {
   return {
@@ -361,7 +388,6 @@ function makeBrowserUploadInput({
     token,
     path,
     size,
-    abortAfterFirstChunk,
     apiKey,
     chunkSize: TUS_CHUNK_SIZE,
     bucket: BUCKET,
@@ -374,115 +400,130 @@ async function runBrowserUpload(page, input) {
       type: "application/pdf",
       lastModified: 1,
     });
-    const progress = [];
-    let interrupted = false;
+    const createUpload = ({ abortAfterFirstChunk, removeFingerprintOnSuccess }) => {
+      const state = {
+        uploadUrlAvailable: false,
+        chunksCompleted: 0,
+        progress: [],
+        aborted: false,
+      };
+      let resolveAbort;
+      let rejectAbort;
+      let rejectUpload;
+      const abortResult = new Promise((resolveResult, rejectResult) => {
+        resolveAbort = resolveResult;
+        rejectAbort = rejectResult;
+      });
+      const uploadError = new Promise((_, rejectResult) => {
+        rejectUpload = rejectResult;
+      });
+      const upload = new window.tus.Upload(file, {
+        endpoint: data.endpoint,
+        chunkSize: data.chunkSize,
+        retryDelays: [0, 1000, 2000],
+        uploadDataDuringCreation: false,
+        removeFingerprintOnSuccess,
+        headers: {
+          "x-signature": data.token,
+          "x-upsert": "false",
+          apikey: data.apiKey,
+        },
+        metadata: {
+          bucketName: data.bucket,
+          objectName: data.path,
+          contentType: "application/pdf",
+          cacheControl: "3600",
+        },
+        onUploadUrlAvailable() {
+          state.uploadUrlAvailable = true;
+        },
+        onProgress(bytesUploaded, bytesTotal) {
+          state.progress.push([bytesUploaded, bytesTotal]);
+        },
+        onChunkComplete(_chunkSize, bytesAccepted) {
+          state.chunksCompleted += 1;
 
-    let resolveAbort;
-    let rejectAbort;
-    const abortResult = new Promise((resolveResult, rejectResult) => {
-      resolveAbort = resolveResult;
-      rejectAbort = rejectResult;
+          if (abortAfterFirstChunk && !state.aborted) {
+            state.aborted = true;
+            void upload.abort(false).then(
+              () => resolveAbort(bytesAccepted),
+              () => rejectAbort(new Error("TUS_ABORT_REJECTED")),
+            );
+          }
+        },
+        onError(error) {
+          const status = error?.originalResponse?.getStatus?.() ?? "unknown";
+          rejectUpload(new Error("TUS_UPLOAD_REJECTED_" + status));
+        },
+      });
+
+      return { upload, state, abortResult, uploadError };
+    };
+
+    const first = createUpload({
+      abortAfterFirstChunk: true,
+      removeFingerprintOnSuccess: false,
     });
+    const firstPreviousUploads = await first.upload.findPreviousUploads();
 
-    const upload = new window.tus.Upload(file, {
-      endpoint: data.endpoint,
-      chunkSize: data.chunkSize,
-      retryDelays: [0, 1000, 2000],
-      uploadDataDuringCreation: true,
+    if (firstPreviousUploads.length > 0) {
+      throw new Error("TUS_UNEXPECTED_PREVIOUS_UPLOAD");
+    }
+
+    first.upload.start();
+    const interruptedOffset = await Promise.race([
+      first.abortResult,
+      first.uploadError,
+    ]);
+
+    if (
+      !first.state.uploadUrlAvailable ||
+      first.state.chunksCompleted < 1 ||
+      interruptedOffset < data.chunkSize
+    ) {
+      throw new Error("TUS_ABORT_NOT_CONFIRMED_AFTER_PATCH");
+    }
+
+    const resumed = createUpload({
+      abortAfterFirstChunk: false,
       removeFingerprintOnSuccess: true,
-      headers: {
-        "x-signature": data.token,
-        "x-upsert": "false",
-        ...(data.apiKey ? { apikey: data.apiKey } : {}),
-      },
-      metadata: {
-        bucketName: data.bucket,
-        objectName: data.path,
-        contentType: "application/pdf",
-        cacheControl: "3600",
-      },
-      onProgress(bytesUploaded, bytesTotal) {
-        progress.push([bytesUploaded, bytesTotal]);
-
-        if (
-          data.abortAfterFirstChunk &&
-          !interrupted &&
-          bytesUploaded >= data.chunkSize
-        ) {
-          interrupted = true;
-          void upload.abort(false).then(
-            () => resolveAbort({ bytesUploaded, bytesTotal }),
-            () => rejectAbort(new Error("TUS_ABORT_REJECTED")),
-          );
-        }
-      },
     });
+    const previousUploads = await resumed.upload.findPreviousUploads();
 
-    const previousUploads = await upload.findPreviousUploads();
-
-    if (previousUploads.length > 0) {
-      upload.resumeFromPreviousUpload(previousUploads[0]);
+    if (previousUploads.length === 0) {
+      throw new Error("TUS_PREVIOUS_UPLOAD_NOT_FOUND");
     }
 
+    resumed.upload.resumeFromPreviousUpload(previousUploads[0]);
     const completion = new Promise((resolveUpload, rejectUpload) => {
-      upload.options.onError = (error) => {
-        const status = error?.originalResponse?.getStatus?.() ?? "unknown";
-        rejectUpload(new Error("TUS_UPLOAD_REJECTED_" + status));
-      };
-      upload.options.onSuccess = () => {
-        resolveUpload({
-          completed: true,
-          interrupted,
-          previousUploads: previousUploads.length,
-          progress,
-        });
-      };
-
-      upload.start();
+      resumed.upload.options.onError = rejectUpload;
+      resumed.upload.options.onSuccess = () => resolveUpload();
+      resumed.upload.start();
     });
+    await completion;
 
-    if (data.abortAfterFirstChunk) {
-      await abortResult;
-      return {
-        completed: false,
-        interrupted: true,
-        previousUploads: previousUploads.length,
-        progress,
-      };
+    const resumedInitialProgress = resumed.state.progress[0]?.[0] ?? 0;
+
+    if (resumedInitialProgress === 0) {
+      throw new Error("TUS_RESUME_RESTARTED_FROM_ZERO");
     }
 
-    return completion;
+    return {
+      interrupted: true,
+      resumedFromPreviousUpload: true,
+      firstChunksCompleted: first.state.chunksCompleted,
+      resumedChunksCompleted: resumed.state.chunksCompleted,
+      firstProgressEvents: first.state.progress.length,
+      resumedProgressEvents: resumed.state.progress.length,
+      resumedInitialProgress,
+      multipleChunksObserved:
+        first.state.chunksCompleted + resumed.state.chunksCompleted > 1,
+    };
   }, input);
 }
 
 async function runResumableTransfer(page, details) {
-  const firstAttempt = await runBrowserUpload(
-    page,
-    makeBrowserUploadInput({ ...details, abortAfterFirstChunk: true }),
-  );
-
-  if (!firstAttempt.interrupted || firstAttempt.completed) {
-    fail("No se pudo interrumpir la transferencia TUS después del primer chunk.");
-  }
-
-  const resumedAttempt = await runBrowserUpload(
-    page,
-    makeBrowserUploadInput({ ...details, abortAfterFirstChunk: false }),
-  );
-
-  if (!resumedAttempt.completed) {
-    fail("La transferencia TUS no finalizó después de reanudar.");
-  }
-
-  const progress = [...firstAttempt.progress, ...resumedAttempt.progress];
-  const maximumProgress = Math.max(...progress.map(([uploaded]) => uploaded));
-
-  return {
-    interrupted: true,
-    resumedFromPreviousUpload: resumedAttempt.previousUploads > 0,
-    progressEvents: progress.length,
-    multipleChunksObserved: maximumProgress > TUS_CHUNK_SIZE,
-  };
+  return runBrowserUpload(page, makeBrowserUploadInput(details));
 }
 
 async function issueSignedUpload(client, path) {
@@ -498,27 +539,16 @@ async function issueSignedUpload(client, path) {
 }
 
 async function runSignedResumableTransfer({ client, page, config, endpoint, path }) {
-  let signedUpload = await issueSignedUpload(client, path);
+  const signedUpload = await issueSignedUpload(client, path);
+  const transfer = await runResumableTransfer(page, {
+    endpoint,
+    token: signedUpload.token,
+    path,
+    size: getTransferSize(config),
+    apiKey: config.key,
+  });
 
-  try {
-    const transfer = await runResumableTransfer(page, {
-      endpoint,
-      token: signedUpload.token,
-      path,
-      size: INTERNAL_PAYLOAD_SIZE,
-    });
-    return { transfer, publicApiKeyRequired: false };
-  } catch {
-    signedUpload = await issueSignedUpload(client, path);
-    const transfer = await runResumableTransfer(page, {
-      endpoint,
-      token: signedUpload.token,
-      path,
-      size: INTERNAL_PAYLOAD_SIZE,
-      apiKey: config.key,
-    });
-    return { transfer, publicApiKeyRequired: true };
-  }
+  return { transfer, publicApiKeyRequired: true };
 }
 
 async function verifyObjectExists(client, path) {
@@ -550,6 +580,50 @@ async function removeObjectIfPresent(client, path) {
 
   if (data?.some((item) => item.name === fileName)) {
     await removeObject(client, path);
+  }
+}
+
+async function cleanupStrandedPublicFixtures(client) {
+  const { data: fixtures, error: fixturesError } = await client
+    .from("solicitudes")
+    .select("id")
+    .eq("client_name", "Fixture PPO-03A.2")
+    .limit(50);
+
+  if (fixturesError || !fixtures) {
+    fail("No se pudo verificar fixtures públicos residuales del spike.");
+  }
+
+  for (const fixture of fixtures) {
+    const folder = ["solicitudes", fixture.id, "originales"].join("/");
+    const { data: objects, error: objectsError } = await client.storage
+      .from(BUCKET)
+      .list(folder);
+
+    if (objectsError) {
+      fail("No se pudo verificar objetos residuales del spike.");
+    }
+
+    const paths = (objects ?? [])
+      .filter((object) => object.name.startsWith("ppo-03a2-"))
+      .map((object) => folder + "/" + object.name);
+
+    if (paths.length > 0) {
+      const { error: removeError } = await client.storage.from(BUCKET).remove(paths);
+
+      if (removeError) {
+        fail("No se pudieron eliminar objetos residuales del spike.");
+      }
+    }
+
+    const { error: deleteError } = await client
+      .from("solicitudes")
+      .delete()
+      .eq("id", fixture.id);
+
+    if (deleteError) {
+      fail("No se pudo eliminar un fixture público residual del spike.");
+    }
   }
 }
 
@@ -609,17 +683,32 @@ async function runInternalCase({ config, client, page, endpoint }) {
   const path = await findInternalPath(client);
 
   if (!path) {
+    if (config.label === "local") {
+      fail("No existe un pedido QA local accesible para el caso interno obligatorio.");
+    }
+
     return { available: false, cleanup: true };
   }
 
   try {
-    const signedTransfer = await runSignedResumableTransfer({
-      client,
-      page,
-      config,
-      endpoint,
-      path,
-    });
+    let signedTransfer;
+
+    try {
+      signedTransfer = await runSignedResumableTransfer({
+        client,
+        page,
+        config,
+        endpoint,
+        path,
+      });
+    } catch {
+      return {
+        available: true,
+        signedTus: false,
+        rejection: "storage_rejected_signed_browser_transfer",
+        cleanup: true,
+      };
+    }
 
     await verifyObjectExists(client, path);
     const collision = await attemptCollision(
@@ -636,6 +725,7 @@ async function runInternalCase({ config, client, page, endpoint }) {
 
     return {
       available: true,
+      signedTus: true,
       transfer: signedTransfer.transfer,
       publicApiKeyRequired: signedTransfer.publicApiKeyRequired,
       collision,
@@ -668,10 +758,11 @@ async function runPublicCase({ config, adminClient, page, endpoint }) {
     const transfer = await runResumableTransfer(
       page,
       {
-        endpoint,
+      endpoint,
         token: data.token,
         path: fixture.path,
-        size: INTERNAL_PAYLOAD_SIZE,
+        size: getTransferSize(config),
+      apiKey: config.key,
       },
     );
 
@@ -682,6 +773,7 @@ async function runPublicCase({ config, adminClient, page, endpoint }) {
       anonClient,
       endpoint,
       fixture.path,
+      config.key,
     );
     return {
       tokenIssued: true,
@@ -757,7 +849,8 @@ async function runSignedTransportControl({ config, adminClient, page, endpoint }
 
 async function runTarget(config) {
   const client = makeClient(config);
-  await signInAdmin(client);
+  await signInAdmin(client, config.label);
+  await cleanupStrandedPublicFixtures(client);
   const endpoint = getTusEndpoint(config.url);
   const browser = await chromium.launch({ headless: true });
   const { page, server } = await startHarnessPage(browser);
@@ -790,13 +883,24 @@ async function runTarget(config) {
         })),
     endpoint);
 
-    const signedTransferRequests = tusRequests.filter(
-      (request) => request.method === "POST" || request.method === "PATCH",
+    const signedTransferRequests = tusRequests.filter((request) =>
+      ["POST", "HEAD", "PATCH"].includes(request.method),
+    );
+    const methodCounts = Object.fromEntries(
+      ["POST", "HEAD", "PATCH"].map((method) => [
+        method,
+        signedTransferRequests.filter((request) => request.method === method).length,
+      ]),
     );
 
-    if (signedTransferRequests.length === 0 || signedTransferRequests.some((request) => !request.signature)) {
+    if (
+      signedTransferRequests.length === 0 ||
+      signedTransferRequests.some((request) => !request.signature) ||
+      signedTransferRequests.some((request) => !request.apiKey) ||
+      Object.values(methodCounts).some((count) => count === 0)
+    ) {
       fail(
-        "El navegador no usó x-signature en todas las solicitudes TUS: " +
+        "El navegador no usó x-signature y apikey en POST, HEAD y PATCH de TUS: " +
           JSON.stringify(
             signedTransferRequests.map((request) => ({
               method: request.method,
@@ -818,7 +922,8 @@ async function runTarget(config) {
       destination: sanitizeDestination(endpoint, config.label),
       directStorageOnly: true,
       browserUsedAuthorization: false,
-      browserUsedApiKey: signedTransferRequests.some((request) => request.apiKey),
+      browserUsedApiKey: signedTransferRequests.every((request) => request.apiKey),
+      tusMethodCounts: methodCounts,
       internal,
       publicCase,
       transportControl,
@@ -831,6 +936,7 @@ async function runTarget(config) {
           .filter((request) => request.url.includes("/upload/resumable"))
           .map((request) => ({
             method: request.method,
+            status: Number(request.status ?? 0),
             signature: Boolean(request.headers["x-signature"]),
             authorization: Boolean(request.headers.authorization),
             apiKey: Boolean(request.headers.apikey),
@@ -844,10 +950,14 @@ async function runTarget(config) {
         JSON.stringify(trace),
     );
   } finally {
-    await client.auth.signOut();
-    await page.close();
-    await new Promise((resolveServer) => server.close(resolveServer));
-    await browser.close();
+    try {
+      await cleanupStrandedPublicFixtures(client);
+    } finally {
+      await client.auth.signOut();
+      await page.close();
+      await new Promise((resolveServer) => server.close(resolveServer));
+      await browser.close();
+    }
   }
 }
 
@@ -857,18 +967,21 @@ function printSummary(result) {
   console.log("direct_storage_only=" + result.directStorageOnly);
   console.log("browser_authorization_header=" + result.browserUsedAuthorization);
   console.log("browser_apikey_header=" + result.browserUsedApiKey);
+  console.log("tus_post_count=" + result.tusMethodCounts.POST);
+  console.log("tus_head_count=" + result.tusMethodCounts.HEAD);
+  console.log("tus_patch_count=" + result.tusMethodCounts.PATCH);
   console.log("internal_case_available=" + result.internal.available);
   console.log(
     "internal_signed_tus=" +
-      (result.internal.available && result.internal.transfer.multipleChunksObserved),
+      (result.internal.available && result.internal.signedTus),
   );
   console.log(
     "internal_resume_found=" +
-      (result.internal.available && result.internal.transfer.resumedFromPreviousUpload),
+      (result.internal.available && result.internal.transfer?.resumedFromPreviousUpload === true),
   );
   console.log(
     "internal_collision_rejected=" +
-      (result.internal.available && result.internal.collision.rejected),
+      (result.internal.available && result.internal.collision?.rejected === true),
   );
   console.log("public_token_issued=" + result.publicCase.tokenIssued);
   console.log("public_transport_attempted=" + result.publicCase.transportAttempted);
@@ -913,6 +1026,21 @@ if (target !== "local" && target !== "managed") {
   fail("Uso: node scripts/spikes/ppo-03a2/run.mjs <local|managed>");
 }
 
-const config = target === "local" ? await getLocalConfig() : getManagedConfig();
-const result = await runTarget(config);
+let result;
+
+if (target === "local") {
+  await cleanupLocalPublicPolicy();
+
+  try {
+    const config = await getLocalConfig();
+    await installLocalPublicPolicy();
+    result = await runTarget(config);
+  } finally {
+    await cleanupLocalPublicPolicy();
+  }
+} else {
+  const config = getManagedConfig();
+  result = await runTarget(config);
+}
+
 printSummary(result);

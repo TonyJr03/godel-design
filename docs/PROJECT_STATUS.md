@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Última actualización: 2026-08-08
+Última actualización: 2026-08-09
 
 ## Estado general
 
@@ -53,12 +53,15 @@ restricción ProTUN/PostgreSQL como condición administrativa y queda aprobada c
 condiciones. PPO-02E.1 cierra PPO-02 sin cerrar PPO-01. PPO-QA-01 queda diferida
 sin bloquear la transición hacia PPO-03.
 
-PPO-03 inició en fase contractual con PPO-03A.1. El
+PPO-03 inició en fase contractual con PPO-03A.1 y ejecutó PPO-03A.2, que queda
+[bloqueada](production/PPO_03_TUS_SPIKE_REPORT.md) para cierre. El spike demostró
+TUS firmado directo, `apikey`, reanudación real y cleanup en controles local y
+administrado sin bytes por Next.js, pero el token público administrado sigue
+rechazado y la ruta interna firmada de Pedido no admite el POST sin Auth. El
 [contrato de cargas y almacenamiento](production/PPO_03_UPLOAD_STORAGE_CONTRACT.md)
-formaliza la arquitectura objetivo aprobada, pero el código de upload todavía
-no ha cambiado: las cargas vigentes continúan atravesando Server Actions, los
-límites transitorios de 110 MB se conservan y TUS, sesiones, paths `cargas/v1`,
-RAR, CDR, cleanup y nuevas policies siguen pendientes.
+refina conceptualmente el path futuro con `storage_nonce`; no hay código de
+upload productivo cambiado, las cargas vigentes continúan atravesando Server
+Actions, se conservan los límites transitorios de 110 MB y PPO-03B no inicia.
 
 Documentos vigentes:
 
@@ -75,6 +78,7 @@ Documentos vigentes:
 - [Informe de Supabase administrado PPO-02D.2](production/PPO_02_MANAGED_SUPABASE_REPORT.md).
 - [Cierre de base contenerizada PPO-02E.1](production/PPO_02_CLOSURE.md).
 - [Contrato PPO-03A.1 de cargas y almacenamiento](production/PPO_03_UPLOAD_STORAGE_CONTRACT.md).
+- [Informe de spike PPO-03A.2](production/PPO_03_TUS_SPIKE_REPORT.md).
 - [Cierre PPO-00](preproduction/PPO_00_CLOSURE.md).
 
 ## Funcionalidades disponibles

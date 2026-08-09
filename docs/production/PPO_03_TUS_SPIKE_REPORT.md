@@ -5,184 +5,170 @@
 - Estado: Ejecutado — bloqueado para cierre.
 - Fase: PPO-03A.2.
 - Fecha: 2026-08-09.
-- Rama inicial: <code>preprod/ppo-03-file-flow-redesign</code>.
-- HEAD inicial: <code>4c4dbb72a5847b3575c7de5e2a0e47b7ed18e1d7</code>.
+- Rama inicial: `preprod/ppo-03-file-flow-redesign`.
+- HEAD inicial de la continuación: `dcaa6b0ad6ba6fefa6fa3d49cf3a904830609558`.
 
-## Contexto y objetivo
+## Propósito y límites
 
-Este spike es reversible y no implementa el flujo productivo de PPO-03. Su
-objetivo fue demostrar la cadena cliente Supabase normal →
-<code>createSignedUploadUrl()</code> → signed upload token → Chromium → TUS →
-Supabase Storage, sin que los bytes atraviesen Next.js.
+El spike es reversible: valida cliente Supabase normal →
+`createSignedUploadUrl()` → signed upload token → Chromium → TUS → Storage,
+sin que bytes atraviesen Next.js. No implementa el flujo de PPO-03, no crea
+migraciones, tablas, RPCs, rutas, Server Actions ni componentes productivos, y
+no modifica Solicitudes, Pedidos, paths históricos ni los límites transitorios
+de 110 MB.
 
-No se crearon migraciones, tablas, RPCs, policies, rutas Next.js, Server Actions
-ni componentes productivos. Tampoco se modificaron los flujos actuales de
-Solicitudes o Pedidos. La corrección documental previa normalizó en el roadmap
-el límite a 20 MiB e incorporó CDR junto con ZIP y RAR.
+El harness reproducible es `scripts/spikes/ppo-03a2/run.mjs`. Usa Chromium
+headless desde un origen HTTP efímero que no pertenece a Next.js. El navegador
+recibe endpoint, path, metadata TUS, signed token y la publishable key pública
+como `apikey`; nunca recibe `Authorization`, una sesión Auth, secret key ni
+service role. No imprime tokens, claves, contraseñas, UUID ni host administrado.
 
-## Versiones y harness
+Se añadió `tus-js-client` 4.3.1 como dependencia de desarrollo del spike.
+`GODEL_TEST_ADMIN_*` se usa exclusivamente para local y
+`GODEL_MANAGED_TEST_ADMIN_*` exclusivamente para administrado; no hay valores
+en archivos versionados.
 
-- Next.js: 16.2.6.
-- <code>@supabase/supabase-js</code>: 2.105.4; su API instalada expone
-  <code>createSignedUploadUrl(path, { upsert })</code>.
-- <code>tus-js-client</code>: 4.3.1, añadido como dependencia de desarrollo
-  exclusivamente para este spike.
-- Playwright/Chromium: dependencias existentes del repositorio.
-- Node.js observado durante el spike: 24.14.1.
-- Supabase CLI local: 2.109.1.
+## Historial de ejecución
 
-El harness reproducible está en
-<code>scripts/spikes/ppo-03a2/run.mjs</code> y se ejecuta con:
+### Ejecución inicial
 
-    npm.cmd run spike:ppo-03a2:local
-    npm.cmd run spike:ppo-03a2:managed
+La primera ejecución documentó transporte firmado local controlado y los MIME
+de Chromium, pero quedó incompleta: no había un Pedido QA local accesible, las
+credenciales locales no autenticaban contra administrado, el token público fue
+rechazado con HTTP 400 y la prueba de reanudación abortaba antes de confirmar una
+sesión TUS persistida. Esa evidencia se conserva como antecedente; no se usa
+para aprobar reanudación ni backend administrado.
 
-Lee las configuraciones públicas locales o administradas ya existentes, inicia un
-origen HTTP efímero independiente de Next.js y ejecuta Chromium en modo
-headless. El navegador recibe solamente endpoint, path, metadata de TUS y signed
-upload token; no recibe access token Auth. No imprime tokens, claves, UUID,
-contraseñas ni host administrado.
+MIME observados entonces y retenidos (archivos temporales, sin inspección de
+contenido): RAR `application/x-compressed`, CDR vacío, ZIP
+`application/x-zip-compressed` y PDF `application/pdf`.
 
-Para las transferencias se generó en runtime un payload de 13 MiB y se usó
-<code>chunkSize = 6 * 1024 * 1024</code>. Esto exige múltiples chunks. El
-harness crea y elimina los archivos temporales usados en la prueba de tipos de
-archivo; no versiona binarios.
+### Ejecución corregida
 
-## Arquitectura temporal comprobada
+El harness ahora crea un `File` único por transferencia, configura
+`uploadDataDuringCreation: false`, espera `onUploadUrlAvailable`, espera
+`onChunkComplete` después del primer PATCH, ejecuta `abort(false)`, busca la
+subida previa con el mismo fingerprint, exige encontrarla, reanuda con otra
+instancia y exige que el primer progreso de la reanudación no sea cero.
 
-El control de transporte creó una solicitud fixture descartable con un usuario
-QA admin autenticado normal. Ese mismo cliente normal creó la autorización
-firmada para una ruta válida de Storage. Chromium cargó directamente al endpoint
-TUS de Storage; el origen efímero del harness no es Next.js, no hay Route
-Handler, API route, Server Action ni proxy Nginx entre el navegador y Storage.
+La instrumentación sanitizada de XHR registra solamente método, estado y
+presencia booleana de cabeceras. Para toda transferencia válida exige
+`x-signature` y `apikey` en POST, HEAD y PATCH, y rechaza cualquier
+`Authorization`.
 
-La instrumentación del navegador confirmó para las solicitudes TUS de
-transferencia:
+| Comprobación | Local | Administrado por HTTPS |
+| --- | --- | --- |
+| QA normal del entorno | Correcto | Correcto con `GODEL_MANAGED_TEST_ADMIN_*` |
+| Origen de bytes | Storage directo, no Next.js | Storage directo, no Next.js |
+| `Authorization` en navegador | Ausente | Ausente |
+| `x-signature` + `apikey` | Presentes en POST/HEAD/PATCH | Presentes en POST/HEAD/PATCH |
+| Conteo sanitizado POST / HEAD / PATCH | 3 / 2 / 6 | 1 / 1 / 2 |
+| Control firmado normal, multichunk | Correcto | Correcto con 7 MiB (> chunk de 6 MiB) |
+| Reanudación real sin reiniciar a cero | Correcta | Correcta en el control firmado |
+| `upsert = false` | Colisión rechazada en autorización | Colisión rechazada en autorización |
+| Cleanup del control | Correcto | Correcto |
 
-- <code>x-signature</code> presente.
-- <code>Authorization</code> ausente.
-- La publishable key pública fue necesaria en <code>apikey</code> para el
-  entorno local.
-- Destino sanitizado: <code>http://local-storage/storage/v1/upload/resumable</code>.
-- No se inició el servidor de Next.js ni se creó una ruta temporal de la
-  aplicación.
+El control firmado crea una solicitud fixture descartable con el usuario QA
+normal y no inserta metadata en `public.archivos`.
 
-El primer intento del control firmado con solamente <code>x-signature</code>
-recibió HTTP 400 en Supabase local. Al repetir con un token nuevo y la cabecera
-pública <code>apikey</code>, TUS completó. Esto no convierte la publishable key
-en una credencial de usuario: el navegador siguió sin recibir ni reenviar una
-sesión Auth. PPO-03B deberá decidir y validar si este requisito local también se
-mantiene en el backend administrado antes de convertirlo en contrato
-productivo.
+## Caso público local temporal
 
-## Resultados locales
+La policy histórica pública exige metadata de `storage.objects`, pero la
+emisión anónima de `createSignedUploadUrl()` ocurre antes de que exista el
+objeto y devolvía HTTP 400. Para aislar esa hipótesis sin tocar migraciones se
+aplicó solo durante `spike:ppo-03a2:local` la policy temporal
+`godel_files_insert_ppo03a2_public_sign`.
 
-| Comprobación | Resultado |
-| --- | --- |
-| Usuario QA normal autenticado | Correcto para el control firmado. |
-| Caso interno sobre pedido existente | No disponible: no existía un pedido accesible por RLS en un estado apto para subida. No se creó un pedido persistente para forzarlo. |
-| Signed token con cliente QA normal | Correcto en el control descartable. |
-| TUS directo con payload de 13 MiB | Correcto con <code>apikey</code> público; se observaron múltiples chunks. |
-| Progreso | Correcto; el callback de progreso avanzó sobre más de un chunk. |
-| Interrupción controlada | Correcta después del primer chunk. |
-| Reanudación | <code>findPreviousUploads()</code> no encontró la subida interrumpida; se creó una URL TUS nueva y la transferencia terminó desde el inicio. |
-| <code>upsert = false</code> | Correcto: una segunda autorización para el path ya comprometido fue rechazada en la etapa de autorización. No hubo sobrescritura. |
-| Comprobación y cleanup con permisos normales | Correctos. |
-| Inserción en <code>public.archivos</code> | No realizada. |
+Su alcance es estricto: solo `anon INSERT` sobre `godel-files`, solo la ruta
+histórica `solicitudes/{id}/originales/ppo-03a2-...`, solo si existe la solicitud
+y sin depender de metadata del objeto. No abre SELECT, listado, UPDATE ni DELETE
+anónimos. El helper SQL temporal existe únicamente para comprobar la solicitud
+con privilegio acotado y se elimina con la policy.
 
-La reanudación no debe presentarse como aprobada en el entorno actual: el
-cliente pudo finalizar mediante una nueva transferencia, pero no continuó desde
-la URL TUS previa.
+Resultado local: el token anónimo fue emitido, TUS multichunk completó,
+`findPreviousUploads()` encontró la carga interrumpida, la reanudación no
+empezó en cero y una colisión con `upsert=false` fue rechazada. El objeto y la
+solicitud fixture se eliminaron con cliente normal.
 
-## Caso público: resultado crítico
+La ejecución hace cleanup defensivo al inicio, instala la policy, ejecuta el
+spike y la elimina en `finally`. Si el proceso se interrumpe abruptamente, el
+comando seguro e idempotente es:
 
-Se creó una solicitud fixture descartable con el usuario QA normal y se intentó
-emitir la autorización con un cliente Supabase anónimo normal, sin sesión Auth,
-contra una ruta pública válida. La llamada
-<code>createSignedUploadUrl(..., { upsert: false })</code> fue rechazada con
-HTTP 400, por lo que Chromium no recibió token ni inició una transferencia.
+```text
+npm.cmd run spike:ppo-03a2:local:cleanup
+```
 
-No se usó service role, secret key, cliente administrativo ni bypass de RLS para
-forzar el resultado. La policy pública vigente de <code>storage.objects</code>
-requiere una ruta de solicitud válida y metadata de objeto que satisfaga la
-allowlist; la emisión actual de signed upload URL con identidad <code>anon</code>
-no satisfizo experimentalmente ese modelo. Esta es una inferencia basada en la
-policy vigente y en el rechazo observado; debe confirmarse al diseñar PPO-03B.
+La ejecución final confirmó `cleanup_completed=true`; no queda la policy ni el
+helper temporal local.
 
-La decisión arquitectónica pendiente es cómo representará el control plane una
-sesión pública autorizada para emitir un signed upload token sin convertir una
-credencial privilegiada en mecanismo de Storage y sin abrir una policy anónima
-más amplia. Mientras no exista esa decisión demostrada, no puede declararse
-viable el flujo público aprobado.
+## Casos que siguen bloqueados
 
-## Supabase administrado
+### Pedido interno local
 
-El harness encontró configuración pública administrada existente en
-<code>compose.env.local</code> y no mostró el project ref. La prueba HTTPS no
-pudo comenzar: las credenciales QA normales disponibles para el entorno local no
-autenticaron contra el backend administrado.
+Un Pedido QA accesible por RLS estuvo disponible y pudo emitir su signed upload
+token con cliente normal. Chromium llegó directo al endpoint con `x-signature`
+y `apikey`, sin `Authorization`, pero Storage rechazó el POST con HTTP 403. La
+policy temporal no cubre ni debe cubrir `pedidos/...`; ese resultado demuestra
+que el contrato de policy actual para rutas internas no es suficiente para el
+data plane firmado sin sesión Auth en navegador. No hubo objeto ni metadata
+operativa persistida.
 
-No se solicitó ni usó una contraseña de base de datos, secret key, service role
-ni una alternativa privilegiada. No se creó ningún objeto, fixture ni dato
-remoto. Por tanto, no hay resultado administrado para TUS, token público,
-progreso, reanudación, colisión o cleanup.
+### Flujo público administrado
 
-## RAR y CDR en Chromium sobre Windows
+Contra Supabase administrado no se aplicó policy temporal ni SQL remoto. La
+autenticación QA normal y el control firmado completaron, pero la emisión
+anónima del signed upload token para la ruta pública fue rechazada con HTTP 400.
+Por tanto no se inició transporte público remoto. El caso interno administrado
+no tuvo Pedido accesible por RLS y no se fabricó uno persistente.
 
-La medición usó archivos mínimos generados temporalmente y seleccionados mediante
-un input de archivo de Chromium en Windows. El resultado describe
-<code>File.type</code>, no inspección de contenido:
+Estas dos diferencias son de autorización/policy, no evidencia de que TUS o el
+signed token sean inviables: el control firmado administrado sí completó la
+transferencia, reanudación y colisión sin bytes por Next.js.
 
-| Extensión | <code>File.type</code> observado |
-| --- | --- |
-| .rar | <code>application/x-compressed</code> |
-| .cdr | cadena vacía |
-| .zip | <code>application/x-zip-compressed</code> |
-| .pdf | <code>application/pdf</code> |
+## Limpieza y seguridad
 
-La evidencia confirma que RAR y CDR no pueden depender del MIME que entregue el
-navegador. No se amplió la allowlist productiva ni se abrió
-<code>application/octet-stream</code> globalmente. RAR, CDR y ZIP siguen siendo
-contenido opaco para el contrato.
+Cada caso elimina su objeto y solicitud fixture. Además, antes y después de
+correr busca exclusivamente fixtures con el nombre dedicado del spike y elimina
+sus objetos `ppo-03a2-...` antes de borrar la solicitud; esto recupera de forma
+defensiva un intento interrumpido. No se elimina el Pedido QA creado manualmente
+para la prueba interna. No hay binarios, tokens, credenciales, UUID, resultados
+sensibles ni cambios de base de datos versionados.
 
-## Cleanup y seguridad
+No se usaron service role, secret key, cliente admin de Storage, PostgreSQL
+remoto ni políticas remotas. RAR, CDR y ZIP siguen siendo opacos; el spike no
+demuestra magic bytes, antivirus, análisis profundo, TTL, staging real ni
+finalize.
 
-Cada ejecución local exitosa eliminó el objeto de prueba con el cliente QA
-normal y eliminó la solicitud fixture con el usuario autorizado. No se insertó
-metadata en <code>public.archivos</code>. El harness no deja binarios,
-tokens, logs con secretos, rutas de aplicación ni outputs persistentes.
+## Refinamiento pendiente para PPO-03B
 
-El spike no demuestra magic bytes, antivirus, análisis profundo ni cuarentena
-real. Un archivo renombrado puede contener datos distintos de su extensión; la
-deuda <code>TD-STORAGE-002</code> sigue activa.
+La futura ruta sigue siendo conceptual y no está implementada:
 
-## Limitaciones y discrepancias
+```text
+cargas/v1/{session_id}/{item_id}/{storage_nonce}-{safe_filename}
+```
 
-- El caso público no puede emitir signed upload token con las policies actuales.
-- El caso interno obligatorio no pudo ejecutarse localmente por ausencia de
-  pedido apto, y no se fabricó uno que no pudiera limpiarse de forma segura.
-- No hubo autenticación QA normal disponible para demostrar el backend
-  administrado.
-- Supabase local necesitó <code>apikey</code> pública junto con
-  <code>x-signature</code>; falta confirmar esa cabecera en administrado.
-- La reanudación no recuperó la URL TUS anterior.
-- El control firmado demuestra el transporte, pero no sustituye el flujo interno
-  de Pedido ni resuelve la sesión pública de PPO-03B.
+`storage_nonce` será opaco, generado server-side y no sustituye los IDs de
+sesión/item ni constituye un secreto de autorización. El path completo no se
+expondrá a UI, DTOs ni logs. El token público de control plane seguirá
+persistiéndose solo como hash; no se almacenará ningún signed upload token.
+
+Antes de iniciar PPO-03B, Arquitectura/Dirección Técnica debe decidir y aprobar
+la representación de autorización que permita tanto la emisión pública como el
+POST TUS interno firmado sin abrir permisos anónimos generales ni reenviar Auth
+al navegador. La policy temporal de este spike no es diseño ni precedente de
+producción.
 
 ## Conclusión y decisión
 
 Veredicto:
 
-    Bloqueado
+```text
+Bloqueado
+```
 
-La combinación de transporte TUS firmado quedó demostrada solo de manera local
-y controlada con un usuario QA normal, sin transferencia binaria hacia Next.js.
-Sin embargo, PPO-03A.2 no cumple su criterio de cierre: falta la demostración
-en Supabase administrado y la hipótesis pública crítica falló sin una solución
-compatible con los guardrails aprobados.
-
-PPO-03B no debe iniciar todavía. Arquitectura/Dirección Técnica debe resolver la
-emisión de capacidad pública y proporcionar, si autoriza continuar el spike, una
-configuración QA normal válida para el backend administrado y un pedido
-descartable o fixture autorizado para el caso interno.
-
+TUS firmado, `apikey`, reanudación real, multichunk, `upsert=false`, ausencia de
+`Authorization` y limpieza están demostrados en controles local y administrado.
+PPO-03A.2 no cumple aún su criterio de cierre porque el flujo público
+administrado continúa sin emitir token y la ruta interna de Pedido no admite el
+POST firmado sin Auth. PPO-03B no inicia y las cargas productivas actuales siguen
+intactas.

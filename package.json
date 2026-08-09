@@ -16,6 +16,7 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:report": "playwright show-report",
     "spike:ppo-03a2:local": "node scripts/spikes/ppo-03a2/run.mjs local",
+    "spike:ppo-03a2:local:cleanup": "node scripts/spikes/ppo-03a2/local-policy.mjs cleanup",
     "spike:ppo-03a2:managed": "node scripts/spikes/ppo-03a2/run.mjs managed",
     "diff:check": "git diff --check",
     "qa:bootstrap": "node scripts/bootstrap-local-qa-users.mjs",

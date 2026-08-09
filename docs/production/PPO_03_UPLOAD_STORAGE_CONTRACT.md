@@ -137,12 +137,14 @@ persiste en claro. En sesiones internas, la autoridad principal sigue siendo
 
 Los objetos nuevos usarán esta raíz versionada y desacoplada del dominio:
 
-    cargas/v1/{session_id}/{item_id}-{safe_filename}
+    cargas/v1/{session_id}/{item_id}/{storage_nonce}-{safe_filename}
 
-Los UUID serán generados server-side y el nombre será sanitizado. El path no
-incluirá <code>solicitud_id</code>, <code>pedido_id</code> ni categoría operativa;
-el contexto vivirá en PostgreSQL. Será único, inmutable tras commit y no
-sobrescribible. Los objetos históricos no se moverán ni renombrarán.
+Los UUID y el <code>storage_nonce</code> opaco serán generados server-side y el
+nombre será sanitizado. El nonce no reemplaza los identificadores de sesión/item
+ni es secreto de autorización. El path no incluirá <code>solicitud_id</code>,
+<code>pedido_id</code> ni categoría operativa; el contexto vivirá en PostgreSQL.
+Será único, inmutable tras commit, no sobrescribible y no se expondrá a UI, DTOs
+ni logs. Los objetos históricos no se moverán ni renombrarán.
 
 ### Staging, finalización y atomicidad lógica
 
@@ -216,8 +218,8 @@ Bucket, path y signed URL no formarán parte de DTOs ni listados cliente.
 
 ## Hipótesis de PPO-03A.2
 
-PPO-03A.2 hará un spike reversible —no ejecutado por esta tarea— contra
-Supabase local y Supabase administrado. Debe probar TUS +
+PPO-03A.2 ejecutó un spike reversible contra Supabase local y Supabase
+administrado. Probó TUS +
 <code>createSignedUploadUrl()</code> + <code>x-signature</code> +
 <code>upsert = false</code>, con clientes normales y policies/RLS adecuadas.
 Verificará RAR y CDR en Chrome/Windows, incluidos MIME vacío, legacy y
@@ -248,7 +250,7 @@ Las subfases posteriores validarán, en local y Supabase administrado:
 | Subfase | Alcance | Estado actual |
 | --- | --- | --- |
 | PPO-03A.1 | Formalización del contrato | Ejecutada documentalmente |
-| PPO-03A.2 | Spike TUS + signed upload token | Pendiente |
+| PPO-03A.2 | Spike TUS + signed upload token | Ejecutado — bloqueado; ver informe |
 | PPO-03B | Modelo DB de sesiones/items, RLS y policies | Pendiente |
 | PPO-03C | Reserva, firma, transferencia y finalize comunes | Pendiente |
 | PPO-03D | Migración del upload interno de Pedidos | Pendiente |
@@ -271,4 +273,3 @@ confirmará que un archivo de 20 MiB funciona sin ellos.
   no es token de Storage.
 - No se declara resuelto el antivirus, el escaneo profundo ni la protección
   antiabuso.
-
