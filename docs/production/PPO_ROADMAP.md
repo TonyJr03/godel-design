@@ -59,7 +59,7 @@ posteriores no se declaran implementadas en este roadmap.
 | PPO-00    | Baseline local y formalización inicial      | Cerrada   |
 | PPO-01    | Auditoría de infraestructura y conectividad | Activa    |
 | PPO-02    | Base contenerizada reproducible             | Cerrada — Aprobada con condiciones |
-| PPO-03    | Rediseño de cargas y almacenamiento         | Pendiente |
+| PPO-03    | Rediseño de cargas y almacenamiento         | Activa |
 | PPO-04    | Despliegue provisional en la empresa        | Pendiente |
 | PPO-05    | Seguridad pública                           | Pendiente |
 | PPO-06    | Backups y recuperación                      | Pendiente |
@@ -99,8 +99,9 @@ sin seed, confirma que HTTPS administrado es alcanzable con VPN activo,
 clasifica ProTUN/PostgreSQL como restricción administrativa y aprueba readiness
 administrado al enviar la publishable key existente como cabecera `apikey` en la
 llamada server-side a `/auth/v1/health`. PPO-02E.1 formaliza el cierre y el
-handoff operativo. El siguiente checkpoint general previsto es PPO-03A —
-contrato del rediseño de cargas y almacenamiento.
+handoff operativo. PPO-03 queda activa en su checkpoint PPO-03A.1 — contrato
+del rediseño de cargas y almacenamiento. Esta activación es documental y no
+declara implementado el nuevo flujo de upload.
 
 ## PPO-00
 
@@ -171,8 +172,15 @@ despliegue productivo ni despliegue en la empresa.
   `company-host`. El contrato y cierre viven en
   [PPO-02 - Plan de contenerización](PPO_02_CONTAINERIZATION_PLAN.md) y
   [PPO-02 — Cierre de base contenerizada reproducible](PPO_02_CLOSURE.md).
-- PPO-03: rediseñará sesiones de carga, transferencia directa, límites,
-  formatos, cuarentena y almacenamiento.
+- PPO-03: queda activa. PPO-03A.1 formaliza el
+  [contrato de cargas y almacenamiento](PPO_03_UPLOAD_STORAGE_CONTRACT.md), sin
+  implementar el rediseño. La secuencia aprobada es PPO-03A.2 (spike TUS +
+  signed upload token), PPO-03B (modelo DB, RLS y policies), PPO-03C
+  (infraestructura común de reserva, firma, transferencia y finalize), PPO-03D
+  (migración interna de Pedidos), PPO-03E (migración pública de Solicitudes),
+  PPO-03F (expiración, reconciliación y cleanup) y PPO-03G (QA integral,
+  retirada de 110 MB y cierre documental). Todas las subfases posteriores a
+  PPO-03A.1 permanecen pendientes.
 - PPO-04: cubrirá despliegue provisional, Cloudflare Tunnel, dominio y
   recuperación del host.
 - PPO-05: abordará antiabuso, rate limiting, seguridad pública y protección de

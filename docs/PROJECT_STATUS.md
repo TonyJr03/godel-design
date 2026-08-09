@@ -53,6 +53,13 @@ restricción ProTUN/PostgreSQL como condición administrativa y queda aprobada c
 condiciones. PPO-02E.1 cierra PPO-02 sin cerrar PPO-01. PPO-QA-01 queda diferida
 sin bloquear la transición hacia PPO-03.
 
+PPO-03 inició en fase contractual con PPO-03A.1. El
+[contrato de cargas y almacenamiento](production/PPO_03_UPLOAD_STORAGE_CONTRACT.md)
+formaliza la arquitectura objetivo aprobada, pero el código de upload todavía
+no ha cambiado: las cargas vigentes continúan atravesando Server Actions, los
+límites transitorios de 110 MB se conservan y TUS, sesiones, paths `cargas/v1`,
+RAR, CDR, cleanup y nuevas policies siguen pendientes.
+
 Documentos vigentes:
 
 - [Roadmap PPO](production/PPO_ROADMAP.md).
@@ -67,6 +74,7 @@ Documentos vigentes:
 - [Informe de healthchecks PPO-02D.1](production/PPO_02_HEALTHCHECK_REPORT.md).
 - [Informe de Supabase administrado PPO-02D.2](production/PPO_02_MANAGED_SUPABASE_REPORT.md).
 - [Cierre de base contenerizada PPO-02E.1](production/PPO_02_CLOSURE.md).
+- [Contrato PPO-03A.1 de cargas y almacenamiento](production/PPO_03_UPLOAD_STORAGE_CONTRACT.md).
 - [Cierre PPO-00](preproduction/PPO_00_CLOSURE.md).
 
 ## Funcionalidades disponibles

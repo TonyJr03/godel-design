@@ -59,6 +59,9 @@ con antivirus ni motor especializado. Antes de producción pública con volumen
 real de archivos debe evaluarse escaneo, cuarentena o workflow operativo de
 revisión.
 
+Seguimiento: PPO-03 conserva ZIP, RAR y CDR como contenido opaco y no resuelve
+el escaneo profundo. Esta deuda continúa activa.
+
 ## Deudas activas
 
 ### TD-UPLOAD-001 - Archivos grandes procesados por Next
@@ -86,6 +89,11 @@ Solución recomendada:
 - Mantener validaciones de permisos y metadata en servidor.
 - No debilitar RLS, grants ni policies de Storage.
 - No abrir rutas privadas, `file_path` ni credenciales administrativas al cliente.
+
+Seguimiento: PPO-03 inició con el
+[contrato de cargas y almacenamiento](../production/PPO_03_UPLOAD_STORAGE_CONTRACT.md).
+La iniciativa define el destino de transferencia directa y la retirada futura
+de los límites transitorios, pero esta deuda continúa activa hasta PPO-03G.
 
 ### TD-QA-001 - Suite e2e paralela no estable
 
@@ -135,6 +143,10 @@ El upload de objeto en Storage y la inserción de metadata en Postgres no son un
 transacción única. Mantener cleanup best-effort, pero diseñar reconciliación o
 limpieza server-side para objetos huérfanos sin abrir borrado anónimo ni exponer
 rutas privadas.
+
+Seguimiento: PPO-03 formaliza sesiones, staged conocidos, finalize idempotente
+y cleanup como iniciativa de resolución. Esta deuda continúa activa hasta que
+PPO-03F implemente y valide la reconciliación.
 
 ### TD-OBS-001 - Observabilidad operativa limitada
 
