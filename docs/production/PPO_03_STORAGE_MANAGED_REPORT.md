@@ -2,8 +2,7 @@
 
 ## Resultado
 
-**Estado: ejecutada — aprobación pendiente de evidencia concluyente de listado
-en `cargas/v1`.**
+**Estado: Cerrada — Aprobada con condición de integración.**
 
 La validación se ejecutó contra Supabase administrado mediante HTTPS, con el
 contexto `VPN activo / ProTUN`. Codex no desactivó el VPN ni ejecutó
@@ -58,15 +57,15 @@ No se insertó `public.archivos`; tampoco se crearon filas remotas de
 ## Listado de la raíz nueva
 
 Las llamadas HTTPS `list("cargas/v1")` para `anon` y para el usuario QA
-autenticado respondieron sin error con una lista vacía. Ese resultado no se
-acepta como evidencia suficiente de que no exista capacidad de listado: sin un
-item reservado y sin crear un staged (ambas acciones fuera de B.2B), la API no
-permite distinguir un filtro RLS de una raíz realmente vacía.
+autenticado respondieron sin error con cero objetos visibles. `Storage.list()`
+es una operación basada en `SELECT`; una colección vacía es compatible con
+filtrado RLS cuando ninguna fila resulta visible. La policy nueva no habilita
+`storage.object.list` y la policy SELECT legacy no reconoce `cargas/v1`.
 
-No es un defecto de schema ni una apertura demostrada. Tampoco se modificaron
-policies para facilitar la prueba. La evidencia concluyente de ausencia de
-listado, junto con el primer TUS público firmado sobre una reserva real, se
-traslada a PPO-03C.
+No existía un staged real durante B.2B, por lo que esta evidencia no prueba el
+caso de un objeto reservado existente. Tampoco demuestra una apertura ni un
+defecto de la migración 07. El harness falla si cualquier actor recibe un objeto
+visible y no se modificaron policies para facilitar la prueba.
 
 ## Compatibilidad de backend
 
@@ -88,9 +87,14 @@ contrastada previamente contra el código oficial de Storage v1.68.1.
 
 ## Gate transferido a PPO-03C
 
-El primer TUS presigned administrado sobre un item creado por las RPCs reales
-de reserva es un gate obligatorio de PPO-03C. Esa fase deberá además aportar
-evidencia concluyente sobre la ausencia de listado de staged.
+El primer flujo administrado con una reserva real deberá demostrar:
+
+```text
+reserva real → staged real → presigned TUS administrado → staged no enumerable por actores no autorizados
+```
+
+Es una condición obligatoria de integración de PPO-03C, no un defecto conocido
+ni un bloqueador del modelo DB/Storage cerrado en PPO-03B.
 
 ## Deuda conservada
 

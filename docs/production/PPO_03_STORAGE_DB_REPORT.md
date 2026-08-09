@@ -2,13 +2,20 @@
 
 ## Resultado
 
-**Estado: PPO-03B.1 cerrada — validada localmente.**
+**Estado: PPO-03B cerrada — modelo DB/Storage validado localmente y por HTTPS administrado.**
+
+- PPO-03B.1 — Cerrada.
+- PPO-03B.2A — Cerrada.
+- PPO-03B.2B — Cerrada — Aprobada con condición de integración.
+- PPO-03C — Siguiente.
 
 La migración incremental `20260809000100_07_ppo03b_upload_sessions_storage.sql`
 crea el control plane privado de PPO-03 para sesiones e items de carga y añade
-policies de Storage conscientes de la operación. No se aplicó SQL remoto, no se
-desplegó infraestructura y no se modificaron las rutas de upload existentes ni
-los flujos de aplicación.
+policies de Storage conscientes de la operación. PPO-03B.1 no ejecutó SQL
+remoto, no desplegó infraestructura ni modificó las rutas de upload existentes
+o los flujos de aplicación. Posteriormente, PPO-03B.2A aplicó manualmente la
+migración 07 al proyecto administrado y PPO-03B.2B la validó mediante HTTPS
+con ProTUN activo, sin PostgreSQL remoto desde Codex.
 
 ## Alcance ejecutado
 
@@ -103,19 +110,26 @@ rechaza la fila en PostgreSQL.
 
 La CLI local es 2.109.1. PostgreSQL local se actualizó a 17.6.1.155; Storage API
 permanece en v1.62.5 mientras la referencia vinculada indica v1.68.1. Los
-helpers operation-aware requeridos existen y las pruebas pasaron, pero debe
-repetirse la validación con la imagen Storage vinculada antes de promover la
-migración fuera de desarrollo. Las operaciones críticas ya contrastadas contra
-la referencia v1.68.1 son `storage.tus.upload.create`,
+helpers operation-aware requeridos existen y las pruebas locales pasaron. La
+migración 07 fue promovida en PPO-03B.2A y validada por HTTPS administrado en
+PPO-03B.2B; PPO-03B quedó cerrada. Permanece para PPO-03C el gate de
+`reserva real → staged real → presigned TUS administrado → staged no enumerable
+por actores no autorizados`. Las operaciones críticas ya contrastadas contra la
+referencia v1.68.1 son `storage.tus.upload.create`,
 `storage.tus.upload.part`, `storage.tus.upload.get`,
 `/upload/resumable/sign` y `x-signature`.
 
-## Pendiente
+## Handoff a PPO-03C
 
-- PPO-03B.2B ejecutó validación HTTPS administrada sin administración
-  PostgreSQL remota. Confirmó control plane cerrado, reserva obligatoria para
-  `cargas/v1` y compatibilidad legacy; la evidencia concluyente de no listado
-  de staged queda pendiente para PPO-03C.
+PPO-03B.2A aplicó la migración 07 administrada por Dirección Técnica y
+PPO-03B.2B confirmó por HTTPS, sin PostgreSQL remoto, control plane cerrado,
+reserva obligatoria para `cargas/v1`, TUS legacy y ZIP legacy. El listing
+administrado mostró cero objetos visibles para `anon` y authenticated; sin un
+staged real no prueba su enumeración, pero tampoco expone una apertura.
+
+PPO-03C debe demostrar el gate de integración:
+`reserva real → staged real → presigned TUS administrado → staged no enumerable
+por actores no autorizados`. No es un defecto conocido de la migración 07.
 - PPO-03C: Server Actions/RPCs finas para reservar, validar token, firmar y
   finalizar de forma idempotente.
 - PPO-03D y PPO-03E: migrar los flujos interno y público sin enviar bytes a

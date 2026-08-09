@@ -339,7 +339,9 @@ async function runLegacyPublicZip(client, anon) {
 
 async function runListingCheck(client, label) {
   const { error, data } = await client.storage.from(BUCKET).list("cargas/v1", { limit: 1 });
-  return { rejected: Boolean(error), emptyResponse: !error && (data?.length ?? 0) === 0, label };
+  const visibleObjects = data?.length ?? 0;
+  if (!error && visibleObjects > 0) fail(`PPO03B2_${label.toUpperCase()}_CARGAS_V1_VISIBLE_OBJECTS`);
+  return { accessRejected: Boolean(error), visibleObjects, label };
 }
 
 async function main() {
@@ -394,10 +396,10 @@ async function main() {
   console.log(`authenticated_cargas_v1_without_reservation=${result.reservedRoot.authenticatedWithoutReservation === null ? "not_executed_missing_normal_qa_credentials" : "rejected"}`);
   console.log(`legacy_authenticated_tus=${result.legacyAuthenticated === null ? "not_executed_missing_normal_qa_credentials" : "true"}`);
   console.log(`legacy_public_zip=${result.legacyZip === null ? "not_executed_missing_normal_qa_credentials" : "true"}`);
-  console.log(`anon_cargas_v1_listing_rejected=${result.anonListing.rejected}`);
-  console.log(`anon_cargas_v1_listing_empty_not_accepted=${result.anonListing.emptyResponse}`);
-  console.log(`authenticated_cargas_v1_listing_rejected=${result.authenticatedListing?.rejected ?? "not_executed_missing_normal_qa_credentials"}`);
-  console.log(`authenticated_cargas_v1_listing_empty_not_accepted=${result.authenticatedListing?.emptyResponse ?? "not_executed_missing_normal_qa_credentials"}`);
+  console.log(`anon_cargas_v1_listing_access_rejected=${result.anonListing.accessRejected}`);
+  console.log(`anon_cargas_v1_visible_objects=${result.anonListing.visibleObjects}`);
+  console.log(`authenticated_cargas_v1_listing_access_rejected=${result.authenticatedListing?.accessRejected ?? "not_executed_missing_normal_qa_credentials"}`);
+  console.log(`authenticated_cargas_v1_visible_objects=${result.authenticatedListing?.visibleObjects ?? "not_executed_missing_normal_qa_credentials"}`);
   console.log("cleanup_completed=true");
 }
 

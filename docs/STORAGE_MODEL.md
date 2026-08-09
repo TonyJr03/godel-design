@@ -65,10 +65,12 @@ históricas bajo `solicitudes/` y `pedidos/` permanecen sin cambios en esta fase
 
 PPO-03B.2B confirmó contra el backend administrado por HTTPS que `anon` y un
 usuario interno no pueden autorizar rutas `cargas/v1` sin reserva, y que la
-migración no rompió TUS legacy ni ZIP legacy. El listado HTTPS de una raíz sin
-staged devolvió una lista vacía; no se interpreta como prueba concluyente de
-ausencia de listado. PPO-03C deberá validar ese punto junto con la primera
-transferencia presigned creada por las RPCs reales de reserva.
+migración no rompió TUS legacy ni ZIP legacy. El listing HTTPS devolvió cero
+objetos visibles; una colección vacía es compatible con filtrado RLS y durante
+el smoke no existía un staged real. La verificación frente a un staged existente
+queda para PPO-03C, junto con la primera transferencia presigned creada por las
+RPCs reales de reserva. Esta condición no bloquea el cierre del modelo
+DB/Storage de PPO-03B.
 
 Estructura esperada dentro del bucket `godel-files`:
 

@@ -8,8 +8,8 @@ arquitectura operativa y puesta en operación de Godel Diseño.
 - [Roadmap PPO](PPO_ROADMAP.md): iniciativa completa de Preproducción y Puesta en Operación.
 - [PPO-03A.1 — Contrato de cargas y almacenamiento](PPO_03_UPLOAD_STORAGE_CONTRACT.md): arquitectura objetivo aprobada para transferencia directa, sesiones, finalización y reconciliación; no implementa todavía el nuevo flujo.
 - [PPO-03A.2 — Informe de spike TUS y signed upload token](PPO_03_TUS_SPIKE_REPORT.md): evidencia local y veredicto aprobado con condiciones; habilita el inicio de PPO-03B.
-- [PPO-03B.1 — Informe DB, RLS y Storage](PPO_03_STORAGE_DB_REPORT.md): control plane local de sesiones/items y policies operation-aware; no implementa aún el flujo de aplicación.
-- [PPO-03B.2B — Validación HTTPS administrada de DB/Storage](PPO_03_STORAGE_MANAGED_REPORT.md): evidencia HTTPS administrada; conserva como gate de PPO-03C el primer presigned con reserva real y la evidencia concluyente de no listado de staged.
+- [PPO-03B — Informe DB, RLS y Storage](PPO_03_STORAGE_DB_REPORT.md): fase cerrada; control plane de sesiones/items y policies operation-aware validados localmente y por HTTPS administrado.
+- [PPO-03B.2B — Validación HTTPS administrada de DB/Storage](PPO_03_STORAGE_MANAGED_REPORT.md): cerrada, aprobada con condición de integración para PPO-03C: reserva real, presigned administrado y staged no enumerable por actores no autorizados.
 - [Plan de auditoría PPO-01](PPO_01_AUDIT_PLAN.md): contrato operativo para auditar infraestructura y conectividad.
 - [Informe de capacidad PPO-01](PPO_01_CAPACITY_REPORT.md): plantilla para resultados resumidos y aprobados.
 - [PPO-02 - Plan de contenerización](PPO_02_CONTAINERIZATION_PLAN.md): contrato y trazabilidad de la base contenerizada local cerrada con condiciones.
