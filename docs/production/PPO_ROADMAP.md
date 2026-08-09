@@ -5,7 +5,7 @@
 - Proyecto: Godel Diseño
 - Estado: Activo
 - Fecha de creación: 2026-07-21
-- Última revisión: 2026-08-02
+- Última revisión: 2026-08-08
 - Responsable técnico: Dirección Técnica de Godel Diseño
 - Arquitectura y supervisión: Arquitectura Senior / Orquestación Técnica
 - Implementación: Agente Codex en VS Code
@@ -58,7 +58,7 @@ posteriores no se declaran implementadas en este roadmap.
 | --------- | ------------------------------------------- | --------- |
 | PPO-00    | Baseline local y formalización inicial      | Cerrada   |
 | PPO-01    | Auditoría de infraestructura y conectividad | Activa    |
-| PPO-02    | Base contenerizada reproducible             | Pendiente |
+| PPO-02    | Base contenerizada reproducible             | Cerrada — Aprobada con condiciones |
 | PPO-03    | Rediseño de cargas y almacenamiento         | Pendiente |
 | PPO-04    | Despliegue provisional en la empresa        | Pendiente |
 | PPO-05    | Seguridad pública                           | Pendiente |
@@ -71,6 +71,36 @@ posteriores no se declaran implementadas en este roadmap.
 
 PPO-QA-01 no bloquea PPO-01, conserva el trabajo archivado y deberá resolverse
 antes del cierre definitivo de la puesta en producción.
+
+Estado interno vigente de PPO-02:
+
+| Bloque    | Estado |
+| --------- | ------ |
+| PPO-02A   | Cerrada |
+| PPO-02B   | Cerrada para la imagen app |
+| PPO-02C.1 | Cerrada — validación local aprobada |
+| PPO-02C.2 | Cerrada — composición local aprobada con condiciones |
+| PPO-02C.3 | Absorbida en PPO-02C.2 — límites y aislamiento validados |
+| PPO-02D.1 | Cerrada — healthchecks locales aprobados |
+| PPO-02D.2 | Cerrada — Aprobada con condiciones |
+| PPO-02E.1 | Cerrada — handoff aprobado |
+
+PPO-02 queda cerrada con condiciones. Este cierre no cierra PPO-01, no aprueba
+`company-host` y no constituye despliegue. PPO-02C.1 no constituye despliegue;
+PPO-02C.2 integra y valida Docker Compose solo localmente en
+`development-laptop`, incluyendo CPU, memoria, `pids_limit`, `read_only`,
+tmpfs, usuarios no root, `cap_drop=ALL`, `no-new-privileges`, red dedicada,
+`app` sin puerto publicado, Nginx como única entrada, ausencia de Docker socket,
+ausencia de montajes persistentes, `docker stats` y límites efectivos vía
+Docker. PPO-02D.1 valida healthchecks locales y dependencia operativa inicial.
+PPO-02D.2 formaliza `compose.env.local` como archivo runtime ignorado por Git,
+valida sus propiedades, recibe evidencia manual de baseline remota aplicada 6/6
+sin seed, confirma que HTTPS administrado es alcanzable con VPN activo,
+clasifica ProTUN/PostgreSQL como restricción administrativa y aprueba readiness
+administrado al enviar la publishable key existente como cabecera `apikey` en la
+llamada server-side a `/auth/v1/health`. PPO-02E.1 formaliza el cierre y el
+handoff operativo. El siguiente checkpoint general previsto es PPO-03A —
+contrato del rediseño de cargas y almacenamiento.
 
 ## PPO-00
 
@@ -110,8 +140,8 @@ Estado interno de PPO-01:
 | PPO-01A.1 | Cerrada |
 | PPO-01A.2 | Cerrada |
 | PPO-01B   | Cerrada — `development-laptop` Apta con condiciones |
-| PPO-01C   | Pendiente |
-| PPO-01D   | Pendiente |
+| PPO-01C   | Diferida temporalmente |
+| PPO-01D   | Pendiente, bloqueada por PPO-01C |
 
 `development-laptop` ya demostró capacidad suficiente para construir y validar
 la composición contenerizada prevista para PPO-02: WSL2 y Docker con
@@ -121,16 +151,26 @@ local coexistió con Next.js durante las mediciones controladas.
 La conectividad desde el contexto físico declarado `cuba` y con VPN confirmada
 manualmente como desconectada fue demostrada para los destinos ejecutados de
 GitHub, Vercel y Cloudflare. Las transferencias sintéticas de 20 MiB se
-completaron en descarga y carga. Supabase administrado permanece pendiente
-porque el proyecto administrado no estaba configurado.
+completaron en descarga y carga. En PPO-01, Supabase administrado quedó
+pendiente porque el proyecto administrado no estaba configurado; la validación
+administrada correspondiente quedó cubierta después en PPO-02D.2.
 
-`company-host` todavía no ha sido auditado y PPO-01 no está cerrada. PPO-02
-permanece pendiente y no se declara iniciada.
+`company-host` todavía no ha sido auditado y PPO-01 no está cerrada.
+
+Por decisión expresa de Dirección Técnica, PPO-02 quedó autorizada en paralelo
+para construcción y validación local en `development-laptop`. Ese inicio no
+implicó cierre de PPO-01, no implicó aprobación de `company-host` y no implicó
+despliegue productivo ni despliegue en la empresa.
 
 ## PPO-02 a PPO-10
 
-- PPO-02: definirá Dockerfile, Compose, Nginx, redes, healthchecks y criterios
-  de reproducibilidad.
+- PPO-02: cerró Dockerfile, Compose, Nginx, redes, healthchecks, readiness
+  administrado y criterios de reproducibilidad local. PPO-02A, PPO-02B,
+  PPO-02C, PPO-02D y PPO-02E.1 quedan cerradas o absorbidas según corresponda.
+  Esto no implementa despliegue, TLS, Cloudflare ni validación de
+  `company-host`. El contrato y cierre viven en
+  [PPO-02 - Plan de contenerización](PPO_02_CONTAINERIZATION_PLAN.md) y
+  [PPO-02 — Cierre de base contenerizada reproducible](PPO_02_CLOSURE.md).
 - PPO-03: rediseñará sesiones de carga, transferencia directa, límites,
   formatos, cuarentena y almacenamiento.
 - PPO-04: cubrirá despliegue provisional, Cloudflare Tunnel, dominio y

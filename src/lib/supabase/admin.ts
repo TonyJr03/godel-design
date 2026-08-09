@@ -1,6 +1,10 @@
 import "server-only";
 
 import { createClient } from "@supabase/supabase-js";
+import {
+  getSupabasePublishableKey,
+  getSupabaseServerUrl,
+} from "@/lib/supabase/server-config";
 import type { Database } from "@/types/database";
 
 const ADMIN_CLIENT_CONFIG = {
@@ -22,11 +26,11 @@ function readRequiredEnvironment(name: string): string {
 }
 
 export function createAdminClient() {
-  const supabaseUrl = readRequiredEnvironment("NEXT_PUBLIC_SUPABASE_URL");
+  const supabaseUrl = getSupabaseServerUrl();
   const secretKey = readRequiredEnvironment("SUPABASE_SECRET_KEY");
-  const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
+  const publishableKey = getSupabasePublishableKey();
 
-  if (publishableKey && secretKey === publishableKey) {
+  if (secretKey === publishableKey) {
     throw new Error("Supabase admin client is not configured.");
   }
 

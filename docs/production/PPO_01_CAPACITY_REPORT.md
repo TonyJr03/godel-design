@@ -5,7 +5,7 @@
 - Estado: En elaboración - development-laptop evaluada; company-host pendiente
 - Fase: PPO-01
 - Fecha de apertura: 2026-08-01
-- Fecha de última actualización: 2026-08-02
+- Fecha de última actualización: 2026-08-04
 
 ## 1. Resumen ejecutivo
 
@@ -456,9 +456,19 @@ PPO-01B queda cerrada. `development-laptop` está `Apta con condiciones` para
 construir, ejecutar y validar localmente la composición contenerizada prevista
 por PPO-02.
 
-La construcción y validación local de PPO-02 puede comenzar después del cierre
-completo de PPO-01 o mediante decisión expresa de Dirección Técnica. PPO-01
+La construcción y validación local de PPO-02 queda autorizada mediante decisión
+expresa de Dirección Técnica, únicamente en `development-laptop`. PPO-01
 permanece activa: `company-host` y la comparación final siguen pendientes.
 
-El siguiente paso formal es PPO-01C. No existe todavía una decisión comparativa
-ni cierre de PPO-01. PPO-02 no se declara iniciada.
+PPO-01C queda diferida temporalmente. No existe todavía una decisión comparativa
+ni cierre de PPO-01, y PPO-01D no puede cerrarse hasta completar PPO-01C.
+
+Nota de decisión de Dirección Técnica:
+
+- PPO-01C queda diferida temporalmente por disponibilidad de `company-host`.
+- La auditoría portátil permanece preparada.
+- PPO-02 puede avanzar localmente en `development-laptop` por decisión expresa.
+- La hipótesis de similitud entre `development-laptop` y `company-host` no
+  sustituye la auditoría.
+- PPO-01 sigue activa.
+- PPO-01D no puede cerrarse hasta completar PPO-01C.

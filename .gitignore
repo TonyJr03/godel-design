@@ -39,6 +39,10 @@ debug.log
 !.env.example
 .env*.local
 
+# Docker Compose runtime environments
+compose.env.*
+!compose.env.example
+
 # vercel
 .vercel
 

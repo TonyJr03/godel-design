@@ -1,0 +1,9 @@
+# syntax=docker/dockerfile:1.7
+
+FROM nginxinc/nginx-unprivileged:stable-bookworm@sha256:cd33960e98e93d4d63385790ff7f8f5bf2ca95184c581b7f42ae8aea1139fbfc
+
+COPY --chown=101:101 docker/nginx/conf.d/ /etc/nginx/conf.d/
+
+EXPOSE 8080
+STOPSIGNAL SIGQUIT
+CMD ["nginx", "-g", "daemon off;"]

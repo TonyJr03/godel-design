@@ -7,7 +7,23 @@ Esta carpeta prepara la configuración base de Supabase para Next.js App Router.
 - Usa `src/lib/supabase/admin.ts` solo desde servicios server-side cuando haga falta Supabase Auth Admin. Exporta `createAdminClient()`, basado en `@supabase/supabase-js`.
 - Usa `src/lib/supabase/index.ts` cuando prefieras imports con nombres explícitos: `createBrowserSupabaseClient` o `createServerSupabaseClient`.
 
-No se debe usar la clave administrativa en frontend. Los clientes de navegador y SSR usan solamente `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+No se debe usar la clave administrativa en frontend. El cliente de navegador usa
+solamente `NEXT_PUBLIC_SUPABASE_URL` y
+`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+
+Los clientes server-side usan `src/lib/supabase/server-config.ts`, que es
+server-only. La URL server-side se resuelve con `SUPABASE_SERVER_URL` y, si esa
+variable está vacía, cae a `NEXT_PUBLIC_SUPABASE_URL`. La publishable key sigue
+siendo `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` y no reemplaza RLS ni permisos.
+`server-config.ts` no debe importarse desde Client Components.
+
+Ejemplo conceptual para desarrollo local contenerizado cuando navegador y
+contenedor no alcanzan Supabase local por el mismo endpoint:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+SUPABASE_SERVER_URL=http://host.docker.internal:54321
+```
 
 El cliente Admin usa `SUPABASE_SECRET_KEY`, no usa `@supabase/ssr`, no lee cookies, no comparte sesiones de usuario, no persiste sesión, no renueva tokens y no detecta sesiones desde URL. Debe importarse directamente con:
 
@@ -75,5 +91,6 @@ npx supabase gen types typescript --local > src\types\database.types.ts
   `/cambiar-contrasena-inicial` hasta completar el primer cambio de contraseña.
 - El proxy valida acceso por rol a rutas de dashboard usando `canAccessDashboardRoute`.
 - Si el usuario tiene sesión y perfil activo, pero su rol no permite la ruta solicitada, se redirige a `/sin-permisos`.
-- No se usa service role key; el proxy solo usa `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+- No se usa service role key; el proxy usa `SUPABASE_SERVER_URL` con fallback a
+  `NEXT_PUBLIC_SUPABASE_URL`, y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
 - Los permisos sobre datos siguen dependiendo de las políticas RLS de Supabase.

@@ -1,0 +1,96 @@
+name: godel-design-ppo-02c2
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:?NEXT_PUBLIC_SUPABASE_URL is required}
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:?NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY is required}
+    image: godel-design-app:${GODEL_APP_IMAGE_TAG:-ppo-02c2}
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:?NEXT_PUBLIC_SUPABASE_URL is required}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:?NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY is required}
+      SUPABASE_SERVER_URL: ${SUPABASE_SERVER_URL:-}
+      SUPABASE_SECRET_KEY: ${SUPABASE_SECRET_KEY:-}
+    expose:
+      - "3000"
+    networks:
+      - stack
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    read_only: true
+    user: "1000:1000"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    cpus: ${GODEL_APP_CPUS:-2.0}
+    mem_limit: ${GODEL_APP_MEMORY_LIMIT:-2g}
+    tmpfs:
+      - /tmp:rw,nosuid,noexec,size=32m,uid=1000,gid=1000
+      - /app/.next/cache:rw,nosuid,noexec,size=64m,uid=1000,gid=1000
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/health/ready').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 10s
+      timeout: 4s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+    stop_grace_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile.nginx
+    image: godel-design-nginx:${GODEL_NGINX_IMAGE_TAG:-ppo-02c2}
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "${GODEL_HTTP_BIND_ADDRESS:-127.0.0.1}:${GODEL_HTTP_PORT:-8080}:8080"
+    networks:
+      - stack
+    read_only: true
+    user: "101:101"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    cpus: ${GODEL_NGINX_CPUS:-0.5}
+    mem_limit: ${GODEL_NGINX_MEMORY_LIMIT:-256m}
+    tmpfs:
+      - /tmp:rw,nosuid,noexec,size=32m,uid=101,gid=101
+    healthcheck:
+      test:
+        - CMD
+        - nginx
+        - -t
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+    stop_grace_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+networks:
+  stack:
+    driver: bridge
