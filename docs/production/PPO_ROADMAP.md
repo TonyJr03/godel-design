@@ -43,8 +43,8 @@ La iniciativa diferencia tres momentos operativos:
 - Los archivos serán privados.
 - El contenido de archivos no atravesará Server Actions de Next.js.
 - El objetivo futuro contempla hasta diez archivos por operación.
-- El límite inicialmente planteado es 20 MB por archivo.
-- ZIP y RAR están dentro del alcance futuro del rediseño de archivos.
+- El límite inicialmente planteado es 20 MiB por archivo.
+- ZIP, RAR y CDR están dentro del alcance futuro del rediseño de archivos.
 - OVHcloud Canadá continúa como candidato para la producción futura.
 - Después de la migración, la máquina de la empresa podrá actuar como soporte
   de backup y recuperación.
