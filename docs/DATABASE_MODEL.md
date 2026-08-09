@@ -812,6 +812,7 @@ No es una tabla de movimientos, abonos individuales ni comprobantes.
 **Propósito:** Control plane privado de PPO-03B.1 para reservas de carga. No
 representan archivos operativos ni se exponen por CRUD directo; `archivos`
 sigue siendo la única metadata de negocio de un objeto committed.
+PPO-03C.1 añade RPCs de reserva pública e interna, autorización pública por capacidad y finalize público/interno. PostgreSQL genera las rutas e identificadores; finalize contrasta el objeto de Storage, crea `archivos` de forma idempotente y conserva los triggers existentes para historial.
 
 | Entidad | Campos y reglas principales |
 |---|---|

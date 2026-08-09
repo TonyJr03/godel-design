@@ -64,9 +64,11 @@ se conservan los límites transitorios de 110 MB. PPO-03B queda cerrada:
 PPO-03B.2B validó por HTTPS el backend administrado con VPN activo, control
 plane cerrado para `anon` y authenticated, rutas `cargas/v1` sin reserva
 rechazadas y compatibilidad legacy conservada. El listing devolvió cero objetos
-visibles; sin un staged real no prueba la enumeración de staged, condición que
-se transfiere a PPO-03C. PPO-03C es la siguiente fase; reserva, firma,
-transferencia y finalize de aplicación siguen pendientes allí.
+visibles; sin un staged real no prueba la enumeración de staged. PPO-03C.1
+ya implementó y validó localmente reserva, firma, transferencia y finalize;
+permanece pendiente el gate administrado.
+
+PPO-03C.1 está implementada localmente y pendiente de revisión arquitectónica. No cierra PPO-03C ni modifica los flujos productivos actuales. El gate restante es reserva real, staged real, presigned TUS administrado y staged no enumerable por actores no autorizados.
 
 Documentos vigentes:
 

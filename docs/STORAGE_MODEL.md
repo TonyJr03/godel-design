@@ -6,6 +6,8 @@ Este documento define la estrategia para almacenar archivos enviados por cliente
 
 Supabase Storage guarda los binarios. La tabla `archivos` guarda los metadatos de negocio, relaciones, categoría y trazabilidad.
 
+PPO-03C.1 implementa localmente el finalize autoritativo de la raíz cargas/v1: verifica el objeto reservado, crea su metadata de negocio y lo deja committed. Antes de ese paso un staged permanece no legible. La repetición administrada con reserva y staged reales continúa como gate de PPO-03C.
+
 ## Principios
 
 - Archivos privados por defecto.

@@ -108,8 +108,11 @@ migración 07 en administrado por Dirección Técnica; PPO-03B.2B confirmó por
 HTTPS control plane cerrado, reserva obligatoria y compatibilidad legacy con
 VPN activo, sin PostgreSQL remoto. El listing devolvió cero objetos visibles;
 sin staged real no prueba su enumeración, pero no evidencia una apertura.
-PPO-03B queda cerrada y PPO-03C es la siguiente fase, con el gate de reserva
-real, presigned administrado y staged no enumerable por actores no autorizados.
+PPO-03B queda cerrada. PPO-03C.1 implementó el control plane local; PPO-03C
+continúa activa con el gate de reserva real, staged real, presigned TUS
+administrado y staged no enumerable por actores no autorizados.
+
+PPO-03C.1 implementó localmente el control plane de reserva y finalize. PPO-03C continúa activa y pendiente de revisión arquitectónica, integración de aplicación y del gate administrado: reserva real, staged real, presigned TUS administrado y staged no enumerable por actores no autorizados.
 
 ## PPO-00
 
