@@ -67,11 +67,23 @@ objetos: se actualizará únicamente la metadata necesaria y
 
 ### Transferencia, autorización y límites
 
-La transferencia será directa a Supabase Storage mediante TUS resumible. El
-servidor emitirá la autorización con <code>createSignedUploadUrl()</code>; el
-cliente usará el token con TUS mediante <code>x-signature</code>. Los paths
-serán únicos y usarán <code>upsert = false</code>; el cliente gestionará
-progreso, reintentos y reanudación cuando la API lo permita.
+La transferencia será directa desde el navegador a Supabase Storage mediante
+TUS resumible. Los paths serán únicos y usarán <code>upsert = false</code>; el
+cliente gestionará progreso, reintentos y reanudación cuando la API lo permita.
+Next.js conserva el control plane y nunca recibe bytes.
+
+El data plane tiene dos modos de autorización, ambos con la publishable key en
+<code>apikey</code>:
+
+- Interno autenticado: el navegador reenvía exclusivamente el JWT de su propia
+  sesión de Supabase Auth mediante <code>Authorization: Bearer</code>. No usa
+  <code>createSignedUploadUrl()</code> ni <code>x-signature</code>; de este modo
+  <code>auth.uid()</code> y las policies <code>authenticated</code> continúan
+  evaluando al usuario real.
+- Público: el navegador no tiene sesión Auth y usa un signed upload token
+  emitido después de una reserva válida mediante
+  <code>createSignedUploadUrl()</code> y <code>x-signature</code>. No envía
+  <code>Authorization</code>.
 
 La autorización de Storage se emitirá con clientes Supabase normales y
 policies/RLS adecuadas. Quedan prohibidos <code>SUPABASE_SERVICE_ROLE_KEY</code>,
@@ -139,12 +151,14 @@ Los objetos nuevos usarán esta raíz versionada y desacoplada del dominio:
 
     cargas/v1/{session_id}/{item_id}/{storage_nonce}-{safe_filename}
 
-Los UUID y el <code>storage_nonce</code> opaco serán generados server-side y el
-nombre será sanitizado. El nonce no reemplaza los identificadores de sesión/item
-ni es secreto de autorización. El path no incluirá <code>solicitud_id</code>,
-<code>pedido_id</code> ni categoría operativa; el contexto vivirá en PostgreSQL.
-Será único, inmutable tras commit, no sobrescribible y no se expondrá a UI, DTOs
-ni logs. Los objetos históricos no se moverán ni renombrarán.
+Los UUID, el <code>storage_nonce</code> de alta entropía y el nombre sanitizado
+serán generados server-side. El nonce es un locator de transferencia no
+adivinable y una información transitoria sensible: ayuda contra enumeración y
+adivinación, no se expondrá a UI, DTOs, listados ni logs. No sustituye el token
+de sesión del control plane, RLS ni la autenticación general de la aplicación.
+El path no incluirá <code>solicitud_id</code>, <code>pedido_id</code> ni categoría
+operativa; el contexto vivirá en PostgreSQL. Será único, inmutable tras commit y
+no sobrescribible. Los objetos históricos no se moverán ni renombrarán.
 
 ### Staging, finalización y atomicidad lógica
 
@@ -176,16 +190,17 @@ Storage y PostgreSQL no constituyen una única transacción ACID:
 
 En el flujo público, el formulario recopilará datos y archivos localmente y
 enviará a Next.js solo datos normales y descriptores, nunca bytes. El servidor
-validará descriptores, creará solicitud, sesión pública e items y devolverá las
-capacidades necesarias. El navegador transferirá por TUS y finalizará cada
-item. La UI comunicará éxito total o parcial. Una solicitud válida sobrevivirá
-a una transferencia posterior fallida; <code>impresion</code> seguirá exigiendo
-un descriptor válido al crearla y una falla posterior advertirá sin borrarla.
+validará descriptores, creará solicitud, sesión pública e items y devolverá la
+capacidad firmada necesaria. El navegador transferirá por TUS con
+<code>x-signature</code> y finalizará cada item. La UI comunicará éxito total o
+parcial. Una solicitud válida sobrevivirá a una transferencia posterior fallida;
+<code>impresion</code> seguirá exigiendo un descriptor válido al crearla y una
+falla posterior advertirá sin borrarla.
 
 En el flujo interno, el servidor validará perfil activo, acceso al pedido y
-estado actual, derivará categoría, reservará hasta 10 items y emitirá las
-autorizaciones. El navegador transferirá por TUS y finalizará. La categoría no
-será elegida por el navegador:
+estado actual, derivará categoría y reservará hasta 10 items. El navegador
+transferirá por TUS con el JWT de su propia sesión Auth y finalizará; no necesita
+signed upload token. La categoría no será elegida por el navegador:
 
 | Estado | Categoría |
 | --- | --- |
@@ -219,14 +234,25 @@ Bucket, path y signed URL no formarán parte de DTOs ni listados cliente.
 ## Hipótesis de PPO-03A.2
 
 PPO-03A.2 ejecutó un spike reversible contra Supabase local y Supabase
-administrado. Probó TUS +
-<code>createSignedUploadUrl()</code> + <code>x-signature</code> +
-<code>upsert = false</code>, con clientes normales y policies/RLS adecuadas.
-Verificará RAR y CDR en Chrome/Windows, incluidos MIME vacío, legacy y
-<code>application/octet-stream</code>, sin abrir este último globalmente.
-También deberá comprobar reintentos, reanudación disponible, progreso cliente y
-la separación efectiva de TTL. No define aún TTL, tablas, policies, cleanup ni
-flujos completos.
+administrado. Confirmó dos modos del mismo transporte TUS: JWT normal para
+internos y <code>createSignedUploadUrl()</code> + <code>x-signature</code> para
+público sin Auth, ambos con <code>upsert = false</code>. Verificó RAR y CDR en
+Chrome/Windows, incluidos MIME vacío, legacy y
+<code>application/octet-stream</code>, sin abrir este último globalmente; también
+comprobó progreso, interrupción y reanudación. No define aún TTL, tablas,
+policies productivas, cleanup productivo ni flujos completos.
+
+Para PPO-03B queda documentada la capacidad oficial operation-aware de Storage:
+<code>storage.allow_only_operation()</code> compara exactamente una operación y
+<code>storage.allow_any_operation()</code> permite una lista explícita. La policy
+pública reservation-aware podrá separar la firma
+<code>storage.object.sign_upload_url</code> de la creación,
+parte y consulta TUS (<code>storage.tus.upload.create</code>,
+<code>storage.tus.upload.part</code> y <code>storage.tus.upload.get</code>). La
+firma validará bucket, path reservado, sesión pública, estado y expiración sin
+exigir metadata aún inexistente; la creación TUS añadirá MIME normalizado,
+metadata esperada y restricciones del item cuando esa información sea
+observable. Es dirección de PPO-03B, no una policy implementada.
 
 ## QA futuro mínimo
 
@@ -250,7 +276,7 @@ Las subfases posteriores validarán, en local y Supabase administrado:
 | Subfase | Alcance | Estado actual |
 | --- | --- | --- |
 | PPO-03A.1 | Formalización del contrato | Ejecutada documentalmente |
-| PPO-03A.2 | Spike TUS + signed upload token | Ejecutado — bloqueado; ver informe |
+| PPO-03A.2 | Spike TUS + signed upload token | Cerrada — Aprobada con condiciones; ver informe |
 | PPO-03B | Modelo DB de sesiones/items, RLS y policies | Pendiente |
 | PPO-03C | Reserva, firma, transferencia y finalize comunes | Pendiente |
 | PPO-03D | Migración del upload interno de Pedidos | Pendiente |

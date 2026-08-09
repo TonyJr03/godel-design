@@ -53,15 +53,17 @@ restricción ProTUN/PostgreSQL como condición administrativa y queda aprobada c
 condiciones. PPO-02E.1 cierra PPO-02 sin cerrar PPO-01. PPO-QA-01 queda diferida
 sin bloquear la transición hacia PPO-03.
 
-PPO-03 inició en fase contractual con PPO-03A.1 y ejecutó PPO-03A.2, que queda
-[bloqueada](production/PPO_03_TUS_SPIKE_REPORT.md) para cierre. El spike demostró
-TUS firmado directo, `apikey`, reanudación real y cleanup en controles local y
-administrado sin bytes por Next.js, pero el token público administrado sigue
-rechazado y la ruta interna firmada de Pedido no admite el POST sin Auth. El
+PPO-03 inició en fase contractual con PPO-03A.1 y cerró PPO-03A.2 como
+[Aprobada con condiciones](production/PPO_03_TUS_SPIKE_REPORT.md). El spike
+demostró TUS directo, `apikey`, reanudación real y cleanup sin bytes por Next.js
+en dos modos: JWT normal para rutas internas y token firmado para el público.
+El rechazo público administrado del baseline queda diferido expresamente a la
+policy reservation-aware de PPO-03B/PPO-03C, sin SQL remoto. El
 [contrato de cargas y almacenamiento](production/PPO_03_UPLOAD_STORAGE_CONTRACT.md)
 refina conceptualmente el path futuro con `storage_nonce`; no hay código de
 upload productivo cambiado, las cargas vigentes continúan atravesando Server
-Actions, se conservan los límites transitorios de 110 MB y PPO-03B no inicia.
+Actions y se conservan los límites transitorios de 110 MB. PPO-03B puede iniciar
+su diseño e implementación autorizados.
 
 Documentos vigentes:
 

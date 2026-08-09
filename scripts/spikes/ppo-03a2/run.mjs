@@ -378,14 +378,16 @@ async function startHarnessPage(browser) {
 
 function makeBrowserUploadInput({
   endpoint,
-  token,
+  mode,
+  credential,
   path,
   size,
   apiKey,
 }) {
   return {
     endpoint,
-    token,
+    mode,
+    credential,
     path,
     size,
     apiKey,
@@ -424,9 +426,11 @@ async function runBrowserUpload(page, input) {
         uploadDataDuringCreation: false,
         removeFingerprintOnSuccess,
         headers: {
-          "x-signature": data.token,
           "x-upsert": "false",
           apikey: data.apiKey,
+          ...(data.mode === "authenticated"
+            ? { Authorization: "Bearer " + data.credential }
+            : { "x-signature": data.credential }),
         },
         metadata: {
           bucketName: data.bucket,
@@ -526,29 +530,30 @@ async function runResumableTransfer(page, details) {
   return runBrowserUpload(page, makeBrowserUploadInput(details));
 }
 
-async function issueSignedUpload(client, path) {
-  const { data, error } = await client.storage
-    .from(BUCKET)
-    .createSignedUploadUrl(path, { upsert: false });
+async function getAccessToken(client) {
+  const {
+    data: { session },
+  } = await client.auth.getSession();
 
-  if (error || !data) {
-    fail("La autorización firmada fue rechazada.");
+  if (!session?.access_token) {
+    fail("No se pudo obtener el access token de la sesión QA normal.");
   }
 
-  return data;
+  return session.access_token;
 }
 
-async function runSignedResumableTransfer({ client, page, config, endpoint, path }) {
-  const signedUpload = await issueSignedUpload(client, path);
+async function runAuthenticatedResumableTransfer({ client, page, config, endpoint, path }) {
+  const accessToken = await getAccessToken(client);
   const transfer = await runResumableTransfer(page, {
     endpoint,
-    token: signedUpload.token,
+    mode: "authenticated",
+    credential: accessToken,
     path,
     size: getTransferSize(config),
     apiKey: config.key,
   });
 
-  return { transfer, publicApiKeyRequired: true };
+  return { transfer };
 }
 
 async function verifyObjectExists(client, path) {
@@ -627,7 +632,16 @@ async function cleanupStrandedPublicFixtures(client) {
   }
 }
 
-async function attemptCollision(page, client, endpoint, path, apiKey) {
+async function attemptAuthenticatedCollision(page, client, config, endpoint, path) {
+  try {
+    await runAuthenticatedResumableTransfer({ client, page, config, endpoint, path });
+    return { rejected: false, stage: "upload" };
+  } catch {
+    return { rejected: true, stage: "upload" };
+  }
+}
+
+async function attemptPresignedCollision(page, client, config, endpoint, path) {
   const { data, error } = await client.storage
     .from(BUCKET)
     .createSignedUploadUrl(path, { upsert: false });
@@ -637,17 +651,14 @@ async function attemptCollision(page, client, endpoint, path, apiKey) {
   }
 
   try {
-    await runBrowserUpload(
-      page,
-      makeBrowserUploadInput({
-        endpoint,
-        token: data.token,
-        path,
-        size: PUBLIC_PAYLOAD_SIZE,
-        abortAfterFirstChunk: false,
-        apiKey,
-      }),
-    );
+    await runResumableTransfer(page, {
+      endpoint,
+      mode: "presigned",
+      credential: data.token,
+      path,
+      size: PUBLIC_PAYLOAD_SIZE,
+      apiKey: config.key,
+    });
     return { rejected: false, stage: "upload" };
   } catch {
     return { rejected: true, stage: "upload" };
@@ -691,32 +702,21 @@ async function runInternalCase({ config, client, page, endpoint }) {
   }
 
   try {
-    let signedTransfer;
-
-    try {
-      signedTransfer = await runSignedResumableTransfer({
-        client,
-        page,
-        config,
-        endpoint,
-        path,
-      });
-    } catch {
-      return {
-        available: true,
-        signedTus: false,
-        rejection: "storage_rejected_signed_browser_transfer",
-        cleanup: true,
-      };
-    }
-
-    await verifyObjectExists(client, path);
-    const collision = await attemptCollision(
-      page,
+    const authenticatedTransfer = await runAuthenticatedResumableTransfer({
       client,
+      page,
+      config,
       endpoint,
       path,
-      signedTransfer.publicApiKeyRequired ? config.key : undefined,
+    });
+
+    await verifyObjectExists(client, path);
+    const collision = await attemptAuthenticatedCollision(
+      page,
+      client,
+      config,
+      endpoint,
+      path,
     );
 
     if (!collision.rejected) {
@@ -725,9 +725,8 @@ async function runInternalCase({ config, client, page, endpoint }) {
 
     return {
       available: true,
-      signedTus: true,
-      transfer: signedTransfer.transfer,
-      publicApiKeyRequired: signedTransfer.publicApiKeyRequired,
+      authenticatedTus: true,
+      transfer: authenticatedTransfer.transfer,
       collision,
       cleanup: true,
     };
@@ -755,25 +754,23 @@ async function runPublicCase({ config, adminClient, page, endpoint }) {
       };
     }
 
-    const transfer = await runResumableTransfer(
-      page,
-      {
+    const transfer = await runResumableTransfer(page, {
       endpoint,
-        token: data.token,
-        path: fixture.path,
-        size: getTransferSize(config),
+      mode: "presigned",
+      credential: data.token,
+      path: fixture.path,
+      size: getTransferSize(config),
       apiKey: config.key,
-      },
-    );
+    });
 
     objectCreated = true;
     await verifyObjectExists(adminClient, fixture.path);
-    const collision = await attemptCollision(
+    const collision = await attemptPresignedCollision(
       page,
       anonClient,
+      config,
       endpoint,
       fixture.path,
-      config.key,
     );
     return {
       tokenIssued: true,
@@ -798,12 +795,12 @@ async function runPublicCase({ config, adminClient, page, endpoint }) {
   }
 }
 
-async function runSignedTransportControl({ config, adminClient, page, endpoint }) {
+async function runAuthenticatedTransportControl({ config, adminClient, page, endpoint }) {
   const fixture = await createPublicFixture(adminClient);
   let objectCreated = false;
 
   try {
-    const signedTransfer = await runSignedResumableTransfer({
+    const authenticatedTransfer = await runAuthenticatedResumableTransfer({
       client: adminClient,
       page,
       config,
@@ -813,21 +810,20 @@ async function runSignedTransportControl({ config, adminClient, page, endpoint }
 
     objectCreated = true;
     await verifyObjectExists(adminClient, fixture.path);
-    const collision = await attemptCollision(
+    const collision = await attemptAuthenticatedCollision(
       page,
       adminClient,
+      config,
       endpoint,
       fixture.path,
-      signedTransfer.publicApiKeyRequired ? config.key : undefined,
     );
 
     if (!collision.rejected) {
-      fail("El control firmado no rechazó la colisión con upsert=false.");
+      fail("El control autenticado no rechazó la colisión con upsert=false.");
     }
 
     return {
-      transfer: signedTransfer.transfer,
-      publicApiKeyRequired: signedTransfer.publicApiKeyRequired,
+      transfer: authenticatedTransfer.transfer,
       collision,
       cleanup: true,
     };
@@ -863,7 +859,7 @@ async function runTarget(config) {
       page,
       endpoint,
     });
-    const transportControl = await runSignedTransportControl({
+    const authenticatedControl = await runAuthenticatedTransportControl({
       config,
       adminClient: client,
       page,
@@ -883,26 +879,41 @@ async function runTarget(config) {
         })),
     endpoint);
 
-    const signedTransferRequests = tusRequests.filter((request) =>
+    const tusTransferRequests = tusRequests.filter((request) =>
       ["POST", "HEAD", "PATCH"].includes(request.method),
     );
-    const methodCounts = Object.fromEntries(
-      ["POST", "HEAD", "PATCH"].map((method) => [
-        method,
-        signedTransferRequests.filter((request) => request.method === method).length,
-      ]),
-    );
+    const requestModes = {
+      authenticated: tusTransferRequests.filter((request) => request.authorization),
+      presigned: tusTransferRequests.filter((request) => request.signature),
+    };
+    const getMethodCounts = (requests) =>
+      Object.fromEntries(
+        ["POST", "HEAD", "PATCH"].map((method) => [
+          method,
+          requests.filter((request) => request.method === method).length,
+        ]),
+      );
+    const methodCounts = {
+      authenticated: getMethodCounts(requestModes.authenticated),
+      presigned: getMethodCounts(requestModes.presigned),
+    };
 
     if (
-      signedTransferRequests.length === 0 ||
-      signedTransferRequests.some((request) => !request.signature) ||
-      signedTransferRequests.some((request) => !request.apiKey) ||
-      Object.values(methodCounts).some((count) => count === 0)
+      tusTransferRequests.length === 0 ||
+      tusTransferRequests.some((request) => !request.apiKey) ||
+      tusTransferRequests.some(
+        (request) => request.authorization === request.signature,
+      ) ||
+      Object.values(methodCounts.authenticated).some(
+        (count) => count === 0,
+      ) ||
+      (config.label === "local" &&
+        Object.values(methodCounts.presigned).some((count) => count === 0))
     ) {
       fail(
-        "El navegador no usó x-signature y apikey en POST, HEAD y PATCH de TUS: " +
+        "Las cabeceras TUS por modo no respetaron el contrato: " +
           JSON.stringify(
-            signedTransferRequests.map((request) => ({
+            tusTransferRequests.map((request) => ({
               method: request.method,
               matchesEndpointHost: request.matchesEndpointHost,
               signature: request.signature,
@@ -913,20 +924,15 @@ async function runTarget(config) {
       );
     }
 
-    if (signedTransferRequests.some((request) => request.authorization)) {
-      fail("El uploader recibió o reenvió Authorization.");
-    }
-
     return {
       target: config.label,
       destination: sanitizeDestination(endpoint, config.label),
       directStorageOnly: true,
-      browserUsedAuthorization: false,
-      browserUsedApiKey: signedTransferRequests.every((request) => request.apiKey),
+      browserUsedApiKey: tusTransferRequests.every((request) => request.apiKey),
       tusMethodCounts: methodCounts,
       internal,
       publicCase,
-      transportControl,
+      authenticatedControl,
       fileTypes,
     };
   } catch (error) {
@@ -965,15 +971,29 @@ function printSummary(result) {
   console.log("target=" + result.target);
   console.log("destination=" + result.destination);
   console.log("direct_storage_only=" + result.directStorageOnly);
-  console.log("browser_authorization_header=" + result.browserUsedAuthorization);
   console.log("browser_apikey_header=" + result.browserUsedApiKey);
-  console.log("tus_post_count=" + result.tusMethodCounts.POST);
-  console.log("tus_head_count=" + result.tusMethodCounts.HEAD);
-  console.log("tus_patch_count=" + result.tusMethodCounts.PATCH);
+  console.log(
+    "authenticated_tus_post_count=" + result.tusMethodCounts.authenticated.POST,
+  );
+  console.log(
+    "authenticated_tus_head_count=" + result.tusMethodCounts.authenticated.HEAD,
+  );
+  console.log(
+    "authenticated_tus_patch_count=" + result.tusMethodCounts.authenticated.PATCH,
+  );
+  console.log(
+    "presigned_tus_post_count=" + result.tusMethodCounts.presigned.POST,
+  );
+  console.log(
+    "presigned_tus_head_count=" + result.tusMethodCounts.presigned.HEAD,
+  );
+  console.log(
+    "presigned_tus_patch_count=" + result.tusMethodCounts.presigned.PATCH,
+  );
   console.log("internal_case_available=" + result.internal.available);
   console.log(
-    "internal_signed_tus=" +
-      (result.internal.available && result.internal.signedTus),
+    "internal_authenticated_tus=" +
+      (result.internal.available && result.internal.authenticatedTus),
   );
   console.log(
     "internal_resume_found=" +
@@ -998,20 +1018,20 @@ function printSummary(result) {
       (result.publicCase.collision?.rejected ?? false),
   );
   console.log(
-    "transport_control_multichunk=" +
-      result.transportControl.transfer.multipleChunksObserved,
+    "authenticated_control_multichunk=" +
+      result.authenticatedControl.transfer.multipleChunksObserved,
   );
   console.log(
-    "transport_control_resume_found=" +
-      result.transportControl.transfer.resumedFromPreviousUpload,
+    "authenticated_control_resume_found=" +
+      result.authenticatedControl.transfer.resumedFromPreviousUpload,
   );
   console.log(
-    "transport_control_collision_rejected=" +
-      result.transportControl.collision.rejected,
+    "authenticated_control_collision_rejected=" +
+      result.authenticatedControl.collision.rejected,
   );
   console.log(
-    "transport_control_collision_stage=" +
-      result.transportControl.collision.stage,
+    "authenticated_control_collision_stage=" +
+      result.authenticatedControl.collision.stage,
   );
   console.log("cleanup_completed=" + (result.internal.cleanup && result.publicCase.cleanup));
   console.log(

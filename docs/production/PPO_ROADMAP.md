@@ -100,9 +100,10 @@ clasifica ProTUN/PostgreSQL como restricción administrativa y aprueba readiness
 administrado al enviar la publishable key existente como cabecera `apikey` en la
 llamada server-side a `/auth/v1/health`. PPO-02E.1 formaliza el cierre y el
 handoff operativo. PPO-03 queda activa: PPO-03A.1 formalizó el contrato y
-PPO-03A.2 ejecutó el spike TUS, bloqueado para cierre por las policies de los
-casos público administrado e interno firmado. No declara implementado el nuevo
-flujo de upload ni autoriza iniciar PPO-03B.
+PPO-03A.2 cerró aprobada con condiciones. El spike separó TUS autenticado por
+JWT para internos de TUS presigned para público y difirió la policy pública
+reservation-aware al alcance de PPO-03B. No declara implementado el nuevo flujo
+de upload.
 
 ## PPO-00
 
@@ -175,16 +176,15 @@ despliegue productivo ni despliegue en la empresa.
   [PPO-02 — Cierre de base contenerizada reproducible](PPO_02_CLOSURE.md).
 - PPO-03: queda activa. PPO-03A.1 formaliza el
   [contrato de cargas y almacenamiento](PPO_03_UPLOAD_STORAGE_CONTRACT.md), y
-  PPO-03A.2 está ejecutada pero bloqueada; su
-  [evidencia](PPO_03_TUS_SPIKE_REPORT.md) confirmó el transporte firmado y
-  delimitó los bloqueos de policy. No implementan el rediseño. La secuencia
-  restante inicia con la resolución aprobada de PPO-03A.2 y continúa con
-  PPO-03B (modelo DB, RLS y policies), PPO-03C
+  PPO-03A.2 queda [aprobada con condiciones](PPO_03_TUS_SPIKE_REPORT.md): el
+  transporte directo usa JWT interno o token firmado público según el actor.
+  No implementan el rediseño. La secuencia continúa con PPO-03B (modelo DB, RLS
+  y policies), PPO-03C
   (infraestructura común de reserva, firma, transferencia y finalize), PPO-03D
   (migración interna de Pedidos), PPO-03E (migración pública de Solicitudes),
   PPO-03F (expiración, reconciliación y cleanup) y PPO-03G (QA integral,
   retirada de 110 MB y cierre documental). PPO-03B y todas las subfases
-  posteriores permanecen pendientes.
+  posteriores permanecen pendientes de ejecución.
 - PPO-04: cubrirá despliegue provisional, Cloudflare Tunnel, dominio y
   recuperación del host.
 - PPO-05: abordará antiabuso, rate limiting, seguridad pública y protección de
