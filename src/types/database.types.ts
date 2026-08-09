@@ -9,6 +9,124 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      archivo_carga_items: {
+        Row: {
+          archivo_id: string | null
+          committed_at: string | null
+          created_at: string
+          expected_size: number
+          id: string
+          normalized_mime: string
+          object_path: string
+          original_name: string
+          session_id: string
+          sort_order: number
+          status: Database["public"]["Enums"]["archivo_carga_item_estado"]
+          visibility: Database["public"]["Enums"]["archivo_visibility"]
+        }
+        Insert: {
+          archivo_id?: string | null
+          committed_at?: string | null
+          created_at?: string
+          expected_size: number
+          id?: string
+          normalized_mime: string
+          object_path: string
+          original_name: string
+          session_id: string
+          sort_order: number
+          status?: Database["public"]["Enums"]["archivo_carga_item_estado"]
+          visibility: Database["public"]["Enums"]["archivo_visibility"]
+        }
+        Update: {
+          archivo_id?: string | null
+          committed_at?: string | null
+          created_at?: string
+          expected_size?: number
+          id?: string
+          normalized_mime?: string
+          object_path?: string
+          original_name?: string
+          session_id?: string
+          sort_order?: number
+          status?: Database["public"]["Enums"]["archivo_carga_item_estado"]
+          visibility?: Database["public"]["Enums"]["archivo_visibility"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "archivo_carga_items_archivo_id_fkey"
+            columns: ["archivo_id"]
+            isOneToOne: false
+            referencedRelation: "archivos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "archivo_carga_items_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "archivo_carga_sesiones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      archivo_carga_sesiones: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          expires_at: string
+          id: string
+          pedido_id: string | null
+          public_token_hash: string | null
+          solicitud_id: string | null
+          status: Database["public"]["Enums"]["archivo_carga_sesion_estado"]
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          expires_at: string
+          id?: string
+          pedido_id?: string | null
+          public_token_hash?: string | null
+          solicitud_id?: string | null
+          status?: Database["public"]["Enums"]["archivo_carga_sesion_estado"]
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          id?: string
+          pedido_id?: string | null
+          public_token_hash?: string | null
+          solicitud_id?: string | null
+          status?: Database["public"]["Enums"]["archivo_carga_sesion_estado"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "archivo_carga_sesiones_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "archivo_carga_sesiones_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "archivo_carga_sesiones_solicitud_id_fkey"
+            columns: ["solicitud_id"]
+            isOneToOne: false
+            referencedRelation: "solicitudes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       archivos: {
         Row: {
           bucket: string
@@ -1146,6 +1264,17 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "supervisor" | "trabajador"
+      archivo_carga_item_estado:
+        | "reserved"
+        | "committed"
+        | "expired"
+        | "cancelled"
+      archivo_carga_sesion_estado:
+        | "open"
+        | "completed"
+        | "partial"
+        | "expired"
+        | "cancelled"
       archivo_visibility:
         | "cliente_solicitud"
         | "interno_pedido"
@@ -1323,6 +1452,19 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "supervisor", "trabajador"],
+      archivo_carga_item_estado: [
+        "reserved",
+        "committed",
+        "expired",
+        "cancelled",
+      ],
+      archivo_carga_sesion_estado: [
+        "open",
+        "completed",
+        "partial",
+        "expired",
+        "cancelled",
+      ],
       archivo_visibility: [
         "cliente_solicitud",
         "interno_pedido",

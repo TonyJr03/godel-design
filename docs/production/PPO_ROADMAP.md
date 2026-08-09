@@ -102,8 +102,9 @@ llamada server-side a `/auth/v1/health`. PPO-02E.1 formaliza el cierre y el
 handoff operativo. PPO-03 queda activa: PPO-03A.1 formalizó el contrato y
 PPO-03A.2 cerró aprobada con condiciones. El spike separó TUS autenticado por
 JWT para internos de TUS presigned para público y difirió la policy pública
-reservation-aware al alcance de PPO-03B. No declara implementado el nuevo flujo
-de upload.
+reservation-aware al alcance de PPO-03B. PPO-03B.1 ya validó localmente el
+control plane de sesiones/items y las policies operation-aware; reserva, firma,
+transferencia y finalize de aplicación siguen sin implementar ni desplegar.
 
 ## PPO-00
 

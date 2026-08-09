@@ -54,16 +54,14 @@ condiciones. PPO-02E.1 cierra PPO-02 sin cerrar PPO-01. PPO-QA-01 queda diferida
 sin bloquear la transición hacia PPO-03.
 
 PPO-03 inició en fase contractual con PPO-03A.1 y cerró PPO-03A.2 como
-[Aprobada con condiciones](production/PPO_03_TUS_SPIKE_REPORT.md). El spike
-demostró TUS directo, `apikey`, reanudación real y cleanup sin bytes por Next.js
-en dos modos: JWT normal para rutas internas y token firmado para el público.
-El rechazo público administrado del baseline queda diferido expresamente a la
-policy reservation-aware de PPO-03B/PPO-03C, sin SQL remoto. El
+[Aprobada con condiciones](production/PPO_03_TUS_SPIKE_REPORT.md). PPO-03B.1
+agregó y validó localmente el control plane de sesiones/items y policies
+operation-aware de Storage, sin SQL remoto. El
 [contrato de cargas y almacenamiento](production/PPO_03_UPLOAD_STORAGE_CONTRACT.md)
-refina conceptualmente el path futuro con `storage_nonce`; no hay código de
-upload productivo cambiado, las cargas vigentes continúan atravesando Server
-Actions y se conservan los límites transitorios de 110 MB. PPO-03B puede iniciar
-su diseño e implementación autorizados.
+mantiene el path versionado con `storage_nonce`; no hay código de upload
+productivo cambiado, las cargas vigentes continúan atravesando Server Actions y
+se conservan los límites transitorios de 110 MB. PPO-03B continúa activa con
+reserva, firma, transferencia y finalize pendientes.
 
 Documentos vigentes:
 
@@ -81,7 +79,16 @@ Documentos vigentes:
 - [Cierre de base contenerizada PPO-02E.1](production/PPO_02_CLOSURE.md).
 - [Contrato PPO-03A.1 de cargas y almacenamiento](production/PPO_03_UPLOAD_STORAGE_CONTRACT.md).
 - [Informe de spike PPO-03A.2](production/PPO_03_TUS_SPIKE_REPORT.md).
+- [Informe DB/Storage PPO-03B.1](production/PPO_03_STORAGE_DB_REPORT.md).
 - [Cierre PPO-00](preproduction/PPO_00_CLOSURE.md).
+
+## PPO-03B.1
+
+PPO-03B.1 está validada localmente: la séptima migración crea el control plane
+privado de sesiones e items de carga y restringe las operaciones nuevas de
+Storage por reserva, rol, estado, expiración y operación. No se ha aplicado SQL
+remoto ni se han cambiado los flujos actuales de upload; reserva, firma,
+transferencia y finalize siguen pendientes en PPO-03C.
 
 ## Funcionalidades disponibles
 
@@ -108,7 +115,7 @@ tienda online ni un carrito.
 
 ## Baseline de base de datos
 
-Estado correcto: seis migraciones consolidadas:
+Estado correcto: seis migraciones baseline y una migración incremental PPO-03B.1:
 
 1. `20260731000100_01_core_schema.sql`: enums, tablas, constraints, triggers base y servicios iniciales.
 2. `20260731000200_02_security_rls_grants.sql`: RLS, policies y grants.
@@ -116,6 +123,7 @@ Estado correcto: seis migraciones consolidadas:
 4. `20260731000400_04_storage.sql`: bucket privado, policies Storage y helpers.
 5. `20260731000500_05_auth_admin_user_lifecycle.sql`: ciclo Auth Admin, auditorías privadas, provisioning y reset.
 6. `20260731000600_06_final_hardening.sql`: assertions finales y hardening.
+7. `20260809000100_07_ppo03b_upload_sessions_storage.sql`: sesiones/items de carga, control plane privado y policies Storage operation-aware.
 
 ## Servicios iniciales
 

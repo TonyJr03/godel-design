@@ -41,6 +41,26 @@ Los archivos asociados solo a solicitudes no deben ser visibles para trabajadore
 
 ## Estructura de rutas
 
+### Raíz PPO-03B.1 reservada
+
+PPO-03B.1 añade, sin reemplazar rutas históricas, una raíz versionada para
+cargas reservadas:
+
+```text
+cargas/v1/{session_id}/{item_id}/{storage_nonce}-{safe_filename}
+```
+
+Solo un item `reserved` de una sesión `open` y no expirada puede autorizar esa
+ruta. La policy pública distingue `storage.object.sign_upload_url` de
+`storage.tus.upload.create`; la interna exige JWT normal, usuario activo,
+acceso al pedido y visibilidad derivada de su estado. No hay `SELECT` anónimo,
+no hay CRUD directo sobre las tablas de reserva y no se habilitan
+`storage.tus.upload.part` ni `storage.tus.upload.get` en PPO-03B.1.
+
+Los objetos bajo esta raíz no son descargables hasta que un finalize futuro los
+marque `committed` y cree metadata coherente en `public.archivos`. Las rutas
+históricas bajo `solicitudes/` y `pedidos/` permanecen sin cambios en esta fase.
+
 Estructura esperada dentro del bucket `godel-files`:
 
 ```text

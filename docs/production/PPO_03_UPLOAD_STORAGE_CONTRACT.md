@@ -121,9 +121,10 @@ extraen, ejecutan, interpretan ni renderizan server-side.
 
 ### Sesiones, items y paths
 
-PPO-03B introducirá conceptualmente <code>archivo_carga_sesiones</code> y
+PPO-03B.1 creó localmente <code>archivo_carga_sesiones</code> y
 <code>archivo_carga_items</code>, con nombres definitivos acordes al esquema
-español. No se crean tablas en PPO-03A.1. <code>public.archivos</code> seguirá
+español. PPO-03A.1 no creó tablas; esta actualización no implementa todavía
+reserva, firma desde Next.js, transferencia ni finalize. <code>public.archivos</code> seguirá
 representando solo archivos incorporados (committed), nunca cargas en curso.
 
 | Entidad | Campos conceptuales |
@@ -239,20 +240,21 @@ internos y <code>createSignedUploadUrl()</code> + <code>x-signature</code> para
 público sin Auth, ambos con <code>upsert = false</code>. Verificó RAR y CDR en
 Chrome/Windows, incluidos MIME vacío, legacy y
 <code>application/octet-stream</code>, sin abrir este último globalmente; también
-comprobó progreso, interrupción y reanudación. No define aún TTL, tablas,
-policies productivas, cleanup productivo ni flujos completos.
+comprobó progreso, interrupción y reanudación. PPO-03B.1 ya materializa tablas
+y policies locales; TTL definitivo, cleanup productivo y flujos completos
+siguen pendientes.
 
-Para PPO-03B queda documentada la capacidad oficial operation-aware de Storage:
+PPO-03B.1 aplica localmente la capacidad oficial operation-aware de Storage:
 <code>storage.allow_only_operation()</code> compara exactamente una operación y
 <code>storage.allow_any_operation()</code> permite una lista explícita. La policy
-pública reservation-aware podrá separar la firma
-<code>storage.object.sign_upload_url</code> de la creación,
-parte y consulta TUS (<code>storage.tus.upload.create</code>,
-<code>storage.tus.upload.part</code> y <code>storage.tus.upload.get</code>). La
+pública reservation-aware separa la firma
+<code>storage.object.sign_upload_url</code> de la creación TUS
+(<code>storage.tus.upload.create</code>). No habilita
+<code>storage.tus.upload.part</code> ni <code>storage.tus.upload.get</code>. La
 firma validará bucket, path reservado, sesión pública, estado y expiración sin
 exigir metadata aún inexistente; la creación TUS añadirá MIME normalizado,
 metadata esperada y restricciones del item cuando esa información sea
-observable. Es dirección de PPO-03B, no una policy implementada.
+observable. Es control plane validado localmente; no es aún el flujo completo.
 
 ## QA futuro mínimo
 
@@ -277,7 +279,7 @@ Las subfases posteriores validarán, en local y Supabase administrado:
 | --- | --- | --- |
 | PPO-03A.1 | Formalización del contrato | Ejecutada documentalmente |
 | PPO-03A.2 | Spike TUS + signed upload token | Cerrada — Aprobada con condiciones; ver informe |
-| PPO-03B | Modelo DB de sesiones/items, RLS y policies | Pendiente |
+| PPO-03B | Modelo DB de sesiones/items, RLS y policies | En curso — PPO-03B.1 validada localmente; sin flujo de aplicación ni despliegue remoto |
 | PPO-03C | Reserva, firma, transferencia y finalize comunes | Pendiente |
 | PPO-03D | Migración del upload interno de Pedidos | Pendiente |
 | PPO-03E | Migración del upload público de Solicitudes | Pendiente |
@@ -293,8 +295,9 @@ confirmará que un archivo de 20 MiB funciona sin ellos.
 
 - PPO-03A.1 no crea migraciones ni cambia RLS, policies, bucket, código ni
   paths históricos.
-- TUS, sesiones, paths nuevos, límite de 10, RAR, CDR, cleanup y nuevas policies
-  siguen siendo arquitectura objetivo, no implementación.
+- PPO-03B.1 implementa localmente sesiones, items, paths nuevos, límite de 10,
+  RAR/CDR y policies de reserva. Reserva/firma/finalize de aplicación, cleanup,
+  migración de UI y despliegue remoto siguen pendientes.
 - No se abren lectura, listado ni descarga anónimos; <code>public_reference</code>
   no es token de Storage.
 - No se declara resuelto el antivirus, el escaneo profundo ni la protección

@@ -807,6 +807,30 @@ No es una tabla de movimientos, abonos individuales ni comprobantes.
 - Trabajadores solo deberían acceder a archivos de pedidos asignados.
 - Un trabajador asignado puede subir la categoría derivada por el estado del pedido; RLS y Storage deben validar la misma correspondencia entre estado, categoría y carpeta.
 
+### `archivo_carga_sesiones` y `archivo_carga_items`
+
+**Propósito:** Control plane privado de PPO-03B.1 para reservas de carga. No
+representan archivos operativos ni se exponen por CRUD directo; `archivos`
+sigue siendo la única metadata de negocio de un objeto committed.
+
+| Entidad | Campos y reglas principales |
+|---|---|
+| `archivo_carga_sesiones` | Contexto exclusivo de `solicitud_id` público o `pedido_id` interno; para público conserva solo `public_token_hash`, para interno exige `created_by`; estados `open`, `completed`, `partial`, `expired`, `cancelled`; `expires_at > created_at`. |
+| `archivo_carga_items` | Reserva por sesión con `sort_order` entre 0 y 9, path único, nombre/MIME/tamaño canónicos, `visibility`, estado `reserved`/`committed`/`expired`/`cancelled` y `archivo_id` nullable único cuando existe. |
+
+Los paths nuevos se restringen a
+`cargas/v1/{session_id}/{item_id}/{storage_nonce}-{safe_filename}`. El helper
+SQL valida UUIDs, nonce hexadecimal de alta entropía, nombre sanitizado,
+extensión/MIME compatible y 20 MiB como máximo. PDF, JPG/JPEG, PNG, WEBP, DOC,
+DOCX, ZIP, RAR y CDR tienen combinaciones MIME canónicas explícitas.
+
+RLS queda activa y no hay grants directos a `anon` ni `authenticated`. Las
+policies de `storage.objects` consultan estos registros mediante helpers
+`security definer`: una reserva pública solo habilita firma y creación TUS;
+una reserva interna además exige usuario activo, acceso al pedido y visibilidad
+derivada de su estado. Lectura requiere item committed y metadata `archivos`
+coherente. No se habilitan operaciones TUS `part` ni `get` en esta fase.
+
 ### `pedido_comentarios`
 
 **Propósito:** Almacena notas o comentarios internos asociados a pedidos.
