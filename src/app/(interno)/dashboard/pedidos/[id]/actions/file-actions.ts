@@ -1,6 +1,7 @@
 "use server";
 
-import { revalidatePedidoDetail } from "@/lib/actions/revalidation";
+import { refresh } from "next/cache";
+
 import {
   finalizePedidoUpload,
   reservePedidoUpload,
@@ -40,7 +41,6 @@ export async function reservePedidoFilesAction(
 }
 
 export async function finalizePedidoFileAction(
-  pedidoId: string,
   input: FinalizePedidoFileActionInput,
 ): Promise<FinalizePedidoFileActionResult> {
   const result = await finalizePedidoUpload(input);
@@ -49,7 +49,9 @@ export async function finalizePedidoFileAction(
     return { ok: false, message: result.message };
   }
 
-  revalidatePedidoDetail(pedidoId);
-
   return { ok: true, result: result.finalize.result };
+}
+
+export async function refreshPedidoViewAction(): Promise<void> {
+  refresh();
 }

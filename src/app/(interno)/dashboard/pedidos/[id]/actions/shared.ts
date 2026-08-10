@@ -92,6 +92,8 @@ export type FinalizePedidoFileAction = (
   input: FinalizePedidoFileActionInput,
 ) => Promise<FinalizePedidoFileActionResult>;
 
+export type RefreshPedidoViewAction = () => Promise<void>;
+
 export type CreatePedidoCommentActionState = {
   ok: boolean;
   message: string;

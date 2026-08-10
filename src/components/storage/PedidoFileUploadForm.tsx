@@ -5,9 +5,9 @@ import {
   useRef,
   type FormEvent,
 } from "react";
-import { useRouter } from "next/navigation";
 import type {
   FinalizePedidoFileAction,
+  RefreshPedidoViewAction,
   ReservePedidoFilesAction,
 } from "@/app/(interno)/dashboard/pedidos/[id]/actions";
 import type { PedidoStatus } from "@/lib/pedidos";
@@ -29,6 +29,7 @@ import { Alert, Button } from "@/components/ui";
 type PedidoFileUploadFormProps = {
   reserveFilesAction: ReservePedidoFilesAction;
   finalizeFileAction: FinalizePedidoFileAction;
+  refreshViewAction: RefreshPedidoViewAction;
   pedidoStatus: PedidoStatus;
   canUpload: boolean;
   presentation?: "card" | "panel";
@@ -154,11 +155,11 @@ function getBatchSummary(entries: readonly UploadEntry[]) {
 export function PedidoFileUploadForm({
   reserveFilesAction,
   finalizeFileAction,
+  refreshViewAction,
   pedidoStatus,
   canUpload,
   presentation = "card",
 }: PedidoFileUploadFormProps) {
-  const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [entries, setEntries] = useState<UploadEntry[]>([]);
   const [isReserving, setIsReserving] = useState(false);
@@ -195,7 +196,7 @@ export function PedidoFileUploadForm({
     }));
   }
 
-  async function processEntry(entry: UploadEntry, refreshAfterCompletion: boolean) {
+  async function processEntry(entry: UploadEntry) {
     let tusCompleted = entry.tusCompleted;
 
     if (!tusCompleted) {
@@ -298,7 +299,6 @@ export function PedidoFileUploadForm({
       error: undefined,
     }));
 
-    if (refreshAfterCompletion) router.refresh();
   }
 
   async function runQueue(queue: UploadEntry[]) {
@@ -308,7 +308,7 @@ export function PedidoFileUploadForm({
         const entry = queue[nextIndex];
         nextIndex += 1;
         try {
-          await processEntry(entry, false);
+          await processEntry(entry);
         } catch {
           failEntry(
             entry,
@@ -327,7 +327,11 @@ export function PedidoFileUploadForm({
         ),
       );
     } finally {
-      router.refresh();
+      try {
+        await refreshViewAction();
+      } catch {
+        // A view refresh must not alter the persisted upload/finalize result.
+      }
     }
   }
 
@@ -394,13 +398,19 @@ export function PedidoFileUploadForm({
   async function retryEntry(entry: UploadEntry) {
     if (hasActiveUploads) return;
     try {
-      await processEntry(entry, true);
+      await processEntry(entry);
     } catch {
       failEntry(
         entry,
         entry.tusCompleted,
         "No se pudo completar la carga. Puedes reintentar este archivo.",
       );
+    } finally {
+      try {
+        await refreshViewAction();
+      } catch {
+        // A view refresh must not alter the persisted upload/finalize result.
+      }
     }
   }
 

@@ -8,6 +8,7 @@ export type {
   FinalizePedidoFileActionInput,
   FinalizePedidoFileActionResult,
   PedidoDetailAction,
+  RefreshPedidoViewAction,
   ReservePedidoFilesAction,
   ReservePedidoFilesActionInput,
   ReservePedidoFilesActionResult,
@@ -24,6 +25,7 @@ export { createPedidoCommentAction } from "./actions/comment-actions";
 export { updatePedidoDataAction } from "./actions/edit-actions";
 export {
   finalizePedidoFileAction,
+  refreshPedidoViewAction,
   reservePedidoFilesAction,
 } from "./actions/file-actions";
 export { updatePedidoPaymentAction } from "./actions/payment-actions";

@@ -41,6 +41,7 @@ import {
   updatePedidoTaskProgressAction,
   updatePedidoTaskTitleAction,
   finalizePedidoFileAction,
+  refreshPedidoViewAction,
   reservePedidoFilesAction,
 } from "./actions";
 import { startPedidoReviewOnOpenAction } from "./actions/status-actions";
@@ -81,17 +82,20 @@ export default async function DashboardPedidoDetallePage({
     );
   }
 
-  const profile = await getCurrentProfile();
+  const [profile, tasksResult, filesResult, commentsResult, historyResult] =
+    await Promise.all([
+      getCurrentProfile(),
+      listPedidoTasks(result.pedido.id),
+      listPedidoFiles(result.pedido.id),
+      listPedidoComments(result.pedido.id),
+      listPedidoHistory(result.pedido.id),
+    ]);
   const canManagePedidos =
     profile !== null && hasPermission(profile.role, "pedidos.manage");
   const canEditPedido =
     canManagePedidos && !isPedidoClosedStatus(result.pedido.status);
   const canManagePayments =
     profile !== null && (isAdmin(profile.role) || isSupervisor(profile.role));
-  const tasksResult = await listPedidoTasks(result.pedido.id);
-  const filesResult = await listPedidoFiles(result.pedido.id);
-  const commentsResult = await listPedidoComments(result.pedido.id);
-  const historyResult = await listPedidoHistory(result.pedido.id);
   const shouldEnableTaskTemplateAction =
     result.pedido.workflow_type === WORKFLOW_TYPES.ENCARGO &&
     canManagePedidoTasksInStatus(result.pedido.status);
@@ -134,7 +138,7 @@ export default async function DashboardPedidoDetallePage({
     ? await listOperationalServiceTypes()
     : null;
   const reserveFilesAction = reservePedidoFilesAction.bind(null, pedidoId);
-  const finalizeFileAction = finalizePedidoFileAction.bind(null, pedidoId);
+  const finalizeFileAction = finalizePedidoFileAction;
 
   return (
     <>
@@ -239,6 +243,7 @@ export default async function DashboardPedidoDetallePage({
             presentation="panel"
             reserveFilesAction={reserveFilesAction}
             finalizeFileAction={finalizeFileAction}
+            refreshViewAction={refreshPedidoViewAction}
             pedidoStatus={result.pedido.status}
             canUpload={profile !== null}
           />

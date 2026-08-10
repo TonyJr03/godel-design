@@ -1,5 +1,7 @@
 "use server";
 
+import { refresh } from "next/cache";
+
 import {
   createInternalPedido,
   type PedidoFieldErrors,
@@ -44,6 +46,8 @@ export async function createPedidoAction(
       fieldErrors: result.fieldErrors,
     };
   }
+
+  refresh();
 
   return {
     ok: true,

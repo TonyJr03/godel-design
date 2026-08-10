@@ -100,13 +100,16 @@ export default async function DashboardPedidosPage({
   const serviceId = getSingleSearchParam(params.service_id);
   const paymentStatus = getSingleSearchParam(params.payment_status);
   const page = getSingleSearchParam(params.page);
-  const result = await listInternalPedidos({
-    q,
-    status,
-    serviceId,
-    paymentStatus,
-    page,
-  });
+  const [result, profile] = await Promise.all([
+    listInternalPedidos({
+      q,
+      status,
+      serviceId,
+      paymentStatus,
+      page,
+    }),
+    getCurrentProfile(),
+  ]);
 
   if (!result.ok && result.reason === "unauthorized") {
     redirect("/login");
@@ -136,13 +139,13 @@ export default async function DashboardPedidosPage({
     }
   }
 
-  const profile = await getCurrentProfile();
   const canCreatePedido =
     profile !== null && hasPermission(profile.role, "pedidos.manage");
-  const filterServiceTypesResult = await listInternalServiceTypeOptions();
-  const operationalServiceTypesResult = canCreatePedido
-    ? await listOperationalServiceTypes()
-    : null;
+  const [filterServiceTypesResult, operationalServiceTypesResult] =
+    await Promise.all([
+      listInternalServiceTypeOptions(),
+      canCreatePedido ? listOperationalServiceTypes() : Promise.resolve(null),
+    ]);
   const searchValue = result.q ?? "";
 
   return (
