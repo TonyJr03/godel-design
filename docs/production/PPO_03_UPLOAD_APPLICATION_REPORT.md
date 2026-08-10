@@ -41,9 +41,10 @@ convierten a `ServiceResult` seguro sin registrar secretos, capabilities, JWT,
 firmas, URLs firmadas ni headers.
 
 La regresión `spike:ppo-03c1:local` valida el contrato DB/Storage, no la
-ejecución del wrapper TypeScript nuevo. PPO-03D deberá ejecutar el primer gate
-browser real authenticated y PPO-03E el presigned, demostrando TUS, resume,
-progreso/finalize y ausencia de bytes por Next.js.
+ejecución del wrapper TypeScript nuevo. PPO-03D.1 completó localmente el primer
+gate browser authenticated en el componente real de Pedidos: TUS, progreso,
+finalize, reanudación y ausencia de bytes de archivo por Next.js. PPO-03E
+mantiene pendiente el gate runtime presigned del flujo público.
 
 ## Auditoría de dependencias
 

@@ -17,7 +17,8 @@ vigentes de implementación están resumidas aquí y en la
 - Validación compartida para subidas públicas e internas.
 - Helper server-side para generar URLs firmadas de corta duración desde `archivo.id`.
 - Listado de archivos internos de pedido con RLS.
-- Subida interna de archivos de pedido desde Server Actions.
+- Reserva/finalize de cargas directas internas de Pedido.
+- Transferencia TUS browser-to-Storage para items reservados.
 - Descarga de archivos de pedido mediante route handler y signed URL.
 - Subida pública controlada de archivos de solicitud.
 - Listado y descarga interna de archivos de solicitud.
@@ -35,7 +36,8 @@ vigentes de implementación están resumidas aquí y en la
 | `file-validation.ts` | Validación compartida de archivo, categoría, contexto y categoría de pedido por estado. |
 | `upload-metadata.ts` | Builders server-side de metadata para insertar en `public.archivos`. |
 | `upload-public-solicitud-file.ts` | Upload público controlado desde `/solicitud`. |
-| `upload-pedido-file.ts` | Upload interno de archivos propios de pedido con cleanup best-effort. |
+| `upload-control/` | Reserva/finalize server-only, validación de descriptores y parsers seguros de RPC. |
+| `tus/` | Obtención browser-only del JWT normal y wrapper TUS con fingerprint/reanudación por item reservado. |
 | `list-solicitud-files.ts` | Listado interno seguro de archivos de solicitud. |
 | `list-pedido-files.ts` | Listado interno seguro de archivos de pedido. |
 | `signed-url.ts` | Generación server-side de signed URLs de corta duración desde `archivo.id`. |
@@ -43,7 +45,8 @@ vigentes de implementación están resumidas aquí y en la
 | `labels.ts` | Labels visibles por categoría. |
 | `index.ts` | Barrel público del dominio Storage para contratos de uso general. |
 
-QA focal del dominio vive en `tests/e2e/storage.spec.ts`.
+QA focal del dominio vive en `tests/e2e/storage.spec.ts` y el positivo real de
+Pedido directo en `tests/e2e/pedido-upload-direct.spec.ts`.
 
 ## Bucket privado
 
@@ -65,7 +68,8 @@ pedidos/{pedido_id}/finales/{timestamp}-{filename}
 
 La validación base exige archivo existente, nombre seguro, tamaño mayor que cero, tamaño máximo permitido, MIME permitido, extensión permitida y contexto válido según categoría.
 
-No se aceptan ejecutables, scripts, HTML ni SVG. Formatos de diseño como AI, PSD o CDR quedan pendientes porque sus MIME types no son confiables sin validación adicional.
+No se aceptan ejecutables, scripts, HTML ni SVG. PPO-03 permite además RAR y
+CDR para las cargas reservadas; AI y PSD siguen fuera del mapa canónico.
 
 ## Relación TS/SQL
 
@@ -139,7 +143,17 @@ internos. Los archivos de solicitud conservan un DTO más mínimo.
 
 `listPedidoFiles(pedidoId)` lista metadatos seguros de `archivos` para un pedido, sin devolver `file_path` ni URLs públicas al componente cliente.
 
-`uploadPedidoFile(input)` recibe únicamente `pedidoId` y el archivo real. Valida usuario interno activo y acceso al pedido, carga su estado mediante RLS, deriva la categoría server-side, valida nombre seguro, MIME, extensión y tamaño, construye la ruta y guarda el objeto en el bucket privado `godel-files` antes de insertar sus metadatos en `archivos`.
+Las cargas internas de Pedido usan el control plane de PPO-03: la Server Action
+recibe solo `pedidoId` y descriptores `{ name, size }`, reserva la sesión, y el
+navegador transfiere cada `File` directo a Storage mediante TUS autenticado. Al
+terminar cada transferencia, una acción de finalize registra metadata por RPC.
+Los bytes no pasan por Next.js ni se inserta `archivos` antes del commit.
+
+`PedidoFileUploadForm` conserva transitoriamente en memoria el `File`, el item
+reservado y su `objectPath` porque `uploadReservedFile()` lo necesita para TUS.
+Ese path no se renderiza, registra ni persiste manualmente; los listados normales
+siguen sin exponer `file_path` y las descargas usan el route handler interno con
+URL firmada server-side.
 
 Categoría automática por estado:
 
@@ -152,15 +166,13 @@ Categoría automática por estado:
 
 `admin`, `supervisor` y cualquier trabajador asignado pueden subir la categoría correspondiente mientras el estado lo permita. Un trabajador no asignado no puede cargar el pedido ni subir archivos por las validaciones server-side, RLS y policies de Storage.
 
-El formulario no envía `visibility`, categoría, bucket, ruta, usuario, nombre, MIME ni tamaño como fuente de verdad. La policy de `archivos` y la policy de `storage.objects` vuelven a comprobar que el estado actual coincida con la categoría y la carpeta derivadas.
-
-La metadata de pedido se construye server-side antes del insert en `archivos`.
-El servicio fija `pedido_id`, `solicitud_id = null`, `uploaded_by` con el
-perfil interno actual, `bucket = godel-files`, `file_path` generado y
-`visibility` derivada del estado. Si el objeto ya se subió a Storage pero falla
-el insert de metadata, el servicio intenta borrar ese objeto como cleanup
-best-effort. Un fallo en ese cleanup se registra en servidor y no cambia el
-mensaje seguro que recibe la UI.
+El formulario no envía `visibility`, categoría, bucket, ruta, usuario, MIME ni
+tamaño como fuente de verdad. TypeScript server-side deriva el MIME canónico
+desde la extensión mediante el descriptor builder; PostgreSQL valida el
+descriptor, deriva visibilidad y genera sesión, item, nonce y path reservado.
+Storage/finalize vuelven a verificar el objeto. La cola local permite dos
+transferencias simultáneas, renueva el JWT antes de cada TUS y conserva el retry
+del mismo item para completar finalize de forma idempotente.
 
 ## Archivos públicos de solicitud
 
@@ -247,7 +259,8 @@ queda pendiente para una fase posterior.
 - No existe reconciliación interna de objetos huérfanos.
 - El upload público puede dejar objeto sin metadata si falla el insert
   posterior.
-- No hay upload positivo e2e por falta de fixture/cleanup estable.
+- El flujo interno de Pedido tiene E2E positivo real de reserva, TUS, reanudación,
+  lote, finalize y metadata visible; Solicitudes públicas siguen legacy.
 - No hay descarga positiva e2e de archivo real por falta de fixture estable.
 - No hay rate limiting, captcha ni honeypot en `/solicitud`.
 - No hay antivirus ni escaneo profundo de archivos.

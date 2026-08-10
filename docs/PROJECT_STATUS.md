@@ -53,27 +53,17 @@ restricción ProTUN/PostgreSQL como condición administrativa y queda aprobada c
 condiciones. PPO-02E.1 cierra PPO-02 sin cerrar PPO-01. PPO-QA-01 queda diferida
 sin bloquear la transición hacia PPO-03.
 
-PPO-03 inició en fase contractual con PPO-03A.1 y cerró PPO-03A.2 como
-[Aprobada con condiciones](production/PPO_03_TUS_SPIKE_REPORT.md). PPO-03B.1
-agregó y validó localmente el control plane de sesiones/items y policies
-operation-aware de Storage, sin SQL remoto. El
-[contrato de cargas y almacenamiento](production/PPO_03_UPLOAD_STORAGE_CONTRACT.md)
-mantiene el path versionado con `storage_nonce`; no hay código de upload
-productivo cambiado, las cargas vigentes continúan atravesando Server Actions y
-se conservan los límites transitorios de 110 MB. PPO-03B queda cerrada:
-PPO-03B.2B validó por HTTPS el backend administrado con VPN activo, control
-plane cerrado para `anon` y authenticated, rutas `cargas/v1` sin reserva
-rechazadas y compatibilidad legacy conservada. El listing devolvió cero objetos
-visibles; sin un staged real no prueba la enumeración de staged. PPO-03C.1
-implementó y validó localmente reserva, firma, transferencia y finalize.
-PPO-03C.3A promovió manualmente la migración 08 y PPO-03C.3B completó el gate
-administrado de staged real, TUS y finalize por HTTPS.
+PPO-03A.2, PPO-03B y PPO-03C están cerradas. PPO-03B.2A promovió manualmente la
+migración 07 y PPO-03C.3A la migración 08; ambas son inmutables. PPO-03C.3B
+validó por HTTPS administrado reserva real, TUS, staged aislado y finalize sin
+ejecutar PostgreSQL remoto.
 
-PPO-03C.1 queda cerrada y aprobada localmente. PPO-03C.2 queda cerrada y
-aprobada con condición de integración runtime en PPO-03D/E. PPO-03C.3A promovió
-manualmente la migración 08 y PPO-03C.3B validó por HTTPS el recorrido real de
-reserva, TUS, staged aislado y finalize idempotente. PPO-03C queda cerrada;
-PPO-03D es la siguiente fase.
+PPO-03D permanece activa. PPO-03D.1 integra localmente el upload interno de
+Pedidos: las Server Actions reciben solamente descriptores y finalize, mientras
+el navegador transfiere los bytes directo a Storage por TUS autenticado. El gate
+browser local cubrió progreso, reanudación, lote de tres archivos, finalize y
+ausencia de bytes de archivo hacia Next.js. PPO-03D.1 queda implementada
+localmente y pendiente de revisión arquitectónica; PPO-03E continúa pendiente.
 
 Documentos vigentes:
 
@@ -94,6 +84,7 @@ Documentos vigentes:
 - [Informe DB/Storage PPO-03B.1](production/PPO_03_STORAGE_DB_REPORT.md).
 - [Validación HTTPS administrada PPO-03B.2B](production/PPO_03_STORAGE_MANAGED_REPORT.md).
 - [Gate HTTPS administrado PPO-03C.3B](production/PPO_03_CONTROL_PLANE_MANAGED_REPORT.md).
+- [Informe de integración interna PPO-03D.1](production/PPO_03_PEDIDO_UPLOAD_REPORT.md).
 - [Cierre PPO-00](preproduction/PPO_00_CLOSURE.md).
 
 ## PPO-03B — Cerrada
@@ -102,9 +93,9 @@ PPO-03B.1 está validada localmente tras corrección arquitectónica: la séptim
 privado de sesiones e items de carga y restringe las operaciones nuevas de
 Storage por reserva, rol, estado, expiración y operación. TUS interno admite
 `create` y `part`; TUS público usa exclusivamente el endpoint firmado
-`/upload/resumable/sign`, sin TUS regular anónimo. No se ha aplicado SQL
-remoto ni se han cambiado los flujos actuales de upload; reserva, firma,
-transferencia y finalize siguen pendientes en PPO-03C. PPO-03B.2A aplicó la
+`/upload/resumable/sign`, sin TUS regular anónimo. En el cierre de PPO-03B, las
+capacidades de reserva, firma, transferencia y finalize quedaron transferidas a
+PPO-03C, posteriormente completada. PPO-03B.2A aplicó la
 migración 07 administrada por Dirección Técnica y PPO-03B.2B validó sus APIs
 HTTPS sin ejecutar PostgreSQL remoto. PPO-03B.2B queda cerrada, aprobada con la
 condición de integración de listing/staged transferida a PPO-03C; la evidencia

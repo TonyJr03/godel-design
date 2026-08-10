@@ -3753,7 +3753,7 @@ Otra línea de QA para el textarea.`;
   const filesListTitle = filesDialog.getByRole("heading", {
     name: /^archivos asociados$/i,
   });
-  const fileInput = filesDialog.getByLabel(/^archivo$/i);
+  const fileInput = filesDialog.getByLabel(/^archivos$/i);
 
   await expect(filesListTitle).toBeVisible();
   if (await fileInput.isVisible().catch(() => false)) {
@@ -3780,10 +3780,10 @@ Otra línea de QA para el textarea.`;
     await fileInput.setInputFiles(
       resolve(process.cwd(), "tests/e2e/fixtures/sample-print-request.pdf"),
     );
-    await filesDialog.getByRole("button", { name: /subir archivo/i }).click();
+    await filesDialog.getByRole("button", { name: /subir archivos/i }).click();
     await expect(filesDialog).toBeVisible();
     await expect(
-      filesDialog.getByText(/archivo subido correctamente/i),
+      filesDialog.getByText(/completado/i),
     ).toBeVisible({ timeout: 15_000 });
   }
 

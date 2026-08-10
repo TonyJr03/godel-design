@@ -6,7 +6,10 @@ Este documento define la estrategia para almacenar archivos enviados por cliente
 
 Supabase Storage guarda los binarios. La tabla `archivos` guarda los metadatos de negocio, relaciones, categoría y trazabilidad.
 
-PPO-03C.1 implementa localmente el finalize autoritativo de la raíz cargas/v1: verifica el objeto reservado, crea su metadata de negocio y lo deja committed. Antes de ese paso un staged permanece no legible. La repetición administrada con reserva y staged reales continúa como gate de PPO-03C.
+PPO-03C implementó el finalize autoritativo de la raíz `cargas/v1` y PPO-03C.3B
+lo validó administradamente. PPO-03D.1 integra localmente Pedidos: antes de
+finalize un staged permanece no legible; después del commit se crea su metadata
+de negocio y el archivo se vuelve operativo.
 
 ## Principios
 
@@ -61,9 +64,10 @@ habilitan exclusivamente `storage.tus.upload.create` y
 público no habilita TUS regular anónimo: usa token firmado y
 `/storage/v1/upload/resumable/sign`.
 
-Los objetos bajo esta raíz no son descargables hasta que un finalize futuro los
-marque `committed` y cree metadata coherente en `public.archivos`. Las rutas
-históricas bajo `solicitudes/` y `pedidos/` permanecen sin cambios en esta fase.
+Los objetos bajo esta raíz no son descargables hasta que finalize los marque
+`committed` y cree metadata coherente en `public.archivos`. Las rutas históricas
+bajo `solicitudes/` y `pedidos/` permanecen sin cambios; PPO-03D.1 usa la raíz
+reservada solo para las nuevas cargas internas de Pedido.
 
 PPO-03B.2B confirmó contra el backend administrado por HTTPS que `anon` y un
 usuario interno no pueden autorizar rutas `cargas/v1` sin reserva, y que la
@@ -182,12 +186,13 @@ La categoría no se selecciona en el formulario. Se deriva server-side desde el 
 
 El listado consulta la tabla `archivos` por `pedido_id` y se apoya en RLS. La UI recibe metadatos seguros como nombre, tamaño, tipo, categoría, fecha y perfil que subió el archivo cuando es visible. No recibe `file_path`.
 
-La página enlaza `pedido_id` a la action y el formulario envía únicamente el
-archivo real. El servicio carga el pedido con RLS, deriva la categoría desde su
-estado, valida nombre, tamaño, MIME, extensión y contexto, construye la ruta
-internamente y guarda metadatos en `archivos`. No acepta `visibility`,
-categoría, `file_path`, `bucket`, `uploaded_by`, `file_name`, `file_type` ni
-`file_size` desde campos del formulario como fuente de verdad.
+La página enlaza `pedido_id` a acciones de reserva y finalize. La reserva recibe
+solamente `name` y `size`; TypeScript server-side deriva MIME canónico por
+extensión y PostgreSQL valida el descriptor, deriva categoría, genera nonce y
+path. El navegador transfiere el `File` directo por TUS con el JWT de su sesión.
+Cada item se finaliza de forma idempotente y recién entonces inserta metadata en
+`archivos`; no acepta `visibility`, categoría, `file_path`, bucket,
+`uploaded_by`, MIME ni bytes como fuente de verdad.
 
 RLS de `archivos` y las policies de `storage.objects` comprueban nuevamente acceso al pedido, usuario activo, estado, categoría y carpeta. Esto permite subir archivos internos a un trabajador asignado durante `creado`, `solicitud_recibida` o `en_revision`, y bloquea toda nueva subida cuando el pedido está `entregado` o `cancelado`.
 

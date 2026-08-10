@@ -174,7 +174,7 @@ test("admin sees safe pedido storage panel when a pedido exists", async ({
     ).toBeVisible();
   }
 
-  const fileInput = storageDialog.getByLabel(/^archivo$/i);
+  const fileInput = storageDialog.getByLabel(/^archivos$/i);
 
   if (await fileInput.isVisible().catch(() => false)) {
     await expectBefore(filesListTitle, fileInput);
@@ -197,11 +197,11 @@ test("admin sees safe pedido storage panel when a pedido exists", async ({
       buffer: minimumPngBuffer,
     });
     await storageDialog
-      .getByRole("button", { name: /^subir archivo$/i })
+      .getByRole("button", { name: /^subir archivos$/i })
       .click();
     await expect(storageDialog).toBeVisible();
     await expect(
-      storageDialog.getByText(/archivo subido correctamente/i),
+      storageDialog.getByText(/completado/i),
     ).toBeVisible({ timeout: 15_000 });
     await expect(storageDialog.getByText(qaFileName)).toBeVisible({
       timeout: 15_000,
@@ -250,7 +250,7 @@ test("admin sees safe solicitud storage section when a solicitud exists", async 
   await expect(
     storageDialog.getByRole("heading", { name: /archivos de la solicitud/i }),
   ).toHaveCount(0);
-  await expect(storageDialog.getByLabel(/^archivo$/i)).toHaveCount(0);
+  await expect(storageDialog.getByLabel(/^archivos$/i)).toHaveCount(0);
   await expect(
     storageDialog.getByRole("heading", { name: /subir/i }),
   ).toHaveCount(0);

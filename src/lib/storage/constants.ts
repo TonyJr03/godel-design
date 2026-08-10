@@ -23,6 +23,12 @@ export const PPO03_MIME_BY_EXTENSION = {
   cdr: "application/vnd.corel-draw",
 } as const;
 
+export const PPO03_STORAGE_FILE_INPUT_ACCEPT = Object.keys(
+  PPO03_MIME_BY_EXTENSION,
+)
+  .map((extension) => `.${extension}`)
+  .join(",");
+
 export const STORAGE_ROOTS = {
   solicitudes: "solicitudes",
   pedidos: "pedidos",

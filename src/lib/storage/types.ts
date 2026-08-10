@@ -129,31 +129,6 @@ export type ListPedidoFilesResult =
       files: [];
     };
 
-export type UploadPedidoFileInput = {
-  pedidoId: string;
-  file: File;
-};
-
-export type UploadPedidoFileResult =
-  | {
-      ok: true;
-      fileId: string;
-    }
-  | {
-      ok: false;
-      reason:
-        | "unauthorized"
-        | "invalid_pedido_id"
-        | "pedido_not_found"
-        | "pedido_delivered"
-        | "pedido_canceled"
-        | "status_not_allowed"
-        | "invalid_file"
-        | "storage_error"
-        | "metadata_error"
-        | "error";
-    };
-
 export type SolicitudFileListItem = SafeListedFileMetadata;
 
 export type ListSolicitudFilesResult =

@@ -1001,7 +1001,7 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   const filesListHeading = filesPanel.getByRole("heading", {
     name: /^archivos asociados$/i,
   });
-  const uploadInput = filesPanel.getByLabel(/^archivo$/i);
+  const uploadInput = filesPanel.getByLabel(/^archivos$/i);
 
   await expect(filesListHeading).toBeVisible();
   await expectBefore(filesListHeading, uploadInput);
@@ -1011,10 +1011,10 @@ test("Beta 1.8.3 visual QA end-to-end", async ({ page }) => {
   await uploadInput.setInputFiles(
     resolve(process.cwd(), "tests/e2e/fixtures/sample-print-request.pdf"),
   );
-  await filesPanel.getByRole("button", { name: /subir archivo/i }).click();
+  await filesPanel.getByRole("button", { name: /subir archivos/i }).click();
   await expect(filesPanel).toBeVisible();
   await expect(
-    filesPanel.getByText(/archivo subido correctamente/i),
+    filesPanel.getByText(/completado/i),
   ).toBeVisible({ timeout: 15_000 });
   await expect(
     filesPanel.getByText(/sample-print-request\.pdf/i).first(),

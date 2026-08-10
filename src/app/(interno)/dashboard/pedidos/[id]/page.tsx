@@ -40,7 +40,8 @@ import {
   updatePedidoStatusAction,
   updatePedidoTaskProgressAction,
   updatePedidoTaskTitleAction,
-  uploadPedidoFileAction,
+  finalizePedidoFileAction,
+  reservePedidoFilesAction,
 } from "./actions";
 import { startPedidoReviewOnOpenAction } from "./actions/status-actions";
 
@@ -132,7 +133,8 @@ export default async function DashboardPedidoDetallePage({
   const editServiceTypesResult = canEditPedido
     ? await listOperationalServiceTypes()
     : null;
-  const uploadFileAction = uploadPedidoFileAction.bind(null, pedidoId);
+  const reserveFilesAction = reservePedidoFilesAction.bind(null, pedidoId);
+  const finalizeFileAction = finalizePedidoFileAction.bind(null, pedidoId);
 
   return (
     <>
@@ -235,7 +237,8 @@ export default async function DashboardPedidoDetallePage({
         fileUploadPanelContent={
           <PedidoFileUploadForm
             presentation="panel"
-            uploadFileAction={uploadFileAction}
+            reserveFilesAction={reserveFilesAction}
+            finalizeFileAction={finalizeFileAction}
             pedidoStatus={result.pedido.status}
             canUpload={profile !== null}
           />

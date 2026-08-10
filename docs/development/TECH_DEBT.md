@@ -38,12 +38,10 @@ resueltas ni planes históricos completos.
 
 ### TD-UPLOAD-001 - Archivos grandes procesados por Next
 
-Las subidas actuales atraviesan Server Actions. `next.config.ts` permite hasta
-`110mb` en `serverActions.bodySizeLimit` y `proxyClientMaxBodySize` también está
-en `110mb`, mientras el sistema permite hasta cinco archivos de 20 MB. Este
-flujo es aceptable para MVP y QA local, pero antes de producción debe probarse
-en infraestructura real o reemplazarse por un flujo adecuado para archivos
-grandes.
+PPO-03D.1 retiró esta ruta para las cargas internas de Pedido: sus bytes viajan
+del navegador a Storage por TUS. El flujo público de Solicitudes todavía atraviesa
+Server Actions, por lo que `next.config.ts` conserva `110mb` en
+`serverActions.bodySizeLimit` y `proxyClientMaxBodySize` hasta PPO-03E/G.
 
 ### TD-SECURITY-001 - Protección antiabuso de rutas públicas
 
@@ -71,11 +69,11 @@ el escaneo profundo. Esta deuda continúa activa.
 - Bloquea producción pública: Sí, hasta validar la infraestructura o adoptar un flujo adecuado.
 - Estado: Activa.
 
-Las subidas actuales pasan por Server Actions. Para soportar el límite funcional
-de hasta cinco archivos de 20 MB, `next.config.ts` mantiene
-`serverActions.bodySizeLimit = "110mb"` y `proxyClientMaxBodySize = "110mb"`.
-Esto significa que Next puede recibir y procesar cuerpos grandes antes de que el
-archivo termine en Storage.
+La rama interna de Pedidos ya usa reserva/finalize y TUS directo, por lo que no
+envía bytes de archivo a Next.js. La rama pública de Solicitudes sigue pasando
+por Server Actions; para su límite funcional de hasta cinco archivos de 20 MB,
+`next.config.ts` mantiene `serverActions.bodySizeLimit = "110mb"` y
+`proxyClientMaxBodySize = "110mb"`.
 
 El compromiso es razonable para MVP y QA local, pero en producción puede causar
 presión de memoria, timeouts o incompatibilidad con límites del hosting, proxy o
@@ -84,16 +82,16 @@ infraestructura real.
 
 Solución recomendada:
 
-- Evaluar upload directo y controlado a Supabase Storage mediante signed upload
-  URLs u otro flujo especializado.
+- Completar PPO-03E con upload directo y controlado a Supabase Storage mediante
+  TUS presigned para Solicitudes.
 - Mantener validaciones de permisos y metadata en servidor.
 - No debilitar RLS, grants ni policies de Storage.
 - No abrir rutas privadas, `file_path` ni credenciales administrativas al cliente.
 
 Seguimiento: PPO-03 inició con el
 [contrato de cargas y almacenamiento](../production/PPO_03_UPLOAD_STORAGE_CONTRACT.md).
-La iniciativa define el destino de transferencia directa y la retirada futura
-de los límites transitorios, pero esta deuda continúa activa hasta PPO-03G.
+La rama interna queda resuelta por PPO-03D.1; la deuda continúa activa por
+Solicitudes y por la retirada de límites transitorios en PPO-03G.
 
 ### TD-QA-001 - Suite e2e paralela no estable
 
