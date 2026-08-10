@@ -16,6 +16,12 @@ const credentialPrefixes = {
   worker: "GODEL_TEST_WORKER",
 } satisfies Record<QaRole, string>;
 
+const managedCredentialPrefixes = {
+  admin: "GODEL_MANAGED_TEST_ADMIN",
+  supervisor: "GODEL_MANAGED_TEST_SUPERVISOR",
+  worker: "GODEL_MANAGED_TEST_WORKER",
+} satisfies Record<QaRole, string>;
+
 function readLocalEnv(name: string) {
   if (process.env[name]) {
     return process.env[name];
@@ -37,10 +43,33 @@ function readLocalEnv(name: string) {
   return line.slice(line.indexOf("=") + 1).trim().replace(/^['"]|['"]$/g, "");
 }
 
+function readManagedEnv(name: string) {
+  if (process.env[name]) {
+    return process.env[name];
+  }
+
+  const envPath = resolve(process.cwd(), "compose.env.local");
+  if (existsSync(envPath)) {
+    const line = readFileSync(envPath, "utf8")
+      .split(/\r?\n/)
+      .find((entry) => entry.trim().startsWith(`${name}=`));
+
+    if (line) {
+      return line.slice(line.indexOf("=") + 1).trim().replace(/^['"]|['"]$/g, "");
+    }
+  }
+
+  return readLocalEnv(name);
+}
+
 function getCredentials(role: QaRole): Credentials | null {
-  const prefix = credentialPrefixes[role];
-  const email = readLocalEnv(`${prefix}_EMAIL`);
-  const password = readLocalEnv(`${prefix}_PASSWORD`);
+  const isManaged = process.env.GODEL_E2E_TARGET === "managed";
+  const prefix = isManaged
+    ? managedCredentialPrefixes[role]
+    : credentialPrefixes[role];
+  const readCredential = isManaged ? readManagedEnv : readLocalEnv;
+  const email = readCredential(`${prefix}_EMAIL`);
+  const password = readCredential(`${prefix}_PASSWORD`);
 
   if (!email || !password) {
     return null;

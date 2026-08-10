@@ -89,6 +89,20 @@ forman parte de esta subfase.
 `next@16.3.0`, fuera del rango declarado; no se ejecutó `npm audit fix` ni se
 actualizaron dependencias.
 
+## Seguimiento PPO-03D.2
+
+El primer intento del gate HTTPS administrado descubrió un defecto real del
+reverse proxy, no del uploader: Nginx enviaba `Host` y
+`X-Forwarded-Host` mediante `$host`, que eliminaba el puerto externo. Con
+`Origin: http://127.0.0.1:8080`, Next.js rechazaba correctamente la Server
+Action por el mismatch Origin/X-Forwarded-Host. La corrección preserva el Host
+original mediante `$http_host`; el smoke de login productivo volvió a
+`/dashboard` sin ese rechazo.
+
+PPO-03D.2 permanece activa: el gate completo todavía debe concluir la
+transferencia TUS administrada de 7 MiB, finalize y su verificación de residuo
+cero. No se declara aprobación en este punto.
+
 ## Estado
 
 ```text

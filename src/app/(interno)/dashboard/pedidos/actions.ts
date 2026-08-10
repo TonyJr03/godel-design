@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import {
   createInternalPedido,
   type PedidoFieldErrors,
@@ -45,8 +44,6 @@ export async function createPedidoAction(
       fieldErrors: result.fieldErrors,
     };
   }
-
-  revalidatePath("/dashboard/pedidos");
 
   return {
     ok: true,
