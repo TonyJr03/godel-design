@@ -65,6 +65,12 @@ browser local cubrió progreso, reanudación, lote de tres archivos, finalize y
 ausencia de bytes de archivo hacia Next.js. PPO-03D.1 queda implementada
 localmente y pendiente de revisión arquitectónica; PPO-03E continúa pendiente.
 
+Actualización PPO-03E: las subfases E.1, E.2 y E.3 están implementadas
+localmente. `/solicitud` usa reserva, firma TUS, transferencia directa y
+finalize; los gates cubren 7 MiB, resume, concurrencia, retry y ausencia de
+bytes en Next. PPO-03E queda pendiente de revisión/cierre arquitectónico y
+PPO-03 continúa por PPO-03F/G.
+
 Documentos vigentes:
 
 - [Roadmap PPO](production/PPO_ROADMAP.md).

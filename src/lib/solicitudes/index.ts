@@ -16,7 +16,6 @@ export {
   type CreateSolicitudCommentResult,
   type SolicitudCommentFieldErrors,
 } from "./create-solicitud-comment";
-export { createPublicSolicitud } from "./create-public-solicitud";
 export {
   createPublicSolicitudWithoutUpload,
   type CreatePublicSolicitudWithoutUploadInput,
@@ -77,10 +76,6 @@ export {
   type PublicSolicitudInput,
   type ValidatePublicSolicitudInputResult,
 } from "./public-request-validation";
-export type {
-  CreatePublicSolicitudErrorReason,
-  CreatePublicSolicitudResult,
-} from "./create-public-solicitud";
 export type {
   GetInternalSolicitudByIdErrorReason,
   GetInternalSolicitudByIdResult,

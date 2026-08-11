@@ -208,6 +208,9 @@ despliegue productivo ni despliegue en la empresa.
   actores no autorizados. PPO-03D.1 integra localmente Pedidos mediante TUS
   autenticado directo y queda pendiente de revisión arquitectónica; PPO-03E
   sigue para integrar el flujo público.
+- Actualización PPO-03E: Solicitudes ya integra localmente reserva, firma TUS,
+  transferencia directa, finalize, resume y retry. PPO-03E queda pendiente de
+  revisión/cierre arquitectónico antes de PPO-03F/G.
 - PPO-04: cubrirá despliegue provisional, Cloudflare Tunnel, dominio y
   recuperación del host.
 - PPO-05: abordará antiabuso, rate limiting, seguridad pública y protección de

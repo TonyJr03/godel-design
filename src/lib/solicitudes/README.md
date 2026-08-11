@@ -32,7 +32,7 @@ La conversión Solicitud -> Pedido se dispara desde el detalle interno de una so
 | Archivo | Responsabilidad |
 |---|---|
 | `index.ts` | Punto de export controlado del dominio. |
-| `create-public-solicitud.ts` | Crea solicitudes públicas, genera `public_reference`, inserta con cliente normal de Supabase y devuelve resultado seguro. |
+| `create-public-solicitud-without-upload.ts` | Crea Encargo público sin archivos mediante la RPC controlada y devuelve una referencia segura. |
 | `public-request-validation.ts` | Orquesta la validación pública y delega reglas comunes o por workflow. |
 | `public-request-validation-types.ts` | Tipos, opciones y límites del formulario público. |
 | `public-request-validation-common.ts` | Normalización y validación común de contacto y campos compartidos. |
@@ -63,27 +63,22 @@ público de flujo `encargo`, e Impresión aparece solo si el servicio único de
 flujo `impresion` está público. Si no hay servicios públicos o el catálogo no
 puede cargarse, no se renderiza el formulario.
 
-La action pública:
-
-- lee solo campos permitidos desde `FormData`;
-- recibe `service_id` como entrada editable;
-- prevalida archivos cuando aplica;
-- calcula `hasFiles` desde los archivos recibidos;
-- llama `createPublicSolicitud`;
-- coordina la subida de archivos públicos de solicitud;
-- devuelve mensajes seguros para la UI.
+La action pública recibe campos serializables y descriptores `{ name, size }`.
+Para Encargo sin archivos llama a `createPublicSolicitudWithoutUpload`; con uno
+a diez archivos, o para Impresión, delega al control plane de Storage para
+reservar, firmar y finalizar. Los bytes no atraviesan la action: el navegador
+los envía por TUS directamente a Storage. La action devuelve mensajes seguros
+para la UI.
 
 La validación definitiva ocurre server-side. El formulario no acepta como fuente
 de verdad campos técnicos como `id`, `status`, `cliente_id`, `reviewed_by`,
 `converted_order_id`, `workflow_type`, nombre del servicio, `bucket`, `file_path` o
 `uploaded_by`.
 
-`createPublicSolicitud` resuelve el servicio mediante
-`getPublicServiceTypeById(service_id)` antes de validar el workflow. Un servicio
+Las RPC públicas resuelven el servicio antes de validar el workflow. Un servicio
 oculto, inexistente o con UUID inválido se rechaza como error de `service_id`.
-Las solicitudes nuevas insertan `service_id` y `workflow_type` derivado del
-servicio. El trigger de base de datos vuelve a sincronizar `workflow_type` desde
-`service_id` como defensa adicional.
+Las solicitudes nuevas guardan `service_id` y `workflow_type` derivado del
+servicio; la base lo vuelve a sincronizar como defensa adicional.
 
 `desired_date` es opcional; si se informa debe ser una fecha válida igual o posterior al día actual. El `min` del formulario es ayuda de UX, no autoridad. Las pruebas e2e deben usar fechas futuras dinámicas.
 
@@ -193,7 +188,7 @@ Reglas actuales:
 - no hay lectura, listado ni descarga pública de archivos;
 - los listados internos no devuelven `file_path`;
 - la descarga interna usa route handler y signed URL corta;
-- las rutas y categorías se derivan server-side;
+- sesión, item, ruta, categoría y metadata se derivan en el control plane;
 - la conversión puede asociar metadata de archivos al pedido sin mover objetos;
 - un fallo excepcional entre upload y metadata puede dejar objeto huérfano.
 

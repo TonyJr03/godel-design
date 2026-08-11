@@ -234,6 +234,13 @@ directo en `solicitudes`, y después a `uploadPublicSolicitudFiles`, que usa
 pero `reservePublicUpload`, `signPublicUpload` y `finalizePublicUpload` no están
 conectados a la action/UI.
 
+> Actualización PPO-03E: el bloque anterior es evidencia del estado auditado
+> antes de PPO-03E. El contrato vigente de `/solicitud` usa reserva pública,
+> firma por item, TUS directo a Storage y finalize autoritativo; no conserva
+> `createPublicSolicitud`, uploader público legacy ni paths
+> `solicitudes/{id}/originales`. La evidencia vigente está en
+> `PPO_03_PUBLIC_SOLICITUD_UPLOAD_REPORT.md`.
+
 ## 10. Gap público PPO-03E
 
 PPO-03E debe reemplazar en una sola entrega el formulario/action actual por:

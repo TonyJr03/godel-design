@@ -293,7 +293,9 @@ test("public solicitud rejects blocked file upload safely", async ({ page }) => 
   await expect(page.getByText(/revisa los archivos adjuntos/i)).toBeVisible({
     timeout: 15_000,
   });
-  await expect(page.getByText(/blocked-storage\.svg/i)).toBeVisible();
+  await expect(page.locator("#files-error")).toContainText(
+    /PDF, imagen, documento, ZIP, RAR o CDR/i,
+  );
   await expect(page.getByText(/hemos recibido tu solicitud/i)).toHaveCount(0);
   await expectNoStorageLeakText(page);
 });

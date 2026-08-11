@@ -6,8 +6,9 @@ Estado:
 
 ```text
 PPO-03E.1 — cerrada / aprobada
-PPO-03E.2 — validada / pendiente cierre arquitectónico
-PPO-03E — activa
+PPO-03E.2 — cerrada / aprobada
+PPO-03E.3 — implementada / pendiente revisión arquitectónica
+PPO-03E — activa / pendiente cierre arquitectónico
 ```
 
 ## Runtime integrado
@@ -92,8 +93,16 @@ storage del browser, cookies, URL, history ni logs.
   hallaron claves relacionadas con TUS, fingerprint o `cargas/v1` en
   `localStorage` ni `sessionStorage`.
 
-## Handoff a PPO-03E.3
+## PPO-03E.3 implementada
 
-PPO-03E.3 medirá destinos de red y bytes por Next, y aportará gates específicos
-de resume, concurrencia, retry parcial/finalize y E2E público antes de retirar
-los módulos legacy.
+`tests/e2e/public-solicitud-upload-direct.spec.ts` añade gates reales de
+`/solicitud`: PDF público de 7 MiB, endpoint firmado de Storage, transferencia
+que no cruza Next, resume del mismo recurso, Web Storage vacío, lote de tres
+con concurrencia máxima dos, retry solo-finalize y límites tempranos. Los POST
+de control plane de Next permanecen bajo 128 KiB; los PATCH TUS avanzan los
+offsets de chunks del archivo y no usan sesión Bearer pública.
+
+La retirada de código heredado elimina el uploader público directo, creación
+pública directa, builders de metadata/rutas legacy y sus contratos TS sin
+consumidores. La documentación activa ahora describe el control plane,
+`cargas/v1`, TUS firmado, límites 1..10 y los retries vigentes.

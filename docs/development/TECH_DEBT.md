@@ -88,6 +88,11 @@ Solución recomendada:
 - No debilitar RLS, grants ni policies de Storage.
 - No abrir rutas privadas, `file_path` ni credenciales administrativas al cliente.
 
+Actualización PPO-03E: el upload público directo con TUS presigned ya está
+implementado y cubierto por gates E2E; permanece pendiente de revisión/cierre
+arquitectónico. La deuda operativa activa continúa por expiración,
+reconciliación y la retirada de límites transitorios en PPO-03G.
+
 Seguimiento: PPO-03 inició con el
 [contrato de cargas y almacenamiento](../production/PPO_03_UPLOAD_STORAGE_CONTRACT.md).
 La rama interna queda resuelta por PPO-03D.1; la deuda continúa activa por

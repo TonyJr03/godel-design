@@ -1,301 +1,43 @@
 # Capa de Storage
 
-Esta carpeta concentra la lógica reutilizable para trabajar con archivos privados de Godel Diseño.
+Esta carpeta contiene los helpers reutilizables para el bucket privado
+`godel-files`, el control plane de cargas y el transporte TUS. El contrato
+operativo completo está en [docs/STORAGE_MODEL.md](../../../docs/STORAGE_MODEL.md).
 
-Este README queda como mapa operativo final del dominio Storage después de
-Beta 2.6. La documentación histórica del modelo sigue en
-[docs/STORAGE_MODEL.md](../../../docs/STORAGE_MODEL.md), pero las decisiones
-vigentes de implementación están resumidas aquí y en la
-[auditoría histórica Beta 2.6](../../../docs/archive/beta-2-architecture/BETA_2_6_STORAGE_AUDIT.md).
-
-## Alcance actual
-
-- Constantes del bucket privado `godel-files`.
-- Tipos internos para categorías, rutas, validación y URLs firmadas.
-- Sanitización de nombres de archivo.
-- Construcción de rutas internas para solicitudes y pedidos.
-- Validación compartida para subidas públicas e internas.
-- Helper server-side para generar URLs firmadas de corta duración desde `archivo.id`.
-- Listado de archivos internos de pedido con RLS.
-- Reserva/finalize de cargas directas internas de Pedido.
-- Transferencia TUS browser-to-Storage para items reservados.
-- Descarga de archivos de pedido mediante route handler y signed URL.
-- Subida pública controlada de archivos de solicitud.
-- Listado y descarga interna de archivos de solicitud.
-- Builders server-side de metadata para `public.archivos`.
-- Helper compartido para respuestas y redirección de route handlers internos.
-
-## Mapa de archivos vigente
+## Mapa vigente
 
 | Archivo | Responsabilidad |
 |---|---|
-| `constants.ts` | Bucket privado, expiración de signed URLs, límites, carpetas, categorías, MIME/extensiones permitidas y extensiones bloqueadas. |
-| `types.ts` | Tipos internos, contratos de validación, resultados de upload, DTOs seguros y allowlist `SafeListedFileMetadata`. |
-| `file-name.ts` | Sanitización de nombres de archivo y extracción de extensión/base. |
-| `file-paths.ts` | Construcción server-side de `file_path` para solicitudes y pedidos. |
-| `file-validation.ts` | Validación compartida de archivo, categoría, contexto y categoría de pedido por estado. |
-| `upload-metadata.ts` | Builders server-side de metadata para insertar en `public.archivos`. |
-| `upload-public-solicitud-file.ts` | Upload público controlado desde `/solicitud`. |
-| `upload-control/` | Reserva/finalize server-only, validación de descriptores y parsers seguros de RPC. |
-| `tus/` | Obtención browser-only del JWT normal y wrapper TUS con fingerprint/reanudación por item reservado. |
-| `list-solicitud-files.ts` | Listado interno seguro de archivos de solicitud. |
-| `list-pedido-files.ts` | Listado interno seguro de archivos de pedido. |
-| `signed-url.ts` | Generación server-side de signed URLs de corta duración desde `archivo.id`. |
-| `download-route.ts` | Helper compartido para ids, respuestas seguras y redirección a signed URL desde route handlers internos. |
-| `labels.ts` | Labels visibles por categoría. |
-| `index.ts` | Barrel público del dominio Storage para contratos de uso general. |
+| `constants.ts` | Bucket, expiración de URLs, límites, chunk TUS y allowlist canónica PPO-03. |
+| `types.ts` | DTOs seguros de metadata/listados y categorías visibles de archivo. |
+| `file-name.ts` | Sanitización y extracción de extensión. |
+| `file-validation.ts` | Visibilidad de carga interna de Pedido según estado. |
+| `labels.ts` | Etiquetas visibles de `archivo_visibility`. |
+| `upload-control/` | Reserva, firma, finalize, descriptores y parsers server-only. |
+| `tus/` | Adaptador browser-only para TUS; URL/fingerprint viven solo en memoria. |
+| `list-pedido-files.ts` / `list-solicitud-files.ts` | Listados internos seguros mediante RLS. |
+| `signed-url.ts` | Signed URL server-side desde `archivo.id`. |
 
-QA focal del dominio vive en `tests/e2e/storage.spec.ts` y el positivo real de
-Pedido directo en `tests/e2e/pedido-upload-direct.spec.ts`.
+## Flujos
 
-## Bucket privado
+Las cargas públicas reservan con la RPC pública, reciben una firma por item y
+envían bytes directamente a `/storage/v1/upload/resumable/sign` con
+`x-signature`, sin `Authorization: Bearer`. Las cargas de Pedido usan la misma
+reserva/finalize y TUS autenticado en `/storage/v1/upload/resumable`.
 
-El sistema usa el bucket privado `godel-files`. No se usan buckets públicos,
-listados anónimos ni URLs públicas permanentes.
+`upload-control` es la autoridad para sesión, item, path, MIME, tamaño y
+metadata. Los consumidores no construyen rutas `file_path`, no insertan
+`archivos` directamente y no envían bytes a Server Actions. El retry de TUS
+reanuda el mismo item; si ya se transfirió el objeto, el retry de finalize no
+repite la transferencia.
 
-## Rutas internas
+La UI limita a dos transferencias concurrentes, uno a diez archivos por sesión
+y 20 MiB por archivo. Los formatos permitidos son PDF, JPG/JPEG, PNG, WEBP,
+DOC/DOCX, ZIP, RAR y CDR.
 
-Las rutas se construyen desde datos controlados por la aplicación. No se debe aceptar un `file_path` enviado directamente por el usuario.
+## Contratos retirados
 
-```text
-solicitudes/{solicitud_id}/originales/{timestamp}-{uuid}-{filename}
-pedidos/{pedido_id}/internos/{timestamp}-{filename}
-pedidos/{pedido_id}/avances/{timestamp}-{filename}
-pedidos/{pedido_id}/finales/{timestamp}-{filename}
-```
-
-## Validación
-
-La validación base exige archivo existente, nombre seguro, tamaño mayor que cero, tamaño máximo permitido, MIME permitido, extensión permitida y contexto válido según categoría.
-
-No se aceptan ejecutables, scripts, HTML ni SVG. PPO-03 permite además RAR y
-CDR para las cargas reservadas; AI y PSD siguen fuera del mapa canónico.
-
-## Relación TS/SQL
-
-Las reglas de Storage se validan en dos capas. TypeScript mejora UX, mensajes y
-control de entrada antes de subir archivos; SQL, RLS y policies de Storage son
-la defensa final.
-
-| Regla | TypeScript | SQL / policy relacionada |
-|---|---|---|
-| Bucket privado | `GODEL_FILES_BUCKET` | Bucket `godel-files` privado y constraint `archivos_bucket_godel_files_check`. |
-| Tamaño máximo | `MAX_STORAGE_FILE_SIZE_BYTES` | `file_size <= 20971520` y `storage.buckets.file_size_limit`. |
-| MIME/extensiones | `ALLOWED_STORAGE_MIME_TYPES`, `ALLOWED_STORAGE_FILE_EXTENSIONS` y mapa MIME por extensión | `private.is_allowed_public_request_file_type` y allowed MIME types del bucket. |
-| Extensiones bloqueadas | `BLOCKED_STORAGE_FILE_EXTENSIONS` | Defensa previa en TS; SQL solo permite allowlist positiva. |
-| Rutas de pedido | `buildPedidoFilePath` | `private.storage_order_id`, `private.storage_order_category` y `private.pedido_file_path_matches`. |
-| Rutas de solicitud | `buildSolicitudFilePath` | `private.storage_request_id` y policy anónima de solicitudes públicas. |
-| Categoría por estado | `getPedidoFileVisibilityForStatus` | `private.pedido_file_visibility_for_status`. |
-
-Cuando cambie cualquiera de estas reglas, la fase debe revisar TypeScript, SQL,
-policies, documentación y QA juntos para evitar drift. Esta subfase no cambia
-límites, MIME, extensiones, carpetas, categorías ni formato de `file_path`.
-
-## URLs firmadas
-
-`createSignedFileUrl(fileId)` consulta `archivos` con RLS mediante el cliente server-side normal de Supabase y genera una signed URL de corta duración. No usa service role key y no recibe rutas directas desde la interfaz.
-
-Los route handlers de descarga validan que el archivo pertenezca al pedido o solicitud de la ruta antes de redirigir a la signed URL.
-
-Los route handlers internos son la única superficie de descarga. Los listados y
-componentes reciben solo metadata segura y enlaces a
-`/dashboard/.../archivos/[fileId]/download`; no reciben signed URLs, bucket ni
-`file_path`. La redirección se crea bajo demanda después de validar UUIDs,
-pertenencia por `pedido_id` o `solicitud_id`, permisos internos cuando aplica y
-RLS sobre `archivos`. La URL firmada mantiene la expiración corta definida por
-`SIGNED_FILE_URL_EXPIRES_IN_SECONDS`.
-
-Las signed URLs no se devuelven desde listados, no se guardan en base de datos,
-no llegan a componentes y no se exponen en `/estado`. Cualquier cambio que
-requiera archivos públicos debe tratarse como una fase nueva de seguridad
-pública.
-
-## DTOs seguros de listado
-
-Los listados de archivos devuelven DTOs por allowlist. No devuelven
-`file_path`, bucket, rutas privadas, signed URLs ni metadata cruda.
-
-`PedidoFileListItem` expone solo:
-
-- `id`
-- `file_name`
-- `file_type`
-- `file_size`
-- `visibility`
-- `created_at`
-- `uploaded_by`
-- `uploadedBy` con `id`, `full_name` y `role`
-
-`SolicitudFileListItem` expone solo:
-
-- `id`
-- `file_name`
-- `file_type`
-- `file_size`
-- `visibility`
-- `created_at`
-
-`uploadedBy` se mantiene únicamente en archivos de pedido porque esa pantalla
-necesita distinguir archivos del cliente y archivos subidos por usuarios
-internos. Los archivos de solicitud conservan un DTO más mínimo.
-
-## Archivos de pedido
-
-`listPedidoFiles(pedidoId)` lista metadatos seguros de `archivos` para un pedido, sin devolver `file_path` ni URLs públicas al componente cliente.
-
-Las cargas internas de Pedido usan el control plane de PPO-03: la Server Action
-recibe solo `pedidoId` y descriptores `{ name, size }`, reserva la sesión, y el
-navegador transfiere cada `File` directo a Storage mediante TUS autenticado. Al
-terminar cada transferencia, una acción de finalize registra metadata por RPC.
-Los bytes no pasan por Next.js ni se inserta `archivos` antes del commit.
-
-`PedidoFileUploadForm` conserva transitoriamente en memoria el `File`, el item
-reservado y su `objectPath` porque `uploadReservedFile()` lo necesita para TUS.
-Ese path no se renderiza, registra ni persiste manualmente; los listados normales
-siguen sin exponer `file_path` y las descargas usan el route handler interno con
-URL firmada server-side.
-
-Categoría automática por estado:
-
-| Estado del pedido | Categoría | Carpeta |
-|---|---|---|
-| `creado`, `solicitud_recibida`, `en_revision` | `interno_pedido` | `internos` |
-| `en_produccion` | `avance` | `avances` |
-| `listo_entrega` | `final_entrega` | `finales` |
-| `entregado`, `cancelado` | Subida bloqueada | — |
-
-`admin`, `supervisor` y cualquier trabajador asignado pueden subir la categoría correspondiente mientras el estado lo permita. Un trabajador no asignado no puede cargar el pedido ni subir archivos por las validaciones server-side, RLS y policies de Storage.
-
-El formulario no envía `visibility`, categoría, bucket, ruta, usuario, MIME ni
-tamaño como fuente de verdad. TypeScript server-side deriva el MIME canónico
-desde la extensión mediante el descriptor builder; PostgreSQL valida el
-descriptor, deriva visibilidad y genera sesión, item, nonce y path reservado.
-Storage/finalize vuelven a verificar el objeto. La cola local permite dos
-transferencias simultáneas, renueva el JWT antes de cada TUS y conserva el retry
-del mismo item para completar finalize de forma idempotente.
-
-## Archivos públicos de solicitud
-
-`uploadPublicSolicitudFile(input)` procesa archivos enviados por clientes externos. La función fuerza la categoría `cliente_solicitud`, usa la ruta `solicitudes/{solicitud_id}/originales/{timestamp}-{uuid}-{filename}` y guarda metadatos en `archivos` con `pedido_id = null` y `uploaded_by = null`.
-
-`uploadPublicSolicitudFiles(input)` sube varios archivos uno por uno y limita
-la cantidad a 5 archivos opcionales por solicitud. Admite PDF, JPG, JPEG, PNG,
-WEBP, DOC, DOCX y ZIP, con un máximo de 20 MB por archivo.
-
-La migración consolidada permite a `anon` insertar objetos y metadatos solo
-para rutas válidas de solicitudes públicas. Desde Fase 13.8E, Storage bloquea
-el sexto objeto secuencial y metadata aplica un máximo estricto de cinco con
-conteo serializado. Ambas capas validan la combinación extensión/MIME. Los
-20 MB se aplican en TypeScript, en el bucket y en la policy de metadata; está
-última exige además un objeto existente sin registro previo. No permite
-lectura, listado, actualización ni eliminación anónima. La lectura posterior
-queda reservada para `admin` y `supervisor` en el módulo interno.
-
-El conteo de Storage no se considera una garantía absoluta frente a subidas
-paralelas, porque la autorización puede ocurrir antes de completar cada objeto.
-La metadata conserva el límite estricto; monitoreo, rate limiting y
-reconciliación cubren el riesgo residual de producción.
-
-El flujo conserva el orden objeto y después metadata. No se abre `DELETE`
-anónimo porque la API de Storage también requiere `SELECT`; un fallo
-excepcional puede dejar un objeto sin metadata, limitado por el cupo de cinco,
-que debe detectarse y limpiarse mediante reconciliación interna. Rate limiting,
-monitoreo y antivirus quedan como endurecimiento de producción.
-
-La metadata pública también se construye server-side. El cliente no controla
-`visibility`, bucket, `file_path`, `uploaded_by`, `file_name`, `file_type` ni
-`file_size`; esos valores salen del archivo real, la solicitud creada, el
-bucket oficial y el path generado por la aplicación. Esta subfase documenta la
-deuda de objetos huérfanos, pero no implementa reconciliación, borrado anónimo,
-rate limiting, captcha, antivirus ni monitoreo.
-
-La UI pública usa estas funciones para adjuntar archivos al crear la solicitud. El cliente no recibe URLs públicas ni URLs firmadas.
-
-`listSolicitudFiles(solicitudId)` lista metadatos seguros de `archivos` para el detalle interno de solicitud, sin devolver `file_path`. La descarga interna usa `/dashboard/solicitudes/[id]/archivos/[fileId]/download`, valida pertenencia por RLS y redirige a una signed URL de corta duración.
-
-## Relación con `/estado`
-
-`/estado` no lista archivos, no descarga archivos, no revela `file_path`, no
-revela bucket y no revela signed URLs. El contrato público vive en
-`src/lib/public-tracking` y se mantiene por allowlist.
-
-Cualquier cambio para mostrar archivos públicamente sería una fase nueva de
-seguridad pública. Debe revisar RPC/RLS, policies, checklist de rutas públicas,
-documentación y `npm.cmd run audit:public-tracking`.
-
-## Herencia al convertir a pedido
-
-Cuando una solicitud con archivos `cliente_solicitud` se convierte en pedido, no se mueve ni se copia el objeto físico en Storage. El flujo conserva `solicitud_id`, `file_path`, `bucket`, `visibility` y `uploaded_by`, y solo completa `pedido_id` en los metadatos de `archivos`.
-
-Así el archivo sigue visible desde el detalle interno de solicitud para `admin` y `supervisor`, y también aparece en “Archivos del pedido” como “Archivo enviado por cliente”. Un trabajador asignado puede verlo y descargarlo desde el pedido, pero no obtiene acceso al módulo interno de solicitudes.
-
-## Fuera del alcance actual
-
-- No hay eliminación de archivos.
-- No hay edición de metadatos.
-- No hay subida interna de archivos de solicitud.
-- No hay descarga pública de archivos de solicitud.
-- No hay URLs públicas permanentes.
-
-## QA Beta 2.6.6
-
-`tests/e2e/storage.spec.ts` agrega QA focal de Storage con cobertura de:
-
-- secciones seguras de archivos en pedido y solicitud;
-- links internos de descarga mediante route handlers;
-- upload público inválido bloqueado;
-- descargas inválidas con respuestas seguras;
-- trabajador bloqueado o con respuesta segura para descarga de solicitud;
-- `/estado` sin superficie de archivos;
-- ausencia visible de `file_path`, bucket, signed URLs y otros términos
-  sensibles.
-
-No hubo upload positivo real ni descarga positiva de archivo real en e2e porque
-todavía no existe fixture/cleanup estable para objetos de Storage. Esa cobertura
-queda pendiente para una fase posterior.
-
-## Pendientes técnicos conocidos
-
-- No existe reconciliación interna de objetos huérfanos.
-- El upload público puede dejar objeto sin metadata si falla el insert
-  posterior.
-- El flujo interno de Pedido tiene E2E positivo real de reserva, TUS, reanudación,
-  lote, finalize y metadata visible; Solicitudes públicas siguen legacy.
-- No hay descarga positiva e2e de archivo real por falta de fixture estable.
-- No hay rate limiting, captcha ni honeypot en `/solicitud`.
-- No hay antivirus ni escaneo profundo de archivos.
-- No hay monitoreo operativo agregado de Storage.
-- Puede existir drift futuro entre TypeScript y SQL/policies si se cambian
-  MIME, extensiones, rutas, categorías o tamaño.
-- `npm.cmd run verify` sigue dependiendo de red para descargar Google Fonts
-  durante `next build`.
-
-## Reglas de seguridad
-
-- Mantener `godel-files` privado.
-- No abrir lectura anónima.
-- No abrir listado anónimo.
-- No abrir delete anónimo.
-- No agregar `SUPABASE_SERVICE_ROLE_KEY`.
-- No usar cliente administrativo para Storage.
-- No exponer `file_path`.
-- No exponer bucket.
-- No devolver signed URLs desde listados.
-- No devolver signed URLs a componentes.
-- No permitir descargas desde `/estado`.
-- No aceptar `visibility`, bucket, `file_path`, `uploaded_by`, `file_name`,
-  `file_type` o `file_size` desde formularios como fuente de verdad.
-- No mover generación de signed URLs a Client Components.
-- No cambiar policies/RLS como refactor menor.
-
-## Que no hacer
-
-- No modificar `src/app` ni componentes para cambiar seguridad de Storage sin
-  fase explícita.
-- No consultar Supabase desde Client Components.
-- No filtrar metadata cruda a UI.
-- No mover el dominio a `src/services`.
-- No ampliar formatos, límites, rutas o categorías sin revisar TypeScript,
-  SQL/policies, documentación y QA juntos.
-- No implementar reconciliación, antivirus, rate limiting o archivos públicos
-  como refactor menor.
+No existen uploader público legacy, builders de `solicitudes/{id}/originales`
+o `pedidos/{id}/...`, metadata builders ni validación TS basada en esos paths.
+No reintroducirlos: todas las rutas nuevas son `cargas/v1` y solo las genera el
+control plane PostgreSQL.
