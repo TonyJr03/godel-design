@@ -202,12 +202,14 @@ El estado operativo actual es:
 | PPO-03E.2 | Cerrada / aprobada |
 | PPO-03E.3 | Cerrada / aprobada |
 | PPO-03E | Cerrada / aprobada |
-| PPO-03F | Siguiente bloque funcional |
+| PPO-03F.0 | Diseñada / pendiente de revisión arquitectónica |
+| PPO-03F | Activa; PPO-03F.1 pendiente de aprobación |
 | PPO-03G | Pendiente |
 | PPO-03 | Activa |
 
-PPO-03F no se diseña en detalle en este roadmap. PPO-03 continúa activa hasta
-completar los bloques funcionales y de cierre pendientes.
+El diseño/auditoría de PPO-03F.0 vive en
+[PPO_03F_CLEANUP_DESIGN.md](PPO_03F_CLEANUP_DESIGN.md). PPO-03 continúa activa
+hasta completar los bloques funcionales y de cierre pendientes.
 
 ## PPO-00
 

@@ -55,13 +55,16 @@ actual.
 | PPO-03E.2 | Cerrada / aprobada |
 | PPO-03E.3 | Cerrada / aprobada |
 | PPO-03E | Cerrada / aprobada |
-| PPO-03F | Siguiente bloque funcional |
+| PPO-03F.0 | Diseñada / pendiente de revisión arquitectónica |
+| PPO-03F | Activa; PPO-03F.1 pendiente de aprobación |
 | PPO-03G | Pendiente |
 | PPO-03 | Activa |
 
 PPO-03D/E ya trasladaron los bytes de archivos del navegador directamente a
-Storage por TUS. PPO-03F abordará expiración, reconciliación y cleanup; PPO-03G
-mantiene el gate final de infraestructura y retirada de límites transitorios.
+Storage por TUS. PPO-03F.0 documenta el lifecycle, la autoridad y el amendment
+propuesto para expiración, reconciliación y cleanup; PPO-03F.1 permanece
+pendiente de revisión arquitectónica. PPO-03G mantiene el gate final de
+infraestructura y retirada de límites transitorios.
 
 ## Ruta activa
 
@@ -93,6 +96,7 @@ gate antes de PPO-04.
 - [Roadmap PPO](production/PPO_ROADMAP.md)
 - [Roadmap Self-Hosted](production/SH_ROADMAP.md)
 - [Contrato PPO-03 de cargas y almacenamiento](production/PPO_03_UPLOAD_STORAGE_CONTRACT.md)
+- [Diseño de cleanup PPO-03F.0](production/PPO_03F_CLEANUP_DESIGN.md)
 - [Cierre de Solicitudes públicas PPO-03E](production/PPO_03_PUBLIC_SOLICITUD_UPLOAD_REPORT.md)
 - [Auditoría de baseline self-hosted SH-01C](production/SH_01C_DATABASE_BASELINE_AUDIT.md)
 - [Deuda técnica activa](development/TECH_DEBT.md)
