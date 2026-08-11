@@ -2,7 +2,12 @@
 
 Fecha: 2026-08-11
 Target: Supabase self-hosted, PostgreSQL 17, Auth y Storage self-hosted
-Estado: SH-01C.0 — cerrada / aprobada; SH-01C.1A — implementada / pendiente de revisión SQL
+Estado:
+
+- SH-01C.0 — cerrada / aprobada
+- SH-01C.1A — cerrada / aprobada
+- SH-01C.1B — cerrada / aprobada
+- SH-01C — CERRADA / APROBADA
 
 ## 1. Objetivo y alcance
 
@@ -393,3 +398,21 @@ una decisión separada, no `migration repair` improvisado.
 - PPO-03E está integrado o existe una decisión explícita que impide activar la
   nueva baseline con la UI pública legacy;
 - tipos generados, pruebas SQL, lint/build y QA aplicable pasan.
+
+## 21. Cierre SH-01C
+
+Baseline validada: `a18e11ab503a23d8c996e229eafabf5a7117c6d2`.
+
+- Fresh rebuild: PASS.
+- Migraciones: 6/6.
+- PostgreSQL: 17.6.
+- Storage: `supabase/storage-api:v1.60.4`.
+- DB lint: 0 errores, 0 warnings.
+- Negative anonymous Storage API: PASS.
+- Tipos generados: byte-for-byte identical.
+- Application lint: PASS.
+
+El build inicial de aplicación quedó bloqueado porque el `tsconfig` raíz incluía
+archivos runtime upstream Deno bajo `infra/supabase`. Se resolvió excluyendo
+`infra/supabase/**/*` del proyecto Next/TypeScript, sin relajar el typechecking
+de Godel ni modificar el bundle upstream. Build final de aplicación: PASS.
