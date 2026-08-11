@@ -20,6 +20,48 @@ export type UploadReservedFileResult =
   | { ok: true }
   | { ok: false; reason: "file_mismatch" | "upload_failed" };
 
+type TusPreviousUpload = Awaited<
+  ReturnType<tus.Upload["findPreviousUploads"]>
+>[number];
+
+class MemoryUrlStorage {
+  private readonly uploads = new Map<string, TusPreviousUpload>();
+  private nextId = 0;
+
+  async findAllUploads(): Promise<TusPreviousUpload[]> {
+    return [...this.uploads.values()];
+  }
+
+  async findUploadsByFingerprint(fingerprint: string): Promise<TusPreviousUpload[]> {
+    return [...this.uploads.values()].filter((upload) => (
+      upload.urlStorageKey.startsWith(`${fingerprint}:`)
+    ));
+  }
+
+  async removeUpload(urlStorageKey: string): Promise<void> {
+    this.uploads.delete(urlStorageKey);
+  }
+
+  async addUpload(
+    fingerprint: string,
+    upload: TusPreviousUpload,
+  ): Promise<string> {
+    const urlStorageKey = `${fingerprint}:${this.nextId}`;
+    this.nextId += 1;
+    this.uploads.set(urlStorageKey, {
+      ...upload,
+      metadata: { ...upload.metadata },
+      parallelUploadUrls: upload.parallelUploadUrls
+        ? [...upload.parallelUploadUrls]
+        : null,
+      urlStorageKey,
+    });
+    return urlStorageKey;
+  }
+}
+
+const memoryUrlStorage = new MemoryUrlStorage();
+
 function getStorageTusBaseUrl(supabaseUrl: string) {
   const url = new URL(supabaseUrl);
   const isLocal = ["localhost", "127.0.0.1"].includes(url.hostname);
@@ -73,6 +115,7 @@ export async function uploadReservedFile(
       chunkSize: TUS_CHUNK_SIZE_BYTES,
       retryDelays: [0, 1000, 3000, 5000],
       removeFingerprintOnSuccess: true,
+      urlStorage: memoryUrlStorage,
       fingerprint: async () => fingerprint(input.item, input.file),
       onProgress: input.onProgress ?? null,
       onError: () => resolve({ ok: false, reason: "upload_failed" }),

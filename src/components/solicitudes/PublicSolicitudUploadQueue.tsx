@@ -321,7 +321,12 @@ export function PublicSolicitudUploadQueue({
   }
 
   return (
-    <section className="mt-5" aria-live="polite" aria-label="Estado de archivos">
+    <section
+      className="mt-5"
+      aria-live="polite"
+      aria-label="Estado de archivos"
+      aria-busy={hasActiveUploads}
+    >
       <Alert variant="info" title="Solicitud registrada" className="mb-4">
         <p>Estamos adjuntando tus archivos.</p>
       </Alert>

@@ -6,7 +6,7 @@ Estado:
 
 ```text
 PPO-03E.1 — cerrada / aprobada
-PPO-03E.2 — implementada / pendiente revisión arquitectónica
+PPO-03E.2 — validada / pendiente cierre arquitectónico
 PPO-03E — activa
 ```
 
@@ -23,8 +23,10 @@ control plane con valores serializables y descriptores `{ name, size }`.
   solicitud, sesión e items se crean una única vez antes de transferir.
 - La firma pública y finalize usan Server Actions delgadas que delegan
   exclusivamente en `signPublicUpload` y `finalizePublicUpload`.
-- No se devuelve ni se renderiza path, UUID, bucket, capability ni firma. La
-  capability y la firma permanecen sólo en memoria durante la transferencia.
+- La reservation entrega temporalmente al navegador los identificadores,
+  `objectPath` y capability requeridos por el control plane y TUS. No se
+  renderizan, registran ni persisten. Capability y firmas permanecen sólo en
+  memoria durante la transferencia.
 
 ## Browser-to-Storage
 
@@ -45,6 +47,10 @@ en memoria. Un retry tras fallo TUS solicita una firma nueva y reanuda el mismo
 item; un retry tras fallo de finalize omite firma y TUS y reintenta sólo
 finalize. No se crea una segunda solicitud, sesión, item o reserva.
 
+La URL resumible y el fingerprint TUS se conservan mediante `UrlStorage`
+exclusivamente en memoria del runtime del navegador. Desaparecen al recargar o
+cerrar la página; el resume cross-page no forma parte del contrato.
+
 La UI mantiene el código de seguimiento tras crear la solicitud y diferencia
 éxito total, parcial y fallo de todos los archivos. El formulario de datos se
 bloquea después de crear una solicitud para prevenir doble envío.
@@ -61,13 +67,30 @@ storage del browser, cookies, URL, history ni logs.
 
 ## QA
 
+- El reset previo de Supabase CLI local fue realizado por Dirección Técnica. La
+  baseline comprobada conserva las seis migraciones actuales y las cinco
+  funciones de control plane requeridas.
+- `npm run qa:bootstrap`: PASS; perfiles admin, supervisor y trabajador
+  preparados e inicio de sesión comprobado.
 - `git diff --check`, `npm run diff:check`, lint y build: PASS.
 - `npm run audit:security`: PASS, 0 violaciones bloqueantes.
 - `npm run audit:client-supabase`: PASS, sin coincidencias en componentes.
-- Se intentó smoke browser local con `next dev`, `next start` y `next dev
-  --webpack`. Ninguno abrió `localhost:3000` y todos los procesos temporales se
-  detuvieron. Por ello el smoke visual/TUS real y el spec existente quedan
-  bloqueados por el entorno local, no declarados como PASS.
+- `tests/e2e/pedido-upload-direct.spec.ts`: PASS, 6/6. Incluye PDF de 7 MiB,
+  resume del mismo recurso, lote de tres, concurrencia máxima dos y límites
+  tempranos.
+- `tests/e2e/public-solicitud.spec.ts`: PASS, 7/7; no se modificaron tests.
+  Cubre Encargo sin archivos, Impresión bloqueada sin archivo, Impresión con
+  PDF, catálogo y seguridad de servicio público.
+- Smoke dirigido en Chromium: PASS. Encargo sin archivos dejó 1 solicitud, 0
+  sesiones, 0 items y 0 archivos; Impresión sin archivo dejó 0/0/0/0; Encargo
+  con tres PDFs dejó 1 solicitud, 1 sesión, 3 items y 3 archivos committed.
+- En el lote público se observaron tres POST y tres PATCH TUS al origen de
+  Storage, concurrencia PATCH máxima de dos, y solicitudes POST de Next de
+  control plane pequeñas (máximo observado: 414 bytes).
+- `MemoryUrlStorage`: PASS. El retry de Pedido reanudó el mismo recurso TUS en
+  la misma página; no hay persistencia cross-page. Tras la carga pública no se
+  hallaron claves relacionadas con TUS, fingerprint o `cargas/v1` en
+  `localStorage` ni `sessionStorage`.
 
 ## Handoff a PPO-03E.3
 

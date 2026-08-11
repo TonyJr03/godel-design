@@ -68,6 +68,10 @@ y las descargas siguen pasando por el handler interno de URL firmada. El usuario
 visibilidad y los estados entregado/cancelado no presentan controles de carga;
 la reserva/finalize vuelven a validar autorización y estado.
 
+El resume TUS dentro de la misma página usa `MemoryUrlStorage`; no hay
+persistencia cross-page en Web Storage. El `objectPath` reservado tampoco se
+persiste fuera de la memoria del runtime.
+
 No se modificaron migraciones 01..08. La migración
 `20260809000200_08_ppo03c_upload_control_plane.sql` permanece desplegada e
 inmutable. PPO-03E, PPO-03F y la retirada del límite transitorio de 110 MB no

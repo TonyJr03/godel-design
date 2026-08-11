@@ -376,7 +376,7 @@ export function PublicSolicitudForm({
     <form
       ref={formRef}
       onSubmit={handleSubmit}
-      aria-busy={isStarting || (submission?.kind === "reserved")}
+      aria-busy={isStarting}
       className="space-y-5 sm:space-y-6"
     >
       {state.message ? (
