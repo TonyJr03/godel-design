@@ -1,18 +1,13 @@
 "use server";
 
 import {
-  createPublicSolicitud,
-  type CreatePublicSolicitudResult,
+  createPublicSolicitudWithoutUpload,
   type PublicSolicitudFieldErrors,
-  type PublicSolicitudInput,
 } from "@/lib/solicitudes";
-import {
-  MAX_PUBLIC_SOLICITUD_FILES,
-  uploadPublicSolicitudFiles,
-  type UploadPublicSolicitudFilesResult,
-  validateStorageFile,
-} from "@/lib/storage";
-import { getFormValue } from "@/lib/utils";
+import { finalizePublicUpload } from "@/lib/storage/upload-control/finalize";
+import { reservePublicUpload } from "@/lib/storage/upload-control/reserve-public";
+import { signPublicUpload } from "@/lib/storage/upload-control/sign-public";
+import type { PublicUploadReservation } from "@/lib/storage/upload-control/types";
 
 export type PublicSolicitudSubmittedValues = {
   service_id: string;
@@ -28,193 +23,152 @@ export type PublicSolicitudSubmittedValues = {
   print_sides: string;
 };
 
-export type SubmitPublicSolicitudActionState = {
-  ok: boolean;
-  message: string;
-  fieldErrors?: PublicSolicitudFieldErrors;
-  solicitudId?: string;
-  publicReference?: string;
-  uploadedFilesCount?: number;
-  fileErrors?: string[];
-  fileWarning?: string;
-  values?: PublicSolicitudSubmittedValues;
+export type PublicSolicitudCandidate = {
+  name: string;
+  size: number;
 };
 
-function getSubmittedValues(formData: FormData): PublicSolicitudSubmittedValues {
-  return {
-    service_id: getFormValue(formData, "service_id"),
-    client_name: getFormValue(formData, "client_name"),
-    client_phone: getFormValue(formData, "client_phone"),
-    client_email: getFormValue(formData, "client_email"),
-    description: getFormValue(formData, "description"),
-    desired_date: getFormValue(formData, "desired_date"),
-    notes: getFormValue(formData, "notes"),
-    print_copies: getFormValue(formData, "print_copies"),
-    print_color_mode: getFormValue(formData, "print_color_mode"),
-    print_paper_size: getFormValue(formData, "print_paper_size"),
-    print_sides: getFormValue(formData, "print_sides"),
-  };
+export type StartPublicSolicitudActionResult =
+  | {
+      ok: true;
+      kind: "completed";
+      solicitudId: string;
+      publicReference: string;
+    }
+  | {
+      ok: true;
+      kind: "reserved";
+      reservation: PublicUploadReservation;
+    }
+  | {
+      ok: false;
+      message: string;
+      fieldErrors?: PublicSolicitudFieldErrors;
+    };
+
+export type SignPublicSolicitudFileActionResult =
+  | { ok: true; signature: string }
+  | { ok: false; message: string };
+
+export type FinalizePublicSolicitudFileActionResult =
+  | { ok: true }
+  | { ok: false; message: string };
+
+const PUBLIC_SOLICITUD_VALUE_KEYS = [
+  "service_id",
+  "client_name",
+  "client_phone",
+  "client_email",
+  "description",
+  "desired_date",
+  "notes",
+  "print_copies",
+  "print_color_mode",
+  "print_paper_size",
+  "print_sides",
+] as const satisfies readonly (keyof PublicSolicitudSubmittedValues)[];
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function isEmptyFileInputPlaceholder(file: File) {
-  return (
-    file.size === 0 &&
-    (file.name === "" || file.name === "blob") &&
-    (file.type === "" || file.type === "application/octet-stream")
+function isSubmittedValues(value: unknown): value is PublicSolicitudSubmittedValues {
+  return isRecord(value) && PUBLIC_SOLICITUD_VALUE_KEYS.every(
+    (key) => typeof value[key] === "string",
   );
 }
 
-function getSolicitudFiles(formData: FormData): File[] {
-  return formData
-    .getAll("files")
-    .filter(
-      (value): value is File =>
-        value instanceof File && !isEmptyFileInputPlaceholder(value),
-    );
+function isCandidates(value: unknown): value is PublicSolicitudCandidate[] {
+  return Array.isArray(value) && value.every((candidate) => (
+    isRecord(candidate)
+    && typeof candidate.name === "string"
+    && typeof candidate.size === "number"
+    && Number.isFinite(candidate.size)
+    && Number.isInteger(candidate.size)
+  ));
 }
 
-function validateSolicitudFilesBeforeCreate(files: File[]) {
-  if (files.length > MAX_PUBLIC_SOLICITUD_FILES) {
-    return "Puedes adjuntar hasta 5 archivos.";
-  }
-
-  const invalidFile = files.find((file) => !validateStorageFile(file).ok);
-
-  if (invalidFile) {
-    return `El archivo "${invalidFile.name}" no es válido. Revisa el formato y el tamaño.`;
-  }
-
-  return null;
+function isUploadControlInput(value: unknown): value is {
+  sessionId: string;
+  itemId: string;
+  capability: string;
+} {
+  return isRecord(value)
+    && typeof value.sessionId === "string"
+    && typeof value.itemId === "string"
+    && typeof value.capability === "string";
 }
 
-function buildCreatePublicSolicitudInput(
-  values: PublicSolicitudSubmittedValues,
-  hasFiles: boolean,
-): PublicSolicitudInput {
+function invalidRequestResult(): StartPublicSolicitudActionResult {
   return {
-    service_id: values.service_id,
-    client_name: values.client_name,
-    client_phone: values.client_phone,
-    client_email: values.client_email,
-    description: values.description,
-    desired_date: values.desired_date,
-    notes: values.notes,
-    print_copies: values.print_copies,
-    print_color_mode: values.print_color_mode,
-    print_paper_size: values.print_paper_size,
-    print_sides: values.print_sides,
-    hasFiles,
+    ok: false,
+    message: "Revisa los campos marcados antes de enviar la solicitud.",
   };
 }
 
-function buildPublicSolicitudFieldErrorState({
-  message,
-  fieldErrors,
-  values,
-}: {
-  message: string;
-  fieldErrors: PublicSolicitudFieldErrors;
+export async function startPublicSolicitudAction(input: {
   values: PublicSolicitudSubmittedValues;
-}): SubmitPublicSolicitudActionState {
-  return {
-    ok: false,
-    message,
-    fieldErrors,
-    values,
-  };
-}
-
-function buildCreatePublicSolicitudErrorState(
-  result: Extract<CreatePublicSolicitudResult, { ok: false }>,
-  values: PublicSolicitudSubmittedValues,
-): SubmitPublicSolicitudActionState {
-  return {
-    ok: false,
-    message: result.message,
-    fieldErrors: result.fieldErrors,
-    values,
-  };
-}
-
-function buildPublicSolicitudSuccessState(
-  result: Extract<CreatePublicSolicitudResult, { ok: true }>,
-  uploadedFilesCount: number,
-): SubmitPublicSolicitudActionState {
-  return {
-    ok: true,
-    message: "Solicitud enviada correctamente. Nos pondremos en contacto contigo.",
-    solicitudId: result.solicitudId,
-    publicReference: result.publicReference,
-    uploadedFilesCount,
-  };
-}
-
-function buildUploadWarningState(
-  result: Extract<CreatePublicSolicitudResult, { ok: true }>,
-  uploadResult: UploadPublicSolicitudFilesResult,
-): SubmitPublicSolicitudActionState {
-  return {
-    ok: true,
-    message:
-      "Solicitud enviada correctamente, pero algunos archivos no pudieron adjuntarse.",
-    solicitudId: result.solicitudId,
-    publicReference: result.publicReference,
-    uploadedFilesCount: uploadResult.uploaded.length,
-    fileWarning:
-      "La solicitud fue registrada. Puedes mencionar los archivos pendientes cuando nos contactemos contigo.",
-    fileErrors: uploadResult.errors.map(
-      (error) => `${error.fileName}: no se pudo adjuntar.`,
-    ),
-  };
-}
-
-export async function submitPublicSolicitudAction(
-  _prevState: SubmitPublicSolicitudActionState,
-  formData: FormData,
-): Promise<SubmitPublicSolicitudActionState> {
-  const values = getSubmittedValues(formData);
-  const files = getSolicitudFiles(formData);
-  const hasFiles = files.length > 0;
-  const filesError = validateSolicitudFilesBeforeCreate(files);
-
-  if (filesError) {
-    return buildPublicSolicitudFieldErrorState({
-      message: "Revisa los archivos adjuntos antes de enviar la solicitud.",
-      fieldErrors: {
-        files: filesError,
-      },
-      values,
-    });
+  candidates: PublicSolicitudCandidate[];
+}): Promise<StartPublicSolicitudActionResult> {
+  if (!isRecord(input) || !isSubmittedValues(input.values) || !isCandidates(input.candidates)) {
+    return invalidRequestResult();
   }
 
-  const result = await createPublicSolicitud(
-    buildCreatePublicSolicitudInput(values, hasFiles),
-  );
-
-  if (!result.ok) {
-    return buildCreatePublicSolicitudErrorState(result, values);
-  }
-
-  if (files.length > 0) {
-    const uploadResult = await uploadPublicSolicitudFiles({
-      solicitudId: result.solicitudId,
-      files,
-    });
-
-    if (!uploadResult.ok) {
-      console.error("Some public solicitud files failed to upload", {
-        solicitudId: result.solicitudId,
-        errors: uploadResult.errors,
-      });
-
-      return buildUploadWarningState(result, uploadResult);
+  if (input.candidates.length === 0) {
+    const result = await createPublicSolicitudWithoutUpload(input.values);
+    if (!result.ok) {
+      return {
+        ok: false,
+        message: result.message,
+        fieldErrors: result.fieldErrors,
+      };
     }
 
-    return buildPublicSolicitudSuccessState(
-      result,
-      uploadResult.uploaded.length,
-    );
+    return {
+      ok: true,
+      kind: "completed",
+      solicitudId: result.solicitudId,
+      publicReference: result.publicReference,
+    };
   }
 
-  return buildPublicSolicitudSuccessState(result, 0);
+  const result = await reservePublicUpload({
+    solicitud: { ...input.values, hasFiles: true },
+    candidates: input.candidates,
+  });
+  if (!result.ok) {
+    return {
+      ok: false,
+      message: result.message,
+      fieldErrors: result.fieldErrors,
+    };
+  }
+
+  return { ok: true, kind: "reserved", reservation: result.reservation };
+}
+
+export async function signPublicSolicitudFileAction(
+  input: { sessionId: string; itemId: string; capability: string },
+): Promise<SignPublicSolicitudFileActionResult> {
+  if (!isUploadControlInput(input)) {
+    return { ok: false, message: "No se pudo autorizar la carga del archivo." };
+  }
+
+  const result = await signPublicUpload(input);
+  if (!result.ok) return { ok: false, message: result.message };
+
+  return { ok: true, signature: result.signing.signature };
+}
+
+export async function finalizePublicSolicitudFileAction(
+  input: { sessionId: string; itemId: string; capability: string },
+): Promise<FinalizePublicSolicitudFileActionResult> {
+  if (!isUploadControlInput(input)) {
+    return { ok: false, message: "No se pudo registrar el archivo cargado." };
+  }
+
+  const result = await finalizePublicUpload(input);
+  return result.ok
+    ? { ok: true }
+    : { ok: false, message: result.message };
 }

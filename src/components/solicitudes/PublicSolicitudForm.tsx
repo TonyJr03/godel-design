@@ -2,17 +2,18 @@
 
 import { useRouter } from "next/navigation";
 import {
-  useActionState,
   useEffect,
   useRef,
   useState,
+  type FormEvent,
   type KeyboardEvent,
 } from "react";
 import {
-  submitPublicSolicitudAction,
-  type SubmitPublicSolicitudActionState,
+  startPublicSolicitudAction,
+  type PublicSolicitudSubmittedValues,
 } from "@/app/(publico)/solicitud/actions";
 import { CopyableCode } from "@/components/common/CopyableCode";
+import { PublicSolicitudUploadQueue } from "@/components/solicitudes/PublicSolicitudUploadQueue";
 import {
   Alert,
   Button,
@@ -30,8 +31,16 @@ import {
   PRINT_PAPER_SIZE_OPTIONS,
   PRINT_SIDES_OPTIONS,
   type PublicSolicitudField,
+  type PublicSolicitudFieldErrors,
 } from "@/lib/solicitudes/public-request-validation";
-import { STORAGE_FILE_INPUT_ACCEPT } from "@/lib/storage/constants";
+import {
+  MAX_STORAGE_FILE_SIZE_BYTES,
+  MAX_UPLOAD_SESSION_ITEMS,
+  PPO03_MIME_BY_EXTENSION,
+  PPO03_STORAGE_FILE_INPUT_ACCEPT,
+} from "@/lib/storage/constants";
+import { getFileExtension } from "@/lib/storage/file-name";
+import type { PublicUploadReservation } from "@/lib/storage/upload-control/types";
 import { getTodayDateInputValue } from "@/lib/utils";
 import {
   WORKFLOW_TYPES,
@@ -42,8 +51,29 @@ type PublicSolicitudFormProps = {
   serviceTypes: PublicServiceType[];
 };
 
-const initialState: SubmitPublicSolicitudActionState = {
-  ok: false,
+type PublicSolicitudFormState = {
+  status: "idle" | "error" | "completed" | "reserved";
+  message: string;
+  fieldErrors?: PublicSolicitudFieldErrors;
+  values?: PublicSolicitudSubmittedValues;
+  solicitudId?: string;
+  publicReference?: string;
+};
+
+type PublicSolicitudSubmission =
+  | {
+      kind: "completed";
+      solicitudId: string;
+      publicReference: string;
+    }
+  | {
+      kind: "reserved";
+      reservation: PublicUploadReservation;
+      files: File[];
+    };
+
+const initialState: PublicSolicitudFormState = {
+  status: "idle",
   message: "",
 };
 
@@ -64,10 +94,69 @@ const workflowCopy = {
 >;
 
 function getFieldError(
-  state: SubmitPublicSolicitudActionState,
+  state: PublicSolicitudFormState,
   field: PublicSolicitudField,
 ) {
   return state.fieldErrors?.[field];
+}
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function getBrowserFileValidationMessage(
+  files: readonly File[],
+  isPrintWorkflow: boolean,
+) {
+  if (files.length === 0) {
+    return isPrintWorkflow
+      ? "Para solicitar una impresión debes adjuntar el documento a imprimir."
+      : null;
+  }
+
+  if (files.length > MAX_UPLOAD_SESSION_ITEMS) {
+    return `Puedes adjuntar hasta ${MAX_UPLOAD_SESSION_ITEMS} archivos.`;
+  }
+
+  for (const file of files) {
+    if (!file.name.trim() || file.size <= 0) {
+      return "Cada archivo debe tener un nombre y contenido válido.";
+    }
+
+    if (file.size > MAX_STORAGE_FILE_SIZE_BYTES) {
+      return `Cada archivo puede pesar como máximo ${formatFileSize(MAX_STORAGE_FILE_SIZE_BYTES)}.`;
+    }
+
+    const extension = getFileExtension(file.name);
+    if (!extension || !(extension in PPO03_MIME_BY_EXTENSION)) {
+      return "Selecciona archivos PDF, imagen, documento, ZIP, RAR o CDR permitidos.";
+    }
+  }
+
+  return null;
+}
+
+function getSubmittedValues(form: HTMLFormElement): PublicSolicitudSubmittedValues {
+  const formData = new FormData(form);
+  const read = (name: string) => {
+    const value = formData.get(name);
+    return typeof value === "string" ? value : "";
+  };
+
+  return {
+    service_id: read("service_id"),
+    client_name: read("client_name"),
+    client_phone: read("client_phone"),
+    client_email: read("client_email"),
+    description: read("description"),
+    desired_date: read("desired_date"),
+    notes: read("notes"),
+    print_copies: read("print_copies"),
+    print_color_mode: read("print_color_mode"),
+    print_paper_size: read("print_paper_size"),
+    print_sides: read("print_sides"),
+  };
 }
 
 function getAvailableWorkflows({
@@ -97,7 +186,7 @@ export function PublicSolicitudForm({
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const lastServiceIdErrorRefreshStateRef =
-    useRef<SubmitPublicSolicitudActionState | null>(null);
+    useRef<PublicSolicitudFormState | null>(null);
   const workflowTabRefs = useRef<
     Partial<Record<WorkflowType, HTMLButtonElement | null>>
   >({});
@@ -111,10 +200,10 @@ export function PublicSolicitudForm({
     encargoServices,
     printService,
   });
-  const [state, formAction, pending] = useActionState(
-    submitPublicSolicitudAction,
-    initialState,
-  );
+  const [state, setState] = useState<PublicSolicitudFormState>(initialState);
+  const [submission, setSubmission] = useState<PublicSolicitudSubmission | null>(null);
+  const [isStarting, setIsStarting] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const preservedService = getServiceById(
     serviceTypes,
     state.values?.service_id,
@@ -154,14 +243,8 @@ export function PublicSolicitudForm({
   const serviceIdError = getFieldError(state, "service_id");
 
   useEffect(() => {
-    if (state.ok) {
-      formRef.current?.reset();
-    }
-  }, [state.ok]);
-
-  useEffect(() => {
     if (
-      !state.ok &&
+      state.status === "error" &&
       serviceIdError &&
       lastServiceIdErrorRefreshStateRef.current !== state
     ) {
@@ -171,6 +254,7 @@ export function PublicSolicitudForm({
   }, [router, serviceIdError, state]);
 
   function selectWorkflow(nextWorkflowType: WorkflowType, moveFocus = false) {
+    if (isStarting || submission) return;
     setWorkflowType(nextWorkflowType);
 
     if (moveFocus) {
@@ -216,27 +300,94 @@ export function PublicSolicitudForm({
   const filesError = getFieldError(state, "files");
   const isPrintWorkflow = currentWorkflow === WORKFLOW_TYPES.IMPRESION;
   const todayInputDate = getTodayDateInputValue();
-  const formKey = state.ok
-    ? `success-${state.solicitudId ?? "ok"}`
-    : `form-${JSON.stringify(state.values ?? {})}`;
+  const isSubmissionLocked = submission !== null;
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (isStarting || isSubmissionLocked) return;
+
+    const files = selectedFiles;
+    const browserError = getBrowserFileValidationMessage(files, isPrintWorkflow);
+    const values = getSubmittedValues(event.currentTarget);
+
+    if (browserError) {
+      setState({
+        status: "error",
+        message: "Revisa los archivos adjuntos antes de enviar la solicitud.",
+        fieldErrors: { files: browserError },
+        values,
+      });
+      return;
+    }
+
+    setIsStarting(true);
+    setState({ status: "idle", message: "" });
+    try {
+      const result = await startPublicSolicitudAction({
+        values,
+        candidates: files.map((file) => ({ name: file.name, size: file.size })),
+      });
+
+      if (!result.ok) {
+        setState({
+          status: "error",
+          message: result.message,
+          fieldErrors: result.fieldErrors,
+          values,
+        });
+        return;
+      }
+
+      if (result.kind === "completed") {
+        setSubmission({
+          kind: "completed",
+          solicitudId: result.solicitudId,
+          publicReference: result.publicReference,
+        });
+        setState({
+          status: "completed",
+          message: "Solicitud enviada correctamente. Nos pondremos en contacto contigo.",
+          solicitudId: result.solicitudId,
+          publicReference: result.publicReference,
+        });
+        return;
+      }
+
+      setSubmission({ kind: "reserved", reservation: result.reservation, files });
+      setState({
+        status: "reserved",
+        message: "Solicitud registrada. Estamos adjuntando tus archivos.",
+        solicitudId: result.reservation.solicitudId,
+        publicReference: result.reservation.publicReference,
+      });
+      setSelectedFiles([]);
+    } catch {
+      setState({
+        status: "error",
+        message: "No se pudo registrar la solicitud. Inténtalo nuevamente.",
+        values,
+      });
+    } finally {
+      setIsStarting(false);
+    }
+  }
 
   return (
     <form
-      key={formKey}
       ref={formRef}
-      action={formAction}
-      aria-busy={pending}
+      onSubmit={handleSubmit}
+      aria-busy={isStarting || (submission?.kind === "reserved")}
       className="space-y-5 sm:space-y-6"
     >
       {state.message ? (
         <Alert
-          variant={state.ok ? "success" : "danger"}
-          title={state.ok ? "Hemos recibido tu solicitud" : "Revisa la solicitud"}
+          variant={state.status === "error" ? "danger" : "success"}
+          title={state.status === "error" ? "Revisa la solicitud" : "Solicitud registrada"}
           aria-live="polite"
           className="px-5 py-4 shadow-(--shadow-soft)"
         >
           <p className="leading-6">{state.message}</p>
-          {state.ok && state.publicReference ? (
+          {state.status !== "error" && state.publicReference ? (
             <div className="mt-3 space-y-3">
               <CopyableCode
                 code={state.publicReference}
@@ -244,29 +395,17 @@ export function PublicSolicitudForm({
                 helperText="Guarda este código. Lo usarás para consultar el estado de tu solicitud o pedido cuando la consulta esté disponible en el sistema."
                 className="border-success/25 bg-surface shadow-(--shadow-soft)"
               />
-              {typeof state.uploadedFilesCount === "number" ? (
+              {state.status === "completed" ? (
                 <p className="text-sm text-text-secondary">
                   Archivos recibidos:{" "}
                   <span className="font-semibold text-text-primary">
-                    {state.uploadedFilesCount}
+                    0
                   </span>
                 </p>
               ) : null}
             </div>
           ) : null}
-          {state.fileWarning ? (
-            <div className="mt-3 rounded-(--radius-control) border border-warning/30 bg-warning-soft px-3 py-2 text-warning">
-              {state.fileWarning}
-            </div>
-          ) : null}
-          {state.fileErrors && state.fileErrors.length > 0 ? (
-            <ul className="mt-3 list-disc space-y-1 pl-5 text-danger">
-              {state.fileErrors.map((error) => (
-                <li key={error}>{error}</li>
-              ))}
-            </ul>
-          ) : null}
-          {state.ok ? (
+          {state.status === "completed" ? (
             <p className="mt-3 text-sm leading-6 text-text-secondary">
               El equipo revisará la información y se pondrá en contacto contigo
               para confirmar los siguientes pasos.
@@ -275,6 +414,10 @@ export function PublicSolicitudForm({
         </Alert>
       ) : null}
 
+      <fieldset
+        disabled={isStarting || isSubmissionLocked}
+        className="space-y-5 border-0 p-0 sm:space-y-6"
+      >
       <FormSection
         title="¿Qué necesitas?"
         description={
@@ -306,7 +449,7 @@ export function PublicSolicitudForm({
                   aria-selected={isActive}
                   aria-controls={`workflow-panel-${availableWorkflow}`}
                   tabIndex={isActive ? 0 : -1}
-                  disabled={pending}
+                  disabled={isStarting || isSubmissionLocked}
                   onClick={() => selectWorkflow(availableWorkflow)}
                   onKeyDown={(event) =>
                     handleWorkflowTabKeyDown(event, availableWorkflow)
@@ -681,12 +824,15 @@ export function PublicSolicitudForm({
             help={
               <span className="block space-y-1">
                 <span className="block">
-                  Hasta 5 archivos, con un máximo de 20 MB por archivo.
+                  Hasta {MAX_UPLOAD_SESSION_ITEMS} archivos, con un máximo de {formatFileSize(MAX_STORAGE_FILE_SIZE_BYTES)} por archivo.
                 </span>
                 <span className="block">
-                  Formatos permitidos: PDF, JPG, JPEG, PNG, WEBP, DOC, DOCX y
-                  ZIP.
+                  Formatos permitidos: PDF, JPG, JPEG, PNG, WEBP, DOC, DOCX,
+                  ZIP, RAR y CDR.
                 </span>
+                {selectedFiles.length > 0 ? (
+                  <span className="block">{selectedFiles.length} seleccionados.</span>
+                ) : null}
                 <span className="block">
                   Los archivos se usarán únicamente para revisar tu solicitud.
                 </span>
@@ -699,10 +845,11 @@ export function PublicSolicitudForm({
                 name="files"
                 type="file"
                 multiple
-                accept={STORAGE_FILE_INPUT_ACCEPT}
                 invalid={invalid}
                 aria-describedby={describedBy}
-                disabled={pending}
+                accept={PPO03_STORAGE_FILE_INPUT_ACCEPT}
+                disabled={isStarting || isSubmissionLocked}
+                onChange={(event) => setSelectedFiles(Array.from(event.currentTarget.files ?? []))}
                 className="min-h-12 cursor-pointer p-1 text-sm file:mr-3 file:min-h-10 file:cursor-pointer file:rounded-(--radius-control) file:border-0 file:bg-brand-primary file:px-4 file:text-sm file:font-semibold file:text-white hover:file:bg-brand-primary-hover"
               />
             )}
@@ -729,13 +876,21 @@ export function PublicSolicitudForm({
           <Button
             type="submit"
             size="lg"
-            disabled={pending || !activeService}
+            disabled={isStarting || isSubmissionLocked || !activeService}
             className="w-full shadow-(--shadow-soft) sm:w-auto sm:min-w-56"
           >
-            {pending ? "Enviando solicitud..." : "Enviar solicitud"}
+            {isStarting ? "Registrando solicitud..." : "Enviar solicitud"}
           </Button>
         </FormActions>
       </FormSection>
+      </fieldset>
+
+      {submission?.kind === "reserved" ? (
+        <PublicSolicitudUploadQueue
+          reservation={submission.reservation}
+          files={submission.files}
+        />
+      ) : null}
     </form>
   );
 }
