@@ -1,182 +1,95 @@
 # Estado del proyecto
 
-Última actualización: 2026-08-09
+Última actualización: 2026-08-11
 
 ## Estado general
 
-Godel Diseño está en estado de MVP interno funcional. La baseline final de base
-de datos está consolidada, el rediseño UI/UX está cerrado y la documentación
-vigente ya queda separada del archivo histórico. La etapa activa es preparación
-para preproducción mediante PPO.
+Godel Diseño mantiene un MVP interno funcional y una baseline de base de datos
+self-hosted reproducible. La preparación de preproducción continúa activa: no
+existe todavía despliegue productivo ni aprobación de `company-host`.
 
-PPO-00 está cerrada y su baseline local fue validada. PPO-01 continúa activa:
-PPO-01B quedó cerrada, `development-laptop` fue clasificada `Apta con
-condiciones` para construir y validar la composición contenerizada de PPO-02, y
-PPO-01C queda diferida temporalmente por disponibilidad de `company-host`.
-PPO-01D permanece pendiente y bloqueada hasta completar PPO-01C.
+## Arquitectura vigente
 
-PPO-02 queda cerrada como base contenerizada reproducible aprobada con
-condiciones para construcción y validación local en `development-laptop`.
-PPO-02A.1 queda cerrada, PPO-02A.2 fue ejecutada como spike técnico reversible,
-PPO-02A.3 formalizó el contrato de endpoints Supabase por contexto, PPO-02B
-quedó cerrada para la imagen `app`, PPO-02C.1 implementó la imagen y
-configuración de Nginx, PPO-02C.2 implementó Docker Compose y red interna local,
-PPO-02C.3 queda absorbida en PPO-02C.2 por validación de límites y aislamiento,
-PPO-02D.1 implementó healthchecks y dependencia operativa inicial, PPO-02D.2
-queda aprobada con condiciones y PPO-02E.1 formalizó el cierre y handoff
-operativo. Dirección Técnica declaró aplicada manualmente la baseline remota de
-seis migraciones con VPN desactivado; Codex validó HTTPS administrado con VPN
-activo y `compose.env.local` cumple el contrato local; la composición
-administrada aprueba porque `/api/health/ready` envía la publishable key
-existente como cabecera `apikey` a `/auth/v1/health` y devuelve 200 contra
-Supabase administrado. La
-evidencia soporta `output: "standalone"`, imagen app endurecida
-`godel-design-app:ppo-02b2`, filesystem read-only con tmpfs mínimos,
-`STOPSIGNAL SIGTERM`, imagen Nginx no privilegiada
-`godel-design-nginx:ppo-02c1`, Compose con `app` y `nginx`, red bridge dedicada
-`stack`, `app` sin puerto publicado, Nginx como único punto publicado en
-`127.0.0.1`, resolución dinámica `app_backend`, liveness público, readiness
-dependiente de Supabase server-side, `depends_on` con `service_healthy`,
-límites iniciales, `pids_limit`, ejecución no root, `cap_drop=ALL`,
-`no-new-privileges`, tmpfs mínimos, ausencia de Docker socket, ausencia de
-montajes persistentes, reinicios, recreación local, `docker stats`, límites
-efectivos vía Docker y split-horizon HTTP validado entre host y contenedor.
+```text
+Desarrollo y E2E
+npm run dev -> Supabase CLI local
 
-Esto no cierra PPO-01, no aprueba `company-host`, no declara despliegue en la
-empresa y no presenta Cloudflare Tunnel ni el nuevo flujo de archivos como
-implementados. No existe despliegue productivo. Supabase administrado ya tiene
-baseline remota declarada por Dirección Técnica, HTTPS alcanzable desde Codex
-con VPN activo y runtime contenerizado validado localmente mediante Nginx.
-PPO-02D.1 queda aprobada localmente con condiciones; PPO-02D.2 formaliza
-`compose.env.local` como archivo runtime ignorado por Git, conserva la
-restricción ProTUN/PostgreSQL como condición administrativa y queda aprobada con
-condiciones. PPO-02E.1 cierra PPO-02 sin cerrar PPO-01. PPO-QA-01 queda diferida
-sin bloquear la transición hacia PPO-03.
+Production-like y objetivo operativo
+App Docker + Nginx -> Supabase self-hosted Docker
+```
 
-PPO-03A.2, PPO-03B y PPO-03C están cerradas. PPO-03B.2A promovió manualmente la
-migración 07 y PPO-03C.3A la migración 08; ambas son inmutables. PPO-03C.3B
-validó por HTTPS administrado reserva real, TUS, staged aislado y finalize sin
-ejecutar PostgreSQL remoto.
-
-PPO-03D permanece activa. PPO-03D.1 integra localmente el upload interno de
-Pedidos: las Server Actions reciben solamente descriptores y finalize, mientras
-el navegador transfiere los bytes directo a Storage por TUS autenticado. El gate
-browser local cubrió progreso, reanudación, lote de tres archivos, finalize y
-ausencia de bytes de archivo hacia Next.js. PPO-03D.1 queda implementada
-localmente y pendiente de revisión arquitectónica; PPO-03E continúa pendiente.
-
-Actualización PPO-03E: las subfases E.1, E.2 y E.3 están implementadas
-localmente. `/solicitud` usa reserva, firma TUS, transferencia directa y
-finalize; los gates cubren 7 MiB, resume, concurrencia, retry y ausencia de
-bytes en Next. PPO-03E queda pendiente de revisión/cierre arquitectónico y
-PPO-03 continúa por PPO-03F/G.
-
-Documentos vigentes:
-
-- [Roadmap PPO](production/PPO_ROADMAP.md).
-- [Plan de auditoría PPO-01](production/PPO_01_AUDIT_PLAN.md).
-- [Informe de capacidad PPO-01](production/PPO_01_CAPACITY_REPORT.md).
-- [Plan de contenerización PPO-02](production/PPO_02_CONTAINERIZATION_PLAN.md).
-- [Spike técnico de empaquetado PPO-02A.2](production/PPO_02_PACKAGING_SPIKE.md).
-- [Informe de imagen app PPO-02B.1](production/PPO_02_APP_IMAGE_REPORT.md).
-- [Informe de endurecimiento de imagen app PPO-02B.2](production/PPO_02_APP_IMAGE_HARDENING_REPORT.md).
-- [Informe de imagen Nginx PPO-02C.1](production/PPO_02_NGINX_IMAGE_REPORT.md).
-- [Informe de Docker Compose PPO-02C.2](production/PPO_02_COMPOSE_REPORT.md).
-- [Informe de healthchecks PPO-02D.1](production/PPO_02_HEALTHCHECK_REPORT.md).
-- [Informe de Supabase administrado PPO-02D.2](production/PPO_02_MANAGED_SUPABASE_REPORT.md).
-- [Cierre de base contenerizada PPO-02E.1](production/PPO_02_CLOSURE.md).
-- [Contrato PPO-03A.1 de cargas y almacenamiento](production/PPO_03_UPLOAD_STORAGE_CONTRACT.md).
-- [Informe de spike PPO-03A.2](production/PPO_03_TUS_SPIKE_REPORT.md).
-- [Informe DB/Storage PPO-03B.1](production/PPO_03_STORAGE_DB_REPORT.md).
-- [Validación HTTPS administrada PPO-03B.2B](production/PPO_03_STORAGE_MANAGED_REPORT.md).
-- [Gate HTTPS administrado PPO-03C.3B](production/PPO_03_CONTROL_PLANE_MANAGED_REPORT.md).
-- [Informe de integración interna PPO-03D.1](production/PPO_03_PEDIDO_UPLOAD_REPORT.md).
-- [Cierre PPO-00](preproduction/PPO_00_CLOSURE.md).
-
-## PPO-03B — Cerrada
-
-PPO-03B.1 está validada localmente tras corrección arquitectónica: la séptima migración crea el control plane
-privado de sesiones e items de carga y restringe las operaciones nuevas de
-Storage por reserva, rol, estado, expiración y operación. TUS interno admite
-`create` y `part`; TUS público usa exclusivamente el endpoint firmado
-`/upload/resumable/sign`, sin TUS regular anónimo. En el cierre de PPO-03B, las
-capacidades de reserva, firma, transferencia y finalize quedaron transferidas a
-PPO-03C, posteriormente completada. PPO-03B.2A aplicó la
-migración 07 administrada por Dirección Técnica y PPO-03B.2B validó sus APIs
-HTTPS sin ejecutar PostgreSQL remoto. PPO-03B.2B queda cerrada, aprobada con la
-condición de integración de listing/staged transferida a PPO-03C; la evidencia
-está en [PPO-03B.2B](production/PPO_03_STORAGE_MANAGED_REPORT.md).
-PPO-03B.1 y PPO-03B.2A también están cerradas; PPO-03C es la siguiente fase.
-
-## Funcionalidades disponibles
-
-- Solicitud pública.
-- Consulta pública `/estado`.
-- Login interno y dashboard por rol.
-- Clientes.
-- Solicitudes internas.
-- Pedidos.
-- Asignaciones de personal.
-- Tareas de pedido.
-- Plantillas de tareas.
-- Archivos privados.
-- Comentarios e historial.
-- Pagos de pedido.
-- Gestión de usuarios internos.
-- Alta administrativa con Auth Admin.
-- Cambio inicial obligatorio.
-- Reset administrativo de contraseña.
-- Catálogo operativo configurable de tipos de servicio.
-
-El catálogo operativo de tipos de servicio no es un catálogo comercial, una
-tienda online ni un carrito.
+Supabase administrado fue el backend de validaciones históricas de PPO-02 y
+PPO-03. Esa evidencia se conserva en sus informes, pero fue superseded como
+backend objetivo por el workstream SH.
 
 ## Baseline de base de datos
 
-Estado correcto: seis migraciones baseline y dos migraciones incrementales PPO-03:
+La baseline activa contiene exactamente seis migraciones consolidadas:
 
-1. `20260731000100_01_core_schema.sql`: enums, tablas, constraints, triggers base y servicios iniciales.
-2. `20260731000200_02_security_rls_grants.sql`: RLS, policies y grants.
-3. `20260731000300_03_business_rpcs.sql`: RPCs de negocio.
-4. `20260731000400_04_storage.sql`: bucket privado, policies Storage y helpers.
-5. `20260731000500_05_auth_admin_user_lifecycle.sql`: ciclo Auth Admin, auditorías privadas, provisioning y reset.
-6. `20260731000600_06_final_hardening.sql`: assertions finales y hardening.
-7. `20260809000100_07_ppo03b_upload_sessions_storage.sql`: sesiones/items de carga, control plane privado y policies Storage operation-aware.
-8. `20260809000200_08_ppo03c_upload_control_plane.sql`: control plane de reserva y finalize, promovida manualmente por Dirección Técnica en PPO-03C.3A y validada por HTTPS en PPO-03C.3B; es inmutable.
+1. `20260811131824_01_core_schema.sql`
+2. `20260811131825_02_security_rls_grants.sql`
+3. `20260811131826_03_business_rpcs.sql`
+4. `20260811131827_04_storage.sql`
+5. `20260811131828_05_auth_admin_user_lifecycle.sql`
+6. `20260811131829_06_final_hardening.sql`
 
-## Servicios iniciales
+La baseline self-hosted aprobó fresh rebuild, 6/6 migraciones, DB lint, Storage
+QA, tipos generados y build. Las antiguas migraciones incrementales 07/08
+pertenecen a la historia previa a SH-01C; sus responsabilidades quedaron
+absorbidas en la baseline consolidada y no forman parte de una instalación
+actual.
 
-- Nombre visible: `Impresión`.
-- Nombre visible: `Otro`.
-- Literal técnico: `workflow_type = impresion`.
+## Estado PPO
 
-Sus UUID se generan por PostgreSQL; no existen UUID fijos de servicios. El
-servicio `Impresión` se identifica operativamente por `workflow_type =
-impresion`. El resto del catálogo se configura desde la aplicación.
+| Bloque | Estado |
+| --- | --- |
+| PPO-00 | Cerrada |
+| PPO-01 | Activa; `company-host` sigue pendiente |
+| PPO-02 | Cerrada con condiciones; evidencia managed histórica |
+| PPO-03A | Cerrada |
+| PPO-03B | Cerrada |
+| PPO-03C | Cerrada |
+| PPO-03D.1 | Cerrada / aprobada |
+| PPO-03D.2 | Superseded por el pivot self-hosted |
+| PPO-03E.1 | Cerrada / aprobada |
+| PPO-03E.2 | Cerrada / aprobada |
+| PPO-03E.3 | Cerrada / aprobada |
+| PPO-03E | Cerrada / aprobada |
+| PPO-03F | Siguiente bloque funcional |
+| PPO-03G | Pendiente |
+| PPO-03 | Activa |
 
-## Calidad
+PPO-03D/E ya trasladaron los bytes de archivos del navegador directamente a
+Storage por TUS. PPO-03F abordará expiración, reconciliación y cleanup; PPO-03G
+mantiene el gate final de infraestructura y retirada de límites transitorios.
 
-El estado validado actual se apoya en `npm.cmd run verify`, `npm.cmd run
-diff:check`, auditorías de seguridad, E2E focales por dominio y reset local
-reproducible de la base de datos. Esto describe el cierre conocido, no una
-garantía permanente: cada cambio debe volver a ejecutar las validaciones que
-apliquen.
+## Workstream self-hosted
 
-## Deuda y siguientes pasos
+SH completa la transición desde la arquitectura previa hacia Supabase
+self-hosted:
 
-La deuda técnica viva está en [development/TECH_DEBT.md](development/TECH_DEBT.md).
-El baseline de rendimiento está en
-[performance/PERFORMANCE_BASELINE.md](performance/PERFORMANCE_BASELINE.md).
-Las reglas permanentes del proyecto viven en
-[project-standards/README.md](project-standards/README.md), y el contexto de
-fases cerradas está en [archive/README.md](archive/README.md). El índice general
-de documentación está en [README.md](README.md).
+| Bloque | Estado |
+| --- | --- |
+| SH-01 | Cerrado / aprobado |
+| SH-02 | Pendiente |
+| SH-03 | Pendiente |
+| SH-04 | Pendiente |
+| SH-05 | Pendiente |
 
-Prioridades antes de exposición productiva:
+La orquestación definitiva entre PPO y SH se decidirá por separado con
+Dirección Técnica.
 
-- PPO-03 — rediseño de cargas y almacenamiento.
-- Hardening de preproducción.
-- Protección antiabuso en rutas públicas.
-- Estrategia operativa de archivos.
-- Observabilidad y alertas.
-- Configuración de despliegue y variables de entorno.
+## Capacidades disponibles
+
+- Solicitud pública y tracking público `/estado`.
+- Dashboard interno por rol, clientes, solicitudes, pedidos y tareas.
+- Archivos privados con control plane de reserva, TUS y finalize.
+- Comentarios, historial, pagos y administración de usuarios internos.
+
+## Documentación vigente
+
+- [Roadmap PPO](production/PPO_ROADMAP.md)
+- [Contrato PPO-03 de cargas y almacenamiento](production/PPO_03_UPLOAD_STORAGE_CONTRACT.md)
+- [Cierre de Solicitudes públicas PPO-03E](production/PPO_03_PUBLIC_SOLICITUD_UPLOAD_REPORT.md)
+- [Auditoría de baseline self-hosted SH-01C](production/SH_01C_DATABASE_BASELINE_AUDIT.md)
+- [Deuda técnica activa](development/TECH_DEBT.md)

@@ -9,6 +9,12 @@ Estado:
 - SH-01C.1B — cerrada / aprobada
 - SH-01C — cerrada / revalidada tras amendment PPO-03E
 
+> Convención de lectura actual: 01–08 es el inventario histórico de partida de
+> SH-01C.0. La baseline activa final contiene únicamente las seis migraciones
+> `20260811131824` a `20260811131829` descritas en la sección 3. La matriz
+> 01–08 se conserva para explicar la consolidación, no como estado de una
+> instalación presente.
+
 ## 1. Objetivo y alcance
 
 Esta auditoría define el estado final que debe expresar una instalación nueva de

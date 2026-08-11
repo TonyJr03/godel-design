@@ -276,7 +276,20 @@ Las subfases posteriores validarán, en local y Supabase administrado:
 - herencia solicitud → pedido, verificación de que Next.js no recibe bytes y
   retirada final de los límites transitorios de 110 MB.
 
-## Secuencia oficial
+## Arquitectura vigente y alcance histórico
+
+Las secciones anteriores registran el contrato original y los spikes de
+PPO-03A. La arquitectura vigente es Supabase self-hosted en Docker para
+operación production-like y Supabase CLI local para desarrollo/E2E. Las pruebas
+contra Supabase administrado, incluido el plan Free, son evidencia histórica y
+están superseded como plataforma operativa futura por el workstream SH.
+
+Las decisiones funcionales del contrato se conservan: hasta 10 archivos de
+20 MiB, TUS directo, JWT interno, firma pública, `cargas/v1`, reserva, finalize
+y cleanup pendiente en PPO-03F. PPO-03D.1 y PPO-03E están cerradas/aprobadas;
+PPO-03F es el siguiente bloque y PPO-03G permanece pendiente.
+
+## Secuencia oficial original (histórica)
 
 | Subfase | Alcance | Estado actual |
 | --- | --- | --- |

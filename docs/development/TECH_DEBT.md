@@ -36,7 +36,12 @@ resueltas ni planes históricos completos.
 
 ## Bloqueadores antes de producción pública
 
-### TD-UPLOAD-001 - Archivos grandes procesados por Next
+> Actualización 2026-08-11: el riesgo de archivos atravesando Next está
+> resuelto por PPO-03D/E. TD-UPLOAD-001 permanece activa únicamente por los
+> límites transitorios de payload de `next.config.ts` y su gate
+> production-like pendiente en PPO-03G.
+
+### TD-UPLOAD-001 - Estado histórico superseded
 
 PPO-03D.1 retiró esta ruta para las cargas internas de Pedido: sus bytes viajan
 del navegador a Storage por TUS. El flujo público de Solicitudes todavía atraviesa
@@ -62,7 +67,7 @@ el escaneo profundo. Esta deuda continúa activa.
 
 ## Deudas activas
 
-### TD-UPLOAD-001 - Archivos grandes procesados por Next
+### TD-UPLOAD-001 - Estado histórico anterior
 
 - Área: Upload/Infraestructura.
 - Severidad: Alta.
@@ -97,6 +102,27 @@ Seguimiento: PPO-03 inició con el
 [contrato de cargas y almacenamiento](../production/PPO_03_UPLOAD_STORAGE_CONTRACT.md).
 La rama interna queda resuelta por PPO-03D.1; la deuda continúa activa por
 Solicitudes y por la retirada de límites transitorios en PPO-03G.
+
+### TD-UPLOAD-001 - Límites transitorios de payload de Next
+
+- Área: Upload/Infraestructura.
+- Severidad: Media.
+- Bloquea producción pública: Sí, hasta completar el gate production-like de
+  PPO-03G.
+- Estado: Activa.
+
+PPO-03D/E resolvieron Browser → Storage directo: los bytes ya no atraviesan
+Next, ni para Pedido ni para Solicitudes. El contrato vigente es hasta diez
+archivos de 20 MiB por sesión, TUS directo y finalize autoritativo.
+
+La deuda residual es que `next.config.ts` conserva
+`serverActions.bodySizeLimit = "110mb"` y `proxyClientMaxBodySize = "110mb"`.
+Esos límites son transitorios hasta PPO-03G, que debe demostrar el gate
+production-like final y retirarlos o normalizarlos sin reabrir tráfico de bytes
+por Next.
+
+No se deben debilitar RLS, grants o policies de Storage ni abrir rutas privadas,
+`file_path` o credenciales administrativas al cliente durante ese cierre.
 
 ### TD-QA-001 - Suite e2e paralela no estable
 

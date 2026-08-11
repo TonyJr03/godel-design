@@ -2,7 +2,7 @@
 
 Fecha: 2026-08-11
 
-Estado:
+Estado durante PPO-03E.2 (histórico):
 
 ```text
 PPO-03E.1 — cerrada / aprobada
@@ -10,6 +10,20 @@ PPO-03E.2 — cerrada / aprobada
 PPO-03E.3 — implementada / pendiente revisión arquitectónica
 PPO-03E — activa / pendiente cierre arquitectónico
 ```
+
+## Estado final aprobado
+
+```text
+PPO-03E.1 — cerrada / aprobada
+PPO-03E.2 — cerrada / aprobada
+PPO-03E.3 — cerrada / aprobada
+PPO-03E   — CERRADA / APROBADA
+```
+
+La revisión arquitectónica de E.3 aprobó el gate directo 5/5, las regresiones
+de Solicitud/Pedido 13/13, Storage 4/4 con 2 skips documentados, auditorías
+static/security, la retirada del runtime legacy y la alineación de documentos
+activos. PPO-03 continúa activa; el handoff funcional es PPO-03F.
 
 ## Runtime integrado
 

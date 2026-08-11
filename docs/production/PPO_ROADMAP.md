@@ -2,6 +2,8 @@
 
 ## Metadatos
 
+- Actualización de estado: 2026-08-11
+
 - Proyecto: Godel Diseño
 - Estado: Activo
 - Fecha de creación: 2026-07-21
@@ -38,6 +40,9 @@ La iniciativa diferencia tres momentos operativos:
 - La composición se construirá primero en la laptop.
 - La misma base se trasladará después a la máquina de la empresa.
 - Supabase administrado continuará inicialmente como backend.
+- La afirmación anterior sobre continuidad de Supabase administrado es evidencia
+  histórica superseded. El backend objetivo actual es Supabase self-hosted en
+  Docker y Supabase CLI local queda para desarrollo/E2E.
 - Vercel Hobby se utilizará para previews, demostración y preproducción controlada.
 - Cloudflare Tunnel se evaluará para la exposición segura de la operación provisional.
 - Los archivos serán privados.
@@ -51,6 +56,15 @@ La iniciativa diferencia tres momentos operativos:
 
 Estas decisiones registran dirección arquitectónica. Las que pertenecen a fases
 posteriores no se declaran implementadas en este roadmap.
+
+## Arquitectura backend vigente
+
+Supabase self-hosted en Docker es el backend objetivo de operación.
+Supabase CLI local se conserva como entorno de desarrollo y E2E. Las pruebas
+previas con Supabase administrado permanecen como evidencia histórica de
+PPO-02/PPO-03, pero ese backend fue superseded por el workstream SH. La lista de
+decisiones inmediatamente anterior se interpreta como snapshot histórico cuando
+menciona continuidad de Supabase administrado.
 
 ## Estado de fases
 
@@ -71,6 +85,21 @@ posteriores no se declaran implementadas en este roadmap.
 
 PPO-QA-01 no bloquea PPO-01, conserva el trabajo archivado y deberá resolverse
 antes del cierre definitivo de la puesta en producción.
+
+## Workstream self-hosted
+
+SH completa la transición desde la arquitectura anterior hacia Supabase
+self-hosted:
+
+| Bloque | Estado |
+| --- | --- |
+| SH-01 | Cerrado / aprobado |
+| SH-02 | Pendiente |
+| SH-03 | Pendiente |
+| SH-04 | Pendiente |
+| SH-05 | Pendiente |
+
+La orquestación definitiva PPO↔SH se definirá aparte con Dirección Técnica.
 
 Estado interno vigente de PPO-02:
 
@@ -123,6 +152,29 @@ wrapper productivo. PPO-03D.1 integra el flujo interno de Pedidos y queda
 implementada localmente, pendiente de revisión arquitectónica. PPO-03C queda
 cerrada y PPO-03 permanece activa mientras continúan PPO-03D, PPO-03E, PPO-03F
 y PPO-03G.
+
+## Estado vigente de PPO-03
+
+Los párrafos anteriores documentan la secuencia histórica antes del pivot SH.
+El estado operativo actual es:
+
+| Bloque | Estado |
+| --- | --- |
+| PPO-03A | Cerrada |
+| PPO-03B | Cerrada |
+| PPO-03C | Cerrada |
+| PPO-03D.1 | Cerrada / aprobada |
+| PPO-03D.2 | Superseded por self-hosted |
+| PPO-03E.1 | Cerrada / aprobada |
+| PPO-03E.2 | Cerrada / aprobada |
+| PPO-03E.3 | Cerrada / aprobada |
+| PPO-03E | Cerrada / aprobada |
+| PPO-03F | Siguiente bloque funcional |
+| PPO-03G | Pendiente |
+| PPO-03 | Activa |
+
+PPO-03F no se diseña en detalle en este roadmap. PPO-03 continúa activa hasta
+completar los bloques funcionales y de cierre pendientes.
 
 ## PPO-00
 
@@ -184,7 +236,12 @@ para construcción y validación local en `development-laptop`. Ese inicio no
 implicó cierre de PPO-01, no implicó aprobación de `company-host` y no implicó
 despliegue productivo ni despliegue en la empresa.
 
-## PPO-02 a PPO-10
+## PPO-02 a PPO-10 — detalle histórico
+
+La sección siguiente conserva el alcance y las decisiones registradas antes del
+pivot SH. Sus estados de backend administrado, PPO-03D.1 pendiente o PPO-03E
+pendiente están superseded por las secciones «Arquitectura backend vigente» y
+«Estado vigente de PPO-03» de este documento.
 
 - PPO-02: cerró Dockerfile, Compose, Nginx, redes, healthchecks, readiness
   administrado y criterios de reproducibilidad local. PPO-02A, PPO-02B,
