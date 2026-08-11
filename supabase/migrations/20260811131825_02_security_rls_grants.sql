@@ -1,8 +1,5 @@
 -- Baseline final 02 - Security, RLS and grants.
--- ACTIVO: migracion consolidada para reconstruccion limpia del proyecto.
 -- Excludes business RPCs, Storage policies, Auth Admin lifecycle and final hardening assertions.
-
-create schema if not exists private;
 
 revoke all on schema private from public;
 revoke all on schema private from anon;
@@ -30,6 +27,9 @@ revoke all on table
   public.pedido_pagos
 from public, anon, authenticated;
 
+revoke all on table public.archivo_carga_sesiones from public, anon, authenticated, service_role;
+revoke all on table public.archivo_carga_items from public, anon, authenticated, service_role;
+
 revoke all on type public.app_role from public, anon;
 revoke all on type public.workflow_type from public, anon;
 revoke all on type public.solicitud_estado from public, anon;
@@ -40,6 +40,9 @@ revoke all on type public.pedido_tarea_tipo from public, anon;
 revoke all on type public.archivo_visibility from public, anon;
 revoke all on type public.pedido_historial_action from public, anon;
 revoke all on type public.solicitud_historial_action from public, anon;
+
+revoke all on type public.archivo_carga_sesion_estado from public, anon, authenticated;
+revoke all on type public.archivo_carga_item_estado from public, anon, authenticated;
 
 grant usage on type public.workflow_type to anon;
 grant usage on type public.solicitud_estado to anon;
@@ -57,7 +60,8 @@ grant usage on type
   public.solicitud_historial_action
 to authenticated;
 
-grant insert on table public.solicitudes to anon;
+grant usage on type public.archivo_carga_sesion_estado to anon, authenticated;
+grant usage on type public.archivo_carga_item_estado to anon, authenticated;
 
 grant select on table public.tipos_servicio to anon;
 grant select, insert, update on table public.tipos_servicio to authenticated;
@@ -78,7 +82,7 @@ grant select, insert, update, delete on table public.solicitudes to authenticate
 grant select, insert, update, delete on table public.pedidos to authenticated;
 grant select, insert, update, delete on table public.pedido_trabajadores to authenticated;
 grant select, insert, update, delete on table public.pedido_tareas to authenticated;
-grant select, insert, update, delete on table public.archivos to authenticated;
+grant select on table public.archivos to authenticated;
 grant select, insert on table public.pedido_comentarios to authenticated;
 grant select on table public.pedido_historial to authenticated;
 grant select, insert on table public.solicitud_comentarios to authenticated;
@@ -87,7 +91,7 @@ grant select, insert, update, delete on table public.trabajo_plantillas to authe
 grant select, insert, update, delete on table public.trabajo_plantilla_tareas to authenticated;
 grant select, insert, update, delete on table public.pedido_pagos to authenticated;
 
-create or replace function private.current_user_role()
+create function private.current_user_role()
 returns public.app_role
 language sql
 security definer
@@ -102,7 +106,7 @@ as $$
   limit 1;
 $$;
 
-create or replace function private.current_user_is_active()
+create function private.current_user_is_active()
 returns boolean
 language sql
 security definer
@@ -118,7 +122,7 @@ as $$
   );
 $$;
 
-create or replace function private.is_admin()
+create function private.is_admin()
 returns boolean
 language sql
 security definer
@@ -128,7 +132,7 @@ as $$
   select coalesce(private.current_user_role() = 'admin'::public.app_role, false);
 $$;
 
-create or replace function private.is_supervisor()
+create function private.is_supervisor()
 returns boolean
 language sql
 security definer
@@ -138,7 +142,7 @@ as $$
   select coalesce(private.current_user_role() = 'supervisor'::public.app_role, false);
 $$;
 
-create or replace function private.is_admin_or_supervisor()
+create function private.is_admin_or_supervisor()
 returns boolean
 language sql
 security definer
@@ -154,7 +158,7 @@ as $$
   );
 $$;
 
-create or replace function private.is_assigned_to_pedido(p_pedido_id uuid)
+create function private.is_assigned_to_pedido(p_pedido_id uuid)
 returns boolean
 language sql
 security definer
@@ -175,7 +179,7 @@ as $$
   end;
 $$;
 
-create or replace function private.can_access_pedido(p_pedido_id uuid)
+create function private.can_access_pedido(p_pedido_id uuid)
 returns boolean
 language sql
 security definer
@@ -189,7 +193,7 @@ as $$
   end;
 $$;
 
-create or replace function private.solicitud_has_accessible_pedido(p_solicitud_id uuid)
+create function private.solicitud_has_accessible_pedido(p_solicitud_id uuid)
 returns boolean
 language sql
 security definer
@@ -212,7 +216,7 @@ as $$
   end;
 $$;
 
-create or replace function private.can_access_solicitud(p_solicitud_id uuid)
+create function private.can_access_solicitud(p_solicitud_id uuid)
 returns boolean
 language sql
 security definer
@@ -226,7 +230,7 @@ as $$
   end;
 $$;
 
-create or replace function private.can_manage_pedido_tasks(p_pedido_id uuid)
+create function private.can_manage_pedido_tasks(p_pedido_id uuid)
 returns boolean
 language plpgsql
 security definer
@@ -261,7 +265,7 @@ begin
 end;
 $$;
 
-create or replace function private.pedido_file_visibility_for_status(
+create function private.pedido_file_visibility_for_status(
   p_status public.pedido_estado
 )
 returns public.archivo_visibility
@@ -281,85 +285,6 @@ as $$
       then 'final_entrega'::public.archivo_visibility
     else null
   end;
-$$;
-
-create or replace function private.pedido_file_path_matches(
-  p_file_path text,
-  p_pedido_id uuid,
-  p_visibility public.archivo_visibility
-)
-returns boolean
-language sql
-immutable
-set search_path = public
-as $$
-  select p_file_path is not null
-    and p_pedido_id is not null
-    and p_visibility in (
-      'interno_pedido'::public.archivo_visibility,
-      'avance'::public.archivo_visibility,
-      'final_entrega'::public.archivo_visibility
-    )
-    and p_file_path !~ '/{2,}'
-    and array_length(string_to_array(p_file_path, '/'), 1) = 4
-    and split_part(p_file_path, '/', 1) = 'pedidos'
-    and split_part(p_file_path, '/', 2) = p_pedido_id::text
-    and split_part(p_file_path, '/', 3) = case p_visibility
-      when 'interno_pedido'::public.archivo_visibility then 'internos'
-      when 'avance'::public.archivo_visibility then 'avances'
-      when 'final_entrega'::public.archivo_visibility then 'finales'
-    end
-    and btrim(split_part(p_file_path, '/', 4)) <> '';
-$$;
-
-create or replace function private.can_insert_pedido_file_metadata(
-  p_bucket text,
-  p_file_path text,
-  p_pedido_id uuid,
-  p_solicitud_id uuid,
-  p_uploaded_by uuid,
-  p_visibility public.archivo_visibility,
-  p_file_name text,
-  p_file_size bigint,
-  p_file_type text
-)
-returns boolean
-language sql
-security definer
-set search_path = public, private
-stable
-as $$
-  select auth.uid() is not null
-    and private.current_user_is_active()
-    and p_bucket = 'godel-files'
-    and p_pedido_id is not null
-    and p_solicitud_id is null
-    and p_uploaded_by = auth.uid()
-    and btrim(coalesce(p_file_name, '')) <> ''
-    and p_file_size > 0
-    and p_file_size <= 20971520
-    and p_file_type in (
-      'application/pdf',
-      'image/jpeg',
-      'image/png',
-      'image/webp',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/zip',
-      'application/x-zip-compressed'
-    )
-    and private.can_access_pedido(p_pedido_id)
-    and private.pedido_file_path_matches(
-      p_file_path,
-      p_pedido_id,
-      p_visibility
-    )
-    and exists (
-      select 1
-      from public.pedidos as p
-      where p.id = p_pedido_id
-        and p_visibility = private.pedido_file_visibility_for_status(p.status)
-    );
 $$;
 
 revoke all on function private.current_user_role()
@@ -384,30 +309,11 @@ revoke all on function private.can_manage_pedido_tasks(uuid)
 from public, anon, authenticated;
 revoke all on function private.pedido_file_visibility_for_status(public.pedido_estado)
 from public, anon, authenticated;
-revoke all on function private.pedido_file_path_matches(
-  text,
-  uuid,
-  public.archivo_visibility
-)
-from public, anon, authenticated;
-revoke all on function private.can_insert_pedido_file_metadata(
-  text,
-  text,
-  uuid,
-  uuid,
-  uuid,
-  public.archivo_visibility,
-  text,
-  bigint,
-  text
-)
-from public, anon, authenticated;
-
 revoke all on function private.prevent_tipos_servicio_workflow_type_change()
 from public, anon, authenticated;
-
 revoke all on function private.sync_workflow_type_from_service()
 from public, anon, authenticated;
+
 grant execute on function private.current_user_role() to authenticated;
 grant execute on function private.current_user_is_active() to authenticated;
 grant execute on function private.is_admin() to authenticated;
@@ -420,22 +326,6 @@ grant execute on function private.can_access_solicitud(uuid) to authenticated;
 grant execute on function private.can_manage_pedido_tasks(uuid) to authenticated;
 grant execute on function private.pedido_file_visibility_for_status(
   public.pedido_estado
-) to authenticated;
-grant execute on function private.pedido_file_path_matches(
-  text,
-  uuid,
-  public.archivo_visibility
-) to authenticated;
-grant execute on function private.can_insert_pedido_file_metadata(
-  text,
-  text,
-  uuid,
-  uuid,
-  uuid,
-  public.archivo_visibility,
-  text,
-  bigint,
-  text
 ) to authenticated;
 
 alter table public.perfiles enable row level security;
@@ -454,6 +344,8 @@ alter table public.solicitud_historial enable row level security;
 alter table public.trabajo_plantillas enable row level security;
 alter table public.trabajo_plantilla_tareas enable row level security;
 alter table public.pedido_pagos enable row level security;
+alter table public.archivo_carga_sesiones enable row level security;
+alter table public.archivo_carga_items enable row level security;
 
 create policy perfiles_select_visible
 on public.perfiles
@@ -570,28 +462,6 @@ with check (
   (select auth.uid()) is not null
   and private.current_user_is_active()
   and private.is_admin()
-);
-
-create policy solicitudes_insert_public
-on public.solicitudes
-for insert
-to anon, authenticated
-with check (
-  status = 'nueva'::public.solicitud_estado
-  and reviewed_by is null
-  and converted_order_id is null
-  and cliente_id is null
-  and service_id is not null
-  and btrim(client_name) <> ''
-  and btrim(client_phone) <> ''
-  and btrim(description) <> ''
-  and exists (
-    select 1
-    from public.tipos_servicio as ts
-    where ts.id = public.solicitudes.service_id
-      and ts.is_publicly_available = true
-      and ts.workflow_type = public.solicitudes.workflow_type
-  )
 );
 
 create policy solicitudes_insert_manager
@@ -789,49 +659,6 @@ using (
       and private.is_assigned_to_pedido(pedido_id)
     )
   )
-);
-
-create policy archivos_insert_internal
-on public.archivos
-for insert
-to authenticated
-with check (
-  private.can_insert_pedido_file_metadata(
-    bucket,
-    file_path,
-    pedido_id,
-    solicitud_id,
-    uploaded_by,
-    visibility,
-    file_name,
-    file_size,
-    file_type
-  )
-);
-
-create policy archivos_update_manager
-on public.archivos
-for update
-to authenticated
-using (
-  (select auth.uid()) is not null
-  and private.current_user_is_active()
-  and private.is_admin_or_supervisor()
-)
-with check (
-  (select auth.uid()) is not null
-  and private.current_user_is_active()
-  and private.is_admin_or_supervisor()
-);
-
-create policy archivos_delete_manager
-on public.archivos
-for delete
-to authenticated
-using (
-  (select auth.uid()) is not null
-  and private.current_user_is_active()
-  and private.is_admin_or_supervisor()
 );
 
 create policy pedido_comentarios_select_accessible

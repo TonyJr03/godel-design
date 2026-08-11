@@ -1,10 +1,28 @@
 -- Baseline final 01 - Core schema.
--- ACTIVO: migracion consolidada para reconstruccion limpia del proyecto.
 -- Excludes RLS/grants, business RPCs, Storage, Auth Admin audit tables, data migration updates, QA data and application code.
 
-create extension if not exists pgcrypto;
-
+create schema if not exists extensions;
 create schema if not exists private;
+create extension if not exists pgcrypto with schema extensions;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_extension as e
+    join pg_namespace as n on n.oid = e.extnamespace
+    where e.extname = 'pgcrypto'
+      and n.nspname = 'extensions'
+  ) then
+    raise exception 'Baseline failed: pgcrypto must be installed in the extensions schema.';
+  end if;
+
+  if to_regprocedure('extensions.digest(bytea,text)') is null
+    or to_regprocedure('extensions.digest(text,text)') is null then
+    raise exception 'Baseline failed: extensions.digest(bytea,text) and extensions.digest(text,text) are required.';
+  end if;
+end;
+$$;
 
 create type public.app_role as enum (
   'admin',
@@ -90,7 +108,22 @@ create type public.solicitud_historial_action as enum (
   'convertida_a_pedido'
 );
 
-create or replace function public.set_updated_at()
+create type public.archivo_carga_sesion_estado as enum (
+  'open',
+  'completed',
+  'partial',
+  'expired',
+  'cancelled'
+);
+
+create type public.archivo_carga_item_estado as enum (
+  'reserved',
+  'committed',
+  'expired',
+  'cancelled'
+);
+
+create function public.set_updated_at()
 returns trigger
 language plpgsql
 set search_path = public
@@ -101,7 +134,7 @@ begin
 end;
 $$;
 
-create or replace function private.current_business_date()
+create function private.current_business_date()
 returns date
 language sql
 set search_path = pg_catalog
@@ -181,7 +214,7 @@ create unique index tipos_servicio_single_print_service
 on public.tipos_servicio (workflow_type)
 where workflow_type = 'impresion'::public.workflow_type;
 
-create or replace function private.prevent_tipos_servicio_workflow_type_change()
+create function private.prevent_tipos_servicio_workflow_type_change()
 returns trigger
 language plpgsql
 set search_path = public, private
@@ -248,7 +281,7 @@ before update on public.pedido_contadores
 for each row
 execute function public.set_updated_at();
 
-create or replace function private.generar_numero_pedido()
+create function private.generar_numero_pedido()
 returns text
 language plpgsql
 security definer
@@ -280,7 +313,7 @@ begin
 end;
 $$;
 
-create or replace function private.set_pedido_order_number()
+create function private.set_pedido_order_number()
 returns trigger
 language plpgsql
 security definer
@@ -453,6 +486,122 @@ create table public.archivos (
   constraint archivos_has_context check (pedido_id is not null or solicitud_id is not null)
 );
 
+create table public.archivo_carga_sesiones (
+  id uuid primary key default gen_random_uuid(),
+  solicitud_id uuid references public.solicitudes(id) on delete cascade,
+  pedido_id uuid references public.pedidos(id) on delete cascade,
+  created_by uuid references public.perfiles(id) on delete restrict,
+  public_token_hash text,
+  status public.archivo_carga_sesion_estado not null default 'open',
+  expires_at timestamptz not null,
+  created_at timestamptz not null default now(),
+  completed_at timestamptz,
+  constraint archivo_carga_sesiones_exactly_one_context_check check (
+    (solicitud_id is not null)::integer + (pedido_id is not null)::integer = 1
+  ),
+  constraint archivo_carga_sesiones_public_context_check check (
+    solicitud_id is null
+    or (
+      pedido_id is null
+      and created_by is null
+      and public_token_hash is not null
+      and public_token_hash ~ '^[0-9a-f]{64}$'
+    )
+  ),
+  constraint archivo_carga_sesiones_internal_context_check check (
+    pedido_id is null
+    or (
+      solicitud_id is null
+      and created_by is not null
+      and public_token_hash is null
+    )
+  ),
+  constraint archivo_carga_sesiones_expires_after_creation_check check (
+    expires_at > created_at
+  ),
+  constraint archivo_carga_sesiones_completed_at_status_check check (
+    (status in ('completed', 'partial') and completed_at is not null)
+    or (status not in ('completed', 'partial') and completed_at is null)
+  )
+);
+
+create function private.is_valid_upload_file_descriptor(
+  file_name text,
+  mime_type text,
+  file_size bigint
+)
+returns boolean
+language sql
+immutable
+set search_path = public, private
+as $$
+  select file_name is not null
+    and char_length(btrim(file_name)) between 1 and 255
+    and file_name !~ E'[/\\\\]'
+    and file_name !~ '[[:cntrl:]]'
+    and file_name ~* '\.(pdf|jpg|jpeg|png|webp|doc|docx|zip|rar|cdr)$'
+    and file_size > 0
+    and file_size <= 20971520
+    and (
+      (file_name ~* '\.pdf$' and mime_type = 'application/pdf')
+      or (file_name ~* '\.(jpg|jpeg)$' and mime_type = 'image/jpeg')
+      or (file_name ~* '\.png$' and mime_type = 'image/png')
+      or (file_name ~* '\.webp$' and mime_type = 'image/webp')
+      or (file_name ~* '\.doc$' and mime_type = 'application/msword')
+      or (file_name ~* '\.docx$' and mime_type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+      or (file_name ~* '\.zip$' and mime_type = 'application/zip')
+      or (file_name ~* '\.rar$' and mime_type = 'application/vnd.rar')
+      or (file_name ~* '\.cdr$' and mime_type = 'application/vnd.corel-draw')
+    );
+$$;
+
+create function private.is_upload_object_path(
+  expected_session_id uuid,
+  expected_item_id uuid,
+  object_name text
+)
+returns boolean
+language sql
+immutable
+set search_path = public, private
+as $$
+  select object_name ~ (
+    '^cargas/v1/' || expected_session_id::text || '/' || expected_item_id::text
+    || '/[0-9a-f]{32,128}-[a-z0-9][a-z0-9_-]{0,118}\.(pdf|jpg|jpeg|png|webp|doc|docx|zip|rar|cdr)$'
+  );
+$$;
+
+create table public.archivo_carga_items (
+  id uuid primary key default gen_random_uuid(),
+  session_id uuid not null references public.archivo_carga_sesiones(id) on delete cascade,
+  sort_order smallint not null,
+  object_path text not null,
+  original_name text not null,
+  normalized_mime text not null,
+  expected_size bigint not null,
+  visibility public.archivo_visibility not null,
+  status public.archivo_carga_item_estado not null default 'reserved',
+  archivo_id uuid references public.archivos(id) on delete set null,
+  created_at timestamptz not null default now(),
+  committed_at timestamptz,
+  constraint archivo_carga_items_sort_order_range_check check (
+    sort_order between 0 and 9
+  ),
+  constraint archivo_carga_items_object_path_shape_check check (
+    private.is_upload_object_path(session_id, id, object_path)
+    and lower(regexp_replace(object_path, '^.*\.', '')) = lower(regexp_replace(original_name, '^.*\.', ''))
+  ),
+  constraint archivo_carga_items_descriptor_check check (
+    private.is_valid_upload_file_descriptor(original_name, normalized_mime, expected_size)
+  ),
+  constraint archivo_carga_items_committed_at_status_check check (
+    (status = 'committed' and committed_at is not null)
+    or (status <> 'committed' and committed_at is null and archivo_id is null)
+  ),
+  constraint archivo_carga_items_session_sort_order_unique unique (session_id, sort_order),
+  constraint archivo_carga_items_object_path_unique unique (object_path)
+);
+
 create table public.pedido_comentarios (
   id uuid primary key default gen_random_uuid(),
   pedido_id uuid not null references public.pedidos(id) on delete cascade,
@@ -554,7 +703,7 @@ before update on public.trabajo_plantilla_tareas
 for each row
 execute function public.set_updated_at();
 
-create or replace function private.calculate_pedido_payment_status(
+create function private.calculate_pedido_payment_status(
   p_total_amount numeric,
   p_paid_cash_amount numeric,
   p_paid_transfer_amount numeric
@@ -575,7 +724,7 @@ as $$
   end;
 $$;
 
-create or replace function private.set_pedido_payment_status()
+create function private.set_pedido_payment_status()
 returns trigger
 language plpgsql
 security definer
@@ -651,7 +800,7 @@ before update on public.pedido_pagos
 for each row
 execute function public.set_updated_at();
 
-create or replace function private.generate_public_reference_candidate()
+create function private.generate_public_reference_candidate()
 returns text
 language plpgsql
 security definer
@@ -675,7 +824,7 @@ begin
 end;
 $$;
 
-create or replace function private.set_solicitud_public_reference()
+create function private.set_solicitud_public_reference()
 returns trigger
 language plpgsql
 security definer
@@ -706,7 +855,7 @@ begin
 end;
 $$;
 
-create or replace function private.set_pedido_public_reference()
+create function private.set_pedido_public_reference()
 returns trigger
 language plpgsql
 security definer
@@ -741,7 +890,7 @@ begin
 end;
 $$;
 
-create or replace function private.sync_workflow_type_from_service()
+create function private.sync_workflow_type_from_service()
 returns trigger
 language plpgsql
 security definer
@@ -789,7 +938,7 @@ before insert or update of service_id, workflow_type on public.pedidos
 for each row
 execute function private.sync_workflow_type_from_service();
 
-create or replace function private.ensure_active_order_assignment_profile()
+create function private.ensure_active_order_assignment_profile()
 returns trigger
 language plpgsql
 security definer
@@ -810,7 +959,7 @@ begin
 end;
 $$;
 
-create or replace function private.ensure_perfil_admin_integrity()
+create function private.ensure_perfil_admin_integrity()
 returns trigger
 language plpgsql
 security definer
@@ -879,7 +1028,7 @@ before insert or update of assigned_profile_id on public.pedido_trabajadores
 for each row
 execute function private.ensure_active_order_assignment_profile();
 
-create or replace function private.insert_pedido_historial_pedido_creado()
+create function private.insert_pedido_historial_pedido_creado()
 returns trigger
 language plpgsql
 security definer
@@ -917,7 +1066,7 @@ begin
 end;
 $$;
 
-create or replace function private.insert_pedido_historial_trabajador_asignado()
+create function private.insert_pedido_historial_trabajador_asignado()
 returns trigger
 language plpgsql
 security definer
@@ -959,7 +1108,7 @@ begin
 end;
 $$;
 
-create or replace function private.insert_pedido_historial_trabajador_removido()
+create function private.insert_pedido_historial_trabajador_removido()
 returns trigger
 language plpgsql
 security definer
@@ -1003,7 +1152,7 @@ begin
 end;
 $$;
 
-create or replace function private.insert_pedido_historial_archivo_subido()
+create function private.insert_pedido_historial_archivo_subido()
 returns trigger
 language plpgsql
 security definer
@@ -1051,7 +1200,7 @@ begin
 end;
 $$;
 
-create or replace function private.insert_pedido_historial_tarea_creada()
+create function private.insert_pedido_historial_tarea_creada()
 returns trigger
 language plpgsql
 security definer
@@ -1091,7 +1240,7 @@ begin
 end;
 $$;
 
-create or replace function private.insert_pedido_historial_tarea_actualizada()
+create function private.insert_pedido_historial_tarea_actualizada()
 returns trigger
 language plpgsql
 security definer
@@ -1176,7 +1325,7 @@ begin
 end;
 $$;
 
-create or replace function private.insert_pedido_historial_tarea_eliminada()
+create function private.insert_pedido_historial_tarea_eliminada()
 returns trigger
 language plpgsql
 security definer
@@ -1216,7 +1365,7 @@ begin
 end;
 $$;
 
-create or replace function private.solicitud_estado_label(
+create function private.solicitud_estado_label(
   p_estado public.solicitud_estado
 )
 returns text
@@ -1235,7 +1384,7 @@ as $$
   end;
 $$;
 
-create or replace function private.insert_solicitud_historial_solicitud_creada()
+create function private.insert_solicitud_historial_solicitud_creada()
 returns trigger
 language plpgsql
 security definer
@@ -1286,7 +1435,7 @@ begin
 end;
 $$;
 
-create or replace function private.insert_solicitud_historial_archivo_adjuntado()
+create function private.insert_solicitud_historial_archivo_adjuntado()
 returns trigger
 language plpgsql
 security definer
@@ -1332,7 +1481,7 @@ begin
 end;
 $$;
 
-create or replace function private.insert_solicitud_historial_estado_cambiado()
+create function private.insert_solicitud_historial_estado_cambiado()
 returns trigger
 language plpgsql
 security definer
@@ -1375,7 +1524,7 @@ begin
 end;
 $$;
 
-create or replace function private.insert_solicitud_historial_cliente_asociado()
+create function private.insert_solicitud_historial_cliente_asociado()
 returns trigger
 language plpgsql
 security definer
@@ -1426,7 +1575,7 @@ begin
 end;
 $$;
 
-create or replace function private.insert_solicitud_historial_convertida_a_pedido()
+create function private.insert_solicitud_historial_convertida_a_pedido()
 returns trigger
 language plpgsql
 security definer
@@ -1605,6 +1754,31 @@ on public.archivos(pedido_id, visibility, created_at desc, id desc);
 
 create index archivos_solicitud_visibility_created_at_idx
 on public.archivos(solicitud_id, visibility, created_at desc, id desc);
+
+create index archivo_carga_sesiones_solicitud_id_idx
+on public.archivo_carga_sesiones (solicitud_id)
+where solicitud_id is not null;
+
+create index archivo_carga_sesiones_pedido_id_idx
+on public.archivo_carga_sesiones (pedido_id)
+where pedido_id is not null;
+
+create index archivo_carga_sesiones_status_expires_at_idx
+on public.archivo_carga_sesiones (status, expires_at);
+
+create unique index archivo_carga_sesiones_public_token_hash_unique_idx
+on public.archivo_carga_sesiones (public_token_hash)
+where public_token_hash is not null;
+
+create index archivo_carga_items_session_id_idx
+on public.archivo_carga_items (session_id);
+
+create index archivo_carga_items_session_status_idx
+on public.archivo_carga_items (session_id, status);
+
+create unique index archivo_carga_items_archivo_id_unique_idx
+on public.archivo_carga_items (archivo_id)
+where archivo_id is not null;
 
 create index pedido_comentarios_pedido_created_at_idx
 on public.pedido_comentarios(pedido_id, created_at asc, id asc);

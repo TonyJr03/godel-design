@@ -1,9 +1,5 @@
 -- Baseline final 05 - Auth Admin User Lifecycle.
--- ACTIVO: migracion consolidada para reconstruccion limpia del proyecto.
-
 -- Contains private audit tables, Auth triggers, audited user creation, initial-password completion and administrative temporary-password reset.
-
-
 
 create table private.internal_user_creation_audit (
   id uuid primary key default gen_random_uuid(),
@@ -208,7 +204,7 @@ on private.internal_user_password_reset_audit (
 revoke all on table private.internal_user_password_reset_audit
 from public, anon, authenticated, service_role;
 
-create or replace function private.provision_internal_profile_from_auth_user()
+create function private.provision_internal_profile_from_auth_user()
 returns trigger
 language plpgsql
 security definer
@@ -328,8 +324,6 @@ begin
 end;
 $$;
 
-drop trigger if exists on_auth_user_created_provision_internal_profile
-on auth.users;
 
 create trigger on_auth_user_created_provision_internal_profile
 after insert on auth.users
@@ -342,8 +336,6 @@ from public, anon, authenticated;
 grant execute on function private.provision_internal_profile_from_auth_user()
 to supabase_auth_admin;
 
-drop trigger if exists on_auth_user_app_metadata_provision_internal_profile
-on auth.users;
 
 create trigger on_auth_user_app_metadata_provision_internal_profile
 after update of raw_app_meta_data on auth.users
@@ -362,7 +354,7 @@ when (
 execute function private.provision_internal_profile_from_auth_user();
 
 
-create or replace function public.begin_internal_user_creation_attempt(
+create function public.begin_internal_user_creation_attempt(
   p_target_role public.app_role
 )
 returns table (
@@ -502,7 +494,7 @@ begin
 end;
 $$;
 
-create or replace function public.complete_internal_user_creation_attempt(
+create function public.complete_internal_user_creation_attempt(
   p_attempt_id uuid,
   p_status text,
   p_error_code text default null,
@@ -622,7 +614,7 @@ grant execute on function public.complete_internal_user_creation_attempt(
 to authenticated;
 
 
-create or replace function public.complete_initial_password_change(
+create function public.complete_initial_password_change(
   p_user_id uuid
 )
 returns uuid
@@ -689,9 +681,6 @@ begin
 end;
 $$;
 
-alter function public.complete_initial_password_change(uuid)
-owner to postgres;
-
 revoke all
 on function public.complete_initial_password_change(uuid)
 from public, anon, authenticated;
@@ -706,7 +695,7 @@ on private.internal_user_password_reset_audit (target_profile_id)
 where status = 'pending';
 
 
-create or replace function public.begin_internal_user_password_reset(
+create function public.begin_internal_user_password_reset(
   p_target_profile_id uuid,
   p_attempt_id uuid
 )
@@ -1034,7 +1023,7 @@ begin
 end;
 $$;
 
-create or replace function public.get_internal_user_password_reset_state(
+create function public.get_internal_user_password_reset_state(
   p_attempt_id uuid
 )
 returns table (
@@ -1074,7 +1063,7 @@ begin
 end;
 $$;
 
-create or replace function public.complete_internal_user_password_reset(
+create function public.complete_internal_user_password_reset(
   p_attempt_id uuid,
   p_status text,
   p_error_code text default null
@@ -1219,15 +1208,6 @@ begin
   return v_updated_id;
 end;
 $$;
-
-alter function public.begin_internal_user_password_reset(uuid, uuid)
-owner to postgres;
-
-alter function public.get_internal_user_password_reset_state(uuid)
-owner to postgres;
-
-alter function public.complete_internal_user_password_reset(uuid, text, text)
-owner to postgres;
 
 revoke all
 on function public.begin_internal_user_password_reset(uuid, uuid)

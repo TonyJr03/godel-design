@@ -2,7 +2,7 @@
 
 Fecha: 2026-08-11
 Target: Supabase self-hosted, PostgreSQL 17, Auth y Storage self-hosted
-Estado: diseño aprobado para revisión; no implementa SH-01C.1
+Estado: SH-01C.0 — cerrada / aprobada; SH-01C.1A — implementada / pendiente de revisión SQL
 
 ## 1. Objetivo y alcance
 
@@ -43,9 +43,17 @@ los contratos Auth Admin de 05 se conservan sin rediseño funcional.
 | 05 Auth Admin lifecycle | contenido funcional actual de 05, sin objetos de upload |
 | 06 final hardening | revokes finales y assertions del estado definitivo, incluida ausencia de legacy |
 
-No se reutilizarán timestamps de `20260731` ni `20260809`. SH-01C.1 debe
-reservar una serie nueva al implementarse, por ejemplo `20260812000100` a
-`20260812000600` si sigue siendo posterior al momento real de creación.
+No se reutilizan timestamps de `20260731` ni `20260809`. La implementación
+SH-01C.1A reservó en el momento de creación la siguiente serie monotónica:
+
+| MIGRATION | FILE |
+|---|---|
+| `20260811131824` | `01_core_schema.sql` |
+| `20260811131825` | `02_security_rls_grants.sql` |
+| `20260811131826` | `03_business_rpcs.sql` |
+| `20260811131827` | `04_storage.sql` |
+| `20260811131828` | `05_auth_admin_user_lifecycle.sql` |
+| `20260811131829` | `06_final_hardening.sql` |
 
 ## 4. Inventario de objetos y matriz principal
 
@@ -57,6 +65,7 @@ como contratos explícitos; cada constraint e índice de 07 aparece individualme
 |---|---|---|---|---|---|---|---|---|---|
 | `archivo_carga_sesion_estado` | 07 | enum | ciclo de sesión | tables/RPC | MOVE | 01 | same | estructura base | LOW |
 | `archivo_carga_item_estado` | 07 | enum | ciclo de item | tables/RPC | MOVE | 01 | same | estructura base | LOW |
+| privilegios de enums de carga | 07 | grants | uso de estados de control plane | tables/RPC | REPLACE | 02/06 | `anon` y `authenticated` con `USAGE`; `PUBLIC` sin `USAGE` | contrato explícito de privilegios | LOW |
 | `archivo_carga_sesiones` | 07 | table | contexto y capability | RPC only | MOVE | 01 | same | tabla final | LOW |
 | `archivo_carga_items` | 07 | table | descriptor y commit | RPC/Storage | MOVE | 01 | same | tabla final | LOW |
 | `archivo_carga_sesiones_exactly_one_context_check` | 07 | constraint | solicitud XOR pedido | table | MOVE | 01 | same | invariante final | LOW |
@@ -122,6 +131,8 @@ como contratos explícitos; cada constraint e índice de 07 aparece individualme
 | `can_insert_pedido_file_metadata` | 02 | legacy helper | metadata interna directa | no consumer active | REMOVE | — | — | finalize RPC reemplaza | MEDIUM |
 | `solicitudes_insert_public` | 02 | legacy policy | INSERT público directo | public UI actual | REMOVE | — | — | RPC pública será única escritura | HIGH |
 | `archivos_insert_internal` | 02 | legacy policy | metadata directa interna | no consumer active | REMOVE | — | — | finalize RPC | MEDIUM |
+| `archivos_update_manager` | 02 | legacy policy | actualización directa de metadata | no existe flujo final que la use | REMOVE | — | — | metadata solo por `SECURITY DEFINER` | LOW |
+| `archivos_delete_manager` | 02 | legacy policy | borrado directo de metadata | no existe flujo final que la use | REMOVE | — | — | metadata solo por `SECURITY DEFINER` | LOW |
 | `archivos_insert_public_request_files` | 04 | legacy policy | metadata pública directa | public UI actual | REMOVE | — | — | finalize pública | HIGH |
 | `godel_files_select_accessible` | 04 | legacy policy | select por paths viejos | listing/download | REMOVE | — | — | policy committed nueva | MEDIUM |
 | `godel_files_insert_accessible` | 04 | legacy policy | upload interno paths viejos | dead builder | REMOVE | — | — | TUS reservado | MEDIUM |
@@ -130,12 +141,12 @@ como contratos explícitos; cada constraint e índice de 07 aparece individualme
 | `godel_files_insert_public_request_files` | 04 | legacy policy | upload público path viejo | public UI actual | REMOVE | — | — | signed reservation | HIGH |
 | `grant insert solicitudes to anon` | 06 | direct grant | escritura pública | public UI actual | REMOVE | 02/06 | revoke/assert | solo RPC | HIGH |
 | `grant insert archivos to anon` | 06 | direct grant | metadata pública | public UI actual | REMOVE | 02/06 | revoke/assert | solo finalize RPC | HIGH |
-| `grant insert storage.objects to anon` | 04/06 | direct grant | habilita policy INSERT | Storage API | KEEP | 04 | same | RLS limita a firma reservada | MEDIUM |
+| ACL `storage.objects` | Supabase Storage v1.60.4 | platform contract | ACL internos de Storage | Storage API | KEEP | upstream | platform-owned | autorización efectiva queda en RLS/policies | MEDIUM |
 | `grant insert archivos to authenticated` | 06 | direct grant | metadata interna | legacy path | REMOVE | 02/06 | revoke/assert | finalize SECURITY DEFINER | MEDIUM |
 
 ## 5. Resultado por decisión
 
-La matriz contiene 77 filas: 29 `MOVE`, 1 `KEEP`, 9 `REPLACE`, 22 `REMOVE`
+La matriz contiene 80 filas: 29 `MOVE`, 1 `KEEP`, 10 `REPLACE`, 24 `REMOVE`
 y 16 `RENAME`. SH-01C.1 debe recalcular esta cuenta desde el SQL generado y
 tratar cualquier objeto no representado como un hallazgo, no como permiso para
 copiarlo automáticamente.
@@ -170,11 +181,32 @@ La hipótesis queda validada como arquitectura final:
 anon: NO INSERT public.solicitudes
 anon: NO INSERT public.archivos
 anon: escritura de negocio solo por RPC pública controlada
+authenticated: SELECT directo en public.archivos solamente
+authenticated: NO INSERT/UPDATE/DELETE directo en public.archivos
 ```
 
-El `INSERT storage.objects` de `anon` sí permanece porque la API Storage evalúa
-la policy de firma reservada; no concede upload arbitrario. `SELECT`, `UPDATE` y
-`DELETE` anónimos permanecen revocados.
+`storage.objects` es platform-owned. Supabase Storage v1.60.4 administra sus
+ACL y puede conceder privilegios amplios a `anon`, `authenticated` y
+`service_role`; Godel no redefine esos ACL.
+
+La autorización efectiva se limita mediante:
+
+- bucket privado;
+- RLS;
+- cuatro policies Godel;
+- helpers operation-aware;
+- sesiones/items reservados;
+- finalize autoritativo.
+
+`anon` no dispone de policy `SELECT`, `UPDATE` ni `DELETE`. Su única policy
+Godel es `INSERT` para firma pública reservada.
+
+Clasificación:
+
+```text
+storage.objects ACL: SUPPORTED_PLATFORM_CONTRACT / VERSION_SENSITIVE
+Godel Storage RLS/policies: PROJECT_OWNED
+```
 
 ## 9. Consumers TypeScript
 
@@ -270,6 +302,10 @@ conversión Solicitud→Pedido. El finalize público/interno escribe la misma
 metadata que consumen listados y signed downloads. No hay evidencia para añadir
 columnas ni derivar contexto desde el path.
 
+El acceso directo final de `authenticated` queda limitado a `SELECT`. No se
+mantienen policies `INSERT`, `UPDATE` ni `DELETE`: toda escritura de metadata
+debe pasar por las RPC `SECURITY DEFINER` de finalize.
+
 ## 15. Conversión Solicitud → Pedido
 
 `convertir_solicitud_a_pedido` actualiza `archivos.pedido_id` por
@@ -284,6 +320,8 @@ queda asociado a solicitud y pedido, y la lectura final usa metadata/RLS.
 - existen los 12 enums/18 tablas finales y RLS está activo en ambas tablas de carga;
 - existen las cinco RPC con firmas exactas y solo los roles previstos tienen execute;
 - `anon` no inserta directamente en `solicitudes` ni `archivos`;
+- `authenticated` solo tiene `SELECT` directo sobre `public.archivos`;
+- `PUBLIC` no tiene `USAGE` en los enums de carga y `anon`/`authenticated` sí;
 - control plane sin CRUD directo para `anon`, `authenticated` o `service_role`;
 - bucket `godel-files` privado, 20 MiB y allowlist MIME exacta;
 - cuatro policies nuevas presentes y policies legacy ausentes;
