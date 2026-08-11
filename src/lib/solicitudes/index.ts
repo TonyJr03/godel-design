@@ -17,6 +17,11 @@ export {
   type SolicitudCommentFieldErrors,
 } from "./create-solicitud-comment";
 export { createPublicSolicitud } from "./create-public-solicitud";
+export {
+  createPublicSolicitudWithoutUpload,
+  type CreatePublicSolicitudWithoutUploadInput,
+  type CreatePublicSolicitudWithoutUploadResult,
+} from "./create-public-solicitud-without-upload";
 export { getInternalSolicitudById } from "./get-internal-solicitud-by-id";
 export {
   ensureSolicitudReviewStarted,

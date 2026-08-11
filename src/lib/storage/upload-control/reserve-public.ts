@@ -1,6 +1,5 @@
 import "server-only";
 
-import { randomInt } from "node:crypto";
 import {
   serviceFailure,
   serviceSuccess,
@@ -12,6 +11,11 @@ import {
   type PublicSolicitudFieldErrors,
   type PublicSolicitudInput,
 } from "@/lib/solicitudes/public-request-validation";
+import {
+  generatePublicReference,
+  isPublicReferenceConflict,
+  PUBLIC_REFERENCE_ATTEMPTS,
+} from "@/lib/solicitudes/public-reference";
 import { createPublicServerClient } from "@/lib/supabase/public-server";
 import { isValidUuid } from "@/lib/validators";
 import { generatePublicUploadCapability } from "./capability";
@@ -19,9 +23,6 @@ import { buildUploadReservationDescriptors } from "./descriptors";
 import { mapUploadControlError, uploadControlMessage } from "./errors";
 import { parsePublicUploadReservation } from "./parsers";
 import type { PublicUploadReservation, UploadCandidate, UploadControlErrorReason } from "./types";
-
-const PUBLIC_REFERENCE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-const PUBLIC_REFERENCE_ATTEMPTS = 5;
 
 export type ReservePublicUploadInput = {
   solicitud: PublicSolicitudInput;
@@ -34,20 +35,6 @@ export type ReservePublicUploadResult = ServiceResult<
   Record<never, never>,
   PublicSolicitudFieldErrors
 >;
-
-function generatePublicReference() {
-  let token = "";
-  for (let index = 0; index < 8; index += 1) {
-    token += PUBLIC_REFERENCE_ALPHABET.charAt(
-      randomInt(PUBLIC_REFERENCE_ALPHABET.length),
-    );
-  }
-  return `GD-${token.slice(0, 4)}-${token.slice(4, 8)}`;
-}
-
-function isPublicReferenceConflict(error: { code?: string | null; message?: string | null }) {
-  return error.code === "23505" && (error.message ?? "").toLowerCase().includes("public_reference");
-}
 
 async function resolvePublicService(
   serviceId: unknown,

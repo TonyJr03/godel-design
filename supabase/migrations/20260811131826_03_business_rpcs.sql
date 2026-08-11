@@ -2024,28 +2024,23 @@ begin
 end;
 $$;
 
-create function public.crear_solicitud_publica_con_reserva_carga(
+create function private.create_public_solicitud_record(
   p_public_reference text,
   p_service_id uuid,
   p_client_name text,
   p_client_phone text,
-  p_public_token_hash text,
-  p_items jsonb,
-  p_client_email text default null,
-  p_description text default null,
-  p_desired_date date default null,
-  p_notes text default null,
-  p_print_copies integer default null,
-  p_print_color_mode text default null,
-  p_print_paper_size text default null,
-  p_print_sides text default null
+  p_client_email text,
+  p_description text,
+  p_desired_date date,
+  p_notes text,
+  p_print_copies integer,
+  p_print_color_mode text,
+  p_print_paper_size text,
+  p_print_sides text
 )
 returns table (
   solicitud_id uuid,
-  public_reference text,
-  session_id uuid,
-  expires_at timestamptz,
-  items jsonb
+  workflow_type public.workflow_type
 )
 language plpgsql
 security definer
@@ -2056,13 +2051,10 @@ declare
   v_service_name text;
   v_description text;
   v_solicitud_id uuid;
-  v_session_id uuid := gen_random_uuid();
-  v_expires_at timestamptz := now() + interval '4 hours';
 begin
   if auth.uid() is not null
     or p_public_reference is null
     or p_public_reference !~ '^GD-[A-Z0-9]{4}-[A-Z0-9]{4}$'
-    or p_public_token_hash is null or p_public_token_hash !~ '^[0-9a-f]{64}$'
     or p_client_name is null
     or char_length(btrim(p_client_name)) not between 1 and 120
     or p_client_phone is null
@@ -2074,7 +2066,6 @@ begin
     or (p_notes is not null and char_length(btrim(p_notes)) > 1000) then
     raise exception 'invalid_public_request' using errcode = '22023';
   end if;
-  perform private.validate_upload_reservation_items(p_items);
 
   select ts.workflow_type, ts.name into v_workflow, v_service_name
   from public.tipos_servicio as ts
@@ -2119,6 +2110,90 @@ begin
     case when v_workflow = 'impresion'::public.workflow_type then null else p_desired_date end,
     nullif(btrim(p_notes), ''), v_workflow
   ) returning id into v_solicitud_id;
+
+  solicitud_id := v_solicitud_id;
+  workflow_type := v_workflow;
+  return next;
+end;
+$$;
+
+create function public.crear_solicitud_publica_sin_archivos(
+  p_public_reference text,
+  p_service_id uuid,
+  p_client_name text,
+  p_client_phone text,
+  p_client_email text default null,
+  p_description text default null,
+  p_desired_date date default null,
+  p_notes text default null
+)
+returns table (
+  solicitud_id uuid,
+  public_reference text
+)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_solicitud_id uuid;
+begin
+  select r.solicitud_id into v_solicitud_id
+  from private.create_public_solicitud_record(
+    p_public_reference, p_service_id, p_client_name, p_client_phone,
+    p_client_email, p_description, p_desired_date, p_notes,
+    null, null, null, null
+  ) as r;
+
+  solicitud_id := v_solicitud_id;
+  public_reference := p_public_reference;
+  return next;
+end;
+$$;
+
+create function public.crear_solicitud_publica_con_reserva_carga(
+  p_public_reference text,
+  p_service_id uuid,
+  p_client_name text,
+  p_client_phone text,
+  p_public_token_hash text,
+  p_items jsonb,
+  p_client_email text default null,
+  p_description text default null,
+  p_desired_date date default null,
+  p_notes text default null,
+  p_print_copies integer default null,
+  p_print_color_mode text default null,
+  p_print_paper_size text default null,
+  p_print_sides text default null
+)
+returns table (
+  solicitud_id uuid,
+  public_reference text,
+  session_id uuid,
+  expires_at timestamptz,
+  items jsonb
+)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_solicitud_id uuid;
+  v_session_id uuid := gen_random_uuid();
+  v_expires_at timestamptz := now() + interval '4 hours';
+begin
+  if p_public_token_hash is null or p_public_token_hash !~ '^[0-9a-f]{64}$' then
+    raise exception 'invalid_public_request' using errcode = '22023';
+  end if;
+  perform private.validate_upload_reservation_items(p_items);
+
+  select r.solicitud_id into v_solicitud_id
+  from private.create_public_solicitud_record(
+    p_public_reference, p_service_id, p_client_name, p_client_phone,
+    p_client_email, p_description, p_desired_date, p_notes,
+    p_print_copies, p_print_color_mode, p_print_paper_size, p_print_sides
+  ) as r;
 
   insert into public.archivo_carga_sesiones (id, solicitud_id, public_token_hash, expires_at)
   values (v_session_id, v_solicitud_id, p_public_token_hash, v_expires_at);
@@ -2339,13 +2414,16 @@ revoke all on function private.validate_upload_reservation_items(jsonb) from pub
 revoke all on function private.insert_upload_reservation_items(uuid, jsonb, public.archivo_visibility) from public, anon, authenticated, service_role;
 revoke all on function private.assert_upload_storage_object(text, bigint, text) from public, anon, authenticated, service_role;
 revoke all on function private.refresh_upload_session_completion(uuid) from public, anon, authenticated, service_role;
+revoke all on function private.create_public_solicitud_record(text, uuid, text, text, text, text, date, text, integer, text, text, text) from public, anon, authenticated, service_role;
 
+revoke all on function public.crear_solicitud_publica_sin_archivos(text, uuid, text, text, text, text, date, text) from public, anon, authenticated, service_role;
 revoke all on function public.crear_solicitud_publica_con_reserva_carga(text, uuid, text, text, text, jsonb, text, text, date, text, integer, text, text, text) from public, anon, authenticated, service_role;
 revoke all on function public.reservar_carga_pedido(uuid, jsonb) from public, anon, authenticated, service_role;
 revoke all on function public.autorizar_firma_carga_publica(uuid, uuid, text) from public, anon, authenticated, service_role;
 revoke all on function public.finalizar_carga_publica(uuid, uuid, text) from public, anon, authenticated, service_role;
 revoke all on function public.finalizar_carga_pedido(uuid, uuid) from public, anon, authenticated, service_role;
 
+grant execute on function public.crear_solicitud_publica_sin_archivos(text, uuid, text, text, text, text, date, text) to anon;
 grant execute on function public.crear_solicitud_publica_con_reserva_carga(text, uuid, text, text, text, jsonb, text, text, date, text, integer, text, text, text) to anon;
 grant execute on function public.autorizar_firma_carga_publica(uuid, uuid, text) to anon;
 grant execute on function public.finalizar_carga_publica(uuid, uuid, text) to anon;

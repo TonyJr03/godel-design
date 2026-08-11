@@ -7,7 +7,7 @@ Estado:
 - SH-01C.0 — cerrada / aprobada
 - SH-01C.1A — cerrada / aprobada
 - SH-01C.1B — cerrada / aprobada
-- SH-01C — CERRADA / APROBADA
+- SH-01C — cerrada / revalidada tras amendment PPO-03E
 
 ## 1. Objetivo y alcance
 
@@ -416,3 +416,21 @@ El build inicial de aplicación quedó bloqueado porque el `tsconfig` raíz incl
 archivos runtime upstream Deno bajo `infra/supabase`. Se resolvió excluyendo
 `infra/supabase/**/*` del proyecto Next/TypeScript, sin relajar el typechecking
 de Godel ni modificar el bundle upstream. Build final de aplicación: PASS.
+
+## 22. Amendment excepcional PPO-03E — entrypoint público sin archivos
+
+Dirección Técnica autorizó excepcionalmente modificar la baseline consolidada
+después de su cierre para completar el contrato inicial de Solicitudes/Storage
+antes de producción. No se creó migration 07: se modificaron únicamente
+`03_business_rpcs.sql` y `06_final_hardening.sql`.
+
+El amendment crea la solicitud pública de Encargo sin una sesión de carga y
+mantiene la invariante de que toda sesión representa una transferencia real de
+1 a 10 items. El helper privado común concentra la validación e inserción; la
+reserva pública conserva su firma, capability, paths, TTL y atomicidad.
+
+La evidencia de cierre anterior dejó de ser suficiente al cambiar la baseline.
+Se realizó un fresh rebuild local completo 01–06, con historial 6/6, QA
+transaccional del RPC nuevo, QA de Storage, DB lint, tipos regenerados y build
+de aplicación aprobados. Esta revalidación sustituye la evidencia técnica
+anterior para el estado actual; no se declara un nuevo SHA de validación.

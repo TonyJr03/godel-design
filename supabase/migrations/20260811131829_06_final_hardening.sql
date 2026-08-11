@@ -477,6 +477,34 @@ begin
     end if;
   end loop;
 
+  if to_regprocedure('private.create_public_solicitud_record(text, uuid, text, text, text, text, date, text, integer, text, text, text)') is null
+    or to_regprocedure('public.crear_solicitud_publica_sin_archivos(text, uuid, text, text, text, text, date, text)') is null then
+    raise exception 'Hardening failed: missing public solicitud without-upload contract.';
+  end if;
+
+  if not has_function_privilege('anon', 'public.crear_solicitud_publica_sin_archivos(text, uuid, text, text, text, text, date, text)', 'EXECUTE')
+    or has_function_privilege('authenticated', 'public.crear_solicitud_publica_sin_archivos(text, uuid, text, text, text, text, date, text)', 'EXECUTE')
+    or has_function_privilege('service_role', 'public.crear_solicitud_publica_sin_archivos(text, uuid, text, text, text, text, date, text)', 'EXECUTE')
+    or has_function_privilege('anon', 'private.create_public_solicitud_record(text, uuid, text, text, text, text, date, text, integer, text, text, text)', 'EXECUTE')
+    or has_function_privilege('authenticated', 'private.create_public_solicitud_record(text, uuid, text, text, text, text, date, text, integer, text, text, text)', 'EXECUTE')
+    or has_function_privilege('service_role', 'private.create_public_solicitud_record(text, uuid, text, text, text, text, date, text, integer, text, text, text)', 'EXECUTE') then
+    raise exception 'Hardening failed: public solicitud without-upload grants do not match the final contract.';
+  end if;
+
+  if exists (
+    select 1
+    from pg_proc as p
+    cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) as acl
+    where p.oid in (
+      'private.create_public_solicitud_record(text, uuid, text, text, text, text, date, text, integer, text, text, text)'::regprocedure,
+      'public.crear_solicitud_publica_sin_archivos(text, uuid, text, text, text, text, date, text)'::regprocedure
+    )
+      and acl.grantee = 0
+      and acl.privilege_type = 'EXECUTE'
+  ) then
+    raise exception 'Hardening failed: PUBLIC can execute a public solicitud without-upload function.';
+  end if;
+
   if not has_function_privilege('anon', 'private.can_sign_public_upload(text, text)', 'EXECUTE')
     or not has_function_privilege('authenticated', 'private.can_create_internal_upload(text, text)', 'EXECUTE')
     or not has_function_privilege('authenticated', 'private.can_read_committed_storage_object(text, text)', 'EXECUTE')

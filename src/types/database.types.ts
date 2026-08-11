@@ -1238,6 +1238,22 @@ export type Database = {
           solicitud_id: string
         }[]
       }
+      crear_solicitud_publica_sin_archivos: {
+        Args: {
+          p_client_email?: string
+          p_client_name: string
+          p_client_phone: string
+          p_description?: string
+          p_desired_date?: string
+          p_notes?: string
+          p_public_reference: string
+          p_service_id: string
+        }
+        Returns: {
+          public_reference: string
+          solicitud_id: string
+        }[]
+      }
       finalizar_carga_pedido: {
         Args: { p_item_id: string; p_session_id: string }
         Returns: {
