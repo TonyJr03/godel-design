@@ -63,21 +63,23 @@ PPO-03D/E ya trasladaron los bytes de archivos del navegador directamente a
 Storage por TUS. PPO-03F abordará expiración, reconciliación y cleanup; PPO-03G
 mantiene el gate final de infraestructura y retirada de límites transitorios.
 
-## Workstream self-hosted
+## Ruta activa
 
-SH completa la transición desde la arquitectura previa hacia Supabase
-self-hosted:
+```text
+PPO-03F
+→ SH-02
+→ SH-03
+→ PPO-03G
+→ cierre PPO-03
+→ SH-04
+→ SH-05
+→ cierre SH
+```
 
-| Bloque | Estado |
-| --- | --- |
-| SH-01 | Cerrado / aprobado |
-| SH-02 | Pendiente |
-| SH-03 | Pendiente |
-| SH-04 | Pendiente |
-| SH-05 | Pendiente |
-
-La orquestación definitiva entre PPO y SH se decidirá por separado con
-Dirección Técnica.
+PPO-03F es el siguiente bloque funcional. SH es un workstream técnico
+subordinado al roadmap maestro PPO y termina al cerrar SH-05. PPO-01C/D puede
+avanzar en paralelo cuando `company-host` esté disponible; PPO-01D aprobado es
+gate antes de PPO-04.
 
 ## Capacidades disponibles
 
@@ -89,6 +91,7 @@ Dirección Técnica.
 ## Documentación vigente
 
 - [Roadmap PPO](production/PPO_ROADMAP.md)
+- [Roadmap Self-Hosted](production/SH_ROADMAP.md)
 - [Contrato PPO-03 de cargas y almacenamiento](production/PPO_03_UPLOAD_STORAGE_CONTRACT.md)
 - [Cierre de Solicitudes públicas PPO-03E](production/PPO_03_PUBLIC_SOLICITUD_UPLOAD_REPORT.md)
 - [Auditoría de baseline self-hosted SH-01C](production/SH_01C_DATABASE_BASELINE_AUDIT.md)

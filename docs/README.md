@@ -14,7 +14,9 @@ no son fuente primaria para implementar cambios actuales.
 - [Índice de preproducción y operación](production/README.md): planes activos,
   auditorías y documentos de puesta en operación.
 - [Roadmap PPO](production/PPO_ROADMAP.md): iniciativa de Preproducción y
-  Puesta en Operación.
+  Puesta en Operación y roadmap maestro.
+- [Roadmap Self-Hosted](production/SH_ROADMAP.md): workstream técnico
+  subordinado para completar la transición a Supabase self-hosted.
 - [Plan de auditoría PPO-01](production/PPO_01_AUDIT_PLAN.md): contrato para
   auditoría de infraestructura y conectividad.
 - [Informe de capacidad PPO-01](production/PPO_01_CAPACITY_REPORT.md):

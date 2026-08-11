@@ -7,7 +7,7 @@
 - Proyecto: Godel Diseño
 - Estado: Activo
 - Fecha de creación: 2026-07-21
-- Última revisión: 2026-08-09
+- Última revisión: 2026-08-11
 - Responsable técnico: Dirección Técnica de Godel Diseño
 - Arquitectura y supervisión: Arquitectura Senior / Orquestación Técnica
 - Implementación: Agente Codex en VS Code
@@ -66,6 +66,49 @@ PPO-02/PPO-03, pero ese backend fue superseded por el workstream SH. La lista de
 decisiones inmediatamente anterior se interpreta como snapshot histórico cuando
 menciona continuidad de Supabase administrado.
 
+## Integración del workstream Self-Hosted
+
+Este documento sigue siendo el roadmap maestro de Preproducción y Puesta en
+Operación. [SH — Roadmap de transición a Supabase Self-Hosted](SH_ROADMAP.md)
+es su workstream técnico subordinado, temporal y con cierre explícito; no es un
+roadmap de producto paralelo ni una segunda puesta en producción.
+
+La ruta activa es:
+
+```text
+PPO-03F
+→ SH-02
+→ SH-03
+→ PPO-03G
+→ PPO-03 CLOSED
+→ SH-04
+→ SH-05
+→ SH CLOSED
+```
+
+PPO-03F completa conceptualmente expiración, abandono, reconciliación, cleanup,
+idempotencia, autoridad de eliminación y trazabilidad del lifecycle de Storage
+antes de integrar la topología production-like. SH-02 integra PPO-02 con el
+backend self-hosted; SH-03 prueba esas fronteras antes del gate final PPO-03G.
+Por tanto, PPO-03G no puede cerrar Storage solo con evidencia de desarrollo/E2E
+local.
+
+PPO-03F.0 es el último punto de decisión para evaluar un amendment excepcional
+de la baseline consolidada 01–06. Si se aprueba, exige fresh rebuild 01–06 y
+QA; si no, la baseline permanece intacta. Tras cerrar PPO-03F, la baseline
+01–06 queda frozen y todo cambio DB posterior deberá usar una migración `07+`.
+
+Al cierre de PPO-03 y SH, PPO-01C/D continúan como workstream paralelo cuando
+esté disponible `company-host`, con PPO-01D aprobado como gate de PPO-04.
+PPO-04 empieza como despliegue provisional privado/LAN; una exposición pública,
+incluido Cloudflare Tunnel si sigue siendo la solución elegida, requiere el gate
+PPO-05. PPO-05 cubre antiabuso, rate limiting, `/solicitud`, `/estado`, política
+de requests públicas, hardening y revisión de uploads públicos. SH-04 prueba
+los mecanismos técnicos de backup/restore/update/rollback; PPO-06 los
+operacionaliza en `company-host`. PPO-07 operacionaliza observabilidad, logs,
+métricas, alertas y soporte. PPO-10 reutilizará el contrato de portabilidad
+demostrado por SH-05 para una futura infraestructura estable.
+
 ## Estado de fases
 
 | Fase      | Nombre                                      | Estado    |
@@ -86,20 +129,10 @@ menciona continuidad de Supabase administrado.
 PPO-QA-01 no bloquea PPO-01, conserva el trabajo archivado y deberá resolverse
 antes del cierre definitivo de la puesta en producción.
 
-## Workstream self-hosted
+### Workstream Self-Hosted
 
-SH completa la transición desde la arquitectura anterior hacia Supabase
-self-hosted:
-
-| Bloque | Estado |
-| --- | --- |
-| SH-01 | Cerrado / aprobado |
-| SH-02 | Pendiente |
-| SH-03 | Pendiente |
-| SH-04 | Pendiente |
-| SH-05 | Pendiente |
-
-La orquestación definitiva PPO↔SH se definirá aparte con Dirección Técnica.
+El detalle, alcance y límites del workstream se mantienen en
+[SH_ROADMAP.md](SH_ROADMAP.md), para evitar duplicar el roadmap maestro.
 
 Estado interno vigente de PPO-02:
 
@@ -230,6 +263,11 @@ pendiente porque el proyecto administrado no estaba configurado; la validación
 administrada correspondiente quedó cubierta después en PPO-02D.2.
 
 `company-host` todavía no ha sido auditado y PPO-01 no está cerrada.
+
+PPO-01C (auditoría de `company-host`) y PPO-01D (veredicto final) pueden
+ejecutarse en paralelo con PPO-03/SH tan pronto Dirección Técnica disponga de
+la máquina. No son dependencia técnica de esa ruta, pero PPO-01D aprobado sí es
+un gate obligatorio antes de PPO-04.
 
 Por decisión expresa de Dirección Técnica, PPO-02 quedó autorizada en paralelo
 para construcción y validación local en `development-laptop`. Ese inicio no
