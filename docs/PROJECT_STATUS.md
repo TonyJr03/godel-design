@@ -57,17 +57,19 @@ actual.
 | PPO-03E | Cerrada / aprobada |
 | PPO-03F.0 | Cerrada / aprobada |
 | PPO-03F.1 | Cerrada / aprobada |
-| PPO-03F.2 | Implementada / pendiente de revisión arquitectónica |
-| PPO-03F | Activa; siguiente PPO-03F.3 tras revisión |
+| PPO-03F.2 | Cerrada / aprobada |
+| PPO-03F.3 | Implementada / pendiente de revisión arquitectónica |
+| PPO-03F | Activa; pendiente de cierre arquitectónico |
 | PPO-03G | Pendiente |
 | PPO-03 | Activa |
 
 PPO-03D/E ya trasladaron los bytes de archivos del navegador directamente a
 Storage por TUS. PPO-03F.0 aprobó el lifecycle, la autoridad y el amendment
 final; PPO-03F.1 lo implementa en la baseline y fue cerrada/aprobada tras la
-revisión arquitectónica. PPO-03F.2 incorpora el executor server-only y la
-operación manual, pendiente de revisión arquitectónica. PPO-03G mantiene el gate final de
-infraestructura y retirada de límites transitorios.
+revisión arquitectónica. PPO-03F.2 incorporó el executor server-only y la
+operación manual, y quedó cerrada/aprobada. PPO-03F.3 aporta el QA final y la
+propuesta de freeze, pendiente de revisión arquitectónica. PPO-03G mantiene el
+gate final de infraestructura y retirada de límites transitorios.
 
 ## Ruta activa
 
@@ -101,6 +103,7 @@ gate antes de PPO-04.
 - [Contrato PPO-03 de cargas y almacenamiento](production/PPO_03_UPLOAD_STORAGE_CONTRACT.md)
 - [Diseño de cleanup PPO-03F.0](production/PPO_03F_CLEANUP_DESIGN.md)
 - [Informe DB lifecycle PPO-03F.1](production/PPO_03F_DATABASE_LIFECYCLE_REPORT.md)
+- [QA, freeze y handoff PPO-03F.3](production/PPO_03F_QA_FREEZE_REPORT.md)
 - [Cierre de Solicitudes públicas PPO-03E](production/PPO_03_PUBLIC_SOLICITUD_UPLOAD_REPORT.md)
 - [Auditoría de baseline self-hosted SH-01C](production/SH_01C_DATABASE_BASELINE_AUDIT.md)
 - [Deuda técnica activa](development/TECH_DEBT.md)

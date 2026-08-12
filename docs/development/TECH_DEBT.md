@@ -26,7 +26,6 @@ resueltas ni planes históricos completos.
 | TD-TRACKING-001 | Tracking público | Media | No | Activa |
 | TD-QA-005 | QA visual | Media | No | Activa |
 | TD-TEMPLATES-001 | Plantillas | Media | No | Activa |
-| TD-STORAGE-001 | Storage/Postgres | Media | No | Activa |
 | TD-SECURITY-001 | Seguridad pública | Alta | Sí | Activa |
 | TD-STORAGE-002 | Escaneo de archivos | Media | Sí, con volumen de archivos | Activa |
 | TD-OBS-001 | Observabilidad | Media | No | Activa |
@@ -165,17 +164,6 @@ focales solo cuando el diagnóstico o mantenimiento empiece a doler.
 Crear, eliminar y reordenar tareas de plantilla usa varias operaciones
 secuenciales. Evaluar una RPC transaccional si aparecen concurrencia,
 inconsistencias de orden o errores intermedios reales.
-
-### TD-STORAGE-001 - Reconciliación Storage/Postgres
-
-El upload de objeto en Storage y la inserción de metadata en Postgres no son una
-transacción única. Mantener cleanup best-effort, pero diseñar reconciliación o
-limpieza server-side para objetos huérfanos sin abrir borrado anónimo ni exponer
-rutas privadas.
-
-Seguimiento: PPO-03 formaliza sesiones, staged conocidos, finalize idempotente
-y cleanup como iniciativa de resolución. Esta deuda continúa activa hasta que
-PPO-03F implemente y valide la reconciliación.
 
 ### TD-OBS-001 - Observabilidad operativa limitada
 

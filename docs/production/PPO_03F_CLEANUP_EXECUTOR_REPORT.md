@@ -4,9 +4,9 @@
 
 - PPO-03F.0: CLOSED / APPROVED.
 - PPO-03F.1: CLOSED / APPROVED.
-- PPO-03F.2: IMPLEMENTED / PENDING ARCHITECTURAL REVIEW.
+- PPO-03F.2: CLOSED / APPROVED.
 - PPO-03F: ACTIVE.
-- Siguiente: PPO-03F.3 tras revisión.
+- Siguiente: PPO-03F.3.
 
 ## Implementación
 

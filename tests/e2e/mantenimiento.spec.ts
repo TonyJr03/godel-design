@@ -132,6 +132,22 @@ test("cleanup service returns safe outcomes and removes only exact validated pat
     reason: "forbidden",
   });
 
+  const inactiveAdmin = cleanupDependencies({
+    profile: { ...adminProfile(), is_active: false },
+  });
+  await expect(cleanupExpiredUploads(inactiveAdmin.dependencies)).resolves.toMatchObject({
+    ok: false,
+    reason: "forbidden",
+  });
+
+  const mustChangePasswordAdmin = cleanupDependencies({
+    profile: { ...adminProfile(), must_change_password: true },
+  });
+  await expect(cleanupExpiredUploads(mustChangePasswordAdmin.dependencies)).resolves.toMatchObject({
+    ok: false,
+    reason: "forbidden",
+  });
+
   const invalidResponse = cleanupDependencies({ rpcData: [] });
   await expect(cleanupExpiredUploads(invalidResponse.dependencies)).resolves.toMatchObject({
     ok: false,
@@ -222,7 +238,7 @@ test("cleanup reconciliation parser accepts only the safe contract", () => {
 
 test("admin can confirm manual expired uploads cleanup without technical leaks", async ({
   page,
-}) => {
+}, testInfo) => {
   await loginAs(page, "admin");
   await page.setViewportSize({ width: 1366, height: 768 });
   await page.goto("/dashboard/configuracion");
@@ -244,6 +260,10 @@ test("admin can confirm manual expired uploads cleanup without technical leaks",
     dialog.getByRole("button", { name: /confirmar mantenimiento/i }),
   ).toBeVisible();
   await expectNoVisibleSensitiveText(page);
+  await page.screenshot({
+    path: testInfo.outputPath("mantenimiento-desktop.png"),
+    fullPage: true,
+  });
 
   await dialog.getByRole("button", { name: /confirmar mantenimiento/i }).click();
   await expect(
@@ -260,6 +280,10 @@ test("admin can confirm manual expired uploads cleanup without technical leaks",
     scrollWidth: document.documentElement.scrollWidth,
   }));
   expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth + 1);
+  await page.screenshot({
+    path: testInfo.outputPath("mantenimiento-mobile.png"),
+    fullPage: true,
+  });
 });
 
 test("supervisor and worker cannot access manual cleanup", async ({ page }) => {
