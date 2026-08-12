@@ -89,11 +89,13 @@ cerrado/aprobado: diseño, networking, proxy/TUS, contrato operativo y smoke
 agregado validaron la topología `App Docker + Nginx + Supabase self-hosted`.
 La ruta activa pasa a SH-03 para QA funcional production-like. SH-03.0 está
 cerrada/aprobada y SH-03.1 (provisioning QA self-hosted, Auth/session/roles y
-Auth Admin) está implementada y bloqueada por hallazgos funcionales: Auth Admin
-y la creación de servicios completan su mutación pero la respuesta de Server
-Actions queda pendiente tras revalidación. El catálogo canónico `Impresión` fue
-reparado en datos y verificado por REST/Nginx y Chromium. SH-03.2 no ha
-empezado. SH es un workstream técnico subordinado al roadmap
+Auth Admin) está implementada y pendiente de revisión arquitectónica. El gate
+final de gestión de Usuarios verificó alta, edición y reset mediante navegación
+documental canónica tras éxito; el diferencial descartó el filesystem read-only
+como cofactor porque la respuesta de Server Actions queda pendiente cuando
+combina revalidación y `ActionState`.
+El catálogo canónico `Impresión` fue reparado en datos y verificado por
+REST/Nginx y Chromium. SH-03.2 no ha empezado. SH es un workstream técnico subordinado al roadmap
 maestro PPO y termina al cerrar SH-05.
 PPO-01C/D puede avanzar en paralelo
 cuando `company-host` esté disponible; PPO-01D aprobado es gate antes de PPO-04.

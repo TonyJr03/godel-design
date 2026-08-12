@@ -47,11 +47,19 @@ test("admin resets the QA worker password through the production-like applicatio
     .locator('input[name="password_confirmation"]')
     .fill(temporaryPassword);
   await resetDialog.locator('input[name="confirm_reset"]').check();
-  await resetDialog
-    .getByRole("button", { name: /^restablecer contrase.a$/i })
-    .click();
+  await Promise.all([
+    page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 20_000 }),
+    resetDialog
+      .getByRole("button", { name: /^restablecer contrase.a$/i })
+      .click(),
+  ]);
 
-  await expect(resetDialog).toBeHidden({ timeout: 20_000 });
+  await expect(page).toHaveURL(/\/dashboard\/configuracion\/usuarios$/, {
+    timeout: 20_000,
+  });
+  const workerRow = page.getByRole("row").filter({ hasText: /trabajador qa/i });
+  await expect(workerRow).toBeVisible({ timeout: 20_000 });
+  await expect(workerRow).toContainText(/cambio inicial pendiente/i);
 
   const workerContext = await browser.newContext();
   const workerPage = await workerContext.newPage();

@@ -2,7 +2,6 @@
 
 import { Plus } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 
 import { InternalFormDialog } from "@/components/forms";
@@ -23,7 +22,6 @@ export function PedidoCreateDialogButton({
   serviceTypes,
   serviceTypesLoadError,
 }: PedidoCreateDialogButtonProps) {
-  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
@@ -32,14 +30,11 @@ export function PedidoCreateDialogButton({
     setHasUnsavedChanges(false);
   }, []);
 
-  const handleSuccess = useCallback(
-    () => {
-      setHasUnsavedChanges(false);
-      setIsOpen(false);
-      router.refresh();
-    },
-    [router],
-  );
+  const handleSuccess = useCallback(() => {
+    setHasUnsavedChanges(false);
+    setIsOpen(false);
+    window.location.assign("/dashboard/pedidos");
+  }, []);
 
   return (
     <>

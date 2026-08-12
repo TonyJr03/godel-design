@@ -1,7 +1,6 @@
 "use client";
 
 import { Plus } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 
 import { InternalFormDialog } from "@/components/forms";
@@ -9,7 +8,6 @@ import { InternalFormDialog } from "@/components/forms";
 import { TaskTemplateForm } from "./TaskTemplateForm";
 
 export function TaskTemplateCreateDialogButton() {
-  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
@@ -44,7 +42,7 @@ export function TaskTemplateCreateDialogButton() {
             onSuccess={() => {
               setHasUnsavedChanges(false);
               setIsOpen(false);
-              router.refresh();
+              window.location.assign("/dashboard/configuracion/plantillas");
             }}
           />
         ) : null}

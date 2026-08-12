@@ -1,4 +1,4 @@
-import { expect, type Locator, type Page, test } from "@playwright/test";
+import { expect, type Locator, test } from "@playwright/test";
 
 import { loginAs } from "./helpers/auth";
 import { createQaRunId } from "./helpers/qa-data";
@@ -6,6 +6,7 @@ import { createQaRunId } from "./helpers/qa-data";
 test.describe.configure({ mode: "serial" });
 
 const REPETITIONS = 3;
+const ORDER_REPETITIONS = 5;
 
 function testRunLabel(domain: string, index: number) {
   return `QA SA ${domain} ${createQaRunId()} ${index + 1}`;
@@ -19,32 +20,22 @@ async function submitAndExpectClosed(
   await expect(dialog).toBeHidden({ timeout: 20_000 });
 }
 
-async function expectSearchResult(page: Page, name: string) {
-  const search = page.getByLabel(/buscar/i).first();
-
-  await search.fill(name);
-  await search.press("Enter");
-  await expect(page.locator("tr").filter({ hasText: name }).first()).toBeVisible(
-    { timeout: 20_000 },
-  );
-}
-
-test("self-hosted creation modals complete repeatedly without server revalidation", async ({
+test("self-hosted creation dialogs navigate to their canonical fresh routes", async ({
   page,
 }) => {
   test.skip(
     process.env.PLAYWRIGHT_EXTERNAL_SERVER !== "1",
     "This stabilization gate runs only through the external production-like runtime.",
   );
-  test.setTimeout(180_000);
+  test.setTimeout(240_000);
 
   await loginAs(page, "admin");
   await page.setViewportSize({ width: 1366, height: 768 });
 
+  await page.goto("/dashboard/configuracion/servicios");
   for (let index = 0; index < REPETITIONS; index += 1) {
     const name = testRunLabel("Servicio", index);
 
-    await page.goto("/dashboard/configuracion/servicios");
     await page.getByRole("button", { name: /nuevo servicio/i }).click();
     const dialog = page.getByRole("dialog", { name: /nuevo servicio/i });
 
@@ -54,13 +45,16 @@ test("self-hosted creation modals complete repeatedly without server revalidatio
       .getByRole("textbox", { name: /descripci.n/i })
       .fill(`Servicio creado por el gate transversal ${index + 1}.`);
     await submitAndExpectClosed(dialog, /crear servicio/i);
-    await expectSearchResult(page, name);
+    await expect(page).toHaveURL(/\/dashboard\/configuracion\/servicios$/);
+    await expect(page.getByRole("cell", { name, exact: true })).toBeVisible({
+      timeout: 20_000,
+    });
   }
 
+  await page.goto("/dashboard/clientes");
   for (let index = 0; index < REPETITIONS; index += 1) {
     const name = testRunLabel("Cliente", index);
 
-    await page.goto("/dashboard/clientes");
     await page.getByRole("button", { name: /nuevo cliente/i }).click();
     const dialog = page.getByRole("dialog", { name: /nuevo cliente/i });
 
@@ -71,13 +65,16 @@ test("self-hosted creation modals complete repeatedly without server revalidatio
       .getByLabel(/correo electr.nico/i)
       .fill(`qa-sa-${createQaRunId()}@example.com`);
     await submitAndExpectClosed(dialog, /crear cliente/i);
-    await expectSearchResult(page, name);
+    await expect(page).toHaveURL(/\/dashboard\/clientes$/);
+    await expect(
+      page.getByRole("link").filter({ hasText: name }).first(),
+    ).toBeVisible({ timeout: 20_000 });
   }
 
+  await page.goto("/dashboard/configuracion/plantillas");
   for (let index = 0; index < REPETITIONS; index += 1) {
     const name = testRunLabel("Plantilla", index);
 
-    await page.goto("/dashboard/configuracion/plantillas");
     await page.getByRole("button", { name: /nueva plantilla/i }).click();
     const dialog = page.getByRole("dialog", { name: /nueva plantilla/i });
 
@@ -87,13 +84,16 @@ test("self-hosted creation modals complete repeatedly without server revalidatio
       .getByRole("textbox", { name: /descripci.n/i })
       .fill(`Plantilla creada por el gate transversal ${index + 1}.`);
     await submitAndExpectClosed(dialog, /crear plantilla/i);
-    await expectSearchResult(page, name);
+    await expect(page).toHaveURL(/\/dashboard\/configuracion\/plantillas$/);
+    await expect(
+      page.getByRole("link").filter({ hasText: name }).first(),
+    ).toBeVisible({ timeout: 20_000 });
   }
 
-  for (let index = 0; index < REPETITIONS; index += 1) {
+  await page.goto("/dashboard/pedidos");
+  for (let index = 0; index < ORDER_REPETITIONS; index += 1) {
     const title = testRunLabel("Pedido", index);
 
-    await page.goto("/dashboard/pedidos");
     await page.getByRole("button", { name: /nuevo pedido/i }).click();
     const dialog = page.getByRole("dialog", { name: /nuevo pedido/i });
 
@@ -107,9 +107,9 @@ test("self-hosted creation modals complete repeatedly without server revalidatio
     await dialog.locator('input[name="total_amount"]').fill("100");
     await dialog.getByLabel(/t.tulo del trabajo/i).fill(title);
     await submitAndExpectClosed(dialog, /crear pedido/i);
-    await page.goto(`/dashboard/pedidos?q=${encodeURIComponent(title)}`);
-    await expect(page.getByRole("link").filter({ hasText: title }).first()).toBeVisible(
-      { timeout: 20_000 },
-    );
+    await expect(page).toHaveURL(/\/dashboard\/pedidos$/);
+    await expect(
+      page.getByRole("link").filter({ hasText: title }).first(),
+    ).toBeVisible({ timeout: 20_000 });
   }
 });

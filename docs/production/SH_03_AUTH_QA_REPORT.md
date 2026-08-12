@@ -4,7 +4,7 @@
 
 ```text
 SH-03.0 = CLOSED / APPROVED
-SH-03.1 = BLOCKED
+SH-03.1 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
 SH-03 = ACTIVE
 SH-03.2 = NOT STARTED
 ```
@@ -408,6 +408,49 @@ same-route 5/5 ni el fallback PRG demostraron completitud fiable. No se
 introdujeron temporizadores, navegación manual, cache-busting, CSR, mirrors
 optimistas ni reintentos Auth Admin.
 
+### Next runtime filesystem differential
+
+Se ejecutó un diferencial A/B limitado a `app.read_only`. La baseline final
+mantiene `read_only: true`, con tmpfs exclusivamente en `/tmp` y
+`/app/.next/cache`. El override temporal no versionado cambió sólo
+`app.read_only` a `false`; conservó usuario `1000:1000`, `cap_drop=ALL`,
+`no-new-privileges`, límites de procesos/CPU/memoria, redes, app sin puerto host
+y Nginx como frontend. La configuración efectiva e inspección del contenedor
+confirmaron esas propiedades, y Supabase no se recreó en ningún tramo.
+
+Con filesystem writable, el patrón actual de Pedido (`mutate → ActionState →
+cerrar diálogo → router.refresh()`) completó la primera mutación, pero no
+mostró su título en la ruta actual dentro de 20 segundos. Con la única variante
+adicional `revalidatePath("/dashboard/pedidos")` antes de devolver el mismo
+`ActionState`, la primera acción volvió a quedar pendiente más de 20 segundos.
+La hipótesis de que el root filesystem read-only era cofactor del hang de Server
+Actions queda rechazada: el comportamiento se reprodujo con `read_only=false`.
+
+No fue necesario continuar a mutaciones de detalle ni inspeccionar escrituras
+de `.next`: C no pasó y no hubo evidencia nueva que justificara ampliar el
+filesystem writable. Los logs del runtime final no mostraron `EROFS`, fallos de
+escritura ni advertencias de cache/prerender. El override temporal se eliminó y
+el runtime final volvió a `read_only: true`; no se modificó `compose.yaml`.
+
+### Document-navigation compatibility fallback
+
+Como la incompatibilidad se reproduce independientemente de Supabase, la
+mutación de dominio, el buffering de Nginx, el settlement de `pending` y el
+filesystem read-only, se adoptó un workaround explícito para éxito de create en
+Next 16.2.11 self-hosted. El servidor conserva `mutate → return ActionState`,
+sin `revalidatePath`, `refresh()` server-side ni redirect. Tras `state.ok`, el
+cliente cierra el diálogo y ejecuta navegación documental a la ruta canónica:
+`/dashboard/pedidos`, `/dashboard/configuracion/servicios`,
+`/dashboard/clientes` o `/dashboard/configuracion/plantillas`.
+
+No se usan query params, temporizadores, cache-busting, doble refresh, SWR,
+React Query ni mirrors optimistas. Los errores siguen retornando y renderizando
+`ActionState` dentro de los formularios. El gate externo final, ya con
+`read_only: true`, pasó: Pedidos 5/5 y Servicios, Clientes y Plantillas 3/3;
+cada alta cerró el diálogo, recuperó la fila fresca en su URL canónica y
+conservó la sesión/permiso de creación. Es un workaround de compatibilidad, no
+una afirmación de frescura SPA ideal.
+
 ### Parche de seguridad Next
 
 Se actualizaron exactamente `next` y `eslint-config-next` de 16.2.6 a
@@ -433,9 +476,55 @@ verificó nuevamente los tres roles. No se imprimieron credenciales, secretos ni
 identificadores de fixtures. Las entidades QA creadas por el gate se preservan:
 no se ejecutó limpieza destructiva fuera de un mecanismo de dominio aprobado.
 
+### User-management compatibility closure
+
+Se cerró exclusivamente la superficie de administración de usuarios. Las
+acciones de crear y editar ya no invalidan rutas tras una mutación exitosa;
+conservan el servicio, validación, errores y `ActionState` existentes. Crear,
+editar y restablecer contraseña cierran su diálogo solamente tras `state.ok` y
+ejecutan `window.location.assign("/dashboard/configuracion/usuarios")`.
+Esta navegación documental es intencional: no utiliza `router.refresh()`,
+`revalidatePath()`, PRG, temporizadores, cache-busting ni estado optimista.
+
+El gate externo self-hosted comprobó que una validación inválida permanece en
+el diálogo y que las tres mutaciones realizan navegación documental real a la
+ruta canónica. La alta recuperó la fila creada con rol Trabajador y el estado
+visible `Cambio inicial pendiente`; la edición recuperó el teléfono actualizado.
+La edición usó una entidad QA creada por el propio gate, por lo que no alteró
+una fixture preexistente que requiriera restauración.
+El reset recuperó el estado visible, permitió al trabajador entrar con la
+contraseña temporal y lo condujo a cambio inicial de contraseña. El audit
+privado seguro del último reset devolvió `status = succeeded`,
+`error_code = null` y `completed_at = true`. El bootstrap posterior restauró
+las credenciales de fixture y verificó los tres roles.
+
+| Acción o grupo | Patrón actual | Riesgo residual | Clasificación |
+| --- | --- | --- | --- |
+| Crear, editar y reset de Usuarios | `ActionState` sin revalidación exitosa + navegación documental | Acotado a la ruta canónica de Usuarios y cubierto por gate self-hosted | SAFE para este cierre |
+| Crear Servicios, Clientes, Pedidos y Plantillas | Fallback documental previamente validado para create | No cubierto de nuevo en este gate de Usuarios | Fuera de alcance; conservar evidencia previa |
+| Edición, activar/desactivar y operaciones de Servicios, Clientes y Plantillas | Revalidación existente | Puede combinar la ruta actual con respuesta de Server Action | NEEDS SH-03.x TEST |
+| Pedidos y Solicitudes: estado, comentarios, tareas, archivos, pagos, conversión y asignaciones | Revalidaciones de detalle/lista existentes | No auditado ni modificado en esta pasada | NEEDS SH-03.2 TEST |
+
+No se cambiaron runtime, Compose, Dockerfile, Nginx, Supabase upstream,
+migraciones ni `database.types`. Se preservan `proxy_buffering off`,
+`read_only: true` y Next 16.2.11. Esta corrección no autoriza ni inicia
+SH-03.2 o SH-03.3.
+
+| Gate final de Usuarios | Resultado |
+| --- | --- |
+| Alta: validación inválida dentro del diálogo | PASS |
+| Alta: navegación documental y fila fresca | PASS: 3/3 |
+| Edición: navegación documental y valor fresco | PASS |
+| Reset Auth Admin: navegación, flag y login temporal | PASS |
+| Audit seguro de último reset | PASS: `succeeded`, `null`, completado |
+| Bootstrap y login de tres roles posterior | PASS |
+| Playwright externo focal | PASS: 2/2; alta repetida PASS: 3/3 |
+
 ## Handoff
 
-SH-03.1 queda **BLOCKED** y se detiene para revisión arquitectónica. El
-bootstrap y runner self-hosted son utilizables; `refresh()` server-side y el
-fallback PRG quedan descartados para este patrón hasta nuevo diagnóstico. No se
-inicia SH-03.2 ni SH-03.3 en esta pasada.
+SH-03.1 queda **IMPLEMENTED / PENDING ARCHITECTURAL REVIEW**. El bootstrap y
+runner self-hosted son utilizables; `refresh()` server-side y PRG quedan
+descartados para este patrón. El fallback de navegación documental queda
+acotado a los creates previamente verificados y a crear, editar y resetear
+Usuarios mediante este gate final. No se inicia SH-03.2 ni SH-03.3 en esta
+pasada.

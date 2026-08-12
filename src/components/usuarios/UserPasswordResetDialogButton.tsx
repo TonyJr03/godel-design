@@ -1,7 +1,6 @@
 "use client";
 
 import { KeyRound } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 
 import { InternalFormDialog } from "@/components/forms";
@@ -21,7 +20,6 @@ export function UserPasswordResetDialogButton({
   user,
   resetAction,
 }: UserPasswordResetDialogButtonProps) {
-  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
@@ -57,7 +55,7 @@ export function UserPasswordResetDialogButton({
             onSuccess={() => {
               setHasUnsavedChanges(false);
               setIsOpen(false);
-              router.refresh();
+              window.location.assign("/dashboard/configuracion/usuarios");
             }}
           />
         ) : null}
