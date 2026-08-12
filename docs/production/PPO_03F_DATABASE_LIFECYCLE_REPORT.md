@@ -3,8 +3,8 @@
 ## Estado
 
 - PPO-03F.0: CLOSED / APPROVED.
-- PPO-03F.1: IMPLEMENTED / PENDING ARCHITECTURAL REVIEW.
-- PPO-03F: ACTIVE; siguiente PPO-03F.2 tras revisión.
+- PPO-03F.1: CLOSED / APPROVED.
+- PPO-03F: ACTIVE; siguiente PPO-03F.2.
 
 ## Amendment final
 
@@ -35,6 +35,38 @@ El helper de completion es terminal-safe. La policy Storage se estrechó a admin
 
 Las fixtures persistentes serán retiradas por fresh reset local al cierre de QA.
 
+## Cierre QA del bugfix Auth Admin
+
+El gate self-hosted detectó que `service_role` tenía `EXECUTE` sobre
+`public.complete_initial_password_change(uuid)`, pero no `USAGE` sobre
+`public`; por ello el onboarding fallaba con `42501` después del cambio de
+contraseña Auth. La migración 06 concede solo `USAGE`, revoca `CREATE` y
+endurece una whitelist: la RPC de completion es la única función pública
+ejecutable por `service_role`.
+
+- Fresh rebuild self-hosted: PASS; history 6/6; migration 07: 0.
+- Onboarding developer por Auth Admin, `godel_provisioning` y trigger: PASS;
+  cambio Auth y completion RPC: PASS; flag final: `must_change_password=false`.
+- Candidate-before-grace, admin inactivo y admin must-change: PASS.
+- Storage API/TUS: solo admin activo eliminó el candidate elegible; los demás
+  casos conservaron el objeto. Ante RLS, `remove` devuelve lista vacía y la
+  no eliminación se verificó materialmente.
+- RPC normal authenticated y RPC pública anon: sin regresión; service_role no
+  puede ejecutar reconciliación ni upload RPCs.
+- Paridad CLI local: `db reset` 01--06 y `qa:bootstrap` (`QA_PROFILES_OK`): PASS.
+
+El runner CLI contra el stack self-hosted sigue limitado por TLS local; se
+validó mediante SQL directo dentro del PostgreSQL self-hosted.
+
 ## Handoff
 
-F.1 no añade UI, scheduler ni executor. F.2 debe usar la API Storage normal con candidates exactos y retornar sólo counts seguros. La comprobación de admin inactivo/must-change requiere una segunda identidad admin QA: el único admin local está protegido por la integridad del baseline contra auto-desactivación. La selección RPC de candidate before-grace queda como comprobación específica pendiente; el delete before-grace sí fue rechazado por la policy y verificado por estado físico.
+F.1 no añade UI, scheduler ni executor. Toda la matriz DB/Auth/Storage pendiente
+quedó validada. PPO-03F.1 está CLOSED / APPROVED.
+
+F.2 implementará:
+
+- executor server-only;
+- Storage API con JWT normal;
+- operación administrativa manual;
+- counts seguros;
+- sin scheduler.

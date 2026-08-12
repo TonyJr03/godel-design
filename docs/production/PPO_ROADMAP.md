@@ -202,14 +202,15 @@ El estado operativo actual es:
 | PPO-03E.3 | Cerrada / aprobada |
 | PPO-03E | Cerrada / aprobada |
 | PPO-03F.0 | Cerrada / aprobada |
-| PPO-03F.1 | Implementada / pendiente de revisión arquitectónica |
-| PPO-03F | Activa; siguiente PPO-03F.2 tras revisión |
+| PPO-03F.1 | Cerrada / aprobada |
+| PPO-03F.2 | Siguiente |
+| PPO-03F | Activa; siguiente PPO-03F.2 |
 | PPO-03G | Pendiente |
 | PPO-03 | Activa |
 
 El diseño aprobado de PPO-03F.0 vive en
-[PPO_03F_CLEANUP_DESIGN.md](PPO_03F_CLEANUP_DESIGN.md) y la implementación
-pendiente de revisión de F.1 en [PPO_03F_DATABASE_LIFECYCLE_REPORT.md](PPO_03F_DATABASE_LIFECYCLE_REPORT.md).
+[PPO_03F_CLEANUP_DESIGN.md](PPO_03F_CLEANUP_DESIGN.md) y el cierre aprobado de
+F.1 en [PPO_03F_DATABASE_LIFECYCLE_REPORT.md](PPO_03F_DATABASE_LIFECYCLE_REPORT.md).
 PPO-03 continúa activa hasta completar los bloques funcionales y de cierre pendientes.
 
 ## PPO-00

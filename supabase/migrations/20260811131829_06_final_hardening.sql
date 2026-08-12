@@ -7,6 +7,8 @@ revoke all on schema private from anon;
 revoke all on schema private from authenticated;
 
 grant usage on schema public to anon, authenticated;
+revoke all on schema public from service_role;
+grant usage on schema public to service_role;
 grant usage on schema private to authenticated;
 grant usage on schema private to anon;
 
@@ -77,6 +79,8 @@ grant execute on function private.pedido_file_visibility_for_status(public.pedid
 -- C. Auth Admin final permissions.
 grant execute on function private.provision_internal_profile_from_auth_user() to supabase_auth_admin;
 
+revoke execute on function public.set_updated_at() from public;
+revoke all on all functions in schema public from service_role;
 revoke all on function public.complete_initial_password_change(uuid) from public, anon, authenticated;
 grant execute on function public.complete_initial_password_change(uuid) to service_role;
 
@@ -238,12 +242,28 @@ begin
     raise exception 'Hardening failed: authenticated has full UPDATE on perfiles.';
   end if;
 
-  if has_function_privilege('authenticated', 'public.complete_initial_password_change(uuid)', 'EXECUTE') then
-    raise exception 'Hardening failed: authenticated can execute complete_initial_password_change.';
+  if not has_schema_privilege('service_role', 'public', 'USAGE')
+    or has_schema_privilege('service_role', 'public', 'CREATE') then
+    raise exception 'Hardening failed: service_role public schema privileges do not match the onboarding contract.';
   end if;
 
-  if not has_function_privilege('service_role', 'public.complete_initial_password_change(uuid)', 'EXECUTE') then
-    raise exception 'Hardening failed: service_role cannot execute complete_initial_password_change.';
+  if has_function_privilege('public', 'public.complete_initial_password_change(uuid)', 'EXECUTE')
+    or has_function_privilege('anon', 'public.complete_initial_password_change(uuid)', 'EXECUTE')
+    or has_function_privilege('authenticated', 'public.complete_initial_password_change(uuid)', 'EXECUTE')
+    or not has_function_privilege('service_role', 'public.complete_initial_password_change(uuid)', 'EXECUTE') then
+    raise exception 'Hardening failed: complete_initial_password_change grants do not match the Auth Admin contract.';
+  end if;
+
+  if exists (
+    select 1
+    from pg_proc as p
+    join pg_namespace as n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.prokind in ('f', 'p')
+      and has_function_privilege('service_role', p.oid, 'EXECUTE')
+      and p.oid <> 'public.complete_initial_password_change(uuid)'::regprocedure
+  ) then
+    raise exception 'Hardening failed: service_role has an unexpected public function execution surface.';
   end if;
 
   if not has_function_privilege('supabase_auth_admin', 'private.provision_internal_profile_from_auth_user()', 'EXECUTE') then

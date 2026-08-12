@@ -56,15 +56,15 @@ actual.
 | PPO-03E.3 | Cerrada / aprobada |
 | PPO-03E | Cerrada / aprobada |
 | PPO-03F.0 | Cerrada / aprobada |
-| PPO-03F.1 | Implementada / pendiente de revisión arquitectónica |
-| PPO-03F | Activa; siguiente PPO-03F.2 tras revisión |
+| PPO-03F.1 | Cerrada / aprobada |
+| PPO-03F | Activa; siguiente PPO-03F.2 |
 | PPO-03G | Pendiente |
 | PPO-03 | Activa |
 
 PPO-03D/E ya trasladaron los bytes de archivos del navegador directamente a
 Storage por TUS. PPO-03F.0 aprobó el lifecycle, la autoridad y el amendment
-final; PPO-03F.1 lo implementa en la baseline y queda pendiente de revisión
-arquitectónica. PPO-03G mantiene el gate final de
+final; PPO-03F.1 lo implementa en la baseline y fue cerrada/aprobada tras la
+revisión arquitectónica. PPO-03G mantiene el gate final de
 infraestructura y retirada de límites transitorios.
 
 ## Ruta activa

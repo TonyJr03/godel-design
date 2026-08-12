@@ -457,3 +457,18 @@ Se realizó un fresh rebuild local completo 01–06, con historial 6/6, QA
 transaccional del RPC nuevo, QA de Storage, DB lint, tipos regenerados y build
 de aplicación aprobados. Esta revalidación sustituye la evidencia técnica
 anterior para el estado actual; no se declara un nuevo SHA de validación.
+
+## 23. Amendment final PPO-03F.1 — privilegio de schema Auth Admin
+
+Antes del freeze se corrigió un defecto funcional descubierto en self-hosted:
+`service_role` podía ejecutar `public.complete_initial_password_change(uuid)`,
+pero no resolver el schema `public`, causando `42501` durante onboarding. No
+se creó migration 07 ni se modificaron 01--05.
+
+La migración 06 concede exclusivamente `USAGE` sobre `public`, niega `CREATE`
+y verifica que la completion RPC es la única función pública ejecutable por
+`service_role`. Fresh rebuild self-hosted, onboarding Auth Admin/trigger,
+lifecycle, negativos de admins, matriz Storage y paridad CLI local 01--06
+pasaron. PPO-03F.1 fue cerrada/aprobada tras la revisión arquitectónica. La
+baseline conserva seis migraciones, migration 07 no existe y el freeze formal
+definitivo corresponde al cierre de PPO-03F.
