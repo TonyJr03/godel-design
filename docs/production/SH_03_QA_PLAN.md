@@ -5,16 +5,17 @@
 ```text
 SH-02 = CLOSED / APPROVED
 SH-03 = ACTIVE
-SH-03.0 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
-NEXT AFTER APPROVAL = SH-03.1
+SH-03.0 = CLOSED / APPROVED
+SH-03.1 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+NEXT AFTER APPROVAL = SH-03.2
 ```
 
 ## Objetivo
 
 SH-03 demostrará que Godel funciona sobre `App Docker + Nginx + Supabase
-self-hosted`, no solo sobre `npm run dev + Supabase CLI local`. Esta subfase
-es de diseño: no ejecuta la suite funcional completa, no provisiona usuarios,
-no modifica la baseline 01–06 ni lógica de producto.
+self-hosted`, no solo sobre `npm run dev + Supabase CLI local`. SH-03.0 cerró
+el diseño y SH-03.1 implementó el provisioning QA y el runner externo, sin
+modificar la baseline 01–06 ni lógica de producto.
 
 ## Estado de partida
 
@@ -171,6 +172,11 @@ regresión acordada, `audit:security`, `git diff --check` y `diff:check`.
 
 ## Handoff
 
-La siguiente acción, después de revisión arquitectónica, es SH-03.1. Debe
-implementar el target de bootstrap self-hosted y la selección explícita de
-Playwright, sin romper `npm run qa:bootstrap` ni el workflow local.
+SH-03.1 preserva `npm run qa:bootstrap` para Supabase CLI local y añade un
+target self-hosted explícito, con runtime/QA env separados, Compose efectivo
+para perfiles y Playwright por Nginx sin `webServer`. El provisioning repetido,
+login de tres roles y denegaciones de Usuarios fueron demostrados. La mutación
+Auth Admin de reset alcanzó el cambio de contraseña pero no finalizó la acción
+en UI, por lo que queda como bug funcional bloqueante para revisión
+arquitectónica; el fixture fue restaurado con bootstrap. Tras resolverlo y
+aprobar SH-03.1, la siguiente acción es SH-03.2.

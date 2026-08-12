@@ -100,7 +100,7 @@ test("admin can use the desktop shell collapsed and expanded", async ({
     .toBeVisible();
   await expect(desktopNav.getByRole("link", { name: /pedidos/i }))
     .toBeVisible();
-  await expect(sidebar.getByText(/administrador/i)).toBeVisible();
+  await expect(sidebar.getByText(/^administrador$/i)).toBeVisible();
   await expectNoVisibleSensitiveText(page);
   await expectNoHorizontalOverflow(page);
 
@@ -216,7 +216,7 @@ test("admin can use the mobile details navigation", async ({ page }) => {
     details.getByRole("navigation", { name: /navegaci.n principal/i }),
   ).toBeVisible();
   await expect(details.getByRole("link", { name: /pedidos/i })).toBeVisible();
-  await expect(details.getByText(/administrador/i)).toBeVisible();
+  await expect(details.getByText(/^administrador$/i)).toBeVisible();
   await expect(details.getByRole("button", { name: /cerrar sesi.n/i }))
     .toBeVisible();
 

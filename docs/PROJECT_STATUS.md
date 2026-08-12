@@ -87,10 +87,13 @@ SH-03
 PPO-03F cerró el lifecycle de Storage y congeló la baseline 01–06. SH-02 está
 cerrado/aprobado: diseño, networking, proxy/TUS, contrato operativo y smoke
 agregado validaron la topología `App Docker + Nginx + Supabase self-hosted`.
-La ruta activa pasa a SH-03 para QA funcional production-like. SH-03.0
-(diseño QA y estrategia de fixtures) está implementada, pendiente de revisión
-arquitectónica; la siguiente acción tras aprobación es SH-03.1. SH es un
-workstream técnico subordinado al roadmap maestro PPO y termina al cerrar SH-05.
+La ruta activa pasa a SH-03 para QA funcional production-like. SH-03.0 está
+cerrada/aprobada y SH-03.1 (provisioning QA self-hosted, Auth/session/roles y
+Auth Admin) está implementada, pendiente de revisión arquitectónica: el reset
+Auth Admin cambió la contraseña QA pero no finalizó su acción en UI; el fixture
+fue restaurado y el hallazgo queda pendiente de decisión. La siguiente acción
+tras aprobación es SH-03.2. SH es un workstream técnico subordinado al roadmap
+maestro PPO y termina al cerrar SH-05.
 PPO-01C/D puede avanzar en paralelo
 cuando `company-host` esté disponible; PPO-01D aprobado es gate antes de PPO-04.
 
@@ -111,6 +114,7 @@ cuando `company-host` esté disponible; PPO-01D aprobado es gate antes de PPO-04
 - [Informe runtime, readiness y configuración SH-02.3](production/SH_02_RUNTIME_OPERATIONS_REPORT.md)
 - [Cierre de integración SH-02](production/SH_02_CLOSURE_REPORT.md)
 - [Plan QA funcional production-like SH-03](production/SH_03_QA_PLAN.md)
+- [Informe QA de provisioning, Auth y roles SH-03.1](production/SH_03_AUTH_QA_REPORT.md)
 - [Contrato PPO-03 de cargas y almacenamiento](production/PPO_03_UPLOAD_STORAGE_CONTRACT.md)
 - [Diseño de cleanup PPO-03F.0](production/PPO_03F_CLEANUP_DESIGN.md)
 - [Informe DB lifecycle PPO-03F.1](production/PPO_03F_DATABASE_LIFECYCLE_REPORT.md)

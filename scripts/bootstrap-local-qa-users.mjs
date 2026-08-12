@@ -4,10 +4,12 @@ import { resolve } from "node:path";
 
 import { createClient } from "@supabase/supabase-js";
 
-const REQUIRED_ENV_NAMES = [
+const RUNTIME_ENV_NAMES = [
   "NEXT_PUBLIC_SUPABASE_URL",
   "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
   "SUPABASE_SECRET_KEY",
+];
+const QA_ENV_NAMES = [
   "GODEL_TEST_ADMIN_EMAIL",
   "GODEL_TEST_ADMIN_PASSWORD",
   "GODEL_TEST_SUPERVISOR_EMAIL",
@@ -15,6 +17,7 @@ const REQUIRED_ENV_NAMES = [
   "GODEL_TEST_WORKER_EMAIL",
   "GODEL_TEST_WORKER_PASSWORD",
 ];
+const REQUIRED_ENV_NAMES = [...RUNTIME_ENV_NAMES, ...QA_ENV_NAMES];
 
 const ROLES = [
   {
@@ -45,6 +48,10 @@ const ROLES = [
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
 const BOOTSTRAP_PROFILES_SQL_PATH = "scripts/sql/bootstrap-local-qa-profiles.sql";
+const SELF_HOSTED_COMPOSE_PATH = "infra/supabase/docker-compose.yml";
+const SELF_HOSTED_OVERRIDE_PATH = "infra/supabase-godel.override.yml";
+const SELF_HOSTED_RUNTIME_VALIDATOR_PATH =
+  "scripts/validate-selfhosted-runtime-env.mjs";
 const DOCKER_LOCAL_ENDPOINT_PATTERN = /^(npipe|unix):\/\//i;
 const DOCKER_REMOTE_ENDPOINT_PATTERN = /^(tcp|ssh|https?):\/\//i;
 const JWT_PATTERN = /\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g;
@@ -101,6 +108,109 @@ function getSanitizedError(error) {
   };
 }
 
+function parseCliArguments(argumentsList) {
+  if (argumentsList.length === 0) {
+    return { target: "local" };
+  }
+
+  const options = { target: undefined, runtimeEnvPath: undefined, qaEnvPath: undefined, supabaseEnvPath: undefined };
+
+  for (let index = 0; index < argumentsList.length; index += 2) {
+    const flag = argumentsList[index];
+    const value = argumentsList[index + 1];
+
+    if (!value || !["--target", "--runtime-env", "--qa-env", "--supabase-env"].includes(flag)) {
+      fail("Uso: node scripts/bootstrap-local-qa-users.mjs --target <local|self-hosted> [--runtime-env <path> --qa-env <path> --supabase-env <path>]");
+    }
+
+    const optionName = {
+      "--target": "target",
+      "--runtime-env": "runtimeEnvPath",
+      "--qa-env": "qaEnvPath",
+      "--supabase-env": "supabaseEnvPath",
+    }[flag];
+
+    if (options[optionName]) {
+      fail(`El argumento ${flag} no puede repetirse.`);
+    }
+
+    options[optionName] = value;
+  }
+
+  if (!options.target || !["local", "self-hosted"].includes(options.target)) {
+    fail("--target debe ser local o self-hosted.");
+  }
+
+  if (options.target === "local") {
+    if (options.runtimeEnvPath || options.qaEnvPath || options.supabaseEnvPath) {
+      fail("Los argumentos de environment explicito solo aplican a --target self-hosted.");
+    }
+
+    return { target: "local" };
+  }
+
+  if (!options.runtimeEnvPath || !options.qaEnvPath || !options.supabaseEnvPath) {
+    fail("--target self-hosted requiere --runtime-env, --qa-env y --supabase-env.");
+  }
+
+  return {
+    target: "self-hosted",
+    runtimeEnvPath: resolve(process.cwd(), options.runtimeEnvPath),
+    qaEnvPath: resolve(process.cwd(), options.qaEnvPath),
+    supabaseEnvPath: resolve(process.cwd(), options.supabaseEnvPath),
+  };
+}
+
+function parseEnvironmentFile(contents, sourceName) {
+  const values = new Map();
+
+  for (const rawLine of contents.split(/\r?\n/)) {
+    const line = rawLine.trim();
+
+    if (!line || line.startsWith("#")) {
+      continue;
+    }
+
+    const assignment = line
+      .replace(/^export\s+/, "")
+      .match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
+
+    if (!assignment) {
+      fail(`El archivo ${sourceName} contiene una asignacion invalida.`);
+    }
+
+    const [, name, rawValue] = assignment;
+
+    if (values.has(name)) {
+      fail(`El archivo ${sourceName} repite una variable.`);
+    }
+
+    const value = rawValue.trim();
+    values.set(
+      name,
+      value.length >= 2 &&
+        ((value.startsWith('"') && value.endsWith('"')) ||
+          (value.startsWith("'") && value.endsWith("'")))
+        ? value.slice(1, -1)
+        : value,
+    );
+  }
+
+  return values;
+}
+
+function readEnvironmentFile(filePath, sourceName) {
+  try {
+    return parseEnvironmentFile(readFileSync(filePath, "utf8"), sourceName);
+  } catch (error) {
+    if (error instanceof Error && error.code === "ENOENT") {
+      fail(`No se pudo leer el environment ${sourceName}.`);
+    }
+
+    throw error;
+  }
+}
+
 function readLocalEnvFile() {
   const envPath = resolve(process.cwd(), ".env.local");
 
@@ -132,6 +242,28 @@ function readEnvironment() {
 
   for (const name of REQUIRED_ENV_NAMES) {
     values[name] = process.env[name]?.trim() || localEnv.get(name)?.trim() || "";
+  }
+
+  return values;
+}
+
+function readSelfHostedEnvironment(options) {
+  const runtime = readEnvironmentFile(options.runtimeEnvPath, "runtime");
+  const qa = readEnvironmentFile(options.qaEnvPath, "QA");
+  const unexpectedQaNames = [...qa.keys()].filter((name) => !QA_ENV_NAMES.includes(name));
+
+  if (unexpectedQaNames.length > 0) {
+    fail("El environment QA solo puede contener las seis variables GODEL_TEST_* requeridas.");
+  }
+
+  const values = {};
+
+  for (const name of RUNTIME_ENV_NAMES) {
+    values[name] = runtime.get(name)?.trim() || "";
+  }
+
+  for (const name of QA_ENV_NAMES) {
+    values[name] = qa.get(name)?.trim() || "";
   }
 
   return values;
@@ -169,6 +301,32 @@ function validateLocalSupabaseUrl(rawUrl) {
   return url.toString().replace(/\/$/, "");
 }
 
+function validateSelfHostedSupabaseUrl(rawUrl) {
+  if (!rawUrl) {
+    fail("NEXT_PUBLIC_SUPABASE_URL es obligatoria.");
+  }
+
+  let url;
+
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    fail("NEXT_PUBLIC_SUPABASE_URL no es una URL valida.");
+  }
+
+  if (
+    !["http:", "https:"].includes(url.protocol) ||
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash
+  ) {
+    fail("NEXT_PUBLIC_SUPABASE_URL debe ser un origen publico valido.");
+  }
+
+  return url.toString().replace(/\/$/, "");
+}
+
 function hasAllowedPasswordSymbol(password) {
   return [...password].some((character) =>
     ALLOWED_PASSWORD_SYMBOLS.includes(character),
@@ -201,16 +359,17 @@ function validatePassword(name, password) {
   }
 }
 
-function validateEnvironment(values) {
+function validateEnvironment(values, target) {
   for (const name of REQUIRED_ENV_NAMES) {
     if (!values[name]) {
       fail(`${name} es obligatoria.`);
     }
   }
 
-  const supabaseUrl = validateLocalSupabaseUrl(
-    values.NEXT_PUBLIC_SUPABASE_URL,
-  );
+  const supabaseUrl =
+    target === "local"
+      ? validateLocalSupabaseUrl(values.NEXT_PUBLIC_SUPABASE_URL)
+      : validateSelfHostedSupabaseUrl(values.NEXT_PUBLIC_SUPABASE_URL);
 
   if (
     values.SUPABASE_SECRET_KEY === values.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
@@ -317,12 +476,13 @@ function formatProcessDiagnostic(
 }
 
 async function runProcess(command, args, options = {}) {
-  const { input = "", sensitiveValues = [] } = options;
+  const { input = "", sensitiveValues = [], cwd } = options;
 
   return new Promise((resolvePromise, rejectPromise) => {
     const child = spawn(command, args, {
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true,
+      cwd,
     });
     let stdout = "";
     let stderr = "";
@@ -540,6 +700,159 @@ async function runLocalQaProfilesBootstrap(config, userIds) {
   log("QA_PROFILES_OK");
 }
 
+function getQaProfileBootstrapArguments(userIds) {
+  const adminId = validateAuthUser({ id: userIds.get("admin") });
+  const supervisorId = validateAuthUser({ id: userIds.get("supervisor") });
+  const workerId = validateAuthUser({ id: userIds.get("trabajador") });
+
+  return {
+    adminId,
+    supervisorId,
+    workerId,
+    psqlArguments: [
+      "psql",
+      "-U",
+      "postgres",
+      "-d",
+      "postgres",
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-v",
+      "VERBOSITY=terse",
+      "-v",
+      `admin_id=${adminId}`,
+      "-v",
+      `supervisor_id=${supervisorId}`,
+      "-v",
+      `worker_id=${workerId}`,
+      "-X",
+      "-q",
+      "-t",
+      "-A",
+      "-f",
+      "-",
+    ],
+  };
+}
+
+function getSelfHostedComposeArguments(supabaseEnvPath) {
+  return [
+    "compose",
+    "--env-file",
+    supabaseEnvPath,
+    "-f",
+    resolve(process.cwd(), SELF_HOSTED_COMPOSE_PATH),
+    "-f",
+    resolve(process.cwd(), SELF_HOSTED_OVERRIDE_PATH),
+  ];
+}
+
+async function validateSelfHostedRuntime(options, sensitiveValues) {
+  await runRequiredProcess(
+    process.execPath,
+    [
+      resolve(process.cwd(), SELF_HOSTED_RUNTIME_VALIDATOR_PATH),
+      "--supabase-env",
+      options.supabaseEnvPath,
+      "--godel-env",
+      options.runtimeEnvPath,
+    ],
+    {
+      context: "SelfHostedRuntimeEnvironment",
+      errorMessage: "El contrato runtime self-hosted no es valido.",
+      sensitiveValues,
+    },
+  );
+
+  log("RUNTIME_ENV_OK");
+}
+
+async function assertRunningSelfHostedDb(
+  contextName,
+  supabaseEnvPath,
+  sensitiveValues,
+) {
+  const composeArguments = getSelfHostedComposeArguments(supabaseEnvPath);
+  const result = await runRequiredProcess(
+    "docker",
+    [
+      "--context",
+      contextName,
+      ...composeArguments,
+      "ps",
+      "--status",
+      "running",
+      "-q",
+      "db",
+    ],
+    {
+      context: "docker.compose",
+      errorMessage: "No se pudo verificar el servicio DB self-hosted.",
+      sensitiveValues,
+    },
+  );
+
+  if (!result.stdout.trim()) {
+    fail("El servicio DB self-hosted no esta en ejecucion.", {
+      context: "docker.compose",
+      detail: "db_not_running",
+    });
+  }
+}
+
+async function runSelfHostedQaProfilesBootstrap(config, userIds, options) {
+  const { adminId, supervisorId, workerId, psqlArguments } =
+    getQaProfileBootstrapArguments(userIds);
+  const sensitiveValues = getSensitiveValues(config, [
+    adminId,
+    supervisorId,
+    workerId,
+  ]);
+  const sql = readFileSync(
+    resolve(process.cwd(), BOOTSTRAP_PROFILES_SQL_PATH),
+    "utf8",
+  );
+  const contextName = await resolveLocalDockerContext(sensitiveValues);
+
+  await assertRunningSelfHostedDb(
+    contextName,
+    options.supabaseEnvPath,
+    sensitiveValues,
+  );
+
+  const result = await runRequiredProcess(
+    "docker",
+    [
+      "--context",
+      contextName,
+      ...getSelfHostedComposeArguments(options.supabaseEnvPath),
+      "exec",
+      "-T",
+      "db",
+      ...psqlArguments,
+    ],
+    {
+      context: "SelfHostedQaProfilesError",
+      errorMessage: "No se pudieron preparar los perfiles QA self-hosted.",
+      input: sql,
+      sensitiveValues,
+    },
+  );
+
+  if (
+    !result.stdout
+      .split(/\r?\n/)
+      .some((line) => line.trim() === "QA_PROFILES_OK")
+  ) {
+    fail("No se confirmo el bootstrap self-hosted de perfiles QA.", {
+      context: "SelfHostedQaProfilesError",
+      detail: "missing_marker",
+    });
+  }
+
+  log("QA_PROFILES_OK");
+}
+
 async function listUsersByEmail(admin, email) {
   const matches = [];
   const perPage = 1000;
@@ -635,11 +948,26 @@ async function verifyLogin(config, fixture) {
 }
 
 async function main() {
-  const env = validateEnvironment(readEnvironment());
+  const options = parseCliArguments(process.argv.slice(2));
+  const values =
+    options.target === "local"
+      ? readEnvironment()
+      : readSelfHostedEnvironment(options);
+  const env = validateEnvironment(values, options.target);
+  const sensitiveValues = getSensitiveValues(env);
+
+  if (options.target === "self-hosted") {
+    await validateSelfHostedRuntime(options, sensitiveValues);
+  }
+
   const admin = createAdminClient(env);
   const userIds = new Map();
 
-  log("Entorno local confirmado.");
+  log(
+    options.target === "local"
+      ? "Entorno local confirmado."
+      : "Entorno self-hosted confirmado.",
+  );
 
   for (const fixture of env.fixtures) {
     const userId = await prepareAuthUser(admin, fixture);
@@ -647,14 +975,22 @@ async function main() {
     log(`${fixture.logLabel} preparado.`);
   }
 
-  await runLocalQaProfilesBootstrap(env, userIds);
+  if (options.target === "local") {
+    await runLocalQaProfilesBootstrap(env, userIds);
+  } else {
+    await runSelfHostedQaProfilesBootstrap(env, userIds, options);
+  }
 
   for (const fixture of env.fixtures) {
     await verifyLogin(env, fixture);
   }
 
   log("Inicio de sesion verificado para los tres roles.");
-  log("Bootstrap local completado.");
+  log(
+    options.target === "local"
+      ? "Bootstrap local completado."
+      : "Bootstrap self-hosted completado.",
+  );
 }
 
 main().catch((error) => {

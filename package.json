@@ -10,6 +10,7 @@
     "verify": "npm run lint && npm run build",
     "types:supabase": "supabase gen types typescript --local --schema public > src/types/database.types.ts",
     "test:e2e": "playwright test",
+    "test:e2e:selfhosted": "node scripts/run-selfhosted-e2e.mjs",
     "test:e2e:chromium": "playwright test --project=chromium",
     "test:e2e:chromium:serial": "playwright test --project=chromium --workers=1",
     "test:e2e:headed": "playwright test --headed",
@@ -26,6 +27,7 @@
     "spike:ppo-03c3:cleanup": "node scripts/spikes/ppo-03c3/cleanup.mjs",
     "diff:check": "git diff --check",
     "qa:bootstrap": "node scripts/bootstrap-local-qa-users.mjs",
+    "qa:bootstrap:selfhosted": "node scripts/bootstrap-local-qa-users.mjs --target self-hosted --runtime-env compose.env.local --qa-env .env.qa.local --supabase-env infra/supabase/.env",
     "audit:security": "node scripts/audit-security.mjs",
     "audit:client-supabase": "node scripts/audit-client-supabase.mjs",
     "audit:public-tracking": "node scripts/audit-public-tracking.mjs"
