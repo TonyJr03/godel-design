@@ -96,20 +96,22 @@ Next container
 Sus objetivos son redes Docker, integración entre ambos stacks, proxy público
 de Supabase, distinción URL pública/server-side, Auth, Storage, healthchecks,
 readiness, orden de inicio y dependencias, y aislamiento de PostgreSQL y
-Supavisor. Este roadmap no diseña archivos Compose concretos ni implementa
-SH-02.
+Supavisor. El diseño y evidencia de SH-02 se mantienen en sus documentos
+focales; el roadmap conserva la secuencia y los gates.
 
 | Subbloque | Estado |
 | --- | --- |
-| SH-02.0 — Diseño de integración y naming | IMPLEMENTED / PENDING ARCHITECTURAL REVIEW |
-| SH-02.1 — Compose, networking y naming neutral | PENDING |
+| SH-02.0 — Diseño de integración y naming | CLOSED / APPROVED |
+| SH-02.1 — Compose, networking y naming neutral | IMPLEMENTED / PENDING ARCHITECTURAL REVIEW |
 | SH-02.2 — Nginx proxy, URL split y routing TUS | PENDING |
 | SH-02.3 — Readiness, startup, secretos/config | PENDING |
 | SH-02.4 — Smoke técnico, documentación y cierre | PENDING |
 
-El diseño vigente de SH-02.0 está en
-[SH_02_INTEGRATION_DESIGN.md](SH_02_INTEGRATION_DESIGN.md). SH-02 no está
-cerrado: SH-02.1 queda pendiente de revisión arquitectónica del diseño.
+El diseño vigente está en
+[SH_02_INTEGRATION_DESIGN.md](SH_02_INTEGRATION_DESIGN.md) y la evidencia de
+SH-02.1 en [SH_02_COMPOSE_NETWORK_REPORT.md](SH_02_COMPOSE_NETWORK_REPORT.md).
+SH-02 no está cerrado: SH-02.2 queda pendiente de revisión arquitectónica de
+SH-02.1.
 
 ### SH-03 — QA funcional production-like
 

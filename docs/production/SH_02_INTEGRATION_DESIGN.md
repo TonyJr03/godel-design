@@ -3,9 +3,10 @@
 ## Estado
 
 ```text
-SH-02.0 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+SH-02.0 = CLOSED / APPROVED
+SH-02.1 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
 SH-02 = ACTIVE
-NEXT AFTER APPROVAL = SH-02.1
+NEXT AFTER APPROVAL = SH-02.2
 ```
 
 Este documento define el objetivo production-like para la integración. No
@@ -83,7 +84,7 @@ una vez, de forma explícita y antes de iniciar cualquiera de los stacks. Esto
 evita que el ciclo de `down` de uno de los projects destruya la frontera usada
 por el otro.
 
-En SH-02.1:
+Implementado en SH-02.1:
 
 - `app` y `nginx` conservarán una red privada propia de `godel-runtime` para
   la aplicación y también se unirán a `godel-supabase-api`.
@@ -219,11 +220,11 @@ PPO-03G.
 | --- | --- | --- |
 | Nginx | Sí, único frontend HTTP; el bind concreto puede ser loopback local | Publica el único puerto de Godel. |
 | `app:3000` | No | Solo `expose` y redes Docker. |
-| `api-gw:8000` | No | `REMOVE` en SH-02.1; acceso por Nginx o red compartida. |
+| `api-gw:8000` | No | Host bind retirado; acceso por Nginx o red compartida. |
 | DB | No | Sin puertos host/LAN. |
-| Supavisor | No | `REMOVE` binds loopback `5432`/`6543` en SH-02.1. |
+| Supavisor | No | Host binds `5432`/`6543` retirados. |
 
-Arquitectura aprobó esas retiradas para el runtime production-like estándar.
+SH-02.1 implementó las retiradas aprobadas para el runtime production-like estándar.
 Un acceso de diagnóstico futuro será temporal y loopback mediante procedimiento
 u override específico, no una exposición permanente. DB continúa sin puerto
 host; DB, Supavisor y api-gw nunca serán públicos/LAN directos.
@@ -330,16 +331,16 @@ Browser ───► │ nginx ───────────────► 
 - `ADDITIONAL_REDIRECT_URLS` será mínimo y explícito. El código actual usa
   autenticación por contraseña y no registra `redirectTo`; un flujo futuro de
   email/OAuth debe añadir solo sus callbacks públicos concretos.
-- El override `supabase-godel.local.yml` sigue siendo válido como extensión
-  Godel local. Puede evaluarse `supabase-godel.override.yml` al implementar,
-  pero no se renombra en SH-02.0.
+- El override Godel vigente es `infra/supabase-godel.override.yml`; conserva
+  los ajustes JWT/JWKS y delimita la red compartida sin modificar el bundle
+  upstream. SH-02.2 no debe añadir routing Nginx todavía fuera de su alcance.
 
 ## Plan de implementación SH-02
 
 | Subbloque | Alcance |
 | --- | --- |
 | SH-02.0 | Diseño, naming y auditoría de consumidores — este documento. |
-| SH-02.1 | Compose, project name neutral, imágenes y red externa compartida. |
+| SH-02.1 | Compose, project name neutral, imágenes y red externa compartida — implementado; pendiente de revisión. |
 | SH-02.2 | Proxy Nginx, split de URLs y routing compatible con TUS. |
 | SH-02.3 | Readiness, startup, configuración y secreto mínimo. |
 | SH-02.4 | Smoke técnico, documentación de evidencia y cierre SH-02. |
@@ -366,5 +367,5 @@ completos pertenece a SH-03.
 
 ## Handoff
 
-La siguiente acción, después de aprobación arquitectónica, es SH-02.1. No se
-debe implementar nada de este diseño antes de esa aprobación.
+La siguiente acción, después de aprobación arquitectónica de SH-02.1, es
+SH-02.2. No se debe implementar el proxy Supabase antes de esa aprobación.

@@ -1,4 +1,4 @@
-name: godel-design-ppo-02c2
+name: godel-runtime
 
 services:
   app:
@@ -8,7 +8,7 @@ services:
       args:
         NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:?NEXT_PUBLIC_SUPABASE_URL is required}
         NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:?NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY is required}
-    image: godel-design-app:${GODEL_APP_IMAGE_TAG:-ppo-02c2}
+    image: godel-design-app:${GODEL_APP_IMAGE_TAG:-local}
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:?NEXT_PUBLIC_SUPABASE_URL is required}
@@ -19,8 +19,7 @@ services:
       - "3000"
     networks:
       - stack
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - supabase_api
     read_only: true
     user: "1000:1000"
     cap_drop:
@@ -55,7 +54,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.nginx
-    image: godel-design-nginx:${GODEL_NGINX_IMAGE_TAG:-ppo-02c2}
+    image: godel-design-nginx:${GODEL_NGINX_IMAGE_TAG:-local}
     depends_on:
       app:
         condition: service_healthy
@@ -63,6 +62,7 @@ services:
       - "${GODEL_HTTP_BIND_ADDRESS:-127.0.0.1}:${GODEL_HTTP_PORT:-8080}:8080"
     networks:
       - stack
+      - supabase_api
     read_only: true
     user: "101:101"
     cap_drop:
@@ -94,3 +94,6 @@ services:
 networks:
   stack:
     driver: bridge
+  supabase_api:
+    external: true
+    name: godel-supabase-api

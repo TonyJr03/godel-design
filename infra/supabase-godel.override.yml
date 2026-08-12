@@ -1,12 +1,13 @@
 services:
   api-gw:
-    ports: !override
-      - "127.0.0.1:8000:8000/tcp"
+    ports: !override []
+    networks:
+      godel-supabase-api:
+        aliases:
+          - api-gw
 
   supavisor:
-    ports: !override
-      - "127.0.0.1:5432:5432/tcp"
-      - "127.0.0.1:6543:6543/tcp"
+    ports: !override []
 
   auth:
     environment:
@@ -23,3 +24,8 @@ services:
   functions:
     environment:
       SUPABASE_JWKS: '${JWT_JWKS:-{"keys":[]}}'
+
+networks:
+  godel-supabase-api:
+    external: true
+    name: godel-supabase-api
