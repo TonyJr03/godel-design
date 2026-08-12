@@ -5,10 +5,7 @@ import {
   actionSuccess,
   type BaseActionState,
 } from "@/lib/actions/action-state";
-import {
-  revalidateClienteForm,
-  revalidateClientesList,
-} from "@/lib/actions/revalidation";
+import { revalidateClienteForm } from "@/lib/actions/revalidation";
 import {
   createInternalCliente,
   updateInternalCliente,
@@ -36,8 +33,6 @@ export async function createClienteAction(
       fieldErrors: result.fieldErrors,
     });
   }
-
-  revalidateClientesList();
 
   return actionSuccess("Cliente creado correctamente.", {
     clienteId: result.clienteId,

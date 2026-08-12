@@ -235,9 +235,89 @@ tipos de base de datos ni lógica de negocio.
   restauración y login original del trabajador.
 - No iniciar SH-03.2 ni SH-03.3 antes de revisión arquitectónica.
 
+## Transversal Server Action stabilization
+
+### Estado y alcance
+
+SH-03.1 queda **IMPLEMENTED / BLOCKED BY CURRENT-ROUTE FRESHNESS REVIEW**. No
+se iniciaron SH-03.2 ni SH-03.3. El alcance de esta pasada se limitó a las
+acciones de creación que devuelven estado a un modal: Servicios, Clientes,
+Pedidos manuales y Plantillas de tareas. No se modificaron los caminos de
+edición, activar/desactivar, Auth Admin, runtime, Compose, Nginx, Dockerfile,
+Supabase upstream, migraciones ni tipos de base de datos.
+
+### Diferencial base 16.2.6
+
+Se eliminaron solamente las invalidaciones server-side del camino exitoso de
+creación. Se conservaron los `router.refresh()` de los modales y todas las
+revalidaciones de edición/activar-desactivar.
+
+| Flujo | Revalidación retirada de create | Resultado repetido |
+| --- | --- | --- |
+| Servicios | `revalidateServiceTypesAdmin()` | PASS 3/3: modal cierra y la búsqueda por navegación encuentra el servicio |
+| Clientes | `revalidateClientesList()` | PASS 3/3: modal cierra y la búsqueda por navegación encuentra el cliente |
+| Pedidos manuales | `revalidatePath("/dashboard/pedidos")` | PASS 3/3: modal cierra y la búsqueda por navegación encuentra el pedido |
+| Plantillas | `revalidateTaskTemplatesList()` | PASS 3/3: modal cierra y la búsqueda por navegación encuentra la plantilla |
+
+Antes de convertir el gate de Pedidos en búsqueda por navegación, se verificó
+un caso focal de refresco inmediato: tras cerrar el modal, el nuevo pedido no
+apareció en el listado actual después de `router.refresh()`, aunque la
+mutación estaba persistida. No se aceptó esa condición como éxito. Una nueva
+navegación filtrada sí recuperó la fila. Esto clasifica la causa demostrada
+como una interacción entre la entrega de `ActionState`, la invalidación
+server-side y la frescura del árbol de ruta actual; no como fallo de la
+mutación ni como caché persistente global.
+
+### Auditoría de caché y frescura
+
+No hay uso local de `cacheComponents`, `"use cache"`, `unstable_cache` ni
+`force-cache`. `next.config.ts` no activa caché de componentes. Los clientes
+Supabase server-side dependen de `cookies()`, por lo que las páginas protegidas
+son dinámicas en el runtime actual.
+
+| Comprobación | Resultado |
+| --- | --- |
+| Frescura por nueva navegación: servicios, clientes y plantillas | PASS para las altas 3/3 |
+| Frescura por nueva navegación: pedidos | PASS para las altas 3/3 |
+| Frescura de ruta actual de Pedidos tras `router.refresh()` | FAIL: la fila no apareció hasta nueva navegación; mutación persistida |
+| Editar/ocultar Servicios y Plantillas | No ejecutado: sus revalidaciones se retienen y el objetivo fue aislar create |
+| Dashboard y pedidos cross-route | No establecido por el fallo anterior |
+
+Por ello no se aprueba todavía una regla arquitectónica general de "sin
+revalidación server-side" para modales. La regla candidata queda limitada a
+este diferencial: los creates verificados no deben volver a introducir las
+revalidaciones retiradas hasta que Arquitectura decida el contrato de frescura
+de ruta actual. Las revalidaciones de edición, activar/desactivar, detalle y
+cross-route permanecen sin cambios porque no han pasado la matriz de frescura.
+
+### Parche de seguridad Next
+
+Se actualizaron exactamente `next` y `eslint-config-next` de 16.2.6 a
+16.2.11, con su lockfile. `react` y `react-dom` siguen en 19.2.4: no hubo
+conflicto de peer dependencies que justificara cambiarlos. La imagen
+production-like se reconstruyó con Next 16.2.11; compilación y TypeScript
+pasaron. El gate E2E repetido de las cuatro creaciones también pasó con esa
+imagen.
+
+### Validación de esta pasada
+
+| Gate | Resultado |
+| --- | --- |
+| Bootstrap self-hosted y login de tres roles | PASS |
+| Gate Playwright externo de creaciones repetidas, base 16.2.6 | PASS: 3/3 por cada flujo |
+| Build production-like Next 16.2.11 | PASS, incluyendo TypeScript |
+| Gate Playwright externo de creaciones repetidas, Next 16.2.11 | PASS: 3/3 por cada flujo |
+| `npm run lint` | PASS |
+| `git diff --check` | PASS |
+
+El bootstrap de restauración se ejecutó durante la validación post-parche y
+verificó nuevamente los tres roles. No se imprimieron credenciales, secretos ni
+identificadores de fixtures. Las entidades QA creadas por el gate se preservan:
+no se ejecutó limpieza destructiva fuera de un mecanismo de dominio aprobado.
+
 ## Handoff
 
-SH-03.1 queda bloqueado por hallazgos funcionales. El bootstrap y runner
-self-hosted son utilizables, pero no se vuelve a revisión arquitectónica hasta
-que el gate Auth Admin completo y el flujo focal de Servicios finalicen sin
-quedar pendientes.
+SH-03.1 se detiene para revisión arquitectónica. El bootstrap y runner
+self-hosted son utilizables; la decisión pendiente es el contrato de frescura
+de ruta actual que debe acompañar los creates sin revalidación server-side.
+No se inicia SH-03.2 ni SH-03.3 en esta pasada.

@@ -32,8 +32,6 @@ export async function createServiceTypeAction(
     });
   }
 
-  revalidateServiceTypesAdmin();
-
   return actionSuccess("Servicio creado correctamente.");
 }
 

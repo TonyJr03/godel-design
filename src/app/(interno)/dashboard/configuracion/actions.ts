@@ -5,10 +5,7 @@ import {
   actionSuccess,
   type BaseActionState,
 } from "@/lib/actions/action-state";
-import {
-  revalidateTaskTemplateDetail,
-  revalidateTaskTemplatesList,
-} from "@/lib/actions/revalidation";
+import { revalidateTaskTemplateDetail } from "@/lib/actions/revalidation";
 import {
   createTaskTemplate,
   toggleTaskTemplateActive,
@@ -34,8 +31,6 @@ export async function createTaskTemplateAction(
       fieldErrors: result.fieldErrors,
     });
   }
-
-  revalidateTaskTemplatesList();
 
   return actionSuccess("Plantilla creada correctamente.");
 }
