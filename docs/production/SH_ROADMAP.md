@@ -42,7 +42,7 @@ el backend objetivo actual.
 | --- | --- | --- |
 | SH-01 | Baseline oficial Supabase self-hosted | Cerrada / aprobada |
 | SH-02 | Integración Godel ↔ Supabase self-hosted | Cerrada / aprobada |
-| SH-03 | QA funcional production-like | Pendiente |
+| SH-03 | QA funcional production-like | Activa |
 | SH-04 | Fundamentos operativos self-hosted | Pendiente |
 | SH-05 | Portabilidad reproducible | Pendiente |
 
@@ -126,6 +126,18 @@ E2E local.
 El mínimo conceptual cubre health/readiness, login, roles, Auth Admin,
 dashboard, clientes, solicitudes, pedidos, tareas, pagos, tracking público, TUS
 interno, TUS público presigned, resume, finalize, listados y descargas.
+
+| Subbloque | Estado |
+| --- | --- |
+| SH-03.0 — Diseño QA production-like y estrategia de fixtures | IMPLEMENTED / PENDING ARCHITECTURAL REVIEW |
+| SH-03.1 — Provisioning QA self-hosted, Auth/session/roles/Auth Admin | PENDING |
+| SH-03.2 — Flujos core de negocio y tracking | PENDING |
+| SH-03.3 — Storage, TUS, finalize, listados y descargas | PENDING |
+| SH-03.4 — Regresión agregada y cierre | PENDING |
+
+El diseño y la auditoría de partida están en
+[SH_03_QA_PLAN.md](SH_03_QA_PLAN.md). SH-03 permanece activo; tras aprobación
+de SH-03.0, la siguiente acción es SH-03.1.
 
 ### SH-04 — Fundamentos operativos self-hosted
 
