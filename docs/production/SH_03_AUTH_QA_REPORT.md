@@ -4,7 +4,7 @@
 
 ```text
 SH-03.0 = CLOSED / APPROVED
-SH-03.1 = IMPLEMENTED / BLOCKED BY FUNCTIONAL FINDINGS
+SH-03.1 = BLOCKED
 SH-03 = ACTIVE
 SH-03.2 = NOT STARTED
 ```
@@ -239,7 +239,7 @@ tipos de base de datos ni lógica de negocio.
 
 ### Estado y alcance
 
-SH-03.1 queda **IMPLEMENTED / BLOCKED BY CURRENT-ROUTE FRESHNESS REVIEW**. No
+SH-03.1 queda **BLOCKED** por la revisión de frescura de ruta actual. No
 se iniciaron SH-03.2 ni SH-03.3. El alcance de esta pasada se limitó a las
 acciones de creación que devuelven estado a un modal: Servicios, Clientes,
 Pedidos manuales y Plantillas de tareas. No se modificaron los caminos de
@@ -351,6 +351,63 @@ la instrumentación temporal y el test diagnóstico. No se aplicó
 `startTransition`, no se añadieron hacks de tiempo/navegación, ni se tocaron
 Servicios, Clientes, Plantillas, Auth Admin, ediciones o updates.
 
+### RSC streaming through Nginx
+
+La guía oficial de self-hosting de Next.js requiere que el proxy no bufferice
+las respuestas del App Router para preservar el streaming RSC. El bloque
+`location /` de Nginx ya tenía `proxy_request_buffering off`, que controla el
+cuerpo Browser → Next. En esta pasada se añadió, como única variable de
+infraestructura, `proxy_buffering off`, que controla la respuesta Next/RSC →
+Browser. No se alteraron los bloques Auth, REST o Storage, timeouts, headers,
+upstreams, límites, Compose, Dockerfile ni se añadió `X-Accel-Buffering` desde
+Next.
+
+La imagen Nginx se reconstruyó y el contenedor Nginx se recreó aisladamente.
+`nginx -t`, `live = 200` y `ready = 200` pasaron; app y Supabase no se
+recrearon durante esa operación. El gate temporal de cinco altas consecutivas
+de Pedido, sin navegación, búsqueda, recarga ni cambio de URL, falló en la
+segunda alta: la primera mostró el título en la ruta actual y la segunda no lo
+hizo dentro de 20 segundos. La medición temporal y sanitizada registró inicio
+de RSC, finalización cuando estuvo disponible y el umbral de visibilidad DOM;
+no registró cuerpos, cookies, credenciales, tokens ni títulos QA.
+En la primera alta, las respuestas RSC comenzaron aproximadamente a los 1.2 s,
+una de ellas finalizó aproximadamente a los 1.6 s y el DOM fue visible a los
+1.65 s; esa observación puntual no se repitió en la segunda alta.
+
+Por tanto, `proxy_buffering off` queda como configuración de streaming RSC
+necesaria y válida en Nginx, pero no demuestra por sí sola read-your-writes
+repetible para este flujo. La evidencia histórica de que el buffering no
+resolvió un bloqueo queda limitada a Server Actions que devolvían un valor y
+ejecutaban revalidación server-side; no implica que response buffering sea
+irrelevante para App Router o `router.refresh()`.
+
+### POST/Redirect/Get differential
+
+Como el gate de streaming no alcanzó 5/5, se probó únicamente en
+`createPedidoAction` el contrato oficial: los errores de validación devuelven
+el `ActionState` existente; tras una mutación exitosa, `revalidatePath` seguido
+de `redirect("/dashboard/pedidos", RedirectType.replace)` no devuelve un
+`ActionState`. `redirect` permaneció fuera de `try/catch`. No se modificó el
+cliente de Pedido ni se extendió este experimento a Servicios, Clientes o
+Plantillas.
+
+El error de validación siguió visible dentro del modal, por lo que el camino de
+fallo conservó correctamente `ActionState`. La primera alta exitosa, sin
+embargo, quedó en `Creando pedido...` durante más de 20 segundos: no cerró el
+modal, no completó la navegación y no mostró el pedido en la ruta actual. Se
+revirtió completamente el experimento de PRG y su gate temporal. El payload de
+éxito de Pedido (`pedidoId`, `numeroPedido`, `publicReference`) no se eliminó:
+en el patrón vigente se renderiza en el estado de éxito del formulario, aunque
+el callback actual cierra el diálogo inmediatamente.
+
+Resultado arquitectónico actual: el servidor conserva `mutate → return
+ActionState` para los creates existentes; el cliente conserva `state.ok →
+cerrar diálogo → router.refresh()`; Nginx mantiene `proxy_buffering off` en el
+proxy de app. No es un contrato de frescura aprobado, porque ni el gate
+same-route 5/5 ni el fallback PRG demostraron completitud fiable. No se
+introdujeron temporizadores, navegación manual, cache-busting, CSR, mirrors
+optimistas ni reintentos Auth Admin.
+
 ### Parche de seguridad Next
 
 Se actualizaron exactamente `next` y `eslint-config-next` de 16.2.6 a
@@ -378,7 +435,7 @@ no se ejecutó limpieza destructiva fuera de un mecanismo de dominio aprobado.
 
 ## Handoff
 
-SH-03.1 se detiene para revisión arquitectónica. El bootstrap y runner
-self-hosted son utilizables; `refresh()` server-side queda descartado para este
-patrón de `ActionState` hasta nuevo diagnóstico. No se inicia SH-03.2 ni
-SH-03.3 en esta pasada.
+SH-03.1 queda **BLOCKED** y se detiene para revisión arquitectónica. El
+bootstrap y runner self-hosted son utilizables; `refresh()` server-side y el
+fallback PRG quedan descartados para este patrón hasta nuevo diagnóstico. No se
+inicia SH-03.2 ni SH-03.3 en esta pasada.

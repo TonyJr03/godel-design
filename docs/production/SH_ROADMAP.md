@@ -130,7 +130,7 @@ interno, TUS público presigned, resume, finalize, listados y descargas.
 | Subbloque | Estado |
 | --- | --- |
 | SH-03.0 — Diseño QA production-like y estrategia de fixtures | CLOSED / APPROVED |
-| SH-03.1 — Provisioning QA self-hosted, Auth/session/roles/Auth Admin | IMPLEMENTED / BLOCKED BY FUNCTIONAL FINDINGS |
+| SH-03.1 — Provisioning QA self-hosted, Auth/session/roles/Auth Admin | BLOCKED |
 | SH-03.2 — Flujos core de negocio y tracking | PENDING |
 | SH-03.3 — Storage, TUS, finalize, listados y descargas | PENDING |
 | SH-03.4 — Regresión agregada y cierre | PENDING |
@@ -139,7 +139,8 @@ El diseño y la auditoría de partida están en
 [SH_03_QA_PLAN.md](SH_03_QA_PLAN.md) y la evidencia de Auth/roles en
 [SH_03_AUTH_QA_REPORT.md](SH_03_AUTH_QA_REPORT.md). SH-03 permanece activo;
 SH-03.2 no ha empezado y queda bloqueado hasta resolver los hallazgos
-funcionales de SH-03.1.
+funcionales de SH-03.1, incluido el contrato de frescura de ruta actual detrás
+de Nginx.
 
 ### SH-04 — Fundamentos operativos self-hosted
 
