@@ -65,9 +65,14 @@ test("admin resets the QA worker password through the production-like applicatio
       .click();
 
     await expect(workerPage).toHaveURL(
-      /\/(?:dashboard|cambiar-contrasena-inicial)(?:[/?#].*)?$/,
+      /\/cambiar-contrasena-inicial(?:[/?#].*)?$/,
       { timeout: 20_000 },
     );
+    await expect(
+      workerPage.getByRole("heading", {
+        name: /define una nueva contrase.a/i,
+      }),
+    ).toBeVisible();
   } finally {
     await workerContext.close();
   }

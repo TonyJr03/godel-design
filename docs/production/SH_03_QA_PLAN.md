@@ -176,7 +176,8 @@ SH-03.1 preserva `npm run qa:bootstrap` para Supabase CLI local y añade un
 target self-hosted explícito, con runtime/QA env separados, Compose efectivo
 para perfiles y Playwright por Nginx sin `webServer`. El provisioning repetido,
 login de tres roles y denegaciones de Usuarios fueron demostrados. La mutación
-Auth Admin de reset alcanzó el cambio de contraseña pero no finalizó la acción
-en UI, por lo que queda como bug funcional bloqueante para revisión
-arquitectónica; el fixture fue restaurado con bootstrap. Tras resolverlo y
-aprobar SH-03.1, la siguiente acción es SH-03.2.
+Auth Admin de reset alcanza el cambio de contraseña pero no finaliza la acción
+en UI. La corrección focal confirmó el mismo bloqueo post-revalidación en la
+creación de servicios; SH-03.1 queda bloqueado por hallazgos funcionales. La
+fila canónica `Impresión` fue reparada en datos y validada por REST/Nginx y
+Chromium. SH-03.2 no ha empezado.

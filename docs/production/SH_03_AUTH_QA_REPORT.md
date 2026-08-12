@@ -4,14 +4,126 @@
 
 ```text
 SH-03.0 = CLOSED / APPROVED
-SH-03.1 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+SH-03.1 = IMPLEMENTED / BLOCKED BY FUNCTIONAL FINDINGS
 SH-03 = ACTIVE
-NEXT AFTER APPROVAL = SH-03.2
+SH-03.2 = NOT STARTED
 ```
 
-La implementación no modifica migraciones, tipos generados, Compose, runtime ni
-lógica de producto. La revisión arquitectónica debe decidir el hallazgo de Auth
-Admin documentado abajo antes de avanzar a SH-03.2.
+La implementación no modifica migraciones, tipos generados, Compose ni la
+lógica de producto. La corrección focal confirmó dos hallazgos funcionales que
+deben resolverse antes de revisión arquitectónica y antes de avanzar a SH-03.2.
+
+## Correction pass — Auth Admin y datos UTF-8
+
+Se ejecutó primero el bootstrap self-hosted y después únicamente la spec focal
+de Auth Admin. La mutación alcanzó Auth y el último audit seguro —sin IDs,
+emails ni contraseñas— devolvió `status = succeeded`, `error_code = null`,
+`completed_at = true`; tanto el estado previo como el actual conservaron
+`is_active = true` y `must_change_password` pasó de `false` a `true`.
+
+La instrumentación temporal y sanitizada mostró que el servicio de reset
+retornó correctamente, entró y retornó de
+`revalidateConfiguracionUsuariosList()`, y alcanzó `actionSuccess`. Sin embargo,
+el cliente mantuvo la Server Action en `Restableciendo...`. El mismo patrón se
+reprodujo en la creación de un servicio de configuración: la creación llega a
+completarse y la UI no recibe la finalización tras su revalidación. Desactivar
+temporalmente el buffering de respuesta de Nginx no lo resolvió y fue retirado.
+
+Por tanto, el problema no es una mutación parcial de Auth Admin, ni un contrato
+de auditoría, ni el buffering de Nginx. La causa demostrada es un bloqueo
+transversal de finalización de la respuesta Flight de Server Actions después de
+la revalidación; la causa de plataforma subyacente aún requiere diagnóstico.
+Se había observado antes un `EROFS` de cache prerender para `/login`, pero no se
+reprodujo en la ejecución controlada y no se declara causa raíz. No se cambió
+`read_only`, no se añadieron montajes amplios, ni se alteraron límites de tiempo.
+
+Una advertencia de catálogo UTF-8 se investigó por separado. Los bytes Git de
+las migraciones baseline 01 y 06 contienen `Impresión` como UTF-8
+`496d7072657369c3b36e`; PostgreSQL informa `server_encoding = UTF8` y
+`client_encoding = UTF8`. La fila canónica de `tipos_servicio`, en cambio,
+contenía literalmente `Impresi??n` (`496d70726573693f3f6e`) también en la
+descripción. La corrupción ya estaba en la base de datos antes de PostgREST y
+Nginx; el mecanismo histórico de ingestión no pudo demostrarse.
+
+Se reparó exclusivamente esa fila canónica mediante una transacción con
+literales `U&` ASCII, verificación de exactamente una fila afectada y sin crear
+migración. La lectura REST por Nginx y el gate Chromium de solo lectura
+confirmaron los bytes UTF-8 correctos. Para prevenir recurrencia, cualquier
+aplicación de datos con caracteres no ASCII debe ejecutar el archivo UTF-8
+directamente con `psql -f` o una vía equivalente byte-safe —nunca mediante un
+pipe de texto Windows— y verificar bytes fuente/DB antes de declarar aplicada
+una baseline.
+
+## Server Action completion correction
+
+### Hipótesis y estado inicial
+
+Se probó como hipótesis que una Server Action que devuelve un `ActionState` a
+`useActionState` queda pendiente en este runtime cuando invalida con
+`revalidatePath()` la misma ruta desde la que fue invocada. Antes del
+experimento, el reset de Usuarios invalidaba
+`/dashboard/configuracion/usuarios` y su diálogo ya ejecutaba
+`router.refresh()` tras `state.ok`. Los formularios de Servicios invalidaban
+`/dashboard/configuracion`, `/dashboard/configuracion/servicios` y
+`/solicitud`; sus diálogos de creación y edición también ejecutan
+`router.refresh()` tras éxito.
+
+### Diferencial Usuarios
+
+Se retiró únicamente la llamada a
+`revalidateConfiguracionUsuariosList()` del camino exitoso de
+`resetUserPasswordAction`. No se cambiaron la mutación, auditoría,
+`actionSuccess`, `onSuccess` ni el `router.refresh()` del cliente. Con la
+imagen production-like reconstruida, el primer reset devolvió el `ActionState`
+y cerró el diálogo, a diferencia del estado pendiente anterior. El segundo
+intento recibió el error funcional visible `target_rate_limit`, confirmando que
+la respuesta de una acción fallida también llega al navegador.
+
+El rate-limit impidió repetir inmediatamente el caso exitoso para completar el
+login temporal del trabajador. La restauración idempotente posterior devolvió
+la fixture a sus credenciales originales y verificó los tres roles. Por tanto,
+la omisión de revalidación de la ruta actual queda demostrada como cofactor para
+la finalización de Usuarios, pero el gate Auth Admin completo permanece
+pendiente de una nueva ventana de rate-limit.
+
+### Diferencial Servicios
+
+Se retiró temporalmente sólo
+`revalidatePath("/dashboard/configuracion/servicios")` de
+`revalidateServiceTypesAdmin`, conservando las invalidaciones cross-route de
+`/dashboard/configuracion` y `/solicitud` y los `router.refresh()` de cliente.
+La creación de servicio siguió con `Creando servicio...` y el diálogo no cerró
+en 15 segundos; la captura mostró la fila creada detrás del diálogo. El cambio
+experimental fue revertido: no hay modificación definitiva de la estrategia de
+revalidación de Servicios.
+
+La hipótesis no se generaliza: el patrón de invalidación de ruta actual es un
+cofactor demostrado para el reset de Usuarios, pero no explica por sí solo el
+hang de Servicios. No se cambió Nginx, `read_only`, tmpfs, Dockerfile, Compose
+ni dependencias Next/React. El `EROFS` histórico no reapareció durante este
+experimento.
+
+### Auditoría transversal estática
+
+| Acción o grupo | Ruta actual | Rutas revalidadas | Ruta actual invalidada | Refresh cliente | Riesgo |
+| --- | --- | --- | --- | --- | --- |
+| Reset Usuarios | `/dashboard/configuracion/usuarios` | Ninguna tras esta corrección | No | Sí | SAFE para este reset; gate completo pendiente de rate-limit |
+| Alta/edición Usuarios | `/dashboard/configuracion/usuarios` | Lista de Usuarios | Sí | Sí | SUSPECT |
+| Crear/editar Servicios | `/dashboard/configuracion/servicios` | Configuración, Servicios, Solicitud | Sí | Sí | NEEDS SH-03.x TEST |
+| Alta/edición Clientes | lista o detalle de Clientes | lista y/o detalle de Clientes | Posible | Sí | NEEDS SH-03.x TEST |
+| Plantillas y tareas de plantilla | Configuración/Plantillas | configuración, lista y detalle | Posible | Sí | NEEDS SH-03.x TEST |
+| Solicitudes y Pedidos de detalle | detalle invocador | dashboard, lista y detalle | Sí | no uniforme | NEEDS SH-03.x TEST |
+| Login y cambio inicial | Login o cambio inicial | Dashboard y cambio inicial | Puede coincidir | no aplica; redirige | SAFE fuera de este patrón de valor retornado |
+
+No se modificaron los candidatos `SUSPECT` o `NEEDS SH-03.x TEST`.
+
+### Evidencia y estado
+
+El reset exitoso conservó una auditoría `succeeded`, sin error y completada; el
+intento posterior fue `rate_limited` con `target_rate_limit`, también
+completado, sin exponer identificadores ni credenciales. La reparación UTF-8
+permanece íntegra. SH-03.1 no cambia de estado: el gate de Servicios continúa
+bloqueado y no se inicia SH-03.2 ni SH-03.3.
 
 ## Bootstrap local preservado
 
@@ -76,19 +188,13 @@ limitado para Usuarios; no se modificaron permisos para obtener ese resultado.
 
 ## Auth Admin
 
-Se añadió una spec serial focal que, como admin, abre el diálogo real de reset
-del trabajador QA, establece una contraseña temporal generada en la prueba y
-exige después el inicio de sesión del trabajador con esa nueva contraseña. No
-recibe la secret key. Durante la ejecución real, la contraseña del trabajador
-sí cambió (el login con la credencial original falló), pero la acción quedó
-visible en estado `Restableciendo...` y no finalizó en la UI dentro de 20
-segundos, por lo que la comprobación posterior no pudo ejecutarse. El último log
-del contenedor solo mostró un aviso de cache prerender de login en sistema de
-archivos de solo lectura, sin diagnóstico del reset.
-
-Es un bug funcional de finalización de la mutación Auth Admin. No se modificó
-`src/**` para ocultarlo; la spec conserva la expectativa correcta de éxito para
-que el fallo sea reproducible.
+La spec serial focal abre el diálogo real de reset del trabajador QA, establece
+una contraseña temporal generada durante la prueba, exige el cierre del diálogo,
+comprueba el estado visible `Cambio inicial pendiente` y después valida el login
+del trabajador con esa nueva contraseña. No recibe la secret key. El primer
+reset alcanzó Auth y dejó la contraseña temporal, pero la respuesta UI quedó
+pendiente; por ello no pudo ejecutar el login temporal dentro de la misma spec.
+La spec conserva ese contrato de éxito para mantener el fallo reproducible.
 
 ## Restauración de fixtures
 
@@ -114,19 +220,24 @@ tipos de base de datos ni lógica de negocio.
 | Bootstrap self-hosted, ejecución 2 | PASS |
 | QA profiles marker y login de tres roles | PASS |
 | Playwright externo smoke/shell/Usuarios | PASS: 13 passed, 3 skipped legítimos |
-| Auth Admin reset por aplicación | BLOCKED: contraseña cambia, finalización UI pendiente |
-| Restauración de fixture y login original worker | PASS |
+| Audit Auth Admin seguro | PASS: `succeeded`, sin error, completado, flags esperados |
+| Auth Admin reset por aplicación | BLOCKED: mutación y revalidación retornan, respuesta UI pendiente |
+| Servicio de configuración por aplicación | BLOCKED: mismo patrón post-revalidación |
+| REST `tipos_servicio` por Nginx | PASS: bytes UTF-8 correctos |
+| Chromium catálogo `Impresión` por Nginx | PASS: 1 passed |
+| Restauración de fixture y login original worker | PASS antes del gate final; debe repetirse tras corregir el bloqueo |
 
 ## Pendientes
 
-- Diagnosticar y corregir la finalización de la acción de reset Auth Admin sin
-  relajar sus garantías de auditoría y compensación.
-- Repetir la spec focal de Auth Admin hasta éxito completo y mantener la
-  restauración del fixture.
+- Diagnosticar y corregir la finalización transversal de Server Actions sin
+  relajar garantías de auditoría, compensación ni el filesystem read-only.
+- Repetir el gate completo: reset, estado visible, login temporal, bootstrap de
+  restauración y login original del trabajador.
 - No iniciar SH-03.2 ni SH-03.3 antes de revisión arquitectónica.
 
 ## Handoff
 
-La implementación de SH-03.1 queda detenida para revisión arquitectónica. El
-bootstrap y runner self-hosted son utilizables; el gate Auth Admin no está
-aprobado mientras la acción de reset permanezca pendiente en UI.
+SH-03.1 queda bloqueado por hallazgos funcionales. El bootstrap y runner
+self-hosted son utilizables, pero no se vuelve a revisión arquitectónica hasta
+que el gate Auth Admin completo y el flujo focal de Servicios finalicen sin
+quedar pendientes.

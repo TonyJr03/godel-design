@@ -108,8 +108,6 @@ export async function resetUserPasswordAction(
     };
   }
 
-  revalidateConfiguracionUsuariosList();
-
   return actionSuccess(
     "Contraseña temporal restablecida. El usuario deberá cambiarla en su próximo acceso.",
   );
