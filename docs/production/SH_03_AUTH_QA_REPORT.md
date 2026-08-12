@@ -290,6 +290,67 @@ revalidaciones retiradas hasta que Arquitectura decida el contrato de frescura
 de ruta actual. Las revalidaciones de edición, activar/desactivar, detalle y
 cross-route permanecen sin cambios porque no han pasado la matriz de frescura.
 
+### Current-route freshness resolution
+
+Se probó el mecanismo oficial de Next 16.2.11 `refresh()` de `next/cache`
+únicamente en `createPedidoAction`: se llamó después de que
+`createInternalPedido()` devolviera éxito y antes de devolver el `ActionState`.
+Al mismo tiempo se retiró el `router.refresh()` del `onSuccess` del diálogo de
+creación para evitar un doble refresco. No se introdujo `revalidatePath()`.
+
+El gate focal se endureció temporalmente a cinco creaciones consecutivas en
+`/dashboard/pedidos`, sin navegación, búsqueda, recarga ni parámetros nuevos:
+debía cerrar el modal y mostrar cada título en la tabla actual. Falló en la
+primera creación: el diálogo quedó visible en `Creando pedido...` tras 20
+segundos. La captura Chromium muestra el pedido creado detrás del diálogo, pero
+el `ActionState` no regresó al cliente y el modal no cerró. El runtime estaba
+sano (`live = 200`, `ready = 200`).
+
+Por tanto, `refresh()` server-side no estabiliza este patrón de acción que
+retorna valor; reproduce el bloqueo de entrega observado con revalidación
+server-side. Se revirtió por completo el experimento focal de Pedido, incluido
+el `refresh()` de la action, la retirada del `router.refresh()` cliente y el
+gate temporal de cinco repeticiones. No se inició la Fase B para Servicios,
+Clientes o Plantillas, ni las verificaciones cross-route, Auth Admin o
+edit/update. El fallback temporalmente separado permitido por el diseño queda
+pendiente de decisión arquitectónica y no se implementa en esta pasada.
+
+### Client refresh settlement diagnostic
+
+Se auditó el orden real de creación de Pedido con instrumentación temporal
+sanitizada y captura Playwright en memoria. La instrumentación no registró
+formularios, identificadores, cookies, tokens, claves ni cuerpos completos. En
+la baseline, `pending` transitó a `false` antes de que se observara
+`state.ok`; después se ejecutaron `onSuccess`, el cierre del diálogo y la
+llamada a `router.refresh()`. El POST de la action terminó antes de iniciar el
+RSC de refresh, con estado HTTP exitoso.
+
+La primera aserción de frescura usaba erróneamente un selector de `tr`. El
+listado renderiza cada pedido como enlace semántico dentro del grupo de filas,
+por lo que ese selector no podía validar la fila. Corregido al enlace real, el
+título aún no fue detectable dentro de los 20 segundos que exige el gate. La
+captura final de Playwright, producida después de ese umbral durante el cierre
+del test, sí contenía el pedido nuevo. Por tanto, no se clasifica como un árbol
+permanentemente previo, pero tampoco como read-your-writes inmediato aceptable.
+
+La captura de red observó varias respuestas RSC iniciadas por el refresh. Una
+respuesta RSC ya finalizada no contenía el título QA, mientras que la captura
+final de DOM sí lo contenía posteriormente; los streams simultáneos impiden
+atribuir de forma concluyente ese DOM tardío a una única respuesta. La lectura
+PostgreSQL directa y de solo lectura confirmó tres pedidos QA recientes del
+diagnóstico, sin exponer IDs ni datos sensibles. La mutación de base de datos
+queda confirmada; la latencia/orden de frescura del render actual sigue sin
+demostración dentro del contrato de 20 segundos.
+
+Se probó `state.ok && !pending` en `PedidoForm`; la evidencia ya mostraba que
+`pending` era `false` antes del éxito y el gate siguió sin frescura dentro del
+umbral. También se probó separar cierre y refresh: el callback cerró el modal y
+un efecto posterior invocó `router.refresh()` después del commit de cierre, sin
+temporizadores. El resultado fue el mismo. Se revirtieron ambos experimentos,
+la instrumentación temporal y el test diagnóstico. No se aplicó
+`startTransition`, no se añadieron hacks de tiempo/navegación, ni se tocaron
+Servicios, Clientes, Plantillas, Auth Admin, ediciones o updates.
+
 ### Parche de seguridad Next
 
 Se actualizaron exactamente `next` y `eslint-config-next` de 16.2.6 a
@@ -318,6 +379,6 @@ no se ejecutó limpieza destructiva fuera de un mecanismo de dominio aprobado.
 ## Handoff
 
 SH-03.1 se detiene para revisión arquitectónica. El bootstrap y runner
-self-hosted son utilizables; la decisión pendiente es el contrato de frescura
-de ruta actual que debe acompañar los creates sin revalidación server-side.
-No se inicia SH-03.2 ni SH-03.3 en esta pasada.
+self-hosted son utilizables; `refresh()` server-side queda descartado para este
+patrón de `ActionState` hasta nuevo diagnóstico. No se inicia SH-03.2 ni
+SH-03.3 en esta pasada.
