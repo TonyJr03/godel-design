@@ -360,6 +360,16 @@ queda asociado a solicitud y pedido, y la lectura final usa metadata/RLS.
 | `storage.objects.metadata.size/mimetype` | VERSION_SENSITIVE | finalize debe assertar shape; prueba contra versión fijada |
 | schemas `private`, tablas control plane, helpers | PROJECT_OWNED | baseline autoritativa |
 
+## Final baseline amendment — PPO-03F
+
+PPO-03F.0 aprobó expresamente PPO-03F.1 como el último amendment de la
+baseline consolidada. Se conservaron intactas 01, 02 y 05; se modificaron 03,
+04 y 06 para materializar lifecycle de cargas vencidas, estrechar la autoridad
+de cleanup y endurecer sus grants/policies. El fresh rebuild 01–06 volvió a
+pasar, el history permanece 6/6 y no existe migration 07. El freeze formal de
+la baseline queda pendiente de PPO-03F.3; hasta entonces no se autoriza otro
+amendment sin decisión técnica extraordinaria.
+
 ## 18. Plan de sustitución atómica
 
 1. Implementar PPO-03E o coordinar su merge/activación con la baseline.

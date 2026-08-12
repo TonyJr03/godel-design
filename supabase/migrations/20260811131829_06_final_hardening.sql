@@ -433,7 +433,8 @@ begin
     'public.reservar_carga_pedido(uuid, jsonb)',
     'public.autorizar_firma_carga_publica(uuid, uuid, text)',
     'public.finalizar_carga_publica(uuid, uuid, text)',
-    'public.finalizar_carga_pedido(uuid, uuid)'
+    'public.finalizar_carga_pedido(uuid, uuid)',
+    'public.reconciliar_cargas_expiradas(integer, integer)'
   ] loop
     if to_regprocedure(v_signature) is null then
       raise exception 'Hardening failed: missing upload RPC %.', v_signature;
@@ -445,11 +446,14 @@ begin
     or not has_function_privilege('anon', 'public.finalizar_carga_publica(uuid, uuid, text)', 'EXECUTE')
     or has_function_privilege('anon', 'public.reservar_carga_pedido(uuid, jsonb)', 'EXECUTE')
     or has_function_privilege('anon', 'public.finalizar_carga_pedido(uuid, uuid)', 'EXECUTE')
+    or has_function_privilege('anon', 'public.reconciliar_cargas_expiradas(integer, integer)', 'EXECUTE')
     or not has_function_privilege('authenticated', 'public.reservar_carga_pedido(uuid, jsonb)', 'EXECUTE')
     or not has_function_privilege('authenticated', 'public.finalizar_carga_pedido(uuid, uuid)', 'EXECUTE')
+    or not has_function_privilege('authenticated', 'public.reconciliar_cargas_expiradas(integer, integer)', 'EXECUTE')
     or has_function_privilege('authenticated', 'public.crear_solicitud_publica_con_reserva_carga(text, uuid, text, text, text, jsonb, text, text, date, text, integer, text, text, text)', 'EXECUTE')
     or has_function_privilege('authenticated', 'public.autorizar_firma_carga_publica(uuid, uuid, text)', 'EXECUTE')
     or has_function_privilege('authenticated', 'public.finalizar_carga_publica(uuid, uuid, text)', 'EXECUTE')
+    or has_function_privilege('service_role', 'public.reconciliar_cargas_expiradas(integer, integer)', 'EXECUTE')
     or has_function_privilege('service_role', 'public.crear_solicitud_publica_con_reserva_carga(text, uuid, text, text, text, jsonb, text, text, date, text, integer, text, text, text)', 'EXECUTE')
     or has_function_privilege('service_role', 'public.reservar_carga_pedido(uuid, jsonb)', 'EXECUTE')
     or has_function_privilege('service_role', 'public.autorizar_firma_carga_publica(uuid, uuid, text)', 'EXECUTE')
@@ -463,7 +467,8 @@ begin
     'public.reservar_carga_pedido(uuid, jsonb)',
     'public.autorizar_firma_carga_publica(uuid, uuid, text)',
     'public.finalizar_carga_publica(uuid, uuid, text)',
-    'public.finalizar_carga_pedido(uuid, uuid)'
+    'public.finalizar_carga_pedido(uuid, uuid)',
+    'public.reconciliar_cargas_expiradas(integer, integer)'
   ] loop
     if exists (
       select 1
@@ -510,6 +515,23 @@ begin
     or not has_function_privilege('authenticated', 'private.can_read_committed_storage_object(text, text)', 'EXECUTE')
     or not has_function_privilege('authenticated', 'private.can_manage_upload_storage_object(text, text)', 'EXECUTE') then
     raise exception 'Hardening failed: storage helper grants are incomplete.';
+  end if;
+
+  if to_regprocedure('private.upload_cleanup_grace()') is null
+    or has_function_privilege('anon', 'private.upload_cleanup_grace()', 'EXECUTE')
+    or has_function_privilege('authenticated', 'private.upload_cleanup_grace()', 'EXECUTE')
+    or has_function_privilege('service_role', 'private.upload_cleanup_grace()', 'EXECUTE')
+    or has_function_privilege('anon', 'private.refresh_upload_session_completion(uuid)', 'EXECUTE')
+    or has_function_privilege('authenticated', 'private.refresh_upload_session_completion(uuid)', 'EXECUTE')
+    or has_function_privilege('service_role', 'private.refresh_upload_session_completion(uuid)', 'EXECUTE') then
+    raise exception 'Hardening failed: upload lifecycle private helpers expose external execute.';
+  end if;
+
+  if pg_get_functiondef('private.can_manage_upload_storage_object(text,text)'::regprocedure) !~ 'private\.is_admin\(\)'
+    or pg_get_functiondef('private.can_manage_upload_storage_object(text,text)'::regprocedure) !~ 'i\.status = ''expired'''
+    or pg_get_functiondef('private.can_manage_upload_storage_object(text,text)'::regprocedure) !~ 'private\.upload_cleanup_grace\(\)'
+    or pg_get_functiondef('private.can_manage_upload_storage_object(text,text)'::regprocedure) !~ 'not exists' then
+    raise exception 'Hardening failed: cleanup storage helper does not enforce the final predicate.';
   end if;
 
   if to_regprocedure('extensions.digest(bytea,text)') is null
@@ -596,6 +618,18 @@ begin
         and roles @> array['authenticated']::name[]
     ) then
     raise exception 'Hardening failed: upload storage policy matrix does not match the final contract.';
+  end if;
+
+  if pg_get_expr(
+    (
+      select p.polqual
+      from pg_policy as p
+      where p.polrelid = 'storage.objects'::regclass
+        and p.polname = 'godel_files_delete_managed'
+    ),
+    'storage.objects'::regclass
+  ) !~ 'private\.can_manage_upload_storage_object' then
+    raise exception 'Hardening failed: delete policy is not tied to the cleanup helper.';
   end if;
 
   if exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'archivos' and policyname in ('archivos_insert_internal', 'archivos_update_manager', 'archivos_delete_manager'))

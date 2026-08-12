@@ -93,9 +93,8 @@ backend self-hosted; SH-03 prueba esas fronteras antes del gate final PPO-03G.
 Por tanto, PPO-03G no puede cerrar Storage solo con evidencia de desarrollo/E2E
 local.
 
-PPO-03F.0 es el último punto de decisión para evaluar un amendment excepcional
-de la baseline consolidada 01–06. Si se aprueba, exige fresh rebuild 01–06 y
-QA; si no, la baseline permanece intacta. Tras cerrar PPO-03F, la baseline
+PPO-03F.0 aprobó el último amendment excepcional de la baseline consolidada
+01–06. PPO-03F.1 lo implementa y exige fresh rebuild 01–06 y QA. Tras cerrar PPO-03F, la baseline
 01–06 queda frozen y todo cambio DB posterior deberá usar una migración `07+`.
 
 Al cierre de PPO-03 y SH, PPO-01C/D continúan como workstream paralelo cuando
@@ -202,14 +201,16 @@ El estado operativo actual es:
 | PPO-03E.2 | Cerrada / aprobada |
 | PPO-03E.3 | Cerrada / aprobada |
 | PPO-03E | Cerrada / aprobada |
-| PPO-03F.0 | Diseñada / pendiente de revisión arquitectónica |
-| PPO-03F | Activa; PPO-03F.1 pendiente de aprobación |
+| PPO-03F.0 | Cerrada / aprobada |
+| PPO-03F.1 | Implementada / pendiente de revisión arquitectónica |
+| PPO-03F | Activa; siguiente PPO-03F.2 tras revisión |
 | PPO-03G | Pendiente |
 | PPO-03 | Activa |
 
-El diseño/auditoría de PPO-03F.0 vive en
-[PPO_03F_CLEANUP_DESIGN.md](PPO_03F_CLEANUP_DESIGN.md). PPO-03 continúa activa
-hasta completar los bloques funcionales y de cierre pendientes.
+El diseño aprobado de PPO-03F.0 vive en
+[PPO_03F_CLEANUP_DESIGN.md](PPO_03F_CLEANUP_DESIGN.md) y la implementación
+pendiente de revisión de F.1 en [PPO_03F_DATABASE_LIFECYCLE_REPORT.md](PPO_03F_DATABASE_LIFECYCLE_REPORT.md).
+PPO-03 continúa activa hasta completar los bloques funcionales y de cierre pendientes.
 
 ## PPO-00
 

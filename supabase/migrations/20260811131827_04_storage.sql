@@ -156,13 +156,25 @@ as $$
   select object_bucket_id = 'godel-files'
     and auth.uid() is not null
     and private.current_user_is_active()
-    and private.is_admin_or_supervisor()
+    and private.is_admin()
     and exists (
       select 1
       from public.archivo_carga_items as i
       join public.archivo_carga_sesiones as s on s.id = i.session_id
       where i.object_path = object_name
-        and (s.solicitud_id is not null or s.pedido_id is not null)
+        and i.status = 'expired'::public.archivo_carga_item_estado
+        and i.archivo_id is null
+        and s.status in (
+          'expired'::public.archivo_carga_sesion_estado,
+          'partial'::public.archivo_carga_sesion_estado
+        )
+        and s.expires_at <= now() - private.upload_cleanup_grace()
+        and not exists (
+          select 1
+          from public.archivos as a
+          where a.bucket = 'godel-files'
+            and a.file_path = i.object_path
+        )
     );
 $$;
 revoke all on function private.can_sign_public_upload(text, text) from public, anon, authenticated, service_role;

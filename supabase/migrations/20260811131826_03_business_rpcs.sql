@@ -2008,6 +2008,20 @@ declare
   v_all_committed boolean;
   v_status public.archivo_carga_sesion_estado;
 begin
+  select s.status
+  into v_status
+  from public.archivo_carga_sesiones as s
+  where s.id = p_session_id
+  for update;
+
+  if not found then
+    raise exception 'upload_session_not_found' using errcode = 'P0002';
+  end if;
+
+  if v_status <> 'open'::public.archivo_carga_sesion_estado then
+    return v_status;
+  end if;
+
   select not exists (
     select 1 from public.archivo_carga_items as i
     where i.session_id = p_session_id
@@ -2015,12 +2029,170 @@ begin
   ) into v_all_committed;
 
   update public.archivo_carga_sesiones as s
-  set status = case when v_all_committed then 'completed'::public.archivo_carga_sesion_estado
-                    else 'open'::public.archivo_carga_sesion_estado end,
-      completed_at = case when v_all_committed then now() else null end
+  set
+    status = case
+      when v_all_committed then 'completed'::public.archivo_carga_sesion_estado
+      else s.status
+    end,
+    completed_at = case
+      when v_all_committed then coalesce(s.completed_at, now())
+      else s.completed_at
+    end
   where s.id = p_session_id
   returning s.status into v_status;
   return v_status;
+end;
+$$;
+
+create function private.upload_cleanup_grace()
+returns interval
+language sql
+immutable
+set search_path = ''
+as $$
+  select interval '1 hour';
+$$;
+
+create function public.reconciliar_cargas_expiradas(
+  p_session_limit integer default 100,
+  p_candidate_limit integer default 100
+)
+returns table (
+  expired_sessions integer,
+  partial_sessions integer,
+  completed_sessions integer,
+  expired_items integer,
+  candidates jsonb
+)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_session record;
+  v_item_count integer;
+  v_committed_count integer;
+  v_updated_item_count integer;
+  v_expired_item_count integer := 0;
+  v_expired_session_count integer := 0;
+  v_partial_session_count integer := 0;
+  v_completed_session_count integer := 0;
+  v_now timestamptz := now();
+begin
+  if auth.uid() is null
+    or not private.current_user_is_active()
+    or not private.is_admin() then
+    raise exception 'not_authorized' using errcode = '42501';
+  end if;
+
+  if p_session_limit not between 1 and 100
+    or p_candidate_limit not between 1 and 100 then
+    raise exception 'invalid_reconciliation_limit' using errcode = '22023';
+  end if;
+
+  for v_session in
+    select s.id
+    from public.archivo_carga_sesiones as s
+    where s.status = 'open'::public.archivo_carga_sesion_estado
+      and s.expires_at <= v_now
+    order by s.expires_at asc, s.id asc
+    limit p_session_limit
+    for update skip locked
+  loop
+    select
+      count(*)::integer,
+      count(*) filter (
+        where i.status = 'committed'::public.archivo_carga_item_estado
+      )::integer
+    into v_item_count, v_committed_count
+    from public.archivo_carga_items as i
+    where i.session_id = v_session.id;
+
+    if v_committed_count = v_item_count then
+      update public.archivo_carga_sesiones as s
+      set
+        status = 'completed'::public.archivo_carga_sesion_estado,
+        completed_at = coalesce(s.completed_at, v_now)
+      where s.id = v_session.id;
+
+      v_completed_session_count := v_completed_session_count + 1;
+    else
+      update public.archivo_carga_items as i
+      set status = 'expired'::public.archivo_carga_item_estado
+      where i.session_id = v_session.id
+        and i.status = 'reserved'::public.archivo_carga_item_estado;
+
+      get diagnostics v_updated_item_count = row_count;
+      v_expired_item_count := v_expired_item_count + v_updated_item_count;
+
+      if v_committed_count > 0 then
+        update public.archivo_carga_sesiones as s
+        set
+          status = 'partial'::public.archivo_carga_sesion_estado,
+          completed_at = v_now
+        where s.id = v_session.id;
+
+        v_partial_session_count := v_partial_session_count + 1;
+      else
+        update public.archivo_carga_sesiones as s
+        set
+          status = 'expired'::public.archivo_carga_sesion_estado,
+          completed_at = null
+        where s.id = v_session.id;
+
+        v_expired_session_count := v_expired_session_count + 1;
+      end if;
+    end if;
+  end loop;
+
+  select coalesce(
+    jsonb_agg(
+      jsonb_build_object(
+        'item_id', candidate.item_id,
+        'object_path', candidate.object_path
+      )
+      order by candidate.expires_at asc, candidate.created_at asc, candidate.item_id asc
+    ),
+    '[]'::jsonb
+  )
+  into candidates
+  from (
+    select
+      i.id as item_id,
+      i.object_path,
+      i.created_at,
+      s.expires_at
+    from public.archivo_carga_sesiones as s
+    join public.archivo_carga_items as i
+      on i.session_id = s.id
+    where s.status in (
+      'expired'::public.archivo_carga_sesion_estado,
+      'partial'::public.archivo_carga_sesion_estado
+    )
+      and s.expires_at <= v_now - private.upload_cleanup_grace()
+      and i.status = 'expired'::public.archivo_carga_item_estado
+      and i.archivo_id is null
+      and exists (
+        select 1
+        from storage.objects as o
+        where o.bucket_id = 'godel-files'
+          and o.name = i.object_path
+      )
+      and not exists (
+        select 1
+        from public.archivos as a
+        where a.bucket = 'godel-files'
+          and a.file_path = i.object_path
+      )
+    order by s.expires_at asc, i.created_at asc, i.id asc
+    limit p_candidate_limit
+  ) as candidate;
+
+  expired_sessions := v_expired_session_count;
+  partial_sessions := v_partial_session_count;
+  completed_sessions := v_completed_session_count;
+  expired_items := v_expired_item_count;
+  return next;
 end;
 $$;
 
@@ -2414,6 +2586,7 @@ revoke all on function private.validate_upload_reservation_items(jsonb) from pub
 revoke all on function private.insert_upload_reservation_items(uuid, jsonb, public.archivo_visibility) from public, anon, authenticated, service_role;
 revoke all on function private.assert_upload_storage_object(text, bigint, text) from public, anon, authenticated, service_role;
 revoke all on function private.refresh_upload_session_completion(uuid) from public, anon, authenticated, service_role;
+revoke all on function private.upload_cleanup_grace() from public, anon, authenticated, service_role;
 revoke all on function private.create_public_solicitud_record(text, uuid, text, text, text, text, date, text, integer, text, text, text) from public, anon, authenticated, service_role;
 
 revoke all on function public.crear_solicitud_publica_sin_archivos(text, uuid, text, text, text, text, date, text) from public, anon, authenticated, service_role;
@@ -2422,6 +2595,7 @@ revoke all on function public.reservar_carga_pedido(uuid, jsonb) from public, an
 revoke all on function public.autorizar_firma_carga_publica(uuid, uuid, text) from public, anon, authenticated, service_role;
 revoke all on function public.finalizar_carga_publica(uuid, uuid, text) from public, anon, authenticated, service_role;
 revoke all on function public.finalizar_carga_pedido(uuid, uuid) from public, anon, authenticated, service_role;
+revoke all on function public.reconciliar_cargas_expiradas(integer, integer) from public, anon, authenticated, service_role;
 
 grant execute on function public.crear_solicitud_publica_sin_archivos(text, uuid, text, text, text, text, date, text) to anon;
 grant execute on function public.crear_solicitud_publica_con_reserva_carga(text, uuid, text, text, text, jsonb, text, text, date, text, integer, text, text, text) to anon;
@@ -2429,3 +2603,4 @@ grant execute on function public.autorizar_firma_carga_publica(uuid, uuid, text)
 grant execute on function public.finalizar_carga_publica(uuid, uuid, text) to anon;
 grant execute on function public.reservar_carga_pedido(uuid, jsonb) to authenticated;
 grant execute on function public.finalizar_carga_pedido(uuid, uuid) to authenticated;
+grant execute on function public.reconciliar_cargas_expiradas(integer, integer) to authenticated;

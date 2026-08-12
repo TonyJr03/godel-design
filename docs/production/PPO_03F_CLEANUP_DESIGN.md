@@ -3,7 +3,7 @@
 ## Metadatos
 
 - Fecha: 2026-08-11.
-- Estado: PPO-03F.0 — diseñada / pendiente de revisión arquitectónica.
+- Estado: PPO-03F.0 — cerrada / aprobada arquitectónicamente.
 - Fase: PPO-03F activa.
 - Alcance: auditoría y diseño; no implementa SQL, migraciones, tipos, código,
   UI, Server Actions, infraestructura ni scheduling.
@@ -104,8 +104,9 @@ expires_at             → termina autorización inmediatamente
 expires_at + 1 hora    → staged conocido elegible para borrado físico
 ~~~
 
-Una hora permite reintentos breves de TUS/finalize sin dejar abandonados de modo
-indefinido.
+El grace no prolonga la sesión ni permite TUS o finalize tardíos: al llegar
+`expires_at` esas autorizaciones terminan inmediatamente. Solo separa la
+expiración lógica del cleanup físico para evitar un borrado en el borde temporal.
 
 ## Reconciliación y cleanup
 
@@ -213,9 +214,9 @@ operación determinista, idempotente y testeable sin rediseñar el lifecycle.
 
 ## Decisión de amendment de baseline
 
-**Se recomienda amendment excepcional, pendiente de aprobación arquitectónica.**
-No requiere schema nuevo: completa transiciones, autoridad y hardening del
-contrato consolidado.
+**Amendment excepcional aprobado.** No requiere schema nuevo: completa
+transiciones, autoridad y hardening del contrato consolidado. PPO-03F.1 es el
+último amendment autorizado de la baseline consolidada.
 
 | Migración | Decisión F.1 | Razón |
 | --- | --- | --- |
@@ -244,7 +245,7 @@ Técnica.
 
 | Subfase | Nombre | Responsabilidad |
 | --- | --- | --- |
-| PPO-03F.0 | Diseño y auditoría | Este documento y decisión pendiente de revisión. |
+| PPO-03F.0 | Diseño y auditoría | Diseño cerrado y aprobado arquitectónicamente. |
 | PPO-03F.1 | Lifecycle DB y amendment final | RPC, policy estrecha, hardening, fresh rebuild y QA DB/Storage. |
 | PPO-03F.2 | Executor y operación manual admin | Servicio, Action fina y superficie mínima de Configuración. |
 | PPO-03F.3 | QA, freeze y handoff | Expiración, cleanup, idempotencia, concurrencia, freeze y handoff SH-02. |
@@ -268,4 +269,3 @@ F.1–F.3 estarán aceptadas cuando:
 - Reintentos tras éxito, fallo o respuesta perdida converjan sin metadata nueva.
 - UI devuelva solo counts seguros.
 - F.1 complete fresh rebuild y QA; F.3 congele la baseline y entregue SH-02.
-

@@ -1336,6 +1336,16 @@ export type Database = {
           summary: string
         }[]
       }
+      reconciliar_cargas_expiradas: {
+        Args: { p_candidate_limit?: number; p_session_limit?: number }
+        Returns: {
+          candidates: Json
+          completed_sessions: number
+          expired_items: number
+          expired_sessions: number
+          partial_sessions: number
+        }[]
+      }
       reservar_carga_pedido: {
         Args: { p_items: Json; p_pedido_id: string }
         Returns: {
