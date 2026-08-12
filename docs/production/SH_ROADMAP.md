@@ -41,7 +41,7 @@ el backend objetivo actual.
 | Bloque | Nombre | Estado |
 | --- | --- | --- |
 | SH-01 | Baseline oficial Supabase self-hosted | Cerrada / aprobada |
-| SH-02 | Integración Godel ↔ Supabase self-hosted | Pendiente |
+| SH-02 | Integración Godel ↔ Supabase self-hosted | NEXT |
 | SH-03 | QA funcional production-like | Pendiente |
 | SH-04 | Fundamentos operativos self-hosted | Pendiente |
 | SH-05 | Portabilidad reproducible | Pendiente |
@@ -159,7 +159,7 @@ La ruta activa aprobada es:
 PPO-03E ✅
     │
     ▼
-PPO-03F
+PPO-03F ✅
     │
     ▼
 SH-02
@@ -183,12 +183,10 @@ SH-05
 SH ✅
 ```
 
-PPO-03F precede SH-02 porque completa conceptualmente el lifecycle de Storage:
-`reserved → upload → finalize → committed` y también abandono, expiración,
-reconciliación y cleanup. Debe resolver su diseño técnico en PPO-03F.0, con
-idempotencia, autoridad de eliminación y trazabilidad mínima; este roadmap no
-diseña esos internals. No se cierra una integración production-like sobre un
-modelo de Storage incompleto.
+PPO-03F cerró/aprobó el lifecycle de Storage: `reserved → upload → finalize →
+committed`, además de abandono, expiración, reconciliación y cleanup, con
+idempotencia, autoridad de eliminación y trazabilidad mínima. Por ello SH-02 es
+el siguiente bloque; este roadmap no diseña esos internals.
 
 SH-03 precede PPO-03G porque este último es el gate final de Storage. PPO-03G
 debe apoyarse en evidencia de `Browser → Nginx → Supabase self-hosted Storage` y
@@ -200,9 +198,8 @@ documentación de PPO-03.
 
 ## Gobernanza de la baseline DB
 
-PPO-03F es la última oportunidad para evaluar si el lifecycle de Storage exige
-un amendment excepcional de la baseline consolidada 01–06. No se presume que
-sea necesario:
+PPO-03F fue la última oportunidad para evaluar si el lifecycle de Storage exigía
+un amendment excepcional de la baseline consolidada 01–06:
 
 ```text
 PPO-03F.0
@@ -217,9 +214,8 @@ si SÍ:
   + QA
 ```
 
-Después del cierre de PPO-03F, `BASELINE 01–06 = FROZEN`. Todo cambio de base
-de datos posterior deberá ser una migración nueva `07+`; no se reescribirán
-01–06.
+PPO-03F cerró/aprobó y `BASELINE 01–06 = FROZEN`. Todo cambio de base de datos
+posterior deberá ser una migración nueva `07+`; no se reescribirán 01–06.
 
 ## Relación con PPO posterior
 
@@ -271,4 +267,3 @@ PPO-09, estabilización posterior; y PPO-10, migración futura a infraestructura
 estable, reutilizando el contrato de portabilidad demostrado por SH-05.
 
 OVHcloud Canadá permanece como candidato para PPO-10, no como decisión cerrada.
-

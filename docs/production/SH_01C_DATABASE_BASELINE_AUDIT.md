@@ -366,9 +366,9 @@ PPO-03F.0 aprobó expresamente PPO-03F.1 como el último amendment de la
 baseline consolidada. Se conservaron intactas 01, 02 y 05; se modificaron 03,
 04 y 06 para materializar lifecycle de cargas vencidas, estrechar la autoridad
 de cleanup y endurecer sus grants/policies. El fresh rebuild 01–06 volvió a
-pasar, el history permanece 6/6 y no existe migration 07. El freeze formal de
-la baseline queda pendiente de PPO-03F.3; hasta entonces no se autoriza otro
-amendment sin decisión técnica extraordinaria.
+pasar, el history permanece 6/6 y no existe migration 07. PPO-03F.3 fue
+cerrada/aprobada tras la revisión arquitectónica y `BASELINE 01–06 = FROZEN`.
+No se autoriza otro amendment sin una decisión técnica extraordinaria.
 
 ## 18. Plan de sustitución atómica
 
@@ -469,6 +469,7 @@ La migración 06 concede exclusivamente `USAGE` sobre `public`, niega `CREATE`
 y verifica que la completion RPC es la única función pública ejecutable por
 `service_role`. Fresh rebuild self-hosted, onboarding Auth Admin/trigger,
 lifecycle, negativos de admins, matriz Storage y paridad CLI local 01--06
-pasaron. PPO-03F.1 fue cerrada/aprobada tras la revisión arquitectónica. La
-baseline conserva seis migraciones, migration 07 no existe y el freeze formal
-definitivo corresponde al cierre de PPO-03F.
+pasaron. PPO-03F.1 fue cerrada/aprobada tras la revisión arquitectónica.
+PPO-03F fue cerrada/aprobada tras la revisión arquitectónica de F.3. La
+baseline conserva seis migraciones, migration 07 no existe y `BASELINE 01–06 =
+FROZEN`.

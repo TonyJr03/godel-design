@@ -5,8 +5,8 @@
 - PPO-03F.0: CLOSED / APPROVED.
 - PPO-03F.1: CLOSED / APPROVED.
 - PPO-03F.2: CLOSED / APPROVED.
-- PPO-03F.3: IMPLEMENTED / PENDING ARCHITECTURAL REVIEW.
-- PPO-03F: ACTIVE; pendiente de cierre arquitectónico.
+- PPO-03F.3: CLOSED / APPROVED.
+- PPO-03F: CLOSED / APPROVED.
 
 ## QA ejecutado
 
@@ -56,9 +56,13 @@ Evidencia ejecutada: `supabase db reset` aplicó exactamente las seis migracione
 01–06, y el conteo posterior fue 6. No existe migration 07. El diff de
 migraciones y `src/types/database.types.ts` permanece vacío.
 
-La baseline no se declara congelada formalmente hasta la revisión arquitectónica.
-Si se aprueba esta evidencia: `BASELINE 01–06 = FROZEN` y cualquier evolución DB
-posterior deberá comenzar en migration 07.
+La revisión arquitectónica aprobó PPO-03F.3.
+
+`BASELINE 01–06 = FROZEN`.
+
+Toda evolución posterior de base de datos deberá realizarse mediante una nueva
+migration 07+. Las migraciones 01–06 no deben volver a modificarse salvo una
+decisión extraordinaria explícita de Dirección Técnica.
 
 ## Deuda técnica y handoff
 
@@ -66,5 +70,5 @@ TD-STORAGE-001 se retiró de la deuda viva: sesiones, staged conocidos, finalize
 expiración, reconciliación, cleanup e idempotencia/retry ya están demostrados.
 TD-UPLOAD-001 continúa activa hasta los gates SH-02, SH-03 y PPO-03G.
 
-Handoff propuesto tras aprobación arquitectónica: cerrar PPO-03F, congelar la
-baseline 01–06 e iniciar SH-02. No se implementó SH-02.
+Handoff decidido: PPO-03F CLOSED → SH-02. SH-02 no se inició ni implementó en
+esta fase.

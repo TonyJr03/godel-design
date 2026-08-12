@@ -2,12 +2,12 @@
 
 ## Metadatos
 
-- Actualización de estado: 2026-08-11
+- Actualización de estado: 2026-08-12
 
 - Proyecto: Godel Diseño
 - Estado: Activo
 - Fecha de creación: 2026-07-21
-- Última revisión: 2026-08-11
+- Última revisión: 2026-08-12
 - Responsable técnico: Dirección Técnica de Godel Diseño
 - Arquitectura y supervisión: Arquitectura Senior / Orquestación Técnica
 - Implementación: Agente Codex en VS Code
@@ -76,8 +76,7 @@ roadmap de producto paralelo ni una segunda puesta en producción.
 La ruta activa es:
 
 ```text
-PPO-03F
-→ SH-02
+SH-02
 → SH-03
 → PPO-03G
 → PPO-03 CLOSED
@@ -86,16 +85,17 @@ PPO-03F
 → SH CLOSED
 ```
 
-PPO-03F completa conceptualmente expiración, abandono, reconciliación, cleanup,
-idempotencia, autoridad de eliminación y trazabilidad del lifecycle de Storage
-antes de integrar la topología production-like. SH-02 integra PPO-02 con el
-backend self-hosted; SH-03 prueba esas fronteras antes del gate final PPO-03G.
+PPO-03F cerró/aprobó expiración, abandono, reconciliación, cleanup, idempotencia,
+autoridad de eliminación y trazabilidad del lifecycle de Storage. SH-02 es el
+siguiente bloque e integra PPO-02 con el backend self-hosted; SH-03 prueba esas
+fronteras antes del gate final PPO-03G.
 Por tanto, PPO-03G no puede cerrar Storage solo con evidencia de desarrollo/E2E
 local.
 
 PPO-03F.0 aprobó el último amendment excepcional de la baseline consolidada
-01–06. PPO-03F.1 lo implementa y exige fresh rebuild 01–06 y QA. Tras cerrar PPO-03F, la baseline
-01–06 queda frozen y todo cambio DB posterior deberá usar una migración `07+`.
+01–06. PPO-03F.1 lo implementó y exigió fresh rebuild 01–06 y QA. PPO-03F
+cerró/aprobó y `BASELINE 01–06 = FROZEN`; todo cambio DB posterior deberá usar
+una migración `07+`.
 
 Al cierre de PPO-03 y SH, PPO-01C/D continúan como workstream paralelo cuando
 esté disponible `company-host`, con PPO-01D aprobado como gate de PPO-04.
@@ -204,15 +204,17 @@ El estado operativo actual es:
 | PPO-03F.0 | Cerrada / aprobada |
 | PPO-03F.1 | Cerrada / aprobada |
 | PPO-03F.2 | Cerrada / aprobada |
-| PPO-03F.3 | Implementada / pendiente de revisión arquitectónica |
-| PPO-03F | Activa; pendiente de cierre arquitectónico |
+| PPO-03F.3 | Cerrada / aprobada |
+| PPO-03F | Cerrada / aprobada |
 | PPO-03G | Pendiente |
 | PPO-03 | Activa |
 
 El diseño aprobado de PPO-03F.0 vive en
-[PPO_03F_CLEANUP_DESIGN.md](PPO_03F_CLEANUP_DESIGN.md) y el cierre aprobado de
-F.1 en [PPO_03F_DATABASE_LIFECYCLE_REPORT.md](PPO_03F_DATABASE_LIFECYCLE_REPORT.md).
-PPO-03 continúa activa hasta completar los bloques funcionales y de cierre pendientes.
+[PPO_03F_CLEANUP_DESIGN.md](PPO_03F_CLEANUP_DESIGN.md), el cierre de F.1 en
+[PPO_03F_DATABASE_LIFECYCLE_REPORT.md](PPO_03F_DATABASE_LIFECYCLE_REPORT.md) y
+el QA/freeze aprobado de F.3 en
+[PPO_03F_QA_FREEZE_REPORT.md](PPO_03F_QA_FREEZE_REPORT.md). PPO-03 continúa
+activa hasta completar PPO-03G.
 
 ## PPO-00
 

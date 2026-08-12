@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Última actualización: 2026-08-11
+Última actualización: 2026-08-12
 
 ## Estado general
 
@@ -24,7 +24,7 @@ backend objetivo por el workstream SH.
 
 ## Baseline de base de datos
 
-La baseline activa contiene exactamente seis migraciones consolidadas:
+La baseline congelada contiene exactamente seis migraciones consolidadas:
 
 1. `20260811131824_01_core_schema.sql`
 2. `20260811131825_02_security_rls_grants.sql`
@@ -34,10 +34,11 @@ La baseline activa contiene exactamente seis migraciones consolidadas:
 6. `20260811131829_06_final_hardening.sql`
 
 La baseline self-hosted aprobó fresh rebuild, 6/6 migraciones, DB lint, Storage
-QA, tipos generados y build. Las antiguas migraciones incrementales 07/08
-pertenecen a la historia previa a SH-01C; sus responsabilidades quedaron
-absorbidas en la baseline consolidada y no forman parte de una instalación
-actual.
+QA, tipos generados y build. `BASELINE 01–06 = FROZEN`: toda evolución de base
+de datos posterior deberá realizarse mediante una nueva migration 07+. Las
+antiguas migraciones incrementales 07/08 pertenecen a la historia previa a
+SH-01C; sus responsabilidades quedaron absorbidas en la baseline consolidada y
+no forman parte de una instalación actual.
 
 ## Estado PPO
 
@@ -58,8 +59,8 @@ actual.
 | PPO-03F.0 | Cerrada / aprobada |
 | PPO-03F.1 | Cerrada / aprobada |
 | PPO-03F.2 | Cerrada / aprobada |
-| PPO-03F.3 | Implementada / pendiente de revisión arquitectónica |
-| PPO-03F | Activa; pendiente de cierre arquitectónico |
+| PPO-03F.3 | Cerrada / aprobada |
+| PPO-03F | Cerrada / aprobada |
 | PPO-03G | Pendiente |
 | PPO-03 | Activa |
 
@@ -67,15 +68,15 @@ PPO-03D/E ya trasladaron los bytes de archivos del navegador directamente a
 Storage por TUS. PPO-03F.0 aprobó el lifecycle, la autoridad y el amendment
 final; PPO-03F.1 lo implementa en la baseline y fue cerrada/aprobada tras la
 revisión arquitectónica. PPO-03F.2 incorporó el executor server-only y la
-operación manual, y quedó cerrada/aprobada. PPO-03F.3 aporta el QA final y la
-propuesta de freeze, pendiente de revisión arquitectónica. PPO-03G mantiene el
-gate final de infraestructura y retirada de límites transitorios.
+operación manual, y quedó cerrada/aprobada. PPO-03F.3 completó el QA final; la
+revisión arquitectónica cerró/aprobó PPO-03F y congeló la baseline 01–06.
+PPO-03G mantiene el gate final de infraestructura y retirada de límites
+transitorios.
 
 ## Ruta activa
 
 ```text
-PPO-03F
-→ SH-02
+SH-02
 → SH-03
 → PPO-03G
 → cierre PPO-03
@@ -84,10 +85,10 @@ PPO-03F
 → cierre SH
 ```
 
-PPO-03F es el siguiente bloque funcional. SH es un workstream técnico
-subordinado al roadmap maestro PPO y termina al cerrar SH-05. PPO-01C/D puede
-avanzar en paralelo cuando `company-host` esté disponible; PPO-01D aprobado es
-gate antes de PPO-04.
+PPO-03F cerró el lifecycle de Storage y congeló la baseline 01–06. SH-02 es el
+siguiente bloque funcional; SH es un workstream técnico subordinado al roadmap
+maestro PPO y termina al cerrar SH-05. PPO-01C/D puede avanzar en paralelo
+cuando `company-host` esté disponible; PPO-01D aprobado es gate antes de PPO-04.
 
 ## Capacidades disponibles
 
