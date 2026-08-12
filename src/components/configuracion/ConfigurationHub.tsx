@@ -19,11 +19,27 @@ const configurationItems = [
   },
 ] as const;
 
-export function ConfigurationHub() {
+const maintenanceItem = {
+  title: "Mantenimiento",
+  description: "Ejecuta tareas administrativas de mantenimiento del sistema.",
+  href: "/dashboard/configuracion/mantenimiento",
+} as const;
+
+type ConfigurationHubProps = {
+  canManageConfiguration?: boolean;
+};
+
+export function ConfigurationHub({
+  canManageConfiguration = false,
+}: ConfigurationHubProps) {
+  const items = canManageConfiguration
+    ? [...configurationItems, maintenanceItem]
+    : configurationItems;
+
   return (
     <section aria-label="Secciones de configuración" className="max-w-3xl">
       <div className="grid gap-3">
-        {configurationItems.map((item) => (
+        {items.map((item) => (
           <Link
             key={item.href}
             href={item.href}

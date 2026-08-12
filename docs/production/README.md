@@ -16,7 +16,8 @@ arquitectura operativa y puesta en operación de Godel Diseño.
 - [PPO-03C.2 - Infraestructura TypeScript de cargas directas](PPO_03_UPLOAD_APPLICATION_REPORT.md): cerrada con condición runtime en PPO-03D/E.
 - [PPO-03C.3B - Gate HTTPS administrado](PPO_03_CONTROL_PLANE_MANAGED_REPORT.md): cerrada; valida reserva, TUS, staged aislado y finalize idempotente contra el backend administrado.
 - [PPO-03F.0 — Diseño de expiración, reconciliación y cleanup](PPO_03F_CLEANUP_DESIGN.md): cerrada y aprobada arquitectónicamente.
-- [PPO-03F.1 — Lifecycle DB, cleanup authority y amendment final](PPO_03F_DATABASE_LIFECYCLE_REPORT.md): implementada en baseline; pendiente de revisión arquitectónica antes de F.2.
+- [PPO-03F.1 — Lifecycle DB, cleanup authority y amendment final](PPO_03F_DATABASE_LIFECYCLE_REPORT.md): cerrada y aprobada en baseline.
+- [PPO-03F.2 — Executor server-only y operación manual de cleanup](PPO_03F_CLEANUP_EXECUTOR_REPORT.md): implementada; pendiente de revisión arquitectónica antes de F.3.
 - [Auditoría de baseline self-hosted SH-01C](SH_01C_DATABASE_BASELINE_AUDIT.md): evidencia aprobada de la baseline final de seis migraciones, fresh rebuild y validación de PostgreSQL, Auth y Storage.
 - [PPO-03A.1 — Contrato de cargas y almacenamiento](PPO_03_UPLOAD_STORAGE_CONTRACT.md): arquitectura objetivo aprobada para transferencia directa, sesiones, finalización y reconciliación; no implementa todavía el nuevo flujo.
 - [PPO-03A.2 — Informe de spike TUS y signed upload token](PPO_03_TUS_SPIKE_REPORT.md): evidencia local y veredicto aprobado con condiciones; habilita el inicio de PPO-03B.

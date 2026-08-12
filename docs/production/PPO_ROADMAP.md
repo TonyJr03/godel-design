@@ -203,8 +203,8 @@ El estado operativo actual es:
 | PPO-03E | Cerrada / aprobada |
 | PPO-03F.0 | Cerrada / aprobada |
 | PPO-03F.1 | Cerrada / aprobada |
-| PPO-03F.2 | Siguiente |
-| PPO-03F | Activa; siguiente PPO-03F.2 |
+| PPO-03F.2 | Implementada / pendiente de revisión arquitectónica |
+| PPO-03F | Activa; siguiente PPO-03F.3 tras revisión |
 | PPO-03G | Pendiente |
 | PPO-03 | Activa |
 
