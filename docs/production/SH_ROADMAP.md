@@ -103,16 +103,18 @@ focales; el roadmap conserva la secuencia y los gates.
 | --- | --- |
 | SH-02.0 — Diseño de integración y naming | CLOSED / APPROVED |
 | SH-02.1 — Compose, networking y naming neutral | CLOSED / APPROVED |
-| SH-02.2 — Nginx proxy, URL split y routing TUS | IMPLEMENTED / PENDING ARCHITECTURAL REVIEW |
-| SH-02.3 — Readiness, startup, secretos/config | PENDING |
+| SH-02.2 — Nginx proxy, URL split y routing TUS | CLOSED / APPROVED |
+| SH-02.3 — Readiness, startup, secretos/config | IMPLEMENTED / PENDING ARCHITECTURAL REVIEW |
 | SH-02.4 — Smoke técnico, documentación y cierre | PENDING |
 
 El diseño vigente está en
 [SH_02_INTEGRATION_DESIGN.md](SH_02_INTEGRATION_DESIGN.md), la evidencia de
 SH-02.1 en [SH_02_COMPOSE_NETWORK_REPORT.md](SH_02_COMPOSE_NETWORK_REPORT.md)
-y la de SH-02.2 en [SH_02_NGINX_PROXY_REPORT.md](SH_02_NGINX_PROXY_REPORT.md).
-SH-02 no está cerrado: SH-02.3 queda pendiente de revisión arquitectónica de
-SH-02.2.
+y la de SH-02.2 en [SH_02_NGINX_PROXY_REPORT.md](SH_02_NGINX_PROXY_REPORT.md),
+y la de SH-02.3 en
+[SH_02_RUNTIME_OPERATIONS_REPORT.md](SH_02_RUNTIME_OPERATIONS_REPORT.md).
+SH-02 no está cerrado: SH-02.3 queda pendiente de revisión arquitectónica y
+SH-02.4 conserva el smoke agregado y el cierre.
 
 ### SH-03 — QA funcional production-like
 

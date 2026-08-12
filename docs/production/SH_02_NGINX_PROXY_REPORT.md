@@ -4,9 +4,9 @@
 
 ```text
 SH-02.1 = CLOSED / APPROVED
-SH-02.2 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+SH-02.2 = CLOSED / APPROVED
 SH-02 = ACTIVE
-NEXT AFTER APPROVAL = SH-02.3
+NEXT AFTER APPROVAL = SH-02.4
 ```
 
 ## Routing implementado
@@ -130,11 +130,13 @@ de Envoy pertenecen al bundle upstream y no se modificaron.
 
 ## Pendientes
 
-- SH-02.3 formaliza startup/readiness y la estrategia operativa de secretos.
+- SH-02.3 formalizó startup/readiness y la estrategia operativa de secretos en
+  `SH_02_RUNTIME_OPERATIONS_REPORT.md`; queda pendiente de revisión
+  arquitectónica.
 - SH-03 debe validar el flujo funcional completo y TUS autenticado con una
   identidad QA realmente provisionada en el self-hosted.
 
 ## Handoff
 
-La siguiente acción, tras revisión arquitectónica, es SH-02.3. No se implementó
+La siguiente acción, tras aprobación de SH-02.3, es SH-02.4. No se implementó
 SH-03, no hubo commit ni push.

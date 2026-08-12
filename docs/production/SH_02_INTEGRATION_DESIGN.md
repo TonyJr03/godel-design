@@ -5,9 +5,10 @@
 ```text
 SH-02.0 = CLOSED / APPROVED
 SH-02.1 = CLOSED / APPROVED
-SH-02.2 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+SH-02.2 = CLOSED / APPROVED
+SH-02.3 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
 SH-02 = ACTIVE
-NEXT AFTER APPROVAL = SH-02.3
+NEXT AFTER APPROVAL = SH-02.4
 ```
 
 Este documento define el objetivo production-like para la integración. No
@@ -352,8 +353,8 @@ Browser ───► │ nginx ───────────────► 
 | --- | --- |
 | SH-02.0 | Diseño, naming y auditoría de consumidores — este documento. |
 | SH-02.1 | Compose, project name neutral, imágenes y red externa compartida — cerrada/aprobada. |
-| SH-02.2 | Proxy Nginx, split de URLs y routing compatible con TUS — implementado; pendiente de revisión. |
-| SH-02.3 | Readiness, startup, configuración y secreto mínimo. |
+| SH-02.2 | Proxy Nginx, split de URLs y routing compatible con TUS — cerrada/aprobada. |
+| SH-02.3 | Readiness, startup, configuración y secreto mínimo — implementada; pendiente de revisión arquitectónica. |
 | SH-02.4 | Smoke técnico, documentación de evidencia y cierre SH-02. |
 
 Los smokes técnicos SH-02.4 se limitarán a Compose válido, red/DNS, health,
@@ -376,8 +377,26 @@ completos pertenece a SH-03.
 - La recuperación respeta el contrato de readiness descrito.
 - `npm run dev` continúa usando Supabase CLI local y baseline 01–06 no cambia.
 
+## Operacion SH-02.3
+
+Supabase conserva su `.env` no versionado como autoridad de todos los secretos
+del backend. El env no versionado de Godel conserva exclusivamente
+`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`,
+`SUPABASE_SERVER_URL`, `SUPABASE_SECRET_KEY` y sus opciones propias. El
+operador propaga las dos keys compartidas: no se usa `env_file` de Supabase en
+la app ni se crea un tercer source of truth.
+
+Antes del arranque se valida esa coherencia con
+`scripts/validate-selfhosted-runtime-env.mjs`; el script es de solo lectura y
+no imprime valores. El procedimiento correcto para la red externa es
+`docker network inspect godel-supabase-api` y, solo si no existe, `docker
+network create godel-supabase-api`. Luego se inicia Supabase con su override,
+se espera `api-gw` healthy, se inicia Godel, se esperan `app` y Nginx healthy y
+se comprueban liveness/readiness publicos. Los projects no adquieren
+`depends_on` cruzado. La evidencia de degradacion y recuperacion esta en
+`SH_02_RUNTIME_OPERATIONS_REPORT.md`.
+
 ## Handoff
 
-La siguiente acción, después de aprobación arquitectónica de SH-02.2, es
-SH-02.3. No se debe implementar el cierre operativo de startup y secretos antes
-de esa aprobación.
+La siguiente acción, después de aprobación arquitectónica de SH-02.3, es
+SH-02.4. No se implementa ese smoke agregado ni SH-03 en esta fase.
