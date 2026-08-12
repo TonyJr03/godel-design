@@ -76,23 +76,20 @@ transitorios.
 ## Ruta activa
 
 ```text
-SH-02
-→ SH-03
+SH-03
 → PPO-03G
-→ cierre PPO-03
+→ PPO-03 CLOSED
 → SH-04
 → SH-05
 → cierre SH
 ```
 
 PPO-03F cerró el lifecycle de Storage y congeló la baseline 01–06. SH-02 está
-activo: SH-02.0 (diseño de integración y naming) y SH-02.1 (Compose,
-networking y naming neutral) están cerradas/aprobadas. SH-02.2 (proxy Nginx,
-URL split y routing TUS) está cerrada/aprobada. SH-02.3 (runtime, readiness y
-configuración operativa) está implementada, pendiente de revisión
-arquitectónica; SH-02.4 conserva el smoke técnico agregado y el cierre. SH es
-un workstream técnico subordinado al roadmap maestro PPO y termina al cerrar
-SH-05. PPO-01C/D puede avanzar en paralelo
+cerrado/aprobado: diseño, networking, proxy/TUS, contrato operativo y smoke
+agregado validaron la topología `App Docker + Nginx + Supabase self-hosted`.
+La ruta activa pasa a SH-03 para QA funcional production-like; SH es un
+workstream técnico subordinado al roadmap maestro PPO y termina al cerrar SH-05.
+PPO-01C/D puede avanzar en paralelo
 cuando `company-host` esté disponible; PPO-01D aprobado es gate antes de PPO-04.
 
 ## Capacidades disponibles
@@ -110,6 +107,7 @@ cuando `company-host` esté disponible; PPO-01D aprobado es gate antes de PPO-04
 - [Informe Compose y networking SH-02.1](production/SH_02_COMPOSE_NETWORK_REPORT.md)
 - [Informe proxy Nginx SH-02.2](production/SH_02_NGINX_PROXY_REPORT.md)
 - [Informe runtime, readiness y configuración SH-02.3](production/SH_02_RUNTIME_OPERATIONS_REPORT.md)
+- [Cierre de integración SH-02](production/SH_02_CLOSURE_REPORT.md)
 - [Contrato PPO-03 de cargas y almacenamiento](production/PPO_03_UPLOAD_STORAGE_CONTRACT.md)
 - [Diseño de cleanup PPO-03F.0](production/PPO_03F_CLEANUP_DESIGN.md)
 - [Informe DB lifecycle PPO-03F.1](production/PPO_03F_DATABASE_LIFECYCLE_REPORT.md)

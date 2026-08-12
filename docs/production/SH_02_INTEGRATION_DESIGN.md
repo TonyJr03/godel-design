@@ -6,9 +6,10 @@
 SH-02.0 = CLOSED / APPROVED
 SH-02.1 = CLOSED / APPROVED
 SH-02.2 = CLOSED / APPROVED
-SH-02.3 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
-SH-02 = ACTIVE
-NEXT AFTER APPROVAL = SH-02.4
+SH-02.3 = CLOSED / APPROVED
+SH-02.4 = CLOSED / APPROVED
+SH-02 = CLOSED / APPROVED
+NEXT = SH-03
 ```
 
 Este documento define el objetivo production-like para la integración. No
@@ -354,8 +355,8 @@ Browser ───► │ nginx ───────────────► 
 | SH-02.0 | Diseño, naming y auditoría de consumidores — este documento. |
 | SH-02.1 | Compose, project name neutral, imágenes y red externa compartida — cerrada/aprobada. |
 | SH-02.2 | Proxy Nginx, split de URLs y routing compatible con TUS — cerrada/aprobada. |
-| SH-02.3 | Readiness, startup, configuración y secreto mínimo — implementada; pendiente de revisión arquitectónica. |
-| SH-02.4 | Smoke técnico, documentación de evidencia y cierre SH-02. |
+| SH-02.3 | Readiness, startup, configuración y secreto mínimo — cerrada/aprobada. |
+| SH-02.4 | Smoke técnico, documentación de evidencia y cierre SH-02 — cerrada/aprobada. |
 
 Los smokes técnicos SH-02.4 se limitarán a Compose válido, red/DNS, health,
 readiness, proxy Auth/REST/Storage, TUS, y aislamiento de DB/Supavisor. La QA
@@ -398,5 +399,6 @@ se comprueban liveness/readiness publicos. Los projects no adquieren
 
 ## Handoff
 
-La siguiente acción, después de aprobación arquitectónica de SH-02.3, es
-SH-02.4. No se implementa ese smoke agregado ni SH-03 en esta fase.
+SH-02 cerró/aprobó tras el smoke agregado documentado en
+`SH_02_CLOSURE_REPORT.md`. La siguiente acción es SH-03; no se implementa en
+este documento.

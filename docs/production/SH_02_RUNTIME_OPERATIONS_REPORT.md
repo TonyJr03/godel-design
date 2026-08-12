@@ -4,9 +4,10 @@
 
 ```text
 SH-02.2 = CLOSED / APPROVED
-SH-02.3 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
-SH-02 = ACTIVE
-NEXT AFTER APPROVAL = SH-02.4
+SH-02.3 = CLOSED / APPROVED
+SH-02.4 = CLOSED / APPROVED
+SH-02 = CLOSED / APPROVED
+NEXT = SH-03
 ```
 
 Este informe formaliza el contrato operativo del perfil local
@@ -172,25 +173,24 @@ autenticado y QA funcional pertenecen a SH-03.
 - Validador con envs sintéticos coincidentes: PASS, sin valores impresos.
 - Validador con publishable key, secret key, URL pública y variable requerida
   discrepantes: FAIL seguro, sin valores impresos.
-- El `.env` real de Supabase frente al env Godel ignorado existente detectó una
-  publishable key desalineada sin imprimirla. El operador debe propagar las dos
-  keys de la autoridad Supabase al env Godel antes de usar ese archivo para un
-  arranque reproducible; el validador no lo copia ni lo corrige.
+- Inicialmente, el guardrail detectó una publishable key desalineada sin
+  imprimirla. El operador completó después la alineación manual de publishable
+  key y secret key, ejecutó el validador real con PASS, reconstruyó solo `app`
+  y verificó liveness/readiness en `200`. El validador no copia ni corrige keys.
 - `git diff --check`, `npm run diff:check` y `npm run audit:security`: PASS.
 - Godel Compose config y Supabase Compose con override: PASS.
 - Degradación y recovery descritos arriba: PASS.
 
 ## Pendientes
 
-- SH-02.3 queda pendiente de revisión arquitectónica.
-- La alineación de las keys del env Godel ignorado con el `.env` de Supabase es
-  una acción pendiente del operador; no se automatiza ni se versiona.
-- SH-02.4 conserva smoke técnico agregado, documentación de evidencia y cierre
-  de SH-02.
+- SH-02.3 está cerrada/aprobada; la alineación de keys fue una acción manual del
+  operador y no se automatiza ni se versiona.
+- SH-02.4 cerró/aprobó el smoke técnico agregado y SH-02. Véase
+  `SH_02_CLOSURE_REPORT.md`.
 - SH-03 conserva QA funcional, TUS autenticado y una identidad QA self-hosted
   realmente provisionada.
 
 ## Handoff
 
 No hubo commit ni push. Los stacks pueden permanecer ejecutándose si están
-sanos. La siguiente acción, tras aprobación arquitectónica, es SH-02.4.
+sanos. La siguiente acción es SH-03.

@@ -41,7 +41,7 @@ el backend objetivo actual.
 | Bloque | Nombre | Estado |
 | --- | --- | --- |
 | SH-01 | Baseline oficial Supabase self-hosted | Cerrada / aprobada |
-| SH-02 | Integración Godel ↔ Supabase self-hosted | Activa |
+| SH-02 | Integración Godel ↔ Supabase self-hosted | Cerrada / aprobada |
 | SH-03 | QA funcional production-like | Pendiente |
 | SH-04 | Fundamentos operativos self-hosted | Pendiente |
 | SH-05 | Portabilidad reproducible | Pendiente |
@@ -104,17 +104,17 @@ focales; el roadmap conserva la secuencia y los gates.
 | SH-02.0 — Diseño de integración y naming | CLOSED / APPROVED |
 | SH-02.1 — Compose, networking y naming neutral | CLOSED / APPROVED |
 | SH-02.2 — Nginx proxy, URL split y routing TUS | CLOSED / APPROVED |
-| SH-02.3 — Readiness, startup, secretos/config | IMPLEMENTED / PENDING ARCHITECTURAL REVIEW |
-| SH-02.4 — Smoke técnico, documentación y cierre | PENDING |
+| SH-02.3 — Readiness, startup, secretos/config | CLOSED / APPROVED |
+| SH-02.4 — Smoke técnico, documentación y cierre | CLOSED / APPROVED |
 
 El diseño vigente está en
 [SH_02_INTEGRATION_DESIGN.md](SH_02_INTEGRATION_DESIGN.md), la evidencia de
 SH-02.1 en [SH_02_COMPOSE_NETWORK_REPORT.md](SH_02_COMPOSE_NETWORK_REPORT.md)
 y la de SH-02.2 en [SH_02_NGINX_PROXY_REPORT.md](SH_02_NGINX_PROXY_REPORT.md),
 y la de SH-02.3 en
-[SH_02_RUNTIME_OPERATIONS_REPORT.md](SH_02_RUNTIME_OPERATIONS_REPORT.md).
-SH-02 no está cerrado: SH-02.3 queda pendiente de revisión arquitectónica y
-SH-02.4 conserva el smoke agregado y el cierre.
+[SH_02_RUNTIME_OPERATIONS_REPORT.md](SH_02_RUNTIME_OPERATIONS_REPORT.md), y el
+cierre agregado en [SH_02_CLOSURE_REPORT.md](SH_02_CLOSURE_REPORT.md).
+SH-02 está cerrado/aprobado y entrega la topología técnica a SH-03.
 
 ### SH-03 — QA funcional production-like
 

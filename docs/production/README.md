@@ -15,7 +15,8 @@ arquitectura operativa y puesta en operación de Godel Diseño.
 - [SH-02.0 — Diseño de integración Godel ↔ Supabase self-hosted](SH_02_INTEGRATION_DESIGN.md): cerrada y aprobada; incluye el estado vigente de SH-02.
 - [SH-02.1 — Compose, networking y naming neutral](SH_02_COMPOSE_NETWORK_REPORT.md): cerrada y aprobada.
 - [SH-02.2 — Nginx proxy, URL split y routing TUS](SH_02_NGINX_PROXY_REPORT.md): cerrada y aprobada.
-- [SH-02.3 — Runtime, readiness y configuración operativa](SH_02_RUNTIME_OPERATIONS_REPORT.md): implementado; pendiente de revisión arquitectónica antes de SH-02.4.
+- [SH-02.3 — Runtime, readiness y configuración operativa](SH_02_RUNTIME_OPERATIONS_REPORT.md): cerrada y aprobada.
+- [SH-02 — Cierre de integración Godel ↔ Supabase self-hosted](SH_02_CLOSURE_REPORT.md): cerrada y aprobada; entrega la topología técnica a SH-03.
 - [PPO-03C.1 - Control plane DB de reservas y finalize](PPO_03_CONTROL_PLANE_REPORT.md): cerrada y aprobada localmente; validada administrada en PPO-03C.3B.
 - [PPO-03C.2 - Infraestructura TypeScript de cargas directas](PPO_03_UPLOAD_APPLICATION_REPORT.md): cerrada con condición runtime en PPO-03D/E.
 - [PPO-03C.3B - Gate HTTPS administrado](PPO_03_CONTROL_PLANE_MANAGED_REPORT.md): cerrada; valida reserva, TUS, staged aislado y finalize idempotente contra el backend administrado.
