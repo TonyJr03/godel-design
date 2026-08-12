@@ -4,9 +4,10 @@
 
 ```text
 SH-02.0 = CLOSED / APPROVED
-SH-02.1 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+SH-02.1 = CLOSED / APPROVED
+SH-02.2 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
 SH-02 = ACTIVE
-NEXT AFTER APPROVAL = SH-02.2
+NEXT AFTER APPROVAL = SH-02.3
 ```
 
 Este documento define el objetivo production-like para la integración. No
@@ -156,7 +157,7 @@ redirects. Nunca se usará `api-gw:8000` como URL que vea el navegador.
 
 ### Proxy Nginx
 
-SH-02.2 añadirá rutas explícitas, antes del fallback de la aplicación:
+SH-02.2 implementó rutas explícitas antes del fallback de la aplicación:
 
 | Ruta pública | Upstream | Incluida |
 | --- | --- | --- |
@@ -167,12 +168,20 @@ SH-02.2 añadirá rutas explícitas, antes del fallback de la aplicación:
 | `/realtime/v1/` | — | No; sin consumidor actual |
 | `/functions/v1/` | — | No; sin consumidor actual |
 
-Las ubicaciones Supabase preservarán URI, query string y los headers de
-autenticación. Para todos los upstreams se conservarán o generarán solamente:
+Las ubicaciones Supabase preservan URI, query string y los headers de
+autenticación. Para todos los upstreams se conservan o generan solamente:
 `Host`, `X-Real-IP`, `X-Forwarded-For`, `X-Forwarded-Proto`,
 `X-Forwarded-Host`, `X-Forwarded-Port`, `Authorization`, `apikey`, `Upgrade` y
-`Connection` cuando corresponda. Las reglas finales conservarán la resolución
-DNS dinámica Docker ya usada por el proxy actual.
+`Connection` cuando corresponda. El upstream `supabase_backend` resuelve
+`api-gw:8000` mediante DNS dinámico Docker; no usa IP fija ni
+`supabase-envoy` como contrato.
+
+No se configuró una whitelist de request headers: Nginx reenvía los headers no
+modificados, incluidos `Authorization`, `apikey`, `x-signature`, `x-upsert` y
+los headers TUS. En Storage se configuraron explícitamente
+`proxy_request_buffering off` y `proxy_buffering off`; se mantienen los
+timeouts de 300 s y `client_max_body_size 110m`. Realtime y Edge Functions
+continúan sin rutas públicas.
 
 ### Storage y TUS
 
@@ -201,12 +210,11 @@ Location, Tus-Resumable, Upload-Offset y los demás headers TUS de respuesta
 que correspondan.
 ```
 
-`Location` es un header de respuesta: SH-02.2 observará la respuesta real del
-POST de creación TUS. Si es relativa o ya utiliza el origen público correcto,
-no se reescribe. Si contiene un origen interno como `api-gw` o
-`supabase-envoy`, se aplicará solo una reescritura dirigida y demostrada; nunca
-una sustitución global a ciegas. El smoke de SH-02.2 comprobará POST +
-`Location` + PATCH + HEAD.
+`Location` es un header de respuesta. El smoke real de SH-02.2 recibió una URL
+absoluta en `http://localhost:8080`, con path `/storage/v1/...`, sin hostname
+interno; por ello no se configuró `proxy_redirect` ni otra reescritura. El
+smoke comprobó POST + `Location` + PATCH + HEAD usando exactamente la URL
+devuelta.
 
 El proxy aceptará los métodos `POST`, `PATCH`, `HEAD`, `OPTIONS` y `DELETE`
 cuando Storage/protocolo lo requiera. Mantendrá `proxy_request_buffering off`,
@@ -333,15 +341,18 @@ Browser ───► │ nginx ───────────────► 
   email/OAuth debe añadir solo sus callbacks públicos concretos.
 - El override Godel vigente es `infra/supabase-godel.override.yml`; conserva
   los ajustes JWT/JWKS y delimita la red compartida sin modificar el bundle
-  upstream. SH-02.2 no debe añadir routing Nginx todavía fuera de su alcance.
+  upstream.
+- El smoke TUS autenticado queda pendiente de SH-03: las credenciales QA de
+  Supabase CLI no existen en el runtime self-hosted validado. SH-02.2 validó el
+  modo público presigned real sin crear identidades ni usar bypasses.
 
 ## Plan de implementación SH-02
 
 | Subbloque | Alcance |
 | --- | --- |
 | SH-02.0 | Diseño, naming y auditoría de consumidores — este documento. |
-| SH-02.1 | Compose, project name neutral, imágenes y red externa compartida — implementado; pendiente de revisión. |
-| SH-02.2 | Proxy Nginx, split de URLs y routing compatible con TUS. |
+| SH-02.1 | Compose, project name neutral, imágenes y red externa compartida — cerrada/aprobada. |
+| SH-02.2 | Proxy Nginx, split de URLs y routing compatible con TUS — implementado; pendiente de revisión. |
 | SH-02.3 | Readiness, startup, configuración y secreto mínimo. |
 | SH-02.4 | Smoke técnico, documentación de evidencia y cierre SH-02. |
 
@@ -367,5 +378,6 @@ completos pertenece a SH-03.
 
 ## Handoff
 
-La siguiente acción, después de aprobación arquitectónica de SH-02.1, es
-SH-02.2. No se debe implementar el proxy Supabase antes de esa aprobación.
+La siguiente acción, después de aprobación arquitectónica de SH-02.2, es
+SH-02.3. No se debe implementar el cierre operativo de startup y secretos antes
+de esa aprobación.
