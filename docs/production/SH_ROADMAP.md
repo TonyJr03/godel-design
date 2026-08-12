@@ -41,7 +41,7 @@ el backend objetivo actual.
 | Bloque | Nombre | Estado |
 | --- | --- | --- |
 | SH-01 | Baseline oficial Supabase self-hosted | Cerrada / aprobada |
-| SH-02 | Integración Godel ↔ Supabase self-hosted | NEXT |
+| SH-02 | Integración Godel ↔ Supabase self-hosted | Activa |
 | SH-03 | QA funcional production-like | Pendiente |
 | SH-04 | Fundamentos operativos self-hosted | Pendiente |
 | SH-05 | Portabilidad reproducible | Pendiente |
@@ -98,6 +98,18 @@ de Supabase, distinción URL pública/server-side, Auth, Storage, healthchecks,
 readiness, orden de inicio y dependencias, y aislamiento de PostgreSQL y
 Supavisor. Este roadmap no diseña archivos Compose concretos ni implementa
 SH-02.
+
+| Subbloque | Estado |
+| --- | --- |
+| SH-02.0 — Diseño de integración y naming | IMPLEMENTED / PENDING ARCHITECTURAL REVIEW |
+| SH-02.1 — Compose, networking y naming neutral | PENDING |
+| SH-02.2 — Nginx proxy, URL split y routing TUS | PENDING |
+| SH-02.3 — Readiness, startup, secretos/config | PENDING |
+| SH-02.4 — Smoke técnico, documentación y cierre | PENDING |
+
+El diseño vigente de SH-02.0 está en
+[SH_02_INTEGRATION_DESIGN.md](SH_02_INTEGRATION_DESIGN.md). SH-02 no está
+cerrado: SH-02.1 queda pendiente de revisión arquitectónica del diseño.
 
 ### SH-03 — QA funcional production-like
 

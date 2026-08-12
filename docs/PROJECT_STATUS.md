@@ -85,9 +85,11 @@ SH-02
 → cierre SH
 ```
 
-PPO-03F cerró el lifecycle de Storage y congeló la baseline 01–06. SH-02 es el
-siguiente bloque funcional; SH es un workstream técnico subordinado al roadmap
-maestro PPO y termina al cerrar SH-05. PPO-01C/D puede avanzar en paralelo
+PPO-03F cerró el lifecycle de Storage y congeló la baseline 01–06. SH-02 está
+activo: SH-02.0 (diseño de integración y naming) está implementado y pendiente
+de revisión arquitectónica; SH-02.1 no inicia hasta esa aprobación. SH es un
+workstream técnico subordinado al roadmap maestro PPO y termina al cerrar
+SH-05. PPO-01C/D puede avanzar en paralelo
 cuando `company-host` esté disponible; PPO-01D aprobado es gate antes de PPO-04.
 
 ## Capacidades disponibles
@@ -101,6 +103,7 @@ cuando `company-host` esté disponible; PPO-01D aprobado es gate antes de PPO-04
 
 - [Roadmap PPO](production/PPO_ROADMAP.md)
 - [Roadmap Self-Hosted](production/SH_ROADMAP.md)
+- [Diseño de integración SH-02.0](production/SH_02_INTEGRATION_DESIGN.md)
 - [Contrato PPO-03 de cargas y almacenamiento](production/PPO_03_UPLOAD_STORAGE_CONTRACT.md)
 - [Diseño de cleanup PPO-03F.0](production/PPO_03F_CLEANUP_DESIGN.md)
 - [Informe DB lifecycle PPO-03F.1](production/PPO_03F_DATABASE_LIFECYCLE_REPORT.md)
