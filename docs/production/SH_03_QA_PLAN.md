@@ -9,7 +9,7 @@ SH-03.0 = CLOSED / APPROVED
 SH-03.1 = CLOSED / APPROVED
 SH-03.2 = ACTIVE
 SH-03.2A = CLOSED / APPROVED
-SH-03.2B = NEXT / NOT STARTED
+SH-03.2B = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
 SH-03.2C = NOT STARTED
 SH-03.2D = NOT STARTED
 SH-03.2E = NOT STARTED
@@ -187,11 +187,12 @@ focal confirmó el bloqueo post-revalidación y descartó el filesystem read-onl
 como cofactor. Los cuatro creates verificados y la superficie de Usuarios usan
 navegación documental canónica tras éxito; SH-03.1 quedó cerrada/aprobada. La
 fila canónica `Impresión` fue reparada en datos y validada por REST/Nginx y
-Chromium. SH-03.2A cerró y fue aprobada; SH-03.2B es el siguiente bloque y no
-ha empezado.
+Chromium. SH-03.2A cerró y fue aprobada. SH-03.2B quedó implementada y
+pendiente de revisión arquitectónica; SH-03.2C es el siguiente bloque y no ha
+empezado.
 
 SH-03.2A cerró el inventario core y la baseline read-only production-like. Su
 informe [SH_03_CORE_QA_REPORT.md](SH_03_CORE_QA_REPORT.md) registra la
 corrección aprobada de navegación de listados y el alcance actualizado de
-TD-NEXT-001. SH-03.2 sigue activa; SH-03.2B queda como siguiente bloque sin
-iniciar gates mutantes preventivos.
+TD-NEXT-001. SH-03.2 sigue activa; SH-03.2B queda implementada y pendiente de
+revisión arquitectónica. SH-03.2C no se inicia en este handoff.

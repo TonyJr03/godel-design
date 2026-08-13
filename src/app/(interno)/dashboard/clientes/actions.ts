@@ -5,7 +5,6 @@ import {
   actionSuccess,
   type BaseActionState,
 } from "@/lib/actions/action-state";
-import { revalidateClienteForm } from "@/lib/actions/revalidation";
 import {
   createInternalCliente,
   updateInternalCliente,
@@ -59,8 +58,6 @@ export async function updateClienteAction(
       fieldErrors: result.fieldErrors,
     });
   }
-
-  revalidateClienteForm(clienteId);
 
   return actionSuccess("Cliente actualizado correctamente.");
 }

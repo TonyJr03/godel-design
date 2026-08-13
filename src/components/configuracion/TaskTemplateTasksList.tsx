@@ -104,6 +104,13 @@ function MoveTaskTemplateTaskForm({
   const pendingLabel = `Moviendo tarea ${task.title}...`;
   const Icon = isUp ? ArrowUp : ArrowDown;
 
+  useEffect(() => {
+    if (state.ok) {
+      // TD-NEXT-001: fallback temporal para navegación same-route en self-hosted.
+      window.location.assign(window.location.pathname);
+    }
+  }, [state.ok]);
+
   return (
     <form action={formAction} aria-busy={pending} className="min-w-0">
       <TaskHiddenFields taskId={task.id} />
@@ -135,12 +142,10 @@ function UpdateTaskTemplateTaskInlineForm({
   task,
   action,
   onCancel,
-  onSaved,
 }: {
   task: TaskTemplateTask;
   action: TaskTemplateDetailAction<UpdateTaskTemplateTaskActionState>;
   onCancel: () => void;
-  onSaved: () => void;
 }) {
   const [state, formAction, pending] = useActionState(
     action,
@@ -151,9 +156,10 @@ function UpdateTaskTemplateTaskInlineForm({
 
   useEffect(() => {
     if (state.ok) {
-      onSaved();
+      // TD-NEXT-001: fallback temporal para navegación same-route en self-hosted.
+      window.location.assign(window.location.pathname);
     }
-  }, [onSaved, state.ok]);
+  }, [state.ok]);
 
   return (
     <form
@@ -286,6 +292,8 @@ function TaskTemplateTaskRow({
             onSuccess={(message) => {
               setIsConfirmingDelete(false);
               onDeleteSuccess(message);
+              // TD-NEXT-001: fallback temporal para navegación same-route en self-hosted.
+              window.location.assign(window.location.pathname);
             }}
           >
             <TaskHiddenFields taskId={task.id} />
@@ -297,7 +305,6 @@ function TaskTemplateTaskRow({
             task={task}
             action={actions.update}
             onCancel={() => setIsEditing(false)}
-            onSaved={() => setIsEditing(false)}
           />
         </div>
       ) : (

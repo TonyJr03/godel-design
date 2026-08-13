@@ -1,7 +1,6 @@
 "use client";
 
 import { Pencil } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 
 import { InternalFormDialog } from "@/components/forms";
@@ -16,7 +15,6 @@ type TaskTemplateEditDialogButtonProps = {
 export function TaskTemplateEditDialogButton({
   template,
 }: TaskTemplateEditDialogButtonProps) {
-  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
@@ -53,7 +51,10 @@ export function TaskTemplateEditDialogButton({
             onSuccess={() => {
               setHasUnsavedChanges(false);
               setIsOpen(false);
-              router.refresh();
+              // TD-NEXT-001: fallback temporal para navegación same-route en self-hosted.
+              window.location.assign(
+                `/dashboard/configuracion/plantillas/${template.id}`,
+              );
             }}
           />
         ) : null}

@@ -66,6 +66,8 @@ export function TaskTemplateTaskForm({
   useEffect(() => {
     if (isCreate && state.ok) {
       formRef.current?.reset();
+      // TD-NEXT-001: fallback temporal para navegación same-route en self-hosted.
+      window.location.assign(window.location.pathname);
     }
   }, [isCreate, state.ok]);
 

@@ -5,7 +5,6 @@ import {
   actionSuccess,
   type BaseActionState,
 } from "@/lib/actions/action-state";
-import { revalidateServiceTypesAdmin } from "@/lib/actions/revalidation";
 import {
   createServiceType,
   updateServiceType,
@@ -51,8 +50,6 @@ export async function updateServiceTypeAction(
       fieldErrors: result.fieldErrors,
     });
   }
-
-  revalidateServiceTypesAdmin();
 
   return actionSuccess("Servicio actualizado correctamente.");
 }

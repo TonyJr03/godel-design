@@ -294,14 +294,44 @@ test("admin can create, search, hide and edit a service", async ({ page }) => {
     .fill(editedServiceDescription);
   await editDialog
     .getByRole("combobox", { name: /disponibilidad p.blica/i })
-    .selectOption("false");
+    .selectOption("true");
   await expect(
     editDialog.getByText(/último servicio público/i),
   ).toHaveCount(0);
   await editDialog.getByRole("button", { name: /guardar cambios/i }).click();
   await expect(editDialog).toBeHidden({ timeout: 15_000 });
   await expect(serviceRow.getByText(editedServiceDescription)).toBeVisible();
-  await expect(serviceRow.getByText(/^oculto$/i)).toBeVisible();
+  await expect(serviceRow.getByText(/^disponible$/i)).toBeVisible();
+
+  for (const [iteration, availability] of ["false", "true"].entries()) {
+    const nextDescription = `Servicio QA edición ${iteration + 2} ${runId}`;
+
+    await clickFirstVisible(
+      page.getByRole("button", {
+        name: new RegExp(`editar servicio ${serviceName}`, "i"),
+      }),
+    );
+    const repeatedEditDialog = page.getByRole("dialog", {
+      name: /editar servicio/i,
+    });
+    await repeatedEditDialog
+      .getByRole("textbox", { name: /descripci.n/i })
+      .fill(nextDescription);
+    await repeatedEditDialog
+      .getByRole("combobox", { name: /disponibilidad p.blica/i })
+      .selectOption(availability);
+    await repeatedEditDialog
+      .getByRole("button", { name: /guardar cambios/i })
+      .click();
+    await expect(serviceRow.getByText(nextDescription)).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(
+      serviceRow.getByText(
+        availability === "true" ? /^disponible$/i : /^oculto$/i,
+      ),
+    ).toBeVisible();
+  }
   await expectNoVisibleSensitiveText(page);
 });
 
@@ -371,6 +401,7 @@ test("admin can use filters, empty state and canonical URLs", async ({
     .poll(() => new URL(page.url()).searchParams.get("q"))
     .toBe("Otro");
 
+  await openFilters(page);
   await getAvailabilitySelect(page).selectOption("hidden");
   await expect
     .poll(() => new URL(page.url()).searchParams.get("availability"))
@@ -379,6 +410,7 @@ test("admin can use filters, empty state and canonical URLs", async ({
     .poll(() => new URL(page.url()).searchParams.get("q"))
     .toBe("Otro");
 
+  await openFilters(page);
   await getAvailabilitySelect(page).selectOption("");
   await expect
     .poll(() => new URL(page.url()).searchParams.get("availability"))

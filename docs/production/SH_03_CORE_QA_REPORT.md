@@ -7,7 +7,7 @@ SH-03.0 = CLOSED / APPROVED
 SH-03.1 = CLOSED / APPROVED
 SH-03.2 = ACTIVE
 SH-03.2A = CLOSED / APPROVED
-SH-03.2B = NEXT / NOT STARTED
+SH-03.2B = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
 SH-03.2C = NOT STARTED
 SH-03.2D = NOT STARTED
 SH-03.2E = NOT STARTED
@@ -31,7 +31,7 @@ revalidación concreta, aplicar el fallback aprobado y ampliar TD-NEXT-001.
 ## Inventario de Server Actions y riesgo TD-NEXT-001
 
 El inventario contiene **36 acciones de mutación/control** de la superficie
-examinada: 4 `SAFE / ALREADY FALLBACK`, 26 `TEST IN SH-03.2` y 6 `NOT
+examinada: 12 `SAFE / ALREADY FALLBACK`, 18 `TEST IN SH-03.2` y 6 `NOT
 APPLICABLE`. Las dos acciones públicas de firma/finalize de Storage no entran
 en ese total; las acciones de archivos de Pedido se registran como no aplicables
 en SH-03.2A y se entregan a SH-03.3.
@@ -39,12 +39,12 @@ en SH-03.2A y se entregan a SH-03.3.
 | Domain | Action | Component | Mutation | Revalidation | Returns ActionState | useActionState | Current route | Client refresh/navigation | Existing E2E | TD-NEXT classification |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Clientes | `createClienteAction` | `ClienteForm` / create dialog | crear cliente | no success revalidation | Sí | Sí | `/dashboard/clientes` | `window.location.assign` | `clientes.spec.ts`; gate transversal | SAFE / ALREADY FALLBACK |
-| Clientes | `updateClienteAction` | `ClienteEditForm` / edit dialog | editar perfil | lista + detalle | Sí | Sí | detalle cliente | `router.refresh()` | `clientes.spec.ts` | TEST IN SH-03.2 |
+| Clientes | `updateClienteAction` | `ClienteEditForm` / edit dialog | editar perfil | no success revalidation | Sí | Sí | detalle cliente | `window.location.assign` | `clientes.spec.ts` | SAFE / ALREADY FALLBACK |
 | Configuración servicios | `createServiceTypeAction` | `ServiceTypeForm` / create dialog | crear servicio | no success revalidation | Sí | Sí | `/dashboard/configuracion/servicios` | `window.location.assign` | `configuracion-servicios.spec.ts`; gate transversal | SAFE / ALREADY FALLBACK |
-| Configuración servicios | `updateServiceTypeAction` | `ServiceTypeForm` / edit dialog | editar/ocultar servicio | configuración, servicios y solicitud | Sí | Sí | servicios | `router.refresh()` | `configuracion-servicios.spec.ts` | TEST IN SH-03.2 |
+| Configuración servicios | `updateServiceTypeAction` | `ServiceTypeForm` / edit dialog | editar/ocultar servicio | no success revalidation | Sí | Sí | servicios | `window.location.assign` | `configuracion-servicios.spec.ts` | SAFE / ALREADY FALLBACK |
 | Configuración plantillas | `createTaskTemplateAction` | `TaskTemplateForm` / create dialog | crear plantilla | no success revalidation | Sí | Sí | `/dashboard/configuracion/plantillas` | `window.location.assign` | `task-templates.spec.ts`; gate transversal | SAFE / ALREADY FALLBACK |
-| Configuración plantillas | `updateTaskTemplateAction`, `toggleTaskTemplateActiveAction` | `TaskTemplateForm` / edit dialog | editar/activar plantilla | lista + detalle plantilla | Sí | Sí | detalle plantilla | `router.refresh()` | `task-templates.spec.ts` | TEST IN SH-03.2 |
-| Tareas de plantilla | create, update, delete y move task actions | `TaskTemplateTaskForm` / `TaskTemplateTasksList` | CRUD y orden de tarea | lista + detalle plantilla | Sí | Sí | detalle plantilla | feedback local | `task-templates.spec.ts` | TEST IN SH-03.2 |
+| Configuración plantillas | `updateTaskTemplateAction`, `toggleTaskTemplateActiveAction` | `TaskTemplateForm` / edit dialog | editar/activar plantilla | no success revalidation | Sí | Sí | detalle plantilla | `window.location.assign` | `task-templates.spec.ts` | SAFE / ALREADY FALLBACK |
+| Tareas de plantilla | create, update, delete y move task actions | `TaskTemplateTaskForm` / `TaskTemplateTasksList` | CRUD y orden de tarea | no success revalidation | Sí | Sí | detalle plantilla | `window.location.assign` | `task-templates.spec.ts` | SAFE / ALREADY FALLBACK |
 | Mantenimiento | `runExpiredUploadsCleanupAction` | `ExpiredUploadsCleanupAction` | cleanup de uploads | ninguna | Sí | Sí | mantenimiento | feedback local | `mantenimiento.spec.ts` | NOT APPLICABLE — Storage/PPO-03F, no SH-03.2 mutante |
 | Pedidos | `createPedidoAction` | `PedidoForm` / create dialog | crear pedido | no success revalidation | Sí | Sí | `/dashboard/pedidos` | `window.location.assign` | `pedidos.spec.ts`; gate transversal | SAFE / ALREADY FALLBACK |
 | Pedidos | `updatePedidoDataAction` | `PedidoEditForm` / edit dialog | editar pedido | dashboard, lista y detalle pedido | Sí | Sí | detalle pedido | `router.refresh()` | `pedido-edit.spec.ts` | TEST IN SH-03.2 |
@@ -149,7 +149,8 @@ La revisión arquitectónica aprobó SH-03.2A y SH-03.2A.1. La sincronización d
 TD-NEXT-001 deja trazabilidad source-code sobre cada fallback aprobado y no
 modifica su comportamiento. Los handoffs permanecen: fixture de paginación de
 Pedido para SH-03.2D; expectativa canónica `service_id` y fixture válido de
-tracking para SH-03.2C. SH-03.2B es el siguiente bloque y no se inicia aquí.
+tracking para SH-03.2C. Esta fue la entrega de SH-03.2A; SH-03.2B se registra
+más abajo como implementada y pendiente de revisión arquitectónica.
 
 ## Mapeo de specs y próximos gates
 
@@ -167,5 +168,49 @@ gates de lectura y navegación de `smoke`, `dashboard`, `dashboard-shell`,
 | SH-03.2D — Pedidos | edición, workflow/estado, trabajadores, tareas, plantilla, pagos y comentarios | pedido QA aislado; restaurar cambios de perfil/estado cuando aplique; Storage separado | probar patrón actual primero; sumar a TD solo ante reproducción |
 | SH-03.2E — Regresión core y handoff | regresión agregada de flujos ya aprobados, dashboard/listados/tracking y cierre de SH-03.2 | fixtures producidas por B/C/D; sin incluir TUS/Storage | confirmar que los fallback existentes siguen acotados |
 
-SH-03.2B es el siguiente bloque después del cierre aprobado de este inventario.
-No se inició B, C, D, E ni SH-03.3.
+Al cierre de SH-03.2A, SH-03.2B era el siguiente bloque. Las subfases C, D, E
+y SH-03.3 no se iniciaron en ese cierre.
+
+## SH-03.2B — Clientes + Configuración production-like mutation gates
+
+```text
+SH-03.2 = ACTIVE
+SH-03.2A = CLOSED / APPROVED
+SH-03.2B = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+SH-03.2C = NOT STARTED
+SH-03.2D = NOT STARTED
+SH-03.2E = NOT STARTED
+SH-03.3 = NOT STARTED
+```
+
+La ejecución usó admin QA creado por el bootstrap idempotente, Chromium serial
+contra Nginx en `http://localhost:8080` y entidades únicas creadas por UI. No
+se mutaron `Impresión`, `Otro`, seeds canónicos, usuarios ni datos mediante SQL.
+
+El patrón inicial de Cliente, Servicio, Plantilla y las cuatro acciones de
+tareas combinaba revalidación server-side con `ActionState`; Cliente, Servicio,
+metadatos/toggle de plantilla y creación de tarea reprodujeron el bloqueo
+production-like. El ajuste mínimo aprobado retira únicamente la revalidación
+de éxito de cada acción comprobada y, solo tras `state.ok`, navega a su URL
+canónica con `window.location.assign()`. Los cinco consumidores contienen el
+comentario TD-NEXT-001 inmediato. No se añadieron timeout, nonce, cache busting,
+doble refresh ni estado optimista.
+
+| Gate focal | Resultado final |
+| --- | --- |
+| Cliente: error de nombre, teléfono/notas y lectura fresca | PASS; error mantiene modal y pending se limpia; update 3/3 |
+| Servicio QA: descripción y disponibilidad `true → false → true` | PASS; update/availability 3/3 y listado fresco |
+| Plantilla QA: metadata y estado `active → inactive → active` | PASS; metadata/toggle 3/3 |
+| Tareas QA: tres creates, invalidación, update, move y delete | PASS; create/update/move/delete 3/3 y orden DOM comprobado |
+| Permisos | PASS; admin opera y supervisor/trabajador quedan bloqueados en Configuración |
+
+La revisión visual autenticada inspeccionó el detalle actualizado de Cliente en
+Chromium desktop `1366×768` y móvil `390×844`: la ficha, teléfono/notas frescos,
+jerarquía y adaptación móvil se mantuvieron correctos, sin overflow horizontal
+ni datos sensibles. No se detectaron errores de página.
+
+Se ejecutaron `lint`, `build`, bootstrap self-hosted y se reconstruyó/recreó
+únicamente `app`. `clientes.spec.ts`, `configuracion-servicios.spec.ts` y
+`task-templates.spec.ts` contienen los gates focales de regresión. Un test
+ajeno de aplicación de plantilla a Pedido sigue pendiente de su bloque SH-03.2D;
+no se modificó en esta fase. SH-03.2C es el próximo bloque y no se inicia aquí.

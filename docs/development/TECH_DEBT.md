@@ -204,7 +204,10 @@ Cobertura production-like demostrada:
 
 - Mutaciones: Pedido create PASS 5/5; Servicio, Cliente y Plantilla create
   PASS 3/3 cada uno; Usuario create PASS 3/3; Usuario edit PASS; password reset
-  PASS; Auth Admin lifecycle PASS.
+  PASS; Auth Admin lifecycle PASS. SH-03.2B añadió Cliente update PASS 3/3;
+  Servicio update/disponibilidad PASS 3/3; metadata/toggle de Plantilla PASS
+  3/3; y create/update/move/delete de tareas de Plantilla PASS 3/3, siempre
+  por Nginx production-like.
 - ListingToolbar: Pedidos search PASS 5/5; Solicitudes search PASS 5/5;
   Clientes search PASS 3/3; Pedidos filter PASS 3/3; Solicitudes filter PASS
   3/3; total focal PASS 19/19; `internal-listings` PASS 14/14.
@@ -217,6 +220,13 @@ inmediato sobre la llamada:
 ```ts
 // TD-NEXT-001: fallback temporal para navegación same-route en self-hosted.
 ```
+
+SH-03.2B añadió los puntos mínimos comprobados: edición de Cliente, edición de
+Servicio, edición/toggle de Plantilla, creación de tarea y acciones inline de
+update/move/delete de tarea. Sus acciones server-side ya no revalidan en éxito;
+los consumidores navegan únicamente tras `state.ok` a la ruta canónica. Los
+gates focales viven en `clientes.spec.ts`, `configuracion-servicios.spec.ts` y
+`task-templates.spec.ts`.
 
 El coste aceptado es perder navegación SPA en esos success paths y en
 búsqueda/filtros de listados: todos realizan una navegación documental completa

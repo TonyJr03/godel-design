@@ -96,7 +96,8 @@ Actions puede quedar pendiente cuando combina revalidación y `ActionState`.
 El catálogo canónico `Impresión` fue reparado en datos y verificado por
 REST/Nginx y Chromium. SH-03.2A (inventario core, baseline read-only y
 corrección de navegación de listados) está cerrada/aprobada. SH-03.2 continúa
-activa y SH-03.2B es el siguiente bloque, aún no iniciado. SH es un workstream técnico subordinado al roadmap
+activa; SH-03.2B está implementada y pendiente de revisión arquitectónica.
+SH-03.2C es el siguiente bloque y no ha iniciado. SH es un workstream técnico subordinado al roadmap
 maestro PPO y termina al cerrar SH-05.
 PPO-01C/D puede avanzar en paralelo
 cuando `company-host` esté disponible; PPO-01D aprobado es gate antes de PPO-04.

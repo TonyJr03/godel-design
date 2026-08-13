@@ -5,7 +5,6 @@ import {
   actionSuccess,
   type BaseActionState,
 } from "@/lib/actions/action-state";
-import { revalidateTaskTemplateDetail } from "@/lib/actions/revalidation";
 import {
   createTaskTemplateTask,
   deleteTaskTemplateTask,
@@ -53,8 +52,6 @@ export async function createTaskTemplateTaskAction(
     });
   }
 
-  revalidateTaskTemplateDetail(templateId);
-
   return actionSuccess("Tarea agregada correctamente.", {
     values: {
       title: "",
@@ -80,8 +77,6 @@ export async function updateTaskTemplateTaskAction(
     });
   }
 
-  revalidateTaskTemplateDetail(templateId);
-
   return actionSuccess("Tarea actualizada correctamente.");
 }
 
@@ -100,8 +95,6 @@ export async function deleteTaskTemplateTaskAction(
       fieldErrors: result.fieldErrors,
     });
   }
-
-  revalidateTaskTemplateDetail(templateId);
 
   return actionSuccess("Tarea eliminada correctamente.");
 }
@@ -122,8 +115,6 @@ export async function moveTaskTemplateTaskAction(
       fieldErrors: result.fieldErrors,
     });
   }
-
-  revalidateTaskTemplateDetail(templateId);
 
   return actionSuccess("Orden actualizado correctamente.");
 }

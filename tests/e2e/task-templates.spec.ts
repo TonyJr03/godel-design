@@ -16,9 +16,14 @@ const futureDate = getFutureDateInputValue(30);
 const templateName = `QA Template ${runId}`;
 const templateDescription = `Plantilla QA creada por Playwright ${runId}`;
 const editedTemplateDescription = `Plantilla QA editada por Playwright ${runId}`;
+const secondEditedTemplateDescription = `Plantilla QA edición 2 ${runId}`;
+const thirdEditedTemplateDescription = `Plantilla QA edición 3 ${runId}`;
 const simpleTaskTitle = `Disenar arte final QA ${runLabel}`;
 const editedTaskTitle = `Disenar arte final aprobado QA ${runLabel}`;
 const quantifiedTaskTitle = `Imprimir 10 hojas QA ${runLabel}`;
+const editedQuantifiedTaskTitle = `Imprimir 12 hojas QA ${runLabel}`;
+const thirdTaskTitle = `Confirmar entrega QA ${runLabel}`;
+const editedThirdTaskTitle = `Confirmar entrega final QA ${runLabel}`;
 
 async function expectNoHorizontalOverflow(page: Page) {
   const dimensions = await page.evaluate(() => ({
@@ -495,35 +500,59 @@ test("admin can create and manage a task template", async ({ page }) => {
 
   await expect(editDialog).toBeVisible();
   await editDialog.getByLabel(/descripci.n/i).fill(editedTemplateDescription);
-  await editDialog.getByRole("combobox", { name: /estado/i }).selectOption("false");
+  await editDialog.getByRole("combobox", { name: /estado/i }).selectOption("true");
   await editDialog.getByRole("button", { name: /guardar cambios/i }).click();
   await expect(editDialog).toBeHidden({ timeout: 15_000 });
   await expect(page.getByText(editedTemplateDescription)).toBeVisible();
-  await expect(page.getByText(/^inactiva$/i).first()).toBeVisible();
+  await expect(page.getByText(/^activa$/i).first()).toBeVisible();
 
   await page.getByRole("button", { name: /editar plantilla/i }).click();
   editDialog = page.getByRole("dialog", { name: /editar plantilla/i });
+  await editDialog
+    .getByLabel(/descripci.n/i)
+    .fill(secondEditedTemplateDescription);
+  await editDialog.getByRole("combobox", { name: /estado/i }).selectOption("false");
+  await editDialog.getByRole("button", { name: /guardar cambios/i }).click();
+  await expect(editDialog).toBeHidden({ timeout: 15_000 });
+  await expect(page.getByText(/^inactiva$/i).first()).toBeVisible();
+  await expect(page.getByText(secondEditedTemplateDescription)).toBeVisible();
+
+  await page.getByRole("button", { name: /editar plantilla/i }).click();
+  editDialog = page.getByRole("dialog", { name: /editar plantilla/i });
+  await editDialog
+    .getByLabel(/descripci.n/i)
+    .fill(thirdEditedTemplateDescription);
   await editDialog.getByRole("combobox", { name: /estado/i }).selectOption("true");
   await editDialog.getByRole("button", { name: /guardar cambios/i }).click();
   await expect(editDialog).toBeHidden({ timeout: 15_000 });
   await expect(page.getByText(/^activa$/i).first()).toBeVisible();
-  await expect(page.getByText(editedTemplateDescription)).toBeVisible();
+  await expect(page.getByText(thirdEditedTemplateDescription)).toBeVisible();
   await expectNoVisibleSensitiveText(page);
 
   await page.getByLabel(/nueva tarea/i).fill(simpleTaskTitle);
   await page.getByRole("button", { name: /^agregar$/i }).click();
-  await expect(
-    page.getByText(/tarea agregada correctamente/i),
-  ).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByText(simpleTaskTitle)).toBeVisible();
+  await expect(page.getByText(simpleTaskTitle)).toBeVisible({
+    timeout: 15_000,
+  });
 
   await page.getByLabel(/nueva tarea/i).fill(quantifiedTaskTitle);
   await page.getByRole("button", { name: /^agregar$/i }).click();
-  await expect(page.getByText(/tarea agregada correctamente/i)).toBeVisible({
+  await expect(page.getByText(quantifiedTaskTitle)).toBeVisible({
     timeout: 15_000,
   });
-  await expect(page.getByText(quantifiedTaskTitle)).toBeVisible();
   await expect(page.getByText(/cuantificada/i)).toHaveCount(0);
+
+  await page.getByLabel(/nueva tarea/i).fill(thirdTaskTitle);
+  await page.getByRole("button", { name: /^agregar$/i }).click();
+  await expect(page.getByText(thirdTaskTitle)).toBeVisible({
+    timeout: 15_000,
+  });
+
+  await page.getByLabel(/nueva tarea/i).fill(" ");
+  await page.getByRole("button", { name: /^agregar$/i }).click();
+  await expect(
+    page.getByText(/escribe un t.tulo v.lido para la tarea/i).first(),
+  ).toBeVisible({ timeout: 15_000 });
 
   await getTaskItem(page, quantifiedTaskTitle)
     .getByRole("button", { name: /subir tarea/i })
@@ -535,51 +564,74 @@ test("admin can create and manage a task template", async ({ page }) => {
     getTaskItem(page, simpleTaskTitle),
   );
 
-  const simpleTask = getTaskItem(page, simpleTaskTitle);
-  await simpleTask
-    .getByRole("button", {
-      name: new RegExp(`editar tarea ${simpleTaskTitle}`, "i"),
-    })
+  await getTaskItem(page, simpleTaskTitle)
+    .getByRole("button", { name: /bajar tarea/i })
     .click();
-  await simpleTask.getByLabel(/editar tarea/i).fill(editedTaskTitle);
-  await simpleTask.getByRole("button", { name: /guardar tarea/i }).click();
-  await expect(page.getByText(editedTaskTitle)).toBeVisible({
-    timeout: 15_000,
-  });
-
-  const editedTask = getTaskItem(page, editedTaskTitle);
-  const deleteEditedTaskButton = editedTask.getByRole("button", {
-    name: new RegExp(`eliminar tarea ${editedTaskTitle}`, "i"),
-  });
-
-  await deleteEditedTaskButton.click();
-  let deleteConfirmation = editedTask.locator("form").filter({
-    hasText: /eliminar esta tarea de la plantilla/i,
-  });
-
-  await expect(deleteConfirmation).toBeVisible();
-  await expect(deleteConfirmation.getByText(editedTaskTitle)).toBeVisible();
-  await expect(
-    deleteConfirmation.getByRole("button", { name: /cancelar/i }),
-  ).toBeFocused();
-  await deleteConfirmation.getByRole("button", { name: /cancelar/i }).click();
-  await expect(editedTask).toBeVisible();
-  await expect(deleteEditedTaskButton).toBeFocused();
-
-  await deleteEditedTaskButton.click();
-  deleteConfirmation = editedTask.locator("form").filter({
-    hasText: /eliminar esta tarea de la plantilla/i,
-  });
-  await deleteConfirmation
-    .getByRole("button", { name: /^eliminar tarea$/i })
-    .click();
-  await expect(page.getByText("Tarea eliminada", { exact: true })).toBeVisible(
-    { timeout: 15_000 },
+  await expectBefore(
+    getTaskItem(page, thirdTaskTitle),
+    getTaskItem(page, simpleTaskTitle),
   );
-  await expect(page.getByText(editedTaskTitle)).toHaveCount(0, {
-    timeout: 15_000,
-  });
-  await expect(page.getByText(quantifiedTaskTitle)).toBeVisible();
+
+  await getTaskItem(page, thirdTaskTitle)
+    .getByRole("button", { name: /subir tarea/i })
+    .click();
+  await expectBefore(
+    getTaskItem(page, thirdTaskTitle),
+    getTaskItem(page, quantifiedTaskTitle),
+  );
+
+  for (const [title, updatedTitle] of [
+    [simpleTaskTitle, editedTaskTitle],
+    [quantifiedTaskTitle, editedQuantifiedTaskTitle],
+    [thirdTaskTitle, editedThirdTaskTitle],
+  ]) {
+    const task = getTaskItem(page, title);
+    await task
+      .getByRole("button", {
+        name: new RegExp(`editar tarea ${escapeRegExp(title)}`, "i"),
+      })
+      .click();
+    await task.getByLabel(/editar tarea/i).fill(updatedTitle);
+    await task.getByRole("button", { name: /guardar tarea/i }).click();
+    await expect(page.getByText(updatedTitle)).toBeVisible({
+      timeout: 15_000,
+    });
+  }
+
+  for (const [index, title] of [
+    editedTaskTitle,
+    editedQuantifiedTaskTitle,
+    editedThirdTaskTitle,
+  ].entries()) {
+    const task = getTaskItem(page, title);
+    const deleteButton = task.getByRole("button", {
+      name: new RegExp(`eliminar tarea ${escapeRegExp(title)}`, "i"),
+    });
+    await deleteButton.click();
+    let deleteConfirmation = task.locator("form").filter({
+      hasText: /eliminar esta tarea de la plantilla/i,
+    });
+
+    if (index === 0) {
+      await deleteConfirmation.getByRole("button", { name: /cancelar/i }).click();
+      await expect(task).toBeVisible();
+      await deleteButton.click();
+      deleteConfirmation = task.locator("form").filter({
+        hasText: /eliminar esta tarea de la plantilla/i,
+      });
+    }
+
+    const deletionNavigation = page.waitForNavigation({
+      waitUntil: "domcontentloaded",
+    });
+    await deleteConfirmation
+      .getByRole("button", { name: /^eliminar tarea$/i })
+      .click();
+    await deletionNavigation;
+    await expect(page.getByText(title, { exact: true })).toHaveCount(0, {
+      timeout: 15_000,
+    });
+  }
   await expectNoVisibleSensitiveText(page);
 
   const currentWorkspaceUrl = page.url();
@@ -592,7 +644,7 @@ test("admin can create and manage a task template", async ({ page }) => {
     page.getByRole("heading", { name: /nueva tarea/i }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: /editar tarea/i }).first(),
+    page.getByText(/esta plantilla todav.a no tiene tareas/i),
   ).toBeVisible();
   await expectNoHorizontalOverflow(page);
   await expectNoVisibleSensitiveText(page);

@@ -1,7 +1,6 @@
 "use client";
 
 import { Pencil } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 
 import { InternalFormDialog } from "@/components/forms";
@@ -18,7 +17,6 @@ export function ServiceTypeEditDialogButton({
   serviceType,
   isLastPublicEncargo = false,
 }: ServiceTypeEditDialogButtonProps) {
-  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
@@ -55,7 +53,8 @@ export function ServiceTypeEditDialogButton({
             onSuccess={() => {
               setHasUnsavedChanges(false);
               setIsOpen(false);
-              router.refresh();
+              // TD-NEXT-001: fallback temporal para navegación same-route en self-hosted.
+              window.location.assign("/dashboard/configuracion/servicios");
             }}
           />
         ) : null}
