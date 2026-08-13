@@ -82,6 +82,7 @@ export function ListingToolbar({
     }
 
     setIsPending(true);
+    // TD-NEXT-001: fallback temporal para navegación same-route en self-hosted.
     window.location.replace(
       queryString ? `${pathname}?${queryString}` : pathname,
     );

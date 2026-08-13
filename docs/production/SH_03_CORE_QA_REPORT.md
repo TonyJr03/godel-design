@@ -6,8 +6,11 @@
 SH-03.0 = CLOSED / APPROVED
 SH-03.1 = CLOSED / APPROVED
 SH-03.2 = ACTIVE
-SH-03.2A = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
-NEXT AFTER APPROVAL = SH-03.2B — Clientes + Configuración
+SH-03.2A = CLOSED / APPROVED
+SH-03.2B = NEXT / NOT STARTED
+SH-03.2C = NOT STARTED
+SH-03.2D = NOT STARTED
+SH-03.2E = NOT STARTED
 SH-03.3 = NOT STARTED
 ```
 
@@ -142,6 +145,12 @@ pending.
 Se reconstruyó y recreó exclusivamente `app`; Nginx no cambió. La imagen final
 quedó healthy y el gate completo se ejecutó después del recreate.
 
+La revisión arquitectónica aprobó SH-03.2A y SH-03.2A.1. La sincronización de
+TD-NEXT-001 deja trazabilidad source-code sobre cada fallback aprobado y no
+modifica su comportamiento. Los handoffs permanecen: fixture de paginación de
+Pedido para SH-03.2D; expectativa canónica `service_id` y fixture válido de
+tracking para SH-03.2C. SH-03.2B es el siguiente bloque y no se inicia aquí.
+
 ## Mapeo de specs y próximos gates
 
 La suite actual contiene **21 specs Playwright**. SH-03.2A reutiliza solamente
@@ -158,5 +167,5 @@ gates de lectura y navegación de `smoke`, `dashboard`, `dashboard-shell`,
 | SH-03.2D — Pedidos | edición, workflow/estado, trabajadores, tareas, plantilla, pagos y comentarios | pedido QA aislado; restaurar cambios de perfil/estado cuando aplique; Storage separado | probar patrón actual primero; sumar a TD solo ante reproducción |
 | SH-03.2E — Regresión core y handoff | regresión agregada de flujos ya aprobados, dashboard/listados/tracking y cierre de SH-03.2 | fixtures producidas por B/C/D; sin incluir TUS/Storage | confirmar que los fallback existentes siguen acotados |
 
-SH-03.2B es el siguiente bloque después de revisión arquitectónica de este
-inventario. No se inició B, C, D, E ni SH-03.3.
+SH-03.2B es el siguiente bloque después del cierre aprobado de este inventario.
+No se inició B, C, D, E ni SH-03.3.

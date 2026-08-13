@@ -42,6 +42,7 @@ export function ServiceTypeCreateDialogButton() {
             onSuccess={() => {
               setHasUnsavedChanges(false);
               setIsOpen(false);
+              // TD-NEXT-001: fallback temporal para navegación same-route en self-hosted.
               window.location.assign("/dashboard/configuracion/servicios");
             }}
           />

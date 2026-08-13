@@ -160,7 +160,7 @@ si evoluciona el contrato público.
 varios dominios en un recorrido mutante grande. Extraer flujos hacia specs
 focales solo cuando el diagnóstico o mantenimiento empiece a doler.
 
-### TD-NEXT-001 - Compatibilidad de Server Actions/App Router self-hosted
+### TD-NEXT-001 - Compatibilidad de App Router self-hosted
 
 - Área: Next.js / App Router / Server Actions / self-hosted runtime.
 - Severidad: Media.
@@ -168,11 +168,14 @@ focales solo cuando el diagnóstico o mantenimiento empiece a doler.
   sus gates production-like.
 - Estado: Activa.
 
-Se reprodujo un comportamiento/incompatibilidad en Next.js 16.2.x App Router /
-Server Actions bajo el runtime production-like self-hosted de Godel. El
-desarrollo histórico con `next dev` no lo reprodujo; el entorno afectado usa
-Next standalone dentro de Docker y Nginx. Las mutaciones de DB/Auth completan y
-PostgreSQL/Supabase conservan correctamente sus resultados, pero
+TD-NEXT-001 cubre dos manifestaciones de compatibilidad App Router bajo el
+runtime production-like self-hosted de Godel. El desarrollo histórico con
+`next dev` no las reprodujo; el entorno afectado usa Next standalone dentro de
+Docker y Nginx. No se afirma un bug upstream confirmado ni que ambas
+manifestaciones compartan causa raíz.
+
+**A. Server Actions / éxito de mutaciones.** Las mutaciones de DB/Auth
+completan y PostgreSQL/Supabase conservan correctamente sus resultados, pero
 `revalidatePath()` junto a un `ActionState` retornado puede dejar pendiente la
 respuesta. `refresh()` server-side también reprodujo el bloqueo y
 `router.refresh()` cliente no aseguró read-your-writes repetible.
@@ -183,24 +186,45 @@ resolvió este comportamiento. La navegación documental posterior obtiene el
 estado fresco. Esto no afirma un bug confirmado de Next.js ni una causa raíz
 upstream conocida.
 
-El workaround temporal aprobado conserva `validate → mutate → return
+El workaround temporal aprobado para mutaciones conserva `validate → mutate → return
 ActionState`, sin revalidación server-side en los flujos donde el problema fue
 demostrado. Ante error, el `ActionState` mantiene el modal abierto con feedback
 local. Ante `state.ok`, el cliente cierra el diálogo y navega a la URL canónica
 con `window.location.assign()`. No usa timeouts, query nonce, cache busting,
 double refresh, SWR, React Query ni mirrors optimistas.
 
-Cobertura production-like actual: create Pedido PASS 5/5; create Servicio,
-Cliente y Plantilla PASS 3/3 cada uno; Usuarios create PASS 3/3, edit PASS,
-password reset PASS, audit Auth `succeeded`, login temporal de trabajador PASS,
-ruta de cambio inicial PASS y restauración de fixture PASS. No se extiende
-preventivamente a otras acciones.
+**B. ListingToolbar / navegación same-route.** SH-03.2A.1 reprodujo también
+comportamiento no determinista de `router.replace()` tanto en búsqueda como en
+filtros. El fallback temporal centralizado conserva `URLSearchParams`
+canónicos, elimina `page` y usa `window.location.replace(targetUrl)` para
+search, filter y clear, asegurando URL y nuevo server render deterministas. No
+usa timeout, nonce, cache busting, `router.refresh` ni doble navegación.
 
-El coste aceptado es perder navegación SPA en esos success paths y recargar el
-documento completo, con un coste menor de UX/rendimiento. Sesión y permisos
-permanecen correctos; se prioriza consistencia/read-your-writes sobre la
-transición SPA. Esta no es la arquitectura final deseada: es un workaround de
-compatibilidad temporal.
+Cobertura production-like demostrada:
+
+- Mutaciones: Pedido create PASS 5/5; Servicio, Cliente y Plantilla create
+  PASS 3/3 cada uno; Usuario create PASS 3/3; Usuario edit PASS; password reset
+  PASS; Auth Admin lifecycle PASS.
+- ListingToolbar: Pedidos search PASS 5/5; Solicitudes search PASS 5/5;
+  Clientes search PASS 3/3; Pedidos filter PASS 3/3; Solicitudes filter PASS
+  3/3; total focal PASS 19/19; `internal-listings` PASS 14/14.
+
+Todo flujo posterior de SH-03.2 que reproduzca el problema y requiera el
+fallback debe añadirse al alcance de TD-NEXT-001, cubrirse con gate
+production-like y usar navegación documental canónica con el comentario
+inmediato sobre la llamada:
+
+```ts
+// TD-NEXT-001: fallback temporal para navegación same-route en self-hosted.
+```
+
+El coste aceptado es perder navegación SPA en esos success paths y en
+búsqueda/filtros de listados: todos realizan una navegación documental completa
+con un coste menor de UX/rendimiento. Sesión y permisos permanecen correctos;
+se prioriza consistencia/read-your-writes sobre la transición SPA. ESTA NO ES
+LA ARQUITECTURA FINAL DESEADA: es un workaround de compatibilidad temporal.
+Cada comentario source code TD-NEXT-001 identifica un punto candidato a
+eliminación cuando la deuda pueda cerrarse.
 
 Reevaluar TD-NEXT-001 al adoptar una versión estable relevante de Next, ante un
 fix upstream confirmado relacionado con App Router/Server Actions, ante una
@@ -209,12 +233,18 @@ coste funcional real. No actualizar a preview/canary de Next únicamente para
 cerrar esta deuda.
 
 La deuda solo podrá resolverse con evidencia production-like sin navegación
-documental: Pedido create 5/5; Servicio, Cliente, Plantilla y Usuario create
-3/3; Usuario edit PASS; Auth Admin reset PASS; y una mutación representativa
-de detalle 3/3. Todos los flujos deben completar `ActionState`, limpiar
-`pending`, no colgarse y demostrar frescura same-route/read-your-writes sin full
-document navigation. Solo entonces se retira `window.location.assign()` de los
-flujos correspondientes.
+documental. Para mutaciones: Pedido create 5/5; Servicio, Cliente, Plantilla y
+Usuario create 3/3; Usuario edit PASS; Auth Admin reset PASS; y una mutación
+representativa de detalle 3/3. Todos deben completar `ActionState`, limpiar
+`pending`, no colgarse y demostrar frescura same-route/read-your-writes sin
+`window.location.assign()`.
+
+Para listados: Pedidos search 5/5; Solicitudes search 5/5; Clientes search
+3/3; Pedidos filter 3/3; Solicitudes filter 3/3. Todos deben usar navegación
+SPA/App Router normal, producir URL y `searchParams` server-side correctos,
+input/chip correctos y tabla o empty state válido, sin
+`window.location.replace()`. Solo entonces se retiran los fallbacks y sus
+comentarios TD-NEXT-001 asociados.
 
 ### TD-TEMPLATES-001 - Operaciones secuenciales en tareas de plantilla
 

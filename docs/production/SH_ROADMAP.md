@@ -131,26 +131,26 @@ interno, TUS público presigned, resume, finalize, listados y descargas.
 | --- | --- |
 | SH-03.0 — Diseño QA production-like y estrategia de fixtures | CLOSED / APPROVED |
 | SH-03.1 — Provisioning QA self-hosted, Auth/session/roles/Auth Admin | CLOSED / APPROVED |
-| SH-03.2 — Flujos core de negocio y tracking | ACTIVE / SH-03.2A |
-| SH-03.3 — Storage, TUS, finalize, listados y descargas | PENDING |
+| SH-03.2 — Flujos core de negocio y tracking | ACTIVE |
+| SH-03.3 — Storage, TUS, finalize, listados y descargas | NOT STARTED |
 | SH-03.4 — Regresión agregada y cierre | PENDING |
 
 | Descomposición SH-03.2 | Estado |
 | --- | --- |
-| SH-03.2A — Inventario core y baseline read-only | IMPLEMENTED / PENDING ARCHITECTURAL REVIEW |
+| SH-03.2A — Inventario core y baseline read-only | CLOSED / APPROVED |
 | SH-03.2B — Clientes + Configuración | NEXT / NOT STARTED |
-| SH-03.2C — Solicitudes | PENDING |
-| SH-03.2D — Pedidos | PENDING |
-| SH-03.2E — Regresión core y handoff | PENDING |
+| SH-03.2C — Solicitudes | NOT STARTED |
+| SH-03.2D — Pedidos | NOT STARTED |
+| SH-03.2E — Regresión core y handoff | NOT STARTED |
 
 El diseño y la auditoría de partida están en
 [SH_03_QA_PLAN.md](SH_03_QA_PLAN.md) y la evidencia de Auth/roles en
 [SH_03_AUTH_QA_REPORT.md](SH_03_AUTH_QA_REPORT.md). SH-03 permanece activo;
-SH-03.1 está cerrada/aprobada. SH-03.2 está activa en SH-03.2A, inventario core
-y baseline production-like de solo lectura. Su handoff incluye las acciones que
-aún combinan mutación, revalidación y
-`ActionState`/`useActionState`: son `TEST IN SH-03.2`, no fallos asumidos ni
-flujos a los que deba aplicarse preventivamente el fallback documental.
+SH-03.1 y SH-03.2A están cerradas/aprobadas. SH-03.2 continúa activa y entrega
+SH-03.2B como siguiente bloque. El handoff conserva las acciones que aún
+combinan mutación, revalidación y `ActionState`/`useActionState`: son `TEST IN
+SH-03.2`, no fallos asumidos ni flujos a los que deba aplicarse preventivamente
+el fallback documental.
 
 ### SH-04 — Fundamentos operativos self-hosted
 

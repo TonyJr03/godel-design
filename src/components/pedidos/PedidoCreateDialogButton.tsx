@@ -33,6 +33,7 @@ export function PedidoCreateDialogButton({
   const handleSuccess = useCallback(() => {
     setHasUnsavedChanges(false);
     setIsOpen(false);
+    // TD-NEXT-001: fallback temporal para navegación same-route en self-hosted.
     window.location.assign("/dashboard/pedidos");
   }, []);
 
