@@ -31,7 +31,7 @@ revalidación concreta, aplicar el fallback aprobado y ampliar TD-NEXT-001.
 ## Inventario de Server Actions y riesgo TD-NEXT-001
 
 El inventario contiene **36 acciones de mutación/control** de la superficie
-examinada: 12 `SAFE / ALREADY FALLBACK`, 18 `TEST IN SH-03.2` y 6 `NOT
+examinada: 11 `SAFE / ALREADY FALLBACK`, 18 `TEST IN SH-03.2` y 7 `NOT
 APPLICABLE`. Las dos acciones públicas de firma/finalize de Storage no entran
 en ese total; las acciones de archivos de Pedido se registran como no aplicables
 en SH-03.2A y se entregan a SH-03.3.
@@ -43,7 +43,8 @@ en SH-03.2A y se entregan a SH-03.3.
 | Configuración servicios | `createServiceTypeAction` | `ServiceTypeForm` / create dialog | crear servicio | no success revalidation | Sí | Sí | `/dashboard/configuracion/servicios` | `window.location.assign` | `configuracion-servicios.spec.ts`; gate transversal | SAFE / ALREADY FALLBACK |
 | Configuración servicios | `updateServiceTypeAction` | `ServiceTypeForm` / edit dialog | editar/ocultar servicio | no success revalidation | Sí | Sí | servicios | `window.location.assign` | `configuracion-servicios.spec.ts` | SAFE / ALREADY FALLBACK |
 | Configuración plantillas | `createTaskTemplateAction` | `TaskTemplateForm` / create dialog | crear plantilla | no success revalidation | Sí | Sí | `/dashboard/configuracion/plantillas` | `window.location.assign` | `task-templates.spec.ts`; gate transversal | SAFE / ALREADY FALLBACK |
-| Configuración plantillas | `updateTaskTemplateAction`, `toggleTaskTemplateActiveAction` | `TaskTemplateForm` / edit dialog | editar/activar plantilla | no success revalidation | Sí | Sí | detalle plantilla | `window.location.assign` | `task-templates.spec.ts` | SAFE / ALREADY FALLBACK |
+| Configuración plantillas | `updateTaskTemplateAction` | `TaskTemplateForm` / edit dialog | editar metadata/estado de plantilla | no success revalidation | Sí | Sí | detalle plantilla | `window.location.assign` | `task-templates.spec.ts` | SAFE / ALREADY FALLBACK — SH-03.2B reproduced |
+| Configuración plantillas | `toggleTaskTemplateActiveAction` | sin consumidor runtime/UI actual | toggle de estado | `revalidateTaskTemplateDetail` | Sí | No | N/A | N/A | ninguno | NOT APPLICABLE — no current runtime/UI consumer |
 | Tareas de plantilla | create, update, delete y move task actions | `TaskTemplateTaskForm` / `TaskTemplateTasksList` | CRUD y orden de tarea | no success revalidation | Sí | Sí | detalle plantilla | `window.location.assign` | `task-templates.spec.ts` | SAFE / ALREADY FALLBACK |
 | Mantenimiento | `runExpiredUploadsCleanupAction` | `ExpiredUploadsCleanupAction` | cleanup de uploads | ninguna | Sí | Sí | mantenimiento | feedback local | `mantenimiento.spec.ts` | NOT APPLICABLE — Storage/PPO-03F, no SH-03.2 mutante |
 | Pedidos | `createPedidoAction` | `PedidoForm` / create dialog | crear pedido | no success revalidation | Sí | Sí | `/dashboard/pedidos` | `window.location.assign` | `pedidos.spec.ts`; gate transversal | SAFE / ALREADY FALLBACK |
@@ -189,8 +190,9 @@ se mutaron `Impresión`, `Otro`, seeds canónicos, usuarios ni datos mediante SQ
 
 El patrón inicial de Cliente, Servicio, Plantilla y las cuatro acciones de
 tareas combinaba revalidación server-side con `ActionState`; Cliente, Servicio,
-metadatos/toggle de plantilla y creación de tarea reprodujeron el bloqueo
-production-like. El ajuste mínimo aprobado retira únicamente la revalidación
+metadata/status de plantilla mediante `updateTaskTemplateAction` y las acciones
+create/update/move/delete de tareas reprodujeron el bloqueo production-like.
+El ajuste mínimo aprobado retira únicamente la revalidación
 de éxito de cada acción comprobada y, solo tras `state.ok`, navega a su URL
 canónica con `window.location.assign()`. Los cinco consumidores contienen el
 comentario TD-NEXT-001 inmediato. No se añadieron timeout, nonce, cache busting,
@@ -200,8 +202,8 @@ doble refresh ni estado optimista.
 | --- | --- |
 | Cliente: error de nombre, teléfono/notas y lectura fresca | PASS; error mantiene modal y pending se limpia; update 3/3 |
 | Servicio QA: descripción y disponibilidad `true → false → true` | PASS; update/availability 3/3 y listado fresco |
-| Plantilla QA: metadata y estado `active → inactive → active` | PASS; metadata/toggle 3/3 |
-| Tareas QA: tres creates, invalidación, update, move y delete | PASS; create/update/move/delete 3/3 y orden DOM comprobado |
+| Plantilla QA: metadata/status mediante `updateTaskTemplateAction`, `active → inactive → active` | PASS 3/3; no ejercita `toggleTaskTemplateActiveAction` |
+| Tareas QA: create/update/move/delete | Initial pattern `mutate → revalidateTaskTemplateDetail → ActionState`; TD-NEXT-001 reproduced para cada action; final `mutate → ActionState → document navigation after state.ok`; PASS 3/3. Move confirma orden DOM; delete confirma ausencia de tarea. |
 | Permisos | PASS; admin opera y supervisor/trabajador quedan bloqueados en Configuración |
 
 La revisión visual autenticada inspeccionó el detalle actualizado de Cliente en

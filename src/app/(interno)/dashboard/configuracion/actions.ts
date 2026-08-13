@@ -5,6 +5,7 @@ import {
   actionSuccess,
   type BaseActionState,
 } from "@/lib/actions/action-state";
+import { revalidateTaskTemplateDetail } from "@/lib/actions/revalidation";
 import {
   createTaskTemplate,
   toggleTaskTemplateActive,
@@ -80,6 +81,8 @@ export async function toggleTaskTemplateActiveAction(
   if (!result.ok) {
     return actionFailure(result.message);
   }
+
+  revalidateTaskTemplateDetail(templateId);
 
   return actionSuccess(
     isActiveValue === "true"
