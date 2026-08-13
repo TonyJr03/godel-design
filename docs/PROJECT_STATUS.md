@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Última actualización: 2026-08-12
+Última actualización: 2026-08-13
 
 ## Estado general
 
@@ -87,15 +87,14 @@ SH-03
 PPO-03F cerró el lifecycle de Storage y congeló la baseline 01–06. SH-02 está
 cerrado/aprobado: diseño, networking, proxy/TUS, contrato operativo y smoke
 agregado validaron la topología `App Docker + Nginx + Supabase self-hosted`.
-La ruta activa pasa a SH-03 para QA funcional production-like. SH-03.0 está
-cerrada/aprobada y SH-03.1 (provisioning QA self-hosted, Auth/session/roles y
-Auth Admin) está implementada y pendiente de revisión arquitectónica. El gate
-final de gestión de Usuarios verificó alta, edición y reset mediante navegación
-documental canónica tras éxito; el diferencial descartó el filesystem read-only
-como cofactor porque la respuesta de Server Actions queda pendiente cuando
-combina revalidación y `ActionState`.
+La ruta activa pasa a SH-03 para QA funcional production-like. SH-03.0 y
+SH-03.1 (provisioning QA self-hosted, Auth/session/roles y Auth Admin) están
+cerradas/aprobadas. El gate final de gestión de Usuarios verificó alta, edición
+y reset mediante navegación documental canónica tras éxito; el diferencial
+descartó el filesystem read-only como cofactor porque la respuesta de Server
+Actions puede quedar pendiente cuando combina revalidación y `ActionState`.
 El catálogo canónico `Impresión` fue reparado en datos y verificado por
-REST/Nginx y Chromium. SH-03.2 no ha empezado. SH es un workstream técnico subordinado al roadmap
+REST/Nginx y Chromium. SH-03.2 es el siguiente bloque y no ha empezado. SH es un workstream técnico subordinado al roadmap
 maestro PPO y termina al cerrar SH-05.
 PPO-01C/D puede avanzar en paralelo
 cuando `company-host` esté disponible; PPO-01D aprobado es gate antes de PPO-04.

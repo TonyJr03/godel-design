@@ -25,6 +25,7 @@ resueltas ni planes históricos completos.
 | TD-QA-004 | QA/Storage | Media | No | Activa |
 | TD-TRACKING-001 | Tracking público | Media | No | Activa |
 | TD-QA-005 | QA visual | Media | No | Activa |
+| TD-NEXT-001 | Next.js/App Router | Media | No | Activa |
 | TD-TEMPLATES-001 | Plantillas | Media | No | Activa |
 | TD-SECURITY-001 | Seguridad pública | Alta | Sí | Activa |
 | TD-STORAGE-002 | Escaneo de archivos | Media | Sí, con volumen de archivos | Activa |
@@ -158,6 +159,62 @@ si evoluciona el contrato público.
 `full-visual-qa.spec.ts` conserva valor como aceptación transversal, pero cubre
 varios dominios en un recorrido mutante grande. Extraer flujos hacia specs
 focales solo cuando el diagnóstico o mantenimiento empiece a doler.
+
+### TD-NEXT-001 - Compatibilidad de Server Actions/App Router self-hosted
+
+- Área: Next.js / App Router / Server Actions / self-hosted runtime.
+- Severidad: Media.
+- Bloquea producción pública: No, mientras el fallback documentado siga pasando
+  sus gates production-like.
+- Estado: Activa.
+
+Se reprodujo un comportamiento/incompatibilidad en Next.js 16.2.x App Router /
+Server Actions bajo el runtime production-like self-hosted de Godel. El
+desarrollo histórico con `next dev` no lo reprodujo; el entorno afectado usa
+Next standalone dentro de Docker y Nginx. Las mutaciones de DB/Auth completan y
+PostgreSQL/Supabase conservan correctamente sus resultados, pero
+`revalidatePath()` junto a un `ActionState` retornado puede dejar pendiente la
+respuesta. `refresh()` server-side también reprodujo el bloqueo y
+`router.refresh()` cliente no aseguró read-your-writes repetible.
+
+El filesystem read-only fue descartado como cofactor. `proxy_buffering off` en
+Nginx es la configuración correcta para streaming de App Router, pero no
+resolvió este comportamiento. La navegación documental posterior obtiene el
+estado fresco. Esto no afirma un bug confirmado de Next.js ni una causa raíz
+upstream conocida.
+
+El workaround temporal aprobado conserva `validate → mutate → return
+ActionState`, sin revalidación server-side en los flujos donde el problema fue
+demostrado. Ante error, el `ActionState` mantiene el modal abierto con feedback
+local. Ante `state.ok`, el cliente cierra el diálogo y navega a la URL canónica
+con `window.location.assign()`. No usa timeouts, query nonce, cache busting,
+double refresh, SWR, React Query ni mirrors optimistas.
+
+Cobertura production-like actual: create Pedido PASS 5/5; create Servicio,
+Cliente y Plantilla PASS 3/3 cada uno; Usuarios create PASS 3/3, edit PASS,
+password reset PASS, audit Auth `succeeded`, login temporal de trabajador PASS,
+ruta de cambio inicial PASS y restauración de fixture PASS. No se extiende
+preventivamente a otras acciones.
+
+El coste aceptado es perder navegación SPA en esos success paths y recargar el
+documento completo, con un coste menor de UX/rendimiento. Sesión y permisos
+permanecen correctos; se prioriza consistencia/read-your-writes sobre la
+transición SPA. Esta no es la arquitectura final deseada: es un workaround de
+compatibilidad temporal.
+
+Reevaluar TD-NEXT-001 al adoptar una versión estable relevante de Next, ante un
+fix upstream confirmado relacionado con App Router/Server Actions, ante una
+actualización importante de runtime o antes si la navegación documental genera
+coste funcional real. No actualizar a preview/canary de Next únicamente para
+cerrar esta deuda.
+
+La deuda solo podrá resolverse con evidencia production-like sin navegación
+documental: Pedido create 5/5; Servicio, Cliente, Plantilla y Usuario create
+3/3; Usuario edit PASS; Auth Admin reset PASS; y una mutación representativa
+de detalle 3/3. Todos los flujos deben completar `ActionState`, limpiar
+`pending`, no colgarse y demostrar frescura same-route/read-your-writes sin full
+document navigation. Solo entonces se retira `window.location.assign()` de los
+flujos correspondientes.
 
 ### TD-TEMPLATES-001 - Operaciones secuenciales en tareas de plantilla
 

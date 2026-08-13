@@ -4,14 +4,14 @@
 
 ```text
 SH-03.0 = CLOSED / APPROVED
-SH-03.1 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+SH-03.1 = CLOSED / APPROVED
 SH-03 = ACTIVE
-SH-03.2 = NOT STARTED
+SH-03.2 = NEXT / NOT STARTED
 ```
 
 La implementación no modifica migraciones, tipos generados, Compose ni la
-lógica de producto. La corrección focal confirmó dos hallazgos funcionales que
-deben resolverse antes de revisión arquitectónica y antes de avanzar a SH-03.2.
+lógica de producto. La corrección focal confirmó los hallazgos funcionales y el
+cierre arquitectónico aprobó el fallback documentado antes de avanzar a SH-03.2.
 
 ## Correction pass — Auth Admin y datos UTF-8
 
@@ -520,11 +520,17 @@ SH-03.2 o SH-03.3.
 | Bootstrap y login de tres roles posterior | PASS |
 | Playwright externo focal | PASS: 2/2; alta repetida PASS: 3/3 |
 
-## Handoff
+## Handoff a SH-03.2
 
-SH-03.1 queda **IMPLEMENTED / PENDING ARCHITECTURAL REVIEW**. El bootstrap y
-runner self-hosted son utilizables; `refresh()` server-side y PRG quedan
-descartados para este patrón. El fallback de navegación documental queda
-acotado a los creates previamente verificados y a crear, editar y resetear
-Usuarios mediante este gate final. No se inicia SH-03.2 ni SH-03.3 en esta
-pasada.
+SH-03.1 queda **CLOSED / APPROVED**. El bootstrap y runner self-hosted son
+utilizables; `refresh()` server-side y PRG quedan descartados para este patrón.
+El fallback de navegación documental queda acotado a los creates previamente
+verificados y a crear, editar y resetear Usuarios mediante este gate final.
+
+Las acciones que aún combinan mutación, revalidación y `ActionState`/
+`useActionState` son **TEST IN SH-03.2**. No se asume que estén rotas ni se les
+aplica el fallback preventivamente. Si un flujo lo reproduce en SH-03.2, se
+retira su revalidación del success path según el caso, se aplica el fallback
+documental aprobado, se añade al alcance de TD-NEXT-001 y se cubre con un gate
+production-like. SH-03.2 es el siguiente bloque y no ha empezado; SH-03.3
+permanece pendiente.

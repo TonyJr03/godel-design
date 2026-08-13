@@ -130,18 +130,18 @@ interno, TUS público presigned, resume, finalize, listados y descargas.
 | Subbloque | Estado |
 | --- | --- |
 | SH-03.0 — Diseño QA production-like y estrategia de fixtures | CLOSED / APPROVED |
-| SH-03.1 — Provisioning QA self-hosted, Auth/session/roles/Auth Admin | IMPLEMENTED / PENDING ARCHITECTURAL REVIEW |
-| SH-03.2 — Flujos core de negocio y tracking | PENDING |
+| SH-03.1 — Provisioning QA self-hosted, Auth/session/roles/Auth Admin | CLOSED / APPROVED |
+| SH-03.2 — Flujos core de negocio y tracking | NEXT / NOT STARTED |
 | SH-03.3 — Storage, TUS, finalize, listados y descargas | PENDING |
 | SH-03.4 — Regresión agregada y cierre | PENDING |
 
 El diseño y la auditoría de partida están en
 [SH_03_QA_PLAN.md](SH_03_QA_PLAN.md) y la evidencia de Auth/roles en
 [SH_03_AUTH_QA_REPORT.md](SH_03_AUTH_QA_REPORT.md). SH-03 permanece activo;
-SH-03.2 no ha empezado. El gate final de compatibilidad de gestión de Usuarios
-en SH-03.1 está implementado y pendiente de revisión arquitectónica; la matriz
-de riesgo residual de las restantes mutaciones no se amplía en esta pasada. No
-se inicia SH-03.2 antes de esa revisión.
+SH-03.1 está cerrada/aprobada. SH-03.2 es el siguiente bloque y no ha empezado.
+Su handoff incluye las acciones que aún combinan mutación, revalidación y
+`ActionState`/`useActionState`: son `TEST IN SH-03.2`, no fallos asumidos ni
+flujos a los que deba aplicarse preventivamente el fallback documental.
 
 ### SH-04 — Fundamentos operativos self-hosted
 

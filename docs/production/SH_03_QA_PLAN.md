@@ -6,8 +6,8 @@
 SH-02 = CLOSED / APPROVED
 SH-03 = ACTIVE
 SH-03.0 = CLOSED / APPROVED
-SH-03.1 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
-NEXT AFTER APPROVAL = SH-03.2
+SH-03.1 = CLOSED / APPROVED
+SH-03.2 = NEXT / NOT STARTED
 ```
 
 ## Objetivo
@@ -176,9 +176,9 @@ SH-03.1 preserva `npm run qa:bootstrap` para Supabase CLI local y añade un
 target self-hosted explícito, con runtime/QA env separados, Compose efectivo
 para perfiles y Playwright por Nginx sin `webServer`. El provisioning repetido,
 login de tres roles y denegaciones de Usuarios fueron demostrados. La mutación
-Auth Admin de reset alcanza el cambio de contraseña pero no finaliza la acción
-en UI. La corrección focal confirmó el bloqueo post-revalidación y descartó el
-filesystem read-only como cofactor. Los cuatro creates verificados usan
-navegación documental canónica tras éxito; SH-03.1 queda pendiente de revisión
-arquitectónica. La fila canónica `Impresión` fue reparada en datos y validada
-por REST/Nginx y Chromium. SH-03.2 no ha empezado.
+Auth Admin de reset y el gate final de Usuarios completaron por UI. La corrección
+focal confirmó el bloqueo post-revalidación y descartó el filesystem read-only
+como cofactor. Los cuatro creates verificados y la superficie de Usuarios usan
+navegación documental canónica tras éxito; SH-03.1 quedó cerrada/aprobada. La
+fila canónica `Impresión` fue reparada en datos y validada por REST/Nginx y
+Chromium. SH-03.2 es el siguiente bloque y no ha empezado.
