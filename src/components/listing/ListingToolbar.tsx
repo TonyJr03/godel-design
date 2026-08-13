@@ -1,8 +1,8 @@
 "use client";
 
-import { useId, useMemo, useTransition } from "react";
+import { useId, useMemo, useState } from "react";
 import { Search } from "lucide-react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 import { ActiveFilterChips } from "./ActiveFilterChips";
 import { ListingFilterPopover } from "./ListingFilterPopover";
@@ -35,9 +35,8 @@ export function ListingToolbar({
   clearLabel = "Limpiar filtros",
 }: ListingToolbarProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
   const toolbarId = useId();
   const currentQuery = normalizeQuery(searchParams.get("q") ?? "");
   const searchInputKey = `${currentQuery}:${normalizeQuery(initialQuery)}`;
@@ -82,11 +81,10 @@ export function ListingToolbar({
       return;
     }
 
-    startTransition(() => {
-      router.replace(queryString ? `${pathname}?${queryString}` : pathname, {
-        scroll: false,
-      });
-    });
+    setIsPending(true);
+    window.location.replace(
+      queryString ? `${pathname}?${queryString}` : pathname,
+    );
   }
 
   function updateSearch(nextQuery: string) {
@@ -100,6 +98,7 @@ export function ListingToolbar({
     }
 
     nextParams.delete("page");
+
     replaceSearchParams(nextParams);
   }
 

@@ -101,6 +101,47 @@ solicitud pública se inspeccionó en esos mismos viewports. No hubo errores de
 página ni exposición de credenciales o datos sensibles en las superficies
 comprobadas.
 
+## Corrección SH-03.2A.1 — diferencial de navegación de listados
+
+SH-03.2A.1 modifica solamente `ListingToolbar`, su gate focal y este informe.
+No modifica runtime, Compose, Nginx, Dockerfile, Supabase upstream,
+migraciones 01–06 ni tipos generados.
+
+El diferencial se ejecutó autenticado como admin, por Nginx en
+`http://localhost:8080`, Chromium y con tabla o empty state legítimo como
+superficie de resultados. No se usó `page.goto` después de Enter ni después de
+seleccionar un filtro.
+
+| Gate | Hallazgo inicial | Resultado final |
+| --- | --- | --- |
+| Pedidos search | La limpieza quedó en `?q=qa4` en el ciclo 4 | PASS 5/5 |
+| Solicitudes search | Sin clasificación antes de reproducir el fallo compartido | PASS 5/5 |
+| Clientes search | Consumidor adicional sin cambios de página | PASS 3/3 |
+| Pedidos status | Seleccionar `nuevo` no añadió `status` a la URL | PASS 3/3 |
+| Solicitudes status | Mismo contrato compartido | PASS 3/3 |
+
+La clasificación inicial es **CASE 3 — search y filters reproducen**. Por
+ello, `replaceSearchParams()` aplica el fallback documental común: conserva los
+mismos `URLSearchParams`, elimina `page` y navega con
+`window.location.replace(targetUrl)`. No introduce `router.push`, `refresh`,
+timeouts, nonces ni cache busting. El diferencial final completó **19/19**
+ciclos sin errores de página.
+
+TD-NEXT-001 se amplía como compatibilidad temporal, exclusivamente para la
+navegación same-route de `ListingToolbar`. No se afirma un bug upstream
+confirmado ni se vincula este hallazgo con la causa de Server Actions.
+
+`internal-listings.spec.ts` queda en **14/14 PASS** production-like. El helper
+semántico de resultados de Pedidos espera tabla visible o empty state válido;
+el test de desplazamiento conserva el límite de una banda compacta, calculado
+desde la altura real de la banda más 8 px. El antiguo test de spinner pendiente
+se convierte en una comprobación de limpieza canónica mediante navegación
+documental real, sin introducir una demora artificial para forzar un frame
+pending.
+
+Se reconstruyó y recreó exclusivamente `app`; Nginx no cambió. La imagen final
+quedó healthy y el gate completo se ejecutó después del recreate.
+
 ## Mapeo de specs y próximos gates
 
 La suite actual contiene **21 specs Playwright**. SH-03.2A reutiliza solamente
