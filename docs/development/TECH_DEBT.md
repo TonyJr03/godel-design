@@ -168,10 +168,10 @@ focales solo cuando el diagnóstico o mantenimiento empiece a doler.
   sus gates production-like.
 - Estado: Activa.
 
-TD-NEXT-001 cubre dos manifestaciones de compatibilidad App Router bajo el
+TD-NEXT-001 cubre tres manifestaciones de compatibilidad App Router bajo el
 runtime production-like self-hosted de Godel. El desarrollo histórico con
 `next dev` no las reprodujo; el entorno afectado usa Next standalone dentro de
-Docker y Nginx. No se afirma un bug upstream confirmado ni que ambas
+Docker y Nginx. No se afirma un bug upstream confirmado ni que las tres
 manifestaciones compartan causa raíz.
 
 **A. Server Actions / éxito de mutaciones.** Las mutaciones de DB/Auth
@@ -199,6 +199,19 @@ filtros. El fallback temporal centralizado conserva `URLSearchParams`
 canónicos, elimina `page` y usa `window.location.replace(targetUrl)` para
 search, filter y clear, asegurando URL y nuevo server render deterministas. No
 usa timeout, nonce, cache busting, `router.refresh` ni doble navegación.
+
+**C. ListingPagination / next-link same-route.** SH-03.2C reprodujo en
+Solicitudes que el `href` canónico `/dashboard/solicitudes?page=2` estaba
+presente, pero el click de `next/link` no navegaba en el runtime
+production-like. La navegación documental al mismo `href` entregó URL,
+server render y contenido fresco de página 2. El fallback temporal se aplica
+en el límite compartido `ListingPagination`: el control habilitado usa
+`<a href>` nativo. No se afirma causa raíz upstream ni que los demás dominios
+de listados hayan reproducido el fallo; conservan sus propios gates cuando
+dispongan de datasets paginables.
+
+El coste de este fallback es perder transición y prefetch SPA en paginación.
+No es la arquitectura final deseada.
 
 Cobertura production-like demostrada:
 
@@ -259,6 +272,18 @@ input/chip correctos y tabla o empty state válido, sin
 `window.location.replace()`. Solo entonces se retiran los fallbacks y sus
 comentarios TD-NEXT-001 asociados.
 
+Para retirar el fallback de `ListingPagination`, Solicitudes debe demostrar
+next 5/5 y previous 5/5 con navegación SPA/App Router normal, URL y
+`searchParams` correctos, contenido de página fresco y sin imponer el enlace
+documental nativo. Cuando Pedidos y los demás dominios dispongan de fixtures
+paginables, sus gates ampliarán la evidencia sin bloquear este diagnóstico.
+
+Los gates de retirada para Solicitudes exigen auto-review, asociación de
+cliente, alta de cliente, comentarios, estado y conversión 3/3; y para
+`ListingPagination`, Next 5/5 y Previous 5/5. La retirada requiere frescura
+same-route correcta sin `window.location` documental, sin enlace nativo
+impuesto por TD-NEXT y con `ActionState` completo cuando aplique.
+
 ### TD-TEMPLATES-001 - Operaciones secuenciales en tareas de plantilla
 
 Crear, eliminar y reordenar tareas de plantilla usa varias operaciones
@@ -292,6 +317,21 @@ UI, action y servicio. Evaluar si conviene redirección o pantalla unificada de
 acceso denegado.
 
 ## Riesgos operativos
+
+### TD-NEXT-001 — Extensión SH-03.2C
+
+SH-03.2C cubre seis actions de Solicitudes: `startSolicitudReviewOnOpenAction`,
+`associateSolicitudClienteAction`, `createClienteFromSolicitudAction`,
+`createSolicitudCommentAction`, `updateSolicitudStatusAction` y
+`convertSolicitudToPedidoAction`. Auto-review usa `replace(current pathname)`;
+la asociación usa `assign(pathname)` y una guarda `sessionStorage` anti-repeat
+exclusiva de ese caso; alta de cliente, comentarios y conversión usan
+`assign(pathname)` tras éxito. Estado usa `successNavigationHref` opt-in, sin
+afectar el consumidor de Pedidos. Cada fallback conserva el comentario source
+TD-NEXT-001 inmediato. Los gates self-hosted demostraron auto-review y
+asociación 3/3, alta de cliente 3/3, tres comentarios frescos, estado
+avance/aprobación/rechazo y conversión UI 3/3. La guarda `sessionStorage` de
+asociación no es un patrón general y debe retirarse junto con ese fallback.
 
 - Drift entre permisos TypeScript, RLS y RPCs.
 - Cambios en `workflow_type` sin coordinar Pedidos, Dashboard, templates y QA.

@@ -28,7 +28,12 @@ const publicSensitivePatterns = [
   /\bauth\.users\b/i,
   /\bbucket\b/i,
   /\bcliente_id\b/i,
+  /\bconverted_order_id\b/i,
+  /\bcomentarios? internos?\b/i,
+  /\bhistorial interno\b/i,
   /\bfile_path\b/i,
+  /\b(?:solicitud|pedido)_historial\b/i,
+  /\b(?:solicitud|pedido)_comentarios\b/i,
   /\border_number\b/i,
   /\bpayment_status\b/i,
   /\bpedido_id\b/i,
@@ -37,6 +42,8 @@ const publicSensitivePatterns = [
   /\bSQLSTATE\b/i,
   /\bsupabase\b/i,
   /\bSUPABASE_SERVICE_ROLE_KEY\b/i,
+  /\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/i,
+  /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i,
 ];
 
 type InternalSensitiveOptions = {

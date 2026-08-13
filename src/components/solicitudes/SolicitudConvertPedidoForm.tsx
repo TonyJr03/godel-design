@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import type {
   ConvertSolicitudToPedidoActionState,
   SolicitudDetailAction,
@@ -104,6 +104,14 @@ export function SolicitudConvertPedidoForm({
     state.values?.estimated_delivery_date ?? solicitudDesiredDate ?? "";
   const todayInputDate = getTodayDateInputValue();
   const isPanel = presentation === "panel";
+
+  useEffect(() => {
+    if (state.ok && state.pedidoId) {
+      // TD-NEXT-001: fallback temporal para navegación same-route en self-hosted.
+      window.location.assign(window.location.pathname);
+    }
+  }, [state.ok, state.pedidoId]);
+
   return (
     <section
       className={

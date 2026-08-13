@@ -138,16 +138,16 @@ interno, TUS público presigned, resume, finalize, listados y descargas.
 | Descomposición SH-03.2 | Estado |
 | --- | --- |
 | SH-03.2A — Inventario core y baseline read-only | CLOSED / APPROVED |
-| SH-03.2B — Clientes + Configuración | IMPLEMENTED / PENDING ARCHITECTURAL REVIEW |
-| SH-03.2C — Solicitudes | NOT STARTED |
+| SH-03.2B — Clientes + Configuración | CLOSED / APPROVED |
+| SH-03.2C — Solicitudes | IMPLEMENTED / PENDING ARCHITECTURAL REVIEW |
 | SH-03.2D — Pedidos | NOT STARTED |
 | SH-03.2E — Regresión core y handoff | NOT STARTED |
 
 El diseño y la auditoría de partida están en
 [SH_03_QA_PLAN.md](SH_03_QA_PLAN.md) y la evidencia de Auth/roles en
 [SH_03_AUTH_QA_REPORT.md](SH_03_AUTH_QA_REPORT.md). SH-03 permanece activo;
-SH-03.1 y SH-03.2A están cerradas/aprobadas. SH-03.2 continúa activa; SH-03.2B
-queda implementada y pendiente de revisión arquitectónica, y SH-03.2C es el
+SH-03.1, SH-03.2A y SH-03.2B están cerradas/aprobadas. SH-03.2 continúa activa;
+SH-03.2C queda implementada y pendiente de revisión arquitectónica. SH-03.2D es el
 siguiente bloque sin iniciar. El handoff conserva las acciones que aún
 combinan mutación, revalidación y `ActionState`/`useActionState`: son `TEST IN
 SH-03.2`, no fallos asumidos ni flujos a los que deba aplicarse preventivamente

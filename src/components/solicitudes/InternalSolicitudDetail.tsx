@@ -50,6 +50,7 @@ type InternalSolicitudDetailProps = {
   historyLoadError?: string;
   historyLoadRetryable?: boolean;
   clienteDetailLoadError?: string;
+  statusSuccessNavigationHref?: string;
 };
 
 type WorkspaceActionState = Pick<WorkspaceAction, "tone" | "statusLabel">;
@@ -173,6 +174,7 @@ export function InternalSolicitudDetail({
   historyLoadError,
   historyLoadRetryable = false,
   clienteDetailLoadError,
+  statusSuccessNavigationHref,
 }: InternalSolicitudDetailProps) {
   const compactActionIds = ["estado", "cliente", "conversion"];
   const statusFlow = getSolicitudStatusFlow(solicitud.status);
@@ -254,6 +256,7 @@ export function InternalSolicitudDetail({
           updateStatusAction={updateStatusAction}
           flow={statusFlow}
           presentation="panel"
+          successNavigationHref={statusSuccessNavigationHref}
         />
       ),
     },

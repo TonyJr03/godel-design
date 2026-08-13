@@ -12,9 +12,13 @@ type AutoReviewOnOpenAction = () => Promise<{
 
 export type AutoReviewOnOpenProps = {
   action: AutoReviewOnOpenAction;
+  successNavigationHref?: string;
 };
 
-export function AutoReviewOnOpen({ action }: AutoReviewOnOpenProps) {
+export function AutoReviewOnOpen({
+  action,
+  successNavigationHref,
+}: AutoReviewOnOpenProps) {
   const router = useRouter();
   const hasStartedRef = useRef(false);
   const [isPending, setIsPending] = useState(false);
@@ -32,13 +36,19 @@ export function AutoReviewOnOpen({ action }: AutoReviewOnOpenProps) {
         return;
       }
 
+      if (successNavigationHref) {
+        // TD-NEXT-001: fallback temporal para navegación same-route en self-hosted.
+        window.location.replace(successNavigationHref);
+        return;
+      }
+
       router.refresh();
     } catch {
       setErrorMessage("No se pudo iniciar la revisión. Inténtalo nuevamente.");
     } finally {
       setIsPending(false);
     }
-  }, [action, router]);
+  }, [action, router, successNavigationHref]);
 
   useEffect(() => {
     if (hasStartedRef.current) {

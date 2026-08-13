@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidateSolicitudDetail } from "@/lib/actions/revalidation";
 import { createSolicitudComment } from "@/lib/solicitudes";
 import { getFormValue } from "@/lib/utils";
 import type { CreateSolicitudCommentActionState } from "./shared";
@@ -24,8 +23,6 @@ export async function createSolicitudCommentAction(
       values: result.values,
     };
   }
-
-  revalidateSolicitudDetail(solicitudId);
 
   return {
     ok: true,

@@ -1,5 +1,4 @@
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import Link from "next/link";
 import type { ReactNode } from "react";
 
 import type { PaginationMeta } from "@/lib/pagination";
@@ -81,9 +80,10 @@ function PaginationControl({
   }
 
   return (
-    <Link aria-label={label} className={className} href={href} title={title}>
+    // TD-NEXT-001: fallback temporal para navegación same-route en self-hosted.
+    <a aria-label={label} className={className} href={href} title={title}>
       {children}
-    </Link>
+    </a>
   );
 }
 

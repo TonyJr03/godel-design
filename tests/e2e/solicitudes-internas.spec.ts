@@ -303,7 +303,7 @@ async function createPublicEncargo(page: Page) {
   await page.getByLabel(/observaciones adicionales/i).fill(encargoNotes);
   await page.getByRole("button", { name: /enviar solicitud/i }).click();
 
-  await expect(page.getByText(/hemos recibido tu solicitud/i)).toBeVisible({
+  await expect(page.getByText(/solicitud enviada correctamente|hemos recibido tu solicitud/i)).toBeVisible({
     timeout: 15_000,
   });
   await expectNoTechnicalLeakText(page);
@@ -342,7 +342,7 @@ async function createPublicSelectorSolicitud(page: Page) {
     .fill(`QA selector asincrono ${runId}`);
   await page.getByRole("button", { name: /enviar solicitud/i }).click();
 
-  await expect(page.getByText(/hemos recibido tu solicitud/i)).toBeVisible({
+  await expect(page.getByText(/solicitud enviada correctamente|hemos recibido tu solicitud/i)).toBeVisible({
     timeout: 15_000,
   });
   await expectNoTechnicalLeakText(page);
@@ -368,7 +368,7 @@ async function createPublicImpresion(page: Page) {
   );
   await page.getByRole("button", { name: /enviar solicitud/i }).click();
 
-  await expect(page.getByText(/hemos recibido tu solicitud/i)).toBeVisible({
+  await expect(page.getByText(/solicitud enviada correctamente|hemos recibido tu solicitud/i)).toBeVisible({
     timeout: 15_000,
   });
   await expect(page.getByText(/archivo/i).first()).toBeVisible();
@@ -702,19 +702,21 @@ async function updateSolicitudStatus(
     await dialog
       .getByRole("button", { name: /s.?, rechazar solicitud/i })
       .click();
+    await expect(dialog).toBeHidden({ timeout: 15_000 });
+    const closedDialog = await expectSolicitudStatusPanel(page, "rechazada");
     await expect(
-      dialog.getByText(SOLICITUD_STATUS_LABELS.rechazada).first(),
+      closedDialog.getByText(SOLICITUD_STATUS_LABELS.rechazada).first(),
     ).toBeVisible({ timeout: 15_000 });
     await expect(
-      dialog.getByRole("button", { name: /rechazar solicitud/i }),
+      closedDialog.getByRole("button", { name: /rechazar solicitud/i }),
     ).toHaveCount(0);
     await expect(
-      dialog.getByRole("button", { name: /avanzar a/i }),
+      closedDialog.getByRole("button", { name: /avanzar a/i }),
     ).toHaveCount(0);
-    await expect(dialog.getByText(/zona delicada/i)).toHaveCount(0);
+    await expect(closedDialog.getByText(/zona delicada/i)).toHaveCount(0);
     await expectNoTechnicalLeakText(page);
-    await dialog.getByRole("button", { name: /cerrar/i }).click();
-    await expect(dialog).toBeHidden();
+    await closedDialog.getByRole("button", { name: /cerrar/i }).click();
+    await expect(closedDialog).toBeHidden();
     return;
   }
 
@@ -728,9 +730,10 @@ async function updateSolicitudStatus(
   await expect(dialog.locator('select[name="status"]')).toHaveCount(0);
   await expect(dialog.getByRole("button", { name: buttonName })).toBeVisible();
   await dialog.getByRole("button", { name: buttonName }).click();
-  await expect(dialog).toBeVisible();
+  await expect(dialog).toBeHidden({ timeout: 15_000 });
+  const refreshedDialog = await expectSolicitudStatusPanel(page, status);
   await expect(
-    dialog.getByText(SOLICITUD_STATUS_LABELS[status] ?? visibleLabel).first(),
+    refreshedDialog.getByText(SOLICITUD_STATUS_LABELS[status] ?? visibleLabel).first(),
   ).toBeVisible({ timeout: 15_000 });
   await expectNoTechnicalLeakText(page);
 }
@@ -799,12 +802,16 @@ test("admin can associate and update a cliente asynchronously from a solicitud",
   );
 
   await expect(page.getByText(selectorReference).first()).toBeVisible();
+  await expect(page.getByText(/en revisi.n/i).first()).toBeVisible({
+    timeout: 15_000,
+  });
+  await page.goto(selectorDetailUrl);
   expect(selectorRequests).toHaveLength(0);
 
-  const dialog = await openSolicitudPanel(page, /^cliente$/i, /cliente/i);
-  const combobox = getSolicitudClienteCombobox(dialog);
-  const hiddenInput = getSolicitudClienteHiddenInput(dialog);
-  const associateButton = dialog.getByRole("button", {
+  let dialog = await openSolicitudPanel(page, /^cliente$/i, /cliente/i);
+  let combobox = getSolicitudClienteCombobox(dialog);
+  let hiddenInput = getSolicitudClienteHiddenInput(dialog);
+  let associateButton = dialog.getByRole("button", {
     name: /^asociar cliente$/i,
   });
 
@@ -971,9 +978,13 @@ test("admin can associate and update a cliente asynchronously from a solicitud",
 
   expect(selectedClienteAId).toMatch(uuidPattern);
   await associateButton.click();
-  await expect(
-    dialog.getByText(/cliente asociado correctamente/i),
-  ).toBeVisible({ timeout: 15_000 });
+  await expect(dialog).toBeHidden({ timeout: 15_000 });
+  dialog = await openSolicitudPanel(page, /^cliente(?:\s|$)/i, /cliente/i);
+  combobox = getSolicitudClienteCombobox(dialog);
+  hiddenInput = getSolicitudClienteHiddenInput(dialog);
+  associateButton = dialog.getByRole("button", {
+    name: /^actualizar cliente$/i,
+  });
 
   const clienteBlock = dialog.getByRole("region", {
     name: /^cliente asociado$/i,
@@ -993,9 +1004,7 @@ test("admin can associate and update a cliente asynchronously from a solicitud",
   await expect(combobox).toHaveValue(selectorClienteAName);
   await expect(hiddenInput).toHaveValue(selectedClienteAId);
 
-  const updateButton = dialog.getByRole("button", {
-    name: /^actualizar cliente$/i,
-  });
+  let updateButton = associateButton;
 
   await expect(updateButton).toBeVisible();
   const selectedAResponsePromise = page.waitForResponse((response) => {
@@ -1034,15 +1043,20 @@ test("admin can associate and update a cliente asynchronously from a solicitud",
   expect(selectedClienteBId).toMatch(uuidPattern);
   expect(selectedClienteBId).not.toBe(selectedClienteAId);
   await updateButton.click();
-  await expect(
-    dialog.getByText(/cliente asociado correctamente/i),
-  ).toBeVisible({ timeout: 15_000 });
-  await expect(clienteBlock.getByText(selectorClienteBName)).toBeVisible();
-  await expect(clienteBlock.getByText(selectorClienteAName)).toHaveCount(0);
-  await expect(clienteBlock.getByText(selectorClienteBPhone)).toBeVisible();
-  await expect(clienteBlock.getByText(selectorClienteBEmail)).toBeVisible();
+  await expect(dialog).toBeHidden({ timeout: 15_000 });
+  dialog = await openSolicitudPanel(page, /^cliente(?:\s|$)/i, /cliente/i);
+  combobox = getSolicitudClienteCombobox(dialog);
+  hiddenInput = getSolicitudClienteHiddenInput(dialog);
+  updateButton = dialog.getByRole("button", { name: /^actualizar cliente$/i });
+  const updatedClienteBlock = dialog.getByRole("region", {
+    name: /^cliente asociado$/i,
+  });
+  await expect(updatedClienteBlock.getByText(selectorClienteBName)).toBeVisible();
+  await expect(updatedClienteBlock.getByText(selectorClienteAName)).toHaveCount(0);
+  await expect(updatedClienteBlock.getByText(selectorClienteBPhone)).toBeVisible();
+  await expect(updatedClienteBlock.getByText(selectorClienteBEmail)).toBeVisible();
 
-  const clienteBLink = clienteBlock.getByRole("link", { name: /ver cliente/i });
+  const clienteBLink = updatedClienteBlock.getByRole("link", { name: /ver cliente/i });
 
   await expect(clienteBLink).toHaveAttribute(
     "href",
@@ -1152,9 +1166,7 @@ test("conversion preserves original solicitud service and can use another encarg
     await conversionDialog
       .getByRole("button", { name: /convertir en pedido/i })
       .click();
-    await expect(
-      conversionDialog.getByText(/pedido creado correctamente/i),
-    ).toBeVisible({ timeout: 20_000 });
+    await expect(conversionDialog).toBeHidden({ timeout: 20_000 });
 
     const convertedSolicitud = await getSolicitudServiceAssertion(
       supabase,
@@ -1229,9 +1241,7 @@ test("conversion preserves original solicitud service and can use another encarg
     await hiddenDialog
       .getByRole("button", { name: /convertir en pedido/i })
       .click();
-    await expect(
-      hiddenDialog.getByText(/pedido creado correctamente/i),
-    ).toBeVisible({ timeout: 20_000 });
+    await expect(hiddenDialog).toBeHidden({ timeout: 20_000 });
 
     const hiddenPedidos = await getPedidosForSolicitud(
       supabase,
@@ -1364,9 +1374,7 @@ test("conversion rejects incompatible workflow and keeps print service semantics
     await printDialog
       .getByRole("button", { name: /convertir en pedido/i })
       .click();
-    await expect(
-      printDialog.getByText(/pedido creado correctamente/i),
-    ).toBeVisible({ timeout: 20_000 });
+    await expect(printDialog).toBeHidden({ timeout: 20_000 });
 
     const printPedidos = await getPedidosForSolicitud(
       supabase,
@@ -1433,6 +1441,11 @@ test("admin can manage solicitud workspace panels end to end", async ({
   ).toHaveCount(0);
   await expectNoTechnicalLeakText(page);
 
+  await expect(page.getByText(SOLICITUD_STATUS_LABELS.en_revision).first()).toBeVisible({
+    timeout: 15_000,
+  });
+  await page.goto(encargoDetailUrl);
+
   await updateSolicitudStatus(page, "en_revision", /en revisi.n/i);
   await updateSolicitudStatus(page, "contactada", /contactada/i);
   await updateSolicitudStatus(page, "aprobada", /aprobada/i);
@@ -1477,11 +1490,7 @@ test("admin can manage solicitud workspace panels end to end", async ({
   await clienteDialog
     .getByRole("button", { name: /crear cliente desde esta solicitud/i })
     .click();
-  await expect(
-    clienteDialog.getByText(/cliente creado y asociado correctamente/i),
-  ).toBeVisible({ timeout: 15_000 });
-  await expect(clienteDialog).toBeVisible();
-  await page.reload();
+  await expect(clienteDialog).toBeHidden({ timeout: 15_000 });
   const associatedClienteDialog = await openSolicitudPanel(
     page,
     /^cliente$/i,
@@ -1527,7 +1536,7 @@ test("admin can manage solicitud workspace panels end to end", async ({
     /border-warning/,
   );
 
-  const commentsDialog = await openSolicitudPanel(
+  let commentsDialog = await openSolicitudPanel(
     page,
     /^comentarios$/i,
     /comentarios/i,
@@ -1556,14 +1565,15 @@ test("admin can manage solicitud workspace panels end to end", async ({
     await commentsDialog
       .getByRole("button", { name: /agregar comentario/i })
       .click();
-    await expect(
-      commentsDialog.getByText(/comentario agregado correctamente/i),
-    ).toBeVisible({ timeout: 15_000 });
-    await expect(commentsDialog).toBeVisible();
+    await expect(commentsDialog).toBeHidden({ timeout: 15_000 });
+    commentsDialog = await openSolicitudPanel(
+      page,
+      /^comentarios$/i,
+      /comentarios/i,
+    );
     await expect(commentsDialog.getByText(content)).toBeVisible({
       timeout: 15_000,
     });
-    await expect(textarea).toHaveValue("");
   }
 
   const conversationSection = commentsDialog.locator(
@@ -1585,7 +1595,7 @@ test("admin can manage solicitud workspace panels end to end", async ({
   await commentsDialog.getByRole("button", { name: /cerrar/i }).click();
   await expect(commentsDialog).toBeHidden();
 
-  const conversionDialog = await openSolicitudPanel(
+  let conversionDialog = await openSolicitudPanel(
     page,
     /^conversi.n$/i,
     /conversi.n/i,
@@ -1606,16 +1616,13 @@ test("admin can manage solicitud workspace panels end to end", async ({
   await conversionDialog
     .getByRole("button", { name: /convertir en pedido/i })
     .click();
-  await expect(
-    conversionDialog.getByText(/pedido creado correctamente/i),
-  ).toBeVisible({ timeout: 20_000 });
-  await expect(conversionDialog.getByText(/^pedido creado$/i)).toBeVisible();
-  await expect(
-    conversionDialog.getByText(/solicitud convertida/i),
-  ).toHaveCount(0);
-  await expect(
-    conversionDialog.getByText(/la solicitud debe estar aprobada/i),
-  ).toHaveCount(0);
+  await expect(conversionDialog).toBeHidden({ timeout: 20_000 });
+  conversionDialog = await openSolicitudPanel(
+    page,
+    /^conversi.n$/i,
+    /conversi.n/i,
+  );
+  await expect(conversionDialog.getByText(/solicitud ya fue convertida/i)).toBeVisible();
   await expect(
     conversionDialog.getByRole("button", {
       name: /convertir en pedido/i,
@@ -1831,6 +1838,53 @@ test("admin can validate solicitudes pagination and canonical URLs", async ({
     status: "invalido",
     serviceId: "desconocido",
   });
+  await expect(
+    page.getByRole("button", { name: /^Quitar Servicio:/i }),
+  ).toHaveCount(0);
+  const invalidServiceToolbar = page
+    .getByRole("region", { name: /b.squeda y filtros/i })
+    .first();
+
+  await invalidServiceToolbar
+    .getByRole("button", { name: /^filtros\b/i })
+    .click();
+  await expect(invalidServiceToolbar.getByLabel(/^servicio$/i)).toHaveValue("");
+
+  await page.goto("/dashboard/solicitudes?service_id=desconocido&page=1");
+  await expect.poll(async () => {
+    const url = await getCurrentSolicitudesUrl(page);
+
+    return {
+      page: url.searchParams.get("page"),
+      serviceId: url.searchParams.get("service_id"),
+    };
+  }).toEqual({ page: null, serviceId: null });
+
+  await page.goto(`/dashboard/solicitudes?service_id=${missingServiceId}`);
+  await expectSolicitudesListLoaded(page);
+  await expectNoSolicitudesLoadError(page);
+  await expect.poll(async () => {
+    const url = await getCurrentSolicitudesUrl(page);
+
+    return url.searchParams.get("service_id");
+  }).toBe(missingServiceId);
+  await expect(page.getByText(/filtro de servicio no es v.lido/i)).toHaveCount(0);
+  await expect(
+    page.getByRole("button", {
+      name: new RegExp(
+        `^Quitar Servicio: ${escapeRegExp(missingServiceId)}$`,
+        "i",
+      ),
+    }),
+  ).toBeVisible();
+  const missingServiceToolbar = page
+    .getByRole("region", { name: /b.squeda y filtros/i })
+    .first();
+
+  await missingServiceToolbar
+    .getByRole("button", { name: /^filtros\b/i })
+    .click();
+  await expect(missingServiceToolbar.getByLabel(/^servicio$/i)).toHaveValue("");
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/dashboard/solicitudes");
@@ -1928,6 +1982,10 @@ test("admin can navigate between solicitudes pages", async ({ page }) => {
   await expectDisabledPaginationControl(getPreviousSolicitudPageControl(page));
   await expect(getNextSolicitudPageLink(page)).toBeVisible();
   await expectTouchTarget(getNextSolicitudPageLink(page));
+  await expect(getNextSolicitudPageLink(page)).toHaveAttribute(
+    "href",
+    "/dashboard/solicitudes?page=2",
+  );
 
   await getNextSolicitudPageLink(page).click();
   await expect.poll(async () => {
@@ -2058,7 +2116,12 @@ test("solicitud filters remove pagination from the URL", async ({ page }) => {
     .first();
 
   await toolbar.getByRole("button", { name: /^filtros\b/i }).click();
-  await toolbar.getByLabel(/^servicio$/i).selectOption(focalSolicitudServiceId);
+  const serviceSelect = toolbar.getByLabel(/^servicio$/i);
+  const serviceLabel = await serviceSelect
+    .locator(`option[value="${focalSolicitudServiceId}"]`)
+    .innerText();
+
+  await serviceSelect.selectOption(focalSolicitudServiceId);
 
   await expect.poll(async () => {
     const url = await getCurrentSolicitudesUrl(page);
@@ -2071,6 +2134,27 @@ test("solicitud filters remove pagination from the URL", async ({ page }) => {
     page: null,
     serviceId: focalSolicitudServiceId,
   });
+  await expect(
+    page.getByRole("button", { name: new RegExp(`^Quitar Servicio: ${escapeRegExp(serviceLabel)}`, "i") }),
+  ).toBeVisible();
+  await expectNoSolicitudesLoadError(page);
+
+  await toolbar.getByRole("button", { name: /^filtros\b/i }).click();
+  await expect(toolbar.getByLabel(/^servicio$/i)).toHaveValue(
+    focalSolicitudServiceId,
+  );
+  await toolbar.getByRole("button", { name: /^filtros\b/i }).click();
+  await page
+    .getByRole("button", { name: new RegExp(`^Quitar Servicio: ${escapeRegExp(serviceLabel)}`, "i") })
+    .click();
+  await expect.poll(async () => {
+    const url = await getCurrentSolicitudesUrl(page);
+
+    return url.searchParams.get("service_id");
+  }).toBeNull();
+  await expect(
+    page.getByRole("button", { name: /^Quitar Servicio:/i }),
+  ).toHaveCount(0);
 });
 
 test("solicitud workspace responsive behavior and focus restoration", async ({
@@ -2229,6 +2313,9 @@ test("impresion workflow supports files and rejected closed state", async ({
   ).toBeVisible();
   await expect(page.getByText(/sample-print-request\.pdf/i).first())
     .toBeVisible();
+  await expect(page.getByText(SOLICITUD_STATUS_LABELS.en_revision).first())
+    .toBeVisible({ timeout: 15_000 });
+  await page.goto(impresionDetailUrl);
   await expectSolicitudFilesPanel(page, true);
 
   await updateSolicitudStatus(page, "rechazada", /rechazada/i);
@@ -2280,8 +2367,34 @@ test("solicitudes access follows current role boundaries", async ({ page }) => {
         name: new RegExp(`solicitud de ${encargoName}`, "i"),
       }),
     ).toBeVisible();
-    await openSolicitudPanel(page, /^estado$/i, /^estado/i);
-    await expect(page.getByRole("dialog", { name: /^estado$/i })).toBeVisible();
+    const clientDialog = await openSolicitudPanel(page, /^cliente$/i, /^cliente/i);
+
+    await expect(clientDialog.getByText(encargoName).first()).toBeVisible();
+    await clientDialog.getByRole("button", { name: /cerrar/i }).click();
+    const commentsDialog = await openSolicitudPanel(
+      page,
+      /^comentarios$/i,
+      /^comentarios/i,
+    );
+
+    await expect(
+      commentsDialog.getByRole("textbox", { name: /comentario/i }),
+    ).toBeVisible();
+    await commentsDialog.getByRole("button", { name: /cerrar/i }).click();
+    const statusDialog = await openSolicitudPanel(page, /^estado$/i, /^estado/i);
+
+    await expect(statusDialog).toBeVisible();
+    await statusDialog.getByRole("button", { name: /cerrar/i }).click();
+    const conversionDialog = await openSolicitudPanel(
+      page,
+      /^conversi.n$/i,
+      /^conversi.n/i,
+    );
+
+    await expect(
+      conversionDialog.getByRole("link", { name: /ver pedido/i }),
+    ).toBeVisible();
+    await conversionDialog.getByRole("button", { name: /cerrar/i }).click();
     await expectNoTechnicalLeakText(page);
   }
 

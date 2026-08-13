@@ -9,8 +9,8 @@ SH-03.0 = CLOSED / APPROVED
 SH-03.1 = CLOSED / APPROVED
 SH-03.2 = ACTIVE
 SH-03.2A = CLOSED / APPROVED
-SH-03.2B = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
-SH-03.2C = NOT STARTED
+SH-03.2B = CLOSED / APPROVED
+SH-03.2C = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
 SH-03.2D = NOT STARTED
 SH-03.2E = NOT STARTED
 SH-03.3 = NOT STARTED
@@ -133,6 +133,27 @@ Debe ejecutarse contra Nginx ya sano, sin iniciar otro Next dev server ni
 exponer api-gw. La primera ejecución será serial y focal por subfase; la
 regresión agregada queda para SH-03.4.
 
+## SH-03.2C — Solicitudes production-like lifecycle
+
+Validado por Chromium serial a través de `http://localhost:8080`: solicitud
+pública Encargo sin Storage, auto-review, asociación/creación de cliente,
+comentarios, estados (avance, aprobación y rechazo con confirmación) y
+conversión a Pedido. Cada Action se probó inicialmente con su patrón actual;
+los fallbacks TD-NEXT-001 se aplicaron solo tras reproducir el bloqueo de
+`ActionState` en éxito.
+
+Quedan fuera de esta subfase los flujos de SH-03.2D/SH-03.3. Los gates focales
+de permisos y `service_id` ya quedaron evidenciados por Nginx; el siguiente
+bloque, solo después de revisión arquitectónica, es SH-03.2D — Pedidos.
+
+El fallback de `AutoReviewOnOpen` es explícitamente opt-in. Solicitudes entrega
+su URL canónica y conserva el fallback TD-NEXT-001 ya demostrado; Pedidos no
+entrega esa prop y continúa con `router.refresh()`. Por ello
+`startPedidoReviewOnOpenAction` es `TEST IN SH-03.2D`: la ausencia de
+`useActionState` no basta para declararla `NOT APPLICABLE` cuando existe un
+consumidor real de resultado directo tras mutación y revalidación. Esta
+clasificación no declara una afectación ni autoriza aplicar fallback preventivo.
+
 ## Matriz funcional
 
 | Dominio | Evidencia existente | SH-03 subfase | Gate |
@@ -187,12 +208,11 @@ focal confirmó el bloqueo post-revalidación y descartó el filesystem read-onl
 como cofactor. Los cuatro creates verificados y la superficie de Usuarios usan
 navegación documental canónica tras éxito; SH-03.1 quedó cerrada/aprobada. La
 fila canónica `Impresión` fue reparada en datos y validada por REST/Nginx y
-Chromium. SH-03.2A cerró y fue aprobada. SH-03.2B quedó implementada y
-pendiente de revisión arquitectónica; SH-03.2C es el siguiente bloque y no ha
-empezado.
+Chromium. SH-03.2A y SH-03.2B cerraron y fueron aprobadas. SH-03.2C quedó
+implementada y pendiente de revisión arquitectónica.
 
 SH-03.2A cerró el inventario core y la baseline read-only production-like. Su
 informe [SH_03_CORE_QA_REPORT.md](SH_03_CORE_QA_REPORT.md) registra la
 corrección aprobada de navegación de listados y el alcance actualizado de
-TD-NEXT-001. SH-03.2 sigue activa; SH-03.2B queda implementada y pendiente de
-revisión arquitectónica. SH-03.2C no se inicia en este handoff.
+TD-NEXT-001. SH-03.2 sigue activa; SH-03.2B queda cerrada/aprobada y SH-03.2C
+queda implementada y pendiente de revisión arquitectónica.

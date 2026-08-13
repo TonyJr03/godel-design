@@ -7,8 +7,8 @@ SH-03.0 = CLOSED / APPROVED
 SH-03.1 = CLOSED / APPROVED
 SH-03.2 = ACTIVE
 SH-03.2A = CLOSED / APPROVED
-SH-03.2B = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
-SH-03.2C = NOT STARTED
+SH-03.2B = CLOSED / APPROVED
+SH-03.2C = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
 SH-03.2D = NOT STARTED
 SH-03.2E = NOT STARTED
 SH-03.3 = NOT STARTED
@@ -31,7 +31,7 @@ revalidación concreta, aplicar el fallback aprobado y ampliar TD-NEXT-001.
 ## Inventario de Server Actions y riesgo TD-NEXT-001
 
 El inventario contiene **36 acciones de mutación/control** de la superficie
-examinada: 11 `SAFE / ALREADY FALLBACK`, 18 `TEST IN SH-03.2` y 7 `NOT
+examinada: 17 `SAFE / ALREADY FALLBACK`, 14 `TEST IN SH-03.2` y 5 `NOT
 APPLICABLE`. Las dos acciones públicas de firma/finalize de Storage no entran
 en ese total; las acciones de archivos de Pedido se registran como no aplicables
 en SH-03.2A y se entregan a SH-03.3.
@@ -49,7 +49,7 @@ en SH-03.2A y se entregan a SH-03.3.
 | Mantenimiento | `runExpiredUploadsCleanupAction` | `ExpiredUploadsCleanupAction` | cleanup de uploads | ninguna | Sí | Sí | mantenimiento | feedback local | `mantenimiento.spec.ts` | NOT APPLICABLE — Storage/PPO-03F, no SH-03.2 mutante |
 | Pedidos | `createPedidoAction` | `PedidoForm` / create dialog | crear pedido | no success revalidation | Sí | Sí | `/dashboard/pedidos` | `window.location.assign` | `pedidos.spec.ts`; gate transversal | SAFE / ALREADY FALLBACK |
 | Pedidos | `updatePedidoDataAction` | `PedidoEditForm` / edit dialog | editar pedido | dashboard, lista y detalle pedido | Sí | Sí | detalle pedido | `router.refresh()` | `pedido-edit.spec.ts` | TEST IN SH-03.2 |
-| Pedidos | `startPedidoReviewOnOpenAction` | `AutoReviewOnOpen` | iniciar revisión automática | detalle pedido | resultado directo | No | detalle pedido | `router.refresh()` | `pedidos.spec.ts` | NOT APPLICABLE — no `useActionState` |
+| Pedidos | `startPedidoReviewOnOpenAction` | `AutoReviewOnOpen` | iniciar revisión automática | detalle pedido | resultado directo | No | detalle pedido | `router.refresh()` | `pedidos.spec.ts` | TEST IN SH-03.2D — consumidor real de resultado directo; sin evidencia TD-NEXT todavía |
 | Pedidos | `updatePedidoStatusAction` | `PedidoStatusForm` / `StatusFlowPanel` | transición de estado | dashboard, lista y detalle pedido | Sí | Sí | detalle pedido | feedback local | `pedidos.spec.ts` | TEST IN SH-03.2 |
 | Pedidos | assign/remove worker actions | `PedidoWorkerAssignmentForm` | asignación de trabajador | dashboard, lista y detalle pedido | Sí | Sí | detalle pedido | feedback local | `pedidos.spec.ts` | TEST IN SH-03.2 |
 | Pedidos | create, title, progress, complete, reopen y delete task actions | `PedidoTasksSection` / `PedidoTaskItem` | CRUD/progreso de tareas | dashboard, lista y detalle pedido | Sí | Sí | detalle pedido | feedback local | `pedidos.spec.ts` | TEST IN SH-03.2 |
@@ -57,11 +57,12 @@ en SH-03.2A y se entregan a SH-03.3.
 | Pedidos | `updatePedidoPaymentAction` | `PedidoPaymentForm` / section | registrar pago | dashboard, lista y detalle pedido | Sí | Sí | detalle pedido | feedback local | `pedidos.spec.ts` | TEST IN SH-03.2 |
 | Pedidos | `createPedidoCommentAction` | `PedidoCommentComposer` | comentario | dashboard, lista y detalle pedido | Sí | Sí | detalle pedido | feedback local | `pedidos.spec.ts` | TEST IN SH-03.2 |
 | Pedidos archivos | reserve/finalize file actions | upload components | reserva/finalize de archivo | detalle pedido | resultado propio | No | detalle pedido | control de upload | `pedido-upload-direct.spec.ts` | NOT APPLICABLE — SH-03.3 Storage/TUS |
-| Solicitudes | associate/create-client actions | `SolicitudClienteForm` | asociar o crear cliente | solicitud + clientes | Sí | Sí | detalle solicitud | feedback local | `solicitudes-internas.spec.ts` | TEST IN SH-03.2 |
-| Solicitudes | `startSolicitudReviewOnOpenAction` | `AutoReviewOnOpen` | iniciar revisión automática | detalle solicitud | resultado directo | No | detalle solicitud | `router.refresh()` | `solicitudes-internas.spec.ts` | NOT APPLICABLE — no `useActionState` |
-| Solicitudes | `updateSolicitudStatusAction` | `SolicitudStatusForm` / `StatusFlowPanel` | transición de estado | dashboard, lista y detalle solicitud | Sí | Sí | detalle solicitud | feedback local | `solicitudes-internas.spec.ts` | TEST IN SH-03.2 |
-| Solicitudes | `createSolicitudCommentAction` | `SolicitudCommentComposer` | comentario | dashboard, lista y detalle solicitud | Sí | Sí | detalle solicitud | feedback local | `solicitudes-internas.spec.ts` | TEST IN SH-03.2 |
-| Solicitudes | `convertSolicitudToPedidoAction` | `SolicitudConvertPedidoForm` | conversión a pedido | solicitud, dashboard y pedidos | Sí | Sí | detalle solicitud | feedback local | `solicitudes-internas.spec.ts` | TEST IN SH-03.2 |
+| Solicitudes | `startSolicitudReviewOnOpenAction` | `AutoReviewOnOpen` | iniciar revisión automática | detalle solicitud | resultado directo | No | detalle solicitud | `replace(pathname)` | `solicitudes-core-selfhosted.spec.ts` | SAFE / ALREADY FALLBACK — PASS 3/3 |
+| Solicitudes | `associateSolicitudClienteAction` | `SolicitudClienteForm` | asociar cliente | solicitud + cliente | Sí | Sí | detalle solicitud | `assign(pathname)` + guarda específica | `solicitudes-core-selfhosted.spec.ts` | SAFE / ALREADY FALLBACK — PASS 3/3 |
+| Solicitudes | `createClienteFromSolicitudAction` | `SolicitudClienteForm` | crear cliente | solicitud + clientes | Sí | Sí | detalle solicitud | `assign(pathname)` | `solicitudes-core-selfhosted.spec.ts` | SAFE / ALREADY FALLBACK — PASS 3/3 |
+| Solicitudes | `createSolicitudCommentAction` | `SolicitudCommentComposer` | comentario | detalle solicitud | Sí | Sí | detalle solicitud | `assign(pathname)` | `solicitudes-core-selfhosted.spec.ts` | SAFE / ALREADY FALLBACK — tres comentarios frescos |
+| Solicitudes | `updateSolicitudStatusAction` | `SolicitudStatusForm` / `StatusFlowPanel` | transición de estado | dashboard, lista y detalle solicitud | Sí | Sí | detalle solicitud | `successNavigationHref` opt-in | `solicitudes-core-selfhosted.spec.ts` | SAFE / ALREADY FALLBACK — avance, aprobación y rechazo |
+| Solicitudes | `convertSolicitudToPedidoAction` | `SolicitudConvertPedidoForm` | conversión a pedido | solicitud, dashboard y pedidos | Sí | Sí | detalle solicitud | `assign(pathname)` | `solicitudes-core-selfhosted.spec.ts` | SAFE / ALREADY FALLBACK — PASS 3/3 |
 | Solicitud pública | `startPublicSolicitudAction` sin archivos | `PublicSolicitudForm` | crear solicitud pública | ninguna | resultado propio | No | `/solicitud` | estado local; refresh solo ante servicio invalidado | `public-solicitud.spec.ts` | NOT APPLICABLE — no `ActionState`; gate funcional en SH-03.2C |
 
 `signPublicSolicitudFileAction` y `finalizePublicSolicitudFileAction` no se
@@ -177,7 +178,7 @@ y SH-03.3 no se iniciaron en ese cierre.
 ```text
 SH-03.2 = ACTIVE
 SH-03.2A = CLOSED / APPROVED
-SH-03.2B = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+SH-03.2B = CLOSED / APPROVED
 SH-03.2C = NOT STARTED
 SH-03.2D = NOT STARTED
 SH-03.2E = NOT STARTED
@@ -216,3 +217,46 @@ Se ejecutaron `lint`, `build`, bootstrap self-hosted y se reconstruyó/recreó
 `task-templates.spec.ts` contienen los gates focales de regresión. Un test
 ajeno de aplicación de plantilla a Pedido sigue pendiente de su bloque SH-03.2D;
 no se modificó en esta fase. SH-03.2C es el próximo bloque y no se inicia aquí.
+
+## SH-03.2C — Solicitudes production-like core lifecycle
+
+Estado: `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`.
+
+| Action | Patrón inicial | Resultado inicial | TD-NEXT | Patrón final | Gate |
+| --- | --- | --- | --- | --- | --- |
+| `startSolicitudReviewOnOpenAction` | mutate + revalidate | reproducido previamente | Sí | `AutoReviewOnOpen` opt-in → `replace(canonical href)` | PASS 3/3 |
+| `associateSolicitudClienteAction` | mutate + revalidate | reproducido previamente | Sí | `assign(pathname)` con guarda específica | PASS 3/3 |
+| `createClienteFromSolicitudAction` | mutate + revalidaciones de solicitud/clientes | `pending` sin ActionState | Sí | mutate → ActionState → `assign(pathname)` | PASS 3/3 |
+| `createSolicitudCommentAction` | mutate + revalidate | `pending` sin ActionState | Sí | mutate → ActionState → `assign(pathname)` | tres comentarios frescos |
+| `updateSolicitudStatusAction` | mutate + revalidate | `en_revision → contactada` bloqueó ActionState | Sí | opt-in de Solicitud → `assign(canonical href)` | avance, aprobación y rechazo PASS |
+| `convertSolicitudToPedidoAction` | mutate + revalidate conversión | `pending` sin ActionState | Sí | mutate → pedidoId → `assign(pathname)` | validación + conversión UI PASS 3/3 |
+
+El fallback de estado es opt-in: `StatusFlowPanel` no navega en otros dominios
+si no recibe `successNavigationHref`; Pedidos no fue alterado. El fallback de
+auto-review también es opt-in: Solicitudes pasa su URL canónica explícita a
+`AutoReviewOnOpen`, mientras Pedidos conserva `router.refresh()` y queda
+`TEST IN SH-03.2D`, sin fallback TD-NEXT aplicado. La ausencia de
+`useActionState` no basta para clasificar una action como `NOT APPLICABLE`:
+una action de resultado directo con mutación, revalidación y consumidor real
+de refresh/navegación requiere evidencia production-like antes de generalizar
+un fallo o un fallback. La guarda
+`sessionStorage` continúa siendo exclusiva de asociación de cliente, para evitar
+su repetición real tras rehidratación; no es un patrón general de TD-NEXT-001.
+
+Evidencia integrada: `solicitudes-core-selfhosted.spec.ts` PASS 9/9,
+`solicitudes-internas.spec.ts` PASS 12/12 y regresiones públicas
+`public-solicitud.spec.ts` + `public-tracking.spec.ts` PASS 8/8, siempre
+Browser → Nginx → Next standalone → Supabase self-hosted.
+
+### Evidencia final de gates funcionales
+
+| Área | Evidencia production-like final |
+| --- | --- |
+| Public Solicitud | Encargo público sin Storage y auto-review PASS 3/3. |
+| Cliente, comentarios y estado | Asociación PASS 3/3; alta PASS 3/3; tres comentarios frescos; avance, aprobación y rechazo frescos. |
+| Conversión | Tres Solicitudes públicas independientes completaron cliente, estado y conversión por UI. Tras navegación documental permanecen en el detalle convertido, sin botón duplicado, con `Ver pedido`; el detalle del Pedido identifica el nuevo pedido y no presenta error boundary. |
+| Tracking | Referencias creadas por UI: recién creada `Solicitud recibida`, revisión `En revisión`, aprobada `Aprobada`, convertida `Pedido / Solicitud recibida` y rechazada `No aprobada`; sin datos internos ni técnicos. |
+| `service_id` | Filtro operativo, chip, selector y limpieza por UI PASS. UUID válido inexistente conserva URL/chip y produce resultado válido vacío; sintaxis inválida conserva URL y warning seguro sin chip. Al combinar inválido con `page=1`, la canonicalización elimina ambos parámetros. Clasificación: PRODUCT CORRECT / TEST STALE; sin cambio de producto. |
+| Permisos | Admin: lectura y seis flujos. Supervisor: lectura, Cliente, Comentarios, Estado y Conversión según `solicitudes.manage`. Worker: sin lista, detalle ni triggers por ruta directa; servicios mantienen la defensa de permiso y no exponen errores RLS crudos. |
+| Paginación | Evidencia focal: 102 solicitudes y 3 páginas; href correcto, `next/link` FAIL 3/3, navegación documental PASS, ancla nativa Next PASS 5/5 y Previous PASS 5/5. La fixture histórica final acumulada observó 147 solicitudes y 3 páginas; histórico PASS 12/12. |
+| Visual | Chromium verificó desktop smoke y móvil 390×844: paneles accionables, confirmación de rechazo, foco, paginación 40×40, sin overflow, spinner infinito, data leak ni error boundary. |
