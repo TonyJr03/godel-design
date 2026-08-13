@@ -7,7 +7,8 @@ SH-02 = CLOSED / APPROVED
 SH-03 = ACTIVE
 SH-03.0 = CLOSED / APPROVED
 SH-03.1 = CLOSED / APPROVED
-SH-03.2 = NEXT / NOT STARTED
+SH-03.2 = ACTIVE / SH-03.2A
+NEXT AFTER APPROVAL = SH-03.2B — Clientes + Configuración
 ```
 
 ## Objetivo
@@ -24,7 +25,7 @@ la entrada pública, Next server usa `http://api-gw:8000` y Storage/TUS público
 ya tiene smoke técnico. SH-03 parte de ese estado estable para validar flujos de
 usuario y negocio, incluidos roles y TUS autenticado.
 
-La suite actual contiene 18 specs Playwright. Sus helpers leen primero
+La suite actual contiene 21 specs Playwright. Sus helpers leen primero
 `process.env` y solo hacen fallback a `.env.local`; por tanto el código de los
 tests ya puede consumir un environment inyectado para self-hosted. Sin embargo,
 la configuración Playwright fija `baseURL` y `webServer` a `npm run dev` en
@@ -181,4 +182,9 @@ focal confirmó el bloqueo post-revalidación y descartó el filesystem read-onl
 como cofactor. Los cuatro creates verificados y la superficie de Usuarios usan
 navegación documental canónica tras éxito; SH-03.1 quedó cerrada/aprobada. La
 fila canónica `Impresión` fue reparada en datos y validada por REST/Nginx y
-Chromium. SH-03.2 es el siguiente bloque y no ha empezado.
+Chromium. SH-03.2 está activa en SH-03.2A; SH-03.2B no ha empezado.
+
+SH-03.2A inició el inventario core y la baseline read-only production-like. Su
+informe [SH_03_CORE_QA_REPORT.md](SH_03_CORE_QA_REPORT.md) deja SH-03.2 activa,
+SH-03.2A implementada y pendiente de revisión arquitectónica, y entrega
+SH-03.2B como siguiente bloque sin iniciar gates mutantes preventivos.

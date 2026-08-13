@@ -6,7 +6,7 @@
 SH-03.0 = CLOSED / APPROVED
 SH-03.1 = CLOSED / APPROVED
 SH-03 = ACTIVE
-SH-03.2 = NEXT / NOT STARTED
+SH-03.2 = ACTIVE / SH-03.2A
 ```
 
 La implementación no modifica migraciones, tipos generados, Compose ni la
@@ -532,5 +532,5 @@ Las acciones que aún combinan mutación, revalidación y `ActionState`/
 aplica el fallback preventivamente. Si un flujo lo reproduce en SH-03.2, se
 retira su revalidación del success path según el caso, se aplica el fallback
 documental aprobado, se añade al alcance de TD-NEXT-001 y se cubre con un gate
-production-like. SH-03.2 es el siguiente bloque y no ha empezado; SH-03.3
-permanece pendiente.
+production-like. SH-03.2 está activa en SH-03.2A; SH-03.2B no ha empezado y
+SH-03.3 permanece pendiente.

@@ -94,7 +94,9 @@ y reset mediante navegación documental canónica tras éxito; el diferencial
 descartó el filesystem read-only como cofactor porque la respuesta de Server
 Actions puede quedar pendiente cuando combina revalidación y `ActionState`.
 El catálogo canónico `Impresión` fue reparado en datos y verificado por
-REST/Nginx y Chromium. SH-03.2 es el siguiente bloque y no ha empezado. SH es un workstream técnico subordinado al roadmap
+REST/Nginx y Chromium. SH-03.2 está activa en SH-03.2A: inventario de acciones
+core y baseline production-like de solo lectura, implementada y pendiente de
+revisión arquitectónica; SH-03.2B no ha empezado. SH es un workstream técnico subordinado al roadmap
 maestro PPO y termina al cerrar SH-05.
 PPO-01C/D puede avanzar en paralelo
 cuando `company-host` esté disponible; PPO-01D aprobado es gate antes de PPO-04.
@@ -117,6 +119,7 @@ cuando `company-host` esté disponible; PPO-01D aprobado es gate antes de PPO-04
 - [Cierre de integración SH-02](production/SH_02_CLOSURE_REPORT.md)
 - [Plan QA funcional production-like SH-03](production/SH_03_QA_PLAN.md)
 - [Informe QA de provisioning, Auth y roles SH-03.1](production/SH_03_AUTH_QA_REPORT.md)
+- [Inventario core y baseline read-only SH-03.2A](production/SH_03_CORE_QA_REPORT.md)
 - [Contrato PPO-03 de cargas y almacenamiento](production/PPO_03_UPLOAD_STORAGE_CONTRACT.md)
 - [Diseño de cleanup PPO-03F.0](production/PPO_03F_CLEANUP_DESIGN.md)
 - [Informe DB lifecycle PPO-03F.1](production/PPO_03F_DATABASE_LIFECYCLE_REPORT.md)
