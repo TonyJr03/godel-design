@@ -11,13 +11,13 @@ SH-03.2 = ACTIVE
 SH-03.2A = CLOSED / APPROVED
 SH-03.2B = CLOSED / APPROVED
 SH-03.2C = CLOSED / APPROVED
-SH-03.2D = IN PROGRESS
+SH-03.2D = CLOSED / APPROVED
 SH-03.2D.1 = CLOSED / APPROVED
 SH-03.2D.2 = CLOSED / APPROVED
 SH-03.2D.3 = CLOSED / APPROVED
 SH-03.2D.4 = CLOSED / APPROVED
-SH-03.2D.5 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
-SH-03.2E = NOT STARTED
+SH-03.2D.5 = CLOSED / APPROVED
+SH-03.2E = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
 SH-03.3 = NOT STARTED
 ```
 
@@ -220,11 +220,11 @@ la URL canónica explícita y usan el fallback TD-NEXT-001 tras `state.ok`.
 tres updates 100/0 → 100/100 → 300/200 hasta Pagado, tres comentarios con orden
 ascendente/autor/timestamp, y roles focales Supervisor/Worker asignado. El
 histórico `pedido-edit.spec.ts` adaptó solo Pago a la navegación canónica y
-pasó 4/4. D.5 se entrega para revisión arquitectónica; SH-03.3 continúa fuera de alcance.
+pasó 4/4. D.5 cerró/aprobó; SH-03.3 continúa fuera de alcance.
 
 ## SH-03.2D.5 — Aggregate Pedido regression
 
-Estado: `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`. El histórico
+Estado: `CLOSED / APPROVED`. El histórico
 `pedidos.spec.ts` mezclaba la accesibilidad del workspace con una mutación TUS
 (`setInputFiles` → upload → estado completado). Se retiró exclusivamente ese
 tramo y la aserción visual de contador que dependía de él. La cobertura pasiva
@@ -254,6 +254,27 @@ Chromium revisó Encargo activo en 1366×768 e Impresión cerrada en 390×844: r
 diálogos, foco, acciones, ausencia de overflow y de fugas técnicas correctos.
 Las capturas son temporales y no se versionan. Inventario sin cambios: 31 SAFE,
 0 TEST, 5 N/A, 36 total.
+
+## SH-03.2E — Core business aggregate regression and handoff
+
+Estado: `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`. E integra sin nuevas mutaciones las evidencias de los
+bloques aprobados y ejecuta la regresión serial de los dominios core mediante
+Chromium por Nginx.
+
+| Dominio | Evidencia E |
+| --- | --- |
+| Dashboard/shell | `dashboard.spec.ts` + `dashboard-shell.spec.ts`: 13 PASS, 1 SKIP legítimo. |
+| Clientes y Servicios | `clientes.spec.ts`: 9 PASS; `configuracion-servicios.spec.ts`: 6/6 PASS. |
+| Plantillas | Reutiliza D.3: 3 PASS, 2 SKIP legítimos, apply aislado 1/1 PASS. |
+| Solicitudes/tracking | `solicitudes-core-selfhosted.spec.ts`: 9/9; `public-tracking.spec.ts`: 1/1. |
+| Pedidos | `pedidos-aggregate-selfhosted.spec.ts`: 2/2; histórico D.5 conservado 15 PASS / 2 SKIP legítimos. |
+| Listados | `internal-listings.spec.ts`: 14/14 PASS. |
+| Smoke y visual | Dashboard → Clientes → Solicitudes → Pedidos → Configuración: PASS 1/1; screenshots temporales inspeccionadas desktop 1366×768 y mobile 390×844. |
+
+El smoke E comprueba HTTP 200, h1 esperado, ausencia de fuga técnica y de
+overflow. Storage se excluye íntegramente: ninguna mutación TUS, reserve/
+finalize, resume, multi-file, listado, descarga, aislamiento/RLS o cleanup se
+ejecuta en E.
 
 ## Matriz funcional
 
@@ -300,6 +321,31 @@ regresión acordada, `audit:security`, `git diff --check` y `diff:check`.
 
 ## Handoff
 
+### Handoff SH-03.2E → SH-03.3
+
+E conserva SH-03.2 como `ACTIVE`: no cierra la subfase ni implementa Storage.
+La matriz core queda validada serialmente por Chromium/Nginx: Dashboard y shell
+(13 PASS, 1 SKIP legítimo), Clientes (9 PASS), Servicios (6/6), Solicitudes
+(9/9, incluido tracking válido), Pedidos aggregate (2/2), Listados internos
+(14/14), tracking inválido (1/1) y smoke Admin Dashboard → Clientes →
+Solicitudes → Pedidos → Configuración (1/1, HTTP 200, h1, sin fuga técnica ni
+overflow). Plantillas reutiliza evidencia D.3: 3 PASS, 2 SKIP legítimos y apply
+aislado 1/1 PASS; no se reabre esa mutación.
+
+La inspección visual E usa capturas temporales y no versionadas: Configuración
+desktop 1366×768 y Pedidos mobile 390×844 permanecen legibles, sin clipping,
+overflow ni texto técnico. El handoff de SH-03.3 recibe Core Business aprobado,
+TD-NEXT-001 sin nuevas manifestaciones (31 SAFE / 0 TEST / 5 N/A, total 36),
+la deuda activa ya registrada, health sano y baseline congelada.
+
+Storage no fue ejecutado por E. SH-03.3 es owner exclusivo de TUS autenticado
+de Pedido, TUS público de Solicitud, reserve/finalize, resume, multi-file,
+listados, descargas, aislamiento/RLS y cleanup; deberá ejecutar
+`storage.spec.ts`, `public-solicitud-upload-direct.spec.ts`,
+`pedido-upload-direct.spec.ts` y sus gates auxiliares. Migraciones 01–06,
+migration 07, `database.types`, Supabase upstream, Compose, Dockerfile y Nginx
+permanecen fuera de cambios de E.
+
 SH-03.1 preserva `npm run qa:bootstrap` para Supabase CLI local y añade un
 target self-hosted explícito, con runtime/QA env separados, Compose efectivo
 para perfiles y Playwright por Nginx sin `webServer`. El provisioning repetido,
@@ -316,4 +362,5 @@ SH-03.2A cerró el inventario core y la baseline read-only production-like. Su
 informe [SH_03_CORE_QA_REPORT.md](SH_03_CORE_QA_REPORT.md) registra la
 corrección aprobada de navegación de listados y el alcance actualizado de
 TD-NEXT-001. SH-03.2 sigue activa; SH-03.2B y SH-03.2C quedan
-cerradas/aprobadas y SH-03.2D está en curso.
+cerradas/aprobadas; SH-03.2D y SH-03.2D.5 también cerraron/aprobaron, y
+SH-03.2E queda implementada y pendiente de revisión arquitectónica.

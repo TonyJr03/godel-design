@@ -9,13 +9,13 @@ SH-03.2 = ACTIVE
 SH-03.2A = CLOSED / APPROVED
 SH-03.2B = CLOSED / APPROVED
 SH-03.2C = CLOSED / APPROVED
-SH-03.2D = IN PROGRESS
+SH-03.2D = CLOSED / APPROVED
 SH-03.2D.1 = CLOSED / APPROVED
 SH-03.2D.2 = CLOSED / APPROVED
 SH-03.2D.3 = CLOSED / APPROVED
 SH-03.2D.4 = CLOSED / APPROVED
-SH-03.2D.5 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
-SH-03.2E = NOT STARTED
+SH-03.2D.5 = CLOSED / APPROVED
+SH-03.2E = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
 SH-03.3 = NOT STARTED
 ```
 
@@ -359,8 +359,7 @@ fuga técnica. Este cierre dejó 29 SAFE, 2 TEST (Pago y Comentario) y 5 N/A.
 
 ## SH-03.2D.4 — Payments + Comments
 
-Estado: `CLOSED / APPROVED`. D.5 se entrega para revisión arquitectónica;
-Storage no se inicia.
+Estado: `CLOSED / APPROVED`. D.5 cerró/aprobó; Storage no se inicia.
 
 | Action | Initial pattern | Initial result | TD-NEXT | Final pattern | Final gate |
 | --- | --- | --- | --- | --- | --- |
@@ -377,7 +376,7 @@ TEST, 5 N/A (36 total).
 
 ## SH-03.2D.5 — Aggregate Pedido regression
 
-Estado: `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`.
+Estado: `CLOSED / APPROVED`.
 
 | Gate | Resultado production-like |
 | --- | --- |
@@ -393,3 +392,38 @@ Estado: `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`.
 Clasificación documental: `HISTORICAL STORAGE SCOPE LEAK / OUT-OF-SCOPE
 HISTORICAL MUTATION`. No hay cambio de producto, Storage, DB, infraestructura
 ni nueva deuda TD-NEXT. El inventario queda en 31 SAFE, 0 TEST, 5 N/A (36).
+
+## SH-03.2E — Core business aggregate regression and handoff
+
+Estado: `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`. La ejecución fue serial por Chromium contra Nginx en
+`http://localhost:8080`, con identidades QA Admin, Supervisor y Worker en los
+gates que lo requieren. No hubo cambio de producto, datos, infraestructura ni
+nuevas manifestaciones TD-NEXT-001.
+
+| Superficie | Resultado E production-like |
+| --- | --- |
+| Dashboard y shell | PASS: 13 pruebas y 1 SKIP legítimo de workspace de Pedido ausente; Admin, Supervisor, Worker, denegaciones y shell desktop/móvil. |
+| Clientes | PASS: 9 pruebas; listado, búsqueda, detalle, formulario, paginación, móvil y roles. |
+| Configuración/Servicios | PASS: 6/6; roles, validaciones, CRUD/ocultar, filtros, URL y responsive. |
+| Configuración/Plantillas | Evidencia D.3 reutilizada: 3 PASS, 2 SKIP legítimos y apply aislado 1/1 PASS; el smoke E solo confirma acceso a Configuración. |
+| Solicitudes | PASS: 9/9; solicitud pública no-Storage, auto-review, cliente, comentario, estados, conversión y tracking válido. |
+| Pedidos | PASS: aggregate 2/2; se conserva evidencia D.5 del histórico 15 PASS / 2 SKIP legítimos y de D.1–D.4 aprobados. |
+| Listados internos | PASS: 14/14; desktop/móvil, búsqueda, filtros, URL, accesibilidad y ausencia de overflow. |
+| Tracking público | PASS: referencia inválida 1/1 sin exposición; la trayectoria válida queda cubierta por Solicitudes. |
+| Smoke cross-domain | PASS: Admin Dashboard → Clientes → Solicitudes → Pedidos → Configuración; HTTP 200, h1 esperado, sin overflow ni texto técnico. |
+
+Visual E: se inspeccionaron capturas temporales de Configuración a 1366×768 y
+Pedidos a 390×844. La jerarquía, legibilidad y controles se mantuvieron sin
+clipping, overflow ni fugas técnicas. Los artefactos se eliminaron y no se
+versionan.
+
+### Límite y handoff SH-03.3
+
+Storage no fue ejecutado. TUS autenticado de Pedido, TUS público de Solicitud,
+reserve/finalize, resume, multi-file, listado, descarga, aislamiento/RLS y
+cleanup siguen fuera de E. SH-03.3 es owner de `storage.spec.ts`,
+`public-solicitud-upload-direct.spec.ts`, `pedido-upload-direct.spec.ts` y sus
+gates auxiliares. Recibe Core Business aprobado, TD-NEXT-001 sin variación
+(31 SAFE / 0 TEST / 5 N/A / 36), deuda activa documentada, health sano y
+baseline congelada: migraciones 01–06, migration 07, `database.types`,
+Supabase upstream, Compose, Dockerfile y Nginx sin diferencias de E.
