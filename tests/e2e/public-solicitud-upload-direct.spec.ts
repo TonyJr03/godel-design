@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 
+import { expectNoPublicSensitiveText } from "./helpers/assertions";
 import { loginAs } from "./helpers/auth";
 import { createQaRunId } from "./helpers/qa-data";
 
@@ -210,6 +211,10 @@ test("public retry resumes the same TUS resource without a second reservation", 
   });
 
   await openPublicSolicitud(page, "encargo");
+  const persistedKeysBeforeUpload = await page.evaluate(() => [
+    ...Object.keys(localStorage),
+    ...Object.keys(sessionStorage),
+  ].sort());
   await page.getByLabel(/seleccionar archivos/i).setInputFiles({
     name: "qa-public-resume-7mb.pdf",
     mimeType: "application/pdf",
@@ -235,7 +240,8 @@ test("public retry resumes the same TUS resource without a second reservation", 
   const persistedKeys = await page.evaluate(() => [
     ...Object.keys(localStorage),
     ...Object.keys(sessionStorage),
-  ]);
+  ].sort());
+  expect(persistedKeys).toEqual(persistedKeysBeforeUpload);
   expect(persistedKeys.some((key) => /tus|godel-v1|cargas\/v1/i.test(key))).toBe(false);
 });
 
@@ -282,6 +288,84 @@ test("public encargo reserves one batch, completes three files, and caps PATCH c
   expect(startActionPosts).toBe(3);
   expect(resources.size).toBe(3);
   expect(maximumConcurrentPatches).toBeLessThanOrEqual(2);
+});
+
+test("public keeps a partial batch retryable without a second reservation", async ({ page }) => {
+  test.setTimeout(120_000);
+  const names = ["qa-public-partial-a.pdf", "qa-public-partial-b.pdf"];
+  let firstTusResource: string | null = null;
+  let failedTusResource: string | null = null;
+  let retrying = false;
+  let retryTusSeen = false;
+  let retryPreTusControlActionPosts = 0;
+  let retryHeadMatchesResource = false;
+  let retryPatchMatchesResource = false;
+
+  await page.route(TUS_ROUTE, async (route) => {
+    const request = route.request();
+
+    if (request.method() !== "PATCH") {
+      await route.continue();
+      return;
+    }
+
+    if (firstTusResource === null) {
+      firstTusResource = request.url();
+      await route.continue();
+      return;
+    }
+
+    if (request.url() !== firstTusResource && failedTusResource === null) {
+      failedTusResource = request.url();
+    }
+
+    if (request.url() === failedTusResource) {
+      await route.abort("failed");
+      return;
+    }
+
+    await route.continue();
+  });
+  page.on("request", (request) => {
+    if (isNextActionPost(request) && retrying && !retryTusSeen) {
+      retryPreTusControlActionPosts += 1;
+    }
+
+    if (!retrying || request.url() !== failedTusResource) return;
+    if (request.method() === "HEAD") retryHeadMatchesResource = true;
+    if (request.method() === "PATCH") {
+      retryTusSeen = true;
+      retryPatchMatchesResource = true;
+    }
+  });
+
+  await openPublicSolicitud(page, "encargo");
+  await page.getByLabel(/seleccionar archivos/i).setInputFiles(names.map((name) => ({
+    name,
+    mimeType: "application/pdf",
+    buffer: createPdfBuffer(128 * 1024),
+  })));
+  await submitSelectedFiles(page);
+
+  await expect(page.getByText("Solicitud registrada con archivos pendientes", { exact: true }))
+    .toBeVisible({ timeout: 45_000 });
+  await expect(page.getByText(/^recibido.*100%/i)).toHaveCount(1);
+  await expect(page.getByText(/^requiere reintento.*0%/i)).toHaveCount(1);
+  const retryButton = page.getByRole("button", { name: /^reintentar$/i });
+  await expect(retryButton).toHaveCount(1);
+  await expect(page.getByRole("button", { name: /enviar solicitud/i })).toBeDisabled();
+  expect(failedTusResource).not.toBeNull();
+
+  retrying = true;
+  await page.unroute(TUS_ROUTE);
+  await retryButton.click();
+
+  await expect(page.getByText(/^recibido.*100%/i)).toHaveCount(2, { timeout: 45_000 });
+  await expect(page.getByText(/archivos recibidos:\s*2/i)).toBeVisible();
+  expect(retryPreTusControlActionPosts).toBe(1);
+  expect(retryHeadMatchesResource).toBe(true);
+  expect(retryPatchMatchesResource).toBe(true);
+  await expectNoPublicSensitiveText(page);
 });
 
 test("public finalize retry does not repeat signed TUS transfer", async ({ page }) => {
@@ -331,6 +415,15 @@ test("public finalize retry does not repeat signed TUS transfer", async ({ page 
 test("public browser limits reject eleven files, an oversized file, and SVG before reservation", async ({ page }) => {
   await openPublicSolicitud(page, "encargo");
   const input = page.getByLabel(/seleccionar archivos/i);
+  let controlPlanePosts = 0;
+  let tusRequests = 0;
+
+  page.on("request", (request) => {
+    if (isNextActionPost(request)) controlPlanePosts += 1;
+    if (new URL(request.url()).pathname.includes("/storage/v1/upload/resumable")) {
+      tusRequests += 1;
+    }
+  });
 
   await input.setInputFiles(Array.from({ length: 11 }, (_, index) => ({
     name: `qa-public-limit-${index}.pdf`,
@@ -355,4 +448,6 @@ test("public browser limits reject eleven files, an oversized file, and SVG befo
   });
   await page.getByRole("button", { name: /enviar solicitud/i }).click();
   await expect(page.locator("#files-error")).toContainText(/PDF, imagen, documento, ZIP, RAR o CDR/i);
+  expect(controlPlanePosts).toBe(0);
+  expect(tusRequests).toBe(0);
 });

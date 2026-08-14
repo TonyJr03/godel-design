@@ -3,7 +3,8 @@
 ## Estado
 
 SH-03.3A = CLOSED / APPROVED
-SH-03.3B = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+SH-03.3B = CLOSED / APPROVED
+SH-03.3C = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
 
 Alcance de A: inventario, baseline production-like y portabilidad exclusiva de
 instrumentación E2E. No se modificaron producto, control plane, TUS adapter,
@@ -153,6 +154,44 @@ También se configuró un nombre de cookie de sesión compartido entre los clien
 
 El gate partial batch usa dos PDF pequeños y aborta controladamente el PATCH de un único recurso TUS. El primer resultado fue 1 completed / 1 failed, sin navegación documental, con `Carga completada parcialmente` y Retry visible. Tras permitir el recurso, Retry reutilizó el mismo TUS resource mediante HEAD/PATCH, sin segunda reserva; hubo una única navegación canónica y la lista fresca mostró ambos archivos y dos descargas, sin texto técnico. Los gates restantes de Pedido pasaron de forma aislada: primer 7 MiB 3/3 (y 1/1 tras namespace); resume con HEAD/PATCH del mismo recurso; batch de tres con máximo dos PATCH concurrentes; sesión invalidada sin TUS; límites con once archivos, 20 MiB + 1 byte y SVG; y cancelación sin input ni mensaje de carga. El caso worker/list/download se difiere explícitamente a SH-03.3D porque requiere una fixture adicional de asignación; no se usó como razón para modificar producto.
 
+## SH-03.3C — Public Solicitud signed TUS
+
+El patrón público actual se ejecutó primero sin cambios de producto y pasó 5/5;
+la suite final reforzada pasó 6/6 por Chromium/Nginx. El gate Impresión 7 MiB
+demostró reserve/control-plane no vacío, TUS POST/PATCH con offsets 0 y 6 MiB,
+path exclusivo `/storage/v1/upload/resumable/sign`, `x-signature` presente,
+Bearer ausente y máximo POST de control plane menor de 128 KiB. La UI terminó
+en `Recibido` y `Archivos recibidos: 1`.
+
+Resume interrumpió PATCH y confirmó que Retry re-firma el mismo item: HEAD y
+PATCH reutilizan el mismo recurso TUS; el único control-plane antes de TUS en
+retry es la nueva firma, no una segunda reserva. El snapshot de keys de
+`localStorage` y `sessionStorage` quedó idéntico antes/después; no hay keys
+relacionadas con TUS, `godel-v1` ni `cargas/v1`.
+
+El batch de tres creó una sola Solicitud/reserva, usó tres recursos y mantuvo
+máximo dos PATCH concurrentes; los tres finalize terminaron `Recibido` y el
+conteo fue `Archivos recibidos: 3`. El retry exclusivo de finalize no añadió
+ninguna request TUS. El nuevo gate partial batch usó dos PDF pequeños: uno
+terminó recibido y el PATCH del otro se abortó de manera controlada. La
+Solicitud permaneció registrada, el formulario quedó disabled, apareció
+`Solicitud registrada con archivos pendientes` y Retry. Al permitir el recurso,
+Retry re-firmó/reanudó el mismo TUS resource, sin segunda Solicitud/reserva, y
+ambos finalizaron `Recibido`.
+
+Los límites de 11 archivos, 20 MiB + 1 byte y SVG se rechazaron antes de crear
+Solicitud/reserva: cero Server Actions de control plane y cero requests TUS.
+La evidencia negativa de capability permanece en el control plane ya aprobado:
+`private.can_sign_public_upload` y la policy
+`godel_files_insert_reserved_public_sign` restringen firma a item reservado,
+open, no expirado y descriptor válido. No se capturó capability, firma, token,
+body, ID ni path para fabricar casos de navegador.
+
+No se observó capability, firma, Bearer, bucket/path, UUID, correo ni errores
+SQL/Postgres/RLS en UI pública. `PUBLIC CURRENT PATTERN = SAFE`: no hay nueva
+manifestación TD-NEXT ni fallback documental. Listado/download interno,
+aislamiento RLS, worker denial y cleanup permanecen fuera de C, para 3.3D/3.3E.
+
 ## Pedido observation
 
 | Hito | Resultado |
@@ -180,10 +219,11 @@ Compose, Dockerfile ni Nginx. Ownership: A inventory/baseline/portability; B
 Pedido authenticated/finalize; C público signed; D committed/list/download/RLS;
 E cleanup/resilience/cierre agregado.
 
-Producto modificado sólo en el boundary de cookie de sesión y el success path
-confirmado de finalize Pedido. No DB, migraciones, tipos, Storage architecture
-changes, Compose, Dockerfile, Nginx ni Supabase upstream. No commit. No push.
-Detenerse para revisión arquitectónica de SH-03.3B.
+La corrección de B modificó sólo el boundary de cookie de sesión y el success
+path confirmado de finalize Pedido. C modifica exclusivamente la spec pública y
+documentación: no cambia producto público, DB, migraciones, tipos, Storage
+architecture changes, Compose, Dockerfile, Nginx ni Supabase upstream. No
+commit. No push. Detenerse para revisión arquitectónica de SH-03.3C.
 
 ## Quality
 
@@ -194,15 +234,15 @@ Detenerse para revisión arquitectónica de SH-03.3B.
   archivos existentes, sin error de whitespace.
 - `npm run diff:check`: PASS; mismo aviso LF→CRLF, sin error de whitespace.
 - `npm run test:e2e:selfhosted -- tests/e2e/public-solicitud-upload-direct.spec.ts --project=chromium --workers=1`:
-  PASS 5/5 tras la corrección de portabilidad.
+  PASS 6/6 tras el gate partial, Web Storage y límites no vacíos de C.
 - `live`: 200; `ready`: 200.
 - `pedido-upload-direct.spec.ts`, Chromium/Nginx, gates aislados: primer 7 MiB
   PASS 3/3 y 1/1 posterior al namespace; resume, batch, partial batch, sesión
   invalidada, límites y cancelación PASS 1/1 cada uno.
 - Auth transversal por Chromium/Nginx: `smoke.spec.ts` PASS 6/6;
   `dashboard-shell.spec.ts` PASS 3/3, 1 SKIP previsto de workspace existente.
-- Cross-check público por Chromium/Nginx: `public-solicitud-upload-direct.spec.ts`
-  PASS 5/5.
+- Cross-check público anterior por Chromium/Nginx: `public-solicitud-upload-direct.spec.ts`
+  PASS 5/5; C final PASS 6/6.
 - Drift final: cliente/proxy/server Supabase, action/UI de Pedido, una spec
-  focal de Pedido, README Supabase y documentación. Sin cambios de migración,
-  tipos, upstream, Compose, Dockerfile ni Nginx.
+  focal de Pedido, spec pública, README Supabase y documentación. Sin cambios
+  de migración, tipos, upstream, Compose, Dockerfile ni Nginx.
