@@ -1,5 +1,3 @@
-import { resolve } from "node:path";
-
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import type { Database } from "@/types/database";
@@ -367,34 +365,6 @@ async function clickDialogBackdrop(page: Page, dialog: Locator) {
 
 async function getBodyOverflow(page: Page) {
   return page.evaluate(() => document.body.style.overflow);
-}
-
-async function expectBadgeInTopRight(button: Locator) {
-  const badge = button.locator("[data-workspace-action-badge]");
-
-  await expect(badge).toBeVisible();
-
-  const buttonBox = await getRequiredBox(button);
-  const badgeBox = await getRequiredBox(badge);
-  const badgeCenterX = badgeBox.x + badgeBox.width / 2;
-  const badgeCenterY = badgeBox.y + badgeBox.height / 2;
-  const maxSiblingButtonHeight = await button.evaluate((element) => {
-    const parent = element.parentElement;
-
-    if (!parent) {
-      return element.getBoundingClientRect().height;
-    }
-
-    return Math.max(
-      ...Array.from(parent.querySelectorAll<HTMLElement>("button"))
-        .filter((candidate) => candidate.offsetParent !== null)
-        .map((candidate) => candidate.getBoundingClientRect().height),
-    );
-  });
-
-  expect(badgeCenterX).toBeGreaterThan(buttonBox.x + buttonBox.width * 0.6);
-  expect(badgeCenterY).toBeLessThan(buttonBox.y + buttonBox.height * 0.4);
-  expect(buttonBox.height).toBeLessThanOrEqual(maxSiblingButtonHeight + 1);
 }
 
 async function expectSingleRow(locator: Locator) {
@@ -1209,28 +1179,30 @@ async function expectAllWorkerSelectorRequestsUsePedidoId(
 }
 
 async function updatePedidoStatus(page: Page, status: string) {
+  if (status === "en_revision") {
+    await expect(
+      page.getByText(PEDIDO_STATUS_LABELS.en_revision, { exact: true }).first(),
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/no se pudo actualizar el estado/i))
+      .toHaveCount(0);
+    return;
+  }
+
   const section = await getPedidoStatusPanel(page);
 
   await expect(section.locator('select[name="status"]')).toHaveCount(0);
-
-  if (status === "en_revision") {
-    await expect(
-      section.getByText(PEDIDO_STATUS_LABELS.en_revision).first(),
-    ).toBeVisible({ timeout: 15_000 });
-    await expect(section.getByText(/no se pudo actualizar el estado/i))
-      .toHaveCount(0);
-    await page.reload();
-    return;
-  }
 
   if (status === "cancelado") {
     await section.getByRole("button", { name: /cancelar pedido/i }).click();
     await expect(section.getByText(/cancelar este pedido/i)).toBeVisible();
     await expect(section.getByRole("button", { name: /^cancelar$/i }))
       .toBeVisible();
+    const statusNavigation = page.waitForNavigation({ waitUntil: "load" });
+
     await section
       .getByRole("button", { name: /s.?, cancelar pedido/i })
       .click();
+    await statusNavigation;
   } else {
     const buttonName = PEDIDO_STATUS_BUTTONS[status];
 
@@ -1240,13 +1212,15 @@ async function updatePedidoStatus(page: Page, status: string) {
 
     await expect(section.getByRole("button", { name: buttonName }))
       .toBeVisible();
+    const statusNavigation = page.waitForNavigation({ waitUntil: "load" });
+
     await section.getByRole("button", { name: buttonName }).click();
+    await statusNavigation;
   }
 
-  await expect(section).toBeVisible();
-  await expect(section.getByText(PEDIDO_STATUS_LABELS[status]).first()).toBeVisible({
-    timeout: 15_000,
-  });
+  await expect(
+    page.getByText(PEDIDO_STATUS_LABELS[status], { exact: true }).first(),
+  ).toBeVisible({ timeout: 15_000 });
 }
 
 async function expectPedidoStatusBlocked(page: Page, status: string) {
@@ -1269,14 +1243,21 @@ async function returnPedidoToProduction(page: Page) {
 
   await expect(section.locator('select[name="status"]')).toHaveCount(0);
   await expect(
-    section.getByText(PEDIDO_STATUS_LABELS.listo_entrega).first(),
+    page.getByText(PEDIDO_STATUS_LABELS.listo_entrega, { exact: true }).first(),
   ).toBeVisible();
+  const returnNavigation = page.waitForNavigation({ waitUntil: "load" });
+
   await section.getByRole("button", { name: /volver a producci.n/i }).click();
+  await returnNavigation;
   await expect(
-    section.getByText(PEDIDO_STATUS_LABELS.en_produccion).first(),
+    page.getByText(PEDIDO_STATUS_LABELS.en_produccion, { exact: true }).first(),
   ).toBeVisible({ timeout: 15_000 });
+  const refreshedSection = await getPedidoStatusPanel(page);
+
   await expect(
-    section.getByRole("button", { name: PEDIDO_STATUS_BUTTONS.listo_entrega }),
+    refreshedSection.getByRole("button", {
+      name: PEDIDO_STATUS_BUTTONS.listo_entrega,
+    }),
   ).toBeVisible();
 }
 
@@ -1321,12 +1302,10 @@ async function createQuantifiedTask(page: Page) {
   await expectBefore(newTaskHeading, newTaskInput);
 
   await newTaskInput.fill(quantifiedTaskTitle);
+  const createTaskNavigation = page.waitForNavigation({ waitUntil: "load" });
+
   await taskSection.getByRole("button", { name: /crear tarea/i }).click();
-  await expect(taskSection).toBeVisible();
-  await expect(
-    taskSection.getByText(/tarea creada correctamente/i),
-  ).toBeVisible({ timeout: 15_000 });
-  await page.reload();
+  await createTaskNavigation;
   const task = await getPedidoTaskItem(page, quantifiedTaskTitle);
   const progressButton = task.getByRole("button", {
     name: new RegExp(
@@ -1363,12 +1342,10 @@ async function createAndDeleteDisposableTask(page: Page) {
   });
 
   await newTaskInput.fill(disposableTaskTitle);
+  const createTaskNavigation = page.waitForNavigation({ waitUntil: "load" });
+
   await taskSection.getByRole("button", { name: /crear tarea/i }).click();
-  await expect(taskSection).toBeVisible();
-  await expect(
-    taskSection.getByText(/tarea creada correctamente/i),
-  ).toBeVisible({ timeout: 15_000 });
-  await page.reload();
+  await createTaskNavigation;
 
   taskSection = await getPedidoTasksPanel(page);
   let taskTitle = disposableTaskTitle;
@@ -1396,40 +1373,34 @@ async function createAndDeleteDisposableTask(page: Page) {
   await expectPedidoTaskButtonHasPrimaryTone(completeButton);
   await expectPedidoTaskButtonHasNoPrimaryTone(editButton);
 
+  const completeTaskNavigation = page.waitForNavigation({ waitUntil: "load" });
+
   await completeButton.click();
-  await expect(async () => {
-    const completedTask = getPedidoTaskItemInPanel(taskSection, taskTitle);
-    const reopenButton = completedTask.getByRole("button", {
-      name: new RegExp(`reabrir tarea ${escapeRegExp(taskTitle)}`, "i"),
-    });
-    const completedEditButton = completedTask.getByRole("button", {
-      name: new RegExp(`editar tarea ${escapeRegExp(taskTitle)}`, "i"),
-    });
-
-    await expect(completedTask.getByText(/^Completada$/i)).toBeVisible();
-    await expectPedidoTaskActionOrder(
-      completedTask,
-      expectedReopenTaskOrder(taskTitle),
-    );
-    await expect(reopenButton).toBeVisible();
-    await expectPedidoTaskButtonHasNoPrimaryTone(reopenButton);
-    await expectPedidoTaskButtonHasNoPrimaryTone(completedEditButton);
-  }).toPass({ timeout: 15_000 });
-
+  await completeTaskNavigation;
+  taskSection = await getPedidoTasksPanel(page);
+  task = getPedidoTaskItemInPanel(taskSection, taskTitle);
   const reopenButton = task.getByRole("button", {
     name: new RegExp(`reabrir tarea ${escapeRegExp(taskTitle)}`, "i"),
   });
+  const completedEditButton = task.getByRole("button", {
+      name: new RegExp(`editar tarea ${escapeRegExp(taskTitle)}`, "i"),
+  });
+
+  await expect(task.getByText(/^Completada$/i)).toBeVisible();
+  await expectPedidoTaskActionOrder(task, expectedReopenTaskOrder(taskTitle));
+  await expect(reopenButton).toBeVisible();
+  await expectPedidoTaskButtonHasNoPrimaryTone(reopenButton);
+  await expectPedidoTaskButtonHasNoPrimaryTone(completedEditButton);
+
+  const reopenTaskNavigation = page.waitForNavigation({ waitUntil: "load" });
 
   await reopenButton.click();
-  await expect(async () => {
-    const pendingTask = getPedidoTaskItemInPanel(taskSection, taskTitle);
+  await reopenTaskNavigation;
+  taskSection = await getPedidoTasksPanel(page);
+  task = getPedidoTaskItemInPanel(taskSection, taskTitle);
 
-    await expect(pendingTask.getByText(/^Pendiente$/i)).toBeVisible();
-    await expectPedidoTaskActionOrder(
-      pendingTask,
-      expectedCompleteTaskOrder(taskTitle),
-    );
-  }).toPass({ timeout: 15_000 });
+  await expect(task.getByText(/^Pendiente$/i)).toBeVisible();
+  await expectPedidoTaskActionOrder(task, expectedCompleteTaskOrder(taskTitle));
 
   editButton = task.getByRole("button", {
     name: new RegExp(`editar tarea ${escapeRegExp(taskTitle)}`, "i"),
@@ -1478,18 +1449,17 @@ async function createAndDeleteDisposableTask(page: Page) {
   });
   await expect(titleInput).toBeVisible();
   await titleInput.fill(editedDisposableTaskTitle);
+  const updateTaskNavigation = page.waitForNavigation({ waitUntil: "load" });
+
   await task
     .getByRole("button", {
       name: new RegExp(`guardar tarea ${escapeRegExp(taskTitle)}`, "i"),
     })
     .click();
-  await expect(async () => {
-    await expect(
-      taskSection.getByText(taskTitlePattern(editedDisposableTaskTitle)),
-    ).toBeVisible();
-  }).toPass({ timeout: 15_000 });
+  await updateTaskNavigation;
 
   taskTitle = editedDisposableTaskTitle;
+  taskSection = await getPedidoTasksPanel(page);
   task = getPedidoTaskItemInPanel(taskSection, taskTitle);
   completeButton = task.getByRole("button", {
     name: new RegExp(
@@ -1533,14 +1503,14 @@ async function createAndDeleteDisposableTask(page: Page) {
     hasText: /eliminar esta tarea/i,
   });
   await expect(confirmation).toBeVisible();
+  const deleteTaskNavigation = page.waitForNavigation({ waitUntil: "load" });
+
   await confirmation
     .getByRole("button", { name: /^eliminar tarea$/i })
     .click();
-  await expect(
-    taskSection.getByText("Tarea eliminada", { exact: true }),
-  ).toBeVisible({ timeout: 15_000 });
-  await expect(taskSection.getByText(/tarea eliminada correctamente/i))
-    .toBeVisible();
+  await deleteTaskNavigation;
+  taskSection = await getPedidoTasksPanel(page);
+  task = getPedidoTaskItemInPanel(taskSection, taskTitle);
   await expect(task).toHaveCount(0, { timeout: 15_000 });
   await expect(
     taskSection.getByRole("heading", { name: /^tareas registradas$/i }),
@@ -1550,8 +1520,8 @@ async function createAndDeleteDisposableTask(page: Page) {
 }
 
 async function completeQuantifiedTask(page: Page) {
-  const taskSection = await getPedidoTasksPanel(page);
-  const task = getPedidoTaskItemInPanel(taskSection, quantifiedTaskTitle);
+  let taskSection = await getPedidoTasksPanel(page);
+  let task = getPedidoTaskItemInPanel(taskSection, quantifiedTaskTitle);
   let progressButton = task.getByRole("button", {
     name: new RegExp(
       `actualizar progreso de tarea ${escapeRegExp(quantifiedTaskTitle)}`,
@@ -1605,6 +1575,8 @@ async function completeQuantifiedTask(page: Page) {
   });
   await expect(progressInput).toBeVisible();
   await progressInput.fill("5");
+  const updateProgressNavigation = page.waitForNavigation({ waitUntil: "load" });
+
   await task
     .getByRole("button", {
       name: new RegExp(
@@ -1613,21 +1585,17 @@ async function completeQuantifiedTask(page: Page) {
       ),
     })
     .click();
+  await updateProgressNavigation;
+  taskSection = await getPedidoTasksPanel(page);
+  task = getPedidoTaskItemInPanel(taskSection, quantifiedTaskTitle);
 
-  await expect(async () => {
-    const completedTask = getPedidoTaskItemInPanel(
-      taskSection,
-      quantifiedTaskTitle,
-    );
-
-    await expect(completedTask.getByRole("spinbutton")).toHaveCount(0);
-    await expect(completedTask.getByText(taskProgressPattern(5, 5, "Completada")))
-      .toBeVisible();
-    await expectPedidoTaskActionOrder(
-      completedTask,
-      expectedReopenTaskOrder(quantifiedTaskTitle),
-    );
-  }).toPass({ timeout: 15_000 });
+  await expect(task.getByRole("spinbutton")).toHaveCount(0);
+  await expect(task.getByText(taskProgressPattern(5, 5, "Completada")))
+    .toBeVisible();
+  await expectPedidoTaskActionOrder(
+    task,
+    expectedReopenTaskOrder(quantifiedTaskTitle),
+  );
 }
 
 async function updatePayment(page: Page, cash: string, transfer = "0") {
@@ -1635,15 +1603,48 @@ async function updatePayment(page: Page, cash: string, transfer = "0") {
 
   await section.getByLabel(/pagado en efectivo/i).fill(cash);
   await section.getByLabel(/pagado por transferencia/i).fill(transfer);
+  const navigation = page.waitForNavigation({
+    timeout: 15_000,
+    waitUntil: "domcontentloaded",
+  });
   await section.getByRole("button", { name: /actualizar pago/i }).click();
-  await expect(section).toBeVisible();
+  await navigation;
+  const refreshedSection = await getPedidoPaymentPanel(page);
   await expect(
-    section.getByText(/pago actualizado correctamente/i),
-  ).toBeVisible({ timeout: 15_000 });
-  await page.reload();
+    refreshedSection.getByLabel(/pagado en efectivo/i),
+  ).toHaveValue(cash);
+  await expect(
+    refreshedSection.getByLabel(/pagado por transferencia/i),
+  ).toHaveValue(transfer);
 }
 
-async function assignFirstAvailableWorker(page: Page) {
+async function getQaWorkerName() {
+  const workerSupabase = await createQaSupabaseClient("worker");
+
+  try {
+    const { data: auth, error: authError } = await workerSupabase.auth.getUser();
+
+    expect(authError).toBeNull();
+    expect(auth.user).not.toBeNull();
+
+    const { data: profile, error: profileError } = await workerSupabase
+      .from("perfiles")
+      .select("full_name, role, is_active")
+      .eq("id", auth.user!.id)
+      .maybeSingle();
+
+    expect(profileError).toBeNull();
+    expect(profile?.role).toBe("trabajador");
+    expect(profile?.is_active).toBe(true);
+    expect(profile?.full_name).toBeTruthy();
+
+    return profile!.full_name;
+  } finally {
+    await signOutQaSupabaseClient(workerSupabase);
+  }
+}
+
+async function assignQaWorker(page: Page, workerName: string) {
   const section = await openPedidoPanel(page, /^personal$/i, /personal/i);
   const combobox = getWorkerCombobox(section);
 
@@ -1686,20 +1687,16 @@ async function assignFirstAvailableWorker(page: Page) {
     return false;
   }
 
-  const workerOption = (await getWorkerOption(section, /trabajador/i).count()) > 0
-    ? getWorkerOption(section, /trabajador/i).first()
-    : options.first();
+  const workerOption = getWorkerOption(section, workerName).first();
+
+  await expect(workerOption).toBeVisible();
 
   await workerOption.click();
   await expect(getWorkerHiddenInput(section)).toHaveValue(uuidPattern);
+  const assignNavigation = page.waitForNavigation({ waitUntil: "load" });
+
   await section.getByRole("button", { name: /asignar personal/i }).click();
-  await expect(section).toBeVisible();
-  await expect(
-    section.getByText(
-      /personal asignado correctamente|usuario ya estaba asignado/i,
-    ),
-  ).toBeVisible({ timeout: 15_000 });
-  await page.reload();
+  await assignNavigation;
 
   return true;
 }
@@ -2020,6 +2017,9 @@ test("admin can search and select a cliente asynchronously when creating a pedid
       exact: true,
     }),
   ).toBeVisible();
+  await expect(
+    page.getByText(PEDIDO_STATUS_LABELS.en_revision, { exact: true }).first(),
+  ).toBeVisible();
 
   const informationDialog = await openPedidoPanel(
     page,
@@ -2183,13 +2183,15 @@ test(
       }
     });
 
-    await page.goto(workerSelectorDetailUrl);
     await expect(
       page.getByRole("heading", {
         level: 1,
         name: workerSelectorPedidoTitle,
         exact: true,
       }),
+    ).toBeVisible();
+    await expect(
+      page.getByText(PEDIDO_STATUS_LABELS.en_revision, { exact: true }).first(),
     ).toBeVisible();
 
     const pedidoIdMatch = page
@@ -2200,7 +2202,7 @@ test(
     expect(workerSelectorPedidoId).toMatch(uuidPattern);
     expect(workerSelectorRequests).toHaveLength(0);
 
-    const personnelDialog = await openPedidoPanel(
+    let personnelDialog = await openPedidoPanel(
       page,
       /^personal$/i,
       /personal/i,
@@ -2554,10 +2556,15 @@ test(
       .toHaveAttribute("aria-selected", "true");
     await combobox.press("Escape");
 
+    const assignNavigation = page.waitForNavigation({ waitUntil: "load" });
+
     await assignButton.click();
-    await expect(
-      personnelDialog.getByText(/Personal asignado correctamente\./i),
-    ).toBeVisible({ timeout: 15_000 });
+    await assignNavigation;
+    personnelDialog = await openPedidoPanel(
+      page,
+      /^personal$/i,
+      /personal/i,
+    );
     await expect(
       personnelDialog.getByText(/No hay personal asignado a este pedido\./i),
     ).toHaveCount(0);
@@ -2568,7 +2575,7 @@ test(
       .first();
 
     await expect(assignmentRow).toBeVisible();
-    await expect(assignmentRow.getByText(selectedWorkerRoleLabel))
+    await expect(assignmentRow.getByText(selectedWorkerRoleLabel, { exact: true }))
       .toBeVisible();
     await expect(assignmentRow.getByRole("button", { name: /^Quitar$/i }))
       .toBeVisible();
@@ -2614,10 +2621,15 @@ test(
     }
 
     await postAssignCombobox.press("Escape");
+    const removeNavigation = page.waitForNavigation({ waitUntil: "load" });
+
     await assignmentRow.getByRole("button", { name: /^Quitar$/i }).click();
-    await expect(
-      personnelDialog.getByText(/Asignaci.n removida correctamente\./i),
-    ).toBeVisible({ timeout: 15_000 });
+    await removeNavigation;
+    personnelDialog = await openPedidoPanel(
+      page,
+      /^personal$/i,
+      /personal/i,
+    );
     await expect(assignmentRow).toHaveCount(0);
     await expect(
       personnelDialog.getByText(
@@ -2994,7 +3006,9 @@ test("admin can create and manage focal internal pedidos", async ({ page }) => {
     (await getPedidoPaymentPanel(page)).getByText(/^pagado$/i),
   ).toBeVisible();
 
-  if (await assignFirstAvailableWorker(page)) {
+  const workerName = await getQaWorkerName();
+
+  if (await assignQaWorker(page, workerName)) {
     assignedEncargoDetailUrl = page.url();
   }
 
@@ -3644,7 +3658,7 @@ test("pedido workspace contextual panels are accessible", async ({ page }) => {
   });
   await commentsTrigger.click();
 
-  const commentsDialog = page.getByRole("dialog", {
+  let commentsDialog = page.getByRole("dialog", {
     name: /^comentarios$/i,
   });
   await expect(commentsDialog).toBeVisible();
@@ -3703,13 +3717,17 @@ Otra línea de QA para el textarea.`;
     initialCommentTextareaHeight,
   );
   expect(expandedCommentTextareaHeight).toBeLessThanOrEqual(160);
+  const commentNavigation = page.waitForNavigation({
+    timeout: 15_000,
+    waitUntil: "domcontentloaded",
+  });
   await commentsDialog
     .getByRole("button", { name: /^agregar comentario$/i })
     .click();
+  await commentNavigation;
+  await commentsTrigger.click();
+  commentsDialog = page.getByRole("dialog", { name: /^comentarios$/i });
   await expect(commentsDialog).toBeVisible();
-  await expect(
-    commentsDialog.getByText(/comentario agregado correctamente/i),
-  ).toBeVisible({ timeout: 15_000 });
 
   const createdComment = commentsDialog
     .getByRole("listitem")
@@ -3756,6 +3774,7 @@ Otra línea de QA para el textarea.`;
   const fileInput = filesDialog.getByLabel(/^archivos$/i);
 
   await expect(filesListTitle).toBeVisible();
+  // La mutación Storage/TUS pertenece a pedido-upload-direct.spec.ts / SH-03.3.
   if (await fileInput.isVisible().catch(() => false)) {
     await expectFillPanelSingleScroll(filesDialog, fileInput);
     await expectBefore(filesListTitle, fileInput);
@@ -3777,14 +3796,6 @@ Otra línea de QA para el textarea.`;
       element.scrollTop = element.scrollHeight;
     });
     await expect(fileInput).toBeVisible();
-    await fileInput.setInputFiles(
-      resolve(process.cwd(), "tests/e2e/fixtures/sample-print-request.pdf"),
-    );
-    await filesDialog.getByRole("button", { name: /subir archivos/i }).click();
-    await expect(filesDialog).toBeVisible();
-    await expect(
-      filesDialog.getByText(/completado/i),
-    ).toBeVisible({ timeout: 15_000 });
   }
 
   const fileDownloadLinks = filesDialog.getByRole("link", {
@@ -3937,12 +3948,6 @@ Otra línea de QA para el textarea.`;
   await expect(
     tabletActionToolbar.getByRole("button", { name: /archivos/i }),
   ).toBeVisible();
-  const tabletFilesButton = tabletActionToolbar.getByRole("button", {
-    name: /archivos.*1/i,
-  });
-
-  await expect(tabletFilesButton).toBeVisible();
-  await expectBadgeInTopRight(tabletFilesButton);
   await expect(
     tabletActionToolbar.getByRole("button", { name: /m.s/i }),
   ).toBeVisible();
@@ -4095,7 +4100,6 @@ Otra línea de QA para el textarea.`;
     }),
   ).toBeVisible();
   await expect(mobileFilesTrigger).toBeVisible();
-  await expectBadgeInTopRight(mobileFilesTrigger);
   await expect(mobileMoreTrigger).toBeVisible();
   await expect(mobileCommentsDirectTrigger).toHaveCount(0);
   await expect(mobileHistoryTrigger).toHaveCount(0);

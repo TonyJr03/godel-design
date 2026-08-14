@@ -1,7 +1,6 @@
 "use server";
 
 import { actionFailure, actionSuccess } from "@/lib/actions/action-state";
-import { revalidatePedidoDetail } from "@/lib/actions/revalidation";
 import {
   assignInternalPedidoWorker,
   removeInternalPedidoWorker,
@@ -29,8 +28,6 @@ export async function assignPedidoWorkerAction(
     });
   }
 
-  revalidatePedidoDetail(pedidoId);
-
   return actionSuccess(
     result.alreadyAssigned
       ? "El usuario ya estaba asignado a este pedido."
@@ -54,8 +51,6 @@ export async function removePedidoWorkerAction(
       fieldErrors: result.fieldErrors,
     });
   }
-
-  revalidatePedidoDetail(pedidoId);
 
   return actionSuccess("Asignación removida correctamente.");
 }

@@ -10,8 +10,13 @@ SH-03.1 = CLOSED / APPROVED
 SH-03.2 = ACTIVE
 SH-03.2A = CLOSED / APPROVED
 SH-03.2B = CLOSED / APPROVED
-SH-03.2C = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
-SH-03.2D = NOT STARTED
+SH-03.2C = CLOSED / APPROVED
+SH-03.2D = IN PROGRESS
+SH-03.2D.1 = CLOSED / APPROVED
+SH-03.2D.2 = CLOSED / APPROVED
+SH-03.2D.3 = CLOSED / APPROVED
+SH-03.2D.4 = CLOSED / APPROVED
+SH-03.2D.5 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
 SH-03.2E = NOT STARTED
 SH-03.3 = NOT STARTED
 ```
@@ -143,16 +148,112 @@ los fallbacks TD-NEXT-001 se aplicaron solo tras reproducir el bloqueo de
 `ActionState` en éxito.
 
 Quedan fuera de esta subfase los flujos de SH-03.2D/SH-03.3. Los gates focales
-de permisos y `service_id` ya quedaron evidenciados por Nginx; el siguiente
-bloque, solo después de revisión arquitectónica, es SH-03.2D — Pedidos.
+de permisos y `service_id` ya quedaron evidenciados por Nginx. SH-03.2C está
+cerrada/aprobada y SH-03.2D — Pedidos está en curso.
 
-El fallback de `AutoReviewOnOpen` es explícitamente opt-in. Solicitudes entrega
-su URL canónica y conserva el fallback TD-NEXT-001 ya demostrado; Pedidos no
-entrega esa prop y continúa con `router.refresh()`. Por ello
-`startPedidoReviewOnOpenAction` es `TEST IN SH-03.2D`: la ausencia de
+Al cierre de SH-03.2C, el fallback de `AutoReviewOnOpen` era explícitamente
+opt-in: Solicitudes entregaba su URL canónica y Pedidos no entregaba esa prop,
+por lo que continuaba con `router.refresh()`. Por ello
+`startPedidoReviewOnOpenAction` era `TEST IN SH-03.2D`: la ausencia de
 `useActionState` no basta para declararla `NOT APPLICABLE` cuando existe un
 consumidor real de resultado directo tras mutación y revalidación. Esta
 clasificación no declara una afectación ni autoriza aplicar fallback preventivo.
+
+## SH-03.2D.1 — Pedido Edit + Auto-review + Status
+
+El checkpoint D.1 reprodujo por separado los tres patrones de Pedido por
+Chromium serial a través de Nginx. Edición, auto-review y estado persistían sus
+mutaciones, pero no asentaban `ActionState`/frescura con la revalidación de
+éxito. Solo esas tres actions retiraron su propia revalidación de éxito y usan
+la navegación documental canónica ya aprobada: edición usa `assign()`,
+auto-review usa el opt-in `replace()` de `AutoReviewOnOpen` y estado propaga el
+opt-in existente de `StatusFlowPanel`.
+
+El gate nuevo `pedidos-core-selfhosted.spec.ts` cubre validación y edición
+3/3, auto-review 3/3 y estado de Impresión para avance/cancelación con Escape
+y foco restaurado. Las otras once actions de Pedido siguen `TEST IN SH-03.2`.
+SH-03.2D permanece en curso y los bloques D.2–D.5 y SH-03.3 no se inician en
+este checkpoint.
+
+## SH-03.2D.2 — Personal assignment/removal
+
+El checkpoint D.2 reprodujo independientemente por Chromium serial a través de
+Nginx el pending de `assignPedidoWorkerAction` y `removePedidoWorkerAction`:
+cada mutación persistía tras dejar completar su POST y navegar al detalle, pero
+no asentaba `ActionState` con la revalidación de éxito. Solo esas dos actions
+retiraron su propia revalidación y `PedidoWorkerAssignmentForm` recibe su URL
+canónica compartida para navegar tras cada `state.ok`.
+
+`pedidos-personal-selfhosted.spec.ts` valida el combobox requerido, assign 3/3,
+remove 3/3, fila/badge frescos, Worker asignado con Personal de solo lectura y
+Supervisor con controles de gestión. SH-03.2D permanece en curso; D.3, D.4,
+D.5 y SH-03.3 siguen fuera de este checkpoint.
+
+## SH-03.2D.3 — Pedido Tasks + Task Templates
+
+Estado: `CLOSED / APPROVED`. Las siete actions
+reprodujeron independientemente el patrón TD-NEXT-001 y sus consumidores ya
+navegan tras `state.ok` a la URL canónica: `createPedidoTaskAction`,
+`updatePedidoTaskTitleAction`, `updatePedidoTaskProgressAction`,
+`completePedidoTaskAction`, `reopenPedidoTaskAction`, `deletePedidoTaskAction`
+y `applyTaskTemplateAction`. La evidencia focal Nginx es PASS 3/3 por action,
+sin timeout, reload, nonce, `router.refresh` ni estado optimista.
+
+`pedidos-tasks-selfhosted.spec.ts` también verifica el desbloqueo de producción
+después de crear una tarea, Worker QA asignado con creación de tarea y sin
+controles administrativos, Supervisor gestionable, y visual Chromium a
+1366×768 / 390×844. La regresión histórica de plantillas conserva evidencia
+segmentada: 3 PASS + 2 SKIP legítimos y apply aislado PASS 1/1; sus fixtures
+corregidas son stale/no deterministas, no deuda técnica. D.4 está en curso;
+D.5 sigue sin iniciar.
+
+## SH-03.2D.4 — Payments + Comments
+
+Estado: `CLOSED / APPROVED`. El patrón original de
+`updatePedidoPaymentAction` y `createPedidoCommentAction` se reprodujo de forma
+independiente por Nginx: ambas mutaciones persistían, pero no completaban
+`ActionState`, mantenían pending y no entregaban detalle fresco. Cada action
+retiró solamente su `revalidatePedidoDetail` de éxito; los consumidores reciben
+la URL canónica explícita y usan el fallback TD-NEXT-001 tras `state.ok`.
+
+`pedidos-payment-comments-selfhosted.spec.ts` demuestra validación financiera,
+tres updates 100/0 → 100/100 → 300/200 hasta Pagado, tres comentarios con orden
+ascendente/autor/timestamp, y roles focales Supervisor/Worker asignado. El
+histórico `pedido-edit.spec.ts` adaptó solo Pago a la navegación canónica y
+pasó 4/4. D.5 se entrega para revisión arquitectónica; SH-03.3 continúa fuera de alcance.
+
+## SH-03.2D.5 — Aggregate Pedido regression
+
+Estado: `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`. El histórico
+`pedidos.spec.ts` mezclaba la accesibilidad del workspace con una mutación TUS
+(`setInputFiles` → upload → estado completado). Se retiró exclusivamente ese
+tramo y la aserción visual de contador que dependía de él. La cobertura pasiva
+de Archivos permanece: trigger, diálogo único, foco, estructura, input cuando
+aplica, empty state, hrefs de descarga existentes sin `file_path`, bucket,
+signed URL ni origen Supabase, y devolución de foco. Clasificación:
+`HISTORICAL STORAGE SCOPE LEAK / OUT-OF-SCOPE HISTORICAL MUTATION`; el owner
+de upload/resume/download es `pedido-upload-direct.spec.ts` en SH-03.3.
+
+`pedidos.spec.ts` pasa `15 PASS / 2 SKIP` legítimos. Sus ajustes históricos
+adicionales esperan la navegación canónica de los fallbacks ya aprobados y
+asignan la identidad Worker QA exacta, no el primer trabajador disponible.
+No hubo cambio de producto, Storage ni nuevo TD-NEXT.
+
+El nuevo gate serial `pedidos-aggregate-selfhosted.spec.ts` pasa 2/2 por
+Nginx/Chromium: Encargo `creado → en_revision → en_produccion →
+listo_entrega → entregado`, bloqueo por tareas incompletas y después por pago,
+pago completo, controles cerrados, historial representativo, listado por
+búsqueda/filtro/clear, cancelación separada e Impresión sin tareas con el mismo
+gate financiero de entrega. También cubre Admin, Supervisor, Worker asignado
+(comentario y tareas; pagos/personal solo lectura) y Worker removido con
+not-found lógico sin datos filtrados. La paginación específica de Pedidos sigue
+ejecutable y pasó en el histórico con dataset de seis páginas.
+
+Tracking público focal pasó y no expuso datos internos. La inspección visual
+Chromium revisó Encargo activo en 1366×768 e Impresión cerrada en 390×844: rail,
+diálogos, foco, acciones, ausencia de overflow y de fugas técnicas correctos.
+Las capturas son temporales y no se versionan. Inventario sin cambios: 31 SAFE,
+0 TEST, 5 N/A, 36 total.
 
 ## Matriz funcional
 
@@ -208,11 +309,11 @@ focal confirmó el bloqueo post-revalidación y descartó el filesystem read-onl
 como cofactor. Los cuatro creates verificados y la superficie de Usuarios usan
 navegación documental canónica tras éxito; SH-03.1 quedó cerrada/aprobada. La
 fila canónica `Impresión` fue reparada en datos y validada por REST/Nginx y
-Chromium. SH-03.2A y SH-03.2B cerraron y fueron aprobadas. SH-03.2C quedó
-implementada y pendiente de revisión arquitectónica.
+Chromium. SH-03.2A, SH-03.2B y SH-03.2C cerraron y fueron aprobadas. SH-03.2D
+está en curso.
 
 SH-03.2A cerró el inventario core y la baseline read-only production-like. Su
 informe [SH_03_CORE_QA_REPORT.md](SH_03_CORE_QA_REPORT.md) registra la
 corrección aprobada de navegación de listados y el alcance actualizado de
-TD-NEXT-001. SH-03.2 sigue activa; SH-03.2B queda cerrada/aprobada y SH-03.2C
-queda implementada y pendiente de revisión arquitectónica.
+TD-NEXT-001. SH-03.2 sigue activa; SH-03.2B y SH-03.2C quedan
+cerradas/aprobadas y SH-03.2D está en curso.

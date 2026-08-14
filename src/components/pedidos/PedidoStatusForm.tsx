@@ -25,6 +25,7 @@ type PedidoStatusFormProps = {
   workflowType: WorkflowType;
   tasksLoadError?: string;
   tasksLoadRetryable?: boolean;
+  successNavigationHref?: string;
 };
 
 type TransitionCopy = Pick<
@@ -176,6 +177,7 @@ export function PedidoStatusForm({
   workflowType,
   tasksLoadError,
   tasksLoadRetryable = false,
+  successNavigationHref,
 }: PedidoStatusFormProps) {
   return (
     <StatusFlowPanel
@@ -191,6 +193,7 @@ export function PedidoStatusForm({
         tasksLoadRetryable,
       })}
       closedMessage={getClosedStatusMessage(flow)}
+      successNavigationHref={successNavigationHref}
     />
   );
 }

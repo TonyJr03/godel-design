@@ -88,7 +88,9 @@ separación es intencional y evita un `types.ts` único demasiado grande.
 - Las operaciones críticas usan RPC/RLS cuando hay transacción, transición de
   estado, pago, conversión o regla multi-tabla.
 - Las Server Actions son adaptadores finos: leen `FormData`, llaman servicios
-  de `src/lib/pedidos` y revalidan rutas.
+  de `src/lib/pedidos` y revalidan rutas cuando el contrato vigente lo permite;
+  los success paths afectados por TD-NEXT-001 usan navegación documental
+  canónica temporal.
 - Los componentes no consultan Supabase directamente.
 - No se expone `file_path`; los archivos privados se descargan mediante rutas
   server-side y signed URLs de corta duración.
@@ -288,9 +290,10 @@ historial. Si hay cambios, registra exactamente un evento `pedido_actualizado`
 con `metadata.changed_fields`. Para descripción guarda solo
 `{ changed: true }`, sin persistir los textos completos anterior y nuevo.
 
-Después de una actualización correcta, la action revalida `/dashboard`,
-`/dashboard/pedidos` y el detalle del pedido para sincronizar dashboard, listado
-y pantalla actual.
+Después de una actualización correcta, la action aplica el mecanismo de
+frescura permitido por su contrato. `updatePedidoDataAction` usa navegación
+documental canónica temporal tras `state.ok` por TD-NEXT-001; no revalida en su
+success path mientras ese workaround permanezca vigente.
 
 ## Pago del Pedido
 
@@ -448,9 +451,11 @@ mutación obtiene el ID desde `FormData`, `referer`, `next-url` u otra cabecera.
 Los IDs secundarios necesarios para la operación, como `task_id` y
 `assigned_profile_id`, sí permanecen en el formulario.
 
-Las actions son adaptadores finos: leen solo los campos editables, delegan la
-autorización y la mutación en servicios server-side o RPCs, y revalidan
-`/dashboard`, `/dashboard/pedidos` y el detalle. Desde Beta 2.3.1 están
+Las actions son adaptadores finos: leen solo los campos editables y delegan la
+autorización y la mutación en servicios server-side o RPCs. Revalidan rutas
+cuando el contrato vigente lo permite; los success paths afectados por
+TD-NEXT-001 usan navegación documental temporal según el registro canónico.
+Desde Beta 2.3.1 están
 divididas por familia en `src/app/(interno)/dashboard/pedidos/[id]/actions/`:
 edición, estado, tareas, pagos, archivos, comentarios, asignaciones y
 plantillas.

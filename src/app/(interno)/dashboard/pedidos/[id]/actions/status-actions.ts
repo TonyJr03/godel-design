@@ -1,7 +1,6 @@
 "use server";
 
 import { actionFailure, actionSuccess } from "@/lib/actions/action-state";
-import { revalidatePedidoDetail } from "@/lib/actions/revalidation";
 import {
   ensurePedidoReviewStarted,
   updateInternalPedidoStatus,
@@ -23,8 +22,6 @@ export async function startPedidoReviewOnOpenAction(
     return actionFailure(result.message);
   }
 
-  revalidatePedidoDetail(pedidoId);
-
   return actionSuccess("Revisión iniciada.");
 }
 
@@ -44,8 +41,6 @@ export async function updatePedidoStatusAction(
       fieldErrors: result.fieldErrors,
     });
   }
-
-  revalidatePedidoDetail(pedidoId);
 
   return actionSuccess("Estado actualizado correctamente.");
 }

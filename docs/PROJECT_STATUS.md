@@ -97,7 +97,7 @@ El catálogo canónico `Impresión` fue reparado en datos y verificado por
 REST/Nginx y Chromium. SH-03.2A (inventario core, baseline read-only y
 corrección de navegación de listados) está cerrada/aprobada. SH-03.2 continúa
 activa; SH-03.2B está cerrada/aprobada.
-SH-03.2C está implementada y pendiente de revisión arquitectónica. SH es un workstream técnico subordinado al roadmap
+SH-03.2C está cerrada/aprobada y SH-03.2D está en curso. SH es un workstream técnico subordinado al roadmap
 maestro PPO y termina al cerrar SH-05.
 PPO-01C/D puede avanzar en paralelo
 cuando `company-host` esté disponible; PPO-01D aprobado es gate antes de PPO-04.

@@ -24,6 +24,49 @@ const quantifiedTaskTitle = `Imprimir 10 hojas QA ${runLabel}`;
 const editedQuantifiedTaskTitle = `Imprimir 12 hojas QA ${runLabel}`;
 const thirdTaskTitle = `Confirmar entrega QA ${runLabel}`;
 const editedThirdTaskTitle = `Confirmar entrega final QA ${runLabel}`;
+const applyTemplateName = `QA Apply Template ${runId}`;
+const applyTaskA = `QA Apply A ${runLabel}`;
+const applyTaskB = `QA Apply B ${runLabel}`;
+const applyTaskC = `QA Apply C ${runLabel}`;
+const expectedTemplateTaskTitles = [applyTaskB, applyTaskA, applyTaskC];
+
+async function createApplyTemplateFixture(page: Page) {
+  await page.goto("/dashboard/configuracion/plantillas");
+  await page.getByRole("button", { name: /nueva plantilla/i }).click();
+  const dialog = page.getByRole("dialog", { name: /nueva plantilla/i });
+
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("textbox", { name: /^nombre$/i }).fill(applyTemplateName);
+  await dialog.getByRole("textbox", { name: /descripci.n/i }).fill(
+    `Fixture independiente para aplicar plantilla ${runLabel}.`,
+  );
+  await dialog.getByRole("button", { name: /crear plantilla/i }).click();
+  await expect(dialog).toBeHidden({ timeout: 15_000 });
+
+  const link = page.getByRole("link", {
+    name: new RegExp(`abrir plantilla ${escapeRegExp(applyTemplateName)}`, "i"),
+  });
+  await expect(link).toBeVisible({ timeout: 15_000 });
+  await link.click();
+  await expect(page.getByRole("heading", { name: applyTemplateName, exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: /editar plantilla/i }).click();
+  const editDialog = page.getByRole("dialog", { name: /editar plantilla/i });
+  await editDialog.getByRole("combobox", { name: /estado/i }).selectOption("true");
+  await editDialog.getByRole("button", { name: /guardar cambios/i }).click();
+  await expect(editDialog).toBeHidden({ timeout: 15_000 });
+  await expect(page.getByText(/^activa$/i).first()).toBeVisible();
+
+  for (const title of [applyTaskA, applyTaskB, applyTaskC]) {
+    await page.getByLabel(/nueva tarea/i).fill(title);
+    await page.getByRole("button", { name: /^agregar$/i }).click();
+    await expect(page.getByText(title, { exact: true })).toBeVisible({ timeout: 15_000 });
+  }
+
+  await getTaskItem(page, applyTaskB).getByRole("button", { name: /subir tarea/i }).click();
+  await expectBefore(getTaskItem(page, applyTaskB), getTaskItem(page, applyTaskA));
+  await expectBefore(getTaskItem(page, applyTaskA), getTaskItem(page, applyTaskC));
+}
 
 async function expectNoHorizontalOverflow(page: Page) {
   const dimensions = await page.evaluate(() => ({
@@ -36,27 +79,8 @@ async function expectNoHorizontalOverflow(page: Page) {
   );
 }
 
-function getPedidoTitleText(page: Page, title: string) {
-  return page.getByText(title, { exact: true });
-}
-
 function getTaskItem(page: Page, title: string) {
   return page.locator("li").filter({ hasText: title }).first();
-}
-
-async function clickFirstVisible(locator: Locator) {
-  const count = await locator.count();
-
-  for (let index = 0; index < count; index += 1) {
-    const candidate = locator.nth(index);
-
-    if (await candidate.isVisible().catch(() => false)) {
-      await candidate.click();
-      return;
-    }
-  }
-
-  throw new Error("No visible element found for locator.");
 }
 
 async function isBefore(first: Locator, second: Locator) {
@@ -124,7 +148,12 @@ async function openPedidoPanel(
     }
   }
 
-  await clickFirstVisible(page.getByRole("button", { name: triggerName }));
+  const trigger = page
+    .getByRole("button", { name: triggerName })
+    .filter({ visible: true })
+    .first();
+  await expect(trigger).toBeVisible({ timeout: 15_000 });
+  await trigger.click();
 
   const dialog = page.getByRole("dialog", { name });
 
@@ -302,7 +331,12 @@ async function createManualPedido(
   });
 
   if (!/\/dashboard\/pedidos\/[^/]+$/.test(new URL(page.url()).pathname)) {
-    await clickFirstVisible(getPedidoTitleText(page, title));
+    const createdPedidoLink = page
+      .getByRole("link")
+      .filter({ hasText: title })
+      .first();
+    await expect(createdPedidoLink).toBeVisible({ timeout: 15_000 });
+    await createdPedidoLink.click();
     await expect(page).toHaveURL(/\/dashboard\/pedidos\/[^/]+$/);
   }
 
@@ -313,6 +347,10 @@ async function createManualPedido(
       exact: true,
     }),
   ).toBeVisible();
+  await expect(page.getByText(/^En revisi.n$/i).first()).toBeVisible({
+    timeout: 15_000,
+  });
+  await expect(page.getByText(/iniciando revisi.n/i)).toHaveCount(0);
 }
 
 function getTaskTemplateCombobox(tasksPanel: Locator) {
@@ -902,6 +940,7 @@ test("admin can apply a template with the async selector and impresion has no se
 
   await page.setViewportSize({ width: 1440, height: 900 });
   await loginAs(page, "admin");
+  await createApplyTemplateFixture(page);
 
   const forbiddenBackendMessages = [
     /PGRST103/i,
@@ -1028,7 +1067,7 @@ test("admin can apply a template with the async selector and impresion has no se
   await expect(hiddenInput).toHaveValue("");
   await expect(combobox).toHaveValue("");
   await expect(
-    tasksPanel.getByText(/se agreg. 1 tarea desde la plantilla/i),
+    tasksPanel.getByText(/se agregaron 3 tareas desde la plantilla/i),
   ).toHaveCount(0);
 
   const validationMessage = await combobox.evaluate(
@@ -1105,8 +1144,8 @@ test("admin can apply a template with the async selector and impresion has no se
   await combobox.fill("");
 
   const requestsBeforeShortQuery = taskTemplateSelectorRequests.length;
-  const oneCharacterQuery = templateName.slice(0, 1);
-  const twoCharacterQuery = templateName.slice(0, 2);
+  const oneCharacterQuery = applyTemplateName.slice(0, 1);
+  const twoCharacterQuery = applyTemplateName.slice(0, 2);
 
   await combobox.fill(oneCharacterQuery);
   await expect(
@@ -1183,20 +1222,20 @@ test("admin can apply a template with the async selector and impresion has no se
     return (
       url.pathname === "/api/internal/selectors/plantillas-tareas" &&
       url.searchParams.get("pedido_id") === templateSelectorPedidoId &&
-      url.searchParams.get("q") === templateName
+      url.searchParams.get("q") === applyTemplateName
     );
   });
 
-  await combobox.fill(templateName);
+  await combobox.fill(applyTemplateName);
   await focalResponsePromise;
 
   listbox = getTaskTemplateListbox(tasksPanel);
-  const focalOption = getTaskTemplateOption(tasksPanel, templateName);
+  const focalOption = getTaskTemplateOption(tasksPanel, applyTemplateName);
 
   await expect(focalOption).toHaveCount(1);
   await expect(focalOption).toBeVisible();
-  await expect(focalOption.locator("span").first()).toHaveText(templateName);
-  await expect(focalOption.locator("span").nth(1)).toHaveText("1 tarea");
+  await expect(focalOption.locator("span").first()).toHaveText(applyTemplateName);
+  await expect(focalOption.locator("span").nth(1)).toHaveText("3 tareas");
   await expect(combobox).toHaveAttribute(
     "aria-activedescendant",
     /-option-0$/,
@@ -1204,7 +1243,7 @@ test("admin can apply a template with the async selector and impresion has no se
   await expectTaskTemplateListboxBelowInput(listbox, combobox);
 
   await combobox.press("Enter");
-  await expect(combobox).toHaveValue(templateName);
+  await expect(combobox).toHaveValue(applyTemplateName);
   await expect(combobox).toHaveAttribute("aria-expanded", "false");
   await expect(combobox).toBeFocused();
 
@@ -1215,35 +1254,26 @@ test("admin can apply a template with the async selector and impresion has no se
   );
 
   await combobox.click();
-  await expect(getTaskTemplateOption(tasksPanel, templateName)).toHaveAttribute(
+  await expect(getTaskTemplateOption(tasksPanel, applyTemplateName)).toHaveAttribute(
     "aria-selected",
     "true",
   );
   await combobox.press("Escape");
 
   await expect(
-    tasksPanel.locator("li").filter({ hasText: quantifiedTaskTitle }),
+    tasksPanel.locator("li").filter({ hasText: applyTaskA }),
   ).toHaveCount(0);
+  const firstApplyNavigation = page.waitForNavigation({
+    timeout: 15_000,
+    waitUntil: "domcontentloaded",
+  });
   await applyButton.click();
-  await expect(tasksPanel).toBeVisible();
-  await expect(
-    tasksPanel.getByText(/se agreg. 1 tarea desde la plantilla/i),
-  ).toBeVisible({ timeout: 15_000 });
-  const copiedTaskRows = tasksPanel
-    .locator("li")
-    .filter({ hasText: quantifiedTaskTitle });
-
-  await expect(copiedTaskRows).toHaveCount(1, { timeout: 15_000 });
-  await expect(copiedTaskRows.first()).toContainText(
-    /0\s+de\s+10\s+(?:\S+\s+)?Pendiente/i,
-  );
-  await expect(combobox).toHaveValue("");
-  await expect(hiddenInput).toHaveValue("");
-  await expect(combobox).toHaveAttribute("aria-expanded", "false");
-  await expect(combobox.locator("xpath=parent::*").locator(".animate-spin"))
-    .toHaveCount(0);
-  await expect(applyButton).toBeEnabled();
-  await expectBefore(newTaskHeading, registeredTasksHeading);
+  await firstApplyNavigation;
+  expect(page.url()).toBe(encargoDetailUrl);
+  await expect(page.getByRole("heading", { name: `QA Pedido Template Encargo ${runId}`, exact: true })).toBeVisible();
+  let freshTasksPanel = await openPedidoPanel(page, /^tareas$/i, /tareas/i);
+  let allTaskTitles = await freshTasksPanel.locator("li p:first-child").allTextContents();
+  expect(allTaskTitles.slice(-3)).toEqual(expectedTemplateTaskTitles);
 
   const secondFocalResponsePromise = page.waitForResponse((response) => {
     const url = new URL(response.url());
@@ -1251,27 +1281,28 @@ test("admin can apply a template with the async selector and impresion has no se
     return (
       url.pathname === "/api/internal/selectors/plantillas-tareas" &&
       url.searchParams.get("pedido_id") === templateSelectorPedidoId &&
-      url.searchParams.get("q") === templateName
+      url.searchParams.get("q") === applyTemplateName
     );
   });
 
-  await combobox.focus();
-  await combobox.fill(templateName);
+  const freshCombobox = getTaskTemplateCombobox(freshTasksPanel);
+  const freshHiddenInput = getTaskTemplateHiddenInput(freshTasksPanel);
+  const freshApplyButton = getApplyTaskTemplateButton(freshTasksPanel);
+  await freshCombobox.focus();
+  await freshCombobox.fill(applyTemplateName);
   await secondFocalResponsePromise;
-  await expect(getTaskTemplateOption(tasksPanel, templateName)).toBeVisible();
-  await combobox.press("Enter");
-  await expect(hiddenInput).toHaveValue(selectedTemplateId);
-  await applyButton.click();
-  await expect(
-    tasksPanel.getByText(/se agreg. 1 tarea desde la plantilla/i),
-  ).toBeVisible({ timeout: 15_000 });
-  await expect(copiedTaskRows).toHaveCount(2, { timeout: 15_000 });
-  await expect(combobox).toHaveValue("");
-  await expect(hiddenInput).toHaveValue("");
-  await expect(combobox).toHaveAttribute("aria-expanded", "false");
-  await expect(combobox.locator("xpath=parent::*").locator(".animate-spin"))
-    .toHaveCount(0);
-  await expect(applyButton).toBeEnabled();
+  await expect(getTaskTemplateOption(freshTasksPanel, applyTemplateName)).toBeVisible();
+  await freshCombobox.press("Enter");
+  await expect(freshHiddenInput).toHaveValue(selectedTemplateId);
+  const secondApplyNavigation = page.waitForNavigation({ timeout: 15_000, waitUntil: "domcontentloaded" });
+  await freshApplyButton.click();
+  await secondApplyNavigation;
+  freshTasksPanel = await openPedidoPanel(page, /^tareas$/i, /tareas/i);
+  allTaskTitles = await freshTasksPanel.locator("li p:first-child").allTextContents();
+  expect(allTaskTitles.slice(-6)).toEqual([
+    ...expectedTemplateTaskTitles,
+    ...expectedTemplateTaskTitles,
+  ]);
 
   await expectTaskTemplateRequestsUsePedidoId(
     taskTemplateSelectorRequests,
@@ -1308,12 +1339,12 @@ test("admin can apply a template with the async selector and impresion has no se
     return (
       url.pathname === "/api/internal/selectors/plantillas-tareas" &&
       url.searchParams.get("pedido_id") === templateSelectorPedidoId &&
-      url.searchParams.get("q") === templateName
+      url.searchParams.get("q") === applyTemplateName
     );
   });
 
   await mobileCombobox.focus();
-  await mobileCombobox.fill(templateName);
+  await mobileCombobox.fill(applyTemplateName);
   await mobileFocalResponsePromise;
 
   const mobileListbox = getTaskTemplateListbox(mobileTasksPanel);
@@ -1329,9 +1360,9 @@ test("admin can apply a template with the async selector and impresion has no se
   await expectNoHorizontalOverflow(page);
   await expectNoLocatorHorizontalOverflow(mobileTasksPanel);
   await expectNoLocatorHorizontalOverflow(mobileListbox);
-  await expect(getTaskTemplateOption(mobileTasksPanel, templateName))
+  await expect(getTaskTemplateOption(mobileTasksPanel, applyTemplateName))
     .toBeVisible();
-  await expect(getTaskTemplateOption(mobileTasksPanel, /1 tarea/i))
+  await expect(getTaskTemplateOption(mobileTasksPanel, /3 tareas/i))
     .toBeVisible();
 
   const requestsBeforeImpresion = taskTemplateSelectorRequests.length;
@@ -1369,8 +1400,8 @@ test("admin can apply a template with the async selector and impresion has no se
     [
       `[task template selector] pedidoId=${templateSelectorPedidoId}`,
       `initialOptions=${initialOptions.length}`,
-      `template=${templateName}`,
-      `templateTasks=1`,
+      `template=${applyTemplateName}`,
+      `templateTasks=3`,
       `templateId=${selectedTemplateId}`,
       `bottomGap=${bottomGap}`,
     ].join(" "),

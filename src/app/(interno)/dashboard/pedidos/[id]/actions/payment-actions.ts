@@ -1,7 +1,6 @@
 "use server";
 
 import { actionFailure, actionSuccess } from "@/lib/actions/action-state";
-import { revalidatePedidoDetail } from "@/lib/actions/revalidation";
 import { updatePedidoPayment } from "@/lib/pedidos";
 import { getFormValue } from "@/lib/utils";
 import type { UpdatePedidoPaymentActionState } from "./shared";
@@ -25,8 +24,6 @@ export async function updatePedidoPaymentAction(
       values: result.values,
     });
   }
-
-  revalidatePedidoDetail(pedidoId);
 
   return actionSuccess("Pago actualizado correctamente.");
 }

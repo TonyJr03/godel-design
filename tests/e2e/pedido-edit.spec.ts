@@ -46,7 +46,7 @@ type PedidoHistoryAssertion = Pick<
 >;
 type WorkerProfileAssertion = Pick<
   Database["public"]["Tables"]["perfiles"]["Row"],
-  "id" | "full_name"
+  "id" | "full_name" | "role" | "is_active"
 >;
 
 async function listQaServiceTypes(supabase: QaSupabaseClient) {
@@ -107,20 +107,30 @@ async function getPedidoUpdateHistoryRows(
   return data ?? [];
 }
 
-async function getAssignableWorkerProfile(supabase: QaSupabaseClient) {
-  const { data, error } = await supabase
-    .from("perfiles")
-    .select("id, full_name")
-    .eq("role", "trabajador")
-    .eq("is_active", true)
-    .order("full_name", { ascending: true })
-    .limit(1)
-    .maybeSingle<WorkerProfileAssertion>();
+async function getAssignableWorkerProfile() {
+  const workerSupabase = await createQaSupabaseClient("worker");
 
-  expect(error).toBeNull();
-  expect(data).not.toBeNull();
+  try {
+    const { data: auth, error: authError } = await workerSupabase.auth.getUser();
 
-  return data as WorkerProfileAssertion;
+    expect(authError).toBeNull();
+    expect(auth.user).not.toBeNull();
+
+    const { data, error } = await workerSupabase
+      .from("perfiles")
+      .select("id, full_name, role, is_active")
+      .eq("id", auth.user!.id)
+      .maybeSingle<WorkerProfileAssertion>();
+
+    expect(error).toBeNull();
+    expect(data).not.toBeNull();
+    expect(data?.role).toBe("trabajador");
+    expect(data?.is_active).toBe(true);
+
+    return data as WorkerProfileAssertion;
+  } finally {
+    await signOutQaSupabaseClient(workerSupabase);
+  }
 }
 
 async function clickFirstVisible(locator: Locator) {
@@ -219,7 +229,9 @@ async function createManualPedido(page: Page, serviceId?: string) {
       exact: true,
     }),
   ).toBeVisible();
-  await updatePedidoStatus(page, "en_revision", /^En revisi.n$/i);
+  await expect(page.getByText(/^En revisi.n$/i).first()).toBeVisible({
+    timeout: 15_000,
+  });
 
   return page.url();
 }
@@ -303,11 +315,20 @@ async function updatePayment(page: Page, cash: string, transfer = "0") {
 
   await paymentDialog.getByLabel(/pagado en efectivo/i).fill(cash);
   await paymentDialog.getByLabel(/pagado por transferencia/i).fill(transfer);
+  const navigation = page.waitForNavigation({
+    timeout: 15_000,
+    waitUntil: "domcontentloaded",
+  });
   await paymentDialog.getByRole("button", { name: /actualizar pago/i }).click();
+  await navigation;
+
+  const refreshedPaymentDialog = await openPedidoPanel(page, /^pagos$/i, /pagos/i);
+  await expect(refreshedPaymentDialog.getByLabel(/pagado en efectivo/i)).toHaveValue(
+    cash,
+  );
   await expect(
-    paymentDialog.getByText(/pago actualizado correctamente/i),
-  ).toBeVisible({ timeout: 15_000 });
-  await page.reload();
+    refreshedPaymentDialog.getByLabel(/pagado por transferencia/i),
+  ).toHaveValue(transfer);
 }
 
 async function updatePedidoStatus(page: Page, status: string, label: RegExp) {
@@ -320,14 +341,6 @@ async function updatePedidoStatus(page: Page, status: string, label: RegExp) {
   };
 
   await expect(statusDialog.locator('select[name="status"]')).toHaveCount(0);
-
-  if (status === "en_revision") {
-    await expect(statusDialog.getByText(label).first()).toBeVisible({
-      timeout: 15_000,
-    });
-    await page.reload();
-    return;
-  }
 
   if (status === "cancelado") {
     await statusDialog.getByRole("button", { name: /cancelar pedido/i }).click();
@@ -353,18 +366,21 @@ async function updatePedidoStatus(page: Page, status: string, label: RegExp) {
     await statusDialog.getByRole("button", { name: buttonName }).click();
   }
 
-  await expect(statusDialog.getByText(label).first()).toBeVisible({
+  await expect(statusDialog).toBeHidden({ timeout: 15_000 });
+  await expect(page.getByText(label).first()).toBeVisible({
     timeout: 15_000,
   });
 
   if (status === "cancelado") {
+    const closedStatusDialog = await openPedidoPanel(page, /^estado$/i, /^estado/i);
+
     await expect(
-      statusDialog.getByRole("button", { name: /cancelar pedido/i }),
+      closedStatusDialog.getByRole("button", { name: /cancelar pedido/i }),
     ).toHaveCount(0);
     await expect(
-      statusDialog.getByRole("button", { name: /avanzar|marcar|pasar/i }),
+      closedStatusDialog.getByRole("button", { name: /avanzar|marcar|pasar/i }),
     ).toHaveCount(0);
-    await expect(statusDialog.getByText(/zona delicada/i)).toHaveCount(0);
+    await expect(closedStatusDialog.getByText(/zona delicada/i)).toHaveCount(0);
   }
 }
 
@@ -386,11 +402,18 @@ async function assignTrabajador(page: Page, workerName: string) {
     .getByRole("button", { name: /asignar personal/i })
     .click();
   await expect(
-    personnelDialog.getByText(
-      /personal asignado correctamente|usuario ya estaba asignado/i,
-    ),
-  ).toBeVisible({ timeout: 15_000 });
-  await page.reload();
+    personnelDialog,
+  ).toBeHidden({ timeout: 15_000 });
+
+  const refreshedPersonnelDialog = await openPedidoPanel(
+    page,
+    /^personal$/i,
+    /personal/i,
+  );
+  await expect(
+    refreshedPersonnelDialog.locator("li").filter({ hasText: workerName }).first(),
+  ).toBeVisible();
+  await refreshedPersonnelDialog.getByRole("button", { name: /cerrar/i }).click();
 }
 
 test("admin edits order data and records one sanitized history event", async ({
@@ -410,7 +433,7 @@ test("admin edits order data and records one sanitized history event", async ({
   const printService = services.find(
     (service) => service.workflow_type === "impresion",
   );
-  const workerProfile = await getAssignableWorkerProfile(supabase);
+  const workerProfile = await getAssignableWorkerProfile();
 
   if (!initialService || !updatedService || !printService) {
     throw new Error(

@@ -8,8 +8,13 @@ SH-03.1 = CLOSED / APPROVED
 SH-03.2 = ACTIVE
 SH-03.2A = CLOSED / APPROVED
 SH-03.2B = CLOSED / APPROVED
-SH-03.2C = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
-SH-03.2D = NOT STARTED
+SH-03.2C = CLOSED / APPROVED
+SH-03.2D = IN PROGRESS
+SH-03.2D.1 = CLOSED / APPROVED
+SH-03.2D.2 = CLOSED / APPROVED
+SH-03.2D.3 = CLOSED / APPROVED
+SH-03.2D.4 = CLOSED / APPROVED
+SH-03.2D.5 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
 SH-03.2E = NOT STARTED
 SH-03.3 = NOT STARTED
 ```
@@ -31,7 +36,7 @@ revalidación concreta, aplicar el fallback aprobado y ampliar TD-NEXT-001.
 ## Inventario de Server Actions y riesgo TD-NEXT-001
 
 El inventario contiene **36 acciones de mutación/control** de la superficie
-examinada: 17 `SAFE / ALREADY FALLBACK`, 14 `TEST IN SH-03.2` y 5 `NOT
+examinada: 31 `SAFE / ALREADY FALLBACK`, 0 `TEST IN SH-03.2` y 5 `NOT
 APPLICABLE`. Las dos acciones públicas de firma/finalize de Storage no entran
 en ese total; las acciones de archivos de Pedido se registran como no aplicables
 en SH-03.2A y se entregan a SH-03.3.
@@ -48,14 +53,15 @@ en SH-03.2A y se entregan a SH-03.3.
 | Tareas de plantilla | create, update, delete y move task actions | `TaskTemplateTaskForm` / `TaskTemplateTasksList` | CRUD y orden de tarea | no success revalidation | Sí | Sí | detalle plantilla | `window.location.assign` | `task-templates.spec.ts` | SAFE / ALREADY FALLBACK |
 | Mantenimiento | `runExpiredUploadsCleanupAction` | `ExpiredUploadsCleanupAction` | cleanup de uploads | ninguna | Sí | Sí | mantenimiento | feedback local | `mantenimiento.spec.ts` | NOT APPLICABLE — Storage/PPO-03F, no SH-03.2 mutante |
 | Pedidos | `createPedidoAction` | `PedidoForm` / create dialog | crear pedido | no success revalidation | Sí | Sí | `/dashboard/pedidos` | `window.location.assign` | `pedidos.spec.ts`; gate transversal | SAFE / ALREADY FALLBACK |
-| Pedidos | `updatePedidoDataAction` | `PedidoEditForm` / edit dialog | editar pedido | dashboard, lista y detalle pedido | Sí | Sí | detalle pedido | `router.refresh()` | `pedido-edit.spec.ts` | TEST IN SH-03.2 |
-| Pedidos | `startPedidoReviewOnOpenAction` | `AutoReviewOnOpen` | iniciar revisión automática | detalle pedido | resultado directo | No | detalle pedido | `router.refresh()` | `pedidos.spec.ts` | TEST IN SH-03.2D — consumidor real de resultado directo; sin evidencia TD-NEXT todavía |
-| Pedidos | `updatePedidoStatusAction` | `PedidoStatusForm` / `StatusFlowPanel` | transición de estado | dashboard, lista y detalle pedido | Sí | Sí | detalle pedido | feedback local | `pedidos.spec.ts` | TEST IN SH-03.2 |
-| Pedidos | assign/remove worker actions | `PedidoWorkerAssignmentForm` | asignación de trabajador | dashboard, lista y detalle pedido | Sí | Sí | detalle pedido | feedback local | `pedidos.spec.ts` | TEST IN SH-03.2 |
-| Pedidos | create, title, progress, complete, reopen y delete task actions | `PedidoTasksSection` / `PedidoTaskItem` | CRUD/progreso de tareas | dashboard, lista y detalle pedido | Sí | Sí | detalle pedido | feedback local | `pedidos.spec.ts` | TEST IN SH-03.2 |
-| Pedidos | `applyTaskTemplateAction` | `ApplyTaskTemplateForm` / tasks section | aplicar plantilla | dashboard, lista y detalle pedido | Sí | Sí | detalle pedido | feedback local | `task-templates.spec.ts`, `pedidos.spec.ts` | TEST IN SH-03.2 |
-| Pedidos | `updatePedidoPaymentAction` | `PedidoPaymentForm` / section | registrar pago | dashboard, lista y detalle pedido | Sí | Sí | detalle pedido | feedback local | `pedidos.spec.ts` | TEST IN SH-03.2 |
-| Pedidos | `createPedidoCommentAction` | `PedidoCommentComposer` | comentario | dashboard, lista y detalle pedido | Sí | Sí | detalle pedido | feedback local | `pedidos.spec.ts` | TEST IN SH-03.2 |
+| Pedidos | `updatePedidoDataAction` | `PedidoEditForm` / edit dialog | editar pedido | no success revalidation | Sí | Sí | detalle pedido | `window.location.assign(canonical href)` | `pedidos-core-selfhosted.spec.ts` | SAFE / ALREADY FALLBACK — SH-03.2D.1 reproduced |
+| Pedidos | `startPedidoReviewOnOpenAction` | `AutoReviewOnOpen` | iniciar revisión automática | no success revalidation | resultado directo | No | detalle pedido | `AutoReviewOnOpen` opt-in → `replace(canonical href)` | `pedidos-core-selfhosted.spec.ts` | SAFE / ALREADY FALLBACK — SH-03.2D.1 reproduced |
+| Pedidos | `updatePedidoStatusAction` | `PedidoStatusForm` / `StatusFlowPanel` | transición de estado | no success revalidation | Sí | Sí | detalle pedido | `successNavigationHref` opt-in | `pedidos-core-selfhosted.spec.ts` | SAFE / ALREADY FALLBACK — SH-03.2D.1 reproduced |
+| Pedidos | `assignPedidoWorkerAction` | `PedidoWorkerAssignmentForm` | asignar trabajador | no success revalidation | Sí | Sí | detalle pedido | `successNavigationHref` compartido | `pedidos-personal-selfhosted.spec.ts` | SAFE / ALREADY FALLBACK — SH-03.2D.2 reproduced |
+| Pedidos | `removePedidoWorkerAction` | `PedidoWorkerAssignmentForm` | quitar trabajador | no success revalidation | Sí | Sí | detalle pedido | `successNavigationHref` compartido | `pedidos-personal-selfhosted.spec.ts` | SAFE / ALREADY FALLBACK — SH-03.2D.2 reproduced |
+| Pedidos | `createPedidoTaskAction`, `updatePedidoTaskTitleAction`, `updatePedidoTaskProgressAction`, `completePedidoTaskAction`, `reopenPedidoTaskAction`, `deletePedidoTaskAction` | `PedidoTasksSection` / `PedidoTaskItem` | CRUD/progreso de tareas | no success revalidation | Sí | Sí | detalle pedido | `window.location.assign(canonical href)` | `pedidos-tasks-selfhosted.spec.ts` | SAFE / ALREADY FALLBACK — SH-03.2D.3 reproduced, 3/3 independent processes |
+| Pedidos | `applyTaskTemplateAction` | `ApplyTaskTemplateForm` / tasks section | aplicar plantilla | no success revalidation | Sí | Sí | detalle pedido | `window.location.assign(canonical href)` | `pedidos-tasks-selfhosted.spec.ts`; `task-templates.spec.ts` | SAFE / ALREADY FALLBACK — SH-03.2D.3 reproduced, 3/3 independent processes |
+| Pedidos | `updatePedidoPaymentAction` | `PedidoPaymentForm` / section | registrar pago | no success revalidation | Sí | Sí | detalle pedido | `successNavigationHref` opt-in → `window.location.assign` | `pedidos-payment-comments-selfhosted.spec.ts`; `pedido-edit.spec.ts` | SAFE / ALREADY FALLBACK — SH-03.2D.4 reproduced, PASS 3/3 |
+| Pedidos | `createPedidoCommentAction` | `PedidoCommentComposer` | comentario | no success revalidation | Sí | Sí | detalle pedido | `successNavigationHref` opt-in → `window.location.assign` | `pedidos-payment-comments-selfhosted.spec.ts` | SAFE / ALREADY FALLBACK — SH-03.2D.4 reproduced, PASS 3/3 |
 | Pedidos archivos | reserve/finalize file actions | upload components | reserva/finalize de archivo | detalle pedido | resultado propio | No | detalle pedido | control de upload | `pedido-upload-direct.spec.ts` | NOT APPLICABLE — SH-03.3 Storage/TUS |
 | Solicitudes | `startSolicitudReviewOnOpenAction` | `AutoReviewOnOpen` | iniciar revisión automática | detalle solicitud | resultado directo | No | detalle solicitud | `replace(pathname)` | `solicitudes-core-selfhosted.spec.ts` | SAFE / ALREADY FALLBACK — PASS 3/3 |
 | Solicitudes | `associateSolicitudClienteAction` | `SolicitudClienteForm` | asociar cliente | solicitud + cliente | Sí | Sí | detalle solicitud | `assign(pathname)` + guarda específica | `solicitudes-core-selfhosted.spec.ts` | SAFE / ALREADY FALLBACK — PASS 3/3 |
@@ -220,7 +226,7 @@ no se modificó en esta fase. SH-03.2C es el próximo bloque y no se inicia aqu�
 
 ## SH-03.2C — Solicitudes production-like core lifecycle
 
-Estado: `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`.
+Estado: `CLOSED / APPROVED`.
 
 | Action | Patrón inicial | Resultado inicial | TD-NEXT | Patrón final | Gate |
 | --- | --- | --- | --- | --- | --- |
@@ -233,9 +239,10 @@ Estado: `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`.
 
 El fallback de estado es opt-in: `StatusFlowPanel` no navega en otros dominios
 si no recibe `successNavigationHref`; Pedidos no fue alterado. El fallback de
-auto-review también es opt-in: Solicitudes pasa su URL canónica explícita a
-`AutoReviewOnOpen`, mientras Pedidos conserva `router.refresh()` y queda
-`TEST IN SH-03.2D`, sin fallback TD-NEXT aplicado. La ausencia de
+Al cierre de SH-03.2C, el fallback de auto-review también era opt-in:
+Solicitudes pasaba su URL canónica explícita a `AutoReviewOnOpen`, mientras
+Pedidos conservaba `router.refresh()` y quedaba `TEST IN SH-03.2D`. D.1
+reprodujo ese caso y aplicó el `replace(canonical href)` opt-in aprobado. La ausencia de
 `useActionState` no basta para clasificar una action como `NOT APPLICABLE`:
 una action de resultado directo con mutación, revalidación y consumidor real
 de refresh/navegación requiere evidencia production-like antes de generalizar
@@ -260,3 +267,129 @@ Browser → Nginx → Next standalone → Supabase self-hosted.
 | Permisos | Admin: lectura y seis flujos. Supervisor: lectura, Cliente, Comentarios, Estado y Conversión según `solicitudes.manage`. Worker: sin lista, detalle ni triggers por ruta directa; servicios mantienen la defensa de permiso y no exponen errores RLS crudos. |
 | Paginación | Evidencia focal: 102 solicitudes y 3 páginas; href correcto, `next/link` FAIL 3/3, navegación documental PASS, ancla nativa Next PASS 5/5 y Previous PASS 5/5. La fixture histórica final acumulada observó 147 solicitudes y 3 páginas; histórico PASS 12/12. |
 | Visual | Chromium verificó desktop smoke y móvil 390×844: paneles accionables, confirmación de rechazo, foco, paginación 40×40, sin overflow, spinner infinito, data leak ni error boundary. |
+
+## SH-03.2D.1 — Pedido Edit + Auto-review + Status
+
+Estado del checkpoint: evidencia implementada; `SH-03.2D` permanece `IN PROGRESS`.
+No inicia Personal, Tasks/Templates, Payments/Comments, agregación ni Storage.
+
+| Action | Patrón inicial production-like | Resultado inicial | Patrón final | Gate |
+| --- | --- | --- | --- | --- |
+| `updatePedidoDataAction` | mutate → `revalidatePedidoDetail` → `ActionState`; diálogo → `router.refresh()` | Persistió, pero `ActionState` quedó pending y el diálogo no cerró. | Sin revalidación de éxito; `state.ok` → cerrar → `assign(canonical href)`. | Validación segura y update PASS 3/3; detalle, encabezado e historial frescos. |
+| `startPedidoReviewOnOpenAction` | mutate → `revalidatePedidoDetail` → resultado directo; `AutoReviewOnOpen` → `router.refresh()` | Persistió `Creado → En revisión`, pero el detalle quedó obsoleto. | Sin revalidación de éxito; prop opt-in → `replace(canonical href)`. | PASS 3/3; una sola transición de historial por fixture, sin loop ni estado residual. |
+| `updatePedidoStatusAction` | mutate → `revalidatePedidoDetail` → `ActionState`; `StatusFlowPanel` sin href. | Persistió `En revisión → En producción`, pero el panel quedó pending. | Sin revalidación de éxito; href canónico opt-in propagado a `StatusFlowPanel`. | Avance y cancelación PASS; badge/detail/historial frescos, mensaje de cerrado y controles retirados. |
+
+El fallback de cada action quedó condicionado a su reproducción propia. Las tres
+usan URL canónica explícita y el comentario TD-NEXT-001 inmediato junto a la
+llamada `window.location` real; no se añadieron timeout, nonce, `sessionStorage`,
+reload ni doble refresh. Las once actions de Pedido restantes continúan `TEST
+IN SH-03.2` y no fueron modificadas.
+
+`pedidos-core-selfhosted.spec.ts` PASS 3/3 por Chromium serial a través de
+Nginx. La regresión histórica `pedido-edit.spec.ts` actualizó la expectativa
+directamente afectada de estado a navegación documental y confirmó los asserts
+de D.1; su recorrido posterior alcanza `assignTrabajador`, que pertenece a
+SH-03.2D.2 y continúa pendiente, por lo que no se usa como evidencia de D.1.
+
+## SH-03.2D.2 — Personal assignment/removal
+
+Estado del checkpoint: evidencia implementada; `SH-03.2D` permanece `IN PROGRESS`.
+No inicia Tasks/Templates, Payments/Comments, agregación ni Storage.
+
+| Action | Patrón inicial production-like | Resultado inicial | Patrón final | Gate |
+| --- | --- | --- | --- | --- |
+| `assignPedidoWorkerAction` | mutate → `revalidatePedidoDetail` → `ActionState` | La asignación persistió por UI, pero `ActionState` quedó pending. | Sin revalidación de éxito; `state.ok` → `assign(canonical href)`. | Validación del combobox y asignación fresca PASS 3/3; fila y badge visibles. |
+| `removePedidoWorkerAction` | mutate → `revalidatePedidoDetail` → `ActionState` | La remoción persistió por UI, pero `ActionState` quedó pending. | Sin revalidación de éxito; `state.ok` → `assign(canonical href)`. | Remoción fresca PASS 3/3; fila y badge ausentes. |
+
+La prop `successNavigationHref` es compartida porque ambos casos se
+reprodujeron de forma independiente. El formulario conserva `pedidoId` y solo
+este consumidor de Pedido recibe la URL canónica. Cada efecto contiene el
+comentario TD-NEXT-001 inmediato junto a `window.location.assign()`; no usa
+`router.refresh`, reload, timeout, nonce, `sessionStorage` ni doble refresh.
+
+`pedidos-personal-selfhosted.spec.ts` PASS 1/1 por Chromium serial a través de
+Nginx: Encargo con auto-review fresco, validación async, assign/remove 3/3,
+Worker asignado con detalle y Personal de solo lectura, y Supervisor con
+controles de gestión. Tras remove, el Worker recibe el `notFound()` del segmento
+sin título, datos del Pedido ni asignaciones expuestas y sin error técnico/RLS.
+La respuesta HTTP observada es 200 porque Next sirve el `not-found.tsx` del
+segmento como respuesta streaming; el contrato de acceso es not-found lógico,
+no una respuesta no-streaming 404.
+
+La fixture histórica `pedido-edit.spec.ts` reemplazó el selector del primer
+trabajador activo por la identidad exacta autenticable de Worker QA: autentica
+el cliente QA, obtiene su `auth.user`, valida perfil activo con rol
+`trabajador`, devuelve id/nombre y cierra esa sesión. La clasificación anterior
+es `STALE / NON-DETERMINISTIC FIXTURE`. Con ello la regresión confirma D.1,
+asignación D.2 y acceso positivo del Worker QA; su primer bloqueo posterior es
+Pagos (`updatePayment`), perteneciente a D.4, donde falta feedback local tras
+la mutación. No se corrigió en este checkpoint.
+
+## SH-03.2D.3 — Pedido Tasks + Task Templates
+
+Estado: `CLOSED / APPROVED`. `SH-03.2D` permanece `IN PROGRESS`; D.4 está en
+curso y D.5 no se inició.
+
+| Action | Patrón inicial production-like | Resultado inicial | TD-NEXT | Patrón final | Gate final |
+| --- | --- | --- | --- | --- | --- |
+| `createPedidoTaskAction` | mutate → `revalidatePedidoDetail` → `ActionState` | Persistía; detalle fresco solo tras navegación diagnóstica. | Sí | sin revalidación; `PedidoTasksSection` → `assign(canonical href)` | PASS 3/3 procesos independientes |
+| `updatePedidoTaskTitleAction` | mutate → `revalidatePedidoDetail` → `ActionState` | Igual patrón reproducido. | Sí | sin revalidación; `PedidoTaskItem` → `assign(canonical href)` | PASS 3/3 procesos independientes |
+| `updatePedidoTaskProgressAction` | mutate → `revalidatePedidoDetail` → `ActionState` | Igual patrón reproducido. | Sí | sin revalidación; `PedidoTaskItem` → `assign(canonical href)` | PASS 3/3 procesos independientes |
+| `completePedidoTaskAction` | mutate → `revalidatePedidoDetail` → `ActionState` | Igual patrón reproducido. | Sí | sin revalidación; `PedidoTaskItem` → `assign(canonical href)` | PASS 3/3 procesos independientes |
+| `reopenPedidoTaskAction` | mutate → `revalidatePedidoDetail` → `ActionState` | Igual patrón reproducido. | Sí | sin revalidación; `PedidoTaskItem` → `assign(canonical href)` | PASS 3/3 procesos independientes |
+| `deletePedidoTaskAction` | mutate → `revalidatePedidoDetail` → `ActionState` | Igual patrón reproducido. | Sí | sin revalidación; `PedidoTaskItem` → `assign(canonical href)` | PASS 3/3 procesos independientes |
+| `applyTaskTemplateAction` | mutate → `revalidatePedidoDetail` → `ActionState` | Igual patrón reproducido. | Sí | sin revalidación; `ApplyTaskTemplateForm` → `assign(canonical href)` | PASS 3/3 procesos independientes |
+
+La evidencia histórica de plantillas queda segmentada por el límite externo de
+60 s: los primeros cinco gates terminaron en `3 PASS + 2 SKIP` legítimos por
+dataset insuficiente de paginación; el apply aislado pasó `1/1`; no hubo fallo
+funcional. La fixture de apply dejó de reutilizar una plantilla CRUD vacía
+(`STALE / CROSS-TEST FIXTURE DEPENDENCY`), la apertura temprana de Tareas tras
+auto-review quedó clasificada `STALE / RACY FIXTURE`, y la expectativa de
+frescura same-document como `STALE EXPECTATION DUE TD-NEXT`; no son deuda nueva.
+
+Gates adicionales por Nginx/Chromium: Encargo auto-revisado bloquea
+`En revisión → En producción` con “Agrega al menos una tarea…” y se habilita
+tras una tarea, sin ejecutar la transición. El Worker QA exacto, asignado por
+el flujo D.2 aprobado, abre el detalle y crea tarea; no recibe Editar pedido.
+Supervisor abre y gestiona Tareas. En visual 1366×768 y 390×844 se verificaron
+selector de plantilla, tarea cuantificada, foco/Escape de título, confirmación
+de delete/Escape, blancos táctiles ≥40 px, sin overflow, spinner residual ni
+fuga técnica. Este cierre dejó 29 SAFE, 2 TEST (Pago y Comentario) y 5 N/A.
+
+## SH-03.2D.4 — Payments + Comments
+
+Estado: `CLOSED / APPROVED`. D.5 se entrega para revisión arquitectónica;
+Storage no se inicia.
+
+| Action | Initial pattern | Initial result | TD-NEXT | Final pattern | Final gate |
+| --- | --- | --- | --- | --- | --- |
+| `updatePedidoPaymentAction` | mutate → `revalidatePedidoDetail` → `ActionState` | Persistió `100/0`, pero `ActionState=false`, `pending=true` y el resumen no quedó fresco hasta navegación diagnóstica. | Sí | sin revalidación; `PedidoPaymentForm` recibe href opt-in → `assign(canonical href)` | Validación de exceso; 100/0, 100/100 y 300/200 PASS 3/3, parcial → pagado fresco. |
+| `createPedidoCommentAction` | mutate → `revalidatePedidoDetail` → `ActionState` | Persistió comentario, pero `ActionState=false`, `pending=true` y no apareció en documento actual. | Sí | sin revalidación; reset existente y href opt-in → `assign(canonical href)` | Validación trim segura; tres comentarios ordenados, con autor/timestamp PASS 3/3. |
+
+Los roles focales por Nginx confirman: Supervisor ve formulario de pago y
+composer; Worker asignado ve el resumen financiero sin inputs/botón de update y
+puede crear comentario con su autor/timestamp. `pedido-edit.spec.ts` sustituyó
+el feedback local + `page.reload()` por navegación canónica y resumen fresco;
+pasó 4/4. Visual Chromium: Pagos desktop 1366×768 y Comentarios móvil 390×844,
+sin overflow, spinner residual ni fuga técnica. Inventario final: 31 SAFE, 0
+TEST, 5 N/A (36 total).
+
+## SH-03.2D.5 — Aggregate Pedido regression
+
+Estado: `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`.
+
+| Gate | Resultado production-like |
+| --- | --- |
+| Historical Storage scope leak | `pedidos.spec.ts` retiró solo `setInputFiles` / upload / estado completado y su contador derivado; mantiene accesibilidad pasiva y hrefs seguros de Archivos. `pedido-upload-direct.spec.ts` conserva el owner de TUS/download/resume en SH-03.3. |
+| Histórico Pedidos | PASS `15/15`, `2 SKIP` legítimos. Los helpers esperan navegación documental D.1–D.4 y asignan el Worker QA exacto. |
+| Focal D.1–D.4 | PASS: D.1 3/3, D.2 1/1, D.3 4/4, D.4 3/3; `pedido-edit` PASS 4/4. |
+| Encargo aggregate | PASS: auto-review, tareas 0, bloqueo de producción, tarea pendiente, producción, bloqueo de ready, tarea completada, ready, bloqueo de entrega por pago, pago, entregado y controles cerrados. |
+| Cancelación e Impresión | PASS: cancelación aislada y estado cerrado; Impresión no muestra Tareas, avanza sin ellas y exige pago completo antes de Entregado. |
+| Roles/acceso | PASS: Supervisor gestiona paneles; Worker asignado opera tareas/comentario y permanece read-only en pagos/personal; tras remove recibe not-found lógico sin fuga. |
+| Listado/tracking | PASS: búsqueda, filtro de Entregado y clear del listado; paginación histórica con seis páginas; `public-tracking.spec.ts` PASS 1/1. |
+| Visual | PASS: Chromium/Nginx en 1366×768 y 390×844, sin overflow, clipping, spinner residual ni texto técnico. |
+
+Clasificación documental: `HISTORICAL STORAGE SCOPE LEAK / OUT-OF-SCOPE
+HISTORICAL MUTATION`. No hay cambio de producto, Storage, DB, infraestructura
+ni nueva deuda TD-NEXT. El inventario queda en 31 SAFE, 0 TEST, 5 N/A (36).
