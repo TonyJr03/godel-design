@@ -4,7 +4,8 @@
 
 SH-03.3A = CLOSED / APPROVED
 SH-03.3B = CLOSED / APPROVED
-SH-03.3C = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+SH-03.3C = CLOSED / APPROVED
+SH-03.3D = BLOCKED / ARCHITECTURAL REVIEW REQUIRED
 
 Alcance de A: inventario, baseline production-like y portabilidad exclusiva de
 instrumentación E2E. No se modificaron producto, control plane, TUS adapter,
@@ -224,6 +225,42 @@ path confirmado de finalize Pedido. C modifica exclusivamente la spec pública y
 documentación: no cambia producto público, DB, migraciones, tipos, Storage
 architecture changes, Compose, Dockerfile, Nginx ni Supabase upstream. No
 commit. No push. Detenerse para revisión arquitectónica de SH-03.3C.
+
+## SH-03.3D — Functional signed-download gate (blocked)
+
+El fixture determinista de Pedido ya demostró: listado Admin, aislamiento por
+owner (404 sin redirect Storage), listado Supervisor, listado Worker asignado,
+TUS autenticado pequeño del Worker y revocación posterior sin redirect Storage;
+el `storage.spec.ts` histórico mantiene 4 PASS y 2 SKIP legítimos.
+
+El nuevo primer hop funcional de descarga autorizada de Pedido se ejecutó por
+Chromium/Nginx con `maxRedirects: 0`. La ruta interna devolvió 3xx y `Location`,
+pero el destino firmado tuvo pathname bajo `/storage/v1/` y el origen interno
+`http://api-gw:8000`, mientras el origen público navegable es
+`http://localhost:8080`. Por tanto, `browser-reachable signed URL = false` e
+`internal-only hostname = true`. No se registraron URL firmada completa, query,
+token, firma, pathname de objeto ni body.
+
+Clasificación: **REAL PRODUCT REGRESSION — SIGNED URL
+PUBLIC/INTERNAL ENDPOINT MISMATCH**. El navegador no puede seguir ese destino
+interno, por lo que no procede declarar descarga funcional ni continuar los
+gates de Solicitud, commit boundary, tracking ni matriz final de D. No se tocó
+producto, base de datos, migraciones, Supabase upstream, Compose, Dockerfile ni
+Nginx; tampoco se creó workaround de URL rewriting.
+
+| Gate D | Resultado |
+| --- | --- |
+| Pedido Admin first hop | 3xx con `Location`; FAIL de origen público |
+| Pedido signed origin browser-reachable | FAIL (`false`) |
+| Pedido signed hostname internal-only | FAIL (`true`) |
+| Pedido follow/file bytes | No ejecutado por stop condition |
+| Supervisor/Worker functional download | No ejecutado por stop condition |
+| Worker identity exacta / Solicitud / commit boundary | No ejecutado por stop condition |
+| Worker removed / anonymous | Evidencia parcial previa preservada; no revalidada tras el stop |
+
+Se requiere decisión arquitectónica sobre el endpoint público que usa la
+generación de signed URLs antes de retomar SH-03.3D. SH-03.3E permanece
+`NOT STARTED`.
 
 ## Quality
 
