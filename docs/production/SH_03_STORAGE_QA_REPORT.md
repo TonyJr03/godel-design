@@ -2,7 +2,8 @@
 
 ## Estado
 
-SH-03.3A = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+SH-03.3A = CLOSED / APPROVED
+SH-03.3B = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
 
 Alcance de A: inventario, baseline production-like y portabilidad exclusiva de
 instrumentación E2E. No se modificaron producto, control plane, TUS adapter,
@@ -14,10 +15,11 @@ upstream.
 ### Pedido actions
 
 - `reservePedidoFilesAction` delega en `reservePedidoUpload`.
-- `finalizePedidoFileAction` delega en `finalizePedidoUpload`, llama a
-  `revalidatePedidoDetail` y devuelve el resultado committed.
+- `finalizePedidoFileAction` delega en `finalizePedidoUpload` y devuelve el
+  resultado committed sin revalidación de éxito.
 - El consumidor `PedidoFileUploadForm.tsx` mantiene la cola de dos, obtiene el
-  JWT de sesión, sube por TUS y tras éxito invoca `router.refresh()`.
+  JWT de sesión, sube por TUS y tras éxito confirmado navega una vez al detalle
+  canónico mediante el fallback TD-NEXT-001 acotado.
 
 ### Public actions
 
@@ -78,8 +80,8 @@ Una corrección DB posterior requeriría migration 07+ y queda fuera de A.
 
 | Surface / action | Consumer | Auth | Mutation | Revalidation / refresh | Baseline | Owner |
 | --- | --- | --- | --- | --- | --- | --- |
-| `reservePedidoFilesAction` | `PedidoFileUploadForm` | interno | reserve | ninguna | bloqueado antes de TUS | 3.3B |
-| `finalizePedidoFileAction` | `PedidoFileUploadForm` | interno | finalize | revalidate + `router.refresh()` | no alcanzado | 3.3B |
+| `reservePedidoFilesAction` | `PedidoFileUploadForm` | interno | reserve | ninguna | PASS | 3.3B |
+| `finalizePedidoFileAction` | `PedidoFileUploadForm` | interno | finalize | completion local + navegación canónica TD-NEXT-001 | PASS; `router.refresh()` stale reproducido | 3.3B |
 | `startPublicSolicitudAction` files | formulario público | anon/capability | reserve | cola UI | PASS | 3.3C |
 | `signPublicSolicitudFileAction` | cola pública | capability | sign | ninguna | PASS | 3.3C |
 | `finalizePublicSolicitudFileAction` | cola pública | capability | finalize | UI completed | PASS | 3.3C |
@@ -137,24 +139,39 @@ MiB, Bearer ausente, HEAD/PATCH del mismo recurso, un control-plane POST antes
 del TUS reanudado, sin Web Storage, batch de tres con máximo dos PATCH, retry de
 finalize sin nuevo TUS y límites tempranos.
 
+## SH-03.3B — Pedido authenticated TUS + finalize differential
+
+La fixture anterior sólo esperaba el `h1` del detalle y abría inmediatamente el panel Files. El auto-review canónico todavía podía estar navegando, por lo que el panel/campo resultaba racy. La estabilización limitada al helper espera el `h1` exacto, `En revisión` visible y ausencia de `Iniciando revisión` antes de abrir Files. Clasificación: **STALE / RACY fixture**. No hubo cambio de producto para la fixture.
+
+El primer gate aislado se ejecutó tres veces independientes por Chromium/Nginx con el mismo resultado: reserva, TUS authenticated y finalize completados. La instrumentación conserva sólo método, pathname y presencia booleana de Bearer: se observaron POST/PATCH TUS a `/storage/v1/upload/resumable`, con Bearer, sin registrar JWT, IDs de action, cuerpos ni `object_path`.
+
+El diferencial confirmó: TUS completó; `finalizePedidoFileAction` devolvió éxito y la UI local mostró completion; pero la lista permaneció stale tras `router.refresh()`. Una navegación documental diagnóstica a la URL canónica mostró el archivo y su enlace de descarga, confirmando persistencia de metadata antes de aplicar cualquier fallback.
+
+Se reprodujo por tanto **TD-NEXT-001** únicamente en el success path `finalizePedidoFileAction` / `PedidoFileUploadForm`. Se retiró sólo la revalidación de éxito de esa action. La cola procesa todos los ítems localmente y navega una única vez a su href canónico con `window.location.assign()` sólo cuando el batch queda completamente exitoso. Un batch parcial conserva diálogo, ítems completed y retry; el retry sólo navega al completar el último pendiente. El comentario TD-NEXT-001 queda inmediato a cada llamada. No se extendió el fallback a reserve ni a flujos públicos.
+
+También se configuró un nombre de cookie de sesión compartido entre los clientes browser, server y proxy. Antes, el hostname interno `api-gw:8000` y el hostname del navegador `localhost:8080` derivaban nombres por defecto distintos: el servidor veía sesión y el browser no podía obtener el JWT para TUS. Ahora el namespace se deriva de `protocol + host` de `NEXT_PUBLIC_SUPABASE_URL`, no de `SUPABASE_SERVER_URL`: client/server/proxy usan el mismo nombre por runtime y local CLI/self-hosted quedan aislados por host/puerto. No expone ni registra secretos.
+
+El gate partial batch usa dos PDF pequeños y aborta controladamente el PATCH de un único recurso TUS. El primer resultado fue 1 completed / 1 failed, sin navegación documental, con `Carga completada parcialmente` y Retry visible. Tras permitir el recurso, Retry reutilizó el mismo TUS resource mediante HEAD/PATCH, sin segunda reserva; hubo una única navegación canónica y la lista fresca mostró ambos archivos y dos descargas, sin texto técnico. Los gates restantes de Pedido pasaron de forma aislada: primer 7 MiB 3/3 (y 1/1 tras namespace); resume con HEAD/PATCH del mismo recurso; batch de tres con máximo dos PATCH concurrentes; sesión invalidada sin TUS; límites con once archivos, 20 MiB + 1 byte y SVG; y cancelación sin input ni mensaje de carga. El caso worker/list/download se difiere explícitamente a SH-03.3D porque requiere una fixture adicional de asignación; no se usó como razón para modificar producto.
+
 ## Pedido observation
 
 | Hito | Resultado |
 | --- | --- |
-| TUS completed | no alcanzado |
-| finalize persisted | no alcanzado |
-| metadata/list visible | no alcanzado |
-| action completion | no alcanzado |
-| UI completed | no alcanzado |
-| `router.refresh()` settled | no alcanzado |
+| TUS completed | PASS, POST/PATCH authenticated por TUS |
+| finalize persisted | PASS, confirmado con navegación diagnóstica canónica |
+| metadata/list visible | PASS tras navegación canónica |
+| action completion | PASS, completion local observado antes del fallback |
+| UI completed | PASS, lista y enlace fresco tras fallback documental |
+| `router.refresh()` settled | FAIL reproducido; cubierto por TD-NEXT-001 |
 
 ## Public observation and security
 
 La evidencia pública completada confirma signed TUS y Bearer ausente. En los
 gates completados de público, `storage` y mantenimiento no se observó fuga de
 JWT, firma, capability, `file_path`, bucket, signed URL ni error técnico
-SQL/Postgres/RLS; tracking público no ofrece descarga. La evidencia de Pedido
-queda pendiente de 3.3B.
+SQL/Postgres/RLS; tracking público no ofrece descarga. El cross-check posterior
+al namespace de cookie pasó 5/5 por Chromium/Nginx, sin cambios de producto
+público.
 
 ## Baseline, ownership and restrictions
 
@@ -163,17 +180,29 @@ Compose, Dockerfile ni Nginx. Ownership: A inventory/baseline/portability; B
 Pedido authenticated/finalize; C público signed; D committed/list/download/RLS;
 E cleanup/resilience/cierre agregado.
 
-No product changes. No DB. No Storage architecture changes. No commit. No push.
-Detenerse para revisión arquitectónica de SH-03.3A.
+Producto modificado sólo en el boundary de cookie de sesión y el success path
+confirmado de finalize Pedido. No DB, migraciones, tipos, Storage architecture
+changes, Compose, Dockerfile, Nginx ni Supabase upstream. No commit. No push.
+Detenerse para revisión arquitectónica de SH-03.3B.
 
 ## Quality
 
 - `npm run lint`: PASS.
+- `npm run build`: PASS.
+- `npm run audit:security`: PASS.
 - `git diff --check`: PASS; Git informa sólo normalización futura LF→CRLF en
   archivos existentes, sin error de whitespace.
 - `npm run diff:check`: PASS; mismo aviso LF→CRLF, sin error de whitespace.
 - `npm run test:e2e:selfhosted -- tests/e2e/public-solicitud-upload-direct.spec.ts --project=chromium --workers=1`:
   PASS 5/5 tras la corrección de portabilidad.
 - `live`: 200; `ready`: 200.
-- Drift final: sólo dos specs E2E y tres documentos (incluido este informe).
-  Sin cambios de migración, tipos, upstream, Compose, Dockerfile ni Nginx.
+- `pedido-upload-direct.spec.ts`, Chromium/Nginx, gates aislados: primer 7 MiB
+  PASS 3/3 y 1/1 posterior al namespace; resume, batch, partial batch, sesión
+  invalidada, límites y cancelación PASS 1/1 cada uno.
+- Auth transversal por Chromium/Nginx: `smoke.spec.ts` PASS 6/6;
+  `dashboard-shell.spec.ts` PASS 3/3, 1 SKIP previsto de workspace existente.
+- Cross-check público por Chromium/Nginx: `public-solicitud-upload-direct.spec.ts`
+  PASS 5/5.
+- Drift final: cliente/proxy/server Supabase, action/UI de Pedido, una spec
+  focal de Pedido, README Supabase y documentación. Sin cambios de migración,
+  tipos, upstream, Compose, Dockerfile ni Nginx.

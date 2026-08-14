@@ -19,8 +19,8 @@ SH-03.2D.4 = CLOSED / APPROVED
 SH-03.2D.5 = CLOSED / APPROVED
 SH-03.2E = CLOSED / APPROVED
 SH-03.3 = IN PROGRESS
-SH-03.3A = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
-SH-03.3B = NOT STARTED
+SH-03.3A = CLOSED / APPROVED
+SH-03.3B = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
 SH-03.3C = NOT STARTED
 SH-03.3D = NOT STARTED
 SH-03.3E = NOT STARTED
@@ -41,12 +41,12 @@ la entrada pública, Next server usa `http://api-gw:8000` y Storage/TUS público
 ya tiene smoke técnico. SH-03 parte de ese estado estable para validar flujos de
 usuario y negocio, incluidos roles y TUS autenticado.
 
-La suite actual contiene 21 specs Playwright. Sus helpers leen primero
+Al inicio de SH-03, la suite contenía 21 specs Playwright. Sus helpers leían primero
 `process.env` y solo hacen fallback a `.env.local`; por tanto el código de los
-tests ya puede consumir un environment inyectado para self-hosted. Sin embargo,
-la configuración Playwright fija `baseURL` y `webServer` a `npm run dev` en
-`http://localhost:3000`, por lo que todavía no puede ejecutar directamente el
-profile production-like sin un ajuste focal de runner.
+tests ya podía consumir un environment inyectado para self-hosted. En ese punto,
+la configuración Playwright fijaba `baseURL` y `webServer` a `npm run dev` en
+`http://localhost:3000`; SH-03.1 incorporó el runner self-hosted y SH-03.3A
+eliminó los detectores de Server Actions dependientes de ese puerto.
 
 ## Inventario E2E
 
@@ -63,16 +63,20 @@ profile production-like sin un ajuste focal de runner.
 
 Las specs que usan `createQaSupabaseClient` lo hacen mediante el cliente normal
 autenticado para preparar o verificar fixtures; no hay acceso PostgreSQL directo
-en la suite E2E. Todas las specs comparten la asunción actual de `baseURL :3000`
-por Playwright. Login y los clientes QA requieren las variables `GODEL_TEST_*`;
+en la suite E2E. Al inicio de SH-03, todas las specs compartían la asunción de
+`baseURL :3000` por Playwright; el runner self-hosted de SH-03.1 usa
+`PLAYWRIGHT_BASE_URL=http://localhost:8080` y deshabilita `webServer`. Login y
+los clientes QA requieren las variables `GODEL_TEST_*`;
 si faltan, algunos helpers omiten pruebas y no son evidencia válida de SH-03.
 
 ## Dependencias del Supabase CLI
 
-`npm run qa:bootstrap` es exclusivamente local hoy. Lee `.env.local`, exige URL
-localhost/127.0.0.1, obtiene `project_id` de `supabase/config.toml`, deriva el
-contenedor `supabase_db_<project_id>` y ejecuta por Docker/psql
-`bootstrap-local-qa-profiles.sql`. Luego usa Auth Admin con
+Al inicio de SH-03, `npm run qa:bootstrap` era exclusivamente local: leía
+`.env.local`, exigía URL localhost/127.0.0.1, obtenía `project_id` de
+`supabase/config.toml`, derivaba el contenedor `supabase_db_<project_id>` y
+ejecutaba por Docker/psql `bootstrap-local-qa-profiles.sql`. Hoy
+`qa:bootstrap:selfhosted` cubre el target self-hosted explícito. El bootstrap
+local usa Auth Admin con
 `SUPABASE_SECRET_KEY` para crear o actualizar solo las tres identidades QA,
 ejecuta el SQL de perfiles y comprueba login.
 

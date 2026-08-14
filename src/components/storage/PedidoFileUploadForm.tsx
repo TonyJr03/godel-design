@@ -5,7 +5,6 @@ import {
   useRef,
   type FormEvent,
 } from "react";
-import { useRouter } from "next/navigation";
 import type {
   FinalizePedidoFileAction,
   ReservePedidoFilesAction,
@@ -31,6 +30,7 @@ type PedidoFileUploadFormProps = {
   finalizeFileAction: FinalizePedidoFileAction;
   pedidoStatus: PedidoStatus;
   canUpload: boolean;
+  successNavigationHref?: string;
   presentation?: "card" | "panel";
 };
 
@@ -156,9 +156,9 @@ export function PedidoFileUploadForm({
   finalizeFileAction,
   pedidoStatus,
   canUpload,
+  successNavigationHref,
   presentation = "card",
 }: PedidoFileUploadFormProps) {
-  const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [entries, setEntries] = useState<UploadEntry[]>([]);
   const [isReserving, setIsReserving] = useState(false);
@@ -195,7 +195,7 @@ export function PedidoFileUploadForm({
     }));
   }
 
-  async function processEntry(entry: UploadEntry, refreshAfterCompletion: boolean) {
+  async function processEntry(entry: UploadEntry): Promise<boolean> {
     let tusCompleted = entry.tusCompleted;
 
     if (!tusCompleted) {
@@ -214,7 +214,7 @@ export function PedidoFileUploadForm({
           false,
           "No se pudo validar tu sesión para transferir el archivo. Inicia sesión nuevamente.",
         );
-        return;
+        return false;
       }
 
       if (!accessToken) {
@@ -223,7 +223,7 @@ export function PedidoFileUploadForm({
           false,
           "No se pudo validar tu sesión para transferir el archivo. Inicia sesión nuevamente.",
         );
-        return;
+        return false;
       }
 
       let upload;
@@ -246,7 +246,7 @@ export function PedidoFileUploadForm({
           false,
           "No se pudo transferir el archivo. Puedes reintentar con la misma reserva.",
         );
-        return;
+        return false;
       }
 
       if (!upload.ok) {
@@ -257,7 +257,7 @@ export function PedidoFileUploadForm({
             ? "El archivo ya no coincide con su reserva. Selecciónalo nuevamente."
             : "No se pudo transferir el archivo. Puedes reintentar con la misma reserva.",
         );
-        return;
+        return false;
       }
 
       tusCompleted = true;
@@ -282,12 +282,12 @@ export function PedidoFileUploadForm({
         true,
         "No se pudo registrar el archivo. Puedes reintentar sin volver a transferirlo.",
       );
-      return;
+      return false;
     }
 
     if (!finalize.ok) {
       failEntry(entry, tusCompleted, finalize.message);
-      return;
+      return false;
     }
 
     updateEntry(entry.id, (current) => ({
@@ -298,36 +298,42 @@ export function PedidoFileUploadForm({
       error: undefined,
     }));
 
-    if (refreshAfterCompletion) router.refresh();
+    return true;
   }
 
   async function runQueue(queue: UploadEntry[]) {
     let nextIndex = 0;
+    const outcomes = new Map<string, boolean>();
     const worker = async () => {
       while (nextIndex < queue.length) {
         const entry = queue[nextIndex];
         nextIndex += 1;
         try {
-          await processEntry(entry, false);
+          outcomes.set(entry.id, await processEntry(entry));
         } catch {
           failEntry(
             entry,
             entry.tusCompleted,
             "No se pudo completar la carga. Puedes reintentar este archivo.",
           );
+          outcomes.set(entry.id, false);
         }
       }
     };
 
-    try {
-      await Promise.all(
-        Array.from(
-          { length: Math.min(MAX_CONCURRENT_UPLOADS, queue.length) },
-          () => worker(),
-        ),
-      );
-    } finally {
-      router.refresh();
+    await Promise.all(
+      Array.from(
+        { length: Math.min(MAX_CONCURRENT_UPLOADS, queue.length) },
+        () => worker(),
+      ),
+    );
+
+    const allCompleted = queue.length > 0
+      && queue.every((entry) => outcomes.get(entry.id) === true);
+
+    if (allCompleted && successNavigationHref) {
+      // TD-NEXT-001: fallback temporal para navegación same-route en self-hosted.
+      window.location.assign(successNavigationHref);
     }
   }
 
@@ -394,7 +400,15 @@ export function PedidoFileUploadForm({
   async function retryEntry(entry: UploadEntry) {
     if (hasActiveUploads) return;
     try {
-      await processEntry(entry, true);
+      const completed = await processEntry(entry);
+      const hasIncompleteOtherEntries = entries.some(
+        (current) => current.id !== entry.id && current.status !== "completed",
+      );
+
+      if (completed && !hasIncompleteOtherEntries && successNavigationHref) {
+        // TD-NEXT-001: fallback temporal para navegación same-route en self-hosted.
+        window.location.assign(successNavigationHref);
+      }
     } catch {
       failEntry(
         entry,

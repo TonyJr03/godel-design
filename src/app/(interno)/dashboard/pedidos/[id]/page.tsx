@@ -248,6 +248,7 @@ export default async function DashboardPedidoDetallePage({
             finalizeFileAction={finalizeFileAction}
             pedidoStatus={result.pedido.status}
             canUpload={profile !== null}
+            successNavigationHref={`/dashboard/pedidos/${pedidoId}`}
           />
         }
       />

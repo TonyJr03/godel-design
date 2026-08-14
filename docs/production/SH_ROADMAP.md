@@ -145,8 +145,8 @@ interno, TUS público presigned, resume, finalize, listados y descargas.
 
 | Descomposición SH-03.3 | Estado |
 | --- | --- |
-| SH-03.3A — Inventario Storage y baseline production-like | IMPLEMENTED / PENDING ARCHITECTURAL REVIEW |
-| SH-03.3B — Pedido authenticated TUS y diferencial finalize | NOT STARTED |
+| SH-03.3A — Inventario Storage y baseline production-like | CLOSED / APPROVED |
+| SH-03.3B — Pedido authenticated TUS y diferencial finalize | IMPLEMENTED / PENDING ARCHITECTURAL REVIEW |
 | SH-03.3C — Solicitud pública signed TUS | NOT STARTED |
 | SH-03.3D — Committed/list/download/RLS isolation | NOT STARTED |
 | SH-03.3E — Cleanup, resilience y cierre agregado Storage | NOT STARTED |
@@ -155,8 +155,8 @@ El diseño y la auditoría de partida están en
 [SH_03_QA_PLAN.md](SH_03_QA_PLAN.md), la evidencia de Auth/roles en
 [SH_03_AUTH_QA_REPORT.md](SH_03_AUTH_QA_REPORT.md) y el inventario/baseline
 de Storage en [SH_03_STORAGE_QA_REPORT.md](SH_03_STORAGE_QA_REPORT.md).
-SH-03 permanece en curso; SH-03.1 y SH-03.2 están cerradas/aprobadas; SH-03.3A
-queda implementada y pendiente de revisión arquitectónica. El handoff conserva las acciones que aún
+SH-03 permanece en curso; SH-03.1, SH-03.2 y SH-03.3A están cerradas/aprobadas;
+SH-03.3B está implementada y pendiente de revisión arquitectónica. El handoff conserva las acciones que aún
 combinan mutación, revalidación y `ActionState`/`useActionState`: son `TEST IN
 SH-03.2`, no fallos asumidos ni flujos a los que deba aplicarse preventivamente
 el fallback documental.

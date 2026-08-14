@@ -11,6 +11,13 @@ No se debe usar la clave administrativa en frontend. El cliente de navegador usa
 solamente `NEXT_PUBLIC_SUPABASE_URL` y
 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
 
+El nombre de cookie de sesión se deriva de `protocol + host` de
+`NEXT_PUBLIC_SUPABASE_URL`. Browser usa ese endpoint público, mientras server y
+proxy pueden usar un `SUPABASE_SERVER_URL` interno distinto; los tres clientes
+comparten el namespace derivado del endpoint público, no el server-side. Así se
+comparte la sesión sin mezclar los perfiles local CLI y self-hosted, incluso
+cuando sólo cambia el puerto.
+
 Los clientes server-side usan `src/lib/supabase/server-config.ts`, que es
 server-only. La URL server-side se resuelve con `SUPABASE_SERVER_URL` y, si esa
 variable está vacía, cae a `NEXT_PUBLIC_SUPABASE_URL`. La publishable key sigue

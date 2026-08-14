@@ -349,6 +349,30 @@ frescos con orden ascendente, autor y timestamp. No se aplicó fallback a D.5,
 Storage ni otra action. La deuda continúa activa hasta que los gates D.1–D.4
 demuestren read-your-writes sin navegación documental.
 
+### TD-NEXT-001 — SH-03.3B / finalize de Storage de Pedido
+
+El TUS authenticated de Pedido completó bajo Nginx y
+`finalizePedidoFileAction` persistió: una navegación diagnóstica canónica
+mostró metadata committed y enlace de descarga. Sin embargo, el completion
+local seguido de `router.refresh()` dejó la lista stale. La manifestación queda
+acotada al success path `finalizePedidoFileAction` / `PedidoFileUploadForm`; no
+hay evidencia de afectación en reserve ni en los flujos públicos.
+
+Se retiró exclusivamente `revalidatePedidoDetail(pedidoId)` del éxito de
+finalize. La cola conserva completion local de todos los ítems y navega una vez
+al href canónico recibido mediante `window.location.assign()` sólo cuando el
+batch queda completamente exitoso, con el comentario TD-NEXT-001 inmediato. Un
+batch parcial conserva retry e ítems completed; el retry navega únicamente si
+completa el último pendiente. No se añadieron timeout, nonce, `sessionStorage`,
+doble refresh ni estado optimista.
+
+El gate 7 MiB pasó 3/3 por procesos independientes bajo Nginx; también pasaron
+resume, batch con concurrencia dos, partial batch con retry del mismo recurso,
+sesión invalidada, límites y cancelación. La retirada exige que ese conjunto
+demuestre metadata/list/download fresco sin navegación documental.
+Worker/list/download deliberadamente queda para SH-03.3D, que necesita su
+fixture de asignación.
+
 ## Riesgos operativos
 
 ### TD-NEXT-001 — Extensión SH-03.2C

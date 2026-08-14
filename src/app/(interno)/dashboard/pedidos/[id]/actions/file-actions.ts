@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePedidoDetail } from "@/lib/actions/revalidation";
 import {
   finalizePedidoUpload,
   reservePedidoUpload,
@@ -48,8 +47,6 @@ export async function finalizePedidoFileAction(
   if (!result.ok) {
     return { ok: false, message: result.message };
   }
-
-  revalidatePedidoDetail(pedidoId);
 
   return { ok: true, result: result.finalize.result };
 }

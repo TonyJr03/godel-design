@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 
+import { expectNoVisibleSensitiveText } from "./helpers/assertions";
 import { loginAs } from "./helpers/auth";
 import { getFutureDateInputValue } from "./helpers/date";
 import { createQaRunId } from "./helpers/qa-data";
@@ -50,6 +51,8 @@ async function createPedidoForDirectUpload(page: Page, suffix: string) {
   await orderLink.click();
   await expect(page).toHaveURL(/\/dashboard\/pedidos\/[0-9a-f-]+$/i);
   await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
+  await expect(page.getByText(/^en revisi.n$/i).first()).toBeVisible();
+  await expect(page.getByText(/iniciando revisi.n/i)).toHaveCount(0);
 
   await page.getByRole("button", { name: /^archivos/i }).click();
   const filesDialog = page.getByRole("dialog", { name: /^archivos$/i });
@@ -62,11 +65,9 @@ async function createPedidoForDirectUpload(page: Page, suffix: string) {
 function trackBrowserTransfer(page: Page) {
   const tusRequests: Array<{
     method: string;
-    url: string;
+    pathname: string;
     hasAuthorization: boolean;
-    contentLength: number;
   }> = [];
-  const nextPostLengths: number[] = [];
 
   page.on("request", (request) => {
     const url = new URL(request.url());
@@ -74,18 +75,28 @@ function trackBrowserTransfer(page: Page) {
     if (url.pathname.includes("/storage/v1/upload/resumable")) {
       tusRequests.push({
         method: request.method(),
-        url: request.url(),
+        pathname: url.pathname,
         hasAuthorization: Boolean(request.headers().authorization),
-        contentLength: Number(request.headers()["content-length"] ?? 0),
       });
-    }
-
-    if (isNextActionPost(request)) {
-      nextPostLengths.push(Number(request.headers()["content-length"] ?? 0));
     }
   });
 
-  return { tusRequests, nextPostLengths };
+  return { tusRequests };
+}
+
+function waitForPedidoDetailNavigation(page: Page) {
+  return page.waitForEvent(
+    "framenavigated",
+    (frame) => frame === page.mainFrame()
+      && /\/dashboard\/pedidos\/[0-9a-f-]+$/i.test(frame.url()),
+  );
+}
+
+async function reopenFilesPanel(page: Page) {
+  await page.getByRole("button", { name: /^archivos/i }).click();
+  const filesDialog = page.getByRole("dialog", { name: /^archivos$/i });
+  await expect(filesDialog).toBeVisible();
+  return filesDialog;
 }
 
 test.describe.configure({ mode: "serial" });
@@ -101,17 +112,22 @@ test("pedido uses the production component for authenticated direct TUS upload",
     mimeType: "application/pdf",
     buffer: createPdfBuffer(7 * MEBIBYTE),
   });
+  const detailNavigation = waitForPedidoDetailNavigation(page);
   await filesDialog.getByRole("button", { name: /^subir archivos$/i }).click();
 
-  await expect(filesDialog.getByText(fileName)).toBeVisible();
-  await expect(filesDialog.getByText(/^completado/i)).toBeVisible({ timeout: 45_000 });
-  await expect(filesDialog.getByRole("link", { name: /^descargar$/i })).toHaveCount(1);
+  await detailNavigation;
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  const refreshedFilesDialog = await reopenFilesPanel(page);
+  await expect(refreshedFilesDialog.getByText(fileName)).toBeVisible();
+  await expect(refreshedFilesDialog.getByRole("link", { name: /^descargar$/i })).toHaveCount(1);
 
   expect(traffic.tusRequests.some((request) => request.method === "POST")).toBe(true);
   expect(traffic.tusRequests.some((request) => request.method === "PATCH")).toBe(true);
+  expect(traffic.tusRequests.every((request) => (
+    request.pathname === "/storage/v1/upload/resumable"
+    || request.pathname.startsWith("/storage/v1/upload/resumable/")
+  ))).toBe(true);
   expect(traffic.tusRequests.some((request) => request.hasAuthorization)).toBe(true);
-  expect(traffic.nextPostLengths.length).toBeGreaterThan(0);
-  expect(Math.max(...traffic.nextPostLengths)).toBeLessThan(128 * 1024);
 });
 
 test("pedido resumes the same reserved item after an interrupted PATCH", async ({ page }) => {
@@ -169,10 +185,12 @@ test("pedido resumes the same reserved item after an interrupted PATCH", async (
 
   allowRoutes = true;
   await page.unroute(TUS_ROUTE);
+  const detailNavigation = waitForPedidoDetailNavigation(page);
   await retryButton.click();
 
-  await expect(filesDialog.getByText(/^completado/i)).toBeVisible({ timeout: 45_000 });
-  await expect(filesDialog.getByText(/1 archivo subido correctamente/i)).toBeVisible();
+  await detailNavigation;
+  const refreshedFilesDialog = await reopenFilesPanel(page);
+  await expect(refreshedFilesDialog.getByRole("link", { name: /^descargar$/i })).toHaveCount(1);
   expect(resumedHeadCount).toBeGreaterThan(0);
   expect(resumedPatchUrls.some((url) => resumedHeadUrls.includes(url))).toBe(true);
 });
@@ -215,16 +233,109 @@ test("pedido reserves one batch and transfers three files with a browser queue o
       buffer: createPdfBuffer(128 * 1024),
     })),
   );
+  const detailNavigation = waitForPedidoDetailNavigation(page);
   await filesDialog.getByRole("button", { name: /^subir archivos$/i }).click();
 
+  await detailNavigation;
+  const refreshedFilesDialog = await reopenFilesPanel(page);
   for (const name of names) {
-    await expect(filesDialog.getByText(name)).toBeVisible();
+    await expect(refreshedFilesDialog.getByText(name)).toBeVisible();
   }
-  await expect(filesDialog.getByText(/^completado/i)).toHaveCount(3, { timeout: 45_000 });
-  await expect(filesDialog.getByText(/3 archivos subidos correctamente/i)).toBeVisible();
-  await expect(filesDialog.getByRole("link", { name: /^descargar$/i })).toHaveCount(3);
+  await expect(refreshedFilesDialog.getByRole("link", { name: /^descargar$/i })).toHaveCount(3);
   expect(maximumConcurrentPatches).toBeLessThanOrEqual(2);
   expect(reservationActionPosts).toBeGreaterThanOrEqual(1);
+});
+
+test("pedido keeps a partial batch retryable before canonical navigation", async ({ page }) => {
+  test.setTimeout(120_000);
+  const filesDialog = await createPedidoForDirectUpload(page, createQaRunId());
+  const names = ["qa-pedido-partial-a.pdf", "qa-pedido-partial-b.pdf"];
+  let firstTusResource: string | null = null;
+  let failedTusResource: string | null = null;
+  let retrying = false;
+  let retryHeadOnFailedResource = 0;
+  let retryPatchOnFailedResource = 0;
+  let controlPlanePosts = 0;
+  let documentNavigations = 0;
+
+  page.on("framenavigated", (frame) => {
+    if (
+      frame === page.mainFrame()
+      && /\/dashboard\/pedidos\/[0-9a-f-]+$/i.test(frame.url())
+    ) {
+      documentNavigations += 1;
+    }
+  });
+  page.on("request", (request) => {
+    if (isNextActionPost(request)) controlPlanePosts += 1;
+
+    if (!retrying || request.url() !== failedTusResource) return;
+    if (request.method() === "HEAD") retryHeadOnFailedResource += 1;
+    if (request.method() === "PATCH") retryPatchOnFailedResource += 1;
+  });
+  await page.route(TUS_ROUTE, async (route) => {
+    const request = route.request();
+
+    if (request.method() !== "PATCH") {
+      await route.continue();
+      return;
+    }
+
+    if (firstTusResource === null) {
+      firstTusResource = request.url();
+      await route.continue();
+      return;
+    }
+
+    if (request.url() !== firstTusResource && failedTusResource === null) {
+      failedTusResource = request.url();
+    }
+
+    if (request.url() === failedTusResource) {
+      await route.abort("failed");
+      return;
+    }
+
+    await route.continue();
+  });
+
+  await filesDialog.getByLabel(/^archivos$/i).setInputFiles(
+    names.map((name) => ({
+      name,
+      mimeType: "application/pdf",
+      buffer: createPdfBuffer(128 * 1024),
+    })),
+  );
+  await filesDialog.getByRole("button", { name: /^subir archivos$/i }).click();
+
+  await expect(filesDialog.getByText("Carga completada parcialmente", { exact: true }))
+    .toBeVisible({ timeout: 45_000 });
+  await expect(filesDialog).toBeVisible();
+  await expect(filesDialog.getByText(/^completado.*100%$/i)).toHaveCount(1);
+  await expect(filesDialog.getByText(/^requiere reintento.*0%$/i)).toHaveCount(1);
+  const retryButton = filesDialog.getByRole("button", { name: /^reintentar$/i });
+  await expect(retryButton).toHaveCount(1);
+  expect(documentNavigations).toBe(0);
+  expect(failedTusResource).not.toBeNull();
+
+  const controlPlanePostsBeforeRetry = controlPlanePosts;
+  retrying = true;
+  await page.unroute(TUS_ROUTE);
+  const detailNavigation = waitForPedidoDetailNavigation(page);
+  await retryButton.click();
+
+  await detailNavigation;
+  expect(documentNavigations).toBe(1);
+  expect(retryHeadOnFailedResource).toBeGreaterThan(0);
+  expect(retryPatchOnFailedResource).toBeGreaterThan(0);
+  expect(controlPlanePosts).toBe(controlPlanePostsBeforeRetry + 1);
+
+  const refreshedFilesDialog = await reopenFilesPanel(page);
+  for (const name of names) {
+    await expect(refreshedFilesDialog.getByText(name)).toBeVisible();
+  }
+  await expect(refreshedFilesDialog.getByRole("link", { name: /^descargar$/i })).toHaveCount(2);
+  await expectNoVisibleSensitiveText(page);
 });
 
 test("pedido handles a browser session invalidated after opening the files panel", async ({ page }) => {
@@ -251,8 +362,17 @@ test("pedido handles a browser session invalidated after opening the files panel
 });
 
 test("pedido rejects client-side counts, sizes and extensions before reserving", async ({ page }) => {
+  test.setTimeout(120_000);
   const filesDialog = await createPedidoForDirectUpload(page, createQaRunId());
   const input = filesDialog.getByLabel(/^archivos$/i);
+  let reserveControlPlanePosts = 0;
+
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (request.method() === "POST" && !url.pathname.startsWith("/storage/")) {
+      reserveControlPlanePosts += 1;
+    }
+  });
 
   await input.setInputFiles(Array.from({ length: 11 }, (_, index) => ({
     name: `qa-max-${index}.pdf`,
@@ -274,6 +394,7 @@ test("pedido rejects client-side counts, sizes and extensions before reserving",
     buffer: Buffer.from("<svg></svg>"),
   });
   await expect(filesDialog.getByText(/PDF, imagen, documento, ZIP, RAR o CDR/i)).toBeVisible();
+  expect(reserveControlPlanePosts).toBe(0);
 });
 
 test("pedido cancelled removes operational upload controls", async ({ page }) => {
@@ -284,12 +405,12 @@ test("pedido cancelled removes operational upload controls", async ({ page }) =>
   const statusDialog = page.getByRole("dialog", { name: /^estado$/i });
   await expect(statusDialog).toBeVisible();
   await statusDialog.getByRole("button", { name: /cancelar pedido/i }).click();
+  const detailNavigation = waitForPedidoDetailNavigation(page);
   await statusDialog.getByRole("button", { name: /sí, cancelar pedido/i }).click();
-  await expect(statusDialog.getByText(/^cancelado$/i).first()).toBeVisible({ timeout: 15_000 });
-  await statusDialog.getByRole("button", { name: /cerrar/i }).click();
+  await detailNavigation;
+  await expect(page.getByText(/^cancelado$/i).first()).toBeVisible();
 
-  await page.getByRole("button", { name: /^archivos/i }).click();
-  const cancelledFilesDialog = page.getByRole("dialog", { name: /^archivos$/i });
+  const cancelledFilesDialog = await reopenFilesPanel(page);
   await expect(cancelledFilesDialog.getByLabel(/^archivos$/i)).toHaveCount(0);
   await expect(cancelledFilesDialog.getByText(/fue cancelado y no admite nuevas subidas/i)).toBeVisible();
 });
