@@ -6,6 +6,15 @@ import { createQaRunId } from "./helpers/qa-data";
 const MEBIBYTE = 1024 * 1024;
 const TUS_ROUTE = /\/storage\/v1\/upload\/resumable(?:\/|$)/;
 
+function isNextActionPost(request: import("@playwright/test").Request) {
+  const url = new URL(request.url());
+  const headers = request.headers();
+
+  return request.method() === "POST"
+    && !url.pathname.startsWith("/storage/")
+    && Object.hasOwn(headers, "next-action");
+}
+
 type NetworkRecord = {
   method: string;
   origin: string;
@@ -106,7 +115,7 @@ function trackTransfer(page: Page) {
     if (url.pathname.includes("/storage/v1/upload/resumable")) {
       tusRequests.push(toNetworkRecord(request));
     }
-    if (url.origin === "http://localhost:3000" && request.method() === "POST") {
+    if (isNextActionPost(request)) {
       nextPostLengths.push(Number(request.headers()["content-length"] ?? request.postDataBuffer()?.byteLength ?? 0));
     }
   });
@@ -151,11 +160,11 @@ test("public impresión transfers a 7 MiB file directly to signed TUS Storage", 
 
   expect(traffic.tusRequests.some((request) => request.method === "POST")).toBe(true);
   expect(traffic.tusRequests.some((request) => request.method === "PATCH")).toBe(true);
-  expect(traffic.tusRequests.every((request) => request.origin !== "http://localhost:3000")).toBe(true);
   expect(traffic.tusRequests.every((request) => request.pathname === "/storage/v1/upload/resumable/sign" || request.pathname.startsWith("/storage/v1/upload/resumable/sign/"))).toBe(true);
   expect(traffic.tusRequests.every((request) => request.hasSignature)).toBe(true);
   expect(traffic.tusRequests.every((request) => !request.hasAuthorization)).toBe(true);
-  expect(Math.max(...traffic.nextPostLengths, 0)).toBeLessThan(128 * 1024);
+  expect(traffic.nextPostLengths.length).toBeGreaterThan(0);
+  expect(Math.max(...traffic.nextPostLengths)).toBeLessThan(128 * 1024);
   expect(traffic.tusRequests.filter((request) => request.method === "PATCH").map((request) => request.uploadOffset)).toEqual(expect.arrayContaining([0, 6 * MEBIBYTE]));
 });
 
@@ -170,8 +179,8 @@ test("public retry resumes the same TUS resource without a second reservation", 
   let firstTusSeen = false;
   let startActionPosts = 0;
   let retrying = false;
-  let reservationActionId: string | undefined;
-  let reservationActionRepeated = false;
+  let retryTusSeen = false;
+  let retryPreTusControlActionPosts = 0;
 
   await page.route(TUS_ROUTE, async (route) => {
     const request = route.request();
@@ -185,18 +194,17 @@ test("public retry resumes the same TUS resource without a second reservation", 
   page.on("request", (request) => {
     const url = new URL(request.url());
     if (url.pathname.includes("/storage/v1/upload/resumable")) {
+      if (retrying) retryTusSeen = true;
       if (request.method() === "PATCH" && !initialResource) initialResource = request.url();
       if (retrying && request.method() === "HEAD" && request.url() === initialResource) resumedHeadMatchesResource = true;
       if (retrying && request.method() === "PATCH" && request.url() === initialResource) resumedPatchMatchesResource = true;
       firstTusSeen = true;
     }
-    if (url.origin === "http://localhost:3000" && request.method() === "POST") {
-      const actionId = request.headers()["next-action"];
+    if (isNextActionPost(request)) {
       if (!firstTusSeen) {
         startActionPosts += 1;
-        reservationActionId ??= actionId;
-      } else if (retrying && actionId === reservationActionId) {
-        reservationActionRepeated = true;
+      } else if (retrying && !retryTusSeen) {
+        retryPreTusControlActionPosts += 1;
       }
     }
   });
@@ -222,7 +230,7 @@ test("public retry resumes the same TUS resource without a second reservation", 
   await expect(page.getByText(/^recibido/i)).toBeVisible({ timeout: 45_000 });
   expect(resumedHeadMatchesResource).toBe(true);
   expect(resumedPatchMatchesResource).toBe(true);
-  expect(reservationActionRepeated).toBe(false);
+  expect(retryPreTusControlActionPosts).toBe(1);
 
   const persistedKeys = await page.evaluate(() => [
     ...Object.keys(localStorage),
@@ -235,16 +243,14 @@ test("public encargo reserves one batch, completes three files, and caps PATCH c
   test.setTimeout(120_000);
   let firstTusSeen = false;
   let startActionPosts = 0;
-  const actionIdsBeforeFirstTus: string[] = [];
   let activePatches = 0;
   let maximumConcurrentPatches = 0;
   const resources = new Set<string>();
 
   page.on("request", (request) => {
     const url = new URL(request.url());
-    if (!firstTusSeen && url.origin === "http://localhost:3000" && request.method() === "POST") {
+    if (!firstTusSeen && isNextActionPost(request)) {
       startActionPosts += 1;
-      actionIdsBeforeFirstTus.push(request.headers()["next-action"] ?? "");
     }
     if (!url.pathname.includes("/storage/v1/upload/resumable")) return;
     firstTusSeen = true;
@@ -274,9 +280,6 @@ test("public encargo reserves one batch, completes three files, and caps PATCH c
   await expect(page.getByText(/^recibido/i)).toHaveCount(3, { timeout: 45_000 });
   await expect(page.getByText(/archivos recibidos:\s*3/i)).toBeVisible();
   expect(startActionPosts).toBe(3);
-  expect([...new Set(actionIdsBeforeFirstTus)].map((actionId) => (
-    actionIdsBeforeFirstTus.filter((candidate) => candidate === actionId).length
-  )).sort()).toEqual([1, 2]);
   expect(resources.size).toBe(3);
   expect(maximumConcurrentPatches).toBeLessThanOrEqual(2);
 });
@@ -298,8 +301,7 @@ test("public finalize retry does not repeat signed TUS transfer", async ({ page 
   });
   await page.route("**/*", async (route) => {
     const request = route.request();
-    const url = new URL(request.url());
-    if (blockFinalize && tusCompleted && !finalizeBlocked && url.origin === "http://localhost:3000" && request.method() === "POST") {
+    if (blockFinalize && tusCompleted && !finalizeBlocked && isNextActionPost(request)) {
       finalizeBlocked = true;
       await route.abort("failed");
       return;

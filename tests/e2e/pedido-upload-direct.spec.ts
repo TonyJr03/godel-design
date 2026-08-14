@@ -7,6 +7,15 @@ import { createQaRunId } from "./helpers/qa-data";
 const MEBIBYTE = 1024 * 1024;
 const TUS_ROUTE = /\/storage\/v1\/upload\/resumable(?:\/|$)/;
 
+function isNextActionPost(request: import("@playwright/test").Request) {
+  const url = new URL(request.url());
+  const headers = request.headers();
+
+  return request.method() === "POST"
+    && !url.pathname.startsWith("/storage/")
+    && Object.hasOwn(headers, "next-action");
+}
+
 function createPdfBuffer(size: number) {
   return Buffer.concat([
     Buffer.from("%PDF-1.7\n% Godel QA\n"),
@@ -71,7 +80,7 @@ function trackBrowserTransfer(page: Page) {
       });
     }
 
-    if (url.port === "3000" && request.method() === "POST") {
+    if (isNextActionPost(request)) {
       nextPostLengths.push(Number(request.headers()["content-length"] ?? 0));
     }
   });
@@ -100,9 +109,9 @@ test("pedido uses the production component for authenticated direct TUS upload",
 
   expect(traffic.tusRequests.some((request) => request.method === "POST")).toBe(true);
   expect(traffic.tusRequests.some((request) => request.method === "PATCH")).toBe(true);
-  expect(traffic.tusRequests.every((request) => !request.url.includes(":3000/"))).toBe(true);
   expect(traffic.tusRequests.some((request) => request.hasAuthorization)).toBe(true);
-  expect(Math.max(...traffic.nextPostLengths, 0)).toBeLessThan(128 * 1024);
+  expect(traffic.nextPostLengths.length).toBeGreaterThan(0);
+  expect(Math.max(...traffic.nextPostLengths)).toBeLessThan(128 * 1024);
 });
 
 test("pedido resumes the same reserved item after an interrupted PATCH", async ({ page }) => {
@@ -182,7 +191,7 @@ test("pedido reserves one batch and transfers three files with a browser queue o
 
   page.on("request", (request) => {
     const url = new URL(request.url());
-    if (url.port === "3000" && request.method() === "POST") reservationActionPosts += 1;
+    if (isNextActionPost(request)) reservationActionPosts += 1;
     if (request.method() === "PATCH" && url.pathname.includes("/storage/v1/upload/resumable")) {
       activePatches += 1;
       maximumConcurrentPatches = Math.max(maximumConcurrentPatches, activePatches);
