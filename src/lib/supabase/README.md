@@ -24,6 +24,12 @@ variable está vacía, cae a `NEXT_PUBLIC_SUPABASE_URL`. La publishable key sigu
 siendo `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` y no reemplaza RLS ni permisos.
 `server-config.ts` no debe importarse desde Client Components.
 
+`getSupabasePublicUrl()` exige `NEXT_PUBLIC_SUPABASE_URL` y representa el
+endpoint entregable al navegador. Storage puede firmar por el transporte interno
+del cliente server-side, pero normaliza únicamente el origen de la URL firmada
+hacia este endpoint público antes de redirigir; no modifica autorización, firma
+ni RLS.
+
 Ejemplo conceptual para desarrollo local contenerizado cuando navegador y
 contenedor no alcanzan Supabase local por el mismo endpoint:
 

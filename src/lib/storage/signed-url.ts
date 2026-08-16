@@ -1,10 +1,32 @@
 import { createClient } from "@/lib/supabase/server";
 import {
+  getSupabasePublicUrl,
+  getSupabaseServerUrl,
+} from "@/lib/supabase/server-config";
+import {
   GODEL_FILES_BUCKET,
   SIGNED_FILE_URL_EXPIRES_IN_SECONDS,
 } from "./constants";
 import { isValidUuid } from "@/lib/validators";
 import type { SignedFileUrlResult } from "./types";
+
+function normalizeSignedStorageUrl(signedUrl: string): string | null {
+  const signed = new URL(signedUrl);
+  const serverOrigin = new URL(getSupabaseServerUrl()).origin;
+  const publicUrl = new URL(getSupabasePublicUrl());
+
+  if (
+    (signed.origin !== serverOrigin && signed.origin !== publicUrl.origin) ||
+    !signed.pathname.startsWith("/storage/v1/")
+  ) {
+    return null;
+  }
+
+  signed.protocol = publicUrl.protocol;
+  signed.host = publicUrl.host;
+
+  return signed.toString();
+}
 
 export async function createSignedFileUrl(
   fileId: string,
@@ -51,9 +73,17 @@ export async function createSignedFileUrl(
       return { ok: false, reason: "storage_error" };
     }
 
+    const normalizedSignedUrl = normalizeSignedStorageUrl(
+      signedUrlData.signedUrl,
+    );
+
+    if (!normalizedSignedUrl) {
+      return { ok: false, reason: "storage_error" };
+    }
+
     return {
       ok: true,
-      url: signedUrlData.signedUrl,
+      url: normalizedSignedUrl,
       expiresIn: SIGNED_FILE_URL_EXPIRES_IN_SECONDS,
     };
   } catch {

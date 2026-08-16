@@ -16,7 +16,7 @@ operativo completo está en [docs/STORAGE_MODEL.md](../../../docs/STORAGE_MODEL.
 | `upload-control/` | Reserva, firma, finalize, descriptores y parsers server-only. |
 | `tus/` | Adaptador browser-only para TUS; URL/fingerprint viven solo en memoria. |
 | `list-pedido-files.ts` / `list-solicitud-files.ts` | Listados internos seguros mediante RLS. |
-| `signed-url.ts` | Signed URL server-side desde `archivo.id`. |
+| `signed-url.ts` | Signed URL server-side desde `archivo.id`, normalizada al origen público antes de redirigir al navegador. |
 
 ## Flujos
 
@@ -30,6 +30,11 @@ metadata. Los consumidores no construyen rutas `file_path`, no insertan
 `archivos` directamente y no envían bytes a Server Actions. El retry de TUS
 reanuda el mismo item; si ya se transfirió el objeto, el retry de finalize no
 repite la transferencia.
+
+Las descargas firmadas se crean mediante el transporte server-side, que puede
+usar `SUPABASE_SERVER_URL` interno. Antes de entregarse al navegador, se valida
+el origen y el prefijo `/storage/v1/`, y sólo se normaliza protocol/host hacia
+`NEXT_PUBLIC_SUPABASE_URL`; RLS, firma, token, path y TTL no cambian.
 
 La UI limita a dos transferencias concurrentes, uno a diez archivos por sesión
 y 20 MiB por archivo. Los formatos permitidos son PDF, JPG/JPEG, PNG, WEBP,

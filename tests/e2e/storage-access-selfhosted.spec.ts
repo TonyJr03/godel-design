@@ -1,4 +1,4 @@
-import { expect, type Locator, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, type Request, test } from "@playwright/test";
 
 import { expectNoStorageLeakTextIn } from "./helpers/assertions";
 import { loginAs } from "./helpers/auth";
@@ -101,10 +101,102 @@ async function assignWorker(page: Page, name: string) {
   await navigation;
 }
 
+async function createPublicSolicitud(
+  page: Page,
+  clientName: string,
+  fileName?: string,
+  waitForFileCompletion = true,
+) {
+  await page.goto("/solicitud");
+  await expect(page.getByRole("heading", { name: /qu. necesitas preparar/i })).toBeVisible();
+  await page.locator('select[name="service_id"]').first().selectOption({ label: "Otro" });
+  await page.getByLabel(/nombre del cliente/i).fill(clientName);
+  await page.getByLabel(/tel.fono/i).fill(`555${runId.slice(-6)}`);
+  await page.getByLabel(/correo electr.nico/i).fill(`storage-${runId}@example.com`);
+  await page.getByLabel(/descripci.n del trabajo/i).fill("Fixture pública determinista para QA Storage.");
+  await page.getByLabel(/observaciones adicionales/i).fill("QA Storage.");
+
+  if (fileName) {
+    await page.getByLabel(/seleccionar archivos/i).setInputFiles({
+      name: fileName,
+      mimeType: "application/pdf",
+      buffer: createPdfBuffer(),
+    });
+  }
+
+  await page.getByRole("button", { name: /enviar solicitud/i }).click();
+
+  if (fileName && waitForFileCompletion) {
+    await expect(page.getByText(/^recibido/i)).toBeVisible({ timeout: 45_000 });
+  } else if (fileName) {
+    await expect(page.getByRole("heading", { name: /estado de archivos/i })).toBeVisible();
+  } else {
+    await expect(page.getByText(/solicitud enviada correctamente/i)).toBeVisible({ timeout: 15_000 });
+  }
+
+  return (await page.locator("code").first().textContent())?.trim() ?? "";
+}
+
+async function findSolicitudAsAdmin(publicReference: string, clientName: string) {
+  const supabase = await createQaSupabaseClient("admin");
+  const { data, error } = await supabase
+    .from("solicitudes")
+    .select("id, public_reference, client_name")
+    .eq("public_reference", publicReference)
+    .eq("client_name", clientName)
+    .maybeSingle();
+  await signOutQaSupabaseClient(supabase);
+  expect(error).toBeNull();
+  expect(data?.public_reference).toBe(publicReference);
+  expect(data?.client_name).toBe(clientName);
+  expect(data?.id).toBeTruthy();
+  return data!.id;
+}
+
+async function openSolicitudFiles(page: Page): Promise<Locator> {
+  await page.getByRole("button", { name: /archivos/i }).first().click();
+  const dialog = page.getByRole("dialog", { name: /^archivos$/i });
+  await expect(dialog).toBeVisible();
+  return dialog;
+}
+
+async function expectSafeNoStorageDownload(
+  page: Page,
+  downloadHref: string,
+) {
+  const response = await page.context().request.get(downloadHref, {
+    maxRedirects: 0,
+  });
+  const location = response.headers().location ?? "";
+  expect(location).not.toMatch(/storage\/v1/i);
+  expect((await response.body()).subarray(0, 4).toString()).not.toBe("%PDF");
+  return response.status();
+}
+
+function isNextActionPost(request: Request) {
+  const url = new URL(request.url());
+
+  return request.method() === "POST"
+    && !url.pathname.startsWith("/storage/")
+    && Object.hasOwn(request.headers(), "next-action");
+}
+
+async function listSolicitudFilesAsAdmin(solicitudId: string, fileName: string) {
+  const supabase = await createQaSupabaseClient("admin");
+  const { data, error } = await supabase
+    .from("archivos")
+    .select("id, file_name, solicitud_id")
+    .eq("solicitud_id", solicitudId)
+    .eq("file_name", fileName);
+  await signOutQaSupabaseClient(supabase);
+  expect(error).toBeNull();
+  return data ?? [];
+}
+
 test.describe.configure({ mode: "serial" });
 
 test("self-hosted storage access: pedido committed list, download binding and worker revocation", async ({ page, browser }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(360_000);
   const titleA = `QA Storage Access Pedido A ${runId}`;
   const titleB = `QA Storage Access Pedido B ${runId}`;
   const fileName = `qa-storage-access-${runId}.pdf`;
@@ -178,4 +270,140 @@ test("self-hosted storage access: pedido committed list, download binding and wo
   expect(denied.status()).toBe(307);
   expect(denied.headers().location).toMatch(/^\/login(?:[?#]|$)/);
   await anonymous.close();
+
+  const solicitudAClient = `QA Storage Access Solicitud A ${runId}`;
+  const solicitudBClient = `QA Storage Access Solicitud B ${runId}`;
+  const solicitudFileName = `qa-storage-solicitud-${runId}.pdf`;
+  const solicitudAReference = await createPublicSolicitud(
+    page,
+    solicitudAClient,
+    solicitudFileName,
+  );
+  expect(solicitudAReference).toBeTruthy();
+  const solicitudAId = await findSolicitudAsAdmin(
+    solicitudAReference,
+    solicitudAClient,
+  );
+  const solicitudBReference = await createPublicSolicitud(page, solicitudBClient);
+  expect(solicitudBReference).toBeTruthy();
+  const solicitudBId = await findSolicitudAsAdmin(
+    solicitudBReference,
+    solicitudBClient,
+  );
+
+  await loginAs(page, "admin");
+  await page.goto(`/dashboard/solicitudes/${solicitudAId}`);
+  const solicitudAdminFiles = await openSolicitudFiles(page);
+  await expect(solicitudAdminFiles.getByText(solicitudFileName)).toBeVisible();
+  await expectNoStorageLeakTextIn(solicitudAdminFiles);
+  const solicitudDownloadHref = await solicitudAdminFiles
+    .getByRole("link", { name: /^descargar$/i })
+    .getAttribute("href");
+  expect(solicitudDownloadHref).toMatch(
+    new RegExp(`^/dashboard/solicitudes/${solicitudAId}/archivos/[0-9a-f-]+/download$`, "i"),
+  );
+  const solicitudFileId = solicitudDownloadHref!.match(/archivos\/([0-9a-f-]+)\/download$/i)![1];
+  await expectFunctionalSignedDownload(page, solicitudDownloadHref!);
+  const wrongSolicitudOwner = await page.context().request.get(
+    `/dashboard/solicitudes/${solicitudBId}/archivos/${solicitudFileId}/download`,
+    { maxRedirects: 0 },
+  );
+  expect(wrongSolicitudOwner.status()).toBeGreaterThanOrEqual(400);
+  expect(wrongSolicitudOwner.headers().location).toBeUndefined();
+  expect((await wrongSolicitudOwner.body()).subarray(0, 4).toString()).not.toBe("%PDF");
+
+  await loginAs(page, "supervisor");
+  await page.goto(`/dashboard/solicitudes/${solicitudAId}`);
+  const solicitudSupervisorFiles = await openSolicitudFiles(page);
+  await expect(solicitudSupervisorFiles.getByText(solicitudFileName)).toBeVisible();
+  await expectFunctionalSignedDownload(page, solicitudDownloadHref!);
+
+  await loginAs(page, "worker");
+  const workerSolicitudStatus = await expectSafeNoStorageDownload(
+    page,
+    solicitudDownloadHref!,
+  );
+  expect(workerSolicitudStatus).toBeGreaterThanOrEqual(300);
+
+  await page.goto(`/estado?ref=${encodeURIComponent(solicitudAReference)}`);
+  await expect(page.getByText(/estado de tu solicitud|solicitud recibida|en revisi.n/i).first()).toBeVisible();
+  await expect(page.getByText(solicitudFileName)).toHaveCount(0);
+  await expectNoStorageLeakTextIn(page.locator("body"));
+});
+
+test("self-hosted storage access: public staged file is operational only after finalize retry", async ({
+  page,
+  browser,
+}) => {
+  test.setTimeout(180_000);
+  const stagedClient = `QA Storage Staged Solicitud ${runId}`;
+  const stagedFileName = `qa-storage-staged-${runId}.pdf`;
+  let tusCompleted = false;
+  let finalizeBlocked = false;
+  let blockFinalize = true;
+  let tusRequestCount = 0;
+
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname.includes("/storage/v1/upload/resumable")) {
+      tusRequestCount += 1;
+    }
+  });
+  page.on("requestfinished", (request) => {
+    if (request.method() === "PATCH" && new URL(request.url()).pathname.includes("/storage/v1/upload/resumable")) {
+      tusCompleted = true;
+    }
+  });
+  await page.route("**/*", async (route) => {
+    const request = route.request();
+    if (blockFinalize && tusCompleted && !finalizeBlocked && isNextActionPost(request)) {
+      finalizeBlocked = true;
+      await route.abort("failed");
+      return;
+    }
+    await route.continue();
+  });
+
+  const stagedReference = await createPublicSolicitud(
+    page,
+    stagedClient,
+    stagedFileName,
+    false,
+  );
+  expect(stagedReference).toBeTruthy();
+  const stagedSolicitudId = await findSolicitudAsAdmin(stagedReference, stagedClient);
+  const retryButton = page.getByRole("button", { name: /^reintentar$/i });
+  await expect(retryButton).toBeVisible({ timeout: 45_000 });
+  expect(tusCompleted).toBe(true);
+  expect(finalizeBlocked).toBe(true);
+  expect(await listSolicitudFilesAsAdmin(stagedSolicitudId, stagedFileName)).toHaveLength(0);
+
+  const adminContext = await browser.newContext();
+  const adminPage = await adminContext.newPage();
+  await loginAs(adminPage, "admin");
+  await adminPage.goto(`/dashboard/solicitudes/${stagedSolicitudId}`);
+  const stagedFiles = await openSolicitudFiles(adminPage);
+  await expect(stagedFiles.getByText(stagedFileName)).toHaveCount(0);
+  await expect(stagedFiles.getByRole("link", { name: /^descargar$/i })).toHaveCount(0);
+  await adminContext.close();
+
+  const tusRequestCountBeforeRetry = tusRequestCount;
+  blockFinalize = false;
+  await retryButton.click();
+  await expect(page.getByText(/^recibido/i)).toBeVisible({ timeout: 45_000 });
+  expect(tusRequestCount).toBe(tusRequestCountBeforeRetry);
+  const committedFiles = await listSolicitudFilesAsAdmin(stagedSolicitudId, stagedFileName);
+  expect(committedFiles).toHaveLength(1);
+
+  const committedAdminContext = await browser.newContext();
+  const committedAdminPage = await committedAdminContext.newPage();
+  await loginAs(committedAdminPage, "admin");
+  await committedAdminPage.goto(`/dashboard/solicitudes/${stagedSolicitudId}`);
+  const committedFilesPanel = await openSolicitudFiles(committedAdminPage);
+  await expect(committedFilesPanel.getByText(stagedFileName)).toBeVisible();
+  const committedDownloadHref = await committedFilesPanel
+    .getByRole("link", { name: /^descargar$/i })
+    .getAttribute("href");
+  expect(committedDownloadHref).toBeTruthy();
+  await expectFunctionalSignedDownload(committedAdminPage, committedDownloadHref!);
+  await committedAdminContext.close();
 });

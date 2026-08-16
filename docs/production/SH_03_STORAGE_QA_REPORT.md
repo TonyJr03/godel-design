@@ -5,7 +5,7 @@
 SH-03.3A = CLOSED / APPROVED
 SH-03.3B = CLOSED / APPROVED
 SH-03.3C = CLOSED / APPROVED
-SH-03.3D = BLOCKED / ARCHITECTURAL REVIEW REQUIRED
+SH-03.3D = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
 
 Alcance de A: inventario, baseline production-like y portabilidad exclusiva de
 instrumentación E2E. No se modificaron producto, control plane, TUS adapter,
@@ -226,7 +226,7 @@ documentación: no cambia producto público, DB, migraciones, tipos, Storage
 architecture changes, Compose, Dockerfile, Nginx ni Supabase upstream. No
 commit. No push. Detenerse para revisión arquitectónica de SH-03.3C.
 
-## SH-03.3D — Functional signed-download gate (blocked)
+## SH-03.3D — Functional signed-download gate (resolved)
 
 El fixture determinista de Pedido ya demostró: listado Admin, aislamiento por
 owner (404 sin redirect Storage), listado Supervisor, listado Worker asignado,
@@ -258,8 +258,42 @@ Nginx; tampoco se creó workaround de URL rewriting.
 | Worker identity exacta / Solicitud / commit boundary | No ejecutado por stop condition |
 | Worker removed / anonymous | Evidencia parcial previa preservada; no revalidada tras el stop |
 
-Se requiere decisión arquitectónica sobre el endpoint público que usa la
-generación de signed URLs antes de retomar SH-03.3D. SH-03.3E permanece
+La decisión arquitectónica aprobada se aplicó exclusivamente en el boundary de
+`createSignedFileUrl`: el cliente server-side sigue firmando mediante
+`SUPABASE_SERVER_URL`; `getSupabasePublicUrl()` exige
+`NEXT_PUBLIC_SUPABASE_URL`; la URL resultante se acepta sólo desde el origen
+server/public y con prefijo `/storage/v1/`, y se normalizan sólo protocol/host.
+Se preservan pathname, query, token y TTL. No hubo cambios de Nginx, Compose,
+DB, migraciones, tipos ni Supabase upstream.
+
+La regresión quedó resuelta por Chromium/Nginx: Pedido Admin, Supervisor y
+Worker asignado recibieron primer hop 3xx, origen público y bytes PDF; Worker
+retirado tuvo denegación segura sin redirect ni bytes y anónimo recibió 307 sólo
+hacia login. La asignación UI fue verificada contra la identidad exacta del
+Worker mediante cliente QA normal y `pedido_trabajadores`.
+
+Solicitud pública A completó reserve → signed TUS → finalize → `Recibido`.
+Admin y Supervisor ven la lista segura y descargan bytes PDF con el mismo
+contrato; owner B y Worker reciben denegación sin redirect Storage ni bytes.
+Tracking público de la Solicitud committed no muestra nombre de archivo,
+descarga ni metadata Storage.
+
+La frontera staged → committed también pasó: tras TUS y el bloqueo único de
+finalize, `public.archivos` devolvió 0 filas para el nombre de fixture y el
+panel interno no mostró archivo ni descarga. Retry ejecutó finalize sin nuevas
+requests TUS; después devolvió exactamente una fila, el panel mostró un enlace
+interno y la descarga funcional pasó.
+
+| Surface | Admin | Supervisor | Worker assigned | Worker removed | Anonymous |
+| --- | --- | --- | --- | --- | --- |
+| Pedido list | PASS | PASS | PASS | DENIED | N/A |
+| Pedido download | PASS | PASS | PASS | DENIED | DENIED (307 login) |
+| Pedido small upload | PASS | N/A | PASS | N/A | N/A |
+| Solicitud list | PASS | PASS | DENIED | DENIED | N/A |
+| Solicitud download | PASS | PASS | DENIED | DENIED | N/A |
+| Public tracking | N/A | N/A | N/A | N/A | PASS (safe) |
+
+SH-03.3D queda `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`; SH-03.3E permanece
 `NOT STARTED`.
 
 ## Quality
