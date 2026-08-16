@@ -6,7 +6,7 @@ SH-03.3A = CLOSED / APPROVED
 SH-03.3B = CLOSED / APPROVED
 SH-03.3C = CLOSED / APPROVED
 SH-03.3D = CLOSED / APPROVED
-SH-03.3E = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+SH-03.3E = CLOSED / APPROVED
 
 Alcance de A: inventario, baseline production-like y portabilidad exclusiva de
 instrumentación E2E. No se modificaron producto, control plane, TUS adapter,
@@ -373,7 +373,7 @@ comprobación posterior a la segunda pasada.
   = PASS.
 
 No hubo cambios de RPC, constraint, migration, RLS, cleanup productivo ni
-infraestructura. SH-03.3E queda implementada y pendiente de revisión.
+infraestructura. SH-03.3E queda `CLOSED / APPROVED`.
 
 ## Quality
 

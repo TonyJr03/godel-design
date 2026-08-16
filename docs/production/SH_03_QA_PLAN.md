@@ -4,7 +4,7 @@
 
 ```text
 SH-02 = CLOSED / APPROVED
-SH-03 = IN PROGRESS
+SH-03 = CLOSED / APPROVED
 SH-03.0 = CLOSED / APPROVED
 SH-03.1 = CLOSED / APPROVED
 SH-03.2 = CLOSED / APPROVED
@@ -18,13 +18,13 @@ SH-03.2D.3 = CLOSED / APPROVED
 SH-03.2D.4 = CLOSED / APPROVED
 SH-03.2D.5 = CLOSED / APPROVED
 SH-03.2E = CLOSED / APPROVED
-SH-03.3 = IN PROGRESS
+SH-03.3 = CLOSED / APPROVED
 SH-03.3A = CLOSED / APPROVED
 SH-03.3B = CLOSED / APPROVED
 SH-03.3C = CLOSED / APPROVED
 SH-03.3D = CLOSED / APPROVED
-SH-03.3E = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
-SH-03.4 = NOT STARTED
+SH-03.3E = CLOSED / APPROVED
+SH-03.4 = CLOSED / APPROVED
 ```
 
 ## Objetivo
@@ -348,7 +348,7 @@ overflow ni texto técnico. El handoff de SH-03.3 recibe Core Business aprobado,
 TD-NEXT-001 sin nuevas manifestaciones (31 SAFE / 0 TEST / 5 N/A, total 36),
 la deuda activa ya registrada, health sano y baseline congelada.
 
-Storage no fue ejecutado por E. SH-03.3 es owner exclusivo de TUS autenticado
+En el handoff original, Storage no fue ejecutado por E. SH-03.3 era owner exclusivo de TUS autenticado
 de Pedido, TUS público de Solicitud, reserve/finalize, resume, multi-file,
 listados, descargas, aislamiento/RLS y cleanup; deberá ejecutar
 `storage.spec.ts`, `public-solicitud-upload-direct.spec.ts`,
@@ -365,12 +365,14 @@ focal confirmó el bloqueo post-revalidación y descartó el filesystem read-onl
 como cofactor. Los cuatro creates verificados y la superficie de Usuarios usan
 navegación documental canónica tras éxito; SH-03.1 quedó cerrada/aprobada. La
 fila canónica `Impresión` fue reparada en datos y validada por REST/Nginx y
-Chromium. SH-03.2A, SH-03.2B y SH-03.2C cerraron y fueron aprobadas. SH-03.2D
-está en curso.
+Chromium. SH-03.2A, SH-03.2B y SH-03.2C cerraron y fueron aprobadas. En ese
+checkpoint, SH-03.2D seguía en curso.
 
 SH-03.2A cerró el inventario core y la baseline read-only production-like. Su
 informe [SH_03_CORE_QA_REPORT.md](SH_03_CORE_QA_REPORT.md) registra la
 corrección aprobada de navegación de listados y el alcance actualizado de
-TD-NEXT-001. SH-03.2 sigue activa; SH-03.2B y SH-03.2C quedan
+TD-NEXT-001. Al cierre de ese checkpoint, SH-03.2B y SH-03.2C estaban
 cerradas/aprobadas; SH-03.2D y SH-03.2D.5 también cerraron/aprobaron, y
-SH-03.2E queda implementada y pendiente de revisión arquitectónica.
+SH-03.2E quedaba implementada y pendiente de revisión arquitectónica. El estado
+canónico actual figura al inicio: SH-03.2 y SH-03.3 están cerradas/aprobadas y
+SH-03.4 está en curso.

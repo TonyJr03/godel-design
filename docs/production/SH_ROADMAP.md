@@ -42,7 +42,7 @@ el backend objetivo actual.
 | --- | --- | --- |
 | SH-01 | Baseline oficial Supabase self-hosted | Cerrada / aprobada |
 | SH-02 | Integración Godel ↔ Supabase self-hosted | Cerrada / aprobada |
-| SH-03 | QA funcional production-like | Activa |
+| SH-03 | QA funcional production-like | Cerrada / aprobada |
 | SH-04 | Fundamentos operativos self-hosted | Pendiente |
 | SH-05 | Portabilidad reproducible | Pendiente |
 
@@ -132,8 +132,8 @@ interno, TUS público presigned, resume, finalize, listados y descargas.
 | SH-03.0 — Diseño QA production-like y estrategia de fixtures | CLOSED / APPROVED |
 | SH-03.1 — Provisioning QA self-hosted, Auth/session/roles/Auth Admin | CLOSED / APPROVED |
 | SH-03.2 — Flujos core de negocio y tracking | CLOSED / APPROVED |
-| SH-03.3 — Storage, TUS, finalize, listados y descargas | IN PROGRESS |
-| SH-03.4 — Regresión agregada y cierre | NOT STARTED |
+| SH-03.3 — Storage, TUS, finalize, listados y descargas | CLOSED / APPROVED |
+| SH-03.4 — Regresión agregada y cierre | CLOSED / APPROVED |
 
 | Descomposición SH-03.2 | Estado |
 | --- | --- |
@@ -149,14 +149,15 @@ interno, TUS público presigned, resume, finalize, listados y descargas.
 | SH-03.3B — Pedido authenticated TUS y diferencial finalize | CLOSED / APPROVED |
 | SH-03.3C — Solicitud pública signed TUS | CLOSED / APPROVED |
 | SH-03.3D — Committed/list/download/RLS isolation | CLOSED / APPROVED |
-| SH-03.3E — Cleanup, resilience y cierre agregado Storage | IMPLEMENTED / PENDING ARCHITECTURAL REVIEW |
+| SH-03.3E — Cleanup, resilience y cierre agregado Storage | CLOSED / APPROVED |
 
 El diseño y la auditoría de partida están en
 [SH_03_QA_PLAN.md](SH_03_QA_PLAN.md), la evidencia de Auth/roles en
 [SH_03_AUTH_QA_REPORT.md](SH_03_AUTH_QA_REPORT.md) y el inventario/baseline
 de Storage en [SH_03_STORAGE_QA_REPORT.md](SH_03_STORAGE_QA_REPORT.md).
-SH-03 permanece en curso; SH-03.1, SH-03.2, SH-03.3A, SH-03.3B y SH-03.3C
-están cerradas/aprobadas; SH-03.3D está cerrada/aprobada. SH-03.3E está implementada y pendiente de revisión arquitectónica; su evidencia incluye time-warp QA coherente, cleanup administrativo real, verificación física target-scoped e idempotencia. El handoff conserva las acciones que aún
+SH-03 está cerrada/aprobada; SH-03.1, SH-03.2, SH-03.3 y SH-03.4 también están
+cerradas/aprobadas, incluidas SH-03.3A–E. PPO-03G queda `READY / NEXT`.
+El handoff conserva las acciones que aún
 combinan mutación, revalidación y `ActionState`/`useActionState`: son `TEST IN
 SH-03.2`, no fallos asumidos ni flujos a los que deba aplicarse preventivamente
 el fallback documental.
