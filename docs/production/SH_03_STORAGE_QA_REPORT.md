@@ -5,7 +5,8 @@
 SH-03.3A = CLOSED / APPROVED
 SH-03.3B = CLOSED / APPROVED
 SH-03.3C = CLOSED / APPROVED
-SH-03.3D = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+SH-03.3D = CLOSED / APPROVED
+SH-03.3E = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
 
 Alcance de A: inventario, baseline production-like y portabilidad exclusiva de
 instrumentación E2E. No se modificaron producto, control plane, TUS adapter,
@@ -293,8 +294,86 @@ interno y la descarga funcional pasó.
 | Solicitud download | PASS | PASS | DENIED | DENIED | N/A |
 | Public tracking | N/A | N/A | N/A | N/A | PASS (safe) |
 
-SH-03.3D queda `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`; SH-03.3E permanece
-`NOT STARTED`.
+SH-03.3D queda `CLOSED / APPROVED`.
+
+## SH-03.3E — Cleanup / resilience / Storage closure
+
+### Initial PPO-03F block
+
+El primer gate obligatorio se ejecutó sin cambios de producto ni DB mediante
+`scripts/sql/ppo-03f-lifecycle-qa.sql` contra el servicio `db` del Compose
+self-hosted. El harness abre una transacción y termina en `ROLLBACK`; no dejó
+fixtures ni cambios persistidos.
+
+El harness falló en el primer resultado de
+`public.reconciliar_cargas_expiradas(100, 100)` con
+`PPO-03F lifecycle reconciliation result mismatch`: los conteos/candidatos
+observados no satisfacen la matriz exacta que el harness vigente espera para
+expired/partial/completed. No se ejecutaron cleanup físico, time-warp, UI de
+mantenimiento ni los specs agregados de E, conforme al stop condition.
+
+Clasificación: **INCOMPATIBILIDAD A INVESTIGAR ENTRE EL HARNESS PPO-03F Y LA
+BASELINE SELF-HOSTED ACTUAL**. No se modificaron migrations, RPC, RLS, policies,
+cleanup service, TUS, Storage, Nginx, Compose, Dockerfile ni Supabase upstream.
+No se imprimieron secretos, paths de objeto, tokens, capabilities ni URLs
+firmadas. Se requiere revisión arquitectónica antes de adaptar el harness o
+corregir la baseline; SH-03.3E no puede cerrarse.
+
+### Harness isolation
+
+Corrección arquitectónica posterior: el diagnóstico read-only confirmó 8
+sesiones `open` vencidas preexistentes, por lo que PPO-03F se aisló bajo
+`BEGIN`/`ROLLBACK` con fixtures prioritarias y assertions target-scoped. El
+harness pasó con `PPO_03F_LIFECYCLE_QA_OK`; `mantenimiento.spec.ts` pasó 4/4.
+No cambió la RPC ni la baseline.
+
+### Time-warp constraint block
+
+El siguiente gate físico quedó bloqueado inicialmente por un constraint vigente:
+`archivo_carga_sesiones_expires_after_creation_check` impide que una sesión
+creada por la fixture real lleve sólo `expires_at` al pasado. El time-warp
+autorizado prohíbe alterar `created_at`, status, items u objetos, por lo que no
+existe una mutación QA permitida para alcanzar cleanup grace. No se ejecutó la
+UI de cleanup físico ni se dejó una spec o script QA fallidos. Se requiere una
+decisión arquitectónica sobre un mecanismo de tiempo QA compatible; no se
+modificó producto, DB, migration, RLS, cleanup service ni infraestructura.
+Las tentativas del gate crearon fixtures públicas persistentes con prefijos
+`QA SH-03.3E Committed` y `QA SH-03.3E Expired`; no se borraron de forma
+forzada al no existir todavía una vía de expiración permitida.
+
+### Architectural resolution
+
+La decisión posterior autorizó un time-warp QA coherente: conserva TTL y orden
+relativo al desplazar sólo timestamps permitidos de la fixture exacta. Antes y
+después del desplazamiento, el script QA verifica TTL positivo/invariable,
+orden `solicitud <= sesión <= item < expires_at`, estado `open`/`reserved`,
+sin metadata pública y un único objeto real asociado.
+
+### Physical cleanup evidence
+
+El gate físico pasó con TUS staged real y finalize bloqueado. Tras el
+mantenimiento Admin por UI, el verificador read-only target-scoped confirmó:
+sesión `expired`, item `expired`, `public.archivos` ausente y objeto físico
+ausente mediante `archivo_carga_items.object_path → storage.objects`. La
+segunda ejecución confirmó de nuevo el mismo estado target, sin asumir conteos
+globales sobre el backlog.
+
+El control committed mantuvo metadata presente, el listado interno mostró el
+archivo y la descarga firmada pasó antes y después de cleanup (ruta interna
+3xx, origen público, `application/pdf` y prefijo `%PDF`), incluida la
+comprobación posterior a la segunda pasada.
+
+- Pre-cleanup: session `open`; item `reserved`; `public.archivos = 0`; objeto
+  real asociado = 1.
+- Post-cleanup: session `expired`; item `expired`; `public.archivos = 0`;
+  objeto real asociado = 0.
+- Committed: metadata = 1; descarga funcional antes y después del primer
+  cleanup = PASS.
+- Segundo cleanup: target = `SH_03_3E_CLEANUP_TARGET_OK`; committed funcional
+  = PASS.
+
+No hubo cambios de RPC, constraint, migration, RLS, cleanup productivo ni
+infraestructura. SH-03.3E queda implementada y pendiente de revisión.
 
 ## Quality
 
@@ -304,6 +383,13 @@ SH-03.3D queda `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`; SH-03.3E permanece
 - `git diff --check`: PASS; Git informa sólo normalización futura LF→CRLF en
   archivos existentes, sin error de whitespace.
 - `npm run diff:check`: PASS; mismo aviso LF→CRLF, sin error de whitespace.
+- `scripts/sql/ppo-03f-lifecycle-qa.sql`: PASS con
+  `PPO_03F_LIFECYCLE_QA_OK` y `ROLLBACK`.
+- `mantenimiento.spec.ts`: PASS 4/4.
+- `storage-cleanup-selfhosted.spec.ts`: PASS 1/1; verificadores staged y
+  cleanup físico target-scoped, control committed y segunda pasada incluidos.
+- `storage-access-selfhosted.spec.ts`: PASS 2/2.
+- `storage.spec.ts`: PASS 4/4, SKIP 2 previsto por ausencia de fixture estable.
 - `npm run test:e2e:selfhosted -- tests/e2e/public-solicitud-upload-direct.spec.ts --project=chromium --workers=1`:
   PASS 6/6 tras el gate partial, Web Storage y límites no vacíos de C.
 - `live`: 200; `ready`: 200.
@@ -314,6 +400,6 @@ SH-03.3D queda `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`; SH-03.3E permanece
   `dashboard-shell.spec.ts` PASS 3/3, 1 SKIP previsto de workspace existente.
 - Cross-check público anterior por Chromium/Nginx: `public-solicitud-upload-direct.spec.ts`
   PASS 5/5; C final PASS 6/6.
-- Drift final: cliente/proxy/server Supabase, action/UI de Pedido, una spec
-  focal de Pedido, spec pública, README Supabase y documentación. Sin cambios
-  de migración, tipos, upstream, Compose, Dockerfile ni Nginx.
+- Drift final de esta corrección: scripts QA de E, una spec E y documentación.
+  Sin cambios de migraciones 01–06, `database.types`, Supabase upstream,
+  Compose, Dockerfile ni Nginx; no existe migration 07.

@@ -52,9 +52,9 @@ begin
 
   insert into public.archivo_carga_sesiones (id, solicitud_id, public_token_hash, created_at, expires_at)
   values
-    (v_abandoned_session_id, v_abandoned_solicitud_id, encode(extensions.digest(v_qa_token, 'sha256'), 'hex'), now() - interval '3 hours', now() - interval '2 hours'),
-    (v_partial_session_id, v_partial_solicitud_id, repeat('b', 64), now() - interval '3 hours', now() - interval '2 hours'),
-    (v_completed_session_id, v_completed_solicitud_id, repeat('c', 64), now() - interval '3 hours', now() - interval '2 hours'),
+    (v_abandoned_session_id, v_abandoned_solicitud_id, encode(extensions.digest(v_qa_token, 'sha256'), 'hex'), timestamptz '1999-01-01 00:00:00+00', timestamptz '2000-01-01 00:00:00+00'),
+    (v_partial_session_id, v_partial_solicitud_id, repeat('b', 64), timestamptz '1999-01-01 00:00:00+00', timestamptz '2000-01-01 00:00:00+00'),
+    (v_completed_session_id, v_completed_solicitud_id, repeat('c', 64), timestamptz '1999-01-01 00:00:00+00', timestamptz '2000-01-01 00:00:00+00'),
     (v_before_grace_session_id, v_before_grace_solicitud_id, repeat('d', 64), now() - interval '45 minutes', now() - interval '30 minutes');
 
   v_abandoned_path := format('cargas/v1/%s/%s/%s-abandoned.pdf', v_abandoned_session_id, v_abandoned_item_id, repeat('1', 32));
@@ -135,28 +135,35 @@ declare
 begin
   select * into v_result from public.reconciliar_cargas_expiradas(100, 100);
 
-  if v_result.expired_sessions <> 1
-    or v_result.partial_sessions <> 1
-    or v_result.completed_sessions <> 1
-    or v_result.expired_items <> 2
-    or jsonb_array_length(v_result.candidates) <> 2 then
+  if v_result.expired_sessions < 1
+    or v_result.partial_sessions < 1
+    or v_result.completed_sessions < 1
+    or v_result.expired_items < 2 then
     raise exception 'PPO-03F lifecycle reconciliation result mismatch.';
   end if;
 
-  select * into v_repeat from public.reconciliar_cargas_expiradas(100, 100);
-
-  if v_repeat.expired_sessions <> 0
-    or v_repeat.partial_sessions <> 0
-    or v_repeat.completed_sessions <> 0
-    or v_repeat.expired_items <> 0
-    or jsonb_array_length(v_repeat.candidates) <> 2 then
-    raise exception 'PPO-03F reconciliation retry is not idempotent.';
+  if (select count(*) from jsonb_array_elements(v_result.candidates) as candidate where candidate ->> 'item_id' = (select item_id::text from qa_lifecycle_cases where case_name = 'abandoned')) <> 1
+    or (select count(*) from jsonb_array_elements(v_result.candidates) as candidate where candidate ->> 'item_id' = (select item_id::text from qa_lifecycle_cases where case_name = 'partial')) <> 1
+    or (select count(*) from jsonb_array_elements(v_result.candidates) as candidate where candidate ->> 'item_id' = (select committed_item_id::text from qa_lifecycle_cases where case_name = 'partial')) <> 0
+    or (select count(*) from jsonb_array_elements(v_result.candidates) as candidate where candidate ->> 'item_id' = (select item_id::text from qa_lifecycle_cases where case_name = 'completed')) <> 0
+    or (select count(*) from jsonb_array_elements(v_result.candidates) as candidate where candidate ->> 'item_id' = (select item_id::text from qa_lifecycle_cases where case_name = 'before_grace')) <> 0 then
+    raise exception 'PPO-03F cleanup candidate fixture matrix mismatch.';
   end if;
 
   if not private.can_manage_upload_storage_object('godel-files', (select object_path from qa_lifecycle_cases where case_name = 'abandoned'))
     or private.can_manage_upload_storage_object('godel-files', (select object_path from qa_lifecycle_cases where case_name = 'before_grace'))
     or private.can_manage_upload_storage_object('godel-files', (select committed_object_path from qa_lifecycle_cases where case_name = 'partial')) then
     raise exception 'PPO-03F cleanup policy candidate matrix mismatch.';
+  end if;
+
+  select * into v_repeat from public.reconciliar_cargas_expiradas(100, 100);
+
+  if (select count(*) from jsonb_array_elements(v_repeat.candidates) as candidate where candidate ->> 'item_id' = (select item_id::text from qa_lifecycle_cases where case_name = 'abandoned')) <> 1
+    or (select count(*) from jsonb_array_elements(v_repeat.candidates) as candidate where candidate ->> 'item_id' = (select item_id::text from qa_lifecycle_cases where case_name = 'partial')) <> 1
+    or (select count(*) from jsonb_array_elements(v_repeat.candidates) as candidate where candidate ->> 'item_id' = (select committed_item_id::text from qa_lifecycle_cases where case_name = 'partial')) <> 0
+    or (select count(*) from jsonb_array_elements(v_repeat.candidates) as candidate where candidate ->> 'item_id' = (select item_id::text from qa_lifecycle_cases where case_name = 'completed')) <> 0
+    or (select count(*) from jsonb_array_elements(v_repeat.candidates) as candidate where candidate ->> 'item_id' = (select item_id::text from qa_lifecycle_cases where case_name = 'before_grace')) <> 0 then
+    raise exception 'PPO-03F reconciliation retry is not target-idempotent.';
   end if;
 end;
 $$;
@@ -173,6 +180,8 @@ begin
 
   if (select status from public.archivo_carga_sesiones where id = (select session_id from qa_lifecycle_cases where case_name = 'partial')) <> 'partial'
     or (select completed_at from public.archivo_carga_sesiones where id = (select session_id from qa_lifecycle_cases where case_name = 'partial')) is null
+    or (select status from public.archivo_carga_items where id = (select item_id from qa_lifecycle_cases where case_name = 'partial')) <> 'expired'
+    or (select archivo_id from public.archivo_carga_items where id = (select item_id from qa_lifecycle_cases where case_name = 'partial')) is not null
     or (select status from public.archivo_carga_items where id = (select committed_item_id from qa_lifecycle_cases where case_name = 'partial')) <> 'committed'
     or not exists (select 1 from public.archivos where id = (select archivo_id from public.archivo_carga_items where id = (select committed_item_id from qa_lifecycle_cases where case_name = 'partial')))
     or not exists (select 1 from storage.objects where bucket_id = 'godel-files' and name = (select committed_object_path from qa_lifecycle_cases where case_name = 'partial')) then
@@ -183,6 +192,12 @@ begin
     or (select completed_at from public.archivo_carga_sesiones where id = (select session_id from qa_lifecycle_cases where case_name = 'completed')) is null
     or (select status from public.archivo_carga_items where id = (select item_id from qa_lifecycle_cases where case_name = 'completed')) <> 'committed' then
     raise exception 'PPO-03F all-committed lifecycle mismatch.';
+  end if;
+
+  if (select status from public.archivo_carga_sesiones where id = (select session_id from qa_lifecycle_cases where case_name = 'before_grace')) <> 'expired'
+    or (select status from public.archivo_carga_items where id = (select item_id from qa_lifecycle_cases where case_name = 'before_grace')) <> 'expired'
+    or private.can_manage_upload_storage_object('godel-files', (select object_path from qa_lifecycle_cases where case_name = 'before_grace')) then
+    raise exception 'PPO-03F before-grace lifecycle mismatch.';
   end if;
 end;
 $$;
