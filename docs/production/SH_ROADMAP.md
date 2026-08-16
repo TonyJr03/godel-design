@@ -43,7 +43,7 @@ el backend objetivo actual.
 | SH-01 | Baseline oficial Supabase self-hosted | Cerrada / aprobada |
 | SH-02 | Integración Godel ↔ Supabase self-hosted | Cerrada / aprobada |
 | SH-03 | QA funcional production-like | Cerrada / aprobada |
-| SH-04 | Fundamentos operativos self-hosted | Pendiente |
+| SH-04 | Fundamentos operativos self-hosted | Pendiente / READY NEXT |
 | SH-05 | Portabilidad reproducible | Pendiente |
 
 ### SH-01 — cerrada / aprobada
@@ -156,7 +156,8 @@ El diseño y la auditoría de partida están en
 [SH_03_AUTH_QA_REPORT.md](SH_03_AUTH_QA_REPORT.md) y el inventario/baseline
 de Storage en [SH_03_STORAGE_QA_REPORT.md](SH_03_STORAGE_QA_REPORT.md).
 SH-03 está cerrada/aprobada; SH-03.1, SH-03.2, SH-03.3 y SH-03.4 también están
-cerradas/aprobadas, incluidas SH-03.3A–E. PPO-03G queda `READY / NEXT`.
+cerradas/aprobadas, incluidas SH-03.3A–E. PPO-03G y PPO-03 quedan
+`CLOSED / APPROVED`; SH-04 queda `READY / NEXT`, sin iniciar.
 El handoff conserva las acciones que aún
 combinan mutación, revalidación y `ActionState`/`useActionState`: son `TEST IN
 SH-03.2`, no fallos asumidos ni flujos a los que deba aplicarse preventivamente
@@ -214,13 +215,13 @@ PPO-03E ✅
 PPO-03F ✅
     │
     ▼
-SH-02
+SH-02 ✅
     │
     ▼
-SH-03
+SH-03 ✅
     │
     ▼
-PPO-03G
+PPO-03G ✅
     │
     ▼
 PPO-03 ✅
@@ -237,16 +238,16 @@ SH ✅
 
 PPO-03F cerró/aprobó el lifecycle de Storage: `reserved → upload → finalize →
 committed`, además de abandono, expiración, reconciliación y cleanup, con
-idempotencia, autoridad de eliminación y trazabilidad mínima. Por ello SH-02 es
-el siguiente bloque; este roadmap no diseña esos internals.
+idempotencia, autoridad de eliminación y trazabilidad mínima. SH-02 y SH-03
+ya están cerrados/aprobados; este roadmap conserva esos internals como historia
+y entrega el siguiente bloque técnico a SH-04.
 
-SH-03 precede PPO-03G porque este último es el gate final de Storage. PPO-03G
-debe apoyarse en evidencia de `Browser → Nginx → Supabase self-hosted Storage` y
-`Next Docker → api-gw`, no únicamente en desarrollo local. Después, PPO-03G
-realiza QA integral de uploads, valida bytes y control plane, revisa límites
-finales, retira los límites transitorios de 110 MB en Next/Nginx si ya no son
-necesarios, reejecuta gates relevantes, cierra TD-UPLOAD-001 y completa la
-documentación de PPO-03.
+SH-03 precedió PPO-03G porque este fue el gate final de Storage. PPO-03G se
+apoyó en evidencia de `Browser → Nginx → Supabase self-hosted Storage` y
+`Next Docker → api-gw`, no únicamente en desarrollo local. Validó bytes y
+control plane, retiró los límites transitorios de 110 MB en Next/Nginx, cerró
+TD-UPLOAD-001 y completó la documentación de PPO-03. SH-04 es ahora el
+siguiente bloque técnico, READY / NEXT y no iniciado.
 
 ## Gobernanza de la baseline DB
 

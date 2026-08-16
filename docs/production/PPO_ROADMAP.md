@@ -2,12 +2,12 @@
 
 ## Metadatos
 
-- Actualización de estado: 2026-08-12
+- Actualización de estado: 2026-08-16
 
 - Proyecto: Godel Diseño
 - Estado: Activo
 - Fecha de creación: 2026-07-21
-- Última revisión: 2026-08-12
+- Última revisión: 2026-08-16
 - Responsable técnico: Dirección Técnica de Godel Diseño
 - Arquitectura y supervisión: Arquitectura Senior / Orquestación Técnica
 - Implementación: Agente Codex en VS Code
@@ -73,7 +73,7 @@ Operación. [SH — Roadmap de transición a Supabase Self-Hosted](SH_ROADMAP.md
 es su workstream técnico subordinado, temporal y con cierre explícito; no es un
 roadmap de producto paralelo ni una segunda puesta en producción.
 
-La ruta activa es:
+La siguiente secuencia histórica ya completó sus primeros cuatro pasos:
 
 ```text
 SH-02
@@ -91,6 +91,10 @@ siguiente bloque e integra PPO-02 con el backend self-hosted; SH-03 prueba esas
 fronteras antes del gate final PPO-03G.
 Por tanto, PPO-03G no puede cerrar Storage solo con evidencia de desarrollo/E2E
 local.
+
+Estado vigente de esa secuencia: SH-02 = CLOSED / APPROVED; SH-03 = CLOSED /
+APPROVED; PPO-03G = CLOSED / APPROVED; PPO-03 = CLOSED / APPROVED. NEXT:
+SH-04 = READY / NEXT, sin iniciar implementación.
 
 PPO-03F.0 aprobó el último amendment excepcional de la baseline consolidada
 01–06. PPO-03F.1 lo implementó y exigió fresh rebuild 01–06 y QA. PPO-03F
@@ -115,7 +119,7 @@ demostrado por SH-05 para una futura infraestructura estable.
 | PPO-00    | Baseline local y formalización inicial      | Cerrada   |
 | PPO-01    | Auditoría de infraestructura y conectividad | Activa    |
 | PPO-02    | Base contenerizada reproducible             | Cerrada — Aprobada con condiciones |
-| PPO-03    | Rediseño de cargas y almacenamiento         | Activa |
+| PPO-03    | Rediseño de cargas y almacenamiento         | Cerrada / aprobada |
 | PPO-04    | Despliegue provisional en la empresa        | Pendiente |
 | PPO-05    | Seguridad pública                           | Pendiente |
 | PPO-06    | Backups y recuperación                      | Pendiente |
@@ -206,15 +210,24 @@ El estado operativo actual es:
 | PPO-03F.2 | Cerrada / aprobada |
 | PPO-03F.3 | Cerrada / aprobada |
 | PPO-03F | Cerrada / aprobada |
-| PPO-03G | Pendiente |
-| PPO-03 | Activa |
+| SH-03 | Cerrada / aprobada |
+| PPO-03G | Cerrada / aprobada |
+| PPO-03 | Cerrada / aprobada |
+| SH-04 | READY / NEXT |
 
 El diseño aprobado de PPO-03F.0 vive en
 [PPO_03F_CLEANUP_DESIGN.md](PPO_03F_CLEANUP_DESIGN.md), el cierre de F.1 en
 [PPO_03F_DATABASE_LIFECYCLE_REPORT.md](PPO_03F_DATABASE_LIFECYCLE_REPORT.md) y
 el QA/freeze aprobado de F.3 en
-[PPO_03F_QA_FREEZE_REPORT.md](PPO_03F_QA_FREEZE_REPORT.md). PPO-03 continúa
-activa hasta completar PPO-03G.
+[PPO_03F_QA_FREEZE_REPORT.md](PPO_03F_QA_FREEZE_REPORT.md). PPO-03 queda
+CLOSED / APPROVED: cerró el modelo, reserva y finalize; Pedido authenticated
+TUS; Solicitud signed TUS; lifecycle/cleanup; QA production-like SH-03; el gate
+exacto de 20 MiB; bytes fuera de Next; retirada de los límites de 110 MB; y
+TD-UPLOAD-001 resuelta. La evidencia de cierre se concentra en
+[PPO_03G_UPLOAD_LIMITS_QA_REPORT.md](PPO_03G_UPLOAD_LIMITS_QA_REPORT.md),
+[SH_03_CLOSURE_REPORT.md](SH_03_CLOSURE_REPORT.md) y
+[SH_03_STORAGE_QA_REPORT.md](SH_03_STORAGE_QA_REPORT.md). SH-04 es READY / NEXT
+y no está iniciada.
 
 ## PPO-00
 

@@ -18,7 +18,6 @@ resueltas ni planes históricos completos.
 
 | ID | Área | Severidad | Bloquea producción pública | Estado |
 | --- | --- | --- | --- | --- |
-| TD-UPLOAD-001 | Upload/Infraestructura | Alta | Sí, hasta validar la infraestructura o adoptar un flujo adecuado | Activa |
 | TD-QA-001 | QA | Media | No | Activa |
 | TD-QA-002 | QA/Auth | Media | No | Activa |
 | TD-QA-003 | QA/Datos | Media | No | Activa |
@@ -36,10 +35,10 @@ resueltas ni planes históricos completos.
 
 ## Bloqueadores antes de producción pública
 
-> Actualización 2026-08-11: el riesgo de archivos atravesando Next está
-> resuelto por PPO-03D/E. TD-UPLOAD-001 permanece activa únicamente por los
-> límites transitorios de payload de `next.config.ts` y su gate
-> production-like pendiente en PPO-03G.
+> Actualización 2026-08-16: TD-UPLOAD-001 fue resuelta por PPO-03G. Los bytes
+> de Pedido y Solicitud viajan Browser → Storage por TUS; los overrides Next de
+> 110 MB y el límite global Nginx de 110m fueron retirados y validados en el
+> runtime self-hosted production-like.
 
 ### TD-UPLOAD-001 - Estado histórico superseded
 
@@ -65,64 +64,31 @@ revisión.
 Seguimiento: PPO-03 conserva ZIP, RAR y CDR como contenido opaco y no resuelve
 el escaneo profundo. Esta deuda continúa activa.
 
-## Deudas activas
-
-### TD-UPLOAD-001 - Estado histórico anterior
-
-- Área: Upload/Infraestructura.
-- Severidad: Alta.
-- Bloquea producción pública: Sí, hasta validar la infraestructura o adoptar un flujo adecuado.
-- Estado: Activa.
-
-La rama interna de Pedidos ya usa reserva/finalize y TUS directo, por lo que no
-envía bytes de archivo a Next.js. La rama pública de Solicitudes sigue pasando
-por Server Actions; para su límite funcional de hasta cinco archivos de 20 MB,
-`next.config.ts` mantiene `serverActions.bodySizeLimit = "110mb"` y
-`proxyClientMaxBodySize = "110mb"`.
-
-El compromiso es razonable para MVP y QA local, pero en producción puede causar
-presión de memoria, timeouts o incompatibilidad con límites del hosting, proxy o
-plataforma de despliegue. Antes de exposición pública debe validarse con la
-infraestructura real.
-
-Solución recomendada:
-
-- Completar PPO-03E con upload directo y controlado a Supabase Storage mediante
-  TUS presigned para Solicitudes.
-- Mantener validaciones de permisos y metadata en servidor.
-- No debilitar RLS, grants ni policies de Storage.
-- No abrir rutas privadas, `file_path` ni credenciales administrativas al cliente.
-
-Actualización PPO-03E: el upload público directo con TUS presigned ya está
-implementado y cubierto por gates E2E; permanece pendiente de revisión/cierre
-arquitectónico. La deuda operativa activa continúa por expiración,
-reconciliación y la retirada de límites transitorios en PPO-03G.
-
-Seguimiento: PPO-03 inició con el
-[contrato de cargas y almacenamiento](../production/PPO_03_UPLOAD_STORAGE_CONTRACT.md).
-La rama interna queda resuelta por PPO-03D.1; la deuda continúa activa por
-Solicitudes y por la retirada de límites transitorios en PPO-03G.
+## Deudas resueltas
 
 ### TD-UPLOAD-001 - Límites transitorios de payload de Next
 
 - Área: Upload/Infraestructura.
-- Severidad: Media.
-- Bloquea producción pública: Sí, hasta completar el gate production-like de
-  PPO-03G.
-- Estado: Activa.
+- Severidad histórica: Alta.
+- Estado: Resuelta y aprobada arquitectónicamente por PPO-03G el 2026-08-16.
 
-PPO-03D/E resolvieron Browser → Storage directo: los bytes ya no atraviesan
-Next, ni para Pedido ni para Solicitudes. El contrato vigente es hasta diez
-archivos de 20 MiB por sesión, TUS directo y finalize autoritativo.
+PPO-03D/E ya habían establecido Browser → Storage directo por TUS para
+Pedido y Solicitud. PPO-03G retiró `serverActions.bodySizeLimit = "110mb"` y
+`proxyClientMaxBodySize = "110mb"` de Next, y sustituyó el
+`client_max_body_size 110m` global de Nginx por `1m` para el control plane y
+`8m` localizado en `/storage/v1/` para chunks TUS de 6 MiB.
 
-La deuda residual es que `next.config.ts` conserva
-`serverActions.bodySizeLimit = "110mb"` y `proxyClientMaxBodySize = "110mb"`.
-Esos límites son transitorios hasta PPO-03G, que debe demostrar el gate
-production-like final y retirarlos o normalizarlos sin reabrir tráfico de bytes
-por Next.
+El runtime self-hosted production-like validó un archivo exacto de 20 MiB por
+Pedido autenticado y por Solicitud pública signed, con finalize, metadata
+committed y descarga funcional. Las Server Actions de upload se mantuvieron por
+debajo de 128 KiB; los offsets TUS confirmaron 0/6/12/18/20 MiB. Un POST de 2
+MiB hacia `/login` fue rechazado por Nginx con 413, sin volver a abrir los bytes
+de archivo hacia Next. RLS, policies, rutas privadas y secretos no cambiaron.
 
-No se deben debilitar RLS, grants o policies de Storage ni abrir rutas privadas,
-`file_path` o credenciales administrativas al cliente durante ese cierre.
+La historia superseded de la deuda se conserva arriba y en los informes de
+PPO-02/PPO-03. TD-STORAGE-002, TD-SECURITY-001 y TD-NEXT-001 siguen activas.
+
+## Deudas activas
 
 ### TD-QA-001 - Suite e2e paralela no estable
 
@@ -141,6 +107,11 @@ serial, pero puede interferir con ejecuciones concurrentes. Evaluar
 Pedidos, solicitudes, plantillas y otros registros QA quedan persistidos después
 de tests mutantes. Diseñar seed/cleanup seguro por prefijos QA, con allowlist
 estricta y sin borrado genérico agresivo.
+
+El warning histórico del smoke de Cliente en
+`server-action-completion-selfhosted.spec.ts` es consistente con esta deuda: el
+fixture puede quedar fuera de la primera página por datos QA persistentes y
+paginación por nombre. No es una regresión de Next ni de transport limits.
 
 ### TD-QA-004 - Fixtures parciales de Storage
 
