@@ -67,7 +67,10 @@ async function probeFilesystemHelperAccess({ image, source, output, requiredFile
   if (requiredFile && (!/^[A-Za-z0-9._-]+$/.test(requiredFile) || requiredFile === "." || requiredFile === "..")) die("invalid filesystem helper required file");
   const checks = ["test -r /source","test -x /source"];
   if (requiredFile) checks.push("test -r /source/" + requiredFile);
-  if (output) checks.push("umask 077",": > /backup/.fs-helper-probe","rm -f /backup/.fs-helper-probe");
+  if (output) {
+    const probeFile = ".fs-helper-probe-" + randomBytes(8).toString("hex");
+    checks.push("umask 077",": > /backup/" + probeFile,"rm -f /backup/" + probeFile);
+  }
   const command = checks.join(" && ");
   return runFilesystemHelper({ image, source, output, command });
 }
@@ -139,6 +142,10 @@ async function preflight(value) {
   for (const root of [value.data,value.protected]) if (nested(ROOT,root) && !(await ignored(resolve(root,".probe")))) die("output root is not ignored");
   await safeDirectory(value.data); await safeDirectory(value.protected);
   const image=(await state(db)).image;
+  await probeFilesystemHelperAccess({ image, source:pg.Source, output:value.data, requiredFile:"PG_VERSION" });
+  await probeFilesystemHelperAccess({ image, source:st.Source });
+  await probeFilesystemHelperAccess({ image, source:cfg.Name, output:value.protected, requiredFile:"pgsodium_root.key" });
+  log("filesystem-helper capability PASS");
   const measure = async (source) => Number((await runFilesystemHelper({ image, source, command: "du -sb /source | cut -f1" })).out);
   const pgBytes=await measure(pg.Source), storageBytes=await measure(st.Source), logicalAllowance=Math.max(MIN_LOGICAL_DUMP_ALLOWANCE,Math.ceil(pgBytes*CONSERVATIVE_LOGICAL_FACTOR)), requiredData=pgBytes+storageBytes+logicalAllowance+DATA_SAFETY_MARGIN;
   const dataAvailable=Number((await statfs(value.data)).bavail)*Number((await statfs(value.data)).bsize), protectedAvailable=Number((await statfs(value.protected)).bavail)*Number((await statfs(value.protected)).bsize);

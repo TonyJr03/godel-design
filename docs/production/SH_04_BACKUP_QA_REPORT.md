@@ -27,7 +27,7 @@ Artifacts remain local and ignored. This report contains no secret values, key c
 
 ## Limitation
 
-The physical helper uses an isolated, read-only, no-new-privileges Docker run and `--pull=never`. Docker Desktop bind-mount access required retaining root DAC capability; `cap-drop=ALL` was therefore incompatible in this environment. Windows ACL custody remains pending SH-04.3/PPO-06.
+The first historical backup used an isolated, read-only, no-new-privileges Docker run and `--pull=never`, and Docker Desktop bind-mount access required retaining root DAC capability. At that time, `--cap-drop=ALL` without restoring `DAC_OVERRIDE` was insufficient. Pass B2 subsequently demonstrated the definitive policy, `--cap-drop=ALL` with `--cap-add=DAC_OVERRIDE`, successfully in this environment. Windows ACL custody remains pending SH-04.3/PPO-06.
 
 ## Pass A robustness amendment
 
@@ -39,3 +39,22 @@ The physical helper uses an isolated, read-only, no-new-privileges Docker run an
 - Corrupt checksum negative test: PASS (verify failed).
 - Unsafe protected-root negative test: PASS (rejected before maintenance).
 - Runtime remained healthy throughout: PASS.
+
+## Pass B2 nondestructive operational validation
+
+- Fecha: 2026-08-20.
+- Branch: `preprod/selfhosted-supabase`.
+- Tested code commit: `1c3a2a83141aaf4653b4d41f0182c7939ac517e9`.
+- Hardened dry-run: PASS.
+- Filesystem-helper capability: PASS.
+- PGDATA probe (read/traverse, `PG_VERSION`, temporary output write/delete): PASS.
+- Storage probe (read/traverse): PASS.
+- pgsodium probe (read/traverse, key readability, temporary protected output write/delete): PASS.
+- Probe leftovers: 0.
+- PostgreSQL stop signal observed: `SIGINT`.
+- Capacity: required 1,184,873,017 bytes; data available 198,041,030,656 bytes; protected available 198,041,030,656 bytes.
+- Dry-run did not acquire a lock: PASS.
+- Lock-negative: expected FAIL before maintenance; PASS.
+- Verify `.incomplete` negative: expected FAIL; PASS.
+- Runtime remained healthy: PASS; `/api/health/live` and `/api/health/ready` returned 200.
+- No backup created, no downtime, and no restore executed.
