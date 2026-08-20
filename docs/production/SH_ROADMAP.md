@@ -43,7 +43,7 @@ el backend objetivo actual.
 | SH-01 | Baseline oficial Supabase self-hosted | Cerrada / aprobada |
 | SH-02 | Integración Godel ↔ Supabase self-hosted | Cerrada / aprobada |
 | SH-03 | QA funcional production-like | Cerrada / aprobada |
-| SH-04 | Fundamentos operativos self-hosted | Pendiente / READY NEXT |
+| SH-04 | Fundamentos operativos self-hosted | IN PROGRESS |
 | SH-05 | Portabilidad reproducible | Pendiente |
 
 ### SH-01 — cerrada / aprobada
@@ -157,13 +157,26 @@ El diseño y la auditoría de partida están en
 de Storage en [SH_03_STORAGE_QA_REPORT.md](SH_03_STORAGE_QA_REPORT.md).
 SH-03 está cerrada/aprobada; SH-03.1, SH-03.2, SH-03.3 y SH-03.4 también están
 cerradas/aprobadas, incluidas SH-03.3A–E. PPO-03G y PPO-03 quedan
-`CLOSED / APPROVED`; SH-04 queda `READY / NEXT`, sin iniciar.
+`CLOSED / APPROVED`; SH-04 está `IN PROGRESS`: SH-04.0 queda `CLOSED /
+APPROVED` y SH-04.1 queda `READY / NEXT`.
 El handoff conserva las acciones que aún
 combinan mutación, revalidación y `ActionState`/`useActionState`: son `TEST IN
 SH-03.2`, no fallos asumidos ni flujos a los que deba aplicarse preventivamente
 el fallback documental.
 
 ### SH-04 — Fundamentos operativos self-hosted
+
+**Estado:** `IN PROGRESS`. SH-04.0 está `CLOSED / APPROVED`; SH-04.1 está
+`READY / NEXT`; los subbloques restantes no han iniciado.
+
+| Subbloque | Estado |
+| --- | --- |
+| SH-04.0 | CLOSED / APPROVED |
+| SH-04.1 | READY / NEXT |
+| SH-04.2 | NOT STARTED |
+| SH-04.3 | NOT STARTED |
+| SH-04.4 | NOT STARTED |
+| SH-04.5 | NOT STARTED |
 
 Construye y demuestra capacidades técnicas: persistencia e inventario de
 volúmenes/datos; backup de PostgreSQL, objetos Storage y configuración necesaria
@@ -246,8 +259,8 @@ SH-03 precedió PPO-03G porque este fue el gate final de Storage. PPO-03G se
 apoyó en evidencia de `Browser → Nginx → Supabase self-hosted Storage` y
 `Next Docker → api-gw`, no únicamente en desarrollo local. Validó bytes y
 control plane, retiró los límites transitorios de 110 MB en Next/Nginx, cerró
-TD-UPLOAD-001 y completó la documentación de PPO-03. SH-04 es ahora el
-siguiente bloque técnico, READY / NEXT y no iniciado.
+TD-UPLOAD-001 y completó la documentación de PPO-03. SH-04 está ahora en
+curso; SH-04.0 queda cerrada/aprobada y SH-04.1 es READY / NEXT.
 
 ## Gobernanza de la baseline DB
 

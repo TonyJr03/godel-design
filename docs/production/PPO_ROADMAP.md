@@ -93,8 +93,8 @@ Por tanto, PPO-03G no puede cerrar Storage solo con evidencia de desarrollo/E2E
 local.
 
 Estado vigente de esa secuencia: SH-02 = CLOSED / APPROVED; SH-03 = CLOSED /
-APPROVED; PPO-03G = CLOSED / APPROVED; PPO-03 = CLOSED / APPROVED. NEXT:
-SH-04 = READY / NEXT, sin iniciar implementación.
+APPROVED; PPO-03G = CLOSED / APPROVED; PPO-03 = CLOSED / APPROVED; SH-04 =
+IN PROGRESS. SH-04.0 está CLOSED / APPROVED; SH-04.1 está READY / NEXT.
 
 PPO-03F.0 aprobó el último amendment excepcional de la baseline consolidada
 01–06. PPO-03F.1 lo implementó y exigió fresh rebuild 01–06 y QA. PPO-03F
@@ -213,7 +213,7 @@ El estado operativo actual es:
 | SH-03 | Cerrada / aprobada |
 | PPO-03G | Cerrada / aprobada |
 | PPO-03 | Cerrada / aprobada |
-| SH-04 | READY / NEXT |
+| SH-04 | IN PROGRESS |
 
 El diseño aprobado de PPO-03F.0 vive en
 [PPO_03F_CLEANUP_DESIGN.md](PPO_03F_CLEANUP_DESIGN.md), el cierre de F.1 en
@@ -226,8 +226,8 @@ exacto de 20 MiB; bytes fuera de Next; retirada de los límites de 110 MB; y
 TD-UPLOAD-001 resuelta. La evidencia de cierre se concentra en
 [PPO_03G_UPLOAD_LIMITS_QA_REPORT.md](PPO_03G_UPLOAD_LIMITS_QA_REPORT.md),
 [SH_03_CLOSURE_REPORT.md](SH_03_CLOSURE_REPORT.md) y
-[SH_03_STORAGE_QA_REPORT.md](SH_03_STORAGE_QA_REPORT.md). SH-04 es READY / NEXT
-y no está iniciada.
+[SH_03_STORAGE_QA_REPORT.md](SH_03_STORAGE_QA_REPORT.md). SH-04 está IN
+PROGRESS: SH-04.0 queda CLOSED / APPROVED y SH-04.1 queda READY / NEXT.
 
 ## PPO-00
 
