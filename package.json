@@ -26,6 +26,8 @@
     "spike:ppo-03c3:managed": "node scripts/spikes/ppo-03c3/run.mjs",
     "spike:ppo-03c3:cleanup": "node scripts/spikes/ppo-03c3/cleanup.mjs",
     "diff:check": "git diff --check",
+    "ops:backup:selfhosted": "node scripts/operations/backup-selfhosted.mjs create",
+    "ops:backup:selfhosted:verify": "node scripts/operations/backup-selfhosted.mjs verify",
     "qa:bootstrap": "node scripts/bootstrap-local-qa-users.mjs",
     "qa:bootstrap:selfhosted": "node scripts/bootstrap-local-qa-users.mjs --target self-hosted --runtime-env compose.env.local --qa-env .env.qa.local --supabase-env infra/supabase/.env",
     "audit:security": "node scripts/audit-security.mjs",

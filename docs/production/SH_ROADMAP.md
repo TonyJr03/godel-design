@@ -167,12 +167,12 @@ el fallback documental.
 ### SH-04 — Fundamentos operativos self-hosted
 
 **Estado:** `IN PROGRESS`. SH-04.0 está `CLOSED / APPROVED`; SH-04.1 está
-`READY / NEXT`; los subbloques restantes no han iniciado.
+`IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`; los subbloques restantes no han iniciado.
 
 | Subbloque | Estado |
 | --- | --- |
 | SH-04.0 | CLOSED / APPROVED |
-| SH-04.1 | READY / NEXT |
+| SH-04.1 | IMPLEMENTED / PENDING ARCHITECTURAL REVIEW |
 | SH-04.2 | NOT STARTED |
 | SH-04.3 | NOT STARTED |
 | SH-04.4 | NOT STARTED |
