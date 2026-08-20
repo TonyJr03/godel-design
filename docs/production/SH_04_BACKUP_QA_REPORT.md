@@ -1,7 +1,7 @@
 # SH-04.1 — Backup QA report
 
 **Fecha:** 2026-08-20  
-**Estado:** IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+**Estado:** CLOSED / APPROVED
 
 ## Scope
 
@@ -58,3 +58,41 @@ The first historical backup used an isolated, read-only, no-new-privileges Docke
 - Verify `.incomplete` negative: expected FAIL; PASS.
 - Runtime remained healthy: PASS; `/api/health/live` and `/api/health/ready` returned 200.
 - No backup created, no downtime, and no restore executed.
+
+## Pass B3 controlled real backup
+
+- Fecha: 2026-08-20.
+- Branch: `preprod/selfhosted-supabase`.
+- Executed code commit: `7ad2cdada3a0c5e15197d0a636ab492ca7ea6b48`.
+- B3 Backup ID: `20260820T172815Z-924d7458`.
+- Preflight and hardened filesystem-helper capability: PASS.
+- PostgreSQL stop signal observed: `SIGINT`.
+- Capacity: required 1,184,873,017 bytes; data available 198,040,989,696 bytes; protected available 198,040,989,696 bytes.
+- Maintenance sequence: PASS.
+- Logical dump: PASS — 2,497,233 bytes.
+- Physical PGDATA tar: PASS — 79,906,304 bytes.
+- Storage tar: PASS — 300,181,504 bytes.
+- Protected pgsodium capture: PASS.
+- Clean PostgreSQL shutdown gates passed before the physical tar; external verify confirmed `postmaster.pid` absent from the archive.
+- Runtime recovery: PASS.
+- Atomic finalization observable: PASS; manifest `COMPLETE`, matched data/protected final IDs, and no temporary manifest remained.
+- New B3 incompletes: 0; historical incompletes retained: 2; lock absent; probe leftovers: 0.
+- External verify: PASS.
+- Supabase final: 11/11 healthy; Godel app/nginx healthy; live and ready returned 200.
+- Restore NOT executed.
+
+This is the first controlled real backup executed after the full Pass A + Pass B robustness hardening.
+
+This backup is a candidate for SH-04.2 restore drill, pending architectural review.
+
+The two pre-existing stale historical incomplete artifacts classified in B3.0 were retained unchanged and are not restore-eligible.
+
+## Architectural review
+
+- Pass A: APPROVED.
+- Pass B1: APPROVED.
+- Pass B2: APPROVED.
+- Pass B3: APPROVED.
+- SH-04.1: CLOSED / APPROVED.
+- Backup `20260820T172815Z-924d7458` is accepted as a candidate for the SH-04.2 restore drill.
+- Restore was NOT executed in SH-04.1.

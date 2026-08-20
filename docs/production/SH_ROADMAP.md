@@ -158,7 +158,7 @@ de Storage en [SH_03_STORAGE_QA_REPORT.md](SH_03_STORAGE_QA_REPORT.md).
 SH-03 está cerrada/aprobada; SH-03.1, SH-03.2, SH-03.3 y SH-03.4 también están
 cerradas/aprobadas, incluidas SH-03.3A–E. PPO-03G y PPO-03 quedan
 `CLOSED / APPROVED`; SH-04 está `IN PROGRESS`: SH-04.0 queda `CLOSED /
-APPROVED` y SH-04.1 queda `READY / NEXT`.
+APPROVED`; SH-04.1 queda `CLOSED / APPROVED` y SH-04.2 queda `READY / NEXT`.
 El handoff conserva las acciones que aún
 combinan mutación, revalidación y `ActionState`/`useActionState`: son `TEST IN
 SH-03.2`, no fallos asumidos ni flujos a los que deba aplicarse preventivamente
@@ -166,14 +166,14 @@ el fallback documental.
 
 ### SH-04 — Fundamentos operativos self-hosted
 
-**Estado:** `IN PROGRESS`. SH-04.0 está `CLOSED / APPROVED`; SH-04.1 está
-`IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`; los subbloques restantes no han iniciado.
+**Estado:** `IN PROGRESS`. SH-04.0 y SH-04.1 están `CLOSED / APPROVED`;
+SH-04.2 está `READY / NEXT`; los subbloques restantes no han iniciado.
 
 | Subbloque | Estado |
 | --- | --- |
 | SH-04.0 | CLOSED / APPROVED |
-| SH-04.1 | IMPLEMENTED / PENDING ARCHITECTURAL REVIEW |
-| SH-04.2 | NOT STARTED |
+| SH-04.1 | CLOSED / APPROVED |
+| SH-04.2 | READY / NEXT |
 | SH-04.3 | NOT STARTED |
 | SH-04.4 | NOT STARTED |
 | SH-04.5 | NOT STARTED |
@@ -260,7 +260,8 @@ apoyó en evidencia de `Browser → Nginx → Supabase self-hosted Storage` y
 `Next Docker → api-gw`, no únicamente en desarrollo local. Validó bytes y
 control plane, retiró los límites transitorios de 110 MB en Next/Nginx, cerró
 TD-UPLOAD-001 y completó la documentación de PPO-03. SH-04 está ahora en
-curso; SH-04.0 queda cerrada/aprobada y SH-04.1 es READY / NEXT.
+curso; SH-04.0 y SH-04.1 quedan cerradas/aprobadas; el handoff actual es
+SH-04.1 `CLOSED / APPROVED` → SH-04.2 `READY / NEXT`.
 
 ## Gobernanza de la baseline DB
 
