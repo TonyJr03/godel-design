@@ -101,8 +101,8 @@ async function existingDirectory(value, label) {
   if (!current?.isDirectory()) die(label + " must be an existing directory");
 }
 
-async function inspect(container, template) {
-  return (await run("docker", ["inspect", container, "--format", template])).out;
+async function inspect(container, template, operation = "subprocess") {
+  return (await run("docker", ["inspect", container, "--format", template], ROOT, false, operation)).out;
 }
 
 async function composeContainer(kind, service) {
@@ -133,12 +133,15 @@ async function postgresStopSignal(container) {
 }
 
 async function stoppedState(container) {
-  const raw = (await inspect(container, "{{.State.Status}}\\t{{.State.ExitCode}}\\t{{.State.OOMKilled}}")).split("\t");
-  const [status, exitCodeRaw, oomKilledRaw] = raw;
-  if (typeof status !== "string" || !status || !/^-?\d+$/.test(exitCodeRaw ?? "") || !["true", "false"].includes(oomKilledRaw)) die("invalid PostgreSQL stopped state");
-  const exitCode = Number(exitCodeRaw);
-  if (!Number.isInteger(exitCode)) die("invalid PostgreSQL stopped state");
-  return { status, exitCode, oomKilled: oomKilledRaw === "true" };
+  const raw = await inspect(container, "{{json .State}}", "inspect PostgreSQL stopped state");
+  let state;
+  try {
+    state = JSON.parse(raw);
+  } catch {
+    die("invalid PostgreSQL stopped state");
+  }
+  if (!state || typeof state !== "object" || Array.isArray(state) || typeof state.Status !== "string" || !state.Status || !Number.isInteger(state.ExitCode) || typeof state.OOMKilled !== "boolean") die("invalid PostgreSQL stopped state");
+  return { status: state.Status, exitCode: state.ExitCode, oomKilled: state.OOMKilled };
 }
 
 async function assertCleanPostgresStopped(container) {
