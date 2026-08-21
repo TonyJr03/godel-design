@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { readFile, stat, statfs } from "node:fs/promises";
+import { mkdir, readFile, rm, stat, statfs, writeFile } from "node:fs/promises";
 import { basename, relative, resolve, sep } from "node:path";
 
 const ROOT = resolve(import.meta.dirname, "../..");
@@ -8,6 +8,7 @@ const BACKUP_LOCK = resolve(ROOT, "backups/selfhosted/.backup-selfhosted.lock");
 const UPSTREAM_PIN = "e846d45ce64207b952a4df44ac8b480ea0abb27e";
 const SUPABASE_SERVICES = ["studio", "api-gw", "auth", "rest", "realtime", "storage", "imgproxy", "meta", "functions", "db", "supavisor"];
 const GODEL_SERVICES = ["app", "nginx"];
+const NON_DB_SERVICES = SUPABASE_SERVICES.filter((service) => service !== "db");
 const REQUIRED_ARTIFACTS = ["postgres/logical/cluster.sql", "postgres/physical/pgdata.tar", "storage/storage.tar"];
 const MIN_RESTORE_MARGIN = 512 * 1024 * 1024;
 
@@ -90,10 +91,69 @@ async function composeContainer(kind, service) {
   return current.out;
 }
 
+async function composeContainerAnyState(kind, service) {
+  const current = await (kind === "supabase" ? supabase(["ps", "-a", "-q", service]) : godel(["ps", "-a", "-q", service]));
+  const ids = current.out.split(/\r?\n/).filter(Boolean);
+  if (ids.length !== 1) die("expected " + kind + " service container is not uniquely resolvable");
+  return ids[0];
+}
+
 async function containerState(container) {
   const parsed = JSON.parse(await inspect(container, "{{json .State}}"));
   const image = await inspect(container, "{{.Config.Image}}");
   return { status: parsed.Status, health: parsed.Health?.Status ?? "none", image };
+}
+
+async function postgresStopSignal(container) {
+  const raw = (await inspect(container, "{{.Config.StopSignal}}")).trim().toUpperCase();
+  const normalized = raw || "SIGTERM";
+  if (["SIGTERM", "TERM", "15"].includes(normalized)) return "SIGTERM";
+  if (["SIGINT", "INT", "2"].includes(normalized)) return "SIGINT";
+  die("unsupported PostgreSQL stop signal");
+}
+
+async function stoppedState(container) {
+  const raw = (await inspect(container, "{{.State.Status}}\\t{{.State.ExitCode}}\\t{{.State.OOMKilled}}")).split("\t");
+  const [status, exitCodeRaw, oomKilledRaw] = raw;
+  if (typeof status !== "string" || !status || !/^-?\d+$/.test(exitCodeRaw ?? "") || !["true", "false"].includes(oomKilledRaw)) die("invalid PostgreSQL stopped state");
+  const exitCode = Number(exitCodeRaw);
+  if (!Number.isInteger(exitCode)) die("invalid PostgreSQL stopped state");
+  return { status, exitCode, oomKilled: oomKilledRaw === "true" };
+}
+
+async function assertCleanPostgresStopped(container) {
+  const current = await stoppedState(container);
+  if (current.status !== "exited" || current.exitCode !== 0 || current.oomKilled) die("clean PostgreSQL shutdown not demonstrated");
+}
+
+async function runRestoreFilesystem({ image, source, target, command }) {
+  const args = ["run", "--rm", "--pull=never", "--network", "none", "--read-only", "--user", "0:0", "--security-opt", "no-new-privileges", "--cap-drop=ALL", "--cap-add=DAC_OVERRIDE", "--cap-add=CHOWN", "--cap-add=FOWNER"];
+  if (source) args.push("-v", source + ":/source:ro");
+  if (target) args.push("-v", target + ":/target");
+  args.push(image, "sh", "-ec", command);
+  return run("docker", args);
+}
+
+async function assertPostmasterPidAbsent(source, image) {
+  await runRestoreFilesystem({ image, source, command: "test ! -e /source/postmaster.pid" });
+}
+
+async function waitForHealthy(kind, services, { attempts = 60, intervalMs = 2000 } = {}) {
+  let lastError;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      await assertHealthy(kind, services);
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt + 1 < attempts) await new Promise((resolvePromise) => setTimeout(resolvePromise, intervalMs));
+    }
+  }
+  throw new Error("timeout waiting for " + kind + " services to become healthy", { cause: lastError });
+}
+
+function throwIfAbortRequested(execution) {
+  if (execution.abortRequested) throw new Error("restore aborted by " + execution.abortSignal);
 }
 
 async function assertHealthy(kind, services) {
@@ -162,6 +222,7 @@ async function assertGitSafety(sourceCommit) {
   if ((await run("git", ["cat-file", "-e", sourceCommit + "^{commit}"], ROOT, true)).code !== 0) die("source backup commit is unavailable locally");
   if ((await run("git", ["merge-base", "--is-ancestor", sourceCommit, "HEAD"], ROOT, true)).code !== 0) die("source backup commit is not an ancestor of current HEAD");
   log("repository provenance PASS");
+  return { head: head.out, branch: branch.out };
 }
 
 async function readEnvironment(file) {
@@ -235,6 +296,33 @@ async function assertArchiveExtractionSafety(file) {
   });
 }
 
+async function assertArchiveEntryTypes(file) {
+  await new Promise((resolvePromise, reject) => {
+    const child = spawn("tar", ["-tvf", file], { windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
+    let carry = "", failure;
+    const validate = (line) => {
+      if (!line || failure) return;
+      if (line[0] !== "-" && line[0] !== "d") {
+        failure = new Error("archive contains unsupported entry type");
+        child.kill();
+      }
+    };
+    child.stdout.on("data", (chunk) => {
+      carry += chunk.toString();
+      const lines = carry.split(/\r?\n/);
+      carry = lines.pop();
+      for (const line of lines) validate(line);
+    });
+    child.on("error", reject);
+    child.on("close", (code) => {
+      validate(carry);
+      if (failure) reject(failure);
+      else if (code) reject(new Error("archive type safety check failed"));
+      else resolvePromise();
+    });
+  });
+}
+
 async function assertSourceCandidate(backup, protectedRoot, label) {
   if (containsIncompleteSegment(backup) || containsIncompleteSegment(protectedRoot)) die(label + " cannot use incomplete artifact paths");
   await existingDirectory(backup, label + " backup");
@@ -244,6 +332,8 @@ async function assertSourceCandidate(backup, protectedRoot, label) {
   await Promise.all([
     assertArchiveExtractionSafety(resolve(backup, "postgres/physical/pgdata.tar")),
     assertArchiveExtractionSafety(resolve(backup, "storage/storage.tar")),
+    assertArchiveEntryTypes(resolve(backup, "postgres/physical/pgdata.tar")),
+    assertArchiveEntryTypes(resolve(backup, "storage/storage.tar")),
   ]);
   return manifest;
 }
@@ -298,16 +388,19 @@ async function assertRestoreDiskReadiness(manifest, targets) {
   log("restore disk-space PASS; estimated required bytes " + required + "; available bytes " + available);
 }
 
-async function validateDefensiveBackup(value, sourceManifest) {
+async function validateDefensiveBackup(value, sourceManifest, repository, required = false) {
   if (!value.defensiveBackup) {
+    if (required) die("destructive restore requires defensive backup and protected root");
     log("defensive backup pending; destructive restore not armed");
-    return;
+    return null;
   }
   if (value.defensiveBackup === value.backup) die("defensive backup must be distinct from source backup");
   assertPathSafety({ backup: value.defensiveBackup, protectedRoot: value.defensiveProtectedRoot }, await currentTargets());
   const defensive = await assertSourceCandidate(value.defensiveBackup, value.defensiveProtectedRoot, "defensive");
   if (defensive.supabase.upstreamCommit !== sourceManifest.supabase.upstreamCommit || defensive.supabase.dbImage !== sourceManifest.supabase.dbImage || defensive.supabase.storageImage !== sourceManifest.supabase.storageImage) die("defensive backup is incompatible with source backup");
+  if (required && (defensive.repository.commit !== repository.head || defensive.repository.branch !== repository.branch || defensive.repository.dirty !== false)) die("defensive backup must match current clean repository identity");
   log("defensive backup verification PASS");
+  return defensive;
 }
 
 function logDryRunPlan() {
@@ -330,28 +423,209 @@ function logDryRunPlan() {
   steps.forEach((step, index) => log("dry-run planned " + (index + 1) + ": " + step));
 }
 
-/*
- * Future destructive restore engine contract:
- * BEFORE target mutation, the running runtime and its original target mounts are
- * authoritative. AFTER target mutation begins, a future failure MUST NOT restart
- * a partially restored runtime; it must remain stopped and require defensive rollback.
- */
+async function recoverOriginalRuntime() {
+  await supabase(["start", "db"]);
+  await waitForHealthy("supabase", ["db"]);
+  await supabase(["start"].concat(NON_DB_SERVICES));
+  await waitForHealthy("supabase", SUPABASE_SERVICES);
+  await godel(["start", "app", "nginx"]);
+  await waitForHealthy("godel", GODEL_SERVICES);
+  for (const path of ["/api/health/live", "/api/health/ready"]) {
+    const response = await fetch("http://localhost:8080" + path);
+    if (!response.ok) die("current application health endpoint failed");
+  }
+}
+
+async function clearExactTarget(image, target) {
+  await runRestoreFilesystem({ image, target, command: "find /target -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +" });
+}
+
+async function restoreArchive(image, archiveDirectory, archiveName, target) {
+  await runRestoreFilesystem({ image, source: archiveDirectory, target, command: "tar -xf /source/" + archiveName + " -C /target" });
+}
+
+async function assertRestoredPgdata(image, target) {
+  await runRestoreFilesystem({ image, source: target, command: "test -f /source/PG_VERSION; test \"$(cat /source/PG_VERSION)\" = \"17\"; test ! -e /source/postmaster.pid; test -n \"$(ls -A /source)\"" });
+}
+
+async function assertRestoredStorage(image, target) {
+  await runRestoreFilesystem({ image, source: target, command: "test -n \"$(ls -A /source)\"" });
+}
+
+async function rebuildDbConfig(image, volume) {
+  await clearExactTarget(image, volume);
+  const args = ["run", "--rm", "--pull=never", "--network", "none", "--read-only", "--user", "0:0", "--security-opt", "no-new-privileges", "--cap-drop=ALL", "--cap-add=DAC_OVERRIDE", "--cap-add=CHOWN", "--cap-add=FOWNER", "--entrypoint", "sh", "-v", volume + ":/etc/postgresql-custom", image, "-ec", "test \"$(ls -1A /etc/postgresql-custom | wc -l)\" -eq 5; for entry in conf.d extension-custom-scripts read-replica.conf supautils.conf wal-g.conf; do test -e /etc/postgresql-custom/$entry; done; test ! -e /etc/postgresql-custom/pgsodium_root.key"];
+  await run("docker", args);
+}
+
+async function restoreProtectedKey(image, protectedDirectory, volume) {
+  await runRestoreFilesystem({ image, source: protectedDirectory, target: volume, command: "tar -xf /source/pgsodium-root-key.tar -C /target pgsodium_root.key; test -f /target/pgsodium_root.key; test -s /target/pgsodium_root.key; test \"$(ls -1A /target | wc -l)\" -eq 6; for entry in conf.d extension-custom-scripts pgsodium_root.key read-replica.conf supautils.conf wal-g.conf; do test -e /target/$entry; done" });
+}
+
+async function safetyQuiesce(execution) {
+  const errors = [];
+  const attempt = async (action) => { try { await action(); } catch (error) { errors.push(error); } };
+  await attempt(() => godel(["stop", "app", "nginx"]));
+  await attempt(() => supabase(["stop"].concat(NON_DB_SERVICES)));
+  await attempt(() => supabase(["stop", "-t", "120", "db"]));
+  await attempt(async () => {
+    for (const [kind, services] of [["supabase", SUPABASE_SERVICES], ["godel", GODEL_SERVICES]]) {
+      for (const service of services) {
+        const current = await containerState(await composeContainerAnyState(kind, service));
+        if (!["exited", "created", "dead"].includes(current.status)) die("post-mutation runtime quiesce not demonstrated");
+      }
+    }
+  });
+  if (errors.length) throw new AggregateError(errors, "post-mutation safety quiesce failed");
+}
+
+async function writePostMutationFailureMarker(execution, sourceManifest, defensiveManifest) {
+  await writeFile(resolve(BACKUP_LOCK, "restore-failure.json"), JSON.stringify({ schemaVersion: 1, status: "FAILED_AFTER_MUTATION", failedAt: new Date().toISOString(), phase: execution.phase, sourceBackupId: sourceManifest?.backupId ?? null, sourceBackup: basename(execution.sourceBackup), defensiveBackupId: defensiveManifest?.backupId ?? null, defensiveBackup: basename(execution.defensiveBackup) }, null, 2) + "\n", { mode: 0o600 });
+}
+
 async function restore(value) {
   const sourceManifest = await assertSourceCandidate(value.backup, value.protectedRoot, "source");
-  await assertGitSafety(sourceManifest.repository.commit);
+  const repository = await assertGitSafety(sourceManifest.repository.commit);
   const targets = await assertOperationalCompatibility(sourceManifest);
+  await postgresStopSignal(targets.db);
   assertPathSafety(value, targets);
   await assertExternalRecoveryDependencies(sourceManifest);
   await assertNoActiveBackupLock();
   await assertRestoreDiskReadiness(sourceManifest, targets);
-  await validateDefensiveBackup(value, sourceManifest);
+  const defensiveManifest = await validateDefensiveBackup(value, sourceManifest, repository, !value.dryRun);
   if (value.dryRun) {
     logDryRunPlan();
     log("dry-run PASS; no runtime or filesystem mutation was performed");
     return;
   }
   if (!value.confirmed) die("destructive restore requires --confirm-destructive-qa-restore");
-  die("destructive restore engine is not implemented in SH-04.2B1");
+  const execution = { lockOwned: false, maintenanceStarted: false, mutationStarted: false, restoredRuntimeStarted: false, runtimeHealthy: false, abortRequested: false, abortSignal: null, phase: "pre-lock", dbStarted: false, nonDbStarted: false, godelStarted: false, sourceBackup: value.backup, defensiveBackup: value.defensiveBackup };
+  try {
+    execution.phase = "acquire-lock";
+    try {
+      await mkdir(BACKUP_LOCK, { mode: 0o700 });
+      execution.lockOwned = true;
+    } catch (error) {
+      if (error?.code === "EEXIST") die("backup lock exists; restore aborting before maintenance");
+      throw error;
+    }
+    const handleSignal = (signal) => {
+      if (!execution.abortRequested) {
+        execution.abortRequested = true;
+        execution.abortSignal = signal;
+        log("abort requested by " + signal);
+      }
+    };
+    process.on("SIGINT", handleSignal);
+    process.on("SIGTERM", handleSignal);
+    let operationError;
+    let preserveLock = false;
+    let lockedSourceManifest = null;
+    let lockedDefensiveManifest = null;
+    try {
+      execution.phase = "reverify-after-lock";
+      lockedSourceManifest = await assertSourceCandidate(value.backup, value.protectedRoot, "source");
+      lockedDefensiveManifest = await validateDefensiveBackup(value, lockedSourceManifest, repository, true);
+      if (lockedSourceManifest.backupId !== sourceManifest.backupId || lockedSourceManifest.repository.commit !== sourceManifest.repository.commit || lockedDefensiveManifest.backupId !== defensiveManifest.backupId || lockedDefensiveManifest.repository.commit !== defensiveManifest.repository.commit) die("backup identity changed after lock acquisition");
+      throwIfAbortRequested(execution);
+
+      execution.phase = "stop-godel";
+      execution.maintenanceStarted = true;
+      await godel(["stop", "app", "nginx"]);
+      throwIfAbortRequested(execution);
+      execution.phase = "stop-supabase-non-db";
+      await supabase(["stop"].concat(NON_DB_SERVICES));
+      throwIfAbortRequested(execution);
+      execution.phase = "stop-postgresql";
+      await supabase(["stop", "-t", "120", "db"]);
+      await assertCleanPostgresStopped(targets.db);
+      await assertPostmasterPidAbsent(targets.pgdata.Source, lockedSourceManifest.supabase.dbImage);
+      throwIfAbortRequested(execution);
+
+      // Mutation boundary: from this point the original runtime is never restarted automatically.
+      execution.phase = "replace-pgdata";
+      execution.mutationStarted = true;
+      await clearExactTarget(lockedSourceManifest.supabase.dbImage, targets.pgdata.Source);
+      await restoreArchive(lockedSourceManifest.supabase.dbImage, resolve(value.backup, "postgres/physical"), "pgdata.tar", targets.pgdata.Source);
+      await assertRestoredPgdata(lockedSourceManifest.supabase.dbImage, targets.pgdata.Source);
+      throwIfAbortRequested(execution);
+
+      execution.phase = "replace-storage";
+      await clearExactTarget(lockedSourceManifest.supabase.dbImage, targets.storageData.Source);
+      await restoreArchive(lockedSourceManifest.supabase.dbImage, resolve(value.backup, "storage"), "storage.tar", targets.storageData.Source);
+      await assertRestoredStorage(lockedSourceManifest.supabase.dbImage, targets.storageData.Source);
+      throwIfAbortRequested(execution);
+
+      execution.phase = "rebuild-db-config";
+      await rebuildDbConfig(lockedSourceManifest.supabase.dbImage, targets.dbConfig.Name);
+      execution.phase = "restore-pgsodium-key";
+      await restoreProtectedKey(lockedSourceManifest.supabase.dbImage, resolve(value.protectedRoot, basename(value.backup)), targets.dbConfig.Name);
+      throwIfAbortRequested(execution);
+
+      execution.phase = "start-restored-postgresql";
+      await supabase(["start", "db"]);
+      execution.dbStarted = true;
+      execution.restoredRuntimeStarted = true;
+      await waitForHealthy("supabase", ["db"]);
+      throwIfAbortRequested(execution);
+      execution.phase = "start-restored-supabase";
+      await supabase(["start"].concat(NON_DB_SERVICES));
+      execution.nonDbStarted = true;
+      await waitForHealthy("supabase", SUPABASE_SERVICES);
+      throwIfAbortRequested(execution);
+      execution.phase = "start-restored-godel";
+      await godel(["start", "app", "nginx"]);
+      execution.godelStarted = true;
+      await waitForHealthy("godel", GODEL_SERVICES);
+      for (const path of ["/api/health/live", "/api/health/ready"]) {
+        const response = await fetch("http://localhost:8080" + path);
+        if (!response.ok) die("restored application health endpoint failed");
+      }
+      execution.runtimeHealthy = true;
+      execution.phase = "complete";
+      log("restore runtime PASS " + lockedSourceManifest.backupId);
+    } catch (restoreError) {
+      if (execution.mutationStarted) {
+        preserveLock = true;
+        let quiesceError;
+        try { await safetyQuiesce(execution); } catch (error) { quiesceError = error; }
+        let markerError;
+        try { await writePostMutationFailureMarker(execution, lockedSourceManifest, lockedDefensiveManifest); } catch (error) { markerError = error; }
+        console.error("[ops:restore:selfhosted] RESTORE FAILED AFTER TARGET MUTATION");
+        if (quiesceError) {
+          console.error("[ops:restore:selfhosted] RUNTIME QUIESCE NOT DEMONSTRATED");
+          console.error("[ops:restore:selfhosted] MANUAL SAFETY INTERVENTION REQUIRED");
+        } else {
+          console.error("[ops:restore:selfhosted] RUNTIME LEFT STOPPED");
+        }
+        console.error("[ops:restore:selfhosted] DEFENSIVE ROLLBACK REQUIRED");
+        console.error("[ops:restore:selfhosted] OPERATION LOCK PRESERVED");
+        operationError = new AggregateError([restoreError, ...(quiesceError ? [quiesceError] : []), ...(markerError ? [markerError] : [])], "RESTORE FAILED AFTER TARGET MUTATION");
+      } else if (execution.maintenanceStarted) {
+        try {
+          await recoverOriginalRuntime();
+          console.error("[ops:restore:selfhosted] RESTORE FAILED BEFORE MUTATION / ORIGINAL RUNTIME RECOVERED");
+          operationError = new Error("RESTORE FAILED BEFORE MUTATION / ORIGINAL RUNTIME RECOVERED", { cause: restoreError });
+        } catch (recoveryError) {
+          preserveLock = true;
+          operationError = new AggregateError([restoreError, recoveryError], "RESTORE FAILED BEFORE MUTATION / ORIGINAL RUNTIME RECOVERY FAILED");
+        }
+      } else {
+        operationError = restoreError;
+      }
+    } finally {
+      process.off("SIGINT", handleSignal);
+      process.off("SIGTERM", handleSignal);
+      if (execution.lockOwned && !preserveLock) {
+        try { await rm(BACKUP_LOCK, { recursive: true, force: true }); } catch (lockError) {
+          operationError = operationError ? new AggregateError([operationError, lockError], "RESTORE FAILED / LOCK CLEANUP FAILED") : new Error("restore succeeded but lock cleanup failed", { cause: lockError });
+        }
+      }
+      if (operationError) throw operationError;
+    }
+  } catch (error) {
+    throw error;
+  }
 }
 
 try {
