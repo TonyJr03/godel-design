@@ -15,23 +15,43 @@ const MIN_RESTORE_MARGIN = 512 * 1024 * 1024;
 function log(message) { console.log("[ops:restore:selfhosted] " + message); }
 function die(message) { throw new Error(message); }
 
-function run(bin, args, cwd = ROOT, allowFailure = false) {
+class CommandExecutionError extends Error {
+  constructor(operation, exitCode, stderrSummary, cause) {
+    super(operation + " failed", cause ? { cause } : undefined);
+    this.name = "CommandExecutionError";
+    this.operation = operation;
+    this.exitCode = exitCode;
+    this.stderrSummary = stderrSummary;
+  }
+}
+
+function sanitizeStderr(value) {
+  const normalized = String(value ?? "").replace(/\r\n?/g, "\n").split("\n").map((line) => line.trim()).filter(Boolean).slice(0, 8).map((line) => line
+    .replace(/[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/g, "[REDACTED_JWT]")
+    .replace(/\b(bearer)\s+[^\s]+/gi, "$1 [REDACTED]")
+    .replace(/\b(password|passwd|secret|token|authorization|api[ _-]?key|jwt)\b\s*([:=])\s*[^\s,;]+/gi, "$1$2[REDACTED]")
+    .slice(0, 240));
+  const summary = normalized.join("\n").slice(0, 1200);
+  return summary || "(no stderr)";
+}
+
+function run(bin, args, cwd = ROOT, allowFailure = false, operation = "subprocess") {
   return new Promise((resolvePromise, reject) => {
     const child = spawn(bin, args, { cwd, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
     let out = "", err = "";
     child.stdout.on("data", (chunk) => { out += chunk; });
     child.stderr.on("data", (chunk) => { err += chunk; });
-    child.on("error", reject);
+    child.on("error", (error) => reject(new CommandExecutionError(operation, null, "(spawn error)", error)));
     child.on("close", (code) => {
       const result = { code, out: out.trim(), err: err.trim() };
-      if (code && !allowFailure) reject(new Error(bin + " command failed"));
+      if (code && !allowFailure) reject(new CommandExecutionError(operation, code, sanitizeStderr(err)));
       else resolvePromise(result);
     });
   });
 }
 
-const supabase = (args, allowFailure = false) => run("docker", ["compose", "-f", "docker-compose.yml"].concat(args), SUPABASE_DIR, allowFailure);
-const godel = (args, allowFailure = false) => run("docker", ["compose", "--env-file", "compose.env.local", "-f", "compose.yaml"].concat(args), ROOT, allowFailure);
+const supabase = (args, allowFailure = false, operation = "Supabase Compose operation") => run("docker", ["compose", "-f", "docker-compose.yml"].concat(args), SUPABASE_DIR, allowFailure, operation);
+const godel = (args, allowFailure = false, operation = "Godel Compose operation") => run("docker", ["compose", "--env-file", "compose.env.local", "-f", "compose.yaml"].concat(args), ROOT, allowFailure, operation);
 
 function parsePathOption(args, option) {
   const supplied = args.shift();
@@ -126,16 +146,16 @@ async function assertCleanPostgresStopped(container) {
   if (current.status !== "exited" || current.exitCode !== 0 || current.oomKilled) die("clean PostgreSQL shutdown not demonstrated");
 }
 
-async function runRestoreFilesystem({ image, source, target, command }) {
+async function runRestoreFilesystem({ image, source, target, command, operation = "restore filesystem operation" }) {
   const args = ["run", "--rm", "--pull=never", "--network", "none", "--read-only", "--user", "0:0", "--security-opt", "no-new-privileges", "--cap-drop=ALL", "--cap-add=DAC_OVERRIDE", "--cap-add=CHOWN", "--cap-add=FOWNER"];
   if (source) args.push("-v", source + ":/source:ro");
   if (target) args.push("-v", target + ":/target");
   args.push(image, "sh", "-ec", command);
-  return run("docker", args);
+  return run("docker", args, ROOT, false, operation);
 }
 
 async function assertPostmasterPidAbsent(source, image) {
-  await runRestoreFilesystem({ image, source, command: "test ! -e /source/postmaster.pid" });
+  await runRestoreFilesystem({ image, source, command: "test ! -e /source/postmaster.pid", operation: "verify postmaster.pid absence" });
 }
 
 async function waitForHealthy(kind, services, { attempts = 60, intervalMs = 2000 } = {}) {
@@ -424,11 +444,11 @@ function logDryRunPlan() {
 }
 
 async function recoverOriginalRuntime() {
-  await supabase(["start", "db"]);
+  await supabase(["start", "db"], false, "recover/start PostgreSQL");
   await waitForHealthy("supabase", ["db"]);
-  await supabase(["start"].concat(NON_DB_SERVICES));
+  await supabase(["start"].concat(NON_DB_SERVICES), false, "recover/start Supabase non-DB");
   await waitForHealthy("supabase", SUPABASE_SERVICES);
-  await godel(["start", "app", "nginx"]);
+  await godel(["start", "app", "nginx"], false, "recover/start Godel");
   await waitForHealthy("godel", GODEL_SERVICES);
   for (const path of ["/api/health/live", "/api/health/ready"]) {
     const response = await fetch("http://localhost:8080" + path);
@@ -436,38 +456,38 @@ async function recoverOriginalRuntime() {
   }
 }
 
-async function clearExactTarget(image, target) {
-  await runRestoreFilesystem({ image, target, command: "find /target -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +" });
+async function clearExactTarget(image, target, operation) {
+  await runRestoreFilesystem({ image, target, command: "find /target -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +", operation });
 }
 
 async function restoreArchive(image, archiveDirectory, archiveName, target) {
-  await runRestoreFilesystem({ image, source: archiveDirectory, target, command: "tar -xf /source/" + archiveName + " -C /target" });
+  await runRestoreFilesystem({ image, source: archiveDirectory, target, command: "tar -xf /source/" + archiveName + " -C /target", operation: archiveName === "pgdata.tar" ? "extract PGDATA" : "extract Storage" });
 }
 
 async function assertRestoredPgdata(image, target) {
-  await runRestoreFilesystem({ image, source: target, command: "test -f /source/PG_VERSION; test \"$(cat /source/PG_VERSION)\" = \"17\"; test ! -e /source/postmaster.pid; test -n \"$(ls -A /source)\"" });
+  await runRestoreFilesystem({ image, source: target, command: "test -f /source/PG_VERSION; test \"$(cat /source/PG_VERSION)\" = \"17\"; test ! -e /source/postmaster.pid; test -n \"$(ls -A /source)\"", operation: "validate restored PGDATA" });
 }
 
 async function assertRestoredStorage(image, target) {
-  await runRestoreFilesystem({ image, source: target, command: "test -n \"$(ls -A /source)\"" });
+  await runRestoreFilesystem({ image, source: target, command: "test -n \"$(ls -A /source)\"", operation: "validate restored Storage" });
 }
 
 async function rebuildDbConfig(image, volume) {
-  await clearExactTarget(image, volume);
+  await runRestoreFilesystem({ image, target: volume, command: "find /target -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +", operation: "clear/rebuild db-config" });
   const args = ["run", "--rm", "--pull=never", "--network", "none", "--read-only", "--user", "0:0", "--security-opt", "no-new-privileges", "--cap-drop=ALL", "--cap-add=DAC_OVERRIDE", "--cap-add=CHOWN", "--cap-add=FOWNER", "--entrypoint", "sh", "-v", volume + ":/etc/postgresql-custom", image, "-ec", "test \"$(ls -1A /etc/postgresql-custom | wc -l)\" -eq 5; for entry in conf.d extension-custom-scripts read-replica.conf supautils.conf wal-g.conf; do test -e /etc/postgresql-custom/$entry; done; test ! -e /etc/postgresql-custom/pgsodium_root.key"];
-  await run("docker", args);
+  await run("docker", args, ROOT, false, "rebuild db-config");
 }
 
 async function restoreProtectedKey(image, protectedDirectory, volume) {
-  await runRestoreFilesystem({ image, source: protectedDirectory, target: volume, command: "tar -xf /source/pgsodium-root-key.tar -C /target pgsodium_root.key; test -f /target/pgsodium_root.key; test -s /target/pgsodium_root.key; test \"$(ls -1A /target | wc -l)\" -eq 6; for entry in conf.d extension-custom-scripts pgsodium_root.key read-replica.conf supautils.conf wal-g.conf; do test -e /target/$entry; done" });
+  await runRestoreFilesystem({ image, source: protectedDirectory, target: volume, command: "tar -xf /source/pgsodium-root-key.tar -C /target pgsodium_root.key; test -f /target/pgsodium_root.key; test -s /target/pgsodium_root.key; test \"$(ls -1A /target | wc -l)\" -eq 6; for entry in conf.d extension-custom-scripts pgsodium_root.key read-replica.conf supautils.conf wal-g.conf; do test -e /target/$entry; done", operation: "restore pgsodium root key" });
 }
 
 async function safetyQuiesce(execution) {
   const errors = [];
   const attempt = async (action) => { try { await action(); } catch (error) { errors.push(error); } };
-  await attempt(() => godel(["stop", "app", "nginx"]));
-  await attempt(() => supabase(["stop"].concat(NON_DB_SERVICES)));
-  await attempt(() => supabase(["stop", "-t", "120", "db"]));
+  await attempt(() => godel(["stop", "app", "nginx"], false, "stop Godel"));
+  await attempt(() => supabase(["stop"].concat(NON_DB_SERVICES), false, "stop Supabase non-DB"));
+  await attempt(() => supabase(["stop", "-t", "120", "db"], false, "stop PostgreSQL"));
   await attempt(async () => {
     for (const [kind, services] of [["supabase", SUPABASE_SERVICES], ["godel", GODEL_SERVICES]]) {
       for (const service of services) {
@@ -481,6 +501,24 @@ async function safetyQuiesce(execution) {
 
 async function writePostMutationFailureMarker(execution, sourceManifest, defensiveManifest) {
   await writeFile(resolve(BACKUP_LOCK, "restore-failure.json"), JSON.stringify({ schemaVersion: 1, status: "FAILED_AFTER_MUTATION", failedAt: new Date().toISOString(), phase: execution.phase, sourceBackupId: sourceManifest?.backupId ?? null, sourceBackup: basename(execution.sourceBackup), defensiveBackupId: defensiveManifest?.backupId ?? null, defensiveBackup: basename(execution.defensiveBackup) }, null, 2) + "\n", { mode: 0o600 });
+}
+
+function reportFailureDetails(prefix, error, depth = 0) {
+  if (depth >= 3 || !error) return;
+  if (error instanceof CommandExecutionError) {
+    console.error("[ops:restore:selfhosted] " + prefix + " OPERATION: " + error.operation);
+    console.error("[ops:restore:selfhosted] " + prefix + " EXIT CODE: " + (error.exitCode ?? "(spawn error)"));
+    console.error("[ops:restore:selfhosted] " + prefix + " STDERR: " + error.stderrSummary);
+    return;
+  }
+  if (error instanceof AggregateError) {
+    const children = Array.from(error.errors ?? []).slice(0, 5);
+    if (!children.length) console.error("[ops:restore:selfhosted] " + prefix + " CAUSE: " + sanitizeStderr(error.message));
+    children.forEach((child, index) => reportFailureDetails(prefix + "[" + (index + 1) + "]", child, depth + 1));
+    return;
+  }
+  console.error("[ops:restore:selfhosted] " + prefix + " CAUSE: " + sanitizeStderr(error?.message));
+  if (error.cause instanceof CommandExecutionError || error.cause instanceof AggregateError) reportFailureDetails(prefix, error.cause, depth + 1);
 }
 
 async function restore(value) {
@@ -531,13 +569,13 @@ async function restore(value) {
 
       execution.phase = "stop-godel";
       execution.maintenanceStarted = true;
-      await godel(["stop", "app", "nginx"]);
+      await godel(["stop", "app", "nginx"], false, "stop Godel");
       throwIfAbortRequested(execution);
       execution.phase = "stop-supabase-non-db";
-      await supabase(["stop"].concat(NON_DB_SERVICES));
+      await supabase(["stop"].concat(NON_DB_SERVICES), false, "stop Supabase non-DB");
       throwIfAbortRequested(execution);
       execution.phase = "stop-postgresql";
-      await supabase(["stop", "-t", "120", "db"]);
+      await supabase(["stop", "-t", "120", "db"], false, "stop PostgreSQL");
       await assertCleanPostgresStopped(targets.db);
       await assertPostmasterPidAbsent(targets.pgdata.Source, lockedSourceManifest.supabase.dbImage);
       throwIfAbortRequested(execution);
@@ -545,13 +583,13 @@ async function restore(value) {
       // Mutation boundary: from this point the original runtime is never restarted automatically.
       execution.phase = "replace-pgdata";
       execution.mutationStarted = true;
-      await clearExactTarget(lockedSourceManifest.supabase.dbImage, targets.pgdata.Source);
+      await clearExactTarget(lockedSourceManifest.supabase.dbImage, targets.pgdata.Source, "clear PGDATA");
       await restoreArchive(lockedSourceManifest.supabase.dbImage, resolve(value.backup, "postgres/physical"), "pgdata.tar", targets.pgdata.Source);
       await assertRestoredPgdata(lockedSourceManifest.supabase.dbImage, targets.pgdata.Source);
       throwIfAbortRequested(execution);
 
       execution.phase = "replace-storage";
-      await clearExactTarget(lockedSourceManifest.supabase.dbImage, targets.storageData.Source);
+      await clearExactTarget(lockedSourceManifest.supabase.dbImage, targets.storageData.Source, "clear Storage");
       await restoreArchive(lockedSourceManifest.supabase.dbImage, resolve(value.backup, "storage"), "storage.tar", targets.storageData.Source);
       await assertRestoredStorage(lockedSourceManifest.supabase.dbImage, targets.storageData.Source);
       throwIfAbortRequested(execution);
@@ -563,18 +601,18 @@ async function restore(value) {
       throwIfAbortRequested(execution);
 
       execution.phase = "start-restored-postgresql";
-      await supabase(["start", "db"]);
+      await supabase(["start", "db"], false, "start PostgreSQL");
       execution.dbStarted = true;
       execution.restoredRuntimeStarted = true;
       await waitForHealthy("supabase", ["db"]);
       throwIfAbortRequested(execution);
       execution.phase = "start-restored-supabase";
-      await supabase(["start"].concat(NON_DB_SERVICES));
+      await supabase(["start"].concat(NON_DB_SERVICES), false, "start Supabase non-DB");
       execution.nonDbStarted = true;
       await waitForHealthy("supabase", SUPABASE_SERVICES);
       throwIfAbortRequested(execution);
       execution.phase = "start-restored-godel";
-      await godel(["start", "app", "nginx"]);
+      await godel(["start", "app", "nginx"], false, "start Godel");
       execution.godelStarted = true;
       await waitForHealthy("godel", GODEL_SERVICES);
       for (const path of ["/api/health/live", "/api/health/ready"]) {
@@ -585,10 +623,13 @@ async function restore(value) {
       execution.phase = "complete";
       log("restore runtime PASS " + lockedSourceManifest.backupId);
     } catch (restoreError) {
+      console.error("[ops:restore:selfhosted] RESTORE FAILURE PHASE: " + execution.phase);
+      reportFailureDetails("RESTORE FAILURE", restoreError);
       if (execution.mutationStarted) {
         preserveLock = true;
         let quiesceError;
         try { await safetyQuiesce(execution); } catch (error) { quiesceError = error; }
+        if (quiesceError) reportFailureDetails("RUNTIME QUIESCE FAILURE", quiesceError);
         let markerError;
         try { await writePostMutationFailureMarker(execution, lockedSourceManifest, lockedDefensiveManifest); } catch (error) { markerError = error; }
         console.error("[ops:restore:selfhosted] RESTORE FAILED AFTER TARGET MUTATION");
@@ -608,6 +649,7 @@ async function restore(value) {
           operationError = new Error("RESTORE FAILED BEFORE MUTATION / ORIGINAL RUNTIME RECOVERED", { cause: restoreError });
         } catch (recoveryError) {
           preserveLock = true;
+          reportFailureDetails("ORIGINAL RUNTIME RECOVERY FAILURE", recoveryError);
           operationError = new AggregateError([restoreError, recoveryError], "RESTORE FAILED BEFORE MUTATION / ORIGINAL RUNTIME RECOVERY FAILED");
         }
       } else {
