@@ -11,8 +11,8 @@ const SERVICES = ["studio","api-gw","auth","rest","realtime","storage","imgproxy
 const NON_DB = SERVICES.filter((name) => name !== "db");
 const DATA_ROOT_DEFAULT = resolve(ROOT, "backups/selfhosted");
 const PROTECTED_ROOT_DEFAULT = resolve(ROOT, "protected-recovery-material/selfhosted");
-const EXPECTED_ARTIFACTS_V1 = ["postgres/logical/cluster.sql","postgres/physical/pgdata.tar","storage/storage.tar"];
-const EXPECTED_ARTIFACTS_V2 = [...EXPECTED_ARTIFACTS_V1,"storage/xattrs.json"];
+const BACKUP_SCHEMA_VERSION = 2;
+const EXPECTED_ARTIFACTS = ["postgres/logical/cluster.sql","postgres/physical/pgdata.tar","storage/storage.tar","storage/xattrs.json"];
 const STORAGE_XATTR_IMAGE = "supabase/storage-api:v1.60.4";
 const STORAGE_XATTR_SIDECAR_SCHEMA_VERSION = 1;
 const STORAGE_XATTR_SIDECAR_FORMAT = "supabase-file-xattrs";
@@ -28,11 +28,7 @@ const PROTECTED_ALLOWANCE = 16 * 1024 * 1024;
 function die(message) { throw new Error(message); }
 function throwIfAbortRequested(execution) { if (execution.abortRequested) throw new Error("backup aborted by " + execution.abortSignal); }
 function log(message) { console.log("[ops:backup:selfhosted] " + message); }
-function expectedArtifacts(schemaVersion) {
-  if (schemaVersion === 1) return EXPECTED_ARTIFACTS_V1;
-  if (schemaVersion === 2) return EXPECTED_ARTIFACTS_V2;
-  die("unsupported backup schema version");
-}
+function requireSupportedBackupSchemaVersion(schemaVersion) { if (schemaVersion !== BACKUP_SCHEMA_VERSION) die("unsupported backup schema version"); }
 function plainObject(value) { return value !== null && typeof value === "object" && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype; }
 function safeStorageXattrPath(value) {
   if (typeof value !== "string" || !value || value.length > MAX_STORAGE_XATTR_PATH_LENGTH || value.startsWith("/") || value.includes("\\") || /[\0-\x1f]/.test(value)) die("invalid storage xattr sidecar path");
@@ -263,7 +259,8 @@ async function preflight(value) {
   return { db, pg, st, cfg, dbStopSignal, dbImage: image, storageImage };
 }
 async function verifyChecksums(backup, manifest) {
-  const expected = new Set(expectedArtifacts(manifest.schemaVersion));
+  requireSupportedBackupSchemaVersion(manifest.schemaVersion);
+  const expected = new Set(EXPECTED_ARTIFACTS);
   if (!Array.isArray(manifest.artifacts) || manifest.artifacts.length !== expected.size) die("manifest artifacts are incomplete");
   const manifestByPath = new Map(manifest.artifacts.map((artifact) => [artifact.relativePath, artifact]));
   if (manifestByPath.size !== expected.size || [...expected].some((path) => !manifestByPath.has(path))) die("manifest artifact set is invalid");
@@ -296,7 +293,7 @@ async function create(value) {
   process.on("SIGINT", handleSignal); process.on("SIGTERM", handleSignal);
   try {
     await safeDirectory(resolve(dataIncomplete,"postgres/logical")); await safeDirectory(resolve(dataIncomplete,"postgres/physical")); await safeDirectory(resolve(dataIncomplete,"storage")); await safeDirectory(protectedIncomplete);
-    const manifest = { schemaVersion:2, backupId, status:"INCOMPLETE", startedAt:new Date().toISOString(), repository:{commit:(await run("git",["rev-parse","HEAD"])).out,branch:(await run("git",["branch","--show-current"])).out,dirty:(await run("git",["status","--porcelain"])).out.length>0}, supabase:{upstreamCommit:"e846d45ce64207b952a4df44ac8b480ea0abb27e",composeProject:"supabase",dbImage:p.dbImage,storageImage:p.storageImage,storageBackend:"file"}, godel:{composeProject:"godel-runtime"}, logicalBackup:{tool:"pg_dumpall",toolVersion:(await run("docker",["exec",p.db,"pg_dumpall","--version"])).out,noRolePasswords:true}, artifacts:[], protectedRecoveryMaterial:{required:true,captured:false,artifact:{relativePath:"pgsodium-root-key.tar",type:"tar"}}, requiredExternalSecretVariableNames:["POSTGRES_PASSWORD","JWT_SECRET","SECRET_KEY_BASE","REALTIME_DB_ENC_KEY","VAULT_ENC_KEY","PG_META_CRYPTO_KEY","ANON_KEY","SERVICE_ROLE_KEY","SUPABASE_PUBLISHABLE_KEY","SUPABASE_SECRET_KEY","DASHBOARD_PASSWORD","SMTP_PASS"], conditionalExternalSecretDependencies:[{name:"JWT_KEYS",condition:"asymmetric auth keys active"},{name:"JWT_JWKS",condition:"asymmetric auth keys active"},{name:"S3_PROTOCOL_ACCESS_KEY_ID",condition:"S3 protocol active"},{name:"S3_PROTOCOL_ACCESS_KEY_SECRET",condition:"S3 protocol active"}] };
+    const manifest = { schemaVersion:BACKUP_SCHEMA_VERSION, backupId, status:"INCOMPLETE", startedAt:new Date().toISOString(), repository:{commit:(await run("git",["rev-parse","HEAD"])).out,branch:(await run("git",["branch","--show-current"])).out,dirty:(await run("git",["status","--porcelain"])).out.length>0}, supabase:{upstreamCommit:"e846d45ce64207b952a4df44ac8b480ea0abb27e",composeProject:"supabase",dbImage:p.dbImage,storageImage:p.storageImage,storageBackend:"file"}, godel:{composeProject:"godel-runtime"}, logicalBackup:{tool:"pg_dumpall",toolVersion:(await run("docker",["exec",p.db,"pg_dumpall","--version"])).out,noRolePasswords:true}, artifacts:[], protectedRecoveryMaterial:{required:true,captured:false,artifact:{relativePath:"pgsodium-root-key.tar",type:"tar"}}, requiredExternalSecretVariableNames:["POSTGRES_PASSWORD","JWT_SECRET","SECRET_KEY_BASE","REALTIME_DB_ENC_KEY","VAULT_ENC_KEY","PG_META_CRYPTO_KEY","ANON_KEY","SERVICE_ROLE_KEY","SUPABASE_PUBLISHABLE_KEY","SUPABASE_SECRET_KEY","DASHBOARD_PASSWORD","SMTP_PASS"], conditionalExternalSecretDependencies:[{name:"JWT_KEYS",condition:"asymmetric auth keys active"},{name:"JWT_JWKS",condition:"asymmetric auth keys active"},{name:"S3_PROTOCOL_ACCESS_KEY_ID",condition:"S3 protocol active"},{name:"S3_PROTOCOL_ACCESS_KEY_SECRET",condition:"S3 protocol active"}] };
     await writeFile(resolve(dataIncomplete,"manifest.json"),JSON.stringify(manifest,null,2)+"\n",{mode:0o600});
     throwIfAbortRequested(execution);
     execution.maintenanceStarted = true; await godel(["stop","app","nginx"]); await supa(["stop"].concat(NON_DB)); throwIfAbortRequested(execution);
@@ -310,7 +307,7 @@ async function create(value) {
     await captureStorageXattrs({ image:p.storageImage, source:p.st.Source, output:dataIncomplete }); throwIfAbortRequested(execution);
     await runFilesystemHelper({ image:p.dbImage, source:p.cfg.Name, output:protectedIncomplete, command:"umask 077; exec tar -C /source -cf /backup/pgsodium-root-key.tar pgsodium_root.key" });
     throwIfAbortRequested(execution);
-    const files=expectedArtifacts(manifest.schemaVersion);
+    const files=EXPECTED_ARTIFACTS;
     for (const item of files) { const file=resolve(dataIncomplete,item); if ((await stat(file)).size<1) die("empty artifact"); manifest.artifacts.push({relativePath:item,size:(await stat(file)).size,sha256:await digest(file)}); }
     await checkTar(resolve(dataIncomplete,files[1]),"PG_VERSION","postmaster.pid"); await checkTar(resolve(dataIncomplete,files[2])); await checkTar(resolve(protectedIncomplete,"pgsodium-root-key.tar"),"pgsodium_root.key",null,true);
     await verifyStorageXattrSidecar(dataIncomplete);
@@ -369,9 +366,9 @@ async function create(value) {
 }
 async function verify(value) {
   if (value.backup.split(/[\\/]+/).some((segment) => segment.endsWith(".incomplete"))) die("cannot verify incomplete backup path");
-  const manifest=JSON.parse(await readFile(resolve(value.backup,"manifest.json"),"utf8")); expectedArtifacts(manifest.schemaVersion); if (manifest.status !== "COMPLETE") die("backup is not COMPLETE");
+  const manifest=JSON.parse(await readFile(resolve(value.backup,"manifest.json"),"utf8")); requireSupportedBackupSchemaVersion(manifest.schemaVersion); if (manifest.status !== "COMPLETE") die("backup is not COMPLETE");
   await verifyChecksums(value.backup,manifest);
-  if (manifest.schemaVersion === 2) await verifyStorageXattrSidecar(value.backup);
+  await verifyStorageXattrSidecar(value.backup);
   await checkTar(resolve(value.backup,"postgres/physical/pgdata.tar"),"PG_VERSION","postmaster.pid"); await checkTar(resolve(value.backup,"storage/storage.tar")); if ((await stat(resolve(value.backup,"postgres/logical/cluster.sql"))).size<1) die("logical artifact empty");
   const key=resolve(value.protected,basename(value.backup),"pgsodium-root-key.tar"); await checkTar(key,"pgsodium_root.key",null,true); log("verify PASS " + basename(value.backup));
 }
