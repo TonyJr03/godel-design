@@ -119,7 +119,7 @@ entries.sort((left, right) => left.path < right.path ? -1 : left.path > right.pa
 fs.writeFileSync("/backup/storage/xattrs.json",JSON.stringify({ schemaVersion: ${STORAGE_XATTR_SIDECAR_SCHEMA_VERSION}, format: ${JSON.stringify(STORAGE_XATTR_SIDECAR_FORMAT)}, entries }) + "\\n",{ mode: 0o600 });
 `;
 async function captureStorageXattrs({ image, source, output }) {
-  try { await runFilesystemHelper({ image, source, output, command: "node -e " + JSON.stringify(STORAGE_XATTR_CAPTURE_SCRIPT) }); }
+  try { await runStorageXattrCaptureHelper({ image, source, output }); }
   catch { die("storage xattr capture failed"); }
 }
 function run(bin, args, cwd = ROOT, allowed = false) {
@@ -163,6 +163,10 @@ async function runFilesystemHelper({ image, source, output, command }) {
   const args = ["run","--rm","--pull=never","--network","none","--read-only","--user","0:0","--security-opt","no-new-privileges","--cap-drop=ALL","--cap-add=DAC_OVERRIDE","-v",source+":/source:ro"];
   if (output) args.push("-v",output+":/backup");
   args.push(image,"sh","-ec",command);
+  return run("docker",args);
+}
+async function runStorageXattrCaptureHelper({ image, source, output }) {
+  const args = ["run","--rm","--pull=never","--network","none","--read-only","--user","0:0","--security-opt","no-new-privileges","--cap-drop=ALL","--cap-add=DAC_OVERRIDE","-v",source+":/source:ro","-v",output+":/backup","--entrypoint","node",image,"-e",STORAGE_XATTR_CAPTURE_SCRIPT];
   return run("docker",args);
 }
 async function probeFilesystemHelperAccess({ image, source, output, requiredFile }) {

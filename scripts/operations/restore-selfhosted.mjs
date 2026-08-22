@@ -245,7 +245,7 @@ for (const entry of sidecar.entries) { const target = targetFor(entry.path), nam
 
 async function runStorageXattrHelper({ image, source, target, fileName, mode, operation }) {
   if (image !== STORAGE_XATTR_IMAGE || !["replay", "verify", "legacy-replay", "legacy-verify"].includes(mode) || !/^[A-Za-z0-9._-]+$/.test(fileName) || fileName === "." || fileName === "..") die("storage xattr helper contract is incompatible");
-  const args = ["run", "--rm", "--pull=never", "--network", "none", "--read-only", "--user", "0:0", "--security-opt", "no-new-privileges", "--cap-drop=ALL", "--cap-add=DAC_OVERRIDE", "-v", source + ":/source:ro", "-v", target + ":/target", image, "sh", "-ec", "node -e " + JSON.stringify(STORAGE_XATTR_REPLAY_SCRIPT) + " " + mode + " " + fileName];
+  const args = ["run", "--rm", "--pull=never", "--network", "none", "--read-only", "--user", "0:0", "--security-opt", "no-new-privileges", "--cap-drop=ALL", "--cap-add=DAC_OVERRIDE", "-v", source + ":/source:ro", "-v", target + ":/target", "--entrypoint", "node", image, "-e", STORAGE_XATTR_REPLAY_SCRIPT, mode, fileName];
   await run("docker", args, ROOT, false, operation);
 }
 
