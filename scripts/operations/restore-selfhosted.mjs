@@ -9,11 +9,69 @@ const UPSTREAM_PIN = "e846d45ce64207b952a4df44ac8b480ea0abb27e";
 const SUPABASE_SERVICES = ["studio", "api-gw", "auth", "rest", "realtime", "storage", "imgproxy", "meta", "functions", "db", "supavisor"];
 const GODEL_SERVICES = ["app", "nginx"];
 const NON_DB_SERVICES = SUPABASE_SERVICES.filter((service) => service !== "db");
-const REQUIRED_ARTIFACTS = ["postgres/logical/cluster.sql", "postgres/physical/pgdata.tar", "storage/storage.tar"];
+const REQUIRED_ARTIFACTS_V1 = ["postgres/logical/cluster.sql", "postgres/physical/pgdata.tar", "storage/storage.tar"];
+const REQUIRED_ARTIFACTS_V2 = [...REQUIRED_ARTIFACTS_V1, "storage/xattrs.json"];
+const STORAGE_XATTR_IMAGE = "supabase/storage-api:v1.60.4";
+const STORAGE_XATTR_SIDECAR_SCHEMA_VERSION = 1;
+const STORAGE_XATTR_SIDECAR_FORMAT = "supabase-file-xattrs";
+const STORAGE_XATTR_NAMES = ["user.supabase.cache-control", "user.supabase.content-type", "user.supabase.etag"];
+const LEGACY_STORAGE_XATTR_NAMES = ["user.supabase.cache-control", "user.supabase.content-type"];
+const MAX_STORAGE_XATTR_ENTRIES = 100000;
+const MAX_STORAGE_XATTR_PATH_LENGTH = 4096;
+const MAX_STORAGE_XATTR_VALUE_BYTES = 64 * 1024;
+const LEGACY_STORAGE_XATTR_TEMP = "legacy-storage-xattrs.json";
 const MIN_RESTORE_MARGIN = 512 * 1024 * 1024;
 
 function log(message) { console.log("[ops:restore:selfhosted] " + message); }
 function die(message) { throw new Error(message); }
+function requiredArtifacts(schemaVersion) {
+  if (schemaVersion === 1) return REQUIRED_ARTIFACTS_V1;
+  if (schemaVersion === 2) return REQUIRED_ARTIFACTS_V2;
+  die("source backup has unsupported schema version");
+}
+function plainObject(value) { return value !== null && typeof value === "object" && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype; }
+function safeStorageXattrPath(value) {
+  if (typeof value !== "string" || !value || value.length > MAX_STORAGE_XATTR_PATH_LENGTH || value.startsWith("/") || value.includes("\\") || /[\0-\x1f]/.test(value)) die("invalid storage xattr sidecar path");
+  if (value.split("/").some((segment) => !segment || segment === "." || segment === "..")) die("invalid storage xattr sidecar path");
+}
+function canonicalBase64(value) {
+  if (typeof value !== "string" || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)) die("invalid storage xattr sidecar value");
+  const decoded = Buffer.from(value, "base64");
+  if (decoded.length > MAX_STORAGE_XATTR_VALUE_BYTES || decoded.toString("base64") !== value) die("invalid storage xattr sidecar value");
+}
+function compactJsonSource(source) {
+  let compact = "", quoted = false, escaped = false;
+  for (const character of source) {
+    if (quoted) {
+      compact += character;
+      if (escaped) escaped = false; else if (character === "\\") escaped = true; else if (character === "\"") quoted = false;
+    } else if (character === "\"") {
+      quoted = true; compact += character;
+    } else if (!/\s/.test(character)) compact += character;
+  }
+  return compact;
+}
+function validateStorageXattrSidecar(value, allowedNames = STORAGE_XATTR_NAMES) {
+  if (!plainObject(value) || Object.keys(value).join("\0") !== ["schemaVersion", "format", "entries"].join("\0") || value.schemaVersion !== STORAGE_XATTR_SIDECAR_SCHEMA_VERSION || value.format !== STORAGE_XATTR_SIDECAR_FORMAT || !Array.isArray(value.entries) || value.entries.length > MAX_STORAGE_XATTR_ENTRIES) die("invalid storage xattr sidecar");
+  let previousPath = "";
+  for (const entry of value.entries) {
+    if (!plainObject(entry) || Object.keys(entry).join("\0") !== ["path", "attributes"].join("\0") || !plainObject(entry.attributes)) die("invalid storage xattr sidecar entry");
+    safeStorageXattrPath(entry.path);
+    if (previousPath && previousPath >= entry.path) die("storage xattr sidecar paths are not deterministic");
+    previousPath = entry.path;
+    const names = Object.keys(entry.attributes);
+    if (!names.length || names.join("\0") !== [...names].sort().join("\0") || names.some((name) => !allowedNames.includes(name))) die("invalid storage xattr sidecar attributes");
+    for (const name of names) canonicalBase64(entry.attributes[name]);
+  }
+}
+async function readStorageXattrSidecar(directory, file = "xattrs.json", allowedNames = STORAGE_XATTR_NAMES) {
+  const raw = await readFile(resolve(directory, file), "utf8");
+  let sidecar;
+  try { sidecar = JSON.parse(raw); } catch { die("invalid storage xattr sidecar JSON"); }
+  if (compactJsonSource(raw) !== JSON.stringify(sidecar)) die("storage xattr sidecar is not canonical JSON");
+  validateStorageXattrSidecar(sidecar, allowedNames);
+  return sidecar;
+}
 
 class CommandExecutionError extends Error {
   constructor(operation, exitCode, stderrSummary, cause) {
@@ -157,6 +215,83 @@ async function runRestoreFilesystem({ image, source, target, command, operation 
   return run("docker", args, ROOT, false, operation);
 }
 
+const STORAGE_XATTR_REPLAY_SCRIPT = `
+const fs = require("fs");
+const path = require("path");
+const xattr = require("fs-xattr");
+const mode = process.argv[1];
+const fileName = process.argv[2];
+const allAllowed = ${JSON.stringify(STORAGE_XATTR_NAMES)};
+const legacyAllowed = ${JSON.stringify(LEGACY_STORAGE_XATTR_NAMES)};
+const allow = mode && mode.startsWith("legacy-") ? legacyAllowed : allAllowed;
+const maxEntries = ${MAX_STORAGE_XATTR_ENTRIES};
+const maxPathLength = ${MAX_STORAGE_XATTR_PATH_LENGTH};
+const maxValueBytes = ${MAX_STORAGE_XATTR_VALUE_BYTES};
+function plainObject(value) { return value !== null && typeof value === "object" && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype; }
+function compactJsonSource(source) { let compact = "", quoted = false, escaped = false; for (const character of source) { if (quoted) { compact += character; if (escaped) escaped = false; else if (character === "\\\\") escaped = true; else if (character === "\\\"") quoted = false; } else if (character === "\\\"") { quoted = true; compact += character; } else if (!/\\s/.test(character)) compact += character; } return compact; }
+function safePath(value) { if (typeof value !== "string" || !value || value.length > maxPathLength || value.startsWith("/") || value.includes("\\\\") || /[\\0-\\x1f]/.test(value) || value.split("/").some((part) => !part || part === "." || part === "..")) throw new Error("invalid storage xattr sidecar path"); }
+function base64(value) { if (typeof value !== "string" || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)) throw new Error("invalid storage xattr sidecar value"); const decoded = Buffer.from(value,"base64"); if (decoded.length > maxValueBytes || decoded.toString("base64") !== value) throw new Error("invalid storage xattr sidecar value"); return decoded; }
+function validate(value) { if (!plainObject(value) || Object.keys(value).join("\\0") !== ["schemaVersion","format","entries"].join("\\0") || value.schemaVersion !== ${STORAGE_XATTR_SIDECAR_SCHEMA_VERSION} || value.format !== ${JSON.stringify(STORAGE_XATTR_SIDECAR_FORMAT)} || !Array.isArray(value.entries) || value.entries.length > maxEntries) throw new Error("invalid storage xattr sidecar"); let previous = ""; for (const entry of value.entries) { if (!plainObject(entry) || Object.keys(entry).join("\\0") !== ["path","attributes"].join("\\0") || !plainObject(entry.attributes)) throw new Error("invalid storage xattr sidecar entry"); safePath(entry.path); if (previous && previous >= entry.path) throw new Error("storage xattr sidecar paths are not deterministic"); previous = entry.path; const names = Object.keys(entry.attributes); if (!names.length || names.join("\\0") !== [...names].sort().join("\\0") || names.some((name) => !allow.includes(name))) throw new Error("invalid storage xattr sidecar attributes"); for (const name of names) base64(entry.attributes[name]); } }
+function targetFor(relative) { const target = path.resolve("/target",...relative.split("/")); if (!target.startsWith("/target/")) throw new Error("unsafe storage xattr target"); const state = fs.lstatSync(target); if (!state.isFile() || state.isSymbolicLink() || state.nlink !== 1) throw new Error("unexpected storage filesystem entry"); return target; }
+function inventory() { const files = new Set(), queue = ["/target"]; while (queue.length) { const directory = queue.pop(), directoryState = fs.lstatSync(directory); if (!directoryState.isDirectory() || directoryState.isSymbolicLink()) throw new Error("unexpected storage filesystem entry"); for (const item of fs.readdirSync(directory,{withFileTypes:true})) { const current = path.join(directory,item.name), state = fs.lstatSync(current); if (state.isDirectory() && !state.isSymbolicLink()) queue.push(current); else if (state.isFile() && !state.isSymbolicLink() && state.nlink === 1) { const relative = path.relative("/target",current).split(path.sep).join("/"); safePath(relative); files.add(relative); } else throw new Error("unexpected storage filesystem entry"); } } return files; }
+if (!["replay","verify","legacy-replay","legacy-verify"].includes(mode) || !/^[A-Za-z0-9._-]+$/.test(fileName) || fileName === "." || fileName === ".." || typeof xattr.listSync !== "function" || typeof xattr.getSync !== "function" || typeof xattr.setSync !== "function") throw new Error("storage xattr helper contract unavailable");
+const raw = fs.readFileSync("/source/" + fileName,"utf8");
+let sidecar; try { sidecar = JSON.parse(raw); } catch { throw new Error("invalid storage xattr sidecar JSON"); }
+if (compactJsonSource(raw) !== JSON.stringify(sidecar)) throw new Error("storage xattr sidecar is not canonical JSON");
+validate(sidecar);
+if (mode.startsWith("legacy-")) { const actual = inventory(), expected = new Set(sidecar.entries.map((entry) => entry.path)); if (actual.size !== expected.size || [...actual].some((entry) => !expected.has(entry))) throw new Error("legacy Storage physical inventory is not recoverable"); }
+for (const entry of sidecar.entries) { const target = targetFor(entry.path), names = Object.keys(entry.attributes); if (mode.endsWith("replay")) for (const name of names) xattr.setSync(target,name,base64(entry.attributes[name])); const actual = new Set(xattr.listSync(target).filter((name) => allow.includes(name))); if (actual.size !== names.length || names.some((name) => !actual.has(name))) throw new Error("storage xattr replay verification failed"); for (const name of names) if (!Buffer.from(xattr.getSync(target,name)).equals(base64(entry.attributes[name]))) throw new Error("storage xattr replay verification failed"); }
+`;
+
+async function runStorageXattrHelper({ image, source, target, fileName, mode, operation }) {
+  if (image !== STORAGE_XATTR_IMAGE || !["replay", "verify", "legacy-replay", "legacy-verify"].includes(mode) || !/^[A-Za-z0-9._-]+$/.test(fileName) || fileName === "." || fileName === "..") die("storage xattr helper contract is incompatible");
+  const args = ["run", "--rm", "--pull=never", "--network", "none", "--read-only", "--user", "0:0", "--security-opt", "no-new-privileges", "--cap-drop=ALL", "--cap-add=DAC_OVERRIDE", "-v", source + ":/source:ro", "-v", target + ":/target", image, "sh", "-ec", "node -e " + JSON.stringify(STORAGE_XATTR_REPLAY_SCRIPT) + " " + mode + " " + fileName];
+  await run("docker", args, ROOT, false, operation);
+}
+
+function safeStoragePathSegment(value, label) {
+  if (typeof value !== "string" || !value || value.length > MAX_STORAGE_XATTR_PATH_LENGTH || value.includes("/") || value.includes("\\") || /[\0-\x1f]/.test(value) || value === "." || value === "..") die("invalid legacy Storage " + label);
+}
+function safeStorageObjectName(value) {
+  if (typeof value !== "string" || !value || value.length > MAX_STORAGE_XATTR_PATH_LENGTH || value.startsWith("/") || value.includes("\\") || /[\0-\x1f]/.test(value) || value.split("/").some((segment) => !segment || segment === "." || segment === "..")) die("invalid legacy Storage object metadata");
+}
+async function storageLayoutConfiguration(container) {
+  const values = new Map((await inspect(container, "{{range .Config.Env}}{{println .}}{{end}}")).split(/\r?\n/).filter(Boolean).map((line) => {
+    const delimiter = line.indexOf("=");
+    return delimiter > 0 ? [line.slice(0, delimiter), line.slice(delimiter + 1)] : ["", ""];
+  }));
+  const tenantId = values.get("TENANT_ID"), globalBucket = values.get("GLOBAL_S3_BUCKET");
+  safeStoragePathSegment(tenantId, "tenant configuration");
+  safeStoragePathSegment(globalBucket, "global bucket configuration");
+  return { tenantId, globalBucket };
+}
+function legacyStorageRelativePath(layout, row) {
+  safeStoragePathSegment(row.bucketId, "bucket metadata");
+  safeStorageObjectName(row.name);
+  safeStoragePathSegment(row.version, "version metadata");
+  const result = [layout.globalBucket, layout.tenantId, row.bucketId, ...row.name.split("/"), row.version].join("/");
+  safeStorageXattrPath(result);
+  return result;
+}
+async function legacyStorageMetadata(container) {
+  const query = "select json_build_object('bucketId',bucket_id,'name',name,'version',version,'metadataObject',jsonb_typeof(metadata) = 'object','mimetype',metadata->>'mimetype','cacheControl',metadata->>'cacheControl')::text from storage.objects order by bucket_id,name,version";
+  const result = await run("docker", ["exec", container, "psql", "-U", "postgres", "-d", "postgres", "-At", "-c", query], ROOT, false, "read legacy Storage metadata");
+  return result.out ? result.out.split(/\r?\n/).map((line) => {
+    let row;
+    try { row = JSON.parse(line); } catch { die("invalid legacy Storage metadata output"); }
+    if (!plainObject(row) || Object.keys(row).join("\0") !== ["bucketId", "name", "version", "metadataObject", "mimetype", "cacheControl"].join("\0") || row.metadataObject !== true || [row.bucketId, row.name, row.version, row.mimetype, row.cacheControl].some((value) => typeof value !== "string" || !value.trim())) die("invalid legacy Storage metadata");
+    return row;
+  }) : [];
+}
+async function prepareLegacyStorageXattrSidecar({ db, storage, temporaryDirectory }) {
+  const [layout, rows] = await Promise.all([storageLayoutConfiguration(storage), legacyStorageMetadata(db)]);
+  const entries = rows.map((row) => ({ path: legacyStorageRelativePath(layout, row), attributes: { "user.supabase.cache-control": Buffer.from(row.cacheControl, "utf8").toString("base64"), "user.supabase.content-type": Buffer.from(row.mimetype, "utf8").toString("base64") } })).sort((left, right) => left.path < right.path ? -1 : left.path > right.path ? 1 : 0);
+  const sidecar = { schemaVersion: STORAGE_XATTR_SIDECAR_SCHEMA_VERSION, format: STORAGE_XATTR_SIDECAR_FORMAT, entries };
+  validateStorageXattrSidecar(sidecar, LEGACY_STORAGE_XATTR_NAMES);
+  await writeFile(resolve(temporaryDirectory, LEGACY_STORAGE_XATTR_TEMP), JSON.stringify(sidecar) + "\n", { mode: 0o600 });
+  return resolve(temporaryDirectory, LEGACY_STORAGE_XATTR_TEMP);
+}
+
 async function assertPostmasterPidAbsent(source, image) {
   await runRestoreFilesystem({ image, source, command: "test ! -e /source/postmaster.pid", operation: "verify postmaster.pid absence" });
 }
@@ -213,12 +348,13 @@ function requireString(value, label) {
 
 function artifact(manifest, path) {
   const result = manifest.artifacts?.find((item) => item?.relativePath === path);
-  if (!result || !Number.isSafeInteger(result.size) || result.size < 1) die("source backup manifest has invalid artifacts");
+  if (!result || !Number.isSafeInteger(result.size) || result.size < 1 || typeof result.sha256 !== "string" || !/^[a-f0-9]{64}$/i.test(result.sha256)) die("source backup manifest has invalid artifacts");
   return result;
 }
 
 function assertManifestContract(manifest) {
-  if (manifest?.schemaVersion !== 1 || manifest.status !== "COMPLETE") die("source backup is not COMPLETE schema v1");
+  if (!plainObject(manifest) || manifest.status !== "COMPLETE") die("source backup is not COMPLETE");
+  const expected = requiredArtifacts(manifest.schemaVersion);
   requireString(manifest.backupId, "backup id");
   const sourceCommit = requireString(manifest.repository?.commit, "repository commit");
   requireString(manifest.repository?.branch, "repository branch");
@@ -226,14 +362,19 @@ function assertManifestContract(manifest) {
   if (manifest.supabase?.upstreamCommit !== UPSTREAM_PIN || manifest.supabase?.composeProject !== "supabase" || manifest.godel?.composeProject !== "godel-runtime") die("source backup compose provenance is incompatible");
   if (manifest.supabase?.storageBackend !== "file" || manifest.logicalBackup?.tool !== "pg_dumpall" || manifest.logicalBackup?.noRolePasswords !== true) die("source backup logical or storage contract is incompatible");
   requireString(manifest.supabase?.dbImage, "database image");
-  requireString(manifest.supabase?.storageImage, "storage image");
+  if (requireString(manifest.supabase?.storageImage, "storage image") !== STORAGE_XATTR_IMAGE) die("source backup Storage image is incompatible");
   if (manifest.protectedRecoveryMaterial?.required !== true || manifest.protectedRecoveryMaterial?.captured !== true) die("source backup protected recovery material is incomplete");
-  for (const path of REQUIRED_ARTIFACTS) artifact(manifest, path);
+  if (!Array.isArray(manifest.artifacts) || manifest.artifacts.length !== expected.length) die("source backup manifest has invalid artifacts");
+  const paths = manifest.artifacts.map((item) => item?.relativePath);
+  if (new Set(paths).size !== expected.length || paths.some((path) => !expected.includes(path))) die("source backup manifest has invalid artifacts");
+  for (const path of expected) artifact(manifest, path);
   return manifest;
 }
 
 async function readManifest(backup) {
-  return assertManifestContract(JSON.parse(await readFile(resolve(backup, "manifest.json"), "utf8")));
+  const manifest = assertManifestContract(JSON.parse(await readFile(resolve(backup, "manifest.json"), "utf8")));
+  if (manifest.schemaVersion === 2) await readStorageXattrSidecar(resolve(backup, "storage"));
+  return manifest;
 }
 
 async function assertGitSafety(sourceCommit) {
@@ -426,7 +567,7 @@ async function validateDefensiveBackup(value, sourceManifest, repository, requir
   return defensive;
 }
 
-function logDryRunPlan() {
+function logDryRunPlan(schemaVersion) {
   const steps = [
     "acquire restore lock",
     "stop Godel",
@@ -436,7 +577,8 @@ function logDryRunPlan() {
     "replace Storage exactly",
     "create fresh compatible DB config",
     "restore only pgsodium root key",
-    "start DB and validate health",
+    ...(schemaVersion === 2 ? ["replay Storage xattr sidecar", "verify Storage xattr replay"] : ["start DB and validate health", "derive legacy Storage xattrs from restored PostgreSQL", "verify legacy Storage xattr recovery"]),
+    ...(schemaVersion === 2 ? ["start DB and validate health"] : []),
     "start remaining Supabase services",
     "start Godel services",
     "validate live and ready endpoints",
@@ -535,7 +677,7 @@ async function restore(value) {
   await assertRestoreDiskReadiness(sourceManifest, targets);
   const defensiveManifest = await validateDefensiveBackup(value, sourceManifest, repository, !value.dryRun);
   if (value.dryRun) {
-    logDryRunPlan();
+    logDryRunPlan(sourceManifest.schemaVersion);
     log("dry-run PASS; no runtime or filesystem mutation was performed");
     return;
   }
@@ -599,17 +741,41 @@ async function restore(value) {
 
       execution.phase = "rebuild-db-config";
       await rebuildDbConfig(lockedSourceManifest.supabase.dbImage, targets.dbConfig.Name);
-      execution.phase = "restore-pgsodium-key";
-      await restoreProtectedKey(lockedSourceManifest.supabase.dbImage, resolve(value.protectedRoot, basename(value.backup)), targets.dbConfig.Name);
-      throwIfAbortRequested(execution);
+       execution.phase = "restore-pgsodium-key";
+       await restoreProtectedKey(lockedSourceManifest.supabase.dbImage, resolve(value.protectedRoot, basename(value.backup)), targets.dbConfig.Name);
+       throwIfAbortRequested(execution);
 
-      execution.phase = "start-restored-postgresql";
+       if (lockedSourceManifest.schemaVersion === 2) {
+         execution.phase = "restore-storage-xattrs-v2";
+         await runStorageXattrHelper({ image: lockedSourceManifest.supabase.storageImage, source: resolve(value.backup, "storage"), target: targets.storageData.Source, fileName: "xattrs.json", mode: "replay", operation: "restore Storage xattrs v2" });
+         throwIfAbortRequested(execution);
+         execution.phase = "verify-storage-xattrs";
+         await runStorageXattrHelper({ image: lockedSourceManifest.supabase.storageImage, source: resolve(value.backup, "storage"), target: targets.storageData.Source, fileName: "xattrs.json", mode: "verify", operation: "verify Storage xattrs v2" });
+         throwIfAbortRequested(execution);
+         log("Storage xattr restore PASS");
+       }
+
+       execution.phase = "start-restored-postgresql";
       await supabase(["start", "db"], false, "start PostgreSQL");
       execution.dbStarted = true;
-      execution.restoredRuntimeStarted = true;
-      await waitForHealthy("supabase", ["db"]);
-      throwIfAbortRequested(execution);
-      execution.phase = "start-restored-supabase";
+       execution.restoredRuntimeStarted = true;
+       await waitForHealthy("supabase", ["db"]);
+       throwIfAbortRequested(execution);
+
+       if (lockedSourceManifest.schemaVersion === 1) {
+         execution.phase = "rehydrate-storage-xattrs-v1";
+         const legacySidecar = await prepareLegacyStorageXattrSidecar({ db: targets.db, storage: targets.storage, temporaryDirectory: BACKUP_LOCK });
+         throwIfAbortRequested(execution);
+         await runStorageXattrHelper({ image: lockedSourceManifest.supabase.storageImage, source: BACKUP_LOCK, target: targets.storageData.Source, fileName: basename(legacySidecar), mode: "legacy-replay", operation: "rehydrate Storage xattrs v1" });
+         throwIfAbortRequested(execution);
+         execution.phase = "verify-storage-xattrs";
+         await runStorageXattrHelper({ image: lockedSourceManifest.supabase.storageImage, source: BACKUP_LOCK, target: targets.storageData.Source, fileName: basename(legacySidecar), mode: "legacy-verify", operation: "verify Storage xattrs v1" });
+         await rm(legacySidecar, { force: true });
+         throwIfAbortRequested(execution);
+         log("Storage xattr restore PASS");
+       }
+
+       execution.phase = "start-restored-supabase";
       await supabase(["start"].concat(NON_DB_SERVICES), false, "start Supabase non-DB");
       execution.nonDbStarted = true;
       await waitForHealthy("supabase", SUPABASE_SERVICES);
