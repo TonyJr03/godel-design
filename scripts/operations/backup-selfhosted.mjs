@@ -11,7 +11,15 @@ const SERVICES = ["studio","api-gw","auth","rest","realtime","storage","imgproxy
 const NON_DB = SERVICES.filter((name) => name !== "db");
 const DATA_ROOT_DEFAULT = resolve(ROOT, "backups/selfhosted");
 const PROTECTED_ROOT_DEFAULT = resolve(ROOT, "protected-recovery-material/selfhosted");
-const EXPECTED_ARTIFACTS = ["postgres/logical/cluster.sql","postgres/physical/pgdata.tar","storage/storage.tar"];
+const EXPECTED_ARTIFACTS_V1 = ["postgres/logical/cluster.sql","postgres/physical/pgdata.tar","storage/storage.tar"];
+const EXPECTED_ARTIFACTS_V2 = [...EXPECTED_ARTIFACTS_V1,"storage/xattrs.json"];
+const STORAGE_XATTR_IMAGE = "supabase/storage-api:v1.60.4";
+const STORAGE_XATTR_SIDECAR_SCHEMA_VERSION = 1;
+const STORAGE_XATTR_SIDECAR_FORMAT = "supabase-file-xattrs";
+const STORAGE_XATTR_NAMES = ["user.supabase.cache-control","user.supabase.content-type","user.supabase.etag"];
+const MAX_STORAGE_XATTR_ENTRIES = 100000;
+const MAX_STORAGE_XATTR_PATH_LENGTH = 4096;
+const MAX_STORAGE_XATTR_VALUE_BYTES = 64 * 1024;
 const MIN_LOGICAL_DUMP_ALLOWANCE = 512 * 1024 * 1024;
 const CONSERVATIVE_LOGICAL_FACTOR = 2;
 const DATA_SAFETY_MARGIN = 256 * 1024 * 1024;
@@ -20,6 +28,100 @@ const PROTECTED_ALLOWANCE = 16 * 1024 * 1024;
 function die(message) { throw new Error(message); }
 function throwIfAbortRequested(execution) { if (execution.abortRequested) throw new Error("backup aborted by " + execution.abortSignal); }
 function log(message) { console.log("[ops:backup:selfhosted] " + message); }
+function expectedArtifacts(schemaVersion) {
+  if (schemaVersion === 1) return EXPECTED_ARTIFACTS_V1;
+  if (schemaVersion === 2) return EXPECTED_ARTIFACTS_V2;
+  die("unsupported backup schema version");
+}
+function plainObject(value) { return value !== null && typeof value === "object" && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype; }
+function safeStorageXattrPath(value) {
+  if (typeof value !== "string" || !value || value.length > MAX_STORAGE_XATTR_PATH_LENGTH || value.startsWith("/") || value.includes("\\") || /[\0-\x1f]/.test(value)) die("invalid storage xattr sidecar path");
+  const segments = value.split("/");
+  if (segments.some((segment) => !segment || segment === "." || segment === "..")) die("invalid storage xattr sidecar path");
+}
+function canonicalBase64(value) {
+  if (typeof value !== "string" || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)) die("invalid storage xattr sidecar value");
+  const decoded = Buffer.from(value,"base64");
+  if (decoded.length > MAX_STORAGE_XATTR_VALUE_BYTES || decoded.toString("base64") !== value) die("invalid storage xattr sidecar value");
+}
+function compactJsonSource(source) {
+  let compact = "", quoted = false, escaped = false;
+  for (const character of source) {
+    if (quoted) {
+      compact += character;
+      if (escaped) escaped = false; else if (character === "\\") escaped = true; else if (character === "\"") quoted = false;
+    } else if (character === "\"") {
+      quoted = true; compact += character;
+    } else if (!/\s/.test(character)) compact += character;
+  }
+  return compact;
+}
+function validateStorageXattrSidecar(value) {
+  if (!plainObject(value) || Object.keys(value).join("\0") !== ["schemaVersion","format","entries"].join("\0") || value.schemaVersion !== STORAGE_XATTR_SIDECAR_SCHEMA_VERSION || value.format !== STORAGE_XATTR_SIDECAR_FORMAT || !Array.isArray(value.entries) || value.entries.length > MAX_STORAGE_XATTR_ENTRIES) die("invalid storage xattr sidecar");
+  let previousPath = "";
+  for (const entry of value.entries) {
+    if (!plainObject(entry) || Object.keys(entry).join("\0") !== ["path","attributes"].join("\0") || !plainObject(entry.attributes)) die("invalid storage xattr sidecar entry");
+    safeStorageXattrPath(entry.path);
+    if (previousPath && previousPath >= entry.path) die("storage xattr sidecar paths are not deterministic");
+    previousPath = entry.path;
+    const names = Object.keys(entry.attributes);
+    if (!names.length || names.join("\0") !== [...names].sort().join("\0") || names.some((name) => !STORAGE_XATTR_NAMES.includes(name))) die("invalid storage xattr sidecar attributes");
+    for (const name of names) canonicalBase64(entry.attributes[name]);
+  }
+}
+async function verifyStorageXattrSidecar(backup) {
+  const raw = await readFile(resolve(backup,"storage/xattrs.json"),"utf8");
+  let sidecar;
+  try { sidecar = JSON.parse(raw); } catch { die("invalid storage xattr sidecar JSON"); }
+  if (compactJsonSource(raw) !== JSON.stringify(sidecar)) die("storage xattr sidecar is not canonical JSON");
+  validateStorageXattrSidecar(sidecar);
+}
+const STORAGE_XATTR_CAPTURE_SCRIPT = `
+const fs = require("fs");
+const path = require("path");
+const xattr = require("fs-xattr");
+const root = "/source";
+const allow = ${JSON.stringify(STORAGE_XATTR_NAMES)};
+const maxEntries = ${MAX_STORAGE_XATTR_ENTRIES};
+const maxPathLength = ${MAX_STORAGE_XATTR_PATH_LENGTH};
+const maxValueBytes = ${MAX_STORAGE_XATTR_VALUE_BYTES};
+function safeRelativePath(value) {
+  if (!value || value.length > maxPathLength || value.startsWith("/") || value.includes("\\\\") || /[\\0-\\x1f]/.test(value) || value.split("/").some((part) => !part || part === "." || part === "..")) throw new Error("invalid storage xattr path");
+}
+function walk(directory, entries) {
+  const directoryState = fs.lstatSync(directory);
+  if (!directoryState.isDirectory() || directoryState.isSymbolicLink()) throw new Error("unexpected storage filesystem entry");
+  for (const item of fs.readdirSync(directory, { withFileTypes: true }).sort((left, right) => left.name < right.name ? -1 : left.name > right.name ? 1 : 0)) {
+    const file = path.join(directory,item.name), state = fs.lstatSync(file);
+    if (state.isDirectory() && !state.isSymbolicLink()) { walk(file, entries); continue; }
+    if (!state.isFile() || state.isSymbolicLink() || state.nlink !== 1) throw new Error("unexpected storage filesystem entry");
+    const present = new Set(xattr.listSync(file));
+    const attributes = {};
+    for (const name of allow) {
+      if (!present.has(name)) continue;
+      const value = Buffer.from(xattr.getSync(file,name));
+      if (value.length > maxValueBytes) throw new Error("storage xattr value exceeds limit");
+      attributes[name] = value.toString("base64");
+    }
+    if (Object.keys(attributes).length) {
+      const relative = path.relative(root,file).split(path.sep).join("/");
+      safeRelativePath(relative);
+      if (entries.length >= maxEntries) throw new Error("storage xattr entry limit exceeded");
+      entries.push({ path: relative, attributes });
+    }
+  }
+}
+if (typeof xattr.listSync !== "function" || typeof xattr.getSync !== "function") throw new Error("fs-xattr synchronous API unavailable");
+process.umask(0o077);
+const entries = [];
+walk(root,entries);
+entries.sort((left, right) => left.path < right.path ? -1 : left.path > right.path ? 1 : 0);
+fs.writeFileSync("/backup/storage/xattrs.json",JSON.stringify({ schemaVersion: ${STORAGE_XATTR_SIDECAR_SCHEMA_VERSION}, format: ${JSON.stringify(STORAGE_XATTR_SIDECAR_FORMAT)}, entries }) + "\\n",{ mode: 0o600 });
+`;
+async function captureStorageXattrs({ image, source, output }) {
+  try { await runFilesystemHelper({ image, source, output, command: "node -e " + JSON.stringify(STORAGE_XATTR_CAPTURE_SCRIPT) }); }
+  catch { die("storage xattr capture failed"); }
+}
 function run(bin, args, cwd = ROOT, allowed = false) {
   return new Promise((ok, bad) => {
     const child = spawn(bin, args, { cwd, windowsHide: true, stdio: ["ignore","pipe","pipe"] });
@@ -152,10 +254,12 @@ async function preflight(value) {
   if (!Number.isFinite(pgBytes)||!Number.isFinite(storageBytes)||dataAvailable<requiredData||protectedAvailable<PROTECTED_ALLOWANCE) die("insufficient demonstrable disk space");
   log("PostgreSQL stop signal PASS: " + dbStopSignal);
   log("disk-space PASS; estimated data bytes "+requiredData+"; available data bytes "+dataAvailable+"; available protected bytes "+protectedAvailable);
-  return { db, pg, st, cfg, dbStopSignal, dbImage: image, storageImage: (await state(storage)).image };
+  const storageImage = (await state(storage)).image;
+  if (storageImage !== STORAGE_XATTR_IMAGE) die("unexpected Storage image for xattr sidecar");
+  return { db, pg, st, cfg, dbStopSignal, dbImage: image, storageImage };
 }
 async function verifyChecksums(backup, manifest) {
-  const expected = new Set(EXPECTED_ARTIFACTS);
+  const expected = new Set(expectedArtifacts(manifest.schemaVersion));
   if (!Array.isArray(manifest.artifacts) || manifest.artifacts.length !== expected.size) die("manifest artifacts are incomplete");
   const manifestByPath = new Map(manifest.artifacts.map((artifact) => [artifact.relativePath, artifact]));
   if (manifestByPath.size !== expected.size || [...expected].some((path) => !manifestByPath.has(path))) die("manifest artifact set is invalid");
@@ -188,7 +292,7 @@ async function create(value) {
   process.on("SIGINT", handleSignal); process.on("SIGTERM", handleSignal);
   try {
     await safeDirectory(resolve(dataIncomplete,"postgres/logical")); await safeDirectory(resolve(dataIncomplete,"postgres/physical")); await safeDirectory(resolve(dataIncomplete,"storage")); await safeDirectory(protectedIncomplete);
-    const manifest = { schemaVersion:1, backupId, status:"INCOMPLETE", startedAt:new Date().toISOString(), repository:{commit:(await run("git",["rev-parse","HEAD"])).out,branch:(await run("git",["branch","--show-current"])).out,dirty:(await run("git",["status","--porcelain"])).out.length>0}, supabase:{upstreamCommit:"e846d45ce64207b952a4df44ac8b480ea0abb27e",composeProject:"supabase",dbImage:p.dbImage,storageImage:p.storageImage,storageBackend:"file"}, godel:{composeProject:"godel-runtime"}, logicalBackup:{tool:"pg_dumpall",toolVersion:(await run("docker",["exec",p.db,"pg_dumpall","--version"])).out,noRolePasswords:true}, artifacts:[], protectedRecoveryMaterial:{required:true,captured:false,artifact:{relativePath:"pgsodium-root-key.tar",type:"tar"}}, requiredExternalSecretVariableNames:["POSTGRES_PASSWORD","JWT_SECRET","SECRET_KEY_BASE","REALTIME_DB_ENC_KEY","VAULT_ENC_KEY","PG_META_CRYPTO_KEY","ANON_KEY","SERVICE_ROLE_KEY","SUPABASE_PUBLISHABLE_KEY","SUPABASE_SECRET_KEY","DASHBOARD_PASSWORD","SMTP_PASS"], conditionalExternalSecretDependencies:[{name:"JWT_KEYS",condition:"asymmetric auth keys active"},{name:"JWT_JWKS",condition:"asymmetric auth keys active"},{name:"S3_PROTOCOL_ACCESS_KEY_ID",condition:"S3 protocol active"},{name:"S3_PROTOCOL_ACCESS_KEY_SECRET",condition:"S3 protocol active"}] };
+    const manifest = { schemaVersion:2, backupId, status:"INCOMPLETE", startedAt:new Date().toISOString(), repository:{commit:(await run("git",["rev-parse","HEAD"])).out,branch:(await run("git",["branch","--show-current"])).out,dirty:(await run("git",["status","--porcelain"])).out.length>0}, supabase:{upstreamCommit:"e846d45ce64207b952a4df44ac8b480ea0abb27e",composeProject:"supabase",dbImage:p.dbImage,storageImage:p.storageImage,storageBackend:"file"}, godel:{composeProject:"godel-runtime"}, logicalBackup:{tool:"pg_dumpall",toolVersion:(await run("docker",["exec",p.db,"pg_dumpall","--version"])).out,noRolePasswords:true}, artifacts:[], protectedRecoveryMaterial:{required:true,captured:false,artifact:{relativePath:"pgsodium-root-key.tar",type:"tar"}}, requiredExternalSecretVariableNames:["POSTGRES_PASSWORD","JWT_SECRET","SECRET_KEY_BASE","REALTIME_DB_ENC_KEY","VAULT_ENC_KEY","PG_META_CRYPTO_KEY","ANON_KEY","SERVICE_ROLE_KEY","SUPABASE_PUBLISHABLE_KEY","SUPABASE_SECRET_KEY","DASHBOARD_PASSWORD","SMTP_PASS"], conditionalExternalSecretDependencies:[{name:"JWT_KEYS",condition:"asymmetric auth keys active"},{name:"JWT_JWKS",condition:"asymmetric auth keys active"},{name:"S3_PROTOCOL_ACCESS_KEY_ID",condition:"S3 protocol active"},{name:"S3_PROTOCOL_ACCESS_KEY_SECRET",condition:"S3 protocol active"}] };
     await writeFile(resolve(dataIncomplete,"manifest.json"),JSON.stringify(manifest,null,2)+"\n",{mode:0o600});
     throwIfAbortRequested(execution);
     execution.maintenanceStarted = true; await godel(["stop","app","nginx"]); await supa(["stop"].concat(NON_DB)); throwIfAbortRequested(execution);
@@ -199,11 +303,13 @@ async function create(value) {
     const tar = async (source,target) => runFilesystemHelper({ image:p.dbImage, source, output:dataIncomplete, command:"umask 077; exec tar -C /source -cf /backup/"+target+" ." });
     await tar(p.pg.Source,"postgres/physical/pgdata.tar"); throwIfAbortRequested(execution);
     await tar(p.st.Source,"storage/storage.tar"); throwIfAbortRequested(execution);
+    await captureStorageXattrs({ image:p.storageImage, source:p.st.Source, output:dataIncomplete }); throwIfAbortRequested(execution);
     await runFilesystemHelper({ image:p.dbImage, source:p.cfg.Name, output:protectedIncomplete, command:"umask 077; exec tar -C /source -cf /backup/pgsodium-root-key.tar pgsodium_root.key" });
     throwIfAbortRequested(execution);
-    const files=EXPECTED_ARTIFACTS;
+    const files=expectedArtifacts(manifest.schemaVersion);
     for (const item of files) { const file=resolve(dataIncomplete,item); if ((await stat(file)).size<1) die("empty artifact"); manifest.artifacts.push({relativePath:item,size:(await stat(file)).size,sha256:await digest(file)}); }
     await checkTar(resolve(dataIncomplete,files[1]),"PG_VERSION","postmaster.pid"); await checkTar(resolve(dataIncomplete,files[2])); await checkTar(resolve(protectedIncomplete,"pgsodium-root-key.tar"),"pgsodium_root.key",null,true);
+    await verifyStorageXattrSidecar(dataIncomplete);
     await writeFile(resolve(dataIncomplete,"checksums.sha256"),manifest.artifacts.map((a)=>a.sha256+"  "+a.relativePath).join("\n")+"\n",{mode:0o600}); await verifyChecksums(dataIncomplete,manifest); manifest.protectedRecoveryMaterial.captured=true; throwIfAbortRequested(execution);
     await recover(); execution.runtimeRecovered = true; throwIfAbortRequested(execution);
     await rename(protectedIncomplete,protectedFinal); execution.protectedFinalizedByThisRun = true;
@@ -259,8 +365,9 @@ async function create(value) {
 }
 async function verify(value) {
   if (value.backup.split(/[\\/]+/).some((segment) => segment.endsWith(".incomplete"))) die("cannot verify incomplete backup path");
-  const manifest=JSON.parse(await readFile(resolve(value.backup,"manifest.json"),"utf8")); if (manifest.schemaVersion !== 1 || manifest.status !== "COMPLETE") die("backup is not COMPLETE schema v1");
+  const manifest=JSON.parse(await readFile(resolve(value.backup,"manifest.json"),"utf8")); expectedArtifacts(manifest.schemaVersion); if (manifest.status !== "COMPLETE") die("backup is not COMPLETE");
   await verifyChecksums(value.backup,manifest);
+  if (manifest.schemaVersion === 2) await verifyStorageXattrSidecar(value.backup);
   await checkTar(resolve(value.backup,"postgres/physical/pgdata.tar"),"PG_VERSION","postmaster.pid"); await checkTar(resolve(value.backup,"storage/storage.tar")); if ((await stat(resolve(value.backup,"postgres/logical/cluster.sql"))).size<1) die("logical artifact empty");
   const key=resolve(value.protected,basename(value.backup),"pgsodium-root-key.tar"); await checkTar(key,"pgsodium_root.key",null,true); log("verify PASS " + basename(value.backup));
 }
