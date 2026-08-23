@@ -11,7 +11,6 @@ const GODEL_SERVICES = ["app", "nginx"];
 const NON_DB_SERVICES = SUPABASE_SERVICES.filter((service) => service !== "db");
 const BACKUP_FORMAT = "godel-selfhosted-backup";
 const BACKUP_SCHEMA_VERSION = 3;
-const TRANSITIONAL_BACKUP_SCHEMA_VERSION = 2;
 const PROTECTED_RECOVERY_ARTIFACT = "pgsodium-root-key.tar";
 const REQUIRED_ARTIFACTS = ["postgres/logical/cluster.sql", "postgres/physical/pgdata.tar", "storage/storage.tar", "storage/xattrs.json"];
 const STORAGE_XATTR_IMAGE = "supabase/storage-api:v1.60.4";
@@ -26,10 +25,10 @@ const MIN_RESTORE_MARGIN = 512 * 1024 * 1024;
 
 function log(message) { console.log("[ops:restore:selfhosted] " + message); }
 function die(message) { throw new Error(message); }
-function requireSupportedBackupSchemaVersion(schemaVersion) { if (schemaVersion !== BACKUP_SCHEMA_VERSION && schemaVersion !== TRANSITIONAL_BACKUP_SCHEMA_VERSION) die("source backup has unsupported schema version"); }
+function requireBackupSchemaVersion(schemaVersion) { if (schemaVersion !== BACKUP_SCHEMA_VERSION) die("source backup has unsupported schema version"); }
 function plainObject(value) { return value !== null && typeof value === "object" && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype; }
 function canonicalSha256(value) { return typeof value === "string" && /^[a-f0-9]{64}$/.test(value); }
-function validateSchema3ProtectedRecoveryMaterial(manifest) {
+function validateProtectedRecoveryMaterial(manifest) {
   const protectedMaterial = manifest.protectedRecoveryMaterial, artifact = protectedMaterial?.artifact;
   if (manifest.format !== BACKUP_FORMAT) die("source backup format is incompatible");
   if (!plainObject(protectedMaterial) || protectedMaterial.required !== true || protectedMaterial.captured !== true || !plainObject(artifact) || artifact.relativePath !== PROTECTED_RECOVERY_ARTIFACT || artifact.type !== "tar" || !Number.isSafeInteger(artifact.size) || artifact.size < 1 || !canonicalSha256(artifact.sha256)) die("source backup protected recovery material is invalid");
@@ -311,7 +310,7 @@ function artifact(manifest, path) {
 
 function assertManifestContract(manifest) {
   if (!plainObject(manifest) || manifest.status !== "COMPLETE") die("source backup is not COMPLETE");
-  requireSupportedBackupSchemaVersion(manifest.schemaVersion);
+  requireBackupSchemaVersion(manifest.schemaVersion);
   const expected = REQUIRED_ARTIFACTS;
   requireString(manifest.backupId, "backup id");
   const sourceCommit = requireString(manifest.repository?.commit, "repository commit");
@@ -322,7 +321,7 @@ function assertManifestContract(manifest) {
   requireString(manifest.supabase?.dbImage, "database image");
   if (requireString(manifest.supabase?.storageImage, "storage image") !== STORAGE_XATTR_IMAGE) die("source backup Storage image is incompatible");
   if (manifest.protectedRecoveryMaterial?.required !== true || manifest.protectedRecoveryMaterial?.captured !== true) die("source backup protected recovery material is incomplete");
-  if (manifest.schemaVersion === BACKUP_SCHEMA_VERSION) validateSchema3ProtectedRecoveryMaterial(manifest);
+  validateProtectedRecoveryMaterial(manifest);
   if (!Array.isArray(manifest.artifacts) || manifest.artifacts.length !== expected.length) die("source backup manifest has invalid artifacts");
   const paths = manifest.artifacts.map((item) => item?.relativePath);
   if (new Set(paths).size !== expected.length || paths.some((path) => !expected.includes(path))) die("source backup manifest has invalid artifacts");

@@ -13,7 +13,6 @@ const DATA_ROOT_DEFAULT = resolve(ROOT, "backups/selfhosted");
 const PROTECTED_ROOT_DEFAULT = resolve(ROOT, "protected-recovery-material/selfhosted");
 const BACKUP_FORMAT = "godel-selfhosted-backup";
 const BACKUP_SCHEMA_VERSION = 3;
-const TRANSITIONAL_BACKUP_SCHEMA_VERSION = 2;
 const PROTECTED_RECOVERY_ARTIFACT = "pgsodium-root-key.tar";
 const EXPECTED_ARTIFACTS = ["postgres/logical/cluster.sql","postgres/physical/pgdata.tar","storage/storage.tar","storage/xattrs.json"];
 const STORAGE_XATTR_IMAGE = "supabase/storage-api:v1.60.4";
@@ -31,10 +30,10 @@ const PROTECTED_ALLOWANCE = 16 * 1024 * 1024;
 function die(message) { throw new Error(message); }
 function throwIfAbortRequested(execution) { if (execution.abortRequested) throw new Error("backup aborted by " + execution.abortSignal); }
 function log(message) { console.log("[ops:backup:selfhosted] " + message); }
-function requireSupportedBackupSchemaVersion(schemaVersion) { if (schemaVersion !== BACKUP_SCHEMA_VERSION && schemaVersion !== TRANSITIONAL_BACKUP_SCHEMA_VERSION) die("unsupported backup schema version"); }
+function requireBackupSchemaVersion(schemaVersion) { if (schemaVersion !== BACKUP_SCHEMA_VERSION) die("unsupported backup schema version"); }
 function plainObject(value) { return value !== null && typeof value === "object" && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype; }
 function canonicalSha256(value) { return typeof value === "string" && /^[a-f0-9]{64}$/.test(value); }
-function validateSchema3ProtectedRecoveryMaterial(manifest) {
+function validateProtectedRecoveryMaterial(manifest) {
   const protectedMaterial = manifest.protectedRecoveryMaterial, artifact = protectedMaterial?.artifact;
   if (manifest.format !== BACKUP_FORMAT) die("invalid backup format");
   if (!plainObject(protectedMaterial) || protectedMaterial.required !== true || protectedMaterial.captured !== true || !plainObject(artifact) || artifact.relativePath !== PROTECTED_RECOVERY_ARTIFACT || artifact.type !== "tar" || !Number.isSafeInteger(artifact.size) || artifact.size < 1 || !canonicalSha256(artifact.sha256)) die("invalid protected recovery material");
@@ -269,7 +268,7 @@ async function preflight(value) {
   return { db, pg, st, cfg, dbStopSignal, dbImage: image, storageImage };
 }
 async function verifyChecksums(backup, manifest) {
-  requireSupportedBackupSchemaVersion(manifest.schemaVersion);
+  requireBackupSchemaVersion(manifest.schemaVersion);
   const expected = new Set(EXPECTED_ARTIFACTS);
   if (!Array.isArray(manifest.artifacts) || manifest.artifacts.length !== expected.size) die("manifest artifacts are incomplete");
   const manifestByPath = new Map(manifest.artifacts.map((artifact) => [artifact.relativePath, artifact]));
@@ -286,10 +285,8 @@ async function verifyChecksums(backup, manifest) {
 }
 async function verifyProtectedRecoveryMaterial(backup, protectedRoot, manifest) {
   const key = resolve(protectedRoot,basename(backup),PROTECTED_RECOVERY_ARTIFACT);
-  if (manifest.schemaVersion === BACKUP_SCHEMA_VERSION) {
-    const artifact = validateSchema3ProtectedRecoveryMaterial(manifest);
-    if ((await stat(key)).size !== artifact.size || await digest(key) !== artifact.sha256) die("protected recovery material integrity verification failed");
-  }
+  const artifact = validateProtectedRecoveryMaterial(manifest);
+  if ((await stat(key)).size !== artifact.size || await digest(key) !== artifact.sha256) die("protected recovery material integrity verification failed");
   await checkTar(key,"pgsodium_root.key",null,true);
 }
 async function recover() {
@@ -329,7 +326,7 @@ async function create(value) {
     for (const item of files) { const file=resolve(dataIncomplete,item); if ((await stat(file)).size<1) die("empty artifact"); manifest.artifacts.push({relativePath:item,size:(await stat(file)).size,sha256:await digest(file)}); }
     await checkTar(resolve(dataIncomplete,files[1]),"PG_VERSION","postmaster.pid"); await checkTar(resolve(dataIncomplete,files[2])); const protectedArtifact = resolve(protectedIncomplete,PROTECTED_RECOVERY_ARTIFACT); await checkTar(protectedArtifact,"pgsodium_root.key",null,true);
     await verifyStorageXattrSidecar(dataIncomplete);
-    await writeFile(resolve(dataIncomplete,"checksums.sha256"),manifest.artifacts.map((a)=>a.sha256+"  "+a.relativePath).join("\n")+"\n",{mode:0o600}); await verifyChecksums(dataIncomplete,manifest); manifest.protectedRecoveryMaterial.artifact.size=(await stat(protectedArtifact)).size; manifest.protectedRecoveryMaterial.artifact.sha256=await digest(protectedArtifact); manifest.protectedRecoveryMaterial.captured=true; validateSchema3ProtectedRecoveryMaterial(manifest); throwIfAbortRequested(execution);
+    await writeFile(resolve(dataIncomplete,"checksums.sha256"),manifest.artifacts.map((a)=>a.sha256+"  "+a.relativePath).join("\n")+"\n",{mode:0o600}); await verifyChecksums(dataIncomplete,manifest); manifest.protectedRecoveryMaterial.artifact.size=(await stat(protectedArtifact)).size; manifest.protectedRecoveryMaterial.artifact.sha256=await digest(protectedArtifact); manifest.protectedRecoveryMaterial.captured=true; validateProtectedRecoveryMaterial(manifest); throwIfAbortRequested(execution);
     await recover(); execution.runtimeRecovered = true; throwIfAbortRequested(execution);
     await rename(protectedIncomplete,protectedFinal); execution.protectedFinalizedByThisRun = true;
     await rename(dataIncomplete,dataFinal); execution.dataFinalizedByThisRun = true;
@@ -384,7 +381,7 @@ async function create(value) {
 }
 async function verify(value) {
   if (value.backup.split(/[\\/]+/).some((segment) => segment.endsWith(".incomplete"))) die("cannot verify incomplete backup path");
-  const manifest=JSON.parse(await readFile(resolve(value.backup,"manifest.json"),"utf8")); requireSupportedBackupSchemaVersion(manifest.schemaVersion); if (manifest.status !== "COMPLETE") die("backup is not COMPLETE");
+  const manifest=JSON.parse(await readFile(resolve(value.backup,"manifest.json"),"utf8")); requireBackupSchemaVersion(manifest.schemaVersion); if (manifest.status !== "COMPLETE") die("backup is not COMPLETE");
   await verifyChecksums(value.backup,manifest);
   await verifyStorageXattrSidecar(value.backup);
   await checkTar(resolve(value.backup,"postgres/physical/pgdata.tar"),"PG_VERSION","postmaster.pid"); await checkTar(resolve(value.backup,"storage/storage.tar")); if ((await stat(resolve(value.backup,"postgres/logical/cluster.sql"))).size<1) die("logical artifact empty");
