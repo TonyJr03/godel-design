@@ -12,6 +12,8 @@ arquitectura operativa y puesta en operación de Godel Diseño.
 
 ## Documentos vigentes
 
+- [SH-04.3 — Production Secrets & Auth Hardening](SH_04_SECRETS_AUTH_REPORT.md): auditoría de secretos/Auth, contrato productivo, decisiones de hardening y evolución de SH-04.3.
+
 - [SH-02.0 — Diseño de integración Godel ↔ Supabase self-hosted](SH_02_INTEGRATION_DESIGN.md): cerrada y aprobada; incluye el estado vigente de SH-02.
 - [SH-02.1 — Compose, networking y naming neutral](SH_02_COMPOSE_NETWORK_REPORT.md): cerrada y aprobada.
 - [SH-02.2 — Nginx proxy, URL split y routing TUS](SH_02_NGINX_PROXY_REPORT.md): cerrada y aprobada.
