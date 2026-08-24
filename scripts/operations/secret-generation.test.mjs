@@ -11,9 +11,12 @@ import {
   assertReferencedSecretGenerationExists,
   assertReferencedSecretGenerationMatches,
   bootstrapSecretGeneration,
+  acquireGenerationMutationLock,
+  generationMutationLockPath,
   getCurrentSecretGeneration,
   isCanonicalGenerationId,
   validateManifestExternalSecretGeneration,
+  releaseGenerationMutationLock,
 } from "./secret-generation.mjs";
 
 async function fixture() {
@@ -55,6 +58,23 @@ test("bootstrap snapshots exact environment bytes", async () => withFixture(asyn
   assert.deepEqual(await readFile(current.generation.paths.supabaseSnapshot), await readFile(value.supabaseEnvPath));
   assert.deepEqual(await readFile(current.generation.paths.godelSnapshot), await readFile(value.godelEnvPath));
   assert.equal(current.generationId, result.generationId);
+}));
+
+test("bootstrap rejects changed live bytes before pointer commit and releases its lock", async () => withFixture(async (value) => {
+  await assert.rejects(() => bootstrapSecretGeneration({ ...value, apply: true, hooks: { afterCaptureBeforePointer: async () => writeFile(value.supabaseEnvPath, "ONE=changed\n", { mode: 0o600 }) } }), /EXTERNAL_SECRET_GENERATION_LIVE_ENV_CHANGED/);
+  assert.equal((await getCurrentSecretGeneration(value)).state, "UNINITIALIZED");
+  await assert.rejects(() => readFile(generationMutationLockPath(value.protectedRoot)), /ENOENT/);
+}));
+
+test("bootstrap post-commit failure preserves the generation pointer and lock", async () => withFixture(async (value) => {
+  await assert.rejects(() => bootstrapSecretGeneration({ ...value, apply: true, hooks: { afterPointerCommit: () => { throw new Error("INJECTED_POST_COMMIT_FAILURE"); } } }), /SECRET_GENERATION_BOOTSTRAP_COMMITTED_UNVERIFIED/);
+  assert.equal((await getCurrentSecretGeneration(value)).state, "INITIALIZED");
+  assert.ok(await readFile(generationMutationLockPath(value.protectedRoot)));
+}));
+
+test("bootstrap apply rejects an existing exclusive operation lock", async () => withFixture(async (value) => {
+  const lock = await acquireGenerationMutationLock({ protectedRoot: value.protectedRoot, operation: "test" });
+  try { await assert.rejects(() => bootstrapSecretGeneration({ ...value, apply: true }), /GENERATION_MUTATION_IN_PROGRESS/); } finally { await releaseGenerationMutationLock(lock); }
 }));
 
 test("status detects a live environment mismatch without disclosing content", async () => withFixture(async (value) => {
@@ -180,3 +200,15 @@ test("CLI status and bootstrap dry run never disclose synthetic secret text", as
     await rm(tempRoot, { recursive: true, force: true });
   }
 });
+
+test("CLI status reports BUSY while the common generation mutation lock is held", async () => withFixture(async (value) => {
+  const script = resolve(import.meta.dirname, "manage-secret-generations.mjs");
+  const lock = await acquireGenerationMutationLock({ protectedRoot: value.protectedRoot, operation: "test-status" });
+  try {
+    const result = spawnSync(process.execPath, [script, "status", "--protected-root", "protected"], { cwd: value.tempRoot, encoding: "utf8" });
+    assert.equal(result.status, 1);
+    assert.equal(result.stdout, "BUSY OPERATION_IN_PROGRESS\n");
+  } finally {
+    await releaseGenerationMutationLock(lock);
+  }
+}));

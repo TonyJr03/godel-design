@@ -4,7 +4,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { chmod, mkdir, readFile, rename, rm, stat, statfs, writeFile } from "node:fs/promises";
 import { resolve, relative, basename, sep } from "node:path";
-import { assertCurrentSecretGenerationMatches, assertReferencedSecretGenerationExists, isSecretGenerationRegistryAvailable, validateManifestExternalSecretGeneration } from "./secret-generation.mjs";
+import { acquireGenerationMutationLock, assertCurrentSecretGenerationMatches, assertNoGenerationMutationLock, assertReferencedSecretGenerationExists, isSecretGenerationRegistryAvailable, releaseGenerationMutationLock, validateManifestExternalSecretGeneration } from "./secret-generation.mjs";
 
 const ROOT = process.cwd();
 const SUPA_DIR = resolve(ROOT, "infra/supabase");
@@ -236,6 +236,7 @@ function options(args) {
   return { verb, value };
 }
 async function preflight(value) {
+  await assertNoGenerationMutationLock({ protectedRoot: value.protected });
   const externalSecretGenerationId = await assertCurrentSecretGenerationMatches({ protectedRoot: value.protected, supabaseEnvPath: resolve(SUPA_DIR,".env"), godelEnvPath: resolve(ROOT,"compose.env.local") });
   await run("docker", ["version","--format","{{.Server.Version}}"]); await run("docker", ["compose","version","--short"]);
   if (!(await readFile(resolve(ROOT,"infra/SUPABASE_UPSTREAM.md"),"utf8")).includes("e846d45ce64207b952a4df44ac8b480ea0abb27e")) die("unexpected upstream pin");
@@ -304,11 +305,13 @@ async function create(value) {
   log("preflight PASS; backup " + backupId + "; DB " + p.dbImage + "; Storage " + p.storageImage);
   if (value.dry) { log("dry-run PASS; planned maintenance sequence only"); return; }
   const lockPath = resolve(value.data,".backup-selfhosted.lock"); let lockOwned = false;
+  let secretStateLock = null;
   let operationError;
   try { await mkdir(lockPath,{mode:0o700}); lockOwned = true; } catch (error) { if (error?.code === "EEXIST") die("backup lock exists; aborting before maintenance"); throw error; }
   const handleSignal = (signal) => { if (!execution.abortRequested) { execution.abortRequested = true; execution.abortSignal = signal; log("abort requested by " + signal); } };
   process.on("SIGINT", handleSignal); process.on("SIGTERM", handleSignal);
   try {
+    secretStateLock = await acquireGenerationMutationLock({ protectedRoot: value.protected, operation: "backup-create" });
     const externalSecretGenerationId = await assertCurrentSecretGenerationMatches({ protectedRoot: value.protected, supabaseEnvPath: resolve(SUPA_DIR,".env"), godelEnvPath: resolve(ROOT,"compose.env.local") });
     await safeDirectory(resolve(dataIncomplete,"postgres/logical")); await safeDirectory(resolve(dataIncomplete,"postgres/physical")); await safeDirectory(resolve(dataIncomplete,"storage")); await safeDirectory(protectedIncomplete);
     const manifest = { format:BACKUP_FORMAT, schemaVersion:BACKUP_SCHEMA_VERSION, backupId, status:"INCOMPLETE", startedAt:new Date().toISOString(), repository:{commit:(await run("git",["rev-parse","HEAD"])).out,branch:(await run("git",["branch","--show-current"])).out,dirty:(await run("git",["status","--porcelain"])).out.length>0}, supabase:{upstreamCommit:"e846d45ce64207b952a4df44ac8b480ea0abb27e",composeProject:"supabase",dbImage:p.dbImage,storageImage:p.storageImage,storageBackend:"file"}, godel:{composeProject:"godel-runtime"}, logicalBackup:{tool:"pg_dumpall",toolVersion:(await run("docker",["exec",p.db,"pg_dumpall","--version"])).out,noRolePasswords:true}, artifacts:[], protectedRecoveryMaterial:{required:true,captured:false,artifact:{relativePath:PROTECTED_RECOVERY_ARTIFACT,type:"tar"}}, requiredExternalSecretVariableNames:["POSTGRES_PASSWORD","JWT_SECRET","SECRET_KEY_BASE","REALTIME_DB_ENC_KEY","VAULT_ENC_KEY","PG_META_CRYPTO_KEY","ANON_KEY","SERVICE_ROLE_KEY","SUPABASE_PUBLISHABLE_KEY","SUPABASE_SECRET_KEY","DASHBOARD_PASSWORD"], conditionalExternalSecretDependencies:[{name:"JWT_KEYS",condition:"asymmetric auth keys active"},{name:"JWT_JWKS",condition:"asymmetric auth keys active"},{name:"ANON_KEY_ASYMMETRIC",condition:"opaque API key translation active"},{name:"SERVICE_ROLE_KEY_ASYMMETRIC",condition:"opaque API key translation active"}], ...(externalSecretGenerationId ? { externalSecretGenerationId } : {}) };
@@ -377,6 +380,7 @@ async function create(value) {
       try { await rm(lockPath,{recursive:true,force:true}); } catch (error) { lockCleanupError = error; }
     }
     process.off("SIGINT", handleSignal); process.off("SIGTERM", handleSignal);
+    if (secretStateLock) await releaseGenerationMutationLock(secretStateLock);
     if (operationError && lockCleanupError) throw new AggregateError([operationError,lockCleanupError],"BACKUP FAILED / LOCK CLEANUP FAILED");
     if (operationError) throw operationError;
     if (lockCleanupError) throw new Error("backup succeeded but lock cleanup failed", { cause: lockCleanupError });

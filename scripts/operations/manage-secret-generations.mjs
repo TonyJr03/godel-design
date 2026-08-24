@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { resolve } from "node:path";
-import { bootstrapSecretGeneration, getCurrentSecretGeneration } from "./secret-generation.mjs";
+import { assertNoGenerationMutationLock, bootstrapSecretGeneration, getCurrentSecretGeneration } from "./secret-generation.mjs";
 
 const ROOT = process.cwd();
 const defaults = {
@@ -33,6 +33,10 @@ function parse(args) {
 try {
   const { verb, value } = parse(process.argv.slice(2));
   if (verb === "status") {
+    try { await assertNoGenerationMutationLock({ protectedRoot: value.protectedRoot }); } catch (error) {
+      if (error?.message === "GENERATION_MUTATION_IN_PROGRESS") { process.stdout.write("BUSY OPERATION_IN_PROGRESS\n"); process.exitCode = 1; process.exit(); }
+      throw error;
+    }
     const result = await getCurrentSecretGeneration(value);
     if (result.state === "UNINITIALIZED") process.stdout.write("UNINITIALIZED PASS\n");
     else process.stdout.write(`INITIALIZED ${result.generationId} ${result.match ? "MATCH PASS" : "MISMATCH FAIL"}\n`);

@@ -15,7 +15,7 @@ export const EXTERNAL_SECRET_SNAPSHOT_FILES = Object.freeze({
 
 const CURRENT_FILE = "current.json";
 const GENERATIONS_DIR = "generations";
-const REASONS = new Set(["bootstrap", "planned-rotation", "emergency-recovery", "restore-alignment"]);
+const REASONS = new Set(["bootstrap", "dashboard-rotation", "planned-rotation", "emergency-recovery", "restore-alignment"]);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const COMMIT = /^[0-9a-f]{40}$/;
 
@@ -217,6 +217,56 @@ export async function isSecretGenerationRegistryAvailable({ protectedRoot }) {
   return assertDirectory(registryPaths(protectedRoot).root, "REGISTRY_ROOT");
 }
 
+export function generationMutationLockPath(protectedRoot) {
+  return join(registryPaths(protectedRoot).root, ".operation.lock");
+}
+
+export async function assertNoGenerationMutationLock({ protectedRoot }) {
+  const lock = generationMutationLockPath(protectedRoot);
+  const entry = await lstatOrNull(lock);
+  if (!entry) return;
+  if (entry.isSymbolicLink()) fail("GENERATION_MUTATION_LOCK_SYMLINK");
+  fail("GENERATION_MUTATION_IN_PROGRESS");
+}
+
+export async function acquireGenerationMutationLock({ protectedRoot, operation, generationId = null }) {
+  const paths = registryPaths(protectedRoot);
+  await ensureSafeDirectory(paths.root);
+  const lock = generationMutationLockPath(protectedRoot);
+  try {
+    await writeExclusive(lock, `${JSON.stringify({ schemaVersion: 1, operation, generationId, startedAt: new Date().toISOString() })}\n`);
+  } catch (error) {
+    if (error?.code === "EEXIST") fail("GENERATION_MUTATION_IN_PROGRESS");
+    throw error;
+  }
+  return lock;
+}
+
+export async function releaseGenerationMutationLock(lock) {
+  await rm(lock, { force: true });
+}
+
+export async function replaceCurrentGenerationPointer({ protectedRoot, generationId, expectedGenerationId }) {
+  if (!isCanonicalGenerationId(generationId)) fail("INVALID_GENERATION_ID");
+  const paths = registryPaths(protectedRoot);
+  await ensureSafeDirectory(paths.root);
+  const current = await lstatOrNull(paths.current);
+  if (expectedGenerationId === null) {
+    if (current) fail("REGISTRY_ALREADY_INITIALIZED");
+  } else {
+    if (!isCanonicalGenerationId(expectedGenerationId) || !current) fail("EXTERNAL_SECRET_GENERATION_NOT_ACTIVE");
+    await assertRegularFile(paths.current, "CURRENT_POINTER");
+    if (validatePointer(parseJson(await readFile(paths.current), "INVALID_CURRENT_POINTER")) !== expectedGenerationId) fail("EXTERNAL_SECRET_GENERATION_NOT_ACTIVE");
+  }
+  const temporary = join(paths.root, `.current-${randomUUID()}.tmp`);
+  try {
+    await writeExclusive(temporary, `${JSON.stringify({ schemaVersion: EXTERNAL_SECRET_GENERATION_SCHEMA_VERSION, generationId }, null, 2)}\n`);
+    await rename(temporary, paths.current);
+  } finally {
+    await rm(temporary, { force: true }).catch(() => {});
+  }
+}
+
 async function repositoryCommit(root) {
   const { stdout } = await execFileAsync("git", ["rev-parse", "HEAD"], { cwd: root, windowsHide: true });
   const commit = stdout.trim();
@@ -233,8 +283,7 @@ async function writeExclusive(path, data, mode = 0o600) {
   }
 }
 
-export async function bootstrapSecretGeneration({ root, protectedRoot, supabaseEnvPath, godelEnvPath, apply = false }) {
-  const live = await liveEnvironmentPair({ supabaseEnvPath, godelEnvPath });
+export async function bootstrapSecretGeneration({ root, protectedRoot, supabaseEnvPath, godelEnvPath, apply = false, hooks = {} }) {
   const current = await getCurrentSecretGeneration({ protectedRoot, supabaseEnvPath, godelEnvPath, compareLive: false });
   if (current.state !== "UNINITIALIZED") fail("REGISTRY_ALREADY_INITIALIZED");
   const paths = registryPaths(protectedRoot);
@@ -248,15 +297,24 @@ export async function bootstrapSecretGeneration({ root, protectedRoot, supabaseE
       if (entries.length) fail("UNEXPECTED_EXISTING_GENERATION_DIRECTORY");
     }
   }
-  if (!apply) return { state: "DRY_RUN", generationId: null };
+  if (!apply) {
+    await liveEnvironmentPair({ supabaseEnvPath, godelEnvPath });
+    return { state: "DRY_RUN", generationId: null };
+  }
 
+  const mutationLock = await acquireGenerationMutationLock({ protectedRoot, operation: "bootstrap" });
   const originalUmask = process.umask(0o077);
   const generationId = randomUUID();
   const target = generationPaths(protectedRoot, generationId);
   const staging = join(target.generations, `.staging-${randomUUID()}`);
   const pointerTemp = join(target.root, `.current-${randomUUID()}.tmp`);
   let published = false;
+  let pointerCommitted = false;
+  let releaseLock = true;
   try {
+    const rechecked = await getCurrentSecretGeneration({ protectedRoot, supabaseEnvPath, godelEnvPath, compareLive: false });
+    if (rechecked.state !== "UNINITIALIZED") fail("REGISTRY_ALREADY_INITIALIZED");
+    const live = await liveEnvironmentPair({ supabaseEnvPath, godelEnvPath });
     await ensureSafeDirectory(target.root);
     await ensureSafeDirectory(target.generations);
     if (await lstatOrNull(target.directory)) fail("UNEXPECTED_EXISTING_GENERATION_DIRECTORY");
@@ -277,17 +335,30 @@ export async function bootstrapSecretGeneration({ root, protectedRoot, supabaseE
     await writeExclusive(join(staging, EXTERNAL_SECRET_SNAPSHOT_FILES.godelEnv), live.godel);
     await rename(staging, target.directory);
     published = true;
-    await writeExclusive(pointerTemp, `${JSON.stringify({ schemaVersion: EXTERNAL_SECRET_GENERATION_SCHEMA_VERSION, generationId }, null, 2)}\n`);
-    if (await lstatOrNull(target.current)) fail("REGISTRY_ALREADY_INITIALIZED");
-    await rename(pointerTemp, target.current);
+    await hooks.afterCaptureBeforePointer?.({ generationId });
+    const liveBeforePointer = await liveEnvironmentPair({ supabaseEnvPath, godelEnvPath });
+    if (!liveBeforePointer.supabase.equals(live.supabase) || !liveBeforePointer.godel.equals(live.godel)) fail("EXTERNAL_SECRET_GENERATION_LIVE_ENV_CHANGED");
+    await rm(pointerTemp, { force: true });
+    await replaceCurrentGenerationPointer({ protectedRoot, generationId, expectedGenerationId: null });
+    pointerCommitted = true;
+    await hooks.afterPointerCommit?.({ generationId });
+    const verified = await getCurrentSecretGeneration({ protectedRoot, supabaseEnvPath, godelEnvPath, compareLive: true });
+    if (verified.state !== "INITIALIZED" || verified.generationId !== generationId || !verified.match) fail("SECRET_GENERATION_BOOTSTRAP_COMMITTED_UNVERIFIED");
     return { state: "INITIALIZED", generationId };
   } catch (error) {
+    if (pointerCommitted) {
+      releaseLock = false;
+      throw new Error("SECRET_GENERATION_BOOTSTRAP_COMMITTED_UNVERIFIED", { cause: error });
+    }
     await rm(pointerTemp, { force: true }).catch(() => {});
     await rm(staging, { recursive: true, force: true }).catch(() => {});
     if (published) await rm(target.directory, { recursive: true, force: true }).catch(() => {});
+    const safe = await getCurrentSecretGeneration({ protectedRoot, supabaseEnvPath, godelEnvPath, compareLive: false });
+    if (safe.state !== "UNINITIALIZED") { releaseLock = false; throw new Error("SECRET_GENERATION_BOOTSTRAP_COMPENSATION_FAILED"); }
     throw error;
   } finally {
     process.umask(originalUmask);
+    if (releaseLock) await releaseGenerationMutationLock(mutationLock);
   }
 }
 

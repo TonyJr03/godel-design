@@ -3,6 +3,10 @@
 Estado: `IN PROGRESS` — arquitectura D.0 auditada y tooling D.1 implementado;
 no se ha rotado ningún secreto ni se ha cambiado el runtime QA.
 
+Estado de subfases: D.0 `CLOSED / APPROVED`, D.1 `CLOSED / APPROVED`, D.2
+`IN PROGRESS`, D.2A `IN PROGRESS / correction under architectural review` y D.2B
+`PENDING`. Ninguno de esos estados declara una rotación real.
+
 Este documento es la autoridad operativa para SH-04.3D. Complementa el
 [informe general SH-04.3](SH_04_SECRETS_AUTH_REPORT.md), que conserva el
 contrato de configuración y Auth.
@@ -68,7 +72,7 @@ cifrado con estado. Ninguno se resuelve con D.1.
 | `JWT_JWKS` | Rest, Realtime, Storage, Functions | B | `JWT_KEYS` | Verificación de sesiones | Sí | Adición controlada | Verificadores antes de Auth | Antes; retener hasta recovery | D.4B. |
 | `ANON_KEY_ASYMMETRIC` | Envoy translation | B | `JWT_JWKS`, opaque keys | Token de traducción | Sí | Coordinada | Gateway y verificadores | Antes; retener generación | D.4B/D.3 según plan. |
 | `SERVICE_ROLE_KEY_ASYMMETRIC` | Envoy/Auth Admin translation | B | `JWT_JWKS`, opaque keys | Token de traducción | Sí | Coordinada | Gateway, Auth Admin smoke | Antes; retener generación | D.4B/D.3 según plan. |
-| `DASHBOARD_PASSWORD` | Studio | A | Ninguno | No afecta Godel/Auth | Sí | Procedimiento aislado | Studio smoke; Studio | No crítico para datos; conservar rollback | D.2. |
+| `DASHBOARD_PASSWORD` | api-gw / Envoy Basic Auth | A | Ninguno | No afecta Godel/Auth | Sí | Procedimiento aislado | Basic Auth old/new por gateway; api-gw | No crítico para datos; conservar rollback | D.2. |
 | `SECRET_KEY_BASE` | Realtime y Supavisor | B | Realtime/Supavisor | Cookies/estado de esos servicios | Sí | Coordinada | Recreate ambos servicios | Antes; rollback generation | Cambiar juntos; no familia Auth. |
 | `REALTIME_DB_ENC_KEY` | Realtime | E | Estado Realtime | Sí, cifrado | Sí | No en SH-04.3D | Drill de migración; Realtime | Backup obligatorio; recovery largo | Fresh unique; congelada live. |
 | `VAULT_ENC_KEY` | Supavisor/Vault | E | Estado Supavisor | Sí, cifrado | Sí | No en SH-04.3D | Drill de migración; Supavisor | Backup obligatorio; recovery largo | Fresh unique; congelada live. |
@@ -94,7 +98,7 @@ cifrado con estado. Ninguno se resuelve con D.1.
 | `JWT_JWKS` | verifiers | B | JWT_KEYS | No | ES256 continuity | Sí | Add-first | verify token | No | rest,realtime,storage,functions | Sí | Recovery | D.4B |
 | `ANON_KEY_ASYMMETRIC` | Envoy | B | JWKS/opaque | No | translation token | Sí | Coordinated | gateway API | No | api-gw | Sí | Recovery | D.3/D.4B |
 | `SERVICE_ROLE_KEY_ASYMMETRIC` | Envoy/Auth Admin | B | JWKS/opaque | No | translation token | Sí | Coordinated | Admin Auth | No | api-gw,app | Sí | Recovery | D.3/D.4B |
-| `DASHBOARD_PASSWORD` | Studio | A | none | No | No | Sí | Isolated | Studio login | No | studio | Recommended | Rollback | D.2 |
+| `DASHBOARD_PASSWORD` | api-gw / Envoy Basic Auth | A | none | No | No | Sí | Isolated | gateway old/new Basic Auth | No | api-gw | Recommended | Rollback | D.2 |
 | `SECRET_KEY_BASE` | Realtime/Supavisor | B | both services | Yes | service cookies | Sí | Coordinated | service smoke | No | realtime,supavisor | Sí | Rollback | together |
 | `REALTIME_DB_ENC_KEY` | Realtime | E | encrypted state | Sí | No | Sí | No | migration drill | No | realtime | Sí | Recovery | frozen |
 | `VAULT_ENC_KEY` | Supavisor/Vault | E | encrypted state | Sí | No | Sí | No | migration drill | No | supavisor | Sí | Recovery | frozen |
@@ -125,8 +129,8 @@ cifrado con estado. Ninguno se resuelve con D.1.
 | Fase | Alcance | Estado |
 | --- | --- | --- |
 | D.0 | Auditoría de arquitectura y seguridad | CLOSED / APPROVED |
-| D.1 | Tooling seguro y modelo de generación/recovery | IN PROGRESS, pendiente de revisión arquitectónica |
-| D.2 | Generación cero y rotación Dashboard | Pendiente |
+| D.1 | Tooling seguro y modelo de generación/recovery | CLOSED / APPROVED |
+| D.2 | Generación cero y rotación Dashboard | IN PROGRESS |
 | D.3 | Opaque API keys y rebuild Godel | Pendiente |
 | D.4A | Rotación legacy `JWT_SECRET` / anon / service-role | Pendiente |
 | D.4B | Rotación de claves EC de firma | Pendiente |
@@ -219,3 +223,45 @@ No cambia automáticamente los env.
 3. Ejecutar una rotación por grupos, verificando consumidores, health y
    recovery antes de retirar la generación anterior.
 4. Documentar evidencia sanitizada y completar SH-04.3E/F.
+
+## D.2 — Dashboard credential rotation
+
+Corrección R2: la generación cero captura los envs únicamente después de tomar
+el lock común. Antes de publicar `current.json` relee ambos archivos y exige
+coincidencia binaria; después del commit exige generación activa publicada y
+`MATCH` antes de liberar el lock. Un cambio pre-commit no publica puntero y un
+estado post-commit no verificable queda interbloqueado para recuperación
+controlada.
+
+`DASHBOARD_PASSWORD` es consumido por `api-gw`: el entrypoint de Envoy deriva
+`DASHBOARD_BASIC_AUTH` de `DASHBOARD_USERNAME` y la contraseña. La rotación
+futura recreará únicamente `api-gw`; según la topología actual, Studio no exige
+recreación solo por este cambio. D.2A no altera Compose ni recrea servicios.
+
+La herramienta tracked `rotate-dashboard-password.mjs` admite exclusivamente
+`rotate` y `rollback`, ambos dry-run por defecto y mutables únicamente con
+`--apply`. Genera la contraseña en memoria con `randomBytes(32).toString("base64url")`,
+no acepta contraseñas por CLI y nunca imprime valores, hashes ni longitudes.
+La única variable que puede modificar es `DASHBOARD_PASSWORD`.
+
+Cada transición exige registro inicializado, generación actual activa y MATCH,
+adquiere `external-secrets/.operation.lock`, crea una generación inmutable con
+razón `dashboard-rotation` y `sourceGenerationId`, actualiza atómicamente el
+env y finalmente cambia `current.json`. Backup create y restore destructivo
+fallan cerrados mientras exista ese lock. Rollback solo acepta generaciones con
+Godel idéntico y una diferencia efectiva exclusiva de `DASHBOARD_PASSWORD`.
+
+`external-secrets/.operation.lock` es el único dominio exclusivo de estado de
+secretos para bootstrap apply, rotate/rollback, backup create y restore
+destructivo. Es distinto del backup lock y del restore failure marker; verify
+sigue siendo read-only. Status informa `BUSY` mientras ese lock exista. Ante un
+fallo pre-commit se compensa y verifica la generación fuente; ante un fallo
+post-commit o compensación no demostrable, el lock se preserva para recuperación
+controlada.
+
+Plan D.2B: `UNINITIALIZED → bootstrap generación cero → MATCH → rotación
+Dashboard → generación uno MATCH → recreación dirigida api-gw → contraseña
+anterior rechazada/nueva aceptada → regresión runtime → verify recovery`. Si la
+aceptación operacional falla después del commit, se invoca rollback Dashboard
+dirigido a la generación fuente, se recrea api-gw y se valida acceso/rutime.
+No existe rollback genérico de secretos.

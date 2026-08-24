@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { mkdir, readFile, rm, stat, statfs, writeFile } from "node:fs/promises";
 import { basename, relative, resolve, sep } from "node:path";
-import { assertActiveSecretGenerationMatches, validateManifestExternalSecretGeneration } from "./secret-generation.mjs";
+import { acquireGenerationMutationLock, assertActiveSecretGenerationMatches, assertNoGenerationMutationLock, releaseGenerationMutationLock, validateManifestExternalSecretGeneration } from "./secret-generation.mjs";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 const SUPABASE_DIR = resolve(ROOT, "infra/supabase");
@@ -656,6 +656,7 @@ function reportFailureDetails(prefix, error, depth = 0) {
 }
 
 async function restore(value) {
+  await assertNoGenerationMutationLock({ protectedRoot: value.protectedRoot });
   const sourceManifest = await assertSourceCandidate(value.backup, value.protectedRoot, "source");
   const repository = await assertGitSafety(sourceManifest.repository.commit);
   const targets = await assertOperationalCompatibility(sourceManifest);
@@ -673,11 +674,13 @@ async function restore(value) {
   }
   if (!value.confirmed) die("destructive restore requires --confirm-destructive-qa-restore");
   const execution = { lockOwned: false, maintenanceStarted: false, mutationStarted: false, restoredRuntimeStarted: false, runtimeHealthy: false, abortRequested: false, abortSignal: null, phase: "pre-lock", dbStarted: false, nonDbStarted: false, godelStarted: false, sourceBackup: value.backup, defensiveBackup: value.defensiveBackup };
+  let secretStateLock = null;
   try {
     execution.phase = "acquire-lock";
     try {
       await mkdir(BACKUP_LOCK, { mode: 0o700 });
       execution.lockOwned = true;
+      secretStateLock = await acquireGenerationMutationLock({ protectedRoot: value.protectedRoot, operation: "restore", generationId: sourceManifest.externalSecretGenerationId ?? null });
     } catch (error) {
       if (error?.code === "EEXIST") die("backup lock exists; restore aborting before maintenance");
       throw error;
@@ -808,6 +811,7 @@ async function restore(value) {
           operationError = operationError ? new AggregateError([operationError, lockError], "RESTORE FAILED / LOCK CLEANUP FAILED") : new Error("restore succeeded but lock cleanup failed", { cause: lockError });
         }
       }
+      if (secretStateLock && !preserveLock) await releaseGenerationMutationLock(secretStateLock);
       if (operationError) throw operationError;
     }
   } catch (error) {
