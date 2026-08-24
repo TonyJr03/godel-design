@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { mkdir, readFile, rm, stat, statfs, writeFile } from "node:fs/promises";
 import { basename, relative, resolve, sep } from "node:path";
+import { assertActiveSecretGenerationMatches, validateManifestExternalSecretGeneration } from "./secret-generation.mjs";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 const SUPABASE_DIR = resolve(ROOT, "infra/supabase");
@@ -311,6 +312,7 @@ function artifact(manifest, path) {
 function assertManifestContract(manifest) {
   if (!plainObject(manifest) || manifest.status !== "COMPLETE") die("source backup is not COMPLETE");
   requireBackupSchemaVersion(manifest.schemaVersion);
+  validateManifestExternalSecretGeneration(manifest);
   const expected = REQUIRED_ARTIFACTS;
   requireString(manifest.backupId, "backup id");
   const sourceCommit = requireString(manifest.repository?.commit, "repository commit");
@@ -660,6 +662,7 @@ async function restore(value) {
   await postgresStopSignal(targets.db);
   assertPathSafety(value, targets);
   await assertExternalRecoveryDependencies(sourceManifest);
+  if (sourceManifest.externalSecretGenerationId) await assertActiveSecretGenerationMatches({ protectedRoot: value.protectedRoot, generationId: sourceManifest.externalSecretGenerationId, supabaseEnvPath: resolve(SUPABASE_DIR, ".env"), godelEnvPath: resolve(ROOT, "compose.env.local") });
   await assertNoActiveBackupLock();
   await assertRestoreDiskReadiness(sourceManifest, targets);
   const defensiveManifest = await validateDefensiveBackup(value, sourceManifest, repository, !value.dryRun);
@@ -697,6 +700,8 @@ async function restore(value) {
       lockedSourceManifest = await assertSourceCandidate(value.backup, value.protectedRoot, "source");
       lockedDefensiveManifest = await validateDefensiveBackup(value, lockedSourceManifest, repository, true);
       if (lockedSourceManifest.backupId !== sourceManifest.backupId || lockedSourceManifest.repository.commit !== sourceManifest.repository.commit || lockedDefensiveManifest.backupId !== defensiveManifest.backupId || lockedDefensiveManifest.repository.commit !== defensiveManifest.repository.commit) die("backup identity changed after lock acquisition");
+      if (lockedSourceManifest.externalSecretGenerationId !== sourceManifest.externalSecretGenerationId) die("external secret generation identity changed after lock acquisition");
+      if (lockedSourceManifest.externalSecretGenerationId) await assertActiveSecretGenerationMatches({ protectedRoot: value.protectedRoot, generationId: lockedSourceManifest.externalSecretGenerationId, supabaseEnvPath: resolve(SUPABASE_DIR, ".env"), godelEnvPath: resolve(ROOT, "compose.env.local") });
       throwIfAbortRequested(execution);
 
       execution.phase = "stop-godel";

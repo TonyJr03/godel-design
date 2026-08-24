@@ -12,6 +12,8 @@ arquitectura operativa y puesta en operación de Godel Diseño.
 
 ## Documentos vigentes
 
+- [SH-04.3D — Rotación segura de secretos](SH_04_SECRET_ROTATION_REPORT.md): autoridad de arquitectura, custodia de generaciones externas y compatibilidad de backup/restore; D.1 no rota secretos reales.
+
 - [SH-04.3 — Production Secrets & Auth Hardening](SH_04_SECRETS_AUTH_REPORT.md): auditoría de secretos/Auth, contrato productivo, decisiones de hardening y evolución de SH-04.3.
 
 - [SH-02.0 — Diseño de integración Godel ↔ Supabase self-hosted](SH_02_INTEGRATION_DESIGN.md): cerrada y aprobada; incluye el estado vigente de SH-02.

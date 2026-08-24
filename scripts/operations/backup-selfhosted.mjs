@@ -4,6 +4,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { chmod, mkdir, readFile, rename, rm, stat, statfs, writeFile } from "node:fs/promises";
 import { resolve, relative, basename, sep } from "node:path";
+import { assertCurrentSecretGenerationMatches, assertReferencedSecretGenerationExists, isSecretGenerationRegistryAvailable, validateManifestExternalSecretGeneration } from "./secret-generation.mjs";
 
 const ROOT = process.cwd();
 const SUPA_DIR = resolve(ROOT, "infra/supabase");
@@ -235,6 +236,7 @@ function options(args) {
   return { verb, value };
 }
 async function preflight(value) {
+  const externalSecretGenerationId = await assertCurrentSecretGenerationMatches({ protectedRoot: value.protected, supabaseEnvPath: resolve(SUPA_DIR,".env"), godelEnvPath: resolve(ROOT,"compose.env.local") });
   await run("docker", ["version","--format","{{.Server.Version}}"]); await run("docker", ["compose","version","--short"]);
   if (!(await readFile(resolve(ROOT,"infra/SUPABASE_UPSTREAM.md"),"utf8")).includes("e846d45ce64207b952a4df44ac8b480ea0abb27e")) die("unexpected upstream pin");
   if (!(await readFile(resolve(SUPA_DIR,"docker-compose.yml"),"utf8")).includes("STORAGE_BACKEND: file")) die("Storage backend is not file");
@@ -265,7 +267,7 @@ async function preflight(value) {
   log("disk-space PASS; estimated data bytes "+requiredData+"; available data bytes "+dataAvailable+"; available protected bytes "+protectedAvailable);
   const storageImage = (await state(storage)).image;
   if (storageImage !== STORAGE_XATTR_IMAGE) die("unexpected Storage image for xattr sidecar");
-  return { db, pg, st, cfg, dbStopSignal, dbImage: image, storageImage };
+  return { db, pg, st, cfg, dbStopSignal, dbImage: image, storageImage, externalSecretGenerationId };
 }
 async function verifyChecksums(backup, manifest) {
   requireBackupSchemaVersion(manifest.schemaVersion);
@@ -307,8 +309,9 @@ async function create(value) {
   const handleSignal = (signal) => { if (!execution.abortRequested) { execution.abortRequested = true; execution.abortSignal = signal; log("abort requested by " + signal); } };
   process.on("SIGINT", handleSignal); process.on("SIGTERM", handleSignal);
   try {
+    const externalSecretGenerationId = await assertCurrentSecretGenerationMatches({ protectedRoot: value.protected, supabaseEnvPath: resolve(SUPA_DIR,".env"), godelEnvPath: resolve(ROOT,"compose.env.local") });
     await safeDirectory(resolve(dataIncomplete,"postgres/logical")); await safeDirectory(resolve(dataIncomplete,"postgres/physical")); await safeDirectory(resolve(dataIncomplete,"storage")); await safeDirectory(protectedIncomplete);
-    const manifest = { format:BACKUP_FORMAT, schemaVersion:BACKUP_SCHEMA_VERSION, backupId, status:"INCOMPLETE", startedAt:new Date().toISOString(), repository:{commit:(await run("git",["rev-parse","HEAD"])).out,branch:(await run("git",["branch","--show-current"])).out,dirty:(await run("git",["status","--porcelain"])).out.length>0}, supabase:{upstreamCommit:"e846d45ce64207b952a4df44ac8b480ea0abb27e",composeProject:"supabase",dbImage:p.dbImage,storageImage:p.storageImage,storageBackend:"file"}, godel:{composeProject:"godel-runtime"}, logicalBackup:{tool:"pg_dumpall",toolVersion:(await run("docker",["exec",p.db,"pg_dumpall","--version"])).out,noRolePasswords:true}, artifacts:[], protectedRecoveryMaterial:{required:true,captured:false,artifact:{relativePath:PROTECTED_RECOVERY_ARTIFACT,type:"tar"}}, requiredExternalSecretVariableNames:["POSTGRES_PASSWORD","JWT_SECRET","SECRET_KEY_BASE","REALTIME_DB_ENC_KEY","VAULT_ENC_KEY","PG_META_CRYPTO_KEY","ANON_KEY","SERVICE_ROLE_KEY","SUPABASE_PUBLISHABLE_KEY","SUPABASE_SECRET_KEY","DASHBOARD_PASSWORD"], conditionalExternalSecretDependencies:[{name:"JWT_KEYS",condition:"asymmetric auth keys active"},{name:"JWT_JWKS",condition:"asymmetric auth keys active"},{name:"ANON_KEY_ASYMMETRIC",condition:"opaque API key translation active"},{name:"SERVICE_ROLE_KEY_ASYMMETRIC",condition:"opaque API key translation active"}] };
+    const manifest = { format:BACKUP_FORMAT, schemaVersion:BACKUP_SCHEMA_VERSION, backupId, status:"INCOMPLETE", startedAt:new Date().toISOString(), repository:{commit:(await run("git",["rev-parse","HEAD"])).out,branch:(await run("git",["branch","--show-current"])).out,dirty:(await run("git",["status","--porcelain"])).out.length>0}, supabase:{upstreamCommit:"e846d45ce64207b952a4df44ac8b480ea0abb27e",composeProject:"supabase",dbImage:p.dbImage,storageImage:p.storageImage,storageBackend:"file"}, godel:{composeProject:"godel-runtime"}, logicalBackup:{tool:"pg_dumpall",toolVersion:(await run("docker",["exec",p.db,"pg_dumpall","--version"])).out,noRolePasswords:true}, artifacts:[], protectedRecoveryMaterial:{required:true,captured:false,artifact:{relativePath:PROTECTED_RECOVERY_ARTIFACT,type:"tar"}}, requiredExternalSecretVariableNames:["POSTGRES_PASSWORD","JWT_SECRET","SECRET_KEY_BASE","REALTIME_DB_ENC_KEY","VAULT_ENC_KEY","PG_META_CRYPTO_KEY","ANON_KEY","SERVICE_ROLE_KEY","SUPABASE_PUBLISHABLE_KEY","SUPABASE_SECRET_KEY","DASHBOARD_PASSWORD"], conditionalExternalSecretDependencies:[{name:"JWT_KEYS",condition:"asymmetric auth keys active"},{name:"JWT_JWKS",condition:"asymmetric auth keys active"},{name:"ANON_KEY_ASYMMETRIC",condition:"opaque API key translation active"},{name:"SERVICE_ROLE_KEY_ASYMMETRIC",condition:"opaque API key translation active"}], ...(externalSecretGenerationId ? { externalSecretGenerationId } : {}) };
     await writeFile(resolve(dataIncomplete,"manifest.json"),JSON.stringify(manifest,null,2)+"\n",{mode:0o600});
     throwIfAbortRequested(execution);
     execution.maintenanceStarted = true; await godel(["stop","app","nginx"]); await supa(["stop"].concat(NON_DB)); throwIfAbortRequested(execution);
@@ -382,6 +385,8 @@ async function create(value) {
 async function verify(value) {
   if (value.backup.split(/[\\/]+/).some((segment) => segment.endsWith(".incomplete"))) die("cannot verify incomplete backup path");
   const manifest=JSON.parse(await readFile(resolve(value.backup,"manifest.json"),"utf8")); requireBackupSchemaVersion(manifest.schemaVersion); if (manifest.status !== "COMPLETE") die("backup is not COMPLETE");
+  const externalSecretGenerationId = validateManifestExternalSecretGeneration(manifest);
+  if (externalSecretGenerationId && await isSecretGenerationRegistryAvailable({ protectedRoot: value.protected })) await assertReferencedSecretGenerationExists({ protectedRoot: value.protected, generationId: externalSecretGenerationId });
   await verifyChecksums(value.backup,manifest);
   await verifyStorageXattrSidecar(value.backup);
   await checkTar(resolve(value.backup,"postgres/physical/pgdata.tar"),"PG_VERSION","postmaster.pid"); await checkTar(resolve(value.backup,"storage/storage.tar")); if ((await stat(resolve(value.backup,"postgres/logical/cluster.sql"))).size<1) die("logical artifact empty");

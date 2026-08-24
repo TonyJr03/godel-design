@@ -235,6 +235,14 @@ informan sin convertirse en blocker.
 | SH-04.3E | Compatibilidad recovery tras rotación | Pendiente |
 | SH-04.3F | Aceptación operativa final | Pendiente |
 
+## SH-04.3D — Rotación de secretos
+
+SH-04.3D.0 está `CLOSED / APPROVED`. SH-04.3D.1 está `IN PROGRESS`.
+La autoridad de arquitectura, matriz de rotación, límites operativos y contrato
+de generaciones externas para rotación/recovery es
+[SH-04.3D — Rotación segura de secretos](SH_04_SECRET_ROTATION_REPORT.md).
+D.1 solo aporta tooling y pruebas sintéticas: no genera ni rota secretos reales.
+
 ## SH-04.3C - primer intento y hallazgo de interoperabilidad
 
 El primer intento controlado de SH-04.3C aplico correctamente el hardening de
