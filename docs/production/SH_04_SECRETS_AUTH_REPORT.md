@@ -6,7 +6,9 @@
 | --- | --- |
 | SH-04.3 | IN PROGRESS |
 | SH-04.3A — auditoría | CLOSED / APPROVED |
-| SH-04.3B — contrato tracked y configuración | IN PROGRESS |
+| SH-04.3B — contrato tracked y configuración | CLOSED / APPROVED |
+| SH-04.3C-R1A — wiring asimétrico | CLOSED / APPROVED |
+| SH-04.3C — aplicación y aceptación QA | CLOSED / APPROVED |
 
 SH-04.3 no está cerrada. Este documento es la fuente vigente de decisiones de
 secretos, configuración y Auth durante SH-04.
@@ -226,8 +228,80 @@ informan sin convertirse en blocker.
 | Subfase | Alcance | Estado |
 | --- | --- | --- |
 | SH-04.3A | Auditoría read-only | CLOSED / APPROVED |
-| SH-04.3B | Contrato tracked y Auth hardening | IN PROGRESS |
-| SH-04.3C | Aplicar contrato endurecido a QA | Pendiente |
+| SH-04.3B | Contrato tracked y Auth hardening | CLOSED / APPROVED |
+| SH-04.3C-R1A | Completar wiring asimétrico y recovery | CLOSED / APPROVED |
+| SH-04.3C | Aplicar contrato endurecido y aceptación QA | CLOSED / APPROVED — bloqueador histórico resuelto por R1A/R1B |
 | SH-04.3D | Rotación de secretos | Pendiente |
 | SH-04.3E | Compatibilidad recovery tras rotación | Pendiente |
 | SH-04.3F | Aceptación operativa final | Pendiente |
+
+## SH-04.3C - primer intento y hallazgo de interoperabilidad
+
+El primer intento controlado de SH-04.3C aplico correctamente el hardening de
+Auth y SMTP inerte en QA. El preflight de entorno paso, GoTrue quedo sano sin
+proveedor SMTP real y el login email/password existente continuo funcionando.
+
+La sonda de Auth Admin con `SUPABASE_SECRET_KEY` devolvio `403` con `bad_jwt`
+antes de crear un usuario desechable. La ejecucion se detuvo por fail-fast: no
+se modificaron datos ni secretos core, y SH-04.3C no se marca como aprobada.
+
+La causa es **PARTIAL ASYMMETRIC AUTH ACTIVATION**. Godel mantiene el contrato
+correcto `SUPABASE_SECRET_KEY` server-only; Envoy traduce la opaque key hacia
+`SERVICE_ROLE_KEY_ASYMMETRIC` antes de la autorizacion interna. Sin embargo,
+GoTrue no tenia `GOTRUE_JWT_KEYS` activo y no podia verificar el JWT ES256
+traducido. Realtime, Storage y Functions tambien mantenian sus consumidores
+JWKS desactivados.
+
+La estrategia operacional fue **FORWARD FIX**: QA conserva el contrato Auth
+hardened y SMTP inerte del primer intento. No se restauran placeholders SMTP
+históricos desconocidos porque SMTP no es capacidad Godel ni se modificó
+material core de recovery. R1A completó el wiring coordinado del bundle JWKS y
+R1B verificó la compatibilidad HS256/ES256; el bloqueador histórico quedó
+resuelto.
+
+## Corrección R1A del bundle asimétrico y recovery
+
+El bundle asimétrico de recovery para manifests nuevos es `JWT_KEYS`,
+`JWT_JWKS`, `ANON_KEY_ASYMMETRIC` y `SERVICE_ROLE_KEY_ASYMMETRIC`. Las dos
+credenciales `*_ASYMMETRIC` son dependencias de traducción interna del API
+gateway cuando Godel usa `SUPABASE_PUBLISHABLE_KEY` y `SUPABASE_SECRET_KEY`.
+
+Auth firma con `GOTRUE_JWT_KEYS`; Rest conserva `JWT_JWKS` con fallback legacy;
+Realtime, Storage y Functions verifican el mismo JWKS. Esta coordinación permite
+verificar sesiones ES256 nuevas sin retirar sesiones HS256 existentes. Ningún
+valor de clave, token o credencial se documenta aquí.
+
+## SH-04.3C-R1B — aceptación operativa controlada
+
+R1B recreó en orden verificadores (`realtime`, `storage`, `functions`) y luego
+Auth, sin rotar ni modificar secretos, configuración de entorno, base de datos
+ni objetos Storage. Rest ya consumía un contrato compatible con JWKS y no
+requirió recreación. El runtime confirmó los consumidores JWKS requeridos;
+Storage mantuvo backend `FILE` y los nombres de credenciales del protocolo S3
+permanecieron ausentes.
+
+La coherencia de la pareja EC de firma/verificación, la continuidad HS256 del
+JWKS y la verificación de las credenciales asimétricas anon/service-role pasó
+sin exponer material criptográfico. Una sesión HS256 creada antes del cambio
+siguió siendo válida después de recrear verificadores y Auth. Tras activar
+`GOTRUE_JWT_KEYS`, un login nuevo emitió ES256 con `kid` presente; su firma,
+`/auth/v1/user` y una operación REST autenticada pasaron.
+
+El bloqueo original quedó resuelto: Auth Admin mediante
+`SUPABASE_SECRET_KEY` completó listado y create/delete de un usuario desechable
+sin `bad_jwt`, sin residuo Auth ni perfil. Signup público devolvió `422 /
+signup_disabled` sin usuario, y el proveedor telefónico fue rechazado sin
+mutación. El login fresco de Godel en `http://localhost:8080` cargó el dashboard
+SSR con el perfil admin activo y sin cambio de contraseña pendiente.
+
+La regresión Storage confirmó 131 objetos y el PDF congelado
+`qa-storage-access-20260816171811.pdf`: 131075 bytes, firma PDF, redirección
+autorizada y respuesta final 200 mediante una sesión fresca de Godel. No se
+detectaron errores recientes de JWT en Realtime/Functions ni errores
+ENODATA/xattr/metadata de entrega en Storage. Los dos artefactos schema3
+retenidos verificaron correctamente y el runtime final quedó en Supabase 11/11,
+Godel 2/2 y health live/ready 200.
+
+SMTP conserva configuración inerte: no se contactó proveedor real y no es
+requerido por los flujos actuales de Godel. SH-04.3D/E/F permanecen pendientes;
+por ello SH-04.3 sigue `IN PROGRESS`.

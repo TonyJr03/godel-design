@@ -363,6 +363,41 @@ async function readEnvironment(file) {
   return values;
 }
 
+function parseComposeServiceEnvironment(contents) {
+  const services = new Map();
+  let currentService = null;
+  let inEnvironment = false;
+  for (const rawLine of contents.split(/\r?\n/)) {
+    if (rawLine.trimStart().startsWith("#")) continue;
+    const serviceMatch = rawLine.match(/^  ([A-Za-z0-9_-]+):\s*$/);
+    if (serviceMatch) {
+      currentService = serviceMatch[1];
+      inEnvironment = false;
+      if (!services.has(currentService)) services.set(currentService, new Map());
+      continue;
+    }
+    if (!currentService) continue;
+    if (/^    environment:\s*$/.test(rawLine)) {
+      inEnvironment = true;
+      continue;
+    }
+    if (!inEnvironment) continue;
+    const assignment = rawLine.match(/^\s{6,}([A-Z][A-Z0-9_]*)\s*:\s*(.*?)\s*$/);
+    if (assignment) {
+      services.get(currentService).set(assignment[1], assignment[2]);
+      continue;
+    }
+    if (/^    \S/.test(rawLine)) inEnvironment = false;
+  }
+  return services;
+}
+
+function asymmetricComposeWiringActive(contents, configured) {
+  const services = parseComposeServiceEnvironment(contents);
+  const requirements = [["auth", "GOTRUE_JWT_KEYS", "JWT_KEYS"], ["rest", "PGRST_JWT_SECRET", "JWT_JWKS"], ["realtime", "API_JWT_JWKS", "JWT_JWKS"], ["storage", "JWT_JWKS", "JWT_JWKS"], ["functions", "SUPABASE_JWKS", "JWT_JWKS"]];
+  return requirements.some(([service, name, source]) => services.get(service)?.get(name)?.includes(`\${${source}`) && Boolean(configured.get(source)));
+}
+
 async function assertExternalRecoveryDependencies(manifest) {
   const [supabaseEnvironment, godelEnvironment, supabaseCompose] = await Promise.all([
     readEnvironment(resolve(SUPABASE_DIR, ".env")),
@@ -375,16 +410,9 @@ async function assertExternalRecoveryDependencies(manifest) {
   };
   if (!Array.isArray(manifest.requiredExternalSecretVariableNames)) die("source backup manifest has invalid external dependency inventory");
   for (const name of manifest.requiredExternalSecretVariableNames) requireConfigured(name);
-  const activeComposeLines = supabaseCompose.split(/\r?\n/).filter((line) => {
-    const trimmed = line.trim();
-    return trimmed && !trimmed.startsWith("#");
-  });
-  const jwtKeysActive = activeComposeLines.some((line) => line.includes("${JWT_KEYS")) && Boolean(configured.get("JWT_KEYS"));
-  const jwtJwksActive = activeComposeLines.some((line) => line.includes("${JWT_JWKS")) && Boolean(configured.get("JWT_JWKS"));
-  const asymmetricAuthActive = jwtKeysActive || jwtJwksActive;
-  if (asymmetricAuthActive) {
-    requireConfigured("JWT_KEYS");
-    requireConfigured("JWT_JWKS");
+  const opaqueApiKeysConfigured = Boolean(configured.get("SUPABASE_PUBLISHABLE_KEY")) && Boolean(configured.get("SUPABASE_SECRET_KEY"));
+  if (asymmetricComposeWiringActive(supabaseCompose, configured) || opaqueApiKeysConfigured) {
+    for (const name of ["JWT_KEYS", "JWT_JWKS", "ANON_KEY_ASYMMETRIC", "SERVICE_ROLE_KEY_ASYMMETRIC"]) requireConfigured(name);
   }
   if (manifest.supabase.storageBackend !== "file") die("current restore contract requires file Storage");
   log("external recovery dependencies PASS");

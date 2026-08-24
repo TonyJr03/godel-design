@@ -18,6 +18,24 @@ VAULT_ENC_KEY=template-vault-key-not-for-runtime
 PG_META_CRYPTO_KEY=template-meta-key-not-for-runtime
 `;
 
+const TEST_COMPOSE = `services:
+  auth:
+    environment:
+      GOTRUE_JWT_KEYS: \${JWT_KEYS:-[]}
+  rest:
+    environment:
+      PGRST_JWT_SECRET: \${JWT_JWKS:-\${JWT_SECRET}}
+  realtime:
+    environment:
+      API_JWT_JWKS: \${JWT_JWKS:-{"keys":[]}}
+  storage:
+    environment:
+      JWT_JWKS: \${JWT_JWKS:-{"keys":[]}}
+  functions:
+    environment:
+      SUPABASE_JWKS: \${JWT_JWKS:-{"keys":[]}}
+`;
+
 function validSupabase(overrides = {}) {
   return {
     POSTGRES_PASSWORD: "production-postgres-password-123",
@@ -58,18 +76,24 @@ function environmentText(values) {
   return Object.entries(values).map(([name, value]) => `${name}=${value}`).join("\n") + "\n";
 }
 
-async function withFixtures(t, { supabase = {}, godel = {} }, callback) {
+function withoutComposeAssignment(compose, name) {
+  return compose.replace(new RegExp(`^ {6}${name}:.*\\r?\\n`, "m"), "");
+}
+
+async function withFixtures(t, { supabase = {}, godel = {}, compose = TEST_COMPOSE }, callback) {
   const directory = await mkdtemp(join(tmpdir(), "godel-secrets-contract-"));
   const paths = {
     supabaseEnv: join(directory, "supabase.env"),
     godelEnv: join(directory, "godel.env"),
     templateEnv: join(directory, "template.env"),
+    supabaseCompose: join(directory, "docker-compose.yml"),
   };
 
   await Promise.all([
     writeFile(paths.supabaseEnv, environmentText(validSupabase(supabase)), { mode: 0o600 }),
     writeFile(paths.godelEnv, environmentText(validGodel(godel)), { mode: 0o600 }),
     writeFile(paths.templateEnv, TEST_TEMPLATE, { mode: 0o600 }),
+    writeFile(paths.supabaseCompose, compose, { mode: 0o600 }),
   ]);
 
   t.after(() => rm(directory, { recursive: true, force: true }));
@@ -122,5 +146,55 @@ test("rejects phone signup", async (t) => {
   await withFixtures(t, { supabase: { ENABLE_PHONE_SIGNUP: "true" } }, async (paths) => {
     const result = await checkSecretContractFiles(paths);
     assert.ok(result.errors.includes("ENABLE_PHONE_SIGNUP does not satisfy the Godel Auth contract"));
+  });
+});
+
+test("accepts a full asymmetric bundle with complete Compose wiring", async (t) => {
+  await withFixtures(t, {}, async (paths) => {
+    const result = await checkSecretContractFiles(paths);
+    assert.deepEqual(result.errors, []);
+  });
+});
+
+test("rejects a missing asymmetric anonymous credential", async (t) => {
+  await withFixtures(t, { supabase: { ANON_KEY_ASYMMETRIC: "" } }, async (paths) => {
+    const result = await checkSecretContractFiles(paths);
+    assert.ok(result.errors.includes("ANON_KEY_ASYMMETRIC is missing or empty"));
+  });
+});
+
+test("rejects a missing asymmetric service credential", async (t) => {
+  await withFixtures(t, { supabase: { SERVICE_ROLE_KEY_ASYMMETRIC: "" } }, async (paths) => {
+    const result = await checkSecretContractFiles(paths);
+    assert.ok(result.errors.includes("SERVICE_ROLE_KEY_ASYMMETRIC is missing or empty"));
+  });
+});
+
+test("rejects commented Auth JWKS wiring", async (t) => {
+  const compose = TEST_COMPOSE.replace("      GOTRUE_JWT_KEYS:", "      #GOTRUE_JWT_KEYS:");
+  await withFixtures(t, { compose }, async (paths) => {
+    const result = await checkSecretContractFiles(paths);
+    assert.ok(result.errors.includes("Compose auth.GOTRUE_JWT_KEYS does not satisfy the asymmetric Auth contract"));
+  });
+});
+
+test("rejects missing Storage JWKS wiring", async (t) => {
+  await withFixtures(t, { compose: withoutComposeAssignment(TEST_COMPOSE, "JWT_JWKS") }, async (paths) => {
+    const result = await checkSecretContractFiles(paths);
+    assert.ok(result.errors.includes("Compose storage.JWT_JWKS does not satisfy the asymmetric Auth contract"));
+  });
+});
+
+test("rejects missing Realtime JWKS wiring", async (t) => {
+  await withFixtures(t, { compose: withoutComposeAssignment(TEST_COMPOSE, "API_JWT_JWKS") }, async (paths) => {
+    const result = await checkSecretContractFiles(paths);
+    assert.ok(result.errors.includes("Compose realtime.API_JWT_JWKS does not satisfy the asymmetric Auth contract"));
+  });
+});
+
+test("rejects missing Functions JWKS wiring", async (t) => {
+  await withFixtures(t, { compose: withoutComposeAssignment(TEST_COMPOSE, "SUPABASE_JWKS") }, async (paths) => {
+    const result = await checkSecretContractFiles(paths);
+    assert.ok(result.errors.includes("Compose functions.SUPABASE_JWKS does not satisfy the asymmetric Auth contract"));
   });
 });

@@ -6,6 +6,7 @@ const ROOT = resolve(import.meta.dirname, "../..");
 const DEFAULT_SUPABASE_ENV = resolve(ROOT, "infra/supabase/.env");
 const DEFAULT_GODEL_ENV = resolve(ROOT, "compose.env.local");
 const DEFAULT_TEMPLATE_ENV = resolve(ROOT, "infra/supabase/.env.example");
+const DEFAULT_SUPABASE_COMPOSE = resolve(ROOT, "infra/supabase/docker-compose.yml");
 
 const REQUIRED_SUPABASE = [
   "POSTGRES_PASSWORD",
@@ -60,6 +61,21 @@ const DEFAULT_SENSITIVE_NAMES = new Set([
   "SERVICE_ROLE_KEY_ASYMMETRIC",
 ]);
 
+const ASYMMETRIC_BUNDLE = [
+  "JWT_KEYS",
+  "JWT_JWKS",
+  "ANON_KEY_ASYMMETRIC",
+  "SERVICE_ROLE_KEY_ASYMMETRIC",
+];
+
+const COMPOSE_ASYMMETRIC_CONTRACT = [
+  ["auth", "GOTRUE_JWT_KEYS", "${JWT_KEYS:-[]}"],
+  ["rest", "PGRST_JWT_SECRET", "${JWT_JWKS:-${JWT_SECRET}}"],
+  ["realtime", "API_JWT_JWKS", "${JWT_JWKS:-{\"keys\":[]}}"],
+  ["storage", "JWT_JWKS", "${JWT_JWKS:-{\"keys\":[]}}"],
+  ["functions", "SUPABASE_JWKS", "${JWT_JWKS:-{\"keys\":[]}}"],
+];
+
 function parseEnvironmentFile(contents, sourceName) {
   const values = new Map();
 
@@ -111,6 +127,7 @@ function parseArguments(args) {
     supabaseEnv: DEFAULT_SUPABASE_ENV,
     godelEnv: DEFAULT_GODEL_ENV,
     templateEnv: DEFAULT_TEMPLATE_ENV,
+    supabaseCompose: DEFAULT_SUPABASE_COMPOSE,
   };
 
   while (args.length > 0) {
@@ -127,6 +144,8 @@ function parseArguments(args) {
       value.godelEnv = resolve(supplied);
     } else if (option === "--template-env") {
       value.templateEnv = resolve(supplied);
+    } else if (option === "--supabase-compose") {
+      value.supabaseCompose = resolve(supplied);
     } else {
       throw new Error(`unknown option ${option}`);
     }
@@ -194,7 +213,60 @@ function validateUrl(environment, name, errors) {
 }
 
 function asymmetricAuthActive(environment) {
-  return ["JWT_KEYS", "JWT_JWKS", "ANON_KEY_ASYMMETRIC", "SERVICE_ROLE_KEY_ASYMMETRIC"].some((name) => hasValue(environment, name));
+  return ASYMMETRIC_BUNDLE.some((name) => hasValue(environment, name));
+}
+
+function opaqueApiKeyModelRequired(supabase, godel) {
+  return hasValue(supabase, "SUPABASE_PUBLISHABLE_KEY")
+    && hasValue(supabase, "SUPABASE_SECRET_KEY")
+    && hasValue(godel, "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY")
+    && hasValue(godel, "SUPABASE_SECRET_KEY");
+}
+
+function parseComposeServiceEnvironment(contents) {
+  const services = new Map();
+  let currentService = null;
+  let inEnvironment = false;
+
+  for (const rawLine of contents.split(/\r?\n/)) {
+    if (rawLine.trimStart().startsWith("#")) continue;
+
+    const serviceMatch = rawLine.match(/^  ([A-Za-z0-9_-]+):\s*$/);
+    if (serviceMatch) {
+      currentService = serviceMatch[1];
+      inEnvironment = false;
+      if (!services.has(currentService)) services.set(currentService, new Map());
+      continue;
+    }
+
+    if (!currentService) continue;
+    if (/^    environment:\s*$/.test(rawLine)) {
+      inEnvironment = true;
+      continue;
+    }
+
+    if (!inEnvironment) continue;
+    const assignment = rawLine.match(/^\s{6,}([A-Z][A-Z0-9_]*)\s*:\s*(.*?)\s*$/);
+    if (assignment) {
+      services.get(currentService).set(assignment[1], assignment[2]);
+      continue;
+    }
+
+    if (/^    \S/.test(rawLine)) inEnvironment = false;
+  }
+
+  return services;
+}
+
+function validateComposeWiring(contents, errors) {
+  const services = parseComposeServiceEnvironment(contents);
+
+  for (const [service, name, expected] of COMPOSE_ASYMMETRIC_CONTRACT) {
+    const actual = services.get(service)?.get(name)?.replace(/\s/g, "");
+    if (actual !== expected) {
+      errors.push(`Compose ${service}.${name} does not satisfy the asymmetric Auth contract`);
+    }
+  }
 }
 
 function validateKnownDefaults(environment, template, errors) {
@@ -226,17 +298,19 @@ function validateCrossFileContract(supabase, godel, errors) {
   }
 }
 
-function evaluateContract({ supabase, godel, template }) {
+function evaluateContract({ supabase, godel, template, compose }) {
   const errors = [];
   const optionalPresent = OPTIONAL_UNUSED.filter((name) => hasValue(supabase, name));
 
   requireVariables(supabase, REQUIRED_SUPABASE, errors);
   requireVariables(godel, REQUIRED_GODEL, errors);
 
-  if (asymmetricAuthActive(supabase)) {
-    requireVariables(supabase, ["JWT_KEYS", "JWT_JWKS"], errors);
+  if (asymmetricAuthActive(supabase) || opaqueApiKeyModelRequired(supabase, godel)) {
+    requireVariables(supabase, ASYMMETRIC_BUNDLE, errors);
     validateJson(supabase, "JWT_KEYS", errors);
     validateJson(supabase, "JWT_JWKS", errors);
+    validateJwtShape(supabase, "ANON_KEY_ASYMMETRIC", errors);
+    validateJwtShape(supabase, "SERVICE_ROLE_KEY_ASYMMETRIC", errors);
   }
 
   validateJwtShape(supabase, "ANON_KEY", errors);
@@ -257,25 +331,28 @@ function evaluateContract({ supabase, godel, template }) {
   validateKnownDefaults(supabase, template, errors);
   validateAuthContract(supabase, errors);
   validateCrossFileContract(supabase, godel, errors);
+  validateComposeWiring(compose, errors);
 
   return { errors, optionalPresent };
 }
 
 export async function checkSecretContract(paths) {
-  const [supabase, godel, template] = await Promise.all([
+  const [supabase, godel, template, compose] = await Promise.all([
     readEnvironmentFile(paths.supabaseEnv, "Supabase"),
     readEnvironmentFile(paths.godelEnv, "Godel"),
     readEnvironmentFile(paths.templateEnv, "tracked template"),
+    readFile(paths.supabaseCompose, "utf8"),
   ]);
 
-  return evaluateContract({ supabase, godel, template });
+  return evaluateContract({ supabase, godel, template, compose });
 }
 
-export async function checkSecretContractFiles({ supabaseEnv, godelEnv, templateEnv }) {
+export async function checkSecretContractFiles({ supabaseEnv, godelEnv, templateEnv, supabaseCompose = DEFAULT_SUPABASE_COMPOSE }) {
   return checkSecretContract({
     supabaseEnv: resolve(supabaseEnv),
     godelEnv: resolve(godelEnv),
     templateEnv: resolve(templateEnv),
+    supabaseCompose: resolve(supabaseCompose),
   });
 }
 
