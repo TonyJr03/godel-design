@@ -367,3 +367,32 @@ Si pasa, retag seguro de la imagen GEN3 aceptada como `local`, conservando el
 tag GEN2 hasta D.6, seguido del backup schema3 post-D.3. D.3 rota solo las dos
 opaque keys y sus copias Godel; Envoy mantiene los JWTs asimétricos internos
 actuales sin rotarlos.
+
+### D.3B.0-R4A — hardening de divulgación en logs de build
+
+El primer build candidato GEN3 falló durante `npm ci` por un `ECONNRESET`
+transitorio de red. El siguiente build completó, pero su historial BuildKit
+registró la publishable opaque porque el gate de presencia usaba interpolación
+shell. No se expuso una secret; aun siendo una clave publishable pública, esa
+salida de valores incumple el contrato de no divulgación.
+
+R4A elimina los `ENV` públicos persistentes del builder y sustituye el gate por
+una validación Node que solo puede informar el nombre de la variable ausente.
+Los dos `ARG` públicos permanecen disponibles exclusivamente para los `RUN` del
+builder, incluido `npm run build`; la imagen final no persiste esos valores por
+`ENV`. El audit estático bloquea la reintroducción de interpolación shell de la
+publishable en `RUN`, `ENV` públicos persistentes y cualquier `ARG`/`ENV` de
+`SUPABASE_SECRET_KEY`.
+
+GEN3 continúa preparada y no actual. La candidate afectada no está autorizada
+para cutover; GEN3 solo podrá reutilizarse después de un rebuild endurecido y
+aceptado. GEN2 permanece como `CURRENT / MATCH`; R4A no activa ni revierte
+generaciones, no modifica runtime, envs, backups, restore ni material secreto.
+
+R4B deberá, bajo autorización operativa separada, retirar únicamente los
+registros BuildKit afectados con `docker buildx history rm <ref>` (sin `--all`),
+reconstruir la misma GEN3 con `--no-cache`, inspeccionar el nuevo historial para
+probar ausencia de publishable y secret, inspeccionar la candidate resultante y
+limpiar solo cache del builder. Tras confirmar ausencia del historial afectado,
+GEN2 runtime permanecerá intacta hasta el cutover autorizado. R4A no ejecuta
+ninguna de esas operaciones.

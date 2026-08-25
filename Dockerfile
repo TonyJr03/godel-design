@@ -17,12 +17,9 @@ RUN --mount=type=cache,id=godel-design-npm,target=/root/.npm,sharing=locked \
 FROM base AS builder
 ARG NEXT_PUBLIC_SUPABASE_URL
 ARG NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-ENV NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
-ENV NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY}
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN test -n "$NEXT_PUBLIC_SUPABASE_URL" \
-  && test -n "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
+RUN node -e 'for (const name of ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"]) { if (!process.env[name]) { console.error(`Missing required public build configuration: ${name}`); process.exit(1); } }'
 RUN npm run build
 
 FROM base AS runner

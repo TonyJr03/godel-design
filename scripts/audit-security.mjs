@@ -463,9 +463,93 @@ function scanDockerignoreContract() {
   return requiredDockerignoreEntries.filter((entry) => !entries.has(entry)).map((entry) => ({ file, line: 1, category: `dockerignore-required-exclusion-missing:${entry}` }));
 }
 
+function scanDockerfileContract() {
+  const file = "Dockerfile";
+  const requiredPublicBuildArgs = [
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+  ];
+
+  if (!existsSync(file)) {
+    return [{ file, line: 1, category: "dockerfile-required-file-missing" }];
+  }
+
+  const instructions = [];
+  let currentInstruction = "";
+  let instructionLine = 1;
+
+  for (const [index, line] of readFileSync(file, "utf8").split(/\r?\n/).entries()) {
+    const trimmed = line.trim();
+
+    if (!currentInstruction) {
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      currentInstruction = trimmed;
+      instructionLine = index + 1;
+    } else {
+      currentInstruction += ` ${trimmed}`;
+    }
+
+    if (currentInstruction.endsWith("\\")) {
+      currentInstruction = currentInstruction.slice(0, -1).trimEnd();
+      continue;
+    }
+
+    instructions.push({ line: instructionLine, text: currentInstruction });
+    currentInstruction = "";
+  }
+
+  if (currentInstruction) {
+    instructions.push({ line: instructionLine, text: currentInstruction });
+  }
+
+  const violations = [];
+  const add = (line, category) => violations.push({ file, line, category });
+
+  for (const name of requiredPublicBuildArgs) {
+    if (!instructions.some(({ text }) => new RegExp(`^ARG\\s+${name}(?:\\s|=|$)`, "i").test(text))) {
+      add(1, `dockerfile-required-public-build-arg-missing:${name}`);
+    }
+  }
+
+  for (const instruction of instructions) {
+    if (/^ENV\s+NEXT_PUBLIC_SUPABASE_(?:URL|PUBLISHABLE_KEY)(?:\s|=|$)/i.test(instruction.text)) {
+      add(instruction.line, "dockerfile-public-build-env-forbidden");
+    }
+
+    if (/^(?:ARG|ENV)\s+SUPABASE_SECRET_KEY(?:\s|=|$)/i.test(instruction.text)) {
+      add(instruction.line, "dockerfile-supabase-secret-build-exposure");
+    }
+
+    if (
+      /^RUN\s/i.test(instruction.text) &&
+      /\$\{?NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY\}?/.test(instruction.text)
+    ) {
+      add(instruction.line, "dockerfile-shell-expanded-publishable-build-arg");
+    }
+  }
+
+  const hasNonExpandingPublicBuildGate = instructions.some(
+    ({ text }) =>
+      /^RUN\s+node\s+-e\s+/i.test(text) &&
+      text.includes("NEXT_PUBLIC_SUPABASE_URL") &&
+      text.includes("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY") &&
+      text.includes("process.env[name]"),
+  );
+
+  if (!hasNonExpandingPublicBuildGate) {
+    add(1, "dockerfile-nonexpanding-public-build-gate-missing");
+  }
+
+  return violations;
+}
+
 const scannedFiles = auditRoots.flatMap(listFiles);
 const results = scannedFiles.map(scanFile);
-const violations = [...results.flatMap((result) => result.violations), ...scanDockerignoreContract()];
+const violations = [
+  ...results.flatMap((result) => result.violations),
+  ...scanDockerignoreContract(),
+  ...scanDockerfileContract(),
+];
 const expectedReferences = results.flatMap((result) => result.expectedReferences);
 
 console.log("Auditoria de seguridad");
