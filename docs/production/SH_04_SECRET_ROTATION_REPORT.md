@@ -130,7 +130,7 @@ cifrado con estado. Ninguno se resuelve con D.1.
 | D.0 | Auditoría de arquitectura y seguridad | CLOSED / APPROVED |
 | D.1 | Tooling seguro y modelo de generación/recovery | CLOSED / APPROVED |
 | D.2 | Generación cero y rotación Dashboard | CLOSED / APPROVED |
-| D.3 | Opaque API keys y rebuild Godel | Pendiente |
+| D.3 | Opaque API keys y rebuild Godel | IN PROGRESS — D.3A implementada; pendiente de revisión arquitectónica. |
 | D.4A | Rotación legacy `JWT_SECRET` / anon / service-role | Pendiente |
 | D.4B | Rotación de claves EC de firma | Pendiente |
 | D.5 | Rotación segura de contraseña PostgreSQL | Pendiente |
@@ -317,3 +317,53 @@ ENODATA, xattr o metadata. No hubo restore destructivo; solo rotó
 
 Estado D.2: D.0, D.1, D.2A, D.2B y D.2 `CLOSED / APPROVED`. SH-04.3D permanece
 `IN PROGRESS`; siguiente: D.3, rotación de API keys opacas.
+
+## D.3A — Opaque API key rotation tooling
+
+D.3A está `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`; D.3B permanece
+`PENDING`. Trata `SUPABASE_PUBLISHABLE_KEY` y `SUPABASE_SECRET_KEY` como un
+único set operativo coherente con sus copias Godel. El tooling prepara una
+generación inmutable sin cambiar envs, puntero ni runtime; activar y rollback
+mutan ambos envs bajo el lock común, compensan fallos pre-pointer y preservan
+el lock ante incertidumbre post-pointer.
+
+La clave publishable se inyecta como ARG/ENV del builder antes de `npm run build`;
+por ello D.3B requiere rebuild y recreate de app Godel. La secret es solo runtime
+server-side y también requiere recreate de app. El cutover futuro recreará
+api-gw, Studio y Functions; no Auth, Rest, Realtime, Storage, DB, Supavisor,
+Meta, Imgproxy ni Nginx por las claves. Nginx puede usarse para mantenimiento de
+ingress, pero no consume las claves. No hay fallback a claves legacy ni cambio
+de exposición host; no se espera invalidación de sesiones.
+
+### D.3A-R1 — validación de roles, contexto Docker y contrato de imágenes
+
+D.3A-R1 está `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`. Cada variable
+publishable acepta únicamente una opaque key publishable y cada variable secret
+únicamente una opaque key secret; ambas también deben validar el checksum del
+helper upstream fijado. Esta fase tracked-only no lee GEN2: su compatibilidad de
+checksum queda `NOT READ` hasta el preflight controlado de D.3B.
+
+El contexto Docker de la app excluye `compose.env.*`, recovery material,
+backups y todo `infra/supabase/`. El runner final de la imagen solo recibe el
+standalone de Next, `public` y static assets; ello no vuelve aceptable enviar
+secretos, recovery o datos persistentes al builder. El cache histórico del
+builder local es `POTENTIALLY CONTAINS secret/runtime context`: no se afirma
+compromiso ni filtración, sino que esos paths no estaban garantizados fuera del
+contexto. D.3B definirá una limpieza específica del builder/buildx, nunca
+`docker system prune`, después de validar la estrategia segura y de inspeccionar
+la imagen final con resultados sanitizados `PRESENT`/`ABSENT`.
+
+Secuencia D.3B diseñada: GEN2 `CURRENT / MATCH`; backup fresco generation-aware;
+prepare GEN3; conservar el image ID GEN2 bajo
+`godel-design-app:opaque-gen2-<nonsecret-id>`; prebuild de una imagen GEN3 con
+`godel-design-app:opaque-gen3-<nonsecret-id>` sin sobrescribir `local` y usando
+su snapshot Godel protegido como `docker compose --env-file`, nunca la key en
+la línea de comandos. Sigue inspección de la candidate y confirmación de salud
+GEN2; maintenance de Nginx; activate GEN3; recreate de api-gw, Studio, Functions
+y app desde la imagen preconstruida; aceptación interna y regresión
+browser/Auth/Storage. Si falla, rollback env/current a GEN2, recreación de
+consumidores y app desde la imagen GEN2 preservada, y prueba de recovery GEN2.
+Si pasa, retag seguro de la imagen GEN3 aceptada como `local`, conservando el
+tag GEN2 hasta D.6, seguido del backup schema3 post-D.3. D.3 rota solo las dos
+opaque keys y sus copias Godel; Envoy mantiene los JWTs asimétricos internos
+actuales sin rotarlos.

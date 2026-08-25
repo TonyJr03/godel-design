@@ -2,6 +2,12 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { relative, sep } from "node:path";
 
 const defaultRoots = ["src", "supabase", "docs", "AGENTS.md", ".env.example"];
+const requiredDockerignoreEntries = [
+  "compose.env.*",
+  "protected-recovery-material/",
+  "backups/",
+  "infra/supabase/",
+];
 const roots = process.argv.slice(2);
 const auditRoots = roots.length > 0 ? roots : defaultRoots;
 
@@ -450,9 +456,16 @@ function scanFile(file) {
   return { violations, expectedReferences };
 }
 
+function scanDockerignoreContract() {
+  const file = ".dockerignore";
+  if (!existsSync(file)) return requiredDockerignoreEntries.map((entry) => ({ file, line: 1, category: `dockerignore-required-exclusion-missing:${entry}` }));
+  const entries = new Set(readFileSync(file, "utf8").split(/\r?\n/).map((line) => line.trim()).filter((line) => line && !line.startsWith("#")));
+  return requiredDockerignoreEntries.filter((entry) => !entries.has(entry)).map((entry) => ({ file, line: 1, category: `dockerignore-required-exclusion-missing:${entry}` }));
+}
+
 const scannedFiles = auditRoots.flatMap(listFiles);
 const results = scannedFiles.map(scanFile);
-const violations = results.flatMap((result) => result.violations);
+const violations = [...results.flatMap((result) => result.violations), ...scanDockerignoreContract()];
 const expectedReferences = results.flatMap((result) => result.expectedReferences);
 
 console.log("Auditoria de seguridad");

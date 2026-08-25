@@ -4,6 +4,10 @@ node_modules
 .next
 .env
 .env.*
+compose.env.*
+protected-recovery-material/
+backups/
+infra/supabase/
 coverage
 playwright-report
 test-results
