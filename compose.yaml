@@ -7,7 +7,10 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:?NEXT_PUBLIC_SUPABASE_URL is required}
-        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:?NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY is required}
+        GODEL_PUBLIC_BUILD_NONCE: ${GODEL_PUBLIC_BUILD_NONCE:?GODEL_PUBLIC_BUILD_NONCE is required}
+      secrets:
+        - source: godel_supabase_publishable_key
+          target: godel_supabase_publishable_key
     image: godel-design-app:${GODEL_APP_IMAGE_TAG:-local}
     environment:
       NODE_ENV: production
@@ -97,3 +100,7 @@ networks:
   supabase_api:
     external: true
     name: godel-supabase-api
+
+secrets:
+  godel_supabase_publishable_key:
+    environment: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY

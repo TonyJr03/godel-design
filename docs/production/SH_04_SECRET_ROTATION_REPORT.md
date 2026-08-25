@@ -396,3 +396,63 @@ probar ausencia de publishable y secret, inspeccionar la candidate resultante y
 limpiar solo cache del builder. Tras confirmar ausencia del historial afectado,
 GEN2 runtime permanecerá intacta hasta el cutover autorizado. R4A no ejecuta
 ninguna de esas operaciones.
+
+### D.3B.0-R5A — transporte publishable no persistente de BuildKit
+
+R4B demostró que la corrección del gate shell no eliminaba la divulgación: el
+valor publishable seguía entrando por `ARG` y BuildKit lo retenía como metadata.
+El transporte por `ARG` de `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` queda por
+tanto retirado. Esto es comportamiento esperado de Docker, no un defecto suyo.
+
+R5A adopta un mount secreto BuildKit requerido con id
+`godel_supabase_publishable_key`, limitado al mismo `RUN` que ejecuta la build
+de Next. El valor se entrega solo al environment del proceso hijo `npm run
+build`; no se copia el archivo montado ni se persiste como ARG, ENV, historial
+de imagen o config. `NEXT_PUBLIC_SUPABASE_URL` permanece como ARG no secreto.
+`SUPABASE_SECRET_KEY` sigue siendo exclusivamente runtime server-side.
+
+La publishable continúa siendo pública por diseño y debe existir en los
+artefactos browser compilados. El mount secreto es exclusivamente un canal de
+entrada build-time no persistente; no modifica su clasificación ni pretende
+convertirla en un secreto servidor. La configuración runtime de la app mantiene
+las cuatro variables vigentes sin cambios.
+
+La sonda Compose sintética R5A verifica que `--env-file` suministra el source
+top-level `secrets.environment` en un builder efímero, y prueba con un valor no
+Supabase que dicho input queda ausente de logs/metadata BuildKit, historial e
+image config, pero presente en un artefacto deliberado. El builder, image,
+historial y cache de la sonda se eliminan de forma aislada.
+
+GEN3 permanece preparada y reutilizable; no se requiere GEN4. R5A no modifica
+la candidate real ni el historial R4B `xr6qed7j28px2sktzsmgyjbrr`. R5B deberá,
+tras revisión del cambio tracked, reconstruir la misma GEN3 y repetir los gates
+operacionales antes de considerar cutover.
+
+### D.3B.0-R5A-R1 — contrato de invalidación de caché BuildKit
+
+Los contenidos de un secret mount de BuildKit no participan en la invalidación
+de caché. Por tanto, cambiar la publishable de GEN2 a GEN3 no debe depender de
+que el contenido del mount cambie: Godel declara
+`GODEL_PUBLIC_BUILD_NONCE` inmediatamente antes del `RUN` que consume el mount
+publishable y ejecuta la build de Next. El `RUN` rechaza un nonce ausente o
+vacío, informando solo el nombre de la variable.
+
+El nonce es un UUID nuevo, no secreto, por cada invocación del helper de build.
+No es credencial, material de generación, material de recovery ni información
+confidencial; puede aparecer en argv, metadata o historial de build. No se
+deriva, codifica ni hashea desde una publishable. Así invalida únicamente la
+capa de Next que recibe el mount y permite reutilizar capas previas de
+dependencias.
+
+`compose.yaml` exige el mismo nonce como build arg sin default. Cualquier
+operación directa `docker compose build app` debe suministrar un nonce fresco no
+secreto; un valor estático reintroduciría el riesgo de artefacto browser
+obsoleto. R5B debe usar uno fresco incluso cuando mantenga `--no-cache`: es una
+defensa en profundidad y el contrato durable para futuros builds con caché.
+
+La sonda R5A-R1 aislada construye A con input/nonce sintéticos y luego B con
+otro input/nonce sin `--no-cache`. Confirma que el artefacto B contiene solo B,
+no A, mientras ambos inputs quedan ausentes de logs y metadata BuildKit,
+historial Docker e image config. Solo limpia builder, imágenes, historial y
+caché sintéticos; no modifica GEN2, GEN3, candidate, builder, historial o caché
+reales.

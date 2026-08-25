@@ -16,11 +16,13 @@ RUN --mount=type=cache,id=godel-design-npm,target=/root/.npm,sharing=locked \
 
 FROM base AS builder
 ARG NEXT_PUBLIC_SUPABASE_URL
-ARG NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN node -e 'for (const name of ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"]) { if (!process.env[name]) { console.error(`Missing required public build configuration: ${name}`); process.exit(1); } }'
-RUN npm run build
+RUN node -e 'const name = "NEXT_PUBLIC_SUPABASE_URL"; if (!process.env[name]) { console.error(`Missing required public build configuration: ${name}`); process.exit(1); }'
+ARG GODEL_PUBLIC_BUILD_NONCE
+RUN --mount=type=secret,id=godel_supabase_publishable_key,required=true \
+  if [ -z "$GODEL_PUBLIC_BUILD_NONCE" ]; then >&2 printf '%s\n' 'Missing required public build configuration: GODEL_PUBLIC_BUILD_NONCE'; exit 1; fi; \
+  node -e 'const { execFileSync } = require("node:child_process"); const { readFileSync } = require("node:fs"); const name = "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"; const value = readFileSync("/run/secrets/godel_supabase_publishable_key", "utf8"); if (!value) { console.error(`Missing required public build configuration: ${name}`); process.exit(1); } execFileSync("npm", ["run", "build"], { stdio: "inherit", env: { ...process.env, [name]: value } });'
 
 FROM base AS runner
 ENV NODE_ENV=production
