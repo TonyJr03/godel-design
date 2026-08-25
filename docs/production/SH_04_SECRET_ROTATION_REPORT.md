@@ -1,11 +1,10 @@
 # SH-04.3D — Rotación segura de secretos y continuidad de recovery
 
-Estado: `IN PROGRESS` — arquitectura D.0 auditada y tooling D.1 implementado;
-no se ha rotado ningún secreto ni se ha cambiado el runtime QA.
+Estado: `IN PROGRESS` — D.2 está cerrado; D.3 (rotación de API keys opacas) es
+el siguiente bloque de ejecución.
 
-Estado de subfases: D.0 `CLOSED / APPROVED`, D.1 `CLOSED / APPROVED`, D.2
-`IN PROGRESS`, D.2A `IN PROGRESS / correction under architectural review` y D.2B
-`PENDING`. Ninguno de esos estados declara una rotación real.
+Estado de subfases: D.0 `CLOSED / APPROVED`, D.1 `CLOSED / APPROVED`, D.2A
+`CLOSED / APPROVED`, D.2B `CLOSED / APPROVED` y D.2 `CLOSED / APPROVED`.
 
 Este documento es la autoridad operativa para SH-04.3D. Complementa el
 [informe general SH-04.3](SH_04_SECRETS_AUTH_REPORT.md), que conserva el
@@ -130,7 +129,7 @@ cifrado con estado. Ninguno se resuelve con D.1.
 | --- | --- | --- |
 | D.0 | Auditoría de arquitectura y seguridad | CLOSED / APPROVED |
 | D.1 | Tooling seguro y modelo de generación/recovery | CLOSED / APPROVED |
-| D.2 | Generación cero y rotación Dashboard | IN PROGRESS |
+| D.2 | Generación cero y rotación Dashboard | CLOSED / APPROVED |
 | D.3 | Opaque API keys y rebuild Godel | Pendiente |
 | D.4A | Rotación legacy `JWT_SECRET` / anon / service-role | Pendiente |
 | D.4B | Rotación de claves EC de firma | Pendiente |
@@ -265,3 +264,56 @@ anterior rechazada/nueva aceptada → regresión runtime → verify recovery`. S
 aceptación operacional falla después del commit, se invoca rollback Dashboard
 dirigido a la generación fuente, se recrea api-gw y se valida acceso/rutime.
 No existe rollback genérico de secretos.
+
+### Evidencia operacional D.2B-R1
+
+El primer intento D.2B se detuvo como `FAIL / DIAGNOSTIC`: asumía un api-gw
+publicado en localhost. El override activo `infra/supabase-godel.override.yml`
+elimina intencionadamente esos puertos; es una propiedad de seguridad y no se
+expuso Studio ni api-gw para la operación.
+
+La aceptación canónica de Dashboard es un probe interno de operador: contenedor
+Godel app → `api-gw:8000` → Envoy Basic Auth → Studio. Las credenciales pasan
+del snapshot de generación a memoria del proceso host, stdin y memoria del
+contenedor; nunca a argv, environment ni salida. Nginx público Godel solo
+expone `/auth/v1/`, `/rest/v1/` y `/storage/v1/`, no Studio.
+
+La secuencia real aprobada completó GEN0, backup schema3 asociado a GEN0,
+rotación GEN0→GEN1, recreación exclusiva de api-gw, rollback GEN1→GEN0 con su
+recreación exclusiva y rotación final GEN0→GEN2. El acceptance final confirmó
+GEN2 200; GEN0, GEN1 y sin credenciales 401; api-gw permaneció sin puerto host.
+GEN1 se conserva inmutable como evidencia de rollback. El backup schema3 final
+está asociado a GEN2; los dos backups históricos anteriores a generaciones se
+retienen sin modificación. No hubo restore destructivo ni rotación de secretos
+fuera de `DASHBOARD_PASSWORD`.
+
+### Cierre D.2: recovery, retención y aceptación final
+
+**ACTIVE RECOVERY BASELINE = `20260825T154827Z-56aa0d13`.** Es el backup
+schema 3 completo y verificado más reciente asociado a la generación externa
+actual GEN2 después de la rotación Dashboard validada. El artefacto
+`20260823T140840Z-7c7b0d39` ya no es baseline activo: sigue retenido como
+histórico.
+
+| Artefacto retenido | Rol | Schema | Generación externa | Estado | Significado |
+| --- | --- | --- | --- | --- | --- |
+| `20260825T154827Z-56aa0d13` | ACTIVE RECOVERY BASELINE | 3 | GEN2 | VERIFY PASS | Baseline recovery actual post-rotación Dashboard. |
+| `20260825T152125Z-95cf8bfd` | PRE-ROTATION / ROLLBACK BASELINE | 3 | GEN0 | VERIFY PASS | Baseline inmediatamente anterior a la rotación Dashboard. |
+| `20260823T140840Z-7c7b0d39` | HISTORICAL PRE-GENERATION BASELINE | 3 | ausente / legacy | VERIFY PASS | Baseline histórico pre-generaciones. |
+| `20260823T011543Z-c0abd277` | HISTORICAL DESTRUCTIVE-RESTORE EVIDENCE | 3 | ausente / legacy | VERIFY PASS | Evidencia histórica de restore destructivo. |
+
+Retención de generaciones: GEN0 queda retenida y referenciada por el backup
+pre-rotación; GEN1 queda retenida, inmutable y sin dependencia de backup como
+evidencia intermedia de rollback hasta D.6; GEN2 es `CURRENT / MATCH` y queda
+referenciada por el active recovery baseline. No se documentan valores secretos.
+
+Aceptación final sanitizada: Supabase 11/11 healthy; Godel 2/2 healthy;
+live/ready 200/200; Basic Auth GEN2 200, GEN0 401, GEN1 401 y sin credenciales
+401; api-gw sin puertos host. Login fresco admin y dashboard SSR PASS; Storage
+mantiene 131 objetos, P-26-0344 en `en_revision` y PDF congelado de 131075 bytes
+con descarga protegida exacta PASS. No se observaron errores recientes JWT,
+ENODATA, xattr o metadata. No hubo restore destructivo; solo rotó
+`DASHBOARD_PASSWORD` y no se expusieron valores secretos.
+
+Estado D.2: D.0, D.1, D.2A, D.2B y D.2 `CLOSED / APPROVED`. SH-04.3D permanece
+`IN PROGRESS`; siguiente: D.3, rotación de API keys opacas.

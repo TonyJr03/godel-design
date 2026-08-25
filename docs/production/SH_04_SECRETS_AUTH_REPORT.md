@@ -231,17 +231,20 @@ informan sin convertirse en blocker.
 | SH-04.3B | Contrato tracked y Auth hardening | CLOSED / APPROVED |
 | SH-04.3C-R1A | Completar wiring asimétrico y recovery | CLOSED / APPROVED |
 | SH-04.3C | Aplicar contrato endurecido y aceptación QA | CLOSED / APPROVED — bloqueador histórico resuelto por R1A/R1B |
-| SH-04.3D | Rotación de secretos | Pendiente |
+| SH-04.3D | Rotación de secretos | IN PROGRESS — D.0, D.1 y D.2 CLOSED / APPROVED; sigue D.3 (API keys opacas). |
 | SH-04.3E | Compatibilidad recovery tras rotación | Pendiente |
 | SH-04.3F | Aceptación operativa final | Pendiente |
 
 ## SH-04.3D — Rotación de secretos
 
-SH-04.3D.0 está `CLOSED / APPROVED`. SH-04.3D.1 está `IN PROGRESS`.
+SH-04.3D.0, D.1 y D.2 están `CLOSED / APPROVED`; SH-04.3D permanece
+`IN PROGRESS` y el siguiente bloque es D.3, rotación de API keys opacas.
 La autoridad de arquitectura, matriz de rotación, límites operativos y contrato
 de generaciones externas para rotación/recovery es
 [SH-04.3D — Rotación segura de secretos](SH_04_SECRET_ROTATION_REPORT.md).
-D.1 solo aporta tooling y pruebas sintéticas: no genera ni rota secretos reales.
+La evidencia detallada de D.2 (generaciones externas, backup/rollback y probe
+interno de Dashboard) está en el informe de rotación enlazado; D.3 no está
+autorizada todavía. SH-04.3E/F permanecen pendientes.
 
 ## SH-04.3C - primer intento y hallazgo de interoperabilidad
 
