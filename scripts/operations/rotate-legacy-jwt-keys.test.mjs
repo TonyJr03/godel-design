@@ -36,11 +36,12 @@ function mapOf(snapshot) {
 function fakeDb(initial, behavior = {}) {
   let setting = initial;
   let targetVerificationFailures = behavior.targetVerificationFailures ?? 0;
+  let matchCalls = 0;
   const calls = [];
   return {
     calls,
     get setting() { return setting; },
-    async matches(value) { calls.push(["matches", value]); return behavior.mismatch ? false : setting === value; },
+    async matches(value) { calls.push(["matches", value]); matchCalls += 1; return behavior.mismatch || behavior.mismatchOnMatchCall === matchCalls ? false : setting === value; },
     async set(value) {
       calls.push(["set", value]);
       if ((behavior.preMutationTargetSetFails && value !== initial) || (behavior.failRollbackSet && value === initial && setting !== initial)) throw new Error("DB_SET_FAILED");
@@ -129,12 +130,20 @@ test("activation, rollback, and same-candidate reactivation use env then DB then
   assert.equal((await getCurrentSecretGeneration(value)).generationId, prepared.generationId);
 }));
 
-test("DB mismatch blocks before mutation", async () => withFixture(async (value) => {
+test("initial source DB mismatch blocks before mutation", async () => withFixture(async (value) => {
   const prepared = await prepareLegacyJwtKeys({ ...value, apply: true });
   const db = fakeDb(SOURCE_SECRET, { mismatch: true });
-  await assert.rejects(() => activateLegacyJwtKeys({ ...value, generationId: prepared.generationId, apply: true, dbAdapter: db }), /LEGACY_JWT_DB_SETTING_MISMATCH/);
+  await assert.rejects(() => activateLegacyJwtKeys({ ...value, generationId: prepared.generationId, apply: true, dbAdapter: db }), /LEGACY_JWT_SOURCE_DB_MISMATCH/);
   assert.equal((await getCurrentSecretGeneration(value)).generationId, (await getCurrentSecretGeneration({ ...value, godelEnvPath: value.godelEnvPath })).generationId);
   assert.deepEqual(await readFile(value.supabaseEnvPath), (await getCurrentSecretGeneration(value)).generation.supabaseSnapshot);
+}));
+
+test("under-lock source DB mismatch blocks before mutation", async () => withFixture(async (value) => {
+  const prepared = await prepareLegacyJwtKeys({ ...value, apply: true });
+  const db = fakeDb(SOURCE_SECRET, { mismatchOnMatchCall: 2 });
+  await assert.rejects(() => activateLegacyJwtKeys({ ...value, generationId: prepared.generationId, apply: true, dbAdapter: db }), /LEGACY_JWT_SOURCE_DB_RECHECK_MISMATCH/);
+  assert.deepEqual(await readFile(value.supabaseEnvPath), (await getCurrentSecretGeneration(value)).generation.supabaseSnapshot);
+  await assert.rejects(() => readFile(generationMutationLockPath(value.protectedRoot)), /ENOENT/);
 }));
 
 test("pre-pointer DB failures compensate env and DB", async () => withFixture(async (value) => {
@@ -151,7 +160,7 @@ test("ambiguous target DB commit is restored before the pointer commit", async (
   const source = await getCurrentSecretGeneration(value);
   const prepared = await prepareLegacyJwtKeys({ ...value, apply: true });
   const db = fakeDb(SOURCE_SECRET, { targetCommitThenThrow: true });
-  await assert.rejects(() => activateLegacyJwtKeys({ ...value, generationId: prepared.generationId, apply: true, dbAdapter: db }), /DB_TARGET_SET_AMBIGUOUS/);
+  await assert.rejects(() => activateLegacyJwtKeys({ ...value, generationId: prepared.generationId, apply: true, dbAdapter: db }), /LEGACY_JWT_TARGET_DB_SET_FAILED/);
   assert.equal((await getCurrentSecretGeneration(value)).generationId, source.generationId);
   assert.equal(db.setting, SOURCE_SECRET);
   assert.deepEqual(await readFile(value.supabaseEnvPath), source.generation.supabaseSnapshot);
@@ -164,7 +173,7 @@ test("pre-mutation target DB failure still restores and verifies source", async 
   const source = await getCurrentSecretGeneration(value);
   const prepared = await prepareLegacyJwtKeys({ ...value, apply: true });
   const db = fakeDb(SOURCE_SECRET, { preMutationTargetSetFails: true });
-  await assert.rejects(() => activateLegacyJwtKeys({ ...value, generationId: prepared.generationId, apply: true, dbAdapter: db }), /DB_SET_FAILED/);
+  await assert.rejects(() => activateLegacyJwtKeys({ ...value, generationId: prepared.generationId, apply: true, dbAdapter: db }), /LEGACY_JWT_TARGET_DB_SET_FAILED/);
   assert.equal((await getCurrentSecretGeneration(value)).generationId, source.generationId);
   assert.equal(db.setting, SOURCE_SECRET);
   assert.deepEqual(await readFile(value.supabaseEnvPath), source.generation.supabaseSnapshot);
@@ -176,7 +185,7 @@ test("pre-mutation target DB failure still restores and verifies source", async 
 test("DB verification failure and pointer precommit failure compensate", async () => withFixture(async (value) => {
   const source = await getCurrentSecretGeneration(value);
   const prepared = await prepareLegacyJwtKeys({ ...value, apply: true });
-  await assert.rejects(() => activateLegacyJwtKeys({ ...value, generationId: prepared.generationId, apply: true, dbAdapter: fakeDb(SOURCE_SECRET, { targetVerificationFailures: 1 }) }), /LEGACY_JWT_DB_SETTING_MISMATCH/);
+  await assert.rejects(() => activateLegacyJwtKeys({ ...value, generationId: prepared.generationId, apply: true, dbAdapter: fakeDb(SOURCE_SECRET, { targetVerificationFailures: 1 }) }), /LEGACY_JWT_TARGET_DB_VERIFY_MISMATCH/);
   assert.equal((await getCurrentSecretGeneration(value)).generationId, source.generationId);
   const db = fakeDb(SOURCE_SECRET);
   await assert.rejects(() => activateLegacyJwtKeys({ ...value, generationId: prepared.generationId, apply: true, dbAdapter: db, hooks: { beforePointerCommit: () => { throw new Error("PRECOMMIT"); } } }), /PRECOMMIT/);
@@ -210,8 +219,9 @@ test("unrelated changes and CLI renderers cannot disclose synthetic material", a
 
 test("Compose DB adapter arguments contain no secret and require stdin SQL", () => {
   const args = composeDbPsqlArgs({ supabaseEnvPath: "/safe/.env" });
-  assert.deepEqual(args.slice(-8), ["exec", "-T", "db", "psql", "-U", "postgres", "-d", "postgres", "-tAq", "-f", "-"].slice(-8));
+  assert.deepEqual(args.slice(-11), ["exec", "-T", "db", "psql", "-v", "ON_ERROR_STOP=1", "-U", "postgres", "-d", "postgres", "-tAq", "-f", "-"].slice(-11));
   assert.ok(args.includes("db"));
+  assert.ok(args.includes("ON_ERROR_STOP=1"));
   assert.ok(!args.some((value) => value.includes(SOURCE_SECRET)));
 });
 
@@ -248,4 +258,20 @@ test("SQL transport uses stdin, disables shell, and safely escapes synthetic quo
   assert.equal(await adapter.verify(secret), true);
   for (const call of calls) assert.ok(!call.args.some((value) => value.includes(secret)));
   assert.ok(calls.every((call) => call.input.includes("synthetic''\\quoted")));
+});
+
+test("nonzero DB transport exits as a sanitized adapter failure", async () => {
+  await assert.rejects(() => runProcessWithStdin({
+    command: "docker",
+    args: ["compose", "exec", "db"],
+    cwd: ".",
+    input: "SELECT synthetic;\n",
+    spawnImpl() {
+      const child = new EventEmitter();
+      child.stdout = new EventEmitter();
+      child.stderr = new EventEmitter();
+      child.stdin = { end() { queueMicrotask(() => { child.stderr.emit("data", "synthetic server detail"); child.emit("close", 1); }); } };
+      return child;
+    },
+  }), (error) => error?.message === "LEGACY_JWT_DB_ADAPTER_FAILED" && !error.message.includes("synthetic"));
 });

@@ -179,7 +179,7 @@ function assertDirectRelation(current, target) {
 function sqlQuote(value) { return `'${value.replaceAll("'", "''")}'`; }
 
 export function composeDbPsqlArgs({ supabaseEnvPath = resolve(ROOT, "infra/supabase/.env") } = {}) {
-  return ["compose", "--env-file", supabaseEnvPath, "-f", "docker-compose.yml", "-f", "../supabase-godel.override.yml", "exec", "-T", "db", "psql", "-U", "postgres", "-d", "postgres", "-tAq", "-f", "-"];
+  return ["compose", "--env-file", supabaseEnvPath, "-f", "docker-compose.yml", "-f", "../supabase-godel.override.yml", "exec", "-T", "db", "psql", "-v", "ON_ERROR_STOP=1", "-U", "postgres", "-d", "postgres", "-tAq", "-f", "-"];
 }
 
 export function runProcessWithStdin({ command, args, cwd, input, spawnImpl = spawn }) {
@@ -244,7 +244,7 @@ async function switchLegacy({ root = ROOT, protectedRoot, supabaseEnvPath, godel
   const target = await readGeneration({ protectedRoot, generationId });
   assertDirectRelation(current, target);
   const sourceSecret = validateLegacyJwtSnapshot(current.generation.supabaseSnapshot).jwtSecret;
-  if (!(await dbAdapter.matches(sourceSecret))) fail("LEGACY_JWT_DB_SETTING_MISMATCH");
+  if (!(await dbAdapter.matches(sourceSecret))) fail("LEGACY_JWT_SOURCE_DB_MISMATCH");
   if (!apply) return { state: "DRY_RUN", generationId };
   const lock = await acquireGenerationMutationLock({ protectedRoot, operation, generationId });
   const sourceGenerationId = current.generationId;
@@ -261,17 +261,18 @@ async function switchLegacy({ root = ROOT, protectedRoot, supabaseEnvPath, godel
     assertDirectRelation(underLock, targetUnderLock);
     const currentSecret = validateLegacyJwtSnapshot(underLock.generation.supabaseSnapshot).jwtSecret;
     const targetSecret = validateLegacyJwtSnapshot(targetUnderLock.supabaseSnapshot).jwtSecret;
-    if (!(await dbAdapter.matches(currentSecret))) fail("LEGACY_JWT_DB_SETTING_MISMATCH");
+    if (!(await dbAdapter.matches(currentSecret))) fail("LEGACY_JWT_SOURCE_DB_RECHECK_MISMATCH");
     const targetValues = parseEnvironment(targetUnderLock.supabaseSnapshot);
     envMutationAttempted = true;
     await writeAllowlistedEnvironmentFile({ path: supabaseEnvPath, replacements: Object.fromEntries(SUPABASE_NAMES.map((name) => [name, required(targetValues, name)])), allowedNames: SUPABASE_NAMES });
     await hooks.afterEnvUpdate?.();
     if (!(await readFile(supabaseEnvPath)).equals(targetUnderLock.supabaseSnapshot) || !(await readFile(godelEnvPath)).equals(targetUnderLock.godelSnapshot)) fail("LEGACY_JWT_ROTATION_ENV_WRITE_MISMATCH");
     dbMutationAttempted = true;
-    await dbAdapter.set(targetSecret);
+    try { await dbAdapter.set(targetSecret); }
+    catch (error) { throw new Error("LEGACY_JWT_TARGET_DB_SET_FAILED", { cause: error }); }
     dbUpdated = true;
     await hooks.afterDbUpdate?.();
-    if (!dbUpdated || !(await dbAdapter.verify(targetSecret))) fail("LEGACY_JWT_DB_SETTING_MISMATCH");
+    if (!dbUpdated || !(await dbAdapter.verify(targetSecret))) fail("LEGACY_JWT_TARGET_DB_VERIFY_MISMATCH");
     await hooks.beforePointerCommit?.();
     await replaceCurrentGenerationPointer({ protectedRoot, generationId, expectedGenerationId: underLock.generationId });
     committed = true;

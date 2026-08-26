@@ -772,3 +772,18 @@ magic `%PDF`. GEN3 sigue `CURRENT / MATCH` y GEN4 no está aplicada.
 D.4A.2 es `CLOSED / CANDIDATE PREPARED / PRE-CUTOVER BASELINE ACCEPTED`.
 D.4A sigue `IN PROGRESS / NOT YET ROTATED`; D.4A.3 permanece `NOT AUTHORIZED /
 PENDING ARCHITECTURAL REVIEW`.
+
+### D.4A.3-R2 — fail-closed adapter and safe stage diagnostics
+
+El intento inicial de D.4A.3 se detuvo de forma segura sin completar cambio de
+puntero ni recreación de servicios. R0 clasificó primero el secreto DB
+compartido como GEN2; R1 comprobó que GEN2 y GEN3 conservan byte-idénticos los
+cinco artefactos legacy, que el adaptador canónico y el dry-run oficial aceptan
+GEN3, y que el drift de fuente queda descartado.
+
+R2 endurece el transporte canónico de `psql` con `ON_ERROR_STOP=1` y separa
+diagnósticos sanitizados para guardia fuente, recheck bajo lock, ejecución DB
+target y verificación DB target. Los contratos fail-closed post-commit y de
+compensación permanecen intactos. No se registran secretos, SQL, stderr ni
+valores JWT. GEN4 continúa `PREPARED / NOT CURRENT`; D.4A.3 queda
+`PENDING RE-EXECUTION`.
