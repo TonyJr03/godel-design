@@ -653,6 +653,28 @@ function scanPreproductionBuildHelperContract() {
   return violations;
 }
 
+function scanLegacyJwtRotationToolContract() {
+  const file = "scripts/operations/rotate-legacy-jwt-keys.mjs";
+  if (!existsSync(file)) return [{ file, line: 1, category: "legacy-jwt-rotation-tool-missing" }];
+  const text = readFileSync(file, "utf8");
+  const violations = [];
+  const add = (category) => violations.push({ file, line: 1, category });
+
+  if (/utils\/(?:generate-keys|add-new-auth-keys|rotate-new-api-keys)\.sh/.test(text)) {
+    add("legacy-jwt-rotation-unsafe-upstream-generator-reference");
+  }
+
+  if (!/spawnImpl\(command, args, \{ cwd, shell: false, windowsHide: true, stdio: \["pipe", "pipe", "pipe"\] \}\)/.test(text) || !/child\.stdin\.end\(input\)/.test(text)) {
+    add("legacy-jwt-rotation-db-stdin-transport-missing");
+  }
+
+  if (!/\["compose", "--env-file", supabaseEnvPath, "-f", "docker-compose\.yml", "-f", "\.\.\/supabase-godel\.override\.yml", "exec", "-T", "db", "psql"/.test(text)) {
+    add("legacy-jwt-rotation-canonical-db-compose-adapter-missing");
+  }
+
+  return violations;
+}
+
 const scannedFiles = auditRoots.flatMap(listFiles);
 const results = scannedFiles.map(scanFile);
 const violations = [
@@ -661,6 +683,7 @@ const violations = [
   ...scanDockerfileContract(),
   ...scanComposeBuildSecretContract(),
   ...scanPreproductionBuildHelperContract(),
+  ...scanLegacyJwtRotationToolContract(),
 ];
 const expectedReferences = results.flatMap((result) => result.expectedReferences);
 

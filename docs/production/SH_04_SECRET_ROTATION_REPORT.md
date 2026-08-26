@@ -133,7 +133,7 @@ cifrado con estado. Ninguno se resuelve con D.1.
 | D.1 | Tooling seguro y modelo de generación/recovery | CLOSED / APPROVED |
 | D.2 | Generación cero y rotación Dashboard | CLOSED / APPROVED |
 | D.3 | Opaque API keys y rebuild Godel | CLOSED / APPROVED |
-| D.4A | Rotación legacy `JWT_SECRET` / anon / service-role | PENDING ARCHITECTURAL / OPERATIONAL DESIGN |
+| D.4A | Rotación legacy `JWT_SECRET` / anon / service-role | IN PROGRESS / NOT YET ROTATED — hard cut y tooling aprobados; siguen D.4A.2/D.4A.3. |
 | D.4B | Rotación de claves EC de firma | Pendiente |
 | D.5 | Rotación segura de contraseña PostgreSQL | Pendiente |
 | D.6 | Aceptación final de rotación/recovery | Pendiente |
@@ -687,3 +687,48 @@ service_role según la política atómica, publishable y secret opaque vigentes,
 login ES256 fresco, supervivencia de una sesión ES256 pre-cutover, REST, Storage,
 Realtime, Functions y Auth Admin opaque. Quedan abiertas la prueba aislada de
 overlap HS256 y una decisión explícita de retiro legacy posterior a D.4A.
+
+### D.4A.1 — tooling seguro de rotación legacy
+
+D.4A.1 está `IMPLEMENTED / APPROVED`; D.4A queda `IN PROGRESS / NOT YET
+ROTATED`. Se implementó `rotate-legacy-jwt-keys.mjs` con `prepare`, `activate`
+y `rollback`, todos dry-run por defecto y mutables únicamente con `--apply`.
+No se ejecutó ninguna operación real durante esta fase.
+
+La estrategia es hard cut atómico. Una generación candidata puede modificar
+exclusivamente `JWT_SECRET`, `ANON_KEY`, `SERVICE_ROLE_KEY`, `JWT_KEYS` y
+`JWT_JWKS` en el snapshot Supabase; `godel.env` permanece byte-idéntico. La
+reason allowlist incorpora `legacy-jwt-rotation` sin cambio de schema. El
+validador reusable exige HMAC HS256 con el secreto como raw string, roles
+correctos, `iss="supabase"`, `iat`/`exp` enteros y header sin `kid`.
+
+La candidate genera el secreto en memoria mediante CSPRNG Node de 32 bytes en
+base64, crea anon/service con la lifetime upstream-compatible de cinco años y
+deriva una sola JWK oct HS256 en ambos keysets. Exige exactamente una EC/ES256 y
+una oct/HS256 por keyset, preserva semánticamente las EC, y rechaza cualquier
+cambio de los JWT asimétricos, opaque keys u otro env.
+
+Activation y rollback incluyen el setting DB `app.settings.jwt_secret`. El
+adapter productivo usa el servicio Compose canónico `db`, nunca un container ID,
+y comunica SQL exclusivamente por stdin de `psql` con `spawn` sin shell. La clave
+no entra en argv, stdout, stderr ni archivos SQL. Antes del cambio comprueba que
+DB coincide con la generación actual; después de `ALTER DATABASE` abre una nueva
+sesión para verificar target. No recrea DB.
+
+El puntero de generación es el commit lógico. Antes de ese punto, un fallo
+restaura primero DB y después los cinco env, verificando ambos contra la fuente.
+La compensación trata cualquier intento de mutación DB pre-puntero como
+potencialmente persistido, incluso si el cliente devuelve error; fuerza y
+verifica la fuente en una sesión DB nueva antes de liberar el lock.
+Tras el puntero, cualquier incertidumbre conserva el lock y falla cerrado. Solo
+se permite forward/rollback entre generaciones directamente relacionadas; el
+rollback y la reactivación de la misma candidate usan el mismo motor.
+
+Las pruebas sintéticas cubren prepare aislado, allowlist de cinco variables,
+preservación EC/Godel, firma HMAC, precondición DB, orden env→DB→pointer,
+compensación, fail-closed post-commit, rollback, reactivación y no divulgación.
+El audit de seguridad bloquea que el tool invoque los generadores upstream que
+imprimen material y exige transporte DB por stdin.
+
+Siguiente secuencia: **D.4A.2 candidate preparation / pre-cutover** y después
+**D.4A.3 real cutover / rollback drill**. Ninguna está autorizada por D.4A.1.
