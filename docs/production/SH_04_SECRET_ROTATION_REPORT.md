@@ -801,3 +801,41 @@ R4C modifica solo el contrato tracked: instalaciones nuevas ya no persisten el
 secreto JWT como GUC. El GUC GEN3 existente en runtime queda pendiente de
 retiro controlado. GEN4 sigue `PREPARED / NOT CURRENT`; el retry de D.4A.3 no
 está autorizado.
+
+### D.4A.3-R4D-R1-R2 — cierre de convergencia runtime y aceptación post-retiro
+
+`R4C/R4C-R1` queda aplicado como retiro arquitectónico aprobado. La convergencia
+runtime R4D se completó entre R4D-R1 y esta aceptación R1-R2, sin reintentar
+D.4A.3 ni activar GEN4. GEN3 permaneció `CURRENT / MATCH`; GEN4 permanece
+`PREPARED / NOT CURRENT`.
+
+La verificación nueva de DB confirmó que el default
+`app.settings.jwt_secret` está `ABSENT`, también en una sesión fresca. Se
+conservan `app.settings.jwt_exp` `PRESENT` y el privilegio `SET` de `postgres`
+en `NO`. El contrato efectivo de PostgREST conserva `PGRST_JWT_SECRET` y
+`PGRST_APP_SETTINGS_JWT_EXP`, y no contiene
+`PGRST_APP_SETTINGS_JWT_SECRET`.
+
+La aceptación funcional read-only pasó: login admin fresco y workspace
+interactivo, JWT nuevo `ES256` con `kid`, compatibilidad de las claves legacy
+anon/service de GEN3 y de las claves opaque publishable/secret de D.3. El
+pedido congelado `P-26-0344` sigue `en_revision`; Storage conserva 131 objetos.
+La descarga protegida autenticada pasó para múltiples artefactos QA equivalentes
+con redirect firmado hacia el origen público, content type PDF, 131075 bytes y
+magic `%PDF`. Tamaño y magic son características de integridad, no una identidad
+única de objeto.
+
+Supabase permaneció 11/11 healthy, Godel 2/2 healthy y live/ready devolvieron
+200/200; api-gw no expone puertos host y el lock estuvo ausente. La evidencia de
+preservación de contenedores se clasifica `PARTIAL`: el transition conocido de
+rest de R4D-R1 se conserva como evidencia operacional y esa fue la única
+recreación; DB y los demás servicios Supabase no fueron recreados, Godel app no
+fue recreada y Nginx fue solo stop/start. La matriz completa de IDs anterior a
+R4D-R1 no se retuvo a través del handoff de sesión, sin evidencia contradictoria;
+esta limitación histórica no afecta el comportamiento ni el estado de seguridad
+verificados.
+
+R4D queda `RUNTIME CONVERGENCE + ACCEPTANCE COMPLETE`. El contenedor DB puede
+seguir reteniendo residuo histórico de `JWT_SECRET` en su entorno Docker hasta
+un futuro mantenimiento/recreate de DB revisado por separado; ese residuo es
+distinto de `app.settings.jwt_secret`, ya ausente de PostgreSQL.
