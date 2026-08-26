@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdir, readFile, rm, stat, statfs, writeFile } from "node:fs/promises";
 import { basename, relative, resolve, sep } from "node:path";
 import { acquireGenerationMutationLock, assertActiveSecretGenerationMatches, assertNoGenerationMutationLock, releaseGenerationMutationLock, validateManifestExternalSecretGeneration } from "./secret-generation.mjs";
+import { createGodelRuntimeComposeInvocation } from "./godel-runtime-compose.mjs";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 const SUPABASE_DIR = resolve(ROOT, "infra/supabase");
@@ -97,9 +98,9 @@ function sanitizeStderr(value) {
   return summary || "(no stderr)";
 }
 
-function run(bin, args, cwd = ROOT, allowFailure = false, operation = "subprocess") {
+function run(bin, args, cwd = ROOT, allowFailure = false, operation = "subprocess", environment = process.env) {
   return new Promise((resolvePromise, reject) => {
-    const child = spawn(bin, args, { cwd, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(bin, args, { cwd, env: environment, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
     let out = "", err = "";
     child.stdout.on("data", (chunk) => { out += chunk; });
     child.stderr.on("data", (chunk) => { err += chunk; });
@@ -113,7 +114,10 @@ function run(bin, args, cwd = ROOT, allowFailure = false, operation = "subproces
 }
 
 const supabase = (args, allowFailure = false, operation = "Supabase Compose operation") => run("docker", ["compose", "-f", "docker-compose.yml"].concat(args), SUPABASE_DIR, allowFailure, operation);
-const godel = (args, allowFailure = false, operation = "Godel Compose operation") => run("docker", ["compose", "--env-file", "compose.env.local", "-f", "compose.yaml"].concat(args), ROOT, allowFailure, operation);
+const godel = (args, allowFailure = false, operation = "Godel Compose operation") => {
+  const invocation = createGodelRuntimeComposeInvocation({ args });
+  return run("docker", invocation.args, ROOT, allowFailure, operation, invocation.environment);
+};
 
 function parsePathOption(args, option) {
   const supplied = args.shift();

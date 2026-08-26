@@ -732,3 +732,24 @@ imprimen material y exige transporte DB por stdin.
 
 Siguiente secuencia: **D.4A.2 candidate preparation / pre-cutover** y después
 **D.4A.3 real cutover / rollback drill**. Ninguna está autorizada por D.4A.1.
+
+### D.4A.2-R1 — compatibilidad Compose recovery / build nonce
+
+El primer intento de D.4A.2 se detuvo durante el preflight del backup, antes de
+maintenance, backup nuevo o generación GEN4. GEN3 permaneció `CURRENT / MATCH`.
+La causa fue que `compose.yaml` exige el build-only
+`GODEL_PUBLIC_BUILD_NONCE` incluso para interpolar operaciones Compose runtime,
+mientras `compose.env.local` no lo persiste por diseño.
+
+Backup y restore usan ahora un sentinel no secreto, process-local y exclusivo
+del wrapper Compose runtime; no se escribe en envs ni se inyecta en contenedores.
+El wrapper permite únicamente `config`, `ps`, `start` y `stop`, por lo que no
+puede convertirse en una vía de build. El contrato de nonce fresco del helper
+de build permanece intacto. D.4A sigue `IN PROGRESS / NOT YET ROTATED`; D.4A.2
+queda pendiente de reanudación operativa tras review de R1.
+
+El dry-run canónico posterior completó el preflight `PASS` y finalizó como
+`dry-run PASS; planned maintenance sequence only`. No creó backup, no ejecutó
+stop/start, no produjo GEN4 y no cambió runtime persistente, configuración,
+secretos, contenedores ni imágenes. La reanudación de D.4A.2 sigue requiriendo
+su autorización operacional explícita.

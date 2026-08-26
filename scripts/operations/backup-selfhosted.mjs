@@ -5,6 +5,7 @@ import { createReadStream } from "node:fs";
 import { chmod, mkdir, readFile, rename, rm, stat, statfs, writeFile } from "node:fs/promises";
 import { resolve, relative, basename, sep } from "node:path";
 import { acquireGenerationMutationLock, assertCurrentSecretGenerationMatches, assertNoGenerationMutationLock, assertReferencedSecretGenerationExists, isSecretGenerationRegistryAvailable, releaseGenerationMutationLock, validateManifestExternalSecretGeneration } from "./secret-generation.mjs";
+import { createGodelRuntimeComposeInvocation } from "./godel-runtime-compose.mjs";
 
 const ROOT = process.cwd();
 const SUPA_DIR = resolve(ROOT, "infra/supabase");
@@ -128,16 +129,19 @@ async function captureStorageXattrs({ image, source, output }) {
   try { await runStorageXattrCaptureHelper({ image, source, output }); }
   catch { die("storage xattr capture failed"); }
 }
-function run(bin, args, cwd = ROOT, allowed = false) {
+function run(bin, args, cwd = ROOT, allowed = false, environment = process.env) {
   return new Promise((ok, bad) => {
-    const child = spawn(bin, args, { cwd, windowsHide: true, stdio: ["ignore","pipe","pipe"] });
+    const child = spawn(bin, args, { cwd, env: environment, windowsHide: true, stdio: ["ignore","pipe","pipe"] });
     let out = "", err = "";
     child.stdout.on("data", (chunk) => { out += chunk; }); child.stderr.on("data", (chunk) => { err += chunk; });
     child.on("error", bad); child.on("close", (code) => code === 0 || allowed ? ok({ code, out: out.trim(), err: err.trim() }) : bad(new Error(bin + " failed: " + (err.trim() || out.trim() || code))));
   });
 }
 const supa = (args, allowed = false) => run("docker", ["compose","-f","docker-compose.yml"].concat(args), SUPA_DIR, allowed);
-const godel = (args, allowed = false) => run("docker", ["compose","--env-file","compose.env.local","-f","compose.yaml"].concat(args), ROOT, allowed);
+const godel = (args, allowed = false) => {
+  const invocation = createGodelRuntimeComposeInvocation({ args });
+  return run("docker", invocation.args, ROOT, allowed, invocation.environment);
+};
 async function inspect(id, format) { return (await run("docker", ["inspect","--format",format,id])).out; }
 async function id(kind, service) {
   const result = kind === "supa" ? await supa(["ps","-q",service]) : await godel(["ps","-q",service]);
