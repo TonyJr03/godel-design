@@ -545,3 +545,145 @@ porque D.4A, D.4B, D.5 y D.6 siguen pendientes.
 Siguiente trabajo: **SH-04.3D.4A — rotación legacy `JWT_SECRET` / `ANON_KEY` /
 `SERVICE_ROLE_KEY`**, `PENDING ARCHITECTURAL / OPERATIONAL DESIGN`. Este cierre
 no autoriza ni ejecuta D.4A.
+
+## D.4A.0 — Auditoría arquitectónica de rotación legacy JWT
+
+D.4A.0 es una auditoría read-only `PASS`; D.4A permanece `PENDING
+ARCHITECTURAL / OPERATIONAL DESIGN`. No se generaron claves, no se modificaron
+generaciones, envs, `current.json`, DB, Storage ni runtime. El baseline auditado
+es GEN3 `CURRENT / MATCH` y el active recovery baseline
+`20260825T225645Z-b3854175` (schema 3, GEN3, `VERIFY PASS`). Runtime observado:
+Supabase 11/11, Godel 2/2, live/ready 200/200 y api-gw sin puertos host.
+
+### Dominio y estado criptográfico actual
+
+D.4A concierne solo al dominio simétrico legacy: `JWT_SECRET`, `ANON_KEY` y
+`SERVICE_ROLE_KEY`, más sus representaciones coherentes en `JWT_KEYS` y
+`JWT_JWKS`. No incluye opaque keys, claves EC, contraseña PostgreSQL,
+Dashboard, pgsodium, Realtime encryption ni Vault encryption.
+
+La inspección en memoria confirmó que `ANON_KEY` es HS256 con rol `anon` y que
+`SERVICE_ROLE_KEY` es HS256 con rol `service_role`; ambas firmas validan contra
+el `JWT_SECRET` actual. Los claims estables observados en ambas son `role`,
+`iss`, `iat` y `exp`; no tienen `kid`.
+
+| Material | Estructura sanitizada | Relación actual |
+| --- | --- | --- |
+| `JWT_KEYS` | 2 entradas: EC/ES256 con `kid`, material privado de signing; oct/HS256 sin `kid` | Auth firma sesiones nuevas con la EC. La oct corresponde al `JWT_SECRET` actual. |
+| `JWT_JWKS` | 2 entradas: EC/ES256 pública con `kid`; oct/HS256 sin `kid` | Los verificadores pueden recibir ES256 y HS256. La oct corresponde al `JWT_SECRET` actual. |
+| Login QA fresco | Access JWT ES256 con `kid`, `iss` y `aud` presentes | La pareja EC vigente firma las sesiones de usuario actuales. |
+
+En consecuencia, mantener byte a byte las entradas EC de `JWT_KEYS` y
+`JWT_JWKS` conserva las sesiones ES256 actuales. Sustituir o retirar la entrada
+oct antigua invalida cualquier artefacto HS256 histórico que dependa de ella,
+incluidos los legacy anon/service y antiguas sesiones HS256; no invalida por sí
+solo las sesiones ES256 vigentes.
+
+### Matriz de consumidores tracked
+
+`DIRECT` significa que el servicio recibe el valor/configuración al arrancar;
+`DERIVED` significa que consume el resultado o la setting persistida; `NO` que
+no recibe este dominio.
+
+| Servicio | `JWT_SECRET` | `ANON_KEY` | `SERVICE_ROLE_KEY` | `JWT_KEYS` / `JWT_JWKS` | Acción futura |
+| --- | --- | --- | --- | --- | --- |
+| Studio | DIRECT | DIRECT | DIRECT | NO | Recreate |
+| api-gw / Envoy | NO | DIRECT | DIRECT | NO | Recreate |
+| Auth | DIRECT | NO | NO | `JWT_KEYS` DIRECT | Recreate |
+| PostgREST | DIRECT | NO | NO | `JWT_JWKS` DIRECT | Recreate |
+| Realtime | DIRECT | DIRECT (healthcheck) | NO | `JWT_JWKS` DIRECT | Recreate |
+| Storage | DIRECT | DIRECT | DIRECT | `JWT_JWKS` DIRECT | Recreate |
+| Functions | DIRECT | DIRECT | DIRECT | `JWT_JWKS` DIRECT | Recreate |
+| DB | DIRECT / PERSISTED | NO | NO | NO | SQL persistente; no recreate DB |
+| Supavisor | DIRECT | NO | NO | NO | Recreate |
+| Meta | NO | NO | NO | NO | Sin acción |
+| Imgproxy | NO | NO | NO | NO | Sin acción |
+| Godel runtime | NO | NO | NO | NO | Sin recreate |
+
+Studio recibe `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_KEY` y `AUTH_JWT_SECRET`:
+son dependencias runtime upstream y no deben retirarse. Storage recibe `ANON_KEY`,
+`SERVICE_KEY`, `AUTH_JWT_SECRET` y `JWT_JWKS`; Functions recibe el secreto, el
+JWKS y ambas legacy keys. Realtime recibe `API_JWT_SECRET`, `API_JWT_JWKS`,
+`METRICS_JWT_SECRET` y usa `Authorization: Bearer ${ANON_KEY}` en su healthcheck,
+por lo que incluso la rotación de anon exige su recreate. Supavisor también es
+consumidor directo de `API_JWT_SECRET` y `METRICS_JWT_SECRET`; no pertenece a
+D.5 para este efecto.
+
+Godel usa exclusivamente la publishable opaque y la secret opaque server-only;
+no consume las legacy ni el secreto JWT. Por tanto D.4A no requiere rebuild ni
+recreate de la app Godel, salvo que una futura evidencia demuestre una nueva
+dependencia.
+
+### Envoy, persistencia DB y solapamiento
+
+El entrypoint de Envoy materializa `lds.template.yaml` en el arranque. La
+plantilla contiene una comparación exacta única para cada legacy anon y service
+role, además de las claves opaque, que se traducen hacia los JWT asimétricos
+internos. Ambas legacy siguen siendo inputs válidos del gateway. Rotarlas exige
+recreate de api-gw; la configuración actual no acepta old/new legacy values en
+paralelo. Por tanto el solapamiento de API keys legacy es **REQUIRES TRACKED
+ENVOY CHANGE** y no forma parte de D.4A.0.
+
+`volumes/db/jwt.sql` ejecuta `ALTER DATABASE postgres SET
+"app.settings.jwt_secret"`. La consulta live read-only confirmó que la setting
+está PRESENT, PERSISTED y MATCHES CURRENT. Como el script se monta en
+`docker-entrypoint-initdb.d` y `PGDATA` persiste entre reinicios, cambiar solo
+el env y recrear DB no vuelve a ejecutar esa inicialización. **La rotación
+env-only no es suficiente.** D.4A requerirá una mutación SQL coordinada y
+reversible del setting de base de datos; no requiere recrear DB.
+
+El solapamiento temporal de verificadores HS256 old/new en `JWT_JWKS` queda
+**UNPROVEN**. El stack actual contiene una sola JWK oct sin `kid` y los legacy
+JWT actuales tampoco tienen `kid`; no se asume que un array con dos oct sin
+identificador pueda seleccionar de forma segura la clave correcta en todos los
+verificadores. D.4A no debe implementar dicho solapamiento sin una prueba
+aislada y pinneada para Auth, PostgREST, Realtime, Storage y Functions.
+
+### Estrategias evaluadas
+
+| Opción | Ventaja | Impacto / coste | Estado |
+| --- | --- | --- | --- |
+| A — hard cut atómico | Sigue la configuración Envoy actual; dominio legacy coherente y rollback claro | Maintenance ingress; invalida HS256 histórico y legacy old | Recomendada, condicionada a pre-backup y aceptación completa |
+| B — overlap de verificadores | Podría reducir la interrupción HS256 | No probado para dos oct sin `kid`; Envoy requiere cambio tracked | No seleccionar |
+| C — retirar/reducir legacy | Godel ya usa opaque y reduce superficie legacy | Requiere diseño explícito de compatibilidad upstream y de servicios internos | Estrategia posterior, no sustituto de D.4A |
+
+La recomendación actual es **Opción A**: preservar exactamente la pareja EC y
+los JWT asimétricos internos, rotar como set atómico `JWT_SECRET` + anon +
+service_role + entradas oct correspondientes, y tratar el material HS256 previo
+como revocado al completar el cutover. Nginx debe detenerse como maintenance
+ingress gate para impedir estados mixtos. No se afirma soporte de rollback
+automático fuera de la generación anterior restaurada de forma coordinada.
+
+### Contrato futuro de generación, recovery y recreación
+
+Una generación candidata D.4A debe cambiar en el snapshot Supabase
+`JWT_SECRET`, `ANON_KEY`, `SERVICE_ROLE_KEY`, `JWT_KEYS` y `JWT_JWKS`; no debe
+cambiar el env Godel. Las entradas EC de ambos keysets y los JWT asimétricos
+relacionados deben permanecer byte-idénticos; solo cambia la entrada oct y las
+dos JWT legacy derivadas. Debe existir un `D4A_PRE_ROTATION_BACKUP` ligado a
+GEN3 inmediatamente antes del cutover y un nuevo baseline solo después de la
+aceptación.
+
+El generador upstream `generate-keys.sh` es **NOT AUTHORIZED** para D.4A live:
+imprime `JWT_SECRET`, anon y service role y puede actualizar `.env`.
+`add-new-auth-keys.sh` y `rotate-new-api-keys.sh` son también **NOT AUTHORIZED**
+para esta fase: imprimen material y el primero regenera dominios EC/opaque fuera
+de alcance. Son únicamente referencia de formato. El helper existente genera el
+secreto con CSPRNG OpenSSL base64 de 30 bytes y firma HS256 con header estándar;
+una futura herramienta segura debe generar en memoria al menos esa entropía,
+preferiblemente 32 bytes CSPRNG, y nunca aceptar ni imprimir valores por CLI.
+Debe emitir anon/service con los claims observados `role`, `iss`, `iat`, `exp`.
+
+El rollback futuro restaura conjuntamente la generación GEN3 fuente, sus dos
+JWK oct, anon/service legacy, el setting DB persistido y los contenedores
+afectados. Orden propuesto, siempre con Nginx detenido: backup pre-cutover,
+publicación atómica de generación, SQL de setting DB, recreate de Rest, Realtime,
+Storage y Functions, luego Auth, Studio y Supavisor, y api-gw al final. DB, Meta,
+Imgproxy y Godel no se recrean. El mismo orden invertido de valores, con
+validación, sirve para rollback.
+
+La aceptación futura debe probar de forma sanitizada: new/old anon y
+service_role según la política atómica, publishable y secret opaque vigentes,
+login ES256 fresco, supervivencia de una sesión ES256 pre-cutover, REST, Storage,
+Realtime, Functions y Auth Admin opaque. Quedan abiertas la prueba aislada de
+overlap HS256 y una decisión explícita de retiro legacy posterior a D.4A.
