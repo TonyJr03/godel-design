@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { spawn, execFileSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
@@ -176,34 +176,6 @@ function assertDirectRelation(current, target) {
   if (!forward && !rollback) fail("LEGACY_JWT_GENERATION_NOT_DIRECTLY_RELATED");
 }
 
-function sqlQuote(value) { return `'${value.replaceAll("'", "''")}'`; }
-
-export function composeDbPsqlArgs({ supabaseEnvPath = resolve(ROOT, "infra/supabase/.env") } = {}) {
-  return ["compose", "--env-file", supabaseEnvPath, "-f", "docker-compose.yml", "-f", "../supabase-godel.override.yml", "exec", "-T", "db", "psql", "-v", "ON_ERROR_STOP=1", "-U", "postgres", "-d", "postgres", "-tAq", "-f", "-"];
-}
-
-export function runProcessWithStdin({ command, args, cwd, input, spawnImpl = spawn }) {
-  return new Promise((resolvePromise, reject) => {
-    const child = spawnImpl(command, args, { cwd, shell: false, windowsHide: true, stdio: ["pipe", "pipe", "pipe"] });
-    let stdout = "";
-    child.stdout.on("data", (chunk) => { stdout += chunk; });
-    child.stderr.on("data", () => {});
-    child.once("error", () => reject(new Error("LEGACY_JWT_DB_ADAPTER_FAILED")));
-    child.once("close", (code) => code === 0 ? resolvePromise(stdout) : reject(new Error("LEGACY_JWT_DB_ADAPTER_FAILED")));
-    child.stdin.end(input);
-  });
-}
-
-export function createComposeLegacyJwtDbAdapter({ root = ROOT, supabaseEnvPath = resolve(ROOT, "infra/supabase/.env"), run = runProcessWithStdin } = {}) {
-  const execute = async (sql) => run({ command: "docker", args: composeDbPsqlArgs({ supabaseEnvPath }), cwd: resolve(root, "infra/supabase"), input: sql });
-  const matches = async (jwtSecret) => (await execute(`SELECT CASE WHEN current_setting('app.settings.jwt_secret', true) = ${sqlQuote(jwtSecret)} THEN 'MATCH' ELSE 'MISMATCH' END;\n`)).trim() === "MATCH";
-  return {
-    matches,
-    async set(jwtSecret) { await execute(`ALTER DATABASE postgres SET "app.settings.jwt_secret" TO ${sqlQuote(jwtSecret)};\n`); },
-    async verify(jwtSecret) { return matches(jwtSecret); },
-  };
-}
-
 async function currentLegacy({ protectedRoot, supabaseEnvPath, godelEnvPath }) {
   const current = await getCurrentSecretGeneration({ protectedRoot, supabaseEnvPath, godelEnvPath, compareLive: true });
   if (current.state === "UNINITIALIZED") fail("SECRET_GENERATION_REGISTRY_UNINITIALIZED");
@@ -238,67 +210,47 @@ export async function prepareLegacyJwtKeys({ root = ROOT, protectedRoot, supabas
   } finally { if (release) await releaseGenerationMutationLock(lock); }
 }
 
-async function switchLegacy({ root = ROOT, protectedRoot, supabaseEnvPath, godelEnvPath, generationId, apply, operation, dbAdapter = createComposeLegacyJwtDbAdapter({ root, supabaseEnvPath }), hooks = {} }) {
+async function switchLegacy({ root = ROOT, protectedRoot, supabaseEnvPath, godelEnvPath, generationId, apply, operation, hooks = {} }) {
   if (!isCanonicalGenerationId(generationId)) fail("INVALID_EXTERNAL_SECRET_GENERATION_ID");
   const current = await currentLegacy({ protectedRoot, supabaseEnvPath, godelEnvPath });
   const target = await readGeneration({ protectedRoot, generationId });
   assertDirectRelation(current, target);
-  const sourceSecret = validateLegacyJwtSnapshot(current.generation.supabaseSnapshot).jwtSecret;
-  if (!(await dbAdapter.matches(sourceSecret))) fail("LEGACY_JWT_SOURCE_DB_MISMATCH");
   if (!apply) return { state: "DRY_RUN", generationId };
   const lock = await acquireGenerationMutationLock({ protectedRoot, operation, generationId });
   const sourceGenerationId = current.generationId;
   const sourceSnapshot = current.generation.supabaseSnapshot;
-  const sourceSecretForCompensation = sourceSecret;
   let envMutationAttempted = false;
-  let dbMutationAttempted = false;
-  let dbUpdated = false;
   let committed = false;
   let release = true;
   try {
     const underLock = await currentLegacy({ protectedRoot, supabaseEnvPath, godelEnvPath });
     const targetUnderLock = await readGeneration({ protectedRoot, generationId });
     assertDirectRelation(underLock, targetUnderLock);
-    const currentSecret = validateLegacyJwtSnapshot(underLock.generation.supabaseSnapshot).jwtSecret;
-    const targetSecret = validateLegacyJwtSnapshot(targetUnderLock.supabaseSnapshot).jwtSecret;
-    if (!(await dbAdapter.matches(currentSecret))) fail("LEGACY_JWT_SOURCE_DB_RECHECK_MISMATCH");
     const targetValues = parseEnvironment(targetUnderLock.supabaseSnapshot);
     envMutationAttempted = true;
     await writeAllowlistedEnvironmentFile({ path: supabaseEnvPath, replacements: Object.fromEntries(SUPABASE_NAMES.map((name) => [name, required(targetValues, name)])), allowedNames: SUPABASE_NAMES });
     await hooks.afterEnvUpdate?.();
     if (!(await readFile(supabaseEnvPath)).equals(targetUnderLock.supabaseSnapshot) || !(await readFile(godelEnvPath)).equals(targetUnderLock.godelSnapshot)) fail("LEGACY_JWT_ROTATION_ENV_WRITE_MISMATCH");
-    dbMutationAttempted = true;
-    try { await dbAdapter.set(targetSecret); }
-    catch (error) { throw new Error("LEGACY_JWT_TARGET_DB_SET_FAILED", { cause: error }); }
-    dbUpdated = true;
-    await hooks.afterDbUpdate?.();
-    if (!dbUpdated || !(await dbAdapter.verify(targetSecret))) fail("LEGACY_JWT_TARGET_DB_VERIFY_MISMATCH");
     await hooks.beforePointerCommit?.();
     await replaceCurrentGenerationPointer({ protectedRoot, generationId, expectedGenerationId: underLock.generationId });
     committed = true;
     await hooks.afterPointerCommit?.();
     await assertActiveSecretGenerationMatches({ protectedRoot, generationId, supabaseEnvPath, godelEnvPath });
-    if (!(await dbAdapter.verify(targetSecret))) fail("LEGACY_JWT_DB_SETTING_MISMATCH");
     return { state: operation === "legacy-jwt-activate" ? "ACTIVATED" : "ROLLED_BACK", generationId };
   } catch (error) {
     if (committed) { release = false; throw new Error("LEGACY_JWT_ROTATION_COMMITTED_UNVERIFIED", { cause: error }); }
     try {
       const active = await getCurrentSecretGeneration({ protectedRoot, supabaseEnvPath, godelEnvPath, compareLive: false });
       if (active.generationId !== sourceGenerationId) fail("EXTERNAL_SECRET_GENERATION_NOT_ACTIVE");
-      const sourceValues = parseEnvironment(sourceSnapshot);
-      if (dbMutationAttempted) {
-        await dbAdapter.set(sourceSecretForCompensation);
-        if (!(await dbAdapter.verify(sourceSecretForCompensation))) fail("LEGACY_JWT_DB_SETTING_MISMATCH");
-      }
       if (envMutationAttempted) {
         const liveSupabaseSnapshot = await readFile(supabaseEnvPath);
         if (!liveSupabaseSnapshot.equals(sourceSnapshot)) {
+          const sourceValues = parseEnvironment(sourceSnapshot);
           await writeAllowlistedEnvironmentFile({ path: supabaseEnvPath, replacements: Object.fromEntries(SUPABASE_NAMES.map((name) => [name, required(sourceValues, name)])), allowedNames: SUPABASE_NAMES });
         }
       }
       await hooks.beforeCompensation?.();
       await assertActiveSecretGenerationMatches({ protectedRoot, generationId: sourceGenerationId, supabaseEnvPath, godelEnvPath });
-      if (!(await dbAdapter.verify(sourceSecretForCompensation))) fail("LEGACY_JWT_DB_SETTING_MISMATCH");
     } catch { release = false; throw new Error("LEGACY_JWT_ROTATION_COMPENSATION_FAILED"); }
     throw error;
   } finally { if (release) await releaseGenerationMutationLock(lock); }

@@ -787,3 +787,17 @@ target y verificación DB target. Los contratos fail-closed post-commit y de
 compensación permanecen intactos. No se registran secretos, SQL, stderr ni
 valores JWT. GEN4 continúa `PREPARED / NOT CURRENT`; D.4A.3 queda
 `PENDING RE-EXECUTION`.
+
+### D.4A.3-R4A/R4B/R4C — recovery and retirement of the DB JWT GUC
+
+El primer cutover quedó safe-stopped. R4A confirmó que el bloqueo era la falta
+de privilegio `SET` para el parámetro GUC custom; R4B recuperó GEN3 y el runtime
+normal sin conceder ese privilegio de forma persistente. La resolución
+arquitectónica R4C retira la dependencia `app.settings.jwt_secret`: Godel no
+tiene consumidor SQL y la exposición DB/PostgREST era innecesaria. Se conserva
+intencionalmente `app.settings.jwt_exp`.
+
+R4C modifica solo el contrato tracked: instalaciones nuevas ya no persisten el
+secreto JWT como GUC. El GUC GEN3 existente en runtime queda pendiente de
+retiro controlado. GEN4 sigue `PREPARED / NOT CURRENT`; el retry de D.4A.3 no
+está autorizado.
