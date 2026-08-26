@@ -1,10 +1,12 @@
 # SH-04.3D — Rotación segura de secretos y continuidad de recovery
 
-Estado: `IN PROGRESS` — D.2 está cerrado; D.3 (rotación de API keys opacas) es
-el siguiente bloque de ejecución.
+Estado: `IN PROGRESS` — D.3 (rotación de API keys opacas) está cerrado; D.4A
+(rotación legacy) es el siguiente bloque pendiente.
 
 Estado de subfases: D.0 `CLOSED / APPROVED`, D.1 `CLOSED / APPROVED`, D.2A
-`CLOSED / APPROVED`, D.2B `CLOSED / APPROVED` y D.2 `CLOSED / APPROVED`.
+`CLOSED / APPROVED`, D.2B `CLOSED / APPROVED`, D.2 `CLOSED / APPROVED`, D.3A
+`CLOSED / APPROVED`, D.3B.0 `CLOSED / APPROVED / PASS` y D.3B.1
+`CLOSED / APPROVED / PASS`.
 
 Este documento es la autoridad operativa para SH-04.3D. Complementa el
 [informe general SH-04.3](SH_04_SECRETS_AUTH_REPORT.md), que conserva el
@@ -130,8 +132,8 @@ cifrado con estado. Ninguno se resuelve con D.1.
 | D.0 | Auditoría de arquitectura y seguridad | CLOSED / APPROVED |
 | D.1 | Tooling seguro y modelo de generación/recovery | CLOSED / APPROVED |
 | D.2 | Generación cero y rotación Dashboard | CLOSED / APPROVED |
-| D.3 | Opaque API keys y rebuild Godel | IN PROGRESS — D.3A implementada; pendiente de revisión arquitectónica. |
-| D.4A | Rotación legacy `JWT_SECRET` / anon / service-role | Pendiente |
+| D.3 | Opaque API keys y rebuild Godel | CLOSED / APPROVED |
+| D.4A | Rotación legacy `JWT_SECRET` / anon / service-role | PENDING ARCHITECTURAL / OPERATIONAL DESIGN |
 | D.4B | Rotación de claves EC de firma | Pendiente |
 | D.5 | Rotación segura de contraseña PostgreSQL | Pendiente |
 | D.6 | Aceptación final de rotación/recovery | Pendiente |
@@ -315,14 +317,14 @@ con descarga protegida exacta PASS. No se observaron errores recientes JWT,
 ENODATA, xattr o metadata. No hubo restore destructivo; solo rotó
 `DASHBOARD_PASSWORD` y no se expusieron valores secretos.
 
-Estado D.2: D.0, D.1, D.2A, D.2B y D.2 `CLOSED / APPROVED`. SH-04.3D permanece
-`IN PROGRESS`; siguiente: D.3, rotación de API keys opacas.
+Estado D.2: D.0, D.1, D.2A, D.2B y D.2 `CLOSED / APPROVED`. Su baseline activo
+queda retenido como histórico GEN2 tras el cierre posterior de D.3.
 
 ## D.3A — Opaque API key rotation tooling
 
-D.3A está `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`; D.3B permanece
-`PENDING`. Trata `SUPABASE_PUBLISHABLE_KEY` y `SUPABASE_SECRET_KEY` como un
-único set operativo coherente con sus copias Godel. El tooling prepara una
+D.3A está `CLOSED / APPROVED`. Trata `SUPABASE_PUBLISHABLE_KEY` y
+`SUPABASE_SECRET_KEY` como un único set operativo coherente con sus copias
+Godel. El tooling prepara una
 generación inmutable sin cambiar envs, puntero ni runtime; activar y rollback
 mutan ambos envs bajo el lock común, compensan fallos pre-pointer y preservan
 el lock ante incertidumbre post-pointer.
@@ -337,7 +339,7 @@ de exposición host; no se espera invalidación de sesiones.
 
 ### D.3A-R1 — validación de roles, contexto Docker y contrato de imágenes
 
-D.3A-R1 está `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`. Cada variable
+D.3A-R1 queda incorporada en D.3A `CLOSED / APPROVED`. Cada variable
 publishable acepta únicamente una opaque key publishable y cada variable secret
 únicamente una opaque key secret; ambas también deben validar el checksum del
 helper upstream fijado. Esta fase tracked-only no lee GEN2: su compatibilidad de
@@ -456,3 +458,90 @@ no A, mientras ambos inputs quedan ausentes de logs y metadata BuildKit,
 historial Docker e image config. Solo limpia builder, imágenes, historial y
 caché sintéticos; no modifica GEN2, GEN3, candidate, builder, historial o caché
 reales.
+
+### D.3B.0-R5B — candidate GEN3 endurecida
+
+D.3B.0-R5B reutilizó la misma GEN3 y reconstruyó satisfactoriamente la imagen
+candidate endurecida. La publishable se transportó mediante el mount secreto
+efímero de BuildKit y se usó un `GODEL_PUBLIC_BUILD_NONCE` nuevo y no secreto.
+Los logs y metadata de BuildKit, el historial Docker y la configuración final de
+imagen no contienen valores opaque GEN2/GEN3, URL ni variables build `ENV`
+publishable/secret; tampoco quedaron paths de filesystem prohibidos.
+
+La comprobación de pairing de la candidate confirmó publishable GEN3 presente,
+publishable GEN2 ausente y ambas secret ausentes. El pairing de la imagen rollback
+GEN2 y la remediación de caché del builder pasaron. GEN2 permaneció
+`CURRENT / MATCH` durante todo el pre-cutover. No se documentan valores opaque.
+
+### D.3B.1 — cutover real, drill de rollback y activación final
+
+D.3B.1 está `CLOSED / APPROVED / PASS`. El cutover inicial GEN2 a GEN3 cambió
+la generación externa, recreó exclusivamente `api-gw`, Studio, Functions y la
+app Godel con la imagen GEN3 preconstruida. No se recrearon servicios Supabase no
+relacionados.
+
+La aceptación inicial GEN3 pasó la matriz publishable, la matriz secret/Auth
+Admin, login fresco, dashboard SSR, Storage, descarga protegida y fixtures. El
+rollback no fue teórico: GEN3 a GEN2 pasó con recreación de consumidores opaque
+y restauración de Godel desde la imagen GEN2 exacta preservada. GEN2 publishable
+fue aceptada, GEN3 publishable rechazada, GEN2 secret pasó Admin y GEN3 secret
+fue rechazada; login, SSR, Storage y PDF también pasaron. Después GEN2 volvió a
+la misma GEN3 con éxito. No se generó GEN4.
+
+El estado final es GEN3 `CURRENT / MATCH`. La candidate GEN3 aceptada quedó
+canonicalizada como `godel-design-app:local`; el tag rollback
+`godel-design-app:opaque-gen2-62adec7b` queda retenido al menos hasta D.6.
+
+#### Baseline de recovery y retención tras D.3
+
+**ACTIVE RECOVERY BASELINE = `20260825T225645Z-b3854175`.** Es el backup
+schema 3 completo, `COMPLETE` y verificado, asociado a GEN3 después del cutover
+final. Sustituye el baseline activo anterior como baseline recovery actual; los
+backups previos siguen siendo válidos y retenidos. PPO-06 conserva la
+responsabilidad de la política final de retención y off-host.
+
+| Artefacto retenido | Rol | Schema | Generación externa | Estado |
+| --- | --- | --- | --- | --- |
+| `20260825T225645Z-b3854175` | ACTIVE RECOVERY BASELINE | 3 | GEN3 | COMPLETE / VERIFY PASS |
+| `20260825T184210Z-6658ddaa` | PRE-D.3 / GEN2 ROLLBACK RECOVERY BASELINE | 3 | GEN2 | VERIFY PASS |
+| `20260825T154827Z-56aa0d13` | D.2 GEN2 HISTORICAL BASELINE | 3 | GEN2 | VERIFY PASS |
+| `20260825T152125Z-95cf8bfd` | GEN0 HISTORICAL BASELINE | 3 | GEN0 | VERIFY PASS |
+| `20260823T140840Z-7c7b0d39` | HISTORICAL PRE-GENERATION BASELINE | 3 | legacy / sin generación | VERIFY PASS |
+| `20260823T011543Z-c0abd277` | HISTORICAL DESTRUCTIVE-RESTORE EVIDENCE | 3 | legacy / sin generación | VERIFY PASS |
+
+#### Aceptación final sanitizada D.3
+
+Supabase quedó 11/11 healthy y Godel 2/2 healthy; `/live` y `/ready` devolvieron
+200, y `api-gw` no expone puertos host. Los fixtures mantuvieron P-26-0344 en
+`en_revision`, 131 objetos Storage y el PDF congelado de 131075 bytes con
+descarga protegida exacta PASS. Login fresco admin, dashboard SSR y validación
+visual pasaron. No se observaron regresiones JWT, ENODATA, xattr ni metadata de
+Storage; los locks y el restore failure marker quedaron ausentes.
+
+D.3 rotó exclusivamente `SUPABASE_PUBLISHABLE_KEY` y `SUPABASE_SECRET_KEY`,
+junto con las copias Godel `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` y
+`SUPABASE_SECRET_KEY`. No rotó `JWT_SECRET`, `ANON_KEY`, `SERVICE_ROLE_KEY`,
+claves EC, `POSTGRES_PASSWORD`, la raíz pgsodium, cifrado Realtime/Vault ni otros
+secretos. Las sesiones Auth no se invalidaron por esta rotación opaque. No se
+documentan valores opaque.
+
+#### Contrato final de build
+
+`NEXT_PUBLIC_SUPABASE_URL` permanece como Docker `ARG` no secreto.
+`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, aunque es público por diseño, se entrega
+en build mediante mount secreto efímero BuildKit para transporte no persistente;
+esto no lo reclasifica como confidencial. `GODEL_PUBLIC_BUILD_NONCE` es un UUID
+fresco no secreto por build y fuerza la invalidación de la capa Next porque el
+contenido de un secret mount no invalida caché. `SUPABASE_SECRET_KEY` es solo
+runtime server-only y nunca input de build.
+
+## Estado y siguiente handoff
+
+D.0, D.1, D.2 y D.3 están `CLOSED / APPROVED`; D.3A está
+`CLOSED / APPROVED`, D.3B.0 y D.3B.1 están `CLOSED / APPROVED / PASS`, y D.3C
+es el cierre documental de esa evidencia. SH-04.3D permanece `IN PROGRESS`
+porque D.4A, D.4B, D.5 y D.6 siguen pendientes.
+
+Siguiente trabajo: **SH-04.3D.4A — rotación legacy `JWT_SECRET` / `ANON_KEY` /
+`SERVICE_ROLE_KEY`**, `PENDING ARCHITECTURAL / OPERATIONAL DESIGN`. Este cierre
+no autoriza ni ejecuta D.4A.
