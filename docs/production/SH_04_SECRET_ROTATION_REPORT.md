@@ -753,3 +753,22 @@ El dry-run canónico posterior completó el preflight `PASS` y finalizó como
 stop/start, no produjo GEN4 y no cambió runtime persistente, configuración,
 secretos, contenedores ni imágenes. La reanudación de D.4A.2 sigue requiriendo
 su autorización operacional explícita.
+
+### D.4A.2 — candidate legacy JWT y baseline pre-cutover
+
+`D4A_PRE_ROTATION_BACKUP` `20260826T115517Z-759d4281` quedó `COMPLETE`, schema
+3, asociado a GEN3 y con `VERIFY PASS`. Su maintenance canónico temporal fue
+recuperado con IDs de contenedor e imágenes preservados. GEN4
+`1624fd00-f872-4c3e-8c0b-76a9a65ba656` quedó `PREPARED / NOT CURRENT`, derivada
+de GEN3, con exact five-variable diff, contrato crypto legacy y preservación
+EC/asimétrica/opaque/demás dominios en `PASS`; activate dry-run pasó y DB sigue
+GEN3 MATCH.
+
+Fresh admin login y dashboard interactivo pasaron; los diagnósticos browser no
+bloqueantes. `P-26-0344` permanece `en_revision`, Storage conserva 131 objetos
+y la descarga interna autenticada del PDF congelado pasó con 131075 bytes y
+magic `%PDF`. GEN3 sigue `CURRENT / MATCH` y GEN4 no está aplicada.
+
+D.4A.2 es `CLOSED / CANDIDATE PREPARED / PRE-CUTOVER BASELINE ACCEPTED`.
+D.4A sigue `IN PROGRESS / NOT YET ROTATED`; D.4A.3 permanece `NOT AUTHORIZED /
+PENDING ARCHITECTURAL REVIEW`.
