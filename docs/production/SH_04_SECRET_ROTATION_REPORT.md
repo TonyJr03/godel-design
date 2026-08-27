@@ -135,7 +135,7 @@ cifrado con estado. Ninguno se resuelve con D.1.
 | D.2 | Generación cero y rotación Dashboard | CLOSED / APPROVED |
 | D.3 | Opaque API keys y rebuild Godel | CLOSED / APPROVED |
 | D.4A | Rotación legacy `JWT_SECRET` / anon / service-role | CLOSED / APPROVED / PASS — hard cut final y rollback real aprobados. |
-| D.4B | Rotación de claves EC de firma | IN PROGRESS — D.4B.0 CLOSED / APPROVED / PASS |
+| D.4B | Rotación de claves EC de firma | IN PROGRESS — D.4B.0, D.4B.1, D.4B.1A, D.4B.1A-R1, D.4B.1B, D.4B.1C, D.4B.1C-R1, D.4B.2, D.4B.2-R1 y D.4B.2-R2 CLOSED / APPROVED / PASS; siguiente D.4B.3. |
 | D.5 | Rotación segura de contraseña PostgreSQL | Pendiente |
 | D.6 | Aceptación final de rotación/recovery | Pendiente |
 
@@ -1010,3 +1010,41 @@ PASS.
 Siguiente bloque: **D.4B.1 — EC rotation tooling and deterministic GoTrue
 overlap proof**. D.4B.1 no autoriza una rotación productiva de claves EC sin
 autorización separada.
+
+## D.4B.1–D.4B.2-R2 — Modelo, tooling y preparación protegida EC
+
+D.4B permanece `IN PROGRESS`. D.4B.1, D.4B.1A, D.4B.1A-R1, D.4B.1B, D.4B.1C, D.4B.1C-R1, D.4B.2, D.4B.2-R1 y D.4B.2-R2 quedan `CLOSED / APPROVED / PASS`. El siguiente bloque operativo es **D.4B.3**.
+
+### Modelo puro y prueba exacta de GoTrue
+
+D.4B.1A implementó el modelo puro GEN4→GEN5→GEN6→GEN7: GEN4 mantiene OLD como firmante único y verificador junto al `oct` legacy; GEN5 mantiene OLD como firmante y anuncia OLD+NEW como verificadores; GEN6 convierte NEW en firmante único, conserva ambos verificadores y regenera los JWT de traducción; GEN7 retira OLD y conserva NEW como único verificador EC junto al `oct` legacy. El modelo exige firmante único global, conteos exactos, correspondencia EC privado/público y entre `JWT_KEYS`/`JWT_JWKS`, inmutabilidad del `oct` legacy, rechazo de tipos JWK inesperados y rechazo de rollbacks directos inseguros.
+
+D.4B.1A-R1 endureció la identidad de verificadores por material EC público real y no solo por identificador; cuenta el firmante globalmente, rechaza tipos JWK inesperados e impide que `oct` adquiera capacidad de firma. Resultado: `PASS`.
+
+D.4B.1B validó experimentalmente contra `supabase/gotrue:v2.189.0`, usando material sintético, PostgreSQL efímero y red Docker aislada, sin secretos, DB, red ni volúmenes de producción. GEN5 emitió token OLD y anunció OLD+NEW; GEN6 emitió NEW y aceptó tokens OLD/NEW; GEN7 aceptó NEW y rechazó OLD. GoTrue también rechazó cero o múltiples firmantes y no quedaron recursos Docker de la prueba.
+
+### Tooling de plan protegido y hardening
+
+D.4B.1C añadió el manifiesto inmutable de plan y generaciones protegidas GEN5/GEN6/GEN7. El manifiesto se publica último: un plan solo es accionable cuando el manifiesto completo y todas sus generaciones referenciadas validan. Las transiciones forward/rollback son exclusivamente adyacentes; el env es allowlisted y se escribe antes del puntero; existe compensación pre-puntero y el estado post-puntero `COMMITTED_UNVERIFIED` es fail-closed.
+
+D.4B.1C-R1 exige generar el plan persistido solo después de adquirir el lock y revalidar bajo lock `CURRENT/MATCH`, HEAD y árbol limpio. La limpieza previa al manifiesto es verificada: `EC_ROTATION_PLAN_CLEANUP_FAILED` conserva lock. El commit de cada etapa se liga al manifiesto y fuente/etapas deben tener IDs distintos. Resultado: `PASS`.
+
+### Incidente D.4B.2 y corrección D.4B.2-R1
+
+El primer intento D.4B.2 fue **PREPARATION ABORTED SAFELY** con `DUPLICATE_ENVIRONMENT_VARIABLE`. GEN4 permaneció `CURRENT / MATCH`; envs Supabase/Godel, puntero, runtime y lock no cambiaron; no quedó plan EC accionable ni etapa activada. No fue un fallo de rotación de runtime.
+
+La revisión identificó *parser drift*: el modelo puro reconoce solo asignaciones estrictas `[A-Za-z_][A-Za-z0-9_]*=...`, pero el plan interpretaba cualquier línea con `=`. El diagnóstico read-only confirmó cero duplicados reales y un falso duplicado de comentario/no-asignación, sin documentar su contenido. D.4B.2-R1 unificó ambos componentes bajo el parser estricto: comentarios y líneas no-asignación con `=` se ignoran; asignaciones válidas duplicadas siguen fallando cerradamente. Regresiones: modelo 5/5, plan 9/9, GoTrue `PASS`, legacy 8/8 y contrato de secretos 14/14.
+
+### D.4B.2-R2 — preparación real protegida
+
+D.4B.2-R2 terminó `PASS / PREPARED`. GEN4 `1624fd00-f872-4c3e-8c0b-76a9a65ba656` permanece `CURRENT / MATCH`. El plan protegido es `e462b5c8-efcf-4d9b-9d3f-0a9a94319ce8`; GEN5 es `a08051f6-b831-43fa-99d1-feb2f296ffdf`, GEN6 es `b3c52d8f-a42f-45a0-aa7e-d16c1f696475` y GEN7 es `65aea10b-f0ce-4015-bfa3-98086137d303`. Son IDs estructurales del registro.
+
+La cadena es GEN4→GEN5→GEN6→GEN7; las etapas nuevas tienen razón `ec-signing-key-rotation` y fuente inmediata anterior. NEW EC es real, generado y protegido, se comparte por GEN5/GEN6/GEN7 y **no está live**. Las transiciones y diffs validados son: GEN4→GEN5 solo `JWT_KEYS`/`JWT_JWKS`; GEN5→GEN6 `JWT_KEYS` y ambos JWT de traducción, con `JWT_JWKS` semánticamente idéntico; GEN6→GEN7 solo `JWT_KEYS`/`JWT_JWKS`.
+
+La familia legacy (`JWT_SECRET`, anon, service-role y `oct`), las claves opaque y `godel.env` permanecen inalterados. No hubo mutación de DB ni Storage. GEN4 sigue `CURRENT / MATCH / RUNNING`; GEN5/GEN6/GEN7 son `PREPARED / NOT ACTIVE`; el estado del plan es GEN4 y el dry-run de GEN5 pasó sin `--apply`.
+
+La baseline preactivación es Supabase 11/11 healthy, Godel 2/2 healthy, live/ready 200/200, api-gw y Supavisor sin puertos host, `app.settings.jwt_secret` ausente, `app.settings.jwt_exp` presente, SET denegado y lock de generaciones ausente.
+
+### Siguiente bloque: D.4B.3
+
+D.4B.3 realizará solo GEN4→GEN5: publicar y confiar el verificador público NEW mientras OLD permanece firmante único. Reconvergerán auth, rest, realtime, storage y functions. `api-gw` no cambia todavía porque los JWT de traducción asimétricos cambian solo en GEN6. Esta sección no autoriza ni ejecuta D.4B.3.
