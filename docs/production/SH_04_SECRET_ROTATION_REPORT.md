@@ -1,12 +1,13 @@
 # SH-04.3D — Rotación segura de secretos y continuidad de recovery
 
 Estado: `IN PROGRESS` — D.3 (rotación de API keys opacas) y D.4A
-(rotación legacy) están cerrados; D.4B es el siguiente bloque pendiente.
+(rotación legacy) están cerrados; D.4B está en curso.
 
 Estado de subfases: D.0 `CLOSED / APPROVED`, D.1 `CLOSED / APPROVED`, D.2A
 `CLOSED / APPROVED`, D.2B `CLOSED / APPROVED`, D.2 `CLOSED / APPROVED`, D.3A
 `CLOSED / APPROVED`, D.3B.0 `CLOSED / APPROVED / PASS`, D.3B.1
-`CLOSED / APPROVED / PASS`, D.4A `CLOSED / APPROVED / PASS` y D.4B `PENDING`.
+`CLOSED / APPROVED / PASS`, D.4A `CLOSED / APPROVED / PASS`, D.4B.0
+`CLOSED / APPROVED / PASS` y D.4B `IN PROGRESS`.
 
 Este documento es la autoridad operativa para SH-04.3D. Complementa el
 [informe general SH-04.3](SH_04_SECRETS_AUTH_REPORT.md), que conserva el
@@ -134,7 +135,7 @@ cifrado con estado. Ninguno se resuelve con D.1.
 | D.2 | Generación cero y rotación Dashboard | CLOSED / APPROVED |
 | D.3 | Opaque API keys y rebuild Godel | CLOSED / APPROVED |
 | D.4A | Rotación legacy `JWT_SECRET` / anon / service-role | CLOSED / APPROVED / PASS — hard cut final y rollback real aprobados. |
-| D.4B | Rotación de claves EC de firma | Pendiente |
+| D.4B | Rotación de claves EC de firma | IN PROGRESS — D.4B.0 CLOSED / APPROVED / PASS |
 | D.5 | Rotación segura de contraseña PostgreSQL | Pendiente |
 | D.6 | Aceptación final de rotación/recovery | Pendiente |
 
@@ -540,9 +541,9 @@ runtime server-only y nunca input de build.
 D.0, D.1, D.2 y D.3 están `CLOSED / APPROVED`; D.3A está
 `CLOSED / APPROVED`, D.3B.0 y D.3B.1 están `CLOSED / APPROVED / PASS`, y D.3C
 es el cierre documental de esa evidencia. SH-04.3D permanece `IN PROGRESS`
-porque D.4B, D.5 y D.6 siguen pendientes; D.4A está cerrado.
+porque D.4B está en curso y D.5/D.6 siguen pendientes; D.4A está cerrado.
 
-Siguiente trabajo: **SH-04.3D.4B — rotación de claves EC de firma**, `PENDING / NOT STARTED`. Este cierre no autoriza ni ejecuta D.4B.
+Siguiente trabajo: **SH-04.3D.4B.1 — tooling de rotación EC y prueba determinista de solapamiento GoTrue**. D.4B está `IN PROGRESS`; este cierre no autoriza rotación EC real.
 
 ## D.4A.0 — Auditoría arquitectónica de rotación legacy JWT
 
@@ -879,4 +880,133 @@ El primer harness final R6C tuvo un defecto read-only al desestructurar el campo
 
 PostgreSQL ya no participa en la rotación legacy: `app.settings.jwt_secret` está ausente, `app.settings.jwt_exp` presente y SET denegado. El guardrail Compose canónico está activo y api-gw/Supavisor no publican puertos host.
 
-R6A, R6A-R1, R6B, R6C, D.4A.3 y D.4A quedan `CLOSED / APPROVED / PASS`. Siguiente: **D.4B — EC signing-key rotation**, `PENDING / NOT STARTED`.
+R6A, R6A-R1, R6B, R6C, D.4A.3 y D.4A quedan `CLOSED / APPROVED / PASS`. D.4B está `IN PROGRESS`; D.4B.0 queda `CLOSED / APPROVED / PASS`. Siguiente: **D.4B.1 — tooling de rotación EC y prueba determinista de solapamiento GoTrue**.
+
+## D.4B.0 — Auditoría arquitectónica de rotación de clave EC
+
+D.4B.0 es una auditoría arquitectónica read-only `CLOSED / APPROVED / PASS`.
+D.4B queda `IN PROGRESS`. No se generaron claves EC, no se prepararon ni
+activaron generaciones, y no se modificaron envs, runtime, DB, Storage ni la
+aplicación.
+
+### Bundle asimétrico actual y contratos de token
+
+El bundle activo consiste en `JWT_KEYS`, `JWT_JWKS`, `ANON_KEY_ASYMMETRIC` y
+`SERVICE_ROLE_KEY_ASYMMETRIC`. `JWT_KEYS` es JSON válido con dos claves: una
+EC/ES256 con material privado de firma y `kid`, y una entrada legacy
+`oct`/HS256. `JWT_JWKS` es un JWKS válido con dos claves: un verificador público
+EC/ES256 y el verificador legacy `oct`/HS256; no contiene material privado EC.
+El par EC privado/público actual es `MATCH`.
+
+Los dos JWT de traducción son ES256, están firmados por el EC actual, contienen
+`kid` y tienen firma válida: `ANON_KEY_ASYMMETRIC` tiene rol `anon` y
+`SERVICE_ROLE_KEY_ASYMMETRIC` rol `service_role`. Ambos tienen una vida de cinco
+años. No se documentan JWTs, `kid`, coordenadas JWK ni material secreto.
+
+La vida normal de los access tokens de Auth es 3600 segundos y las sesiones
+frescas de Godel son ES256. Al retirar el verificador OLD, los access tokens OLD
+desaparecen naturalmente tras su TTL normal de una hora.
+
+### Semántica de firma y publicación JWKS de GoTrue
+
+La fuente upstream `supabase/auth` tag `v2.189.0`, `internal/conf/jwk.go`,
+confirma que GoTrue admite varias entradas JWK, pero exige exactamente una cuya
+lista `key_ops` contenga `sign`: falla con cero o más de una. El firmante activo
+es esa JWK única; no es la primera, la última ni una selección por orden de
+`kid`.
+
+La fuente `supabase/auth` `v2.189.0`, `internal/api/jwks.go`, confirma que
+`/.well-known/jwks.json` publica todas las claves asimétricas configuradas como
+públicas, excluye claves simétricas `oct`, nunca publica material privado EC y
+envía `Cache-Control: public, max-age=600`. El solapamiento de verificadores
+asimétricos OLD+NEW es, por ello, técnicamente posible.
+
+Supabase documenta hasta 10 minutos de caché edge y hasta otros 10 minutos de
+caché en memoria de clientes. Godel es self-hosted y no usa el edge administrado
+de Supabase; emplea `supabase.auth.getClaims()` sin `kid` fijado, JWKS propio ni
+verificación manual con `jose`/`jsonwebtoken`. Veinte minutos no es requisito
+criptográfico del runtime Godel. D.4B podrá usar una ventana conservadora de
+propagación como defensa adicional, pero el gate debe preferir evidencia positiva
+de que NEW está anunciado y utilizable.
+
+### Matriz exacta de consumidores y recreación
+
+| Consumidor | Material EC | Recreación D.4B |
+| --- | --- | --- |
+| Auth | `JWT_KEYS`; firma, confianza asimétrica y JWKS público | GEN5, GEN6, GEN7 |
+| Rest | `JWT_JWKS` | GEN5, GEN7 |
+| Realtime | `JWT_JWKS` | GEN5, GEN7 |
+| Storage | `JWT_JWKS` | GEN5, GEN7 |
+| Functions | `JWT_JWKS` | GEN5, GEN7 |
+| api-gw / Envoy | `ANON_KEY_ASYMMETRIC`, `SERVICE_ROLE_KEY_ASYMMETRIC` | GEN6 |
+| Studio | Sin dependencia EC que requiera recreación | No |
+| Supavisor, DB, Meta, Imgproxy | Sin consumidor EC D.4B | No |
+| Godel app | Sin secreto/clave EC directa; usa opaque y `getClaims()` | No esperado |
+| Godel nginx | Sin consumidor EC/JWKS | No esperado |
+
+### Invariantes y acoplamiento de API
+
+D.4B no rota `JWT_SECRET`, `ANON_KEY` ni `SERVICE_ROLE_KEY`: siguen siendo la
+familia legacy GEN4 aceptada. Tampoco rota `SUPABASE_PUBLISHABLE_KEY` ni
+`SUPABASE_SECRET_KEY`; las claves opacas D.3 permanecen inalteradas. Quedan
+fuera de alcance `POSTGRES_PASSWORD`, `DASHBOARD_PASSWORD`, `SECRET_KEY_BASE`,
+`REALTIME_DB_ENC_KEY`, `VAULT_ENC_KEY`, `PG_META_CRYPTO_KEY` y el material raíz
+de pgsodium.
+
+El verificador `oct`/HS256 legacy debe permanecer en `JWT_JWKS` durante toda
+D.4B. Así Rest, Realtime, Storage y Functions siguen aceptando los
+`ANON_KEY`/`SERVICE_ROLE_KEY` GEN4. D.4B rota solo material EC.
+
+Las claves opaque no cambian, pero sus JWT internos de traducción sí están
+acoplados al firmante EC. `ANON_KEY_ASYMMETRIC` y
+`SERVICE_ROLE_KEY_ASYMMETRIC` se regenerarán usando NEW en GEN6 y requerirán
+recrear `api-gw`.
+
+### Modelo aprobado de generaciones
+
+Hay cuatro snapshots inmutables totales y tres generaciones nuevas por preparar:
+
+| Estado | Firmante único | Verificadores confiados | Acción |
+| --- | --- | --- | --- |
+| GEN4 | OLD EC | OLD EC + legacy `oct` | Estado actual |
+| GEN5 — ANNOUNCE NEW | OLD EC | OLD EC + NEW EC + legacy `oct` | Anunciar/publicar NEW |
+| GEN6 — SWITCH SIGNER | NEW EC | OLD EC + NEW EC + legacy `oct` | Regenerar JWT de traducción |
+| GEN7 — RETIRE OLD | NEW EC | NEW EC + legacy `oct` | Retirar OLD |
+
+En GEN5, `JWT_KEYS` contiene conceptualmente OLD EC privado con `sign`, NEW EC
+público verify-only y el `oct` legacy; `JWT_JWKS` contiene ambos EC públicos y
+el `oct`. En GEN6, `JWT_KEYS` contiene NEW EC privado con `sign`, OLD EC
+público verify-only y el `oct`; `JWT_JWKS` permanece igual a GEN5. GEN7 retira
+el verificador OLD y conserva NEW y `oct`.
+
+Antes de preparar GEN5, D.4B.1 debe demostrar contra la imagen exacta
+`supabase/gotrue:v2.189.0` que un `JWT_KEYS` con un EC privado sign-capable,
+otro EC public-only verify-capable y el `oct` legacy es aceptado por GoTrue.
+Esta prueba determinista bloquea preparar generaciones reales; no se deduce solo
+de razonamiento sobre bibliotecas.
+
+El scope mínimo futuro de recreación es: GEN5 `auth`, `rest`, `realtime`,
+`storage`, `functions`; GEN6 `auth`, `api-gw`; GEN7 `auth`, `rest`, `realtime`,
+`storage`, `functions`. No incluye Studio, Supavisor, DB, Meta, Imgproxy ni la
+aplicación Godel salvo evidencia posterior.
+
+### Rollback y aceptación futura
+
+GEN5 puede volver directamente a GEN4 porque NEW todavía no firma sesiones:
+se restaura confianza OLD-only y se reconvergen Auth/verificadores. Un rollback
+GEN6 no puede restaurar simplemente GEN4: debe devolver OLD como firmante único
+manteniendo NEW público confiado, conservar el solapamiento, regenerar los JWT
+de traducción para OLD y recrear Auth y api-gw. Desde GEN7 tampoco se salta a
+GEN4; primero se restaura un estado de solapamiento con NEW público. El privado
+NEW histórico se retiene bajo la política de recovery.
+
+La aceptación futura debe probar: antes, token fresco con `kid` OLD; en GEN5,
+token OLD aceptado, NEW anunciado y token fresco aún OLD; en GEN6, token fresco
+NEW, OLD y NEW aceptados, opaque publishable/secret PASS, traducción asimétrica
+PASS, legacy GEN4 anon/service PASS, `P-26-0344` en `en_revision`, Storage 131
+y PDF protegido PASS; en GEN7, NEW aceptado, OLD rechazado y legacy HS256 aún
+PASS.
+
+Siguiente bloque: **D.4B.1 — EC rotation tooling and deterministic GoTrue
+overlap proof**. D.4B.1 no autoriza una rotación productiva de claves EC sin
+autorización separada.
