@@ -839,3 +839,30 @@ R4D queda `RUNTIME CONVERGENCE + ACCEPTANCE COMPLETE`. El contenedor DB puede
 seguir reteniendo residuo histórico de `JWT_SECRET` en su entorno Docker hasta
 un futuro mantenimiento/recreate de DB revisado por separado; ese residuo es
 distinto de `app.settings.jwt_secret`, ya ausente de PostgreSQL.
+
+### D.4A.3-R5/R5-R1/R5-R2 — incidente Compose y guardrail de procedencia
+
+R5 intentó el hard cut GEN3 → GEN4 y la activación legacy pasó. La convergencia
+se detuvo antes de abrir ingress: una recreación empleó el Compose upstream/base
+sin `infra/supabase-godel.override.yml`, publicando puertos host de api-gw y
+Supavisor. La causa se clasifica `INCORRECT_COMPOSE_PROFILE /
+GODEL_OVERRIDE_OMITTED`; no se abrió ventana de aceptación GEN4.
+
+R5-R1 contuvo los puertos, realizó rollback GEN4 → GEN3 y recreó los ocho
+consumidores con base más override Godel. La aceptación completa de GEN3 pasó;
+el estado final es GEN3 `CURRENT / MATCH`, GEN4 `PREPARED / NOT CURRENT` y el
+GUC JWT de DB continúa ausente. R5 queda `FAIL / SAFE SOURCE RECOVERY` y R5-R1
+queda `CLOSED / APPROVED / PASS`.
+
+R5-R2 añade un guardrail de procedencia source-level: la fábrica de Compose
+runtime Supabase fija el orden `env-file`, base y override Godel, restringe las
+operaciones genéricas a `config`, `ps`, `start` y `stop`, y ofrece una ruta de
+recreación dedicada exclusivamente para los ocho consumidores autorizados. No
+habilita un passthrough de `up` ni permite DB, Meta o Imgproxy.
+
+El bootstrap QA self-hosted conserva temporalmente su composición equivalente:
+acepta ruta de entorno y contexto Docker explícitos, por lo que sustituirla en
+este bloque alteraría su contrato de diagnósticos sin necesidad operacional.
+Backup y restore también mantienen duplicación de Compose; ambos pueden iniciar,
+detener o recrear servicios durante sus flujos de recovery y requieren un
+hardening mecánico dedicado, no un refactor oportunista dentro de R5-R2.

@@ -29,6 +29,7 @@
     "ops:backup:selfhosted": "node scripts/operations/backup-selfhosted.mjs create",
     "ops:backup:selfhosted:verify": "node scripts/operations/backup-selfhosted.mjs verify",
     "ops:recovery:compose:test": "node --test scripts/operations/godel-runtime-compose.test.mjs",
+    "ops:supabase:compose:test": "node --test scripts/operations/supabase-runtime-compose.test.mjs",
     "ops:restore:selfhosted": "node scripts/operations/restore-selfhosted.mjs restore",
     "ops:secrets:check": "node scripts/operations/check-selfhosted-secrets.mjs",
     "ops:secrets:test": "node --test scripts/operations/check-selfhosted-secrets.test.mjs",
