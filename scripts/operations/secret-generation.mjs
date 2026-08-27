@@ -15,7 +15,7 @@ export const EXTERNAL_SECRET_SNAPSHOT_FILES = Object.freeze({
 
 const CURRENT_FILE = "current.json";
 const GENERATIONS_DIR = "generations";
-const REASONS = new Set(["bootstrap", "dashboard-rotation", "opaque-api-key-rotation", "legacy-jwt-rotation", "planned-rotation", "emergency-recovery", "restore-alignment"]);
+const REASONS = new Set(["bootstrap", "dashboard-rotation", "opaque-api-key-rotation", "legacy-jwt-rotation", "ec-signing-key-rotation", "planned-rotation", "emergency-recovery", "restore-alignment"]);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const COMMIT = /^[0-9a-f]{40}$/;
 
@@ -155,6 +155,11 @@ async function readGeneration(protectedRoot, generationId) {
   };
 }
 
+export async function readSecretGeneration({ protectedRoot, generationId }) {
+  if (!isCanonicalGenerationId(generationId)) fail("INVALID_EXTERNAL_SECRET_GENERATION_ID");
+  return readGeneration(protectedRoot, generationId);
+}
+
 async function readCurrent(protectedRoot) {
   const paths = registryPaths(protectedRoot);
   const rootExists = await assertDirectory(paths.root, "REGISTRY_ROOT");
@@ -280,6 +285,30 @@ async function writeExclusive(path, data, mode = 0o600) {
     await handle.writeFile(data);
   } finally {
     await handle.close();
+  }
+}
+
+export async function publishSecretGeneration({ protectedRoot, generationId, metadata, supabaseSnapshot, godelSnapshot }) {
+  if (!isCanonicalGenerationId(generationId) || !Buffer.isBuffer(supabaseSnapshot) || !Buffer.isBuffer(godelSnapshot)) fail("INVALID_EXTERNAL_SECRET_GENERATION_PUBLICATION");
+  validateMetadata(metadata, generationId);
+  const target = generationPaths(protectedRoot, generationId);
+  const staging = join(target.generations, `.staging-${randomUUID()}`);
+  await ensureSafeDirectory(target.root);
+  await ensureSafeDirectory(target.generations);
+  if (await lstatOrNull(target.directory)) fail("UNEXPECTED_EXISTING_GENERATION_DIRECTORY");
+  const originalUmask = process.umask(0o077);
+  try {
+    await mkdir(staging, { mode: 0o700 });
+    await writeExclusive(join(staging, "metadata.json"), `${JSON.stringify(metadata, null, 2)}\n`);
+    await writeExclusive(join(staging, EXTERNAL_SECRET_SNAPSHOT_FILES.supabaseEnv), supabaseSnapshot);
+    await writeExclusive(join(staging, EXTERNAL_SECRET_SNAPSHOT_FILES.godelEnv), godelSnapshot);
+    await rename(staging, target.directory);
+    return { generationId, directory: target.directory };
+  } catch (error) {
+    await rm(staging, { recursive: true, force: true }).catch(() => {});
+    throw error;
+  } finally {
+    process.umask(originalUmask);
   }
 }
 
