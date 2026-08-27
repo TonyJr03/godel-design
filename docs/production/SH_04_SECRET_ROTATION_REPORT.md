@@ -1,12 +1,12 @@
 # SH-04.3D — Rotación segura de secretos y continuidad de recovery
 
-Estado: `IN PROGRESS` — D.3 (rotación de API keys opacas) está cerrado; D.4A
-(rotación legacy) es el siguiente bloque pendiente.
+Estado: `IN PROGRESS` — D.3 (rotación de API keys opacas) y D.4A
+(rotación legacy) están cerrados; D.4B es el siguiente bloque pendiente.
 
 Estado de subfases: D.0 `CLOSED / APPROVED`, D.1 `CLOSED / APPROVED`, D.2A
 `CLOSED / APPROVED`, D.2B `CLOSED / APPROVED`, D.2 `CLOSED / APPROVED`, D.3A
-`CLOSED / APPROVED`, D.3B.0 `CLOSED / APPROVED / PASS` y D.3B.1
-`CLOSED / APPROVED / PASS`.
+`CLOSED / APPROVED`, D.3B.0 `CLOSED / APPROVED / PASS`, D.3B.1
+`CLOSED / APPROVED / PASS`, D.4A `CLOSED / APPROVED / PASS` y D.4B `PENDING`.
 
 Este documento es la autoridad operativa para SH-04.3D. Complementa el
 [informe general SH-04.3](SH_04_SECRETS_AUTH_REPORT.md), que conserva el
@@ -133,7 +133,7 @@ cifrado con estado. Ninguno se resuelve con D.1.
 | D.1 | Tooling seguro y modelo de generación/recovery | CLOSED / APPROVED |
 | D.2 | Generación cero y rotación Dashboard | CLOSED / APPROVED |
 | D.3 | Opaque API keys y rebuild Godel | CLOSED / APPROVED |
-| D.4A | Rotación legacy `JWT_SECRET` / anon / service-role | IN PROGRESS / NOT YET ROTATED — hard cut y tooling aprobados; siguen D.4A.2/D.4A.3. |
+| D.4A | Rotación legacy `JWT_SECRET` / anon / service-role | CLOSED / APPROVED / PASS — hard cut final y rollback real aprobados. |
 | D.4B | Rotación de claves EC de firma | Pendiente |
 | D.5 | Rotación segura de contraseña PostgreSQL | Pendiente |
 | D.6 | Aceptación final de rotación/recovery | Pendiente |
@@ -540,11 +540,9 @@ runtime server-only y nunca input de build.
 D.0, D.1, D.2 y D.3 están `CLOSED / APPROVED`; D.3A está
 `CLOSED / APPROVED`, D.3B.0 y D.3B.1 están `CLOSED / APPROVED / PASS`, y D.3C
 es el cierre documental de esa evidencia. SH-04.3D permanece `IN PROGRESS`
-porque D.4A, D.4B, D.5 y D.6 siguen pendientes.
+porque D.4B, D.5 y D.6 siguen pendientes; D.4A está cerrado.
 
-Siguiente trabajo: **SH-04.3D.4A — rotación legacy `JWT_SECRET` / `ANON_KEY` /
-`SERVICE_ROLE_KEY`**, `PENDING ARCHITECTURAL / OPERATIONAL DESIGN`. Este cierre
-no autoriza ni ejecuta D.4A.
+Siguiente trabajo: **SH-04.3D.4B — rotación de claves EC de firma**, `PENDING / NOT STARTED`. Este cierre no autoriza ni ejecuta D.4B.
 
 ## D.4A.0 — Auditoría arquitectónica de rotación legacy JWT
 
@@ -866,3 +864,19 @@ este bloque alteraría su contrato de diagnósticos sin necesidad operacional.
 Backup y restore también mantienen duplicación de Compose; ambos pueden iniciar,
 detener o recrear servicios durante sus flujos de recovery y requieren un
 hardening mecánico dedicado, no un refactor oportunista dentro de R5-R2.
+
+### D.4A.3-R6A/R6A-R1/R6B/R6C — hard cut final y rollback probado
+
+R6A aprobó el hard cut limpio GEN3 → GEN4 con los ocho consumidores recreados mediante la fábrica Compose guardada, sin puertos host de api-gw o Supavisor y con GEN4 saludable. R6A-R1 completó la aceptación explícita: sesiones frescas admin/supervisor/worker, dashboard, ES256 con `kid` presente y continuidad de signer, legacy GEN4 aceptada, GEN3 retirada, opaque D.3 e invariantes de negocio, Storage y PDF en PASS.
+
+R6B aprobó el rollback real GEN4 → GEN3 y la reconvergencia de los ocho consumidores; GEN3 legacy aprobó, GEN4 legacy fue rechazada y se preservaron continuidad ES256, opaque, negocio, Storage, PDF y salud. El sistema quedó deliberadamente en GEN3 aceptado.
+
+R6C aprobó el cutover final GEN3 → GEN4. Los ocho consumidores (rest, auth, realtime, storage, supavisor, api-gw, functions y studio) se recrearon mediante la fábrica guardada; DB, Meta, Imgproxy y Godel app no se recrearon, y nginx fue solo stop/start. GEN4 quedó `CURRENT / MATCH`, GEN3 no actual y retenida solo según la política de recovery; el lock está ausente.
+
+La aceptación final confirmó autenticación, dashboard, ES256, `kid` presente y continuidad de signer; legacy anon/service GEN4 PASS y GEN3 REJECTED; opaque D.3 publishable/secret sin cambios; `P-26-0344` en `en_revision`; Storage 131; PDF protegido PASS; Supabase 11/11, Godel 2/2 y live/ready 200/200. Múltiples candidatos QA PDF de 131075 bytes con magic `%PDF` son válidos como características de integridad, no identidad única.
+
+El primer harness final R6C tuvo un defecto read-only al desestructurar el campo del pedido. Los gates ya alcanzados aprobaron y un probe read-only corregido completó pedido y PDF; no hubo mutación runtime/datos ni fallo de aplicación. La clasificación anterior `EVIDENCE_INCOMPLETE` respondió a la imposibilidad de aplicar esta edición documental, no a una aceptación GEN4 pendiente.
+
+PostgreSQL ya no participa en la rotación legacy: `app.settings.jwt_secret` está ausente, `app.settings.jwt_exp` presente y SET denegado. El guardrail Compose canónico está activo y api-gw/Supavisor no publican puertos host.
+
+R6A, R6A-R1, R6B, R6C, D.4A.3 y D.4A quedan `CLOSED / APPROVED / PASS`. Siguiente: **D.4B — EC signing-key rotation**, `PENDING / NOT STARTED`.
