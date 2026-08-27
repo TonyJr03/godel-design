@@ -16,7 +16,7 @@ import {
   replaceCurrentGenerationPointer,
   writeAllowlistedEnvironmentFile,
 } from "./secret-generation.mjs";
-import { EC_ROTATION_VARIABLES, buildEcRotationPlan, validateEcRotationStage, validateEcRotationTransition, validateGen4Source } from "./ec-signing-key-rotation.mjs";
+import { EC_ROTATION_VARIABLES, buildEcRotationPlan, parseEcRotationEnvironmentSnapshot, validateEcRotationStage, validateEcRotationTransition, validateGen4Source } from "./ec-signing-key-rotation.mjs";
 
 const PLAN_FORMAT = "godel-ec-signing-key-rotation-plan";
 const PLAN_SCHEMA_VERSION = 1;
@@ -27,7 +27,7 @@ const COMMIT = /^[0-9a-f]{40}$/;
 
 function fail(code) { throw new Error(code); }
 function exactKeys(value, expected, code) { if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).length !== expected.length || Object.keys(value).some((key) => !expected.includes(key))) fail(code); }
-function values(snapshot) { const result = new Map(); for (const line of Buffer.from(snapshot).toString("utf8").split(/\r?\n/)) { const index = line.indexOf("="); if (index < 1) continue; const name = line.slice(0, index); if (result.has(name)) fail("DUPLICATE_ENVIRONMENT_VARIABLE"); result.set(name, line.slice(index + 1)); } return result; }
+function values(snapshot) { return parseEcRotationEnvironmentSnapshot(snapshot); }
 function required(map, name) { const value = map.get(name); if (!value) fail("INVALID_EC_ROTATION_SNAPSHOT"); return value; }
 function changedNames(before, after) { const source = values(before), target = values(after), names = new Set([...source.keys(), ...target.keys()]); return [...names].filter((name) => source.get(name) !== target.get(name)).sort(); }
 function cleanCommit(root) { if (execFileSync("git", ["status", "--porcelain"], { cwd: root, encoding: "utf8", windowsHide: true }).trim()) fail("REPOSITORY_MUST_BE_CLEAN"); const commit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8", windowsHide: true }).trim(); if (!COMMIT.test(commit)) fail("INVALID_REPOSITORY_COMMIT"); return commit; }

@@ -20,7 +20,7 @@ function equal(left, right) {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-function parseEnvironment(snapshot) {
+export function parseEcRotationEnvironmentSnapshot(snapshot) {
   const values = new Map();
   for (const line of Buffer.from(snapshot).toString("utf8").split(/\r?\n/)) {
     const match = line.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
@@ -202,8 +202,8 @@ function replaceEnvironmentValues(snapshot, replacements) {
 }
 
 function unchangedOutside(before, after, allowed) {
-  const source = parseEnvironment(before);
-  const target = parseEnvironment(after);
+  const source = parseEcRotationEnvironmentSnapshot(before);
+  const target = parseEcRotationEnvironmentSnapshot(after);
   const names = new Set([...source.keys(), ...target.keys()]);
   for (const name of [...LEGACY_VARIABLES, ...OPAQUE_VARIABLES]) if (source.get(name) !== target.get(name)) fail("IMMUTABLE_ENVIRONMENT_MUTATION");
   for (const name of names) if (source.get(name) !== target.get(name) && !allowed.includes(name)) fail("UNRELATED_ENVIRONMENT_MUTATION");
@@ -227,7 +227,7 @@ function assertGen4(values) {
 export function validateEcRotationStage(snapshot, { stage, oldKid, newKid = null }) {
   assertKid(oldKid);
   if (newKid !== null) assertKid(newKid);
-  const values = parseEnvironment(snapshot);
+  const values = parseEcRotationEnvironmentSnapshot(snapshot);
   const state = classifyKeyset(values);
   const byKid = new Map(state.ecKeys.map((key) => [key.kid, key]));
   const jwksByKid = new Map(state.ecJwks.map((key) => [key.kid, key]));
@@ -268,7 +268,7 @@ export function validateEcRotationStage(snapshot, { stage, oldKid, newKid = null
 }
 
 export function validateGen4Source(snapshot) {
-  const values = parseEnvironment(snapshot);
+  const values = parseEcRotationEnvironmentSnapshot(snapshot);
   const state = assertGen4(values);
   return { oldKid: state.signer.kid, oldPublicKey: state.ecJwks[0], oldPrivateKey: state.signer };
 }
@@ -277,7 +277,7 @@ export function buildEcRotationPlan(sourceSnapshot, { now = Math.floor(Date.now(
   const source = validateGen4Source(sourceSnapshot);
   const newPair = generateEphemeralEcSigningPair();
   if (source.oldKid === newPair.privateJwk.kid) fail("DUPLICATE_EC_KID");
-  const values = parseEnvironment(sourceSnapshot);
+  const values = parseEcRotationEnvironmentSnapshot(sourceSnapshot);
   const oct = classifyKeyset(values).oct;
   const oldPublic = source.oldPublicKey;
   const gen5 = replaceEnvironmentValues(sourceSnapshot, {
@@ -312,8 +312,8 @@ export function validateEcRotationTransition({ fromSnapshot, toSnapshot, fromSta
   const allowed = TRANSITIONS.get(`${fromStage}:${toStage}`);
   if (!allowed) fail("UNSAFE_EC_ROTATION_TRANSITION");
   validateEcRotationStage(fromSnapshot, { stage: fromStage, oldKid, newKid: fromStage === "GEN4" ? null : newKid });
-  const source = parseEnvironment(fromSnapshot);
-  const target = parseEnvironment(toSnapshot);
+  const source = parseEcRotationEnvironmentSnapshot(fromSnapshot);
+  const target = parseEcRotationEnvironmentSnapshot(toSnapshot);
   const sourceKeyset = classifyKeyset(source);
   const targetKeyset = classifyKeyset(target);
   assertOctCorrespondence(sourceKeyset.oct, targetKeyset.oct);

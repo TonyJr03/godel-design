@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   buildEcRotationPlan,
   generateEphemeralEcSigningPair,
+  parseEcRotationEnvironmentSnapshot,
   signAsymmetricTranslationJwt,
   validateEcRotationStage,
   validateEcRotationTransition,
@@ -38,6 +39,12 @@ function sourceGen4() {
 function plan() { const gen4 = sourceGen4(); return { gen4, ...buildEcRotationPlan(gen4, { now: NOW }) }; }
 function ids(gen4, gen5) { return { oldKid: validateGen4Source(gen4).oldKid, newKid: keysets(gen5).keys.find((key) => key.kty === "EC" && !Object.hasOwn(key, "d")).kid }; }
 function expectReject(fn, code) { assert.throws(fn, new RegExp(code)); }
+
+test("uses strict assignment parsing and ignores comments or non-assignment lines containing equals", () => {
+  const parsed = parseEcRotationEnvironmentSnapshot(Buffer.from("\n# EXAMPLE=value-one\n# EXAMPLE=value-two\n# description: foo=bar\nVALID=value\nnot a variable=value\n"));
+  assert.deepEqual([...parsed], [["VALID", "value"]]);
+  expectReject(() => parseEcRotationEnvironmentSnapshot(Buffer.from("REAL=value-one\nREAL=value-two\n")), "DUPLICATE_ENVIRONMENT_VARIABLE");
+});
 
 test("validates GEN4 and builds the complete in-memory plan", () => {
   const { gen4, gen5Snapshot, gen6Snapshot, gen7Snapshot, sanitizedMetadata } = plan();
