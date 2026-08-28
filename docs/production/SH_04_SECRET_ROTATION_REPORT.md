@@ -135,7 +135,7 @@ cifrado con estado. Ninguno se resuelve con D.1.
 | D.2 | Generación cero y rotación Dashboard | CLOSED / APPROVED |
 | D.3 | Opaque API keys y rebuild Godel | CLOSED / APPROVED |
 | D.4A | Rotación legacy `JWT_SECRET` / anon / service-role | CLOSED / APPROVED / PASS — hard cut final y rollback real aprobados. |
-| D.4B | Rotación de claves EC de firma | IN PROGRESS — D.4B.0, D.4B.1A, D.4B.1B, D.4B.1C, D.4B.2, D.4B.3, D.4B.4 y D.4B.5 CLOSED / APPROVED / PASS; D.4B.6 pendiente. |
+| D.4B | Rotación de claves EC de firma | IN PROGRESS — D.4B.0, D.4B.1A, D.4B.1B, D.4B.1C, D.4B.2, D.4B.3, D.4B.4, D.4B.5 y D.4B.6 CLOSED / APPROVED / PASS; D.4B.7 queda pendiente de autorización separada. |
 | D.5 | Rotación segura de contraseña PostgreSQL | Pendiente |
 | D.6 | Aceptación final de rotación/recovery | Pendiente |
 
@@ -1049,12 +1049,13 @@ La baseline preactivación es Supabase 11/11 healthy, Godel 2/2 healthy, live/re
 
 D.4B.3 realizará solo GEN4→GEN5: publicar y confiar el verificador público NEW mientras OLD permanece firmante único. Reconvergerán auth, rest, realtime, storage y functions. `api-gw` no cambia todavía porque los JWT de traducción asimétricos cambian solo en GEN6. Esta sección no autoriza ni ejecuta D.4B.3.
 
-## D.4B.3–D.4B.5 — Anuncio, estabilidad y cambio de firmante EC
+## D.4B.3–D.4B.6 — Anuncio, estabilidad, cambio de firmante y readiness de retiro OLD
 
-D.4B sigue IN PROGRESS, pero D.4B.5 queda CLOSED / APPROVED / PASS. GEN6 es
-CURRENT / MATCH / CONVERGED / ACCEPTED: NEW es el firmante EC activo, OLD sigue
-como verificador EC confiado, el JWKS público conserva OLD+NEW y GEN7 no está
-activo. D.4B no se cierra globalmente hasta la retirada de OLD.
+D.4B sigue IN PROGRESS, pero D.4B.6 queda CLOSED / APPROVED / PASS. GEN6 es
+CURRENT / MATCH / STABLE / ACCEPTED: NEW es el firmante EC activo y único; OLD
+sigue como verificador EC confiado y elegible para retiro. GEN7 está READY FOR
+SEPARATE AUTHORIZATION y NOT ACTIVE. D.4B no se cierra globalmente hasta la
+retirada efectiva de OLD.
 
 | Subfase | Estado |
 | --- | --- |
@@ -1066,7 +1067,7 @@ activo. D.4B no se cierra globalmente hasta la retirada de OLD.
 | D.4B.3 | CLOSED / APPROVED / PASS |
 | D.4B.4 | CLOSED / APPROVED / PASS |
 | D.4B.5 | CLOSED / APPROVED / PASS |
-| D.4B.6 | PENDING — estabilidad GEN6 / readiness de retiro OLD |
+| D.4B.6 | CLOSED / APPROVED / PASS |
 
 ### GEN5: anuncio y estabilidad
 
@@ -1125,22 +1126,70 @@ Storage y un PDF protegido autorizado de 131075 bytes con firma %PDF; ownership
 binding y redirect Storage público pasaron. Tamaño y magic son características
 de integridad, no identidad global única.
 
+### D.4B.6 — estabilidad GEN6 y readiness de retiro OLD
+
+D.4B.6 completó un gate read-only de estabilidad y retiro OLD con GEN6 inicial y
+final en `CURRENT / MATCH`, plan `GEN6` y lock ausente. Las regresiones runtime
+(13/13), modelo (5/5), plan (9/9), Compose (5/5), secretos (14/14) y contrato
+de secretos pasaron.
+
+El gate temporal verificó una vida live de access token de 3600 segundos, un
+`Cache-Control` JWKS con `max-age=600` y una edad observada de GEN6 de 31991
+segundos. Las ventanas de expiración JWT y caché JWKS ya habían transcurrido;
+por ello el retiro temporal de OLD pasó. No bastó un soak corto: también debía
+haber transcurrido tiempo suficiente desde que OLD dejó de emitir access tokens
+para que los access tokens legítimos pre-GEN6 firmados por OLD ya debieran haber
+expirado. La continuidad de sesión/refresh de Auth emite access tokens frescos
+firmados por NEW; no se infiere que los refresh tokens estén firmados por OLD.
+
+El soak activo duró al menos 600 segundos. En T0, T+5 minutos y T+10 minutos o
+posterior, Supabase permaneció 11/11 healthy, Godel 2/2 healthy y `/live` más
+`/ready` respondieron 200/200. No hubo reinicios inesperados ni cambios de
+identidad de contenedor. Sesiones controladas frescas en T0 y T10+ confirmaron
+ES256, firmante NEW y solicitud autenticada aceptada; la firma NEW se mantuvo
+sostenida.
+
+La comparación sanitizada de env runtime confirmó convergencia exacta con el
+material protegido GEN6 para auth, rest, realtime, storage, functions y api-gw,
+sin documentar valores. Las comprobaciones finales de compatibilidad aceptaron
+ANON legacy, SERVICE legacy, PUBLISHABLE opaque y SECRET opaque; el control
+inválido devolvió 401.
+
+El probe congelado rastreado pasó (1 passed, exit 0): `P-26-0344` permanece en
+`en_revision`, Storage conserva 131 objetos y el PDF protegido validado tiene
+131075 bytes y firma `%PDF`. No persistió ningún artefacto sensible.
+
+El dry-run rastreado GEN6→GEN7 validó como recreaciones exactas rest, realtime,
+storage, functions y auth. No incluyó api-gw, studio, supavisor, db, meta,
+imgproxy ni Godel. El diff protegido GEN6→GEN7 se limita a `JWT_KEYS` y
+`JWT_JWKS`: GEN7 conserva NEW como firmante único y verificador público, retira
+OLD y preserva internamente el `oct` legacy, sin exponer material criptográfico.
+
+El rollback inmediato validado desde GEN7 es exclusivamente GEN7→GEN6, con el
+mismo conjunto de cinco recreaciones; el material protegido GEN6 sigue válido.
+No se ejecutó rollback durante D.4B.6 y no se autoriza ningún rollback no
+adyacente.
+
 La baseline de seguridad permanece: api-gw y Supavisor no exponen puertos host;
-app.settings.jwt_secret está ausente, app.settings.jwt_exp presente y el
-privilegio SET denegado. No se documentan claves, JWT, coordenadas JWK,
+`app.settings.jwt_secret` está ausente, `app.settings.jwt_exp` está presente y
+coherente, y el privilegio SET está denegado. No hubo mutación de producción. No
+se documentan claves, JWT, identificadores de clave, coordenadas JWK,
 credenciales, URLs firmadas, rutas protegidas ni IDs de contenedor.
 
-### Estado y siguiente contrato
+### Estado actual y siguiente contrato
 
 | Estado | Firmante | Verificadores | Situación |
 | --- | --- | --- | --- |
 | GEN4 | OLD | OLD | Baseline histórico inmediato pre-GEN5 |
 | GEN5 | OLD | OLD + NEW | Anuncio completado |
-| GEN6 | NEW | OLD + NEW | CURRENT |
-| GEN7 | NEW | NEW | Futuro; no autorizado |
+| GEN6 | NEW | OLD + NEW | CURRENT / MATCH / STABLE / ACCEPTED |
+| GEN7 | NEW | NEW | READY FOR SEPARATE AUTHORIZATION / NOT ACTIVE |
 
 El rollback inmediato autorizado desde GEN6 es únicamente GEN6→GEN5. Tras una
 eventual autorización GEN7, el único rollback adyacente será GEN7→GEN6; nunca
-se debe inferir GEN6→GEN4. El siguiente bloque es D.4B.6 — estabilidad GEN6 y
-readiness de retiro OLD: debe demostrar estabilidad sostenida de firma NEW y
-validar el contrato GEN7/rollback antes de retirar OLD. GEN7 no está autorizado.
+se debe inferir GEN6→GEN4. El siguiente bloque operativo es **D.4B.7 — GEN7
+OLD-VERIFIER RETIREMENT**. Solo podrá, bajo autorización separada, ejecutar la
+transición adyacente GEN6→GEN7, retirar OLD del conjunto EC de verificación,
+recrear rest/realtime/storage/functions/auth y validar JWKS NEW-only junto con
+la aceptación funcional y runtime. GEN7→GEN6 seguirá siendo el rollback
+inmediato. D.4B.7 no está autorizado ni ejecutado; readiness no es activación.
