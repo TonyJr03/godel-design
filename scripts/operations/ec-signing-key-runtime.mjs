@@ -136,7 +136,25 @@ export function createDockerRuntime({
     async readEnv(service, variable) {
       const id = await containerId(service);
       if (!id) throw new Error(`EC_RUNTIME_CONTAINER_MISSING_${service}`);
-      return (await docker(["exec", id, "printenv", variable])).stdout.trim();
+      let entries;
+      try {
+        entries = JSON.parse((await docker([
+          "inspect",
+          "--format",
+          "{{json .Config.Env}}",
+          id,
+        ])).stdout);
+      } catch {
+        throw new Error(`EC_RUNTIME_ENV_METADATA_INVALID_${service}`);
+      }
+      if (!Array.isArray(entries) || entries.some((entry) => typeof entry !== "string")) {
+        throw new Error(`EC_RUNTIME_ENV_METADATA_INVALID_${service}`);
+      }
+      const prefix = `${variable}=`;
+      const matches = entries.filter((entry) => entry.startsWith(prefix));
+      if (matches.length === 0) throw new Error(`EC_RUNTIME_ENV_METADATA_MISSING_${service}`);
+      if (matches.length !== 1) throw new Error(`EC_RUNTIME_ENV_METADATA_AMBIGUOUS_${service}`);
+      return matches[0].slice(prefix.length);
     },
     async captureIdentities() {
       const values = new Map();

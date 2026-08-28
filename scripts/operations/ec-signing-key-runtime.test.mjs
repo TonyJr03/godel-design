@@ -210,6 +210,49 @@ test("real polling accepts only running healthy and is bounded without sleeping"
   await assert.rejects(() => neverHealthy.waitHealthy("api-gw"), /EC_RUNTIME_CONVERGENCE_TIMEOUT_api-gw/);
 });
 
+test("runtime env inspection is host-side and preserves values containing equals", async () => {
+  const invocations = [];
+  const runtime = createDockerRuntime({
+    run: async (_file, args) => {
+      invocations.push(args);
+      if (args.includes("ps")) return { stdout: "synthetic-rest-id\n" };
+      if (args[0] === "inspect") return { stdout: '["PGRST_JWT_SECRET=synthetic=value=with=equals"]' };
+      throw new Error(`unexpected docker invocation: ${args.join(" ")}`);
+    },
+  });
+  assert.equal(await runtime.readEnv("rest", "PGRST_JWT_SECRET"), "synthetic=value=with=equals");
+  assert.equal(invocations.some((args) => args[0] === "exec"), false);
+  assert.equal(invocations.some((args) => args.includes("printenv")), false);
+  assert.deepEqual(invocations.at(-1), ["inspect", "--format", "{{json .Config.Env}}", "synthetic-rest-id"]);
+});
+
+test("runtime env inspection fails closed when a variable is missing", async () => {
+  const runtime = createDockerRuntime({
+    run: async (_file, args) => args.includes("ps")
+      ? { stdout: "synthetic-rest-id\n" }
+      : { stdout: '["OTHER=value"]' },
+  });
+  await assert.rejects(() => runtime.readEnv("rest", "PGRST_JWT_SECRET"), /EC_RUNTIME_ENV_METADATA_MISSING_rest/);
+});
+
+test("runtime env inspection fails closed when a variable is duplicated", async () => {
+  const runtime = createDockerRuntime({
+    run: async (_file, args) => args.includes("ps")
+      ? { stdout: "synthetic-rest-id\n" }
+      : { stdout: '["PGRST_JWT_SECRET=first","PGRST_JWT_SECRET=second"]' },
+  });
+  await assert.rejects(() => runtime.readEnv("rest", "PGRST_JWT_SECRET"), /EC_RUNTIME_ENV_METADATA_AMBIGUOUS_rest/);
+});
+
+test("runtime env inspection fails closed for malformed metadata", async () => {
+  const runtime = createDockerRuntime({
+    run: async (_file, args) => args.includes("ps")
+      ? { stdout: "synthetic-rest-id\n" }
+      : { stdout: "not-json" },
+  });
+  await assert.rejects(() => runtime.readEnv("rest", "PGRST_JWT_SECRET"), /EC_RUNTIME_ENV_METADATA_INVALID_rest/);
+});
+
 test("docker runtime retains direct shell-free docker execution", () => {
   const source = createDockerRuntime.toString();
   assert.match(source, /run\("docker"/);
