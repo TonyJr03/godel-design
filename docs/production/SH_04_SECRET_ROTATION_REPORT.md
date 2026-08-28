@@ -1,13 +1,14 @@
 # SH-04.3D — Rotación segura de secretos y continuidad de recovery
 
-Estado: `IN PROGRESS` — D.3 (rotación de API keys opacas) y D.4A
-(rotación legacy) están cerrados; D.4B está en curso.
+Estado: `IN PROGRESS` — D.3 (rotación de API keys opacas), D.4A
+(rotación legacy) y D.4B (rotación EC) están cerrados; D.5 y D.6 siguen
+pendientes.
 
 Estado de subfases: D.0 `CLOSED / APPROVED`, D.1 `CLOSED / APPROVED`, D.2A
 `CLOSED / APPROVED`, D.2B `CLOSED / APPROVED`, D.2 `CLOSED / APPROVED`, D.3A
 `CLOSED / APPROVED`, D.3B.0 `CLOSED / APPROVED / PASS`, D.3B.1
-`CLOSED / APPROVED / PASS`, D.4A `CLOSED / APPROVED / PASS`, D.4B.0
-`CLOSED / APPROVED / PASS` y D.4B `IN PROGRESS`.
+`CLOSED / APPROVED / PASS`, D.4A `CLOSED / APPROVED / PASS` y D.4B
+`CLOSED / APPROVED / PASS`; D.5 y D.6 permanecen pendientes.
 
 Este documento es la autoridad operativa para SH-04.3D. Complementa el
 [informe general SH-04.3](SH_04_SECRETS_AUTH_REPORT.md), que conserva el
@@ -135,7 +136,7 @@ cifrado con estado. Ninguno se resuelve con D.1.
 | D.2 | Generación cero y rotación Dashboard | CLOSED / APPROVED |
 | D.3 | Opaque API keys y rebuild Godel | CLOSED / APPROVED |
 | D.4A | Rotación legacy `JWT_SECRET` / anon / service-role | CLOSED / APPROVED / PASS — hard cut final y rollback real aprobados. |
-| D.4B | Rotación de claves EC de firma | IN PROGRESS — D.4B.0, D.4B.1A, D.4B.1B, D.4B.1C, D.4B.2, D.4B.3, D.4B.4, D.4B.5, D.4B.6 y D.4B.7 CLOSED / APPROVED / PASS; D.4B.8 permanece pendiente como gate final post-GEN7. |
+| D.4B | Rotación de claves EC de firma | CLOSED / APPROVED / PASS — D.4B.0–D.4B.8 completados; rotación EC operativa y funcionalmente completa. |
 | D.5 | Rotación segura de contraseña PostgreSQL | Pendiente |
 | D.6 | Aceptación final de rotación/recovery | Pendiente |
 
@@ -538,12 +539,12 @@ runtime server-only y nunca input de build.
 
 ## Estado y siguiente handoff
 
-D.0, D.1, D.2 y D.3 están `CLOSED / APPROVED`; D.3A está
-`CLOSED / APPROVED`, D.3B.0 y D.3B.1 están `CLOSED / APPROVED / PASS`, y D.3C
-es el cierre documental de esa evidencia. SH-04.3D permanece `IN PROGRESS`
-porque D.4B está en curso y D.5/D.6 siguen pendientes; D.4A está cerrado.
+D.0, D.1, D.2, D.3, D.4A y D.4B están cerrados; D.3C conserva el cierre
+documental histórico de D.3. SH-04.3D permanece `IN PROGRESS` porque D.5/D.6
+siguen pendientes.
 
-Siguiente trabajo: **SH-04.3D.4B.1 — tooling de rotación EC y prueba determinista de solapamiento GoTrue**. D.4B está `IN PROGRESS`; este cierre no autoriza rotación EC real.
+Siguiente trabajo: **D.5 — SAFE POSTGRESQL PASSWORD ROTATION**. D.5 requiere
+su propio gate y no queda autorizado por este cierre documental.
 
 ## D.4A.0 — Auditoría arquitectónica de rotación legacy JWT
 
@@ -1178,8 +1179,9 @@ credenciales, URLs firmadas, rutas protegidas ni IDs de contenedor.
 
 ### D.4B.7 — retiro OLD-verifier y aceptación GEN7
 
-**Estado D.4B vigente:** IN PROGRESS. D.4B.7 está CLOSED / APPROVED / PASS;
-D.4B.8, el gate final read-only de estabilidad post-GEN7, permanece pendiente.
+**Estado D.4B vigente:** CLOSED / APPROVED / PASS. La rotación EC está
+operativa y funcionalmente completa; SH-04.3D sigue IN PROGRESS porque D.5 y
+D.6 permanecen pendientes.
 
 El primer intento autorizado GEN6→GEN7 terminó fail-closed como
 `EC_RUNTIME_CONVERGENCE_ROLLBACK_FAILED`. No fue un fallo criptográfico GEN7,
@@ -1237,6 +1239,46 @@ Supavisor sin puertos host; `app.settings.jwt_secret` ausente,
 conserva P-26-0344 en `en_revision`, Storage 131 y PDF protegido 131075 bytes
 con `%PDF`.
 
+### D.4B.8 — estabilidad final post-GEN7 y cierre de D.4B
+
+El primer bloque D.4B.8 quedó **INCOMPLETE / EVIDENCE RETENTION GAP**, no
+FAIL: confirmó GEN7 CURRENT/MATCH; regresiones runtime 17/17, modelo 5/5, plan
+9/9, Compose 5/5, secretos 14/14 y contrato PASS; soak activo de al menos 600
+segundos con salud T0/T+5/T+10 PASS; env GEN7 y JWKS NEW-only en T0/T10; cache
+JWKS de 600 segundos y su gate post-GEN7 PASS; emisión NEW, frozen baseline
+1 passed, dry-run GEN7→GEN6 y estado final CURRENT/MATCH. No hubo mutación ni
+regresión observada. Faltó retener los 13 baselines de identidad/restart hasta
+T10 en el mismo proceso y capturar los probes legacy/opaque en ese flujo.
+
+D.4B.8-R1 repitió solo esa evidencia faltante y terminó **CLOSED / APPROVED /
+PASS**. Un único proceso efímero retuvo T0: 13/13 identidades y 13/13
+restart-counts; T+5 y T+10 mantuvieron salud PASS; tras al menos 600 segundos,
+las 13/13 identidades y los 13/13 restart-counts permanecieron sin cambios.
+La sanidad final confirmó JWKS NEW-only, firmante fresh NEW/ES256 con solicitud
+autenticada aceptada, ANON/SERVICE legacy y PUBLISHABLE/SECRET opaque aceptados
+y control inválido 401. GEN7 final CURRENT/MATCH y árbol rastreado limpio.
+
+Los bloques D.4B.8 y D.4B.8-R1 juntos satisfacen el gate final post-GEN7. R1
+aportó una observación temporal nueva y retenida; no reconstruyó evidencia del
+primer proceso. D.4B.8 queda **CLOSED / APPROVED / PASS** y cierra D.4B
+globalmente.
+
+El estado EC durable es GEN7 CURRENT / MATCH / STABLE / ACCEPTED; NEW es el
+único firmante EC y único verificador EC activo; OLD está retirado de la
+confianza activa. El JWKS público tiene un solo EC NEW, sin OLD, `oct` ni
+material privado; el `oct` legacy se conserva internamente para la
+compatibilidad HS256 aprobada. Tras el retiro, el soak >=600s no mostró cambios
+de identidad ni aumentos de restart, Supabase se mantuvo 11/11, Godel 2/2 y
+live/ready 200/200; env GEN7 y JWKS NEW-only permanecieron exactos y transcurrió
+una ventana de cache JWKS configurada completa.
+
+La aceptación funcional final conserva Admin auth y emisión NEW ES256 PASS,
+legacy ANON/SERVICE y opaque publishable/secret ACCEPTED, control inválido 401,
+`P-26-0344` en `en_revision`, 131 objetos Storage, PDF protegido 131075 bytes
+con `%PDF`, owner binding PASS y redirect público firmado PASS. No se registran
+URLs firmadas, rutas protegidas, IDs de archivo, credenciales ni material de
+claves.
+
 ### Estado actual y siguiente contrato
 
 | Estado vigente | Firmante | Verificadores | Situación |
@@ -1249,6 +1291,13 @@ con `%PDF`.
 El rollback inmediato aprobado desde GEN7 es exclusivamente GEN7→GEN6 con
 rest, realtime, storage, functions y auth; GEN6 y el material protegido OLD se
 retienen. No se autorizan GEN7→GEN5 ni GEN7→GEN4, ni eliminar material GEN6 u
-OLD. **D.4B.8 — POST-GEN7 STABILITY / FINAL EC ROTATION GATE** es el siguiente
-block: un gate final read-only de estabilidad/soak antes de cerrar D.4B
-globalmente. D.4B sigue IN PROGRESS.
+OLD. El contrato inmediato de recovery permanece GEN7→GEN6 con rest, realtime,
+storage, functions y auth; GEN6, OLD protegido y el plan EC deben retenerse.
+No se autorizan GEN7→GEN5 ni GEN7→GEN4. La ausencia del stdout `COMPLETE`
+permanece deuda CLI/output no bloqueante, no fallo runtime/criptográfico.
+
+El siguiente workstream es **D.5 — SAFE POSTGRESQL PASSWORD ROTATION**. Sigue
+pendiente y requiere su propio gate arquitectónico/operativo porque las
+credenciales PostgreSQL y Supavisor son un dominio acoplado distinto. D.6 queda
+como aceptación final posterior de rotación/recovery. SH-04.3D permanece IN
+PROGRESS.
