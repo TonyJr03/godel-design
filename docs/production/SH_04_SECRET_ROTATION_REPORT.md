@@ -135,7 +135,7 @@ cifrado con estado. Ninguno se resuelve con D.1.
 | D.2 | Generación cero y rotación Dashboard | CLOSED / APPROVED |
 | D.3 | Opaque API keys y rebuild Godel | CLOSED / APPROVED |
 | D.4A | Rotación legacy `JWT_SECRET` / anon / service-role | CLOSED / APPROVED / PASS — hard cut final y rollback real aprobados. |
-| D.4B | Rotación de claves EC de firma | IN PROGRESS — D.4B.0, D.4B.1, D.4B.1A, D.4B.1A-R1, D.4B.1B, D.4B.1C, D.4B.1C-R1, D.4B.2, D.4B.2-R1 y D.4B.2-R2 CLOSED / APPROVED / PASS; siguiente D.4B.3. |
+| D.4B | Rotación de claves EC de firma | IN PROGRESS — D.4B.0, D.4B.1A, D.4B.1B, D.4B.1C, D.4B.2, D.4B.3, D.4B.4 y D.4B.5 CLOSED / APPROVED / PASS; D.4B.6 pendiente. |
 | D.5 | Rotación segura de contraseña PostgreSQL | Pendiente |
 | D.6 | Aceptación final de rotación/recovery | Pendiente |
 
@@ -1048,3 +1048,99 @@ La baseline preactivación es Supabase 11/11 healthy, Godel 2/2 healthy, live/re
 ### Siguiente bloque: D.4B.3
 
 D.4B.3 realizará solo GEN4→GEN5: publicar y confiar el verificador público NEW mientras OLD permanece firmante único. Reconvergerán auth, rest, realtime, storage y functions. `api-gw` no cambia todavía porque los JWT de traducción asimétricos cambian solo en GEN6. Esta sección no autoriza ni ejecuta D.4B.3.
+
+## D.4B.3–D.4B.5 — Anuncio, estabilidad y cambio de firmante EC
+
+D.4B sigue IN PROGRESS, pero D.4B.5 queda CLOSED / APPROVED / PASS. GEN6 es
+CURRENT / MATCH / CONVERGED / ACCEPTED: NEW es el firmante EC activo, OLD sigue
+como verificador EC confiado, el JWKS público conserva OLD+NEW y GEN7 no está
+activo. D.4B no se cierra globalmente hasta la retirada de OLD.
+
+| Subfase | Estado |
+| --- | --- |
+| D.4B.0 | CLOSED / APPROVED / PASS |
+| D.4B.1A | CLOSED / APPROVED / PASS |
+| D.4B.1B | CLOSED / APPROVED / PASS |
+| D.4B.1C | CLOSED / APPROVED / PASS |
+| D.4B.2 | CLOSED / APPROVED / PASS |
+| D.4B.3 | CLOSED / APPROVED / PASS |
+| D.4B.4 | CLOSED / APPROVED / PASS |
+| D.4B.5 | CLOSED / APPROVED / PASS |
+| D.4B.6 | PENDING — estabilidad GEN6 / readiness de retiro OLD |
+
+### GEN5: anuncio y estabilidad
+
+D.4B.3 activó GEN5: OLD permaneció firmante único, NEW fue anunciado como
+verificador confiado y el JWKS publicó ambos. Solo se recrearon los consumidores
+requeridos; api-gw no cambió. Supabase 11/11, Godel 2/2 y live/ready 200/200
+permanecieron sanos; legacy y opaque siguieron aceptados.
+
+D.4B.4 completó el soak de GEN5 sin reinicios inesperados. OLD continuó
+firmando, NEW permaneció confiado y se validaron el objetivo GEN6 y el rollback
+adyacente GEN6→GEN5; GEN6 no se activó durante este gate.
+
+### Primer intento GEN6, forense y orquestador rastreado
+
+El primer D.4B.5 tuvo un problema local de invocación npm.cmd/EINVAL; el
+siguiente harness ad-hoc activó GEN6 pero informó una convergencia no probada.
+El rollback controlado GEN6→GEN5 terminó con GEN5 sano, sin reparación manual
+del registro protegido y sin activar GEN7. La revisión lo clasificó como
+HARNESS_ORCHESTRATION_DEFECT, no como fallo criptográfico GEN6.
+
+La forense R1 validó GEN6 protegido, las traducciones asimétricas ANON y SERVICE
+reales bajo confianza OLD+NEW, control inválido 401, configuración aislada
+Envoy v1.39.0 y sustitución de traducciones. Modelo, plan, Compose y contrato
+de secretos pasaron. El rerun GoTrue fue INCOMPLETE_CLEAN, mientras la prueba
+exact-image ya aprobada se mantuvo válida. Conclusión: GEN6 MATERIAL = READY.
+
+El harness ad-hoc fue reemplazado por el orquestador rastreado del commit
+6d2c5af199bdfe78f3d6a916b1f2f37009e72434: ejecución directa cross-platform,
+helper Compose canónico, matriz adyacente, orden api-gw→auth en GEN5→GEN6,
+espera acotada, validación de env e identidad completa, restauración inversa
+automática y fail-closed. Su regresión pasó 13/13.
+
+### D.4B.5-R3: cambio GEN5→GEN6 aprobado
+
+El orquestador rastreado devolvió COMPLETE y recreó únicamente api-gw y auth.
+CURRENT quedó en GEN6 con MATCH, plan GEN6 y lock ausente. NEW pasó a firmante
+único; OLD siguió como verificador. Un token OLD previo y una sesión NEW fresca
+fueron aceptados, por lo que la continuidad cross-signer pasó. Legacy, opaque,
+Supabase 11/11, Godel 2/2 y live/ready 200/200 pasaron.
+
+El smoke amplio core-business-handoff-selfhosted.spec.ts tuvo dos ejecuciones
+inconclusas por presupuesto/completitud del runner, aunque mostró estado
+autenticado y no demostró fallo de aplicación. Es deuda de tooling QA, no fallo
+de aceptación GEN6. El login oficial focalizado sí produjo 1 passed, exit 0, y
+confirmó login Admin, dashboard autenticado y sesión GEN6 a través de Godel.
+
+La prueba rastreada frozen-production-baseline-selfhosted.spec.ts se añadió en
+el commit 23fc5890d744c518aabc9710f1e9ea9687ec02c5. Es externa-only y
+read-only: no escribe DB/Storage, no lee file_path, usa la ruta canónica de
+descarga Godel, preserva ownership binding, valida el redirect firmado y no
+genera trace/video/screenshot. Sus errores sensibles se sanitizan y no emiten
+URL firmada ni UUID.
+
+La aceptación congelada final confirmó P-26-0344 en en_revision, 131 objetos
+Storage y un PDF protegido autorizado de 131075 bytes con firma %PDF; ownership
+binding y redirect Storage público pasaron. Tamaño y magic son características
+de integridad, no identidad global única.
+
+La baseline de seguridad permanece: api-gw y Supavisor no exponen puertos host;
+app.settings.jwt_secret está ausente, app.settings.jwt_exp presente y el
+privilegio SET denegado. No se documentan claves, JWT, coordenadas JWK,
+credenciales, URLs firmadas, rutas protegidas ni IDs de contenedor.
+
+### Estado y siguiente contrato
+
+| Estado | Firmante | Verificadores | Situación |
+| --- | --- | --- | --- |
+| GEN4 | OLD | OLD | Baseline histórico inmediato pre-GEN5 |
+| GEN5 | OLD | OLD + NEW | Anuncio completado |
+| GEN6 | NEW | OLD + NEW | CURRENT |
+| GEN7 | NEW | NEW | Futuro; no autorizado |
+
+El rollback inmediato autorizado desde GEN6 es únicamente GEN6→GEN5. Tras una
+eventual autorización GEN7, el único rollback adyacente será GEN7→GEN6; nunca
+se debe inferir GEN6→GEN4. El siguiente bloque es D.4B.6 — estabilidad GEN6 y
+readiness de retiro OLD: debe demostrar estabilidad sostenida de firma NEW y
+validar el contrato GEN7/rollback antes de retirar OLD. GEN7 no está autorizado.
