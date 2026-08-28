@@ -1,14 +1,15 @@
 # SH-04.3D — Rotación segura de secretos y continuidad de recovery
 
 Estado: `IN PROGRESS` — D.3 (rotación de API keys opacas), D.4A
-(rotación legacy) y D.4B (rotación EC) están cerrados; D.5 y D.6 siguen
-pendientes.
+(rotación legacy), D.4B (rotación EC) y D.5.0 (auditoría arquitectónica)
+están cerrados; D.5 sigue `IN PROGRESS` y D.6 permanece pendiente.
 
 Estado de subfases: D.0 `CLOSED / APPROVED`, D.1 `CLOSED / APPROVED`, D.2A
 `CLOSED / APPROVED`, D.2B `CLOSED / APPROVED`, D.2 `CLOSED / APPROVED`, D.3A
 `CLOSED / APPROVED`, D.3B.0 `CLOSED / APPROVED / PASS`, D.3B.1
-`CLOSED / APPROVED / PASS`, D.4A `CLOSED / APPROVED / PASS` y D.4B
-`CLOSED / APPROVED / PASS`; D.5 y D.6 permanecen pendientes.
+`CLOSED / APPROVED / PASS`, D.4A `CLOSED / APPROVED / PASS`, D.4B
+`CLOSED / APPROVED / PASS` y D.5.0 `CLOSED / APPROVED / PASS`; D.5
+permanece `IN PROGRESS` y D.6 pendiente.
 
 Este documento es la autoridad operativa para SH-04.3D. Complementa el
 [informe general SH-04.3](SH_04_SECRETS_AUTH_REPORT.md), que conserva el
@@ -137,7 +138,8 @@ cifrado con estado. Ninguno se resuelve con D.1.
 | D.3 | Opaque API keys y rebuild Godel | CLOSED / APPROVED |
 | D.4A | Rotación legacy `JWT_SECRET` / anon / service-role | CLOSED / APPROVED / PASS — hard cut final y rollback real aprobados. |
 | D.4B | Rotación de claves EC de firma | CLOSED / APPROVED / PASS — D.4B.0–D.4B.8 completados; rotación EC operativa y funcionalmente completa. |
-| D.5 | Rotación segura de contraseña PostgreSQL | Pendiente |
+| D.5.0 | Auditoría arquitectónica/live read-only de contraseña PostgreSQL | CLOSED / APPROVED / PASS |
+| D.5 | Rotación segura de contraseña PostgreSQL | IN PROGRESS — la rotación productiva aún no está autorizada. |
 | D.6 | Aceptación final de rotación/recovery | Pendiente |
 
 ## Retención y semántica de asociación
@@ -1296,8 +1298,208 @@ storage, functions y auth; GEN6, OLD protegido y el plan EC deben retenerse.
 No se autorizan GEN7→GEN5 ni GEN7→GEN4. La ausencia del stdout `COMPLETE`
 permanece deuda CLI/output no bloqueante, no fallo runtime/criptográfico.
 
-El siguiente workstream es **D.5 — SAFE POSTGRESQL PASSWORD ROTATION**. Sigue
-pendiente y requiere su propio gate arquitectónico/operativo porque las
-credenciales PostgreSQL y Supavisor son un dominio acoplado distinto. D.6 queda
-como aceptación final posterior de rotación/recovery. SH-04.3D permanece IN
-PROGRESS.
+El siguiente workstream es **D.5 — SAFE POSTGRESQL PASSWORD ROTATION**. Está
+`IN PROGRESS`, pero la rotación productiva sigue no autorizada y requiere su
+propio gate arquitectónico/operativo porque las credenciales PostgreSQL y
+Supavisor son un dominio acoplado distinto. D.6 queda como aceptación final
+posterior de rotación/recovery. SH-04.3D permanece IN PROGRESS.
+
+## D.5.0 — Auditoría arquitectónica/live read-only de contraseña PostgreSQL
+
+**Estado:** `CLOSED / APPROVED / PASS`. D.5 permanece `IN PROGRESS`; la
+rotación productiva de contraseña PostgreSQL **NO ESTÁ AUTORIZADA TODAVÍA**.
+D.6 permanece pendiente y SH-04.3D continúa `IN PROGRESS`.
+
+### Límites y baseline
+
+D.5.0 fue estrictamente read-only. No generó contraseñas ni generaciones
+candidatas, no ejecutó `ALTER ROLE`, no modificó Supavisor, no creó backups ni
+recreó servicios. El HEAD auditado fue
+`5d4507f0f18d9f7c887106217493dc2911627119`, con árbol rastreado limpio,
+Supabase 11/11 saludable, Godel 2/2 saludable y `/live`/`/ready` 200/200. La
+generación externa permaneció GEN7 `CURRENT / MATCH` y el lock de generaciones
+estaba ausente al inicio y al final.
+
+### Helper upstream no autorizado
+
+`infra/supabase/utils/db-passwd.sh` es **NOT AUTHORIZED** para D.5 de
+producción y D.5 no debe llamarlo ni envolverlo. El helper genera internamente
+la contraseña y la imprime, altera un conjunto amplio y hardcoded de roles,
+ejecuta `DROP SCHEMA _supavisor CASCADE`, reescribe `.env` directamente y
+propone una recreación forzada amplia. Ninguna de esas operaciones es un
+contrato seguro de rotación para este runtime con estado persistente.
+
+### Contrato inicial tracked y dominio live probado
+
+`infra/supabase/volumes/db/roles.sql` inicializa `POSTGRES_PASSWORD` para
+`authenticator`, `pgbouncer`, `supabase_auth_admin`,
+`supabase_functions_admin` y `supabase_storage_admin`. Esa lista de
+inicialización no basta por sí misma para inferir el conjunto live actual.
+
+La autenticación sanitizada por la ruta Docker/SCRAM probó que la contraseña
+actual es aceptada exactamente por estos siete roles:
+
+| Rol acoplado aprobado D.5 | Evidencia |
+| --- | --- |
+| `postgres` | LOGIN; contraseña compartida aceptada. |
+| `supabase_admin` | LOGIN; contraseña compartida aceptada. |
+| `authenticator` | LOGIN; contraseña compartida aceptada. |
+| `pgbouncer` | LOGIN; contraseña compartida aceptada. |
+| `supabase_auth_admin` | LOGIN; contraseña compartida aceptada. |
+| `supabase_functions_admin` | LOGIN; contraseña compartida aceptada. |
+| `supabase_storage_admin` | LOGIN; contraseña compartida aceptada. |
+
+Exclusiones probadas: `supabase_replication_admin` y
+`supabase_read_only_user` son LOGIN sin contraseña configurada y rechazan la
+contraseña compartida actual. `anon`, `authenticated`, `service_role` y
+`dashboard_user` son NOLOGIN y no tienen contraseña. La igualdad de contraseña
+se probó por comportamiento de autenticación sanitizado, nunca por
+`rolpassword`, hashes SCRAM ni otro material de contraseña.
+
+El conjunto de siete roles de la tabla queda congelado como evidencia D.5.0.
+La futura herramienta D.5 solo podrá rotar ese conjunto salvo nueva evidencia y
+revisión arquitectónica; no podrá importar la lista más amplia del helper
+upstream.
+
+### Matriz de consumidores y persistencia DB
+
+| Consumidor | Rol / contrato | Acción futura |
+| --- | --- | --- |
+| Studio | `postgres`; consumidor `POSTGRES_PASSWORD` | RECREATE_REQUIRED |
+| Auth | `supabase_auth_admin` | RECREATE_REQUIRED |
+| PostgREST | `authenticator` | RECREATE_REQUIRED |
+| Realtime | `supabase_admin` | RECREATE_REQUIRED |
+| Storage | `supabase_storage_admin` | RECREATE_REQUIRED |
+| Meta | `postgres` | RECREATE_REQUIRED |
+| Functions | `postgres` | RECREATE_REQUIRED |
+| Supavisor Repo | `supabase_admin` | RECREATE_REQUIRED |
+| Supavisor manager | `pgbouncer`; credencial persistida | Actualización persistida requerida y RECREATE_REQUIRED |
+| api-gw, imgproxy, runtime Godel | No son consumidores de `POSTGRES_PASSWORD` | Fuera del conjunto de recreación de credenciales |
+
+Las contraseñas de roles pertenecen al PGDATA persistente. Los scripts tracked
+bajo `docker-entrypoint-initdb.d` inicializan solamente un clúster nuevo y no
+son un mecanismo de rotación para uno ya inicializado. Por ello, **recrear el
+contenedor DB no equivale a rotar roles**; la rotación funcional requiere SQL.
+Cambiar solo `POSTGRES_PASSWORD` en Compose tampoco es suficiente.
+
+#### Decisión abierta D.5.1: higiene del env de DB
+
+El contenedor DB recibe `PGPASSWORD` y `POSTGRES_PASSWORD`. Si no se recrea
+después de una rotación funcional, su metadata Docker `Config.Env` conservará
+la contraseña OLD revocada aunque los roles ya usen NEW. Esto distingue la
+rotación funcional de roles, que no exige recrear DB, de la higiene de secretos
+de runtime, que podría exigirlo. Por tanto:
+
+```text
+DB RUNTIME RECREATE POLICY = PENDING D.5.1 SECURITY / OPERATIONAL DESIGN
+```
+
+D.5.0 no clasifica permanentemente DB como `UNCHANGED` ni como
+`RECREATE_REQUIRED`.
+
+### Estado y contrato de Supavisor
+
+La auditoría encontró `_supavisor` presente en la base de metadata, con un
+tenant, una credencial manager, cero clusters, control Repo por
+`supabase_admin` y manager `pgbouncer`. La credencial manager es persistida en
+`db_pass_encrypted`; no se documentan ciphertexts, bytes cifrados ni
+identificadores sensibles de tenant.
+
+En la imagen fijada `supabase/supavisor:v2.9.5`, `User.db_password` usa
+`Supavisor.Encrypted.Binary` y se persiste en `db_pass_encrypted` mediante
+`Supavisor.Vault`. El runtime suministra la clave de cifrado/descifrado de Vault
+mediante `VAULT_ENC_KEY`. D.5 no rota `VAULT_ENC_KEY`.
+
+El `pooler.exs` tracked configura el manager inicial como
+`db_user = pgbouncer` y `db_password = POSTGRES_PASSWORD`, pero crea el tenant
+solo si todavía no existe. En consecuencia:
+
+```text
+SUPAVISOR RECREATE ALONE = INSUFFICIENT
+SUPAVISOR_PERSISTED_CREDENTIAL_UPDATE_REQUIRED
+```
+
+La v2.9.5 fijada contiene
+`Supavisor.Tenants.update_manager_user_credentials/2`. La operación de dominio
+localiza el manager del tenant, aplica el changeset exclusivo de credenciales,
+persiste mediante `Repo.update`, actualiza credenciales de SecretChecker a nivel
+global y limpia la caché distribuida del tenant después de esa actualización.
+Es el mecanismo de dominio aprobado alrededor del cual deberá construirse el
+tooling D.5. No se permite actualizar `db_pass_encrypted` directamente con SQL.
+
+La ruta de éxito efectiva de la versión fijada devuelve `:ok` tras persistencia
+y operaciones de caché; el ejemplo documental tipo `{:ok, %User{}}` no debe
+usarse como contrato del tooling. El tooling futuro verificará el comportamiento
+de la implementación fijada y comprobará de forma independiente estado
+persistido y runtime.
+
+Las rutas session y transaction del pooler fueron operacionales y ambas
+ejercitaron correctamente la ruta manager `pgbouncer` tenant-calificada. No se
+registran contraseñas, URLs con credenciales ni tenant identifiers.
+
+### Contrato de cutover y compensación futura
+
+`MAINTENANCE GATE = REQUIRED`: tras cambiar los siete roles no hay un período
+seguro en el que consumidores OLD puedan continuar abriendo conexiones nuevas.
+No se ejecutó maintenance en D.5.0; su mecanismo final y la quiescencia de
+consumidores corresponden a tooling/revisión posterior.
+
+El commit lógico no es el `COMMIT` SQL. Bajo maintenance y lock de operación,
+el contrato conceptual forward es:
+
+1. La generación protegida candidata ya está preparada y validada.
+2. Se actualiza a NEW la credencial manager `pgbouncer` de Supavisor mediante
+   la operación de dominio.
+3. Se rotan transaccionalmente a NEW los siete roles PostgreSQL aprobados.
+4. Se verifica la autenticación DB con NEW.
+5. Se publica el puntero de la generación protegida candidata.
+6. Se reconvergen los consumidores de credenciales.
+7. Se completa aceptación; solo entonces se libera maintenance y lock.
+
+La transición del puntero protegido es el **LOGICAL COMMIT**. Las mutaciones de
+Supavisor y SQL anteriores son pre-commit y deben ser compensables. Supavisor
+debe actualizarse antes de cambiar `supabase_admin`: su Repo en ejecución aún
+autentica con la credencial OLD y cambiar el control DB primero puede perder esa
+ruta de dominio. La discrepancia breve manager NEW/rol OLD solo es aceptable
+bajo maintenance cerrado y lock; D.5.1 debe hacerla determinista y fail-closed.
+
+Pre-pointer, si el manager NEW se persiste pero la transacción de roles no
+commitea, se restaura manager OLD. Si los roles ya commitearon pero no se publica
+el puntero candidato, se restauran los siete roles OLD en transacción, se
+verifica autenticación OLD, se restaura/verifica manager OLD, se conserva OLD
+como generación actual y no se libera maintenance hasta recuperar coherencia.
+No se presume que una inversión manual o ciega de orden sea suficiente.
+
+Después del commit del puntero, un fallo de runtime o aceptación es post-commit
+y requiere un rollback tracked aparte a la generación inmediata previa. Debe
+restaurar conjuntamente `POSTGRES_PASSWORD` previo, los siete roles, manager
+persistido de Supavisor, envs runtime de consumidores y estado de los servicios
+afectados. No hay rollback manual/blind autorizado.
+
+### Backup, generación y aceptación futura
+
+El mecanismo schema-3 auditado captura el clúster PostgreSQL persistente,
+incluido `_supavisor`, además de sus artefactos asociados. Antes del cutover real
+debe crearse y verificarse un backup nuevo inmediatamente previo; evidencia
+histórica no lo sustituye. D.5.0 no creó backup.
+
+La futura contraseña será única para producción, fresca, generada con CSPRNG y
+con entropía suficiente. Nunca podrá aparecer en argv, stdout, stderr, logs,
+Git, documentación ni SQL generado. D.5.0 no generó contraseña.
+
+La aceptación de D.5 deberá probar autenticación directa de los siete roles,
+Auth, PostgREST, Realtime, Storage, Meta, Functions, Repo Supavisor, session y
+transaction pool, funcionalidad DB-facing de Studio, login admin y health Godel.
+También validará baseline de pedido congelado, conteo Storage, PDF protegido,
+identidades exactas de servicios recreados, ausencia de fuga de secretos y
+preservación del estado EC GEN7. La expectativa de recrear DB sigue sujeta a la
+decisión D.5.1.
+
+### Cierre D.5.0 y siguiente bloque
+
+D.5.0 cierra exclusivamente la auditoría arquitectónica/live read-only. No
+autoriza generación de contraseña o candidato, `ALTER ROLE`, actualización de
+Supavisor, maintenance, recreación DB/servicios, cutover ni rollback.
+
+Siguiente bloque: **D.5.1 — SAFE POSTGRES PASSWORD ROTATION TOOLING /
+DETERMINISTIC DRILL**, o bloque equivalente de arquitectura/tooling.
