@@ -135,7 +135,7 @@ cifrado con estado. Ninguno se resuelve con D.1.
 | D.2 | Generación cero y rotación Dashboard | CLOSED / APPROVED |
 | D.3 | Opaque API keys y rebuild Godel | CLOSED / APPROVED |
 | D.4A | Rotación legacy `JWT_SECRET` / anon / service-role | CLOSED / APPROVED / PASS — hard cut final y rollback real aprobados. |
-| D.4B | Rotación de claves EC de firma | IN PROGRESS — D.4B.0, D.4B.1A, D.4B.1B, D.4B.1C, D.4B.2, D.4B.3, D.4B.4, D.4B.5 y D.4B.6 CLOSED / APPROVED / PASS; D.4B.7 queda pendiente de autorización separada. |
+| D.4B | Rotación de claves EC de firma | IN PROGRESS — D.4B.0, D.4B.1A, D.4B.1B, D.4B.1C, D.4B.2, D.4B.3, D.4B.4, D.4B.5, D.4B.6 y D.4B.7 CLOSED / APPROVED / PASS; D.4B.8 permanece pendiente como gate final post-GEN7. |
 | D.5 | Rotación segura de contraseña PostgreSQL | Pendiente |
 | D.6 | Aceptación final de rotación/recovery | Pendiente |
 
@@ -1176,20 +1176,79 @@ coherente, y el privilegio SET está denegado. No hubo mutación de producción.
 se documentan claves, JWT, identificadores de clave, coordenadas JWK,
 credenciales, URLs firmadas, rutas protegidas ni IDs de contenedor.
 
+### D.4B.7 — retiro OLD-verifier y aceptación GEN7
+
+**Estado D.4B vigente:** IN PROGRESS. D.4B.7 está CLOSED / APPROVED / PASS;
+D.4B.8, el gate final read-only de estabilidad post-GEN7, permanece pendiente.
+
+El primer intento autorizado GEN6→GEN7 terminó fail-closed como
+`EC_RUNTIME_CONVERGENCE_ROLLBACK_FAILED`. No fue un fallo criptográfico GEN7,
+funcional de PostgREST ni de rollback de la generación protegida. La causa fue
+`RUNTIME_ENV_VERIFICATION_ADAPTER_DEFECT`: el verificador rastreado usaba
+`docker exec <container> printenv <variable>` y la imagen mínima
+`postgrest/postgrest:v14.12` no proporciona `printenv`. Falló después de
+recrear Rest y el mismo defecto afectó la prueba de rollback; no hubo recovery
+manual, rollback ciego, edición de env ni reparación de servicios.
+
+D.4B.7-R1 probó `GEN6_RESTORED_VERIFIED` mediante metadata Docker host-side:
+rest, realtime, storage, functions y auth coincidían con GEN6 y api-gw retuvo
+sus traducciones. El estado protegido fue GEN6 CURRENT/MATCH, plan GEN6 y lock
+ausente; JWKS OLD+NEW, firmante fresh NEW, Supabase 11/11, Godel 2/2,
+live/ready 200/200, frozen probe PASS y Storage 131. No hizo falta otra
+mutación de recovery.
+
+D.4B.7-R2 corrigió el verificador en
+`b877e14a46edf2dbb742b01e85410adf9dfd7dd9`: usa
+`docker inspect --format "{{json .Config.Env}}"` host-side con `shell=false`,
+matching exacto, una sola entrada requerida, valores con `=` preservados y
+fallo cerrado ante metadata faltante, duplicada o malformada. No registra
+valores ni depende de binarios de las imágenes. La regresión runtime pasó
+17/17. D.4B.7-R3 probó el arreglo sobre GEN6 live para rest, auth, realtime,
+storage, functions y api-gw, incluido PostgREST, sin `docker exec`/`printenv`;
+JWKS permaneció OLD+NEW, el firmante fresh fue NEW y no hubo mutación.
+
+D.4B.7-R4 ejecutó la segunda transición autorizada exclusivamente con el
+orquestador rastreado. GEN7 protegido es
+`65aea10b-f0ce-4015-bfa3-98086137d303`; solo se recrearon rest, realtime,
+storage, functions y auth, no api-gw. La evidencia independiente confirmó
+GEN7 CURRENT/MATCH, plan GEN7, lock ausente y consumidores live GEN7. El JWKS
+público pasó a NEW-only: un EC público, OLD ausente y sin `oct` ni material
+privado; el `oct` legacy sigue preservado internamente para HS256.
+
+La línea final `COMPLETE` del apply mutante no fue observada. Se clasifica como
+deuda de observación CLI/output, no como fallo criptográfico/runtime: GEN7
+protegido, consumidores live, JWKS NEW-only y salud runtime convergieron de
+forma independiente.
+
+D.4B.7-R4-R1 completó aceptación read-only con PASS: GEN7 CURRENT/MATCH,
+verificador host-side, JWKS NEW-only y OLD ausente; login Admin, dashboard y
+firmante fresh NEW; frozen baseline 1 passed/exit 0; y dry-run GEN7→GEN6 PASS.
+Las regresiones runtime/model/plan/Compose/secretos fueron 17/17, 5/5, 9/9,
+5/5 y 14/14, con contrato de secretos PASS. El token NEW original pre-GEN7 no
+fue replayable porque el artefacto local ya no existía; la continuidad
+equivalente pasó: NEW fue firmante GEN6, se preserva entre GEN6/GEN7, GEN7
+retira OLD sin reemplazarlo, JWKS live verifica NEW y auth fresh GEN7 pasa. No
+se reconstruyó token ni se consultó historial de terminal.
+
+Compatibilidad y seguridad permanecen PASS de forma sanitizada: ANON/SERVICE
+legacy y PUBLISHABLE/SECRET opaque aceptados, control inválido 401; api-gw y
+Supavisor sin puertos host; `app.settings.jwt_secret` ausente,
+`app.settings.jwt_exp` presente/coherente y SET denegado. La baseline congelada
+conserva P-26-0344 en `en_revision`, Storage 131 y PDF protegido 131075 bytes
+con `%PDF`.
+
 ### Estado actual y siguiente contrato
 
-| Estado | Firmante | Verificadores | Situación |
+| Estado vigente | Firmante | Verificadores | Situación |
 | --- | --- | --- | --- |
-| GEN4 | OLD | OLD | Baseline histórico inmediato pre-GEN5 |
+| GEN4 | OLD | OLD | Baseline histórica OLD-only |
 | GEN5 | OLD | OLD + NEW | Anuncio completado |
-| GEN6 | NEW | OLD + NEW | CURRENT / MATCH / STABLE / ACCEPTED |
-| GEN7 | NEW | NEW | READY FOR SEPARATE AUTHORIZATION / NOT ACTIVE |
+| GEN6 | NEW | OLD + NEW | Generación de rollback inmediata retenida |
+| GEN7 | NEW | NEW | CURRENT / MATCH / CONVERGED / ACCEPTED; OLD retirado |
 
-El rollback inmediato autorizado desde GEN6 es únicamente GEN6→GEN5. Tras una
-eventual autorización GEN7, el único rollback adyacente será GEN7→GEN6; nunca
-se debe inferir GEN6→GEN4. El siguiente bloque operativo es **D.4B.7 — GEN7
-OLD-VERIFIER RETIREMENT**. Solo podrá, bajo autorización separada, ejecutar la
-transición adyacente GEN6→GEN7, retirar OLD del conjunto EC de verificación,
-recrear rest/realtime/storage/functions/auth y validar JWKS NEW-only junto con
-la aceptación funcional y runtime. GEN7→GEN6 seguirá siendo el rollback
-inmediato. D.4B.7 no está autorizado ni ejecutado; readiness no es activación.
+El rollback inmediato aprobado desde GEN7 es exclusivamente GEN7→GEN6 con
+rest, realtime, storage, functions y auth; GEN6 y el material protegido OLD se
+retienen. No se autorizan GEN7→GEN5 ni GEN7→GEN4, ni eliminar material GEN6 u
+OLD. **D.4B.8 — POST-GEN7 STABILITY / FINAL EC ROTATION GATE** es el siguiente
+block: un gate final read-only de estabilidad/soak antes de cerrar D.4B
+globalmente. D.4B sigue IN PROGRESS.
