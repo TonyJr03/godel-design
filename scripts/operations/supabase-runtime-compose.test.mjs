@@ -3,7 +3,9 @@ import test from "node:test";
 
 import {
   createSupabaseConsumerRecreateInvocation,
+  createSupabasePostgresPasswordPsqlInvocation,
   createSupabaseRuntimeComposeInvocation,
+  createSupabaseSupavisorCredentialApiInvocation,
 } from "./supabase-runtime-compose.mjs";
 
 const canonicalPrefix = [
@@ -93,4 +95,47 @@ test("consumer recreation rejects protected, unknown, and non-singular services"
       /SUPABASE_CONSUMER_RECREATE_FORBIDDEN/,
     );
   }
+});
+
+test("Postgres password transport is fixed to canonical Compose and stdin-only psql", () => {
+  const invocation = createSupabasePostgresPasswordPsqlInvocation();
+  assert.deepEqual(invocation.args, [
+    ...canonicalPrefix,
+    "exec",
+    "-T",
+    "db",
+    "psql",
+    "-X",
+    "-v",
+    "ON_ERROR_STOP=1",
+    "-U",
+    "supabase_admin",
+    "-d",
+    "postgres",
+  ]);
+  assert.equal(invocation.shell, false);
+  assert.doesNotMatch(
+    invocation.args.join("\n"),
+    /POSTGRES_PASSWORD|SERVICE_ROLE_KEY|POOLER_TENANT_ID|SYNTHETIC_/,
+  );
+  assert.deepEqual(createSupabasePostgresPasswordPsqlInvocation("arbitrary", ["command"]).args, invocation.args);
+});
+
+test("Supavisor credential transport is fixed to canonical Compose and curl config stdin", () => {
+  const invocation = createSupabaseSupavisorCredentialApiInvocation();
+  assert.deepEqual(invocation.args, [
+    ...canonicalPrefix,
+    "exec",
+    "-T",
+    "supavisor",
+    "curl",
+    "--silent",
+    "--show-error",
+    "--fail",
+    "--config",
+    "-",
+  ]);
+  assert.equal(invocation.shell, false);
+  assert.doesNotMatch(invocation.args.join(" "), /password|secret|tenant|update_auth_credentials/i);
+  assert.deepEqual(createSupabaseSupavisorCredentialApiInvocation({ service: "db", command: "sh" }).args, invocation.args);
 });

@@ -39,3 +39,17 @@ export function createSupabaseConsumerRecreateInvocation(service) {
 
   return composeInvocation(["up", "-d", "--no-deps", "--force-recreate", service]);
 }
+
+export function createSupabasePostgresPasswordPsqlInvocation() {
+  return {
+    ...composeInvocation(["exec", "-T", "db", "psql", "-X", "-v", "ON_ERROR_STOP=1", "-U", "supabase_admin", "-d", "postgres"]),
+    shell: false,
+  };
+}
+
+export function createSupabaseSupavisorCredentialApiInvocation() {
+  return {
+    ...composeInvocation(["exec", "-T", "supavisor", "curl", "--silent", "--show-error", "--fail", "--config", "-"]),
+    shell: false,
+  };
+}

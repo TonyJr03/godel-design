@@ -15,6 +15,7 @@ import {
   generationMutationLockPath,
   getCurrentSecretGeneration,
   isCanonicalGenerationId,
+  publishSecretGeneration,
   validateManifestExternalSecretGeneration,
   releaseGenerationMutationLock,
 } from "./secret-generation.mjs";
@@ -143,6 +144,27 @@ test("backup manifest contract rejects malformed generation identifiers", () => 
 test("backup manifest contract accepts a canonical generation identifier", async () => withFixture(async (value) => {
   const result = await bootstrapSecretGeneration({ ...value, apply: true });
   assert.equal(validateManifestExternalSecretGeneration({ externalSecretGenerationId: result.generationId }), result.generationId);
+}));
+
+test("postgres-password-rotation is accepted as an external generation reason", async () => withFixture(async (value) => {
+  const generationId = "00000000-0000-4000-8000-000000000001";
+  await publishSecretGeneration({
+    protectedRoot: value.protectedRoot,
+    generationId,
+    metadata: {
+      format: "godel-external-secret-generation",
+      schemaVersion: 1,
+      generationId,
+      createdAt: new Date().toISOString(),
+      repositoryCommit: "0".repeat(40),
+      reason: "postgres-password-rotation",
+      sourceGenerationId: null,
+      files: { supabaseEnv: "supabase.env", godelEnv: "godel.env" },
+    },
+    supabaseSnapshot: Buffer.from("POSTGRES_PASSWORD=synthetic\n"),
+    godelSnapshot: Buffer.from("GODEL=synthetic\n"),
+  });
+  assert.equal(await assertReferencedSecretGenerationExists({ protectedRoot: value.protectedRoot, generationId }), generationId);
 }));
 
 test("allowlisted environment updates preserve unrelated content", () => {
