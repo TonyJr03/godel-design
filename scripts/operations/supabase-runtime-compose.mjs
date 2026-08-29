@@ -9,6 +9,16 @@ const CONSUMER_SERVICES = new Set([
   "functions",
   "studio",
 ]);
+const POSTGRES_PASSWORD_CONSUMER_SERVICES = new Set([
+  "supavisor",
+  "meta",
+  "auth",
+  "rest",
+  "realtime",
+  "storage",
+  "functions",
+  "studio",
+]);
 
 const CANONICAL_PREFIX = [
   "compose",
@@ -43,6 +53,23 @@ export function createSupabaseConsumerRecreateInvocation(service) {
 export function createSupabasePostgresPasswordPsqlInvocation() {
   return {
     ...composeInvocation(["exec", "-T", "db", "psql", "-X", "-v", "ON_ERROR_STOP=1", "-U", "supabase_admin", "-d", "postgres"]),
+    shell: false,
+  };
+}
+
+export function createSupabasePostgresDbRecreateInvocation() {
+  return {
+    ...composeInvocation(["up", "-d", "--no-deps", "--force-recreate", "db"]),
+    shell: false,
+  };
+}
+
+export function createSupabasePostgresPasswordConsumerRecreateInvocation(service) {
+  if (typeof service !== "string" || !POSTGRES_PASSWORD_CONSUMER_SERVICES.has(service)) {
+    throw new Error("POSTGRES_PASSWORD_CONSUMER_RECREATE_FORBIDDEN");
+  }
+  return {
+    ...composeInvocation(["up", "-d", "--no-deps", "--force-recreate", service]),
     shell: false,
   };
 }

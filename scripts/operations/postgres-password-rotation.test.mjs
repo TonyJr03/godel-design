@@ -207,8 +207,8 @@ test("Supavisor result validation requires curl success and HTTP 204 without lea
 test("future stages and compensation boundary are immutable and fail closed", () => {
   assert.deepEqual(POSTGRES_PASSWORD_ROTATION_STAGES, [
     "PREFLIGHT_SOURCE", "MAINTENANCE_CLOSED", "SUPAVISOR_TARGET", "DATABASE_TARGET",
-    "DATABASE_TARGET_VERIFIED", "ENV_TARGET", "ENV_TARGET_VERIFIED", "POINTER_TARGET",
-    "RUNTIME_TARGET", "ACCEPTANCE_TARGET", "COMPLETE",
+    "DATABASE_TARGET_VERIFIED", "ENV_TARGET", "ENV_TARGET_VERIFIED", "POINTER_TARGET", "SOURCE_RESTORED",
+    "DB_RUNTIME_TARGET", "RUNTIME_TARGET", "ACCEPTANCE_TARGET", "TARGET_ACCEPTED", "MAINTENANCE_OPEN", "COMPLETE",
   ]);
   assert.equal(Object.isFrozen(POSTGRES_PASSWORD_ROTATION_STAGES), true);
   assert.equal(Object.isFrozen(POSTGRES_ROTATED_ROLES), true);

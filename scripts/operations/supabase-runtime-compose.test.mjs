@@ -3,6 +3,8 @@ import test from "node:test";
 
 import {
   createSupabaseConsumerRecreateInvocation,
+  createSupabasePostgresDbRecreateInvocation,
+  createSupabasePostgresPasswordConsumerRecreateInvocation,
   createSupabasePostgresPasswordPsqlInvocation,
   createSupabaseRuntimeComposeInvocation,
   createSupabaseSupavisorCredentialApiInvocation,
@@ -119,6 +121,26 @@ test("Postgres password transport is fixed to canonical Compose and stdin-only p
     /POSTGRES_PASSWORD|SERVICE_ROLE_KEY|POOLER_TENANT_ID|SYNTHETIC_/,
   );
   assert.deepEqual(createSupabasePostgresPasswordPsqlInvocation("arbitrary", ["command"]).args, invocation.args);
+});
+
+test("Postgres DB recreation is dedicated, fixed, and separate from generic consumers", () => {
+  const invocation = createSupabasePostgresDbRecreateInvocation();
+  assert.deepEqual(invocation.args, [...canonicalPrefix, "up", "-d", "--no-deps", "--force-recreate", "db"]);
+  assert.equal(invocation.shell, false);
+  assert.deepEqual(createSupabasePostgresDbRecreateInvocation("rest", ["down"]).args, invocation.args);
+  assert.throws(() => createSupabaseConsumerRecreateInvocation("db"), /SUPABASE_CONSUMER_RECREATE_FORBIDDEN/);
+});
+
+test("Postgres password consumer recreation permits exactly the D.5 runtime consumers", () => {
+  const services = ["supavisor", "meta", "auth", "rest", "realtime", "storage", "functions", "studio"];
+  for (const service of services) {
+    const invocation = createSupabasePostgresPasswordConsumerRecreateInvocation(service);
+    assert.deepEqual(invocation.args, [...canonicalPrefix, "up", "-d", "--no-deps", "--force-recreate", service]);
+    assert.equal(invocation.shell, false);
+  }
+  for (const service of ["db", "api-gw", "imgproxy", "unknown", "rest auth", ["rest", "auth"]]) {
+    assert.throws(() => createSupabasePostgresPasswordConsumerRecreateInvocation(service), /POSTGRES_PASSWORD_CONSUMER_RECREATE_FORBIDDEN/);
+  }
 });
 
 test("Supavisor credential transport is fixed to canonical Compose and curl config stdin", () => {

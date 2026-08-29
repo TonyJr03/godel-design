@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createGodelRuntimeComposeInvocation } from "./godel-runtime-compose.mjs";
+import {
+  createGodelMaintenanceCloseInvocation,
+  createGodelMaintenanceOpenInvocation,
+  createGodelRuntimeComposeInvocation,
+} from "./godel-runtime-compose.mjs";
 
 test("runtime Compose interpolation uses a process-local sentinel and preserves the parent environment", () => {
   const environment = { PATH: "synthetic-path", RETAINED: "synthetic-value", GODEL_PUBLIC_BUILD_NONCE: "stale-parent-value" };
@@ -23,4 +27,18 @@ test("runtime Compose rejects build-capable and unknown subcommands", () => {
   for (const command of ["build", "up", "create", "run", "restart", "unknown"]) {
     assert.throws(() => createGodelRuntimeComposeInvocation({ args: [command] }), /GODEL_RUNTIME_COMPOSE_COMMAND_FORBIDDEN/);
   }
+});
+
+test("maintenance factories stop and start only nginx with the fixed Godel Compose provenance", () => {
+  const environment = { PATH: "synthetic-path", GODEL_PUBLIC_BUILD_NONCE: "stale-parent-value" };
+  const close = createGodelMaintenanceCloseInvocation({ environment });
+  const open = createGodelMaintenanceOpenInvocation({ environment });
+  assert.deepEqual(close.args, ["compose", "--env-file", "compose.env.local", "-f", "compose.yaml", "stop", "nginx"]);
+  assert.deepEqual(open.args, ["compose", "--env-file", "compose.env.local", "-f", "compose.yaml", "start", "nginx"]);
+  for (const invocation of [close, open]) {
+    assert.equal(invocation.shell, false);
+    assert.equal(invocation.environment.GODEL_PUBLIC_BUILD_NONCE, "runtime-compose-interpolation-only");
+    assert.doesNotMatch(invocation.args.join(" "), /\bapp\b|restart|down|\bup\b|force-recreate/i);
+  }
+  assert.equal(environment.GODEL_PUBLIC_BUILD_NONCE, "stale-parent-value");
 });
