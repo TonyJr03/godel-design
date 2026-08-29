@@ -19,6 +19,18 @@ const POSTGRES_PASSWORD_CONSUMER_SERVICES = new Set([
   "functions",
   "studio",
 ]);
+const POSTGRES_PASSWORD_ROLES = new Set([
+  "postgres",
+  "supabase_admin",
+  "authenticator",
+  "pgbouncer",
+  "supabase_auth_admin",
+  "supabase_functions_admin",
+  "supabase_storage_admin",
+]);
+const SUPAVISOR_PROBE_PORTS = new Set([5432, 6543]);
+const POSTGRES_PASSWORD_AUTH_PROBE_SCRIPT = "set -eu; IFS= read -r PGPASSWORD; if IFS= read -r extra; then exit 64; fi; export PGPASSWORD; exec psql -X -h 127.0.0.1 -U \"$1\" -d postgres -tAc 'SELECT current_user'";
+const SUPAVISOR_PASSWORD_PROBE_SCRIPT = "set -eu; IFS= read -r PGPASSWORD; IFS= read -r PGUSER; if IFS= read -r extra; then exit 64; fi; export PGPASSWORD PGUSER; exec psql -X -h supavisor -p \"$1\" -d postgres -tAc 'SELECT 1'";
 
 const CANONICAL_PREFIX = [
   "compose",
@@ -53,6 +65,24 @@ export function createSupabaseConsumerRecreateInvocation(service) {
 export function createSupabasePostgresPasswordPsqlInvocation() {
   return {
     ...composeInvocation(["exec", "-T", "db", "psql", "-X", "-v", "ON_ERROR_STOP=1", "-U", "supabase_admin", "-d", "postgres"]),
+    shell: false,
+  };
+}
+
+export function createSupabasePostgresPasswordAuthenticationProbeInvocation(role) {
+  if (typeof role !== "string" || !POSTGRES_PASSWORD_ROLES.has(role)) {
+    throw new Error("POSTGRES_PASSWORD_AUTH_PROBE_ROLE_FORBIDDEN");
+  }
+  return {
+    ...composeInvocation(["exec", "-T", "db", "sh", "-ceu", POSTGRES_PASSWORD_AUTH_PROBE_SCRIPT, "postgres-password-auth-probe", role]),
+    shell: false,
+  };
+}
+
+export function createSupabaseSupavisorPasswordProbeInvocation(port) {
+  if (!SUPAVISOR_PROBE_PORTS.has(port)) throw new Error("SUPAVISOR_PASSWORD_PROBE_PORT_FORBIDDEN");
+  return {
+    ...composeInvocation(["exec", "-T", "db", "sh", "-ceu", SUPAVISOR_PASSWORD_PROBE_SCRIPT, "supavisor-password-probe", String(port)]),
     shell: false,
   };
 }

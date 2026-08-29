@@ -65,6 +65,14 @@ async function identity(runtime, service) {
   return value;
 }
 
+async function managedIdentityState(runtime, service) {
+  if (!runtime || typeof runtime.getManagedServiceIdentityState !== "function") fail("POSTGRES_ROLLBACK_ADAPTER_INVALID");
+  const value = await runtime.getManagedServiceIdentityState({ service });
+  if (value?.state === "ABSENT") return value;
+  if (value?.state === "PRESENT" && typeof value.id === "string" && value.id) return value;
+  fail("POSTGRES_ROLLBACK_MANAGED_IDENTITY_INVALID");
+}
+
 async function readPointer(runtime) {
   if (!runtime || typeof runtime.readCurrentPointer !== "function") return null;
   try {
@@ -174,7 +182,7 @@ async function compensateToTarget({ runtime, sourceGenerationId, targetGeneratio
 
 async function convergeSourceRuntime({ runtime, sourceGenerationId, nonRecreatedIdentities, onRuntimeConsumers }) {
   for (const [index, service] of POSTGRES_PASSWORD_RUNTIME_RECREATE_ORDER.entries()) {
-    const before = await identity(runtime, service);
+    const before = await managedIdentityState(runtime, service);
     if (service === "db") {
       await invoke(runtime, "recreateDatabase");
       await invoke(runtime, "waitDatabaseHealthy");
@@ -182,7 +190,8 @@ async function convergeSourceRuntime({ runtime, sourceGenerationId, nonRecreated
       await invoke(runtime, "recreateConsumer", { service });
       await invoke(runtime, "waitServiceHealthy", { service });
     }
-    if (await identity(runtime, service) === before) fail("POSTGRES_ROLLBACK_RUNTIME_IDENTITY_UNCHANGED");
+    const after = await identity(runtime, service);
+    if (before.state === "PRESENT" && after === before.id) fail("POSTGRES_ROLLBACK_RUNTIME_IDENTITY_UNCHANGED");
     if (!runtime || typeof runtime.verifyRuntimeSecretHygiene !== "function") fail("POSTGRES_ROLLBACK_ADAPTER_INVALID");
     const hygiene = await runtime.verifyRuntimeSecretHygiene({ service, generationId: sourceGenerationId });
     if (hygiene?.sourceMatch !== true || hygiene.targetAbsent !== true) fail("POSTGRES_ROLLBACK_RUNTIME_SECRET_HYGIENE_FAILED");

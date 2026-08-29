@@ -44,6 +44,7 @@ export const POSTGRES_PASSWORD_POST_POINTER_BOUNDARY = Object.freeze({
 });
 
 const PASSWORD_PATTERN = /^[a-f0-9]{64}$/;
+const RESTORABLE_PASSWORD_PATTERN = /^(?:[a-f0-9]{32}|[a-f0-9]{64})$/;
 const REQUIRED_SOURCE_NAMES = Object.freeze([
   "POSTGRES_PASSWORD",
   "SERVICE_ROLE_KEY",
@@ -94,6 +95,9 @@ function required(values, name, code) {
 function assertSourceSnapshot(sourceSnapshot) {
   const values = parseEnvironment(sourceSnapshot, "POSTGRES_ROTATION_SOURCE_INVALID");
   for (const name of REQUIRED_SOURCE_NAMES) required(values, name, "POSTGRES_ROTATION_SOURCE_INVALID");
+  if (!isRestorablePostgresPassword(required(values, "POSTGRES_PASSWORD", "POSTGRES_ROTATION_SOURCE_INVALID"))) {
+    fail("POSTGRES_ROTATION_SOURCE_INVALID");
+  }
   return values;
 }
 
@@ -110,12 +114,21 @@ export function isValidPostgresPassword(value) {
   return typeof value === "string" && PASSWORD_PATTERN.test(value);
 }
 
+export function isRestorablePostgresPassword(value) {
+  return typeof value === "string" && RESTORABLE_PASSWORD_PATTERN.test(value);
+}
+
 export function generatePostgresPassword() {
   return randomBytes(POSTGRES_PASSWORD_BYTES).toString("hex");
 }
 
 export function validatePostgresPassword(value) {
   if (!isValidPostgresPassword(value)) fail("POSTGRES_ROTATION_PASSWORD_INVALID");
+  return value;
+}
+
+export function validateRestorablePostgresPassword(value) {
+  if (!isRestorablePostgresPassword(value)) fail("POSTGRES_ROTATION_RESTORABLE_PASSWORD_INVALID");
   return value;
 }
 
@@ -180,13 +193,22 @@ export function buildPostgresPasswordRotationCandidate({ sourceSupabaseSnapshot,
 
 export function buildPostgresPasswordRotationSql(targetPassword) {
   validatePostgresPassword(targetPassword);
-  return `BEGIN;\n${POSTGRES_ROTATED_ROLES.map((role) => `ALTER ROLE ${role} WITH PASSWORD '${targetPassword}';`).join("\n")}\nCOMMIT;\n`;
+  return buildPostgresPasswordSql(targetPassword);
+}
+
+export function buildPostgresPasswordRestorationSql(sourcePassword) {
+  validateRestorablePostgresPassword(sourcePassword);
+  return buildPostgresPasswordSql(sourcePassword);
+}
+
+function buildPostgresPasswordSql(password) {
+  return `BEGIN;\n${POSTGRES_ROTATED_ROLES.map((role) => `ALTER ROLE ${role} WITH PASSWORD '${password}';`).join("\n")}\nCOMMIT;\n`;
 }
 
 export function buildSupavisorCredentialCurlConfig({ tenantId, serviceRoleKey, targetPassword }) {
   assertSafeInlineValue(tenantId, "POSTGRES_ROTATION_SUPAVISOR_INPUT_INVALID");
   assertSafeInlineValue(serviceRoleKey, "POSTGRES_ROTATION_SUPAVISOR_INPUT_INVALID");
-  validatePostgresPassword(targetPassword);
+  validateRestorablePostgresPassword(targetPassword);
   const endpoint = `http://127.0.0.1:4000/api/tenants/${encodeURIComponent(tenantId)}/update_auth_credentials`;
   const payload = JSON.stringify({ db_user: SUPAVISOR_MANAGER_ROLE, db_password: targetPassword });
 

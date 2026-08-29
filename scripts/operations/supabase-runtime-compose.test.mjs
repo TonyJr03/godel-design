@@ -5,9 +5,11 @@ import {
   createSupabaseConsumerRecreateInvocation,
   createSupabasePostgresDbRecreateInvocation,
   createSupabasePostgresPasswordConsumerRecreateInvocation,
+  createSupabasePostgresPasswordAuthenticationProbeInvocation,
   createSupabasePostgresPasswordPsqlInvocation,
   createSupabaseRuntimeComposeInvocation,
   createSupabaseSupavisorCredentialApiInvocation,
+  createSupabaseSupavisorPasswordProbeInvocation,
 } from "./supabase-runtime-compose.mjs";
 
 const canonicalPrefix = [
@@ -121,6 +123,39 @@ test("Postgres password transport is fixed to canonical Compose and stdin-only p
     /POSTGRES_PASSWORD|SERVICE_ROLE_KEY|POOLER_TENANT_ID|SYNTHETIC_/,
   );
   assert.deepEqual(createSupabasePostgresPasswordPsqlInvocation("arbitrary", ["command"]).args, invocation.args);
+});
+
+test("Postgres password authentication probes allow exactly the approved roles over in-container TCP", () => {
+  const roles = ["postgres", "supabase_admin", "authenticator", "pgbouncer", "supabase_auth_admin", "supabase_functions_admin", "supabase_storage_admin"];
+  for (const role of roles) {
+    const invocation = createSupabasePostgresPasswordAuthenticationProbeInvocation(role);
+    assert.deepEqual(invocation.args.slice(0, canonicalPrefix.length), canonicalPrefix);
+    assert.equal(invocation.args.includes("exec"), true);
+    assert.equal(invocation.args.includes("db"), true);
+    assert.equal(invocation.args.at(-1), role);
+    assert.match(invocation.args.join(" "), /-h 127\.0\.0\.1/);
+    assert.match(invocation.args.join(" "), /SELECT current_user/);
+    assert.doesNotMatch(invocation.args.join("\n"), /SYNTHETIC_PASSWORD|PGPASSWORD=/);
+    assert.equal(invocation.shell, false);
+  }
+  for (const role of ["unknown", "postgres;drop", "", null]) {
+    assert.throws(() => createSupabasePostgresPasswordAuthenticationProbeInvocation(role), /POSTGRES_PASSWORD_AUTH_PROBE_ROLE_FORBIDDEN/);
+  }
+});
+
+test("Supavisor password probes allow exactly the session and transaction ports with stdin-only credentials", () => {
+  for (const port of [5432, 6543]) {
+    const invocation = createSupabaseSupavisorPasswordProbeInvocation(port);
+    assert.deepEqual(invocation.args.slice(0, canonicalPrefix.length), canonicalPrefix);
+    assert.equal(invocation.args.at(-1), String(port));
+    assert.match(invocation.args.join(" "), /-h supavisor/);
+    assert.match(invocation.args.join(" "), /SELECT 1/);
+    assert.doesNotMatch(invocation.args.join("\n"), /SYNTHETIC_PASSWORD|SYNTHETIC_TENANT|PGPASSWORD=/);
+    assert.equal(invocation.shell, false);
+  }
+  for (const port of [5433, "5432", null]) {
+    assert.throws(() => createSupabaseSupavisorPasswordProbeInvocation(port), /SUPAVISOR_PASSWORD_PROBE_PORT_FORBIDDEN/);
+  }
 });
 
 test("Postgres DB recreation is dedicated, fixed, and separate from generic consumers", () => {

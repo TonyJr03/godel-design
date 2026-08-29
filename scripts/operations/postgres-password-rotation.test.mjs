@@ -11,24 +11,27 @@ import {
   POSTGRES_PASSWORD_ROTATION_STAGES,
   POSTGRES_ROTATED_ROLES,
   buildPostgresPasswordRotationCandidate,
+  buildPostgresPasswordRestorationSql,
   buildPostgresPasswordRotationSql,
   buildSupavisorCredentialCurlConfig,
   generatePostgresPassword,
   getPostgresPasswordPrePointerCompensation,
+  isRestorablePostgresPassword,
   isValidPostgresPassword,
+  validateRestorablePostgresPassword,
   validatePostgresPasswordRotationCandidate,
   validateSupavisorCredentialApiResult,
 } from "./postgres-password-rotation.mjs";
 
-const sourcePassword = "a".repeat(64);
+const sourcePassword = "a".repeat(32);
 const targetPassword = "b".repeat(64);
 const resultSafetyTargetPassword = "0123456789abcdef".repeat(4);
 const sentinelToken = "SYNTHETIC_SERVICE_ROLE_TOKEN_DO_NOT_PRINT";
 const sentinelTenant = "SYNTHETIC_TENANT_DO_NOT_PRINT";
 
-function sourceSupabase({ extra = "" } = {}) {
+function sourceSupabase({ password = sourcePassword, extra = "" } = {}) {
   return Buffer.from(
-    `POSTGRES_PASSWORD=${sourcePassword}\nSERVICE_ROLE_KEY=${sentinelToken}\nPOOLER_TENANT_ID=${sentinelTenant}\nJWT_SECRET=retained\n${extra}`,
+    `POSTGRES_PASSWORD=${password}\nSERVICE_ROLE_KEY=${sentinelToken}\nPOOLER_TENANT_ID=${sentinelTenant}\nJWT_SECRET=retained\n${extra}`,
     "utf8",
   );
 }
@@ -63,6 +66,27 @@ test("candidate changes only POSTGRES_PASSWORD and retains Godel bytes", () => {
   assert.match(candidate.supabaseSnapshot.toString("utf8"), /^JWT_SECRET=retained$/m);
 });
 
+test("candidate accepts a restorable 32- or 64-character source and requires a 64-character target", () => {
+  const godel = sourceGodel();
+  for (const source of [sourcePassword, "c".repeat(64)]) {
+    const candidate = buildPostgresPasswordRotationCandidate({
+      sourceSupabaseSnapshot: sourceSupabase({ password: source }),
+      sourceGodelSnapshot: godel,
+      targetPassword,
+    });
+    assert.deepEqual(validatePostgresPasswordRotationCandidate({
+      sourceSupabaseSnapshot: sourceSupabase({ password: source }),
+      candidateSupabaseSnapshot: candidate.supabaseSnapshot,
+      sourceGodelSnapshot: godel,
+      candidateGodelSnapshot: godel,
+    }), { reason: POSTGRES_PASSWORD_ROTATION_REASON });
+  }
+  assert.throws(
+    () => buildPostgresPasswordRotationCandidate({ sourceSupabaseSnapshot: sourceSupabase(), sourceGodelSnapshot: godel, targetPassword: "d".repeat(32) }),
+    /POSTGRES_ROTATION_PASSWORD_INVALID/,
+  );
+});
+
 test("candidate validator returns structural metadata without propagating the target password", () => {
   const source = sourceSupabase();
   const godel = sourceGodel();
@@ -94,12 +118,18 @@ test("candidate validation rejects missing, empty, invalid, unchanged, unrelated
     () => buildPostgresPasswordRotationCandidate({ sourceSupabaseSnapshot: Buffer.from("POSTGRES_PASSWORD=\nSERVICE_ROLE_KEY=x\nPOOLER_TENANT_ID=y\n"), sourceGodelSnapshot: godel, targetPassword }),
     /POSTGRES_ROTATION_SOURCE_INVALID/,
   );
+  for (const invalidSourcePassword of ["a".repeat(31), "a".repeat(33), "a".repeat(63), "a".repeat(65), "A".repeat(32), `${"a".repeat(32)}'`, `${"a".repeat(31)}\"`]) {
+    assert.throws(
+      () => buildPostgresPasswordRotationCandidate({ sourceSupabaseSnapshot: sourceSupabase({ password: invalidSourcePassword }), sourceGodelSnapshot: godel, targetPassword }),
+      /POSTGRES_ROTATION_SOURCE_INVALID/,
+    );
+  }
   assert.throws(
     () => buildPostgresPasswordRotationCandidate({ sourceSupabaseSnapshot: sourceSupabase(), sourceGodelSnapshot: godel, targetPassword: "invalid" }),
     /POSTGRES_ROTATION_PASSWORD_INVALID/,
   );
   assert.throws(
-    () => buildPostgresPasswordRotationCandidate({ sourceSupabaseSnapshot: sourceSupabase(), sourceGodelSnapshot: godel, targetPassword: sourcePassword }),
+    () => buildPostgresPasswordRotationCandidate({ sourceSupabaseSnapshot: sourceSupabase({ password: "a".repeat(64) }), sourceGodelSnapshot: godel, targetPassword: "a".repeat(64) }),
     /POSTGRES_ROTATION_PASSWORD_UNCHANGED/,
   );
   assert.throws(
@@ -152,14 +182,32 @@ test("candidate validation rejects non-environment comment and formatting mutati
   }
 });
 
-test("role SQL is transactional and limited to the approved seven roles", () => {
+test("strict rotation and restorable source SQL are transactional and limited to the approved seven roles", () => {
   const sql = buildPostgresPasswordRotationSql(targetPassword);
+  const legacySql = buildPostgresPasswordRestorationSql(sourcePassword);
   assert.match(sql, /^BEGIN;\n/);
   assert.match(sql, /\nCOMMIT;\n$/);
   assert.equal((sql.match(/ALTER ROLE /g) ?? []).length, 7);
   assert.deepEqual([...sql.matchAll(/ALTER ROLE ([a-z_]+) WITH PASSWORD/g)].map((match) => match[1]), POSTGRES_ROTATED_ROLES);
   assert.doesNotMatch(sql, /DROP|CREATE SCHEMA|_supavisor/i);
+  assert.equal((legacySql.match(/ALTER ROLE /g) ?? []).length, 7);
+  assert.deepEqual([...legacySql.matchAll(/ALTER ROLE ([a-z_]+) WITH PASSWORD/g)].map((match) => match[1]), POSTGRES_ROTATED_ROLES);
+  assert.equal((legacySql.match(/BEGIN;/g) ?? []).length, 1);
+  assert.equal((legacySql.match(/COMMIT;/g) ?? []).length, 1);
+  assert.match(legacySql, new RegExp(sourcePassword));
   assert.throws(() => buildPostgresPasswordRotationSql("invalid"), /POSTGRES_ROTATION_PASSWORD_INVALID/);
+  assert.throws(() => buildPostgresPasswordRotationSql(sourcePassword), /POSTGRES_ROTATION_PASSWORD_INVALID/);
+  assert.throws(() => buildPostgresPasswordRestorationSql("invalid"), /POSTGRES_ROTATION_RESTORABLE_PASSWORD_INVALID/);
+});
+
+test("restorable-password validation accepts only lowercase hexadecimal legacy or target values", () => {
+  assert.equal(isRestorablePostgresPassword(sourcePassword), true);
+  assert.equal(isRestorablePostgresPassword(targetPassword), true);
+  assert.equal(validateRestorablePostgresPassword(sourcePassword), sourcePassword);
+  for (const value of ["a".repeat(31), "a".repeat(33), "a".repeat(63), "a".repeat(65), "A".repeat(32), `${"a".repeat(32)}\n`, `${"a".repeat(32)}\"`]) {
+    assert.equal(isRestorablePostgresPassword(value), false);
+    assert.throws(() => validateRestorablePostgresPassword(value), /POSTGRES_ROTATION_RESTORABLE_PASSWORD_INVALID/);
+  }
 });
 
 test("role SQL failures never disclose a synthetic target password", () => {
@@ -172,18 +220,24 @@ test("role SQL failures never disclose a synthetic target password", () => {
 });
 
 test("Supavisor curl config confines all synthetic credentials to stdin configuration", () => {
-  const config = buildSupavisorCredentialCurlConfig({
-    tenantId: sentinelTenant,
-    serviceRoleKey: sentinelToken,
-    targetPassword,
-  });
-  assert.match(config, /^request = "POST"$/m);
-  assert.match(config, /^url = "http:\/\/127\.0\.0\.1:4000\/api\/tenants\/SYNTHETIC_TENANT_DO_NOT_PRINT\/update_auth_credentials"$/m);
-  assert.match(config, /^header = "Authorization: Bearer SYNTHETIC_SERVICE_ROLE_TOKEN_DO_NOT_PRINT"$/m);
-  assert.match(config, /\\"db_user\\":\\"pgbouncer\\"/);
-  assert.match(config, new RegExp(targetPassword));
-  assert.match(config, /^output = "\/dev\/null"$/m);
-  assert.match(config, /^write-out = "%\{http_code\}"$/m);
+  for (const password of [sourcePassword, targetPassword]) {
+    const config = buildSupavisorCredentialCurlConfig({
+      tenantId: sentinelTenant,
+      serviceRoleKey: sentinelToken,
+      targetPassword: password,
+    });
+    assert.match(config, /^request = "POST"$/m);
+    assert.match(config, /^url = "http:\/\/127\.0\.0\.1:4000\/api\/tenants\/SYNTHETIC_TENANT_DO_NOT_PRINT\/update_auth_credentials"$/m);
+    assert.match(config, /^header = "Authorization: Bearer SYNTHETIC_SERVICE_ROLE_TOKEN_DO_NOT_PRINT"$/m);
+    assert.match(config, /\\"db_user\\":\\"pgbouncer\\"/);
+    assert.match(config, new RegExp(password));
+    assert.match(config, /^output = "\/dev\/null"$/m);
+    assert.match(config, /^write-out = "%\{http_code\}"$/m);
+  }
+  assert.throws(
+    () => buildSupavisorCredentialCurlConfig({ tenantId: sentinelTenant, serviceRoleKey: sentinelToken, targetPassword: "a".repeat(33) }),
+    /POSTGRES_ROTATION_RESTORABLE_PASSWORD_INVALID/,
+  );
 });
 
 test("Supavisor result validation requires curl success and HTTP 204 without leaking sentinels", () => {

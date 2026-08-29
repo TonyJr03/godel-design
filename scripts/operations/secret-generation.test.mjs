@@ -16,6 +16,7 @@ import {
   getCurrentSecretGeneration,
   isCanonicalGenerationId,
   publishSecretGeneration,
+  readGenerationMutationLock,
   validateManifestExternalSecretGeneration,
   releaseGenerationMutationLock,
 } from "./secret-generation.mjs";
@@ -37,6 +38,53 @@ async function withFixture(run) {
 test("generation status succeeds when uninitialized", async () => withFixture(async (value) => {
   const status = await getCurrentSecretGeneration(value);
   assert.deepEqual(status, { state: "UNINITIALIZED", generationId: null, match: null });
+}));
+
+test("generation mutation lock reader validates absent and present structural state", async () => withFixture(async (value) => {
+  assert.deepEqual(await readGenerationMutationLock(value), { state: "ABSENT" });
+  await mkdir(join(value.protectedRoot, "external-secrets"), { recursive: true });
+  await writeFile(generationMutationLockPath(value.protectedRoot), JSON.stringify({
+    schemaVersion: 1,
+    operation: "postgres-password-rotation",
+    generationId: "123e4567-e89b-12d3-a456-426614174000",
+    startedAt: "2026-01-01T00:00:00.000Z",
+  }));
+  assert.deepEqual(await readGenerationMutationLock(value), {
+    state: "PRESENT",
+    schemaVersion: 1,
+    operation: "postgres-password-rotation",
+    generationId: "123e4567-e89b-12d3-a456-426614174000",
+    startedAt: "2026-01-01T00:00:00.000Z",
+  });
+}));
+
+test("generation mutation lock reader rejects unsafe and malformed lock files", async () => withFixture(async (value) => {
+  const root = join(value.protectedRoot, "external-secrets");
+  const lock = generationMutationLockPath(value.protectedRoot);
+  await mkdir(root, { recursive: true });
+  const valid = JSON.stringify({ schemaVersion: 1, operation: "postgres-password-rotation", generationId: null, startedAt: "2026-01-01T00:00:00.000Z" });
+  const cases = [
+    ["invalid-json", "{", /INVALID_GENERATION_MUTATION_LOCK/],
+    ["unexpected-key", JSON.stringify({ schemaVersion: 1, operation: "x", generationId: null, startedAt: "2026-01-01T00:00:00.000Z", extra: true }), /INVALID_GENERATION_MUTATION_LOCK/],
+    ["wrong-schema", JSON.stringify({ schemaVersion: 2, operation: "x", generationId: null, startedAt: "2026-01-01T00:00:00.000Z" }), /INVALID_GENERATION_MUTATION_LOCK/],
+    ["invalid-generation", JSON.stringify({ schemaVersion: 1, operation: "x", generationId: "not-a-uuid", startedAt: "2026-01-01T00:00:00.000Z" }), /INVALID_GENERATION_MUTATION_LOCK/],
+    ["invalid-started", JSON.stringify({ schemaVersion: 1, operation: "x", generationId: null, startedAt: "not-a-date" }), /INVALID_GENERATION_MUTATION_LOCK/],
+  ];
+  for (const [, contents, expected] of cases) {
+    await writeFile(lock, contents);
+    await assert.rejects(() => readGenerationMutationLock(value), expected);
+  }
+  await rm(lock, { force: true });
+  await mkdir(lock);
+  await assert.rejects(() => readGenerationMutationLock(value), /GENERATION_MUTATION_LOCK_NOT_REGULAR/);
+  await rm(lock, { recursive: true, force: true });
+  await writeFile(join(root, "target"), valid);
+  try {
+    await symlink(join(root, "target"), lock);
+    await assert.rejects(() => readGenerationMutationLock(value), /GENERATION_MUTATION_LOCK_SYMLINK/);
+  } catch (error) {
+    if (error?.code !== "EPERM") throw error;
+  }
 }));
 
 test("bootstrap dry run does not create a registry", async () => withFixture(async (value) => {

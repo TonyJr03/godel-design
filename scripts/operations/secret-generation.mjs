@@ -226,6 +226,29 @@ export function generationMutationLockPath(protectedRoot) {
   return join(registryPaths(protectedRoot).root, ".operation.lock");
 }
 
+export async function readGenerationMutationLock({ protectedRoot }) {
+  const lock = generationMutationLockPath(protectedRoot);
+  const entry = await lstatOrNull(lock);
+  if (!entry) return Object.freeze({ state: "ABSENT" });
+  if (entry.isSymbolicLink()) fail("GENERATION_MUTATION_LOCK_SYMLINK");
+  if (!entry.isFile()) fail("GENERATION_MUTATION_LOCK_NOT_REGULAR");
+  const value = parseJson(await readFile(lock), "INVALID_GENERATION_MUTATION_LOCK");
+  exactKeys(value, ["schemaVersion", "operation", "generationId", "startedAt"], "INVALID_GENERATION_MUTATION_LOCK");
+  if (value.schemaVersion !== 1
+    || typeof value.operation !== "string" || !value.operation
+    || (value.generationId !== null && !isCanonicalGenerationId(value.generationId))
+    || typeof value.startedAt !== "string" || Number.isNaN(Date.parse(value.startedAt))) {
+    fail("INVALID_GENERATION_MUTATION_LOCK");
+  }
+  return Object.freeze({
+    state: "PRESENT",
+    schemaVersion: value.schemaVersion,
+    operation: value.operation,
+    generationId: value.generationId,
+    startedAt: value.startedAt,
+  });
+}
+
 export async function assertNoGenerationMutationLock({ protectedRoot }) {
   const lock = generationMutationLockPath(protectedRoot);
   const entry = await lstatOrNull(lock);

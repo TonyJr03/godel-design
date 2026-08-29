@@ -49,6 +49,9 @@ function fakeRuntime({
   lockReadState = null,
   releaseThrowsAfterAbsent = false,
   mutateNonRecreated = false,
+  absentManaged = [],
+  absentNonRecreated = [],
+  managedIdentityFailure = false,
 } = {}) {
   const failures = new Set(failAt);
   const events = [];
@@ -59,6 +62,8 @@ function fakeRuntime({
   let pointer = initialPointer;
   let nginxRunning = false;
   let lockState = "PRESENT";
+  const missingManaged = new Set(absentManaged);
+  const missingNonRecreated = new Set(absentNonRecreated);
   const attempt = async (name, effect = null) => {
     events.push(name);
     if (failures.has(name)) throw new Error(`${sourceSecret}:${targetSecret}:${name}`);
@@ -80,7 +85,16 @@ function fakeRuntime({
     events,
     preflightRollback: async () => { await attempt("preflight:target"); return targetPreflight(); },
     preflightRollbackResume: async () => { await attempt("preflight:source"); return sourcePreflight(); },
-    getServiceIdentity: async ({ service }) => { events.push(`identity:${service}`); return identities.get(service); },
+    getServiceIdentity: async ({ service }) => {
+      events.push(`identity:${service}`);
+      if (missingManaged.has(service) || missingNonRecreated.has(service)) throw new Error(`${sourceSecret}:${targetSecret}:missing-${service}`);
+      return identities.get(service);
+    },
+    getManagedServiceIdentityState: async ({ service }) => {
+      events.push(`managed-identity:${service}`);
+      if (managedIdentityFailure) throw new Error(`${sourceSecret}:${targetSecret}:managed-lookup`);
+      return missingManaged.has(service) ? { state: "ABSENT" } : { state: "PRESENT", id: identities.get(service) };
+    },
     updateSupavisorManager: ({ generationId }) => attempt(`supavisor:${generationId}`),
     rotateDatabaseRoles: ({ generationId }) => attempt(`database:${generationId}`),
     verifyDatabaseAuthentication: ({ generationId }) => attempt(`database-verify:${generationId}`),
@@ -104,9 +118,9 @@ function fakeRuntime({
       if (failures.has("pointer:read")) throw new Error(`${sourceSecret}:${targetSecret}:pointer-read`);
       return pointer;
     },
-    recreateDatabase: () => attempt("recreate:db", () => identities.set("db", "db-1")),
+    recreateDatabase: () => attempt("recreate:db", () => { missingManaged.delete("db"); identities.set("db", "db-1"); }),
     waitDatabaseHealthy: () => attempt("database-health"),
-    recreateConsumer: ({ service }) => attempt(`recreate:${service}`, () => identities.set(service, `${service}-1`)),
+    recreateConsumer: ({ service }) => attempt(`recreate:${service}`, () => { missingManaged.delete(service); identities.set(service, `${service}-1`); }),
     waitServiceHealthy: ({ service }) => attempt(`health:${service}`),
     verifyRuntimeSecretHygiene: ({ service }) => {
       events.push(`hygiene:${service}`);
@@ -251,6 +265,38 @@ test("each consumer and non-recreated identity failure remains committed recover
   }
   const identityChanged = await rollback({ mutateNonRecreated: true });
   assert.equal(identityChanged.result.code, "POSTGRES_ROLLBACK_COMMITTED_RECOVERY_INCOMPLETE");
+  const missingNonRecreated = await rollback({ absentNonRecreated: ["api-gw"] });
+  assert.equal(missingNonRecreated.result.code, "POSTGRES_ROLLBACK_PREFLIGHT_FAILED");
+});
+
+test("rollback reconstructs stopped and absent managed services while preserving strict post-recreate identity", async () => {
+  const stopped = await rollback();
+  assert.equal(stopped.result.state, "ROLLBACK_COMPLETE");
+  assert.equal(stopped.runtime.events.includes("managed-identity:storage"), true);
+  assert.equal(stopped.runtime.events.indexOf("managed-identity:storage") < stopped.runtime.events.indexOf("recreate:storage"), true);
+
+  const absentStorage = await rollback({ absentManaged: ["storage"] });
+  assert.equal(absentStorage.result.state, "ROLLBACK_COMPLETE");
+  assert.equal(absentStorage.runtime.events.includes("managed-identity:storage"), true);
+  assert.equal(absentStorage.runtime.events.includes("recreate:storage"), true);
+  assert.equal(absentStorage.runtime.events.indexOf("recreate:storage") < absentStorage.runtime.events.lastIndexOf("identity:storage"), true);
+
+  const absentDb = await rollback({ absentManaged: ["db"] });
+  assert.equal(absentDb.result.state, "ROLLBACK_COMPLETE");
+  assert.equal(absentDb.runtime.events.indexOf("managed-identity:db") < absentDb.runtime.events.indexOf("recreate:db"), true);
+  assert.equal(absentDb.runtime.events.indexOf("recreate:db") < absentDb.runtime.events.indexOf("database-health"), true);
+});
+
+test("rollback and resume fail closed when managed identity inspection fails, while a later resume can reconstruct an absent service", async () => {
+  const failed = await rollback({ managedIdentityFailure: true });
+  assert.equal(failed.result.code, "POSTGRES_ROLLBACK_COMMITTED_RECOVERY_INCOMPLETE");
+
+  const { source, target } = generations();
+  const resumedRuntime = fakeRuntime({ initialPointer: sourceGenerationId, absentManaged: ["auth"] });
+  const resumed = await resumePostgresPasswordRollback({ source, target, runtime: resumedRuntime });
+  assert.equal(resumed.state, "ROLLBACK_COMPLETE");
+  assert.equal(resumedRuntime.events.includes("managed-identity:auth"), true);
+  assert.equal(resumedRuntime.events.includes("recreate:auth"), true);
 });
 
 test("resume verifies SOURCE first, reconverges all nine services, and never rewrites the pointer", async () => {
