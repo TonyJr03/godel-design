@@ -264,15 +264,15 @@ export async function orchestratePostgresPasswordRollback({ source, target, runt
     let rollbackStage = "ROLLBACK_SUPAVISOR_SOURCE";
     try {
       attempts.supavisor = true;
-      await invoke(runtime, "updateSupavisorManager", { generationId: sourceGenerationId });
+      await invoke(runtime, "restoreSupavisorManager", { generationId: sourceGenerationId });
       rollbackStage = "ROLLBACK_DATABASE_SOURCE";
       attempts.database = true;
-      await invoke(runtime, "rotateDatabaseRoles", { generationId: sourceGenerationId, roles: POSTGRES_ROTATED_ROLES });
+      await invoke(runtime, "restoreDatabaseRoles", { generationId: sourceGenerationId, roles: POSTGRES_ROTATED_ROLES });
       rollbackStage = "ROLLBACK_DATABASE_SOURCE_VERIFIED";
       await invoke(runtime, "verifyDatabaseAuthentication", { generationId: sourceGenerationId, roles: POSTGRES_ROTATED_ROLES });
       rollbackStage = "ROLLBACK_ENV_SOURCE";
       attempts.environment = true;
-      await invoke(runtime, "writeEnvironment", { generationId: sourceGenerationId, allowedNames: ["POSTGRES_PASSWORD"] });
+      await invoke(runtime, "restoreEnvironment", { generationId: sourceGenerationId, allowedNames: ["POSTGRES_PASSWORD"] });
       rollbackStage = "ROLLBACK_ENV_SOURCE_VERIFIED";
       await invoke(runtime, "verifyLiveEnvironment", { generationId: sourceGenerationId });
     } catch {

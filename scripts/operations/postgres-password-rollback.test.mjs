@@ -13,7 +13,7 @@ import { POSTGRES_PASSWORD_RUNTIME_RECREATE_ORDER } from "./postgres-password-ru
 
 const sourceGenerationId = "postgres-source-generation";
 const targetGenerationId = "postgres-target-generation";
-const sourcePassword = "a".repeat(64);
+const sourcePassword = "a".repeat(32);
 const targetPassword = "b".repeat(64);
 const sourceSecret = "SYNTHETIC_ROLLBACK_SOURCE_SECRET_DO_NOT_PRINT";
 const targetSecret = "SYNTHETIC_ROLLBACK_TARGET_SECRET_DO_NOT_PRINT";
@@ -95,11 +95,32 @@ function fakeRuntime({
       if (managedIdentityFailure) throw new Error(`${sourceSecret}:${targetSecret}:managed-lookup`);
       return missingManaged.has(service) ? { state: "ABSENT" } : { state: "PRESENT", id: identities.get(service) };
     },
-    updateSupavisorManager: ({ generationId }) => attempt(`supavisor:${generationId}`),
-    rotateDatabaseRoles: ({ generationId }) => attempt(`database:${generationId}`),
+    updateSupavisorManager: ({ generationId }) => {
+      if (generationId !== targetGenerationId) throw new Error("forward-supavisor-target-only");
+      return attempt("forward-supavisor:target");
+    },
+    rotateDatabaseRoles: ({ generationId }) => {
+      if (generationId !== targetGenerationId) throw new Error("forward-database-target-only");
+      return attempt("forward-database:target");
+    },
     verifyDatabaseAuthentication: ({ generationId }) => attempt(`database-verify:${generationId}`),
-    writeEnvironment: ({ generationId }) => attempt(`environment:${generationId}`),
+    writeEnvironment: ({ generationId }) => {
+      if (generationId !== targetGenerationId) throw new Error("forward-environment-target-only");
+      return attempt("forward-environment:target");
+    },
     verifyLiveEnvironment: ({ generationId }) => attempt(`environment-verify:${generationId}`),
+    restoreSupavisorManager: ({ generationId }) => {
+      if (generationId !== sourceGenerationId) throw new Error("restore-supavisor-source-only");
+      return attempt("restore-supavisor:source");
+    },
+    restoreDatabaseRoles: ({ generationId }) => {
+      if (generationId !== sourceGenerationId) throw new Error("restore-database-source-only");
+      return attempt("restore-database:source");
+    },
+    restoreEnvironment: ({ generationId }) => {
+      if (generationId !== sourceGenerationId) throw new Error("restore-environment-source-only");
+      return attempt("restore-environment:source");
+    },
     restoreEnvironmentTarget: () => attempt("restore-environment:target"),
     restoreDatabaseRolesTarget: () => attempt("restore-database:target"),
     restoreSupavisorManagerTarget: () => attempt("restore-supavisor:target"),
@@ -196,14 +217,29 @@ test("rollback scope rejects a TARGET that preflight identifies as already accep
   const { source, target } = generations();
   const result = await orchestratePostgresPasswordRollback({ source, target, runtime });
   assert.equal(result.code, "POSTGRES_ROLLBACK_PREFLIGHT_FAILED");
-  assert.equal(runtime.events.some((event) => event.startsWith("supavisor:")), false);
+  assert.equal(runtime.events.some((event) => event === "restore-supavisor:source"), false);
 });
 
-test("normal rollback follows SOURCE-first secret ordering then exact runtime convergence", async () => {
+test("normal rollback uses concrete SOURCE restoration primitives for a LEGACY32 source", async () => {
   const { runtime, result } = await rollback();
   assert.equal(result.state, "ROLLBACK_COMPLETE");
+  assert.equal(sourcePassword.length, 32);
+  assert.equal(targetPassword.length, 64);
+  assert.deepEqual(runtime.events.filter((event) => [
+    "restore-supavisor:source",
+    "restore-database:source",
+    `database-verify:${sourceGenerationId}`,
+    "restore-environment:source",
+    `environment-verify:${sourceGenerationId}`,
+  ].includes(event)), [
+    "restore-supavisor:source",
+    "restore-database:source",
+    `database-verify:${sourceGenerationId}`,
+    "restore-environment:source",
+    `environment-verify:${sourceGenerationId}`,
+  ]);
+  assert.equal(runtime.events.some((event) => event.startsWith("forward-")), false);
   assert.deepEqual(runtime.events.filter((event) => event.startsWith("recreate:")), POSTGRES_PASSWORD_RUNTIME_RECREATE_ORDER.map((service) => `recreate:${service}`));
-  assert.equal(runtime.events.indexOf(`supavisor:${sourceGenerationId}`) < runtime.events.indexOf(`database:${sourceGenerationId}`), true);
   assert.equal(runtime.events.indexOf("pointer:source") < runtime.events.indexOf("recreate:db"), true);
   assert.equal(runtime.events.indexOf("accept:source") < runtime.events.indexOf("maintenance:open"), true);
   assert.equal(runtime.events.at(-1), "lock:read");
@@ -211,10 +247,10 @@ test("normal rollback follows SOURCE-first secret ordering then exact runtime co
 
 test("pre-pointer failures compensate attempted source mutations back to contained TARGET", async () => {
   const cases = [
-    [`supavisor:${sourceGenerationId}`, ["restore-supavisor:target"]],
-    [`database:${sourceGenerationId}`, ["restore-database:target", "restore-supavisor:target"]],
+    ["restore-supavisor:source", ["restore-supavisor:target"]],
+    ["restore-database:source", ["restore-database:target", "restore-supavisor:target"]],
     [`database-verify:${sourceGenerationId}`, ["restore-database:target"]],
-    [`environment:${sourceGenerationId}`, ["restore-environment:target", "restore-database:target"]],
+    ["restore-environment:source", ["restore-environment:target", "restore-database:target"]],
     [`environment-verify:${sourceGenerationId}`, ["restore-environment:target"]],
   ];
   for (const [failure, expected] of cases) {
@@ -240,7 +276,7 @@ test("rollback pointer readback distinguishes TARGET containment, SOURCE commit,
 
 test("compensation failures retain containment without ingress or lock finalization", async () => {
   for (const failure of ["restore-environment:target", "restore-database:target", "restore-supavisor:target"]) {
-    const { runtime, result } = await rollback({ failAt: [`environment:${sourceGenerationId}`, failure] });
+    const { runtime, result } = await rollback({ failAt: ["restore-environment:source", failure] });
     assert.equal(result.code, "POSTGRES_ROLLBACK_PRECOMMIT_COMPENSATION_FAILED", failure);
     assert.equal(runtime.events.includes("maintenance:open"), false);
     assert.equal(runtime.events.includes("lock:release"), false);
@@ -342,7 +378,7 @@ test("accepted rollback source finalization handles maintenance and lock ambigui
 test("rollback results never disclose synthetic source or target secrets", async () => {
   const { source, target } = generations();
   const outcomes = [
-    await orchestratePostgresPasswordRollback({ source, target, runtime: fakeRuntime({ failAt: [`environment:${sourceGenerationId}`, "restore-environment:target"] }) }),
+    await orchestratePostgresPasswordRollback({ source, target, runtime: fakeRuntime({ failAt: ["restore-environment:source", "restore-environment:target"] }) }),
     await orchestratePostgresPasswordRollback({ source, target, runtime: fakeRuntime({ failAt: ["pointer:source"], pointerAfterFailure: "unknown" }) }),
     await orchestratePostgresPasswordRollback({ source, target, runtime: fakeRuntime({ failAt: ["recreate:db"] }) }),
     await resumePostgresPasswordRollback({ source, target, runtime: fakeRuntime({ initialPointer: sourceGenerationId, failAt: ["recreate:db"] }) }),
