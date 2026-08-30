@@ -35,9 +35,10 @@ function serviceEnvironment(service, password = targetPassword) {
   return values[service];
 }
 
-function harness({ lock = { state: "PRESENT", operation: "postgres-password-rotation", generationId: targetGenerationId }, environments = Object.fromEntries(services.map((service) => [service, serviceEnvironment(service)])), failure = null, root = "synthetic-root", missingGodelIdentity = false, managedLookup = {}, sourcePasswordValue = sourcePassword, targetPasswordValue = targetPassword } = {}) {
+function harness({ lock = { state: "PRESENT", operation: "postgres-password-rotation", generationId: targetGenerationId }, environments = Object.fromEntries(services.map((service) => [service, serviceEnvironment(service)])), failure = null, root = "synthetic-root", missingGodelIdentity = false, managedLookup = {}, sourcePasswordValue = sourcePassword, targetPasswordValue = targetPassword, initialNginxRunning = true, nginxStates = null, waitImpl } = {}) {
   const calls = [];
-  let nginxRunning = true;
+  let nginxRunning = initialNginxRunning;
+  let nginxStateIndex = 0;
   const ids = new Map([...services, "api-gw", "imgproxy", "godel-app", "godel-nginx"].map((service, index) => [service, `${(index + 1).toString(16)}`.repeat(64)]));
   const byId = new Map([...ids].map(([service, id]) => [id, service]));
   const generation = (generationId) => ({ generationId, supabaseSnapshot: snapshot(generationId === sourceGenerationId ? sourcePasswordValue : targetPasswordValue) });
@@ -68,7 +69,11 @@ function harness({ lock = { state: "PRESENT", operation: "postgres-password-rota
     if (args[0] === "inspect" && args.some((item) => item.includes(".Config.Env"))) return { stdout: JSON.stringify(environments[byId.get(args.at(-1))]) };
     if (args[0] === "inspect" && args.some((item) => item.includes(".State"))) {
       const service = byId.get(args.at(-1));
-      return { stdout: JSON.stringify(service === "godel-nginx" && !nginxRunning ? { Running: false } : { Running: true, Health: { Status: "healthy" } }) };
+      if (service === "godel-nginx") {
+        if (!nginxRunning) return { stdout: JSON.stringify({ Running: false }) };
+        if (nginxStates) return { stdout: JSON.stringify(nginxStates[Math.min(nginxStateIndex++, nginxStates.length - 1)]) };
+      }
+      return { stdout: JSON.stringify({ Running: true, Health: { Status: "healthy" } }) };
     }
     if (args.includes("curl")) return { stdout: "204" };
     if (args.join(" ").includes("SELECT current_user")) return { stdout: args.at(-1) };
@@ -84,6 +89,7 @@ function harness({ lock = { state: "PRESENT", operation: "postgres-password-rota
     processRunner,
     root,
     secretGeneration,
+    ...(waitImpl ? { waitImpl } : {}),
   });
   return { runtime, calls, ids, secretGeneration, pointerCalls };
 }
@@ -275,6 +281,50 @@ test("Godel identities are Compose-backed across nginx stop/start and preserve t
     assert.deepEqual(lookup.args.slice(0, 5), ["compose", "--env-file", "compose.env.local", "-f", "compose.yaml"]);
   }
   assert.equal(calls.some((item) => item.args?.includes("--force-recreate")), false);
+});
+
+test("verifyNginxRunning returns immediately for an already healthy Nginx", async () => {
+  let waits = 0;
+  const { runtime } = harness({ waitImpl: async () => { waits += 1; } });
+  assert.equal(await runtime.verifyNginxRunning(), true);
+  assert.equal(waits, 0);
+});
+
+test("verifyNginxRunning waits through starting until Nginx is healthy", async () => {
+  let waits = 0;
+  const { runtime } = harness({
+    nginxStates: [{ Running: true, Health: { Status: "starting" } }, { Running: true, Health: { Status: "healthy" } }],
+    waitImpl: async () => { waits += 1; },
+  });
+  assert.equal(await runtime.verifyNginxRunning(), true);
+  assert.equal(waits, 1);
+});
+
+test("verifyNginxRunning fails immediately for an already stopped Nginx", async () => {
+  let waits = 0;
+  const { runtime } = harness({ initialNginxRunning: false, waitImpl: async () => { waits += 1; } });
+  await assert.rejects(() => runtime.verifyNginxRunning(), /POSTGRES_LIVE_RUNTIME_NGINX_NOT_RUNNING/);
+  assert.equal(waits, 0);
+});
+
+test("verifyNginxRunning fails closed when a starting Nginx stops", async () => {
+  let waits = 0;
+  const { runtime } = harness({
+    nginxStates: [{ Running: true, Health: { Status: "starting" } }, { Running: false }],
+    waitImpl: async () => { waits += 1; },
+  });
+  await assert.rejects(() => runtime.verifyNginxRunning(), /POSTGRES_LIVE_RUNTIME_NGINX_NOT_RUNNING/);
+  assert.equal(waits, 1);
+});
+
+test("verifyNginxRunning times out without accepting a non-healthy Nginx", async () => {
+  let waits = 0;
+  const { runtime } = harness({
+    nginxStates: [{ Running: true, Health: { Status: "starting" } }],
+    waitImpl: async () => { waits += 1; },
+  });
+  await assert.rejects(() => runtime.verifyNginxRunning(), /POSTGRES_LIVE_RUNTIME_NGINX_HEALTH_TIMEOUT/);
+  assert.equal(waits, 90);
 });
 
 test("missing stopped nginx container fails closed rather than being treated as stopped", async () => {

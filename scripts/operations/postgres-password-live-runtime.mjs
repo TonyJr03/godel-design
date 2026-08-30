@@ -187,6 +187,7 @@ export function createPostgresPasswordLiveRuntime({
   root = process.cwd(),
   processRunner = runSecretProcess,
   spawnImpl = spawn,
+  waitImpl = wait,
   secretGeneration = {
     assertReferencedSecretGenerationMatches,
     generationMutationLockPath,
@@ -201,7 +202,7 @@ export function createPostgresPasswordLiveRuntime({
 } = {}) {
   if (typeof protectedRoot !== "string" || typeof supabaseEnvPath !== "string" || typeof godelEnvPath !== "string" || typeof root !== "string") fail("POSTGRES_LIVE_RUNTIME_CONFIGURATION_INVALID");
   if (typeof sourceGenerationId !== "string" || typeof targetGenerationId !== "string" || sourceGenerationId === targetGenerationId) fail("POSTGRES_LIVE_RUNTIME_GENERATION_RELATION_INVALID");
-  if (typeof processRunner !== "function") fail("POSTGRES_LIVE_RUNTIME_CONFIGURATION_INVALID");
+  if (typeof processRunner !== "function" || typeof waitImpl !== "function") fail("POSTGRES_LIVE_RUNTIME_CONFIGURATION_INVALID");
 
   async function execute(invocation, { input = null, captureStdout = false, errorCode, cwd = root } = {}) {
     try {
@@ -272,7 +273,7 @@ export function createPostgresPasswordLiveRuntime({
     const deadline = Date.now() + 90000;
     while (Date.now() <= deadline) {
       if (isHealthyState(await inspectState(service))) return true;
-      await wait(1000);
+      await waitImpl(1000);
     }
     fail(`POSTGRES_LIVE_RUNTIME_${service}_HEALTH_TIMEOUT`);
   }
@@ -431,8 +432,15 @@ export function createPostgresPasswordLiveRuntime({
       return true;
     },
     async verifyNginxRunning() {
-      if (!isHealthyState(await inspectState("godel-nginx"))) fail("POSTGRES_LIVE_RUNTIME_NGINX_NOT_RUNNING");
-      return true;
+      let elapsed = 0;
+      while (true) {
+        const state = await inspectState("godel-nginx");
+        if (state?.Running !== true) fail("POSTGRES_LIVE_RUNTIME_NGINX_NOT_RUNNING");
+        if (isHealthyState(state)) return true;
+        if (elapsed >= 90000) fail("POSTGRES_LIVE_RUNTIME_NGINX_HEALTH_TIMEOUT");
+        await waitImpl(1000);
+        elapsed += 1000;
+      }
     },
     async verifySourceRuntimeHealth() {
       for (const service of SUPABASE_SERVICES) await waitServiceHealthy({ service });
