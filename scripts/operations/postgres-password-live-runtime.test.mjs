@@ -175,20 +175,27 @@ test("Supavisor update and pool verification keep password, token, and tenant on
   await assert.rejects(() => failed.runtime.updateSupavisorManager({ generationId: targetGenerationId }), (error) => !/bbbb|SYNTHETIC_/.test(error.message) && error.message === "POSTGRES_LIVE_RUNTIME_SUPAVISOR_UPDATE_FAILED");
 });
 
-test("runtime hygiene validates the exact nine service mappings without exposing raw environment", async () => {
+test("runtime hygiene returns structural TARGET and SOURCE mismatches after valid inspection", async () => {
   const { runtime } = harness();
   for (const service of services) {
     assert.deepEqual(await runtime.verifyRuntimeSecretHygiene({ service, generationId: targetGenerationId }), { targetMatch: true, oldAbsent: true });
   }
+  const targetStillSource = harness({ environments: Object.fromEntries(services.map((service) => [service, serviceEnvironment(service, sourcePassword)])) }).runtime;
+  assert.deepEqual(await targetStillSource.verifyRuntimeSecretHygiene({ service: "db", generationId: targetGenerationId }), { targetMatch: false, oldAbsent: false });
+  const sourceStillTarget = harness().runtime;
+  assert.deepEqual(await sourceStillTarget.verifyRuntimeSecretHygiene({ service: "db", generationId: sourceGenerationId }), { sourceMatch: false, targetAbsent: false });
+  const unrelated = harness({ environments: { ...Object.fromEntries(services.map((service) => [service, serviceEnvironment(service)])), db: serviceEnvironment("db", "c".repeat(64)) } }).runtime;
+  assert.deepEqual(await unrelated.verifyRuntimeSecretHygiene({ service: "db", generationId: targetGenerationId }), { targetMatch: false, oldAbsent: true });
+});
+
+test("runtime hygiene rejects only invalid inspection or parsing without exposing raw environment", async () => {
   for (const [label, environments] of [
-    ["revoked", { ...Object.fromEntries(services.map((service) => [service, serviceEnvironment(service, sourcePassword)])) }],
     ["missing", { ...Object.fromEntries(services.map((service) => [service, serviceEnvironment(service)])), db: [`POSTGRES_PASSWORD=${targetPassword}`] }],
     ["duplicate", { ...Object.fromEntries(services.map((service) => [service, serviceEnvironment(service)])), studio: [`POSTGRES_PASSWORD=${targetPassword}`, `POSTGRES_PASSWORD=${targetPassword}`] }],
-    ["wrong-url", { ...Object.fromEntries(services.map((service) => [service, serviceEnvironment(service)])), auth: [`GOTRUE_DB_DATABASE_URL=postgres://manager:${sourcePassword}@db/postgres`] }],
     ["malformed-url", { ...Object.fromEntries(services.map((service) => [service, serviceEnvironment(service)])), rest: ["PGRST_DB_URI=not-a-url"] }],
   ]) {
     const { runtime: broken } = harness({ environments });
-    await assert.rejects(() => broken.verifyRuntimeSecretHygiene({ service: label === "missing" ? "db" : label === "duplicate" ? "studio" : label === "wrong-url" ? "auth" : label === "malformed-url" ? "rest" : "db", generationId: targetGenerationId }), (error) => error.message === "POSTGRES_LIVE_RUNTIME_HYGIENE_INVALID" && !/aaaa|bbbb|SYNTHETIC_/.test(error.message));
+    await assert.rejects(() => broken.verifyRuntimeSecretHygiene({ service: label === "missing" ? "db" : label === "duplicate" ? "studio" : "rest", generationId: targetGenerationId }), (error) => error.message === "POSTGRES_LIVE_RUNTIME_HYGIENE_INVALID" && !/aaaa|bbbb|SYNTHETIC_/.test(error.message));
   }
 });
 

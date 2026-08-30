@@ -405,14 +405,17 @@ export function createPostgresPasswordLiveRuntime({
       if (!contract) fail("POSTGRES_LIVE_RUNTIME_HYGIENE_SERVICE_FORBIDDEN");
       const { expected, revoked } = await expectedAndOppositePasswords(generationId);
       const environment = await inspectServiceEnvironment(service);
+      let expectedMatch = true;
+      let revokedAbsent = true;
       for (const item of contract) {
         const value = environmentValue(environment, item.name, "POSTGRES_LIVE_RUNTIME_HYGIENE_INVALID");
         const password = item.kind === "url" ? urlPassword(value, "POSTGRES_LIVE_RUNTIME_HYGIENE_INVALID") : value;
-        if (password !== expected || password === revoked) fail("POSTGRES_LIVE_RUNTIME_HYGIENE_INVALID");
+        if (password !== expected) expectedMatch = false;
+        if (password === revoked) revokedAbsent = false;
       }
       return generationId === targetGenerationId
-        ? Object.freeze({ targetMatch: true, oldAbsent: true })
-        : Object.freeze({ sourceMatch: true, targetAbsent: true });
+        ? Object.freeze({ targetMatch: expectedMatch, oldAbsent: revokedAbsent })
+        : Object.freeze({ sourceMatch: expectedMatch, targetAbsent: revokedAbsent });
     },
     async closeMaintenance() {
       await execute(createGodelMaintenanceCloseInvocation(), { errorCode: "POSTGRES_LIVE_RUNTIME_MAINTENANCE_CLOSE_FAILED" });
