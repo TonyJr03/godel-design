@@ -231,22 +231,22 @@ informan sin convertirse en blocker.
 | SH-04.3B | Contrato tracked y Auth hardening | CLOSED / APPROVED |
 | SH-04.3C-R1A | Completar wiring asimétrico y recovery | CLOSED / APPROVED |
 | SH-04.3C | Aplicar contrato endurecido y aceptación QA | CLOSED / APPROVED — bloqueador histórico resuelto por R1A/R1B |
-| SH-04.3D | Rotación de secretos | IN PROGRESS — D.0, D.1, D.2 y D.3 CLOSED / APPROVED; sigue D.4A (rotación legacy). |
+| SH-04.3D | Rotación de secretos | IN PROGRESS — D.0–D.5 CLOSED / APPROVED; D.6 es el siguiente gate de aceptación. |
 | SH-04.3E | Compatibilidad recovery tras rotación | Pendiente |
 | SH-04.3F | Aceptación operativa final | Pendiente |
 
 ## SH-04.3D — Rotación de secretos
 
-SH-04.3D.0, D.1, D.2 y D.3 están `CLOSED / APPROVED`; SH-04.3D permanece
-`IN PROGRESS` porque D.4A, D.4B, D.5 y D.6 siguen pendientes. El siguiente
-bloque es D.4A: rotación legacy de `JWT_SECRET`, `ANON_KEY` y
-`SERVICE_ROLE_KEY`, pendiente de diseño arquitectónico/operacional.
+SH-04.3D.0–D.5 están `CLOSED / APPROVED`. D.5 completó la rotación de
+contraseña PostgreSQL, con TARGET activa/current y finalización recuperada;
+SH-04.3D permanece `IN PROGRESS` hasta D.6. D.6 es el siguiente gate de
+aceptación agregado y no inicia automáticamente una nueva rotación.
 La autoridad de arquitectura, matriz de rotación, límites operativos y contrato
 de generaciones externas para rotación/recovery es
 [SH-04.3D — Rotación segura de secretos](SH_04_SECRET_ROTATION_REPORT.md).
-La evidencia detallada de D.2 y D.3 (generaciones externas, backup/rollback,
-cutover opaque y probe interno de Dashboard) está en el informe de rotación
-enlazado. SH-04.3E/F permanecen pendientes.
+La evidencia detallada de generaciones externas, backup/rollback, cutovers y
+recovery, incluida D.5, está en el informe de rotación enlazado. SH-04.3E/F
+permanecen pendientes.
 
 ## SH-04.3C - primer intento y hallazgo de interoperabilidad
 
@@ -316,5 +316,6 @@ retenidos verificaron correctamente y el runtime final quedó en Supabase 11/11,
 Godel 2/2 y health live/ready 200.
 
 SMTP conserva configuración inerte: no se contactó proveedor real y no es
-requerido por los flujos actuales de Godel. SH-04.3D/E/F permanecen pendientes;
-por ello SH-04.3 sigue `IN PROGRESS`.
+requerido por los flujos actuales de Godel. D.5 está cerrada/aprobada, D.6 es
+siguiente y SH-04.3E/F permanecen pendientes; por ello SH-04.3 sigue `IN
+PROGRESS`.

@@ -179,6 +179,13 @@ iniciado.
 | SH-04.4 | NOT STARTED |
 | SH-04.5 | NOT STARTED |
 
+#### Handoff SH-04.3D — Rotación de secretos
+
+SH-04.3D permanece `IN PROGRESS`. D.5 — rotación de contraseña PostgreSQL —
+está `CLOSED / APPROVED` tras la recuperación/finalización de TARGET. D.6 —
+aceptación final de rotación/recovery — es `NEXT`; no inicia automáticamente
+otra rotación. SH-04.4 y SH-04.5 conservan sus estados `NOT STARTED`.
+
 Construye y demuestra capacidades técnicas: persistencia e inventario de
 volúmenes/datos; backup de PostgreSQL, objetos Storage y configuración necesaria
 para reconstrucción; restore demostrado; estrategia de secretos; hardening de

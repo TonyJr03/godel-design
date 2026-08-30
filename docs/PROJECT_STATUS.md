@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Última actualización: 2026-08-13
+Última actualización: 2026-08-30
 
 ## Estado general
 
@@ -61,8 +61,8 @@ no forman parte de una instalación actual.
 | PPO-03F.2 | Cerrada / aprobada |
 | PPO-03F.3 | Cerrada / aprobada |
 | PPO-03F | Cerrada / aprobada |
-| PPO-03G | Pendiente |
-| PPO-03 | Activa |
+| PPO-03G | Cerrada / aprobada |
+| PPO-03 | Cerrada / aprobada |
 
 PPO-03D/E ya trasladaron los bytes de archivos del navegador directamente a
 Storage por TUS. PPO-03F.0 aprobó el lifecycle, la autoridad y el amendment
@@ -73,7 +73,7 @@ revisión arquitectónica cerró/aprobó PPO-03F y congeló la baseline 01–06.
 PPO-03G mantiene el gate final de infraestructura y retirada de límites
 transitorios.
 
-## Ruta activa
+## Ruta histórica hasta el cierre de PPO-03
 
 ```text
 SH-03
@@ -84,21 +84,30 @@ SH-03
 → cierre SH
 ```
 
-PPO-03F cerró el lifecycle de Storage y congeló la baseline 01–06. SH-02 está
-cerrado/aprobado: diseño, networking, proxy/TUS, contrato operativo y smoke
-agregado validaron la topología `App Docker + Nginx + Supabase self-hosted`.
-La ruta activa pasa a SH-03 para QA funcional production-like. SH-03.0 y
-SH-03.1 (provisioning QA self-hosted, Auth/session/roles y Auth Admin) están
-cerradas/aprobadas. El gate final de gestión de Usuarios verificó alta, edición
-y reset mediante navegación documental canónica tras éxito; el diferencial
-descartó el filesystem read-only como cofactor porque la respuesta de Server
-Actions puede quedar pendiente cuando combina revalidación y `ActionState`.
-El catálogo canónico `Impresión` fue reparado en datos y verificado por
-REST/Nginx y Chromium. SH-03.2A (inventario core, baseline read-only y
-corrección de navegación de listados) está cerrada/aprobada. SH-03.2 continúa
-activa; SH-03.2B está cerrada/aprobada.
-SH-03.2C está cerrada/aprobada y SH-03.2D está en curso. SH es un workstream técnico subordinado al roadmap
-maestro PPO y termina al cerrar SH-05.
+## Ruta activa
+
+```text
+SH-04
+→ SH-04.3
+→ SH-04.3D: D.5 CLOSED / APPROVED
+→ D.6 NEXT
+→ SH-04.3E/F
+→ SH-05
+→ cierre SH
+```
+
+PPO-03F cerró el lifecycle de Storage y congeló la baseline 01–06; PPO-03G
+cerró el gate final de infraestructura y PPO-03 quedó cerrado/aprobado. SH-02 y
+SH-03 están cerrados/aprobados: la topología `App Docker + Nginx + Supabase
+self-hosted`, Auth, flujos core, Storage y la regresión agregada quedaron
+validados. SH continúa como workstream técnico subordinado al roadmap maestro
+PPO y termina al cerrar SH-05.
+
+SH-04 está en curso. Dentro de SH-04.3, D.5 completó/aprobó la rotación de
+contraseña PostgreSQL en el runtime operacional self-hosted: TARGET es la
+generación externa actual y SOURCE queda retenida/no actual. D.6 es el siguiente
+gate de aceptación; SH-04.3D y SH-04.3 permanecen `IN PROGRESS`. Esto no declara
+un despliegue en `company-host`, cuyo gate PPO-01 sigue separado.
 PPO-01C/D puede avanzar en paralelo
 cuando `company-host` esté disponible; PPO-01D aprobado es gate antes de PPO-04.
 

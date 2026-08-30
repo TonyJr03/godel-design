@@ -1,15 +1,15 @@
 # SH-04.3D — Rotación segura de secretos y continuidad de recovery
 
 Estado: `IN PROGRESS` — D.3 (rotación de API keys opacas), D.4A
-(rotación legacy), D.4B (rotación EC) y D.5.0 (auditoría arquitectónica)
-están cerrados; D.5 sigue `IN PROGRESS` y D.6 permanece pendiente.
+(rotación legacy), D.4B (rotación EC) y D.5 (rotación PostgreSQL) están
+cerrados/aprobados; D.6 es `NEXT`.
 
 Estado de subfases: D.0 `CLOSED / APPROVED`, D.1 `CLOSED / APPROVED`, D.2A
 `CLOSED / APPROVED`, D.2B `CLOSED / APPROVED`, D.2 `CLOSED / APPROVED`, D.3A
 `CLOSED / APPROVED`, D.3B.0 `CLOSED / APPROVED / PASS`, D.3B.1
 `CLOSED / APPROVED / PASS`, D.4A `CLOSED / APPROVED / PASS`, D.4B
-`CLOSED / APPROVED / PASS` y D.5.0 `CLOSED / APPROVED / PASS`; D.5
-permanece `IN PROGRESS` y D.6 pendiente.
+`CLOSED / APPROVED / PASS`, D.5 `COMPLETE / APPROVED` y D.6 `NEXT`.
+SH-04.3D permanece `IN PROGRESS` hasta el cierre de D.6.
 
 Este documento es la autoridad operativa para SH-04.3D. Complementa el
 [informe general SH-04.3](SH_04_SECRETS_AUTH_REPORT.md), que conserva el
@@ -17,15 +17,14 @@ contrato de configuración y Auth.
 
 ## Alcance y límites
 
-La fase cubre el diseño de rotación, la custodia local de generaciones externas
-y su vínculo con backup/restore. No autoriza generar valores productivos,
-editar `infra/supabase/.env`, `compose.env.local` o `.env.qa.local`, reiniciar
-servicios, modificar base de datos, usuarios o Storage, ni ejecutar restores.
-
-Los valores se generan y se custodian fuera de Git. Los snapshots de esta fase
-contienen secretos y deben permanecer en
-`protected-recovery-material/selfhosted/external-secrets/`, que no se imprime,
-sube ni se trata como artefacto de documentación.
+La fase cubre diseño, custodia local de generaciones externas, backup/restore y
+la evidencia de rotaciones aprobadas ya ejecutadas. No concede autorización
+general para mutaciones: cada rotación o recovery productivo requiere un
+subbloque/gate explícitamente diseñado y aprobado. Los valores reales permanecen
+fuera de Git; la mutación manual o ad-hoc de secretos sigue prohibida y las
+claves de cifrado con estado o raíces de instalación conservan sus restricciones
+específicas. Ningún secreto se imprime, sube ni se trata como artefacto de
+documentación.
 
 ## Resultado de auditoría D.0
 
@@ -66,7 +65,7 @@ cifrado con estado. Ninguno se resuelve con D.1.
 
 | Material | Consumers | Clase | Acoplado con | Estado persistente / sesiones | Producción nueva | Rotación live | QA / rebuild / servicios | Backup y retención | Recomendación |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `POSTGRES_PASSWORD` | PostgreSQL y roles | D | Roles DB, Supavisor | Credenciales DB y estado Supavisor | Sí | No aprobada | Drill DB; DB y Supavisor | Antes; recovery | D.5, preservar `_supavisor`. |
+| `POSTGRES_PASSWORD` | PostgreSQL y roles | D | Roles DB, Supavisor | Credenciales DB y estado Supavisor | Sí | Solo mediante gate D.5 aprobado | Drill DB; DB y Supavisor | Antes; recovery | D.5 ejecutada; contrato `_supavisor` preservado. |
 | `JWT_SECRET` | Auth y verificadores legacy | C | `ANON_KEY`, `SERVICE_ROLE_KEY`, JWKS legacy | Invalida HS256 | Sí | Solo plan coordinado | Login, API y todos verificadores | Antes; conservar generación | D.4A. |
 | `ANON_KEY` | API gateway / clientes | B,C | `JWT_SECRET`, API key wiring | Token legacy | Sí | Solo plan coordinado | Gateway y consumidores | Antes; conservar generación | D.4A. |
 | `SERVICE_ROLE_KEY` | Servicios internos legacy | B,C | `JWT_SECRET`, API key wiring | Token legacy | Sí | Solo plan coordinado | Gateway, Auth admin | Antes; conservar generación | D.4A. |
@@ -92,7 +91,7 @@ cifrado con estado. Ninguno se resuelve con D.1.
 
 | Material | Consumers | Primary class | Coupled with | Persistent-state impact | Session impact | Fresh production unique | Live rotation | QA proof required | App rebuild | Services affected | Backup before rotation | Historical-secret retention | Recommendation |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `POSTGRES_PASSWORD` | DB/roles | D | Supavisor | Sí | No | Sí | No | DB+Supavisor drill | No | db,supavisor | Sí | Recovery | D.5 only |
+| `POSTGRES_PASSWORD` | DB/roles | D | Supavisor | Sí | No | Sí | D.5 ejecutada mediante gate aprobado | Verificación DB+Supavisor | No | db,supavisor | Sí | Recovery | D.5 completada |
 | `JWT_SECRET` | Auth/legacy verifiers | C | anon/service keys | No | HS256 invalidated | Sí | Plan only | login+API | No | auth,verifiers | Sí | Recovery | D.4A |
 | `ANON_KEY` | gateway/clients | C | JWT secret | No | legacy token | Sí | Plan only | gateway | No | api-gw | Sí | Recovery | D.4A |
 | `SERVICE_ROLE_KEY` | internal legacy | C | JWT secret | No | legacy token | Sí | Plan only | Admin Auth | No | api-gw,auth | Sí | Recovery | D.4A |
@@ -126,7 +125,7 @@ cifrado con estado. Ninguno se resuelve con D.1.
 - `infra/supabase/utils/db-passwd.sh` está **NOT AUTHORIZED**: imprime la
   contraseña generada, altera múltiples roles y ejecuta `DROP SCHEMA
   _supavisor CASCADE`. QA mantiene estado cifrado persistente de Supavisor; D.5
-  deberá preservarlo.
+  preservó el contrato de Supavisor aprobado sin utilizar ese helper.
 
 ## Descomposición de SH-04.3D
 
@@ -139,8 +138,8 @@ cifrado con estado. Ninguno se resuelve con D.1.
 | D.4A | Rotación legacy `JWT_SECRET` / anon / service-role | CLOSED / APPROVED / PASS — hard cut final y rollback real aprobados. |
 | D.4B | Rotación de claves EC de firma | CLOSED / APPROVED / PASS — D.4B.0–D.4B.8 completados; rotación EC operativa y funcionalmente completa. |
 | D.5.0 | Auditoría arquitectónica/live read-only de contraseña PostgreSQL | CLOSED / APPROVED / PASS |
-| D.5 | Rotación segura de contraseña PostgreSQL | IN PROGRESS — la rotación productiva aún no está autorizada. |
-| D.6 | Aceptación final de rotación/recovery | Pendiente |
+| D.5 | Rotación segura de contraseña PostgreSQL | COMPLETE / APPROVED |
+| D.6 | Aceptación final de rotación/recovery | NEXT |
 
 ## Retención y semántica de asociación
 
@@ -221,12 +220,12 @@ No cambia automáticamente los env.
 
 ## Próximos gates
 
-1. Definir y aprobar por separado el runbook para PostgreSQL/Supavisor y las
-   claves de cifrado con estado, incluyendo backup/restore drill.
-2. Generar material real únicamente fuera del repositorio y bajo autorización
-   operativa explícita.
-3. Ejecutar una rotación por grupos, verificando consumidores, health y
-   recovery antes de retirar la generación anterior.
+1. Diseñar y ejecutar D.6 como aceptación agregada de rotación/recovery, sin
+   iniciar automáticamente otra rotación.
+2. Mantener los valores reales fuera del repositorio y requerir autorización
+   operativa explícita para cualquier mutación futura.
+3. Preservar los procedimientos específicos para claves de cifrado con estado y
+   raíces de instalación; no tienen autorización live genérica.
 4. Documentar evidencia sanitizada y completar SH-04.3E/F.
 
 ## D.2 — Dashboard credential rotation
@@ -542,11 +541,11 @@ runtime server-only y nunca input de build.
 ## Estado y siguiente handoff
 
 D.0, D.1, D.2, D.3, D.4A y D.4B están cerrados; D.3C conserva el cierre
-documental histórico de D.3. SH-04.3D permanece `IN PROGRESS` porque D.5/D.6
-siguen pendientes.
+documental histórico de D.3. En aquel corte, D.5/D.6 seguían pendientes y D.5
+requería su propio gate, sin quedar autorizada por ese cierre documental.
 
-Siguiente trabajo: **D.5 — SAFE POSTGRESQL PASSWORD ROTATION**. D.5 requiere
-su propio gate y no queda autorizado por este cierre documental.
+Estado actual: D.5 está `COMPLETE / APPROVED` tras su gate propio; D.6 es
+`NEXT`, por lo que SH-04.3D permanece `IN PROGRESS` hasta su aceptación final.
 
 ## D.4A.0 — Auditoría arquitectónica de rotación legacy JWT
 
@@ -1215,7 +1214,8 @@ D.4B.7-R4 ejecutó la segunda transición autorizada exclusivamente con el
 orquestador rastreado. GEN7 protegido es
 `65aea10b-f0ce-4015-bfa3-98086137d303`; solo se recrearon rest, realtime,
 storage, functions y auth, no api-gw. La evidencia independiente confirmó
-GEN7 CURRENT/MATCH, plan GEN7, lock ausente y consumidores live GEN7. El JWKS
+el estado EC GEN7 CURRENT/MATCH de ese hito, plan GEN7, lock ausente y
+consumidores live GEN7. El JWKS
 público pasó a NEW-only: un EC público, OLD ausente y sin `oct` ni material
 privado; el `oct` legacy sigue preservado internamente para HS256.
 
@@ -1224,7 +1224,8 @@ deuda de observación CLI/output, no como fallo criptográfico/runtime: GEN7
 protegido, consumidores live, JWKS NEW-only y salud runtime convergieron de
 forma independiente.
 
-D.4B.7-R4-R1 completó aceptación read-only con PASS: GEN7 CURRENT/MATCH,
+D.4B.7-R4-R1 completó aceptación read-only con PASS: estado EC GEN7
+CURRENT/MATCH,
 verificador host-side, JWKS NEW-only y OLD ausente; login Admin, dashboard y
 firmante fresh NEW; frozen baseline 1 passed/exit 0; y dry-run GEN7→GEN6 PASS.
 Las regresiones runtime/model/plan/Compose/secretos fueron 17/17, 5/5, 9/9,
@@ -1244,7 +1245,8 @@ con `%PDF`.
 ### D.4B.8 — estabilidad final post-GEN7 y cierre de D.4B
 
 El primer bloque D.4B.8 quedó **INCOMPLETE / EVIDENCE RETENTION GAP**, no
-FAIL: confirmó GEN7 CURRENT/MATCH; regresiones runtime 17/17, modelo 5/5, plan
+FAIL: confirmó el estado EC GEN7 CURRENT/MATCH; regresiones runtime 17/17,
+modelo 5/5, plan
 9/9, Compose 5/5, secretos 14/14 y contrato PASS; soak activo de al menos 600
 segundos con salud T0/T+5/T+10 PASS; env GEN7 y JWKS NEW-only en T0/T10; cache
 JWKS de 600 segundos y su gate post-GEN7 PASS; emisión NEW, frozen baseline
@@ -1265,7 +1267,8 @@ aportó una observación temporal nueva y retenida; no reconstruyó evidencia de
 primer proceso. D.4B.8 queda **CLOSED / APPROVED / PASS** y cierra D.4B
 globalmente.
 
-El estado EC durable es GEN7 CURRENT / MATCH / STABLE / ACCEPTED; NEW es el
+El estado EC durable equivalente a GEN7 es CURRENT / MATCH / STABLE / ACCEPTED;
+NEW es el
 único firmante EC y único verificador EC activo; OLD está retirado de la
 confianza activa. El JWKS público tiene un solo EC NEW, sin OLD, `oct` ni
 material privado; el `oct` legacy se conserva internamente para la
@@ -1298,17 +1301,17 @@ storage, functions y auth; GEN6, OLD protegido y el plan EC deben retenerse.
 No se autorizan GEN7→GEN5 ni GEN7→GEN4. La ausencia del stdout `COMPLETE`
 permanece deuda CLI/output no bloqueante, no fallo runtime/criptográfico.
 
-El siguiente workstream es **D.5 — SAFE POSTGRESQL PASSWORD ROTATION**. Está
-`IN PROGRESS`, pero la rotación productiva sigue no autorizada y requiere su
-propio gate arquitectónico/operativo porque las credenciales PostgreSQL y
-Supavisor son un dominio acoplado distinto. D.6 queda como aceptación final
-posterior de rotación/recovery. SH-04.3D permanece IN PROGRESS.
+En este punto histórico, el siguiente workstream era **D.5 — SAFE POSTGRESQL
+PASSWORD ROTATION**. Requería su propio gate arquitectónico/operativo porque las
+credenciales PostgreSQL y Supavisor son un dominio acoplado distinto. Su cierre
+y el handoff vigente a D.6 se registran al final de este informe.
 
 ## D.5.0 — Auditoría arquitectónica/live read-only de contraseña PostgreSQL
 
-**Estado:** `CLOSED / APPROVED / PASS`. D.5 permanece `IN PROGRESS`; la
-rotación productiva de contraseña PostgreSQL **NO ESTÁ AUTORIZADA TODAVÍA**.
-D.6 permanece pendiente y SH-04.3D continúa `IN PROGRESS`.
+**Estado histórico:** `CLOSED / APPROVED / PASS`. Al cierre de D.5.0, D.5
+permanecía `IN PROGRESS` y la rotación productiva de contraseña PostgreSQL no
+estaba todavía autorizada. El estado final posterior se registra al final de
+este informe.
 
 ### Límites y baseline
 
@@ -1503,3 +1506,90 @@ Supavisor, maintenance, recreación DB/servicios, cutover ni rollback.
 
 Siguiente bloque: **D.5.1 — SAFE POSTGRES PASSWORD ROTATION TOOLING /
 DETERMINISTIC DRILL**, o bloque equivalente de arquitectura/tooling.
+
+## D.5.1 — tooling, ejecución y cierre de rotación PostgreSQL
+
+**Estado final D.5:** `COMPLETE / APPROVED`. La rotación se ejecutó sobre el
+runtime operacional self-hosted; no declara un despliegue en `company-host`.
+
+| Hito | Estado final |
+| --- | --- |
+| D.5.0 — auditoría read-only | CLOSED / APPROVED |
+| D.5.1 — modelo, tooling, runtime y rollback tracked | CLOSED / APPROVED |
+| D.5.1E1 — preparación protegida | CLOSED / APPROVED |
+| D.5.1E2 — candidato protegido | CLOSED / APPROVED |
+| D.5.1E3-R1 — backup final pre-cutover | CLOSED / APPROVED |
+| D.5.1E4-R1 — gate final de activación | CLOSED / APPROVED |
+| D.5.1F1A/F1B — evidencia y executor | CLOSED / APPROVED |
+| D.5.1F2 — cutover | CLOSED / RECOVERED / PASS |
+| D.5 | COMPLETE / APPROVED |
+
+### Modelo y preparación
+
+La SOURCE histórica compatible con `LEGACY32` se retuvo protegida como
+`65aea10b-f0ce-4015-bfa3-98086137d303`. La TARGET `D5_64`,
+`63d9bbf1-02b7-4b6b-9fe3-e201f26d4da2`, derivó de SOURCE y cambió únicamente
+`POSTGRES_PASSWORD`; el snapshot Godel permaneció byte-idéntico. La preparación
+validó el candidato único, el adaptador runtime secret-safe, el canal admin
+local trust de PostgreSQL y los contratos forward/rollback tracked.
+
+La terminología vigente distingue dos planos: la **generación externa actual**
+es TARGET D.5; la **postura criptográfica EC** conserva el estado equivalente a
+GEN7, con NEW como único firmante/verificador activo y OLD retirado de la
+confianza EC activa. GEN7 SOURCE no es el puntero externo actual.
+
+### Backup y gate de activación
+
+El backup final pre-cutover `20260830T135345Z-a1b3d14d` fue COMPLETE,
+verificado, ligado a SOURCE y al commit de ejecución del cutover
+`20ec0d437d4bf0adb1efb523d79e480d975ddaaf`. La política de frescura de dos
+horas fue un gate de activación del cutover, no una fecha de expiración general
+del artefacto de recovery. No se documentan rutas locales ni material protegido.
+
+E4-R1 confirmó, antes de mutar, SOURCE actual/matching, TARGET dormida/única,
+lock ausente, autenticación SOURCE 7/7, Supavisor en ambos puertos, higiene
+SOURCE 9/9, Supabase 11/11, Godel 2/2, salud pública e ingress contenido.
+
+### Cutover, incidente de mantenimiento y recuperación
+
+El cutover real se invocó exactamente una vez con el commit de ejecución
+`20ec0d437d4bf0adb1efb523d79e480d975ddaaf`. La convergencia de credenciales y
+runtime TARGET fue aceptada y se publicó TARGET, pero el executor terminó en
+`TARGET_ACCEPTED_MAINTENANCE_CLOSED`: el lock quedó retenido y Nginx detenido.
+No se ejecutó un segundo cutover ni rollback automático.
+
+Se identificó una carrera concreta de convergencia de salud que podía reproducir
+ese estado terminal: tras iniciar Nginx, exigir inmediatamente `healthy` puede
+competir con el estado legítimo `starting` del healthcheck. No se afirma que sea
+la única causa posible de un fallo de inicio. El hotfix
+`f75c91258d07d5f19af29a3cfaee5fad2237fdef` endureció
+`verifyNginxRunning()` sin cambiar los state machines forward, rollback ni
+finalizer: healthy inmediato pasa; starting espera acotadamente; detenido falla
+inmediatamente; una detención durante la espera falla cerrada; y un estado nunca
+healthy expira a los 90 segundos.
+
+La recuperación usó exclusivamente `target-finalize`: verificó aceptación core
+TARGET, inició el contenedor Nginx existente, esperó la convergencia saludable,
+liberó el lock TARGET y verificó la recuperación pública. No usó rollback,
+rollback-resume, mutación manual de credenciales/puntero ni eliminación manual
+del lock. El resultado final del executor fue `COMPLETE`.
+
+### Evidencia final y handoff
+
+TARGET quedó `CURRENT / MATCH / ACTIVE`; SOURCE queda `RETAINED / NOT_CURRENT`
+y ausente del runtime gestionado activo. El lock de rotación está ausente. La
+evidencia final confirma DB TARGET 7/7, Supavisor 5432/6543, higiene TARGET 9/9
+y ausencia SOURCE 9/9, Supabase 11/11, Godel 2/2, `/live` y `/ready` 200 e
+ingress PASS. El contrato de secretos pasó; el E2E congelado pasó 1/1; evidencia
+operativa, executor y adaptador pasaron 25/25, 13/13 y 23/23 respectivamente.
+
+Durante el cutover convergieron los nueve consumidores gestionados de contraseña
+PostgreSQL y el state machine preservó los cuatro servicios no recreados. En
+`target-finalize`, las 13 identidades permanecieron sin cambio: Nginx fue
+iniciado, no recreado. No se registran IDs de contenedor ni secretos.
+
+**Handoff D.6 — FINAL ROTATION / RECOVERY ACCEPTANCE:** D.6 es el siguiente
+gate de aceptación agregado de dashboard, claves API opacas, compatibilidad JWT
+legacy, transición EC y rotación PostgreSQL. No debe iniciar automáticamente
+otra rotación; su diseño se realizará tras auditar este cierre. SH-04.3D sigue
+`IN PROGRESS` hasta completar D.6.
