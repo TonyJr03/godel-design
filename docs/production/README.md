@@ -12,7 +12,7 @@ arquitectura operativa y puesta en operación de Godel Diseño.
 
 ## Documentos vigentes
 
-- [SH-04.3D — Rotación segura de secretos](SH_04_SECRET_ROTATION_REPORT.md): autoridad de arquitectura y evidencia de rotaciones; D.5 PostgreSQL está completada, TARGET es la generación activa/current, la recuperación/finalización fue validada y D.6 es el siguiente gate.
+- [SH-04.3D — Rotación segura de secretos](SH_04_SECRET_ROTATION_REPORT.md): cerrada y aprobada; D.6 PASS aceptó la rotación/recovery, con TARGET D.5 actual, GEN7/GEN6 retenidas y forensics R1A del backup pre-cutover aprobada. SH-04.3E es el siguiente workstream.
 
 - [SH-04.3 — Production Secrets & Auth Hardening](SH_04_SECRETS_AUTH_REPORT.md): auditoría de secretos/Auth, contrato productivo, decisiones de hardening y evolución de SH-04.3.
 

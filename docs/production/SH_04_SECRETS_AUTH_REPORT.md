@@ -231,22 +231,27 @@ informan sin convertirse en blocker.
 | SH-04.3B | Contrato tracked y Auth hardening | CLOSED / APPROVED |
 | SH-04.3C-R1A | Completar wiring asimétrico y recovery | CLOSED / APPROVED |
 | SH-04.3C | Aplicar contrato endurecido y aceptación QA | CLOSED / APPROVED — bloqueador histórico resuelto por R1A/R1B |
-| SH-04.3D | Rotación de secretos | IN PROGRESS — D.0–D.5 CLOSED / APPROVED; D.6 es el siguiente gate de aceptación. |
-| SH-04.3E | Compatibilidad recovery tras rotación | Pendiente |
-| SH-04.3F | Aceptación operativa final | Pendiente |
+| SH-04.3D | Rotación de secretos | CLOSED / APPROVED — D.0–D.6 cerradas; D.6 PASS y R1A forensics aprobada. |
+| SH-04.3E | Compatibilidad recovery tras rotación | NEXT |
+| SH-04.3F | Aceptación operativa final | PENDING |
 
 ## SH-04.3D — Rotación de secretos
 
-SH-04.3D.0–D.5 están `CLOSED / APPROVED`. D.5 completó la rotación de
-contraseña PostgreSQL, con TARGET activa/current y finalización recuperada;
-SH-04.3D permanece `IN PROGRESS` hasta D.6. D.6 es el siguiente gate de
-aceptación agregado y no inicia automáticamente una nueva rotación.
+SH-04.3D.0–D.6 están `CLOSED / APPROVED`; D.6 cerró `PASS` la aceptación
+agregada de rotación/recovery y SH-04.3D queda `CLOSED / APPROVED`. D.5
+conserva TARGET activa/current y finalización recuperada. R1A confirmó que el
+backup set pre-cutover `20260830T135345Z-a1b3d14d` existe como copia exacta
+recuperable en las raíces canónicas configuradas, con datos y artefacto
+protegido presentes, verificación in-place `PASS` y asociación GEN7 resoluble.
+El falso negativo inicial fue de lookup/resolución, no una pérdida: el basename
+físico es `backup-<backupId>`. No se movió, copió, reconstruyó ni recreó el
+artefacto.
 La autoridad de arquitectura, matriz de rotación, límites operativos y contrato
 de generaciones externas para rotación/recovery es
 [SH-04.3D — Rotación segura de secretos](SH_04_SECRET_ROTATION_REPORT.md).
 La evidencia detallada de generaciones externas, backup/rollback, cutovers y
-recovery, incluida D.5, está en el informe de rotación enlazado. SH-04.3E/F
-permanecen pendientes.
+recovery, incluida D.5/D.6, está en el informe de rotación enlazado. SH-04.3E
+es `NEXT` y SH-04.3F permanece `PENDING`.
 
 ## SH-04.3C - primer intento y hallazgo de interoperabilidad
 
@@ -316,6 +321,6 @@ retenidos verificaron correctamente y el runtime final quedó en Supabase 11/11,
 Godel 2/2 y health live/ready 200.
 
 SMTP conserva configuración inerte: no se contactó proveedor real y no es
-requerido por los flujos actuales de Godel. D.5 está cerrada/aprobada, D.6 es
-siguiente y SH-04.3E/F permanecen pendientes; por ello SH-04.3 sigue `IN
-PROGRESS`.
+requerido por los flujos actuales de Godel. D.5 y D.6 están
+cerradas/aprobadas; SH-04.3E es `NEXT` y SH-04.3F permanece `PENDING`, por lo
+que SH-04.3 sigue `IN PROGRESS`.

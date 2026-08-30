@@ -89,9 +89,9 @@ SH-03
 ```text
 SH-04
 → SH-04.3
-→ SH-04.3D: D.5 CLOSED / APPROVED
-→ D.6 NEXT
-→ SH-04.3E/F
+→ SH-04.3D: CLOSED / APPROVED (D.6 PASS)
+→ SH-04.3E NEXT
+→ SH-04.3F PENDING
 → SH-05
 → cierre SH
 ```
@@ -103,11 +103,13 @@ self-hosted`, Auth, flujos core, Storage y la regresión agregada quedaron
 validados. SH continúa como workstream técnico subordinado al roadmap maestro
 PPO y termina al cerrar SH-05.
 
-SH-04 está en curso. Dentro de SH-04.3, D.5 completó/aprobó la rotación de
-contraseña PostgreSQL en el runtime operacional self-hosted: TARGET es la
-generación externa actual y SOURCE queda retenida/no actual. D.6 es el siguiente
-gate de aceptación; SH-04.3D y SH-04.3 permanecen `IN PROGRESS`. Esto no declara
-un despliegue en `company-host`, cuyo gate PPO-01 sigue separado.
+SH-04 está en curso. Dentro de SH-04.3, D.6 cerró/aprobó `PASS` la aceptación
+final de rotación/recovery y SH-04.3D quedó `CLOSED / APPROVED`: el TARGET D.5
+es la generación externa actual y GEN7/GEN6 quedan retenidas/no actuales. R1A
+confirmó el backup set pre-cutover `20260830T135345Z-a1b3d14d` como copia
+exacta recuperable; el falso negativo inicial fue de lookup/resolución, no una
+pérdida. SH-04.3E es `NEXT`, SH-04.3F `PENDING`, y SH-04.3 sigue `IN PROGRESS`.
+Esto no declara un despliegue en `company-host`, cuyo gate PPO-01 sigue separado.
 PPO-01C/D puede avanzar en paralelo
 cuando `company-host` esté disponible; PPO-01D aprobado es gate antes de PPO-04.
 

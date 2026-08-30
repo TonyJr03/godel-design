@@ -181,10 +181,13 @@ iniciado.
 
 #### Handoff SH-04.3D — Rotación de secretos
 
-SH-04.3D permanece `IN PROGRESS`. D.5 — rotación de contraseña PostgreSQL —
-está `CLOSED / APPROVED` tras la recuperación/finalización de TARGET. D.6 —
-aceptación final de rotación/recovery — es `NEXT`; no inicia automáticamente
-otra rotación. SH-04.4 y SH-04.5 conservan sus estados `NOT STARTED`.
+SH-04.3D queda `CLOSED / APPROVED`. D.6 — aceptación final de
+rotación/recovery — cerró `PASS` y su R1A forensics confirmó el backup set
+pre-cutover `20260830T135345Z-a1b3d14d` como copia exacta recuperable, con
+asociación GEN7 resoluble. El falso negativo inicial fue de lookup/resolución,
+no una pérdida; el basename físico es `backup-<backupId>`. SH-04.3E —
+Compatibilidad recovery tras rotación — es `NEXT`; SH-04.3F permanece
+`PENDING`. SH-04.4 y SH-04.5 conservan sus estados `NOT STARTED`.
 
 Construye y demuestra capacidades técnicas: persistencia e inventario de
 volúmenes/datos; backup de PostgreSQL, objetos Storage y configuración necesaria

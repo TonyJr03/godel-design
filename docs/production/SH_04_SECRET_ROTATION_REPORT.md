@@ -1,15 +1,15 @@
 # SH-04.3D — Rotación segura de secretos y continuidad de recovery
 
-Estado: `IN PROGRESS` — D.3 (rotación de API keys opacas), D.4A
-(rotación legacy), D.4B (rotación EC) y D.5 (rotación PostgreSQL) están
-cerrados/aprobados; D.6 es `NEXT`.
+Estado: `CLOSED / APPROVED / PASS` — D.3 (rotación de API keys opacas), D.4A
+(rotación legacy), D.4B (rotación EC), D.5 (rotación PostgreSQL) y D.6
+(aceptación final de rotación/recovery) están cerrados/aprobados.
 
 Estado de subfases: D.0 `CLOSED / APPROVED`, D.1 `CLOSED / APPROVED`, D.2A
 `CLOSED / APPROVED`, D.2B `CLOSED / APPROVED`, D.2 `CLOSED / APPROVED`, D.3A
 `CLOSED / APPROVED`, D.3B.0 `CLOSED / APPROVED / PASS`, D.3B.1
 `CLOSED / APPROVED / PASS`, D.4A `CLOSED / APPROVED / PASS`, D.4B
-`CLOSED / APPROVED / PASS`, D.5 `COMPLETE / APPROVED` y D.6 `NEXT`.
-SH-04.3D permanece `IN PROGRESS` hasta el cierre de D.6.
+`CLOSED / APPROVED / PASS`, D.5 `COMPLETE / APPROVED` y D.6 `CLOSED /
+APPROVED / PASS`. SH-04.3D queda `CLOSED / APPROVED`.
 
 Este documento es la autoridad operativa para SH-04.3D. Complementa el
 [informe general SH-04.3](SH_04_SECRETS_AUTH_REPORT.md), que conserva el
@@ -139,7 +139,7 @@ cifrado con estado. Ninguno se resuelve con D.1.
 | D.4B | Rotación de claves EC de firma | CLOSED / APPROVED / PASS — D.4B.0–D.4B.8 completados; rotación EC operativa y funcionalmente completa. |
 | D.5.0 | Auditoría arquitectónica/live read-only de contraseña PostgreSQL | CLOSED / APPROVED / PASS |
 | D.5 | Rotación segura de contraseña PostgreSQL | COMPLETE / APPROVED |
-| D.6 | Aceptación final de rotación/recovery | NEXT |
+| D.6 | Aceptación final de rotación/recovery | CLOSED / APPROVED / PASS |
 
 ## Retención y semántica de asociación
 
@@ -544,8 +544,8 @@ D.0, D.1, D.2, D.3, D.4A y D.4B están cerrados; D.3C conserva el cierre
 documental histórico de D.3. En aquel corte, D.5/D.6 seguían pendientes y D.5
 requería su propio gate, sin quedar autorizada por ese cierre documental.
 
-Estado actual: D.5 está `COMPLETE / APPROVED` tras su gate propio; D.6 es
-`NEXT`, por lo que SH-04.3D permanece `IN PROGRESS` hasta su aceptación final.
+Estado actual: D.5 está `COMPLETE / APPROVED` tras su gate propio y D.6 está
+`CLOSED / APPROVED / PASS`; SH-04.3D queda `CLOSED / APPROVED`.
 
 ## D.4A.0 — Auditoría arquitectónica de rotación legacy JWT
 
@@ -1181,8 +1181,9 @@ credenciales, URLs firmadas, rutas protegidas ni IDs de contenedor.
 ### D.4B.7 — retiro OLD-verifier y aceptación GEN7
 
 **Estado D.4B vigente:** CLOSED / APPROVED / PASS. La rotación EC está
-operativa y funcionalmente completa; SH-04.3D sigue IN PROGRESS porque D.5 y
-D.6 permanecen pendientes.
+operativa y funcionalmente completa. La referencia histórica a D.5/D.6
+pendientes quedó superada por sus cierres posteriores; SH-04.3D está
+`CLOSED / APPROVED`.
 
 El primer intento autorizado GEN6→GEN7 terminó fail-closed como
 `EC_RUNTIME_CONVERGENCE_ROLLBACK_FAILED`. No fue un fallo criptográfico GEN7,
@@ -1588,8 +1589,50 @@ PostgreSQL y el state machine preservó los cuatro servicios no recreados. En
 `target-finalize`, las 13 identidades permanecieron sin cambio: Nginx fue
 iniciado, no recreado. No se registran IDs de contenedor ni secretos.
 
-**Handoff D.6 — FINAL ROTATION / RECOVERY ACCEPTANCE:** D.6 es el siguiente
-gate de aceptación agregado de dashboard, claves API opacas, compatibilidad JWT
-legacy, transición EC y rotación PostgreSQL. No debe iniciar automáticamente
-otra rotación; su diseño se realizará tras auditar este cierre. SH-04.3D sigue
-`IN PROGRESS` hasta completar D.6.
+## D.6 — aceptación final de rotación y recovery
+
+**Estado:** `CLOSED / APPROVED / PASS`.
+**Clasificación:** `D6_FINAL_ROTATION_RECOVERY_ACCEPTED`.
+
+La aceptación agregada confirmó el runtime actual `CURRENT / MATCH`, sin lock,
+con D.5 TARGET como generación actual; GEN7 y GEN6 permanecen retenidas y no
+actuales. No hay asociaciones requeridas colgantes: el backup pre-cutover se
+asocia de forma resoluble con GEN7 y el runtime actual con el TARGET de D.5.
+
+Pasaron los gates de compatibilidad y continuidad: relación exacta de D.5,
+snapshot de Godel idéntico, claves con estado congeladas sin cambio, JWKS
+público EC sin material privado, autenticación DB TARGET 7/7, Supavisor en
+5432/6543, higiene de runtime 9/9, Supabase 11/11, Godel 2/2, health canónico
+live/ready 200 e ingress. También pasaron las sondas controladas de dashboard,
+API keys opacas, legacy JWT, transición EC, login fresco, `/auth/v1/user` y
+REST seguro; el dry-run de backup, el E2E congelado 1/1, las suites de
+modelo/runtime/rollback/adaptador/prepare/operación/executor/generación/Compose
+y contrato de secretos. La estabilidad posterior mantuvo sin cambios las 13
+identidades de servicio ni sus contadores de reinicio durante más de 300
+segundos.
+
+### R1A — forensics del artefacto de backup pre-cutover
+
+**Estado:** `CLOSED / APPROVED / PASS`. El backup set pre-cutover
+`20260830T135345Z-a1b3d14d` fue encontrado como copia exacta recuperable en las
+raíces canónicas configuradas de backup y recovery: contiene los artefactos de
+recovery PostgreSQL lógico y físico, Storage y sus metadatos xattr, además del
+material de recovery protegido. Sus artefactos de datos y protegido están
+presentes, su verificación independiente in-place pasó y su asociación con GEN7
+es `RESOLVABLE`. No se movió, copió, reconstruyó ni recreó ningún artefacto.
+
+El hallazgo corrige un falso negativo de lookup/resolución inicial; no implica
+pérdida de backup. El contrato de nombres distingue el ID lógico anterior del
+basename físico `backup-<backupId>`. No se registran rutas absolutas ni material
+protegido.
+
+### Semántica de recovery y handoff
+
+Las generaciones retenidas conservan material de recovery, pero no autorizan un
+rollback arbitrario de puntero. La herramienta de rollback D.5 se limita a la
+recuperación de cutover de un TARGET no aceptado; una reversión deliberada del
+TARGET D.5 actual requiere autorización explícita nueva.
+
+SH-04.3D queda `CLOSED / APPROVED`. El siguiente workstream es **SH-04.3E —
+Compatibilidad recovery tras rotación** (`NEXT`); **SH-04.3F — Aceptación
+operativa final** permanece `PENDING`. SH-04.3 y SH-04 siguen `IN PROGRESS`.
