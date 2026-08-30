@@ -41,6 +41,8 @@
     "ops:secrets:postgres:rollback:test": "node --test scripts/operations/postgres-password-rollback.test.mjs",
     "ops:secrets:postgres:adapter:test": "node --test scripts/operations/postgres-password-live-runtime.test.mjs",
     "ops:secrets:postgres:operation-evidence:test": "node --test scripts/operations/postgres-password-operation-evidence.test.mjs",
+    "ops:secrets:postgres:execute": "node scripts/operations/postgres-password-execute.mjs",
+    "ops:secrets:postgres:execute:test": "node --test scripts/operations/postgres-password-execute.test.mjs",
     "ops:secrets:postgres:prepare": "node scripts/operations/postgres-password-prepare.mjs prepare",
     "ops:secrets:postgres:prepare:test": "node --test scripts/operations/postgres-password-prepare.test.mjs",
     "ops:secrets:dashboard:rotate": "node scripts/operations/rotate-dashboard-password.mjs rotate",

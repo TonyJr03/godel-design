@@ -243,19 +243,29 @@ export function createPostgresPasswordOperationHooks({
     return Object.freeze({ repositoryClean: true, currentGenerationId: sourceGenerationId, liveEnvironmentGenerationId: sourceGenerationId, lockAcquired: lock.exists, ecGeneration7Preserved: true, supabaseHealthy: true, godelHealthy: true, nginxRunning: true, ingressTopology: Object.freeze(ingressTopology) });
   }
 
-  async function classifyTargetAcceptance() {
+  async function classifyTargetCoreAcceptance() {
     try {
       const instance = await currentAndLive(targetGenerationId);
       await relationship();
       await verifySupabase(instance, targetGenerationId);
       await hygiene(instance, targetGenerationId, { match: "targetMatch", absent: "oldAbsent" });
-      if (await instance.verifyNginxStopped() !== true) return POSTGRES_PASSWORD_TARGET_ACCEPTANCE.NOT_ACCEPTED;
       normalizedTopology(await inspectTopology({ runtime: instance }), { requirePublicIngress: false });
       return POSTGRES_PASSWORD_TARGET_ACCEPTANCE.ACCEPTED;
     } catch (error) {
       if (["POSTGRES_OPERATION_EVIDENCE_POINTER_MISMATCH", "POSTGRES_OPERATION_EVIDENCE_ENVIRONMENT_MISMATCH", "POSTGRES_OPERATION_EVIDENCE_DATABASE_AUTH_FAILED", "POSTGRES_OPERATION_EVIDENCE_SUPAVISOR_FAILED", "POSTGRES_OPERATION_EVIDENCE_HYGIENE_FAILED", "POSTGRES_OPERATION_EVIDENCE_TOPOLOGY_INVALID"].includes(error?.message)) return POSTGRES_PASSWORD_TARGET_ACCEPTANCE.NOT_ACCEPTED;
       return POSTGRES_PASSWORD_TARGET_ACCEPTANCE.UNVERIFIED;
     }
+  }
+
+  async function classifyTargetAcceptance() {
+    const core = await classifyTargetCoreAcceptance();
+    if (core !== POSTGRES_PASSWORD_TARGET_ACCEPTANCE.ACCEPTED) return core;
+    const instance = await runtime();
+    try {
+      if (await instance.verifyNginxStopped() === true) return POSTGRES_PASSWORD_TARGET_ACCEPTANCE.ACCEPTED;
+    } catch { return POSTGRES_PASSWORD_TARGET_ACCEPTANCE.UNVERIFIED; }
+    try { return await instance.verifyNginxRunning() === true ? POSTGRES_PASSWORD_TARGET_ACCEPTANCE.NOT_ACCEPTED : POSTGRES_PASSWORD_TARGET_ACCEPTANCE.UNVERIFIED; }
+    catch { return POSTGRES_PASSWORD_TARGET_ACCEPTANCE.UNVERIFIED; }
   }
 
   async function acceptTarget() { return (await classifyTargetAcceptance()) === POSTGRES_PASSWORD_TARGET_ACCEPTANCE.ACCEPTED; }
@@ -292,6 +302,19 @@ export function createPostgresPasswordOperationHooks({
     } catch { return false; }
   }
 
+  async function verifyPublicRecovery({ generationId } = {}) {
+    if (generationId !== sourceGenerationId && generationId !== targetGenerationId) fail("POSTGRES_OPERATION_EVIDENCE_GENERATION_INVALID");
+    const instance = await currentAndLive(generationId);
+    await verifySupabase(instance, generationId);
+    await hygiene(instance, generationId, generationId === targetGenerationId
+      ? { match: "targetMatch", absent: "oldAbsent" }
+      : { match: "sourceMatch", absent: "targetAbsent" });
+    if (await instance.verifyNginxRunning() !== true || await verifyGodelHealthy({ runtime: instance }) !== true) fail("POSTGRES_OPERATION_EVIDENCE_GODEL_HEALTH_FAILED");
+    if (await checkPublicHealth({ runtime: instance }) !== true) fail("POSTGRES_OPERATION_EVIDENCE_PUBLIC_HEALTH_FAILED");
+    normalizedTopology(await inspectTopology({ runtime: instance }), { requirePublicIngress: true });
+    return true;
+  }
+
   function protectedHook(hook) {
     return async (...args) => {
       try { return await hook(...args); }
@@ -305,6 +328,8 @@ export function createPostgresPasswordOperationHooks({
     preflightRollback: protectedHook(preflightRollback),
     preflightRollbackResume: protectedHook(preflightRollbackResume),
     acceptRollbackSource: protectedHook(acceptRollbackSource),
+    classifyTargetCoreAcceptance: protectedHook(classifyTargetCoreAcceptance),
     classifyTargetAcceptance: protectedHook(classifyTargetAcceptance),
+    verifyPublicRecovery: protectedHook(verifyPublicRecovery),
   });
 }

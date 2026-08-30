@@ -35,7 +35,7 @@ test("Godel health requires explicit running and healthy states", () => {
   assert.equal(isGodelContainerHealthy({ Running: false, Health: { Status: "healthy" } }), false);
 });
 
-function fixture({ pointer = sourceGenerationId, live = pointer, lock = { state: "PRESENT", operation: "postgres-password-rotation", generationId: targetGenerationId }, repo = {}, backupManifest = manifest(), backupVerified = true, secretContract = true, topology = { godelNginxPublicIngress: true, apiGatewayHostPorts: [], supavisorHostPorts: [] }, nginxRunning = pointer === sourceGenerationId, nginxStopped = pointer === targetGenerationId, broken = null } = {}) {
+function fixture({ pointer = sourceGenerationId, live = pointer, lock = { state: "PRESENT", operation: "postgres-password-rotation", generationId: targetGenerationId }, repo = {}, backupManifest = manifest(), backupVerified = true, secretContract = true, topology = { godelNginxPublicIngress: true, apiGatewayHostPorts: [], supavisorHostPorts: [] }, nginxRunning = pointer === sourceGenerationId, nginxStopped = pointer === targetGenerationId, broken = null, godelHealthy = true, publicHealthy = true } = {}) {
   const mutations = ["rotateDatabaseRoles", "restoreDatabaseRoles", "restoreDatabaseRolesTarget", "updateSupavisorManager", "restoreSupavisorManager", "restoreSupavisorManagerTarget", "writeEnvironment", "restoreEnvironment", "restoreEnvironmentTarget", "replacePointer", "recreateDatabase", "recreateConsumer", "openMaintenance", "closeMaintenance", "releaseLock"];
   const runtime = {
     readCurrentPointer: async () => pointer,
@@ -67,8 +67,8 @@ function fixture({ pointer = sourceGenerationId, live = pointer, lock = { state:
     verifyBackup: async () => backupVerified,
     verifySecretContract: async () => secretContract,
     inspectTopology: async () => topology,
-    verifyGodelHealthy: async () => true,
-    checkPublicHealth: async () => true,
+    verifyGodelHealthy: async () => godelHealthy,
+    checkPublicHealth: async () => publicHealthy,
     now: () => Date.parse(completedAt) + 2 * 60 * 60 * 1000,
   });
   return { hooks, runtime, generations };
@@ -81,6 +81,26 @@ test("locked source preflight returns only the exact evidence and never invokes 
     ecGeneration7Preserved: true, supabaseHealthy: true, godelHealthy: true, nginxRunning: true,
     ingressTopology: { godelNginxPublicIngress: true, apiGatewayHostPorts: [], supavisorHostPorts: [] },
   });
+});
+
+test("public recovery requires every public SOURCE safety signal", async () => {
+  for (const changes of [
+    { pointer: targetGenerationId, live: sourceGenerationId, nginxRunning: true },
+    { pointer: sourceGenerationId, live: targetGenerationId, nginxRunning: true },
+    { godelHealthy: false },
+    { publicHealthy: false },
+    { topology: { godelNginxPublicIngress: true, apiGatewayHostPorts: ["54321"], supavisorHostPorts: [] } },
+    { topology: { godelNginxPublicIngress: true, apiGatewayHostPorts: [], supavisorHostPorts: ["6543"] } },
+    { topology: { godelNginxPublicIngress: false, apiGatewayHostPorts: [], supavisorHostPorts: [] } },
+  ]) await assert.rejects(() => fixture(changes).hooks.verifyPublicRecovery({ generationId: sourceGenerationId }), /POSTGRES_OPERATION_EVIDENCE_/);
+  for (const method of ["verifyDatabaseAuthentication", "verifySupavisorManager", "waitDatabaseHealthy", "waitServiceHealthy"]) {
+    const unit = fixture();
+    unit.runtime[method] = async () => false;
+    await assert.rejects(() => unit.hooks.verifyPublicRecovery({ generationId: sourceGenerationId }), /POSTGRES_OPERATION_EVIDENCE_/);
+  }
+  const hygiene = fixture();
+  hygiene.runtime.verifyRuntimeSecretHygiene = async () => ({ sourceMatch: false, targetAbsent: false });
+  await assert.rejects(() => hygiene.hooks.verifyPublicRecovery({ generationId: sourceGenerationId }), /POSTGRES_OPERATION_EVIDENCE_/);
 });
 
 test("operation hooks are lazy and old target prepare commit does not bind the new execution or backup commit", async () => {
@@ -138,6 +158,14 @@ test("accepted target is classified and enables tracked rollback", async () => {
   assert.equal(await hooks.classifyTargetAcceptance(), POSTGRES_PASSWORD_TARGET_ACCEPTANCE.ACCEPTED);
   assert.equal(await hooks.acceptTarget(), true);
   assert.equal((await hooks.preflightRollback()).targetAccepted, true);
+});
+
+test("core TARGET acceptance remains accepted while running Nginx fails the maintenance-closed predicate", async () => {
+  const { hooks } = fixture({ pointer: targetGenerationId, live: targetGenerationId, nginxRunning: true, nginxStopped: false, topology: { apiGatewayHostPorts: [], supavisorHostPorts: [] } });
+  assert.equal(await hooks.classifyTargetCoreAcceptance(), POSTGRES_PASSWORD_TARGET_ACCEPTANCE.ACCEPTED);
+  assert.equal(await hooks.classifyTargetAcceptance(), POSTGRES_PASSWORD_TARGET_ACCEPTANCE.NOT_ACCEPTED);
+  assert.equal(await hooks.acceptTarget(), false);
+  await assert.rejects(() => hooks.preflightRollback(), /POSTGRES_OPERATION_EVIDENCE_/);
 });
 
 test("known incomplete target is not accepted but remains eligible for rollback", async () => {
