@@ -3,6 +3,7 @@ import { createHmac, randomBytes, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
   buildEcRotationPlan,
@@ -14,6 +15,7 @@ import {
 const execFileAsync = promisify(execFile);
 const AUTH_IMAGE = "supabase/gotrue:v2.189.0";
 const DATABASE_IMAGE = "supabase/postgres:17.6.1.136";
+const ROLES_SQL = fileURLToPath(new URL("../../infra/supabase/volumes/db/roles.sql", import.meta.url));
 const PREFIX = `godel-ec-proof-${randomUUID().replaceAll("-", "")}`;
 const NETWORK = `${PREFIX}-network`;
 const DATABASE = `${PREFIX}-db`;
@@ -104,6 +106,7 @@ async function startDatabase() {
   await docker([
     "run", "-d", "--name", DATABASE, "--network", NETWORK,
     "--env", "POSTGRES_PASSWORD", "--env", "POSTGRES_DB",
+    "--mount", `type=bind,src=${ROLES_SQL},dst=/docker-entrypoint-initdb.d/init-scripts/99-roles.sql,readonly`,
     DATABASE_IMAGE,
   ], { env: { POSTGRES_PASSWORD: SYNTHETIC_POSTGRES_PASSWORD, POSTGRES_DB: "postgres" } });
   await waitFor("isolated Postgres local process", async () => (await docker(["exec", DATABASE, "pg_isready", "-U", "postgres", "-d", "postgres"], { allowFailure: true })).code === 0);
@@ -111,15 +114,15 @@ async function startDatabase() {
     const result = await docker([
       "run", "--rm", "--pull=never", "--network", NETWORK, "--env", "PGPASSWORD",
       "--entrypoint", "psql", DATABASE_IMAGE,
-      "-X", "-h", DATABASE, "-p", "5432", "-U", "postgres", "-d", "postgres", "-tAc", "SELECT 1",
+      "-X", "-h", DATABASE, "-p", "5432", "-U", "supabase_auth_admin", "-d", "postgres", "-tAc", "SELECT current_user",
     ], { env: { PGPASSWORD: SYNTHETIC_POSTGRES_PASSWORD }, allowFailure: true });
-    return result.code === 0 && result.stdout.trim() === "1";
+    return result.code === 0 && result.stdout.trim() === "supabase_auth_admin";
   }, 30_000, 1_000);
 }
 
 function authEnvironment(keyMaterial) {
   return {
-    GOTRUE_DB_DATABASE_URL: `postgres://postgres:${SYNTHETIC_POSTGRES_PASSWORD}@${DATABASE}:5432/postgres?sslmode=disable`,
+    GOTRUE_DB_DATABASE_URL: `postgres://supabase_auth_admin:${SYNTHETIC_POSTGRES_PASSWORD}@${DATABASE}:5432/postgres?sslmode=disable`,
     GOTRUE_JWT_SECRET: SYNTHETIC_JWT_SECRET,
     GOTRUE_JWT_KEYS: keyMaterial.jwtKeys,
     GOTRUE_SITE_URL: "http://synthetic.invalid",
