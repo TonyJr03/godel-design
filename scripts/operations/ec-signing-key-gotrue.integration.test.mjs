@@ -86,11 +86,11 @@ function jwtHeader(token) {
   return JSON.parse(Buffer.from(token.split(".")[0], "base64url").toString("utf8"));
 }
 
-async function waitFor(label, predicate, timeoutMs = 30_000) {
+async function waitFor(label, predicate, timeoutMs = 30_000, intervalMs = 250) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     if (await predicate()) return;
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }
   throw new Error(`${label} did not become ready before the bounded timeout`);
 }
@@ -106,7 +106,15 @@ async function startDatabase() {
     "--env", "POSTGRES_PASSWORD", "--env", "POSTGRES_DB",
     DATABASE_IMAGE,
   ], { env: { POSTGRES_PASSWORD: SYNTHETIC_POSTGRES_PASSWORD, POSTGRES_DB: "postgres" } });
-  await waitFor("isolated Postgres", async () => (await docker(["exec", DATABASE, "pg_isready", "-U", "postgres", "-d", "postgres"], { allowFailure: true })).code === 0);
+  await waitFor("isolated Postgres local process", async () => (await docker(["exec", DATABASE, "pg_isready", "-U", "postgres", "-d", "postgres"], { allowFailure: true })).code === 0);
+  await waitFor("isolated Postgres network SQL", async () => {
+    const result = await docker([
+      "run", "--rm", "--pull=never", "--network", NETWORK, "--env", "PGPASSWORD",
+      "--entrypoint", "psql", DATABASE_IMAGE,
+      "-X", "-h", DATABASE, "-p", "5432", "-U", "postgres", "-d", "postgres", "-tAc", "SELECT 1",
+    ], { env: { PGPASSWORD: SYNTHETIC_POSTGRES_PASSWORD }, allowFailure: true });
+    return result.code === 0 && result.stdout.trim() === "1";
+  }, 30_000, 1_000);
 }
 
 function authEnvironment(keyMaterial) {
