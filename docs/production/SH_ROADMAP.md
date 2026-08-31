@@ -179,15 +179,21 @@ iniciado.
 | SH-04.4 | NOT STARTED |
 | SH-04.5 | NOT STARTED |
 
-#### Handoff SH-04.3D — Rotación de secretos
+#### Handoff SH-04.3D/E — Rotación de secretos y compatibilidad recovery
 
 SH-04.3D queda `CLOSED / APPROVED`. D.6 — aceptación final de
 rotación/recovery — cerró `PASS` y su R1A forensics confirmó el backup set
 pre-cutover `20260830T135345Z-a1b3d14d` como copia exacta recuperable, con
 asociación GEN7 resoluble. El falso negativo inicial fue de lookup/resolución,
-no una pérdida; el basename físico es `backup-<backupId>`. SH-04.3E —
-Compatibilidad recovery tras rotación — es `NEXT`; SH-04.3F permanece
-`PENDING`. SH-04.4 y SH-04.5 conservan sus estados `NOT STARTED`.
+no una pérdida; el basename físico es `backup-<backupId>`.
+
+SH-04.3E — Compatibilidad recovery tras rotación — cerró `CLOSED / APPROVED /
+PASS`. La baseline D5 `20260830T201300Z-aefc033f` fue verificada y restaurada
+destructivamente una vez con el checkpoint defensivo distinto
+`20260831T004014Z-e69d3fca`; D5 TARGET permaneció `CURRENT / MATCH` y la
+aceptación post-restore pasó. El checkpoint histórico GEN7 sigue retenido y no
+es fuente de restore same-host ordinario con D5 activa. SH-04.3F — Aceptación
+operativa final — es `NEXT`; SH-04.4 y SH-04.5 conservan `NOT STARTED`.
 
 Construye y demuestra capacidades técnicas: persistencia e inventario de
 volúmenes/datos; backup de PostgreSQL, objetos Storage y configuración necesaria

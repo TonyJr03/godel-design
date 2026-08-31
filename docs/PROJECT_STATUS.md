@@ -90,8 +90,8 @@ SH-03
 SH-04
 → SH-04.3
 → SH-04.3D: CLOSED / APPROVED (D.6 PASS)
-→ SH-04.3E NEXT
-→ SH-04.3F PENDING
+→ SH-04.3E: CLOSED / APPROVED / PASS
+→ SH-04.3F NEXT
 → SH-05
 → cierre SH
 ```
@@ -108,8 +108,11 @@ final de rotación/recovery y SH-04.3D quedó `CLOSED / APPROVED`: el TARGET D.5
 es la generación externa actual y GEN7/GEN6 quedan retenidas/no actuales. R1A
 confirmó el backup set pre-cutover `20260830T135345Z-a1b3d14d` como copia
 exacta recuperable; el falso negativo inicial fue de lookup/resolución, no una
-pérdida. SH-04.3E es `NEXT`, SH-04.3F `PENDING`, y SH-04.3 sigue `IN PROGRESS`.
-Esto no declara un despliegue en `company-host`, cuyo gate PPO-01 sigue separado.
+pérdida. SH-04.3E cerró `CLOSED / APPROVED / PASS`: la baseline D5
+`20260830T201300Z-aefc033f` fue restaurada una vez con checkpoint defensivo
+`20260831T004014Z-e69d3fca`, y D5 quedó `CURRENT / MATCH`. SH-04.3F es `NEXT`;
+SH-04.3 sigue `IN PROGRESS`. Esto no declara un despliegue en `company-host`,
+cuyo gate PPO-01 sigue separado.
 PPO-01C/D puede avanzar en paralelo
 cuando `company-host` esté disponible; PPO-01D aprobado es gate antes de PPO-04.
 

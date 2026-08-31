@@ -1215,8 +1215,8 @@ D.4B.7-R4 ejecutó la segunda transición autorizada exclusivamente con el
 orquestador rastreado. GEN7 protegido es
 `65aea10b-f0ce-4015-bfa3-98086137d303`; solo se recrearon rest, realtime,
 storage, functions y auth, no api-gw. La evidencia independiente confirmó
-el estado EC GEN7 CURRENT/MATCH de ese hito, plan GEN7, lock ausente y
-consumidores live GEN7. El JWKS
+el estado EC GEN7-equivalente de ese hito, plan GEN7, lock ausente y
+consumidores live de ese hito. El JWKS
 público pasó a NEW-only: un EC público, OLD ausente y sin `oct` ni material
 privado; el `oct` legacy sigue preservado internamente para HS256.
 
@@ -1246,7 +1246,7 @@ con `%PDF`.
 ### D.4B.8 — estabilidad final post-GEN7 y cierre de D.4B
 
 El primer bloque D.4B.8 quedó **INCOMPLETE / EVIDENCE RETENTION GAP**, no
-FAIL: confirmó el estado EC GEN7 CURRENT/MATCH; regresiones runtime 17/17,
+FAIL: confirmó el estado EC GEN7-equivalente de ese hito; regresiones runtime 17/17,
 modelo 5/5, plan
 9/9, Compose 5/5, secretos 14/14 y contrato PASS; soak activo de al menos 600
 segundos con salud T0/T+5/T+10 PASS; env GEN7 y JWKS NEW-only en T0/T10; cache
@@ -1633,6 +1633,10 @@ rollback arbitrario de puntero. La herramienta de rollback D.5 se limita a la
 recuperación de cutover de un TARGET no aceptado; una reversión deliberada del
 TARGET D.5 actual requiere autorización explícita nueva.
 
-SH-04.3D queda `CLOSED / APPROVED`. El siguiente workstream es **SH-04.3E —
-Compatibilidad recovery tras rotación** (`NEXT`); **SH-04.3F — Aceptación
-operativa final** permanece `PENDING`. SH-04.3 y SH-04 siguen `IN PROGRESS`.
+SH-04.3D queda `CLOSED / APPROVED`. SH-04.3E — Compatibilidad recovery tras
+rotación — cerró `CLOSED / APPROVED / PASS`: D5 TARGET se mantuvo
+`CURRENT / MATCH`, su baseline D5 fue restaurada destructivamente con checkpoint
+defensivo distinto y los verificadores post-restore pasaron. La síntesis
+canónica está en [SH-04.3 — Production Secrets & Auth Hardening](SH_04_SECRETS_AUTH_REPORT.md).
+El siguiente workstream es **SH-04.3F — Aceptación operativa final** (`NEXT`).
+SH-04.3 y SH-04 siguen `IN PROGRESS`.

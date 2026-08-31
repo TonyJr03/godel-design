@@ -9,6 +9,9 @@
 | SH-04.3B — contrato tracked y configuración | CLOSED / APPROVED |
 | SH-04.3C-R1A — wiring asimétrico | CLOSED / APPROVED |
 | SH-04.3C — aplicación y aceptación QA | CLOSED / APPROVED |
+| SH-04.3D — rotación de secretos | CLOSED / APPROVED |
+| SH-04.3E — compatibilidad recovery tras rotación | CLOSED / APPROVED / PASS |
+| SH-04.3F — aceptación operativa final | NEXT |
 
 SH-04.3 no está cerrada. Este documento es la fuente vigente de decisiones de
 secretos, configuración y Auth durante SH-04.
@@ -232,8 +235,8 @@ informan sin convertirse en blocker.
 | SH-04.3C-R1A | Completar wiring asimétrico y recovery | CLOSED / APPROVED |
 | SH-04.3C | Aplicar contrato endurecido y aceptación QA | CLOSED / APPROVED — bloqueador histórico resuelto por R1A/R1B |
 | SH-04.3D | Rotación de secretos | CLOSED / APPROVED — D.0–D.6 cerradas; D.6 PASS y R1A forensics aprobada. |
-| SH-04.3E | Compatibilidad recovery tras rotación | NEXT |
-| SH-04.3F | Aceptación operativa final | PENDING |
+| SH-04.3E | Compatibilidad recovery tras rotación | CLOSED / APPROVED / PASS |
+| SH-04.3F | Aceptación operativa final | NEXT |
 
 ## SH-04.3D — Rotación de secretos
 
@@ -250,8 +253,138 @@ La autoridad de arquitectura, matriz de rotación, límites operativos y contrat
 de generaciones externas para rotación/recovery es
 [SH-04.3D — Rotación segura de secretos](SH_04_SECRET_ROTATION_REPORT.md).
 La evidencia detallada de generaciones externas, backup/rollback, cutovers y
-recovery, incluida D.5/D.6, está en el informe de rotación enlazado. SH-04.3E
-es `NEXT` y SH-04.3F permanece `PENDING`.
+recovery, incluida D.5/D.6, está en el informe de rotación enlazado.
+
+## SH-04.3E — Compatibilidad recovery tras rotación
+
+**Estado:** `CLOSED / APPROVED / PASS`.
+**Propósito:** demostrar compatibilidad de recovery después de las rotaciones de
+secretos completadas. SH-04.3 y SH-04 permanecen `IN PROGRESS`; este cierre no
+autoriza ni inicia SH-04.3F.
+
+### E.4 — cierre documental
+
+**Estado:** `CLOSED / APPROVED / PASS`. E.4 consolida esta evidencia sin mutar
+runtime, generación externa, backups ni material de recovery.
+
+### E.0 — auditoría arquitectónica
+
+**Estado:** `CLOSED / APPROVED / PASS`. Un restore same-host exige que la
+generación externa asociada al backup fuente coincida con la generación externa
+activa. Por ello, el backup histórico GEN7
+`20260830T135345Z-a1b3d14d` no es una fuente de restore same-host ordinario
+mientras D5 TARGET está activa. La condición es
+`GENERATION_MISMATCH_BY_DESIGN`, no corrupción ni ausencia de material de
+recovery.
+
+El set histórico permanece `COMPLETE / VERIFIED`, GEN7-bound,
+`HISTORICAL PRE-D5 RECOVERY CHECKPOINT` y retenido. GEN7
+`65aea10b-f0ce-4015-bfa3-98086137d303` está `RETAINED / NOT_CURRENT`. Su
+portabilidad o reconstrucción clean-host queda dentro del límite de SH-05; no se
+ejecutó ni se declara un restore same-host ordinario de GEN7.
+
+### Generación actual y estado EC
+
+La generación externa actual es D5 TARGET
+`63d9bbf1-02b7-4b6b-9fe3-e201f26d4da2`, `CURRENT / MATCH`. GEN7 y GEN6 no son
+actuales. El estado criptográfico EC preservado es **GEN7-equivalent**; el JWKS
+público es **NEW-only EC**. D5 TARGET heredó ese estado EC/Auth aceptado sin
+cambio; GEN7 no se designa como generación actual y el JWKS se describe por su
+estado público NEW-only EC.
+
+### E.1 — baseline actual de recovery D5
+
+**Estado:** `CLOSED / APPROVED / PASS`. El backup
+`20260830T201300Z-aefc033f` es el
+`POST_ROTATION_D5_RECOVERY_BASELINE`: `COMPLETE`, schema 3, ligado a D5 TARGET,
+con procedencia exacta de repositorio limpio, 4/4 artefactos de datos canónicos,
+material de recovery protegido capturado y verificador independiente `PASS`.
+Es la fuente canónica demostrada en E.3.
+
+Durante su creación se observó un estado intermedio con `.incomplete`, locks de
+operación y recuperación parcial del runtime. El mismo ID alcanzó después
+`COMPLETE`, con locks ausentes, runtime sano y verificador independiente `PASS`.
+La clasificación correcta es `INTERMEDIATE STATE =
+OPERATION_STILL_IN_PROGRESS_OR_UNRESOLVED`; `PROCESS-LIST NEGATIVE RESULT =
+NON_AUTHORITATIVE / FALSE_NEGATIVE OBSERVED`; y `EXACT CONTINUATION MECHANISM =
+UNKNOWN`.
+
+No se infieren terminación externa, timeout de Codex, locks huérfanos ni
+recuperación manual. La regla durable resultante es que ausencia en la lista de
+procesos nunca autoriza recovery ni retirar locks: prevalecen el estado
+final/incomplete, lock de operación, lock de generación, failure marker y estado
+del runtime. Ante estado no terminal se clasifica
+`OPERATION_IN_PROGRESS_OR_UNRESOLVED` y no se autoriza una mutación competidora.
+
+### E.2 — readiness destructivo
+
+**Estado:** `CLOSED / APPROVED / PASS`.
+**Clasificación:** `D5_DESTRUCTIVE_RESTORE_READY`. El dry-run exacto de SOURCE
+D5 pasó verificación de fuente, procedencia de repositorio, compatibilidad de
+runtime, dependencias externas de recovery, match de generación, contrato de
+montajes, disco, plan de restore y semántica fail-closed. E.2 no ejecutó
+mutación destructiva.
+
+### E.3 — backup defensivo y restore destructivo
+
+**Estado:** `CLOSED / APPROVED / PASS`.
+**Clasificación:** `D5_POST_ROTATION_DESTRUCTIVE_RECOVERY_PROVEN`.
+
+Se creó exactamente un checkpoint defensivo
+`20260831T004014Z-e69d3fca`, clasificado
+`PRE-E3 DEFENSIVE RECOVERY CHECKPOINT`: `COMPLETE`, schema 3, D5 TARGET-bound,
+verificado independientemente y retenido. Es distinto de SOURCE y no lo
+promueve automáticamente sobre la baseline canónica.
+
+Con SOURCE `20260830T201300Z-aefc033f` y ese checkpoint defensivo se ejecutó
+exactamente un restore destructivo. La transacción aprobada reemplazó o
+reconstruyó PGDATA PostgreSQL y el filesystem de Storage desde SOURCE, la
+configuración DB compatible, el material de recovery protegido de pgsodium y los
+xattrs de Storage, sin exponer rutas ni material de claves.
+
+La aceptación post-restore pasó de forma sanitizada: D5 TARGET `CURRENT / MATCH`;
+autenticación DB 7/7; Supavisor en 5432 y 6543; runtime gestionado TARGET 9/9 y
+ausencia 9/9 de la contraseña PostgreSQL fuente GEN7; Supabase 11/11 sano;
+Godel 2/2 sano; `/live` y `/ready` 200; e identidades de servicio 13/13
+preservadas.
+
+La aceptación Auth confirmó login fresco `PASS`, access token fresco ES256, JWKS
+público NEW-only EC, OLD EC ausente de confianza activa, ANON legacy actual,
+SERVICE_ROLE legacy actual, publishable opaque actual, secret opaque actual y
+credencial actual de Dashboard aceptados; el control inválido fue rechazado. No
+se registran tokens, `kid`, JWK, valores secretos ni credenciales.
+
+La baseline business congelada pasó 1/1 en Chromium contra el runtime self-hosted
+existente por ingress externo `localhost:8080`. Cubrió el baseline business y de
+Storage de solo lectura, incluida la ruta protegida de PDF ya cubierta por el
+test, sin introducir capturas ni rutas sensibles.
+
+Los verificadores post-restore de SOURCE y DEFENSIVE pasaron; ambos permanecen
+retenidos. El backup histórico GEN7 también permanece retenido sin cambio.
+
+### Contrato de fallo, jerarquía y handoff
+
+Se preserva el contrato de fallo validado: antes de la frontera de mutación puede
+intentarse recuperar el runtime original; la frontera es el reemplazo de PGDATA;
+un fallo posterior deja runtime quiesced, failure marker y locks retenidos, y
+requiere recovery defensivo explícito. E.3 tuvo éxito: failure marker, lock de
+backup/restore y lock de generación están ausentes.
+
+La jerarquía posterior queda:
+
+```text
+recovery rutinario same-host actual: D5 runtime -> D5 backup -> D5 restore
+histórico GEN7: material verificado retenido; recovery explícito consciente de generación
+reconstrucción clean-host / portabilidad: SH-05
+scheduling, retención y DR off-host de producción: PPO-06
+```
+
+Se mantiene `NO_IMPLICIT_ROLLBACK_CHAIN`: restaurar datos históricos no autoriza
+retroceder genéricamente el puntero de generación externa. Activar una generación
+histórica exige una transacción de recovery diseñada y autorizada explícitamente.
+
+El siguiente handoff es **SH-04.3F — Aceptación operativa final** (`NEXT`).
+SH-04.4 y SH-04.5 permanecen `NOT STARTED`.
 
 ## SH-04.3C - primer intento y hallazgo de interoperabilidad
 
@@ -321,6 +454,5 @@ retenidos verificaron correctamente y el runtime final quedó en Supabase 11/11,
 Godel 2/2 y health live/ready 200.
 
 SMTP conserva configuración inerte: no se contactó proveedor real y no es
-requerido por los flujos actuales de Godel. D.5 y D.6 están
-cerradas/aprobadas; SH-04.3E es `NEXT` y SH-04.3F permanece `PENDING`, por lo
-que SH-04.3 sigue `IN PROGRESS`.
+requerido por los flujos actuales de Godel. D.5, D.6 y SH-04.3E están
+cerradas/aprobadas; SH-04.3F es `NEXT`, por lo que SH-04.3 sigue `IN PROGRESS`.
