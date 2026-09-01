@@ -88,10 +88,9 @@ SH-03
 
 ```text
 SH-04
-→ SH-04.3
-→ SH-04.3D: CLOSED / APPROVED (D.6 PASS)
-→ SH-04.3E: CLOSED / APPROVED / PASS
-→ SH-04.3F NEXT
+→ SH-04.3: CLOSED / APPROVED
+→ SH-04.4 NEXT
+→ SH-04.5
 → SH-05
 → cierre SH
 ```
@@ -103,15 +102,14 @@ self-hosted`, Auth, flujos core, Storage y la regresión agregada quedaron
 validados. SH continúa como workstream técnico subordinado al roadmap maestro
 PPO y termina al cerrar SH-05.
 
-SH-04 está en curso. Dentro de SH-04.3, D.6 cerró/aprobó `PASS` la aceptación
-final de rotación/recovery y SH-04.3D quedó `CLOSED / APPROVED`: el TARGET D.5
-es la generación externa actual y GEN7/GEN6 quedan retenidas/no actuales. R1A
-confirmó el backup set pre-cutover `20260830T135345Z-a1b3d14d` como copia
-exacta recuperable; el falso negativo inicial fue de lookup/resolución, no una
-pérdida. SH-04.3E cerró `CLOSED / APPROVED / PASS`: la baseline D5
-`20260830T201300Z-aefc033f` fue restaurada una vez con checkpoint defensivo
-`20260831T004014Z-e69d3fca`, y D5 quedó `CURRENT / MATCH`. SH-04.3F es `NEXT`;
-SH-04.3 sigue `IN PROGRESS`. Esto no declara un despliegue en `company-host`,
+SH-04 está en curso. SH-04.3 quedó `CLOSED / APPROVED` tras la aceptación
+operativa final `SH043_FINAL_OPERATIONAL_ACCEPTANCE_PASS`: D5 permanece
+`CURRENT / MATCH`, con D5 como recovery same-host rutinario y GEN7/GEN6
+retenidas/no actuales. La baseline canónica D5
+`20260830T201300Z-aefc033f` fue restaurada destructivamente con el checkpoint
+defensivo `20260831T004014Z-e69d3fca`; el backup histórico GEN7
+`20260830T135345Z-a1b3d14d` permanece verificado. SH-04.4 es el siguiente
+bloque; SH-04.5 no ha iniciado. Esto no declara un despliegue en `company-host`,
 cuyo gate PPO-01 sigue separado.
 PPO-01C/D puede avanzar en paralelo
 cuando `company-host` esté disponible; PPO-01D aprobado es gate antes de PPO-04.

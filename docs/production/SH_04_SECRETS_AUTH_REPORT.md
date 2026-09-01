@@ -4,17 +4,19 @@
 
 | Bloque | Estado |
 | --- | --- |
-| SH-04.3 | IN PROGRESS |
+| SH-04.3 | CLOSED / APPROVED |
 | SH-04.3A — auditoría | CLOSED / APPROVED |
 | SH-04.3B — contrato tracked y configuración | CLOSED / APPROVED |
 | SH-04.3C-R1A — wiring asimétrico | CLOSED / APPROVED |
 | SH-04.3C — aplicación y aceptación QA | CLOSED / APPROVED |
 | SH-04.3D — rotación de secretos | CLOSED / APPROVED |
 | SH-04.3E — compatibilidad recovery tras rotación | CLOSED / APPROVED / PASS |
-| SH-04.3F — aceptación operativa final | NEXT |
+| SH-04.3F — aceptación operativa final | CLOSED / APPROVED / PASS |
 
-SH-04.3 no está cerrada. Este documento es la fuente vigente de decisiones de
-secretos, configuración y Auth durante SH-04.
+SH-04.3 está `CLOSED / APPROVED` tras
+`SH043_FINAL_OPERATIONAL_ACCEPTANCE_PASS`. Este documento conserva la fuente
+vigente de decisiones de secretos, configuración, Auth, recovery y aceptación
+operativa; SH-04 permanece `IN PROGRESS`.
 
 ## Alcance
 
@@ -236,7 +238,7 @@ informan sin convertirse en blocker.
 | SH-04.3C | Aplicar contrato endurecido y aceptación QA | CLOSED / APPROVED — bloqueador histórico resuelto por R1A/R1B |
 | SH-04.3D | Rotación de secretos | CLOSED / APPROVED — D.0–D.6 cerradas; D.6 PASS y R1A forensics aprobada. |
 | SH-04.3E | Compatibilidad recovery tras rotación | CLOSED / APPROVED / PASS |
-| SH-04.3F | Aceptación operativa final | NEXT |
+| SH-04.3F | Aceptación operativa final | CLOSED / APPROVED / PASS |
 
 ## SH-04.3D — Rotación de secretos
 
@@ -259,8 +261,9 @@ recovery, incluida D.5/D.6, está en el informe de rotación enlazado.
 
 **Estado:** `CLOSED / APPROVED / PASS`.
 **Propósito:** demostrar compatibilidad de recovery después de las rotaciones de
-secretos completadas. SH-04.3 y SH-04 permanecen `IN PROGRESS`; este cierre no
-autoriza ni inicia SH-04.3F.
+secretos completadas. En este cierre intermedio SH-04.3 permanecía `IN PROGRESS`
+y SH-04.3F no había iniciado; su aceptación posterior se registra al final de
+este documento.
 
 ### E.4 — cierre documental
 
@@ -383,8 +386,9 @@ Se mantiene `NO_IMPLICIT_ROLLBACK_CHAIN`: restaurar datos históricos no autoriz
 retroceder genéricamente el puntero de generación externa. Activar una generación
 histórica exige una transacción de recovery diseñada y autorizada explícitamente.
 
-El siguiente handoff es **SH-04.3F — Aceptación operativa final** (`NEXT`).
-SH-04.4 y SH-04.5 permanecen `NOT STARTED`.
+El handoff histórico a **SH-04.3F — Aceptación operativa final** fue completado.
+SH-04.3F cerró `CLOSED / APPROVED / PASS`; el siguiente bloque es SH-04.4 y
+SH-04.5 permanece `NOT STARTED`.
 
 ## SH-04.3C - primer intento y hallazgo de interoperabilidad
 
@@ -454,5 +458,48 @@ retenidos verificaron correctamente y el runtime final quedó en Supabase 11/11,
 Godel 2/2 y health live/ready 200.
 
 SMTP conserva configuración inerte: no se contactó proveedor real y no es
-requerido por los flujos actuales de Godel. D.5, D.6 y SH-04.3E están
-cerradas/aprobadas; SH-04.3F es `NEXT`, por lo que SH-04.3 sigue `IN PROGRESS`.
+requerido por los flujos actuales de Godel. D.5, D.6, SH-04.3E y SH-04.3F están
+cerradas/aprobadas; el estado final de SH-04.3 se consolida a continuación.
+
+## SH-04.3F — aceptación operativa final y cierre SH-04.3
+
+**Estado final:** `CLOSED / APPROVED / PASS`.
+**Clasificación:** `SH043_FINAL_OPERATIONAL_ACCEPTANCE_PASS`.
+
+SH-04.3A, SH-04.3B, SH-04.3C, SH-04.3D y SH-04.3E quedan
+`CLOSED / APPROVED`; SH-04.3F y SH-04.3F.0 quedan
+`CLOSED / APPROVED / PASS`. SH-04.3 queda `CLOSED / APPROVED`. SH-04 permanece
+`IN PROGRESS`; SH-04.4 y SH-04.5 no han iniciado.
+
+La aceptación final confirmó Dashboard Basic Auth `ENFORCED / PASS`, D5
+`CURRENT / MATCH`, Auth hardening `PASS`, login fresco ES256 `PASS`, JWKS público
+con EC NEW-only, compatibilidad legacy y opaca actual `PASS`, credenciales
+inválidas rechazadas, autenticación de roles PostgreSQL 7/7, Supavisor 5432/6543
+`PASS`, consumidores runtime D5 9/9 `MATCH` y ausencia 9/9 de la contraseña
+PostgreSQL GEN7 anterior. Supabase quedó 11/11 healthy, Godel 2/2 healthy y
+`/live` y `/ready` devolvieron 200; el E2E congelado y la matriz final no
+mutante pasaron.
+
+La estabilidad final observó 300 segundos sin intervención: 13/13 identidades
+de producción y sus restart counts permanecieron sin cambios. No se mutaron
+secretos, punteros, backups, restores ni runtime.
+
+El harness sintético de GoTrue quedó alineado con producción: prepara el
+principal reservado `supabase_auth_admin` mediante `supabase_admin`, configura
+explícitamente `GOTRUE_API_HOST=0.0.0.0` y `GOTRUE_API_PORT=9999`, y serializa
+`GOTRUE_JWT_KEYS` estructurado en la frontera del entorno preservando los
+payloads negativos ya serializados. El commit publicado
+`50ba878dfea32c45b6dc003bc30860230e6a3b2d` aprobó 3 ejecuciones consecutivas
+de integración GoTrue: GEN5, GEN6, GEN7 e inválidos multi/zero `PASS`, además
+de modelo, plan y runtime EC `PASS`.
+
+D5 (`63d9bbf1-02b7-4b6b-9fe3-e201f26d4da2`) es `CURRENT / MATCH`; GEN7
+(`65aea10b-f0ce-4015-bfa3-98086137d303`) y GEN6
+(`b3c52d8f-a42f-45a0-aa7e-d16c1f696475`) permanecen `RETAINED / NOT_CURRENT`.
+La baseline canónica `20260830T201300Z-aefc033f` es
+`POST_ROTATION_D5_RECOVERY_BASELINE / DESTRUCTIVE_RESTORE_PROVEN`; el checkpoint
+defensivo `20260831T004014Z-e69d3fca` y el backup histórico GEN7
+`20260830T135345Z-a1b3d14d` permanecen retenidos/verificados. El recovery
+rutinario same-host es D5 a D5; GEN7 exige recovery explícito consciente de
+generación y se preserva `NO_IMPLICIT_ROLLBACK_CHAIN`. La portabilidad clean-host
+permanece en SH-05 y la política de retención/scheduling/off-host en PPO-06.

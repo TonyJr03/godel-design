@@ -1638,5 +1638,6 @@ rotación — cerró `CLOSED / APPROVED / PASS`: D5 TARGET se mantuvo
 `CURRENT / MATCH`, su baseline D5 fue restaurada destructivamente con checkpoint
 defensivo distinto y los verificadores post-restore pasaron. La síntesis
 canónica está en [SH-04.3 — Production Secrets & Auth Hardening](SH_04_SECRETS_AUTH_REPORT.md).
-El siguiente workstream es **SH-04.3F — Aceptación operativa final** (`NEXT`).
-SH-04.3 y SH-04 siguen `IN PROGRESS`.
+SH-04.3F — Aceptación operativa final — cerró `CLOSED / APPROVED / PASS` con
+`SH043_FINAL_OPERATIONAL_ACCEPTANCE_PASS`. SH-04.3 queda `CLOSED / APPROVED`;
+SH-04 sigue `IN PROGRESS` y el siguiente bloque es SH-04.4.

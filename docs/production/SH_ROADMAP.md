@@ -157,8 +157,8 @@ El diseño y la auditoría de partida están en
 de Storage en [SH_03_STORAGE_QA_REPORT.md](SH_03_STORAGE_QA_REPORT.md).
 SH-03 está cerrada/aprobada; SH-03.1, SH-03.2, SH-03.3 y SH-03.4 también están
 cerradas/aprobadas, incluidas SH-03.3A–E. PPO-03G y PPO-03 quedan
-`CLOSED / APPROVED`; SH-04 está `IN PROGRESS`: SH-04.0, SH-04.1 y SH-04.2
-quedan `CLOSED / APPROVED`; SH-04.3 está `IN PROGRESS`.
+`CLOSED / APPROVED`; SH-04 está `IN PROGRESS`: SH-04.0, SH-04.1, SH-04.2 y
+SH-04.3 quedan `CLOSED / APPROVED`.
 El handoff conserva las acciones que aún
 combinan mutación, revalidación y `ActionState`/`useActionState`: son `TEST IN
 SH-03.2`, no fallos asumidos ni flujos a los que deba aplicarse preventivamente
@@ -166,20 +166,19 @@ el fallback documental.
 
 ### SH-04 — Fundamentos operativos self-hosted
 
-**Estado:** `IN PROGRESS`. SH-04.0, SH-04.1 y SH-04.2 están `CLOSED /
-APPROVED`; SH-04.3 está `IN PROGRESS` y los subbloques restantes no han
-iniciado.
+**Estado:** `IN PROGRESS`. SH-04.0, SH-04.1, SH-04.2 y SH-04.3 están `CLOSED /
+APPROVED`; SH-04.4 y SH-04.5 no han iniciado.
 
 | Subbloque | Estado |
 | --- | --- |
 | SH-04.0 | CLOSED / APPROVED |
 | SH-04.1 | CLOSED / APPROVED |
 | SH-04.2 | CLOSED / APPROVED |
-| SH-04.3 | IN PROGRESS |
+| SH-04.3 | CLOSED / APPROVED |
 | SH-04.4 | NOT STARTED |
 | SH-04.5 | NOT STARTED |
 
-#### Handoff SH-04.3D/E — Rotación de secretos y compatibilidad recovery
+#### Cierre SH-04.3 — Secretos, Auth y compatibilidad recovery
 
 SH-04.3D queda `CLOSED / APPROVED`. D.6 — aceptación final de
 rotación/recovery — cerró `PASS` y su R1A forensics confirmó el backup set
@@ -193,7 +192,10 @@ destructivamente una vez con el checkpoint defensivo distinto
 `20260831T004014Z-e69d3fca`; D5 TARGET permaneció `CURRENT / MATCH` y la
 aceptación post-restore pasó. El checkpoint histórico GEN7 sigue retenido y no
 es fuente de restore same-host ordinario con D5 activa. SH-04.3F — Aceptación
-operativa final — es `NEXT`; SH-04.4 y SH-04.5 conservan `NOT STARTED`.
+operativa final — cerró `CLOSED / APPROVED / PASS` con
+`SH043_FINAL_OPERATIONAL_ACCEPTANCE_PASS`: regresión no mutante aprobada y
+ventana de estabilidad de 300 segundos con 13/13 identidades y reinicios sin
+cambios. SH-04.3 queda `CLOSED / APPROVED`; el siguiente bloque es SH-04.4.
 
 Construye y demuestra capacidades técnicas: persistencia e inventario de
 volúmenes/datos; backup de PostgreSQL, objetos Storage y configuración necesaria
@@ -279,8 +281,8 @@ apoyó en evidencia de `Browser → Nginx → Supabase self-hosted Storage` y
 `Next Docker → api-gw`, no únicamente en desarrollo local. Validó bytes y
 control plane, retiró los límites transitorios de 110 MB en Next/Nginx, cerró
 TD-UPLOAD-001 y completó la documentación de PPO-03. SH-04 está ahora en
-curso; SH-04.0, SH-04.1 y SH-04.2 quedan cerradas/aprobadas; el handoff actual
-es SH-04.2 `CLOSED / APPROVED` → SH-04.3 `IN PROGRESS`.
+curso; SH-04.0, SH-04.1, SH-04.2 y SH-04.3 quedan cerradas/aprobadas; el
+handoff actual es SH-04.3 `CLOSED / APPROVED` → SH-04.4 `NOT STARTED`.
 
 ## Gobernanza de la baseline DB
 

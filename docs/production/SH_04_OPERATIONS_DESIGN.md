@@ -215,5 +215,8 @@ La implementación se detendrá antes de improvisar una política si aparece un 
 
 La inspección runtime read-only del 2026-08-20 confirmó los once servicios Supabase healthy, los mounts declarados, los dos named volumes `supabase_db-config` y `supabase_deno-cache`, la ausencia de tmpfs Supabase y los tmpfs efímeros Godel. Confirmó asimismo que `/etc/postgresql-custom/pgsodium_root.key` existe con permisos `0640` y que PGDATA usa `0700`; no se leyó contenido de secretos ni variables de entorno. No surgió una stop condition: los ficheros adicionales visibles en `db-config` son configuración version-coupled, no evidencia de material no regenerable.
 
-SH-04.0 queda `CLOSED / APPROVED`. SH-04.1 queda `READY / NEXT` y recibe este contrato para implementar el mecanismo de backup de forma revisable: validación previa, set/manifest/checksums, gestión de fallo y arranque seguro. Debe conservar estas fronteras aprobadas.
+SH-04.0 queda `CLOSED / APPROVED`. El handoff histórico a SH-04.1 quedó
+completado por los bloques posteriores, preservando este contrato de validación
+previa, set/manifest/checksums, gestión de fallo y arranque seguro. El estado
+actual de SH-04.3 y el handoff a SH-04.4 se mantienen en `SH_ROADMAP.md`.
 

@@ -14,9 +14,7 @@ arquitectura operativa y puesta en operación de Godel Diseño.
 
 - [SH-04.3D — Rotación segura de secretos](SH_04_SECRET_ROTATION_REPORT.md): cerrada y aprobada; D.6 PASS aceptó la rotación/recovery, con TARGET D5 actual, GEN7/GEN6 retenidas y forensics R1A del backup pre-cutover aprobada.
 
-- [SH-04.3E — Compatibilidad recovery tras rotación](SH_04_SECRETS_AUTH_REPORT.md): cerrada, aprobada y PASS; la baseline D5 fue verificada y restaurada destructivamente con checkpoint defensivo distinto, preservando D5 `CURRENT / MATCH`. SH-04.3F es el siguiente workstream.
-
-- [SH-04.3 — Production Secrets & Auth Hardening](SH_04_SECRETS_AUTH_REPORT.md): auditoría de secretos/Auth, contrato productivo, decisiones de hardening y evolución de SH-04.3.
+- [SH-04.3 — Production Secrets & Auth Hardening](SH_04_SECRETS_AUTH_REPORT.md): cerrada y aprobada tras `SH043_FINAL_OPERATIONAL_ACCEPTANCE_PASS`; conserva la auditoría de secretos/Auth, la rotación, la compatibilidad recovery D5 y la aceptación operativa final. SH-04.4 es el siguiente workstream.
 
 - [SH-02.0 — Diseño de integración Godel ↔ Supabase self-hosted](SH_02_INTEGRATION_DESIGN.md): cerrada y aprobada; incluye el estado vigente de SH-02.
 - [SH-02.1 — Compose, networking y naming neutral](SH_02_COMPOSE_NETWORK_REPORT.md): cerrada y aprobada.
