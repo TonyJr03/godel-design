@@ -175,7 +175,8 @@ APPROVED`; SH-04.4 y SH-04.5 no han iniciado.
 | SH-04.1 | CLOSED / APPROVED |
 | SH-04.2 | CLOSED / APPROVED |
 | SH-04.3 | CLOSED / APPROVED |
-| SH-04.4 | NOT STARTED |
+| SH-04.4 | IN PROGRESS |
+| SH-04.4A | IN PROGRESS / DESIGN |
 | SH-04.5 | NOT STARTED |
 
 #### Cierre SH-04.3 — Secretos, Auth y compatibilidad recovery
