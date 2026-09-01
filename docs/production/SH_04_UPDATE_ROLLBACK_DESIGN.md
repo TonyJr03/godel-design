@@ -1,6 +1,6 @@
 # SH-04.4 — Update and rollback design
 
-**Phase:** SH-04.4A — IN PROGRESS / DESIGN
+**Phase:** SH-04.4A — CLOSED / APPROVED
 **Date:** 2026-09-01
 **Scope:** controlled same-host Supabase bundle update/rollback. This is architectural only: it does not pull images, alter vendor files, recreate services, back up or restore data, rotate secrets, update or rollback.
 
@@ -15,7 +15,7 @@
 | Human authority | `infra/SUPABASE_UPSTREAM.md` |
 | Machine mirror | `infra/supabase-upstream.lock.json`; disagreement is fail-closed |
 
-The ignored `infra/supabase/.supabase-version` remains absent. It is an operational stamp, not project authority; it must not be created or hand-edited. SH-04.4B must match the tracked document and lock on the full SHA, then pass it explicitly as `update.sh --from`. A missing, malformed or different local stamp is a stop condition, not permission to guess a version. A future accepted update may advance the local stamp, but the tracked pin changes only after the reviewed final runtime state is known.
+The ignored `infra/supabase/.supabase-version` remains absent. Its absence is valid: SH-04.4B resolves BASE_REF from `infra/SUPABASE_UPSTREAM.md` and `infra/supabase-upstream.lock.json`, requires their full SHAs to agree, then passes that exact base explicitly as `update.sh --from`. If a local stamp exists, it must be well-formed and match the expected tracked/runtime state; only a present malformed or mismatching stamp is fail-closed. It is an operational stamp, not project authority, and must not be created or hand-edited. Never guess a base. A future accepted update may advance the local stamp, but the tracked pin changes only after the reviewed final runtime state is known.
 
 Discovery used official read-only Git refs and temporary sparse snapshots. No candidate content was copied to `infra/supabase/`; no Docker command ran.
 
@@ -25,11 +25,11 @@ Official refs discovered: `v0.5.0`, `v0.5.1`, `v0.6.0`, `v0.7.0`, `v0.7.1`, `v0.
 
 | Latest official candidate | Exact SHA | Release date | Decision |
 | --- | --- | --- | --- |
-| `self-hosted/v0.8.0` | `241bb11c0627f2981746d37033f57dbfa81d29b0` | 2026-08-11 | **NO_SAFE_TARGET** for cutover: its `docker/` snapshot is exactly identical to BASE_REF. It is a discovery ceiling, not an update. |
+| `self-hosted/v0.8.0` | `241bb11c0627f2981746d37033f57dbfa81d29b0` | 2026-08-11 | **NO_UPDATE_REQUIRED / BASE_DOCKER_EQUIVALENT_TO_LATEST_RELEASE**: its `docker/` snapshot is exactly identical to BASE_REF. It is the current release ceiling, not a pending update. |
 
 Both snapshots have 61 files. Structural delta is zero added, zero removed and zero modified paths. Accordingly, there are no high-risk changed paths in COMPOSE, ENV_EXAMPLE, API_GATEWAY, AUTH, REST, REALTIME, STORAGE, POSTGRES, SUPAVISOR, FUNCTIONS, META, STUDIO, IMGPROXY, SCRIPTS, MIGRATIONS, UPDATE_TOOLING or OTHER.
 
-This is neither a direct update nor a staged-update finding. Recreating merely to relabel an equivalent tree adds risk without an upgrade. SH-04.4B/4C remains blocked until a later official self-hosted tag with a different exact `docker/` snapshot is selected. It must never select `master` automatically.
+This is neither a direct update nor a staged-update finding. Recreating merely to relabel an equivalent tree adds risk without an upgrade. SH-04.4B is NEXT and must wait for a later official self-hosted tag with a different exact `docker/` snapshot before preparing a real cutover. It must never select `master` automatically.
 
 ## Breaking gates and persistent state
 
@@ -103,6 +103,6 @@ SH-04.4D proves class-specific rollback, not merely tag reversal. SH-04.4E close
 
 ## Stop conditions and result
 
-Stop before a real update for no official forward target, unknown persistent or rollback effect, unclear gate, unresolved local conflict, unknown image identity, failed Compose invariant, D5 mismatch, absent required recovery set, or an attempt to infer a base from a local ignored stamp or `master`.
+Stop before a real update for no official forward target, unknown persistent or rollback effect, unclear gate, unresolved local conflict, unknown image identity, failed Compose invariant, D5 mismatch, absent required recovery set, or an attempt to guess a base from an absent or invalid local stamp or from `master`.
 
-**SH-04.4A: PASS_DESIGN.** The current official release ceiling is already represented by the tracked vendor base; no SH-04.4B/4C runtime update is authorized yet.
+**SH-04.4A: CLOSED / APPROVED / PASS_DESIGN.** The current official release ceiling is already represented by the tracked vendor base. SH-04.4B is NEXT; no runtime update is authorized until a forward official target exists.
