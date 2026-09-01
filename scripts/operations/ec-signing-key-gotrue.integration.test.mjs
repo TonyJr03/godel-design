@@ -3,7 +3,6 @@ import { createHmac, randomBytes, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
   buildEcRotationPlan,
@@ -15,7 +14,6 @@ import {
 const execFileAsync = promisify(execFile);
 const AUTH_IMAGE = "supabase/gotrue:v2.189.0";
 const DATABASE_IMAGE = "supabase/postgres:17.6.1.136";
-const ROLES_SQL = fileURLToPath(new URL("../../infra/supabase/volumes/db/roles.sql", import.meta.url));
 const PREFIX = `godel-ec-proof-${randomUUID().replaceAll("-", "")}`;
 const NETWORK = `${PREFIX}-network`;
 const DATABASE = `${PREFIX}-db`;
@@ -102,20 +100,45 @@ async function containerRunning(name) {
   return result.code === 0 && result.stdout.trim() === "true";
 }
 
+async function networkQuery(user, query) {
+  return docker([
+    "run", "--rm", "--pull=never", "--network", NETWORK, "--env", "PGPASSWORD",
+    "--entrypoint", "psql", DATABASE_IMAGE,
+    "-X", "-h", DATABASE, "-p", "5432", "-U", user, "-d", "postgres", "-tAc", query,
+  ], { env: { PGPASSWORD: SYNTHETIC_POSTGRES_PASSWORD }, allowFailure: true });
+}
+
+async function configureAuthPrincipal() {
+  const admin = await docker([
+    "exec", DATABASE, "psql", "-X", "-U", "supabase_admin", "-d", "postgres", "-tAc",
+    "SELECT current_user || '|' || (SELECT rolsuper FROM pg_roles WHERE rolname = current_user)::text",
+  ], { allowFailure: true });
+  if (admin.code !== 0 || admin.stdout.trim() !== "supabase_admin|true") throw new Error("synthetic Supabase admin contract is not ready");
+  await docker([
+    "exec", "--env", "POSTGRES_PASSWORD", DATABASE, "/bin/sh", "-ec",
+    "printf \"ALTER ROLE supabase_auth_admin WITH PASSWORD '%s';\\n\" \"$POSTGRES_PASSWORD\" | psql -X -v ON_ERROR_STOP=1 -U supabase_admin -d postgres",
+  ], { env: { POSTGRES_PASSWORD: SYNTHETIC_POSTGRES_PASSWORD } });
+  const result = await docker([
+    "exec", DATABASE, "psql", "-X", "-U", "postgres", "-d", "postgres", "-tAc",
+    "SELECT (EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'supabase_auth_admin' AND rolcanlogin) AND to_regnamespace('auth') IS NOT NULL AND (COALESCE((SELECT array_to_string(rolconfig, ',') FROM pg_roles WHERE rolname = 'supabase_auth_admin'), '') = '' OR COALESCE((SELECT array_to_string(rolconfig, ',') FROM pg_roles WHERE rolname = 'supabase_auth_admin'), '') ~ 'search_path=.*auth'))::text",
+  ], { allowFailure: true });
+  if (result.code !== 0 || result.stdout.trim() !== "true") throw new Error("synthetic Auth principal contract is not ready");
+}
+
 async function startDatabase() {
   await docker([
     "run", "-d", "--name", DATABASE, "--network", NETWORK,
     "--env", "POSTGRES_PASSWORD", "--env", "POSTGRES_DB",
-    "--mount", `type=bind,src=${ROLES_SQL},dst=/docker-entrypoint-initdb.d/init-scripts/99-roles.sql,readonly`,
     DATABASE_IMAGE,
   ], { env: { POSTGRES_PASSWORD: SYNTHETIC_POSTGRES_PASSWORD, POSTGRES_DB: "postgres" } });
   await waitFor("isolated Postgres local process", async () => (await docker(["exec", DATABASE, "pg_isready", "-U", "postgres", "-d", "postgres"], { allowFailure: true })).code === 0);
   await waitFor("isolated Postgres network SQL", async () => {
-    const result = await docker([
-      "run", "--rm", "--pull=never", "--network", NETWORK, "--env", "PGPASSWORD",
-      "--entrypoint", "psql", DATABASE_IMAGE,
-      "-X", "-h", DATABASE, "-p", "5432", "-U", "supabase_auth_admin", "-d", "postgres", "-tAc", "SELECT current_user",
-    ], { env: { PGPASSWORD: SYNTHETIC_POSTGRES_PASSWORD }, allowFailure: true });
+    const result = await networkQuery("postgres", "SELECT 1");
+    return result.code === 0 && result.stdout.trim() === "1";
+  }, 30_000, 1_000);
+  await configureAuthPrincipal();
+  await waitFor("isolated Auth principal network SQL", async () => {
+    const result = await networkQuery("supabase_auth_admin", "SELECT current_user");
     return result.code === 0 && result.stdout.trim() === "supabase_auth_admin";
   }, 30_000, 1_000);
 }
@@ -124,7 +147,7 @@ function authEnvironment(keyMaterial) {
   return {
     GOTRUE_DB_DATABASE_URL: `postgres://supabase_auth_admin:${SYNTHETIC_POSTGRES_PASSWORD}@${DATABASE}:5432/postgres?sslmode=disable`,
     GOTRUE_JWT_SECRET: SYNTHETIC_JWT_SECRET,
-    GOTRUE_JWT_KEYS: keyMaterial.jwtKeys,
+    GOTRUE_JWT_KEYS: typeof keyMaterial.jwtKeys === "string" ? keyMaterial.jwtKeys : JSON.stringify(keyMaterial.jwtKeys),
     GOTRUE_SITE_URL: "http://synthetic.invalid",
     API_EXTERNAL_URL: "http://synthetic.invalid",
     GOTRUE_API_EXTERNAL_URL: "http://synthetic.invalid",
@@ -135,13 +158,15 @@ async function startAuth(name, keyMaterial) {
   const authName = `${PREFIX}-${name}`;
   await docker([
     "run", "-d", "--name", authName, "--network", NETWORK,
-    "--env", "GOTRUE_DB_DRIVER", "--env", "GOTRUE_DB_DATABASE_URL", "--env", "GOTRUE_SITE_URL", "--env", "API_EXTERNAL_URL", "--env", "GOTRUE_API_EXTERNAL_URL",
+    "--env", "GOTRUE_DB_DRIVER", "--env", "GOTRUE_DB_DATABASE_URL", "--env", "GOTRUE_SITE_URL", "--env", "API_EXTERNAL_URL", "--env", "GOTRUE_API_EXTERNAL_URL", "--env", "GOTRUE_API_HOST", "--env", "GOTRUE_API_PORT",
     "--env", "GOTRUE_JWT_SECRET", "--env", "GOTRUE_JWT_KEYS", "--env", "GOTRUE_JWT_EXP", "--env", "GOTRUE_EXTERNAL_EMAIL_ENABLED", "--env", "GOTRUE_MAILER_AUTOCONFIRM", "--env", "GOTRUE_DISABLE_SIGNUP",
     AUTH_IMAGE,
   ], {
     env: {
       ...authEnvironment(keyMaterial),
       GOTRUE_DB_DRIVER: "postgres",
+      GOTRUE_API_HOST: "0.0.0.0",
+      GOTRUE_API_PORT: "9999",
       GOTRUE_JWT_EXP: "3600",
       GOTRUE_EXTERNAL_EMAIL_ENABLED: "true",
       GOTRUE_MAILER_AUTOCONFIRM: "true",
