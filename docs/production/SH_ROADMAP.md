@@ -167,7 +167,8 @@ el fallback documental.
 ### SH-04 — Fundamentos operativos self-hosted
 
 **Estado:** `IN PROGRESS`. SH-04.0, SH-04.1, SH-04.2, SH-04.3, SH-04.4A y
-SH-04.4B están `CLOSED / APPROVED`; SH-04.4C es `NEXT` y SH-04.5 no ha iniciado.
+SH-04.4B están `CLOSED / APPROVED`; SH-04.4C.0 está `CLOSED / BLOCKED_ACTIONABLE`,
+SH-04.4C.1 está `IN PROGRESS`, SH-04.4C.2 es `NOT AUTHORIZED` y SH-04.5 no ha iniciado.
 
 | Subbloque | Estado |
 | --- | --- |
@@ -178,7 +179,7 @@ SH-04.4B están `CLOSED / APPROVED`; SH-04.4C es `NEXT` y SH-04.5 no ha iniciado
 | SH-04.4 | IN PROGRESS |
 | SH-04.4A | CLOSED / APPROVED |
 | SH-04.4B | CLOSED / APPROVED |
-| SH-04.4C | NEXT |
+| SH-04.4C | IN PROGRESS (C.0 CLOSED / BLOCKED_ACTIONABLE; C.1 IN PROGRESS; C.2 NOT AUTHORIZED) |
 | SH-04.5 | NOT STARTED |
 
 #### Cierre SH-04.3 — Secretos, Auth y compatibilidad recovery
