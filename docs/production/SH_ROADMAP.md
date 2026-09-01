@@ -166,8 +166,8 @@ el fallback documental.
 
 ### SH-04 — Fundamentos operativos self-hosted
 
-**Estado:** `IN PROGRESS`. SH-04.0, SH-04.1, SH-04.2, SH-04.3 y SH-04.4A están
-`CLOSED / APPROVED`; SH-04.4B está `IN PROGRESS` y SH-04.5 no ha iniciado.
+**Estado:** `IN PROGRESS`. SH-04.0, SH-04.1, SH-04.2, SH-04.3, SH-04.4A y
+SH-04.4B están `CLOSED / APPROVED`; SH-04.4C es `NEXT` y SH-04.5 no ha iniciado.
 
 | Subbloque | Estado |
 | --- | --- |
@@ -177,7 +177,8 @@ el fallback documental.
 | SH-04.3 | CLOSED / APPROVED |
 | SH-04.4 | IN PROGRESS |
 | SH-04.4A | CLOSED / APPROVED |
-| SH-04.4B | IN PROGRESS |
+| SH-04.4B | CLOSED / APPROVED |
+| SH-04.4C | NEXT |
 | SH-04.5 | NOT STARTED |
 
 #### Cierre SH-04.3 — Secretos, Auth y compatibilidad recovery
@@ -284,7 +285,7 @@ apoyó en evidencia de `Browser → Nginx → Supabase self-hosted Storage` y
 control plane, retiró los límites transitorios de 110 MB en Next/Nginx, cerró
 TD-UPLOAD-001 y completó la documentación de PPO-03. SH-04 está ahora en
 curso; SH-04.0, SH-04.1, SH-04.2 y SH-04.3 quedan cerradas/aprobadas; el
-handoff actual es SH-04.4A `CLOSED / APPROVED` → SH-04.4B `IN PROGRESS`.
+handoff actual es SH-04.4A `CLOSED / APPROVED` → SH-04.4B `CLOSED / APPROVED` → SH-04.4C `NEXT`.
 
 ## Gobernanza de la baseline DB
 
