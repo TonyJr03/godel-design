@@ -1,6 +1,6 @@
 # SH-04.4 — Update and rollback design
 
-**Phase:** SH-04.4A — CLOSED / APPROVED; SH-04.4C.1 — IN PROGRESS
+**Phase:** SH-04.4A — CLOSED / APPROVED; SH-04.4C.1 — CLOSED / APPROVED / PASS_TOOLING
 **Date:** 2026-09-01
 **Scope:** controlled same-host Supabase bundle update/rollback. This is architectural only: it does not pull images, alter vendor files, recreate services, back up or restore data, rotate secrets, update or rollback.
 
@@ -29,7 +29,7 @@ Official refs discovered: `v0.5.0`, `v0.5.1`, `v0.6.0`, `v0.7.0`, `v0.7.1`, `v0.
 
 Both snapshots have 61 files. Structural delta is zero added, zero removed and zero modified paths. Accordingly, there are no high-risk changed paths in COMPOSE, ENV_EXAMPLE, API_GATEWAY, AUTH, REST, REALTIME, STORAGE, POSTGRES, SUPAVISOR, FUNCTIONS, META, STUDIO, IMGPROXY, SCRIPTS, MIGRATIONS, UPDATE_TOOLING or OTHER.
 
-This is neither a direct update nor a staged-update finding. Recreating merely to relabel an equivalent tree adds risk without an upgrade. SH-04.4B is `CLOSED / APPROVED / PASS_IMPLEMENTATION`; its planner must wait for a later official self-hosted tag with a different exact `docker/` snapshot before preparing a real cutover. It must never select `master` automatically. SH-04.4C is `NEXT`.
+This is neither a direct update nor a staged-update finding. Recreating merely to relabel an equivalent tree adds risk without an upgrade. SH-04.4B is `CLOSED / APPROVED / PASS_IMPLEMENTATION`; its planner must wait for a later official self-hosted tag with a different exact `docker/` snapshot before preparing a real cutover. It must never select `master` automatically. SH-04.4C is `IN PROGRESS`.
 
 ## Breaking gates and persistent state
 
@@ -99,7 +99,7 @@ The planner validates tracked base/lock equality; resolves the target only throu
 
 The machine lock is warranted because the ignored operational stamp cannot be the sole base resolver. It contains only public refs and mirrors, rather than replaces, `SUPABASE_UPSTREAM.md`.
 
-SH-04.4C.0 is `CLOSED / BLOCKED_ACTIONABLE`: it established the historical capability rehearsal pair `self-hosted/v0.7.2` (`549db119c44c25167461812041ba198bde2b31a4`) → `self-hosted/v0.8.0` (`241bb11c0627f2981746d37033f57dbfa81d29b0`) without altering production. SH-04.4C.1 is `IN PROGRESS`: its isolated tooling materializes only those exact tags outside `infra/supabase`, verifies both effective Compose snapshots and prepares a tag-based `update.sh --dry-run` contract with synthetic secrets and allowlisted environments. It does not start Docker or execute an update. Current execution prerequisites remain blocked by missing `jq` and the exact `kong/kong:3.9.3` image. SH-04.4C.2 is `NOT AUTHORIZED`.
+SH-04.4C.0 is `CLOSED / BLOCKED_ACTIONABLE`: it established the historical capability rehearsal pair `self-hosted/v0.7.2` (`549db119c44c25167461812041ba198bde2b31a4`) → `self-hosted/v0.8.0` (`241bb11c0627f2981746d37033f57dbfa81d29b0`) without altering production. SH-04.4C.1 is `CLOSED / APPROVED / PASS_TOOLING`: it verifies exact official historical tags/SHAs, materializes `docker/` only through sparse snapshots, generates format-constrained synthetic rehearsal credentials, and validates isolated effective Compose models for both snapshots. Its contracts cover unique project/container identities, loopback-only gateway exposure, closed DB/Supavisor host ports, isolated filesystem/volumes/networks, the target `api-gw`/`kong` alias, exact image preflight, jq/shell capability checks, accumulated prerequisites, an isolated tag-based `update.sh` dry-run, narrowly allowlisted subprocess environments (including Docker Desktop Compose specialization), fixture/fingerprint/cleanup seams and deterministic temporary-workspace cleanup. The current real result is `TOOLING_READY` with BASE/TARGET Compose `PASS`, shell `AVAILABLE`, jq `MISSING`, exact `kong/kong:3.9.3` image `MISSING`, `EXECUTION_BLOCKED_PREREQUISITES` and `NOT_RUN_PREREQUISITES`; no production mutation occurred. SH-04.4C.2 is `BLOCKED_PREREQUISITES`: it may not start until real jq capability and the exact Kong image are provided, the planner returns `HISTORICAL_DRY_RUN_PASS` and `EXECUTION_READINESS=READY`, and only then is isolated runtime C.2 authorized.
 
 SH-04.4C, only after a non-empty target review, is: preflight → recovery checkpoint when required → reviewed candidate/images → controlled recreate → infrastructure health → DB/Auth/Storage compatibility → secret continuity → Godel integration → frozen regression → stability observation.
 
@@ -109,4 +109,4 @@ SH-04.4D proves class-specific rollback, not merely tag reversal. SH-04.4E close
 
 Stop before a real update for no official forward target, unknown persistent or rollback effect, unclear gate, unresolved local conflict, unknown image identity, failed Compose invariant, D5 mismatch, absent required recovery set, or an attempt to guess a base from an absent or invalid local stamp or from `master`.
 
-**SH-04.4A: CLOSED / APPROVED / PASS_DESIGN. SH-04.4B: CLOSED / APPROVED / PASS_IMPLEMENTATION.** The current official release ceiling remains `self-hosted/v0.8.0` at `241bb11c0627f2981746d37033f57dbfa81d29b0`, exactly equivalent to BASE_REF `e846d45ce64207b952a4df44ac8b480ea0abb27e`; the current real planner result is `NO_UPDATE_REQUIRED`. No runtime update was executed or authorized. SH-04.4C is `NEXT`.
+**SH-04.4A: CLOSED / APPROVED / PASS_DESIGN. SH-04.4B: CLOSED / APPROVED / PASS_IMPLEMENTATION. SH-04.4C.1: CLOSED / APPROVED / PASS_TOOLING.** The current official release ceiling remains `self-hosted/v0.8.0` at `241bb11c0627f2981746d37033f57dbfa81d29b0`, exactly equivalent to BASE_REF `e846d45ce64207b952a4df44ac8b480ea0abb27e`; the operational Godel bundle result remains `NO_UPDATE_REQUIRED`. The historical rehearsal is a `CAPABILITY_PROOF`, not a `CURRENT_RELEASE_COMPATIBILITY_PROOF`, and no runtime update was executed or authorized. SH-04.4C is `IN PROGRESS`; C.2 is `BLOCKED_PREREQUISITES`.
