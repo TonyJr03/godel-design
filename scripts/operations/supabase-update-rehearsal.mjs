@@ -8,8 +8,8 @@ import { promisify } from "node:util";
 const execFile = promisify(execFileCallback);
 export const BASE = Object.freeze({ tag: "self-hosted/v0.7.2", commit: "549db119c44c25167461812041ba198bde2b31a4" });
 export const TARGET = Object.freeze({ tag: "self-hosted/v0.8.0", commit: "241bb11c0627f2981746d37033f57dbfa81d29b0" });
-const PREFIX = "godel-sh044c-rehearsal-";
-const GATEWAY_PORT = 18080;
+export const REHEARSAL_PREFIX = "godel-sh044c-rehearsal-";
+export const GATEWAY_PORT = 18080;
 const JQ_CAPABILITY_TIMEOUT_MS = 5_000;
 const REQUIRED_SECRETS = ["POSTGRES_PASSWORD", "JWT_SECRET", "ANON_KEY", "SERVICE_ROLE_KEY", "DASHBOARD_PASSWORD", "SECRET_KEY_BASE", "REALTIME_DB_ENC_KEY", "VAULT_ENC_KEY", "PG_META_CRYPTO_KEY", "LOGFLARE_PUBLIC_ACCESS_TOKEN", "LOGFLARE_PRIVATE_ACCESS_TOKEN", "S3_PROTOCOL_ACCESS_KEY_ID", "S3_PROTOCOL_ACCESS_KEY_SECRET", "POOLER_TENANT_ID"];
 
@@ -19,7 +19,7 @@ function fail(code) { throw new Error(code); }
 function b64(value) { return Buffer.from(value).toString("base64url"); }
 function randomSecret() { return randomBytes(32).toString("base64url"); }
 function isInside(root, path) { const check = relative(resolve(root), resolve(path)); return check === "" || (!check.startsWith("..") && !isAbsolute(check)); }
-function safeGeneration() { return randomBytes(6).toString("hex"); }
+export function safeGeneration() { return randomBytes(6).toString("hex"); }
 
 export function createHs256Jwt(secret, role, now = Math.floor(Date.now() / 1000)) {
   const header = b64(JSON.stringify({ alg: "HS256", typ: "JWT" }));
@@ -131,7 +131,7 @@ export function createSparseSnapshotCommands({ repository, tag }) {
     ["fetch", "--quiet", "--depth=1", "--filter=blob:none", "origin", `refs/tags/${tag}:refs/tags/${tag}`],
   ];
 }
-async function materializeSnapshot({ repository, tag, expectedCommit, destination, run = execFile }) {
+export async function materializeSnapshot({ repository, tag, expectedCommit, destination, run = execFile }) {
   const checkout = join(dirname(destination), `${basename(destination)}-git`);
   try {
     await mkdir(checkout, { recursive: true });
@@ -150,17 +150,17 @@ function parseExample(example, values) {
   }).join("\n");
 }
 
-export async function writeSyntheticRuntimeEnv({ examplePath, destination, port = GATEWAY_PORT }) {
+export async function writeSyntheticRuntimeEnv({ examplePath, destination, port = GATEWAY_PORT, returnCredentials = false }) {
   const secrets = createSyntheticSecrets();
   const loopback = `http://127.0.0.1:${port}`;
   const values = { ...secrets, ENABLE_EMAIL_AUTOCONFIRM: "true", SITE_URL: loopback, API_EXTERNAL_URL: `${loopback}/auth/v1`, SUPABASE_PUBLIC_URL: loopback, ADDITIONAL_REDIRECT_URLS: loopback, SMTP_ADMIN_EMAIL: "rehearsal@example.invalid", SMTP_HOST: "rehearsal-mail.invalid", SMTP_PORT: "2500", SMTP_USER: "rehearsal", SMTP_PASS: randomSecret(), SMTP_SENDER_NAME: "rehearsal", JWT_KEYS: "[]", JWT_JWKS: '{"keys":[]}' };
   const content = parseExample(await readFile(examplePath, "utf8"), values);
   await writeFile(destination, content.endsWith("\n") ? content : `${content}\n`, { mode: 0o600 });
-  return { secretNames: Object.keys(secrets).sort(), port };
+  return returnCredentials ? { secretNames: Object.keys(secrets).sort(), port, credentials: { anonKey: secrets.ANON_KEY, serviceRoleKey: secrets.SERVICE_ROLE_KEY } } : { secretNames: Object.keys(secrets).sort(), port };
 }
 
 export function createIsolationOverride({ project, services, gatewayService, port = GATEWAY_PORT }) {
-  if (!project.startsWith(PREFIX) || !services.includes(gatewayService)) fail("REHEARSAL_OVERRIDE_INVALID");
+  if (!project.startsWith(REHEARSAL_PREFIX) || !services.includes(gatewayService)) fail("REHEARSAL_OVERRIDE_INVALID");
   const lines = [`name: ${project}`, "services:"];
   for (const service of services) {
     lines.push(`  ${service}:`, `    container_name: ${project}-${service.replace(/[^a-z0-9]/gi, "-")}`);
@@ -233,7 +233,7 @@ export function createCleanupContract({ project, workspace }) { assertCleanupPro
 export function createGatewayPortContract(port = GATEWAY_PORT) { if (!Number.isInteger(port) || port < 1024 || port === 8080) fail("GATEWAY_PORT_CONTRACT_INVALID"); return { port, binding: "127.0.0.1", availability: "CHECK_REQUIRED_BEFORE_C2" }; }
 
 function servicesFromCompose(model) { return Object.keys(model.services ?? {}); }
-function servicesFromSource(source) {
+export function servicesFromSource(source) {
   const start = source.search(/^services:\s*$/m);
   if (start < 0) return [];
   const following = source.slice(start).split(/\r?\n/).slice(1);
@@ -253,7 +253,7 @@ function classifyDryRun(output) {
 export async function createRehearsalPlan(options = {}) {
   const repository = options.repository ?? "https://github.com/supabase/supabase.git";
   const generation = options.generation ?? safeGeneration();
-  const project = `${PREFIX}${generation}`;
+  const project = `${REHEARSAL_PREFIX}${generation}`;
   const workspace = await mkdtemp(join(tmpdir(), `${project}-`));
   const evidence = { plannerResult: "ERROR", toolingStatus: "ERROR", executionReadiness: "BLOCKED", project, base: BASE, target: TARGET, fixtureContract: createFixtureContract(), gatewayPort: createGatewayPortContract(), workspaceCleaned: false };
   try {
