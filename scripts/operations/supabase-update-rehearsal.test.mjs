@@ -134,17 +134,31 @@ test("safe contracts never expose container IDs or execute cleanup", () => {
   assert.deepEqual(Object.keys(createFixtureContract()).sort(), ["auth", "database", "gateway", "storage"]);
 });
 
-test("jq and shell capability failures remain prerequisites and dry-run has exact tag arguments and an allowlist", async () => {
+test("jq capability preflight is null-input, bounded and hermetic while failures remain prerequisites", async () => {
   assert.equal((await resolveJq({ environment: { PATH: "" } })).status, "JQ_MISSING");
+  const parentEnvironment = { PATH: process.env.PATH, SystemRoot: "synthetic-root", TEMP: "synthetic-temp", JWT_SECRET: "secret", POSTGRES_PASSWORD: "secret", SERVICE_ROLE_KEY: "secret", ANON_KEY: "secret", GODEL_REHEARSAL_SENTINEL: "sentinel" };
+  let invocation;
+  const available = await resolveJq({ jqBin: process.execPath, environment: parentEnvironment, run: async (command, args, options) => { invocation = { command, args, options }; return { stdout: "" }; } });
+  assert.equal(available.status, "JQ_AVAILABLE");
+  assert.equal(invocation.command, process.execPath);
+  assert.equal(invocation.args.includes("-n"), true);
+  assert.equal(invocation.args.includes("-e"), true);
+  assert.equal(Object.hasOwn(invocation.options, "input"), false);
+  assert.equal(invocation.options.timeout, 5_000);
+  assert.equal(invocation.options.windowsHide, true);
+  assert.equal(typeof invocation.options.env.PATH, "string");
+  for (const name of ["JWT_SECRET", "POSTGRES_PASSWORD", "SERVICE_ROLE_KEY", "ANON_KEY", "GODEL_REHEARSAL_SENTINEL"]) assert.equal(Object.hasOwn(invocation.options.env, name), false);
+  const expression = invocation.args.at(-1);
+  for (const primitive of [/type/, /keys\[\]/, /\.\[\$key\]/, /\/\//, /\.items\[\]\?/, /\(\[\.items\[\]\?\] \| length\)/]) assert.match(expression, primitive);
   const unavailable = await resolveJq({ jqBin: process.execPath, environment: { PATH: process.env.PATH }, run: async () => { throw new Error("no jq features"); } });
   assert.equal(unavailable.status, "JQ_INCOMPATIBLE");
   assert.equal((await resolveShell({ shBin: "C:\\missing\\sh.exe", environment: { PATH: "" } })).status, "SH_MISSING");
   assert.equal((await resolveShell({ shBin: process.execPath, environment: { PATH: process.env.PATH } })).status, "SH_AVAILABLE");
-  const invocation = createDryRunInvocation({ runtime: "C:\\tmp\\runtime", jq: { directory: "C:\\tmp\\tool-bin" }, shell: { path: "C:\\tmp\\tool-bin\\sh.exe", directory: "C:\\tmp\\tool-bin" }, repository: "https://github.com/supabase/supabase.git" });
-  assert.deepEqual(invocation.args.slice(-5), ["--dry-run", "--from", BASE.tag, "--to", TARGET.tag]);
-  assert.equal(invocation.env.SUPABASE_REPO_URL, "https://github.com/supabase/supabase.git");
-  assert.equal(Object.hasOwn(invocation.env, "JWT_SECRET"), false);
-  assert.equal(Object.hasOwn(invocation.env, "ProgramFiles"), false);
+  const dryRunInvocation = createDryRunInvocation({ runtime: "C:\\tmp\\runtime", jq: { directory: "C:\\tmp\\tool-bin" }, shell: { path: "C:\\tmp\\tool-bin\\sh.exe", directory: "C:\\tmp\\tool-bin" }, repository: "https://github.com/supabase/supabase.git" });
+  assert.deepEqual(dryRunInvocation.args.slice(-5), ["--dry-run", "--from", BASE.tag, "--to", TARGET.tag]);
+  assert.equal(dryRunInvocation.env.SUPABASE_REPO_URL, "https://github.com/supabase/supabase.git");
+  assert.equal(Object.hasOwn(dryRunInvocation.env, "JWT_SECRET"), false);
+  assert.equal(Object.hasOwn(dryRunInvocation.env, "ProgramFiles"), false);
 });
 
 test("plan accumulates missing jq and Kong after retaining isolated Compose evidence", async () => {

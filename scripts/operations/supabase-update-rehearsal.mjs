@@ -10,6 +10,7 @@ export const BASE = Object.freeze({ tag: "self-hosted/v0.7.2", commit: "549db119
 export const TARGET = Object.freeze({ tag: "self-hosted/v0.8.0", commit: "241bb11c0627f2981746d37033f57dbfa81d29b0" });
 const PREFIX = "godel-sh044c-rehearsal-";
 const GATEWAY_PORT = 18080;
+const JQ_CAPABILITY_TIMEOUT_MS = 5_000;
 const REQUIRED_SECRETS = ["POSTGRES_PASSWORD", "JWT_SECRET", "ANON_KEY", "SERVICE_ROLE_KEY", "DASHBOARD_PASSWORD", "SECRET_KEY_BASE", "REALTIME_DB_ENC_KEY", "VAULT_ENC_KEY", "PG_META_CRYPTO_KEY", "LOGFLARE_PUBLIC_ACCESS_TOKEN", "LOGFLARE_PRIVATE_ACCESS_TOKEN", "S3_PROTOCOL_ACCESS_KEY_ID", "S3_PROTOCOL_ACCESS_KEY_SECRET", "POOLER_TENANT_ID"];
 
 function safeError(value) { return String(value?.message ?? value).replace(/[\r\n]+/g, " ").slice(0, 160); }
@@ -96,7 +97,7 @@ export async function resolveJq({ jqBin, environment = process.env, run = execFi
   const path = await resolveExecutable(requested, environment.PATH);
   if (!path) return { status: "JQ_MISSING" };
   try {
-    await run(path, ["-e", "--arg", "key", "target", 'type == "object" and ([keys[]] | length) > 0 and (.[$key] // "fallback") == "value" and ([.items[]?] | length) == 2'], { input: '{"target":"value","items":[1,2]}' });
+    await run(path, ["-n", "-e", "--arg", "key", "target", '{"target":"value","items":[1,2]} as $doc | $doc | type == "object" and ([keys[]] | length) > 0 and (.[$key] // "fallback") == "value" and ([.items[]?] | length) == 2'], { env: allowlistedEnvironment({ jqDirectory: dirname(path), environment }), timeout: JQ_CAPABILITY_TIMEOUT_MS, windowsHide: true });
     return { status: "JQ_AVAILABLE", path, directory: dirname(path) };
   } catch { return { status: "JQ_INCOMPATIBLE" }; }
 }
