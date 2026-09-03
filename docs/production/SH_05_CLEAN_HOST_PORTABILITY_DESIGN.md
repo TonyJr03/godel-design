@@ -6,7 +6,8 @@
 **SH-05.1:** CLOSED / APPROVED
 **SH-05.2:** ACTIVE
 **SH-05.2A:** CLOSED / APPROVED / PASS_CANONICAL_SECURITY_AUDIT_REALIGNMENT
-**SH-05.2B:** IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+**SH-05.2B:** CLOSED / APPROVED / PASS_PULL_ONLY_IMAGE_AUTHORITY
+**SH-05.2C:** IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
 **Baseline de diseño:** cdbe742ba6c85d741ef37da6ad4bc18ffa3bea38
 
 ## Propósito y límites
@@ -418,7 +419,7 @@ introducirse. Su aceptación arquitectónica está cerrada y aprobada.
 
 ### SH-05.2B — Pull-only image authority lock
 
-**Estado:** IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+**Estado:** CLOSED / APPROVED / PASS_PULL_ONLY_IMAGE_AUTHORITY
 
 Establece el lock trackeado de autoridades `repository@linux/amd64 manifest
 digest` para los servicios pull-only canónicos y los helpers de backup/restore.
@@ -426,12 +427,22 @@ Las imágenes finales App y Nginx de Godel quedan fuera: su autoridad continúa
 siendo la receta de build verificada. Este subbloque no adquiere imágenes ni
 demuestra una reconstrucción clean-host; esa ejecución permanece sin implementar.
 
+### SH-05.2C — Reconstruction manifest and input binding
+
+**Estado:** IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+
+Implementa la identidad y el binding no secreto de una selección de
+reconstrucción: Git exacto, upstream, lock de imágenes, recetas App/Nginx,
+backup, generación externa, artefacto pgsodium y contrato lógico de target.
+No implementa transporte de secretos, adquisición de imágenes, bootstrap,
+restore clean-host ni portability proof.
+
 | Archivo propuesto | Cambio | Inputs / outputs | Secretos | Mutación / fallo / tests |
 | --- | --- | --- | --- | --- |
 | scripts/audit-security.mjs | Realineación implementada de las reglas stale de DB stdin/Compose adapter | Contrato R4C y resultado canónico de auditoría | Ninguno | No muta target. Conserva el rechazo de generadores upstream inseguros. |
 | scripts/operations/rotate-legacy-jwt-keys.test.mjs | Regresión R4C implementada | Fixtures sintéticas y Compose/jwt.sql/rotación trackeados | Sólo secretos sintéticos | No muta runtime. Prueba env + pointer sin adapter DB y ausencia de GUC secreto/adaptador retirado. |
 | infra/sh-portability-image-lock.json | Lock implementado sólo para imágenes pull-only | Repository, tag de procedencia, digest de manifiesto linux/amd64 y autoridad semántica | Ninguno | No muta target. Excluye App/Nginx finales de Godel. |
-| scripts/operations/portability-manifest.mjs | Nuevo validador de manifest no secreto | Inputs declarados; plan validado | Ninguno | No muta. Tests de schema, Git/pin/image/backup-generation mismatch. |
+| scripts/operations/portability-manifest.mjs | Binding no secreto implementado | Inputs declarados; manifest + sidecar explícitos | Ninguno | No muta salvo output solicitado. Valida schema, Git, pin, imágenes, recetas, backup, generación y pgsodium. |
 | scripts/operations/manage-secret-generations.mjs | Extender CLI con export/import explícitos | Un UUID y bundle protegido; resultado sanitizado | Lee/escribe snapshots, nunca stdout | Registro/env/pointer. Tests temp-dir, symlink/traversal, checksum, conflicto, atomicidad, MATCH y compensación. |
 | scripts/operations/secret-generation.mjs | Reusar/extender primitivas seguras | Metadata/snapshots/locks | Maneja bytes secretos | Registro/env. Tests de permisos 0700/0600, no overwrite, pointer final y no-leak. |
 | scripts/operations/clean-host-gate.mjs | Nuevo gate read-only | Host descriptor/image lock; informe sanitizado | Ninguno | No muta. Tests Docker CLI fake: positivo, state/network/volume/env/lock negativos. |

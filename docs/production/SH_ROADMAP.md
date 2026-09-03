@@ -196,8 +196,9 @@ SH-04 queda `CLOSED / APPROVED`; el handoff es SH-05 — Portabilidad reproducib
 que está `ACTIVE`. SH-05.0 queda `CLOSED / APPROVED /
 PASS_PORTABILITY_DISCOVERY`; SH-05.1 queda `CLOSED / APPROVED`; SH-05.2 está
 `ACTIVE`; SH-05.2A queda `CLOSED / APPROVED /
-PASS_CANONICAL_SECURITY_AUDIT_REALIGNMENT` y SH-05.2B queda `IMPLEMENTED /
-PENDING ARCHITECTURAL REVIEW`.
+PASS_CANONICAL_SECURITY_AUDIT_REALIGNMENT`; SH-05.2B queda `CLOSED / APPROVED /
+PASS_PULL_ONLY_IMAGE_AUTHORITY` y SH-05.2C queda `IMPLEMENTED / PENDING
+ARCHITECTURAL REVIEW`.
 
 #### Cierre SH-04.3 — Secretos, Auth y compatibilidad recovery
 
@@ -268,7 +269,8 @@ ser necesaria.
 | SH-05.1 — Clean-host portability contract and tooling design | CLOSED / APPROVED |
 | SH-05.2 — Minimal clean-host portability tooling | ACTIVE |
 | SH-05.2A — Canonical security audit realignment | CLOSED / APPROVED / PASS_CANONICAL_SECURITY_AUDIT_REALIGNMENT |
-| SH-05.2B — Pull-only image authority lock | IMPLEMENTED / PENDING ARCHITECTURAL REVIEW |
+| SH-05.2B — Pull-only image authority lock | CLOSED / APPROVED / PASS_PULL_ONLY_IMAGE_AUTHORITY |
+| SH-05.2C — Reconstruction manifest and input binding | IMPLEMENTED / PENDING ARCHITECTURAL REVIEW |
 | SH-05.3 — Disposable clean-host reconstruction rehearsal | NOT STARTED |
 | SH-05.4 — Functional acceptance, cleanup, documentation and SH closure | NOT STARTED |
 
@@ -331,8 +333,9 @@ TD-UPLOAD-001 y completó la documentación de PPO-03. SH-04 queda
 `CLOSED / APPROVED / PASS_TECHNICAL_RUNBOOK`. El siguiente bloque es SH-05
 `ACTIVE`; SH-05.0 queda `CLOSED / APPROVED / PASS_PORTABILITY_DISCOVERY`
 y SH-05.1 queda `CLOSED / APPROVED`; SH-05.2 está `ACTIVE`; SH-05.2A queda
-`CLOSED / APPROVED / PASS_CANONICAL_SECURITY_AUDIT_REALIGNMENT` y SH-05.2B
-queda `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`.
+`CLOSED / APPROVED / PASS_CANONICAL_SECURITY_AUDIT_REALIGNMENT`; SH-05.2B
+queda `CLOSED / APPROVED / PASS_PULL_ONLY_IMAGE_AUTHORITY` y SH-05.2C queda
+`IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`.
 
 ## Gobernanza de la baseline DB
 
