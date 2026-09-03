@@ -5,7 +5,8 @@
 **SH-05.0:** CLOSED / APPROVED / PASS_PORTABILITY_DISCOVERY
 **SH-05.1:** CLOSED / APPROVED
 **SH-05.2:** ACTIVE
-**SH-05.2A:** IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+**SH-05.2A:** CLOSED / APPROVED / PASS_CANONICAL_SECURITY_AUDIT_REALIGNMENT
+**SH-05.2B:** IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
 **Baseline de diseño:** cdbe742ba6c85d741ef37da6ad4bc18ffa3bea38
 
 ## Propósito y límites
@@ -400,31 +401,42 @@ DB de la rotación permanecen ausentes; app.settings.jwt_exp permanece vigente.
 La prohibición de referencias a generadores upstream inseguros se conserva.
 La cobertura de regresión comprueba que la rotación sigue coordinando env +
 generation pointer sin reintroducir el GUC/adaptador retirado. El audit
-canónico queda PASS. SH-05.2A permanece IMPLEMENTED / PENDING ARCHITECTURAL
-REVIEW; SH no puede cerrar si el audit canónico vuelve a fallar.
+canónico queda PASS. SH-05.2A queda CLOSED / APPROVED /
+PASS_CANONICAL_SECURITY_AUDIT_REALIGNMENT; SH no puede cerrar si el audit
+canónico vuelve a fallar.
 
 ## Plan mínimo de implementación SH-05.2
 
 ### SH-05.2A — Canonical security audit realignment
 
-**Estado:** IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+**Estado:** CLOSED / APPROVED / PASS_CANONICAL_SECURITY_AUDIT_REALIGNMENT
 
 Es el primer subbloque implementado de SH-05.2. Realineó únicamente las
 expectativas obsoletas de auditoría, conservó los checks legacy-JWT válidos y
 añadió cobertura de regresión para que el GUC/adaptador DB retirado no vuelva a
-introducirse. Su aceptación arquitectónica sigue pendiente.
+introducirse. Su aceptación arquitectónica está cerrada y aprobada.
+
+### SH-05.2B — Pull-only image authority lock
+
+**Estado:** IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+
+Establece el lock trackeado de autoridades `repository@linux/amd64 manifest
+digest` para los servicios pull-only canónicos y los helpers de backup/restore.
+Las imágenes finales App y Nginx de Godel quedan fuera: su autoridad continúa
+siendo la receta de build verificada. Este subbloque no adquiere imágenes ni
+demuestra una reconstrucción clean-host; esa ejecución permanece sin implementar.
 
 | Archivo propuesto | Cambio | Inputs / outputs | Secretos | Mutación / fallo / tests |
 | --- | --- | --- | --- | --- |
 | scripts/audit-security.mjs | Realineación implementada de las reglas stale de DB stdin/Compose adapter | Contrato R4C y resultado canónico de auditoría | Ninguno | No muta target. Conserva el rechazo de generadores upstream inseguros. |
 | scripts/operations/rotate-legacy-jwt-keys.test.mjs | Regresión R4C implementada | Fixtures sintéticas y Compose/jwt.sql/rotación trackeados | Sólo secretos sintéticos | No muta runtime. Prueba env + pointer sin adapter DB y ausencia de GUC secreto/adaptador retirado. |
-| infra/sh-portability-image-lock.json | Nuevo lock sólo para imágenes pull-only | Digest/plataforma/autoridad esperados; tags informativos y bases Dockerfile para cross-check | Ninguno | No muta target. Tests separan digest pull-only obligatorio de resultados App/Nginx no estáticos. |
+| infra/sh-portability-image-lock.json | Lock implementado sólo para imágenes pull-only | Repository, tag de procedencia, digest de manifiesto linux/amd64 y autoridad semántica | Ninguno | No muta target. Excluye App/Nginx finales de Godel. |
 | scripts/operations/portability-manifest.mjs | Nuevo validador de manifest no secreto | Inputs declarados; plan validado | Ninguno | No muta. Tests de schema, Git/pin/image/backup-generation mismatch. |
 | scripts/operations/manage-secret-generations.mjs | Extender CLI con export/import explícitos | Un UUID y bundle protegido; resultado sanitizado | Lee/escribe snapshots, nunca stdout | Registro/env/pointer. Tests temp-dir, symlink/traversal, checksum, conflicto, atomicidad, MATCH y compensación. |
 | scripts/operations/secret-generation.mjs | Reusar/extender primitivas seguras | Metadata/snapshots/locks | Maneja bytes secretos | Registro/env. Tests de permisos 0700/0600, no overwrite, pointer final y no-leak. |
 | scripts/operations/clean-host-gate.mjs | Nuevo gate read-only | Host descriptor/image lock; informe sanitizado | Ninguno | No muta. Tests Docker CLI fake: positivo, state/network/volume/env/lock negativos. |
 | scripts/operations/clean-host-bootstrap.mjs | Nuevo bootstrap idempotente | Descriptor validado; layout vacío | Usa env ya materializado, no imprime | Crea recursos vacíos/db-config. Tests fake Docker, xattrs, conflicto, compensación. |
-| scripts/operations/image-acquisition.mjs | Nuevo pull/build/verificación | Pull-only: lock con digest esperado. Godel: receta verificada y generation ID cuando aplique; digest local como output de evidencia | Sólo valores públicos de build necesarios, sin logs de secretos ni nonce persistido | Descarga/build antes de datos. Tests separan mismatch pull-only, receta Godel, digest de ejecución y cache no autoritativa. |
+| scripts/operations/image-acquisition.mjs | Validador read-only implementado para el lock pull-only | Lock, Compose canónico, helpers y pin upstream; salida semántica sanitizada | Ninguno | No descarga, construye ni ejecuta imágenes. Detecta deriva de sourceRef, helper y upstream. |
 | scripts/operations/restore-selfhosted-core.mjs | Extraer núcleo portable del restore actual | Target descriptor, backup/protected inputs | Lee env sólo para MATCH | Datos/runtime. Tests archive safety, phases, marker, quiesce y target descriptor. |
 | scripts/operations/restore-selfhosted.mjs | Conservar QA y añadir target explícito | CLI QA existente + clean-host-disposable-rehearsal | Sin nueva exposición | Restore destructivo protegido. Tests que QA/flag existente siguen intactos y nuevo flag es obligatorio. |
 | scripts/operations/run-clean-host-rehearsal.mjs | Nuevo orchestrator | Manifest, artefactos, descriptor; evidencia sanitizada | Coordina import sin imprimir | Todas las fases. Tests de orden, fail-before-mutation, locks y dispatch cleanup. |

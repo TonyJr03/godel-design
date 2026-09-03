@@ -28,6 +28,8 @@
     "diff:check": "git diff --check",
     "ops:backup:selfhosted": "node scripts/operations/backup-selfhosted.mjs create",
     "ops:backup:selfhosted:verify": "node scripts/operations/backup-selfhosted.mjs verify",
+    "ops:portability:images:validate": "node scripts/operations/image-acquisition.mjs validate-lock",
+    "ops:portability:images:test": "node --test scripts/operations/image-acquisition.test.mjs",
     "ops:recovery:compose:test": "node --test scripts/operations/godel-runtime-compose.test.mjs",
     "ops:supabase:compose:test": "node --test scripts/operations/supabase-runtime-compose.test.mjs",
     "ops:supabase:update:plan": "node scripts/operations/supabase-bundle-update-plan.mjs",
