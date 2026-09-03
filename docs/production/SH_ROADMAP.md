@@ -43,7 +43,7 @@ el backend objetivo actual.
 | SH-01 | Baseline oficial Supabase self-hosted | Cerrada / aprobada |
 | SH-02 | Integración Godel ↔ Supabase self-hosted | Cerrada / aprobada |
 | SH-03 | QA funcional production-like | Cerrada / aprobada |
-| SH-04 | Fundamentos operativos self-hosted | IN PROGRESS |
+| SH-04 | Fundamentos operativos self-hosted | IN PROGRESS / PENDING SH-04.5 ARCHITECTURAL ACCEPTANCE |
 | SH-05 | Portabilidad reproducible | NOT STARTED |
 
 ### SH-01 — cerrada / aprobada
@@ -166,7 +166,7 @@ el fallback documental.
 
 ### SH-04 — Fundamentos operativos self-hosted
 
-**Estado:** `IN PROGRESS`. SH-04.0–SH-04.3 están `CLOSED / APPROVED`; SH-04.4A–C están cerrados/aprobados, SH-04.4D está `CLOSED / APPROVED / PASS_R2_RUNTIME_COMPATIBLE_ROLLBACK` y SH-04.4E está `CLOSED / APPROVED / PASS_FINAL_ACCEPTANCE`. SH-04.4 queda `CLOSED / APPROVED / PASS_UPDATE_ROLLBACK_CAPABILITY`; el siguiente bloque es SH-04.5, que no ha iniciado.
+**Estado:** `IN PROGRESS / PENDING SH-04.5 ARCHITECTURAL ACCEPTANCE`. SH-04.0–SH-04.3 están `CLOSED / APPROVED`; SH-04.4A–C están cerrados/aprobados, SH-04.4D está `CLOSED / APPROVED / PASS_R2_RUNTIME_COMPATIBLE_ROLLBACK` y SH-04.4E está `CLOSED / APPROVED / PASS_FINAL_ACCEPTANCE`. SH-04.4 queda `CLOSED / APPROVED / PASS_UPDATE_ROLLBACK_CAPABILITY`; SH-04.5 queda implementada y pendiente de revisión arquitectónica.
 
 | Subbloque | Estado |
 | --- | --- |
@@ -180,7 +180,13 @@ el fallback documental.
 | SH-04.4C | CLOSED / APPROVED / PASS_UPDATE_CAPABILITY (C.0 CLOSED / BLOCKED_ACTIONABLE; C.1 CLOSED / APPROVED / PASS_TOOLING; C.1-R3 CLOSED / APPROVED / PASS_JQ_PREFLIGHT_FIX; C.2-P0 CLOSED / APPROVED / PASS_READINESS; C.2-A CLOSED / APPROVED / PASS_IMPLEMENTATION; C.2-B base fixture probe CLOSED / APPROVED / PASS_BASE_FIXTURE_PROBE; C.2-B attempt #4 CLOSED / APPROVED / PASS_RUNTIME_UPDATE; C.2 CLOSED / APPROVED / PASS_RUNTIME_UPDATE_CAPABILITY) |
 | SH-04.4D | CLOSED / APPROVED / PASS_R2_RUNTIME_COMPATIBLE_ROLLBACK |
 | SH-04.4E | CLOSED / APPROVED / PASS_FINAL_ACCEPTANCE |
-| SH-04.5 | NOT STARTED |
+| SH-04.5A | CLOSED / APPROVED / PASS_RUNBOOK_DISCOVERY |
+| SH-04.5B | CLOSED / IMPLEMENTED / PENDING ARCHITECTURAL_REVIEW |
+| SH-04.5 | IMPLEMENTED / PENDING ARCHITECTURAL_REVIEW |
+
+El runbook técnico permanente de SH-04 está en
+[SUPABASE_SELF_HOSTED_OPERATIONS_RUNBOOK.md](SUPABASE_SELF_HOSTED_OPERATIONS_RUNBOOK.md).
+Su handoff es la revisión arquitectónica de SH-04.5; no inicia SH-05.
 
 #### Cierre SH-04.3 — Secretos, Auth y compatibilidad recovery
 
