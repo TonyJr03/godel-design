@@ -44,7 +44,7 @@ el backend objetivo actual.
 | SH-02 | Integración Godel ↔ Supabase self-hosted | Cerrada / aprobada |
 | SH-03 | QA funcional production-like | Cerrada / aprobada |
 | SH-04 | Fundamentos operativos self-hosted | IN PROGRESS |
-| SH-05 | Portabilidad reproducible | Pendiente |
+| SH-05 | Portabilidad reproducible | NOT STARTED |
 
 ### SH-01 — cerrada / aprobada
 
@@ -166,9 +166,7 @@ el fallback documental.
 
 ### SH-04 — Fundamentos operativos self-hosted
 
-**Estado:** `IN PROGRESS`. SH-04.0, SH-04.1, SH-04.2, SH-04.3, SH-04.4A y
-SH-04.4B están `CLOSED / APPROVED`; SH-04.4C.0 está `CLOSED / BLOCKED_ACTIONABLE`,
-SH-04.4C.1 está `CLOSED / APPROVED / PASS_TOOLING`, su R3 está `CLOSED / APPROVED / PASS_JQ_PREFLIGHT_FIX`, SH-04.4C.2-P0 y C.2-A están `CLOSED / APPROVED / PASS_READINESS` y `PASS_IMPLEMENTATION`, respectivamente; el base fixture probe C.2-B está `CLOSED / APPROVED / PASS_BASE_FIXTURE_PROBE`, el intento #4 C.2-B está `CLOSED / APPROVED / PASS_RUNTIME_UPDATE`, y SH-04.4C.2 está `CLOSED / APPROVED / PASS_RUNTIME_UPDATE_CAPABILITY`. SH-04.4C está `CLOSED / APPROVED / PASS_UPDATE_CAPABILITY`; SH-04.4D, SH-04.4E y SH-04.5 no han iniciado.
+**Estado:** `IN PROGRESS`. SH-04.0–SH-04.3 están `CLOSED / APPROVED`; SH-04.4A–C están cerrados/aprobados, SH-04.4D está `CLOSED / APPROVED / PASS_R2_RUNTIME_COMPATIBLE_ROLLBACK` y SH-04.4E está `CLOSED / APPROVED / PASS_FINAL_ACCEPTANCE`. SH-04.4 queda `CLOSED / APPROVED / PASS_UPDATE_ROLLBACK_CAPABILITY`; el siguiente bloque es SH-04.5, que no ha iniciado.
 
 | Subbloque | Estado |
 | --- | --- |
@@ -176,12 +174,12 @@ SH-04.4C.1 está `CLOSED / APPROVED / PASS_TOOLING`, su R3 está `CLOSED / APPRO
 | SH-04.1 | CLOSED / APPROVED |
 | SH-04.2 | CLOSED / APPROVED |
 | SH-04.3 | CLOSED / APPROVED |
-| SH-04.4 | IN PROGRESS |
+| SH-04.4 | CLOSED / APPROVED / PASS_UPDATE_ROLLBACK_CAPABILITY |
 | SH-04.4A | CLOSED / APPROVED |
 | SH-04.4B | CLOSED / APPROVED |
 | SH-04.4C | CLOSED / APPROVED / PASS_UPDATE_CAPABILITY (C.0 CLOSED / BLOCKED_ACTIONABLE; C.1 CLOSED / APPROVED / PASS_TOOLING; C.1-R3 CLOSED / APPROVED / PASS_JQ_PREFLIGHT_FIX; C.2-P0 CLOSED / APPROVED / PASS_READINESS; C.2-A CLOSED / APPROVED / PASS_IMPLEMENTATION; C.2-B base fixture probe CLOSED / APPROVED / PASS_BASE_FIXTURE_PROBE; C.2-B attempt #4 CLOSED / APPROVED / PASS_RUNTIME_UPDATE; C.2 CLOSED / APPROVED / PASS_RUNTIME_UPDATE_CAPABILITY) |
-| SH-04.4D | NOT STARTED |
-| SH-04.4E | NOT STARTED |
+| SH-04.4D | CLOSED / APPROVED / PASS_R2_RUNTIME_COMPATIBLE_ROLLBACK |
+| SH-04.4E | CLOSED / APPROVED / PASS_FINAL_ACCEPTANCE |
 | SH-04.5 | NOT STARTED |
 
 #### Cierre SH-04.3 — Secretos, Auth y compatibilidad recovery
@@ -288,7 +286,7 @@ apoyó en evidencia de `Browser → Nginx → Supabase self-hosted Storage` y
 control plane, retiró los límites transitorios de 110 MB en Next/Nginx, cerró
 TD-UPLOAD-001 y completó la documentación de PPO-03. SH-04 está ahora en
 curso; SH-04.0, SH-04.1, SH-04.2 y SH-04.3 quedan cerradas/aprobadas; el
-handoff actual es SH-04.4A `CLOSED / APPROVED` → SH-04.4B `CLOSED / APPROVED` → SH-04.4C.1 `CLOSED / APPROVED / PASS_TOOLING` → SH-04.4C.1-R3 `CLOSED / APPROVED / PASS_JQ_PREFLIGHT_FIX` → SH-04.4C.2-P0 `CLOSED / APPROVED / PASS_READINESS` → SH-04.4C.2-A `CLOSED / APPROVED / PASS_IMPLEMENTATION` → C.2-B base fixture probe `CLOSED / APPROVED / PASS_BASE_FIXTURE_PROBE` → C.2-B attempt #4 `CLOSED / APPROVED / PASS_RUNTIME_UPDATE` → SH-04.4C.2 `CLOSED / APPROVED / PASS_RUNTIME_UPDATE_CAPABILITY` → SH-04.4C `CLOSED / APPROVED / PASS_UPDATE_CAPABILITY` → SH-04.4D `NOT STARTED`; SH-04.4E permanece `NOT STARTED`.
+handoff cerrado es SH-04.4A–C `CLOSED / APPROVED` → SH-04.4D `CLOSED / APPROVED / PASS_R2_RUNTIME_COMPATIBLE_ROLLBACK` → SH-04.4E `CLOSED / APPROVED / PASS_FINAL_ACCEPTANCE` → SH-04.4 `CLOSED / APPROVED / PASS_UPDATE_ROLLBACK_CAPABILITY`. El siguiente bloque es SH-04.5 `NOT STARTED`; SH-04 continúa `IN PROGRESS` y SH-05 permanece `NOT STARTED`.
 
 ## Gobernanza de la baseline DB
 
