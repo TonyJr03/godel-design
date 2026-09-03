@@ -28,9 +28,13 @@ DESARROLLO / E2E
 npm run dev
 → Supabase CLI local
 
-PRODUCTION-LIKE / OBJETIVO OPERATIVO
+PRODUCTION-LIKE / CONTRATO OPERATIVO
 App Docker + Nginx
 → Supabase self-hosted Docker
+
+DESTINO OPERATIVO FUTURO
+VPS seleccionada, bajo el contrato provider-neutral
+COMPATIBLE CLEAN LINUX DOCKER HOST
 ```
 
 Supabase administrado pertenece únicamente a evidencia histórica previa; no es
@@ -44,7 +48,8 @@ el backend objetivo actual.
 | SH-02 | Integración Godel ↔ Supabase self-hosted | Cerrada / aprobada |
 | SH-03 | QA funcional production-like | Cerrada / aprobada |
 | SH-04 | Fundamentos operativos self-hosted | CLOSED / APPROVED |
-| SH-05 | Portabilidad reproducible | NOT STARTED |
+| SH-05 | Portabilidad reproducible | ACTIVE |
+| SH-05.0 | Discovery and target realignment | CLOSED / APPROVED / PASS_PORTABILITY_DISCOVERY |
 
 ### SH-01 — cerrada / aprobada
 
@@ -157,8 +162,9 @@ El diseño y la auditoría de partida están en
 de Storage en [SH_03_STORAGE_QA_REPORT.md](SH_03_STORAGE_QA_REPORT.md).
 SH-03 está cerrada/aprobada; SH-03.1, SH-03.2, SH-03.3 y SH-03.4 también están
 cerradas/aprobadas, incluidas SH-03.3A–E. PPO-03G y PPO-03 quedan
-`CLOSED / APPROVED`; SH-04 está `IN PROGRESS`: SH-04.0, SH-04.1, SH-04.2 y
-SH-04.3 quedan `CLOSED / APPROVED`.
+`CLOSED / APPROVED`; SH-04 y sus subbloques quedan `CLOSED / APPROVED`.
+SH-05 está `ACTIVE`; SH-05.0 cerró `CLOSED / APPROVED /
+PASS_PORTABILITY_DISCOVERY`.
 El handoff conserva las acciones que aún
 combinan mutación, revalidación y `ActionState`/`useActionState`: son `TEST IN
 SH-03.2`, no fallos asumidos ni flujos a los que deba aplicarse preventivamente
@@ -187,7 +193,8 @@ el fallback documental.
 El runbook técnico permanente de SH-04 está en
 [SUPABASE_SELF_HOSTED_OPERATIONS_RUNBOOK.md](SUPABASE_SELF_HOSTED_OPERATIONS_RUNBOOK.md).
 SH-04 queda `CLOSED / APPROVED`; el handoff es SH-05 — Portabilidad reproducible,
-que permanece `NOT STARTED`.
+que está `ACTIVE`. SH-05.0 queda `CLOSED / APPROVED /
+PASS_PORTABILITY_DISCOVERY` y SH-05.1 queda `READY / NEXT / NOT STARTED`.
 
 #### Cierre SH-04.3 — Secretos, Auth y compatibilidad recovery
 
@@ -222,7 +229,7 @@ SH-04
 → demuestra técnicamente backup, restore, update y rollback
 
 PPO-06
-→ operacionaliza backup/recovery en el company-host: periodicidad,
+→ operacionaliza backup/recovery en el host productivo seleccionado: periodicidad,
   retención, ubicación y procedimiento de desastre
 
 PPO-07
@@ -233,8 +240,11 @@ No define todavía retenciones ni cron productivo.
 
 ### SH-05 — Portabilidad reproducible
 
-Demuestra que la instalación puede reconstruirse en otro Docker host desde
-repositorio, configuración externa, secretos y backups:
+SH-05 demuestra que la instalación puede reconstruirse desde repositorio,
+configuración externa, secretos y backups en un **compatible clean Linux Docker
+host**. Hosting DC es el proveedor actualmente seleccionado para PPO, no una
+dependencia codificada de SH. La primera prueba deberá usar Linux amd64; la
+compatibilidad incluye arquitectura.
 
 ```text
 host A
@@ -244,10 +254,21 @@ host A
 → Godel operativo
 ```
 
-No ejecuta todavía una migración `laptop → company-host` ni
-`company-host → VPS/infraestructura estable`. PPO-04 usará este contrato para
-desplegar en `company-host`; PPO-10 lo reutilizará para una futura migración a
-infraestructura estable.
+No ejecuta despliegue productivo ni sobre una VPS real ni sobre un host de
+empresa. PPO-04 usará el contrato cerrado de SH para el despliegue autorizado al
+VPS seleccionado; PPO-10 queda reservado para una migración futura que llegue a
+ser necesaria.
+
+| Subbloque | Estado |
+| --- | --- |
+| SH-05.0 — Discovery and target realignment | CLOSED / APPROVED / PASS_PORTABILITY_DISCOVERY |
+| SH-05.1 — Clean-host portability contract and tooling design | READY / NEXT / NOT STARTED |
+| SH-05.2 — Minimal clean-host portability tooling | NOT STARTED |
+| SH-05.3 — Disposable clean-host reconstruction rehearsal | NOT STARTED |
+| SH-05.4 — Functional acceptance, cleanup, documentation and SH closure | NOT STARTED |
+
+La evidencia canónica de SH-05.0 está en
+[SH-05.0 — Descubrimiento de portabilidad](SH_05_PORTABILITY_DISCOVERY.md).
 
 ## Secuencia integrada y gates
 
@@ -301,7 +322,8 @@ TD-UPLOAD-001 y completó la documentación de PPO-03. SH-04 queda
 `CLOSED / APPROVED / PASS_RUNBOOK_DISCOVERY` → SH-04.5B
 `CLOSED / APPROVED / PASS_RUNBOOK_IMPLEMENTATION` → SH-04.5
 `CLOSED / APPROVED / PASS_TECHNICAL_RUNBOOK`. El siguiente bloque es SH-05
-`NOT STARTED`.
+`ACTIVE`; SH-05.0 queda `CLOSED / APPROVED / PASS_PORTABILITY_DISCOVERY`
+y SH-05.1 queda `READY / NEXT / NOT STARTED`.
 
 ## Gobernanza de la baseline DB
 
@@ -329,7 +351,7 @@ posterior deberá ser una migración nueva `07+`; no se reescribirán 01–06.
 Una vez cerrados PPO-03 y SH, la secuencia de PPO continúa así:
 
 ```text
-PPO-01C / PPO-01D
+PPO-01E / PPO-01F
         │
         ▼
 PPO-04
@@ -353,24 +375,20 @@ PPO-09
 PPO-10
 ```
 
-PPO-01C (auditoría de `company-host`) y PPO-01D (veredicto final) son un
-workstream paralelo: pueden ejecutarse cuando Dirección Técnica disponga de la
-máquina de Godel Diseño y no bloquean PPO-03/SH. Sin embargo, PPO-01D aprobado
-es gate obligatorio antes de PPO-04.
+PPO-01C/D son evidencia histórica de un camino company-host que fue superseded
+antes de ejecutarse. PPO-01E (auditoría provider-neutral de readiness VPS/Linux
+Docker host) y PPO-01F (veredicto final) sustituyen ese gate; PPO-01F aprobado
+es obligatorio antes de PPO-04.
 
-PPO-04 inicia como despliegue provisional privado/LAN en `company-host`; no
-declara exposición pública automática. Cloudflare Tunnel puede prepararse, pero
-su activación pública depende del gate PPO-05. PPO-05 cubre rate limiting,
+PPO-04 será el despliegue operativo privado al VPS seleccionado. No declara
+exposición pública automática: PPO-05 conserva el gate de rate limiting,
 antiabuso, protección de `/solicitud` y `/estado`, política de requests
-públicas, hardening, revisión de uploads públicos y evaluación de
-CAPTCHA/honeypot cuando corresponda.
+públicas, hardening y revisión de uploads. Las decisiones de dominio, TLS,
+firewall o túnel se toman sólo detrás del gate aplicable.
 
-PPO-06 aplica operativamente en `company-host` las capacidades probadas en
-SH-04: frecuencia, retención, ubicación, copia secundaria, responsabilidades,
-restore drills y recuperación ante desastre. PPO-07 consume los healthchecks y
-capacidades técnicas de PPO-02/SH para observabilidad, logs, métricas, alertas,
-runbooks y operación cotidiana. PPO-08 conserva UAT con usuarios reales;
-PPO-09, estabilización posterior; y PPO-10, migración futura a infraestructura
-estable, reutilizando el contrato de portabilidad demostrado por SH-05.
-
-OVHcloud Canadá permanece como candidato para PPO-10, no como decisión cerrada.
+PPO-06 operacionaliza en el host productivo seleccionado las capacidades
+probadas en SH-04: frecuencia, retención, ubicación, copia secundaria,
+responsabilidades, restore drills y recuperación ante desastre. PPO-07 conserva
+observabilidad, logs, métricas, alertas, runbooks y operación cotidiana. PPO-08
+conserva UAT; PPO-09, estabilización; y PPO-10 queda como migración futura
+opcional de proveedor/infraestructura si llega a requerirse.

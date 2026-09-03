@@ -9,8 +9,10 @@
 
 ## Propósito
 
-`infra/supabase/` es el baseline reproducible de Supabase self-hosted para la
-laptop de desarrollo/preproducción, la máquina de la empresa y un VPS futuro.
+`infra/supabase/` es el baseline reproducible de Supabase self-hosted para
+desarrollo/preproducción y para un compatible clean Linux Docker host. La VPS
+operativa seleccionada es un destino concreto gestionado por PPO; no convierte a
+un proveedor ni a un host histórico en dependencia de este baseline.
 
 ## Política de actualización
 

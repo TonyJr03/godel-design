@@ -10,7 +10,7 @@ classification, and procedure-owned failure handling.
 It does not authorize public exposure, a general production restore, or an
 update or rollback by itself. It does not define backup schedule, retention,
 off-host destination, RPO/RTO, monitoring, clean-host portability, or a
-company-host deployment.
+deployment to the selected operational VPS.
 
 ## 2. Operational safety principles
 
