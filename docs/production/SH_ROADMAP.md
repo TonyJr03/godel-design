@@ -43,7 +43,7 @@ el backend objetivo actual.
 | SH-01 | Baseline oficial Supabase self-hosted | Cerrada / aprobada |
 | SH-02 | Integración Godel ↔ Supabase self-hosted | Cerrada / aprobada |
 | SH-03 | QA funcional production-like | Cerrada / aprobada |
-| SH-04 | Fundamentos operativos self-hosted | IN PROGRESS / PENDING SH-04.5 ARCHITECTURAL ACCEPTANCE |
+| SH-04 | Fundamentos operativos self-hosted | CLOSED / APPROVED |
 | SH-05 | Portabilidad reproducible | NOT STARTED |
 
 ### SH-01 — cerrada / aprobada
@@ -166,7 +166,7 @@ el fallback documental.
 
 ### SH-04 — Fundamentos operativos self-hosted
 
-**Estado:** `IN PROGRESS / PENDING SH-04.5 ARCHITECTURAL ACCEPTANCE`. SH-04.0–SH-04.3 están `CLOSED / APPROVED`; SH-04.4A–C están cerrados/aprobados, SH-04.4D está `CLOSED / APPROVED / PASS_R2_RUNTIME_COMPATIBLE_ROLLBACK` y SH-04.4E está `CLOSED / APPROVED / PASS_FINAL_ACCEPTANCE`. SH-04.4 queda `CLOSED / APPROVED / PASS_UPDATE_ROLLBACK_CAPABILITY`; SH-04.5 queda implementada y pendiente de revisión arquitectónica.
+**Estado:** `CLOSED / APPROVED`. SH-04.0–SH-04.3 están `CLOSED / APPROVED`; SH-04.4A–C están cerrados/aprobados, SH-04.4D está `CLOSED / APPROVED / PASS_R2_RUNTIME_COMPATIBLE_ROLLBACK` y SH-04.4E está `CLOSED / APPROVED / PASS_FINAL_ACCEPTANCE`. SH-04.4 queda `CLOSED / APPROVED / PASS_UPDATE_ROLLBACK_CAPABILITY`; SH-04.5 queda `CLOSED / APPROVED / PASS_TECHNICAL_RUNBOOK`.
 
 | Subbloque | Estado |
 | --- | --- |
@@ -181,12 +181,13 @@ el fallback documental.
 | SH-04.4D | CLOSED / APPROVED / PASS_R2_RUNTIME_COMPATIBLE_ROLLBACK |
 | SH-04.4E | CLOSED / APPROVED / PASS_FINAL_ACCEPTANCE |
 | SH-04.5A | CLOSED / APPROVED / PASS_RUNBOOK_DISCOVERY |
-| SH-04.5B | CLOSED / IMPLEMENTED / PENDING ARCHITECTURAL_REVIEW |
-| SH-04.5 | IMPLEMENTED / PENDING ARCHITECTURAL_REVIEW |
+| SH-04.5B | CLOSED / APPROVED / PASS_RUNBOOK_IMPLEMENTATION |
+| SH-04.5 | CLOSED / APPROVED / PASS_TECHNICAL_RUNBOOK |
 
 El runbook técnico permanente de SH-04 está en
 [SUPABASE_SELF_HOSTED_OPERATIONS_RUNBOOK.md](SUPABASE_SELF_HOSTED_OPERATIONS_RUNBOOK.md).
-Su handoff es la revisión arquitectónica de SH-04.5; no inicia SH-05.
+SH-04 queda `CLOSED / APPROVED`; el handoff es SH-05 — Portabilidad reproducible,
+que permanece `NOT STARTED`.
 
 #### Cierre SH-04.3 — Secretos, Auth y compatibilidad recovery
 
@@ -284,15 +285,23 @@ PPO-03F cerró/aprobó el lifecycle de Storage: `reserved → upload → finaliz
 committed`, además de abandono, expiración, reconciliación y cleanup, con
 idempotencia, autoridad de eliminación y trazabilidad mínima. SH-02 y SH-03
 ya están cerrados/aprobados; este roadmap conserva esos internals como historia
-y entrega el siguiente bloque técnico a SH-04.
+y entrega el siguiente bloque técnico a SH-05.
 
 SH-03 precedió PPO-03G porque este fue el gate final de Storage. PPO-03G se
 apoyó en evidencia de `Browser → Nginx → Supabase self-hosted Storage` y
 `Next Docker → api-gw`, no únicamente en desarrollo local. Validó bytes y
 control plane, retiró los límites transitorios de 110 MB en Next/Nginx, cerró
-TD-UPLOAD-001 y completó la documentación de PPO-03. SH-04 está ahora en
-curso; SH-04.0, SH-04.1, SH-04.2 y SH-04.3 quedan cerradas/aprobadas; el
-handoff cerrado es SH-04.4A–C `CLOSED / APPROVED` → SH-04.4D `CLOSED / APPROVED / PASS_R2_RUNTIME_COMPATIBLE_ROLLBACK` → SH-04.4E `CLOSED / APPROVED / PASS_FINAL_ACCEPTANCE` → SH-04.4 `CLOSED / APPROVED / PASS_UPDATE_ROLLBACK_CAPABILITY`. El siguiente bloque es SH-04.5 `NOT STARTED`; SH-04 continúa `IN PROGRESS` y SH-05 permanece `NOT STARTED`.
+TD-UPLOAD-001 y completó la documentación de PPO-03. SH-04 queda
+`CLOSED / APPROVED`: SH-04.0, SH-04.1, SH-04.2 y SH-04.3 quedan
+`CLOSED / APPROVED`; el handoff cerrado es SH-04.4A–C
+`CLOSED / APPROVED` → SH-04.4D
+`CLOSED / APPROVED / PASS_R2_RUNTIME_COMPATIBLE_ROLLBACK` → SH-04.4E
+`CLOSED / APPROVED / PASS_FINAL_ACCEPTANCE` → SH-04.4
+`CLOSED / APPROVED / PASS_UPDATE_ROLLBACK_CAPABILITY` → SH-04.5A
+`CLOSED / APPROVED / PASS_RUNBOOK_DISCOVERY` → SH-04.5B
+`CLOSED / APPROVED / PASS_RUNBOOK_IMPLEMENTATION` → SH-04.5
+`CLOSED / APPROVED / PASS_TECHNICAL_RUNBOOK`. El siguiente bloque es SH-05
+`NOT STARTED`.
 
 ## Gobernanza de la baseline DB
 
