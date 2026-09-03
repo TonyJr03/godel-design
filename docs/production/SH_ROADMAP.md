@@ -262,13 +262,15 @@ ser necesaria.
 | Subbloque | Estado |
 | --- | --- |
 | SH-05.0 — Discovery and target realignment | CLOSED / APPROVED / PASS_PORTABILITY_DISCOVERY |
-| SH-05.1 — Clean-host portability contract and tooling design | READY / NEXT / NOT STARTED |
-| SH-05.2 — Minimal clean-host portability tooling | NOT STARTED |
+| SH-05.1 — Clean-host portability contract and tooling design | IMPLEMENTED / PENDING ARCHITECTURAL REVIEW |
+| SH-05.2 — Minimal clean-host portability tooling | BLOCKED ON SH-05.1 APPROVAL |
 | SH-05.3 — Disposable clean-host reconstruction rehearsal | NOT STARTED |
 | SH-05.4 — Functional acceptance, cleanup, documentation and SH closure | NOT STARTED |
 
 La evidencia canónica de SH-05.0 está en
 [SH-05.0 — Descubrimiento de portabilidad](SH_05_PORTABILITY_DISCOVERY.md).
+El contrato de SH-05.1 está en
+[SH-05.1 — Contrato de portabilidad clean-host](SH_05_CLEAN_HOST_PORTABILITY_DESIGN.md).
 
 ## Secuencia integrada y gates
 
