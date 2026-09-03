@@ -52,6 +52,24 @@ test("unrelated snapshots and CLI errors cannot disclose synthetic secrets", asy
   const prepared = await candidate(value), path = join(value.protectedRoot, "external-secrets", "generations", prepared.generationId, "supabase.env"), snapshot = await readFile(path, "utf8"); await writeFile(path, snapshot.replace("OTHER=retained", "OTHER=changed")); await assert.rejects(() => activateLegacyJwtKeys({ ...value, generationId: prepared.generationId }), /LEGACY_JWT_UNRELATED_DIFFERENCE/); assert.doesNotMatch(renderLegacyJwtCliFailure(new Error("INVALID_LEGACY_JWT_CONTRACT")), /synthetic-current-jwt-secret/);
 }));
 
-test("self-hosted compose and init SQL retire only the secret DB setting", async () => {
-  const root = resolve(import.meta.dirname, "../.."), compose = await readFile(join(root, "infra/supabase/docker-compose.yml"), "utf8"), sql = await readFile(join(root, "infra/supabase/volumes/db/jwt.sql"), "utf8"), dbBlock = compose.match(/^  db:\n([\s\S]*?)^  supavisor:/m)?.[1] ?? ""; assert.doesNotMatch(compose, /PGRST_APP_SETTINGS_JWT_SECRET/); assert.match(compose, /PGRST_JWT_SECRET: \$\{JWT_JWKS:-\$\{JWT_SECRET\}\}/); assert.match(compose, /PGRST_APP_SETTINGS_JWT_EXP/); assert.doesNotMatch(dbBlock, /^\s+JWT_SECRET:/m); assert.match(dbBlock, /^\s+JWT_EXP:/m); assert.doesNotMatch(sql, /app\.settings\.jwt_secret/); assert.match(sql, /app\.settings\.jwt_exp/); assert.ok(validateLegacyJwtSnapshot(Buffer.from(environment())).jwtSecret);
+test("self-hosted rotation retires only the secret DB setting and adapter", async () => {
+  const root = resolve(import.meta.dirname, "../..");
+  const [compose, sql, rotation] = await Promise.all([
+    readFile(join(root, "infra/supabase/docker-compose.yml"), "utf8"),
+    readFile(join(root, "infra/supabase/volumes/db/jwt.sql"), "utf8"),
+    readFile(join(root, "scripts/operations/rotate-legacy-jwt-keys.mjs"), "utf8"),
+  ]);
+  const dbBlock = compose.match(/^  db:\n([\s\S]*?)^  supavisor:/m)?.[1] ?? "";
+
+  assert.doesNotMatch(compose, /PGRST_APP_SETTINGS_JWT_SECRET/);
+  assert.match(compose, /PGRST_JWT_SECRET: \$\{JWT_JWKS:-\$\{JWT_SECRET\}\}/);
+  assert.match(compose, /PGRST_APP_SETTINGS_JWT_EXP/);
+  assert.doesNotMatch(dbBlock, /^\s+JWT_SECRET:/m);
+  assert.match(dbBlock, /^\s+JWT_EXP:/m);
+  assert.doesNotMatch(sql, /app\.settings\.jwt_secret/);
+  assert.match(sql, /app\.settings\.jwt_exp/);
+  assert.doesNotMatch(rotation, /app\.settings\.jwt_secret/);
+  assert.doesNotMatch(rotation, /createComposeLegacyJwtDbAdapter/);
+  assert.doesNotMatch(rotation, /composeDbPsqlArgs/);
+  assert.ok(validateLegacyJwtSnapshot(Buffer.from(environment())).jwtSecret);
 });

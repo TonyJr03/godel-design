@@ -664,14 +664,6 @@ function scanLegacyJwtRotationToolContract() {
     add("legacy-jwt-rotation-unsafe-upstream-generator-reference");
   }
 
-  if (!/spawnImpl\(command, args, \{ cwd, shell: false, windowsHide: true, stdio: \["pipe", "pipe", "pipe"\] \}\)/.test(text) || !/child\.stdin\.end\(input\)/.test(text)) {
-    add("legacy-jwt-rotation-db-stdin-transport-missing");
-  }
-
-  if (!/\["compose", "--env-file", supabaseEnvPath, "-f", "docker-compose\.yml", "-f", "\.\.\/supabase-godel\.override\.yml", "exec", "-T", "db", "psql"/.test(text)) {
-    add("legacy-jwt-rotation-canonical-db-compose-adapter-missing");
-  }
-
   return violations;
 }
 

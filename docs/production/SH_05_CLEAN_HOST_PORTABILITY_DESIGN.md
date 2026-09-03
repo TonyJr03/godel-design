@@ -1,9 +1,11 @@
 # SH-05.1 — Contrato de portabilidad clean-host y diseño de tooling
 
-**Estado:** IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+**Estado:** CLOSED / APPROVED
 **SH-05:** ACTIVE
 **SH-05.0:** CLOSED / APPROVED / PASS_PORTABILITY_DISCOVERY
-**SH-05.2:** BLOCKED ON SH-05.1 APPROVAL
+**SH-05.1:** CLOSED / APPROVED
+**SH-05.2:** ACTIVE
+**SH-05.2A:** IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
 **Baseline de diseño:** cdbe742ba6c85d741ef37da6ad4bc18ffa3bea38
 
 ## Propósito y límites
@@ -389,47 +391,33 @@ Modelo A admite dos outcomes de cleanup:
 
 ## Deuda de auditoría de seguridad
 
-La auditoría canónica reporta exactamente dos hallazgos en
-rotate-legacy-jwt-keys.mjs:
+SH-05.2A implementó la realineación de la auditoría canónica: retiró las dos
+expectativas stale de stdin DB y adapter Compose que R4C dejó sin sujeto
+arquitectónico. R4C se preserva: app.settings.jwt_secret,
+PGRST_APP_SETTINGS_JWT_SECRET, JWT_SECRET en DB sólo para ese GUC y el adapter
+DB de la rotación permanecen ausentes; app.settings.jwt_exp permanece vigente.
 
-- legacy-jwt-rotation-db-stdin-transport-missing;
-- legacy-jwt-rotation-canonical-db-compose-adapter-missing.
-
-La clasificación es **stale-auditor**. R4C retiró deliberadamente
-app.settings.jwt_secret: Godel no tenía consumidor SQL, la exposición
-DB/PostgREST era innecesaria, PGRST_APP_SETTINGS_JWT_SECRET y el JWT_SECRET del
-servicio DB usado sólo para ese GUC se retiraron, y jwt.sql conserva únicamente
-app.settings.jwt_exp. Por la misma decisión se eliminó el adaptador Compose/DB
-de rotate-legacy-jwt-keys.mjs; las pruebas actuales exigen que activate/rollback
-coordinen el env y el puntero de generación sin adaptador DB.
-
-Por tanto, las dos comprobaciones de stdin DB y adapter Compose son reglas
-obsoletas, no defectos de la rotación vigente. Esto no vuelve obsoleto todo
-scanLegacyJwtRotationToolContract(): la prohibición de referencias a generadores
-upstream inseguros sigue siendo un contrato de seguridad válido. SH-05.2 debe
-retirar o realinear sólo las aserciones cuyo sujeto arquitectónico ya no existe.
-SH no puede cerrar con npm run audit:security fallando.
-
-**Owner:** SH-05.2A — Canonical security audit realignment. Debe llevar la
-auditoría canónica a PASS sin reintroducir app.settings.jwt_secret,
-PGRST_APP_SETTINGS_JWT_SECRET, JWT_SECRET en DB sólo para ese GUC, mutación DB
-durante la rotación ni un adapter Compose DB para satisfacer un regex histórico.
-SH-05.1 no modifica tooling ni tests.
+La prohibición de referencias a generadores upstream inseguros se conserva.
+La cobertura de regresión comprueba que la rotación sigue coordinando env +
+generation pointer sin reintroducir el GUC/adaptador retirado. El audit
+canónico queda PASS. SH-05.2A permanece IMPLEMENTED / PENDING ARCHITECTURAL
+REVIEW; SH no puede cerrar si el audit canónico vuelve a fallar.
 
 ## Plan mínimo de implementación SH-05.2
 
 ### SH-05.2A — Canonical security audit realignment
 
-Es el primer subbloque de implementación. Modifica únicamente las expectativas
-obsoletas de auditoría, conserva los checks legacy-JWT aún válidos y añade
-cobertura de regresión para que el GUC/adaptador DB retirado no vuelva a
-introducirse. Su aceptación exige npm run audit:security = PASS en ausencia de
-violaciones no relacionadas.
+**Estado:** IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+
+Es el primer subbloque implementado de SH-05.2. Realineó únicamente las
+expectativas obsoletas de auditoría, conservó los checks legacy-JWT válidos y
+añadió cobertura de regresión para que el GUC/adaptador DB retirado no vuelva a
+introducirse. Su aceptación arquitectónica sigue pendiente.
 
 | Archivo propuesto | Cambio | Inputs / outputs | Secretos | Mutación / fallo / tests |
 | --- | --- | --- | --- | --- |
-| scripts/audit-security.mjs | Realinear sólo las reglas stale de DB stdin/Compose adapter | Contrato R4C y resultado canónico de auditoría | Ninguno | No muta target. Conserva el rechazo de generadores upstream inseguros; tests prueban que no se ignora toda la herramienta. |
-| scripts/operations/rotate-legacy-jwt-keys.test.mjs | Añadir, sólo si hace falta, regresiones R4C | Fixtures sintéticas y Compose/jwt.sql trackeados | Sólo secretos sintéticos | No muta runtime. Prueba env + pointer sin adapter DB y ausencia de GUC secreto/adaptador retirado. |
+| scripts/audit-security.mjs | Realineación implementada de las reglas stale de DB stdin/Compose adapter | Contrato R4C y resultado canónico de auditoría | Ninguno | No muta target. Conserva el rechazo de generadores upstream inseguros. |
+| scripts/operations/rotate-legacy-jwt-keys.test.mjs | Regresión R4C implementada | Fixtures sintéticas y Compose/jwt.sql/rotación trackeados | Sólo secretos sintéticos | No muta runtime. Prueba env + pointer sin adapter DB y ausencia de GUC secreto/adaptador retirado. |
 | infra/sh-portability-image-lock.json | Nuevo lock sólo para imágenes pull-only | Digest/plataforma/autoridad esperados; tags informativos y bases Dockerfile para cross-check | Ninguno | No muta target. Tests separan digest pull-only obligatorio de resultados App/Nginx no estáticos. |
 | scripts/operations/portability-manifest.mjs | Nuevo validador de manifest no secreto | Inputs declarados; plan validado | Ninguno | No muta. Tests de schema, Git/pin/image/backup-generation mismatch. |
 | scripts/operations/manage-secret-generations.mjs | Extender CLI con export/import explícitos | Un UUID y bundle protegido; resultado sanitizado | Lee/escribe snapshots, nunca stdout | Registro/env/pointer. Tests temp-dir, symlink/traversal, checksum, conflicto, atomicidad, MATCH y compensación. |
@@ -464,8 +452,8 @@ después de revisión/aprobación de SH-05.2 y de estos gates:
 - verificación de backup/protected material y bootstrap db-config implementados;
 - restore target explícito, health y ruta QA externa listos;
 - procedimiento de failure/cleanup documentado y probado;
-- SH-05.2A debe haber retirado/realineado las reglas stale de DB adapter, sin
-  reintroducir el GUC secreto DB, y el audit canónico debe pasar.
+- el audit canónico debe seguir PASS y R4C debe permanecer preservado, sin
+  reintroducir el GUC secreto DB ni el adapter retirado.
 
 SH-05.3 es la única fase que podrá demostrar la reconstrucción real clean-host.
 SH-05.1 no declara portability proof, production readiness ni aprobación
