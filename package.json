@@ -36,6 +36,8 @@
     "ops:supabase:update:rehearsal:test": "node --test scripts/operations/supabase-update-rehearsal.test.mjs",
     "ops:supabase:update:rehearsal:execute": "node scripts/operations/supabase-update-rehearsal-execute.mjs",
     "ops:supabase:update:rehearsal:execute:test": "node --test scripts/operations/supabase-update-rehearsal-execute.test.mjs",
+    "ops:supabase:rollback:rehearsal:execute": "node scripts/operations/supabase-update-rollback-rehearsal-execute.mjs",
+    "ops:supabase:rollback:rehearsal:execute:test": "node --test scripts/operations/supabase-update-rollback-rehearsal-execute.test.mjs",
     "ops:restore:selfhosted": "node scripts/operations/restore-selfhosted.mjs restore",
     "ops:secrets:check": "node scripts/operations/check-selfhosted-secrets.mjs",
     "ops:secrets:test": "node --test scripts/operations/check-selfhosted-secrets.test.mjs",
