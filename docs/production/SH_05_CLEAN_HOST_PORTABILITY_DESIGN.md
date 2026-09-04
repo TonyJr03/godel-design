@@ -9,7 +9,8 @@
 **SH-05.2B:** CLOSED / APPROVED / PASS_PULL_ONLY_IMAGE_AUTHORITY
 **SH-05.2C:** CLOSED / APPROVED / PASS_RECONSTRUCTION_MANIFEST_BINDING
 **SH-05.2D:** CLOSED / APPROVED / PASS_PROTECTED_EXACT_GENERATION_TRANSPORT
-**SH-05.2E:** IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+**SH-05.2E:** CLOSED / APPROVED / PASS_CLEAN_HOST_IDENTITY_EMPTY_STATE_GATE
+**SH-05.2F:** IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
 **Baseline de diseño:** cdbe742ba6c85d741ef37da6ad4bc18ffa3bea38
 
 ## Propósito y límites
@@ -51,6 +52,22 @@ restore clean-host y una prueba real de portabilidad. Capacidad de disco frente 
 backup se difiere al gate de input/bootstrap; la prueba de escritura xattr de
 Storage al bootstrap target; y la conectividad de registry a la adquisición de
 imágenes.
+
+## SH-05.2F — adquisición inmutable de imágenes pull-only
+
+SH-05.2F implementa la adquisición `PULL_ONLY_IMAGE_ACQUISITION`: exige el
+reconstruction manifest, el SHA-256 de los bytes brutos del lock trackeado, su
+inventario inmutable exacto y el gate clean-host antes de cualquier mutación de la
+cache. Cada identidad física única se adquiere exclusivamente por
+`canonicalRepository@manifestDigest` para `linux/amd64`, se inspecciona por OS,
+arquitectura y RepoDigest, y sólo entonces recibe el alias local `sourceRef` para
+mantener la compatibilidad de Compose/helpers con `--pull=never`.
+
+El alias mutable es sólo ejecución no autoritativa: se puede rebindear sin borrar
+bytes de cache previos. App/Nginx de Godel no se construyen ni etiquetan aquí; no
+se crean recursos target, ni se importan secretos, ni se restaura información.
+El tooling está implementado con adaptadores inyectables, pero no se ejecutó una
+adquisición de registry real, bootstrap, restore ni prueba real de portabilidad.
 
 ## Autoridades y hechos verificados
 
@@ -472,7 +489,7 @@ restore clean-host ni portability proof.
 
 ### SH-05.2D — Protected exact generation export / import
 
-**Estado:** IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+**Estado:** CLOSED / APPROVED / PASS_PROTECTED_EXACT_GENERATION_TRANSPORT
 
 Implementa transporte protegido de exactamente la generación seleccionada por
 el reconstruction manifest, con bundle comprometido por `bundle.json`, hashes
@@ -490,7 +507,7 @@ SH-05.2 permanece `ACTIVE` y SH permanece `OPEN`.
 | scripts/operations/rotate-legacy-jwt-keys.test.mjs | Regresión R4C implementada | Fixtures sintéticas y Compose/jwt.sql/rotación trackeados | Sólo secretos sintéticos | No muta runtime. Prueba env + pointer sin adapter DB y ausencia de GUC secreto/adaptador retirado. |
 | infra/sh-portability-image-lock.json | Lock implementado sólo para imágenes pull-only | Repository, tag de procedencia, digest de manifiesto linux/amd64 y autoridad semántica | Ninguno | No muta target. Excluye App/Nginx finales de Godel. |
 | scripts/operations/portability-manifest.mjs | Binding no secreto implementado | Inputs declarados; manifest + sidecar explícitos | Ninguno | No muta salvo output solicitado. Valida schema, Git, pin, imágenes, recetas, backup, generación y pgsodium. |
-| scripts/operations/manage-secret-generations.mjs | Extender CLI con export/import explícitos | Un UUID y bundle protegido; resultado sanitizado | Lee/escribe snapshots, nunca stdout | Registro/env/pointer. Tests temp-dir, symlink/traversal, checksum, conflicto, atomicidad, MATCH y compensación. |
+| scripts/operations/manage-secret-generations.mjs | Extender CLI con export/import explícitos | Generación seleccionada por reconstruction manifest y bundle protegido; resultado sanitizado | Lee/escribe snapshots, nunca stdout | Registro/env/pointer. Tests temp-dir, symlink/traversal, checksum, conflicto, atomicidad, MATCH y compensación. |
 | scripts/operations/secret-generation.mjs | Reusar/extender primitivas seguras | Metadata/snapshots/locks | Maneja bytes secretos | Registro/env. Tests de permisos 0700/0600, no overwrite, pointer final y no-leak. |
 | scripts/operations/clean-host-gate.mjs | Nuevo gate read-only | Host descriptor/image lock; informe sanitizado | Ninguno | No muta. Tests Docker CLI fake: positivo, state/network/volume/env/lock negativos. |
 | scripts/operations/clean-host-bootstrap.mjs | Nuevo bootstrap idempotente | Descriptor validado; layout vacío | Usa env ya materializado, no imprime | Crea recursos vacíos/db-config. Tests fake Docker, xattrs, conflicto, compensación. |

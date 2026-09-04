@@ -73,7 +73,7 @@ export async function collectDockerInventory({ docker, targetContract }) {
   if (volumes.some((item) => isTargetProject(item.labels, projects) || item.name === `${targetContract.supabaseComposeProject}_db-config`)) fail("TARGET_VOLUME_PRESENT");
   if (networks.some((item) => item.name === targetContract.operatorNetwork || isTargetProject(item.labels, projects))) fail("TARGET_NETWORK_PRESENT");
   if (images.some((item) => godelImage(item.repository))) fail("GODEL_IMAGE_PRESENT");
-  return { docker: "PASS", compose: "PASS", buildx: "PASS", targetContainers: "ABSENT", targetVolumes: "ABSENT", targetNetwork: "ABSENT", godelBuiltImages: "ABSENT", unrelatedContainerCount: containers.length, pullOnlyCacheCandidates: images.length };
+  return { docker: "PASS", compose: "PASS", buildx: "PASS", targetContainers: "ABSENT", targetVolumes: "ABSENT", targetNetwork: "ABSENT", godelBuiltImages: "ABSENT", unrelatedContainerCount: containers.length, genericImageCacheCount: images.length };
 }
 
 export async function collectFilesystemState({ filesystem, contract }) {

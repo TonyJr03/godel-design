@@ -14,7 +14,7 @@ async function rejects(options, code) { await assert.rejects(() => run(options),
 
 test("compatible synthetic clean host passes with a sanitized result", async () => {
   const result = await run({ inventory: { containers: [{ name: "private-unrelated-workload", labels: {} }], images: [{ repository: "supabase/postgres", labels: {} }] } });
-  assert.equal(result.state, "PASS"); assert.equal(result.checkout, "EXACT"); assert.equal(result.targetContainers, "ABSENT"); assert.equal(result.unrelatedContainerCount, 1); assert.equal(result.pullOnlyCacheCandidates, 1);
+  assert.equal(result.state, "PASS"); assert.equal(result.checkout, "EXACT"); assert.equal(result.targetContainers, "ABSENT"); assert.equal(result.unrelatedContainerCount, 1); assert.equal(result.genericImageCacheCount, 1);
   assert.doesNotMatch(renderCleanHostGateResult(result), /private-unrelated-workload|\/private\//);
 });
 
