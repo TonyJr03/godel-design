@@ -126,7 +126,7 @@ function validatePointer(pointer) {
   return pointer.generationId;
 }
 
-function validateMetadata(metadata, expectedGenerationId) {
+export function validateSecretGenerationMetadata(metadata, expectedGenerationId) {
   exactKeys(metadata, ["createdAt", "files", "format", "generationId", "reason", "repositoryCommit", "schemaVersion", "sourceGenerationId"], "INVALID_GENERATION_METADATA");
   if (metadata.format !== EXTERNAL_SECRET_GENERATION_FORMAT || metadata.schemaVersion !== EXTERNAL_SECRET_GENERATION_SCHEMA_VERSION) fail("INVALID_GENERATION_METADATA");
   if (!isCanonicalGenerationId(metadata.generationId) || metadata.generationId !== expectedGenerationId) fail("INVALID_GENERATION_METADATA");
@@ -145,7 +145,7 @@ async function readGeneration(protectedRoot, generationId) {
   await assertRegularFile(paths.metadata, "GENERATION_METADATA");
   await assertRegularFile(paths.supabaseSnapshot, "SUPABASE_SNAPSHOT");
   await assertRegularFile(paths.godelSnapshot, "GODEL_SNAPSHOT");
-  const metadata = validateMetadata(parseJson(await readFile(paths.metadata), "INVALID_GENERATION_METADATA"), generationId);
+  const metadata = validateSecretGenerationMetadata(parseJson(await readFile(paths.metadata), "INVALID_GENERATION_METADATA"), generationId);
   return {
     generationId,
     metadata,
@@ -313,7 +313,7 @@ async function writeExclusive(path, data, mode = 0o600) {
 
 export async function publishSecretGeneration({ protectedRoot, generationId, metadata, supabaseSnapshot, godelSnapshot }) {
   if (!isCanonicalGenerationId(generationId) || !Buffer.isBuffer(supabaseSnapshot) || !Buffer.isBuffer(godelSnapshot)) fail("INVALID_EXTERNAL_SECRET_GENERATION_PUBLICATION");
-  validateMetadata(metadata, generationId);
+  validateSecretGenerationMetadata(metadata, generationId);
   const target = generationPaths(protectedRoot, generationId);
   const staging = join(target.generations, `.staging-${randomUUID()}`);
   await ensureSafeDirectory(target.root);

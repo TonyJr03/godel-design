@@ -151,24 +151,33 @@ contrato; no la presupone SH-05.
 ## Interfaz protegida de export/import
 
 Se extiende el límite operativo existente de manage-secret-generations.mjs, no
-se crea un registro alterno. SH-05.2 diseñará las operaciones conceptuales:
+se crea un registro alterno. La interfaz vigente es:
 
-    manage-secret-generations export --generation <UUID> --output <safe-relative-path>
-    manage-secret-generations import --generation <UUID> --input <safe-relative-path> --materialize-live-pair --activate
+    manage-secret-generations export --manifest <safe-relative-manifest> --output <protected-relative-bundle>
+    manage-secret-generations import --manifest <safe-relative-manifest> --bundle <protected-relative-bundle> [--apply]
 
-Las opciones reales mantendrán la convención actual de protected-root relativo y
-rechazarán rutas absolutas, traversal y argumentos ambiguos. Export sólo acepta
-una generación explícita, lee archivos regulares sin seguir symlinks y publica
-un bundle protegido que contiene metadata validada, los dos snapshots y un
-manifest de integridad. No imprime contenido, hash de secreto ni valores.
+`--manifest` es relativo al repositorio. `--output` y `--bundle` son relativos
+al `protectedRoot` y deben ser descendientes estrictos de éste, fuera de
+`external-secrets`. Rutas absolutas, traversal, valores ambiguos y el propio
+protected root se rechazan. La selección de generación es únicamente
+`reconstructionManifest.externalSecretGenerationId`; `--generation`
+independiente está prohibido. Export lee archivos regulares sin seguir symlinks
+y publica un bundle protegido que contiene metadata validada, los dos snapshots
+y un manifest de integridad. No imprime contenido, hash de secreto ni valores.
+Para el CLI del repositorio, el `protectedRoot` de export/import se restringe a
+un descendiente estricto de `protected-recovery-material`; es una frontera de
+seguridad que evita bundles secretos en rutas trackeables del checkout. Las
+primitivas programáticas reutilizables permanecen provider-neutral y pueden
+recibir un protected root propiedad del orchestrator fuera de esta convención.
 
 Import valida primero todo el bundle fuera del registro activo: schema exacto,
-ID, metadata, filenames, regular-file/no-symlink, tamaño razonable, checksum y
-permisos. Con umask restrictiva crea staging 0700 y archivos 0600, adquiere el
-generation mutation lock y publica atómicamente el directorio de generación.
-Un destino sin registro queda soportado; un directorio preexistente sólo es
-aceptable si su metadata y bytes verifican idénticos. Una generación distinta,
-un current pointer existente inesperado o cualquier lock presente bloquean.
+binding con operationId y SHA del reconstruction manifest, ID, metadata,
+filenames, regular-file/no-symlink, tamaño razonable, checksum y permisos. Sólo
+entonces adquiere el generation mutation lock y publica atómicamente el
+directorio de generación. Un destino sin registro queda soportado; un directorio
+preexistente sólo es aceptable si su metadata y bytes verifican idénticos. Una
+generación distinta, un current pointer existente inesperado o cualquier lock
+presente bloquean.
 
 El orden elegido es:
 
@@ -180,12 +189,13 @@ El orden elegido es:
 6. crear/confirmar el pointer current únicamente como commit final;
 7. comprobar MATCH y emitir evidencia sanitizada.
 
-Esto separa datos de generación de activación. Antes del commit de pointer, un
-fallo compensa sólo staging y archivos creados por la operación tras verificar
-que no son preexistentes; nunca borra datos ajenos. Tras commit, cualquier
-fallo de MATCH preserva lock y failure marker: no hay rollback implícito ni
-reemplazo silencioso de current. El operador decide recuperación o destrucción
-del host disposable.
+Esto separa datos de generación de activación. Un fallo manejado puede preservar
+la generación inmutable ya publicada y uno o ambos env exactos ya
+materializados; el pointer current no cambia hasta la activación final. El lock
+se libera una vez detenida la lógica de mutación manejada. No hay rollback
+implícito ni borrado automático de estado publicado. Un crash puede preservar
+el lock para recuperación explícita del operador; este subbloque no implementa
+failure markers automáticos.
 
 El canal de transporte queda operator-owned y provider-neutral: SSH/SCP,
 rsync-over-SSH o mecanismo equivalente autenticado son aceptables si separan
@@ -429,13 +439,27 @@ demuestra una reconstrucción clean-host; esa ejecución permanece sin implement
 
 ### SH-05.2C — Reconstruction manifest and input binding
 
-**Estado:** IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+**Estado:** CLOSED / APPROVED / PASS_RECONSTRUCTION_MANIFEST_BINDING
 
 Implementa la identidad y el binding no secreto de una selección de
 reconstrucción: Git exacto, upstream, lock de imágenes, recetas App/Nginx,
 backup, generación externa, artefacto pgsodium y contrato lógico de target.
 No implementa transporte de secretos, adquisición de imágenes, bootstrap,
 restore clean-host ni portability proof.
+
+### SH-05.2D — Protected exact generation export / import
+
+**Estado:** IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+
+Implementa transporte protegido de exactamente la generación seleccionada por
+el reconstruction manifest, con bundle comprometido por `bundle.json`, hashes
+de snapshots contenidos exclusivamente dentro del bundle protegido y validación
+completa antes del lock de import. La importación materializa bytes exactos de
+los dos env, exige MATCH antes de activar el pointer y rechaza conflicto,
+overwrite, symlink o selección independiente de generación. Las pruebas usan
+sólo secretos sintéticos. No se ejecutó transporte real de secretos; clean-host
+bootstrap, adquisición de imágenes y restore clean-host siguen sin implementar.
+SH-05.2 permanece `ACTIVE` y SH permanece `OPEN`.
 
 | Archivo propuesto | Cambio | Inputs / outputs | Secretos | Mutación / fallo / tests |
 | --- | --- | --- | --- | --- |

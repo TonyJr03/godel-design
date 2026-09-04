@@ -197,7 +197,8 @@ que está `ACTIVE`. SH-05.0 queda `CLOSED / APPROVED /
 PASS_PORTABILITY_DISCOVERY`; SH-05.1 queda `CLOSED / APPROVED`; SH-05.2 está
 `ACTIVE`; SH-05.2A queda `CLOSED / APPROVED /
 PASS_CANONICAL_SECURITY_AUDIT_REALIGNMENT`; SH-05.2B queda `CLOSED / APPROVED /
-PASS_PULL_ONLY_IMAGE_AUTHORITY` y SH-05.2C queda `IMPLEMENTED / PENDING
+PASS_PULL_ONLY_IMAGE_AUTHORITY`; SH-05.2C queda `CLOSED / APPROVED /
+PASS_RECONSTRUCTION_MANIFEST_BINDING` y SH-05.2D queda `IMPLEMENTED / PENDING
 ARCHITECTURAL REVIEW`.
 
 #### Cierre SH-04.3 — Secretos, Auth y compatibilidad recovery
@@ -270,7 +271,8 @@ ser necesaria.
 | SH-05.2 — Minimal clean-host portability tooling | ACTIVE |
 | SH-05.2A — Canonical security audit realignment | CLOSED / APPROVED / PASS_CANONICAL_SECURITY_AUDIT_REALIGNMENT |
 | SH-05.2B — Pull-only image authority lock | CLOSED / APPROVED / PASS_PULL_ONLY_IMAGE_AUTHORITY |
-| SH-05.2C — Reconstruction manifest and input binding | IMPLEMENTED / PENDING ARCHITECTURAL REVIEW |
+| SH-05.2C — Reconstruction manifest and input binding | CLOSED / APPROVED / PASS_RECONSTRUCTION_MANIFEST_BINDING |
+| SH-05.2D — Protected exact generation export / import | IMPLEMENTED / PENDING ARCHITECTURAL REVIEW |
 | SH-05.3 — Disposable clean-host reconstruction rehearsal | NOT STARTED |
 | SH-05.4 — Functional acceptance, cleanup, documentation and SH closure | NOT STARTED |
 
@@ -334,7 +336,8 @@ TD-UPLOAD-001 y completó la documentación de PPO-03. SH-04 queda
 `ACTIVE`; SH-05.0 queda `CLOSED / APPROVED / PASS_PORTABILITY_DISCOVERY`
 y SH-05.1 queda `CLOSED / APPROVED`; SH-05.2 está `ACTIVE`; SH-05.2A queda
 `CLOSED / APPROVED / PASS_CANONICAL_SECURITY_AUDIT_REALIGNMENT`; SH-05.2B
-queda `CLOSED / APPROVED / PASS_PULL_ONLY_IMAGE_AUTHORITY` y SH-05.2C queda
+queda `CLOSED / APPROVED / PASS_PULL_ONLY_IMAGE_AUTHORITY`; SH-05.2C queda
+`CLOSED / APPROVED / PASS_RECONSTRUCTION_MANIFEST_BINDING` y SH-05.2D queda
 `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`.
 
 ## Gobernanza de la baseline DB
