@@ -30,6 +30,8 @@
     "ops:backup:selfhosted:verify": "node scripts/operations/backup-selfhosted.mjs verify",
     "ops:portability:images:validate": "node scripts/operations/image-acquisition.mjs validate-lock",
     "ops:portability:images:test": "node --test scripts/operations/image-acquisition.test.mjs",
+    "ops:portability:clean-host:check": "node scripts/operations/clean-host-gate.mjs",
+    "ops:portability:clean-host:test": "node --test scripts/operations/clean-host-gate.test.mjs",
     "ops:portability:manifest:create": "node scripts/operations/portability-manifest.mjs create",
     "ops:portability:manifest:validate": "node scripts/operations/portability-manifest.mjs validate",
     "ops:portability:manifest:test": "node --test scripts/operations/portability-manifest.test.mjs",

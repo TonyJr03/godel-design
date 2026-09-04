@@ -7,7 +7,9 @@
 **SH-05.2:** ACTIVE
 **SH-05.2A:** CLOSED / APPROVED / PASS_CANONICAL_SECURITY_AUDIT_REALIGNMENT
 **SH-05.2B:** CLOSED / APPROVED / PASS_PULL_ONLY_IMAGE_AUTHORITY
-**SH-05.2C:** IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+**SH-05.2C:** CLOSED / APPROVED / PASS_RECONSTRUCTION_MANIFEST_BINDING
+**SH-05.2D:** CLOSED / APPROVED / PASS_PROTECTED_EXACT_GENERATION_TRANSPORT
+**SH-05.2E:** IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
 **Baseline de diseño:** cdbe742ba6c85d741ef37da6ad4bc18ffa3bea38
 
 ## Propósito y límites
@@ -28,6 +30,27 @@ SH-05 prueba una reconstrucción privada con la configuración de rehearsal
 seleccionada. PPO-04 conserva cualquier cambio real de dominio, URL pública,
 TLS, bind/exposición, IP, configuración no secreta específica de proveedor o
 VPS. SH-05 no despliega producción.
+
+## SH-05.2E — gate de identidad y estado vacío
+
+SH-05.2E implementa un preflight fail-closed y estrictamente read-only para el
+modelo `A_SEPARATE_DISPOSABLE`: exige checkout Git exacto y limpio, host y daemon
+Linux/amd64, Compose v2, Buildx disponible y ausencia de estado objetivo Godel /
+Supabase. Reutiliza el lector canónico del reconstruction manifest con su sidecar;
+no valida aún backup ni material protegido.
+
+El gate bloquea, sin reparar ni borrar, proyectos Compose objetivo, red operadora,
+volumen `db-config`, imágenes Godel locales, envs runtime, PGDATA, Storage y el
+registro activo de generaciones. La cache de imágenes pull-only de terceros es no
+autoritativa y permitida. Sus adaptadores por defecto sólo ejecutan consultas
+read-only de Git/Docker; las pruebas usan adaptadores sintéticos y no acceden a
+Docker real.
+
+Quedan explícitamente fuera: adquisición de imágenes, bootstrap de estado target,
+restore clean-host y una prueba real de portabilidad. Capacidad de disco frente al
+backup se difiere al gate de input/bootstrap; la prueba de escritura xattr de
+Storage al bootstrap target; y la conectividad de registry a la adquisición de
+imágenes.
 
 ## Autoridades y hechos verificados
 
