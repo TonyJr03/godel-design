@@ -10,7 +10,8 @@
 **SH-05.2C:** CLOSED / APPROVED / PASS_RECONSTRUCTION_MANIFEST_BINDING
 **SH-05.2D:** CLOSED / APPROVED / PASS_PROTECTED_EXACT_GENERATION_TRANSPORT
 **SH-05.2E:** CLOSED / APPROVED / PASS_CLEAN_HOST_IDENTITY_EMPTY_STATE_GATE
-**SH-05.2F:** IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+**SH-05.2F:** CLOSED / APPROVED / PASS_IMMUTABLE_PULL_ONLY_IMAGE_ACQUISITION
+**SH-05.2G:** IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
 **Baseline de diseño:** cdbe742ba6c85d741ef37da6ad4bc18ffa3bea38
 
 ## Propósito y límites
@@ -66,8 +67,24 @@ mantener la compatibilidad de Compose/helpers con `--pull=never`.
 El alias mutable es sólo ejecución no autoritativa: se puede rebindear sin borrar
 bytes de cache previos. App/Nginx de Godel no se construyen ni etiquetan aquí; no
 se crean recursos target, ni se importan secretos, ni se restaura información.
-El tooling está implementado con adaptadores inyectables, pero no se ejecutó una
-adquisición de registry real, bootstrap, restore ni prueba real de portabilidad.
+El tooling está cerrado y aprobado con adaptadores inyectables. No se ejecutó
+aún una adquisición de registry real, bootstrap, restore ni prueba real de
+portabilidad.
+
+## SH-05.2G — build verificado de App / Nginx
+
+SH-05.2G implementa `VERIFIED_BUILD_RECIPE` para App y Nginx: exige el
+clean-host gate, la disponibilidad read-only de SH-05.2F, el reconstruction
+manifest exacto, el bundle protegido ligado a la misma generación y un contexto
+temporal de `git archive` del commit declarado. Verifica cada Dockerfile y sus
+bases digest-pinned para `linux/amd64` antes de invocar Buildx. La URL pública se
+transporta como build arg y la publishable key exclusivamente como secreto
+BuildKit; ninguna aparece en evidencia sanitizada.
+
+El tooling de build verificado está implementado, pero no se ejecutó un build
+real de imágenes Godel. El bootstrap target no está implementado; la activación
+de secretos target y restore no se ejecutaron; la prueba real de portabilidad no
+se ejecutó. SH-05.2 permanece `ACTIVE` y SH permanece `OPEN`.
 
 ## Autoridades y hechos verificados
 
