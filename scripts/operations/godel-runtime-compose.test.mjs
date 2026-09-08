@@ -4,6 +4,7 @@ import {
   createGodelMaintenanceCloseInvocation,
   createGodelMaintenanceOpenInvocation,
   createGodelRuntimeComposeInvocation,
+  createGodelCleanHostFullUpInvocation,
 } from "./godel-runtime-compose.mjs";
 
 test("runtime Compose interpolation uses a process-local sentinel and preserves the parent environment", () => {
@@ -14,6 +15,13 @@ test("runtime Compose interpolation uses a process-local sentinel and preserves 
   assert.equal(invocation.environment.RETAINED, "synthetic-value");
   assert.equal(invocation.environment.GODEL_PUBLIC_BUILD_NONCE, "runtime-compose-interpolation-only");
   assert.equal(environment.GODEL_PUBLIC_BUILD_NONCE, "stale-parent-value");
+});
+
+test("explicit clean-host Godel startup preserves nonce interpolation and disallows generic up", () => {
+  const invocation = createGodelCleanHostFullUpInvocation({ environment: { PATH: "synthetic" } });
+  assert.deepEqual(invocation.args, ["compose", "--env-file", "compose.env.local", "-f", "compose.yaml", "up", "-d", "--no-build", "--pull", "never", "--wait", "--wait-timeout", "180"]);
+  assert.equal(invocation.environment.GODEL_PUBLIC_BUILD_NONCE, "runtime-compose-interpolation-only");
+  assert.throws(() => createGodelRuntimeComposeInvocation({ args: ["up"] }), /FORBIDDEN/);
 });
 
 test("runtime Compose allowlist accepts only operational subcommands", () => {

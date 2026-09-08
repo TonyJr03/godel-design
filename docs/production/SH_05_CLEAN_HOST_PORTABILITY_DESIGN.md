@@ -1,10 +1,11 @@
 # SH-05.1 — Contrato de portabilidad clean-host y diseño de tooling
 
 **Estado:** CLOSED / APPROVED
+**SH:** OPEN
 **SH-05:** ACTIVE
 **SH-05.0:** CLOSED / APPROVED / PASS_PORTABILITY_DISCOVERY
 **SH-05.1:** CLOSED / APPROVED
-**SH-05.2:** ACTIVE
+**SH-05.2:** CLOSED / APPROVED / PASS_MINIMAL_CLEAN_HOST_PORTABILITY_TOOLING
 **SH-05.2A:** CLOSED / APPROVED / PASS_CANONICAL_SECURITY_AUDIT_REALIGNMENT
 **SH-05.2B:** CLOSED / APPROVED / PASS_PULL_ONLY_IMAGE_AUTHORITY
 **SH-05.2C:** CLOSED / APPROVED / PASS_RECONSTRUCTION_MANIFEST_BINDING
@@ -15,7 +16,9 @@
 **SH-05.2H:** CLOSED / APPROVED / PASS_TRANSPORTED_RECONSTRUCTION_INPUT_ADMISSION
 **SH-05.2I:** CLOSED / APPROVED / PASS_CLEAN_HOST_TARGET_BOOTSTRAP_FOUNDATION
 **SH-05.2J:** CLOSED / APPROVED / PASS_EXACT_TARGET_GENERATION_ACTIVATION
-**SH-05.2K:** IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+**SH-05.2K:** CLOSED / APPROVED / PASS_CLEAN_HOST_OFFLINE_RECOVERY_DATA_MATERIALIZATION
+**SH-05.2L:** CLOSED / APPROVED / PASS_CLEAN_HOST_RUNTIME_RECONSTRUCTION
+**SH-05.3:** READY / NEXT
 **Baseline de diseño:** cdbe742ba6c85d741ef37da6ad4bc18ffa3bea38
 
 ## Propósito y límites
@@ -142,7 +145,8 @@ db-config, red y ausencia de contenedores target.
 
 La activación real de generación no se ejecutó. Restore de PGDATA/Storage,
 restore de pgsodium, arranque de runtime y proof de portabilidad no se
-ejecutaron. SH-05.2 permanece `ACTIVE` y SH permanece `OPEN`.
+ejecutaron. El estado vigente de SH-05.2 es `CLOSED / APPROVED /
+PASS_MINIMAL_CLEAN_HOST_PORTABILITY_TOOLING`; SH permanece `OPEN`.
 
 ## SH-05.2K — materialización offline de datos de recovery
 
@@ -157,6 +161,48 @@ real de datos, replay SQL lógico, creación/inicio de runtime ni rehearsal real
 portabilidad. La creación/inicio de runtime no forma parte de K.
 
 ## Autoridades y hechos verificados
+
+## SH-05.2L — reconstrucción runtime clean-host
+
+SH-05.2L cerró `CLOSED / APPROVED / PASS_CLEAN_HOST_RUNTIME_RECONSTRUCTION`.
+Implementa tooling de arranque ordenado DB, Supabase y Godel sobre el
+estado offline restaurado por K. Exige inputs admitidos, generación activa,
+estado K verificado, imágenes pull-only y exposición privada loopback; no
+permite pull, build, replay SQL ni rollback de datos. CLEAN_HOST_RUNTIME_RECONSTRUCTION
+está implementado, pero no se ejecutó runtime real, rehearsal de portabilidad,
+Playwright ni aceptación funcional.
+
+## Cierre de SH-05.2 y handoff de SH-05.3
+
+SH-05.2 cerró `CLOSED / APPROVED /
+PASS_MINIMAL_CLEAN_HOST_PORTABILITY_TOOLING`. Provee tooling implementado,
+fail-closed, para la cadena:
+
+```text
+clean-host identity gate
+→ immutable pull-only image acquisition
+→ verified Godel builds
+→ transported input admission
+→ target foundation bootstrap
+→ exact generation activation
+→ offline physical data recovery
+→ private runtime reconstruction
+```
+
+Esta capacidad implementada no es una prueba empírica de portabilidad. Permanecen
+explícitamente sin ejecutar:
+
+```text
+REAL CLEAN-HOST PORTABILITY REHEARSAL = NOT EXECUTED
+REAL DATA RESTORE ON REHEARSAL HOST = NOT EXECUTED
+REAL RUNTIME RECONSTRUCTION ON REHEARSAL HOST = NOT EXECUTED
+FUNCTIONAL / PLAYWRIGHT ACCEPTANCE ON REHEARSAL HOST = NOT EXECUTED
+VPS DEPLOYMENT = NOT EXECUTED
+```
+
+SH-05.3 queda `READY / NEXT`: **CLEAN-HOST PORTABILITY REHEARSAL EXECUTION**.
+Comienza en un host Linux amd64 Docker genuinamente compatible y limpio, y ejecuta
+la cadena ya aprobada de SH-05.2 sin rediseñar su tooling.
 
 La decisión se deriva de la revisión de SH-05.0, SH roadmap, runbook SH-04,
 diseño/QA de backup y secretos SH-04, autoridad/pin upstream, Compose efectivo,
@@ -586,7 +632,8 @@ los dos env, exige MATCH antes de activar el pointer y rechaza conflicto,
 overwrite, symlink o selección independiente de generación. Las pruebas usan
 sólo secretos sintéticos. No se ejecutó transporte real de secretos; clean-host
 bootstrap, adquisición de imágenes y restore clean-host siguen sin implementar.
-SH-05.2 permanece `ACTIVE` y SH permanece `OPEN`.
+El estado vigente de SH-05.2 es `CLOSED / APPROVED /
+PASS_MINIMAL_CLEAN_HOST_PORTABILITY_TOOLING`; SH permanece `OPEN`.
 
 | Archivo propuesto | Cambio | Inputs / outputs | Secretos | Mutación / fallo / tests |
 | --- | --- | --- | --- | --- |

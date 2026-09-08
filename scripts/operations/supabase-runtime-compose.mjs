@@ -54,6 +54,14 @@ export function createSupabaseRuntimeComposeInvocation({ args }) {
   return composeInvocation(args);
 }
 
+export function createSupabaseCleanHostDbUpInvocation() {
+  return { ...composeInvocation(["up", "-d", "--no-build", "--pull", "never", "--wait", "--wait-timeout", "180", "db"]), shell: false };
+}
+
+export function createSupabaseCleanHostFullUpInvocation() {
+  return { ...composeInvocation(["up", "-d", "--no-build", "--pull", "never", "--wait", "--wait-timeout", "300"]), shell: false };
+}
+
 export function createSupabaseConsumerRecreateInvocation(service) {
   if (typeof service !== "string" || !CONSUMER_SERVICES.has(service)) {
     throw new Error("SUPABASE_CONSUMER_RECREATE_FORBIDDEN");

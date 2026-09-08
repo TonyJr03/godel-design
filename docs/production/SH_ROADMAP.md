@@ -194,8 +194,8 @@ El runbook técnico permanente de SH-04 está en
 [SUPABASE_SELF_HOSTED_OPERATIONS_RUNBOOK.md](SUPABASE_SELF_HOSTED_OPERATIONS_RUNBOOK.md).
 SH-04 queda `CLOSED / APPROVED`; el handoff es SH-05 — Portabilidad reproducible,
 que está `ACTIVE`. SH-05.0 queda `CLOSED / APPROVED /
-PASS_PORTABILITY_DISCOVERY`; SH-05.1 queda `CLOSED / APPROVED`; SH-05.2 está
-`ACTIVE`; SH-05.2A queda `CLOSED / APPROVED /
+PASS_PORTABILITY_DISCOVERY`; SH-05.1 queda `CLOSED / APPROVED`; SH-05.2 queda
+`CLOSED / APPROVED / PASS_MINIMAL_CLEAN_HOST_PORTABILITY_TOOLING`; SH-05.2A queda `CLOSED / APPROVED /
 PASS_CANONICAL_SECURITY_AUDIT_REALIGNMENT`; SH-05.2B queda `CLOSED / APPROVED /
 PASS_PULL_ONLY_IMAGE_AUTHORITY`; SH-05.2C queda `CLOSED / APPROVED /
 PASS_RECONSTRUCTION_MANIFEST_BINDING`; SH-05.2D queda `CLOSED / APPROVED /
@@ -205,8 +205,10 @@ PASS_IMMUTABLE_PULL_ONLY_IMAGE_ACQUISITION`; SH-05.2G queda `CLOSED / APPROVED /
 PASS_VERIFIED_GODEL_IMAGE_BUILD`; SH-05.2H queda `CLOSED / APPROVED /
 PASS_TRANSPORTED_RECONSTRUCTION_INPUT_ADMISSION`; SH-05.2I queda `CLOSED /
 APPROVED / PASS_CLEAN_HOST_TARGET_BOOTSTRAP_FOUNDATION`; SH-05.2J queda `CLOSED /
-APPROVED / PASS_EXACT_TARGET_GENERATION_ACTIVATION` y SH-05.2K queda
-`IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`.
+APPROVED / PASS_EXACT_TARGET_GENERATION_ACTIVATION`; SH-05.2K queda `CLOSED /
+APPROVED / PASS_CLEAN_HOST_OFFLINE_RECOVERY_DATA_MATERIALIZATION` y SH-05.2L queda
+`CLOSED / APPROVED / PASS_CLEAN_HOST_RUNTIME_RECONSTRUCTION`; SH-05.3 queda
+`READY / NEXT`.
 
 #### Cierre SH-04.3 — Secretos, Auth y compatibilidad recovery
 
@@ -275,7 +277,7 @@ ser necesaria.
 | --- | --- |
 | SH-05.0 — Discovery and target realignment | CLOSED / APPROVED / PASS_PORTABILITY_DISCOVERY |
 | SH-05.1 — Clean-host portability contract and tooling design | CLOSED / APPROVED |
-| SH-05.2 — Minimal clean-host portability tooling | ACTIVE |
+| SH-05.2 — Minimal clean-host portability tooling | CLOSED / APPROVED / PASS_MINIMAL_CLEAN_HOST_PORTABILITY_TOOLING |
 | SH-05.2A — Canonical security audit realignment | CLOSED / APPROVED / PASS_CANONICAL_SECURITY_AUDIT_REALIGNMENT |
 | SH-05.2B — Pull-only image authority lock | CLOSED / APPROVED / PASS_PULL_ONLY_IMAGE_AUTHORITY |
 | SH-05.2C — Reconstruction manifest and input binding | CLOSED / APPROVED / PASS_RECONSTRUCTION_MANIFEST_BINDING |
@@ -286,14 +288,27 @@ ser necesaria.
 | SH-05.2H — Transported reconstruction input admission | CLOSED / APPROVED / PASS_TRANSPORTED_RECONSTRUCTION_INPUT_ADMISSION |
 | SH-05.2I — Clean-host target-state bootstrap foundation | CLOSED / APPROVED / PASS_CLEAN_HOST_TARGET_BOOTSTRAP_FOUNDATION |
 | SH-05.2J — Exact target generation activation | CLOSED / APPROVED / PASS_EXACT_TARGET_GENERATION_ACTIVATION |
-| SH-05.2K — Clean-host offline recovery data materialization | IMPLEMENTED / PENDING ARCHITECTURAL REVIEW |
-| SH-05.3 — Disposable clean-host reconstruction rehearsal | NOT STARTED |
+| SH-05.2K — Clean-host offline recovery data materialization | CLOSED / APPROVED / PASS_CLEAN_HOST_OFFLINE_RECOVERY_DATA_MATERIALIZATION |
+| SH-05.2L — Clean-host runtime reconstruction | CLOSED / APPROVED / PASS_CLEAN_HOST_RUNTIME_RECONSTRUCTION |
+| SH-05.3 — Clean-host portability rehearsal execution | READY / NEXT |
 | SH-05.4 — Functional acceptance, cleanup, documentation and SH closure | NOT STARTED |
 
 La evidencia canónica de SH-05.0 está en
 [SH-05.0 — Descubrimiento de portabilidad](SH_05_PORTABILITY_DISCOVERY.md).
 El contrato de SH-05.1 está en
 [SH-05.1 — Contrato de portabilidad clean-host](SH_05_CLEAN_HOST_PORTABILITY_DESIGN.md).
+
+SH-05.2 está `CLOSED / APPROVED / PASS_MINIMAL_CLEAN_HOST_PORTABILITY_TOOLING`:
+el tooling fail-closed implementa la cadena de gate de identidad clean-host,
+adquisición inmutable pull-only, builds Godel verificados, admisión de inputs,
+bootstrap de fundación target, activación exacta de generación, recovery físico
+offline y reconstrucción runtime privada. Esto no demuestra aún portabilidad
+empírica: rehearsal clean-host real, restore real, runtime real, aceptación
+funcional/Playwright y despliegue VPS permanecen `NOT EXECUTED`.
+
+SH-05.3 queda `READY / NEXT` como **CLEAN-HOST PORTABILITY REHEARSAL EXECUTION**:
+parte de un host Linux amd64 Docker genuinamente compatible y limpio y ejecuta la
+cadena aprobada de SH-05.2. SH-05 continúa `ACTIVE` y SH permanece `OPEN`.
 
 ## Secuencia integrada y gates
 
@@ -348,7 +363,8 @@ TD-UPLOAD-001 y completó la documentación de PPO-03. SH-04 queda
 `CLOSED / APPROVED / PASS_RUNBOOK_IMPLEMENTATION` → SH-04.5
 `CLOSED / APPROVED / PASS_TECHNICAL_RUNBOOK`. El siguiente bloque es SH-05
 `ACTIVE`; SH-05.0 queda `CLOSED / APPROVED / PASS_PORTABILITY_DISCOVERY`
-y SH-05.1 queda `CLOSED / APPROVED`; SH-05.2 está `ACTIVE`; SH-05.2A queda
+y SH-05.1 queda `CLOSED / APPROVED`; SH-05.2 queda `CLOSED / APPROVED /
+PASS_MINIMAL_CLEAN_HOST_PORTABILITY_TOOLING`; SH-05.2A queda
 `CLOSED / APPROVED / PASS_CANONICAL_SECURITY_AUDIT_REALIGNMENT`; SH-05.2B
 queda `CLOSED / APPROVED / PASS_PULL_ONLY_IMAGE_AUTHORITY`; SH-05.2C queda
 `CLOSED / APPROVED / PASS_RECONSTRUCTION_MANIFEST_BINDING`; SH-05.2D queda
@@ -359,7 +375,9 @@ queda `CLOSED / APPROVED / PASS_PULL_ONLY_IMAGE_AUTHORITY`; SH-05.2C queda
 `CLOSED / APPROVED / PASS_TRANSPORTED_RECONSTRUCTION_INPUT_ADMISSION`; SH-05.2I
 queda `CLOSED / APPROVED / PASS_CLEAN_HOST_TARGET_BOOTSTRAP_FOUNDATION` y
 SH-05.2J queda `CLOSED / APPROVED / PASS_EXACT_TARGET_GENERATION_ACTIVATION` y
-SH-05.2K queda `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`.
+SH-05.2K queda `CLOSED / APPROVED / PASS_CLEAN_HOST_OFFLINE_RECOVERY_DATA_MATERIALIZATION` y
+SH-05.2L queda `CLOSED / APPROVED / PASS_CLEAN_HOST_RUNTIME_RECONSTRUCTION`; el
+siguiente bloque es SH-05.3 `READY / NEXT`.
 
 ## Gobernanza de la baseline DB
 

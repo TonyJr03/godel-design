@@ -41,6 +41,8 @@
     "ops:portability:target:generation:test": "node --test scripts/operations/clean-host-generation-activation.test.mjs",
     "ops:portability:target:data:restore": "node scripts/operations/clean-host-data-restore.mjs",
     "ops:portability:target:data:test": "node --test scripts/operations/clean-host-data-restore.test.mjs",
+    "ops:portability:target:runtime:start": "node scripts/operations/clean-host-runtime-reconstruction.mjs",
+    "ops:portability:target:runtime:test": "node --test scripts/operations/clean-host-runtime-reconstruction.test.mjs",
     "ops:recovery:data-primitives:test": "node --test scripts/operations/recovery-data-primitives.test.mjs",
     "ops:portability:clean-host:check": "node scripts/operations/clean-host-gate.mjs",
     "ops:portability:clean-host:test": "node --test scripts/operations/clean-host-gate.test.mjs",

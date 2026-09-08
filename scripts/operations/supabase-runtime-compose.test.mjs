@@ -10,6 +10,8 @@ import {
   createSupabaseRuntimeComposeInvocation,
   createSupabaseSupavisorCredentialApiInvocation,
   createSupabaseSupavisorPasswordProbeInvocation,
+  createSupabaseCleanHostDbUpInvocation,
+  createSupabaseCleanHostFullUpInvocation,
 } from "./supabase-runtime-compose.mjs";
 
 const canonicalPrefix = [
@@ -33,6 +35,12 @@ test("Supabase runtime Compose uses the exact canonical Godel profile", () => {
       invocation.args.indexOf("infra/supabase-godel.override.yml"),
     true,
   );
+});
+
+test("explicit clean-host startup is bounded, pull-only and separate from generic up", () => {
+  assert.deepEqual(createSupabaseCleanHostDbUpInvocation().args, [...canonicalPrefix, "up", "-d", "--no-build", "--pull", "never", "--wait", "--wait-timeout", "180", "db"]);
+  assert.deepEqual(createSupabaseCleanHostFullUpInvocation().args, [...canonicalPrefix, "up", "-d", "--no-build", "--pull", "never", "--wait", "--wait-timeout", "300"]);
+  assert.throws(() => createSupabaseRuntimeComposeInvocation({ args: ["up"] }), /FORBIDDEN/);
 });
 
 test("Supabase runtime Compose accepts only operational subcommands", () => {

@@ -24,3 +24,10 @@ export function createGodelMaintenanceCloseInvocation({ environment = process.en
 export function createGodelMaintenanceOpenInvocation({ environment = process.env } = {}) {
   return maintenanceInvocation("start", environment);
 }
+
+export function createGodelCleanHostFullUpInvocation({ environment = process.env } = {}) {
+  return {
+    args: ["compose", "--env-file", "compose.env.local", "-f", "compose.yaml", "up", "-d", "--no-build", "--pull", "never", "--wait", "--wait-timeout", "180"],
+    environment: { ...environment, GODEL_PUBLIC_BUILD_NONCE: RUNTIME_COMPOSE_SENTINEL }, shell: false,
+  };
+}
