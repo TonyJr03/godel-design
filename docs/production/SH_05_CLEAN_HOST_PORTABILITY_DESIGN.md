@@ -11,7 +11,8 @@
 **SH-05.2D:** CLOSED / APPROVED / PASS_PROTECTED_EXACT_GENERATION_TRANSPORT
 **SH-05.2E:** CLOSED / APPROVED / PASS_CLEAN_HOST_IDENTITY_EMPTY_STATE_GATE
 **SH-05.2F:** CLOSED / APPROVED / PASS_IMMUTABLE_PULL_ONLY_IMAGE_ACQUISITION
-**SH-05.2G:** IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+**SH-05.2G:** CLOSED / APPROVED / PASS_VERIFIED_GODEL_IMAGE_BUILD
+**SH-05.2H:** IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
 **Baseline de diseño:** cdbe742ba6c85d741ef37da6ad4bc18ffa3bea38
 
 ## Propósito y límites
@@ -81,10 +82,28 @@ bases digest-pinned para `linux/amd64` antes de invocar Buildx. La URL pública 
 transporta como build arg y la publishable key exclusivamente como secreto
 BuildKit; ninguna aparece en evidencia sanitizada.
 
-El tooling de build verificado está implementado, pero no se ejecutó un build
-real de imágenes Godel. El bootstrap target no está implementado; la activación
-de secretos target y restore no se ejecutaron; la prueba real de portabilidad no
-se ejecutó. SH-05.2 permanece `ACTIVE` y SH permanece `OPEN`.
+El tooling de build verificado está cerrado y aprobado, pero no se ejecutó un
+build real de imágenes Godel. El bootstrap target no está implementado; la
+activación de secretos target y restore no se ejecutaron; la prueba real de
+portabilidad no se ejecutó.
+
+## SH-05.2H — admisión de inputs de reconstrucción transportados
+
+SH-05.2H implementa `TRANSPORTED_INPUT_ADMISSION = PRE_MUTATION_SAFE` y
+`TARGET_STATE_CREATION = NOT STARTED`: relee el reconstruction manifest con
+sidecar, reutiliza el validador canónico contra el backup y artifact protegido
+transportados, y comprueba que el bundle exacto de generación coincide con
+generación, operation ID, SHA del manifest y binding de configuración App. No
+extrae datos ni material protegido, no consulta `current` y no selecciona una
+generación independiente.
+
+H no vuelve a interpretar el estado posterior de cache de imágenes como
+clean-host: E prueba el host prístino antes de F/G; H sólo admite los inputs
+transportados antes de la primera creación de estado target. La admisión de
+backup/protected/bundle está implementada, pero la admisión real no se ejecutó;
+red, volúmenes y bind roots target no se crearon; activación target de generación
+no se ejecutó; restore clean-host no está implementado y la prueba real de
+portabilidad no se ejecutó. SH-05.2 permanece `ACTIVE` y SH permanece `OPEN`.
 
 ## Autoridades y hechos verificados
 
