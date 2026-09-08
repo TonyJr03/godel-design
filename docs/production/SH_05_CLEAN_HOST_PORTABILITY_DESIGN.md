@@ -14,7 +14,8 @@
 **SH-05.2G:** CLOSED / APPROVED / PASS_VERIFIED_GODEL_IMAGE_BUILD
 **SH-05.2H:** CLOSED / APPROVED / PASS_TRANSPORTED_RECONSTRUCTION_INPUT_ADMISSION
 **SH-05.2I:** CLOSED / APPROVED / PASS_CLEAN_HOST_TARGET_BOOTSTRAP_FOUNDATION
-**SH-05.2J:** IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+**SH-05.2J:** CLOSED / APPROVED / PASS_EXACT_TARGET_GENERATION_ACTIVATION
+**SH-05.2K:** IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
 **Baseline de diseño:** cdbe742ba6c85d741ef37da6ad4bc18ffa3bea38
 
 ## Propósito y límites
@@ -142,6 +143,18 @@ db-config, red y ausencia de contenedores target.
 La activación real de generación no se ejecutó. Restore de PGDATA/Storage,
 restore de pgsodium, arranque de runtime y proof de portabilidad no se
 ejecutaron. SH-05.2 permanece `ACTIVE` y SH permanece `OPEN`.
+
+## SH-05.2K — materialización offline de datos de recovery
+
+SH-05.2K implementa tooling de restauración física offline para el target separado
+`clean-host-disposable-rehearsal`. Reutiliza las primitivas de recovery de
+`current-selfhosted-qa` sin cambiar su comportamiento: en el target limpio no
+limpia PGDATA/Storage ni reconstruye `db-config`; sólo restaura archivos físicos,
+la clave pgsodium y los xattrs ya admitidos, con locks persistentes ante fallo.
+
+`OFFLINE CLEAN-HOST DATA RESTORE TOOLING = IMPLEMENTED`. No se ejecutó restore
+real de datos, replay SQL lógico, creación/inicio de runtime ni rehearsal real de
+portabilidad. La creación/inicio de runtime no forma parte de K.
 
 ## Autoridades y hechos verificados
 

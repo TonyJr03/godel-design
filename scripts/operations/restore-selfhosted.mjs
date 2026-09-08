@@ -3,6 +3,7 @@ import { mkdir, readFile, rm, stat, statfs, writeFile } from "node:fs/promises";
 import { basename, relative, resolve, sep } from "node:path";
 import { acquireGenerationMutationLock, assertActiveSecretGenerationMatches, assertNoGenerationMutationLock, releaseGenerationMutationLock, validateManifestExternalSecretGeneration } from "./secret-generation.mjs";
 import { createGodelRuntimeComposeInvocation } from "./godel-runtime-compose.mjs";
+import { createRecoveryDataPrimitives, readStorageXattrSidecar } from "./recovery-data-primitives.mjs";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 const SUPABASE_DIR = resolve(ROOT, "infra/supabase");
@@ -16,13 +17,7 @@ const BACKUP_SCHEMA_VERSION = 3;
 const PROTECTED_RECOVERY_ARTIFACT = "pgsodium-root-key.tar";
 const REQUIRED_ARTIFACTS = ["postgres/logical/cluster.sql", "postgres/physical/pgdata.tar", "storage/storage.tar", "storage/xattrs.json"];
 const STORAGE_XATTR_IMAGE = "supabase/storage-api:v1.60.4";
-const STORAGE_XATTR_SIDECAR_SCHEMA_VERSION = 1;
-const STORAGE_XATTR_SIDECAR_FORMAT = "supabase-file-xattrs";
 const RESTORE_FAILURE_MARKER_SCHEMA_VERSION = 1;
-const STORAGE_XATTR_NAMES = ["user.supabase.cache-control", "user.supabase.content-type", "user.supabase.etag"];
-const MAX_STORAGE_XATTR_ENTRIES = 100000;
-const MAX_STORAGE_XATTR_PATH_LENGTH = 4096;
-const MAX_STORAGE_XATTR_VALUE_BYTES = 64 * 1024;
 const MIN_RESTORE_MARGIN = 512 * 1024 * 1024;
 
 function log(message) { console.log("[ops:restore:selfhosted] " + message); }
@@ -34,48 +29,6 @@ function validateProtectedRecoveryMaterial(manifest) {
   const protectedMaterial = manifest.protectedRecoveryMaterial, artifact = protectedMaterial?.artifact;
   if (manifest.format !== BACKUP_FORMAT) die("source backup format is incompatible");
   if (!plainObject(protectedMaterial) || protectedMaterial.required !== true || protectedMaterial.captured !== true || !plainObject(artifact) || artifact.relativePath !== PROTECTED_RECOVERY_ARTIFACT || artifact.type !== "tar" || !Number.isSafeInteger(artifact.size) || artifact.size < 1 || !canonicalSha256(artifact.sha256)) die("source backup protected recovery material is invalid");
-}
-function safeStorageXattrPath(value) {
-  if (typeof value !== "string" || !value || value.length > MAX_STORAGE_XATTR_PATH_LENGTH || value.startsWith("/") || value.includes("\\") || /[\0-\x1f]/.test(value)) die("invalid storage xattr sidecar path");
-  if (value.split("/").some((segment) => !segment || segment === "." || segment === "..")) die("invalid storage xattr sidecar path");
-}
-function canonicalBase64(value) {
-  if (typeof value !== "string" || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)) die("invalid storage xattr sidecar value");
-  const decoded = Buffer.from(value, "base64");
-  if (decoded.length > MAX_STORAGE_XATTR_VALUE_BYTES || decoded.toString("base64") !== value) die("invalid storage xattr sidecar value");
-}
-function compactJsonSource(source) {
-  let compact = "", quoted = false, escaped = false;
-  for (const character of source) {
-    if (quoted) {
-      compact += character;
-      if (escaped) escaped = false; else if (character === "\\") escaped = true; else if (character === "\"") quoted = false;
-    } else if (character === "\"") {
-      quoted = true; compact += character;
-    } else if (!/\s/.test(character)) compact += character;
-  }
-  return compact;
-}
-function validateStorageXattrSidecar(value) {
-  if (!plainObject(value) || Object.keys(value).join("\0") !== ["schemaVersion", "format", "entries"].join("\0") || value.schemaVersion !== STORAGE_XATTR_SIDECAR_SCHEMA_VERSION || value.format !== STORAGE_XATTR_SIDECAR_FORMAT || !Array.isArray(value.entries) || value.entries.length > MAX_STORAGE_XATTR_ENTRIES) die("invalid storage xattr sidecar");
-  let previousPath = "";
-  for (const entry of value.entries) {
-    if (!plainObject(entry) || Object.keys(entry).join("\0") !== ["path", "attributes"].join("\0") || !plainObject(entry.attributes)) die("invalid storage xattr sidecar entry");
-    safeStorageXattrPath(entry.path);
-    if (previousPath && previousPath >= entry.path) die("storage xattr sidecar paths are not deterministic");
-    previousPath = entry.path;
-    const names = Object.keys(entry.attributes);
-    if (!names.length || names.join("\0") !== [...names].sort().join("\0") || names.some((name) => !STORAGE_XATTR_NAMES.includes(name))) die("invalid storage xattr sidecar attributes");
-    for (const name of names) canonicalBase64(entry.attributes[name]);
-  }
-}
-async function readStorageXattrSidecar(directory, file = "xattrs.json") {
-  const raw = await readFile(resolve(directory, file), "utf8");
-  let sidecar;
-  try { sidecar = JSON.parse(raw); } catch { die("invalid storage xattr sidecar JSON"); }
-  if (compactJsonSource(raw) !== JSON.stringify(sidecar)) die("storage xattr sidecar is not canonical JSON");
-  validateStorageXattrSidecar(sidecar);
-  return sidecar;
 }
 
 class CommandExecutionError extends Error {
@@ -112,6 +65,8 @@ function run(bin, args, cwd = ROOT, allowFailure = false, operation = "subproces
     });
   });
 }
+
+const recoveryData = createRecoveryDataPrimitives({ runDocker: (args, operation) => run("docker", args, ROOT, false, operation) });
 
 const supabase = (args, allowFailure = false, operation = "Supabase Compose operation") => run("docker", ["compose", "-f", "docker-compose.yml"].concat(args), SUPABASE_DIR, allowFailure, operation);
 const godel = (args, allowFailure = false, operation = "Godel Compose operation") => {
@@ -216,41 +171,15 @@ async function assertCleanPostgresStopped(container) {
 }
 
 async function runRestoreFilesystem({ image, source, target, command, operation = "restore filesystem operation" }) {
-  const args = ["run", "--rm", "--pull=never", "--network", "none", "--read-only", "--user", "0:0", "--security-opt", "no-new-privileges", "--cap-drop=ALL", "--cap-add=DAC_OVERRIDE", "--cap-add=CHOWN", "--cap-add=FOWNER"];
-  if (source) args.push("-v", source + ":/source:ro");
-  if (target) args.push("-v", target + ":/target");
-  args.push(image, "sh", "-ec", command);
-  return run("docker", args, ROOT, false, operation);
+  return recoveryData.runFilesystem({ image, source, target, command, operation });
 }
 
-const STORAGE_XATTR_REPLAY_SCRIPT = `
-const fs = require("fs");
-const path = require("path");
-const xattr = require("fs-xattr");
-const mode = process.argv[1];
-const fileName = process.argv[2];
-const allow = ${JSON.stringify(STORAGE_XATTR_NAMES)};
-const maxEntries = ${MAX_STORAGE_XATTR_ENTRIES};
-const maxPathLength = ${MAX_STORAGE_XATTR_PATH_LENGTH};
-const maxValueBytes = ${MAX_STORAGE_XATTR_VALUE_BYTES};
-function plainObject(value) { return value !== null && typeof value === "object" && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype; }
-function compactJsonSource(source) { let compact = "", quoted = false, escaped = false; for (const character of source) { if (quoted) { compact += character; if (escaped) escaped = false; else if (character === "\\\\") escaped = true; else if (character === "\\\"") quoted = false; } else if (character === "\\\"") { quoted = true; compact += character; } else if (!/\\s/.test(character)) compact += character; } return compact; }
-function safePath(value) { if (typeof value !== "string" || !value || value.length > maxPathLength || value.startsWith("/") || value.includes("\\\\") || /[\\0-\\x1f]/.test(value) || value.split("/").some((part) => !part || part === "." || part === "..")) throw new Error("invalid storage xattr sidecar path"); }
-function base64(value) { if (typeof value !== "string" || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)) throw new Error("invalid storage xattr sidecar value"); const decoded = Buffer.from(value,"base64"); if (decoded.length > maxValueBytes || decoded.toString("base64") !== value) throw new Error("invalid storage xattr sidecar value"); return decoded; }
-function validate(value) { if (!plainObject(value) || Object.keys(value).join("\\0") !== ["schemaVersion","format","entries"].join("\\0") || value.schemaVersion !== ${STORAGE_XATTR_SIDECAR_SCHEMA_VERSION} || value.format !== ${JSON.stringify(STORAGE_XATTR_SIDECAR_FORMAT)} || !Array.isArray(value.entries) || value.entries.length > maxEntries) throw new Error("invalid storage xattr sidecar"); let previous = ""; for (const entry of value.entries) { if (!plainObject(entry) || Object.keys(entry).join("\\0") !== ["path","attributes"].join("\\0") || !plainObject(entry.attributes)) throw new Error("invalid storage xattr sidecar entry"); safePath(entry.path); if (previous && previous >= entry.path) throw new Error("storage xattr sidecar paths are not deterministic"); previous = entry.path; const names = Object.keys(entry.attributes); if (!names.length || names.join("\\0") !== [...names].sort().join("\\0") || names.some((name) => !allow.includes(name))) throw new Error("invalid storage xattr sidecar attributes"); for (const name of names) base64(entry.attributes[name]); } }
-function targetFor(relative) { const target = path.resolve("/target",...relative.split("/")); if (!target.startsWith("/target/")) throw new Error("unsafe storage xattr target"); const state = fs.lstatSync(target); if (!state.isFile() || state.isSymbolicLink() || state.nlink !== 1) throw new Error("unexpected storage filesystem entry"); return target; }
-if (!["replay","verify"].includes(mode) || !/^[A-Za-z0-9._-]+$/.test(fileName) || fileName === "." || fileName === ".." || typeof xattr.listSync !== "function" || typeof xattr.getSync !== "function" || typeof xattr.setSync !== "function") throw new Error("storage xattr helper contract unavailable");
-const raw = fs.readFileSync("/source/" + fileName,"utf8");
-let sidecar; try { sidecar = JSON.parse(raw); } catch { throw new Error("invalid storage xattr sidecar JSON"); }
-if (compactJsonSource(raw) !== JSON.stringify(sidecar)) throw new Error("storage xattr sidecar is not canonical JSON");
-validate(sidecar);
-for (const entry of sidecar.entries) { const target = targetFor(entry.path), names = Object.keys(entry.attributes); if (mode === "replay") for (const name of names) xattr.setSync(target,name,base64(entry.attributes[name])); const actual = new Set(xattr.listSync(target).filter((name) => allow.includes(name))); if (actual.size !== names.length || names.some((name) => !actual.has(name))) throw new Error("storage xattr replay verification failed"); for (const name of names) if (!Buffer.from(xattr.getSync(target,name)).equals(base64(entry.attributes[name]))) throw new Error("storage xattr replay verification failed"); }
-`;
 
 async function runStorageXattrHelper({ image, source, target, fileName, mode, operation }) {
-  if (image !== STORAGE_XATTR_IMAGE || !["replay", "verify"].includes(mode) || !/^[A-Za-z0-9._-]+$/.test(fileName) || fileName === "." || fileName === "..") die("storage xattr helper contract is incompatible");
-  const args = ["run", "--rm", "--pull=never", "--network", "none", "--read-only", "--user", "0:0", "--security-opt", "no-new-privileges", "--cap-drop=ALL", "--cap-add=DAC_OVERRIDE", "-v", source + ":/source:ro", "-v", target + ":/target", "--entrypoint", "node", image, "-e", STORAGE_XATTR_REPLAY_SCRIPT, mode, fileName];
-  await run("docker", args, ROOT, false, operation);
+  const input = { image, source, target, fileName, operation };
+  if (mode === "replay") return recoveryData.replayStorageXattrs(input);
+  if (mode === "verify") return recoveryData.verifyStorageXattrs(input);
+  die("storage xattr helper contract is incompatible");
 }
 
 async function assertPostmasterPidAbsent(source, image) {
