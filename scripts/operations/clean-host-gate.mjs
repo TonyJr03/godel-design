@@ -12,6 +12,7 @@ const GODEL_IMAGES = Object.freeze(["godel-design-app", "godel-design-nginx"]);
 
 function fail(code) { throw new Error(`CLEAN_HOST_${code}`); }
 function architecture(value) { return value === "x64" || value === "x86_64" || value === "amd64" ? "amd64" : null; }
+export function isSupportedComposeVersion(value) { return typeof value === "string" && /^v?(?:2|5)\.\d+\.\d+(?:[-+][0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$/.test(value); }
 function labels(value) {
   if (!value) return {};
   if (typeof value === "object" && !Array.isArray(value)) return value;
@@ -63,8 +64,8 @@ export async function collectHostIdentity({ host, git, manifest }) {
 export async function collectDockerInventory({ docker, targetContract }) {
   let identity; try { identity = await docker.identity(); } catch { fail("DOCKER_UNAVAILABLE"); }
   if (identity?.os !== "linux" || architecture(identity?.architecture) !== "amd64") fail("DOCKER_WRONG_PLATFORM");
-  let composeVersion; try { composeVersion = await docker.composeVersion(); } catch { fail("COMPOSE_V2_REQUIRED"); }
-  if (!/^v?2\./.test(composeVersion ?? "")) fail("COMPOSE_V2_REQUIRED");
+  let composeVersion; try { composeVersion = await docker.composeVersion(); } catch { fail("COMPOSE_SUPPORTED_VERSION_REQUIRED"); }
+  if (!isSupportedComposeVersion(composeVersion)) fail("COMPOSE_SUPPORTED_VERSION_REQUIRED");
   try { if (!await docker.buildxVersion()) fail("BUILDX_REQUIRED"); } catch { fail("BUILDX_REQUIRED"); }
   let inventory; try { inventory = await docker.inventory(); } catch { fail("DOCKER_INVENTORY_UNAVAILABLE"); }
   const projects = [targetContract.supabaseComposeProject, targetContract.godelComposeProject];

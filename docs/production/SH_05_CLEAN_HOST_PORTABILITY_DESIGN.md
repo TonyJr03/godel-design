@@ -44,7 +44,7 @@ VPS. SH-05 no despliega producción.
 
 SH-05.2E implementa un preflight fail-closed y estrictamente read-only para el
 modelo `A_SEPARATE_DISPOSABLE`: exige checkout Git exacto y limpio, host y daemon
-Linux/amd64, Compose v2, Buildx disponible y ausencia de estado objetivo Godel /
+Linux/amd64, Docker Compose con major soportado 2 o 5, Buildx disponible y ausencia de estado objetivo Godel /
 Supabase. Reutiliza el lector canónico del reconstruction manifest con su sidecar;
 no valida aún backup ni material protegido.
 
@@ -453,7 +453,7 @@ privados ni container IDs.
 
 | Paso | Clasificación | Resultado permitido |
 | --- | --- | --- |
-| Validar Linux amd64, Docker Engine, Compose v2, disco, xattrs user.* y conectividad | PRE_MUTATION_SAFE | Host intacto o BLOCK |
+| Validar Linux amd64, Docker Engine, Docker Compose con major soportado 2 o 5, disco, xattrs user.* y conectividad | PRE_MUTATION_SAFE | Host intacto o BLOCK |
 | Clean-host gate e inventario de cache genérica | PRE_MUTATION_SAFE | Evidencia pre-state o BLOCK |
 | Verificar Git, manifest, backup, protected material e imágenes | PRE_MUTATION_SAFE | Inputs admitidos o BLOCK |
 | Crear directorio operator-owned, runtime env paths y protected root 0700/0600 | TARGET_STATE_CREATION | Layout vacío, auditado |

@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
-import { createDefaultAdapters, evaluateCleanHostGate, parseCleanHostGateArgs, renderCleanHostGateResult } from "./clean-host-gate.mjs";
+import { createDefaultAdapters, evaluateCleanHostGate, isSupportedComposeVersion, parseCleanHostGateArgs, renderCleanHostGateResult } from "./clean-host-gate.mjs";
 
 const COMMIT = "b58056939619a501b7d1fec208b9d32e4b43dffc";
 const SHA = "a".repeat(64), ID = "123e4567-e89b-42d3-a456-426614174000";
@@ -18,12 +18,21 @@ test("compatible synthetic clean host passes with a sanitized result", async () 
   assert.doesNotMatch(renderCleanHostGateResult(result), /private-unrelated-workload|\/private\//);
 });
 
+test("supported Compose v2 and v5 versions pass the complete synthetic gate", async () => {
+  for (const composeVersion of ["v2.30.0", "2.30.0", "v5.1.3", "5.1.3", "v5.1.3-desktop.1"]) assert.equal((await run({ composeVersion })).state, "PASS", composeVersion);
+});
+
+test("Compose version admission accepts only reviewed complete majors", () => {
+  for (const version of ["2.30.0", "v2.30.0", "5.1.3", "v5.1.3", "v5.1.3-desktop.1"]) assert.equal(isSupportedComposeVersion(version), true, version);
+  for (const version of ["1.29.2", "v1.29.2", "3.0.0", "v3.0.0", "4.0.0", "v4.0.0", "6.0.0", "v6.0.0", "latest", "5", "v5", "5.1", "", "v5.1.3-", "v5.1.3..desktop"]) assert.equal(isSupportedComposeVersion(version), false, version);
+});
+
 test("host, git and Docker identity failures fail closed", async () => {
   await rejects({ host: { platform: "win32", architecture: "x64" } }, "WRONG_PLATFORM"); await rejects({ host: { platform: "linux", architecture: "arm64" } }, "WRONG_PLATFORM");
   await rejects({ clean: false }, "REPOSITORY_DIRTY"); await rejects({ head: "f".repeat(40) }, "GIT_MISMATCH");
   await rejects({ identity: new Error("unavailable") }, "DOCKER_UNAVAILABLE");
   await rejects({ identity: { os: "windows", architecture: "amd64" } }, "DOCKER_WRONG_PLATFORM"); await rejects({ identity: { os: "linux", architecture: "arm64" } }, "DOCKER_WRONG_PLATFORM");
-  await rejects({ composeVersion: new Error("missing") }, "COMPOSE_V2_REQUIRED"); await rejects({ composeVersion: "1.29.2" }, "COMPOSE_V2_REQUIRED"); await rejects({ buildx: "" }, "BUILDX_REQUIRED");
+  await rejects({ composeVersion: new Error("missing") }, "COMPOSE_SUPPORTED_VERSION_REQUIRED"); await rejects({ composeVersion: "1.29.2" }, "COMPOSE_SUPPORTED_VERSION_REQUIRED"); await rejects({ composeVersion: "6.0.0" }, "COMPOSE_SUPPORTED_VERSION_REQUIRED"); await rejects({ buildx: "" }, "BUILDX_REQUIRED");
 });
 
 test("Docker target state blocks while unrelated workload and generic cache remain allowed", async () => {
