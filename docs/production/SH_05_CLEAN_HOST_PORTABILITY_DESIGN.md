@@ -13,7 +13,8 @@
 **SH-05.2F:** CLOSED / APPROVED / PASS_IMMUTABLE_PULL_ONLY_IMAGE_ACQUISITION
 **SH-05.2G:** CLOSED / APPROVED / PASS_VERIFIED_GODEL_IMAGE_BUILD
 **SH-05.2H:** CLOSED / APPROVED / PASS_TRANSPORTED_RECONSTRUCTION_INPUT_ADMISSION
-**SH-05.2I:** IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+**SH-05.2I:** CLOSED / APPROVED / PASS_CLEAN_HOST_TARGET_BOOTSTRAP_FOUNDATION
+**SH-05.2J:** IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
 **Baseline de diseño:** cdbe742ba6c85d741ef37da6ad4bc18ffa3bea38
 
 ## Propósito y límites
@@ -125,8 +126,22 @@ su operation ID debe coincidir antes de crear estado target.
 
 El bootstrap real no se ejecutó. SH-05.2I no activa secretos, no materializa
 envs, no extrae/restaura datos, no inicia runtime ni realiza proof de
-portabilidad. SH-05.2J conserva staging/import/activación exacta de generación.
-SH-05.2 permanece `ACTIVE` y SH permanece `OPEN`.
+portabilidad.
+
+## SH-05.2J — activación exacta de generación target
+
+SH-05.2J implementa en tooling `EXACT_TARGET_GENERATION_ACTIVATION`: relee el
+manifest canónico una sola vez, vuelve a exigir H sobre ese mismo objeto y sólo
+admite `externalSecretGenerationId`. Verifica la fundación vacía de I, relee el
+bundle transportado, lo copia create-only a staging protegido y delega el
+publish, envs, referenced/current/active match al importador canónico SH-05.2D.
+Tras `ACTIVE_MATCH`, elimina únicamente su staging; si esa higiene falla,
+bloquea sin rollback. También preserva y verifica PGDATA/Storage vacíos,
+db-config, red y ausencia de contenedores target.
+
+La activación real de generación no se ejecutó. Restore de PGDATA/Storage,
+restore de pgsodium, arranque de runtime y proof de portabilidad no se
+ejecutaron. SH-05.2 permanece `ACTIVE` y SH permanece `OPEN`.
 
 ## Autoridades y hechos verificados
 

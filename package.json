@@ -37,6 +37,8 @@
     "ops:portability:inputs:test": "node --test scripts/operations/clean-host-input-admission.test.mjs",
     "ops:portability:target:bootstrap": "node scripts/operations/clean-host-bootstrap.mjs",
     "ops:portability:target:bootstrap:test": "node --test scripts/operations/clean-host-bootstrap.test.mjs",
+    "ops:portability:target:generation:activate": "node scripts/operations/clean-host-generation-activation.mjs",
+    "ops:portability:target:generation:test": "node --test scripts/operations/clean-host-generation-activation.test.mjs",
     "ops:portability:clean-host:check": "node scripts/operations/clean-host-gate.mjs",
     "ops:portability:clean-host:test": "node --test scripts/operations/clean-host-gate.test.mjs",
     "ops:portability:manifest:create": "node scripts/operations/portability-manifest.mjs create",
