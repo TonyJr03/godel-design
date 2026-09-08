@@ -12,7 +12,7 @@ arquitectura operativa y puesta en operación de Godel Diseño.
 
 ## Documentos vigentes
 
-- [SH-05.1 — Contrato de portabilidad clean-host y diseño de tooling](SH_05_CLEAN_HOST_PORTABILITY_DESIGN.md): cerrado y aprobado; define el contrato fail-closed para SH-05.2/SH-05.3 sin ejecutar portabilidad, mutar runtime ni desplegar. SH-05.2 sigue activo; SH-05.2A–G están cerrados/aprobados, incluido `PASS_VERIFIED_GODEL_IMAGE_BUILD`, y SH-05.2H implementa la admisión pre-mutación de backup/protected/bundle transportados, pendiente de revisión arquitectónica. No se ejecutaron adquisición, build ni admisión real; bootstrap, activación target de secretos, restore clean-host y proof siguen sin ejecutar o implementar.
+- [SH-05.1 — Contrato de portabilidad clean-host y diseño de tooling](SH_05_CLEAN_HOST_PORTABILITY_DESIGN.md): cerrado y aprobado; define el contrato fail-closed para SH-05.2/SH-05.3 sin ejecutar portabilidad, mutar runtime ni desplegar. SH-05.2 sigue activo; SH-05.2A–H están cerrados/aprobados, incluido `PASS_TRANSPORTED_RECONSTRUCTION_INPUT_ADMISSION`, y SH-05.2I implementa la fundación target-state vacía, pendiente de revisión arquitectónica. No se ejecutaron adquisición, build, admisión ni bootstrap real; activación target de secretos, restore clean-host, runtime y proof siguen sin ejecutar o implementar.
 
 - [SH-05.0 — Descubrimiento de portabilidad y realineación de destino](SH_05_PORTABILITY_DISCOVERY.md): cerrada y aprobada; documenta las fuentes de reconstrucción, las brechas clean-host y el realineamiento provider-neutral de SH/PPO. No ejecuta portabilidad ni despliegue.
 

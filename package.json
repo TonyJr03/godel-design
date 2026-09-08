@@ -35,6 +35,8 @@
     "ops:portability:godel-images:test": "node --test scripts/operations/godel-image-build.test.mjs",
     "ops:portability:inputs:check": "node scripts/operations/clean-host-input-admission.mjs",
     "ops:portability:inputs:test": "node --test scripts/operations/clean-host-input-admission.test.mjs",
+    "ops:portability:target:bootstrap": "node scripts/operations/clean-host-bootstrap.mjs",
+    "ops:portability:target:bootstrap:test": "node --test scripts/operations/clean-host-bootstrap.test.mjs",
     "ops:portability:clean-host:check": "node scripts/operations/clean-host-gate.mjs",
     "ops:portability:clean-host:test": "node --test scripts/operations/clean-host-gate.test.mjs",
     "ops:portability:manifest:create": "node scripts/operations/portability-manifest.mjs create",

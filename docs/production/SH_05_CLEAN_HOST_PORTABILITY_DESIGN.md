@@ -12,7 +12,8 @@
 **SH-05.2E:** CLOSED / APPROVED / PASS_CLEAN_HOST_IDENTITY_EMPTY_STATE_GATE
 **SH-05.2F:** CLOSED / APPROVED / PASS_IMMUTABLE_PULL_ONLY_IMAGE_ACQUISITION
 **SH-05.2G:** CLOSED / APPROVED / PASS_VERIFIED_GODEL_IMAGE_BUILD
-**SH-05.2H:** IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+**SH-05.2H:** CLOSED / APPROVED / PASS_TRANSPORTED_RECONSTRUCTION_INPUT_ADMISSION
+**SH-05.2I:** IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
 **Baseline de diseño:** cdbe742ba6c85d741ef37da6ad4bc18ffa3bea38
 
 ## Propósito y límites
@@ -100,10 +101,32 @@ generación independiente.
 H no vuelve a interpretar el estado posterior de cache de imágenes como
 clean-host: E prueba el host prístino antes de F/G; H sólo admite los inputs
 transportados antes de la primera creación de estado target. La admisión de
-backup/protected/bundle está implementada, pero la admisión real no se ejecutó;
-red, volúmenes y bind roots target no se crearon; activación target de generación
-no se ejecutó; restore clean-host no está implementado y la prueba real de
-portabilidad no se ejecutó. SH-05.2 permanece `ACTIVE` y SH permanece `OPEN`.
+backup/protected/bundle está cerrada y aprobada; su ejecución real no se realizó.
+
+## SH-05.2I — fundación de bootstrap de estado target clean-host
+
+SH-05.2I implementa `TARGET_STATE_CREATION` mediante tooling con dry-run
+explícito y `--apply`: vuelve a exigir H antes de cualquier mutación, usa un gate
+post-image/pre-target que permite cache de imágenes pero bloquea estado runtime,
+y comprueba helpers inmutables y capacidad de disco antes de crear la fundación
+vacía. La fundación crea únicamente protected root vacío, red operadora, roots
+vacíos PGDATA/Storage con ownership preparado y prueba xattr, y `db-config`
+fresco con sus cinco entradas version-coupled; `deno-cache` queda
+`DEFERRED_EPHEMERAL_RUNTIME_CACHE`.
+
+Como correctivo de contrato, `Config.User: ""` de la imagen Storage se admite
+como el default Docker root y se normaliza internamente a `0:0`; valores
+ausentes o no-string siguen bloqueando antes de toda mutación. El root Storage
+queda con ownership derivado de esa identidad y modo `0755` para el acceso
+compartido de imgproxy, mientras PGDATA conserva `0700`. El gate mantiene las
+labels Compose y también bloquea los nombres target conocidos. La lectura del
+manifiesto es única: H recibe el mismo objeto canónico que usa el bootstrap y
+su operation ID debe coincidir antes de crear estado target.
+
+El bootstrap real no se ejecutó. SH-05.2I no activa secretos, no materializa
+envs, no extrae/restaura datos, no inicia runtime ni realiza proof de
+portabilidad. SH-05.2J conserva staging/import/activación exacta de generación.
+SH-05.2 permanece `ACTIVE` y SH permanece `OPEN`.
 
 ## Autoridades y hechos verificados
 

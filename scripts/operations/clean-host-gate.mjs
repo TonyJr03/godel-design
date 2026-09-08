@@ -19,7 +19,7 @@ function labels(value) {
   return Object.fromEntries(value.split(",").map((part) => part.split("=", 2)).filter(([key, item]) => key && item));
 }
 function isTargetProject(value, projects) { return projects.includes(labels(value)["com.docker.compose.project"]); }
-function knownTargetContainer(name) { return SUPABASE_CONTAINER_NAMES.has(name) || /^godel-runtime[-_](?:app|nginx)(?:[-_]\d+)?$/.test(name ?? ""); }
+export function knownTargetContainer(name) { return SUPABASE_CONTAINER_NAMES.has(name) || /^godel-runtime[-_](?:app|nginx)(?:[-_]\d+)?$/.test(name ?? ""); }
 function godelImage(repository) { return GODEL_IMAGES.includes(repository); }
 function parseJsonLines(value) { return value.split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line)); }
 function parseDockerRows(value) { return parseJsonLines(value).map((row) => ({ name: row.Names ?? row.Name ?? "", repository: row.Repository ?? "", labels: labels(row.Labels) })); }
