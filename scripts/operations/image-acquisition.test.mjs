@@ -39,14 +39,14 @@ async function fixture() {
   return {
     root,
     lock: {
-      schemaVersion: 1,
+      schemaVersion: 2,
       format: "godel-sh-portability-image-lock",
       platform: PLATFORM,
       supabaseUpstreamCommit: UPSTREAM,
       images: requirements.map((entry) => {
         const sourceIdentity = entry.canonicalRepository + "\u0000" + entry.sourceRef + "\u0000" + PLATFORM.os + "\u0000" + PLATFORM.architecture;
-        if (!sourceDigests.has(sourceIdentity)) sourceDigests.set(sourceIdentity, digest(sourceDigests.size + 1));
-        return { ...entry, manifestDigest: sourceDigests.get(sourceIdentity), platform: PLATFORM };
+        if (!sourceDigests.has(sourceIdentity)) sourceDigests.set(sourceIdentity, { manifestDigest: digest(sourceDigests.size + 1), configDigest: digest(sourceDigests.size + 33) });
+        return { ...entry, ...sourceDigests.get(sourceIdentity), platform: PLATFORM };
       }),
     },
   };
@@ -72,7 +72,9 @@ test("schema, digest, platform and duplicate logical names fail closed", async (
       [(value) => { value.images[0].manifestDigest = "sha256:ABC"; }, /IMAGE_LOCK_MANIFEST_DIGEST/],
       [(value) => { value.images[0].platform.architecture = "arm64"; }, /IMAGE_LOCK_PLATFORM/],
       [(value) => { value.images[1].logicalName = value.images[0].logicalName; }, /IMAGE_LOCK_DUPLICATE_LOGICAL_NAME/],
-      [(value) => { value.schemaVersion = 2; }, /IMAGE_LOCK_SCHEMA/],
+      [(value) => { value.schemaVersion = 1; }, /IMAGE_LOCK_SCHEMA/],
+      [(value) => { delete value.images[0].configDigest; }, /IMAGE_LOCK_IMAGE_SCHEMA/],
+      [(value) => { value.images[0].configDigest = "sha256:ABC"; }, /IMAGE_LOCK_CONFIG_DIGEST/],
     ];
     for (const [mutate, expected] of cases) {
       const candidate = clone(lock);
@@ -125,6 +127,7 @@ test("Godel final images and tag-only authority are rejected", async () => {
         canonicalRepository: "docker.io/" + sourceRef.slice(0, sourceRef.indexOf(":")),
         sourceRef,
         manifestDigest: digest(99),
+        configDigest: digest(100),
         platform: PLATFORM,
         authority: "compose service final-image",
       });
@@ -152,7 +155,7 @@ function reconstructionManifest(lock, sha256 = "a".repeat(64)) {
   return { platform: PLATFORM, imageAuthority: { sha256, images: normalizedImmutableImageInventory(lock) } };
 }
 function immutableReference(image) { return `${image.canonicalRepository}@${image.manifestDigest}`; }
-function fakeDocker(lock, { inspect = (image) => ({ os: "linux", architecture: "amd64", repoDigests: [immutableReference(image)], imageId: `private-image-${image.manifestDigest}` }) } = {}) {
+function fakeDocker(lock, { inspect = (image) => ({ os: "linux", architecture: "amd64", repoDigests: [immutableReference(image)], imageId: image.configDigest }) } = {}) {
   const actions = [], aliases = new Map(), images = new Map(lock.images.map((image) => [immutableReference(image), image]));
   return {
     actions, aliases,
@@ -200,7 +203,7 @@ test("acquisition pulls each immutable physical image once and creates verified 
     const { result, actions } = await acquire(lock);
     const physical = new Set(lock.images.map(immutableReference));
     const aliases = new Set(lock.images.map((image) => `${image.sourceRef}\0${image.manifestDigest}`));
-    assert.deepEqual(result, { state: "PASS", logicalAuthorities: lock.images.length, uniqueImages: physical.size, verifiedImages: physical.size, executionAliases: aliases.size, platform: "linux/amd64", registryConnectivity: "PASS" });
+    assert.deepEqual(result, { state: "PASS", mode: "VERIFIED_REGISTRY_PULL", logicalAuthorities: lock.images.length, uniqueImages: physical.size, verifiedImages: physical.size, executionAliases: aliases.size, platform: "linux/amd64", registryConnectivity: "PASS", localImageAuthority: "CONFIG_DIGEST_VERIFIED" });
     assert.deepEqual(new Set(actions.filter(([kind]) => kind === "pull").map(([, reference]) => reference)), physical);
     assert.equal(actions.filter(([kind]) => kind === "pull").some(([, reference]) => lock.images.some((image) => reference === image.sourceRef)), false);
     assert.equal(actions.filter(([kind]) => kind === "tag").length, aliases.size);
@@ -211,15 +214,16 @@ test("acquisition pulls each immutable physical image once and creates verified 
 test("inspection failures, pull failure and alias mismatch fail closed without deletion", async () => {
   await withFixture(async ({ lock }) => {
     for (const inspect of [
-      (image) => ({ os: "windows", architecture: "amd64", repoDigests: [immutableReference(image)], imageId: "id" }),
-      (image) => ({ os: "linux", architecture: "arm64", repoDigests: [immutableReference(image)], imageId: "id" }),
-      () => ({ os: "linux", architecture: "amd64", repoDigests: [], imageId: "id" }),
-    ]) await assert.rejects(() => acquire(lock, { fake: fakeDocker(lock, { inspect }) }), /IMAGE_ACQUISITION_(LOCAL_IMAGE_PLATFORM|LOCAL_REPODIGEST)/);
+      (image) => ({ os: "windows", architecture: "amd64", repoDigests: [immutableReference(image)], imageId: image.configDigest }),
+      (image) => ({ os: "linux", architecture: "arm64", repoDigests: [immutableReference(image)], imageId: image.configDigest }),
+      (image) => ({ os: "linux", architecture: "amd64", repoDigests: [], imageId: image.configDigest }),
+      (image) => ({ os: "linux", architecture: "amd64", repoDigests: [immutableReference(image)], imageId: digest(99) }),
+    ]) await assert.rejects(() => acquire(lock, { fake: fakeDocker(lock, { inspect }) }), /IMAGE_ACQUISITION_(LOCAL_IMAGE_PLATFORM|LOCAL_REPODIGEST|LOCAL_IMAGE_CONFIG_DIGEST)/);
     const failing = fakeDocker(lock); failing.docker.pullExactImage = async (reference) => { failing.actions.push(["pull", reference]); if (failing.actions.filter(([kind]) => kind === "pull").length > 1) throw new Error("registry unavailable"); };
     await assert.rejects(() => acquire(lock, { fake: failing }), /IMAGE_ACQUISITION_PULL_FAILED/);
     assert.equal(failing.actions.filter(([kind]) => kind === "pull").length, 2);
     const aliasMismatch = fakeDocker(lock); aliasMismatch.docker.inspectAlias = async (alias) => { aliasMismatch.actions.push(["inspect-alias", alias]); const image = lock.images.find((item) => item.sourceRef === alias); return { os: "linux", architecture: "amd64", repoDigests: [immutableReference(image)], imageId: "other-local-image" }; };
-    await assert.rejects(() => acquire(lock, { fake: aliasMismatch }), /IMAGE_ACQUISITION_SOURCE_REF_ALIAS_MISMATCH/);
+    await assert.rejects(() => acquire(lock, { fake: aliasMismatch }), /IMAGE_ACQUISITION_LOCAL_IMAGE_CONFIG_DIGEST/);
     assert.equal([...failing.actions, ...aliasMismatch.actions].some(([kind]) => kind === "image-rm" || kind === "prune"), false);
   });
 });
@@ -236,7 +240,7 @@ test("a wrong preexisting sourceRef is safely rebound after immutable verificati
 
 test("public acquisition evidence omits synthetic image IDs and private adapter details", async () => {
   await withFixture(async ({ lock }) => {
-    const { result } = await acquire(lock, { fake: fakeDocker(lock, { inspect: (image) => ({ os: "linux", architecture: "amd64", repoDigests: [immutableReference(image)], imageId: "sha256:private-local-image-id" }) }) });
+    const { result } = await acquire(lock, { fake: fakeDocker(lock, { inspect: (image) => ({ os: "linux", architecture: "amd64", repoDigests: [immutableReference(image)], imageId: image.configDigest }) }) });
     const output = renderImageAcquisitionResult(result);
     assert.doesNotMatch(output, /private-local-image-id|credentials|token|\/private/);
   });
@@ -250,7 +254,8 @@ test("default Docker adapter uses only image-cache acquisition command families"
       if (args[0] === "tag") aliases.set(args[2], args[1]);
       if (args[0] !== "image") return { stdout: "" };
       const reference = aliases.get(args[2]) ?? args[2];
-      return { stdout: JSON.stringify([{ Os: "linux", Architecture: "amd64", RepoDigests: [reference], Id: `private-id-${[...physical].indexOf(reference)}` }]) };
+      const image = lock.images.find((item) => immutableReference(item) === reference);
+      return { stdout: JSON.stringify([{ Os: "linux", Architecture: "amd64", RepoDigests: [reference], Id: image.configDigest }]) };
     };
     const docker = createDockerImageAdapter({ root, runner });
     await acquirePullOnlyImages({ manifestPath: "external", root, docker, gate: async () => ({ state: "PASS" }), readManifest: async () => ({ manifest: reconstructionManifest(lock) }), readLockIdentity: async () => ({ lock, sha256: "a".repeat(64) }), validateLock: async () => ({ state: "PASS" }) });

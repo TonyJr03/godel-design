@@ -48,6 +48,15 @@ Linux/amd64, Docker Compose con major soportado 2 o 5, Buildx disponible y ausen
 Supabase. Reutiliza el lector canónico del reconstruction manifest con su sidecar;
 no valida aún backup ni material protegido.
 
+La autoridad de imagen distingue el `manifestDigest` del manifiesto exacto
+linux/amd64 (no del índice multi-arquitectura) y el `configDigest` del contenido
+local que ese manifiesto referencia. `VERIFIED_REGISTRY_PULL` y
+`VERIFIED_OFFLINE_IMAGE_BUNDLE` son modos de adquisición equivalentes: ambos
+deben probar plataforma y `configDigest` antes de publicar un `sourceRef` de
+ejecución. El pin por digest garantiza identidad, pero no disponibilidad del
+registry; VPN, reachability de Docker Hub y cualquier proveedor no son una
+dependencia de software del contrato de portabilidad.
+
 El gate bloquea, sin reparar ni borrar, proyectos Compose objetivo, red operadora,
 volumen `db-config`, imágenes Godel locales, envs runtime, PGDATA, Storage y el
 registro activo de generaciones. La cache de imágenes pull-only de terceros es no

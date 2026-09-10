@@ -15,7 +15,7 @@ const UPSTREAM_DOCUMENT_PATH = "infra/SUPABASE_UPSTREAM.md";
 const UPSTREAM_LOCK_PATH = "infra/supabase-upstream.lock.json";
 const PLATFORM = Object.freeze({ os: "linux", architecture: "amd64" });
 const TOP_LEVEL_KEYS = ["schemaVersion", "format", "platform", "supabaseUpstreamCommit", "images"];
-const IMAGE_KEYS = ["logicalName", "role", "canonicalRepository", "sourceRef", "manifestDigest", "platform", "authority"];
+const IMAGE_KEYS = ["logicalName", "role", "canonicalRepository", "sourceRef", "manifestDigest", "configDigest", "platform", "authority"];
 const execFileAsync = promisify(execFile);
 
 function fail(code) { throw new Error("IMAGE_LOCK_" + code); }
@@ -45,6 +45,8 @@ function assertImage(image) {
   if (image.canonicalRepository !== canonicalRepository(image.sourceRef)) fail("SOURCE_REPOSITORY_MISMATCH");
   assertString(image.manifestDigest, "MANIFEST_DIGEST", 71);
   if (!/^sha256:[a-f0-9]{64}$/.test(image.manifestDigest)) fail("MANIFEST_DIGEST");
+  assertString(image.configDigest, "CONFIG_DIGEST", 71);
+  if (!/^sha256:[a-f0-9]{64}$/.test(image.configDigest)) fail("CONFIG_DIGEST");
   assertPlatform(image.platform, "PLATFORM");
   assertAuthority(image.authority);
   if (["docker.io/godel-design-app", "docker.io/godel-design-nginx"].includes(image.canonicalRepository)) fail("GODEL_FINAL_IMAGE");
@@ -52,7 +54,7 @@ function assertImage(image) {
 
 export function validateImageLock(lock) {
   assertExactKeys(lock, TOP_LEVEL_KEYS, "SCHEMA");
-  if (lock.schemaVersion !== 1 || lock.format !== "godel-sh-portability-image-lock") fail("SCHEMA");
+  if (lock.schemaVersion !== 2 || lock.format !== "godel-sh-portability-image-lock") fail("SCHEMA");
   assertPlatform(lock.platform, "PLATFORM");
   assertString(lock.supabaseUpstreamCommit, "UPSTREAM_COMMIT", 40);
   if (!/^[a-f0-9]{40}$/.test(lock.supabaseUpstreamCommit)) fail("UPSTREAM_COMMIT");
@@ -68,10 +70,10 @@ export function validateImageLock(lock) {
     if (previousName && previousName >= image.logicalName) fail("IMAGE_ORDER");
     const sourceIdentity = image.canonicalRepository + "\u0000" + image.sourceRef + "\u0000" + image.platform.os + "\u0000" + image.platform.architecture;
     const establishedDigest = sourceDigests.get(sourceIdentity);
-    if (establishedDigest && establishedDigest !== image.manifestDigest) fail("SOURCE_DIGEST_CONFLICT");
+    if (establishedDigest && (establishedDigest.manifestDigest !== image.manifestDigest || establishedDigest.configDigest !== image.configDigest)) fail("SOURCE_DIGEST_CONFLICT");
     names.add(image.logicalName);
     authorities.add(image.authority);
-    sourceDigests.set(sourceIdentity, image.manifestDigest);
+    sourceDigests.set(sourceIdentity, { manifestDigest: image.manifestDigest, configDigest: image.configDigest });
     previousName = image.logicalName;
   }
   return { imageCount: lock.images.length, platform: PLATFORM, upstreamCommit: lock.supabaseUpstreamCommit };
@@ -142,7 +144,7 @@ export async function readImageLockIdentity({ root = ROOT } = {}) {
 
 export function normalizedImmutableImageInventory(lock) {
   validateImageLock(lock);
-  return lock.images.map(({ logicalName, canonicalRepository, manifestDigest, platform }) => ({ logicalName, canonicalRepository, manifestDigest, platform }));
+  return lock.images.map(({ logicalName, canonicalRepository, manifestDigest, configDigest, platform }) => ({ logicalName, canonicalRepository, manifestDigest, configDigest, platform }));
 }
 
 export async function validateImageLockAgainstRepository({ root = ROOT, lock } = {}) {
@@ -174,10 +176,14 @@ function expectedDigestPresent(image, repoDigests) {
     return at > 0 && normalizedRepository(value.slice(0, at)) === image.canonicalRepository && value.slice(at + 1) === image.manifestDigest;
   });
 }
-function assertInspectedImage(image, inspected) {
+export function assertVerifiedLocalImage(image, inspected, failure = "LOCAL_IMAGE") {
   if (inspected?.os !== "linux" || inspected?.architecture !== "amd64") acquisitionFail("LOCAL_IMAGE_PLATFORM");
+  if (inspected?.imageId !== image.configDigest) acquisitionFail(`${failure}_CONFIG_DIGEST`);
+  return inspected.imageId;
+}
+export function assertVerifiedRegistryImage(image, inspected) {
+  assertVerifiedLocalImage(image, inspected);
   if (!expectedDigestPresent(image, inspected.repoDigests)) acquisitionFail("LOCAL_REPODIGEST");
-  if (typeof inspected.imageId !== "string" || !inspected.imageId) acquisitionFail("LOCAL_IMAGE_ID");
   return inspected.imageId;
 }
 
@@ -220,14 +226,14 @@ export async function acquirePullOnlyImages({ manifestPath, root = ROOT, docker 
   if (gateResult?.state !== "PASS") acquisitionFail("CLEAN_HOST_GATE");
   const authority = await validateAcquisitionAuthority({ root, manifest, readLockIdentity, validateLock });
   const physical = new Map();
-  for (const image of authority.lock.images) physical.set(`${image.canonicalRepository}\0${image.manifestDigest}\0${image.platform.os}\0${image.platform.architecture}`, image);
+  for (const image of authority.lock.images) physical.set(`${image.canonicalRepository}\0${image.manifestDigest}\0${image.configDigest}\0${image.platform.os}\0${image.platform.architecture}`, image);
   const acquired = new Map();
   for (const image of physical.values()) {
     const reference = immutableReference(image);
     try { await docker.pullExactImage(reference); } catch { acquisitionFail("PULL_FAILED"); }
     let inspected;
     try { inspected = await docker.inspectImage(reference); } catch { acquisitionFail("DOCKER_INSPECT"); }
-    const imageId = assertInspectedImage(image, inspected);
+    const imageId = assertVerifiedRegistryImage(image, inspected);
     acquired.set(reference, imageId);
   }
   const aliases = new Map();
@@ -237,9 +243,9 @@ export async function acquirePullOnlyImages({ manifestPath, root = ROOT, docker 
     try { await docker.tagImage(reference, image.sourceRef); } catch { acquisitionFail("TAG_FAILED"); }
     let inspected;
     try { inspected = await docker.inspectAlias(image.sourceRef); } catch { acquisitionFail("DOCKER_INSPECT"); }
-    if (assertInspectedImage(image, inspected) !== imageId) acquisitionFail("SOURCE_REF_ALIAS_MISMATCH");
+    if (assertVerifiedRegistryImage(image, inspected) !== imageId) acquisitionFail("SOURCE_REF_ALIAS_MISMATCH");
   }
-  return Object.freeze({ state: "PASS", logicalAuthorities: authority.lock.images.length, uniqueImages: physical.size, verifiedImages: acquired.size, executionAliases: aliases.size, platform: "linux/amd64", registryConnectivity: "PASS" });
+  return Object.freeze({ state: "PASS", mode: "VERIFIED_REGISTRY_PULL", logicalAuthorities: authority.lock.images.length, uniqueImages: physical.size, verifiedImages: acquired.size, executionAliases: aliases.size, platform: "linux/amd64", registryConnectivity: "PASS", localImageAuthority: "CONFIG_DIGEST_VERIFIED" });
 }
 
 export function parseImageAcquisitionArgs(args) {

@@ -4,7 +4,7 @@ import { dirname, relative, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 import { admitTransportedReconstructionInputs, parseInputAdmissionArgs } from "./clean-host-input-admission.mjs";
 import { knownTargetContainer } from "./clean-host-gate.mjs";
-import { createDockerImageAdapter, validateAcquisitionAuthority } from "./image-acquisition.mjs";
+import { assertVerifiedLocalImage, createDockerImageAdapter, validateAcquisitionAuthority } from "./image-acquisition.mjs";
 import { readReconstructionManifest } from "./portability-manifest.mjs";
 
 const execFileAsync = promisify(execFile);
@@ -13,8 +13,6 @@ const REQUIRED_DB_CONFIG_ENTRIES = ["conf.d", "extension-custom-scripts", "read-
 const MIN_RESTORE_MARGIN = 512 * 1024 * 1024;
 
 function fail(code) { throw new Error(`CLEAN_HOST_BOOTSTRAP_${code}`); }
-function repository(value) { return value.startsWith("docker.io/") ? value : `docker.io/${value}`; }
-function immutableReference(image) { return `${image.canonicalRepository}@${image.manifestDigest}`; }
 function strictlyContains(parent, child) { const relation = relative(resolve(parent), resolve(child)); return relation !== "" && relation !== ".." && !relation.startsWith(`..${sep}`); }
 function disjoint(left, right) { return resolve(left) !== resolve(right) && !strictlyContains(left, right) && !strictlyContains(right, left); }
 
@@ -24,8 +22,7 @@ function parseRows(bytes) {
 function labels(value) { return typeof value === "string" ? Object.fromEntries(value.split(",").filter(Boolean).map((entry) => entry.split("=", 2))) : value && typeof value === "object" ? value : {}; }
 function targetProject(item, projects) { return projects.includes(labels(item.labels ?? item.Labels)["com.docker.compose.project"]); }
 function targetContainer(item, projects) { return targetProject(item, projects) || [item?.name, item?.Name, item?.Names].flatMap((value) => typeof value === "string" ? value.split(",").map((name) => name.trim().replace(/^\//, "")) : []).some(knownTargetContainer); }
-function repoDigestMatches(image, digests) { return Array.isArray(digests) && digests.some((value) => { const at = typeof value === "string" ? value.lastIndexOf("@") : -1; return at > 0 && repository(value.slice(0, at)) === image.canonicalRepository && value.slice(at + 1) === image.manifestDigest; }); }
-function assertImage(image, inspected) { if (inspected?.os !== "linux" || inspected?.architecture !== "amd64" || !repoDigestMatches(image, inspected.repoDigests) || typeof inspected.imageId !== "string" || !inspected.imageId) fail("HELPER_IMAGES_NOT_READY"); return inspected.imageId; }
+function assertImage(image, inspected) { try { return assertVerifiedLocalImage(image, inspected, "HELPER_IMAGE"); } catch { fail("HELPER_IMAGES_NOT_READY"); } }
 
 export function createBootstrapFilesystemAdapter() {
   return {
@@ -88,8 +85,8 @@ export async function verifyBootstrapHelperReadiness({ root = ROOT, manifest, do
   const helpers = ["helper-postgres-db-config", "helper-storage-xattr"].map((name) => authority.lock.images.find((image) => image.logicalName === name));
   if (helpers.some((image) => !image)) fail("HELPER_IMAGES_NOT_READY");
   for (const image of helpers) {
-    let immutable, alias; try { [immutable, alias] = await Promise.all([docker.inspectImage(immutableReference(image)), docker.inspectAlias(image.sourceRef)]); } catch { fail("HELPER_IMAGES_NOT_READY"); }
-    if (assertImage(image, immutable) !== assertImage(image, alias)) fail("HELPER_IMAGES_NOT_READY");
+    let alias; try { alias = await docker.inspectAlias(image.sourceRef); } catch { fail("HELPER_IMAGES_NOT_READY"); }
+    assertImage(image, alias);
   }
   return Object.freeze({ postgresImage: helpers[0].sourceRef, storageImage: helpers[1].sourceRef });
 }

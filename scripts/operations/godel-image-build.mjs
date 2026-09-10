@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import { evaluateCleanHostGate } from "./clean-host-gate.mjs";
-import { createDockerImageAdapter, validateAcquisitionAuthority } from "./image-acquisition.mjs";
+import { assertVerifiedLocalImage, createDockerImageAdapter, validateAcquisitionAuthority } from "./image-acquisition.mjs";
 import { readReconstructionManifest } from "./portability-manifest.mjs";
 import { assertProtectedTransportPath, readSecretGenerationBundle } from "./secret-generation-transport.mjs";
 
@@ -20,18 +20,8 @@ const TAG = /^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$/;
 function fail(code) { throw new Error(`GODEL_IMAGE_BUILD_${code}`); }
 function sha256(bytes) { return createHash("sha256").update(bytes).digest("hex"); }
 function same(left, right) { return JSON.stringify(left) === JSON.stringify(right); }
-function repository(value) { return value.startsWith("docker.io/") ? value : `docker.io/${value}`; }
-function immutableReference(image) { return `${image.canonicalRepository}@${image.manifestDigest}`; }
-
-function repoDigestMatches(image, digests) {
-  return Array.isArray(digests) && digests.some((value) => {
-    const at = typeof value === "string" ? value.lastIndexOf("@") : -1;
-    return at > 0 && repository(value.slice(0, at)) === image.canonicalRepository && value.slice(at + 1) === image.manifestDigest;
-  });
-}
 function assertPulledImage(image, inspected) {
-  if (inspected?.os !== "linux" || inspected?.architecture !== "amd64" || !repoDigestMatches(image, inspected.repoDigests) || typeof inspected.imageId !== "string" || !inspected.imageId) fail("PULL_ONLY_IMAGES_NOT_READY");
-  return inspected.imageId;
+  try { return assertVerifiedLocalImage(image, inspected, "PULL_ONLY_IMAGE"); } catch { fail("PULL_ONLY_IMAGES_NOT_READY"); }
 }
 function assertLocalBuildImage(inspected, code) {
   if (inspected?.os !== "linux" || inspected?.architecture !== "amd64" || !SHA.test(inspected.imageId ?? "")) fail(code);
@@ -70,19 +60,14 @@ export async function verifyPullOnlyReadiness({ root = ROOT, manifest, docker = 
   let authority;
   try { authority = await validateAuthority({ root, manifest }); } catch { fail("PULL_ONLY_IMAGES_NOT_READY"); }
   const physical = new Map();
-  for (const image of authority.lock.images) physical.set(immutableReference(image), image);
-  const ids = new Map();
-  for (const [reference, image] of physical) {
-    let inspected; try { inspected = await docker.inspectImage(reference); } catch { fail("PULL_ONLY_IMAGES_NOT_READY"); }
-    ids.set(reference, assertPulledImage(image, inspected));
-  }
+  for (const image of authority.lock.images) physical.set(`${image.canonicalRepository}\0${image.manifestDigest}\0${image.configDigest}`, image);
   const aliases = new Map();
   for (const image of authority.lock.images) aliases.set(`${image.sourceRef}\0${image.manifestDigest}`, image);
   for (const image of aliases.values()) {
     let inspected; try { inspected = await docker.inspectAlias(image.sourceRef); } catch { fail("PULL_ONLY_IMAGES_NOT_READY"); }
-    if (assertPulledImage(image, inspected) !== ids.get(immutableReference(image))) fail("PULL_ONLY_IMAGES_NOT_READY");
+    assertPulledImage(image, inspected);
   }
-  return { state: "PASS", uniqueImages: physical.size, executionAliases: aliases.size };
+  return { state: "PASS", uniqueImages: physical.size, executionAliases: aliases.size, localImageAuthority: "CONFIG_DIGEST_VERIFIED" };
 }
 
 export async function createExactGitArchiveContext({ root = ROOT, gitCommit, runner = execFileAsync } = {}) {
