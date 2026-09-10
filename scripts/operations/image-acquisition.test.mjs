@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -152,7 +152,7 @@ test("validation output is deterministic, sanitized and declares platform-manife
 });
 
 function reconstructionManifest(lock, sha256 = "a".repeat(64)) {
-  return { platform: PLATFORM, imageAuthority: { sha256, images: normalizedImmutableImageInventory(lock) } };
+  return { platform: PLATFORM, repository: { gitCommit: "a".repeat(40) }, imageAuthority: { sha256, images: normalizedImmutableImageInventory(lock) } };
 }
 function immutableReference(image) { return `${image.canonicalRepository}@${image.manifestDigest}`; }
 function fakeDocker(lock, { inspect = (image) => ({ os: "linux", architecture: "amd64", repoDigests: [immutableReference(image)], imageId: image.configDigest }) } = {}) {
@@ -180,6 +180,26 @@ test("raw lock identity hashes exact file bytes without JSON reserialization", a
     const identity = await readImageLockIdentity({ root });
     assert.equal(identity.sha256, createHash("sha256").update(bytes).digest("hex"));
     assert.deepEqual(identity.lock, lock);
+  });
+});
+
+test("commit-snapshot image-lock authority ignores a CRLF working-tree representation", async () => {
+  await withFixture(async ({ root, lock }) => {
+    const lockBytes = Buffer.from(`${JSON.stringify(lock)}\n`);
+    const repository = new Map([
+      ["infra/sh-portability-image-lock.json", lockBytes],
+      ["infra/supabase/docker-compose.yml", Buffer.from(COMPOSE)],
+      ["scripts/operations/backup-selfhosted.mjs", Buffer.from(BACKUP)],
+      ["scripts/operations/restore-selfhosted.mjs", Buffer.from(RESTORE)],
+      ["infra/SUPABASE_UPSTREAM.md", Buffer.from("Pinned upstream " + UPSTREAM + "\n")],
+      ["infra/supabase-upstream.lock.json", Buffer.from(JSON.stringify({ base_ref: UPSTREAM }))],
+    ]);
+    await writeFile(join(root, "infra", "sh-portability-image-lock.json"), lockBytes.toString("utf8").replace(/\n/g, "\r\n"));
+    const readRepositoryFile = async (repositoryPath) => repository.get(repositoryPath);
+    const identity = await readImageLockIdentity({ root, readRepositoryFile });
+    assert.equal(identity.sha256, createHash("sha256").update(lockBytes).digest("hex"));
+    assert.notEqual(identity.sha256, createHash("sha256").update(await readFile(join(root, "infra", "sh-portability-image-lock.json"))).digest("hex"));
+    await assert.doesNotReject(validateImageLockAgainstRepository({ root, lock: identity.lock, readRepositoryFile }));
   });
 });
 

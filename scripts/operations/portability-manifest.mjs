@@ -5,9 +5,10 @@ import { basename, dirname, relative, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 import { isCanonicalGenerationId } from "./secret-generation.mjs";
 import { readImageLock, validateImageLockAgainstRepository } from "./image-acquisition.mjs";
+import { createGitObjectReader } from "./git-object-authority.mjs";
 
-const execFileAsync = promisify(execFile);
 const ROOT = resolve(import.meta.dirname, "../..");
+const execFileAsync = promisify(execFile);
 const FORMAT = "godel-sh-reconstruction-manifest";
 const PLATFORM = Object.freeze({ os: "linux", architecture: "amd64" });
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -59,12 +60,14 @@ export async function hashRegularFile(path, code = "FILE") {
 }
 
 async function defaultGit(root) {
-  const call = async (args) => (await execFileAsync("git", args, { cwd: root, windowsHide: true })).stdout.trim();
+  const reader = createGitObjectReader({ root });
+  const call = async (args) => (await execFileAsync("git", args, { cwd: root, windowsHide: true, maxBuffer: 1024 * 1024 })).stdout.trim();
   return {
     head: async () => call(["rev-parse", "HEAD"]),
     clean: async () => !(await call(["status", "--porcelain"])),
     hasCommit: async (value) => { try { await call(["cat-file", "-e", value + "^{commit}"]); return true; } catch { return false; } },
     isAncestor: async (older, newer) => { try { await call(["merge-base", "--is-ancestor", older, newer]); return true; } catch { return false; } },
+    readBlob: reader.readBlob,
   };
 }
 
@@ -101,27 +104,34 @@ function baseImages(source, code) {
   return external;
 }
 
-async function repositoryAuthority(root) {
+async function repositoryAuthority({ root, head, readBlob }) {
+  if (typeof readBlob !== "function") fail("REPOSITORY_BLOB_READER");
+  const readRepositoryFile = async (repositoryPath) => {
+    let bytes;
+    try { bytes = await readBlob(head, repositoryPath); } catch { fail("REPOSITORY_BLOB"); }
+    if (!Buffer.isBuffer(bytes)) fail("REPOSITORY_BLOB");
+    return bytes;
+  };
   const [upstreamDocument, upstreamLockFile, imageLockFile, appDockerfile, nginxDockerfile] = await Promise.all([
-    readFile(resolve(root, "infra/SUPABASE_UPSTREAM.md"), "utf8"),
-    hashRegularFile(resolve(root, "infra/supabase-upstream.lock.json"), "UPSTREAM_LOCK"),
-    hashRegularFile(resolve(root, "infra/sh-portability-image-lock.json"), "IMAGE_LOCK"),
-    hashRegularFile(resolve(root, "Dockerfile"), "APP_DOCKERFILE"),
-    hashRegularFile(resolve(root, "Dockerfile.nginx"), "NGINX_DOCKERFILE"),
+    readRepositoryFile("infra/SUPABASE_UPSTREAM.md"),
+    readRepositoryFile("infra/supabase-upstream.lock.json"),
+    readRepositoryFile("infra/sh-portability-image-lock.json"),
+    readRepositoryFile("Dockerfile"),
+    readRepositoryFile("Dockerfile.nginx"),
   ]);
   let upstreamLock;
-  try { upstreamLock = JSON.parse(upstreamLockFile.bytes.toString("utf8")); } catch { fail("UPSTREAM_BINDING"); }
-  const upstreamCommit = upstreamCommitFromDocument(upstreamDocument);
+  try { upstreamLock = JSON.parse(upstreamLockFile.toString("utf8")); } catch { fail("UPSTREAM_BINDING"); }
+  const upstreamCommit = upstreamCommitFromDocument(upstreamDocument.toString("utf8"));
   if (!isObject(upstreamLock) || upstreamLock.base_ref !== upstreamCommit) fail("UPSTREAM_BINDING");
-  const imageLock = await readImageLock({ root });
-  await validateImageLockAgainstRepository({ root, lock: imageLock });
+  const imageLock = await readImageLock({ root, readRepositoryFile });
+  await validateImageLockAgainstRepository({ root, lock: imageLock, readRepositoryFile });
   return {
     upstreamCommit,
-    upstreamLockSha256: upstreamLockFile.sha256,
-    imageLock: { format: imageLock.format, schemaVersion: imageLock.schemaVersion, sha256: imageLockFile.sha256, platform: imageLock.platform, imageCount: imageLock.images.length, images: normalizedImages(imageLock) },
+    upstreamLockSha256: digest(upstreamLockFile),
+    imageLock: { format: imageLock.format, schemaVersion: imageLock.schemaVersion, sha256: digest(imageLockFile), platform: imageLock.platform, imageCount: imageLock.images.length, images: normalizedImages(imageLock) },
     recipes: [
-      { logicalName: "godel-app", dockerfile: "Dockerfile", dockerfileSha256: appDockerfile.sha256, baseImages: baseImages(appDockerfile.bytes.toString("utf8"), "APP_BASE_IMAGE"), platform: PLATFORM },
-      { logicalName: "godel-nginx", dockerfile: "Dockerfile.nginx", dockerfileSha256: nginxDockerfile.sha256, baseImages: baseImages(nginxDockerfile.bytes.toString("utf8"), "NGINX_BASE_IMAGE"), platform: PLATFORM },
+      { logicalName: "godel-app", dockerfile: "Dockerfile", dockerfileSha256: digest(appDockerfile), baseImages: baseImages(appDockerfile.toString("utf8"), "APP_BASE_IMAGE"), platform: PLATFORM },
+      { logicalName: "godel-nginx", dockerfile: "Dockerfile.nginx", dockerfileSha256: digest(nginxDockerfile), baseImages: baseImages(nginxDockerfile.toString("utf8"), "NGINX_BASE_IMAGE"), platform: PLATFORM },
     ],
   };
 }
@@ -166,7 +176,7 @@ export async function validateReconstructionInputs({ root = ROOT, backup, protec
   if (!await git.clean()) fail("REPOSITORY_DIRTY");
   const head = await git.head();
   commit(head, "REPOSITORY_HEAD");
-  const authority = await repositoryAuthority(root);
+  const authority = await repositoryAuthority({ root, head, readBlob: git.readBlob });
   const backupData = await backupAuthority({ backup: resolve(backup), protectedRoot: resolve(protectedRoot), upstreamCommit: authority.upstreamCommit, git, verifyBackup, root });
   if (backupData.protectedArtifact.size < 1 || backupData.protectedArtifact.size !== backupData.manifest.protectedRecoveryMaterial.artifact.size) fail("PROTECTED_ARTIFACT_SIZE");
   if (backupData.protectedArtifact.sha256 !== backupData.manifest.protectedRecoveryMaterial.artifact.sha256) fail("PROTECTED_ARTIFACT_HASH");

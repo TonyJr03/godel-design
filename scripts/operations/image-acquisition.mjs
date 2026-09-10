@@ -5,6 +5,7 @@ import { relative, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 import { evaluateCleanHostGate } from "./clean-host-gate.mjs";
 import { readReconstructionManifest } from "./portability-manifest.mjs";
+import { createGitObjectReader } from "./git-object-authority.mjs";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 const LOCK_PATH = "infra/sh-portability-image-lock.json";
@@ -107,13 +108,46 @@ function extractStorageXattrImage(content) {
 
 function requirement({ logicalName, role, sourceRef, authority }) { return { logicalName, role, sourceRef, canonicalRepository: canonicalRepository(sourceRef), authority }; }
 
-export async function extractPullOnlyImageRequirements({ root = ROOT } = {}) {
-  const [compose, backup, restore] = await Promise.all([readFile(resolve(root, COMPOSE_PATH), "utf8"), readFile(resolve(root, BACKUP_PATH), "utf8"), readFile(resolve(root, RESTORE_PATH), "utf8")]);
-  const runtime = parseComposeImages(compose).map(({ service, sourceRef }) => requirement({ logicalName: "runtime-" + service, role: "runtime", sourceRef, authority: COMPOSE_PATH + " service " + service }));
+function extractUpstreamCommit(document, upstreamLock) {
+  const commits = [...new Set(document.match(/\b[a-f0-9]{40}\b/g) ?? [])];
+  if (commits.length !== 1 || !isObject(upstreamLock) || !/^[a-f0-9]{40}$/.test(upstreamLock.base_ref) || upstreamLock.base_ref !== commits[0]) fail("UPSTREAM_BINDING");
+  return commits[0];
+}
+
+export async function readImageLock({ root = ROOT, readRepositoryFile: repositoryReader } = {}) {
+  return (await readImageLockIdentity({ root, readRepositoryFile: repositoryReader })).lock;
+}
+
+async function readRepositoryFile({ root, repositoryPath, readRepositoryFile }) {
+  if (readRepositoryFile) {
+    let bytes;
+    try { bytes = await readRepositoryFile(repositoryPath); } catch { fail("REPOSITORY_FILE"); }
+    if (!Buffer.isBuffer(bytes)) fail("REPOSITORY_FILE");
+    return bytes;
+  }
+  const path = resolve(root, repositoryPath), relativePath = relative(root, path);
+  if (!relativePath || relativePath.startsWith(".." + sep) || relativePath === "..") fail("LOCK_PATH");
+  try { return await readFile(path); } catch { fail("LOCK_PARSE"); }
+}
+
+export async function readImageLockIdentity({ root = ROOT, readRepositoryFile: repositoryReader } = {}) {
+  let bytes, lock;
+  try { bytes = await readRepositoryFile({ root, repositoryPath: LOCK_PATH, readRepositoryFile: repositoryReader }); lock = JSON.parse(bytes.toString("utf8")); } catch (error) { if (error?.message?.startsWith("IMAGE_LOCK_")) throw error; fail("LOCK_PARSE"); }
+  return { lock, sha256: createHash("sha256").update(bytes).digest("hex") };
+}
+
+export function normalizedImmutableImageInventory(lock) {
+  validateImageLock(lock);
+  return lock.images.map(({ logicalName, canonicalRepository, manifestDigest, configDigest, platform }) => ({ logicalName, canonicalRepository, manifestDigest, configDigest, platform }));
+}
+
+export async function extractPullOnlyImageRequirements({ root = ROOT, readRepositoryFile: repositoryReader } = {}) {
+  const [compose, backup, restore] = await Promise.all([COMPOSE_PATH, BACKUP_PATH, RESTORE_PATH].map((repositoryPath) => readRepositoryFile({ root, repositoryPath, readRepositoryFile: repositoryReader })));
+  const runtime = parseComposeImages(compose.toString("utf8")).map(({ service, sourceRef }) => requirement({ logicalName: "runtime-" + service, role: "runtime", sourceRef, authority: COMPOSE_PATH + " service " + service }));
   const db = runtime.find((entry) => entry.logicalName === "runtime-db");
   if (!db) fail("COMPOSE_DB_IMAGE");
-  const backupStorageImage = extractStorageXattrImage(backup);
-  const restoreStorageImage = extractStorageXattrImage(restore);
+  const backupStorageImage = extractStorageXattrImage(backup.toString("utf8"));
+  const restoreStorageImage = extractStorageXattrImage(restore.toString("utf8"));
   if (backupStorageImage !== restoreStorageImage) fail("HELPER_SOURCE_MISMATCH");
   const helpers = [
     requirement({ logicalName: "helper-postgres-db-config", role: "helper", sourceRef: db.sourceRef, authority: RESTORE_PATH + " rebuildDbConfig" }),
@@ -123,37 +157,13 @@ export async function extractPullOnlyImageRequirements({ root = ROOT } = {}) {
   return [...helpers, ...runtime].sort((left, right) => left.logicalName.localeCompare(right.logicalName));
 }
 
-function extractUpstreamCommit(document, upstreamLock) {
-  const commits = [...new Set(document.match(/\b[a-f0-9]{40}\b/g) ?? [])];
-  if (commits.length !== 1 || !isObject(upstreamLock) || !/^[a-f0-9]{40}$/.test(upstreamLock.base_ref) || upstreamLock.base_ref !== commits[0]) fail("UPSTREAM_BINDING");
-  return commits[0];
-}
-
-export async function readImageLock({ root = ROOT } = {}) {
-  return (await readImageLockIdentity({ root })).lock;
-}
-
-export async function readImageLockIdentity({ root = ROOT } = {}) {
-  const path = resolve(root, LOCK_PATH);
-  const relativePath = relative(root, path);
-  if (!relativePath || relativePath.startsWith(".." + sep) || relativePath === "..") fail("LOCK_PATH");
-  let bytes, lock;
-  try { bytes = await readFile(path); lock = JSON.parse(bytes.toString("utf8")); } catch { fail("LOCK_PARSE"); }
-  return { lock, sha256: createHash("sha256").update(bytes).digest("hex") };
-}
-
-export function normalizedImmutableImageInventory(lock) {
-  validateImageLock(lock);
-  return lock.images.map(({ logicalName, canonicalRepository, manifestDigest, configDigest, platform }) => ({ logicalName, canonicalRepository, manifestDigest, configDigest, platform }));
-}
-
-export async function validateImageLockAgainstRepository({ root = ROOT, lock } = {}) {
-  const activeLock = lock ?? await readImageLock({ root });
+export async function validateImageLockAgainstRepository({ root = ROOT, lock, readRepositoryFile: repositoryReader } = {}) {
+  const activeLock = lock ?? await readImageLock({ root, readRepositoryFile: repositoryReader });
   const summary = validateImageLock(activeLock);
-  const [requirements, upstreamDocument, upstreamLockText] = await Promise.all([extractPullOnlyImageRequirements({ root }), readFile(resolve(root, UPSTREAM_DOCUMENT_PATH), "utf8"), readFile(resolve(root, UPSTREAM_LOCK_PATH), "utf8")]);
+  const [requirements, upstreamDocument, upstreamLockText] = await Promise.all([extractPullOnlyImageRequirements({ root, readRepositoryFile: repositoryReader }), readRepositoryFile({ root, repositoryPath: UPSTREAM_DOCUMENT_PATH, readRepositoryFile: repositoryReader }), readRepositoryFile({ root, repositoryPath: UPSTREAM_LOCK_PATH, readRepositoryFile: repositoryReader })]);
   let upstreamLock;
-  try { upstreamLock = JSON.parse(upstreamLockText); } catch { fail("UPSTREAM_BINDING"); }
-  const upstreamCommit = extractUpstreamCommit(upstreamDocument, upstreamLock);
+  try { upstreamLock = JSON.parse(upstreamLockText.toString("utf8")); } catch { fail("UPSTREAM_BINDING"); }
+  const upstreamCommit = extractUpstreamCommit(upstreamDocument.toString("utf8"), upstreamLock);
   if (activeLock.supabaseUpstreamCommit !== upstreamCommit) fail("UPSTREAM_BINDING");
   const lockedByName = new Map(activeLock.images.map((image) => [image.logicalName, image]));
   if (lockedByName.size !== requirements.length) fail("REPOSITORY_COVERAGE");
@@ -210,18 +220,27 @@ export function createDockerImageAdapter({ root = ROOT, runner = execFileAsync }
   };
 }
 
-export async function validateAcquisitionAuthority({ root = ROOT, manifest, readLockIdentity = readImageLockIdentity, validateLock = validateImageLockAgainstRepository } = {}) {
+function readManifestRepositoryFile({ root, manifest, readRepositoryFile: providedReader }) {
+  if (typeof providedReader === "function") return providedReader;
+  const commit = manifest?.repository?.gitCommit;
+  if (typeof commit !== "string" || !/^[a-f0-9]{40}$/.test(commit)) acquisitionFail("MANIFEST_REPOSITORY");
+  const reader = createGitObjectReader({ root });
+  return (repositoryPath) => reader.readBlob(commit, repositoryPath);
+}
+
+export async function validateAcquisitionAuthority({ root = ROOT, manifest, readLockIdentity = readImageLockIdentity, validateLock = validateImageLockAgainstRepository, readRepositoryFile: providedReader } = {}) {
   if (!manifest?.imageAuthority || manifest.platform?.os !== "linux" || manifest.platform?.architecture !== "amd64") acquisitionFail("MANIFEST_AUTHORITY");
+  const readRepositoryFile = readManifestRepositoryFile({ root, manifest, readRepositoryFile: providedReader });
   let identity;
-  try { identity = await readLockIdentity({ root }); } catch (error) { if (error?.message?.startsWith("IMAGE_LOCK_")) throw error; acquisitionFail("LOCK_IDENTITY"); }
-  try { await validateLock({ root, lock: identity.lock }); } catch (error) { if (error?.message?.startsWith("IMAGE_LOCK_")) throw error; acquisitionFail("LOCK_REPOSITORY"); }
+  try { identity = await readLockIdentity({ root, readRepositoryFile }); } catch (error) { if (error?.message?.startsWith("IMAGE_LOCK_")) throw error; acquisitionFail("LOCK_IDENTITY"); }
+  try { await validateLock({ root, lock: identity.lock, readRepositoryFile }); } catch (error) { if (error?.message?.startsWith("IMAGE_LOCK_")) throw error; acquisitionFail("LOCK_REPOSITORY"); }
   if (identity.sha256 !== manifest.imageAuthority.sha256) acquisitionFail("RECONSTRUCTION_LOCK_SHA_MISMATCH");
   const inventory = normalizedImmutableImageInventory(identity.lock);
   if (!same(inventory, manifest.imageAuthority.images)) acquisitionFail("RECONSTRUCTION_INVENTORY_MISMATCH");
   return { lock: identity.lock, inventory };
 }
 
-export async function acquirePullOnlyImages({ manifestPath, root = ROOT, docker = createDockerImageAdapter({ root }), gate = evaluateCleanHostGate, readManifest = readReconstructionManifest, readLockIdentity, validateLock } = {}) {
+export async function acquirePullOnlyImages({ manifestPath, root = ROOT, docker = createDockerImageAdapter({ root }), gate = evaluateCleanHostGate, readManifest = readReconstructionManifest, readLockIdentity, validateLock, readRepositoryFile } = {}) {
   if (typeof manifestPath !== "string" || !manifestPath || manifestPath.includes("\0")) acquisitionFail("MANIFEST_PATH");
   let loaded;
   try { loaded = await readManifest({ manifestPath }); } catch { acquisitionFail("MANIFEST_INVALID"); }
@@ -230,7 +249,7 @@ export async function acquirePullOnlyImages({ manifestPath, root = ROOT, docker 
   let gateResult;
   try { gateResult = await gate({ manifestPath, root }); } catch { acquisitionFail("CLEAN_HOST_GATE"); }
   if (gateResult?.state !== "PASS") acquisitionFail("CLEAN_HOST_GATE");
-  const authority = await validateAcquisitionAuthority({ root, manifest, readLockIdentity, validateLock });
+  const authority = await validateAcquisitionAuthority({ root, manifest, readLockIdentity, validateLock, readRepositoryFile });
   const physical = new Map();
   for (const image of authority.lock.images) physical.set(`${image.canonicalRepository}\0${image.manifestDigest}\0${image.configDigest}\0${image.platform.os}\0${image.platform.architecture}`, image);
   const acquired = new Map();

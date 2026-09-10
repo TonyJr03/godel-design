@@ -51,7 +51,7 @@
     "ops:portability:clean-host:test": "node --test scripts/operations/clean-host-gate.test.mjs",
     "ops:portability:manifest:create": "node scripts/operations/portability-manifest.mjs create",
     "ops:portability:manifest:validate": "node scripts/operations/portability-manifest.mjs validate",
-    "ops:portability:manifest:test": "node --test scripts/operations/portability-manifest.test.mjs",
+    "ops:portability:manifest:test": "node --test scripts/operations/git-object-authority.test.mjs scripts/operations/portability-manifest.test.mjs",
     "ops:recovery:compose:test": "node --test scripts/operations/godel-runtime-compose.test.mjs",
     "ops:supabase:compose:test": "node --test scripts/operations/supabase-runtime-compose.test.mjs",
     "ops:supabase:update:plan": "node scripts/operations/supabase-bundle-update-plan.mjs",

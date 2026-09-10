@@ -20,8 +20,8 @@ const UPSTREAM = "e846d45ce64207b952a4df44ac8b480ea0abb27e";
 
 function digest(value) { return createHash("sha256").update(value).digest("hex"); }
 function clone(value) { return JSON.parse(JSON.stringify(value)); }
-function fakeGit({ clean = true, head = HEAD, known = true, ancestor = true } = {}) {
-  return { clean: async () => clean, head: async () => head, hasCommit: async () => known, isAncestor: async () => ancestor };
+function fakeGit({ clean = true, head = HEAD, known = true, ancestor = true, readBlob = async (_commit, repositoryPath) => readFile(resolve(ROOT, repositoryPath)) } = {}) {
+  return { clean: async () => clean, head: async () => head, hasCommit: async () => known, isAncestor: async () => ancestor, readBlob };
 }
 
 async function fixture() {
@@ -222,8 +222,28 @@ test("validation uses injected Git and backup verification only; no Docker, regi
   await withFixture(async (value) => {
     const { manifest } = await validManifest(value);
     const calls = [];
-    const git = { clean: async () => { calls.push("clean"); return true; }, head: async () => { calls.push("head"); return HEAD; }, hasCommit: async () => { calls.push("hasCommit"); return true; }, isAncestor: async () => { calls.push("isAncestor"); return true; } };
+    const git = { clean: async () => { calls.push("clean"); return true; }, head: async () => { calls.push("head"); return HEAD; }, hasCommit: async () => { calls.push("hasCommit"); return true; }, isAncestor: async () => { calls.push("isAncestor"); return true; }, readBlob: async (_commit, repositoryPath) => { calls.push("readBlob"); return readFile(resolve(ROOT, repositoryPath)); } };
     await validateReconstructionManifestAgainstRepository({ root: ROOT, manifest, backup: value.backup, protectedRoot: value.protectedRoot, git, verifyBackup: async () => { calls.push("verifyBackup"); } });
-    assert.deepEqual(new Set(calls), new Set(["clean", "head", "hasCommit", "isAncestor", "verifyBackup"]));
+    assert.deepEqual(new Set(calls), new Set(["clean", "head", "hasCommit", "isAncestor", "readBlob", "verifyBackup"]));
+  });
+});
+
+test("Git blob authority makes clean CRLF and LF working trees converge on the same manifest recipes", async () => {
+  await withFixture(async (value) => {
+    const appBlob = Buffer.from(`FROM node:24-alpine@sha256:${"1".repeat(64)}\n`);
+    const nginxBlob = Buffer.from(`FROM nginx:stable-alpine@sha256:${"2".repeat(64)}\n`);
+    const [upstream, upstreamLock, imageLock, compose, backupSource, restoreSource] = await Promise.all([
+      readFile(resolve(ROOT, "infra/SUPABASE_UPSTREAM.md")), readFile(resolve(ROOT, "infra/supabase-upstream.lock.json")), readFile(resolve(ROOT, "infra/sh-portability-image-lock.json")), readFile(resolve(ROOT, "infra/supabase/docker-compose.yml")), readFile(resolve(ROOT, "scripts/operations/backup-selfhosted.mjs")), readFile(resolve(ROOT, "scripts/operations/restore-selfhosted.mjs")),
+    ]);
+    const blobs = new Map([["Dockerfile", appBlob], ["Dockerfile.nginx", nginxBlob], ["infra/SUPABASE_UPSTREAM.md", upstream], ["infra/supabase-upstream.lock.json", upstreamLock], ["infra/sh-portability-image-lock.json", imageLock], ["infra/supabase/docker-compose.yml", compose], ["scripts/operations/backup-selfhosted.mjs", backupSource], ["scripts/operations/restore-selfhosted.mjs", restoreSource]]);
+    const sourceWorkingDockerfile = Buffer.from(appBlob.toString("utf8").replace(/\n/g, "\r\n"));
+    const sourceWorkingNginx = Buffer.from(nginxBlob.toString("utf8").replace(/\n/g, "\r\n"));
+    const git = fakeGit({ readBlob: async (commit, repositoryPath) => { assert.equal(commit, HEAD); const bytes = blobs.get(repositoryPath); if (!bytes) throw new Error("missing blob"); return bytes; } });
+    const created = await value.create({ file: "cross-eol.json", git });
+    assert.equal(created.manifest.godelBuilds.find((recipe) => recipe.logicalName === "godel-app").dockerfileSha256, digest(appBlob));
+    assert.equal(created.manifest.godelBuilds.find((recipe) => recipe.logicalName === "godel-nginx").dockerfileSha256, digest(nginxBlob));
+    assert.notEqual(digest(sourceWorkingDockerfile), digest(appBlob));
+    assert.notEqual(digest(sourceWorkingNginx), digest(nginxBlob));
+    await assert.doesNotReject(validateReconstructionManifestAgainstRepository({ root: ROOT, manifest: created.manifest, backup: value.backup, protectedRoot: value.protectedRoot, git, verifyBackup: value.verifyBackup }));
   });
 });
