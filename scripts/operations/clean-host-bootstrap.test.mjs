@@ -118,12 +118,14 @@ test("final verification rejects unlabeled target containers and root-mode drift
 });
 
 test("helper readiness rejects immutable, alias and platform drift before any bootstrap mutation", async () => {
-  const digest = "a".repeat(64), images = [
-    { logicalName: "helper-postgres-db-config", canonicalRepository: "docker.io/supabase/postgres", sourceRef: "supabase/postgres:synthetic", manifestDigest: `sha256:${digest}`, configDigest: `sha256:${digest}` },
-    { logicalName: "helper-storage-xattr", canonicalRepository: "docker.io/supabase/storage-api", sourceRef: "supabase/storage-api:synthetic", manifestDigest: `sha256:${digest}`, configDigest: `sha256:${digest}` },
+  const digest = "a".repeat(64), config = "b".repeat(64), images = [
+    { logicalName: "helper-postgres-db-config", canonicalRepository: "docker.io/supabase/postgres", sourceRef: "supabase/postgres:synthetic", manifestDigest: `sha256:${digest}`, configDigest: `sha256:${config}` },
+    { logicalName: "helper-storage-xattr", canonicalRepository: "docker.io/supabase/storage-api", sourceRef: "supabase/storage-api:synthetic", manifestDigest: `sha256:${digest}`, configDigest: `sha256:${config}` },
   ];
   const valid = (image) => ({ os: "linux", architecture: "amd64", repoDigests: [`${image.canonicalRepository}@${image.manifestDigest}`], imageId: image.configDigest });
   await assert.doesNotReject(() => verifyBootstrapHelperReadiness({ manifest: {}, validateAuthority: async () => ({ lock: { images } }), docker: { inspectImage: async (reference) => valid(images.find((image) => reference.startsWith(image.canonicalRepository))), inspectAlias: async (reference) => valid(images.find((image) => reference === image.sourceRef)) } }));
+  const containerd = (image) => ({ os: "linux", architecture: "amd64", imageId: image.manifestDigest, descriptor: { digest: image.manifestDigest } });
+  await assert.doesNotReject(() => verifyBootstrapHelperReadiness({ manifest: {}, validateAuthority: async () => ({ lock: { images } }), docker: { inspectImage: async (reference) => containerd(images.find((image) => reference.startsWith(image.canonicalRepository))), inspectAlias: async (reference) => containerd(images.find((image) => reference === image.sourceRef)) } }));
   for (const docker of [
     { inspectImage: async () => { throw new Error("missing"); }, inspectAlias: async () => ({}) },
     { inspectImage: async (reference) => valid(images.find((image) => reference.startsWith(image.canonicalRepository))), inspectAlias: async () => ({ os: "linux", architecture: "amd64", repoDigests: [], imageId: "other" }) },

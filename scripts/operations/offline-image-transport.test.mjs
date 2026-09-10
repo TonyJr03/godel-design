@@ -87,6 +87,16 @@ test("export accepts exact RepoDigest/configDigest/platform and deduplicates ele
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
+test("offline export accepts Docker 29 descriptor identity and rejects a bad descriptor before alias/save", async () => {
+  const root = await temporaryRoot();
+  try {
+    const containerd = setup(root); containerd.docker.inspectImage = async (reference) => { const image = containerd.physical.find((item) => reference.endsWith(item.manifestDigest)); return inspected(image, { imageId: image.manifestDigest, descriptor: { digest: image.manifestDigest } }); };
+    await exportOfflineImageBundle({ manifestPath: "manifest.json", output: "backups/containerd", root, ...containerd }); assert.equal(containerd.actions.some((action) => action.startsWith("save ")), true);
+    const wrong = setup(root); wrong.docker.inspectImage = async (reference) => { const image = wrong.physical.find((item) => reference.endsWith(item.manifestDigest)); return inspected(image, { descriptor: { digest: `sha256:${"f".repeat(64)}` } }); };
+    await assert.rejects(() => exportOfflineImageBundle({ manifestPath: "manifest.json", output: "backups/wrong-descriptor", root, ...wrong }), /EXPORT_IMAGE/); assert.equal(wrong.actions.some((action) => action.startsWith("tag ") || action.startsWith("save ")), false);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
 test("export reuses exact transport aliases, refuses mismatches without retagging, and reports owned cleanup residue", async () => {
   const root = await temporaryRoot();
   try {
@@ -171,6 +181,18 @@ test("import uses the exported deterministic alias, loads linux/amd64, verifies 
     await importOfflineImageBundle({ manifestPath: "manifest.json", bundle: "backups/bundle", root, gate: async () => ({ state: "PASS" }), ...resumed });
     assert.equal(resumed.actions.some((action) => action.startsWith("load")), false);
     assert.equal(resumed.actions.some((action) => action.startsWith("tag")), false);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test("offline import accepts Docker 29 descriptors and fails a wrong descriptor before sourceRef publication", async () => {
+  const root = await temporaryRoot();
+  try {
+    await exportedBundle(root); const containerd = setup(root), inspect = containerd.docker.inspectAliasIfPresent;
+    containerd.docker.inspectAliasIfPresent = async (alias) => { const value = await inspect(alias); if (!value) return null; const image = containerd.aliases.get(alias); return { ...value, imageId: image.manifestDigest, descriptor: { digest: image.manifestDigest } }; };
+    await importOfflineImageBundle({ manifestPath: "manifest.json", bundle: "backups/bundle", root, gate: async () => ({ state: "PASS" }), ...containerd }); assert.equal(containerd.actions.some((action) => action.startsWith("tag godel-sh-image-transport/")), true);
+    const wrong = setup(root), wrongInspect = wrong.docker.inspectAliasIfPresent;
+    wrong.docker.inspectAliasIfPresent = async (alias) => { const value = await wrongInspect(alias); if (!value) return null; const image = wrong.aliases.get(alias); return { ...value, imageId: image.configDigest, descriptor: { digest: `sha256:${"f".repeat(64)}` } }; };
+    await assert.rejects(() => importOfflineImageBundle({ manifestPath: "manifest.json", bundle: "backups/bundle", root, gate: async () => ({ state: "PASS" }), ...wrong }), /LOADED_IMAGE_MISMATCH/); assert.equal(wrong.actions.some((action) => action.startsWith("tag godel-sh-image-transport/")), false);
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 

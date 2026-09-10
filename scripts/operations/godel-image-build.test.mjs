@@ -71,8 +71,10 @@ test("exact archive context excludes synthetic host-only files and nonce is ephe
 });
 
 test("pull-only readiness inspects immutable references and aliases without mutation", async () => {
-  const image = { canonicalRepository: "docker.io/supabase/postgres", manifestDigest: `sha256:${SHA}`, configDigest: `sha256:${SHA}`, sourceRef: "supabase/postgres:17", platform: { os: "linux", architecture: "amd64" } }, actions = [];
-  const docker = { inspectAlias: async (reference) => { actions.push(reference); return { os: "linux", architecture: "amd64", repoDigests: [`supabase/postgres@sha256:${SHA}`], imageId: `sha256:${SHA}` }; } };
+  const image = { canonicalRepository: "docker.io/supabase/postgres", manifestDigest: `sha256:${SHA}`, configDigest: `sha256:${"b".repeat(64)}`, sourceRef: "supabase/postgres:17", platform: { os: "linux", architecture: "amd64" } }, actions = [];
+  const docker = { inspectAlias: async (reference) => { actions.push(reference); return { os: "linux", architecture: "amd64", imageId: image.manifestDigest, descriptor: { digest: image.manifestDigest } }; } };
+  const legacy = { inspectAlias: async () => ({ os: "linux", architecture: "amd64", imageId: image.configDigest }) };
+  assert.equal((await verifyPullOnlyReadiness({ manifest: {}, docker: legacy, validateAuthority: async () => ({ lock: { images: [image] } }) })).localImageAuthority, "LOCAL_OCI_IDENTITY_VERIFIED");
   await verifyPullOnlyReadiness({ manifest: {}, docker, validateAuthority: async () => ({ lock: { images: [image] } }) }); assert.deepEqual(actions, ["supabase/postgres:17"]);
 });
 

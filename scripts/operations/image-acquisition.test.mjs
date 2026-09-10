@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { acquirePullOnlyImages, createDockerImageAdapter, extractPullOnlyImageRequirements, formatValidationReport, normalizedImmutableImageInventory, readImageLockIdentity, renderImageAcquisitionResult, validateImageLock, validateImageLockAgainstRepository } from "./image-acquisition.mjs";
+import { acquirePullOnlyImages, assertVerifiedRegistryImage, createDockerImageAdapter, extractPullOnlyImageRequirements, formatValidationReport, normalizedImmutableImageInventory, readImageLockIdentity, renderImageAcquisitionResult, validateImageLock, validateImageLockAgainstRepository, verifyLocalImageIdentity } from "./image-acquisition.mjs";
 
 const UPSTREAM = "e846d45ce64207b952a4df44ac8b480ea0abb27e";
 const PLATFORM = { os: "linux", architecture: "amd64" };
@@ -198,12 +198,43 @@ test("authority and clean-host failures happen before any Docker action", async 
   });
 });
 
+test("local OCI identity accepts Docker 29 descriptors and legacy config IDs, but never falls back from a bad descriptor", async () => {
+  await withFixture(async ({ lock }) => {
+    const image = lock.images[0], descriptor = { digest: image.manifestDigest };
+    assert.deepEqual(verifyLocalImageIdentity(image, { os: "linux", architecture: "amd64", imageId: image.manifestDigest, descriptor }), { identityMode: "DESCRIPTOR_MANIFEST", localDigest: image.manifestDigest });
+    assert.deepEqual(verifyLocalImageIdentity(image, { os: "linux", architecture: "amd64", imageId: image.configDigest }), { identityMode: "LEGACY_CONFIG_ID", localDigest: image.configDigest });
+    for (const inspected of [
+      { os: "linux", architecture: "amd64", imageId: image.configDigest, descriptor: { digest: digest(99) } },
+      { os: "linux", architecture: "amd64", imageId: image.configDigest, descriptor: { digest: "not-a-digest" } },
+      { os: "linux", architecture: "amd64", imageId: image.configDigest, descriptor: "not-an-object" },
+      { os: "linux", architecture: "amd64", imageId: digest(99) },
+      { os: "linux", architecture: "arm64", imageId: image.configDigest },
+    ]) assert.throws(() => verifyLocalImageIdentity(image, inspected), /IMAGE_ACQUISITION_(LOCAL_IMAGE_DESCRIPTOR|LOCAL_IMAGE_CONFIG_DIGEST|LOCAL_IMAGE_PLATFORM)/);
+  });
+});
+
+test("registry verification preserves exact RepoDigest in both containerd and legacy identity modes", async () => {
+  await withFixture(async ({ lock }) => {
+    const image = lock.images[0], repoDigests = [immutableReference(image)];
+    assert.equal(assertVerifiedRegistryImage(image, { os: "linux", architecture: "amd64", imageId: image.manifestDigest, descriptor: { digest: image.manifestDigest }, repoDigests }).identityMode, "DESCRIPTOR_MANIFEST");
+    assert.equal(assertVerifiedRegistryImage(image, { os: "linux", architecture: "amd64", imageId: image.configDigest, repoDigests }).identityMode, "LEGACY_CONFIG_ID");
+    for (const candidate of [[], [`${image.canonicalRepository}@${digest(99)}`]]) assert.throws(() => assertVerifiedRegistryImage(image, { os: "linux", architecture: "amd64", imageId: image.manifestDigest, descriptor: { digest: image.manifestDigest }, repoDigests: candidate }), /IMAGE_ACQUISITION_LOCAL_REPODIGEST/);
+  });
+});
+
+test("registry acquisition accepts Docker 29 descriptor identity and reaches source alias publication", async () => {
+  await withFixture(async ({ lock }) => {
+    const { result, actions } = await acquire(lock, { fake: fakeDocker(lock, { inspect: (image) => ({ os: "linux", architecture: "amd64", imageId: image.manifestDigest, descriptor: { digest: image.manifestDigest }, repoDigests: [immutableReference(image)] }) }) });
+    assert.equal(result.localImageAuthority, "LOCAL_OCI_IDENTITY_VERIFIED"); assert.equal(actions.some(([kind]) => kind === "tag"), true);
+  });
+});
+
 test("acquisition pulls each immutable physical image once and creates verified source aliases", async () => {
   await withFixture(async ({ lock }) => {
     const { result, actions } = await acquire(lock);
     const physical = new Set(lock.images.map(immutableReference));
     const aliases = new Set(lock.images.map((image) => `${image.sourceRef}\0${image.manifestDigest}`));
-    assert.deepEqual(result, { state: "PASS", mode: "VERIFIED_REGISTRY_PULL", logicalAuthorities: lock.images.length, uniqueImages: physical.size, verifiedImages: physical.size, executionAliases: aliases.size, platform: "linux/amd64", registryConnectivity: "PASS", localImageAuthority: "CONFIG_DIGEST_VERIFIED" });
+    assert.deepEqual(result, { state: "PASS", mode: "VERIFIED_REGISTRY_PULL", logicalAuthorities: lock.images.length, uniqueImages: physical.size, verifiedImages: physical.size, executionAliases: aliases.size, platform: "linux/amd64", registryConnectivity: "PASS", localImageAuthority: "LOCAL_OCI_IDENTITY_VERIFIED" });
     assert.deepEqual(new Set(actions.filter(([kind]) => kind === "pull").map(([, reference]) => reference)), physical);
     assert.equal(actions.filter(([kind]) => kind === "pull").some(([, reference]) => lock.images.some((image) => reference === image.sourceRef)), false);
     assert.equal(actions.filter(([kind]) => kind === "tag").length, aliases.size);

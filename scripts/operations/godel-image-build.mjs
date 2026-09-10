@@ -67,7 +67,7 @@ export async function verifyPullOnlyReadiness({ root = ROOT, manifest, docker = 
     let inspected; try { inspected = await docker.inspectAlias(image.sourceRef); } catch { fail("PULL_ONLY_IMAGES_NOT_READY"); }
     assertPulledImage(image, inspected);
   }
-  return { state: "PASS", uniqueImages: physical.size, executionAliases: aliases.size, localImageAuthority: "CONFIG_DIGEST_VERIFIED" };
+  return { state: "PASS", uniqueImages: physical.size, executionAliases: aliases.size, localImageAuthority: "LOCAL_OCI_IDENTITY_VERIFIED" };
 }
 
 export async function createExactGitArchiveContext({ root = ROOT, gitCommit, runner = execFileAsync } = {}) {

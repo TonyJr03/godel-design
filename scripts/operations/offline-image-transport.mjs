@@ -58,7 +58,7 @@ export function createOfflineDockerAdapter({ root = ROOT, runner = exec } = {}) 
   return {
     ...image,
     inspectAliasIfPresent: async (alias) => {
-      try { const inspected = JSON.parse((await call(["image", "inspect", alias])).stdout)?.[0]; if (!inspected) fail("DOCKER_INSPECT"); return { os: inspected.Os, architecture: inspected.Architecture, imageId: inspected.Id, repoDigests: inspected.RepoDigests }; }
+      try { const inspected = JSON.parse((await call(["image", "inspect", alias])).stdout)?.[0]; if (!inspected) fail("DOCKER_INSPECT"); return { os: inspected.Os, architecture: inspected.Architecture, imageId: inspected.Id, repoDigests: inspected.RepoDigests, descriptor: inspected.Descriptor }; }
       catch (error) { if (error?.code === 1) return null; rethrow(error, "DOCKER_INSPECT"); }
     },
     rawManifest: async (reference) => (await call(["buildx", "imagetools", "inspect", "--raw", reference], { encoding: "buffer" })).stdout,
@@ -149,7 +149,7 @@ export async function importOfflineImageBundle({ manifestPath, bundle, root = RO
   }
   for (const image of authority.lock.images) { const present = await aliasIfPresent(docker, image.sourceRef); if (present) { try { assertVerifiedLocalImage(image, present); } catch { fail("ALIAS_MISMATCH"); } } }
   for (const image of authority.lock.images) { const index = metadata.images.findIndex((item) => physicalKey(item) === physicalKey(image)); await ensureAlias({ docker, alias: image.sourceRef, image, reference: transportAlias(metadata.operationId, index, image) }); }
-  return Object.freeze({ state: "PASS", mode: "VERIFIED_OFFLINE_IMAGE_BUNDLE", target: "clean-host-disposable-rehearsal", platform: "linux/amd64", logicalAuthorities: authority.lock.images.length, uniqueImages: metadata.images.length, verifiedImages: metadata.images.length, executionAliases: new Set(authority.lock.images.map((image) => image.sourceRef)).size, registryAccess: "NOT_REQUIRED", localImageAuthority: "CONFIG_DIGEST_VERIFIED" });
+  return Object.freeze({ state: "PASS", mode: "VERIFIED_OFFLINE_IMAGE_BUNDLE", target: "clean-host-disposable-rehearsal", platform: "linux/amd64", logicalAuthorities: authority.lock.images.length, uniqueImages: metadata.images.length, verifiedImages: metadata.images.length, executionAliases: new Set(authority.lock.images.map((image) => image.sourceRef)).size, registryAccess: "NOT_REQUIRED", localImageAuthority: "LOCAL_OCI_IDENTITY_VERIFIED" });
 }
 function args(values, verb) { const parsed = {}; while (values.length) { const key = values.shift(), value = values.shift(); if (!key?.startsWith("--") || !value || parsed[key]) fail("ARGUMENTS"); parsed[key] = value; } if (!safe(parsed["--manifest"]) || !safe(parsed[verb === "export" ? "--output" : "--bundle"]) || Object.keys(parsed).length !== 2) fail("ARGUMENTS"); return parsed; }
 if (import.meta.main) { try { const [verb, ...rest] = process.argv.slice(2), parsed = args(rest, verb), result = verb === "export" ? await exportOfflineImageBundle({ manifestPath: parsed["--manifest"], output: parsed["--output"] }) : verb === "import" ? await importOfflineImageBundle({ manifestPath: parsed["--manifest"], bundle: parsed["--bundle"] }) : fail("ARGUMENTS"); process.stdout.write(`${JSON.stringify(result)}\n`); } catch (error) { process.stderr.write(`FAIL ${isTransportError(error) ? error.message : "OFFLINE_IMAGE_TRANSPORT_FAILED"}\n`); process.exitCode = 1; } }

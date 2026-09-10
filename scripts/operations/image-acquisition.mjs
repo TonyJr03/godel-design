@@ -176,15 +176,21 @@ function expectedDigestPresent(image, repoDigests) {
     return at > 0 && normalizedRepository(value.slice(0, at)) === image.canonicalRepository && value.slice(at + 1) === image.manifestDigest;
   });
 }
-export function assertVerifiedLocalImage(image, inspected, failure = "LOCAL_IMAGE") {
+export function verifyLocalImageIdentity(image, inspected, failure = "LOCAL_IMAGE") {
   if (inspected?.os !== "linux" || inspected?.architecture !== "amd64") acquisitionFail("LOCAL_IMAGE_PLATFORM");
+  const descriptor = inspected?.descriptor;
+  if (descriptor !== undefined && descriptor !== null) {
+    if (!isObject(descriptor) || typeof descriptor.digest !== "string" || !/^sha256:[a-f0-9]{64}$/.test(descriptor.digest) || descriptor.digest !== image.manifestDigest) acquisitionFail(`${failure}_DESCRIPTOR`);
+    return Object.freeze({ identityMode: "DESCRIPTOR_MANIFEST", localDigest: image.manifestDigest });
+  }
   if (inspected?.imageId !== image.configDigest) acquisitionFail(`${failure}_CONFIG_DIGEST`);
-  return inspected.imageId;
+  return Object.freeze({ identityMode: "LEGACY_CONFIG_ID", localDigest: image.configDigest });
 }
+export function assertVerifiedLocalImage(image, inspected, failure = "LOCAL_IMAGE") { return verifyLocalImageIdentity(image, inspected, failure); }
 export function assertVerifiedRegistryImage(image, inspected) {
-  assertVerifiedLocalImage(image, inspected);
+  const localIdentity = assertVerifiedLocalImage(image, inspected);
   if (!expectedDigestPresent(image, inspected.repoDigests)) acquisitionFail("LOCAL_REPODIGEST");
-  return inspected.imageId;
+  return localIdentity;
 }
 
 export function createDockerImageAdapter({ root = ROOT, runner = execFileAsync } = {}) {
@@ -194,7 +200,7 @@ export function createDockerImageAdapter({ root = ROOT, runner = execFileAsync }
     try { parsed = JSON.parse(await call(["image", "inspect", reference])); } catch { acquisitionFail("DOCKER_INSPECT"); }
     const image = parsed?.[0];
     if (!image) acquisitionFail("DOCKER_INSPECT");
-    return { os: image.Os, architecture: image.Architecture, repoDigests: image.RepoDigests, imageId: image.Id };
+    return { os: image.Os, architecture: image.Architecture, repoDigests: image.RepoDigests, imageId: image.Id, descriptor: image.Descriptor };
   };
   return {
     pullExactImage: async (reference) => { try { await call(["pull", "--platform", "linux/amd64", reference]); } catch { acquisitionFail("PULL_FAILED"); } },
@@ -233,8 +239,8 @@ export async function acquirePullOnlyImages({ manifestPath, root = ROOT, docker 
     try { await docker.pullExactImage(reference); } catch { acquisitionFail("PULL_FAILED"); }
     let inspected;
     try { inspected = await docker.inspectImage(reference); } catch { acquisitionFail("DOCKER_INSPECT"); }
-    const imageId = assertVerifiedRegistryImage(image, inspected);
-    acquired.set(reference, imageId);
+    const localIdentity = assertVerifiedRegistryImage(image, inspected);
+    acquired.set(reference, localIdentity.localDigest);
   }
   const aliases = new Map();
   for (const image of authority.lock.images) aliases.set(`${image.sourceRef}\0${image.manifestDigest}`, image);
@@ -243,9 +249,9 @@ export async function acquirePullOnlyImages({ manifestPath, root = ROOT, docker 
     try { await docker.tagImage(reference, image.sourceRef); } catch { acquisitionFail("TAG_FAILED"); }
     let inspected;
     try { inspected = await docker.inspectAlias(image.sourceRef); } catch { acquisitionFail("DOCKER_INSPECT"); }
-    if (assertVerifiedRegistryImage(image, inspected) !== imageId) acquisitionFail("SOURCE_REF_ALIAS_MISMATCH");
+    if (assertVerifiedRegistryImage(image, inspected).localDigest !== imageId) acquisitionFail("SOURCE_REF_ALIAS_MISMATCH");
   }
-  return Object.freeze({ state: "PASS", mode: "VERIFIED_REGISTRY_PULL", logicalAuthorities: authority.lock.images.length, uniqueImages: physical.size, verifiedImages: acquired.size, executionAliases: aliases.size, platform: "linux/amd64", registryConnectivity: "PASS", localImageAuthority: "CONFIG_DIGEST_VERIFIED" });
+  return Object.freeze({ state: "PASS", mode: "VERIFIED_REGISTRY_PULL", logicalAuthorities: authority.lock.images.length, uniqueImages: physical.size, verifiedImages: acquired.size, executionAliases: aliases.size, platform: "linux/amd64", registryConnectivity: "PASS", localImageAuthority: "LOCAL_OCI_IDENTITY_VERIFIED" });
 }
 
 export function parseImageAcquisitionArgs(args) {
