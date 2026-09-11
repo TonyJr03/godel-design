@@ -18,7 +18,9 @@ function image(index, duplicateOf) {
 }
 function fixture() {
   const images = Array.from({ length: 11 }, (_, index) => image(index));
-  images.push({ ...image(11, images[0]), logicalName: "image-duplicate", sourceRef: "example/image:duplicate" });
+  images[0] = { ...images[0], logicalName: "runtime-db", sourceRef: "example/image:shared" };
+  images.push({ ...image(11, images[0]), logicalName: "helper-postgres-db-config", sourceRef: "example/image:shared" });
+  images.push({ ...image(12, images[0]), logicalName: "helper-postgres-filesystem", sourceRef: "example/image:shared" });
   const lock = { images };
   const manifest = { operationId: OPERATION, repository: { gitCommit: COMMIT }, imageAuthority: { sha256: "b".repeat(64) } };
   return { lock, manifest, manifestSha256: "c".repeat(64), authority: { lock, manifest, manifestSha256: "c".repeat(64) } };
@@ -37,7 +39,7 @@ function setup(root, item = fixture()) {
     save: async (alias, output) => { actions.push(`save linux/amd64 ${alias}`); await writeFile(output, `archive:${alias}`); },
     load: async (input) => { actions.push(`load linux/amd64 ${basename(input)}`); const index = Number.parseInt(basename(input).slice(0, 2), 10), target = physical[index]; aliases.set(transportAlias(OPERATION, index, target), target); },
   };
-  return { actions, aliases, docker, physical, readManifest: async () => ({ manifest: item.manifest, manifestSha256: item.manifestSha256 }), validateAuthority: async () => ({ lock: item.lock }), git: { clean: async () => true, head: async () => COMMIT } };
+  return { actions, aliases, authority: item.authority, docker, physical, readManifest: async () => ({ manifest: item.manifest, manifestSha256: item.manifestSha256 }), validateAuthority: async () => ({ lock: item.lock }), git: { clean: async () => true, head: async () => COMMIT } };
 }
 async function temporaryRoot() { const root = await mkdtemp(join(tmpdir(), "godel-offline-images-")); await mkdir(join(root, "backups")); return root; }
 async function exportedBundle(root, local = setup(root)) { await exportOfflineImageBundle({ manifestPath: "manifests/reconstruction.json", output: "backups/bundle", root, ...local }); return local; }
@@ -87,6 +89,34 @@ test("export accepts exact RepoDigest/configDigest/platform and deduplicates ele
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
+test("shared PostgreSQL sourceRef topology exports one sorted unique alias and converges through import", async () => {
+  const root = await temporaryRoot(), exported = setup(root);
+  try {
+    await exportOfflineImageBundle({ manifestPath: "manifest.json", output: "backups/shared", root, ...exported });
+    const metadata = JSON.parse(await readFile(join(root, "backups", "shared", "bundle.json")));
+    const shared = metadata.images.find((image) => image.sourceRefs.includes("example/image:shared"));
+    assert.deepEqual(shared.sourceRefs, ["example/image:shared"]);
+    assert.doesNotThrow(() => validateOfflineBundle(metadata, exported.authority, exported.authority.manifestSha256));
+    const imported = setup(root);
+    const result = await importOfflineImageBundle({ manifestPath: "manifest.json", bundle: "backups/shared", root, gate: async () => ({ state: "PASS" }), ...imported });
+    assert.equal(result.state, "PASS");
+    assert.equal(imported.actions.filter((action) => action.startsWith("load linux/amd64")).length, 11);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test("shared physical aliases export as a deterministic sorted set", async () => {
+  const root = await temporaryRoot(), item = fixture();
+  item.lock.images.push({ ...item.lock.images[0], logicalName: "runtime-db-alternate", sourceRef: "example/image:alternate" });
+  const local = setup(root, item);
+  try {
+    await exportOfflineImageBundle({ manifestPath: "manifest.json", output: "backups/sorted", root, ...local });
+    const metadata = JSON.parse(await readFile(join(root, "backups", "sorted", "bundle.json")));
+    const shared = metadata.images.find((image) => image.sourceRefs.includes("example/image:shared"));
+    assert.deepEqual(shared.sourceRefs, ["example/image:alternate", "example/image:shared"]);
+    assert.doesNotThrow(() => validateOfflineBundle(metadata, local.authority, item.manifestSha256));
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
 test("offline export accepts Docker 29 descriptor identity and rejects a bad descriptor before alias/save", async () => {
   const root = await temporaryRoot();
   try {
@@ -123,7 +153,7 @@ test("export requires exact RepoDigest after pull and before transport alias pub
 });
 
 test("strict bundle validation rejects extra keys, bad lock binding, platform, archives, and duplicate source mappings", () => {
-  const item = fixture(), base = { schemaVersion: 1, format: "godel-sh-offline-image-bundle", operationId: OPERATION, repositoryGitCommit: COMMIT, reconstructionManifestSha256: item.manifestSha256, imageLockSha256: item.manifest.imageAuthority.sha256, imageLockSchemaVersion: 2, platform, images: [...new Map(item.lock.images.map((image) => [physicalKey(image), image])).values()].map((image, index) => ({ canonicalRepository: image.canonicalRepository, sourceRefs: item.lock.images.filter((entry) => physicalKey(entry) === physicalKey(image)).map((entry) => entry.sourceRef).sort(), manifestDigest: image.manifestDigest, configDigest: image.configDigest, platform, archive: `${String(index).padStart(2, "0")}.tar`, size: 1, sha256: "d".repeat(64) })) };
+  const item = fixture(), base = { schemaVersion: 1, format: "godel-sh-offline-image-bundle", operationId: OPERATION, repositoryGitCommit: COMMIT, reconstructionManifestSha256: item.manifestSha256, imageLockSha256: item.manifest.imageAuthority.sha256, imageLockSchemaVersion: 2, platform, images: [...new Map(item.lock.images.map((image) => [physicalKey(image), image])).values()].map((image, index) => ({ canonicalRepository: image.canonicalRepository, sourceRefs: [...new Set(item.lock.images.filter((entry) => physicalKey(entry) === physicalKey(image)).map((entry) => entry.sourceRef))].sort(), manifestDigest: image.manifestDigest, configDigest: image.configDigest, platform, archive: `${String(index).padStart(2, "0")}.tar`, size: 1, sha256: "d".repeat(64) })) };
   assert.doesNotThrow(() => validateOfflineBundle(base, item.authority, item.manifestSha256));
   assert.throws(() => validateOfflineBundle({ ...base, extra: true }, item.authority, item.manifestSha256), /BUNDLE_SCHEMA/);
   assert.throws(() => validateOfflineBundle({ ...base, imageLockSchemaVersion: 1 }, item.authority, item.manifestSha256), /BUNDLE_BINDING/);
@@ -175,7 +205,7 @@ test("import uses the exported deterministic alias, loads linux/amd64, verifies 
     await importOfflineImageBundle({ manifestPath: "manifest.json", bundle: "backups/bundle", root, gate: async () => ({ state: "PASS" }), ...imported });
     const loads = imported.actions.filter((action) => action.startsWith("load linux/amd64"));
     const sourceTags = imported.actions.filter((action) => action.startsWith("tag godel-sh-image-transport/"));
-    assert.equal(loads.length, 11); assert.equal(sourceTags.length, exported.physical.length + 1);
+    assert.equal(loads.length, 11); assert.equal(sourceTags.length, new Set(exported.physical.map((image) => image.sourceRef)).size);
     assert.equal(imported.actions.findIndex((action) => action.startsWith("tag godel-sh-image-transport/")) > imported.actions.findIndex((action) => action.startsWith("load")), true);
     const resumed = setup(root); for (const [alias, value] of imported.aliases) resumed.aliases.set(alias, value);
     await importOfflineImageBundle({ manifestPath: "manifest.json", bundle: "backups/bundle", root, gate: async () => ({ state: "PASS" }), ...resumed });

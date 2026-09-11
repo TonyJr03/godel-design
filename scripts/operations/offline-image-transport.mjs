@@ -22,7 +22,7 @@ const isTransportError = (error) => error?.message?.startsWith("OFFLINE_IMAGE_TR
 function rethrow(error, fallback) { if (isTransportError(error)) throw error; fail(fallback); }
 function exactKeys(value, expected, code) { if (!isObject(value) || Object.keys(value).length !== expected.length || Object.keys(value).some((key) => !expected.includes(key))) fail(code); }
 function platform(value, code) { exactKeys(value, ["os", "architecture"], code); if (!same(value, PLATFORM)) fail(code); }
-function expectedSourceRefs(lock, image) { return lock.images.filter((item) => physicalKey(item) === physicalKey(image)).map((item) => item.sourceRef).sort(); }
+function expectedSourceRefs(lock, image) { return [...new Set(lock.images.filter((item) => physicalKey(item) === physicalKey(image)).map((item) => item.sourceRef))].sort(); }
 
 export function transportAlias(operationId, index, image) {
   if (typeof operationId !== "string" || !/^[0-9a-f-]{36}$/.test(operationId) || !Number.isSafeInteger(index) || index < 0 || typeof image?.configDigest !== "string") fail("TRANSPORT_ALIAS");
