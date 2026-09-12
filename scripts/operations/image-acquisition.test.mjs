@@ -303,6 +303,24 @@ test("registry verification preserves exact RepoDigest in both containerd and le
   });
 });
 
+test("Docker Hub RepoDigests canonicalize official images without weakening repository or digest binding", async () => {
+  await withFixture(async ({ lock }) => {
+    const node = lock.images.find((image) => image.logicalName === "build-base-node");
+    const inspected = (repoDigest) => ({ os: "linux", architecture: "amd64", imageId: node.manifestDigest, descriptor: { digest: node.manifestDigest }, repoDigests: [repoDigest] });
+    for (const repository of ["node", "library/node", "docker.io/library/node"]) {
+      assert.equal(assertVerifiedRegistryImage(node, inspected(`${repository}@${node.manifestDigest}`)).identityMode, "DESCRIPTOR_MANIFEST");
+    }
+    const nginx = lock.images.find((image) => image.logicalName === "build-base-nginx");
+    assert.doesNotThrow(() => assertVerifiedRegistryImage(nginx, { os: "linux", architecture: "amd64", imageId: nginx.manifestDigest, descriptor: { digest: nginx.manifestDigest }, repoDigests: [`nginxinc/nginx-unprivileged@${nginx.manifestDigest}`] }));
+    for (const image of lock.images.filter((image) => image.canonicalRepository.startsWith("docker.io/supabase/"))) {
+      assert.doesNotThrow(() => assertVerifiedRegistryImage(image, { os: "linux", architecture: "amd64", imageId: image.manifestDigest, descriptor: { digest: image.manifestDigest }, repoDigests: [`${image.sourceRef.slice(0, image.sourceRef.indexOf(":"))}@${image.manifestDigest}`] }));
+    }
+    for (const repoDigest of [`evil/node@${node.manifestDigest}`, `docker.io/other/node@${node.manifestDigest}`, `node@${digest(99)}`]) {
+      assert.throws(() => assertVerifiedRegistryImage(node, inspected(repoDigest)), /IMAGE_ACQUISITION_LOCAL_REPODIGEST/);
+    }
+  });
+});
+
 test("registry acquisition accepts Docker 29 descriptor identity and reaches source alias publication", async () => {
   await withFixture(async ({ lock }) => {
     const { result, actions } = await acquire(lock, { fake: fakeDocker(lock, { inspect: (image) => ({ os: "linux", architecture: "amd64", imageId: image.manifestDigest, descriptor: { digest: image.manifestDigest }, repoDigests: [immutableReference(image)] }) }) });

@@ -97,6 +97,22 @@ test("export accepts exact RepoDigest/configDigest/platform and deduplicates thi
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
+test("export accepts the exact official Docker Hub shorthand RepoDigest for build-base-node", async () => {
+  const root = await temporaryRoot(), item = fixture(), node = item.lock.images.find((image) => image.logicalName === "build-base-node");
+  node.canonicalRepository = "docker.io/library/node"; node.sourceRef = "node:24-bookworm-slim";
+  const local = setup(root, item);
+  local.docker.inspectImage = async (reference) => {
+    const image = local.physical.find((entry) => reference.endsWith(entry.manifestDigest));
+    return inspected(image, image === node ? { repoDigests: [`node@${node.manifestDigest}`] } : {});
+  };
+  try {
+    const result = await exportOfflineImageBundle({ manifestPath: "manifest.json", output: "backups/node-shorthand", root, ...local });
+    assert.equal(result.uniqueImages, 13); assert.equal(item.lock.images.length, 16);
+    assert.equal(local.actions.some((action) => action === `pull docker.io/library/node@${node.manifestDigest}`), true);
+    assert.equal(local.actions.some((action) => action.startsWith("save linux/amd64")), true);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
 test("shared PostgreSQL sourceRef topology exports one sorted unique alias and converges through import", async () => {
   const root = await temporaryRoot(), exported = setup(root);
   try {

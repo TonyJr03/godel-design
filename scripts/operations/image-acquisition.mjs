@@ -36,7 +36,13 @@ function parseSourceRef(sourceRef) {
   return { repository: match[1], tag: match[2] };
 }
 
-function canonicalRepository(sourceRef) { const repository = parseSourceRef(sourceRef).repository; return "docker.io/" + (repository.includes("/") ? repository : "library/" + repository); }
+function canonicalDockerHubRepository(repository) {
+  assertString(repository, "REPOSITORY", 255);
+  const normalized = repository.startsWith("docker.io/") ? repository.slice("docker.io/".length) : repository;
+  if (normalized === "docker.io" || !/^[a-z0-9]+(?:[._-][a-z0-9]+)*(?:\/[a-z0-9]+(?:[._-][a-z0-9]+)*)*$/.test(normalized)) fail("REPOSITORY");
+  return "docker.io/" + (normalized.includes("/") ? normalized : "library/" + normalized);
+}
+function canonicalRepository(sourceRef) { return canonicalDockerHubRepository(parseSourceRef(sourceRef).repository); }
 function assertAuthority(value) { assertString(value, "AUTHORITY"); if (value.startsWith("/") || value.includes("\\") || value.split("/").includes("..")) fail("AUTHORITY"); }
 function assertDigest(value, code) { assertString(value, code, 71); if (!/^sha256:[a-f0-9]{64}$/.test(value)) fail(code); }
 function digest(bytes) { return createHash("sha256").update(bytes).digest("hex"); }
@@ -203,11 +209,11 @@ export async function validateLockCli({ root = ROOT } = {}) { return formatValid
 
 function same(left, right) { return JSON.stringify(left) === JSON.stringify(right); }
 function immutableReference(image) { return `${image.canonicalRepository}@${image.manifestDigest}`; }
-function normalizedRepository(value) { return value.startsWith("docker.io/") ? value : `docker.io/${value}`; }
 function expectedDigestPresent(image, repoDigests) {
   return Array.isArray(repoDigests) && repoDigests.some((value) => {
     const at = typeof value === "string" ? value.lastIndexOf("@") : -1;
-    return at > 0 && normalizedRepository(value.slice(0, at)) === image.canonicalRepository && value.slice(at + 1) === image.manifestDigest;
+    if (at <= 0) return false;
+    try { return canonicalDockerHubRepository(value.slice(0, at)) === image.canonicalRepository && value.slice(at + 1) === image.manifestDigest; } catch { return false; }
   });
 }
 export function verifyLocalImageIdentity(image, inspected, failure = "LOCAL_IMAGE") {
