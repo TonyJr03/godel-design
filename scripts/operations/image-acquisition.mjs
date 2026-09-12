@@ -12,11 +12,15 @@ const LOCK_PATH = "infra/sh-portability-image-lock.json";
 const COMPOSE_PATH = "infra/supabase/docker-compose.yml";
 const BACKUP_PATH = "scripts/operations/backup-selfhosted.mjs";
 const RESTORE_PATH = "scripts/operations/restore-selfhosted.mjs";
+const APP_DOCKERFILE_PATH = "Dockerfile";
+const NGINX_DOCKERFILE_PATH = "Dockerfile.nginx";
 const UPSTREAM_DOCUMENT_PATH = "infra/SUPABASE_UPSTREAM.md";
 const UPSTREAM_LOCK_PATH = "infra/supabase-upstream.lock.json";
 const PLATFORM = Object.freeze({ os: "linux", architecture: "amd64" });
 const TOP_LEVEL_KEYS = ["schemaVersion", "format", "platform", "supabaseUpstreamCommit", "images"];
 const IMAGE_KEYS = ["logicalName", "role", "canonicalRepository", "sourceRef", "manifestDigest", "configDigest", "platform", "authority"];
+const BUILD_BASE_IMAGE_KEYS = ["logicalName", "role", "canonicalRepository", "sourceRef", "sourceIndexDigest", "manifestDigest", "configDigest", "platform", "authority"];
+const INDEX_MEDIA_TYPES = new Set(["application/vnd.oci.image.index.v1+json", "application/vnd.docker.distribution.manifest.list.v2+json"]);
 const execFileAsync = promisify(execFile);
 
 function fail(code) { throw new Error("IMAGE_LOCK_" + code); }
@@ -32,30 +36,32 @@ function parseSourceRef(sourceRef) {
   return { repository: match[1], tag: match[2] };
 }
 
-function canonicalRepository(sourceRef) { return "docker.io/" + parseSourceRef(sourceRef).repository; }
+function canonicalRepository(sourceRef) { const repository = parseSourceRef(sourceRef).repository; return "docker.io/" + (repository.includes("/") ? repository : "library/" + repository); }
 function assertAuthority(value) { assertString(value, "AUTHORITY"); if (value.startsWith("/") || value.includes("\\") || value.split("/").includes("..")) fail("AUTHORITY"); }
+function assertDigest(value, code) { assertString(value, code, 71); if (!/^sha256:[a-f0-9]{64}$/.test(value)) fail(code); }
+function digest(bytes) { return createHash("sha256").update(bytes).digest("hex"); }
 
 function assertImage(image) {
-  assertExactKeys(image, IMAGE_KEYS, "IMAGE_SCHEMA");
+  const buildBase = image?.role === "build-base";
+  assertExactKeys(image, buildBase ? BUILD_BASE_IMAGE_KEYS : IMAGE_KEYS, "IMAGE_SCHEMA");
   assertString(image.logicalName, "LOGICAL_NAME", 64);
   if (!/^[a-z][a-z0-9-]{0,63}$/.test(image.logicalName)) fail("LOGICAL_NAME");
-  if (!["runtime", "helper"].includes(image.role)) fail("ROLE");
+  if (!["runtime", "helper", "build-base"].includes(image.role)) fail("ROLE");
   assertString(image.canonicalRepository, "REPOSITORY", 255);
   if (!/^docker\.io\/[a-z0-9]+(?:[._-][a-z0-9]+)*(?:\/[a-z0-9]+(?:[._-][a-z0-9]+)*)*$/.test(image.canonicalRepository)) fail("REPOSITORY");
   assertString(image.sourceRef, "SOURCE_REF", 255);
   if (image.canonicalRepository !== canonicalRepository(image.sourceRef)) fail("SOURCE_REPOSITORY_MISMATCH");
-  assertString(image.manifestDigest, "MANIFEST_DIGEST", 71);
-  if (!/^sha256:[a-f0-9]{64}$/.test(image.manifestDigest)) fail("MANIFEST_DIGEST");
-  assertString(image.configDigest, "CONFIG_DIGEST", 71);
-  if (!/^sha256:[a-f0-9]{64}$/.test(image.configDigest)) fail("CONFIG_DIGEST");
+  if (buildBase) assertDigest(image.sourceIndexDigest, "SOURCE_INDEX_DIGEST");
+  assertDigest(image.manifestDigest, "MANIFEST_DIGEST");
+  assertDigest(image.configDigest, "CONFIG_DIGEST");
   assertPlatform(image.platform, "PLATFORM");
   assertAuthority(image.authority);
-  if (["docker.io/godel-design-app", "docker.io/godel-design-nginx"].includes(image.canonicalRepository)) fail("GODEL_FINAL_IMAGE");
+  if (["docker.io/godel-design-app", "docker.io/godel-design-nginx", "docker.io/library/godel-design-app", "docker.io/library/godel-design-nginx"].includes(image.canonicalRepository)) fail("GODEL_FINAL_IMAGE");
 }
 
 export function validateImageLock(lock) {
   assertExactKeys(lock, TOP_LEVEL_KEYS, "SCHEMA");
-  if (lock.schemaVersion !== 2 || lock.format !== "godel-sh-portability-image-lock") fail("SCHEMA");
+  if (lock.schemaVersion !== 3 || lock.format !== "godel-sh-portability-image-lock") fail("SCHEMA");
   assertPlatform(lock.platform, "PLATFORM");
   assertString(lock.supabaseUpstreamCommit, "UPSTREAM_COMMIT", 40);
   if (!/^[a-f0-9]{40}$/.test(lock.supabaseUpstreamCommit)) fail("UPSTREAM_COMMIT");
@@ -106,7 +112,24 @@ function extractStorageXattrImage(content) {
   return matches[0][1];
 }
 
-function requirement({ logicalName, role, sourceRef, authority }) { return { logicalName, role, sourceRef, canonicalRepository: canonicalRepository(sourceRef), authority }; }
+function requirement({ logicalName, role, sourceRef, sourceIndexDigest, authority }) { return { logicalName, role, sourceRef, ...(sourceIndexDigest ? { sourceIndexDigest } : {}), canonicalRepository: canonicalRepository(sourceRef), authority }; }
+
+function parseExternalFromReferences(content, dockerfile) {
+  const stages = new Set(), external = [];
+  for (const line of content.split(/\r?\n/)) {
+    const match = /^FROM\s+([^\s]+)(?:\s+AS\s+([A-Za-z0-9_-]+))?\s*$/i.exec(line);
+    if (!match) continue;
+    if (!stages.has(match[1])) external.push(match[1]);
+    if (match[2]) stages.add(match[2]);
+  }
+  if (external.length !== 1) fail("DOCKERFILE_BASE_IMAGES");
+  const parsed = /^(.+)@(sha256:[a-f0-9]{64})$/.exec(external[0]);
+  if (!parsed) fail("DOCKERFILE_BASE_REFERENCE");
+  const { repository, tag } = parseSourceRef(parsed[1]);
+  const logicalName = dockerfile === APP_DOCKERFILE_PATH ? "build-base-node" : dockerfile === NGINX_DOCKERFILE_PATH ? "build-base-nginx" : null;
+  if (!logicalName) fail("DOCKERFILE_BASE_IMAGES");
+  return requirement({ logicalName, role: "build-base", sourceRef: `${repository}:${tag}`, sourceIndexDigest: parsed[2], authority: `${dockerfile} external FROM` });
+}
 
 function extractUpstreamCommit(document, upstreamLock) {
   const commits = [...new Set(document.match(/\b[a-f0-9]{40}\b/g) ?? [])];
@@ -138,11 +161,11 @@ export async function readImageLockIdentity({ root = ROOT, readRepositoryFile: r
 
 export function normalizedImmutableImageInventory(lock) {
   validateImageLock(lock);
-  return lock.images.map(({ logicalName, canonicalRepository, manifestDigest, configDigest, platform }) => ({ logicalName, canonicalRepository, manifestDigest, configDigest, platform }));
+  return lock.images.map(({ logicalName, role, canonicalRepository, sourceRef, sourceIndexDigest, manifestDigest, configDigest, platform }) => ({ logicalName, role, canonicalRepository, sourceRef, ...(role === "build-base" ? { sourceIndexDigest } : {}), manifestDigest, configDigest, platform }));
 }
 
 export async function extractPullOnlyImageRequirements({ root = ROOT, readRepositoryFile: repositoryReader } = {}) {
-  const [compose, backup, restore] = await Promise.all([COMPOSE_PATH, BACKUP_PATH, RESTORE_PATH].map((repositoryPath) => readRepositoryFile({ root, repositoryPath, readRepositoryFile: repositoryReader })));
+  const [compose, backup, restore, appDockerfile, nginxDockerfile] = await Promise.all([COMPOSE_PATH, BACKUP_PATH, RESTORE_PATH, APP_DOCKERFILE_PATH, NGINX_DOCKERFILE_PATH].map((repositoryPath) => readRepositoryFile({ root, repositoryPath, readRepositoryFile: repositoryReader })));
   const runtime = parseComposeImages(compose.toString("utf8")).map(({ service, sourceRef }) => requirement({ logicalName: "runtime-" + service, role: "runtime", sourceRef, authority: COMPOSE_PATH + " service " + service }));
   const db = runtime.find((entry) => entry.logicalName === "runtime-db");
   if (!db) fail("COMPOSE_DB_IMAGE");
@@ -154,7 +177,8 @@ export async function extractPullOnlyImageRequirements({ root = ROOT, readReposi
     requirement({ logicalName: "helper-postgres-filesystem", role: "helper", sourceRef: db.sourceRef, authority: BACKUP_PATH + " runFilesystemHelper; " + RESTORE_PATH + " runRestoreFilesystem" }),
     requirement({ logicalName: "helper-storage-xattr", role: "helper", sourceRef: backupStorageImage, authority: BACKUP_PATH + " STORAGE_XATTR_IMAGE; " + RESTORE_PATH + " STORAGE_XATTR_IMAGE" }),
   ];
-  return [...helpers, ...runtime].sort((left, right) => left.logicalName.localeCompare(right.logicalName));
+  const buildBases = [parseExternalFromReferences(appDockerfile.toString("utf8"), APP_DOCKERFILE_PATH), parseExternalFromReferences(nginxDockerfile.toString("utf8"), NGINX_DOCKERFILE_PATH)];
+  return [...buildBases, ...helpers, ...runtime].sort((left, right) => left.logicalName.localeCompare(right.logicalName));
 }
 
 export async function validateImageLockAgainstRepository({ root = ROOT, lock, readRepositoryFile: repositoryReader } = {}) {
@@ -169,7 +193,7 @@ export async function validateImageLockAgainstRepository({ root = ROOT, lock, re
   if (lockedByName.size !== requirements.length) fail("REPOSITORY_COVERAGE");
   for (const expected of requirements) {
     const actual = lockedByName.get(expected.logicalName);
-    if (!actual || actual.role !== expected.role || actual.canonicalRepository !== expected.canonicalRepository || actual.sourceRef !== expected.sourceRef || actual.authority !== expected.authority) fail("REPOSITORY_COVERAGE");
+    if (!actual || actual.role !== expected.role || actual.canonicalRepository !== expected.canonicalRepository || actual.sourceRef !== expected.sourceRef || actual.sourceIndexDigest !== expected.sourceIndexDigest || actual.authority !== expected.authority) fail("REPOSITORY_COVERAGE");
   }
   return { ...summary, requirementCount: requirements.length };
 }
@@ -203,6 +227,24 @@ export function assertVerifiedRegistryImage(image, inspected) {
   return localIdentity;
 }
 
+export function validateBuildBaseSourceIndex(image, bytes) {
+  if (image?.role !== "build-base") acquisitionFail("SOURCE_INDEX_ROLE");
+  let index;
+  try { index = JSON.parse(bytes); } catch { acquisitionFail("SOURCE_INDEX_INVALID"); }
+  if (`sha256:${digest(bytes)}` !== image.sourceIndexDigest) acquisitionFail("SOURCE_INDEX_HASH");
+  if (!isObject(index) || !INDEX_MEDIA_TYPES.has(index.mediaType) || !Array.isArray(index.manifests)) acquisitionFail("SOURCE_INDEX_FORMAT");
+  const children = index.manifests.filter((item) => isObject(item) && item.platform?.os === PLATFORM.os && item.platform?.architecture === PLATFORM.architecture);
+  if (children.length !== 1 || children[0].digest !== image.manifestDigest) acquisitionFail("SOURCE_INDEX_CHILD");
+  return children[0];
+}
+
+export function validateRawRegistryManifest(image, bytes) {
+  let manifest;
+  try { manifest = JSON.parse(bytes); } catch { acquisitionFail("RAW_MANIFEST_INVALID"); }
+  if (!isObject(manifest) || !isObject(manifest.config) || `sha256:${digest(bytes)}` !== image.manifestDigest || manifest.config.digest !== image.configDigest) acquisitionFail("RAW_MANIFEST_BINDING");
+  return manifest;
+}
+
 export function createDockerImageAdapter({ root = ROOT, runner = execFileAsync } = {}) {
   const call = async (args) => (await runner("docker", args, { cwd: root, windowsHide: true, maxBuffer: 1024 * 1024 })).stdout;
   const inspect = async (reference) => {
@@ -214,6 +256,7 @@ export function createDockerImageAdapter({ root = ROOT, runner = execFileAsync }
   };
   return {
     pullExactImage: async (reference) => { try { await call(["pull", "--platform", "linux/amd64", reference]); } catch { acquisitionFail("PULL_FAILED"); } },
+    rawManifest: async (reference) => { try { return (await runner("docker", ["buildx", "imagetools", "inspect", "--raw", reference], { cwd: root, windowsHide: true, encoding: "buffer", maxBuffer: 128 * 1024 * 1024 })).stdout; } catch { acquisitionFail("RAW_MANIFEST_FETCH"); } },
     inspectImage: inspect,
     tagImage: async (reference, alias) => { try { await call(["tag", reference, alias]); } catch { acquisitionFail("TAG_FAILED"); } },
     inspectAlias: inspect,
@@ -255,6 +298,10 @@ export async function acquirePullOnlyImages({ manifestPath, root = ROOT, docker 
   const acquired = new Map();
   for (const image of physical.values()) {
     const reference = immutableReference(image);
+    if (image.role === "build-base") {
+      let sourceIndex, rawChild;
+      try { sourceIndex = await docker.rawManifest(`${image.canonicalRepository}@${image.sourceIndexDigest}`); validateBuildBaseSourceIndex(image, sourceIndex); rawChild = await docker.rawManifest(reference); validateRawRegistryManifest(image, rawChild); } catch (error) { if (error?.message?.startsWith("IMAGE_ACQUISITION_")) throw error; acquisitionFail("RAW_MANIFEST_FETCH"); }
+    }
     try { await docker.pullExactImage(reference); } catch { acquisitionFail("PULL_FAILED"); }
     let inspected;
     try { inspected = await docker.inspectImage(reference); } catch { acquisitionFail("DOCKER_INSPECT"); }

@@ -8,9 +8,10 @@ const APP = `FROM node:24@sha256:${SHA} AS base\nFROM base AS runner\n`, NGINX =
 const digest = (value) => createHash("sha256").update(value).digest("hex");
 function manifest() { return { platform: { os: "linux", architecture: "amd64" }, repository: { gitCommit: COMMIT }, externalSecretGenerationId: ID, operationId: ID, godelBuilds: [{ logicalName: "godel-app", dockerfile: "Dockerfile", dockerfileSha256: digest(APP), baseImages: [`node:24@sha256:${SHA}`], platform: { os: "linux", architecture: "amd64" }, gitCommit: COMMIT, configurationBinding: ID }, { logicalName: "godel-nginx", dockerfile: "Dockerfile.nginx", dockerfileSha256: digest(NGINX), baseImages: [`nginx:stable@sha256:${"b".repeat(64)}`], platform: { os: "linux", architecture: "amd64" }, gitCommit: COMMIT, configurationBinding: null }] }; }
 function bundle(value = {}) { return { bundle: { generationId: value.generationId ?? ID, reconstruction: { operationId: value.operationId ?? ID, manifestSha256: value.manifestSha256 ?? SHA } }, godelSnapshot: Buffer.from(value.godelEnv ?? "NEXT_PUBLIC_SUPABASE_URL=https://synthetic.invalid\nNEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=synthetic-public-key\nGODEL_APP_IMAGE_TAG=rehearsal\n") }; }
+function buildBases() { return [{ role: "build-base", sourceRef: "node:24", sourceIndexDigest: `sha256:${SHA}`, manifestDigest: `sha256:${"c".repeat(64)}`, configDigest: `sha256:${"d".repeat(64)}` }, { role: "build-base", sourceRef: "nginx:stable", sourceIndexDigest: `sha256:${"b".repeat(64)}`, manifestDigest: `sha256:${"e".repeat(64)}`, configDigest: `sha256:${"f".repeat(64)}` }]; }
 function fake(options = {}) {
   const actions = [], files = { Dockerfile: Buffer.from(options.appSource ?? APP), "Dockerfile.nginx": Buffer.from(options.nginxSource ?? NGINX) };
-  return { actions, gate: options.gate ?? (async () => ({ state: "PASS" })), pullOnlyReadiness: options.pullOnlyReadiness ?? (async () => ({ state: "PASS" })), contextAdapter: { create: async () => ({ state: "EXACT_GIT_ARCHIVE", contextPath: "/private/exact-git-archive", readFile: async (name) => { if (!files[name]) throw new Error("missing"); return files[name]; }, release: async () => actions.push(["release"]) }) }, docker: { buildApp: async (value) => { actions.push(["app", value]); if (options.appFailure) throw new Error("fail"); }, buildNginx: async (value) => { actions.push(["nginx", value]); if (options.nginxFailure) throw new Error("fail"); }, inspectFinalImage: async (tag) => { actions.push(["inspect", tag]); return options.inspect?.(tag) ?? { os: "linux", architecture: "amd64", imageId: `sha256:${tag.startsWith("godel-design-app") ? "c".repeat(64) : "d".repeat(64)}` }; } } };
+  return { actions, gate: options.gate ?? (async () => ({ state: "PASS" })), pullOnlyReadiness: options.pullOnlyReadiness ?? (async () => ({ state: "PASS", buildBases: buildBases() })), contextAdapter: { create: async () => ({ state: "EXACT_GIT_ARCHIVE", contextPath: "/private/exact-git-archive", readFile: async (name) => { if (!files[name]) throw new Error("missing"); return files[name]; }, release: async () => actions.push(["release"]) }) }, docker: { buildApp: async (value) => { actions.push(["app", value]); if (options.appFailure) throw new Error("fail"); }, buildNginx: async (value) => { actions.push(["nginx", value]); if (options.nginxFailure) throw new Error("fail"); }, inspectFinalImage: async (tag) => { actions.push(["inspect", tag]); return options.inspect?.(tag) ?? { os: "linux", architecture: "amd64", imageId: `sha256:${tag.startsWith("godel-design-app") ? "c".repeat(64) : "d".repeat(64)}` }; } } };
 }
 async function run(options = {}) { const adapters = fake(options), current = options.manifest ?? manifest(); const result = await buildVerifiedGodelImages({ manifestPath: "manifest.json", protectedRoot: "/protected/root", bundlePath: "/protected/root/bundle", root: "/repo", gate: adapters.gate, pullOnlyReadiness: adapters.pullOnlyReadiness, readManifest: async () => ({ manifest: current, manifestSha256: SHA }), assertBundlePath: async () => "/protected/root/bundle", readBundle: async () => bundle(options.bundle), contextAdapter: adapters.contextAdapter, docker: adapters.docker }); return { ...adapters, result }; }
 
@@ -18,6 +19,7 @@ test("verified recipes build from exact Git archive with secret-only publishable
   const value = await run(); const app = value.actions.find(([kind]) => kind === "app")[1];
   assert.equal(GODEL_BUILT_IMAGE_IDENTITY, "VERIFIED_BUILD_RECIPE");
   assert.equal(value.result.state, "PASS"); assert.equal(value.result.buildContext, "EXACT_GIT_ARCHIVE"); assert.equal(app.contextPath, "/private/exact-git-archive"); assert.equal(app.tag, "godel-design-app:rehearsal"); assert.equal(app.publishableKey, "synthetic-public-key");
+  assert.deepEqual(app.buildContext, { dockerfileReference: `node:24@sha256:${SHA}`, sourceRef: "node:24", manifestDigest: `sha256:${"c".repeat(64)}`, configDigest: `sha256:${"d".repeat(64)}` });
   assert.notEqual(app.nonce, prepareAppBuild({ appTag: "rehearsal", publicUrl: "x", publishableKey: "y" }).nonce);
   assert.doesNotMatch(renderGodelBuildResult(value.result), /synthetic-public-key|synthetic\.invalid|private|nonce/i);
 });
@@ -50,14 +52,16 @@ test("approved Buildx invocations isolate the App publishable key in the child e
     if (args[0] === "image") return { stdout: JSON.stringify([{ Os: "linux", Architecture: "amd64", Id: `sha256:${SHA}` }]) };
     return { stdout: "" };
   } });
-  await docker.buildApp({ contextPath: "/private/exact-git-archive", tag: "godel-design-app:local", publicUrl: "https://synthetic.invalid", publishableKey: key, nonce });
-  await docker.buildNginx({ contextPath: "/private/exact-git-archive", tag: "godel-design-nginx:local" });
+  await docker.buildApp({ contextPath: "/private/exact-git-archive", tag: "godel-design-app:local", publicUrl: "https://synthetic.invalid", publishableKey: key, nonce, buildContext: { dockerfileReference: `node:24@sha256:${SHA}`, sourceRef: "node:24" } });
+  await docker.buildNginx({ contextPath: "/private/exact-git-archive", tag: "godel-design-nginx:local", buildContext: { dockerfileReference: `nginx:stable@sha256:${"b".repeat(64)}`, sourceRef: "nginx:stable" } });
   const [app, nginx] = calls;
   assert.deepEqual(app.args.slice(0, 10), ["buildx", "build", "--quiet", "--load", "--platform", "linux/amd64", "--file", "Dockerfile", "--tag", "godel-design-app:local"]);
   assert.ok(app.args.includes("id=godel_supabase_publishable_key,env=NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"));
+  assert.ok(app.args.includes("BUILDKIT_SYNTAX=dockerfile.v0")); assert.ok(app.args.includes(`node:24@sha256:${SHA}=docker-image://node:24`));
   assert.doesNotMatch(app.args.join(" "), /synthetic-publishable-key/);
   assert.equal(app.options.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, key);
   assert.deepEqual(nginx.args.slice(0, 10), ["buildx", "build", "--quiet", "--load", "--platform", "linux/amd64", "--file", "Dockerfile.nginx", "--tag", "godel-design-nginx:local"]);
+  assert.ok(nginx.args.includes("BUILDKIT_SYNTAX=dockerfile.v0")); assert.ok(nginx.args.includes(`nginx:stable@sha256:${"b".repeat(64)}=docker-image://nginx:stable`));
   assert.equal(calls.every(({ args }) => args[0] === "buildx" && !/(^| )(run|create|compose|network|volume|rm|prune)( |$)/.test(args.join(" "))), true);
 });
 
@@ -71,11 +75,16 @@ test("exact archive context excludes synthetic host-only files and nonce is ephe
 });
 
 test("pull-only readiness inspects immutable references and aliases without mutation", async () => {
-  const image = { canonicalRepository: "docker.io/supabase/postgres", manifestDigest: `sha256:${SHA}`, configDigest: `sha256:${"b".repeat(64)}`, sourceRef: "supabase/postgres:17", platform: { os: "linux", architecture: "amd64" } }, actions = [];
-  const docker = { inspectAlias: async (reference) => { actions.push(reference); return { os: "linux", architecture: "amd64", imageId: image.manifestDigest, descriptor: { digest: image.manifestDigest } }; } };
-  const legacy = { inspectAlias: async () => ({ os: "linux", architecture: "amd64", imageId: image.configDigest }) };
-  assert.equal((await verifyPullOnlyReadiness({ manifest: {}, docker: legacy, validateAuthority: async () => ({ lock: { images: [image] } }) })).localImageAuthority, "LOCAL_OCI_IDENTITY_VERIFIED");
-  await verifyPullOnlyReadiness({ manifest: {}, docker, validateAuthority: async () => ({ lock: { images: [image] } }) }); assert.deepEqual(actions, ["supabase/postgres:17"]);
+  const node = { role: "build-base", canonicalRepository: "docker.io/library/node", manifestDigest: `sha256:${SHA}`, configDigest: `sha256:${"b".repeat(64)}`, sourceRef: "node:24", sourceIndexDigest: `sha256:${"c".repeat(64)}`, platform: { os: "linux", architecture: "amd64" } };
+  const nginx = { role: "build-base", canonicalRepository: "docker.io/library/nginx", manifestDigest: `sha256:${"d".repeat(64)}`, configDigest: `sha256:${"e".repeat(64)}`, sourceRef: "nginx:stable", sourceIndexDigest: `sha256:${"f".repeat(64)}`, platform: { os: "linux", architecture: "amd64" } };
+  const images = [node, nginx], actions = [];
+  const docker = { inspectAlias: async (reference) => { actions.push(reference); const image = images.find((item) => item.sourceRef === reference); return { os: "linux", architecture: "amd64", imageId: image.manifestDigest, descriptor: { digest: image.manifestDigest } }; } };
+  const legacy = { inspectAlias: async (reference) => { const image = images.find((item) => item.sourceRef === reference); return { os: "linux", architecture: "amd64", imageId: image.configDigest }; } };
+  assert.equal((await verifyPullOnlyReadiness({ manifest: {}, docker: legacy, validateAuthority: async () => ({ lock: { images } }) })).localImageAuthority, "LOCAL_OCI_IDENTITY_VERIFIED");
+  const result = await verifyPullOnlyReadiness({ manifest: {}, docker, validateAuthority: async () => ({ lock: { images } }) }); assert.deepEqual(actions, ["node:24", "nginx:stable"]); assert.equal(result.buildBases.length, 2);
+  await assert.rejects(() => verifyPullOnlyReadiness({ manifest: {}, docker, validateAuthority: async () => ({ lock: { images: [node] } }) }), /GODEL_IMAGE_BUILD_PULL_ONLY_IMAGES_NOT_READY/);
+  const mismatch = { inspectAlias: async () => ({ os: "linux", architecture: "amd64", imageId: `sha256:${"0".repeat(64)}` }) };
+  await assert.rejects(() => verifyPullOnlyReadiness({ manifest: {}, docker: mismatch, validateAuthority: async () => ({ lock: { images } }) }), /GODEL_IMAGE_BUILD_PULL_ONLY_IMAGES_NOT_READY/);
 });
 
 test("CLI accepts only repository-relative manifest and protected bundle paths", () => {

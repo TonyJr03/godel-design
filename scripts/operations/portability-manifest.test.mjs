@@ -80,7 +80,8 @@ test("a valid synthetic manifest is deterministic and binds every non-secret inp
     assert.equal(validated.operationId, OPERATION_ID);
     assert.equal(first.manifest.externalSecretGenerationId, GENERATION_ID);
     assert.equal(first.manifest.godelBuilds.length, 2);
-    assert.equal(first.manifest.imageAuthority.images.length, 14);
+    assert.equal(first.manifest.imageAuthority.images.length, 16);
+    assert.equal(first.manifest.schemaVersion, 1); assert.equal(first.manifest.imageAuthority.schemaVersion, 3); assert.equal(first.manifest.contracts.imageLockSchema, 3);
     assert.ok(value.verifierCalls.length >= 2);
     const serialized = firstBytes.toString("utf8");
     assert.doesNotMatch(serialized, /synthetic protected artifact|GODEL_PUBLIC_BUILD_NONCE|godel-design-app:|godel-design-nginx:/);
@@ -230,10 +231,8 @@ test("validation uses injected Git and backup verification only; no Docker, regi
 
 test("Git blob authority makes clean CRLF and LF working trees converge on the same manifest recipes", async () => {
   await withFixture(async (value) => {
-    const appBlob = Buffer.from(`FROM node:24-alpine@sha256:${"1".repeat(64)}\n`);
-    const nginxBlob = Buffer.from(`FROM nginx:stable-alpine@sha256:${"2".repeat(64)}\n`);
-    const [upstream, upstreamLock, imageLock, compose, backupSource, restoreSource] = await Promise.all([
-      readFile(resolve(ROOT, "infra/SUPABASE_UPSTREAM.md")), readFile(resolve(ROOT, "infra/supabase-upstream.lock.json")), readFile(resolve(ROOT, "infra/sh-portability-image-lock.json")), readFile(resolve(ROOT, "infra/supabase/docker-compose.yml")), readFile(resolve(ROOT, "scripts/operations/backup-selfhosted.mjs")), readFile(resolve(ROOT, "scripts/operations/restore-selfhosted.mjs")),
+    const [upstream, upstreamLock, imageLock, compose, backupSource, restoreSource, appBlob, nginxBlob] = await Promise.all([
+      readFile(resolve(ROOT, "infra/SUPABASE_UPSTREAM.md")), readFile(resolve(ROOT, "infra/supabase-upstream.lock.json")), readFile(resolve(ROOT, "infra/sh-portability-image-lock.json")), readFile(resolve(ROOT, "infra/supabase/docker-compose.yml")), readFile(resolve(ROOT, "scripts/operations/backup-selfhosted.mjs")), readFile(resolve(ROOT, "scripts/operations/restore-selfhosted.mjs")), readFile(resolve(ROOT, "Dockerfile")), readFile(resolve(ROOT, "Dockerfile.nginx")),
     ]);
     const blobs = new Map([["Dockerfile", appBlob], ["Dockerfile.nginx", nginxBlob], ["infra/SUPABASE_UPSTREAM.md", upstream], ["infra/supabase-upstream.lock.json", upstreamLock], ["infra/sh-portability-image-lock.json", imageLock], ["infra/supabase/docker-compose.yml", compose], ["scripts/operations/backup-selfhosted.mjs", backupSource], ["scripts/operations/restore-selfhosted.mjs", restoreSource]]);
     const sourceWorkingDockerfile = Buffer.from(appBlob.toString("utf8").replace(/\n/g, "\r\n"));

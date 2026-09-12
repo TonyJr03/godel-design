@@ -67,7 +67,9 @@ export async function verifyPullOnlyReadiness({ root = ROOT, manifest, docker = 
     let inspected; try { inspected = await docker.inspectAlias(image.sourceRef); } catch { fail("PULL_ONLY_IMAGES_NOT_READY"); }
     assertPulledImage(image, inspected);
   }
-  return { state: "PASS", uniqueImages: physical.size, executionAliases: aliases.size, localImageAuthority: "LOCAL_OCI_IDENTITY_VERIFIED" };
+  const buildBases = authority.lock.images.filter((image) => image.role === "build-base");
+  if (buildBases.length !== 2) fail("PULL_ONLY_IMAGES_NOT_READY");
+  return { state: "PASS", uniqueImages: physical.size, executionAliases: aliases.size, localImageAuthority: "LOCAL_OCI_IDENTITY_VERIFIED", buildBases };
 }
 
 export async function createExactGitArchiveContext({ root = ROOT, gitCommit, runner = execFileAsync } = {}) {
@@ -98,6 +100,24 @@ export async function verifyGodelBuildRecipes({ manifest, context }) {
   return result;
 }
 
+export function resolveVerifiedBuildBaseContexts(recipes, buildBases) {
+  if (!recipes || !Array.isArray(buildBases) || buildBases.length !== 2) fail("BUILD_BASE_CONTEXT");
+  const byIndex = new Map();
+  for (const image of buildBases) {
+    if (image?.role !== "build-base" || typeof image.sourceRef !== "string" || !SHA.test(image.sourceIndexDigest ?? "") || byIndex.has(`${image.sourceRef}@${image.sourceIndexDigest}`)) fail("BUILD_BASE_CONTEXT");
+    byIndex.set(`${image.sourceRef}@${image.sourceIndexDigest}`, image);
+  }
+  const contexts = {};
+  for (const [logicalName, recipe] of Object.entries(recipes)) {
+    if (!Array.isArray(recipe.baseImages) || recipe.baseImages.length !== 1) fail("BUILD_BASE_CONTEXT");
+    const image = byIndex.get(recipe.baseImages[0]);
+    if (!image) fail("BUILD_BASE_CONTEXT");
+    contexts[logicalName] = Object.freeze({ dockerfileReference: recipe.baseImages[0], sourceRef: image.sourceRef, manifestDigest: image.manifestDigest, configDigest: image.configDigest });
+  }
+  if (Object.keys(contexts).length !== 2 || contexts["godel-app"]?.sourceRef === contexts["godel-nginx"]?.sourceRef) fail("BUILD_BASE_CONTEXT");
+  return Object.freeze(contexts);
+}
+
 export function prepareAppBuild(configuration, nonce = randomUUID()) {
   if (!UUID.test(nonce)) fail("BUILD_NONCE");
   return { tag: `godel-design-app:${configuration.appTag}`, nonce, publicUrl: configuration.publicUrl, publishableKey: configuration.publishableKey };
@@ -110,10 +130,10 @@ export function createGodelBuildDockerAdapter({ root = ROOT, runner = execFileAs
     const image = result?.[0]; if (!image) fail("LOCAL_IMAGE_INSPECT"); return { os: image.Os, architecture: image.Architecture, imageId: image.Id };
   };
   return {
-    buildApp: async ({ contextPath, tag, publicUrl, publishableKey, nonce }) => {
-      try { await call(["buildx", "build", "--quiet", "--load", "--platform", "linux/amd64", "--file", "Dockerfile", "--tag", tag, "--build-arg", `NEXT_PUBLIC_SUPABASE_URL=${publicUrl}`, "--build-arg", `GODEL_PUBLIC_BUILD_NONCE=${nonce}`, "--secret", "id=godel_supabase_publishable_key,env=NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", contextPath], { env: { ...process.env, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publishableKey } }); } catch { fail("APP_FAILED"); }
+    buildApp: async ({ contextPath, tag, publicUrl, publishableKey, nonce, buildContext }) => {
+      try { await call(["buildx", "build", "--quiet", "--load", "--platform", "linux/amd64", "--file", "Dockerfile", "--tag", tag, "--build-arg", "BUILDKIT_SYNTAX=dockerfile.v0", "--build-context", `${buildContext.dockerfileReference}=docker-image://${buildContext.sourceRef}`, "--build-arg", `NEXT_PUBLIC_SUPABASE_URL=${publicUrl}`, "--build-arg", `GODEL_PUBLIC_BUILD_NONCE=${nonce}`, "--secret", "id=godel_supabase_publishable_key,env=NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", contextPath], { env: { ...process.env, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publishableKey } }); } catch { fail("APP_FAILED"); }
     },
-    buildNginx: async ({ contextPath, tag }) => { try { await call(["buildx", "build", "--quiet", "--load", "--platform", "linux/amd64", "--file", "Dockerfile.nginx", "--tag", tag, contextPath]); } catch { fail("NGINX_FAILED"); } },
+    buildNginx: async ({ contextPath, tag, buildContext }) => { try { await call(["buildx", "build", "--quiet", "--load", "--platform", "linux/amd64", "--file", "Dockerfile.nginx", "--tag", tag, "--build-arg", "BUILDKIT_SYNTAX=dockerfile.v0", "--build-context", `${buildContext.dockerfileReference}=docker-image://${buildContext.sourceRef}`, contextPath]); } catch { fail("NGINX_FAILED"); } },
     inspectFinalImage: inspect,
   };
 }
@@ -127,7 +147,7 @@ export async function buildVerifiedGodelImages({ manifestPath, protectedRoot, bu
   let reconstruction; try { reconstruction = await readManifest({ manifestPath }); } catch { fail("MANIFEST_INVALID"); }
   let gateResult; try { gateResult = await gate({ manifestPath, root }); } catch { fail("CLEAN_HOST_GATE"); }
   if (gateResult?.state !== "PASS") fail("CLEAN_HOST_GATE");
-  await pullOnlyReadiness({ root, manifest: reconstruction.manifest });
+  const readiness = await pullOnlyReadiness({ root, manifest: reconstruction.manifest });
   let bundle; try { bundle = await readBundle({ bundlePath: await assertBundlePath({ protectedRoot, path: bundlePath, code: "BUNDLE_PATH" }) }); } catch (error) { if (error?.message?.startsWith("GODEL_IMAGE_BUILD_")) throw error; fail("PROTECTED_BUNDLE"); }
   assertBundleBinding(reconstruction, bundle);
   const configuration = parseGodelBuildConfiguration(bundle.godelSnapshot);
@@ -135,11 +155,12 @@ export async function buildVerifiedGodelImages({ manifestPath, protectedRoot, bu
   try { context = await contextAdapter.create({ root, gitCommit: reconstruction.manifest.repository.gitCommit }); } catch { fail("GIT_ARCHIVE_CONTEXT"); }
   try {
     if (context?.state !== "EXACT_GIT_ARCHIVE") fail("GIT_ARCHIVE_CONTEXT");
-    await verifyGodelBuildRecipes({ manifest: reconstruction.manifest, context });
+    const recipes = await verifyGodelBuildRecipes({ manifest: reconstruction.manifest, context });
+    const buildContexts = resolveVerifiedBuildBaseContexts(recipes, readiness?.buildBases);
     const app = prepareAppBuild(configuration), nginxTag = `godel-design-nginx:${configuration.nginxTag}`;
-    try { await docker.buildApp({ contextPath: context.contextPath, ...app }); } catch (error) { if (error?.message === "GODEL_IMAGE_BUILD_APP_FAILED") throw error; fail("APP_FAILED"); }
+    try { await docker.buildApp({ contextPath: context.contextPath, ...app, buildContext: buildContexts["godel-app"] }); } catch (error) { if (error?.message === "GODEL_IMAGE_BUILD_APP_FAILED") throw error; fail("APP_FAILED"); }
     const appDigest = assertLocalBuildImage(await docker.inspectFinalImage(app.tag), "APP_LOCAL_IMAGE");
-    try { await docker.buildNginx({ contextPath: context.contextPath, tag: nginxTag }); } catch (error) { if (error?.message === "GODEL_IMAGE_BUILD_NGINX_FAILED") throw error; fail("NGINX_FAILED"); }
+    try { await docker.buildNginx({ contextPath: context.contextPath, tag: nginxTag, buildContext: buildContexts["godel-nginx"] }); } catch (error) { if (error?.message === "GODEL_IMAGE_BUILD_NGINX_FAILED") throw error; fail("NGINX_FAILED"); }
     const nginxDigest = assertLocalBuildImage(await docker.inspectFinalImage(nginxTag), "NGINX_LOCAL_IMAGE");
     return Object.freeze({ state: "PASS", platform: "linux/amd64", buildContext: "EXACT_GIT_ARCHIVE", configurationBinding: reconstruction.manifest.externalSecretGenerationId, app: { recipe: "VERIFIED", localExecutionDigest: appDigest }, nginx: { recipe: "VERIFIED", localExecutionDigest: nginxDigest } });
   } finally { await context?.release?.(); }

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "format": "godel-sh-portability-image-lock",
   "platform": {
     "os": "linux",
@@ -7,6 +7,8 @@
   },
   "supabaseUpstreamCommit": "e846d45ce64207b952a4df44ac8b480ea0abb27e",
   "images": [
+    { "logicalName": "build-base-nginx", "role": "build-base", "canonicalRepository": "docker.io/nginxinc/nginx-unprivileged", "sourceRef": "nginxinc/nginx-unprivileged:stable-bookworm", "sourceIndexDigest": "sha256:cd33960e98e93d4d63385790ff7f8f5bf2ca95184c581b7f42ae8aea1139fbfc", "manifestDigest": "sha256:10bf30f80ce9af183b2db50a91ea59cea5eb5e4106820656bac8cd369ed14904", "configDigest": "sha256:48b8f9f8da61508a2952326dc1dd1994cf06cf27eb4e4fd30b295d02cc95ee27", "platform": { "os": "linux", "architecture": "amd64" }, "authority": "Dockerfile.nginx external FROM" },
+    { "logicalName": "build-base-node", "role": "build-base", "canonicalRepository": "docker.io/library/node", "sourceRef": "node:24-bookworm-slim", "sourceIndexDigest": "sha256:cd84903a12dbd26b46f1f3b8144a2568c41c5d37ddd0c7a80a34c7a19786b35f", "manifestDigest": "sha256:9a81c173b244297fb9c8aabf38234786adbd3e698240dbb00cc241a2cc085cc8", "configDigest": "sha256:7036a19424e7febc3056d2d6c1d70445e85dfa5614a47026620124d4a20c97d3", "platform": { "os": "linux", "architecture": "amd64" }, "authority": "Dockerfile external FROM" },
     { "logicalName": "helper-postgres-db-config", "role": "helper", "canonicalRepository": "docker.io/supabase/postgres", "sourceRef": "supabase/postgres:17.6.1.136", "manifestDigest": "sha256:5a4314708484bec672de2c09653a5c01fb1c84a998564ac231b0325e2238ed5b", "configDigest": "sha256:f519727303f0af6862882be2a30f420e28710d4209226e681aaddb2c01d12d9b", "platform": { "os": "linux", "architecture": "amd64" }, "authority": "scripts/operations/restore-selfhosted.mjs rebuildDbConfig" },
     { "logicalName": "helper-postgres-filesystem", "role": "helper", "canonicalRepository": "docker.io/supabase/postgres", "sourceRef": "supabase/postgres:17.6.1.136", "manifestDigest": "sha256:5a4314708484bec672de2c09653a5c01fb1c84a998564ac231b0325e2238ed5b", "configDigest": "sha256:f519727303f0af6862882be2a30f420e28710d4209226e681aaddb2c01d12d9b", "platform": { "os": "linux", "architecture": "amd64" }, "authority": "scripts/operations/backup-selfhosted.mjs runFilesystemHelper; scripts/operations/restore-selfhosted.mjs runRestoreFilesystem" },
     { "logicalName": "helper-storage-xattr", "role": "helper", "canonicalRepository": "docker.io/supabase/storage-api", "sourceRef": "supabase/storage-api:v1.60.4", "manifestDigest": "sha256:6f706c1184d97b081446527bb62a3193d3d47ad0daafcf738fd5c3e5a62aed97", "configDigest": "sha256:824f1024ddf46ed4c906ba9394f7a998ee2a627aac9b1c6fbdd7f6ec39b900c4", "platform": { "os": "linux", "architecture": "amd64" }, "authority": "scripts/operations/backup-selfhosted.mjs STORAGE_XATTR_IMAGE; scripts/operations/restore-selfhosted.mjs STORAGE_XATTR_IMAGE" },

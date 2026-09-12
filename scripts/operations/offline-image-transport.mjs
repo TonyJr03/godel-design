@@ -5,7 +5,7 @@ import { lstat, mkdir, readFile, rename, stat, unlink, writeFile } from "node:fs
 import { basename, resolve } from "node:path";
 import { promisify } from "node:util";
 import { evaluateCleanHostGate } from "./clean-host-gate.mjs";
-import { assertVerifiedLocalImage, assertVerifiedRegistryImage, createDockerImageAdapter, validateAcquisitionAuthority } from "./image-acquisition.mjs";
+import { assertVerifiedLocalImage, assertVerifiedRegistryImage, createDockerImageAdapter, validateAcquisitionAuthority, validateBuildBaseSourceIndex } from "./image-acquisition.mjs";
 import { readReconstructionManifest } from "./portability-manifest.mjs";
 
 const exec = promisify(execFile), ROOT = resolve(import.meta.dirname, "../..");
@@ -36,7 +36,7 @@ export function validateRawRegistryManifest(image, bytes) {
 }
 export function validateOfflineBundle(bundle, authority, manifestSha256) {
   exactKeys(bundle, BUNDLE_KEYS, "BUNDLE_SCHEMA");
-  if (bundle.schemaVersion !== 1 || bundle.format !== "godel-sh-offline-image-bundle" || bundle.operationId !== authority.manifest.operationId || bundle.repositoryGitCommit !== authority.manifest.repository.gitCommit || bundle.reconstructionManifestSha256 !== manifestSha256 || bundle.imageLockSha256 !== authority.manifest.imageAuthority.sha256 || bundle.imageLockSchemaVersion !== 2) fail("BUNDLE_BINDING");
+  if (bundle.schemaVersion !== 1 || bundle.format !== "godel-sh-offline-image-bundle" || bundle.operationId !== authority.manifest.operationId || bundle.repositoryGitCommit !== authority.manifest.repository.gitCommit || bundle.reconstructionManifestSha256 !== manifestSha256 || bundle.imageLockSha256 !== authority.manifest.imageAuthority.sha256 || bundle.imageLockSchemaVersion !== authority.manifest.imageAuthority.schemaVersion) fail("BUNDLE_BINDING");
   platform(bundle.platform, "BUNDLE_PLATFORM");
   if (!Array.isArray(bundle.images)) fail("BUNDLE_INVENTORY");
   const expectedImages = uniquePhysicalImages(authority.lock), expected = new Map(expectedImages.map((image) => [physicalKey(image), image]));
@@ -122,7 +122,7 @@ export async function exportOfflineImageBundle({ manifestPath, output, root = RO
   try {
     for (const [index, image] of uniquePhysicalImages(authority.lock).entries()) {
       const reference = `${image.canonicalRepository}@${image.manifestDigest}`;
-      try { const raw = await docker.rawManifest(reference); validateRawRegistryManifest(image, raw); await docker.pullExactImage(reference); assertVerifiedRegistryImage(image, await docker.inspectImage(reference)); } catch (error) { if (error?.message === "IMAGE_ACQUISITION_LOCAL_REPODIGEST") fail("REGISTRY_REPODIGEST"); rethrow(error, "EXPORT_IMAGE"); }
+      try { if (image.role === "build-base") validateBuildBaseSourceIndex(image, await docker.rawManifest(`${image.canonicalRepository}@${image.sourceIndexDigest}`)); const raw = await docker.rawManifest(reference); validateRawRegistryManifest(image, raw); await docker.pullExactImage(reference); assertVerifiedRegistryImage(image, await docker.inspectImage(reference)); } catch (error) { if (error?.message === "IMAGE_ACQUISITION_LOCAL_REPODIGEST") fail("REGISTRY_REPODIGEST"); rethrow(error, "EXPORT_IMAGE"); }
       const alias = transportAlias(authority.manifest.operationId, index, image), ownership = await ensureAlias({ docker, alias, image, reference }); if (ownership.created) ownedAliases.push(alias);
       const archive = `${String(index).padStart(2, "0")}-${image.configDigest.slice(7, 19)}.tar`, tmp = resolve(outputDirectory, `.${archive}.tmp`), final = resolve(outputDirectory, archive); temporary.push(tmp);
       try { await docker.save(alias, tmp); await rename(tmp, final); } catch { fail("ARCHIVE_SAVE"); } temporary.pop();
@@ -130,7 +130,7 @@ export async function exportOfflineImageBundle({ manifestPath, output, root = RO
       images.push({ canonicalRepository: image.canonicalRepository, sourceRefs: expectedSourceRefs(authority.lock, image), manifestDigest: image.manifestDigest, configDigest: image.configDigest, platform: PLATFORM, archive, size: fingerprint.size, sha256: fingerprint.sha256 });
       if (ownership.created) { await cleanupAliases(docker, [alias]); ownedAliases.pop(); }
     }
-    const bundle = { schemaVersion: 1, format: "godel-sh-offline-image-bundle", operationId: authority.manifest.operationId, repositoryGitCommit: authority.manifest.repository.gitCommit, reconstructionManifestSha256: authority.manifestSha256, imageLockSha256: authority.manifest.imageAuthority.sha256, imageLockSchemaVersion: 2, platform: PLATFORM, images };
+  const bundle = { schemaVersion: 1, format: "godel-sh-offline-image-bundle", operationId: authority.manifest.operationId, repositoryGitCommit: authority.manifest.repository.gitCommit, reconstructionManifestSha256: authority.manifestSha256, imageLockSha256: authority.manifest.imageAuthority.sha256, imageLockSchemaVersion: authority.manifest.imageAuthority.schemaVersion, platform: PLATFORM, images };
     const bytes = Buffer.from(`${JSON.stringify(bundle)}\n`); await writeFile(resolve(outputDirectory, "bundle.json"), bytes, { flag: "wx", mode: 0o600 }); await writeFile(resolve(outputDirectory, "bundle.json.sha256"), `${digest(bytes)}  bundle.json\n`, { flag: "wx", mode: 0o600 });
     return Object.freeze({ state: "PASS", mode: "VERIFIED_OFFLINE_IMAGE_BUNDLE", uniqueImages: images.length, bundle: basename(outputDirectory) });
   } catch (error) { try { await cleanupTemporary(temporary); await cleanupAliases(docker, ownedAliases); } catch (cleanupError) { throw cleanupError; } rethrow(error, "EXPORT"); }
