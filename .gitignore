@@ -21,6 +21,7 @@
 
 # production
 /build
+/release-artifacts/
 
 # misc
 .DS_Store

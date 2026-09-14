@@ -59,6 +59,15 @@ release deterministas y se entrega por un registry autorizado o transferencia
 segura. El VPS carga o descarga esos artefactos y ejecuta la composición; un
 build clean-host completo en el target no es gate del piloto.
 
+El tooling genérico de release queda disponible mediante
+`npm run ops:release:build -- --git-commit <full-sha>`. El builder crea un
+contexto temporal desde el commit exacto, usa los Dockerfiles dentro de ese
+contexto, liga la App a la generación externa activa y `MATCH`, construye ambas
+imágenes para `linux/amd64`, inspecciona su identidad y publica atómicamente un
+tar, manifest sanitizado y checksum bajo `release-artifacts/git-<short-sha>/`.
+La disponibilidad del tooling no declara ejecutado el build productivo ni
+aprueba ninguno de los gates siguientes.
+
 ## 3. Configuración productiva
 
 R7 es evidencia de rehearsal, no configuración productiva. Producción requiere
@@ -74,6 +83,10 @@ registro protegido existente, que contenga los valores productivos aplicables:
 
 Los valores no se documentan ni se incorporan a Git. La generación debe quedar
 alineada byte a byte con los env productivos y con cualquier backup asociado.
+Antes de publicar o inicializar esa generación, el Godel env debe definir
+`GODEL_APP_IMAGE_TAG` y `GODEL_NGINX_IMAGE_TAG` como `git-<12-char-sha>` para el
+Git SHA exacto ya seleccionado; el builder rechaza cualquier ausencia o desvío
+antes de construir imágenes.
 Está prohibido importar R7, editar sus env manualmente y continuar afirmando
 `R7 MATCH`. La transición productiva tiene identidad propia y conserva
 `NO_IMPLICIT_ROLLBACK_CHAIN`.
@@ -214,8 +227,9 @@ piloto son gates mínimos, no sustitutos de su cierre posterior.
 ### OPTIONAL HARDENING
 
 - Completar SH-05.3 y SH-05.4 como portabilidad post-piloto.
-- Ligar explícitamente a Buildx los bytes del Dockerfile verificado en el
-  contexto Git exacto.
+- Ligar explícitamente en el builder clean-host de SH-05 los bytes del
+  Dockerfile verificado en el contexto Git exacto. El builder normal de release
+  ya aplica esta invariante, sin modificar ni cerrar el tooling de SH-05.
 - Eliminar o empaquetar la dependencia externa del frontend Dockerfile para
   builds totalmente offline en el target.
 - Completar el build Godel target-side y la aceptación funcional clean-host.
@@ -226,15 +240,19 @@ piloto son gates mínimos, no sustitutos de su cierre posterior.
 
 ```text
 1. Seleccionar release Git exacta
-2. Construir y verificar App/Nginx linux/amd64 fuera del VPS
-3. Crear y validar la generación externa productiva exacta
-4. Aprobar readiness del VPS, red, firewall y TLS
-5. Transportar/admitir artefactos y levantar Supabase + Godel
-6. Ejecutar health y smoke productivo completo
-7. Crear y verificar backup inicial; conservar copia off-host
-8. Autorizar un grupo pequeño para uso real
-9. Observar, registrar y corregir P0/P1
-10. Ampliar gradualmente o revertir el piloto
+2. Definir origen y configuración productiva
+3. Crear y validar la generación externa productiva activa y MATCH
+4. Construir App/Nginx linux/amd64 ligados a ese Git y a esa generación
+5. Verificar y empaquetar la release
+6. Transportar y admitir los artefactos verificados
+7. Aprobar readiness del VPS, firewall y TLS
+8. Levantar el runtime Supabase + Godel sin build en el VPS
+9. Ejecutar health técnico
+10. Crear un backup recovery-grade de la generación productiva
+11. Verificar el backup y conservar una copia off-host
+12. Ejecutar el smoke funcional productivo completo
+13. Autorizar un grupo pequeño para uso real
+14. Observar, registrar y corregir P0/P1; ampliar o revertir según evidencia
 ```
 
 No se salta el backup inicial por haber aprobado SH-04, ni se reutiliza R7 por

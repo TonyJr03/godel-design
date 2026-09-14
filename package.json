@@ -28,6 +28,8 @@
     "diff:check": "git diff --check",
     "ops:backup:selfhosted": "node scripts/operations/backup-selfhosted.mjs create",
     "ops:backup:selfhosted:verify": "node scripts/operations/backup-selfhosted.mjs verify",
+    "ops:release:build": "node scripts/operations/build-production-release.mjs",
+    "ops:release:test": "node --test scripts/operations/build-production-release.test.mjs",
     "ops:portability:images:validate": "node scripts/operations/image-acquisition.mjs validate-lock",
     "ops:portability:images:offline:export": "node scripts/operations/offline-image-transport.mjs export",
     "ops:portability:images:offline:import": "node scripts/operations/offline-image-transport.mjs import",
