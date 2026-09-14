@@ -1,431 +1,80 @@
 # Flujo de Solicitudes Públicas — Godel Diseño
 
-## Propósito
-
-Este documento describe cómo un cliente externo envía una solicitud pública de
-trabajo desde `/solicitud` dentro del sistema web de gestión operativa de Godel
-Diseño.
-
-El objetivo es dejar documentado el flujo actual, los datos que se guardan, las
-validaciones aplicadas, las decisiones técnicas tomadas y lo que queda pendiente
-para fases posteriores.
-
-## Actualización Etapa 3: catálogo configurable
-
-Desde la Etapa 3, `/solicitud` ya no usa opciones hardcodeadas para servicios
-nuevos. La página carga server-side `tipos_servicio` mediante
-`listPublicServiceTypes()` y solo renderiza servicios con
-`is_publicly_available = true`.
-
-Matriz de visibilidad del catálogo:
-
-- `anon`: solo servicios públicos.
-- `authenticated` sin perfil interno activo: solo servicios públicos.
-- `authenticated` con perfil interno activo: servicios públicos por la política
-  pública y catálogo completo por la política interna.
-
-Reglas de disponibilidad:
-
-- Encargo aparece solo si existe al menos un servicio público con
-  `workflow_type = encargo`.
-- Impresión aparece solo si el servicio único de `workflow_type = impresion`
-  está público.
-- Si no hay servicios públicos, no se renderiza el formulario y se muestra un
-  estado público seguro.
-- Si falla la lectura del catálogo, no se asumen servicios hardcodeados y se
-  muestra un estado reintentable.
-
-Contrato de entrada pública:
-
-- El formulario envía `service_id`.
-- El formulario no envía `workflow_type` ni el nombre del servicio como fuente
-  de verdad.
-- La Server Action calcula `hasFiles` desde `files.length > 0`.
-- `createPublicSolicitud` resuelve `service_id` con
-  `getPublicServiceTypeById()`, filtrando explícitamente
-  `is_publicly_available = true`.
-- El servidor valida los campos según el workflow resuelto desde el servicio.
-- Impresión exige archivo con base en `hasFiles`, no en un workflow enviado por
-  el cliente.
-
-Inserción en `solicitudes`:
-
-- `service_id` guarda el servicio resuelto.
-- La columna textual legacy del nombre de servicio fue eliminada por Contract.
-- `workflow_type` se deriva del servicio y el trigger de base lo sincroniza de
-  nuevo desde `service_id`.
-
-RLS de defensa en profundidad:
-
-- `solicitudes_insert_public` aplica a `anon` y `authenticated`.
-- Exige `service_id is not null`.
-- Exige que el servicio exista, esté público y coincida con `workflow_type`.
-- Un servicio oculto o una combinación manipulada no puede crear solicitud.
-
-Solicitudes y Pedidos usan `service_id` obligatorio. Los servicios ocultos
-siguen disponibles para flujos internos y el servicio de Impresión es único.
-
-## Alcance actual
-
-El flujo actual permite:
-
-- Mostrar un formulario público en `/solicitud`.
-- Validar los datos enviados por el cliente.
-- Crear una solicitud en Supabase.
-- Adjuntar archivos de referencia opcionales en encargos y obligatorios en
-  impresiones.
-- Guardar la solicitud con estado `nueva`.
-- Registrar `public_reference` con formato `GD-XXXX-XXXX` y devolverlo desde la
-  Server Action.
-- Mostrar un mensaje de éxito con el código público de seguimiento.
-- Permitir copiar el código desde la interfaz.
-- Mostrar una entrada rápida de consulta de estado en la Home que redirige a
-  `/estado?ref=...`.
-
-Todavía no incluye:
-
-- Captcha.
-- Asociación inteligente con clientes.
-- Notificaciones automáticas.
-- Descarga pública de archivos.
-
-## Tipo de flujo operativo
-
-`/solicitud` carga el catálogo público desde `tipos_servicio`. Cuando hay
-servicios públicos de Encargo e Impresión disponibles, permite elegir mediante
-pestañas entre ambos workflows. Si solo hay uno disponible, muestra solamente
-esa variante. Todas las variantes crean registros en la misma tabla
-`solicitudes`; la diferencia formal se guarda en `workflow_type`, derivado
-server-side desde el servicio resuelto.
-
-`encargo` representa trabajos personalizados o complejos y conserva el
-formulario general. `impresion` representa trabajos directos de impresión,
-exige al menos un archivo y solicita cantidad de copias, modo de color, tamaño
-de papel, caras y observaciones opcionales.
-
-Los detalles de impresión se validan y se serializan server-side en una
-descripción estructurada. No se crean tablas normalizadas específicas de
-impresión en esta subfase.
-
-## Ruta pública
-
-- Ruta: `/solicitud`.
-- No requiere autenticación.
-- Está disponible para clientes externos.
-- No pertenece al dashboard interno.
-
-## Campos del formulario
-
-| Campo | Requerido | Descripción |
-|---|---|---|
-| `service_id` | Sí | Servicio público seleccionado |
-| `client_name` | Sí | Nombre del cliente o negocio |
-| `client_phone` | Sí | Teléfono de contacto |
-| `client_email` | No | Correo opcional |
-| `description` | En encargo | Descripción del encargo, incluyendo cantidades, medidas o requisitos cuando apliquen |
-| `desired_date` | No | Fecha deseada del encargo; si se informa debe ser igual o posterior al día actual |
-| `print_copies` | En impresión | Cantidad entera entre 1 y 10000 |
-| `print_color_mode` | En impresión | Blanco y negro o color |
-| `print_paper_size` | En impresión | Carta, A4, Oficio u Otro |
-| `print_sides` | En impresión | Una cara o doble cara |
-| `notes` | No | Observaciones adicionales |
-| `files` | En impresión | Opcional en encargos y obligatorio en impresiones |
-
-`quantity` sigue eliminado de la tabla `solicitudes`. Los encargos indican sus
-cantidades dentro de `description` o `notes`; la variante de impresión usa
-`print_copies` solo como input y lo integra en la descripción estructurada, sin
-crear una columna nueva.
-
-## Campos que no acepta la UI
-
-El formulario público no envía:
-
-- `id`
-- `workflow_type`
-- nombre del servicio
-- `public_reference`
-- `status`
-- `cliente_id`
-- `reviewed_by`
-- `converted_order_id`
-
-Estos campos son controlados por el servidor, por la base de datos o por flujos
-internos posteriores. La UI pública no debe aceptar valores para ellos.
-
-## Validación Server-Side
-
-La validación definitiva está en:
-
-- `src/lib/solicitudes/public-request-validation.ts`
-
-Reglas generales:
-
-- `client_name` es requerido.
-- `client_phone` es requerido.
-- `client_email` es opcional, pero si existe debe tener formato básico válido.
-- `service_id` es requerido y debe resolver a un servicio público vigente.
-- El workflow se recibe desde el servicio resuelto, no desde el formulario.
-- En encargos, `description` es requerido.
-- En impresiones, cantidad, color, papel, caras y al menos un archivo son
-  requeridos.
-- El requisito de archivo en impresiones se valida con `hasFiles`, calculado en
-  servidor desde `files.length > 0`.
-- La descripción de impresión se construye en servidor y no se acepta como
-  fuente de verdad desde un campo oculto del cliente.
-- `desired_date` es opcional, pero debe ser válida e igual o posterior al día
-  actual si existe.
-- `notes` es opcional.
-- Los campos opcionales vacíos se convierten a `null`.
-- Los espacios sobrantes se recortan antes de insertar.
-
-La validación de `desired_date` usa los helpers de fecha de
-`src/lib/validators/date.ts`, apoyados en `src/lib/utils/date.ts` para calcular
-el día actual local. Trabaja con valores `YYYY-MM-DD` de inputs HTML y evita
-convertir a UTC con `toISOString()`.
-
-El nombre visible del servicio se obtiene desde `tipos_servicio`. El cliente no
-lo envía como autoridad ni se persiste en una columna textual de Solicitudes.
-
-No se usan dependencias externas para esta validación.
-
-## Server Action
-
-El formulario usa:
-
-- `src/app/(publico)/solicitud/actions.ts`
-
-La Server Action:
-
-- Recibe `FormData`.
-- Convierte los campos del formulario en input controlado.
-- Calcula `hasFiles` desde la lista real de archivos válidos.
-- No lee ni devuelve `quantity`.
-- Llama al servicio de creación.
-- Devuelve errores controlados para la UI.
-- No expone errores técnicos de Supabase al cliente.
-- No usa service role key.
-- Procesa los archivos después de crear la solicitud; son opcionales en
-  encargos y obligatorios en impresiones.
-- No genera URLs públicas ni URLs firmadas para el cliente.
-
-## Servicio de Creación
-
-El servicio está en:
-
-- `src/lib/solicitudes/create-public-solicitud.ts`
-
-Responsabilidades:
-
-- Validar el input recibido.
-- Resolver `service_id` mediante `getPublicServiceTypeById()`.
-- Rechazar servicios inexistentes, inválidos u ocultos públicamente.
-- Crear la solicitud en Supabase.
-- Guardar `service_id` y `workflow_type` derivado del servicio.
-- Construir server-side la descripción estructurada para impresiones.
-- Insertar el detalle del trabajo sin agregar columnas específicas de
-  impresión.
-- Establecer siempre `status = "nueva"`.
-- Establecer `cliente_id = null`.
-- Establecer `reviewed_by = null`.
-- Establecer `converted_order_id = null`.
-- Generar server-side un `public_reference` no secuencial con formato
-  `GD-XXXX-XXXX` para devolverlo sin hacer lectura pública anónima.
-- La base de datos también tiene default para `public_reference` y valida el
-  formato como respaldo para otros inserts.
-- No usar el UUID interno ni sus primeros caracteres como código público.
-  La lectura pública de solicitudes sigue cerrada por RLS.
-- Evitar un `.select()` público innecesario después del insert.
-
-Desde Fase 11.7B, la inserción de la solicitud registra automáticamente el evento `solicitud_creada` en `solicitud_historial`. Como el flujo es público, normalmente queda con `actor_id = null` y metadata mínima no sensible.
-
-La conversión interna conserva el `workflow_type` de la solicitud. En encargos,
-el equipo define el título operativo; en impresiones se usa el título
-predeterminado `Pedido de impresión` y se conserva la descripción estructurada.
-El servicio de la solicitud queda referenciado por `service_id`; su nombre se
-lee desde `tipos_servicio` y no decide el título del pedido.
-
-## Decisión sobre clientes
-
-El flujo público no crea ni asocia automáticamente un registro en `clientes`.
-La decisión vigente es:
-
-- Guardar los datos del cliente desnormalizados en la tabla `solicitudes`.
-- Dejar `cliente_id = null`.
-- Permitir que el equipo asocie un cliente existente o cree uno desde el detalle
-  interno de la solicitud.
-- Evitar abrir inserción pública en `clientes` para este flujo.
-
-La creación de cliente desde solicitud y la conversión posterior a pedido son
-operaciones internas transaccionales. La deduplicación inteligente sigue fuera
-del alcance actual.
-
-## Referencia pública
-
-Toda solicitud guarda `public_reference`, un código público no secuencial con
-formato `GD-XXXX-XXXX`.
-
-Esta referencia:
-
-- no es el UUID interno;
-- no se deriva del `id`;
-- no es `order_number`;
-- no usa numeración secuencial;
-- se guarda en mayúsculas;
-- se muestra en el mensaje de éxito del formulario público;
-- se puede copiar desde la interfaz mediante un botón accesible.
-
-La página pública de consulta de estado existe en `/estado`. El formulario usa
-GET con el parámetro `ref`, por ejemplo `/estado?ref=GD-8F3A-92BC`, para que el
-resultado pueda compartirse por URL sin exponer datos sensibles.
-
-La consulta pública usa la capa server-side existente mediante
-`public.consultar_estado_publico(p_public_reference)` y
-`src/lib/public-tracking`. Esta capa normaliza y valida el formato
-`GD-XXXX-XXXX`, busca primero pedidos y luego solicitudes, y devuelve solo un
-DTO público mínimo: tipo de registro, flujo, estado público, fechas no
-sensibles y progreso agregado sin nombres de tareas. No devuelve número de
-pedido, cliente, teléfono, correo, descripción completa, notas, archivos,
-comentarios, historial, usuarios ni UUIDs internos.
-
-`order_number` se considera un número operativo interno. El cliente externo
-consulta siempre por `public_reference` y `/estado` no muestra el número interno
-del pedido.
-
-Si la referencia corresponde a una solicitud ya convertida, la consulta resuelve
-y muestra el pedido resultante. La UI no presenta "solicitud convertida" como
-resultado final para el cliente.
-
-La Home incluye una entrada rápida para consultar estado. Ese formulario solo
-envía al cliente a `/estado?ref=...`; no consulta Supabase, no llama la RPC y no
-muestra resultados ni datos sensibles en la página inicial. La consulta real se
-resuelve siempre en `/estado`.
-
-## Seguridad y RLS
-
-El flujo depende de Row Level Security en Supabase.
-
-Estado esperado:
-
-- Usuarios anónimos pueden insertar solicitudes públicas.
-- Usuarios anónimos no pueden leer solicitudes.
-- Usuarios anónimos no pueden actualizar solicitudes.
-- Usuarios anónimos no pueden eliminar solicitudes.
-- No hay lectura pública de clientes.
-- No se usa service role key.
-- RLS protege la base de datos.
-- Los errores técnicos no se exponen al cliente.
-- La consulta pública por `public_reference` usa una RPC controlada con
-  `security definer`; no abre `select` anónimo directo sobre `solicitudes` ni
-  `pedidos`.
-
-La UI pública no debe considerarse una frontera de seguridad. La validación
-server-side y RLS son la fuente de verdad.
-
-## Relación con archivos
-
-El cliente puede adjuntar archivos de referencia al enviar la solicitud. Son
-opcionales para encargos y se exige al menos uno para impresiones.
-
-Límites actuales:
-
-- máximo 5 archivos por solicitud;
-- máximo 20 MB por archivo;
-- formatos permitidos: PDF, JPG, JPEG, PNG, WEBP, DOC, DOCX y ZIP.
-
-Los archivos:
-
-- se guardan en el bucket privado `godel-files`;
-- usan rutas `solicitudes/{solicitud_id}/originales/{timestamp}-{uuid}-{filename}`;
-- quedan asociados a la solicitud creada mediante `archivos.solicitud_id`;
-- se registran con `visibility = cliente_solicitud`;
-- no generan URLs públicas ni URLs firmadas para el cliente.
-
-El límite de cinco no depende solo de la UI o TypeScript. Storage rechaza el
-sexto objeto en el flujo secuencial y la policy de `archivos` serializa el
-conteo para impedir más de cinco metadatos, incluso mediante llamadas directas
-con la anon key. También validan ruta y combinación de extensión/MIME. Los
-20 MB se aplican en TypeScript, en el bucket y en la policy de metadata. La
-metadata requiere que el objeto exacto exista y no esté registrado.
-
-Supabase Storage puede autorizar subidas paralelas antes de completar los
-objetos, por lo que su conteo no se considera una garantía concurrente absoluta.
-Metadata sí mantiene el máximo estricto de cinco. Rate limiting, monitoreo y
-reconciliación completan esta defensa antes de producción.
-
-La aplicación sube primero el objeto y después inserta metadata. No se habilita
-borrado anónimo para compensar un fallo excepcional, porque la API de Storage
-requeriría abrir también lectura sobre esos objetos. El cupo de cinco limita el
-impacto y la limpieza queda a cargo de una reconciliación interna segura.
-
-Desde Fase 11.7B, cada archivo público registrado en `archivos` con `visibility = cliente_solicitud` genera un evento `archivos_adjuntados` en `solicitud_historial`. El evento no incluye `file_path` ni datos personales completos.
-
-La gestión interna permite que `admin` y `supervisor` vean y descarguen estos archivos desde el detalle interno de solicitud mediante URLs firmadas de corta duración. Esa descarga no está disponible para clientes públicos.
-
-Si la solicitud se convierte en pedido, los archivos se heredan por metadatos: se conserva la ruta física original y se completa `archivos.pedido_id` con el pedido generado. No se mueve ni se copia el objeto en Storage.
-
-## Flujo Funcional Actual
-
-1. Cliente entra a `/solicitud`.
-2. La página carga los servicios públicos desde el catálogo.
-3. El cliente elige un servicio público disponible; si hay dos workflows,
-   también puede alternar entre Encargo e Impresión.
-4. El componente cliente llama a la Server Action.
-5. La action convierte `FormData` en input, valida los archivos recibidos y
-   calcula `hasFiles`.
-6. El servicio resuelve `service_id`, valida los datos según el workflow real y
-   construye la descripción de impresión cuando aplica.
-7. El servicio inserta la solicitud con `service_id`, `workflow_type` y estado
-   `nueva`.
-8. La base de datos registra `solicitud_creada` en el historial interno.
-9. Si hay archivos, la action los sube al bucket privado y registra metadatos.
-10. La base de datos registra `archivos_adjuntados` por cada archivo aceptado.
-11. La UI muestra éxito, el `public_reference` con opción de copiar y la
-    cantidad de archivos recibidos.
-12. El equipo interno revisa la solicitud desde el dashboard.
-13. El cliente puede consultar `/estado?ref=...` para ver un estado público
-    seguro. Si la solicitud fue convertida, se muestra el pedido asociado.
-14. Desde la Home, el cliente puede escribir el código en una entrada rápida
-    que redirige a `/estado?ref=...` sin consultar datos desde la Home.
-
-## Relación con el flujo interno
-
-El listado, detalle, archivos, comentarios, historial y conversión a pedido se gestionan desde el dashboard interno. El detalle interno de solicitud muestra el mismo `public_reference` como código copiable para que el equipo pueda compartirlo con el cliente sin usar el UUID ni una referencia corta derivada. El nombre visible del servicio se obtiene desde la relación con `tipos_servicio`.
-
-## Pruebas Manuales Recomendadas
-
-- Enviar solicitud válida.
-- Enviar formulario vacío.
-- Enviar email inválido.
-- Enviar sin email.
-- Enviar una solicitud con cantidades escritas en la descripción.
-- Enviar solicitud sin archivos.
-- Enviar solicitud con 1 archivo válido.
-- Intentar enviar más de 5 archivos.
-- Intentar enviar archivo no permitido.
-- Intentar enviar archivo mayor de 20 MB.
-- Verificar en Supabase Studio que la solicitud quedó con `status = nueva`.
-- Verificar que `cliente_id`, `reviewed_by` y `converted_order_id` quedan en
-  `null`.
-- Verificar que los archivos quedan bajo `solicitudes/{id}/originales/`.
-- Verificar que `pedido_id` y `uploaded_by` quedan en `null` en `archivos`.
-- Verificar que no hay lectura pública ni URL pública del archivo.
-- Verificar que un usuario anónimo no puede leer solicitudes desde API/UI.
-- Intentar un sexto objeto y un sexto registro de metadata mediante anon key.
-- Intentar registrar metadata para un objeto inexistente o ya registrado.
-- Confirmar que `anon` no puede listar, descargar ni eliminar objetos.
-
-## Problemas Conocidos o Limitaciones
-
-- No hay captcha todavía.
-- No hay control avanzado anti-spam.
-- No hay rate limiting por IP o reverse proxy.
-- No hay antivirus ni inspección profunda del contenido.
-- La limpieza periódica de objetos sin metadata debe prepararse antes de producción.
-- No hay lectura ni descarga pública de archivos.
-- No hay notificaciones.
-- No hay asociación automática con clientes.
-- No hay captcha ni rate limiting específicos para `/estado` todavía.
-
-## Cierre
-
-El flujo público queda conectado con la gestión interna de solicitudes, archivos privados, historial y conversión formal a pedido.
+## Entrada y catálogo
+
+`/solicitud` es la entrada pública sin autenticación. Carga server-side los
+servicios de `tipos_servicio` con `is_publicly_available = true`; el cliente
+envía `service_id`, nunca el nombre ni `workflow_type` como autoridad.
+
+- Encargo aparece cuando hay servicios públicos de ese workflow y permite cero
+  a diez archivos.
+- Impresión aparece cuando su servicio público está disponible y exige de uno a
+  diez archivos.
+- Los valores de contacto, descripción e impresión se validan contra el
+  servicio resuelto por servidor. Impresión serializa sus datos en la
+  descripción estructurada server-side.
+
+Los campos técnicos (`id`, estado, `workflow_type`, bucket, path, metadata,
+URLs, capability, firmas y tokens) no son entradas del formulario.
+
+## Creación y transferencia
+
+Las Server Actions son adaptadores finos y solo reciben valores serializables:
+los campos del formulario, `{ name, size }[]` y, tras reservar, el identificador
+de sesión/item más capability. Nunca reciben un `File`, `Blob` o `FormData` con
+bytes.
+
+```text
+Encargo sin archivos
+  -> crear_solicitud_publica_sin_archivos
+
+Encargo con 1..10 archivos o Impresión con 1..10 archivos
+  -> crear_solicitud_publica_con_reserva_carga
+  -> autorizar_firma_carga_publica por item
+  -> TUS directo a Storage
+  -> finalizar_carga_publica por item
+```
+
+La reserva es atómica para Solicitud, sesión e items. El navegador mantiene
+temporalmente el `File`, capability, firma, object path y URL/fingerprint TUS
+solo en memoria. No se persisten en Web Storage, cookies, URL, history ni logs.
+
+El bytes transfer se envía directo a
+`/storage/v1/upload/resumable/sign`, con `x-signature` y sin sesión `Bearer`.
+Los POST de Next contienen solo control plane y no transportan archivos. La
+cola del navegador procesa como máximo dos items en paralelo.
+
+Cada finalize verifica el objeto reservado y recién entonces crea
+`public.archivos`. No hay inserción pública directa en `solicitudes`,
+`archivos` ni rutas arbitrarias de Storage.
+
+## Archivos y retry
+
+Cada archivo admite hasta 20 MiB. La allowlist vigente es PDF, JPG/JPEG, PNG,
+WEBP, DOC/DOCX, ZIP, RAR y CDR. La validación temprana evita reservar para más
+de diez archivos, archivos vacíos/sobredimensionados o extensiones no
+permitidas; PostgreSQL vuelve a validar el descriptor como frontera final.
+
+Tras fallo de TUS, el retry obtiene una firma nueva y busca el recurso resumible
+del mismo item reservado. No crea otra Solicitud, sesión, item ni reserva. Tras
+un fallo de finalize con TUS ya completo, el retry solo llama a finalize y no
+vuelve a firmar ni transferir bytes.
+
+## Seguridad y seguimiento
+
+El bucket `godel-files` es privado. Clientes públicos no leen, listan,
+actualizan ni eliminan objetos. Las descargas internas se autorizan server-side
+mediante RLS y URLs firmadas de corta duración.
+
+Cada Solicitud conserva una referencia `GD-XXXX-XXXX`. `/estado` usa el
+contrato de tracking público con allowlist y no expone UUIDs, pedido interno,
+datos de contacto, descripción, archivos, paths, personal ni historial.
+
+## QA operativa
+
+Los gates E2E de `/solicitud` cubren Encargo sin archivo, Impresión obligatoria,
+catálogo público y la carga directa: PDF de 7 MiB, destino Storage firmado,
+resume del mismo recurso, Web Storage vacío, lote de tres con concurrencia dos,
+retry solo-finalize y límites tempranos. No sustituyen rate limiting, CAPTCHA,
+antivirus ni reconciliación interna, que continúan como trabajo operativo
+separado.

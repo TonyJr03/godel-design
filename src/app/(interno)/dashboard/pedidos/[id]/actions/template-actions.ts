@@ -1,7 +1,6 @@
 "use server";
 
 import { actionFailure, actionSuccess } from "@/lib/actions/action-state";
-import { revalidatePedidoDetail } from "@/lib/actions/revalidation";
 import { applyTaskTemplateToPedido } from "@/lib/task-templates";
 import { getFormValue } from "@/lib/utils";
 import type { ApplyTaskTemplateActionState } from "./shared";
@@ -22,8 +21,6 @@ export async function applyTaskTemplateAction(
       fieldErrors: result.fieldErrors,
     });
   }
-
-  revalidatePedidoDetail(pedidoId);
 
   return actionSuccess(
     result.insertedCount === 1

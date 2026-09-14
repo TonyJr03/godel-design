@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, type ReactNode } from "react";
+import { useActionState, useEffect, type ReactNode } from "react";
 import type {
   AssignPedidoWorkerActionState,
   PedidoDetailAction,
@@ -20,6 +20,7 @@ type PedidoWorkerAssignmentBaseProps = {
 type PedidoWorkerAssignmentManageProps = PedidoWorkerAssignmentBaseProps & {
   canManage: true;
   pedidoId: string;
+  successNavigationHref: string;
   assignWorkerAction: PedidoDetailAction<AssignPedidoWorkerActionState>;
   removeWorkerAction: PedidoDetailAction<RemovePedidoWorkerActionState>;
 };
@@ -205,6 +206,7 @@ function PedidoWorkerAssignmentsReadOnly({
 
 function ManagedPedidoWorkerAssignmentForm({
   pedidoId,
+  successNavigationHref,
   assignWorkerAction,
   removeWorkerAction,
   asignaciones,
@@ -218,6 +220,24 @@ function ManagedPedidoWorkerAssignmentForm({
     removeWorkerAction,
     initialRemoveState,
   );
+
+  useEffect(() => {
+    if (!assignState.ok) {
+      return;
+    }
+
+    // TD-NEXT-001: fallback temporal para navegación same-route en self-hosted.
+    window.location.assign(successNavigationHref);
+  }, [assignState.ok, successNavigationHref]);
+
+  useEffect(() => {
+    if (!removeState.ok) {
+      return;
+    }
+
+    // TD-NEXT-001: fallback temporal para navegación same-route en self-hosted.
+    window.location.assign(successNavigationHref);
+  }, [removeState.ok, successNavigationHref]);
   const assignedProfileError = assignState.fieldErrors?.assigned_profile_id;
   const assignmentSelectorKey =
     asignaciones

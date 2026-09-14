@@ -4,20 +4,28 @@ export type {
   CreatePedidoCommentActionState,
   CreatePedidoTaskActionState,
   DeletePedidoTaskActionState,
+  FinalizePedidoFileAction,
+  FinalizePedidoFileActionInput,
+  FinalizePedidoFileActionResult,
   PedidoDetailAction,
+  ReservePedidoFilesAction,
+  ReservePedidoFilesActionInput,
+  ReservePedidoFilesActionResult,
   TogglePedidoTaskCompletionActionState,
   UpdatePedidoDataActionState,
   UpdatePedidoPaymentActionState,
   UpdatePedidoStatusActionState,
   UpdatePedidoTaskProgressActionState,
   UpdatePedidoTaskTitleActionState,
-  UploadPedidoFileActionState,
   RemovePedidoWorkerActionState,
 } from "./actions/shared";
 
 export { createPedidoCommentAction } from "./actions/comment-actions";
 export { updatePedidoDataAction } from "./actions/edit-actions";
-export { uploadPedidoFileAction } from "./actions/file-actions";
+export {
+  finalizePedidoFileAction,
+  reservePedidoFilesAction,
+} from "./actions/file-actions";
 export { updatePedidoPaymentAction } from "./actions/payment-actions";
 export { updatePedidoStatusAction } from "./actions/status-actions";
 export {

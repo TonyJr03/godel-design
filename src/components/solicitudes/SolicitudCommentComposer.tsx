@@ -64,6 +64,13 @@ export function SolicitudCommentComposer({
     }
   }, [state, isPanel]);
 
+  useEffect(() => {
+    if (state.ok) {
+      // TD-NEXT-001: fallback temporal para navegación same-route en self-hosted.
+      window.location.assign(window.location.pathname);
+    }
+  }, [state.ok]);
+
   return (
     <section
       aria-labelledby={titleId}

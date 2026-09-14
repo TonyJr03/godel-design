@@ -14,7 +14,13 @@ no son fuente primaria para implementar cambios actuales.
 - [Índice de preproducción y operación](production/README.md): planes activos,
   auditorías y documentos de puesta en operación.
 - [Roadmap PPO](production/PPO_ROADMAP.md): iniciativa de Preproducción y
-  Puesta en Operación.
+  Puesta en Operación y roadmap maestro.
+- [PPO-04 — Production Pilot V1](production/PPO_04_PRODUCTION_PILOT_PLAN.md):
+  plan activo para el primer rollout productivo controlado.
+- [Roadmap Self-Hosted](production/SH_ROADMAP.md): workstream técnico
+  subordinado; SH-05 está pausado como hardening no bloqueante.
+- [Handoff del rehearsal SH-05](production/SH_05_REHEARSAL_HANDOFF.md):
+  evidencia cross-host real, límites y trabajo diferido post-piloto.
 - [Plan de auditoría PPO-01](production/PPO_01_AUDIT_PLAN.md): contrato para
   auditoría de infraestructura y conectividad.
 - [Informe de capacidad PPO-01](production/PPO_01_CAPACITY_REPORT.md):

@@ -1,7 +1,6 @@
 "use server";
 
 import { actionFailure, actionSuccess } from "@/lib/actions/action-state";
-import { revalidatePedidoDetail } from "@/lib/actions/revalidation";
 import {
   createPedidoTask,
   deletePedidoTask,
@@ -34,8 +33,6 @@ export async function createPedidoTaskAction(
     });
   }
 
-  revalidatePedidoDetail(pedidoId);
-
   return actionSuccess("Tarea creada correctamente.", {
     values: {
       title: "",
@@ -63,8 +60,6 @@ export async function updatePedidoTaskTitleAction(
     });
   }
 
-  revalidatePedidoDetail(pedidoId);
-
   return actionSuccess("Tarea actualizada correctamente.");
 }
 
@@ -88,8 +83,6 @@ export async function updatePedidoTaskProgressAction(
     });
   }
 
-  revalidatePedidoDetail(pedidoId);
-
   return actionSuccess("Progreso actualizado correctamente.");
 }
 
@@ -110,8 +103,6 @@ export async function completePedidoTaskAction(
       fieldErrors: result.fieldErrors,
     });
   }
-
-  revalidatePedidoDetail(pedidoId);
 
   return actionSuccess("Tarea marcada como completada.");
 }
@@ -134,8 +125,6 @@ export async function reopenPedidoTaskAction(
     });
   }
 
-  revalidatePedidoDetail(pedidoId);
-
   return actionSuccess("Tarea reabierta correctamente.");
 }
 
@@ -155,8 +144,6 @@ export async function deletePedidoTaskAction(
       fieldErrors: result.fieldErrors,
     });
   }
-
-  revalidatePedidoDetail(pedidoId);
 
   return actionSuccess("Tarea eliminada correctamente.");
 }

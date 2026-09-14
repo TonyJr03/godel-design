@@ -192,8 +192,10 @@ Las mutaciones usan helpers centralizados en `src/lib/actions/revalidation.ts`:
 - `revalidateTaskTemplatesList()`
 - `revalidateTaskTemplateDetail(templateId)`
 
-La aplicación de plantilla a pedido usa `revalidatePedidoDetail(pedidoId)` para
-refrescar dashboard, listado y detalle de pedido.
+La aplicación de plantilla a pedido no revalida en el success path desde D.3.
+Tras `state.ok`, `ApplyTaskTemplateForm` navega al detalle canónico mediante
+`window.location.assign()` como workaround temporal TD-NEXT-001. El dominio y
+la RPC transaccional no cambian; esta navegación no modifica su contrato.
 
 ## QA e2e focal
 

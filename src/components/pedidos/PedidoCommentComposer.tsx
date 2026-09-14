@@ -9,6 +9,7 @@ import { Alert, Button } from "@/components/ui";
 
 type PedidoCommentComposerProps = {
   createCommentAction: PedidoDetailAction<CreatePedidoCommentActionState>;
+  successNavigationHref?: string;
   presentation?: "card" | "panel";
 };
 
@@ -22,6 +23,7 @@ const initialState: CreatePedidoCommentActionState = {
 
 export function PedidoCommentComposer({
   createCommentAction,
+  successNavigationHref,
   presentation = "card",
 }: PedidoCommentComposerProps) {
   const formRef = useRef<HTMLFormElement>(null);
@@ -62,7 +64,12 @@ export function PedidoCommentComposer({
       textareaRef.current.style.height = "";
       textareaRef.current.style.overflowY = "hidden";
     }
-  }, [state.ok, isPanel]);
+
+    if (successNavigationHref) {
+      // TD-NEXT-001: fallback temporal para navegaciÃ³n same-route en self-hosted.
+      window.location.assign(successNavigationHref);
+    }
+  }, [state.ok, isPanel, successNavigationHref]);
 
   return (
     <section

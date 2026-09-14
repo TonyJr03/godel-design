@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "repository": "https://github.com/supabase/supabase.git",
+  "upstream_path": "docker/",
+  "base_ref": "e846d45ce64207b952a4df44ac8b480ea0abb27e",
+  "authority": "SUPABASE_UPSTREAM.md",
+  "purpose": "Machine-readable mirror for SH-04.4B fail-closed validation; it does not replace the tracked human-readable authority."
+}

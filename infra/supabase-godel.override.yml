@@ -1,0 +1,31 @@
+services:
+  api-gw:
+    ports: !override []
+    networks:
+      godel-supabase-api:
+        aliases:
+          - api-gw
+
+  supavisor:
+    ports: !override []
+
+  auth:
+    environment:
+      GOTRUE_JWT_KEYS: '${JWT_KEYS:-[]}'
+
+  realtime:
+    environment:
+      API_JWT_JWKS: '${JWT_JWKS:-{"keys":[]}}'
+
+  storage:
+    environment:
+      JWT_JWKS: '${JWT_JWKS:-{"keys":[]}}'
+
+  functions:
+    environment:
+      SUPABASE_JWKS: '${JWT_JWKS:-{"keys":[]}}'
+
+networks:
+  godel-supabase-api:
+    external: true
+    name: godel-supabase-api

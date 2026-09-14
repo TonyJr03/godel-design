@@ -4,6 +4,7 @@ import {
   getSupabasePublishableKey,
   getSupabaseServerUrl,
 } from "@/lib/supabase/server-config";
+import { GODEL_SUPABASE_AUTH_COOKIE_NAME } from "./auth-cookie";
 import type { Database } from "@/types/database";
 
 export async function createClient() {
@@ -13,6 +14,7 @@ export async function createClient() {
     getSupabaseServerUrl(),
     getSupabasePublishableKey(),
     {
+      cookieOptions: { name: GODEL_SUPABASE_AUTH_COOKIE_NAME },
       cookies: {
         getAll() {
           return cookieStore.getAll();

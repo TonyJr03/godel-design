@@ -1,7 +1,6 @@
 "use client";
 
 import { Pencil } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 
 import type {
@@ -27,7 +26,6 @@ export function PedidoEditDialogButton({
   serviceTypes,
   serviceTypesLoadError,
 }: PedidoEditDialogButtonProps) {
-  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
@@ -65,7 +63,8 @@ export function PedidoEditDialogButton({
             onSuccess={() => {
               setHasUnsavedChanges(false);
               setIsOpen(false);
-              router.refresh();
+              // TD-NEXT-001: fallback temporal para navegación same-route en self-hosted.
+              window.location.assign(`/dashboard/pedidos/${pedido.id}`);
             }}
           />
         ) : null}

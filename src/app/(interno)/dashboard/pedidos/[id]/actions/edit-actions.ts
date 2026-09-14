@@ -1,7 +1,6 @@
 "use server";
 
 import { actionFailure, actionSuccess } from "@/lib/actions/action-state";
-import { revalidatePedidoDetail } from "@/lib/actions/revalidation";
 import { updateInternalPedido } from "@/lib/pedidos";
 import { getFormValue } from "@/lib/utils";
 import type { UpdatePedidoDataActionState } from "./shared";
@@ -35,8 +34,6 @@ export async function updatePedidoDataAction(
       fieldErrors: result.fieldErrors,
     });
   }
-
-  revalidatePedidoDetail(pedidoId);
 
   return actionSuccess("Pedido actualizado correctamente.");
 }

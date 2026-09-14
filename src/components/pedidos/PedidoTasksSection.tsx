@@ -68,8 +68,10 @@ export function PedidoTasksSection({
   useEffect(() => {
     if (state.ok) {
       formRef.current?.reset();
+      // TD-NEXT-001: fallback temporal para navegación same-route en self-hosted.
+      window.location.assign(`/dashboard/pedidos/${pedidoId}`);
     }
-  }, [state.ok]);
+  }, [pedidoId, state.ok]);
 
   if (loadError) {
     return (
@@ -263,6 +265,7 @@ export function PedidoTasksSection({
                 actions={taskActions}
                 onDeleteIntent={() => setDeleteFeedback("")}
                 onDeleteSuccess={setDeleteFeedback}
+                successNavigationHref={`/dashboard/pedidos/${pedidoId}`}
               />
             ))}
           </ul>

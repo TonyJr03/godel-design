@@ -1,7 +1,6 @@
 "use server";
 
 import { actionFailure, actionSuccess } from "@/lib/actions/action-state";
-import { revalidatePedidoDetail } from "@/lib/actions/revalidation";
 import { createPedidoComment } from "@/lib/pedidos";
 import { getFormValue } from "@/lib/utils";
 import type { CreatePedidoCommentActionState } from "./shared";
@@ -23,8 +22,6 @@ export async function createPedidoCommentAction(
       values: result.values,
     });
   }
-
-  revalidatePedidoDetail(pedidoId);
 
   return actionSuccess("Comentario agregado correctamente.", {
     values: {

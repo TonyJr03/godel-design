@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidateSolicitudConversion } from "@/lib/actions/revalidation";
 import { createPedidoFromSolicitud } from "@/lib/pedidos";
 import { getFormValue } from "@/lib/utils";
 import type { ConvertSolicitudToPedidoActionState } from "./shared";
@@ -44,8 +43,6 @@ export async function convertSolicitudToPedidoAction(
       },
     };
   }
-
-  revalidateSolicitudConversion(solicitudId, result.pedidoId);
 
   return {
     ok: true,

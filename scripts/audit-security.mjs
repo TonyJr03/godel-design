@@ -2,6 +2,12 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { relative, sep } from "node:path";
 
 const defaultRoots = ["src", "supabase", "docs", "AGENTS.md", ".env.example"];
+const requiredDockerignoreEntries = [
+  "compose.env.*",
+  "protected-recovery-material/",
+  "backups/",
+  "infra/supabase/",
+];
 const roots = process.argv.slice(2);
 const auditRoots = roots.length > 0 ? roots : defaultRoots;
 
@@ -450,9 +456,227 @@ function scanFile(file) {
   return { violations, expectedReferences };
 }
 
+function scanDockerignoreContract() {
+  const file = ".dockerignore";
+  if (!existsSync(file)) return requiredDockerignoreEntries.map((entry) => ({ file, line: 1, category: `dockerignore-required-exclusion-missing:${entry}` }));
+  const entries = new Set(readFileSync(file, "utf8").split(/\r?\n/).map((line) => line.trim()).filter((line) => line && !line.startsWith("#")));
+  return requiredDockerignoreEntries.filter((entry) => !entries.has(entry)).map((entry) => ({ file, line: 1, category: `dockerignore-required-exclusion-missing:${entry}` }));
+}
+
+function scanDockerfileContract() {
+  const file = "Dockerfile";
+  const requiredPublicBuildArg = "NEXT_PUBLIC_SUPABASE_URL";
+  const requiredNonceBuildArg = "GODEL_PUBLIC_BUILD_NONCE";
+
+  if (!existsSync(file)) {
+    return [{ file, line: 1, category: "dockerfile-required-file-missing" }];
+  }
+
+  const instructions = [];
+  let currentInstruction = "";
+  let instructionLine = 1;
+
+  for (const [index, line] of readFileSync(file, "utf8").split(/\r?\n/).entries()) {
+    const trimmed = line.trim();
+
+    if (!currentInstruction) {
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      currentInstruction = trimmed;
+      instructionLine = index + 1;
+    } else {
+      currentInstruction += ` ${trimmed}`;
+    }
+
+    if (currentInstruction.endsWith("\\")) {
+      currentInstruction = currentInstruction.slice(0, -1).trimEnd();
+      continue;
+    }
+
+    instructions.push({ line: instructionLine, text: currentInstruction });
+    currentInstruction = "";
+  }
+
+  if (currentInstruction) {
+    instructions.push({ line: instructionLine, text: currentInstruction });
+  }
+
+  const violations = [];
+  const add = (line, category) => violations.push({ file, line, category });
+
+  if (!instructions.some(({ text }) => new RegExp(`^ARG\\s+${requiredPublicBuildArg}(?:\\s|=|$)`, "i").test(text))) {
+    add(1, `dockerfile-required-public-build-arg-missing:${requiredPublicBuildArg}`);
+  }
+
+  const nonceInstructionIndex = instructions.findIndex(({ text }) =>
+    new RegExp(`^ARG\\s+${requiredNonceBuildArg}(?:\\s|=|$)`, "i").test(text),
+  );
+
+  if (nonceInstructionIndex < 0) {
+    add(1, `dockerfile-required-public-build-arg-missing:${requiredNonceBuildArg}`);
+  }
+
+  for (const instruction of instructions) {
+    if (/^ARG\s+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY(?:\s|=|$)/i.test(instruction.text)) {
+      add(instruction.line, "dockerfile-publishable-build-arg-forbidden");
+    }
+
+    if (/^ENV\s+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY(?:\s|=|$)/i.test(instruction.text)) {
+      add(instruction.line, "dockerfile-publishable-build-env-forbidden");
+    }
+
+    if (/^(?:ARG|ENV)\s+SUPABASE_SECRET_KEY(?:\s|=|$)/i.test(instruction.text)) {
+      add(instruction.line, "dockerfile-supabase-secret-build-exposure");
+    }
+
+    if (
+      /^RUN\s/i.test(instruction.text) &&
+      /\$\{?NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY\}?/.test(instruction.text)
+    ) {
+      add(instruction.line, "dockerfile-shell-expanded-publishable-build-arg");
+    }
+  }
+
+  const hasUrlPresenceGate = instructions.some(
+    ({ text }) =>
+      /^RUN\s+node\s+-e\s+/i.test(text) &&
+      text.includes("NEXT_PUBLIC_SUPABASE_URL") &&
+      text.includes("process.env[name]"),
+  );
+
+  if (!hasUrlPresenceGate) {
+    add(1, "dockerfile-nonexpanding-url-build-gate-missing");
+  }
+
+  const publishableBuildRunIndex = instructions.findIndex(
+    ({ text }) =>
+      /^RUN\s+--mount=type=secret,id=godel_supabase_publishable_key,required=true\b/i.test(text) &&
+      text.includes("/run/secrets/godel_supabase_publishable_key") &&
+      text.includes("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY") &&
+      text.includes("npm") &&
+      text.includes("run") &&
+      text.includes("build"),
+  );
+  const publishableBuildRun = instructions[publishableBuildRunIndex];
+
+  if (!publishableBuildRun) {
+    add(1, "dockerfile-required-publishable-secret-build-run-missing");
+  } else {
+    if (nonceInstructionIndex > publishableBuildRunIndex) {
+      add(publishableBuildRun.line, "dockerfile-build-nonce-declared-after-publishable-build-run");
+    }
+
+    if (
+      !publishableBuildRun.text.includes(requiredNonceBuildArg) ||
+      !new RegExp(`-z\\s+["']?\\$${requiredNonceBuildArg}`).test(publishableBuildRun.text)
+    ) {
+      add(publishableBuildRun.line, "dockerfile-publishable-build-nonce-required-gate-missing");
+    }
+  }
+
+  return violations;
+}
+
+function scanComposeBuildSecretContract() {
+  const file = "compose.yaml";
+  if (!existsSync(file)) return [{ file, line: 1, category: "compose-required-file-missing" }];
+
+  const text = readFileSync(file, "utf8");
+  const violations = [];
+  const add = (category) => violations.push({ file, line: 1, category });
+
+  if (/^\s{8}NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY\s*:/m.test(text)) {
+    add("compose-publishable-build-arg-forbidden");
+  }
+
+  if (!/^\s{8}GODEL_PUBLIC_BUILD_NONCE:\s*\$\{GODEL_PUBLIC_BUILD_NONCE:\?GODEL_PUBLIC_BUILD_NONCE is required\}\s*$/m.test(text)) {
+    add("compose-required-public-build-nonce-missing");
+  }
+
+  if (!/^\s{6}secrets:\r?\n\s*-\s*source:\s*godel_supabase_publishable_key\r?\n\s*target:\s*godel_supabase_publishable_key\s*$/m.test(text)) {
+    add("compose-publishable-build-secret-grant-missing");
+  }
+
+  if (!/^secrets:\r?\n\s{2}godel_supabase_publishable_key:\r?\n\s{4}environment:\s*NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY\s*$/m.test(text)) {
+    add("compose-publishable-build-secret-source-missing");
+  }
+
+  const appBlock = text.match(/^  app:\r?\n([\s\S]*?)(?=^  [A-Za-z][^\r\n]*:|^networks:|\Z)/m)?.[0] ?? "";
+  if (!/^\s{6}NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY\s*:/m.test(appBlock)) {
+    add("compose-runtime-publishable-environment-missing");
+  }
+
+  return violations;
+}
+
+function scanPreproductionBuildHelperContract() {
+  const file = "scripts/preproduction/build-app-image.mjs";
+  if (!existsSync(file)) return [{ file, line: 1, category: "preproduction-build-helper-missing" }];
+
+  const text = readFileSync(file, "utf8");
+  const violations = [];
+  const add = (category) => violations.push({ file, line: 1, category });
+  const legacyFile = "scripts/preproduction/build-app-image.ps1";
+
+  if (/--build-arg["']?\s*,\s*[`"']NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY(?:=|\$\{)/.test(text)) {
+    add("preproduction-build-helper-publishable-arg-forbidden");
+  }
+
+  if (!/--secret[\s\S]{0,240}id=godel_supabase_publishable_key,env=NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY/.test(text)) {
+    add("preproduction-build-helper-publishable-secret-source-missing");
+  }
+
+  if (
+    !/import\s+\{\s*randomUUID\s*\}\s+from\s+["']node:crypto["']/.test(text) ||
+    !/const\s+nonce\s*=\s*randomUUID\(\);/.test(text) ||
+    !/--build-arg[\s\S]{0,120}GODEL_PUBLIC_BUILD_NONCE=\$\{nonce\}/.test(text)
+  ) {
+    add("preproduction-build-helper-dynamic-public-build-nonce-missing");
+  }
+
+  if (/raw(?:Stdout|Stderr)|\.raw\.log/.test(text)) {
+    add("preproduction-build-helper-raw-log-persistence-forbidden");
+  }
+
+  if (
+    existsSync(legacyFile) &&
+    /--build-arg[\s\S]{0,240}NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY/.test(
+      readFileSync(legacyFile, "utf8"),
+    )
+  ) {
+    violations.push({
+      file: legacyFile,
+      line: 1,
+      category: "preproduction-legacy-helper-publishable-arg-forbidden",
+    });
+  }
+
+  return violations;
+}
+
+function scanLegacyJwtRotationToolContract() {
+  const file = "scripts/operations/rotate-legacy-jwt-keys.mjs";
+  if (!existsSync(file)) return [{ file, line: 1, category: "legacy-jwt-rotation-tool-missing" }];
+  const text = readFileSync(file, "utf8");
+  const violations = [];
+  const add = (category) => violations.push({ file, line: 1, category });
+
+  if (/utils\/(?:generate-keys|add-new-auth-keys|rotate-new-api-keys)\.sh/.test(text)) {
+    add("legacy-jwt-rotation-unsafe-upstream-generator-reference");
+  }
+
+  return violations;
+}
+
 const scannedFiles = auditRoots.flatMap(listFiles);
 const results = scannedFiles.map(scanFile);
-const violations = results.flatMap((result) => result.violations);
+const violations = [
+  ...results.flatMap((result) => result.violations),
+  ...scanDockerignoreContract(),
+  ...scanDockerfileContract(),
+  ...scanComposeBuildSecretContract(),
+  ...scanPreproductionBuildHelperContract(),
+  ...scanLegacyJwtRotationToolContract(),
+];
 const expectedReferences = results.flatMap((result) => result.expectedReferences);
 
 console.log("Auditoria de seguridad");

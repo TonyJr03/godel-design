@@ -6,10 +6,6 @@ import {
   type BaseActionState,
 } from "@/lib/actions/action-state";
 import {
-  revalidateConfiguracionUsuario,
-  revalidateConfiguracionUsuariosList,
-} from "@/lib/actions/revalidation";
-import {
   createInternalUser,
   resetInternalUserPassword,
   updateInternalUser,
@@ -45,8 +41,6 @@ export async function createUserAction(
     });
   }
 
-  revalidateConfiguracionUsuariosList();
-
   return actionSuccess(
     "Usuario creado correctamente. Deberá cambiar su contraseña temporal en el primer acceso.",
     {
@@ -77,8 +71,6 @@ export async function updateUserAction(
     });
   }
 
-  revalidateConfiguracionUsuario();
-
   return actionSuccess("Usuario actualizado correctamente.");
 }
 
@@ -107,8 +99,6 @@ export async function resetUserPasswordAction(
       passwordChanged: result.passwordChanged,
     };
   }
-
-  revalidateConfiguracionUsuariosList();
 
   return actionSuccess(
     "Contraseña temporal restablecida. El usuario deberá cambiarla en su próximo acceso.",

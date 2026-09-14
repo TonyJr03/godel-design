@@ -1,7 +1,6 @@
 "use client";
 
 import { Plus } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 
 import { InternalFormDialog } from "@/components/forms";
@@ -18,7 +17,6 @@ type UserCreateDialogButtonProps = {
 export function UserCreateDialogButton({
   createAction,
 }: UserCreateDialogButtonProps) {
-  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
@@ -53,7 +51,8 @@ export function UserCreateDialogButton({
             onSuccess={() => {
               setHasUnsavedChanges(false);
               setIsOpen(false);
-              router.refresh();
+              // TD-NEXT-001: fallback temporal para navegación same-route en self-hosted.
+              window.location.assign("/dashboard/configuracion/usuarios");
             }}
           />
         ) : null}

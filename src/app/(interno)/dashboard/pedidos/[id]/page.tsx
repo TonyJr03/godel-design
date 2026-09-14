@@ -40,7 +40,8 @@ import {
   updatePedidoStatusAction,
   updatePedidoTaskProgressAction,
   updatePedidoTaskTitleAction,
-  uploadPedidoFileAction,
+  finalizePedidoFileAction,
+  reservePedidoFilesAction,
 } from "./actions";
 import { startPedidoReviewOnOpenAction } from "./actions/status-actions";
 
@@ -132,12 +133,16 @@ export default async function DashboardPedidoDetallePage({
   const editServiceTypesResult = canEditPedido
     ? await listOperationalServiceTypes()
     : null;
-  const uploadFileAction = uploadPedidoFileAction.bind(null, pedidoId);
+  const reserveFilesAction = reservePedidoFilesAction.bind(null, pedidoId);
+  const finalizeFileAction = finalizePedidoFileAction.bind(null, pedidoId);
 
   return (
     <>
       {shouldStartReviewOnOpen ? (
-        <AutoReviewOnOpen action={startReviewOnOpenAction} />
+        <AutoReviewOnOpen
+          action={startReviewOnOpenAction}
+          successNavigationHref={`/dashboard/pedidos/${pedidoId}`}
+        />
       ) : null}
       <InternalPedidoDetail
         pedido={result.pedido}
@@ -153,6 +158,7 @@ export default async function DashboardPedidoDetallePage({
             : undefined
         }
         updateStatusAction={updateStatusAction}
+        statusSuccessNavigationHref={`/dashboard/pedidos/${pedidoId}`}
         taskProgress={tasksResult.ok ? tasksResult.progress : undefined}
         tasksLoadError={
           tasksResult.ok
@@ -178,6 +184,7 @@ export default async function DashboardPedidoDetallePage({
           canManagePedidos && assignWorkerAction && removeWorkerAction ? (
             <PedidoWorkerAssignmentForm
               pedidoId={pedidoId}
+              successNavigationHref={`/dashboard/pedidos/${pedidoId}`}
               presentation="panel"
               assignWorkerAction={assignWorkerAction}
               removeWorkerAction={removeWorkerAction}
@@ -198,6 +205,7 @@ export default async function DashboardPedidoDetallePage({
             payment={result.pedido.payment}
             canManage={canManagePayments}
             updatePaymentAction={updatePaymentAction}
+            successNavigationHref={`/dashboard/pedidos/${pedidoId}`}
           />
         }
         tasksPanelContent={
@@ -230,14 +238,17 @@ export default async function DashboardPedidoDetallePage({
           <PedidoCommentComposer
             presentation="panel"
             createCommentAction={createCommentAction}
+            successNavigationHref={`/dashboard/pedidos/${pedidoId}`}
           />
         }
         fileUploadPanelContent={
           <PedidoFileUploadForm
             presentation="panel"
-            uploadFileAction={uploadFileAction}
+            reserveFilesAction={reserveFilesAction}
+            finalizeFileAction={finalizeFileAction}
             pedidoStatus={result.pedido.status}
             canUpload={profile !== null}
+            successNavigationHref={`/dashboard/pedidos/${pedidoId}`}
           />
         }
       />

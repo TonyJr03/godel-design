@@ -312,6 +312,65 @@ test("admin can validate the clientes listing, search, detail, and form", async 
   await expectNoVisibleSensitiveText(page);
 });
 
+test("admin can update a QA cliente and preserve validation feedback", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+
+  const mutationName = `QA Cliente Mutation ${runLabel}`;
+  const mutationPhone = `556${runId.slice(-7)}`;
+  const mutationEmail = `qa-cliente-mutation-${runId}@example.com`;
+
+  await loginAs(page, "admin");
+  await page.goto("/dashboard/clientes");
+  await page.getByRole("button", { name: /nuevo cliente/i }).click();
+
+  const createDialog = page.getByRole("dialog", { name: /nuevo cliente/i });
+  await createDialog.getByLabel(/^nombre/i).fill(mutationName);
+  await createDialog.getByLabel(/tel.fono/i).fill(mutationPhone);
+  await createDialog.getByLabel(/correo electr.nico/i).fill(mutationEmail);
+  await createDialog.getByLabel(/notas/i).fill("Notas iniciales de mutación QA.");
+  await createDialog.getByRole("button", { name: /crear cliente/i }).click();
+  await expect(createDialog).toBeHidden({ timeout: 15_000 });
+
+  await searchCliente(page, mutationName);
+  await page
+    .getByRole("link", {
+      name: new RegExp(`abrir cliente ${escapeRegExp(mutationName)}`, "i"),
+    })
+    .click();
+
+  await page.getByRole("button", { name: /editar cliente/i }).click();
+  let editDialog = page.getByRole("dialog", { name: /editar cliente/i });
+  await editDialog.getByLabel(/^nombre/i).fill(" ");
+  await editDialog.getByRole("button", { name: /guardar cambios/i }).click();
+  await expect(editDialog.getByText(/el nombre es obligatorio/i)).toBeVisible({
+    timeout: 15_000,
+  });
+  await expect(editDialog).toBeVisible();
+
+  for (let iteration = 1; iteration <= 3; iteration += 1) {
+    const nextPhone = `557${runId.slice(-6)}${iteration}`;
+    const nextNotes = `Notas QA de actualización ${iteration} para ${runLabel}.`;
+
+    if (iteration > 1) {
+      await page.getByRole("button", { name: /editar cliente/i }).click();
+      editDialog = page.getByRole("dialog", { name: /editar cliente/i });
+    }
+
+    await editDialog.getByLabel(/^nombre/i).fill(mutationName);
+    await editDialog.getByLabel(/tel.fono/i).fill(nextPhone);
+    await editDialog.getByLabel(/notas/i).fill(nextNotes);
+    await editDialog.getByRole("button", { name: /guardar cambios/i }).click();
+    await expect(page.getByText(nextPhone, { exact: true })).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByText(nextNotes, { exact: true })).toBeVisible();
+  }
+
+  await expectNoVisibleSensitiveText(page);
+});
+
 test("admin can validate clientes pagination and canonical URLs", async ({
   page,
 }) => {

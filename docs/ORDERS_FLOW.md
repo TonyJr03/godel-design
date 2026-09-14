@@ -539,8 +539,9 @@ campos modificados. Los archivos heredados de solicitudes con
 Archivos principales:
 
 - Listado: `src/lib/storage/list-pedido-files.ts`
-- Subida: `src/lib/storage/upload-pedido-file.ts`
-- Componente: `src/components/storage/PedidoFilesSection.tsx`
+- Reserva/finalize: `src/lib/storage/upload-control/`
+- Transferencia: `src/lib/storage/tus/upload-reserved-file.ts`
+- Componente: `src/components/storage/PedidoFileUploadForm.tsx`
 - Descarga: `/dashboard/pedidos/[id]/archivos/[fileId]/download`
 
 El detalle de pedido permite listar, subir y descargar archivos privados asociados al pedido. Los objetos se guardan en el bucket privado `godel-files` y los metadatos se registran en `archivos`. El usuario no selecciona categoría: la aplicación la deriva server-side desde el estado actual del pedido.
@@ -556,7 +557,13 @@ Mapeo de estado a categoría:
 
 Los archivos enviados por el cliente en la solicitud pública también pueden aparecer en el pedido generado como `cliente_solicitud`. En ese caso se muestran como “Archivo enviado por cliente”. No se permite subir esa categoría desde el formulario interno de pedido; solo se hereda al convertir una solicitud en pedido.
 
-La página enlaza `pedido_id` a la action y el formulario interno envía únicamente `file`. La descarga se realiza mediante URL firmada de corta duración. No se usan URLs públicas permanentes, no se aceptan categoría, `visibility`, `file_path`, bucket ni otros metadatos técnicos desde formularios y no se usa service role key. No se implementa eliminación de archivos en esta fase.
+La página enlaza `pedido_id` a acciones de reserva y finalize; el formulario
+envía a Next.js solo descriptores `{ name, size }`. El navegador mantiene el
+`File` y su JWT en memoria, transfiere directo por TUS y finaliza cada item. La
+descarga se realiza mediante URL firmada de corta duración. No se usan URLs
+públicas permanentes, no se aceptan categoría, `visibility`, `file_path`, bucket
+ni otros metadatos técnicos desde formularios y no se usa service role key. No
+se implementa eliminación de archivos en esta fase.
 
 Desde Fase 11.7B, la conversión de una solicitud a pedido registra `convertida_a_pedido` en `solicitud_historial`. Ese evento no duplica `estado_cambiado` cuando la misma operación marca la solicitud como `convertida`, y la herencia de archivos no genera eventos nuevos de archivo.
 

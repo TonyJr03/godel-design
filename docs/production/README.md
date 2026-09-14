@@ -3,9 +3,54 @@
 Este índice concentra la documentación vigente para preproducción, auditorías,
 arquitectura operativa y puesta en operación de Godel Diseño.
 
+## Roadmaps activos
+
+- [Roadmap PPO](PPO_ROADMAP.md): roadmap maestro de Preproducción y Puesta en
+  Operación; PPO-04 / Production Pilot V1 está `ACTIVE / NEXT`.
+- [Roadmap Self-Hosted](SH_ROADMAP.md): workstream técnico subordinado a PPO
+  para la transición a Supabase self-hosted; SH-01–SH-04 están cerrados y SH-05
+  está `PAUSED / NON-BLOCKING HARDENING`.
+
 ## Documentos vigentes
 
-- [Roadmap PPO](PPO_ROADMAP.md): iniciativa completa de Preproducción y Puesta en Operación.
+- [PPO-04 — Production Pilot V1](PPO_04_PRODUCTION_PILOT_PLAN.md): plan
+  gobernante `ACTIVE / NEXT` para el primer rollout productivo controlado;
+  construye App/Nginx `linux/amd64` fuera del VPS y exige generación productiva
+  propia, readiness del host, HTTPS, aislamiento, backup inicial y smoke real.
+
+- [SH-05 — Handoff del rehearsal clean-host](SH_05_REHEARSAL_HANDOFF.md):
+  evidencia real sanitizada, límites y decisión de pausa. SH-05 queda
+  `PAUSED / NON-BLOCKING HARDENING`; SH-05.3 está `PARTIALLY PROVEN / DEFERRED`
+  y SH-05.4 está `DEFERRED`.
+
+- [SH-05.1 — Contrato de portabilidad clean-host y diseño de tooling](SH_05_CLEAN_HOST_PORTABILITY_DESIGN.md): cerrado y aprobado; SH-05.2 cerró `CLOSED / APPROVED / PASS_MINIMAL_CLEAN_HOST_PORTABILITY_TOOLING` y conserva la historia de sus subbloques. El tooling implementado no equivale por sí solo a prueba empírica; el estado vigente está en el handoff de rehearsal.
+
+- [SH-05.0 — Descubrimiento de portabilidad y realineación de destino](SH_05_PORTABILITY_DISCOVERY.md): cerrada y aprobada; documenta las fuentes de reconstrucción, las brechas clean-host y el realineamiento provider-neutral de SH/PPO. No ejecuta portabilidad ni despliegue.
+
+- [SH-04.3D — Rotación segura de secretos](SH_04_SECRET_ROTATION_REPORT.md): cerrada y aprobada; D.6 PASS aceptó la rotación/recovery, con TARGET D5 actual, GEN7/GEN6 retenidas y forensics R1A del backup pre-cutover aprobada.
+
+- [SH-04.3 — Production Secrets & Auth Hardening](SH_04_SECRETS_AUTH_REPORT.md): cerrada y aprobada tras `SH043_FINAL_OPERATIONAL_ACCEPTANCE_PASS`; conserva la auditoría de secretos/Auth, la rotación, la compatibilidad recovery D5 y la aceptación operativa final. «SH-04.4 es el siguiente workstream» se conserva solo como handoff histórico de ese cierre; actualmente SH-04 está cerrado y SH-05 está pausado como hardening no bloqueante.
+
+- [SH-02.0 — Diseño de integración Godel ↔ Supabase self-hosted](SH_02_INTEGRATION_DESIGN.md): cerrada y aprobada; incluye el estado vigente de SH-02.
+- [SH-02.1 — Compose, networking y naming neutral](SH_02_COMPOSE_NETWORK_REPORT.md): cerrada y aprobada.
+- [SH-02.2 — Nginx proxy, URL split y routing TUS](SH_02_NGINX_PROXY_REPORT.md): cerrada y aprobada.
+- [SH-02.3 — Runtime, readiness y configuración operativa](SH_02_RUNTIME_OPERATIONS_REPORT.md): cerrada y aprobada.
+- [SH-02 — Cierre de integración Godel ↔ Supabase self-hosted](SH_02_CLOSURE_REPORT.md): cerrada y aprobada; entrega la topología técnica a SH-03.
+- [SH-03 — Plan QA funcional production-like](SH_03_QA_PLAN.md): cerrada y aprobada, incluidas sus subfases y la regresión agregada.
+- [SH-03.1 — Provisioning QA, Auth, session, roles y Auth Admin](SH_03_AUTH_QA_REPORT.md): cierre aprobado, evidencia self-hosted y handoff de compatibilidad para SH-03.2.
+- [SH-03.2C — Solicitudes](SH_03_CORE_QA_REPORT.md): lifecycle por Nginx y fallback TD-NEXT-001 limitado por evidencia; cerrada y aprobada dentro de SH-03 cerrada.
+- [PPO-03C.1 - Control plane DB de reservas y finalize](PPO_03_CONTROL_PLANE_REPORT.md): cerrada y aprobada localmente; validada administrada en PPO-03C.3B.
+- [PPO-03C.2 - Infraestructura TypeScript de cargas directas](PPO_03_UPLOAD_APPLICATION_REPORT.md): cerrada con condición runtime en PPO-03D/E.
+- [PPO-03C.3B - Gate HTTPS administrado](PPO_03_CONTROL_PLANE_MANAGED_REPORT.md): cerrada; valida reserva, TUS, staged aislado y finalize idempotente contra el backend administrado.
+- [PPO-03F.0 — Diseño de expiración, reconciliación y cleanup](PPO_03F_CLEANUP_DESIGN.md): cerrada y aprobada arquitectónicamente.
+- [PPO-03F.1 — Lifecycle DB, cleanup authority y amendment final](PPO_03F_DATABASE_LIFECYCLE_REPORT.md): cerrada y aprobada en baseline.
+- [PPO-03F.2 — Executor server-only y operación manual de cleanup](PPO_03F_CLEANUP_EXECUTOR_REPORT.md): cerrada y aprobada.
+- [PPO-03F.3 — QA, freeze y handoff](PPO_03F_QA_FREEZE_REPORT.md): cerrada y aprobada; cierra PPO-03F y congela la baseline 01–06.
+- [Auditoría de baseline self-hosted SH-01C](SH_01C_DATABASE_BASELINE_AUDIT.md): evidencia aprobada de la baseline final de seis migraciones, fresh rebuild y validación de PostgreSQL, Auth y Storage.
+- [PPO-03A.1 — Contrato de cargas y almacenamiento](PPO_03_UPLOAD_STORAGE_CONTRACT.md): arquitectura objetivo aprobada para transferencia directa, sesiones, finalización y reconciliación; no implementa todavía el nuevo flujo.
+- [PPO-03A.2 — Informe de spike TUS y signed upload token](PPO_03_TUS_SPIKE_REPORT.md): evidencia local y veredicto aprobado con condiciones; habilita el inicio de PPO-03B.
+- [PPO-03B — Informe DB, RLS y Storage](PPO_03_STORAGE_DB_REPORT.md): fase cerrada; control plane de sesiones/items y policies operation-aware validados localmente y por HTTPS administrado.
+- [PPO-03B.2B — Validación HTTPS administrada de DB/Storage](PPO_03_STORAGE_MANAGED_REPORT.md): cerrada, aprobada con condición de integración para PPO-03C: reserva real, presigned administrado y staged no enumerable por actores no autorizados.
 - [Plan de auditoría PPO-01](PPO_01_AUDIT_PLAN.md): contrato operativo para auditar infraestructura y conectividad.
 - [Informe de capacidad PPO-01](PPO_01_CAPACITY_REPORT.md): plantilla para resultados resumidos y aprobados.
 - [PPO-02 - Plan de contenerización](PPO_02_CONTAINERIZATION_PLAN.md): contrato y trazabilidad de la base contenerizada local cerrada con condiciones.

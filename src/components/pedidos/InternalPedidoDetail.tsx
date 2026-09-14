@@ -49,6 +49,7 @@ type InternalPedidoDetailProps = {
   editServiceTypes?: OperationalServiceType[];
   editServiceTypesLoadError?: string;
   updateStatusAction: PedidoDetailAction<UpdatePedidoStatusActionState>;
+  statusSuccessNavigationHref?: string;
   taskProgress?: PedidoTasksProgress | null;
   tasksLoadError?: string;
   tasksLoadRetryable?: boolean;
@@ -187,6 +188,7 @@ export function InternalPedidoDetail({
   editServiceTypes = [],
   editServiceTypesLoadError,
   updateStatusAction,
+  statusSuccessNavigationHref,
   taskProgress,
   tasksLoadError,
   tasksLoadRetryable = false,
@@ -350,6 +352,7 @@ export function InternalPedidoDetail({
           workflowType={pedido.workflow_type}
           tasksLoadError={tasksLoadError}
           tasksLoadRetryable={tasksLoadRetryable}
+          successNavigationHref={statusSuccessNavigationHref}
         />
       ),
     },

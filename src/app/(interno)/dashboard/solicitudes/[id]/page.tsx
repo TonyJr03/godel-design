@@ -126,7 +126,10 @@ export default async function DashboardSolicitudDetallePage({
   return (
     <>
       {shouldStartReviewOnOpen ? (
-        <AutoReviewOnOpen action={startReviewOnOpenAction} />
+        <AutoReviewOnOpen
+          action={startReviewOnOpenAction}
+          successNavigationHref={`/dashboard/solicitudes/${solicitudId}`}
+        />
       ) : null}
       <InternalSolicitudDetail
         solicitud={result.solicitud}
@@ -181,6 +184,7 @@ export default async function DashboardSolicitudDetallePage({
         historyLoadError={historyLoadError}
         historyLoadRetryable={historyLoadRetryable}
         clienteDetailLoadError={clienteDetailLoadError}
+        statusSuccessNavigationHref={`/dashboard/solicitudes/${solicitudId}`}
       />
     </>
   );

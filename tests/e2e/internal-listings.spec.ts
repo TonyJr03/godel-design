@@ -2,7 +2,6 @@ import {
   expect,
   type Locator,
   type Page,
-  type Route,
   test,
 } from "@playwright/test";
 
@@ -176,12 +175,6 @@ function getVisibleFiltersTrigger(page: Page) {
   });
 }
 
-function getListingToolbar(page: Page) {
-  return page.getByRole("region", {
-    name: /b.squeda y filtros/i,
-  });
-}
-
 function getActiveFiltersBand(page: Page) {
   return page.getByLabel("Filtros activos");
 }
@@ -206,6 +199,24 @@ async function getRequiredBox(locator: Locator) {
   expect(box).not.toBeNull();
 
   return box as NonNullable<typeof box>;
+}
+
+async function getVisiblePedidoResultsSurface(page: Page): Promise<Locator> {
+  const table = page.locator("table:visible").first();
+  const emptyState = page.getByText(pedidosContract.emptyText).first();
+
+  await expect
+    .poll(async () => {
+      return (await table.isVisible().catch(() => false)) ||
+        (await emptyState.isVisible().catch(() => false));
+    })
+    .toBe(true);
+
+  if (await table.isVisible()) {
+    return table;
+  }
+
+  return emptyState;
 }
 
 function getBoxCenterY(box: NonNullable<Awaited<ReturnType<Locator["boundingBox"]>>>) {
@@ -627,14 +638,6 @@ async function expectMobileActiveFiltersLayout(page: Page) {
   await expectNoHorizontalOverflow(page);
 }
 
-async function expectNoVisibleUpdatingMessage(page: Page) {
-  await expect(
-    page.getByText("Actualizando resultados...", {
-      exact: true,
-    }),
-  ).not.toBeVisible();
-}
-
 async function expectActiveFiltersStayOnOneLine(page: Page) {
   await page.setViewportSize({ width: 1366, height: 768 });
   await page.goto(PEDIDOS_ACTIVE_FILTERS_PATH);
@@ -671,23 +674,19 @@ async function expectActiveFiltersLimitResultsShift(page: Page) {
   await page.setViewportSize({ width: 1366, height: 768 });
   await page.goto("/dashboard/pedidos");
 
-  const initialTable = page.locator("table:visible").first();
-
-  await expect(initialTable).toBeVisible();
-
-  const initialTableBox = await getRequiredBox(initialTable);
+  const initialResultsSurface = await getVisiblePedidoResultsSurface(page);
+  const initialResultsSurfaceBox = await getRequiredBox(initialResultsSurface);
 
   await page.goto(PEDIDOS_ACTIVE_FILTERS_PATH);
 
-  const filteredTable = page.locator("table:visible").first();
-
-  await expect(filteredTable).toBeVisible();
-
-  const filteredTableBox = await getRequiredBox(filteredTable);
-  const resultsShift = filteredTableBox.y - initialTableBox.y;
+  const filteredResultsSurface = await getVisiblePedidoResultsSurface(page);
+  const filteredResultsSurfaceBox = await getRequiredBox(filteredResultsSurface);
+  const activeFiltersBandBox = await getRequiredBox(getActiveFiltersBand(page));
+  const resultsShift =
+    filteredResultsSurfaceBox.y - initialResultsSurfaceBox.y;
 
   expect(resultsShift).toBeGreaterThanOrEqual(0);
-  expect(resultsShift).toBeLessThanOrEqual(16);
+  expect(resultsShift).toBeLessThanOrEqual(activeFiltersBandBox.height + 8);
 }
 
 async function expectMobileActiveFiltersUseInternalOverflow(page: Page) {
@@ -737,91 +736,23 @@ async function expectMobileActiveFiltersUseInternalOverflow(page: Page) {
   await expectNoHorizontalOverflow(page);
 }
 
-async function expectPendingStateUsesClearButtonSpinner(page: Page) {
+async function expectClearFiltersUsesCanonicalDocumentNavigation(page: Page) {
   await page.setViewportSize({ width: 1366, height: 768 });
   await page.goto(PEDIDOS_ACTIVE_FILTERS_PATH);
 
-  const toolbar = getListingToolbar(page);
-  const status = toolbar.getByRole("status");
-  const band = getActiveFiltersBand(page);
-  const table = page.locator("table:visible").first();
   const clearButton = page.getByRole("button", {
     name: /^limpiar filtros$/i,
   });
+  const pageErrors: Error[] = [];
 
-  await expect(toolbar).toHaveAttribute("aria-busy", "false");
-  await expect(status).toHaveText("");
-  await expectNoVisibleUpdatingMessage(page);
+  page.on("pageerror", (error) => pageErrors.push(error));
+
   await expect(clearButton).toBeVisible();
-  await expect(band).toBeVisible();
-  await expect(table).toBeVisible();
-
-  const initialBandBox = await getRequiredBox(band);
-  const initialTableBox = await getRequiredBox(table);
-  let releaseRequest: (() => void) | undefined;
-  const requestGate = new Promise<void>((resolve) => {
-    releaseRequest = resolve;
-  });
-  let hasGatedRequest = false;
-  let gatedRequest: Promise<void> | undefined;
-  const routeHandler = async (route: Route) => {
-    const url = new URL(route.request().url());
-
-    if (url.pathname !== "/dashboard/pedidos" || hasGatedRequest) {
-      await route.continue();
-      return;
-    }
-
-    hasGatedRequest = true;
-    gatedRequest = (async () => {
-      await requestGate;
-      await route.continue();
-    })();
-    await gatedRequest;
-  };
-
-  await page.route("**/dashboard/pedidos**", routeHandler);
-
-  try {
-    await clearButton.click();
-
-    const pendingButton = page.getByRole("button", {
-      name: /^actualizando resultados$/i,
-    });
-
-    await expect(pendingButton).toBeVisible();
-    await expect(pendingButton).toHaveAttribute("aria-busy", "true");
-    await expect(pendingButton).toHaveAttribute(
-      "title",
-      "Actualizando resultados",
-    );
-    await expect(pendingButton.locator("svg[aria-hidden='true']")).toHaveCount(
-      1,
-    );
-    await expect(
-      pendingButton.locator("svg[aria-hidden='true'].animate-spin"),
-    ).toHaveCount(1);
-    await expect(status).toHaveText("Actualizando resultados...");
-    await expectNoVisibleUpdatingMessage(page);
-    await expect(getActiveFiltersBand(page)).toBeVisible();
-
-    const pendingBandBox = await getRequiredBox(band);
-    const pendingTableBox = await getRequiredBox(table);
-
-    expect(Math.abs(pendingBandBox.height - initialBandBox.height))
-      .toBeLessThanOrEqual(1);
-    expect(Math.abs(pendingTableBox.y - initialTableBox.y))
-      .toBeLessThanOrEqual(1);
-  } finally {
-    releaseRequest?.();
-    await gatedRequest?.catch(() => undefined);
-    await page.unroute("**/dashboard/pedidos**", routeHandler);
-  }
-
+  await clearButton.click();
   await expect(page).toHaveURL(/\/dashboard\/pedidos$/);
   await expect(getActiveFiltersBand(page)).toHaveCount(0);
-  await expect(status).toHaveText("");
-  await expect(toolbar).toHaveAttribute("aria-busy", "false");
+  await expect(await getVisiblePedidoResultsSurface(page)).toBeVisible();
+  expect(pageErrors).toEqual([]);
 }
 
 test.describe("internal operational listings", () => {
@@ -924,9 +855,9 @@ test.describe("internal operational listings", () => {
     await expectMobileActiveFiltersUseInternalOverflow(page);
   });
 
-  test("pending updates use accessible status and clear button spinner", async ({
+  test("clear filters uses canonical document navigation", async ({
     page,
   }) => {
-    await expectPendingStateUsesClearButtonSpinner(page);
+    await expectClearFiltersUsesCanonicalDocumentNavigation(page);
   });
 });

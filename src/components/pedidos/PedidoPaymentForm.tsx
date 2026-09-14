@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import type {
   PedidoDetailAction,
   UpdatePedidoPaymentActionState,
@@ -11,6 +11,7 @@ import type { InternalPedidoPayment } from "@/lib/pedidos";
 type PedidoPaymentFormProps = {
   action: PedidoDetailAction<UpdatePedidoPaymentActionState>;
   payment: InternalPedidoPayment;
+  successNavigationHref?: string;
 };
 
 const initialState: UpdatePedidoPaymentActionState = {
@@ -21,6 +22,7 @@ const initialState: UpdatePedidoPaymentActionState = {
 export function PedidoPaymentForm({
   action,
   payment,
+  successNavigationHref,
 }: PedidoPaymentFormProps) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const cashError = state.fieldErrors?.paid_cash_amount;
@@ -28,6 +30,15 @@ export function PedidoPaymentForm({
   const cashValue = state.values?.paidCashAmount ?? payment.paidCashAmount;
   const transferValue =
     state.values?.paidTransferAmount ?? payment.paidTransferAmount;
+
+  useEffect(() => {
+    if (!state.ok || !successNavigationHref) {
+      return;
+    }
+
+    // TD-NEXT-001: fallback temporal para navegaciÃ³n same-route en self-hosted.
+    window.location.assign(successNavigationHref);
+  }, [state.ok, successNavigationHref]);
 
   return (
     <form

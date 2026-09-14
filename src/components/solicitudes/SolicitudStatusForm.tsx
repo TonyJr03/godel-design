@@ -17,6 +17,7 @@ type SolicitudStatusFormProps = {
   updateStatusAction: SolicitudDetailAction<UpdateSolicitudStatusActionState>;
   flow: SolicitudStatusFlow;
   presentation?: "card" | "panel";
+  successNavigationHref?: string;
 };
 
 function getClosedStatusMessage(flow: SolicitudStatusFlow): string | null {
@@ -94,6 +95,7 @@ function getNotice(flow: SolicitudStatusFlow) {
 export function SolicitudStatusForm({
   updateStatusAction,
   flow,
+  successNavigationHref,
 }: SolicitudStatusFormProps) {
   return (
     <StatusFlowPanel
@@ -103,6 +105,7 @@ export function SolicitudStatusForm({
       termination={getTermination(flow)}
       notice={getNotice(flow)}
       closedMessage={getClosedStatusMessage(flow)}
+      successNavigationHref={successNavigationHref}
     />
   );
 }

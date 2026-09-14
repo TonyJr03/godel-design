@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import type {
   AssociateSolicitudClienteActionState,
   CreateClienteFromSolicitudActionState,
@@ -34,6 +34,10 @@ const initialCreateState: CreateClienteFromSolicitudActionState = {
   ok: false,
   message: "",
 };
+
+function getAssociationNavigationKey() {
+  return `solicitud-cliente-association-navigation:${window.location.pathname}`;
+}
 
 function ActionAlert({
   ok,
@@ -131,6 +135,24 @@ export function SolicitudClienteForm({
       }
     : null;
 
+  useEffect(() => {
+    if (
+      associateState.ok &&
+      window.sessionStorage.getItem(getAssociationNavigationKey()) !== "done"
+    ) {
+      window.sessionStorage.setItem(getAssociationNavigationKey(), "done");
+      // TD-NEXT-001: fallback temporal para navegación same-route en self-hosted.
+      window.location.assign(window.location.pathname);
+    }
+  }, [associateState.ok]);
+
+  useEffect(() => {
+    if (createState.ok) {
+      // TD-NEXT-001: fallback temporal para navegación same-route en self-hosted.
+      window.location.assign(window.location.pathname);
+    }
+  }, [createState.ok]);
+
   if (presentation === "panel") {
     return (
       <section className="space-y-5">
@@ -140,6 +162,9 @@ export function SolicitudClienteForm({
           action={associateAction}
           aria-busy={associatePending}
           className="border-t border-border pt-5"
+          onSubmit={() => {
+            window.sessionStorage.removeItem(getAssociationNavigationKey());
+          }}
         >
           <h3 className="text-sm font-semibold text-text-primary">
             Asociar cliente existente
@@ -236,7 +261,13 @@ export function SolicitudClienteForm({
       </div>
 
       <div className="mt-6 grid gap-5 lg:grid-cols-2">
-        <form action={associateAction} aria-busy={associatePending}>
+        <form
+          action={associateAction}
+          aria-busy={associatePending}
+          onSubmit={() => {
+            window.sessionStorage.removeItem(getAssociationNavigationKey());
+          }}
+        >
           <FormField id="cliente_id" label="Cliente existente" required>
             {({ describedBy, invalid }) => (
               <ClienteAsyncSelect

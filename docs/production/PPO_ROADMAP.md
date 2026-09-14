@@ -2,10 +2,12 @@
 
 ## Metadatos
 
+- Actualización de estado: 2026-09-13
+
 - Proyecto: Godel Diseño
 - Estado: Activo
 - Fecha de creación: 2026-07-21
-- Última revisión: 2026-08-08
+- Última revisión: 2026-09-13
 - Responsable técnico: Dirección Técnica de Godel Diseño
 - Arquitectura y supervisión: Arquitectura Senior / Orquestación Técnica
 - Implementación: Agente Codex en VS Code
@@ -18,39 +20,101 @@ usuarios.
 
 La iniciativa diferencia tres momentos operativos:
 
-1. Preparación en la laptop de desarrollo, donde se construirán y validarán las
-   bases técnicas antes de moverlas a otro host.
-2. Operación provisional en la máquina de Godel Diseño, conviviendo con sus
-   demás aplicaciones y bajo condiciones controladas.
-3. Migración futura a infraestructura estable, conservando una estrategia de
-   recuperación y soporte.
+1. Preparación y validación en desarrollo/preproducción.
+2. Evidencia de portabilidad en un host limpio desechable e independiente;
+   quedó parcialmente probada y pasa a endurecimiento post-piloto.
+3. Production Pilot V1 en el VPS seleccionado, con release construida fuera del
+   target y rollout real controlado.
 
 ## Decisiones arquitectónicas confirmadas
 
 - La iniciativa se denomina PPO.
 - Nginx será el proxy inverso.
 - Caddy no forma parte de la arquitectura.
-- Los hosts iniciales utilizan Windows.
-- Docker Desktop utiliza WSL2.
-- Se usarán contenedores Linux.
-- La máquina de la empresa no es un servidor dedicado.
+- Los contenedores runtime son Linux y el primer proof clean-host debe ser amd64.
 - La infraestructura debe quedar aislada del resto de aplicaciones del host.
-- La composición se construirá primero en la laptop.
-- La misma base se trasladará después a la máquina de la empresa.
+- La composición se construye y valida primero en desarrollo/preproducción.
+- El destino operativo seleccionado es una VPS de Hosting DC; la arquitectura
+  permanece `PROVIDER_NEUTRAL_CLEAN_LINUX_DOCKER_HOST`.
 - Supabase administrado continuará inicialmente como backend.
+- La afirmación anterior sobre continuidad de Supabase administrado es evidencia
+  histórica superseded. El backend objetivo actual es Supabase self-hosted en
+  Docker y Supabase CLI local queda para desarrollo/E2E.
 - Vercel Hobby se utilizará para previews, demostración y preproducción controlada.
-- Cloudflare Tunnel se evaluará para la exposición segura de la operación provisional.
+- El piloto no transportará credenciales reales por HTTP público. La exposición
+  pública general e irrestricta requiere el hardening de PPO-05; no se exige
+  Cloudflare Tunnel como solución actual.
 - Los archivos serán privados.
 - El contenido de archivos no atravesará Server Actions de Next.js.
 - El objetivo futuro contempla hasta diez archivos por operación.
-- El límite inicialmente planteado es 20 MB por archivo.
-- ZIP y RAR están dentro del alcance futuro del rediseño de archivos.
-- OVHcloud Canadá continúa como candidato para la producción futura.
-- Después de la migración, la máquina de la empresa podrá actuar como soporte
-  de backup y recuperación.
+- El límite inicialmente planteado es 20 MiB por archivo.
+- ZIP, RAR y CDR están dentro del alcance futuro del rediseño de archivos.
+- PPO-10 conserva una posible migración futura de proveedor/infraestructura,
+  sólo si llega a ser necesaria.
+- La máquina de la empresa puede evaluarse en el futuro como destino off-host,
+  pero no es un supuesto de operación ni backup.
 
-Estas decisiones registran dirección arquitectónica. Las que pertenecen a fases
-posteriores no se declaran implementadas en este roadmap.
+Las referencias a Windows/WSL2, company-host, LAN provisional, Cloudflare Tunnel
+u OVHcloud pertenecen a contexto histórico cuando aparezcan en evidencia cerrada;
+no son arquitectura operativa vigente. Las decisiones de fases posteriores no se
+declaran implementadas en este roadmap.
+
+## Arquitectura backend vigente
+
+Supabase self-hosted en Docker es el backend objetivo de operación.
+Supabase CLI local se conserva como entorno de desarrollo y E2E. Las pruebas
+previas con Supabase administrado permanecen como evidencia histórica de
+PPO-02/PPO-03, pero ese backend fue superseded por el workstream SH. La lista de
+decisiones inmediatamente anterior se interpreta como snapshot histórico cuando
+menciona continuidad de Supabase administrado.
+
+## Integración del workstream Self-Hosted
+
+Este documento sigue siendo el roadmap maestro de Preproducción y Puesta en
+Operación. [SH — Roadmap de transición a Supabase Self-Hosted](SH_ROADMAP.md)
+es su workstream técnico subordinado, temporal y con cierre explícito; no es un
+roadmap de producto paralelo ni una segunda puesta en producción.
+
+La secuencia originalmente prevista fue la siguiente; su cierre final no se
+alcanzó porque SH-05 quedó pausado:
+
+```text
+SH-02
+→ SH-03
+→ PPO-03G
+→ PPO-03 CLOSED
+→ SH-04
+→ SH-05
+→ SH CLOSED
+```
+
+PPO-03F cerró/aprobó expiración, abandono, reconciliación, cleanup, idempotencia,
+autoridad de eliminación y trazabilidad del lifecycle de Storage. SH-02 es el
+siguiente bloque e integra PPO-02 con el backend self-hosted; SH-03 prueba esas
+fronteras antes del gate final PPO-03G.
+Por tanto, PPO-03G no puede cerrar Storage solo con evidencia de desarrollo/E2E
+local.
+
+Estado vigente: SH-02 = CLOSED / APPROVED; SH-03 = CLOSED / APPROVED;
+PPO-03G = CLOSED / APPROVED; PPO-03 = CLOSED / APPROVED; SH-04 = CLOSED / APPROVED;
+SH-05 = PAUSED / NON-BLOCKING HARDENING. SH-05.0, SH-05.1 y SH-05.2 conservan
+sus cierres aprobados; SH-05.3 = PARTIALLY PROVEN / DEFERRED y SH-05.4 =
+DEFERRED. La evidencia y las brechas se consolidan en
+[SH-05 — Handoff del rehearsal clean-host](SH_05_REHEARSAL_HANDOFF.md).
+
+PPO-03F.0 aprobó el último amendment excepcional de la baseline consolidada
+01–06. PPO-03F.1 lo implementó y exigió fresh rebuild 01–06 y QA. PPO-03F
+cerró/aprobó y `BASELINE 01–06 = FROZEN`; todo cambio DB posterior deberá usar
+una migración `07+`.
+
+PPO-01C/D fueron superseded y no ejecutados porque company-host dejó de ser el
+target. PPO-01E/F aportan el veredicto provider-neutral de readiness VPS/Linux
+Docker dentro de los gates de PPO-04. PPO-04 queda `ACTIVE / NEXT` como
+Production Pilot V1: puede preparar release y configuración mientras cierra ese
+gate, pero no inicia uso real sin un host aceptable. SH-04 prueba capacidades
+técnicas; el backup inicial mínimo pertenece al piloto, PPO-06 lo
+operacionaliza en profundidad y PPO-07 conserva observabilidad, logs, métricas,
+alertas y soporte. PPO-10 queda como migración futura opcional.
 
 ## Estado de fases
 
@@ -59,18 +123,28 @@ posteriores no se declaran implementadas en este roadmap.
 | PPO-00    | Baseline local y formalización inicial      | Cerrada   |
 | PPO-01    | Auditoría de infraestructura y conectividad | Activa    |
 | PPO-02    | Base contenerizada reproducible             | Cerrada — Aprobada con condiciones |
-| PPO-03    | Rediseño de cargas y almacenamiento         | Pendiente |
-| PPO-04    | Despliegue provisional en la empresa        | Pendiente |
+| PPO-03    | Rediseño de cargas y almacenamiento         | Cerrada / aprobada |
+| PPO-04    | Production Pilot V1 en el VPS seleccionado | ACTIVE / NEXT — no desplegado |
 | PPO-05    | Seguridad pública                           | Pendiente |
 | PPO-06    | Backups y recuperación                      | Pendiente |
 | PPO-07    | Observabilidad y operación                  | Pendiente |
 | PPO-08    | UAT y puesta en operación                   | Pendiente |
 | PPO-09    | Estabilización                              | Pendiente |
-| PPO-10    | Migración futura a infraestructura estable  | Pendiente |
+| PPO-10    | Migración futura de proveedor/infraestructura | Deferred / optional |
 | PPO-QA-01 | Consolidación y aislamiento de la suite E2E | Diferida  |
 
 PPO-QA-01 no bloquea PPO-01, conserva el trabajo archivado y deberá resolverse
 antes del cierre definitivo de la puesta en producción.
+
+El plan operativo gobernante de la fase activa es
+[PPO-04 — Production Pilot V1](PPO_04_PRODUCTION_PILOT_PLAN.md). Solo sus gates
+`BLOCKER FOR PILOT` impiden el primer uso real controlado; PPO-05, PPO-06,
+PPO-07 y el remanente de SH-05 conservan hardening posterior explícito.
+
+### Workstream Self-Hosted
+
+El detalle, alcance y límites del workstream se mantienen en
+[SH_ROADMAP.md](SH_ROADMAP.md), para evitar duplicar el roadmap maestro.
 
 Estado interno vigente de PPO-02:
 
@@ -99,8 +173,74 @@ sin seed, confirma que HTTPS administrado es alcanzable con VPN activo,
 clasifica ProTUN/PostgreSQL como restricción administrativa y aprueba readiness
 administrado al enviar la publishable key existente como cabecera `apikey` en la
 llamada server-side a `/auth/v1/health`. PPO-02E.1 formaliza el cierre y el
-handoff operativo. El siguiente checkpoint general previsto es PPO-03A —
-contrato del rediseño de cargas y almacenamiento.
+handoff operativo. PPO-03 queda activa: PPO-03A.1 formalizó el contrato y
+PPO-03A.2 cerró aprobada con condiciones. El spike separó TUS autenticado por
+JWT para internos de TUS presigned para público y difirió la policy pública
+reservation-aware al alcance de PPO-03B. PPO-03B.1 validó localmente el control
+plane de sesiones/items y policies operation-aware. PPO-03B.2A aplicó la
+migración 07 en administrado por Dirección Técnica; PPO-03B.2B confirmó por
+HTTPS control plane cerrado, reserva obligatoria y compatibilidad legacy con
+VPN activo, sin PostgreSQL remoto. El listing devolvió cero objetos visibles;
+sin staged real no prueba su enumeración, pero no evidencia una apertura.
+PPO-03B queda cerrada. PPO-03C.1 queda cerrada y aprobada localmente; PPO-03C.2
+queda cerrada y aprobada con condición de integración runtime en PPO-03D/E para
+la infraestructura TypeScript común. PPO-03C.3A promovió manualmente la
+migración 08 y PPO-03C.3B cerró el gate HTTPS administrado de reserva real,
+TUS presigned, staged aislado y finalize idempotente. PPO-03C queda cerrada;
+PPO-03 permanece activa y PPO-03D es la fase activa.
+
+PPO-03C.1 implementó localmente el control plane de reserva y finalize y queda
+aprobada localmente. PPO-03C.2 implementó la infraestructura TypeScript común y
+queda aprobada con condición de integración runtime en PPO-03D/E. PPO-03C.3B
+validó administradamente las RPCs, policies, Storage y TUS sin ejecutar el
+wrapper productivo. PPO-03D.1 integra el flujo interno de Pedidos y queda
+implementada localmente, pendiente de revisión arquitectónica. PPO-03C queda
+cerrada y PPO-03 permanece activa mientras continúan PPO-03D, PPO-03E, PPO-03F
+y PPO-03G.
+
+## Estado vigente de PPO-03
+
+Los párrafos anteriores documentan la secuencia histórica antes del pivot SH.
+El estado operativo actual es:
+
+| Bloque | Estado |
+| --- | --- |
+| PPO-03A | Cerrada |
+| PPO-03B | Cerrada |
+| PPO-03C | Cerrada |
+| PPO-03D.1 | Cerrada / aprobada |
+| PPO-03D.2 | Superseded por self-hosted |
+| PPO-03E.1 | Cerrada / aprobada |
+| PPO-03E.2 | Cerrada / aprobada |
+| PPO-03E.3 | Cerrada / aprobada |
+| PPO-03E | Cerrada / aprobada |
+| PPO-03F.0 | Cerrada / aprobada |
+| PPO-03F.1 | Cerrada / aprobada |
+| PPO-03F.2 | Cerrada / aprobada |
+| PPO-03F.3 | Cerrada / aprobada |
+| PPO-03F | Cerrada / aprobada |
+| SH-03 | Cerrada / aprobada |
+| PPO-03G | Cerrada / aprobada |
+| PPO-03 | Cerrada / aprobada |
+| SH-04 | CLOSED / APPROVED |
+| SH-05 | PAUSED / NON-BLOCKING HARDENING — SH-05.3 PARTIALLY PROVEN / DEFERRED; SH-05.4 DEFERRED |
+
+El diseño aprobado de PPO-03F.0 vive en
+[PPO_03F_CLEANUP_DESIGN.md](PPO_03F_CLEANUP_DESIGN.md), el cierre de F.1 en
+[PPO_03F_DATABASE_LIFECYCLE_REPORT.md](PPO_03F_DATABASE_LIFECYCLE_REPORT.md) y
+el QA/freeze aprobado de F.3 en
+[PPO_03F_QA_FREEZE_REPORT.md](PPO_03F_QA_FREEZE_REPORT.md). PPO-03 queda
+CLOSED / APPROVED: cerró el modelo, reserva y finalize; Pedido authenticated
+TUS; Solicitud signed TUS; lifecycle/cleanup; QA production-like SH-03; el gate
+exacto de 20 MiB; bytes fuera de Next; retirada de los límites de 110 MB; y
+TD-UPLOAD-001 resuelta. La evidencia de cierre se concentra en
+[PPO_03G_UPLOAD_LIMITS_QA_REPORT.md](PPO_03G_UPLOAD_LIMITS_QA_REPORT.md),
+[SH_03_CLOSURE_REPORT.md](SH_03_CLOSURE_REPORT.md) y
+[SH_03_STORAGE_QA_REPORT.md](SH_03_STORAGE_QA_REPORT.md). SH-04 queda CLOSED /
+APPROVED. SH-05 queda PAUSED / NON-BLOCKING HARDENING; SH-05.0, SH-05.1 y
+SH-05.2 conservan sus cierres aprobados, SH-05.3 queda PARTIALLY PROVEN /
+DEFERRED y SH-05.4 queda DEFERRED. PPO-04 / Production Pilot V1 es la
+iniciativa `ACTIVE / NEXT`.
 
 ## PPO-00
 
@@ -115,19 +255,21 @@ El detalle aprobado vive en [PPO-00 - Cierre de baseline local de preproducción
 
 Definición oficial:
 
-> Determinar si la laptop de desarrollo y la máquina de Godel Diseño poseen las capacidades, prerrequisitos y condiciones operativas necesarias para construir y ejecutar posteriormente la infraestructura contenerizada prevista por PPO.
+> Determinar si el entorno de desarrollo y el futuro host operativo compatible
+> poseen las capacidades, prerrequisitos y condiciones necesarias para construir
+> y ejecutar la infraestructura contenerizada prevista por PPO.
 
 PPO-01 debe responder:
 
 1. Si la laptop puede construir y validar la composición.
-2. Si la máquina de la empresa puede alojar provisionalmente el sistema junto
-   con sus demás aplicaciones.
+2. Si el host operativo seleccionado satisface el contrato provider-neutral
+   aplicable antes de un despliegue real.
 3. Qué límites iniciales de CPU, memoria y almacenamiento deberían evaluarse.
 4. Si la conectividad es suficiente y estable.
 5. Qué estrategia de almacenamiento merece pasar a pruebas reales posteriores.
 
-PPO-01 no construye la composición, no instala Nginx, no configura Cloudflare
-Tunnel, no modifica el flujo de archivos, no despliega el sistema en la empresa,
+PPO-01 no construye la composición, no instala Nginx, no configura exposición
+pública, no modifica el flujo de archivos, no despliega el sistema en la VPS,
 no decide definitivamente el almacenamiento y no prueba todavía el dominio
 productivo.
 
@@ -140,8 +282,10 @@ Estado interno de PPO-01:
 | PPO-01A.1 | Cerrada |
 | PPO-01A.2 | Cerrada |
 | PPO-01B   | Cerrada — `development-laptop` Apta con condiciones |
-| PPO-01C   | Diferida temporalmente |
-| PPO-01D   | Pendiente, bloqueada por PPO-01C |
+| PPO-01C   | SUPERSEDED / NOT EXECUTED — company-host audit histórica |
+| PPO-01D   | SUPERSEDED / NOT EXECUTED — veredicto company-host histórico |
+| PPO-01E   | NOT STARTED / PENDING — VPS / Linux Docker host readiness audit |
+| PPO-01F   | NOT STARTED / PENDING — final infrastructure readiness verdict integrado al gate VPS de PPO-04 |
 
 `development-laptop` ya demostró capacidad suficiente para construir y validar
 la composición contenerizada prevista para PPO-02: WSL2 y Docker con
@@ -155,14 +299,23 @@ completaron en descarga y carga. En PPO-01, Supabase administrado quedó
 pendiente porque el proyecto administrado no estaba configurado; la validación
 administrada correspondiente quedó cubierta después en PPO-02D.2.
 
-`company-host` todavía no ha sido auditado y PPO-01 no está cerrada.
+PPO-01 permanece activa. PPO-01C/D preservan trazabilidad del target anterior y
+no se ejecutarán. PPO-01E/F no presuponen distribución Linux, recursos, IP,
+firewall, panel de proveedor, DNS, TLS ni producto de backup. Su veredicto se
+integra al blocker de VPS de PPO-04: la preparación del piloto puede comenzar,
+pero el primer uso real exige un host aceptado.
 
 Por decisión expresa de Dirección Técnica, PPO-02 quedó autorizada en paralelo
 para construcción y validación local en `development-laptop`. Ese inicio no
 implicó cierre de PPO-01, no implicó aprobación de `company-host` y no implicó
 despliegue productivo ni despliegue en la empresa.
 
-## PPO-02 a PPO-10
+## PPO-02 a PPO-10 — detalle histórico
+
+La sección siguiente conserva el alcance y las decisiones registradas antes del
+pivot SH. Sus estados de backend administrado, PPO-03D.1 pendiente o PPO-03E
+pendiente están superseded por las secciones «Arquitectura backend vigente» y
+«Estado vigente de PPO-03» de este documento.
 
 - PPO-02: cerró Dockerfile, Compose, Nginx, redes, healthchecks, readiness
   administrado y criterios de reproducibilidad local. PPO-02A, PPO-02B,
@@ -171,18 +324,38 @@ despliegue productivo ni despliegue en la empresa.
   `company-host`. El contrato y cierre viven en
   [PPO-02 - Plan de contenerización](PPO_02_CONTAINERIZATION_PLAN.md) y
   [PPO-02 — Cierre de base contenerizada reproducible](PPO_02_CLOSURE.md).
-- PPO-03: rediseñará sesiones de carga, transferencia directa, límites,
-  formatos, cuarentena y almacenamiento.
-- PPO-04: cubrirá despliegue provisional, Cloudflare Tunnel, dominio y
-  recuperación del host.
-- PPO-05: abordará antiabuso, rate limiting, seguridad pública y protección de
-  archivos.
-- PPO-06: definirá backups y restauraciones demostrables.
-- PPO-07: definirá logs, métricas, healthchecks y runbooks.
+- PPO-03: queda activa. PPO-03A.1 formaliza el
+  [contrato de cargas y almacenamiento](PPO_03_UPLOAD_STORAGE_CONTRACT.md), y
+  PPO-03A.2 queda [aprobada con condiciones](PPO_03_TUS_SPIKE_REPORT.md): el
+  transporte directo usa JWT interno o token firmado público según el actor.
+  No implementan el rediseño. La secuencia continúa con PPO-03B (modelo DB, RLS
+  y policies), PPO-03C
+  (infraestructura común de reserva, firma, transferencia y finalize), PPO-03D
+  (migración interna de Pedidos), PPO-03E (migración pública de Solicitudes),
+  PPO-03F (expiración, reconciliación y cleanup) y PPO-03G (QA integral,
+  retirada de 110 MB y cierre documental). PPO-03B queda cerrada. PPO-03B.2B
+  no probó artificialmente el positivo presigned de `cargas/v1`; PPO-03C.3B lo
+  validó mediante las RPCs reales de reserva, junto con staged no enumerable por
+  actores no autorizados. PPO-03D.1 integra localmente Pedidos mediante TUS
+  autenticado directo y queda pendiente de revisión arquitectónica; PPO-03E
+  sigue para integrar el flujo público.
+- Actualización PPO-03E: Solicitudes ya integra localmente reserva, firma TUS,
+  transferencia directa, finalize, resume y retry. PPO-03E queda pendiente de
+  revisión/cierre arquitectónico antes de PPO-03F/G.
+- PPO-04: queda `ACTIVE / NEXT` como Production Pilot V1. Construye App/Nginx
+  `linux/amd64` fuera del VPS, transporta artefactos verificados y ejecuta un
+  rollout real controlado con generación productiva propia, HTTPS, aislamiento,
+  backup inicial y smoke. No exige cerrar SH-05 ni build target-side.
+- PPO-05: abordará el hardening público completo: antiabuso, rate limiting,
+  superficies públicas, uploads y revisión de exposición.
+- PPO-06: profundizará la operación de backups y recovery para el host
+  productivo: calendario, retención, destino off-host, restore drills, RPO/RTO y
+  autorización DR. No invalida el backup inicial obligatorio del piloto.
+- PPO-07: definirá monitoreo, logs, métricas, alertas, incidentes y runbooks.
 - PPO-08: ejecutará validación con usuarios reales.
 - PPO-09: medirá y estabilizará el uso real.
-- PPO-10: gobernará la migración futura a infraestructura estable y la
-  conservación de una estrategia de recuperación.
+- PPO-10: queda diferida como gobierno de una migración futura de
+  proveedor/infraestructura que llegue a ser necesaria.
 
 Estas fases describen alcance futuro. No incorporan diseño de implementación en
 este documento.

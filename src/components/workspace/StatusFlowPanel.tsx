@@ -49,6 +49,7 @@ export type StatusFlowPanelProps = {
   termination?: StatusFlowPanelTermination;
   notice?: ReactNode;
   closedMessage?: ReactNode;
+  successNavigationHref?: string;
 };
 
 const initialState: StatusFlowPanelActionState = {
@@ -122,10 +123,12 @@ function DirectStatusTransitionForm({
   action,
   primaryTransition,
   secondaryTransition,
+  successNavigationHref,
 }: {
   action: StatusFlowPanelAction;
   primaryTransition: StatusFlowPanelTransition;
   secondaryTransition?: StatusFlowPanelTransition;
+  successNavigationHref?: string;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const [activeStatus, setActiveStatus] = useState<string | null>(null);
@@ -151,6 +154,13 @@ function DirectStatusTransitionForm({
 
     wasPendingRef.current = pending;
   }, [pending]);
+
+  useEffect(() => {
+    if (state.ok && successNavigationHref) {
+      // TD-NEXT-001: fallback temporal para navegación same-route en self-hosted.
+      window.location.assign(successNavigationHref);
+    }
+  }, [state.ok, successNavigationHref]);
 
   function handleTransitionActivate(transition: StatusFlowPanelTransition) {
     setActiveStatus(transition.status);
@@ -211,10 +221,12 @@ function StatusTerminationConfirmation({
   action,
   termination,
   onCancel,
+  successNavigationHref,
 }: {
   action: StatusFlowPanelAction;
   termination: StatusFlowPanelTermination;
   onCancel: () => void;
+  successNavigationHref?: string;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const cancelButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -228,6 +240,13 @@ function StatusTerminationConfirmation({
 
     return () => window.cancelAnimationFrame(frameId);
   }, []);
+
+  useEffect(() => {
+    if (state.ok && successNavigationHref) {
+      // TD-NEXT-001: fallback temporal para navegación same-route en self-hosted.
+      window.location.assign(successNavigationHref);
+    }
+  }, [state.ok, successNavigationHref]);
 
   function handleKeyDown(event: KeyboardEvent<HTMLFormElement>) {
     if (event.key !== "Escape" || pending) {
@@ -289,9 +308,11 @@ function StatusTerminationConfirmation({
 function StatusTerminationSection({
   action,
   termination,
+  successNavigationHref,
 }: {
   action: StatusFlowPanelAction;
   termination: StatusFlowPanelTermination;
+  successNavigationHref?: string;
 }) {
   const [isConfirming, setIsConfirming] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -319,6 +340,7 @@ function StatusTerminationSection({
           action={action}
           termination={termination}
           onCancel={cancelConfirmation}
+          successNavigationHref={successNavigationHref}
         />
       ) : (
         <button
@@ -342,6 +364,7 @@ export function StatusFlowPanel({
   termination,
   notice,
   closedMessage,
+  successNavigationHref,
 }: StatusFlowPanelProps) {
   return (
     <div className="space-y-4">
@@ -360,11 +383,16 @@ export function StatusFlowPanel({
           action={action}
           primaryTransition={primaryTransition}
           secondaryTransition={secondaryTransition}
+          successNavigationHref={successNavigationHref}
         />
       ) : null}
 
       {termination ? (
-        <StatusTerminationSection action={action} termination={termination} />
+        <StatusTerminationSection
+          action={action}
+          termination={termination}
+          successNavigationHref={successNavigationHref}
+        />
       ) : null}
     </div>
   );

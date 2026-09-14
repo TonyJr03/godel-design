@@ -9,6 +9,124 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      archivo_carga_items: {
+        Row: {
+          archivo_id: string | null
+          committed_at: string | null
+          created_at: string
+          expected_size: number
+          id: string
+          normalized_mime: string
+          object_path: string
+          original_name: string
+          session_id: string
+          sort_order: number
+          status: Database["public"]["Enums"]["archivo_carga_item_estado"]
+          visibility: Database["public"]["Enums"]["archivo_visibility"]
+        }
+        Insert: {
+          archivo_id?: string | null
+          committed_at?: string | null
+          created_at?: string
+          expected_size: number
+          id?: string
+          normalized_mime: string
+          object_path: string
+          original_name: string
+          session_id: string
+          sort_order: number
+          status?: Database["public"]["Enums"]["archivo_carga_item_estado"]
+          visibility: Database["public"]["Enums"]["archivo_visibility"]
+        }
+        Update: {
+          archivo_id?: string | null
+          committed_at?: string | null
+          created_at?: string
+          expected_size?: number
+          id?: string
+          normalized_mime?: string
+          object_path?: string
+          original_name?: string
+          session_id?: string
+          sort_order?: number
+          status?: Database["public"]["Enums"]["archivo_carga_item_estado"]
+          visibility?: Database["public"]["Enums"]["archivo_visibility"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "archivo_carga_items_archivo_id_fkey"
+            columns: ["archivo_id"]
+            isOneToOne: false
+            referencedRelation: "archivos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "archivo_carga_items_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "archivo_carga_sesiones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      archivo_carga_sesiones: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          expires_at: string
+          id: string
+          pedido_id: string | null
+          public_token_hash: string | null
+          solicitud_id: string | null
+          status: Database["public"]["Enums"]["archivo_carga_sesion_estado"]
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          expires_at: string
+          id?: string
+          pedido_id?: string | null
+          public_token_hash?: string | null
+          solicitud_id?: string | null
+          status?: Database["public"]["Enums"]["archivo_carga_sesion_estado"]
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          id?: string
+          pedido_id?: string | null
+          public_token_hash?: string | null
+          solicitud_id?: string | null
+          status?: Database["public"]["Enums"]["archivo_carga_sesion_estado"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "archivo_carga_sesiones_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "archivo_carga_sesiones_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "archivo_carga_sesiones_solicitud_id_fkey"
+            columns: ["solicitud_id"]
+            isOneToOne: false
+            referencedRelation: "solicitudes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       archivos: {
         Row: {
           bucket: string
@@ -964,6 +1082,18 @@ export type Database = {
         Args: { p_pedido_id: string; p_template_id: string }
         Returns: number
       }
+      autorizar_firma_carga_publica: {
+        Args: {
+          p_item_id: string
+          p_public_token: string
+          p_session_id: string
+        }
+        Returns: {
+          expected_size: number
+          normalized_mime: string
+          object_path: string
+        }[]
+      }
       begin_internal_user_creation_attempt: {
         Args: { p_target_role: Database["public"]["Enums"]["app_role"] }
         Returns: {
@@ -1083,6 +1213,69 @@ export type Database = {
           public_reference: string
         }[]
       }
+      crear_solicitud_publica_con_reserva_carga: {
+        Args: {
+          p_client_email?: string
+          p_client_name: string
+          p_client_phone: string
+          p_description?: string
+          p_desired_date?: string
+          p_items: Json
+          p_notes?: string
+          p_print_color_mode?: string
+          p_print_copies?: number
+          p_print_paper_size?: string
+          p_print_sides?: string
+          p_public_reference: string
+          p_public_token_hash: string
+          p_service_id: string
+        }
+        Returns: {
+          expires_at: string
+          items: Json
+          public_reference: string
+          session_id: string
+          solicitud_id: string
+        }[]
+      }
+      crear_solicitud_publica_sin_archivos: {
+        Args: {
+          p_client_email?: string
+          p_client_name: string
+          p_client_phone: string
+          p_description?: string
+          p_desired_date?: string
+          p_notes?: string
+          p_public_reference: string
+          p_service_id: string
+        }
+        Returns: {
+          public_reference: string
+          solicitud_id: string
+        }[]
+      }
+      finalizar_carga_pedido: {
+        Args: { p_item_id: string; p_session_id: string }
+        Returns: {
+          archivo_id: string
+          item_status: Database["public"]["Enums"]["archivo_carga_item_estado"]
+          result: string
+          session_status: Database["public"]["Enums"]["archivo_carga_sesion_estado"]
+        }[]
+      }
+      finalizar_carga_publica: {
+        Args: {
+          p_item_id: string
+          p_public_token: string
+          p_session_id: string
+        }
+        Returns: {
+          archivo_id: string
+          item_status: Database["public"]["Enums"]["archivo_carga_item_estado"]
+          result: string
+          session_status: Database["public"]["Enums"]["archivo_carga_sesion_estado"]
+        }[]
+      }
       get_internal_user_password_reset_state: {
         Args: { p_attempt_id: string }
         Returns: {
@@ -1143,9 +1336,38 @@ export type Database = {
           summary: string
         }[]
       }
+      reconciliar_cargas_expiradas: {
+        Args: { p_candidate_limit?: number; p_session_limit?: number }
+        Returns: {
+          candidates: Json
+          completed_sessions: number
+          expired_items: number
+          expired_sessions: number
+          partial_sessions: number
+        }[]
+      }
+      reservar_carga_pedido: {
+        Args: { p_items: Json; p_pedido_id: string }
+        Returns: {
+          expires_at: string
+          items: Json
+          session_id: string
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "supervisor" | "trabajador"
+      archivo_carga_item_estado:
+        | "reserved"
+        | "committed"
+        | "expired"
+        | "cancelled"
+      archivo_carga_sesion_estado:
+        | "open"
+        | "completed"
+        | "partial"
+        | "expired"
+        | "cancelled"
       archivo_visibility:
         | "cliente_solicitud"
         | "interno_pedido"
@@ -1323,6 +1545,19 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "supervisor", "trabajador"],
+      archivo_carga_item_estado: [
+        "reserved",
+        "committed",
+        "expired",
+        "cancelled",
+      ],
+      archivo_carga_sesion_estado: [
+        "open",
+        "completed",
+        "partial",
+        "expired",
+        "cancelled",
+      ],
       archivo_visibility: [
         "cliente_solicitud",
         "interno_pedido",

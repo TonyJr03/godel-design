@@ -13,6 +13,7 @@ type PedidoPaymentSectionProps = {
   payment: InternalPedidoPayment;
   canManage: boolean;
   updatePaymentAction?: PedidoDetailAction<UpdatePedidoPaymentActionState>;
+  successNavigationHref?: string;
   presentation?: "card" | "panel";
 };
 
@@ -46,6 +47,7 @@ export function PedidoPaymentSection({
   payment,
   canManage,
   updatePaymentAction,
+  successNavigationHref,
   presentation = "card",
 }: PedidoPaymentSectionProps) {
   const hasNoAmountToPay = payment.isAvailable && payment.totalAmount === 0;
@@ -119,6 +121,7 @@ export function PedidoPaymentSection({
             <PedidoPaymentForm
               action={updatePaymentAction}
               payment={payment}
+              successNavigationHref={successNavigationHref}
             />
           ) : null}
         </>

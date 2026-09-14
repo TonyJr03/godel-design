@@ -41,6 +41,7 @@ type PedidoTaskItemProps = {
   actions: PedidoTaskItemActions;
   onDeleteIntent: () => void;
   onDeleteSuccess: (message: string) => void;
+  successNavigationHref: string;
 };
 
 type PedidoTaskItemMode =
@@ -139,11 +140,13 @@ function PedidoTaskTitleInlineForm({
   action,
   onCancel,
   onSaved,
+  successNavigationHref,
   task,
 }: {
   action: PedidoDetailAction<UpdatePedidoTaskTitleActionState>;
   onCancel: () => void;
   onSaved: () => void;
+  successNavigationHref: string;
   task: PedidoTask;
 }) {
   const [title, setTitle] = useState(task.title);
@@ -153,9 +156,7 @@ function PedidoTaskTitleInlineForm({
   ) {
     const nextState = await action(previousState, formData);
 
-    if (nextState.ok) {
-      onSaved();
-    } else if (nextState.values?.title !== undefined) {
+    if (!nextState.ok && nextState.values?.title !== undefined) {
       setTitle(nextState.values.title);
     }
 
@@ -184,6 +185,14 @@ function PedidoTaskTitleInlineForm({
 
     return () => window.cancelAnimationFrame(frameId);
   }, []);
+
+  useEffect(() => {
+    if (state.ok) {
+      onSaved();
+      // TD-NEXT-001: fallback temporal para navegación same-route en self-hosted.
+      window.location.assign(successNavigationHref);
+    }
+  }, [onSaved, state.ok, successNavigationHref]);
 
   function handleKeyDown(event: KeyboardEvent<HTMLFormElement>) {
     if (event.key !== "Escape" || pending) {
@@ -288,6 +297,7 @@ function PedidoTaskProgressInlineForm({
   completedQuantity,
   onCancel,
   onSaved,
+  successNavigationHref,
   targetQuantity,
   task,
 }: {
@@ -295,6 +305,7 @@ function PedidoTaskProgressInlineForm({
   completedQuantity: number;
   onCancel: () => void;
   onSaved: () => void;
+  successNavigationHref: string;
   targetQuantity: number;
   task: PedidoTask;
 }) {
@@ -305,9 +316,7 @@ function PedidoTaskProgressInlineForm({
   ) {
     const nextState = await action(previousState, formData);
 
-    if (nextState.ok) {
-      onSaved();
-    } else if (nextState.values?.completedQuantity !== undefined) {
+    if (!nextState.ok && nextState.values?.completedQuantity !== undefined) {
       setProgress(nextState.values.completedQuantity);
     }
 
@@ -332,6 +341,14 @@ function PedidoTaskProgressInlineForm({
 
     return () => window.cancelAnimationFrame(frameId);
   }, []);
+
+  useEffect(() => {
+    if (state.ok) {
+      onSaved();
+      // TD-NEXT-001: fallback temporal para navegación same-route en self-hosted.
+      window.location.assign(successNavigationHref);
+    }
+  }, [onSaved, state.ok, successNavigationHref]);
 
   function handleKeyDown(event: KeyboardEvent<HTMLFormElement>) {
     if (event.key !== "Escape" || pending) {
@@ -435,6 +452,7 @@ export function PedidoTaskItem({
   actions,
   onDeleteIntent,
   onDeleteSuccess,
+  successNavigationHref,
 }: PedidoTaskItemProps) {
   const [mode, setMode] = useState<PedidoTaskItemMode>("idle");
   const [completionState, completionAction, completionPending] = useActionState(
@@ -454,6 +472,13 @@ export function PedidoTaskItem({
     isQuantified,
     targetQuantity,
   });
+
+  useEffect(() => {
+    if (completionState.ok) {
+      // TD-NEXT-001: fallback temporal para navegación same-route en self-hosted.
+      window.location.assign(successNavigationHref);
+    }
+  }, [completionState.ok, successNavigationHref]);
 
   function focusTrigger(triggerId: string) {
     window.requestAnimationFrame(() => {
@@ -502,7 +527,11 @@ export function PedidoTaskItem({
           pendingLabel="Eliminando tarea..."
           className="border-0 bg-transparent p-0"
           onCancel={cancelDeleteConfirmation}
-          onSuccess={onDeleteSuccess}
+          onSuccess={(message) => {
+            onDeleteSuccess(message);
+            // TD-NEXT-001: fallback temporal para navegación same-route en self-hosted.
+            window.location.assign(successNavigationHref);
+          }}
         >
           <TaskHiddenFields taskId={task.id} />
         </InlineDeleteConfirmation>
@@ -515,6 +544,7 @@ export function PedidoTaskItem({
                 task={task}
                 onCancel={closeTitleEditor}
                 onSaved={closeTitleEditor}
+                successNavigationHref={successNavigationHref}
               />
             ) : (
               <p
@@ -537,6 +567,7 @@ export function PedidoTaskItem({
                 task={task}
                 onCancel={closeProgressEditor}
                 onSaved={closeProgressEditor}
+                successNavigationHref={successNavigationHref}
               />
             ) : (
               <p className="mt-1 wrap-break-word text-xs leading-5 text-text-secondary">

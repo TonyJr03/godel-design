@@ -1,7 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { revalidateSolicitudDetail } from "@/lib/actions/revalidation";
 import {
   associateSolicitudWithCliente,
   createClienteFromSolicitudAndAssociate,
@@ -30,10 +28,6 @@ export async function associateSolicitudClienteAction(
     };
   }
 
-  revalidateSolicitudDetail(result.solicitudId);
-  revalidatePath("/dashboard/clientes");
-  revalidatePath(`/dashboard/clientes/${result.clienteId}`);
-
   return {
     ok: true,
     message: "Cliente asociado correctamente.",
@@ -56,10 +50,6 @@ export async function createClienteFromSolicitudAction(
       message: result.message,
     };
   }
-
-  revalidateSolicitudDetail(result.solicitudId);
-  revalidatePath("/dashboard/clientes");
-  revalidatePath(`/dashboard/clientes/${result.clienteId}`);
 
   return {
     ok: true,

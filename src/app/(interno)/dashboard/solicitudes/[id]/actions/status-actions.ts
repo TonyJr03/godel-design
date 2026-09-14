@@ -1,7 +1,6 @@
 "use server";
 
 import { actionFailure, actionSuccess } from "@/lib/actions/action-state";
-import { revalidateSolicitudDetail } from "@/lib/actions/revalidation";
 import {
   ensureSolicitudReviewStarted,
   updateInternalSolicitudStatus,
@@ -23,8 +22,6 @@ export async function startSolicitudReviewOnOpenAction(
     return actionFailure(result.message);
   }
 
-  revalidateSolicitudDetail(solicitudId);
-
   return actionSuccess("Revisión iniciada.");
 }
 
@@ -43,8 +40,6 @@ export async function updateSolicitudStatusAction(
   if (!result.ok) {
     return actionFailure(result.message);
   }
-
-  revalidateSolicitudDetail(solicitudId);
 
   return actionSuccess("Estado actualizado correctamente.");
 }

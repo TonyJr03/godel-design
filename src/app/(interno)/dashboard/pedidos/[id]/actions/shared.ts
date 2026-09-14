@@ -8,6 +8,10 @@ import type {
   RemovePedidoWorkerFieldErrors,
 } from "@/lib/pedidos";
 import type { ApplyTaskTemplateFieldErrors } from "@/lib/task-templates";
+import type {
+  PedidoUploadReservation,
+  UploadFinalizeResult,
+} from "@/lib/storage/upload-control/types";
 
 export type PedidoDetailAction<State> = (
   prevState: State,
@@ -48,10 +52,45 @@ export type RemovePedidoWorkerActionState = {
   fieldErrors?: RemovePedidoWorkerFieldErrors;
 };
 
-export type UploadPedidoFileActionState = {
-  ok: boolean;
-  message: string;
+export type ReservePedidoFilesActionInput = {
+  candidates: Array<{
+    name: string;
+    size: number;
+  }>;
 };
+
+export type ReservePedidoFilesActionResult =
+  | {
+      ok: true;
+      reservation: PedidoUploadReservation;
+    }
+  | {
+      ok: false;
+      message: string;
+    };
+
+export type FinalizePedidoFileActionInput = {
+  sessionId: string;
+  itemId: string;
+};
+
+export type FinalizePedidoFileActionResult =
+  | {
+      ok: true;
+      result: UploadFinalizeResult["result"];
+    }
+  | {
+      ok: false;
+      message: string;
+    };
+
+export type ReservePedidoFilesAction = (
+  input: ReservePedidoFilesActionInput,
+) => Promise<ReservePedidoFilesActionResult>;
+
+export type FinalizePedidoFileAction = (
+  input: FinalizePedidoFileActionInput,
+) => Promise<FinalizePedidoFileActionResult>;
 
 export type CreatePedidoCommentActionState = {
   ok: boolean;
