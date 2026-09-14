@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Última actualización: 2026-09-13
+Última actualización: 2026-09-14
 
 ## Estado general
 
@@ -24,7 +24,9 @@ App Docker + Nginx -> Supabase self-hosted Docker
 
 Release productiva
 Juliet / integration host / future CI
--> build App + Nginx linux/amd64
+-> seleccionar Git + configuración/generación exactas
+-> build App + Nginx linux/amd64 desde el Git exacto
+-> verificar + empaquetar artifacts sanitizados
 -> registry o transferencia segura
 -> Production VPS ejecuta artefactos verificados
 ```
@@ -102,11 +104,14 @@ funcional quedan registradas como hardening post-piloto.
 
 ```text
 PPO-04 / Production Pilot V1
--> release App/Nginx linux/amd64 fuera del VPS
--> generación externa productiva exacta
+-> seleccionar Git y definir configuración productiva
+-> generación externa productiva activa y MATCH
+-> release App/Nginx linux/amd64 ligada a ese Git y generación fuera del VPS
+-> verificar, empaquetar y transportar artifacts
 -> readiness VPS + firewall + HTTPS + aislamiento
--> despliegue y smoke productivo
--> backup inicial verificado con copia off-host
+-> desplegar runtime y verificar health técnico
+-> backup inicial recovery-grade verificado con copia off-host
+-> smoke funcional productivo
 -> small initial real use
 -> observar y corregir P0/P1
 -> Production Primary cuando Dirección Técnica lo apruebe
@@ -130,6 +135,10 @@ irrestricta continúa pendiente de PPO-05.
 - Comentarios, historial, pagos y administración de usuarios internos.
 - Topología production-like, backup/restore same-host, update/rollback y tooling
   de portabilidad parcial ya validados según sus reportes.
+- Builder genérico de release disponible para producir App/Nginx `linux/amd64`
+  desde un Git SHA exacto, ligados a una generación externa activa y `MATCH`, y
+  empaquetarlos atómicamente con manifest sanitizado y checksum. La release
+  productiva definitiva todavía no fue construida.
 
 ## Documentación vigente
 
