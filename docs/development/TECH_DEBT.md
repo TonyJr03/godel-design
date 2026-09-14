@@ -32,6 +32,10 @@ resueltas ni planes históricos completos.
 | TD-DASHBOARD-001 | Métricas dashboard | Baja | No | Activa |
 | TD-DB-001 | Contrato RPC impresión | Baja/Media | No | Activa |
 | TD-ROUTES-001 | Acceso trabajador a ruta nueva | Baja | No | Activa |
+| TD-SH05-001 | Autoridad exacta del Dockerfile | Media | No | Activa |
+| TD-SH05-002 | Frontend Dockerfile externo | Media | No | Activa |
+| TD-SH05-003 | Build Godel clean-host target-side | Media | No | Activa |
+| TD-SH05-004 | Aceptación funcional y cierre SH-05 | Media | No | Activa |
 
 ## Bloqueadores antes de producción pública
 
@@ -343,6 +347,82 @@ sesión invalidada, límites y cancelación. La retirada exige que ese conjunto
 demuestre metadata/list/download fresco sin navegación documental.
 Worker/list/download deliberadamente queda para SH-03.3D, que necesita su
 fixture de asignación.
+
+### TD-SH05-001 - Autoridad exacta del Dockerfile
+
+- Área: Build / Supply chain / Portabilidad.
+- Severidad: Media.
+- Bloquea producción pública: No.
+- Clasificación: `post-pilot hardening`.
+- Estado: Activa.
+
+`godel-image-build.mjs` crea un contexto exacto mediante `git archive`, pero
+invoca Buildx con `--file Dockerfile` o `--file Dockerfile.nginx` desde el root
+del repositorio. El archivo que Buildx recibe no queda ligado explícitamente a
+los bytes verificados dentro del contexto exacto.
+
+Invariante de cierre:
+
+```text
+verified Dockerfile bytes == Dockerfile bytes actually passed to Buildx
+```
+
+Corregirlo y cubrir el mismatch con pruebas fail-closed. No se modifica el
+builder durante la apertura de PPO-04.
+
+### TD-SH05-002 - Dependencia del frontend Dockerfile externo
+
+- Área: Build / Portabilidad offline.
+- Severidad: Media.
+- Bloquea producción pública: No.
+- Clasificación: `post-pilot hardening`.
+- Estado: Activa.
+
+Los Dockerfiles usan `# syntax=docker/dockerfile:1.7`. El rehearsal real recibió
+403 al resolver `docker.io/docker/dockerfile:1.7`. El intento
+`BUILDKIT_SYNTAX=dockerfile.v0` provocó además una resolución de
+`docker.io/library/dockerfile.v0:latest`, también con 403. La independencia
+total del frontend externo en un build target-side no quedó probada.
+
+Evaluar un frontend incluido/pretransportado o un mecanismo equivalente sin
+rebajar las garantías del Dockerfile ni depender de acceso al registry durante
+el build clean-host.
+
+### TD-SH05-003 - Build Godel clean-host target-side incompleto
+
+- Área: Build / Portabilidad.
+- Severidad: Media.
+- Bloquea producción pública: No.
+- Clasificación: `post-pilot hardening`.
+- Estado: Activa.
+
+El diagnóstico con el Dockerfile del `git archive` exacto y sin la directiva
+`# syntax=` llegó a cargar el Dockerfile, resolver la base Node local, ejecutar
+el stage base, copiar `package.json`/`package-lock.json` e iniciar `npm ci`.
+`npm ci` continuó aproximadamente cuatro horas sin completar y la investigación
+se detuvo. No existe evidencia suficiente para afirmar un fallo del registry de
+npm.
+
+El impacto productivo es no bloqueante porque PPO-04 construirá App/Nginx fuera
+del VPS y el VPS ejecutará artefactos de release verificados. El cierre de esta
+deuda exige completar y registrar el build target-side en un host limpio.
+
+### TD-SH05-004 - Aceptación funcional y cierre SH-05 pendientes
+
+- Área: QA / Operación / Portabilidad.
+- Severidad: Media.
+- Bloquea producción pública: No.
+- Clasificación: `post-pilot hardening`.
+- Estado: Activa.
+
+SH-05.3 queda `PARTIALLY PROVEN / DEFERRED` y SH-05.4 queda `DEFERRED`. El
+rehearsal real demostró checkout, gates clean-host, transporte/import offline y
+autoridad OCI local, pero no completó el build Godel target-side, el runtime
+funcional completo, la aceptación Playwright, el cleanup final ni el cierre
+agregado de SH.
+
+Retomar después del piloto con el conjunto exacto de reconstrucción que apruebe
+Dirección Técnica. No reinterpretar la evidencia parcial como `SH-05 CLOSED`.
 
 ## Riesgos operativos
 

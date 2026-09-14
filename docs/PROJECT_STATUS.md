@@ -1,12 +1,17 @@
 # Estado del proyecto
 
-Última actualización: 2026-08-30
+Última actualización: 2026-09-13
 
 ## Estado general
 
-Godel Diseño mantiene un MVP interno funcional y una baseline de base de datos
-self-hosted reproducible. La preparación de preproducción continúa activa: no
-existe todavía despliegue productivo ni aprobación de `company-host`.
+Godel Diseño mantiene un MVP interno funcional, una baseline self-hosted
+reproducible y fundamentos operativos cerrados/aprobados hasta SH-04. Todavía no
+existe despliegue productivo: PPO-04 / Production Pilot V1 queda `ACTIVE / NEXT`
+como la iniciativa actual para el primer uso real controlado.
+
+SH-05 no está cerrado. El rehearsal real produjo evidencia cross-host parcial y
+su trabajo restante se pausó como `NON-BLOCKING HARDENING`; ya no es un gate
+previo al piloto.
 
 ## Arquitectura vigente
 
@@ -14,13 +19,24 @@ existe todavía despliegue productivo ni aprobación de `company-host`.
 Desarrollo y E2E
 npm run dev -> Supabase CLI local
 
-Production-like y objetivo operativo
+Production-like
 App Docker + Nginx -> Supabase self-hosted Docker
+
+Release productiva
+Juliet / integration host / future CI
+-> build App + Nginx linux/amd64
+-> registry o transferencia segura
+-> Production VPS ejecuta artefactos verificados
 ```
 
-Supabase administrado fue el backend de validaciones históricas de PPO-02 y
-PPO-03. Esa evidencia se conserva en sus informes, pero fue superseded como
-backend objetivo por el workstream SH.
+```text
+Production VPS = RUN RELEASE ARTIFACTS
+Production VPS != REQUIRED TO BUILD EVERYTHING FROM SOURCE
+```
+
+Supabase administrado pertenece a validaciones históricas de PPO-02/PPO-03. El
+backend objetivo es Supabase self-hosted en Docker; Supabase CLI local se
+conserva para desarrollo/E2E.
 
 ## Baseline de base de datos
 
@@ -35,84 +51,76 @@ La baseline congelada contiene exactamente seis migraciones consolidadas:
 
 La baseline self-hosted aprobó fresh rebuild, 6/6 migraciones, DB lint, Storage
 QA, tipos generados y build. `BASELINE 01–06 = FROZEN`: toda evolución de base
-de datos posterior deberá realizarse mediante una nueva migration 07+. Las
-antiguas migraciones incrementales 07/08 pertenecen a la historia previa a
-SH-01C; sus responsabilidades quedaron absorbidas en la baseline consolidada y
-no forman parte de una instalación actual.
+de datos posterior debe realizarse mediante una migration nueva `07+`. Las
+antiguas incrementales 07/08 pertenecen a la historia previa a SH-01C y no
+forman parte de una instalación actual.
 
 ## Estado PPO
 
 | Bloque | Estado |
 | --- | --- |
 | PPO-00 | Cerrada |
-| PPO-01 | Activa; `company-host` sigue pendiente |
+| PPO-01 | Activa; PPO-01E/F se coordinan con el gate VPS del piloto |
 | PPO-02 | Cerrada con condiciones; evidencia managed histórica |
-| PPO-03A | Cerrada |
-| PPO-03B | Cerrada |
-| PPO-03C | Cerrada |
-| PPO-03D.1 | Cerrada / aprobada |
-| PPO-03D.2 | Superseded por el pivot self-hosted |
-| PPO-03E.1 | Cerrada / aprobada |
-| PPO-03E.2 | Cerrada / aprobada |
-| PPO-03E.3 | Cerrada / aprobada |
-| PPO-03E | Cerrada / aprobada |
-| PPO-03F.0 | Cerrada / aprobada |
-| PPO-03F.1 | Cerrada / aprobada |
-| PPO-03F.2 | Cerrada / aprobada |
-| PPO-03F.3 | Cerrada / aprobada |
-| PPO-03F | Cerrada / aprobada |
-| PPO-03G | Cerrada / aprobada |
 | PPO-03 | Cerrada / aprobada |
+| PPO-04 | `ACTIVE / NEXT` — Production Pilot V1, no desplegado |
+| PPO-05 | Pendiente — hardening público completo |
+| PPO-06 | Pendiente — backup/DR productivo completo |
+| PPO-07 | Pendiente — observabilidad y operación completa |
+| PPO-08 | Pendiente — UAT y puesta en operación |
+| PPO-09 | Pendiente — estabilización |
+| PPO-10 | Deferred / optional — migración futura de infraestructura |
 
-PPO-03D/E ya trasladaron los bytes de archivos del navegador directamente a
-Storage por TUS. PPO-03F.0 aprobó el lifecycle, la autoridad y el amendment
-final; PPO-03F.1 lo implementa en la baseline y fue cerrada/aprobada tras la
-revisión arquitectónica. PPO-03F.2 incorporó el executor server-only y la
-operación manual, y quedó cerrada/aprobada. PPO-03F.3 completó el QA final; la
-revisión arquitectónica cerró/aprobó PPO-03F y congeló la baseline 01–06.
-PPO-03G mantiene el gate final de infraestructura y retirada de límites
-transitorios.
+PPO-03 cerró el rediseño de archivos, lifecycle/cleanup y el gate final de
+infraestructura. PPO-04 no se considera desplegado por estar activo: su plan
+define los blockers que aún deben cerrarse antes del primer uso real.
 
-## Ruta histórica hasta el cierre de PPO-03
+## Estado Self-Hosted
 
-```text
-SH-03
-→ PPO-03G
-→ PPO-03 CLOSED
-→ SH-04
-→ SH-05
-→ cierre SH
-```
+| Bloque | Estado |
+| --- | --- |
+| SH-01 | `CLOSED / APPROVED` |
+| SH-02 | `CLOSED / APPROVED` |
+| SH-03 | `CLOSED / APPROVED` |
+| SH-04 | `CLOSED / APPROVED` |
+| SH-05 | `PAUSED / NON-BLOCKING HARDENING` |
+| SH-05.0 | `CLOSED / APPROVED / PASS_PORTABILITY_DISCOVERY` |
+| SH-05.1 | `CLOSED / APPROVED` |
+| SH-05.2 | `CLOSED / APPROVED / PASS_MINIMAL_CLEAN_HOST_PORTABILITY_TOOLING` |
+| SH-05.3 | `PARTIALLY PROVEN / DEFERRED` |
+| SH-05.4 | `DEFERRED` |
+
+El rehearsal real demostró checkout exacto, tests Linux clean-host, admisión de
+inputs, gate pre/post import, transporte/import offline de 16 autoridades
+lógicas y 13 imágenes físicas verificadas, autoridad OCI local y resolución de
+la base Node mediante Buildx. No completó el build Godel target-side ni la
+aceptación funcional/Playwright y cleanup final. Las brechas de frontend
+Dockerfile externo, autoridad exacta del Dockerfile, build target-side y cierre
+funcional quedan registradas como hardening post-piloto.
 
 ## Ruta activa
 
 ```text
-SH-04
-→ SH-04.3: CLOSED / APPROVED
-→ SH-04.4 NEXT
-→ SH-04.5
-→ SH-05
-→ cierre SH
+PPO-04 / Production Pilot V1
+-> release App/Nginx linux/amd64 fuera del VPS
+-> generación externa productiva exacta
+-> readiness VPS + firewall + HTTPS + aislamiento
+-> despliegue y smoke productivo
+-> backup inicial verificado con copia off-host
+-> small initial real use
+-> observar y corregir P0/P1
+-> Production Primary cuando Dirección Técnica lo apruebe
 ```
 
-PPO-03F cerró el lifecycle de Storage y congeló la baseline 01–06; PPO-03G
-cerró el gate final de infraestructura y PPO-03 quedó cerrado/aprobado. SH-02 y
-SH-03 están cerrados/aprobados: la topología `App Docker + Nginx + Supabase
-self-hosted`, Auth, flujos core, Storage y la regresión agregada quedaron
-validados. SH continúa como workstream técnico subordinado al roadmap maestro
-PPO y termina al cerrar SH-05.
+R7 es evidencia de rehearsal, no configuración productiva. Producción requiere
+su propia generación externa exacta con URLs, credenciales, database password,
+JWT/Auth, keys, dashboard credentials y demás valores productivos. Nunca se
+importa R7 para editarlo manualmente y continuar afirmando `R7 MATCH`.
 
-SH-04 está en curso. SH-04.3 quedó `CLOSED / APPROVED` tras la aceptación
-operativa final `SH043_FINAL_OPERATIONAL_ACCEPTANCE_PASS`: D5 permanece
-`CURRENT / MATCH`, con D5 como recovery same-host rutinario y GEN7/GEN6
-retenidas/no actuales. La baseline canónica D5
-`20260830T201300Z-aefc033f` fue restaurada destructivamente con el checkpoint
-defensivo `20260831T004014Z-e69d3fca`; el backup histórico GEN7
-`20260830T135345Z-a1b3d14d` permanece verificado. SH-04.4 es el siguiente
-bloque; SH-04.5 no ha iniciado. Esto no declara un despliegue en `company-host`,
-cuyo gate PPO-01 sigue separado.
-PPO-01C/D puede avanzar en paralelo
-cuando `company-host` esté disponible; PPO-01D aprobado es gate antes de PPO-04.
+Solo los gates `BLOCKER FOR PILOT` del plan PPO-04 bloquean el primer uso real
+controlado. PPO-05, PPO-06 y PPO-07 conservan el hardening completo posterior;
+SH-05 permanece como portabilidad post-piloto. La exposición pública general e
+irrestricta continúa pendiente de PPO-05.
 
 ## Capacidades disponibles
 
@@ -120,23 +128,19 @@ cuando `company-host` esté disponible; PPO-01D aprobado es gate antes de PPO-04
 - Dashboard interno por rol, clientes, solicitudes, pedidos y tareas.
 - Archivos privados con control plane de reserva, TUS y finalize.
 - Comentarios, historial, pagos y administración de usuarios internos.
+- Topología production-like, backup/restore same-host, update/rollback y tooling
+  de portabilidad parcial ya validados según sus reportes.
 
 ## Documentación vigente
 
+- [Plan PPO-04 / Production Pilot V1](production/PPO_04_PRODUCTION_PILOT_PLAN.md)
 - [Roadmap PPO](production/PPO_ROADMAP.md)
 - [Roadmap Self-Hosted](production/SH_ROADMAP.md)
-- [Diseño de integración SH-02.0](production/SH_02_INTEGRATION_DESIGN.md)
-- [Informe Compose y networking SH-02.1](production/SH_02_COMPOSE_NETWORK_REPORT.md)
-- [Informe proxy Nginx SH-02.2](production/SH_02_NGINX_PROXY_REPORT.md)
-- [Informe runtime, readiness y configuración SH-02.3](production/SH_02_RUNTIME_OPERATIONS_REPORT.md)
+- [Handoff del rehearsal SH-05](production/SH_05_REHEARSAL_HANDOFF.md)
+- [Contrato clean-host SH-05.1](production/SH_05_CLEAN_HOST_PORTABILITY_DESIGN.md)
+- [Runbook operativo self-hosted](production/SUPABASE_SELF_HOSTED_OPERATIONS_RUNBOOK.md)
 - [Cierre de integración SH-02](production/SH_02_CLOSURE_REPORT.md)
 - [Plan QA funcional production-like SH-03](production/SH_03_QA_PLAN.md)
-- [Informe QA de provisioning, Auth y roles SH-03.1](production/SH_03_AUTH_QA_REPORT.md)
-- [Cierre core y baseline production-like SH-03.2A](production/SH_03_CORE_QA_REPORT.md)
-- [Contrato PPO-03 de cargas y almacenamiento](production/PPO_03_UPLOAD_STORAGE_CONTRACT.md)
-- [Diseño de cleanup PPO-03F.0](production/PPO_03F_CLEANUP_DESIGN.md)
-- [Informe DB lifecycle PPO-03F.1](production/PPO_03F_DATABASE_LIFECYCLE_REPORT.md)
-- [QA, freeze y handoff PPO-03F.3](production/PPO_03F_QA_FREEZE_REPORT.md)
-- [Cierre de Solicitudes públicas PPO-03E](production/PPO_03_PUBLIC_SOLICITUD_UPLOAD_REPORT.md)
+- [Cierre SH-03](production/SH_03_CLOSURE_REPORT.md)
 - [Auditoría de baseline self-hosted SH-01C](production/SH_01C_DATABASE_BASELINE_AUDIT.md)
 - [Deuda técnica activa](development/TECH_DEBT.md)

@@ -12,8 +12,9 @@ Supabase managed
 
 SH no es un roadmap de producto paralelo, una sustitución de PPO, una segunda
 puesta en producción ni una duplicación de PPO-04, PPO-06, PPO-07 o PPO-10.
-Tiene un alcance técnico acotado y un final explícito: al cerrar SH-05,
-`SH = CLOSED`; toda evolución posterior continúa exclusivamente mediante PPO.
+Tiene un alcance técnico acotado. SH-01–SH-04 están cerrados/aprobados; SH-05
+queda pausado sin cierre fraudulento y su trabajo pendiente se conserva como
+endurecimiento post-piloto. PPO-04 puede avanzar sin esperar ese cierre.
 
 ## Propósito
 
@@ -48,7 +49,7 @@ el backend objetivo actual.
 | SH-02 | Integración Godel ↔ Supabase self-hosted | Cerrada / aprobada |
 | SH-03 | QA funcional production-like | Cerrada / aprobada |
 | SH-04 | Fundamentos operativos self-hosted | CLOSED / APPROVED |
-| SH-05 | Portabilidad reproducible | ACTIVE |
+| SH-05 | Portabilidad reproducible | PAUSED / NON-BLOCKING HARDENING |
 | SH-05.0 | Discovery and target realignment | CLOSED / APPROVED / PASS_PORTABILITY_DISCOVERY |
 
 ### SH-01 — cerrada / aprobada
@@ -64,7 +65,7 @@ SH-01C dejó una baseline final de seis migraciones consolidadas
 PostgreSQL, Auth y Storage validados. La evidencia detallada no se reescribe en
 este roadmap: véase [Auditoría de baseline self-hosted SH-01C](SH_01C_DATABASE_BASELINE_AUDIT.md).
 
-## Bloques pendientes
+## Bloques y estado
 
 ### SH-02 — Integración Godel ↔ Supabase self-hosted
 
@@ -163,8 +164,9 @@ de Storage en [SH_03_STORAGE_QA_REPORT.md](SH_03_STORAGE_QA_REPORT.md).
 SH-03 está cerrada/aprobada; SH-03.1, SH-03.2, SH-03.3 y SH-03.4 también están
 cerradas/aprobadas, incluidas SH-03.3A–E. PPO-03G y PPO-03 quedan
 `CLOSED / APPROVED`; SH-04 y sus subbloques quedan `CLOSED / APPROVED`.
-SH-05 está `ACTIVE`; SH-05.0 cerró `CLOSED / APPROVED /
-PASS_PORTABILITY_DISCOVERY`.
+SH-05 está `PAUSED / NON-BLOCKING HARDENING`; SH-05.0, SH-05.1 y SH-05.2
+conservan sus cierres aprobados. SH-05.3 queda `PARTIALLY PROVEN / DEFERRED` y
+SH-05.4 queda `DEFERRED`.
 El handoff conserva las acciones que aún
 combinan mutación, revalidación y `ActionState`/`useActionState`: son `TEST IN
 SH-03.2`, no fallos asumidos ni flujos a los que deba aplicarse preventivamente
@@ -192,8 +194,8 @@ el fallback documental.
 
 El runbook técnico permanente de SH-04 está en
 [SUPABASE_SELF_HOSTED_OPERATIONS_RUNBOOK.md](SUPABASE_SELF_HOSTED_OPERATIONS_RUNBOOK.md).
-SH-04 queda `CLOSED / APPROVED`; el handoff es SH-05 — Portabilidad reproducible,
-que está `ACTIVE`. SH-05.0 queda `CLOSED / APPROVED /
+SH-04 queda `CLOSED / APPROVED`; SH-05 — Portabilidad reproducible queda
+`PAUSED / NON-BLOCKING HARDENING`. SH-05.0 queda `CLOSED / APPROVED /
 PASS_PORTABILITY_DISCOVERY`; SH-05.1 queda `CLOSED / APPROVED`; SH-05.2 queda
 `CLOSED / APPROVED / PASS_MINIMAL_CLEAN_HOST_PORTABILITY_TOOLING`; SH-05.2A queda `CLOSED / APPROVED /
 PASS_CANONICAL_SECURITY_AUDIT_REALIGNMENT`; SH-05.2B queda `CLOSED / APPROVED /
@@ -208,7 +210,7 @@ APPROVED / PASS_CLEAN_HOST_TARGET_BOOTSTRAP_FOUNDATION`; SH-05.2J queda `CLOSED 
 APPROVED / PASS_EXACT_TARGET_GENERATION_ACTIVATION`; SH-05.2K queda `CLOSED /
 APPROVED / PASS_CLEAN_HOST_OFFLINE_RECOVERY_DATA_MATERIALIZATION` y SH-05.2L queda
 `CLOSED / APPROVED / PASS_CLEAN_HOST_RUNTIME_RECONSTRUCTION`; SH-05.3 queda
-`READY / NEXT`.
+`PARTIALLY PROVEN / DEFERRED` y SH-05.4 queda `DEFERRED`.
 
 #### Cierre SH-04.3 — Secretos, Auth y compatibilidad recovery
 
@@ -254,6 +256,8 @@ No define todavía retenciones ni cron productivo.
 
 ### SH-05 — Portabilidad reproducible
 
+**Estado vigente:** `PAUSED / NON-BLOCKING HARDENING`.
+
 SH-05 demuestra que la instalación puede reconstruirse desde repositorio,
 configuración externa, secretos y backups en un **compatible clean Linux Docker
 host**. Hosting DC es el proveedor actualmente seleccionado para PPO, no una
@@ -269,9 +273,10 @@ host A
 ```
 
 No ejecuta despliegue productivo ni sobre una VPS real ni sobre un host de
-empresa. PPO-04 usará el contrato cerrado de SH para el despliegue autorizado al
-VPS seleccionado; PPO-10 queda reservado para una migración futura que llegue a
-ser necesaria.
+empresa. PPO-04 adopta un modelo distinto: construye las imágenes de release
+fuera del VPS y ejecuta artefactos verificados en el host productivo. El build
+target-side y la aceptación clean-host restantes no bloquean ese piloto;
+PPO-10 queda reservado para una migración futura que llegue a ser necesaria.
 
 | Subbloque | Estado |
 | --- | --- |
@@ -290,29 +295,38 @@ ser necesaria.
 | SH-05.2J — Exact target generation activation | CLOSED / APPROVED / PASS_EXACT_TARGET_GENERATION_ACTIVATION |
 | SH-05.2K — Clean-host offline recovery data materialization | CLOSED / APPROVED / PASS_CLEAN_HOST_OFFLINE_RECOVERY_DATA_MATERIALIZATION |
 | SH-05.2L — Clean-host runtime reconstruction | CLOSED / APPROVED / PASS_CLEAN_HOST_RUNTIME_RECONSTRUCTION |
-| SH-05.3 — Clean-host portability rehearsal execution | READY / NEXT |
-| SH-05.4 — Functional acceptance, cleanup, documentation and SH closure | NOT STARTED |
+| SH-05.3 — Clean-host portability rehearsal execution | PARTIALLY PROVEN / DEFERRED |
+| SH-05.4 — Functional acceptance, cleanup, documentation and SH closure | DEFERRED |
 
 La evidencia canónica de SH-05.0 está en
 [SH-05.0 — Descubrimiento de portabilidad](SH_05_PORTABILITY_DISCOVERY.md).
 El contrato de SH-05.1 está en
 [SH-05.1 — Contrato de portabilidad clean-host](SH_05_CLEAN_HOST_PORTABILITY_DESIGN.md).
+La evidencia empírica, los límites y la decisión de pausa están en
+[SH-05 — Handoff del rehearsal clean-host](SH_05_REHEARSAL_HANDOFF.md).
 
 SH-05.2 está `CLOSED / APPROVED / PASS_MINIMAL_CLEAN_HOST_PORTABILITY_TOOLING`:
 el tooling fail-closed implementa la cadena de gate de identidad clean-host,
 adquisición inmutable pull-only, builds Godel verificados, admisión de inputs,
 bootstrap de fundación target, activación exacta de generación, recovery físico
-offline y reconstrucción runtime privada. Esto no demuestra aún portabilidad
-empírica: rehearsal clean-host real, restore real, runtime real, aceptación
-funcional/Playwright y despliegue VPS permanecen `NOT EXECUTED`.
+offline y reconstrucción runtime privada. El rehearsal real R7 demostró checkout
+exacto, tests Linux clean-host, admisión de inputs, gates pre/post import,
+transporte e import offline de 16 autoridades lógicas sobre 13 imágenes físicas,
+autoridad OCI local de Node/Nginx y resolución de la base Node mediante contexto
+nombrado de Buildx.
 
-SH-05.3 queda `READY / NEXT` como **CLEAN-HOST PORTABILITY REHEARSAL EXECUTION**:
-parte de un host Linux amd64 Docker genuinamente compatible y limpio y ejecuta la
-cadena aprobada de SH-05.2. SH-05 continúa `ACTIVE` y SH permanece `OPEN`.
+La prueba fue parcial: la dependencia del frontend Dockerfile externo no quedó
+resuelta; el Dockerfile pasado realmente a Buildx no está ligado de forma
+explícita a los bytes verificados dentro del `git archive`; y el diagnóstico sin
+frontend externo quedó detenido en un `npm ci` que no concluyó tras unas cuatro
+horas. No se completaron el build Godel target-side, la aceptación funcional/
+Playwright ni el cierre/cleanup agregado. Por decisión de gobernanza, SH-05.3
+queda `PARTIALLY PROVEN / DEFERRED`, SH-05.4 queda `DEFERRED`, SH-05 permanece
+`PAUSED / NON-BLOCKING HARDENING` y PPO-04 pasa a `ACTIVE / NEXT`.
 
 ## Secuencia integrada y gates
 
-La ruta activa aprobada es:
+La secuencia histórica hasta la pausa fue:
 
 ```text
 PPO-03E ✅
@@ -333,14 +347,16 @@ PPO-03G ✅
 PPO-03 ✅
     │
     ▼
-SH-04
+SH-04 ✅
     │
     ▼
-SH-05
+SH-05 PARTIALLY PROVEN
     │
-    ▼
-SH ✅
+    └── PAUSED / POST-PILOT HARDENING
 ```
+
+La ruta activa actual está gobernada por
+[PPO-04 — Production Pilot V1](PPO_04_PRODUCTION_PILOT_PLAN.md).
 
 PPO-03F cerró/aprobó el lifecycle de Storage: `reserved → upload → finalize →
 committed`, además de abandono, expiración, reconciliación y cleanup, con
@@ -361,8 +377,8 @@ TD-UPLOAD-001 y completó la documentación de PPO-03. SH-04 queda
 `CLOSED / APPROVED / PASS_UPDATE_ROLLBACK_CAPABILITY` → SH-04.5A
 `CLOSED / APPROVED / PASS_RUNBOOK_DISCOVERY` → SH-04.5B
 `CLOSED / APPROVED / PASS_RUNBOOK_IMPLEMENTATION` → SH-04.5
-`CLOSED / APPROVED / PASS_TECHNICAL_RUNBOOK`. El siguiente bloque es SH-05
-`ACTIVE`; SH-05.0 queda `CLOSED / APPROVED / PASS_PORTABILITY_DISCOVERY`
+`CLOSED / APPROVED / PASS_TECHNICAL_RUNBOOK`. SH-05 queda
+`PAUSED / NON-BLOCKING HARDENING`; SH-05.0 queda `CLOSED / APPROVED / PASS_PORTABILITY_DISCOVERY`
 y SH-05.1 queda `CLOSED / APPROVED`; SH-05.2 queda `CLOSED / APPROVED /
 PASS_MINIMAL_CLEAN_HOST_PORTABILITY_TOOLING`; SH-05.2A queda
 `CLOSED / APPROVED / PASS_CANONICAL_SECURITY_AUDIT_REALIGNMENT`; SH-05.2B
@@ -376,8 +392,8 @@ queda `CLOSED / APPROVED / PASS_PULL_ONLY_IMAGE_AUTHORITY`; SH-05.2C queda
 queda `CLOSED / APPROVED / PASS_CLEAN_HOST_TARGET_BOOTSTRAP_FOUNDATION` y
 SH-05.2J queda `CLOSED / APPROVED / PASS_EXACT_TARGET_GENERATION_ACTIVATION` y
 SH-05.2K queda `CLOSED / APPROVED / PASS_CLEAN_HOST_OFFLINE_RECOVERY_DATA_MATERIALIZATION` y
-SH-05.2L queda `CLOSED / APPROVED / PASS_CLEAN_HOST_RUNTIME_RECONSTRUCTION`; el
-siguiente bloque es SH-05.3 `READY / NEXT`.
+SH-05.2L queda `CLOSED / APPROVED / PASS_CLEAN_HOST_RUNTIME_RECONSTRUCTION`;
+SH-05.3 queda `PARTIALLY PROVEN / DEFERRED` y SH-05.4 queda `DEFERRED`.
 
 ## Gobernanza de la baseline DB
 
@@ -402,13 +418,11 @@ posterior deberá ser una migración nueva `07+`; no se reescribirán 01–06.
 
 ## Relación con PPO posterior
 
-Una vez cerrados PPO-03 y SH, la secuencia de PPO continúa así:
+PPO-03 está cerrado y SH-05 queda pausado. La secuencia activa de PPO continúa
+sin exigir el cierre de SH:
 
 ```text
-PPO-01E / PPO-01F
-        │
-        ▼
-PPO-04
+PPO-04 / Production Pilot V1
         │
         ▼
 PPO-05
@@ -430,15 +444,15 @@ PPO-10
 ```
 
 PPO-01C/D son evidencia histórica de un camino company-host que fue superseded
-antes de ejecutarse. PPO-01E (auditoría provider-neutral de readiness VPS/Linux
-Docker host) y PPO-01F (veredicto final) sustituyen ese gate; PPO-01F aprobado
-es obligatorio antes de PPO-04.
+antes de ejecutarse. El readiness provider-neutral PPO-01E/F se coordina con los
+gates de VPS de PPO-04: no bloquea la preparación de release/configuración, pero
+su veredicto aceptable sí es obligatorio antes del primer uso real.
 
-PPO-04 será el despliegue operativo privado al VPS seleccionado. No declara
-exposición pública automática: PPO-05 conserva el gate de rate limiting,
-antiabuso, protección de `/solicitud` y `/estado`, política de requests
-públicas, hardening y revisión de uploads. Las decisiones de dominio, TLS,
-firewall o túnel se toman sólo detrás del gate aplicable.
+PPO-04 es el despliegue productivo controlado al VPS seleccionado. Exige HTTPS,
+firewall y aislamiento mínimo antes de credenciales reales. La exposición
+pública general e irrestricta queda pendiente de PPO-05, que conserva rate
+limiting, antiabuso, protección de `/solicitud` y `/estado`, política de
+requests públicas, hardening y revisión de uploads.
 
 PPO-06 operacionaliza en el host productivo seleccionado las capacidades
 probadas en SH-04: frecuencia, retención, ubicación, copia secundaria,

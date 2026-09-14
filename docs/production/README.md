@@ -6,19 +6,30 @@ arquitectura operativa y puesta en operación de Godel Diseño.
 ## Roadmaps activos
 
 - [Roadmap PPO](PPO_ROADMAP.md): roadmap maestro de Preproducción y Puesta en
-  Operación.
+  Operación; PPO-04 / Production Pilot V1 está `ACTIVE / NEXT`.
 - [Roadmap Self-Hosted](SH_ROADMAP.md): workstream técnico subordinado a PPO
-  para completar la transición a Supabase self-hosted.
+  para la transición a Supabase self-hosted; SH-01–SH-04 están cerrados y SH-05
+  está `PAUSED / NON-BLOCKING HARDENING`.
 
 ## Documentos vigentes
 
-- [SH-05.1 — Contrato de portabilidad clean-host y diseño de tooling](SH_05_CLEAN_HOST_PORTABILITY_DESIGN.md): cerrado y aprobado; SH-05.2 cerró `CLOSED / APPROVED / PASS_MINIMAL_CLEAN_HOST_PORTABILITY_TOOLING` y SH-05.2L cerró `CLOSED / APPROVED / PASS_CLEAN_HOST_RUNTIME_RECONSTRUCTION`. La cadena fail-closed implementada cubre gate clean-host, imágenes pull-only, builds Godel, admisión de inputs, bootstrap target, activación de generación, recovery físico offline y runtime privado. SH-05.3 está `READY / NEXT` para ejecutar el rehearsal en un host limpio compatible. No se ejecutaron rehearsal real, restore/runtime real, aceptación funcional/Playwright ni despliegue VPS.
+- [PPO-04 — Production Pilot V1](PPO_04_PRODUCTION_PILOT_PLAN.md): plan
+  gobernante `ACTIVE / NEXT` para el primer rollout productivo controlado;
+  construye App/Nginx `linux/amd64` fuera del VPS y exige generación productiva
+  propia, readiness del host, HTTPS, aislamiento, backup inicial y smoke real.
+
+- [SH-05 — Handoff del rehearsal clean-host](SH_05_REHEARSAL_HANDOFF.md):
+  evidencia real sanitizada, límites y decisión de pausa. SH-05 queda
+  `PAUSED / NON-BLOCKING HARDENING`; SH-05.3 está `PARTIALLY PROVEN / DEFERRED`
+  y SH-05.4 está `DEFERRED`.
+
+- [SH-05.1 — Contrato de portabilidad clean-host y diseño de tooling](SH_05_CLEAN_HOST_PORTABILITY_DESIGN.md): cerrado y aprobado; SH-05.2 cerró `CLOSED / APPROVED / PASS_MINIMAL_CLEAN_HOST_PORTABILITY_TOOLING` y conserva la historia de sus subbloques. El tooling implementado no equivale por sí solo a prueba empírica; el estado vigente está en el handoff de rehearsal.
 
 - [SH-05.0 — Descubrimiento de portabilidad y realineación de destino](SH_05_PORTABILITY_DISCOVERY.md): cerrada y aprobada; documenta las fuentes de reconstrucción, las brechas clean-host y el realineamiento provider-neutral de SH/PPO. No ejecuta portabilidad ni despliegue.
 
 - [SH-04.3D — Rotación segura de secretos](SH_04_SECRET_ROTATION_REPORT.md): cerrada y aprobada; D.6 PASS aceptó la rotación/recovery, con TARGET D5 actual, GEN7/GEN6 retenidas y forensics R1A del backup pre-cutover aprobada.
 
-- [SH-04.3 — Production Secrets & Auth Hardening](SH_04_SECRETS_AUTH_REPORT.md): cerrada y aprobada tras `SH043_FINAL_OPERATIONAL_ACCEPTANCE_PASS`; conserva la auditoría de secretos/Auth, la rotación, la compatibilidad recovery D5 y la aceptación operativa final. «SH-04.4 es el siguiente workstream» se conserva solo como handoff histórico de ese cierre; actualmente SH-04 está cerrado y SH-05 está activo.
+- [SH-04.3 — Production Secrets & Auth Hardening](SH_04_SECRETS_AUTH_REPORT.md): cerrada y aprobada tras `SH043_FINAL_OPERATIONAL_ACCEPTANCE_PASS`; conserva la auditoría de secretos/Auth, la rotación, la compatibilidad recovery D5 y la aceptación operativa final. «SH-04.4 es el siguiente workstream» se conserva solo como handoff histórico de ese cierre; actualmente SH-04 está cerrado y SH-05 está pausado como hardening no bloqueante.
 
 - [SH-02.0 — Diseño de integración Godel ↔ Supabase self-hosted](SH_02_INTEGRATION_DESIGN.md): cerrada y aprobada; incluye el estado vigente de SH-02.
 - [SH-02.1 — Compose, networking y naming neutral](SH_02_COMPOSE_NETWORK_REPORT.md): cerrada y aprobada.

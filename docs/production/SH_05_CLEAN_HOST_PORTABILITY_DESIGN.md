@@ -21,6 +21,13 @@
 **SH-05.3:** READY / NEXT
 **Baseline de diseño:** cdbe742ba6c85d741ef37da6ad4bc18ffa3bea38
 
+> **Nota de gobernanza — 2026-09-13:** los estados anteriores son el snapshot
+> histórico al cierre del tooling. El estado vigente está superseded por
+> [SH-05 — Handoff del rehearsal clean-host](SH_05_REHEARSAL_HANDOFF.md):
+> `SH-05 = PAUSED / NON-BLOCKING HARDENING`, `SH-05.3 = PARTIALLY PROVEN /
+> DEFERRED` y `SH-05.4 = DEFERRED`. PPO-04 / Production Pilot V1 es
+> `ACTIVE / NEXT`.
+
 ## Propósito y límites
 
 Este documento es el contrato arquitectónico para SH-05.2 y SH-05.3. Diseña el

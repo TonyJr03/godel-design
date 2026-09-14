@@ -5,6 +5,12 @@
 **Workstream SH:** OPEN
 **Baseline revisada:** 31c52b8ac2f9650709badbfaa215ff8e349ec2be
 
+> **Nota de gobernanza — 2026-09-13:** este encabezado y la descomposición final
+> son el snapshot histórico de SH-05.0. El estado vigente está en
+> [SH-05 — Handoff del rehearsal clean-host](SH_05_REHEARSAL_HANDOFF.md): SH-05
+> está `PAUSED / NON-BLOCKING HARDENING`, SH-05.3 está `PARTIALLY PROVEN /
+> DEFERRED` y SH-05.4 está `DEFERRED`.
+
 ## Alcance y decisión vigente
 
 Este informe es la evidencia canónica del descubrimiento SH-05.0. No ejecuta una reconstrucción clean-host, no prueba portabilidad, no despliega una VPS y no declara preparación productiva.
