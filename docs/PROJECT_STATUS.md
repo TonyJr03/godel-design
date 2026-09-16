@@ -14,8 +14,9 @@ No production deployment yet.
 
 El primer destino real vigente es Vercel Hobby + Supabase Managed Free. PPO-04M
 está `ACTIVE / NEXT`; PPO-04M.0 y PPO-04M.1 están `CLOSED / APPROVED`, y
-PPO-04M.2 queda `ACTIVE / NEXT`. Existe un proyecto Supabase Free separado y
-aceptado, todavía vacío: no se ha aplicado la baseline ni desplegado la app.
+PPO-04M.2 queda `ACTIVE / IN PROGRESS`. M.2A aplicó y aceptó la baseline 01–06;
+M.2B queda `ACTIVE / NEXT` para bootstrap y QA funcional Auth/Storage. La app
+todavía no se ha desplegado.
 
 ## Arquitectura vigente
 
@@ -81,7 +82,9 @@ una migración nueva `07+`.
 | PPO-04M | `ACTIVE / NEXT` |
 | PPO-04M.0 | `CLOSED / APPROVED` |
 | PPO-04M.1 | `CLOSED / APPROVED` |
-| PPO-04M.2 | `ACTIVE / NEXT` |
+| PPO-04M.2 | `ACTIVE / IN PROGRESS` |
+| PPO-04M.2A | `CLOSED / APPROVED` |
+| PPO-04M.2B | `ACTIVE / NEXT` |
 | PPO-04M.3–PPO-04M.7 | `NOT STARTED` |
 | PPO-05 | `PENDING` — seguridad pública/antiabuso |
 | PPO-06 | `PENDING` — backup/recovery managed |
@@ -130,11 +133,14 @@ aprobados constan en
 [PPO-04M.0 — Managed Architecture Audit](production/PPO_04M0_MANAGED_ARCHITECTURE_AUDIT.md).
 La aceptación sanitizada del proyecto Supabase Free vacío consta en
 [PPO-04M.1 — Supabase Free Project Report](production/PPO_04M1_SUPABASE_FREE_PROJECT_REPORT.md).
+La aplicación exacta de 01–06, hardening, lint y smoke estructural constan en
+[PPO-04M.2 — Managed Provisioning Report](production/PPO_04M2_MANAGED_PROVISIONING_REPORT.md).
 
 ```text
 PPO-04M.0  arquitectura y gobernanza — CLOSED / APPROVED
 → PPO-04M.1  proyecto Supabase Free productivo/piloto — CLOSED / APPROVED
-→ PPO-04M.2  DB/Auth/Storage — ACTIVE / NEXT
+→ PPO-04M.2A  baseline/hardening estructural — CLOSED / APPROVED
+→ PPO-04M.2B  bootstrap y QA funcional Auth/Storage — ACTIVE / NEXT
 → PPO-04M.3  deployment Vercel Hobby
 → PPO-04M.4  QA managed propio
 → PPO-04M.5  backup externo y recovery baseline

@@ -4,7 +4,9 @@
 
 **Estado de PPO-04M:** `ACTIVE / NEXT`
 
-**Bloque activo:** `PPO-04M.2 — ACTIVE / NEXT`
+**Bloque activo:** `PPO-04M.2B — ACTIVE / NEXT`
+
+**Estado de PPO-04M.2:** `ACTIVE / IN PROGRESS`
 
 **PPO-04M.0–PPO-04M.1:** `CLOSED / APPROVED`
 
@@ -22,11 +24,16 @@
 **Evidencia M.1:**
 [PPO_04M1_SUPABASE_FREE_PROJECT_REPORT.md](PPO_04M1_SUPABASE_FREE_PROJECT_REPORT.md)
 
+**Evidencia M.2:**
+[PPO_04M2_MANAGED_PROVISIONING_REPORT.md](PPO_04M2_MANAGED_PROVISIONING_REPORT.md)
+
 ```text
 PPO-04M = ACTIVE / NEXT
 PPO-04M.0 = CLOSED / APPROVED
 PPO-04M.1 = CLOSED / APPROVED
-PPO-04M.2 = ACTIVE / NEXT
+PPO-04M.2 = ACTIVE / IN PROGRESS
+PPO-04M.2A = CLOSED / APPROVED
+PPO-04M.2B = ACTIVE / NEXT
 PPO-04M.3–PPO-04M.7 = NOT STARTED
 PRODUCTION DEPLOYMENT = NOT EXECUTED
 ```
@@ -86,7 +93,7 @@ provider limits are external and must be revalidated at execution time
 | --- | --- | --- |
 | PPO-04M.0 | Managed Free Architecture & Governance | `CLOSED / APPROVED` |
 | PPO-04M.1 | Supabase Free Production Project | `CLOSED / APPROVED` |
-| PPO-04M.2 | Database / Auth / Storage Provisioning | `ACTIVE / NEXT` |
+| PPO-04M.2 | Database / Auth / Storage Provisioning | `ACTIVE / IN PROGRESS` |
 | PPO-04M.3 | Vercel Hobby Deployment | `NOT STARTED` |
 | PPO-04M.4 | Managed Production QA | `NOT STARTED` |
 | PPO-04M.5 | Free-Tier Backup & Recovery Baseline | `NOT STARTED` |
@@ -170,6 +177,12 @@ El gate debe validar:
 - TUS autenticado, signed uploads públicos y finalize;
 - separación staged/committed, listing y descargas protegidas;
 - ausencia de datos seed no autorizados y consistencia de la baseline.
+
+M.2A queda `CLOSED / APPROVED`: aplicó exactamente 01–06, confirmó historia
+local/remota, hardening final, lint y smokes estructurales sin crear usuarios ni
+objetos. M.2B queda `ACTIVE / NEXT` para bootstrap y QA funcional Auth/Storage.
+La evidencia acumulativa vive en
+[PPO_04M2_MANAGED_PROVISIONING_REPORT.md](PPO_04M2_MANAGED_PROVISIONING_REPORT.md).
 
 ## 7. PPO-04M.3 — Vercel Hobby Deployment
 
