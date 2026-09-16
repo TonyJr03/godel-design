@@ -13,8 +13,9 @@ No production deployment yet.
 ```
 
 El primer destino real vigente es Vercel Hobby + Supabase Managed Free. PPO-04M
-está `ACTIVE / NEXT` y comienza por cerrar arquitectura y gobernanza; no se ha
-creado ni provisionado infraestructura remota como parte de este pivot.
+está `ACTIVE / NEXT`; PPO-04M.0 cerró y aprobó arquitectura/gobernanza, y
+PPO-04M.1 queda `ACTIVE / NEXT`. No se ha creado ni provisionado infraestructura
+remota como parte de este cierre documental.
 
 ## Arquitectura vigente
 
@@ -78,8 +79,9 @@ una migración nueva `07+`.
 | PPO-03 | `CLOSED / APPROVED` |
 | PPO-04 | `ACTIVE / NEXT` — Managed Free Production Pilot |
 | PPO-04M | `ACTIVE / NEXT` |
-| PPO-04M.0 | `ACTIVE / NEXT` |
-| PPO-04M.1–PPO-04M.7 | `NOT STARTED` |
+| PPO-04M.0 | `CLOSED / APPROVED` |
+| PPO-04M.1 | `ACTIVE / NEXT` |
+| PPO-04M.2–PPO-04M.7 | `NOT STARTED` |
 | PPO-05 | `PENDING` — seguridad pública/antiabuso |
 | PPO-06 | `PENDING` — backup/recovery managed |
 | PPO-07 | `PENDING` — observabilidad/operación managed |
@@ -122,9 +124,13 @@ Playwright, el cleanup final y el cierre agregado.
 
 ## Ruta activa
 
+La arquitectura, variables, Auth, DB, Storage, compatibilidad Vercel y handoff
+aprobados constan en
+[PPO-04M.0 — Managed Architecture Audit](production/PPO_04M0_MANAGED_ARCHITECTURE_AUDIT.md).
+
 ```text
-PPO-04M.0  arquitectura y gobernanza
-→ PPO-04M.1  proyecto Supabase Free productivo/piloto
+PPO-04M.0  arquitectura y gobernanza — CLOSED / APPROVED
+→ PPO-04M.1  proyecto Supabase Free productivo/piloto — ACTIVE / NEXT
 → PPO-04M.2  DB/Auth/Storage
 → PPO-04M.3  deployment Vercel Hobby
 → PPO-04M.4  QA managed propio

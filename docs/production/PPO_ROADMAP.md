@@ -151,6 +151,9 @@ LSH o a un futuro self-host autorizado y deja de ser gate del piloto actual.
 PPO-04 queda `ACTIVE / NEXT` mediante PPO-04M. El backup externo mínimo pertenece
 al piloto managed; PPO-06 lo operacionalizará en profundidad y PPO-07 conserva
 observabilidad, logs, métricas, alertas y soporte adaptados a los proveedores.
+PPO-04M.0 queda `CLOSED / APPROVED` mediante
+[PPO_04M0_MANAGED_ARCHITECTURE_AUDIT.md](PPO_04M0_MANAGED_ARCHITECTURE_AUDIT.md);
+PPO-04M.1 queda `ACTIVE / NEXT` y PPO-04M.2–PPO-04M.7 permanecen `NOT STARTED`.
 
 ## Estado de fases
 

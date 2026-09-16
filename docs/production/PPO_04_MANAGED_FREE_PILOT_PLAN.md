@@ -4,9 +4,11 @@
 
 **Estado de PPO-04M:** `ACTIVE / NEXT`
 
-**Bloque activo:** `PPO-04M.0 — ACTIVE / NEXT`
+**Bloque activo:** `PPO-04M.1 — ACTIVE / NEXT`
 
-**PPO-04M.1–PPO-04M.7:** `NOT STARTED`
+**PPO-04M.0:** `CLOSED / APPROVED`
+
+**PPO-04M.2–PPO-04M.7:** `NOT STARTED`
 
 **Despliegue productivo:** `NOT EXECUTED`
 
@@ -14,10 +16,14 @@
 
 **Roadmap maestro:** [PPO_ROADMAP.md](PPO_ROADMAP.md)
 
+**Evidencia M.0:**
+[PPO_04M0_MANAGED_ARCHITECTURE_AUDIT.md](PPO_04M0_MANAGED_ARCHITECTURE_AUDIT.md)
+
 ```text
 PPO-04M = ACTIVE / NEXT
-PPO-04M.0 = ACTIVE / NEXT
-PPO-04M.1+ = NOT STARTED
+PPO-04M.0 = CLOSED / APPROVED
+PPO-04M.1 = ACTIVE / NEXT
+PPO-04M.2–PPO-04M.7 = NOT STARTED
 PRODUCTION DEPLOYMENT = NOT EXECUTED
 ```
 
@@ -74,8 +80,8 @@ provider limits are external and must be revalidated at execution time
 
 | Bloque | Nombre | Estado |
 | --- | --- | --- |
-| PPO-04M.0 | Managed Free Architecture & Governance | `ACTIVE / NEXT` |
-| PPO-04M.1 | Supabase Free Production Project | `NOT STARTED` |
+| PPO-04M.0 | Managed Free Architecture & Governance | `CLOSED / APPROVED` |
+| PPO-04M.1 | Supabase Free Production Project | `ACTIVE / NEXT` |
 | PPO-04M.2 | Database / Auth / Storage Provisioning | `NOT STARTED` |
 | PPO-04M.3 | Vercel Hobby Deployment | `NOT STARTED` |
 | PPO-04M.4 | Managed Production QA | `NOT STARTED` |
@@ -106,6 +112,13 @@ provider limits are external and must be revalidated at execution time
 - orden PPO-04M.1–PPO-04M.7 aceptado;
 - dependencias, evidencia reutilizable y gates no aplicables documentados;
 - confirmación de que aún no existe despliegue productivo.
+
+### Cierre
+
+La auditoría focal
+[PPO_04M0_MANAGED_ARCHITECTURE_AUDIT.md](PPO_04M0_MANAGED_ARCHITECTURE_AUDIT.md)
+confirma que no existe un cambio de código bloqueante previo a crear el proyecto
+Supabase. El contrato Managed queda aprobado y el handoff pasa a PPO-04M.1.
 
 ## 5. PPO-04M.1 — Supabase Free Production Project
 
