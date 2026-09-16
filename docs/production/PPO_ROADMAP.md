@@ -2,12 +2,12 @@
 
 ## Metadatos
 
-- Actualización de estado: 2026-09-13
+- Actualización de estado: 2026-09-16
 
 - Proyecto: Godel Diseño
 - Estado: Activo
 - Fecha de creación: 2026-07-21
-- Última revisión: 2026-09-13
+- Última revisión: 2026-09-16
 - Responsable técnico: Dirección Técnica de Godel Diseño
 - Arquitectura y supervisión: Arquitectura Senior / Orquestación Técnica
 - Implementación: Agente Codex en VS Code
@@ -18,41 +18,70 @@ PPO lleva el sistema desde el MVP interno funcional hasta una operación real
 controlada, segura, reproducible, recuperable, observable y validada por
 usuarios.
 
-La iniciativa diferencia tres momentos operativos:
+La iniciativa diferencia ahora tres momentos operativos:
 
 1. Preparación y validación en desarrollo/preproducción.
-2. Evidencia de portabilidad en un host limpio desechable e independiente;
-   quedó parcialmente probada y pasa a endurecimiento post-piloto.
-3. Production Pilot V1 en el VPS seleccionado, con release construida fuera del
-   target y rollout real controlado.
+2. Managed Free Production Pilot sobre Vercel Hobby y Supabase Managed Free.
+3. Investigación Lightweight Self-Hosted posterior, alimentada por medidas
+   reales del piloto.
+
+## 2026-09-16 — Architectural / Economic Hosting Pivot
+
+La ruta anterior era:
+
+```text
+VPS + full Supabase Self-Hosted
+```
+
+Su estado es:
+
+```text
+SUPERSEDED FOR CURRENT PRODUCTION PILOT
+NOT EXECUTED
+```
+
+El pivot responde a viabilidad económica y al presupuesto actual de un proyecto
+personal/no comercial. No declara un fallo técnico de Supabase Self-Hosted ni
+reescribe las aprobaciones SH-01–SH-04. El cierre/handoff vive en
+[PPO-04 — Cierre del camino Self-Hosted VPS](PPO_04_SELF_HOSTED_VPS_PATH_CLOSURE.md).
+
+La ruta actual es:
+
+```text
+Vercel Hobby
++
+Supabase Managed Free
+```
+
+La ruta futura aprobada es:
+
+```text
+Managed measurements
+→ LSH
+→ Supabase Slim
+→ decision gate
+→ lightweight Supabase OR PostgreSQL/PostgREST/Auth/Storage
+```
+
+No existe despliegue productivo todavía.
 
 ## Decisiones arquitectónicas confirmadas
 
-- La iniciativa se denomina PPO.
-- Nginx será el proxy inverso.
-- Caddy no forma parte de la arquitectura.
-- Los contenedores runtime son Linux y el primer proof clean-host debe ser amd64.
-- La infraestructura debe quedar aislada del resto de aplicaciones del host.
-- La composición se construye y valida primero en desarrollo/preproducción.
-- El destino operativo seleccionado es una VPS de Hosting DC; la arquitectura
-  permanece `PROVIDER_NEUTRAL_CLEAN_LINUX_DOCKER_HOST`.
-- Supabase administrado continuará inicialmente como backend.
-- La afirmación anterior sobre continuidad de Supabase administrado es evidencia
-  histórica superseded. El backend objetivo actual es Supabase self-hosted en
-  Docker y Supabase CLI local queda para desarrollo/E2E.
-- Vercel Hobby se utilizará para previews, demostración y preproducción controlada.
-- El piloto no transportará credenciales reales por HTTP público. La exposición
-  pública general e irrestricta requiere el hardening de PPO-05; no se exige
-  Cloudflare Tunnel como solución actual.
-- Los archivos serán privados.
-- El contenido de archivos no atravesará Server Actions de Next.js.
-- El objetivo futuro contempla hasta diez archivos por operación.
-- El límite inicialmente planteado es 20 MiB por archivo.
-- ZIP, RAR y CDR están dentro del alcance futuro del rediseño de archivos.
-- PPO-10 conserva una posible migración futura de proveedor/infraestructura,
-  sólo si llega a ser necesaria.
-- La máquina de la empresa puede evaluarse en el futuro como destino off-host,
-  pero no es un supuesto de operación ni backup.
+- La iniciativa se denomina PPO y sigue siendo el roadmap maestro.
+- El primer destino real es Vercel Hobby + Supabase Managed Free.
+- Godel Diseño se considera actualmente personal/no comercial. Si su uso cambia
+  materialmente, deberá reevaluarse la elegibilidad del plan de hosting.
+- No hay Nginx, Docker, VPS ni Supabase Self-Hosted en el runtime productivo del
+  Managed Free Pilot.
+- Desarrollo/E2E conserva Next.js development + Supabase CLI/local workflow.
+- Los archivos siguen siendo privados y sus bytes no atraviesan Server Actions.
+- PPO-05 conserva seguridad pública/antiabuso; PPO-06 backup/recovery managed;
+  PPO-07 observabilidad y operación managed.
+- La baseline 01–06 permanece congelada; cualquier cambio posterior usa 07+.
+- Full Supabase Self-Hosted queda congelado como referencia técnica.
+- LSH queda planificado, no iniciado, y empieza después de medir uso real.
+- PPO-10 solo gobernará una eventual migración productiva posterior a la
+  decisión de LSH; no duplica su investigación ni su prototipo.
 
 Las referencias a Windows/WSL2, company-host, LAN provisional, Cloudflare Tunnel
 u OVHcloud pertenecen a contexto histórico cuando aparezcan en evidencia cerrada;
@@ -61,19 +90,28 @@ declaran implementadas en este roadmap.
 
 ## Arquitectura backend vigente
 
-Supabase self-hosted en Docker es el backend objetivo de operación.
-Supabase CLI local se conserva como entorno de desarrollo y E2E. Las pruebas
-previas con Supabase administrado permanecen como evidencia histórica de
-PPO-02/PPO-03, pero ese backend fue superseded por el workstream SH. La lista de
-decisiones inmediatamente anterior se interpreta como snapshot histórico cuando
-menciona continuidad de Supabase administrado.
+```text
+DEVELOPMENT / E2E
+Next.js development + Supabase CLI/local workflow
 
-## Integración del workstream Self-Hosted
+CURRENT PRODUCTION TARGET
+Vercel Hobby / Next.js + Supabase Managed Free
+
+FUTURE SELF-HOSTED R&D
+LSH → Supabase Slim → decision gate
+```
+
+PPO-02/PPO-03 contienen evidencia histórica de compatibilidad managed que vuelve
+a ser relevante, pero no constituye aceptación del nuevo entorno productivo.
+PPO-04M debe ejecutar su propia validación.
+
+## Integración de los workstreams Self-Hosted
 
 Este documento sigue siendo el roadmap maestro de Preproducción y Puesta en
 Operación. [SH — Roadmap de transición a Supabase Self-Hosted](SH_ROADMAP.md)
-es su workstream técnico subordinado, temporal y con cierre explícito; no es un
-roadmap de producto paralelo ni una segunda puesta en producción.
+conserva el workstream full-stack como referencia técnica subordinada. No es el
+target productivo actual. [LSH — Lightweight Self-Hosted](LSH_ROADMAP.md) es el
+nuevo workstream futuro, también subordinado a PPO y todavía no iniciado.
 
 La secuencia originalmente prevista fue la siguiente; su cierre final no se
 alcanzó porque SH-05 quedó pausado:
@@ -95,9 +133,9 @@ fronteras antes del gate final PPO-03G.
 Por tanto, PPO-03G no puede cerrar Storage solo con evidencia de desarrollo/E2E
 local.
 
-Estado vigente: SH-02 = CLOSED / APPROVED; SH-03 = CLOSED / APPROVED;
+Estado histórico preservado: SH-02 = CLOSED / APPROVED; SH-03 = CLOSED / APPROVED;
 PPO-03G = CLOSED / APPROVED; PPO-03 = CLOSED / APPROVED; SH-04 = CLOSED / APPROVED;
-SH-05 = PAUSED / NON-BLOCKING HARDENING. SH-05.0, SH-05.1 y SH-05.2 conservan
+SH-05 = PAUSED / INCOMPLETE. SH-05.0, SH-05.1 y SH-05.2 conservan
 sus cierres aprobados; SH-05.3 = PARTIALLY PROVEN / DEFERRED y SH-05.4 =
 DEFERRED. La evidencia y las brechas se consolidan en
 [SH-05 — Handoff del rehearsal clean-host](SH_05_REHEARSAL_HANDOFF.md).
@@ -108,38 +146,36 @@ cerró/aprobó y `BASELINE 01–06 = FROZEN`; todo cambio DB posterior deberá u
 una migración `07+`.
 
 PPO-01C/D fueron superseded y no ejecutados porque company-host dejó de ser el
-target. PPO-01E/F aportan el veredicto provider-neutral de readiness VPS/Linux
-Docker dentro de los gates de PPO-04. PPO-04 queda `ACTIVE / NEXT` como
-Production Pilot V1: puede preparar release y configuración mientras cierra ese
-gate, pero no inicia uso real sin un host aceptable. SH-04 prueba capacidades
-técnicas; el backup inicial mínimo pertenece al piloto, PPO-06 lo
-operacionaliza en profundidad y PPO-07 conserva observabilidad, logs, métricas,
-alertas y soporte. PPO-10 queda como migración futura opcional.
+target. El trabajo residual PPO-01E/F de readiness VPS/Linux Docker se difiere a
+LSH o a un futuro self-host autorizado y deja de ser gate del piloto actual.
+PPO-04 queda `ACTIVE / NEXT` mediante PPO-04M. El backup externo mínimo pertenece
+al piloto managed; PPO-06 lo operacionalizará en profundidad y PPO-07 conserva
+observabilidad, logs, métricas, alertas y soporte adaptados a los proveedores.
 
 ## Estado de fases
 
 | Fase      | Nombre                                      | Estado    |
 | --------- | ------------------------------------------- | --------- |
 | PPO-00    | Baseline local y formalización inicial      | Cerrada   |
-| PPO-01    | Auditoría de infraestructura y conectividad | Activa    |
-| PPO-02    | Base contenerizada reproducible             | Cerrada — Aprobada con condiciones |
+| PPO-01    | Auditoría de infraestructura y conectividad | Residual host-readiness deferred a LSH/self-host futuro |
+| PPO-02    | Base reproducible / evidencia managed       | Cerrada; evidencia managed relevante otra vez |
 | PPO-03    | Rediseño de cargas y almacenamiento         | Cerrada / aprobada |
-| PPO-04    | Production Pilot V1 en el VPS seleccionado | ACTIVE / NEXT — no desplegado |
+| PPO-04    | Managed Free Production Pilot              | ACTIVE / NEXT — no desplegado |
 | PPO-05    | Seguridad pública                           | Pendiente |
 | PPO-06    | Backups y recuperación                      | Pendiente |
 | PPO-07    | Observabilidad y operación                  | Pendiente |
 | PPO-08    | UAT y puesta en operación                   | Pendiente |
 | PPO-09    | Estabilización                              | Pendiente |
-| PPO-10    | Migración futura de proveedor/infraestructura | Deferred / optional |
+| PPO-10    | Gobernanza de eventual migración productiva post-LSH | Deferred / optional; no duplica LSH |
 | PPO-QA-01 | Consolidación y aislamiento de la suite E2E | Diferida  |
 
 PPO-QA-01 no bloquea PPO-01, conserva el trabajo archivado y deberá resolverse
 antes del cierre definitivo de la puesta en producción.
 
 El plan operativo gobernante de la fase activa es
-[PPO-04 — Production Pilot V1](PPO_04_PRODUCTION_PILOT_PLAN.md). Solo sus gates
-`BLOCKER FOR PILOT` impiden el primer uso real controlado; PPO-05, PPO-06,
-PPO-07 y el remanente de SH-05 conservan hardening posterior explícito.
+[PPO-04 — Managed Free Production Pilot](PPO_04_MANAGED_FREE_PILOT_PLAN.md).
+El antiguo [plan Self-Hosted VPS](PPO_04_PRODUCTION_PILOT_PLAN.md) queda
+superseded sin despliegue. PPO-05, PPO-06 y PPO-07 permanecen pendientes.
 
 ### Workstream Self-Hosted
 
@@ -223,7 +259,7 @@ El estado operativo actual es:
 | PPO-03G | Cerrada / aprobada |
 | PPO-03 | Cerrada / aprobada |
 | SH-04 | CLOSED / APPROVED |
-| SH-05 | PAUSED / NON-BLOCKING HARDENING — SH-05.3 PARTIALLY PROVEN / DEFERRED; SH-05.4 DEFERRED |
+| SH-05 | PAUSED / INCOMPLETE — SH-05.3 PARTIALLY PROVEN / DEFERRED; SH-05.4 DEFERRED |
 
 El diseño aprobado de PPO-03F.0 vive en
 [PPO_03F_CLEANUP_DESIGN.md](PPO_03F_CLEANUP_DESIGN.md), el cierre de F.1 en
@@ -237,10 +273,10 @@ TD-UPLOAD-001 resuelta. La evidencia de cierre se concentra en
 [PPO_03G_UPLOAD_LIMITS_QA_REPORT.md](PPO_03G_UPLOAD_LIMITS_QA_REPORT.md),
 [SH_03_CLOSURE_REPORT.md](SH_03_CLOSURE_REPORT.md) y
 [SH_03_STORAGE_QA_REPORT.md](SH_03_STORAGE_QA_REPORT.md). SH-04 queda CLOSED /
-APPROVED. SH-05 queda PAUSED / NON-BLOCKING HARDENING; SH-05.0, SH-05.1 y
+APPROVED. SH-05 queda PAUSED / INCOMPLETE; SH-05.0, SH-05.1 y
 SH-05.2 conservan sus cierres aprobados, SH-05.3 queda PARTIALLY PROVEN /
-DEFERRED y SH-05.4 queda DEFERRED. PPO-04 / Production Pilot V1 es la
-iniciativa `ACTIVE / NEXT`.
+DEFERRED y SH-05.4 queda DEFERRED. PPO-04M / Managed Free Production Pilot es
+la iniciativa `ACTIVE / NEXT`.
 
 ## PPO-00
 
@@ -284,8 +320,8 @@ Estado interno de PPO-01:
 | PPO-01B   | Cerrada — `development-laptop` Apta con condiciones |
 | PPO-01C   | SUPERSEDED / NOT EXECUTED — company-host audit histórica |
 | PPO-01D   | SUPERSEDED / NOT EXECUTED — veredicto company-host histórico |
-| PPO-01E   | NOT STARTED / PENDING — VPS / Linux Docker host readiness audit |
-| PPO-01F   | NOT STARTED / PENDING — final infrastructure readiness verdict integrado al gate VPS de PPO-04 |
+| PPO-01E   | DEFERRED TO LSH/SELF-HOST FUTURE — VPS/Linux Docker readiness |
+| PPO-01F   | DEFERRED TO LSH/SELF-HOST FUTURE — final host readiness verdict |
 
 `development-laptop` ya demostró capacidad suficiente para construir y validar
 la composición contenerizada prevista para PPO-02: WSL2 y Docker con
@@ -299,11 +335,9 @@ completaron en descarga y carga. En PPO-01, Supabase administrado quedó
 pendiente porque el proyecto administrado no estaba configurado; la validación
 administrada correspondiente quedó cubierta después en PPO-02D.2.
 
-PPO-01 permanece activa. PPO-01C/D preservan trazabilidad del target anterior y
-no se ejecutarán. PPO-01E/F no presuponen distribución Linux, recursos, IP,
-firewall, panel de proveedor, DNS, TLS ni producto de backup. Su veredicto se
-integra al blocker de VPS de PPO-04: la preparación del piloto puede comenzar,
-pero el primer uso real exige un host aceptado.
+PPO-01 conserva sus cierres y la trazabilidad de targets anteriores. PPO-01C/D
+no se ejecutarán. PPO-01E/F dejan de ser gates del Managed Free Pilot y quedan
+diferidas a LSH o a un futuro self-host autorizado; no se declaran cerradas.
 
 Por decisión expresa de Dirección Técnica, PPO-02 quedó autorizada en paralelo
 para construcción y validación local en `development-laptop`. Ese inicio no
@@ -312,10 +346,9 @@ despliegue productivo ni despliegue en la empresa.
 
 ## PPO-02 a PPO-10 — detalle histórico
 
-La sección siguiente conserva el alcance y las decisiones registradas antes del
-pivot SH. Sus estados de backend administrado, PPO-03D.1 pendiente o PPO-03E
-pendiente están superseded por las secciones «Arquitectura backend vigente» y
-«Estado vigente de PPO-03» de este documento.
+La sección siguiente conserva el alcance y las decisiones registradas antes de
+los pivots SH y Managed Free. Sus estados de backend, fases activas y destinos
+operativos están superseded por las secciones actuales de este documento.
 
 - PPO-02: cerró Dockerfile, Compose, Nginx, redes, healthchecks, readiness
   administrado y criterios de reproducibilidad local. PPO-02A, PPO-02B,
@@ -342,20 +375,19 @@ pendiente están superseded por las secciones «Arquitectura backend vigente» y
 - Actualización PPO-03E: Solicitudes ya integra localmente reserva, firma TUS,
   transferencia directa, finalize, resume y retry. PPO-03E queda pendiente de
   revisión/cierre arquitectónico antes de PPO-03F/G.
-- PPO-04: queda `ACTIVE / NEXT` como Production Pilot V1. Construye App/Nginx
-  `linux/amd64` fuera del VPS, transporta artefactos verificados y ejecuta un
-  rollout real controlado con generación productiva propia, HTTPS, aislamiento,
-  backup inicial y smoke. No exige cerrar SH-05 ni build target-side.
+- PPO-04 (snapshot histórico): proponía Production Pilot V1 en VPS, con
+  App/Nginx `linux/amd64` construidos fuera del target. Ese plan quedó
+  `SUPERSEDED / NOT EXECUTED`; PPO-04M es ahora el plan gobernante.
 - PPO-05: abordará el hardening público completo: antiabuso, rate limiting,
   superficies públicas, uploads y revisión de exposición.
-- PPO-06: profundizará la operación de backups y recovery para el host
-  productivo: calendario, retención, destino off-host, restore drills, RPO/RTO y
-  autorización DR. No invalida el backup inicial obligatorio del piloto.
-- PPO-07: definirá monitoreo, logs, métricas, alertas, incidentes y runbooks.
+- PPO-06: profundizará backups y recovery para Supabase Managed Free en la ruta
+  actual: calendario, retención, custodia externa, restore drills, RPO/RTO y DR.
+- PPO-07: definirá monitoreo, logs, métricas, alertas, incidentes y runbooks para
+  Vercel/Supabase Managed.
 - PPO-08: ejecutará validación con usuarios reales.
 - PPO-09: medirá y estabilizará el uso real.
-- PPO-10: queda diferida como gobierno de una migración futura de
-  proveedor/infraestructura que llegue a ser necesaria.
+- PPO-10: queda diferida para gobernar una migración productiva futura después
+  del decision gate de LSH; no repite la investigación o prototipado de LSH.
 
 Estas fases describen alcance futuro. No incorporan diseño de implementación en
 este documento.

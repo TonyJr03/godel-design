@@ -1,6 +1,15 @@
-# PPO-04 — Production Pilot V1
+# PPO-04 — Production Pilot V1 — Self-Hosted VPS Execution Plan
 
-**Estado:** `ACTIVE / NEXT`
+**Estado:** `SUPERSEDED AS SELF-HOSTED VPS EXECUTION PLAN`
+
+**Despliegue:** `NOT EXECUTED`
+
+> Este documento se conserva como evidencia histórica del camino VPS +
+> Supabase Self-Hosted. No es el plan gobernante actual y ninguno de sus gates
+> pendientes se considera aprobado. El plan vigente es
+> [PPO-04 — Managed Free Production Pilot](PPO_04_MANAGED_FREE_PILOT_PLAN.md).
+> El cierre y handoff de esta ruta se documenta en
+> [PPO-04 — Cierre del camino Self-Hosted VPS](PPO_04_SELF_HOSTED_VPS_PATH_CLOSURE.md).
 
 **Fecha de apertura:** 2026-09-13
 

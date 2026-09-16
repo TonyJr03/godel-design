@@ -1,79 +1,81 @@
 # Preproducción y operación
 
-Este índice concentra la documentación vigente para preproducción, auditorías,
-arquitectura operativa y puesta en operación de Godel Diseño.
+Este índice distingue la gobernanza vigente, el camino de ejecución superseded,
+la evidencia Self-Hosted de referencia y la investigación futura. No se ha
+ejecutado ningún despliegue productivo.
 
-## Roadmaps activos
+## CURRENT / GOVERNING
 
-- [Roadmap PPO](PPO_ROADMAP.md): roadmap maestro de Preproducción y Puesta en
-  Operación; PPO-04 / Production Pilot V1 está `ACTIVE / NEXT`.
-- [Roadmap Self-Hosted](SH_ROADMAP.md): workstream técnico subordinado a PPO
-  para la transición a Supabase self-hosted; SH-01–SH-04 están cerrados y SH-05
-  está `PAUSED / NON-BLOCKING HARDENING`.
+- [PPO_ROADMAP.md](PPO_ROADMAP.md): roadmap maestro de Preproducción y Puesta
+  en Operación. PPO-04 está `ACTIVE / NEXT` con destino Vercel Hobby + Supabase
+  Managed Free.
+- [PPO_04_MANAGED_FREE_PILOT_PLAN.md](PPO_04_MANAGED_FREE_PILOT_PLAN.md): plan
+  gobernante de PPO-04M; PPO-04M.0 está `ACTIVE / NEXT` y PPO-04M.1+ no se ha
+  iniciado.
+- [PROJECT_STATUS.md](../PROJECT_STATUS.md): fotografía vigente del proyecto,
+  arquitectura, baseline y estados globales.
 
-## Documentos vigentes
+## HISTORICAL / SUPERSEDED EXECUTION PATH
 
-- [PPO-04 — Production Pilot V1](PPO_04_PRODUCTION_PILOT_PLAN.md): plan
-  gobernante `ACTIVE / NEXT` para el primer rollout productivo controlado;
-  construye App/Nginx `linux/amd64` fuera del VPS y exige generación productiva
-  propia, readiness del host, HTTPS, aislamiento, backup inicial y smoke real.
+- [PPO_04_PRODUCTION_PILOT_PLAN.md](PPO_04_PRODUCTION_PILOT_PLAN.md): antiguo
+  plan de ejecución Self-Hosted VPS, `SUPERSEDED`; deployment no ejecutado y
+  gates pendientes preservados.
+- [PPO_04_SELF_HOSTED_VPS_PATH_CLOSURE.md](PPO_04_SELF_HOSTED_VPS_PATH_CLOSURE.md):
+  cierre arquitectónico y handoff económico de esa ruta, no aprobación de un
+  despliegue.
 
-- [SH-05 — Handoff del rehearsal clean-host](SH_05_REHEARSAL_HANDOFF.md):
-  evidencia real sanitizada, límites y decisión de pausa. SH-05 queda
-  `PAUSED / NON-BLOCKING HARDENING`; SH-05.3 está `PARTIALLY PROVEN / DEFERRED`
-  y SH-05.4 está `DEFERRED`.
+## SELF-HOSTED REFERENCE
 
-- [SH-05.1 — Contrato de portabilidad clean-host y diseño de tooling](SH_05_CLEAN_HOST_PORTABILITY_DESIGN.md): cerrado y aprobado; SH-05.2 cerró `CLOSED / APPROVED / PASS_MINIMAL_CLEAN_HOST_PORTABILITY_TOOLING` y conserva la historia de sus subbloques. El tooling implementado no equivale por sí solo a prueba empírica; el estado vigente está en el handoff de rehearsal.
+- [SH_ROADMAP.md](SH_ROADMAP.md): full Supabase Self-Hosted congelado como
+  arquitectura de referencia. SH-01–SH-04 conservan `CLOSED / APPROVED`; SH-05
+  permanece `PAUSED / INCOMPLETE`.
+- [SH_05_REHEARSAL_HANDOFF.md](SH_05_REHEARSAL_HANDOFF.md): evidencia parcial,
+  límites y trabajo diferido de SH-05.3/SH-05.4.
+- [SH_05_PORTABILITY_DISCOVERY.md](SH_05_PORTABILITY_DISCOVERY.md): discovery
+  y fuentes de reconstrucción aprobadas.
+- [SH_05_CLEAN_HOST_PORTABILITY_DESIGN.md](SH_05_CLEAN_HOST_PORTABILITY_DESIGN.md):
+  contrato y tooling clean-host de SH-05.1/SH-05.2.
+- [SUPABASE_SELF_HOSTED_OPERATIONS_RUNBOOK.md](SUPABASE_SELF_HOSTED_OPERATIONS_RUNBOOK.md):
+  runbook técnico permanente de la arquitectura de referencia.
+- [SH_04_OPERATIONS_DESIGN.md](SH_04_OPERATIONS_DESIGN.md),
+  [SH_04_BACKUP_QA_REPORT.md](SH_04_BACKUP_QA_REPORT.md),
+  [SH_04_SECRETS_AUTH_REPORT.md](SH_04_SECRETS_AUTH_REPORT.md),
+  [SH_04_SECRET_ROTATION_REPORT.md](SH_04_SECRET_ROTATION_REPORT.md) y
+  [SH_04_UPDATE_ROLLBACK_DESIGN.md](SH_04_UPDATE_ROLLBACK_DESIGN.md): diseño y
+  evidencia operativa SH-04.
+- [SH_02_CLOSURE_REPORT.md](SH_02_CLOSURE_REPORT.md) y
+  [SH_03_CLOSURE_REPORT.md](SH_03_CLOSURE_REPORT.md): cierres de integración y
+  QA production-like.
+- [SH_01C_DATABASE_BASELINE_AUDIT.md](SH_01C_DATABASE_BASELINE_AUDIT.md):
+  auditoría aprobada de la baseline 01–06.
 
-- [SH-05.0 — Descubrimiento de portabilidad y realineación de destino](SH_05_PORTABILITY_DISCOVERY.md): cerrada y aprobada; documenta las fuentes de reconstrucción, las brechas clean-host y el realineamiento provider-neutral de SH/PPO. No ejecuta portabilidad ni despliegue.
+## FUTURE
 
-- [SH-04.3D — Rotación segura de secretos](SH_04_SECRET_ROTATION_REPORT.md): cerrada y aprobada; D.6 PASS aceptó la rotación/recovery, con TARGET D5 actual, GEN7/GEN6 retenidas y forensics R1A del backup pre-cutover aprobada.
+- [LSH_ROADMAP.md](LSH_ROADMAP.md): `LSH — Lightweight Self-Hosted`,
+  `PLANNED / NOT STARTED`. Comienza después de disponer de medidas reales del
+  Managed Pilot y conduce al decision gate Supabase Slim.
 
-- [SH-04.3 — Production Secrets & Auth Hardening](SH_04_SECRETS_AUTH_REPORT.md): cerrada y aprobada tras `SH043_FINAL_OPERATIONAL_ACCEPTANCE_PASS`; conserva la auditoría de secretos/Auth, la rotación, la compatibilidad recovery D5 y la aceptación operativa final. «SH-04.4 es el siguiente workstream» se conserva solo como handoff histórico de ese cierre; actualmente SH-04 está cerrado y SH-05 está pausado como hardening no bloqueante.
+## Evidencia PPO histórica relevante
 
-- [SH-02.0 — Diseño de integración Godel ↔ Supabase self-hosted](SH_02_INTEGRATION_DESIGN.md): cerrada y aprobada; incluye el estado vigente de SH-02.
-- [SH-02.1 — Compose, networking y naming neutral](SH_02_COMPOSE_NETWORK_REPORT.md): cerrada y aprobada.
-- [SH-02.2 — Nginx proxy, URL split y routing TUS](SH_02_NGINX_PROXY_REPORT.md): cerrada y aprobada.
-- [SH-02.3 — Runtime, readiness y configuración operativa](SH_02_RUNTIME_OPERATIONS_REPORT.md): cerrada y aprobada.
-- [SH-02 — Cierre de integración Godel ↔ Supabase self-hosted](SH_02_CLOSURE_REPORT.md): cerrada y aprobada; entrega la topología técnica a SH-03.
-- [SH-03 — Plan QA funcional production-like](SH_03_QA_PLAN.md): cerrada y aprobada, incluidas sus subfases y la regresión agregada.
-- [SH-03.1 — Provisioning QA, Auth, session, roles y Auth Admin](SH_03_AUTH_QA_REPORT.md): cierre aprobado, evidencia self-hosted y handoff de compatibilidad para SH-03.2.
-- [SH-03.2C — Solicitudes](SH_03_CORE_QA_REPORT.md): lifecycle por Nginx y fallback TD-NEXT-001 limitado por evidencia; cerrada y aprobada dentro de SH-03 cerrada.
-- [PPO-03C.1 - Control plane DB de reservas y finalize](PPO_03_CONTROL_PLANE_REPORT.md): cerrada y aprobada localmente; validada administrada en PPO-03C.3B.
-- [PPO-03C.2 - Infraestructura TypeScript de cargas directas](PPO_03_UPLOAD_APPLICATION_REPORT.md): cerrada con condición runtime en PPO-03D/E.
-- [PPO-03C.3B - Gate HTTPS administrado](PPO_03_CONTROL_PLANE_MANAGED_REPORT.md): cerrada; valida reserva, TUS, staged aislado y finalize idempotente contra el backend administrado.
-- [PPO-03F.0 — Diseño de expiración, reconciliación y cleanup](PPO_03F_CLEANUP_DESIGN.md): cerrada y aprobada arquitectónicamente.
-- [PPO-03F.1 — Lifecycle DB, cleanup authority y amendment final](PPO_03F_DATABASE_LIFECYCLE_REPORT.md): cerrada y aprobada en baseline.
-- [PPO-03F.2 — Executor server-only y operación manual de cleanup](PPO_03F_CLEANUP_EXECUTOR_REPORT.md): cerrada y aprobada.
-- [PPO-03F.3 — QA, freeze y handoff](PPO_03F_QA_FREEZE_REPORT.md): cerrada y aprobada; cierra PPO-03F y congela la baseline 01–06.
-- [Auditoría de baseline self-hosted SH-01C](SH_01C_DATABASE_BASELINE_AUDIT.md): evidencia aprobada de la baseline final de seis migraciones, fresh rebuild y validación de PostgreSQL, Auth y Storage.
-- [PPO-03A.1 — Contrato de cargas y almacenamiento](PPO_03_UPLOAD_STORAGE_CONTRACT.md): arquitectura objetivo aprobada para transferencia directa, sesiones, finalización y reconciliación; no implementa todavía el nuevo flujo.
-- [PPO-03A.2 — Informe de spike TUS y signed upload token](PPO_03_TUS_SPIKE_REPORT.md): evidencia local y veredicto aprobado con condiciones; habilita el inicio de PPO-03B.
-- [PPO-03B — Informe DB, RLS y Storage](PPO_03_STORAGE_DB_REPORT.md): fase cerrada; control plane de sesiones/items y policies operation-aware validados localmente y por HTTPS administrado.
-- [PPO-03B.2B — Validación HTTPS administrada de DB/Storage](PPO_03_STORAGE_MANAGED_REPORT.md): cerrada, aprobada con condición de integración para PPO-03C: reserva real, presigned administrado y staged no enumerable por actores no autorizados.
-- [Plan de auditoría PPO-01](PPO_01_AUDIT_PLAN.md): contrato operativo para auditar infraestructura y conectividad.
-- [Informe de capacidad PPO-01](PPO_01_CAPACITY_REPORT.md): plantilla para resultados resumidos y aprobados.
-- [PPO-02 - Plan de contenerización](PPO_02_CONTAINERIZATION_PLAN.md): contrato y trazabilidad de la base contenerizada local cerrada con condiciones.
-- [PPO-02A.2 - Spike técnico de empaquetado](PPO_02_PACKAGING_SPIKE.md): evidencia sanitizada de standalone, variables, secreto runtime y conectividad local.
-- [PPO-02B.1 - Informe de imagen app](PPO_02_APP_IMAGE_REPORT.md): evidencia sanitizada del Dockerfile de aplicación, build, runtime, split-horizon y seguridad de imagen.
-- [PPO-02B.2 - Informe de endurecimiento de imagen app](PPO_02_APP_IMAGE_HARDENING_REPORT.md): evidencia sanitizada de build reproducido, runtime read-only, tmpfs mínimos, SIGTERM y contrato operativo de secretos.
-- [PPO-02C.1 - Informe de imagen Nginx](PPO_02_NGINX_IMAGE_REPORT.md): evidencia sanitizada de imagen Nginx no privilegiada, configuración proxy, smoke vía Nginx y fallo controlado de upstream.
-- [PPO-02C.2 - Informe de Docker Compose](PPO_02_COMPOSE_REPORT.md): evidencia sanitizada de composición local, red interna, Nginx como única entrada, DNS dinámico, smokes, recursos y limpieza.
-- [PPO-02D.1 - Informe de healthchecks](PPO_02_HEALTHCHECK_REPORT.md): evidencia sanitizada de liveness, readiness, healthchecks Compose, dependencia `service_healthy`, degradación y recuperación.
-- [PPO-02D.2 - Validación con Supabase administrado](PPO_02_MANAGED_SUPABASE_REPORT.md): resultado `Aprobada con condiciones`; readiness administrado fue corregido con cabecera `apikey`, HTTPS con VPN activo funciona, baseline remota fue declarada aplicada manualmente y no se modifica backend remoto desde Codex.
-- [PPO-02E.1 - Cierre de base contenerizada reproducible](PPO_02_CLOSURE.md): cierre técnico y handoff operativo de PPO-02 como base local reproducible aprobada con condiciones.
-- [Cierre PPO-00](../preproduction/PPO_00_CLOSURE.md): baseline local cerrada que habilita PPO-01.
+- [PPO_02_MANAGED_SUPABASE_REPORT.md](PPO_02_MANAGED_SUPABASE_REPORT.md):
+  evidencia histórica de compatibilidad managed; no acepta el nuevo entorno.
+- [PPO_03_CONTROL_PLANE_MANAGED_REPORT.md](PPO_03_CONTROL_PLANE_MANAGED_REPORT.md)
+  y [PPO_03_STORAGE_MANAGED_REPORT.md](PPO_03_STORAGE_MANAGED_REPORT.md):
+  antecedentes managed de RPC, Storage y TUS.
+- [PPO_03F_QA_FREEZE_REPORT.md](PPO_03F_QA_FREEZE_REPORT.md): cierre y freeze de
+  la baseline 01–06.
+- [PPO_03G_UPLOAD_LIMITS_QA_REPORT.md](PPO_03G_UPLOAD_LIMITS_QA_REPORT.md):
+  cierre del gate de uploads y límites.
+- [PPO_02_CLOSURE.md](PPO_02_CLOSURE.md): cierre de la base contenerizada local,
+  conservada como evidencia técnica.
+- [PPO_01_AUDIT_PLAN.md](PPO_01_AUDIT_PLAN.md) y
+  [PPO_01_CAPACITY_REPORT.md](PPO_01_CAPACITY_REPORT.md): evidencia y contrato de
+  infraestructura previos; su trabajo residual de host no es gate del piloto
+  managed.
 
 ## Diferencia entre carpetas
 
-- `docs/production/`: planes activos, auditorías, arquitectura operativa y
-  documentos de puesta en operación. Esta carpeta gobierna el trabajo actual de
-  PPO mientras cada fase esté activa o pendiente.
-- `docs/preproduction/`: cierres o evidencias concretas ya existentes de las
-  fases de preparación. Estos documentos conservan resultados aprobados, como
-  el cierre de PPO-00.
-- `docs/archive/`: documentación histórica que no gobierna el trabajo actual.
-  Puede servir como contexto, pero no debe usarse como fuente primaria para
-  cambiar contratos funcionales vigentes.
-
-No se mueven archivos existentes como parte de PPO-01A.1.
+- `docs/production/`: planes activos, roadmaps, cierres y evidencia operativa.
+- `docs/preproduction/`: cierres concretos de preparación, como PPO-00.
+- `docs/archive/`: historia que puede aportar contexto pero no gobierna el
+  trabajo actual.

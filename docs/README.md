@@ -15,12 +15,17 @@ no son fuente primaria para implementar cambios actuales.
   auditorías y documentos de puesta en operación.
 - [Roadmap PPO](production/PPO_ROADMAP.md): iniciativa de Preproducción y
   Puesta en Operación y roadmap maestro.
-- [PPO-04 — Production Pilot V1](production/PPO_04_PRODUCTION_PILOT_PLAN.md):
-  plan activo para el primer rollout productivo controlado.
-- [Roadmap Self-Hosted](production/SH_ROADMAP.md): workstream técnico
-  subordinado; SH-05 está pausado como hardening no bloqueante.
+- [PPO-04 — Managed Free Production Pilot](production/PPO_04_MANAGED_FREE_PILOT_PLAN.md):
+  plan gobernante `ACTIVE / NEXT` para el primer rollout sobre Vercel Hobby y
+  Supabase Managed Free.
+- [Cierre del camino Self-Hosted VPS](production/PPO_04_SELF_HOSTED_VPS_PATH_CLOSURE.md):
+  ruta anterior superseded sin despliegue.
+- [Roadmap Self-Hosted](production/SH_ROADMAP.md): workstream full-stack
+  congelado como referencia; SH-05 permanece pausado/incompleto.
+- [LSH — Lightweight Self-Hosted](production/LSH_ROADMAP.md): investigación
+  futura planificada, todavía no iniciada.
 - [Handoff del rehearsal SH-05](production/SH_05_REHEARSAL_HANDOFF.md):
-  evidencia cross-host real, límites y trabajo diferido post-piloto.
+  evidencia cross-host real, límites y trabajo diferido sujeto a LSH.
 - [Plan de auditoría PPO-01](production/PPO_01_AUDIT_PLAN.md): contrato para
   auditoría de infraestructura y conectividad.
 - [Informe de capacidad PPO-01](production/PPO_01_CAPACITY_REPORT.md):
