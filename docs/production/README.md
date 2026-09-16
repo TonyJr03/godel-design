@@ -10,11 +10,14 @@ ejecutado ningún despliegue productivo.
   en Operación. PPO-04 está `ACTIVE / NEXT` con destino Vercel Hobby + Supabase
   Managed Free.
 - [PPO_04_MANAGED_FREE_PILOT_PLAN.md](PPO_04_MANAGED_FREE_PILOT_PLAN.md): plan
-  gobernante de PPO-04M; PPO-04M.0 está `CLOSED / APPROVED`, PPO-04M.1 está
-  `ACTIVE / NEXT` y PPO-04M.2–PPO-04M.7 no se han iniciado.
+  gobernante de PPO-04M; PPO-04M.0 y PPO-04M.1 están `CLOSED / APPROVED`,
+  PPO-04M.2 está `ACTIVE / NEXT` y PPO-04M.3–PPO-04M.7 no se han iniciado.
 - [PPO_04M0_MANAGED_ARCHITECTURE_AUDIT.md](PPO_04M0_MANAGED_ARCHITECTURE_AUDIT.md):
   contrato aprobado de arquitectura, variables, Auth, DB, Storage, Vercel, QA,
   backup boundary y handoff exacto a PPO-04M.1.
+- [PPO_04M1_SUPABASE_FREE_PROJECT_REPORT.md](PPO_04M1_SUPABASE_FREE_PROJECT_REPORT.md):
+  aceptación sanitizada del proyecto Supabase Free separado, saludable, vacío
+  y listo para el provisioning de PPO-04M.2.
 - [PROJECT_STATUS.md](../PROJECT_STATUS.md): fotografía vigente del proyecto,
   arquitectura, baseline y estados globales.
 

@@ -153,7 +153,9 @@ al piloto managed; PPO-06 lo operacionalizará en profundidad y PPO-07 conserva
 observabilidad, logs, métricas, alertas y soporte adaptados a los proveedores.
 PPO-04M.0 queda `CLOSED / APPROVED` mediante
 [PPO_04M0_MANAGED_ARCHITECTURE_AUDIT.md](PPO_04M0_MANAGED_ARCHITECTURE_AUDIT.md);
-PPO-04M.1 queda `ACTIVE / NEXT` y PPO-04M.2–PPO-04M.7 permanecen `NOT STARTED`.
+PPO-04M.1 queda `CLOSED / APPROVED` mediante
+[PPO_04M1_SUPABASE_FREE_PROJECT_REPORT.md](PPO_04M1_SUPABASE_FREE_PROJECT_REPORT.md);
+PPO-04M.2 queda `ACTIVE / NEXT` y PPO-04M.3–PPO-04M.7 permanecen `NOT STARTED`.
 
 ## Estado de fases
 

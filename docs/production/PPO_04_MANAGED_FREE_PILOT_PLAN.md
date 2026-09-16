@@ -4,11 +4,11 @@
 
 **Estado de PPO-04M:** `ACTIVE / NEXT`
 
-**Bloque activo:** `PPO-04M.1 — ACTIVE / NEXT`
+**Bloque activo:** `PPO-04M.2 — ACTIVE / NEXT`
 
-**PPO-04M.0:** `CLOSED / APPROVED`
+**PPO-04M.0–PPO-04M.1:** `CLOSED / APPROVED`
 
-**PPO-04M.2–PPO-04M.7:** `NOT STARTED`
+**PPO-04M.3–PPO-04M.7:** `NOT STARTED`
 
 **Despliegue productivo:** `NOT EXECUTED`
 
@@ -19,11 +19,15 @@
 **Evidencia M.0:**
 [PPO_04M0_MANAGED_ARCHITECTURE_AUDIT.md](PPO_04M0_MANAGED_ARCHITECTURE_AUDIT.md)
 
+**Evidencia M.1:**
+[PPO_04M1_SUPABASE_FREE_PROJECT_REPORT.md](PPO_04M1_SUPABASE_FREE_PROJECT_REPORT.md)
+
 ```text
 PPO-04M = ACTIVE / NEXT
 PPO-04M.0 = CLOSED / APPROVED
-PPO-04M.1 = ACTIVE / NEXT
-PPO-04M.2–PPO-04M.7 = NOT STARTED
+PPO-04M.1 = CLOSED / APPROVED
+PPO-04M.2 = ACTIVE / NEXT
+PPO-04M.3–PPO-04M.7 = NOT STARTED
 PRODUCTION DEPLOYMENT = NOT EXECUTED
 ```
 
@@ -81,8 +85,8 @@ provider limits are external and must be revalidated at execution time
 | Bloque | Nombre | Estado |
 | --- | --- | --- |
 | PPO-04M.0 | Managed Free Architecture & Governance | `CLOSED / APPROVED` |
-| PPO-04M.1 | Supabase Free Production Project | `ACTIVE / NEXT` |
-| PPO-04M.2 | Database / Auth / Storage Provisioning | `NOT STARTED` |
+| PPO-04M.1 | Supabase Free Production Project | `CLOSED / APPROVED` |
+| PPO-04M.2 | Database / Auth / Storage Provisioning | `ACTIVE / NEXT` |
 | PPO-04M.3 | Vercel Hobby Deployment | `NOT STARTED` |
 | PPO-04M.4 | Managed Production QA | `NOT STARTED` |
 | PPO-04M.5 | Free-Tier Backup & Recovery Baseline | `NOT STARTED` |
@@ -133,7 +137,9 @@ específico para producción/piloto. Esta fase debe:
 - verificar una baseline limpia antes de provisionar;
 - registrar ownership, acceso y recuperación administrativa de forma segura.
 
-Este pivot documental no crea ni modifica proyectos Supabase remotos.
+El proyecto fue aceptado sin aplicar la baseline ni crear datos. La evidencia
+sanitizada, los límites de la verificación pública y el handoff constan en
+[PPO_04M1_SUPABASE_FREE_PROJECT_REPORT.md](PPO_04M1_SUPABASE_FREE_PROJECT_REPORT.md).
 
 ## 6. PPO-04M.2 — Database / Auth / Storage Provisioning
 
