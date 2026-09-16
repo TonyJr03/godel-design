@@ -1,26 +1,41 @@
 # SH — Roadmap de transición a Supabase Self-Hosted
 
+**Workstream:** `FULL SUPABASE SELF-HOSTED WORKSTREAM`
+
+**Estado global:** `FROZEN AS REFERENCE ARCHITECTURE`
+
+**Destino productivo actual:** `NOT CURRENT PRODUCTION TARGET`
+
+**Despliegue productivo full self-hosted:** `NOT EXECUTED`
+
 ## Gobernanza
 
 `PPO_ROADMAP.md` es el roadmap maestro de Preproducción y Puesta en Operación.
-Este documento describe el workstream técnico subordinado que completa el pivot:
+Este documento conserva el workstream técnico subordinado que investigó y
+validó el pivot histórico:
 
 ```text
 Supabase managed
 → Supabase self-hosted Docker
 ```
 
-SH no es un roadmap de producto paralelo, una sustitución de PPO, una segunda
-puesta en producción ni una duplicación de PPO-04, PPO-06, PPO-07 o PPO-10.
-Tiene un alcance técnico acotado. SH-01–SH-04 están cerrados/aprobados; SH-05
-queda pausado sin cierre fraudulento y su trabajo pendiente se conserva como
-endurecimiento post-piloto. PPO-04 puede avanzar sin esperar ese cierre.
+SH no es un roadmap de producto paralelo, una sustitución de PPO ni una segunda
+puesta en producción. Tiene un alcance técnico acotado. SH-01–SH-04 conservan
+sus cierres/aprobaciones; SH-05 permanece `PAUSED / INCOMPLETE` sin cierre
+fraudulento. El full-stack Supabase Self-Hosted queda congelado como referencia
+técnica por viabilidad económica y presupuesto actual, no por fallo técnico.
+
+La ruta productiva actual está gobernada por
+[PPO-04 — Managed Free Production Pilot](PPO_04_MANAGED_FREE_PILOT_PLAN.md).
+La investigación self-hosted futura se separa en
+[LSH — Lightweight Self-Hosted](LSH_ROADMAP.md), cuyo objetivo es reducir el
+footprint del runtime antes de reanudar una producción portable.
 
 ## Propósito
 
-SH proporciona a PPO un backend Supabase self-hosted que sea reproducible,
-integrado, validado, operable, recuperable y portable. No introduce nuevas
-funcionalidades de producto.
+SH produjo para PPO una arquitectura Supabase self-hosted reproducible,
+integrada, validada y operable, con portabilidad incompleta. No introduce nuevas
+funcionalidades de producto y no es el target productivo actual.
 
 La arquitectura vigente es:
 
@@ -29,17 +44,21 @@ DESARROLLO / E2E
 npm run dev
 → Supabase CLI local
 
-PRODUCTION-LIKE / CONTRATO OPERATIVO
+SELF-HOSTED REFERENCE / EVIDENCIA PRODUCTION-LIKE
 App Docker + Nginx
 → Supabase self-hosted Docker
 
-DESTINO OPERATIVO FUTURO
-VPS seleccionada, bajo el contrato provider-neutral
-COMPATIBLE CLEAN LINUX DOCKER HOST
+CURRENT PRODUCTION TARGET
+Vercel Hobby / Next.js
+→ Supabase Managed Free
+
+FUTURE SELF-HOSTED R&D
+LSH → Supabase Slim → decision gate
 ```
 
-Supabase administrado pertenece únicamente a evidencia histórica previa; no es
-el backend objetivo actual.
+La evidencia managed de PPO-02/PPO-03 vuelve a ser antecedente relevante, pero
+no sustituye la aceptación propia del nuevo piloto. La evidencia self-hosted se
+conserva sin declararla despliegue productivo.
 
 ## Estado del workstream
 
@@ -49,7 +68,7 @@ el backend objetivo actual.
 | SH-02 | Integración Godel ↔ Supabase self-hosted | Cerrada / aprobada |
 | SH-03 | QA funcional production-like | Cerrada / aprobada |
 | SH-04 | Fundamentos operativos self-hosted | CLOSED / APPROVED |
-| SH-05 | Portabilidad reproducible | PAUSED / NON-BLOCKING HARDENING |
+| SH-05 | Portabilidad reproducible | PAUSED / INCOMPLETE |
 | SH-05.0 | Discovery and target realignment | CLOSED / APPROVED / PASS_PORTABILITY_DISCOVERY |
 
 ### SH-01 — cerrada / aprobada
@@ -164,7 +183,7 @@ de Storage en [SH_03_STORAGE_QA_REPORT.md](SH_03_STORAGE_QA_REPORT.md).
 SH-03 está cerrada/aprobada; SH-03.1, SH-03.2, SH-03.3 y SH-03.4 también están
 cerradas/aprobadas, incluidas SH-03.3A–E. PPO-03G y PPO-03 quedan
 `CLOSED / APPROVED`; SH-04 y sus subbloques quedan `CLOSED / APPROVED`.
-SH-05 está `PAUSED / NON-BLOCKING HARDENING`; SH-05.0, SH-05.1 y SH-05.2
+SH-05 está `PAUSED / INCOMPLETE`; SH-05.0, SH-05.1 y SH-05.2
 conservan sus cierres aprobados. SH-05.3 queda `PARTIALLY PROVEN / DEFERRED` y
 SH-05.4 queda `DEFERRED`.
 El handoff conserva las acciones que aún
@@ -195,7 +214,7 @@ el fallback documental.
 El runbook técnico permanente de SH-04 está en
 [SUPABASE_SELF_HOSTED_OPERATIONS_RUNBOOK.md](SUPABASE_SELF_HOSTED_OPERATIONS_RUNBOOK.md).
 SH-04 queda `CLOSED / APPROVED`; SH-05 — Portabilidad reproducible queda
-`PAUSED / NON-BLOCKING HARDENING`. SH-05.0 queda `CLOSED / APPROVED /
+`PAUSED / INCOMPLETE`. SH-05.0 queda `CLOSED / APPROVED /
 PASS_PORTABILITY_DISCOVERY`; SH-05.1 queda `CLOSED / APPROVED`; SH-05.2 queda
 `CLOSED / APPROVED / PASS_MINIMAL_CLEAN_HOST_PORTABILITY_TOOLING`; SH-05.2A queda `CLOSED / APPROVED /
 PASS_CANONICAL_SECURITY_AUDIT_REALIGNMENT`; SH-05.2B queda `CLOSED / APPROVED /
@@ -256,13 +275,13 @@ No define todavía retenciones ni cron productivo.
 
 ### SH-05 — Portabilidad reproducible
 
-**Estado vigente:** `PAUSED / NON-BLOCKING HARDENING`.
+**Estado vigente:** `PAUSED / INCOMPLETE`.
 
-SH-05 demuestra que la instalación puede reconstruirse desde repositorio,
+SH-05 buscó demostrar que la instalación podía reconstruirse desde repositorio,
 configuración externa, secretos y backups en un **compatible clean Linux Docker
-host**. Hosting DC es el proveedor actualmente seleccionado para PPO, no una
-dependencia codificada de SH. La primera prueba deberá usar Linux amd64; la
-compatibilidad incluye arquitectura.
+host**. Hosting DC fue el proveedor seleccionado por el camino VPS posteriormente
+superseded, no una dependencia codificada de SH. La primera prueba usó el
+contrato Linux amd64; la compatibilidad incluye arquitectura.
 
 ```text
 host A
@@ -272,11 +291,11 @@ host A
 → Godel operativo
 ```
 
-No ejecuta despliegue productivo ni sobre una VPS real ni sobre un host de
-empresa. PPO-04 adopta un modelo distinto: construye las imágenes de release
-fuera del VPS y ejecuta artefactos verificados en el host productivo. El build
-target-side y la aceptación clean-host restantes no bloquean ese piloto;
-PPO-10 queda reservado para una migración futura que llegue a ser necesaria.
+No ejecutó despliegue productivo ni sobre una VPS real ni sobre un host de
+empresa. El camino PPO-04 Self-Hosted VPS que proponía construir las imágenes
+fuera del target quedó superseded sin despliegue. El build target-side y la
+aceptación clean-host restantes permanecen incompletos; LSH decidirá en el
+futuro si procede reutilizarlos para un perfil ligero.
 
 | Subbloque | Estado |
 | --- | --- |
@@ -321,8 +340,9 @@ explícita a los bytes verificados dentro del `git archive`; y el diagnóstico s
 frontend externo quedó detenido en un `npm ci` que no concluyó tras unas cuatro
 horas. No se completaron el build Godel target-side, la aceptación funcional/
 Playwright ni el cierre/cleanup agregado. Por decisión de gobernanza, SH-05.3
-queda `PARTIALLY PROVEN / DEFERRED`, SH-05.4 queda `DEFERRED`, SH-05 permanece
-`PAUSED / NON-BLOCKING HARDENING` y PPO-04 pasa a `ACTIVE / NEXT`.
+queda `PARTIALLY PROVEN / DEFERRED`, SH-05.4 queda `DEFERRED` y SH-05 permanece
+`PAUSED / INCOMPLETE`. La posterior ruta VPS de PPO-04 fue superseded por el
+Managed Free Production Pilot antes de desplegarse.
 
 ## Secuencia integrada y gates
 
@@ -356,7 +376,7 @@ SH-05 PARTIALLY PROVEN
 ```
 
 La ruta activa actual está gobernada por
-[PPO-04 — Production Pilot V1](PPO_04_PRODUCTION_PILOT_PLAN.md).
+[PPO-04 — Managed Free Production Pilot](PPO_04_MANAGED_FREE_PILOT_PLAN.md).
 
 PPO-03F cerró/aprobó el lifecycle de Storage: `reserved → upload → finalize →
 committed`, además de abandono, expiración, reconciliación y cleanup, con
@@ -378,7 +398,7 @@ TD-UPLOAD-001 y completó la documentación de PPO-03. SH-04 queda
 `CLOSED / APPROVED / PASS_RUNBOOK_DISCOVERY` → SH-04.5B
 `CLOSED / APPROVED / PASS_RUNBOOK_IMPLEMENTATION` → SH-04.5
 `CLOSED / APPROVED / PASS_TECHNICAL_RUNBOOK`. SH-05 queda
-`PAUSED / NON-BLOCKING HARDENING`; SH-05.0 queda `CLOSED / APPROVED / PASS_PORTABILITY_DISCOVERY`
+`PAUSED / INCOMPLETE`; SH-05.0 queda `CLOSED / APPROVED / PASS_PORTABILITY_DISCOVERY`
 y SH-05.1 queda `CLOSED / APPROVED`; SH-05.2 queda `CLOSED / APPROVED /
 PASS_MINIMAL_CLEAN_HOST_PORTABILITY_TOOLING`; SH-05.2A queda
 `CLOSED / APPROVED / PASS_CANONICAL_SECURITY_AUDIT_REALIGNMENT`; SH-05.2B
@@ -416,47 +436,32 @@ si SÍ:
 PPO-03F cerró/aprobó y `BASELINE 01–06 = FROZEN`. Todo cambio de base de datos
 posterior deberá ser una migración nueva `07+`; no se reescribirán 01–06.
 
-## Relación con PPO posterior
+## Relación con PPO y LSH posteriores
 
-PPO-03 está cerrado y SH-05 queda pausado. La secuencia activa de PPO continúa
-sin exigir el cierre de SH:
+PPO-03 está cerrado y SH-05 queda pausado/incompleto. PPO continúa sin exigir
+el cierre de SH:
 
 ```text
-PPO-04 / Production Pilot V1
-        │
-        ▼
-PPO-05
-        │
-        ▼
-PPO-06
-        │
-        ▼
-PPO-07
-        │
-        ▼
-PPO-08
-        │
-        ▼
-PPO-09
-        │
-        ▼
-PPO-10
+PPO-04M / Managed Free Production Pilot
+→ PPO-05 / seguridad pública y antiabuso
+→ PPO-06 / backup y recovery managed
+→ PPO-07 / observabilidad y operación managed
+→ PPO-08 / UAT
+→ PPO-09 / estabilización
+→ medidas reales para LSH
 ```
 
-PPO-01C/D son evidencia histórica de un camino company-host que fue superseded
-antes de ejecutarse. El readiness provider-neutral PPO-01E/F se coordina con los
-gates de VPS de PPO-04: no bloquea la preparación de release/configuración, pero
-su veredicto aceptable sí es obligatorio antes del primer uso real.
+PPO-01C/D y PPO-01E/F conservan la historia de readiness de hosts anteriores,
+pero el trabajo residual de host VPS/Linux deja de ser gate del piloto actual y
+se difiere a LSH o a un futuro self-host autorizado.
 
-PPO-04 es el despliegue productivo controlado al VPS seleccionado. Exige HTTPS,
-firewall y aislamiento mínimo antes de credenciales reales. La exposición
-pública general e irrestricta queda pendiente de PPO-05, que conserva rate
-limiting, antiabuso, protección de `/solicitud` y `/estado`, política de
-requests públicas, hardening y revisión de uploads.
+PPO-05 conserva rate limiting, antiabuso, protección de `/solicitud` y
+`/estado`, política de requests públicas, hardening y revisión de uploads,
+independientemente de Vercel. PPO-06 debe definir backup/recovery productivo
+para Supabase Managed Free; las capacidades SH-04 son evidencia conceptual, no
+una implementación managed directamente compatible. PPO-07 adaptará
+observabilidad, logs, métricas, alertas, runbooks y operación a Vercel/Supabase.
 
-PPO-06 operacionaliza en el host productivo seleccionado las capacidades
-probadas en SH-04: frecuencia, retención, ubicación, copia secundaria,
-responsabilidades, restore drills y recuperación ante desastre. PPO-07 conserva
-observabilidad, logs, métricas, alertas, runbooks y operación cotidiana. PPO-08
-conserva UAT; PPO-09, estabilización; y PPO-10 queda como migración futura
-opcional de proveedor/infraestructura si llega a requerirse.
+LSH empieza únicamente después de obtener medidas reales del piloto. PPO-10
+queda reservado para gobernar una eventual migración productiva posterior al
+decision gate de LSH, sin duplicar la investigación ni el prototipo ligero.

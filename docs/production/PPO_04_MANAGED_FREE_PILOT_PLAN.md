@@ -1,0 +1,272 @@
+# PPO-04 — Managed Free Production Pilot
+
+**Estado de PPO-04:** `ACTIVE / NEXT`
+
+**Estado de PPO-04M:** `ACTIVE / NEXT`
+
+**Bloque activo:** `PPO-04M.0 — ACTIVE / NEXT`
+
+**PPO-04M.1–PPO-04M.7:** `NOT STARTED`
+
+**Despliegue productivo:** `NOT EXECUTED`
+
+**Fecha de apertura:** 2026-09-16
+
+**Roadmap maestro:** [PPO_ROADMAP.md](PPO_ROADMAP.md)
+
+```text
+PPO-04M = ACTIVE / NEXT
+PPO-04M.0 = ACTIVE / NEXT
+PPO-04M.1+ = NOT STARTED
+PRODUCTION DEPLOYMENT = NOT EXECUTED
+```
+
+## 1. Objetivo y arquitectura gobernante
+
+PPO-04M gobierna el primer despliegue real funcional de Godel Diseño con coste
+de infraestructura de 0 USD:
+
+```text
+Browser
+  │
+  ├── Vercel Hobby / Next.js
+  │
+  └── Supabase Managed Free
+          ├── PostgreSQL
+          ├── PostgREST
+          ├── Auth
+          └── Storage
+```
+
+Este piloto no usa Nginx, Docker, VPS ni Supabase Self-Hosted en producción. El
+registro de generaciones de secretos self-hosted tampoco es el mecanismo
+productivo managed. Desarrollo y E2E conservan `Next.js development + Supabase
+CLI/local workflow` hasta que una decisión explícita los cambie.
+
+PPO-02 y PPO-03 aportan evidencia histórica de compatibilidad con Supabase
+Managed, incluidos Storage, TUS y RPCs. No aceptan el nuevo entorno productivo:
+PPO-04M debe generar evidencia propia.
+
+## 2. Premisas y constraints
+
+- Godel Diseño se considera actualmente personal y no comercial; bajo esa
+  premisa se ha seleccionado Vercel Hobby.
+- Si el uso del proyecto cambia materialmente, debe reevaluarse la elegibilidad
+  del plan de hosting antes de continuar.
+- Supabase Free está sujeto a límites, pausas y condiciones externas. Los
+  límites del proveedor se revalidarán al ejecutar; este documento no congela
+  cifras que puedan cambiar.
+
+```text
+provider limits are external and must be revalidated at execution time
+```
+
+- Se monitorizará capacidad y habrá un trigger de upgrade o migración si el
+  margen del free tier deja de ser suficiente.
+- Supabase Managed Free no se considera la única copia confiable de los datos.
+- Los secretos y credenciales permanecen fuera de Git, documentación, logs y
+  superficies cliente.
+- `SUPABASE_SECRET_KEY` es server-only y solo puede ser consumida por el
+  adaptador Auth Admin existente. No se usa `SUPABASE_SERVICE_ROLE_KEY` ni se
+  crean clientes admin nuevos.
+
+## 3. Estado de bloques
+
+| Bloque | Nombre | Estado |
+| --- | --- | --- |
+| PPO-04M.0 | Managed Free Architecture & Governance | `ACTIVE / NEXT` |
+| PPO-04M.1 | Supabase Free Production Project | `NOT STARTED` |
+| PPO-04M.2 | Database / Auth / Storage Provisioning | `NOT STARTED` |
+| PPO-04M.3 | Vercel Hobby Deployment | `NOT STARTED` |
+| PPO-04M.4 | Managed Production QA | `NOT STARTED` |
+| PPO-04M.5 | Free-Tier Backup & Recovery Baseline | `NOT STARTED` |
+| PPO-04M.6 | Production Pilot Rollout | `NOT STARTED` |
+| PPO-04M.7 | Stabilization & Usage Measurement | `NOT STARTED` |
+
+## 4. PPO-04M.0 — Managed Free Architecture & Governance
+
+### Alcance
+
+- cerrar formalmente la topología Browser → Vercel/Supabase Managed;
+- asignar a Vercel el hosting/build/runtime Next.js y HTTPS administrado;
+- asignar a Supabase PostgreSQL, PostgREST, Auth y Storage managed;
+- inventariar variables públicas, variables server-only, responsables y
+  superficies autorizadas sin registrar sus valores;
+- confirmar que VPS readiness, Nginx, Docker productivo, full Supabase
+  Self-Hosted y generación de secretos self-hosted dejan de ser gates;
+- reutilizar baseline 01–06, contratos funcionales, RLS/RPC/policies, QA y
+  evidencia managed previa como antecedentes, no como aceptación;
+- registrar responsabilidades de operación, incidentes y decisión de pausa.
+
+### Criterios de salida
+
+- topología y límites aprobados por Dirección Técnica;
+- inventario de configuración clasificado en público/server-only;
+- separación clara entre proyecto de desarrollo y proyecto productivo/piloto;
+- orden PPO-04M.1–PPO-04M.7 aceptado;
+- dependencias, evidencia reutilizable y gates no aplicables documentados;
+- confirmación de que aún no existe despliegue productivo.
+
+## 5. PPO-04M.1 — Supabase Free Production Project
+
+Crear, en una ejecución posterior autorizada, un proyecto Supabase Free
+específico para producción/piloto. Esta fase debe:
+
+- seleccionar y registrar la región adecuada;
+- separar el proyecto productivo del desarrollo y de cualquier evidencia
+  histórica;
+- definir settings de Auth, URLs y redirects requeridos;
+- mantener keys y credenciales fuera de Git;
+- verificar una baseline limpia antes de provisionar;
+- registrar ownership, acceso y recuperación administrativa de forma segura.
+
+Este pivot documental no crea ni modifica proyectos Supabase remotos.
+
+## 6. PPO-04M.2 — Database / Auth / Storage Provisioning
+
+Provisionar el entorno mediante la baseline vigente de exactamente seis
+migraciones:
+
+1. `20260811131824_01_core_schema.sql`
+2. `20260811131825_02_security_rls_grants.sql`
+3. `20260811131826_03_business_rpcs.sql`
+4. `20260811131827_04_storage.sql`
+5. `20260811131828_05_auth_admin_user_lifecycle.sql`
+6. `20260811131829_06_final_hardening.sql`
+
+```text
+BASELINE 01–06 = FROZEN
+```
+
+No se ejecutará seed productivo salvo decisión explícita. Cualquier cambio DB
+posterior seguirá siendo una migración nueva `07+`.
+
+El gate debe validar:
+
+- aplicación limpia y ordenada de 01–06;
+- Auth y settings aprobados;
+- creación de usuarios/perfiles iniciales por el mecanismo autorizado;
+- bucket privado y metadata de Storage;
+- RLS, grants, RPCs, triggers y policies;
+- TUS autenticado, signed uploads públicos y finalize;
+- separación staged/committed, listing y descargas protegidas;
+- ausencia de datos seed no autorizados y consistencia de la baseline.
+
+## 7. PPO-04M.3 — Vercel Hobby Deployment
+
+En una ejecución posterior se deberá:
+
+- crear el proyecto Vercel y vincular la integración Git autorizada;
+- configurar variables por entorno, separando públicas y server-only;
+- comprobar que ninguna key server-only llega al cliente o al build público;
+- construir y desplegar el Git exacto aprobado;
+- aceptar inicialmente el dominio `*.vercel.app`;
+- usar el HTTPS gestionado por Vercel;
+- comprobar liveness, readiness y conectividad con Supabase Managed.
+
+Un dominio propio no es gate inicial. No se crea `vercel.json` salvo evidencia
+posterior de que sea necesario.
+
+## 8. PPO-04M.4 — Managed Production QA
+
+El entorno managed tendrá su propia aceptación real y sanitizada. Como mínimo:
+
+- `health/live` y `health/ready`;
+- login y logout;
+- roles, acceso autorizado y restricciones;
+- dashboard;
+- clientes;
+- solicitud pública;
+- conversión de solicitud;
+- pedidos;
+- tareas;
+- pagos;
+- comentarios e historial cuando corresponda;
+- tracking público;
+- carga interna y carga pública;
+- TUS y resume;
+- finalize;
+- listing;
+- descarga protegida;
+- casos negativos esenciales de RLS y seguridad.
+
+La evidencia PPO-02/PPO-03 orienta el QA, pero no sustituye sus resultados.
+Todo P0/P1 impide avanzar al rollout hasta su resolución o una decisión formal
+de pausa.
+
+## 9. PPO-04M.5 — Free-Tier Backup & Recovery Baseline
+
+```text
+external backup required
+```
+
+Antes de depender del piloto para datos reales debe aprobarse una estrategia
+reproducible que cubra:
+
+- schema;
+- datos PostgreSQL;
+- objetos y metadata de Storage necesarios;
+- configuración que pueda documentarse y reconstruirse;
+- checks/inventario de integridad;
+- custodia fuera de Supabase.
+
+Esta fase define discovery, responsabilidades, frecuencia mínima, verificación
+y criterio de recuperación antes de seleccionar o implementar herramientas.
+Las capacidades de SH-04 son antecedentes conceptuales; no se afirma que sus
+mecanismos sean directamente compatibles con Supabase Managed Free. PPO-04M.5
+es un gate mínimo del piloto y no cierra el workstream completo PPO-06.
+
+## 10. PPO-04M.6 — Production Pilot Rollout
+
+```text
+small initial real use
+→ observe
+→ stop on P0/P1
+```
+
+El rollout comienza con un grupo y volumen pequeños, responsables identificados
+y criterios de pausa. No se amplía ante pérdida de datos, acceso no autorizado,
+exposición de secretos, recuperación no confiable, errores core P0/P1 o falta
+de margen operativo. La promoción requiere evidencia y aprobación expresa de
+Dirección Técnica.
+
+## 11. PPO-04M.7 — Stabilization & Usage Measurement
+
+Durante estabilización se medirán, como mínimo:
+
+- tamaño de la base PostgreSQL;
+- uso de Storage;
+- crecimiento de Storage;
+- egress;
+- frecuencia de uploads;
+- tamaños promedio y pico de archivos;
+- usuarios activos;
+- concurrencia aproximada;
+- volumen de requests;
+- incidentes;
+- margen disponible dentro del free tier.
+
+Estas medidas alimentan el inventario y los benchmarks de LSH; no se estiman
+como si fueran evidencia real antes del piloto.
+
+## 12. Relación con PPO-05, PPO-06 y PPO-07
+
+- PPO-05 conserva seguridad pública, antiabuso y rate limiting, con
+  independencia de que el frontend se aloje en Vercel.
+- PPO-06 diseñará backup/recovery productivo completo para Supabase Managed
+  Free en la ruta actual; LSH tendrá después su modelo portable propio.
+- PPO-07 adaptará observabilidad, alertas, incidentes y operación a Vercel y
+  Supabase Managed.
+
+Ninguno queda cerrado por este plan.
+
+## 13. Condición de cierre
+
+PPO-04M solo podrá cerrar con proyecto managed provisionado, deployment Vercel
+aceptado, QA managed propio aprobado, backup externo reproducible, rollout
+controlado y medidas iniciales registradas. Hasta entonces:
+
+```text
+PPO-04M = ACTIVE / NEXT
+PRODUCTION DEPLOYMENT = NOT EXECUTED
+```

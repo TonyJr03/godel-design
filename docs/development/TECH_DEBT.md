@@ -353,7 +353,7 @@ fixture de asignación.
 - Área: Build / Supply chain / Portabilidad.
 - Severidad: Media.
 - Bloquea producción pública: No.
-- Clasificación: `post-pilot hardening`.
+- Clasificación: `frozen SH reference / potential LSH input`.
 - Estado: Activa.
 
 `godel-image-build.mjs` crea un contexto exacto mediante `git archive`, pero
@@ -367,15 +367,15 @@ Invariante de cierre:
 verified Dockerfile bytes == Dockerfile bytes actually passed to Buildx
 ```
 
-Corregirlo y cubrir el mismatch con pruebas fail-closed. No se modifica el
-builder durante la apertura de PPO-04.
+Corregirlo y cubrir el mismatch con pruebas fail-closed si LSH decide reutilizar
+este builder. No es gate del Managed Free Pilot.
 
 ### TD-SH05-002 - Dependencia del frontend Dockerfile externo
 
 - Área: Build / Portabilidad offline.
 - Severidad: Media.
 - Bloquea producción pública: No.
-- Clasificación: `post-pilot hardening`.
+- Clasificación: `frozen SH reference / potential LSH input`.
 - Estado: Activa.
 
 Los Dockerfiles usan `# syntax=docker/dockerfile:1.7`. El rehearsal real recibió
@@ -393,7 +393,7 @@ el build clean-host.
 - Área: Build / Portabilidad.
 - Severidad: Media.
 - Bloquea producción pública: No.
-- Clasificación: `post-pilot hardening`.
+- Clasificación: `frozen SH reference / potential LSH input`.
 - Estado: Activa.
 
 El diagnóstico con el Dockerfile del `git archive` exacto y sin la directiva
@@ -403,16 +403,16 @@ el stage base, copiar `package.json`/`package-lock.json` e iniciar `npm ci`.
 se detuvo. No existe evidencia suficiente para afirmar un fallo del registry de
 npm.
 
-El impacto productivo es no bloqueante porque PPO-04 construirá App/Nginx fuera
-del VPS y el VPS ejecutará artefactos de release verificados. El cierre de esta
-deuda exige completar y registrar el build target-side en un host limpio.
+No bloquea el Managed Free Pilot porque esa arquitectura no usa App/Nginx
+Docker ni VPS en producción. Si LSH decide reutilizar esta capacidad, el cierre
+exigirá completar y registrar el build target-side en un host limpio.
 
 ### TD-SH05-004 - Aceptación funcional y cierre SH-05 pendientes
 
 - Área: QA / Operación / Portabilidad.
 - Severidad: Media.
 - Bloquea producción pública: No.
-- Clasificación: `post-pilot hardening`.
+- Clasificación: `frozen SH reference / potential LSH input`.
 - Estado: Activa.
 
 SH-05.3 queda `PARTIALLY PROVEN / DEFERRED` y SH-05.4 queda `DEFERRED`. El
@@ -421,8 +421,9 @@ autoridad OCI local, pero no completó el build Godel target-side, el runtime
 funcional completo, la aceptación Playwright, el cleanup final ni el cierre
 agregado de SH.
 
-Retomar después del piloto con el conjunto exacto de reconstrucción que apruebe
-Dirección Técnica. No reinterpretar la evidencia parcial como `SH-05 CLOSED`.
+Reevaluar después de disponer de medidas reales del Managed Pilot y solo si LSH
+aprueba reutilizar el conjunto de reconstrucción. No reinterpretar la evidencia
+parcial como `SH-05 CLOSED`.
 
 ## Riesgos operativos
 
