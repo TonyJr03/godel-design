@@ -96,7 +96,7 @@ valores ni fragmentos:
 | --- | --- | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | `PRESENT` | URL HTTPS válida | Origen público Managed |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | `PRESENT` | `sb_publishable_…` / current | Browser, Auth health, PostgREST y Storage con RLS |
-| `SUPABASE_SECRET_KEY` | `PRESENT` | `sb_secret_…` / current | Futuro adaptador Auth Admin server-only |
+| `SUPABASE_SECRET_KEY` | `PRESENT` | `sb_secret_...` / current | Futuro adaptador Auth Admin server-only |
 | `SUPABASE_SERVER_URL` | `ABSENT_OR_EMPTY` | No requerida | Vercel usará el URL público |
 | `SUPABASE_SERVICE_ROLE_KEY` | `ABSENT_OR_EMPTY` | Legacy no requerida | No configurar ni consumir |
 

@@ -1,10 +1,12 @@
 # PPO-04M.2 — Managed Provisioning Report
 
-**Estado de PPO-04M.2:** `ACTIVE / IN PROGRESS`
+**Estado de PPO-04M.2:** `CLOSED / APPROVED`
 
 **Estado de M.2A:** `CLOSED / APPROVED`
 
-**Siguiente bloque:** `M.2B — ACTIVE / NEXT`
+**Estado de M.2B:** `CLOSED / APPROVED`
+
+**Siguiente bloque:** `PPO-04M.3 — ACTIVE / NEXT`
 
 **Fecha de ejecución:** 2026-09-16
 
@@ -331,14 +333,14 @@ M.2B debe completar el segundo pase de provisioning sin alterar 01–06:
 El script `bootstrap-local-qa-users.mjs` no gobierna Managed y no fue usado ni
 modificado.
 
-## 16. Verdict
+## 16. Verdict de M.2A (snapshot histórico)
 
 ```text
 PPO-04M.0 = CLOSED / APPROVED
 PPO-04M.1 = CLOSED / APPROVED
 PPO-04M.2 = ACTIVE / IN PROGRESS
 PPO-04M.2A = CLOSED / APPROVED
-PPO-04M.2B = ACTIVE / NEXT
+PPO-04M.2B = ACTIVE / MANUAL PASSWORD CHECKPOINT
 PPO-04M.3–PPO-04M.7 = NOT STARTED
 PRODUCTION DEPLOYMENT = NOT EXECUTED
 ```
@@ -346,3 +348,249 @@ PRODUCTION DEPLOYMENT = NOT EXECUTED
 M.2A pasa: baseline exacta, historia remota exacta, hardening aprobado, lint
 limpio y smokes estructurales satisfactorios. M.2 permanece abierto porque aún
 faltan bootstrap de identidades y validación funcional Auth/Storage de M.2B.
+
+## 17. M.2B — bootstrap del primer administrador
+
+Fecha del checkpoint: 2026-09-16.
+
+Preflight previo a mutaciones, con salida reducida a booleanos:
+
+```text
+SUPABASE_PROJECT_ID = present
+SUPABASE_DB_PASSWORD = present
+GODEL_BOOTSTRAP_ADMIN_EMAIL = present
+GODEL_BOOTSTRAP_ADMIN_FULL_NAME = present
+GODEL_BOOTSTRAP_ADMIN_TEMP_PASSWORD = present
+.env.managed.local = present / ignored
+linked state = present / ignored
+linked project = expected
+managed URL project = expected
+Auth users empty = true
+target Auth user absent = true
+public.perfiles empty = true
+```
+
+`supabase db query --help` confirmó soporte de `--linked --file`. Se usó ese
+canal con archivos temporales ignorados bajo `.codex`; no se pasó contraseña,
+project ref, URL ni connection string en argumentos. La autoridad remota se
+reconfirmó con las seis migraciones 01–06 alineadas local/remoto.
+
+El primer intento del arnés no llegó al checkpoint porque el subproceso SQL
+interno no pudo certificar la operación. Se activó la compensación: el usuario
+Auth recién creado fue eliminado y después se confirmó por canales separados
+que Auth y `public.perfiles` habían vuelto a quedar vacíos. El reintento separó
+Auth y SQL para mantener evidencia inequívoca.
+
+Bootstrap efectivo:
+
+- primer usuario creado mediante `auth.admin.createUser` con email confirmado;
+- no se envió `app_metadata.godel_provisioning` ni otro marcador de lifecycle;
+- perfil insertado directamente una sola vez con el UUID de Auth;
+- contrato verificado dentro de la misma transacción: rol `admin`, activo,
+  `must_change_password = true`, `created_by = null` y nombre esperado;
+- existencia del usuario Auth reconfirmada al finalizar;
+- no se usó `SUPABASE_SERVICE_ROLE_KEY` ni cliente admin para tablas de negocio;
+- no se alteraron migraciones, schema, policies, grants ni Storage.
+
+Checkpoint obligatorio alcanzado:
+
+```text
+FIRST_ADMIN_CREATED
+PROFILE_BOOTSTRAPPED
+INITIAL_PASSWORD_CHANGE_REQUIRED
+```
+
+La ejecución se detiene aquí para que Dirección Técnica realice manualmente el
+cambio inicial de contraseña mediante el flujo normal. No se modificó
+`must_change_password` de forma directa. Hasta recibir confirmación explícita no
+se ejecutarán lifecycle normal, pruebas RLS/grants, Auth/Storage funcional,
+fixtures QA, cleanup ni cierre de M.2.
+
+Estado en el checkpoint manual:
+
+```text
+PPO-04M.2 = ACTIVE / IN PROGRESS
+PPO-04M.2A = CLOSED / APPROVED
+PPO-04M.2B = ACTIVE / MANUAL PASSWORD CHECKPOINT
+PPO-04M.3–PPO-04M.7 = NOT STARTED
+PRODUCTION DEPLOYMENT = NOT EXECUTED
+```
+
+## 18. M.2B — verificación post-checkpoint
+
+Dirección Técnica confirmó el cambio inicial mediante el flujo normal y la
+redirección correcta al dashboard, sin compartir la contraseña definitiva. El
+canal PostgreSQL linked verificó después:
+
+```text
+profile count = 1
+role = admin
+is_active = true
+must_change_password = false
+created_by = null
+operational admin = true
+```
+
+Para ejercer el backend sin leer la contraseña definitiva se obtuvo una sesión
+efímera del mismo administrador mediante Auth Admin y un magic link consumido
+íntegramente en memoria. No se imprimieron ni persistieron action links, OTP,
+JWT, refresh tokens o credenciales.
+
+## 19. Lifecycle normal de identidades QA
+
+Se crearon tres identidades sintéticas separadas bajo `example.com`:
+
+```text
+QA admin
+QA supervisor
+QA worker
+```
+
+Cada alta recorrió el contrato normal:
+
+```text
+admin authenticated session
+→ begin_internal_user_creation_attempt(role)
+→ auth.admin.createUser con godel_provisioning
+→ Auth trigger
+→ public.perfiles
+→ complete_internal_user_creation_attempt(succeeded)
+→ login temporal
+→ auth.updateUser({ password })
+→ complete_initial_password_change(user_id)
+→ login definitivo
+```
+
+Para las tres identidades se verificaron Auth user, perfil, rol exacto,
+`is_active = true`, `created_by` igual al administrador operativo,
+`must_change_password = true` antes del cambio y `false` después, además de una
+auditoría `succeeded` cerrada.
+
+El caso inválido usó un marcador cuyo creador era supervisor. El trigger lo
+rechazó atómicamente: no quedó Auth user ni perfil, y el intento se cerró como
+`failed / provisioning_error`. No se utilizó inserción directa de perfiles para
+las identidades QA.
+
+Las contraseñas aleatorias quedaron exclusivamente en
+`.env.managed.qa.local`, confirmado como ignored. Las tres identidades se
+conservan para PPO-04M.4; son sintéticas, no contienen PII real y deben
+eliminarse o deshabilitarse antes de PPO-04M.6.
+
+## 20. RLS y grants funcionales
+
+Casos aceptados:
+
+- `anon` no pudo leer `perfiles` ni tablas internas;
+- admin autenticado pudo leer el conjunto administrativo de perfiles y datos;
+- supervisor autenticado obtuvo las lecturas autorizadas de gestión;
+- trabajador sólo vio su propio perfil cuando no tenía asignaciones;
+- admin y supervisor mantuvieron su acceso de lectura autorizado.
+
+Casos rechazados:
+
+- supervisor y trabajador no pudieron iniciar creación de usuarios internos;
+- trabajador no pudo insertar un cliente;
+- la operación rechazada no dejó fila residual;
+- el trabajador no obtuvo acceso al objeto interno QA, staged ni committed.
+
+La comprobación PostgreSQL independiente confirmó cuatro perfiles operativos:
+el primer administrador y las tres identidades QA.
+
+## 21. Storage funcional
+
+Se reutilizó como referencia el probe PPO-03C.3 sobre un arnés temporal
+ignorado, contrastado con 01–06 y extendido para listing, descarga y verificación
+independiente de cleanup. Playwright Chromium headless se usó únicamente como
+transporte browser para TUS cross-origin; no se inició servidor Next.js ni se
+ejecutó QA visual de producto, que permanece en M.4.
+
+### Public signed TUS
+
+```text
+public request/reservation = PASS
+valid capability authorization = PASS
+invalid capability = REJECTED
+regular anonymous TUS = REJECTED
+signed TUS without signature = REJECTED
+signed TUS with invalid signature = REJECTED
+signed TUS POST/PATCH/HEAD/resume = PASS
+staged listing/download by anon or worker = REJECTED
+finalize = committed
+finalize retry = already_committed
+committed metadata listing by admin = PASS
+authorized signed download = PASS
+```
+
+La descarga directa del SDK quedó bloqueada por el contrato de operación de la
+policy; la ruta autorizada real de firma server-side sí descargó exactamente el
+payload esperado. Ninguna URL firmada se registró.
+
+### Authenticated TUS
+
+```text
+admin reservation = PASS
+foreign/unassigned worker reservation = REJECTED
+TUS without JWT = REJECTED
+authenticated TUS POST/PATCH/HEAD/resume = PASS
+staged listing/download by anon or worker = REJECTED
+finalize = committed
+finalize retry = already_committed
+committed metadata listing by admin = PASS
+authorized signed download = PASS
+committed download by unassigned worker = REJECTED
+```
+
+El primer intento del probe detectó una limitación del harness histórico: daba
+por exitoso un `remove` de objeto committed aunque la policy sólo permite borrar
+candidatos reconciliados como `expired`. La fila Storage residual fue detectada
+por el SQL independiente, reconstruida como control de cleanup expirado,
+eliminada con la sesión QA admin y verificada a cero. El probe final preparó
+ambos objetos por el mismo contrato antes del borrado y completó limpio.
+
+Conteos finales independientes:
+
+```text
+solicitudes = 0
+pedidos = 0
+archivos = 0
+archivo_carga_sesiones = 0
+archivo_carga_items = 0
+storage.objects en godel-files = 0
+```
+
+## 22. Autoridad final y seguridad
+
+La historia final local/remota continúa exactamente en:
+
+```text
+20260811131824
+20260811131825
+20260811131826
+20260811131827
+20260811131828
+20260811131829
+```
+
+No existe migration 07 ni se modificaron 01–06. `npm run audit:security` terminó
+sin violaciones bloqueantes después de normalizar un placeholder documental
+histórico de elipsis tipográfica a `...`; no era una clave real. La secret key
+se limitó a Auth Admin/lifecycle autorizado y no se usó para tablas de negocio,
+RLS ni Storage. No se ejecutaron lint/build porque no cambió código de
+aplicación, TypeScript, dependencias ni schema.
+
+## 23. Verdict final
+
+```text
+PPO-04M.0 = CLOSED / APPROVED
+PPO-04M.1 = CLOSED / APPROVED
+PPO-04M.2 = CLOSED / APPROVED
+PPO-04M.2A = CLOSED / APPROVED
+PPO-04M.2B = CLOSED / APPROVED
+PPO-04M.3 = ACTIVE / NEXT
+PPO-04M.4–PPO-04M.7 = NOT STARTED
+PRODUCTION DEPLOYMENT = NOT EXECUTED
+```
+
+DB, Auth, RLS y Storage provisionados funcionan sobre la baseline Managed
+congelada. El siguiente bloque es PPO-04M.3 — Vercel Hobby Deployment; este
+cierre no implica que exista despliegue productivo.

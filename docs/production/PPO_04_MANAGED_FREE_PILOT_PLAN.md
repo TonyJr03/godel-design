@@ -4,13 +4,15 @@
 
 **Estado de PPO-04M:** `ACTIVE / NEXT`
 
-**Bloque activo:** `PPO-04M.2B — ACTIVE / NEXT`
+**Bloque activo:** `PPO-04M.3 — ACTIVE / NEXT`
 
-**Estado de PPO-04M.2:** `ACTIVE / IN PROGRESS`
+**Estado de PPO-04M.2:** `CLOSED / APPROVED`
 
 **PPO-04M.0–PPO-04M.1:** `CLOSED / APPROVED`
 
-**PPO-04M.3–PPO-04M.7:** `NOT STARTED`
+**PPO-04M.3:** `ACTIVE / NEXT`
+
+**PPO-04M.4–PPO-04M.7:** `NOT STARTED`
 
 **Despliegue productivo:** `NOT EXECUTED`
 
@@ -31,10 +33,11 @@
 PPO-04M = ACTIVE / NEXT
 PPO-04M.0 = CLOSED / APPROVED
 PPO-04M.1 = CLOSED / APPROVED
-PPO-04M.2 = ACTIVE / IN PROGRESS
+PPO-04M.2 = CLOSED / APPROVED
 PPO-04M.2A = CLOSED / APPROVED
-PPO-04M.2B = ACTIVE / NEXT
-PPO-04M.3–PPO-04M.7 = NOT STARTED
+PPO-04M.2B = CLOSED / APPROVED
+PPO-04M.3 = ACTIVE / NEXT
+PPO-04M.4–PPO-04M.7 = NOT STARTED
 PRODUCTION DEPLOYMENT = NOT EXECUTED
 ```
 
@@ -93,8 +96,8 @@ provider limits are external and must be revalidated at execution time
 | --- | --- | --- |
 | PPO-04M.0 | Managed Free Architecture & Governance | `CLOSED / APPROVED` |
 | PPO-04M.1 | Supabase Free Production Project | `CLOSED / APPROVED` |
-| PPO-04M.2 | Database / Auth / Storage Provisioning | `ACTIVE / IN PROGRESS` |
-| PPO-04M.3 | Vercel Hobby Deployment | `NOT STARTED` |
+| PPO-04M.2 | Database / Auth / Storage Provisioning | `CLOSED / APPROVED` |
+| PPO-04M.3 | Vercel Hobby Deployment | `ACTIVE / NEXT` |
 | PPO-04M.4 | Managed Production QA | `NOT STARTED` |
 | PPO-04M.5 | Free-Tier Backup & Recovery Baseline | `NOT STARTED` |
 | PPO-04M.6 | Production Pilot Rollout | `NOT STARTED` |
@@ -180,7 +183,9 @@ El gate debe validar:
 
 M.2A queda `CLOSED / APPROVED`: aplicó exactamente 01–06, confirmó historia
 local/remota, hardening final, lint y smokes estructurales sin crear usuarios ni
-objetos. M.2B queda `ACTIVE / NEXT` para bootstrap y QA funcional Auth/Storage.
+objetos. M.2B queda `CLOSED / APPROVED`: completó el bootstrap, lifecycle Auth,
+RLS/grants, TUS autenticado y público firmado, negativas y cleanup verificado.
+PPO-04M.3 queda `ACTIVE / NEXT` para el deployment Vercel Hobby.
 La evidencia acumulativa vive en
 [PPO_04M2_MANAGED_PROVISIONING_REPORT.md](PPO_04M2_MANAGED_PROVISIONING_REPORT.md).
 

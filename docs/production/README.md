@@ -11,8 +11,8 @@ ejecutado ningún despliegue productivo.
   Managed Free.
 - [PPO_04_MANAGED_FREE_PILOT_PLAN.md](PPO_04_MANAGED_FREE_PILOT_PLAN.md): plan
   gobernante de PPO-04M; PPO-04M.0 y PPO-04M.1 están `CLOSED / APPROVED`,
-  PPO-04M.2 está `ACTIVE / IN PROGRESS` con M.2A `CLOSED / APPROVED` y M.2B
-  `ACTIVE / NEXT`; PPO-04M.3–PPO-04M.7 no se han iniciado.
+  PPO-04M.2 está `CLOSED / APPROVED` con M.2A y M.2B cerrados; PPO-04M.3 está
+  `ACTIVE / NEXT` y PPO-04M.4–PPO-04M.7 no se han iniciado.
 - [PPO_04M0_MANAGED_ARCHITECTURE_AUDIT.md](PPO_04M0_MANAGED_ARCHITECTURE_AUDIT.md):
   contrato aprobado de arquitectura, variables, Auth, DB, Storage, Vercel, QA,
   backup boundary y handoff exacto a PPO-04M.1.
@@ -21,7 +21,8 @@ ejecutado ningún despliegue productivo.
   y listo para el provisioning de PPO-04M.2.
 - [PPO_04M2_MANAGED_PROVISIONING_REPORT.md](PPO_04M2_MANAGED_PROVISIONING_REPORT.md):
   evidencia acumulativa de M.2; M.2A aplicó 01–06 y aprobó hardening, lint y
-  smoke estructural, mientras M.2B conserva bootstrap y QA funcional.
+  smoke estructural, y M.2B aprobó bootstrap, lifecycle, RLS/grants, TUS y
+  cleanup funcional.
 - [PROJECT_STATUS.md](../PROJECT_STATUS.md): fotografía vigente del proyecto,
   arquitectura, baseline y estados globales.
 
