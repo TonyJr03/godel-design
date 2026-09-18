@@ -1,22 +1,29 @@
 # Estado del proyecto
 
-Última actualización: 2026-09-16
+Última actualización: 2026-09-18
 
 ## Estado general
 
 Godel Diseño mantiene un MVP interno funcional, la baseline de base de datos
 congelada y evidencia técnica aprobada tanto en entornos managed como en el
-workstream self-hosted. Todavía no existe despliegue productivo.
+workstream self-hosted. El deployment técnico de Vercel Production existe, fue
+aceptado mediante health/runtime smoke y permanece protegido por Vercel
+Authentication.
 
 ```text
-No production deployment yet.
+PRODUCTION DEPLOYMENT = READY
+PRODUCTION ACCEPTANCE = PASS
+PRODUCTION EXPOSURE = PROTECTED
+PRODUCTION PILOT ROLLOUT = NOT EXECUTED
 ```
 
 El primer destino real vigente es Vercel Hobby + Supabase Managed Free. PPO-04M
-está `ACTIVE / NEXT`; PPO-04M.0–PPO-04M.2 están `CLOSED / APPROVED`. M.2A
-aplicó y aceptó la baseline 01–06, y M.2B validó bootstrap, lifecycle Auth,
-RLS/grants, Storage/TUS y cleanup. PPO-04M.3 queda `ACTIVE / NEXT`; la app
-todavía no se ha desplegado.
+está `ACTIVE / NEXT`; PPO-04M.0–PPO-04M.3 están `CLOSED / APPROVED`. M.2A
+aplicó y aceptó la baseline 01–06, M.2B validó bootstrap, lifecycle Auth,
+RLS/grants, Storage/TUS y cleanup, y M.3 aceptó el deployment técnico protegido.
+El Site URL de Supabase está alineado con el dominio Production estable.
+PPO-04M.4 queda `ACTIVE / NEXT`; todavía no se realizó el pilot rollout ni se
+afirma que el sistema esté públicamente operativo.
 
 ## Arquitectura vigente
 
@@ -66,7 +73,7 @@ La baseline congelada contiene exactamente seis migraciones consolidadas:
 BASELINE 01–06 = FROZEN
 ```
 
-El Managed Pilot aplicará esas seis migraciones sobre una baseline limpia, sin
+El Managed Pilot aplicó esas seis migraciones sobre una baseline limpia, sin
 seed productivo salvo decisión explícita. Toda evolución DB posterior debe usar
 una migración nueva `07+`.
 
@@ -85,8 +92,9 @@ una migración nueva `07+`.
 | PPO-04M.2 | `CLOSED / APPROVED` |
 | PPO-04M.2A | `CLOSED / APPROVED` |
 | PPO-04M.2B | `CLOSED / APPROVED` |
-| PPO-04M.3 | `ACTIVE / NEXT` |
-| PPO-04M.4–PPO-04M.7 | `NOT STARTED` |
+| PPO-04M.3 | `CLOSED / APPROVED` |
+| PPO-04M.4 | `ACTIVE / NEXT` |
+| PPO-04M.5–PPO-04M.7 | `NOT STARTED` |
 | PPO-05 | `PENDING` — seguridad pública/antiabuso |
 | PPO-06 | `PENDING` — backup/recovery managed |
 | PPO-07 | `PENDING` — observabilidad/operación managed |
@@ -97,7 +105,10 @@ una migración nueva `07+`.
 | LSH | `PLANNED / NOT STARTED` |
 
 ```text
-PRODUCTION DEPLOYMENT = NOT EXECUTED
+PRODUCTION DEPLOYMENT = READY
+PRODUCTION ACCEPTANCE = PASS
+PRODUCTION EXPOSURE = PROTECTED
+PRODUCTION PILOT ROLLOUT = NOT EXECUTED
 ```
 
 ## Evidencia y capacidades Self-Hosted conservadas
@@ -136,14 +147,17 @@ La aceptación sanitizada del proyecto Supabase Free vacío consta en
 [PPO-04M.1 — Supabase Free Project Report](production/PPO_04M1_SUPABASE_FREE_PROJECT_REPORT.md).
 La aplicación exacta de 01–06, hardening, lint y smoke estructural constan en
 [PPO-04M.2 — Managed Provisioning Report](production/PPO_04M2_MANAGED_PROVISIONING_REPORT.md).
+El deployment Vercel, su aceptación técnica protegida y el Site URL alineado
+constan en
+[PPO-04M.3 — Vercel Hobby Deployment Report](production/PPO_04M3_VERCEL_HOBBY_DEPLOYMENT_REPORT.md).
 
 ```text
 PPO-04M.0  arquitectura y gobernanza — CLOSED / APPROVED
 → PPO-04M.1  proyecto Supabase Free productivo/piloto — CLOSED / APPROVED
 → PPO-04M.2A  baseline/hardening estructural — CLOSED / APPROVED
 → PPO-04M.2B  bootstrap y QA funcional Auth/Storage — CLOSED / APPROVED
-→ PPO-04M.3  deployment Vercel Hobby — ACTIVE / NEXT
-→ PPO-04M.4  QA managed propio
+→ PPO-04M.3  deployment Vercel Hobby — CLOSED / APPROVED
+→ PPO-04M.4  QA managed propio — ACTIVE / NEXT
 → PPO-04M.5  backup externo y recovery baseline
 → PPO-04M.6  small initial real use
 → PPO-04M.7  estabilización y medidas reales

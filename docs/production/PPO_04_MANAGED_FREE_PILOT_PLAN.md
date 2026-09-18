@@ -4,17 +4,21 @@
 
 **Estado de PPO-04M:** `ACTIVE / NEXT`
 
-**Bloque activo:** `PPO-04M.3 — ACTIVE / NEXT`
+**Bloque activo:** `PPO-04M.4 — ACTIVE / NEXT`
 
 **Estado de PPO-04M.2:** `CLOSED / APPROVED`
 
 **PPO-04M.0–PPO-04M.1:** `CLOSED / APPROVED`
 
-**PPO-04M.3:** `ACTIVE / NEXT`
+**PPO-04M.3:** `CLOSED / APPROVED`
 
-**PPO-04M.4–PPO-04M.7:** `NOT STARTED`
+**PPO-04M.4:** `ACTIVE / NEXT`
 
-**Despliegue productivo:** `NOT EXECUTED`
+**PPO-04M.5–PPO-04M.7:** `NOT STARTED`
+
+**Despliegue productivo:** `READY / ACCEPTED / PROTECTED`
+
+**Production pilot rollout:** `NOT EXECUTED`
 
 **Fecha de apertura:** 2026-09-16
 
@@ -29,6 +33,9 @@
 **Evidencia M.2:**
 [PPO_04M2_MANAGED_PROVISIONING_REPORT.md](PPO_04M2_MANAGED_PROVISIONING_REPORT.md)
 
+**Evidencia M.3:**
+[PPO_04M3_VERCEL_HOBBY_DEPLOYMENT_REPORT.md](PPO_04M3_VERCEL_HOBBY_DEPLOYMENT_REPORT.md)
+
 ```text
 PPO-04M = ACTIVE / NEXT
 PPO-04M.0 = CLOSED / APPROVED
@@ -36,9 +43,13 @@ PPO-04M.1 = CLOSED / APPROVED
 PPO-04M.2 = CLOSED / APPROVED
 PPO-04M.2A = CLOSED / APPROVED
 PPO-04M.2B = CLOSED / APPROVED
-PPO-04M.3 = ACTIVE / NEXT
-PPO-04M.4–PPO-04M.7 = NOT STARTED
-PRODUCTION DEPLOYMENT = NOT EXECUTED
+PPO-04M.3 = CLOSED / APPROVED
+PPO-04M.4 = ACTIVE / NEXT
+PPO-04M.5–PPO-04M.7 = NOT STARTED
+PRODUCTION DEPLOYMENT = READY
+PRODUCTION ACCEPTANCE = PASS
+PRODUCTION EXPOSURE = PROTECTED
+PRODUCTION PILOT ROLLOUT = NOT EXECUTED
 ```
 
 ## 1. Objetivo y arquitectura gobernante
@@ -97,8 +108,8 @@ provider limits are external and must be revalidated at execution time
 | PPO-04M.0 | Managed Free Architecture & Governance | `CLOSED / APPROVED` |
 | PPO-04M.1 | Supabase Free Production Project | `CLOSED / APPROVED` |
 | PPO-04M.2 | Database / Auth / Storage Provisioning | `CLOSED / APPROVED` |
-| PPO-04M.3 | Vercel Hobby Deployment | `ACTIVE / NEXT` |
-| PPO-04M.4 | Managed Production QA | `NOT STARTED` |
+| PPO-04M.3 | Vercel Hobby Deployment | `CLOSED / APPROVED` |
+| PPO-04M.4 | Managed Production QA | `ACTIVE / NEXT` |
 | PPO-04M.5 | Free-Tier Backup & Recovery Baseline | `NOT STARTED` |
 | PPO-04M.6 | Production Pilot Rollout | `NOT STARTED` |
 | PPO-04M.7 | Stabilization & Usage Measurement | `NOT STARTED` |
@@ -125,7 +136,7 @@ provider limits are external and must be revalidated at execution time
 - separación clara entre proyecto de desarrollo y proyecto productivo/piloto;
 - orden PPO-04M.1–PPO-04M.7 aceptado;
 - dependencias, evidencia reutilizable y gates no aplicables documentados;
-- confirmación de que aún no existe despliegue productivo.
+- confirmación de que, al cierre de M.0, aún no existía despliegue productivo.
 
 ### Cierre
 
@@ -185,13 +196,13 @@ M.2A queda `CLOSED / APPROVED`: aplicó exactamente 01–06, confirmó historia
 local/remota, hardening final, lint y smokes estructurales sin crear usuarios ni
 objetos. M.2B queda `CLOSED / APPROVED`: completó el bootstrap, lifecycle Auth,
 RLS/grants, TUS autenticado y público firmado, negativas y cleanup verificado.
-PPO-04M.3 queda `ACTIVE / NEXT` para el deployment Vercel Hobby.
+PPO-04M.3 queda `CLOSED / APPROVED`; PPO-04M.4 queda `ACTIVE / NEXT`.
 La evidencia acumulativa vive en
 [PPO_04M2_MANAGED_PROVISIONING_REPORT.md](PPO_04M2_MANAGED_PROVISIONING_REPORT.md).
 
 ## 7. PPO-04M.3 — Vercel Hobby Deployment
 
-En una ejecución posterior se deberá:
+El bloque ejecutó y aceptó:
 
 - crear el proyecto Vercel y vincular la integración Git autorizada;
 - configurar variables por entorno, separando públicas y server-only;
@@ -203,6 +214,12 @@ En una ejecución posterior se deberá:
 
 Un dominio propio no es gate inicial. No se crea `vercel.json` salvo evidencia
 posterior de que sea necesario.
+
+La evidencia sanitizada del deployment técnico, build, runtime smoke,
+protección, límites de exposición cliente y alineación del Site URL consta en
+[PPO_04M3_VERCEL_HOBBY_DEPLOYMENT_REPORT.md](PPO_04M3_VERCEL_HOBBY_DEPLOYMENT_REPORT.md).
+Production queda `READY / ACCEPTED / PROTECTED`; el pilot rollout permanece
+`NOT EXECUTED` y pertenece a PPO-04M.6.
 
 ## 8. PPO-04M.4 — Managed Production QA
 
@@ -305,5 +322,8 @@ controlado y medidas iniciales registradas. Hasta entonces:
 
 ```text
 PPO-04M = ACTIVE / NEXT
-PRODUCTION DEPLOYMENT = NOT EXECUTED
+PRODUCTION DEPLOYMENT = READY
+PRODUCTION ACCEPTANCE = PASS
+PRODUCTION EXPOSURE = PROTECTED
+PRODUCTION PILOT ROLLOUT = NOT EXECUTED
 ```

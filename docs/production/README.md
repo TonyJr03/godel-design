@@ -1,8 +1,9 @@
 # Preproducción y operación
 
 Este índice distingue la gobernanza vigente, el camino de ejecución superseded,
-la evidencia Self-Hosted de referencia y la investigación futura. No se ha
-ejecutado ningún despliegue productivo.
+la evidencia Self-Hosted de referencia y la investigación futura. El deployment
+técnico de Vercel Production está aceptado y protegido; el pilot rollout no se
+ha ejecutado.
 
 ## CURRENT / GOVERNING
 
@@ -12,7 +13,8 @@ ejecutado ningún despliegue productivo.
 - [PPO_04_MANAGED_FREE_PILOT_PLAN.md](PPO_04_MANAGED_FREE_PILOT_PLAN.md): plan
   gobernante de PPO-04M; PPO-04M.0 y PPO-04M.1 están `CLOSED / APPROVED`,
   PPO-04M.2 está `CLOSED / APPROVED` con M.2A y M.2B cerrados; PPO-04M.3 está
-  `ACTIVE / NEXT` y PPO-04M.4–PPO-04M.7 no se han iniciado.
+  `CLOSED / APPROVED`, PPO-04M.4 está `ACTIVE / NEXT` y PPO-04M.5–PPO-04M.7 no
+  se han iniciado.
 - [PPO_04M0_MANAGED_ARCHITECTURE_AUDIT.md](PPO_04M0_MANAGED_ARCHITECTURE_AUDIT.md):
   contrato aprobado de arquitectura, variables, Auth, DB, Storage, Vercel, QA,
   backup boundary y handoff exacto a PPO-04M.1.
@@ -23,6 +25,9 @@ ejecutado ningún despliegue productivo.
   evidencia acumulativa de M.2; M.2A aplicó 01–06 y aprobó hardening, lint y
   smoke estructural, y M.2B aprobó bootstrap, lifecycle, RLS/grants, TUS y
   cleanup funcional.
+- [PPO_04M3_VERCEL_HOBBY_DEPLOYMENT_REPORT.md](PPO_04M3_VERCEL_HOBBY_DEPLOYMENT_REPORT.md):
+  evidencia de M.3 `CLOSED / APPROVED`; Production está ready, aceptado y
+  protegido, con Site URL alineado y pilot rollout pendiente.
 - [PROJECT_STATUS.md](../PROJECT_STATUS.md): fotografía vigente del proyecto,
   arquitectura, baseline y estados globales.
 

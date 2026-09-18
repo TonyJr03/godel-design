@@ -2,12 +2,12 @@
 
 ## Metadatos
 
-- Actualización de estado: 2026-09-16
+- Actualización de estado: 2026-09-18
 
 - Proyecto: Godel Diseño
 - Estado: Activo
 - Fecha de creación: 2026-07-21
-- Última revisión: 2026-09-16
+- Última revisión: 2026-09-18
 - Responsable técnico: Dirección Técnica de Godel Diseño
 - Arquitectura y supervisión: Arquitectura Senior / Orquestación Técnica
 - Implementación: Agente Codex en VS Code
@@ -63,7 +63,9 @@ Managed measurements
 → lightweight Supabase OR PostgreSQL/PostgREST/Auth/Storage
 ```
 
-No existe despliegue productivo todavía.
+El deployment técnico de Vercel Production está `READY`, su aceptación es
+`PASS` y su exposición permanece `PROTECTED`. El pilot rollout todavía no se ha
+ejecutado.
 
 ## Decisiones arquitectónicas confirmadas
 
@@ -158,7 +160,8 @@ PPO-04M.1 queda `CLOSED / APPROVED` mediante
 PPO-04M.2 queda `CLOSED / APPROVED`: M.2A y M.2B están `CLOSED / APPROVED`,
 con evidencia estructural y funcional en
 [PPO_04M2_MANAGED_PROVISIONING_REPORT.md](PPO_04M2_MANAGED_PROVISIONING_REPORT.md).
-PPO-04M.3 queda `ACTIVE / NEXT`; PPO-04M.4–PPO-04M.7 permanecen `NOT STARTED`.
+PPO-04M.3 queda `CLOSED / APPROVED`; PPO-04M.4 queda `ACTIVE / NEXT` y
+PPO-04M.5–PPO-04M.7 permanecen `NOT STARTED`.
 
 ## Estado de fases
 
@@ -168,7 +171,7 @@ PPO-04M.3 queda `ACTIVE / NEXT`; PPO-04M.4–PPO-04M.7 permanecen `NOT STARTED`.
 | PPO-01    | Auditoría de infraestructura y conectividad | Residual host-readiness deferred a LSH/self-host futuro |
 | PPO-02    | Base reproducible / evidencia managed       | Cerrada; evidencia managed relevante otra vez |
 | PPO-03    | Rediseño de cargas y almacenamiento         | Cerrada / aprobada |
-| PPO-04    | Managed Free Production Pilot              | ACTIVE / NEXT — no desplegado |
+| PPO-04    | Managed Free Production Pilot              | ACTIVE / NEXT — deployment ready/protected; rollout pendiente |
 | PPO-05    | Seguridad pública                           | Pendiente |
 | PPO-06    | Backups y recuperación                      | Pendiente |
 | PPO-07    | Observabilidad y operación                  | Pendiente |
