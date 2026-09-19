@@ -25,6 +25,108 @@ const qaValues = Object.fromEntries(
   MANAGED_QA_ENV_NAMES.map((name) => [name, `value-for-${name}`]),
 );
 
+const productionOrigin = "https://deployment.example.invalid";
+const applicableInfrastructureCookie = Object.freeze({
+  domain: ".example.invalid",
+  expires: -1,
+  httpOnly: true,
+  name: "opaque-infrastructure-cookie",
+  path: "/",
+  sameSite: "Lax",
+  secure: true,
+  value: "opaque-cookie-value",
+});
+
+function createBootstrapContextMock({
+  cookies = [applicableInfrastructureCookie],
+  location,
+  status = 200,
+} = {}) {
+  const observed = {
+    contextDisposed: false,
+    contextOptions: undefined,
+    requestCount: 0,
+    requestOptions: undefined,
+    requestPath: undefined,
+    responseDisposed: false,
+  };
+
+  return {
+    createRequestContext: async (options) => {
+      observed.contextOptions = options;
+
+      return {
+        async get(pathname, requestOptions) {
+          observed.requestCount += 1;
+          observed.requestOptions = requestOptions;
+          observed.requestPath = pathname;
+
+          return {
+            async dispose() {
+              observed.responseDisposed = true;
+            },
+            headers() {
+              return location === undefined ? {} : { location };
+            },
+            status() {
+              return status;
+            },
+          };
+        },
+        async storageState() {
+          return { cookies, origins: [] };
+        },
+        async dispose() {
+          observed.contextDisposed = true;
+        },
+      };
+    },
+    observed,
+  };
+}
+
+async function runBootstrapMock(mockOptions) {
+  const mock = createBootstrapContextMock(mockOptions);
+  let result;
+
+  await withTemporaryStorageState(async ({ storageStatePath }) => {
+    result = await bootstrapProtectionStorageState({
+      bypassSecret: "in-memory-test-bypass",
+      createRequestContext: mock.createRequestContext,
+      productionOrigin,
+      storageStatePath,
+    });
+
+    assert.equal(existsSync(storageStatePath), true);
+  });
+
+  return { observed: mock.observed, result };
+}
+
+async function assertBootstrapRejected(mockOptions) {
+  const mock = createBootstrapContextMock(mockOptions);
+
+  await withTemporaryStorageState(async ({ storageStatePath }) => {
+    await assert.rejects(
+      bootstrapProtectionStorageState({
+        bypassSecret: "in-memory-test-bypass",
+        createRequestContext: mock.createRequestContext,
+        productionOrigin,
+        storageStatePath,
+      }),
+      (error) => {
+        assert.equal(error.message, "Deployment Protection bootstrap failed");
+        return true;
+      },
+    );
+  });
+
+  assert.equal(mock.observed.requestCount, 1);
+  assert.equal(mock.observed.requestOptions.maxRedirects, 0);
+  assert.equal(mock.observed.responseDisposed, true);
+  assert.equal(mock.observed.contextDisposed, true);
+}
+
 test("managed env parser selects required public values and ignores secrets", () => {
   const parsed = parseEnvironmentFile(
     [
@@ -142,65 +244,86 @@ test("managed Playwright arguments use only the fixed read-only allowlist", () =
 });
 
 test("protection bootstrap uses one same-origin non-redirecting request", async () => {
-  await withTemporaryStorageState(async ({ storageStatePath }) => {
-    let requestCount = 0;
-    let disposed = false;
+  const { observed, result } = await runBootstrapMock();
 
-    await bootstrapProtectionStorageState({
-      bypassSecret: "in-memory-test-bypass",
-      productionOrigin: "https://deployment.example.invalid",
-      storageStatePath,
-      createRequestContext: async (options) => {
-        assert.deepEqual(options, {
-          baseURL: "https://deployment.example.invalid",
-        });
-
-        return {
-          async get(pathname, requestOptions) {
-            requestCount += 1;
-            assert.equal(pathname, "/");
-            assert.equal(requestOptions.maxRedirects, 0);
-            assert.equal(requestOptions.headers["x-vercel-set-bypass-cookie"], "true");
-            assert.equal(
-              requestOptions.headers["x-vercel-protection-bypass"],
-              "in-memory-test-bypass",
-            );
-
-            return {
-              async dispose() {},
-              status() {
-                return 200;
-              },
-            };
-          },
-          async storageState() {
-            return {
-              cookies: [
-                {
-                  domain: ".example.invalid",
-                  expires: -1,
-                  httpOnly: true,
-                  name: "opaque-infrastructure-cookie",
-                  path: "/",
-                  sameSite: "Lax",
-                  secure: true,
-                  value: "opaque-cookie-value",
-                },
-              ],
-              origins: [],
-            };
-          },
-          async dispose() {
-            disposed = true;
-          },
-        };
-      },
-    });
-
-    assert.equal(requestCount, 1);
-    assert.equal(disposed, true);
-    assert.equal(existsSync(storageStatePath), true);
+  assert.deepEqual(observed.contextOptions, { baseURL: productionOrigin });
+  assert.equal(observed.requestCount, 1);
+  assert.equal(observed.requestPath, "/");
+  assert.equal(observed.requestOptions.maxRedirects, 0);
+  assert.equal(
+    observed.requestOptions.headers["x-vercel-set-bypass-cookie"],
+    "true",
+  );
+  assert.equal(
+    observed.requestOptions.headers["x-vercel-protection-bypass"],
+    "in-memory-test-bypass",
+  );
+  assert.equal(observed.responseDisposed, true);
+  assert.equal(observed.contextDisposed, true);
+  assert.deepEqual(result, {
+    infrastructureCookiePresent: true,
+    redirectSameOrigin: null,
+    redirectUsed: false,
+    statusClass: "2xx",
   });
+});
+
+test("protection bootstrap accepts a relative same-origin 307 once", async () => {
+  const { observed, result } = await runBootstrapMock({
+    location: "/login",
+    status: 307,
+  });
+
+  assert.equal(observed.requestCount, 1);
+  assert.equal(observed.requestOptions.maxRedirects, 0);
+  assert.deepEqual(result, {
+    infrastructureCookiePresent: true,
+    redirectSameOrigin: true,
+    redirectUsed: true,
+    statusClass: "3xx",
+  });
+});
+
+test("protection bootstrap accepts an absolute same-origin 307", async () => {
+  const { observed, result } = await runBootstrapMock({
+    location: `${productionOrigin}/login`,
+    status: 307,
+  });
+
+  assert.equal(observed.requestCount, 1);
+  assert.equal(observed.requestOptions.maxRedirects, 0);
+  assert.equal(result.redirectSameOrigin, true);
+  assert.equal(result.redirectUsed, true);
+});
+
+test("protection bootstrap rejects unsafe redirect locations", async () => {
+  for (const location of [
+    "https://other.example.invalid/login",
+    "http://deployment.example.invalid/login",
+    "https://deployment.example.invalid:444/login",
+    "https://user:password@deployment.example.invalid/login",
+    "http://[",
+  ]) {
+    await assertBootstrapRejected({ location, status: 307 });
+  }
+});
+
+test("protection bootstrap rejects a redirect without Location", async () => {
+  await assertBootstrapRejected({ status: 307 });
+});
+
+test("protection bootstrap rejects a redirect without applicable cookies", async () => {
+  await assertBootstrapRejected({
+    cookies: [{ ...applicableInfrastructureCookie, secure: false }],
+    location: "/login",
+    status: 307,
+  });
+});
+
+test("protection bootstrap rejects unsupported and error statuses", async () => {
+  for (const status of [300, 304, 305, 306, 401, 500]) {
+    await assertBootstrapRejected({ location: "/login", status });
+  }
 });
 
 test("protection bootstrap sanitizes request failures", async () => {

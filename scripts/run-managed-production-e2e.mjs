@@ -10,6 +10,7 @@ import { request } from "@playwright/test";
 const MANAGED_ENV_PATH = ".env.managed.local";
 const MANAGED_QA_ENV_PATH = ".env.managed.qa.local";
 const TEMPORARY_DIRECTORY_PREFIX = "godel-managed-qa-";
+const ALLOWED_BOOTSTRAP_REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 
 export const MANAGED_PUBLIC_ENV_NAMES = Object.freeze([
   "NEXT_PUBLIC_SUPABASE_URL",
@@ -252,6 +253,50 @@ function cookieAppliesToOrigin(cookie, origin) {
   );
 }
 
+function validateBootstrapResponse(response, productionOrigin) {
+  const status = response.status();
+
+  if (status >= 200 && status < 300) {
+    return {
+      redirectSameOrigin: null,
+      redirectUsed: false,
+      statusClass: "2xx",
+    };
+  }
+
+  if (!ALLOWED_BOOTSTRAP_REDIRECT_STATUSES.has(status)) {
+    throw new Error("unsupported bootstrap response");
+  }
+
+  const location = response.headers().location;
+
+  if (!location) {
+    throw new Error("missing bootstrap redirect location");
+  }
+
+  let redirectTarget;
+
+  try {
+    redirectTarget = new URL(location, productionOrigin);
+  } catch {
+    throw new Error("invalid bootstrap redirect location");
+  }
+
+  if (
+    redirectTarget.origin !== productionOrigin ||
+    redirectTarget.username ||
+    redirectTarget.password
+  ) {
+    throw new Error("unsafe bootstrap redirect location");
+  }
+
+  return {
+    redirectSameOrigin: true,
+    redirectUsed: true,
+    statusClass: "3xx",
+  };
+}
+
 export async function bootstrapProtectionStorageState({
   productionOrigin,
   bypassSecret,
@@ -276,9 +321,10 @@ export async function bootstrapProtectionStorageState({
         maxRedirects: 0,
       });
 
-      if (response.status() < 200 || response.status() >= 300) {
-        throw new Error("unsuccessful bootstrap response");
-      }
+      const responseMetadata = validateBootstrapResponse(
+        response,
+        productionOrigin,
+      );
 
       const state = await context.storageState();
       const infrastructureCookies = state.cookies.filter((cookie) =>
@@ -294,6 +340,11 @@ export async function bootstrapProtectionStorageState({
         JSON.stringify({ cookies: infrastructureCookies, origins: [] }),
         { encoding: "utf8", mode: 0o600 },
       );
+
+      return {
+        ...responseMetadata,
+        infrastructureCookiePresent: true,
+      };
     } catch {
       throw new Error("Deployment Protection bootstrap failed");
     }
@@ -416,11 +467,19 @@ async function main() {
   }
 
   return withTemporaryStorageState(async ({ storageStatePath }) => {
-    await bootstrapProtectionStorageState({
+    const bootstrapResult = await bootstrapProtectionStorageState({
       bypassSecret,
       productionOrigin,
       storageStatePath,
     });
+
+    console.log(
+      `[managed-production-e2e] Deployment Protection bootstrap accepted ` +
+        `(status_class=${bootstrapResult.statusClass} ` +
+        `redirect=${bootstrapResult.redirectUsed} ` +
+        `redirect_same_origin=${bootstrapResult.redirectSameOrigin ?? "not-applicable"} ` +
+        `infrastructure_cookie_present=${bootstrapResult.infrastructureCookiePresent}).`,
+    );
 
     const childEnvironment = buildChildEnvironment({
       parentEnvironment: process.env,

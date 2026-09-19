@@ -643,3 +643,272 @@ No se modificaron specs mutantes, aplicación, configuración Next.js,
 dependencias, Supabase, Vercel, Deployment Protection, RLS, grants, RPCs,
 migraciones o tipos DB. No se ejecutaron commit, push, merge, rebase, amend o
 cambio de rama.
+
+## 18. PPO-04M.4B.1 — Read-only Production QA attempt
+
+### Estado
+
+```text
+PPO-04M.4B.1 = BLOCKED IN DEPLOYMENT PROTECTION BOOTSTRAP
+READ_ONLY QA = NOT EXECUTED / NOT ACCEPTED
+PRODUCTION PILOT ROLLOUT = NOT EXECUTED
+Production runtime requests executed = 2 SAFE GET
+```
+
+### Production authority preflight
+
+La consulta autenticada y read-only al control plane de Vercel confirmó, sin
+registrar URLs o identificadores:
+
+```text
+target/environment = production
+status = READY
+source branch exact = true
+source SHA 313b2076258c6d7a8c7bd9c1bf205213174a91ec = true
+stable Production origin expected = true
+stable Production origin clean HTTPS = true
+Vercel Authentication deployment type = all
+```
+
+La suborden de inspección individual devolvió una denegación de scope. No se
+registró su salida cruda. La misma autoridad quedó corroborada mediante las
+consultas read-only de deployments, proyecto enlazado y protección. No se hizo
+ningún cambio remoto.
+
+### Secret y harness preflight
+
+```text
+VERCEL_AUTOMATION_BYPASS_SECRET = present
+GODEL_MANAGED_PRODUCTION_BASE_URL = present
+.env.managed.local = present / ignored
+.env.managed.qa.local = present / ignored
+six exact GODEL_TEST_* variables = present
+unexpected QA variable names = 0
+harness unit tests = 8 PASS / 0 FAIL / 0 SKIP
+```
+
+No se imprimieron valores, credenciales, cookies, headers o dominios.
+
+### Bloqueo fail-closed del runner
+
+El contrato local fue corregido fuera de este pase. La reanudación comprobó las
+seis claves exactas `GODEL_TEST_*`, valores no vacíos y ausencia de nombres QA
+adicionales. El comando autorizado `test:e2e:managed:readonly` se invocó de
+nuevo sin argumentos.
+
+El runner alcanzó su única request de bootstrap, pero se detuvo antes de crear
+el child Playwright porque el origin respondió HTTP 307. Un segundo GET
+diagnóstico, con el mismo aislamiento same-origin y `maxRedirects = 0`, confirmó
+sanitizadamente:
+
+```text
+request completed = true
+status = 307
+redirect present = true
+redirect same-origin = true
+cookies captured = 1
+origin-applicable cookies = 1
+cleanup = PASS
+```
+
+El bypass sí materializó una cookie de infraestructura aplicable y no hubo
+redirect cross-origin. El bloqueo se debe a que el harness aprobado acepta solo
+2xx en bootstrap. No se modificó código, no se siguió el redirect y no se hizo
+fallback a `.env.local`.
+
+### Cobertura y residuos
+
+```text
+Playwright child started = false
+tests passed = 0
+tests failed = 0
+tests skipped = 0
+health/live = NOT EXECUTED
+health/ready = NOT EXECUTED
+login/logout = NOT EXECUTED
+roles/guards = NOT EXECUTED
+dashboard = NOT EXECUTED
+listings = NOT EXECUTED
+tracking negative = NOT EXECUTED
+Storage negatives = NOT EXECUTED
+usuarios = NOT EXECUTED
+remote fixtures created = 0
+remote uploads executed = 0
+Playwright artifacts created = 0
+```
+
+Las únicas requests contra el runtime fueron dos GET a la raíz: el bootstrap y
+su diagnóstico sanitizado. No se iniciaron tests de producto, requests mutantes,
+login, fixtures o uploads. Por tanto no hubo residuos atribuibles al run en
+clientes, solicitudes, pedidos, tareas, pagos, archivos, Storage o Auth. No
+corresponde revisar logs runtime como evidencia de una suite que no comenzó.
+
+### Acción requerida antes de reintentar
+
+Dirección Técnica debe decidir una adaptación focal del bootstrap antes de otro
+reintento: aceptar una respuesta 3xx únicamente cuando el redirect sea
+same-origin y exista cookie aplicable, o seleccionar un endpoint same-origin
+2xx que conserve el mismo contrato de protección. Cualquiera de las dos opciones
+requiere autorización para modificar y volver a validar el harness. No se
+requiere cambiar Vercel, Supabase o Deployment Protection.
+
+## 19. PPO-04M.4B.1 — Redirect adaptation and read-only execution
+
+### Adaptación autorizada
+
+El primer intento falló cerrado porque el bootstrap exigía 2xx aunque Vercel
+había establecido la cookie mediante HTTP 307. Se adaptó únicamente el runner y
+sus tests focales al contrato documentado de `x-vercel-set-bypass-cookie`.
+
+El bootstrap mantiene una sola request parent, `maxRedirects = 0`, headers
+limitados a esa request y ausencia total del bypass en el child. Acepta:
+
+- 2xx con al menos una cookie aplicable;
+- exclusivamente 301, 302, 303, 307 o 308 con `Location` presente y resoluble,
+  origin exacto, username/password vacíos y al menos una cookie aplicable.
+
+Rechaza 300, 304, 305, 306, cualquier 4xx/5xx, status desconocido, `Location`
+ausente o inválida, cambio de protocolo/hostname/puerto, credenciales URL y
+cookie no aplicable. Nunca sigue ni registra el redirect.
+
+```text
+harness unit tests = 14 PASS / 0 FAIL / 0 SKIP
+lint = PASS / 0 errors / 13 pre-existing warnings
+network used by unit tests = false
+```
+
+### Preflight final
+
+```text
+branch exact = true
+HEAD 3684cbb0d72fd6412e5169155ea2089448f1e848 = true
+expected worktree files only = true
+Production target = production
+Production status = READY
+runtime source SHA 313b2076258c6d7a8c7bd9c1bf205213174a91ec = true
+stable Production origin expected = true
+Deployment Protection = all
+bypass present = true
+six exact GODEL_TEST_* variables = present
+unexpected QA variable names = 0
+```
+
+No se registraron valores, URLs, IDs, emails, contraseñas, headers, cookies o
+secretos.
+
+### Bootstrap y Playwright
+
+```text
+bootstrap status class = 3xx
+redirect used = true
+redirect same-origin = true
+infrastructure cookie count > 0 = true
+Playwright child started = true
+project = chromium
+workers = 1
+```
+
+### Totales del run
+
+```text
+tests selected after five predefined grep-invert exclusions = 44
+tests passed = 30
+tests failed = 3
+tests skipped at runtime = 0
+tests did not run after failure limit = 11
+duration = 3.2m
+READ_ONLY QA = NOT ACCEPTED
+```
+
+Los cinco tests excluidos por el harness no se contabilizan como skips. Los once
+tests no ejecutados tampoco fueron skips silenciosos: Playwright detuvo el run
+tras alcanzar el límite de tres fallos.
+
+### Resultado por superficie
+
+```text
+health/live = PASS
+health/ready = PASS
+public request smoke = PASS
+public tracking page smoke = PASS
+public tracking invalid reference = PASS
+login page = PASS
+admin login = PASS
+logout = NOT COMPLETED
+unauthenticated internal guards = PASS
+usuarios supervisor guard = PASS
+usuarios worker guard = PASS
+dashboard role/guard matrix = NOT EXECUTED after failure limit
+dashboard admin = FAIL
+dashboard shell desktop = FAIL
+dashboard shell mobile/role visibility = NOT EXECUTED after failure limit
+internal listings = 13 PASS / 1 FAIL
+Storage negatives = 4 PASS
+usuarios validation = 4 PASS
+```
+
+### Fallos de aceptación
+
+1. `dashboard-shell`: después de autenticar y cargar correctamente el shell
+   desktop, no apareció el botón esperado por el locator de expansión; la
+   captura mostró la barra lateral expandida.
+2. `dashboard`: con cero pedidos activos, el locator regex de `Pedidos activos`
+   coincidió tanto con el heading accesible del board como con el heading del
+   empty state `No hay pedidos activos`, produciendo strict-mode violation.
+3. `internal-listings`: la aceptación desktop exigió una tabla, pero Production
+   no tiene pedidos y renderizó correctamente el empty state, sin tabla.
+
+Las tres capturas locales fueron inspeccionadas. No se modificaron los specs
+funcionales ni se ampliaron exclusiones. Los traces y videos se tratan como
+material local potencialmente sensible y no fueron abiertos, exportados o
+subidos.
+
+### Residue evidence
+
+La allowlist no contiene creación autorizada de fixtures y el run no ejecutó
+specs mutantes, uploads o creación de usuarios. No se observaron operaciones de
+creación atribuibles al run:
+
+```text
+new clientes = 0 observed
+new solicitudes = 0 observed
+new pedidos = 0 observed
+new tareas = 0 observed
+new pagos = 0 observed
+new archivos = 0 observed
+new Storage objects = 0 observed
+new Auth users = 0 observed
+```
+
+Esta evidencia se limita al contrato estático de la allowlist, sus rutas
+ejecutadas y la ausencia de marcadores/fixtures del run. No se usaron secretos,
+service role, DB privilegiada ni permisos ampliados para enumerar globalmente
+Auth o Storage.
+
+### Production logs
+
+La consulta sanitizada de logs se intentó tanto por environment Production como
+por el deployment exacto localizado por SHA. Vercel rechazó ambas consultas por
+scope. No se imprimió la respuesta cruda ni se inspeccionaron payloads.
+
+```text
+events reviewed = 0 / unavailable due to scope
+errors/fatal = NOT DETERMINED
+HTTP 5xx = NOT DETERMINED
+unhandled runtime errors = NOT DETERMINED
+Supabase errors = NOT DETERMINED
+Auth errors = NOT DETERMINED
+```
+
+### Estado resultante
+
+```text
+PPO-04M.4B.1 = READ-ONLY QA NOT ACCEPTED
+PPO-04M.4B = ACTIVE / FAILURE REVIEW REQUIRED
+PRODUCTION PILOT ROLLOUT = NOT EXECUTED
+```
+
+El bootstrap seguro queda demostrado y no es el blocker vigente. La aceptación
+read-only requiere una decisión posterior sobre los tres tests incompatibles
+con el estado vacío de Production y, si se exige evidencia de logs, resolver el
+scope read-only de la CLI sin modificar el deployment.
