@@ -6,6 +6,7 @@ import { test } from "@playwright/test";
 
 import type { Database } from "@/types/database";
 import type { QaRole } from "./auth";
+import { isManagedProductionQa } from "./managed-session";
 
 type QaSupabaseClient = SupabaseClient<Database>;
 
@@ -18,6 +19,10 @@ const credentialPrefixes = {
 function readLocalEnv(name: string) {
   if (process.env[name]) {
     return process.env[name];
+  }
+
+  if (isManagedProductionQa()) {
+    return undefined;
   }
 
   const envPath = resolve(process.cwd(), ".env.local");
@@ -47,6 +52,12 @@ export async function createQaSupabaseClient(
   const password = readLocalEnv(`${prefix}_PASSWORD`);
 
   if (!supabaseUrl || !supabaseKey || !email || !password) {
+    if (isManagedProductionQa()) {
+      throw new Error(
+        `Managed Supabase QA environment for ${role} is required.`,
+      );
+    }
+
     test.skip(
       true,
       `Supabase QA environment or credentials for ${role} are not configured.`,

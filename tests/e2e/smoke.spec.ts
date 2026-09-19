@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { expectNoPublicSensitiveText } from "./helpers/assertions";
 import { loginAs } from "./helpers/auth";
+import { resetApplicationSession } from "./helpers/managed-session";
 
 test("public request page loads", async ({ page }) => {
   await page.goto("/solicitud");
@@ -73,11 +74,11 @@ test("public unknown routes render the public not found state", async ({
 test("unauthenticated transversal internal states redirect to login", async ({
   page,
 }) => {
-  await page.context().clearCookies();
+  await resetApplicationSession(page);
   await page.goto("/acceso-denegado");
   await expect(page).toHaveURL(/\/login(?:[/?#].*)?$/);
 
-  await page.context().clearCookies();
+  await resetApplicationSession(page);
   await page.goto("/sin-permisos");
   await expect(page).toHaveURL(/\/login(?:[/?#].*)?$/);
 });

@@ -3,6 +3,11 @@ import { resolve } from "node:path";
 
 import { expect, type Page, test } from "@playwright/test";
 
+import {
+  isManagedProductionQa,
+  resetApplicationSession,
+} from "./managed-session";
+
 export type QaRole = "admin" | "supervisor" | "worker";
 
 type Credentials = {
@@ -19,6 +24,10 @@ const credentialPrefixes = {
 function readLocalEnv(name: string) {
   if (process.env[name]) {
     return process.env[name];
+  }
+
+  if (isManagedProductionQa()) {
+    return undefined;
   }
 
   const envPath = resolve(process.cwd(), ".env.local");
@@ -53,11 +62,15 @@ export async function loginAs(page: Page, role: QaRole) {
   const credentials = getCredentials(role);
 
   if (!credentials) {
+    if (isManagedProductionQa()) {
+      throw new Error(`Managed QA credentials for ${role} are required.`);
+    }
+
     test.skip(true, `QA credentials for ${role} are not configured.`);
     return;
   }
 
-  await page.context().clearCookies();
+  await resetApplicationSession(page);
   await page.goto("/login", { waitUntil: "domcontentloaded" });
   await page.evaluate(() => {
     window.localStorage.clear();

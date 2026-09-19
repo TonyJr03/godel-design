@@ -9,6 +9,7 @@ import {
   createQaSupabaseClient,
   signOutQaSupabaseClient,
 } from "./helpers/supabase";
+import { isManagedProductionQa } from "./helpers/managed-session";
 
 type QaSupabaseClient = Awaited<ReturnType<typeof createQaSupabaseClient>>;
 type QaCountQuery = PromiseLike<{
@@ -123,6 +124,12 @@ async function countWorkerAssignedReadyOrders(supabase: QaSupabaseClient) {
   const profileId = await getQaProfileId(supabase);
 
   if (!profileId) {
+    if (isManagedProductionQa()) {
+      throw new Error(
+        "Managed QA worker must have an active internal profile.",
+      );
+    }
+
     test.skip(
       true,
       "No hay perfil activo para validar conteos asignados del trabajador.",

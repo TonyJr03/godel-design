@@ -4,7 +4,11 @@
 
 **Estado de PPO-04M.4:** `ACTIVE / IN PROGRESS`
 
-**Estado de PPO-04M.4A:** `COMPATIBILITY AUDIT`
+**Estado de PPO-04M.4A:** `COMPLETE`
+
+**Estado de PPO-04M.4B:** `ACTIVE / HARNESS IMPLEMENTATION`
+
+**Production QA execution:** `NOT EXECUTED`
 
 **Production pilot rollout:** `NOT EXECUTED`
 
@@ -37,8 +41,10 @@ reuse existing tests
 + mandatory fixture manifest and verified cleanup
 ```
 
-El runner y las adaptaciones no deben implementarse hasta resolver el cleanup
-de entidades sin borrado QA seguro y de objetos Storage comprometidos.
+El cleanup pendiente bloquea las suites mutantes, pero no bloquea la
+implementación del harness ni el slice read-only de M.4B.1. Las entidades sin
+borrado QA seguro y los objetos Storage comprometidos permanecen fuera de la
+allowlist.
 
 ## 2. Criterio de clasificación
 
@@ -410,9 +416,9 @@ privilegios del runner.
 
 Orden propuesto:
 
-1. Implementar y probar localmente el runner fail-closed, scrub de env,
-   bootstrap same-origin y preservación de cookie.
-2. Ejecutar en Production protegido solo el slice read-only allowlisted:
+1. Revisar el runner fail-closed, scrub de env, bootstrap same-origin y
+   preservación de cookie implementados en M.4B.0.
+2. Con autorización posterior, ejecutar en Production protegido solo el slice read-only allowlisted:
    health, smoke, public tracking negativo, dashboard/shell, listings, usuarios
    y negativas seguras de Storage.
 3. Implementar manifest/cleanup para pedidos, solicitudes, plantillas y sus
@@ -425,16 +431,215 @@ Orden propuesto:
 
 ```text
 PPO-04M.4A = COMPATIBILITY AUDIT COMPLETE
-PPO-04M.4B = NOT EXECUTED
+PPO-04M.4B = ACTIVE / HARNESS IMPLEMENTATION
+PRODUCTION QA EXECUTION = NOT EXECUTED
 PRODUCTION PILOT ROLLOUT = NOT EXECUTED
 ```
 
-## 16. Git safety y archivos
+## 16. PPO-04M.4B.0 — Managed QA Harness Implementation
 
-Archivo creado por este pase:
+### Harness implementado
 
-- `docs/production/PPO_04M4_MANAGED_PRODUCTION_QA_REPORT.md`
+Se añadió un runner managed separado y fail-closed. No reutiliza el comando
+Self-Hosted, no acepta paths arbitrarios desde CLI y construye internamente la
+selección read-only. La ejecución real del runner no fue invocada en este pase.
 
-No se modificaron tests, runtime, aplicación, configuración, dependencias,
-Supabase, Vercel ni Deployment Protection. No se ejecutaron commit, push,
-merge, rebase, amend o cambio de rama.
+```text
+PPO-04M.4B.0 = MANAGED QA HARNESS IMPLEMENTATION
+Production requests executed = 0
+remote fixtures created = 0
+remote uploads executed = 0
+```
+
+### Contrato de entorno
+
+El parent exige:
+
+```text
+.env.managed.local
+  NEXT_PUBLIC_SUPABASE_URL
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+
+.env.managed.qa.local
+  GODEL_TEST_ADMIN_EMAIL
+  GODEL_TEST_ADMIN_PASSWORD
+  GODEL_TEST_SUPERVISOR_EMAIL
+  GODEL_TEST_SUPERVISOR_PASSWORD
+  GODEL_TEST_WORKER_EMAIL
+  GODEL_TEST_WORKER_PASSWORD
+
+process environment
+  GODEL_MANAGED_PRODUCTION_BASE_URL
+  VERCEL_AUTOMATION_BYPASS_SECRET
+```
+
+Los parsers rechazan archivos ausentes, asignaciones inválidas, duplicados y
+variables requeridas vacías. El origin debe ser HTTPS limpio, sin credenciales,
+query, hash, whitespace ni path distinto de `/`. No existe fallback a
+`.env.local` en modo managed y no se registra ningún valor.
+
+### Child environment y scrub
+
+El child se construye desde una allowlist de variables de sistema no sensibles,
+las dos variables públicas, las seis credenciales QA y estos controles:
+
+```text
+GODEL_MANAGED_PRODUCTION_QA = 1
+PLAYWRIGHT_EXTERNAL_SERVER = 1
+PLAYWRIGHT_BASE_URL = validated parent origin
+GODEL_MANAGED_STORAGE_STATE_PATH = temporary path
+```
+
+Se eliminan explícitamente:
+
+```text
+SUPABASE_SECRET_KEY
+SUPABASE_SERVICE_ROLE_KEY
+SUPABASE_SERVER_URL
+SUPABASE_DB_PASSWORD
+SUPABASE_PROJECT_ID
+POSTGRES_PASSWORD
+JWT_KEYS
+JWT_JWKS
+SERVICE_ROLE_KEY
+VERCEL_AUTOMATION_BYPASS_SECRET
+```
+
+Variables ajenas no allowlisted tampoco se heredan. El bypass solo existe en el
+parent durante el bootstrap. Los errores internos del bootstrap se convierten
+en mensajes sanitizados antes de llegar al log del parent.
+
+### Bootstrap same-origin de Deployment Protection
+
+El parent crea un `APIRequestContext` vacío con el origin validado como
+`baseURL` y hace exactamente una request relativa a `/`. Los dos headers de
+automatización se suministran únicamente a esa request. `maxRedirects = 0`
+impide que el header siga un redirect y no se configura `extraHTTPHeaders` en
+Playwright browser.
+
+El bootstrap exige respuesta 2xx y captura solo cookies Secure, path `/`, cuyo
+domain aplica al hostname del origin. No conoce ni registra nombres o valores de
+cookies. El storage state resultante no conserva origins/localStorage y se
+escribe con permisos restrictivos dentro de un directorio temporal del sistema.
+
+El child recibe únicamente la ruta del storage state. El bypass no entra en el
+child, no puede adjuntarse a requests browser cross-origin y por tanto no se
+propaga a Supabase/TUS. El directorio temporal se valida antes de borrarlo y se
+elimina mediante `finally` tanto en éxito como en error; las señales del parent
+se reenvían al child para permitir el mismo cierre.
+
+El mecanismo no se ejecutó contra Production. Su contrato same-origin y cleanup
+se probaron con un `APIRequestContext` mock local sin red.
+
+### Preservación de sesión de infraestructura
+
+`managed-session.ts` mantiene el comportamiento local existente fuera del modo
+managed. En managed exige el storage state inicial, lee exclusivamente sus
+cookies, limpia las cookies de aplicación y repone ese conjunto inicial mediante
+`BrowserContext.addCookies`. No usa nombres hardcodeados.
+
+`loginAs` usa esta abstracción y convierte credenciales ausentes en hard failure
+managed. `helpers/supabase.ts` hace lo mismo para URL, publishable key y
+credenciales, sin crear cliente admin. `smoke.spec.ts` dejó de llamar
+`clearCookies()` directamente.
+
+### Configuración Playwright
+
+En modo managed la configuración exige external server, base URL y storage
+state; limita proyectos a Chromium y fija un worker. Edge y el comportamiento
+normal/local permanecen intactos fuera de managed.
+
+### Allowlist read-only final
+
+El runner contiene estos paths exactos:
+
+```text
+managed-health.spec.ts
+smoke.spec.ts
+dashboard.spec.ts
+dashboard-shell.spec.ts
+internal-listings.spec.ts
+public-tracking.spec.ts
+storage.spec.ts
+usuarios.spec.ts
+```
+
+Siempre añade:
+
+```text
+--project=chromium
+--workers=1
+```
+
+No incorpora argumentos adicionales recibidos por CLI. Por ello no puede
+seleccionar accidentalmente suites Self-Hosted, mutantes, unsafe o visuales.
+
+### Exclusiones focales y auditoría de skips
+
+La allowlist aplica `grep-invert` exacto a cinco tests:
+
+- coexistencia del shell con pedido preexistente;
+- panel Storage de pedido preexistente, que además podía subir un archivo;
+- panel Storage de solicitud preexistente;
+- navegación de usuarios entre páginas dependiente de más de 50 filas;
+- reset de filtros de usuarios dependiente de más de 50 filas.
+
+Esas exclusiones eliminan una mutación persistente y cuatro aceptaciones
+condicionadas por datos preexistentes. Permanecen cubiertas las negativas
+read-only de Storage y el resto de usuarios/shell.
+
+El único skip restante alcanzable en managed podía aparecer al no resolver el
+perfil activo del QA worker en `dashboard.spec.ts`; ahora esa condición falla de
+forma explícita en managed y conserva el skip histórico en local. Los skips por
+credenciales ausentes de `auth.ts` y `supabase.ts` también se convierten en hard
+failure managed. `managed-health.spec.ts` solo se omite fuera del runner managed.
+
+### Health spec
+
+`managed-health.spec.ts` exige HTTP 200 y contratos `{ status: "ok" }` /
+`{ status: "ready" }` para liveness y readiness. No autentica producto, no crea
+datos y queda marcado como managed-only para no alterar la suite local.
+
+### Validación local de M.4B.0
+
+```text
+harness unit tests = 8 PASS / 0 FAIL / 0 SKIP
+parser and required env = PASS
+public-only selection = PASS
+child env scrub = PASS
+invalid origin rejection = PASS
+fixed allowlist = PASS
+same-origin non-redirecting bootstrap mock = PASS
+bootstrap error sanitization = PASS
+temporary state cleanup on success/error = PASS
+lint = PASS with 13 pre-existing warnings
+build = PASS
+Production requests executed = 0
+```
+
+No se ejecutó `test:e2e:managed:readonly`, full Playwright, servidor local ni
+browser. No se crearon bypass secrets, screenshots o artifacts persistentes.
+
+## 17. Git safety y archivos
+
+Archivos añadidos:
+
+- `scripts/run-managed-production-e2e.mjs`;
+- `scripts/run-managed-production-e2e.test.mjs`;
+- `tests/e2e/helpers/managed-session.ts`;
+- `tests/e2e/managed-health.spec.ts`.
+
+Archivos modificados:
+
+- `package.json`;
+- `playwright.config.ts`;
+- `tests/e2e/dashboard.spec.ts`;
+- `tests/e2e/helpers/auth.ts`;
+- `tests/e2e/helpers/supabase.ts`;
+- `tests/e2e/smoke.spec.ts`;
+- `docs/production/PPO_04M4_MANAGED_PRODUCTION_QA_REPORT.md`.
+
+No se modificaron specs mutantes, aplicación, configuración Next.js,
+dependencias, Supabase, Vercel, Deployment Protection, RLS, grants, RPCs,
+migraciones o tipos DB. No se ejecutaron commit, push, merge, rebase, amend o
+cambio de rama.

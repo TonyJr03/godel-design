@@ -11,6 +11,8 @@
     "types:supabase": "supabase gen types typescript --local --schema public > src/types/database.types.ts",
     "test:e2e": "playwright test",
     "test:e2e:selfhosted": "node scripts/run-selfhosted-e2e.mjs",
+    "test:e2e:managed:readonly": "node scripts/run-managed-production-e2e.mjs",
+    "test:e2e:managed:harness:test": "node --test scripts/run-managed-production-e2e.test.mjs",
     "test:e2e:chromium": "playwright test --project=chromium",
     "test:e2e:chromium:serial": "playwright test --project=chromium --workers=1",
     "test:e2e:headed": "playwright test --headed",
