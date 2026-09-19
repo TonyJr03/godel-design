@@ -310,7 +310,7 @@ async function expectHistoryPanel(
 async function expectDashboardLoaded(
   page: Page,
   heading: RegExp,
-  boardHeading: RegExp = /pedidos activos/i,
+  boardHeading: RegExp = /^pedidos activos$/i,
 ) {
   await expect(page).toHaveURL(/\/dashboard(?:\/)?(?:[?#].*)?$/);
   await expect(page.getByRole("heading", { name: heading })).toBeVisible();

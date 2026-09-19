@@ -912,3 +912,155 @@ El bootstrap seguro queda demostrado y no es el blocker vigente. La aceptación
 read-only requiere una decisión posterior sobre los tres tests incompatibles
 con el estado vacío de Production y, si se exige evidencia de logs, resolver el
 scope read-only de la CLI sin modificar el deployment.
+
+## 20. PPO-04M.4B.1 — Empty-state corrections and deterministic shell rerun
+
+### Clasificación de los tres fallos anteriores
+
+1. El fallo del heading de dashboard era una ambigüedad del test: el matcher
+   amplio coincidía con el board y con su empty state. La aplicación era
+   correcta.
+2. El fallo desktop de listings era una incompatibilidad del test con un estado
+   vacío válido: exigía tabla aun cuando no existían registros. La aplicación
+   era correcta.
+3. El fallo de shell no permitía saber si falló persistencia, render o
+   accesibilidad. Se convirtió en diagnóstico secuencial sin volverlo permisivo.
+
+### Cambios exactos
+
+- `dashboard.spec.ts`: el heading por defecto del board usa el matcher semántico
+  exacto `/^pedidos activos$/i`; no usa `.first()`.
+- `internal-listings.spec.ts`: el contrato desktop espera tabla o empty state.
+  Con tabla mantiene headers esperados/prohibidos; sin registros exige el texto
+  vacío válido, tabla ausente/oculta, cards ocultas y ausencia de overflow.
+- `dashboard-shell.spec.ts`: conserva un único click y valida en orden cookie,
+  reducción de ancho y transición accesible. Los asserts emiten las
+  clasificaciones técnicas autorizadas.
+
+No se modificaron aplicación, componentes, fixtures, allowlist o configuración
+remota.
+
+### Validación local previa
+
+```text
+lint = PASS / 0 errors / 13 pre-existing warnings
+harness = 14 PASS / 0 FAIL / 0 SKIP
+git diff --check = PASS
+```
+
+### Production preflight
+
+```text
+branch = ops/managed-free-production-pilot
+HEAD = 4818d0d1b9dd37d509b910ddf78a5fe8c1a48bd7
+Production target = production
+Production status = READY
+runtime SHA 313b2076258c6d7a8c7bd9c1bf205213174a91ec = exact
+stable origin match = true
+Deployment Protection = all
+bypass = present
+six exact GODEL_TEST_* variables = present
+```
+
+### Segundo run completo
+
+```text
+bootstrap status class = 3xx
+redirect used = true
+redirect same-origin = true
+infrastructure cookie present = true
+Playwright child started = true
+project = chromium
+workers = 1
+tests selected = 44
+tests passed = 32
+tests failed = 2
+runtime skipped = 0
+tests did not run after failure limit = 10
+duration = 3.6m
+READ_ONLY QA = NOT ACCEPTED
+```
+
+Las cinco exclusiones `grep-invert` siguieron fuera del run y no se contaron
+como skips.
+
+### Resultado de las correcciones
+
+```text
+dashboard exact board heading = PASS
+internal listings desktop empty state = PASS
+shell = COOKIE_TRANSITION_FAILED
+SHELL_READ_ONLY_PASS = NOT EMITTED
+```
+
+El shell volvió a fallar en la primera condición posterior al único click: la
+cookie `godel_sidebar_collapsed` no apareció dentro del timeout observable. La
+captura mostró la sidebar todavía expandida. Por orden de Dirección Técnica no
+se aplicó otra corrección, retry, segundo click, force click, timeout adicional
+ni modificación de `DashboardDesktopSidebar.tsx`.
+
+### Segundo fallo y cobertura
+
+El test de badges/conteos de management obtuvo conteos cero, confirmó los badges
+y luego intentó abrir el diálogo de solicitudes. En Production vacío el click
+no abrió diálogo y la expectativa falló. Se clasifica como una nueva
+incompatibilidad del test con acción de conteo cero; no se corrigió en este pase.
+
+```text
+global admin dashboard = PASS
+dashboard badges/counts = FAIL on zero-count dialog expectation
+remaining dashboard role/guard tests = NOT EXECUTED after failure limit
+shell desktop = COOKIE_TRANSITION_FAILED
+shell mobile/role visibility = NOT EXECUTED after serial failure
+internal listings = 14 PASS
+health/live = PASS
+health/ready = PASS
+public tracking negative = PASS
+smoke and admin login = 6 PASS
+Storage negatives = 4 PASS
+usuarios validation/guards = 4 PASS
+```
+
+Se inspeccionaron las dos capturas desktop generadas. Videos y traces permanecen
+locales bajo `test-results/`, ignorados, y no fueron abiertos, exportados o
+subidos.
+
+### Vercel logs
+
+Se consultó primero la ayuda de Vercel CLI 59.23.2. Después se usó la sintaxis
+soportada con la ventana temporal del run y únicamente el contexto automático
+del proyecto enlazado. La CLI volvió a negar acceso por scope.
+
+```text
+VERCEL_RUNTIME_LOGS_CLI = UNAVAILABLE / SCOPE
+events reviewed = 0
+errors/fatal = NOT DETERMINED
+HTTP 5xx = NOT DETERMINED
+unhandled runtime errors = NOT DETERMINED
+Supabase errors = NOT DETERMINED
+Auth errors = NOT DETERMINED
+```
+
+No se modificaron scope, permisos, proyecto o deployment.
+
+### Residue evidence y estado
+
+La allowlist permaneció read-only. No se ejecutaron specs mutantes, creación de
+fixtures, uploads, alta de Auth users o mutaciones de negocio. No se usaron
+service role, secret key o DB privilegiada para ampliar la comprobación.
+
+```text
+fixtures created = 0 observed
+uploads = 0 observed
+Auth users created = 0 observed
+business mutations = 0 observed
+
+PPO-04M.4B.1 = READ-ONLY QA NOT ACCEPTED
+PPO-04M.4B = ACTIVE / FAILURE REVIEW REQUIRED
+PRODUCTION PILOT ROLLOUT = NOT EXECUTED
+```
+
+El siguiente checkpoint requiere decisión técnica sobre
+`COOKIE_TRANSITION_FAILED` y sobre el contrato de acciones con conteo cero. No
+se debe modificar automáticamente la aplicación ni reinterpretar los diez tests
+no ejecutados como aceptación.

@@ -294,19 +294,25 @@ async function expectDesktopTableLayout(page: Page, contract: ListingContract) {
   await page.goto(contract.path);
 
   const table = page.locator("table").first();
+  const cards = page.locator(`div[aria-label="${contract.cardsLabel}"]`);
+  const emptyState = page.getByText(contract.emptyText).first();
 
-  await expect(table).toBeVisible();
-  await expect(page.locator(`div[aria-label="${contract.cardsLabel}"]`))
-    .toBeHidden();
+  await expect(table.or(emptyState)).toBeVisible();
+  await expect(cards).toBeHidden();
 
-  for (const header of contract.expectedHeaders) {
-    await expect(table.getByRole("columnheader", { name: header }))
-      .toBeVisible();
-  }
+  if (await table.isVisible()) {
+    for (const header of contract.expectedHeaders) {
+      await expect(table.getByRole("columnheader", { name: header }))
+        .toBeVisible();
+    }
 
-  for (const forbiddenHeader of contract.forbiddenHeaders) {
-    await expect(table.getByRole("columnheader", { name: forbiddenHeader }))
-      .toHaveCount(0);
+    for (const forbiddenHeader of contract.forbiddenHeaders) {
+      await expect(table.getByRole("columnheader", { name: forbiddenHeader }))
+        .toHaveCount(0);
+    }
+  } else {
+    await expect(emptyState).toBeVisible();
+    await expect(table).toBeHidden();
   }
 
   await expectNoHorizontalOverflow(page);

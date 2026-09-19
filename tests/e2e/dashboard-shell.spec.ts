@@ -47,15 +47,22 @@ async function getSidebarWidth(sidebar: Locator) {
   return box?.width ?? 0;
 }
 
-async function expectSidebarCookie(page: Page, value: string) {
+async function expectSidebarCookie(
+  page: Page,
+  value: string,
+  message = "COOKIE_TRANSITION_FAILED",
+) {
   await expect
-    .poll(async () => {
-      const cookie = (await page.context().cookies()).find(
-        (entry) => entry.name === "godel_sidebar_collapsed",
-      );
+    .poll(
+      async () => {
+        const cookie = (await page.context().cookies()).find(
+          (entry) => entry.name === "godel_sidebar_collapsed",
+        );
 
-      return cookie?.value;
-    })
+        return cookie?.value;
+      },
+      { message },
+    )
     .toBe(value);
 }
 
@@ -108,8 +115,10 @@ test("admin can use the desktop shell collapsed and expanded", async ({
     name: /contraer barra lateral/i,
   });
 
-  await expect(collapseButton).toBeVisible();
-  await expect(collapseButton).toHaveAttribute("aria-expanded", "true");
+  await expect(collapseButton, "TOGGLE_ACCESSIBILITY_TRANSITION_FAILED")
+    .toBeVisible();
+  await expect(collapseButton, "TOGGLE_ACCESSIBILITY_TRANSITION_FAILED")
+    .toHaveAttribute("aria-expanded", "true");
   await expect(collapseButton).toHaveAttribute(
     "aria-controls",
     "dashboard-sidebar-navigation",
@@ -118,32 +127,51 @@ test("admin can use the desktop shell collapsed and expanded", async ({
 
   const expandedWidth = await getSidebarWidth(sidebar);
 
-  expect(expandedWidth).toBeGreaterThanOrEqual(240);
+  expect(expandedWidth, "SIDEBAR_RENDER_TRANSITION_FAILED")
+    .toBeGreaterThanOrEqual(240);
   await collapseButton.click();
+
+  await expectSidebarCookie(page, "1", "COOKIE_TRANSITION_FAILED");
+  await expect
+    .poll(() => getSidebarWidth(sidebar), {
+      message: "SIDEBAR_RENDER_TRANSITION_FAILED",
+    })
+    .toBeLessThan(expandedWidth);
 
   const expandButton = sidebar.getByRole("button", {
     name: /expandir barra lateral/i,
   });
 
-  await expect(expandButton).toHaveAttribute("aria-expanded", "false");
+  await expect(expandButton, "TOGGLE_ACCESSIBILITY_TRANSITION_FAILED")
+    .toBeVisible();
+  await expect(expandButton, "TOGGLE_ACCESSIBILITY_TRANSITION_FAILED")
+    .toHaveAttribute("aria-expanded", "false");
   await expectMinTargetSize(expandButton);
-  await expectSidebarCookie(page, "1");
   await expect(sidebar.getByRole("link", { name: /pedidos/i })).toBeVisible();
   await expect(sidebar.locator("svg").first()).toBeVisible();
-  expect(await getSidebarWidth(sidebar)).toBeLessThan(expandedWidth);
 
   await page.reload();
   await expect(
     sidebar.getByRole("button", { name: /expandir barra lateral/i }),
+    "TOGGLE_ACCESSIBILITY_TRANSITION_FAILED",
   ).toHaveAttribute("aria-expanded", "false");
-  expect(await getSidebarWidth(sidebar)).toBeLessThan(expandedWidth);
+  await expect
+    .poll(() => getSidebarWidth(sidebar), {
+      message: "SIDEBAR_RENDER_TRANSITION_FAILED",
+    })
+    .toBeLessThan(expandedWidth);
 
   await expandButton.click();
   await expect(
     sidebar.getByRole("button", { name: /contraer barra lateral/i }),
+    "TOGGLE_ACCESSIBILITY_TRANSITION_FAILED",
   ).toHaveAttribute("aria-expanded", "true");
-  await expectSidebarCookie(page, "0");
-  await expect.poll(() => getSidebarWidth(sidebar)).toBeGreaterThanOrEqual(240);
+  await expectSidebarCookie(page, "0", "COOKIE_TRANSITION_FAILED");
+  await expect
+    .poll(() => getSidebarWidth(sidebar), {
+      message: "SIDEBAR_RENDER_TRANSITION_FAILED",
+    })
+    .toBeGreaterThanOrEqual(240);
 
   await page.goto("/dashboard/pedidos");
   await expect(desktopNav.getByRole("link", { name: /pedidos/i }))
