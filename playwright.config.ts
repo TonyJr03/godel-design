@@ -35,6 +35,10 @@ const edgeProject = {
 
 export default defineConfig({
   testDir: "./tests/e2e",
+  timeout: managedProductionQa ? 90_000 : 30_000,
+  expect: {
+    timeout: managedProductionQa ? 15_000 : 5_000,
+  },
   ...(externalServer
     ? {}
     : {

@@ -1556,3 +1556,492 @@ PRODUCTION RUNTIME = 313b2076258c6d7a8c7bd9c1bf205213174a91ec / UNCHANGED
 PRODUCTION REQUESTS DURING IMPLEMENTATION = 0
 PRODUCTION PILOT ROLLOUT = NOT EXECUTED
 ```
+
+## 25. PPO-04M.4B.1 — Batched Preview read-only QA
+
+### Autoridad y preflight
+
+```text
+branch = ops/managed-free-production-pilot
+HEAD = 01552f8bee59b5f9982a2d722e39795461918f43
+initial worktree clean = true
+
+Preview environment = preview
+Preview status = READY
+source branch exact = true
+source SHA exact = true
+deployment is Production = false
+exact matching Preview deployments = 1
+```
+
+La resolución se hizo por metadata Git del deployment, no mediante un branch
+alias. `vercel inspect` requirió reutilizar el scope del proyecto enlazado y
+confirmó el deployment READY sin cambiar configuración. No se registraron URL,
+deployment ID, project ref, cookie, token ni bypass secret.
+
+Deployment Protection permaneció sin cambios:
+
+```text
+Vercel Authentication = All Deployments
+Preview protected = true
+configured bypass present = true
+local VERCEL_AUTOMATION_BYPASS_SECRET present = true
+```
+
+Los dos archivos Managed estaban presentes e ignorados. El contrato QA contenía
+exactamente los seis nombres `GODEL_TEST_*` requeridos, con cero nombres
+faltantes, inesperados o duplicados. Sólo se comprobó presencia; no se
+registraron valores.
+
+El nombre histórico del target se conservó:
+
+```text
+runner variable name = GODEL_MANAGED_PRODUCTION_BASE_URL
+actual run target = PREVIEW
+```
+
+El gate local previo pasó con 19 tests, cero fallos y cero skips.
+
+### Runtime smoke protegido
+
+El bootstrap devolvió 307, su redirect fue same-origin y produjo la cookie de
+infraestructura. El bypass sólo se envió en ese bootstrap; los probes
+posteriores usaron la cookie y validaron manualmente cualquier redirect como
+same-origin.
+
+```text
+GET /api/health/live  = HTTP 200 / status ok
+GET /api/health/ready = HTTP 200 / status ready
+GET /login            = HTTP 200
+GET /                  = HTTP 200
+```
+
+### Cinco procesos Playwright
+
+Se ejecutó una sola vez, sin argumentos, `npm run
+test:e2e:managed:readonly`. No hubo ejecución manual de specs, rerun, retry,
+cambio de timeout ni aumento de paralelismo.
+
+| Orden | Batch | Seleccionados/ejecutados | Passed | Failed | Runtime skipped | Did not run | Exit |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | `foundation` | 8 | 8 | 0 | 0 | 0 | 0 |
+| 2 | `dashboard` | 10 | 10 | 0 | 0 | 0 | 0 |
+| 3 | `shell` | 3 | 3 | 0 | 0 | 0 | 0 |
+| 4 | `listings` | 14 | 14 | 0 | 0 | 0 | 0 |
+| 5 | `remaining-readonly` | 9 | 9 | 0 | 0 | 0 | 0 |
+
+```text
+batches_total = 5
+batches_passed = 5
+batches_failed = 0
+overall = PASS
+
+selected/executed = 44
+passed = 44
+failed = 0
+runtime skipped = 0
+did not run = 0
+```
+
+Cada output directory contiene su propio `.last-run.json` con estado `passed`
+y cero failed tests. Sus escrituras ocurrieron en el orden de los cinco batches,
+confirmando la secuencia de procesos frescos. Las cinco exclusiones por
+`grep-invert` no entraron en la selección y no son runtime skips: una pertenece
+a `shell`, dos a `storage` y dos a `usuarios`.
+
+El recolector sanitizado del comando conservó el agregado `5/5 PASS`, pero usó
+inicialmente un prefijo incorrecto al extraer las líneas por batch y no retuvo
+esas líneas del temporal. No se hizo rerun. El desglose se reconcilió con los
+cinco `.last-run.json`, el orden de escritura, la allowlist fija y el inventario
+estático 8 + 10 + 3 + 14 + 9 = 44. Los únicos `test.skip` dinámicos relevantes
+al inventario seleccionado quedan desactivados por el modo Managed; los demás
+pertenecen a casos excluidos por `grep-invert`.
+
+### Gates funcionales focales
+
+El batch `shell` pasó el test que exige control habilitado antes del click,
+click único, transición de cookie, reducción/aumento de ancho y transición
+accesible de `aria-expanded`. No usa `waitForTimeout`, `networkidle`, segundo
+click, `force` ni `dispatchEvent`. El guard de hidratación vigente usa una
+microtask, no un delay temporal.
+
+```text
+collapse control enabled before click = PASS
+single click = PASS
+cookie transition = PASS
+width transition = PASS
+accessible toggle transition = PASS
+temporary hydration delay present = false
+```
+
+Las lecturas RLS posteriores confirmaron que ambos conteos Managed seguían en
+cero. El test `dashboard`, que pasó, abrió los dos workspace actions y ejecutó
+las assertions de empty state:
+
+```text
+Solicitudes count = 0
+Solicitudes button enabled = PASS
+Solicitudes dialog opens = PASS
+Sin solicitudes pendientes = PASS
+
+Entregas count = 0
+Entregas button enabled = PASS
+Entregas dialog opens = PASS
+Sin pedidos listos = PASS
+```
+
+No se crearon datos para forzar esos estados.
+
+El batch `listings` pasó sus 14 casos y ningún batch reprodujo los timeouts del
+run monolítico:
+
+```text
+POST_LOGIN_NAVIGATION_TIMEOUT = not reproduced
+LISTING_NAVIGATION_TIMEOUT = not reproduced
+ACCUMULATED_SINGLE_PROCESS_FACTOR = SUPPORTED BY BATCHED PASS
+```
+
+La última clasificación es apoyo operacional compatible con la evidencia, no
+una demostración de causalidad absoluta.
+
+### Artifacts, residuos y logs
+
+Los artifacts nuevos quedaron aislados bajo:
+
+```text
+test-results/managed-readonly/foundation
+test-results/managed-readonly/dashboard
+test-results/managed-readonly/shell
+test-results/managed-readonly/listings
+test-results/managed-readonly/remaining-readonly
+```
+
+Cada directorio contiene únicamente su `.last-run.json`. El `.last-run.json`
+en la raíz de `test-results` preexistía desde el run monolítico anterior y no
+fue escrito por esta ejecución batched. No se subieron artifacts ni se
+exportaron cookies, tokens o headers.
+
+```text
+fixtures created = 0 observed
+business mutations = 0 observed
+uploads = 0 observed
+Auth users created = 0 observed
+privileged DB access = false
+```
+
+Los conteos de empty state usaron autenticación QA normal y lecturas RLS. Un
+primer intento auxiliar no pudo interpretar localmente `Content-Range`; no
+alteró datos. El segundo obtuvo los conteos y cerró su sesión. No se usó cliente
+administrativo, acceso DB privilegiado ni credencial server-only.
+
+Vercel runtime logs estuvieron disponibles con el scope read-only existente:
+
+```text
+records inspected = 100
+5xx = 0
+error/fatal = 0
+unhandled runtime exception = 0
+Auth bootstrap failures = 0
+```
+
+### Comparación y estado
+
+El run monolítico anterior terminó con 39 passed y 5 failed por timeouts; la
+misma allowlist, assertions, Chromium y `workers=1`, distribuida en cinco
+procesos frescos, terminó 44/44. No se modificó aplicación, Supabase, Vercel,
+Deployment Protection ni configuración remota durante este pase.
+
+```text
+HYDRATION FIX PREVIEW = PASS
+BATCHED READ_ONLY PREVIEW QA = PASS
+
+PPO-04M.4B.1 = ACTIVE / PREVIEW VALIDATED / PRODUCTION UPDATE PENDING
+
+PRODUCTION RUNTIME = 313b2076258c6d7a8c7bd9c1bf205213174a91ec / UNCHANGED
+PRODUCTION UPDATE = NOT EXECUTED
+PRODUCTION PILOT ROLLOUT = NOT EXECUTED
+```
+
+## 26. PPO-04M.4B.1 — Promoted Production read-only QA
+
+### Promotion authority y Production actual
+
+Dirección Técnica promovió manualmente el Preview previamente validado. Codex
+no ejecutó promoción, redeploy ni cambio Git. Vercel realizó un rebuild
+Production independiente, por lo que este deployment fue validado de nuevo y
+no se reutilizó la aceptación del Preview.
+
+```text
+branch = ops/managed-free-production-pilot
+Git HEAD = 01552f8bee59b5f9982a2d722e39795461918f43
+
+environment/target = production
+deployment status = READY
+source branch exact = true
+source SHA exact = true
+current Production = true
+previous Production SHA is current = false
+stable Production origin points to current deployment = true
+```
+
+El control plane presentó un único Production READY con la rama y SHA
+autorizadas. El target actual del proyecto, el resultado de `vercel inspect` y
+la asignación del alias estable coincidieron. No se registraron URL,
+deployment ID, project ref u otros identificadores sensibles.
+
+### Build, environment y protección
+
+```text
+build status = PASS
+framework = Next.js
+deployment status = READY
+
+Production environment entries = 3
+NEXT_PUBLIC_SUPABASE_URL = present
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = present
+SUPABASE_SECRET_KEY = present
+SUPABASE_SERVER_URL = absent
+SUPABASE_SERVICE_ROLE_KEY = absent
+
+Vercel Authentication = All Deployments
+new Production protected = true
+VERCEL_AUTOMATION_BYPASS_SECRET = present
+```
+
+La comprobación de environment se limitó a nombres y scope Production. No se
+leyeron valores ni se modificaron variables. Una solicitud sin bypass al
+dominio estable recibió un redirect cross-origin hacia infraestructura Auth de
+Vercel, confirmando la protección del nuevo Production.
+
+### Runtime smoke
+
+El bootstrap protegido devolvió 307, validó el redirect same-origin y produjo
+la cookie de infraestructura. El bypass sólo se envió en ese bootstrap; los
+probes posteriores usaron la cookie con redirects manuales same-origin.
+
+```text
+GET /api/health/live  = HTTP 200 / status ok
+GET /api/health/ready = HTTP 200 / status ready
+GET /login            = HTTP 200
+GET /                  = HTTP 200
+
+runner variable name = GODEL_MANAGED_PRODUCTION_BASE_URL
+actual run target = PRODUCTION
+```
+
+El gate local del harness pasó con 19 tests, cero fallos y cero skips.
+
+### Batched Production run
+
+Se ejecutó una sola vez y sin argumentos `npm run
+test:e2e:managed:readonly`. No hubo rerun, tests manuales, retries, cambio de
+timeout ni modificación de código.
+
+| Orden | Batch | Selected | Executed | Passed | Failed | Runtime skipped | Did not run | Exit |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | `foundation` | 8 | 8 | 8 | 0 | 0 | 0 | 0 |
+| 2 | `dashboard` | 10 | 3 | 2 | 1 | 0 | 7 | 1 |
+| 3 | `shell` | 3 | 3 | 3 | 0 | 0 | 0 | 0 |
+| 4 | `listings` | 14 | 14 | 9 | 5 | 0 | 0 | 1 |
+| 5 | `remaining-readonly` | 9 | 9 | 8 | 1 | 0 | 0 | 1 |
+
+```text
+batches_total = 5
+batches_passed = 2
+batches_failed = 3
+overall = FAIL
+
+selected = 44
+executed = 37
+passed = 30
+failed = 7
+runtime skipped = 0
+did not run = 7
+```
+
+Los cinco procesos frescos sí arrancaron y el runner continuó después de los
+fallos funcionales, como exige su contrato. `foundation` y `shell` pasaron;
+`dashboard`, `listings` y `remaining-readonly` no pasaron aceptación.
+
+### Fallos originales
+
+`dashboard` falló en `admin history panel follows the rolling activity window`.
+La pantalla estaba completamente renderizada y el count de Historial era cero,
+pero el botón permaneció deshabilitado mientras el test exigía que estuviera
+habilitado. Al ser el tercer caso de un spec serial, siete casos posteriores no
+se ejecutaron.
+
+`listings` registró cinco fallos:
+
+1. el contrato mobile/tablet agotó 30 s durante `page.goto`;
+2. el contrato responsive de Solicitudes agotó el presupuesto alrededor de la
+   assertion del empty state, aunque la captura final mostraba ese empty state
+   renderizado;
+3. el control de instancias DOM/IDs agotó el timeout global con una pantalla de
+   Clientes ya renderizada;
+4. el control de chips activos agotó 30 s durante `page.goto`;
+5. el control de desplazamiento compacto del resultado agotó 30 s durante
+   `page.goto`.
+
+`remaining-readonly` falló en la validación de paginación/canonical URLs de
+Usuarios: `page.goto` agotó 30 s y la captura terminó en el estado de carga
+“Preparando vista”.
+
+Los siete traces no observaron HTTP 5xx ni 429. Las capturas disponibles
+mostraron shells autenticados; no se confirmó fallo de login. Cuatro screenshots
+de fallo fueron inspeccionados localmente y no se copiaron al reporte.
+
+### Gates focales
+
+El batch `shell` pasó sus tres casos seleccionados:
+
+```text
+collapse control enabled before click = PASS
+single click = PASS
+cookie transition = PASS
+width transition = PASS
+accessible toggle transition = PASS
+temporary delay present = false
+```
+
+El segundo caso de `dashboard` terminó antes del fallo de Historial y validó
+los counts cero y sus diálogos:
+
+```text
+Solicitudes count = 0
+Solicitudes button enabled = PASS
+Solicitudes dialog = PASS
+Sin solicitudes pendientes = PASS
+
+Entregas count = 0
+Entregas button enabled = PASS
+Entregas dialog = PASS
+Sin pedidos listos = PASS
+```
+
+```text
+POST_LOGIN_NAVIGATION_TIMEOUT = not reproduced
+LISTING_NAVIGATION_TIMEOUT = reproduced
+```
+
+No se aumentaron timeouts y no se hizo reproducción focal.
+
+### Logs, artifacts y residuos
+
+```text
+Production log events reviewed = 500
+HTTP 5xx count = 0
+error/fatal count = 0
+unhandled runtime exceptions = 0
+Auth errors = 0
+Supabase/runtime configuration errors = 0
+```
+
+Los artifacts quedaron bajo los cinco directorios
+`test-results/managed-readonly/<batch>`. Los tres batches fallidos conservaron
+sus traces, videos, error contexts y screenshots según correspondía. No se
+subieron artifacts ni se exportaron cookies, headers, tokens o request bodies.
+
+```text
+fixtures created = 0 observed
+business mutations = 0 observed
+uploads = 0 observed
+Auth users created = 0 observed
+privileged DB access = false
+```
+
+### Estado
+
+El nuevo Production tiene autoridad, build, environment, protección y smoke
+correctos, pero el gate funcional read-only no queda aceptado por siete fallos.
+No se inicia diseño/ejecución mutante ni rollout.
+
+```text
+PRODUCTION SOURCE SHA = 01552f8bee59b5f9982a2d722e39795461918f43
+PRODUCTION READ_ONLY QA = NOT ACCEPTED
+
+PPO-04M.4B.1 = ACTIVE / PRODUCTION READ_ONLY QA FAILED
+PPO-04M.4B = ACTIVE / READ_ONLY FAILURE DIAGNOSIS REQUIRED
+
+PRODUCTION PILOT ROLLOUT = NOT EXECUTED
+```
+
+## 27. PPO-04M.4B.1 — Managed remote QA timing adaptation
+
+### Diagnóstico confirmado
+
+La revisión estática posterior al run Production fallido confirmó que el count
+cero de Historial no deshabilita su acción en `DashboardWorkspace`. El
+`disabled` nativo observado provenía exclusivamente del gate transitorio
+`!isInteractiveReady` durante la hidratación. El helper `openWorkspaceAction()`
+mantiene una comprobación ordinaria `toBeEnabled()` antes del click; no se
+detectó un defecto del contrato funcional de Historial ni se relajó esa
+assertion.
+
+El fallo ocurrió dentro del presupuesto remoto disponible antes de que la
+acción terminara su readiness interactivo. Además, el spec Dashboard estaba en
+modo `serial`: el primer fallo impidió ejecutar siete casos posteriores, aunque
+no existieran skips de runtime.
+
+Los defaults vigentes eran 30 s por test y 5 s por assertion. El presupuesto
+del test incluye `beforeEach`, login, cuerpo del caso, navegaciones y
+assertions. Esto afecta especialmente a los contratos de listings que agrupan
+varias navegaciones; un caso recorre cinco rutas en dos viewports, para diez
+navegaciones completas dentro de un único timeout de test.
+
+```text
+history count 0 disables product action = false
+observed disabled source = pre-interactive hydration readiness
+history functional contract bug = false
+managed remote readiness budget implicated = true
+
+dashboard mode before = serial
+dashboard mode after = default
+dashboard did not run caused by serial failure = 7
+```
+
+### Adaptación implementada
+
+Se introdujo únicamente una política condicional en `playwright.config.ts`:
+
+| Ejecución | Test timeout | Expect timeout | Workers | Retries |
+| --- | ---: | ---: | ---: | ---: |
+| Managed Production QA | 90 s | 15 s | 1 | 0 |
+| Local / self-hosted | 30 s | 5 s | default existente | 0 |
+
+El spec Dashboard pasó explícitamente de modo `serial` a `default`. El runner,
+su inventario de batches, los specs de listings y Usuarios, y la semántica de
+`page.goto` permanecen sin cambios. No se añadieron `actionTimeout`,
+`navigationTimeout`, `globalTimeout`, retries, esperas temporales, `networkidle`,
+segundos clicks, `force`, `dispatchEvent` ni reintentos manuales.
+
+### Validación local
+
+```text
+managed config evaluation = timeout 90000 / expect 15000 / workers 1
+normal config evaluation = timeout 30000 / expect 5000
+managed retries = 0
+action/navigation/global timeout overrides = absent
+
+npm run test:e2e:managed:harness:test = PASS / 19 passed / 0 failed
+npm run lint = PASS / 0 errors / 13 pre-existing out-of-scope warnings
+npm run verify = PASS / lint + Next.js build
+npm run audit:security = PASS / 0 blocking violations
+git diff --check = PASS
+npm run diff:check = PASS
+```
+
+Este pase no inició navegador, servidor ni ejecución E2E. Se realizaron cero
+solicitudes a Production y cero solicitudes a Preview. No se modificaron
+aplicación, configuración remota, Supabase, Vercel, Deployment Protection ni el
+runtime desplegado.
+
+```text
+branch = ops/managed-free-production-pilot
+Git HEAD = 01552f8bee59b5f9982a2d722e39795461918f43
+
+PPO-04M.4B.1 = ACTIVE / MANAGED REMOTE QA TIMING ADAPTATION IMPLEMENTED / PENDING REVIEW
+PRODUCTION READ_ONLY QA = NOT ACCEPTED
+PRODUCTION RUNTIME = 01552f8bee59b5f9982a2d722e39795461918f43 / UNCHANGED
+PRODUCTION PILOT ROLLOUT = NOT EXECUTED
+```

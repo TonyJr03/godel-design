@@ -17,7 +17,7 @@ type QaCountQuery = PromiseLike<{
   error: { message?: string } | null;
 }>;
 
-test.describe.configure({ mode: "serial" });
+test.describe.configure({ mode: "default" });
 
 const managementDashboardCards = [
   /solicitudes nuevas/i,
