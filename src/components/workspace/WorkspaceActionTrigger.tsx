@@ -18,8 +18,13 @@ export function WorkspaceActionTrigger({
   label,
   className,
 }: WorkspaceActionTriggerProps) {
-  const { actions, primaryActionId, activePanelId, openAction } =
-    useWorkspace();
+  const {
+    actions,
+    primaryActionId,
+    activePanelId,
+    isInteractiveReady,
+    openAction,
+  } = useWorkspace();
   const resolvedActionId = actionId ?? primaryActionId;
 
   if (!resolvedActionId) {
@@ -48,7 +53,7 @@ export function WorkspaceActionTrigger({
         ]
           .filter(Boolean)
           .join(" ")}
-        disabled={action.disabled}
+        disabled={action.disabled || !isInteractiveReady}
         onClick={(event) => openAction(action.id, event.currentTarget)}
       >
         <WorkspaceIcon name={action.icon} className="h-5 w-5" />

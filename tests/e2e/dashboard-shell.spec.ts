@@ -123,6 +123,8 @@ test("admin can use the desktop shell collapsed and expanded", async ({
     "aria-controls",
     "dashboard-sidebar-navigation",
   );
+  await expect(collapseButton, "TOGGLE_ACCESSIBILITY_TRANSITION_FAILED")
+    .toBeEnabled();
   await expectMinTargetSize(collapseButton);
 
   const expandedWidth = await getSidebarWidth(sidebar);
@@ -155,6 +157,8 @@ test("admin can use the desktop shell collapsed and expanded", async ({
     sidebar.getByRole("button", { name: /expandir barra lateral/i }),
     "TOGGLE_ACCESSIBILITY_TRANSITION_FAILED",
   ).toHaveAttribute("aria-expanded", "false");
+  await expect(expandButton, "TOGGLE_ACCESSIBILITY_TRANSITION_FAILED")
+    .toBeEnabled();
   await expect
     .poll(() => getSidebarWidth(sidebar), {
       message: "SIDEBAR_RENDER_TRANSITION_FAILED",

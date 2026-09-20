@@ -43,6 +43,7 @@ export function WorkspaceTabletToolbar() {
     activePanelId,
     tabletActionIds,
     isMoreOpen,
+    isInteractiveReady,
     openAction,
     openMore,
   } = useWorkspace();
@@ -216,6 +217,7 @@ export function WorkspaceTabletToolbar() {
               "relative shrink-0 overflow-visible",
               getWorkspaceActionToneClasses(action, isActive, "tablet"),
             ].join(" ")}
+            disabled={action.disabled || !isInteractiveReady}
             onClick={(event) => openAction(action.id, event.currentTarget)}
           >
             <WorkspaceIcon name={action.icon} className="h-5 w-5" />
@@ -246,6 +248,7 @@ export function WorkspaceTabletToolbar() {
               ? "border-brand-primary bg-brand-primary-soft text-brand-primary"
               : "border-border bg-surface text-text-primary hover:bg-brand-primary-soft hover:text-brand-primary",
           ].join(" ")}
+          disabled={!isInteractiveReady}
           onClick={(event) =>
             openMore(
               event.currentTarget,

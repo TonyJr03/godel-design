@@ -65,7 +65,8 @@ export function WorkspaceActionRail({
   presentation = "labeled",
   contained = false,
 }: WorkspaceActionRailProps) {
-  const { actions, activePanelId, openAction } = useWorkspace();
+  const { actions, activePanelId, isInteractiveReady, openAction } =
+    useWorkspace();
   const isIconRail = presentation === "icons";
   const asideLayoutClasses = isIconRail
     ? contained
@@ -104,7 +105,7 @@ export function WorkspaceActionRail({
                   : "flex min-h-11 w-full cursor-pointer items-start gap-3 rounded-(--radius-control) border px-3 py-3 text-left transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-75",
                 getRailToneClasses(action, isActive),
               ].join(" ")}
-              disabled={action.disabled}
+              disabled={action.disabled || !isInteractiveReady}
               onClick={(event) => openAction(action.id, event.currentTarget)}
             >
               <WorkspaceIcon

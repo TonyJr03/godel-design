@@ -13,6 +13,7 @@ export type WorkspaceContextValue = {
   primaryActionId?: string;
   tabletActionIds?: readonly string[];
   mobileActionIds?: readonly string[];
+  isInteractiveReady: boolean;
   openAction: (
     actionId: string,
     trigger?: HTMLElement | null,

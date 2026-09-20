@@ -261,7 +261,10 @@ async function expectWorkspaceActionBadge(
 }
 
 async function openWorkspaceAction(page: Page, actionName: RegExp) {
-  await page.getByRole("button", { name: actionName }).first().click();
+  const action = page.getByRole("button", { name: actionName }).first();
+
+  await expect(action).toBeEnabled();
+  await action.click();
   await expect(page.getByRole("dialog")).toBeVisible();
 }
 
@@ -439,6 +442,13 @@ test("management dashboard badges and more links use exact counts", async ({
   ).toHaveCount(
     Math.min(pendingSolicitudesCount, pendingSolicitudesVisibleLimit),
   );
+  if (pendingSolicitudesCount === 0) {
+    await expect(
+      page
+        .getByRole("dialog")
+        .getByRole("heading", { name: /^sin solicitudes pendientes$/i }),
+    ).toBeVisible();
+  }
   await expectMoreLink(
     page,
     "solicitudes",
@@ -451,6 +461,13 @@ test("management dashboard badges and more links use exact counts", async ({
   await expect(
     page.getByRole("dialog").locator('a[href^="/dashboard/pedidos/"]'),
   ).toHaveCount(Math.min(readyOrdersCount, readyOrdersVisibleLimit));
+  if (readyOrdersCount === 0) {
+    await expect(
+      page
+        .getByRole("dialog")
+        .getByRole("heading", { name: /^sin pedidos listos$/i }),
+    ).toBeVisible();
+  }
   await expectMoreLink(
     page,
     "pedidos",

@@ -1064,3 +1064,97 @@ El siguiente checkpoint requiere decisión técnica sobre
 `COOKIE_TRANSITION_FAILED` y sobre el contrato de acciones con conteo cero. No
 se debe modificar automáticamente la aplicación ni reinterpretar los diez tests
 no ejecutados como aceptación.
+
+## 21. PPO-04M.4B.1 — Hydration diagnosis and interaction hardening
+
+### Diagnóstico controlado
+
+El segundo run fallido había aislado dos interacciones perdidas: el click de
+colapso no persistía la cookie y la acción `Solicitudes` con conteo cero no
+abría su diálogo. El código confirmó que el conteo cero no deshabilita la
+acción y que su panel contiene el empty state válido
+`Sin solicitudes pendientes`.
+
+Se añadió temporalmente una espera de 1000 ms después de que `loginAs()`
+confirmara `/dashboard` y su heading, exclusivamente en Managed Production QA.
+Tras revalidar el deployment Production READY, su rama y SHA exactos, el origen
+estable y Deployment Protection para todos los deployments, se ejecutó una sola
+vez la allowlist read-only completa.
+
+```text
+bootstrap status class = 3xx
+redirect used = true
+redirect same-origin = true
+infrastructure cookie present = true
+tests selected = 44
+tests passed = 44
+tests failed = 0
+tests skipped = 0
+duration = 6.4m
+shell cookie transition = PASS
+Solicitudes zero-count dialog = PASS
+Solicitudes zero-count empty state = PASS
+HYDRATION_RACE_CONFIRMED = true
+```
+
+La espera temporal se eliminó inmediatamente después del run y
+`tests/e2e/helpers/auth.ts` quedó idéntico a HEAD. No queda ningún timeout,
+retry, segundo click, `force`, `dispatchEvent` o `networkidle` como solución.
+
+```text
+ROOT CAUSE = PRE-HYDRATION INTERACTION RACE
+temporary wait removed = true
+```
+
+### Hardening aplicado
+
+El workspace expone `isInteractiveReady` desde su contexto. El servidor y el
+primer render cliente producen `false`; un efecto posterior a hidratación lo
+lleva a `true` mediante una microtarea, sin delay temporal. `openAction()` y
+`openMore()` ignoran defensivamente cualquier invocación anterior a readiness.
+
+Los controles de rail, trigger, toolbar tablet y barra mobile usan `disabled`
+nativo mientras no exista readiness, combinado con el disabled funcional de
+cada acción. Los controles `Más` siguen el mismo contrato. No cambiaron labels,
+badges, permisos, tonos, layout, SSR ni naturaleza de los botones.
+
+La barra lateral desktop mantiene cookie, ancho, labels, `aria-expanded` y
+`aria-controls`. Su botón de colapso/expansión empieza deshabilitado y el handler
+rechaza ejecución antes de readiness. El click sobre el fondo completo de una
+sidebar colapsada no se modificó; sigue atravesando el handler guardado, pero no
+dispone de un disabled nativo propio. Esta superficie residual queda documentada
+sin ampliar el alcance autorizado.
+
+Los tests funcionales ahora exigen que el control esté habilitado antes de cada
+click único del shell y antes de abrir una acción del workspace. Con conteo cero
+siguen abriendo el panel y comprueban los contratos reales:
+
+```text
+Solicitudes = Sin solicitudes pendientes
+Entregas = Sin pedidos listos
+```
+
+No se crearon fixtures ni se cambió el contrato de conteos.
+
+### Validación local y estado
+
+```text
+harness = 14 PASS / 0 FAIL / 0 SKIP
+lint = PASS / 0 errors / 13 pre-existing warnings
+build = PASS
+Production requests after implementation = 0
+Production runtime SHA = 313b2076258c6d7a8c7bd9c1bf205213174a91ec / UNCHANGED
+```
+
+No se ejecutó nuevamente la suite contra Production después de implementar el
+hardening, porque el runtime desplegado todavía no contiene la solución. No se
+promovió ni redesplegó ningún deployment y no se modificaron Vercel, Supabase,
+Deployment Protection, datos de negocio, variables o dependencias.
+
+```text
+PPO-04M.4B.1 = ACTIVE / HYDRATION FIX PENDING PREVIEW VALIDATION
+PRODUCTION RUNTIME = UNCHANGED
+PRODUCTION PILOT ROLLOUT = NOT EXECUTED
+PREVIEW VALIDATION REQUIRED BEFORE PRODUCTION UPDATE
+READ_ONLY QA PASS = NOT CLAIMED FOR THE NEW IMPLEMENTATION
+```

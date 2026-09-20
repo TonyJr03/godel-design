@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState, type MouseEvent } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import { ChevronLeft, ChevronRight, UserRound } from "lucide-react";
 
 import { LogoutButton } from "@/components/auth/LogoutButton";
@@ -46,6 +46,7 @@ export function DashboardDesktopSidebar({
   const [isCollapsed, setIsCollapsed] = useState(initialCollapsed);
   const [suppressCollapsedReveal, setSuppressCollapsedReveal] =
     useState(initialCollapsed);
+  const [isInteractiveReady, setIsInteractiveReady] = useState(false);
   const session = getSessionSummary(profile);
   const ToggleIcon = isCollapsed ? ChevronRight : ChevronLeft;
   const toggleLabel = isCollapsed
@@ -55,7 +56,25 @@ export function DashboardDesktopSidebar({
     ? "opacity-0 focus-visible:opacity-100"
     : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100";
 
+  useEffect(() => {
+    let isMounted = true;
+
+    queueMicrotask(() => {
+      if (isMounted) {
+        setIsInteractiveReady(true);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   function handleToggleSidebar() {
+    if (!isInteractiveReady) {
+      return;
+    }
+
     const nextCollapsed = !isCollapsed;
 
     setIsCollapsed(nextCollapsed);
@@ -134,6 +153,7 @@ export function DashboardDesktopSidebar({
           aria-controls="dashboard-sidebar-navigation"
           aria-label={toggleLabel}
           title={toggleLabel}
+          disabled={!isInteractiveReady}
           onClick={handleToggleSidebar}
           className={[
             "inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-(--radius-control) border text-white transition-[background-color,border-color,color,opacity] duration-200 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-primary-hover motion-reduce:transition-none",

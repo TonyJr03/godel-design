@@ -27,6 +27,7 @@ export function MobileWorkspaceBar() {
     activePanelId,
     mobileActionIds,
     isMoreOpen,
+    isInteractiveReady,
     openAction,
     openMore,
   } = useWorkspace();
@@ -109,6 +110,7 @@ export function MobileWorkspaceBar() {
                 "relative flex min-h-11 cursor-pointer flex-col items-center justify-center gap-1 overflow-visible rounded-(--radius-control) px-2 text-xs font-semibold transition-colors duration-200",
                 getWorkspaceActionToneClasses(action, isActive, "mobile"),
               ].join(" ")}
+              disabled={action.disabled || !isInteractiveReady}
               onClick={(event) => openAction(action.id, event.currentTarget)}
             >
               <WorkspaceIcon name={action.icon} className="h-5 w-5" />
@@ -141,6 +143,7 @@ export function MobileWorkspaceBar() {
                 ? "bg-brand-primary-soft text-brand-primary"
                 : "text-text-primary hover:bg-brand-primary-soft hover:text-brand-primary",
             ].join(" ")}
+            disabled={!isInteractiveReady}
             onClick={(event) =>
               openMore(
                 event.currentTarget,

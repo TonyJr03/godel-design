@@ -62,6 +62,21 @@ export function WorkspaceController({
     WorkspaceOpenView,
     { type: "more" }
   > | null>(null);
+  const [isInteractiveReady, setIsInteractiveReady] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    queueMicrotask(() => {
+      if (isMounted) {
+        setIsInteractiveReady(true);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const restoreTriggerFocus = useCallback(() => {
     const trigger = triggerRef.current;
@@ -101,7 +116,12 @@ export function WorkspaceController({
     ) => {
       const action = actions.find((item) => item.id === actionId);
 
-      if (!action || action.disabled || !panels[actionId]) {
+      if (
+        !isInteractiveReady ||
+        !action ||
+        action.disabled ||
+        !panels[actionId]
+      ) {
         return;
       }
 
@@ -118,7 +138,7 @@ export function WorkspaceController({
       setRenderedView(nextView);
       setView(nextView);
     },
-    [actions, panels],
+    [actions, isInteractiveReady, panels],
   );
 
   const openMore = useCallback(
@@ -127,6 +147,10 @@ export function WorkspaceController({
       scope: WorkspaceMoreScope = "mobile",
       directActionIds: readonly string[] = [],
     ) => {
+      if (!isInteractiveReady) {
+        return;
+      }
+
       if (trigger) {
         triggerRef.current = trigger;
       }
@@ -141,7 +165,7 @@ export function WorkspaceController({
       setRenderedView(nextView);
       setView(nextView);
     },
-    [],
+    [isInteractiveReady],
   );
 
   const returnToMore = useCallback(() => {
@@ -207,6 +231,7 @@ export function WorkspaceController({
       primaryActionId,
       tabletActionIds,
       mobileActionIds,
+      isInteractiveReady,
       openAction,
       openMore,
       closePanel,
@@ -216,6 +241,7 @@ export function WorkspaceController({
     [
       actions,
       closePanel,
+      isInteractiveReady,
       mobileActionIds,
       openAction,
       openMore,
