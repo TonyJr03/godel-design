@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join, resolve, sep } from "node:path";
@@ -78,6 +78,36 @@ export const MANAGED_READ_ONLY_SPECS = Object.freeze([
   "tests/e2e/public-tracking.spec.ts",
   "tests/e2e/storage.spec.ts",
   "tests/e2e/usuarios.spec.ts",
+]);
+
+export const MANAGED_READ_ONLY_BATCHES = Object.freeze([
+  Object.freeze({
+    name: "foundation",
+    specs: Object.freeze([
+      "tests/e2e/managed-health.spec.ts",
+      "tests/e2e/smoke.spec.ts",
+    ]),
+  }),
+  Object.freeze({
+    name: "dashboard",
+    specs: Object.freeze(["tests/e2e/dashboard.spec.ts"]),
+  }),
+  Object.freeze({
+    name: "shell",
+    specs: Object.freeze(["tests/e2e/dashboard-shell.spec.ts"]),
+  }),
+  Object.freeze({
+    name: "listings",
+    specs: Object.freeze(["tests/e2e/internal-listings.spec.ts"]),
+  }),
+  Object.freeze({
+    name: "remaining-readonly",
+    specs: Object.freeze([
+      "tests/e2e/public-tracking.spec.ts",
+      "tests/e2e/storage.spec.ts",
+      "tests/e2e/usuarios.spec.ts",
+    ]),
+  }),
 ]);
 
 export const MANAGED_READ_ONLY_EXCLUDED_TESTS = Object.freeze([
@@ -227,18 +257,68 @@ function escapeRegularExpression(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-export function buildPlaywrightArguments() {
+export function validateManagedReadOnlyBatchInventory({
+  batches = MANAGED_READ_ONLY_BATCHES,
+  specs = MANAGED_READ_ONLY_SPECS,
+} = {}) {
+  const flattenedSpecs = batches.flatMap((batch) => batch.specs);
+  const seenSpecs = new Set();
+  const duplicates = new Set();
+
+  for (const spec of flattenedSpecs) {
+    if (seenSpecs.has(spec)) {
+      duplicates.add(spec);
+    }
+
+    seenSpecs.add(spec);
+  }
+
+  const expectedSpecs = new Set(specs);
+  const missingSpecs = specs.filter((spec) => !seenSpecs.has(spec));
+  const extraSpecs = flattenedSpecs.filter((spec) => !expectedSpecs.has(spec));
+
+  if (
+    duplicates.size > 0 ||
+    missingSpecs.length > 0 ||
+    extraSpecs.length > 0 ||
+    flattenedSpecs.length !== specs.length
+  ) {
+    throw new Error("managed read-only batch inventory drift");
+  }
+
+  return {
+    batchCount: batches.length,
+    duplicates: [],
+    extraSpecs: [],
+    flattenedSpecs,
+    missingSpecs: [],
+  };
+}
+
+function assertManagedReadOnlyBatch(batch) {
+  validateManagedReadOnlyBatchInventory();
+
+  if (!MANAGED_READ_ONLY_BATCHES.includes(batch)) {
+    throw new Error("unrecognized managed read-only batch");
+  }
+}
+
+export function buildPlaywrightArguments(batch) {
+  assertManagedReadOnlyBatch(batch);
+
   const excludedTestPattern = `(?:${MANAGED_READ_ONLY_EXCLUDED_TESTS
     .map(escapeRegularExpression)
     .join("|")})$`;
 
   return [
     "test",
-    ...MANAGED_READ_ONLY_SPECS,
+    ...batch.specs,
     "--project=chromium",
     "--workers=1",
     "--grep-invert",
     excludedTestPattern,
+    "--output",
+    join("test-results", "managed-readonly", batch.name),
   ];
 }
 
@@ -396,7 +476,13 @@ export async function withTemporaryStorageState(operation) {
   }
 }
 
-function runPlaywright(childEnvironment) {
+export function runPlaywrightBatch(
+  childEnvironment,
+  batch,
+  { spawnProcess = spawn } = {},
+) {
+  assertManagedReadOnlyBatch(batch);
+
   const playwrightCli = resolve(
     process.cwd(),
     "node_modules",
@@ -406,13 +492,21 @@ function runPlaywright(childEnvironment) {
   );
 
   return new Promise((resolveRun, rejectRun) => {
-    const child = spawn(process.execPath, [playwrightCli, ...buildPlaywrightArguments()], {
-      env: childEnvironment,
-      stdio: "inherit",
-      windowsHide: true,
-    });
+    const child = spawnProcess(
+      process.execPath,
+      [playwrightCli, ...buildPlaywrightArguments(batch)],
+      {
+        env: childEnvironment,
+        stdio: "inherit",
+        windowsHide: true,
+      },
+    );
+    let receivedSignal = false;
+    let settled = false;
 
     const forwardSignal = (signal) => {
+      receivedSignal = true;
+
       if (!child.killed) {
         child.kill(signal);
       }
@@ -429,16 +523,81 @@ function runPlaywright(childEnvironment) {
 
     child.once("error", () => {
       removeSignalHandlers();
-      rejectRun(new Error("could not start Playwright"));
+
+      if (!settled) {
+        settled = true;
+        rejectRun(new Error("could not start Playwright batch"));
+      }
     });
     child.once("close", (code) => {
       removeSignalHandlers();
+
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+
+      if (receivedSignal) {
+        rejectRun(new Error("Playwright batch interrupted by signal"));
+        return;
+      }
+
       resolveRun(code ?? 1);
     });
   });
 }
 
+export async function runManagedReadOnlyBatches({
+  childEnvironment,
+  log = console.log,
+  runBatch = runPlaywrightBatch,
+  storageStateAvailable = existsSync,
+}) {
+  const inventory = validateManagedReadOnlyBatchInventory();
+  const storageStatePath =
+    childEnvironment?.GODEL_MANAGED_STORAGE_STATE_PATH;
+  const exitCodes = [];
+
+  for (const batch of MANAGED_READ_ONLY_BATCHES) {
+    if (!storageStatePath || !storageStateAvailable(storageStatePath)) {
+      throw new Error("managed read-only batch infrastructure failure");
+    }
+
+    log(`[managed-production-e2e] batch_start=${batch.name}`);
+
+    let exitCode;
+
+    try {
+      exitCode = await runBatch(childEnvironment, batch);
+    } catch {
+      throw new Error("managed read-only batch infrastructure failure");
+    }
+
+    if (!Number.isInteger(exitCode) || exitCode < 0) {
+      throw new Error("managed read-only batch infrastructure failure");
+    }
+
+    exitCodes.push(exitCode);
+    log(`[managed-production-e2e] batch_exit=${exitCode}`);
+  }
+
+  const batchesFailed = exitCodes.filter((code) => code !== 0).length;
+  const batchesPassed = inventory.batchCount - batchesFailed;
+  const overall = batchesFailed === 0 ? "PASS" : "FAIL";
+
+  log(
+    `[managed-production-e2e] batches_total=${inventory.batchCount} ` +
+      `batches_passed=${batchesPassed} batches_failed=${batchesFailed} ` +
+      `overall=${overall}`,
+  );
+
+  return batchesFailed === 0 ? 0 : 1;
+}
+
 async function main() {
+  validateManagedReadOnlyBatchInventory();
+
   const managed = readEnvironmentFile(
     resolve(process.cwd(), MANAGED_ENV_PATH),
     "managed runtime",
@@ -467,19 +626,11 @@ async function main() {
   }
 
   return withTemporaryStorageState(async ({ storageStatePath }) => {
-    const bootstrapResult = await bootstrapProtectionStorageState({
+    await bootstrapProtectionStorageState({
       bypassSecret,
       productionOrigin,
       storageStatePath,
     });
-
-    console.log(
-      `[managed-production-e2e] Deployment Protection bootstrap accepted ` +
-        `(status_class=${bootstrapResult.statusClass} ` +
-        `redirect=${bootstrapResult.redirectUsed} ` +
-        `redirect_same_origin=${bootstrapResult.redirectSameOrigin ?? "not-applicable"} ` +
-        `infrastructure_cookie_present=${bootstrapResult.infrastructureCookiePresent}).`,
-    );
 
     const childEnvironment = buildChildEnvironment({
       parentEnvironment: process.env,
@@ -489,11 +640,7 @@ async function main() {
       storageStatePath,
     });
 
-    console.log(
-      "[managed-production-e2e] Starting the protected read-only Chromium allowlist.",
-    );
-
-    return runPlaywright(childEnvironment);
+    return runManagedReadOnlyBatches({ childEnvironment });
   });
 }
 

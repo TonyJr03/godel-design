@@ -1,19 +1,23 @@
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { test } from "node:test";
 
 import {
   FORBIDDEN_CHILD_ENV_NAMES,
   MANAGED_PUBLIC_ENV_NAMES,
   MANAGED_QA_ENV_NAMES,
+  MANAGED_READ_ONLY_BATCHES,
   MANAGED_READ_ONLY_EXCLUDED_TESTS,
   MANAGED_READ_ONLY_SPECS,
   bootstrapProtectionStorageState,
   buildChildEnvironment,
   buildPlaywrightArguments,
   parseEnvironmentFile,
+  runManagedReadOnlyBatches,
   selectRequiredValues,
+  validateManagedReadOnlyBatchInventory,
   validateProductionOrigin,
   withTemporaryStorageState,
 } from "./run-managed-production-e2e.mjs";
@@ -208,39 +212,211 @@ test("child environment is allowlisted and excludes privileged values", () => {
   }
 });
 
-test("managed Playwright arguments use only the fixed read-only allowlist", () => {
-  const args = buildPlaywrightArguments();
-  const grepInvertIndex = args.indexOf("--grep-invert");
-  const excludedPattern = new RegExp(args[grepInvertIndex + 1]);
+test("managed batch inventory covers the fixed allowlist exactly once", () => {
+  const inventory = validateManagedReadOnlyBatchInventory();
 
-  assert.equal(args[0], "test");
-  assert.equal(args.includes("--project=chromium"), true);
-  assert.equal(args.includes("--workers=1"), true);
-  assert.notEqual(grepInvertIndex, -1);
+  assert.equal(inventory.batchCount, 5);
+  assert.deepEqual(
+    MANAGED_READ_ONLY_BATCHES.map((batch) => batch.name),
+    [
+      "foundation",
+      "dashboard",
+      "shell",
+      "listings",
+      "remaining-readonly",
+    ],
+  );
+  assert.deepEqual(inventory.flattenedSpecs, [...MANAGED_READ_ONLY_SPECS]);
+  assert.deepEqual(inventory.duplicates, []);
+  assert.deepEqual(inventory.missingSpecs, []);
+  assert.deepEqual(inventory.extraSpecs, []);
 
-  for (const spec of MANAGED_READ_ONLY_SPECS) {
-    assert.equal(args.includes(spec), true);
+  for (const batch of MANAGED_READ_ONLY_BATCHES) {
+    assert.equal(Object.isFrozen(batch), true);
+    assert.equal(Object.isFrozen(batch.specs), true);
   }
+});
 
-  for (const forbidden of [
-    "tests/e2e/full-visual-qa.spec.ts",
-    "tests/e2e/pedidos.spec.ts",
-    "tests/e2e/auth-admin-selfhosted.spec.ts",
-  ]) {
-    assert.equal(args.includes(forbidden), false);
-  }
+test("managed batch inventory rejects duplicates, missing specs, and extras", () => {
+  const mutableBatches = MANAGED_READ_ONLY_BATCHES.map((batch) => ({
+    name: batch.name,
+    specs: [...batch.specs],
+  }));
 
-  for (const excludedTitle of MANAGED_READ_ONLY_EXCLUDED_TESTS) {
+  assert.throws(
+    () =>
+      validateManagedReadOnlyBatchInventory({
+        batches: [
+          ...mutableBatches,
+          { name: "duplicate", specs: [MANAGED_READ_ONLY_SPECS[0]] },
+        ],
+      }),
+    /inventory drift/,
+  );
+  assert.throws(
+    () =>
+      validateManagedReadOnlyBatchInventory({
+        batches: mutableBatches.map((batch, index) =>
+          index === 0
+            ? { ...batch, specs: batch.specs.slice(1) }
+            : batch,
+        ),
+      }),
+    /inventory drift/,
+  );
+  assert.throws(
+    () =>
+      validateManagedReadOnlyBatchInventory({
+        batches: [
+          ...mutableBatches,
+          { name: "extra", specs: ["tests/e2e/not-allowed.spec.ts"] },
+        ],
+      }),
+    /inventory drift/,
+  );
+});
+
+test("managed Playwright arguments are isolated to each validated batch", () => {
+  for (const batch of MANAGED_READ_ONLY_BATCHES) {
+    const args = buildPlaywrightArguments(batch);
+    const grepInvertIndex = args.indexOf("--grep-invert");
+    const outputIndex = args.indexOf("--output");
+    const excludedPattern = new RegExp(args[grepInvertIndex + 1]);
+    const otherSpecs = MANAGED_READ_ONLY_SPECS.filter(
+      (spec) => !batch.specs.includes(spec),
+    );
+
+    assert.equal(args[0], "test");
+    assert.equal(args.includes("--project=chromium"), true);
+    assert.equal(args.includes("--workers=1"), true);
+    assert.notEqual(grepInvertIndex, -1);
     assert.equal(
-      excludedPattern.test(`chromium tests/e2e/example.spec.ts ${excludedTitle}`),
-      true,
+      args[outputIndex + 1],
+      join("test-results", "managed-readonly", batch.name),
+    );
+
+    for (const spec of batch.specs) {
+      assert.equal(args.includes(spec), true);
+    }
+
+    for (const spec of otherSpecs) {
+      assert.equal(args.includes(spec), false);
+    }
+
+    for (const excludedTitle of MANAGED_READ_ONLY_EXCLUDED_TESTS) {
+      assert.equal(
+        excludedPattern.test(
+          `chromium tests/e2e/example.spec.ts ${excludedTitle}`,
+        ),
+        true,
+      );
+    }
+
+    assert.equal(
+      excludedPattern.test("chromium tests/e2e/example.spec.ts unrelated test"),
+      false,
     );
   }
 
-  assert.equal(
-    excludedPattern.test("chromium tests/e2e/example.spec.ts unrelated test"),
-    false,
+  assert.throws(
+    () =>
+      buildPlaywrightArguments({
+        name: "arbitrary",
+        specs: [MANAGED_READ_ONLY_SPECS[0]],
+      }),
+    /unrecognized managed read-only batch/,
   );
+});
+
+test("managed batch aggregation is sequential and fail-closed", async () => {
+  for (const scenario of [
+    { codes: [0, 0, 0, 0, 0], expected: 0 },
+    { codes: [0, 1, 0, 0, 0], expected: 1 },
+    { codes: [1, 1, 0, 0, 0], expected: 1 },
+  ]) {
+    const observedBatches = [];
+    const logs = [];
+    const overall = await runManagedReadOnlyBatches({
+      childEnvironment: {
+        GODEL_MANAGED_STORAGE_STATE_PATH: "temporary-state.json",
+      },
+      log: (message) => logs.push(message),
+      runBatch: async (_childEnvironment, batch) => {
+        observedBatches.push(batch.name);
+        return scenario.codes[observedBatches.length - 1];
+      },
+      storageStateAvailable: () => true,
+    });
+
+    assert.equal(overall, scenario.expected);
+    assert.deepEqual(
+      observedBatches,
+      MANAGED_READ_ONLY_BATCHES.map((batch) => batch.name),
+    );
+    assert.equal(logs.filter((line) => line.includes("batch_start=")).length, 5);
+    assert.equal(logs.filter((line) => line.includes("batch_exit=")).length, 5);
+    assert.equal(logs.at(-1).includes("batches_total=5"), true);
+    assert.equal(
+      logs.at(-1).includes(
+        scenario.expected === 0 ? "overall=PASS" : "overall=FAIL",
+      ),
+      true,
+    );
+  }
+});
+
+test("managed batch infrastructure failure stops later batches", async () => {
+  const observedBatches = [];
+
+  await assert.rejects(
+    runManagedReadOnlyBatches({
+      childEnvironment: {
+        GODEL_MANAGED_STORAGE_STATE_PATH: "temporary-state.json",
+      },
+      log: () => undefined,
+      runBatch: async (_childEnvironment, batch) => {
+        observedBatches.push(batch.name);
+
+        if (batch.name === "dashboard") {
+          throw new Error("raw spawn failure");
+        }
+
+        return 0;
+      },
+      storageStateAvailable: () => true,
+    }),
+    (error) => {
+      assert.equal(
+        error.message,
+        "managed read-only batch infrastructure failure",
+      );
+      assert.equal(error.message.includes("raw spawn failure"), false);
+      return true;
+    },
+  );
+
+  assert.deepEqual(observedBatches, ["foundation", "dashboard"]);
+});
+
+test("managed batch execution fails before spawn when storage state is unavailable", async () => {
+  let runBatchCalled = false;
+
+  await assert.rejects(
+    runManagedReadOnlyBatches({
+      childEnvironment: {
+        GODEL_MANAGED_STORAGE_STATE_PATH: "missing-state.json",
+      },
+      log: () => undefined,
+      runBatch: async () => {
+        runBatchCalled = true;
+        return 0;
+      },
+      storageStateAvailable: () => false,
+    }),
+    /managed read-only batch infrastructure failure/,
+  );
+
+  assert.equal(runBatchCalled, false);
 });
 
 test("protection bootstrap uses one same-origin non-redirecting request", async () => {

@@ -1158,3 +1158,401 @@ PRODUCTION PILOT ROLLOUT = NOT EXECUTED
 PREVIEW VALIDATION REQUIRED BEFORE PRODUCTION UPDATE
 READ_ONLY QA PASS = NOT CLAIMED FOR THE NEW IMPLEMENTATION
 ```
+
+## 22. PPO-04M.4B.1 — Exact Preview validation attempt
+
+**Fecha:** 2026-09-19
+
+### Autoridad y target
+
+El worktree comenzó limpio sobre la rama autorizada y el commit que contiene el
+hydration hardening:
+
+```text
+branch = ops/managed-free-production-pilot
+HEAD = fbf8bc4d6e4469dacbf199f36c62c1a5dc71a0fc
+hydration fix commit = fbf8bc4d6e4469dacbf199f36c62c1a5dc71a0fc
+```
+
+La consulta autenticada y read-only de Vercel encontró exactamente un
+deployment READY dentro del listado Preview cuya rama y SHA coinciden. El CLI
+representa el target no productivo sin valor explícito en este listado; el
+scope `--environment preview` y la ausencia de target Production establecen la
+clasificación sin recurrir a alias ni a otro deployment.
+
+```text
+exact Preview candidates = 1
+query environment = preview
+status = READY
+source branch exact = true
+source SHA exact = true
+deployment is not Production = true
+Vercel Authentication = All Deployments
+Preview protected = true
+```
+
+No se registraron URL, deployment ID, project ref, cookies, headers, tokens ni
+secretos. El bypass dedicado existente estaba presente; no se creó otro.
+
+Para esta ejecución se conservó sin cambios el contrato histórico del runner:
+
+```text
+runner variable historical name = GODEL_MANAGED_PRODUCTION_BASE_URL
+actual target for this run = PREVIEW
+```
+
+El origen asignado a esa variable existió únicamente en el proceso del run y
+correspondió al Preview exacto. No se cambió código ni configuración.
+
+### Preflight y runtime smoke
+
+```text
+.env.managed.local = present / ignored
+.env.managed.qa.local = present / ignored
+six exact GODEL_TEST_* variables = present
+unexpected QA variable names = 0
+VERCEL_AUTOMATION_BYPASS_SECRET = present
+temporary hydration wait present = false
+
+harness = 14 PASS / 0 FAIL / 0 SKIP
+/api/health/live = HTTP 200 / status ok
+/api/health/ready = HTTP 200 / status ready
+/login = HTTP 200
+/ = HTTP 200
+```
+
+Los cuatro probes fueron GET protegidos y same-origin contra el Preview exacto.
+No realizaron mutaciones.
+
+### Managed read-only Playwright
+
+El runner se ejecutó sin argumentos adicionales, con Chromium, un worker, la
+allowlist fija y las cinco exclusiones predefinidas.
+
+```text
+selected = 44
+passed = 31
+failed = 5
+runtime skipped = 0
+did not run = 8
+duration = 7.9m
+PREVIEW_READ_ONLY_QA = NOT ACCEPTED
+```
+
+Los cinco fallos fueron:
+
+1. el test de badges/conteos no encontró el heading del dashboard después del
+   login;
+2. el test responsive de pedidos tampoco encontró ese heading durante login;
+3. la navegación responsive a solicitudes agotó el timeout de `page.goto`;
+4. la navegación del contrato de controles a usuarios agotó el timeout de
+   `page.goto`;
+5. otro `beforeEach` de listings no encontró el heading posterior al login.
+
+No se realizó rerun ni se añadieron timeouts, retries de click, segundo click,
+`force`, `dispatchEvent` o `networkidle`.
+
+### Gate de hidratación
+
+El test completo del shell desktop sí pasó, incluyendo las assertions añadidas
+por el hardening:
+
+```text
+dashboard shell collapse control enabled before click = PASS
+single click only = PASS
+sidebar cookie transition = PASS
+sidebar width transition = PASS
+toggle accessible transition = PASS
+```
+
+El test de conteos falló durante `loginAs()` antes de intentar cualquiera de
+las dos acciones. Por tanto el Preview no produjo evidencia de los gates
+zero-count en este run:
+
+```text
+Solicitudes zero-count action enabled before click = NOT EXECUTED
+Solicitudes dialog opens = NOT EXECUTED
+Solicitudes zero-count empty state = NOT EXECUTED
+
+Entregas zero-count action enabled before click = NOT EXECUTED
+Entregas dialog opens = NOT EXECUTED
+Entregas zero-count empty state = NOT EXECUTED
+```
+
+No se reinterpretó el PASS previo de Production con espera diagnóstica como
+aceptación del nuevo build Preview.
+
+### Residuos, artifacts y logs
+
+La allowlist ejecutada permaneció read-only. No se usaron secret key, service
+role o acceso DB privilegiado para ampliar la verificación.
+
+```text
+fixtures created = 0 observed
+business mutations = 0 observed
+uploads = 0 observed
+Auth users created = 0 observed
+```
+
+Los videos, traces y contextos de error generados por Playwright permanecen
+locales e ignored. No se inspeccionaron ni exportaron tokens, cookies o headers.
+
+La consulta read-only de logs del deployment exacto volvió a ser rechazada por
+el scope actual:
+
+```text
+VERCEL_RUNTIME_LOGS_CLI = UNAVAILABLE / SCOPE
+events reviewed = 0
+errors/fatal = NOT DETERMINED
+HTTP 5xx = NOT DETERMINED
+```
+
+No se cambiaron scopes, permisos, proyecto, deployment ni Deployment
+Protection.
+
+### Estado resultante
+
+```text
+HYDRATION FIX PREVIEW = NOT ACCEPTED
+PPO-04M.4B.1 = ACTIVE / PREVIEW READ_ONLY QA NOT ACCEPTED
+PRODUCTION UPDATE = NOT EXECUTED
+PRODUCTION RUNTIME = 313b2076258c6d7a8c7bd9c1bf205213174a91ec / UNCHANGED
+PRODUCTION PILOT ROLLOUT = NOT EXECUTED
+```
+
+No se promovió ni redesplegó Production. El informe queda modificado sólo en el
+worktree local para preservar la correspondencia entre el Preview validado y
+`fbf8bc4d6e4469dacbf199f36c62c1a5dc71a0fc`.
+
+## 23. PPO-04M.4B.1 — Failure artifact diagnosis
+
+**Fecha:** 2026-09-20
+
+### Alcance
+
+Se preservó el reporte local anterior y no se repitió inicialmente ningún test.
+El diagnóstico inspeccionó los cinco `error-context`, los frames locales finales
+y los traces ya generados. Sólo se extrajeron pathnames, tipos de request,
+status, duraciones, timings de navegación y errores de consola sanitizados. No
+se copiaron ni exportaron URLs completas, hosts, headers, cookies, cuerpos,
+credenciales, tokens o valores Supabase.
+
+El hydration gate del shell había pasado completamente en el run original y no
+existe evidencia de una regresión de esa corrección:
+
+```text
+HYDRATION_RACE regression = false
+```
+
+### Cinco fallos exactos
+
+| Spec y test | Fase | Pathname observado | Error y timeout | Clasificación |
+| --- | --- | --- | --- | --- |
+| `dashboard.spec.ts` — `management dashboard badges and more links use exact counts` | `loginAs`, después del redirect aceptado | `/dashboard` | heading del dashboard no visible en 20 s | `POST_LOGIN_NAVIGATION_TIMEOUT` |
+| `internal-listings.spec.ts` — `pedido responsive cards keep approved hierarchy below xl` | `beforeEach/loginAs`, después del redirect aceptado | `/dashboard` | heading del dashboard no visible en 20 s | `POST_LOGIN_NAVIGATION_TIMEOUT` |
+| `internal-listings.spec.ts` — `solicitud responsive cards show workflow before service below xl` | navegación del test hacia solicitudes | `/dashboard`; target `/dashboard/solicitudes` | `page.goto` agotó el timeout global de 30 s | `LISTING_NAVIGATION_TIMEOUT` |
+| `internal-listings.spec.ts` — `listing header controls have unique DOM instances and IDs` | navegación tras completar contratos anteriores | `/dashboard/clientes`; target `/dashboard/configuracion/usuarios` | `page.goto` quedó pendiente al agotarse el timeout global de 30 s; quedaban aproximadamente 10 s para esa navegación | `LISTING_NAVIGATION_TIMEOUT` |
+| `internal-listings.spec.ts` — `listing header keeps title and description together with active filters` | `beforeEach/loginAs`, después del redirect aceptado | `/dashboard` | heading no visible en 20 s dentro de un hook de 30 s | `POST_LOGIN_NAVIGATION_TIMEOUT` |
+
+Los dos fallos denominados originalmente de login no quedaron en `/login`:
+Auth y el redirect habían terminado, pero el contenido operativo posterior no
+reemplazó el loading boundary dentro del tiempo disponible.
+
+### Evidencia visual
+
+Los cinco frames finales muestran un shell autenticado desktop o mobile y el
+estado `Preparando vista… / Cargando información operativa.` de
+`dashboard/loading.tsx`. Ninguno muestra formulario de login, alerta de Auth o
+estado inactivo.
+
+```text
+page classification = dashboard / authenticated shell / loading boundary
+visible alert present = false
+visible alert category = NO_VISIBLE_LOGIN_ERROR
+submit button state = NOT PRESENT / ALREADY AUTHENTICATED
+INVALID_CREDENTIALS_MESSAGE = false
+TEMPORARY_LOGIN_ERROR_MESSAGE = false
+INACTIVE_PROFILE_MESSAGE = false
+```
+
+Se inspeccionaron frames de `1280x720`, `1366x768` y `390x844`. No se exportó
+ninguna imagen fuera del directorio temporal de diagnóstico.
+
+### Trace y Auth
+
+En los cinco traces el submit produjo un POST de login completado y un redirect
+HTTP 303. Las duraciones observadas estuvieron entre 0.7 s y 4.5 s. La
+navegación posterior a `/dashboard` recibió HTTP 200; las respuestas observadas
+estuvieron entre 0.4 s y 8.6 s.
+
+```text
+login completed = true
+server action completed normally = true
+Auth HTTP observable status = 303 redirect after submit
+AUTH_FAILURE_NOT_OBSERVED = true
+AUTH_429_CONFIRMED = false
+AUTH_5XX_CONFIRMED = false
+AUTH_REQUEST_TIMEOUT = false
+AUTH_ERROR_MISCLASSIFIED = false
+AUTH_RATE_LIMIT_SUSPECTED = false
+AUTH_RATE_LIMIT_CONFIRMED = false
+```
+
+El browser trace no observa el hop interno desde la Server Action hacia
+Supabase, pero sí demuestra que el POST visible no terminó en 429/5xx, que el
+redirect se completó y que el shell autenticado quedó renderizado. Las mismas
+credenciales además pasaron en otros tests del run.
+
+Dos traces registraron `ERR_CONNECTION_RESET` desde la página de login sobre un
+recurso auxiliar de feedback del Preview. No afectó el POST de login. No hubo
+page exceptions registradas.
+
+### Evidencia de navegación de listings
+
+En los dos fallos directos de navegación:
+
+```text
+login completed = true
+navigation started = true
+response received = true
+HTTP status = 200
+DOMContentLoaded/load completion within test budget = false
+target UI eventually rendered in failed run = false
+classification = PREVIEW_COLD_START_OR_LATENCY
+```
+
+La navegación a solicitudes recibió HTTP 200 en aproximadamente 4.7 s, pero
+`page.goto` permaneció pendiente hasta el timeout de 30 s. La navegación a
+usuarios recibió HTTP 200 en aproximadamente 0.4 s, pero comenzó cuando el caso
+ya había consumido la mayor parte de su presupuesto global y quedó pendiente al
+terminar el test. No se observó respuesta 5xx ni fallo de assertion del UI
+target; las expectations posteriores no llegaron a ejecutarse.
+
+Varios traces terminaron con assets o fetches pendientes/cancelados, y dos
+registraron connection reset del recurso auxiliar de feedback. La evidencia es
+compatible con latencia/transporte transitorio del Preview y consumo acumulado
+del presupuesto de los tests, no con un error determinista de Auth, servidor o
+contrato funcional.
+
+### Reproducción focal mínima
+
+Como los artifacts no distinguían por sí solos un fallo persistente de un
+factor de carga/acumulación, se ejecutó una única reproducción focal contra el
+mismo Preview y SHA, con Chromium y un worker. Se seleccionaron solamente:
+
+- el test de badges/conteos que había fallado tras login;
+- el test responsive de solicitudes cuyo `page.goto` había expirado.
+
+El primer intento de preparar el comando falló localmente por quoting antes de
+compilar el script de bootstrap; no inició browser ni realizó requests al
+Preview. La reproducción browser efectiva fue una sola.
+
+```text
+focal tests selected = 2
+focal passed = 2
+focal failed = 0
+focal skipped = 0
+duration = 32.2s
+login-failing test ISOLATED_PASS = true
+listing-navigation test ISOLATED_PASS = true
+```
+
+No se ejecutó nuevamente la suite completa, no se cambió código y no se
+añadieron retries, waits, `networkidle`, clicks adicionales o timeouts.
+
+### Diagnóstico y recomendación
+
+```text
+most likely root cause = transient Preview delivery/navigation latency under accumulated suite load
+confidence = medium
+confidence that this is not Auth rate limiting = high
+confidence that this is not hydration regression = high
+```
+
+El siguiente cambio recomendado no es funcional ni de Supabase: Dirección
+Técnica debería autorizar un hardening del orchestration de QA que ejecute la
+allowlist en lotes seriales acotados o procesos Playwright frescos y agregue sus
+resultados, conservando Chromium, `workers=1`, assertions, exclusiones y
+ausencia de retries. Antes de implementarlo conviene definir el batch boundary
+y mantener conteos globales fail-closed. No se recomienda cambiar credenciales,
+rate limits, hydration hardening ni aumentar timeouts como primera medida.
+
+### Estado
+
+```text
+PPO-04M.4B.1 = ACTIVE / FAILURE DIAGNOSIS
+PREVIEW READ_ONLY QA = NOT ACCEPTED
+PRODUCTION UPDATE = NOT EXECUTED
+PRODUCTION RUNTIME = 313b2076258c6d7a8c7bd9c1bf205213174a91ec / UNCHANGED
+PRODUCTION REQUESTS DURING DIAGNOSIS = 0
+PRODUCTION PILOT ROLLOUT = NOT EXECUTED
+```
+
+No se modificaron aplicación, tests, runner, Supabase, Vercel, Deployment
+Protection o configuración remota.
+
+## 24. PPO-04M.4B.1 — Batched read-only harness
+
+### Decisión de diseño
+
+El diagnóstico anterior se conserva: los cinco timeouts del run completo son
+compatibles con latencia transitoria y presupuesto acumulado del Preview, y los
+dos casos focales pasaron de forma aislada. No se confirmó regresión de
+hidratación, rate limiting de Auth, respuesta 5xx ni timeout de la solicitud de
+Auth.
+
+El runner Managed read-only quedó dividido en cinco procesos Playwright frescos,
+secuenciales y con `workers=1`:
+
+1. `foundation` (2 specs): `managed-health.spec.ts`, `smoke.spec.ts`;
+2. `dashboard` (1 spec): `dashboard.spec.ts`;
+3. `shell` (1 spec): `dashboard-shell.spec.ts`;
+4. `listings` (1 spec): `internal-listings.spec.ts`;
+5. `remaining-readonly` (3 specs): `public-tracking.spec.ts`,
+   `storage.spec.ts`, `usuarios.spec.ts`.
+
+La allowlist original continúa siendo la autoridad total. Antes de cualquier
+request remoto, el runner comprueba que la unión de los lotes contiene
+exactamente sus ocho specs, sin duplicados, faltantes ni extras. Cada lote
+conserva Chromium, el mismo filtro de exclusiones, el mismo target, child
+environment sanitizado y storage state; no añade retries, argumentos externos
+ni cambios de timeout.
+
+Cada lote inicia un child process independiente y escribe artifacts en
+`test-results/managed-readonly/<batch>`. Un fallo funcional no impide ejecutar
+los lotes restantes y el exit code agregado sólo es cero si los cinco lotes
+terminan en cero. Un fallo de infraestructura detiene inmediatamente la
+secuencia. El forwarding de señales se instala sólo para el child activo y se
+limpia al finalizar, evitando listeners duplicados y procesos huérfanos. El
+parent limita su salida operativa al inicio y salida de cada lote y al resumen
+agregado.
+
+La variable de bypass de Deployment Protection permanece únicamente en el
+bootstrap same-origin y nunca forma parte del child environment.
+
+### Validación local
+
+```text
+managed harness unit tests = PASS (19 passed, 0 failed, 0 skipped)
+lint = PASS (0 errors; 13 pre-existing warnings)
+git diff --check = PASS
+npm run diff:check = PASS
+npm run audit:security = PASS (0 blocking violations)
+build = NOT RUN / NOT REQUIRED
+Preview requests = 0
+Production requests = 0
+```
+
+No se ejecutó Playwright contra Preview o Production, no se modificó
+configuración remota y no hubo promoción, redeploy ni cambio del runtime de
+Production.
+
+### Estado
+
+```text
+PPO-04M.4B.1 = ACTIVE / BATCHED READ_ONLY HARNESS IMPLEMENTED / PENDING REVIEW
+PREVIEW RE-RUN = NOT EXECUTED
+PRODUCTION RUNTIME = 313b2076258c6d7a8c7bd9c1bf205213174a91ec / UNCHANGED
+PRODUCTION REQUESTS DURING IMPLEMENTATION = 0
+PRODUCTION PILOT ROLLOUT = NOT EXECUTED
+```
