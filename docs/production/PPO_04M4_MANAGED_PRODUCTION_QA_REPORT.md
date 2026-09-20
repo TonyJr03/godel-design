@@ -6,11 +6,28 @@
 
 **Estado de PPO-04M.4A:** `COMPLETE`
 
-**Estado de PPO-04M.4B:** `ACTIVE / HARNESS IMPLEMENTATION`
+**Estado de PPO-04M.4B:** `ACTIVE / MUTATING QA DESIGN`
 
 **Production QA execution:** `NOT EXECUTED`
 
 **Production pilot rollout:** `NOT EXECUTED`
+
+> **Corrección arquitectónica PPO-04M.4B.2 (2026-09-20).** M.4B.1 queda
+> `CLOSED / READ_ONLY QA PASS`. M.4B.2 completó exclusivamente una auditoría
+> estática de arquitectura mutante, sin requests Production/Preview/Supabase ni
+> browser. La autoridad detallada es
+> [PPO_04M4B2_MUTATING_QA_DESIGN.md](PPO_04M4B2_MUTATING_QA_DESIGN.md).
+> Clasificación de los 10 specs auditados: `PROD_SAFE_EXISTING 0`,
+> `PROD_SAFE_AFTER_ADAPTATION 2`, `PROD_BLOCKED 5`, `STAGING_ONLY 3`.
+> Corrección: cada INSERT de pedido incrementa persistentemente el estado global
+> `pedido_contadores.last_number`; DELETE no lo revierte y no debe rewound.
+> Por ello, pedidos, conversiones y aplicar plantilla a pedido no son
+> zero-residue en Production. El DELETE QA directo autenticado bajo RLS queda
+> aprobado sólo para IDs de manifest con marker/runId verificado; siguiente
+> decisión: revisión final de los dos subsets permitidos.
+>
+> `PPO-04M.4B.2 = ACTIVE / ARCHITECTURE CORRECTED / PENDING FINAL REVIEW`;
+> `PPO-04M.4B.3 = NOT STARTED`; `PRODUCTION MUTATING QA = NOT EXECUTED`.
 
 ## 1. Alcance y resultado
 
