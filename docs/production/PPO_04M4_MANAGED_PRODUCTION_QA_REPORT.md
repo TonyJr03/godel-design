@@ -2045,3 +2045,384 @@ PRODUCTION READ_ONLY QA = NOT ACCEPTED
 PRODUCTION RUNTIME = 01552f8bee59b5f9982a2d722e39795461918f43 / UNCHANGED
 PRODUCTION PILOT ROLLOUT = NOT EXECUTED
 ```
+
+## 28. PPO-04M.4B.1 — Final Production read-only QA rerun preflight
+
+### Autoridades separadas
+
+El harness QA y el runtime Production tienen autoridades distintas e
+intencionales. La adaptación de Playwright no requiere promoción ni redeploy.
+
+```text
+branch = ops/managed-free-production-pilot
+QA harness Git authority = 6da0bac5e945f18f8eec38b7ff15750f72b1d493
+worktree at preflight = clean
+
+Production runtime authority = 01552f8bee59b5f9982a2d722e39795461918f43
+Production target = production
+Production status = READY
+source SHA exact = true
+source branch exact = true
+stable Production origin points to current Production = true
+```
+
+### Protection y environment
+
+La consulta read-only del proyecto confirmó `ssoProtection.deploymentType =
+all`. Un GET sin bypass recibió HTTP 302 hacia un origen distinto de
+autenticación, por lo que el Production continúa protegido. El bypass requerido
+estaba presente localmente; no se leyó ni registró su valor.
+
+```text
+Vercel Authentication = All Deployments
+Production protected = true
+VERCEL_AUTOMATION_BYPASS_SECRET = present
+
+NEXT_PUBLIC_SUPABASE_URL = present / Production
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = present / Production
+SUPABASE_SECRET_KEY = present / Production
+SUPABASE_SERVER_URL = absent / Production
+SUPABASE_SERVICE_ROLE_KEY = absent / Production
+```
+
+Las verificaciones se limitaron a nombres, scope, estado y conteos. No se
+registraron valores, URLs completas, deployment IDs, project refs, headers,
+cookies, tokens, request bodies ni PII.
+
+### Contrato local y harness gate
+
+```text
+managed test timeout = 90000
+managed expect timeout = 15000
+managed workers = 1
+normal test timeout = 30000
+normal expect timeout = 5000
+retries = 0
+actionTimeout override = absent
+navigationTimeout override = absent
+globalTimeout override = absent
+dashboard mode = default
+
+npm run test:e2e:managed:harness:test = PASS
+tests = 19
+passed = 19
+failed = 0
+skipped = 0
+```
+
+### Runtime smoke blocker
+
+Se intentó una sola vez el bootstrap protegido mediante el helper fail-closed
+del runner. La solicitud no produjo un storage state válido y el helper terminó
+con `Deployment Protection bootstrap failed`. El fallo ocurrió antes de los
+cuatro probes de smoke, por lo que no se ejecutaron requests a
+`/api/health/live`, `/api/health/ready`, `/login` ni al root autenticado.
+
+Conforme al stop condition, no se repitió el bootstrap, no se ejecutó Playwright
+manual y no se inició `npm run test:e2e:managed:readonly`.
+
+```text
+protected bootstrap attempts = 1
+protected bootstrap = FAIL
+PRODUCTION_RUNTIME_SMOKE_FAILED
+
+foundation = NOT EXECUTED
+dashboard = NOT EXECUTED
+shell = NOT EXECUTED
+listings = NOT EXECUTED
+remaining-readonly = NOT EXECUTED
+
+batched runner executions = 0
+manual Playwright executions = 0
+reruns = 0
+Production/Preview configuration changes = 0
+```
+
+No hubo sesión de aplicación, rol autenticado, viewport, screenshot, trace o
+video en este pase. El único acceso de runtime fue el GET de bootstrap de
+infraestructura. No se enviaron credenciales de usuario ni se usaron
+privilegios de base de datos.
+
+```text
+fixtures created = 0 observed
+business mutations = 0 observed
+uploads = 0 observed
+Auth users created = 0 observed
+privileged DB access = false
+```
+
+No se revisó una ventana de logs de E2E porque el run batched no comenzó. La
+aceptación read-only permanece pendiente; no se inicia QA mutante ni rollout.
+
+```text
+git diff --check = PASS
+npm run diff:check = PASS
+npm run audit:security = PASS / 0 blocking violations
+tracked modification = PPO_04M4_MANAGED_PRODUCTION_QA_REPORT.md only
+```
+
+```text
+PRODUCTION READ_ONLY QA = NOT ACCEPTED
+
+PPO-04M.4B.1 = ACTIVE / FINAL PRODUCTION READ_ONLY QA RERUN BLOCKED
+PPO-04M.4B = ACTIVE / PROTECTED BOOTSTRAP REVIEW REQUIRED
+
+PRODUCTION RUNTIME = 01552f8bee59b5f9982a2d722e39795461918f43 / UNCHANGED
+PRODUCTION PILOT ROLLOUT = NOT EXECUTED
+```
+
+## 29. PPO-04M.4B.1 — Protected bootstrap diagnosis
+
+### Preflight
+
+La autoridad Git, la autoridad del runtime y Deployment Protection fueron
+revalidadas antes de acceder al runtime. El fallo anterior ocurrió durante el
+bootstrap de infraestructura y antes de cualquier ejecución Playwright E2E.
+
+```text
+branch = ops/managed-free-production-pilot
+Git HEAD = 6da0bac5e945f18f8eec38b7ff15750f72b1d493
+Production runtime SHA = 01552f8bee59b5f9982a2d722e39795461918f43
+
+Production READY = true
+Production source SHA exact = true
+stable Production origin current = true
+Vercel Authentication = All Deployments
+GODEL_MANAGED_PRODUCTION_BASE_URL = present
+VERCEL_AUTOMATION_BYPASS_SECRET = present
+
+bootstrap failure occurred before Playwright test execution = true
+```
+
+### Probe A — bypass directo sin cookie
+
+Se creó un `APIRequestContext` limpio y se realizó un único GET read-only a
+`/api/health/live`, con bypass directo, redirects desactivados y sin solicitar
+cookie. No se inspeccionó ni registró el body.
+
+```text
+PROBE_A_STATUS = 200
+PROBE_A_STATUS_CLASS = 2xx
+PROBE_A_LOCATION_PRESENT = false
+PROBE_A_SET_COOKIE_PRESENT = false
+
+AUTOMATION_BYPASS_SECRET_VALID = true
+```
+
+### Probe B — establecimiento de cookie
+
+Tras el PASS de Probe A, se creó un segundo `APIRequestContext` limpio y se
+realizó el segundo y último GET permitido al root, solicitando la cookie de
+infraestructura. El redirect fue permitido y same-origin. La cookie observada
+cumplió `Secure = true`, `path = /` y dominio aplicable al hostname Production.
+
+```text
+PROBE_B_EXECUTED = true
+PROBE_B_STATUS = 307
+PROBE_B_STATUS_CLASS = 3xx
+PROBE_B_REDIRECT_STATUS_ALLOWED = true
+PROBE_B_LOCATION_PRESENT = true
+PROBE_B_LOCATION_SAME_ORIGIN = true
+PROBE_B_APPLICABLE_INFRASTRUCTURE_COOKIE_COUNT = 1
+PROBE_B_APPLICABLE_COOKIE_CONTRACT_VALID = true
+```
+
+No se registraron Location, Set-Cookie, host/origin, headers completos, cookies,
+secretos ni identificadores de bypass.
+
+### Clasificación
+
+```text
+BYPASS_BOOTSTRAP_HEALTHY
+
+bypass entry metadata review executed = false
+local secret likely stale = false
+Production requests performed = 2
+browser executions = 0
+Playwright E2E executions = 0
+business mutations = 0
+```
+
+La evidencia actual demuestra que el bypass directo y el establecimiento de
+cookie funcionan con el contrato vigente. El fallo anterior queda clasificado
+como transitorio o externo al contrato persistente; no se ejecutó
+automáticamente el runner de 44 tests y la aceptación read-only continúa
+pendiente de una nueva autorización de Dirección Técnica.
+
+No se abrió Chromium, no hubo rol autenticado, viewport, screenshot, trace o
+video. No se modificaron Production, Vercel, Supabase ni el runtime desplegado.
+
+```text
+PPO-04M.4B.1 = ACTIVE / BYPASS_BOOTSTRAP_HEALTHY / RERUN AUTHORIZATION REQUIRED
+PRODUCTION READ_ONLY QA = NOT ACCEPTED
+PRODUCTION RUNTIME = 01552f8bee59b5f9982a2d722e39795461918f43 / UNCHANGED
+PRODUCTION PILOT ROLLOUT = NOT EXECUTED
+```
+
+## 30. PPO-04M.4B.1 — Final Production read-only QA rerun
+
+### Autoridad y gates previos
+
+Dirección Técnica autorizó exactamente un rerun después del diagnóstico sano.
+El fallo de bootstrap anterior queda clasificado como `TRANSIENT DEPLOYMENT
+PROTECTION BOOTSTRAP FAILURE`, sin causa puntual determinada. Probe A y Probe B
+permanecen como evidencia diagnóstica sana y no fueron repetidos.
+
+```text
+branch = ops/managed-free-production-pilot
+QA Git authority = 6da0bac5e945f18f8eec38b7ff15750f72b1d493
+Production runtime authority = 01552f8bee59b5f9982a2d722e39795461918f43
+
+Production target = production
+Production status = READY
+Production source SHA exact = true
+stable Production origin current = true
+Vercel Authentication = All Deployments
+Production protected = true
+VERCEL_AUTOMATION_BYPASS_SECRET = present
+
+managed test timeout = 90000
+managed expect timeout = 15000
+managed workers = 1
+retries = 0
+actionTimeout override = absent
+navigationTimeout override = absent
+globalTimeout override = absent
+dashboard mode = default
+
+harness tests = 19
+harness passed = 19
+harness failed = 0
+harness skipped = 0
+```
+
+### Bootstrap real y ejecución única
+
+Se ejecutó una sola vez y sin argumentos `npm run
+test:e2e:managed:readonly`. El bootstrap real de Deployment Protection produjo
+el storage state esperado y el batch `foundation` comenzó normalmente. No hubo
+rerun, Playwright manual, test focal, segundo intento ni cambio de timeout.
+
+```text
+authorized rerun executions = 1
+actual runner bootstrap = PASS
+BOOTSTRAP_FAILURE_RECURRENT = false
+```
+
+| Orden | Batch | Selected | Executed | Passed | Failed | Runtime skipped | Did not run | Exit |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | `foundation` | 8 | 8 | 8 | 0 | 0 | 0 | 0 |
+| 2 | `dashboard` | 10 | 10 | 10 | 0 | 0 | 0 | 0 |
+| 3 | `shell` | 3 | 3 | 3 | 0 | 0 | 0 | 0 |
+| 4 | `listings` | 14 | 14 | 14 | 0 | 0 | 0 | 0 |
+| 5 | `remaining-readonly` | 9 | 9 | 9 | 0 | 0 | 0 | 0 |
+
+```text
+batches_total = 5
+batches_passed = 5
+batches_failed = 0
+overall = PASS
+
+selected = 44
+executed = 44
+passed = 44
+failed = 0
+runtime skipped = 0
+did not run = 0
+```
+
+### Dashboard, hidratación y estados cero
+
+El spec Dashboard ejecutó sus diez casos. Historial completó con el conteo
+visible esperado de cero, la acción terminó habilitada dentro del presupuesto
+Managed, recibió un único click y abrió el diálogo correspondiente. El modo
+`default` evitó ocultar cualquiera de los siete tests posteriores.
+
+```text
+dashboard selected = 10
+dashboard executed = 10
+
+history button eventually enabled = PASS
+history single click = PASS
+history dialog opens = PASS
+history visible activity items = 0
+
+Solicitudes count = 0
+Solicitudes button enabled = PASS
+Solicitudes dialog opens = PASS
+Sin solicitudes pendientes = PASS
+
+Entregas count = 0
+Entregas button enabled = PASS
+Entregas dialog opens = PASS
+Sin pedidos listos = PASS
+```
+
+El caso principal de shell pasó todas sus assertions con clicks únicos y sin
+espera artificial.
+
+```text
+collapse control enabled = PASS
+single click = PASS
+cookie transition = PASS
+width transition = PASS
+aria-expanded transition = PASS
+temporary hydration delay = false
+```
+
+### Timing remoto
+
+Los catorce casos de listings y los nueve del batch restante completaron. El
+contrato de listings que recorre cinco rutas en dos viewports terminó en 28.7 s
+y el caso de paginación/canonical URLs de Usuarios terminó en 20.8 s.
+
+```text
+LISTING_NAVIGATION_TIMEOUT = not reproduced
+USUARIOS_NAVIGATION_TIMEOUT = not reproduced
+MANAGED_REMOTE_TIMING_CONTRACT = SUPPORTED
+```
+
+Este resultado demuestra cumplimiento dentro del presupuesto QA del runtime
+remoto protegido; no caracteriza Production como un sistema de baja latencia.
+
+### Logs y residuos
+
+Se revisaron sanitizadamente hasta 1000 eventos de la ventana Production del
+run, sin registrar mensajes completos, URLs, headers, cookies, tokens, request
+bodies ni PII.
+
+```text
+Production log events reviewed = 1000
+HTTP 5xx count = 0
+error/fatal count = 0
+unhandled runtime exceptions = 0
+Auth errors = 0
+Supabase/runtime configuration errors = 0
+
+fixtures created = 0 observed
+business mutations = 0 observed
+uploads = 0 observed
+Auth users created = 0 observed
+privileged DB access = false
+```
+
+### Cobertura del pase
+
+El runner utilizó Playwright Chromium en cinco procesos frescos y secuenciales,
+con los roles `admin`, `supervisor` y `trabajador`. Cubrió health, login, rutas
+públicas, dashboard, shell desktop/mobile, listings responsive, Storage
+read-only y restricciones de Usuarios. Al pasar todos los casos no se generaron
+screenshots, traces ni videos de fallo para inspección.
+
+No se modificaron producto, tests, runner, Supabase, Vercel, Deployment
+Protection ni el runtime desplegado.
+
+```text
+PRODUCTION READ_ONLY QA = PASS
+
+PPO-04M.4B.1 = READ_ONLY QA PASS
+PPO-04M.4B = ACTIVE / MUTATING QA DESIGN NEXT
+
+PRODUCTION RUNTIME = 01552f8bee59b5f9982a2d722e39795461918f43 / UNCHANGED
+PRODUCTION PILOT ROLLOUT = NOT EXECUTED
+```
