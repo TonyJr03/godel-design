@@ -1,13 +1,14 @@
 # PPO-04M.4B.2 — Mutating QA Design
 
 **Fecha:** 2026-09-20  
-**Branch / HEAD auditados:** `ops/managed-free-production-pilot` / `02db07db0286657e518567ec157fb49cdc5a81ef`
+**Branch / HEAD auditados:** `ops/managed-free-production-pilot` / `396ef41704040a728c313348e67995db0ab1ecce`
 **Production runtime (referencia, no consultado):** `01552f8bee59b5f9982a2d722e39795461918f43`
 
 ```text
 PPO-04M.4B.1 = CLOSED / READ_ONLY QA PASS
-PPO-04M.4B.2 = ACTIVE / ARCHITECTURE CORRECTED / PENDING FINAL REVIEW
-PPO-04M.4B.3 = NOT STARTED
+PPO-04M.4B.2 = CLOSED / MUTATING QA ARCHITECTURE APPROVED
+PPO-04M.4B.3 = ACTIVE / SAFETY INFRASTRUCTURE IMPLEMENTATION
+PPO-04M.4B.3.0 = IMPLEMENTED / STATE MODEL CORRECTED / PENDING FINAL REVIEW
 PRODUCTION MUTATING QA = NOT EXECUTED
 PRODUCTION PILOT ROLLOUT = NOT EXECUTED
 ```
@@ -25,6 +26,31 @@ fixture identificable + ownership acotado + cleanup determinista
 
 `assertions PASS + cleanup FAIL` es un fallo de QA. Esta auditoría no ejecutó
 browser, Playwright, SQL, Supabase CLI, ni requests a Production o Preview.
+
+### Handoff M.4B.3.0 — Safety infrastructure
+
+La infraestructura local aprobada vive en
+`scripts/managed-mutating-qa/manifest.mjs` y no importa Supabase, Playwright,
+HTTP ni credenciales. Usa `schemaVersion: 1`, conserva manifests bajo
+`test-results/managed-mutating-qa/manifests/` y genera IDs
+`M4QA-<UTC compact>-<8 Base32 cryptographic chars>`.
+
+Sólo admite `solicitud` (`description`) y `trabajo_plantilla` (`name`). Antes
+del futuro DELETE, el consumidor deberá fetch la fila exacta y `verify` exige
+remote ID cuando se conoce, campo de ownership exacto, valor exacto y runId
+exacto; cualquier fallo resulta `OWNERSHIP_MISMATCH`. La persistencia crea un
+archivo temporal en el mismo directorio, lo sincroniza y lo renombra
+atómicamente. Manifests `clean` se retienen; `active`, `cleanup_required`,
+`blocked` o inválidos bloquean una nueva run. No existe aún búsqueda o cleanup
+remoto y la primera mutación Production continúa no autorizada.
+
+La revisión arquitectónica posterior identificó y corrigió la semántica de
+cleanup multirrecurso: un run `cleanup_required` puede conservar recursos
+hermanos `planned` o `created` mientras otros avanzan por `cleanup_pending` y
+`clean`. El run sólo llega a `clean` cuando todos sus recursos están limpios;
+cualquier recurso `blocked` exige que el run completo sea `blocked`. El esquema
+permanece en v1, no se pueden añadir recursos fuera de `active` y ningún estado
+terminal puede reactivarse.
 
 ## 2. Non-goals
 

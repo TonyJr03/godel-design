@@ -12,22 +12,24 @@
 
 **Production pilot rollout:** `NOT EXECUTED`
 
-> **Corrección arquitectónica PPO-04M.4B.2 (2026-09-20).** M.4B.1 queda
-> `CLOSED / READ_ONLY QA PASS`. M.4B.2 completó exclusivamente una auditoría
-> estática de arquitectura mutante, sin requests Production/Preview/Supabase ni
-> browser. La autoridad detallada es
+> **Handoff PPO-04M.4B.3.0 (2026-09-20).** M.4B.1 queda
+> `CLOSED / READ_ONLY QA PASS`; M.4B.2 queda
+> `CLOSED / MUTATING QA ARCHITECTURE APPROVED` en la autoridad
 > [PPO_04M4B2_MUTATING_QA_DESIGN.md](PPO_04M4B2_MUTATING_QA_DESIGN.md).
-> Clasificación de los 10 specs auditados: `PROD_SAFE_EXISTING 0`,
-> `PROD_SAFE_AFTER_ADAPTATION 2`, `PROD_BLOCKED 5`, `STAGING_ONLY 3`.
-> Corrección: cada INSERT de pedido incrementa persistentemente el estado global
-> `pedido_contadores.last_number`; DELETE no lo revierte y no debe rewound.
-> Por ello, pedidos, conversiones y aplicar plantilla a pedido no son
-> zero-residue en Production. El DELETE QA directo autenticado bajo RLS queda
-> aprobado sólo para IDs de manifest con marker/runId verificado; siguiente
-> decisión: revisión final de los dos subsets permitidos.
+> Se implementó sólo infraestructura local de manifests: identidad aleatoria,
+> esquema v1 validado, persistencia atómica, discovery/gate de residuos y
+> ownership fail-closed para `solicitud`/`trabajo_plantilla`. No hay adaptador
+> Supabase/HTTP ni mutación remota. Validación local: safety harness `14/14` y
+> read-only harness congelado `19/19`.
 >
-> `PPO-04M.4B.2 = ACTIVE / ARCHITECTURE CORRECTED / PENDING FINAL REVIEW`;
-> `PPO-04M.4B.3 = NOT STARTED`; `PRODUCTION MUTATING QA = NOT EXECUTED`.
+> La revisión arquitectónica identificó y corrigió la semántica de cleanup
+> multirrecurso: `cleanup_required` admite hermanos `planned`, `created`,
+> `cleanup_pending` y `clean`, sin admitir recursos nuevos ni reactivación;
+> cualquier recurso `blocked` obliga al run a quedar `blocked`. El esquema v1,
+> el ownership fail-closed y el residue gate permanecen sin cambios.
+>
+> `PPO-04M.4B.3.0 = IMPLEMENTED / STATE MODEL CORRECTED / PENDING FINAL REVIEW`;
+> `PRODUCTION MUTATING QA = NOT EXECUTED`; `FIRST PRODUCTION MUTATION = NOT AUTHORIZED`.
 
 ## 1. Alcance y resultado
 
