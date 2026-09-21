@@ -1,7 +1,7 @@
 # PPO-04M.4B.2 — Mutating QA Design
 
-**Fecha:** 2026-09-20  
-**Branch / HEAD auditados:** `ops/managed-free-production-pilot` / `396ef41704040a728c313348e67995db0ab1ecce`
+**Última actualización:** 2026-09-21
+**Branch / HEAD de implementación M.4B.3.2:** `ops/managed-free-production-pilot` / `128488f9e22f02d6aae75e2019c18f113d88406a`
 **Production runtime (referencia, no consultado):** `01552f8bee59b5f9982a2d722e39795461918f43`
 
 ```text
@@ -9,8 +9,10 @@ PPO-04M.4B.1 = CLOSED / READ_ONLY QA PASS
 PPO-04M.4B.2 = CLOSED / MUTATING QA ARCHITECTURE APPROVED
 PPO-04M.4B.3 = ACTIVE / SAFETY INFRASTRUCTURE IMPLEMENTATION
 PPO-04M.4B.3.0 = CLOSED / SAFETY INFRASTRUCTURE APPROVED
-PPO-04M.4B.3.1 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
-PRODUCTION MUTATING QA = NOT EXECUTED
+PPO-04M.4B.3.1 = CLOSED / FIRST PRODUCTION MUTATION PASS
+PPO-04M.4B.3.2 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+PRODUCTION TEMPLATE MUTATION = NOT AUTHORIZED
+PRODUCTION MUTATING QA = SOLICITUD PASS / TEMPLATE NOT EXECUTED
 PRODUCTION PILOT ROLLOUT = NOT EXECUTED
 ```
 
@@ -42,8 +44,9 @@ remote ID cuando se conoce, campo de ownership exacto, valor exacto y runId
 exacto; cualquier fallo resulta `OWNERSHIP_MISMATCH`. La persistencia crea un
 archivo temporal en el mismo directorio, lo sincroniza y lo renombra
 atómicamente. Manifests `clean` se retienen; `active`, `cleanup_required`,
-`blocked` o inválidos bloquean una nueva run. No existe aún búsqueda o cleanup
-remoto y la primera mutación Production continúa no autorizada.
+`blocked` o inválidos bloquean una nueva run. En esa entrega todavía no existía
+búsqueda ni cleanup remoto; los flows posteriores consumen estas primitivas sin
+cambiar `schemaVersion: 1`.
 
 La revisión arquitectónica posterior identificó y corrigió la semántica de
 cleanup multirrecurso: un run `cleanup_required` puede conservar recursos
@@ -72,15 +75,49 @@ rechaza entidades distintas de `solicitud`.
 
 Tanto ejecución como recovery requieren
 `GODEL_MANAGED_MUTATING_PRODUCTION_CONFIRM=ALLOW_SINGLE_QA_SOLICITUD_MUTATION`;
-la confirmación se rechaza si aparece persistida en los archivos managed. Este
-pase sólo ejecutó tests locales con fakes: no hubo Production, Preview,
-Supabase remoto, browser E2E ni mutaciones de negocio. La primera mutación
-Production sigue sin autorización.
+la confirmación se rechaza si aparece persistida en los archivos managed. La
+ejecución Production posterior quedó aceptada como `FIRST PRODUCTION MUTATION
+PASS`; el commit de evidencia aceptado es
+`128488f9e22f02d6aae75e2019c18f113d88406a`.
 
-## 2. Non-goals
+### Handoff M.4B.3.2 — Managed template mutating flow
 
-- No se implementó runner, manifest, teardown ni cambios a tests, `src`,
-  `supabase`, scripts, configuración o dependencias.
+M.4B.3.2 implementa un runner y un único spec allowlisted independientes del
+camino M.4B.3.1 congelado. El adapter inicia sesión con el admin QA mediante
+publishable key y RLS normal; después del residue gate y del bootstrap crea la
+plantilla por API con `is_active=false`, `created_by` y `updated_by` del usuario
+autenticado. El manifest `planned` queda persistido antes del INSERT y pasa a
+`created` antes de iniciar Playwright.
+
+El browser exige markers fail-closed, hace login real como admin, localiza la
+plantilla por `name` exacto, confirma que continúa inactiva, edita sólo su
+descripción y crea exactamente Task A y Task B antes de renombrar Task A. No
+visita pedidos, no aplica la plantilla y deja ambos hijos para validar el
+`ON DELETE CASCADE` existente.
+
+El cleanup descubre como máximo dos filas por nombre exacto; ambigüedad, ID o
+nombre incorrectos, plantilla activa o cualquier título hijo fuera del conjunto
+cerrado M4QA bloquean el run sin DELETE. Antes de borrar vuelve a consultar el
+ID exacto, aplica `verifyResourceOwnership`, revalida `is_active=false` y los
+hijos, persiste `cleanup_pending` y ejecuta DELETE acotado por
+`id + name + is_active=false`. Sólo marca `clean` tras comprobar ausencia por
+ID, ausencia por nombre y cero tareas por `template_id`.
+
+Runner y recovery requieren la confirmación separada
+`GODEL_MANAGED_MUTATING_TEMPLATE_PRODUCTION_CONFIRM=ALLOW_SINGLE_QA_TEMPLATE_MUTATION`.
+El child recibe las credenciales admin necesarias para `loginAs`, pero nunca
+secret key, service role, bypass, confirmación ni credenciales supervisor o
+worker. Recovery admite exclusivamente `trabajo_plantilla` en estados
+`planned`, `created` o `cleanup_required`; `blocked` permanece terminal.
+
+Este pase fue exclusivamente implementación y tests locales con fakes. No hubo
+requests Production, Preview o Supabase remotas, browser remoto ni mutaciones
+de negocio. La mutación Production de plantilla no está autorizada.
+
+## 2. Non-goals del diseño M.4B.2
+
+- El pase de diseño M.4B.2 no implementó runner, manifest ni teardown; esas
+  piezas se añadieron posteriormente bajo M.4B.3 sin tocar `src` o `supabase`.
 - No se hicieron mutaciones remotas, reset de base, inspección de datos ni
   cambios de Auth.
 - No se proponen service role, `SUPABASE_SECRET_KEY`, PostgreSQL directo, RLS

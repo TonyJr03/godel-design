@@ -2603,8 +2603,85 @@ Supabase/runtime configuration errors = 0
 FIRST PRODUCTION MUTATION = PASS
 PRODUCTION MUTATING QA = FIRST AUTHORIZED RUN PASS
 
-PPO-04M.4B.3.1 = FIRST PRODUCTION MUTATION PASS / PENDING FINAL REVIEW
+PPO-04M.4B.3.1 = CLOSED / FIRST PRODUCTION MUTATION PASS
+accepted evidence commit = 128488f9e22f02d6aae75e2019c18f113d88406a
 
 PRODUCTION RUNTIME = 01552f8bee59b5f9982a2d722e39795461918f43 / UNCHANGED
 PRODUCTION PILOT ROLLOUT = NOT EXECUTED
+```
+
+## 32. PPO-04M.4B.3.2 — Managed template mutating flow
+
+### Implementación local
+
+Sobre la autoridad Git aceptada
+`128488f9e22f02d6aae75e2019c18f113d88406a` se implementó un runner separado,
+un adapter Supabase autenticado, un flow de fixture/cleanup/recovery y un único
+spec Playwright dedicado. Los archivos de M.4B.3.1 quedaron congelados y no se
+modificaron.
+
+El setup exige la confirmación independiente de plantilla, pasa el residue gate
+y el bootstrap de Deployment Protection, autentica al admin QA y persiste el
+resource `trabajo_plantilla` como `planned` antes del INSERT. La plantilla se
+crea directamente con publishable key, RLS Production normal y
+`is_active=false`; sólo después se persisten `remoteId` y estado `created` y se
+habilita el browser.
+
+El spec inicia sesión como admin, busca exclusivamente
+`M4QA Template <runId>`, verifica el estado inactivo, cambia sólo la descripción
+y crea dos tareas determinísticas, renombrando Task A. No visita pedidos, no
+consulta el selector de plantillas para pedidos y no aplica la plantilla.
+
+### Cleanup y recovery
+
+El cleanup valida nombre e ID exactos, `is_active=false` y un conjunto cerrado
+de títulos hijos antes del DELETE. Sólo después persiste `cleanup_pending` y
+borra el padre con los filtros `id`, `name` e `is_active=false`. No borra tareas
+directamente: verifica que el `ON DELETE CASCADE` existente deje cero hijos,
+además de ausencia del padre por ID y del marcador por nombre.
+
+El recovery sólo admite `trabajo_plantilla` en `planned`, `created` o
+`cleanup_required`. Ambigüedad, ownership incorrecto, plantilla activa, hijo no
+reconocible o residuo bloquean el run; un manifest `blocked` permanece terminal.
+El child Playwright recibe las credenciales admin necesarias para el login real,
+pero no recibe secret key, service role, bypass, confirmación ni credenciales
+de supervisor o trabajador.
+
+### Validación y límites del pase
+
+El harness nuevo pasó localmente con 32 casos y fakes, sin HTTP real. La
+validación cubrió gate de confirmación/residuos, orden `planned` antes de INSERT,
+fixture inactivo, discovery 0/1/>1, ownership y estado, contrato de hijos,
+DELETE acotado, residuos post-cascade, precedencia de fallos, recovery, scrub de
+environment y argumentos Playwright fijos.
+
+```text
+manifest harness = PASS / 14 passed
+solicitud runner harness = PASS / 23 passed
+template runner harness = PASS / 32 passed
+read-only harness = PASS / 19 passed
+lint = PASS / 0 errors / 13 pre-existing warnings outside scope
+build = PASS
+git diff --check = PASS
+npm run diff:check = PASS
+npm run audit:security = PASS / 0 blocking violations
+```
+
+No se ejecutó el runner funcional ni el recovery contra Production. Tampoco se
+abrió browser remoto ni se hicieron requests a Production, Preview o Supabase
+remoto.
+
+```text
+PPO-04M.4B.3.1 = CLOSED / FIRST PRODUCTION MUTATION PASS
+accepted evidence commit = 128488f9e22f02d6aae75e2019c18f113d88406a
+
+PPO-04M.4B.3.2 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+PRODUCTION TEMPLATE MUTATION = NOT AUTHORIZED
+PRODUCTION MUTATING QA = SOLICITUD PASS / TEMPLATE NOT EXECUTED
+
+Production requests = 0
+Preview requests = 0
+Supabase remote requests = 0
+browser remote executions = 0
+business mutations = 0
 ```
