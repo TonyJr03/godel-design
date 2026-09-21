@@ -2457,3 +2457,154 @@ PPO-04M.4B = ACTIVE / MUTATING QA DESIGN NEXT
 PRODUCTION RUNTIME = 01552f8bee59b5f9982a2d722e39795461918f43 / UNCHANGED
 PRODUCTION PILOT ROLLOUT = NOT EXECUTED
 ```
+
+## 31. PPO-04M.4B.3.1 — First managed solicitud mutation
+
+### Autoridad y preflight
+
+Dirección Técnica autorizó exactamente una ejecución del runner mutante. El
+tooling QA no fue desplegado; el runtime Production permaneció sin cambios.
+
+```text
+branch = ops/managed-free-production-pilot
+Git QA authority = 10e7d0d061cd475ef7525c6b6a820fb266dba114
+Production runtime authority = 01552f8bee59b5f9982a2d722e39795461918f43
+
+Production target = production
+Production status = READY
+Production source SHA exact = true
+stable Production origin current = true
+Vercel Authentication = All Deployments
+initial worktree clean = true
+
+.env.managed.local = present
+.env.managed.qa.local = present
+GODEL_MANAGED_PRODUCTION_BASE_URL = present
+VERCEL_AUTOMATION_BYPASS_SECRET = present
+persisted mutating confirmation = false
+
+pre-run clean manifests = 0
+pre-run pending manifests = 0
+pre-run invalid manifests = 0
+residue gate = PASS
+```
+
+Los harness locales pasaron antes de autorizar el proceso remoto:
+
+```text
+manifest harness = PASS / 14 passed / 0 failed / 0 skipped
+mutating runner harness = PASS / 23 passed / 0 failed / 0 skipped
+read-only harness = PASS / 19 passed / 0 failed / 0 skipped
+```
+
+### Ejecución única
+
+La confirmación destructiva exacta existió sólo durante la invocación y fue
+retirada inmediatamente al terminar. Se ejecutó una única vez `npm run
+test:e2e:managed:mutating`; no hubo rerun, retry, recovery, Playwright manual ni
+probes manuales adicionales.
+
+```text
+confirmation gate = PASS
+Deployment Protection bootstrap = PASS
+manifest created = true
+runId generated = true / value not reported
+planned persisted before browser = true
+
+Playwright started = true
+browser = Chromium
+route = /solicitud
+viewport = Desktop Chrome project default
+tests = 1
+passed = 1
+failed = 0
+skipped = 0
+Playwright exit = 0
+
+functional test = PASS
+success UI = PASS
+public reference observed = true / value not reported
+```
+
+El browser operó de forma anónima sobre el formulario público. La sesión QA
+admin real se utilizó únicamente en el adaptador Supabase de cleanup, mediante
+publishable key y RLS existente. No se capturaron screenshots porque el test no
+falló; no se registraron credenciales, URL Production, runId, teléfono, email,
+referencia pública, tokens ni request bodies.
+
+### Cleanup y residuos
+
+El estado final limpio con `remoteId` y referencia capturados demuestra que el
+discovery encontró exactamente una fila y recorrió el camino
+`planned → created → cleanup_pending → clean`. El exit global cero exige que
+tanto la prueba funcional como el cleanup hayan pasado.
+
+```text
+ownership rows discovered = 1
+contract validation = PASS
+workflow_type = encargo
+cliente_id = null
+converted_order_id = null
+remoteId captured = true
+publicReference captured = true
+manifest created state persisted = true
+cleanup_pending persisted = true
+
+pre-delete exact fetch = PASS
+ownership verification = OWNERSHIP_VERIFIED
+bounded DELETE attempted = true
+bounded DELETE result = PASS
+post-delete id absent = true
+post-delete marker rows = 0
+
+resource state = clean
+run state = clean
+cleanup = PASS
+final clean manifests = 1
+final pending manifests = 0
+final invalid manifests = 0
+```
+
+La comprobación post-run independiente repitió sólo las lecturas permitidas por
+ID y marker exactos con el mismo usuario QA/RLS, y confirmó ausencia en ambos
+casos. No se ejecutó un DELETE adicional, SQL, service role, secret key, reset
+de base ni edición manual del manifest.
+
+### Impacto y logs
+
+```text
+solicitud created transiently = 1
+solicitud remaining after cleanup = 0
+clientes created = 0
+pedidos created = 0
+pedido_contadores mutation = 0
+Storage uploads = 0
+Storage objects = 0
+Auth users created = 0
+service configuration changes = 0
+```
+
+Se revisó sanitizadamente la ventana Production correspondiente, sin imprimir
+mensajes, URLs, IDs, referencias, headers, cookies, tokens, request bodies o
+PII.
+
+```text
+Production log events reviewed = 10
+HTTP 5xx count = 0
+error/fatal count = 0
+unhandled runtime exceptions = 0
+Auth errors = 0
+Supabase/runtime configuration errors = 0
+```
+
+### Estado
+
+```text
+FIRST PRODUCTION MUTATION = PASS
+PRODUCTION MUTATING QA = FIRST AUTHORIZED RUN PASS
+
+PPO-04M.4B.3.1 = FIRST PRODUCTION MUTATION PASS / PENDING FINAL REVIEW
+
+PRODUCTION RUNTIME = 01552f8bee59b5f9982a2d722e39795461918f43 / UNCHANGED
+PRODUCTION PILOT ROLLOUT = NOT EXECUTED
+```
