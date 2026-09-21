@@ -8,7 +8,8 @@
 PPO-04M.4B.1 = CLOSED / READ_ONLY QA PASS
 PPO-04M.4B.2 = CLOSED / MUTATING QA ARCHITECTURE APPROVED
 PPO-04M.4B.3 = ACTIVE / SAFETY INFRASTRUCTURE IMPLEMENTATION
-PPO-04M.4B.3.0 = IMPLEMENTED / STATE MODEL CORRECTED / PENDING FINAL REVIEW
+PPO-04M.4B.3.0 = CLOSED / SAFETY INFRASTRUCTURE APPROVED
+PPO-04M.4B.3.1 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
 PRODUCTION MUTATING QA = NOT EXECUTED
 PRODUCTION PILOT ROLLOUT = NOT EXECUTED
 ```
@@ -51,6 +52,30 @@ hermanos `planned` o `created` mientras otros avanzan por `cleanup_pending` y
 cualquier recurso `blocked` exige que el run completo sea `blocked`. El esquema
 permanece en v1, no se pueden añadir recursos fuera de `active` y ningún estado
 terminal puede reactivarse.
+
+### Handoff M.4B.3.1 — Single managed solicitud flow
+
+La autoridad aprobada de M.4B.3.0 es
+`f1c4e3c801da46f024a4e11c3e31a714c58033e4`. M.4B.3.1 implementa un runner
+separado y un único spec allowlisted para crear por UI pública una solicitud
+`encargo` aislada, sin archivos, cliente ni conversión. El intent `planned` se
+persiste después del bootstrap y antes de Playwright; el child recibe sólo
+runId y ownership no sensibles, nunca credenciales admin, bypass o secretos.
+
+El cleanup usa publishable key, sesión QA admin real y RLS existente. Descubre
+por `description` exacta, valida workflow y relaciones nulas, persiste
+`created` y `cleanup_pending`, vuelve a consultar por ID, exige
+`OWNERSHIP_VERIFIED`, borra por ID + marker exactos y verifica ausencia por
+ambos criterios antes de marcar `clean`. Ambigüedad, mismatch, error de DELETE
+o residuo bloquean el run. El recovery explícito reutiliza el mismo contrato y
+rechaza entidades distintas de `solicitud`.
+
+Tanto ejecución como recovery requieren
+`GODEL_MANAGED_MUTATING_PRODUCTION_CONFIRM=ALLOW_SINGLE_QA_SOLICITUD_MUTATION`;
+la confirmación se rechaza si aparece persistida en los archivos managed. Este
+pase sólo ejecutó tests locales con fakes: no hubo Production, Preview,
+Supabase remoto, browser E2E ni mutaciones de negocio. La primera mutación
+Production sigue sin autorización.
 
 ## 2. Non-goals
 

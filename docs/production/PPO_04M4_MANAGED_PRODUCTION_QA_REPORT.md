@@ -31,6 +31,18 @@
 > `PPO-04M.4B.3.0 = IMPLEMENTED / STATE MODEL CORRECTED / PENDING FINAL REVIEW`;
 > `PRODUCTION MUTATING QA = NOT EXECUTED`; `FIRST PRODUCTION MUTATION = NOT AUTHORIZED`.
 
+> **Handoff PPO-04M.4B.3.1 (2026-09-20).** M.4B.3.0 queda
+> `CLOSED / SAFETY INFRASTRUCTURE APPROVED`, con autoridad aprobada
+> `f1c4e3c801da46f024a4e11c3e31a714c58033e4`. Se implementó el flujo dedicado
+> de una sola solicitud pública `encargo`: confirmación destructiva explícita,
+> residue gate, bootstrap previo al manifest, intent `planned` previo a
+> Playwright, child environment mínimo, discovery exacto, ownership pre-delete,
+> DELETE acotado, verificación posterior y recovery sólo para `solicitud`.
+> El runner unitario cubre `23/23` casos con adapters falsos y cero HTTP.
+>
+> `PPO-04M.4B.3.1 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`;
+> `PRODUCTION MUTATING QA = NOT EXECUTED`; `FIRST PRODUCTION MUTATION = NOT AUTHORIZED`.
+
 ## 1. Alcance y resultado
 
 Este pase auditó estáticamente la suite Playwright existente para determinar
