@@ -2685,3 +2685,198 @@ Supabase remote requests = 0
 browser remote executions = 0
 business mutations = 0
 ```
+
+## 33. PPO-04M.4B.3.2 — First Production template mutation
+
+### Autoridad y preflight
+
+Dirección Técnica autorizó exactamente una ejecución del runner de plantilla.
+El tooling QA no fue desplegado y el runtime Production permaneció sin cambios.
+
+```text
+branch = ops/managed-free-production-pilot
+Git QA authority = 48e86f498b6d0b55b9f511cee6b3dbb7587e50d7
+Production runtime authority = 01552f8bee59b5f9982a2d722e39795461918f43
+
+Production target = production
+Production status = READY
+Production source SHA exact = true
+stable Production origin current = true
+Vercel Authentication = All Deployments
+initial worktree clean = true
+
+.env.managed.local = present
+.env.managed.qa.local = present
+GODEL_MANAGED_PRODUCTION_BASE_URL = present
+VERCEL_AUTOMATION_BYPASS_SECRET = present
+persisted template mutating confirmation = false
+
+pre-run clean manifests = 1
+pre-run pending manifests = 0
+pre-run invalid manifests = 0
+residue gate = PASS
+```
+
+Los cuatro harnesses locales pasaron antes de abrir la confirmación efímera:
+
+```text
+manifest harness = PASS / 14 passed / 0 failed / 0 skipped
+solicitud runner harness = PASS / 23 passed / 0 failed / 0 skipped
+template runner harness = PASS / 32 passed / 0 failed / 0 skipped
+read-only harness = PASS / 19 passed / 0 failed / 0 skipped
+```
+
+### Única ejecución autorizada
+
+La confirmación exacta existió sólo en el proceso del runner y fue retirada al
+terminar. Se invocó exactamente una vez
+`npm run test:e2e:managed:mutating:template`. No hubo rerun, retry, recovery,
+Playwright manual ni DELETE manual.
+
+```text
+confirmation gate = PASS
+residue gate = PASS
+Deployment Protection bootstrap = PASS
+admin adapter authentication = PASS
+
+runId generated = true / value not reported
+planned manifest persisted before INSERT = true
+inactive template INSERT = PASS
+template remoteId captured = true / value not reported
+template is_active after setup = false
+created manifest persisted before browser = true
+
+Playwright started = true
+browser = Chromium
+tests = 1
+passed = 0
+failed = 1
+skipped = 0
+Playwright exit = 1
+```
+
+### Resultado browser
+
+El login admin, la localización exacta de la plantilla y la comprobación visual
+del estado inactivo pasaron. El botón de edición abrió el diálogo correcto, pero
+el locator Playwright acotado al diálogo no encontró el campo accesible
+`Nombre` dentro del timeout. La ejecución falló antes de editar la descripción o
+crear tareas. La captura de fallo fue revisada localmente: el diálogo y sus
+campos estaban visibles y el estado mostrado seguía siendo inactivo. No se
+incluye la captura en este reporte porque contiene el marcador QA y un
+identificador interno.
+
+```text
+admin login = PASS
+exact QA template located = true
+initial template status = inactive
+
+description edit = NOT EXECUTED
+template remained inactive = true
+Task A created = false
+Task B created = false
+Task A edit = NOT EXECUTED
+
+pedido visited = false
+template applied to pedido = false
+```
+
+El servidor utilizado fue el origen Production externo protegido; no se inició
+servidor local. El método fue Playwright Chromium con rol `admin` y viewport
+Desktop Chrome por defecto. Las rutas cubiertas fueron login, listado filtrado
+de plantillas y detalle de la plantilla QA. No hubo recorrido mobile en este
+spec focal. Se generaron screenshot, video y trace locales de fallo; sólo la
+captura fue inspeccionada. Las credenciales no se imprimieron ni persistieron.
+
+### Cleanup y residuos
+
+Aunque el browser falló, el runner continuó por su cleanup obligatorio. El
+discovery encontró exactamente el padre esperado. El pre-delete revalidó ID,
+nombre, estado inactivo y ownership. Como la prueba falló antes de crear tareas,
+el conjunto hijo pre-delete estaba vacío: cumplía el conjunto cerrado QA, pero
+no satisfacía el contrato funcional de dos tareas requerido para aceptar el
+run.
+
+El recurso pasó de `created` a `cleanup_pending` y fue persistido antes del
+único DELETE del padre. El DELETE quedó acotado por ID, nombre exacto e
+`is_active=false`. No se emitió DELETE directo de tareas. La verificación final
+confirmó ausencia por ID, cero filas por nombre y cero tareas por `template_id`.
+
+```text
+exact template ownership rows = 1
+template name exact = true
+template id matches manifest = true
+is_active before DELETE = false
+
+child rows before DELETE = 0
+child ownership = PASS / empty QA subset
+expected final two children observed = false
+
+pre-delete exact fetch = PASS
+pre-delete ownership = OWNERSHIP_VERIFIED
+bounded parent DELETE = PASS
+post-delete template by ID = absent
+post-delete template marker rows = 0
+post-delete tasks by template ID = 0
+
+resource state = clean
+run state = clean
+cleanup = PASS
+
+final clean manifests = 2
+final pending manifests = 0
+final invalid manifests = 0
+```
+
+No se ejecutó recovery porque no quedó estado `active`, `cleanup_required` ni
+`blocked`.
+
+### Impacto y logs
+
+```text
+template created transiently = 1
+template remaining = 0
+template tasks created transiently = 0
+template tasks remaining = 0
+template ever active = false
+
+pedidos created = 0
+pedido_contadores mutation = 0
+clientes created = 0
+solicitudes created = 0
+Storage uploads/objects = 0
+Auth users created = 0
+service configuration changes = 0
+```
+
+Se revisó sanitizadamente la ventana Production del run, sin registrar URLs,
+IDs, runId, mensajes completos, PII, cookies, tokens, headers ni request bodies.
+
+```text
+Production log events reviewed = 27
+HTTP 5xx count = 0
+error/fatal count = 0
+unhandled runtime exceptions = 0
+Auth errors = 0
+Supabase/runtime configuration errors = 0
+```
+
+### Estado
+
+El contrato de aceptación exige Playwright PASS y dos hijos esperados. Ambos
+faltaron, por lo que el resultado funcional no se acepta aunque el cleanup haya
+quedado completamente demostrado. La autorización de ejecución única quedó
+consumida y no se realizó un segundo intento.
+
+```text
+FIRST PRODUCTION TEMPLATE MUTATION = NOT ACCEPTED
+PPO-04M.4B.3.2 = EXECUTED / NOT ACCEPTED / CLEANUP PASS / PENDING REVIEW
+
+PRODUCTION MUTATING QA = SOLICITUD PASS / TEMPLATE NOT ACCEPTED
+PRODUCTION TEMPLATE MUTATION AUTHORIZATION = CONSUMED
+PRODUCTION RUNTIME = 01552f8bee59b5f9982a2d722e39795461918f43 / UNCHANGED
+
+Git commit = NOT CREATED
+Git push = NOT EXECUTED
+Git amend/merge/rebase = NOT EXECUTED
+```
