@@ -2,12 +2,12 @@
 
 ## Metadatos
 
-- Actualización de estado: 2026-09-18
+- Actualización de estado: 2026-09-21
 
 - Proyecto: Godel Diseño
 - Estado: Activo
 - Fecha de creación: 2026-07-21
-- Última revisión: 2026-09-18
+- Última revisión: 2026-09-21
 - Responsable técnico: Dirección Técnica de Godel Diseño
 - Arquitectura y supervisión: Arquitectura Senior / Orquestación Técnica
 - Implementación: Agente Codex en VS Code
@@ -160,8 +160,11 @@ PPO-04M.1 queda `CLOSED / APPROVED` mediante
 PPO-04M.2 queda `CLOSED / APPROVED`: M.2A y M.2B están `CLOSED / APPROVED`,
 con evidencia estructural y funcional en
 [PPO_04M2_MANAGED_PROVISIONING_REPORT.md](PPO_04M2_MANAGED_PROVISIONING_REPORT.md).
-PPO-04M.3 queda `CLOSED / APPROVED`; PPO-04M.4 queda `ACTIVE / NEXT` y
-PPO-04M.5–PPO-04M.7 permanecen `NOT STARTED`.
+PPO-04M.3 queda `CLOSED / APPROVED`; PPO-04M.4 queda
+`CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE`; PPO-04M.5 queda `ACTIVE / NEXT`;
+y PPO-04M.6–PPO-04M.7 permanecen `NOT STARTED`. PPO-04 global continúa
+`ACTIVE / NEXT` porque todavía faltan M.5, M.6 y M.7. El Production pilot
+rollout permanece `NOT EXECUTED`.
 
 ## Estado de fases
 

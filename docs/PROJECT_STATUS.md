@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Última actualización: 2026-09-18
+Última actualización: 2026-09-21
 
 ## Estado general
 
@@ -22,8 +22,9 @@ está `ACTIVE / NEXT`; PPO-04M.0–PPO-04M.3 están `CLOSED / APPROVED`. M.2A
 aplicó y aceptó la baseline 01–06, M.2B validó bootstrap, lifecycle Auth,
 RLS/grants, Storage/TUS y cleanup, y M.3 aceptó el deployment técnico protegido.
 El Site URL de Supabase está alineado con el dominio Production estable.
-PPO-04M.4 queda `ACTIVE / NEXT`; todavía no se realizó el pilot rollout ni se
-afirma que el sistema esté públicamente operativo.
+PPO-04M.4 queda `CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE`; PPO-04M.5 queda
+`ACTIVE / NEXT`. Todavía no se realizó el pilot rollout ni se afirma que el
+sistema esté públicamente operativo.
 
 ## Arquitectura vigente
 
@@ -93,8 +94,9 @@ una migración nueva `07+`.
 | PPO-04M.2A | `CLOSED / APPROVED` |
 | PPO-04M.2B | `CLOSED / APPROVED` |
 | PPO-04M.3 | `CLOSED / APPROVED` |
-| PPO-04M.4 | `ACTIVE / NEXT` |
-| PPO-04M.5–PPO-04M.7 | `NOT STARTED` |
+| PPO-04M.4 | `CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE` |
+| PPO-04M.5 | `ACTIVE / NEXT` |
+| PPO-04M.6–PPO-04M.7 | `NOT STARTED` |
 | PPO-05 | `PENDING` — seguridad pública/antiabuso |
 | PPO-06 | `PENDING` — backup/recovery managed |
 | PPO-07 | `PENDING` — observabilidad/operación managed |
@@ -157,8 +159,8 @@ PPO-04M.0  arquitectura y gobernanza — CLOSED / APPROVED
 → PPO-04M.2A  baseline/hardening estructural — CLOSED / APPROVED
 → PPO-04M.2B  bootstrap y QA funcional Auth/Storage — CLOSED / APPROVED
 → PPO-04M.3  deployment Vercel Hobby — CLOSED / APPROVED
-→ PPO-04M.4  QA managed propio — ACTIVE / NEXT
-→ PPO-04M.5  backup externo y recovery baseline
+→ PPO-04M.4  QA managed propio — CLOSED / QUALIFIED ACCEPTANCE
+→ PPO-04M.5  backup externo y recovery baseline — ACTIVE / NEXT
 → PPO-04M.6  small initial real use
 → PPO-04M.7  estabilización y medidas reales
 → LSH (futuro, no iniciado)

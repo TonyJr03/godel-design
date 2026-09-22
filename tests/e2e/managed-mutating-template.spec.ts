@@ -64,7 +64,9 @@ test("edits one inactive managed QA template and its isolated tasks", async ({
   await expect(page.getByText("Inactiva", { exact: true })).toBeVisible();
 
   const createTask = async (title: string) => {
-    await page.getByLabel("Nueva tarea", { exact: true }).fill(title);
+    const taskInput = page.getByLabel(/nueva tarea/i);
+    await expect(taskInput).toBeVisible();
+    await taskInput.fill(title);
     await page.getByRole("button", { name: "Agregar", exact: true }).click();
     await expect(page.getByText(title, { exact: true })).toBeVisible();
   };

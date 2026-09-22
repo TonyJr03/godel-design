@@ -4,7 +4,7 @@
 
 **Estado de PPO-04M:** `ACTIVE / NEXT`
 
-**Bloque activo:** `PPO-04M.4 — ACTIVE / NEXT`
+**Bloque activo:** `PPO-04M.5 — ACTIVE / NEXT`
 
 **Estado de PPO-04M.2:** `CLOSED / APPROVED`
 
@@ -12,9 +12,11 @@
 
 **PPO-04M.3:** `CLOSED / APPROVED`
 
-**PPO-04M.4:** `ACTIVE / NEXT`
+**PPO-04M.4:** `CLOSED / QUALIFIED ACCEPTANCE`
 
-**PPO-04M.5–PPO-04M.7:** `NOT STARTED`
+**PPO-04M.5:** `ACTIVE / NEXT`
+
+**PPO-04M.6–PPO-04M.7:** `NOT STARTED`
 
 **Despliegue productivo:** `READY / ACCEPTED / PROTECTED`
 
@@ -44,8 +46,9 @@ PPO-04M.2 = CLOSED / APPROVED
 PPO-04M.2A = CLOSED / APPROVED
 PPO-04M.2B = CLOSED / APPROVED
 PPO-04M.3 = CLOSED / APPROVED
-PPO-04M.4 = ACTIVE / NEXT
-PPO-04M.5–PPO-04M.7 = NOT STARTED
+PPO-04M.4 = CLOSED / QUALIFIED ACCEPTANCE
+PPO-04M.5 = ACTIVE / NEXT
+PPO-04M.6–PPO-04M.7 = NOT STARTED
 PRODUCTION DEPLOYMENT = READY
 PRODUCTION ACCEPTANCE = PASS
 PRODUCTION EXPOSURE = PROTECTED
@@ -109,8 +112,8 @@ provider limits are external and must be revalidated at execution time
 | PPO-04M.1 | Supabase Free Production Project | `CLOSED / APPROVED` |
 | PPO-04M.2 | Database / Auth / Storage Provisioning | `CLOSED / APPROVED` |
 | PPO-04M.3 | Vercel Hobby Deployment | `CLOSED / APPROVED` |
-| PPO-04M.4 | Managed Production QA | `ACTIVE / NEXT` |
-| PPO-04M.5 | Free-Tier Backup & Recovery Baseline | `NOT STARTED` |
+| PPO-04M.4 | Managed Production QA | `CLOSED / QUALIFIED ACCEPTANCE` |
+| PPO-04M.5 | Free-Tier Backup & Recovery Baseline | `ACTIVE / NEXT` |
 | PPO-04M.6 | Production Pilot Rollout | `NOT STARTED` |
 | PPO-04M.7 | Stabilization & Usage Measurement | `NOT STARTED` |
 
@@ -196,7 +199,8 @@ M.2A queda `CLOSED / APPROVED`: aplicó exactamente 01–06, confirmó historia
 local/remota, hardening final, lint y smokes estructurales sin crear usuarios ni
 objetos. M.2B queda `CLOSED / APPROVED`: completó el bootstrap, lifecycle Auth,
 RLS/grants, TUS autenticado y público firmado, negativas y cleanup verificado.
-PPO-04M.3 queda `CLOSED / APPROVED`; PPO-04M.4 queda `ACTIVE / NEXT`.
+PPO-04M.3 queda `CLOSED / APPROVED`; PPO-04M.4 queda
+`CLOSED / QUALIFIED ACCEPTANCE` y PPO-04M.5 queda `ACTIVE / NEXT`.
 La evidencia acumulativa vive en
 [PPO_04M2_MANAGED_PROVISIONING_REPORT.md](PPO_04M2_MANAGED_PROVISIONING_REPORT.md).
 
@@ -223,32 +227,45 @@ Production queda `READY / ACCEPTED / PROTECTED`; el pilot rollout permanece
 
 ## 8. PPO-04M.4 — Managed Production QA
 
-El entorno managed tendrá su propia aceptación real y sanitizada. Como mínimo:
+PPO-04M.4 queda `CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE`. La aceptación
+propia y sanitizada del entorno managed demostró el slice read-only completo,
+la mutación aislada de solicitud, la mutación del header de plantilla y la
+seguridad de cleanup sin residuo. No demostró CRUD de tareas de plantilla y no
+se presenta como un Production PASS de ese subflujo.
 
-- `health/live` y `health/ready`;
-- login y logout;
-- roles, acceso autorizado y restricciones;
-- dashboard;
-- clientes;
-- solicitud pública;
-- conversión de solicitud;
-- pedidos;
-- tareas;
-- pagos;
-- comentarios e historial cuando corresponda;
-- tracking público;
-- carga interna y carga pública;
-- TUS y resume;
-- finalize;
-- listing;
-- descarga protegida;
-- casos negativos esenciales de RLS y seguridad.
+```text
+READ-ONLY MANAGED QA = PASS / 44 OF 44
+ISOLATED SOLICITUD MUTATION = PASS
+TEMPLATE HEADER MUTATION = DEMONSTRATED
+TEMPLATE TASK CRUD = NOT DEMONSTRATED
+MUTATING CLEANUP SAFETY = PASS
+FINAL QA RESIDUE = ZERO
+FULL VISUAL MUTATING QA = DEFERRED
+KNOWN PRODUCT P0/P1 FROM M.4 = NONE OBSERVED
+PRODUCTION PILOT ROLLOUT = NOT EXECUTED
+```
 
-La evidencia PPO-02/PPO-03 orienta el QA, pero no sustituye sus resultados.
-Todo P0/P1 impide avanzar al rollout hasta su resolución o una decisión formal
-de pausa.
+M.4B.3 queda `CLOSED / PARTIAL PRODUCTION MUTATING QA`. M.4B.3.2 queda cerrado
+sin aceptación como flujo completo: `TASK CRUD NOT DEMONSTRATED` no equivale a
+`TASK CRUD PRODUCT DEFECT`. La suite histórica cubre ese CRUD y los runs no
+mostraron HTTP 5xx, errores runtime, Auth ni configuración Supabase. No se
+autoriza un tercer run de plantilla ni specs mutantes Production adicionales en
+M.4.
+
+PPO-04M.4C queda `DEFERRED / NOT AUTHORIZED ON CURRENT PRODUCTION / FUTURE
+STAGING OR SAFE QA ENVIRONMENT`. `full-visual-qa.spec.ts` mezcla clientes,
+pedidos, contador global, Storage, Auth/roles, configuración compartida y
+relaciones no limpiables con seguridad. No se ampliarán privilegios QA, no se
+usarán service role/secret key para negocio, no se relajará RLS y no se hará DB
+reset. El gap de evidencia task CRUD es importante después del piloto y antes
+de un rollout más amplio o QA en staging dedicado, pero no bloquea este piloto.
+
+La evidencia de cierre vive en
+[PPO_04M4_MANAGED_PRODUCTION_QA_REPORT.md](PPO_04M4_MANAGED_PRODUCTION_QA_REPORT.md).
 
 ## 9. PPO-04M.5 — Free-Tier Backup & Recovery Baseline
+
+**Estado:** `ACTIVE / NEXT`
 
 ```text
 external backup required
@@ -269,6 +286,8 @@ y criterio de recuperación antes de seleccionar o implementar herramientas.
 Las capacidades de SH-04 son antecedentes conceptuales; no se afirma que sus
 mecanismos sean directamente compatibles con Supabase Managed Free. PPO-04M.5
 es un gate mínimo del piloto y no cierra el workstream completo PPO-06.
+Este handoff abre formalmente el bloque y su objetivo; no diseña todavía la
+implementación completa del backup.
 
 ## 10. PPO-04M.6 — Production Pilot Rollout
 

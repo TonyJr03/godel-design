@@ -1,14 +1,16 @@
 # PPO-04M.4 — Managed Production QA Compatibility Audit
 
-**Fecha:** 2026-09-18
+**Fecha:** 2026-09-21
 
-**Estado de PPO-04M.4:** `ACTIVE / IN PROGRESS`
+**Estado de PPO-04M.4:** `CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE`
 
 **Estado de PPO-04M.4A:** `COMPLETE`
 
-**Estado de PPO-04M.4B:** `ACTIVE / MUTATING QA DESIGN`
+**Estado de PPO-04M.4B:** `CLOSED / PARTIAL PRODUCTION MUTATING QA`
 
-**Production QA execution:** `NOT EXECUTED`
+**Estado de PPO-04M.4C:** `DEFERRED / FUTURE STAGING QA`
+
+**Production QA execution:** `QUALIFIED ACCEPTANCE`
 
 **Production pilot rollout:** `NOT EXECUTED`
 
@@ -3141,4 +3143,137 @@ PRODUCTION RUNTIME = 01552f8bee59b5f9982a2d722e39795461918f43 / UNCHANGED
 Git commit = NOT CREATED
 Git push = NOT EXECUTED
 Git amend/merge/rebase = NOT EXECUTED
+```
+
+## 36. PPO-04M.4 — Formal closure and PPO-04M.5 handoff
+
+### Autoridad y naturaleza del cierre
+
+Este pase cierra formalmente M.4 con aceptación cualificada. Sólo aplicó
+hardening local mínimo al spec focal, consolidó documentación y actualizó
+estados. No ejecutó Production, Preview, Supabase remoto, browser remoto,
+mutaciones, redeploy ni promotion.
+
+```text
+branch = ops/managed-free-production-pilot
+Git closure authority = 4a1b5d7846e069eeb9e9585573a88aab8d966190
+Production runtime = 01552f8bee59b5f9982a2d722e39795461918f43 / UNCHANGED
+
+PPO-04M.4B.1 = CLOSED / READ_ONLY QA PASS
+PPO-04M.4B.3.1 = CLOSED / SOLICITUD PRODUCTION MUTATION PASS
+PPO-04M.4B.3.2 = CLOSED / NOT ACCEPTED AS FULL TEMPLATE FLOW / TEMPLATE HEADER MUTATION DEMONSTRATED / TASK CRUD NOT DEMONSTRATED / CLEANUP PASS / ZERO RESIDUE
+```
+
+No se autoriza un tercer run Production de plantilla ni ningún spec mutante
+Production adicional dentro de PPO-04M.4. Quedan excluidos pedidos, clientes,
+Storage/TUS mutante, Auth mutations, catálogo compartido y full visual QA
+mutante. La falta de evidencia de tareas no se intentará convertir en otra
+ejecución Productiva.
+
+### Clasificación del gap de plantilla
+
+```text
+TASK CRUD NOT DEMONSTRATED != TASK CRUD PRODUCT DEFECT
+
+TEMPLATE TASK CRUD PRODUCTION EVIDENCE =
+IMPORTANT AFTER PILOT /
+BEFORE BROADER ROLLOUT OR DEDICATED STAGING QA
+
+TEMPLATE TASK CRUD PRODUCTION EVIDENCE != BLOCKER PARA PILOTO
+```
+
+La evidencia disponible no demuestra un defecto del producto. Los dos fallos
+fueron de interacción/robustez del spec focal. La suite histórica ya cubre task
+CRUD; el header de plantilla sí mutó correctamente; ambos cleanups Production
+fueron seguros; el residuo final fue cero; y las ventanas observadas no
+registraron HTTP 5xx, errores runtime, Auth ni configuración Supabase. Nada de
+esto se presenta como Production PASS del task CRUD.
+
+### Hardening local final
+
+En `tests/e2e/managed-mutating-template.spec.ts`, el campo de nueva tarea usa
+ahora el locator tolerante `getByLabel(/nueva tarea/i)`, consistente con la
+suite histórica, y exige visibilidad explícita antes de cada `fill`. No se
+añadieron sleeps, force, networkidle, clicks adicionales, retries ni pasos
+funcionales. Task A/B, cleanup, runner e infraestructura permanecen sin cambios.
+El spec focal no se ejecutó contra Production.
+
+### M.4C y límites de privilegio
+
+```text
+PPO-04M.4C =
+DEFERRED /
+NOT AUTHORIZED ON CURRENT PRODUCTION /
+FUTURE STAGING OR SAFE QA ENVIRONMENT
+```
+
+`full-visual-qa.spec.ts` mezcla clientes, pedidos, el contador global de
+pedidos, Storage, Auth/roles, configuración compartida y múltiples relaciones
+de negocio sin cleanup Production seguro. No se ampliarán privilegios QA para
+ejecutarlo: no service role, no secret key para tablas de negocio, no DB reset
+y no relajación de RLS.
+
+### Aceptación cualificada
+
+```text
+PPO-04M.4 = CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE
+
+READ-ONLY MANAGED QA = PASS / 44 OF 44
+ISOLATED SOLICITUD MUTATION = PASS
+TEMPLATE HEADER MUTATION = DEMONSTRATED
+TEMPLATE TASK CRUD = NOT DEMONSTRATED
+MUTATING CLEANUP SAFETY = PASS
+FINAL QA RESIDUE = ZERO
+FULL VISUAL MUTATING QA = DEFERRED
+KNOWN PRODUCT P0/P1 FROM M.4 = NONE OBSERVED
+PRODUCTION PILOT ROLLOUT = NOT EXECUTED
+```
+
+El resultado gobernante es `QUALIFIED PRODUCTION QA ACCEPTANCE`: M.4 no se
+clasifica como `FULL PASS` ni como `FAIL`.
+
+### Validación local del cierre
+
+```text
+manifest harness = PASS / 14 passed / 0 failed / 0 skipped
+solicitud runner harness = PASS / 23 passed / 0 failed / 0 skipped
+template runner harness = PASS / 32 passed / 0 failed / 0 skipped
+read-only runner harness = PASS / 19 passed / 0 failed / 0 skipped
+
+lint = PASS / 0 errors / 13 pre-existing warnings outside scope
+build = PASS
+```
+
+No se ejecutaron el runner mutante de solicitud, sus recoveries, el runner
+mutante de plantilla ni su recovery.
+
+```text
+Production requests = 0
+Preview requests = 0
+Supabase remote requests = 0
+browser remote executions = 0
+business mutations = 0
+```
+
+### Handoff
+
+```text
+PPO-04M.4 = CLOSED / QUALIFIED ACCEPTANCE
+PPO-04M.4B.3 = CLOSED / PARTIAL PRODUCTION MUTATING QA
+PPO-04M.4C = DEFERRED / FUTURE STAGING QA
+PPO-04M.5 = ACTIVE / NEXT
+PPO-04M.6–PPO-04M.7 = NOT STARTED
+PRODUCTION PILOT ROLLOUT = NOT EXECUTED
+```
+
+PPO-04M.5 abre `Free-Tier Backup & Recovery Baseline`. Su objetivo es aprobar
+una estrategia externa y reproducible de backup/recovery antes de depender del
+piloto para datos reales. Este pase sólo formaliza el bloque y su objetivo; no
+diseña ni implementa todavía la solución completa. PPO-04 global permanece
+`ACTIVE / NEXT` porque M.5, M.6 y M.7 siguen pendientes.
+
+```text
+Git commit = NOT CREATED
+Git push = NOT EXECUTED
+Git amend = NOT EXECUTED
 ```
