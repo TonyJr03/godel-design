@@ -4,7 +4,7 @@
 
 **Estado de PPO-04M:** `ACTIVE / NEXT`
 
-**Bloque activo:** `PPO-04M.5 — ACTIVE / ARCHITECTURE AUDIT`
+**Bloque activo:** `PPO-04M.5 — ACTIVE / TOOLING IMPLEMENTATION`
 
 **Estado de PPO-04M.2:** `CLOSED / APPROVED`
 
@@ -14,11 +14,15 @@
 
 **PPO-04M.4:** `CLOSED / QUALIFIED ACCEPTANCE`
 
-**PPO-04M.5:** `ACTIVE / ARCHITECTURE AUDIT`
+**PPO-04M.5:** `ACTIVE / TOOLING IMPLEMENTATION`
 
-**PPO-04M.5.0:** `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`
+**PPO-04M.5.0:** `CLOSED / ARCHITECTURE APPROVED`
 
-**PPO-04M.5.1–PPO-04M.5.3:** `NOT STARTED`
+**PPO-04M.5.1:** `CORE IMPLEMENTED / PENDING LOCAL INTEGRATION`
+
+**PPO-04M.5.2–PPO-04M.5.3:** `NOT STARTED`
+
+**FIRST PRODUCTION BACKUP:** `NOT AUTHORIZED`
 
 **PPO-04M.6–PPO-04M.7:** `NOT STARTED`
 
@@ -54,9 +58,10 @@ PPO-04M.2A = CLOSED / APPROVED
 PPO-04M.2B = CLOSED / APPROVED
 PPO-04M.3 = CLOSED / APPROVED
 PPO-04M.4 = CLOSED / QUALIFIED ACCEPTANCE
-PPO-04M.5 = ACTIVE / ARCHITECTURE AUDIT
-PPO-04M.5.0 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
-PPO-04M.5.1–PPO-04M.5.3 = NOT STARTED
+PPO-04M.5 = ACTIVE / TOOLING IMPLEMENTATION
+PPO-04M.5.0 = CLOSED / ARCHITECTURE APPROVED
+PPO-04M.5.1 = CORE IMPLEMENTED / PENDING LOCAL INTEGRATION
+PPO-04M.5.2–PPO-04M.5.3 = NOT STARTED
 PPO-04M.6–PPO-04M.7 = NOT STARTED
 PRODUCTION DEPLOYMENT = READY
 PRODUCTION ACCEPTANCE = PASS
@@ -122,7 +127,7 @@ provider limits are external and must be revalidated at execution time
 | PPO-04M.2 | Database / Auth / Storage Provisioning | `CLOSED / APPROVED` |
 | PPO-04M.3 | Vercel Hobby Deployment | `CLOSED / APPROVED` |
 | PPO-04M.4 | Managed Production QA | `CLOSED / QUALIFIED ACCEPTANCE` |
-| PPO-04M.5 | Free-Tier Backup & Recovery Baseline | `ACTIVE / ARCHITECTURE AUDIT` |
+| PPO-04M.5 | Free-Tier Backup & Recovery Baseline | `ACTIVE / TOOLING IMPLEMENTATION` |
 | PPO-04M.6 | Production Pilot Rollout | `NOT STARTED` |
 | PPO-04M.7 | Stabilization & Usage Measurement | `NOT STARTED` |
 
@@ -210,7 +215,7 @@ objetos. M.2B queda `CLOSED / APPROVED`: completó el bootstrap, lifecycle Auth,
 RLS/grants, TUS autenticado y público firmado, negativas y cleanup verificado.
 PPO-04M.3 queda `CLOSED / APPROVED`; PPO-04M.4 queda
 `CLOSED / QUALIFIED ACCEPTANCE` y PPO-04M.5 queda
-`ACTIVE / ARCHITECTURE AUDIT`.
+`ACTIVE / TOOLING IMPLEMENTATION`.
 La evidencia acumulativa vive en
 [PPO_04M2_MANAGED_PROVISIONING_REPORT.md](PPO_04M2_MANAGED_PROVISIONING_REPORT.md).
 
@@ -275,7 +280,7 @@ La evidencia de cierre vive en
 
 ## 9. PPO-04M.5 — Free-Tier Backup & Recovery Baseline
 
-**Estado:** `ACTIVE / ARCHITECTURE AUDIT`
+**Estado:** `ACTIVE / TOOLING IMPLEMENTATION`
 
 ```text
 external backup required
@@ -296,12 +301,21 @@ y criterio de recuperación antes de seleccionar o implementar herramientas.
 Las capacidades de SH-04 son antecedentes conceptuales; no se afirma que sus
 mecanismos sean directamente compatibles con Supabase Managed Free. PPO-04M.5
 es un gate mínimo del piloto y no cierra el workstream completo PPO-06.
-M.5.0 queda `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW` mediante
+M.5.0 queda `CLOSED / ARCHITECTURE APPROVED` mediante
 [PPO_04M5_BACKUP_RECOVERY_DESIGN.md](PPO_04M5_BACKUP_RECOVERY_DESIGN.md):
 inventaría estado durable, separa DB/Auth/metadata/bytes, recomienda export
 lógico y copia S3-compatible cifrada, y fija los gates de restore. No creó
-backup, credenciales S3, proyecto, conexión remota ni restore. M.5.1–M.5.3
-permanecen `NOT STARTED`.
+backup, credenciales S3, proyecto, conexión remota ni restore. El primer pase de
+M.5.1 queda `CORE IMPLEMENTED / PENDING LOCAL INTEGRATION`: añadió primitives
+locales deterministas para manifest, checksums, inventarios, command plans,
+cifrado externo y bundle sintético, todas cubiertas por tests sin HTTP, Docker o
+Production. M.5.2–M.5.3 permanecen `NOT STARTED`.
+
+```text
+DATABASE SECRET-SAFE TRANSPORT = PENDING LOCAL PROOF
+STORAGE METADATA + BYTE RESTORE ORDER = PENDING LOCAL PROOF
+FIRST PRODUCTION BACKUP = NOT AUTHORIZED
+```
 
 ## 10. PPO-04M.6 — Production Pilot Rollout
 

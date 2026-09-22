@@ -23,9 +23,10 @@ aplicó y aceptó la baseline 01–06, M.2B validó bootstrap, lifecycle Auth,
 RLS/grants, Storage/TUS y cleanup, y M.3 aceptó el deployment técnico protegido.
 El Site URL de Supabase está alineado con el dominio Production estable.
 PPO-04M.4 queda `CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE`; PPO-04M.5 queda
-`ACTIVE / ARCHITECTURE AUDIT`. M.5.0 está `IMPLEMENTED / PENDING ARCHITECTURAL
-REVIEW`; M.5.1–M.5.3 siguen `NOT STARTED`. Todavía no se realizó el pilot
-rollout ni se afirma que el sistema esté públicamente operativo.
+`ACTIVE / TOOLING IMPLEMENTATION`. M.5.0 está `CLOSED / ARCHITECTURE APPROVED`;
+M.5.1 está `CORE IMPLEMENTED / PENDING LOCAL INTEGRATION` y M.5.2–M.5.3 siguen
+`NOT STARTED`. El primer backup Production no está autorizado. Todavía no se
+realizó el pilot rollout ni se afirma que el sistema esté públicamente operativo.
 
 ## Arquitectura vigente
 
@@ -96,9 +97,10 @@ una migración nueva `07+`.
 | PPO-04M.2B | `CLOSED / APPROVED` |
 | PPO-04M.3 | `CLOSED / APPROVED` |
 | PPO-04M.4 | `CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE` |
-| PPO-04M.5 | `ACTIVE / ARCHITECTURE AUDIT` |
-| PPO-04M.5.0 | `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW` |
-| PPO-04M.5.1–PPO-04M.5.3 | `NOT STARTED` |
+| PPO-04M.5 | `ACTIVE / TOOLING IMPLEMENTATION` |
+| PPO-04M.5.0 | `CLOSED / ARCHITECTURE APPROVED` |
+| PPO-04M.5.1 | `CORE IMPLEMENTED / PENDING LOCAL INTEGRATION` |
+| PPO-04M.5.2–PPO-04M.5.3 | `NOT STARTED` |
 | PPO-04M.6–PPO-04M.7 | `NOT STARTED` |
 | PPO-05 | `PENDING` — seguridad pública/antiabuso |
 | PPO-06 | `PENDING` — backup/recovery managed |
@@ -114,6 +116,7 @@ PRODUCTION DEPLOYMENT = READY
 PRODUCTION ACCEPTANCE = PASS
 PRODUCTION EXPOSURE = PROTECTED
 PRODUCTION PILOT ROLLOUT = NOT EXECUTED
+FIRST PRODUCTION BACKUP = NOT AUTHORIZED
 ```
 
 ## Evidencia y capacidades Self-Hosted conservadas
@@ -166,8 +169,9 @@ PPO-04M.0  arquitectura y gobernanza — CLOSED / APPROVED
 → PPO-04M.2B  bootstrap y QA funcional Auth/Storage — CLOSED / APPROVED
 → PPO-04M.3  deployment Vercel Hobby — CLOSED / APPROVED
 → PPO-04M.4  QA managed propio — CLOSED / QUALIFIED ACCEPTANCE
-→ PPO-04M.5.0  arquitectura backup/recovery — IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
-→ PPO-04M.5.1–M.5.3  tooling, primer backup y restore drill — NOT STARTED
+→ PPO-04M.5.0  arquitectura backup/recovery — CLOSED / ARCHITECTURE APPROVED
+→ PPO-04M.5.1  tooling core — CORE IMPLEMENTED / PENDING LOCAL INTEGRATION
+→ PPO-04M.5.2–M.5.3  primer backup y restore drill — NOT STARTED
 → PPO-04M.6  small initial real use
 → PPO-04M.7  estabilización y medidas reales
 → LSH (futuro, no iniciado)
@@ -176,6 +180,10 @@ PPO-04M.0  arquitectura y gobernanza — CLOSED / APPROVED
 La evidencia managed de PPO-02/PPO-03 es antecedente de compatibilidad. El
 nuevo entorno debe tener aceptación propia, backup fuera de Supabase y control
 de capacidad/free-tier antes de depender de él para datos reales.
+
+Los gates aún pendientes de M.5.1 son `DATABASE SECRET-SAFE TRANSPORT = PENDING
+LOCAL PROOF` y `STORAGE METADATA + BYTE RESTORE ORDER = PENDING LOCAL PROOF`.
+El tooling actual no publica externamente ni autoriza acceso a Production.
 
 ## Capacidades funcionales disponibles
 

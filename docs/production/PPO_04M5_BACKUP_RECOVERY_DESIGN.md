@@ -2,11 +2,15 @@
 
 **Bloque:** `PPO-04M.5.0 — Managed Backup & Recovery Architecture Audit`
 
-**Estado de M.5:** `ACTIVE / ARCHITECTURE AUDIT`
+**Estado de M.5:** `ACTIVE / TOOLING IMPLEMENTATION`
 
-**Estado de M.5.0:** `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`
+**Estado de M.5.0:** `CLOSED / ARCHITECTURE APPROVED`
 
-**M.5.1–M.5.3:** `NOT STARTED`
+**M.5.1:** `CORE IMPLEMENTED / PENDING LOCAL INTEGRATION`
+
+**M.5.2–M.5.3:** `NOT STARTED`
+
+**FIRST PRODUCTION BACKUP:** `NOT AUTHORIZED`
 
 **Fecha de auditoría:** 2026-09-21
 
@@ -766,11 +770,11 @@ del proveedor pueden cambiar.
 ```text
 PPO-04M.5.0
 = Backup & Recovery Architecture Audit
-= IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+= CLOSED / ARCHITECTURE APPROVED
 
 PPO-04M.5.1
 = Managed Backup Tooling
-= NOT STARTED
+= CORE IMPLEMENTED / PENDING LOCAL INTEGRATION
 
 PPO-04M.5.2
 = First Production Backup + External Custody
@@ -783,7 +787,7 @@ PPO-04M.5.3
 
 M.6 no se abre hasta que M.5.3 esté cerrado/aprobado.
 
-### M.5.1 — salida requerida
+### M.5.1 — salida requerida y estado del primer pase
 
 - wrapper de export/copia sin secrets en argv/logs;
 - tests locales de manifest, checksum, failure e incomplete;
@@ -793,6 +797,25 @@ M.6 no se abre hasta que M.5.3 esté cerrado/aprobado.
 - bundle cifrado reproducible con fixture local;
 - runbook de credenciales efímeras y revocación;
 - no acceso a Production salvo autorización posterior separada.
+
+El primer pase implementa en `scripts/managed-backup/` el núcleo local y
+fail-closed: manifest v1 cerrado, IDs no sensibles, escritura atómica,
+contención de paths, SHA-256 streaming, runner sin shell y con environment
+allowlisted, planes puros Supabase/S3, validadores Auth/Storage/configuración,
+contrato externo `age`, discovery read-only y orquestación sintética del bundle.
+Las pruebas usan únicamente directorios temporales y adapters fake; no producen
+un backup real ni contactan proveedores.
+
+```text
+DATABASE SECRET-SAFE TRANSPORT = PENDING LOCAL PROOF
+STORAGE METADATA + BYTE RESTORE ORDER = PENDING LOCAL PROOF
+EXTERNAL PUBLICATION = NOT IMPLEMENTED
+FIRST PRODUCTION BACKUP = NOT AUTHORIZED
+```
+
+Por estos gates, M.5.1 no está cerrado. La integración posterior debe fijar y
+probar `age`, la herramienta S3-compatible, el transporte PostgreSQL/Supabase y
+el restore soportado de metadata + bytes en un entorno local desechable.
 
 ### M.5.2 — salida requerida
 
@@ -831,12 +854,15 @@ Descubrimiento local sin instalar software ni contactar Production:
 | `rclone` | No disponible |
 | `aws` | No disponible |
 
-La ausencia de herramientas opcionales no bloquea M.5.0. Sí debe resolverse y
-quedar fijada antes de ejecutar M.5.1/M.5.2.
+El discovery read-only del primer pase de M.5.1 reconfirmó `node v24.14.1`, npm,
+Supabase CLI local `2.109.1`, Docker client `29.6.1` con engine no disponible y
+la ausencia de `pg_dump`, `psql`, `age`, `rclone` y `aws`. No instaló software ni
+inició Docker. Las dependencias opcionales deben resolverse y fijarse antes de
+la integración local de M.5.1 y de cualquier M.5.2.
 
 ## 20. Decisiones abiertas y stop conditions
 
-### 20.1 Decisiones abiertas antes de M.5.1/M.5.2
+### 20.1 Decisiones abiertas para integración local de M.5.1 y M.5.2
 
 1. Aprobar `age`, recipients y custodios de identities privadas.
 2. Elegir destino externo físico y política de acceso/capacidad.
@@ -881,11 +907,12 @@ Supabase remote requests = 0
 Storage remote requests = 0
 database remote connections = 0
 business mutations = 0
-backup artifacts created = 0
+Production backup artifacts created = 0
 restore operations = 0
 projects created = 0
 S3 credentials created = 0
 ```
 
-PPO-04M.5 permanece abierto. La auditoría no autoriza todavía tooling
-productivo, primer backup ni restore drill.
+PPO-04M.5 permanece abierto. M.5.0 está cerrado con arquitectura aprobada y el
+core local de M.5.1 está implementado, pendiente de integración local. Este
+pase no autoriza tooling productivo, primer backup ni restore drill.
