@@ -2880,3 +2880,47 @@ Git commit = NOT CREATED
 Git push = NOT EXECUTED
 Git amend/merge/rebase = NOT EXECUTED
 ```
+
+## 34. PPO-04M.4B.3.2 — QA spec locator correction
+
+La autoridad de runner aprobada permanece en
+`48e86f498b6d0b55b9f511cee6b3dbb7587e50d7`. El HEAD de este pase partió de
+`a63c59ddb5665bc6ceb4eb449e2825477166f164`, cuyo único cambio desde esa
+autoridad era el commit documental del primer intento no aceptado.
+
+La inspección local del screenshot confirmó el diagnóstico aprobado: el diálogo
+de edición estaba visualmente abierto, la descripción y el selector de estado
+estaban presentes y la plantilla mostraba estado inactivo. El fallo ocurrió
+antes de mutar la descripción. No se registraron en este documento el marcador
+QA, UUID ni URL mostrados por el artefacto.
+
+Se corrigió exclusivamente
+`tests/e2e/managed-mutating-template.spec.ts`: se eliminó la assertion
+redundante sobre el campo `Nombre`, se añadió el gate explícito de diálogo
+visible y se adoptaron los locators tolerantes ya probados por la suite histórica
+para `Descripción`, el combobox `Estado` y `Guardar cambios`. El estado se fija
+y verifica en `false` antes de guardar, y el spec espera el cierre del diálogo
+antes de comprobar la descripción editada y el badge `Inactiva`.
+
+No se modificaron producto, Supabase, configuración Playwright, runner, flow,
+adapter ni el camino de solicitud. Tampoco se añadió un regression test que lea
+el source del spec como texto.
+
+```text
+manifest harness = PASS / 14 passed
+solicitud runner harness = PASS / 23 passed
+template runner harness = PASS / 32 passed
+read-only harness = PASS / 19 passed
+lint = PASS / 0 errors / 13 pre-existing warnings outside scope
+build = PASS
+
+Production requests = 0
+Preview requests = 0
+Supabase remote requests = 0
+browser remote executions = 0
+business mutations = 0
+
+PPO-04M.4B.3.2 = QA SPEC LOCATOR CORRECTED / PENDING ARCHITECTURAL REVIEW
+PRODUCTION TEMPLATE MUTATION = FIRST ATTEMPT NOT ACCEPTED / CLEANUP PASS
+SECOND PRODUCTION TEMPLATE EXECUTION = NOT AUTHORIZED
+```

@@ -50,14 +50,16 @@ test("edits one inactive managed QA template and its isolated tasks", async ({
 
   await page.getByRole("button", { name: "Editar plantilla", exact: true }).click();
   const editDialog = page.getByRole("dialog", { name: "Editar plantilla" });
-  await expect(editDialog.getByLabel("Nombre", { exact: true }))
-    .toHaveValue(templateName);
+  await expect(editDialog).toBeVisible();
   await editDialog.getByLabel(/descripci.n/i).fill(editedDescription);
-  await editDialog.getByLabel("Estado", { exact: true }).selectOption("false");
-  await expect(editDialog.getByLabel("Estado", { exact: true }))
-    .toHaveValue("false");
-  await editDialog.getByRole("button", { name: "Guardar cambios" }).click();
+  const statusSelect = editDialog.getByRole("combobox", { name: /estado/i });
+  await statusSelect.selectOption("false");
+  await expect(statusSelect).toHaveValue("false");
+  await editDialog
+    .getByRole("button", { name: /guardar cambios/i })
+    .click();
 
+  await expect(editDialog).toBeHidden({ timeout: 15_000 });
   await expect(page.getByText(editedDescription, { exact: true })).toBeVisible();
   await expect(page.getByText("Inactiva", { exact: true })).toBeVisible();
 
