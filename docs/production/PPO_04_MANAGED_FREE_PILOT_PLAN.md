@@ -18,11 +18,13 @@
 
 **PPO-04M.5.0:** `CLOSED / ARCHITECTURE APPROVED`
 
-**PPO-04M.5.1:** `CORE IMPLEMENTED / PENDING LOCAL INTEGRATION`
+**PPO-04M.5.1:** `CORE SAFETY CORRECTED / PENDING LOCAL INTEGRATION REVIEW`
 
 **PPO-04M.5.2–PPO-04M.5.3:** `NOT STARTED`
 
 **FIRST PRODUCTION BACKUP:** `NOT AUTHORIZED`
+
+**LOCAL INTEGRATION:** `NOT AUTHORIZED`
 
 **PPO-04M.6–PPO-04M.7:** `NOT STARTED`
 
@@ -60,7 +62,7 @@ PPO-04M.3 = CLOSED / APPROVED
 PPO-04M.4 = CLOSED / QUALIFIED ACCEPTANCE
 PPO-04M.5 = ACTIVE / TOOLING IMPLEMENTATION
 PPO-04M.5.0 = CLOSED / ARCHITECTURE APPROVED
-PPO-04M.5.1 = CORE IMPLEMENTED / PENDING LOCAL INTEGRATION
+PPO-04M.5.1 = CORE SAFETY CORRECTED / PENDING LOCAL INTEGRATION REVIEW
 PPO-04M.5.2–PPO-04M.5.3 = NOT STARTED
 PPO-04M.6–PPO-04M.7 = NOT STARTED
 PRODUCTION DEPLOYMENT = READY
@@ -306,14 +308,20 @@ M.5.0 queda `CLOSED / ARCHITECTURE APPROVED` mediante
 inventaría estado durable, separa DB/Auth/metadata/bytes, recomienda export
 lógico y copia S3-compatible cifrada, y fija los gates de restore. No creó
 backup, credenciales S3, proyecto, conexión remota ni restore. El primer pase de
-M.5.1 queda `CORE IMPLEMENTED / PENDING LOCAL INTEGRATION`: añadió primitives
-locales deterministas para manifest, checksums, inventarios, command plans,
-cifrado externo y bundle sintético, todas cubiertas por tests sin HTTP, Docker o
-Production. M.5.2–M.5.3 permanecen `NOT STARTED`.
+M.5.1 queda `CORE SAFETY CORRECTED / PENDING LOCAL INTEGRATION REVIEW`: añadió
+primitives locales deterministas para manifest, checksums, inventarios, command
+plans, cifrado externo y bundle sintético, todas cubiertas por tests sin HTTP,
+Docker o Production. M.5.2–M.5.3 permanecen `NOT STARTED`.
+
+La corrección de safety conserva receipts `INCOMPLETE` reducidos fuera del
+staging, impide publicar el nombre final antes del cleanup plaintext y limita
+`rclone` a remotes nombrados sin configuración ni credenciales inline. No
+autoriza todavía integración local, S3, backup ni restore reales.
 
 ```text
 DATABASE SECRET-SAFE TRANSPORT = PENDING LOCAL PROOF
 STORAGE METADATA + BYTE RESTORE ORDER = PENDING LOCAL PROOF
+LOCAL INTEGRATION = NOT AUTHORIZED
 FIRST PRODUCTION BACKUP = NOT AUTHORIZED
 ```
 

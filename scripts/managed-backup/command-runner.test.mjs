@@ -38,6 +38,24 @@ test("secret-bearing argv and shell options are rejected", async () => {
   }), /Unexpected command option/);
 });
 
+test("inline credential assignments are rejected anywhere in argv", () => {
+  for (const value of [
+    ":s3,access_key_id=ABC,secret_access_key=XYZ:bucket",
+    "remote,secret_access_key=XYZ:bucket",
+    "foo?token=XYZ",
+    "password=XYZ",
+    "--header=client_secret=XYZ",
+  ]) {
+    assert.throws(
+      () => validateSecretSafeArgs([value]),
+      (error) => error.code === "SECRET_IN_ARGV" && !error.message.includes(value),
+    );
+  }
+  for (const flag of ["--access-key", "--access-key-id", "--secret-access-key", "--session-token", "--client-secret"]) {
+    assert.throws(() => validateSecretSafeArgs([flag, "ABC"]), /forbidden/);
+  }
+});
+
 test("database transport remains fail-closed until local proof", () => {
   assert.throws(() => validateSecretSafeDatabaseTransport({
     mechanism: "environment",

@@ -15,6 +15,11 @@ import {
   validateStorageDurableInventory,
 } from "./inventory.mjs";
 import {
+  createIncompleteFailureReceipt,
+  sanitizeFailureValue,
+  writeFailureReceiptAtomic,
+} from "./failure-receipt.mjs";
+import {
   completeManifest,
   createIncompleteManifest,
   isManagedBackupId,
@@ -89,6 +94,18 @@ function assertEncryptionAdapter(adapter) {
   }
 }
 
+function lifecycleError(code, primaryCode, cleanupCode) {
+  const message = code === "FAILURE_RECEIPT_WRITE_FAILED"
+    ? "Managed backup failed and its failure receipt could not be persisted"
+    : "Managed backup failed and plaintext cleanup did not complete on the first attempt";
+  const error = new Error(message);
+  error.name = "ManagedBackupBundleError";
+  error.code = code;
+  error.primaryCode = primaryCode;
+  error.cleanupCode = cleanupCode;
+  return error;
+}
+
 export async function createManagedBackupBundle({
   outputRoot,
   repoRoot = process.cwd(),
@@ -104,8 +121,14 @@ export async function createManagedBackupBundle({
   toolVersions,
   syntheticArtifacts = [],
   encryptionAdapter,
+} = {}, {
+  cleanupPlaintext = cleanupPlaintextStaging,
+  persistFailureReceipt = writeFailureReceiptAtomic,
 } = {}) {
   assertEncryptionAdapter(encryptionAdapter);
+  if (typeof cleanupPlaintext !== "function" || typeof persistFailureReceipt !== "function") {
+    fail("LIFECYCLE_ADAPTER_INVALID", "Managed backup lifecycle adapters are invalid");
+  }
   const safeOutputRoot = await ensureSafeOutputRoot(outputRoot, { repoRoot });
   let manifest = createIncompleteManifest({
     backupId,
@@ -122,8 +145,12 @@ export async function createManagedBackupBundle({
   const preflightPath = join(safeOutputRoot, `.${manifest.backupId}.preflight.age`);
   const candidatePath = join(safeOutputRoot, `.${manifest.backupId}.candidate.age`);
   const finalPath = join(safeOutputRoot, `${manifest.backupId}.age`);
-  if (await pathExists(finalPath) || await pathExists(stagingPath)) fail("BACKUP_ALREADY_EXISTS", "Backup output already exists");
+  const failureReceiptPath = join(safeOutputRoot, `${manifest.backupId}.incomplete.json`);
+  if (await pathExists(finalPath) || await pathExists(stagingPath) || await pathExists(failureReceiptPath)) {
+    fail("BACKUP_ALREADY_EXISTS", "Backup output already exists");
+  }
   await mkdir(stagingPath, { recursive: false, mode: 0o700 });
+  let failurePhase = "INVENTORY_VALIDATION";
 
   try {
     const auth = validateAuthInventory(authInventory);
@@ -133,6 +160,7 @@ export async function createManagedBackupBundle({
       fail("AUTHORITY_MISMATCH", "Configuration snapshot Git authority does not match the manifest");
     }
 
+    failurePhase = "ARTIFACT_STAGING";
     await writeArtifact(stagingPath, "auth/inventory.json", json(authInventory));
     await writeArtifact(stagingPath, "storage/durable-inventory.json", json(storageInventory));
     await writeArtifact(stagingPath, "configuration/snapshot.json", json(configurationSnapshot));
@@ -148,6 +176,7 @@ export async function createManagedBackupBundle({
       await writeArtifact(stagingPath, artifact.path, artifact.content);
     }
 
+    failurePhase = "CHECKSUM_VALIDATION";
     const paths = await listArtifactTree(stagingPath, { exclude: ["internal-manifest.json", "inventory/checksums.sha256"] });
     const checksumEntries = await createChecksumInventory({ root: stagingPath, paths });
     await writeArtifact(stagingPath, "inventory/checksums.sha256", serializeChecksums(checksumEntries));
@@ -170,7 +199,9 @@ export async function createManagedBackupBundle({
     });
     await writeManifestAtomic(manifest, { root: stagingPath });
 
+    failurePhase = "PREFLIGHT_ENCRYPTION";
     await encryptionAdapter.encrypt({ sourceDirectory: stagingPath, outputPath: preflightPath, phase: "preflight" });
+    failurePhase = "PREFLIGHT_VERIFICATION";
     await verifyCiphertextFile(preflightPath);
     const preflight = await encryptionAdapter.verifyCiphertext({ ciphertextPath: preflightPath, phase: "preflight" });
     if (!preflight || preflight.verified !== true) fail("CIPHERTEXT_VERIFICATION_FAILED", "Preflight ciphertext verification failed");
@@ -178,23 +209,60 @@ export async function createManagedBackupBundle({
 
     const complete = completeManifest(manifest, { ciphertextVerified: true });
     await writeManifestAtomic(complete, { root: stagingPath });
+    failurePhase = "FINAL_ENCRYPTION";
     await encryptionAdapter.encrypt({ sourceDirectory: stagingPath, outputPath: candidatePath, phase: "final" });
+    failurePhase = "FINAL_VERIFICATION";
     await verifyCiphertextFile(candidatePath);
     const verification = await encryptionAdapter.verifyCiphertext({ ciphertextPath: candidatePath, phase: "final" });
     if (!verification || verification.verified !== true) fail("CIPHERTEXT_VERIFICATION_FAILED", "Final ciphertext verification failed");
+    failurePhase = "PLAINTEXT_CLEANUP";
+    await cleanupPlaintext({ outputRoot: safeOutputRoot, stagingPath });
+    if (await pathExists(stagingPath)) fail("PLAINTEXT_CLEANUP_INCOMPLETE", "Plaintext staging still exists after cleanup");
+    failurePhase = "FINAL_PUBLICATION";
     if (await pathExists(finalPath)) fail("BACKUP_ALREADY_EXISTS", "Backup output appeared during publication");
     await rename(candidatePath, finalPath);
     await chmod(finalPath, 0o600).catch((error) => {
       if (!new Set(["EINVAL", "ENOTSUP", "EPERM"]).has(error?.code)) throw error;
     });
-    await cleanupPlaintextStaging({ outputRoot: safeOutputRoot, stagingPath });
     return { backupId: complete.backupId, finalPath, manifest: complete, externalPublication: "NOT_IMPLEMENTED" };
   } catch (error) {
-    await rm(preflightPath, { force: true }).catch(() => undefined);
-    await rm(candidatePath, { force: true }).catch(() => undefined);
+    const primaryCode = sanitizeFailureValue(error?.code, `${failurePhase}_FAILED`);
+    let receiptError;
+    try {
+      const receipt = createIncompleteFailureReceipt({
+        backupId: manifest.backupId,
+        toolingGitSha: manifest.toolingGitSha,
+        toolingGitBranch: manifest.toolingGitBranch,
+        productionRuntimeSha: manifest.productionRuntimeSha,
+        failureCode: primaryCode,
+        failurePhase,
+      });
+      await persistFailureReceipt(receipt, { outputRoot: safeOutputRoot });
+    } catch (caught) {
+      receiptError = caught;
+    }
+
+    let cleanupError;
     if (await pathExists(stagingPath)) {
       await writeManifestAtomic(manifest, { root: stagingPath }).catch(() => undefined);
-      await cleanupPlaintextStaging({ outputRoot: safeOutputRoot, stagingPath });
+      try {
+        await cleanupPlaintext({ outputRoot: safeOutputRoot, stagingPath });
+        if (await pathExists(stagingPath)) {
+          cleanupError = Object.assign(new Error("Plaintext staging still exists after cleanup"), { code: "PLAINTEXT_CLEANUP_INCOMPLETE" });
+        }
+      } catch (caught) {
+        cleanupError = caught;
+      }
+    }
+    await rm(preflightPath, { force: true }).catch(() => undefined);
+    await rm(candidatePath, { force: true }).catch(() => undefined);
+    if (receiptError) throw lifecycleError("FAILURE_RECEIPT_WRITE_FAILED", primaryCode, cleanupError ? "PLAINTEXT_CLEANUP_FAILED" : "NOT_APPLICABLE");
+    if (failurePhase === "PLAINTEXT_CLEANUP" || cleanupError) {
+      throw lifecycleError(
+        "PLAINTEXT_CLEANUP_FAILED",
+        primaryCode,
+        cleanupError ? sanitizeFailureValue(cleanupError?.code, "PLAINTEXT_CLEANUP_FAILED") : "RECOVERED_ON_RETRY",
+      );
     }
     throw error;
   }

@@ -6,11 +6,13 @@
 
 **Estado de M.5.0:** `CLOSED / ARCHITECTURE APPROVED`
 
-**M.5.1:** `CORE IMPLEMENTED / PENDING LOCAL INTEGRATION`
+**M.5.1:** `CORE SAFETY CORRECTED / PENDING LOCAL INTEGRATION REVIEW`
 
 **M.5.2–M.5.3:** `NOT STARTED`
 
 **FIRST PRODUCTION BACKUP:** `NOT AUTHORIZED`
+
+**LOCAL INTEGRATION:** `NOT AUTHORIZED`
 
 **Fecha de auditoría:** 2026-09-21
 
@@ -627,7 +629,8 @@ Reglas:
 - cualquier fallo produce `INCOMPLETE`;
 - un artifact parcial nunca se publica con nombre final ni es recovery
   candidate;
-- el nombre final solo aparece después de validar ciphertext y copia externa;
+- el nombre final solo aparece después de validar ciphertext y completar el
+  cleanup del plaintext; la publicación externa sigue sin implementar;
 - los artifacts plaintext existen solo en staging local con ACL restrictiva y
   se eliminan tras éxito o fallo controlado; no se promete secure erase sobre
   SSD;
@@ -774,7 +777,7 @@ PPO-04M.5.0
 
 PPO-04M.5.1
 = Managed Backup Tooling
-= CORE IMPLEMENTED / PENDING LOCAL INTEGRATION
+= CORE SAFETY CORRECTED / PENDING LOCAL INTEGRATION REVIEW
 
 PPO-04M.5.2
 = First Production Backup + External Custody
@@ -806,9 +809,23 @@ contrato externo `age`, discovery read-only y orquestación sintética del bundl
 Las pruebas usan únicamente directorios temporales y adapters fake; no producen
 un backup real ni contactan proveedores.
 
+La revisión arquitectónica posterior corrigió tres invariantes del core:
+
+- cada intento fallido conserva fuera del staging un receipt atómico, reducido,
+  no sensible y `INCOMPLETE`; el receipt sobrevive al cleanup y no contiene
+  stderr, rows Auth ni object paths;
+- un candidate cifrado verificado sólo recibe el nombre final después de que el
+  cleanup del plaintext haya terminado; un fallo de cleanup conserva receipt,
+  elimina candidates transitorios cuando es seguro y no publica final;
+- los planes `rclone` construyen internamente `<remoteName>:<remotePath>` y
+  rechazan backends/configuración/credenciales inline, además de operaciones
+  destructivas. Las credenciales futuras quedan limitadas a environment
+  allowlisted o configuración temporal protegida.
+
 ```text
 DATABASE SECRET-SAFE TRANSPORT = PENDING LOCAL PROOF
 STORAGE METADATA + BYTE RESTORE ORDER = PENDING LOCAL PROOF
+LOCAL INTEGRATION = NOT AUTHORIZED
 EXTERNAL PUBLICATION = NOT IMPLEMENTED
 FIRST PRODUCTION BACKUP = NOT AUTHORIZED
 ```

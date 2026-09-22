@@ -25,13 +25,46 @@ test("Supabase plans are pure, explicit, secret-free, and pending transport proo
   }), /pending local proof/);
 });
 
-test("S3 plans reject destructive operations and credential material", () => {
-  assert.equal(buildS3CommandPlan({ operation: "list-source", source: "remote:godel-files" }).destructive, false);
-  for (const operation of ["delete", "sync", "purge"]) {
-    assert.throws(() => buildS3CommandPlan({ operation, source: "remote:godel-files" }), /forbidden/);
+test("S3 plans accept only named remotes and construct direction internally", () => {
+  const listing = buildS3CommandPlan({ operation: "list-source", remoteName: "backup-prod", remotePath: "godel-files" });
+  assert.equal(listing.destructive, false);
+  assert.deepEqual(listing.args.slice(0, 2), ["lsjson", "backup-prod:godel-files"]);
+  const download = buildS3CommandPlan({ operation: "download-copy", remoteName: "backup-prod", remotePath: "godel-files", localPath: "D:/safe/staging" });
+  assert.deepEqual(download.args.slice(0, 3), ["copy", "backup-prod:godel-files", "D:/safe/staging"]);
+  const upload = buildS3CommandPlan({ operation: "upload-restore", remoteName: "backup-prod", remotePath: "godel-files", localPath: "D:/safe/staging" });
+  assert.deepEqual(upload.args.slice(0, 3), ["copy", "D:/safe/staging", "backup-prod:godel-files"]);
+});
+
+test("S3 plans reject inline rclone configuration and credentials", () => {
+  const rejected = [
+    { remoteName: ":s3,provider=S3", remotePath: "bucket" },
+    { remoteName: ":s3,access_key_id=ABC,secret_access_key=XYZ", remotePath: "bucket" },
+    { remoteName: "remote,provider=S3", remotePath: "bucket" },
+    { remoteName: "remote,secret_access_key=XYZ", remotePath: "bucket" },
+  ];
+  for (const values of rejected) {
+    assert.throws(
+      () => buildS3CommandPlan({ operation: "list-source", ...values }),
+      (error) => error.code === "INLINE_REMOTE_CONFIG_FORBIDDEN",
+    );
   }
-  assert.throws(() => buildS3CommandPlan({ operation: "list-source", source: "s3://key:secret@bucket" }), /credential/);
-  assert.throws(() => buildS3CommandPlan({ operation: "list-source", source: "remote:godel-files", args: ["--secret-key", "value"] }), /unexpected/);
+  assert.throws(
+    () => buildS3CommandPlan({ operation: "upload-restore", remoteName: "backup-prod", remotePath: "godel-files", localPath: "other-remote:bucket" }),
+    /localPath is invalid/,
+  );
+});
+
+test("S3 plans reject every destructive operation and argv overrides", () => {
+  for (const operation of ["sync", "delete", "purge", "move", "rmdir"]) {
+    assert.throws(
+      () => buildS3CommandPlan({ operation, remoteName: "backup-prod", remotePath: "godel-files" }),
+      /forbidden/,
+    );
+  }
+  assert.throws(
+    () => buildS3CommandPlan({ operation: "list-source", remoteName: "backup-prod", remotePath: "godel-files", args: ["--secret-key", "value"] }),
+    /unexpected/,
+  );
 });
 
 test("age plans accept public recipients and reject private key material", () => {

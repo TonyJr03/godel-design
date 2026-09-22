@@ -8,6 +8,8 @@ import { validateRelativeArtifactPath } from "./safety.mjs";
 
 const AGE_RECIPIENT_PATTERN = /^(?:age1[ac-hj-np-z02-9]{20,}|age-plugin-[A-Za-z0-9+._-]+-[A-Za-z0-9+/_=-]+)$/;
 const FORBIDDEN_S3_OPERATION = /^(?:delete|move|purge|sync|rmdir|deletefile)$/i;
+const RCLONE_REMOTE_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+const INLINE_REMOTE_CONFIG_PATTERN = /(?:^:|,[^,:]*=|(?:access[-_]?key[-_]?id|secret[-_]?access[-_]?key|session[-_]?token|password|token|client[-_]?secret)\s*=)/i;
 
 function fail(code, message) {
   const error = new Error(message);
@@ -56,27 +58,62 @@ export function authorizeDatabaseCommandPlan(plan, transport) {
   return freezePlan({ ...plan, credentialTransport: transport.mechanism, executionReady: true });
 }
 
-function assertSafeEndpoint(value, label) {
-  if (typeof value !== "string" || value.length === 0 || value.length > 2048) fail("S3_PLAN_INVALID", `${label} is required`);
-  if (/[\r\n\0]/.test(value) || /:\/\/[^\s/:]+:[^\s@]+@/.test(value)) {
-    fail("S3_PLAN_INVALID", `${label} contains unsafe credential material`);
+function rejectInlineRemoteConfig(value) {
+  if (typeof value === "string" && INLINE_REMOTE_CONFIG_PATTERN.test(value)) {
+    fail("INLINE_REMOTE_CONFIG_FORBIDDEN", "Inline rclone backend or credential configuration is forbidden");
+  }
+}
+
+function assertRemoteName(value) {
+  rejectInlineRemoteConfig(value);
+  if (typeof value !== "string" || !RCLONE_REMOTE_NAME_PATTERN.test(value)) {
+    fail("S3_PLAN_INVALID", "S3 remoteName is invalid");
+  }
+}
+
+function assertRemotePath(value) {
+  rejectInlineRemoteConfig(value);
+  if (
+    typeof value !== "string"
+    || value.length === 0
+    || value.length > 2048
+    || value.includes(":")
+    || value.includes("\\")
+    || value.startsWith("/")
+    || /[\r\n\0]/.test(value)
+    || value.split("/").some((part) => part === "" || part === "." || part === "..")
+  ) fail("S3_PLAN_INVALID", "S3 remotePath is invalid");
+}
+
+function assertLocalPath(value) {
+  rejectInlineRemoteConfig(value);
+  const looksLikeRemote = typeof value === "string"
+    && /^[^/\\]+:/.test(value)
+    && !/^[A-Za-z]:[/\\]/.test(value);
+  if (typeof value !== "string" || value.length === 0 || value.length > 4096 || /[\r\n\0]/.test(value) || looksLikeRemote) {
+    fail("S3_PLAN_INVALID", "S3 localPath is invalid");
   }
 }
 
 export function buildS3CommandPlan(options = {}) {
-  exactOptions(options, ["operation", "source", "destination", "executable"], "S3 plan");
-  const { operation, source, destination, executable = "rclone" } = options;
+  exactOptions(options, ["operation", "remoteName", "remotePath", "localPath", "executable"], "S3 plan");
+  const { operation, remoteName, remotePath, localPath, executable = "rclone" } = options;
   if (FORBIDDEN_S3_OPERATION.test(operation ?? "")) fail("S3_OPERATION_FORBIDDEN", "Destructive S3 operations are forbidden");
-  assertSafeEndpoint(source, "S3 source");
   if (!["list-source", "download-copy", "upload-restore", "verify-listing"].includes(operation)) {
     fail("S3_PLAN_INVALID", "Unsupported S3 operation");
   }
+  assertRemoteName(remoteName);
+  assertRemotePath(remotePath);
+  const remote = `${remoteName}:${remotePath}`;
   let args;
   if (operation === "list-source" || operation === "verify-listing") {
-    args = ["lsjson", source, "--recursive", "--files-only"];
+    if (localPath !== undefined) fail("S3_PLAN_INVALID", "Listing operations do not accept localPath");
+    args = ["lsjson", remote, "--recursive", "--files-only"];
   } else {
-    assertSafeEndpoint(destination, "S3 destination");
-    args = ["copy", source, destination, "--immutable", "--metadata"];
+    assertLocalPath(localPath);
+    args = operation === "download-copy"
+      ? ["copy", remote, localPath, "--immutable", "--metadata"]
+      : ["copy", localPath, remote, "--immutable", "--metadata"];
   }
   return freezePlan({
     operation,

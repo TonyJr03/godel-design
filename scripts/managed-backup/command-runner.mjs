@@ -1,13 +1,14 @@
 import { spawn } from "node:child_process";
 import { resolve } from "node:path";
 
-const SECRET_ARG_NAME = /^--?(?:password|pass|token|secret|api[-_]?key|access[-_]?key|private[-_]?key|db[-_]?url|connection[-_]?string)(?:=|$)/i;
+const SECRET_ARG_NAME = /^--?(?:password|pass|token|session[-_]?token|secret|client[-_]?secret|api[-_]?key|access[-_]?key(?:[-_]?id)?|secret[-_]?access[-_]?key|private[-_]?key|db[-_]?url|connection[-_]?string)(?:=|$)/i;
 const SECRET_LITERAL_PATTERNS = [
   /postgres(?:ql)?:\/\/[^\s/:]+:[^\s@]+@/i,
   /AGE-SECRET-KEY-[A-Z0-9-]+/,
   /\bsb_secret_[A-Za-z0-9_-]+/,
   /\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/,
 ];
+const INLINE_CREDENTIAL_ASSIGNMENT = /(?:^|[^A-Za-z0-9_])(?:access[-_]?key[-_]?id|secret[-_]?access[-_]?key|session[-_]?token|password|token|client[-_]?secret)\s*=/i;
 const MAX_OUTPUT_BYTES = 128 * 1024;
 
 export class ManagedBackupCommandError extends Error {
@@ -48,6 +49,7 @@ export function validateSecretSafeArgs(args, { secretValues = [] } = {}) {
   }
   for (const [index, value] of args.entries()) {
     if (SECRET_ARG_NAME.test(value)) fail("SECRET_IN_ARGV", "Secret-bearing command option is forbidden");
+    if (INLINE_CREDENTIAL_ASSIGNMENT.test(value)) fail("SECRET_IN_ARGV", "Inline credential assignment is forbidden");
     if (SECRET_LITERAL_PATTERNS.some((pattern) => pattern.test(value))) fail("SECRET_IN_ARGV", "Secret-like command value is forbidden");
     if (secretValues.some((secret) => typeof secret === "string" && secret.length > 0 && value.includes(secret))) {
       fail("SECRET_IN_ARGV", "Known secret value is forbidden in argv");

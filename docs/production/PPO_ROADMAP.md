@@ -163,7 +163,8 @@ con evidencia estructural y funcional en
 PPO-04M.3 queda `CLOSED / APPROVED`; PPO-04M.4 queda
 `CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE`; PPO-04M.5 queda
 `ACTIVE / TOOLING IMPLEMENTATION`, con M.5.0 `CLOSED / ARCHITECTURE APPROVED`,
-M.5.1 `CORE IMPLEMENTED / PENDING LOCAL INTEGRATION` y M.5.2–M.5.3 `NOT STARTED`;
+M.5.1 `CORE SAFETY CORRECTED / PENDING LOCAL INTEGRATION REVIEW` y
+M.5.2–M.5.3 `NOT STARTED`;
 y PPO-04M.6–PPO-04M.7 permanecen `NOT STARTED`. PPO-04 global continúa
 `ACTIVE / NEXT` porque todavía faltan M.5, M.6 y M.7. El Production pilot
 rollout permanece `NOT EXECUTED`.
@@ -194,7 +195,11 @@ El contrato de backup/recovery mínimo y el core local de tooling están en
 [PPO-04M.5 — Managed Backup & Recovery Architecture](PPO_04M5_BACKUP_RECOVERY_DESIGN.md),
 con transporte secreto de base de datos y orden de restore metadata/bytes
 pendientes de prueba local. El primer backup Production sigue `NOT AUTHORIZED`;
-no se ejecutaron backup real ni restore.
+la integración local sigue `NOT AUTHORIZED`; no se ejecutaron backup real ni
+restore.
+El core corregido conserva evidencia `INCOMPLETE` fuera del staging, publica el
+nombre final sólo tras cleanup plaintext y prohíbe configuración/credenciales
+inline en remotes `rclone`.
 El antiguo [plan Self-Hosted VPS](PPO_04_PRODUCTION_PILOT_PLAN.md) queda
 superseded sin despliegue. PPO-05, PPO-06 y PPO-07 permanecen pendientes.
 
