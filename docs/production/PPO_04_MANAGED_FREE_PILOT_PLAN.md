@@ -4,7 +4,7 @@
 
 **Estado de PPO-04M:** `ACTIVE / NEXT`
 
-**Bloque activo:** `PPO-04M.5 — ACTIVE / NEXT`
+**Bloque activo:** `PPO-04M.5 — ACTIVE / ARCHITECTURE AUDIT`
 
 **Estado de PPO-04M.2:** `CLOSED / APPROVED`
 
@@ -14,7 +14,11 @@
 
 **PPO-04M.4:** `CLOSED / QUALIFIED ACCEPTANCE`
 
-**PPO-04M.5:** `ACTIVE / NEXT`
+**PPO-04M.5:** `ACTIVE / ARCHITECTURE AUDIT`
+
+**PPO-04M.5.0:** `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`
+
+**PPO-04M.5.1–PPO-04M.5.3:** `NOT STARTED`
 
 **PPO-04M.6–PPO-04M.7:** `NOT STARTED`
 
@@ -38,6 +42,9 @@
 **Evidencia M.3:**
 [PPO_04M3_VERCEL_HOBBY_DEPLOYMENT_REPORT.md](PPO_04M3_VERCEL_HOBBY_DEPLOYMENT_REPORT.md)
 
+**Diseño M.5:**
+[PPO_04M5_BACKUP_RECOVERY_DESIGN.md](PPO_04M5_BACKUP_RECOVERY_DESIGN.md)
+
 ```text
 PPO-04M = ACTIVE / NEXT
 PPO-04M.0 = CLOSED / APPROVED
@@ -47,7 +54,9 @@ PPO-04M.2A = CLOSED / APPROVED
 PPO-04M.2B = CLOSED / APPROVED
 PPO-04M.3 = CLOSED / APPROVED
 PPO-04M.4 = CLOSED / QUALIFIED ACCEPTANCE
-PPO-04M.5 = ACTIVE / NEXT
+PPO-04M.5 = ACTIVE / ARCHITECTURE AUDIT
+PPO-04M.5.0 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+PPO-04M.5.1–PPO-04M.5.3 = NOT STARTED
 PPO-04M.6–PPO-04M.7 = NOT STARTED
 PRODUCTION DEPLOYMENT = READY
 PRODUCTION ACCEPTANCE = PASS
@@ -113,7 +122,7 @@ provider limits are external and must be revalidated at execution time
 | PPO-04M.2 | Database / Auth / Storage Provisioning | `CLOSED / APPROVED` |
 | PPO-04M.3 | Vercel Hobby Deployment | `CLOSED / APPROVED` |
 | PPO-04M.4 | Managed Production QA | `CLOSED / QUALIFIED ACCEPTANCE` |
-| PPO-04M.5 | Free-Tier Backup & Recovery Baseline | `ACTIVE / NEXT` |
+| PPO-04M.5 | Free-Tier Backup & Recovery Baseline | `ACTIVE / ARCHITECTURE AUDIT` |
 | PPO-04M.6 | Production Pilot Rollout | `NOT STARTED` |
 | PPO-04M.7 | Stabilization & Usage Measurement | `NOT STARTED` |
 
@@ -200,7 +209,8 @@ local/remota, hardening final, lint y smokes estructurales sin crear usuarios ni
 objetos. M.2B queda `CLOSED / APPROVED`: completó el bootstrap, lifecycle Auth,
 RLS/grants, TUS autenticado y público firmado, negativas y cleanup verificado.
 PPO-04M.3 queda `CLOSED / APPROVED`; PPO-04M.4 queda
-`CLOSED / QUALIFIED ACCEPTANCE` y PPO-04M.5 queda `ACTIVE / NEXT`.
+`CLOSED / QUALIFIED ACCEPTANCE` y PPO-04M.5 queda
+`ACTIVE / ARCHITECTURE AUDIT`.
 La evidencia acumulativa vive en
 [PPO_04M2_MANAGED_PROVISIONING_REPORT.md](PPO_04M2_MANAGED_PROVISIONING_REPORT.md).
 
@@ -265,7 +275,7 @@ La evidencia de cierre vive en
 
 ## 9. PPO-04M.5 — Free-Tier Backup & Recovery Baseline
 
-**Estado:** `ACTIVE / NEXT`
+**Estado:** `ACTIVE / ARCHITECTURE AUDIT`
 
 ```text
 external backup required
@@ -286,8 +296,12 @@ y criterio de recuperación antes de seleccionar o implementar herramientas.
 Las capacidades de SH-04 son antecedentes conceptuales; no se afirma que sus
 mecanismos sean directamente compatibles con Supabase Managed Free. PPO-04M.5
 es un gate mínimo del piloto y no cierra el workstream completo PPO-06.
-Este handoff abre formalmente el bloque y su objetivo; no diseña todavía la
-implementación completa del backup.
+M.5.0 queda `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW` mediante
+[PPO_04M5_BACKUP_RECOVERY_DESIGN.md](PPO_04M5_BACKUP_RECOVERY_DESIGN.md):
+inventaría estado durable, separa DB/Auth/metadata/bytes, recomienda export
+lógico y copia S3-compatible cifrada, y fija los gates de restore. No creó
+backup, credenciales S3, proyecto, conexión remota ni restore. M.5.1–M.5.3
+permanecen `NOT STARTED`.
 
 ## 10. PPO-04M.6 — Production Pilot Rollout
 

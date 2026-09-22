@@ -23,8 +23,9 @@ aplicó y aceptó la baseline 01–06, M.2B validó bootstrap, lifecycle Auth,
 RLS/grants, Storage/TUS y cleanup, y M.3 aceptó el deployment técnico protegido.
 El Site URL de Supabase está alineado con el dominio Production estable.
 PPO-04M.4 queda `CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE`; PPO-04M.5 queda
-`ACTIVE / NEXT`. Todavía no se realizó el pilot rollout ni se afirma que el
-sistema esté públicamente operativo.
+`ACTIVE / ARCHITECTURE AUDIT`. M.5.0 está `IMPLEMENTED / PENDING ARCHITECTURAL
+REVIEW`; M.5.1–M.5.3 siguen `NOT STARTED`. Todavía no se realizó el pilot
+rollout ni se afirma que el sistema esté públicamente operativo.
 
 ## Arquitectura vigente
 
@@ -95,7 +96,9 @@ una migración nueva `07+`.
 | PPO-04M.2B | `CLOSED / APPROVED` |
 | PPO-04M.3 | `CLOSED / APPROVED` |
 | PPO-04M.4 | `CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE` |
-| PPO-04M.5 | `ACTIVE / NEXT` |
+| PPO-04M.5 | `ACTIVE / ARCHITECTURE AUDIT` |
+| PPO-04M.5.0 | `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW` |
+| PPO-04M.5.1–PPO-04M.5.3 | `NOT STARTED` |
 | PPO-04M.6–PPO-04M.7 | `NOT STARTED` |
 | PPO-05 | `PENDING` — seguridad pública/antiabuso |
 | PPO-06 | `PENDING` — backup/recovery managed |
@@ -152,6 +155,9 @@ La aplicación exacta de 01–06, hardening, lint y smoke estructural constan en
 El deployment Vercel, su aceptación técnica protegida y el Site URL alineado
 constan en
 [PPO-04M.3 — Vercel Hobby Deployment Report](production/PPO_04M3_VERCEL_HOBBY_DEPLOYMENT_REPORT.md).
+El inventario durable, separación DB/Auth/Storage, bundle cifrado y contrato de
+restore de M.5 constan en
+[PPO-04M.5 — Managed Backup & Recovery Architecture](production/PPO_04M5_BACKUP_RECOVERY_DESIGN.md).
 
 ```text
 PPO-04M.0  arquitectura y gobernanza — CLOSED / APPROVED
@@ -160,7 +166,8 @@ PPO-04M.0  arquitectura y gobernanza — CLOSED / APPROVED
 → PPO-04M.2B  bootstrap y QA funcional Auth/Storage — CLOSED / APPROVED
 → PPO-04M.3  deployment Vercel Hobby — CLOSED / APPROVED
 → PPO-04M.4  QA managed propio — CLOSED / QUALIFIED ACCEPTANCE
-→ PPO-04M.5  backup externo y recovery baseline — ACTIVE / NEXT
+→ PPO-04M.5.0  arquitectura backup/recovery — IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+→ PPO-04M.5.1–M.5.3  tooling, primer backup y restore drill — NOT STARTED
 → PPO-04M.6  small initial real use
 → PPO-04M.7  estabilización y medidas reales
 → LSH (futuro, no iniciado)

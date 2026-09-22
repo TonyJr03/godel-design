@@ -161,7 +161,9 @@ PPO-04M.2 queda `CLOSED / APPROVED`: M.2A y M.2B están `CLOSED / APPROVED`,
 con evidencia estructural y funcional en
 [PPO_04M2_MANAGED_PROVISIONING_REPORT.md](PPO_04M2_MANAGED_PROVISIONING_REPORT.md).
 PPO-04M.3 queda `CLOSED / APPROVED`; PPO-04M.4 queda
-`CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE`; PPO-04M.5 queda `ACTIVE / NEXT`;
+`CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE`; PPO-04M.5 queda
+`ACTIVE / ARCHITECTURE AUDIT`, con M.5.0 `IMPLEMENTED / PENDING ARCHITECTURAL
+REVIEW` y M.5.1–M.5.3 `NOT STARTED`;
 y PPO-04M.6–PPO-04M.7 permanecen `NOT STARTED`. PPO-04 global continúa
 `ACTIVE / NEXT` porque todavía faltan M.5, M.6 y M.7. El Production pilot
 rollout permanece `NOT EXECUTED`.
@@ -188,6 +190,9 @@ antes del cierre definitivo de la puesta en producción.
 
 El plan operativo gobernante de la fase activa es
 [PPO-04 — Managed Free Production Pilot](PPO_04_MANAGED_FREE_PILOT_PLAN.md).
+El contrato de backup/recovery mínimo está diseñado en
+[PPO-04M.5 — Managed Backup & Recovery Architecture](PPO_04M5_BACKUP_RECOVERY_DESIGN.md),
+pendiente de revisión arquitectónica y sin backup o restore ejecutados.
 El antiguo [plan Self-Hosted VPS](PPO_04_PRODUCTION_PILOT_PLAN.md) queda
 superseded sin despliegue. PPO-05, PPO-06 y PPO-07 permanecen pendientes.
 
