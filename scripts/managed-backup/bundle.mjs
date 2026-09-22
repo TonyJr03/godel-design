@@ -1,5 +1,5 @@
 import { constants as fsConstants } from "node:fs";
-import { access, chmod, lstat, mkdir, open, rename, rm, writeFile } from "node:fs/promises";
+import { access, chmod, lstat, mkdir, open, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 import {
@@ -26,6 +26,7 @@ import {
   updateIncompleteManifest,
   writeManifestAtomic,
 } from "./manifest.mjs";
+import { publishCiphertextNoReplace } from "./publication.mjs";
 import {
   cleanupPlaintextStaging,
   ensureSafeOutputRoot,
@@ -124,9 +125,10 @@ export async function createManagedBackupBundle({
 } = {}, {
   cleanupPlaintext = cleanupPlaintextStaging,
   persistFailureReceipt = writeFailureReceiptAtomic,
+  publishCiphertext = publishCiphertextNoReplace,
 } = {}) {
   assertEncryptionAdapter(encryptionAdapter);
-  if (typeof cleanupPlaintext !== "function" || typeof persistFailureReceipt !== "function") {
+  if (typeof cleanupPlaintext !== "function" || typeof persistFailureReceipt !== "function" || typeof publishCiphertext !== "function") {
     fail("LIFECYCLE_ADAPTER_INVALID", "Managed backup lifecycle adapters are invalid");
   }
   const safeOutputRoot = await ensureSafeOutputRoot(outputRoot, { repoRoot });
@@ -215,16 +217,19 @@ export async function createManagedBackupBundle({
     await verifyCiphertextFile(candidatePath);
     const verification = await encryptionAdapter.verifyCiphertext({ ciphertextPath: candidatePath, phase: "final" });
     if (!verification || verification.verified !== true) fail("CIPHERTEXT_VERIFICATION_FAILED", "Final ciphertext verification failed");
+    await verifyCiphertextFile(candidatePath);
     failurePhase = "PLAINTEXT_CLEANUP";
     await cleanupPlaintext({ outputRoot: safeOutputRoot, stagingPath });
     if (await pathExists(stagingPath)) fail("PLAINTEXT_CLEANUP_INCOMPLETE", "Plaintext staging still exists after cleanup");
     failurePhase = "FINAL_PUBLICATION";
-    if (await pathExists(finalPath)) fail("BACKUP_ALREADY_EXISTS", "Backup output appeared during publication");
-    await rename(candidatePath, finalPath);
-    await chmod(finalPath, 0o600).catch((error) => {
-      if (!new Set(["EINVAL", "ENOTSUP", "EPERM"]).has(error?.code)) throw error;
-    });
-    return { backupId: complete.backupId, finalPath, manifest: complete, externalPublication: "NOT_IMPLEMENTED" };
+    const publication = await publishCiphertext(candidatePath, finalPath);
+    return {
+      backupId: complete.backupId,
+      finalPath,
+      manifest: complete,
+      warnings: publication.warning === null ? [] : [publication.warning],
+      externalPublication: "NOT_IMPLEMENTED",
+    };
   } catch (error) {
     const primaryCode = sanitizeFailureValue(error?.code, `${failurePhase}_FAILED`);
     let receiptError;

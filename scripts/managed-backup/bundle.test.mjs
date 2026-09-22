@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { access, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
 import { createManagedBackupBundle } from "./bundle.mjs";
+import { publishCiphertextNoReplace } from "./publication.mjs";
 import { cleanupPlaintextStaging } from "./safety.mjs";
 
 const TOOLING_SHA = "2d8615f3e54d7e95e621d8f0267307d4d5734481";
@@ -74,8 +76,10 @@ test("bundle success publishes only verified ciphertext and returns COMPLETE", a
   assert.equal(result.manifest.status, "COMPLETE");
   assert.ok(Object.values(result.manifest.gates).every(Boolean));
   assert.equal(result.externalPublication, "NOT_IMPLEMENTED");
+  assert.deepEqual(result.warnings, []);
   assert.deepEqual(phases, ["encrypt:preflight", "verify:preflight", "encrypt:final", "verify:final"]);
   await access(result.finalPath);
+  await assert.rejects(access(join(outputRoot, `.${BACKUP_ID}.candidate.age`)));
   await assert.rejects(access(join(outputRoot, `.staging-${BACKUP_ID}`)));
   await assert.rejects(access(join(outputRoot, `${BACKUP_ID}.incomplete.json`)));
 });
@@ -130,6 +134,44 @@ test("verified candidate is published only after plaintext cleanup succeeds", as
   };
   const result = await createManagedBackupBundle(input(outputRoot, adapter), { cleanupPlaintext });
   await access(result.finalPath);
+});
+
+test("atomic publication never replaces an existing final", async () => {
+  const outputRoot = await mkdtemp(join(tmpdir(), "godel-publication-race-"));
+  const candidatePath = join(outputRoot, `.${BACKUP_ID}.candidate.age`);
+  const finalPath = join(outputRoot, `${BACKUP_ID}.age`);
+  await writeFile(candidatePath, "verified-new-ciphertext");
+  await writeFile(finalPath, "existing-valid-ciphertext");
+  const originalFinal = await readFile(finalPath);
+  const originalHash = createHash("sha256").update(originalFinal).digest("hex");
+  await assert.rejects(
+    publishCiphertextNoReplace(candidatePath, finalPath),
+    (error) => error.code === "FINAL_ALREADY_EXISTS",
+  );
+  const finalAfterCollision = await readFile(finalPath);
+  assert.deepEqual(finalAfterCollision, originalFinal);
+  assert.equal(createHash("sha256").update(finalAfterCollision).digest("hex"), originalHash);
+  assert.equal(await readFile(candidatePath, "utf8"), "verified-new-ciphertext");
+});
+
+test("candidate cleanup failure after commit keeps final COMPLETE without receipt", async () => {
+  const outputRoot = await mkdtemp(join(tmpdir(), "godel-publication-cleanup-warning-"));
+  const candidatePath = join(outputRoot, `.${BACKUP_ID}.candidate.age`);
+  const finalPath = join(outputRoot, `${BACKUP_ID}.age`);
+  const receiptPath = join(outputRoot, `${BACKUP_ID}.incomplete.json`);
+  const adapter = {
+    async encrypt({ outputPath, phase }) { await writeFile(outputPath, `cipher-${phase}`); },
+    async verifyCiphertext() { return { verified: true }; },
+  };
+  const publishCiphertext = (candidate, final) => publishCiphertextNoReplace(candidate, final, {
+    unlinkCandidate: async () => { throw new Error("synthetic unlink failure"); },
+  });
+  const result = await createManagedBackupBundle(input(outputRoot, adapter), { publishCiphertext });
+  assert.equal(result.manifest.status, "COMPLETE");
+  assert.deepEqual(result.warnings, ["CANDIDATE_CLEANUP_PENDING"]);
+  assert.equal(await readFile(finalPath, "utf8"), "cipher-final");
+  assert.equal(await readFile(candidatePath, "utf8"), "cipher-final");
+  await assert.rejects(access(receiptPath));
 });
 
 test("plaintext cleanup failure keeps an INCOMPLETE receipt and never promotes candidate", async () => {
