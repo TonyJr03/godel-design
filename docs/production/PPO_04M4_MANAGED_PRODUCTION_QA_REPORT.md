@@ -2924,3 +2924,221 @@ PPO-04M.4B.3.2 = QA SPEC LOCATOR CORRECTED / PENDING ARCHITECTURAL REVIEW
 PRODUCTION TEMPLATE MUTATION = FIRST ATTEMPT NOT ACCEPTED / CLEANUP PASS
 SECOND PRODUCTION TEMPLATE EXECUTION = NOT AUTHORIZED
 ```
+
+## 35. PPO-04M.4B.3.2 — Second Production template mutation
+
+### Autoridad y preflight
+
+Dirección Técnica autorizó un segundo y último intento después de revisar la
+corrección del locator. Esta autorización no constituyó un retry automático. El
+runtime Production permaneció sin redeploy ni promotion.
+
+```text
+branch = ops/managed-free-production-pilot
+Git QA authority = 4830ed1b01f252f34dc9d6aeff41ee7c36c62d73
+Production runtime authority = 01552f8bee59b5f9982a2d722e39795461918f43
+
+Production target = production
+Production status = READY
+Production source SHA exact = true
+stable Production origin current = true
+Vercel Authentication = All Deployments
+initial worktree clean = true
+
+.env.managed.local = present
+.env.managed.qa.local = present
+GODEL_MANAGED_PRODUCTION_BASE_URL = present
+VERCEL_AUTOMATION_BYPASS_SECRET = present
+persisted template mutating confirmation = false
+
+pre-run clean manifests = 2
+pre-run pending manifests = 0
+pre-run invalid manifests = 0
+residue gate = PASS
+```
+
+Los dos manifiestos limpios previos correspondían a la solicitud Production
+aceptada y al primer intento de plantilla no aceptado con cleanup completo. No
+se eliminó ninguno.
+
+```text
+manifest harness = PASS / 14 passed / 0 failed / 0 skipped
+solicitud runner harness = PASS / 23 passed / 0 failed / 0 skipped
+template runner harness = PASS / 32 passed / 0 failed / 0 skipped
+read-only harness = PASS / 19 passed / 0 failed / 0 skipped
+```
+
+### Segunda y última ejecución autorizada
+
+La confirmación exacta existió sólo en el proceso del runner, se retiró en
+`finally` y no se persistió. Se invocó exactamente una vez
+`npm run test:e2e:managed:mutating:template`. No hubo rerun, retry, recovery,
+Playwright manual, consulta Supabase manual ni DELETE manual.
+
+```text
+confirmation gate = PASS
+residue gate = PASS
+Deployment Protection bootstrap = PASS
+admin adapter authentication = PASS
+
+runId generated = true / value not reported
+planned manifest persisted before INSERT = true
+inactive template INSERT = PASS
+template remoteId captured = true / value not reported
+template is_active after setup = false
+created manifest persisted before browser = true
+
+Playwright started = true
+browser = Chromium
+tests = 1
+passed = 0
+failed = 1
+skipped = 0
+Playwright exit = 1
+```
+
+### Resultado browser
+
+El login admin, la localización exacta de la plantilla, el heading de detalle y
+el estado inicial inactivo pasaron. El diálogo de edición abrió y quedó visible.
+El locator tolerante de descripción y el combobox de estado resolvieron; el
+estado se seleccionó y verificó explícitamente en `false`. Guardar cerró el
+diálogo, y la descripción editada y el estado `Inactiva` quedaron visibles.
+
+El run agotó el timeout de 90 segundos al intentar resolver con coincidencia
+exacta el campo etiquetado `Nueva tarea`, antes de crear Task A. El snapshot de
+accesibilidad y la captura local mostraron el panel y el textbox visibles al
+final del timeout, pero no demuestran que el locator hubiese resuelto durante
+la acción. No se registran el marcador QA, UUID ni URL presentes en los
+artefactos.
+
+```text
+admin login = PASS
+exact QA template located = true
+detail heading exact = PASS
+initial template status = inactive
+
+Editar plantilla click = PASS
+edit dialog visible = true
+description locator = resolved
+status combobox locator = resolved
+status before save = false
+description changed = true
+status explicitly selected false = true
+status verified false = true
+Guardar cambios = PASS
+dialog closes = PASS
+edited description visible = true
+status after edit = inactive
+
+Task A created = false
+Task B created = false
+Task A edited = false
+final expected task titles visible = false
+
+pedido visited = false
+template applied to pedido = false
+```
+
+El servidor utilizado fue el origen Production externo protegido; no se inició
+servidor local. Se generaron screenshot, video, trace y contexto de error
+locales. Se inspeccionaron únicamente la captura y el contexto local. Las
+credenciales no se imprimieron ni persistieron.
+
+### Cleanup y residuos
+
+El cleanup obligatorio se ejecutó después del fallo browser. El discovery
+encontró exactamente el padre QA esperado y ningún hijo, porque la ejecución
+falló antes de crear Task A. El conjunto hijo vacío es un subconjunto cerrado
+admitido por el cleanup, pero no cumple el contrato funcional de dos tareas.
+
+El pre-delete revalidó el ID del manifiesto, nombre exacto, estado inactivo y
+ownership. El recurso se persistió en `cleanup_pending` antes del único DELETE
+del padre, acotado por ID, nombre e `is_active=false`. No se emitió DELETE
+directo de tareas. La verificación posterior confirmó ausencia del padre por ID,
+cero filas por marcador y cero tareas por `template_id`.
+
+```text
+exact template ownership rows = 1
+template name exact = true
+template id matches manifest = true
+is_active before DELETE = false
+
+child rows before DELETE = 0
+child ownership = PASS / empty QA subset
+expected final two children observed = false
+
+pre-delete exact fetch = PASS
+pre-delete ownership = OWNERSHIP_VERIFIED
+bounded parent DELETE = PASS
+post-delete template by ID = absent
+post-delete template marker rows = 0
+post-delete tasks by template ID = 0
+
+resource state = clean
+run state = clean
+cleanup = PASS
+
+final clean manifests = 3
+final pending manifests = 0
+final invalid manifests = 0
+```
+
+No se ejecutó recovery porque el manifiesto no quedó `blocked`, `active` ni
+`cleanup_required`.
+
+### Impacto y logs
+
+```text
+template created transiently = 1
+template remaining = 0
+template tasks created transiently = 0
+template tasks remaining = 0
+template ever active = false
+
+pedidos created = 0
+pedido_contadores mutation = 0
+clientes created = 0
+solicitudes created = 0
+Storage uploads/objects = 0
+Auth users created = 0
+service configuration changes = 0
+```
+
+Se revisó sanitizadamente la ventana exacta del manifiesto sin registrar URLs,
+IDs, runId, mensajes completos, PII, cookies, tokens, headers ni request bodies.
+
+```text
+Production log events reviewed = 35
+HTTP 5xx count = 0
+error/fatal count = 0
+unhandled runtime exceptions = 0
+Auth errors = 0
+Supabase/runtime configuration errors = 0
+```
+
+### Estado
+
+La edición de la plantilla pasó, pero el contrato exige además Playwright PASS,
+Task A, Task B, la edición de Task A y dos hijos esperados antes del cleanup.
+Esos requisitos no se cumplieron. El cleanup quedó demostrado, pero el segundo
+intento no se acepta. La autorización quedó consumida y no existe autorización
+para un tercer intento.
+
+```text
+first template attempt = NOT ACCEPTED / cleanup PASS / locator defect
+locator correction authority = 4830ed1b01f252f34dc9d6aeff41ee7c36c62d73
+second template attempt = NOT ACCEPTED / cleanup PASS / task-input locator timeout
+
+SECOND PRODUCTION TEMPLATE MUTATION = NOT ACCEPTED
+PPO-04M.4B.3.2 = EXECUTED / SECOND ATTEMPT NOT ACCEPTED / CLEANUP PASS / PENDING ARCHITECTURAL REVIEW
+
+PRODUCTION MUTATING QA = SOLICITUD PASS / TEMPLATE NOT ACCEPTED
+SECOND PRODUCTION TEMPLATE MUTATION AUTHORIZATION = CONSUMED
+THIRD PRODUCTION TEMPLATE EXECUTION = NOT AUTHORIZED
+PRODUCTION RUNTIME = 01552f8bee59b5f9982a2d722e39795461918f43 / UNCHANGED
+
+Git commit = NOT CREATED
+Git push = NOT EXECUTED
+Git amend/merge/rebase = NOT EXECUTED
+```
