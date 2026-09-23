@@ -10,9 +10,11 @@
 
 **M.5.2:** `ACTIVE / PRODUCTION BACKUP PREPARATION`
 
-**M.5.2.0:** `COMPLETENESS + SAFETY CORRECTED / PENDING ARCHITECTURAL REVIEW`
+**M.5.2.0:** `CLOSED / PRODUCTION BACKUP PREPARATION APPROVED`
 
-**M.5.2.1:** `NOT STARTED`
+**M.5.2.1A:** `R2 CUSTODY ADAPTER IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`
+
+**R2 REMOTE SYNTHETIC PROOF:** `NOT EXECUTED`
 
 **M.5.3:** `NOT STARTED`
 
@@ -793,11 +795,11 @@ PPO-04M.5.2
 
 PPO-04M.5.2.0
 = Production Backup & External Custody Preparation
-= COMPLETENESS + SAFETY CORRECTED / PENDING ARCHITECTURAL REVIEW
+= CLOSED / PRODUCTION BACKUP PREPARATION APPROVED
 
-PPO-04M.5.2.1
-= First Production Backup Execution
-= NOT STARTED
+PPO-04M.5.2.1A
+= Cloudflare R2 External Custody Adapter Preparation
+= R2 CUSTODY ADAPTER IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
 
 PPO-04M.5.3
 = Restore Drill + Baseline Closure
@@ -845,7 +847,8 @@ AGE ENCRYPTION = LOCALLY PROVEN
 RCLONE S3 = LOCALLY PROVEN
 FINAL PUBLICATION ATOMICITY = APPROVED
 LOCAL INTEGRATION = PASS
-EXTERNAL PUBLICATION = NOT IMPLEMENTED
+EXTERNAL CUSTODY DESTINATION = CLOUDFLARE R2 / SELECTED
+R2 REMOTE SYNTHETIC PROOF = NOT EXECUTED
 FIRST PRODUCTION BACKUP = NOT AUTHORIZED
 ```
 
@@ -996,14 +999,15 @@ primer pilot de pequeño volumen y no se refactoriza a streaming completo en
 M.5.2.0; debe revisarse al crecer el volumen.
 
 ```text
-PPO-04M.5.2.0 = COMPLETENESS + SAFETY CORRECTED / PENDING ARCHITECTURAL REVIEW
-PPO-04M.5.2.1 = NOT STARTED
+PPO-04M.5.2.0 = CLOSED / PRODUCTION BACKUP PREPARATION APPROVED
+PPO-04M.5.2.1A = R2 CUSTODY ADAPTER IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
 FIRST PRODUCTION BACKUP = NOT AUTHORIZED
-EXTERNAL CUSTODY DESTINATION = PENDING DIRECTOR TECHNICAL DECISION
+EXTERNAL CUSTODY DESTINATION = CLOUDFLARE R2 / SELECTED
 ```
 
-La decisión del destino no bloquea el tooling, pero sí mantiene bloqueada toda
-ejecución Productiva. No se eligió ni codificó proveedor externo.
+El destino ya está seleccionado, pero la verificación manual del Bucket Lock y
+la decisión de custodia de la identity Productiva mantienen bloqueada toda
+ejecución Productiva.
 
 ## 19. Tooling local auditado — HISTORICAL PRE-INTEGRATION SNAPSHOT
 
@@ -1032,9 +1036,9 @@ la integración local de M.5.1 y de cualquier M.5.2.
 
 ## 20. Decisiones abiertas y stop conditions
 
-### 20.1 Decisiones abiertas para M.5.2.1 y M.5.3
+### 20.1 Decisiones abiertas para M.5.2.1B y M.5.3
 
-1. Elegir el destino externo físico y su política de acceso/capacidad.
+1. Provisionar manualmente el bucket R2 privado y verificar su configuración.
 2. Asignar la custodia de la identity privada de recovery fuera del host de
    captura.
 3. Autorizar slot/coste del proyecto managed desechable de M.5.3.
@@ -1065,7 +1069,94 @@ Debe detenerse un subbloque posterior si:
 - no puede lograrse una ventana consistente o los inventarios pre/post difieren;
 - no existe cifrado client-side o destino externo verificable.
 
-## 21. Actividad de este pase
+## 21. PPO-04M.5.2.1A — Cloudflare R2 External Custody Adapter Preparation
+
+Cloudflare R2 Standard es el destino oficial seleccionado. El bucket será
+dedicado, privado, sin acceso público, custom domain, Worker ni conexión de la
+aplicación. El acceso futuro será exclusivamente S3 mediante un token `Object
+Read & Write` limitado al bucket específico; no se autoriza Admin, acceso a
+todos los buckets, Global API Key ni administración de configuración.
+
+```text
+provider = Cloudflare R2
+storage class = Standard
+bucket = private
+public access = disabled
+custom domain = none
+S3 token = Object Read & Write / specific bucket only
+rclone provider = Cloudflare
+rclone env_auth = true
+rclone no_check_bucket = true
+production prefix = production/
+integration prefix = integration/
+production bucket lock = 8 days minimum
+lifecycle auto-delete = disabled in M.5
+```
+
+El adaptador `r2-external-custody.mjs` usa el remote efímero fijo `godelr2`,
+región `auto` y únicamente environment allowlisted. Las credenciales se pasan
+además como `secretValues`; no entran en argv, Git, receipt, manifest, docs ni
+el environment heredado. El endpoint debe ser HTTPS limpio bajo
+`*.r2.cloudflarestorage.com`, incluidos endpoints jurisdiccionales, y el bucket
+cumple el nombre R2 de 3–63 caracteres. Las únicas operaciones posibles son
+`lsjson` de inspección y `copyto` de upload/download; el upload siempre usa
+`--immutable`. No existe API de delete, move, sync, purge, bucket provisioning,
+Bucket Lock, Cloudflare REST, Wrangler ni creación de tokens.
+
+La configuración no versionada usa exclusivamente
+`GODEL_BACKUP_R2_ENDPOINT`, `GODEL_BACKUP_R2_BUCKET`,
+`GODEL_BACKUP_R2_ACCESS_KEY_ID` y `GODEL_BACKUP_R2_SECRET_ACCESS_KEY`. No existe
+variable de región. El gate Productivo separado es
+`GODEL_MANAGED_R2_PRODUCTION_LOCK_CONFIRM`; no se envía a `rclone`.
+
+Las claves se derivan internamente, sin prefix suministrado por el operador:
+
+```text
+integration/<proofRunId>/synthetic.age
+integration/<proofRunId>/synthetic.external-receipt.json
+production/<backupId>/<backupId>.age
+production/<backupId>/<backupId>.external-receipt.json
+```
+
+El listing `lsjson` se admite de forma estricta y sólo acepta cero, uno o los
+dos objetos exactos según la fase. Un objeto ya existente, incluso con el mismo
+hash, es colisión; el download usa temporal, verifica regular-file/no-symlink y
+publica localmente con no-replace fuera del repositorio. El modo `production`
+exige antes de cualquier invocación
+`GODEL_MANAGED_R2_PRODUCTION_LOCK_CONFIRM=CONFIRM_R2_PRODUCTION_PREFIX_LOCK_8D`.
+El runner Productivo conserva dependency injection explícita: sin adapter sigue
+en `EXTERNAL_CUSTODY_DESTINATION_PENDING` y este pase no lo autoriza.
+
+La configuración manual obligatoria previa a M.5.2.1B es Bucket Lock sobre
+`production/`, con retención mínima de 8 días. El token S3 no debe poder cambiar
+esa configuración. `integration/` queda fuera de ese lock. No se configura
+lifecycle expiration, auto-delete ni rotación automática en M.5.
+
+R2 S3 ofrece consistencia fuerte, pero `preflight + rclone` no se declara un
+compare-and-swap atómico. M.5 se apoya en backupId aleatorio, single-runner,
+preflight remoto, `--immutable` y Bucket Lock. **IMPORTANT AFTER PILOT /
+PPO-06:** evaluar `PutObject` condicional nativo con `If-None-Match: *` para
+semántica estricta de creación remota.
+
+El harness `r2-custody-proof.mjs` queda preparado y exige la confirmación exacta
+`ALLOW_SYNTHETIC_R2_CUSTODY_PROOF` antes de Git, age o R2. Sólo trabaja en
+`integration/<proofRunId>/`, genera una identity age efímera local, cifra la
+frase sintética gobernante más el proofRunId, verifica ciphertext y receipt
+descargados y limpia los archivos locales. No promete secure erase y nunca
+borra objetos remotos.
+
+```text
+R2 REMOTE SYNTHETIC PROOF = NOT EXECUTED
+SYNTHETIC REMOTE RESIDUE = EXPECTED UNTIL MANUAL OPERATOR CLEANUP
+R2 BUCKET = NOT PROVISIONED BY TOOLING
+R2 PRODUCTION BUCKET LOCK = REQUIRED / NOT YET VERIFIED
+PRODUCTION AGE RECOVERY IDENTITY CUSTODY = PENDING DIRECTOR TECHNICAL DECISION
+FIRST PRODUCTION BACKUP = NOT AUTHORIZED
+rclone audited version = 1.75.1
+age audited version = 1.3.1
+```
+
+## 22. Actividad de este pase
 
 ```text
 Production requests = 0
@@ -1075,10 +1166,11 @@ Managed DB connections = 0
 Production S3 operations = 0
 Vercel operations = 0
 external custody uploads = 0
+Cloudflare R2 requests = 0
 ```
 
 PPO-04M.5 permanece abierto en preparación de backup Productivo. M.5.0 está
 cerrado con arquitectura aprobada, M.5.1 está cerrado con integración local
-aprobada y M.5.2.0 queda corregido en completitud y seguridad, pendiente de
-revisión arquitectónica.
+aprobada, M.5.2.0 está cerrado/aprobado y M.5.2.1A queda implementado pendiente
+de revisión arquitectónica.
 Este pase no autoriza el primer backup, publicación externa ni restore drill.

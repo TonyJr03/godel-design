@@ -166,8 +166,12 @@ PPO-04M.3 queda `CLOSED / APPROVED`; PPO-04M.4 queda
 M.5.1 `CLOSED / LOCAL INTEGRATION APPROVED`
 (`DATABASE SECRET-SAFE TRANSPORT`, `AGE ENCRYPTION`, `RCLONE S3` y
 `STORAGE METADATA + BYTE RESTORE ORDER` localmente probados) y
-M.5.2.0 `COMPLETENESS + SAFETY CORRECTED / PENDING ARCHITECTURAL REVIEW` y
-M.5.2.1–M.5.3 `NOT STARTED`;
+M.5.2.0 `CLOSED / PRODUCTION BACKUP PREPARATION APPROVED`, M.5.2.1A
+`R2 CUSTODY ADAPTER IMPLEMENTED / PENDING ARCHITECTURAL REVIEW` y
+M.5.2.1B–M.5.3 `NOT STARTED`; Cloudflare R2 Standard queda seleccionado como
+custodia externa, pero el proof remoto no fue ejecutado, el bucket no fue
+provisionado por tooling, el Bucket Lock de `production/` por al menos 8 días
+no fue verificado y la custodia de la identity age Productiva sigue pendiente;
 y PPO-04M.6–PPO-04M.7 permanecen `NOT STARTED`. PPO-04 global continúa
 `ACTIVE / NEXT` porque todavía faltan M.5, M.6 y M.7. El Production pilot
 rollout permanece `NOT EXECUTED`.
