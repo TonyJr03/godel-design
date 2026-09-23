@@ -11,18 +11,34 @@ import {
   buildAgeEncryptPlan,
   buildS3CommandPlan,
   buildSupabaseDatabaseCommandPlans,
+  buildSupabaseDatabaseEnvironment,
 } from "./command-plans.mjs";
 
-test("Supabase plans are pure, explicit, secret-free, and pending transport proof", () => {
-  const plans = buildSupabaseDatabaseCommandPlans({ outputDirectory: "database" });
+test("Supabase local plans are explicit, execution-ready, and use the proven official data recipe", () => {
+  const plans = buildSupabaseDatabaseCommandPlans({ outputDirectory: "database", target: "local" });
   assert.equal(plans.length, 5);
-  assert.ok(plans.every((plan) => plan.executionReady === false && plan.credentialTransport === "PENDING_LOCAL_PROOF"));
+  assert.ok(plans.every((plan) => plan.executionReady === true && plan.credentialTransport === "LOCAL_EXPLICIT_NO_SECRET"));
+  assert.ok(plans.every((plan) => plan.args.includes("--local") && !plan.args.includes("--linked")));
   assert.ok(plans.some((plan) => plan.args.includes("--role-only")));
-  assert.ok(plans.some((plan) => plan.args.includes("--data-only") && plan.args.includes("--use-copy")));
-  assert.ok(plans.some((plan) => plan.args.includes("storage.buckets_vectors")));
-  assert.throws(() => authorizeDatabaseCommandPlan(plans[0], {
+  const dataPlan = plans.find((plan) => plan.operation === "dump managed data");
+  assert.ok(dataPlan.args.includes("--data-only") && dataPlan.args.includes("--use-copy"));
+  assert.ok(dataPlan.args.includes("storage.buckets_vectors") && dataPlan.args.includes("storage.vector_indexes"));
+  assert.ok(!dataPlan.args.includes("--schema"));
+  assert.throws(() => authorizeDatabaseCommandPlan({ executionReady: false, credentialTransport: "PENDING_LOCAL_PROOF", args: [] }, {
     mechanism: "environment", argvContainsPassword: false, argvContainsFullDatabaseUrl: false, provenLocally: false,
   }), /pending local proof/);
+});
+
+test("Supabase linked transport keeps the database password only in the allowlisted environment", () => {
+  const databasePassword = "synthetic-local-contract-value";
+  const environment = buildSupabaseDatabaseEnvironment({ target: "linked", databasePassword, sourceEnvironment: { PATH: "safe-path" } });
+  const plans = buildSupabaseDatabaseCommandPlans({ target: "linked" });
+  assert.equal(environment.selector, "--linked");
+  assert.equal(environment.allowedEnvironment.SUPABASE_DB_PASSWORD, databasePassword);
+  assert.deepEqual(Object.keys(environment.allowedEnvironment).sort(), ["PATH", "SUPABASE_DB_PASSWORD", "SUPABASE_TELEMETRY_DISABLED"]);
+  assert.ok(plans.every((plan) => plan.args.includes("--linked") && !plan.args.join(" ").includes(databasePassword)));
+  assert.ok(plans.every((plan) => !plan.args.includes("--password") && !plan.args.includes("--db-url")));
+  assert.throws(() => buildSupabaseDatabaseEnvironment({ target: "local", databasePassword }), /does not accept/);
 });
 
 test("S3 plans accept only named remotes and construct direction internally", () => {
@@ -33,6 +49,8 @@ test("S3 plans accept only named remotes and construct direction internally", ()
   assert.deepEqual(download.args.slice(0, 3), ["copy", "backup-prod:godel-files", "D:/safe/staging"]);
   const upload = buildS3CommandPlan({ operation: "upload-restore", remoteName: "backup-prod", remotePath: "godel-files", localPath: "D:/safe/staging" });
   assert.deepEqual(upload.args.slice(0, 3), ["copy", "D:/safe/staging", "backup-prod:godel-files"]);
+  assert.ok(upload.args.includes("--no-check-dest"));
+  assert.ok(!upload.args.includes("--immutable"));
 });
 
 test("S3 plans reject inline rclone configuration and credentials", () => {

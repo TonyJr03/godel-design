@@ -18,13 +18,13 @@
 
 **PPO-04M.5.0:** `CLOSED / ARCHITECTURE APPROVED`
 
-**PPO-04M.5.1:** `CORE SAFETY + FINAL PUBLICATION CORRECTED / PENDING ARCHITECTURAL REVIEW`
+**PPO-04M.5.1:** `LOCAL INTEGRATION PASS / PENDING FINAL ARCHITECTURAL REVIEW`
 
 **PPO-04M.5.2–PPO-04M.5.3:** `NOT STARTED`
 
 **FIRST PRODUCTION BACKUP:** `NOT AUTHORIZED`
 
-**LOCAL INTEGRATION:** `NOT AUTHORIZED`
+**LOCAL INTEGRATION:** `PASS`
 
 **PPO-04M.6–PPO-04M.7:** `NOT STARTED`
 
@@ -62,7 +62,7 @@ PPO-04M.3 = CLOSED / APPROVED
 PPO-04M.4 = CLOSED / QUALIFIED ACCEPTANCE
 PPO-04M.5 = ACTIVE / TOOLING IMPLEMENTATION
 PPO-04M.5.0 = CLOSED / ARCHITECTURE APPROVED
-PPO-04M.5.1 = CORE SAFETY + FINAL PUBLICATION CORRECTED / PENDING ARCHITECTURAL REVIEW
+PPO-04M.5.1 = LOCAL INTEGRATION PASS / PENDING FINAL ARCHITECTURAL REVIEW
 PPO-04M.5.2–PPO-04M.5.3 = NOT STARTED
 PPO-04M.6–PPO-04M.7 = NOT STARTED
 PRODUCTION DEPLOYMENT = READY
@@ -308,21 +308,22 @@ M.5.0 queda `CLOSED / ARCHITECTURE APPROVED` mediante
 inventaría estado durable, separa DB/Auth/metadata/bytes, recomienda export
 lógico y copia S3-compatible cifrada, y fija los gates de restore. No creó
 backup, credenciales S3, proyecto, conexión remota ni restore. El primer pase de
-M.5.1 queda `CORE SAFETY + FINAL PUBLICATION CORRECTED / PENDING ARCHITECTURAL REVIEW`: añadió
-primitives locales deterministas para manifest, checksums, inventarios, command
-plans, cifrado externo y bundle sintético, todas cubiertas por tests sin HTTP,
-Docker o Production. M.5.2–M.5.3 permanecen `NOT STARTED`.
+M.5.1 queda `LOCAL INTEGRATION PASS / PENDING FINAL ARCHITECTURAL REVIEW`:
+además del core determinista, ejecutó SOURCE y TARGET locales desechables con
+Auth, dump lógico, metadata y bytes Storage, rclone S3 y cifrado streaming age.
+M.5.2–M.5.3 permanecen `NOT STARTED`.
 
-La corrección de safety conserva receipts `INCOMPLETE` reducidos fuera del
-staging, impide publicar el nombre final antes del cleanup plaintext y limita
-`rclone` a remotes nombrados sin configuración ni credenciales inline. No
-autoriza todavía integración local, S3, backup ni restore reales.
+La prueba local conservó UUID/hash Auth y login, restauró metadata antes de
+bytes sin duplicados y verificó hashes coincidentes. No contactó Production,
+Preview, Supabase Managed, Vercel ni S3 Production.
 
 ```text
-DATABASE SECRET-SAFE TRANSPORT = PENDING LOCAL PROOF
-STORAGE METADATA + BYTE RESTORE ORDER = PENDING LOCAL PROOF
+DATABASE SECRET-SAFE TRANSPORT = LOCALLY PROVEN
+STORAGE METADATA + BYTE RESTORE ORDER = LOCALLY PROVEN
+AGE ENCRYPTION = LOCALLY PROVEN
+RCLONE S3 = LOCALLY PROVEN
 FINAL PUBLICATION ATOMICITY = CORRECTED / PENDING ARCHITECTURAL REVIEW
-LOCAL INTEGRATION = NOT AUTHORIZED
+LOCAL INTEGRATION = PASS
 FIRST PRODUCTION BACKUP = NOT AUTHORIZED
 ```
 

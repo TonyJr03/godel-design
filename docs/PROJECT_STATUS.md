@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Última actualización: 2026-09-21
+Última actualización: 2026-09-22
 
 ## Estado general
 
@@ -24,7 +24,7 @@ RLS/grants, Storage/TUS y cleanup, y M.3 aceptó el deployment técnico protegid
 El Site URL de Supabase está alineado con el dominio Production estable.
 PPO-04M.4 queda `CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE`; PPO-04M.5 queda
 `ACTIVE / TOOLING IMPLEMENTATION`. M.5.0 está `CLOSED / ARCHITECTURE APPROVED`;
-M.5.1 está `CORE SAFETY + FINAL PUBLICATION CORRECTED / PENDING ARCHITECTURAL REVIEW` y
+M.5.1 está `LOCAL INTEGRATION PASS / PENDING FINAL ARCHITECTURAL REVIEW` y
 M.5.2–M.5.3 siguen `NOT STARTED`. El primer backup Production no está
 autorizado. Todavía no se realizó el pilot rollout ni se afirma que el sistema
 esté públicamente operativo.
@@ -100,7 +100,7 @@ una migración nueva `07+`.
 | PPO-04M.4 | `CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE` |
 | PPO-04M.5 | `ACTIVE / TOOLING IMPLEMENTATION` |
 | PPO-04M.5.0 | `CLOSED / ARCHITECTURE APPROVED` |
-| PPO-04M.5.1 | `CORE SAFETY + FINAL PUBLICATION CORRECTED / PENDING ARCHITECTURAL REVIEW` |
+| PPO-04M.5.1 | `LOCAL INTEGRATION PASS / PENDING FINAL ARCHITECTURAL REVIEW` |
 | PPO-04M.5.2–PPO-04M.5.3 | `NOT STARTED` |
 | PPO-04M.6–PPO-04M.7 | `NOT STARTED` |
 | PPO-05 | `PENDING` — seguridad pública/antiabuso |
@@ -118,8 +118,12 @@ PRODUCTION ACCEPTANCE = PASS
 PRODUCTION EXPOSURE = PROTECTED
 PRODUCTION PILOT ROLLOUT = NOT EXECUTED
 FINAL PUBLICATION ATOMICITY = CORRECTED / PENDING ARCHITECTURAL REVIEW
+DATABASE SECRET-SAFE TRANSPORT = LOCALLY PROVEN
+STORAGE METADATA + BYTE RESTORE ORDER = LOCALLY PROVEN
+AGE ENCRYPTION = LOCALLY PROVEN
+RCLONE S3 = LOCALLY PROVEN
 FIRST PRODUCTION BACKUP = NOT AUTHORIZED
-LOCAL INTEGRATION = NOT AUTHORIZED
+LOCAL INTEGRATION = PASS
 ```
 
 ## Evidencia y capacidades Self-Hosted conservadas
@@ -174,7 +178,7 @@ PPO-04M.0  arquitectura y gobernanza — CLOSED / APPROVED
 → PPO-04M.4  QA managed propio — CLOSED / QUALIFIED ACCEPTANCE
 → PPO-04M.5.0  arquitectura backup/recovery — CLOSED / ARCHITECTURE APPROVED
 → PPO-04M.5.1  tooling core
-  — CORE SAFETY + FINAL PUBLICATION CORRECTED / PENDING ARCHITECTURAL REVIEW
+  — LOCAL INTEGRATION PASS / PENDING FINAL ARCHITECTURAL REVIEW
 → PPO-04M.5.2–M.5.3  primer backup y restore drill — NOT STARTED
 → PPO-04M.6  small initial real use
 → PPO-04M.7  estabilización y medidas reales
@@ -185,12 +189,11 @@ La evidencia managed de PPO-02/PPO-03 es antecedente de compatibilidad. El
 nuevo entorno debe tener aceptación propia, backup fuera de Supabase y control
 de capacidad/free-tier antes de depender de él para datos reales.
 
-Los gates aún pendientes de M.5.1 son `DATABASE SECRET-SAFE TRANSPORT = PENDING
-LOCAL PROOF` y `STORAGE METADATA + BYTE RESTORE ORDER = PENDING LOCAL PROOF`.
-El tooling actual no publica externamente ni autoriza acceso a Production.
-La corrección de safety añade receipt durable `INCOMPLETE`, exige cleanup del
-plaintext antes del rename final y prohíbe configuración/credenciales inline
-en los planes `rclone`.
+La integración local desechable de M.5.1 probó transporte DB secret-safe,
+captura/restauración lógica con continuidad Auth, cifrado streaming `tar → age`
+y restore ordenado de metadata antes de bytes mediante `rclone` S3, sin
+duplicados y con hashes coincidentes. El tooling no publica externamente ni
+autoriza acceso a Production.
 
 ## Capacidades funcionales disponibles
 

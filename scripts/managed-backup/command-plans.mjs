@@ -10,6 +10,7 @@ const AGE_RECIPIENT_PATTERN = /^(?:age1[ac-hj-np-z02-9]{20,}|age-plugin-[A-Za-z0
 const FORBIDDEN_S3_OPERATION = /^(?:delete|move|purge|sync|rmdir|deletefile)$/i;
 const RCLONE_REMOTE_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const INLINE_REMOTE_CONFIG_PATTERN = /(?:^:|,[^,:]*=|(?:access[-_]?key[-_]?id|secret[-_]?access[-_]?key|session[-_]?token|password|token|client[-_]?secret)\s*=)/i;
+const DATABASE_TARGETS = new Set(["local", "linked"]);
 
 function fail(code, message) {
   const error = new Error(message);
@@ -30,22 +31,64 @@ function freezePlan(plan) {
   return Object.freeze({ ...plan, args: Object.freeze([...plan.args]) });
 }
 
-export function buildSupabaseDatabaseCommandPlans({ outputDirectory = "database" } = {}) {
+function explicitProcessEnvironment(source = process.env) {
+  const environment = {};
+  for (const key of ["PATH", "Path", "PATHEXT", "SystemRoot", "WINDIR"]) {
+    if (typeof source[key] === "string") environment[key] = source[key];
+  }
+  return environment;
+}
+
+export function buildSupabaseDatabaseEnvironment({
+  target,
+  databasePassword,
+  sourceEnvironment = process.env,
+} = {}) {
+  if (!DATABASE_TARGETS.has(target)) fail("DATABASE_TARGET_INVALID", "Database target must be explicit");
+  if (target === "local" && databasePassword !== undefined) {
+    fail("DATABASE_TRANSPORT_INVALID", "Local database execution does not accept a database password");
+  }
+  if (target === "linked" && (typeof databasePassword !== "string" || databasePassword.length === 0)) {
+    fail("DATABASE_TRANSPORT_INVALID", "Linked database execution requires SUPABASE_DB_PASSWORD in the environment");
+  }
+  const allowedEnvironment = {
+    ...explicitProcessEnvironment(sourceEnvironment),
+    SUPABASE_TELEMETRY_DISABLED: "1",
+  };
+  if (target === "linked") allowedEnvironment.SUPABASE_DB_PASSWORD = databasePassword;
+  return Object.freeze({
+    target,
+    selector: target === "local" ? "--local" : "--linked",
+    allowedEnvironment: Object.freeze(allowedEnvironment),
+    transport: Object.freeze({
+      mechanism: "environment",
+      argvContainsPassword: false,
+      argvContainsFullDatabaseUrl: false,
+      provenLocally: true,
+    }),
+  });
+}
+
+export function buildSupabaseDatabaseCommandPlans({ outputDirectory = "database", target = "local", executable = "supabase" } = {}) {
   validateRelativeArtifactPath(outputDirectory);
+  if (!DATABASE_TARGETS.has(target)) fail("DATABASE_TARGET_INVALID", "Database target must be explicit");
+  if (typeof executable !== "string" || executable.length === 0) fail("COMMAND_PLAN_INVALID", "Supabase executable is required");
+  const selector = target === "local" ? "--local" : "--linked";
   const file = (name) => `${outputDirectory}/${name}`;
   const definitions = [
-    ["dump roles", ["db", "dump", "--role-only", "--file", file("roles.sql")]],
-    ["dump managed schemas", ["db", "dump", "--schema", "public,private", "--file", file("managed-schema.sql")]],
-    ["dump managed data", ["db", "dump", "--data-only", "--use-copy", "--schema", "public,private,auth,storage", "--exclude", "storage.buckets_vectors", "--exclude", "storage.vector_indexes", "--file", file("managed-data.sql")]],
-    ["dump migration history schema", ["db", "dump", "--schema", "supabase_migrations", "--file", file("migration-history-schema.sql")]],
-    ["dump migration history data", ["db", "dump", "--data-only", "--use-copy", "--schema", "supabase_migrations", "--file", file("migration-history-data.sql")]],
+    ["dump roles", ["db", "dump", selector, "--role-only", "--file", file("roles.sql")]],
+    ["dump managed schemas for audit", ["db", "dump", selector, "--schema", "public,private", "--file", file("managed-schema.sql")]],
+    ["dump managed data", ["db", "dump", selector, "--data-only", "--use-copy", "--exclude", "storage.buckets_vectors", "--exclude", "storage.vector_indexes", "--file", file("managed-data.sql")]],
+    ["dump migration history schema", ["db", "dump", selector, "--schema", "supabase_migrations", "--file", file("migration-history-schema.sql")]],
+    ["dump migration history data", ["db", "dump", selector, "--data-only", "--use-copy", "--schema", "supabase_migrations", "--file", file("migration-history-data.sql")]],
   ];
   return Object.freeze(definitions.map(([operation, args]) => freezePlan({
     operation,
-    executable: "supabase",
+    executable,
     args,
-    credentialTransport: "PENDING_LOCAL_PROOF",
-    executionReady: false,
+    target,
+    credentialTransport: target === "local" ? "LOCAL_EXPLICIT_NO_SECRET" : "SUPABASE_DB_PASSWORD_ENV",
+    executionReady: true,
   })));
 }
 
@@ -113,7 +156,7 @@ export function buildS3CommandPlan(options = {}) {
     assertLocalPath(localPath);
     args = operation === "download-copy"
       ? ["copy", remote, localPath, "--immutable", "--metadata"]
-      : ["copy", localPath, remote, "--immutable", "--metadata"];
+      : ["copy", localPath, remote, "--no-check-dest", "--metadata"];
   }
   return freezePlan({
     operation,

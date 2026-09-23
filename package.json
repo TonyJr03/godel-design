@@ -39,6 +39,8 @@
     "ops:backup:selfhosted:verify": "node scripts/operations/backup-selfhosted.mjs verify",
     "ops:backup:managed:core:test": "node --test scripts/managed-backup/*.test.mjs",
     "ops:backup:managed:core:tooling": "node scripts/managed-backup/tooling.mjs",
+    "ops:backup:managed:integration:local": "node scripts/managed-backup/local-integration.mjs",
+    "ops:backup:managed:integration:test": "node --test scripts/managed-backup-integration/*.test.mjs",
     "ops:release:build": "node scripts/operations/build-production-release.mjs",
     "ops:release:test": "node --test scripts/operations/build-production-release.test.mjs",
     "ops:portability:images:validate": "node scripts/operations/image-acquisition.mjs validate-lock",

@@ -6,17 +6,17 @@
 
 **Estado de M.5.0:** `CLOSED / ARCHITECTURE APPROVED`
 
-**M.5.1:** `CORE SAFETY + FINAL PUBLICATION CORRECTED / PENDING ARCHITECTURAL REVIEW`
+**M.5.1:** `LOCAL INTEGRATION PASS / PENDING FINAL ARCHITECTURAL REVIEW`
 
 **M.5.2–M.5.3:** `NOT STARTED`
 
 **FIRST PRODUCTION BACKUP:** `NOT AUTHORIZED`
 
-**LOCAL INTEGRATION:** `NOT AUTHORIZED`
+**LOCAL INTEGRATION:** `PASS`
 
-**Fecha de auditoría:** 2026-09-21
+**Fecha de auditoría:** 2026-09-22
 
-**Git tooling authority:** `5cf8e6d3ab31dae23dd440a13dd9ecc5f2ecbe6f`
+**Git tooling authority:** `4d44fb9854d3f60593cb786fe0f4651821c9af83`
 
 **Production runtime authority:** `01552f8bee59b5f9982a2d722e39795461918f43`
 
@@ -777,7 +777,7 @@ PPO-04M.5.0
 
 PPO-04M.5.1
 = Managed Backup Tooling
-= CORE SAFETY + FINAL PUBLICATION CORRECTED / PENDING ARCHITECTURAL REVIEW
+= LOCAL INTEGRATION PASS / PENDING FINAL ARCHITECTURAL REVIEW
 
 PPO-04M.5.2
 = First Production Backup + External Custody
@@ -823,17 +823,20 @@ La revisión arquitectónica posterior corrigió tres invariantes del core:
   allowlisted o configuración temporal protegida.
 
 ```text
-DATABASE SECRET-SAFE TRANSPORT = PENDING LOCAL PROOF
-STORAGE METADATA + BYTE RESTORE ORDER = PENDING LOCAL PROOF
+DATABASE SECRET-SAFE TRANSPORT = LOCALLY PROVEN
+STORAGE METADATA + BYTE RESTORE ORDER = LOCALLY PROVEN
+AGE ENCRYPTION = LOCALLY PROVEN
+RCLONE S3 = LOCALLY PROVEN
 FINAL PUBLICATION ATOMICITY = CORRECTED / PENDING ARCHITECTURAL REVIEW
-LOCAL INTEGRATION = NOT AUTHORIZED
+LOCAL INTEGRATION = PASS
 EXTERNAL PUBLICATION = NOT IMPLEMENTED
 FIRST PRODUCTION BACKUP = NOT AUTHORIZED
 ```
 
-Por estos gates, M.5.1 no está cerrado. La integración posterior debe fijar y
-probar `age`, la herramienta S3-compatible, el transporte PostgreSQL/Supabase y
-el restore soportado de metadata + bytes en un entorno local desechable.
+La integración local real reconstruyó SOURCE y TARGET desde 01–06, conservó
+UUID/hash Auth y login, restauró metadata antes de bytes, evitó duplicados en
+`storage.objects` y verificó el mismo SHA-256 en SOURCE, captura y TARGET. El
+cierre de M.5.1 permanece sujeto a revisión arquitectónica final.
 
 ### M.5.2 — salida requerida
 
