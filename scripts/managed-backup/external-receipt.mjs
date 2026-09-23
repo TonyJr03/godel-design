@@ -83,9 +83,14 @@ async function portableChmod(pathname, mode) {
   }
 }
 
-export async function writeExternalReceiptAtomic(receipt, { outputRoot } = {}) {
+export async function writeExternalReceiptAtomic(receipt, {
+  outputRoot,
+  linkFile = link,
+  removeTemporary = (pathname) => rm(pathname, { force: true }),
+} = {}) {
   validateExternalReceipt(receipt);
   if (typeof outputRoot !== "string" || outputRoot.length === 0) fail("EXTERNAL_RECEIPT_PATH_INVALID", "External receipt output root is required");
+  if (typeof linkFile !== "function" || typeof removeTemporary !== "function") fail("EXTERNAL_RECEIPT_PATH_INVALID", "External receipt publication adapters are invalid");
   const root = resolve(outputRoot);
   await mkdir(root, { recursive: true, mode: 0o700 });
   const finalPath = join(root, `${receipt.backupId}.external-receipt.json`);
@@ -101,19 +106,18 @@ export async function writeExternalReceiptAtomic(receipt, { outputRoot } = {}) {
     await handle.close();
   }
   if (writeError) {
-    await rm(temporaryPath, { force: true });
+    await removeTemporary(temporaryPath).catch(() => undefined);
     throw writeError;
   }
   await portableChmod(temporaryPath, 0o600);
   try {
-    await link(temporaryPath, finalPath);
+    await linkFile(temporaryPath, finalPath);
   } catch (error) {
-    await rm(temporaryPath, { force: true });
+    await removeTemporary(temporaryPath).catch(() => undefined);
     if (error?.code === "EEXIST") fail("EXTERNAL_RECEIPT_ALREADY_EXISTS", "External receipt already exists");
     fail("EXTERNAL_RECEIPT_PUBLICATION_FAILED", "Atomic external receipt publication failed");
   }
-  await rm(temporaryPath, { force: true });
-  await portableChmod(finalPath, 0o600);
+  await removeTemporary(temporaryPath).catch(() => undefined);
   return finalPath;
 }
 

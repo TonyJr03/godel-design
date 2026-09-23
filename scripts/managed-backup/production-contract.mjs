@@ -5,6 +5,7 @@ import { isAbsolute, join, resolve } from "node:path";
 import { buildS3CommandPlan } from "./command-plans.mjs";
 
 export const PRODUCTION_BACKUP_CONFIRMATION = "ALLOW_SINGLE_PRODUCTION_BACKUP_CAPTURE";
+export const PRODUCTION_WRITER_FREEZE_CONFIRMATION = "CONFIRM_NO_PRODUCTION_WRITERS";
 export const PRODUCTION_BACKUP_BRANCH = "ops/managed-free-production-pilot";
 export const PRODUCTION_S3_REMOTE_NAME = "godelprod";
 
@@ -42,6 +43,12 @@ function cleanHttpsUrl(value) {
 export function assertProductionConfirmation(environment = {}) {
   if (environment.GODEL_MANAGED_PRODUCTION_BACKUP_CONFIRM !== PRODUCTION_BACKUP_CONFIRMATION) {
     fail("PRODUCTION_BACKUP_CONFIRMATION_REQUIRED", "Exact one-shot Production backup confirmation is required");
+  }
+}
+
+export function assertWriterFreezeConfirmation(environment = {}) {
+  if (environment.GODEL_MANAGED_PRODUCTION_BACKUP_WRITER_FREEZE_CONFIRM !== PRODUCTION_WRITER_FREEZE_CONFIRMATION) {
+    fail("WRITER_FREEZE_CONFIRMATION_REQUIRED", "Exact Production writer-freeze confirmation is required");
   }
 }
 

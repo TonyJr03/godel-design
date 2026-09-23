@@ -10,7 +10,7 @@
 
 **M.5.2:** `ACTIVE / PRODUCTION BACKUP PREPARATION`
 
-**M.5.2.0:** `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`
+**M.5.2.0:** `COMPLETENESS + SAFETY CORRECTED / PENDING ARCHITECTURAL REVIEW`
 
 **M.5.2.1:** `NOT STARTED`
 
@@ -22,7 +22,9 @@
 
 **Fecha de auditoría:** 2026-09-22
 
-**Git tooling preparation authority:** `720cbb15cca3124de3a3ffcd4ea18823da13f232`
+**Fecha de corrección M.5.2.0:** 2026-09-23
+
+**Git tooling correction baseline:** `9856f4c0e176bb1a920fd221ddbc38865b6258f3`
 
 **Production runtime authority:** `01552f8bee59b5f9982a2d722e39795461918f43`
 
@@ -791,7 +793,7 @@ PPO-04M.5.2
 
 PPO-04M.5.2.0
 = Production Backup & External Custody Preparation
-= IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+= COMPLETENESS + SAFETY CORRECTED / PENDING ARCHITECTURAL REVIEW
 
 PPO-04M.5.2.1
 = First Production Backup Execution
@@ -909,6 +911,7 @@ expone un comando npm de ejecución. Su orden fail-closed es:
 
 ```text
 confirmación exacta
+→ confirmación independiente de writer freeze
 → branch exacta + HEAD dinámico + worktree clean
 → configuración explícita
 → linked project coincidente
@@ -932,6 +935,7 @@ GODEL_MANAGED_BACKUP_AGE_RECIPIENT
 GODEL_MANAGED_BACKUP_OUTPUT_ROOT
 GODEL_MANAGED_PRODUCTION_RUNTIME_SHA
 GODEL_MANAGED_PRODUCTION_BACKUP_CONFIRM
+GODEL_MANAGED_PRODUCTION_BACKUP_WRITER_FREEZE_CONFIRM
 ```
 
 `SUPABASE_SECRET_KEY` y `SUPABASE_SERVICE_ROLE_KEY` quedan prohibidas. DB usa
@@ -943,27 +947,56 @@ operación destructiva se rechazan en el boundary Productivo.
 
 El adapter de captura parsea de forma estricta los bloques `COPY` del dump
 lógico. Falla si el formato no es reconocido, inventaría todas las tablas
-capturadas y exige `auth.users`, `auth.identities`, `storage.buckets`,
-`storage.objects`, `public.*` y cualquier tabla `private.*` durable presente.
-La reconciliación durable usa
+capturadas y exige `auth.users`, `auth.identities`, `public.perfiles`,
+`storage.buckets`, `storage.objects` y las dos tablas privadas durables de la
+baseline 05: `private.internal_user_creation_audit` y
+`private.internal_user_password_reset_audit`, aunque estén vacías. No usa una
+heurística genérica sobre `private.*`; cualquier migración 07+ que incorpore una
+tabla privada durable debe actualizar explícitamente este allowlist.
+
+La continuidad de password se prueba solo para usuarios internos: cada
+`public.perfiles.id` debe resolver a `auth.users.id`, tener
+`encrypted_password` no nulo/no vacío y al menos una fila coincidente en
+`auth.identities.user_id`. Los usuarios Auth ajenos a `public.perfiles` no
+quedan obligados a usar password. Solo después de esa reconciliación se emite
+`encryptedPasswordCoverageAvailable = true`, sin exponer UUIDs, hashes ni
+identities.
+
+La reconciliación durable Storage usa
 `archivo_carga_items` committed, `archivos`, metadata `storage.objects` y cada
 byte S3 capturado con SHA-256. No ejecuta SQL adicional ni guarda filas en el
 receipt externo.
 
-La primera ventana usa `BACKUP WRITER FREEZE` operacional mientras Production
-continúe protegida y sin pilot users, writers administrativos, QA mutante ni
-background writers conocidos. El artifact cifrado registra únicamente sus
-intervalos. Si aparece cualquier writer concurrente, esta estrategia deja de
-ser suficiente y debe evolucionar en M.5/PPO-06.
+La primera ventana usa `BACKUP WRITER FREEZE` como assertion operacional porque
+Production continúa protegida, el pilot rollout no se ejecutó y no se autorizan
+QA mutante, escrituras de operadores ni background writers. Después de la
+confirmación principal, el runner exige además
+`GODEL_MANAGED_PRODUCTION_BACKUP_WRITER_FREEZE_CONFIRM=CONFIRM_NO_PRODUCTION_WRITERS`
+antes de leer el linked project o iniciar DB/S3. Esta confirmación no se
+persiste, no llega a child processes y no entra en manifest, receipt ni logs.
+El artifact cifrado registra únicamente los intervalos. No se implementa
+maintenance mode. Tras iniciar el pilot, o si aparece cualquier writer
+concurrente, esta suposición debe revisarse en PPO-06.
 
 El cifrado Productivo conserva `tar stdout → age stdin`, sin `.tar` plaintext y
 solo requiere el recipient público. La identity privada permanece fuera del
-host de captura. El receipt externo estricto contiene solo identidad de backup,
-timestamps, SHAs de autoridad, nombre/tamaño/SHA-256 del ciphertext y estado de
-publicación; se publica atómicamente sin overwrite.
+host de captura. El gate se denomina `AGE STRUCTURAL ENCRYPTION VERIFICATION`:
+exige exit exitoso, ciphertext no vacío, header age v1 y SHA-256 capturado. No
+es decrypt verification; esa prueba pertenece al restore drill M.5.3.
+
+El receipt externo estricto contiene solo identidad de backup, timestamps, SHAs
+de autoridad, nombre/tamaño/SHA-256 del ciphertext y estado de publicación. Su
+commit point es el hard link no-replace después de write, fsync y chmod del
+temporary; tras ese link el final está comprometido y la eliminación del
+temporary es best effort. Una colisión conserva intacto el receipt existente.
+
+**IMPORTANT AFTER PILOT / PPO-06:** el capture adapter materializa actualmente
+los artifacts en memoria antes de construir el bundle. Es aceptable para el
+primer pilot de pequeño volumen y no se refactoriza a streaming completo en
+M.5.2.0; debe revisarse al crecer el volumen.
 
 ```text
-PPO-04M.5.2.0 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+PPO-04M.5.2.0 = COMPLETENESS + SAFETY CORRECTED / PENDING ARCHITECTURAL REVIEW
 PPO-04M.5.2.1 = NOT STARTED
 FIRST PRODUCTION BACKUP = NOT AUTHORIZED
 EXTERNAL CUSTODY DESTINATION = PENDING DIRECTOR TECHNICAL DECISION
@@ -1046,5 +1079,6 @@ external custody uploads = 0
 
 PPO-04M.5 permanece abierto en preparación de backup Productivo. M.5.0 está
 cerrado con arquitectura aprobada, M.5.1 está cerrado con integración local
-aprobada y M.5.2.0 queda implementado pendiente de revisión arquitectónica.
+aprobada y M.5.2.0 queda corregido en completitud y seguridad, pendiente de
+revisión arquitectónica.
 Este pase no autoriza el primer backup, publicación externa ni restore drill.

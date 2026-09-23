@@ -16,6 +16,7 @@ import {
   assertLinkedProject,
   assertProductionConfirmation,
   assertProductionGitAuthority,
+  assertWriterFreezeConfirmation,
   buildProductionS3CommandPlan,
   buildProductionS3Environment,
   createWriterFreezeRecord,
@@ -76,6 +77,7 @@ export async function prepareProductionBackup({
   dependencies = {},
 } = {}) {
   assertProductionConfirmation(environment);
+  assertWriterFreezeConfirmation(environment);
   const configuration = readProductionBackupConfiguration(environment);
   const resolveGit = dependencies.resolveGitAuthority ?? resolveProductionGitAuthority;
   const authority = assertProductionGitAuthority(await resolveGit({ repoRoot, sourceEnvironment: environment }));

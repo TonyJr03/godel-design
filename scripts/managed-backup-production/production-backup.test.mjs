@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
+import { link, mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
@@ -14,11 +14,13 @@ import { runPipeline } from "../managed-backup/pipeline-runner.mjs";
 import { createProductionAgeTarAdapter } from "../managed-backup/production-age-adapter.mjs";
 import {
   prepareProductionBackup,
+  resolveProductionGitAuthority,
   runProductionBackup,
 } from "../managed-backup/production-backup.mjs";
 import { createDatabaseAndDurableInventories } from "../managed-backup/production-capture-adapter.mjs";
 import {
   PRODUCTION_BACKUP_CONFIRMATION,
+  PRODUCTION_WRITER_FREEZE_CONFIRMATION,
   buildProductionS3CommandPlan,
 } from "../managed-backup/production-contract.mjs";
 
@@ -31,6 +33,7 @@ function environment(outputRoot) {
   return {
     PATH: process.env.PATH ?? "",
     GODEL_MANAGED_PRODUCTION_BACKUP_CONFIRM: PRODUCTION_BACKUP_CONFIRMATION,
+    GODEL_MANAGED_PRODUCTION_BACKUP_WRITER_FREEZE_CONFIRM: PRODUCTION_WRITER_FREEZE_CONFIRMATION,
     GODEL_MANAGED_SUPABASE_PROJECT_REF: PROJECT_REF,
     GODEL_MANAGED_PRODUCTION_RUNTIME_SHA: RUNTIME_SHA,
     GODEL_MANAGED_BACKUP_AGE_RECIPIENT: `age1${"q".repeat(30)}`,
@@ -59,6 +62,39 @@ test("absent exact confirmation stops before every local or Production adapter",
     (error) => error.code === "PRODUCTION_BACKUP_CONFIRMATION_REQUIRED",
   );
   assert.equal(calls, 0);
+});
+
+test("absent writer-freeze confirmation stops before Git, linked project, DB, and S3", async () => {
+  const values = environment(resolve(tmpdir(), "godel-production-prep"));
+  delete values.GODEL_MANAGED_PRODUCTION_BACKUP_WRITER_FREEZE_CONFIRM;
+  let calls = 0;
+  await assert.rejects(
+    prepareProductionBackup({
+      environment: values,
+      dependencies: {
+        resolveGitAuthority: async () => { calls += 1; },
+        readLinkedProjectRef: async () => { calls += 1; },
+      },
+    }),
+    (error) => error.code === "WRITER_FREEZE_CONFIRMATION_REQUIRED",
+  );
+  assert.equal(calls, 0);
+});
+
+test("backup and writer-freeze confirmations are never forwarded to Git child environment", async () => {
+  const childEnvironments = [];
+  await resolveProductionGitAuthority({
+    repoRoot: process.cwd(),
+    sourceEnvironment: environment(resolve(tmpdir(), "godel-production-prep")),
+    execute: async (plan) => {
+      childEnvironments.push(plan.allowedEnvironment);
+      if (plan.args[0] === "branch") return { stdout: "ops/managed-free-production-pilot\n" };
+      if (plan.args[0] === "rev-parse") return { stdout: `${TOOLING_SHA}\n` };
+      return { stdout: "" };
+    },
+  });
+  assert.ok(childEnvironments.every((value) => value.GODEL_MANAGED_PRODUCTION_BACKUP_CONFIRM === undefined));
+  assert.ok(childEnvironments.every((value) => value.GODEL_MANAGED_PRODUCTION_BACKUP_WRITER_FREEZE_CONFIRM === undefined));
 });
 
 test("dirty worktree and wrong branch stop before linked project or capture", async () => {
@@ -139,37 +175,75 @@ test("output root inside repository is rejected", async () => {
   );
 });
 
-function captureSql() {
+function captureSql({ missingUser = false, nullHash = false, emptyHash = false, noIdentity = false, missingPrivateTable = null } = {}) {
   const userId = "11111111-1111-4111-8111-111111111111";
+  const externalUserId = "44444444-4444-4444-8444-444444444444";
   const itemId = "22222222-2222-4222-8222-222222222222";
   const archivoId = "33333333-3333-4333-8333-333333333333";
   const path = `cargas/v1/${userId}/${itemId}/hash-file.pdf`;
+  const hash = nullHash ? "\\N" : emptyHash ? "" : "$2a$synthetic";
+  const users = missingUser
+    ? [`${externalUserId}\t\\N`]
+    : [`${userId}\t${hash}`, `${externalUserId}\t\\N`];
+  const privateTables = [
+    "private.internal_user_creation_audit",
+    "private.internal_user_password_reset_audit",
+  ].filter((identity) => identity !== missingPrivateTable);
   return {
     path,
     sql: [
-      "COPY auth.users (id, encrypted_password) FROM stdin;", `${userId}\t$2a$synthetic`, "\\.",
-      "COPY auth.identities (user_id) FROM stdin;", userId, "\\.",
+      "COPY auth.users (id, encrypted_password) FROM stdin;", ...users, "\\.",
+      "COPY auth.identities (user_id) FROM stdin;", ...(noIdentity ? [externalUserId] : [userId, externalUserId]), "\\.",
+      "COPY public.perfiles (id) FROM stdin;", userId, "\\.",
       "COPY storage.buckets (id) FROM stdin;", "godel-files", "\\.",
       "COPY storage.objects (bucket_id, name, metadata) FROM stdin;", `godel-files\t${path}\t{"size":3}`, "\\.",
       "COPY public.archivo_carga_items (id, status, archivo_id, object_path, expected_size) FROM stdin;", `${itemId}\tcommitted\t${archivoId}\t${path}\t3`, "\\.",
       "COPY public.archivos (id, bucket, file_path, file_size) FROM stdin;", `${archivoId}\tgodel-files\t${path}\t3`, "\\.",
-      "COPY private.runtime_state (id) FROM stdin;", "\\.", "",
+      ...privateTables.flatMap((identity) => [`COPY ${identity} (id) FROM stdin;`, "\\."]),
+      "",
     ].join("\n"),
   };
 }
 
-test("real COPY adapter inventories every table and durable mismatch remains incomplete", () => {
+test("profile to Auth user with password hash and identity proves continuity", () => {
   const { sql, path } = captureSql();
   const captured = [{ path, size: 3, sha256: "c".repeat(64) }];
   const valid = createDatabaseAndDurableInventories({ dumpText: sql, capturedObjects: captured });
   assert.ok(valid.databaseCounts.tables.some((table) => table.schema === "auth" && table.name === "users"));
-  assert.ok(valid.databaseCounts.tables.some((table) => table.schema === "private" && table.name === "runtime_state"));
+  assert.ok(valid.databaseCounts.tables.some((table) => table.schema === "private" && table.name === "internal_user_creation_audit" && table.rowCount === 0));
+  assert.ok(valid.databaseCounts.tables.some((table) => table.schema === "private" && table.name === "internal_user_password_reset_audit" && table.rowCount === 0));
+  assert.equal(valid.authInventory.assertions.encryptedPasswordCoverageAvailable, true);
   assert.equal(valid.durable.objectCount, 1);
   assert.throws(
     () => createDatabaseAndDurableInventories({ dumpText: sql, capturedObjects: [{ ...captured[0], size: 4 }] }),
     (error) => error.code === "STORAGE_SIZE_MISMATCH",
   );
 });
+
+for (const [name, options] of [
+  ["profile with missing Auth user fails password continuity", { missingUser: true }],
+  ["profile with NULL password hash fails password continuity", { nullHash: true }],
+  ["profile with empty password hash fails password continuity", { emptyHash: true }],
+  ["profile without Auth identity fails password continuity", { noIdentity: true }],
+]) {
+  test(name, () => {
+    const { sql, path } = captureSql(options);
+    assert.throws(
+      () => createDatabaseAndDurableInventories({ dumpText: sql, capturedObjects: [{ path, size: 3, sha256: "c".repeat(64) }] }),
+      (error) => error.code === "AUTH_PASSWORD_CONTINUITY_FAILED",
+    );
+  });
+}
+
+for (const privateTable of ["private.internal_user_creation_audit", "private.internal_user_password_reset_audit"]) {
+  test(`missing ${privateTable} fails capture completeness`, () => {
+    const { sql, path } = captureSql({ missingPrivateTable: privateTable });
+    assert.throws(
+      () => createDatabaseAndDurableInventories({ dumpText: sql, capturedObjects: [{ path, size: 3, sha256: "c".repeat(64) }] }),
+      (error) => error.code === "CAPTURE_TABLE_MISSING",
+    );
+  });
+}
 
 test("Production age adapter streams tar with a public recipient and no identity", async () => {
   const root = await mkdtemp(join(tmpdir(), "godel-production-age-"));
@@ -202,11 +276,30 @@ test("external receipt is strict, no-replace, and verifies downloaded ciphertext
   assert.equal(validateExternalReceipt(receipt), receipt);
   assert.throws(() => validateExternalReceipt({ ...receipt, projectRef: PROJECT_REF }), /unexpected fields/);
   const receiptPath = await writeExternalReceiptAtomic(receipt, { outputRoot: root });
-  await assert.rejects(writeExternalReceiptAtomic(receipt, { outputRoot: root }), (error) => error.code === "EXTERNAL_RECEIPT_ALREADY_EXISTS");
-  assert.equal(JSON.parse(await readFile(receiptPath, "utf8")).externalPublicationStatus, "PENDING");
+  const existingBytes = await readFile(receiptPath);
+  const collidingReceipt = { ...receipt, externalPublicationStatus: "VERIFIED" };
+  await assert.rejects(writeExternalReceiptAtomic(collidingReceipt, { outputRoot: root }), (error) => error.code === "EXTERNAL_RECEIPT_ALREADY_EXISTS");
+  assert.deepEqual(await readFile(receiptPath), existingBytes);
+  assert.equal(JSON.parse(existingBytes.toString("utf8")).externalPublicationStatus, "PENDING");
   assert.equal((await verifyExternalCiphertext(receipt, ciphertextPath)).verified, true);
   await writeFile(ciphertextPath, "tampered");
   await assert.rejects(verifyExternalCiphertext(receipt, ciphertextPath), (error) => error.code === "EXTERNAL_CIPHERTEXT_MISMATCH");
+});
+
+test("external receipt remains committed when post-link temp cleanup fails", async () => {
+  const root = await mkdtemp(join(tmpdir(), "godel-external-receipt-cleanup-"));
+  const ciphertextPath = join(root, `${BACKUP_ID}.age`);
+  await writeFile(ciphertextPath, "ciphertext");
+  const receipt = await createExternalReceipt({ backupId: BACKUP_ID, toolingGitSha: TOOLING_SHA, productionRuntimeSha: RUNTIME_SHA, ciphertextPath });
+  let committed = false;
+  const receiptPath = await writeExternalReceiptAtomic(receipt, {
+    outputRoot: root,
+    linkFile: async (source, target) => { await link(source, target); committed = true; },
+    removeTemporary: async () => { if (committed) throw Object.assign(new Error("synthetic cleanup failure"), { code: "EPERM" }); },
+  });
+  assert.equal(committed, true);
+  assert.deepEqual(validateExternalReceipt(JSON.parse(await readFile(receiptPath, "utf8"))), receipt);
+  await assert.rejects(writeExternalReceiptAtomic(receipt, { outputRoot: root }), (error) => error.code === "EXTERNAL_RECEIPT_ALREADY_EXISTS");
 });
 
 test("pipeline redacts explicit and allowlisted environment secrets from output", async () => {

@@ -8,6 +8,10 @@ import { validateRelativeArtifactPath } from "./safety.mjs";
 
 const COPY_HEADER = /^COPY (?:(?:"([a-z][a-z0-9_]*)")|([a-z][a-z0-9_]*))\.(?:(?:"([a-z][a-z0-9_]*)")|([a-z][a-z0-9_]*)) \(([^)]+)\) FROM stdin;$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const REQUIRED_PRIVATE_DURABLE_TABLES = Object.freeze([
+  "private.internal_user_creation_audit",
+  "private.internal_user_password_reset_audit",
+]);
 
 function fail(code, message) {
   const error = new Error(message);
@@ -126,12 +130,25 @@ export function createDatabaseAndDurableInventories({ dumpText, capturedObjects,
   const tables = parsePostgresCopyDump(dumpText);
   const users = requiredTable(tables, "auth.users", ["id", "encrypted_password"]);
   const identities = requiredTable(tables, "auth.identities", ["user_id"]);
+  const profiles = requiredTable(tables, "public.perfiles", ["id"]);
   requiredTable(tables, "storage.buckets", ["id"]);
   const objects = requiredTable(tables, "storage.objects", ["bucket_id", "name", "metadata"]);
   const items = requiredTable(tables, "public.archivo_carga_items", ["id", "status", "archivo_id", "object_path", "expected_size"]);
   const archivos = requiredTable(tables, "public.archivos", ["id", "bucket", "file_path", "file_size"]);
-  if (![...tables.keys()].some((name) => name.startsWith("public."))) fail("CAPTURE_TABLE_MISSING", "public tables are required");
+  for (const identity of REQUIRED_PRIVATE_DURABLE_TABLES) requiredTable(tables, identity, ["id"]);
   const userIds = new Set(users.rows.map((row) => row.id));
+  const usersById = new Map(users.rows.map((row) => [row.id, row]));
+  const identityUserIds = new Set(identities.rows.map((row) => row.user_id));
+  const internalPasswordContinuity = profiles.rows.every((profile) => {
+    const user = usersById.get(profile.id);
+    return UUID_PATTERN.test(profile.id ?? "")
+      && typeof user?.encrypted_password === "string"
+      && user.encrypted_password.trim().length > 0
+      && identityUserIds.has(profile.id);
+  });
+  if (!internalPasswordContinuity) {
+    fail("AUTH_PASSWORD_CONTINUITY_FAILED", "Internal Auth password continuity is not provable from the capture");
+  }
   if ([...userIds].some((id) => !UUID_PATTERN.test(id ?? "")) || identities.rows.some((row) => !userIds.has(row.user_id))) {
     fail("AUTH_UUID_CONTINUITY_FAILED", "Auth UUID continuity is not provable from the capture");
   }
@@ -141,7 +158,7 @@ export function createDatabaseAndDurableInventories({ dumpText, capturedObjects,
       users: { present: true, count: users.rows.length },
       identities: { present: true, count: identities.rows.length },
     },
-    assertions: { uuidContinuityAvailable: true, encryptedPasswordCoverageAvailable: true },
+    assertions: { uuidContinuityAvailable: true, encryptedPasswordCoverageAvailable: internalPasswordContinuity },
     ephemeralState: { sessions: "excluded", refreshTokens: "excluded", otpFlowState: "excluded" },
   };
   validateAuthInventory(authInventory);

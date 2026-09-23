@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Última actualización: 2026-09-22
+Última actualización: 2026-09-23
 
 ## Estado general
 
@@ -25,7 +25,7 @@ El Site URL de Supabase está alineado con el dominio Production estable.
 PPO-04M.4 queda `CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE`; PPO-04M.5 queda
 `ACTIVE / PRODUCTION BACKUP PREPARATION`. M.5.0 está `CLOSED / ARCHITECTURE APPROVED`;
 M.5.1 está `CLOSED / LOCAL INTEGRATION APPROVED`, M.5.2.0 está
-`IMPLEMENTED / PENDING ARCHITECTURAL REVIEW` y M.5.2.1/M.5.3 siguen
+`COMPLETENESS + SAFETY CORRECTED / PENDING ARCHITECTURAL REVIEW` y M.5.2.1/M.5.3 siguen
 `NOT STARTED`. El primer backup Production no está
 autorizado. Todavía no se realizó el pilot rollout ni se afirma que el sistema
 esté públicamente operativo.
@@ -102,7 +102,7 @@ una migración nueva `07+`.
 | PPO-04M.5 | `ACTIVE / PRODUCTION BACKUP PREPARATION` |
 | PPO-04M.5.0 | `CLOSED / ARCHITECTURE APPROVED` |
 | PPO-04M.5.1 | `CLOSED / LOCAL INTEGRATION APPROVED` |
-| PPO-04M.5.2.0 | `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW` |
+| PPO-04M.5.2.0 | `COMPLETENESS + SAFETY CORRECTED / PENDING ARCHITECTURAL REVIEW` |
 | PPO-04M.5.2.1–PPO-04M.5.3 | `NOT STARTED` |
 | PPO-04M.6–PPO-04M.7 | `NOT STARTED` |
 | PPO-05 | `PENDING` — seguridad pública/antiabuso |
@@ -182,7 +182,7 @@ PPO-04M.0  arquitectura y gobernanza — CLOSED / APPROVED
 → PPO-04M.5.0  arquitectura backup/recovery — CLOSED / ARCHITECTURE APPROVED
 → PPO-04M.5.1  tooling core
   — CLOSED / LOCAL INTEGRATION APPROVED
-→ PPO-04M.5.2.0  preparación backup/custodia — IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+→ PPO-04M.5.2.0  preparación backup/custodia — COMPLETENESS + SAFETY CORRECTED / PENDING ARCHITECTURAL REVIEW
 → PPO-04M.5.2.1–M.5.3  primer backup y restore drill — NOT STARTED
 → PPO-04M.6  small initial real use
 → PPO-04M.7  estabilización y medidas reales

@@ -20,11 +20,13 @@
 
 **PPO-04M.5.1:** `CLOSED / LOCAL INTEGRATION APPROVED`
 
-**PPO-04M.5.2.0:** `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`
+**PPO-04M.5.2.0:** `COMPLETENESS + SAFETY CORRECTED / PENDING ARCHITECTURAL REVIEW`
 
 **PPO-04M.5.2.1–PPO-04M.5.3:** `NOT STARTED`
 
 **FIRST PRODUCTION BACKUP:** `NOT AUTHORIZED`
+
+**EXTERNAL CUSTODY DESTINATION:** `PENDING DIRECTOR TECHNICAL DECISION`
 
 **LOCAL INTEGRATION:** `PASS`
 
@@ -65,7 +67,7 @@ PPO-04M.4 = CLOSED / QUALIFIED ACCEPTANCE
 PPO-04M.5 = ACTIVE / PRODUCTION BACKUP PREPARATION
 PPO-04M.5.0 = CLOSED / ARCHITECTURE APPROVED
 PPO-04M.5.1 = CLOSED / LOCAL INTEGRATION APPROVED
-PPO-04M.5.2.0 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+PPO-04M.5.2.0 = COMPLETENESS + SAFETY CORRECTED / PENDING ARCHITECTURAL REVIEW
 PPO-04M.5.2.1–PPO-04M.5.3 = NOT STARTED
 PPO-04M.6–PPO-04M.7 = NOT STARTED
 PRODUCTION DEPLOYMENT = READY
@@ -314,7 +316,10 @@ backup, credenciales S3, proyecto, conexión remota ni restore. El primer pase d
 M.5.1 queda `CLOSED / LOCAL INTEGRATION APPROVED`:
 además del core determinista, ejecutó SOURCE y TARGET locales desechables con
 Auth, dump lógico, metadata y bytes Storage, rclone S3 y cifrado streaming age.
-M.5.2.0 queda `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`; M.5.2.1 y M.5.3
+M.5.2.0 queda `COMPLETENESS + SAFETY CORRECTED / PENDING ARCHITECTURAL REVIEW`;
+su captura exige continuidad real password/identity para perfiles internos, las
+dos tablas privadas durables de baseline 05 y confirmación operacional de writer
+freeze. M.5.2.1 y M.5.3
 permanecen `NOT STARTED`. El destino de custodia externa sigue pendiente de
 decisión de Dirección Técnica y bloquea la ejecución, no la preparación.
 
