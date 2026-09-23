@@ -111,3 +111,25 @@ export async function cleanupPlaintextStaging({ outputRoot, stagingPath }) {
   await rm(resolvedStaging, { recursive: true, force: false });
   return true;
 }
+
+export async function cleanupProductionCapture({ outputRoot, capturePath }) {
+  const resolvedOutput = resolve(outputRoot);
+  const resolvedCapture = resolve(capturePath);
+  if (
+    dirname(resolvedCapture) !== resolvedOutput
+    || !/^\.capture-GDBK-\d{8}T\d{6}Z-[A-Z2-7]{8}$/.test(relative(resolvedOutput, resolvedCapture))
+  ) {
+    fail("UNSAFE_CLEANUP", "Only a direct managed Production capture directory can be removed");
+  }
+  let state;
+  try {
+    state = await lstat(resolvedCapture);
+  } catch (error) {
+    if (error?.code === "ENOENT") return false;
+    throw error;
+  }
+  if (!state.isDirectory() || state.isSymbolicLink()) fail("UNSAFE_CLEANUP", "Production capture is not a real directory");
+  await assertTreeHasNoLinks(resolvedCapture);
+  await rm(resolvedCapture, { recursive: true, force: false });
+  return true;
+}

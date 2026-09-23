@@ -4,7 +4,7 @@
 
 **Estado de PPO-04M:** `ACTIVE / NEXT`
 
-**Bloque activo:** `PPO-04M.5 — ACTIVE / TOOLING IMPLEMENTATION`
+**Bloque activo:** `PPO-04M.5 — ACTIVE / PRODUCTION BACKUP PREPARATION`
 
 **Estado de PPO-04M.2:** `CLOSED / APPROVED`
 
@@ -14,13 +14,15 @@
 
 **PPO-04M.4:** `CLOSED / QUALIFIED ACCEPTANCE`
 
-**PPO-04M.5:** `ACTIVE / TOOLING IMPLEMENTATION`
+**PPO-04M.5:** `ACTIVE / PRODUCTION BACKUP PREPARATION`
 
 **PPO-04M.5.0:** `CLOSED / ARCHITECTURE APPROVED`
 
-**PPO-04M.5.1:** `LOCAL INTEGRATION PASS / PENDING FINAL ARCHITECTURAL REVIEW`
+**PPO-04M.5.1:** `CLOSED / LOCAL INTEGRATION APPROVED`
 
-**PPO-04M.5.2–PPO-04M.5.3:** `NOT STARTED`
+**PPO-04M.5.2.0:** `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`
+
+**PPO-04M.5.2.1–PPO-04M.5.3:** `NOT STARTED`
 
 **FIRST PRODUCTION BACKUP:** `NOT AUTHORIZED`
 
@@ -60,10 +62,11 @@ PPO-04M.2A = CLOSED / APPROVED
 PPO-04M.2B = CLOSED / APPROVED
 PPO-04M.3 = CLOSED / APPROVED
 PPO-04M.4 = CLOSED / QUALIFIED ACCEPTANCE
-PPO-04M.5 = ACTIVE / TOOLING IMPLEMENTATION
+PPO-04M.5 = ACTIVE / PRODUCTION BACKUP PREPARATION
 PPO-04M.5.0 = CLOSED / ARCHITECTURE APPROVED
-PPO-04M.5.1 = LOCAL INTEGRATION PASS / PENDING FINAL ARCHITECTURAL REVIEW
-PPO-04M.5.2–PPO-04M.5.3 = NOT STARTED
+PPO-04M.5.1 = CLOSED / LOCAL INTEGRATION APPROVED
+PPO-04M.5.2.0 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+PPO-04M.5.2.1–PPO-04M.5.3 = NOT STARTED
 PPO-04M.6–PPO-04M.7 = NOT STARTED
 PRODUCTION DEPLOYMENT = READY
 PRODUCTION ACCEPTANCE = PASS
@@ -129,7 +132,7 @@ provider limits are external and must be revalidated at execution time
 | PPO-04M.2 | Database / Auth / Storage Provisioning | `CLOSED / APPROVED` |
 | PPO-04M.3 | Vercel Hobby Deployment | `CLOSED / APPROVED` |
 | PPO-04M.4 | Managed Production QA | `CLOSED / QUALIFIED ACCEPTANCE` |
-| PPO-04M.5 | Free-Tier Backup & Recovery Baseline | `ACTIVE / TOOLING IMPLEMENTATION` |
+| PPO-04M.5 | Free-Tier Backup & Recovery Baseline | `ACTIVE / PRODUCTION BACKUP PREPARATION` |
 | PPO-04M.6 | Production Pilot Rollout | `NOT STARTED` |
 | PPO-04M.7 | Stabilization & Usage Measurement | `NOT STARTED` |
 
@@ -217,7 +220,7 @@ objetos. M.2B queda `CLOSED / APPROVED`: completó el bootstrap, lifecycle Auth,
 RLS/grants, TUS autenticado y público firmado, negativas y cleanup verificado.
 PPO-04M.3 queda `CLOSED / APPROVED`; PPO-04M.4 queda
 `CLOSED / QUALIFIED ACCEPTANCE` y PPO-04M.5 queda
-`ACTIVE / TOOLING IMPLEMENTATION`.
+`ACTIVE / PRODUCTION BACKUP PREPARATION`.
 La evidencia acumulativa vive en
 [PPO_04M2_MANAGED_PROVISIONING_REPORT.md](PPO_04M2_MANAGED_PROVISIONING_REPORT.md).
 
@@ -282,7 +285,7 @@ La evidencia de cierre vive en
 
 ## 9. PPO-04M.5 — Free-Tier Backup & Recovery Baseline
 
-**Estado:** `ACTIVE / TOOLING IMPLEMENTATION`
+**Estado:** `ACTIVE / PRODUCTION BACKUP PREPARATION`
 
 ```text
 external backup required
@@ -308,10 +311,12 @@ M.5.0 queda `CLOSED / ARCHITECTURE APPROVED` mediante
 inventaría estado durable, separa DB/Auth/metadata/bytes, recomienda export
 lógico y copia S3-compatible cifrada, y fija los gates de restore. No creó
 backup, credenciales S3, proyecto, conexión remota ni restore. El primer pase de
-M.5.1 queda `LOCAL INTEGRATION PASS / PENDING FINAL ARCHITECTURAL REVIEW`:
+M.5.1 queda `CLOSED / LOCAL INTEGRATION APPROVED`:
 además del core determinista, ejecutó SOURCE y TARGET locales desechables con
 Auth, dump lógico, metadata y bytes Storage, rclone S3 y cifrado streaming age.
-M.5.2–M.5.3 permanecen `NOT STARTED`.
+M.5.2.0 queda `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`; M.5.2.1 y M.5.3
+permanecen `NOT STARTED`. El destino de custodia externa sigue pendiente de
+decisión de Dirección Técnica y bloquea la ejecución, no la preparación.
 
 La prueba local conservó UUID/hash Auth y login, restauró metadata antes de
 bytes sin duplicados y verificó hashes coincidentes. No contactó Production,
@@ -322,7 +327,7 @@ DATABASE SECRET-SAFE TRANSPORT = LOCALLY PROVEN
 STORAGE METADATA + BYTE RESTORE ORDER = LOCALLY PROVEN
 AGE ENCRYPTION = LOCALLY PROVEN
 RCLONE S3 = LOCALLY PROVEN
-FINAL PUBLICATION ATOMICITY = CORRECTED / PENDING ARCHITECTURAL REVIEW
+FINAL PUBLICATION ATOMICITY = APPROVED
 LOCAL INTEGRATION = PASS
 FIRST PRODUCTION BACKUP = NOT AUTHORIZED
 ```

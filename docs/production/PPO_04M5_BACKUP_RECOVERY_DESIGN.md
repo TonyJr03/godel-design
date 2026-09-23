@@ -2,13 +2,19 @@
 
 **Bloque:** `PPO-04M.5.0 — Managed Backup & Recovery Architecture Audit`
 
-**Estado de M.5:** `ACTIVE / TOOLING IMPLEMENTATION`
+**Estado de M.5:** `ACTIVE / PRODUCTION BACKUP PREPARATION`
 
 **Estado de M.5.0:** `CLOSED / ARCHITECTURE APPROVED`
 
-**M.5.1:** `LOCAL INTEGRATION PASS / PENDING FINAL ARCHITECTURAL REVIEW`
+**M.5.1:** `CLOSED / LOCAL INTEGRATION APPROVED`
 
-**M.5.2–M.5.3:** `NOT STARTED`
+**M.5.2:** `ACTIVE / PRODUCTION BACKUP PREPARATION`
+
+**M.5.2.0:** `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`
+
+**M.5.2.1:** `NOT STARTED`
+
+**M.5.3:** `NOT STARTED`
 
 **FIRST PRODUCTION BACKUP:** `NOT AUTHORIZED`
 
@@ -16,7 +22,7 @@
 
 **Fecha de auditoría:** 2026-09-22
 
-**Git tooling authority:** `4d44fb9854d3f60593cb786fe0f4651821c9af83`
+**Git tooling preparation authority:** `720cbb15cca3124de3a3ffcd4ea18823da13f232`
 
 **Production runtime authority:** `01552f8bee59b5f9982a2d722e39795461918f43`
 
@@ -777,10 +783,18 @@ PPO-04M.5.0
 
 PPO-04M.5.1
 = Managed Backup Tooling
-= LOCAL INTEGRATION PASS / PENDING FINAL ARCHITECTURAL REVIEW
+= CLOSED / LOCAL INTEGRATION APPROVED
 
 PPO-04M.5.2
 = First Production Backup + External Custody
+= ACTIVE / PRODUCTION BACKUP PREPARATION
+
+PPO-04M.5.2.0
+= Production Backup & External Custody Preparation
+= IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+
+PPO-04M.5.2.1
+= First Production Backup Execution
 = NOT STARTED
 
 PPO-04M.5.3
@@ -827,7 +841,7 @@ DATABASE SECRET-SAFE TRANSPORT = LOCALLY PROVEN
 STORAGE METADATA + BYTE RESTORE ORDER = LOCALLY PROVEN
 AGE ENCRYPTION = LOCALLY PROVEN
 RCLONE S3 = LOCALLY PROVEN
-FINAL PUBLICATION ATOMICITY = CORRECTED / PENDING ARCHITECTURAL REVIEW
+FINAL PUBLICATION ATOMICITY = APPROVED
 LOCAL INTEGRATION = PASS
 EXTERNAL PUBLICATION = NOT IMPLEMENTED
 FIRST PRODUCTION BACKUP = NOT AUTHORIZED
@@ -836,7 +850,8 @@ FIRST PRODUCTION BACKUP = NOT AUTHORIZED
 La integración local real reconstruyó SOURCE y TARGET desde 01–06, conservó
 UUID/hash Auth y login, restauró metadata antes de bytes, evitó duplicados en
 `storage.objects` y verificó el mismo SHA-256 en SOURCE, captura y TARGET. El
-cierre de M.5.1 permanece sujeto a revisión arquitectónica final.
+cierre arquitectónico posterior aprobó esta evidencia y la atomicidad final de
+publicación; M.5.1 queda cerrado.
 
 ### M.5.2 — salida requerida
 
@@ -856,7 +871,108 @@ cierre de M.5.1 permanece sujeto a revisión arquitectónica final.
 - cleanup/retención del target decidido;
 - M.5 cerrado por revisión arquitectónica.
 
-## 19. Tooling local auditado
+### PPO-04M.5.1 FINAL INTEGRATION EVIDENCE
+
+La evidencia detallada y sanitizada se conserva en
+[PPO_04M51_LOCAL_INTEGRATION_REPORT.md](PPO_04M51_LOCAL_INTEGRATION_REPORT.md).
+
+```text
+SOURCE baseline 01–06 = PASS
+TARGET baseline 01–06 = PASS
+
+logical dump restore = PASS
+restored tables = 49
+
+Auth UUID continuity = PASS
+Auth identities = PASS
+password hash continuity = PASS
+post-restore login = PASS
+
+Storage metadata-before-bytes = PASS
+byte restore = PASS
+metadata duplicates = 0
+missing metadata = 0
+SHA-256 agreement = PASS
+
+age real integration = PASS
+rclone S3 integration = PASS
+
+local cleanup = PASS
+Production activity = 0
+```
+
+### M.5.2.0 — Production Backup & External Custody Preparation
+
+El runner independiente `scripts/managed-backup/production-backup.mjs` prepara
+una captura Productiva de solo lectura. No reutiliza el harness local y no
+expone un comando npm de ejecución. Su orden fail-closed es:
+
+```text
+confirmación exacta
+→ branch exacta + HEAD dinámico + worktree clean
+→ configuración explícita
+→ linked project coincidente
+→ output fuera del repositorio
+→ planes DB/S3 read-only
+→ gate de destino externo
+```
+
+La configuración se suministrará en `.env.managed.backup.local`, ya cubierta
+por el patrón `.env.*` de `.gitignore`. El archivo no se crea ni versiona. Sus
+nombres admitidos son:
+
+```text
+SUPABASE_DB_PASSWORD
+GODEL_MANAGED_SUPABASE_PROJECT_REF
+GODEL_MANAGED_STORAGE_S3_ENDPOINT
+GODEL_MANAGED_STORAGE_S3_REGION
+GODEL_MANAGED_STORAGE_S3_ACCESS_KEY_ID
+GODEL_MANAGED_STORAGE_S3_SECRET_ACCESS_KEY
+GODEL_MANAGED_BACKUP_AGE_RECIPIENT
+GODEL_MANAGED_BACKUP_OUTPUT_ROOT
+GODEL_MANAGED_PRODUCTION_RUNTIME_SHA
+GODEL_MANAGED_PRODUCTION_BACKUP_CONFIRM
+```
+
+`SUPABASE_SECRET_KEY` y `SUPABASE_SERVICE_ROLE_KEY` quedan prohibidas. DB usa
+`--linked` con el password solo en environment allowlisted. Storage usa un
+remote efímero `rclone` definido solo por environment, S3 List API v2 y limita
+Production a `list-source`, `download-copy` y `verify-listing` (`rclone size
+--json` reconciliado con los bytes capturados); upload y toda
+operación destructiva se rechazan en el boundary Productivo.
+
+El adapter de captura parsea de forma estricta los bloques `COPY` del dump
+lógico. Falla si el formato no es reconocido, inventaría todas las tablas
+capturadas y exige `auth.users`, `auth.identities`, `storage.buckets`,
+`storage.objects`, `public.*` y cualquier tabla `private.*` durable presente.
+La reconciliación durable usa
+`archivo_carga_items` committed, `archivos`, metadata `storage.objects` y cada
+byte S3 capturado con SHA-256. No ejecuta SQL adicional ni guarda filas en el
+receipt externo.
+
+La primera ventana usa `BACKUP WRITER FREEZE` operacional mientras Production
+continúe protegida y sin pilot users, writers administrativos, QA mutante ni
+background writers conocidos. El artifact cifrado registra únicamente sus
+intervalos. Si aparece cualquier writer concurrente, esta estrategia deja de
+ser suficiente y debe evolucionar en M.5/PPO-06.
+
+El cifrado Productivo conserva `tar stdout → age stdin`, sin `.tar` plaintext y
+solo requiere el recipient público. La identity privada permanece fuera del
+host de captura. El receipt externo estricto contiene solo identidad de backup,
+timestamps, SHAs de autoridad, nombre/tamaño/SHA-256 del ciphertext y estado de
+publicación; se publica atómicamente sin overwrite.
+
+```text
+PPO-04M.5.2.0 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+PPO-04M.5.2.1 = NOT STARTED
+FIRST PRODUCTION BACKUP = NOT AUTHORIZED
+EXTERNAL CUSTODY DESTINATION = PENDING DIRECTOR TECHNICAL DECISION
+```
+
+La decisión del destino no bloquea el tooling, pero sí mantiene bloqueada toda
+ejecución Productiva. No se eligió ni codificó proveedor externo.
+
+## 19. Tooling local auditado — HISTORICAL PRE-INTEGRATION SNAPSHOT
 
 Descubrimiento local sin instalar software ni contactar Production:
 
@@ -883,18 +999,15 @@ la integración local de M.5.1 y de cualquier M.5.2.
 
 ## 20. Decisiones abiertas y stop conditions
 
-### 20.1 Decisiones abiertas para integración local de M.5.1 y M.5.2
+### 20.1 Decisiones abiertas para M.5.2.1 y M.5.3
 
-1. Aprobar `age`, recipients y custodios de identities privadas.
-2. Elegir destino externo físico y política de acceso/capacidad.
-3. Aprobar herramienta S3 (`rclone` o AWS CLI), pin y lifecycle de access keys.
-4. Definir el mecanismo exacto para bloquear writers durante el snapshot.
-5. Probar la tabla/dependencias Auth real y el tratamiento soportado de
-   sesiones/refresh tokens.
-6. Definir el filtro/restauración de rows de lifecycle parciales sin reabrir
-   reservas.
-7. Autorizar slot/coste del proyecto managed desechable de M.5.3.
-8. Fijar owner operativo, calendario diario y retención mínima definitiva.
+1. Elegir el destino externo físico y su política de acceso/capacidad.
+2. Asignar la custodia de la identity privada de recovery fuera del host de
+   captura.
+3. Autorizar slot/coste del proyecto managed desechable de M.5.3.
+4. Fijar owner operativo, calendario diario y retención mínima definitiva.
+5. Resolver en M.5.3 `ARCHIVE ENTRY ADMISSION / PATH TRAVERSAL HARDENING` y
+   `AUTH SESSION/REFRESH TOKEN RECOVERY POLICY` antes del restore drill.
 
 ### 20.2 Resultado de stop conditions M.5.0
 
@@ -924,16 +1037,14 @@ Debe detenerse un subbloque posterior si:
 ```text
 Production requests = 0
 Preview requests = 0
-Supabase remote requests = 0
-Storage remote requests = 0
-database remote connections = 0
-business mutations = 0
-Production backup artifacts created = 0
-restore operations = 0
-projects created = 0
-S3 credentials created = 0
+Supabase Managed requests = 0
+Managed DB connections = 0
+Production S3 operations = 0
+Vercel operations = 0
+external custody uploads = 0
 ```
 
-PPO-04M.5 permanece abierto. M.5.0 está cerrado con arquitectura aprobada y el
-core local de M.5.1 está implementado, pendiente de integración local. Este
-pase no autoriza tooling productivo, primer backup ni restore drill.
+PPO-04M.5 permanece abierto en preparación de backup Productivo. M.5.0 está
+cerrado con arquitectura aprobada, M.5.1 está cerrado con integración local
+aprobada y M.5.2.0 queda implementado pendiente de revisión arquitectónica.
+Este pase no autoriza el primer backup, publicación externa ni restore drill.

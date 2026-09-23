@@ -33,8 +33,12 @@ function appendLimited(chunks, chunk, currentSize) {
   return currentSize + Math.min(buffer.length, remaining);
 }
 
-function sanitizeSummary(value) {
-  return String(value ?? "")
+function sanitizeSummary(value, secrets = []) {
+  let output = String(value ?? "");
+  for (const secret of secrets.filter((candidate) => typeof candidate === "string" && candidate.length >= 4)) {
+    output = output.split(secret).join("[REDACTED]");
+  }
+  return output
     .replace(/AGE-SECRET-KEY-[A-Z0-9-]+/g, "[REDACTED]")
     .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, "[REDACTED]")
     .slice(0, 4096)
@@ -61,6 +65,10 @@ export async function runPipeline(options) {
   if (!Array.isArray(secretValues) || secretValues.some((value) => typeof value !== "string")) fail("Pipeline secret values are invalid");
   validateStage(left, "Left", secretValues);
   validateStage(right, "Right", secretValues);
+  const secretEnvironmentValues = Object.entries(allowedEnvironment)
+    .filter(([key]) => /(password|pass|token|secret|key|credential|database.?url|dsn|identity)/i.test(key))
+    .map(([, value]) => value);
+  const redactions = [...secretValues, ...secretEnvironmentValues];
 
   return new Promise((accept, reject) => {
     const spawnOptions = {
@@ -89,7 +97,7 @@ export async function runPipeline(options) {
       if (settled) return;
       settled = true;
       stop();
-      reject(new ManagedBackupCommandError({ operation, stderrSummary: sanitizeSummary(summary) || "Pipeline failed", code }));
+      reject(new ManagedBackupCommandError({ operation, stderrSummary: sanitizeSummary(summary, redactions) || "Pipeline failed", code }));
     };
     const finish = () => {
       if (settled || producerClose === undefined || consumerClose === undefined) return;
@@ -102,14 +110,14 @@ export async function runPipeline(options) {
           operation,
           exitCode: producerCode !== 0 ? producerCode : consumerCode,
           signal: producerCode !== 0 ? producerSignal : consumerSignal,
-          stderrSummary: sanitizeSummary(summary) || "Pipeline stage exited unsuccessfully",
+          stderrSummary: sanitizeSummary(summary, redactions) || "Pipeline stage exited unsuccessfully",
         }));
         return;
       }
       settled = true;
       accept({
-        stdout: sanitizeSummary(Buffer.concat(stdout).toString("utf8")),
-        stderr: sanitizeSummary(Buffer.concat([...producerStderr, ...consumerStderr]).toString("utf8")),
+        stdout: sanitizeSummary(Buffer.concat(stdout).toString("utf8"), redactions),
+        stderr: sanitizeSummary(Buffer.concat([...producerStderr, ...consumerStderr]).toString("utf8"), redactions),
       });
     };
 

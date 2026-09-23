@@ -36,6 +36,8 @@ resueltas ni planes históricos completos.
 | TD-SH05-002 | Frontend Dockerfile externo | Media | No | Activa |
 | TD-SH05-003 | Build Godel clean-host target-side | Media | No | Activa |
 | TD-SH05-004 | Aceptación funcional y cierre SH-05 | Media | No | Activa |
+| TD-BACKUP-001 | Recovery/archive admission | Alta | No; bloquea M.5.3 | Activa |
+| TD-BACKUP-002 | Recovery/Auth sessions | Media | No; bloquea M.5.3 | Activa |
 
 ## Bloqueadores antes de producción pública
 
@@ -93,6 +95,21 @@ La historia superseded de la deuda se conserva arriba y en los informes de
 PPO-02/PPO-03. TD-STORAGE-002, TD-SECURITY-001 y TD-NEXT-001 siguen activas.
 
 ## Deudas activas
+
+### TD-BACKUP-001 - Archive entry admission / path traversal hardening
+
+Antes de extraer un bundle en el restore drill M.5.3 debe validarse cada entry
+del archive: paths relativos portables, sin traversal, links, reparse points,
+special files ni colisiones. M.5.2 solo produce y cifra el archive; no autoriza
+su extracción Productiva.
+
+### TD-BACKUP-002 - Auth session/refresh token recovery policy
+
+M.5.3 debe fijar y probar el tratamiento de sesiones, refresh tokens y estado
+OTP tras recovery. La captura conserva usuarios, UUIDs, identities y cobertura
+de `encrypted_password`, pero no promete continuidad de sesiones previas al
+desastre. La política esperada es invalidación y reautenticación hasta que el
+drill demuestre y apruebe el contrato exacto.
 
 ### TD-QA-001 - Suite e2e paralela no estable
 
