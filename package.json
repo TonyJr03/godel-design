@@ -42,6 +42,7 @@
     "ops:backup:managed:integration:local": "node scripts/managed-backup/local-integration.mjs",
     "ops:backup:managed:integration:test": "node --test scripts/managed-backup-integration/*.test.mjs",
     "ops:backup:managed:production:runner:test": "node --test scripts/managed-backup-production/*.test.mjs",
+    "ops:backup:managed:production:execution:test": "node --test scripts/managed-backup-production/production-execution.test.mjs",
     "ops:backup:managed:r2:adapter:test": "node --test scripts/managed-backup-r2/*.test.mjs",
     "ops:release:build": "node scripts/operations/build-production-release.mjs",
     "ops:release:test": "node --test scripts/operations/build-production-release.test.mjs",

@@ -69,10 +69,14 @@ export function buildSupabaseDatabaseEnvironment({
   });
 }
 
-export function buildSupabaseDatabaseCommandPlans({ outputDirectory = "database", target = "local", executable = "supabase" } = {}) {
+export function buildSupabaseDatabaseCommandPlans({ outputDirectory = "database", target = "local", executable = "supabase", prefixArgs = [] } = {}) {
   validateRelativeArtifactPath(outputDirectory);
   if (!DATABASE_TARGETS.has(target)) fail("DATABASE_TARGET_INVALID", "Database target must be explicit");
   if (typeof executable !== "string" || executable.length === 0) fail("COMMAND_PLAN_INVALID", "Supabase executable is required");
+  if (!Array.isArray(prefixArgs) || prefixArgs.some((value) => typeof value !== "string" || value.length === 0)) {
+    fail("COMMAND_PLAN_INVALID", "Supabase command prefix args must be nonempty strings");
+  }
+  validateSecretSafeArgs(prefixArgs);
   const selector = target === "local" ? "--local" : "--linked";
   const file = (name) => `${outputDirectory}/${name}`;
   const definitions = [
@@ -85,7 +89,7 @@ export function buildSupabaseDatabaseCommandPlans({ outputDirectory = "database"
   return Object.freeze(definitions.map(([operation, args]) => freezePlan({
     operation,
     executable,
-    args,
+    args: [...prefixArgs, ...args],
     target,
     credentialTransport: target === "local" ? "LOCAL_EXPLICIT_NO_SECRET" : "SUPABASE_DB_PASSWORD_ENV",
     executionReady: true,

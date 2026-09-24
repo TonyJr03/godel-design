@@ -168,11 +168,15 @@ M.5.1 `CLOSED / LOCAL INTEGRATION APPROVED`
 `STORAGE METADATA + BYTE RESTORE ORDER` localmente probados) y
 M.5.2.0 `CLOSED / PRODUCTION BACKUP PREPARATION APPROVED`, M.5.2.1A
 `CLOSED / R2 CUSTODY ADAPTER APPROVED`, M.5.2.1B
-`CLOSED / R2 SYNTHETIC CUSTODY PASS` y M.5.3 `NOT STARTED`; Cloudflare R2
+`CLOSED / R2 SYNTHETIC CUSTODY PASS`, M.5.2.1C
+`CLOSED / PRODUCTION AGE RECOVERY IDENTITY CUSTODY PASS`, M.5.2.1D
+`IMPLEMENTED / FIRST PRODUCTION BACKUP EXECUTION HARNESS / PENDING ARCHITECTURAL
+REVIEW`, M.5.2.1E `NOT STARTED` y M.5.3 `NOT STARTED`; Cloudflare R2
 Standard queda seleccionado y sintéticamente verificado como custodia externa.
 Dirección Técnica confirmó como operador el Bucket Lock de `production/` por
-8 días; el tooling no verificó programáticamente el Dashboard y la custodia de
-la identity age Productiva sigue pendiente;
+8 días; el tooling no verificó programáticamente el Dashboard. La custodia de
+la identity age Productiva queda `OPERATOR-ATTESTED / VERIFIED` con dos copias
+independientes;
 y PPO-04M.6–PPO-04M.7 permanecen `NOT STARTED`. PPO-04 global continúa
 `ACTIVE / NEXT` porque todavía faltan M.5, M.6 y M.7. El Production pilot
 rollout permanece `NOT EXECUTED`.
@@ -202,9 +206,10 @@ El plan operativo gobernante de la fase activa es
 El contrato de backup/recovery mínimo y el core local de tooling están en
 [PPO-04M.5 — Managed Backup & Recovery Architecture](PPO_04M5_BACKUP_RECOVERY_DESIGN.md),
 con transporte secreto de base de datos y orden de restore metadata/bytes
-localmente probados. El primer backup Production sigue `NOT AUTHORIZED`; el
-destino de custodia externa está pendiente de decisión de Dirección Técnica y
-no se ejecutaron backup real, publicación externa ni restore.
+localmente probados. `M.5.2 = First Production Backup + External Custody` y
+`M.5.3 = Restore Drill + Baseline Closure`. El primer backup Production sigue
+`NOT AUTHORIZED`; R2 está seleccionado y sintéticamente verificado, y no se
+ejecutaron backup real, publicación Productiva externa ni restore.
 El core corregido conserva evidencia `INCOMPLETE` fuera del staging, publica el
 nombre final sólo tras cleanup plaintext y prohíbe configuración/credenciales
 inline en remotes `rclone`.

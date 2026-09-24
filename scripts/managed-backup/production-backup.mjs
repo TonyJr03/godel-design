@@ -1,5 +1,6 @@
-import { mkdir } from "node:fs/promises";
-import { join } from "node:path";
+import { isDeepStrictEqual } from "node:util";
+import { lstat, mkdir, rm } from "node:fs/promises";
+import { join, resolve } from "node:path";
 
 import { createManagedBackupBundle } from "./bundle.mjs";
 import { buildSupabaseDatabaseCommandPlans, buildSupabaseDatabaseEnvironment } from "./command-plans.mjs";
@@ -7,10 +8,11 @@ import { runCommand } from "./command-runner.mjs";
 import {
   assertExternalPublicationAdapter,
   createExternalReceipt,
+  validateExternalReceipt,
   verifyExternalCiphertext,
   writeExternalReceiptAtomic,
 } from "./external-receipt.mjs";
-import { createManagedBackupId } from "./manifest.mjs";
+import { createManagedBackupId, isManagedBackupId } from "./manifest.mjs";
 import { createProductionAgeTarAdapter } from "./production-age-adapter.mjs";
 import {
   assertLinkedProject,
@@ -92,7 +94,8 @@ export async function prepareProductionBackup({
     databasePassword: configuration.databasePassword,
     sourceEnvironment: environment,
   });
-  const databasePlans = buildSupabaseDatabaseCommandPlans({ target: "linked" });
+  const databasePlanBuilder = dependencies.buildDatabasePlans ?? buildSupabaseDatabaseCommandPlans;
+  const databasePlans = databasePlanBuilder({ target: "linked" });
   const s3Environment = buildProductionS3Environment(configuration, environment);
   const storageCaptureRoot = join(outputRoot, ".capture-pending", "storage");
   const s3Plans = Object.freeze([
@@ -129,6 +132,61 @@ function assertCaptureAdapter(adapter) {
     fail("PRODUCTION_CAPTURE_ADAPTER_REQUIRED", "A read-only Production capture adapter is required");
   }
   return adapter;
+}
+
+export async function cleanupR2VerificationCopies({ outputRoot, backupId, ciphertextPath, receiptPath } = {}) {
+  if (!isManagedBackupId(backupId)) {
+    fail("EXTERNAL_VERIFICATION_CLEANUP_UNSAFE", "External verification cleanup requires a valid managed backup ID");
+  }
+  const root = resolve(outputRoot);
+  const expectedCiphertext = join(root, `${backupId}.r2-download.age`);
+  const expectedReceipt = join(root, `${backupId}.r2-external-receipt.json`);
+  if (resolve(ciphertextPath) !== expectedCiphertext || resolve(receiptPath) !== expectedReceipt) {
+    fail("EXTERNAL_VERIFICATION_CLEANUP_UNSAFE", "External verification copies are outside the governed cleanup layout");
+  }
+  for (const pathname of [expectedCiphertext, expectedReceipt]) {
+    const state = await lstat(pathname);
+    if (!state.isFile() || state.isSymbolicLink()) {
+      fail("EXTERNAL_VERIFICATION_CLEANUP_UNSAFE", "External verification copy is not a regular file");
+    }
+  }
+  await rm(expectedCiphertext);
+  await rm(expectedReceipt);
+}
+
+export async function verifyPublishedExternalReceipt({
+  custody,
+  backupId,
+  outputRoot,
+  receipt,
+  downloadedCiphertextPath,
+  cleanupVerificationCopies = cleanupR2VerificationCopies,
+} = {}) {
+  if (!custody || typeof custody.downloadReceipt !== "function") {
+    fail("EXTERNAL_RECEIPT_ROUNDTRIP_REQUIRED", "External custody adapter must support VERIFIED receipt download");
+  }
+  const downloaded = await custody.downloadReceipt({ backupId, outputRoot });
+  const downloadedReceipt = validateExternalReceipt(downloaded?.receipt);
+  if (
+    downloadedReceipt.backupId !== backupId
+    || downloadedReceipt.ciphertextSha256 !== receipt.ciphertextSha256
+    || !isDeepStrictEqual(downloadedReceipt, receipt)
+  ) {
+    fail("EXTERNAL_RECEIPT_MISMATCH", "Downloaded external receipt does not match the published receipt");
+  }
+  await verifyExternalCiphertext(downloadedReceipt, downloadedCiphertextPath);
+  let cleanupWarning = null;
+  try {
+    await cleanupVerificationCopies({
+      outputRoot,
+      backupId,
+      ciphertextPath: downloadedCiphertextPath,
+      receiptPath: downloaded.path,
+    });
+  } catch {
+    cleanupWarning = "EXTERNAL_VERIFICATION_CLEANUP_PENDING";
+  }
+  return Object.freeze({ receipt: downloadedReceipt, cleanupWarning });
 }
 
 export async function executePreparedProductionBackup(prepared, {
@@ -207,7 +265,18 @@ export async function executePreparedProductionBackup(prepared, {
   const receipt = Object.freeze({ ...pendingReceipt, externalPublicationStatus: "VERIFIED" });
   const receiptPath = await writeExternalReceiptAtomic(receipt, { outputRoot: prepared.outputRoot });
   await custody.publishReceipt({ receiptPath, receipt });
-  return { ...result, externalPublication: "VERIFIED", receipt, receiptPath };
+  let warnings = [...(result.warnings ?? [])];
+  if (typeof custody.downloadReceipt === "function") {
+    const roundtrip = await verifyPublishedExternalReceipt({
+      custody,
+      backupId,
+      outputRoot: prepared.outputRoot,
+      receipt,
+      downloadedCiphertextPath: downloadedPath,
+    });
+    if (roundtrip.cleanupWarning) warnings.push(roundtrip.cleanupWarning);
+  }
+  return { ...result, warnings: Object.freeze(warnings), externalPublication: "VERIFIED", receipt, receiptPath };
 }
 
 export async function runProductionBackup(options = {}) {

@@ -26,6 +26,12 @@
 
 **PPO-04M.5.2.1B:** `CLOSED / R2 SYNTHETIC CUSTODY PASS`
 
+**PPO-04M.5.2.1C:** `CLOSED / PRODUCTION AGE RECOVERY IDENTITY CUSTODY PASS`
+
+**PPO-04M.5.2.1D:** `IMPLEMENTED / FIRST PRODUCTION BACKUP EXECUTION HARNESS / PENDING ARCHITECTURAL REVIEW`
+
+**PPO-04M.5.2.1E:** `NOT STARTED`
+
 **PPO-04M.5.3:** `NOT STARTED`
 
 **FIRST PRODUCTION BACKUP:** `NOT AUTHORIZED`
@@ -76,6 +82,9 @@ PPO-04M.5.1 = CLOSED / LOCAL INTEGRATION APPROVED
 PPO-04M.5.2.0 = CLOSED / PRODUCTION BACKUP PREPARATION APPROVED
 PPO-04M.5.2.1A = CLOSED / R2 CUSTODY ADAPTER APPROVED
 PPO-04M.5.2.1B = CLOSED / R2 SYNTHETIC CUSTODY PASS
+PPO-04M.5.2.1C = CLOSED / PRODUCTION AGE RECOVERY IDENTITY CUSTODY PASS
+PPO-04M.5.2.1D = IMPLEMENTED / FIRST PRODUCTION BACKUP EXECUTION HARNESS / PENDING ARCHITECTURAL REVIEW
+PPO-04M.5.2.1E = NOT STARTED
 PPO-04M.5.3 = NOT STARTED
 PPO-04M.6–PPO-04M.7 = NOT STARTED
 PRODUCTION DEPLOYMENT = READY
@@ -329,7 +338,11 @@ su captura exige continuidad real password/identity para perfiles internos, las
 dos tablas privadas durables de baseline 05 y confirmación operacional de writer
 freeze. M.5.2.1A queda `CLOSED / R2 CUSTODY ADAPTER APPROVED`. Dirección
 Técnica ejecutó el harness sintético una única vez y M.5.2.1B queda
-`CLOSED / R2 SYNTHETIC CUSTODY PASS`; M.5.3 permanece `NOT STARTED`.
+`CLOSED / R2 SYNTHETIC CUSTODY PASS`. M.5.2.1C queda
+`CLOSED / PRODUCTION AGE RECOVERY IDENTITY CUSTODY PASS` mediante atestación
+operativa, y M.5.2.1D queda `IMPLEMENTED / FIRST PRODUCTION BACKUP EXECUTION
+HARNESS / PENDING ARCHITECTURAL REVIEW`; M.5.2.1E y M.5.3 permanecen
+`NOT STARTED`.
 
 Cloudflare R2 Standard queda seleccionado con bucket dedicado privado, acceso
 público deshabilitado, sin custom domain ni Worker. El token futuro será S3
@@ -337,8 +350,9 @@ público deshabilitado, sin custom domain ni Worker. El token futuro será S3
 `production/`; este último requiere Bucket Lock manual por un mínimo de 8 días.
 No hay lifecycle auto-delete en M.5. El bucket no fue provisionado por tooling,
 Dirección Técnica confirmó como operador el lock de `production/` por 8 días;
-el tooling no verificó programáticamente el Dashboard. La custodia de la
-identity age Productiva sigue pendiente de decisión de Dirección Técnica.
+el tooling no verificó programáticamente el Dashboard. Dirección Técnica
+atestó dos copias independientes verificadas de la identity age Productiva y
+decrypt PASS con cada una; no se registran material privado ni ubicaciones.
 
 La prueba local conservó UUID/hash Auth y login, restauró metadata antes de
 bytes sin duplicados y verificó hashes coincidentes. No contactó Production,
@@ -355,8 +369,10 @@ EXTERNAL CUSTODY DESTINATION = CLOUDFLARE R2 / SELECTED + SYNTHETICALLY VERIFIED
 R2 REMOTE SYNTHETIC PROOF = PASS
 R2 BUCKET = NOT PROVISIONED BY TOOLING
 R2 PRODUCTION PREFIX LOCK = OPERATOR-CONFIRMED / 8 DAYS
-PRODUCTION AGE RECOVERY IDENTITY CUSTODY = PENDING DIRECTOR TECHNICAL DECISION
-NEXT GATE = PRODUCTION AGE RECOVERY IDENTITY CUSTODY
+PRODUCTION AGE RECOVERY IDENTITY CUSTODY = OPERATOR-ATTESTED / VERIFIED
+PRIVATE IDENTITY ON CAPTURE HOST = NO INTENTIONAL PERSISTENT COPY
+RECOVERY COPIES = 2 / INDEPENDENT OPERATOR CUSTODY
+NEXT GATE = FIRST PRODUCTION BACKUP EXECUTION HARNESS ARCHITECTURAL REVIEW
 FIRST PRODUCTION BACKUP = NOT AUTHORIZED
 ```
 

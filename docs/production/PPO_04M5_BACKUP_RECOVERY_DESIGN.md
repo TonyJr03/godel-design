@@ -16,6 +16,12 @@
 
 **M.5.2.1B:** `CLOSED / R2 SYNTHETIC CUSTODY PASS`
 
+**M.5.2.1C:** `CLOSED / PRODUCTION AGE RECOVERY IDENTITY CUSTODY PASS`
+
+**M.5.2.1D:** `IMPLEMENTED / FIRST PRODUCTION BACKUP EXECUTION HARNESS / PENDING ARCHITECTURAL REVIEW`
+
+**M.5.2.1E:** `NOT STARTED`
+
 **R2 REMOTE SYNTHETIC PROOF:** `PASS`
 
 **M.5.3:** `NOT STARTED`
@@ -807,6 +813,18 @@ PPO-04M.5.2.1B
 = Cloudflare R2 Synthetic Remote Proof
 = CLOSED / R2 SYNTHETIC CUSTODY PASS
 
+PPO-04M.5.2.1C
+= Production Age Recovery Identity Custody
+= CLOSED / PRODUCTION AGE RECOVERY IDENTITY CUSTODY PASS
+
+PPO-04M.5.2.1D
+= First Production Backup Execution Harness
+= IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+
+PPO-04M.5.2.1E
+= First Production Backup Execution
+= NOT STARTED
+
 PPO-04M.5.3
 = Restore Drill + Baseline Closure
 = NOT STARTED
@@ -1008,14 +1026,18 @@ M.5.2.0; debe revisarse al crecer el volumen.
 PPO-04M.5.2.0 = CLOSED / PRODUCTION BACKUP PREPARATION APPROVED
 PPO-04M.5.2.1A = CLOSED / R2 CUSTODY ADAPTER APPROVED
 PPO-04M.5.2.1B = CLOSED / R2 SYNTHETIC CUSTODY PASS
+PPO-04M.5.2.1C = CLOSED / PRODUCTION AGE RECOVERY IDENTITY CUSTODY PASS
+PPO-04M.5.2.1D = IMPLEMENTED / FIRST PRODUCTION BACKUP EXECUTION HARNESS / PENDING ARCHITECTURAL REVIEW
+PPO-04M.5.2.1E = NOT STARTED
 FIRST PRODUCTION BACKUP = NOT AUTHORIZED
 EXTERNAL CUSTODY DESTINATION = CLOUDFLARE R2 / SELECTED + SYNTHETICALLY VERIFIED
 ```
 
 El destino quedó verificado con datos sintéticos y Dirección Técnica confirmó
 como operador el Bucket Lock de `production/` por 8 días. El tooling no verificó
-programáticamente el Dashboard. La decisión de custodia de la identity
-Productiva mantiene bloqueada toda ejecución Productiva.
+programáticamente el Dashboard. La custodia de la identity Productiva queda
+atestada y verificada por el operador; el harness permanece pendiente de
+revisión arquitectónica y toda ejecución Productiva sigue sin autorización.
 
 ## 19. Tooling local auditado — HISTORICAL PRE-INTEGRATION SNAPSHOT
 
@@ -1158,7 +1180,9 @@ R2 REMOTE SYNTHETIC PROOF = PASS
 SYNTHETIC REMOTE RESIDUE = EXPECTED / PENDING MANUAL OPERATOR CLEANUP
 R2 BUCKET = NOT PROVISIONED BY TOOLING
 R2 PRODUCTION PREFIX LOCK = OPERATOR-CONFIRMED / 8 DAYS
-PRODUCTION AGE RECOVERY IDENTITY CUSTODY = PENDING DIRECTOR TECHNICAL DECISION
+PRODUCTION AGE RECOVERY IDENTITY CUSTODY = OPERATOR-ATTESTED / VERIFIED
+PRIVATE IDENTITY ON CAPTURE HOST = NO INTENTIONAL PERSISTENT COPY
+RECOVERY COPIES = 2 / INDEPENDENT OPERATOR CUSTODY
 FIRST PRODUCTION BACKUP = NOT AUTHORIZED
 rclone audited version = 1.75.1
 age audited version = 1.3.1
@@ -1204,5 +1228,41 @@ PPO-04M.5 permanece abierto en preparación de backup Productivo. M.5.0 está
 cerrado con arquitectura aprobada, M.5.1 está cerrado con integración local
 aprobada, M.5.2.0 está cerrado/aprobado, M.5.2.1A queda cerrado/aprobado y
 M.5.2.1B queda cerrado con proof sintético PASS. M.5.2 permanece abierto.
-Este pase no autoriza el primer backup Productivo ni el restore drill; el
-siguiente gate es la custodia de la identity age Productiva.
+Este pase no autoriza el primer backup Productivo ni el restore drill.
+
+## 24. PPO-04M.5.2.1C/D — custodia age y execution harness
+
+La evidencia sanitizada de custodia consta en
+[PPO-04M.5.2.1C — Production Age Recovery Identity Custody](PPO_04M521C_AGE_IDENTITY_CUSTODY_REPORT.md).
+La clasificación es `OPERATOR-ATTESTED / VERIFIED`: no es una verificación
+programática de las copias privadas y no afirma secure erase.
+
+`production-execution.mjs` compone el capture adapter read-only existente, el
+adapter R2 exclusivamente en modo `production` y `runProductionBackup()`. Antes
+de construir esos adapters exige las tres confirmaciones exactas, ausencia de
+identity age privada, CLI Supabase repo-local, versiones gobernadas de `age` y
+`rclone`, disponibilidad de `tar`, configuración interna explícita y autoridad
+Git limpia. El CLI se ejecutará con Node y sin shell; la contraseña DB permanece
+en environment aislado.
+
+La snapshot cifrada fija el bucket privado `godel-files`, límite de 20 MiB,
+allowlist MIME de migration 04, `pgcrypto`, Realtime no requerido y únicamente
+los nombres de variables Vercel gobernantes. La publicación R2 Productiva exige
+roundtrip de ciphertext y receipt `VERIFIED`. Las copias locales redundantes de
+verificación se eliminan de manera contenida; un fallo posterior conserva el
+backup completo con `EXTERNAL_VERIFICATION_CLEANUP_PENDING`.
+
+```text
+PPO-04M.5.2.1C = CLOSED / PRODUCTION AGE RECOVERY IDENTITY CUSTODY PASS
+PPO-04M.5.2.1D = IMPLEMENTED / FIRST PRODUCTION BACKUP EXECUTION HARNESS / PENDING ARCHITECTURAL REVIEW
+PPO-04M.5.2.1E = NOT STARTED
+FIRST PRODUCTION BACKUP = NOT AUTHORIZED
+PPO-04M.5.3 = NOT STARTED
+
+Supabase Production requests = 0
+Supabase Managed DB connections = 0
+Production Storage S3 operations = 0
+Cloudflare R2 operations = 0
+Vercel operations = 0
+Production backup artifacts = 0
+```

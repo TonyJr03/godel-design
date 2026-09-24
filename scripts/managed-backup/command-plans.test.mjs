@@ -41,6 +41,14 @@ test("Supabase linked transport keeps the database password only in the allowlis
   assert.throws(() => buildSupabaseDatabaseEnvironment({ target: "local", databasePassword }), /does not accept/);
 });
 
+test("Supabase plans support a repo-local JavaScript CLI prefix without changing the command contract", () => {
+  const cliPath = join(process.cwd(), "node_modules", "supabase", "dist", "supabase.js");
+  const plans = buildSupabaseDatabaseCommandPlans({ target: "linked", executable: process.execPath, prefixArgs: [cliPath] });
+  assert.ok(plans.every((plan) => plan.executable === process.execPath && plan.args[0] === cliPath));
+  assert.ok(plans.every((plan) => plan.args[1] === "db" && plan.args.includes("--linked")));
+  assert.throws(() => buildSupabaseDatabaseCommandPlans({ prefixArgs: [""] }), /prefix args/);
+});
+
 test("S3 plans accept only named remotes and construct direction internally", () => {
   const listing = buildS3CommandPlan({ operation: "list-source", remoteName: "backup-prod", remotePath: "godel-files" });
   assert.equal(listing.destructive, false);
