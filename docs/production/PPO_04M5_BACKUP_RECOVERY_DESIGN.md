@@ -12,9 +12,11 @@
 
 **M.5.2.0:** `CLOSED / PRODUCTION BACKUP PREPARATION APPROVED`
 
-**M.5.2.1A:** `R2 CUSTODY ADAPTER IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`
+**M.5.2.1A:** `CLOSED / R2 CUSTODY ADAPTER APPROVED`
 
-**R2 REMOTE SYNTHETIC PROOF:** `NOT EXECUTED`
+**M.5.2.1B:** `CLOSED / R2 SYNTHETIC CUSTODY PASS`
+
+**R2 REMOTE SYNTHETIC PROOF:** `PASS`
 
 **M.5.3:** `NOT STARTED`
 
@@ -799,7 +801,11 @@ PPO-04M.5.2.0
 
 PPO-04M.5.2.1A
 = Cloudflare R2 External Custody Adapter Preparation
-= R2 CUSTODY ADAPTER IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+= CLOSED / R2 CUSTODY ADAPTER APPROVED
+
+PPO-04M.5.2.1B
+= Cloudflare R2 Synthetic Remote Proof
+= CLOSED / R2 SYNTHETIC CUSTODY PASS
 
 PPO-04M.5.3
 = Restore Drill + Baseline Closure
@@ -847,8 +853,8 @@ AGE ENCRYPTION = LOCALLY PROVEN
 RCLONE S3 = LOCALLY PROVEN
 FINAL PUBLICATION ATOMICITY = APPROVED
 LOCAL INTEGRATION = PASS
-EXTERNAL CUSTODY DESTINATION = CLOUDFLARE R2 / SELECTED
-R2 REMOTE SYNTHETIC PROOF = NOT EXECUTED
+EXTERNAL CUSTODY DESTINATION = CLOUDFLARE R2 / SELECTED + SYNTHETICALLY VERIFIED
+R2 REMOTE SYNTHETIC PROOF = PASS
 FIRST PRODUCTION BACKUP = NOT AUTHORIZED
 ```
 
@@ -1000,14 +1006,16 @@ M.5.2.0; debe revisarse al crecer el volumen.
 
 ```text
 PPO-04M.5.2.0 = CLOSED / PRODUCTION BACKUP PREPARATION APPROVED
-PPO-04M.5.2.1A = R2 CUSTODY ADAPTER IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+PPO-04M.5.2.1A = CLOSED / R2 CUSTODY ADAPTER APPROVED
+PPO-04M.5.2.1B = CLOSED / R2 SYNTHETIC CUSTODY PASS
 FIRST PRODUCTION BACKUP = NOT AUTHORIZED
-EXTERNAL CUSTODY DESTINATION = CLOUDFLARE R2 / SELECTED
+EXTERNAL CUSTODY DESTINATION = CLOUDFLARE R2 / SELECTED + SYNTHETICALLY VERIFIED
 ```
 
-El destino ya está seleccionado, pero la verificación manual del Bucket Lock y
-la decisión de custodia de la identity Productiva mantienen bloqueada toda
-ejecución Productiva.
+El destino quedó verificado con datos sintéticos y Dirección Técnica confirmó
+como operador el Bucket Lock de `production/` por 8 días. El tooling no verificó
+programáticamente el Dashboard. La decisión de custodia de la identity
+Productiva mantiene bloqueada toda ejecución Productiva.
 
 ## 19. Tooling local auditado — HISTORICAL PRE-INTEGRATION SNAPSHOT
 
@@ -1036,14 +1044,13 @@ la integración local de M.5.1 y de cualquier M.5.2.
 
 ## 20. Decisiones abiertas y stop conditions
 
-### 20.1 Decisiones abiertas para M.5.2.1B y M.5.3
+### 20.1 Decisiones abiertas para M.5.3
 
-1. Provisionar manualmente el bucket R2 privado y verificar su configuración.
-2. Asignar la custodia de la identity privada de recovery fuera del host de
+1. Asignar la custodia de la identity privada de recovery fuera del host de
    captura.
-3. Autorizar slot/coste del proyecto managed desechable de M.5.3.
-4. Fijar owner operativo, calendario diario y retención mínima definitiva.
-5. Resolver en M.5.3 `ARCHIVE ENTRY ADMISSION / PATH TRAVERSAL HARDENING` y
+2. Autorizar slot/coste del proyecto managed desechable de M.5.3.
+3. Fijar owner operativo, calendario diario y retención mínima definitiva.
+4. Resolver en M.5.3 `ARCHIVE ENTRY ADMISSION / PATH TRAVERSAL HARDENING` y
    `AUTH SESSION/REFRESH TOKEN RECOVERY POLICY` antes del restore drill.
 
 ### 20.2 Resultado de stop conditions M.5.0
@@ -1127,10 +1134,11 @@ exige antes de cualquier invocación
 El runner Productivo conserva dependency injection explícita: sin adapter sigue
 en `EXTERNAL_CUSTODY_DESTINATION_PENDING` y este pase no lo autoriza.
 
-La configuración manual obligatoria previa a M.5.2.1B es Bucket Lock sobre
-`production/`, con retención mínima de 8 días. El token S3 no debe poder cambiar
-esa configuración. `integration/` queda fuera de ese lock. No se configura
-lifecycle expiration, auto-delete ni rotación automática en M.5.
+Dirección Técnica confirmó como operador el Bucket Lock sobre `production/`,
+con retención mínima de 8 días. El tooling no verificó programáticamente el
+Dashboard y el token S3 no debe poder cambiar esa configuración. `integration/`
+queda fuera de ese lock. No se configura lifecycle expiration, auto-delete ni
+rotación automática en M.5.
 
 R2 S3 ofrece consistencia fuerte, pero `preflight + rclone` no se declara un
 compare-and-swap atómico. M.5 se apoya en backupId aleatorio, single-runner,
@@ -1138,25 +1146,46 @@ preflight remoto, `--immutable` y Bucket Lock. **IMPORTANT AFTER PILOT /
 PPO-06:** evaluar `PutObject` condicional nativo con `If-None-Match: *` para
 semántica estricta de creación remota.
 
-El harness `r2-custody-proof.mjs` queda preparado y exige la confirmación exacta
-`ALLOW_SYNTHETIC_R2_CUSTODY_PROOF` antes de Git, age o R2. Sólo trabaja en
-`integration/<proofRunId>/`, genera una identity age efímera local, cifra la
-frase sintética gobernante más el proofRunId, verifica ciphertext y receipt
-descargados y limpia los archivos locales. No promete secure erase y nunca
-borra objetos remotos.
+El harness `r2-custody-proof.mjs` exige la confirmación exacta
+`ALLOW_SYNTHETIC_R2_CUSTODY_PROOF` antes de Git, age o R2. Dirección Técnica lo
+ejecutó manualmente una única vez sobre `integration/<proofRunId>/`: generó una
+identity age efímera local, cifró la fixture gobernante, publicó y descargó el
+ciphertext y el receipt, verificó el SHA-256 y limpió los archivos locales. No
+promete secure erase y nunca borra objetos remotos.
 
 ```text
-R2 REMOTE SYNTHETIC PROOF = NOT EXECUTED
-SYNTHETIC REMOTE RESIDUE = EXPECTED UNTIL MANUAL OPERATOR CLEANUP
+R2 REMOTE SYNTHETIC PROOF = PASS
+SYNTHETIC REMOTE RESIDUE = EXPECTED / PENDING MANUAL OPERATOR CLEANUP
 R2 BUCKET = NOT PROVISIONED BY TOOLING
-R2 PRODUCTION BUCKET LOCK = REQUIRED / NOT YET VERIFIED
+R2 PRODUCTION PREFIX LOCK = OPERATOR-CONFIRMED / 8 DAYS
 PRODUCTION AGE RECOVERY IDENTITY CUSTODY = PENDING DIRECTOR TECHNICAL DECISION
 FIRST PRODUCTION BACKUP = NOT AUTHORIZED
 rclone audited version = 1.75.1
 age audited version = 1.3.1
 ```
 
-## 22. Actividad de este pase
+## 22. PPO-04M.5.2.1B — Cloudflare R2 Synthetic Remote Proof
+
+La evidencia sanitizada completa consta en
+[PPO-04M.5.2.1B — R2 Custody Proof Report](PPO_04M521B_R2_CUSTODY_PROOF_REPORT.md).
+
+```text
+proofRunId = GDR2-20260924T004942Z-AMA3E67K
+synthetic backupId = GDBK-20260924T004942Z-WPLYOQ6G
+namespace class = integration
+ciphertext upload/download/SHA-256 = PASS
+receipt publication/download/schema = PASS
+receipt -> ciphertext verification = PASS
+local temporary cleanup = PASS
+
+integration/GDR2-20260924T004942Z-AMA3E67K/
+  synthetic.age
+  synthetic.external-receipt.json
+
+SYNTHETIC REMOTE RESIDUE = EXPECTED / PENDING MANUAL OPERATOR CLEANUP
+```
+
+## 23. Actividad de este pase
 
 ```text
 Production requests = 0
@@ -1165,12 +1194,15 @@ Supabase Managed requests = 0
 Managed DB connections = 0
 Production S3 operations = 0
 Vercel operations = 0
-external custody uploads = 0
-Cloudflare R2 requests = 0
+Cloudflare R2 integration operations = EXECUTED / SYNTHETIC ONLY
+R2 production/ operations = 0
+Production backup artifacts = 0
+remote delete operations = 0
 ```
 
 PPO-04M.5 permanece abierto en preparación de backup Productivo. M.5.0 está
 cerrado con arquitectura aprobada, M.5.1 está cerrado con integración local
-aprobada, M.5.2.0 está cerrado/aprobado y M.5.2.1A queda implementado pendiente
-de revisión arquitectónica.
-Este pase no autoriza el primer backup, publicación externa ni restore drill.
+aprobada, M.5.2.0 está cerrado/aprobado, M.5.2.1A queda cerrado/aprobado y
+M.5.2.1B queda cerrado con proof sintético PASS. M.5.2 permanece abierto.
+Este pase no autoriza el primer backup Productivo ni el restore drill; el
+siguiente gate es la custodia de la identity age Productiva.

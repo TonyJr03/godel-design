@@ -22,15 +22,17 @@
 
 **PPO-04M.5.2.0:** `CLOSED / PRODUCTION BACKUP PREPARATION APPROVED`
 
-**PPO-04M.5.2.1A:** `R2 CUSTODY ADAPTER IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`
+**PPO-04M.5.2.1A:** `CLOSED / R2 CUSTODY ADAPTER APPROVED`
 
-**PPO-04M.5.2.1B–PPO-04M.5.3:** `NOT STARTED`
+**PPO-04M.5.2.1B:** `CLOSED / R2 SYNTHETIC CUSTODY PASS`
+
+**PPO-04M.5.3:** `NOT STARTED`
 
 **FIRST PRODUCTION BACKUP:** `NOT AUTHORIZED`
 
-**EXTERNAL CUSTODY DESTINATION:** `CLOUDFLARE R2 / SELECTED`
+**EXTERNAL CUSTODY DESTINATION:** `CLOUDFLARE R2 / SELECTED + SYNTHETICALLY VERIFIED`
 
-**R2 REMOTE SYNTHETIC PROOF:** `NOT EXECUTED`
+**R2 REMOTE SYNTHETIC PROOF:** `PASS`
 
 **LOCAL INTEGRATION:** `PASS`
 
@@ -72,8 +74,9 @@ PPO-04M.5 = ACTIVE / PRODUCTION BACKUP PREPARATION
 PPO-04M.5.0 = CLOSED / ARCHITECTURE APPROVED
 PPO-04M.5.1 = CLOSED / LOCAL INTEGRATION APPROVED
 PPO-04M.5.2.0 = CLOSED / PRODUCTION BACKUP PREPARATION APPROVED
-PPO-04M.5.2.1A = R2 CUSTODY ADAPTER IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
-PPO-04M.5.2.1B–PPO-04M.5.3 = NOT STARTED
+PPO-04M.5.2.1A = CLOSED / R2 CUSTODY ADAPTER APPROVED
+PPO-04M.5.2.1B = CLOSED / R2 SYNTHETIC CUSTODY PASS
+PPO-04M.5.3 = NOT STARTED
 PPO-04M.6–PPO-04M.7 = NOT STARTED
 PRODUCTION DEPLOYMENT = READY
 PRODUCTION ACCEPTANCE = PASS
@@ -324,17 +327,18 @@ Auth, dump lógico, metadata y bytes Storage, rclone S3 y cifrado streaming age.
 M.5.2.0 queda `CLOSED / PRODUCTION BACKUP PREPARATION APPROVED`;
 su captura exige continuidad real password/identity para perfiles internos, las
 dos tablas privadas durables de baseline 05 y confirmación operacional de writer
-freeze. M.5.2.1A implementa el adapter de custodia Cloudflare R2 y queda
-`R2 CUSTODY ADAPTER IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`; su proof remoto
-no fue ejecutado. M.5.2.1B y M.5.3 permanecen `NOT STARTED`.
+freeze. M.5.2.1A queda `CLOSED / R2 CUSTODY ADAPTER APPROVED`. Dirección
+Técnica ejecutó el harness sintético una única vez y M.5.2.1B queda
+`CLOSED / R2 SYNTHETIC CUSTODY PASS`; M.5.3 permanece `NOT STARTED`.
 
 Cloudflare R2 Standard queda seleccionado con bucket dedicado privado, acceso
 público deshabilitado, sin custom domain ni Worker. El token futuro será S3
 `Object Read & Write` limitado al bucket. Los prefixes son `integration/` y
 `production/`; este último requiere Bucket Lock manual por un mínimo de 8 días.
 No hay lifecycle auto-delete en M.5. El bucket no fue provisionado por tooling,
-el lock aún no fue verificado y la custodia de la identity age Productiva sigue
-pendiente de decisión de Dirección Técnica.
+Dirección Técnica confirmó como operador el lock de `production/` por 8 días;
+el tooling no verificó programáticamente el Dashboard. La custodia de la
+identity age Productiva sigue pendiente de decisión de Dirección Técnica.
 
 La prueba local conservó UUID/hash Auth y login, restauró metadata antes de
 bytes sin duplicados y verificó hashes coincidentes. No contactó Production,
@@ -347,11 +351,12 @@ AGE ENCRYPTION = LOCALLY PROVEN
 RCLONE S3 = LOCALLY PROVEN
 FINAL PUBLICATION ATOMICITY = APPROVED
 LOCAL INTEGRATION = PASS
-EXTERNAL CUSTODY DESTINATION = CLOUDFLARE R2 / SELECTED
-R2 REMOTE SYNTHETIC PROOF = NOT EXECUTED
+EXTERNAL CUSTODY DESTINATION = CLOUDFLARE R2 / SELECTED + SYNTHETICALLY VERIFIED
+R2 REMOTE SYNTHETIC PROOF = PASS
 R2 BUCKET = NOT PROVISIONED BY TOOLING
-R2 PRODUCTION BUCKET LOCK = REQUIRED / NOT YET VERIFIED
+R2 PRODUCTION PREFIX LOCK = OPERATOR-CONFIRMED / 8 DAYS
 PRODUCTION AGE RECOVERY IDENTITY CUSTODY = PENDING DIRECTOR TECHNICAL DECISION
+NEXT GATE = PRODUCTION AGE RECOVERY IDENTITY CUSTODY
 FIRST PRODUCTION BACKUP = NOT AUTHORIZED
 ```
 
