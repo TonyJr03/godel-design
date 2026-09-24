@@ -1,5 +1,6 @@
 import { lstat, mkdir, readFile, readdir } from "node:fs/promises";
 import { relative, resolve, sep } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 
 import { listArtifactTree, sha256File } from "./checksums.mjs";
 import { runCommand } from "./command-runner.mjs";
@@ -18,6 +19,92 @@ function fail(code, message) {
   error.name = "ManagedProductionCaptureError";
   error.code = code;
   throw error;
+}
+
+function plain(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype;
+}
+
+function normalizeStringRecord(value, label) {
+  if (!plain(value)) fail("STORAGE_LISTING_INVALID", `${label} must be a plain string map`);
+  const normalized = {};
+  for (const key of Object.keys(value).sort((left, right) => left.localeCompare(right, "en"))) {
+    const item = value[key];
+    if (typeof key !== "string" || key.length === 0 || key.length > 256 || /[\0-\x1f]/.test(key) || typeof item !== "string" || item.length > 4096 || /[\0-\x1f]/.test(item)) {
+      fail("STORAGE_LISTING_INVALID", `${label} contains an incompatible entry`);
+    }
+    normalized[key] = item;
+  }
+  return Object.freeze(normalized);
+}
+
+export function normalizeProductionStorageListing(source) {
+  let parsed;
+  try {
+    parsed = JSON.parse(source);
+  } catch {
+    fail("STORAGE_LISTING_INVALID", "Production Storage listing is not valid JSON");
+  }
+  if (!Array.isArray(parsed)) fail("STORAGE_LISTING_INVALID", "Production Storage listing must be a JSON array");
+  const paths = new Set();
+  const normalized = parsed.map((entry) => {
+    if (!plain(entry) || entry.IsDir !== false || typeof entry.Path !== "string" || !Number.isSafeInteger(entry.Size) || entry.Size < 0) {
+      fail("STORAGE_LISTING_INVALID", "Production Storage listing contains an incompatible file entry");
+    }
+    try {
+      validateRelativeArtifactPath(entry.Path);
+    } catch {
+      fail("STORAGE_LISTING_INVALID", "Production Storage listing contains an unsafe path");
+    }
+    if (paths.has(entry.Path)) fail("STORAGE_LISTING_INVALID", "Production Storage listing contains duplicate paths");
+    paths.add(entry.Path);
+    const item = { path: entry.Path, size: entry.Size };
+    if (Object.hasOwn(entry, "ModTime")) {
+      if (typeof entry.ModTime !== "string" || entry.ModTime.length === 0 || entry.ModTime.length > 100 || /[\0-\x1f]/.test(entry.ModTime)) {
+        fail("STORAGE_LISTING_INVALID", "Production Storage listing contains an invalid modification time");
+      }
+      item.modTime = entry.ModTime;
+    }
+    if (Object.hasOwn(entry, "Hashes")) item.hashes = normalizeStringRecord(entry.Hashes, "Storage hashes");
+    if (Object.hasOwn(entry, "Metadata")) item.metadata = normalizeStringRecord(entry.Metadata, "Storage metadata");
+    return Object.freeze(item);
+  });
+  normalized.sort((left, right) => left.path.localeCompare(right.path, "en"));
+  return Object.freeze(normalized);
+}
+
+function capturedPathSizeProjection(capturedObjects) {
+  if (!Array.isArray(capturedObjects)) fail("STORAGE_CAPTURE_WINDOW_CHANGED", "Captured Storage byte inventory is unavailable");
+  const paths = new Set();
+  const projection = capturedObjects.map((object) => {
+    if (!plain(object) || typeof object.path !== "string" || !Number.isSafeInteger(object.size) || object.size < 0) {
+      fail("STORAGE_CAPTURE_WINDOW_CHANGED", "Captured Storage byte inventory is incompatible");
+    }
+    try {
+      validateRelativeArtifactPath(object.path);
+    } catch {
+      fail("STORAGE_CAPTURE_WINDOW_CHANGED", "Captured Storage byte inventory contains an unsafe path");
+    }
+    if (paths.has(object.path)) fail("STORAGE_CAPTURE_WINDOW_CHANGED", "Captured Storage byte inventory contains duplicate paths");
+    paths.add(object.path);
+    return Object.freeze({ path: object.path, size: object.size });
+  });
+  projection.sort((left, right) => left.path.localeCompare(right.path, "en"));
+  return Object.freeze(projection);
+}
+
+export function assertProductionStorageCaptureConsistency({ initialListing, finalListing, capturedObjects } = {}) {
+  const initialInventory = normalizeProductionStorageListing(initialListing);
+  const finalInventory = normalizeProductionStorageListing(finalListing);
+  if (!isDeepStrictEqual(initialInventory, finalInventory)) {
+    fail("STORAGE_CAPTURE_WINDOW_CHANGED", "Production Storage inventory changed during the capture window");
+  }
+  const remoteProjection = Object.freeze(finalInventory.map((object) => Object.freeze({ path: object.path, size: object.size })));
+  const localProjection = capturedPathSizeProjection(capturedObjects);
+  if (!isDeepStrictEqual(remoteProjection, localProjection)) {
+    fail("STORAGE_CAPTURE_WINDOW_CHANGED", "Captured Storage paths or sizes differ from the final remote inventory");
+  }
+  return Object.freeze({ initialInventory, finalInventory, capturedProjection: localProjection });
 }
 
 function parseColumns(source) {
@@ -249,6 +336,17 @@ export function createProductionReadOnlyCaptureAdapter({
         fail("CAPTURE_PLAN_INVALID", "Production Storage capture plan is not the approved read-only sequence");
       }
       await mkdir(resolve(captureRoot, "database"), { recursive: false, mode: 0o700 });
+      const [initialPlan, downloadPlan, finalPlan] = s3Plans;
+      const invokeStorage = (plan) => execute({
+        operation: plan.operation,
+        executable: plan.executable,
+        args: plan.args,
+        cwd: captureRoot,
+        allowedEnvironment: s3Environment.allowedEnvironment,
+        secretValues: s3Environment.secretValues,
+      });
+      const storageStartedAt = now().toISOString();
+      const initialListing = (await invokeStorage(initialPlan)).stdout;
       const dbStartedAt = now().toISOString();
       for (const plan of databasePlans) {
         await execute({
@@ -261,22 +359,8 @@ export function createProductionReadOnlyCaptureAdapter({
         });
       }
       const dbEndedAt = now().toISOString();
-      const storageStartedAt = now().toISOString();
-      let sourceListing;
-      let verificationSize;
-      for (const plan of s3Plans) {
-        const result = await execute({
-          operation: plan.operation,
-          executable: plan.executable,
-          args: plan.args,
-          cwd: captureRoot,
-          allowedEnvironment: s3Environment.allowedEnvironment,
-          secretValues: s3Environment.secretValues,
-        });
-        if (plan.operation === "list-source") sourceListing = result.stdout;
-        if (plan.operation === "verify-listing") verificationSize = result.stdout;
-      }
-      if (typeof sourceListing !== "string" || sourceListing.length === 0) fail("STORAGE_LISTING_INVALID", "Production S3 source listing is unavailable");
+      await invokeStorage(downloadPlan);
+      const finalListing = (await invokeStorage(finalPlan)).stdout;
       const storageEndedAt = now().toISOString();
       const inventories = await createProductionCaptureInventory({
         dumpPaths: [
@@ -285,19 +369,11 @@ export function createProductionReadOnlyCaptureAdapter({
         ],
         storageCaptureRoot,
       });
-      let remoteSize;
-      try {
-        remoteSize = JSON.parse(verificationSize);
-      } catch {
-        fail("STORAGE_LISTING_INVALID", "Production S3 size verification is invalid");
-      }
-      const capturedBytes = inventories.storageInventory.capturedObjects.reduce((sum, object) => sum + object.size, 0);
-      if (
-        !Number.isSafeInteger(remoteSize?.count)
-        || !Number.isSafeInteger(remoteSize?.bytes)
-        || remoteSize.count !== inventories.storageInventory.capturedObjects.length
-        || remoteSize.bytes !== capturedBytes
-      ) fail("STORAGE_CAPTURE_WINDOW_CHANGED", "Production S3 size changed or differs from captured bytes");
+      assertProductionStorageCaptureConsistency({
+        initialListing,
+        finalListing,
+        capturedObjects: inventories.storageInventory.capturedObjects,
+      });
       const artifactPaths = await listArtifactTree(captureRoot);
       const artifacts = [];
       for (const path of artifactPaths) {

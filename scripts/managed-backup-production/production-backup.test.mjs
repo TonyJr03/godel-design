@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { link, mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import test from "node:test";
 
 import {
@@ -17,7 +17,12 @@ import {
   resolveProductionGitAuthority,
   runProductionBackup,
 } from "../managed-backup/production-backup.mjs";
-import { createDatabaseAndDurableInventories } from "../managed-backup/production-capture-adapter.mjs";
+import {
+  assertProductionStorageCaptureConsistency,
+  createProductionReadOnlyCaptureAdapter,
+  createDatabaseAndDurableInventories,
+  normalizeProductionStorageListing,
+} from "../managed-backup/production-capture-adapter.mjs";
 import {
   PRODUCTION_BACKUP_CONFIRMATION,
   PRODUCTION_WRITER_FREEZE_CONFIRMATION,
@@ -150,8 +155,89 @@ test("Production S3 contract rejects upload and every destructive operation", ()
       (error) => error.code === "PRODUCTION_S3_OPERATION_FORBIDDEN",
     );
   }
+  const initial = buildProductionS3CommandPlan({ operation: "list-source", remotePath: "godel-files" });
   const verification = buildProductionS3CommandPlan({ operation: "verify-listing", remotePath: "godel-files" });
-  assert.deepEqual(verification.args, ["size", "godelprod:godel-files", "--json"]);
+  const listingArgs = ["lsjson", "godelprod:godel-files", "--recursive", "--files-only", "--hash", "--metadata", "--no-mimetype"];
+  assert.deepEqual(initial.args, listingArgs);
+  assert.deepEqual(verification.args, listingArgs);
+});
+
+function storageListing(entries) {
+  return JSON.stringify(entries.map((entry) => ({ IsDir: false, ...entry })));
+}
+
+test("Production Storage normalization is deterministic and exact inventory equality passes", () => {
+  const listing = storageListing([
+    { Path: "b.pdf", Size: 200, ModTime: "2026-09-24T00:00:00Z", Hashes: { MD5: "bb" }, Metadata: { tier: "STANDARD" } },
+    { Path: "a.pdf", Size: 100, ModTime: "2026-09-24T00:00:00Z", Hashes: { MD5: "aa" }, Metadata: {} },
+  ]);
+  const normalized = normalizeProductionStorageListing(listing);
+  assert.deepEqual(normalized.map((entry) => entry.path), ["a.pdf", "b.pdf"]);
+  assert.doesNotThrow(() => assertProductionStorageCaptureConsistency({
+    initialListing: listing,
+    finalListing: listing,
+    capturedObjects: [
+      { path: "b.pdf", size: 200, sha256: "b".repeat(64) },
+      { path: "a.pdf", size: 100, sha256: "a".repeat(64) },
+    ],
+  }));
+});
+
+test("same Storage aggregates with a changed path fail the capture window", () => {
+  const initialListing = storageListing([{ Path: "a.pdf", Size: 100 }, { Path: "b.pdf", Size: 200 }]);
+  const finalListing = storageListing([{ Path: "c.pdf", Size: 100 }, { Path: "b.pdf", Size: 200 }]);
+  assert.throws(
+    () => assertProductionStorageCaptureConsistency({
+      initialListing,
+      finalListing,
+      capturedObjects: [{ path: "b.pdf", size: 200 }, { path: "c.pdf", size: 100 }],
+    }),
+    (error) => error.code === "STORAGE_CAPTURE_WINDOW_CHANGED",
+  );
+});
+
+test("same Storage path and size with changed available fingerprint fails", () => {
+  const initialListing = storageListing([{ Path: "a.pdf", Size: 100, Hashes: { MD5: "before" }, Metadata: { tier: "STANDARD" } }]);
+  for (const changed of [
+    { Path: "a.pdf", Size: 100, Hashes: { MD5: "after" }, Metadata: { tier: "STANDARD" } },
+    { Path: "a.pdf", Size: 100, Hashes: { MD5: "before" }, Metadata: { tier: "ARCHIVE" } },
+  ]) {
+    assert.throws(
+      () => assertProductionStorageCaptureConsistency({
+        initialListing,
+        finalListing: storageListing([changed]),
+        capturedObjects: [{ path: "a.pdf", size: 100 }],
+      }),
+      (error) => error.code === "STORAGE_CAPTURE_WINDOW_CHANGED",
+    );
+  }
+});
+
+test("captured local Storage projection must match every final path and size", () => {
+  const listing = storageListing([{ Path: "a.pdf", Size: 100 }, { Path: "b.pdf", Size: 200 }]);
+  for (const capturedObjects of [
+    [{ path: "a.pdf", size: 100 }],
+    [{ path: "a.pdf", size: 100 }, { path: "c.pdf", size: 200 }],
+    [{ path: "a.pdf", size: 101 }, { path: "b.pdf", size: 199 }],
+  ]) {
+    assert.throws(
+      () => assertProductionStorageCaptureConsistency({ initialListing: listing, finalListing: listing, capturedObjects }),
+      (error) => error.code === "STORAGE_CAPTURE_WINDOW_CHANGED",
+    );
+  }
+});
+
+test("Production Storage listing rejects unsafe, duplicate, directory, and invalid entries", () => {
+  for (const listing of [
+    "not-json",
+    JSON.stringify({ Path: "a.pdf", Size: 1, IsDir: false }),
+    storageListing([{ Path: "../escape", Size: 1 }]),
+    storageListing([{ Path: "a.pdf", Size: 1 }, { Path: "a.pdf", Size: 1 }]),
+    JSON.stringify([{ Path: "folder", Size: 0, IsDir: true }]),
+    storageListing([{ Path: "a.pdf", Size: -1 }]),
+  ]) {
+    assert.throws(() => normalizeProductionStorageListing(listing), (error) => error.code === "STORAGE_LISTING_INVALID");
+  }
 });
 
 test("missing S3 credentials or age recipient fails before Git and capture", async () => {
@@ -204,6 +290,57 @@ function captureSql({ missingUser = false, nullHash = false, emptyHash = false, 
     ].join("\n"),
   };
 }
+
+test("Production capture orders initial listing before DB/bytes and final listing after download", async () => {
+  const root = await mkdtemp(join(tmpdir(), "godel-production-storage-window-"));
+  const captureRoot = join(root, "capture");
+  const storageCaptureRoot = join(captureRoot, "storage");
+  await mkdir(captureRoot);
+  const fixture = captureSql();
+  const listing = storageListing([{ Path: fixture.path, Size: 3, Hashes: { MD5: "synthetic" }, Metadata: {} }]);
+  const operations = [];
+  const adapter = createProductionReadOnlyCaptureAdapter({
+    execute: async (plan) => {
+      operations.push(plan.operation);
+      if (plan.operation === "list-source" || plan.operation === "verify-listing") return { stdout: listing, stderr: "" };
+      if (plan.operation === "dump managed data") await writeFile(join(plan.cwd, "database", "managed-data.sql"), fixture.sql);
+      if (plan.operation === "dump migration history data") await writeFile(join(plan.cwd, "database", "migration-history-data.sql"), "");
+      if (plan.operation === "download-copy") {
+        const target = resolve(storageCaptureRoot, ...fixture.path.split("/"));
+        await mkdir(dirname(target), { recursive: true });
+        await writeFile(target, "abc");
+      }
+      return { stdout: "", stderr: "" };
+    },
+    configurationSnapshotProvider: async () => ({}),
+    toolVersionsProvider: async () => [],
+    now: () => new Date("2026-09-24T12:00:00.000Z"),
+  });
+  const databasePlans = [
+    { operation: "dump managed data", executable: "synthetic", args: [], target: "linked", executionReady: true },
+    { operation: "dump migration history data", executable: "synthetic", args: [], target: "linked", executionReady: true },
+  ];
+  const s3Plans = [
+    buildProductionS3CommandPlan({ operation: "list-source", remotePath: "godel-files" }),
+    buildProductionS3CommandPlan({ operation: "download-copy", remotePath: "godel-files", localPath: storageCaptureRoot }),
+    buildProductionS3CommandPlan({ operation: "verify-listing", remotePath: "godel-files" }),
+  ];
+  await adapter.captureReadOnly({
+    captureRoot,
+    databasePlans,
+    databaseEnvironment: { allowedEnvironment: { SUPABASE_DB_PASSWORD: "synthetic" } },
+    s3Plans,
+    s3Environment: { allowedEnvironment: {}, secretValues: [] },
+    storageCaptureRoot,
+  });
+  assert.deepEqual(operations, [
+    "list-source",
+    "dump managed data",
+    "dump migration history data",
+    "download-copy",
+    "verify-listing",
+  ]);
+});
 
 test("profile to Auth user with password hash and identity proves continuity", () => {
   const { sql, path } = captureSql();

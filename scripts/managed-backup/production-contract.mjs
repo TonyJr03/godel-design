@@ -146,8 +146,16 @@ export function buildProductionS3CommandPlan(options = {}) {
     fail("PRODUCTION_S3_OPERATION_FORBIDDEN", "Production backup permits only read-only S3 capture operations");
   }
   const plan = buildS3CommandPlan({ ...options, remoteName: PRODUCTION_S3_REMOTE_NAME });
-  const args = options.operation === "verify-listing"
-    ? Object.freeze(["size", `${PRODUCTION_S3_REMOTE_NAME}:${options.remotePath}`, "--json"])
+  const args = ["list-source", "verify-listing"].includes(options.operation)
+    ? Object.freeze([
+      "lsjson",
+      `${PRODUCTION_S3_REMOTE_NAME}:${options.remotePath}`,
+      "--recursive",
+      "--files-only",
+      "--hash",
+      "--metadata",
+      "--no-mimetype",
+    ])
     : plan.args;
   return Object.freeze({ ...plan, args, credentialTransport: "environment" });
 }

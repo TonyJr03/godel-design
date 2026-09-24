@@ -170,8 +170,8 @@ M.5.2.0 `CLOSED / PRODUCTION BACKUP PREPARATION APPROVED`, M.5.2.1A
 `CLOSED / R2 CUSTODY ADAPTER APPROVED`, M.5.2.1B
 `CLOSED / R2 SYNTHETIC CUSTODY PASS`, M.5.2.1C
 `CLOSED / PRODUCTION AGE RECOVERY IDENTITY CUSTODY PASS`, M.5.2.1D
-`IMPLEMENTED / FIRST PRODUCTION BACKUP EXECUTION HARNESS / PENDING ARCHITECTURAL
-REVIEW`, M.5.2.1E `NOT STARTED` y M.5.3 `NOT STARTED`; Cloudflare R2
+`CORRECTED / PENDING FINAL ARCHITECTURAL REVIEW`, M.5.2.1E `NOT STARTED` y
+M.5.3 `NOT STARTED`; Cloudflare R2
 Standard queda seleccionado y sintéticamente verificado como custodia externa.
 Dirección Técnica confirmó como operador el Bucket Lock de `production/` por
 8 días; el tooling no verificó programáticamente el Dashboard. La custodia de
@@ -180,6 +180,10 @@ independientes;
 y PPO-04M.6–PPO-04M.7 permanecen `NOT STARTED`. PPO-04 global continúa
 `ACTIVE / NEXT` porque todavía faltan M.5, M.6 y M.7. El Production pilot
 rollout permanece `NOT EXECUTED`.
+
+El gate de consistencia del harness Productivo exige inventarios Storage inicial
+y final estructuralmente idénticos y una proyección local `path/size` exactamente
+igual antes de bundle o publicación externa.
 
 ## Estado de fases
 

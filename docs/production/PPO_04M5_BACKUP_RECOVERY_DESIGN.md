@@ -18,7 +18,7 @@
 
 **M.5.2.1C:** `CLOSED / PRODUCTION AGE RECOVERY IDENTITY CUSTODY PASS`
 
-**M.5.2.1D:** `IMPLEMENTED / FIRST PRODUCTION BACKUP EXECUTION HARNESS / PENDING ARCHITECTURAL REVIEW`
+**M.5.2.1D:** `CORRECTED / PENDING FINAL ARCHITECTURAL REVIEW`
 
 **M.5.2.1E:** `NOT STARTED`
 
@@ -819,7 +819,7 @@ PPO-04M.5.2.1C
 
 PPO-04M.5.2.1D
 = First Production Backup Execution Harness
-= IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+= CORRECTED / PENDING FINAL ARCHITECTURAL REVIEW
 
 PPO-04M.5.2.1E
 = First Production Backup Execution
@@ -1027,7 +1027,7 @@ PPO-04M.5.2.0 = CLOSED / PRODUCTION BACKUP PREPARATION APPROVED
 PPO-04M.5.2.1A = CLOSED / R2 CUSTODY ADAPTER APPROVED
 PPO-04M.5.2.1B = CLOSED / R2 SYNTHETIC CUSTODY PASS
 PPO-04M.5.2.1C = CLOSED / PRODUCTION AGE RECOVERY IDENTITY CUSTODY PASS
-PPO-04M.5.2.1D = IMPLEMENTED / FIRST PRODUCTION BACKUP EXECUTION HARNESS / PENDING ARCHITECTURAL REVIEW
+PPO-04M.5.2.1D = CORRECTED / PENDING FINAL ARCHITECTURAL REVIEW
 PPO-04M.5.2.1E = NOT STARTED
 FIRST PRODUCTION BACKUP = NOT AUTHORIZED
 EXTERNAL CUSTODY DESTINATION = CLOUDFLARE R2 / SELECTED + SYNTHETICALLY VERIFIED
@@ -1241,9 +1241,10 @@ programática de las copias privadas y no afirma secure erase.
 adapter R2 exclusivamente en modo `production` y `runProductionBackup()`. Antes
 de construir esos adapters exige las tres confirmaciones exactas, ausencia de
 identity age privada, CLI Supabase repo-local, versiones gobernadas de `age` y
-`rclone`, disponibilidad de `tar`, configuración interna explícita y autoridad
-Git limpia. El CLI se ejecutará con Node y sin shell; la contraseña DB permanece
-en environment aislado.
+`rclone`, disponibilidad de `tar`, Docker client/Engine funcionales,
+configuración interna explícita y autoridad Git limpia. El CLI se ejecutará con
+Node y sin shell; su versión instalada debe coincidir con el devDependency exacto
+del repositorio y la contraseña DB permanece en environment aislado.
 
 La snapshot cifrada fija el bucket privado `godel-files`, límite de 20 MiB,
 allowlist MIME de migration 04, `pgcrypto`, Realtime no requerido y únicamente
@@ -1252,9 +1253,24 @@ roundtrip de ciphertext y receipt `VERIFIED`. Las copias locales redundantes de
 verificación se eliminan de manera contenida; un fallo posterior conserva el
 backup completo con `EXTERNAL_VERIFICATION_CLEANUP_PENDING`.
 
+El consistency gate Productivo ejecuta el mismo `rclone lsjson` estructurado
+antes del dump DB y después de la descarga de bytes. Normaliza paths, tamaños y,
+cuando están disponibles, modtime, hashes y metadata. El bundle y la publicación
+R2 quedan bloqueados salvo igualdad estructural exacta:
+
+```text
+initial Storage inventory
+= final Storage inventory
+= captured path/size projection
+```
+
+El SHA-256 calculado sobre cada archivo local capturado continúa siendo la
+autoridad de integridad del artifact; ningún ETag o hash remoto se declara
+equivalente a SHA-256.
+
 ```text
 PPO-04M.5.2.1C = CLOSED / PRODUCTION AGE RECOVERY IDENTITY CUSTODY PASS
-PPO-04M.5.2.1D = IMPLEMENTED / FIRST PRODUCTION BACKUP EXECUTION HARNESS / PENDING ARCHITECTURAL REVIEW
+PPO-04M.5.2.1D = CORRECTED / PENDING FINAL ARCHITECTURAL REVIEW
 PPO-04M.5.2.1E = NOT STARTED
 FIRST PRODUCTION BACKUP = NOT AUTHORIZED
 PPO-04M.5.3 = NOT STARTED

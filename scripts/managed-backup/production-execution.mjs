@@ -134,18 +134,30 @@ export function createProductionConfigurationSnapshot({ configuration, productio
 }
 
 export async function admitRepoLocalSupabaseCli({ repoRoot, inspect = lstat, read = readFile } = {}) {
-  const cliPath = join(resolve(repoRoot), "node_modules", "supabase", "dist", "supabase.js");
+  const root = resolve(repoRoot);
+  const cliPath = join(root, "node_modules", "supabase", "dist", "supabase.js");
   const state = await inspect(cliPath).catch(() => null);
   if (!state?.isFile() || state.isSymbolicLink()) fail("SUPABASE_CLI_REQUIRED", "Approved repo-local Supabase CLI is required");
-  let version;
+  let trackedVersion;
+  let installedVersion;
   try {
-    const packageJson = JSON.parse(await read(join(resolve(repoRoot), "node_modules", "supabase", "package.json"), "utf8"));
-    version = packageJson.version;
+    const packageJson = JSON.parse(await read(join(root, "package.json"), "utf8"));
+    const installedPackageJson = JSON.parse(await read(join(root, "node_modules", "supabase", "package.json"), "utf8"));
+    trackedVersion = packageJson?.devDependencies?.supabase;
+    installedVersion = installedPackageJson?.version;
   } catch {
     fail("SUPABASE_CLI_REQUIRED", "Approved repo-local Supabase CLI metadata is required");
   }
-  if (typeof version !== "string" || !/^\d+\.\d+\.\d+$/.test(version)) fail("SUPABASE_CLI_REQUIRED", "Approved repo-local Supabase CLI version is invalid");
-  return Object.freeze({ cliPath, version });
+  if (
+    typeof trackedVersion !== "string"
+    || !/^\d+\.\d+\.\d+$/.test(trackedVersion)
+    || typeof installedVersion !== "string"
+    || !/^\d+\.\d+\.\d+$/.test(installedVersion)
+    || installedVersion !== trackedVersion
+  ) {
+    fail("SUPABASE_CLI_VERSION_MISMATCH", "Installed Supabase CLI must exactly match the tracked devDependency");
+  }
+  return Object.freeze({ cliPath, version: installedVersion });
 }
 
 function extractVersion(output, tool) {
@@ -156,23 +168,34 @@ function extractVersion(output, tool) {
 
 export async function admitProductionTools({ environment = {}, repoRoot, execute = runCommand, supabaseVersion } = {}) {
   const allowedEnvironment = systemEnvironment(environment);
-  const invoke = async (tool, executable, args) => {
+  const invoke = async (tool, executable, args, failureCode = "TOOL_REQUIRED") => {
     try {
       return await execute({ operation: `admit ${tool} for Production backup`, executable, args, cwd: repoRoot, allowedEnvironment });
     } catch {
-      fail("TOOL_REQUIRED", `${tool} is required for Production backup execution`);
+      fail(failureCode, `${tool} is required for Production backup execution`);
     }
   };
   const age = await invoke("age", "age", ["--version"]);
   const rclone = await invoke("rclone", "rclone", ["version"]);
   await invoke("tar", "tar", ["--version"]);
+  const docker = await invoke(
+    "Docker Engine",
+    "docker",
+    ["version", "--format", "{{.Client.Version}}/{{.Server.Version}}"],
+    "DOCKER_ENGINE_REQUIRED",
+  );
   const ageVersion = extractVersion(`${age.stdout}\n${age.stderr}`, "age");
   const rcloneVersion = extractVersion(`${rclone.stdout}\n${rclone.stderr}`, "rclone");
+  const dockerVersion = String(docker.stdout ?? "").trim();
+  if (!/^[A-Za-z0-9][A-Za-z0-9.+_-]{0,99}\/[A-Za-z0-9][A-Za-z0-9.+_-]{0,99}$/.test(dockerVersion)) {
+    fail("DOCKER_ENGINE_REQUIRED", "Docker client and Engine server versions are required for Production backup execution");
+  }
   if (ageVersion !== EXPECTED_TOOL_VERSIONS.age || rcloneVersion !== EXPECTED_TOOL_VERSIONS.rclone) {
     fail("TOOL_VERSION_MISMATCH", "Production backup tool version does not match the governed baseline");
   }
   return Object.freeze([
     Object.freeze({ name: "age", present: true, version: ageVersion }),
+    Object.freeze({ name: "docker", present: true, version: dockerVersion }),
     Object.freeze({ name: "node", present: true, version: process.version }),
     Object.freeze({ name: "rclone", present: true, version: rcloneVersion }),
     Object.freeze({ name: "supabase", present: true, version: supabaseVersion }),

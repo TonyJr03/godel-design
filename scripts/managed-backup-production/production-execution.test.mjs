@@ -62,6 +62,7 @@ function successfulDependencies(observed = {}) {
     admitSupabaseCli: async () => ({ cliPath: resolve("node_modules/supabase/dist/supabase.js"), version: "2.109.1" }),
     admitTools: async () => [
       { name: "age", present: true, version: "1.3.1" },
+      { name: "docker", present: true, version: "28.3.3/28.3.3" },
       { name: "node", present: true, version: process.version },
       { name: "rclone", present: true, version: "1.75.1" },
       { name: "supabase", present: true, version: "2.109.1" },
@@ -136,11 +137,36 @@ test("repo-local Supabase CLI admission rejects missing and linked files", async
   }
 });
 
+function supabasePackageReader(trackedVersion, installedVersion) {
+  return async (pathname) => JSON.stringify(pathname.includes("node_modules")
+    ? { version: installedVersion }
+    : { devDependencies: { supabase: trackedVersion } });
+}
+
+test("repo-local Supabase CLI admits only the exact tracked devDependency", async () => {
+  const admitted = await admitRepoLocalSupabaseCli({
+    repoRoot: process.cwd(),
+    inspect: async () => ({ isFile: () => true, isSymbolicLink: () => false }),
+    read: supabasePackageReader("2.109.1", "2.109.1"),
+  });
+  assert.equal(admitted.version, "2.109.1");
+});
+
+test("repo-local Supabase CLI rejects installed mismatch and dependency ranges", async () => {
+  for (const [trackedVersion, installedVersion] of [["2.109.1", "2.110.0"], ["^2.109.1", "2.109.1"], ["latest", "2.109.1"]]) {
+    await assert.rejects(admitRepoLocalSupabaseCli({
+      repoRoot: process.cwd(),
+      inspect: async () => ({ isFile: () => true, isSymbolicLink: () => false }),
+      read: supabasePackageReader(trackedVersion, installedVersion),
+    }), (error) => error.code === "SUPABASE_CLI_VERSION_MISMATCH");
+  }
+});
+
 test("tool admission pins age/rclone and stops on missing age, rclone, or tar", async () => {
-  const output = { age: "age 1.3.1", rclone: "rclone v1.75.1", tar: "tar 1.35" };
+  const output = { age: "age 1.3.1", rclone: "rclone v1.75.1", tar: "tar 1.35", docker: "28.3.3/28.3.3" };
   const execute = async ({ executable }) => ({ stdout: output[executable], stderr: "" });
   const admitted = await admitProductionTools({ environment: {}, repoRoot: process.cwd(), execute, supabaseVersion: "2.109.1" });
-  assert.deepEqual(admitted.map((item) => item.name), ["age", "node", "rclone", "supabase"]);
+  assert.deepEqual(admitted.map((item) => item.name), ["age", "docker", "node", "rclone", "supabase"]);
   for (const missing of ["age", "rclone", "tar"]) {
     await assert.rejects(admitProductionTools({
       environment: {}, repoRoot: process.cwd(), supabaseVersion: "2.109.1",
@@ -155,8 +181,45 @@ test("tool admission pins age/rclone and stops on missing age, rclone, or tar", 
 test("tool version mismatch fails before Production adapters", async () => {
   await assert.rejects(admitProductionTools({
     environment: {}, repoRoot: process.cwd(), supabaseVersion: "2.109.1",
-    execute: async ({ executable }) => ({ stdout: executable === "age" ? "age 1.3.2" : executable === "rclone" ? "rclone v1.75.1" : "tar 1.35", stderr: "" }),
+    execute: async ({ executable }) => ({ stdout: executable === "age" ? "age 1.3.2" : executable === "rclone" ? "rclone v1.75.1" : executable === "docker" ? "28.3.3/28.3.3" : "tar 1.35", stderr: "" }),
   }), (error) => error.code === "TOOL_VERSION_MISMATCH");
+});
+
+function dockerAdmissionDependencies(dockerResult, observed) {
+  const dependencies = successfulDependencies(observed);
+  dependencies.admitTools = (options) => admitProductionTools({
+    ...options,
+    execute: async ({ executable }) => {
+      if (executable === "age") return { stdout: "age 1.3.1", stderr: "" };
+      if (executable === "rclone") return { stdout: "rclone v1.75.1", stderr: "" };
+      if (executable === "tar") return { stdout: "tar 1.35", stderr: "" };
+      if (dockerResult instanceof Error) throw dockerResult;
+      return { stdout: dockerResult, stderr: "" };
+    },
+  });
+  return dependencies;
+}
+
+test("Docker unavailable and unavailable Engine stop before adapters", async () => {
+  for (const dockerResult of [new Error("docker unavailable"), "28.3.3/"]) {
+    const observed = { adapterCalls: 0 };
+    const dependencies = dockerAdmissionDependencies(dockerResult, observed);
+    dependencies.captureAdapterFactory = () => { observed.adapterCalls += 1; };
+    dependencies.r2AdapterFactory = () => { observed.adapterCalls += 1; };
+    await assert.rejects(runProductionExecution({ environment: environment(), dependencies }), (error) => error.code === "DOCKER_ENGINE_REQUIRED");
+    assert.equal(observed.adapterCalls, 0);
+  }
+});
+
+test("Docker client and Engine server are admitted without an artificial pin", async () => {
+  const admitted = await admitProductionTools({
+    environment: {}, repoRoot: process.cwd(), supabaseVersion: "2.109.1",
+    execute: async ({ executable }) => ({
+      stdout: executable === "age" ? "age 1.3.1" : executable === "rclone" ? "rclone v1.75.1" : executable === "docker" ? "28.3.3/28.3.1" : "tar 1.35",
+      stderr: "",
+    }),
+  });
+  assert.deepEqual(admitted.find((tool) => tool.name === "docker"), { name: "docker", present: true, version: "28.3.3/28.3.1" });
 });
 
 test("tool admission failure in the composed harness stops before adapters", async () => {
