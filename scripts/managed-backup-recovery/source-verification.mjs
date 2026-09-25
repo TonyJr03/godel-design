@@ -14,6 +14,7 @@ import { classifyManagedSqlArtifacts } from "./sql-admission.mjs";
 import { preflightManagedRecoveryTools } from "./tool-preflight.mjs";
 
 const SOURCE_METHODS = Object.freeze(["inspectCandidate", "downloadReceipt", "downloadCiphertext"]);
+const CONSUMER_RESULT_FIELDS = Object.freeze(["status", "phase", "remoteActivity", "realTargetStarts", "targetMutations", "sqlExecutions", "realR2Reads", "realAgeDecrypts"]);
 
 function fail(code, message, extra = {}) {
   const error = new Error(message);
@@ -30,6 +31,17 @@ export function assertRecoveryOnlySourceAdapter(adapter) {
     fail("RECOVERY_SOURCE_ADAPTER_INVALID", "Recovery source adapter must expose only read operations");
   }
   return adapter;
+}
+
+export function sanitizeVerifiedSourceConsumerResult(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.getPrototypeOf(value) !== Object.prototype) fail("RECOVERY_SOURCE_CONSUMER_RESULT_INVALID", "Verified source consumer result is invalid");
+  const keys = Object.keys(value);
+  if (!keys.includes("status") || keys.some((key) => !CONSUMER_RESULT_FIELDS.includes(key)) || typeof value.status !== "string" || !/^[A-Z][A-Z0-9_]*$/.test(value.status)) {
+    fail("RECOVERY_SOURCE_CONSUMER_RESULT_INVALID", "Verified source consumer result contains unsupported fields");
+  }
+  if (value.phase !== undefined && (typeof value.phase !== "string" || !/^[A-Z][A-Z0-9_]*$/.test(value.phase))) fail("RECOVERY_SOURCE_CONSUMER_RESULT_INVALID", "Verified source consumer phase is invalid");
+  for (const key of CONSUMER_RESULT_FIELDS.slice(2)) if (value[key] !== undefined && (!Number.isSafeInteger(value[key]) || value[key] < 0)) fail("RECOVERY_SOURCE_CONSUMER_RESULT_INVALID", "Verified source consumer operation count is invalid");
+  return Object.freeze(Object.fromEntries(keys.map((key) => [key, value[key]])));
 }
 
 export function admitExternalRecoveryReceipt(receipt, selectedBackupId) {
@@ -115,6 +127,10 @@ export async function runManagedRecoverySourceVerification({
     await extractSafeTarArchive({ archivePath, destination: bundleRoot, inspection: archiveInspection });
     const bundle = await verifyManagedBundleTree({ root: bundleRoot, receipt, selectedBackupId });
     const sql = await classifyManagedSqlArtifacts(bundleRoot);
+    if (dependencies.consumeVerifiedSource !== undefined) {
+      if (typeof dependencies.consumeVerifiedSource !== "function") fail("RECOVERY_SOURCE_CONSUMER_INVALID", "Verified recovery source consumer is invalid");
+      await dependencies.consumeVerifiedSource(Object.freeze({ session, bundleRoot, receipt, bundle, sql }));
+    }
     result = Object.freeze({
       status: "PASS",
       tools,
@@ -142,4 +158,12 @@ export async function runManagedRecoverySourceVerification({
   }
   if (primaryError) throw primaryError;
   return result;
+}
+
+export async function withVerifiedManagedRecoverySource(options, callback) {
+  if (typeof callback !== "function") fail("RECOVERY_SOURCE_CONSUMER_INVALID", "Verified recovery source callback is required");
+  let consumed;
+  const dependencies = { ...(options?.dependencies ?? {}), consumeVerifiedSource: async (context) => { consumed = sanitizeVerifiedSourceConsumerResult(await callback(context)); } };
+  await runManagedRecoverySourceVerification({ ...options, dependencies });
+  return consumed;
 }

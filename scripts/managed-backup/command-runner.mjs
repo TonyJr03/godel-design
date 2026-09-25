@@ -31,7 +31,7 @@ function plain(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype;
 }
 
-function redact(source, secrets) {
+function redact(source, secrets, { preserveOutput = false } = {}) {
   let output = String(source ?? "");
   for (const secret of secrets.filter((value) => typeof value === "string" && value.length >= 4)) {
     output = output.split(secret).join("[REDACTED]");
@@ -40,7 +40,7 @@ function redact(source, secrets) {
   output = output.replace(/AGE-SECRET-KEY-[A-Z0-9-]+/g, "[REDACTED]");
   output = output.replace(/\bsb_secret_[A-Za-z0-9_-]+/g, "[REDACTED]");
   output = output.replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, "[REDACTED]");
-  return output.slice(0, 4096).trim();
+  return preserveOutput ? output : output.slice(0, 4096).trim();
 }
 
 export function validateSecretSafeArgs(args, { secretValues = [] } = {}) {
@@ -76,17 +76,17 @@ export function validateSecretSafeDatabaseTransport(transport) {
   return transport;
 }
 
-function appendLimited(chunks, chunk, currentSize) {
-  if (currentSize >= MAX_OUTPUT_BYTES) return currentSize;
+function appendLimited(chunks, chunk, currentSize, limit = MAX_OUTPUT_BYTES) {
+  if (currentSize >= limit) return currentSize;
   const buffer = Buffer.from(chunk);
-  const remaining = MAX_OUTPUT_BYTES - currentSize;
+  const remaining = limit - currentSize;
   chunks.push(buffer.subarray(0, remaining));
   return currentSize + Math.min(buffer.length, remaining);
 }
 
 export async function runCommand(options) {
   if (!plain(options)) fail("COMMAND_PLAN_INVALID", "Command options must be an object");
-  const allowedKeys = new Set(["operation", "executable", "args", "allowedEnvironment", "stdin", "cwd", "secretValues", "redactionValues"]);
+  const allowedKeys = new Set(["operation", "executable", "args", "allowedEnvironment", "stdin", "cwd", "secretValues", "redactionValues", "maxOutputBytes", "preserveOutput"]);
   if (Object.keys(options).some((key) => !allowedKeys.has(key))) fail("COMMAND_PLAN_INVALID", "Unexpected command option");
   const {
     operation,
@@ -97,6 +97,8 @@ export async function runCommand(options) {
     cwd,
     secretValues = [],
     redactionValues = [],
+    maxOutputBytes = MAX_OUTPUT_BYTES,
+    preserveOutput = false,
   } = options;
   if (typeof operation !== "string" || operation.length === 0 || typeof executable !== "string" || executable.length === 0) {
     fail("COMMAND_PLAN_INVALID", "Command operation and executable are required");
@@ -107,6 +109,9 @@ export async function runCommand(options) {
   }
   if (!Array.isArray(redactionValues) || redactionValues.some((value) => typeof value !== "string")) {
     fail("COMMAND_PLAN_INVALID", "Command redaction values must be an array of strings");
+  }
+  if (!Number.isSafeInteger(maxOutputBytes) || maxOutputBytes < 1 || maxOutputBytes > 8 * 1024 * 1024 || typeof preserveOutput !== "boolean") {
+    fail("COMMAND_PLAN_INVALID", "Command output policy is invalid");
   }
   validateSecretSafeArgs(args, { secretValues });
   const secretEnvironmentValues = Object.entries(allowedEnvironment)
@@ -126,16 +131,16 @@ export async function runCommand(options) {
     const stderr = [];
     let stdoutSize = 0;
     let stderrSize = 0;
-    child.stdout.on("data", (chunk) => { stdoutSize = appendLimited(stdout, chunk, stdoutSize); });
-    child.stderr.on("data", (chunk) => { stderrSize = appendLimited(stderr, chunk, stderrSize); });
+    child.stdout.on("data", (chunk) => { stdoutSize = appendLimited(stdout, chunk, stdoutSize, maxOutputBytes); });
+    child.stderr.on("data", (chunk) => { stderrSize = appendLimited(stderr, chunk, stderrSize, maxOutputBytes); });
     child.on("error", (error) => reject(new ManagedBackupCommandError({
       operation,
       stderrSummary: redact(error?.code === "ENOENT" ? "Executable is unavailable" : error?.message, redactions),
       code: error?.code === "ENOENT" ? "EXECUTABLE_UNAVAILABLE" : "COMMAND_START_FAILED",
     })));
     child.on("close", (exitCode, signal) => {
-      const sanitizedStdout = redact(Buffer.concat(stdout).toString("utf8"), redactions);
-      const sanitizedStderr = redact(Buffer.concat(stderr).toString("utf8"), redactions);
+      const sanitizedStdout = redact(Buffer.concat(stdout).toString("utf8"), redactions, { preserveOutput });
+      const sanitizedStderr = redact(Buffer.concat(stderr).toString("utf8"), redactions, { preserveOutput });
       if (exitCode !== 0) {
         reject(new ManagedBackupCommandError({ operation, exitCode, signal, stderrSummary: sanitizedStderr || "Command exited unsuccessfully" }));
         return;

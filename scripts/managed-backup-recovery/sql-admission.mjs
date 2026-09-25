@@ -36,6 +36,7 @@ const ALLOWED_SESSION_STATEMENTS = new Set([
   "SET client_min_messages = warning;",
   "SET row_security = off;",
 ]);
+const admittedModels = new WeakMap();
 
 function fail(code, message) {
   const error = new Error(message);
@@ -67,6 +68,7 @@ export function admitManagedDataSql(source) {
   if (typeof source !== "string" || source.length === 0 || source.includes("\0")) fail("RECOVERY_SQL_INVALID", "Managed data SQL must be nonempty text");
   const lines = source.replace(/\r\n/g, "\n").split("\n");
   const tables = new Set();
+  const copyBlocks = [];
   let sequenceCount = 0;
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
@@ -86,6 +88,7 @@ export function admitManagedDataSql(source) {
     const identity = `${schema}.${table}`;
     if (tables.has(identity)) fail("RECOVERY_SQL_COPY_DUPLICATE", "Managed data COPY table appears more than once");
     const columns = parseColumns(match[5]);
+    const start = index;
     let terminated = false;
     for (index += 1; index < lines.length; index += 1) {
       if (lines[index] === "\\.") {
@@ -95,12 +98,13 @@ export function admitManagedDataSql(source) {
       validateCopyRow(lines[index], columns.length);
     }
     if (!terminated) fail("RECOVERY_SQL_COPY_INVALID", "Managed data COPY block is not terminated");
+    copyBlocks.push(Object.freeze({ identity, columns: Object.freeze(columns), start, end: index }));
     tables.add(identity);
   }
   if (tables.size === 0) fail("RECOVERY_SQL_COPY_MISSING", "Managed data SQL contains no admitted COPY tables");
   const mutableTables = [...tables].sort((left, right) => left.localeCompare(right, "en"));
   const ephemeralTables = mutableTables.filter((identity) => EPHEMERAL_AUTH_TABLES.has(identity));
-  return Object.freeze({
+  const result = Object.freeze({
     status: "ADMITTED",
     mutableTables: Object.freeze(mutableTables),
     mutableTableCount: mutableTables.length,
@@ -108,6 +112,14 @@ export function admitManagedDataSql(source) {
     ephemeralAuthState: ephemeralTables.length === 0 ? "EXCLUDED" : "PRESENT_REQUIRES_SANITIZATION",
     ephemeralAuthTableCount: ephemeralTables.length,
   });
+  admittedModels.set(result, Object.freeze({ source, lines: Object.freeze(lines), copyBlocks: Object.freeze(copyBlocks) }));
+  return result;
+}
+
+export function withAdmittedManagedDataSql(admission, callback) {
+  const model = admittedModels.get(admission);
+  if (!model || typeof callback !== "function") fail("RECOVERY_SQL_ADMISSION_REQUIRED", "Managed data SQL admission handle is invalid");
+  return callback(model);
 }
 
 async function readRegular(root, pathname) {

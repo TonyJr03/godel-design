@@ -36,8 +36,9 @@ resueltas ni planes históricos completos.
 | TD-SH05-002 | Frontend Dockerfile externo | Media | No | Activa |
 | TD-SH05-003 | Build Godel clean-host target-side | Media | No | Activa |
 | TD-SH05-004 | Aceptación funcional y cierre SH-05 | Media | No | Activa |
-| TD-BACKUP-001 | Recovery/archive admission | Alta | No; bloquea M.5.3 | Activa |
+| TD-BACKUP-001 | Recovery/archive admission | Alta | No | Resuelta en M.5.3A |
 | TD-BACKUP-002 | Recovery/Auth sessions | Media | No; bloquea M.5.3 | Activa |
+| TD-BACKUP-003 | Recovery/archive paths extendidos | Media | No | Activa después del piloto |
 
 ## Bloqueadores antes de producción pública
 
@@ -96,12 +97,12 @@ PPO-02/PPO-03. TD-STORAGE-002, TD-SECURITY-001 y TD-NEXT-001 siguen activas.
 
 ## Deudas activas
 
-### TD-BACKUP-001 - Archive entry admission / path traversal hardening
+### TD-BACKUP-001 - Archive entry admission / path traversal hardening (resuelta)
 
-Antes de extraer un bundle en el restore drill M.5.3 debe validarse cada entry
-del archive: paths relativos portables, sin traversal, links, reparse points,
-special files ni colisiones. M.5.2 solo produce y cifra el archive; no autoriza
-su extracción Productiva.
+M.5.3A cerró y aprobó la validación previa de cada entry del archive: paths
+relativos portables, sin traversal, links, reparse points, special files ni
+colisiones, seguida por exact-tree verification. Esto no autoriza extracción
+ni restore Productivo.
 
 ### TD-BACKUP-002 - Auth session/refresh token recovery policy
 
@@ -110,6 +111,13 @@ OTP tras recovery. La captura conserva usuarios, UUIDs, identities y cobertura
 de `encrypted_password`, pero no promete continuidad de sesiones previas al
 desastre. La política esperada es invalidación y reautenticación hasta que el
 drill demuestre y apruebe el contrato exacto.
+
+### TD-BACKUP-003 - Compatibilidad archive para paths Storage extendidos
+
+`IMPORTANT AFTER PILOT`: evaluar compatibilidad para futuros paths de Storage
+que requieran extensiones GNU longname/PAX. La admisión recovery actual
+permanece deliberadamente fail-closed; cualquier ampliación debe conservar los
+gates contra traversal, links, tipos especiales, duplicados y árbol inesperado.
 
 ### TD-QA-001 - Suite e2e paralela no estable
 

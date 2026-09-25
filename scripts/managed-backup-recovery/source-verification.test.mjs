@@ -9,6 +9,7 @@ import {
   admitExternalRecoveryReceipt,
   assertRecoveryOnlySourceAdapter,
   runManagedRecoverySourceVerification,
+  withVerifiedManagedRecoverySource,
 } from "./source-verification.mjs";
 import { runCommand } from "../managed-backup/command-runner.mjs";
 import { preflightManagedRecoveryTools } from "./tool-preflight.mjs";
@@ -185,6 +186,31 @@ test("synthetic source orchestrator verifies and cleans without target mutation 
   assert.equal(result.sqlExecutions, 0);
   assert.ok(!JSON.stringify(result).includes(TEST_BACKUP_ID));
   assert.ok(!JSON.stringify(result).includes(fixture.identityPath));
+  await assert.rejects(access(join(fixture.recoveryParent, `recovery-session-${TEST_SESSION_ID}`)));
+});
+
+test("official source callback returns only its sanitized contract after lifecycle cleanup", async () => {
+  const fixture = await orchestrationFixture();
+  const options = {
+    selectedBackupId: TEST_BACKUP_ID,
+    recoveryParent: fixture.recoveryParent,
+    backupOutputRoot: fixture.backupOutputRoot,
+    repoRoot: fixture.repoRoot,
+    environment: { GODEL_MANAGED_RECOVERY_IDENTITY_FILE: fixture.identityPath },
+    sourceAdapterFactory: syntheticSourceFactory(fixture),
+    decryptAdapter: { async decryptToTar({ archivePath }) { await writeFile(archivePath, fixture.archive, { flag: "wx" }); } },
+    dependencies: { sessionId: TEST_SESSION_ID, preflight: async () => [] },
+  };
+  const result = await withVerifiedManagedRecoverySource(options, async (context) => {
+    assert.equal(context.sql.managedData.status, "ADMITTED");
+    return { status: "READY", phase: "TARGET_PLAN", remoteActivity: 0, realTargetStarts: 0, targetMutations: 0, sqlExecutions: 0, realR2Reads: 0, realAgeDecrypts: 0 };
+  });
+  assert.deepEqual(result, { status: "READY", phase: "TARGET_PLAN", remoteActivity: 0, realTargetStarts: 0, targetMutations: 0, sqlExecutions: 0, realR2Reads: 0, realAgeDecrypts: 0 });
+  const publicText = JSON.stringify(result);
+  for (const confidential of [fixture.identityPath, TEST_BACKUP_ID, "identity-placeholder", "hash-placeholder", "database/managed-data.sql", "bundle"]) assert.ok(!publicText.includes(confidential));
+  await assert.rejects(access(join(fixture.recoveryParent, `recovery-session-${TEST_SESSION_ID}`)));
+
+  await assert.rejects(withVerifiedManagedRecoverySource(options, async (context) => ({ status: "READY", bundleRoot: context.bundleRoot })), { code: "RECOVERY_SOURCE_CONSUMER_RESULT_INVALID" });
   await assert.rejects(access(join(fixture.recoveryParent, `recovery-session-${TEST_SESSION_ID}`)));
 });
 

@@ -832,7 +832,7 @@ PPO-04M.5.2.1E
 
 PPO-04M.5.3
 = Restore Drill + Baseline Closure
-= ACTIVE / RESTORE DRILL ARCHITECTURE AUDIT
+= ACTIVE / ISOLATED TARGET + RESTORE TOOLING
 ```
 
 M.6 no se abre hasta que M.5.3 esté cerrado/aprobado.
@@ -904,6 +904,28 @@ publicación; M.5.1 queda cerrado.
 - todos los gates de la sección 16 `PASS`;
 - cleanup/retención del target decidido;
 - M.5 cerrado por revisión arquitectónica.
+
+### PPO-04M.5.3B.1 — Real-target contract corrections
+
+El tooling mantiene M.5.3B en `IMPLEMENTED / CORRECTIONS APPLIED / PENDING
+ARCHITECTURAL REVIEW`. El catálogo del target admite tablas internas legítimas
+sin convertirlas en tablas mutables; status Supabase y discovery Docker pasan
+por boundaries estrictos con secretos opacos; los planes post-restore son SQL
+read-only ejecutable con parsers de agregados sanitizados; la continuidad Auth
+incluye el UUID de cada identity; y transferencia/inventario de bytes usan sólo
+el S3 local del target con credenciales en environment. Todas las pruebas de
+este pase son sintéticas.
+
+```text
+PPO-04M.5.3B = IMPLEMENTED / CORRECTIONS APPLIED / PENDING ARCHITECTURAL REVIEW
+REAL LOCAL RESTORE DRILL = NOT AUTHORIZED
+REMOTE ACTIVITY = 0
+REAL TARGET STARTS = 0
+TARGET MUTATIONS = 0
+SQL EXECUTION = 0
+REAL R2 READ = 0
+REAL AGE DECRYPT = 0
+```
 
 ### PPO-04M.5.1 FINAL INTEGRATION EVIDENCE
 

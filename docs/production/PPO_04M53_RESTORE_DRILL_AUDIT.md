@@ -1,14 +1,16 @@
 # PPO-04M.5.3 — Restore Drill + Baseline Closure Architecture Audit
 
-**Estado de M.5.3:** `ACTIVE / SOURCE VERIFICATION TOOLING`
+**Estado de M.5.3:** `ACTIVE / ISOLATED TARGET + RESTORE TOOLING`
 
 **Estado de M.5.3.0:** `CLOSED / RESTORE DRILL ARCHITECTURE APPROVED`
 
-**Estado de M.5.3A:** `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`
+**Estado de M.5.3A:** `CLOSED / SOURCE VERIFICATION TOOLING APPROVED`
+
+**Estado de M.5.3B:** `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`
 
 **Fecha:** 2026-09-25
 
-**Resultado del audit:** `ARCHITECTURE DEFINED / M.5.3A IMPLEMENTED`
+**Resultado del audit:** `ARCHITECTURE DEFINED / M.5.3B IMPLEMENTED`
 
 ## 1. Autoridad y límites de este pase
 
@@ -26,13 +28,13 @@ R2 RECEIPT ROUNDTRIP = VERIFIED
 WARNINGS = 0
 ```
 
-Este pase sólo audita y diseña el restore. No descarga el backup, no usa la
-identity privada, no descifra, no crea un target y no ejecuta SQL. Tampoco
-contacta Production, Supabase Managed ni R2.
+Durante M.5.3.0 sólo se auditó y diseñó el restore. No se descargó el backup,
+no se usó la identity privada, no se descifró, no se creó un target y no se
+ejecutó SQL. Tampoco se contactó Production, Supabase Managed ni R2.
 
 ```text
 PRODUCTION RESTORE = NOT AUTHORIZED
-RESTORE TARGET = NOT YET CREATED
+REAL LOCAL RESTORE TARGET = NOT EXECUTED
 REMOTE ACTIVITY DURING AUDIT = 0
 ```
 
@@ -468,6 +470,7 @@ referencia sanitizada de fase, no una ruta absoluta, y M.5.3 no puede cerrar.
 | `IMPORTANT AFTER PILOT` | El target local no prueba fidelidad Supabase Managed completa. | Drill futuro en proyecto managed nuevo bajo autorización separada. |
 | `IMPORTANT AFTER PILOT` | El backup real actual no ejercita Storage no vacío. | Drill posterior con objetos reales o fixture gobernado no vacío. |
 | `IMPORTANT AFTER PILOT` | Escala y duración no están caracterizadas. | Medición con volumen representativo y budget operativo. |
+| `IMPORTANT AFTER PILOT` | Compatibilidad de archive para futuros paths de Storage que requieran GNU longname/PAX; recovery actual permanece fail-closed. | Diseñar, admitir y probar extensiones de archive sin relajar traversal/links/exact-tree. |
 | `OPTIONAL HARDENING` | Reporte machine-readable firmado por operador. | Diseño separado sin secretos ni nueva PKI improvisada. |
 | `OPTIONAL HARDENING` | Mejoras platform-specific de ACL/secure temp. | Hardening adicional sin prometer secure erase. |
 
@@ -505,19 +508,34 @@ La suite `ops:restore:managed:source:test` usa únicamente fixtures locales. No
 existe todavía comando destructivo `ops:restore:managed`.
 
 Los blockers de source verification, archive admission, adapter R2 read-only,
-exact-tree, clasificación SQL, Storage empty/nonempty y cleanup quedan
-implementados a nivel M.5.3A, pendientes de revisión arquitectónica. Continúan
-abiertos para M.5.3B el target local, la mutación SQL, la sanitización efectiva
-de estado Auth, la continuidad Auth post-restore y el login real interno.
+exact-tree, clasificación SQL, Storage empty/nonempty y cleanup quedaron
+aprobados en M.5.3A. La lectura R2, el decrypt y el restore reales permanecen
+fuera de este pase.
 
 ### PPO-04M.5.3B — Isolated local target + restore tooling
 
-- extraer target factory de M.5.1;
-- project ID/ports únicos y no-linked proof;
-- bootstrap desde `productionRuntimeSha`/baseline exacta;
-- SQL artifact admission y data-only restore transaccional;
-- Auth/Storage pre/post gates, incluyendo Storage vacío;
-- cleanup y failure injection tests.
+Implementado el 2026-09-25 bajo `scripts/managed-backup-recovery/`, sólo con
+fixtures y adapters falsos:
+
+- autoridad Git read-only sobre `manifest.productionRuntimeSha`, con config y
+  las seis migraciones exactas leídas del objeto Git sin checkout/fetch;
+- target workdir contenido en `session.target`, project ID interno, puertos
+  dinámicos únicos y config local sin seed, link ni URLs Productivas;
+- command plans `shell:false`, CLI repo-local, environment allowlisted,
+  resolución del DB container por labels y proof `LOCAL_ONLY`;
+- baseline gate 01–06, schemas/extensiones y bucket privado;
+- audit no ejecutor de roles/schema/history y plan mutable derivado del parser
+  admitido de M.5.3A;
+- eliminación determinista de COPY blocks Auth efímeros y construcción opaca
+  de stdin para `psql --single-transaction` con truncation explícito;
+- continuidad Auth mediante digests no reversibles, validación DB/Storage por
+  agregados y contrato de login interactivo todavía `NOT_EXECUTED`;
+- orden DB → metadata Storage → bytes, con
+  `EMPTY_STORAGE_BYTE_RESTORE = VALIDATED_NO_OP` cuando el inventario es cero;
+- cleanup limitado al project/session identity, con residue y fallo visibles.
+
+La suite `ops:restore:managed:target:test` no inicia Docker, Supabase ni psql.
+No existe un CLI destructivo `ops:restore:managed`.
 
 ### PPO-04M.5.3C — Real backup restore drill
 
@@ -544,16 +562,19 @@ PPO-04M.5.3.0 =
 CLOSED / RESTORE DRILL ARCHITECTURE APPROVED
 
 PPO-04M.5.3A =
+CLOSED / SOURCE VERIFICATION TOOLING APPROVED
+
+PPO-04M.5.3B =
 IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
 
 PPO-04M.5.3 =
-ACTIVE / SOURCE VERIFICATION TOOLING
+ACTIVE / ISOLATED TARGET + RESTORE TOOLING
 
 PRODUCTION RESTORE =
 NOT AUTHORIZED
 
-RESTORE TARGET =
-NOT YET CREATED
+REAL LOCAL RESTORE TARGET =
+NOT EXECUTED
 
 REAL R2 RECOVERY READ =
 NOT EXECUTED
@@ -562,6 +583,9 @@ REAL AGE DECRYPT =
 NOT EXECUTED
 
 REMOTE ACTIVITY =
+0
+
+REAL TARGET STARTS =
 0
 
 TARGET MUTATIONS =
