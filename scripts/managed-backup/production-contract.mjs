@@ -163,7 +163,7 @@ export function buildProductionS3CommandPlan(options = {}) {
 
 export function createWriterFreezeRecord({ startedAt, dbStartedAt, dbEndedAt, storageStartedAt, storageEndedAt, endedAt } = {}) {
   const record = { schemaVersion: 1, startedAt, dbCapture: { startedAt: dbStartedAt, endedAt: dbEndedAt }, storageCapture: { startedAt: storageStartedAt, endedAt: storageEndedAt }, endedAt };
-  const timestamps = [startedAt, dbStartedAt, dbEndedAt, storageStartedAt, storageEndedAt, endedAt];
+  const timestamps = [startedAt, storageStartedAt, dbStartedAt, dbEndedAt, storageEndedAt, endedAt];
   if (timestamps.some((value) => {
     if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)) return true;
     const parsed = new Date(value);

@@ -366,6 +366,78 @@ test("post-verification cleanup failure preserves COMPLETE backup with a warning
   assert.deepEqual(result.warnings, ["EXTERNAL_VERIFICATION_CLEANUP_PENDING"]);
 });
 
+test("Production lifecycle writes the nested writer-freeze windows into the bundle", async () => {
+  const root = await mkdtemp(join(tmpdir(), "godel-production-freeze-window-"));
+  const custody = {
+    publishCiphertext: async () => undefined,
+    downloadCiphertext: async ({ backupId }) => {
+      const path = join(root, `${backupId}.r2-download.age`);
+      await writeFile(path, "verified-ciphertext");
+      return path;
+    },
+    publishReceipt: async () => undefined,
+  };
+  const values = environment({ GODEL_MANAGED_BACKUP_OUTPUT_ROOT: root });
+  const prepared = await prepareProductionBackup({
+    environment: values,
+    repoRoot: process.cwd(),
+    externalPublicationAdapter: custody,
+    dependencies: {
+      resolveGitAuthority: async () => ({ branch: "ops/managed-free-production-pilot", head: TOOLING_SHA, clean: true }),
+      readLinkedProjectRef: async () => values.GODEL_MANAGED_SUPABASE_PROJECT_REF,
+      ensureSafeOutputRoot: async () => root,
+    },
+  });
+  const expectedFreeze = {
+    schemaVersion: 1,
+    startedAt: "2026-09-25T12:00:00.000Z",
+    dbCapture: {
+      startedAt: "2026-09-25T12:00:02.000Z",
+      endedAt: "2026-09-25T12:00:03.000Z",
+    },
+    storageCapture: {
+      startedAt: "2026-09-25T12:00:01.000Z",
+      endedAt: "2026-09-25T12:00:04.000Z",
+    },
+    endedAt: "2026-09-25T12:00:05.000Z",
+  };
+  const clock = [
+    "2026-09-25T11:59:59.000Z",
+    expectedFreeze.startedAt,
+    expectedFreeze.endedAt,
+    "2026-09-25T12:00:06.000Z",
+  ];
+  let bundleReached = false;
+
+  const result = await executePreparedProductionBackup(prepared, {
+    now: () => new Date(clock.shift()),
+    captureAdapter: {
+      captureReadOnly: async () => ({
+        artifacts: [], databaseCounts: {}, authInventory: {}, storageInventory: {}, configurationSnapshot: {}, toolVersions: [],
+        freeze: {
+          storageStartedAt: expectedFreeze.storageCapture.startedAt,
+          dbStartedAt: expectedFreeze.dbCapture.startedAt,
+          dbEndedAt: expectedFreeze.dbCapture.endedAt,
+          storageEndedAt: expectedFreeze.storageCapture.endedAt,
+        },
+      }),
+    },
+    bundle: async ({ backupId, syntheticArtifacts }) => {
+      bundleReached = true;
+      const artifact = syntheticArtifacts.find(({ path }) => path === "operations/writer-freeze.json");
+      assert.deepEqual(JSON.parse(artifact.content), expectedFreeze);
+      assert.ok(expectedFreeze.storageCapture.startedAt <= expectedFreeze.dbCapture.startedAt);
+      assert.ok(expectedFreeze.dbCapture.endedAt <= expectedFreeze.storageCapture.endedAt);
+      const finalPath = join(root, `${backupId}.age`);
+      await writeFile(finalPath, "verified-ciphertext");
+      return { backupId, finalPath, manifest: { status: "COMPLETE" }, warnings: [] };
+    },
+  });
+
+  assert.equal(bundleReached, true);
+  assert.equal(result.externalPublication, "VERIFIED");
+});
+
 test("private recovery identity is neither configured nor required", async () => {
   const values = environment();
   assert.equal(Object.keys(values).some((key) => /AGE.*IDENTITY/.test(key)), false);

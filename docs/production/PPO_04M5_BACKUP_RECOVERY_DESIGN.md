@@ -18,9 +18,9 @@
 
 **M.5.2.1C:** `CLOSED / PRODUCTION AGE RECOVERY IDENTITY CUSTODY PASS`
 
-**M.5.2.1D:** `EMPTY STORAGE CAPTURE ROOT CORRECTED / PENDING FINAL REVIEW`
+**M.5.2.1D:** `WRITER FREEZE ORDERING CORRECTION / PENDING FINAL REVIEW`
 
-**M.5.2.1E:** `PAUSED AFTER SAFE ATTEMPT #1`
+**M.5.2.1E:** `PAUSED AFTER SAFE ATTEMPT #2`
 
 **R2 REMOTE SYNTHETIC PROOF:** `PASS`
 
@@ -28,7 +28,7 @@
 
 **FIRST PRODUCTION BACKUP:** `NOT COMPLETED`
 
-**ATTEMPT #2:** `NOT AUTHORIZED`
+**ATTEMPT #3:** `NOT AUTHORIZED`
 
 **LOCAL INTEGRATION:** `PASS`
 
@@ -821,11 +821,11 @@ PPO-04M.5.2.1C
 
 PPO-04M.5.2.1D
 = First Production Backup Execution Harness
-= EMPTY STORAGE CAPTURE ROOT CORRECTED / PENDING FINAL REVIEW
+= WRITER FREEZE ORDERING CORRECTION / PENDING FINAL REVIEW
 
 PPO-04M.5.2.1E
 = First Production Backup Execution
-= PAUSED AFTER SAFE ATTEMPT #1
+= PAUSED AFTER SAFE ATTEMPT #2
 
 PPO-04M.5.3
 = Restore Drill + Baseline Closure
@@ -1029,10 +1029,10 @@ PPO-04M.5.2.0 = CLOSED / PRODUCTION BACKUP PREPARATION APPROVED
 PPO-04M.5.2.1A = CLOSED / R2 CUSTODY ADAPTER APPROVED
 PPO-04M.5.2.1B = CLOSED / R2 SYNTHETIC CUSTODY PASS
 PPO-04M.5.2.1C = CLOSED / PRODUCTION AGE RECOVERY IDENTITY CUSTODY PASS
-PPO-04M.5.2.1D = EMPTY STORAGE CAPTURE ROOT CORRECTED / PENDING FINAL REVIEW
-PPO-04M.5.2.1E = PAUSED AFTER SAFE ATTEMPT #1
+PPO-04M.5.2.1D = WRITER FREEZE ORDERING CORRECTION / PENDING FINAL REVIEW
+PPO-04M.5.2.1E = PAUSED AFTER SAFE ATTEMPT #2
 FIRST PRODUCTION BACKUP = NOT COMPLETED
-ATTEMPT #2 = NOT AUTHORIZED
+ATTEMPT #3 = NOT AUTHORIZED
 EXTERNAL CUSTODY DESTINATION = CLOUDFLARE R2 / SELECTED + SYNTHETICALLY VERIFIED
 ```
 
@@ -1301,15 +1301,26 @@ estructural del plan coincidan exactamente con `captureRoot/storage`, lo crea
 como directorio real privado antes de la ventana remota y conserva estricto el
 inventariador fuera de ese lifecycle.
 
+### M.5.2.1E — intento Productivo #2
+
+La evidencia sanitizada completa está en
+[PPO-04M.5.2.1E — First Production Backup Attempt #2](PPO_04M521E_FIRST_PRODUCTION_BACKUP_ATTEMPT_2_REPORT.md).
+El capture read-only completó los cinco dumps, los inventarios Auth y Storage y
+el gate de consistencia con Storage vacío. La ejecución se detuvo antes del
+bundle al construir el writer-freeze record porque el validator exigía que la
+ventana DB precediera al inicio de la ventana Storage, en contradicción con el
+lifecycle real. El schema público se conserva y la validación local ahora exige
+que la ventana DB quede anidada dentro de la ventana exterior Storage.
+
 El siguiente bloque describe exclusivamente la actividad del pase correctivo
-local, no la lectura inicial del intento #1:
+local, no las lecturas remotas de los intentos #1 y #2:
 
 ```text
 PPO-04M.5.2.1C = CLOSED / PRODUCTION AGE RECOVERY IDENTITY CUSTODY PASS
-PPO-04M.5.2.1D = EMPTY STORAGE CAPTURE ROOT CORRECTED / PENDING FINAL REVIEW
-PPO-04M.5.2.1E = PAUSED AFTER SAFE ATTEMPT #1
+PPO-04M.5.2.1D = WRITER FREEZE ORDERING CORRECTION / PENDING FINAL REVIEW
+PPO-04M.5.2.1E = PAUSED AFTER SAFE ATTEMPT #2
 FIRST PRODUCTION BACKUP = NOT COMPLETED
-ATTEMPT #2 = NOT AUTHORIZED
+ATTEMPT #3 = NOT AUTHORIZED
 REMOTE ACTIVITY = 0
 PPO-04M.5.3 = NOT STARTED
 

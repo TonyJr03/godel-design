@@ -30,6 +30,7 @@ import {
   PRODUCTION_BACKUP_CONFIRMATION,
   PRODUCTION_WRITER_FREEZE_CONFIRMATION,
   buildProductionS3CommandPlan,
+  createWriterFreezeRecord,
   readProductionBackupConfiguration,
 } from "../managed-backup/production-contract.mjs";
 
@@ -69,6 +70,67 @@ test("Production contract accepts a realistic synthetic PQ age recipient", () =>
   const values = environment(resolve(tmpdir(), "godel-production-pq-contract"));
   values.GODEL_MANAGED_BACKUP_AGE_RECIPIENT = SYNTHETIC_PQ_RECIPIENT;
   assert.equal(readProductionBackupConfiguration(values).ageRecipient, SYNTHETIC_PQ_RECIPIENT);
+});
+
+test("writer-freeze record accepts a DB window nested inside the outer Storage window", () => {
+  const timestamps = {
+    startedAt: "2026-09-25T12:00:00.000Z",
+    storageStartedAt: "2026-09-25T12:00:01.000Z",
+    dbStartedAt: "2026-09-25T12:00:02.000Z",
+    dbEndedAt: "2026-09-25T12:00:03.000Z",
+    storageEndedAt: "2026-09-25T12:00:04.000Z",
+    endedAt: "2026-09-25T12:00:05.000Z",
+  };
+
+  assert.deepEqual(createWriterFreezeRecord(timestamps), {
+    schemaVersion: 1,
+    startedAt: timestamps.startedAt,
+    dbCapture: { startedAt: timestamps.dbStartedAt, endedAt: timestamps.dbEndedAt },
+    storageCapture: { startedAt: timestamps.storageStartedAt, endedAt: timestamps.storageEndedAt },
+    endedAt: timestamps.endedAt,
+  });
+});
+
+const VALID_FREEZE_TIMESTAMPS = Object.freeze({
+  startedAt: "2026-09-25T12:00:00.000Z",
+  storageStartedAt: "2026-09-25T12:00:01.000Z",
+  dbStartedAt: "2026-09-25T12:00:02.000Z",
+  dbEndedAt: "2026-09-25T12:00:03.000Z",
+  storageEndedAt: "2026-09-25T12:00:04.000Z",
+  endedAt: "2026-09-25T12:00:05.000Z",
+});
+
+for (const [boundary, override] of [
+  ["storageStartedAt before startedAt", { storageStartedAt: "2026-09-25T11:59:59.000Z" }],
+  ["dbStartedAt before storageStartedAt", { dbStartedAt: "2026-09-25T12:00:00.000Z" }],
+  ["dbEndedAt before dbStartedAt", { dbEndedAt: "2026-09-25T12:00:01.000Z" }],
+  ["storageEndedAt before dbEndedAt", { storageEndedAt: "2026-09-25T12:00:02.000Z" }],
+  ["endedAt before storageEndedAt", { endedAt: "2026-09-25T12:00:03.000Z" }],
+]) {
+  test(`writer-freeze record rejects ${boundary}`, () => {
+    assert.throws(
+      () => createWriterFreezeRecord({ ...VALID_FREEZE_TIMESTAMPS, ...override }),
+      (error) => error.code === "WRITER_FREEZE_RECORD_INVALID",
+    );
+  });
+}
+
+test("writer-freeze record keeps strict ISO UTC timestamp validation", () => {
+  const valid = {
+    startedAt: "2026-09-25T12:00:00.000Z",
+    storageStartedAt: "2026-09-25T12:00:01.000Z",
+    dbStartedAt: "2026-09-25T12:00:02.000Z",
+    dbEndedAt: "2026-09-25T12:00:03.000Z",
+    storageEndedAt: "2026-09-25T12:00:04.000Z",
+    endedAt: "2026-09-25T12:00:05.000Z",
+  };
+
+  for (const startedAt of [undefined, "2026-09-25T12:00:00Z", "2026-09-25T08:00:00.000-04:00", "2026-02-30T12:00:00.000Z"]) {
+    assert.throws(
+      () => createWriterFreezeRecord({ ...valid, startedAt }),
+      (error) => error.code === "WRITER_FREEZE_RECORD_INVALID",
+    );
+  }
 });
 
 test("absent exact confirmation stops before every local or Production adapter", async () => {
