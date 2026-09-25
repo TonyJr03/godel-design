@@ -84,7 +84,7 @@ test("target/restore orchestration prepares only local artifacts and builds an o
     });
     const rawDockerOutput = `${JSON.stringify({
       ID: "0123456789ab", Image: "public.ecr.aws/supabase/postgres:17", Names: `supabase_db_${PROJECT}`, State: "running", Status: "Up 10 seconds (healthy)",
-      Labels: `com.docker.compose.service=db,com.supabase.cli.project=${PROJECT}`,
+      Labels: `com.supabase.cli.project=${PROJECT},com.docker.compose.project=${PROJECT}`,
     })}\n`;
     const runtime = admitPreparedRecoveryTargetRuntime({ prepared, session: { target: targetPath }, manifest: { productionRuntimeSha: SHA }, rawStatusOutput, rawDockerOutput, productionProjectRef: "production-project", environment: {} });
     assert.equal(runtime.status, "ADMITTED");

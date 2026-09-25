@@ -1,5 +1,6 @@
 const GOVERNED_SCHEMAS = Object.freeze(["auth", "private", "public", "storage"]);
 const SHA_VERSION = /^\d{14}$/;
+export const REQUIRED_TARGET_EXTENSIONS = Object.freeze(["pgcrypto"]);
 
 function fail(code, message) {
   const error = new Error(message);
@@ -78,7 +79,7 @@ export function auditMigrationHistorySql({ schemaSql, dataSql, baselineVersions 
   return Object.freeze({ status: "PASS", versions: Object.freeze(versions), treatment: "AUDIT_ONLY" });
 }
 
-export function validateTargetBaseline({ authority, targetState, requiredExtensions = ["pgcrypto"] } = {}) {
+export function validateTargetBaseline({ authority, targetState, requiredExtensions = REQUIRED_TARGET_EXTENSIONS } = {}) {
   const expectedVersions = authority?.evidence?.versions;
   if (!Array.isArray(expectedVersions) || expectedVersions.length !== 6 || !targetState || typeof targetState !== "object") fail("RECOVERY_TARGET_BASELINE_INVALID", "Target baseline evidence is invalid");
   const versions = [...(targetState.migrationVersions ?? [])].sort();

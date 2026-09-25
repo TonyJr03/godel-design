@@ -172,8 +172,10 @@ M.5.2.0 `CLOSED / PRODUCTION BACKUP PREPARATION APPROVED`, M.5.2.1A
 `CLOSED / PRODUCTION AGE RECOVERY IDENTITY CUSTODY PASS`, M.5.2
 `CLOSED / FIRST PRODUCTION BACKUP + EXTERNAL CUSTODY VERIFIED`, M.5.3.0
 `CLOSED / RESTORE DRILL ARCHITECTURE APPROVED`, M.5.3A `CLOSED / SOURCE
-VERIFICATION TOOLING APPROVED` y M.5.3B `IMPLEMENTED / CORRECTIONS APPLIED /
-PENDING ARCHITECTURAL REVIEW`; M.5.3 queda `ACTIVE / ISOLATED TARGET + RESTORE TOOLING`.
+VERIFICATION TOOLING APPROVED`, M.5.3B `CLOSED / ISOLATED TARGET + RESTORE
+TOOLING APPROVED` y M.5.3B.2 `ACTIVE / ATTEMPT #4 EXTENSION CONTRACT FINDING
+CORRECTED / PENDING ARCHITECTURAL REVIEW`;
+M.5.3 queda `ACTIVE / ISOLATED TARGET + RESTORE TOOLING`.
 Cloudflare R2
 Standard queda seleccionado y sintéticamente verificado como custodia externa.
 Dirección Técnica confirmó como operador el Bucket Lock de `production/` por
@@ -222,24 +224,39 @@ cleanup mediante fixtures/adapters. Las correcciones separan el catálogo real
 del conjunto mutable, admiten status Supabase y metadata Docker mediante
 boundaries confidenciales, convierten outputs SQL read-only en agregados
 sanitizados, incluyen el UUID de `auth.identities` en la continuidad y definen
-transfer/inventario S3 exclusivamente contra Storage local; todavía no se ejecutó lectura R2 real,
-decrypt real, target Supabase real, SQL ni restore.
+transfer/inventario S3 exclusivamente contra Storage local. El Attempt #1 real
+alcanzó el start del target y falló en discovery por una suposición sintética
+de service label; el contrato fue corregido y espera revisión arquitectónica.
+El Attempt #2 se detuvo antes de iniciar el target: el entorno Git mínimo no
+transportó la autoridad protegida efectiva de `safe.directory` requerida por
+el host. El tooling ahora construye una autoridad Git command-scoped
+determinista para el repo gobernado. El Attempt #4 alcanzó aislamiento y las seis
+queries read-only, y reveló que el query de extensiones inventariaba el set
+global mientras su parser aplicaba un contrato más estrecho. El query queda
+reducido a la extensión requerida y Attempt #5 no está autorizado.
+No se ejecutaron lectura R2, decrypt age, SQL de restore ni restore.
 
 ```text
 PPO-04M.5.3A = CLOSED / SOURCE VERIFICATION TOOLING APPROVED
-PPO-04M.5.3B = IMPLEMENTED / CORRECTIONS APPLIED / PENDING ARCHITECTURAL REVIEW
+PPO-04M.5.3B = CLOSED / ISOLATED TARGET + RESTORE TOOLING APPROVED
+PPO-04M.5.3B.2 = ACTIVE / ATTEMPT #4 EXTENSION CONTRACT FINDING CORRECTED / PENDING ARCHITECTURAL REVIEW
 PPO-04M.5.3 = ACTIVE / ISOLATED TARGET + RESTORE TOOLING
-REAL LOCAL RESTORE TARGET = NOT EXECUTED
+REAL LOCAL TARGET = ATTEMPT #4 TARGET BASELINE VALIDATION FINDING / CORRECTED
+CLEANUP FAILURE DETECTED = NO
+REAL RESTORE = NOT AUTHORIZED
 REAL LOCAL RESTORE DRILL = NOT AUTHORIZED
 PRODUCTION RESTORE = NOT AUTHORIZED
 REAL R2 RECOVERY READ = NOT EXECUTED
-REAL AGE DECRYPT = NOT EXECUTED
+REAL R2 READ = NOT AUTHORIZED
+REAL AGE DECRYPT = NOT AUTHORIZED
+ATTEMPT #4 REAL TARGET STARTS = 1
+BASELINE READ-ONLY QUERIES = 6 EXECUTED
+ATTEMPT #5 = NOT AUTHORIZED
 REMOTE ACTIVITY = 0
-REAL TARGET STARTS = 0
+REAL TARGET STARTS = 2
 TARGET MUTATIONS = 0
-SQL EXECUTION = 0
-REAL R2 READ = 0
-REAL AGE DECRYPT = 0
+RESTORE SQL EXECUTION = 0
+RETRIES = 0
 ```
 
 El core corregido conserva evidencia `INCOMPLETE` fuera del staging, publica el

@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { admitDockerDbDiscovery, buildTargetCommandPlans, buildTargetPsqlPlan, proveTargetIsolation, resolveTargetDbContainer } from "./target-commands.mjs";
+import { LOCAL_TARGET_EXCLUDED_SERVICES, admitDockerDbDiscovery, buildTargetCommandPlans, buildTargetPsqlPlan, proveTargetIsolation, resolveTargetDbContainer } from "./target-commands.mjs";
 import { buildManagedRestoreSql, buildMutableTablePlan, sanitizeEphemeralAuthState } from "./restore-planning.mjs";
 import { admitManagedDataSql } from "./sql-admission.mjs";
+import { REQUIRED_TARGET_EXTENSIONS } from "./sql-audit.mjs";
 import { admitLocalSupabaseStatus } from "./target-runtime-status.mjs";
 
 const PROJECT = "godel-m53-restore-abcdef123456";
@@ -17,7 +18,7 @@ function db(overrides = {}) {
     image: "public.ecr.aws/supabase/postgres:17",
     state: "running",
     health: "healthy",
-    labels: { "com.supabase.cli.project": PROJECT, "com.docker.compose.service": "db" },
+    labels: { "com.supabase.cli.project": PROJECT, "com.docker.compose.project": PROJECT },
     ...overrides,
   };
 }
@@ -30,8 +31,12 @@ function localStatus(overrides = {}) {
   }));
 }
 
-function dockerLine({ project = PROJECT, name = `supabase_db_${PROJECT}`, image = "public.ecr.aws/supabase/postgres:17", state = "running", status = "Up 10 seconds (healthy)", service = "db" } = {}) {
-  return JSON.stringify({ ID: "0123456789ab", Image: image, Command: "postgres", CreatedAt: "2026-09-25 00:00:00 +0000 UTC", RunningFor: "10 seconds", Ports: "", Status: status, Size: "0B", Names: name, Labels: `com.docker.compose.service=${service},com.supabase.cli.project=${project}`, Mounts: "", Networks: "bridge", State: state });
+function dockerLine({ project = PROJECT, composeProject = PROJECT, name = `supabase_db_${PROJECT}`, image = "public.ecr.aws/supabase/postgres:17", state = "running", status = "Up 10 seconds (healthy)", service, cliService } = {}) {
+  const labels = [`com.supabase.cli.project=${project}`];
+  if (composeProject !== null) labels.push(`com.docker.compose.project=${composeProject}`);
+  if (service !== undefined) labels.push(`com.docker.compose.service=${service}`);
+  if (cliService !== undefined) labels.push(`com.supabase.cli.service=${cliService}`);
+  return JSON.stringify({ ID: "0123456789ab", Image: image, Command: "postgres", CreatedAt: "2026-09-25 00:00:00 +0000 UTC", RunningFor: "10 seconds", Ports: "", Status: status, Size: "0B", Names: name, Labels: labels.join(","), Mounts: "", Networks: "bridge", State: state });
 }
 
 test("target command plans use repo-local CLI, explicit cwd and local operations without linked or secret argv", () => {
@@ -44,11 +49,26 @@ test("target command plans use repo-local CLI, explicit cwd and local operations
   }
   assert.equal(plans.start.executable, process.execPath);
   assert.match(plans.start.args[0], /node_modules[\\/]supabase[\\/]dist[\\/]supabase\.js$/);
+  assert.deepEqual(plans.start.args.slice(1), ["start", "--exclude", "edge-runtime,imgproxy,logflare,mailpit,postgres-meta,realtime,studio,supavisor,vector", "--yes"]);
+  assert.ok(plans.start.args.includes("--yes"));
+  assert.ok(plans.start.args.includes("--exclude"));
+  assert.ok(!plans.start.args.includes("--linked"));
+  const excluded = plans.start.args[plans.start.args.indexOf("--exclude") + 1].split(",");
+  assert.deepEqual(excluded, [...LOCAL_TARGET_EXCLUDED_SERVICES]);
+  assert.equal(new Set(excluded).size, 9);
+  for (const obsolete of ["analytics", "functions", "inbucket"]) assert.ok(!excluded.includes(obsolete));
+  for (const required of ["gotrue", "postgrest", "storage-api", "kong"]) assert.ok(!excluded.includes(required));
   assert.deepEqual(plans.stop.args.slice(-4), ["--project-id", PROJECT, "--no-backup", "--yes"]);
+  const projectLabel = `label=com.supabase.cli.project=${PROJECT}`;
+  assert.deepEqual(plans.verifyCleanupContainers.args, ["ps", "-a", "--filter", projectLabel, "--format", "{{.ID}}"]);
+  assert.deepEqual(plans.verifyCleanupVolumes.args, ["volume", "ls", "--filter", projectLabel, "--format", "{{.Name}}"]);
+  assert.deepEqual(plans.verifyCleanupNetworks.args, ["network", "ls", "--filter", projectLabel, "--format", "{{.ID}}"]);
 });
 
 test("container resolution requires exactly one local DB with matching labels and healthy state", () => {
   const authority = resolveTargetDbContainer({ projectId: PROJECT, containers: [db()] });
+  assert.deepEqual(Object.keys(authority), ["status", "projectId"]);
+  assert.doesNotMatch(JSON.stringify(authority), /supabase_db_|public\.ecr\.aws|compose|0123456789ab/);
   const query = buildTargetPsqlPlan({ containerAuthority: authority, cwd: WORKDIR, environment: {}, operation: "query", queryName: "replicationRole" });
   const admission = admitManagedDataSql("COPY public.perfiles (id) FROM stdin;\nfixture\n\\.\n");
   const mutable = buildMutableTablePlan({ admission, targetTables: ["public.perfiles"] });
@@ -60,10 +80,32 @@ test("container resolution requires exactly one local DB with matching labels an
   assert.ok(!restore.args.some((arg) => /password|postgres(?:ql)?:\/\//i.test(arg)));
 });
 
-test("container resolution rejects foreign, ambiguous, and unhealthy DB containers", () => {
-  assert.throws(() => resolveTargetDbContainer({ projectId: PROJECT, containers: [db({ labels: { "com.supabase.cli.project": "foreign", "com.docker.compose.service": "db" } })] }), { code: "RECOVERY_TARGET_FOREIGN_CONTAINER" });
+test("required extension query is a fixed read-only pgcrypto admission instead of global inventory", () => {
+  const authority = resolveTargetDbContainer({ projectId: PROJECT, containers: [db()] });
+  const query = buildTargetPsqlPlan({ containerAuthority: authority, cwd: WORKDIR, environment: {}, operation: "query", queryName: "requiredExtensions" });
+  assert.deepEqual(REQUIRED_TARGET_EXTENSIONS, ["pgcrypto"]);
+  assert.equal(query.stdin, "SELECT extname FROM pg_extension WHERE extname = 'pgcrypto' ORDER BY extname;");
+  assert.match(query.stdin, /^SELECT\b/);
+  assert.doesNotMatch(query.stdin, /\b(?:INSERT|UPDATE|DELETE|ALTER|CREATE|DROP|TRUNCATE|COPY)\b/i);
+  assert.match(query.stdin, /WHERE extname = 'pgcrypto'/);
+  assert.doesNotMatch(query.stdin, /uuid-ossp|godel-m53|abcdef/i);
+  assert.notEqual(query.stdin, "SELECT extname FROM pg_extension ORDER BY extname;");
+});
+
+test("container resolution uses exact deterministic name and project labels with optional service evidence", () => {
+  assert.equal(resolveTargetDbContainer({ projectId: PROJECT, containers: [db()] }).status, "VERIFIED");
+  assert.equal(resolveTargetDbContainer({ projectId: PROJECT, containers: [db({ labels: { "com.supabase.cli.project": PROJECT, "com.docker.compose.project": PROJECT, "com.docker.compose.service": "db" } })] }).status, "VERIFIED");
+  assert.equal(resolveTargetDbContainer({ projectId: PROJECT, containers: [db({ labels: { "com.supabase.cli.project": PROJECT, "com.docker.compose.project": PROJECT, "com.supabase.cli.service": "db" } })] }).status, "VERIFIED");
+  assert.throws(() => resolveTargetDbContainer({ projectId: PROJECT, containers: [] }), { code: "RECOVERY_TARGET_DB_CONTAINER_MISSING" });
+  assert.throws(() => resolveTargetDbContainer({ projectId: PROJECT, containers: [db({ name: "supabase_db_foreign" })] }), { code: "RECOVERY_TARGET_DB_CONTAINER_MISSING" });
+  assert.throws(() => resolveTargetDbContainer({ projectId: PROJECT, containers: [db({ labels: { "com.supabase.cli.project": "foreign", "com.docker.compose.project": PROJECT } })] }), { code: "RECOVERY_TARGET_FOREIGN_CONTAINER" });
+  assert.throws(() => resolveTargetDbContainer({ projectId: PROJECT, containers: [db({ labels: { "com.supabase.cli.project": PROJECT } })] }), { code: "RECOVERY_TARGET_DB_CONTAINER_INVALID" });
+  assert.throws(() => resolveTargetDbContainer({ projectId: PROJECT, containers: [db({ labels: { "com.supabase.cli.project": PROJECT, "com.docker.compose.project": "foreign" } })] }), { code: "RECOVERY_TARGET_DB_CONTAINER_INVALID" });
+  assert.throws(() => resolveTargetDbContainer({ projectId: PROJECT, containers: [db({ labels: { "com.supabase.cli.project": PROJECT, "com.docker.compose.project": PROJECT, "com.docker.compose.service": "auth" } })] }), { code: "RECOVERY_TARGET_DB_CONTAINER_INVALID" });
+  assert.throws(() => resolveTargetDbContainer({ projectId: PROJECT, containers: [db({ labels: { "com.supabase.cli.project": PROJECT, "com.docker.compose.project": PROJECT, "com.supabase.cli.service": "storage" } })] }), { code: "RECOVERY_TARGET_DB_CONTAINER_INVALID" });
   assert.throws(() => resolveTargetDbContainer({ projectId: PROJECT, containers: [db(), db()] }), { code: "RECOVERY_TARGET_DB_CONTAINER_AMBIGUOUS" });
   assert.throws(() => resolveTargetDbContainer({ projectId: PROJECT, containers: [db({ health: "unhealthy" })] }), { code: "RECOVERY_TARGET_DB_CONTAINER_NOT_READY" });
+  assert.throws(() => resolveTargetDbContainer({ projectId: PROJECT, containers: [db({ state: "exited", health: "none" })] }), { code: "RECOVERY_TARGET_DB_CONTAINER_NOT_READY" });
   assert.throws(() => resolveTargetDbContainer({ projectId: PROJECT, containers: [db({ image: "attacker/postgres:latest" })] }), { code: "RECOVERY_TARGET_DB_CONTAINER_INVALID" });
   assert.throws(() => buildTargetPsqlPlan({ containerAuthority: {}, cwd: WORKDIR, operation: "query", queryName: "replicationRole" }), { code: "RECOVERY_TARGET_CONTAINER_AUTHORITY_REQUIRED" });
   const authority = resolveTargetDbContainer({ projectId: PROJECT, containers: [db()] });
@@ -73,10 +115,16 @@ test("container resolution rejects foreign, ambiguous, and unhealthy DB containe
 
 test("raw docker ps JSON lines admit exactly the real-shaped local DB authority", () => {
   assert.equal(admitDockerDbDiscovery({ projectId: PROJECT, rawOutput: `${dockerLine()}\n` }).status, "VERIFIED");
+  assert.equal(admitDockerDbDiscovery({ projectId: PROJECT, rawOutput: `${dockerLine({ service: "db" })}\n` }).status, "VERIFIED");
   assert.throws(() => admitDockerDbDiscovery({ projectId: PROJECT, rawOutput: "{invalid" }), { code: "RECOVERY_TARGET_DOCKER_OUTPUT_INVALID" });
   assert.throws(() => admitDockerDbDiscovery({ projectId: PROJECT, rawOutput: dockerLine({ project: "foreign" }) }), { code: "RECOVERY_TARGET_FOREIGN_CONTAINER" });
   assert.throws(() => admitDockerDbDiscovery({ projectId: PROJECT, rawOutput: `${dockerLine()}\n${dockerLine()}` }), { code: "RECOVERY_TARGET_DB_CONTAINER_AMBIGUOUS" });
-  assert.throws(() => admitDockerDbDiscovery({ projectId: PROJECT, rawOutput: dockerLine({ service: "auth" }) }), { code: "RECOVERY_TARGET_DB_CONTAINER_AMBIGUOUS" });
+  assert.throws(() => admitDockerDbDiscovery({ projectId: PROJECT, rawOutput: "" }), { code: "RECOVERY_TARGET_DB_CONTAINER_MISSING" });
+  assert.throws(() => admitDockerDbDiscovery({ projectId: PROJECT, rawOutput: dockerLine({ name: `supabase_auth_${PROJECT}` }) }), { code: "RECOVERY_TARGET_DB_CONTAINER_MISSING" });
+  assert.throws(() => admitDockerDbDiscovery({ projectId: PROJECT, rawOutput: dockerLine({ composeProject: null }) }), { code: "RECOVERY_TARGET_DB_CONTAINER_INVALID" });
+  assert.throws(() => admitDockerDbDiscovery({ projectId: PROJECT, rawOutput: dockerLine({ composeProject: "foreign" }) }), { code: "RECOVERY_TARGET_DB_CONTAINER_INVALID" });
+  assert.throws(() => admitDockerDbDiscovery({ projectId: PROJECT, rawOutput: dockerLine({ service: "auth" }) }), { code: "RECOVERY_TARGET_DB_CONTAINER_INVALID" });
+  assert.throws(() => admitDockerDbDiscovery({ projectId: PROJECT, rawOutput: dockerLine({ cliService: "storage-api" }) }), { code: "RECOVERY_TARGET_DB_CONTAINER_INVALID" });
   assert.throws(() => admitDockerDbDiscovery({ projectId: PROJECT, rawOutput: JSON.stringify({ ID: "id", Image: "supabase/postgres:17", Names: `supabase_db_${PROJECT}`, State: "running", Status: "Up" }) }), { code: "RECOVERY_TARGET_DOCKER_OUTPUT_INVALID" });
   assert.throws(() => admitDockerDbDiscovery({ projectId: PROJECT, rawOutput: dockerLine({ image: "attacker/postgres:latest" }) }), { code: "RECOVERY_TARGET_DB_CONTAINER_INVALID" });
   assert.throws(() => admitDockerDbDiscovery({ projectId: PROJECT, rawOutput: dockerLine({ state: "exited", status: "Exited (1)" }) }), { code: "RECOVERY_TARGET_DB_CONTAINER_NOT_READY" });

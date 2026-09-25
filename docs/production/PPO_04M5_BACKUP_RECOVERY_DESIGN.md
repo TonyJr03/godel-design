@@ -907,8 +907,8 @@ publicación; M.5.1 queda cerrado.
 
 ### PPO-04M.5.3B.1 — Real-target contract corrections
 
-El tooling mantiene M.5.3B en `IMPLEMENTED / CORRECTIONS APPLIED / PENDING
-ARCHITECTURAL REVIEW`. El catálogo del target admite tablas internas legítimas
+Estas correcciones permitieron cerrar M.5.3B como `CLOSED / ISOLATED TARGET +
+RESTORE TOOLING APPROVED`. El catálogo del target admite tablas internas legítimas
 sin convertirlas en tablas mutables; status Supabase y discovery Docker pasan
 por boundaries estrictos con secretos opacos; los planes post-restore son SQL
 read-only ejecutable con parsers de agregados sanitizados; la continuidad Auth
@@ -917,7 +917,7 @@ el S3 local del target con credenciales en environment. Todas las pruebas de
 este pase son sintéticas.
 
 ```text
-PPO-04M.5.3B = IMPLEMENTED / CORRECTIONS APPLIED / PENDING ARCHITECTURAL REVIEW
+PPO-04M.5.3B = CLOSED / ISOLATED TARGET + RESTORE TOOLING APPROVED
 REAL LOCAL RESTORE DRILL = NOT AUTHORIZED
 REMOTE ACTIVITY = 0
 REAL TARGET STARTS = 0
@@ -925,6 +925,130 @@ TARGET MUTATIONS = 0
 SQL EXECUTION = 0
 REAL R2 READ = 0
 REAL AGE DECRYPT = 0
+```
+
+### PPO-04M.5.3B.2 — Real Local Target Compatibility Harness
+
+El comando dedicado `ops:restore:managed:target:local` queda implementado. Su
+Attempt #1 alcanzó el start real del target y produjo un finding de
+compatibilidad durante Docker DB discovery. Requiere confirmación transitoria, SHA de tooling declarado,
+branch y worktree exactos, commit runtime Productivo localmente disponible,
+Supabase CLI repo-local y Docker client/server. Materializa exclusivamente la
+baseline 01–06 desde el objeto Git `01552f8bee59b5f9982a2d722e39795461918f43`,
+arranca un target desechable con `--yes`, admite status y metadata Docker por
+boundaries confidenciales, y permite sólo las seis consultas read-only de
+compatibilidad. No existe ruta de restore dentro del executor.
+
+La confirmación es
+`GODEL_MANAGED_RECOVERY_LOCAL_TARGET_CONFIRM=ALLOW_DISPOSABLE_LOCAL_RECOVERY_TARGET`.
+La autoridad no secreta `GODEL_MANAGED_RECOVERY_LOCAL_TARGET_TOOLING_SHA` debe
+coincidir exactamente con el `git rev-parse HEAD` limpio en el momento de la
+ejecución; no se intenta fijar el SHA dentro de su propio commit.
+
+El cleanup futuro está ordenado como stop del project ID exacto, verificación
+de ausencia de recursos Docker propios, limpieza de `session.target` y cleanup
+de la sesión. La evidencia pública omite IDs, containers, ports, URLs, paths,
+config runtime, SQL y catálogo completo.
+
+El contrato corregido resuelve la DB por igualdad exacta con
+`supabase_db_<projectId>` dentro del discovery limitado por
+`com.supabase.cli.project=<projectId>`. El candidato exige además
+`com.docker.compose.project=<projectId>`; las service labels son opcionales y,
+si aparecen, deben ser exactamente `db`.
+
+Todos los comandos Git gobernados de preflight y runtime usan una primitive
+compartida. La primitive normaliza internamente el `repoRoot`, descarta
+configuración Git y secretos ambientales, deshabilita prompts y configuración
+system-level, reinicia la lista efectiva de `safe.directory` en command scope y
+confía exclusivamente en el repo gobernado exacto. No usa wildcard, no escribe
+configuración persistente y el path no forma parte de evidencia pública ni argv.
+
+La consulta gobernada de extensiones no inventaría el catálogo global. Filtra
+exclusivamente `pgcrypto`, la extensión requerida por la baseline actual. Query,
+parser y validación derivan de `REQUIRED_TARGET_EXTENSIONS`; salida vacía es
+evidencia bien formada de ausencia y cualquier nombre adicional es imposible
+para el query gobernado, por lo que falla cerrado.
+
+#### Attempt #1 — evidencia sanitizada
+
+```text
+PPO-04M.5.3B.2 ATTEMPT #1 = FAIL / COMPATIBILITY FINDING
+FAILURE CODE = RECOVERY_TARGET_DB_CONTAINER_AMBIGUOUS
+ROOT CAUSE = SYNTHETIC SERVICE-LABEL ASSUMPTION DID NOT MATCH SUPABASE CLI 2.109.1
+REAL TARGET START = REACHED
+CLEANUP FAILURE DETECTED = NO
+RESTORE SQL = 0
+R2 READ = 0
+AGE DECRYPT = 0
+PRODUCTION MUTATIONS = 0
+RETRIES = 0
+```
+
+No se registran project ID, nombres o IDs Docker, puertos, URLs, paths,
+stdout/stderr raw ni secretos. La ausencia de un error de cleanup no se
+reinterpreta como `targetCleanup = PASS`.
+
+#### Attempt #2 — evidencia sanitizada
+
+```text
+PPO-04M.5.3B.2 ATTEMPT #2 = FAIL / GIT PREFLIGHT ENVIRONMENT FINDING
+FAILURE CODE = COMMAND_FAILED
+FAILURE OPERATION = resolve local recovery tooling branch
+EXIT CODE = 128
+LAST PHASE = PREFLIGHT / GIT AUTHORITY
+ROOT CAUSE = MINIMAL RECOVERY GIT ENVIRONMENT DID NOT CARRY THE EFFECTIVE PROTECTED SAFE.DIRECTORY AUTHORITY
+REAL TARGET STARTS DURING ATTEMPT #2 = 0
+SUPABASE TARGET OPERATIONS = 0
+DOCKER TARGET OPERATIONS = 0
+SQL EXECUTIONS = 0
+R2 READ = 0
+AGE DECRYPT = 0
+PRODUCTION MUTATIONS = 0
+ATTEMPT #2 RETRIES = 0
+```
+
+No se registran repo path, path de `safe.directory`, stderr raw, usuario local,
+ownership metadata ni valores del environment. La corrección queda pendiente de
+revisión arquitectónica.
+
+#### Attempt #4 — evidencia sanitizada
+
+```text
+PPO-04M.5.3B.2 ATTEMPT #4 = FAIL / EXTENSION ADMISSION CONTRACT FINDING
+FAILURE CODE = LOCAL_RECOVERY_EXTENSION_OUTPUT_INVALID
+LAST PHASE = TARGET BASELINE OUTPUT VALIDATION
+REAL TARGET STARTS DURING ATTEMPT #4 = 1
+TARGET ISOLATION = REACHED BEFORE FAILURE
+BASELINE READ-ONLY QUERIES = 6 EXECUTED
+ROOT CAUSE = THE REQUIRED-EXTENSION QUERY RETURNED THE COMPLETE PG_EXTENSION SET WHILE ITS OUTPUT CONTRACT ACCEPTED ONLY SQL-IDENTIFIER-SHAPED NAMES
+RESTORE SQL = 0
+R2 READ = 0
+AGE DECRYPT = 0
+PRODUCTION MUTATIONS = 0
+CLEANUP FAILURE DETECTED = NO
+ATTEMPT #4 RETRIES = 0
+```
+
+No se registra el output raw ni se atribuye el fallo a una extensión concreta.
+PostgreSQL/Supabase admite nombres fuera de la forma aceptada por el parser
+anterior, pero esa observación técnica no identifica la línea real del Attempt.
+
+```text
+PPO-04M.5.3B = CLOSED / ISOLATED TARGET + RESTORE TOOLING APPROVED
+PPO-04M.5.3B.2 = ACTIVE / ATTEMPT #4 EXTENSION CONTRACT FINDING CORRECTED / PENDING ARCHITECTURAL REVIEW
+REAL RESTORE = NOT AUTHORIZED
+REAL R2 READ = NOT AUTHORIZED
+REAL AGE DECRYPT = NOT AUTHORIZED
+ATTEMPT #5 = NOT AUTHORIZED
+```
+
+Para Storage no vacío, `rclone lsjson --hash` no garantiza SHA-256 en un
+backend S3. Antes del primer recovery con objetos reales debe diseñarse y
+probarse una verificación independiente del hash nativo, por ejemplo una
+operación gobernada equivalente a `rclone hashsum sha256 --download`.
+
+```text
+REQUIRED BEFORE FIRST NON-EMPTY STORAGE RECOVERY
 ```
 
 ### PPO-04M.5.1 FINAL INTEGRATION EVIDENCE

@@ -39,6 +39,7 @@ resueltas ni planes históricos completos.
 | TD-BACKUP-001 | Recovery/archive admission | Alta | No | Resuelta en M.5.3A |
 | TD-BACKUP-002 | Recovery/Auth sessions | Media | No; bloquea M.5.3 | Activa |
 | TD-BACKUP-003 | Recovery/archive paths extendidos | Media | No | Activa después del piloto |
+| TD-BACKUP-004 | Recovery/Storage SHA-256 no vacío | Alta | No; bloquea recovery Storage no vacío | Activa |
 
 ## Bloqueadores antes de producción pública
 
@@ -538,6 +539,16 @@ timeout, nonce, `sessionStorage`, reload ni doble refresh.
 - Normalización detallada de atributos de impresión sin necesidad real de búsqueda,
   cotización, automatización o métricas.
 - Movimientos financieros, comprobantes y cierre de caja si el negocio lo requiere.
+
+### TD-BACKUP-004 - SHA-256 independiente para recovery Storage no vacío
+
+`REQUIRED BEFORE FIRST NON-EMPTY STORAGE RECOVERY`: el contrato sintético
+actual usa `rclone lsjson --hash`, pero S3 no garantiza que ese inventario
+incluya SHA-256. Antes de autorizar un recovery con Storage no vacío debe
+implementarse y probarse contra S3 local real una verificación SHA-256
+independiente del hash nativo del backend. PPO-04M.5.3B.2 no ejecuta Storage y
+el backup Productivo vigente tiene `objectCount = 0`, por lo que este punto no
+bloquea el compatibility drill.
 
 ## Política de actualización
 

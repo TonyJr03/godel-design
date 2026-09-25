@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import { runCommand } from "../managed-backup/command-runner.mjs";
+import { buildRecoveryGitEnvironment } from "./git-environment.mjs";
 
 export const MANAGED_BASELINE_MIGRATIONS = Object.freeze([
   "20260811131824_01_core_schema.sql",
@@ -30,23 +31,13 @@ function digest(source) {
   return createHash("sha256").update(source, "utf8").digest("hex");
 }
 
-function environment(source = process.env) {
-  const allowed = {};
-  for (const key of ["PATH", "Path", "PATHEXT", "SystemRoot", "WINDIR", "TEMP", "TMP"]) {
-    if (typeof source?.[key] === "string") allowed[key] = source[key];
-  }
-  allowed.GIT_CONFIG_NOSYSTEM = "1";
-  allowed.GIT_TERMINAL_PROMPT = "0";
-  return allowed;
-}
-
 function gitPlan({ operation, args, repoRoot, environmentSource, preserveOutput = false }) {
   return Object.freeze({
     operation,
     executable: "git",
     args: Object.freeze(args),
     cwd: repoRoot,
-    allowedEnvironment: Object.freeze(environment(environmentSource)),
+    allowedEnvironment: buildRecoveryGitEnvironment({ sourceEnvironment: environmentSource, repoRoot }),
     preserveOutput,
     maxOutputBytes: MAX_GIT_OBJECT_BYTES,
   });
@@ -59,7 +50,6 @@ export function assertProductionRuntimeSha(value) {
 
 export function buildRuntimeGitPlans({ runtimeSha, repoRoot, environment: environmentSource = process.env } = {}) {
   const sha = assertProductionRuntimeSha(runtimeSha);
-  if (typeof repoRoot !== "string" || repoRoot.length === 0) fail("RECOVERY_RUNTIME_REPOSITORY_INVALID", "Repository root is required");
   return Object.freeze({
     verifyCommit: gitPlan({ operation: "verify production runtime Git commit", args: ["cat-file", "-e", `${sha}^{commit}`], repoRoot, environmentSource }),
     listMigrations: gitPlan({ operation: "list production runtime baseline migrations", args: ["ls-tree", "-z", "--name-only", `${sha}:supabase/migrations`], repoRoot, environmentSource, preserveOutput: true }),

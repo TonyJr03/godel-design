@@ -7,7 +7,7 @@ import { admitDockerDbDiscovery, buildTargetCommandPlans, proveTargetIsolation }
 import { buildManagedRestoreSql, buildMutableTablePlan, buildStorageByteRestorePlan, sanitizeEphemeralAuthState, verifyManagedDataCounts } from "./restore-planning.mjs";
 import { buildPostRestoreValidationQueries, createFutureLoginGateContract, deriveConfidentialAuthExpectationFromAdmission, deriveStorageExpectation, validateManagedRestoreResult } from "./restore-validation.mjs";
 import { loadProductionRuntimeAuthority } from "./runtime-authority.mjs";
-import { auditManagedSchemaSql, auditMigrationHistorySql, auditRolesSql, validateTargetBaseline } from "./sql-audit.mjs";
+import { REQUIRED_TARGET_EXTENSIONS, auditManagedSchemaSql, auditMigrationHistorySql, auditRolesSql, validateTargetBaseline } from "./sql-audit.mjs";
 import { allocateTargetPorts, createRecoveryProjectId, materializeRecoveryTarget } from "./target-workspace.mjs";
 import { admitLocalSupabaseStatus } from "./target-runtime-status.mjs";
 
@@ -50,7 +50,7 @@ export function admitPreparedRecoveryTargetRuntime({ prepared, session, manifest
   return Object.freeze(result);
 }
 
-export async function buildManagedRestorePlan({ verifiedSource, authority, targetState, targetTables, requiredExtensions = ["pgcrypto"] } = {}) {
+export async function buildManagedRestorePlan({ verifiedSource, authority, targetState, targetTables, requiredExtensions = REQUIRED_TARGET_EXTENSIONS } = {}) {
   if (!verifiedSource || typeof verifiedSource.bundleRoot !== "string" || verifiedSource.sql?.managedData?.status !== "ADMITTED") fail("RECOVERY_VERIFIED_SOURCE_REQUIRED", "Verified managed recovery source is required");
   const baseline = validateTargetBaseline({ authority, targetState, requiredExtensions });
   const roles = auditRolesSql(await readText(verifiedSource.bundleRoot, "database/roles.sql"));

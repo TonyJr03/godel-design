@@ -2,17 +2,30 @@ import { isAbsolute, relative, resolve, sep } from "node:path";
 
 import { accessManagedRestoreSql } from "./restore-planning.mjs";
 import { accessPostRestoreValidationSql } from "./restore-validation.mjs";
+import { REQUIRED_TARGET_EXTENSIONS } from "./sql-audit.mjs";
 import { isAdmittedLocalSupabaseStatus } from "./target-runtime-status.mjs";
 
 const containerAuthorities = new WeakMap();
 const PROJECT_ID_PATTERN = /^godel-m53-restore-[a-f0-9]{12}$/;
 const FORBIDDEN_ENV = /(SUPABASE_(?:ACCESS_TOKEN|DB_PASSWORD|PROJECT_REF)|POSTGRES_PASSWORD|DATABASE_URL|R2_|AWS_|AGE_SECRET)/i;
+const REQUIRED_TARGET_EXTENSION = REQUIRED_TARGET_EXTENSIONS[0];
+export const LOCAL_TARGET_EXCLUDED_SERVICES = Object.freeze([
+  "edge-runtime",
+  "imgproxy",
+  "logflare",
+  "mailpit",
+  "postgres-meta",
+  "realtime",
+  "studio",
+  "supavisor",
+  "vector",
+]);
 const GOVERNED_QUERIES = Object.freeze({
   migrationHistory: "SELECT version FROM supabase_migrations.schema_migrations ORDER BY version;",
   replicationRole: "SHOW session_replication_role;",
   targetCatalog: "SELECT table_schema || '.' || table_name FROM information_schema.tables WHERE table_schema IN ('public','private','auth','storage') ORDER BY 1;",
   requiredSchemas: "SELECT schema_name FROM information_schema.schemata WHERE schema_name IN ('public','private','auth','storage') ORDER BY 1;",
-  requiredExtensions: "SELECT extname FROM pg_extension ORDER BY extname;",
+  requiredExtensions: `SELECT extname FROM pg_extension WHERE extname = '${REQUIRED_TARGET_EXTENSION}' ORDER BY extname;`,
   storageBucket: "SELECT id, public FROM storage.buckets WHERE id = 'godel-files';",
 });
 
@@ -28,6 +41,11 @@ function contained(parent, child) {
   return value === "" || (value !== ".." && !value.startsWith(`..${sep}`) && !isAbsolute(value));
 }
 
+function expectedDbContainerName(projectId) {
+  if (typeof projectId !== "string" || !PROJECT_ID_PATTERN.test(projectId)) fail("RECOVERY_TARGET_CONTAINER_INVALID", "Recovery target project ID is invalid");
+  return `supabase_db_${projectId}`;
+}
+
 function allowedEnvironment(source = process.env) {
   const result = { SUPABASE_TELEMETRY_DISABLED: "1" };
   for (const key of ["PATH", "Path", "PATHEXT", "SystemRoot", "WINDIR", "TEMP", "TMP", "LOCALAPPDATA", "APPDATA", "USERPROFILE"]) {
@@ -37,10 +55,12 @@ function allowedEnvironment(source = process.env) {
   return Object.freeze(result);
 }
 
-function plan(operation, executable, args, cwd, environment, stdin) {
+function plan(operation, executable, args, cwd, environment, stdin, { preserveOutput = false, maxOutputBytes } = {}) {
   if (args.includes("--linked") || args.some((value) => /(?:https?:\/\/|postgres(?:ql)?:\/\/)/i.test(value))) fail("RECOVERY_TARGET_COMMAND_UNSAFE", "Linked or remote target command is forbidden");
   const value = { operation, executable, args: Object.freeze(args), cwd, allowedEnvironment: environment };
   if (stdin !== undefined) value.stdin = stdin;
+  if (preserveOutput) value.preserveOutput = true;
+  if (maxOutputBytes !== undefined) value.maxOutputBytes = maxOutputBytes;
   return Object.freeze(value);
 }
 
@@ -50,24 +70,35 @@ export function buildTargetCommandPlans({ repoRoot, target, environment = proces
   if (!contained(resolve(repoRoot), cli)) fail("RECOVERY_TARGET_CLI_INVALID", "Supabase CLI must be repository-local");
   const env = allowedEnvironment(environment);
   const invoke = (operation, args) => plan(operation, process.execPath, [cli, ...args], target.workdir, env);
+  const projectLabel = `label=com.supabase.cli.project=${target.projectId}`;
   return Object.freeze({
-    start: invoke("start disposable recovery target", ["start"]),
-    status: invoke("read disposable recovery target status", ["status", "--output", "json"]),
-    discoverDb: plan("resolve disposable recovery database container", "docker", ["ps", "-a", "--filter", `label=com.supabase.cli.project=${target.projectId}`, "--format", "{{json .}}"], target.workdir, env),
+    start: invoke("start disposable recovery target", ["start", "--exclude", LOCAL_TARGET_EXCLUDED_SERVICES.join(","), "--yes"]),
+    status: plan("read disposable recovery target status", process.execPath, [cli, "status", "--output", "json"], target.workdir, env, undefined, { preserveOutput: true, maxOutputBytes: 512 * 1024 }),
+    discoverDb: plan("resolve disposable recovery database container", "docker", ["ps", "-a", "--filter", projectLabel, "--format", "{{json .}}"], target.workdir, env, undefined, { preserveOutput: true, maxOutputBytes: 512 * 1024 }),
     stop: invoke("stop exact disposable recovery target", ["stop", "--project-id", target.projectId, "--no-backup", "--yes"]),
-    verifyCleanup: plan("verify exact disposable target cleanup", "docker", ["ps", "-a", "--filter", `label=com.supabase.cli.project=${target.projectId}`, "--format", "{{.ID}}"], target.workdir, env),
+    verifyCleanupContainers: plan("verify disposable target containers absent", "docker", ["ps", "-a", "--filter", projectLabel, "--format", "{{.ID}}"], target.workdir, env),
+    verifyCleanupVolumes: plan("verify disposable target volumes absent", "docker", ["volume", "ls", "--filter", projectLabel, "--format", "{{.Name}}"], target.workdir, env),
+    verifyCleanupNetworks: plan("verify disposable target networks absent", "docker", ["network", "ls", "--filter", projectLabel, "--format", "{{.ID}}"], target.workdir, env),
   });
 }
 
 export function resolveTargetDbContainer({ projectId, containers } = {}) {
-  if (typeof projectId !== "string" || !PROJECT_ID_PATTERN.test(projectId) || !Array.isArray(containers) || containers.length === 0) fail("RECOVERY_TARGET_CONTAINER_INVALID", "Docker metadata is invalid");
+  const expectedName = expectedDbContainerName(projectId);
+  if (!Array.isArray(containers)) fail("RECOVERY_TARGET_CONTAINER_INVALID", "Docker metadata is invalid");
   for (const item of containers) {
     if (!item || typeof item !== "object" || item.labels?.["com.supabase.cli.project"] !== projectId) fail("RECOVERY_TARGET_FOREIGN_CONTAINER", "Docker discovery returned a foreign container");
   }
-  const databases = containers.filter((item) => item.labels?.["com.docker.compose.service"] === "db" || item.labels?.["com.supabase.cli.service"] === "db");
-  if (databases.length !== 1) fail("RECOVERY_TARGET_DB_CONTAINER_AMBIGUOUS", "Exactly one disposable database container is required");
+  const databases = containers.filter((item) => item.name === expectedName);
+  if (databases.length === 0) fail("RECOVERY_TARGET_DB_CONTAINER_MISSING", "Disposable database container is missing");
+  if (databases.length > 1) fail("RECOVERY_TARGET_DB_CONTAINER_AMBIGUOUS", "More than one disposable database container matched");
   const db = databases[0];
-  if (typeof db.name !== "string" || !/^supabase_db_godel-m53-restore-[a-f0-9]{12}$/.test(db.name) || typeof db.image !== "string" || !/^(?:public\.ecr\.aws\/)?supabase\/postgres:[A-Za-z0-9._-]+$/.test(db.image)) {
+  const optionalServices = [db.labels?.["com.docker.compose.service"], db.labels?.["com.supabase.cli.service"]].filter((value) => value !== undefined);
+  if (
+    db.labels?.["com.docker.compose.project"] !== projectId
+    || optionalServices.some((value) => value !== "db")
+    || typeof db.image !== "string"
+    || !/^(?:public\.ecr\.aws\/)?supabase\/postgres:[A-Za-z0-9._-]+$/.test(db.image)
+  ) {
     fail("RECOVERY_TARGET_DB_CONTAINER_INVALID", "Disposable database container metadata is invalid");
   }
   if (db.state !== "running" || !new Set(["healthy", "none"]).has(db.health)) fail("RECOVERY_TARGET_DB_CONTAINER_NOT_READY", "Disposable database container is not ready");
@@ -99,7 +130,6 @@ function dockerHealth(status) {
 export function admitDockerDbDiscovery({ projectId, rawOutput } = {}) {
   if (typeof projectId !== "string" || !PROJECT_ID_PATTERN.test(projectId) || typeof rawOutput !== "string") fail("RECOVERY_TARGET_DOCKER_OUTPUT_INVALID", "Docker discovery output is invalid");
   const lines = rawOutput.split(/\r?\n/).filter((line) => line.length > 0);
-  if (lines.length === 0) fail("RECOVERY_TARGET_DB_CONTAINER_AMBIGUOUS", "Exactly one disposable database container is required");
   const containers = lines.map((line) => {
     let item;
     try { item = JSON.parse(line); } catch { fail("RECOVERY_TARGET_DOCKER_OUTPUT_INVALID", "Docker discovery output is not valid JSON lines"); }
@@ -124,7 +154,8 @@ export function buildTargetPsqlPlan({ containerAuthority, cwd, environment = pro
   const args = ["exec", "-i", container.name, "psql", "-X", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1"];
   if (operation === "restore") args.push("--single-transaction");
   else args.push("-At");
-  return plan(operation === "restore" ? "restore admitted managed data" : "query disposable recovery database", "docker", args, cwd, allowedEnvironment(environment), stdin);
+  const description = operation === "restore" ? "restore admitted managed data" : `query disposable recovery database: ${queryName ?? validationQuery?.name}`;
+  return plan(description, "docker", args, cwd, allowedEnvironment(environment), stdin, operation === "query" ? { preserveOutput: true, maxOutputBytes: 512 * 1024 } : undefined);
 }
 
 export function proveTargetIsolation({ session, target, runtimeSha, commandPlans, status, productionProjectRef, environment = {} } = {}) {

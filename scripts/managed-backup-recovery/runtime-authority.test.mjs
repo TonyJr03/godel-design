@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { resolve } from "node:path";
 import test from "node:test";
 
 import { buildRuntimeGitPlans, loadProductionRuntimeAuthority, MANAGED_BASELINE_MIGRATIONS } from "./runtime-authority.mjs";
@@ -20,13 +21,42 @@ function executor({ names = MANAGED_BASELINE_MIGRATIONS, missingCommit = false }
 
 test("runtime authority reads exact config and six migrations from a valid commit without worktree mutation", async () => {
   const fake = executor();
-  const result = await loadProductionRuntimeAuthority({ runtimeSha: SHA, repoRoot: "C:\\repo", execute: fake.execute, environment: {} });
+  const repoRoot = "C:\\Recovery Work\\Godel Design";
+  const result = await loadProductionRuntimeAuthority({
+    runtimeSha: SHA,
+    repoRoot,
+    execute: fake.execute,
+    environment: {
+      PATH: "C:\\tools",
+      GIT_CONFIG_COUNT: "1",
+      GIT_CONFIG_KEY_0: "safe.directory",
+      GIT_CONFIG_VALUE_0: "*",
+      GIT_CONFIG_GLOBAL: "C:\\untrusted\\global.config",
+      DATABASE_URL: "postgresql://secret",
+    },
+  });
   assert.equal(result.status, "VERIFIED");
   assert.equal(result.evidence.migrationCount, 6);
   assert.equal(result.evidence.digests.length, 6);
   assert.ok(!JSON.stringify(result).includes("exact supabase/migrations"));
   assert.ok(fake.calls.every((plan) => ["cat-file", "ls-tree", "show"].includes(plan.args[0])));
   assert.ok(fake.calls.every((plan) => !plan.args.some((arg) => ["checkout", "reset", "switch", "fetch"].includes(arg))));
+  const expectedGitEnvironment = {
+    PATH: "C:\\tools",
+    GIT_TERMINAL_PROMPT: "0",
+    GIT_CONFIG_NOSYSTEM: "1",
+    GIT_CONFIG_COUNT: "2",
+    GIT_CONFIG_KEY_0: "safe.directory",
+    GIT_CONFIG_VALUE_0: "",
+    GIT_CONFIG_KEY_1: "safe.directory",
+    GIT_CONFIG_VALUE_1: resolve(repoRoot),
+  };
+  assert.equal(fake.calls.length, 9);
+  for (const plan of fake.calls) {
+    assert.deepEqual(plan.allowedEnvironment, expectedGitEnvironment);
+    assert.ok(Object.isFrozen(plan.allowedEnvironment));
+    assert.ok(!plan.args.includes(resolve(repoRoot)));
+  }
 });
 
 test("runtime authority rejects an unavailable commit", async () => {
