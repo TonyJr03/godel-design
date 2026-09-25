@@ -215,6 +215,7 @@ export async function executePreparedProductionBackup(prepared, {
     captured = await capture.captureReadOnly({
       backupId,
       captureRoot,
+      databaseWorkingDirectory: prepared.repoRoot,
       databasePlans: prepared.databasePlans,
       databaseEnvironment: secret.databaseEnvironment,
       s3Plans: executionS3Plans,

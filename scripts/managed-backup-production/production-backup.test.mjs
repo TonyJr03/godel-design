@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
-import { link, mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
+import { access, link, mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import test from "node:test";
 
+import { buildSupabaseDatabaseCommandPlans } from "../managed-backup/command-plans.mjs";
 import {
   createExternalReceipt,
   validateExternalReceipt,
@@ -22,6 +23,7 @@ import {
   createProductionReadOnlyCaptureAdapter,
   createDatabaseAndDurableInventories,
   normalizeProductionStorageListing,
+  relocateProductionDatabaseCapturePlan,
 } from "../managed-backup/production-capture-adapter.mjs";
 import {
   PRODUCTION_BACKUP_CONFIRMATION,
@@ -299,20 +301,30 @@ function captureSql({ missingUser = false, nullHash = false, emptyHash = false, 
   };
 }
 
-test("Production capture orders initial listing before DB/bytes and final listing after download", async () => {
+test("Production capture resolves linked context from repoRoot and writes every DB artifact under captureRoot", async () => {
   const root = await mkdtemp(join(tmpdir(), "godel-production-storage-window-"));
+  const repoRoot = join(root, "repo");
   const captureRoot = join(root, "capture");
   const storageCaptureRoot = join(captureRoot, "storage");
+  await mkdir(join(repoRoot, "supabase", ".temp"), { recursive: true });
+  await writeFile(join(repoRoot, "supabase", ".temp", "project-ref"), PROJECT_REF);
   await mkdir(captureRoot);
   const fixture = captureSql();
   const listing = storageListing([{ Path: fixture.path, Size: 3, Hashes: { MD5: "synthetic" }, Metadata: {} }]);
   const operations = [];
+  const databaseExecutions = [];
   const adapter = createProductionReadOnlyCaptureAdapter({
     execute: async (plan) => {
       operations.push(plan.operation);
       if (plan.operation === "list-source" || plan.operation === "verify-listing") return { stdout: listing, stderr: "" };
-      if (plan.operation === "dump managed data") await writeFile(join(plan.cwd, "database", "managed-data.sql"), fixture.sql);
-      if (plan.operation === "dump migration history data") await writeFile(join(plan.cwd, "database", "migration-history-data.sql"), "");
+      if (plan.operation.startsWith("dump ")) {
+        assert.equal(plan.cwd, repoRoot);
+        await access(join(plan.cwd, "supabase", ".temp", "project-ref"));
+        const fileIndex = plan.args.indexOf("--file");
+        const outputPath = plan.args[fileIndex + 1];
+        databaseExecutions.push({ args: plan.args, cwd: plan.cwd, outputPath });
+        await writeFile(outputPath, plan.operation === "dump managed data" ? fixture.sql : "");
+      }
       if (plan.operation === "download-copy") {
         const target = resolve(storageCaptureRoot, ...fixture.path.split("/"));
         await mkdir(dirname(target), { recursive: true });
@@ -324,10 +336,7 @@ test("Production capture orders initial listing before DB/bytes and final listin
     toolVersionsProvider: async () => [],
     now: () => new Date("2026-09-24T12:00:00.000Z"),
   });
-  const databasePlans = [
-    { operation: "dump managed data", executable: "synthetic", args: [], target: "linked", executionReady: true },
-    { operation: "dump migration history data", executable: "synthetic", args: [], target: "linked", executionReady: true },
-  ];
+  const databasePlans = buildSupabaseDatabaseCommandPlans({ target: "linked", executable: "synthetic" });
   const s3Plans = [
     buildProductionS3CommandPlan({ operation: "list-source", remotePath: "godel-files" }),
     buildProductionS3CommandPlan({ operation: "download-copy", remotePath: "godel-files", localPath: storageCaptureRoot }),
@@ -335,6 +344,7 @@ test("Production capture orders initial listing before DB/bytes and final listin
   ];
   await adapter.captureReadOnly({
     captureRoot,
+    databaseWorkingDirectory: repoRoot,
     databasePlans,
     databaseEnvironment: { allowedEnvironment: { SUPABASE_DB_PASSWORD: "synthetic" } },
     s3Plans,
@@ -343,11 +353,53 @@ test("Production capture orders initial listing before DB/bytes and final listin
   });
   assert.deepEqual(operations, [
     "list-source",
+    "dump roles",
+    "dump managed schemas for audit",
     "dump managed data",
+    "dump migration history schema",
     "dump migration history data",
     "download-copy",
     "verify-listing",
   ]);
+  assert.equal(databaseExecutions.length, 5);
+  assert.ok(databaseExecutions.every((execution) => execution.cwd !== captureRoot));
+  assert.ok(databaseExecutions.every((execution) => isAbsolute(execution.outputPath)));
+  assert.ok(databaseExecutions.every((execution) => {
+    const path = relative(join(captureRoot, "database"), execution.outputPath);
+    return path !== "" && path !== ".." && !path.startsWith(`..${sep}`) && !isAbsolute(path);
+  }));
+  assert.ok(databasePlans.every((plan) => plan.args[plan.args.indexOf("--file") + 1].startsWith("database/")));
+  await assert.rejects(access(join(repoRoot, "database")), (error) => error.code === "ENOENT");
+});
+
+test("Production database plan relocation is immutable and rejects every unsafe --file shape", () => {
+  const captureRoot = resolve(tmpdir(), "godel-production-plan-relocation");
+  const original = Object.freeze({
+    operation: "dump roles",
+    executable: "synthetic",
+    args: Object.freeze(["db", "dump", "--linked", "--role-only", "--file", "database/roles.sql"]),
+    target: "linked",
+    executionReady: true,
+  });
+  const relocated = relocateProductionDatabaseCapturePlan(original, { captureRoot });
+  assert.notEqual(relocated.args, original.args);
+  assert.equal(original.args.at(-1), "database/roles.sql");
+  assert.equal(relocated.args.at(-1), resolve(captureRoot, "database", "roles.sql"));
+
+  const invalidArgs = [
+    ["db", "dump", "--linked"],
+    ["db", "dump", "--linked", "--file", "database/roles.sql", "--file", "database/managed-data.sql"],
+    ["db", "dump", "--linked", "--file", "../escape.sql"],
+    ["db", "dump", "--linked", "--file", resolve(tmpdir(), "absolute-source.sql")],
+    ["db", "dump", "--linked", "--file"],
+    ["db", "dump", "--linked", "--file", "database/unexpected.sql"],
+  ];
+  for (const args of invalidArgs) {
+    assert.throws(
+      () => relocateProductionDatabaseCapturePlan({ ...original, args }, { captureRoot }),
+      (error) => error.code === "DATABASE_CAPTURE_PLAN_INVALID",
+    );
+  }
 });
 
 test("profile to Auth user with password hash and identity proves continuity", () => {

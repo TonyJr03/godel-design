@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { join, resolve } from "node:path";
 
 import { buildSupabaseDatabaseCommandPlans } from "./command-plans.mjs";
-import { runCommand } from "./command-runner.mjs";
+import { ManagedBackupCommandError, runCommand } from "./command-runner.mjs";
 import { validateConfigSnapshot } from "./inventory.mjs";
 import { createProductionReadOnlyCaptureAdapter } from "./production-capture-adapter.mjs";
 import { resolveProductionGitAuthority, runProductionBackup } from "./production-backup.mjs";
@@ -278,7 +278,19 @@ export async function runProductionExecution({
 
 export function sanitizeProductionExecutionFailure(error) {
   const code = typeof error?.code === "string" && /^[A-Z0-9_]{3,80}$/.test(error.code) ? error.code : "PRODUCTION_EXECUTION_FAILED";
-  return Object.freeze({ status: "FAIL", code, message: "Production backup execution failed safely" });
+  const failure = { status: "FAIL", code };
+  if (
+    error instanceof ManagedBackupCommandError
+    && typeof error.operation === "string"
+    && /^[A-Za-z0-9][A-Za-z0-9 ._:/-]{0,119}$/.test(error.operation)
+    && Number.isInteger(error.exitCode)
+    && error.exitCode >= 0
+  ) {
+    failure.operation = error.operation;
+    failure.exitCode = error.exitCode;
+  }
+  failure.message = "Production backup execution failed safely";
+  return Object.freeze(failure);
 }
 
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1]);

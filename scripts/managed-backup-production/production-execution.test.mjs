@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 import test from "node:test";
 
 import { buildSupabaseDatabaseEnvironment } from "../managed-backup/command-plans.mjs";
+import { ManagedBackupCommandError } from "../managed-backup/command-runner.mjs";
 import { createExternalReceipt } from "../managed-backup/external-receipt.mjs";
 import {
   PRODUCTION_BUCKET_ALLOWED_MIME_TYPES,
@@ -346,10 +347,13 @@ test("post-verification cleanup failure preserves COMPLETE backup with a warning
   const result = await executePreparedProductionBackup(prepared, {
     now: () => new Date(timestamp),
     captureAdapter: {
-      captureReadOnly: async () => ({
-        artifacts: [], databaseCounts: {}, authInventory: {}, storageInventory: {}, configurationSnapshot: {}, toolVersions: [],
-        freeze: { dbStartedAt: timestamp, dbEndedAt: timestamp, storageStartedAt: timestamp, storageEndedAt: timestamp },
-      }),
+      captureReadOnly: async (options) => {
+        assert.equal(options.databaseWorkingDirectory, process.cwd());
+        return {
+          artifacts: [], databaseCounts: {}, authInventory: {}, storageInventory: {}, configurationSnapshot: {}, toolVersions: [],
+          freeze: { dbStartedAt: timestamp, dbEndedAt: timestamp, storageStartedAt: timestamp, storageEndedAt: timestamp },
+        };
+      },
     },
     bundle: async ({ backupId }) => {
       const finalPath = join(root, `${backupId}.age`);
@@ -372,4 +376,21 @@ test("failure output is sanitized", () => {
   const failure = sanitizeProductionExecutionFailure(Object.assign(new Error("secret endpoint https://private.example"), { code: "TOOL_REQUIRED" }));
   assert.deepEqual(failure, { status: "FAIL", code: "TOOL_REQUIRED", message: "Production backup execution failed safely" });
   assert.equal(JSON.stringify(failure).includes("private.example"), false);
+
+  const commandFailure = sanitizeProductionExecutionFailure(new ManagedBackupCommandError({
+    operation: "dump roles",
+    exitCode: 1,
+    stderrSummary: "secret endpoint https://private.example",
+  }));
+  assert.deepEqual(commandFailure, {
+    status: "FAIL",
+    code: "COMMAND_FAILED",
+    operation: "dump roles",
+    exitCode: 1,
+    message: "Production backup execution failed safely",
+  });
+  assert.equal(JSON.stringify(commandFailure).includes("private.example"), false);
+
+  const spoofed = sanitizeProductionExecutionFailure(Object.assign(new Error("unsafe"), { operation: "dump roles", exitCode: 1 }));
+  assert.deepEqual(spoofed, { status: "FAIL", code: "PRODUCTION_EXECUTION_FAILED", message: "Production backup execution failed safely" });
 });

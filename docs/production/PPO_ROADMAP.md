@@ -170,7 +170,8 @@ M.5.2.0 `CLOSED / PRODUCTION BACKUP PREPARATION APPROVED`, M.5.2.1A
 `CLOSED / R2 CUSTODY ADAPTER APPROVED`, M.5.2.1B
 `CLOSED / R2 SYNTHETIC CUSTODY PASS`, M.5.2.1C
 `CLOSED / PRODUCTION AGE RECOVERY IDENTITY CUSTODY PASS`, M.5.2.1D
-`PQ AGE RECIPIENT VALIDATION CORRECTED / PENDING FINAL REVIEW`, M.5.2.1E `NOT STARTED` y
+`LINKED CLI CWD CORRECTION / PENDING REVIEW`, M.5.2.1E
+`PAUSED AFTER SAFE ATTEMPT #1` y
 M.5.3 `NOT STARTED`; Cloudflare R2
 Standard queda seleccionado y sintéticamente verificado como custodia externa.
 Dirección Técnica confirmó como operador el Bucket Lock de `production/` por
@@ -212,7 +213,7 @@ El contrato de backup/recovery mínimo y el core local de tooling están en
 con transporte secreto de base de datos y orden de restore metadata/bytes
 localmente probados. `M.5.2 = First Production Backup + External Custody` y
 `M.5.3 = Restore Drill + Baseline Closure`. El primer backup Production sigue
-`NOT EXECUTED`; R2 está seleccionado y sintéticamente verificado, y no se
+`NOT COMPLETED`; R2 está seleccionado y sintéticamente verificado, y no se
 ejecutaron backup real, publicación Productiva externa ni restore.
 El core corregido conserva evidencia `INCOMPLETE` fuera del staging, publica el
 nombre final sólo tras cleanup plaintext y prohíbe configuración/credenciales

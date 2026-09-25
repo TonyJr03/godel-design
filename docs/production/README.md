@@ -28,6 +28,11 @@ ha ejecutado.
 - [PPO_04M3_VERCEL_HOBBY_DEPLOYMENT_REPORT.md](PPO_04M3_VERCEL_HOBBY_DEPLOYMENT_REPORT.md):
   evidencia de M.3 `CLOSED / APPROVED`; Production está ready, aceptado y
   protegido, con Site URL alineado y pilot rollout pendiente.
+- [PPO_04M5_BACKUP_RECOVERY_DESIGN.md](PPO_04M5_BACKUP_RECOVERY_DESIGN.md):
+  arquitectura y estado gobernante del backup/recovery managed.
+- [PPO_04M521E_FIRST_PRODUCTION_BACKUP_ATTEMPT_1_REPORT.md](PPO_04M521E_FIRST_PRODUCTION_BACKUP_ATTEMPT_1_REPORT.md):
+  evidencia sanitizada del intento #1, detenido de forma segura antes de
+  bundle, cifrado o publicación R2.
 - [PROJECT_STATUS.md](../PROJECT_STATUS.md): fotografía vigente del proyecto,
   arquitectura, baseline y estados globales.
 

@@ -1,11 +1,11 @@
 import { lstat, mkdir, readFile, readdir } from "node:fs/promises";
-import { relative, resolve, sep } from "node:path";
+import { isAbsolute, relative, resolve, sep } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
 import { listArtifactTree, sha256File } from "./checksums.mjs";
-import { runCommand } from "./command-runner.mjs";
+import { runCommand, validateSecretSafeArgs } from "./command-runner.mjs";
 import { validateAuthInventory, validateStorageDurableInventory } from "./inventory.mjs";
-import { validateRelativeArtifactPath } from "./safety.mjs";
+import { resolveContainedPath, validateRelativeArtifactPath } from "./safety.mjs";
 
 const COPY_HEADER = /^COPY (?:(?:"([a-z][a-z0-9_]*)")|([a-z][a-z0-9_]*))\.(?:(?:"([a-z][a-z0-9_]*)")|([a-z][a-z0-9_]*)) \(([^)]+)\) FROM stdin;$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -13,6 +13,14 @@ const REQUIRED_PRIVATE_DURABLE_TABLES = Object.freeze([
   "private.internal_user_creation_audit",
   "private.internal_user_password_reset_audit",
 ]);
+const PRODUCTION_DATABASE_ARTIFACT_PATHS = Object.freeze([
+  "database/roles.sql",
+  "database/managed-schema.sql",
+  "database/managed-data.sql",
+  "database/migration-history-schema.sql",
+  "database/migration-history-data.sql",
+]);
+const PRODUCTION_DATABASE_ARTIFACT_PATH_SET = new Set(PRODUCTION_DATABASE_ARTIFACT_PATHS);
 
 function fail(code, message) {
   const error = new Error(message);
@@ -318,6 +326,45 @@ export async function createProductionCaptureInventory({ dumpPaths, storageCaptu
   return createDatabaseAndDurableInventories({ dumpText: dumpParts.join("\n"), capturedObjects });
 }
 
+export function relocateProductionDatabaseCapturePlan(plan, { captureRoot } = {}) {
+  if (
+    !plain(plan)
+    || plan.target !== "linked"
+    || plan.executionReady !== true
+    || !Array.isArray(plan.args)
+    || typeof captureRoot !== "string"
+    || !isAbsolute(captureRoot)
+  ) {
+    fail("DATABASE_CAPTURE_PLAN_INVALID", "Production database capture plan is invalid");
+  }
+  const fileIndexes = [];
+  for (let index = 0; index < plan.args.length; index += 1) {
+    if (plan.args[index] === "--file") fileIndexes.push(index);
+  }
+  if (fileIndexes.length !== 1) {
+    fail("DATABASE_CAPTURE_PLAN_INVALID", "Production database capture plan requires exactly one --file argument");
+  }
+  const fileIndex = fileIndexes[0];
+  const artifactPath = plan.args[fileIndex + 1];
+  try {
+    validateRelativeArtifactPath(artifactPath);
+  } catch {
+    fail("DATABASE_CAPTURE_PLAN_INVALID", "Production database capture output path is unsafe");
+  }
+  if (!PRODUCTION_DATABASE_ARTIFACT_PATH_SET.has(artifactPath)) {
+    fail("DATABASE_CAPTURE_PLAN_INVALID", "Production database capture output path is not governed");
+  }
+  const outputPath = resolveContainedPath(captureRoot, artifactPath);
+  const args = [...plan.args];
+  args[fileIndex + 1] = outputPath;
+  try {
+    validateSecretSafeArgs(args);
+  } catch {
+    fail("DATABASE_CAPTURE_PLAN_INVALID", "Production database capture arguments are unsafe");
+  }
+  return Object.freeze({ ...plan, args: Object.freeze(args) });
+}
+
 export function createProductionReadOnlyCaptureAdapter({
   execute = runCommand,
   configurationSnapshotProvider,
@@ -328,9 +375,38 @@ export function createProductionReadOnlyCaptureAdapter({
     fail("CAPTURE_ADAPTER_INVALID", "Production capture adapter dependencies are required");
   }
   return Object.freeze({
-    async captureReadOnly({ captureRoot, databasePlans, databaseEnvironment, s3Plans, s3Environment, storageCaptureRoot }) {
+    async captureReadOnly({ captureRoot, databaseWorkingDirectory, databasePlans, databaseEnvironment, s3Plans, s3Environment, storageCaptureRoot }) {
       if (!Array.isArray(databasePlans) || databasePlans.some((plan) => plan.target !== "linked" || plan.executionReady !== true)) {
         fail("CAPTURE_PLAN_INVALID", "Production database capture requires linked read-only dump plans");
+      }
+      const databaseWorkingDirectoryInvalid = (
+        typeof captureRoot !== "string"
+        || !isAbsolute(captureRoot)
+        || typeof databaseWorkingDirectory !== "string"
+        || !isAbsolute(databaseWorkingDirectory)
+      );
+      const databaseWorkingDirectoryRelativeToCapture = databaseWorkingDirectoryInvalid
+        ? null
+        : relative(resolve(captureRoot), resolve(databaseWorkingDirectory));
+      const databaseWorkingDirectoryInsideCapture = databaseWorkingDirectoryRelativeToCapture === ""
+        || (
+          databaseWorkingDirectoryRelativeToCapture !== null
+          && databaseWorkingDirectoryRelativeToCapture !== ".."
+          && !databaseWorkingDirectoryRelativeToCapture.startsWith(`..${sep}`)
+          && !isAbsolute(databaseWorkingDirectoryRelativeToCapture)
+        );
+      if (databaseWorkingDirectoryInvalid || databaseWorkingDirectoryInsideCapture) {
+        fail("DATABASE_CAPTURE_PLAN_INVALID", "Production database working directory must be an explicit repository path");
+      }
+      const executableDatabasePlans = databasePlans.map((plan) => relocateProductionDatabaseCapturePlan(plan, { captureRoot }));
+      const relocatedArtifacts = executableDatabasePlans.map((plan) => plan.args[plan.args.indexOf("--file") + 1]);
+      const expectedArtifacts = PRODUCTION_DATABASE_ARTIFACT_PATHS.map((path) => resolveContainedPath(captureRoot, path));
+      if (
+        executableDatabasePlans.length !== PRODUCTION_DATABASE_ARTIFACT_PATHS.length
+        || new Set(relocatedArtifacts).size !== PRODUCTION_DATABASE_ARTIFACT_PATHS.length
+        || expectedArtifacts.some((path) => !relocatedArtifacts.includes(path))
+      ) {
+        fail("DATABASE_CAPTURE_PLAN_INVALID", "Production database capture plan set is incomplete or duplicated");
       }
       if (!Array.isArray(s3Plans) || s3Plans.map((plan) => plan.operation).join(",") !== "list-source,download-copy,verify-listing") {
         fail("CAPTURE_PLAN_INVALID", "Production Storage capture plan is not the approved read-only sequence");
@@ -348,12 +424,12 @@ export function createProductionReadOnlyCaptureAdapter({
       const storageStartedAt = now().toISOString();
       const initialListing = (await invokeStorage(initialPlan)).stdout;
       const dbStartedAt = now().toISOString();
-      for (const plan of databasePlans) {
+      for (const plan of executableDatabasePlans) {
         await execute({
           operation: plan.operation,
           executable: plan.executable,
           args: plan.args,
-          cwd: captureRoot,
+          cwd: databaseWorkingDirectory,
           allowedEnvironment: databaseEnvironment.allowedEnvironment,
           secretValues: [databaseEnvironment.allowedEnvironment.SUPABASE_DB_PASSWORD],
         });

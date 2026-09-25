@@ -18,15 +18,15 @@
 
 **M.5.2.1C:** `CLOSED / PRODUCTION AGE RECOVERY IDENTITY CUSTODY PASS`
 
-**M.5.2.1D:** `PQ AGE RECIPIENT VALIDATION CORRECTED / PENDING FINAL REVIEW`
+**M.5.2.1D:** `LINKED CLI CWD CORRECTION / PENDING REVIEW`
 
-**M.5.2.1E:** `NOT STARTED`
+**M.5.2.1E:** `PAUSED AFTER SAFE ATTEMPT #1`
 
 **R2 REMOTE SYNTHETIC PROOF:** `PASS`
 
 **M.5.3:** `NOT STARTED`
 
-**FIRST PRODUCTION BACKUP:** `NOT EXECUTED`
+**FIRST PRODUCTION BACKUP:** `NOT COMPLETED`
 
 **LOCAL INTEGRATION:** `PASS`
 
@@ -819,11 +819,11 @@ PPO-04M.5.2.1C
 
 PPO-04M.5.2.1D
 = First Production Backup Execution Harness
-= PQ AGE RECIPIENT VALIDATION CORRECTED / PENDING FINAL REVIEW
+= LINKED CLI CWD CORRECTION / PENDING REVIEW
 
 PPO-04M.5.2.1E
 = First Production Backup Execution
-= NOT STARTED
+= PAUSED AFTER SAFE ATTEMPT #1
 
 PPO-04M.5.3
 = Restore Drill + Baseline Closure
@@ -873,7 +873,7 @@ FINAL PUBLICATION ATOMICITY = APPROVED
 LOCAL INTEGRATION = PASS
 EXTERNAL CUSTODY DESTINATION = CLOUDFLARE R2 / SELECTED + SYNTHETICALLY VERIFIED
 R2 REMOTE SYNTHETIC PROOF = PASS
-FIRST PRODUCTION BACKUP = NOT EXECUTED
+FIRST PRODUCTION BACKUP = NOT COMPLETED
 ```
 
 La integración local real reconstruyó SOURCE y TARGET desde 01–06, conservó
@@ -1027,9 +1027,9 @@ PPO-04M.5.2.0 = CLOSED / PRODUCTION BACKUP PREPARATION APPROVED
 PPO-04M.5.2.1A = CLOSED / R2 CUSTODY ADAPTER APPROVED
 PPO-04M.5.2.1B = CLOSED / R2 SYNTHETIC CUSTODY PASS
 PPO-04M.5.2.1C = CLOSED / PRODUCTION AGE RECOVERY IDENTITY CUSTODY PASS
-PPO-04M.5.2.1D = PQ AGE RECIPIENT VALIDATION CORRECTED / PENDING FINAL REVIEW
-PPO-04M.5.2.1E = NOT STARTED
-FIRST PRODUCTION BACKUP = NOT EXECUTED
+PPO-04M.5.2.1D = LINKED CLI CWD CORRECTION / PENDING REVIEW
+PPO-04M.5.2.1E = PAUSED AFTER SAFE ATTEMPT #1
+FIRST PRODUCTION BACKUP = NOT COMPLETED
 EXTERNAL CUSTODY DESTINATION = CLOUDFLARE R2 / SELECTED + SYNTHETICALLY VERIFIED
 ```
 
@@ -1183,7 +1183,7 @@ R2 PRODUCTION PREFIX LOCK = OPERATOR-CONFIRMED / 8 DAYS
 PRODUCTION AGE RECOVERY IDENTITY CUSTODY = OPERATOR-ATTESTED / VERIFIED
 PRIVATE IDENTITY ON CAPTURE HOST = NO INTENTIONAL PERSISTENT COPY
 RECOVERY COPIES = 2 / INDEPENDENT OPERATOR CUSTODY
-FIRST PRODUCTION BACKUP = NOT EXECUTED
+FIRST PRODUCTION BACKUP = NOT COMPLETED
 rclone audited version = 1.75.1
 age audited version = 1.3.1
 ```
@@ -1275,11 +1275,29 @@ classic, PQ y plugin, con límite explícito, sin relajar la prohibición de
 identities privadas. No se ejecutó el harness Productivo ni hubo actividad
 remota durante esta corrección.
 
+### M.5.2.1E — intento Productivo #1
+
+La evidencia sanitizada completa está en
+[PPO-04M.5.2.1E — First Production Backup Attempt #1](PPO_04M521E_FIRST_PRODUCTION_BACKUP_ATTEMPT_1_REPORT.md).
+El listado inicial read-only de Storage pasó con cero objetos visibles. El
+primer dump de roles no se completó porque el CLI se ejecutaba desde el capture
+root y no podía resolver el contexto linked del repositorio. Bundle, cifrado y
+publicación R2 no fueron alcanzados; no quedaron artifacts locales ni hubo
+mutaciones Productivas.
+
+La corrección mantiene el contexto linked únicamente en el repositorio y
+separa el working directory del CLI de los destinos `--file`, que se validan y
+relocalizan de forma contenida a `captureRoot/database`. No ejecuta
+`supabase link`, no copia `supabase/.temp` y no crea symlinks.
+
+El siguiente bloque describe exclusivamente la actividad del pase correctivo
+local, no la lectura inicial del intento #1:
+
 ```text
 PPO-04M.5.2.1C = CLOSED / PRODUCTION AGE RECOVERY IDENTITY CUSTODY PASS
-PPO-04M.5.2.1D = PQ AGE RECIPIENT VALIDATION CORRECTED / PENDING FINAL REVIEW
-PPO-04M.5.2.1E = NOT STARTED
-FIRST PRODUCTION BACKUP = NOT EXECUTED
+PPO-04M.5.2.1D = LINKED CLI CWD CORRECTION / PENDING REVIEW
+PPO-04M.5.2.1E = PAUSED AFTER SAFE ATTEMPT #1
+FIRST PRODUCTION BACKUP = NOT COMPLETED
 REMOTE ACTIVITY = 0
 PPO-04M.5.3 = NOT STARTED
 
