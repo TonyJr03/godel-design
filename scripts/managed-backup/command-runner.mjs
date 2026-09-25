@@ -86,7 +86,7 @@ function appendLimited(chunks, chunk, currentSize) {
 
 export async function runCommand(options) {
   if (!plain(options)) fail("COMMAND_PLAN_INVALID", "Command options must be an object");
-  const allowedKeys = new Set(["operation", "executable", "args", "allowedEnvironment", "stdin", "cwd", "secretValues"]);
+  const allowedKeys = new Set(["operation", "executable", "args", "allowedEnvironment", "stdin", "cwd", "secretValues", "redactionValues"]);
   if (Object.keys(options).some((key) => !allowedKeys.has(key))) fail("COMMAND_PLAN_INVALID", "Unexpected command option");
   const {
     operation,
@@ -96,6 +96,7 @@ export async function runCommand(options) {
     stdin,
     cwd,
     secretValues = [],
+    redactionValues = [],
   } = options;
   if (typeof operation !== "string" || operation.length === 0 || typeof executable !== "string" || executable.length === 0) {
     fail("COMMAND_PLAN_INVALID", "Command operation and executable are required");
@@ -104,11 +105,14 @@ export async function runCommand(options) {
   if (!plain(allowedEnvironment) || Object.entries(allowedEnvironment).some(([key, value]) => !/^[A-Za-z_][A-Za-z0-9_]*$/.test(key) || typeof value !== "string")) {
     fail("COMMAND_PLAN_INVALID", "Command environment must be an explicit string map");
   }
+  if (!Array.isArray(redactionValues) || redactionValues.some((value) => typeof value !== "string")) {
+    fail("COMMAND_PLAN_INVALID", "Command redaction values must be an array of strings");
+  }
   validateSecretSafeArgs(args, { secretValues });
   const secretEnvironmentValues = Object.entries(allowedEnvironment)
     .filter(([key]) => /(password|pass|token|secret|key|credential|database.?url|dsn|identity)/i.test(key))
     .map(([, value]) => value);
-  const redactions = [...secretValues, ...secretEnvironmentValues];
+  const redactions = [...secretValues, ...redactionValues, ...secretEnvironmentValues];
 
   return new Promise((accept, reject) => {
     const child = spawn(executable, args, {

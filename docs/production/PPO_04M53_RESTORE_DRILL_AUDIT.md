@@ -1,10 +1,14 @@
 # PPO-04M.5.3 — Restore Drill + Baseline Closure Architecture Audit
 
-**Estado:** `ACTIVE / RESTORE DRILL ARCHITECTURE AUDIT`
+**Estado de M.5.3:** `ACTIVE / SOURCE VERIFICATION TOOLING`
+
+**Estado de M.5.3.0:** `CLOSED / RESTORE DRILL ARCHITECTURE APPROVED`
+
+**Estado de M.5.3A:** `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`
 
 **Fecha:** 2026-09-25
 
-**Resultado del audit:** `ARCHITECTURE DEFINED / IMPLEMENTATION NOT STARTED`
+**Resultado del audit:** `ARCHITECTURE DEFINED / M.5.3A IMPLEMENTED`
 
 ## 1. Autoridad y límites de este pase
 
@@ -479,6 +483,33 @@ referencia sanitizada de fase, no una ruta absoluta, y M.5.3 no puede cerrar.
 - manifest/checksum/tree/authority cross-validation;
 - tests sintéticos sin R2 ni decrypt real.
 
+Estado implementado el 2026-09-25 bajo `scripts/managed-backup-recovery/`:
+
+- sesión privada, no reutilizable y con cleanup fail-closed;
+- admisión de identity externa sin lectura ni serialización de su ruta;
+- preflight sanitizado de Node, age 1.3.1, tar, rclone, Docker y Supabase CLI
+  repo-local;
+- adapter R2 recovery-only con candidate keys deterministas y descargas locales
+  no-replace;
+- parser ustar propio que admite sólo files/directories y bloquea traversal,
+  links, duplicados y tipos especiales antes de extraer;
+- segundo walk del árbol extraído;
+- verificación exacta manifest↔checksums↔filesystem↔inventarios↔receipt↔snapshot;
+- validación temporal compartida de `writer-freeze.json`;
+- clasificación no ejecutora de los cinco artifacts SQL y admisión fail-closed
+  de `managed-data.sql`;
+- detección agregada de estado Auth efímero;
+- orquestador local con adapters inyectables y cleanup en PASS/FAIL.
+
+La suite `ops:restore:managed:source:test` usa únicamente fixtures locales. No
+existe todavía comando destructivo `ops:restore:managed`.
+
+Los blockers de source verification, archive admission, adapter R2 read-only,
+exact-tree, clasificación SQL, Storage empty/nonempty y cleanup quedan
+implementados a nivel M.5.3A, pendientes de revisión arquitectónica. Continúan
+abiertos para M.5.3B el target local, la mutación SQL, la sanitización efectiva
+de estado Auth, la continuidad Auth post-restore y el login real interno.
+
 ### PPO-04M.5.3B — Isolated local target + restore tooling
 
 - extraer target factory de M.5.1;
@@ -509,8 +540,14 @@ No usa Production ni Supabase Managed como target y no modifica R2.
 PPO-04M.5.2 =
 CLOSED / FIRST PRODUCTION BACKUP + EXTERNAL CUSTODY VERIFIED
 
+PPO-04M.5.3.0 =
+CLOSED / RESTORE DRILL ARCHITECTURE APPROVED
+
+PPO-04M.5.3A =
+IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+
 PPO-04M.5.3 =
-ACTIVE / RESTORE DRILL ARCHITECTURE AUDIT
+ACTIVE / SOURCE VERIFICATION TOOLING
 
 PRODUCTION RESTORE =
 NOT AUTHORIZED
@@ -518,6 +555,18 @@ NOT AUTHORIZED
 RESTORE TARGET =
 NOT YET CREATED
 
-REMOTE ACTIVITY DURING AUDIT =
+REAL R2 RECOVERY READ =
+NOT EXECUTED
+
+REAL AGE DECRYPT =
+NOT EXECUTED
+
+REMOTE ACTIVITY =
+0
+
+TARGET MUTATIONS =
+0
+
+SQL EXECUTION =
 0
 ```

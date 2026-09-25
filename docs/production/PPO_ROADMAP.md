@@ -162,7 +162,7 @@ con evidencia estructural y funcional en
 [PPO_04M2_MANAGED_PROVISIONING_REPORT.md](PPO_04M2_MANAGED_PROVISIONING_REPORT.md).
 PPO-04M.3 queda `CLOSED / APPROVED`; PPO-04M.4 queda
 `CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE`; PPO-04M.5 queda
-`ACTIVE / RESTORE DRILL PREPARATION`, con M.5.0 `CLOSED / ARCHITECTURE APPROVED`,
+`ACTIVE / SOURCE VERIFICATION TOOLING`, con M.5.0 `CLOSED / ARCHITECTURE APPROVED`,
 M.5.1 `CLOSED / LOCAL INTEGRATION APPROVED`
 (`DATABASE SECRET-SAFE TRANSPORT`, `AGE ENCRYPTION`, `RCLONE S3` y
 `STORAGE METADATA + BYTE RESTORE ORDER` localmente probados) y
@@ -170,8 +170,10 @@ M.5.2.0 `CLOSED / PRODUCTION BACKUP PREPARATION APPROVED`, M.5.2.1A
 `CLOSED / R2 CUSTODY ADAPTER APPROVED`, M.5.2.1B
 `CLOSED / R2 SYNTHETIC CUSTODY PASS`, M.5.2.1C
 `CLOSED / PRODUCTION AGE RECOVERY IDENTITY CUSTODY PASS`, M.5.2
-`CLOSED / FIRST PRODUCTION BACKUP + EXTERNAL CUSTODY VERIFIED` y M.5.3
-`ACTIVE / RESTORE DRILL ARCHITECTURE AUDIT`; Cloudflare R2
+`CLOSED / FIRST PRODUCTION BACKUP + EXTERNAL CUSTODY VERIFIED`, M.5.3.0
+`CLOSED / RESTORE DRILL ARCHITECTURE APPROVED` y M.5.3A `IMPLEMENTED / PENDING
+ARCHITECTURAL REVIEW`; M.5.3 queda `ACTIVE / SOURCE VERIFICATION TOOLING`.
+Cloudflare R2
 Standard queda seleccionado y sintéticamente verificado como custodia externa.
 Dirección Técnica confirmó como operador el Bucket Lock de `production/` por
 8 días; el tooling no verificó programáticamente el Dashboard. La custodia de
@@ -212,8 +214,10 @@ El contrato de backup/recovery mínimo y el core local de tooling están en
 con transporte secreto de base de datos y orden de restore metadata/bytes
 localmente probados. `M.5.2 = First Production Backup + External Custody` y
 `M.5.3 = Restore Drill + Baseline Closure`. M.5.2 está cerrado con el primer
-backup Production y custodia externa verificados; M.5.3 inició su audit
-arquitectónico. Todavía no se ejecutó ningún restore ni se creó un target.
+backup Production y custodia externa verificados. M.5.3A implementó contratos
+locales de source verification, archive admission, exact-tree, SQL admission y
+cleanup; todavía no se ejecutó lectura R2 real, decrypt real, restore ni se creó
+un target.
 El core corregido conserva evidencia `INCOMPLETE` fuera del staging, publica el
 nombre final sólo tras cleanup plaintext y prohíbe configuración/credenciales
 inline en remotes `rclone`.

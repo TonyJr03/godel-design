@@ -161,9 +161,35 @@ export function buildProductionS3CommandPlan(options = {}) {
   return Object.freeze({ ...plan, args, credentialTransport: "environment", localDestination });
 }
 
-export function createWriterFreezeRecord({ startedAt, dbStartedAt, dbEndedAt, storageStartedAt, storageEndedAt, endedAt } = {}) {
-  const record = { schemaVersion: 1, startedAt, dbCapture: { startedAt: dbStartedAt, endedAt: dbEndedAt }, storageCapture: { startedAt: storageStartedAt, endedAt: storageEndedAt }, endedAt };
-  const timestamps = [startedAt, storageStartedAt, dbStartedAt, dbEndedAt, storageEndedAt, endedAt];
+export function validateWriterFreezeRecord(record) {
+  if (
+    !record
+    || typeof record !== "object"
+    || Array.isArray(record)
+    || Object.getPrototypeOf(record) !== Object.prototype
+    || Object.keys(record).sort().join("\0") !== ["schemaVersion", "startedAt", "dbCapture", "storageCapture", "endedAt"].sort().join("\0")
+    || record.schemaVersion !== 1
+    || !record.dbCapture
+    || typeof record.dbCapture !== "object"
+    || Array.isArray(record.dbCapture)
+    || Object.getPrototypeOf(record.dbCapture) !== Object.prototype
+    || Object.keys(record.dbCapture).sort().join("\0") !== ["startedAt", "endedAt"].sort().join("\0")
+    || !record.storageCapture
+    || typeof record.storageCapture !== "object"
+    || Array.isArray(record.storageCapture)
+    || Object.getPrototypeOf(record.storageCapture) !== Object.prototype
+    || Object.keys(record.storageCapture).sort().join("\0") !== ["startedAt", "endedAt"].sort().join("\0")
+  ) {
+    fail("WRITER_FREEZE_RECORD_INVALID", "Writer freeze record schema is invalid");
+  }
+  const timestamps = [
+    record.startedAt,
+    record.storageCapture.startedAt,
+    record.dbCapture.startedAt,
+    record.dbCapture.endedAt,
+    record.storageCapture.endedAt,
+    record.endedAt,
+  ];
   if (timestamps.some((value) => {
     if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)) return true;
     const parsed = new Date(value);
@@ -175,4 +201,14 @@ export function createWriterFreezeRecord({ startedAt, dbStartedAt, dbEndedAt, st
     if (timestamps[index] < timestamps[index - 1]) fail("WRITER_FREEZE_RECORD_INVALID", "Writer freeze intervals are not ordered");
   }
   return Object.freeze(record);
+}
+
+export function createWriterFreezeRecord({ startedAt, dbStartedAt, dbEndedAt, storageStartedAt, storageEndedAt, endedAt } = {}) {
+  return validateWriterFreezeRecord({
+    schemaVersion: 1,
+    startedAt,
+    dbCapture: { startedAt: dbStartedAt, endedAt: dbEndedAt },
+    storageCapture: { startedAt: storageStartedAt, endedAt: storageEndedAt },
+    endedAt,
+  });
 }
