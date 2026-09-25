@@ -53,7 +53,39 @@ StagingDirectories = 0
 
 No se registran project ref, credenciales, endpoints, URLs ni backup IDs.
 
-## Corrección local
+## Seguimiento read-only sanitizado
+
+Después de corregir el cwd linked se realizó una validación read-only de la
+captura completa. No fue un segundo intento de backup.
+
+```text
+Corrected linked dump roles diagnostic =
+PASS
+
+Full read-only capture diagnostic =
+REACHED POST-DOWNLOAD INVENTORY /
+FAILED LOCALLY WITH CAPTURE_PATH_UNSAFE
+
+Production Storage =
+EMPTY / 0 VISIBLE OBJECTS
+
+Root cause =
+EMPTY STORAGE LOCAL CAPTURE ROOT WAS NOT MATERIALIZED BY TOOLING
+
+Production mutation =
+0
+
+R2 production publication =
+0
+
+Backup attempt #2 =
+NOT EXECUTED
+```
+
+No se registran project refs, URLs, dumps, paths Productivos internos ni
+credenciales.
+
+## Correcciones locales
 
 El boundary Productivo separa ahora:
 
@@ -67,6 +99,11 @@ paths gobernados. El adapter crea un nuevo argv con destino absoluto contenido
 en el capture root y conserva inmutable el plan base. El transporte de
 `SUPABASE_DB_PASSWORD` permanece exclusivamente por environment, con shell
 deshabilitado y sin `--password` ni `--db-url`.
+
+El adapter también valida que el único root de Storage local y el destino
+estructural del plan `download-copy` sean exactamente el layout gobernado
+`captureRoot/storage`. Ese directorio se materializa como root real y privado
+antes de cualquier operación remota; no se añadieron sentinels ni flags rclone.
 
 Este pase correctivo fue exclusivamente local:
 
@@ -82,12 +119,15 @@ Vercel operations = 0
 
 ```text
 PPO-04M.5.2.1D =
-LINKED CLI CWD CORRECTION /
-PENDING REVIEW
+EMPTY STORAGE CAPTURE ROOT CORRECTED /
+PENDING FINAL REVIEW
 
 PPO-04M.5.2.1E =
 PAUSED AFTER SAFE ATTEMPT #1
 
 FIRST PRODUCTION BACKUP =
 NOT COMPLETED
+
+ATTEMPT #2 =
+NOT AUTHORIZED
 ```

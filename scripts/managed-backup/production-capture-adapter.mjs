@@ -365,6 +365,44 @@ export function relocateProductionDatabaseCapturePlan(plan, { captureRoot } = {}
   return Object.freeze({ ...plan, args: Object.freeze(args) });
 }
 
+export function assertProductionStorageCaptureLayout({ captureRoot, storageCaptureRoot, downloadPlan } = {}) {
+  if (
+    typeof captureRoot !== "string"
+    || !isAbsolute(captureRoot)
+    || typeof storageCaptureRoot !== "string"
+    || storageCaptureRoot.length === 0
+    || !isAbsolute(storageCaptureRoot)
+  ) {
+    fail("CAPTURE_PATH_UNSAFE", "Production Storage capture root must be an explicit absolute path");
+  }
+  const governedStorageRoot = resolveContainedPath(captureRoot, "storage");
+  if (resolve(storageCaptureRoot) !== governedStorageRoot || governedStorageRoot === resolve(captureRoot)) {
+    fail("CAPTURE_PATH_UNSAFE", "Production Storage capture root does not match the governed layout");
+  }
+  if (
+    !plain(downloadPlan)
+    || downloadPlan.operation !== "download-copy"
+    || typeof downloadPlan.localDestination !== "string"
+    || !isAbsolute(downloadPlan.localDestination)
+    || resolve(downloadPlan.localDestination) !== governedStorageRoot
+  ) {
+    fail("CAPTURE_PATH_UNSAFE", "Production Storage download destination does not match the governed capture root");
+  }
+  return governedStorageRoot;
+}
+
+async function createPrivateCaptureDirectory(pathname) {
+  try {
+    await mkdir(pathname, { recursive: false, mode: 0o700 });
+  } catch {
+    fail("CAPTURE_PATH_UNSAFE", "Production capture directory could not be created safely");
+  }
+  const state = await lstat(pathname).catch(() => null);
+  if (!state?.isDirectory() || state.isSymbolicLink()) {
+    fail("CAPTURE_PATH_UNSAFE", "Production capture directory must be a real directory");
+  }
+}
+
 export function createProductionReadOnlyCaptureAdapter({
   execute = runCommand,
   configurationSnapshotProvider,
@@ -411,8 +449,10 @@ export function createProductionReadOnlyCaptureAdapter({
       if (!Array.isArray(s3Plans) || s3Plans.map((plan) => plan.operation).join(",") !== "list-source,download-copy,verify-listing") {
         fail("CAPTURE_PLAN_INVALID", "Production Storage capture plan is not the approved read-only sequence");
       }
-      await mkdir(resolve(captureRoot, "database"), { recursive: false, mode: 0o700 });
       const [initialPlan, downloadPlan, finalPlan] = s3Plans;
+      const governedStorageRoot = assertProductionStorageCaptureLayout({ captureRoot, storageCaptureRoot, downloadPlan });
+      await createPrivateCaptureDirectory(resolve(captureRoot, "database"));
+      await createPrivateCaptureDirectory(governedStorageRoot);
       const invokeStorage = (plan) => execute({
         operation: plan.operation,
         executable: plan.executable,

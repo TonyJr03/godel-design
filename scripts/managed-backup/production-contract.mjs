@@ -157,7 +157,8 @@ export function buildProductionS3CommandPlan(options = {}) {
       "--no-mimetype",
     ])
     : plan.args;
-  return Object.freeze({ ...plan, args, credentialTransport: "environment" });
+  const localDestination = options.operation === "download-copy" ? resolve(options.localPath) : null;
+  return Object.freeze({ ...plan, args, credentialTransport: "environment", localDestination });
 }
 
 export function createWriterFreezeRecord({ startedAt, dbStartedAt, dbEndedAt, storageStartedAt, storageEndedAt, endedAt } = {}) {

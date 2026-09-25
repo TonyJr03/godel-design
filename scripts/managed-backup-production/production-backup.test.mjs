@@ -20,6 +20,7 @@ import {
 } from "../managed-backup/production-backup.mjs";
 import {
   assertProductionStorageCaptureConsistency,
+  assertProductionStorageCaptureLayout,
   createProductionReadOnlyCaptureAdapter,
   createDatabaseAndDurableInventories,
   normalizeProductionStorageListing,
@@ -271,7 +272,7 @@ test("output root inside repository is rejected", async () => {
   );
 });
 
-function captureSql({ missingUser = false, nullHash = false, emptyHash = false, noIdentity = false, missingPrivateTable = null } = {}) {
+function captureSql({ missingUser = false, nullHash = false, emptyHash = false, noIdentity = false, missingPrivateTable = null, emptyStorage = false } = {}) {
   const userId = "11111111-1111-4111-8111-111111111111";
   const externalUserId = "44444444-4444-4444-8444-444444444444";
   const itemId = "22222222-2222-4222-8222-222222222222";
@@ -285,6 +286,9 @@ function captureSql({ missingUser = false, nullHash = false, emptyHash = false, 
     "private.internal_user_creation_audit",
     "private.internal_user_password_reset_audit",
   ].filter((identity) => identity !== missingPrivateTable);
+  const storageObjects = emptyStorage ? [] : [`godel-files\t${path}\t{"size":3}`];
+  const items = emptyStorage ? [] : [`${itemId}\tcommitted\t${archivoId}\t${path}\t3`];
+  const archivos = emptyStorage ? [] : [`${archivoId}\tgodel-files\t${path}\t3`];
   return {
     path,
     sql: [
@@ -292,9 +296,9 @@ function captureSql({ missingUser = false, nullHash = false, emptyHash = false, 
       "COPY auth.identities (user_id) FROM stdin;", ...(noIdentity ? [externalUserId] : [userId, externalUserId]), "\\.",
       "COPY public.perfiles (id) FROM stdin;", userId, "\\.",
       "COPY storage.buckets (id) FROM stdin;", "godel-files", "\\.",
-      "COPY storage.objects (bucket_id, name, metadata) FROM stdin;", `godel-files\t${path}\t{"size":3}`, "\\.",
-      "COPY public.archivo_carga_items (id, status, archivo_id, object_path, expected_size) FROM stdin;", `${itemId}\tcommitted\t${archivoId}\t${path}\t3`, "\\.",
-      "COPY public.archivos (id, bucket, file_path, file_size) FROM stdin;", `${archivoId}\tgodel-files\t${path}\t3`, "\\.",
+      "COPY storage.objects (bucket_id, name, metadata) FROM stdin;", ...storageObjects, "\\.",
+      "COPY public.archivo_carga_items (id, status, archivo_id, object_path, expected_size) FROM stdin;", ...items, "\\.",
+      "COPY public.archivos (id, bucket, file_path, file_size) FROM stdin;", ...archivos, "\\.",
       ...privateTables.flatMap((identity) => [`COPY ${identity} (id) FROM stdin;`, "\\."]),
       "",
     ].join("\n"),
@@ -370,6 +374,92 @@ test("Production capture resolves linked context from repoRoot and writes every 
   }));
   assert.ok(databasePlans.every((plan) => plan.args[plan.args.indexOf("--file") + 1].startsWith("database/")));
   await assert.rejects(access(join(repoRoot, "database")), (error) => error.code === "ENOENT");
+});
+
+test("Production capture materializes an empty governed Storage root before remote operations", async () => {
+  const root = await mkdtemp(join(tmpdir(), "godel-production-empty-storage-"));
+  const repoRoot = join(root, "repo");
+  const captureRoot = join(root, "capture");
+  const storageCaptureRoot = join(captureRoot, "storage");
+  await mkdir(join(repoRoot, "supabase", ".temp"), { recursive: true });
+  await writeFile(join(repoRoot, "supabase", ".temp", "project-ref"), PROJECT_REF);
+  await mkdir(captureRoot);
+  const fixture = captureSql({ emptyStorage: true });
+  const operations = [];
+  const adapter = createProductionReadOnlyCaptureAdapter({
+    execute: async (plan) => {
+      operations.push(plan.operation);
+      if (plan.operation === "list-source" || plan.operation === "verify-listing") {
+        await access(storageCaptureRoot);
+        return { stdout: "[]", stderr: "" };
+      }
+      if (plan.operation.startsWith("dump ")) {
+        const outputPath = plan.args[plan.args.indexOf("--file") + 1];
+        await writeFile(outputPath, plan.operation === "dump managed data" ? fixture.sql : "");
+      }
+      if (plan.operation === "download-copy") await access(storageCaptureRoot);
+      return { stdout: "", stderr: "" };
+    },
+    configurationSnapshotProvider: async () => ({}),
+    toolVersionsProvider: async () => [],
+    now: () => new Date("2026-09-25T12:00:00.000Z"),
+  });
+  const databasePlans = buildSupabaseDatabaseCommandPlans({ target: "linked", executable: "synthetic" });
+  const s3Plans = [
+    buildProductionS3CommandPlan({ operation: "list-source", remotePath: "godel-files" }),
+    buildProductionS3CommandPlan({ operation: "download-copy", remotePath: "godel-files", localPath: storageCaptureRoot }),
+    buildProductionS3CommandPlan({ operation: "verify-listing", remotePath: "godel-files" }),
+  ];
+  const captured = await adapter.captureReadOnly({
+    captureRoot,
+    databaseWorkingDirectory: repoRoot,
+    databasePlans,
+    databaseEnvironment: { allowedEnvironment: { SUPABASE_DB_PASSWORD: "synthetic" } },
+    s3Plans,
+    s3Environment: { allowedEnvironment: {}, secretValues: [] },
+    storageCaptureRoot,
+  });
+  assert.deepEqual(operations, [
+    "list-source",
+    "dump roles",
+    "dump managed schemas for audit",
+    "dump managed data",
+    "dump migration history schema",
+    "dump migration history data",
+    "download-copy",
+    "verify-listing",
+  ]);
+  assert.deepEqual(await readdir(storageCaptureRoot), []);
+  assert.equal(captured.storageInventory.capturedObjects.length, 0);
+  assert.equal(captured.durable.objectCount, 0);
+});
+
+test("Production Storage capture layout admits only captureRoot/storage and the matching download plan", () => {
+  const captureRoot = resolve(tmpdir(), "godel-production-storage-layout");
+  const exactRoot = join(captureRoot, "storage");
+  const planFor = (localPath) => buildProductionS3CommandPlan({ operation: "download-copy", remotePath: "godel-files", localPath });
+  assert.equal(
+    assertProductionStorageCaptureLayout({ captureRoot, storageCaptureRoot: exactRoot, downloadPlan: planFor(exactRoot) }),
+    exactRoot,
+  );
+  for (const storageCaptureRoot of [
+    resolve(captureRoot, "..", "outside-storage"),
+    captureRoot,
+    join(captureRoot, "arbitrary-sibling"),
+  ]) {
+    assert.throws(
+      () => assertProductionStorageCaptureLayout({ captureRoot, storageCaptureRoot, downloadPlan: planFor(storageCaptureRoot) }),
+      (error) => error.code === "CAPTURE_PATH_UNSAFE",
+    );
+  }
+  assert.throws(
+    () => assertProductionStorageCaptureLayout({
+      captureRoot,
+      storageCaptureRoot: exactRoot,
+      downloadPlan: planFor(join(captureRoot, "other")),
+    }),
+    (error) => error.code === "CAPTURE_PATH_UNSAFE",
+  );
 });
 
 test("Production database plan relocation is immutable and rejects every unsafe --file shape", () => {

@@ -18,7 +18,7 @@
 
 **M.5.2.1C:** `CLOSED / PRODUCTION AGE RECOVERY IDENTITY CUSTODY PASS`
 
-**M.5.2.1D:** `LINKED CLI CWD CORRECTION / PENDING REVIEW`
+**M.5.2.1D:** `EMPTY STORAGE CAPTURE ROOT CORRECTED / PENDING FINAL REVIEW`
 
 **M.5.2.1E:** `PAUSED AFTER SAFE ATTEMPT #1`
 
@@ -27,6 +27,8 @@
 **M.5.3:** `NOT STARTED`
 
 **FIRST PRODUCTION BACKUP:** `NOT COMPLETED`
+
+**ATTEMPT #2:** `NOT AUTHORIZED`
 
 **LOCAL INTEGRATION:** `PASS`
 
@@ -819,7 +821,7 @@ PPO-04M.5.2.1C
 
 PPO-04M.5.2.1D
 = First Production Backup Execution Harness
-= LINKED CLI CWD CORRECTION / PENDING REVIEW
+= EMPTY STORAGE CAPTURE ROOT CORRECTED / PENDING FINAL REVIEW
 
 PPO-04M.5.2.1E
 = First Production Backup Execution
@@ -1027,9 +1029,10 @@ PPO-04M.5.2.0 = CLOSED / PRODUCTION BACKUP PREPARATION APPROVED
 PPO-04M.5.2.1A = CLOSED / R2 CUSTODY ADAPTER APPROVED
 PPO-04M.5.2.1B = CLOSED / R2 SYNTHETIC CUSTODY PASS
 PPO-04M.5.2.1C = CLOSED / PRODUCTION AGE RECOVERY IDENTITY CUSTODY PASS
-PPO-04M.5.2.1D = LINKED CLI CWD CORRECTION / PENDING REVIEW
+PPO-04M.5.2.1D = EMPTY STORAGE CAPTURE ROOT CORRECTED / PENDING FINAL REVIEW
 PPO-04M.5.2.1E = PAUSED AFTER SAFE ATTEMPT #1
 FIRST PRODUCTION BACKUP = NOT COMPLETED
+ATTEMPT #2 = NOT AUTHORIZED
 EXTERNAL CUSTODY DESTINATION = CLOUDFLARE R2 / SELECTED + SYNTHETICALLY VERIFIED
 ```
 
@@ -1290,14 +1293,23 @@ separa el working directory del CLI de los destinos `--file`, que se validan y
 relocalizan de forma contenida a `captureRoot/database`. No ejecuta
 `supabase link`, no copia `supabase/.temp` y no crea symlinks.
 
+La validación read-only posterior confirmó `dump roles = PASS` y alcanzó el
+inventario posterior a la descarga. Con Storage Productivo vacío, `rclone copy`
+no materializó el root local y el inventariador estricto detuvo la captura con
+`CAPTURE_PATH_UNSAFE`. El lifecycle corregido valida que el root y el destino
+estructural del plan coincidan exactamente con `captureRoot/storage`, lo crea
+como directorio real privado antes de la ventana remota y conserva estricto el
+inventariador fuera de ese lifecycle.
+
 El siguiente bloque describe exclusivamente la actividad del pase correctivo
 local, no la lectura inicial del intento #1:
 
 ```text
 PPO-04M.5.2.1C = CLOSED / PRODUCTION AGE RECOVERY IDENTITY CUSTODY PASS
-PPO-04M.5.2.1D = LINKED CLI CWD CORRECTION / PENDING REVIEW
+PPO-04M.5.2.1D = EMPTY STORAGE CAPTURE ROOT CORRECTED / PENDING FINAL REVIEW
 PPO-04M.5.2.1E = PAUSED AFTER SAFE ATTEMPT #1
 FIRST PRODUCTION BACKUP = NOT COMPLETED
+ATTEMPT #2 = NOT AUTHORIZED
 REMOTE ACTIVITY = 0
 PPO-04M.5.3 = NOT STARTED
 
