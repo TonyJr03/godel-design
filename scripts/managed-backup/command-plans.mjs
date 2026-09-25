@@ -1,12 +1,12 @@
 import { isAbsolute } from "node:path";
 
+import { isSupportedAgeRecipient } from "./age-recipient.mjs";
 import {
   validateSecretSafeArgs,
   validateSecretSafeDatabaseTransport,
 } from "./command-runner.mjs";
 import { validateRelativeArtifactPath } from "./safety.mjs";
 
-const AGE_RECIPIENT_PATTERN = /^(?:age1[ac-hj-np-z02-9]{20,}|age-plugin-[A-Za-z0-9+._-]+-[A-Za-z0-9+/_=-]+)$/;
 const FORBIDDEN_S3_OPERATION = /^(?:delete|move|purge|sync|rmdir|deletefile)$/i;
 const RCLONE_REMOTE_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const INLINE_REMOTE_CONFIG_PATTERN = /(?:^:|,[^,:]*=|(?:access[-_]?key[-_]?id|secret[-_]?access[-_]?key|session[-_]?token|password|token|client[-_]?secret)\s*=)/i;
@@ -174,7 +174,7 @@ export function buildS3CommandPlan(options = {}) {
 export function buildAgeEncryptPlan(options = {}) {
   exactOptions(options, ["recipient", "inputPath", "outputPath"], "Age encryption plan");
   const { recipient, inputPath, outputPath } = options;
-  if (typeof recipient !== "string" || !AGE_RECIPIENT_PATTERN.test(recipient)) {
+  if (!isSupportedAgeRecipient(recipient)) {
     fail("AGE_PLAN_INVALID", "A valid public age recipient is required");
   }
   if (typeof inputPath !== "string" || inputPath.length === 0 || typeof outputPath !== "string" || outputPath.length === 0) {

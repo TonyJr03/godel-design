@@ -28,6 +28,9 @@ test("runner passes only allowlisted environment and never inherits a secret", a
 test("secret-bearing argv and shell options are rejected", async () => {
   assert.throws(() => validateSecretSafeArgs(["--password", "actual-secret"]), /forbidden/);
   assert.throws(() => validateSecretSafeArgs(["--db-url=postgresql://user:actual-secret@db.invalid/postgres"]), /forbidden/);
+  for (const identity of ["AGE-SECRET-KEY-1SYNTHETIC", "AGE-SECRET-KEY-PQ-1SYNTHETIC"]) {
+    assert.throws(() => validateSecretSafeArgs([identity]), /forbidden/);
+  }
   await assert.rejects(runCommand({
     operation: "unsafe shell",
     executable: process.execPath,
@@ -77,6 +80,17 @@ test("runner redacts allowlisted secret values from child output and errors", as
     executable: process.execPath,
     args: ["-e", "process.stdout.write(process.env.TEST_TOKEN)"],
     allowedEnvironment: { TEST_TOKEN: "sensitive-value" },
+    cwd: process.cwd(),
+  });
+  assert.equal(result.stdout, "[REDACTED]");
+});
+
+test("runner redacts a PQ private identity even when its environment key is not secret-like", async () => {
+  const result = await runCommand({
+    operation: "sanitize PQ private identity",
+    executable: process.execPath,
+    args: ["-e", "process.stdout.write(process.env.SAFE_VALUE)"],
+    allowedEnvironment: { SAFE_VALUE: "AGE-SECRET-KEY-PQ-1SYNTHETIC" },
     cwd: process.cwd(),
   });
   assert.equal(result.stdout, "[REDACTED]");

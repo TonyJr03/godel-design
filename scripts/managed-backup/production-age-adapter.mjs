@@ -1,9 +1,9 @@
 import { lstat, open } from "node:fs/promises";
 
+import { isSupportedAgeRecipient } from "./age-recipient.mjs";
 import { sha256File } from "./checksums.mjs";
 import { runPipeline } from "./pipeline-runner.mjs";
 
-const AGE_RECIPIENT_PATTERN = /^(?:age1[ac-hj-np-z02-9]{20,}|age-plugin-[A-Za-z0-9+._-]+-[A-Za-z0-9+/_=-]+)$/;
 const AGE_HEADER = Buffer.from("age-encryption.org/v1\n", "ascii");
 
 async function assertAgeHeader(pathname) {
@@ -25,7 +25,7 @@ export function createProductionAgeTarAdapter({
   allowedEnvironment = {},
   pipeline = runPipeline,
 } = {}) {
-  if (typeof recipient !== "string" || !AGE_RECIPIENT_PATTERN.test(recipient)) throw new Error("A valid public age recipient is required");
+  if (!isSupportedAgeRecipient(recipient)) throw new Error("A valid public age recipient is required");
   if (![ageExecutable, tarExecutable, cwd].every((value) => typeof value === "string" && value.length > 0)) throw new Error("Age, tar, and cwd must be explicit");
   const pipe = (operation, left, right) => pipeline({ operation, left, right, cwd, allowedEnvironment });
   return Object.freeze({

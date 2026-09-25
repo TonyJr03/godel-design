@@ -1,9 +1,8 @@
 import { lstat, mkdir } from "node:fs/promises";
 import { isAbsolute } from "node:path";
 
+import { isSupportedAgeRecipient } from "./age-recipient.mjs";
 import { runPipeline } from "./pipeline-runner.mjs";
-
-const AGE_RECIPIENT_PATTERN = /^(?:age1[ac-hj-np-z02-9]{20,}|age-plugin-[A-Za-z0-9+._-]+-[A-Za-z0-9+/_=-]+)$/;
 
 async function requireFile(pathname, label) {
   const state = await lstat(pathname);
@@ -26,7 +25,7 @@ export function createAgeTarAdapter({
   allowedEnvironment = {},
   pipeline = runPipeline,
 } = {}) {
-  if (typeof recipient !== "string" || !AGE_RECIPIENT_PATTERN.test(recipient)) throw new Error("A valid public age recipient is required");
+  if (!isSupportedAgeRecipient(recipient)) throw new Error("A valid public age recipient is required");
   if (typeof identityFile !== "string" || !isAbsolute(identityFile)) throw new Error("An absolute protected age identity path is required");
   if (![ageExecutable, tarExecutable, cwd].every((value) => typeof value === "string" && value.length > 0)) throw new Error("Age, tar, and cwd must be explicit");
 

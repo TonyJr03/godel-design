@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { isAbsolute, join, resolve } from "node:path";
 
+import { isSupportedAgeRecipient } from "./age-recipient.mjs";
 import { buildS3CommandPlan } from "./command-plans.mjs";
 
 export const PRODUCTION_BACKUP_CONFIRMATION = "ALLOW_SINGLE_PRODUCTION_BACKUP_CAPTURE";
@@ -11,7 +12,6 @@ export const PRODUCTION_S3_REMOTE_NAME = "godelprod";
 
 const SHA_PATTERN = /^[a-f0-9]{40}$/;
 const PROJECT_REF_PATTERN = /^[a-z0-9]{20}$/;
-const AGE_RECIPIENT_PATTERN = /^(?:age1[ac-hj-np-z02-9]{20,}|age-plugin-[A-Za-z0-9+._-]+-[A-Za-z0-9+/_=-]+)$/;
 const PRODUCTION_S3_OPERATIONS = new Set(["list-source", "download-copy", "verify-listing"]);
 
 function fail(code, message) {
@@ -64,7 +64,7 @@ export function readProductionBackupConfiguration(environment = {}) {
   const outputRoot = required(environment, "GODEL_MANAGED_BACKUP_OUTPUT_ROOT");
   if (!PROJECT_REF_PATTERN.test(projectRef)) fail("PROJECT_REF_INVALID", "Configured Supabase project ref is invalid");
   if (!SHA_PATTERN.test(productionRuntimeSha)) fail("PRODUCTION_RUNTIME_SHA_INVALID", "Production runtime SHA is invalid");
-  if (!AGE_RECIPIENT_PATTERN.test(ageRecipient)) fail("AGE_RECIPIENT_INVALID", "Production age recipient is invalid");
+  if (!isSupportedAgeRecipient(ageRecipient)) fail("AGE_RECIPIENT_INVALID", "Production age recipient is invalid");
   if (!isAbsolute(outputRoot)) fail("UNSAFE_OUTPUT_ROOT", "Managed backup output root must be absolute");
 
   const databasePassword = required(environment, "SUPABASE_DB_PASSWORD", "DATABASE_PASSWORD_REQUIRED");

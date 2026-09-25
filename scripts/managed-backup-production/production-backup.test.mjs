@@ -27,12 +27,14 @@ import {
   PRODUCTION_BACKUP_CONFIRMATION,
   PRODUCTION_WRITER_FREEZE_CONFIRMATION,
   buildProductionS3CommandPlan,
+  readProductionBackupConfiguration,
 } from "../managed-backup/production-contract.mjs";
 
 const PROJECT_REF = "abcdefghijklmnopqrst";
 const TOOLING_SHA = "a".repeat(40);
 const RUNTIME_SHA = "b".repeat(40);
 const BACKUP_ID = "GDBK-20260922T120000Z-ABCDEFGH";
+const SYNTHETIC_PQ_RECIPIENT = `age1pq1${"q".repeat(1993)}`;
 
 function environment(outputRoot) {
   return {
@@ -59,6 +61,12 @@ function dependencies(overrides = {}) {
     ...overrides,
   };
 }
+
+test("Production contract accepts a realistic synthetic PQ age recipient", () => {
+  const values = environment(resolve(tmpdir(), "godel-production-pq-contract"));
+  values.GODEL_MANAGED_BACKUP_AGE_RECIPIENT = SYNTHETIC_PQ_RECIPIENT;
+  assert.equal(readProductionBackupConfiguration(values).ageRecipient, SYNTHETIC_PQ_RECIPIENT);
+});
 
 test("absent exact confirmation stops before every local or Production adapter", async () => {
   let calls = 0;
@@ -403,6 +411,13 @@ test("Production age adapter streams tar with a public recipient and no identity
   assert.deepEqual(calls[0].left.args.slice(0, 2), ["-cf", "-"]);
   assert.ok(calls[0].right.args.includes("--recipient"));
   assert.ok(!calls[0].right.args.includes("--identity"));
+});
+
+test("Production age adapter constructs with a realistic synthetic PQ recipient", () => {
+  assert.doesNotThrow(() => createProductionAgeTarAdapter({
+    recipient: SYNTHETIC_PQ_RECIPIENT,
+    cwd: resolve(tmpdir(), "godel-production-pq-adapter"),
+  }));
 });
 
 test("external receipt is strict, no-replace, and verifies downloaded ciphertext", async () => {

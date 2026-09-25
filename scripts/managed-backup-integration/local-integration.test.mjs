@@ -71,3 +71,11 @@ test("age-tar adapter uses streaming plans and never requests a plaintext archiv
   assert.deepEqual((await readdir(root)).filter((name) => name.endsWith(".tar")), []);
   await access(ciphertext);
 });
+
+test("age-tar adapter constructs with a realistic synthetic PQ recipient", () => {
+  assert.doesNotThrow(() => createAgeTarAdapter({
+    recipient: `age1pq1${"q".repeat(1993)}`,
+    identityFile: join(tmpdir(), "synthetic-age-identity.txt"),
+    cwd: tmpdir(),
+  }));
+});

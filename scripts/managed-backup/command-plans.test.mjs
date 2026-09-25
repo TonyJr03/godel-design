@@ -100,6 +100,15 @@ test("age plans accept public recipients and reject private key material", () =>
   assert.throws(() => buildAgeDecryptVerificationPlan({ ciphertextPath: "cipher", outputPath: "plain", identityFile: "AGE-SECRET-KEY-1ABC" }), /protected file path/);
 });
 
+test("age encryption plans accept a synthetic PQ recipient without an identity", () => {
+  const recipient = `age1pq1${"q".repeat(1993)}`;
+  const plan = buildAgeEncryptPlan({ recipient, inputPath: "plain.tar", outputPath: "bundle.age" });
+  const recipientFlag = plan.args.indexOf("--recipient");
+  assert.notEqual(recipientFlag, -1);
+  assert.equal(plan.args[recipientFlag + 1], recipient);
+  assert.equal(plan.args.includes("--identity"), false);
+});
+
 test("age adapter fails on nonzero execution and on missing ciphertext", async () => {
   const root = await mkdtemp(join(tmpdir(), "godel-age-"));
   const plaintextPath = join(root, "plain.tar");
