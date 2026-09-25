@@ -2,13 +2,13 @@
 
 **Bloque:** `PPO-04M.5.0 — Managed Backup & Recovery Architecture Audit`
 
-**Estado de M.5:** `ACTIVE / PRODUCTION BACKUP PREPARATION`
+**Estado de M.5:** `ACTIVE / RESTORE DRILL PREPARATION`
 
 **Estado de M.5.0:** `CLOSED / ARCHITECTURE APPROVED`
 
 **M.5.1:** `CLOSED / LOCAL INTEGRATION APPROVED`
 
-**M.5.2:** `ACTIVE / PRODUCTION BACKUP PREPARATION`
+**M.5.2:** `CLOSED / FIRST PRODUCTION BACKUP + EXTERNAL CUSTODY VERIFIED`
 
 **M.5.2.0:** `CLOSED / PRODUCTION BACKUP PREPARATION APPROVED`
 
@@ -18,17 +18,19 @@
 
 **M.5.2.1C:** `CLOSED / PRODUCTION AGE RECOVERY IDENTITY CUSTODY PASS`
 
-**M.5.2.1D:** `WRITER FREEZE ORDERING CORRECTION / PENDING FINAL REVIEW`
+**M.5.2.1D:** `CLOSED / HARNESS CORRECTIONS VERIFIED`
 
-**M.5.2.1E:** `PAUSED AFTER SAFE ATTEMPT #2`
+**M.5.2.1E:** `CLOSED / FIRST PRODUCTION BACKUP VERIFIED`
 
 **R2 REMOTE SYNTHETIC PROOF:** `PASS`
 
-**M.5.3:** `NOT STARTED`
+**M.5.3:** `ACTIVE / RESTORE DRILL ARCHITECTURE AUDIT`
 
-**FIRST PRODUCTION BACKUP:** `NOT COMPLETED`
+**FIRST PRODUCTION BACKUP:** `COMPLETE`
 
-**ATTEMPT #3:** `NOT AUTHORIZED`
+**PRODUCTION RESTORE:** `NOT AUTHORIZED`
+
+**RESTORE TARGET:** `NOT YET CREATED`
 
 **LOCAL INTEGRATION:** `PASS`
 
@@ -701,19 +703,20 @@ aprobar capacidad y ventana operativa antes de M.5.2.
 | Riesgo destructivo | Bajo si la identidad del target es nueva y se verifica fail-closed | Bajo si el stack/directorios son nuevos y explícitos |
 | Automatización | Más credenciales, coste y cleanup | Más simple para iterar localmente |
 
-Recomendación:
+Decisión vigente para M.5.3:
 
 ```text
 M.5.1 = pruebas locales y tooling sin Production
 M.5.2 = primer backup Production autorizado + custodia externa
-M.5.3 = restore drill sobre proyecto Supabase managed nuevo/desechable
+M.5.3 = restore drill sobre stack Supabase local nuevo, aislado y desechable
 ```
 
-El target A es obligatorio para la aceptación preferida porque prueba la
-frontera provider-managed real. Antes de M.5.3 debe existir una decisión
-explícita sobre slot Free o coste temporal. Si no se autoriza, un drill local
-puede aportar evidencia parcial, pero no se promoverá silenciosamente a cierre
-equivalente de M.5.
+Dirección Técnica restringe este primer drill a un target local fresco, sin
+vínculo con ningún proyecto remoto y creado exclusivamente para la ejecución.
+La fidelidad sobre un target managed continúa siendo una mejora importante
+posterior al piloto; no es requisito de cierre de este pase. El contrato exacto
+del drill local y sus gaps están en
+[PPO-04M.5.3 — Restore Drill Architecture Audit](PPO_04M53_RESTORE_DRILL_AUDIT.md).
 
 ## 16. Contrato de aceptación del restore
 
@@ -801,7 +804,7 @@ PPO-04M.5.1
 
 PPO-04M.5.2
 = First Production Backup + External Custody
-= ACTIVE / PRODUCTION BACKUP PREPARATION
+= CLOSED / FIRST PRODUCTION BACKUP + EXTERNAL CUSTODY VERIFIED
 
 PPO-04M.5.2.0
 = Production Backup & External Custody Preparation
@@ -821,15 +824,15 @@ PPO-04M.5.2.1C
 
 PPO-04M.5.2.1D
 = First Production Backup Execution Harness
-= WRITER FREEZE ORDERING CORRECTION / PENDING FINAL REVIEW
+= CLOSED / HARNESS CORRECTIONS VERIFIED
 
 PPO-04M.5.2.1E
 = First Production Backup Execution
-= PAUSED AFTER SAFE ATTEMPT #2
+= CLOSED / FIRST PRODUCTION BACKUP VERIFIED
 
 PPO-04M.5.3
 = Restore Drill + Baseline Closure
-= NOT STARTED
+= ACTIVE / RESTORE DRILL ARCHITECTURE AUDIT
 ```
 
 M.6 no se abre hasta que M.5.3 esté cerrado/aprobado.
@@ -875,7 +878,7 @@ FINAL PUBLICATION ATOMICITY = APPROVED
 LOCAL INTEGRATION = PASS
 EXTERNAL CUSTODY DESTINATION = CLOUDFLARE R2 / SELECTED + SYNTHETICALLY VERIFIED
 R2 REMOTE SYNTHETIC PROOF = PASS
-FIRST PRODUCTION BACKUP = NOT COMPLETED
+FIRST PRODUCTION BACKUP = COMPLETE
 ```
 
 La integración local real reconstruyó SOURCE y TARGET desde 01–06, conservó
@@ -1029,10 +1032,12 @@ PPO-04M.5.2.0 = CLOSED / PRODUCTION BACKUP PREPARATION APPROVED
 PPO-04M.5.2.1A = CLOSED / R2 CUSTODY ADAPTER APPROVED
 PPO-04M.5.2.1B = CLOSED / R2 SYNTHETIC CUSTODY PASS
 PPO-04M.5.2.1C = CLOSED / PRODUCTION AGE RECOVERY IDENTITY CUSTODY PASS
-PPO-04M.5.2.1D = WRITER FREEZE ORDERING CORRECTION / PENDING FINAL REVIEW
-PPO-04M.5.2.1E = PAUSED AFTER SAFE ATTEMPT #2
-FIRST PRODUCTION BACKUP = NOT COMPLETED
-ATTEMPT #3 = NOT AUTHORIZED
+PPO-04M.5.2.1D = CLOSED / HARNESS CORRECTIONS VERIFIED
+PPO-04M.5.2.1E = CLOSED / FIRST PRODUCTION BACKUP VERIFIED
+PPO-04M.5.2 = CLOSED / FIRST PRODUCTION BACKUP + EXTERNAL CUSTODY VERIFIED
+FIRST PRODUCTION BACKUP = COMPLETE
+PRODUCTION RESTORE = NOT AUTHORIZED
+RESTORE TARGET = NOT YET CREATED
 EXTERNAL CUSTODY DESTINATION = CLOUDFLARE R2 / SELECTED + SYNTHETICALLY VERIFIED
 ```
 
@@ -1071,9 +1076,9 @@ la integración local de M.5.1 y de cualquier M.5.2.
 
 ### 20.1 Decisiones abiertas para M.5.3
 
-1. Asignar la custodia de la identity privada de recovery fuera del host de
-   captura.
-2. Autorizar slot/coste del proyecto managed desechable de M.5.3.
+1. Implementar la admisión de la identity privada desde su custodia externa sin
+   persistirla ni exponerla en argumentos, logs o evidencia.
+2. Implementar y verificar el target Supabase local nuevo, aislado y desechable.
 3. Fijar owner operativo, calendario diario y retención mínima definitiva.
 4. Resolver en M.5.3 `ARCHIVE ENTRY ADMISSION / PATH TRAVERSAL HARDENING` y
    `AUTH SESSION/REFRESH TOKEN RECOVERY POLICY` antes del restore drill.
@@ -1186,7 +1191,7 @@ R2 PRODUCTION PREFIX LOCK = OPERATOR-CONFIRMED / 8 DAYS
 PRODUCTION AGE RECOVERY IDENTITY CUSTODY = OPERATOR-ATTESTED / VERIFIED
 PRIVATE IDENTITY ON CAPTURE HOST = NO INTENTIONAL PERSISTENT COPY
 RECOVERY COPIES = 2 / INDEPENDENT OPERATOR CUSTODY
-FIRST PRODUCTION BACKUP = NOT COMPLETED
+FIRST PRODUCTION BACKUP = COMPLETE
 rclone audited version = 1.75.1
 age audited version = 1.3.1
 ```
@@ -1317,12 +1322,14 @@ local, no las lecturas remotas de los intentos #1 y #2:
 
 ```text
 PPO-04M.5.2.1C = CLOSED / PRODUCTION AGE RECOVERY IDENTITY CUSTODY PASS
-PPO-04M.5.2.1D = WRITER FREEZE ORDERING CORRECTION / PENDING FINAL REVIEW
-PPO-04M.5.2.1E = PAUSED AFTER SAFE ATTEMPT #2
-FIRST PRODUCTION BACKUP = NOT COMPLETED
-ATTEMPT #3 = NOT AUTHORIZED
+PPO-04M.5.2.1D = CLOSED / HARNESS CORRECTIONS VERIFIED
+PPO-04M.5.2.1E = CLOSED / FIRST PRODUCTION BACKUP VERIFIED
+PPO-04M.5.2 = CLOSED / FIRST PRODUCTION BACKUP + EXTERNAL CUSTODY VERIFIED
+FIRST PRODUCTION BACKUP = COMPLETE
 REMOTE ACTIVITY = 0
-PPO-04M.5.3 = NOT STARTED
+PPO-04M.5.3 = ACTIVE / RESTORE DRILL ARCHITECTURE AUDIT
+PRODUCTION RESTORE = NOT AUTHORIZED
+RESTORE TARGET = NOT YET CREATED
 
 Supabase Production requests = 0
 Supabase Managed DB connections = 0

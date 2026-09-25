@@ -13,8 +13,8 @@ ha ejecutado.
 - [PPO_04_MANAGED_FREE_PILOT_PLAN.md](PPO_04_MANAGED_FREE_PILOT_PLAN.md): plan
   gobernante de PPO-04M; PPO-04M.0 y PPO-04M.1 están `CLOSED / APPROVED`,
   PPO-04M.2 está `CLOSED / APPROVED` con M.2A y M.2B cerrados; PPO-04M.3 está
-  `CLOSED / APPROVED`, PPO-04M.4 está `ACTIVE / NEXT` y PPO-04M.5–PPO-04M.7 no
-  se han iniciado.
+  `CLOSED / APPROVED`, PPO-04M.4 está `CLOSED / QUALIFIED ACCEPTANCE` y
+  PPO-04M.5 está `ACTIVE / RESTORE DRILL PREPARATION`.
 - [PPO_04M0_MANAGED_ARCHITECTURE_AUDIT.md](PPO_04M0_MANAGED_ARCHITECTURE_AUDIT.md):
   contrato aprobado de arquitectura, variables, Auth, DB, Storage, Vercel, QA,
   backup boundary y handoff exacto a PPO-04M.1.
@@ -30,6 +30,9 @@ ha ejecutado.
   protegido, con Site URL alineado y pilot rollout pendiente.
 - [PPO_04M5_BACKUP_RECOVERY_DESIGN.md](PPO_04M5_BACKUP_RECOVERY_DESIGN.md):
   arquitectura y estado gobernante del backup/recovery managed.
+- [PPO_04M53_RESTORE_DRILL_AUDIT.md](PPO_04M53_RESTORE_DRILL_AUDIT.md):
+  auditoría de arquitectura y contrato fail-closed para el primer restore drill
+  local, aislado y desechable; el restore todavía no está autorizado.
 - [PPO_04M521E_FIRST_PRODUCTION_BACKUP_ATTEMPT_1_REPORT.md](PPO_04M521E_FIRST_PRODUCTION_BACKUP_ATTEMPT_1_REPORT.md):
   evidencia sanitizada del intento #1, detenido de forma segura antes de
   bundle, cifrado o publicación R2.
