@@ -12,7 +12,7 @@ function fail(code, message) {
 
 function systemEnvironment(source = {}) {
   const output = {};
-  for (const key of ["PATH", "Path", "PATHEXT", "SystemRoot", "WINDIR"]) {
+  for (const key of ["PATH", "Path", "PATHEXT", "SystemRoot", "WINDIR", "TEMP", "TMP", "LOCALAPPDATA", "APPDATA", "USERPROFILE"]) {
     if (typeof source[key] === "string") output[key] = source[key];
   }
   return output;

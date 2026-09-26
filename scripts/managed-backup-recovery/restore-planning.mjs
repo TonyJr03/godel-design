@@ -14,6 +14,7 @@ const mutablePlanHandles = new WeakSet();
 const mutablePlanDetails = new WeakMap();
 const sanitizedSqlHandles = new WeakMap();
 const storagePlanHandles = new WeakMap();
+const storageMetadataGateHandles = new WeakSet();
 
 function fail(code, message) {
   const error = new Error(message);
@@ -48,7 +49,7 @@ export function buildMutableTablePlan({ admission, targetTables } = {}) {
   const plan = Object.freeze({
     status: "ADMITTED",
     mutableTables: Object.freeze(mutableTables),
-    truncateTables: Object.freeze([...mutableTables]),
+    truncateTables: Object.freeze([...admitted]),
     excludedEphemeralTables: Object.freeze(excludedEphemeralTables),
     storageMetadataTables: Object.freeze(mutableTables.filter((identity) => STORAGE_METADATA_TABLES.has(identity))),
   });
@@ -109,8 +110,8 @@ export function buildManagedRestoreSql({ mutablePlan, sanitized } = {}) {
   const data = sanitizedSqlHandles.get(sanitized);
   if (/^\s*(?:BEGIN|COMMIT|ROLLBACK)\s*;/im.test(data)) fail("RECOVERY_RESTORE_TRANSACTION_FORBIDDEN", "Managed data must not govern its own transaction");
   const sql = [
+    `TRUNCATE TABLE ${mutablePlan.truncateTables.map(quoteTable).join(", ")};`,
     "SET LOCAL session_replication_role = replica;",
-    `TRUNCATE TABLE ${mutablePlan.truncateTables.map(quoteTable).join(", ")} CASCADE;`,
     data,
   ].join("\n");
   const result = Object.freeze({
@@ -147,13 +148,27 @@ export function buildStorageByteRestorePlan({ storageInventory, bundleRoot } = {
 
 export function authorizeStorageByteRestore(plan, metadataGate) {
   const entries = storagePlanHandles.get(plan);
-  if (!entries || metadataGate?.status !== "PASS" || metadataGate?.bucket !== "godel-files" || metadataGate?.public !== false || metadataGate?.objectCount !== plan.objectCount) {
+  if (!entries || !storageMetadataGateHandles.has(metadataGate) || metadataGate?.status !== "PASS" || metadataGate?.bucket !== "godel-files" || metadataGate?.public !== false || metadataGate?.objectCount !== plan.objectCount) {
     fail("RECOVERY_STORAGE_METADATA_GATE_FAILED", "Storage metadata gate must pass before byte restore");
   }
   if (plan.status === "VALIDATED_NO_OP") return Object.freeze({ status: "VALIDATED_NO_OP", invokeTransfer: false, objectCount: 0 });
   const authorized = Object.freeze({ status: "AUTHORIZED", invokeTransfer: true, objectCount: entries.length });
   storagePlanHandles.set(authorized, entries);
   return authorized;
+}
+
+export function admitStorageMetadataGate({ rawOutput, expectedObjectCount } = {}) {
+  let value;
+  try { value = JSON.parse(String(rawOutput ?? "").trim()); } catch { fail("RECOVERY_STORAGE_METADATA_GATE_FAILED", "Storage metadata gate output is invalid"); }
+  const keys = ["bucketExists", "bucketPublic", "objectCount", "unexpectedObjectCount"];
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).length !== keys.length || Object.keys(value).some((key) => !keys.includes(key))
+    || value.bucketExists !== true || value.bucketPublic !== false || !Number.isSafeInteger(value.objectCount) || value.objectCount < 0
+    || !Number.isSafeInteger(value.unexpectedObjectCount) || value.unexpectedObjectCount !== 0 || value.objectCount !== expectedObjectCount) {
+    fail("RECOVERY_STORAGE_METADATA_GATE_FAILED", "Storage metadata gate did not prove the exact private target state");
+  }
+  const handle = Object.freeze({ status: "PASS", bucket: "godel-files", public: false, objectCount: value.objectCount, unexpectedObjectCount: 0 });
+  storageMetadataGateHandles.add(handle);
+  return handle;
 }
 
 export function accessAuthorizedStorageByteEntries(handle, callback) {

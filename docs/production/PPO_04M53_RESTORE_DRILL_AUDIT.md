@@ -1,14 +1,20 @@
 # PPO-04M.5.3 — Restore Drill + Baseline Closure Architecture Audit
 
-**Estado de M.5.3:** `ACTIVE / ISOLATED TARGET + RESTORE TOOLING`
+**Estado de M.5.3:** `ACTIVE / REAL RESTORE ORCHESTRATOR TOOLING`
 
 **Estado de M.5.3.0:** `CLOSED / RESTORE DRILL ARCHITECTURE APPROVED`
 
 **Estado de M.5.3A:** `CLOSED / SOURCE VERIFICATION TOOLING APPROVED`
 
-**Estado de M.5.3B:** `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`
+**Estado de M.5.3B:** `CLOSED / ISOLATED TARGET + RESTORE TOOLING APPROVED`
 
-**Fecha:** 2026-09-25
+**Estado de M.5.3B.2:** `CLOSED / REAL LOCAL TARGET COMPATIBILITY VERIFIED`
+
+**Estado de M.5.3C.0:** `CLOSED / REAL RESTORE EXECUTION CONTRACT APPROVED`
+
+**Estado de M.5.3C.1:** `IMPLEMENTED / ARCHITECTURAL CORRECTIONS APPLIED / PENDING ARCHITECTURAL REVIEW`
+
+**Fecha:** 2026-09-26
 
 **Resultado del audit:** `ARCHITECTURE DEFINED / M.5.3B IMPLEMENTED`
 
@@ -543,6 +549,37 @@ Requiere autorización one-shot separada. Descarga desde R2, usa la identity
 externa bajo control del operador y restaura sólo al target local desechable.
 No usa Production ni Supabase Managed como target y no modifica R2.
 
+La corrección C.1.1 hace operator-governed el boundary real de recuperación,
+elimina el truncado implícito con `CASCADE`, impone autoridad explícita de
+truncado y añade un gate read-only de integridad FK de datos y constraint
+triggers. El catálogo y la evidencia permanecen opacos; no contienen nombres de
+relaciones, columnas, paths ni SQL de datos. Toda la verificación de este pase es
+sintética y la ejecución real continúa no autorizada.
+
+M.5.3C.0 queda `CLOSED / REAL RESTORE EXECUTION CONTRACT APPROVED`. M.5.3C.1
+implementa el comando `ops:restore:managed:drill:local`, pero su ejecución real
+queda `NOT AUTHORIZED`. El orquestador conserva una única `RecoverySession`,
+reusa el adapter R2 read-only y el verifier exacto de M.5.3A, y usa las mismas
+primitives de executor/baseline que pasaron B.2 Attempt #5. Revalida el target
+inmediatamente antes de la única transacción `managed-data.sql`, exige metadata
+Storage consultada al target, restringe este primer drill a `objectCount = 0`,
+ejecuta validación DB/Auth/Storage completa y sólo después habilita el login
+local interactivo en memoria. Cleanup target y cleanup source/session mantienen
+precedencia fail-closed.
+
+```text
+PPO-04M.5.3B.2 ATTEMPT #3 = FAIL / OPERATOR DOCKER EXECUTION CONTEXT FINDING
+PPO-04M.5.3B.2 ATTEMPT #5 = PASS / REAL LOCAL TARGET COMPATIBILITY VERIFIED
+PPO-04M.5.3B.2 TESTED TOOLING SHA = 77cd7f7233e2b417a2c62e8147f57389c0704112
+PPO-04M.5.3C REAL EXECUTION = NOT AUTHORIZED
+REAL BACKUP RESTORE EXECUTION = NOT AUTHORIZED
+TD-BACKUP-004 = REQUIRED BEFORE FIRST NON-EMPTY STORAGE RECOVERY
+```
+
+La evidencia sanitizada exacta de Attempt #5 se conserva en
+`PPO_04M5_BACKUP_RECOVERY_DESIGN.md`; no contiene project ID, containers,
+puertos, endpoints, paths, credenciales ni catálogo completo.
+
 ### PPO-04M.5.3D — Validation + baseline closure
 
 - comparación completa contra manifest/inventarios;
@@ -565,16 +602,28 @@ PPO-04M.5.3A =
 CLOSED / SOURCE VERIFICATION TOOLING APPROVED
 
 PPO-04M.5.3B =
-IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+CLOSED / ISOLATED TARGET + RESTORE TOOLING APPROVED
+
+PPO-04M.5.3B.2 =
+CLOSED / REAL LOCAL TARGET COMPATIBILITY VERIFIED
+
+PPO-04M.5.3C.0 =
+CLOSED / REAL RESTORE EXECUTION CONTRACT APPROVED
+
+PPO-04M.5.3C.1 =
+IMPLEMENTED / ARCHITECTURAL CORRECTIONS APPLIED / PENDING ARCHITECTURAL REVIEW
+
+PPO-04M.5.3D =
+PENDING
 
 PPO-04M.5.3 =
-ACTIVE / ISOLATED TARGET + RESTORE TOOLING
+ACTIVE / REAL RESTORE ORCHESTRATOR TOOLING
 
 PRODUCTION RESTORE =
 NOT AUTHORIZED
 
 REAL LOCAL RESTORE TARGET =
-NOT EXECUTED
+COMPATIBILITY VERIFIED / REAL RESTORE NOT EXECUTED
 
 REAL R2 RECOVERY READ =
 NOT EXECUTED

@@ -5,7 +5,7 @@ import { validateStorageDurableInventory } from "../managed-backup/inventory.mjs
 import { cleanupManagedRecoveryTarget } from "./target-cleanup.mjs";
 import { admitDockerDbDiscovery, buildTargetCommandPlans, proveTargetIsolation } from "./target-commands.mjs";
 import { buildManagedRestoreSql, buildMutableTablePlan, buildStorageByteRestorePlan, sanitizeEphemeralAuthState, verifyManagedDataCounts } from "./restore-planning.mjs";
-import { buildPostRestoreValidationQueries, createFutureLoginGateContract, deriveConfidentialAuthExpectationFromAdmission, deriveStorageExpectation, validateManagedRestoreResult } from "./restore-validation.mjs";
+import { buildPostRestoreValidationQueries, createFutureLoginGateContract, deriveConfidentialAuthExpectationFromAdmission, deriveLoginExpectationFromAdmission, deriveStorageExpectation, validateManagedRestoreResult } from "./restore-validation.mjs";
 import { loadProductionRuntimeAuthority } from "./runtime-authority.mjs";
 import { REQUIRED_TARGET_EXTENSIONS, auditManagedSchemaSql, auditMigrationHistorySql, auditRolesSql, validateTargetBaseline } from "./sql-audit.mjs";
 import { allocateTargetPorts, createRecoveryProjectId, materializeRecoveryTarget } from "./target-workspace.mjs";
@@ -86,9 +86,10 @@ export async function buildManagedRestorePlan({ verifiedSource, authority, targe
     restoreSql,
     storage,
     expectations,
+    loginExpectation: deriveLoginExpectationFromAdmission(verifiedSource.sql.managedData),
     validations,
     loginGate: createFutureLoginGateContract(),
-    order: Object.freeze(["DB_DATA_RESTORE", "STORAGE_METADATA_GATE", "STORAGE_BYTE_RESTORE", "POST_RESTORE_VALIDATION"]),
+    order: Object.freeze(["DB_DATA_RESTORE", "STORAGE_METADATA_GATE", "STORAGE_BYTE_RESTORE", "POST_RESTORE_AGGREGATES", "FOREIGN_KEY_INTEGRITY", "REAL_INTERNAL_LOGIN"]),
     sqlExecutions: 0,
   });
 }

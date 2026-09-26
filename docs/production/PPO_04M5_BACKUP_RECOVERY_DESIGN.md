@@ -832,7 +832,7 @@ PPO-04M.5.2.1E
 
 PPO-04M.5.3
 = Restore Drill + Baseline Closure
-= ACTIVE / ISOLATED TARGET + RESTORE TOOLING
+= ACTIVE / REAL RESTORE ORCHESTRATOR TOOLING
 ```
 
 M.6 no se abre hasta que M.5.3 esté cerrado/aprobado.
@@ -1011,6 +1011,20 @@ No se registran repo path, path de `safe.directory`, stderr raw, usuario local,
 ownership metadata ni valores del environment. La corrección queda pendiente de
 revisión arquitectónica.
 
+#### Attempt #3 — evidencia sanitizada
+
+```text
+PPO-04M.5.3B.2 ATTEMPT #3 = FAIL / OPERATOR DOCKER EXECUTION CONTEXT FINDING
+RESTORE SQL = 0
+R2 READ = 0
+AGE DECRYPT = 0
+PRODUCTION MUTATIONS = 0
+RETRIES = 0
+```
+
+El finding se limitó al contexto operativo local de Docker. No se registran
+versiones, nombres o IDs Docker, rutas, puertos, URLs ni stdout/stderr raw.
+
 #### Attempt #4 — evidencia sanitizada
 
 ```text
@@ -1033,13 +1047,38 @@ No se registra el output raw ni se atribuye el fallo a una extensión concreta.
 PostgreSQL/Supabase admite nombres fuera de la forma aceptada por el parser
 anterior, pero esa observación técnica no identifica la línea real del Attempt.
 
+#### Attempt #5 — evidencia sanitizada aprobada
+
+El SHA `77cd7f7233e2b417a2c62e8147f57389c0704112` queda congelado como
+`PPO-04M.5.3B.2 TESTED TOOLING SHA`. La ejecución real posterior al finding de
+extensiones produjo exclusivamente la siguiente evidencia pública:
+
+```json
+{
+  "status": "PASS",
+  "operation": "real-local-target-compatibility",
+  "runtimeAuthority": "VERIFIED",
+  "targetIsolation": "VERIFIED",
+  "baselineMigrationCount": 6,
+  "schemasVerified": true,
+  "requiredExtensionsVerified": true,
+  "privateBucketVerified": true,
+  "targetCatalogVerified": true,
+  "replicationRole": "origin",
+  "realTargetStarts": 1,
+  "targetMutations": 0,
+  "sqlMutations": 0,
+  "remoteActivity": 0,
+  "targetCleanup": "PASS"
+}
+```
+
 ```text
 PPO-04M.5.3B = CLOSED / ISOLATED TARGET + RESTORE TOOLING APPROVED
-PPO-04M.5.3B.2 = ACTIVE / ATTEMPT #4 EXTENSION CONTRACT FINDING CORRECTED / PENDING ARCHITECTURAL REVIEW
+PPO-04M.5.3B.2 = CLOSED / REAL LOCAL TARGET COMPATIBILITY VERIFIED
 REAL RESTORE = NOT AUTHORIZED
 REAL R2 READ = NOT AUTHORIZED
 REAL AGE DECRYPT = NOT AUTHORIZED
-ATTEMPT #5 = NOT AUTHORIZED
 ```
 
 Para Storage no vacío, `rclone lsjson --hash` no garantiza SHA-256 en un
@@ -1049,6 +1088,53 @@ operación gobernada equivalente a `rclone hashsum sha256 --download`.
 
 ```text
 REQUIRED BEFORE FIRST NON-EMPTY STORAGE RECOVERY
+```
+
+### PPO-04M.5.3C.1 — End-to-End Real Product Backup Local Restore Drill Orchestrator
+
+El comando deliberadamente explícito `ops:restore:managed:drill:local` compone
+el source verifier de M.5.3A y el target/restore tooling de M.5.3B dentro de una
+única `RecoverySession`. Su ejecución requiere confirmación one-shot, backup
+seleccionado y autoridad exacta del HEAD limpio. El adapter age sólo expone
+`decryptToTar`, consume la identity mediante el handle opaco existente y deja
+la inspección/extracción segura al verifier de M.5.3A.
+
+El executor y el baseline gate de B.2 quedaron factorizados en primitives
+reusables con handles opacos. Antes de la única transacción mutante se repiten
+status, discovery Docker e isolation. Sólo `managed-data.sql` puede llegar a
+`psql --single-transaction`; roles, schema e historia permanecen audit-only.
+El restore de bytes exige el gate de metadata consultado al target. Mientras
+`TD-BACKUP-004` siga abierta, cualquier Storage no vacío falla cerrado; el caso
+vacío sigue ejecutando inventario read-only S3 local.
+
+La validación completa de DB/Auth/Storage ocurre antes del login. El login usa
+credenciales ocultas, interactivas y sólo en memoria, un cliente local sin
+persistencia ni refresh, y una expectativa opaca de IDs restaurados. El cleanup
+del target precede al cleanup integral de la sesión; cualquier fallo de cleanup
+invalida el resultado. Las suites de C.1 son sintéticas: no contactaron R2, no
+usaron la identity real, no arrancaron Docker/Supabase y no ejecutaron SQL ni
+login reales. C.1.1 sustituyó los límites sintéticos por directorios reales
+gobernados explícitamente por el operador, eliminó `TRUNCATE CASCADE` y exige
+un set de truncado explícito. La validación post-restore incluye ahora catálogo
+FK gobernado, comprobación read-only de integridad referencial y estado operativo
+de los constraint triggers, sin publicar identidades de relaciones. El reader
+oculto conserva UTF-8 exacto y el contador de arranques sólo aumenta tras un
+start exitoso.
+
+```text
+PPO-04M.5.3C.0 = CLOSED / REAL RESTORE EXECUTION CONTRACT APPROVED
+PPO-04M.5.3C.1 = IMPLEMENTED / ARCHITECTURAL CORRECTIONS APPLIED / PENDING ARCHITECTURAL REVIEW
+PPO-04M.5.3C REAL EXECUTION = NOT AUTHORIZED
+REAL BACKUP RESTORE EXECUTION = NOT AUTHORIZED
+PPO-04M.5.3D = PENDING
+PRODUCTION RESTORE = NOT AUTHORIZED
+REAL R2 READS DURING C.1 = 0
+REAL AGE DECRYPTS DURING C.1 = 0
+REAL TARGET STARTS DURING C.1 = 0
+REAL SQL EXECUTIONS DURING C.1 = 0
+REAL TARGET MUTATIONS DURING C.1 = 0
+REAL LOGIN ATTEMPTS DURING C.1 = 0
+PRODUCTION ACTIVITY DURING C.1 = 0
 ```
 
 ### PPO-04M.5.1 FINAL INTEGRATION EVIDENCE

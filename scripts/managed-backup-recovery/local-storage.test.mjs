@@ -5,7 +5,11 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { accessLocalStorageCommandPlan, buildLocalStorageInventoryPlan, buildLocalStorageTransferPlans, parseLocalStorageInventory } from "./local-storage.mjs";
-import { authorizeStorageByteRestore, buildStorageByteRestorePlan } from "./restore-planning.mjs";
+import { admitStorageMetadataGate, authorizeStorageByteRestore, buildStorageByteRestorePlan } from "./restore-planning.mjs";
+
+function metadataGate(objectCount) {
+  return admitStorageMetadataGate({ rawOutput: JSON.stringify({ bucketExists: true, bucketPublic: false, objectCount, unexpectedObjectCount: 0 }), expectedObjectCount: objectCount });
+}
 import { deriveStorageExpectation } from "./restore-validation.mjs";
 import { admitLocalSupabaseStatus } from "./target-runtime-status.mjs";
 
@@ -20,7 +24,7 @@ function status() {
 test("empty Storage remains a validated no-op and final inventory proves zero bytes", () => {
   const inventory = { valid: true, objectCount: 0, totalBytes: 0, objects: [] };
   const pending = buildStorageByteRestorePlan({ storageInventory: inventory, bundleRoot: "C:\\bundle" });
-  const authorized = authorizeStorageByteRestore(pending, { status: "PASS", bucket: "godel-files", public: false, objectCount: 0 });
+  const authorized = authorizeStorageByteRestore(pending, metadataGate(0));
   const transfer = buildLocalStorageTransferPlans({ authorizedStorageByteRestore: authorized, localStatus: status(), cwd: process.cwd(), environment: {} });
   assert.deepEqual(transfer, { status: "VALIDATED_NO_OP", invokeTransfer: false, objectCount: 0, plans: [] });
   const expectation = deriveStorageExpectation(inventory);
@@ -33,7 +37,7 @@ test("nonempty local S3 plans use exact paths, local-only endpoint, and environm
     const object = { path: "orders/a.pdf", size: 4, sha256: "a".repeat(64) };
     const inventory = { valid: true, objectCount: 1, totalBytes: 4, objects: [object] };
     const pending = buildStorageByteRestorePlan({ storageInventory: inventory, bundleRoot: root });
-    const authorized = authorizeStorageByteRestore(pending, { status: "PASS", bucket: "godel-files", public: false, objectCount: 1 });
+    const authorized = authorizeStorageByteRestore(pending, metadataGate(1));
     const transfer = buildLocalStorageTransferPlans({ authorizedStorageByteRestore: authorized, localStatus: status(), cwd: root, environment: {} });
     assert.equal(transfer.invokeTransfer, true);
     accessLocalStorageCommandPlan(transfer.plans[0], (plan) => {

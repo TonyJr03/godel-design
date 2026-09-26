@@ -77,6 +77,7 @@ export async function runManagedRecoverySourceVerification({
   sourceAdapter,
   sourceAdapterFactory,
   decryptAdapter,
+  decryptAdapterFactory,
   dependencies = {},
 } = {}) {
   if (!isManagedBackupId(selectedBackupId)) fail("RECOVERY_BACKUP_ID_INVALID", "Selected managed backup identity is invalid");
@@ -84,11 +85,13 @@ export async function runManagedRecoverySourceVerification({
     fail("RECOVERY_SOURCE_ADAPTER_INVALID", "Recovery source adapter or factory is required");
   }
   if (sourceAdapter !== undefined) assertRecoveryOnlySourceAdapter(sourceAdapter);
-  if (!decryptAdapter || typeof decryptAdapter.decryptToTar !== "function" || Object.keys(decryptAdapter).some((key) => key !== "decryptToTar")) {
+  if (decryptAdapter === undefined && typeof decryptAdapterFactory !== "function") {
     fail("RECOVERY_DECRYPT_ADAPTER_INVALID", "Recovery decrypt adapter contract is invalid");
   }
+  if (decryptAdapter !== undefined && (typeof decryptAdapter?.decryptToTar !== "function" || Object.keys(decryptAdapter).some((key) => key !== "decryptToTar"))) fail("RECOVERY_DECRYPT_ADAPTER_INVALID", "Recovery decrypt adapter contract is invalid");
 
   const preflight = dependencies.preflight ?? preflightManagedRecoveryTools;
+  const onPhase = typeof dependencies.onPhase === "function" ? dependencies.onPhase : () => undefined;
   const tools = await preflight({ environment, repoRoot });
   let session;
   let primaryError;
@@ -101,6 +104,8 @@ export async function runManagedRecoverySourceVerification({
       governedRoots: dependencies.governedRoots ?? [],
       sessionId: dependencies.sessionId,
     });
+    const activeDecrypt = decryptAdapter ?? decryptAdapterFactory({ session, environment, repoRoot });
+    if (!activeDecrypt || typeof activeDecrypt.decryptToTar !== "function" || Object.keys(activeDecrypt).some((key) => key !== "decryptToTar")) fail("RECOVERY_DECRYPT_ADAPTER_INVALID", "Recovery decrypt adapter contract is invalid");
     const identity = await (dependencies.admitIdentity ?? admitRecoveryIdentity)({ environment, repoRoot, backupOutputRoot, session });
     const activeSource = assertRecoveryOnlySourceAdapter(sourceAdapter ?? sourceAdapterFactory({
       backupId: selectedBackupId,
@@ -108,8 +113,10 @@ export async function runManagedRecoverySourceVerification({
       environment,
       repoRoot,
     }));
+    onPhase("SOURCE_INSPECT");
     const inspection = await activeSource.inspectCandidate();
     if (inspection?.status !== "VERIFIED" || inspection.objectCount !== 2) fail("RECOVERY_SOURCE_CANDIDATE_INVALID", "Recovery source candidate is incomplete");
+    onPhase("SOURCE_DOWNLOAD");
     const downloadedReceipt = await activeSource.downloadReceipt();
     await assertSessionDownload(downloadedReceipt?.path, session, `${selectedBackupId}.external-receipt.json`);
     const receipt = admitExternalRecoveryReceipt(downloadedReceipt?.receipt, selectedBackupId);
@@ -118,9 +125,11 @@ export async function runManagedRecoverySourceVerification({
     await admitExternalRecoveryCiphertext({ receipt, selectedBackupId, ciphertextPath });
 
     const archivePath = resolve(session.plaintext, "managed-recovery.tar");
-    await decryptAdapter.decryptToTar({ ciphertextPath, archivePath, identity });
+    onPhase("SOURCE_DECRYPT");
+    await activeDecrypt.decryptToTar({ ciphertextPath, archivePath, identity });
     const archiveState = await lstat(archivePath).catch(() => null);
     if (!archiveState?.isFile() || archiveState.isSymbolicLink() || archiveState.size <= 0) fail("RECOVERY_DECRYPT_OUTPUT_INVALID", "Recovery decrypt output is not an admitted tar file");
+    onPhase("SOURCE_VERIFY");
     const archiveInspection = await inspectSafeTarArchive(archivePath);
     const bundleRoot = resolve(session.plaintext, "bundle");
     await mkdir(bundleRoot, { recursive: false, mode: 0o700 });

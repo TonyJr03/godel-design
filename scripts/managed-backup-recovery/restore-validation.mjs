@@ -12,6 +12,10 @@ const EPHEMERAL_AUTH_TABLES = Object.freeze([
 const querySql = new WeakMap();
 const validationPlanDetails = new WeakMap();
 const storageExpectationDetails = new WeakMap();
+const loginExpectationDetails = new WeakMap();
+const foreignKeyCatalogDetails = new WeakMap();
+const foreignKeyIntegrityPasses = new WeakSet();
+const SAFE_IDENTIFIER = /^[a-z][a-z0-9_]*$/;
 
 function fail(code, message) {
   const error = new Error(message);
@@ -86,6 +90,25 @@ export function deriveConfidentialAuthExpectationFromAdmission(admission) {
   });
 }
 
+export function deriveLoginExpectationFromAdmission(admission) {
+  return withAdmittedManagedDataSql(admission, (model) => {
+    const block = model.copyBlocks.find((item) => item.identity === "auth.users");
+    const idIndex = block?.columns.indexOf("id") ?? -1;
+    if (!block || idIndex < 0) fail("RECOVERY_LOGIN_EXPECTATION_INVALID", "Managed data lacks Auth user identity authority");
+    const ids = model.lines.slice(block.start + 1, block.end).map((line) => line.split("\t")[idIndex]);
+    if (ids.length === 0 || ids.some((id) => typeof id !== "string" || id.length === 0 || id === "\\N") || new Set(ids).size !== ids.length) fail("RECOVERY_LOGIN_EXPECTATION_INVALID", "Managed data Auth user identity authority is invalid");
+    const handle = Object.freeze({ status: "ADMITTED", userCount: ids.length });
+    loginExpectationDetails.set(handle, new Set(ids));
+    return handle;
+  });
+}
+
+export function assertExpectedRestoredUser(handle, userId) {
+  const ids = loginExpectationDetails.get(handle);
+  if (!ids || typeof userId !== "string" || !ids.has(userId)) fail("RECOVERY_AUTH_LOGIN_IDENTITY_MISMATCH", "Local recovery login user is outside the restored source authority");
+  return Object.freeze({ status: "PASS" });
+}
+
 export function deriveStorageExpectation(storageInventory) {
   if (!storageInventory || storageInventory.valid !== true || !Array.isArray(storageInventory.objects)) fail("RECOVERY_STORAGE_EXPECTATION_INVALID", "Verified Storage inventory is required");
   const objects = storageInventory.objects.map(({ path, size, sha256 }) => {
@@ -144,16 +167,54 @@ function authAggregateSql(presentEphemeralTables) {
 )::text;`;
 }
 
-function constraintAggregateSql(mutableTables) {
-  const values = mutableTables.map((identity) => { const [schema, table] = identity.split("."); return `(${sqlLiteral(schema)}, ${sqlLiteral(table)})`; }).join(", ");
+function governedValues(tableIdentities) {
+  return tableIdentities.map((identity) => { const [schema, table] = identity.split("."); return `(${sqlLiteral(schema)}, ${sqlLiteral(table)})`; }).join(", ");
+}
+
+function constraintAggregateSql(truncateTables) {
+  const values = governedValues(truncateTables);
   return `WITH governed(schema_name, table_name) AS (VALUES ${values}), governed_relations AS (
   SELECT c.oid FROM governed g JOIN pg_namespace n ON n.nspname = g.schema_name JOIN pg_class c ON c.relnamespace = n.oid AND c.relname = g.table_name
 )
 SELECT json_build_object(
   'invalidConstraintCount', (SELECT count(*)::bigint FROM pg_constraint c JOIN governed_relations r ON r.oid = c.conrelid WHERE c.convalidated = false),
   'disabledTriggerCount', (SELECT count(*)::bigint FROM pg_trigger t JOIN governed_relations r ON r.oid = t.tgrelid WHERE t.tgisinternal = false AND t.tgenabled <> 'O'),
+  'disabledForeignKeyTriggerCount', (SELECT count(*)::bigint FROM pg_trigger t JOIN pg_constraint fk ON fk.oid = t.tgconstraint AND fk.contype = 'f' JOIN governed_relations r ON r.oid = fk.conrelid WHERE t.tgenabled NOT IN ('O', 'A')),
   'privateAuditTableCount', ((to_regclass('private.internal_user_creation_audit') IS NOT NULL)::int + (to_regclass('private.internal_user_password_reset_audit') IS NOT NULL)::int)
 )::text;`;
+}
+
+function foreignKeyCatalogSql(truncateTables) {
+  const values = governedValues(truncateTables);
+  return `WITH governed_child(schema_name, table_name) AS (VALUES ${values}), foreign_keys AS (
+  SELECT fk.oid, fk.contype::text AS constraint_type, fk.confmatchtype::text AS match_type,
+    child_ns.nspname AS child_schema, child.relname AS child_table,
+    parent_ns.nspname AS parent_schema, parent.relname AS parent_table,
+    child.oid AS child_oid, parent.oid AS parent_oid, fk.conkey, fk.confkey
+  FROM pg_constraint fk
+  JOIN pg_class child ON child.oid = fk.conrelid
+  JOIN pg_namespace child_ns ON child_ns.oid = child.relnamespace
+  JOIN governed_child governed ON governed.schema_name = child_ns.nspname AND governed.table_name = child.relname
+  JOIN pg_class parent ON parent.oid = fk.confrelid
+  JOIN pg_namespace parent_ns ON parent_ns.oid = parent.relnamespace
+  WHERE fk.contype = 'f'
+), foreign_key_columns AS (
+  SELECT fk.oid, keys.ordinality::int AS ordinal, child_attribute.attname AS child_column, parent_attribute.attname AS parent_column
+  FROM foreign_keys fk
+  CROSS JOIN LATERAL unnest(fk.conkey, fk.confkey) WITH ORDINALITY AS keys(child_attnum, parent_attnum, ordinality)
+  JOIN pg_attribute child_attribute ON child_attribute.attrelid = fk.child_oid AND child_attribute.attnum = keys.child_attnum
+  JOIN pg_attribute parent_attribute ON parent_attribute.attrelid = fk.parent_oid AND parent_attribute.attnum = keys.parent_attnum
+)
+SELECT COALESCE(json_agg(json_build_object(
+  'constraintType', fk.constraint_type,
+  'matchType', fk.match_type,
+  'childSchema', fk.child_schema,
+  'childTable', fk.child_table,
+  'parentSchema', fk.parent_schema,
+  'parentTable', fk.parent_table,
+  'columns', (SELECT json_agg(json_build_object('ordinal', columns.ordinal, 'child', columns.child_column, 'parent', columns.parent_column) ORDER BY columns.ordinal) FROM foreign_key_columns columns WHERE columns.oid = fk.oid)
+) ORDER BY fk.child_schema, fk.child_table, fk.oid), '[]'::json)::text
+FROM foreign_keys fk;`;
 }
 
 function storageMetadataSql(objects) {
@@ -185,12 +246,75 @@ export function buildPostRestoreValidationQueries({ mutablePlan, runtimeVersions
     migrationHistory: createQuery("migration-history", "SELECT version FROM supabase_migrations.schema_migrations ORDER BY version;"),
     replicationRole: createQuery("replication-role", "SHOW session_replication_role;"),
     auth: createQuery("auth-confidential-aggregate", authAggregateSql(presentEphemeralTables)),
-    constraints: createQuery("constraints-and-triggers-aggregate", constraintAggregateSql(mutableTables)),
+    constraints: createQuery("constraints-and-triggers-aggregate", constraintAggregateSql(mutablePlan.truncateTables)),
+    foreignKeyCatalog: createQuery("foreign-key-catalog", foreignKeyCatalogSql(mutablePlan.truncateTables)),
     storageMetadata: createQuery("storage-metadata-aggregate", storageMetadataSql(objects)),
     ephemeralCatalog: Object.freeze({ presentCount: presentEphemeralTables.length, absentCount: absentEphemeralTables.length, absentTreatment: "ABSENT_TARGET_TABLE_HAS_NO_STATE" }),
   });
   validationPlanDetails.set(plan, Object.freeze({ mutableTables: Object.freeze([...mutableTables]), runtimeVersions: Object.freeze([...runtimeVersions].sort()), storageExpectation }));
   return plan;
+}
+
+function admittedIdentifier(value) {
+  return typeof value === "string" && SAFE_IDENTIFIER.test(value);
+}
+
+export function parseForeignKeyCatalog({ mutablePlan, rawOutput } = {}) {
+  let details;
+  accessMutableTablePlan(mutablePlan, (value) => { details = value; });
+  let value;
+  try { value = JSON.parse(String(rawOutput ?? "").trim()); } catch { fail("RECOVERY_FOREIGN_KEY_CATALOG_INVALID", "Foreign key catalog output is invalid"); }
+  if (!Array.isArray(value)) fail("RECOVERY_FOREIGN_KEY_CATALOG_INVALID", "Foreign key catalog output is invalid");
+  const authority = new Set(mutablePlan.truncateTables);
+  const catalog = value.map((item) => {
+    exactKeys(item, ["constraintType", "matchType", "childSchema", "childTable", "parentSchema", "parentTable", "columns"], "RECOVERY_FOREIGN_KEY_CATALOG_INVALID");
+    if (item.constraintType !== "f" || item.matchType !== "s" || ![item.childSchema, item.childTable, item.parentSchema, item.parentTable].every(admittedIdentifier)
+      || !authority.has(`${item.childSchema}.${item.childTable}`) || !Array.isArray(item.columns) || item.columns.length === 0) {
+      fail("RECOVERY_FOREIGN_KEY_CATALOG_INVALID", "Foreign key catalog shape is unsupported");
+    }
+    const columns = item.columns.map((column, index) => {
+      exactKeys(column, ["ordinal", "child", "parent"], "RECOVERY_FOREIGN_KEY_CATALOG_INVALID");
+      if (column.ordinal !== index + 1 || !admittedIdentifier(column.child) || !admittedIdentifier(column.parent)) fail("RECOVERY_FOREIGN_KEY_CATALOG_INVALID", "Foreign key column mapping is invalid");
+      return Object.freeze({ ordinal: column.ordinal, child: column.child, parent: column.parent });
+    });
+    if (new Set(columns.map((column) => column.child)).size !== columns.length || new Set(columns.map((column) => column.parent)).size !== columns.length) fail("RECOVERY_FOREIGN_KEY_CATALOG_INVALID", "Foreign key column mapping is ambiguous");
+    return Object.freeze({ childSchema: item.childSchema, childTable: item.childTable, parentSchema: item.parentSchema, parentTable: item.parentTable, columns: Object.freeze(columns) });
+  });
+  if (!details || catalog.length > 10_000) fail("RECOVERY_FOREIGN_KEY_CATALOG_INVALID", "Foreign key catalog is invalid");
+  const handle = Object.freeze({ status: "ADMITTED", foreignKeyCount: catalog.length, toJSON: () => ({ status: "ADMITTED", foreignKeyCount: catalog.length }) });
+  foreignKeyCatalogDetails.set(handle, Object.freeze(catalog));
+  return handle;
+}
+
+function quoteIdentifier(value) {
+  if (!admittedIdentifier(value)) fail("RECOVERY_FOREIGN_KEY_CATALOG_INVALID", "Foreign key identifier is invalid");
+  return `"${value}"`;
+}
+
+export function buildForeignKeyIntegrityQueries(catalogHandle) {
+  const catalog = foreignKeyCatalogDetails.get(catalogHandle);
+  if (!catalog) fail("RECOVERY_FOREIGN_KEY_CATALOG_REQUIRED", "Admitted foreign key catalog is required");
+  return Object.freeze(catalog.map((foreignKey, index) => {
+    const child = `${quoteIdentifier(foreignKey.childSchema)}.${quoteIdentifier(foreignKey.childTable)}`;
+    const parent = `${quoteIdentifier(foreignKey.parentSchema)}.${quoteIdentifier(foreignKey.parentTable)}`;
+    const present = foreignKey.columns.map((column) => `child.${quoteIdentifier(column.child)} IS NOT NULL`).join(" AND ");
+    const relation = foreignKey.columns.map((column) => `parent.${quoteIdentifier(column.parent)} = child.${quoteIdentifier(column.child)}`).join(" AND ");
+    return createQuery(`foreign-key-integrity:${index}`, `SELECT count(*)::bigint FROM ${child} child WHERE ${present} AND NOT EXISTS (SELECT 1 FROM ${parent} parent WHERE ${relation});`);
+  }));
+}
+
+export function validateForeignKeyIntegrityOutputs({ catalog, outputs } = {}) {
+  const details = foreignKeyCatalogDetails.get(catalog);
+  if (!details || !Array.isArray(outputs) || outputs.length !== details.length) fail("RECOVERY_FOREIGN_KEY_INTEGRITY_OUTPUT_INVALID", "Foreign key integrity outputs are incomplete");
+  for (const output of outputs) {
+    if (typeof output !== "string" || !/^\d+\s*$/.test(output)) fail("RECOVERY_FOREIGN_KEY_INTEGRITY_OUTPUT_INVALID", "Foreign key integrity output is invalid");
+    const count = Number(output.trim());
+    if (!Number.isSafeInteger(count) || count < 0) fail("RECOVERY_FOREIGN_KEY_INTEGRITY_OUTPUT_INVALID", "Foreign key integrity output is invalid");
+    if (count > 0) fail("RECOVERY_FOREIGN_KEY_INTEGRITY_FAILED", "Restored rows violate referential integrity");
+  }
+  const result = Object.freeze({ status: "PASS", referentialIntegrity: "PASS", foreignKeyCount: details.length });
+  foreignKeyIntegrityPasses.add(result);
+  return result;
 }
 
 function parseJsonObject(output, keys) {
@@ -220,8 +344,8 @@ export function parsePostRestoreValidationOutputs({ plan, outputs } = {}) {
   if (!new Set(["origin", "replica", "local"]).has(role)) fail("RECOVERY_VALIDATION_OUTPUT_INVALID", "Replication role output is invalid");
   const auth = parseJsonObject(outputs.auth, ["userCount", "identityCount", "userIdDigest", "passwordDigest", "identityPairDigest", "profileIdDigest", "relationshipsValid", "ephemeralStateAbsent"]);
   if (![auth.userCount, auth.identityCount].every(nonnegativeInteger) || ![auth.userIdDigest, auth.passwordDigest, auth.identityPairDigest, auth.profileIdDigest].every((value) => HEX_DIGEST.test(value)) || typeof auth.relationshipsValid !== "boolean" || typeof auth.ephemeralStateAbsent !== "boolean") fail("RECOVERY_VALIDATION_OUTPUT_INVALID", "Auth aggregate output is invalid");
-  const structural = parseJsonObject(outputs.constraints, ["invalidConstraintCount", "disabledTriggerCount", "privateAuditTableCount"]);
-  if (![structural.invalidConstraintCount, structural.disabledTriggerCount, structural.privateAuditTableCount].every(nonnegativeInteger)) fail("RECOVERY_VALIDATION_OUTPUT_INVALID", "Structural aggregate output is invalid");
+  const structural = parseJsonObject(outputs.constraints, ["invalidConstraintCount", "disabledTriggerCount", "disabledForeignKeyTriggerCount", "privateAuditTableCount"]);
+  if (![structural.invalidConstraintCount, structural.disabledTriggerCount, structural.disabledForeignKeyTriggerCount, structural.privateAuditTableCount].every(nonnegativeInteger)) fail("RECOVERY_VALIDATION_OUTPUT_INVALID", "Structural aggregate output is invalid");
   const metadata = parseJsonObject(outputs.storageMetadata, ["bucketExists", "bucketPublic", "objectCount", "unexpectedObjectCount"]);
   if (typeof metadata.bucketExists !== "boolean" || typeof metadata.bucketPublic !== "boolean" || !nonnegativeInteger(metadata.objectCount) || !nonnegativeInteger(metadata.unexpectedObjectCount)) fail("RECOVERY_VALIDATION_OUTPUT_INVALID", "Storage metadata aggregate output is invalid");
   const bytes = outputs.storageInventory;
@@ -233,17 +357,20 @@ export function parsePostRestoreValidationOutputs({ plan, outputs } = {}) {
     privateAuditTablesPresent: structural.privateAuditTableCount === 2,
     constraintsOperational: structural.invalidConstraintCount === 0,
     triggersOperational: structural.disabledTriggerCount === 0,
+    foreignKeyTriggersOperational: structural.disabledForeignKeyTriggerCount === 0,
     sessionReplicationRole: role,
     auth: Object.freeze(auth),
     storage: Object.freeze({ bucket: "godel-files", public: metadata.bucketPublic, objectCount: bytes.objectCount, totalBytes: bytes.totalBytes, inventoryDigest: bytes.inventoryDigest, unexpectedObjectCount: metadata.unexpectedObjectCount + bytes.unexpectedObjectCount, bucketExists: metadata.bucketExists }),
   });
 }
 
-export function validateManagedRestoreResult({ expected, actual } = {}) {
+export function validateManagedRestoreResult({ expected, actual, referentialIntegrity } = {}) {
   if (!expected || !actual || typeof expected !== "object" || typeof actual !== "object") fail("RECOVERY_VALIDATION_INPUT_INVALID", "Restore validation aggregates are required");
+  if (!foreignKeyIntegrityPasses.has(referentialIntegrity) || referentialIntegrity?.referentialIntegrity !== "PASS") fail("RECOVERY_FOREIGN_KEY_INTEGRITY_REQUIRED", "Foreign key data integrity gate is required");
   const expectedCountEntries = Object.entries(expected.tableCounts ?? {}).sort(([left], [right]) => left.localeCompare(right, "en"));
   const actualCountEntries = Object.entries(actual.tableCounts ?? {}).sort(([left], [right]) => left.localeCompare(right, "en"));
   if (expectedCountEntries.length !== actualCountEntries.length || expectedCountEntries.some(([identity, count], index) => identity !== actualCountEntries[index][0] || count !== actualCountEntries[index][1])) fail("RECOVERY_DB_ROW_COUNT_MISMATCH", "Restored table row counts do not match the manifest");
+  if (actual.foreignKeyTriggersOperational !== true) fail("RECOVERY_FOREIGN_KEY_TRIGGER_DISABLED", "Foreign key constraint triggers are not operational");
   if (actual.migrationHistoryExact !== true || actual.privateAuditTablesPresent !== true || actual.constraintsOperational !== true || actual.triggersOperational !== true) fail("RECOVERY_DB_VALIDATION_FAILED", "Restored database structural validation failed");
   if (actual.sessionReplicationRole !== "origin") fail("RECOVERY_REPLICATION_ROLE_NOT_ORIGIN", "Restore session replication role did not return to origin");
   for (const key of ["userCount", "identityCount", "userIdDigest", "passwordDigest", "identityPairDigest", "profileIdDigest"]) if (expected.auth?.[key] !== actual.auth?.[key]) fail(key === "passwordDigest" ? "RECOVERY_AUTH_PASSWORD_CONTINUITY_FAILED" : "RECOVERY_AUTH_CONTINUITY_FAILED", "Restored Auth continuity validation failed");
@@ -251,7 +378,7 @@ export function validateManagedRestoreResult({ expected, actual } = {}) {
   if (actual.auth?.relationshipsValid !== true) fail("RECOVERY_AUTH_RELATION_INVALID", "Restored Auth identity/profile relationship is invalid");
   for (const key of ["bucket", "public", "objectCount", "totalBytes", "inventoryDigest"]) if (expected.storage?.[key] !== actual.storage?.[key]) fail("RECOVERY_STORAGE_VALIDATION_FAILED", "Restored Storage aggregate validation failed");
   if (actual.storage?.bucketExists !== true || actual.storage?.unexpectedObjectCount !== 0) fail("RECOVERY_STORAGE_VALIDATION_FAILED", "Unexpected restored Storage objects were detected");
-  return Object.freeze({ status: "PASS", database: "PASS", auth: "PASS", storage: "PASS", passwordContinuity: "PASS", uuidContinuity: "PASS", sessionReplicationRole: "origin" });
+  return Object.freeze({ status: "PASS", database: "PASS", auth: "PASS", storage: "PASS", referentialIntegrity: "PASS", passwordContinuity: "PASS", uuidContinuity: "PASS", sessionReplicationRole: "origin" });
 }
 
 export function createFutureLoginGateContract() {

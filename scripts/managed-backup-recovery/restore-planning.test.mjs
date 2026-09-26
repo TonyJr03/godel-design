@@ -5,7 +5,11 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { admitManagedDataSql } from "./sql-admission.mjs";
-import { accessAuthorizedStorageByteEntries, accessManagedRestoreSql, authorizeStorageByteRestore, buildManagedRestoreSql, buildMutableTablePlan, buildStorageByteRestorePlan, sanitizeEphemeralAuthState, verifyManagedDataCounts } from "./restore-planning.mjs";
+import { accessAuthorizedStorageByteEntries, accessManagedRestoreSql, admitStorageMetadataGate, authorizeStorageByteRestore, buildManagedRestoreSql, buildMutableTablePlan, buildStorageByteRestorePlan, sanitizeEphemeralAuthState, verifyManagedDataCounts } from "./restore-planning.mjs";
+
+function metadataGate(objectCount) {
+  return admitStorageMetadataGate({ rawOutput: JSON.stringify({ bucketExists: true, bucketPublic: false, objectCount, unexpectedObjectCount: 0 }), expectedObjectCount: objectCount });
+}
 
 const PERSISTENT = [
   "COPY auth.users (id, encrypted_password) FROM stdin;",
@@ -24,7 +28,7 @@ test("mutable plan admits existing persistent tables and excludes ephemeral Auth
   const admission = admitManagedDataSql(source(true));
   const plan = buildMutableTablePlan({ admission, targetTables: ["auth.users", "auth.sessions", "auth.schema_migrations", "storage.migrations", "public.perfiles"] });
   assert.deepEqual(plan.mutableTables, ["auth.users", "public.perfiles"]);
-  assert.deepEqual(plan.truncateTables, ["auth.users", "public.perfiles"]);
+  assert.deepEqual(plan.truncateTables, ["auth.sessions", "auth.users", "public.perfiles"]);
   assert.deepEqual(plan.excludedEphemeralTables, ["auth.sessions"]);
 });
 
@@ -69,23 +73,26 @@ test("Auth sanitization reports EXCLUDED when no ephemeral COPY exists", () => {
   assert.equal(sanitizeEphemeralAuthState({ admission, mutablePlan: plan }).ephemeralAuthState, "EXCLUDED");
 });
 
-test("restore stdin uses replica locally, exact admitted truncation, and no transaction statements", () => {
-  const admission = admitManagedDataSql(source());
+test("restore stdin truncates the exact admitted set before replica mode without CASCADE or transaction statements", () => {
+  const admission = admitManagedDataSql(source(true));
   const plan = buildMutableTablePlan({ admission, targetTables: admission.mutableTables });
   const sanitized = sanitizeEphemeralAuthState({ admission, mutablePlan: plan });
   const handle = buildManagedRestoreSql({ mutablePlan: plan, sanitized });
   accessManagedRestoreSql(handle, (sql) => {
-    assert.match(sql, /^SET LOCAL session_replication_role = replica;/);
-    assert.match(sql, /TRUNCATE TABLE "auth"\."users", "public"\."perfiles" CASCADE;/);
+    assert.match(sql, /^TRUNCATE TABLE "auth"\."sessions", "auth"\."users", "public"\."perfiles";\nSET LOCAL session_replication_role = replica;/);
+    assert.doesNotMatch(sql, /\bCASCADE\b/i);
+    assert.ok(!sql.includes("session-sensitive"));
     assert.doesNotMatch(sql, /^\s*(?:BEGIN|COMMIT|ROLLBACK)\s*;/im);
     assert.ok(!sql.includes("arbitrary_table"));
   });
+  assert.equal(handle.transactionAuthority, "PSQL_SINGLE_TRANSACTION");
 });
 
 test("zero-object Storage produces a validated no-op and never authorizes transfer", () => {
   const plan = buildStorageByteRestorePlan({ storageInventory: { valid: true, objectCount: 0, totalBytes: 0, objects: [] }, bundleRoot: "C:\\bundle" });
   assert.equal(plan.status, "VALIDATED_NO_OP");
-  const authorized = authorizeStorageByteRestore(plan, { status: "PASS", bucket: "godel-files", public: false, objectCount: 0 });
+  assert.throws(() => authorizeStorageByteRestore(plan, { status: "PASS", bucket: "godel-files", public: false, objectCount: 0, unexpectedObjectCount: 0 }), { code: "RECOVERY_STORAGE_METADATA_GATE_FAILED" });
+  const authorized = authorizeStorageByteRestore(plan, metadataGate(0));
   assert.equal(authorized.invokeTransfer, false);
   assert.throws(() => accessAuthorizedStorageByteEntries(authorized, () => undefined), { code: "RECOVERY_STORAGE_BYTE_AUTHORITY_REQUIRED" });
 });
@@ -97,7 +104,7 @@ test("nonempty Storage plan is exact and remains blocked before metadata gate", 
     const plan = buildStorageByteRestorePlan({ storageInventory: inventory, bundleRoot: root });
     assert.equal(plan.status, "PENDING_METADATA_GATE");
     assert.throws(() => authorizeStorageByteRestore(plan, { status: "FAIL" }), { code: "RECOVERY_STORAGE_METADATA_GATE_FAILED" });
-    const handle = authorizeStorageByteRestore(plan, { status: "PASS", bucket: "godel-files", public: false, objectCount: 1 });
+    const handle = authorizeStorageByteRestore(plan, metadataGate(1));
     accessAuthorizedStorageByteEntries(handle, (entries) => {
       assert.equal(entries[0].source, join(root, "storage", "orders", "a.pdf"));
       assert.equal(entries[0].destination, "godel-files/orders/a.pdf");

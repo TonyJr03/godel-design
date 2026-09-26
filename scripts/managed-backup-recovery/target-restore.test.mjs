@@ -7,7 +7,7 @@ import test from "node:test";
 import { MANAGED_BASELINE_MIGRATIONS } from "./runtime-authority.mjs";
 import { buildMutableTablePlan } from "./restore-planning.mjs";
 import { parseLocalStorageInventory } from "./local-storage.mjs";
-import { parsePostRestoreValidationOutputs } from "./restore-validation.mjs";
+import { parseForeignKeyCatalog, parsePostRestoreValidationOutputs, validateForeignKeyIntegrityOutputs } from "./restore-validation.mjs";
 import { admitManagedDataSql } from "./sql-admission.mjs";
 import { admitPreparedRecoveryTargetRuntime, buildManagedRestorePlan, prepareManagedRecoveryTarget, validateManagedRestoreResult } from "./target-restore.mjs";
 
@@ -73,7 +73,7 @@ test("target/restore orchestration prepares only local artifacts and builds an o
     assert.equal(plan.status, "READY");
     assert.equal(plan.sanitized.ephemeralAuthState, "SANITIZED");
     assert.equal(plan.storage.status, "VALIDATED_NO_OP");
-    assert.deepEqual(plan.order, ["DB_DATA_RESTORE", "STORAGE_METADATA_GATE", "STORAGE_BYTE_RESTORE", "POST_RESTORE_VALIDATION"]);
+    assert.deepEqual(plan.order, ["DB_DATA_RESTORE", "STORAGE_METADATA_GATE", "STORAGE_BYTE_RESTORE", "POST_RESTORE_AGGREGATES", "FOREIGN_KEY_INTEGRITY", "REAL_INTERNAL_LOGIN"]);
     assert.equal(plan.loginGate.status, "NOT_EXECUTED");
     assert.equal(plan.sqlExecutions, 0);
 
@@ -94,11 +94,13 @@ test("target/restore orchestration prepares only local artifacts and builds an o
     const outputs = {
       tableCounts: ["1\n", "1\n", "1\n"], migrationHistory: `${VERSIONS.join("\n")}\n`, replicationRole: "origin\n",
       auth: JSON.stringify({ ...plan.expectations.auth, relationshipsValid: true, ephemeralStateAbsent: true }),
-      constraints: JSON.stringify({ invalidConstraintCount: 0, disabledTriggerCount: 0, privateAuditTableCount: 2 }),
+      constraints: JSON.stringify({ invalidConstraintCount: 0, disabledTriggerCount: 0, disabledForeignKeyTriggerCount: 0, privateAuditTableCount: 2 }),
       storageMetadata: JSON.stringify({ bucketExists: true, bucketPublic: false, objectCount: 0, unexpectedObjectCount: 0 }), storageInventory,
     };
     const actual = parsePostRestoreValidationOutputs({ plan: plan.validations, outputs });
-    assert.equal(validateManagedRestoreResult({ expected: plan.expectations, actual }).status, "PASS");
+    const catalog = parseForeignKeyCatalog({ mutablePlan: plan.mutable, rawOutput: "[]" });
+    const referentialIntegrity = validateForeignKeyIntegrityOutputs({ catalog, outputs: [] });
+    assert.equal(validateManagedRestoreResult({ expected: plan.expectations, actual, referentialIntegrity }).status, "PASS");
 
     for (const identity of ["auth.schema_migrations", "storage.migrations"]) {
       const forbidden = admitManagedDataSql(`COPY ${identity} (version) FROM stdin;\n1\n\\.\n`);

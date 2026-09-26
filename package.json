@@ -48,6 +48,8 @@
     "ops:restore:managed:target:test": "node --test scripts/managed-backup-recovery/git-environment.test.mjs scripts/managed-backup-recovery/runtime-authority.test.mjs scripts/managed-backup-recovery/target-workspace.test.mjs scripts/managed-backup-recovery/target-runtime-status.test.mjs scripts/managed-backup-recovery/target-commands.test.mjs scripts/managed-backup-recovery/sql-audit.test.mjs scripts/managed-backup-recovery/restore-planning.test.mjs scripts/managed-backup-recovery/local-storage.test.mjs scripts/managed-backup-recovery/restore-validation.test.mjs scripts/managed-backup-recovery/target-cleanup.test.mjs scripts/managed-backup-recovery/target-restore.test.mjs",
     "ops:restore:managed:target:local": "node scripts/managed-backup-recovery/local-target-drill.mjs",
     "ops:restore:managed:target:local:test": "node --test scripts/managed-backup-recovery/local-target-drill.test.mjs",
+    "ops:restore:managed:drill:local": "node scripts/managed-backup-recovery/real-restore-drill.mjs",
+    "ops:restore:managed:drill:local:test": "node --test scripts/managed-backup-recovery/recovery-tooling-authority.test.mjs scripts/managed-backup-recovery/recovery-boundaries.test.mjs scripts/managed-backup-recovery/tool-preflight.test.mjs scripts/managed-backup-recovery/age-decrypt.test.mjs scripts/managed-backup-recovery/interactive-credentials.test.mjs scripts/managed-backup-recovery/local-auth-login.test.mjs scripts/managed-backup-recovery/real-restore-drill.test.mjs",
     "ops:release:build": "node scripts/operations/build-production-release.mjs",
     "ops:release:test": "node --test scripts/operations/build-production-release.test.mjs",
     "ops:portability:images:validate": "node scripts/operations/image-acquisition.mjs validate-lock",

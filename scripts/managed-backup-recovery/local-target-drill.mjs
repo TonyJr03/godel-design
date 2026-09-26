@@ -6,9 +6,10 @@ import { ManagedBackupCommandError, runCommand } from "../managed-backup/command
 import { admitRepoLocalSupabaseCli } from "../managed-backup/production-execution.mjs";
 import { cleanupRecoverySession, createRecoverySession } from "./recovery-contract.mjs";
 import { buildRecoveryGitEnvironment } from "./git-environment.mjs";
-import { validateTargetCatalogIdentity } from "./restore-planning.mjs";
-import { REQUIRED_TARGET_EXTENSIONS, validateTargetBaseline } from "./sql-audit.mjs";
-import { admitDockerDbDiscovery, buildTargetPsqlPlan } from "./target-commands.mjs";
+import { assertRecoveryToolingAuthority, resolveRecoveryToolingAuthority } from "./recovery-tooling-authority.mjs";
+import { admitDockerDbDiscovery } from "./target-commands.mjs";
+import { buildTargetBaselineQueryPlans, parseTargetBaselineOutputs, TARGET_BASELINE_QUERY_NAMES } from "./target-baseline.mjs";
+import { createGovernedTargetCleanupAdapter, createGovernedTargetExecutor, executeGovernedTargetPlan } from "./target-executor.mjs";
 import { cleanupManagedRecoveryTarget, prepareManagedRecoveryTarget, provePreparedRecoveryTargetIsolation } from "./target-restore.mjs";
 import { admitLocalSupabaseStatus } from "./target-runtime-status.mjs";
 
@@ -23,12 +24,7 @@ const PRODUCTION_CONFIRMATIONS = Object.freeze([
   "GODEL_MANAGED_PRODUCTION_BACKUP_WRITER_FREEZE_CONFIRM",
   "GODEL_MANAGED_R2_PRODUCTION_LOCK_CONFIRM",
 ]);
-const QUERY_NAMES = Object.freeze(["migrationHistory", "requiredSchemas", "requiredExtensions", "storageBucket", "targetCatalog", "replicationRole"]);
-const REQUIRED_TABLES = Object.freeze(["auth.users", "auth.identities", "public.perfiles", "storage.buckets", "storage.objects"]);
 const SHA = /^[a-f0-9]{40}$/;
-const VERSION = /^\d{14}$/;
-const NAME = /^[a-z][a-z0-9_]*$/;
-const executors = new WeakMap();
 
 function fail(code, message) {
   const error = new Error(message);
@@ -51,22 +47,11 @@ export function assertLocalTargetConfirmation(environment = {}) {
 }
 
 export async function resolveLocalTargetGitAuthority({ repoRoot, environment = process.env, execute = runCommand } = {}) {
-  if (typeof repoRoot !== "string" || typeof execute !== "function") fail("LOCAL_RECOVERY_PREFLIGHT_INVALID", "Local target preflight adapters are invalid");
-  const allowedEnvironment = buildRecoveryGitEnvironment({ sourceEnvironment: environment, repoRoot });
-  const invoke = (operation, args) => execute({ operation, executable: "git", args, cwd: repoRoot, allowedEnvironment });
-  const [branch, head, status] = await Promise.all([
-    invoke("resolve local recovery tooling branch", ["branch", "--show-current"]),
-    invoke("resolve local recovery tooling HEAD", ["rev-parse", "HEAD"]),
-    invoke("verify local recovery tooling worktree", ["status", "--porcelain=v1", "--untracked-files=all"]),
-  ]);
-  return Object.freeze({ branch: branch.stdout.trim(), head: head.stdout.trim(), clean: status.stdout.trim() === "" });
+  return resolveRecoveryToolingAuthority({ repoRoot, environment, execute });
 }
 
 export function assertLocalTargetGitAuthority(authority, expectedHead) {
-  if (!authority || authority.branch !== LOCAL_TARGET_BRANCH) fail("WRONG_TOOLING_BRANCH", "Local recovery tooling branch is not authorized");
-  if (!SHA.test(expectedHead ?? "") || authority.head !== expectedHead) fail("WRONG_TOOLING_HEAD", "Local recovery tooling HEAD does not match the declared authority");
-  if (authority.clean !== true) fail("DIRTY_TOOLING_WORKTREE", "Local recovery tooling worktree must be clean");
-  return Object.freeze({ branch: authority.branch, head: authority.head, clean: true });
+  return assertRecoveryToolingAuthority({ authority, expectedBranch: LOCAL_TARGET_BRANCH, expectedHead });
 }
 
 function dockerVersion(output) {
@@ -97,89 +82,19 @@ export async function preflightLocalTargetDrill({ environment = process.env, rep
 }
 
 export function createGovernedLocalTargetExecutor({ prepared, execute = runCommand } = {}) {
-  if (prepared?.status !== "PREPARED" || typeof execute !== "function" || !prepared.commandPlans) fail("LOCAL_RECOVERY_EXECUTOR_INVALID", "Prepared local target executor authority is required");
-  const governedPlans = [
-    prepared.commandPlans.start,
-    prepared.commandPlans.status,
-    prepared.commandPlans.discoverDb,
-    prepared.commandPlans.stop,
-    prepared.commandPlans.verifyCleanupContainers,
-    prepared.commandPlans.verifyCleanupVolumes,
-    prepared.commandPlans.verifyCleanupNetworks,
-  ];
-  if (governedPlans.some((commandPlan) => !commandPlan)) fail("LOCAL_RECOVERY_EXECUTOR_INVALID", "Complete governed local target plans are required");
-  const allowed = new Set(governedPlans);
-  const handle = Object.freeze({ status: "READY", allowedOperations: governedPlans.length });
-  executors.set(handle, { prepared, execute, allowed });
-  return handle;
+  return createGovernedTargetExecutor({ prepared, execute });
 }
 
 export async function executeGovernedLocalTargetPlan(executor, commandPlan) {
-  const state = executors.get(executor);
-  if (!state || !state.allowed.has(commandPlan)) fail("LOCAL_RECOVERY_COMMAND_NOT_GOVERNED", "Local target command plan is not governed by this drill");
-  return state.execute(commandPlan);
+  return executeGovernedTargetPlan(executor, commandPlan);
 }
 
 export function buildLocalTargetBaselineQueryPlans({ executor, containerAuthority, environment = process.env } = {}) {
-  const state = executors.get(executor);
-  if (!state) fail("LOCAL_RECOVERY_EXECUTOR_INVALID", "Governed local target executor is required");
-  const plans = Object.fromEntries(QUERY_NAMES.map((queryName) => [queryName, buildTargetPsqlPlan({ containerAuthority, cwd: state.prepared.target.workdir, environment, operation: "query", queryName })]));
-  for (const commandPlan of Object.values(plans)) state.allowed.add(commandPlan);
-  return Object.freeze(plans);
-}
-
-function exactLines(output, pattern, code) {
-  if (typeof output !== "string" || output.includes("\0")) fail(code, "Local target query output is invalid");
-  const normalized = output.replaceAll("\r\n", "\n");
-  if (normalized.includes("\r")) fail(code, "Local target query output is invalid");
-  const lines = normalized.endsWith("\n") ? normalized.slice(0, -1).split("\n") : normalized.split("\n");
-  if (lines.length === 1 && lines[0] === "") return Object.freeze([]);
-  if (lines.some((value) => value.trim() !== value || !pattern.test(value)) || new Set(lines).size !== lines.length) fail(code, "Local target query output is invalid");
-  return Object.freeze(lines);
+  return buildTargetBaselineQueryPlans({ executor, containerAuthority, environment });
 }
 
 export function parseLocalTargetBaselineOutputs({ authority, outputs } = {}) {
-  const keys = QUERY_NAMES;
-  if (!outputs || typeof outputs !== "object" || Array.isArray(outputs) || Object.keys(outputs).length !== keys.length || Object.keys(outputs).some((key) => !keys.includes(key))) fail("LOCAL_RECOVERY_BASELINE_OUTPUT_INVALID", "Local target baseline outputs are incomplete");
-  const migrationVersions = exactLines(outputs.migrationHistory, VERSION, "LOCAL_RECOVERY_MIGRATION_OUTPUT_INVALID");
-  const schemas = exactLines(outputs.requiredSchemas, NAME, "LOCAL_RECOVERY_SCHEMA_OUTPUT_INVALID");
-  const extensions = exactLines(outputs.requiredExtensions, NAME, "LOCAL_RECOVERY_EXTENSION_OUTPUT_INVALID");
-  if (extensions.some((name) => !REQUIRED_TARGET_EXTENSIONS.includes(name))) fail("LOCAL_RECOVERY_EXTENSION_OUTPUT_INVALID", "Local target extension output is invalid");
-  const catalogIdentities = exactLines(outputs.targetCatalog, /^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/, "LOCAL_RECOVERY_CATALOG_OUTPUT_INVALID").map(validateTargetCatalogIdentity);
-  const bucketParts = typeof outputs.storageBucket === "string" ? outputs.storageBucket.trim().split("|") : [];
-  if (bucketParts.length !== 2 || bucketParts[0] !== "godel-files" || bucketParts[1] !== "f") fail("RECOVERY_TARGET_BUCKET_INVALID", "Local target bucket output is invalid");
-  const replicationRole = typeof outputs.replicationRole === "string" ? outputs.replicationRole.trim() : "";
-  if (replicationRole !== "origin") fail("RECOVERY_REPLICATION_ROLE_NOT_ORIGIN", "Local target replication role is not origin");
-  const catalog = new Set(catalogIdentities);
-  if (REQUIRED_TABLES.some((identity) => !catalog.has(identity))) fail("RECOVERY_TARGET_CATALOG_REQUIRED_TABLE_MISSING", "Local target catalog lacks a required restore table");
-  const targetState = Object.freeze({ migrationVersions, schemas, extensions, bucket: Object.freeze({ id: "godel-files", public: false }) });
-  const baseline = validateTargetBaseline({ authority, targetState, requiredExtensions: REQUIRED_TARGET_EXTENSIONS });
-  return Object.freeze({ targetState, baseline, targetCatalogVerified: true, replicationRole });
-}
-
-function cleanupAdapter(executor) {
-  const state = executors.get(executor);
-  if (!state) fail("LOCAL_RECOVERY_EXECUTOR_INVALID", "Governed local target executor is required");
-  return Object.freeze({
-    async stop({ projectId, workdir } = {}) {
-      if (projectId !== state.prepared.target.projectId || workdir !== state.prepared.target.workdir) fail("RECOVERY_TARGET_CLEANUP_INVALID", "Exact local target cleanup authority is required");
-      await executeGovernedLocalTargetPlan(executor, state.prepared.commandPlans.stop);
-    },
-    async listOwnedResources({ projectId } = {}) {
-      if (projectId !== state.prepared.target.projectId) fail("RECOVERY_TARGET_CLEANUP_INVALID", "Exact local target cleanup authority is required");
-      const checks = [
-        [state.prepared.commandPlans.verifyCleanupContainers, "OWNED_CONTAINER"],
-        [state.prepared.commandPlans.verifyCleanupVolumes, "OWNED_VOLUME"],
-        [state.prepared.commandPlans.verifyCleanupNetworks, "OWNED_NETWORK"],
-      ];
-      const owned = [];
-      for (const [commandPlan, marker] of checks) {
-        const output = (await executeGovernedLocalTargetPlan(executor, commandPlan)).stdout;
-        owned.push(...String(output ?? "").split(/\r?\n/).filter(Boolean).map(() => marker));
-      }
-      return owned;
-    },
-  });
+  return parseTargetBaselineOutputs({ authority, outputs });
 }
 
 function sessionBoundaries() {
@@ -240,7 +155,7 @@ export async function runLocalTargetCompatibilityDrill({ environment = process.e
     ) fail("RECOVERY_TARGET_ISOLATION_FAILED", "Disposable recovery target isolation could not be proven");
     const queries = buildLocalTargetBaselineQueryPlans({ executor, containerAuthority, environment });
     const outputs = {};
-    for (const queryName of QUERY_NAMES) outputs[queryName] = (await executeGovernedLocalTargetPlan(executor, queries[queryName])).stdout;
+    for (const queryName of TARGET_BASELINE_QUERY_NAMES) outputs[queryName] = (await executeGovernedLocalTargetPlan(executor, queries[queryName])).stdout;
     const validation = parseLocalTargetBaselineOutputs({ authority: prepared.authority, outputs });
     result = {
       status: "PASS", operation: "real-local-target-compatibility", runtimeAuthority: "VERIFIED", targetIsolation: "VERIFIED",
@@ -251,7 +166,7 @@ export async function runLocalTargetCompatibilityDrill({ environment = process.e
     primaryError = error;
   } finally {
     if (startAttempted && prepared && executor) {
-      try { await cleanupTarget({ session, target: prepared.target, adapter: cleanupAdapter(executor) }); } catch { targetCleanupError = Object.assign(new Error("Disposable recovery target cleanup did not complete"), { code: "RECOVERY_TARGET_CLEANUP_INCOMPLETE" }); }
+      try { await cleanupTarget({ session, target: prepared.target, adapter: createGovernedTargetCleanupAdapter(executor) }); } catch { targetCleanupError = Object.assign(new Error("Disposable recovery target cleanup did not complete"), { code: "RECOVERY_TARGET_CLEANUP_INCOMPLETE" }); }
     }
     if (session) {
       try { await cleanupSession(session); } catch { sessionCleanupError = Object.assign(new Error("Recovery session cleanup did not complete"), { code: "RECOVERY_CLEANUP_INCOMPLETE" }); }

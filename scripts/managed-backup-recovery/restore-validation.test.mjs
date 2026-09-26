@@ -4,6 +4,7 @@ import test from "node:test";
 import { buildMutableTablePlan } from "./restore-planning.mjs";
 import {
   accessPostRestoreValidationSql,
+  buildForeignKeyIntegrityQueries,
   buildPostRestoreValidationQueries,
   canonicalField,
   canonicalRecord,
@@ -13,6 +14,8 @@ import {
   deriveStorageExpectation,
   digestCanonicalRecords,
   parsePostRestoreValidationOutputs,
+  parseForeignKeyCatalog,
+  validateForeignKeyIntegrityOutputs,
   validateManagedRestoreResult,
 } from "./restore-validation.mjs";
 import { admitManagedDataSql } from "./sql-admission.mjs";
@@ -37,12 +40,14 @@ function fixture() {
     migrationHistory: `${VERSIONS.join("\n")}\n`,
     replicationRole: "origin\n",
     auth: JSON.stringify({ ...auth, relationshipsValid: true, ephemeralStateAbsent: true }),
-    constraints: JSON.stringify({ invalidConstraintCount: 0, disabledTriggerCount: 0, privateAuditTableCount: 2 }),
+    constraints: JSON.stringify({ invalidConstraintCount: 0, disabledTriggerCount: 0, disabledForeignKeyTriggerCount: 0, privateAuditTableCount: 2 }),
     storageMetadata: JSON.stringify({ bucketExists: true, bucketPublic: false, objectCount: 0, unexpectedObjectCount: 0 }),
     storageInventory: { objectCount: 0, totalBytes: 0, inventoryDigest: storage.inventoryDigest, unexpectedObjectCount: 0 },
   };
   const expected = { tableCounts: { "auth.users": 1, "auth.identities": 1, "public.perfiles": 1 }, auth, storage };
-  return { admission, auth, storage, plan, outputs, expected };
+  const foreignKeyCatalog = parseForeignKeyCatalog({ mutablePlan, rawOutput: "[]" });
+  const referentialIntegrity = validateForeignKeyIntegrityOutputs({ catalog: foreignKeyCatalog, outputs: [] });
+  return { admission, auth, storage, mutablePlan, plan, outputs, expected, referentialIntegrity };
 }
 
 test("canonical Node records are length-prefixed and Auth SQL implements the same unambiguous shape without PII", () => {
@@ -63,7 +68,7 @@ test("real read-only validation plans are governed by the admitted mutable/catal
   const { plan } = fixture();
   assert.equal(plan.tableCounts.length, 3);
   assert.equal(plan.ephemeralCatalog.presentCount, 1);
-  for (const query of [plan.migrationHistory, plan.replicationRole, plan.auth, plan.constraints, plan.storageMetadata, ...plan.tableCounts]) {
+  for (const query of [plan.migrationHistory, plan.replicationRole, plan.auth, plan.constraints, plan.foreignKeyCatalog, plan.storageMetadata, ...plan.tableCounts]) {
     accessPostRestoreValidationSql(query, (sql) => {
       assert.match(sql, /^(?:SELECT|SHOW|WITH)\b/);
       assert.doesNotMatch(sql, /confidential-.*-plan|governed-constraint-and-trigger-plan/);
@@ -73,15 +78,17 @@ test("real read-only validation plans are governed by the admitted mutable/catal
 });
 
 test("synthetic SQL outputs parse to sanitized actual aggregates and validate PASS", () => {
-  const { plan, outputs, expected } = fixture();
+  const { plan, outputs, expected, referentialIntegrity } = fixture();
   const actual = parsePostRestoreValidationOutputs({ plan, outputs });
-  assert.equal(validateManagedRestoreResult({ expected, actual }).status, "PASS");
+  const validation = validateManagedRestoreResult({ expected, actual, referentialIntegrity });
+  assert.equal(validation.status, "PASS");
+  assert.equal(validation.referentialIntegrity, "PASS");
   const text = JSON.stringify(actual);
   for (const confidential of ["user-1", "identity-1", "sensitive-hash"]) assert.ok(!text.includes(confidential));
 });
 
 test("identity UUID, password, profile relation, and ephemeral residue fail their gates", () => {
-  const { plan, outputs, expected } = fixture();
+  const { plan, outputs, expected, referentialIntegrity } = fixture();
   const variants = [
     [{ ...JSON.parse(outputs.auth), identityPairDigest: "b".repeat(64) }, "RECOVERY_AUTH_CONTINUITY_FAILED"],
     [{ ...JSON.parse(outputs.auth), passwordDigest: "b".repeat(64) }, "RECOVERY_AUTH_PASSWORD_CONTINUITY_FAILED"],
@@ -90,25 +97,77 @@ test("identity UUID, password, profile relation, and ephemeral residue fail thei
   ];
   for (const [auth, code] of variants) {
     const actual = parsePostRestoreValidationOutputs({ plan, outputs: { ...outputs, auth: JSON.stringify(auth) } });
-    assert.throws(() => validateManagedRestoreResult({ expected, actual }), { code });
+    assert.throws(() => validateManagedRestoreResult({ expected, actual, referentialIntegrity }), { code });
   }
 });
 
 test("constraint and disabled-trigger aggregate failures remain visible", () => {
-  const { plan, outputs, expected } = fixture();
+  const { plan, outputs, expected, referentialIntegrity } = fixture();
   for (const structural of [
-    { invalidConstraintCount: 1, disabledTriggerCount: 0, privateAuditTableCount: 2 },
-    { invalidConstraintCount: 0, disabledTriggerCount: 1, privateAuditTableCount: 2 },
+    { invalidConstraintCount: 1, disabledTriggerCount: 0, disabledForeignKeyTriggerCount: 0, privateAuditTableCount: 2 },
+    { invalidConstraintCount: 0, disabledTriggerCount: 1, disabledForeignKeyTriggerCount: 0, privateAuditTableCount: 2 },
   ]) {
     const actual = parsePostRestoreValidationOutputs({ plan, outputs: { ...outputs, constraints: JSON.stringify(structural) } });
-    assert.throws(() => validateManagedRestoreResult({ expected, actual }), { code: "RECOVERY_DB_VALIDATION_FAILED" });
+    assert.throws(() => validateManagedRestoreResult({ expected, actual, referentialIntegrity }), { code: "RECOVERY_DB_VALIDATION_FAILED" });
   }
 });
 
-test("unexpected local Storage aggregate fails the final restore gate", () => {
+test("disabled FK constraint triggers block validation while ENABLE ALWAYS remains admitted by SQL semantics", () => {
+  const { plan, outputs, expected, referentialIntegrity } = fixture();
+  accessPostRestoreValidationSql(plan.constraints, (sql) => {
+    assert.match(sql, /disabledForeignKeyTriggerCount/);
+    assert.match(sql, /tgenabled NOT IN \('O', 'A'\)/);
+  });
+  const constraints = { ...JSON.parse(outputs.constraints), disabledForeignKeyTriggerCount: 1 };
+  const actual = parsePostRestoreValidationOutputs({ plan, outputs: { ...outputs, constraints: JSON.stringify(constraints) } });
+  assert.throws(() => validateManagedRestoreResult({ expected, actual, referentialIntegrity }), { code: "RECOVERY_FOREIGN_KEY_TRIGGER_DISABLED" });
+});
+
+test("governed FK catalog preserves composite ordinality and builds MATCH SIMPLE orphan checks", () => {
+  const { mutablePlan, plan } = fixture();
+  accessPostRestoreValidationSql(plan.foreignKeyCatalog, (sql) => {
+    for (const source of ["pg_constraint", "pg_class", "pg_namespace", "pg_attribute"]) assert.ok(sql.includes(source));
+    assert.match(sql, /unnest\(fk\.conkey, fk\.confkey\) WITH ORDINALITY/);
+  });
+  const rawOutput = JSON.stringify([{
+    constraintType: "f", matchType: "s", childSchema: "public", childTable: "perfiles", parentSchema: "auth", parentTable: "users",
+    columns: [{ ordinal: 1, child: "id", parent: "id" }, { ordinal: 2, child: "tenant_id", parent: "tenant_id" }],
+  }]);
+  const catalog = parseForeignKeyCatalog({ mutablePlan, rawOutput });
+  assert.deepEqual(JSON.parse(JSON.stringify(catalog)), { status: "ADMITTED", foreignKeyCount: 1 });
+  const queries = buildForeignKeyIntegrityQueries(catalog);
+  assert.equal(queries.length, 1);
+  accessPostRestoreValidationSql(queries[0], (sql) => {
+    assert.match(sql, /^SELECT count\(\*\)::bigint/);
+    assert.match(sql, /child\."id" IS NOT NULL AND child\."tenant_id" IS NOT NULL/);
+    assert.match(sql, /parent\."id" = child\."id" AND parent\."tenant_id" = child\."tenant_id"/);
+  });
+  assert.equal(validateForeignKeyIntegrityOutputs({ catalog, outputs: ["0\n"] }).referentialIntegrity, "PASS");
+  assert.throws(() => validateForeignKeyIntegrityOutputs({ catalog, outputs: ["1\n"] }), { code: "RECOVERY_FOREIGN_KEY_INTEGRITY_FAILED" });
+  assert.ok(!JSON.stringify(catalog).includes("perfiles"));
+});
+
+test("unsupported FK match semantics, malformed identifiers, and broken ordinality fail closed", () => {
+  const { mutablePlan } = fixture();
+  const base = { constraintType: "f", matchType: "s", childSchema: "public", childTable: "perfiles", parentSchema: "auth", parentTable: "users", columns: [{ ordinal: 1, child: "id", parent: "id" }] };
+  for (const item of [
+    { ...base, matchType: "f" },
+    { ...base, childTable: "bad-name" },
+    { ...base, childTable: "unknown" },
+    { ...base, columns: [{ ordinal: 2, child: "id", parent: "id" }] },
+  ]) assert.throws(() => parseForeignKeyCatalog({ mutablePlan, rawOutput: JSON.stringify([item]) }), { code: "RECOVERY_FOREIGN_KEY_CATALOG_INVALID" });
+});
+
+test("database PASS requires an opaque successful FK data gate", () => {
   const { plan, outputs, expected } = fixture();
+  const actual = parsePostRestoreValidationOutputs({ plan, outputs });
+  assert.throws(() => validateManagedRestoreResult({ expected, actual }), { code: "RECOVERY_FOREIGN_KEY_INTEGRITY_REQUIRED" });
+});
+
+test("unexpected local Storage aggregate fails the final restore gate", () => {
+  const { plan, outputs, expected, referentialIntegrity } = fixture();
   const actual = parsePostRestoreValidationOutputs({ plan, outputs: { ...outputs, storageInventory: { ...outputs.storageInventory, unexpectedObjectCount: 1 } } });
-  assert.throws(() => validateManagedRestoreResult({ expected, actual }), { code: "RECOVERY_STORAGE_VALIDATION_FAILED" });
+  assert.throws(() => validateManagedRestoreResult({ expected, actual, referentialIntegrity }), { code: "RECOVERY_STORAGE_VALIDATION_FAILED" });
 });
 
 test("confidential expectations include identity UUID and reject orphan relationships", () => {
