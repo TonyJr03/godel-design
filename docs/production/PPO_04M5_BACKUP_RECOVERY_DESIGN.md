@@ -832,7 +832,7 @@ PPO-04M.5.2.1E
 
 PPO-04M.5.3
 = Restore Drill + Baseline Closure
-= ACTIVE / REAL RESTORE ORCHESTRATOR TOOLING
+= ACTIVE / RECOVERY APPLICATION VALIDATION TOOLING
 ```
 
 M.6 no se abre hasta que M.5.3 esté cerrado/aprobado.
@@ -1123,10 +1123,14 @@ start exitoso.
 
 ```text
 PPO-04M.5.3C.0 = CLOSED / REAL RESTORE EXECUTION CONTRACT APPROVED
-PPO-04M.5.3C.1 = IMPLEMENTED / ARCHITECTURAL CORRECTIONS APPLIED / PENDING ARCHITECTURAL REVIEW
-PPO-04M.5.3C REAL EXECUTION = NOT AUTHORIZED
+PPO-04M.5.3C.1.1 = CLOSED / RESTORE MUTATION + BOUNDARY HARDENING APPROVED
+PPO-04M.5.3C.1 = CLOSED / REAL RESTORE ORCHESTRATOR TOOLING APPROVED
+PPO-04M.5.3C.1 APPROVED TOOLING SHA = 5e257838cdf73df1a3f07d3473b6d65bf5f4595c
+PPO-04M.5.3D.0 = CLOSED / VALIDATION + BASELINE CLOSURE CONTRACT APPROVED
+PPO-04M.5.3D.1 = IMPLEMENTED / APPLICATION RUNTIME AUTHORITY FINDING CORRECTED / PENDING ARCHITECTURAL REVIEW
+PPO-04M.5.3D.1.1 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+REAL RESTORE ATTEMPT #1 = NOT AUTHORIZED
 REAL BACKUP RESTORE EXECUTION = NOT AUTHORIZED
-PPO-04M.5.3D = PENDING
 PRODUCTION RESTORE = NOT AUTHORIZED
 REAL R2 READS DURING C.1 = 0
 REAL AGE DECRYPTS DURING C.1 = 0
@@ -1135,6 +1139,76 @@ REAL SQL EXECUTIONS DURING C.1 = 0
 REAL TARGET MUTATIONS DURING C.1 = 0
 REAL LOGIN ATTEMPTS DURING C.1 = 0
 PRODUCTION ACTIVITY DURING C.1 = 0
+```
+
+### PPO-04M.5.3D.1 — Recovery Application Validation + Baseline Closure Tooling
+
+El mismo comando one-shot `ops:restore:managed:drill:local` incorpora una capa
+final de aplicación después de DB/Auth/Storage/FK y del login Auth directo. Antes
+del arranque compara por Git protegido y byte-exact `src/`, `public/`,
+configuración Next/TypeScript/PostCSS, `next-env.d.ts` y `package-lock.json`
+entre `manifest.productionRuntimeSha` y el HEAD autorizado. No compara docs ni el
+tooling de recovery, no hace checkout/fetch y falla cerrado ante cualquier drift.
+
+La corrección D.1.1 separa `package.json` del diff byte-exact. Git lee el blob
+desde cada SHA autorizado y compara estructuralmente todos sus campos salvo
+`scripts`; sólo ese drift operacional queda excluido. Dependencias,
+devDependencies y cualquier campo top-level presente o futuro conservan
+autoridad exacta. `package-lock.json` permanece byte-exact. El handle opaco PASS
+demuestra conjuntamente el árbol byte-exact, los campos runtime del manifest y
+el lock exacto, sin publicar diferencias de scripts.
+
+Para no escribir en `<repo>/.next`, el runtime materializa exclusivamente los
+archivos tracked gobernados en `session.evidence/application-runtime/source` y
+escribe allí el `package.json` exacto de Production runtime, nunca el manifest
+actual con tooling operacional. Next arranca programáticamente sobre esa copia.
+`distDir`, temporales y cache
+quedan dentro de la misma evidencia de sesión; la versión repo-local de Next se
+admite sintéticamente sólo si conserva el override. El proceso escucha en
+`127.0.0.1` y puerto dinámico, recibe por IPC un contrato acotado y usa un
+environment allowlisted con las tres variables Supabase locales públicas/server
+y el mínimo de plataforma. No hereda configuración Production, credenciales R2,
+identity age, password DB, backup ID ni credenciales de login.
+
+Los gates exigen respuestas exactas de live/ready sin redirects. Un Chromium
+programático, con dependencia inyectable y sin runner, artefactos ni estado
+persistente, reutiliza una sola vez la misma credencial interactiva en memoria.
+Admite dashboard o cambio inicial de contraseña, exige una superficie `main`
+visible y comprueba en un contexto nuevo que `/dashboard` termina en `/login`.
+Todas las requests se bloquean salvo los dos origins loopback exactos de la app
+y del target Supabase recuperado.
+
+La autoridad `RLS_GRANT_BASELINE_AUTHORITY = VERIFIED` se deriva de baseline
+01–06 exacta, auditoría `AUDIT_ONLY` de roles/schema/history y restore data-only
+bajo una única transacción; no declara una reejecución de la matriz completa de
+roles. Para el backup actual, Storage vacío conserva
+`privateDownload = NOT_EXERCISED_EMPTY_STORAGE`: no se crea ningún objeto y
+`TD-BACKUP-004` sigue requerido antes del primer recovery con Storage no vacío.
+
+El cleanup ordena browser, app/puerto, target y source/session. Se intentan todos
+los niveles y la precedencia exacta es source/session > target > app > fallo
+primario. La evidencia PASS es fija y sanitizada; no contiene PII, URLs, puertos,
+paths, UUIDs, tokens ni keys.
+
+```text
+RLS_GRANT_BASELINE_AUTHORITY = VERIFIED BY SYNTHETIC CONTRACT
+TD-BACKUP-004 = REQUIRED BEFORE FIRST NON-EMPTY STORAGE RECOVERY
+PRIVATE DOWNLOAD = NOT EXERCISED IN EMPTY-STORAGE DRILL / IMPORTANT AFTER PILOT
+REAL RESTORE ATTEMPT #1 = NOT AUTHORIZED
+PPO-04M.5.3D.1.1 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+BYTE-EXACT APP RUNTIME AUTHORITY = RETAINED FOR APPLICATION SOURCE / CONFIG / PACKAGE LOCK
+PACKAGE.JSON SCRIPTS-ONLY OPERATIONAL DRIFT = SEMANTICALLY EXCLUDED
+PACKAGE.JSON NON-SCRIPT FIELDS = EXACT AUTHORITY
+TEMPORARY APP PACKAGE.JSON = PRODUCTION RUNTIME AUTHORITY
+REAL_SHA_APP_RUNTIME_AUTHORITY = PASS
+REAL R2 READS DURING D.1 = 0
+REAL AGE DECRYPTS DURING D.1 = 0
+REAL TARGET STARTS DURING D.1 = 0
+REAL SQL EXECUTIONS DURING D.1 = 0
+REAL TARGET MUTATIONS DURING D.1 = 0
+REAL APP STARTS DURING D.1 = 0
+REAL LOGIN ATTEMPTS DURING D.1 = 0
+PRODUCTION ACTIVITY DURING D.1 = 0
 ```
 
 ### PPO-04M.5.1 FINAL INTEGRATION EVIDENCE

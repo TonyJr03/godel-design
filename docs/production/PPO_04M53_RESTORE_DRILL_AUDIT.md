@@ -1,6 +1,6 @@
 # PPO-04M.5.3 — Restore Drill + Baseline Closure Architecture Audit
 
-**Estado de M.5.3:** `ACTIVE / REAL RESTORE ORCHESTRATOR TOOLING`
+**Estado de M.5.3:** `ACTIVE / RECOVERY APPLICATION VALIDATION TOOLING`
 
 **Estado de M.5.3.0:** `CLOSED / RESTORE DRILL ARCHITECTURE APPROVED`
 
@@ -582,12 +582,42 @@ puertos, endpoints, paths, credenciales ni catálogo completo.
 
 ### PPO-04M.5.3D — Validation + baseline closure
 
-- comparación completa contra manifest/inventarios;
-- login real interno;
-- cleanup verificado;
-- reporte sanitizado;
-- decisión explícita sobre los gaps `IMPORTANT AFTER PILOT`;
-- cierre de M.5 sólo si no quedan blockers.
+`PPO-04M.5.3D.0` queda cerrado como contrato y `PPO-04M.5.3D.1` implementa,
+pendiente de revisión arquitectónica, la capa final del mismo one-shot. D.1.1
+corrige su autoridad runtime: source/config y `package-lock.json` continúan
+byte-exact, mientras `package.json` excluye semánticamente sólo `scripts` y
+compara exactamente todos los demás campos. La copia Git-governed dentro de
+`session.evidence` recibe el `package.json` exacto del SHA Productivo y sólo
+permite que Next escriba dist/cache/temporales dentro de esa sesión.
+
+La aplicación queda limitada a `127.0.0.1` y puerto dinámico, con environment
+allowlisted construido desde el target local admitido. Los gates sintéticos
+cubren health exacto, reutilización de una única credencial en memoria, login
+email-only, dashboard o cambio inicial, rechazo anónimo y bloqueo de todo origin
+que no sea la app o el Supabase local recuperado. No se ejecutó Playwright real.
+
+El cierre RLS/grants no repite la matriz E2E: verifica la cadena baseline 01–06
+exacta + roles/schema/history `AUDIT_ONLY` + restore data-only. El backup actual
+tiene Storage vacío, por lo que private download no se ejerce y
+`TD-BACKUP-004` continúa requerido antes del primer recovery no vacío. Cleanup
+mantiene precedencia source/session > target > app > fallo primario.
+
+```text
+PPO-04M.5.3C.1.1 = CLOSED / RESTORE MUTATION + BOUNDARY HARDENING APPROVED
+PPO-04M.5.3C.1 = CLOSED / REAL RESTORE ORCHESTRATOR TOOLING APPROVED
+PPO-04M.5.3C.1 APPROVED TOOLING SHA = 5e257838cdf73df1a3f07d3473b6d65bf5f4595c
+PPO-04M.5.3D.0 = CLOSED / VALIDATION + BASELINE CLOSURE CONTRACT APPROVED
+PPO-04M.5.3D.1 = IMPLEMENTED / APPLICATION RUNTIME AUTHORITY FINDING CORRECTED / PENDING ARCHITECTURAL REVIEW
+PPO-04M.5.3D.1.1 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+BYTE-EXACT APP RUNTIME AUTHORITY = RETAINED FOR APPLICATION SOURCE / CONFIG / PACKAGE LOCK
+PACKAGE.JSON SCRIPTS-ONLY OPERATIONAL DRIFT = SEMANTICALLY EXCLUDED
+PACKAGE.JSON NON-SCRIPT FIELDS = EXACT AUTHORITY
+TEMPORARY APP PACKAGE.JSON = PRODUCTION RUNTIME AUTHORITY
+REAL_SHA_APP_RUNTIME_AUTHORITY = PASS
+REAL RESTORE ATTEMPT #1 = NOT AUTHORIZED
+TD-BACKUP-004 = REQUIRED BEFORE FIRST NON-EMPTY STORAGE RECOVERY
+PRIVATE DOWNLOAD = NOT EXERCISED IN EMPTY-STORAGE DRILL / IMPORTANT AFTER PILOT
+```
 
 ## 17. Estado final del audit
 
@@ -610,14 +640,29 @@ CLOSED / REAL LOCAL TARGET COMPATIBILITY VERIFIED
 PPO-04M.5.3C.0 =
 CLOSED / REAL RESTORE EXECUTION CONTRACT APPROVED
 
-PPO-04M.5.3C.1 =
-IMPLEMENTED / ARCHITECTURAL CORRECTIONS APPLIED / PENDING ARCHITECTURAL REVIEW
+PPO-04M.5.3C.1.1 =
+CLOSED / RESTORE MUTATION + BOUNDARY HARDENING APPROVED
 
-PPO-04M.5.3D =
-PENDING
+PPO-04M.5.3C.1 =
+CLOSED / REAL RESTORE ORCHESTRATOR TOOLING APPROVED
+
+PPO-04M.5.3C.1 APPROVED TOOLING SHA =
+5e257838cdf73df1a3f07d3473b6d65bf5f4595c
+
+PPO-04M.5.3D.0 =
+CLOSED / VALIDATION + BASELINE CLOSURE CONTRACT APPROVED
+
+PPO-04M.5.3D.1 =
+IMPLEMENTED / APPLICATION RUNTIME AUTHORITY FINDING CORRECTED / PENDING ARCHITECTURAL REVIEW
+
+PPO-04M.5.3D.1.1 =
+IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
 
 PPO-04M.5.3 =
-ACTIVE / REAL RESTORE ORCHESTRATOR TOOLING
+ACTIVE / RECOVERY APPLICATION VALIDATION TOOLING
+
+REAL RESTORE ATTEMPT #1 =
+NOT AUTHORIZED
 
 PRODUCTION RESTORE =
 NOT AUTHORIZED
@@ -642,4 +687,16 @@ TARGET MUTATIONS =
 
 SQL EXECUTION =
 0
+
+REAL APP STARTS =
+0
+
+REAL LOGIN ATTEMPTS =
+0
+
+TD-BACKUP-004 =
+REQUIRED BEFORE FIRST NON-EMPTY STORAGE RECOVERY
+
+PRIVATE DOWNLOAD =
+NOT EXERCISED IN EMPTY-STORAGE DRILL / IMPORTANT AFTER PILOT
 ```

@@ -49,7 +49,7 @@
     "ops:restore:managed:target:local": "node scripts/managed-backup-recovery/local-target-drill.mjs",
     "ops:restore:managed:target:local:test": "node --test scripts/managed-backup-recovery/local-target-drill.test.mjs",
     "ops:restore:managed:drill:local": "node scripts/managed-backup-recovery/real-restore-drill.mjs",
-    "ops:restore:managed:drill:local:test": "node --test scripts/managed-backup-recovery/recovery-tooling-authority.test.mjs scripts/managed-backup-recovery/recovery-boundaries.test.mjs scripts/managed-backup-recovery/tool-preflight.test.mjs scripts/managed-backup-recovery/age-decrypt.test.mjs scripts/managed-backup-recovery/interactive-credentials.test.mjs scripts/managed-backup-recovery/local-auth-login.test.mjs scripts/managed-backup-recovery/real-restore-drill.test.mjs",
+    "ops:restore:managed:drill:local:test": "node --test scripts/managed-backup-recovery/recovery-tooling-authority.test.mjs scripts/managed-backup-recovery/recovery-boundaries.test.mjs scripts/managed-backup-recovery/tool-preflight.test.mjs scripts/managed-backup-recovery/age-decrypt.test.mjs scripts/managed-backup-recovery/interactive-credentials.test.mjs scripts/managed-backup-recovery/local-auth-login.test.mjs scripts/managed-backup-recovery/app-runtime-authority.test.mjs scripts/managed-backup-recovery/local-recovery-app.test.mjs scripts/managed-backup-recovery/recovery-application-validation.test.mjs scripts/managed-backup-recovery/real-restore-drill.test.mjs",
     "ops:release:build": "node scripts/operations/build-production-release.mjs",
     "ops:release:test": "node --test scripts/operations/build-production-release.test.mjs",
     "ops:portability:images:validate": "node scripts/operations/image-acquisition.mjs validate-lock",

@@ -3,14 +3,17 @@ import { join } from "node:path";
 import { isManagedBackupId, readManagedBackupManifest } from "../managed-backup/manifest.mjs";
 import { runCommand } from "../managed-backup/command-runner.mjs";
 import { createAgeDecryptAdapter } from "./age-decrypt.mjs";
+import { verifyRecoveryAppRuntimeAuthority } from "./app-runtime-authority.mjs";
 import { createInteractiveCredentialProvider } from "./interactive-credentials.mjs";
 import { buildLocalStorageInventoryPlan, accessLocalStorageCommandPlan, parseLocalStorageInventory } from "./local-storage.mjs";
 import { performLocalAuthLogin } from "./local-auth-login.mjs";
+import { startLocalRecoveryApp, stopLocalRecoveryApp } from "./local-recovery-app.mjs";
 import { createR2RecoverySourceAdapter } from "./r2-recovery-source.mjs";
 import { assertRecoveryToolingAuthority, resolveRecoveryToolingAuthority } from "./recovery-tooling-authority.mjs";
 import { accessRealRecoveryBoundaries, admitRealRecoveryBoundaries } from "./recovery-boundaries.mjs";
 import { admitStorageMetadataGate, authorizeStorageByteRestore } from "./restore-planning.mjs";
 import { buildForeignKeyIntegrityQueries, parseForeignKeyCatalog, parsePostRestoreValidationOutputs, validateForeignKeyIntegrityOutputs, validateManagedRestoreResult } from "./restore-validation.mjs";
+import { probeLocalRecoveryAppHealth, runRecoveryApplicationBrowserSmoke, verifyRlsGrantBaselineAuthority } from "./recovery-application-validation.mjs";
 import { withVerifiedManagedRecoverySource } from "./source-verification.mjs";
 import { accessTargetBaselineEvidence, runTargetBaselineGate } from "./target-baseline.mjs";
 import { buildGovernedTargetPsqlPlan, createGovernedTargetCleanupAdapter, createGovernedTargetExecutor, executeGovernedTargetPlan } from "./target-executor.mjs";
@@ -37,6 +40,7 @@ const PHASES = new Set([
   "PREFLIGHT", "SOURCE_INSPECT", "SOURCE_DOWNLOAD", "SOURCE_DECRYPT", "SOURCE_VERIFY", "TARGET_PREPARE", "TARGET_START",
   "TARGET_BASELINE", "RESTORE_PLAN", "PRE_MUTATION_REVALIDATION", "RESTORE_EXECUTE", "STORAGE_METADATA", "STORAGE_BYTES",
   "POST_RESTORE_VALIDATION", "AUTH_LOGIN", "TARGET_CLEANUP", "SOURCE_CLEANUP",
+  "APP_RUNTIME_AUTHORITY", "APP_START", "APP_HEALTH", "APP_LOGIN", "APP_ACCESS", "APP_CLEANUP",
 ]);
 const PUBLIC_FAILURE_CODES = new Set([
   "COMMAND_FAILED", "EXECUTABLE_UNAVAILABLE", "WRONG_TOOLING_BRANCH", "WRONG_TOOLING_HEAD", "DIRTY_TOOLING_WORKTREE",
@@ -58,6 +62,12 @@ const PUBLIC_FAILURE_CODES = new Set([
   "RECOVERY_BACKUP_OUTPUT_ROOT_REQUIRED", "RECOVERY_BACKUP_OUTPUT_ROOT_PATH_INVALID", "RECOVERY_BACKUP_OUTPUT_ROOT_UNSAFE", "RECOVERY_BOUNDARY_HANDLE_INVALID",
   "RECOVERY_FOREIGN_KEY_CATALOG_INVALID", "RECOVERY_FOREIGN_KEY_CATALOG_REQUIRED", "RECOVERY_FOREIGN_KEY_INTEGRITY_OUTPUT_INVALID",
   "RECOVERY_FOREIGN_KEY_INTEGRITY_FAILED", "RECOVERY_FOREIGN_KEY_INTEGRITY_REQUIRED", "RECOVERY_FOREIGN_KEY_TRIGGER_DISABLED",
+  "RECOVERY_APP_RUNTIME_AUTHORITY_INVALID", "RECOVERY_APP_RUNTIME_AUTHORITY_UNAVAILABLE", "RECOVERY_APP_RUNTIME_AUTHORITY_MISMATCH", "RECOVERY_APP_PACKAGE_MANIFEST_INVALID",
+  "RECOVERY_APP_RUNTIME_AUTHORITY_REQUIRED", "RECOVERY_APP_WORKSPACE_INVALID", "RECOVERY_APP_WORKSPACE_HANDLE_INVALID",
+  "RECOVERY_APP_SOURCE_MATERIALIZATION_FAILED", "RECOVERY_APP_DIST_DIR_UNSUPPORTED", "RECOVERY_APP_PORT_INVALID", "RECOVERY_APP_HANDLE_INVALID",
+  "RECOVERY_APP_PROCESS_FAILED", "RECOVERY_APP_START_FAILED", "RECOVERY_APP_HEALTH_FAILED", "RECOVERY_APP_LOGIN_EMAIL_REQUIRED",
+  "RECOVERY_APP_LOGIN_FAILED", "RECOVERY_APP_ANONYMOUS_ACCESS_FAILED", "RECOVERY_APP_REMOTE_REQUEST_FORBIDDEN",
+  "RECOVERY_APP_CLEANUP_INCOMPLETE", "RECOVERY_RLS_GRANT_BASELINE_UNVERIFIED",
 ]);
 
 function fail(code, message) {
@@ -99,9 +109,12 @@ export function sanitizeRealRestoreDrillPass(value) {
   const fixed = {
     status: "PASS", operation: "real-product-backup-local-restore-drill", sourceVerification: "PASS", targetIsolation: "VERIFIED",
     baselineMigrationCount: 6, restore: "PASS", databaseValidation: "PASS", referentialIntegrity: "PASS", authContinuity: "PASS", realInternalLogin: "PASS",
-    storageValidation: "PASS", storageByteRestore: "VALIDATED_NO_OP", sessionReplicationRole: "origin", realTargetStarts: 1,
+    storageValidation: "PASS", storageByteRestore: "VALIDATED_NO_OP", applicationLive: "PASS", applicationReady: "PASS",
+    applicationLogin: "PASS", internalScreen: "PASS", applicationRead: "PASS", anonymousInternalAccess: "REJECTED",
+    applicationRemoteIsolation: "VERIFIED", rlsGrantBaseline: "VERIFIED", privateDownload: "NOT_EXERCISED_EMPTY_STORAGE",
+    sessionReplicationRole: "origin", realTargetStarts: 1,
     sqlExecutions: 1, targetMutations: 1, realR2Reads: 3, realAgeDecrypts: 1, remoteActivity: 3, productionMutations: 0,
-    targetCleanup: "PASS", sourceCleanup: "PASS",
+    applicationCleanup: "PASS", targetCleanup: "PASS", sourceCleanup: "PASS",
   };
   if (!value || Object.keys(value).length !== Object.keys(fixed).length || Object.entries(fixed).some(([key, expected]) => value[key] !== expected)) fail("RECOVERY_DRILL_FAILED", "Real managed recovery drill PASS evidence is invalid");
   return Object.freeze({ ...fixed });
@@ -152,6 +165,7 @@ export async function runRealProductBackupLocalRestoreDrill({ environment = proc
     }, async (verifiedSource) => {
       let prepared;
       let executor;
+      let application;
       let startAttempted = false;
       let primaryError;
       try {
@@ -224,33 +238,64 @@ export async function runRealProductBackupLocalRestoreDrill({ environment = proc
 
         state.phase = "AUTH_LOGIN";
         const provider = dependencies.credentialProvider ?? createInteractiveCredentialProvider();
-        const credentials = await provider.getCredentials();
+        let credentials = await provider.getCredentials();
         const login = await (dependencies.performLogin ?? performLocalAuthLogin)({ localStatus: freshStatus, loginExpectation: restorePlan.loginExpectation, credentials, createSupabaseClient: dependencies.createSupabaseClient });
         if (login?.status !== "PASS") fail("RECOVERY_AUTH_LOGIN_FAILED", "Local recovery Auth login failed");
+        let health;
+        let appValidation;
+        let rlsGrantBaseline;
+        try {
+          state.phase = "APP_RUNTIME_AUTHORITY";
+          const appRuntimeAuthority = await (dependencies.verifyAppRuntimeAuthority ?? verifyRecoveryAppRuntimeAuthority)({ runtimeSha: manifest.productionRuntimeSha, toolingSha: authority.head, repoRoot, environment, execute });
+          state.phase = "APP_START";
+          application = await (dependencies.startRecoveryApp ?? startLocalRecoveryApp)({ localStatus: freshStatus, session: verifiedSource.session, runtimeAuthority: appRuntimeAuthority, repoRoot, sourceEnvironment: environment, execute, allocatePort: dependencies.allocateAppPort, createNextServer: dependencies.createNextServer, forkProcess: dependencies.forkAppProcess });
+          state.phase = "APP_HEALTH";
+          health = await (dependencies.probeRecoveryAppHealth ?? probeLocalRecoveryAppHealth)(application, { request: dependencies.appHealthRequest });
+          state.phase = "APP_LOGIN";
+          appValidation = await (dependencies.validateRecoveryApp ?? runRecoveryApplicationBrowserSmoke)({ app: application, localStatus: freshStatus, credentials, launchBrowser: dependencies.launchRecoveryBrowser });
+          state.phase = "APP_ACCESS";
+          rlsGrantBaseline = (dependencies.verifyRlsGrantBaseline ?? verifyRlsGrantBaselineAuthority)({ baseline, restorePlan });
+        } finally {
+          credentials = undefined;
+        }
         finalEvidence = {
           status: "PASS", operation: "real-product-backup-local-restore-drill", sourceVerification: "PASS", targetIsolation: "VERIFIED",
           baselineMigrationCount: baseline.baseline.migrationCount, restore: "PASS", databaseValidation: validation.database,
           referentialIntegrity: validation.referentialIntegrity, authContinuity: validation.auth, realInternalLogin: "PASS", storageValidation: validation.storage,
-          storageByteRestore: "VALIDATED_NO_OP", sessionReplicationRole: validation.sessionReplicationRole,
+          storageByteRestore: "VALIDATED_NO_OP", applicationLive: health.applicationLive, applicationReady: health.applicationReady,
+          applicationLogin: appValidation.applicationLogin, internalScreen: appValidation.internalScreen, applicationRead: appValidation.applicationRead,
+          anonymousInternalAccess: appValidation.anonymousInternalAccess, applicationRemoteIsolation: appValidation.applicationRemoteIsolation,
+          rlsGrantBaseline: rlsGrantBaseline.rlsGrantBaseline, privateDownload: "NOT_EXERCISED_EMPTY_STORAGE", sessionReplicationRole: validation.sessionReplicationRole,
           realTargetStarts: state.realTargetStarts, sqlExecutions: state.sqlExecutions, targetMutations: state.targetMutations,
           realR2Reads: state.realR2Reads, realAgeDecrypts: state.realAgeDecrypts, remoteActivity: state.remoteActivity,
-          productionMutations: 0, targetCleanup: "PENDING", sourceCleanup: "PENDING",
+          productionMutations: 0, applicationCleanup: "PENDING", targetCleanup: "PENDING", sourceCleanup: "PENDING",
         };
       } catch (error) {
         primaryError = error;
       } finally {
+        let applicationCleanupError;
+        let targetCleanupError;
+        if (application) {
+          try {
+            await (dependencies.stopRecoveryApp ?? stopLocalRecoveryApp)(application);
+            if (finalEvidence) finalEvidence.applicationCleanup = "PASS";
+          } catch {
+            applicationCleanupError = Object.assign(new Error("Recovery application cleanup did not complete"), { code: "RECOVERY_APP_CLEANUP_INCOMPLETE" });
+          }
+        }
         if (startAttempted && prepared && executor) {
           try {
             await (dependencies.cleanupTarget ?? cleanupManagedRecoveryTarget)({ session: verifiedSource.session, target: prepared.target, adapter: (dependencies.createCleanupAdapter ?? createGovernedTargetCleanupAdapter)(executor) });
             if (finalEvidence) finalEvidence.targetCleanup = "PASS";
           } catch {
-            state.phase = "TARGET_CLEANUP";
-            throw Object.assign(new Error("Disposable recovery target cleanup did not complete"), { code: "RECOVERY_TARGET_CLEANUP_INCOMPLETE" });
+            targetCleanupError = Object.assign(new Error("Disposable recovery target cleanup did not complete"), { code: "RECOVERY_TARGET_CLEANUP_INCOMPLETE" });
           }
         }
+        if (targetCleanupError) { state.phase = "TARGET_CLEANUP"; throw targetCleanupError; }
+        if (applicationCleanupError) { state.phase = "APP_CLEANUP"; throw applicationCleanupError; }
       }
       if (primaryError) throw primaryError;
-      return { status: "PASS", phase: "AUTH_LOGIN", remoteActivity: state.remoteActivity, realTargetStarts: state.realTargetStarts, targetMutations: state.targetMutations, sqlExecutions: state.sqlExecutions, realR2Reads: state.realR2Reads, realAgeDecrypts: state.realAgeDecrypts };
+      return { status: "PASS", phase: "APP_ACCESS", remoteActivity: state.remoteActivity, realTargetStarts: state.realTargetStarts, targetMutations: state.targetMutations, sqlExecutions: state.sqlExecutions, realR2Reads: state.realR2Reads, realAgeDecrypts: state.realAgeDecrypts };
     });
     state.phase = "SOURCE_CLEANUP";
     finalEvidence.sourceCleanup = "PASS";

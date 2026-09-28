@@ -89,7 +89,7 @@ export async function buildManagedRestorePlan({ verifiedSource, authority, targe
     loginExpectation: deriveLoginExpectationFromAdmission(verifiedSource.sql.managedData),
     validations,
     loginGate: createFutureLoginGateContract(),
-    order: Object.freeze(["DB_DATA_RESTORE", "STORAGE_METADATA_GATE", "STORAGE_BYTE_RESTORE", "POST_RESTORE_AGGREGATES", "FOREIGN_KEY_INTEGRITY", "REAL_INTERNAL_LOGIN"]),
+    order: Object.freeze(["DB_DATA_RESTORE", "STORAGE_METADATA_GATE", "STORAGE_BYTE_RESTORE", "POST_RESTORE_AGGREGATES", "FOREIGN_KEY_INTEGRITY", "REAL_INTERNAL_LOGIN", "RECOVERY_APPLICATION_VALIDATION"]),
     sqlExecutions: 0,
   });
 }

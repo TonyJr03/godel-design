@@ -31,6 +31,8 @@ function fixture(behavior = {}) {
     restoreSql, mutable: Object.freeze({ status: "ADMITTED" }), validations, expectations: { tableCounts: {}, auth: {}, storage: storageExpectation }, loginExpectation: Object.freeze({ status: "ADMITTED" }),
   };
   let restorePlans = 0;
+  let directLoginCredentials;
+  const application = Object.freeze({ status: "RUNNING" });
   const dependencies = {
     resolveToolingAuthority: async () => ({ branch: behavior.branch ?? RECOVERY_TOOLING_BRANCH, head: behavior.head ?? HEAD, clean: behavior.clean ?? true }),
     preflightTools: async () => { events.push("preflight-tools"); return []; },
@@ -56,7 +58,7 @@ function fixture(behavior = {}) {
         await options.decryptAdapterFactory({ session: { plaintext: "C:\\session\\plaintext" } }).decryptToTar({});
         options.dependencies.onPhase("SOURCE_VERIFY");
         if (behavior.sourcePhase === "SOURCE_VERIFY") throw Object.assign(new Error("bundle secret"), { code: behavior.sourceCode ?? "RECOVERY_BUNDLE_EXACT_TREE_MISMATCH" });
-        value = await callback({ session: { target: prepared.target.workdir }, bundleRoot: "C:\\session\\plaintext\\bundle", sql: { managedData: {} } });
+        value = await callback({ session: { root: "C:\\session", target: prepared.target.workdir, evidence: "C:\\session\\evidence" }, bundleRoot: "C:\\session\\plaintext\\bundle", sql: { managedData: {} } });
       } catch (error) { primary = error; }
       events.push("source-cleanup");
       if (behavior.sourceCleanupFailure) throw Object.assign(new Error("cleanup path"), { code: "RECOVERY_CLEANUP_INCOMPLETE" });
@@ -92,8 +94,19 @@ function fixture(behavior = {}) {
     buildForeignKeyQueries: () => ["fk-check"],
     validateForeignKeyOutputs: () => { if (behavior.foreignKeyFailure) throw Object.assign(new Error("relation secret"), { code: "RECOVERY_FOREIGN_KEY_INTEGRITY_FAILED" }); return Object.freeze({ status: "PASS", referentialIntegrity: "PASS" }); },
     validateRestore: () => ({ status: "PASS", database: "PASS", auth: "PASS", storage: "PASS", referentialIntegrity: "PASS", sessionReplicationRole: "origin" }),
-    credentialProvider: { getCredentials: async () => ({ identifier: "secret@example.invalid", password: "secret-password" }) },
-    performLogin: async () => { events.push("login"); if (behavior.loginFailure) throw Object.assign(new Error("token secret-token"), { code: "RECOVERY_AUTH_LOGIN_FAILED" }); return { status: "PASS" }; },
+    credentialProvider: { getCredentials: async () => { events.push("credential-prompt"); return { identifier: "secret@example.invalid", password: "secret-password" }; } },
+    performLogin: async ({ credentials }) => { events.push("login"); directLoginCredentials = credentials; if (behavior.loginFailure) throw Object.assign(new Error("token secret-token"), { code: "RECOVERY_AUTH_LOGIN_FAILED" }); return { status: "PASS" }; },
+    verifyAppRuntimeAuthority: async () => { events.push("app-runtime-authority"); if (behavior.appFailure === "RUNTIME") throw Object.assign(new Error("changed private path"), { code: "RECOVERY_APP_RUNTIME_AUTHORITY_MISMATCH" }); return Object.freeze({ status: "VERIFIED" }); },
+    verifyRlsGrantBaseline: () => { events.push("rls-grant-baseline"); if (behavior.appFailure === "ACCESS") throw Object.assign(new Error("baseline detail"), { code: "RECOVERY_RLS_GRANT_BASELINE_UNVERIFIED" }); return Object.freeze({ status: "VERIFIED", rlsGrantBaseline: "VERIFIED" }); },
+    startRecoveryApp: async () => { events.push("app-start"); if (behavior.appFailure === "START") throw Object.assign(new Error("local path"), { code: "RECOVERY_APP_START_FAILED" }); return application; },
+    probeRecoveryAppHealth: async () => { events.push("app-health"); if (behavior.appFailure === "HEALTH") throw Object.assign(new Error("local endpoint"), { code: "RECOVERY_APP_HEALTH_FAILED" }); return Object.freeze({ applicationLive: "PASS", applicationReady: "PASS" }); },
+    validateRecoveryApp: async ({ credentials }) => {
+      events.push("app-browser");
+      assert.strictEqual(credentials, directLoginCredentials);
+      if (behavior.appFailure === "BROWSER") throw Object.assign(new Error("credential endpoint token"), { code: "RECOVERY_APP_LOGIN_FAILED" });
+      return Object.freeze({ applicationLogin: "PASS", internalScreen: "PASS", applicationRead: "PASS", anonymousInternalAccess: "REJECTED", applicationRemoteIsolation: "VERIFIED" });
+    },
+    stopRecoveryApp: async (handle) => { assert.strictEqual(handle, application); events.push("app-cleanup"); if (behavior.appCleanupFailure) throw new Error("app process path"); return { status: "PASS" }; },
     createCleanupAdapter: () => Object.freeze({}),
     cleanupTarget: async () => { events.push("target-cleanup"); if (behavior.targetCleanupFailure) throw new Error("container secret"); return { status: "PASS" }; },
   };
@@ -123,16 +136,21 @@ test("synthetic PASS follows source-target-mutation-storage-validation-login-cle
   assert.deepEqual(result, {
     status: "PASS", operation: "real-product-backup-local-restore-drill", sourceVerification: "PASS", targetIsolation: "VERIFIED", baselineMigrationCount: 6,
     restore: "PASS", databaseValidation: "PASS", referentialIntegrity: "PASS", authContinuity: "PASS", realInternalLogin: "PASS", storageValidation: "PASS",
-    storageByteRestore: "VALIDATED_NO_OP", sessionReplicationRole: "origin", realTargetStarts: 1, sqlExecutions: 1, targetMutations: 1,
-    realR2Reads: 3, realAgeDecrypts: 1, remoteActivity: 3, productionMutations: 0, targetCleanup: "PASS", sourceCleanup: "PASS",
+    storageByteRestore: "VALIDATED_NO_OP", applicationLive: "PASS", applicationReady: "PASS", applicationLogin: "PASS", internalScreen: "PASS",
+    applicationRead: "PASS", anonymousInternalAccess: "REJECTED", applicationRemoteIsolation: "VERIFIED", rlsGrantBaseline: "VERIFIED",
+    privateDownload: "NOT_EXERCISED_EMPTY_STORAGE", sessionReplicationRole: "origin", realTargetStarts: 1, sqlExecutions: 1, targetMutations: 1,
+    realR2Reads: 3, realAgeDecrypts: 1, remoteActivity: 3, productionMutations: 0, applicationCleanup: "PASS", targetCleanup: "PASS", sourceCleanup: "PASS",
   });
   assert.equal(item.restorePlans, 1);
   assert.ok(item.events.indexOf("baseline") < item.events.indexOf("restore-plan"));
   assert.ok(item.events.indexOf("restore-execute") < item.events.indexOf("metadata-gate"));
   assert.ok(item.events.indexOf("storage-inventory") < item.events.indexOf("login"));
-  assert.deepEqual(item.events.slice(-2), ["target-cleanup", "source-cleanup"]);
-  assert.ok(!JSON.stringify(result).includes(BACKUP_ID));
-  assert.ok(!JSON.stringify(result).includes("secret@example.invalid"));
+  assert.ok(item.events.indexOf("login") < item.events.indexOf("app-runtime-authority"));
+  assert.ok(item.events.indexOf("app-health") < item.events.indexOf("app-browser"));
+  assert.equal(item.events.filter((event) => event === "credential-prompt").length, 1);
+  assert.deepEqual(item.events.slice(-3), ["app-cleanup", "target-cleanup", "source-cleanup"]);
+  const serialized = JSON.stringify(result);
+  for (const forbidden of [BACKUP_ID, "secret@example.invalid", "secret-password", "127.0.0.1", "local-anon-key", "secret-token", "C:\\session", "C:\\repo"]) assert.ok(!serialized.includes(forbidden));
 });
 
 test("source verification failures cover inspect/download/decrypt/TAR-bundle-SQL gates and never create target", async () => {
@@ -218,6 +236,42 @@ test("login occurs only after full validation and exposes no credential, token, 
   for (const secret of ["secret-token", "secret@example.invalid", "secret-password", "C:\\session", BACKUP_ID]) assert.ok(!serialized.includes(secret));
   assert.ok(item.events.indexOf("query:constraints") < item.events.indexOf("query:fk-catalog"));
   assert.ok(item.events.indexOf("query:fk-check") < item.events.indexOf("login"));
+});
+
+test("application authority, start, health, and browser failures preserve phase, stop the app when needed, and always clean target/source", async () => {
+  for (const [appFailure, code, phase, appStarted] of [
+    ["RUNTIME", "RECOVERY_APP_RUNTIME_AUTHORITY_MISMATCH", "APP_RUNTIME_AUTHORITY", false],
+    ["START", "RECOVERY_APP_START_FAILED", "APP_START", false],
+    ["HEALTH", "RECOVERY_APP_HEALTH_FAILED", "APP_HEALTH", true],
+    ["BROWSER", "RECOVERY_APP_LOGIN_FAILED", "APP_LOGIN", true],
+    ["ACCESS", "RECOVERY_RLS_GRANT_BASELINE_UNVERIFIED", "APP_ACCESS", true],
+  ]) {
+    const item = fixture({ appFailure });
+    const result = await runRealProductBackupLocalRestoreDrill({ environment: environment(), repoRoot: "C:\\repo", dependencies: item.dependencies });
+    assert.equal(result.code, code);
+    assert.equal(result.phase, phase);
+    assert.equal(item.events.includes("app-cleanup"), appStarted);
+    assert.ok(item.events.includes("target-cleanup"));
+    assert.equal(item.events.at(-1), "source-cleanup");
+  }
+});
+
+test("cleanup precedence is source over target over application over primary", async () => {
+  let item = fixture({ appFailure: "BROWSER", appCleanupFailure: true });
+  let result = await runRealProductBackupLocalRestoreDrill({ environment: environment(), repoRoot: "C:\\repo", dependencies: item.dependencies });
+  assert.equal(result.code, "RECOVERY_APP_CLEANUP_INCOMPLETE");
+  assert.equal(result.phase, "APP_CLEANUP");
+  assert.ok(item.events.includes("target-cleanup"));
+
+  item = fixture({ appFailure: "BROWSER", appCleanupFailure: true, targetCleanupFailure: true });
+  result = await runRealProductBackupLocalRestoreDrill({ environment: environment(), repoRoot: "C:\\repo", dependencies: item.dependencies });
+  assert.equal(result.code, "RECOVERY_TARGET_CLEANUP_INCOMPLETE");
+  assert.equal(result.phase, "TARGET_CLEANUP");
+
+  item = fixture({ appFailure: "BROWSER", appCleanupFailure: true, targetCleanupFailure: true, sourceCleanupFailure: true });
+  result = await runRealProductBackupLocalRestoreDrill({ environment: environment(), repoRoot: "C:\\repo", dependencies: item.dependencies });
+  assert.equal(result.code, "RECOVERY_CLEANUP_INCOMPLETE");
+  assert.equal(result.phase, "SOURCE_CLEANUP");
 });
 
 test("target cleanup failure is visible and source cleanup failure overrides primary failure", async () => {
