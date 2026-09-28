@@ -6,7 +6,17 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { startLocalRecoveryApp, stopLocalRecoveryApp } from "./local-recovery-app.mjs";
-import { assertRecoveryBrowserRequestAllowed, buildRecoveryBrowserNetworkPolicy, probeLocalRecoveryAppHealth, runRecoveryApplicationBrowserSmoke, verifyRlsGrantBaselineAuthority } from "./recovery-application-validation.mjs";
+import {
+  assertRecoveryBrowserRequestAllowed,
+  buildRecoveryBrowserNetworkPolicy,
+  probeLocalRecoveryAppHealth,
+  probeLocalRecoveryAppLive,
+  probeLocalRecoveryAppReady,
+  probeLocalRecoveryTargetAuthHealth,
+  runRecoveryApplicationBrowserSmoke,
+  runRecoveryApplicationCompatibilityBrowserSmoke,
+  verifyRlsGrantBaselineAuthority,
+} from "./recovery-application-validation.mjs";
 import { admitLocalSupabaseStatus } from "./target-runtime-status.mjs";
 
 function status() {
@@ -28,25 +38,173 @@ async function appFixture() {
   const evidence = join(root, "evidence");
   await mkdir(evidence);
   const localStatus = status();
-  const app = await startLocalRecoveryApp({ localStatus, session: { root, evidence }, repoRoot: process.cwd(), allocatePort: async () => 65431, createNextServer: (options) => ({ options }), materializeSource: async () => ({ status: "MATERIALIZED" }), forkProcess: () => new Child(), timeoutMs: 1000 });
-  return { root, localStatus, app, async cleanup() { await stopLocalRecoveryApp(app, { timeoutMs: 1000, probeClosed: async () => true }); await rm(root, { recursive: true, force: true }); } };
+  const dependencyMount = Object.freeze({ status: "MOUNTED" });
+  const child = new Child();
+  const app = await startLocalRecoveryApp({
+    localStatus, session: { root, evidence }, repoRoot: process.cwd(), allocatePort: async () => 65431,
+    materializeSource: async () => ({ status: "MATERIALIZED" }),
+    mountDependencies: async () => dependencyMount,
+    verifyVolumeTopology: async () => Object.freeze({ status: "VERIFIED" }),
+    unmountDependencies: async (handle) => { assert.strictEqual(handle, dependencyMount); return { status: "UNMOUNTED" }; },
+    forkProcess: () => child, timeoutMs: 1000,
+  });
+  return { root, localStatus, app, child, async cleanup() { await stopLocalRecoveryApp(app, { timeoutMs: 1000, probeClosed: async () => true }); await rm(root, { recursive: true, force: true }); } };
 }
 
 function response(statusCode, body, redirected = false) {
   return { status: statusCode, redirected, async json() { return body; } };
 }
 
-test("health gates require exact 200 non-redirect live and ready responses", async () => {
+test("direct local Auth health uses the opaque status once and exposes only PASS", async () => {
   const fixture = await appFixture();
   try {
     const calls = [];
-    const pass = await probeLocalRecoveryAppHealth(fixture.app, { request: async (url, options) => { calls.push({ url: String(url), options }); return response(200, { status: calls.length === 1 ? "ok" : "ready" }); } });
-    assert.deepEqual(pass, { status: "PASS", applicationLive: "PASS", applicationReady: "PASS" });
-    assert.equal(calls.length, 2);
-    assert.ok(calls.every(({ options }) => options.redirect === "manual"));
-    await assert.rejects(probeLocalRecoveryAppHealth(fixture.app, { request: async () => response(302, { status: "ok" }, true) }), { code: "RECOVERY_APP_HEALTH_FAILED" });
-    await assert.rejects(probeLocalRecoveryAppHealth(fixture.app, { request: async () => response(200, { status: "wrong" }) }), { code: "RECOVERY_APP_HEALTH_FAILED" });
-    await assert.rejects(probeLocalRecoveryAppHealth(fixture.app, { request: async () => { throw new Error("timeout"); } }), { code: "RECOVERY_APP_HEALTH_FAILED" });
+    const pass = await probeLocalRecoveryTargetAuthHealth(fixture.localStatus, { request: async (url, options) => { calls.push({ url: String(url), options }); return response(200, {}); } });
+    assert.deepEqual(pass, { status: "PASS", targetAuthHealth: "PASS" });
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, "http://127.0.0.1:64321/auth/v1/health");
+    assert.equal(calls[0].options.method, "GET");
+    assert.equal(calls[0].options.redirect, "manual");
+    assert.equal(calls[0].options.headers.apikey, "local-anon");
+    assert.doesNotMatch(JSON.stringify(pass), /127\.0\.0\.1|64321|local-anon/);
+  } finally { await fixture.cleanup(); }
+});
+
+test("direct local Auth health rejects redirect, non-200, request failure, timeout, and non-opaque status", async () => {
+  const fixture = await appFixture();
+  try {
+    for (const request of [
+      async () => response(302, {}, true),
+      async () => response(503, {}),
+      async () => { throw new Error("network endpoint secret"); },
+    ]) await assert.rejects(probeLocalRecoveryTargetAuthHealth(fixture.localStatus, { request, timeoutMs: 20 }), { code: "RECOVERY_TARGET_AUTH_HEALTH_FAILED" });
+    await assert.rejects(probeLocalRecoveryTargetAuthHealth(fixture.localStatus, { request: async () => new Promise(() => {}), timeoutMs: 2 }), { code: "RECOVERY_TARGET_AUTH_HEALTH_FAILED" });
+    let calls = 0;
+    await assert.rejects(probeLocalRecoveryTargetAuthHealth({ status: "ADMITTED", API_URL: "https://remote.invalid" }, { request: async () => { calls += 1; } }), { code: "RECOVERY_TARGET_AUTH_HEALTH_FAILED" });
+    assert.equal(calls, 0);
+  } finally { await fixture.cleanup(); }
+});
+
+test("live and ready gates make one exact cold-start-aware request each", async () => {
+  const fixture = await appFixture();
+  try {
+    const liveCalls = [];
+    const readyCalls = [];
+    const live = await probeLocalRecoveryAppLive(fixture.app, { request: async (url, options) => { liveCalls.push({ url: String(url), options }); return response(200, { status: "ok" }); } });
+    const ready = await probeLocalRecoveryAppReady(fixture.app, { request: async (url, options) => { readyCalls.push({ url: String(url), options }); return response(200, { status: "ready" }); } });
+    assert.deepEqual(live, { status: "PASS", applicationLive: "PASS" });
+    assert.deepEqual(ready, { status: "PASS", applicationReady: "PASS" });
+    assert.equal(liveCalls.length, 1);
+    assert.equal(readyCalls.length, 1);
+    assert.equal(liveCalls[0].url, "http://127.0.0.1:65431/api/health/live");
+    assert.equal(readyCalls[0].url, "http://127.0.0.1:65431/api/health/ready");
+    assert.ok([...liveCalls, ...readyCalls].every(({ options }) => options.method === "GET" && options.redirect === "manual"));
+    const combined = await probeLocalRecoveryAppHealth(fixture.app, { request: async (url) => response(200, { status: String(url).endsWith("/live") ? "ok" : "ready" }) });
+    assert.deepEqual(combined, { status: "PASS", applicationLive: "PASS", applicationReady: "PASS" });
+  } finally { await fixture.cleanup(); }
+});
+
+test("live and ready classify every response without inspecting non-200 bodies", async () => {
+  const fixture = await appFixture();
+  try {
+    for (const [probe, prefix] of [
+      [probeLocalRecoveryAppLive, "RECOVERY_APP_LIVE"],
+      [probeLocalRecoveryAppReady, "RECOVERY_APP_READY"],
+    ]) {
+      let bodyReads = 0;
+      const non200 = (statusCode, redirected = false) => ({ status: statusCode, redirected, async json() { bodyReads += 1; throw new Error("body must not be read"); } });
+      for (const [statusCode, redirected, suffix] of [
+        [302, false, "REDIRECTED"], [200, true, "REDIRECTED"], [404, false, "NOT_FOUND"],
+        [401, false, "HTTP_REJECTED"], [403, false, "HTTP_REJECTED"], [429, false, "HTTP_REJECTED"],
+        [500, false, "SERVER_ERROR"],
+      ]) await assert.rejects(probe(fixture.app, { request: async () => non200(statusCode, redirected), runtimeDiagnostic: () => "UNCLASSIFIED" }), { code: `${prefix}_${suffix}` });
+      assert.equal(bodyReads, 0);
+      await assert.rejects(probe(fixture.app, { request: async () => response(200, { status: "wrong" }) }), { code: `${prefix}_BODY_INVALID` });
+      await assert.rejects(probe(fixture.app, { request: async () => ({ status: 200, redirected: false, async json() { throw new Error("invalid body"); } }) }), { code: `${prefix}_BODY_INVALID` });
+    }
+  } finally { await fixture.cleanup(); }
+});
+
+test("live and ready refine 5xx through the fixed runtime diagnostic enum", async () => {
+  const fixture = await appFixture();
+  try {
+    for (const [probe, prefix] of [
+      [probeLocalRecoveryAppLive, "RECOVERY_APP_LIVE"],
+      [probeLocalRecoveryAppReady, "RECOVERY_APP_READY"],
+    ]) {
+      for (const [diagnostic, suffix] of [
+        ["MODULE_RESOLUTION_FAILURE", "MODULE_RESOLUTION_FAILED"],
+        ["COMPILE_FAILURE", "COMPILE_FAILED"],
+        ["RUNTIME_FAILURE", "RUNTIME_FAILED"],
+        ["UNCLASSIFIED", "SERVER_ERROR"],
+        ["UNTRUSTED_DETAIL", "SERVER_ERROR"],
+      ]) await assert.rejects(probe(fixture.app, { request: async () => ({ status: 500, redirected: false, async json() { throw new Error("must not parse"); } }), runtimeDiagnostic: () => diagnostic }), { code: `${prefix}_${suffix}` });
+    }
+  } finally { await fixture.cleanup(); }
+});
+
+test("historical module and compile diagnostics cannot contaminate live or ready 5xx classification", async () => {
+  const fixture = await appFixture();
+  try {
+    fixture.child.stderr.emit("data", "Module not found: Can't resolve 'historical-private-module'\nFailed to compile historical-private-source");
+    for (const [probe, expectedCode] of [
+      [probeLocalRecoveryAppLive, "RECOVERY_APP_LIVE_SERVER_ERROR"],
+      [probeLocalRecoveryAppReady, "RECOVERY_APP_READY_SERVER_ERROR"],
+    ]) {
+      let requests = 0;
+      await assert.rejects(probe(fixture.app, {
+        request: async () => { requests += 1; return response(500, {}); },
+        settleOptions: { quietMs: 1, maxMs: 2 },
+      }), (error) => {
+        assert.equal(error.code, expectedCode);
+        assert.doesNotMatch(JSON.stringify(error), /historical-private|module not found|failed to compile/i);
+        return true;
+      });
+      assert.equal(requests, 1);
+    }
+  } finally { await fixture.cleanup(); }
+});
+
+test("live and ready map request-scoped module categories to fixed safe codes", async () => {
+  const fixture = await appFixture();
+  try {
+    const categories = [
+      "PROJECT_ALIAS", "RELATIVE_IMPORT", "NEXT_INTERNAL", "DECLARED_PACKAGE", "OTHER_BARE_PACKAGE", "NODE_BUILTIN",
+      "ABSOLUTE_PATH", "REDACTED_PATH", "LOADER_REQUEST", "UNPARSED", "MIXED", "UNKNOWN",
+    ];
+    for (const [probe, prefix] of [
+      [probeLocalRecoveryAppLive, "RECOVERY_APP_LIVE_MODULE"],
+      [probeLocalRecoveryAppReady, "RECOVERY_APP_READY_MODULE"],
+    ]) {
+      for (const category of categories) {
+        let requests = 0;
+        await assert.rejects(probe(fixture.app, {
+          request: async () => { requests += 1; return response(500, {}); },
+          settleDiagnostics: async () => ({ status: "SETTLED" }),
+          runtimeDiagnostic: () => ({ diagnostic: "MODULE_RESOLUTION_FAILURE", moduleCategory: category, ignoredSpecifier: "private-module" }),
+        }), (error) => {
+          assert.equal(error.code, `${prefix}_${category}_FAILED`);
+          assert.doesNotMatch(JSON.stringify(error), /private-module|127\.0\.0\.1|65431/);
+          return true;
+        });
+        assert.equal(requests, 1);
+      }
+    }
+  } finally { await fixture.cleanup(); }
+});
+
+test("cold-start budget admits completion within the limit and classifies timeout or network by endpoint", async () => {
+  const fixture = await appFixture();
+  try {
+    const withinBudget = await probeLocalRecoveryAppLive(fixture.app, {
+      timeoutMs: 50,
+      request: async () => { await new Promise((accept) => setTimeout(accept, 5)); return response(200, { status: "ok" }); },
+    });
+    assert.equal(withinBudget.applicationLive, "PASS");
+    await assert.rejects(probeLocalRecoveryAppLive(fixture.app, { request: async () => new Promise(() => {}), timeoutMs: 2 }), { code: "RECOVERY_APP_LIVE_REQUEST_FAILED" });
+    await assert.rejects(probeLocalRecoveryAppReady(fixture.app, { request: async () => new Promise(() => {}), timeoutMs: 2 }), { code: "RECOVERY_APP_READY_REQUEST_FAILED" });
+    await assert.rejects(probeLocalRecoveryAppLive(fixture.app, { request: async () => { throw new Error("network"); } }), { code: "RECOVERY_APP_LIVE_REQUEST_FAILED" });
+    await assert.rejects(probeLocalRecoveryAppReady(fixture.app, { request: async () => { throw new Error("network"); } }), { code: "RECOVERY_APP_READY_REQUEST_FAILED" });
   } finally { await fixture.cleanup(); }
 });
 
@@ -70,10 +228,14 @@ class FakePage {
   locator(selector) {
     return {
       fill: async (value) => { this.filled[selector] = value; },
+      waitFor: async () => { if (this.scenario.loginSurfaceMissing === selector) throw new Error("missing"); },
       first: () => ({ waitFor: async () => { if (this.scenario.screenMissing) throw new Error("missing"); } }),
     };
   }
-  getByRole() { return { click: async () => { if (!this.scenario.loginError) this.current = `${this.scenario.origin}${this.scenario.landing}`; } }; }
+  getByRole() { return {
+    click: async () => { if (!this.scenario.loginError) this.current = `${this.scenario.origin}${this.scenario.landing}`; },
+    waitFor: async () => { if (this.scenario.loginSurfaceMissing === "button") throw new Error("missing"); },
+  }; }
   async waitForURL(predicate) { if (!predicate(new URL(this.current))) throw new Error("login failed"); }
   url() { return this.current; }
 }
@@ -147,6 +309,46 @@ test("browser cleanup failure overrides the primary application failure", async 
   const fixture = await appFixture();
   try {
     await assert.rejects(smokeScenario(fixture, { loginError: true, contextCleanupFailure: true }), { code: "RECOVERY_APP_CLEANUP_INCOMPLETE" });
+  } finally { await fixture.cleanup(); }
+});
+
+test("compatibility browser smoke validates login surface and rejects anonymous dashboard without credentials", async () => {
+  const fixture = await appFixture();
+  try {
+    const scenario = { origin: "http://127.0.0.1:65431", anonymousLanding: "/login" };
+    const browser = new FakeBrowser(scenario);
+    const phases = [];
+    const result = await runRecoveryApplicationCompatibilityBrowserSmoke({ app: fixture.app, localStatus: fixture.localStatus, launchBrowser: async () => browser, onPhase: (phase) => phases.push(phase) });
+    assert.deepEqual(result, { status: "PASS", loginSurface: "PASS", anonymousInternalAccess: "REJECTED", browserRemoteIsolation: "VERIFIED", browserCleanup: "PASS" });
+    assert.deepEqual(phases, ["BROWSER_LOGIN_SURFACE", "BROWSER_ANONYMOUS"]);
+    assert.equal(browser.contexts.length, 2);
+    assert.ok(browser.contexts.every((context) => context.closed));
+    assert.equal(browser.closed, true);
+    assert.ok(browser.contexts.every((context) => Object.keys(context.page.filled).length === 0));
+  } finally { await fixture.cleanup(); }
+});
+
+test("compatibility browser smoke fails closed for missing login controls, anonymous access, and remote requests", async () => {
+  const fixture = await appFixture();
+  try {
+    for (const [overrides, code] of [
+      [{ loginSurfaceMissing: 'input[name="email"]' }, "RECOVERY_APP_LOGIN_SURFACE_FAILED"],
+      [{ loginSurfaceMissing: 'input[name="password"]' }, "RECOVERY_APP_LOGIN_SURFACE_FAILED"],
+      [{ loginSurfaceMissing: "button" }, "RECOVERY_APP_LOGIN_SURFACE_FAILED"],
+      [{ anonymousLanding: "/dashboard" }, "RECOVERY_APP_ANONYMOUS_ACCESS_FAILED"],
+      [{ remoteRequest: true }, "RECOVERY_APP_REMOTE_REQUEST_FORBIDDEN"],
+    ]) {
+      const scenario = { origin: "http://127.0.0.1:65431", anonymousLanding: "/login", ...overrides };
+      await assert.rejects(runRecoveryApplicationCompatibilityBrowserSmoke({ app: fixture.app, localStatus: fixture.localStatus, launchBrowser: async () => new FakeBrowser(scenario) }), { code });
+    }
+  } finally { await fixture.cleanup(); }
+});
+
+test("compatibility browser cleanup failure overrides a primary surface failure", async () => {
+  const fixture = await appFixture();
+  try {
+    const scenario = { origin: "http://127.0.0.1:65431", anonymousLanding: "/login", loginSurfaceMissing: "button", contextCleanupFailure: true };
+    await assert.rejects(runRecoveryApplicationCompatibilityBrowserSmoke({ app: fixture.app, localStatus: fixture.localStatus, launchBrowser: async () => new FakeBrowser(scenario) }), { code: "RECOVERY_BROWSER_CLEANUP_INCOMPLETE" });
   } finally { await fixture.cleanup(); }
 });
 

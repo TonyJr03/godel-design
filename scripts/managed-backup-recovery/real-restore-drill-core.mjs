@@ -3,17 +3,24 @@ import { join } from "node:path";
 import { isManagedBackupId, readManagedBackupManifest } from "../managed-backup/manifest.mjs";
 import { runCommand } from "../managed-backup/command-runner.mjs";
 import { createAgeDecryptAdapter } from "./age-decrypt.mjs";
+import { verifyLocalRecoveryAppVolumeTopology } from "./application-runtime-topology.mjs";
 import { verifyRecoveryAppRuntimeAuthority } from "./app-runtime-authority.mjs";
 import { createInteractiveCredentialProvider } from "./interactive-credentials.mjs";
 import { buildLocalStorageInventoryPlan, accessLocalStorageCommandPlan, parseLocalStorageInventory } from "./local-storage.mjs";
 import { performLocalAuthLogin } from "./local-auth-login.mjs";
-import { startLocalRecoveryApp, stopLocalRecoveryApp } from "./local-recovery-app.mjs";
+import { RECOVERY_APP_CLEANUP_FAILURE_CODES, startLocalRecoveryApp, stopLocalRecoveryApp } from "./local-recovery-app.mjs";
 import { createR2RecoverySourceAdapter } from "./r2-recovery-source.mjs";
 import { assertRecoveryToolingAuthority, resolveRecoveryToolingAuthority } from "./recovery-tooling-authority.mjs";
 import { accessRealRecoveryBoundaries, admitRealRecoveryBoundaries } from "./recovery-boundaries.mjs";
 import { admitStorageMetadataGate, authorizeStorageByteRestore } from "./restore-planning.mjs";
 import { buildForeignKeyIntegrityQueries, parseForeignKeyCatalog, parsePostRestoreValidationOutputs, validateForeignKeyIntegrityOutputs, validateManagedRestoreResult } from "./restore-validation.mjs";
-import { probeLocalRecoveryAppHealth, runRecoveryApplicationBrowserSmoke, verifyRlsGrantBaselineAuthority } from "./recovery-application-validation.mjs";
+import {
+  probeLocalRecoveryAppLive,
+  probeLocalRecoveryAppReady,
+  probeLocalRecoveryTargetAuthHealth,
+  runRecoveryApplicationBrowserSmoke,
+  verifyRlsGrantBaselineAuthority,
+} from "./recovery-application-validation.mjs";
 import { withVerifiedManagedRecoverySource } from "./source-verification.mjs";
 import { accessTargetBaselineEvidence, runTargetBaselineGate } from "./target-baseline.mjs";
 import { buildGovernedTargetPsqlPlan, createGovernedTargetCleanupAdapter, createGovernedTargetExecutor, executeGovernedTargetPlan } from "./target-executor.mjs";
@@ -40,7 +47,7 @@ const PHASES = new Set([
   "PREFLIGHT", "SOURCE_INSPECT", "SOURCE_DOWNLOAD", "SOURCE_DECRYPT", "SOURCE_VERIFY", "TARGET_PREPARE", "TARGET_START",
   "TARGET_BASELINE", "RESTORE_PLAN", "PRE_MUTATION_REVALIDATION", "RESTORE_EXECUTE", "STORAGE_METADATA", "STORAGE_BYTES",
   "POST_RESTORE_VALIDATION", "AUTH_LOGIN", "TARGET_CLEANUP", "SOURCE_CLEANUP",
-  "APP_RUNTIME_AUTHORITY", "APP_START", "APP_HEALTH", "APP_LOGIN", "APP_ACCESS", "APP_CLEANUP",
+  "TARGET_AUTH_HEALTH", "APP_RUNTIME_AUTHORITY", "APP_START", "APP_HEALTH", "APP_LIVE", "APP_READY", "APP_LOGIN", "APP_ACCESS", "APP_CLEANUP",
 ]);
 const PUBLIC_FAILURE_CODES = new Set([
   "COMMAND_FAILED", "EXECUTABLE_UNAVAILABLE", "WRONG_TOOLING_BRANCH", "WRONG_TOOLING_HEAD", "DIRTY_TOOLING_WORKTREE",
@@ -65,9 +72,28 @@ const PUBLIC_FAILURE_CODES = new Set([
   "RECOVERY_APP_RUNTIME_AUTHORITY_INVALID", "RECOVERY_APP_RUNTIME_AUTHORITY_UNAVAILABLE", "RECOVERY_APP_RUNTIME_AUTHORITY_MISMATCH", "RECOVERY_APP_PACKAGE_MANIFEST_INVALID",
   "RECOVERY_APP_RUNTIME_AUTHORITY_REQUIRED", "RECOVERY_APP_WORKSPACE_INVALID", "RECOVERY_APP_WORKSPACE_HANDLE_INVALID",
   "RECOVERY_APP_SOURCE_MATERIALIZATION_FAILED", "RECOVERY_APP_DIST_DIR_UNSUPPORTED", "RECOVERY_APP_PORT_INVALID", "RECOVERY_APP_HANDLE_INVALID",
-  "RECOVERY_APP_PROCESS_FAILED", "RECOVERY_APP_START_FAILED", "RECOVERY_APP_HEALTH_FAILED", "RECOVERY_APP_LOGIN_EMAIL_REQUIRED",
+  "RECOVERY_TARGET_AUTH_HEALTH_FAILED", "RECOVERY_APP_PROCESS_FAILED", "RECOVERY_APP_START_FAILED", "RECOVERY_APP_HEALTH_FAILED",
+  "RECOVERY_APP_DIST_DIR_RUNTIME_MISMATCH", "RECOVERY_APP_GENERATED_TYPES_DISTDIR_MISMATCH",
+  "RECOVERY_APP_VOLUME_TOPOLOGY_MISMATCH",
+  "RECOVERY_APP_DEPENDENCY_AUTHORITY_INVALID", "RECOVERY_APP_DEPENDENCY_MOUNT_INVALID", "RECOVERY_APP_DEPENDENCY_UNMOUNT_FAILED",
+  "RECOVERY_APP_LIVE_REQUEST_FAILED", "RECOVERY_APP_LIVE_RESPONSE_INVALID", "RECOVERY_APP_LIVE_REDIRECTED", "RECOVERY_APP_LIVE_NOT_FOUND",
+  "RECOVERY_APP_LIVE_HTTP_REJECTED", "RECOVERY_APP_LIVE_SERVER_ERROR", "RECOVERY_APP_LIVE_BODY_INVALID", "RECOVERY_APP_LIVE_MODULE_RESOLUTION_FAILED",
+  "RECOVERY_APP_LIVE_MODULE_PROJECT_ALIAS_FAILED", "RECOVERY_APP_LIVE_MODULE_RELATIVE_IMPORT_FAILED", "RECOVERY_APP_LIVE_MODULE_NEXT_INTERNAL_FAILED",
+  "RECOVERY_APP_LIVE_MODULE_DECLARED_PACKAGE_FAILED", "RECOVERY_APP_LIVE_MODULE_OTHER_BARE_PACKAGE_FAILED", "RECOVERY_APP_LIVE_MODULE_NODE_BUILTIN_FAILED",
+  "RECOVERY_APP_LIVE_MODULE_ABSOLUTE_PATH_FAILED", "RECOVERY_APP_LIVE_MODULE_REDACTED_PATH_FAILED", "RECOVERY_APP_LIVE_MODULE_LOADER_REQUEST_FAILED",
+  "RECOVERY_APP_LIVE_MODULE_UNPARSED_FAILED", "RECOVERY_APP_LIVE_MODULE_MIXED_FAILED", "RECOVERY_APP_LIVE_MODULE_UNKNOWN_FAILED",
+  "RECOVERY_APP_LIVE_COMPILE_FAILED", "RECOVERY_APP_LIVE_RUNTIME_FAILED", "RECOVERY_APP_READY_REQUEST_FAILED", "RECOVERY_APP_READY_RESPONSE_INVALID",
+  "RECOVERY_APP_READY_REDIRECTED", "RECOVERY_APP_READY_NOT_FOUND", "RECOVERY_APP_READY_HTTP_REJECTED", "RECOVERY_APP_READY_SERVER_ERROR",
+  "RECOVERY_APP_READY_BODY_INVALID", "RECOVERY_APP_READY_MODULE_RESOLUTION_FAILED", "RECOVERY_APP_READY_COMPILE_FAILED", "RECOVERY_APP_READY_RUNTIME_FAILED",
+  "RECOVERY_APP_READY_MODULE_PROJECT_ALIAS_FAILED", "RECOVERY_APP_READY_MODULE_RELATIVE_IMPORT_FAILED", "RECOVERY_APP_READY_MODULE_NEXT_INTERNAL_FAILED",
+  "RECOVERY_APP_READY_MODULE_DECLARED_PACKAGE_FAILED", "RECOVERY_APP_READY_MODULE_OTHER_BARE_PACKAGE_FAILED", "RECOVERY_APP_READY_MODULE_NODE_BUILTIN_FAILED",
+  "RECOVERY_APP_READY_MODULE_ABSOLUTE_PATH_FAILED", "RECOVERY_APP_READY_MODULE_REDACTED_PATH_FAILED", "RECOVERY_APP_READY_MODULE_LOADER_REQUEST_FAILED",
+  "RECOVERY_APP_READY_MODULE_UNPARSED_FAILED", "RECOVERY_APP_READY_MODULE_MIXED_FAILED", "RECOVERY_APP_READY_MODULE_UNKNOWN_FAILED",
+  "RECOVERY_APP_DIAGNOSTIC_CHECKPOINT_INVALID",
+  "RECOVERY_APP_LOGIN_EMAIL_REQUIRED",
   "RECOVERY_APP_LOGIN_FAILED", "RECOVERY_APP_ANONYMOUS_ACCESS_FAILED", "RECOVERY_APP_REMOTE_REQUEST_FORBIDDEN",
-  "RECOVERY_APP_CLEANUP_INCOMPLETE", "RECOVERY_RLS_GRANT_BASELINE_UNVERIFIED",
+  "RECOVERY_APP_CLEANUP_INCOMPLETE", "RECOVERY_APP_SHUTDOWN_CLOSE_FAILED", "RECOVERY_APP_SHUTDOWN_EXIT_FAILED",
+  "RECOVERY_APP_SHUTDOWN_PORT_OPEN", "RECOVERY_RLS_GRANT_BASELINE_UNVERIFIED",
 ]);
 
 function fail(code, message) {
@@ -109,7 +135,7 @@ export function sanitizeRealRestoreDrillPass(value) {
   const fixed = {
     status: "PASS", operation: "real-product-backup-local-restore-drill", sourceVerification: "PASS", targetIsolation: "VERIFIED",
     baselineMigrationCount: 6, restore: "PASS", databaseValidation: "PASS", referentialIntegrity: "PASS", authContinuity: "PASS", realInternalLogin: "PASS",
-    storageValidation: "PASS", storageByteRestore: "VALIDATED_NO_OP", applicationLive: "PASS", applicationReady: "PASS",
+    storageValidation: "PASS", storageByteRestore: "VALIDATED_NO_OP", targetAuthHealth: "PASS", applicationLive: "PASS", applicationReady: "PASS",
     applicationLogin: "PASS", internalScreen: "PASS", applicationRead: "PASS", anonymousInternalAccess: "REJECTED",
     applicationRemoteIsolation: "VERIFIED", rlsGrantBaseline: "VERIFIED", privateDownload: "NOT_EXERCISED_EMPTY_STORAGE",
     sessionReplicationRole: "origin", realTargetStarts: 1,
@@ -154,6 +180,12 @@ export async function runRealProductBackupLocalRestoreDrill({ environment = proc
     const boundaryAuthority = await (dependencies.admitRecoveryBoundaries ?? admitRealRecoveryBoundaries)({ environment, repoRoot, governedRoots: dependencies.sourceDependencies?.governedRoots ?? [] });
     let locations;
     (dependencies.accessRecoveryBoundaries ?? accessRealRecoveryBoundaries)(boundaryAuthority, (value) => { locations = value; });
+    await (dependencies.verifyVolumeTopology ?? verifyLocalRecoveryAppVolumeTopology)({
+      repoRoot,
+      applicationDir: locations.parent,
+      platform: dependencies.platform ?? process.platform,
+      pathApi: dependencies.pathApi,
+    });
     let finalEvidence;
     const withVerifiedSource = dependencies.withVerifiedSource ?? withVerifiedManagedRecoverySource;
     const sourceFactory = trackedSourceFactory({ state, factory: dependencies.sourceAdapterFactory ?? createR2RecoverySourceAdapter });
@@ -241,16 +273,25 @@ export async function runRealProductBackupLocalRestoreDrill({ environment = proc
         let credentials = await provider.getCredentials();
         const login = await (dependencies.performLogin ?? performLocalAuthLogin)({ localStatus: freshStatus, loginExpectation: restorePlan.loginExpectation, credentials, createSupabaseClient: dependencies.createSupabaseClient });
         if (login?.status !== "PASS") fail("RECOVERY_AUTH_LOGIN_FAILED", "Local recovery Auth login failed");
-        let health;
+        let targetAuthHealth;
+        let live;
+        let ready;
         let appValidation;
         let rlsGrantBaseline;
         try {
+          state.phase = "TARGET_AUTH_HEALTH";
+          targetAuthHealth = await (dependencies.probeTargetAuthHealth ?? probeLocalRecoveryTargetAuthHealth)(freshStatus, { request: dependencies.targetAuthHealthRequest });
+          if (targetAuthHealth?.targetAuthHealth !== "PASS") fail("RECOVERY_TARGET_AUTH_HEALTH_FAILED", "Recovery target Auth health gate failed");
           state.phase = "APP_RUNTIME_AUTHORITY";
           const appRuntimeAuthority = await (dependencies.verifyAppRuntimeAuthority ?? verifyRecoveryAppRuntimeAuthority)({ runtimeSha: manifest.productionRuntimeSha, toolingSha: authority.head, repoRoot, environment, execute });
           state.phase = "APP_START";
-          application = await (dependencies.startRecoveryApp ?? startLocalRecoveryApp)({ localStatus: freshStatus, session: verifiedSource.session, runtimeAuthority: appRuntimeAuthority, repoRoot, sourceEnvironment: environment, execute, allocatePort: dependencies.allocateAppPort, createNextServer: dependencies.createNextServer, forkProcess: dependencies.forkAppProcess });
-          state.phase = "APP_HEALTH";
-          health = await (dependencies.probeRecoveryAppHealth ?? probeLocalRecoveryAppHealth)(application, { request: dependencies.appHealthRequest });
+          application = await (dependencies.startRecoveryApp ?? startLocalRecoveryApp)({ localStatus: freshStatus, session: verifiedSource.session, runtimeAuthority: appRuntimeAuthority, repoRoot, sourceEnvironment: environment, execute, allocatePort: dependencies.allocateAppPort, forkProcess: dependencies.forkAppProcess });
+          state.phase = "APP_LIVE";
+          live = await (dependencies.probeRecoveryAppLive ?? probeLocalRecoveryAppLive)(application, { request: dependencies.appHealthRequest });
+          if (live?.applicationLive !== "PASS") fail("RECOVERY_APP_LIVE_BODY_INVALID", "Recovery application live response is invalid");
+          state.phase = "APP_READY";
+          ready = await (dependencies.probeRecoveryAppReady ?? probeLocalRecoveryAppReady)(application, { request: dependencies.appHealthRequest });
+          if (ready?.applicationReady !== "PASS") fail("RECOVERY_APP_READY_BODY_INVALID", "Recovery application ready response is invalid");
           state.phase = "APP_LOGIN";
           appValidation = await (dependencies.validateRecoveryApp ?? runRecoveryApplicationBrowserSmoke)({ app: application, localStatus: freshStatus, credentials, launchBrowser: dependencies.launchRecoveryBrowser });
           state.phase = "APP_ACCESS";
@@ -262,7 +303,8 @@ export async function runRealProductBackupLocalRestoreDrill({ environment = proc
           status: "PASS", operation: "real-product-backup-local-restore-drill", sourceVerification: "PASS", targetIsolation: "VERIFIED",
           baselineMigrationCount: baseline.baseline.migrationCount, restore: "PASS", databaseValidation: validation.database,
           referentialIntegrity: validation.referentialIntegrity, authContinuity: validation.auth, realInternalLogin: "PASS", storageValidation: validation.storage,
-          storageByteRestore: "VALIDATED_NO_OP", applicationLive: health.applicationLive, applicationReady: health.applicationReady,
+          storageByteRestore: "VALIDATED_NO_OP", targetAuthHealth: targetAuthHealth.targetAuthHealth,
+          applicationLive: live.applicationLive, applicationReady: ready.applicationReady,
           applicationLogin: appValidation.applicationLogin, internalScreen: appValidation.internalScreen, applicationRead: appValidation.applicationRead,
           anonymousInternalAccess: appValidation.anonymousInternalAccess, applicationRemoteIsolation: appValidation.applicationRemoteIsolation,
           rlsGrantBaseline: rlsGrantBaseline.rlsGrantBaseline, privateDownload: "NOT_EXERCISED_EMPTY_STORAGE", sessionReplicationRole: validation.sessionReplicationRole,
@@ -279,8 +321,9 @@ export async function runRealProductBackupLocalRestoreDrill({ environment = proc
           try {
             await (dependencies.stopRecoveryApp ?? stopLocalRecoveryApp)(application);
             if (finalEvidence) finalEvidence.applicationCleanup = "PASS";
-          } catch {
-            applicationCleanupError = Object.assign(new Error("Recovery application cleanup did not complete"), { code: "RECOVERY_APP_CLEANUP_INCOMPLETE" });
+          } catch (error) {
+            const code = RECOVERY_APP_CLEANUP_FAILURE_CODES.includes(error?.code) ? error.code : "RECOVERY_APP_CLEANUP_INCOMPLETE";
+            applicationCleanupError = Object.assign(new Error("Recovery application cleanup did not complete"), { code });
           }
         }
         if (startAttempted && prepared && executor) {

@@ -61,7 +61,9 @@ test("exact byte tree and exact package manifest pass as one opaque authority", 
     byteExactApplicationTree: details.byteExactApplicationTree,
     packageManifestRuntimeFields: details.packageManifestRuntimeFields,
     packageLock: details.packageLock,
-  }, { byteExactApplicationTree: "PASS", packageManifestRuntimeFields: "PASS", packageLock: "BYTE_EXACT" }));
+    declaredPackageNames: details.declaredPackageNames,
+  }, { byteExactApplicationTree: "PASS", packageManifestRuntimeFields: "PASS", packageLock: "BYTE_EXACT", declaredPackageNames: ["next", "playwright"] }));
+  assert.doesNotMatch(JSON.stringify(result), /next|playwright|packageManifest|dependencies/);
   assert.equal(execute.calls.length, 3);
 });
 
@@ -113,4 +115,10 @@ test("invalid, non-object, missing, and unexpected package command output fail c
   const baseExecute = authorityExecutor();
   const execute = async (plan) => plan.args[0] === "show" ? { ...(await baseExecute(plan)), stderr: "unexpected" } : baseExecute(plan);
   await assert.rejects(verifyRecoveryAppRuntimeAuthority({ runtimeSha: RUNTIME, toolingSha: TOOLING, repoRoot: "C:\\repo", execute }), { code: "RECOVERY_APP_PACKAGE_MANIFEST_INVALID" });
+  await assert.rejects(verifyRecoveryAppRuntimeAuthority({
+    runtimeSha: RUNTIME,
+    toolingSha: TOOLING,
+    repoRoot: "C:\\repo",
+    execute: authorityExecutor({ runtimePackage: { ...PACKAGE, dependencies: [] }, toolingPackage: { ...PACKAGE, dependencies: [] } }),
+  }), { code: "RECOVERY_APP_PACKAGE_MANIFEST_INVALID" });
 });

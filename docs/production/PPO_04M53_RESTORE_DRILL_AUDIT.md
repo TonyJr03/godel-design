@@ -1,6 +1,6 @@
 # PPO-04M.5.3 — Restore Drill + Baseline Closure Architecture Audit
 
-**Estado de M.5.3:** `ACTIVE / RECOVERY APPLICATION VALIDATION TOOLING`
+**Estado de M.5.3:** `ACTIVE / REAL RESTORE ATTEMPT #1 PENDING`
 
 **Estado de M.5.3.0:** `CLOSED / RESTORE DRILL ARCHITECTURE APPROVED`
 
@@ -582,9 +582,9 @@ puertos, endpoints, paths, credenciales ni catálogo completo.
 
 ### PPO-04M.5.3D — Validation + baseline closure
 
-`PPO-04M.5.3D.0` queda cerrado como contrato y `PPO-04M.5.3D.1` implementa,
-pendiente de revisión arquitectónica, la capa final del mismo one-shot. D.1.1
-corrige su autoridad runtime: source/config y `package-lock.json` continúan
+`PPO-04M.5.3D.0` queda cerrado como contrato y `PPO-04M.5.3D.1` queda aprobado
+con tooling SHA `0b8ab995221c7fedde28f5567831810e13085eaf`. D.1.1 corrigió su
+autoridad runtime: source/config y `package-lock.json` continúan
 byte-exact, mientras `package.json` excluye semánticamente sólo `scripts` y
 compara exactamente todos los demás campos. La copia Git-governed dentro de
 `session.evidence` recibe el `package.json` exacto del SHA Productivo y sólo
@@ -607,17 +607,192 @@ PPO-04M.5.3C.1.1 = CLOSED / RESTORE MUTATION + BOUNDARY HARDENING APPROVED
 PPO-04M.5.3C.1 = CLOSED / REAL RESTORE ORCHESTRATOR TOOLING APPROVED
 PPO-04M.5.3C.1 APPROVED TOOLING SHA = 5e257838cdf73df1a3f07d3473b6d65bf5f4595c
 PPO-04M.5.3D.0 = CLOSED / VALIDATION + BASELINE CLOSURE CONTRACT APPROVED
-PPO-04M.5.3D.1 = IMPLEMENTED / APPLICATION RUNTIME AUTHORITY FINDING CORRECTED / PENDING ARCHITECTURAL REVIEW
-PPO-04M.5.3D.1.1 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+PPO-04M.5.3D.1 = CLOSED / RECOVERY APPLICATION VALIDATION TOOLING APPROVED
+PPO-04M.5.3D.1 APPROVED TOOLING SHA = 0b8ab995221c7fedde28f5567831810e13085eaf
+PPO-04M.5.3D.1.1 = CLOSED / APPLICATION RUNTIME AUTHORITY CORRECTION APPROVED
+PPO-04M.5.3D.2 = CLOSED / REAL LOCAL RECOVERY APPLICATION COMPATIBILITY VERIFIED
+PPO-04M.5.3D.2.1 = REAL-ENVIRONMENT CORRECTION VERIFIED BY ATTEMPT #2
+PPO-04M.5.3D.2.2 = CLOSED / HEALTH DIAGNOSTIC + COLD-START HARDENING APPROVED
+PPO-04M.5.3D.2.3 = REAL-ENVIRONMENT DIAGNOSTIC VERIFIED BY ATTEMPT #4
+PPO-04M.5.3D.2.4 = REAL-ENVIRONMENT MOUNT + TOPOLOGY PATH VERIFIED / LIVE 5XX PERSISTS
+PPO-04M.5.3D.2.5 = REAL-ENVIRONMENT REQUEST-SCOPED DIAGNOSTIC VERIFIED BY ATTEMPT #6
+PPO-04M.5.3D.2.6 = REAL-ENVIRONMENT SAFE TAXONOMY VERIFIED BY ATTEMPT #7
+PPO-04M.5.3D.2.7 = CLOSED / REAL-ENVIRONMENT PRODUCT DEFAULT DISTDIR VERIFIED / NOT CAUSAL FOR THE LIVE FAILURE / ARCHITECTURAL FIDELITY IMPROVEMENT RETAINED
+PPO-04M.5.3D.2.8 = CLOSED / WINDOWS SAME-VOLUME APPLICATION RUNTIME TOPOLOGY / REAL-ENVIRONMENT VERIFIED BY ATTEMPT #9
 BYTE-EXACT APP RUNTIME AUTHORITY = RETAINED FOR APPLICATION SOURCE / CONFIG / PACKAGE LOCK
 PACKAGE.JSON SCRIPTS-ONLY OPERATIONAL DRIFT = SEMANTICALLY EXCLUDED
 PACKAGE.JSON NON-SCRIPT FIELDS = EXACT AUTHORITY
 TEMPORARY APP PACKAGE.JSON = PRODUCTION RUNTIME AUTHORITY
 REAL_SHA_APP_RUNTIME_AUTHORITY = PASS
-REAL RESTORE ATTEMPT #1 = NOT AUTHORIZED
+REAL RESTORE ATTEMPT #1 = NOT AUTHORIZED / PENDING D.2 DOCUMENTARY CLOSURE SHA REVIEW
+CURRENT FIRST REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY
+REAL LOCAL APPLICATION COMPATIBILITY ATTEMPT #1 = FAIL / APPLICATION PROCESS SHUTDOWN LIFECYCLE FINDING
+REAL LOCAL APPLICATION COMPATIBILITY ATTEMPT #2 = FAIL / APPLICATION HEALTH GATE DIAGNOSTIC FINDING
+REAL LOCAL APPLICATION COMPATIBILITY ATTEMPT #3 = FAIL / LIVE ROUTE RESPONSE DIAGNOSTIC FINDING
+REAL LOCAL APPLICATION COMPATIBILITY ATTEMPT #4 = FAIL / TEMPORARY RUNTIME DEPENDENCY RESOLUTION FINDING
+REAL LOCAL APPLICATION COMPATIBILITY ATTEMPT #5 = FAIL / LIVE 5XX WITH ACCUMULATED MODULE-RESOLUTION DIAGNOSTIC
+REAL LOCAL APPLICATION COMPATIBILITY ATTEMPT #6 = FAIL / REQUEST-SCOPED MODULE RESOLUTION / SAFE TAXONOMY INSUFFICIENT
+REAL LOCAL APPLICATION COMPATIBILITY ATTEMPT #7 = FAIL / REQUEST-SCOPED RELATIVE IMPORT RESOLUTION FINDING
+REAL LOCAL APPLICATION COMPATIBILITY ATTEMPT #8 = FAIL / RELATIVE IMPORT PERSISTS AFTER PRODUCT DISTDIR CORRECTION
+PPO-04M.5.3D.2 ATTEMPT #9 = PASS / REAL LOCAL RECOVERY APPLICATION COMPATIBILITY VERIFIED
 TD-BACKUP-004 = REQUIRED BEFORE FIRST NON-EMPTY STORAGE RECOVERY
 PRIVATE DOWNLOAD = NOT EXERCISED IN EMPTY-STORAGE DRILL / IMPORTANT AFTER PILOT
 ```
+
+`PPO-04M.5.3D.2` añade un entrypoint independiente para comprobar la aplicación
+contra un target local disposable sin descargar ni restaurar el backup. Reutiliza
+el baseline read-only de B.2 y la autoridad/runtime D.1, exige confirmación, SHA,
+branch y worktree exactos, y bloquea confirmaciones simultáneas de operaciones
+Productivas o del restore real. Next sólo puede escribir dentro de
+`session.evidence`.
+
+El smoke Playwright D.2 no recibe credenciales ni hace login: verifica la
+superficie de `/login` y el rechazo anónimo exacto de `/dashboard`. Browser queda
+limitado a los origins locales de app y Supabase; readiness verifica el Auth
+local, sin extrapolar esa prueba a todo egress server-side. El cleanup conserva
+la precedencia sesión > target > aplicación > browser > fallo primario y verifica
+la ausencia del puerto, recursos Docker propios y root de sesión.
+
+Attempt #1 detectó un finding del lifecycle de shutdown del proceso de
+aplicación. La evidencia sanitizada sólo permite afirmar
+`RECOVERY_APP_CLEANUP_INCOMPLETE` en `APP_CLEANUP`; no permite determinar el
+resultado primario previo ni atribuir el fallo a `nextApp.close()`. En
+particular, no se registran health, ready ni browser como PASS.
+
+D.2.1 corrige el protocolo terminal del worker: cierre graceful HTTP/Next,
+mensaje IPC terminal con callback completado, desconexión IPC y exit explícito.
+El parent mantiene ACK + exit real + verificación independiente del puerto; el
+kill de emergencia nunca es PASS. Los tres resultados sanitizados nuevos se
+limitan a `RECOVERY_APP_SHUTDOWN_CLOSE_FAILED`,
+`RECOVERY_APP_SHUTDOWN_EXIT_FAILED` y `RECOVERY_APP_SHUTDOWN_PORT_OPEN`, todos
+en `APP_CLEANUP`.
+
+Attempt #2 mantuvo como resultado público `RECOVERY_APP_HEALTH_FAILED` en
+`APP_HEALTH`. Por la precedencia de cleanup, esto verifica en entorno real la
+corrección D.2.1: no se reprodujo un fallo de aplicación, target o sesión que
+sobrescribiera el resultado primario. La clasificación correcta es `NO CLEANUP
+FAILURE DETECTED BY PRECEDENCE`, no observación independiente de cada cierre.
+Browser no fue alcanzado y la evidencia no identifica live frente a ready ni
+confirma como causa a la compilación cold de Next o a Supabase Auth.
+
+D.2.2 añade una request read-only directa a Auth local antes de arrancar Next y
+separa los gates `APP_LIVE` y `APP_READY`. Auth usa timeout de 10 segundos;
+live/ready usan 120 segundos para el cold start del recovery runtime, una sola
+request por endpoint y sin retry de 503. Request y respuesta tienen códigos
+sanitizados distintos. El restore real replica estos gates exclusivamente sobre
+su `freshStatus` local.
+
+Attempt #3 progresó por baseline, Auth local, autoridad runtime y arranque de
+aplicación, y completó la request live; el resultado público fue
+`RECOVERY_APP_LIVE_RESPONSE_INVALID` en `APP_LIVE`. Esa evidencia no permitía
+afirmar status HTTP, fallo de compilación ni resolución de dependencias. D.2.3 separa
+redirect, 404, otros 4xx, 5xx y body inválido; para 5xx consulta exclusivamente
+un enum derivado del buffer privado, acotado y redactado del proceso. Nunca
+publica logs ni inspecciona body non-200. Attempt #4 verificó ese diagnóstico:
+la respuesta live fue 5xx, clase `MODULE_RESOLUTION_FAILURE`, y produjo
+`RECOVERY_APP_LIVE_MODULE_RESOLUTION_FAILED` en `APP_LIVE`.
+
+D.2.4 incorpora una autoridad temporal de dependencias explícita. Valida el
+`node_modules` repo-local como directorio real exacto y monta el path exacto del
+proyecto temporal mediante junction absoluta de Node en Windows o symlink de
+directorio en POSIX. El worker exige que el realpath del mount coincida con el de
+`NODE_PATH` antes de invocar `next()`. No modifica Webpack ni el runtime
+Productivo, no copia dependencies y no muta la autoridad fuente.
+
+El mount precede al puerto y al proceso. Tanto el cierre normal como todo fallo
+posterior al mount lo eliminan antes del cleanup de RecoverySession; la ausencia
+del mount y la supervivencia de la fuente se prueban de forma explícita. Sólo se
+desvincula el enlace exacto y un fallo produce
+`RECOVERY_APP_DEPENDENCY_UNMOUNT_FAILED`, preservado como cleanup fail-closed.
+El contrato estricto de RecoverySession frente a symlinks/reparse points no se
+relaja.
+
+Attempt #5 alcanzó de nuevo `APP_LIVE`. Esto verifica por progresión la
+creación del mount D.2.4, la topología comprobada por el worker y el arranque de
+Next, pero el live 5xx persiste. El código histórico se obtuvo desde el buffer
+acumulado y no permite atribuir la respuesta a module resolution, a una
+dependency declarada, a un alias o a un fallo de la junction.
+
+D.2.5 reemplaza esa clasificación por checkpoints opacos ligados a una sola app
+y eventos stdout/stderr privados, secuenciados y acotados a aproximadamente 8
+KiB. Cada chunk se redacta y normaliza antes de derivar el evento almacenado;
+el evento conserva sólo señales y enums seguros, nunca texto diagnóstico,
+specifier, ruta o stack. Cada probe crea el checkpoint antes de su
+única request; ante 5xx espera hasta 50 ms de quiet local, con máximo de 1000
+ms, y sólo clasifica eventos posteriores. No hay retry HTTP ni segunda request.
+
+Attempt #6 devolvió `RECOVERY_APP_LIVE_MODULE_UNKNOWN_FAILED` en `APP_LIVE`
+después del checkpoint. Esto verifica en entorno real el boundary request-scoped
+de D.2.5, pero no demuestra dependency faltante, alias roto, junction rota,
+ruta absoluta, loader request, fallo interno de Next ni otra causa concreta.
+
+D.2.6 descompone de forma fija `PROJECT_ALIAS`, `RELATIVE_IMPORT`,
+`NEXT_INTERNAL`, `DECLARED_PACKAGE`, `OTHER_BARE_PACKAGE`, `NODE_BUILTIN`,
+`ABSOLUTE_PATH`, `REDACTED_PATH`, `LOADER_REQUEST`, `UNPARSED`, `MIXED` y
+`UNKNOWN`. Un marker sin specifier extraíble es `UNPARSED`; dos o más categorías
+son `MIXED`; `UNKNOWN` queda sólo como fallback de un specifier extraído no
+clasificable. `DECLARED_PACKAGE` deriva exclusivamente del `package.json`
+Productivo ya admitido. D.2 y el restore real comparten la misma ruta y
+allowlist sanitizada.
+
+Attempt #7 devolvió `RECOVERY_APP_LIVE_MODULE_RELATIVE_IMPORT_FAILED` en
+`APP_LIVE`. La progresión verifica en entorno real el target y Auth health, el
+mount de dependencias y su topología, el arranque, la request live y la
+taxonomía segura de D.2.6. El specifier relativo concreto no fue expuesto y la
+causa concreta no está probada.
+
+D.2.7 corrige una divergencia arquitectónica observada sin declararla causa
+definitiva del 5xx. El Product conserva el `distDir` por defecto `.next` y su
+`tsconfig.json` referencia `.next/types` y `.next/dev/types`; el recovery
+anterior imponía `.next-recovery`. El runtime disposable reserva ahora
+`projectDir/.next` dentro de RecoverySession sin precrearlo y falla cerrado ante
+una existencia inesperada. Se eliminó `conf.distDir`; `dir = projectDir`,
+`webpack: true`, el mount de `node_modules`, `NODE_PATH`, TEMP/TMP y las demás
+autoridades permanecen sin cambios.
+
+Tras `prepare()`, el worker comprueba que `.next` sea un directorio real no
+enlazado, con realpath exacto y confinado al proyecto temporal. Si se observa
+`next-env.d.ts`, se admite sólo como archivo regular no enlazado, se lee de forma
+acotada a 16 KiB y sus imports relativos generados deben resolver dentro de
+`.next`; su ausencia se registra internamente como `NOT_OBSERVED`. Los fallos
+usan `RECOVERY_APP_DIST_DIR_RUNTIME_MISMATCH` o
+`RECOVERY_APP_GENERATED_TYPES_DISTDIR_MISMATCH` en `APP_START`, sin publicar
+contenido generado, targets ni paths.
+
+Attempt #8 volvió a alcanzar `APP_LIVE` y devolvió
+`RECOVERY_APP_LIVE_MODULE_RELATIVE_IMPORT_FAILED`. Por progresión, el `distDir`
+Productivo por defecto y el boundary post-prepare de `.next` pasaron en entorno
+real; D.2.7 se retiene como mejora de fidelidad arquitectónica, pero no fue
+causal y el fallo relativo persiste. El specifier concreto no fue expuesto.
+
+La hipótesis primaria de D.2.8 es la construcción cross-volume de la entrada
+App Router en Windows. En Next 16.2.11, `NEXT_PROJECT_ROOT` deriva del
+`__dirname` del paquete Next físico, `NEXT_PROJECT_ROOT_DIST_CLIENT` apunta a su
+`dist/client` y el modo development + App Router + webpack construye la entrada
+como `"./" + path.relative(dir, .../app-next-dev.js)`. En Windows, la ruta
+relativa entre unidades o shares UNC distintos no es una entrada relativa
+ordinaria. Esta hipótesis deriva del código exacto instalado, pero queda pendiente
+de verificación mediante un intento real same-volume.
+
+D.2.8 mide esta topología con semántica `path.win32`: compara roots de forma
+case-insensitive, distingue shares UNC y reproduce estructuralmente la entrada
+relativa de Next. El harness local selecciona en Windows un parent hermano del
+repositorio, externo y en el mismo volumen; POSIX conserva el parent basado en
+`tmpdir()`. Tras crear la sesión vuelve a verificar el volumen antes de
+`TARGET_PREPARE`. El restore real valida el parent explícito antes de cualquier
+source/R2/decrypt/target. El proceso padre comprueba además la autoridad Next
+física antes del fork y el worker repite el control sobre `next/package.json`
+resuelto. Todo desacuerdo falla de forma sanitizada con
+`RECOVERY_APP_VOLUME_TOPOLOGY_MISMATCH`; no se publican volúmenes, shares ni
+paths. El mount de `node_modules`, `NODE_PATH`, `.next`, cwd y los contratos de
+cleanup permanecen sin cambios.
+
+La auditoría estática del SHA Productivo confirma como inputs raíz
+materializados `next.config.ts`, `postcss.config.mjs`, `tsconfig.json`,
+`package.json`, `package-lock.json`, `src/` y `public/`; no se identificó un
+runtime config raíz obviamente omitido. `/api/health/live` no importa lógica de
+aplicación y devuelve exactamente `{ status: "ok" }`. Esto no demuestra que la
+compilación de Next evite cargar infraestructura global.
 
 ## 17. Estado final del audit
 
@@ -653,16 +828,634 @@ PPO-04M.5.3D.0 =
 CLOSED / VALIDATION + BASELINE CLOSURE CONTRACT APPROVED
 
 PPO-04M.5.3D.1 =
-IMPLEMENTED / APPLICATION RUNTIME AUTHORITY FINDING CORRECTED / PENDING ARCHITECTURAL REVIEW
+CLOSED / RECOVERY APPLICATION VALIDATION TOOLING APPROVED
+
+PPO-04M.5.3D.1 APPROVED TOOLING SHA =
+0b8ab995221c7fedde28f5567831810e13085eaf
 
 PPO-04M.5.3D.1.1 =
-IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+CLOSED / APPLICATION RUNTIME AUTHORITY CORRECTION APPROVED
+
+PPO-04M.5.3D.2 =
+CLOSED / REAL LOCAL RECOVERY APPLICATION COMPATIBILITY VERIFIED
+
+PPO-04M.5.3D.2.1 =
+REAL-ENVIRONMENT CORRECTION VERIFIED BY ATTEMPT #2
+
+PPO-04M.5.3D.2.2 =
+CLOSED / HEALTH DIAGNOSTIC + COLD-START HARDENING APPROVED
+
+PPO-04M.5.3D.2.3 =
+REAL-ENVIRONMENT DIAGNOSTIC VERIFIED BY ATTEMPT #4
+
+PPO-04M.5.3D.2.4 =
+REAL-ENVIRONMENT MOUNT + TOPOLOGY PATH VERIFIED / LIVE 5XX PERSISTS
+
+PPO-04M.5.3D.2.5 =
+REAL-ENVIRONMENT REQUEST-SCOPED DIAGNOSTIC VERIFIED BY ATTEMPT #6
+
+PPO-04M.5.3D.2.6 =
+REAL-ENVIRONMENT SAFE TAXONOMY VERIFIED BY ATTEMPT #7
+
+PPO-04M.5.3D.2.7 =
+CLOSED /
+REAL-ENVIRONMENT PRODUCT DEFAULT DISTDIR VERIFIED /
+NOT CAUSAL FOR THE LIVE FAILURE /
+ARCHITECTURAL FIDELITY IMPROVEMENT RETAINED
+
+PPO-04M.5.3D.2.8 =
+CLOSED /
+WINDOWS SAME-VOLUME APPLICATION RUNTIME TOPOLOGY /
+REAL-ENVIRONMENT VERIFIED BY ATTEMPT #9
+
+REAL LOCAL APPLICATION COMPATIBILITY ATTEMPT #1 =
+FAIL / APPLICATION PROCESS SHUTDOWN LIFECYCLE FINDING
+
+FAILURE CODE =
+RECOVERY_APP_CLEANUP_INCOMPLETE
+
+PUBLIC FAILURE PHASE =
+APP_CLEANUP
+
+REAL TARGET STARTS =
+1
+
+RESTORE SQL EXECUTIONS =
+0
+
+R2 READS =
+0
+
+AGE DECRYPTS =
+0
+
+PRODUCTION MUTATIONS =
+0
+
+TARGET CLEANUP FAILURE DETECTED =
+NO
+
+SESSION CLEANUP FAILURE DETECTED =
+NO
+
+PRE-CLEANUP PRIMARY RESULT =
+NOT DETERMINABLE FROM SANITIZED ATTEMPT #1 EVIDENCE
+
+ATTEMPT #1 RETRIES =
+0
+
+REAL LOCAL APPLICATION COMPATIBILITY ATTEMPT #2 =
+FAIL / APPLICATION HEALTH GATE DIAGNOSTIC FINDING
+
+FAILURE CODE =
+RECOVERY_APP_HEALTH_FAILED
+
+PUBLIC FAILURE PHASE =
+APP_HEALTH
+
+REAL TARGET STARTS =
+1
+
+RESTORE SQL EXECUTIONS =
+0
+
+R2 READS =
+0
+
+AGE DECRYPTS =
+0
+
+PRODUCTION MUTATIONS =
+0
+
+CLEANUP CLASSIFICATION =
+NO CLEANUP FAILURE DETECTED BY PRECEDENCE
+
+APPLICATION CLEANUP FAILURE DETECTED =
+NO
+
+TARGET CLEANUP FAILURE DETECTED =
+NO
+
+SESSION CLEANUP FAILURE DETECTED =
+NO
+
+BROWSER REACHED =
+NO
+
+LIVE RESULT =
+NOT DETERMINABLE FROM ATTEMPT #2 EVIDENCE
+
+READY RESULT =
+NOT DETERMINABLE FROM ATTEMPT #2 EVIDENCE
+
+REAL LOCAL APPLICATION COMPATIBILITY ATTEMPT #3 =
+FAIL / LIVE ROUTE RESPONSE DIAGNOSTIC FINDING
+
+FAILURE CODE =
+RECOVERY_APP_LIVE_RESPONSE_INVALID
+
+PUBLIC PHASE =
+APP_LIVE
+
+REAL TARGET STARTS =
+1
+
+TARGET BASELINE =
+PASS BY PHASE PROGRESSION
+
+TARGET AUTH HEALTH =
+PASS BY PHASE PROGRESSION
+
+APPLICATION RUNTIME AUTHORITY =
+PASS BY PHASE PROGRESSION
+
+APPLICATION START =
+PASS BY PHASE PROGRESSION
+
+LIVE REQUEST =
+COMPLETED
+
+LIVE RESPONSE =
+INVALID / CLASS NOT AVAILABLE IN ATTEMPT #3
+
+READY =
+NOT REACHED
+
+BROWSER =
+NOT REACHED
+
+CLEANUP CLASSIFICATION =
+NO CLEANUP FAILURE DETECTED BY PRECEDENCE
+
+APPLICATION CLEANUP FAILURE DETECTED =
+NO
+
+TARGET CLEANUP FAILURE DETECTED =
+NO
+
+SESSION CLEANUP FAILURE DETECTED =
+NO
+
+RESTORE SQL EXECUTIONS =
+0
+
+R2 READS =
+0
+
+AGE DECRYPTS =
+0
+
+PRODUCTION MUTATIONS =
+0
+
+REAL LOCAL APPLICATION COMPATIBILITY ATTEMPT #4 =
+FAIL / TEMPORARY RUNTIME DEPENDENCY RESOLUTION FINDING
+
+FAILURE CODE =
+RECOVERY_APP_LIVE_MODULE_RESOLUTION_FAILED
+
+PUBLIC PHASE =
+APP_LIVE
+
+REAL TARGET STARTS =
+1
+
+TARGET AUTH HEALTH =
+PASS BY PHASE PROGRESSION
+
+APPLICATION START =
+PASS BY PHASE PROGRESSION
+
+LIVE REQUEST =
+COMPLETED
+
+LIVE RESPONSE =
+5XX / MODULE_RESOLUTION_FAILURE
+
+READY =
+NOT REACHED
+
+BROWSER =
+NOT REACHED
+
+CLEANUP =
+NO CLEANUP FAILURE DETECTED BY PRECEDENCE
+
+RESTORE SQL EXECUTIONS =
+0
+
+R2 READS =
+0
+
+AGE DECRYPTS =
+0
+
+PRODUCTION MUTATIONS =
+0
+
+REAL LOCAL APPLICATION COMPATIBILITY ATTEMPT #5 =
+FAIL / LIVE 5XX WITH ACCUMULATED MODULE-RESOLUTION DIAGNOSTIC
+
+FAILURE CODE =
+RECOVERY_APP_LIVE_MODULE_RESOLUTION_FAILED
+
+PUBLIC PHASE =
+APP_LIVE
+
+REAL TARGET STARTS =
+1
+
+TARGET AUTH HEALTH =
+PASS BY PHASE PROGRESSION
+
+DEPENDENCY MOUNT =
+PASS BY PHASE PROGRESSION
+
+WORKER DEPENDENCY TOPOLOGY =
+PASS BY PHASE PROGRESSION
+
+APPLICATION START =
+PASS BY PHASE PROGRESSION
+
+LIVE REQUEST =
+COMPLETED
+
+LIVE RESPONSE =
+5XX
+
+REQUEST-SCOPED ROOT DIAGNOSTIC =
+NOT AVAILABLE IN ATTEMPT #5
+
+READY =
+NOT REACHED
+
+BROWSER =
+NOT REACHED
+
+CLEANUP =
+NO CLEANUP FAILURE DETECTED BY PRECEDENCE
+
+RESTORE SQL EXECUTIONS =
+0
+
+R2 READS =
+0
+
+AGE DECRYPTS =
+0
+
+PRODUCTION MUTATIONS =
+0
+
+REAL LOCAL APPLICATION COMPATIBILITY ATTEMPT #6 =
+FAIL / REQUEST-SCOPED MODULE RESOLUTION / SAFE TAXONOMY INSUFFICIENT
+
+FAILURE CODE =
+RECOVERY_APP_LIVE_MODULE_UNKNOWN_FAILED
+
+PUBLIC PHASE =
+APP_LIVE
+
+REAL TARGET STARTS =
+1
+
+RESTORE SQL EXECUTIONS =
+0
+
+R2 READS =
+0
+
+AGE DECRYPTS =
+0
+
+PRODUCTION MUTATIONS =
+0
+
+CONCRETE ROOT CAUSE =
+NOT DEMONSTRATED
+
+PPO-04M.5.3D.2 ATTEMPT #7 =
+FAIL / REQUEST-SCOPED RELATIVE IMPORT RESOLUTION FINDING
+
+FAILURE CODE =
+RECOVERY_APP_LIVE_MODULE_RELATIVE_IMPORT_FAILED
+
+PUBLIC PHASE =
+APP_LIVE
+
+REAL TARGET STARTS =
+1
+
+RESTORE SQL EXECUTIONS =
+0
+
+R2 READS =
+0
+
+AGE DECRYPTS =
+0
+
+PRODUCTION MUTATIONS =
+0
+
+CONCRETE RELATIVE SPECIFIER =
+NOT EXPOSED
+
+CONCRETE ROOT CAUSE =
+NOT PROVEN
+
+PRODUCT DISTDIR =
+.next / DEFAULT
+
+RECOVERY DISTDIR BEFORE D.2.7 =
+.next-recovery / PROGRAMMATIC OVERRIDE
+
+PRODUCT TSCONFIG GENERATED TYPE PATHS =
+.next/types
+.next/dev/types
+
+REAL LOCAL APPLICATION COMPATIBILITY ATTEMPT #8 =
+FAIL / RELATIVE IMPORT PERSISTS AFTER PRODUCT DISTDIR CORRECTION
+
+FAILURE CODE =
+RECOVERY_APP_LIVE_MODULE_RELATIVE_IMPORT_FAILED
+
+PUBLIC PHASE =
+APP_LIVE
+
+REAL TARGET STARTS =
+1
+
+RESTORE SQL EXECUTIONS =
+0
+
+R2 READS =
+0
+
+AGE DECRYPTS =
+0
+
+PRODUCTION MUTATIONS =
+0
+
+PRODUCT DEFAULT DISTDIR =
+PASSED BY PHASE PROGRESSION
+
+CONCRETE RELATIVE SPECIFIER =
+NOT EXPOSED
+
+D.2.7 ROOT-CAUSE STATUS =
+NOT CAUSAL / ARCHITECTURAL FIDELITY IMPROVEMENT RETAINED
+
+ROOT CAUSE =
+WINDOWS CROSS-VOLUME NEXT APP-ROUTER ENTRY CONSTRUCTION
+
+ROOT CAUSE STATUS =
+CONFIRMED BY REAL-ENVIRONMENT ATTEMPT #9
+
+PPO-04M.5.3D.2 ATTEMPT #9 =
+PASS / REAL LOCAL RECOVERY APPLICATION COMPATIBILITY VERIFIED
+
+status =
+PASS
+
+operation =
+real-local-recovery-application-compatibility
+
+runtimeAuthority =
+VERIFIED
+
+targetIsolation =
+VERIFIED
+
+baselineMigrationCount =
+6
+
+targetAuthHealth =
+PASS
+
+applicationRuntimeAuthority =
+VERIFIED
+
+applicationStart =
+PASS
+
+applicationLive =
+PASS
+
+applicationReady =
+PASS
+
+applicationLocalSupabaseReadiness =
+VERIFIED
+
+loginSurface =
+PASS
+
+anonymousInternalAccess =
+REJECTED
+
+browserRemoteIsolation =
+VERIFIED
+
+browserCleanup =
+PASS
+
+applicationCleanup =
+PASS
+
+targetCleanup =
+PASS
+
+sessionCleanup =
+PASS
+
+realTargetStarts =
+1
+
+restoreSqlExecutions =
+0
+
+realR2Reads =
+0
+
+realAgeDecrypts =
+0
+
+productionMutations =
+0
+
+ATTEMPT EXIT CODE =
+0
+
+D.2 FINAL REAL ATTEMPT =
+#9 / PASS
+
+D.2 FINAL VERIFIED CAPABILITIES =
+runtime authority /
+local target isolation /
+baseline 01-06 /
+direct local Auth health /
+Product application startup /
+live health /
+ready health /
+local Supabase readiness /
+login surface /
+anonymous internal rejection /
+browser remote isolation /
+browser cleanup /
+application cleanup /
+target cleanup /
+session cleanup
+
+D.2 RESTORE ACTIVITY =
+NONE
+
+D.2 R2 ACTIVITY =
+NONE
+
+D.2 AGE DECRYPT ACTIVITY =
+NONE
+
+D.2 PRODUCTION MUTATIONS =
+NONE
+
+REAL TARGET STARTS DURING D.2.8 CORRECTION =
+0
+
+REAL APP STARTS DURING D.2.8 CORRECTION =
+0
+
+REAL CHROMIUM STARTS DURING D.2.8 CORRECTION =
+0
+
+RESTORE SQL EXECUTIONS DURING D.2.8 CORRECTION =
+0
+
+R2 READS DURING D.2.8 CORRECTION =
+0
+
+AGE DECRYPTS DURING D.2.8 CORRECTION =
+0
+
+PRODUCTION ACTIVITY DURING D.2.8 CORRECTION =
+0
+
+REAL TARGET STARTS DURING D.2.7 CORRECTION =
+0
+
+REAL APP STARTS DURING D.2.7 CORRECTION =
+0
+
+REAL CHROMIUM STARTS DURING D.2.7 CORRECTION =
+0
+
+RESTORE SQL EXECUTIONS DURING D.2.7 CORRECTION =
+0
+
+R2 READS DURING D.2.7 CORRECTION =
+0
+
+AGE DECRYPTS DURING D.2.7 CORRECTION =
+0
+
+PRODUCTION ACTIVITY DURING D.2.7 CORRECTION =
+0
+
+REAL TARGET STARTS DURING D.2.5 CORRECTION =
+0
+
+REAL APP STARTS DURING D.2.5 CORRECTION =
+0
+
+REAL CHROMIUM STARTS DURING D.2.5 CORRECTION =
+0
+
+RESTORE SQL EXECUTIONS DURING D.2.5 CORRECTION =
+0
+
+R2 READS DURING D.2.5 CORRECTION =
+0
+
+AGE DECRYPTS DURING D.2.5 CORRECTION =
+0
+
+PRODUCTION ACTIVITY DURING D.2.5 CORRECTION =
+0
+
+REAL TARGET STARTS DURING D.2.4 CORRECTION =
+0
+
+REAL APP STARTS DURING D.2.4 CORRECTION =
+0
+
+REAL CHROMIUM STARTS DURING D.2.4 CORRECTION =
+0
+
+RESTORE SQL EXECUTIONS DURING D.2.4 CORRECTION =
+0
+
+R2 READS DURING D.2.4 CORRECTION =
+0
+
+AGE DECRYPTS DURING D.2.4 CORRECTION =
+0
+
+PRODUCTION ACTIVITY DURING D.2.4 CORRECTION =
+0
+
+REAL TARGET STARTS DURING D.2.3 CORRECTION =
+0
+
+REAL APP STARTS DURING D.2.3 CORRECTION =
+0
+
+REAL CHROMIUM STARTS DURING D.2.3 CORRECTION =
+0
+
+RESTORE SQL EXECUTIONS DURING D.2.3 CORRECTION =
+0
+
+R2 READS DURING D.2.3 CORRECTION =
+0
+
+AGE DECRYPTS DURING D.2.3 CORRECTION =
+0
+
+PRODUCTION ACTIVITY DURING D.2.3 CORRECTION =
+0
+
+REAL TARGET STARTS DURING D.2.2 CORRECTION =
+0
+
+REAL APP STARTS DURING D.2.2 CORRECTION =
+0
+
+REAL CHROMIUM STARTS DURING D.2.2 CORRECTION =
+0
+
+RESTORE SQL EXECUTIONS DURING D.2.2 CORRECTION =
+0
+
+R2 READS DURING D.2.2 CORRECTION =
+0
+
+AGE DECRYPTS DURING D.2.2 CORRECTION =
+0
+
+PRODUCTION ACTIVITY DURING D.2.2 CORRECTION =
+0
 
 PPO-04M.5.3 =
-ACTIVE / RECOVERY APPLICATION VALIDATION TOOLING
+ACTIVE / REAL RESTORE ATTEMPT #1 PENDING
 
 REAL RESTORE ATTEMPT #1 =
-NOT AUTHORIZED
+NOT AUTHORIZED /
+PENDING D.2 DOCUMENTARY CLOSURE SHA REVIEW
+
+CURRENT FIRST REAL RESTORE STORAGE SCOPE =
+EMPTY STORAGE ONLY
 
 PRODUCTION RESTORE =
 NOT AUTHORIZED
@@ -679,24 +1472,54 @@ NOT EXECUTED
 REMOTE ACTIVITY =
 0
 
-REAL TARGET STARTS =
-0
+REAL TARGET STARTS ACROSS D.2 ATTEMPTS #1-#5 =
+5 / ONE IN EACH ATTEMPT
 
 TARGET MUTATIONS =
-0
+NOT DETERMINABLE FROM SANITIZED ATTEMPT #1 EVIDENCE
 
 SQL EXECUTION =
 0
 
 REAL APP STARTS =
-0
+NOT DETERMINABLE FROM SANITIZED ATTEMPT #1 EVIDENCE
 
 REAL LOGIN ATTEMPTS =
-0
+NOT DETERMINABLE FROM SANITIZED ATTEMPT #1 EVIDENCE
 
 TD-BACKUP-004 =
 REQUIRED BEFORE FIRST NON-EMPTY STORAGE RECOVERY
 
 PRIVATE DOWNLOAD =
 NOT EXERCISED IN EMPTY-STORAGE DRILL / IMPORTANT AFTER PILOT
+```
+
+## Cierre causal de PPO-04M.5.3D.2
+
+Attempts #7 y #8 reprodujeron el mismo fallo request-scoped `RELATIVE_IMPORT`
+mientras el runtime disposable de aplicación podía ubicarse en un volumen
+Windows distinto de la autoridad física repo-local de la dependencia Next.
+D.2.8 movió y gobernó el runtime disposable sobre una topología compatible del
+mismo volumen y añadió gates de topología fail-closed. En Attempt #9 pasaron la
+aplicación live, ready, la validación browser y todos los niveles de cleanup.
+
+La conclusión queda limitada al fallo reproducido por este recovery runtime y
+a la construcción relativa de Next implicada. No constituye una afirmación
+general sobre todo proyecto Next.js cross-volume en Windows.
+
+La secuencia auditada se conserva completa: #1 corrigió el lifecycle de
+shutdown; #2 aisló el diagnóstico de health; #3 expuso el fallo de live; #4
+clasificó la resolución de dependencias; #5 demostró la limitación del
+diagnóstico acumulado; #6 produjo `UNKNOWN` request-scoped; #7 aisló el import
+relativo; #8 confirmó su persistencia tras corregir `distDir`; y #9 pasó tras la
+corrección de topología same-volume.
+
+```text
+REAL TARGET STARTS DURING DOCUMENTARY CLOSURE = 0
+REAL APP STARTS DURING DOCUMENTARY CLOSURE = 0
+REAL CHROMIUM STARTS DURING DOCUMENTARY CLOSURE = 0
+RESTORE SQL EXECUTIONS DURING DOCUMENTARY CLOSURE = 0
+R2 READS DURING DOCUMENTARY CLOSURE = 0
+AGE DECRYPTS DURING DOCUMENTARY CLOSURE = 0
+PRODUCTION ACTIVITY DURING DOCUMENTARY CLOSURE = 0
 ```

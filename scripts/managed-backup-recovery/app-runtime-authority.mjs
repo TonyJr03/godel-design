@@ -76,6 +76,22 @@ function withoutOperationalScripts(packageManifest) {
   return runtimeFields;
 }
 
+function declaredPackageNames(packageManifest) {
+  const names = new Set();
+  for (const field of ["dependencies", "devDependencies"]) {
+    const dependencies = packageManifest[field];
+    if (dependencies === undefined) continue;
+    if (dependencies === null || typeof dependencies !== "object" || Array.isArray(dependencies) || Object.getPrototypeOf(dependencies) !== Object.prototype) {
+      fail("RECOVERY_APP_PACKAGE_MANIFEST_INVALID", "Recovery application package dependency authority is invalid");
+    }
+    for (const name of Object.keys(dependencies)) {
+      if (name.length === 0) fail("RECOVERY_APP_PACKAGE_MANIFEST_INVALID", "Recovery application package dependency authority is invalid");
+      names.add(name);
+    }
+  }
+  return Object.freeze([...names]);
+}
+
 async function readPackageManifest(plan, execute) {
   let result;
   try { result = await execute(plan); } catch { fail("RECOVERY_APP_RUNTIME_AUTHORITY_UNAVAILABLE", "Recovery application package authority could not be read"); }
@@ -105,6 +121,7 @@ export async function verifyRecoveryAppRuntimeAuthority({ runtimeSha, toolingSha
   authorityDetails.set(authority, Object.freeze({
     runtimeSha,
     runtimePackageJson: runtimePackage.raw,
+    declaredPackageNames: declaredPackageNames(runtimePackage.parsed),
     byteExactApplicationTree: "PASS",
     packageManifestRuntimeFields: "PASS",
     packageLock: "BYTE_EXACT",

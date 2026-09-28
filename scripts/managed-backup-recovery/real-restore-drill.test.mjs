@@ -34,10 +34,11 @@ function fixture(behavior = {}) {
   let directLoginCredentials;
   const application = Object.freeze({ status: "RUNNING" });
   const dependencies = {
+    platform: "win32",
     resolveToolingAuthority: async () => ({ branch: behavior.branch ?? RECOVERY_TOOLING_BRANCH, head: behavior.head ?? HEAD, clean: behavior.clean ?? true }),
     preflightTools: async () => { events.push("preflight-tools"); return []; },
     admitRecoveryBoundaries: async () => Object.freeze({ status: "ADMITTED" }),
-    accessRecoveryBoundaries: (_handle, callback) => callback({ parent: "C:\\recovery-parent", backupOutputRoot: "C:\\backup-boundary" }),
+    accessRecoveryBoundaries: (_handle, callback) => callback({ parent: behavior.recoveryParent ?? "C:\\recovery-parent", backupOutputRoot: "C:\\backup-boundary" }),
     sourceAdapterFactory: () => ({
       async inspectCandidate() { events.push("source-inspect"); if (behavior.sourcePhase === "SOURCE_INSPECT") throw Object.assign(new Error("secret path C:\\private"), { code: "RECOVERY_R2_CANDIDATE_INCOMPLETE" }); return { status: "VERIFIED" }; },
       async downloadReceipt() { events.push("source-receipt"); if (behavior.sourcePhase === "SOURCE_DOWNLOAD") throw Object.assign(new Error("secret receipt"), { code: "RECOVERY_RECEIPT_INVALID" }); return {}; },
@@ -96,17 +97,39 @@ function fixture(behavior = {}) {
     validateRestore: () => ({ status: "PASS", database: "PASS", auth: "PASS", storage: "PASS", referentialIntegrity: "PASS", sessionReplicationRole: "origin" }),
     credentialProvider: { getCredentials: async () => { events.push("credential-prompt"); return { identifier: "secret@example.invalid", password: "secret-password" }; } },
     performLogin: async ({ credentials }) => { events.push("login"); directLoginCredentials = credentials; if (behavior.loginFailure) throw Object.assign(new Error("token secret-token"), { code: "RECOVERY_AUTH_LOGIN_FAILED" }); return { status: "PASS" }; },
+    probeTargetAuthHealth: async () => { events.push("target-auth-health"); if (behavior.appFailure === "TARGET_AUTH") throw Object.assign(new Error("local auth endpoint"), { code: "RECOVERY_TARGET_AUTH_HEALTH_FAILED" }); return Object.freeze({ targetAuthHealth: "PASS" }); },
     verifyAppRuntimeAuthority: async () => { events.push("app-runtime-authority"); if (behavior.appFailure === "RUNTIME") throw Object.assign(new Error("changed private path"), { code: "RECOVERY_APP_RUNTIME_AUTHORITY_MISMATCH" }); return Object.freeze({ status: "VERIFIED" }); },
     verifyRlsGrantBaseline: () => { events.push("rls-grant-baseline"); if (behavior.appFailure === "ACCESS") throw Object.assign(new Error("baseline detail"), { code: "RECOVERY_RLS_GRANT_BASELINE_UNVERIFIED" }); return Object.freeze({ status: "VERIFIED", rlsGrantBaseline: "VERIFIED" }); },
-    startRecoveryApp: async () => { events.push("app-start"); if (behavior.appFailure === "START") throw Object.assign(new Error("local path"), { code: "RECOVERY_APP_START_FAILED" }); return application; },
-    probeRecoveryAppHealth: async () => { events.push("app-health"); if (behavior.appFailure === "HEALTH") throw Object.assign(new Error("local endpoint"), { code: "RECOVERY_APP_HEALTH_FAILED" }); return Object.freeze({ applicationLive: "PASS", applicationReady: "PASS" }); },
+    startRecoveryApp: async () => {
+      events.push("app-start");
+      if (behavior.appFailure === "START") throw Object.assign(new Error("local path"), { code: "RECOVERY_APP_START_FAILED" });
+      if (behavior.appStartCode) throw Object.assign(new Error("private dependency path"), { code: behavior.appStartCode });
+      return application;
+    },
+    probeRecoveryAppLive: async () => {
+      events.push("app-live");
+      if (behavior.liveCode) throw Object.assign(new Error("local live endpoint"), { code: behavior.liveCode });
+      return Object.freeze({ applicationLive: "PASS" });
+    },
+    probeRecoveryAppReady: async () => {
+      events.push("app-ready");
+      if (behavior.readyCode) throw Object.assign(new Error("local ready endpoint"), { code: behavior.readyCode });
+      return Object.freeze({ applicationReady: "PASS" });
+    },
     validateRecoveryApp: async ({ credentials }) => {
       events.push("app-browser");
       assert.strictEqual(credentials, directLoginCredentials);
       if (behavior.appFailure === "BROWSER") throw Object.assign(new Error("credential endpoint token"), { code: "RECOVERY_APP_LOGIN_FAILED" });
       return Object.freeze({ applicationLogin: "PASS", internalScreen: "PASS", applicationRead: "PASS", anonymousInternalAccess: "REJECTED", applicationRemoteIsolation: "VERIFIED" });
     },
-    stopRecoveryApp: async (handle) => { assert.strictEqual(handle, application); events.push("app-cleanup"); if (behavior.appCleanupFailure) throw new Error("app process path"); return { status: "PASS" }; },
+    stopRecoveryApp: async (handle) => {
+      assert.strictEqual(handle, application);
+      events.push("app-cleanup");
+      if (behavior.appCleanupFailure || behavior.appCleanupCode) {
+        throw Object.assign(new Error("app process path"), behavior.appCleanupCode ? { code: behavior.appCleanupCode } : {});
+      }
+      return { status: "PASS" };
+    },
     createCleanupAdapter: () => Object.freeze({}),
     cleanupTarget: async () => { events.push("target-cleanup"); if (behavior.targetCleanupFailure) throw new Error("container secret"); return { status: "PASS" }; },
   };
@@ -130,13 +153,34 @@ test("confirmation, exact branch/HEAD/clean authority, backup selection, and inc
   }
 });
 
+test("real restore rejects a cross-volume recovery parent before source or target activity", async () => {
+  const item = fixture({ recoveryParent: "C:\\recovery-parent" });
+  const result = await runRealProductBackupLocalRestoreDrill({ environment: environment(), repoRoot: "D:\\repo", dependencies: item.dependencies });
+  assert.deepEqual(result, {
+    status: "FAIL",
+    code: "RECOVERY_APP_VOLUME_TOPOLOGY_MISMATCH",
+    phase: "PREFLIGHT",
+    message: "Real managed recovery drill failed safely",
+    realTargetStarts: 0,
+    sqlExecutions: 0,
+    targetMutations: 0,
+    realR2Reads: 0,
+    realAgeDecrypts: 0,
+    productionMutations: 0,
+  });
+  for (const forbiddenEvent of ["source-inspect", "source-receipt", "source-ciphertext", "source-decrypt", "target-prepare", "target-start"]) {
+    assert.ok(!item.events.includes(forbiddenEvent));
+  }
+  assert.doesNotMatch(JSON.stringify(result), /C:|D:|recovery-parent|repo/i);
+});
+
 test("synthetic PASS follows source-target-mutation-storage-validation-login-cleanup order with exact counters", async () => {
   const item = fixture();
   const result = await runRealProductBackupLocalRestoreDrill({ environment: environment(), repoRoot: "C:\\repo", dependencies: item.dependencies });
   assert.deepEqual(result, {
     status: "PASS", operation: "real-product-backup-local-restore-drill", sourceVerification: "PASS", targetIsolation: "VERIFIED", baselineMigrationCount: 6,
     restore: "PASS", databaseValidation: "PASS", referentialIntegrity: "PASS", authContinuity: "PASS", realInternalLogin: "PASS", storageValidation: "PASS",
-    storageByteRestore: "VALIDATED_NO_OP", applicationLive: "PASS", applicationReady: "PASS", applicationLogin: "PASS", internalScreen: "PASS",
+    storageByteRestore: "VALIDATED_NO_OP", targetAuthHealth: "PASS", applicationLive: "PASS", applicationReady: "PASS", applicationLogin: "PASS", internalScreen: "PASS",
     applicationRead: "PASS", anonymousInternalAccess: "REJECTED", applicationRemoteIsolation: "VERIFIED", rlsGrantBaseline: "VERIFIED",
     privateDownload: "NOT_EXERCISED_EMPTY_STORAGE", sessionReplicationRole: "origin", realTargetStarts: 1, sqlExecutions: 1, targetMutations: 1,
     realR2Reads: 3, realAgeDecrypts: 1, remoteActivity: 3, productionMutations: 0, applicationCleanup: "PASS", targetCleanup: "PASS", sourceCleanup: "PASS",
@@ -145,8 +189,11 @@ test("synthetic PASS follows source-target-mutation-storage-validation-login-cle
   assert.ok(item.events.indexOf("baseline") < item.events.indexOf("restore-plan"));
   assert.ok(item.events.indexOf("restore-execute") < item.events.indexOf("metadata-gate"));
   assert.ok(item.events.indexOf("storage-inventory") < item.events.indexOf("login"));
+  assert.ok(item.events.indexOf("login") < item.events.indexOf("target-auth-health"));
+  assert.ok(item.events.indexOf("target-auth-health") < item.events.indexOf("app-runtime-authority"));
   assert.ok(item.events.indexOf("login") < item.events.indexOf("app-runtime-authority"));
-  assert.ok(item.events.indexOf("app-health") < item.events.indexOf("app-browser"));
+  assert.ok(item.events.indexOf("app-live") < item.events.indexOf("app-ready"));
+  assert.ok(item.events.indexOf("app-ready") < item.events.indexOf("app-browser"));
   assert.equal(item.events.filter((event) => event === "credential-prompt").length, 1);
   assert.deepEqual(item.events.slice(-3), ["app-cleanup", "target-cleanup", "source-cleanup"]);
   const serialized = JSON.stringify(result);
@@ -238,15 +285,28 @@ test("login occurs only after full validation and exposes no credential, token, 
   assert.ok(item.events.indexOf("query:fk-check") < item.events.indexOf("login"));
 });
 
-test("application authority, start, health, and browser failures preserve phase, stop the app when needed, and always clean target/source", async () => {
-  for (const [appFailure, code, phase, appStarted] of [
-    ["RUNTIME", "RECOVERY_APP_RUNTIME_AUTHORITY_MISMATCH", "APP_RUNTIME_AUTHORITY", false],
-    ["START", "RECOVERY_APP_START_FAILED", "APP_START", false],
-    ["HEALTH", "RECOVERY_APP_HEALTH_FAILED", "APP_HEALTH", true],
-    ["BROWSER", "RECOVERY_APP_LOGIN_FAILED", "APP_LOGIN", true],
-    ["ACCESS", "RECOVERY_RLS_GRANT_BASELINE_UNVERIFIED", "APP_ACCESS", true],
+test("target Auth, application authority, start, split health, and browser failures preserve phase and cleanup", async () => {
+  const moduleCodes = [
+    "PROJECT_ALIAS", "RELATIVE_IMPORT", "NEXT_INTERNAL", "DECLARED_PACKAGE", "OTHER_BARE_PACKAGE", "NODE_BUILTIN",
+    "ABSOLUTE_PATH", "REDACTED_PATH", "LOADER_REQUEST", "UNPARSED", "MIXED", "UNKNOWN",
+  ].map((category) => `MODULE_${category}_FAILED`);
+  const liveCodes = ["REQUEST_FAILED", "REDIRECTED", "NOT_FOUND", "HTTP_REJECTED", "SERVER_ERROR", "BODY_INVALID", "MODULE_RESOLUTION_FAILED", ...moduleCodes, "COMPILE_FAILED", "RUNTIME_FAILED"].map((suffix) => `RECOVERY_APP_LIVE_${suffix}`);
+  const readyCodes = ["REQUEST_FAILED", "REDIRECTED", "NOT_FOUND", "HTTP_REJECTED", "SERVER_ERROR", "BODY_INVALID", "MODULE_RESOLUTION_FAILED", ...moduleCodes, "COMPILE_FAILED", "RUNTIME_FAILED"].map((suffix) => `RECOVERY_APP_READY_${suffix}`);
+  for (const [behavior, code, phase, appStarted] of [
+    [{ appFailure: "TARGET_AUTH" }, "RECOVERY_TARGET_AUTH_HEALTH_FAILED", "TARGET_AUTH_HEALTH", false],
+    [{ appFailure: "RUNTIME" }, "RECOVERY_APP_RUNTIME_AUTHORITY_MISMATCH", "APP_RUNTIME_AUTHORITY", false],
+    [{ appFailure: "START" }, "RECOVERY_APP_START_FAILED", "APP_START", false],
+    [{ appStartCode: "RECOVERY_APP_DEPENDENCY_AUTHORITY_INVALID" }, "RECOVERY_APP_DEPENDENCY_AUTHORITY_INVALID", "APP_START", false],
+    [{ appStartCode: "RECOVERY_APP_DEPENDENCY_MOUNT_INVALID" }, "RECOVERY_APP_DEPENDENCY_MOUNT_INVALID", "APP_START", false],
+    [{ appStartCode: "RECOVERY_APP_DIST_DIR_RUNTIME_MISMATCH" }, "RECOVERY_APP_DIST_DIR_RUNTIME_MISMATCH", "APP_START", false],
+    [{ appStartCode: "RECOVERY_APP_GENERATED_TYPES_DISTDIR_MISMATCH" }, "RECOVERY_APP_GENERATED_TYPES_DISTDIR_MISMATCH", "APP_START", false],
+    [{ appStartCode: "RECOVERY_APP_VOLUME_TOPOLOGY_MISMATCH" }, "RECOVERY_APP_VOLUME_TOPOLOGY_MISMATCH", "APP_START", false],
+    ...liveCodes.map((code) => [{ liveCode: code }, code, "APP_LIVE", true]),
+    ...readyCodes.map((code) => [{ readyCode: code }, code, "APP_READY", true]),
+    [{ appFailure: "BROWSER" }, "RECOVERY_APP_LOGIN_FAILED", "APP_LOGIN", true],
+    [{ appFailure: "ACCESS" }, "RECOVERY_RLS_GRANT_BASELINE_UNVERIFIED", "APP_ACCESS", true],
   ]) {
-    const item = fixture({ appFailure });
+    const item = fixture(behavior);
     const result = await runRealProductBackupLocalRestoreDrill({ environment: environment(), repoRoot: "C:\\repo", dependencies: item.dependencies });
     assert.equal(result.code, code);
     assert.equal(result.phase, phase);
@@ -254,6 +314,14 @@ test("application authority, start, health, and browser failures preserve phase,
     assert.ok(item.events.includes("target-cleanup"));
     assert.equal(item.events.at(-1), "source-cleanup");
   }
+});
+
+test("real restore preserves dependency unmount failure as sanitized APP_CLEANUP evidence", async () => {
+  const item = fixture({ appCleanupCode: "RECOVERY_APP_DEPENDENCY_UNMOUNT_FAILED" });
+  const result = await runRealProductBackupLocalRestoreDrill({ environment: environment(), repoRoot: "C:\\repo", dependencies: item.dependencies });
+  assert.equal(result.code, "RECOVERY_APP_DEPENDENCY_UNMOUNT_FAILED");
+  assert.equal(result.phase, "APP_CLEANUP");
+  assert.doesNotMatch(JSON.stringify(result), /private dependency|path/i);
 });
 
 test("cleanup precedence is source over target over application over primary", async () => {
@@ -272,6 +340,23 @@ test("cleanup precedence is source over target over application over primary", a
   result = await runRealProductBackupLocalRestoreDrill({ environment: environment(), repoRoot: "C:\\repo", dependencies: item.dependencies });
   assert.equal(result.code, "RECOVERY_CLEANUP_INCOMPLETE");
   assert.equal(result.phase, "SOURCE_CLEANUP");
+});
+
+test("real restore preserves fixed shutdown codes as sanitized APP_CLEANUP failures", async () => {
+  for (const code of [
+    "RECOVERY_APP_SHUTDOWN_CLOSE_FAILED",
+    "RECOVERY_APP_SHUTDOWN_EXIT_FAILED",
+    "RECOVERY_APP_SHUTDOWN_PORT_OPEN",
+  ]) {
+    const item = fixture({ appCleanupCode: code });
+    const result = await runRealProductBackupLocalRestoreDrill({ environment: environment(), repoRoot: "C:\\repo", dependencies: item.dependencies });
+    assert.equal(result.status, "FAIL");
+    assert.equal(result.code, code);
+    assert.equal(result.phase, "APP_CLEANUP");
+    assert.doesNotMatch(JSON.stringify(result), /app process path/i);
+    assert.ok(item.events.includes("target-cleanup"));
+    assert.equal(item.events.at(-1), "source-cleanup");
+  }
 });
 
 test("target cleanup failure is visible and source cleanup failure overrides primary failure", async () => {
