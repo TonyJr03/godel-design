@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { admitManagedDataSql, classifyManagedSqlArtifacts, MANAGED_SQL_CLASSIFICATIONS } from "./sql-admission.mjs";
+import {
+  admitManagedDataSql,
+  classifyManagedSqlArtifacts,
+  classifyUnsupportedManagedDataStatement,
+  MANAGED_SQL_CLASSIFICATIONS,
+} from "./sql-admission.mjs";
 import { VALID_MANAGED_DATA_SQL, createValidBundleFixture } from "./test-helpers.mjs";
 
 test("all five SQL artifacts receive their exact non-executing classification", async () => {
@@ -61,3 +66,38 @@ for (const statement of forbidden) {
     assert.throws(() => admitManagedDataSql(`${VALID_MANAGED_DATA_SQL}${statement}\n`));
   });
 }
+
+test("unsupported managed data statements receive only bounded safe classifications", () => {
+  const cases = [
+    ["SET default_tablespace = '';", { statementClass: "SET_PARAMETER", parameter: "default_tablespace" }],
+    ["SET default_table_access_method = heap;", { statementClass: "SET_PARAMETER", parameter: "default_table_access_method" }],
+    ["SELECT pg_catalog.setval('private.sequence', 1);", { statementClass: "SELECT_PG_CATALOG_SETVAL_VARIANT" }],
+    ["SELECT email FROM private.people;", { statementClass: "SELECT_OTHER" }],
+    ["INSERT INTO private.people VALUES ('sensitive');", { statementClass: "INSERT" }],
+    ["UPDATE private.people SET email = 'sensitive';", { statementClass: "UPDATE" }],
+    ["DELETE FROM private.people;", { statementClass: "DELETE" }],
+    ["BEGIN;", { statementClass: "TRANSACTION_CONTROL" }],
+    ["VACUUM private.people;", { statementClass: "OTHER_SQL" }],
+  ];
+  for (const [source, expected] of cases) assert.deepEqual(classifyUnsupportedManagedDataStatement(source), expected);
+  for (const keyword of ["ALTER", "CREATE", "DROP", "TRUNCATE", "GRANT", "REVOKE"]) {
+    assert.deepEqual(classifyUnsupportedManagedDataStatement(`${keyword} sensitive raw identifiers`), { statementClass: "DDL" });
+  }
+  const serialized = JSON.stringify(cases.map(([source]) => classifyUnsupportedManagedDataStatement(source)));
+  for (const forbiddenValue of ["private", "people", "sensitive", "email", "sequence"]) assert.ok(!serialized.includes(forbiddenValue));
+});
+
+test("forbidden admission errors expose only safe classifier metadata", () => {
+  const secret = "secret-value@example.test";
+  assert.throws(
+    () => admitManagedDataSql(`${VALID_MANAGED_DATA_SQL}SET default_tablespace = '${secret}';\n`),
+    (error) => {
+      assert.equal(error.code, "RECOVERY_SQL_STATEMENT_FORBIDDEN");
+      assert.equal(error.statementClass, "SET_PARAMETER");
+      assert.equal(error.parameter, "default_tablespace");
+      assert.deepEqual(Object.keys(error).sort(), ["code", "name", "parameter", "statementClass"]);
+      assert.ok(!JSON.stringify(error).includes(secret));
+      return true;
+    },
+  );
+});

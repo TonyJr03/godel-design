@@ -25,6 +25,39 @@ function firstVersion(source, tool) {
   return match[1];
 }
 
+async function invokeVersion({ name, executable, args, environment, repoRoot, execute }) {
+  try {
+    const result = await execute({
+      operation: `preflight managed recovery ${name}`,
+      executable,
+      args,
+      cwd: repoRoot,
+      allowedEnvironment: systemEnvironment(environment),
+    });
+    return firstVersion(`${result.stdout ?? ""}\n${result.stderr ?? ""}`, name);
+  } catch (error) {
+    if (error?.code === "RECOVERY_TOOL_VERSION_INVALID") throw error;
+    fail("RECOVERY_TOOL_REQUIRED", `${name} is required for managed recovery`);
+  }
+}
+
+export async function preflightManagedRecoverySourceDiagnosticTools({
+  environment = process.env,
+  repoRoot = process.cwd(),
+  execute = runCommand,
+} = {}) {
+  if (typeof execute !== "function") fail("RECOVERY_TOOL_PREFLIGHT_INVALID", "Recovery tool preflight adapter is invalid");
+  const tools = [
+    { name: "node", present: true, version: firstVersion(process.version, "node") },
+    { name: "age", present: true, version: await invokeVersion({ name: "age", executable: "age", args: ["--version"], environment, repoRoot, execute }) },
+    { name: "tar", present: true, version: await invokeVersion({ name: "tar", executable: "tar", args: ["--version"], environment, repoRoot, execute }) },
+  ];
+  if (tools.find((entry) => entry.name === "age").version !== EXPECTED_AGE_VERSION) {
+    fail("RECOVERY_AGE_VERSION_MISMATCH", "age version does not match the governed recovery baseline");
+  }
+  return Object.freeze(tools.map((entry) => Object.freeze(entry)));
+}
+
 export async function preflightManagedRecoveryTools({
   environment = process.env,
   repoRoot = process.cwd(),
@@ -32,24 +65,13 @@ export async function preflightManagedRecoveryTools({
   admitSupabaseCli = admitRepoLocalSupabaseCli,
 } = {}) {
   if (typeof execute !== "function" || typeof admitSupabaseCli !== "function") fail("RECOVERY_TOOL_PREFLIGHT_INVALID", "Recovery tool preflight adapters are invalid");
-  const allowedEnvironment = systemEnvironment(environment);
-  const invoke = async (name, executable, args) => {
-    try {
-      const result = await execute({ operation: `preflight managed recovery ${name}`, executable, args, cwd: repoRoot, allowedEnvironment });
-      return firstVersion(`${result.stdout ?? ""}\n${result.stderr ?? ""}`, name);
-    } catch (error) {
-      if (error?.code === "RECOVERY_TOOL_VERSION_INVALID") throw error;
-      fail("RECOVERY_TOOL_REQUIRED", `${name} is required for managed recovery`);
-    }
-  };
-
   const supabase = await admitSupabaseCli({ repoRoot });
   const tools = [
     { name: "node", present: true, version: firstVersion(process.version, "node") },
-    { name: "age", present: true, version: await invoke("age", "age", ["--version"]) },
-    { name: "tar", present: true, version: await invoke("tar", "tar", ["--version"]) },
-    { name: "rclone", present: true, version: await invoke("rclone", "rclone", ["version"]) },
-    { name: "docker", present: true, version: await invoke("docker", "docker", ["version", "--format", "{{.Client.Version}}/{{.Server.Version}}"]) },
+    { name: "age", present: true, version: await invokeVersion({ name: "age", executable: "age", args: ["--version"], environment, repoRoot, execute }) },
+    { name: "tar", present: true, version: await invokeVersion({ name: "tar", executable: "tar", args: ["--version"], environment, repoRoot, execute }) },
+    { name: "rclone", present: true, version: await invokeVersion({ name: "rclone", executable: "rclone", args: ["version"], environment, repoRoot, execute }) },
+    { name: "docker", present: true, version: await invokeVersion({ name: "docker", executable: "docker", args: ["version", "--format", "{{.Client.Version}}/{{.Server.Version}}"], environment, repoRoot, execute }) },
     { name: "supabase", present: true, version: supabase.version },
   ];
   if (tools.find((entry) => entry.name === "age").version !== EXPECTED_AGE_VERSION) {

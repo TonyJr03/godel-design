@@ -372,6 +372,20 @@ test("target cleanup failure is visible and source cleanup failure overrides pri
 });
 
 test("failure sanitizer is strict and never propagates arbitrary secrets", () => {
-  const result = sanitizeRealRestoreDrillFailure(Object.assign(new Error("token secret UUID 11111111-1111-4111-8111-111111111111 C:\\private"), { code: "RECOVERY_SQL_STATEMENT_FORBIDDEN" }), { phase: "SOURCE_VERIFY", realTargetStarts: 0, sqlExecutions: 0, targetMutations: 0, realR2Reads: 2, realAgeDecrypts: 1 });
+  const result = sanitizeRealRestoreDrillFailure(Object.assign(new Error("token secret UUID 11111111-1111-4111-8111-111111111111 C:\\private"), {
+    code: "RECOVERY_SQL_STATEMENT_FORBIDDEN",
+    statementClass: "SET_PARAMETER",
+    parameter: "default_tablespace",
+    rawSql: "SET default_tablespace = 'secret';",
+  }), { phase: "SOURCE_VERIFY", realTargetStarts: 0, sqlExecutions: 0, targetMutations: 0, realR2Reads: 2, realAgeDecrypts: 1 });
   assert.deepEqual(result, { status: "FAIL", code: "RECOVERY_SQL_STATEMENT_FORBIDDEN", phase: "SOURCE_VERIFY", message: "Real managed recovery drill failed safely", realTargetStarts: 0, sqlExecutions: 0, targetMutations: 0, realR2Reads: 2, realAgeDecrypts: 1, productionMutations: 0 });
+});
+
+test("R2 local environment admission codes remain sanitized in the real restore public contract", () => {
+  for (const code of ["RECOVERY_R2_LOCAL_ENV_FILE_MISSING", "RECOVERY_R2_LOCAL_ENV_INVALID", "RECOVERY_R2_LOCAL_ENV_CONFLICT"]) {
+    const result = sanitizeRealRestoreDrillFailure(Object.assign(new Error("secret path and value"), { code, path: "C:\\private", value: "secret" }));
+    assert.equal(result.code, code);
+    assert.equal(JSON.stringify(result).includes("private"), false);
+    assert.equal(JSON.stringify(result).includes("secret"), false);
+  }
 });

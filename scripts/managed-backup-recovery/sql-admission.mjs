@@ -38,10 +38,12 @@ const ALLOWED_SESSION_STATEMENTS = new Set([
 ]);
 const admittedModels = new WeakMap();
 
-function fail(code, message) {
+function fail(code, message, metadata) {
   const error = new Error(message);
   error.name = "ManagedRecoverySqlAdmissionError";
   error.code = code;
+  if (metadata?.statementClass && /^[A-Z][A-Z0-9_]*$/.test(metadata.statementClass)) error.statementClass = metadata.statementClass;
+  if (metadata?.parameter && /^[a-z][a-z0-9_]*$/.test(metadata.parameter)) error.parameter = metadata.parameter;
   throw error;
 }
 
@@ -64,6 +66,25 @@ function isSetval(statement) {
   return /^SELECT pg_catalog\.setval\('[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*'::regclass, (?:0|[1-9]\d*), (?:true|false)\);$/.test(statement);
 }
 
+export function classifyUnsupportedManagedDataStatement(line) {
+  const source = typeof line === "string" ? line.trim() : "";
+  const set = source.match(/^SET\s+(?:(?:LOCAL|SESSION)\s+)?([a-z][a-z0-9_]*)\b/i);
+  if (set) {
+    const parameter = set[1].toLowerCase();
+    return Object.freeze(/^[a-z][a-z0-9_]*$/.test(parameter)
+      ? { statementClass: "SET_PARAMETER", parameter }
+      : { statementClass: "SET_PARAMETER" });
+  }
+  if (/^SELECT\s+pg_catalog\.setval\s*\(/i.test(source)) return Object.freeze({ statementClass: "SELECT_PG_CATALOG_SETVAL_VARIANT" });
+  if (/^SELECT\b/i.test(source)) return Object.freeze({ statementClass: "SELECT_OTHER" });
+  if (/^INSERT\b/i.test(source)) return Object.freeze({ statementClass: "INSERT" });
+  if (/^UPDATE\b/i.test(source)) return Object.freeze({ statementClass: "UPDATE" });
+  if (/^DELETE\b/i.test(source)) return Object.freeze({ statementClass: "DELETE" });
+  if (/^(?:ALTER|CREATE|DROP|TRUNCATE|GRANT|REVOKE|COMMENT|CLUSTER|REINDEX|SECURITY\s+LABEL)\b/i.test(source)) return Object.freeze({ statementClass: "DDL" });
+  if (/^(?:BEGIN|COMMIT|ROLLBACK|SAVEPOINT|RELEASE|START\s+TRANSACTION|PREPARE\s+TRANSACTION)\b/i.test(source)) return Object.freeze({ statementClass: "TRANSACTION_CONTROL" });
+  return Object.freeze({ statementClass: "OTHER_SQL" });
+}
+
 export function admitManagedDataSql(source) {
   if (typeof source !== "string" || source.length === 0 || source.includes("\0")) fail("RECOVERY_SQL_INVALID", "Managed data SQL must be nonempty text");
   const lines = source.replace(/\r\n/g, "\n").split("\n");
@@ -79,7 +100,13 @@ export function admitManagedDataSql(source) {
       sequenceCount += 1;
       continue;
     }
-    if (!line.startsWith("COPY ")) fail("RECOVERY_SQL_STATEMENT_FORBIDDEN", "Managed data SQL contains a statement outside the admitted data-only dialect");
+    if (!line.startsWith("COPY ")) {
+      fail(
+        "RECOVERY_SQL_STATEMENT_FORBIDDEN",
+        "Managed data SQL contains a statement outside the admitted data-only dialect",
+        classifyUnsupportedManagedDataStatement(line),
+      );
+    }
     const match = line.match(COPY_HEADER);
     if (!match) fail("RECOVERY_SQL_COPY_UNSUPPORTED", "Managed data COPY statement is unsupported");
     const schema = match[1] ?? match[2];
