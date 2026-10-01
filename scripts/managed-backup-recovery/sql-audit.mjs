@@ -1,6 +1,29 @@
 const GOVERNED_SCHEMAS = Object.freeze(["auth", "private", "public", "storage"]);
 const SHA_VERSION = /^\d{14}$/;
 export const REQUIRED_TARGET_EXTENSIONS = Object.freeze(["pgcrypto"]);
+export const ROLE_SQL_STATEMENT_CLASSES = Object.freeze([
+  "RESET_ALL",
+  "ALTER_ROLE_SET_SUPABASE_ALLOWED_CONFIG",
+  "ALTER_ROLE_SET_OTHER_CONFIG",
+  "GRANT_ROLE_MEMBERSHIP_VARIANT",
+  "ROLE_PARAMETER_PRIVILEGE_VARIANT",
+  "CREATE_ROLE_VARIANT",
+  "ALTER_ROLE_WITH_VARIANT",
+  "SET_STATEMENT_VARIANT",
+  "OTHER_ROLE_SQL",
+]);
+
+const ROLE_ALLOWED_PATTERNS = Object.freeze([
+  /^SET [a-z_]+ = (?:[^;]+);$/,
+  /^SELECT pg_catalog\.set_config\('search_path', '', false\);$/,
+  /^CREATE ROLE "?[a-z_][a-z0-9_-]*"?;$/i,
+  /^ALTER ROLE "?[a-z_][a-z0-9_-]*"? WITH (?:SUPERUSER|NOSUPERUSER|CREATEDB|NOCREATEDB|CREATEROLE|NOCREATEROLE|INHERIT|NOINHERIT|LOGIN|NOLOGIN|REPLICATION|NOREPLICATION|BYPASSRLS|NOBYPASSRLS|CONNECTION LIMIT -?\d+|VALID UNTIL '[^']+')(?:(?:\s+)(?:SUPERUSER|NOSUPERUSER|CREATEDB|NOCREATEDB|CREATEROLE|NOCREATEROLE|INHERIT|NOINHERIT|LOGIN|NOLOGIN|REPLICATION|NOREPLICATION|BYPASSRLS|NOBYPASSRLS|CONNECTION LIMIT -?\d+|VALID UNTIL '[^']+'))*;$/i,
+  /^GRANT "?[a-z_][a-z0-9_-]*"? TO "?[a-z_][a-z0-9_-]*"?(?: WITH ADMIN OPTION)?;$/i,
+]);
+const ROLE_IDENTIFIER = String.raw`(?:"(?:[^"]|"")*"|[a-z_][a-z0-9_$-]*)`;
+const ROLE_CONFIG_IDENTIFIER = String.raw`(?:"(?:[^"]|"")*"|[a-z_][a-z0-9_$.-]*)`;
+const ALTER_ROLE_SET = new RegExp(String.raw`^ALTER\s+ROLE\s+${ROLE_IDENTIFIER}\s+SET\s+(${ROLE_CONFIG_IDENTIFIER})(?=\s|=)`, "i");
+const ROLE_MEMBERSHIP_GRANT = new RegExp(String.raw`^GRANT\s+${ROLE_IDENTIFIER}(?:\s*,\s*${ROLE_IDENTIFIER})*\s+TO\s+${ROLE_IDENTIFIER}(?:\s*,\s*${ROLE_IDENTIFIER})*(?=\s|;|$)`, "i");
 
 function fail(code, message) {
   const error = new Error(message);
@@ -18,18 +41,83 @@ function statements(source) {
   return source.split("\n").map((line) => line.trim()).filter((line) => line && !line.startsWith("--"));
 }
 
+function containsRoleCredentialMaterial(source) {
+  return /(?:password|passwd|scram-sha-256|md5[0-9a-f]{20,})/i.test(source);
+}
+
+function isAdmittedRoleStatement(statement) {
+  return ROLE_ALLOWED_PATTERNS.some((pattern) => pattern.test(statement));
+}
+
+function unexpectedRoleStatements(source) {
+  const unexpected = [];
+  let buffered = [];
+  const flush = () => {
+    if (buffered.length > 0) unexpected.push(buffered.join(" "));
+    buffered = [];
+  };
+  for (const line of statements(source)) {
+    if (isAdmittedRoleStatement(line)) {
+      flush();
+      continue;
+    }
+    buffered.push(line);
+    if (line.endsWith(";")) flush();
+  }
+  flush();
+  return unexpected;
+}
+
+function normalizedRoleConfigIdentifier(value) {
+  if (value.startsWith('"') && value.endsWith('"')) return value.slice(1, -1).replace(/""/g, '"');
+  return value.toLowerCase();
+}
+
+function classifyUnexpectedRoleStatement(statement) {
+  if (/^RESET\s+ALL;$/i.test(statement)) return "RESET_ALL";
+  const alterSet = statement.match(ALTER_ROLE_SET);
+  if (alterSet) {
+    const parameter = normalizedRoleConfigIdentifier(alterSet[1]);
+    return parameter === "session_replication_role"
+      || parameter === "statement_timeout"
+      || parameter === "track_io_timing"
+      || /^pgaudit\..+$/u.test(parameter)
+      || /^pgrst\..+$/u.test(parameter)
+      ? "ALTER_ROLE_SET_SUPABASE_ALLOWED_CONFIG"
+      : "ALTER_ROLE_SET_OTHER_CONFIG";
+  }
+  if (/^(?:GRANT|REVOKE)\b[\s\S]*\bON\s+PARAMETER\b/i.test(statement)) return "ROLE_PARAMETER_PRIVILEGE_VARIANT";
+  if (ROLE_MEMBERSHIP_GRANT.test(statement)) return "GRANT_ROLE_MEMBERSHIP_VARIANT";
+  if (/^CREATE\s+ROLE\b/i.test(statement)) return "CREATE_ROLE_VARIANT";
+  if (new RegExp(String.raw`^ALTER\s+ROLE\s+${ROLE_IDENTIFIER}\s+WITH\b`, "i").test(statement)) return "ALTER_ROLE_WITH_VARIANT";
+  if (/^SET\b/i.test(statement)) return "SET_STATEMENT_VARIANT";
+  return "OTHER_ROLE_SQL";
+}
+
+export function classifyUnexpectedRolesSql(source) {
+  const value = text(source, "roles.sql");
+  if (containsRoleCredentialMaterial(value)) fail("RECOVERY_ROLES_CREDENTIAL_MATERIAL", "roles.sql contains credential material");
+  const counts = new Map();
+  for (const statement of unexpectedRoleStatements(value)) {
+    const statementClass = classifyUnexpectedRoleStatement(statement);
+    counts.set(statementClass, (counts.get(statementClass) ?? 0) + 1);
+  }
+  const classes = Object.freeze([...counts.entries()]
+    .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+    .map(([statementClass, count]) => Object.freeze({ statementClass, count })));
+  const unexpectedStatementCount = classes.reduce((total, entry) => total + entry.count, 0);
+  return Object.freeze({
+    status: unexpectedStatementCount === 0 ? "PASS" : "FINDING",
+    unexpectedStatementCount,
+    classes,
+  });
+}
+
 export function auditRolesSql(source) {
   const value = text(source, "roles.sql");
-  if (/(?:password|passwd|scram-sha-256|md5[0-9a-f]{20,})/i.test(value)) fail("RECOVERY_ROLES_CREDENTIAL_MATERIAL", "roles.sql contains credential material");
-  const allowed = [
-    /^SET [a-z_]+ = (?:[^;]+);$/,
-    /^SELECT pg_catalog\.set_config\('search_path', '', false\);$/,
-    /^CREATE ROLE "?[a-z_][a-z0-9_-]*"?;$/i,
-    /^ALTER ROLE "?[a-z_][a-z0-9_-]*"? WITH (?:SUPERUSER|NOSUPERUSER|CREATEDB|NOCREATEDB|CREATEROLE|NOCREATEROLE|INHERIT|NOINHERIT|LOGIN|NOLOGIN|REPLICATION|NOREPLICATION|BYPASSRLS|NOBYPASSRLS|CONNECTION LIMIT -?\d+|VALID UNTIL '[^']+')(?:(?:\s+)(?:SUPERUSER|NOSUPERUSER|CREATEDB|NOCREATEDB|CREATEROLE|NOCREATEROLE|INHERIT|NOINHERIT|LOGIN|NOLOGIN|REPLICATION|NOREPLICATION|BYPASSRLS|NOBYPASSRLS|CONNECTION LIMIT -?\d+|VALID UNTIL '[^']+'))*;$/i,
-    /^GRANT "?[a-z_][a-z0-9_-]*"? TO "?[a-z_][a-z0-9_-]*"?(?: WITH ADMIN OPTION)?;$/i,
-  ];
+  if (containsRoleCredentialMaterial(value)) fail("RECOVERY_ROLES_CREDENTIAL_MATERIAL", "roles.sql contains credential material");
   const lines = statements(value);
-  if (lines.some((line) => !allowed.some((pattern) => pattern.test(line)))) fail("RECOVERY_ROLES_DIALECT_UNEXPECTED", "roles.sql contains an unexpected statement");
+  if (lines.some((line) => !isAdmittedRoleStatement(line))) fail("RECOVERY_ROLES_DIALECT_UNEXPECTED", "roles.sql contains an unexpected statement");
   return Object.freeze({ status: "PASS", statementCount: lines.length, credentials: "ABSENT", treatment: "AUDIT_ONLY" });
 }
 

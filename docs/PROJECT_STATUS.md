@@ -23,7 +23,7 @@ aplicó y aceptó la baseline 01–06, M.2B validó bootstrap, lifecycle Auth,
 RLS/grants, Storage/TUS y cleanup, y M.3 aceptó el deployment técnico protegido.
 El Site URL de Supabase está alineado con el dominio Production estable.
 PPO-04M.4 queda `CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE`; PPO-04M.5 queda
-`ACTIVE / SOURCE VERIFIED / REAL RESTORE ATTEMPT #3 PENDING AUTHORIZATION`. M.5.0 está `CLOSED / ARCHITECTURE APPROVED`;
+`ACTIVE / REAL BACKUP ROLES DIALECT DIAGNOSTIC`. M.5.0 está `CLOSED / ARCHITECTURE APPROVED`;
 M.5.1 está `CLOSED / LOCAL INTEGRATION APPROVED`, M.5.2.0 está
 `CLOSED / PRODUCTION BACKUP PREPARATION APPROVED`, M.5.2.1A está
 `CLOSED / R2 CUSTODY ADAPTER APPROVED` y M.5.2.1B está
@@ -43,7 +43,7 @@ M.5.3D.2.6 quedó `REAL-ENVIRONMENT SAFE TAXONOMY VERIFIED BY ATTEMPT #7`,
 M.5.3D.2.7 quedó cerrado como mejora de fidelidad no causal y M.5.3D.2.8 quedó
 cerrado y verificado en entorno real por Attempt #9. M.5.3D.2 queda `CLOSED /
 REAL LOCAL RECOVERY APPLICATION COMPATIBILITY VERIFIED`; M.5.3 permanece
-`ACTIVE / SOURCE VERIFIED / REAL RESTORE ATTEMPT #3 PENDING AUTHORIZATION`.
+`ACTIVE / REAL BACKUP ROLES DIALECT DIAGNOSTIC`.
 Real Restore Attempt #1 falló en preflight por configuración operativa sin
 actividad real; Attempt #2 verificó la fuente Productiva hasta detenerse en
 `SOURCE_VERIFY` por `RECOVERY_SQL_STATEMENT_FORBIDDEN`. Attempt #3 no está
@@ -127,7 +127,7 @@ una migración nueva `07+`.
 | PPO-04M.2B | `CLOSED / APPROVED` |
 | PPO-04M.3 | `CLOSED / APPROVED` |
 | PPO-04M.4 | `CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE` |
-| PPO-04M.5 | `ACTIVE / SOURCE VERIFIED / REAL RESTORE ATTEMPT #3 PENDING AUTHORIZATION` |
+| PPO-04M.5 | `ACTIVE / REAL BACKUP ROLES DIALECT DIAGNOSTIC` |
 | PPO-04M.5.0 | `CLOSED / ARCHITECTURE APPROVED` |
 | PPO-04M.5.1 | `CLOSED / LOCAL INTEGRATION APPROVED` |
 | PPO-04M.5.2.0 | `CLOSED / PRODUCTION BACKUP PREPARATION APPROVED` |
@@ -156,7 +156,7 @@ una migración nueva `07+`.
 | PPO-04M.5.3D.2.6 | `REAL-ENVIRONMENT SAFE TAXONOMY VERIFIED BY ATTEMPT #7` |
 | PPO-04M.5.3D.2.7 | `CLOSED / REAL-ENVIRONMENT PRODUCT DEFAULT DISTDIR VERIFIED / NOT CAUSAL FOR THE LIVE FAILURE / ARCHITECTURAL FIDELITY IMPROVEMENT RETAINED` |
 | PPO-04M.5.3D.2.8 | `CLOSED / WINDOWS SAME-VOLUME APPLICATION RUNTIME TOPOLOGY / REAL-ENVIRONMENT VERIFIED BY ATTEMPT #9` |
-| PPO-04M.5.3 | `ACTIVE / SOURCE VERIFIED / REAL RESTORE ATTEMPT #3 PENDING AUTHORIZATION` |
+| PPO-04M.5.3 | `ACTIVE / REAL BACKUP ROLES DIALECT DIAGNOSTIC` |
 | PPO-04M.6–PPO-04M.7 | `NOT STARTED` |
 | PPO-05 | `PENDING` — seguridad pública/antiabuso |
 | PPO-06 | `PENDING` — backup/recovery managed |
@@ -554,6 +554,69 @@ REAL APP STARTS = 0
 REAL CHROMIUM STARTS = 0
 SQL EXECUTIONS = 0
 PRODUCTION ACTIVITY = 0
+```
+
+
+## Real Restore Attempt #4 — diagnóstico del dialecto de roles
+
+Real Restore Attempt #4 alcanzó la fuente R2 en modo read-only, verificó y
+descifró el bundle, inició un target desechable y se detuvo de forma segura al
+construir el restore plan porque el dialecto de `database/roles.sql` excede la
+gramática gobernada actual. No se ejecutó SQL ni se mutó el target o Production;
+esta evidencia no declara corrupción del backup.
+
+La autoridad upstream confirmada es Supabase CLI 2.109.1, release commit
+`6d4c19870ed213ba7f682f117d0345c8a40bfa94`, archivo
+`apps/cli-go/pkg/migration/scripts/dump_role.sh`. Ese flujo usa
+`pg_dumpall --roles-only --role postgres --quote-all-identifier --no-role-passwords --no-comments`,
+aplica filtros Supabase y añade `RESET ALL;`. Que upstream emita ese suffix y
+que el auditor actual no lo admita no demuestra que esa haya sido la sentencia
+concreta del finding Productivo.
+
+El tooling local incorpora una clasificación sanitizada y bounded del artifact
+de roles después de la admisión completa de managed-data. No amplía
+`auditRolesSql()`, no publica SQL, identities, parámetros ni valores, y conserva
+el material credencial como hard failure. Local Source Diagnostic #4 no fue
+ejecutado durante esta implementación y continúa sujeto a revisión y autorización.
+
+```text
+REAL RESTORE ATTEMPT #4 = FAIL / RESTORE_PLAN / ROLES DIALECT AUDIT
+TOOLING SHA = 80d27aa9518a928557b8a4e98370d46433c45ee3
+code = RECOVERY_ROLES_DIALECT_UNEXPECTED
+phase = RESTORE_PLAN
+realTargetStarts = 1
+sqlExecutions = 0
+targetMutations = 0
+realR2Reads = 3
+realAgeDecrypts = 1
+productionMutations = 0
+
+R2 SOURCE = REACHED / READ-ONLY
+DECRYPT = REACHED
+SOURCE VERIFY = REACHED
+DISPOSABLE TARGET = STARTED
+RESTORE SQL = NOT EXECUTED
+TARGET DATA MUTATION = 0
+PRODUCTION MUTATION = 0
+
+KNOWN UPSTREAM ROLE-DUMP DIALECT GAP = CONFIRMED
+SUPABASE CLI 2.109.1 ROLE DUMP = pg_dumpall --roles-only + Supabase filters + RESET ALL suffix
+ACTUAL PRODUCT BACKUP ROLE DIALECT = PENDING LOCAL SANITIZED CLASSIFICATION
+
+PPO-04M.5.3 = ACTIVE / REAL BACKUP ROLES DIALECT DIAGNOSTIC
+REAL RESTORE ATTEMPT #4 = CLOSED / SAFE FAIL / NO SQL MUTATION
+LOCAL SOURCE DIAGNOSTIC #4 = NOT AUTHORIZED / PENDING IMPLEMENTATION REVIEW
+REAL RESTORE ATTEMPT #5 = NOT AUTHORIZED
+TD-BACKUP-004 = OPEN
+CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY
+
+REAL R2 READS DURING IMPLEMENTATION = 0
+REAL AGE DECRYPTS DURING IMPLEMENTATION = 0
+REAL TARGET STARTS DURING IMPLEMENTATION = 0
+REAL APP STARTS DURING IMPLEMENTATION = 0
+REAL CHROMIUM STARTS DURING IMPLEMENTATION = 0
+SQL EXECUTIONS DURING IMPLEMENTATION = 0
+PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
 ```
 
 ## Evidencia y capacidades Self-Hosted conservadas

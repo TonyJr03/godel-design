@@ -23,7 +23,7 @@ function environment(extra = {}) {
   };
 }
 
-function dependencies(runSourceVerification) {
+function dependencies(withVerifiedSource, rolesSql = "CREATE ROLE authenticator;\n") {
   return {
     resolveToolingAuthority: async () => ({ branch: "ops/managed-free-production-pilot", head: TEST_TOOLING_SHA, clean: true }),
     assertToolingAuthority: () => undefined,
@@ -31,7 +31,11 @@ function dependencies(runSourceVerification) {
     admitRecoveryBoundaries: async () => ({}),
     accessRecoveryBoundaries: (_handle, callback) => callback({ parent: "C:\\recovery", backupOutputRoot: "C:\\backup" }),
     decryptAdapterFactory: () => ({ async decryptToTar() {} }),
-    runSourceVerification,
+    withVerifiedSource,
+    readRolesSql: async (bundleRoot) => {
+      assert.equal(bundleRoot, "C:\\verified-bundle");
+      return rolesSql;
+    },
   };
 }
 
@@ -50,15 +54,15 @@ test("local source diagnostic returns fixed PASS without R2, target, SQL, or Pro
       GODEL_BACKUP_R2_ACCESS_KEY_ID: "must-not-be-read",
     }),
     repoRoot: "C:\\repo",
-    dependencies: dependencies(async (options) => {
+    dependencies: dependencies(async (options, consumeVerifiedSource) => {
       assert.equal(options.environment.GODEL_BACKUP_R2_SECRET_ACCESS_KEY, "must-not-be-read");
       await options.decryptAdapterFactory({}).decryptToTar({});
       options.dependencies.onPhase("SOURCE_VERIFY");
-      return { status: "PASS" };
+      return consumeVerifiedSource({ bundleRoot: "C:\\verified-bundle" });
     }),
   });
   assert.deepEqual(result, {
-    status: "PASS", operation: "local-managed-recovery-source-diagnostic", phase: "SQL_ADMISSION", localAgeDecrypts: 1,
+    status: "PASS", operation: "local-managed-recovery-source-diagnostic", phase: "ROLES_AUDIT", localAgeDecrypts: 1,
     realR2Reads: 0, realTargetStarts: 0, sqlExecutions: 0, productionMutations: 0, cleanup: "PASS",
   });
   assert.ok(!JSON.stringify(result).includes("must-not-be-read"));
@@ -86,6 +90,73 @@ test("local source diagnostic exposes only bounded SQL finding metadata", async 
     localAgeDecrypts: 1, realR2Reads: 0, realTargetStarts: 0, sqlExecutions: 0, productionMutations: 0, cleanup: "PASS",
   });
   assert.ok(!JSON.stringify(result).includes(secret));
+});
+
+test("local source diagnostic exposes only bounded roles dialect findings", async () => {
+  const secrets = ["private-role", "private-member", "private-value"];
+  const rolesSql = [
+    `ALTER ROLE "${secrets[0]}" SET "statement_timeout" TO '${secrets[2]}';`,
+    "RESET ALL;",
+    `GRANT "${secrets[0]}" TO "${secrets[1]}" WITH INHERIT FALSE;`,
+    "",
+  ].join("\n");
+  const result = await runLocalManagedRecoverySourceDiagnostic({
+    environment: environment(),
+    repoRoot: "C:\\repo",
+    dependencies: dependencies(async (options, consumeVerifiedSource) => {
+      await options.decryptAdapterFactory({}).decryptToTar({});
+      options.dependencies.onPhase("SOURCE_VERIFY");
+      return consumeVerifiedSource({ bundleRoot: "C:\\verified-bundle" });
+    }, rolesSql),
+  });
+  assert.deepEqual(result, {
+    status: "FINDING",
+    operation: "local-managed-recovery-source-diagnostic",
+    phase: "ROLES_AUDIT",
+    code: "RECOVERY_ROLES_DIALECT_DIAGNOSTIC_FINDING",
+    unexpectedStatementCount: 3,
+    roleStatementClasses: [
+      { statementClass: "ALTER_ROLE_SET_SUPABASE_ALLOWED_CONFIG", count: 1 },
+      { statementClass: "GRANT_ROLE_MEMBERSHIP_VARIANT", count: 1 },
+      { statementClass: "RESET_ALL", count: 1 },
+    ],
+    localAgeDecrypts: 1,
+    realR2Reads: 0,
+    realTargetStarts: 0,
+    sqlExecutions: 0,
+    productionMutations: 0,
+    cleanup: "PASS",
+  });
+  const serialized = JSON.stringify(result);
+  for (const secret of secrets) assert.ok(!serialized.includes(secret));
+  assert.ok(!serialized.includes("ALTER ROLE"));
+});
+
+test("local source diagnostic keeps roles credential material as a hard failure", async () => {
+  const secret = "credential-private";
+  const result = await runLocalManagedRecoverySourceDiagnostic({
+    environment: environment(),
+    repoRoot: "C:\\repo",
+    dependencies: dependencies(async (options, consumeVerifiedSource) => {
+      await options.decryptAdapterFactory({}).decryptToTar({});
+      options.dependencies.onPhase("SOURCE_VERIFY");
+      return consumeVerifiedSource({ bundleRoot: "C:\\verified-bundle" });
+    }, `ALTER ROLE postgres PASSWORD '${secret}';`),
+  });
+  assert.deepEqual(result, {
+    status: "FAIL",
+    operation: "local-managed-recovery-source-diagnostic",
+    phase: "ROLES_AUDIT",
+    code: "RECOVERY_ROLES_CREDENTIAL_MATERIAL",
+    localAgeDecrypts: 1,
+    realR2Reads: 0,
+    realTargetStarts: 0,
+    sqlExecutions: 0,
+    productionMutations: 0,
+    cleanup: "PASS",
+  });
+  assert.ok(!JSON.stringify(result).includes(secret));
+  assert.equal("roleStatementClasses" in result, false);
 });
 
 test("diagnostic sanitizer rejects arbitrary classifier metadata", () => {

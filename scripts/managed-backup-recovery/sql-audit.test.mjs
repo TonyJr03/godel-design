@@ -2,7 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { MANAGED_BASELINE_MIGRATIONS } from "./runtime-authority.mjs";
-import { auditManagedSchemaSql, auditMigrationHistorySql, auditRolesSql, validateTargetBaseline } from "./sql-audit.mjs";
+import {
+  auditManagedSchemaSql,
+  auditMigrationHistorySql,
+  auditRolesSql,
+  classifyUnexpectedRolesSql,
+  ROLE_SQL_STATEMENT_CLASSES,
+  validateTargetBaseline,
+} from "./sql-audit.mjs";
 
 const VERSIONS = MANAGED_BASELINE_MIGRATIONS.map((name) => name.slice(0, 14));
 const SCHEMA = [
@@ -21,6 +28,102 @@ test("audit-only SQL accepts governed role/schema/history dialect without execut
 test("roles audit rejects passwords and unexpected statements", () => {
   assert.throws(() => auditRolesSql("ALTER ROLE postgres PASSWORD 'secret';"), { code: "RECOVERY_ROLES_CREDENTIAL_MATERIAL" });
   assert.throws(() => auditRolesSql("DROP ROLE postgres;"), { code: "RECOVERY_ROLES_DIALECT_UNEXPECTED" });
+});
+
+test("roles diagnostic leaves the current admitted grammar unchanged", () => {
+  const source = [
+    "-- admitted role dump",
+    "SET client_encoding = 'UTF8';",
+    "SELECT pg_catalog.set_config('search_path', '', false);",
+    'CREATE ROLE "authenticator";',
+    'ALTER ROLE "authenticator" WITH LOGIN NOSUPERUSER;',
+    'GRANT "reader" TO "authenticator" WITH ADMIN OPTION;',
+    "",
+  ].join("\r\n");
+  assert.equal(auditRolesSql(source).status, "PASS");
+  assert.deepEqual(classifyUnexpectedRolesSql(source), { status: "PASS", unexpectedStatementCount: 0, classes: [] });
+});
+
+test("roles diagnostic classifies only bounded unexpected dialect variants", () => {
+  const cases = [
+    ["RESET ALL;", "RESET_ALL"],
+    ['ALTER ROLE "role-a" SET "session_replication_role" TO \'replica\';', "ALTER_ROLE_SET_SUPABASE_ALLOWED_CONFIG"],
+    ['ALTER ROLE "role-a" SET "statement_timeout" TO \'5s\';', "ALTER_ROLE_SET_SUPABASE_ALLOWED_CONFIG"],
+    ['ALTER ROLE "role-a" SET "track_io_timing" TO \'on\';', "ALTER_ROLE_SET_SUPABASE_ALLOWED_CONFIG"],
+    ['ALTER ROLE "role-a" SET "pgaudit.log" TO \'hidden\';', "ALTER_ROLE_SET_SUPABASE_ALLOWED_CONFIG"],
+    ['ALTER ROLE "role-a" SET "pgrst.some_setting" TO \'hidden\';', "ALTER_ROLE_SET_SUPABASE_ALLOWED_CONFIG"],
+    ['ALTER ROLE "role-a" SET "pgrst." TO \'hidden\';', "ALTER_ROLE_SET_OTHER_CONFIG"],
+    ['ALTER ROLE "role-a" SET "work_mem" TO \'hidden\';', "ALTER_ROLE_SET_OTHER_CONFIG"],
+    ['GRANT "role-a" TO "member-a"\n  WITH ADMIN OPTION, INHERIT TRUE, SET FALSE\n  GRANTED BY "grantor-a";', "GRANT_ROLE_MEMBERSHIP_VARIANT"],
+    ['GRANT SET ON PARAMETER "private.parameter" TO "member-a";', "ROLE_PARAMETER_PRIVILEGE_VARIANT"],
+    ['REVOKE SET ON PARAMETER "private.parameter" FROM "member-a";', "ROLE_PARAMETER_PRIVILEGE_VARIANT"],
+    ['CREATE ROLE "role-a" WITH LOGIN;', "CREATE_ROLE_VARIANT"],
+    ['ALTER ROLE "role-a" WITH LOGIN UNKNOWN_ATTRIBUTE;', "ALTER_ROLE_WITH_VARIANT"],
+    ["SET ROLE postgres;", "SET_STATEMENT_VARIANT"],
+    ["DROP ROLE postgres;", "OTHER_ROLE_SQL"],
+    ["RESET statement_timeout;", "OTHER_ROLE_SQL"],
+  ];
+  for (const [source, statementClass] of cases) {
+    assert.deepEqual(classifyUnexpectedRolesSql(source), {
+      status: "FINDING",
+      unexpectedStatementCount: 1,
+      classes: [{ statementClass, count: 1 }],
+    });
+  }
+  assert.deepEqual(ROLE_SQL_STATEMENT_CLASSES, [
+    "RESET_ALL",
+    "ALTER_ROLE_SET_SUPABASE_ALLOWED_CONFIG",
+    "ALTER_ROLE_SET_OTHER_CONFIG",
+    "GRANT_ROLE_MEMBERSHIP_VARIANT",
+    "ROLE_PARAMETER_PRIVILEGE_VARIANT",
+    "CREATE_ROLE_VARIANT",
+    "ALTER_ROLE_WITH_VARIANT",
+    "SET_STATEMENT_VARIANT",
+    "OTHER_ROLE_SQL",
+  ]);
+});
+
+test("roles diagnostic aggregates exact counts with deterministic sorting and no SQL disclosure", () => {
+  const secrets = ["role-private", "member-private", "value-private"];
+  const result = classifyUnexpectedRolesSql([
+    `ALTER ROLE "${secrets[0]}" SET "work_mem" TO '${secrets[2]}';`,
+    "RESET ALL;",
+    `ALTER ROLE "${secrets[0]}" SET "work_mem" TO '${secrets[2]}';`,
+    `GRANT "${secrets[0]}" TO "${secrets[1]}" WITH INHERIT FALSE;`,
+    "",
+  ].join("\n"));
+  assert.deepEqual(result, {
+    status: "FINDING",
+    unexpectedStatementCount: 4,
+    classes: [
+      { statementClass: "ALTER_ROLE_SET_OTHER_CONFIG", count: 2 },
+      { statementClass: "GRANT_ROLE_MEMBERSHIP_VARIANT", count: 1 },
+      { statementClass: "RESET_ALL", count: 1 },
+    ],
+  });
+  const serialized = JSON.stringify(result);
+  for (const secret of secrets) assert.ok(!serialized.includes(secret));
+  assert.ok(!serialized.includes("ALTER ROLE"));
+});
+
+test("roles diagnostic preserves credential material as a hard failure without classifications", () => {
+  for (const source of [
+    "ALTER ROLE postgres PASSWORD 'credential-private';",
+    "ALTER ROLE postgres SET passwd TO 'credential-private';",
+    "-- scram-sha-256 credential-private",
+    "ALTER ROLE postgres SET work_mem TO 'md5abcdefabcdefabcdefabcdef';",
+  ]) {
+    assert.throws(
+      () => classifyUnexpectedRolesSql(source),
+      (error) => {
+        assert.equal(error.code, "RECOVERY_ROLES_CREDENTIAL_MATERIAL");
+        assert.deepEqual(Object.keys(error).sort(), ["code", "name"]);
+        assert.equal("classes" in error, false);
+        assert.ok(!JSON.stringify(error).includes("credential-private"));
+        return true;
+      },
+    );
+  }
 });
 
 test("schema and history audits reject unexpected authority and version mismatch", () => {

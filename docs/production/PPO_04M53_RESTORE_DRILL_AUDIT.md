@@ -1,6 +1,6 @@
 # PPO-04M.5.3 — Restore Drill + Baseline Closure Architecture Audit
 
-**Estado de M.5.3:** `ACTIVE / SOURCE VERIFIED / REAL RESTORE ATTEMPT #3 PENDING AUTHORIZATION`
+**Estado de M.5.3:** `ACTIVE / REAL BACKUP ROLES DIALECT DIAGNOSTIC`
 
 **Estado de M.5.3.0:** `CLOSED / RESTORE DRILL ARCHITECTURE APPROVED`
 
@@ -1824,4 +1824,66 @@ REAL APP STARTS = 0
 REAL CHROMIUM STARTS = 0
 SQL EXECUTIONS = 0
 PRODUCTION ACTIVITY = 0
+```
+
+## Real Restore Attempt #4 — diagnóstico del dialecto de roles
+
+Real Restore Attempt #4 alcanzó la fuente R2 en modo read-only, verificó y
+descifró el bundle, inició un target desechable y se detuvo de forma segura al
+construir el restore plan porque el dialecto de `database/roles.sql` excede la
+gramática gobernada actual. No se ejecutó SQL ni se mutó el target o Production;
+esta evidencia no declara corrupción del backup.
+
+La autoridad upstream confirmada es Supabase CLI 2.109.1, release commit
+`6d4c19870ed213ba7f682f117d0345c8a40bfa94`, archivo
+`apps/cli-go/pkg/migration/scripts/dump_role.sh`. Ese flujo usa
+`pg_dumpall --roles-only --role postgres --quote-all-identifier --no-role-passwords --no-comments`,
+aplica filtros Supabase y añade `RESET ALL;`. Que upstream emita ese suffix y
+que el auditor actual no lo admita no demuestra que esa haya sido la sentencia
+concreta del finding Productivo.
+
+El tooling local incorpora una clasificación sanitizada y bounded del artifact
+de roles después de la admisión completa de managed-data. No amplía
+`auditRolesSql()`, no publica SQL, identities, parámetros ni valores, y conserva
+el material credencial como hard failure. Local Source Diagnostic #4 no fue
+ejecutado durante esta implementación y continúa sujeto a revisión y autorización.
+
+```text
+REAL RESTORE ATTEMPT #4 = FAIL / RESTORE_PLAN / ROLES DIALECT AUDIT
+TOOLING SHA = 80d27aa9518a928557b8a4e98370d46433c45ee3
+code = RECOVERY_ROLES_DIALECT_UNEXPECTED
+phase = RESTORE_PLAN
+realTargetStarts = 1
+sqlExecutions = 0
+targetMutations = 0
+realR2Reads = 3
+realAgeDecrypts = 1
+productionMutations = 0
+
+R2 SOURCE = REACHED / READ-ONLY
+DECRYPT = REACHED
+SOURCE VERIFY = REACHED
+DISPOSABLE TARGET = STARTED
+RESTORE SQL = NOT EXECUTED
+TARGET DATA MUTATION = 0
+PRODUCTION MUTATION = 0
+
+KNOWN UPSTREAM ROLE-DUMP DIALECT GAP = CONFIRMED
+SUPABASE CLI 2.109.1 ROLE DUMP = pg_dumpall --roles-only + Supabase filters + RESET ALL suffix
+ACTUAL PRODUCT BACKUP ROLE DIALECT = PENDING LOCAL SANITIZED CLASSIFICATION
+
+PPO-04M.5.3 = ACTIVE / REAL BACKUP ROLES DIALECT DIAGNOSTIC
+REAL RESTORE ATTEMPT #4 = CLOSED / SAFE FAIL / NO SQL MUTATION
+LOCAL SOURCE DIAGNOSTIC #4 = NOT AUTHORIZED / PENDING IMPLEMENTATION REVIEW
+REAL RESTORE ATTEMPT #5 = NOT AUTHORIZED
+TD-BACKUP-004 = OPEN
+CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY
+
+REAL R2 READS DURING IMPLEMENTATION = 0
+REAL AGE DECRYPTS DURING IMPLEMENTATION = 0
+REAL TARGET STARTS DURING IMPLEMENTATION = 0
+REAL APP STARTS DURING IMPLEMENTATION = 0
+REAL CHROMIUM STARTS DURING IMPLEMENTATION = 0
+SQL EXECUTIONS DURING IMPLEMENTATION = 0
+PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
 ```

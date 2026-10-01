@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 
@@ -12,7 +13,8 @@ import {
 } from "./real-restore-drill-core.mjs";
 import { assertRecoveryToolingAuthority, resolveRecoveryToolingAuthority } from "./recovery-tooling-authority.mjs";
 import { accessRealRecoveryBoundaries, admitRealRecoveryBoundaries } from "./recovery-boundaries.mjs";
-import { runManagedRecoverySourceVerification } from "./source-verification.mjs";
+import { classifyUnexpectedRolesSql } from "./sql-audit.mjs";
+import { withVerifiedManagedRecoverySource } from "./source-verification.mjs";
 import { preflightManagedRecoverySourceDiagnosticTools } from "./tool-preflight.mjs";
 
 export const SOURCE_DIAGNOSTIC_CONFIRM_ENV = "GODEL_MANAGED_RECOVERY_SOURCE_DIAGNOSTIC_CONFIRM";
@@ -38,7 +40,7 @@ const INCOMPATIBLE_CONFIRMATIONS = Object.freeze([
   "GODEL_MANAGED_MUTATING_PRODUCTION_CONFIRM",
   "GODEL_MANAGED_MUTATING_TEMPLATE_PRODUCTION_CONFIRM",
 ]);
-const PHASES = new Set(["PREFLIGHT", "SOURCE_INSPECT", "SOURCE_DOWNLOAD", "SOURCE_DECRYPT", "SOURCE_VERIFY", "SQL_ADMISSION"]);
+const PHASES = new Set(["PREFLIGHT", "SOURCE_INSPECT", "SOURCE_DOWNLOAD", "SOURCE_DECRYPT", "SOURCE_VERIFY", "SQL_ADMISSION", "ROLES_AUDIT"]);
 
 function fail(code, message) {
   const error = new Error(message);
@@ -111,7 +113,8 @@ export async function runLocalManagedRecoverySourceDiagnostic({ environment = pr
     (dependencies.accessRecoveryBoundaries ?? accessRealRecoveryBoundaries)(boundaryAuthority, (value) => { locations = value; });
     const decryptFactory = dependencies.decryptAdapterFactory ?? ((options) => createAgeDecryptAdapter({ ...options, execute }));
     const sourceFactory = dependencies.sourceAdapterFactory ?? ((options) => createLocalRecoverySourceAdapter({ ...options, backupOutputRoot: locations.backupOutputRoot }));
-    await (dependencies.runSourceVerification ?? runManagedRecoverySourceVerification)({
+    let rolesDiagnostic;
+    await (dependencies.withVerifiedSource ?? withVerifiedManagedRecoverySource)({
       selectedBackupId: environment[RECOVERY_DRILL_BACKUP_ID_ENV],
       recoveryParent: locations.parent,
       backupOutputRoot: locations.backupOutputRoot,
@@ -132,11 +135,33 @@ export async function runLocalManagedRecoverySourceDiagnostic({ environment = pr
         preflight: async () => tools,
         onPhase: (phase) => { state.phase = phase; },
       },
+    }, async ({ bundleRoot }) => {
+      state.phase = "ROLES_AUDIT";
+      const rolesSource = await (dependencies.readRolesSql ?? ((root) => readFile(resolve(root, "database", "roles.sql"), "utf8")))(bundleRoot);
+      rolesDiagnostic = classifyUnexpectedRolesSql(rolesSource);
+      return { status: rolesDiagnostic.status, phase: "ROLES_AUDIT" };
     });
+    if (rolesDiagnostic?.status === "FINDING") {
+      return Object.freeze({
+        status: "FINDING",
+        operation: "local-managed-recovery-source-diagnostic",
+        phase: "ROLES_AUDIT",
+        code: "RECOVERY_ROLES_DIALECT_DIAGNOSTIC_FINDING",
+        unexpectedStatementCount: rolesDiagnostic.unexpectedStatementCount,
+        roleStatementClasses: rolesDiagnostic.classes,
+        localAgeDecrypts: state.localAgeDecrypts,
+        realR2Reads: 0,
+        realTargetStarts: 0,
+        sqlExecutions: 0,
+        productionMutations: 0,
+        cleanup: "PASS",
+      });
+    }
+    if (rolesDiagnostic?.status !== "PASS") fail("RECOVERY_ROLES_DIAGNOSTIC_INVALID", "Roles diagnostic result is invalid");
     return Object.freeze({
       status: "PASS",
       operation: "local-managed-recovery-source-diagnostic",
-      phase: "SQL_ADMISSION",
+      phase: "ROLES_AUDIT",
       localAgeDecrypts: state.localAgeDecrypts,
       realR2Reads: 0,
       realTargetStarts: 0,
