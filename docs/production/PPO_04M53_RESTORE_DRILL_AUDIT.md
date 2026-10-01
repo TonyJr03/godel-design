@@ -1,6 +1,6 @@
 # PPO-04M.5.3 — Restore Drill + Baseline Closure Architecture Audit
 
-**Estado de M.5.3:** `ACTIVE / REAL RESTORE SQL DIALECT FINDING UNDER DIAGNOSIS`
+**Estado de M.5.3:** `ACTIVE / SUPABASE DATA DUMP WRAPPER REMEDIATION`
 
 **Estado de M.5.3.0:** `CLOSED / RESTORE DRILL ARCHITECTURE APPROVED`
 
@@ -1450,7 +1450,7 @@ PRODUCTION ACTIVITY DURING D.2.2 CORRECTION =
 0
 
 PPO-04M.5.3 =
-ACTIVE / REAL RESTORE SQL DIALECT FINDING UNDER DIAGNOSIS
+ACTIVE / SUPABASE DATA DUMP WRAPPER REMEDIATION
 
 REAL RESTORE ATTEMPT #1 =
 FAIL / PREFLIGHT OPERATOR CONFIGURATION
@@ -1673,7 +1673,7 @@ precedencia all-or-none frente al entorno del proceso. El diagnóstico no fue
 ejecutado durante esta implementación.
 
 ```text
-PPO-04M.5.3 = ACTIVE / REAL RESTORE SQL DIALECT FINDING UNDER DIAGNOSIS
+PPO-04M.5.3 = ACTIVE / SUPABASE DATA DUMP WRAPPER REMEDIATION
 REAL RESTORE ATTEMPT #3 = NOT AUTHORIZED
 TD-BACKUP-004 = OPEN
 CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY
@@ -1685,4 +1685,33 @@ REAL APP STARTS DURING IMPLEMENTATION = 0
 REAL CHROMIUM STARTS DURING IMPLEMENTATION = 0
 SQL EXECUTIONS DURING IMPLEMENTATION = 0
 PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
+```
+
+## Local Managed Recovery Source Diagnostic #1 — wrapper confirmado
+
+El diagnóstico local real terminó en `SQL_ADMISSION` y confirmó que el finding
+no representa corrupción del backup. La causa es el wrapper data-only exacto
+emitido por Supabase CLI 2.109.1. Su prefix y suffix quedan gobernados como
+metadata de transporte no ejecutable: ambos se eliminan antes de construir el
+SQL de restore y la readmission fail-closed se ejecuta sobre el resultado.
+
+```text
+LOCAL MANAGED RECOVERY SOURCE DIAGNOSTIC #1 = FINDING / SQL_ADMISSION
+TOOLING SHA = 5f1f4ddb2f7dfe1b7d15d1c14ec8fccd9195737f
+statementClass = SET_PARAMETER
+setParameter = session_replication_role
+localAgeDecrypts = 1
+realR2Reads = 0
+realTargetStarts = 0
+sqlExecutions = 0
+productionMutations = 0
+cleanup = PASS
+SQL DIALECT ROOT CAUSE = SUPABASE CLI V2.109.1 DATA-ONLY WRAPPER NOT YET MODELED
+OBSERVED WRAPPER PREFIX = SET session_replication_role = replica;
+EXPECTED UPSTREAM WRAPPER SUFFIX = RESET ALL;
+PPO-04M.5.3 = ACTIVE / SUPABASE DATA DUMP WRAPPER REMEDIATION
+REAL RESTORE ATTEMPT #3 = NOT AUTHORIZED
+LOCAL SOURCE DIAGNOSTIC #2 = NOT AUTHORIZED / PENDING IMPLEMENTATION REVIEW
+TD-BACKUP-004 = OPEN
+CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY
 ```

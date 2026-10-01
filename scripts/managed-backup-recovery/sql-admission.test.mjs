@@ -26,6 +26,23 @@ test("managed data admission accepts only the governed COPY/session/setval subse
   assert.equal(result.mutableTableCount, 3);
 });
 
+test("managed data admission accepts the exact Supabase CLI data wrapper as transport metadata", () => {
+  const source = [
+    "-- Supabase CLI data-only wrapper",
+    "SET session_replication_role = replica;",
+    VALID_MANAGED_DATA_SQL.trimEnd(),
+    "RESET ALL;",
+    "-- wrapper end",
+    "",
+  ].join("\n");
+  const result = admitManagedDataSql(source);
+  assert.equal(result.status, "ADMITTED");
+  assert.equal(result.mutableTableCount, 3);
+  assert.equal(result.sequenceCount, 0);
+  assert.deepEqual(result.mutableTables, ["auth.identities", "auth.users", "public.perfiles"]);
+  assert.ok(!JSON.stringify(result).includes("session_replication_role"));
+});
+
 test("managed data admission detects ephemeral Auth state without exposing rows", () => {
   const source = [
     "COPY auth.users (id) FROM stdin;",
@@ -100,4 +117,45 @@ test("forbidden admission errors expose only safe classifier metadata", () => {
       return true;
     },
   );
+});
+
+const forbiddenReplicationRoleVariants = [
+  "SET session_replication_role = origin;",
+  "SET session_replication_role = local;",
+  "SET session_replication_role = 'replica';",
+  "SET LOCAL session_replication_role = replica;",
+  "SET SESSION session_replication_role = replica;",
+  "SET session_replication_role TO replica;",
+  "RESET session_replication_role;",
+  "RESET ALL;",
+];
+
+for (const statement of forbiddenReplicationRoleVariants) {
+  test(`managed data admission rejects replication-role wrapper variant: ${statement}`, () => {
+    assert.throws(
+      () => admitManagedDataSql(`${VALID_MANAGED_DATA_SQL}${statement}\n`),
+      { code: "RECOVERY_SQL_STATEMENT_FORBIDDEN" },
+    );
+  });
+}
+
+test("managed data admission rejects incomplete, duplicate, or misplaced Supabase wrappers", () => {
+  const prefix = "SET session_replication_role = replica;";
+  const suffix = "RESET ALL;";
+  const valid = VALID_MANAGED_DATA_SQL.trimEnd();
+  const invalid = [
+    [prefix, prefix, valid, suffix, ""],
+    [prefix, valid, suffix, suffix, ""],
+    [prefix, valid, ""],
+    [valid, suffix, ""],
+    ["SET statement_timeout = 0;", prefix, valid, suffix, ""],
+    [prefix, suffix, valid, ""],
+    [prefix, valid, suffix, "SET statement_timeout = 0;", ""],
+  ];
+  for (const lines of invalid) {
+    assert.throws(
+      () => admitManagedDataSql(lines.join("\n")),
+      { code: "RECOVERY_SQL_STATEMENT_FORBIDDEN" },
+    );
+  }
 });

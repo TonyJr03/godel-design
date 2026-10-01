@@ -36,6 +36,8 @@ const ALLOWED_SESSION_STATEMENTS = new Set([
   "SET client_min_messages = warning;",
   "SET row_security = off;",
 ]);
+const SUPABASE_DATA_WRAPPER_PREFIX = "SET session_replication_role = replica;";
+const SUPABASE_DATA_WRAPPER_SUFFIX = "RESET ALL;";
 const admittedModels = new WeakMap();
 
 function fail(code, message, metadata) {
@@ -90,10 +92,34 @@ export function admitManagedDataSql(source) {
   const lines = source.replace(/\r\n/g, "\n").split("\n");
   const tables = new Set();
   const copyBlocks = [];
+  const transportOnlyLines = [];
   let sequenceCount = 0;
+  let significantStatementCount = 0;
+  let wrapperPrefixLine = null;
+  let wrapperSuffixLine = null;
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
     if (line === "" || line.startsWith("--")) continue;
+    significantStatementCount += 1;
+    if (wrapperSuffixLine !== null) {
+      fail("RECOVERY_SQL_STATEMENT_FORBIDDEN", "Managed data SQL contains a statement after the Supabase data wrapper suffix", classifyUnsupportedManagedDataStatement(line));
+    }
+    if (line === SUPABASE_DATA_WRAPPER_PREFIX) {
+      if (wrapperPrefixLine !== null || significantStatementCount !== 1) {
+        fail("RECOVERY_SQL_STATEMENT_FORBIDDEN", "Supabase data wrapper prefix must be the unique first significant statement", classifyUnsupportedManagedDataStatement(line));
+      }
+      wrapperPrefixLine = index;
+      transportOnlyLines.push(index);
+      continue;
+    }
+    if (line === SUPABASE_DATA_WRAPPER_SUFFIX) {
+      if (wrapperPrefixLine === null || wrapperSuffixLine !== null) {
+        fail("RECOVERY_SQL_STATEMENT_FORBIDDEN", "Supabase data wrapper suffix requires the exact prefix", classifyUnsupportedManagedDataStatement(line));
+      }
+      wrapperSuffixLine = index;
+      transportOnlyLines.push(index);
+      continue;
+    }
     if (line.startsWith("\\")) fail("RECOVERY_SQL_META_COMMAND_FORBIDDEN", "Managed data SQL meta commands are forbidden");
     if (ALLOWED_SESSION_STATEMENTS.has(line)) continue;
     if (isSetval(line)) {
@@ -128,6 +154,9 @@ export function admitManagedDataSql(source) {
     copyBlocks.push(Object.freeze({ identity, columns: Object.freeze(columns), start, end: index }));
     tables.add(identity);
   }
+  if (wrapperPrefixLine !== null && wrapperSuffixLine === null) {
+    fail("RECOVERY_SQL_STATEMENT_FORBIDDEN", "Supabase data wrapper prefix requires the exact suffix", { statementClass: "SET_PARAMETER", parameter: "session_replication_role" });
+  }
   if (tables.size === 0) fail("RECOVERY_SQL_COPY_MISSING", "Managed data SQL contains no admitted COPY tables");
   const mutableTables = [...tables].sort((left, right) => left.localeCompare(right, "en"));
   const ephemeralTables = mutableTables.filter((identity) => EPHEMERAL_AUTH_TABLES.has(identity));
@@ -139,7 +168,12 @@ export function admitManagedDataSql(source) {
     ephemeralAuthState: ephemeralTables.length === 0 ? "EXCLUDED" : "PRESENT_REQUIRES_SANITIZATION",
     ephemeralAuthTableCount: ephemeralTables.length,
   });
-  admittedModels.set(result, Object.freeze({ source, lines: Object.freeze(lines), copyBlocks: Object.freeze(copyBlocks) }));
+  admittedModels.set(result, Object.freeze({
+    source,
+    lines: Object.freeze(lines),
+    copyBlocks: Object.freeze(copyBlocks),
+    transportOnlyLines: Object.freeze(transportOnlyLines),
+  }));
   return result;
 }
 

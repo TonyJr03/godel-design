@@ -23,7 +23,7 @@ aplicó y aceptó la baseline 01–06, M.2B validó bootstrap, lifecycle Auth,
 RLS/grants, Storage/TUS y cleanup, y M.3 aceptó el deployment técnico protegido.
 El Site URL de Supabase está alineado con el dominio Production estable.
 PPO-04M.4 queda `CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE`; PPO-04M.5 queda
-`ACTIVE / REAL RESTORE SQL DIALECT FINDING UNDER DIAGNOSIS`. M.5.0 está `CLOSED / ARCHITECTURE APPROVED`;
+`ACTIVE / SUPABASE DATA DUMP WRAPPER REMEDIATION`. M.5.0 está `CLOSED / ARCHITECTURE APPROVED`;
 M.5.1 está `CLOSED / LOCAL INTEGRATION APPROVED`, M.5.2.0 está
 `CLOSED / PRODUCTION BACKUP PREPARATION APPROVED`, M.5.2.1A está
 `CLOSED / R2 CUSTODY ADAPTER APPROVED` y M.5.2.1B está
@@ -43,12 +43,13 @@ M.5.3D.2.6 quedó `REAL-ENVIRONMENT SAFE TAXONOMY VERIFIED BY ATTEMPT #7`,
 M.5.3D.2.7 quedó cerrado como mejora de fidelidad no causal y M.5.3D.2.8 quedó
 cerrado y verificado en entorno real por Attempt #9. M.5.3D.2 queda `CLOSED /
 REAL LOCAL RECOVERY APPLICATION COMPATIBILITY VERIFIED`; M.5.3 permanece
-`ACTIVE / REAL RESTORE SQL DIALECT FINDING UNDER DIAGNOSIS`.
+`ACTIVE / SUPABASE DATA DUMP WRAPPER REMEDIATION`.
 Real Restore Attempt #1 falló en preflight por configuración operativa sin
 actividad real; Attempt #2 verificó la fuente Productiva hasta detenerse en
 `SOURCE_VERIFY` por `RECOVERY_SQL_STATEMENT_FORBIDDEN`. Attempt #3 no está
-autorizado mientras el diagnóstico local clasifica de forma sanitizada el
-dialecto faltante sin admitir nuevas sentencias.
+autorizado. Local Managed Recovery Source Diagnostic #1 confirmó de forma
+sanitizada que el wrapper data-only de Supabase CLI 2.109.1 no estaba modelado;
+la remediación lo trata como transporte no ejecutable.
 El primer backup Production quedó
 `COMPLETE`. Todavía no se realizó el pilot rollout ni se afirma que el sistema
 esté públicamente operativo.
@@ -122,7 +123,7 @@ una migración nueva `07+`.
 | PPO-04M.2B | `CLOSED / APPROVED` |
 | PPO-04M.3 | `CLOSED / APPROVED` |
 | PPO-04M.4 | `CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE` |
-| PPO-04M.5 | `ACTIVE / REAL RESTORE SQL DIALECT FINDING UNDER DIAGNOSIS` |
+| PPO-04M.5 | `ACTIVE / SUPABASE DATA DUMP WRAPPER REMEDIATION` |
 | PPO-04M.5.0 | `CLOSED / ARCHITECTURE APPROVED` |
 | PPO-04M.5.1 | `CLOSED / LOCAL INTEGRATION APPROVED` |
 | PPO-04M.5.2.0 | `CLOSED / PRODUCTION BACKUP PREPARATION APPROVED` |
@@ -151,7 +152,7 @@ una migración nueva `07+`.
 | PPO-04M.5.3D.2.6 | `REAL-ENVIRONMENT SAFE TAXONOMY VERIFIED BY ATTEMPT #7` |
 | PPO-04M.5.3D.2.7 | `CLOSED / REAL-ENVIRONMENT PRODUCT DEFAULT DISTDIR VERIFIED / NOT CAUSAL FOR THE LIVE FAILURE / ARCHITECTURAL FIDELITY IMPROVEMENT RETAINED` |
 | PPO-04M.5.3D.2.8 | `CLOSED / WINDOWS SAME-VOLUME APPLICATION RUNTIME TOPOLOGY / REAL-ENVIRONMENT VERIFIED BY ATTEMPT #9` |
-| PPO-04M.5.3 | `ACTIVE / REAL RESTORE SQL DIALECT FINDING UNDER DIAGNOSIS` |
+| PPO-04M.5.3 | `ACTIVE / SUPABASE DATA DUMP WRAPPER REMEDIATION` |
 | PPO-04M.6–PPO-04M.7 | `NOT STARTED` |
 | PPO-05 | `PENDING` — seguridad pública/antiabuso |
 | PPO-06 | `PENDING` — backup/recovery managed |
@@ -214,7 +215,7 @@ REAL RECOVERY BOUNDARY = OPERATOR-GOVERNED
 IMPLICIT TRUNCATE CASCADE = REMOVED
 EXPLICIT TRUNCATE AUTHORITY = ENFORCED
 POST-RESTORE FK DATA INTEGRITY GATE = IMPLEMENTED
-PPO-04M.5.3 = ACTIVE / REAL RESTORE SQL DIALECT FINDING UNDER DIAGNOSIS
+PPO-04M.5.3 = ACTIVE / SUPABASE DATA DUMP WRAPPER REMEDIATION
 REAL RESTORE ATTEMPT #1 = FAIL / PREFLIGHT OPERATOR CONFIGURATION
 REAL RESTORE ATTEMPT #2 = FAIL / SOURCE_VERIFY REAL BACKUP SQL DIALECT ADMISSION FINDING
 REAL RESTORE ATTEMPT #3 = NOT AUTHORIZED
@@ -391,7 +392,7 @@ PRODUCTION ACTIVITY DURING D.2.1 CORRECTION = 0
 REAL BACKUP RESTORE EXECUTION = ATTEMPTS #1-#2 EXECUTED / ATTEMPT #3 NOT AUTHORIZED
 TD-BACKUP-004 = OPEN
 PRIVATE DOWNLOAD = NOT EXERCISED IN EMPTY-STORAGE DRILL / IMPORTANT AFTER PILOT
-NEXT GATE = LOCAL MANAGED RECOVERY SOURCE DIAGNOSTIC / ATTEMPT #3 NOT AUTHORIZED
+NEXT GATE = LOCAL SOURCE DIAGNOSTIC #2 / NOT AUTHORIZED / PENDING IMPLEMENTATION REVIEW
 PRODUCTION RESTORE = NOT AUTHORIZED
 REAL LOCAL TARGET = VERIFIED
 APPLICATION CLEANUP FAILURE DETECTED IN D.2 ATTEMPT #1 = YES / RECOVERY_APP_CLEANUP_INCOMPLETE
@@ -411,6 +412,36 @@ RESTORE SQL EXECUTION = 0
 REAL APP STARTS DURING D.1 = 0
 REAL LOGIN ATTEMPTS DURING D.1 = 0
 RETRIES = 0
+```
+
+## Local Managed Recovery Source Diagnostic #1
+
+El diagnóstico local confirmó que el backup no está corrupto. El data-only
+dump generado por Supabase CLI 2.109.1 incorpora un wrapper que todavía no
+estaba representado en el dialecto managed. La remediación conserva la única
+autoridad ejecutable de replication role en el orquestador mediante
+`SET LOCAL session_replication_role = replica;`; el wrapper de origen se trata
+exclusivamente como metadata de transporte y no se ejecuta.
+
+```text
+LOCAL MANAGED RECOVERY SOURCE DIAGNOSTIC #1 = FINDING / SQL_ADMISSION
+TOOLING SHA = 5f1f4ddb2f7dfe1b7d15d1c14ec8fccd9195737f
+statementClass = SET_PARAMETER
+setParameter = session_replication_role
+localAgeDecrypts = 1
+realR2Reads = 0
+realTargetStarts = 0
+sqlExecutions = 0
+productionMutations = 0
+cleanup = PASS
+SQL DIALECT ROOT CAUSE = SUPABASE CLI V2.109.1 DATA-ONLY WRAPPER NOT YET MODELED
+OBSERVED WRAPPER PREFIX = SET session_replication_role = replica;
+EXPECTED UPSTREAM WRAPPER SUFFIX = RESET ALL;
+PPO-04M.5.3 = ACTIVE / SUPABASE DATA DUMP WRAPPER REMEDIATION
+REAL RESTORE ATTEMPT #3 = NOT AUTHORIZED
+LOCAL SOURCE DIAGNOSTIC #2 = NOT AUTHORIZED / PENDING IMPLEMENTATION REVIEW
+TD-BACKUP-004 = OPEN
+CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY
 ```
 
 ## Evidencia y capacidades Self-Hosted conservadas
@@ -492,7 +523,7 @@ PPO-04M.0  arquitectura y gobernanza — CLOSED / APPROVED
 → PPO-04M.5.3D.2.6  safe UNKNOWN module-resolution decomposition — REAL-ENVIRONMENT SAFE TAXONOMY VERIFIED BY ATTEMPT #7
 → PPO-04M.5.3D.2.7  Product-faithful Next distDir + temporary cache boundary — CLOSED / REAL-ENVIRONMENT PRODUCT DEFAULT DISTDIR VERIFIED / NOT CAUSAL FOR THE LIVE FAILURE / ARCHITECTURAL FIDELITY IMPROVEMENT RETAINED
 → PPO-04M.5.3D.2.8  Windows same-volume application runtime topology — CLOSED / WINDOWS SAME-VOLUME APPLICATION RUNTIME TOPOLOGY / REAL-ENVIRONMENT VERIFIED BY ATTEMPT #9
-→ PPO-04M.5.3  Restore Drill + Baseline Closure — ACTIVE / REAL RESTORE SQL DIALECT FINDING UNDER DIAGNOSIS
+→ PPO-04M.5.3  Restore Drill + Baseline Closure — ACTIVE / SUPABASE DATA DUMP WRAPPER REMEDIATION
 → PPO-04M.6  small initial real use
 → PPO-04M.7  estabilización y medidas reales
 → LSH (futuro, no iniciado)

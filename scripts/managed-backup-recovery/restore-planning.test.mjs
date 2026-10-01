@@ -24,6 +24,16 @@ function source(ephemeral = false) {
   return `${PERSISTENT}\n${ephemeral ? "COPY auth.sessions (id) FROM stdin;\nsession-sensitive\n\\.\n" : ""}`;
 }
 
+function wrappedSource(ephemeral = false) {
+  return [
+    "-- Supabase CLI 2.109.1 data-only wrapper",
+    "SET session_replication_role = replica;",
+    source(ephemeral).trimEnd(),
+    "RESET ALL;",
+    "",
+  ].join("\n");
+}
+
 test("mutable plan admits existing persistent tables and excludes ephemeral Auth tables", () => {
   const admission = admitManagedDataSql(source(true));
   const plan = buildMutableTablePlan({ admission, targetTables: ["auth.users", "auth.sessions", "auth.schema_migrations", "storage.migrations", "public.perfiles"] });
@@ -86,6 +96,29 @@ test("restore stdin truncates the exact admitted set before replica mode without
     assert.ok(!sql.includes("arbitrary_table"));
   });
   assert.equal(handle.transactionAuthority, "PSQL_SINGLE_TRANSACTION");
+});
+
+test("Supabase source wrapper is transport-only and leaves one governed restore authority", () => {
+  const admission = admitManagedDataSql(wrappedSource(true));
+  const plan = buildMutableTablePlan({ admission, targetTables: admission.mutableTables });
+  const sanitized = sanitizeEphemeralAuthState({ admission, mutablePlan: plan });
+  accessManagedRestoreSql(sanitized, (sql) => {
+    assert.ok(sql.includes("COPY auth.users (id, encrypted_password) FROM stdin;"));
+    assert.ok(sql.includes("COPY public.perfiles (id) FROM stdin;"));
+    assert.ok(!sql.includes("COPY auth.sessions (id) FROM stdin;"));
+    assert.equal(sql.split("\n").filter((line) => line === "SET session_replication_role = replica;").length, 0);
+    assert.equal(sql.split("\n").filter((line) => line === "RESET ALL;").length, 0);
+  });
+  const handle = buildManagedRestoreSql({ mutablePlan: plan, sanitized });
+  accessManagedRestoreSql(handle, (sql) => {
+    assert.equal(sql.split("\n").filter((line) => line === "SET session_replication_role = replica;").length, 0);
+    assert.equal(sql.split("\n").filter((line) => line === "SET LOCAL session_replication_role = replica;").length, 1);
+    assert.equal(sql.split("\n").filter((line) => line === "RESET ALL;").length, 0);
+    assert.ok(sql.includes("COPY auth.users (id, encrypted_password) FROM stdin;"));
+    assert.ok(sql.includes("COPY public.perfiles (id) FROM stdin;"));
+  });
+  assert.equal(handle.transactionAuthority, "PSQL_SINGLE_TRANSACTION");
+  assert.equal(handle.sessionReplicationRole, "REPLICA_LOCAL_ONLY");
 });
 
 test("zero-object Storage produces a validated no-op and never authorizes transfer", () => {

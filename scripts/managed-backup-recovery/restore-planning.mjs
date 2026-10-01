@@ -83,7 +83,7 @@ export function sanitizeEphemeralAuthState({ admission, mutablePlan } = {}) {
   if (!mutablePlanHandles.has(mutablePlan)) fail("RECOVERY_MUTABLE_PLAN_REQUIRED", "Admitted mutable plan is required");
   return withAdmittedManagedDataSql(admission, (model) => {
     const excluded = new Set(mutablePlan.excludedEphemeralTables);
-    const omittedLines = new Set();
+    const omittedLines = new Set(model.transportOnlyLines);
     for (const block of model.copyBlocks) {
       if (excluded.has(block.identity)) for (let index = block.start; index <= block.end; index += 1) omittedLines.add(index);
     }
@@ -105,6 +105,31 @@ function quoteTable(identity) {
   return identity.split(".").map((part) => `"${part}"`).join(".");
 }
 
+function assertRestoreSqlAuthority(sql) {
+  const lines = sql.replace(/\r\n/g, "\n").split("\n");
+  let inCopy = false;
+  let replicationRoleStatementCount = 0;
+  let exactLocalReplicaCount = 0;
+  let resetAllCount = 0;
+  for (const line of lines) {
+    if (inCopy) {
+      if (line === "\\.") inCopy = false;
+      continue;
+    }
+    if (line.startsWith("COPY ")) {
+      inCopy = true;
+      continue;
+    }
+    if (line === "" || line.startsWith("--")) continue;
+    if (/^SET\s+(?:(?:LOCAL|SESSION)\s+)?session_replication_role\b/i.test(line)) replicationRoleStatementCount += 1;
+    if (line === "SET LOCAL session_replication_role = replica;") exactLocalReplicaCount += 1;
+    if (line === "RESET ALL;") resetAllCount += 1;
+  }
+  if (inCopy || replicationRoleStatementCount !== 1 || exactLocalReplicaCount !== 1 || resetAllCount !== 0) {
+    fail("RECOVERY_RESTORE_AUTHORITY_INVALID", "Managed restore SQL authority is invalid");
+  }
+}
+
 export function buildManagedRestoreSql({ mutablePlan, sanitized } = {}) {
   if (!mutablePlanHandles.has(mutablePlan) || !sanitizedSqlHandles.has(sanitized)) fail("RECOVERY_RESTORE_PLAN_INVALID", "Admitted mutable plan and sanitized SQL are required");
   const data = sanitizedSqlHandles.get(sanitized);
@@ -114,6 +139,7 @@ export function buildManagedRestoreSql({ mutablePlan, sanitized } = {}) {
     "SET LOCAL session_replication_role = replica;",
     data,
   ].join("\n");
+  assertRestoreSqlAuthority(sql);
   const result = Object.freeze({
     status: "READY",
     transactionAuthority: "PSQL_SINGLE_TRANSACTION",
