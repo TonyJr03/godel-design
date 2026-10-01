@@ -18,12 +18,44 @@ test("all five SQL artifacts receive their exact non-executing classification", 
   assert.equal(result.managedData.ephemeralAuthState, "EXCLUDED");
 });
 
-test("managed data admission accepts only the governed COPY/session/setval subset", () => {
-  const source = `${VALID_MANAGED_DATA_SQL}SELECT pg_catalog.setval('public.example_id_seq'::regclass, 1, true);\n`;
+test("managed data admission retains the exact governed legacy regclass sequence syntax", () => {
+  const source = [
+    VALID_MANAGED_DATA_SQL.trimEnd(),
+    "SELECT pg_catalog.setval('public.example_id_seq'::regclass, -9223372036854775808, false);",
+    "SELECT pg_catalog.setval('private.other_id_seq'::regclass, 9223372036854775807, true);",
+    "",
+  ].join("\n");
   const result = admitManagedDataSql(source);
   assert.equal(result.status, "ADMITTED");
-  assert.equal(result.sequenceCount, 1);
+  assert.equal(result.sequenceCount, 2);
   assert.equal(result.mutableTableCount, 3);
+});
+
+test("managed data admission accepts canonical quoted pg_dump sequence sets across governed int64 cases", () => {
+  const cases = [
+    "SELECT pg_catalog.setval('\"public\".\"positive_id_seq\"', 42, true);",
+    "SELECT pg_catalog.setval('\"private\".\"zero_id_seq\"', 0, false);",
+    "SELECT pg_catalog.setval('\"auth\".\"negative_id_seq\"', -42, true);",
+    "SELECT pg_catalog.setval('\"storage\".\"minimum_id_seq\"', -9223372036854775808, false);",
+    "SELECT pg_catalog.setval('\"public\".\"maximum_id_seq\"', 9223372036854775807, true);",
+  ];
+  for (const statement of cases) {
+    const result = admitManagedDataSql(`${VALID_MANAGED_DATA_SQL}${statement}\n`);
+    assert.equal(result.sequenceCount, 1);
+  }
+});
+
+test("sequenceCount includes multiple canonical and governed legacy sequence sets without exposing identities", () => {
+  const source = [
+    VALID_MANAGED_DATA_SQL.trimEnd(),
+    "SELECT pg_catalog.setval('\"public\".\"first_id_seq\"', 1, true);",
+    "SELECT pg_catalog.setval('\"storage\".\"second_id_seq\"', -1, false);",
+    "SELECT pg_catalog.setval('private.legacy_id_seq'::regclass, 0, true);",
+    "",
+  ].join("\n");
+  const result = admitManagedDataSql(source);
+  assert.equal(result.sequenceCount, 3);
+  assert.ok(!JSON.stringify(result).includes("id_seq"));
 });
 
 test("managed data admission accepts the exact Supabase CLI data wrapper as transport metadata", () => {
@@ -88,6 +120,8 @@ test("unsupported managed data statements receive only bounded safe classificati
   const cases = [
     ["SET default_tablespace = '';", { statementClass: "SET_PARAMETER", parameter: "default_tablespace" }],
     ["SET default_table_access_method = heap;", { statementClass: "SET_PARAMETER", parameter: "default_table_access_method" }],
+    ["SELECT setval('unsafe', 1);", { statementClass: "SELECT_PG_CATALOG_SETVAL_VARIANT" }],
+    ["SELECT public.setval('unsafe', 1);", { statementClass: "SELECT_PG_CATALOG_SETVAL_VARIANT" }],
     ["SELECT pg_catalog.setval('private.sequence', 1);", { statementClass: "SELECT_PG_CATALOG_SETVAL_VARIANT" }],
     ["SELECT email FROM private.people;", { statementClass: "SELECT_OTHER" }],
     ["INSERT INTO private.people VALUES ('sensitive');", { statementClass: "INSERT" }],
@@ -156,6 +190,73 @@ test("managed data admission rejects incomplete, duplicate, or misplaced Supabas
     assert.throws(
       () => admitManagedDataSql(lines.join("\n")),
       { code: "RECOVERY_SQL_STATEMENT_FORBIDDEN" },
+    );
+  }
+});
+
+test("managed data admission rejects canonical and legacy sequence sets outside governed schemas without disclosure", () => {
+  for (const schema of ["pg_catalog", "information_schema", "supabase_migrations", "extensions", "realtime", "vault"]) {
+    const statements = [
+      `SELECT pg_catalog.setval('"${schema}"."sequence"', 1, true);`,
+      `SELECT pg_catalog.setval('${schema}.sequence'::regclass, 1, true);`,
+    ];
+    for (const statement of statements) {
+      assert.throws(
+        () => admitManagedDataSql(`${VALID_MANAGED_DATA_SQL}${statement}\n`),
+        (error) => {
+          assert.equal(error.code, "RECOVERY_SQL_SEQUENCE_SCHEMA_FORBIDDEN");
+          assert.deepEqual(Object.keys(error).sort(), ["code", "name"]);
+          assert.ok(!error.message.includes(schema));
+          return true;
+        },
+      );
+    }
+  }
+});
+
+test("managed data admission rejects every non-contractual pg_dump sequence-set variant", () => {
+  const invalid = [
+    "SELECT setval('\"public\".\"sequence\"', 1, true);",
+    "SELECT public.setval('\"public\".\"sequence\"', 1, true);",
+    "SELECT pg_catalog.setval('\"public\".\"sequence\"', 1);",
+    "SELECT pg_catalog.setval('\"public\".\"sequence\"', 1, true, false);",
+    "SELECT pg_catalog.setval(pg_catalog.pg_get_serial_sequence('public.table', 'id'), 1, true);",
+    "SELECT pg_catalog.setval('public.sequence', 1, true);",
+    "SELECT pg_catalog.setval('\"public\".\"sequence\"'::regclass, 1, true);",
+    "SELECT pg_catalog.setval('\"public\".\"BadSequence\"', 1, true);",
+    "SELECT pg_catalog.setval('\"public\"', 1, true);",
+    "SELECT pg_catalog.setval('\"public.with.dot\".\"sequence\"', 1, true);",
+    "SELECT pg_catalog.setval('\"public\".\"sequence name\"', 1, true);",
+    "SELECT pg_catalog.setval('\"public\".\"bad\"\"sequence\"', 1, true);",
+    "SELECT pg_catalog.setval('\"public\".\"bad\\\\sequence\"', 1, true);",
+    "SELECT pg_catalog.setval('\"public\".\"sequence\"', +1, true);",
+    "SELECT pg_catalog.setval('\"public\".\"sequence\"', 01, true);",
+    "SELECT pg_catalog.setval('\"public\".\"sequence\"', -0, true);",
+    "SELECT pg_catalog.setval('\"public\".\"sequence\"', 1.0, true);",
+    "SELECT pg_catalog.setval('\"public\".\"sequence\"', 1e3, true);",
+    "SELECT pg_catalog.setval('\"public\".\"sequence\"', NaN, true);",
+    "SELECT pg_catalog.setval('\"public\".\"sequence\"', Infinity, true);",
+    "SELECT pg_catalog.setval('\"public\".\"sequence\"', -9223372036854775809, true);",
+    "SELECT pg_catalog.setval('\"public\".\"sequence\"', 9223372036854775808, true);",
+    `SELECT pg_catalog.setval('"public"."sequence"', ${"9".repeat(128)}, true);`,
+    "SELECT pg_catalog.setval('\"public\".\"sequence\"', 1, TRUE);",
+    "SELECT pg_catalog.setval('\"public\".\"sequence\"', 1, FALSE);",
+    "SELECT pg_catalog.setval('\"public\".\"sequence\"', 1, 't');",
+    "SELECT pg_catalog.setval('\"public\".\"sequence\"', 1, 'f');",
+    "SELECT pg_catalog.setval('\"public\".\"sequence\"', 1, 1);",
+    "SELECT pg_catalog.setval('\"public\".\"sequence\"', 1, 0);",
+    "SELECT pg_catalog.setval('\"public\".\"sequence\"', 1, NULL);",
+    "SELECT pg_catalog.setval('\"public\".\"sequence'';drop_table\"', 1, true);",
+  ];
+  for (const statement of invalid) {
+    assert.throws(
+      () => admitManagedDataSql(`${VALID_MANAGED_DATA_SQL}${statement}\n`),
+      (error) => {
+        assert.equal(error.code, "RECOVERY_SQL_STATEMENT_FORBIDDEN");
+        assert.equal(error.statementClass, "SELECT_PG_CATALOG_SETVAL_VARIANT");
+        assert.ok(!JSON.stringify(error).includes("9223372036854775809"));
+        return true;
+      },
     );
   }
 });

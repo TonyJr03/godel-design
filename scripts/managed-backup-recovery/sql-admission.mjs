@@ -64,8 +64,26 @@ function validateCopyRow(line, columnCount) {
   if (line.split("\t").length !== columnCount) fail("RECOVERY_SQL_COPY_INVALID", "Managed data COPY row has an invalid column count");
 }
 
-function isSetval(statement) {
-  return /^SELECT pg_catalog\.setval\('[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*'::regclass, (?:0|[1-9]\d*), (?:true|false)\);$/.test(statement);
+const PG_INT64_MIN = -9223372036854775808n;
+const PG_INT64_MAX = 9223372036854775807n;
+const SIGNED_INT64_SYNTAX = "(0|[1-9]\\d*|-[1-9]\\d*)";
+const CANONICAL_SEQUENCE_SET = new RegExp(`^SELECT pg_catalog\\.setval\\('"([a-z][a-z0-9_]*)"\\."([a-z][a-z0-9_]*)"', ${SIGNED_INT64_SYNTAX}, (true|false)\\);$`);
+const LEGACY_SEQUENCE_SET = new RegExp(`^SELECT pg_catalog\\.setval\\('([a-z][a-z0-9_]*)\\.([a-z][a-z0-9_]*)'::regclass, ${SIGNED_INT64_SYNTAX}, (true|false)\\);$`);
+
+function parseAdmittedSequenceSet(statement) {
+  const match = statement.match(CANONICAL_SEQUENCE_SET) ?? statement.match(LEGACY_SEQUENCE_SET);
+  if (!match) return null;
+  const [, schema, sequence, rawValue, rawIsCalled] = match;
+  if (!SAFE_SCHEMAS.has(schema)) fail("RECOVERY_SQL_SEQUENCE_SCHEMA_FORBIDDEN", "Managed data sequence schema is outside the admitted restore contract");
+  if (rawValue.length > 20) return null;
+  let value;
+  try {
+    value = BigInt(rawValue);
+  } catch {
+    return null;
+  }
+  if (value < PG_INT64_MIN || value > PG_INT64_MAX) return null;
+  return Object.freeze({ schema, sequence, isCalled: rawIsCalled === "true" });
 }
 
 export function classifyUnsupportedManagedDataStatement(line) {
@@ -77,7 +95,7 @@ export function classifyUnsupportedManagedDataStatement(line) {
       ? { statementClass: "SET_PARAMETER", parameter }
       : { statementClass: "SET_PARAMETER" });
   }
-  if (/^SELECT\s+pg_catalog\.setval\s*\(/i.test(source)) return Object.freeze({ statementClass: "SELECT_PG_CATALOG_SETVAL_VARIANT" });
+  if (/^SELECT\s+(?:(?:[a-z][a-z0-9_]*)\.)?setval\s*\(/i.test(source)) return Object.freeze({ statementClass: "SELECT_PG_CATALOG_SETVAL_VARIANT" });
   if (/^SELECT\b/i.test(source)) return Object.freeze({ statementClass: "SELECT_OTHER" });
   if (/^INSERT\b/i.test(source)) return Object.freeze({ statementClass: "INSERT" });
   if (/^UPDATE\b/i.test(source)) return Object.freeze({ statementClass: "UPDATE" });
@@ -122,7 +140,7 @@ export function admitManagedDataSql(source) {
     }
     if (line.startsWith("\\")) fail("RECOVERY_SQL_META_COMMAND_FORBIDDEN", "Managed data SQL meta commands are forbidden");
     if (ALLOWED_SESSION_STATEMENTS.has(line)) continue;
-    if (isSetval(line)) {
+    if (parseAdmittedSequenceSet(line)) {
       sequenceCount += 1;
       continue;
     }

@@ -29,6 +29,7 @@ function wrappedSource(ephemeral = false) {
     "-- Supabase CLI 2.109.1 data-only wrapper",
     "SET session_replication_role = replica;",
     source(ephemeral).trimEnd(),
+    "SELECT pg_catalog.setval('\"public\".\"example_id_seq\"', 9223372036854775807, true);",
     "RESET ALL;",
     "",
   ].join("\n");
@@ -100,6 +101,7 @@ test("restore stdin truncates the exact admitted set before replica mode without
 
 test("Supabase source wrapper is transport-only and leaves one governed restore authority", () => {
   const admission = admitManagedDataSql(wrappedSource(true));
+  assert.equal(admission.sequenceCount, 1);
   const plan = buildMutableTablePlan({ admission, targetTables: admission.mutableTables });
   const sanitized = sanitizeEphemeralAuthState({ admission, mutablePlan: plan });
   accessManagedRestoreSql(sanitized, (sql) => {
@@ -108,12 +110,14 @@ test("Supabase source wrapper is transport-only and leaves one governed restore 
     assert.ok(!sql.includes("COPY auth.sessions (id) FROM stdin;"));
     assert.equal(sql.split("\n").filter((line) => line === "SET session_replication_role = replica;").length, 0);
     assert.equal(sql.split("\n").filter((line) => line === "RESET ALL;").length, 0);
+    assert.equal(sql.split("\n").filter((line) => line.startsWith("SELECT pg_catalog.setval(")).length, 1);
   });
   const handle = buildManagedRestoreSql({ mutablePlan: plan, sanitized });
   accessManagedRestoreSql(handle, (sql) => {
     assert.equal(sql.split("\n").filter((line) => line === "SET session_replication_role = replica;").length, 0);
     assert.equal(sql.split("\n").filter((line) => line === "SET LOCAL session_replication_role = replica;").length, 1);
     assert.equal(sql.split("\n").filter((line) => line === "RESET ALL;").length, 0);
+    assert.equal(sql.split("\n").filter((line) => line.startsWith("SELECT pg_catalog.setval(")).length, 1);
     assert.ok(sql.includes("COPY auth.users (id, encrypted_password) FROM stdin;"));
     assert.ok(sql.includes("COPY public.perfiles (id) FROM stdin;"));
   });
