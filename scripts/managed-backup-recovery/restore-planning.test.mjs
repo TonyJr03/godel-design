@@ -6,7 +6,7 @@ import test from "node:test";
 
 import { admitManagedDataSql } from "./sql-admission.mjs";
 import { auditMigrationHistorySql } from "./sql-audit.mjs";
-import { accessAuthorizedStorageByteEntries, accessManagedRestoreSql, admitStorageMetadataGate, authorizeStorageByteRestore, buildManagedRestoreSql, buildMutableTablePlan, buildStorageByteRestorePlan, classifyMutableCatalogMismatch, sanitizeEphemeralAuthState, verifyManagedDataCounts } from "./restore-planning.mjs";
+import { accessAuthorizedStorageByteEntries, accessManagedRestoreSql, admitStorageMetadataGate, authorizeStorageByteRestore, buildManagedRestoreSql, buildMutableTablePlan, buildStorageByteRestorePlan, classifyMissingMutableDataOccupancy, classifyMutableCatalogMismatch, sanitizeEphemeralAuthState, validateMutableCatalogDiagnostic, verifyManagedDataCounts } from "./restore-planning.mjs";
 
 function metadataGate(objectCount) {
   return admitStorageMetadataGate({ rawOutput: JSON.stringify({ bucketExists: true, bucketPublic: false, objectCount, unexpectedObjectCount: 0 }), expectedObjectCount: objectCount });
@@ -38,7 +38,11 @@ function source(ephemeral = false) {
 }
 
 function admissionFor(...identities) {
-  return admitManagedDataSql(identities.map((identity) => `COPY ${identity} (id) FROM stdin;\nfixture\n\\.`).join("\n"));
+  return admissionWithRows(identities.map((identity) => ({ identity, rows: ["fixture"] })));
+}
+
+function admissionWithRows(entries) {
+  return admitManagedDataSql(entries.map(({ identity, rows }) => `COPY ${identity} (id) FROM stdin;\n${rows.length === 0 ? "" : `${rows.join("\n")}\n`}\\.`).join("\n"));
 }
 
 function wrappedSource(ephemeral = false) {
@@ -124,6 +128,73 @@ test("mutable catalog diagnostic fails closed for invalid, duplicate, or oversiz
   assert.throws(() => classifyMutableCatalogMismatch({ admission: { status: "ADMITTED", mutableTables: ["auth.users"] }, targetTables: [] }), { code: "RECOVERY_SQL_ADMISSION_REQUIRED" });
   const oversized = admissionFor(...Array.from({ length: 33 }, (_, index) => `public.table_${String(index).padStart(2, "0")}`));
   assert.throws(() => classifyMutableCatalogMismatch({ admission: oversized, targetTables: [] }), { code: "RECOVERY_MUTABLE_CATALOG_DIAGNOSTIC_TOO_LARGE" });
+});
+
+test("missing mutable data occupancy reports EMPTY from COPY structure only", () => {
+  const admission = admissionWithRows([{ identity: "auth.example_empty", rows: [] }]);
+  const mutableCatalog = classifyMutableCatalogMismatch({ admission, targetTables: [] });
+  const result = classifyMissingMutableDataOccupancy({ admission, mutableCatalog });
+  assert.deepEqual(result.missingData, [{ identity: "auth.example_empty", rowState: "EMPTY" }]);
+  assert.deepEqual(validateMutableCatalogDiagnostic(result), result);
+});
+
+test("missing mutable data occupancy reports NONEMPTY without exposing row count or content", () => {
+  const admission = admissionWithRows([{ identity: "auth.example_nonempty", rows: ["secret-row-one", "secret-row-two"] }]);
+  const mutableCatalog = classifyMutableCatalogMismatch({ admission, targetTables: [] });
+  const result = classifyMissingMutableDataOccupancy({ admission, mutableCatalog });
+  assert.deepEqual(result.missingData, [{ identity: "auth.example_nonempty", rowState: "NONEMPTY" }]);
+  assert.deepEqual(Object.keys(result.missingData[0]), ["identity", "rowState"]);
+  assert.doesNotMatch(JSON.stringify(result), /secret-row|rowCount|columns/i);
+});
+
+test("missing mutable data occupancy preserves deterministic mixed identity order", () => {
+  const admission = admissionWithRows([
+    { identity: "auth.zeta_empty", rows: [] },
+    { identity: "auth.alpha_nonempty", rows: ["private-value"] },
+    { identity: "public.perfiles", rows: ["present-in-target"] },
+  ]);
+  const mutableCatalog = classifyMutableCatalogMismatch({ admission, targetTables: ["public.perfiles"] });
+  const result = classifyMissingMutableDataOccupancy({ admission, mutableCatalog });
+  assert.deepEqual(result.missingData, [
+    { identity: "auth.alpha_nonempty", rowState: "NONEMPTY" },
+    { identity: "auth.zeta_empty", rowState: "EMPTY" },
+  ]);
+});
+
+test("missing mutable data occupancy requires exact classifier provenance", () => {
+  const admission = admissionWithRows([
+    { identity: "auth.example_empty", rows: [] },
+    { identity: "auth.example_nonempty", rows: ["private"] },
+  ]);
+  const mutableCatalog = classifyMutableCatalogMismatch({ admission, targetTables: [] });
+  const otherAdmission = admissionFor("auth.other");
+  const forgedCatalog = { ...mutableCatalog, missingIdentities: ["auth.other"] };
+  assert.throws(() => classifyMissingMutableDataOccupancy({ admission, mutableCatalog: forgedCatalog }), { code: "RECOVERY_MUTABLE_CATALOG_DIAGNOSTIC_INVALID" });
+  assert.throws(() => classifyMissingMutableDataOccupancy({ admission: otherAdmission, mutableCatalog }), { code: "RECOVERY_MUTABLE_CATALOG_DIAGNOSTIC_INVALID" });
+  assert.throws(
+    () => classifyMissingMutableDataOccupancy({ admission, mutableCatalog, missingIdentities: ["auth.other"] }),
+    { code: "RECOVERY_MUTABLE_CATALOG_DIAGNOSTIC_INVALID" },
+  );
+});
+
+test("mutable catalog output validation rejects omissions, duplicates, altered classes, row states, and properties", () => {
+  const admission = admissionWithRows([
+    { identity: "auth.example_empty", rows: [] },
+    { identity: "auth.example_nonempty", rows: ["private"] },
+  ]);
+  const mutableCatalog = classifyMutableCatalogMismatch({ admission, targetTables: [] });
+  const valid = classifyMissingMutableDataOccupancy({ admission, mutableCatalog });
+  const invalid = [
+    { ...valid, missingData: valid.missingData.slice(0, 1) },
+    { ...valid, missingData: [valid.missingData[0], valid.missingData[0]] },
+    { ...valid, missingData: [...valid.missingData, { identity: "auth.other", rowState: "EMPTY" }] },
+    { ...valid, missingClasses: [{ class: "PUBLIC", count: 2 }] },
+    { ...valid, missingData: valid.missingData.map((item, index) => index === 0 ? { ...item, rowState: "UNKNOWN" } : item) },
+    { ...valid, missingData: valid.missingData.map((item, index) => index === 0 ? { ...item, extra: true } : item) },
+  ];
+  for (const value of invalid) {
+    assert.throws(() => validateMutableCatalogDiagnostic(value), { code: "RECOVERY_MUTABLE_CATALOG_DIAGNOSTIC_INVALID" });
+  }
 });
 
 test("database counts reconcile exact managed data plus exact audit-only migration history", () => {

@@ -4,7 +4,7 @@
 
 **Estado de PPO-04M:** `ACTIVE / NEXT`
 
-**Bloque activo:** `PPO-04M.5 — ACTIVE / MUTABLE CATALOG DIAGNOSTIC`
+**Bloque activo:** `PPO-04M.5 — ACTIVE / AUTH SCHEMA DRIFT DIAGNOSTIC`
 
 **Estado de PPO-04M.2:** `CLOSED / APPROVED`
 
@@ -14,7 +14,7 @@
 
 **PPO-04M.4:** `CLOSED / QUALIFIED ACCEPTANCE`
 
-**PPO-04M.5:** `ACTIVE / MUTABLE CATALOG DIAGNOSTIC`
+**PPO-04M.5:** `ACTIVE / AUTH SCHEMA DRIFT DIAGNOSTIC`
 
 **PPO-04M.5.0:** `CLOSED / ARCHITECTURE APPROVED`
 
@@ -72,7 +72,7 @@
 
 **PPO-04M.5.3D.2.8:** `CLOSED / WINDOWS SAME-VOLUME APPLICATION RUNTIME TOPOLOGY / REAL-ENVIRONMENT VERIFIED BY ATTEMPT #9`
 
-**PPO-04M.5.3:** `ACTIVE / MUTABLE CATALOG DIAGNOSTIC`
+**PPO-04M.5.3:** `ACTIVE / AUTH SCHEMA DRIFT DIAGNOSTIC`
 
 **FIRST PRODUCTION BACKUP:** `COMPLETE`
 
@@ -122,7 +122,7 @@ PPO-04M.2A = CLOSED / APPROVED
 PPO-04M.2B = CLOSED / APPROVED
 PPO-04M.3 = CLOSED / APPROVED
 PPO-04M.4 = CLOSED / QUALIFIED ACCEPTANCE
-PPO-04M.5 = ACTIVE / MUTABLE CATALOG DIAGNOSTIC
+PPO-04M.5 = ACTIVE / AUTH SCHEMA DRIFT DIAGNOSTIC
 PPO-04M.5.0 = CLOSED / ARCHITECTURE APPROVED
 PPO-04M.5.1 = CLOSED / LOCAL INTEGRATION APPROVED
 PPO-04M.5.2.0 = CLOSED / PRODUCTION BACKUP PREPARATION APPROVED
@@ -167,7 +167,7 @@ PACKAGE.JSON SCRIPTS-ONLY OPERATIONAL DRIFT = SEMANTICALLY EXCLUDED
 PACKAGE.JSON NON-SCRIPT FIELDS = EXACT AUTHORITY
 TEMPORARY APP PACKAGE.JSON = PRODUCTION RUNTIME AUTHORITY
 REAL_SHA_APP_RUNTIME_AUTHORITY = PASS
-PPO-04M.5.3 = ACTIVE / MUTABLE CATALOG DIAGNOSTIC
+PPO-04M.5.3 = ACTIVE / AUTH SCHEMA DRIFT DIAGNOSTIC
 REAL RESTORE ATTEMPT #1 = FAIL / PREFLIGHT OPERATOR CONFIGURATION
 REAL RESTORE ATTEMPT #2 = FAIL / SOURCE_VERIFY REAL BACKUP SQL DIALECT ADMISSION FINDING
 REAL RESTORE ATTEMPT #3 = NOT AUTHORIZED / PENDING FINAL DOCUMENTARY REVIEW
@@ -239,7 +239,7 @@ provider limits are external and must be revalidated at execution time
 | PPO-04M.2 | Database / Auth / Storage Provisioning | `CLOSED / APPROVED` |
 | PPO-04M.3 | Vercel Hobby Deployment | `CLOSED / APPROVED` |
 | PPO-04M.4 | Managed Production QA | `CLOSED / QUALIFIED ACCEPTANCE` |
-| PPO-04M.5 | Free-Tier Backup & Recovery Baseline | `ACTIVE / MUTABLE CATALOG DIAGNOSTIC` |
+| PPO-04M.5 | Free-Tier Backup & Recovery Baseline | `ACTIVE / AUTH SCHEMA DRIFT DIAGNOSTIC` |
 | PPO-04M.6 | Production Pilot Rollout | `NOT STARTED` |
 | PPO-04M.7 | Stabilization & Usage Measurement | `NOT STARTED` |
 
@@ -1459,6 +1459,114 @@ LOCAL RESTORE PLAN DIAGNOSTIC #3 = CLOSED / FINDING CONFIRMED
 DATABASE COUNTS RECONCILIATION = APPROVED / REAL BACKUP VERIFIED
 MUTABLE CATALOG DIAGNOSTIC = IMPLEMENTED / PENDING REVIEW
 LOCAL RESTORE PLAN DIAGNOSTIC #4 = NOT AUTHORIZED / PENDING IMPLEMENTATION REVIEW
+REAL RESTORE ATTEMPT #6 = NOT AUTHORIZED
+TD-BACKUP-004 = OPEN
+CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY
+
+REAL R2 READS DURING IMPLEMENTATION = 0
+REAL AGE DECRYPTS DURING IMPLEMENTATION = 0
+REAL TARGET STARTS DURING IMPLEMENTATION = 0
+REAL APP STARTS DURING IMPLEMENTATION = 0
+REAL CHROMIUM STARTS DURING IMPLEMENTATION = 0
+SQL EXECUTIONS DURING IMPLEMENTATION = 0
+PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
+```
+
+
+## Local Restore Plan Diagnostic #4 — Auth schema drift confirmado
+
+La ejecución gobernada sobre el tooling inmutable confirmó cuatro identities
+Auth presentes en el backup real y ausentes del catálogo del target local. El
+finding quedó acotado al dominio interno de Auth; no se observó divergencia en
+tablas `public`, `private` o `storage`.
+
+```text
+LOCAL RESTORE PLAN DIAGNOSTIC #4 =
+FINDING / RESTORE_PLAN
+
+TOOLING SHA =
+a8145358f7815b655cb9db113cad452291c92253
+
+code =
+RECOVERY_MUTABLE_TABLE_UNKNOWN
+
+missingCount =
+4
+
+missingClasses =
+AUTH_OTHER × 4
+
+missingIdentities =
+auth.mfa_recovery_code_sets
+auth.mfa_recovery_codes
+auth.scim_tokens
+auth.scim_users
+
+localAgeDecrypts = 1
+realTargetStarts = 1
+sqlExecutions = 0
+targetMutations = 0
+realR2Reads = 0
+remoteActivity = 0
+productionMutations = 0
+targetCleanup = PASS
+sourceCleanup = PASS
+
+PLAN_DIAGNOSTIC_4_EXIT_CODE =
+1
+```
+
+```text
+DATABASE COUNTS RECONCILIATION = PASS
+MUTABLE SOURCE/TARGET CATALOG ALIGNMENT = FINDING
+MISSING DOMAIN = AUTH INTERNAL ONLY
+PUBLIC TABLE DIVERGENCE = NONE OBSERVED
+PRIVATE TABLE DIVERGENCE = NONE OBSERVED
+STORAGE TABLE DIVERGENCE = NONE OBSERVED
+
+MANAGED VS LOCAL AUTH SCHEMA DRIFT = CONFIRMED
+MISSING AUTH FEATURE TABLES = MFA RECOVERY CODES + SCIM
+
+MISSING AUTH TABLES =
+auth.mfa_recovery_code_sets
+auth.mfa_recovery_codes
+auth.scim_tokens
+auth.scim_users
+
+MISSING TABLE DATA OCCUPANCY = UNKNOWN / PENDING DIAGNOSTIC
+```
+
+Las cuatro identities corresponden a funcionalidades incorporadas en una línea
+de GoTrue posterior a la utilizada por los targets actuales. Esto confirma el
+drift de schema, pero no autoriza ignorar tablas, eliminar COPYs ni inferir que
+las tablas estén vacías.
+
+Como contexto del proyecto, la revisión del repositorio no encontró uso Product
+de SCIM. La configuración local gobernada mantiene deshabilitados tanto MFA
+TOTP como MFA por teléfono. Estos datos no constituyen evidencia sobre la
+ocupación de las tablas del backup real.
+
+```text
+GODEL PRODUCT USE OF SCIM = NONE FOUND IN REPOSITORY
+GODEL LOCAL MFA TOTP = DISABLED
+GODEL LOCAL MFA PHONE = DISABLED
+```
+
+El diagnóstico implementado conserva separadas la clasificación del catálogo y
+la ocupación. Sólo un resultado con provenance de
+`classifyMutableCatalogMismatch()` puede consultar estructuralmente sus COPY
+blocks a través del admission gobernado. Para cada identity ausente publica
+únicamente `EMPTY` o `NONEMPTY`; no publica conteos, filas, columnas,
+valores, SQL, hashes, tokens, UUIDs, paths ni credenciales. El límite permanece
+en 32 identities y el sanitizer revalida provenance, igualdad exacta de sets,
+orden y shape antes de publicar.
+
+```text
+PPO-04M.5.3 = ACTIVE / AUTH SCHEMA DRIFT DIAGNOSTIC
+LOCAL RESTORE PLAN DIAGNOSTIC #4 = CLOSED / FINDING CONFIRMED
+MANAGED VS LOCAL AUTH SCHEMA DRIFT = CONFIRMED
+MISSING AUTH TABLE DATA OCCUPANCY = PENDING REAL BACKUP VERIFICATION
+LOCAL RESTORE PLAN DIAGNOSTIC #5 = NOT AUTHORIZED / PENDING IMPLEMENTATION REVIEW
 REAL RESTORE ATTEMPT #6 = NOT AUTHORIZED
 TD-BACKUP-004 = OPEN
 CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY

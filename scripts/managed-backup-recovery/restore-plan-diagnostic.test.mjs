@@ -9,6 +9,7 @@ import {
   runLocalManagedRecoveryPlanDiagnostic,
 } from "./restore-plan-diagnostic.mjs";
 import { RECOVERY_DRILL_BACKUP_ID_ENV, RECOVERY_DRILL_TOOLING_SHA_ENV } from "./real-restore-drill-core.mjs";
+import { admitManagedDataSql } from "./sql-admission.mjs";
 import { preflightManagedRecoveryPlanDiagnosticTools } from "./tool-preflight.mjs";
 import { TEST_BACKUP_ID, TEST_TOOLING_SHA } from "./test-helpers.mjs";
 
@@ -43,6 +44,9 @@ function syntheticDependencies({
     storage: Object.freeze({ objectCount: 0, totalBytes: 0 }),
   }),
   mutableCatalogDiagnostic,
+  mutableDataOccupancy,
+  managedData: suppliedManagedData,
+  targetTables: suppliedTargetTables,
   cleanupError,
   sourceCleanupError,
 } = {}) {
@@ -51,8 +55,8 @@ function syntheticDependencies({
   const discoverDb = Object.freeze({ name: "discover-db" });
   const authority = Object.freeze({ runtimeSha: "a".repeat(40), evidence: Object.freeze({ versions: Object.freeze(["1", "2", "3", "4", "5", "6"]) }) });
   const targetState = Object.freeze({ marker: "target-state" });
-  const targetTables = Object.freeze(["auth.users", "auth.identities", "public.perfiles", "storage.buckets", "storage.objects"]);
-  const managedData = Object.freeze({ status: "ADMITTED" });
+  const targetTables = suppliedTargetTables ?? Object.freeze(["auth.users", "auth.identities", "public.perfiles", "storage.buckets", "storage.objects"]);
+  const managedData = suppliedManagedData ?? Object.freeze({ status: "ADMITTED" });
   const prepared = Object.freeze({
     status: "PREPARED",
     authority,
@@ -115,6 +119,13 @@ function syntheticDependencies({
         assert.equal(input.admission, managedData);
         assert.equal(input.targetTables, targetTables);
         return mutableCatalogDiagnostic(input);
+      },
+    } : {}),
+    ...(mutableDataOccupancy ? {
+      classifyMissingMutableDataOccupancy: (input) => {
+        events.push("MUTABLE_DATA_OCCUPANCY");
+        assert.equal(input.admission, managedData);
+        return mutableDataOccupancy(input);
       },
     } : {}),
     createCleanupAdapter: () => Object.freeze({ status: "READY" }),
@@ -197,20 +208,22 @@ test("plan diagnostic returns a bounded finding and preserves cleanup", async ()
 
 test("mutable table unknown publishes only the bounded catalog diagnostic and preserves zero mutation", async () => {
   const events = [];
+  const managedData = admitManagedDataSql([
+    "COPY auth.identities (id) FROM stdin;",
+    "private-identity-row",
+    "\\.",
+    "COPY auth.sessions (id) FROM stdin;",
+    "\\.",
+  ].join("\n"));
+  const targetTables = Object.freeze(["auth.users", "public.perfiles", "storage.buckets", "storage.objects"]);
   const result = await runLocalManagedRecoveryPlanDiagnostic({
     environment: environment(),
     repoRoot: "C:\\repo",
     dependencies: syntheticDependencies({
       events,
       planError: Object.assign(new Error("private catalog details"), { code: "RECOVERY_MUTABLE_TABLE_UNKNOWN" }),
-      mutableCatalogDiagnostic: () => Object.freeze({
-        missingCount: 2,
-        missingClasses: Object.freeze([
-          Object.freeze({ class: "AUTH_EPHEMERAL_KNOWN", count: 1 }),
-          Object.freeze({ class: "AUTH_OTHER", count: 1 }),
-        ]),
-        missingIdentities: Object.freeze(["auth.identities", "auth.sessions"]),
-      }),
+      managedData,
+      targetTables,
     }),
   });
   assert.deepEqual(result, {
@@ -234,11 +247,15 @@ test("mutable table unknown publishes only the bounded catalog diagnostic and pr
         { class: "AUTH_OTHER", count: 1 },
       ],
       missingIdentities: ["auth.identities", "auth.sessions"],
+      missingData: [
+        { identity: "auth.identities", rowState: "NONEMPTY" },
+        { identity: "auth.sessions", rowState: "EMPTY" },
+      ],
     },
   });
   assert.equal(events.filter((event) => event === "TARGET_START").length, 1);
-  assert.equal(events.filter((event) => event === "MUTABLE_CATALOG_DIAGNOSTIC").length, 1);
   assert.ok(!JSON.stringify(result).includes("private catalog details"));
+  assert.ok(!JSON.stringify(result).includes("private-identity-row"));
 });
 
 test("other restore-plan findings never receive mutable catalog metadata", async () => {
@@ -275,6 +292,22 @@ test("mutable catalog classification failure is replaced by a closed diagnostic 
     assert.equal("mutableCatalog" in result, false);
     assert.ok(!JSON.stringify(result).includes("private"));
   }
+  const managedData = admitManagedDataSql("COPY auth.example (id) FROM stdin;\nprivate\n\\.");
+  const forgedOccupancy = await runLocalManagedRecoveryPlanDiagnostic({
+    environment: environment(),
+    repoRoot: "C:\\repo",
+    dependencies: syntheticDependencies({
+      managedData,
+      targetTables: Object.freeze([]),
+      planError: Object.assign(new Error("private"), { code: "RECOVERY_MUTABLE_TABLE_UNKNOWN" }),
+      mutableDataOccupancy: ({ mutableCatalog }) => ({
+        ...mutableCatalog,
+        missingData: [{ identity: "auth.example", rowState: "NONEMPTY" }],
+      }),
+    }),
+  });
+  assert.equal(forgedOccupancy.code, "RECOVERY_MUTABLE_CATALOG_DIAGNOSTIC_INVALID");
+  assert.equal("mutableCatalog" in forgedOccupancy, false);
 });
 
 test("plan diagnostic maps unknown plan errors to one fixed unclassified code", async () => {

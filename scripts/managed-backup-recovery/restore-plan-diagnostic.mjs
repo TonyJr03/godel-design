@@ -19,7 +19,7 @@ import {
 } from "./target-restore.mjs";
 import { admitLocalSupabaseStatus } from "./target-runtime-status.mjs";
 import { preflightManagedRecoveryPlanDiagnosticTools } from "./tool-preflight.mjs";
-import { classifyMutableCatalogMismatch, validateMutableCatalogDiagnostic } from "./restore-planning.mjs";
+import { classifyMissingMutableDataOccupancy, classifyMutableCatalogMismatch, validateMutableCatalogDiagnostic } from "./restore-planning.mjs";
 
 export const RESTORE_PLAN_DIAGNOSTIC_CONFIRM_ENV = "GODEL_MANAGED_RECOVERY_PLAN_DIAGNOSTIC_CONFIRM";
 export const RESTORE_PLAN_DIAGNOSTIC_CONFIRMATION = "ALLOW_LOCAL_MANAGED_RECOVERY_PLAN_DIAGNOSTIC";
@@ -400,9 +400,13 @@ export async function runLocalManagedRecoveryPlanDiagnostic({ environment = proc
           if (error?.code !== "RECOVERY_MUTABLE_TABLE_UNKNOWN") throw error;
           let mutableCatalog;
           try {
-            mutableCatalog = (dependencies.classifyMutableCatalogMismatch ?? classifyMutableCatalogMismatch)({
+            const catalogMismatch = (dependencies.classifyMutableCatalogMismatch ?? classifyMutableCatalogMismatch)({
               admission: verifiedSource.sql.managedData,
               targetTables: baselineDetails.targetTables,
+            });
+            mutableCatalog = (dependencies.classifyMissingMutableDataOccupancy ?? classifyMissingMutableDataOccupancy)({
+              admission: verifiedSource.sql.managedData,
+              mutableCatalog: catalogMismatch,
             });
           } catch (diagnosticError) {
             const code = diagnosticError?.code === "RECOVERY_MUTABLE_CATALOG_DIAGNOSTIC_TOO_LARGE"

@@ -15,6 +15,8 @@ const MUTABLE_CATALOG_CLASSES = Object.freeze([
   "AUTH_EPHEMERAL_KNOWN", "AUTH_OTHER", "PRIVATE", "PUBLIC", "STORAGE_METADATA", "STORAGE_OTHER",
 ]);
 const MAX_MUTABLE_CATALOG_DIAGNOSTIC_IDENTITIES = 32;
+const mutableCatalogMismatchHandles = new WeakMap();
+const mutableCatalogDiagnosticHandles = new WeakSet();
 const mutablePlanHandles = new WeakSet();
 const mutablePlanDetails = new WeakMap();
 const sanitizedSqlHandles = new WeakMap();
@@ -93,24 +95,26 @@ export function classifyMutableCatalogMismatch({ admission, targetTables } = {})
       .filter(([, count]) => count > 0)
       .map(([name, count]) => Object.freeze({ class: name, count }))
       .sort((left, right) => left.class.localeCompare(right.class, "en"));
-    return validateMutableCatalogDiagnostic({
+    const result = Object.freeze({
       missingCount: missingIdentities.length,
-      missingClasses,
-      missingIdentities,
+      missingClasses: Object.freeze(missingClasses),
+      missingIdentities: Object.freeze(missingIdentities),
     });
+    mutableCatalogMismatchHandles.set(result, Object.freeze({ admission, missingIdentities: result.missingIdentities }));
+    return result;
   });
 }
 
-export function validateMutableCatalogDiagnostic(value) {
-  const keys = ["missingCount", "missingClasses", "missingIdentities"];
+function validateMutableCatalogDiagnosticShape(value) {
+  const keys = ["missingCount", "missingClasses", "missingIdentities", "missingData"];
   if (
     !value || typeof value !== "object" || Array.isArray(value)
     || Object.keys(value).length !== keys.length
     || Object.keys(value).some((key) => !keys.includes(key))
     || !Number.isSafeInteger(value.missingCount) || value.missingCount < 0
     || value.missingCount > MAX_MUTABLE_CATALOG_DIAGNOSTIC_IDENTITIES
-    || !Array.isArray(value.missingClasses) || !Array.isArray(value.missingIdentities)
-    || value.missingIdentities.length !== value.missingCount
+    || !Array.isArray(value.missingClasses) || !Array.isArray(value.missingIdentities) || !Array.isArray(value.missingData)
+    || value.missingIdentities.length !== value.missingCount || value.missingData.length !== value.missingCount
   ) fail("RECOVERY_MUTABLE_CATALOG_DIAGNOSTIC_INVALID", "Mutable catalog diagnostic shape is invalid");
   const missingIdentities = value.missingIdentities.map(validateTargetCatalogIdentity);
   if (
@@ -139,11 +143,57 @@ export function validateMutableCatalogDiagnostic(value) {
     missingClasses.length !== expectedClasses.length
     || missingClasses.some((item, index) => item.class !== expectedClasses[index].class || item.count !== expectedClasses[index].count)
   ) fail("RECOVERY_MUTABLE_CATALOG_DIAGNOSTIC_INVALID", "Mutable catalog diagnostic classes do not match its identities");
+  const missingData = value.missingData.map((item, index) => {
+    if (
+      !item || typeof item !== "object" || Array.isArray(item)
+      || Object.keys(item).length !== 2 || !Object.hasOwn(item, "identity") || !Object.hasOwn(item, "rowState")
+      || validateTargetCatalogIdentity(item.identity) !== missingIdentities[index]
+      || (item.rowState !== "EMPTY" && item.rowState !== "NONEMPTY")
+    ) fail("RECOVERY_MUTABLE_CATALOG_DIAGNOSTIC_INVALID", "Mutable catalog data occupancy is invalid");
+    return Object.freeze({ identity: item.identity, rowState: item.rowState });
+  });
   return Object.freeze({
     missingCount: value.missingCount,
     missingClasses: Object.freeze(missingClasses),
     missingIdentities: Object.freeze(missingIdentities),
+    missingData: Object.freeze(missingData),
   });
+}
+
+export function classifyMissingMutableDataOccupancy(options = {}) {
+  const keys = ["admission", "mutableCatalog"];
+  if (
+    !options || typeof options !== "object" || Array.isArray(options)
+    || Object.keys(options).length !== keys.length
+    || Object.keys(options).some((key) => !keys.includes(key))
+  ) fail("RECOVERY_MUTABLE_CATALOG_DIAGNOSTIC_INVALID", "Governed mutable catalog occupancy inputs are required");
+  const { admission, mutableCatalog } = options;
+  const provenance = mutableCatalogMismatchHandles.get(mutableCatalog);
+  if (!provenance || provenance.admission !== admission) fail("RECOVERY_MUTABLE_CATALOG_DIAGNOSTIC_INVALID", "Governed mutable catalog mismatch evidence is required");
+  return withAdmittedManagedDataSql(admission, (model) => {
+    const missingIdentitySet = new Set(provenance.missingIdentities);
+    const copyBlocks = new Map();
+    for (const block of model.copyBlocks) {
+      if (!missingIdentitySet.has(block.identity)) continue;
+      if (copyBlocks.has(block.identity)) fail("RECOVERY_MUTABLE_CATALOG_DIAGNOSTIC_INVALID", "Missing mutable identity has multiple COPY blocks");
+      copyBlocks.set(block.identity, block);
+    }
+    if (copyBlocks.size !== provenance.missingIdentities.length) fail("RECOVERY_MUTABLE_CATALOG_DIAGNOSTIC_INVALID", "Missing mutable identity COPY block is unavailable");
+    const missingData = provenance.missingIdentities.map((identity) => {
+      const block = copyBlocks.get(identity);
+      const structuralRowCount = block.end - block.start - 1;
+      if (!Number.isSafeInteger(structuralRowCount) || structuralRowCount < 0) fail("RECOVERY_MUTABLE_CATALOG_DIAGNOSTIC_INVALID", "Missing mutable identity COPY structure is invalid");
+      return Object.freeze({ identity, rowState: structuralRowCount === 0 ? "EMPTY" : "NONEMPTY" });
+    });
+    const result = validateMutableCatalogDiagnosticShape({ ...mutableCatalog, missingData });
+    mutableCatalogDiagnosticHandles.add(result);
+    return result;
+  });
+}
+
+export function validateMutableCatalogDiagnostic(value) {
+  if (!mutableCatalogDiagnosticHandles.has(value)) fail("RECOVERY_MUTABLE_CATALOG_DIAGNOSTIC_INVALID", "Governed mutable catalog occupancy evidence is required");
+  return validateMutableCatalogDiagnosticShape(value);
 }
 
 export function accessMutableTablePlan(handle, callback) {
