@@ -17,12 +17,23 @@ const SCHEMA = [
   "CREATE TABLE public.example (id uuid);", "CREATE TABLE private.audit (id uuid);", "CREATE TABLE auth.users (id uuid);", "CREATE TABLE storage.objects (id uuid);",
 ].join("\n");
 const HISTORY_SCHEMA = "CREATE TABLE supabase_migrations.schema_migrations (version text);\n";
-const HISTORY_DATA = `COPY supabase_migrations.schema_migrations (version) FROM stdin;\n${VERSIONS.join("\n")}\n\\.\n`;
+const HISTORY_DATA = `SET session_replication_role = replica;\n\nCOPY supabase_migrations.schema_migrations (version) FROM stdin;\n${VERSIONS.join("\n")}\n\\.\n\nRESET ALL;\n`;
 
 test("audit-only SQL accepts governed role/schema/history dialect without executing it", () => {
   assert.equal(auditRolesSql("CREATE ROLE authenticator;\nALTER ROLE authenticator WITH LOGIN NOSUPERUSER;\n").status, "PASS");
   assert.deepEqual(auditManagedSchemaSql(SCHEMA, { requiredExtensions: ["pgcrypto"] }).schemas, ["auth", "private", "public", "storage"]);
   assert.deepEqual(auditMigrationHistorySql({ schemaSql: HISTORY_SCHEMA, dataSql: HISTORY_DATA, baselineVersions: VERSIONS }).versions, [...VERSIONS].sort());
+});
+
+test("migration history audit admits the exact Supabase CLI 2.109.1 wrapper as audit-only", () => {
+  const result = auditMigrationHistorySql({
+    schemaSql: HISTORY_SCHEMA,
+    dataSql: HISTORY_DATA,
+    baselineVersions: VERSIONS,
+  });
+  assert.equal(result.status, "PASS");
+  assert.equal(result.treatment, "AUDIT_ONLY");
+  assert.deepEqual(result.versions, [...VERSIONS].sort());
 });
 
 test("roles audit rejects passwords and unexpected statements", () => {
@@ -164,6 +175,46 @@ test("schema and history audits reject unexpected authority and version mismatch
   assert.throws(() => auditManagedSchemaSql(`${SCHEMA}\nCREATE EXTENSION unsafe;`, { requiredExtensions: ["pgcrypto"] }), { code: "RECOVERY_EXTENSION_UNEXPECTED" });
   assert.throws(() => auditMigrationHistorySql({ schemaSql: HISTORY_SCHEMA, dataSql: HISTORY_DATA.replace(VERSIONS[5], "20260811131899"), baselineVersions: VERSIONS }), { code: "RECOVERY_MIGRATION_HISTORY_MISMATCH" });
   assert.throws(() => auditMigrationHistorySql({ schemaSql: HISTORY_SCHEMA, dataSql: `${HISTORY_DATA}DELETE FROM supabase_migrations.schema_migrations;`, baselineVersions: VERSIONS }), { code: "RECOVERY_MIGRATION_HISTORY_DATA_INVALID" });
+});
+
+test("migration history audit rejects RESET variants and invalid suffix positions", () => {
+  const invalidData = [
+    HISTORY_DATA.replace("RESET ALL;", "RESET statement_timeout;"),
+    HISTORY_DATA.replace("RESET ALL;", "RESET ROLE;"),
+    HISTORY_DATA.replace("RESET ALL;", "RESET SESSION AUTHORIZATION;"),
+    HISTORY_DATA.replace("RESET ALL;", "RESET ALL"),
+    HISTORY_DATA.replace("RESET ALL;", "reset all;"),
+    HISTORY_DATA.replace("RESET ALL;\n", ""),
+    HISTORY_DATA.replace("RESET ALL;", "RESET ALL;\nRESET ALL;"),
+    `RESET ALL;\n${HISTORY_DATA}`,
+    HISTORY_DATA.replace(VERSIONS[0], "RESET ALL;"),
+    HISTORY_DATA.replace("RESET ALL;", "RESET ALL; DELETE FROM supabase_migrations.schema_migrations;"),
+  ];
+  for (const dataSql of invalidData) {
+    assert.throws(
+      () => auditMigrationHistorySql({ schemaSql: HISTORY_SCHEMA, dataSql, baselineVersions: VERSIONS }),
+      { code: "RECOVERY_MIGRATION_HISTORY_DATA_INVALID" },
+    );
+  }
+});
+
+test("migration history audit rejects every significant statement after RESET ALL", () => {
+  for (const statement of [
+    "DELETE FROM supabase_migrations.schema_migrations;",
+    "INSERT INTO supabase_migrations.schema_migrations VALUES ('unsafe');",
+    "UPDATE supabase_migrations.schema_migrations SET version = 'unsafe';",
+    "ALTER ROLE postgres WITH SUPERUSER;",
+    "CREATE EXTENSION unsafe;",
+  ]) {
+    assert.throws(
+      () => auditMigrationHistorySql({
+        schemaSql: HISTORY_SCHEMA,
+        dataSql: `${HISTORY_DATA}${statement}\n`,
+        baselineVersions: VERSIONS,
+      }),
+      { code: "RECOVERY_MIGRATION_HISTORY_DATA_INVALID" },
+    );
+  }
 });
 
 test("baseline gate requires exact versions, extension, schemas and private bucket", () => {

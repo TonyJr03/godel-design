@@ -1,6 +1,6 @@
 # PPO-04M.5.3 — Restore Drill + Baseline Closure Architecture Audit
 
-**Estado de M.5.3:** `ACTIVE / REAL RESTORE PLAN DIAGNOSTIC`
+**Estado de M.5.3:** `ACTIVE / MIGRATION HISTORY DIALECT REMEDIATION`
 
 **Estado de M.5.3.0:** `CLOSED / RESTORE DRILL ARCHITECTURE APPROVED`
 
@@ -2161,6 +2161,85 @@ PPO-04M.5.3 = ACTIVE / REAL BACKUP ROLES DIALECT DIAGNOSTIC
 REAL RESTORE ATTEMPT #4 = CLOSED / SAFE FAIL / NO SQL MUTATION
 LOCAL SOURCE DIAGNOSTIC #4 = NOT AUTHORIZED / PENDING IMPLEMENTATION REVIEW
 REAL RESTORE ATTEMPT #5 = NOT AUTHORIZED
+TD-BACKUP-004 = OPEN
+CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY
+
+REAL R2 READS DURING IMPLEMENTATION = 0
+REAL AGE DECRYPTS DURING IMPLEMENTATION = 0
+REAL TARGET STARTS DURING IMPLEMENTATION = 0
+REAL APP STARTS DURING IMPLEMENTATION = 0
+REAL CHROMIUM STARTS DURING IMPLEMENTATION = 0
+SQL EXECUTIONS DURING IMPLEMENTATION = 0
+PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
+```
+
+
+## Local Restore Plan Diagnostic #1 — migration history dialect finding
+
+Local Restore Plan Diagnostic #1 ejecutó el tooling inmutable
+`6081250f9943837d278e449d4f9c3602534f9b0a` sobre la fuente local preservada
+y confirmó el primer fallo interno de Real Restore Attempt #5. La fuente local,
+el target desechable y su baseline alcanzaron PASS antes del finding. No se
+ejecutó SQL ni hubo actividad remota o mutación del target o Production. Este
+resultado no declara corrupción del backup.
+
+```text
+LOCAL RESTORE PLAN DIAGNOSTIC #1 = FINDING / RESTORE_PLAN
+TOOLING SHA = 6081250f9943837d278e449d4f9c3602534f9b0a
+code = RECOVERY_MIGRATION_HISTORY_DATA_INVALID
+localAgeDecrypts = 1
+realTargetStarts = 1
+sqlExecutions = 0
+targetMutations = 0
+realR2Reads = 0
+remoteActivity = 0
+productionMutations = 0
+targetCleanup = PASS
+sourceCleanup = PASS
+PLAN_DIAGNOSTIC_EXIT_CODE = 1
+
+SOURCE LOCAL VERIFY = PASS
+TARGET START = PASS
+TARGET BASELINE = PASS
+ROLES AUDIT = PASSED BEFORE FAILURE
+MANAGED SCHEMA AUDIT = PASSED BEFORE FAILURE
+MIGRATION HISTORY DATA AUDIT = FINDING
+RESTORE SQL = NOT EXECUTED
+
+ATTEMPT #5 FIRST INTERNAL FAILURE = CONFIRMED / MIGRATION HISTORY DATA AUDIT
+MANAGED SCHEMA FIRST-FAIL HYPOTHESIS = DISCARDED
+MIGRATION-HISTORY DATA DIALECT GAP = CONFIRMED
+```
+
+La causa técnica confirmada es el wrapper data-only de Supabase CLI 2.109.1,
+release commit upstream `6d4c19870ed213ba7f682f117d0345c8a40bfa94`.
+`apps/cli-go/pkg/migration/scripts/dump_data.sh` produce
+`database/migration-history-data.sql` mediante `supabase db dump --linked
+--data-only --use-copy --schema supabase_migrations` y lo envuelve con
+`SET session_replication_role = replica;` y un único `RESET ALL;` final. El
+auditor admitía el prefix, pero no el suffix exacto.
+
+La remediación admite `RESET ALL;` únicamente fuera de COPY, después del único
+COPY esperado, una sola vez y al final lógico del artifact. Comments y líneas
+vacías posteriores siguen siendo no significativos. El historial de migraciones
+permanece `AUDIT_ONLY`; ni su schema ni sus datos se incorporan a
+`restoreSql`. La comparación exacta entre las versiones capturadas y la
+baseline 01–06 permanece intacta.
+
+```text
+SUPABASE CLI 2.109.1 DATA-DUMP WRAPPER =
+SET session_replication_role = replica
+...
+RESET ALL
+
+DIAGNOSTIC #1 AUDITOR GAP = RESET ALL suffix was not admitted
+CURRENT AUDITOR GAP = NONE KNOWN / PENDING REAL BACKUP VERIFICATION
+MIGRATION HISTORY DIALECT REMEDIATION = IMPLEMENTED / PENDING REAL BACKUP VERIFICATION
+
+PPO-04M.5.3 = ACTIVE / MIGRATION HISTORY DIALECT REMEDIATION
+LOCAL RESTORE PLAN DIAGNOSTIC #1 = CLOSED / FINDING CONFIRMED
+LOCAL RESTORE PLAN DIAGNOSTIC #2 = NOT AUTHORIZED / PENDING IMPLEMENTATION REVIEW
+REAL RESTORE ATTEMPT #6 = NOT AUTHORIZED
 TD-BACKUP-004 = OPEN
 CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY
 

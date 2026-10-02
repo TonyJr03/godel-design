@@ -16,7 +16,7 @@ const PROJECT = "godel-m53-restore-012345abcdef";
 const VERSIONS = MANAGED_BASELINE_MIGRATIONS.map((name) => name.slice(0, 14));
 const SCHEMA = ["CREATE SCHEMA public;", "CREATE SCHEMA private;", "CREATE SCHEMA auth;", "CREATE SCHEMA storage;", "CREATE EXTENSION pgcrypto;", "CREATE TABLE public.p (id int);", "CREATE TABLE private.p (id int);", "CREATE TABLE auth.users (id uuid);", "CREATE TABLE storage.objects (id uuid);"].join("\n");
 const HISTORY_SCHEMA = "CREATE TABLE supabase_migrations.schema_migrations (version text);\n";
-const HISTORY_DATA = `COPY supabase_migrations.schema_migrations (version) FROM stdin;\n${VERSIONS.join("\n")}\n\\.\n`;
+const HISTORY_DATA = `SET session_replication_role = replica;\n\nCOPY supabase_migrations.schema_migrations (version) FROM stdin;\n${VERSIONS.join("\n")}\n\\.\n\nRESET ALL;\n`;
 
 async function write(root, pathname, content) {
   const target = join(root, ...pathname.split("/"));

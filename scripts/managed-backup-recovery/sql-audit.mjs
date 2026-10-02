@@ -176,9 +176,11 @@ export function auditMigrationHistorySql({ schemaSql, dataSql, baselineVersions 
   const lines = data.replace(/\r\n/g, "\n").split("\n");
   let inCopy = false;
   let copyCount = 0;
+  let resetAllCount = 0;
   for (const raw of lines) {
     const line = raw.trim();
     if (!line || line.startsWith("--")) continue;
+    if (resetAllCount !== 0) fail("RECOVERY_MIGRATION_HISTORY_DATA_INVALID", "Migration history data contains a statement after RESET ALL");
     if (inCopy) {
       if (line === "\\.") { inCopy = false; continue; }
       if (!/^\d{14}(?:\t[^\x00-\x1f]*)*$/.test(line)) fail("RECOVERY_MIGRATION_HISTORY_DATA_INVALID", "Migration history row is invalid");
@@ -189,10 +191,15 @@ export function auditMigrationHistorySql({ schemaSql, dataSql, baselineVersions 
       inCopy = true;
       continue;
     }
+    if (line === "RESET ALL;") {
+      if (copyCount !== 1) fail("RECOVERY_MIGRATION_HISTORY_DATA_INVALID", "Migration history RESET ALL is outside its governed suffix position");
+      resetAllCount += 1;
+      continue;
+    }
     if (/^SET [a-z_]+ = [^;]+;$/.test(line) || line === "SELECT pg_catalog.set_config('search_path', '', false);") continue;
     fail("RECOVERY_MIGRATION_HISTORY_DATA_INVALID", "Migration history data contains an unexpected statement");
   }
-  if (inCopy || copyCount !== 1) fail("RECOVERY_MIGRATION_HISTORY_DATA_INVALID", "Migration history data COPY contract is invalid");
+  if (inCopy || copyCount !== 1 || resetAllCount !== 1) fail("RECOVERY_MIGRATION_HISTORY_DATA_INVALID", "Migration history data wrapper and COPY contract is invalid");
   const versions = [...new Set([...data.matchAll(/(?:^|\D)(\d{14})(?=\D|$)/gm)].map((match) => match[1]))].sort();
   const expected = [...baselineVersions].sort();
   if (versions.length !== expected.length || versions.some((value, index) => value !== expected[index])) fail("RECOVERY_MIGRATION_HISTORY_MISMATCH", "Captured migration history does not match baseline 01-06");
