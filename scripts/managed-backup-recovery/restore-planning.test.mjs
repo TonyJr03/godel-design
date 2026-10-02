@@ -5,6 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { admitManagedDataSql } from "./sql-admission.mjs";
+import { auditMigrationHistorySql } from "./sql-audit.mjs";
 import { accessAuthorizedStorageByteEntries, accessManagedRestoreSql, admitStorageMetadataGate, authorizeStorageByteRestore, buildManagedRestoreSql, buildMutableTablePlan, buildStorageByteRestorePlan, sanitizeEphemeralAuthState, verifyManagedDataCounts } from "./restore-planning.mjs";
 
 function metadataGate(objectCount) {
@@ -19,6 +20,18 @@ const PERSISTENT = [
   "11111111-1111-4111-8111-111111111111",
   "\\.",
 ].join("\n");
+const BASELINE_VERSIONS = Object.freeze([
+  "20260811131824", "20260811131825", "20260811131826",
+  "20260811131827", "20260811131828", "20260811131829",
+]);
+
+function migrationHistoryEvidence() {
+  return auditMigrationHistorySql({
+    schemaSql: "CREATE TABLE supabase_migrations.schema_migrations (version text);\n",
+    dataSql: `SET session_replication_role = replica;\nCOPY supabase_migrations.schema_migrations (version) FROM stdin;\n${BASELINE_VERSIONS.join("\n")}\n\\.\nRESET ALL;\n`,
+    baselineVersions: BASELINE_VERSIONS,
+  });
+}
 
 function source(ephemeral = false) {
   return `${PERSISTENT}\n${ephemeral ? "COPY auth.sessions (id) FROM stdin;\nsession-sensitive\n\\.\n" : ""}`;
@@ -54,12 +67,70 @@ test("target catalog admits internal migration tables while source admission rej
   assert.throws(() => buildMutableTablePlan({ admission, targetTables: ["auth.users", "public.perfiles", "auth.users"] }), { code: "RECOVERY_TARGET_CATALOG_DUPLICATE" });
 });
 
-test("managed COPY row counts must agree exactly with manifest table counts", () => {
-  const admission = admitManagedDataSql(source(true));
-  assert.equal(verifyManagedDataCounts({ admission, manifestTableCounts: [
-    { schema: "auth", name: "sessions", rowCount: 1 }, { schema: "auth", name: "users", rowCount: 1 }, { schema: "public", name: "perfiles", rowCount: 1 },
-  ] }).status, "PASS");
-  assert.throws(() => verifyManagedDataCounts({ admission, manifestTableCounts: [{ schema: "auth", name: "users", rowCount: 2 }] }), { code: "RECOVERY_MANAGED_DATA_COUNTS_MISMATCH" });
+test("database counts reconcile exact managed data plus exact audit-only migration history", () => {
+  const admission = admitManagedDataSql(source());
+  const result = verifyManagedDataCounts({
+    admission,
+    manifestTableCounts: [
+      { schema: "auth", name: "users", rowCount: 1 },
+      { schema: "public", name: "perfiles", rowCount: 1 },
+      { schema: "supabase_migrations", name: "schema_migrations", rowCount: 6 },
+    ],
+    migrationHistory: migrationHistoryEvidence(),
+  });
+  assert.equal(result.status, "PASS");
+  assert.deepEqual(result.tableCounts, [
+    { identity: "auth.users", rowCount: 1 },
+    { identity: "public.perfiles", rowCount: 1 },
+  ]);
+});
+
+test("database counts reconciliation fails closed for every domain mismatch", () => {
+  const admission = admitManagedDataSql(source());
+  const history = migrationHistoryEvidence();
+  const managed = [
+    { schema: "auth", name: "users", rowCount: 1 },
+    { schema: "public", name: "perfiles", rowCount: 1 },
+  ];
+  const historyCount = { schema: "supabase_migrations", name: "schema_migrations", rowCount: 6 };
+  const mismatches = [
+    [{ ...managed[0], rowCount: 2 }, managed[1], historyCount],
+    [managed[0], historyCount],
+    managed,
+    [...managed, { ...historyCount, rowCount: 7 }],
+    [...managed, historyCount, historyCount],
+    [...managed, historyCount, { schema: "public", name: "unexpected_table", rowCount: 0 }],
+    [...managed, historyCount, { schema: "auth", name: "schema_migrations", rowCount: 6 }],
+    [...managed, historyCount, { schema: "storage", name: "migrations", rowCount: 6 }],
+    [...managed, historyCount, { schema: "foreign", name: "anything", rowCount: 0 }],
+    [...managed, { schema: "supabase_migrations", name: "seed_files", rowCount: 6 }],
+  ];
+  for (const manifestTableCounts of mismatches) {
+    assert.throws(
+      () => verifyManagedDataCounts({ admission, manifestTableCounts, migrationHistory: history }),
+      { code: "RECOVERY_MANAGED_DATA_COUNTS_MISMATCH" },
+    );
+  }
+});
+
+test("database counts reconciliation rejects invalid or ungoverned migration history evidence", () => {
+  const admission = admitManagedDataSql(source());
+  const manifestTableCounts = [
+    { schema: "auth", name: "users", rowCount: 1 },
+    { schema: "public", name: "perfiles", rowCount: 1 },
+    { schema: "supabase_migrations", name: "schema_migrations", rowCount: 6 },
+  ];
+  for (const migrationHistory of [
+    null,
+    { status: "FAIL", treatment: "AUDIT_ONLY", rowCount: 6 },
+    { status: "PASS", treatment: "AUDIT_ONLY", rowCount: -1 },
+    { status: "PASS", treatment: "AUDIT_ONLY", rowCount: 6 },
+  ]) {
+    assert.throws(
+      () => verifyManagedDataCounts({ admission, manifestTableCounts, migrationHistory }),
+      { code: "RECOVERY_MANAGED_DATA_COUNTS_INVALID" },
+    );
+  }
 });
 
 test("Auth sanitization removes only admitted ephemeral COPY blocks deterministically and re-admits output", () => {

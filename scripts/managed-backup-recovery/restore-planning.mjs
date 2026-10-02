@@ -1,5 +1,6 @@
 import { resolveContainedPath } from "../managed-backup/safety.mjs";
 import { admitManagedDataSql, withAdmittedManagedDataSql } from "./sql-admission.mjs";
+import { isGovernedMigrationHistoryAuditEvidence } from "./sql-audit.mjs";
 
 const SAFE_SCHEMAS = new Set(["auth", "private", "public", "storage"]);
 const EPHEMERAL_AUTH_TABLES = new Set([
@@ -64,15 +65,30 @@ export function accessMutableTablePlan(handle, callback) {
   return callback(details);
 }
 
-export function verifyManagedDataCounts({ admission, manifestTableCounts } = {}) {
-  if (!Array.isArray(manifestTableCounts)) fail("RECOVERY_MANAGED_DATA_COUNTS_INVALID", "Manifest table counts are required");
+export function verifyManagedDataCounts({ admission, manifestTableCounts, migrationHistory } = {}) {
+  if (
+    !Array.isArray(manifestTableCounts)
+    || !isGovernedMigrationHistoryAuditEvidence(migrationHistory)
+    || migrationHistory.status !== "PASS"
+    || migrationHistory.treatment !== "AUDIT_ONLY"
+    || !Number.isSafeInteger(migrationHistory.rowCount)
+    || migrationHistory.rowCount < 0
+  ) fail("RECOVERY_MANAGED_DATA_COUNTS_INVALID", "Manifest table counts and governed migration history evidence are required");
   return withAdmittedManagedDataSql(admission, (model) => {
     const actual = model.copyBlocks.map((block) => Object.freeze({ identity: block.identity, rowCount: block.end - block.start - 1 })).sort((left, right) => left.identity.localeCompare(right.identity, "en"));
-    const expected = manifestTableCounts.map((table) => {
+    const manifest = manifestTableCounts.map((table) => {
       if (!table || typeof table.schema !== "string" || typeof table.name !== "string" || !Number.isSafeInteger(table.rowCount) || table.rowCount < 0) fail("RECOVERY_MANAGED_DATA_COUNTS_INVALID", "Manifest table count is invalid");
       return Object.freeze({ identity: `${table.schema}.${table.name}`, rowCount: table.rowCount });
     }).sort((left, right) => left.identity.localeCompare(right.identity, "en"));
-    if (actual.length !== expected.length || actual.some((item, index) => item.identity !== expected[index].identity || item.rowCount !== expected[index].rowCount)) {
+    const historyIdentity = "supabase_migrations.schema_migrations";
+    const historyCounts = manifest.filter(({ identity }) => identity === historyIdentity);
+    const expected = manifest.filter(({ identity }) => identity !== historyIdentity);
+    if (
+      historyCounts.length !== 1
+      || historyCounts[0].rowCount !== migrationHistory.rowCount
+      || actual.length !== expected.length
+      || actual.some((item, index) => item.identity !== expected[index].identity || item.rowCount !== expected[index].rowCount)
+    ) {
       fail("RECOVERY_MANAGED_DATA_COUNTS_MISMATCH", "Managed data COPY counts do not match the manifest");
     }
     return Object.freeze({ status: "PASS", tableCounts: Object.freeze(actual) });

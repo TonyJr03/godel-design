@@ -1,5 +1,6 @@
 const GOVERNED_SCHEMAS = Object.freeze(["auth", "private", "public", "storage"]);
 const SHA_VERSION = /^\d{14}$/;
+const migrationHistoryAuditHandles = new WeakSet();
 export const REQUIRED_TARGET_EXTENSIONS = Object.freeze(["pgcrypto"]);
 export const ROLE_SQL_STATEMENT_CLASSES = Object.freeze([
   "RESET_ALL",
@@ -176,6 +177,7 @@ export function auditMigrationHistorySql({ schemaSql, dataSql, baselineVersions 
   const lines = data.replace(/\r\n/g, "\n").split("\n");
   let inCopy = false;
   let copyCount = 0;
+  let rowCount = 0;
   let resetAllCount = 0;
   for (const raw of lines) {
     const line = raw.trim();
@@ -184,6 +186,7 @@ export function auditMigrationHistorySql({ schemaSql, dataSql, baselineVersions 
     if (inCopy) {
       if (line === "\\.") { inCopy = false; continue; }
       if (!/^\d{14}(?:\t[^\x00-\x1f]*)*$/.test(line)) fail("RECOVERY_MIGRATION_HISTORY_DATA_INVALID", "Migration history row is invalid");
+      rowCount += 1;
       continue;
     }
     if (/^COPY (?:"supabase_migrations"|supabase_migrations)\.(?:"schema_migrations"|schema_migrations) \([^)]+\) FROM stdin;$/.test(line)) {
@@ -202,8 +205,14 @@ export function auditMigrationHistorySql({ schemaSql, dataSql, baselineVersions 
   if (inCopy || copyCount !== 1 || resetAllCount !== 1) fail("RECOVERY_MIGRATION_HISTORY_DATA_INVALID", "Migration history data wrapper and COPY contract is invalid");
   const versions = [...new Set([...data.matchAll(/(?:^|\D)(\d{14})(?=\D|$)/gm)].map((match) => match[1]))].sort();
   const expected = [...baselineVersions].sort();
-  if (versions.length !== expected.length || versions.some((value, index) => value !== expected[index])) fail("RECOVERY_MIGRATION_HISTORY_MISMATCH", "Captured migration history does not match baseline 01-06");
-  return Object.freeze({ status: "PASS", versions: Object.freeze(versions), treatment: "AUDIT_ONLY" });
+  if (rowCount !== baselineVersions.length || versions.length !== expected.length || versions.some((value, index) => value !== expected[index])) fail("RECOVERY_MIGRATION_HISTORY_MISMATCH", "Captured migration history does not match baseline 01-06");
+  const result = Object.freeze({ status: "PASS", versions: Object.freeze(versions), rowCount, treatment: "AUDIT_ONLY" });
+  migrationHistoryAuditHandles.add(result);
+  return result;
+}
+
+export function isGovernedMigrationHistoryAuditEvidence(value) {
+  return migrationHistoryAuditHandles.has(value);
 }
 
 export function validateTargetBaseline({ authority, targetState, requiredExtensions = REQUIRED_TARGET_EXTENSIONS } = {}) {

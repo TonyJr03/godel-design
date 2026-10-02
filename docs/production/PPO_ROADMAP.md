@@ -162,7 +162,7 @@ con evidencia estructural y funcional en
 [PPO_04M2_MANAGED_PROVISIONING_REPORT.md](PPO_04M2_MANAGED_PROVISIONING_REPORT.md).
 PPO-04M.3 queda `CLOSED / APPROVED`; PPO-04M.4 queda
 `CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE`; PPO-04M.5 queda
-`ACTIVE / MIGRATION HISTORY DIALECT REMEDIATION`,
+`ACTIVE / DATABASE COUNTS RECONCILIATION REMEDIATION`,
 con M.5.0 `CLOSED / ARCHITECTURE APPROVED`,
 M.5.1 `CLOSED / LOCAL INTEGRATION APPROVED`
 (`DATABASE SECRET-SAFE TRANSPORT`, `AGE ENCRYPTION`, `RCLONE S3` y
@@ -180,7 +180,7 @@ M.5.3C.0 `CLOSED / REAL RESTORE EXECUTION CONTRACT APPROVED` y M.5.3C.1
 operator-governed, no usa `TRUNCATE CASCADE` y
 el gate FK post-restore está implementado. M.5.3D.2 queda `CLOSED / REAL LOCAL
 RECOVERY APPLICATION COMPATIBILITY VERIFIED` tras el PASS real de Attempt #9;
-M.5.3 queda `ACTIVE / MIGRATION HISTORY DIALECT REMEDIATION`.
+M.5.3 queda `ACTIVE / DATABASE COUNTS RECONCILIATION REMEDIATION`.
 Cloudflare R2
 Standard queda seleccionado y sintéticamente verificado como custodia externa.
 Dirección Técnica confirmó como operador el Bucket Lock de `production/` por
@@ -267,7 +267,7 @@ PACKAGE.JSON SCRIPTS-ONLY OPERATIONAL DRIFT = SEMANTICALLY EXCLUDED
 PACKAGE.JSON NON-SCRIPT FIELDS = EXACT AUTHORITY
 TEMPORARY APP PACKAGE.JSON = PRODUCTION RUNTIME AUTHORITY
 REAL_SHA_APP_RUNTIME_AUTHORITY = PASS
-PPO-04M.5.3 = ACTIVE / MIGRATION HISTORY DIALECT REMEDIATION
+PPO-04M.5.3 = ACTIVE / DATABASE COUNTS RECONCILIATION REMEDIATION
 REAL LOCAL TARGET = VERIFIED
 APPLICATION CLEANUP FAILURE DETECTED IN D.2 ATTEMPT #1 = YES / RECOVERY_APP_CLEANUP_INCOMPLETE
 TARGET CLEANUP FAILURE DETECTED IN D.2 ATTEMPT #1 = NO
@@ -1252,6 +1252,93 @@ MIGRATION HISTORY DIALECT REMEDIATION = IMPLEMENTED / PENDING REAL BACKUP VERIFI
 PPO-04M.5.3 = ACTIVE / MIGRATION HISTORY DIALECT REMEDIATION
 LOCAL RESTORE PLAN DIAGNOSTIC #1 = CLOSED / FINDING CONFIRMED
 LOCAL RESTORE PLAN DIAGNOSTIC #2 = NOT AUTHORIZED / PENDING IMPLEMENTATION REVIEW
+REAL RESTORE ATTEMPT #6 = NOT AUTHORIZED
+TD-BACKUP-004 = OPEN
+CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY
+
+REAL R2 READS DURING IMPLEMENTATION = 0
+REAL AGE DECRYPTS DURING IMPLEMENTATION = 0
+REAL TARGET STARTS DURING IMPLEMENTATION = 0
+REAL APP STARTS DURING IMPLEMENTATION = 0
+REAL CHROMIUM STARTS DURING IMPLEMENTATION = 0
+SQL EXECUTIONS DURING IMPLEMENTATION = 0
+PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
+```
+
+
+### Local Restore Plan Diagnostic #2 — database counts reconciliation finding
+
+Local Restore Plan Diagnostic #2 ejecutó el tooling inmutable
+`1b865d463e601a3cfd900a7bf4d1221d56d1907f` sobre la fuente local preservada
+y se detuvo de forma segura durante `RESTORE_PLAN`. La fuente, el target
+desechable, su baseline y todos los audits SQL anteriores alcanzaron PASS. No
+se ejecutó SQL ni hubo actividad remota o mutación del target o Production. El
+finding no constituye evidencia de corrupción del backup.
+
+```text
+LOCAL RESTORE PLAN DIAGNOSTIC #2 = FINDING / RESTORE_PLAN
+TOOLING SHA = 1b865d463e601a3cfd900a7bf4d1221d56d1907f
+code = RECOVERY_MANAGED_DATA_COUNTS_MISMATCH
+localAgeDecrypts = 1
+realTargetStarts = 1
+sqlExecutions = 0
+targetMutations = 0
+realR2Reads = 0
+remoteActivity = 0
+productionMutations = 0
+targetCleanup = PASS
+sourceCleanup = PASS
+PLAN_DIAGNOSTIC_2_EXIT_CODE = 1
+
+SOURCE LOCAL VERIFY = PASS
+TARGET START = PASS
+TARGET BASELINE = PASS
+ROLES AUDIT = PASS
+MANAGED SCHEMA AUDIT = PASS
+MIGRATION HISTORY SCHEMA AUDIT = PASS
+MIGRATION HISTORY DATA AUDIT = PASS
+DATABASE COUNTS RECONCILIATION = FINDING
+RESTORE SQL = NOT EXECUTED
+TARGET MUTATION = 0
+PRODUCTION MUTATION = 0
+```
+
+La causa raíz es una diferencia de dominios. El inventario Productivo concatena
+los COPY de `database/managed-data.sql` y
+`database/migration-history-data.sql`; por tanto,
+`manifest.databaseCounts.tables` contiene managed data más el conteo
+audit-only de `supabase_migrations.schema_migrations`. Antes de esta
+remediación, el restore comparaba los COPY de managed data contra ese inventario
+completo como si ambos representaran el mismo dominio.
+
+```text
+DATABASE COUNTS DOMAIN GAP = CONFIRMED
+MANIFEST DATABASE COUNT DOMAIN = MANAGED DATA + AUDIT-ONLY MIGRATION HISTORY
+RESTORE COMPARISON BEFORE REMEDIATION = MANAGED DATA ONLY VS FULL DATABASE COUNTS
+BACKUP CORRUPTION = NO EVIDENCE
+```
+
+La reconciliación conserva el inventario Productivo existente y lo consume por
+completo mediante dos dominios exactos. Los conteos de cada COPY de managed data
+deben coincidir identidad por identidad y fila por fila. Además debe existir una
+sola entrada audit-only `supabase_migrations.schema_migrations`, cuyo conteo
+debe coincidir con el `rowCount` gobernado que entrega
+`auditMigrationHistorySql()`. Cualquier entrada restante, identidad
+audit-only alternativa, duplicado, ausencia o conteo diferente falla cerrado.
+`dataCounts.tableCounts` sigue conteniendo únicamente managed data para no
+incorporar migration history a las expectativas mutables.
+
+El audit de migration history cuenta las filas del único COPY gobernado, exige
+`rowCount === baselineVersions.length` y conserva la comparación exacta de las
+versiones 01–06. Una fila duplicada ya no puede quedar oculta por la
+deduplicación usada para comparar identidades de versión. Migration history
+permanece `AUDIT_ONLY` y no se incorpora a `restoreSql`.
+
+```text
+PPO-04M.5.3 = ACTIVE / DATABASE COUNTS RECONCILIATION REMEDIATION
+LOCAL RESTORE PLAN DIAGNOSTIC #2 = CLOSED / FINDING CONFIRMED
+DATABASE COUNTS RECONCILIATION = IMPLEMENTED / PENDING REAL BACKUP VERIFICATION
+LOCAL RESTORE PLAN DIAGNOSTIC #3 = NOT AUTHORIZED / PENDING IMPLEMENTATION REVIEW
 REAL RESTORE ATTEMPT #6 = NOT AUTHORIZED
 TD-BACKUP-004 = OPEN
 CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY

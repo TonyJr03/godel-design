@@ -33,7 +33,16 @@ test("migration history audit admits the exact Supabase CLI 2.109.1 wrapper as a
   });
   assert.equal(result.status, "PASS");
   assert.equal(result.treatment, "AUDIT_ONLY");
+  assert.equal(result.rowCount, 6);
   assert.deepEqual(result.versions, [...VERSIONS].sort());
+});
+
+test("migration history audit rejects a duplicate row even when unique versions still match", () => {
+  const duplicated = HISTORY_DATA.replace(`${VERSIONS[5]}\n\\.`, `${VERSIONS[5]}\n${VERSIONS[5]}\n\\.`);
+  assert.throws(
+    () => auditMigrationHistorySql({ schemaSql: HISTORY_SCHEMA, dataSql: duplicated, baselineVersions: VERSIONS }),
+    { code: "RECOVERY_MIGRATION_HISTORY_MISMATCH" },
+  );
 });
 
 test("roles audit rejects passwords and unexpected statements", () => {

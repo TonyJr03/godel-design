@@ -63,6 +63,7 @@ test("target/restore orchestration prepares only local artifacts and builds an o
       { schema: "auth", name: "sessions", rowCount: 1 },
       { schema: "auth", name: "users", rowCount: 1 },
       { schema: "public", name: "perfiles", rowCount: 1 },
+      { schema: "supabase_migrations", name: "schema_migrations", rowCount: 6 },
     ] } })}\n`);
     const plan = await buildManagedRestorePlan({
       verifiedSource: { bundleRoot, sql: { managedData: admitManagedDataSql(dataSql) } },
@@ -71,6 +72,8 @@ test("target/restore orchestration prepares only local artifacts and builds an o
       targetTables: ["auth.users", "auth.identities", "auth.sessions", "auth.schema_migrations", "storage.buckets", "storage.objects", "storage.migrations", "public.perfiles"],
     });
     assert.equal(plan.status, "READY");
+    assert.equal(plan.auditOnly.history.treatment, "AUDIT_ONLY");
+    assert.equal(plan.auditOnly.history.rowCount, 6);
     assert.equal(plan.sanitized.ephemeralAuthState, "SANITIZED");
     assert.equal(plan.storage.status, "VALIDATED_NO_OP");
     assert.deepEqual(plan.order, ["DB_DATA_RESTORE", "STORAGE_METADATA_GATE", "STORAGE_BYTE_RESTORE", "POST_RESTORE_AGGREGATES", "FOREIGN_KEY_INTEGRITY", "REAL_INTERNAL_LOGIN", "RECOVERY_APPLICATION_VALIDATION"]);

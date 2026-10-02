@@ -61,7 +61,7 @@ export async function buildManagedRestorePlan({ verifiedSource, authority, targe
     baselineVersions: authority.evidence.versions,
   });
   const manifest = JSON.parse(await readText(verifiedSource.bundleRoot, "internal-manifest.json"));
-  const dataCounts = verifyManagedDataCounts({ admission: verifiedSource.sql.managedData, manifestTableCounts: manifest?.databaseCounts?.tables });
+  const dataCounts = verifyManagedDataCounts({ admission: verifiedSource.sql.managedData, manifestTableCounts: manifest?.databaseCounts?.tables, migrationHistory: history });
   const mutable = buildMutableTablePlan({ admission: verifiedSource.sql.managedData, targetTables });
   const sanitized = sanitizeEphemeralAuthState({ admission: verifiedSource.sql.managedData, mutablePlan: mutable });
   const restoreSql = buildManagedRestoreSql({ mutablePlan: mutable, sanitized });

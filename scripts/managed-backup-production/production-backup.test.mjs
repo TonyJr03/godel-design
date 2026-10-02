@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { access, link, mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
+import { access, link, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import test from "node:test";
@@ -23,6 +23,7 @@ import {
   assertProductionStorageCaptureLayout,
   createProductionReadOnlyCaptureAdapter,
   createDatabaseAndDurableInventories,
+  createProductionCaptureInventory,
   normalizeProductionStorageListing,
   relocateProductionDatabaseCapturePlan,
 } from "../managed-backup/production-capture-adapter.mjs";
@@ -567,6 +568,34 @@ test("profile to Auth user with password hash and identity proves continuity", (
     () => createDatabaseAndDurableInventories({ dumpText: sql, capturedObjects: [{ ...captured[0], size: 4 }] }),
     (error) => error.code === "STORAGE_SIZE_MISMATCH",
   );
+});
+
+test("Production databaseCounts explicitly includes managed data and audit-only migration history", async () => {
+  const root = await mkdtemp(join(tmpdir(), "godel-production-count-domains-"));
+  const managedPath = join(root, "managed-data.sql");
+  const historyPath = join(root, "migration-history-data.sql");
+  const storageCaptureRoot = join(root, "storage");
+  const fixture = captureSql();
+  const versions = [
+    "20260811131824", "20260811131825", "20260811131826",
+    "20260811131827", "20260811131828", "20260811131829",
+  ];
+  const historySql = `SET session_replication_role = replica;\nCOPY supabase_migrations.schema_migrations (version) FROM stdin;\n${versions.join("\n")}\n\\.\nRESET ALL;\n`;
+  try {
+    await writeFile(managedPath, fixture.sql);
+    await writeFile(historyPath, historySql);
+    const storagePath = resolve(storageCaptureRoot, ...fixture.path.split("/"));
+    await mkdir(dirname(storagePath), { recursive: true });
+    await writeFile(storagePath, "abc");
+    const inventory = await createProductionCaptureInventory({
+      dumpPaths: [managedPath, historyPath],
+      storageCaptureRoot,
+    });
+    assert.ok(inventory.databaseCounts.tables.some(({ schema, name, rowCount }) => schema === "auth" && name === "users" && rowCount === 2));
+    assert.ok(inventory.databaseCounts.tables.some(({ schema, name, rowCount }) => schema === "supabase_migrations" && name === "schema_migrations" && rowCount === 6));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 for (const [name, options] of [
