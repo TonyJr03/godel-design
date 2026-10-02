@@ -13,16 +13,24 @@ export const ROLE_SQL_STATEMENT_CLASSES = Object.freeze([
   "OTHER_ROLE_SQL",
 ]);
 
-const ROLE_ALLOWED_PATTERNS = Object.freeze([
+const EXISTING_ROLE_ALLOWED_PATTERNS = Object.freeze([
   /^SET [a-z_]+ = (?:[^;]+);$/,
   /^SELECT pg_catalog\.set_config\('search_path', '', false\);$/,
   /^CREATE ROLE "?[a-z_][a-z0-9_-]*"?;$/i,
   /^ALTER ROLE "?[a-z_][a-z0-9_-]*"? WITH (?:SUPERUSER|NOSUPERUSER|CREATEDB|NOCREATEDB|CREATEROLE|NOCREATEROLE|INHERIT|NOINHERIT|LOGIN|NOLOGIN|REPLICATION|NOREPLICATION|BYPASSRLS|NOBYPASSRLS|CONNECTION LIMIT -?\d+|VALID UNTIL '[^']+')(?:(?:\s+)(?:SUPERUSER|NOSUPERUSER|CREATEDB|NOCREATEDB|CREATEROLE|NOCREATEROLE|INHERIT|NOINHERIT|LOGIN|NOLOGIN|REPLICATION|NOREPLICATION|BYPASSRLS|NOBYPASSRLS|CONNECTION LIMIT -?\d+|VALID UNTIL '[^']+'))*;$/i,
   /^GRANT "?[a-z_][a-z0-9_-]*"? TO "?[a-z_][a-z0-9_-]*"?(?: WITH ADMIN OPTION)?;$/i,
 ]);
-const ROLE_IDENTIFIER = String.raw`(?:"(?:[^"]|"")*"|[a-z_][a-z0-9_$-]*)`;
-const ROLE_CONFIG_IDENTIFIER = String.raw`(?:"(?:[^"]|"")*"|[a-z_][a-z0-9_$.-]*)`;
-const ALTER_ROLE_SET = new RegExp(String.raw`^ALTER\s+ROLE\s+${ROLE_IDENTIFIER}\s+SET\s+(${ROLE_CONFIG_IDENTIFIER})(?=\s|=)`, "i");
+const ROLE_IDENTIFIER = String.raw`(?:"(?:[^"\r\n]|"")+"|[a-z_][a-z0-9_$-]*)`;
+const SQL_IDENTIFIER = String.raw`(?:"(?:[^"\r\n]|"")+"|[a-z_][a-z0-9_$]*)`;
+const ROLE_CONFIG_IDENTIFIER = String.raw`(?:"(?:[^"\r\n]|"")+"|[a-z_][a-z0-9_$]*(?:\.[a-z_][a-z0-9_$]*)*)`;
+const ROLE_CONFIG_INTENT_IDENTIFIER = String.raw`(?:"(?:[^"\r\n]|"")+"|[a-z_][a-z0-9_$.-]*)`;
+const SQL_STRING_LITERAL = String.raw`'(?:[^'\r\n]|'')*'`;
+const PARAMETER_PRIVILEGES = String.raw`(?:SET\s*,\s*ALTER\s+SYSTEM|ALTER\s+SYSTEM|SET|ALL)`;
+const PARAMETER_GRANTEE = String.raw`(?:${SQL_IDENTIFIER}|PUBLIC)`;
+const EXACT_ALTER_ROLE_SET = new RegExp(String.raw`^ALTER\s+ROLE\s+${SQL_IDENTIFIER}\s+SET\s+(${ROLE_CONFIG_IDENTIFIER})\s+TO\s+${SQL_STRING_LITERAL}(?:\s*,\s*${SQL_STRING_LITERAL})*;$`, "i");
+const ALTER_ROLE_SET_PREFIX = new RegExp(String.raw`^ALTER\s+ROLE\s+${ROLE_IDENTIFIER}\s+SET\s+(${ROLE_CONFIG_INTENT_IDENTIFIER})(?=\s|=)`, "i");
+const EXACT_PARAMETER_GRANT = new RegExp(String.raw`^GRANT\s+${PARAMETER_PRIVILEGES}\s+ON\s+PARAMETER\s+${SQL_IDENTIFIER}\s+TO\s+${PARAMETER_GRANTEE}(?:\s+WITH\s+GRANT\s+OPTION)?;$`, "i");
+const EXACT_PARAMETER_REVOKE = new RegExp(String.raw`^REVOKE\s+${PARAMETER_PRIVILEGES}\s+ON\s+PARAMETER\s+${SQL_IDENTIFIER}\s+FROM\s+${PARAMETER_GRANTEE};$`, "i");
 const ROLE_MEMBERSHIP_GRANT = new RegExp(String.raw`^GRANT\s+${ROLE_IDENTIFIER}(?:\s*,\s*${ROLE_IDENTIFIER})*\s+TO\s+${ROLE_IDENTIFIER}(?:\s*,\s*${ROLE_IDENTIFIER})*(?=\s|;|$)`, "i");
 
 function fail(code, message) {
@@ -45,8 +53,41 @@ function containsRoleCredentialMaterial(source) {
   return /(?:password|passwd|scram-sha-256|md5[0-9a-f]{20,})/i.test(source);
 }
 
+function isExistingAdmittedRoleStatement(statement) {
+  return EXISTING_ROLE_ALLOWED_PATTERNS.some((pattern) => pattern.test(statement));
+}
+
+function isExactResetAll(statement) {
+  return /^RESET\s+ALL;$/i.test(statement);
+}
+
+function normalizedRoleConfigIdentifier(value) {
+  if (value.startsWith('"') && value.endsWith('"')) return value.slice(1, -1).replace(/""/g, '"');
+  return value.toLowerCase();
+}
+
+function isSupabaseAllowedRoleConfig(parameter) {
+  return parameter === "session_replication_role"
+    || parameter === "statement_timeout"
+    || parameter === "track_io_timing"
+    || /^pgaudit\..+$/u.test(parameter)
+    || /^pgrst\..+$/u.test(parameter);
+}
+
+function isExactSupabaseRoleConfigStatement(statement) {
+  const match = statement.match(EXACT_ALTER_ROLE_SET);
+  return match !== null && isSupabaseAllowedRoleConfig(normalizedRoleConfigIdentifier(match[1]));
+}
+
+function isExactRoleParameterPrivilegeStatement(statement) {
+  return EXACT_PARAMETER_GRANT.test(statement) || EXACT_PARAMETER_REVOKE.test(statement);
+}
+
 function isAdmittedRoleStatement(statement) {
-  return ROLE_ALLOWED_PATTERNS.some((pattern) => pattern.test(statement));
+  return isExistingAdmittedRoleStatement(statement)
+    || isExactResetAll(statement)
+    || isExactSupabaseRoleConfigStatement(statement)
+    || isExactRoleParameterPrivilegeStatement(statement);
 }
 
 function unexpectedRoleStatements(source) {
@@ -68,21 +109,12 @@ function unexpectedRoleStatements(source) {
   return unexpected;
 }
 
-function normalizedRoleConfigIdentifier(value) {
-  if (value.startsWith('"') && value.endsWith('"')) return value.slice(1, -1).replace(/""/g, '"');
-  return value.toLowerCase();
-}
-
 function classifyUnexpectedRoleStatement(statement) {
-  if (/^RESET\s+ALL;$/i.test(statement)) return "RESET_ALL";
-  const alterSet = statement.match(ALTER_ROLE_SET);
+  if (isExactResetAll(statement)) return "RESET_ALL";
+  const alterSet = statement.match(ALTER_ROLE_SET_PREFIX);
   if (alterSet) {
     const parameter = normalizedRoleConfigIdentifier(alterSet[1]);
-    return parameter === "session_replication_role"
-      || parameter === "statement_timeout"
-      || parameter === "track_io_timing"
-      || /^pgaudit\..+$/u.test(parameter)
-      || /^pgrst\..+$/u.test(parameter)
+    return isSupabaseAllowedRoleConfig(parameter)
       ? "ALTER_ROLE_SET_SUPABASE_ALLOWED_CONFIG"
       : "ALTER_ROLE_SET_OTHER_CONFIG";
   }

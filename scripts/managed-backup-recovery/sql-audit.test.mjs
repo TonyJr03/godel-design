@@ -44,26 +44,59 @@ test("roles diagnostic leaves the current admitted grammar unchanged", () => {
   assert.deepEqual(classifyUnexpectedRolesSql(source), { status: "PASS", unexpectedStatementCount: 0, classes: [] });
 });
 
-test("roles diagnostic classifies only bounded unexpected dialect variants", () => {
+test("roles audit admits only the exact remediated Supabase and PostgreSQL 17 dialect", () => {
+  const source = [
+    "RESET ALL;",
+    'ALTER ROLE "role-a" SET "statement_timeout" TO \'5s\';',
+    'ALTER ROLE "role-a" SET "session_replication_role" TO \'replica\';',
+    'ALTER ROLE "role-a" SET "track_io_timing" TO \'on\';',
+    'ALTER ROLE "role-a" SET "pgaudit.log" TO \'write\';',
+    'ALTER ROLE "role-a" SET "pgaudit.log" TO \'write\'\'ddl\';',
+    'ALTER ROLE "role-a" SET "pgrst.db_schemas" TO \'public\', \'private\';',
+    'GRANT SET ON PARAMETER "x" TO "role-a";',
+    'GRANT ALTER SYSTEM ON PARAMETER "x" TO "role-a";',
+    'GRANT ALL ON PARAMETER "x" TO "role-a";',
+    'GRANT SET, ALTER SYSTEM ON PARAMETER "x" TO "role-a";',
+    'GRANT SET ON PARAMETER "x" TO "role-a" WITH GRANT OPTION;',
+    'GRANT ALL ON PARAMETER "x" TO PUBLIC WITH GRANT OPTION;',
+    'REVOKE SET ON PARAMETER "x" FROM "role-a";',
+    'REVOKE ALTER SYSTEM ON PARAMETER "x" FROM "role-a";',
+    'REVOKE ALL ON PARAMETER "x" FROM PUBLIC;',
+    "",
+  ].join("\n");
+  const audit = auditRolesSql(source);
+  assert.equal(audit.status, "PASS");
+  assert.equal(audit.treatment, "AUDIT_ONLY");
+  assert.equal(audit.statementCount, 16);
+  assert.deepEqual(classifyUnexpectedRolesSql(source), { status: "PASS", unexpectedStatementCount: 0, classes: [] });
+});
+
+test("roles audit rejects non-contractual reset, config, parameter ACL, and role variants", () => {
   const cases = [
-    ["RESET ALL;", "RESET_ALL"],
-    ['ALTER ROLE "role-a" SET "session_replication_role" TO \'replica\';', "ALTER_ROLE_SET_SUPABASE_ALLOWED_CONFIG"],
-    ['ALTER ROLE "role-a" SET "statement_timeout" TO \'5s\';', "ALTER_ROLE_SET_SUPABASE_ALLOWED_CONFIG"],
-    ['ALTER ROLE "role-a" SET "track_io_timing" TO \'on\';', "ALTER_ROLE_SET_SUPABASE_ALLOWED_CONFIG"],
-    ['ALTER ROLE "role-a" SET "pgaudit.log" TO \'hidden\';', "ALTER_ROLE_SET_SUPABASE_ALLOWED_CONFIG"],
-    ['ALTER ROLE "role-a" SET "pgrst.some_setting" TO \'hidden\';', "ALTER_ROLE_SET_SUPABASE_ALLOWED_CONFIG"],
+    ["RESET statement_timeout;", "OTHER_ROLE_SQL"],
+    ["RESET SESSION AUTHORIZATION;", "OTHER_ROLE_SQL"],
     ['ALTER ROLE "role-a" SET "pgrst." TO \'hidden\';', "ALTER_ROLE_SET_OTHER_CONFIG"],
+    ['ALTER ROLE "role-a" SET "pgaudit." TO \'hidden\';', "ALTER_ROLE_SET_OTHER_CONFIG"],
     ['ALTER ROLE "role-a" SET "work_mem" TO \'hidden\';', "ALTER_ROLE_SET_OTHER_CONFIG"],
+    ['ALTER ROLE "role-a" SET "statement_timeout" TO now();', "ALTER_ROLE_SET_SUPABASE_ALLOWED_CONFIG"],
+    ['ALTER ROLE "role-a" SET "statement_timeout" TO $$hidden$$;', "ALTER_ROLE_SET_SUPABASE_ALLOWED_CONFIG"],
+    ['ALTER ROLE "role-a" SET "statement_timeout" TO \'x\'; DROP ROLE "role-b";', "ALTER_ROLE_SET_SUPABASE_ALLOWED_CONFIG"],
     ['GRANT "role-a" TO "member-a"\n  WITH ADMIN OPTION, INHERIT TRUE, SET FALSE\n  GRANTED BY "grantor-a";', "GRANT_ROLE_MEMBERSHIP_VARIANT"],
-    ['GRANT SET ON PARAMETER "private.parameter" TO "member-a";', "ROLE_PARAMETER_PRIVILEGE_VARIANT"],
-    ['REVOKE SET ON PARAMETER "private.parameter" FROM "member-a";', "ROLE_PARAMETER_PRIVILEGE_VARIANT"],
+    ['GRANT CREATE ON PARAMETER "x" TO "role-a";', "ROLE_PARAMETER_PRIVILEGE_VARIANT"],
+    ['GRANT EXECUTE ON PARAMETER "x" TO "role-a";', "ROLE_PARAMETER_PRIVILEGE_VARIANT"],
+    ['GRANT ALTER SYSTEM, SET ON PARAMETER "x" TO "role-a";', "ROLE_PARAMETER_PRIVILEGE_VARIANT"],
+    ['REVOKE SET ON PARAMETER "x" FROM "role-a" WITH GRANT OPTION;', "ROLE_PARAMETER_PRIVILEGE_VARIANT"],
+    ['GRANT SET ON PARAMETER "x" TO "role-a" GRANTED BY "grantor-a";', "ROLE_PARAMETER_PRIVILEGE_VARIANT"],
+    ['GRANT SET ON PARAMETER "x" TO "role-a" WITH ADMIN OPTION;', "ROLE_PARAMETER_PRIVILEGE_VARIANT"],
+    ['GRANT SET ON PARAMETER "x" TO "role-a" CASCADE;', "ROLE_PARAMETER_PRIVILEGE_VARIANT"],
     ['CREATE ROLE "role-a" WITH LOGIN;', "CREATE_ROLE_VARIANT"],
     ['ALTER ROLE "role-a" WITH LOGIN UNKNOWN_ATTRIBUTE;', "ALTER_ROLE_WITH_VARIANT"],
     ["SET ROLE postgres;", "SET_STATEMENT_VARIANT"],
+    ['SET SESSION AUTHORIZATION "role-a";', "SET_STATEMENT_VARIANT"],
     ["DROP ROLE postgres;", "OTHER_ROLE_SQL"],
-    ["RESET statement_timeout;", "OTHER_ROLE_SQL"],
   ];
   for (const [source, statementClass] of cases) {
+    assert.throws(() => auditRolesSql(source), { code: "RECOVERY_ROLES_DIALECT_UNEXPECTED" });
     assert.deepEqual(classifyUnexpectedRolesSql(source), {
       status: "FINDING",
       unexpectedStatementCount: 1,
@@ -87,7 +120,7 @@ test("roles diagnostic aggregates exact counts with deterministic sorting and no
   const secrets = ["role-private", "member-private", "value-private"];
   const result = classifyUnexpectedRolesSql([
     `ALTER ROLE "${secrets[0]}" SET "work_mem" TO '${secrets[2]}';`,
-    "RESET ALL;",
+    'GRANT EXECUTE ON PARAMETER "private-parameter" TO "private-member";',
     `ALTER ROLE "${secrets[0]}" SET "work_mem" TO '${secrets[2]}';`,
     `GRANT "${secrets[0]}" TO "${secrets[1]}" WITH INHERIT FALSE;`,
     "",
@@ -98,7 +131,7 @@ test("roles diagnostic aggregates exact counts with deterministic sorting and no
     classes: [
       { statementClass: "ALTER_ROLE_SET_OTHER_CONFIG", count: 2 },
       { statementClass: "GRANT_ROLE_MEMBERSHIP_VARIANT", count: 1 },
-      { statementClass: "RESET_ALL", count: 1 },
+      { statementClass: "ROLE_PARAMETER_PRIVILEGE_VARIANT", count: 1 },
     ],
   });
   const serialized = JSON.stringify(result);

@@ -1,6 +1,6 @@
 # PPO-04M.5.3 — Restore Drill + Baseline Closure Architecture Audit
 
-**Estado de M.5.3:** `ACTIVE / REAL BACKUP ROLES DIALECT DIAGNOSTIC`
+**Estado de M.5.3:** `ACTIVE / ROLES DIALECT REMEDIATION`
 
 **Estado de M.5.3.0:** `CLOSED / RESTORE DRILL ARCHITECTURE APPROVED`
 
@@ -1450,7 +1450,7 @@ PRODUCTION ACTIVITY DURING D.2.2 CORRECTION =
 0
 
 PPO-04M.5.3 =
-ACTIVE / SOURCE VERIFIED / REAL RESTORE ATTEMPT #3 PENDING AUTHORIZATION
+ACTIVE / ROLES DIALECT REMEDIATION
 
 REAL RESTORE ATTEMPT #1 =
 FAIL / PREFLIGHT OPERATOR CONFIGURATION
@@ -1686,6 +1686,64 @@ REAL CHROMIUM STARTS DURING IMPLEMENTATION = 0
 SQL EXECUTIONS DURING IMPLEMENTATION = 0
 PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
 ```
+
+## Local Source Diagnostic #4 — finding de dialecto de roles
+
+Local Source Diagnostic #4 usó exclusivamente el ciphertext local preservado y
+confirmó cinco statements inesperados, todos dentro de tres familias upstream
+conocidas de Supabase CLI 2.109.1 y PostgreSQL 17. No observó ninguna de las
+otras seis clases bounded ni material credencial. La evidencia permanece
+sanitizada: no se registran roles, grantees, parámetros concretos, valores ni
+SQL Productivo.
+
+La remediación mantiene `database/roles.sql` como `AUDIT_ONLY` y fuera de
+`restoreSql`. `auditRolesSql()` admite únicamente `RESET ALL;`, los `ALTER ROLE
+... SET ... TO ...` estrictos del allowlist Supabase y los ACL `PARAMETER`
+exactos que `buildACLCommands()` puede generar. Las demás variantes continúan
+fallando cerrado. Diagnostic #5 no fue ejecutado y su resultado no se presume.
+
+```text
+LOCAL SOURCE DIAGNOSTIC #4 = FINDING / ROLES_AUDIT
+TOOLING SHA = dcc396107144a763c4757cd522798b30c4de00e8
+status = FINDING
+phase = ROLES_AUDIT
+code = RECOVERY_ROLES_DIALECT_DIAGNOSTIC_FINDING
+unexpectedStatementCount = 5
+ALTER_ROLE_SET_SUPABASE_ALLOWED_CONFIG = 3
+RESET_ALL = 1
+ROLE_PARAMETER_PRIVILEGE_VARIANT = 1
+ALTER_ROLE_SET_OTHER_CONFIG = 0
+GRANT_ROLE_MEMBERSHIP_VARIANT = 0
+CREATE_ROLE_VARIANT = 0
+ALTER_ROLE_WITH_VARIANT = 0
+SET_STATEMENT_VARIANT = 0
+OTHER_ROLE_SQL = 0
+localAgeDecrypts = 1
+realR2Reads = 0
+realTargetStarts = 0
+sqlExecutions = 0
+productionMutations = 0
+cleanup = PASS
+
+UNEXPECTED ROLE SQL OUTSIDE KNOWN UPSTREAM FAMILIES = NOT OBSERVED
+CREDENTIAL MATERIAL = NOT OBSERVED
+
+PPO-04M.5.3 = ACTIVE / ROLES DIALECT REMEDIATION
+LOCAL SOURCE DIAGNOSTIC #4 = CLOSED / FINDING CONFIRMED
+LOCAL SOURCE DIAGNOSTIC #5 = NOT AUTHORIZED / PENDING REMEDIATION REVIEW
+REAL RESTORE ATTEMPT #5 = NOT AUTHORIZED
+TD-BACKUP-004 = OPEN
+CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY
+
+REAL R2 READS DURING IMPLEMENTATION = 0
+REAL AGE DECRYPTS DURING IMPLEMENTATION = 0
+REAL TARGET STARTS DURING IMPLEMENTATION = 0
+REAL APP STARTS DURING IMPLEMENTATION = 0
+REAL CHROMIUM STARTS DURING IMPLEMENTATION = 0
+SQL EXECUTIONS DURING IMPLEMENTATION = 0
+PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
+```
+
 
 ## Local Managed Recovery Source Diagnostic #1 — wrapper confirmado
 

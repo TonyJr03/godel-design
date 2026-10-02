@@ -95,8 +95,8 @@ test("local source diagnostic exposes only bounded SQL finding metadata", async 
 test("local source diagnostic exposes only bounded roles dialect findings", async () => {
   const secrets = ["private-role", "private-member", "private-value"];
   const rolesSql = [
-    `ALTER ROLE "${secrets[0]}" SET "statement_timeout" TO '${secrets[2]}';`,
-    "RESET ALL;",
+    `ALTER ROLE "${secrets[0]}" SET "work_mem" TO '${secrets[2]}';`,
+    `GRANT EXECUTE ON PARAMETER "private-parameter" TO "${secrets[1]}";`,
     `GRANT "${secrets[0]}" TO "${secrets[1]}" WITH INHERIT FALSE;`,
     "",
   ].join("\n");
@@ -116,9 +116,9 @@ test("local source diagnostic exposes only bounded roles dialect findings", asyn
     code: "RECOVERY_ROLES_DIALECT_DIAGNOSTIC_FINDING",
     unexpectedStatementCount: 3,
     roleStatementClasses: [
-      { statementClass: "ALTER_ROLE_SET_SUPABASE_ALLOWED_CONFIG", count: 1 },
+      { statementClass: "ALTER_ROLE_SET_OTHER_CONFIG", count: 1 },
       { statementClass: "GRANT_ROLE_MEMBERSHIP_VARIANT", count: 1 },
-      { statementClass: "RESET_ALL", count: 1 },
+      { statementClass: "ROLE_PARAMETER_PRIVILEGE_VARIANT", count: 1 },
     ],
     localAgeDecrypts: 1,
     realR2Reads: 0,
@@ -130,6 +130,36 @@ test("local source diagnostic exposes only bounded roles dialect findings", asyn
   const serialized = JSON.stringify(result);
   for (const secret of secrets) assert.ok(!serialized.includes(secret));
   assert.ok(!serialized.includes("ALTER ROLE"));
+});
+
+test("local source diagnostic passes the exact remediated roles dialect without real activity", async () => {
+  const rolesSql = [
+    'ALTER ROLE "role-a" SET "statement_timeout" TO \'5s\';',
+    'ALTER ROLE "role-a" SET "pgrst.db_schemas" TO \'public\', \'private\';',
+    'GRANT SET ON PARAMETER "x" TO "role-a";',
+    "RESET ALL;",
+    "",
+  ].join("\n");
+  const result = await runLocalManagedRecoverySourceDiagnostic({
+    environment: environment(),
+    repoRoot: "C:\\repo",
+    dependencies: dependencies(async (options, consumeVerifiedSource) => {
+      await options.decryptAdapterFactory({}).decryptToTar({});
+      options.dependencies.onPhase("SOURCE_VERIFY");
+      return consumeVerifiedSource({ bundleRoot: "C:\\verified-bundle" });
+    }, rolesSql),
+  });
+  assert.deepEqual(result, {
+    status: "PASS",
+    operation: "local-managed-recovery-source-diagnostic",
+    phase: "ROLES_AUDIT",
+    localAgeDecrypts: 1,
+    realR2Reads: 0,
+    realTargetStarts: 0,
+    sqlExecutions: 0,
+    productionMutations: 0,
+    cleanup: "PASS",
+  });
 });
 
 test("local source diagnostic keeps roles credential material as a hard failure", async () => {
