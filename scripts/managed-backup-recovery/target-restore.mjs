@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { validateStorageDurableInventory } from "../managed-backup/inventory.mjs";
 import { cleanupManagedRecoveryTarget } from "./target-cleanup.mjs";
 import { admitDockerDbDiscovery, buildTargetCommandPlans, proveTargetIsolation } from "./target-commands.mjs";
-import { buildManagedRestoreSql, buildMutableTablePlan, buildStorageByteRestorePlan, sanitizeEphemeralAuthState, verifyManagedDataCounts } from "./restore-planning.mjs";
+import { accessTargetCompatibleManagedData, buildManagedRestoreSql, buildMutableTablePlan, buildStorageByteRestorePlan, prepareTargetCompatibleManagedData, sanitizeEphemeralAuthState, verifyManagedDataCounts } from "./restore-planning.mjs";
 import { buildPostRestoreValidationQueries, createFutureLoginGateContract, deriveConfidentialAuthExpectationFromAdmission, deriveLoginExpectationFromAdmission, deriveStorageExpectation, validateManagedRestoreResult } from "./restore-validation.mjs";
 import { loadProductionRuntimeAuthority } from "./runtime-authority.mjs";
 import { REQUIRED_TARGET_EXTENSIONS, auditManagedSchemaSql, auditMigrationHistorySql, auditRolesSql, validateTargetBaseline } from "./sql-audit.mjs";
@@ -62,8 +62,10 @@ export async function buildManagedRestorePlan({ verifiedSource, authority, targe
   });
   const manifest = JSON.parse(await readText(verifiedSource.bundleRoot, "internal-manifest.json"));
   const dataCounts = verifyManagedDataCounts({ admission: verifiedSource.sql.managedData, manifestTableCounts: manifest?.databaseCounts?.tables, migrationHistory: history });
-  const mutable = buildMutableTablePlan({ admission: verifiedSource.sql.managedData, targetTables });
-  const sanitized = sanitizeEphemeralAuthState({ admission: verifiedSource.sql.managedData, mutablePlan: mutable });
+  const targetCompatibility = prepareTargetCompatibleManagedData({ admission: verifiedSource.sql.managedData, targetTables });
+  const targetAdmission = accessTargetCompatibleManagedData(targetCompatibility, (admission) => admission);
+  const mutable = buildMutableTablePlan({ admission: targetAdmission, targetTables });
+  const sanitized = sanitizeEphemeralAuthState({ admission: targetAdmission, mutablePlan: mutable });
   const restoreSql = buildManagedRestoreSql({ mutablePlan: mutable, sanitized });
   const storageSource = JSON.parse(await readText(verifiedSource.bundleRoot, "storage/durable-inventory.json"));
   const storageInventory = validateStorageDurableInventory(storageSource);
@@ -81,6 +83,7 @@ export async function buildManagedRestorePlan({ verifiedSource, authority, targe
     baseline,
     auditOnly: Object.freeze({ roles, schema, history }),
     dataCounts,
+    targetCompatibility,
     mutable,
     sanitized,
     restoreSql,

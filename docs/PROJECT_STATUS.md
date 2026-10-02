@@ -23,7 +23,7 @@ aplicó y aceptó la baseline 01–06, M.2B validó bootstrap, lifecycle Auth,
 RLS/grants, Storage/TUS y cleanup, y M.3 aceptó el deployment técnico protegido.
 El Site URL de Supabase está alineado con el dominio Production estable.
 PPO-04M.4 queda `CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE`; PPO-04M.5 queda
-`ACTIVE / AUTH SCHEMA DRIFT DIAGNOSTIC`.
+`ACTIVE / EMPTY AUTH SCHEMA DRIFT REMEDIATION`.
 M.5.0 está `CLOSED / ARCHITECTURE APPROVED`;
 M.5.1 está `CLOSED / LOCAL INTEGRATION APPROVED`, M.5.2.0 está
 `CLOSED / PRODUCTION BACKUP PREPARATION APPROVED`, M.5.2.1A está
@@ -44,7 +44,7 @@ M.5.3D.2.6 quedó `REAL-ENVIRONMENT SAFE TAXONOMY VERIFIED BY ATTEMPT #7`,
 M.5.3D.2.7 quedó cerrado como mejora de fidelidad no causal y M.5.3D.2.8 quedó
 cerrado y verificado en entorno real por Attempt #9. M.5.3D.2 queda `CLOSED /
 REAL LOCAL RECOVERY APPLICATION COMPATIBILITY VERIFIED`; M.5.3 permanece
-`ACTIVE / AUTH SCHEMA DRIFT DIAGNOSTIC`.
+`ACTIVE / EMPTY AUTH SCHEMA DRIFT REMEDIATION`.
 Real Restore Attempt #1 falló en preflight por configuración operativa sin
 actividad real; Attempt #2 verificó la fuente Productiva hasta detenerse en
 `SOURCE_VERIFY` por `RECOVERY_SQL_STATEMENT_FORBIDDEN`. Attempt #3 no está
@@ -128,7 +128,7 @@ una migración nueva `07+`.
 | PPO-04M.2B | `CLOSED / APPROVED` |
 | PPO-04M.3 | `CLOSED / APPROVED` |
 | PPO-04M.4 | `CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE` |
-| PPO-04M.5 | `ACTIVE / AUTH SCHEMA DRIFT DIAGNOSTIC` |
+| PPO-04M.5 | `ACTIVE / EMPTY AUTH SCHEMA DRIFT REMEDIATION` |
 | PPO-04M.5.0 | `CLOSED / ARCHITECTURE APPROVED` |
 | PPO-04M.5.1 | `CLOSED / LOCAL INTEGRATION APPROVED` |
 | PPO-04M.5.2.0 | `CLOSED / PRODUCTION BACKUP PREPARATION APPROVED` |
@@ -157,7 +157,7 @@ una migración nueva `07+`.
 | PPO-04M.5.3D.2.6 | `REAL-ENVIRONMENT SAFE TAXONOMY VERIFIED BY ATTEMPT #7` |
 | PPO-04M.5.3D.2.7 | `CLOSED / REAL-ENVIRONMENT PRODUCT DEFAULT DISTDIR VERIFIED / NOT CAUSAL FOR THE LIVE FAILURE / ARCHITECTURAL FIDELITY IMPROVEMENT RETAINED` |
 | PPO-04M.5.3D.2.8 | `CLOSED / WINDOWS SAME-VOLUME APPLICATION RUNTIME TOPOLOGY / REAL-ENVIRONMENT VERIFIED BY ATTEMPT #9` |
-| PPO-04M.5.3 | `ACTIVE / AUTH SCHEMA DRIFT DIAGNOSTIC` |
+| PPO-04M.5.3 | `ACTIVE / EMPTY AUTH SCHEMA DRIFT REMEDIATION` |
 | PPO-04M.6–PPO-04M.7 | `NOT STARTED` |
 | PPO-05 | `PENDING` — seguridad pública/antiabuso |
 | PPO-06 | `PENDING` — backup/recovery managed |
@@ -220,7 +220,7 @@ REAL RECOVERY BOUNDARY = OPERATOR-GOVERNED
 IMPLICIT TRUNCATE CASCADE = REMOVED
 EXPLICIT TRUNCATE AUTHORITY = ENFORCED
 POST-RESTORE FK DATA INTEGRITY GATE = IMPLEMENTED
-PPO-04M.5.3 = ACTIVE / AUTH SCHEMA DRIFT DIAGNOSTIC
+PPO-04M.5.3 = ACTIVE / EMPTY AUTH SCHEMA DRIFT REMEDIATION
 REAL RESTORE ATTEMPT #1 = FAIL / PREFLIGHT OPERATOR CONFIGURATION
 REAL RESTORE ATTEMPT #2 = FAIL / SOURCE_VERIFY REAL BACKUP SQL DIALECT ADMISSION FINDING
 REAL RESTORE ATTEMPT #3 = NOT AUTHORIZED / PENDING FINAL DOCUMENTARY REVIEW
@@ -984,7 +984,7 @@ PPO-04M.0  arquitectura y gobernanza — CLOSED / APPROVED
 → PPO-04M.5.3D.2.6  safe UNKNOWN module-resolution decomposition — REAL-ENVIRONMENT SAFE TAXONOMY VERIFIED BY ATTEMPT #7
 → PPO-04M.5.3D.2.7  Product-faithful Next distDir + temporary cache boundary — CLOSED / REAL-ENVIRONMENT PRODUCT DEFAULT DISTDIR VERIFIED / NOT CAUSAL FOR THE LIVE FAILURE / ARCHITECTURAL FIDELITY IMPROVEMENT RETAINED
 → PPO-04M.5.3D.2.8  Windows same-volume application runtime topology — CLOSED / WINDOWS SAME-VOLUME APPLICATION RUNTIME TOPOLOGY / REAL-ENVIRONMENT VERIFIED BY ATTEMPT #9
-→ PPO-04M.5.3  Restore Drill + Baseline Closure — ACTIVE / AUTH SCHEMA DRIFT DIAGNOSTIC
+→ PPO-04M.5.3  Restore Drill + Baseline Closure — ACTIVE / EMPTY AUTH SCHEMA DRIFT REMEDIATION
 → PPO-04M.6  small initial real use
 → PPO-04M.7  estabilización y medidas reales
 → LSH (futuro, no iniciado)
@@ -1361,6 +1361,95 @@ LOCAL RESTORE PLAN DIAGNOSTIC #4 = CLOSED / FINDING CONFIRMED
 MANAGED VS LOCAL AUTH SCHEMA DRIFT = CONFIRMED
 MISSING AUTH TABLE DATA OCCUPANCY = PENDING REAL BACKUP VERIFICATION
 LOCAL RESTORE PLAN DIAGNOSTIC #5 = NOT AUTHORIZED / PENDING IMPLEMENTATION REVIEW
+REAL RESTORE ATTEMPT #6 = NOT AUTHORIZED
+TD-BACKUP-004 = OPEN
+CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY
+
+REAL R2 READS DURING IMPLEMENTATION = 0
+REAL AGE DECRYPTS DURING IMPLEMENTATION = 0
+REAL TARGET STARTS DURING IMPLEMENTATION = 0
+REAL APP STARTS DURING IMPLEMENTATION = 0
+REAL CHROMIUM STARTS DURING IMPLEMENTATION = 0
+SQL EXECUTIONS DURING IMPLEMENTATION = 0
+PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
+```
+
+## Local Restore Plan Diagnostic #5 — empty Auth schema drift confirmado
+
+La ejecución gobernada del tooling inmutable confirmó que las cuatro tablas
+Auth ausentes del target tienen COPY blocks estructuralmente vacíos. Esta
+evidencia autoriza exclusivamente una compatibilidad cerrada para el backup y
+el target observados; no demuestra compatibilidad general entre versiones de
+Auth y no aprueba el restore real.
+
+```text
+LOCAL RESTORE PLAN DIAGNOSTIC #5 =
+FINDING / RESTORE_PLAN
+
+TOOLING SHA =
+d18f26b712b80f56c2ee800f1f5243c79294f5ac
+
+code =
+RECOVERY_MUTABLE_TABLE_UNKNOWN
+
+missingCount =
+4
+
+missingClasses =
+AUTH_OTHER × 4
+
+missingIdentities =
+auth.mfa_recovery_code_sets
+auth.mfa_recovery_codes
+auth.scim_tokens
+auth.scim_users
+
+missingData =
+auth.mfa_recovery_code_sets = EMPTY
+auth.mfa_recovery_codes = EMPTY
+auth.scim_tokens = EMPTY
+auth.scim_users = EMPTY
+
+localAgeDecrypts = 1
+realTargetStarts = 1
+sqlExecutions = 0
+targetMutations = 0
+realR2Reads = 0
+remoteActivity = 0
+productionMutations = 0
+targetCleanup = PASS
+sourceCleanup = PASS
+PLAN_DIAGNOSTIC_5_EXIT_CODE = 1
+```
+
+```text
+MANAGED VS LOCAL AUTH SCHEMA DRIFT = CONFIRMED
+MISSING AUTH TABLE DATA OCCUPANCY = VERIFIED EMPTY / 4 OF 4
+PRODUCT DATA LOSS IF OMITTED = NONE OBSERVED FOR THESE FOUR COPY BLOCKS
+RESTORE SQL = NOT EXECUTED
+```
+
+La remediación admite únicamente el set exacto de cuatro identities anterior,
+si las cuatro están ausentes del catálogo target y sus COPY gobernados tienen
+cero filas estructurales. El SQL normalizado omite sólo los headers y
+terminadores de esos cuatro bloques vacíos y debe atravesar nuevamente
+`admitManagedDataSql()` antes de construir el mutable plan, la sanitización Auth
+y el restore SQL. Cualquier subset, superset, tabla alternativa o COPY no vacío
+continúa fallando con `RECOVERY_MUTABLE_TABLE_UNKNOWN`.
+
+`verifyManagedDataCounts()` permanece anterior a la normalización y valida el
+admission original completo, incluidos los cuatro `rowCount = 0`. Las
+expectativas Auth y login también conservan el backup original como autoridad.
+Las cuatro tablas no se clasifican como estado Auth efímero. No se modificaron
+Storage, versiones de Supabase/GoTrue ni el backup Productivo.
+
+```text
+PPO-04M.5.3 = ACTIVE / EMPTY AUTH SCHEMA DRIFT REMEDIATION
+LOCAL RESTORE PLAN DIAGNOSTIC #5 = CLOSED / EMPTY DRIFT CONFIRMED
+MANAGED VS LOCAL AUTH SCHEMA DRIFT = CONFIRMED
+MISSING AUTH TABLE DATA OCCUPANCY = VERIFIED EMPTY / 4 OF 4
+EMPTY AUTH SCHEMA DRIFT COMPATIBILITY = IMPLEMENTED / PENDING REAL BACKUP VERIFICATION
+LOCAL RESTORE PLAN DIAGNOSTIC #6 = NOT AUTHORIZED / PENDING IMPLEMENTATION REVIEW
 REAL RESTORE ATTEMPT #6 = NOT AUTHORIZED
 TD-BACKUP-004 = OPEN
 CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY

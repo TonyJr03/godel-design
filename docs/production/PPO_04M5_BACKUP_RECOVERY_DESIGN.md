@@ -2,7 +2,7 @@
 
 **Bloque:** `PPO-04M.5.0 — Managed Backup & Recovery Architecture Audit`
 
-**Estado de M.5:** `ACTIVE / AUTH SCHEMA DRIFT DIAGNOSTIC`
+**Estado de M.5:** `ACTIVE / EMPTY AUTH SCHEMA DRIFT REMEDIATION`
 
 **Estado de M.5.0:** `CLOSED / ARCHITECTURE APPROVED`
 
@@ -24,7 +24,7 @@
 
 **R2 REMOTE SYNTHETIC PROOF:** `PASS`
 
-**M.5.3:** `ACTIVE / AUTH SCHEMA DRIFT DIAGNOSTIC`
+**M.5.3:** `ACTIVE / EMPTY AUTH SCHEMA DRIFT REMEDIATION`
 
 **FIRST PRODUCTION BACKUP:** `COMPLETE`
 
@@ -832,7 +832,7 @@ PPO-04M.5.2.1E
 
 PPO-04M.5.3
 = Restore Drill + Baseline Closure
-= ACTIVE / AUTH SCHEMA DRIFT DIAGNOSTIC
+= ACTIVE / EMPTY AUTH SCHEMA DRIFT REMEDIATION
 ```
 
 M.6 no se abre hasta que M.5.3 esté cerrado/aprobado.
@@ -2938,6 +2938,92 @@ LOCAL RESTORE PLAN DIAGNOSTIC #4 = CLOSED / FINDING CONFIRMED
 MANAGED VS LOCAL AUTH SCHEMA DRIFT = CONFIRMED
 MISSING AUTH TABLE DATA OCCUPANCY = PENDING REAL BACKUP VERIFICATION
 LOCAL RESTORE PLAN DIAGNOSTIC #5 = NOT AUTHORIZED / PENDING IMPLEMENTATION REVIEW
+REAL RESTORE ATTEMPT #6 = NOT AUTHORIZED
+TD-BACKUP-004 = OPEN
+CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY
+
+REAL R2 READS DURING IMPLEMENTATION = 0
+REAL AGE DECRYPTS DURING IMPLEMENTATION = 0
+REAL TARGET STARTS DURING IMPLEMENTATION = 0
+REAL APP STARTS DURING IMPLEMENTATION = 0
+REAL CHROMIUM STARTS DURING IMPLEMENTATION = 0
+SQL EXECUTIONS DURING IMPLEMENTATION = 0
+PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
+```
+
+## Local Restore Plan Diagnostic #5 — compatibilidad estricta de Auth
+
+Diagnostic #5 confirmó sobre el backup real que las cuatro tablas Auth ausentes
+del target tienen COPY blocks vacíos. La autorización se limita al estado
+observado y no constituye compatibilidad general entre versiones de Auth.
+
+```text
+LOCAL RESTORE PLAN DIAGNOSTIC #5 =
+FINDING / RESTORE_PLAN
+
+TOOLING SHA =
+d18f26b712b80f56c2ee800f1f5243c79294f5ac
+
+code =
+RECOVERY_MUTABLE_TABLE_UNKNOWN
+
+missingCount =
+4
+
+missingClasses =
+AUTH_OTHER × 4
+
+missingIdentities =
+auth.mfa_recovery_code_sets
+auth.mfa_recovery_codes
+auth.scim_tokens
+auth.scim_users
+
+missingData =
+auth.mfa_recovery_code_sets = EMPTY
+auth.mfa_recovery_codes = EMPTY
+auth.scim_tokens = EMPTY
+auth.scim_users = EMPTY
+
+localAgeDecrypts = 1
+realTargetStarts = 1
+sqlExecutions = 0
+targetMutations = 0
+realR2Reads = 0
+remoteActivity = 0
+productionMutations = 0
+targetCleanup = PASS
+sourceCleanup = PASS
+PLAN_DIAGNOSTIC_5_EXIT_CODE = 1
+```
+
+```text
+MANAGED VS LOCAL AUTH SCHEMA DRIFT = CONFIRMED
+MISSING AUTH TABLE DATA OCCUPANCY = VERIFIED EMPTY / 4 OF 4
+PRODUCT DATA LOSS IF OMITTED = NONE OBSERVED FOR THESE FOUR COPY BLOCKS
+RESTORE SQL = NOT EXECUTED
+```
+
+La etapa target-compatibility recibe sólo un admission gobernado y el catálogo
+target. Sin drift devuelve el admission original. Con drift, sólo acepta el set
+exacto de cuatro tablas documentadas, exige cero filas estructurales en cada
+COPY, elimina únicamente sus headers y terminadores y re-admite el SQL
+normalizado. El admission derivado queda privado tras un handle gobernado.
+
+`verifyManagedDataCounts()` se ejecuta antes sobre el artifact original y sigue
+validando las cuatro entradas con `rowCount = 0`. Después, sólo el admission
+target-compatible alimenta `buildMutableTablePlan()`,
+`sanitizeEphemeralAuthState()` y `buildManagedRestoreSql()`. Auth/login continúan
+derivándose del admission original. No se relajó el mutable planner ni se añadió
+una regla genérica para omitir tablas vacías.
+
+```text
+PPO-04M.5.3 = ACTIVE / EMPTY AUTH SCHEMA DRIFT REMEDIATION
+LOCAL RESTORE PLAN DIAGNOSTIC #5 = CLOSED / EMPTY DRIFT CONFIRMED
+MANAGED VS LOCAL AUTH SCHEMA DRIFT = CONFIRMED
+MISSING AUTH TABLE DATA OCCUPANCY = VERIFIED EMPTY / 4 OF 4
+EMPTY AUTH SCHEMA DRIFT COMPATIBILITY = IMPLEMENTED / PENDING REAL BACKUP VERIFICATION
+LOCAL RESTORE PLAN DIAGNOSTIC #6 = NOT AUTHORIZED / PENDING IMPLEMENTATION REVIEW
 REAL RESTORE ATTEMPT #6 = NOT AUTHORIZED
 TD-BACKUP-004 = OPEN
 CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY

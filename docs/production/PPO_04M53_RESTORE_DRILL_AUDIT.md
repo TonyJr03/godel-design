@@ -1,6 +1,6 @@
 # PPO-04M.5.3 — Restore Drill + Baseline Closure Architecture Audit
 
-**Estado de M.5.3:** `ACTIVE / AUTH SCHEMA DRIFT DIAGNOSTIC`
+**Estado de M.5.3:** `ACTIVE / EMPTY AUTH SCHEMA DRIFT REMEDIATION`
 
 **Estado de M.5.3.0:** `CLOSED / RESTORE DRILL ARCHITECTURE APPROVED`
 
@@ -2517,6 +2517,94 @@ LOCAL RESTORE PLAN DIAGNOSTIC #4 = CLOSED / FINDING CONFIRMED
 MANAGED VS LOCAL AUTH SCHEMA DRIFT = CONFIRMED
 MISSING AUTH TABLE DATA OCCUPANCY = PENDING REAL BACKUP VERIFICATION
 LOCAL RESTORE PLAN DIAGNOSTIC #5 = NOT AUTHORIZED / PENDING IMPLEMENTATION REVIEW
+REAL RESTORE ATTEMPT #6 = NOT AUTHORIZED
+TD-BACKUP-004 = OPEN
+CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY
+
+REAL R2 READS DURING IMPLEMENTATION = 0
+REAL AGE DECRYPTS DURING IMPLEMENTATION = 0
+REAL TARGET STARTS DURING IMPLEMENTATION = 0
+REAL APP STARTS DURING IMPLEMENTATION = 0
+REAL CHROMIUM STARTS DURING IMPLEMENTATION = 0
+SQL EXECUTIONS DURING IMPLEMENTATION = 0
+PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
+```
+
+## Local Restore Plan Diagnostic #5 — empty Auth schema drift confirmado
+
+La ejecución gobernada del tooling inmutable confirmó que las cuatro tablas
+Auth ausentes del target tienen COPY blocks estructuralmente vacíos. Esta
+evidencia autoriza exclusivamente una compatibilidad cerrada para el backup y
+el target observados; no demuestra compatibilidad general entre versiones de
+Auth y no aprueba el restore real.
+
+```text
+LOCAL RESTORE PLAN DIAGNOSTIC #5 =
+FINDING / RESTORE_PLAN
+
+TOOLING SHA =
+d18f26b712b80f56c2ee800f1f5243c79294f5ac
+
+code =
+RECOVERY_MUTABLE_TABLE_UNKNOWN
+
+missingCount =
+4
+
+missingClasses =
+AUTH_OTHER × 4
+
+missingIdentities =
+auth.mfa_recovery_code_sets
+auth.mfa_recovery_codes
+auth.scim_tokens
+auth.scim_users
+
+missingData =
+auth.mfa_recovery_code_sets = EMPTY
+auth.mfa_recovery_codes = EMPTY
+auth.scim_tokens = EMPTY
+auth.scim_users = EMPTY
+
+localAgeDecrypts = 1
+realTargetStarts = 1
+sqlExecutions = 0
+targetMutations = 0
+realR2Reads = 0
+remoteActivity = 0
+productionMutations = 0
+targetCleanup = PASS
+sourceCleanup = PASS
+PLAN_DIAGNOSTIC_5_EXIT_CODE = 1
+```
+
+```text
+MANAGED VS LOCAL AUTH SCHEMA DRIFT = CONFIRMED
+MISSING AUTH TABLE DATA OCCUPANCY = VERIFIED EMPTY / 4 OF 4
+PRODUCT DATA LOSS IF OMITTED = NONE OBSERVED FOR THESE FOUR COPY BLOCKS
+RESTORE SQL = NOT EXECUTED
+```
+
+La compatibilidad implementada sólo admite el set exacto de cuatro identities,
+exige que las cuatro estén ausentes del target y vuelve a comprobar que sus
+COPY gobernados estén vacíos. La representación normalizada elimina únicamente
+los headers y terminadores vacíos, se re-admite mediante
+`admitManagedDataSql()` y recién entonces alimenta el mutable plan, la
+sanitización Auth y el restore SQL. Cualquier otra divergencia permanece
+diagnosticable mediante `RECOVERY_MUTABLE_TABLE_UNKNOWN`.
+
+La reconciliación de `databaseCounts` continúa usando el admission original
+completo antes de esta etapa. Las expectativas Auth/login también derivan del
+backup original. Las tablas omitidas no se convierten en Auth efímero y no se
+modificaron Storage, versiones de Supabase/GoTrue ni Production backup.
+
+```text
+PPO-04M.5.3 = ACTIVE / EMPTY AUTH SCHEMA DRIFT REMEDIATION
+LOCAL RESTORE PLAN DIAGNOSTIC #5 = CLOSED / EMPTY DRIFT CONFIRMED
+MANAGED VS LOCAL AUTH SCHEMA DRIFT = CONFIRMED
+MISSING AUTH TABLE DATA OCCUPANCY = VERIFIED EMPTY / 4 OF 4
+EMPTY AUTH SCHEMA DRIFT COMPATIBILITY = IMPLEMENTED / PENDING REAL BACKUP VERIFICATION
+LOCAL RESTORE PLAN DIAGNOSTIC #6 = NOT AUTHORIZED / PENDING IMPLEMENTATION REVIEW
 REAL RESTORE ATTEMPT #6 = NOT AUTHORIZED
 TD-BACKUP-004 = OPEN
 CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY

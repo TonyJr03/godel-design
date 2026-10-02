@@ -6,7 +6,7 @@ import test from "node:test";
 
 import { admitManagedDataSql } from "./sql-admission.mjs";
 import { auditMigrationHistorySql } from "./sql-audit.mjs";
-import { accessAuthorizedStorageByteEntries, accessManagedRestoreSql, admitStorageMetadataGate, authorizeStorageByteRestore, buildManagedRestoreSql, buildMutableTablePlan, buildStorageByteRestorePlan, classifyMissingMutableDataOccupancy, classifyMutableCatalogMismatch, sanitizeEphemeralAuthState, validateMutableCatalogDiagnostic, verifyManagedDataCounts } from "./restore-planning.mjs";
+import { accessAuthorizedStorageByteEntries, accessManagedRestoreSql, accessTargetCompatibleManagedData, admitStorageMetadataGate, authorizeStorageByteRestore, buildManagedRestoreSql, buildMutableTablePlan, buildStorageByteRestorePlan, classifyMissingMutableDataOccupancy, classifyMutableCatalogMismatch, prepareTargetCompatibleManagedData, sanitizeEphemeralAuthState, validateMutableCatalogDiagnostic, verifyManagedDataCounts } from "./restore-planning.mjs";
 
 function metadataGate(objectCount) {
   return admitStorageMetadataGate({ rawOutput: JSON.stringify({ bucketExists: true, bucketPublic: false, objectCount, unexpectedObjectCount: 0 }), expectedObjectCount: objectCount });
@@ -23,6 +23,12 @@ const PERSISTENT = [
 const BASELINE_VERSIONS = Object.freeze([
   "20260811131824", "20260811131825", "20260811131826",
   "20260811131827", "20260811131828", "20260811131829",
+]);
+const KNOWN_EMPTY_AUTH_SCHEMA_DRIFT_TABLES = Object.freeze([
+  "auth.mfa_recovery_code_sets",
+  "auth.mfa_recovery_codes",
+  "auth.scim_tokens",
+  "auth.scim_users",
 ]);
 
 function migrationHistoryEvidence() {
@@ -195,6 +201,96 @@ test("mutable catalog output validation rejects omissions, duplicates, altered c
   for (const value of invalid) {
     assert.throws(() => validateMutableCatalogDiagnostic(value), { code: "RECOVERY_MUTABLE_CATALOG_DIAGNOSTIC_INVALID" });
   }
+});
+
+test("target compatibility re-admits only the exact four empty Auth drift tables", () => {
+  const admission = admissionWithRows([
+    { identity: "public.perfiles", rows: ["profile"] },
+    ...KNOWN_EMPTY_AUTH_SCHEMA_DRIFT_TABLES.map((identity) => ({ identity, rows: [] })),
+  ]);
+  const compatibility = prepareTargetCompatibleManagedData({ admission, targetTables: ["public.perfiles"] });
+  assert.deepEqual(compatibility, { status: "PASS", compatibility: "KNOWN_EMPTY_AUTH_SCHEMA_DRIFT", omittedTableCount: 4 });
+  assert.deepEqual(admission.mutableTables, [...KNOWN_EMPTY_AUTH_SCHEMA_DRIFT_TABLES, "public.perfiles"]);
+  accessTargetCompatibleManagedData(compatibility, (targetAdmission) => {
+    assert.notEqual(targetAdmission, admission);
+    assert.deepEqual(targetAdmission.mutableTables, ["public.perfiles"]);
+    const mutablePlan = buildMutableTablePlan({ admission: targetAdmission, targetTables: ["public.perfiles"] });
+    const sanitized = sanitizeEphemeralAuthState({ admission: targetAdmission, mutablePlan });
+    const restore = buildManagedRestoreSql({ mutablePlan, sanitized });
+    accessManagedRestoreSql(restore, (sql) => {
+      assert.match(sql, /TRUNCATE TABLE "public"\."perfiles";/);
+      assert.match(sql, /COPY public\.perfiles \(id\) FROM stdin;/);
+      for (const identity of KNOWN_EMPTY_AUTH_SCHEMA_DRIFT_TABLES) {
+        const [schema, table] = identity.split(".");
+        assert.ok(!sql.includes(identity));
+        assert.ok(!sql.includes(`"${schema}"."${table}"`));
+      }
+    });
+  });
+});
+
+test("target compatibility preserves the original admission when normalization is not required", () => {
+  const admission = admissionFor("auth.users", "public.perfiles");
+  const compatibility = prepareTargetCompatibleManagedData({ admission, targetTables: admission.mutableTables });
+  assert.deepEqual(compatibility, { status: "PASS", compatibility: "NOT_REQUIRED", omittedTableCount: 0 });
+  accessTargetCompatibleManagedData(compatibility, (targetAdmission) => assert.equal(targetAdmission, admission));
+});
+
+test("target compatibility fails closed for nonempty, partial, extra, or non-Auth catalog drift", () => {
+  const exactEntries = KNOWN_EMPTY_AUTH_SCHEMA_DRIFT_TABLES.map((identity) => ({ identity, rows: [] }));
+  const cases = [
+    admissionWithRows(exactEntries.map((entry, index) => index === 0 ? { ...entry, rows: ["private"] } : entry)),
+    admissionWithRows(exactEntries.slice(0, 2)),
+    admissionWithRows(exactEntries.slice(0, 3)),
+    admissionWithRows([...exactEntries, { identity: "auth.identities", rows: [] }]),
+    admissionWithRows([{ identity: "public.perfiles", rows: [] }]),
+    admissionWithRows([{ identity: "private.internal_user_creation_audit", rows: [] }]),
+    admissionWithRows([{ identity: "storage.objects", rows: [] }]),
+    admissionWithRows([{ identity: "auth.other_empty", rows: [] }]),
+    admissionWithRows([...exactEntries, { identity: "public.perfiles", rows: [] }]),
+  ];
+  for (const admission of cases) {
+    assert.throws(() => prepareTargetCompatibleManagedData({ admission, targetTables: [] }), { code: "RECOVERY_MUTABLE_TABLE_UNKNOWN" });
+  }
+});
+
+test("target compatibility requires governed admission and a duplicate-free target catalog", () => {
+  assert.throws(
+    () => prepareTargetCompatibleManagedData({ admission: { status: "ADMITTED", mutableTables: ["auth.users"] }, targetTables: ["auth.users"] }),
+    { code: "RECOVERY_SQL_ADMISSION_REQUIRED" },
+  );
+  const admission = admissionFor("auth.users");
+  assert.throws(
+    () => prepareTargetCompatibleManagedData({ admission, targetTables: ["auth.users", "auth.users"] }),
+    { code: "RECOVERY_TARGET_CATALOG_DUPLICATE" },
+  );
+  assert.throws(() => accessTargetCompatibleManagedData({ status: "PASS" }, () => undefined), { code: "RECOVERY_TARGET_COMPATIBILITY_REQUIRED" });
+});
+
+test("database counts retain all four empty Auth drift tables before target normalization", () => {
+  const admission = admissionWithRows([
+    { identity: "public.perfiles", rows: ["profile"] },
+    ...KNOWN_EMPTY_AUTH_SCHEMA_DRIFT_TABLES.map((identity) => ({ identity, rows: [] })),
+  ]);
+  const result = verifyManagedDataCounts({
+    admission,
+    manifestTableCounts: [
+      ...KNOWN_EMPTY_AUTH_SCHEMA_DRIFT_TABLES.map((identity) => {
+        const [schema, name] = identity.split(".");
+        return { schema, name, rowCount: 0 };
+      }),
+      { schema: "public", name: "perfiles", rowCount: 1 },
+      { schema: "supabase_migrations", name: "schema_migrations", rowCount: 6 },
+    ],
+    migrationHistory: migrationHistoryEvidence(),
+  });
+  assert.deepEqual(result.tableCounts, [
+    ...KNOWN_EMPTY_AUTH_SCHEMA_DRIFT_TABLES.map((identity) => ({ identity, rowCount: 0 })),
+    { identity: "public.perfiles", rowCount: 1 },
+  ]);
+  const compatibility = prepareTargetCompatibleManagedData({ admission, targetTables: ["public.perfiles"] });
+  assert.deepEqual(result.tableCounts.filter(({ identity }) => KNOWN_EMPTY_AUTH_SCHEMA_DRIFT_TABLES.includes(identity)), KNOWN_EMPTY_AUTH_SCHEMA_DRIFT_TABLES.map((identity) => ({ identity, rowCount: 0 })));
+  accessTargetCompatibleManagedData(compatibility, (targetAdmission) => assert.deepEqual(targetAdmission.mutableTables, ["public.perfiles"]));
 });
 
 test("database counts reconcile exact managed data plus exact audit-only migration history", () => {

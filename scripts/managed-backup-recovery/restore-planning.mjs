@@ -15,8 +15,15 @@ const MUTABLE_CATALOG_CLASSES = Object.freeze([
   "AUTH_EPHEMERAL_KNOWN", "AUTH_OTHER", "PRIVATE", "PUBLIC", "STORAGE_METADATA", "STORAGE_OTHER",
 ]);
 const MAX_MUTABLE_CATALOG_DIAGNOSTIC_IDENTITIES = 32;
+const KNOWN_EMPTY_AUTH_SCHEMA_DRIFT_TABLES = Object.freeze([
+  "auth.mfa_recovery_code_sets",
+  "auth.mfa_recovery_codes",
+  "auth.scim_tokens",
+  "auth.scim_users",
+]);
 const mutableCatalogMismatchHandles = new WeakMap();
 const mutableCatalogDiagnosticHandles = new WeakSet();
+const targetCompatibleManagedDataHandles = new WeakMap();
 const mutablePlanHandles = new WeakSet();
 const mutablePlanDetails = new WeakMap();
 const sanitizedSqlHandles = new WeakMap();
@@ -194,6 +201,64 @@ export function classifyMissingMutableDataOccupancy(options = {}) {
 export function validateMutableCatalogDiagnostic(value) {
   if (!mutableCatalogDiagnosticHandles.has(value)) fail("RECOVERY_MUTABLE_CATALOG_DIAGNOSTIC_INVALID", "Governed mutable catalog occupancy evidence is required");
   return validateMutableCatalogDiagnosticShape(value);
+}
+
+export function prepareTargetCompatibleManagedData({ admission, targetTables } = {}) {
+  if (!Array.isArray(targetTables)) fail("RECOVERY_MUTABLE_TABLE_UNKNOWN", "Target catalog is required for managed data compatibility");
+  return withAdmittedManagedDataSql(admission, (model) => {
+    const targetIdentities = targetTables.map(validateTargetCatalogIdentity);
+    const targetIdentitySet = new Set(targetIdentities);
+    if (targetIdentitySet.size !== targetIdentities.length) fail("RECOVERY_TARGET_CATALOG_DUPLICATE", "Target catalog contains a duplicate table identity");
+    const sourceIdentities = admission.mutableTables.map(validateAdmittedMutableIdentity);
+    const missingIdentities = sourceIdentities.filter((identity) => !targetIdentitySet.has(identity));
+    if (missingIdentities.length === 0) {
+      const result = Object.freeze({ status: "PASS", compatibility: "NOT_REQUIRED", omittedTableCount: 0 });
+      targetCompatibleManagedDataHandles.set(result, admission);
+      return result;
+    }
+    if (
+      missingIdentities.length !== KNOWN_EMPTY_AUTH_SCHEMA_DRIFT_TABLES.length
+      || missingIdentities.some((identity, index) => identity !== KNOWN_EMPTY_AUTH_SCHEMA_DRIFT_TABLES[index])
+    ) fail("RECOVERY_MUTABLE_TABLE_UNKNOWN", "Managed data references a table absent from the target");
+    const omittedLines = new Set();
+    const missingIdentitySet = new Set(missingIdentities);
+    const omittedIdentities = new Set();
+    for (const block of model.copyBlocks) {
+      if (!missingIdentitySet.has(block.identity)) continue;
+      const structuralRowCount = block.end - block.start - 1;
+      if (structuralRowCount !== 0 || block.end !== block.start + 1 || omittedIdentities.has(block.identity)) {
+        fail("RECOVERY_MUTABLE_TABLE_UNKNOWN", "Known Auth schema drift COPY block is not uniquely empty");
+      }
+      omittedIdentities.add(block.identity);
+      omittedLines.add(block.start);
+      omittedLines.add(block.end);
+    }
+    if (omittedIdentities.size !== KNOWN_EMPTY_AUTH_SCHEMA_DRIFT_TABLES.length) {
+      fail("RECOVERY_MUTABLE_TABLE_UNKNOWN", "Known Auth schema drift COPY block is unavailable");
+    }
+    const normalizedSql = model.lines.filter((_, index) => !omittedLines.has(index)).join("\n");
+    const targetAdmission = admitManagedDataSql(normalizedSql);
+    const expectedMutableTables = sourceIdentities.filter((identity) => !missingIdentitySet.has(identity));
+    if (
+      targetAdmission.mutableTables.length !== expectedMutableTables.length
+      || targetAdmission.mutableTables.some((identity, index) => identity !== expectedMutableTables[index])
+      || targetAdmission.mutableTables.some((identity) => missingIdentitySet.has(identity))
+    ) fail("RECOVERY_MUTABLE_TABLE_UNKNOWN", "Managed data compatibility normalization changed unauthorized tables");
+    buildMutableTablePlan({ admission: targetAdmission, targetTables });
+    const result = Object.freeze({
+      status: "PASS",
+      compatibility: "KNOWN_EMPTY_AUTH_SCHEMA_DRIFT",
+      omittedTableCount: KNOWN_EMPTY_AUTH_SCHEMA_DRIFT_TABLES.length,
+    });
+    targetCompatibleManagedDataHandles.set(result, targetAdmission);
+    return result;
+  });
+}
+
+export function accessTargetCompatibleManagedData(handle, callback) {
+  const admission = targetCompatibleManagedDataHandles.get(handle);
+  if (!admission || typeof callback !== "function") fail("RECOVERY_TARGET_COMPATIBILITY_REQUIRED", "Governed target-compatible managed data is required");
+  return callback(admission);
 }
 
 export function accessMutableTablePlan(handle, callback) {
