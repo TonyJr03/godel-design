@@ -23,7 +23,7 @@ aplicó y aceptó la baseline 01–06, M.2B validó bootstrap, lifecycle Auth,
 RLS/grants, Storage/TUS y cleanup, y M.3 aceptó el deployment técnico protegido.
 El Site URL de Supabase está alineado con el dominio Production estable.
 PPO-04M.4 queda `CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE`; PPO-04M.5 queda
-`ACTIVE / DATABASE COUNTS RECONCILIATION REMEDIATION`.
+`ACTIVE / MUTABLE CATALOG DIAGNOSTIC`.
 M.5.0 está `CLOSED / ARCHITECTURE APPROVED`;
 M.5.1 está `CLOSED / LOCAL INTEGRATION APPROVED`, M.5.2.0 está
 `CLOSED / PRODUCTION BACKUP PREPARATION APPROVED`, M.5.2.1A está
@@ -44,7 +44,7 @@ M.5.3D.2.6 quedó `REAL-ENVIRONMENT SAFE TAXONOMY VERIFIED BY ATTEMPT #7`,
 M.5.3D.2.7 quedó cerrado como mejora de fidelidad no causal y M.5.3D.2.8 quedó
 cerrado y verificado en entorno real por Attempt #9. M.5.3D.2 queda `CLOSED /
 REAL LOCAL RECOVERY APPLICATION COMPATIBILITY VERIFIED`; M.5.3 permanece
-`ACTIVE / DATABASE COUNTS RECONCILIATION REMEDIATION`.
+`ACTIVE / MUTABLE CATALOG DIAGNOSTIC`.
 Real Restore Attempt #1 falló en preflight por configuración operativa sin
 actividad real; Attempt #2 verificó la fuente Productiva hasta detenerse en
 `SOURCE_VERIFY` por `RECOVERY_SQL_STATEMENT_FORBIDDEN`. Attempt #3 no está
@@ -128,7 +128,7 @@ una migración nueva `07+`.
 | PPO-04M.2B | `CLOSED / APPROVED` |
 | PPO-04M.3 | `CLOSED / APPROVED` |
 | PPO-04M.4 | `CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE` |
-| PPO-04M.5 | `ACTIVE / DATABASE COUNTS RECONCILIATION REMEDIATION` |
+| PPO-04M.5 | `ACTIVE / MUTABLE CATALOG DIAGNOSTIC` |
 | PPO-04M.5.0 | `CLOSED / ARCHITECTURE APPROVED` |
 | PPO-04M.5.1 | `CLOSED / LOCAL INTEGRATION APPROVED` |
 | PPO-04M.5.2.0 | `CLOSED / PRODUCTION BACKUP PREPARATION APPROVED` |
@@ -157,7 +157,7 @@ una migración nueva `07+`.
 | PPO-04M.5.3D.2.6 | `REAL-ENVIRONMENT SAFE TAXONOMY VERIFIED BY ATTEMPT #7` |
 | PPO-04M.5.3D.2.7 | `CLOSED / REAL-ENVIRONMENT PRODUCT DEFAULT DISTDIR VERIFIED / NOT CAUSAL FOR THE LIVE FAILURE / ARCHITECTURAL FIDELITY IMPROVEMENT RETAINED` |
 | PPO-04M.5.3D.2.8 | `CLOSED / WINDOWS SAME-VOLUME APPLICATION RUNTIME TOPOLOGY / REAL-ENVIRONMENT VERIFIED BY ATTEMPT #9` |
-| PPO-04M.5.3 | `ACTIVE / DATABASE COUNTS RECONCILIATION REMEDIATION` |
+| PPO-04M.5.3 | `ACTIVE / MUTABLE CATALOG DIAGNOSTIC` |
 | PPO-04M.6–PPO-04M.7 | `NOT STARTED` |
 | PPO-05 | `PENDING` — seguridad pública/antiabuso |
 | PPO-06 | `PENDING` — backup/recovery managed |
@@ -220,7 +220,7 @@ REAL RECOVERY BOUNDARY = OPERATOR-GOVERNED
 IMPLICIT TRUNCATE CASCADE = REMOVED
 EXPLICIT TRUNCATE AUTHORITY = ENFORCED
 POST-RESTORE FK DATA INTEGRITY GATE = IMPLEMENTED
-PPO-04M.5.3 = ACTIVE / DATABASE COUNTS RECONCILIATION REMEDIATION
+PPO-04M.5.3 = ACTIVE / MUTABLE CATALOG DIAGNOSTIC
 REAL RESTORE ATTEMPT #1 = FAIL / PREFLIGHT OPERATOR CONFIGURATION
 REAL RESTORE ATTEMPT #2 = FAIL / SOURCE_VERIFY REAL BACKUP SQL DIALECT ADMISSION FINDING
 REAL RESTORE ATTEMPT #3 = NOT AUTHORIZED / PENDING FINAL DOCUMENTARY REVIEW
@@ -984,7 +984,7 @@ PPO-04M.0  arquitectura y gobernanza — CLOSED / APPROVED
 → PPO-04M.5.3D.2.6  safe UNKNOWN module-resolution decomposition — REAL-ENVIRONMENT SAFE TAXONOMY VERIFIED BY ATTEMPT #7
 → PPO-04M.5.3D.2.7  Product-faithful Next distDir + temporary cache boundary — CLOSED / REAL-ENVIRONMENT PRODUCT DEFAULT DISTDIR VERIFIED / NOT CAUSAL FOR THE LIVE FAILURE / ARCHITECTURAL FIDELITY IMPROVEMENT RETAINED
 → PPO-04M.5.3D.2.8  Windows same-volume application runtime topology — CLOSED / WINDOWS SAME-VOLUME APPLICATION RUNTIME TOPOLOGY / REAL-ENVIRONMENT VERIFIED BY ATTEMPT #9
-→ PPO-04M.5.3  Restore Drill + Baseline Closure — ACTIVE / DATABASE COUNTS RECONCILIATION REMEDIATION
+→ PPO-04M.5.3  Restore Drill + Baseline Closure — ACTIVE / MUTABLE CATALOG DIAGNOSTIC
 → PPO-04M.6  small initial real use
 → PPO-04M.7  estabilización y medidas reales
 → LSH (futuro, no iniciado)
@@ -1170,6 +1170,89 @@ PPO-04M.5.3 = ACTIVE / DATABASE COUNTS RECONCILIATION REMEDIATION
 LOCAL RESTORE PLAN DIAGNOSTIC #2 = CLOSED / FINDING CONFIRMED
 DATABASE COUNTS RECONCILIATION = IMPLEMENTED / PENDING REAL BACKUP VERIFICATION
 LOCAL RESTORE PLAN DIAGNOSTIC #3 = NOT AUTHORIZED / PENDING IMPLEMENTATION REVIEW
+REAL RESTORE ATTEMPT #6 = NOT AUTHORIZED
+TD-BACKUP-004 = OPEN
+CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY
+
+REAL R2 READS DURING IMPLEMENTATION = 0
+REAL AGE DECRYPTS DURING IMPLEMENTATION = 0
+REAL TARGET STARTS DURING IMPLEMENTATION = 0
+REAL APP STARTS DURING IMPLEMENTATION = 0
+REAL CHROMIUM STARTS DURING IMPLEMENTATION = 0
+SQL EXECUTIONS DURING IMPLEMENTATION = 0
+PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
+```
+
+
+## Local Restore Plan Diagnostic #3 — mutable catalog finding y diagnóstico acotado
+
+La ejecución gobernada sobre el tooling inmutable confirmó una divergencia entre
+las identities mutables admitidas desde el backup y el catálogo del target. El
+finding no identifica todavía la tabla concreta ni confirma una diferencia de
+versión entre Supabase Managed y Supabase local.
+
+```text
+LOCAL RESTORE PLAN DIAGNOSTIC #3 =
+FINDING / RESTORE_PLAN
+
+TOOLING SHA =
+dad4551194d9053d42f1adfda591ec7dde9c31f9
+
+code =
+RECOVERY_MUTABLE_TABLE_UNKNOWN
+
+localAgeDecrypts = 1
+realTargetStarts = 1
+sqlExecutions = 0
+targetMutations = 0
+realR2Reads = 0
+remoteActivity = 0
+productionMutations = 0
+targetCleanup = PASS
+sourceCleanup = PASS
+PLAN_DIAGNOSTIC_3_EXIT_CODE = 1
+```
+
+La secuencia observada antes del finding fue:
+
+```text
+SOURCE VERIFY = PASS
+TARGET START = PASS
+TARGET BASELINE = PASS
+ROLES AUDIT = PASS
+MANAGED SCHEMA AUDIT = PASS
+MIGRATION HISTORY AUDIT = PASS
+DATABASE COUNTS RECONCILIATION = REAL BACKUP VERIFIED / PASS
+MUTABLE SOURCE/TARGET CATALOG ALIGNMENT = FINDING / IDENTITY PENDING DIAGNOSTIC
+RESTORE SQL = NOT EXECUTED
+
+SUPABASE INTERNAL CATALOG VERSION DIVERGENCE =
+POSSIBLE / NOT CONFIRMED
+```
+
+El diagnóstico implementado recibe únicamente el handle gobernado de
+`admitManagedDataSql()` y el catálogo ya obtenido por el baseline existente.
+Calcula las identities de source ausentes en target sin SQL raw, sin columnas,
+sin filas, sin conteos de datos y sin consultas adicionales. Clasifica cada
+identity exclusivamente como `AUTH_EPHEMERAL_KNOWN`, `AUTH_OTHER`,
+`STORAGE_METADATA`, `STORAGE_OTHER`, `PUBLIC` o `PRIVATE`.
+
+La metadata publicable queda limitada a `missingCount`, `missingClasses` y
+`missingIdentities`; admite como máximo 32 identities, exige grammar
+`schema.table`, schemas gobernados, ausencia de duplicados y orden
+lexicográfico. El sanitizer vuelve a validar identities, clases y conteos antes
+de publicarlos. Esta metadata sólo puede acompañar
+`RESTORE_PLAN / RECOVERY_MUTABLE_TABLE_UNKNOWN`; cualquier otro finding
+permanece sin `mutableCatalog`. El planner, `truncateTables`, la
+sanitización Auth, el restore SQL, el baseline y el backup Productivo no fueron
+modificados.
+
+```text
+PPO-04M.5.3 = ACTIVE / MUTABLE CATALOG DIAGNOSTIC
+LOCAL RESTORE PLAN DIAGNOSTIC #3 = CLOSED / FINDING CONFIRMED
+DATABASE COUNTS RECONCILIATION = APPROVED / REAL BACKUP VERIFIED
+MUTABLE CATALOG DIAGNOSTIC = IMPLEMENTED / PENDING REVIEW
+LOCAL RESTORE PLAN DIAGNOSTIC #4 = NOT AUTHORIZED / PENDING IMPLEMENTATION REVIEW
 REAL RESTORE ATTEMPT #6 = NOT AUTHORIZED
 TD-BACKUP-004 = OPEN
 CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY

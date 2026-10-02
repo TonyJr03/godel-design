@@ -6,7 +6,7 @@ import test from "node:test";
 
 import { admitManagedDataSql } from "./sql-admission.mjs";
 import { auditMigrationHistorySql } from "./sql-audit.mjs";
-import { accessAuthorizedStorageByteEntries, accessManagedRestoreSql, admitStorageMetadataGate, authorizeStorageByteRestore, buildManagedRestoreSql, buildMutableTablePlan, buildStorageByteRestorePlan, sanitizeEphemeralAuthState, verifyManagedDataCounts } from "./restore-planning.mjs";
+import { accessAuthorizedStorageByteEntries, accessManagedRestoreSql, admitStorageMetadataGate, authorizeStorageByteRestore, buildManagedRestoreSql, buildMutableTablePlan, buildStorageByteRestorePlan, classifyMutableCatalogMismatch, sanitizeEphemeralAuthState, verifyManagedDataCounts } from "./restore-planning.mjs";
 
 function metadataGate(objectCount) {
   return admitStorageMetadataGate({ rawOutput: JSON.stringify({ bucketExists: true, bucketPublic: false, objectCount, unexpectedObjectCount: 0 }), expectedObjectCount: objectCount });
@@ -37,6 +37,10 @@ function source(ephemeral = false) {
   return `${PERSISTENT}\n${ephemeral ? "COPY auth.sessions (id) FROM stdin;\nsession-sensitive\n\\.\n" : ""}`;
 }
 
+function admissionFor(...identities) {
+  return admitManagedDataSql(identities.map((identity) => `COPY ${identity} (id) FROM stdin;\nfixture\n\\.`).join("\n"));
+}
+
 function wrappedSource(ephemeral = false) {
   return [
     "-- Supabase CLI 2.109.1 data-only wrapper",
@@ -65,6 +69,61 @@ test("target catalog admits internal migration tables while source admission rej
     assert.throws(() => buildMutableTablePlan({ admission: forbidden, targetTables: [identity] }), { code: "RECOVERY_MUTABLE_TABLE_FORBIDDEN" });
   }
   assert.throws(() => buildMutableTablePlan({ admission, targetTables: ["auth.users", "public.perfiles", "auth.users"] }), { code: "RECOVERY_TARGET_CATALOG_DUPLICATE" });
+});
+
+test("mutable catalog diagnostic reports no mismatch without mutating admitted collections", () => {
+  const admission = admissionFor("auth.users", "public.perfiles");
+  const sourceIdentities = [...admission.mutableTables];
+  const targetTables = ["auth.users", "public.perfiles"];
+  assert.deepEqual(classifyMutableCatalogMismatch({ admission, targetTables }), {
+    missingCount: 0,
+    missingClasses: [],
+    missingIdentities: [],
+  });
+  assert.deepEqual(admission.mutableTables, sourceIdentities);
+  assert.deepEqual(targetTables, ["auth.users", "public.perfiles"]);
+});
+
+test("mutable catalog diagnostic uses the exact governed semantic classes", () => {
+  const cases = [
+    ["auth.sessions", "AUTH_EPHEMERAL_KNOWN"],
+    ["auth.identities", "AUTH_OTHER"],
+    ["storage.objects", "STORAGE_METADATA"],
+    ["storage.prefixes", "STORAGE_OTHER"],
+    ["public.perfiles", "PUBLIC"],
+    ["private.internal_user_creation_audit", "PRIVATE"],
+  ];
+  for (const [identity, expectedClass] of cases) {
+    assert.deepEqual(classifyMutableCatalogMismatch({ admission: admissionFor(identity), targetTables: [] }), {
+      missingCount: 1,
+      missingClasses: [{ class: expectedClass, count: 1 }],
+      missingIdentities: [identity],
+    });
+  }
+});
+
+test("mutable catalog diagnostic sorts multiple classes and identities deterministically", () => {
+  const admission = admissionFor("storage.objects", "public.perfiles", "auth.sessions", "private.internal_user_creation_audit", "auth.identities");
+  assert.deepEqual(classifyMutableCatalogMismatch({ admission, targetTables: ["auth.identities"] }), {
+    missingCount: 4,
+    missingClasses: [
+      { class: "AUTH_EPHEMERAL_KNOWN", count: 1 },
+      { class: "PRIVATE", count: 1 },
+      { class: "PUBLIC", count: 1 },
+      { class: "STORAGE_METADATA", count: 1 },
+    ],
+    missingIdentities: ["auth.sessions", "private.internal_user_creation_audit", "public.perfiles", "storage.objects"],
+  });
+});
+
+test("mutable catalog diagnostic fails closed for invalid, duplicate, or oversized target alignment", () => {
+  const admission = admissionFor("auth.users", "public.perfiles");
+  assert.throws(() => classifyMutableCatalogMismatch({ admission, targetTables: ["public.invalid-name"] }), { code: "RECOVERY_TARGET_CATALOG_IDENTITY_INVALID" });
+  assert.throws(() => classifyMutableCatalogMismatch({ admission, targetTables: ["foreign.anything"] }), { code: "RECOVERY_TARGET_CATALOG_IDENTITY_INVALID" });
+  assert.throws(() => classifyMutableCatalogMismatch({ admission, targetTables: ["auth.users", "auth.users"] }), { code: "RECOVERY_TARGET_CATALOG_DUPLICATE" });
+  assert.throws(() => classifyMutableCatalogMismatch({ admission: { status: "ADMITTED", mutableTables: ["auth.users"] }, targetTables: [] }), { code: "RECOVERY_SQL_ADMISSION_REQUIRED" });
+  const oversized = admissionFor(...Array.from({ length: 33 }, (_, index) => `public.table_${String(index).padStart(2, "0")}`));
+  assert.throws(() => classifyMutableCatalogMismatch({ admission: oversized, targetTables: [] }), { code: "RECOVERY_MUTABLE_CATALOG_DIAGNOSTIC_TOO_LARGE" });
 });
 
 test("database counts reconcile exact managed data plus exact audit-only migration history", () => {

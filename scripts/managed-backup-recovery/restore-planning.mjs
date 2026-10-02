@@ -11,6 +11,10 @@ const FORBIDDEN_TABLES = new Set([
   "supabase_migrations.schema_migrations", "supabase_migrations.seed_files", "storage.migrations", "auth.schema_migrations",
 ]);
 const STORAGE_METADATA_TABLES = new Set(["storage.buckets", "storage.objects"]);
+const MUTABLE_CATALOG_CLASSES = Object.freeze([
+  "AUTH_EPHEMERAL_KNOWN", "AUTH_OTHER", "PRIVATE", "PUBLIC", "STORAGE_METADATA", "STORAGE_OTHER",
+]);
+const MAX_MUTABLE_CATALOG_DIAGNOSTIC_IDENTITIES = 32;
 const mutablePlanHandles = new WeakSet();
 const mutablePlanDetails = new WeakMap();
 const sanitizedSqlHandles = new WeakMap();
@@ -57,6 +61,89 @@ export function buildMutableTablePlan({ admission, targetTables } = {}) {
   mutablePlanHandles.add(plan);
   mutablePlanDetails.set(plan, Object.freeze({ catalog: Object.freeze(catalogIdentities), admitted: Object.freeze(admitted) }));
   return plan;
+}
+
+function classifyMutableIdentity(identity) {
+  if (EPHEMERAL_AUTH_TABLES.has(identity)) return "AUTH_EPHEMERAL_KNOWN";
+  if (identity.startsWith("auth.")) return "AUTH_OTHER";
+  if (STORAGE_METADATA_TABLES.has(identity)) return "STORAGE_METADATA";
+  if (identity.startsWith("storage.")) return "STORAGE_OTHER";
+  if (identity.startsWith("public.")) return "PUBLIC";
+  if (identity.startsWith("private.")) return "PRIVATE";
+  fail("RECOVERY_MUTABLE_CATALOG_DIAGNOSTIC_INVALID", "Mutable catalog identity could not be classified");
+}
+
+export function classifyMutableCatalogMismatch({ admission, targetTables } = {}) {
+  if (!Array.isArray(targetTables)) fail("RECOVERY_MUTABLE_CATALOG_DIAGNOSTIC_INVALID", "Target catalog is required for mutable catalog diagnosis");
+  return withAdmittedManagedDataSql(admission, () => {
+    const targetIdentities = targetTables.map(validateTargetCatalogIdentity);
+    const targetIdentitySet = new Set(targetIdentities);
+    if (targetIdentitySet.size !== targetIdentities.length) fail("RECOVERY_TARGET_CATALOG_DUPLICATE", "Target catalog contains a duplicate table identity");
+    const sourceIdentities = admission.mutableTables.map(validateAdmittedMutableIdentity);
+    const missingIdentities = sourceIdentities.filter((identity) => !targetIdentitySet.has(identity)).sort((left, right) => left.localeCompare(right, "en"));
+    if (missingIdentities.length > MAX_MUTABLE_CATALOG_DIAGNOSTIC_IDENTITIES) {
+      fail("RECOVERY_MUTABLE_CATALOG_DIAGNOSTIC_TOO_LARGE", "Mutable catalog diagnostic exceeds its bounded identity limit");
+    }
+    const classCounts = new Map(MUTABLE_CATALOG_CLASSES.map((name) => [name, 0]));
+    for (const identity of missingIdentities) {
+      const name = classifyMutableIdentity(identity);
+      classCounts.set(name, classCounts.get(name) + 1);
+    }
+    const missingClasses = [...classCounts]
+      .filter(([, count]) => count > 0)
+      .map(([name, count]) => Object.freeze({ class: name, count }))
+      .sort((left, right) => left.class.localeCompare(right.class, "en"));
+    return validateMutableCatalogDiagnostic({
+      missingCount: missingIdentities.length,
+      missingClasses,
+      missingIdentities,
+    });
+  });
+}
+
+export function validateMutableCatalogDiagnostic(value) {
+  const keys = ["missingCount", "missingClasses", "missingIdentities"];
+  if (
+    !value || typeof value !== "object" || Array.isArray(value)
+    || Object.keys(value).length !== keys.length
+    || Object.keys(value).some((key) => !keys.includes(key))
+    || !Number.isSafeInteger(value.missingCount) || value.missingCount < 0
+    || value.missingCount > MAX_MUTABLE_CATALOG_DIAGNOSTIC_IDENTITIES
+    || !Array.isArray(value.missingClasses) || !Array.isArray(value.missingIdentities)
+    || value.missingIdentities.length !== value.missingCount
+  ) fail("RECOVERY_MUTABLE_CATALOG_DIAGNOSTIC_INVALID", "Mutable catalog diagnostic shape is invalid");
+  const missingIdentities = value.missingIdentities.map(validateTargetCatalogIdentity);
+  if (
+    new Set(missingIdentities).size !== missingIdentities.length
+    || missingIdentities.some((identity, index) => index > 0 && missingIdentities[index - 1].localeCompare(identity, "en") >= 0)
+  ) fail("RECOVERY_MUTABLE_CATALOG_DIAGNOSTIC_INVALID", "Mutable catalog diagnostic identities are invalid");
+  const expectedCounts = new Map(MUTABLE_CATALOG_CLASSES.map((name) => [name, 0]));
+  for (const identity of missingIdentities) {
+    const name = classifyMutableIdentity(identity);
+    expectedCounts.set(name, expectedCounts.get(name) + 1);
+  }
+  const expectedClasses = [...expectedCounts]
+    .filter(([, count]) => count > 0)
+    .map(([name, count]) => Object.freeze({ class: name, count }))
+    .sort((left, right) => left.class.localeCompare(right.class, "en"));
+  const missingClasses = value.missingClasses.map((item) => {
+    if (
+      !item || typeof item !== "object" || Array.isArray(item)
+      || Object.keys(item).length !== 2 || !Object.hasOwn(item, "class") || !Object.hasOwn(item, "count")
+      || !MUTABLE_CATALOG_CLASSES.includes(item.class)
+      || !Number.isSafeInteger(item.count) || item.count <= 0
+    ) fail("RECOVERY_MUTABLE_CATALOG_DIAGNOSTIC_INVALID", "Mutable catalog diagnostic class is invalid");
+    return Object.freeze({ class: item.class, count: item.count });
+  });
+  if (
+    missingClasses.length !== expectedClasses.length
+    || missingClasses.some((item, index) => item.class !== expectedClasses[index].class || item.count !== expectedClasses[index].count)
+  ) fail("RECOVERY_MUTABLE_CATALOG_DIAGNOSTIC_INVALID", "Mutable catalog diagnostic classes do not match its identities");
+  return Object.freeze({
+    missingCount: value.missingCount,
+    missingClasses: Object.freeze(missingClasses),
+    missingIdentities: Object.freeze(missingIdentities),
+  });
 }
 
 export function accessMutableTablePlan(handle, callback) {

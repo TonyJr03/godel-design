@@ -19,6 +19,7 @@ import {
 } from "./target-restore.mjs";
 import { admitLocalSupabaseStatus } from "./target-runtime-status.mjs";
 import { preflightManagedRecoveryPlanDiagnosticTools } from "./tool-preflight.mjs";
+import { classifyMutableCatalogMismatch, validateMutableCatalogDiagnostic } from "./restore-planning.mjs";
 
 export const RESTORE_PLAN_DIAGNOSTIC_CONFIRM_ENV = "GODEL_MANAGED_RECOVERY_PLAN_DIAGNOSTIC_CONFIRM";
 export const RESTORE_PLAN_DIAGNOSTIC_CONFIRMATION = "ALLOW_LOCAL_MANAGED_RECOVERY_PLAN_DIAGNOSTIC";
@@ -82,6 +83,8 @@ export const RESTORE_PLAN_DIAGNOSTIC_CODES = Object.freeze([
   "RECOVERY_TARGET_CATALOG_DUPLICATE",
   "RECOVERY_MUTABLE_TABLE_FORBIDDEN",
   "RECOVERY_MUTABLE_TABLE_UNKNOWN",
+  "RECOVERY_MUTABLE_CATALOG_DIAGNOSTIC_INVALID",
+  "RECOVERY_MUTABLE_CATALOG_DIAGNOSTIC_TOO_LARGE",
   "RECOVERY_MUTABLE_PLAN_EMPTY",
   "RECOVERY_AUTH_SANITIZATION_FAILED",
   "RECOVERY_SQL_INVALID",
@@ -217,6 +220,26 @@ function fixedEvidence(state) {
 export function sanitizeLocalManagedRecoveryPlanDiagnosticFailure(error, state = initialState()) {
   const evidence = fixedEvidence(state);
   if (state.phase === "RESTORE_PLAN") {
+    if (error?.code === "RECOVERY_MUTABLE_TABLE_UNKNOWN") {
+      let mutableCatalog;
+      try {
+        mutableCatalog = validateMutableCatalogDiagnostic(error.mutableCatalog);
+      } catch {
+        return Object.freeze({
+          status: "FINDING",
+          ...evidence,
+          phase: "RESTORE_PLAN",
+          code: "RECOVERY_MUTABLE_CATALOG_DIAGNOSTIC_INVALID",
+        });
+      }
+      return Object.freeze({
+        status: "FINDING",
+        ...evidence,
+        phase: "RESTORE_PLAN",
+        code: "RECOVERY_MUTABLE_TABLE_UNKNOWN",
+        mutableCatalog,
+      });
+    }
     return Object.freeze({
       status: "FINDING",
       ...evidence,
@@ -365,12 +388,33 @@ export async function runLocalManagedRecoveryPlanDiagnostic({ environment = proc
         state.phase = "RESTORE_PLAN";
         let baselineDetails;
         (dependencies.accessBaselineEvidence ?? accessTargetBaselineEvidence)(baseline, (value) => { baselineDetails = value; });
-        const restorePlan = await (dependencies.buildRestorePlan ?? buildManagedRestorePlan)({
-          verifiedSource,
-          authority: prepared.authority,
-          targetState: baselineDetails.targetState,
-          targetTables: baselineDetails.targetTables,
-        });
+        let restorePlan;
+        try {
+          restorePlan = await (dependencies.buildRestorePlan ?? buildManagedRestorePlan)({
+            verifiedSource,
+            authority: prepared.authority,
+            targetState: baselineDetails.targetState,
+            targetTables: baselineDetails.targetTables,
+          });
+        } catch (error) {
+          if (error?.code !== "RECOVERY_MUTABLE_TABLE_UNKNOWN") throw error;
+          let mutableCatalog;
+          try {
+            mutableCatalog = (dependencies.classifyMutableCatalogMismatch ?? classifyMutableCatalogMismatch)({
+              admission: verifiedSource.sql.managedData,
+              targetTables: baselineDetails.targetTables,
+            });
+          } catch (diagnosticError) {
+            const code = diagnosticError?.code === "RECOVERY_MUTABLE_CATALOG_DIAGNOSTIC_TOO_LARGE"
+              ? diagnosticError.code
+              : "RECOVERY_MUTABLE_CATALOG_DIAGNOSTIC_INVALID";
+            throw Object.assign(new Error("Mutable catalog diagnosis could not be bounded safely"), { code });
+          }
+          throw Object.assign(new Error("Mutable source and target catalogs diverge"), {
+            code: "RECOVERY_MUTABLE_TABLE_UNKNOWN",
+            mutableCatalog,
+          });
+        }
         storageScope = assertRestorePlanDiagnosticPostconditions(restorePlan);
       } catch (error) {
         primaryError = error;

@@ -2,7 +2,7 @@
 
 **Bloque:** `PPO-04M.5.0 — Managed Backup & Recovery Architecture Audit`
 
-**Estado de M.5:** `ACTIVE / DATABASE COUNTS RECONCILIATION REMEDIATION`
+**Estado de M.5:** `ACTIVE / MUTABLE CATALOG DIAGNOSTIC`
 
 **Estado de M.5.0:** `CLOSED / ARCHITECTURE APPROVED`
 
@@ -24,7 +24,7 @@
 
 **R2 REMOTE SYNTHETIC PROOF:** `PASS`
 
-**M.5.3:** `ACTIVE / DATABASE COUNTS RECONCILIATION REMEDIATION`
+**M.5.3:** `ACTIVE / MUTABLE CATALOG DIAGNOSTIC`
 
 **FIRST PRODUCTION BACKUP:** `COMPLETE`
 
@@ -832,7 +832,7 @@ PPO-04M.5.2.1E
 
 PPO-04M.5.3
 = Restore Drill + Baseline Closure
-= ACTIVE / DATABASE COUNTS RECONCILIATION REMEDIATION
+= ACTIVE / MUTABLE CATALOG DIAGNOSTIC
 ```
 
 M.6 no se abre hasta que M.5.3 esté cerrado/aprobado.
@@ -2747,6 +2747,89 @@ PPO-04M.5.3 = ACTIVE / DATABASE COUNTS RECONCILIATION REMEDIATION
 LOCAL RESTORE PLAN DIAGNOSTIC #2 = CLOSED / FINDING CONFIRMED
 DATABASE COUNTS RECONCILIATION = IMPLEMENTED / PENDING REAL BACKUP VERIFICATION
 LOCAL RESTORE PLAN DIAGNOSTIC #3 = NOT AUTHORIZED / PENDING IMPLEMENTATION REVIEW
+REAL RESTORE ATTEMPT #6 = NOT AUTHORIZED
+TD-BACKUP-004 = OPEN
+CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY
+
+REAL R2 READS DURING IMPLEMENTATION = 0
+REAL AGE DECRYPTS DURING IMPLEMENTATION = 0
+REAL TARGET STARTS DURING IMPLEMENTATION = 0
+REAL APP STARTS DURING IMPLEMENTATION = 0
+REAL CHROMIUM STARTS DURING IMPLEMENTATION = 0
+SQL EXECUTIONS DURING IMPLEMENTATION = 0
+PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
+```
+
+
+## Local Restore Plan Diagnostic #3 — mutable catalog finding y diagnóstico acotado
+
+La ejecución gobernada sobre el tooling inmutable confirmó una divergencia entre
+las identities mutables admitidas desde el backup y el catálogo del target. El
+finding no identifica todavía la tabla concreta ni confirma una diferencia de
+versión entre Supabase Managed y Supabase local.
+
+```text
+LOCAL RESTORE PLAN DIAGNOSTIC #3 =
+FINDING / RESTORE_PLAN
+
+TOOLING SHA =
+dad4551194d9053d42f1adfda591ec7dde9c31f9
+
+code =
+RECOVERY_MUTABLE_TABLE_UNKNOWN
+
+localAgeDecrypts = 1
+realTargetStarts = 1
+sqlExecutions = 0
+targetMutations = 0
+realR2Reads = 0
+remoteActivity = 0
+productionMutations = 0
+targetCleanup = PASS
+sourceCleanup = PASS
+PLAN_DIAGNOSTIC_3_EXIT_CODE = 1
+```
+
+La secuencia observada antes del finding fue:
+
+```text
+SOURCE VERIFY = PASS
+TARGET START = PASS
+TARGET BASELINE = PASS
+ROLES AUDIT = PASS
+MANAGED SCHEMA AUDIT = PASS
+MIGRATION HISTORY AUDIT = PASS
+DATABASE COUNTS RECONCILIATION = REAL BACKUP VERIFIED / PASS
+MUTABLE SOURCE/TARGET CATALOG ALIGNMENT = FINDING / IDENTITY PENDING DIAGNOSTIC
+RESTORE SQL = NOT EXECUTED
+
+SUPABASE INTERNAL CATALOG VERSION DIVERGENCE =
+POSSIBLE / NOT CONFIRMED
+```
+
+El diagnóstico implementado recibe únicamente el handle gobernado de
+`admitManagedDataSql()` y el catálogo ya obtenido por el baseline existente.
+Calcula las identities de source ausentes en target sin SQL raw, sin columnas,
+sin filas, sin conteos de datos y sin consultas adicionales. Clasifica cada
+identity exclusivamente como `AUTH_EPHEMERAL_KNOWN`, `AUTH_OTHER`,
+`STORAGE_METADATA`, `STORAGE_OTHER`, `PUBLIC` o `PRIVATE`.
+
+La metadata publicable queda limitada a `missingCount`, `missingClasses` y
+`missingIdentities`; admite como máximo 32 identities, exige grammar
+`schema.table`, schemas gobernados, ausencia de duplicados y orden
+lexicográfico. El sanitizer vuelve a validar identities, clases y conteos antes
+de publicarlos. Esta metadata sólo puede acompañar
+`RESTORE_PLAN / RECOVERY_MUTABLE_TABLE_UNKNOWN`; cualquier otro finding
+permanece sin `mutableCatalog`. El planner, `truncateTables`, la
+sanitización Auth, el restore SQL, el baseline y el backup Productivo no fueron
+modificados.
+
+```text
+PPO-04M.5.3 = ACTIVE / MUTABLE CATALOG DIAGNOSTIC
+LOCAL RESTORE PLAN DIAGNOSTIC #3 = CLOSED / FINDING CONFIRMED
+DATABASE COUNTS RECONCILIATION = APPROVED / REAL BACKUP VERIFIED
+MUTABLE CATALOG DIAGNOSTIC = IMPLEMENTED / PENDING REVIEW
+LOCAL RESTORE PLAN DIAGNOSTIC #4 = NOT AUTHORIZED / PENDING IMPLEMENTATION REVIEW
 REAL RESTORE ATTEMPT #6 = NOT AUTHORIZED
 TD-BACKUP-004 = OPEN
 CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY
