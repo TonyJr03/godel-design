@@ -2,7 +2,7 @@
 
 **Bloque:** `PPO-04M.5.0 — Managed Backup & Recovery Architecture Audit`
 
-**Estado de M.5:** `ACTIVE / ROLES DIALECT REMEDIATION`
+**Estado de M.5:** `ACTIVE / SOURCE + ROLES VERIFIED / REAL RESTORE ATTEMPT #5 PENDING AUTHORIZATION`
 
 **Estado de M.5.0:** `CLOSED / ARCHITECTURE APPROVED`
 
@@ -24,7 +24,7 @@
 
 **R2 REMOTE SYNTHETIC PROOF:** `PASS`
 
-**M.5.3:** `ACTIVE / ROLES DIALECT REMEDIATION`
+**M.5.3:** `ACTIVE / SOURCE + ROLES VERIFIED / REAL RESTORE ATTEMPT #5 PENDING AUTHORIZATION`
 
 **FIRST PRODUCTION BACKUP:** `COMPLETE`
 
@@ -832,7 +832,7 @@ PPO-04M.5.2.1E
 
 PPO-04M.5.3
 = Restore Drill + Baseline Closure
-= ACTIVE / ROLES DIALECT REMEDIATION
+= ACTIVE / SOURCE + ROLES VERIFIED / REAL RESTORE ATTEMPT #5 PENDING AUTHORIZATION
 ```
 
 M.6 no se abre hasta que M.5.3 esté cerrado/aprobado.
@@ -2162,6 +2162,129 @@ SQL EXECUTIONS DURING IMPLEMENTATION = 0
 PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
 ```
 
+
++### M.5.3 — Local Source Diagnostic #5 — cierre / roles audit verified
+
+El tooling inmutable `6424609827a9e5d24ad56c991ecb27f331bb7788`
+se ejecutó sobre el mismo backup real preservado usado por Diagnostic #4.
+Diagnostic #5 cerró en `PASS` y verificó que la remediación estricta cubre las
+tres familias observadas sin findings adicionales. La evidencia sigue
+sanitizada: no publica identidades, nombres concretos de parámetros, valores,
+SQL Productivo raw ni paths absolutos.
+
+```text
+LOCAL SOURCE DIAGNOSTIC #5 = PASS / ROLES_AUDIT VERIFIED
+TOOLING SHA = 6424609827a9e5d24ad56c991ecb27f331bb7788
+status = PASS
+operation = local-managed-recovery-source-diagnostic
+phase = ROLES_AUDIT
+localAgeDecrypts = 1
+realR2Reads = 0
+realTargetStarts = 0
+sqlExecutions = 0
+productionMutations = 0
+cleanup = PASS
+DIAGNOSTIC EXIT CODE = 0
+
+LOCAL PRESERVED CIPHERTEXT = VERIFIED
+LOCAL AGE DECRYPT = PASS
+SAFE TAR = PASS
+EXACT BUNDLE TREE = PASS
+MANAGED-DATA SQL ADMISSION = PASS
+ROLES.SQL DIALECT AUDIT = PASS
+SOURCE CLEANUP = PASS
+
+SUPABASE DATA WRAPPER REMEDIATION = REAL BACKUP VERIFIED
+PG_DUMP SEQUENCE SET REMEDIATION = REAL BACKUP VERIFIED
+ROLES DIALECT REMEDIATION = REAL BACKUP VERIFIED
+```
+
+`database/roles.sql` permanece `AUDIT_ONLY` y fuera de `restoreSql`.
+Diagnostic #5 demuestra únicamente que el artifact pertenece al dialecto
+gobernado; no demuestra ni autoriza su ejecución. El hard-fail
+`RECOVERY_ROLES_CREDENTIAL_MATERIAL` permanece vigente.
+
+```text
+ROLE CREDENTIAL MATERIAL = NOT OBSERVED
+UNEXPECTED ROLE SQL OUTSIDE GOVERNED DIALECT = NOT OBSERVED
+```
+
+Diagnostic #4 se conserva como evidencia histórica del finding previo, sin
+reinterpretarlo como corrupción del backup:
+
+```text
+LOCAL SOURCE DIAGNOSTIC #4 = FINDING / ROLES_AUDIT
+TOOLING SHA = dcc396107144a763c4757cd522798b30c4de00e8
+unexpectedStatementCount = 5
+ALTER_ROLE_SET_SUPABASE_ALLOWED_CONFIG = 3
+RESET_ALL = 1
+ROLE_PARAMETER_PRIVILEGE_VARIANT = 1
+```
+
+El historial de intentos reales también permanece inalterado:
+
+```text
+REAL RESTORE ATTEMPT #1 = FAIL / PREFLIGHT OPERATOR CONFIGURATION
+REAL RESTORE ATTEMPT #2 = FAIL / SOURCE_VERIFY SQL DIALECT ADMISSION
+REAL RESTORE ATTEMPT #3 = FAIL / PREFLIGHT R2 LOCAL ENV ADMISSION
+REAL RESTORE ATTEMPT #4 = FAIL / RESTORE_PLAN / ROLES DIALECT AUDIT
+REAL RESTORE ATTEMPT #4 TOOLING SHA = 80d27aa9518a928557b8a4e98370d46433c45ee3
+ATTEMPT #4 realTargetStarts = 1
+ATTEMPT #4 sqlExecutions = 0
+ATTEMPT #4 targetMutations = 0
+ATTEMPT #4 realR2Reads = 3
+ATTEMPT #4 realAgeDecrypts = 1
+ATTEMPT #4 productionMutations = 0
+```
+
+Diagnostic #5 no verifica el restore completo. Para Real Restore Attempt #5
+siguen pendientes:
+
+```text
+R2 source re-verification
+fresh disposable target creation
+target baseline validation
+managed-schema audit
+migration-history audit
+restore-plan complete construction
+single SQL mutation
+post-restore DB validation
+referential integrity
+Auth continuity
+real internal login
+empty Storage validation
+application live
+application ready
+application login
+anonymous rejection
+RLS/grant baseline
+cleanup
+```
+
+El estado vigente queda:
+
+```text
+LOCAL SOURCE DIAGNOSTIC #5 = CLOSED / PASS / ROLES_AUDIT VERIFIED
+SOURCE DIAGNOSTIC WORKSTREAM = CLOSED / REAL BACKUP SOURCE + ROLES VERIFIED
+ROLES DIALECT REMEDIATION = APPROVED / REAL BACKUP VERIFIED
+PPO-04M.5.3 = ACTIVE / SOURCE + ROLES VERIFIED / REAL RESTORE ATTEMPT #5 PENDING AUTHORIZATION
+REAL RESTORE ATTEMPT #5 = NOT AUTHORIZED / PENDING FINAL DOCUMENTARY REVIEW
+TD-BACKUP-004 = OPEN
+TD-BACKUP-004 = REQUIRED BEFORE FIRST NON-EMPTY STORAGE RECOVERY
+CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY
+```
+
+Este cierre fue exclusivamente documental:
+
+```text
+REAL R2 READS = 0
+REAL AGE DECRYPTS = 0
+REAL TARGET STARTS = 0
+REAL APP STARTS = 0
+REAL CHROMIUM STARTS = 0
+SQL EXECUTIONS = 0
+PRODUCTION ACTIVITY = 0
+```
 
 ### M.5.3 — Supabase CLI data-only wrapper remediation
 

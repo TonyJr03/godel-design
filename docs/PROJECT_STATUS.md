@@ -23,7 +23,8 @@ aplicó y aceptó la baseline 01–06, M.2B validó bootstrap, lifecycle Auth,
 RLS/grants, Storage/TUS y cleanup, y M.3 aceptó el deployment técnico protegido.
 El Site URL de Supabase está alineado con el dominio Production estable.
 PPO-04M.4 queda `CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE`; PPO-04M.5 queda
-`ACTIVE / ROLES DIALECT REMEDIATION`. M.5.0 está `CLOSED / ARCHITECTURE APPROVED`;
+`ACTIVE / SOURCE + ROLES VERIFIED / REAL RESTORE ATTEMPT #5 PENDING AUTHORIZATION`.
+M.5.0 está `CLOSED / ARCHITECTURE APPROVED`;
 M.5.1 está `CLOSED / LOCAL INTEGRATION APPROVED`, M.5.2.0 está
 `CLOSED / PRODUCTION BACKUP PREPARATION APPROVED`, M.5.2.1A está
 `CLOSED / R2 CUSTODY ADAPTER APPROVED` y M.5.2.1B está
@@ -43,7 +44,7 @@ M.5.3D.2.6 quedó `REAL-ENVIRONMENT SAFE TAXONOMY VERIFIED BY ATTEMPT #7`,
 M.5.3D.2.7 quedó cerrado como mejora de fidelidad no causal y M.5.3D.2.8 quedó
 cerrado y verificado en entorno real por Attempt #9. M.5.3D.2 queda `CLOSED /
 REAL LOCAL RECOVERY APPLICATION COMPATIBILITY VERIFIED`; M.5.3 permanece
-`ACTIVE / ROLES DIALECT REMEDIATION`.
+`ACTIVE / SOURCE + ROLES VERIFIED / REAL RESTORE ATTEMPT #5 PENDING AUTHORIZATION`.
 Real Restore Attempt #1 falló en preflight por configuración operativa sin
 actividad real; Attempt #2 verificó la fuente Productiva hasta detenerse en
 `SOURCE_VERIFY` por `RECOVERY_SQL_STATEMENT_FORBIDDEN`. Attempt #3 no está
@@ -127,7 +128,7 @@ una migración nueva `07+`.
 | PPO-04M.2B | `CLOSED / APPROVED` |
 | PPO-04M.3 | `CLOSED / APPROVED` |
 | PPO-04M.4 | `CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE` |
-| PPO-04M.5 | `ACTIVE / ROLES DIALECT REMEDIATION` |
+| PPO-04M.5 | `ACTIVE / SOURCE + ROLES VERIFIED / REAL RESTORE ATTEMPT #5 PENDING AUTHORIZATION` |
 | PPO-04M.5.0 | `CLOSED / ARCHITECTURE APPROVED` |
 | PPO-04M.5.1 | `CLOSED / LOCAL INTEGRATION APPROVED` |
 | PPO-04M.5.2.0 | `CLOSED / PRODUCTION BACKUP PREPARATION APPROVED` |
@@ -156,7 +157,7 @@ una migración nueva `07+`.
 | PPO-04M.5.3D.2.6 | `REAL-ENVIRONMENT SAFE TAXONOMY VERIFIED BY ATTEMPT #7` |
 | PPO-04M.5.3D.2.7 | `CLOSED / REAL-ENVIRONMENT PRODUCT DEFAULT DISTDIR VERIFIED / NOT CAUSAL FOR THE LIVE FAILURE / ARCHITECTURAL FIDELITY IMPROVEMENT RETAINED` |
 | PPO-04M.5.3D.2.8 | `CLOSED / WINDOWS SAME-VOLUME APPLICATION RUNTIME TOPOLOGY / REAL-ENVIRONMENT VERIFIED BY ATTEMPT #9` |
-| PPO-04M.5.3 | `ACTIVE / ROLES DIALECT REMEDIATION` |
+| PPO-04M.5.3 | `ACTIVE / SOURCE + ROLES VERIFIED / REAL RESTORE ATTEMPT #5 PENDING AUTHORIZATION` |
 | PPO-04M.6–PPO-04M.7 | `NOT STARTED` |
 | PPO-05 | `PENDING` — seguridad pública/antiabuso |
 | PPO-06 | `PENDING` — backup/recovery managed |
@@ -219,7 +220,7 @@ REAL RECOVERY BOUNDARY = OPERATOR-GOVERNED
 IMPLICIT TRUNCATE CASCADE = REMOVED
 EXPLICIT TRUNCATE AUTHORITY = ENFORCED
 POST-RESTORE FK DATA INTEGRITY GATE = IMPLEMENTED
-PPO-04M.5.3 = ACTIVE / ROLES DIALECT REMEDIATION
+PPO-04M.5.3 = ACTIVE / SOURCE + ROLES VERIFIED / REAL RESTORE ATTEMPT #5 PENDING AUTHORIZATION
 REAL RESTORE ATTEMPT #1 = FAIL / PREFLIGHT OPERATOR CONFIGURATION
 REAL RESTORE ATTEMPT #2 = FAIL / SOURCE_VERIFY REAL BACKUP SQL DIALECT ADMISSION FINDING
 REAL RESTORE ATTEMPT #3 = NOT AUTHORIZED / PENDING FINAL DOCUMENTARY REVIEW
@@ -677,6 +678,129 @@ SQL EXECUTIONS DURING IMPLEMENTATION = 0
 PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
 ```
 
++## Local Source Diagnostic #5 — cierre / roles audit verified
+
+El tooling inmutable `6424609827a9e5d24ad56c991ecb27f331bb7788`
+se ejecutó sobre el mismo backup real preservado usado por Diagnostic #4.
+Diagnostic #5 cerró en `PASS` y verificó que la remediación estricta cubre las
+tres familias observadas sin findings adicionales. La evidencia sigue
+sanitizada: no publica identidades, nombres concretos de parámetros, valores,
+SQL Productivo raw ni paths absolutos.
+
+```text
+LOCAL SOURCE DIAGNOSTIC #5 = PASS / ROLES_AUDIT VERIFIED
+TOOLING SHA = 6424609827a9e5d24ad56c991ecb27f331bb7788
+status = PASS
+operation = local-managed-recovery-source-diagnostic
+phase = ROLES_AUDIT
+localAgeDecrypts = 1
+realR2Reads = 0
+realTargetStarts = 0
+sqlExecutions = 0
+productionMutations = 0
+cleanup = PASS
+DIAGNOSTIC EXIT CODE = 0
+
+LOCAL PRESERVED CIPHERTEXT = VERIFIED
+LOCAL AGE DECRYPT = PASS
+SAFE TAR = PASS
+EXACT BUNDLE TREE = PASS
+MANAGED-DATA SQL ADMISSION = PASS
+ROLES.SQL DIALECT AUDIT = PASS
+SOURCE CLEANUP = PASS
+
+SUPABASE DATA WRAPPER REMEDIATION = REAL BACKUP VERIFIED
+PG_DUMP SEQUENCE SET REMEDIATION = REAL BACKUP VERIFIED
+ROLES DIALECT REMEDIATION = REAL BACKUP VERIFIED
+```
+
+`database/roles.sql` permanece `AUDIT_ONLY` y fuera de `restoreSql`.
+Diagnostic #5 demuestra únicamente que el artifact pertenece al dialecto
+gobernado; no demuestra ni autoriza su ejecución. El hard-fail
+`RECOVERY_ROLES_CREDENTIAL_MATERIAL` permanece vigente.
+
+```text
+ROLE CREDENTIAL MATERIAL = NOT OBSERVED
+UNEXPECTED ROLE SQL OUTSIDE GOVERNED DIALECT = NOT OBSERVED
+```
+
+Diagnostic #4 se conserva como evidencia histórica del finding previo, sin
+reinterpretarlo como corrupción del backup:
+
+```text
+LOCAL SOURCE DIAGNOSTIC #4 = FINDING / ROLES_AUDIT
+TOOLING SHA = dcc396107144a763c4757cd522798b30c4de00e8
+unexpectedStatementCount = 5
+ALTER_ROLE_SET_SUPABASE_ALLOWED_CONFIG = 3
+RESET_ALL = 1
+ROLE_PARAMETER_PRIVILEGE_VARIANT = 1
+```
+
+El historial de intentos reales también permanece inalterado:
+
+```text
+REAL RESTORE ATTEMPT #1 = FAIL / PREFLIGHT OPERATOR CONFIGURATION
+REAL RESTORE ATTEMPT #2 = FAIL / SOURCE_VERIFY SQL DIALECT ADMISSION
+REAL RESTORE ATTEMPT #3 = FAIL / PREFLIGHT R2 LOCAL ENV ADMISSION
+REAL RESTORE ATTEMPT #4 = FAIL / RESTORE_PLAN / ROLES DIALECT AUDIT
+REAL RESTORE ATTEMPT #4 TOOLING SHA = 80d27aa9518a928557b8a4e98370d46433c45ee3
+ATTEMPT #4 realTargetStarts = 1
+ATTEMPT #4 sqlExecutions = 0
+ATTEMPT #4 targetMutations = 0
+ATTEMPT #4 realR2Reads = 3
+ATTEMPT #4 realAgeDecrypts = 1
+ATTEMPT #4 productionMutations = 0
+```
+
+Diagnostic #5 no verifica el restore completo. Para Real Restore Attempt #5
+siguen pendientes:
+
+```text
+R2 source re-verification
+fresh disposable target creation
+target baseline validation
+managed-schema audit
+migration-history audit
+restore-plan complete construction
+single SQL mutation
+post-restore DB validation
+referential integrity
+Auth continuity
+real internal login
+empty Storage validation
+application live
+application ready
+application login
+anonymous rejection
+RLS/grant baseline
+cleanup
+```
+
+El estado vigente queda:
+
+```text
+LOCAL SOURCE DIAGNOSTIC #5 = CLOSED / PASS / ROLES_AUDIT VERIFIED
+SOURCE DIAGNOSTIC WORKSTREAM = CLOSED / REAL BACKUP SOURCE + ROLES VERIFIED
+ROLES DIALECT REMEDIATION = APPROVED / REAL BACKUP VERIFIED
+PPO-04M.5.3 = ACTIVE / SOURCE + ROLES VERIFIED / REAL RESTORE ATTEMPT #5 PENDING AUTHORIZATION
+REAL RESTORE ATTEMPT #5 = NOT AUTHORIZED / PENDING FINAL DOCUMENTARY REVIEW
+TD-BACKUP-004 = OPEN
+TD-BACKUP-004 = REQUIRED BEFORE FIRST NON-EMPTY STORAGE RECOVERY
+CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY
+```
+
+Este cierre fue exclusivamente documental:
+
+```text
+REAL R2 READS = 0
+REAL AGE DECRYPTS = 0
+REAL TARGET STARTS = 0
+REAL APP STARTS = 0
+REAL CHROMIUM STARTS = 0
+SQL EXECUTIONS = 0
+PRODUCTION ACTIVITY = 0
+```
+
 ## Evidencia y capacidades Self-Hosted conservadas
 
 SH-01, SH-02, SH-03 y SH-04 conservan `CLOSED / APPROVED`. Permanecen válidos
@@ -756,7 +880,7 @@ PPO-04M.0  arquitectura y gobernanza — CLOSED / APPROVED
 → PPO-04M.5.3D.2.6  safe UNKNOWN module-resolution decomposition — REAL-ENVIRONMENT SAFE TAXONOMY VERIFIED BY ATTEMPT #7
 → PPO-04M.5.3D.2.7  Product-faithful Next distDir + temporary cache boundary — CLOSED / REAL-ENVIRONMENT PRODUCT DEFAULT DISTDIR VERIFIED / NOT CAUSAL FOR THE LIVE FAILURE / ARCHITECTURAL FIDELITY IMPROVEMENT RETAINED
 → PPO-04M.5.3D.2.8  Windows same-volume application runtime topology — CLOSED / WINDOWS SAME-VOLUME APPLICATION RUNTIME TOPOLOGY / REAL-ENVIRONMENT VERIFIED BY ATTEMPT #9
-→ PPO-04M.5.3  Restore Drill + Baseline Closure — ACTIVE / ROLES DIALECT REMEDIATION
+→ PPO-04M.5.3  Restore Drill + Baseline Closure — ACTIVE / SOURCE + ROLES VERIFIED / REAL RESTORE ATTEMPT #5 PENDING AUTHORIZATION
 → PPO-04M.6  small initial real use
 → PPO-04M.7  estabilización y medidas reales
 → LSH (futuro, no iniciado)
