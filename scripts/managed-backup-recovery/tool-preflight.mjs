@@ -58,6 +58,30 @@ export async function preflightManagedRecoverySourceDiagnosticTools({
   return Object.freeze(tools.map((entry) => Object.freeze(entry)));
 }
 
+export async function preflightManagedRecoveryPlanDiagnosticTools({
+  environment = process.env,
+  repoRoot = process.cwd(),
+  execute = runCommand,
+  admitSupabaseCli = admitRepoLocalSupabaseCli,
+} = {}) {
+  if (typeof execute !== "function" || typeof admitSupabaseCli !== "function") fail("RECOVERY_TOOL_PREFLIGHT_INVALID", "Recovery plan diagnostic preflight adapters are invalid");
+  const sourceTools = await preflightManagedRecoverySourceDiagnosticTools({ environment, repoRoot, execute });
+  const supabase = await admitSupabaseCli({ repoRoot });
+  const docker = await invokeVersion({
+    name: "docker",
+    executable: "docker",
+    args: ["version", "--format", "{{.Client.Version}}/{{.Server.Version}}"],
+    environment,
+    repoRoot,
+    execute,
+  });
+  return Object.freeze([
+    ...sourceTools,
+    Object.freeze({ name: "docker", present: true, version: docker }),
+    Object.freeze({ name: "supabase", present: true, version: supabase.version }),
+  ]);
+}
+
 export async function preflightManagedRecoveryTools({
   environment = process.env,
   repoRoot = process.cwd(),

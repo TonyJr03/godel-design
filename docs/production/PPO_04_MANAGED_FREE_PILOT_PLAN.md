@@ -4,7 +4,7 @@
 
 **Estado de PPO-04M:** `ACTIVE / NEXT`
 
-**Bloque activo:** `PPO-04M.5 — ACTIVE / SOURCE + ROLES VERIFIED / REAL RESTORE ATTEMPT #5 PENDING AUTHORIZATION`
+**Bloque activo:** `PPO-04M.5 — ACTIVE / REAL RESTORE PLAN DIAGNOSTIC`
 
 **Estado de PPO-04M.2:** `CLOSED / APPROVED`
 
@@ -14,7 +14,7 @@
 
 **PPO-04M.4:** `CLOSED / QUALIFIED ACCEPTANCE`
 
-**PPO-04M.5:** `ACTIVE / SOURCE + ROLES VERIFIED / REAL RESTORE ATTEMPT #5 PENDING AUTHORIZATION`
+**PPO-04M.5:** `ACTIVE / REAL RESTORE PLAN DIAGNOSTIC`
 
 **PPO-04M.5.0:** `CLOSED / ARCHITECTURE APPROVED`
 
@@ -72,7 +72,7 @@
 
 **PPO-04M.5.3D.2.8:** `CLOSED / WINDOWS SAME-VOLUME APPLICATION RUNTIME TOPOLOGY / REAL-ENVIRONMENT VERIFIED BY ATTEMPT #9`
 
-**PPO-04M.5.3:** `ACTIVE / SOURCE + ROLES VERIFIED / REAL RESTORE ATTEMPT #5 PENDING AUTHORIZATION`
+**PPO-04M.5.3:** `ACTIVE / REAL RESTORE PLAN DIAGNOSTIC`
 
 **FIRST PRODUCTION BACKUP:** `COMPLETE`
 
@@ -122,7 +122,7 @@ PPO-04M.2A = CLOSED / APPROVED
 PPO-04M.2B = CLOSED / APPROVED
 PPO-04M.3 = CLOSED / APPROVED
 PPO-04M.4 = CLOSED / QUALIFIED ACCEPTANCE
-PPO-04M.5 = ACTIVE / SOURCE + ROLES VERIFIED / REAL RESTORE ATTEMPT #5 PENDING AUTHORIZATION
+PPO-04M.5 = ACTIVE / REAL RESTORE PLAN DIAGNOSTIC
 PPO-04M.5.0 = CLOSED / ARCHITECTURE APPROVED
 PPO-04M.5.1 = CLOSED / LOCAL INTEGRATION APPROVED
 PPO-04M.5.2.0 = CLOSED / PRODUCTION BACKUP PREPARATION APPROVED
@@ -167,7 +167,7 @@ PACKAGE.JSON SCRIPTS-ONLY OPERATIONAL DRIFT = SEMANTICALLY EXCLUDED
 PACKAGE.JSON NON-SCRIPT FIELDS = EXACT AUTHORITY
 TEMPORARY APP PACKAGE.JSON = PRODUCTION RUNTIME AUTHORITY
 REAL_SHA_APP_RUNTIME_AUTHORITY = PASS
-PPO-04M.5.3 = ACTIVE / SOURCE + ROLES VERIFIED / REAL RESTORE ATTEMPT #5 PENDING AUTHORIZATION
+PPO-04M.5.3 = ACTIVE / REAL RESTORE PLAN DIAGNOSTIC
 REAL RESTORE ATTEMPT #1 = FAIL / PREFLIGHT OPERATOR CONFIGURATION
 REAL RESTORE ATTEMPT #2 = FAIL / SOURCE_VERIFY REAL BACKUP SQL DIALECT ADMISSION FINDING
 REAL RESTORE ATTEMPT #3 = NOT AUTHORIZED / PENDING FINAL DOCUMENTARY REVIEW
@@ -239,7 +239,7 @@ provider limits are external and must be revalidated at execution time
 | PPO-04M.2 | Database / Auth / Storage Provisioning | `CLOSED / APPROVED` |
 | PPO-04M.3 | Vercel Hobby Deployment | `CLOSED / APPROVED` |
 | PPO-04M.4 | Managed Production QA | `CLOSED / QUALIFIED ACCEPTANCE` |
-| PPO-04M.5 | Free-Tier Backup & Recovery Baseline | `ACTIVE / SOURCE + ROLES VERIFIED / REAL RESTORE ATTEMPT #5 PENDING AUTHORIZATION` |
+| PPO-04M.5 | Free-Tier Backup & Recovery Baseline | `ACTIVE / REAL RESTORE PLAN DIAGNOSTIC` |
 | PPO-04M.6 | Production Pilot Rollout | `NOT STARTED` |
 | PPO-04M.7 | Stabilization & Usage Measurement | `NOT STARTED` |
 
@@ -938,7 +938,7 @@ SQL EXECUTIONS DURING IMPLEMENTATION = 0
 PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
 ```
 
-+### Local Source Diagnostic #5 — cierre / roles audit verified
+### Local Source Diagnostic #5 — cierre / roles audit verified
 
 El tooling inmutable `6424609827a9e5d24ad56c991ecb27f331bb7788`
 se ejecutó sobre el mismo backup real preservado usado por Diagnostic #4.
@@ -1059,6 +1059,110 @@ REAL APP STARTS = 0
 REAL CHROMIUM STARTS = 0
 SQL EXECUTIONS = 0
 PRODUCTION ACTIVITY = 0
+```
+
+### Real Restore Attempt #5 — restore plan diagnostic
+
+Real Restore Attempt #5 ejecutó el tooling inmutable
+`dbe9c940511ae2b989995da5fb0e831d635e84ec` y se detuvo de forma segura en
+`RESTORE_PLAN`. La fuente R2 fue verificada en modo read-only, el decrypt y la
+verificación de fuente completaron, y el target local desechable alcanzó su
+baseline. No se ejecutó SQL de restore ni hubo mutación del target o Production.
+El resultado no demuestra corrupción del backup.
+
+```text
+REAL RESTORE ATTEMPT #5 = FAIL / RESTORE_PLAN
+TOOLING SHA = dbe9c940511ae2b989995da5fb0e831d635e84ec
+code = RECOVERY_DRILL_FAILED
+phase = RESTORE_PLAN
+realTargetStarts = 1
+sqlExecutions = 0
+targetMutations = 0
+realR2Reads = 3
+realAgeDecrypts = 1
+productionMutations = 0
+
+SOURCE R2 = VERIFIED / READ-ONLY
+AGE DECRYPT = REACHED
+SOURCE VERIFY = PASS
+DISPOSABLE TARGET = STARTED
+TARGET BASELINE = REACHED
+RESTORE SQL = NOT EXECUTED
+TARGET MUTATION = 0
+PRODUCTION MUTATION = 0
+```
+
+La observabilidad genérica de `sanitizeRealRestoreDrillFailure()` convierte en
+`RECOVERY_DRILL_FAILED` cualquier error interno que no pertenezca a su enum
+público cerrado. No se amplió indiscriminadamente ese enum. En su lugar se
+implementó un diagnóstico separado, bounded y no mutante que reproduce el
+mismo punto mediante `buildManagedRestorePlan()` real.
+
+El backup fue creado con Supabase CLI 2.109.1. El dialecto upstream de
+`dump_data.sh` envuelve los dumps data-only con un `SET` inicial y
+`RESET ALL;` final, incluido el dump de migration history. El auditor actual
+admite el `SET` pero no ese `RESET ALL;`; por ello
+`RECOVERY_MIGRATION_HISTORY_DATA_INVALID` es una hipótesis fuerte, no un
+finding confirmado. No se afirma que fuera el primer error de Attempt #5 porque
+`managed-schema` se audita antes.
+
+```text
+LOCAL MANAGED RECOVERY PLAN DIAGNOSTIC =
+IMPLEMENTED / NOT EXECUTED
+
+SOURCE =
+LOCAL PRESERVED BACKUP ONLY
+
+SOURCE ADAPTER =
+createLocalRecoverySourceAdapter
+
+R2 READS =
+FORBIDDEN / 0
+
+PLAN AUTHORITY =
+buildManagedRestorePlan REAL
+
+STOP BOUNDARY =
+IMMEDIATELY AFTER RESTORE_PLAN
+
+RESTORE SQL EXECUTION =
+FORBIDDEN
+
+STORAGE TRANSFER =
+FORBIDDEN
+
+CREDENTIAL PROMPT =
+FORBIDDEN
+
+APPLICATION START =
+FORBIDDEN
+
+CHROMIUM START =
+FORBIDDEN
+```
+
+El diagnóstico exige la confirmación exacta
+`GODEL_MANAGED_RECOVERY_PLAN_DIAGNOSTIC_CONFIRM=ALLOW_LOCAL_MANAGED_RECOVERY_PLAN_DIAGNOSTIC`,
+rechaza confirmaciones incompatibles y mantiene un enum cerrado limitado a
+fallos alcanzables durante la construcción del plan. Un código no admitido se
+publica únicamente como `RECOVERY_RESTORE_PLAN_DIAGNOSTIC_UNCLASSIFIED`.
+
+```text
+PPO-04M.5.3 = ACTIVE / REAL RESTORE PLAN DIAGNOSTIC
+REAL RESTORE ATTEMPT #5 = CLOSED / SAFE FAIL / RESTORE_PLAN
+LOCAL MANAGED RECOVERY PLAN DIAGNOSTIC = IMPLEMENTED / NOT EXECUTED / PENDING REVIEW
+REAL RESTORE ATTEMPT #6 = NOT AUTHORIZED
+TD-BACKUP-004 = OPEN
+TD-BACKUP-004 = REQUIRED BEFORE FIRST NON-EMPTY STORAGE RECOVERY
+CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY
+
+REAL R2 READS DURING IMPLEMENTATION = 0
+REAL AGE DECRYPTS DURING IMPLEMENTATION = 0
+REAL TARGET STARTS DURING IMPLEMENTATION = 0
+REAL APP STARTS DURING IMPLEMENTATION = 0
+REAL CHROMIUM STARTS DURING IMPLEMENTATION = 0
+SQL EXECUTIONS DURING IMPLEMENTATION = 0
+PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
 ```
 
 ## 10. PPO-04M.6 — Production Pilot Rollout
