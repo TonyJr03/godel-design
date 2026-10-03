@@ -13,8 +13,13 @@ export const RESTORE_EXECUTE_PREFLIGHT_QUERY_NAMES = Object.freeze([
 ]);
 
 const querySql = new WeakMap();
+const executorCandidateQuerySql = new WeakMap();
+const executorAuthorities = new WeakMap();
 const preflightDetails = new WeakMap();
 const governedFindings = new WeakMap();
+
+export const SUPABASE_ADMIN_RESTORE_EXECUTOR = Object.freeze({ candidate: "SUPABASE_ADMIN" });
+executorAuthorities.set(SUPABASE_ADMIN_RESTORE_EXECUTOR, Object.freeze({ role: "supabase_admin" }));
 
 function fail(code, message) {
   const error = new Error(message);
@@ -37,10 +42,28 @@ function createQuery(name, sql) {
   return handle;
 }
 
+function createExecutorCandidateQuery(name, sql, executorAuthority) {
+  if (!executorAuthorities.has(executorAuthority)) fail("RECOVERY_RESTORE_EXECUTOR_AUTHORITY_REQUIRED", "Governed restore executor candidate authority is required");
+  const handle = Object.freeze({ name, statementClass: "SELECT_READ_ONLY" });
+  executorCandidateQuerySql.set(handle, Object.freeze({ sql, executorAuthority }));
+  return handle;
+}
+
 export function accessRestoreExecutePreflightQuerySql(handle, callback) {
   const sql = querySql.get(handle);
   if (typeof sql !== "string" || typeof callback !== "function") fail("RECOVERY_RESTORE_EXECUTE_PREFLIGHT_QUERY_REQUIRED", "Governed restore execute preflight query is required");
   return callback(sql);
+}
+
+export function accessSupabaseAdminRestoreExecutorQuerySql({ executorAuthority, query } = {}, callback) {
+  const details = executorCandidateQuerySql.get(query);
+  if (
+    !executorAuthorities.has(executorAuthority)
+    || details?.executorAuthority !== executorAuthority
+    || typeof details.sql !== "string"
+    || typeof callback !== "function"
+  ) fail("RECOVERY_RESTORE_EXECUTOR_QUERY_REQUIRED", "Governed Supabase Admin restore executor query is required");
+  return callback(details.sql);
 }
 
 export function accessRestoreExecutePreflightFinding(error, callback) {
@@ -53,6 +76,14 @@ const REPLICATION_AUTHORITY_SQL = [
   "SELECT json_build_object(",
   "  'currentUserIsPostgres', current_user = 'postgres',",
   "  'canSetSessionReplicationRole', has_parameter_privilege(current_user, 'session_replication_role', 'SET')",
+  ")::text;",
+].join("\n");
+
+const SUPABASE_ADMIN_REPLICATION_AUTHORITY_SQL = [
+  "SELECT json_build_object(",
+  "  'currentUserIsSupabaseAdmin', current_user = 'supabase_admin',",
+  "  'canSetSessionReplicationRole', has_parameter_privilege(current_user, 'session_replication_role', 'SET'),",
+  "  'isSuperuser', COALESCE((SELECT rolsuper FROM pg_roles WHERE rolname = current_user), false)",
   ")::text;",
 ].join("\n");
 
@@ -112,7 +143,7 @@ const TABLE_PRIVILEGES_SQL = [
   "  AND n.nspname IN ('auth','private','public','storage');",
 ].join("\n");
 
-export function buildRestoreExecutePreflight({ restorePlan } = {}) {
+function targetCompatiblePlanDetails(restorePlan) {
   if (
     restorePlan?.status !== "READY"
     || restorePlan?.storage?.objectCount !== 0
@@ -126,15 +157,33 @@ export function buildRestoreExecutePreflight({ restorePlan } = {}) {
       || details.admitted.some((identity, index) => identity !== targetAdmission.mutableTables[index])
     ) fail("RECOVERY_RESTORE_EXECUTE_PREFLIGHT_PLAN_INVALID", "Target-compatible admission and mutable plan authority do not match");
   });
-  const queries = Object.freeze({
-    replicationAuthority: createQuery("replicationAuthority", REPLICATION_AUTHORITY_SQL),
-    columnCatalog: createQuery("columnCatalog", COLUMN_CATALOG_SQL),
-    foreignKeyCatalog: createQuery("foreignKeyCatalog", FOREIGN_KEY_CATALOG_SQL),
-    sequenceCatalog: createQuery("sequenceCatalog", SEQUENCE_CATALOG_SQL),
-    tablePrivileges: createQuery("tablePrivileges", TABLE_PRIVILEGES_SQL),
+  return Object.freeze({ restorePlan, targetAdmission });
+}
+
+function preflightQueries(create, replicationSql, executorAuthority) {
+  return Object.freeze({
+    replicationAuthority: create("replicationAuthority", replicationSql, executorAuthority),
+    columnCatalog: create("columnCatalog", COLUMN_CATALOG_SQL, executorAuthority),
+    foreignKeyCatalog: create("foreignKeyCatalog", FOREIGN_KEY_CATALOG_SQL, executorAuthority),
+    sequenceCatalog: create("sequenceCatalog", SEQUENCE_CATALOG_SQL, executorAuthority),
+    tablePrivileges: create("tablePrivileges", TABLE_PRIVILEGES_SQL, executorAuthority),
   });
+}
+
+export function buildRestoreExecutePreflight({ restorePlan } = {}) {
+  const details = targetCompatiblePlanDetails(restorePlan);
+  const queries = preflightQueries(createQuery, REPLICATION_AUTHORITY_SQL);
   const result = Object.freeze({ status: "READY", phase: "RESTORE_EXECUTE_PREFLIGHT", queryCount: RESTORE_EXECUTE_PREFLIGHT_QUERY_NAMES.length, queries });
-  preflightDetails.set(result, Object.freeze({ restorePlan, targetAdmission }));
+  preflightDetails.set(result, Object.freeze({ ...details, executorCandidate: undefined }));
+  return result;
+}
+
+export function buildSupabaseAdminRestoreExecutorPreflight({ restorePlan, executorAuthority } = {}) {
+  if (!executorAuthorities.has(executorAuthority)) fail("RECOVERY_RESTORE_EXECUTOR_AUTHORITY_REQUIRED", "Governed restore executor candidate authority is required");
+  const details = targetCompatiblePlanDetails(restorePlan);
+  const queries = preflightQueries(createExecutorCandidateQuery, SUPABASE_ADMIN_REPLICATION_AUTHORITY_SQL, executorAuthority);
+  const result = Object.freeze({ status: "READY", phase: "RESTORE_EXECUTOR_PREFLIGHT", executorCandidate: "SUPABASE_ADMIN", queryCount: RESTORE_EXECUTE_PREFLIGHT_QUERY_NAMES.length, queries });
+  preflightDetails.set(result, Object.freeze({ ...details, executorCandidate: "SUPABASE_ADMIN", executorAuthority }));
   return result;
 }
 
@@ -164,6 +213,17 @@ function parseReplicationAuthority(output) {
   const keys = ["currentUserIsPostgres", "canSetSessionReplicationRole"];
   if (!exactObject(value, keys) || keys.some((key) => typeof value[key] !== "boolean")) fail("RECOVERY_RESTORE_EXECUTE_PREFLIGHT_OUTPUT_INVALID", "Replication-role authority output is invalid");
   return Object.freeze({ currentUserIsPostgres: value.currentUserIsPostgres, canSetSessionReplicationRole: value.canSetSessionReplicationRole });
+}
+
+function parseSupabaseAdminReplicationAuthority(output) {
+  const value = parseJson(output);
+  const keys = ["currentUserIsSupabaseAdmin", "canSetSessionReplicationRole", "isSuperuser"];
+  if (!exactObject(value, keys) || keys.some((key) => typeof value[key] !== "boolean")) fail("RECOVERY_RESTORE_EXECUTE_PREFLIGHT_OUTPUT_INVALID", "Restore executor authority output is invalid");
+  return Object.freeze({
+    currentUserIsSupabaseAdmin: value.currentUserIsSupabaseAdmin,
+    canSetSessionReplicationRole: value.canSetSessionReplicationRole,
+    isSuperuser: value.isSuperuser,
+  });
 }
 
 function parseColumnCatalog(output) {
@@ -237,16 +297,11 @@ function tableCountMetadata(items, countField) {
   return Object.freeze({ tableCount: items.length, identities: bounded(items.map((item) => item.identity)) });
 }
 
-export function evaluateRestoreExecutePreflight({ preflight, outputs } = {}) {
-  const details = preflightDetails.get(preflight);
-  if (!details || !exactObject(outputs, RESTORE_EXECUTE_PREFLIGHT_QUERY_NAMES)) fail("RECOVERY_RESTORE_EXECUTE_PREFLIGHT_OUTPUT_INVALID", "Complete governed restore execute preflight outputs are required");
-  const replication = parseReplicationAuthority(outputs.replicationAuthority);
+function evaluateTargetCompatibility(details, outputs) {
   const columns = parseColumnCatalog(outputs.columnCatalog);
   const foreignKeys = parseForeignKeys(outputs.foreignKeyCatalog);
   const sequences = parseSequenceCatalog(outputs.sequenceCatalog);
   const tablePrivileges = parseTablePrivileges(outputs.tablePrivileges);
-  if (!replication.currentUserIsPostgres || !replication.canSetSessionReplicationRole) finding("RECOVERY_RESTORE_EXECUTE_REPLICATION_ROLE_UNAUTHORIZED");
-
   let copyBlocks;
   let sequenceIdentities;
   withAdmittedManagedDataSql(details.targetAdmission, (model) => {
@@ -309,14 +364,50 @@ export function evaluateRestoreExecutePreflight({ preflight, outputs } = {}) {
   }
 
   return Object.freeze({
-    status: "PASS",
-    phase: "RESTORE_EXECUTE_PREFLIGHT",
-    restorePlan: "READY",
-    replicationRoleAuthority: "PASS",
     copyColumnCompatibility: "PASS",
     targetRequiredColumns: "PASS",
     truncateFkClosure: "PASS",
     sequenceCompatibility: "PASS",
     mutationPrivileges: "PASS",
+  });
+}
+
+function governedPreflightDetails(preflight, outputs, expectedCandidate) {
+  const details = preflightDetails.get(preflight);
+  if (
+    !details
+    || details.executorCandidate !== expectedCandidate
+    || !exactObject(outputs, RESTORE_EXECUTE_PREFLIGHT_QUERY_NAMES)
+  ) fail("RECOVERY_RESTORE_EXECUTE_PREFLIGHT_OUTPUT_INVALID", "Complete governed restore execute preflight outputs are required");
+  return details;
+}
+
+export function evaluateRestoreExecutePreflight({ preflight, outputs } = {}) {
+  const details = governedPreflightDetails(preflight, outputs, undefined);
+  const replication = parseReplicationAuthority(outputs.replicationAuthority);
+  if (!replication.currentUserIsPostgres || !replication.canSetSessionReplicationRole) finding("RECOVERY_RESTORE_EXECUTE_REPLICATION_ROLE_UNAUTHORIZED");
+  return Object.freeze({
+    status: "PASS",
+    phase: "RESTORE_EXECUTE_PREFLIGHT",
+    restorePlan: "READY",
+    replicationRoleAuthority: "PASS",
+    ...evaluateTargetCompatibility(details, outputs),
+  });
+}
+
+export function evaluateSupabaseAdminRestoreExecutorPreflight({ preflight, outputs } = {}) {
+  const details = governedPreflightDetails(preflight, outputs, "SUPABASE_ADMIN");
+  if (!executorAuthorities.has(details.executorAuthority)) fail("RECOVERY_RESTORE_EXECUTOR_AUTHORITY_REQUIRED", "Governed restore executor candidate authority is required");
+  const replication = parseSupabaseAdminReplicationAuthority(outputs.replicationAuthority);
+  if (!replication.currentUserIsSupabaseAdmin) finding("RECOVERY_RESTORE_EXECUTOR_IDENTITY_MISMATCH");
+  if (!replication.canSetSessionReplicationRole) finding("RECOVERY_RESTORE_EXECUTOR_REPLICATION_ROLE_UNAUTHORIZED");
+  return Object.freeze({
+    status: "PASS",
+    phase: "RESTORE_EXECUTOR_PREFLIGHT",
+    restorePlan: "READY",
+    executorCandidate: "SUPABASE_ADMIN",
+    executorIdentity: "VERIFIED",
+    replicationRoleAuthority: "PASS",
+    ...evaluateTargetCompatibility(details, outputs),
   });
 }

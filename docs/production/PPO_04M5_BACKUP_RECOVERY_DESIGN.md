@@ -2,7 +2,7 @@
 
 **Bloque:** `PPO-04M.5.0 — Managed Backup & Recovery Architecture Audit`
 
-**Estado de M.5:** `ACTIVE / RESTORE_EXECUTE DIAGNOSTIC`
+**Estado de M.5:** `ACTIVE / RESTORE EXECUTOR DIAGNOSTIC`
 
 **Estado de M.5.0:** `CLOSED / ARCHITECTURE APPROVED`
 
@@ -24,7 +24,7 @@
 
 **R2 REMOTE SYNTHETIC PROOF:** `PASS`
 
-**M.5.3:** `ACTIVE / RESTORE_EXECUTE DIAGNOSTIC`
+**M.5.3:** `ACTIVE / RESTORE EXECUTOR DIAGNOSTIC`
 
 **FIRST PRODUCTION BACKUP:** `COMPLETE`
 
@@ -832,7 +832,7 @@ PPO-04M.5.2.1E
 
 PPO-04M.5.3
 = Restore Drill + Baseline Closure
-= ACTIVE / RESTORE_EXECUTE DIAGNOSTIC
+= ACTIVE / RESTORE EXECUTOR DIAGNOSTIC
 ```
 
 M.6 no se abre hasta que M.5.3 esté cerrado/aprobado.
@@ -3292,4 +3292,108 @@ REAL RESTORE ATTEMPT #7 = NOT AUTHORIZED
 PRODUCTION RESTORE = NOT AUTHORIZED
 TD-BACKUP-004 = OPEN
 CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY
+```
+
+## Local Restore Execute Preflight Diagnostic #1 — blocker de executor
+
+La ejecución inmutable del preflight confirmó que el executor `postgres`
+actual no satisface la autoridad requerida por el contrato de restore. Este
+finding confirma un blocker real, pero no demuestra que sea la única causa
+posible del fallo de Attempt #6.
+
+```text
+LOCAL RESTORE EXECUTE PREFLIGHT DIAGNOSTIC #1 =
+FINDING / RESTORE_EXECUTE_PREFLIGHT
+
+TOOLING SHA =
+246b9d21d526ba8029834c65a125d83ba0481cbb
+
+code =
+RECOVERY_RESTORE_EXECUTE_REPLICATION_ROLE_UNAUTHORIZED
+
+localAgeDecrypts = 1
+realTargetStarts = 1
+sqlExecutions = 0
+targetMutations = 0
+realR2Reads = 0
+remoteActivity = 0
+productionMutations = 0
+targetCleanup = PASS
+sourceCleanup = PASS
+
+RESTORE_EXECUTE_PREFLIGHT_DIAGNOSTIC_1_EXIT_CODE =
+1
+```
+
+```text
+POSTGRES RESTORE EXECUTOR =
+INVALID FOR CURRENT RESTORE CONTRACT
+
+POSTGRES session_replication_role SET AUTHORITY =
+DENIED
+
+RESTORE_EXECUTE BLOCKER =
+CONFIRMED
+```
+
+No se conceden privilegios ni se modifican roles. Se implementa un diagnóstico
+independiente para evaluar el candidato exacto `supabase_admin` mediante el
+backup local preservado, un target local desechable y cinco queries
+exclusivamente read-only. La autoridad opaca no acepta nombres de rol del
+caller; todos sus command plans fijan internamente `-U supabase_admin`.
+
+El candidato debe demostrar identidad exacta y las capacidades concretas
+necesarias: SET de `session_replication_role`, TRUNCATE/INSERT de tablas y
+UPDATE de sequences. `rolsuper` sólo se conserva como evidencia interna y no
+es requisito contractual. Se reutilizan además todos los checks de columnas,
+generated columns, cierre FK y existencia de sequences del preflight anterior,
+obteniendo toda la metadata bajo la misma sesión candidata. No se accede ni
+ejecuta restore SQL.
+
+```text
+LOCAL RESTORE EXECUTE PREFLIGHT DIAGNOSTIC #1 =
+CLOSED / FINDING CONFIRMED
+
+POSTGRES RESTORE EXECUTOR =
+REJECTED FOR CURRENT RESTORE CONTRACT
+
+POSTGRES session_replication_role SET =
+UNAUTHORIZED
+
+PPO-04M.5.3 =
+ACTIVE / RESTORE EXECUTOR DIAGNOSTIC
+
+REAL RESTORE ATTEMPT #6 =
+CLOSED / SAFE FAIL / RESTORE_EXECUTE
+
+RESTORE EXECUTE BLOCKER =
+CONFIRMED / POSTGRES REPLICATION ROLE AUTHORITY
+
+POSTGRES RESTORE EXECUTOR =
+INVALID FOR CURRENT CONTRACT
+
+SUPABASE_ADMIN RESTORE EXECUTOR CANDIDATE =
+IMPLEMENTED / PENDING REAL TARGET VERIFICATION
+
+LOCAL RESTORE EXECUTOR CANDIDATE DIAGNOSTIC #1 =
+NOT AUTHORIZED / PENDING IMPLEMENTATION REVIEW
+
+REAL RESTORE ATTEMPT #7 =
+NOT AUTHORIZED
+
+PRODUCTION RESTORE =
+NOT AUTHORIZED
+
+TD-BACKUP-004 =
+OPEN
+
+CURRENT REAL RESTORE STORAGE SCOPE =
+EMPTY STORAGE ONLY
+
+REAL R2 READS DURING IMPLEMENTATION = 0
+REAL AGE DECRYPTS DURING IMPLEMENTATION = 0
+REAL TARGET STARTS DURING IMPLEMENTATION = 0
+RESTORE SQL EXECUTIONS DURING IMPLEMENTATION = 0
+TARGET DATA MUTATIONS DURING IMPLEMENTATION = 0
+PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
 ```

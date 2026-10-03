@@ -23,7 +23,7 @@ aplicó y aceptó la baseline 01–06, M.2B validó bootstrap, lifecycle Auth,
 RLS/grants, Storage/TUS y cleanup, y M.3 aceptó el deployment técnico protegido.
 El Site URL de Supabase está alineado con el dominio Production estable.
 PPO-04M.4 queda `CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE`; PPO-04M.5 queda
-`ACTIVE / RESTORE_EXECUTE DIAGNOSTIC`.
+`ACTIVE / RESTORE EXECUTOR DIAGNOSTIC`.
 M.5.0 está `CLOSED / ARCHITECTURE APPROVED`;
 M.5.1 está `CLOSED / LOCAL INTEGRATION APPROVED`, M.5.2.0 está
 `CLOSED / PRODUCTION BACKUP PREPARATION APPROVED`, M.5.2.1A está
@@ -44,7 +44,7 @@ M.5.3D.2.6 quedó `REAL-ENVIRONMENT SAFE TAXONOMY VERIFIED BY ATTEMPT #7`,
 M.5.3D.2.7 quedó cerrado como mejora de fidelidad no causal y M.5.3D.2.8 quedó
 cerrado y verificado en entorno real por Attempt #9. M.5.3D.2 queda `CLOSED /
 REAL LOCAL RECOVERY APPLICATION COMPATIBILITY VERIFIED`; M.5.3 permanece
-`ACTIVE / RESTORE_EXECUTE DIAGNOSTIC`.
+`ACTIVE / RESTORE EXECUTOR DIAGNOSTIC`.
 Real Restore Attempt #1 falló en preflight por configuración operativa sin
 actividad real; Attempt #2 verificó la fuente Productiva hasta detenerse en
 `SOURCE_VERIFY` por `RECOVERY_SQL_STATEMENT_FORBIDDEN`. Attempt #3 no está
@@ -128,7 +128,7 @@ una migración nueva `07+`.
 | PPO-04M.2B | `CLOSED / APPROVED` |
 | PPO-04M.3 | `CLOSED / APPROVED` |
 | PPO-04M.4 | `CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE` |
-| PPO-04M.5 | `ACTIVE / RESTORE_EXECUTE DIAGNOSTIC` |
+| PPO-04M.5 | `ACTIVE / RESTORE EXECUTOR DIAGNOSTIC` |
 | PPO-04M.5.0 | `CLOSED / ARCHITECTURE APPROVED` |
 | PPO-04M.5.1 | `CLOSED / LOCAL INTEGRATION APPROVED` |
 | PPO-04M.5.2.0 | `CLOSED / PRODUCTION BACKUP PREPARATION APPROVED` |
@@ -157,7 +157,7 @@ una migración nueva `07+`.
 | PPO-04M.5.3D.2.6 | `REAL-ENVIRONMENT SAFE TAXONOMY VERIFIED BY ATTEMPT #7` |
 | PPO-04M.5.3D.2.7 | `CLOSED / REAL-ENVIRONMENT PRODUCT DEFAULT DISTDIR VERIFIED / NOT CAUSAL FOR THE LIVE FAILURE / ARCHITECTURAL FIDELITY IMPROVEMENT RETAINED` |
 | PPO-04M.5.3D.2.8 | `CLOSED / WINDOWS SAME-VOLUME APPLICATION RUNTIME TOPOLOGY / REAL-ENVIRONMENT VERIFIED BY ATTEMPT #9` |
-| PPO-04M.5.3 | `ACTIVE / RESTORE_EXECUTE DIAGNOSTIC` |
+| PPO-04M.5.3 | `ACTIVE / RESTORE EXECUTOR DIAGNOSTIC` |
 | PPO-04M.6–PPO-04M.7 | `NOT STARTED` |
 | PPO-05 | `PENDING` — seguridad pública/antiabuso |
 | PPO-06 | `PENDING` — backup/recovery managed |
@@ -220,7 +220,7 @@ REAL RECOVERY BOUNDARY = OPERATOR-GOVERNED
 IMPLICIT TRUNCATE CASCADE = REMOVED
 EXPLICIT TRUNCATE AUTHORITY = ENFORCED
 POST-RESTORE FK DATA INTEGRITY GATE = IMPLEMENTED
-PPO-04M.5.3 = ACTIVE / RESTORE_EXECUTE DIAGNOSTIC
+PPO-04M.5.3 = ACTIVE / RESTORE EXECUTOR DIAGNOSTIC
 REAL RESTORE ATTEMPT #1 = FAIL / PREFLIGHT OPERATOR CONFIGURATION
 REAL RESTORE ATTEMPT #2 = FAIL / SOURCE_VERIFY REAL BACKUP SQL DIALECT ADMISSION FINDING
 REAL RESTORE ATTEMPT #3 = NOT AUTHORIZED / PENDING FINAL DOCUMENTARY REVIEW
@@ -984,7 +984,7 @@ PPO-04M.0  arquitectura y gobernanza — CLOSED / APPROVED
 → PPO-04M.5.3D.2.6  safe UNKNOWN module-resolution decomposition — REAL-ENVIRONMENT SAFE TAXONOMY VERIFIED BY ATTEMPT #7
 → PPO-04M.5.3D.2.7  Product-faithful Next distDir + temporary cache boundary — CLOSED / REAL-ENVIRONMENT PRODUCT DEFAULT DISTDIR VERIFIED / NOT CAUSAL FOR THE LIVE FAILURE / ARCHITECTURAL FIDELITY IMPROVEMENT RETAINED
 → PPO-04M.5.3D.2.8  Windows same-volume application runtime topology — CLOSED / WINDOWS SAME-VOLUME APPLICATION RUNTIME TOPOLOGY / REAL-ENVIRONMENT VERIFIED BY ATTEMPT #9
-→ PPO-04M.5.3  Restore Drill + Baseline Closure — ACTIVE / RESTORE_EXECUTE DIAGNOSTIC
+→ PPO-04M.5.3  Restore Drill + Baseline Closure — ACTIVE / RESTORE EXECUTOR DIAGNOSTIC
 → PPO-04M.6  small initial real use
 → PPO-04M.7  estabilización y medidas reales
 → LSH (futuro, no iniciado)
@@ -1795,4 +1795,108 @@ REAL RESTORE ATTEMPT #7 = NOT AUTHORIZED
 PRODUCTION RESTORE = NOT AUTHORIZED
 TD-BACKUP-004 = OPEN
 CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY
+```
+
+## Local Restore Execute Preflight Diagnostic #1 — blocker de executor
+
+La ejecución inmutable del preflight confirmó que el executor `postgres`
+actual no satisface la autoridad requerida por el contrato de restore. Este
+finding confirma un blocker real, pero no demuestra que sea la única causa
+posible del fallo de Attempt #6.
+
+```text
+LOCAL RESTORE EXECUTE PREFLIGHT DIAGNOSTIC #1 =
+FINDING / RESTORE_EXECUTE_PREFLIGHT
+
+TOOLING SHA =
+246b9d21d526ba8029834c65a125d83ba0481cbb
+
+code =
+RECOVERY_RESTORE_EXECUTE_REPLICATION_ROLE_UNAUTHORIZED
+
+localAgeDecrypts = 1
+realTargetStarts = 1
+sqlExecutions = 0
+targetMutations = 0
+realR2Reads = 0
+remoteActivity = 0
+productionMutations = 0
+targetCleanup = PASS
+sourceCleanup = PASS
+
+RESTORE_EXECUTE_PREFLIGHT_DIAGNOSTIC_1_EXIT_CODE =
+1
+```
+
+```text
+POSTGRES RESTORE EXECUTOR =
+INVALID FOR CURRENT RESTORE CONTRACT
+
+POSTGRES session_replication_role SET AUTHORITY =
+DENIED
+
+RESTORE_EXECUTE BLOCKER =
+CONFIRMED
+```
+
+No se conceden privilegios ni se modifican roles. Se implementa un diagnóstico
+independiente para evaluar el candidato exacto `supabase_admin` mediante el
+backup local preservado, un target local desechable y cinco queries
+exclusivamente read-only. La autoridad opaca no acepta nombres de rol del
+caller; todos sus command plans fijan internamente `-U supabase_admin`.
+
+El candidato debe demostrar identidad exacta y las capacidades concretas
+necesarias: SET de `session_replication_role`, TRUNCATE/INSERT de tablas y
+UPDATE de sequences. `rolsuper` sólo se conserva como evidencia interna y no
+es requisito contractual. Se reutilizan además todos los checks de columnas,
+generated columns, cierre FK y existencia de sequences del preflight anterior,
+obteniendo toda la metadata bajo la misma sesión candidata. No se accede ni
+ejecuta restore SQL.
+
+```text
+LOCAL RESTORE EXECUTE PREFLIGHT DIAGNOSTIC #1 =
+CLOSED / FINDING CONFIRMED
+
+POSTGRES RESTORE EXECUTOR =
+REJECTED FOR CURRENT RESTORE CONTRACT
+
+POSTGRES session_replication_role SET =
+UNAUTHORIZED
+
+PPO-04M.5.3 =
+ACTIVE / RESTORE EXECUTOR DIAGNOSTIC
+
+REAL RESTORE ATTEMPT #6 =
+CLOSED / SAFE FAIL / RESTORE_EXECUTE
+
+RESTORE EXECUTE BLOCKER =
+CONFIRMED / POSTGRES REPLICATION ROLE AUTHORITY
+
+POSTGRES RESTORE EXECUTOR =
+INVALID FOR CURRENT CONTRACT
+
+SUPABASE_ADMIN RESTORE EXECUTOR CANDIDATE =
+IMPLEMENTED / PENDING REAL TARGET VERIFICATION
+
+LOCAL RESTORE EXECUTOR CANDIDATE DIAGNOSTIC #1 =
+NOT AUTHORIZED / PENDING IMPLEMENTATION REVIEW
+
+REAL RESTORE ATTEMPT #7 =
+NOT AUTHORIZED
+
+PRODUCTION RESTORE =
+NOT AUTHORIZED
+
+TD-BACKUP-004 =
+OPEN
+
+CURRENT REAL RESTORE STORAGE SCOPE =
+EMPTY STORAGE ONLY
+
+REAL R2 READS DURING IMPLEMENTATION = 0
+REAL AGE DECRYPTS DURING IMPLEMENTATION = 0
+REAL TARGET STARTS DURING IMPLEMENTATION = 0
+RESTORE SQL EXECUTIONS DURING IMPLEMENTATION = 0
+TARGET DATA MUTATIONS DURING IMPLEMENTATION = 0
+PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
 ```
