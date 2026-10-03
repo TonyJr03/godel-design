@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { LOCAL_TARGET_EXCLUDED_SERVICES, admitDockerDbDiscovery, buildTargetCommandPlans, buildTargetPsqlPlan, proveTargetIsolation, resolveTargetDbContainer } from "./target-commands.mjs";
-import { buildManagedRestoreSql, buildMutableTablePlan, sanitizeEphemeralAuthState } from "./restore-planning.mjs";
+import { LOCAL_TARGET_EXCLUDED_SERVICES, admitDockerDbDiscovery, buildTargetCommandPlans, buildTargetPsqlPlan, buildTargetReadOnlyDiagnosticPsqlPlan, proveTargetIsolation, resolveTargetDbContainer } from "./target-commands.mjs";
+import { buildManagedRestoreSql, buildMutableTablePlan, prepareTargetCompatibleManagedData, sanitizeEphemeralAuthState } from "./restore-planning.mjs";
+import { buildRestoreExecutePreflight } from "./restore-execute-preflight.mjs";
 import { admitManagedDataSql } from "./sql-admission.mjs";
 import { REQUIRED_TARGET_EXTENSIONS } from "./sql-audit.mjs";
 import { admitLocalSupabaseStatus } from "./target-runtime-status.mjs";
@@ -90,6 +91,21 @@ test("required extension query is a fixed read-only pgcrypto admission instead o
   assert.match(query.stdin, /WHERE extname = 'pgcrypto'/);
   assert.doesNotMatch(query.stdin, /uuid-ossp|godel-m53|abcdef/i);
   assert.notEqual(query.stdin, "SELECT extname FROM pg_extension ORDER BY extname;");
+});
+
+test("execute preflight query handles build read-only psql plans without restore transaction authority", () => {
+  const authority = resolveTargetDbContainer({ projectId: PROJECT, containers: [db()] });
+  const admission = admitManagedDataSql("COPY public.perfiles (id) FROM stdin;\nfixture\n\\.\n");
+  const targetTables = ["public.perfiles"];
+  const mutable = buildMutableTablePlan({ admission, targetTables });
+  const targetCompatibility = prepareTargetCompatibleManagedData({ admission, targetTables });
+  const preflight = buildRestoreExecutePreflight({ restorePlan: { status: "READY", storage: { objectCount: 0, totalBytes: 0 }, mutable, targetCompatibility } });
+  for (const query of Object.values(preflight.queries)) {
+    const command = buildTargetReadOnlyDiagnosticPsqlPlan({ containerAuthority: authority, cwd: WORKDIR, environment: {}, executePreflightQuery: query });
+    assert.ok(command.args.includes("-At"));
+    assert.ok(!command.args.includes("--single-transaction"));
+    assert.match(command.stdin, /^SELECT\b/);
+  }
 });
 
 test("container resolution uses exact deterministic name and project labels with optional service evidence", () => {

@@ -162,7 +162,7 @@ con evidencia estructural y funcional en
 [PPO_04M2_MANAGED_PROVISIONING_REPORT.md](PPO_04M2_MANAGED_PROVISIONING_REPORT.md).
 PPO-04M.3 queda `CLOSED / APPROVED`; PPO-04M.4 queda
 `CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE`; PPO-04M.5 queda
-`ACTIVE / RESTORE PLAN VERIFIED / PENDING REAL RESTORE EXECUTION`,
+`ACTIVE / RESTORE_EXECUTE DIAGNOSTIC`,
 con M.5.0 `CLOSED / ARCHITECTURE APPROVED`,
 M.5.1 `CLOSED / LOCAL INTEGRATION APPROVED`
 (`DATABASE SECRET-SAFE TRANSPORT`, `AGE ENCRYPTION`, `RCLONE S3` y
@@ -180,7 +180,7 @@ M.5.3C.0 `CLOSED / REAL RESTORE EXECUTION CONTRACT APPROVED` y M.5.3C.1
 operator-governed, no usa `TRUNCATE CASCADE` y
 el gate FK post-restore está implementado. M.5.3D.2 queda `CLOSED / REAL LOCAL
 RECOVERY APPLICATION COMPATIBILITY VERIFIED` tras el PASS real de Attempt #9;
-M.5.3 queda `ACTIVE / RESTORE PLAN VERIFIED / PENDING REAL RESTORE EXECUTION`.
+M.5.3 queda `ACTIVE / RESTORE_EXECUTE DIAGNOSTIC`.
 Cloudflare R2
 Standard queda seleccionado y sintéticamente verificado como custodia externa.
 Dirección Técnica confirmó como operador el Bucket Lock de `production/` por
@@ -267,7 +267,7 @@ PACKAGE.JSON SCRIPTS-ONLY OPERATIONAL DRIFT = SEMANTICALLY EXCLUDED
 PACKAGE.JSON NON-SCRIPT FIELDS = EXACT AUTHORITY
 TEMPORARY APP PACKAGE.JSON = PRODUCTION RUNTIME AUTHORITY
 REAL_SHA_APP_RUNTIME_AUTHORITY = PASS
-PPO-04M.5.3 = ACTIVE / RESTORE PLAN VERIFIED / PENDING REAL RESTORE EXECUTION
+PPO-04M.5.3 = ACTIVE / RESTORE_EXECUTE DIAGNOSTIC
 REAL LOCAL TARGET = VERIFIED
 APPLICATION CLEANUP FAILURE DETECTED IN D.2 ATTEMPT #1 = YES / RECOVERY_APP_CLEANUP_INCOMPLETE
 TARGET CLEANUP FAILURE DETECTED IN D.2 ATTEMPT #1 = NO
@@ -662,6 +662,94 @@ REAL CHROMIUM STARTS DURING IMPLEMENTATION = 0
 SQL EXECUTIONS DURING IMPLEMENTATION = 0
 PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
 ```
+
+## Real Restore Attempt #6 — safe fail y diagnóstico execute preflight
+
+Attempt #6 alcanzó `RESTORE_EXECUTE` con plan `READY` y revalidación
+pre-mutación aprobada. El comando `psql` de restore fue intentado una vez y
+falló. La evidencia no establece todavía una causa SQL exacta ni registra una
+mutación target exitosa.
+
+```text
+REAL RESTORE ATTEMPT #6 =
+CLOSED / SAFE FAIL / RESTORE_EXECUTE
+
+REAL RESTORE ATTEMPT #6 EXECUTION EVIDENCE =
+FAIL / RESTORE_EXECUTE
+
+TOOLING SHA =
+23f8efe9902ed0d1c638c1cd3e657ea9f643664d
+
+code =
+COMMAND_FAILED
+
+realTargetStarts = 1
+sqlExecutions = 1
+targetMutations = 0
+realR2Reads = 3
+realAgeDecrypts = 1
+productionMutations = 0
+REAL_RESTORE_ATTEMPT_6_EXIT_CODE = 1
+```
+
+```text
+SOURCE R2 VERIFY = PASS BY PHASE PROGRESSION
+TARGET START = PASS
+TARGET BASELINE = PASS
+RESTORE PLAN = READY
+PRE-MUTATION REVALIDATION = PASS
+PSQL RESTORE COMMAND = ATTEMPTED ONCE / FAILED
+SUCCESSFUL TARGET MUTATION = NOT RECORDED
+POST-RESTORE VALIDATION = NOT REACHED
+AUTH LOGIN = NOT REACHED
+APPLICATION = NOT REACHED
+
+RESTORE PLAN = PASS / READY BY PHASE PROGRESSION
+PRE-MUTATION REVALIDATION = PASS BY PHASE PROGRESSION
+RESTORE EXECUTE = FAIL / COMMAND_FAILED
+POST-RESTORE VALIDATION = NOT REACHED
+RESTORE EXECUTE EXACT SQL ROOT CAUSE = NOT YET ESTABLISHED
+```
+
+`LOCAL RESTORE EXECUTE PREFLIGHT DIAGNOSTIC #1` queda implementado como
+entrypoint independiente y no autorizado. Usa el backup local preservado, un
+target Supabase local desechable y el restore plan real `READY` con Storage
+vacío. No accede ni ejecuta `restorePlan.restoreSql`.
+
+Sus cinco consultas gobernadas son exclusivamente `SELECT`: autoridad para
+`session_replication_role`, catálogo target de columnas, catálogo FK para el
+cierre de TRUNCATE, catálogo/privilegio UPDATE de sequences admitidas y
+privilegios TRUNCATE/INSERT de tablas. El admission target-compatible se obtiene
+exclusivamente desde el handle del restore plan. La admisión privada conserva
+sólo identities de sequence y nunca valores.
+
+El evaluator detecta columnas COPY ausentes, columnas target requeridas no
+provistas, conflictos con generated columns, FK abiertas, sequences
+ausentes/sin UPDATE y privilegios de tabla insuficientes. Shapes inválidos,
+duplicados, schemas externos, handles fabricados y más de 32 identities fallan
+cerrados. La salida pública se limita a códigos, identities gobernadas y
+conteos/privilegios cerrados: nunca SQL, filas, nombres de columnas, paths,
+credenciales ni output crudo. El cleanup target/source conserva su precedencia
+gobernada.
+
+```text
+PPO-04M.5.3 = ACTIVE / RESTORE_EXECUTE DIAGNOSTIC
+REAL RESTORE ATTEMPT #6 = CLOSED / SAFE FAIL / RESTORE_EXECUTE
+RESTORE EXECUTE ROOT CAUSE = UNKNOWN / PENDING READ-ONLY PREFLIGHT DIAGNOSTIC
+LOCAL RESTORE EXECUTE PREFLIGHT DIAGNOSTIC #1 = NOT AUTHORIZED / PENDING IMPLEMENTATION REVIEW
+REAL RESTORE ATTEMPT #7 = NOT AUTHORIZED
+PRODUCTION RESTORE = NOT AUTHORIZED
+TD-BACKUP-004 = OPEN
+CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY
+
+REAL R2 READS DURING IMPLEMENTATION = 0
+REAL AGE DECRYPTS DURING IMPLEMENTATION = 0
+REAL TARGET STARTS DURING IMPLEMENTATION = 0
+RESTORE SQL EXECUTIONS DURING IMPLEMENTATION = 0
+TARGET DATA MUTATIONS DURING IMPLEMENTATION = 0
+PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
+```
+
 
 ## Local Restore Plan Diagnostic #6 — restore plan real verificado
 
@@ -1771,4 +1859,19 @@ REAL APP STARTS DURING IMPLEMENTATION = 0
 REAL CHROMIUM STARTS DURING IMPLEMENTATION = 0
 SQL EXECUTIONS DURING IMPLEMENTATION = 0
 PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
+```
+
+El bloque anterior conserva el estado histórico posterior a Diagnostic #5. El
+estado vigente queda sustituido por la evidencia de Attempt #6 y el preflight
+read-only documentados en este archivo:
+
+```text
+PPO-04M.5.3 = ACTIVE / RESTORE_EXECUTE DIAGNOSTIC
+REAL RESTORE ATTEMPT #6 = CLOSED / SAFE FAIL / RESTORE_EXECUTE
+RESTORE EXECUTE ROOT CAUSE = UNKNOWN / PENDING READ-ONLY PREFLIGHT DIAGNOSTIC
+LOCAL RESTORE EXECUTE PREFLIGHT DIAGNOSTIC #1 = NOT AUTHORIZED / PENDING IMPLEMENTATION REVIEW
+REAL RESTORE ATTEMPT #7 = NOT AUTHORIZED
+PRODUCTION RESTORE = NOT AUTHORIZED
+TD-BACKUP-004 = OPEN
+CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY
 ```

@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Última actualización: 2026-10-01
+Última actualización: 2026-10-03
 
 ## Estado general
 
@@ -23,7 +23,7 @@ aplicó y aceptó la baseline 01–06, M.2B validó bootstrap, lifecycle Auth,
 RLS/grants, Storage/TUS y cleanup, y M.3 aceptó el deployment técnico protegido.
 El Site URL de Supabase está alineado con el dominio Production estable.
 PPO-04M.4 queda `CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE`; PPO-04M.5 queda
-`ACTIVE / RESTORE PLAN VERIFIED / PENDING REAL RESTORE EXECUTION`.
+`ACTIVE / RESTORE_EXECUTE DIAGNOSTIC`.
 M.5.0 está `CLOSED / ARCHITECTURE APPROVED`;
 M.5.1 está `CLOSED / LOCAL INTEGRATION APPROVED`, M.5.2.0 está
 `CLOSED / PRODUCTION BACKUP PREPARATION APPROVED`, M.5.2.1A está
@@ -44,7 +44,7 @@ M.5.3D.2.6 quedó `REAL-ENVIRONMENT SAFE TAXONOMY VERIFIED BY ATTEMPT #7`,
 M.5.3D.2.7 quedó cerrado como mejora de fidelidad no causal y M.5.3D.2.8 quedó
 cerrado y verificado en entorno real por Attempt #9. M.5.3D.2 queda `CLOSED /
 REAL LOCAL RECOVERY APPLICATION COMPATIBILITY VERIFIED`; M.5.3 permanece
-`ACTIVE / RESTORE PLAN VERIFIED / PENDING REAL RESTORE EXECUTION`.
+`ACTIVE / RESTORE_EXECUTE DIAGNOSTIC`.
 Real Restore Attempt #1 falló en preflight por configuración operativa sin
 actividad real; Attempt #2 verificó la fuente Productiva hasta detenerse en
 `SOURCE_VERIFY` por `RECOVERY_SQL_STATEMENT_FORBIDDEN`. Attempt #3 no está
@@ -128,7 +128,7 @@ una migración nueva `07+`.
 | PPO-04M.2B | `CLOSED / APPROVED` |
 | PPO-04M.3 | `CLOSED / APPROVED` |
 | PPO-04M.4 | `CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE` |
-| PPO-04M.5 | `ACTIVE / RESTORE PLAN VERIFIED / PENDING REAL RESTORE EXECUTION` |
+| PPO-04M.5 | `ACTIVE / RESTORE_EXECUTE DIAGNOSTIC` |
 | PPO-04M.5.0 | `CLOSED / ARCHITECTURE APPROVED` |
 | PPO-04M.5.1 | `CLOSED / LOCAL INTEGRATION APPROVED` |
 | PPO-04M.5.2.0 | `CLOSED / PRODUCTION BACKUP PREPARATION APPROVED` |
@@ -157,7 +157,7 @@ una migración nueva `07+`.
 | PPO-04M.5.3D.2.6 | `REAL-ENVIRONMENT SAFE TAXONOMY VERIFIED BY ATTEMPT #7` |
 | PPO-04M.5.3D.2.7 | `CLOSED / REAL-ENVIRONMENT PRODUCT DEFAULT DISTDIR VERIFIED / NOT CAUSAL FOR THE LIVE FAILURE / ARCHITECTURAL FIDELITY IMPROVEMENT RETAINED` |
 | PPO-04M.5.3D.2.8 | `CLOSED / WINDOWS SAME-VOLUME APPLICATION RUNTIME TOPOLOGY / REAL-ENVIRONMENT VERIFIED BY ATTEMPT #9` |
-| PPO-04M.5.3 | `ACTIVE / RESTORE PLAN VERIFIED / PENDING REAL RESTORE EXECUTION` |
+| PPO-04M.5.3 | `ACTIVE / RESTORE_EXECUTE DIAGNOSTIC` |
 | PPO-04M.6–PPO-04M.7 | `NOT STARTED` |
 | PPO-05 | `PENDING` — seguridad pública/antiabuso |
 | PPO-06 | `PENDING` — backup/recovery managed |
@@ -220,7 +220,7 @@ REAL RECOVERY BOUNDARY = OPERATOR-GOVERNED
 IMPLICIT TRUNCATE CASCADE = REMOVED
 EXPLICIT TRUNCATE AUTHORITY = ENFORCED
 POST-RESTORE FK DATA INTEGRITY GATE = IMPLEMENTED
-PPO-04M.5.3 = ACTIVE / RESTORE PLAN VERIFIED / PENDING REAL RESTORE EXECUTION
+PPO-04M.5.3 = ACTIVE / RESTORE_EXECUTE DIAGNOSTIC
 REAL RESTORE ATTEMPT #1 = FAIL / PREFLIGHT OPERATOR CONFIGURATION
 REAL RESTORE ATTEMPT #2 = FAIL / SOURCE_VERIFY REAL BACKUP SQL DIALECT ADMISSION FINDING
 REAL RESTORE ATTEMPT #3 = NOT AUTHORIZED / PENDING FINAL DOCUMENTARY REVIEW
@@ -984,7 +984,7 @@ PPO-04M.0  arquitectura y gobernanza — CLOSED / APPROVED
 → PPO-04M.5.3D.2.6  safe UNKNOWN module-resolution decomposition — REAL-ENVIRONMENT SAFE TAXONOMY VERIFIED BY ATTEMPT #7
 → PPO-04M.5.3D.2.7  Product-faithful Next distDir + temporary cache boundary — CLOSED / REAL-ENVIRONMENT PRODUCT DEFAULT DISTDIR VERIFIED / NOT CAUSAL FOR THE LIVE FAILURE / ARCHITECTURAL FIDELITY IMPROVEMENT RETAINED
 → PPO-04M.5.3D.2.8  Windows same-volume application runtime topology — CLOSED / WINDOWS SAME-VOLUME APPLICATION RUNTIME TOPOLOGY / REAL-ENVIRONMENT VERIFIED BY ATTEMPT #9
-→ PPO-04M.5.3  Restore Drill + Baseline Closure — ACTIVE / RESTORE PLAN VERIFIED / PENDING REAL RESTORE EXECUTION
+→ PPO-04M.5.3  Restore Drill + Baseline Closure — ACTIVE / RESTORE_EXECUTE DIAGNOSTIC
 → PPO-04M.6  small initial real use
 → PPO-04M.7  estabilización y medidas reales
 → LSH (futuro, no iniciado)
@@ -1093,6 +1093,92 @@ REAL TARGET STARTS DURING IMPLEMENTATION = 0
 REAL APP STARTS DURING IMPLEMENTATION = 0
 REAL CHROMIUM STARTS DURING IMPLEMENTATION = 0
 SQL EXECUTIONS DURING IMPLEMENTATION = 0
+PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
+```
+
+## Real Restore Attempt #6 — safe fail y preflight read-only
+
+Attempt #6 alcanzó `RESTORE_EXECUTE` después de construir un restore plan
+`READY` y completar la revalidación pre-mutación. El único comando `psql` de
+restore intentado falló; no existe todavía evidencia suficiente para atribuir
+una causa SQL exacta ni se registró una mutación target exitosa.
+
+```text
+REAL RESTORE ATTEMPT #6 =
+CLOSED / SAFE FAIL / RESTORE_EXECUTE
+
+REAL RESTORE ATTEMPT #6 EXECUTION EVIDENCE =
+FAIL / RESTORE_EXECUTE
+
+TOOLING SHA =
+23f8efe9902ed0d1c638c1cd3e657ea9f643664d
+
+code =
+COMMAND_FAILED
+
+realTargetStarts = 1
+sqlExecutions = 1
+targetMutations = 0
+realR2Reads = 3
+realAgeDecrypts = 1
+productionMutations = 0
+REAL_RESTORE_ATTEMPT_6_EXIT_CODE = 1
+```
+
+```text
+SOURCE R2 VERIFY = PASS BY PHASE PROGRESSION
+TARGET START = PASS
+TARGET BASELINE = PASS
+RESTORE PLAN = READY
+PRE-MUTATION REVALIDATION = PASS
+PSQL RESTORE COMMAND = ATTEMPTED ONCE / FAILED
+SUCCESSFUL TARGET MUTATION = NOT RECORDED
+POST-RESTORE VALIDATION = NOT REACHED
+AUTH LOGIN = NOT REACHED
+APPLICATION = NOT REACHED
+
+RESTORE PLAN = PASS / READY BY PHASE PROGRESSION
+PRE-MUTATION REVALIDATION = PASS BY PHASE PROGRESSION
+RESTORE EXECUTE = FAIL / COMMAND_FAILED
+POST-RESTORE VALIDATION = NOT REACHED
+RESTORE EXECUTE EXACT SQL ROOT CAUSE = NOT YET ESTABLISHED
+```
+
+Se implementó un entrypoint independiente para `LOCAL RESTORE EXECUTE PREFLIGHT
+DIAGNOSTIC #1`. Reutiliza exclusivamente el backup local preservado, un target
+Supabase local desechable, la verificación gobernada de source/baseline y el
+restore plan real `READY` con Storage vacío. Su confirmación es exclusiva y no
+es compatible con las autoridades operativas existentes.
+
+El preflight ejecuta únicamente cinco consultas `SELECT` gobernadas: autoridad
+para `session_replication_role`, catálogo de columnas, cierre FK del conjunto
+TRUNCATE, existencia/privilegio UPDATE de sequences admitidas y privilegios
+TRUNCATE/INSERT de tablas. La comparación usa sólo el admission
+target-compatible obtenido mediante el handle del restore plan. El modelo
+privado de admisión conserva identities de sequence, nunca sus valores. El
+diagnóstico no accede ni ejecuta `restorePlan.restoreSql`.
+
+Los resultados fallan cerrados ante shapes inválidos, duplicados, schemas
+externos, handles fabricados o más de 32 identities. La salida pública queda
+limitada a códigos, identities gobernadas y conteos/privilegios cerrados; no
+publica SQL, filas, columnas, paths, credenciales ni output crudo. El cleanup
+target/source conserva la precedencia de los diagnostics existentes.
+
+```text
+PPO-04M.5.3 = ACTIVE / RESTORE_EXECUTE DIAGNOSTIC
+REAL RESTORE ATTEMPT #6 = CLOSED / SAFE FAIL / RESTORE_EXECUTE
+RESTORE EXECUTE ROOT CAUSE = UNKNOWN / PENDING READ-ONLY PREFLIGHT DIAGNOSTIC
+LOCAL RESTORE EXECUTE PREFLIGHT DIAGNOSTIC #1 = NOT AUTHORIZED / PENDING IMPLEMENTATION REVIEW
+REAL RESTORE ATTEMPT #7 = NOT AUTHORIZED
+PRODUCTION RESTORE = NOT AUTHORIZED
+TD-BACKUP-004 = OPEN
+CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY
+
+REAL R2 READS DURING IMPLEMENTATION = 0
+REAL AGE DECRYPTS DURING IMPLEMENTATION = 0
+REAL TARGET STARTS DURING IMPLEMENTATION = 0
+RESTORE SQL EXECUTIONS DURING IMPLEMENTATION = 0
+TARGET DATA MUTATIONS DURING IMPLEMENTATION = 0
 PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
 ```
 
@@ -1694,4 +1780,19 @@ REAL APP STARTS DURING IMPLEMENTATION = 0
 REAL CHROMIUM STARTS DURING IMPLEMENTATION = 0
 SQL EXECUTIONS DURING IMPLEMENTATION = 0
 PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
+```
+
+El bloque anterior conserva el estado histórico inmediatamente posterior a la
+remediación de Diagnostic #5. El estado vigente queda sustituido por la
+evidencia de Attempt #6 y el preflight read-only documentados arriba:
+
+```text
+PPO-04M.5.3 = ACTIVE / RESTORE_EXECUTE DIAGNOSTIC
+REAL RESTORE ATTEMPT #6 = CLOSED / SAFE FAIL / RESTORE_EXECUTE
+RESTORE EXECUTE ROOT CAUSE = UNKNOWN / PENDING READ-ONLY PREFLIGHT DIAGNOSTIC
+LOCAL RESTORE EXECUTE PREFLIGHT DIAGNOSTIC #1 = NOT AUTHORIZED / PENDING IMPLEMENTATION REVIEW
+REAL RESTORE ATTEMPT #7 = NOT AUTHORIZED
+PRODUCTION RESTORE = NOT AUTHORIZED
+TD-BACKUP-004 = OPEN
+CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY
 ```

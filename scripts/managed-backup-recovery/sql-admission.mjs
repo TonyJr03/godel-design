@@ -110,6 +110,7 @@ export function admitManagedDataSql(source) {
   const lines = source.replace(/\r\n/g, "\n").split("\n");
   const tables = new Set();
   const copyBlocks = [];
+  const sequenceIdentities = [];
   const transportOnlyLines = [];
   let sequenceCount = 0;
   let significantStatementCount = 0;
@@ -140,8 +141,10 @@ export function admitManagedDataSql(source) {
     }
     if (line.startsWith("\\")) fail("RECOVERY_SQL_META_COMMAND_FORBIDDEN", "Managed data SQL meta commands are forbidden");
     if (ALLOWED_SESSION_STATEMENTS.has(line)) continue;
-    if (parseAdmittedSequenceSet(line)) {
+    const sequenceSet = parseAdmittedSequenceSet(line);
+    if (sequenceSet) {
       sequenceCount += 1;
+      sequenceIdentities.push(`${sequenceSet.schema}.${sequenceSet.sequence}`);
       continue;
     }
     if (!line.startsWith("COPY ")) {
@@ -190,6 +193,7 @@ export function admitManagedDataSql(source) {
     source,
     lines: Object.freeze(lines),
     copyBlocks: Object.freeze(copyBlocks),
+    sequenceIdentities: Object.freeze(sequenceIdentities),
     transportOnlyLines: Object.freeze(transportOnlyLines),
   }));
   return result;

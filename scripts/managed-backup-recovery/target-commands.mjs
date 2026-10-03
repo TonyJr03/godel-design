@@ -1,6 +1,7 @@
 import { isAbsolute, relative, resolve, sep } from "node:path";
 
 import { accessManagedRestoreSql } from "./restore-planning.mjs";
+import { accessRestoreExecutePreflightQuerySql } from "./restore-execute-preflight.mjs";
 import { accessPostRestoreValidationSql } from "./restore-validation.mjs";
 import { REQUIRED_TARGET_EXTENSIONS } from "./sql-audit.mjs";
 import { isAdmittedLocalSupabaseStatus } from "./target-runtime-status.mjs";
@@ -156,6 +157,15 @@ export function buildTargetPsqlPlan({ containerAuthority, cwd, environment = pro
   else args.push("-At");
   const description = operation === "restore" ? "restore admitted managed data" : `query disposable recovery database: ${queryName ?? validationQuery?.name}`;
   return plan(description, "docker", args, cwd, allowedEnvironment(environment), stdin, operation === "query" ? { preserveOutput: true, maxOutputBytes: 512 * 1024 } : undefined);
+}
+
+export function buildTargetReadOnlyDiagnosticPsqlPlan({ containerAuthority, cwd, environment = process.env, executePreflightQuery } = {}) {
+  const container = containerAuthorities.get(containerAuthority);
+  if (!container) fail("RECOVERY_TARGET_CONTAINER_AUTHORITY_REQUIRED", "Verified database container authority is required");
+  let stdin;
+  accessRestoreExecutePreflightQuerySql(executePreflightQuery, (value) => { stdin = value; });
+  const args = ["exec", "-i", container.name, "psql", "-X", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-At"];
+  return plan(`query disposable recovery database: ${executePreflightQuery.name}`, "docker", args, cwd, allowedEnvironment(environment), stdin, { preserveOutput: true, maxOutputBytes: 512 * 1024 });
 }
 
 export function proveTargetIsolation({ session, target, runtimeSha, commandPlans, status, productionProjectRef, environment = {} } = {}) {

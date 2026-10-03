@@ -1,5 +1,5 @@
 import { runCommand } from "../managed-backup/command-runner.mjs";
-import { buildTargetPsqlPlan } from "./target-commands.mjs";
+import { buildTargetPsqlPlan, buildTargetReadOnlyDiagnosticPsqlPlan } from "./target-commands.mjs";
 
 const executors = new WeakMap();
 
@@ -37,6 +37,14 @@ export function buildGovernedTargetPsqlPlan({ executor, ...options } = {}) {
   const state = executors.get(executor);
   if (!state) fail("LOCAL_RECOVERY_EXECUTOR_INVALID", "Governed recovery target executor is required");
   const commandPlan = buildTargetPsqlPlan({ ...options, cwd: state.prepared.target.workdir });
+  state.allowed.add(commandPlan);
+  return commandPlan;
+}
+
+export function buildGovernedTargetReadOnlyDiagnosticPsqlPlan({ executor, ...options } = {}) {
+  const state = executors.get(executor);
+  if (!state) fail("LOCAL_RECOVERY_EXECUTOR_INVALID", "Governed recovery target executor is required");
+  const commandPlan = buildTargetReadOnlyDiagnosticPsqlPlan({ ...options, cwd: state.prepared.target.workdir });
   state.allowed.add(commandPlan);
   return commandPlan;
 }

@@ -6,6 +6,7 @@ import {
   classifyManagedSqlArtifacts,
   classifyUnsupportedManagedDataStatement,
   MANAGED_SQL_CLASSIFICATIONS,
+  withAdmittedManagedDataSql,
 } from "./sql-admission.mjs";
 import { VALID_MANAGED_DATA_SQL, createValidBundleFixture } from "./test-helpers.mjs";
 
@@ -56,6 +57,10 @@ test("sequenceCount includes multiple canonical and governed legacy sequence set
   const result = admitManagedDataSql(source);
   assert.equal(result.sequenceCount, 3);
   assert.ok(!JSON.stringify(result).includes("id_seq"));
+  withAdmittedManagedDataSql(result, (model) => {
+    assert.deepEqual(model.sequenceIdentities, ["public.first_id_seq", "storage.second_id_seq", "private.legacy_id_seq"]);
+    assert.doesNotMatch(JSON.stringify(model.sequenceIdentities), /(?:^|\D)-?\d+(?:\D|$)|true|false/);
+  });
 });
 
 test("managed data admission accepts the exact Supabase CLI data wrapper as transport metadata", () => {
