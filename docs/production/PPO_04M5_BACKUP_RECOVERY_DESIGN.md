@@ -2,7 +2,7 @@
 
 **Bloque:** `PPO-04M.5.0 — Managed Backup & Recovery Architecture Audit`
 
-**Estado de M.5:** `ACTIVE / PERSISTENT COPY COLUMN DRIFT DIAGNOSTIC`
+**Estado de M.5:** `ACTIVE / EXACT INACTIVE STORAGE SCHEMA COMPATIBILITY`
 
 **Estado de M.5.0:** `CLOSED / ARCHITECTURE APPROVED`
 
@@ -24,7 +24,7 @@
 
 **R2 REMOTE SYNTHETIC PROOF:** `PASS`
 
-**M.5.3:** `ACTIVE / PERSISTENT COPY COLUMN DRIFT DIAGNOSTIC`
+**M.5.3:** `ACTIVE / EXACT INACTIVE STORAGE SCHEMA COMPATIBILITY`
 
 **FIRST PRODUCTION BACKUP:** `COMPLETE`
 
@@ -3552,6 +3552,105 @@ PRODUCTION RESTORE =
 NOT AUTHORIZED
 TD-BACKUP-004 =
 OPEN
+CURRENT REAL RESTORE STORAGE SCOPE =
+EMPTY STORAGE ONLY
+
+REAL R2 READS DURING IMPLEMENTATION = 0
+REAL AGE DECRYPTS DURING IMPLEMENTATION = 0
+REAL TARGET STARTS DURING IMPLEMENTATION = 0
+REAL APP STARTS DURING IMPLEMENTATION = 0
+REAL CHROMIUM STARTS DURING IMPLEMENTATION = 0
+SQL EXECUTIONS DURING IMPLEMENTATION = 0
+PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
+```
+
+## Local Restore Executor Candidate Diagnostic #3 — inactive Storage drift
+
+La ejecución inmutable confirmó el set exacto de seis columnas Storage y la
+semántica inactiva de `versioning_status`. No se ejecutó restore SQL.
+
+```text
+LOCAL RESTORE EXECUTOR CANDIDATE DIAGNOSTIC #3 =
+CLOSED / FINDING
+
+TOOLING SHA =
+53fbaa2837d5238ee700bcc99b67356a962bc8a1
+
+code =
+RECOVERY_RESTORE_EXECUTE_COPY_COLUMN_MISSING
+
+storage.buckets.lifecycle_configuration =
+ALL_NULL
+
+storage.buckets.lifecycle_configuration_generation =
+ALL_NULL
+
+storage.buckets.versioning_status =
+HAS_NON_NULL / ALL_DISABLED
+
+storage.objects.archived_at =
+COPY_EMPTY
+
+storage.objects.is_delete_marker =
+COPY_EMPTY
+
+storage.objects.is_versioned =
+COPY_EMPTY
+
+localAgeDecrypts = 1
+realTargetStarts = 1
+sqlExecutions = 0
+targetMutations = 0
+realR2Reads = 0
+remoteActivity = 0
+productionMutations = 0
+targetCleanup = PASS
+sourceCleanup = PASS
+
+RESTORE_EXECUTOR_CANDIDATE_DIAGNOSTIC_3_EXIT_CODE = 1
+```
+
+La compatibilidad implementada exige exactamente esas seis identities, vuelve
+a demostrar desde el admission persistente que los dos lifecycle fields son
+`\\N`, que existe al menos una fila de buckets y que todo
+`versioning_status` es `DISABLED`, y que el COPY completo de
+`storage.objects` está vacío. Cualquier subset, superset, tabla alternativa o
+semántica distinta conserva el finding.
+
+La transformación elimina sólo esas columnas y sus fields, conserva ambos COPY
+blocks y vuelve a pasar por `admitManagedDataSql()`. Las postcondiciones
+comparan orden y cantidad de tablas COPY, row counts, mutable tables, sequence
+identities, columnas retenidas y valores retenidos. El admission resultante
+queda detrás de un handle `WeakMap`; no se publica SQL. El preflight continúa
+después hacia required/generated columns, cierre FK, sequences y privilegios.
+Esta capacidad no está conectada al runner de restore real.
+
+```text
+PPO-04M.5.3 =
+ACTIVE / EXACT INACTIVE STORAGE SCHEMA COMPATIBILITY
+
+STORAGE VERSIONING SEMANTIC STATE =
+ALL_DISABLED / REAL BACKUP VERIFIED
+
+EXACT INACTIVE STORAGE SCHEMA COMPATIBILITY =
+IMPLEMENTED / PENDING REAL PREFLIGHT VERIFICATION
+
+LOCAL RESTORE EXECUTOR CANDIDATE DIAGNOSTIC #4 =
+NOT AUTHORIZED / PENDING IMPLEMENTATION REVIEW
+
+SUPABASE_ADMIN RESTORE EXECUTOR CANDIDATE =
+IDENTITY + REPLICATION AUTHORITY VERIFIED /
+FULL CONTRACT PENDING
+
+REAL RESTORE ATTEMPT #7 =
+NOT AUTHORIZED
+
+PRODUCTION RESTORE =
+NOT AUTHORIZED
+
+TD-BACKUP-004 =
+OPEN
+
 CURRENT REAL RESTORE STORAGE SCOPE =
 EMPTY STORAGE ONLY
 

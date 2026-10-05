@@ -105,7 +105,7 @@ test("all execute preflight checks pass without exposing catalog metadata", () =
   const result = evaluateRestoreExecutePreflight({ preflight, outputs: outputs({ sequences: [{ identity: "public.items_id_seq", canUpdate: true }] }) });
   assert.deepEqual(result, {
     status: "PASS", phase: "RESTORE_EXECUTE_PREFLIGHT", restorePlan: "READY",
-    replicationRoleAuthority: "PASS", copyColumnCompatibility: "PASS", targetRequiredColumns: "PASS",
+    replicationRoleAuthority: "PASS", storageSchemaCompatibility: "NOT_REQUIRED", copyColumnCompatibility: "PASS", targetRequiredColumns: "PASS",
     truncateFkClosure: "PASS", sequenceCompatibility: "PASS", mutationPrivileges: "PASS",
   });
   assert.doesNotMatch(JSON.stringify(result), /columnName|ordinalPosition|items_id_seq/);
@@ -223,7 +223,7 @@ function syntheticDependencies({ events = [], findingError, cleanupError, source
     buildTargetReadOnlyPsql: ({ executePreflightQuery }) => ({ name: executePreflightQuery.name }),
     evaluateExecutePreflight: () => {
       if (findingError) throw findingError;
-      return { status: "PASS", phase: "RESTORE_EXECUTE_PREFLIGHT", restorePlan: "READY", replicationRoleAuthority: "PASS", copyColumnCompatibility: "PASS", targetRequiredColumns: "PASS", truncateFkClosure: "PASS", sequenceCompatibility: "PASS", mutationPrivileges: "PASS" };
+      return { status: "PASS", phase: "RESTORE_EXECUTE_PREFLIGHT", restorePlan: "READY", replicationRoleAuthority: "PASS", storageSchemaCompatibility: "NOT_REQUIRED", copyColumnCompatibility: "PASS", targetRequiredColumns: "PASS", truncateFkClosure: "PASS", sequenceCompatibility: "PASS", mutationPrivileges: "PASS" };
     },
     createCleanupAdapter: () => ({}),
     cleanupTarget: async () => { events.push("TARGET_CLEANUP"); if (cleanupError) throw cleanupError; },
@@ -241,7 +241,7 @@ test("diagnostic reaches five read-only queries and returns exact zero-mutation 
   assert.deepEqual(result, {
     status: "PASS", operation: "local-managed-recovery-execute-preflight-diagnostic", phase: "RESTORE_EXECUTE_PREFLIGHT",
     localAgeDecrypts: 1, realTargetStarts: 1, sqlExecutions: 0, targetMutations: 0, realR2Reads: 0, remoteActivity: 0, productionMutations: 0,
-    targetCleanup: "PASS", sourceCleanup: "PASS", restorePlan: "READY", replicationRoleAuthority: "PASS", copyColumnCompatibility: "PASS",
+    targetCleanup: "PASS", sourceCleanup: "PASS", restorePlan: "READY", replicationRoleAuthority: "PASS", storageSchemaCompatibility: "NOT_REQUIRED", copyColumnCompatibility: "PASS",
     targetRequiredColumns: "PASS", truncateFkClosure: "PASS", sequenceCompatibility: "PASS", mutationPrivileges: "PASS",
   });
   assert.equal(events.filter((event) => event.startsWith("QUERY:")).length, 5);

@@ -1,5 +1,5 @@
 import { accessMutableTablePlan, accessSanitizedManagedDataAdmission, accessTargetCompatibleManagedData, sanitizeEphemeralAuthState, validateTargetCatalogIdentity } from "./restore-planning.mjs";
-import { withAdmittedManagedDataSql } from "./sql-admission.mjs";
+import { admitManagedDataSql, withAdmittedManagedDataSql } from "./sql-admission.mjs";
 
 const SAFE_SCHEMAS = new Set(["auth", "private", "public", "storage"]);
 const NAME = /^[a-z][a-z0-9_]*$/;
@@ -9,6 +9,18 @@ const MAX_COPY_COLUMN_FINDING_COLUMNS_PER_TABLE = 32;
 const MAX_COPY_COLUMN_FINDING_COLUMNS_TOTAL = 64;
 const STORAGE_VERSIONING_SEMANTIC_IDENTITY = "storage.buckets";
 const STORAGE_VERSIONING_SEMANTIC_COLUMN = "versioning_status";
+const EXACT_INACTIVE_STORAGE_DRIFT_COLUMNS = Object.freeze([
+  "storage.buckets.lifecycle_configuration",
+  "storage.buckets.lifecycle_configuration_generation",
+  "storage.buckets.versioning_status",
+  "storage.objects.archived_at",
+  "storage.objects.is_delete_marker",
+  "storage.objects.is_versioned",
+]);
+const EXACT_INACTIVE_STORAGE_OMISSIONS = new Map([
+  ["storage.buckets", new Set(["lifecycle_configuration", "lifecycle_configuration_generation", "versioning_status"])],
+  ["storage.objects", new Set(["archived_at", "is_delete_marker", "is_versioned"])],
+]);
 export const RESTORE_EXECUTE_PREFLIGHT_QUERY_NAMES = Object.freeze([
   "replicationAuthority",
   "columnCatalog",
@@ -22,6 +34,7 @@ const executorCandidateQuerySql = new WeakMap();
 const executorAuthorities = new WeakMap();
 const preflightDetails = new WeakMap();
 const governedFindings = new WeakMap();
+const compatibleAdmissionHandles = new WeakMap();
 
 export const SUPABASE_ADMIN_RESTORE_EXECUTOR = Object.freeze({ candidate: "SUPABASE_ADMIN" });
 executorAuthorities.set(SUPABASE_ADMIN_RESTORE_EXECUTOR, Object.freeze({ role: "supabase_admin" }));
@@ -75,6 +88,12 @@ export function accessRestoreExecutePreflightFinding(error, callback) {
   const metadata = governedFindings.get(error);
   if (!metadata || typeof callback !== "function") fail("RECOVERY_RESTORE_EXECUTE_PREFLIGHT_FINDING_INVALID", "Governed restore execute preflight finding is required");
   return callback(Object.freeze({ code: error.code, metadata }));
+}
+
+export function accessRestoreExecuteCompatibleManagedDataAdmission(handle, callback) {
+  const admission = compatibleAdmissionHandles.get(handle);
+  if (!admission || typeof callback !== "function") fail("RECOVERY_RESTORE_EXECUTE_COMPATIBILITY_HANDLE_INVALID", "Governed restore execute compatibility authority is required");
+  return callback(admission);
 }
 
 const REPLICATION_AUTHORITY_SQL = [
@@ -337,14 +356,98 @@ function copyColumnFindingMetadata(items) {
   return Object.freeze({ tableCount: normalized.length, tables: Object.freeze(normalized) });
 }
 
+function sameStrings(left, right) {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+function prepareStorageSchemaCompatibleAdmission(admission, targetColumns) {
+  return withAdmittedManagedDataSql(admission, (model) => {
+    const targetByTable = new Map();
+    for (const column of targetColumns) {
+      if (!targetByTable.has(column.identity)) targetByTable.set(column.identity, new Set());
+      targetByTable.get(column.identity).add(column.columnName);
+    }
+    const missingColumns = model.copyBlocks
+      .flatMap((block) => block.columns
+        .filter((column) => !targetByTable.get(block.identity)?.has(column))
+        .map((column) => `${block.identity}.${column}`))
+      .sort((left, right) => left.localeCompare(right, "en"));
+    if (missingColumns.length === 0) return Object.freeze({ compatibility: "NOT_REQUIRED", admission });
+    if (!sameStrings(missingColumns, EXACT_INACTIVE_STORAGE_DRIFT_COLUMNS)) return Object.freeze({ compatibility: "INCOMPATIBLE", admission });
+
+    const buckets = model.copyBlocks.find((block) => block.identity === "storage.buckets");
+    const objects = model.copyBlocks.find((block) => block.identity === "storage.objects");
+    if (!buckets || !objects || objects.end - objects.start - 1 !== 0 || buckets.end - buckets.start - 1 <= 0) {
+      return Object.freeze({ compatibility: "INCOMPATIBLE", admission });
+    }
+    const lifecycleIndex = buckets.columns.indexOf("lifecycle_configuration");
+    const lifecycleGenerationIndex = buckets.columns.indexOf("lifecycle_configuration_generation");
+    const versioningIndex = buckets.columns.indexOf("versioning_status");
+    if ([lifecycleIndex, lifecycleGenerationIndex, versioningIndex].some((index) => index < 0)) return Object.freeze({ compatibility: "INCOMPATIBLE", admission });
+    for (let lineIndex = buckets.start + 1; lineIndex < buckets.end; lineIndex += 1) {
+      const fields = model.lines[lineIndex].split("\t");
+      if (fields[lifecycleIndex] !== "\\N" || fields[lifecycleGenerationIndex] !== "\\N" || fields[versioningIndex] !== "DISABLED") {
+        return Object.freeze({ compatibility: "INCOMPATIBLE", admission });
+      }
+    }
+
+    const replacements = new Map();
+    const originalRows = new Map();
+    for (const block of model.copyBlocks) {
+      const omitted = EXACT_INACTIVE_STORAGE_OMISSIONS.get(block.identity) ?? new Set();
+      const retainedIndexes = block.columns.map((_, index) => index).filter((index) => !omitted.has(block.columns[index]));
+      const retainedColumns = retainedIndexes.map((index) => block.columns[index]);
+      if (retainedColumns.length === 0) fail("RECOVERY_RESTORE_EXECUTE_PREFLIGHT_OUTPUT_INVALID", "Storage compatibility cannot remove every COPY column");
+      const rows = [];
+      for (let lineIndex = block.start + 1; lineIndex < block.end; lineIndex += 1) rows.push(model.lines[lineIndex].split("\t"));
+      originalRows.set(block.identity, Object.freeze(rows.map((fields) => Object.freeze(fields))));
+      if (omitted.size > 0) {
+        replacements.set(block.start, `COPY ${block.identity} (${retainedColumns.join(", ")}) FROM stdin;`);
+        for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+          replacements.set(block.start + 1 + rowIndex, retainedIndexes.map((index) => rows[rowIndex][index]).join("\t"));
+        }
+      }
+    }
+    const normalizedSql = model.lines.map((line, index) => replacements.get(index) ?? line).join("\n");
+    const normalizedAdmission = admitManagedDataSql(normalizedSql);
+    if (!sameStrings(admission.mutableTables, normalizedAdmission.mutableTables)) {
+      fail("RECOVERY_RESTORE_EXECUTE_PREFLIGHT_OUTPUT_INVALID", "Storage compatibility changed the mutable table set");
+    }
+    withAdmittedManagedDataSql(normalizedAdmission, (normalizedModel) => {
+      if (
+        normalizedModel.copyBlocks.length !== model.copyBlocks.length
+        || !sameStrings(normalizedModel.sequenceIdentities, model.sequenceIdentities)
+      ) fail("RECOVERY_RESTORE_EXECUTE_PREFLIGHT_OUTPUT_INVALID", "Storage compatibility changed COPY or sequence structure");
+      for (let blockIndex = 0; blockIndex < model.copyBlocks.length; blockIndex += 1) {
+        const sourceBlock = model.copyBlocks[blockIndex];
+        const normalizedBlock = normalizedModel.copyBlocks[blockIndex];
+        const omitted = EXACT_INACTIVE_STORAGE_OMISSIONS.get(sourceBlock.identity) ?? new Set();
+        const retainedIndexes = sourceBlock.columns.map((_, index) => index).filter((index) => !omitted.has(sourceBlock.columns[index]));
+        const expectedColumns = retainedIndexes.map((index) => sourceBlock.columns[index]);
+        const normalizedRows = normalizedModel.lines.slice(normalizedBlock.start + 1, normalizedBlock.end).map((line) => line.split("\t"));
+        const sourceRows = originalRows.get(sourceBlock.identity);
+        if (
+          normalizedBlock.identity !== sourceBlock.identity
+          || !sameStrings(normalizedBlock.columns, expectedColumns)
+          || normalizedRows.length !== sourceRows.length
+          || normalizedRows.some((row, rowIndex) => !sameStrings(row, retainedIndexes.map((index) => sourceRows[rowIndex][index])))
+        ) fail("RECOVERY_RESTORE_EXECUTE_PREFLIGHT_OUTPUT_INVALID", "Storage compatibility changed preserved COPY structure or values");
+      }
+    });
+    return Object.freeze({ compatibility: "EXACT_INACTIVE_STORAGE_DRIFT", admission: normalizedAdmission });
+  });
+}
+
 function evaluateTargetCompatibility(details, outputs) {
   const columns = parseColumnCatalog(outputs.columnCatalog);
   const foreignKeys = parseForeignKeys(outputs.foreignKeyCatalog);
   const sequences = parseSequenceCatalog(outputs.sequenceCatalog);
   const tablePrivileges = parseTablePrivileges(outputs.tablePrivileges);
+  const storageCompatibility = prepareStorageSchemaCompatibleAdmission(details.persistentAdmission, columns);
+  const compatibleAdmission = storageCompatibility.admission;
   let copyBlocks;
   let sequenceIdentities;
-  withAdmittedManagedDataSql(details.persistentAdmission, (model) => {
+  withAdmittedManagedDataSql(compatibleAdmission, (model) => {
     copyBlocks = model.copyBlocks.map((block) => {
       const structuralRowCount = block.end - block.start - 1;
       const dataStates = new Map(block.columns.map((column) => [column, structuralRowCount === 0 ? "COPY_EMPTY" : "ALL_NULL"]));
@@ -411,7 +514,7 @@ function evaluateTargetCompatibility(details, outputs) {
 
   const privilegeMap = new Map(tablePrivileges.map((item) => [item.identity, item]));
   const truncateRequired = new Set(details.restorePlan.mutable.truncateTables);
-  const insertRequired = new Set(details.persistentAdmission.mutableTables);
+  const insertRequired = new Set(compatibleAdmission.mutableTables);
   const privilegeTables = [...new Set([...truncateRequired, ...insertRequired])].sort((left, right) => left.localeCompare(right, "en"));
   const privilegeFindings = privilegeTables.map((tableIdentity) => {
     const privileges = privilegeMap.get(tableIdentity);
@@ -430,11 +533,15 @@ function evaluateTargetCompatibility(details, outputs) {
   }
 
   return Object.freeze({
-    copyColumnCompatibility: "PASS",
-    targetRequiredColumns: "PASS",
-    truncateFkClosure: "PASS",
-    sequenceCompatibility: "PASS",
-    mutationPrivileges: "PASS",
+    admission: compatibleAdmission,
+    evidence: Object.freeze({
+      storageSchemaCompatibility: storageCompatibility.compatibility,
+      copyColumnCompatibility: "PASS",
+      targetRequiredColumns: "PASS",
+      truncateFkClosure: "PASS",
+      sequenceCompatibility: "PASS",
+      mutationPrivileges: "PASS",
+    }),
   });
 }
 
@@ -452,13 +559,16 @@ export function evaluateRestoreExecutePreflight({ preflight, outputs } = {}) {
   const details = governedPreflightDetails(preflight, outputs, undefined);
   const replication = parseReplicationAuthority(outputs.replicationAuthority);
   if (!replication.currentUserIsPostgres || !replication.canSetSessionReplicationRole) finding("RECOVERY_RESTORE_EXECUTE_REPLICATION_ROLE_UNAUTHORIZED");
-  return Object.freeze({
+  const compatibility = evaluateTargetCompatibility(details, outputs);
+  const result = Object.freeze({
     status: "PASS",
     phase: "RESTORE_EXECUTE_PREFLIGHT",
     restorePlan: "READY",
     replicationRoleAuthority: "PASS",
-    ...evaluateTargetCompatibility(details, outputs),
+    ...compatibility.evidence,
   });
+  compatibleAdmissionHandles.set(result, compatibility.admission);
+  return result;
 }
 
 export function evaluateSupabaseAdminRestoreExecutorPreflight({ preflight, outputs } = {}) {
@@ -467,13 +577,16 @@ export function evaluateSupabaseAdminRestoreExecutorPreflight({ preflight, outpu
   const replication = parseSupabaseAdminReplicationAuthority(outputs.replicationAuthority);
   if (!replication.currentUserIsSupabaseAdmin) finding("RECOVERY_RESTORE_EXECUTOR_IDENTITY_MISMATCH");
   if (!replication.canSetSessionReplicationRole) finding("RECOVERY_RESTORE_EXECUTOR_REPLICATION_ROLE_UNAUTHORIZED");
-  return Object.freeze({
+  const compatibility = evaluateTargetCompatibility(details, outputs);
+  const result = Object.freeze({
     status: "PASS",
     phase: "RESTORE_EXECUTOR_PREFLIGHT",
     restorePlan: "READY",
     executorCandidate: "SUPABASE_ADMIN",
     executorIdentity: "VERIFIED",
     replicationRoleAuthority: "PASS",
-    ...evaluateTargetCompatibility(details, outputs),
+    ...compatibility.evidence,
   });
+  compatibleAdmissionHandles.set(result, compatibility.admission);
+  return result;
 }

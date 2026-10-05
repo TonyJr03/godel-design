@@ -8,6 +8,7 @@ import {
   runLocalManagedRecoveryRestoreExecutorCandidateDiagnostic,
 } from "./restore-executor-candidate-diagnostic.mjs";
 import {
+  accessRestoreExecuteCompatibleManagedDataAdmission,
   accessRestoreExecutePreflightFinding,
   accessSupabaseAdminRestoreExecutorQuerySql,
   buildSupabaseAdminRestoreExecutorPreflight,
@@ -16,7 +17,7 @@ import {
   SUPABASE_ADMIN_RESTORE_EXECUTOR,
 } from "./restore-execute-preflight.mjs";
 import { buildMutableTablePlan, prepareTargetCompatibleManagedData } from "./restore-planning.mjs";
-import { admitManagedDataSql } from "./sql-admission.mjs";
+import { admitManagedDataSql, withAdmittedManagedDataSql } from "./sql-admission.mjs";
 import { buildTargetSupabaseAdminReadOnlyDiagnosticPsqlPlan, resolveTargetDbContainer } from "./target-commands.mjs";
 import { TEST_BACKUP_ID, TEST_TOOLING_SHA } from "./test-helpers.mjs";
 
@@ -102,6 +103,38 @@ function candidatePreflight(restorePlan = restoreFixture()) {
   return buildSupabaseAdminRestoreExecutorPreflight({ restorePlan, executorAuthority: SUPABASE_ADMIN_RESTORE_EXECUTOR });
 }
 
+function storageDriftCase({
+  bucketRows = [
+    ["bucket-a", "name-a", "owner-a", "\\N", "\\N", "DISABLED"],
+    ["bucket-b", "name-b", "owner-b", "\\N", "\\N", "DISABLED"],
+  ],
+  objectRows = [],
+  bucketColumns = ["id", "name", "owner", "lifecycle_configuration", "lifecycle_configuration_generation", "versioning_status"],
+  objectColumns = ["id", "bucket_id", "name", "archived_at", "is_delete_marker", "is_versioned"],
+  targetColumns,
+  sequences = ["storage.buckets_id_seq"],
+} = {}) {
+  return Object.freeze({
+    restorePlan: restoreFixture({ tables: [
+      { identity: "storage.buckets", columns: bucketColumns, rows: bucketRows },
+      { identity: "storage.objects", columns: objectColumns, rows: objectRows },
+    ], sequences }),
+    columns: targetColumns ?? [
+      column("storage.buckets", "id", { ordinalPosition: 1 }),
+      column("storage.buckets", "name", { ordinalPosition: 2 }),
+      column("storage.buckets", "owner", { ordinalPosition: 3 }),
+      column("storage.objects", "id", { ordinalPosition: 1 }),
+      column("storage.objects", "bucket_id", { ordinalPosition: 2 }),
+      column("storage.objects", "name", { ordinalPosition: 3 }),
+    ],
+    privileges: [
+      { identity: "storage.buckets", canTruncate: true, canInsert: true },
+      { identity: "storage.objects", canTruncate: true, canInsert: true },
+    ],
+    sequences: sequences.map((identity) => ({ identity, canUpdate: true })),
+  });
+}
+
 test("Supabase Admin executor authority is exact, opaque, and cannot select an arbitrary role", () => {
   const preflight = candidatePreflight();
   assert.deepEqual(Object.keys(preflight.queries), [...RESTORE_EXECUTE_PREFLIGHT_QUERY_NAMES]);
@@ -140,7 +173,7 @@ test("Supabase Admin identity and concrete replication authority pass without re
   const result = evaluateSupabaseAdminRestoreExecutorPreflight({ preflight: candidatePreflight(), outputs: outputs() });
   assert.deepEqual(result, {
     status: "PASS", phase: "RESTORE_EXECUTOR_PREFLIGHT", restorePlan: "READY", executorCandidate: "SUPABASE_ADMIN",
-    executorIdentity: "VERIFIED", replicationRoleAuthority: "PASS", copyColumnCompatibility: "PASS",
+    executorIdentity: "VERIFIED", replicationRoleAuthority: "PASS", storageSchemaCompatibility: "NOT_REQUIRED", copyColumnCompatibility: "PASS",
     targetRequiredColumns: "PASS", truncateFkClosure: "PASS", sequenceCompatibility: "PASS", mutationPrivileges: "PASS",
   });
   assert.doesNotMatch(JSON.stringify(result), /isSuperuser|columnName|raw SQL/i);
@@ -255,68 +288,62 @@ test("ephemeral COPY columns are excluded while the table still requires TRUNCAT
   assert.deepEqual(denied, { code: "RECOVERY_RESTORE_EXECUTE_TABLE_PRIVILEGE_MISSING", metadata: { identity: "auth.one_time_tokens", missingPrivileges: ["TRUNCATE"] } });
 });
 
-test("Storage versioning semantics classify exact DISABLED rows without affecting other missing columns", () => {
-  const restorePlan = restoreFixture({ tables: [
-    { identity: "storage.objects", columns: ["id", "archived_at", "is_delete_marker", "is_versioned"], rows: [] },
-    {
-      identity: "storage.buckets",
-      columns: ["id", "lifecycle_configuration", "lifecycle_configuration_generation", "versioning_status"],
-      rows: [["bucket-secret", "\\N", "\\N", "DISABLED"]],
-    },
-  ] });
-  const result = governedFinding(() => evaluateSupabaseAdminRestoreExecutorPreflight({
-    preflight: candidatePreflight(restorePlan),
+test("exact inactive Storage drift is re-admitted without changing tables, rows, sequences, columns, or retained values", () => {
+  const fixture = storageDriftCase();
+  const result = evaluateSupabaseAdminRestoreExecutorPreflight({
+    preflight: candidatePreflight(fixture.restorePlan),
     outputs: outputs({
-      columns: [column("storage.objects", "id"), column("storage.buckets", "id")],
-      privileges: [
-        { identity: "storage.objects", canTruncate: true, canInsert: true },
-        { identity: "storage.buckets", canTruncate: true, canInsert: true },
-      ],
+      columns: fixture.columns,
+      privileges: fixture.privileges,
+      sequences: fixture.sequences,
     }),
-  }));
-  assert.deepEqual(result, {
-    code: "RECOVERY_RESTORE_EXECUTE_COPY_COLUMN_MISSING",
-    metadata: {
-      tableCount: 2,
-      tables: [
-        { identity: "storage.buckets", missingColumns: [
-          { name: "lifecycle_configuration", dataState: "ALL_NULL" },
-          { name: "lifecycle_configuration_generation", dataState: "ALL_NULL" },
-          { name: "versioning_status", dataState: "HAS_NON_NULL", semanticState: "ALL_DISABLED" },
-        ] },
-        { identity: "storage.objects", missingColumns: [
-          { name: "archived_at", dataState: "COPY_EMPTY" },
-          { name: "is_delete_marker", dataState: "COPY_EMPTY" },
-          { name: "is_versioned", dataState: "COPY_EMPTY" },
-        ] },
-      ],
-    },
   });
-  assert.doesNotMatch(JSON.stringify(result), /bucket-secret|rowCount|sql|token|uuid|path/i);
+  assert.deepEqual(result, {
+    status: "PASS", phase: "RESTORE_EXECUTOR_PREFLIGHT", restorePlan: "READY", executorCandidate: "SUPABASE_ADMIN",
+    executorIdentity: "VERIFIED", replicationRoleAuthority: "PASS", storageSchemaCompatibility: "EXACT_INACTIVE_STORAGE_DRIFT",
+    copyColumnCompatibility: "PASS", targetRequiredColumns: "PASS", truncateFkClosure: "PASS",
+    sequenceCompatibility: "PASS", mutationPrivileges: "PASS",
+  });
+  accessRestoreExecuteCompatibleManagedDataAdmission(result, (admission) => {
+    assert.deepEqual(admission.mutableTables, ["storage.buckets", "storage.objects"]);
+    withAdmittedManagedDataSql(admission, (model) => {
+      assert.deepEqual(model.sequenceIdentities, ["storage.buckets_id_seq"]);
+      assert.deepEqual(model.copyBlocks.map(({ identity, columns, start, end }) => ({ identity, columns, rowCount: end - start - 1 })), [
+        { identity: "storage.buckets", columns: ["id", "name", "owner"], rowCount: 2 },
+        { identity: "storage.objects", columns: ["id", "bucket_id", "name"], rowCount: 0 },
+      ]);
+      assert.deepEqual(model.lines.slice(model.copyBlocks[0].start + 1, model.copyBlocks[0].end), [
+        "bucket-a\tname-a\towner-a",
+        "bucket-b\tname-b\towner-b",
+      ]);
+    });
+  });
+  assert.throws(() => accessRestoreExecuteCompatibleManagedDataAdmission({ status: "PASS" }, () => undefined), { code: "RECOVERY_RESTORE_EXECUTE_COMPATIBILITY_HANDLE_INVALID" });
 });
 
 test("Storage versioning semantics report NOT_ALL_DISABLED without disclosing alternatives", () => {
-  for (const [rows, forbidden] of [
-    [["bucket-a\tDISABLED", "bucket-b\tENABLED"], "ENABLED"],
-    [["bucket-a\tDISABLED", "bucket-b\t\\N"], "\\\\N"],
+  for (const [versioningValues, forbidden] of [
+    [["DISABLED", "ENABLED"], "ENABLED"],
+    [["DISABLED", "\\N"], "\\\\N"],
   ]) {
-    const restorePlan = restoreFixture({ tables: [{ identity: "storage.buckets", columns: ["id", "versioning_status"], rows }] });
+    const fixture = storageDriftCase({ bucketRows: versioningValues.map((value, index) => [
+      `bucket-${index}`, `name-${index}`, `owner-${index}`, "\\N", "\\N", value,
+    ]) });
     const result = governedFinding(() => evaluateSupabaseAdminRestoreExecutorPreflight({
-      preflight: candidatePreflight(restorePlan),
+      preflight: candidatePreflight(fixture.restorePlan),
       outputs: outputs({
-        columns: [column("storage.buckets", "id")],
-        privileges: [{ identity: "storage.buckets", canTruncate: true, canInsert: true }],
+        columns: fixture.columns,
+        privileges: fixture.privileges,
+        sequences: fixture.sequences,
       }),
     }));
-    assert.deepEqual(result, {
-      code: "RECOVERY_RESTORE_EXECUTE_COPY_COLUMN_MISSING",
-      metadata: {
-        identity: "storage.buckets",
-        missingColumns: [{ name: "versioning_status", dataState: "HAS_NON_NULL", semanticState: "NOT_ALL_DISABLED" }],
-      },
+    assert.equal(result.code, "RECOVERY_RESTORE_EXECUTE_COPY_COLUMN_MISSING");
+    const buckets = result.metadata.tables.find((table) => table.identity === "storage.buckets");
+    assert.deepEqual(buckets.missingColumns.find((column) => column.name === "versioning_status"), {
+      name: "versioning_status", dataState: "HAS_NON_NULL", semanticState: "NOT_ALL_DISABLED",
     });
     assert.ok(!JSON.stringify(result).includes(forbidden));
-    assert.doesNotMatch(JSON.stringify(result), /bucket-a|bucket-b|rowCount/i);
+    assert.doesNotMatch(JSON.stringify(result), /bucket-0|bucket-1|rowCount/i);
   }
 });
 
@@ -329,6 +356,74 @@ test("empty Storage versioning COPY fails closed instead of claiming vacuous sem
     }),
     { code: "RECOVERY_RESTORE_EXECUTE_PREFLIGHT_OUTPUT_INVALID" },
   );
+});
+
+test("inactive Storage compatibility rejects non-null lifecycle data and nonempty objects", () => {
+  const cases = [
+    storageDriftCase({ bucketRows: [["bucket", "name", "owner", "private-lifecycle", "\\N", "DISABLED"]] }),
+    storageDriftCase({ bucketRows: [["bucket", "name", "owner", "\\N", "private-generation", "DISABLED"]] }),
+    storageDriftCase({ objectRows: [["object", "bucket", "private-name", "\\N", "false", "false"]] }),
+  ];
+  for (const fixture of cases) {
+    const result = governedFinding(() => evaluateSupabaseAdminRestoreExecutorPreflight({
+      preflight: candidatePreflight(fixture.restorePlan),
+      outputs: outputs({ columns: fixture.columns, privileges: fixture.privileges, sequences: fixture.sequences }),
+    }));
+    assert.equal(result.code, "RECOVERY_RESTORE_EXECUTE_COPY_COLUMN_MISSING");
+    assert.doesNotMatch(JSON.stringify(result), /private-lifecycle|private-generation|private-name/i);
+  }
+});
+
+test("inactive Storage compatibility requires the exact six-column identity set", () => {
+  const exact = storageDriftCase();
+  const subset = storageDriftCase({ targetColumns: [...exact.columns, column("storage.objects", "archived_at", { ordinalPosition: 4 })] });
+  const seventh = storageDriftCase({
+    bucketColumns: ["id", "name", "owner", "legacy_extra", "lifecycle_configuration", "lifecycle_configuration_generation", "versioning_status"],
+    bucketRows: [["bucket", "name", "owner", "private-extra", "\\N", "\\N", "DISABLED"]],
+  });
+  const wrongTable = storageDriftCase({
+    bucketColumns: ["id", "name", "owner", "lifecycle_configuration", "lifecycle_configuration_generation"],
+    bucketRows: [["bucket", "name", "owner", "\\N", "\\N"]],
+    objectColumns: ["id", "bucket_id", "name", "archived_at", "is_delete_marker", "is_versioned", "versioning_status"],
+  });
+  for (const fixture of [subset, seventh, wrongTable]) {
+    const result = governedFinding(() => evaluateSupabaseAdminRestoreExecutorPreflight({
+      preflight: candidatePreflight(fixture.restorePlan),
+      outputs: outputs({ columns: fixture.columns, privileges: fixture.privileges, sequences: fixture.sequences }),
+    }));
+    assert.equal(result.code, "RECOVERY_RESTORE_EXECUTE_COPY_COLUMN_MISSING");
+    assert.doesNotMatch(JSON.stringify(result), /private-extra/i);
+  }
+});
+
+test("exact Storage compatibility continues through FK, sequence, TRUNCATE, and INSERT gates", () => {
+  const fixture = storageDriftCase();
+  const cases = [
+    [
+      { privileges: [
+        { identity: "storage.buckets", canTruncate: false, canInsert: true },
+        { identity: "storage.objects", canTruncate: true, canInsert: true },
+      ], sequences: fixture.sequences },
+      "RECOVERY_RESTORE_EXECUTE_TABLE_PRIVILEGE_MISSING",
+    ],
+    [
+      { privileges: [
+        { identity: "storage.buckets", canTruncate: true, canInsert: true },
+        { identity: "storage.objects", canTruncate: true, canInsert: false },
+      ], sequences: fixture.sequences },
+      "RECOVERY_RESTORE_EXECUTE_TABLE_PRIVILEGE_MISSING",
+    ],
+    [{ privileges: fixture.privileges, sequences: [] }, "RECOVERY_RESTORE_EXECUTE_SEQUENCE_MISSING"],
+    [{ privileges: fixture.privileges, sequences: [{ identity: "storage.buckets_id_seq", canUpdate: false }] }, "RECOVERY_RESTORE_EXECUTE_SEQUENCE_UNAUTHORIZED"],
+    [{ privileges: fixture.privileges, sequences: fixture.sequences, foreignKeys: [{ parentIdentity: "storage.buckets", childIdentity: "public.outside" }] }, "RECOVERY_RESTORE_EXECUTE_TRUNCATE_FK_OPEN"],
+  ];
+  for (const [overrides, expectedCode] of cases) {
+    const result = governedFinding(() => evaluateSupabaseAdminRestoreExecutorPreflight({
+      preflight: candidatePreflight(fixture.restorePlan),
+      outputs: outputs({ columns: fixture.columns, ...overrides }),
+    }));
+    assert.equal(result.code, expectedCode);
+  }
 });
 
 test("persistent COPY finding bounds tables, columns per table, and total columns", () => {
@@ -414,7 +509,7 @@ function syntheticDependencies({ events = [], candidateUnavailable = false } = {
     },
     evaluateExecutorPreflight: () => ({
       status: "PASS", phase: "RESTORE_EXECUTOR_PREFLIGHT", restorePlan: "READY", executorCandidate: "SUPABASE_ADMIN",
-      executorIdentity: "VERIFIED", replicationRoleAuthority: "PASS", copyColumnCompatibility: "PASS",
+      executorIdentity: "VERIFIED", replicationRoleAuthority: "PASS", storageSchemaCompatibility: "NOT_REQUIRED", copyColumnCompatibility: "PASS",
       targetRequiredColumns: "PASS", truncateFkClosure: "PASS", sequenceCompatibility: "PASS", mutationPrivileges: "PASS",
     }),
     createCleanupAdapter: () => ({}),
@@ -429,7 +524,7 @@ test("full candidate diagnostic runs five read-only queries with exact zero-muta
     status: "PASS", operation: "local-managed-recovery-executor-candidate-diagnostic", phase: "RESTORE_EXECUTOR_PREFLIGHT",
     localAgeDecrypts: 1, realTargetStarts: 1, sqlExecutions: 0, targetMutations: 0, realR2Reads: 0, remoteActivity: 0, productionMutations: 0,
     targetCleanup: "PASS", sourceCleanup: "PASS", restorePlan: "READY", executorCandidate: "SUPABASE_ADMIN", executorIdentity: "VERIFIED",
-    replicationRoleAuthority: "PASS", copyColumnCompatibility: "PASS", targetRequiredColumns: "PASS", truncateFkClosure: "PASS",
+    replicationRoleAuthority: "PASS", storageSchemaCompatibility: "NOT_REQUIRED", copyColumnCompatibility: "PASS", targetRequiredColumns: "PASS", truncateFkClosure: "PASS",
     sequenceCompatibility: "PASS", mutationPrivileges: "PASS",
   });
   assert.equal(events.filter((event) => event.startsWith("QUERY:")).length, 5);
