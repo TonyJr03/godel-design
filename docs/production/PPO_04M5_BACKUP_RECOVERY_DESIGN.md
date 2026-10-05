@@ -2,7 +2,7 @@
 
 **Bloque:** `PPO-04M.5.0 — Managed Backup & Recovery Architecture Audit`
 
-**Estado de M.5:** `ACTIVE / RESTORE EXECUTOR DIAGNOSTIC`
+**Estado de M.5:** `ACTIVE / PERSISTENT COPY COLUMN DRIFT DIAGNOSTIC`
 
 **Estado de M.5.0:** `CLOSED / ARCHITECTURE APPROVED`
 
@@ -24,7 +24,7 @@
 
 **R2 REMOTE SYNTHETIC PROOF:** `PASS`
 
-**M.5.3:** `ACTIVE / RESTORE EXECUTOR DIAGNOSTIC`
+**M.5.3:** `ACTIVE / PERSISTENT COPY COLUMN DRIFT DIAGNOSTIC`
 
 **FIRST PRODUCTION BACKUP:** `COMPLETE`
 
@@ -3395,5 +3395,87 @@ REAL AGE DECRYPTS DURING IMPLEMENTATION = 0
 REAL TARGET STARTS DURING IMPLEMENTATION = 0
 RESTORE SQL EXECUTIONS DURING IMPLEMENTATION = 0
 TARGET DATA MUTATIONS DURING IMPLEMENTATION = 0
+PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
+```
+
+## Local Restore Executor Candidate Diagnostic #1 — preflight persistente
+
+```text
+LOCAL RESTORE EXECUTOR CANDIDATE DIAGNOSTIC #1 =
+FINDING / RESTORE_EXECUTOR_PREFLIGHT
+
+TOOLING SHA =
+bb789de11fcb5652aa3ead05a81a8865aeecd74a
+
+code =
+RECOVERY_RESTORE_EXECUTE_COPY_COLUMN_MISSING
+
+tableCount = 3
+
+identities =
+auth.one_time_tokens
+storage.buckets
+storage.objects
+
+localAgeDecrypts = 1
+realTargetStarts = 1
+sqlExecutions = 0
+targetMutations = 0
+realR2Reads = 0
+remoteActivity = 0
+productionMutations = 0
+targetCleanup = PASS
+sourceCleanup = PASS
+```
+
+Por progresión del evaluador, la sesión `supabase_admin`, su identidad y su
+autoridad de replication role pasaron. No se consideran verificados todavía
+los privilegios de tablas/sequences ni el cierre FK.
+
+```text
+LOCAL RESTORE EXECUTOR CANDIDATE DIAGNOSTIC #1 = CLOSED / FINDING
+SUPABASE_ADMIN SESSION = AVAILABLE / PASS BY FINDING PROGRESSION
+SUPABASE_ADMIN IDENTITY = VERIFIED / PASS BY FINDING PROGRESSION
+SUPABASE_ADMIN REPLICATION ROLE AUTHORITY = PASS BY FINDING PROGRESSION
+COPY COLUMN DRIFT = FINDING
+auth.one_time_tokens =
+EPHEMERAL COPY / PREFLIGHT FALSE POSITIVE / REMEDIATION IMPLEMENTED
+PERSISTENT COPY COLUMN DRIFT =
+storage.buckets
+storage.objects
+PENDING EXACT COLUMN / DATA-STATE VERIFICATION
+```
+
+El preflight conserva el admission target-compatible anterior a la
+sanitización y un admission persistente re-admitido después de
+`sanitizeEphemeralAuthState()`, accesible sólo por handle gobernado. COPY,
+columnas required/generated, ocupación, INSERT y sequences se evalúan contra el
+segundo. TRUNCATE y cierre FK usan `mutable.truncateTables`; por ello
+`auth.one_time_tokens` requiere TRUNCATE, no INSERT, y queda fuera del análisis
+COPY. El finding persistente publica sólo identidad, nombre de columna y
+`COPY_EMPTY`, `ALL_NULL` o `HAS_NON_NULL`, con límites 32/32/64 y sin filas,
+valores, counts, SQL, tokens, UUIDs, rutas ni credenciales. No existe remediación
+ni omisión nueva para Storage.
+
+```text
+PPO-04M.5.3 = ACTIVE / PERSISTENT COPY COLUMN DRIFT DIAGNOSTIC
+POSTGRES RESTORE EXECUTOR = INVALID FOR CURRENT CONTRACT
+SUPABASE_ADMIN RESTORE EXECUTOR CANDIDATE =
+IDENTITY + REPLICATION AUTHORITY VERIFIED / FULL CONTRACT PENDING
+EPHEMERAL COPY PREFLIGHT SEMANTICS = REMEDIATED / PENDING REAL VERIFICATION
+PERSISTENT COPY COLUMN DRIFT = CONFIRMED / DETAILS PENDING REAL VERIFICATION
+LOCAL RESTORE EXECUTOR CANDIDATE DIAGNOSTIC #2 =
+NOT AUTHORIZED / PENDING IMPLEMENTATION REVIEW
+REAL RESTORE ATTEMPT #7 = NOT AUTHORIZED
+PRODUCTION RESTORE = NOT AUTHORIZED
+TD-BACKUP-004 = OPEN
+CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY
+
+REAL R2 READS DURING IMPLEMENTATION = 0
+REAL AGE DECRYPTS DURING IMPLEMENTATION = 0
+REAL TARGET STARTS DURING IMPLEMENTATION = 0
+REAL APP STARTS DURING IMPLEMENTATION = 0
+REAL CHROMIUM STARTS DURING IMPLEMENTATION = 0
+SQL EXECUTIONS DURING IMPLEMENTATION = 0
 PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
 ```

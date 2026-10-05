@@ -27,6 +27,7 @@ const targetCompatibleManagedDataHandles = new WeakMap();
 const mutablePlanHandles = new WeakSet();
 const mutablePlanDetails = new WeakMap();
 const sanitizedSqlHandles = new WeakMap();
+const sanitizedAdmissionHandles = new WeakMap();
 const storagePlanHandles = new WeakMap();
 const storageMetadataGateHandles = new WeakSet();
 
@@ -315,8 +316,15 @@ export function sanitizeEphemeralAuthState({ admission, mutablePlan } = {}) {
       persistentCopyCount: readmission.mutableTableCount,
     });
     sanitizedSqlHandles.set(result, sql);
+    sanitizedAdmissionHandles.set(result, readmission);
     return result;
   });
+}
+
+export function accessSanitizedManagedDataAdmission(handle, callback) {
+  const admission = sanitizedAdmissionHandles.get(handle);
+  if (!admission || typeof callback !== "function") fail("RECOVERY_AUTH_SANITIZATION_HANDLE_INVALID", "Governed sanitized managed data admission is required");
+  return callback(admission);
 }
 
 function quoteTable(identity) {

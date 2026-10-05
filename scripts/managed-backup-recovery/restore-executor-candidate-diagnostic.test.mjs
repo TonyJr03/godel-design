@@ -47,7 +47,11 @@ function environment(extra = {}) {
 
 function restoreFixture({ tables = [{ identity: "public.items", columns: ["id"] }], sequences = [], targetTables } = {}) {
   const sql = [
-    ...tables.flatMap(({ identity, columns }) => [`COPY ${identity} (${columns.join(", ")}) FROM stdin;`, columns.map(() => "value").join("\t"), "\\."]),
+    ...tables.flatMap(({ identity, columns, rows }) => [
+      `COPY ${identity} (${columns.join(", ")}) FROM stdin;`,
+      ...(rows ?? [columns.map(() => "value")]).map((row) => Array.isArray(row) ? row.join("\t") : row),
+      "\\.",
+    ]),
     ...sequences.map((identity) => {
       const [schema, sequence] = identity.split(".");
       return `SELECT pg_catalog.setval('\"${schema}\".\"${sequence}\"', 1, true);`;
@@ -178,13 +182,25 @@ test("sequence UPDATE denial is evaluated under the candidate session", () => {
   assert.equal(result.code, "RECOVERY_RESTORE_EXECUTE_SEQUENCE_UNAUTHORIZED");
 });
 
-test("COPY, required-column, generated-column, and FK findings are reused exactly", () => {
+test("persistent COPY finding publishes only exact column data-state metadata", () => {
   let result = governedFinding(() => evaluateSupabaseAdminRestoreExecutorPreflight({
     preflight: candidatePreflight(restoreFixture({ tables: [{ identity: "public.items", columns: ["id", "legacy"] }] })),
     outputs: outputs(),
   }));
-  assert.deepEqual(result, { code: "RECOVERY_RESTORE_EXECUTE_COPY_COLUMN_MISSING", metadata: { identity: "public.items", missingColumnCount: 1 } });
-  assert.doesNotMatch(JSON.stringify(result), /legacy|columnName/);
+  assert.deepEqual(result, { code: "RECOVERY_RESTORE_EXECUTE_COPY_COLUMN_MISSING", metadata: { identity: "public.items", missingColumns: [{ name: "legacy", dataState: "HAS_NON_NULL" }] } });
+  assert.doesNotMatch(JSON.stringify(result), /value|columnName|rowCount/i);
+
+  for (const [rows, dataState] of [[[], "COPY_EMPTY"], [[["value", "\\N"]], "ALL_NULL"]]) {
+    result = governedFinding(() => evaluateSupabaseAdminRestoreExecutorPreflight({
+      preflight: candidatePreflight(restoreFixture({ tables: [{ identity: "public.items", columns: ["id", "legacy"], rows }] })),
+      outputs: outputs(),
+    }));
+    assert.deepEqual(result.metadata.missingColumns, [{ name: "legacy", dataState }]);
+  }
+});
+
+test("required-column, generated-column, and FK findings are reused exactly", () => {
+  let result;
 
   result = governedFinding(() => evaluateSupabaseAdminRestoreExecutorPreflight({
     preflight: candidatePreflight(),
@@ -205,11 +221,94 @@ test("COPY, required-column, generated-column, and FK findings are reused exactl
   assert.equal(result.code, "RECOVERY_RESTORE_EXECUTE_TRUNCATE_FK_OPEN");
 });
 
+test("ephemeral COPY columns are excluded while the table still requires TRUNCATE only", () => {
+  const restorePlan = restoreFixture({
+    tables: [
+      { identity: "auth.one_time_tokens", columns: ["id", "source_only"], rows: [["ephemeral-secret", "source-secret"]] },
+      { identity: "public.items", columns: ["id"] },
+    ],
+  });
+  const passing = evaluateSupabaseAdminRestoreExecutorPreflight({
+    preflight: candidatePreflight(restorePlan),
+    outputs: outputs({
+      columns: [column("auth.one_time_tokens", "id"), column("public.items", "id")],
+      privileges: [
+        { identity: "auth.one_time_tokens", canTruncate: true, canInsert: false },
+        { identity: "public.items", canTruncate: true, canInsert: true },
+      ],
+    }),
+  });
+  assert.equal(passing.copyColumnCompatibility, "PASS");
+  assert.equal(passing.mutationPrivileges, "PASS");
+
+  const denied = governedFinding(() => evaluateSupabaseAdminRestoreExecutorPreflight({
+    preflight: candidatePreflight(restorePlan),
+    outputs: outputs({
+      columns: [column("auth.one_time_tokens", "id"), column("public.items", "id")],
+      privileges: [
+        { identity: "auth.one_time_tokens", canTruncate: false, canInsert: false },
+        { identity: "public.items", canTruncate: true, canInsert: true },
+      ],
+    }),
+  }));
+  assert.deepEqual(denied, { code: "RECOVERY_RESTORE_EXECUTE_TABLE_PRIVILEGE_MISSING", metadata: { identity: "auth.one_time_tokens", missingPrivileges: ["TRUNCATE"] } });
+});
+
+test("persistent COPY metadata is deterministic across multiple columns and tables", () => {
+  const restorePlan = restoreFixture({ tables: [
+    { identity: "storage.objects", columns: ["id", "zeta", "alpha"], rows: [["object-secret", "present-secret", "\\N"]] },
+    { identity: "storage.buckets", columns: ["id", "legacy"], rows: [] },
+  ] });
+  const result = governedFinding(() => evaluateSupabaseAdminRestoreExecutorPreflight({
+    preflight: candidatePreflight(restorePlan),
+    outputs: outputs({
+      columns: [column("storage.objects", "id"), column("storage.buckets", "id")],
+      privileges: [
+        { identity: "storage.objects", canTruncate: true, canInsert: true },
+        { identity: "storage.buckets", canTruncate: true, canInsert: true },
+      ],
+    }),
+  }));
+  assert.deepEqual(result, {
+    code: "RECOVERY_RESTORE_EXECUTE_COPY_COLUMN_MISSING",
+    metadata: {
+      tableCount: 2,
+      tables: [
+        { identity: "storage.buckets", missingColumns: [{ name: "legacy", dataState: "COPY_EMPTY" }] },
+        { identity: "storage.objects", missingColumns: [{ name: "alpha", dataState: "ALL_NULL" }, { name: "zeta", dataState: "HAS_NON_NULL" }] },
+      ],
+    },
+  });
+  assert.doesNotMatch(JSON.stringify(result), /secret|rowCount|sql|token|uuid|path/i);
+});
+
+test("persistent COPY finding bounds tables, columns per table, and total columns", () => {
+  const cases = [
+    Array.from({ length: 33 }, (_, index) => ({ identity: `public.table_${String(index).padStart(2, "0")}`, columns: ["id", "legacy"] })),
+    [{ identity: "public.items", columns: ["id", ...Array.from({ length: 33 }, (_, index) => `legacy_${String(index).padStart(2, "0")}`)] }],
+    Array.from({ length: 3 }, (_, tableIndex) => ({
+      identity: `public.items_${tableIndex}`,
+      columns: ["id", ...Array.from({ length: 22 }, (_, columnIndex) => `legacy_${String(columnIndex).padStart(2, "0")}`)],
+    })),
+  ];
+  for (const tables of cases) {
+    const targetColumns = tables.map((table) => column(table.identity, "id"));
+    assert.throws(
+      () => evaluateSupabaseAdminRestoreExecutorPreflight({
+        preflight: candidatePreflight(restoreFixture({ tables })),
+        outputs: outputs({ columns: targetColumns, privileges: [] }),
+      }),
+      { code: "RECOVERY_RESTORE_EXECUTE_PREFLIGHT_OUTPUT_INVALID" },
+    );
+  }
+});
+
 test("external schemas, fabricated preflights, and mixed principal evidence fail closed", () => {
   const preflight = candidatePreflight();
   assert.throws(() => evaluateSupabaseAdminRestoreExecutorPreflight({ preflight, outputs: outputs({ columns: [{ ...column("public.items", "id"), tableSchema: "external" }] }) }), { code: "RECOVERY_RESTORE_EXECUTE_PREFLIGHT_OUTPUT_INVALID" });
   assert.throws(() => evaluateSupabaseAdminRestoreExecutorPreflight({ preflight: { status: "READY" }, outputs: outputs() }), { code: "RECOVERY_RESTORE_EXECUTE_PREFLIGHT_OUTPUT_INVALID" });
   assert.throws(() => evaluateSupabaseAdminRestoreExecutorPreflight({ preflight: candidatePreflight(), outputs: { ...outputs(), replicationAuthority: JSON.stringify({ currentUserIsPostgres: true, canSetSessionReplicationRole: true }) } }), { code: "RECOVERY_RESTORE_EXECUTE_PREFLIGHT_OUTPUT_INVALID" });
+  assert.throws(() => accessRestoreExecutePreflightFinding(Object.assign(new Error("forged"), { code: "RECOVERY_RESTORE_EXECUTE_COPY_COLUMN_MISSING" }), () => undefined), { code: "RECOVERY_RESTORE_EXECUTE_PREFLIGHT_FINDING_INVALID" });
 });
 
 test("candidate confirmation is exclusive from every existing confirmation", () => {

@@ -44,7 +44,11 @@ function environment(extra = {}) {
 
 function restoreFixture({ tables = [{ identity: "public.items", columns: ["id"] }], sequences = [], targetTables } = {}) {
   const sql = [
-    ...tables.flatMap(({ identity, columns }) => [`COPY ${identity} (${columns.join(", ")}) FROM stdin;`, columns.map(() => "value").join("\t"), "\\."]),
+    ...tables.flatMap(({ identity, columns, rows }) => [
+      `COPY ${identity} (${columns.join(", ")}) FROM stdin;`,
+      ...(rows ?? [columns.map(() => "value")]).map((row) => Array.isArray(row) ? row.join("\t") : row),
+      "\\.",
+    ]),
     ...sequences.map((identity) => {
       const [schema, sequence] = identity.split(".");
       return `SELECT pg_catalog.setval('\"${schema}\".\"${sequence}\"', 1, true);`;
@@ -113,11 +117,11 @@ test("replication parameter privilege false produces its bounded finding", () =>
   assert.deepEqual(result, { code: "RECOVERY_RESTORE_EXECUTE_REPLICATION_ROLE_UNAUTHORIZED", metadata: {} });
 });
 
-test("source COPY column absent in target publishes identity and count only", () => {
+test("source COPY column absent in target publishes bounded data-state metadata only", () => {
   const preflight = buildRestoreExecutePreflight({ restorePlan: restoreFixture({ tables: [{ identity: "public.items", columns: ["id", "legacy"] }] }) });
   const result = governedFinding(() => evaluateRestoreExecutePreflight({ preflight, outputs: outputs() }));
-  assert.deepEqual(result, { code: "RECOVERY_RESTORE_EXECUTE_COPY_COLUMN_MISSING", metadata: { identity: "public.items", missingColumnCount: 1 } });
-  assert.doesNotMatch(JSON.stringify(result), /legacy|columnName/);
+  assert.deepEqual(result, { code: "RECOVERY_RESTORE_EXECUTE_COPY_COLUMN_MISSING", metadata: { identity: "public.items", missingColumns: [{ name: "legacy", dataState: "HAS_NON_NULL" }] } });
+  assert.doesNotMatch(JSON.stringify(result), /value|columnName|rowCount/i);
 });
 
 test("required target column absent from COPY produces its bounded finding", () => {
@@ -262,8 +266,8 @@ test("governed finding metadata is the only diagnostic metadata published", asyn
   assert.equal(result.status, "FINDING");
   assert.equal(result.code, "RECOVERY_RESTORE_EXECUTE_COPY_COLUMN_MISSING");
   assert.equal(result.identity, "public.items");
-  assert.equal(result.missingColumnCount, 1);
-  assert.doesNotMatch(JSON.stringify(result), /legacy|columnName|stderr/);
+  assert.deepEqual(result.missingColumns, [{ name: "legacy", dataState: "HAS_NON_NULL" }]);
+  assert.doesNotMatch(JSON.stringify(result), /value|columnName|rowCount|stderr/i);
 });
 
 test("source cleanup failure overrides PASS after target cleanup", async () => {

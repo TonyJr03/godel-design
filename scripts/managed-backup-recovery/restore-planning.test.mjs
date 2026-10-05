@@ -6,7 +6,7 @@ import test from "node:test";
 
 import { admitManagedDataSql } from "./sql-admission.mjs";
 import { auditMigrationHistorySql } from "./sql-audit.mjs";
-import { accessAuthorizedStorageByteEntries, accessManagedRestoreSql, accessTargetCompatibleManagedData, admitStorageMetadataGate, authorizeStorageByteRestore, buildManagedRestoreSql, buildMutableTablePlan, buildStorageByteRestorePlan, classifyMissingMutableDataOccupancy, classifyMutableCatalogMismatch, prepareTargetCompatibleManagedData, sanitizeEphemeralAuthState, validateMutableCatalogDiagnostic, verifyManagedDataCounts } from "./restore-planning.mjs";
+import { accessAuthorizedStorageByteEntries, accessManagedRestoreSql, accessSanitizedManagedDataAdmission, accessTargetCompatibleManagedData, admitStorageMetadataGate, authorizeStorageByteRestore, buildManagedRestoreSql, buildMutableTablePlan, buildStorageByteRestorePlan, classifyMissingMutableDataOccupancy, classifyMutableCatalogMismatch, prepareTargetCompatibleManagedData, sanitizeEphemeralAuthState, validateMutableCatalogDiagnostic, verifyManagedDataCounts } from "./restore-planning.mjs";
 
 function metadataGate(objectCount) {
   return admitStorageMetadataGate({ rawOutput: JSON.stringify({ bucketExists: true, bucketPublic: false, objectCount, unexpectedObjectCount: 0 }), expectedObjectCount: objectCount });
@@ -373,6 +373,12 @@ test("Auth sanitization removes only admitted ephemeral COPY blocks deterministi
   assert.equal(firstSql, secondSql);
   assert.ok(firstSql.includes(PERSISTENT));
   assert.ok(!firstSql.includes("session-sensitive"));
+  accessSanitizedManagedDataAdmission(first, (persistentAdmission) => {
+    assert.notEqual(persistentAdmission, admission);
+    assert.deepEqual(persistentAdmission.mutableTables, ["auth.users", "public.perfiles"]);
+  });
+  assert.deepEqual(admission.mutableTables, ["auth.sessions", "auth.users", "public.perfiles"]);
+  assert.throws(() => accessSanitizedManagedDataAdmission({ status: "PASS" }, () => undefined), { code: "RECOVERY_AUTH_SANITIZATION_HANDLE_INVALID" });
 });
 
 test("Auth sanitization reports EXCLUDED when no ephemeral COPY exists", () => {

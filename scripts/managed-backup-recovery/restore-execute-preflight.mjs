@@ -1,9 +1,12 @@
-import { accessMutableTablePlan, accessTargetCompatibleManagedData, validateTargetCatalogIdentity } from "./restore-planning.mjs";
+import { accessMutableTablePlan, accessSanitizedManagedDataAdmission, accessTargetCompatibleManagedData, sanitizeEphemeralAuthState, validateTargetCatalogIdentity } from "./restore-planning.mjs";
 import { withAdmittedManagedDataSql } from "./sql-admission.mjs";
 
 const SAFE_SCHEMAS = new Set(["auth", "private", "public", "storage"]);
 const NAME = /^[a-z][a-z0-9_]*$/;
 const MAX_FINDING_IDENTITIES = 32;
+const MAX_COPY_COLUMN_FINDING_TABLES = 32;
+const MAX_COPY_COLUMN_FINDING_COLUMNS_PER_TABLE = 32;
+const MAX_COPY_COLUMN_FINDING_COLUMNS_TOTAL = 64;
 export const RESTORE_EXECUTE_PREFLIGHT_QUERY_NAMES = Object.freeze([
   "replicationAuthority",
   "columnCatalog",
@@ -157,7 +160,10 @@ function targetCompatiblePlanDetails(restorePlan) {
       || details.admitted.some((identity, index) => identity !== targetAdmission.mutableTables[index])
     ) fail("RECOVERY_RESTORE_EXECUTE_PREFLIGHT_PLAN_INVALID", "Target-compatible admission and mutable plan authority do not match");
   });
-  return Object.freeze({ restorePlan, targetAdmission });
+  const sanitized = sanitizeEphemeralAuthState({ admission: targetAdmission, mutablePlan: restorePlan.mutable });
+  let persistentAdmission;
+  accessSanitizedManagedDataAdmission(sanitized, (admission) => { persistentAdmission = admission; });
+  return Object.freeze({ restorePlan, targetAdmission, persistentAdmission });
 }
 
 function preflightQueries(create, replicationSql, executorAuthority) {
@@ -297,6 +303,29 @@ function tableCountMetadata(items, countField) {
   return Object.freeze({ tableCount: items.length, identities: bounded(items.map((item) => item.identity)) });
 }
 
+function copyColumnFindingMetadata(items) {
+  const tables = [...items].sort((left, right) => left.identity.localeCompare(right.identity, "en"));
+  const totalColumns = tables.reduce((total, table) => total + table.missingColumns.length, 0);
+  if (
+    tables.length > MAX_COPY_COLUMN_FINDING_TABLES
+    || totalColumns > MAX_COPY_COLUMN_FINDING_COLUMNS_TOTAL
+    || tables.some((table) => table.missingColumns.length > MAX_COPY_COLUMN_FINDING_COLUMNS_PER_TABLE)
+  ) fail("RECOVERY_RESTORE_EXECUTE_PREFLIGHT_OUTPUT_INVALID", "Restore execute COPY-column finding exceeds its bounded metadata limits");
+  const normalized = tables.map((table) => Object.freeze({
+    identity: identity(table.identity),
+    missingColumns: Object.freeze([...table.missingColumns]
+      .sort((left, right) => left.name.localeCompare(right.name, "en"))
+      .map((column) => {
+        if (!NAME.test(column.name) || !["COPY_EMPTY", "ALL_NULL", "HAS_NON_NULL"].includes(column.dataState)) {
+          fail("RECOVERY_RESTORE_EXECUTE_PREFLIGHT_OUTPUT_INVALID", "Restore execute COPY-column finding metadata is invalid");
+        }
+        return Object.freeze({ name: column.name, dataState: column.dataState });
+      })),
+  }));
+  if (normalized.length === 1) return normalized[0];
+  return Object.freeze({ tableCount: normalized.length, tables: Object.freeze(normalized) });
+}
+
 function evaluateTargetCompatibility(details, outputs) {
   const columns = parseColumnCatalog(outputs.columnCatalog);
   const foreignKeys = parseForeignKeys(outputs.foreignKeyCatalog);
@@ -304,8 +333,18 @@ function evaluateTargetCompatibility(details, outputs) {
   const tablePrivileges = parseTablePrivileges(outputs.tablePrivileges);
   let copyBlocks;
   let sequenceIdentities;
-  withAdmittedManagedDataSql(details.targetAdmission, (model) => {
-    copyBlocks = model.copyBlocks.map((block) => Object.freeze({ identity: block.identity, columns: block.columns }));
+  withAdmittedManagedDataSql(details.persistentAdmission, (model) => {
+    copyBlocks = model.copyBlocks.map((block) => {
+      const structuralRowCount = block.end - block.start - 1;
+      const dataStates = new Map(block.columns.map((column) => [column, structuralRowCount === 0 ? "COPY_EMPTY" : "ALL_NULL"]));
+      for (let lineIndex = block.start + 1; lineIndex < block.end; lineIndex += 1) {
+        const fields = model.lines[lineIndex].split("\t");
+        for (let columnIndex = 0; columnIndex < block.columns.length; columnIndex += 1) {
+          if (fields[columnIndex] !== "\\N") dataStates.set(block.columns[columnIndex], "HAS_NON_NULL");
+        }
+      }
+      return Object.freeze({ identity: block.identity, columns: block.columns, dataStates });
+    });
     sequenceIdentities = Object.freeze([...model.sequenceIdentities]);
   });
   const columnsByTable = new Map();
@@ -320,14 +359,16 @@ function evaluateTargetCompatibility(details, outputs) {
     const targetColumns = columnsByTable.get(block.identity) ?? [];
     const targetByName = new Map(targetColumns.map((column) => [column.columnName, column]));
     const sourceColumns = new Set(block.columns);
-    const missingColumnCount = block.columns.filter((column) => !targetByName.has(column)).length;
-    if (missingColumnCount > 0) missingCopyColumns.push(Object.freeze({ identity: block.identity, missingColumnCount }));
+    const missingColumns = block.columns
+      .filter((column) => !targetByName.has(column))
+      .map((column) => Object.freeze({ name: column, dataState: block.dataStates.get(column) }));
+    if (missingColumns.length > 0) missingCopyColumns.push(Object.freeze({ identity: block.identity, missingColumns: Object.freeze(missingColumns) }));
     const requiredMissingCount = targetColumns.filter((column) => !column.isNullable && !column.hasDefault && !column.isIdentity && !column.isGenerated && !sourceColumns.has(column.columnName)).length;
     if (requiredMissingCount > 0) missingRequiredColumns.push(Object.freeze({ identity: block.identity, requiredMissingCount }));
     const generatedConflictCount = block.columns.filter((column) => targetByName.get(column)?.isGenerated === true).length;
     if (generatedConflictCount > 0) generatedConflicts.push(Object.freeze({ identity: block.identity, generatedConflictCount }));
   }
-  if (missingCopyColumns.length > 0) finding("RECOVERY_RESTORE_EXECUTE_COPY_COLUMN_MISSING", tableCountMetadata(missingCopyColumns, "missingColumnCount"));
+  if (missingCopyColumns.length > 0) finding("RECOVERY_RESTORE_EXECUTE_COPY_COLUMN_MISSING", copyColumnFindingMetadata(missingCopyColumns));
   if (missingRequiredColumns.length > 0) finding("RECOVERY_RESTORE_EXECUTE_TARGET_REQUIRED_COLUMN_MISSING", tableCountMetadata(missingRequiredColumns, "requiredMissingCount"));
   if (generatedConflicts.length > 0) finding("RECOVERY_RESTORE_EXECUTE_GENERATED_COLUMN_CONFLICT", tableCountMetadata(generatedConflicts, "generatedConflictCount"));
 
@@ -347,11 +388,14 @@ function evaluateTargetCompatibility(details, outputs) {
   if (unauthorizedSequences.length > 0) finding("RECOVERY_RESTORE_EXECUTE_SEQUENCE_UNAUTHORIZED", Object.freeze({ sequenceCount: unauthorizedSequences.length, identities: bounded(unauthorizedSequences) }));
 
   const privilegeMap = new Map(tablePrivileges.map((item) => [item.identity, item]));
-  const privilegeFindings = details.targetAdmission.mutableTables.map((tableIdentity) => {
+  const truncateRequired = new Set(details.restorePlan.mutable.truncateTables);
+  const insertRequired = new Set(details.persistentAdmission.mutableTables);
+  const privilegeTables = [...new Set([...truncateRequired, ...insertRequired])].sort((left, right) => left.localeCompare(right, "en"));
+  const privilegeFindings = privilegeTables.map((tableIdentity) => {
     const privileges = privilegeMap.get(tableIdentity);
     const missingPrivileges = [];
-    if (privileges?.canTruncate !== true) missingPrivileges.push("TRUNCATE");
-    if (privileges?.canInsert !== true) missingPrivileges.push("INSERT");
+    if (truncateRequired.has(tableIdentity) && privileges?.canTruncate !== true) missingPrivileges.push("TRUNCATE");
+    if (insertRequired.has(tableIdentity) && privileges?.canInsert !== true) missingPrivileges.push("INSERT");
     return Object.freeze({ identity: tableIdentity, missingPrivileges: Object.freeze(missingPrivileges) });
   }).filter((item) => item.missingPrivileges.length > 0);
   if (privilegeFindings.length > 0) {
