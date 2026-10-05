@@ -7,6 +7,8 @@ const MAX_FINDING_IDENTITIES = 32;
 const MAX_COPY_COLUMN_FINDING_TABLES = 32;
 const MAX_COPY_COLUMN_FINDING_COLUMNS_PER_TABLE = 32;
 const MAX_COPY_COLUMN_FINDING_COLUMNS_TOTAL = 64;
+const STORAGE_VERSIONING_SEMANTIC_IDENTITY = "storage.buckets";
+const STORAGE_VERSIONING_SEMANTIC_COLUMN = "versioning_status";
 export const RESTORE_EXECUTE_PREFLIGHT_QUERY_NAMES = Object.freeze([
   "replicationAuthority",
   "columnCatalog",
@@ -316,10 +318,19 @@ function copyColumnFindingMetadata(items) {
     missingColumns: Object.freeze([...table.missingColumns]
       .sort((left, right) => left.name.localeCompare(right.name, "en"))
       .map((column) => {
-        if (!NAME.test(column.name) || !["COPY_EMPTY", "ALL_NULL", "HAS_NON_NULL"].includes(column.dataState)) {
+        const includesStorageVersioningSemantics = table.identity === STORAGE_VERSIONING_SEMANTIC_IDENTITY && column.name === STORAGE_VERSIONING_SEMANTIC_COLUMN;
+        const keys = includesStorageVersioningSemantics ? ["name", "dataState", "semanticState"] : ["name", "dataState"];
+        if (
+          !exactObject(column, keys)
+          || !NAME.test(column.name)
+          || !["COPY_EMPTY", "ALL_NULL", "HAS_NON_NULL"].includes(column.dataState)
+          || (includesStorageVersioningSemantics && !["ALL_DISABLED", "NOT_ALL_DISABLED"].includes(column.semanticState))
+        ) {
           fail("RECOVERY_RESTORE_EXECUTE_PREFLIGHT_OUTPUT_INVALID", "Restore execute COPY-column finding metadata is invalid");
         }
-        return Object.freeze({ name: column.name, dataState: column.dataState });
+        return Object.freeze(includesStorageVersioningSemantics
+          ? { name: column.name, dataState: column.dataState, semanticState: column.semanticState }
+          : { name: column.name, dataState: column.dataState });
       })),
   }));
   if (normalized.length === 1) return normalized[0];
@@ -337,13 +348,18 @@ function evaluateTargetCompatibility(details, outputs) {
     copyBlocks = model.copyBlocks.map((block) => {
       const structuralRowCount = block.end - block.start - 1;
       const dataStates = new Map(block.columns.map((column) => [column, structuralRowCount === 0 ? "COPY_EMPTY" : "ALL_NULL"]));
+      const storageVersioningColumnIndex = block.identity === STORAGE_VERSIONING_SEMANTIC_IDENTITY
+        ? block.columns.indexOf(STORAGE_VERSIONING_SEMANTIC_COLUMN)
+        : -1;
+      let storageVersioningSemanticState = storageVersioningColumnIndex >= 0 && structuralRowCount > 0 ? "ALL_DISABLED" : undefined;
       for (let lineIndex = block.start + 1; lineIndex < block.end; lineIndex += 1) {
         const fields = model.lines[lineIndex].split("\t");
         for (let columnIndex = 0; columnIndex < block.columns.length; columnIndex += 1) {
           if (fields[columnIndex] !== "\\N") dataStates.set(block.columns[columnIndex], "HAS_NON_NULL");
         }
+        if (storageVersioningColumnIndex >= 0 && fields[storageVersioningColumnIndex] !== "DISABLED") storageVersioningSemanticState = "NOT_ALL_DISABLED";
       }
-      return Object.freeze({ identity: block.identity, columns: block.columns, dataStates });
+      return Object.freeze({ identity: block.identity, columns: block.columns, dataStates, storageVersioningSemanticState });
     });
     sequenceIdentities = Object.freeze([...model.sequenceIdentities]);
   });
@@ -361,7 +377,13 @@ function evaluateTargetCompatibility(details, outputs) {
     const sourceColumns = new Set(block.columns);
     const missingColumns = block.columns
       .filter((column) => !targetByName.has(column))
-      .map((column) => Object.freeze({ name: column, dataState: block.dataStates.get(column) }));
+      .map((column) => {
+        if (block.identity !== STORAGE_VERSIONING_SEMANTIC_IDENTITY || column !== STORAGE_VERSIONING_SEMANTIC_COLUMN) {
+          return Object.freeze({ name: column, dataState: block.dataStates.get(column) });
+        }
+        if (!block.storageVersioningSemanticState) fail("RECOVERY_RESTORE_EXECUTE_PREFLIGHT_OUTPUT_INVALID", "Storage versioning semantics cannot be proven from an empty COPY");
+        return Object.freeze({ name: column, dataState: block.dataStates.get(column), semanticState: block.storageVersioningSemanticState });
+      });
     if (missingColumns.length > 0) missingCopyColumns.push(Object.freeze({ identity: block.identity, missingColumns: Object.freeze(missingColumns) }));
     const requiredMissingCount = targetColumns.filter((column) => !column.isNullable && !column.hasDefault && !column.isIdentity && !column.isGenerated && !sourceColumns.has(column.columnName)).length;
     if (requiredMissingCount > 0) missingRequiredColumns.push(Object.freeze({ identity: block.identity, requiredMissingCount }));

@@ -188,6 +188,7 @@ test("persistent COPY finding publishes only exact column data-state metadata", 
     outputs: outputs(),
   }));
   assert.deepEqual(result, { code: "RECOVERY_RESTORE_EXECUTE_COPY_COLUMN_MISSING", metadata: { identity: "public.items", missingColumns: [{ name: "legacy", dataState: "HAS_NON_NULL" }] } });
+  assert.equal(Object.hasOwn(result.metadata.missingColumns[0], "semanticState"), false);
   assert.doesNotMatch(JSON.stringify(result), /value|columnName|rowCount/i);
 
   for (const [rows, dataState] of [[[], "COPY_EMPTY"], [[["value", "\\N"]], "ALL_NULL"]]) {
@@ -254,10 +255,14 @@ test("ephemeral COPY columns are excluded while the table still requires TRUNCAT
   assert.deepEqual(denied, { code: "RECOVERY_RESTORE_EXECUTE_TABLE_PRIVILEGE_MISSING", metadata: { identity: "auth.one_time_tokens", missingPrivileges: ["TRUNCATE"] } });
 });
 
-test("persistent COPY metadata is deterministic across multiple columns and tables", () => {
+test("Storage versioning semantics classify exact DISABLED rows without affecting other missing columns", () => {
   const restorePlan = restoreFixture({ tables: [
-    { identity: "storage.objects", columns: ["id", "zeta", "alpha"], rows: [["object-secret", "present-secret", "\\N"]] },
-    { identity: "storage.buckets", columns: ["id", "legacy"], rows: [] },
+    { identity: "storage.objects", columns: ["id", "archived_at", "is_delete_marker", "is_versioned"], rows: [] },
+    {
+      identity: "storage.buckets",
+      columns: ["id", "lifecycle_configuration", "lifecycle_configuration_generation", "versioning_status"],
+      rows: [["bucket-secret", "\\N", "\\N", "DISABLED"]],
+    },
   ] });
   const result = governedFinding(() => evaluateSupabaseAdminRestoreExecutorPreflight({
     preflight: candidatePreflight(restorePlan),
@@ -274,12 +279,56 @@ test("persistent COPY metadata is deterministic across multiple columns and tabl
     metadata: {
       tableCount: 2,
       tables: [
-        { identity: "storage.buckets", missingColumns: [{ name: "legacy", dataState: "COPY_EMPTY" }] },
-        { identity: "storage.objects", missingColumns: [{ name: "alpha", dataState: "ALL_NULL" }, { name: "zeta", dataState: "HAS_NON_NULL" }] },
+        { identity: "storage.buckets", missingColumns: [
+          { name: "lifecycle_configuration", dataState: "ALL_NULL" },
+          { name: "lifecycle_configuration_generation", dataState: "ALL_NULL" },
+          { name: "versioning_status", dataState: "HAS_NON_NULL", semanticState: "ALL_DISABLED" },
+        ] },
+        { identity: "storage.objects", missingColumns: [
+          { name: "archived_at", dataState: "COPY_EMPTY" },
+          { name: "is_delete_marker", dataState: "COPY_EMPTY" },
+          { name: "is_versioned", dataState: "COPY_EMPTY" },
+        ] },
       ],
     },
   });
-  assert.doesNotMatch(JSON.stringify(result), /secret|rowCount|sql|token|uuid|path/i);
+  assert.doesNotMatch(JSON.stringify(result), /bucket-secret|rowCount|sql|token|uuid|path/i);
+});
+
+test("Storage versioning semantics report NOT_ALL_DISABLED without disclosing alternatives", () => {
+  for (const [rows, forbidden] of [
+    [["bucket-a\tDISABLED", "bucket-b\tENABLED"], "ENABLED"],
+    [["bucket-a\tDISABLED", "bucket-b\t\\N"], "\\\\N"],
+  ]) {
+    const restorePlan = restoreFixture({ tables: [{ identity: "storage.buckets", columns: ["id", "versioning_status"], rows }] });
+    const result = governedFinding(() => evaluateSupabaseAdminRestoreExecutorPreflight({
+      preflight: candidatePreflight(restorePlan),
+      outputs: outputs({
+        columns: [column("storage.buckets", "id")],
+        privileges: [{ identity: "storage.buckets", canTruncate: true, canInsert: true }],
+      }),
+    }));
+    assert.deepEqual(result, {
+      code: "RECOVERY_RESTORE_EXECUTE_COPY_COLUMN_MISSING",
+      metadata: {
+        identity: "storage.buckets",
+        missingColumns: [{ name: "versioning_status", dataState: "HAS_NON_NULL", semanticState: "NOT_ALL_DISABLED" }],
+      },
+    });
+    assert.ok(!JSON.stringify(result).includes(forbidden));
+    assert.doesNotMatch(JSON.stringify(result), /bucket-a|bucket-b|rowCount/i);
+  }
+});
+
+test("empty Storage versioning COPY fails closed instead of claiming vacuous semantics", () => {
+  const restorePlan = restoreFixture({ tables: [{ identity: "storage.buckets", columns: ["id", "versioning_status"], rows: [] }] });
+  assert.throws(
+    () => evaluateSupabaseAdminRestoreExecutorPreflight({
+      preflight: candidatePreflight(restorePlan),
+      outputs: outputs({ columns: [column("storage.buckets", "id")], privileges: [] }),
+    }),
+    { code: "RECOVERY_RESTORE_EXECUTE_PREFLIGHT_OUTPUT_INVALID" },
+  );
 });
 
 test("persistent COPY finding bounds tables, columns per table, and total columns", () => {

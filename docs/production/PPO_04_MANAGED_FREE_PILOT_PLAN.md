@@ -2101,3 +2101,87 @@ REAL CHROMIUM STARTS DURING IMPLEMENTATION = 0
 SQL EXECUTIONS DURING IMPLEMENTATION = 0
 PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
 ```
+
+## Local Restore Executor Candidate Diagnostic #2 — Storage column drift
+
+La ejecución inmutable sobre el SHA autorizado confirmó que la corrección de
+semántica efímera eliminó el falso positivo de `auth.one_time_tokens`. El
+finding restante pertenece exclusivamente a seis columnas persistentes de
+Storage. No se ejecutó restore SQL.
+
+```text
+LOCAL RESTORE EXECUTOR CANDIDATE DIAGNOSTIC #2 =
+FINDING / RESTORE_EXECUTOR_PREFLIGHT
+
+TOOLING SHA =
+4d3c9a29cce791c21e60b6c1b5b44a3f41ea5c63
+
+code =
+RECOVERY_RESTORE_EXECUTE_COPY_COLUMN_MISSING
+
+tableCount = 2
+
+storage.buckets:
+lifecycle_configuration = ALL_NULL
+lifecycle_configuration_generation = ALL_NULL
+versioning_status = HAS_NON_NULL
+
+storage.objects:
+archived_at = COPY_EMPTY
+is_delete_marker = COPY_EMPTY
+is_versioned = COPY_EMPTY
+
+localAgeDecrypts = 1
+realTargetStarts = 1
+sqlExecutions = 0
+targetMutations = 0
+realR2Reads = 0
+remoteActivity = 0
+productionMutations = 0
+targetCleanup = PASS
+sourceCleanup = PASS
+
+RESTORE_EXECUTOR_CANDIDATE_DIAGNOSTIC_2_EXIT_CODE = 1
+```
+
+El diagnóstico amplía sólo `storage.buckets.versioning_status` con
+`semanticState = ALL_DISABLED | NOT_ALL_DISABLED`. La clasificación procede
+del COPY gobernado dentro del admission persistente; exige al menos una fila,
+trata `\\N` y cualquier valor distinto del literal autorizado como
+`NOT_ALL_DISABLED`, y nunca publica valores, filas, counts, bucket IDs/names,
+JSON ni SQL. Las otras cinco columnas conservan exclusivamente su `dataState`.
+Los límites 32/32/64 y la provenance gobernada permanecen intactos. No se
+implementó compatibilidad Storage, no se eliminan columnas del COPY y no se
+modificó el restore runner.
+
+```text
+PPO-04M.5.3 = ACTIVE / PERSISTENT COPY COLUMN DRIFT DIAGNOSTIC
+LOCAL RESTORE EXECUTOR CANDIDATE DIAGNOSTIC #2 = CLOSED / FINDING
+EPHEMERAL COPY PREFLIGHT SEMANTICS =
+REAL TARGET VERIFIED / auth.one_time_tokens FALSE POSITIVE RESOLVED
+PERSISTENT STORAGE COPY COLUMN DRIFT =
+CONFIRMED / EXACT SIX COLUMNS IDENTIFIED
+STORAGE VERSIONING SEMANTIC STATE =
+PENDING REAL VERIFICATION
+LOCAL RESTORE EXECUTOR CANDIDATE DIAGNOSTIC #3 =
+NOT AUTHORIZED / PENDING IMPLEMENTATION REVIEW
+SUPABASE_ADMIN RESTORE EXECUTOR CANDIDATE =
+IDENTITY + REPLICATION AUTHORITY VERIFIED /
+FULL CONTRACT PENDING
+REAL RESTORE ATTEMPT #7 =
+NOT AUTHORIZED
+PRODUCTION RESTORE =
+NOT AUTHORIZED
+TD-BACKUP-004 =
+OPEN
+CURRENT REAL RESTORE STORAGE SCOPE =
+EMPTY STORAGE ONLY
+
+REAL R2 READS DURING IMPLEMENTATION = 0
+REAL AGE DECRYPTS DURING IMPLEMENTATION = 0
+REAL TARGET STARTS DURING IMPLEMENTATION = 0
+REAL APP STARTS DURING IMPLEMENTATION = 0
+REAL CHROMIUM STARTS DURING IMPLEMENTATION = 0
+SQL EXECUTIONS DURING IMPLEMENTATION = 0
+PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
+```
