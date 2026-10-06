@@ -9,6 +9,7 @@ import {
 } from "./restore-executor-candidate-diagnostic.mjs";
 import {
   accessRestoreExecuteCompatibleManagedDataAdmission,
+  accessRestoreExecuteCompatibility,
   accessRestoreExecutePreflightFinding,
   accessSupabaseAdminRestoreExecutorQuerySql,
   buildSupabaseAdminRestoreExecutorPreflight,
@@ -137,9 +138,10 @@ function storageDriftCase({
   });
 }
 
-function icebergClosureCase({ analyticsRows = [], foreignKeys, occupancy, authority } = {}) {
+function icebergClosureCase({ analyticsRows = [], foreignKeys, occupancy, authority, sequences = [], privileges } = {}) {
   const restorePlan = restoreFixture({
     tables: [{ identity: "storage.buckets_analytics", columns: ["id"], rows: analyticsRows }],
+    sequences,
   });
   return Object.freeze({
     preflight: candidatePreflight(restorePlan),
@@ -149,7 +151,12 @@ function icebergClosureCase({ analyticsRows = [], foreignKeys, occupancy, author
         { parentIdentity: "storage.buckets_analytics", childIdentity: "storage.iceberg_namespaces" },
         { parentIdentity: "storage.buckets_analytics", childIdentity: "storage.iceberg_tables" },
       ],
-      privileges: [{ identity: "storage.buckets_analytics", canTruncate: true, canInsert: true }],
+      privileges: privileges ?? [
+        { identity: "storage.buckets_analytics", canTruncate: true, canInsert: true },
+        { identity: "storage.iceberg_namespaces", canTruncate: true, canInsert: false },
+        { identity: "storage.iceberg_tables", canTruncate: true, canInsert: false },
+      ],
+      sequences: sequences.map((identity) => ({ identity, canUpdate: true })),
       occupancy,
       authority,
     }),
@@ -196,7 +203,7 @@ test("Supabase Admin identity and concrete replication authority pass without re
   assert.deepEqual(result, {
     status: "PASS", phase: "RESTORE_EXECUTOR_PREFLIGHT", restorePlan: "READY", executorCandidate: "SUPABASE_ADMIN",
     executorIdentity: "VERIFIED", replicationRoleAuthority: "PASS", storageSchemaCompatibility: "NOT_REQUIRED", copyColumnCompatibility: "PASS",
-    targetRequiredColumns: "PASS", truncateFkClosure: "PASS", sequenceCompatibility: "PASS", mutationPrivileges: "PASS",
+    targetRequiredColumns: "PASS", truncateFkCompatibility: "NOT_REQUIRED", truncateFkClosure: "PASS", sequenceCompatibility: "PASS", mutationPrivileges: "PASS",
   });
   assert.doesNotMatch(JSON.stringify(result), /isSuperuser|columnName|raw SQL/i);
 });
@@ -323,7 +330,7 @@ test("exact inactive Storage drift is re-admitted without changing tables, rows,
   assert.deepEqual(result, {
     status: "PASS", phase: "RESTORE_EXECUTOR_PREFLIGHT", restorePlan: "READY", executorCandidate: "SUPABASE_ADMIN",
     executorIdentity: "VERIFIED", replicationRoleAuthority: "PASS", storageSchemaCompatibility: "EXACT_INACTIVE_STORAGE_DRIFT",
-    copyColumnCompatibility: "PASS", targetRequiredColumns: "PASS", truncateFkClosure: "PASS",
+    copyColumnCompatibility: "PASS", targetRequiredColumns: "PASS", truncateFkCompatibility: "NOT_REQUIRED", truncateFkClosure: "PASS",
     sequenceCompatibility: "PASS", mutationPrivileges: "PASS",
   });
   accessRestoreExecuteCompatibleManagedDataAdmission(result, (admission) => {
@@ -448,25 +455,102 @@ test("exact Storage compatibility continues through FK, sequence, TRUNCATE, and 
   }
 });
 
-test("exact Iceberg topology publishes safe semantics but remains an FK finding", () => {
+test("exact safe Iceberg topology extends only the governed TRUNCATE closure and continues", () => {
   const fixture = icebergClosureCase({
     authority: { currentUserIsSupabaseAdmin: true, canSetSessionReplicationRole: true, isSuperuser: false, canBypassRls: true },
+  });
+  const result = evaluateSupabaseAdminRestoreExecutorPreflight(fixture);
+  assert.deepEqual(result, {
+    status: "PASS", phase: "RESTORE_EXECUTOR_PREFLIGHT", restorePlan: "READY", executorCandidate: "SUPABASE_ADMIN",
+    executorIdentity: "VERIFIED", replicationRoleAuthority: "PASS", storageSchemaCompatibility: "NOT_REQUIRED",
+    copyColumnCompatibility: "PASS", targetRequiredColumns: "PASS",
+    truncateFkCompatibility: "EXACT_EMPTY_TARGET_ONLY_ICEBERG_CLOSURE", truncateFkClosure: "PASS",
+    sequenceCompatibility: "PASS", mutationPrivileges: "PASS",
+  });
+  accessRestoreExecuteCompatibility(result, ({ admission, truncateTables }) => {
+    assert.deepEqual(admission.mutableTables, ["storage.buckets_analytics"]);
+    assert.deepEqual(truncateTables, [
+      "storage.buckets_analytics",
+      "storage.iceberg_namespaces",
+      "storage.iceberg_tables",
+    ]);
+  });
+  accessRestoreExecuteCompatibleManagedDataAdmission(result, (admission) => {
+    assert.deepEqual(admission.mutableTables, ["storage.buckets_analytics"]);
+  });
+  assert.doesNotMatch(JSON.stringify(result), /rowCount|sql|location|credential|token|iceberg_namespaces|iceberg_tables/i);
+});
+
+test("exact safe Iceberg closure requires TRUNCATE but never INSERT on added tables", () => {
+  const authority = { currentUserIsSupabaseAdmin: true, canSetSessionReplicationRole: true, isSuperuser: true, canBypassRls: false };
+  for (const identity of ["storage.iceberg_namespaces", "storage.iceberg_tables"]) {
+    const fixture = icebergClosureCase({
+      authority,
+      privileges: [
+        { identity: "storage.buckets_analytics", canTruncate: true, canInsert: true },
+        { identity: "storage.iceberg_namespaces", canTruncate: identity !== "storage.iceberg_namespaces", canInsert: false },
+        { identity: "storage.iceberg_tables", canTruncate: identity !== "storage.iceberg_tables", canInsert: false },
+      ],
+    });
+    const result = governedFinding(() => evaluateSupabaseAdminRestoreExecutorPreflight(fixture));
+    assert.deepEqual(result, {
+      code: "RECOVERY_RESTORE_EXECUTE_TABLE_PRIVILEGE_MISSING",
+      metadata: { identity, missingPrivileges: ["TRUNCATE"] },
+    });
+  }
+});
+
+test("exact safe Iceberg closure preserves INSERT requirements for real source tables", () => {
+  const fixture = icebergClosureCase({
+    authority: { currentUserIsSupabaseAdmin: true, canSetSessionReplicationRole: true, isSuperuser: false, canBypassRls: true },
+    privileges: [
+      { identity: "storage.buckets_analytics", canTruncate: true, canInsert: false },
+      { identity: "storage.iceberg_namespaces", canTruncate: true, canInsert: false },
+      { identity: "storage.iceberg_tables", canTruncate: true, canInsert: false },
+    ],
+  });
+  const result = governedFinding(() => evaluateSupabaseAdminRestoreExecutorPreflight(fixture));
+  assert.deepEqual(result, {
+    code: "RECOVERY_RESTORE_EXECUTE_TABLE_PRIVILEGE_MISSING",
+    metadata: { identity: "storage.buckets_analytics", missingPrivileges: ["INSERT"] },
+  });
+});
+
+test("exact safe Iceberg closure continues to sequence findings", () => {
+  const authority = { currentUserIsSupabaseAdmin: true, canSetSessionReplicationRole: true, isSuperuser: false, canBypassRls: true };
+  const missing = icebergClosureCase({ authority, sequences: ["storage.buckets_analytics_id_seq"] });
+  missing.outputs.sequenceCatalog = JSON.stringify([]);
+  assert.equal(
+    governedFinding(() => evaluateSupabaseAdminRestoreExecutorPreflight(missing)).code,
+    "RECOVERY_RESTORE_EXECUTE_SEQUENCE_MISSING",
+  );
+
+  const unauthorized = icebergClosureCase({ authority, sequences: ["storage.buckets_analytics_id_seq"] });
+  unauthorized.outputs.sequenceCatalog = JSON.stringify([{ identity: "storage.buckets_analytics_id_seq", canUpdate: false }]);
+  assert.equal(
+    governedFinding(() => evaluateSupabaseAdminRestoreExecutorPreflight(unauthorized)).code,
+    "RECOVERY_RESTORE_EXECUTE_SEQUENCE_UNAUTHORIZED",
+  );
+});
+
+test("second FK closure check rejects dependencies introduced by Iceberg tables", () => {
+  const fixture = icebergClosureCase({
+    authority: { currentUserIsSupabaseAdmin: true, canSetSessionReplicationRole: true, isSuperuser: true, canBypassRls: false },
+    foreignKeys: [
+      { parentIdentity: "storage.buckets_analytics", childIdentity: "storage.iceberg_namespaces" },
+      { parentIdentity: "storage.buckets_analytics", childIdentity: "storage.iceberg_tables" },
+      { parentIdentity: "storage.iceberg_tables", childIdentity: "storage.external_dependency" },
+    ],
   });
   const result = governedFinding(() => evaluateSupabaseAdminRestoreExecutorPreflight(fixture));
   assert.deepEqual(result, {
     code: "RECOVERY_RESTORE_EXECUTE_TRUNCATE_FK_OPEN",
     metadata: {
-      edgeCount: 2,
-      parentIdentities: ["storage.buckets_analytics"],
-      childIdentities: ["storage.iceberg_namespaces", "storage.iceberg_tables"],
-      sourceAnalyticsState: "COPY_EMPTY",
-      occupancyVisibility: "VERIFIED",
-      icebergNamespacesState: "EMPTY",
-      icebergTablesState: "EMPTY",
-      semanticState: "SAFE_EMPTY_TARGET_ONLY_CLOSURE",
+      edgeCount: 1,
+      parentIdentities: ["storage.iceberg_tables"],
+      childIdentities: ["storage.external_dependency"],
     },
   });
-  assert.doesNotMatch(JSON.stringify(result), /rowCount|sql|location|credential|token/i);
 });
 
 test("Iceberg closure semantics remain unsafe for source or target occupancy", () => {
@@ -567,6 +651,7 @@ test("external schemas, fabricated preflights, and mixed principal evidence fail
   assert.throws(() => evaluateSupabaseAdminRestoreExecutorPreflight({ preflight: candidatePreflight(), outputs: incompleteOutputs }), { code: "RECOVERY_RESTORE_EXECUTE_PREFLIGHT_OUTPUT_INVALID" });
   assert.throws(() => evaluateSupabaseAdminRestoreExecutorPreflight({ preflight: candidatePreflight(), outputs: outputs({ occupancy: { icebergNamespacesEmpty: true, icebergTablesEmpty: "private-row" } }) }), { code: "RECOVERY_RESTORE_EXECUTE_PREFLIGHT_OUTPUT_INVALID" });
   assert.throws(() => accessRestoreExecutePreflightFinding(Object.assign(new Error("forged"), { code: "RECOVERY_RESTORE_EXECUTE_COPY_COLUMN_MISSING" }), () => undefined), { code: "RECOVERY_RESTORE_EXECUTE_PREFLIGHT_FINDING_INVALID" });
+  assert.throws(() => accessRestoreExecuteCompatibility({ status: "PASS" }, () => undefined), { code: "RECOVERY_RESTORE_EXECUTE_COMPATIBILITY_HANDLE_INVALID" });
 });
 
 test("candidate confirmation is exclusive from every existing confirmation", () => {
@@ -576,7 +661,7 @@ test("candidate confirmation is exclusive from every existing confirmation", () 
   }
 });
 
-function syntheticDependencies({ events = [], candidateUnavailable = false, findingError } = {}) {
+function syntheticDependencies({ events = [], candidateUnavailable = false, findingError, passEvidence } = {}) {
   const start = Object.freeze({ name: "start" });
   const status = Object.freeze({ name: "status" });
   const discoverDb = Object.freeze({ name: "discover" });
@@ -623,10 +708,10 @@ function syntheticDependencies({ events = [], candidateUnavailable = false, find
     },
     evaluateExecutorPreflight: () => {
       if (findingError) throw findingError;
-      return {
+      return passEvidence ?? {
         status: "PASS", phase: "RESTORE_EXECUTOR_PREFLIGHT", restorePlan: "READY", executorCandidate: "SUPABASE_ADMIN",
         executorIdentity: "VERIFIED", replicationRoleAuthority: "PASS", storageSchemaCompatibility: "NOT_REQUIRED", copyColumnCompatibility: "PASS",
-        targetRequiredColumns: "PASS", truncateFkClosure: "PASS", sequenceCompatibility: "PASS", mutationPrivileges: "PASS",
+        targetRequiredColumns: "PASS", truncateFkCompatibility: "NOT_REQUIRED", truncateFkClosure: "PASS", sequenceCompatibility: "PASS", mutationPrivileges: "PASS",
       };
     },
     createCleanupAdapter: () => ({}),
@@ -641,37 +726,32 @@ test("full candidate diagnostic runs six read-only queries with exact zero-mutat
     status: "PASS", operation: "local-managed-recovery-executor-candidate-diagnostic", phase: "RESTORE_EXECUTOR_PREFLIGHT",
     localAgeDecrypts: 1, realTargetStarts: 1, sqlExecutions: 0, targetMutations: 0, realR2Reads: 0, remoteActivity: 0, productionMutations: 0,
     targetCleanup: "PASS", sourceCleanup: "PASS", restorePlan: "READY", executorCandidate: "SUPABASE_ADMIN", executorIdentity: "VERIFIED",
-    replicationRoleAuthority: "PASS", storageSchemaCompatibility: "NOT_REQUIRED", copyColumnCompatibility: "PASS", targetRequiredColumns: "PASS", truncateFkClosure: "PASS",
+    replicationRoleAuthority: "PASS", storageSchemaCompatibility: "NOT_REQUIRED", copyColumnCompatibility: "PASS", targetRequiredColumns: "PASS", truncateFkCompatibility: "NOT_REQUIRED", truncateFkClosure: "PASS",
     sequenceCompatibility: "PASS", mutationPrivileges: "PASS",
   });
   assert.equal(events.filter((event) => event.startsWith("QUERY:")).length, 6);
   assert.ok(events.indexOf("TARGET_CLEANUP") < events.indexOf("SOURCE_CLEANUP"));
 });
 
-test("full candidate diagnostic publishes only governed Iceberg semantics after six queries", async () => {
+test("full candidate diagnostic publishes exact safe Iceberg compatibility after six queries", async () => {
   const fixture = icebergClosureCase({
     authority: { currentUserIsSupabaseAdmin: true, canSetSessionReplicationRole: true, isSuperuser: false, canBypassRls: true },
   });
-  let findingError;
-  try { evaluateSupabaseAdminRestoreExecutorPreflight(fixture); } catch (error) { findingError = error; }
+  const passEvidence = evaluateSupabaseAdminRestoreExecutorPreflight(fixture);
   const events = [];
   const result = await runLocalManagedRecoveryRestoreExecutorCandidateDiagnostic({
     environment: environment(),
-    dependencies: syntheticDependencies({ events, findingError }),
+    dependencies: syntheticDependencies({ events, passEvidence }),
   });
-  assert.equal(result.status, "FINDING");
-  assert.equal(result.code, "RECOVERY_RESTORE_EXECUTE_TRUNCATE_FK_OPEN");
-  assert.equal(result.sourceAnalyticsState, "COPY_EMPTY");
-  assert.equal(result.occupancyVisibility, "VERIFIED");
-  assert.equal(result.icebergNamespacesState, "EMPTY");
-  assert.equal(result.icebergTablesState, "EMPTY");
-  assert.equal(result.semanticState, "SAFE_EMPTY_TARGET_ONLY_CLOSURE");
+  assert.equal(result.status, "PASS");
+  assert.equal(result.truncateFkCompatibility, "EXACT_EMPTY_TARGET_ONLY_ICEBERG_CLOSURE");
+  assert.equal(result.truncateFkClosure, "PASS");
   assert.equal(result.sqlExecutions, 0);
   assert.equal(result.targetMutations, 0);
   assert.equal(result.realR2Reads, 0);
   assert.equal(result.productionMutations, 0);
   assert.equal(events.filter((event) => event.startsWith("QUERY:")).length, 6);
-  assert.doesNotMatch(JSON.stringify(result), /rowCount|"sql"|rawSql|location|credential|token|stderr/i);
+  assert.doesNotMatch(JSON.stringify(result), /rowCount|"sql"|rawSql|location|credential|token|stderr|iceberg_namespaces|iceberg_tables/i);
 });
 
 test("candidate connection failure is bounded and never publishes stderr", async () => {

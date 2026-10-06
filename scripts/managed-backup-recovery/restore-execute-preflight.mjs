@@ -43,6 +43,7 @@ const executorAuthorities = new WeakMap();
 const preflightDetails = new WeakMap();
 const governedFindings = new WeakMap();
 const compatibleAdmissionHandles = new WeakMap();
+const restoreExecuteCompatibilityHandles = new WeakMap();
 
 export const SUPABASE_ADMIN_RESTORE_EXECUTOR = Object.freeze({ candidate: "SUPABASE_ADMIN" });
 executorAuthorities.set(SUPABASE_ADMIN_RESTORE_EXECUTOR, Object.freeze({ role: "supabase_admin" }));
@@ -102,6 +103,12 @@ export function accessRestoreExecuteCompatibleManagedDataAdmission(handle, callb
   const admission = compatibleAdmissionHandles.get(handle);
   if (!admission || typeof callback !== "function") fail("RECOVERY_RESTORE_EXECUTE_COMPATIBILITY_HANDLE_INVALID", "Governed restore execute compatibility authority is required");
   return callback(admission);
+}
+
+export function accessRestoreExecuteCompatibility(handle, callback) {
+  const compatibility = restoreExecuteCompatibilityHandles.get(handle);
+  if (!compatibility || typeof callback !== "function") fail("RECOVERY_RESTORE_EXECUTE_COMPATIBILITY_HANDLE_INVALID", "Governed restore execute compatibility authority is required");
+  return callback(compatibility);
 }
 
 const REPLICATION_AUTHORITY_SQL = [
@@ -522,6 +529,38 @@ function icebergClosureMetadata(details, openEdges, icebergOccupancy) {
   });
 }
 
+function prepareEffectiveTruncateTables(details, foreignKeys, icebergOccupancy) {
+  const effectiveTruncateTables = new Set(details.restorePlan.mutable.truncateTables);
+  const originalOpenEdges = foreignKeys.filter((edge) => (
+    effectiveTruncateTables.has(edge.parentIdentity)
+    && !effectiveTruncateTables.has(edge.childIdentity)
+  ));
+  let truncateFkCompatibility = "NOT_REQUIRED";
+
+  if (originalOpenEdges.length > 0) {
+    const metadata = icebergClosureMetadata(details, originalOpenEdges, icebergOccupancy);
+    if (!exactIcebergClosureTopology(originalOpenEdges) || metadata.semanticState !== "SAFE_EMPTY_TARGET_ONLY_CLOSURE") {
+      finding("RECOVERY_RESTORE_EXECUTE_TRUNCATE_FK_OPEN", metadata);
+    }
+    effectiveTruncateTables.add("storage.iceberg_namespaces");
+    effectiveTruncateTables.add("storage.iceberg_tables");
+    truncateFkCompatibility = "EXACT_EMPTY_TARGET_ONLY_ICEBERG_CLOSURE";
+  }
+
+  const remainingOpenEdges = foreignKeys.filter((edge) => (
+    effectiveTruncateTables.has(edge.parentIdentity)
+    && !effectiveTruncateTables.has(edge.childIdentity)
+  ));
+  if (remainingOpenEdges.length > 0) {
+    finding("RECOVERY_RESTORE_EXECUTE_TRUNCATE_FK_OPEN", icebergClosureMetadata(details, remainingOpenEdges));
+  }
+
+  return Object.freeze({
+    truncateFkCompatibility,
+    truncateTables: Object.freeze([...effectiveTruncateTables]),
+  });
+}
+
 function evaluateTargetCompatibility(details, outputs, icebergOccupancy) {
   const columns = parseColumnCatalog(outputs.columnCatalog);
   const foreignKeys = parseForeignKeys(outputs.foreignKeyCatalog);
@@ -581,9 +620,7 @@ function evaluateTargetCompatibility(details, outputs, icebergOccupancy) {
   if (missingRequiredColumns.length > 0) finding("RECOVERY_RESTORE_EXECUTE_TARGET_REQUIRED_COLUMN_MISSING", tableCountMetadata(missingRequiredColumns, "requiredMissingCount"));
   if (generatedConflicts.length > 0) finding("RECOVERY_RESTORE_EXECUTE_GENERATED_COLUMN_CONFLICT", tableCountMetadata(generatedConflicts, "generatedConflictCount"));
 
-  const truncateTables = new Set(details.restorePlan.mutable.truncateTables);
-  const openEdges = foreignKeys.filter((edge) => truncateTables.has(edge.parentIdentity) && !truncateTables.has(edge.childIdentity));
-  if (openEdges.length > 0) finding("RECOVERY_RESTORE_EXECUTE_TRUNCATE_FK_OPEN", icebergClosureMetadata(details, openEdges, icebergOccupancy));
+  const truncateCompatibility = prepareEffectiveTruncateTables(details, foreignKeys, icebergOccupancy);
 
   const sequenceMap = new Map(sequences.map((item) => [item.identity, item]));
   const requiredSequences = [...new Set(sequenceIdentities)].sort((left, right) => left.localeCompare(right, "en"));
@@ -593,7 +630,7 @@ function evaluateTargetCompatibility(details, outputs, icebergOccupancy) {
   if (unauthorizedSequences.length > 0) finding("RECOVERY_RESTORE_EXECUTE_SEQUENCE_UNAUTHORIZED", Object.freeze({ sequenceCount: unauthorizedSequences.length, identities: bounded(unauthorizedSequences) }));
 
   const privilegeMap = new Map(tablePrivileges.map((item) => [item.identity, item]));
-  const truncateRequired = new Set(details.restorePlan.mutable.truncateTables);
+  const truncateRequired = new Set(truncateCompatibility.truncateTables);
   const insertRequired = new Set(compatibleAdmission.mutableTables);
   const privilegeTables = [...new Set([...truncateRequired, ...insertRequired])].sort((left, right) => left.localeCompare(right, "en"));
   const privilegeFindings = privilegeTables.map((tableIdentity) => {
@@ -614,15 +651,26 @@ function evaluateTargetCompatibility(details, outputs, icebergOccupancy) {
 
   return Object.freeze({
     admission: compatibleAdmission,
+    truncateTables: truncateCompatibility.truncateTables,
     evidence: Object.freeze({
       storageSchemaCompatibility: storageCompatibility.compatibility,
       copyColumnCompatibility: "PASS",
       targetRequiredColumns: "PASS",
+      truncateFkCompatibility: truncateCompatibility.truncateFkCompatibility,
       truncateFkClosure: "PASS",
       sequenceCompatibility: "PASS",
       mutationPrivileges: "PASS",
     }),
   });
+}
+
+function bindRestoreExecuteCompatibility(result, compatibility) {
+  const authority = Object.freeze({
+    admission: compatibility.admission,
+    truncateTables: compatibility.truncateTables,
+  });
+  compatibleAdmissionHandles.set(result, compatibility.admission);
+  restoreExecuteCompatibilityHandles.set(result, authority);
 }
 
 function governedPreflightDetails(preflight, outputs, expectedCandidate) {
@@ -650,7 +698,7 @@ export function evaluateRestoreExecutePreflight({ preflight, outputs } = {}) {
     replicationRoleAuthority: "PASS",
     ...compatibility.evidence,
   });
-  compatibleAdmissionHandles.set(result, compatibility.admission);
+  bindRestoreExecuteCompatibility(result, compatibility);
   return result;
 }
 
@@ -674,6 +722,6 @@ export function evaluateSupabaseAdminRestoreExecutorPreflight({ preflight, outpu
     replicationRoleAuthority: "PASS",
     ...compatibility.evidence,
   });
-  compatibleAdmissionHandles.set(result, compatibility.admission);
+  bindRestoreExecuteCompatibility(result, compatibility);
   return result;
 }

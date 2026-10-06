@@ -371,6 +371,8 @@ FULL VISUAL MUTATING QA = DEFERRED
 KNOWN PRODUCT P0/P1 FROM M.4 = NONE OBSERVED
 PRODUCTION PILOT ROLLOUT = NOT EXECUTED
 ```
++
+
 
 
 
@@ -2374,6 +2376,126 @@ ICEBERG FK CLOSURE DIAGNOSTIC =
 IMPLEMENTED / PENDING REAL PREFLIGHT VERIFICATION
 
 LOCAL RESTORE EXECUTOR CANDIDATE DIAGNOSTIC #5 =
+NOT AUTHORIZED / PENDING IMPLEMENTATION REVIEW
+
+REAL RESTORE ATTEMPT #7 =
+NOT AUTHORIZED
+
+PRODUCTION RESTORE =
+NOT AUTHORIZED
+
+TD-BACKUP-004 =
+OPEN
+
+CURRENT REAL RESTORE STORAGE SCOPE =
+EMPTY STORAGE ONLY
+
+REAL R2 READS DURING IMPLEMENTATION = 0
+REAL AGE DECRYPTS DURING IMPLEMENTATION = 0
+REAL TARGET STARTS DURING IMPLEMENTATION = 0
+REAL APP STARTS DURING IMPLEMENTATION = 0
+REAL CHROMIUM STARTS DURING IMPLEMENTATION = 0
+SQL EXECUTIONS DURING IMPLEMENTATION = 0
+PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
+```
+
+
+## Local Restore Executor Candidate Diagnostic #5 — evidencia semántica y compatibilidad exacta
+
+El tooling inmutable `e363a24331b0cbc6b2815b146ea842c93fa73c6e`
+se ejecutó antes de este bloque de implementación. Diagnostic #5 cerró de
+forma segura en el mismo par exacto de edges Iceberg y aportó evidencia real
+suficiente para clasificar la semántica como
+`SAFE_EMPTY_TARGET_ONLY_CLOSURE`. No ejecutó restore SQL ni mutó el target.
+
+```text
+LOCAL RESTORE EXECUTOR CANDIDATE DIAGNOSTIC #5 =
+CLOSED / FINDING / SAFE SEMANTIC EVIDENCE
+
+TOOLING SHA =
+e363a24331b0cbc6b2815b146ea842c93fa73c6e
+
+code =
+RECOVERY_RESTORE_EXECUTE_TRUNCATE_FK_OPEN
+
+edgeCount =
+2
+
+parentIdentities =
+storage.buckets_analytics
+
+childIdentities =
+storage.iceberg_namespaces
+storage.iceberg_tables
+
+sourceAnalyticsState =
+COPY_EMPTY
+
+occupancyVisibility =
+VERIFIED
+
+icebergNamespacesState =
+EMPTY
+
+icebergTablesState =
+EMPTY
+
+semanticState =
+SAFE_EMPTY_TARGET_ONLY_CLOSURE
+
+localAgeDecrypts = 1
+realTargetStarts = 1
+sqlExecutions = 0
+targetMutations = 0
+realR2Reads = 0
+remoteActivity = 0
+productionMutations = 0
+targetCleanup = PASS
+sourceCleanup = PASS
+
+RESTORE_EXECUTOR_CANDIDATE_DIAGNOSTIC_5_EXIT_CODE = 1
+```
+
+El evaluator implementa ahora una compatibilidad estricta y fail-closed. Sólo
+cuando vuelve a calcular en esa misma evaluación el topology exacto de dos
+edges y toda la evidencia semántica segura, el conjunto efectivo de TRUNCATE
+añade exclusivamente `storage.iceberg_namespaces` y
+`storage.iceberg_tables`. Después vuelve a evaluar todo el catálogo FK; una
+dependencia adicional conserva
+`RECOVERY_RESTORE_EXECUTE_TRUNCATE_FK_OPEN`. No se usa `CASCADE`, no se
+descubren descendants automáticamente y no se alteran constraints ni triggers.
+
+La admisión managed-data compatible no cambia. Por ello las dos tablas Iceberg
+añadidas requieren `TRUNCATE`, pero no `INSERT`; la validación de sequences
+continúa usando únicamente la admisión compatible original. El PASS publica
+`truncateFkCompatibility` como `NOT_REQUIRED` o
+`EXACT_EMPTY_TARGET_ONLY_ICEBERG_CLOSURE`, mantiene
+`truncateFkClosure = PASS` y no publica el conjunto efectivo. La autoridad
+interna queda ligada por procedencia `WeakMap` al PASS y sólo entrega
+`admission` y `truncateTables` mediante un accessor gobernado. Los objetos
+fabricados fallan cerrados.
+
+```text
+PPO-04M.5.3 =
+ACTIVE / EXACT ICEBERG TRUNCATE CLOSURE COMPATIBILITY
+
+ICEBERG FK SEMANTICS =
+SAFE_EMPTY_TARGET_ONLY_CLOSURE /
+REAL TARGET VERIFIED
+
+ICEBERG TRUNCATE CLOSURE COMPATIBILITY =
+IMPLEMENTED / PENDING REAL PREFLIGHT VERIFICATION
+
+SEQUENCE COMPATIBILITY =
+PENDING
+
+MUTATION PRIVILEGES =
+PENDING
+
+RESTORE EXECUTE PREFLIGHT QUERY COUNT =
+GENERIC 5 / CANDIDATE 6
+
+LOCAL RESTORE EXECUTOR CANDIDATE DIAGNOSTIC #6 =
 NOT AUTHORIZED / PENDING IMPLEMENTATION REVIEW
 
 REAL RESTORE ATTEMPT #7 =
