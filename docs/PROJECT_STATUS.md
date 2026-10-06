@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Última actualización: 2026-10-05
+Última actualización: 2026-10-06
 
 ## Estado general
 
@@ -17,47 +17,25 @@ PRODUCTION EXPOSURE = PROTECTED
 PRODUCTION PILOT ROLLOUT = NOT EXECUTED
 ```
 
-El primer destino real vigente es Vercel Hobby + Supabase Managed Free. PPO-04M
-está `ACTIVE / NEXT`; PPO-04M.0–PPO-04M.3 están `CLOSED / APPROVED`. M.2A
-aplicó y aceptó la baseline 01–06, M.2B validó bootstrap, lifecycle Auth,
-RLS/grants, Storage/TUS y cleanup, y M.3 aceptó el deployment técnico protegido.
-El Site URL de Supabase está alineado con el dominio Production estable.
-PPO-04M.4 queda `CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE`; PPO-04M.5 queda
-`ACTIVE / RESTORE EXECUTOR DIAGNOSTIC`.
-M.5.0 está `CLOSED / ARCHITECTURE APPROVED`;
-M.5.1 está `CLOSED / LOCAL INTEGRATION APPROVED`, M.5.2.0 está
-`CLOSED / PRODUCTION BACKUP PREPARATION APPROVED`, M.5.2.1A está
-`CLOSED / R2 CUSTODY ADAPTER APPROVED` y M.5.2.1B está
-`CLOSED / R2 SYNTHETIC CUSTODY PASS`. M.5.2.1C está `CLOSED / PRODUCTION AGE
-RECOVERY IDENTITY CUSTODY PASS`; M.5.2 está `CLOSED / FIRST PRODUCTION BACKUP +
-EXTERNAL CUSTODY VERIFIED`; M.5.3.0 está `CLOSED / RESTORE DRILL ARCHITECTURE
-APPROVED`, M.5.3A está `CLOSED / SOURCE VERIFICATION TOOLING APPROVED`, M.5.3B
-está `CLOSED / ISOLATED TARGET + RESTORE TOOLING APPROVED`; M.5.3B.2 está
-`CLOSED / REAL LOCAL TARGET COMPATIBILITY VERIFIED`, M.5.3C.0 está `CLOSED /
-REAL RESTORE EXECUTION CONTRACT APPROVED`, M.5.3C.1 está `CLOSED / REAL RESTORE
-ORCHESTRATOR TOOLING APPROVED`, M.5.3D.1 está `CLOSED / RECOVERY APPLICATION
-VALIDATION TOOLING APPROVED`, M.5.3D.2.1 está verificada por Attempt #2,
-M.5.3D.2.2 está implementada, M.5.3D.2.3 está verificada por Attempt #4,
-M.5.3D.2.4 verificó mount/topology en Attempt #5 con el live 5xx persistente,
-M.5.3D.2.5 quedó `REAL-ENVIRONMENT REQUEST-SCOPED DIAGNOSTIC VERIFIED BY ATTEMPT #6`,
-M.5.3D.2.6 quedó `REAL-ENVIRONMENT SAFE TAXONOMY VERIFIED BY ATTEMPT #7`,
-M.5.3D.2.7 quedó cerrado como mejora de fidelidad no causal y M.5.3D.2.8 quedó
-cerrado y verificado en entorno real por Attempt #9. M.5.3D.2 queda `CLOSED /
-REAL LOCAL RECOVERY APPLICATION COMPATIBILITY VERIFIED`; M.5.3 permanece
-`ACTIVE / RESTORE EXECUTOR DIAGNOSTIC`.
-Real Restore Attempt #1 falló en preflight por configuración operativa sin
-actividad real; Attempt #2 verificó la fuente Productiva hasta detenerse en
-`SOURCE_VERIFY` por `RECOVERY_SQL_STATEMENT_FORBIDDEN`. Attempt #3 no está
-autorizado y queda pendiente de revisión documental final. Local Managed Recovery Source Diagnostic #1 confirmó de forma
-sanitizada que el wrapper data-only de Supabase CLI 2.109.1 no estaba modelado;
-la remediación lo trata como transporte no ejecutable. Local Managed Recovery
-Source Diagnostic #2 confirmó después que el formato `SEQUENCE SET` de
-`pg_dump` tampoco estaba representado por la admisión anterior. Diagnostic #3
-verificó después la admisión completa del managed-data SQL real; no se declara
-corrupción del backup ni un restore completo.
-El primer backup Production quedó
-`COMPLETE`. Todavía no se realizó el pilot rollout ni se afirma que el sistema
-esté públicamente operativo.
+El primer destino real vigente es Vercel Hobby + Supabase Managed Free. La
+baseline 01–06, el proyecto Managed y el deployment técnico protegido conservan
+sus cierres aprobados. El primer backup Production quedó `COMPLETE`; todavía no
+se realizó el pilot rollout ni se afirma que el sistema esté públicamente
+operativo.
+
+PPO-04M.5.3 queda `SUSPENDED / SUPERSEDED`: el harness complejo de recuperación
+Managed → Supabase local se congela como evidencia histórica y tooling
+experimental. Diagnostic #6 cerró `FAIL / INTERNAL TOOLING FAILURE` sin SQL ni
+mutaciones; no se determinó la causa raíz antes de cancelar Diagnostic #7 y el
+antiguo Real Restore Attempt #7. No se atribuye el fallo a sequences,
+privileges ni al closure Iceberg.
+
+PPO-04M.6 queda `ACTIVE`; PPO-04M.6.0 está `IMPLEMENTED / PENDING
+ARCHITECTURAL REVIEW`. La estrategia canónica es
+[PPO-04M.6 — Simple Backup / Restore V1](production/PPO_04M6_SIMPLE_BACKUP_RESTORE_V1.md):
+Git conserva la autoridad de schema/código y el backup conserva los datos
+operativos para recuperar sobre un proyecto Supabase Managed nuevo y
+desechable.
 
 ## Arquitectura vigente
 
@@ -128,7 +106,7 @@ una migración nueva `07+`.
 | PPO-04M.2B | `CLOSED / APPROVED` |
 | PPO-04M.3 | `CLOSED / APPROVED` |
 | PPO-04M.4 | `CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE` |
-| PPO-04M.5 | `ACTIVE / RESTORE EXECUTOR DIAGNOSTIC` |
+| PPO-04M.5 | `SUSPENDED / SUPERSEDED BY SIMPLE BACKUP RESTORE V1` |
 | PPO-04M.5.0 | `CLOSED / ARCHITECTURE APPROVED` |
 | PPO-04M.5.1 | `CLOSED / LOCAL INTEGRATION APPROVED` |
 | PPO-04M.5.2.0 | `CLOSED / PRODUCTION BACKUP PREPARATION APPROVED` |
@@ -157,8 +135,12 @@ una migración nueva `07+`.
 | PPO-04M.5.3D.2.6 | `REAL-ENVIRONMENT SAFE TAXONOMY VERIFIED BY ATTEMPT #7` |
 | PPO-04M.5.3D.2.7 | `CLOSED / REAL-ENVIRONMENT PRODUCT DEFAULT DISTDIR VERIFIED / NOT CAUSAL FOR THE LIVE FAILURE / ARCHITECTURAL FIDELITY IMPROVEMENT RETAINED` |
 | PPO-04M.5.3D.2.8 | `CLOSED / WINDOWS SAME-VOLUME APPLICATION RUNTIME TOPOLOGY / REAL-ENVIRONMENT VERIFIED BY ATTEMPT #9` |
-| PPO-04M.5.3 | `ACTIVE / RESTORE EXECUTOR DIAGNOSTIC` |
-| PPO-04M.6–PPO-04M.7 | `NOT STARTED` |
+| PPO-04M.5.3 | `SUSPENDED / SUPERSEDED` |
+| PPO-04M.6 | `ACTIVE` |
+| PPO-04M.6.0 | `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW` |
+| PPO-04M.6.1 | `NOT STARTED` |
+| PPO-04M.6.2–PPO-04M.6.4 | `NOT STARTED` |
+| PPO-04M.7 | `NOT STARTED` |
 | PPO-05 | `PENDING` — seguridad pública/antiabuso |
 | PPO-06 | `PENDING` — backup/recovery managed |
 | PPO-07 | `PENDING` — observabilidad/operación managed |
@@ -220,7 +202,10 @@ REAL RECOVERY BOUNDARY = OPERATOR-GOVERNED
 IMPLICIT TRUNCATE CASCADE = REMOVED
 EXPLICIT TRUNCATE AUTHORITY = ENFORCED
 POST-RESTORE FK DATA INTEGRITY GATE = IMPLEMENTED
-PPO-04M.5.3 = ACTIVE / ICEBERG FK CLOSURE DIAGNOSTIC
+PPO-04M.5.3 = SUSPENDED / SUPERSEDED
+PPO-04M.6 = ACTIVE
+PPO-04M.6.0 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+PPO-04M.6.1 = NOT STARTED
 REAL RESTORE ATTEMPT #1 = FAIL / PREFLIGHT OPERATOR CONFIGURATION
 REAL RESTORE ATTEMPT #2 = FAIL / SOURCE_VERIFY REAL BACKUP SQL DIALECT ADMISSION FINDING
 REAL RESTORE ATTEMPT #3 = NOT AUTHORIZED / PENDING FINAL DOCUMENTARY REVIEW
@@ -987,9 +972,13 @@ PPO-04M.0  arquitectura y gobernanza — CLOSED / APPROVED
 → PPO-04M.5.3D.2.6  safe UNKNOWN module-resolution decomposition — REAL-ENVIRONMENT SAFE TAXONOMY VERIFIED BY ATTEMPT #7
 → PPO-04M.5.3D.2.7  Product-faithful Next distDir + temporary cache boundary — CLOSED / REAL-ENVIRONMENT PRODUCT DEFAULT DISTDIR VERIFIED / NOT CAUSAL FOR THE LIVE FAILURE / ARCHITECTURAL FIDELITY IMPROVEMENT RETAINED
 → PPO-04M.5.3D.2.8  Windows same-volume application runtime topology — CLOSED / WINDOWS SAME-VOLUME APPLICATION RUNTIME TOPOLOGY / REAL-ENVIRONMENT VERIFIED BY ATTEMPT #9
-→ PPO-04M.5.3  Restore Drill + Baseline Closure — ACTIVE / RESTORE EXECUTOR DIAGNOSTIC
-→ PPO-04M.6  small initial real use
-→ PPO-04M.7  estabilización y medidas reales
+→ PPO-04M.5.3  complex recovery harness — SUSPENDED / SUPERSEDED
+→ PPO-04M.6.0  architecture pivot / documentation — IMPLEMENTED / PENDING REVIEW
+→ PPO-04M.6.1  Simple Backup V1 implementation — NOT STARTED
+→ PPO-04M.6.2  Simple Restore V1 implementation — NOT STARTED
+→ PPO-04M.6.3  real backup + managed recovery drill — NOT STARTED
+→ PPO-04M.6.4  operationalization / retention / optional off-site copy — NOT STARTED
+→ Production pilot rollout — NOT EXECUTED / SEQUENCING PENDING AFTER M.6
 → LSH (futuro, no iniciado)
 ```
 
@@ -2398,3 +2387,44 @@ REAL CHROMIUM STARTS DURING IMPLEMENTATION = 0
 SQL EXECUTIONS DURING IMPLEMENTATION = 0
 PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
 ```
+
+## 2026-10-06 — PPO-04M.6 Simple Backup / Restore V1
+
+```text
+LOCAL RESTORE EXECUTOR CANDIDATE DIAGNOSTIC #6 =
+CLOSED / FAIL / INTERNAL TOOLING FAILURE
+
+TOOLING SHA =
+906f4cf16c184d95a2c0f5f8524a5a86ec8d2fe7
+
+status = FAIL
+phase = RESTORE_EXECUTOR_PREFLIGHT
+code = RECOVERY_RESTORE_EXECUTOR_DIAGNOSTIC_FAILED
+localAgeDecrypts = 1
+realTargetStarts = 1
+sqlExecutions = 0
+targetMutations = 0
+realR2Reads = 0
+remoteActivity = 0
+productionMutations = 0
+targetCleanup = PASS
+sourceCleanup = PASS
+RESTORE_EXECUTOR_CANDIDATE_DIAGNOSTIC_6_EXIT_CODE = 1
+
+PPO-04M.5.3 = SUSPENDED / SUPERSEDED
+PPO-04M.6 = ACTIVE
+PPO-04M.6.0 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+PPO-04M.6.1 = NOT STARTED
+SIMPLE BACKUP V1 = DESIGNED / NOT IMPLEMENTED
+SIMPLE RESTORE V1 = DESIGNED / NOT IMPLEMENTED
+LEGACY COMPLEX RECOVERY HARNESS = FROZEN / NOT ACTIVE PATH
+DIAGNOSTIC #7 = CANCELLED
+OLD REAL RESTORE ATTEMPT #7 = CANCELLED UNDER LEGACY APPROACH
+PRODUCTION RESTORE = NOT AUTHORIZED
+TD-BACKUP-004 = OPEN / REASSIGNED TO SIMPLE STORAGE RECOVERY VALIDATION
+```
+
+No se determinó la causa raíz porque se detuvo esta línea antes de instrumentar
+Diagnostic #7. No se afirma que fallaran sequences, privileges ni el closure
+Iceberg. La estrategia activa se define en
+[PPO-04M.6 — Simple Backup / Restore V1](production/PPO_04M6_SIMPLE_BACKUP_RESTORE_V1.md).

@@ -2,12 +2,12 @@
 
 ## Metadatos
 
-- Actualización de estado: 2026-09-21
+- Actualización de estado: 2026-10-06
 
 - Proyecto: Godel Diseño
 - Estado: Activo
 - Fecha de creación: 2026-07-21
-- Última revisión: 2026-09-21
+- Última revisión: 2026-10-06
 - Responsable técnico: Dirección Técnica de Godel Diseño
 - Arquitectura y supervisión: Arquitectura Senior / Orquestación Técnica
 - Implementación: Agente Codex en VS Code
@@ -160,36 +160,17 @@ PPO-04M.1 queda `CLOSED / APPROVED` mediante
 PPO-04M.2 queda `CLOSED / APPROVED`: M.2A y M.2B están `CLOSED / APPROVED`,
 con evidencia estructural y funcional en
 [PPO_04M2_MANAGED_PROVISIONING_REPORT.md](PPO_04M2_MANAGED_PROVISIONING_REPORT.md).
-PPO-04M.3 queda `CLOSED / APPROVED`; PPO-04M.4 queda
-`CLOSED / QUALIFIED PRODUCTION QA ACCEPTANCE`; PPO-04M.5 queda
-`ACTIVE / RESTORE EXECUTOR DIAGNOSTIC`,
-con M.5.0 `CLOSED / ARCHITECTURE APPROVED`,
-M.5.1 `CLOSED / LOCAL INTEGRATION APPROVED`
-(`DATABASE SECRET-SAFE TRANSPORT`, `AGE ENCRYPTION`, `RCLONE S3` y
-`STORAGE METADATA + BYTE RESTORE ORDER` localmente probados) y
-M.5.2.0 `CLOSED / PRODUCTION BACKUP PREPARATION APPROVED`, M.5.2.1A
-`CLOSED / R2 CUSTODY ADAPTER APPROVED`, M.5.2.1B
-`CLOSED / R2 SYNTHETIC CUSTODY PASS`, M.5.2.1C
-`CLOSED / PRODUCTION AGE RECOVERY IDENTITY CUSTODY PASS`, M.5.2
-`CLOSED / FIRST PRODUCTION BACKUP + EXTERNAL CUSTODY VERIFIED`, M.5.3.0
-`CLOSED / RESTORE DRILL ARCHITECTURE APPROVED`, M.5.3A `CLOSED / SOURCE
-VERIFICATION TOOLING APPROVED`, M.5.3B `CLOSED / ISOLATED TARGET + RESTORE
-TOOLING APPROVED`, M.5.3B.2 `CLOSED / REAL LOCAL TARGET COMPATIBILITY VERIFIED`,
-M.5.3C.0 `CLOSED / REAL RESTORE EXECUTION CONTRACT APPROVED` y M.5.3C.1
-`CLOSED / REAL RESTORE ORCHESTRATOR TOOLING APPROVED`; sus límites reales son
-operator-governed, no usa `TRUNCATE CASCADE` y
-el gate FK post-restore está implementado. M.5.3D.2 queda `CLOSED / REAL LOCAL
-RECOVERY APPLICATION COMPATIBILITY VERIFIED` tras el PASS real de Attempt #9;
-M.5.3 queda `ACTIVE / RESTORE EXECUTOR DIAGNOSTIC`.
-Cloudflare R2
-Standard queda seleccionado y sintéticamente verificado como custodia externa.
-Dirección Técnica confirmó como operador el Bucket Lock de `production/` por
-8 días; el tooling no verificó programáticamente el Dashboard. La custodia de
-la identity age Productiva queda `OPERATOR-ATTESTED / VERIFIED` con dos copias
-independientes;
-y PPO-04M.6–PPO-04M.7 permanecen `NOT STARTED`. PPO-04 global continúa
-`ACTIVE / NEXT` porque todavía faltan M.5, M.6 y M.7. El Production pilot
-rollout permanece `NOT EXECUTED`.
+PPO-04M.3 queda `CLOSED / APPROVED`; PPO-04M.4 queda `CLOSED / QUALIFIED
+PRODUCTION QA ACCEPTANCE`. Los cierres y la evidencia histórica de M.5.0–M.5.2
+se conservan, incluido el primer backup Productivo y su custodia externa.
+PPO-04M.5.3 queda `SUSPENDED / SUPERSEDED`: el harness complejo se congela como
+tooling experimental y deja de ser la ruta activa.
+
+PPO-04M.6 queda `ACTIVE` con M.6.0 `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`
+y M.6.1 `NOT STARTED`. El contrato vigente está en
+[PPO-04M.6 — Simple Backup / Restore V1](PPO_04M6_SIMPLE_BACKUP_RESTORE_V1.md).
+PPO-04 global continúa `ACTIVE / NEXT`; el Production pilot rollout permanece
+`NOT EXECUTED`.
 
 El gate de consistencia del harness Productivo exige inventarios Storage inicial
 y final estructuralmente idénticos y una proyección local `path/size` exactamente
@@ -2478,3 +2459,52 @@ REAL CHROMIUM STARTS DURING IMPLEMENTATION = 0
 SQL EXECUTIONS DURING IMPLEMENTATION = 0
 PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
 ```
+
+## 2026-10-06 — PPO-04M.6 Simple Backup / Restore V1
+
+```text
+LOCAL RESTORE EXECUTOR CANDIDATE DIAGNOSTIC #6 =
+CLOSED / FAIL / INTERNAL TOOLING FAILURE
+
+TOOLING SHA =
+906f4cf16c184d95a2c0f5f8524a5a86ec8d2fe7
+
+status = FAIL
+phase = RESTORE_EXECUTOR_PREFLIGHT
+code = RECOVERY_RESTORE_EXECUTOR_DIAGNOSTIC_FAILED
+localAgeDecrypts = 1
+realTargetStarts = 1
+sqlExecutions = 0
+targetMutations = 0
+realR2Reads = 0
+remoteActivity = 0
+productionMutations = 0
+targetCleanup = PASS
+sourceCleanup = PASS
+RESTORE_EXECUTOR_CANDIDATE_DIAGNOSTIC_6_EXIT_CODE = 1
+
+PPO-04M.5.3 = SUSPENDED / SUPERSEDED
+PPO-04M.6 = ACTIVE
+PPO-04M.6.0 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+PPO-04M.6.1 = NOT STARTED
+SIMPLE BACKUP V1 = DESIGNED / NOT IMPLEMENTED
+SIMPLE RESTORE V1 = DESIGNED / NOT IMPLEMENTED
+LEGACY COMPLEX RECOVERY HARNESS = FROZEN / NOT ACTIVE PATH
+DIAGNOSTIC #7 = CANCELLED
+OLD REAL RESTORE ATTEMPT #7 = CANCELLED UNDER LEGACY APPROACH
+PRODUCTION RESTORE = NOT AUTHORIZED
+TD-BACKUP-004 = OPEN / REASSIGNED TO SIMPLE STORAGE RECOVERY VALIDATION
+```
+
+No se determinó la causa raíz porque se detuvo esta línea antes de instrumentar
+Diagnostic #7. No se afirma que fallaran sequences, privileges ni el closure
+Iceberg. La estrategia activa se define en
+[PPO-04M.6 — Simple Backup / Restore V1](PPO_04M6_SIMPLE_BACKUP_RESTORE_V1.md).
+
+| Bloque | Alcance | Estado |
+| --- | --- | --- |
+| PPO-04M.6.0 | Architecture Pivot / Documentation | `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW` |
+| PPO-04M.6.1 | Simple Backup V1 Implementation | `NOT STARTED` |
+| PPO-04M.6.2 | Simple Restore V1 Implementation | `NOT STARTED` |
+| PPO-04M.6.3 | Real Backup + Managed Recovery Drill | `NOT STARTED` |
+| PPO-04M.6.4 | Operationalization / Retention / Optional Off-site Copy | `NOT STARTED` |

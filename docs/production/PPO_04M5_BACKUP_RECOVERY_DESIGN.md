@@ -2,7 +2,7 @@
 
 **Bloque:** `PPO-04M.5.0 — Managed Backup & Recovery Architecture Audit`
 
-**Estado de M.5:** `ACTIVE / ICEBERG FK CLOSURE DIAGNOSTIC`
+**Estado de M.5:** `SUSPENDED / SUPERSEDED BY SIMPLE BACKUP RESTORE V1`
 
 **Estado de M.5.0:** `CLOSED / ARCHITECTURE APPROVED`
 
@@ -24,7 +24,7 @@
 
 **R2 REMOTE SYNTHETIC PROOF:** `PASS`
 
-**M.5.3:** `ACTIVE / ICEBERG FK CLOSURE DIAGNOSTIC`
+**M.5.3:** `SUSPENDED / SUPERSEDED`
 
 **FIRST PRODUCTION BACKUP:** `COMPLETE`
 
@@ -43,6 +43,13 @@
 **Production runtime authority:** `01552f8bee59b5f9982a2d722e39795461918f43`
 
 **Production pilot rollout:** `NOT EXECUTED`
+
+**Ruta activa:**
+[PPO-04M.6 — Simple Backup / Restore V1](PPO_04M6_SIMPLE_BACKUP_RESTORE_V1.md)
+
+> Este documento conserva la arquitectura y evidencia histórica de M.5. El
+> tooling de `scripts/managed-backup-recovery/**` queda congelado como
+> `LEGACY / EXPERIMENTAL / NOT ACTIVE RECOVERY PATH`.
 
 ## 1. Decisión ejecutiva
 
@@ -2408,7 +2415,6 @@ SQL EXECUTIONS DURING IMPLEMENTATION = 0
 PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
 ```
 
-
 ### M.5.3 — Local Source Diagnostic #5 — cierre / roles audit verified
 
 El tooling inmutable `6424609827a9e5d24ad56c991ecb27f331bb7788`
@@ -3896,3 +3902,45 @@ REAL CHROMIUM STARTS DURING IMPLEMENTATION = 0
 SQL EXECUTIONS DURING IMPLEMENTATION = 0
 PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
 ```
+
+## 2026-10-06 — Supersession por PPO-04M.6
+
+```text
+LOCAL RESTORE EXECUTOR CANDIDATE DIAGNOSTIC #6 =
+CLOSED / FAIL / INTERNAL TOOLING FAILURE
+
+TOOLING SHA =
+906f4cf16c184d95a2c0f5f8524a5a86ec8d2fe7
+
+status = FAIL
+phase = RESTORE_EXECUTOR_PREFLIGHT
+code = RECOVERY_RESTORE_EXECUTOR_DIAGNOSTIC_FAILED
+localAgeDecrypts = 1
+realTargetStarts = 1
+sqlExecutions = 0
+targetMutations = 0
+realR2Reads = 0
+remoteActivity = 0
+productionMutations = 0
+targetCleanup = PASS
+sourceCleanup = PASS
+RESTORE_EXECUTOR_CANDIDATE_DIAGNOSTIC_6_EXIT_CODE = 1
+
+PPO-04M.5.3 = SUSPENDED / SUPERSEDED
+PPO-04M.6 = ACTIVE
+PPO-04M.6.0 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
+PPO-04M.6.1 = NOT STARTED
+SIMPLE BACKUP V1 = DESIGNED / NOT IMPLEMENTED
+SIMPLE RESTORE V1 = DESIGNED / NOT IMPLEMENTED
+LEGACY COMPLEX RECOVERY HARNESS = FROZEN / NOT ACTIVE PATH
+DIAGNOSTIC #7 = CANCELLED
+OLD REAL RESTORE ATTEMPT #7 = CANCELLED UNDER LEGACY APPROACH
+PRODUCTION RESTORE = NOT AUTHORIZED
+TD-BACKUP-004 = OPEN / REASSIGNED TO SIMPLE STORAGE RECOVERY VALIDATION
+```
+
+No se determinó la causa raíz porque se detuvo esta línea antes de instrumentar
+Diagnostic #7. No se afirma que fallaran sequences, privileges ni el closure
+Iceberg. Este diseño y `scripts/managed-backup-recovery/**` quedan congelados
+como evidencia y tooling experimental. La estrategia activa se define en
+[PPO-04M.6 — Simple Backup / Restore V1](PPO_04M6_SIMPLE_BACKUP_RESTORE_V1.md).
