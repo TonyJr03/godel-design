@@ -166,8 +166,10 @@ se conservan, incluido el primer backup Productivo y su custodia externa.
 PPO-04M.5.3 queda `SUSPENDED / SUPERSEDED`: el harness complejo se congela como
 tooling experimental y deja de ser la ruta activa.
 
-PPO-04M.6 queda `ACTIVE` con M.6.0 `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`
-y M.6.1 `NOT STARTED`. El contrato vigente está en
+PPO-04M.6 queda `ACTIVE` con M.6.0 `REVIEWED / CLOSED` y M.6.1
+`IMPLEMENTED / PENDING CODE REVIEW`. Simple Backup V1 permanece
+`PENDING REAL PRODUCTION BACKUP VALIDATION`; no se ha ejecutado un backup real.
+El contrato vigente está en
 [PPO-04M.6 — Simple Backup / Restore V1](PPO_04M6_SIMPLE_BACKUP_RESTORE_V1.md).
 PPO-04 global continúa `ACTIVE / NEXT`; el Production pilot rollout permanece
 `NOT EXECUTED`.
@@ -2485,9 +2487,9 @@ RESTORE_EXECUTOR_CANDIDATE_DIAGNOSTIC_6_EXIT_CODE = 1
 
 PPO-04M.5.3 = SUSPENDED / SUPERSEDED
 PPO-04M.6 = ACTIVE
-PPO-04M.6.0 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
-PPO-04M.6.1 = NOT STARTED
-SIMPLE BACKUP V1 = DESIGNED / NOT IMPLEMENTED
+PPO-04M.6.0 = REVIEWED / CLOSED
+PPO-04M.6.1 = IMPLEMENTED / PENDING CODE REVIEW
+SIMPLE BACKUP V1 = IMPLEMENTED / PENDING REAL PRODUCTION BACKUP VALIDATION
 SIMPLE RESTORE V1 = DESIGNED / NOT IMPLEMENTED
 LEGACY COMPLEX RECOVERY HARNESS = FROZEN / NOT ACTIVE PATH
 DIAGNOSTIC #7 = CANCELLED
@@ -2503,8 +2505,8 @@ Iceberg. La estrategia activa se define en
 
 | Bloque | Alcance | Estado |
 | --- | --- | --- |
-| PPO-04M.6.0 | Architecture Pivot / Documentation | `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW` |
-| PPO-04M.6.1 | Simple Backup V1 Implementation | `NOT STARTED` |
+| PPO-04M.6.0 | Architecture Pivot / Documentation | `REVIEWED / CLOSED` |
+| PPO-04M.6.1 | Simple Backup V1 Implementation | `IMPLEMENTED / PENDING CODE REVIEW` |
 | PPO-04M.6.2 | Simple Restore V1 Implementation | `NOT STARTED` |
 | PPO-04M.6.3 | Real Backup + Managed Recovery Drill | `NOT STARTED` |
 | PPO-04M.6.4 | Operationalization / Retention / Optional Off-site Copy | `NOT STARTED` |

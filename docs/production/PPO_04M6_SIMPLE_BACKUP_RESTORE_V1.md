@@ -2,9 +2,11 @@
 
 **Estado de PPO-04M.6:** `ACTIVE`
 
-**Estado de PPO-04M.6.0:** `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW`
+**Estado de PPO-04M.6.0:** `REVIEWED / CLOSED`
 
-**Simple Backup V1:** `DESIGNED / NOT IMPLEMENTED`
+**Estado de PPO-04M.6.1:** `IMPLEMENTED / PENDING CODE REVIEW`
+
+**Simple Backup V1:** `IMPLEMENTED / PENDING REAL PRODUCTION BACKUP VALIDATION`
 
 **Simple Restore V1:** `DESIGNED / NOT IMPLEMENTED`
 
@@ -143,12 +145,14 @@ El manifest se mantiene mínimo. Su contrato conceptual es:
   "backupId": "...",
   "createdAtUtc": "...",
   "source": "godel-production",
+  "projectRef": "...",
   "gitSha": "...",
   "database": {
     "file": "data.sql"
   },
   "storage": {
-    "bucket": "godel-files"
+    "bucket": "godel-files",
+    "directory": "storage/godel-files"
   }
 }
 ```
@@ -158,9 +162,10 @@ convertir el manifest en un registro de decenas de estados internos.
 
 ### 3.4 `checksums.sha256`
 
-`checksums.sha256` cubre como mínimo `data.sql` y cada archivo físico de
-Storage. Su única función es detectar corrupción o alteración accidental antes
-del restore. V1 no diseña provenance criptográfica compleja.
+`checksums.sha256` cubre `data.sql`, `manifest.json` y cada archivo físico de
+Storage; no se incluye a sí mismo. Su única función es detectar corrupción o
+alteración accidental antes del restore. V1 no diseña provenance criptográfica
+compleja.
 
 ## 4. Estrategia de esquema
 
@@ -193,19 +198,41 @@ existente en Supabase se reconstruya automáticamente cuando no está
 representada o no es configurable desde el repositorio. Secrets y credenciales
 permanecen fuera del backup.
 
-## 5. Contrato futuro de `backup.ps1`
+## 5. Contrato implementado de `backup.ps1`
 
-Ubicación prevista: `scripts/backup-recovery/backup.ps1`.
+Ubicación: `scripts/backup-recovery/backup.ps1`.
 
-El script deberá:
+El script:
 
-1. Validar herramientas y configuración mínima.
-2. Crear una carpeta de backup nueva.
-3. Ejecutar el dump data-only.
-4. Copiar Storage de forma recursiva.
-5. Generar `manifest.json`.
-6. Generar `checksums.sha256`.
-7. Terminar con exit code `0` sólo si todo concluyó correctamente.
+1. acepta exclusivamente `-BackupRoot <path>` y
+   `-ProjectRef <supabase-project-ref>`;
+2. resuelve la raíz del repositorio desde `$PSScriptRoot`, por lo que puede
+   invocarse desde cualquier working directory;
+3. valida `git`, `npx.cmd` y la CLI local mediante
+   `npx.cmd --no-install supabase`, sin instalar ni actualizar dependencias;
+4. exige `SUPABASE_ACCESS_TOKEN` y `SUPABASE_DB_PASSWORD` sin imprimirlos ni
+   persistirlos;
+5. comprueba o crea `BackupRoot` y crea un backup ID UTC con formato
+   `GDBK-YYYYMMDDTHHMMSSZ`;
+6. enlaza el proyecto indicado mediante `supabase link --project-ref`;
+7. construye `<backup-id>.partial` y falla si ya existe el directorio parcial
+   o final;
+8. genera `data.sql` mediante
+   `supabase db dump --linked --data-only --use-copy`, excluyendo
+   `storage.buckets_vectors` y `storage.vector_indexes`, y comprueba que sea un
+   archivo regular no vacío;
+9. descarga recursivamente `godel-files` mediante
+   `supabase storage cp ... -r --experimental --linked`, aceptando como válido
+   un bucket vacío si el comando termina correctamente;
+10. genera el manifest mínimo y `checksums.sha256`;
+11. renombra el directorio parcial al nombre final dentro del mismo
+    `BackupRoot` sólo si todas las fases terminan correctamente;
+12. devuelve un código distinto de cero, no publica el nombre final y elimina
+    preferentemente el parcial creado por la ejecución ante cualquier fallo.
+
+Los checksums SHA-256 se escriben en minúsculas, ordenados por ruta relativa
+con `/`, y cubren `data.sql`, `manifest.json` y todos los objetos físicos de
+Storage. `checksums.sha256` no se incluye a sí mismo.
 
 La salida humana será breve y operativa:
 
@@ -215,6 +242,7 @@ Backup: <id>
 Database: OK
 Storage: OK
 Checksums: OK
+Path: <ruta-final>
 ```
 
 R2, `age` y los diagnostics encadenados no son requisitos del backup V1.
@@ -266,14 +294,15 @@ para demostrar que backup y restore funcionan.
 
 | Bloque | Alcance | Estado |
 | --- | --- | --- |
-| PPO-04M.6.0 | Architecture Pivot / Documentation | `IMPLEMENTED / PENDING ARCHITECTURAL REVIEW` |
-| PPO-04M.6.1 | Simple Backup V1 Implementation | `NOT STARTED` |
+| PPO-04M.6.0 | Architecture Pivot / Documentation | `REVIEWED / CLOSED` |
+| PPO-04M.6.1 | Simple Backup V1 Implementation | `IMPLEMENTED / PENDING CODE REVIEW` |
 | PPO-04M.6.2 | Simple Restore V1 Implementation | `NOT STARTED` |
 | PPO-04M.6.3 | Real Backup + Managed Recovery Drill | `NOT STARTED` |
 | PPO-04M.6.4 | Operationalization / Retention / Optional Off-site Copy | `NOT STARTED` |
 
-PPO-04M.6.0 es exclusivamente documental. No implementa `backup.ps1` ni
-`restore.ps1` y no inicia PPO-04M.6.1.
+PPO-04M.6.1 queda implementado y pendiente de revisión de código. Su resultado
+operativo permanece `PENDING REAL PRODUCTION BACKUP VALIDATION` hasta ejecutar
+un backup real autorizado. PPO-04M.6.2 no ha comenzado.
 
 ## 10. Cierre de Diagnostic #6
 
@@ -312,9 +341,9 @@ privileges ni el closure Iceberg.
 ```text
 PPO-04M.5.3 = SUSPENDED / SUPERSEDED
 PPO-04M.6 = ACTIVE
-PPO-04M.6.0 = IMPLEMENTED / PENDING ARCHITECTURAL REVIEW
-PPO-04M.6.1 = NOT STARTED
-SIMPLE BACKUP V1 = DESIGNED / NOT IMPLEMENTED
+PPO-04M.6.0 = REVIEWED / CLOSED
+PPO-04M.6.1 = IMPLEMENTED / PENDING CODE REVIEW
+SIMPLE BACKUP V1 = IMPLEMENTED / PENDING REAL PRODUCTION BACKUP VALIDATION
 SIMPLE RESTORE V1 = DESIGNED / NOT IMPLEMENTED
 LEGACY COMPLEX RECOVERY HARNESS = FROZEN / NOT ACTIVE PATH
 DIAGNOSTIC #7 = CANCELLED
