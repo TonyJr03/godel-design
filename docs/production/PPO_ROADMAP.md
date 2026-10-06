@@ -267,7 +267,7 @@ PACKAGE.JSON SCRIPTS-ONLY OPERATIONAL DRIFT = SEMANTICALLY EXCLUDED
 PACKAGE.JSON NON-SCRIPT FIELDS = EXACT AUTHORITY
 TEMPORARY APP PACKAGE.JSON = PRODUCTION RUNTIME AUTHORITY
 REAL_SHA_APP_RUNTIME_AUTHORITY = PASS
-PPO-04M.5.3 = ACTIVE / EXACT INACTIVE STORAGE SCHEMA COMPATIBILITY
+PPO-04M.5.3 = ACTIVE / ICEBERG FK CLOSURE DIAGNOSTIC
 REAL LOCAL TARGET = VERIFIED
 APPLICATION CLEANUP FAILURE DETECTED IN D.2 ATTEMPT #1 = YES / RECOVERY_APP_CLEANUP_INCOMPLETE
 TARGET CLEANUP FAILURE DETECTED IN D.2 ATTEMPT #1 = NO
@@ -463,6 +463,8 @@ REAL APP STARTS DURING D.1 = 0
 REAL LOGIN ATTEMPTS DURING D.1 = 0
 RETRIES = 0
 ```
+
+
 
 ### PPO-04M.5.3 — Local source diagnostic #1
 
@@ -2223,6 +2225,116 @@ NOT AUTHORIZED / PENDING IMPLEMENTATION REVIEW
 SUPABASE_ADMIN RESTORE EXECUTOR CANDIDATE =
 IDENTITY + REPLICATION AUTHORITY VERIFIED /
 FULL CONTRACT PENDING
+
+REAL RESTORE ATTEMPT #7 =
+NOT AUTHORIZED
+
+PRODUCTION RESTORE =
+NOT AUTHORIZED
+
+TD-BACKUP-004 =
+OPEN
+
+CURRENT REAL RESTORE STORAGE SCOPE =
+EMPTY STORAGE ONLY
+
+REAL R2 READS DURING IMPLEMENTATION = 0
+REAL AGE DECRYPTS DURING IMPLEMENTATION = 0
+REAL TARGET STARTS DURING IMPLEMENTATION = 0
+REAL APP STARTS DURING IMPLEMENTATION = 0
+REAL CHROMIUM STARTS DURING IMPLEMENTATION = 0
+SQL EXECUTIONS DURING IMPLEMENTATION = 0
+PRODUCTION ACTIVITY DURING IMPLEMENTATION = 0
+```
+
+## Local Restore Executor Candidate Diagnostic #4 — Iceberg FK closure
+
+La ejecución inmutable avanzó después de la compatibilidad exacta de columnas
+Storage y confirmó dos edges FK target-only desde
+`storage.buckets_analytics`. No se ejecutó restore SQL.
+
+```text
+LOCAL RESTORE EXECUTOR CANDIDATE DIAGNOSTIC #4 =
+CLOSED / FINDING
+
+TOOLING SHA =
+ed3801aa34fcb8a56f298a4953af05d90db0c87f
+
+status =
+FINDING
+
+phase =
+RESTORE_EXECUTOR_PREFLIGHT
+
+code =
+RECOVERY_RESTORE_EXECUTE_TRUNCATE_FK_OPEN
+
+edgeCount =
+2
+
+parent =
+storage.buckets_analytics
+
+children =
+storage.iceberg_namespaces
+storage.iceberg_tables
+
+localAgeDecrypts = 1
+realTargetStarts = 1
+sqlExecutions = 0
+targetMutations = 0
+realR2Reads = 0
+remoteActivity = 0
+productionMutations = 0
+targetCleanup = PASS
+sourceCleanup = PASS
+
+RESTORE_EXECUTOR_CANDIDATE_DIAGNOSTIC_4_EXIT_CODE = 1
+```
+
+La progresión real verificó identidad y autoridad de replication role de
+`supabase_admin`, la compatibilidad exacta del schema Storage, las columnas
+COPY y los checks required/generated. El cierre FK quedó bloqueado; sequences
+y privilegios de mutación aún no fueron alcanzados.
+
+El diagnóstico semántico implementado conserva cinco queries en el preflight
+genérico y usa seis en el candidato. La sexta query es fija, SELECT-only y
+publica internamente sólo dos booleanos de ocupación. Para el topology exacto,
+el estado source de `storage.buckets_analytics` se deriva otra vez del
+persistent managed-data admission gobernado como `COPY_EMPTY` o
+`COPY_NONEMPTY`. La ocupación target sólo se considera visible cuando la
+sesión demuestra `rolsuper` o `rolbypassrls`; en otro caso ambos estados son
+`UNVERIFIED`. Incluso `SAFE_EMPTY_TARGET_ONLY_CLOSURE` conserva
+`RECOVERY_RESTORE_EXECUTE_TRUNCATE_FK_OPEN`: no se añadió ninguna tabla a
+TRUNCATE ni se implementó compatibilidad FK.
+
+```text
+PPO-04M.5.3 =
+ACTIVE / ICEBERG FK CLOSURE DIAGNOSTIC
+
+EXACT INACTIVE STORAGE SCHEMA COMPATIBILITY =
+REAL TARGET VERIFIED / PASS BY EVALUATOR PROGRESSION
+
+COPY COLUMN COMPATIBILITY =
+REAL TARGET VERIFIED / PASS BY EVALUATOR PROGRESSION
+
+REQUIRED / GENERATED COLUMN COMPATIBILITY =
+REAL TARGET VERIFIED / PASS BY EVALUATOR PROGRESSION
+
+TRUNCATE FK CLOSURE =
+BLOCKED / EXACT ICEBERG TARGET-ONLY EDGES
+
+SEQUENCE COMPATIBILITY =
+PENDING
+
+MUTATION PRIVILEGES =
+PENDING
+
+ICEBERG FK CLOSURE DIAGNOSTIC =
+IMPLEMENTED / PENDING REAL PREFLIGHT VERIFICATION
+
+LOCAL RESTORE EXECUTOR CANDIDATE DIAGNOSTIC #5 =
+NOT AUTHORIZED / PENDING IMPLEMENTATION REVIEW
 
 REAL RESTORE ATTEMPT #7 =
 NOT AUTHORIZED

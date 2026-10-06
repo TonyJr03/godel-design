@@ -11,7 +11,7 @@ import {
   accessRestoreExecutePreflightFinding,
   buildSupabaseAdminRestoreExecutorPreflight,
   evaluateSupabaseAdminRestoreExecutorPreflight,
-  RESTORE_EXECUTE_PREFLIGHT_QUERY_NAMES,
+  RESTORE_EXECUTOR_CANDIDATE_QUERY_NAMES,
   SUPABASE_ADMIN_RESTORE_EXECUTOR,
 } from "./restore-execute-preflight.mjs";
 import { withVerifiedManagedRecoverySource } from "./source-verification.mjs";
@@ -240,7 +240,7 @@ export async function runLocalManagedRecoveryRestoreExecutorCandidateDiagnostic(
         state.phase = "RESTORE_EXECUTOR_PREFLIGHT";
         const preflight = (dependencies.buildExecutorPreflight ?? buildSupabaseAdminRestoreExecutorPreflight)({ restorePlan, executorAuthority: SUPABASE_ADMIN_RESTORE_EXECUTOR });
         const outputs = {};
-        for (const queryName of RESTORE_EXECUTE_PREFLIGHT_QUERY_NAMES) {
+        for (const queryName of RESTORE_EXECUTOR_CANDIDATE_QUERY_NAMES) {
           const commandPlan = (dependencies.buildTargetCandidatePsql ?? buildGovernedTargetSupabaseAdminReadOnlyDiagnosticPsqlPlan)({
             executor,
             containerAuthority,

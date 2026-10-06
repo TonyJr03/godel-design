@@ -28,6 +28,14 @@ export const RESTORE_EXECUTE_PREFLIGHT_QUERY_NAMES = Object.freeze([
   "sequenceCatalog",
   "tablePrivileges",
 ]);
+export const RESTORE_EXECUTOR_CANDIDATE_QUERY_NAMES = Object.freeze([
+  ...RESTORE_EXECUTE_PREFLIGHT_QUERY_NAMES,
+  "storageIcebergClosureOccupancy",
+]);
+const EXACT_ICEBERG_OPEN_EDGES = Object.freeze([
+  "storage.buckets_analytics->storage.iceberg_namespaces",
+  "storage.buckets_analytics->storage.iceberg_tables",
+]);
 
 const querySql = new WeakMap();
 const executorCandidateQuerySql = new WeakMap();
@@ -107,7 +115,15 @@ const SUPABASE_ADMIN_REPLICATION_AUTHORITY_SQL = [
   "SELECT json_build_object(",
   "  'currentUserIsSupabaseAdmin', current_user = 'supabase_admin',",
   "  'canSetSessionReplicationRole', has_parameter_privilege(current_user, 'session_replication_role', 'SET'),",
-  "  'isSuperuser', COALESCE((SELECT rolsuper FROM pg_roles WHERE rolname = current_user), false)",
+  "  'isSuperuser', COALESCE((SELECT rolsuper FROM pg_roles WHERE rolname = current_user), false),",
+  "  'canBypassRls', COALESCE((SELECT rolbypassrls FROM pg_roles WHERE rolname = current_user), false)",
+  ")::text;",
+].join("\n");
+
+const STORAGE_ICEBERG_CLOSURE_OCCUPANCY_SQL = [
+  "SELECT json_build_object(",
+  "  'icebergNamespacesEmpty', NOT EXISTS (SELECT 1 FROM storage.iceberg_namespaces),",
+  "  'icebergTablesEmpty', NOT EXISTS (SELECT 1 FROM storage.iceberg_tables)",
   ")::text;",
 ].join("\n");
 
@@ -208,8 +224,15 @@ export function buildRestoreExecutePreflight({ restorePlan } = {}) {
 export function buildSupabaseAdminRestoreExecutorPreflight({ restorePlan, executorAuthority } = {}) {
   if (!executorAuthorities.has(executorAuthority)) fail("RECOVERY_RESTORE_EXECUTOR_AUTHORITY_REQUIRED", "Governed restore executor candidate authority is required");
   const details = targetCompatiblePlanDetails(restorePlan);
-  const queries = preflightQueries(createExecutorCandidateQuery, SUPABASE_ADMIN_REPLICATION_AUTHORITY_SQL, executorAuthority);
-  const result = Object.freeze({ status: "READY", phase: "RESTORE_EXECUTOR_PREFLIGHT", executorCandidate: "SUPABASE_ADMIN", queryCount: RESTORE_EXECUTE_PREFLIGHT_QUERY_NAMES.length, queries });
+  const queries = Object.freeze({
+    ...preflightQueries(createExecutorCandidateQuery, SUPABASE_ADMIN_REPLICATION_AUTHORITY_SQL, executorAuthority),
+    storageIcebergClosureOccupancy: createExecutorCandidateQuery(
+      "storageIcebergClosureOccupancy",
+      STORAGE_ICEBERG_CLOSURE_OCCUPANCY_SQL,
+      executorAuthority,
+    ),
+  });
+  const result = Object.freeze({ status: "READY", phase: "RESTORE_EXECUTOR_PREFLIGHT", executorCandidate: "SUPABASE_ADMIN", queryCount: RESTORE_EXECUTOR_CANDIDATE_QUERY_NAMES.length, queries });
   preflightDetails.set(result, Object.freeze({ ...details, executorCandidate: "SUPABASE_ADMIN", executorAuthority }));
   return result;
 }
@@ -244,12 +267,25 @@ function parseReplicationAuthority(output) {
 
 function parseSupabaseAdminReplicationAuthority(output) {
   const value = parseJson(output);
-  const keys = ["currentUserIsSupabaseAdmin", "canSetSessionReplicationRole", "isSuperuser"];
+  const keys = ["currentUserIsSupabaseAdmin", "canSetSessionReplicationRole", "isSuperuser", "canBypassRls"];
   if (!exactObject(value, keys) || keys.some((key) => typeof value[key] !== "boolean")) fail("RECOVERY_RESTORE_EXECUTE_PREFLIGHT_OUTPUT_INVALID", "Restore executor authority output is invalid");
   return Object.freeze({
     currentUserIsSupabaseAdmin: value.currentUserIsSupabaseAdmin,
     canSetSessionReplicationRole: value.canSetSessionReplicationRole,
     isSuperuser: value.isSuperuser,
+    canBypassRls: value.canBypassRls,
+  });
+}
+
+function parseStorageIcebergClosureOccupancy(output) {
+  const value = parseJson(output);
+  const keys = ["icebergNamespacesEmpty", "icebergTablesEmpty"];
+  if (!exactObject(value, keys) || keys.some((key) => typeof value[key] !== "boolean")) {
+    fail("RECOVERY_RESTORE_EXECUTE_PREFLIGHT_OUTPUT_INVALID", "Storage Iceberg occupancy output is invalid");
+  }
+  return Object.freeze({
+    icebergNamespacesEmpty: value.icebergNamespacesEmpty,
+    icebergTablesEmpty: value.icebergTablesEmpty,
   });
 }
 
@@ -438,7 +474,55 @@ function prepareStorageSchemaCompatibleAdmission(admission, targetColumns) {
   });
 }
 
-function evaluateTargetCompatibility(details, outputs) {
+function exactIcebergClosureTopology(openEdges) {
+  const edgeKeys = openEdges
+    .map((edge) => `${edge.parentIdentity}->${edge.childIdentity}`)
+    .sort((left, right) => left.localeCompare(right, "en"));
+  return sameStrings(edgeKeys, EXACT_ICEBERG_OPEN_EDGES);
+}
+
+function sourceAnalyticsState(admission) {
+  return withAdmittedManagedDataSql(admission, (model) => {
+    const blocks = model.copyBlocks.filter((block) => block.identity === "storage.buckets_analytics");
+    if (blocks.length !== 1) {
+      fail("RECOVERY_RESTORE_EXECUTE_PREFLIGHT_OUTPUT_INVALID", "Governed Storage analytics COPY authority is required");
+    }
+    return blocks[0].end - blocks[0].start - 1 === 0 ? "COPY_EMPTY" : "COPY_NONEMPTY";
+  });
+}
+
+function icebergClosureMetadata(details, openEdges, icebergOccupancy) {
+  const metadata = {
+    edgeCount: openEdges.length,
+    parentIdentities: bounded(openEdges.map((edge) => edge.parentIdentity)),
+    childIdentities: bounded(openEdges.map((edge) => edge.childIdentity)),
+  };
+  if (!icebergOccupancy || !exactIcebergClosureTopology(openEdges)) return Object.freeze(metadata);
+  const sourceState = sourceAnalyticsState(details.persistentAdmission);
+  const occupancyVisibility = icebergOccupancy.visibilityVerified ? "VERIFIED" : "UNVERIFIED";
+  const icebergNamespacesState = icebergOccupancy.visibilityVerified
+    ? (icebergOccupancy.icebergNamespacesEmpty ? "EMPTY" : "NONEMPTY")
+    : "UNVERIFIED";
+  const icebergTablesState = icebergOccupancy.visibilityVerified
+    ? (icebergOccupancy.icebergTablesEmpty ? "EMPTY" : "NONEMPTY")
+    : "UNVERIFIED";
+  const semanticState = sourceState === "COPY_EMPTY"
+    && occupancyVisibility === "VERIFIED"
+    && icebergNamespacesState === "EMPTY"
+    && icebergTablesState === "EMPTY"
+    ? "SAFE_EMPTY_TARGET_ONLY_CLOSURE"
+    : "NOT_SAFE";
+  return Object.freeze({
+    ...metadata,
+    sourceAnalyticsState: sourceState,
+    occupancyVisibility,
+    icebergNamespacesState,
+    icebergTablesState,
+    semanticState,
+  });
+}
+
+function evaluateTargetCompatibility(details, outputs, icebergOccupancy) {
   const columns = parseColumnCatalog(outputs.columnCatalog);
   const foreignKeys = parseForeignKeys(outputs.foreignKeyCatalog);
   const sequences = parseSequenceCatalog(outputs.sequenceCatalog);
@@ -499,11 +583,7 @@ function evaluateTargetCompatibility(details, outputs) {
 
   const truncateTables = new Set(details.restorePlan.mutable.truncateTables);
   const openEdges = foreignKeys.filter((edge) => truncateTables.has(edge.parentIdentity) && !truncateTables.has(edge.childIdentity));
-  if (openEdges.length > 0) finding("RECOVERY_RESTORE_EXECUTE_TRUNCATE_FK_OPEN", Object.freeze({
-    edgeCount: openEdges.length,
-    parentIdentities: bounded(openEdges.map((edge) => edge.parentIdentity)),
-    childIdentities: bounded(openEdges.map((edge) => edge.childIdentity)),
-  }));
+  if (openEdges.length > 0) finding("RECOVERY_RESTORE_EXECUTE_TRUNCATE_FK_OPEN", icebergClosureMetadata(details, openEdges, icebergOccupancy));
 
   const sequenceMap = new Map(sequences.map((item) => [item.identity, item]));
   const requiredSequences = [...new Set(sequenceIdentities)].sort((left, right) => left.localeCompare(right, "en"));
@@ -547,10 +627,13 @@ function evaluateTargetCompatibility(details, outputs) {
 
 function governedPreflightDetails(preflight, outputs, expectedCandidate) {
   const details = preflightDetails.get(preflight);
+  const expectedQueries = expectedCandidate === "SUPABASE_ADMIN"
+    ? RESTORE_EXECUTOR_CANDIDATE_QUERY_NAMES
+    : RESTORE_EXECUTE_PREFLIGHT_QUERY_NAMES;
   if (
     !details
     || details.executorCandidate !== expectedCandidate
-    || !exactObject(outputs, RESTORE_EXECUTE_PREFLIGHT_QUERY_NAMES)
+    || !exactObject(outputs, expectedQueries)
   ) fail("RECOVERY_RESTORE_EXECUTE_PREFLIGHT_OUTPUT_INVALID", "Complete governed restore execute preflight outputs are required");
   return details;
 }
@@ -577,7 +660,11 @@ export function evaluateSupabaseAdminRestoreExecutorPreflight({ preflight, outpu
   const replication = parseSupabaseAdminReplicationAuthority(outputs.replicationAuthority);
   if (!replication.currentUserIsSupabaseAdmin) finding("RECOVERY_RESTORE_EXECUTOR_IDENTITY_MISMATCH");
   if (!replication.canSetSessionReplicationRole) finding("RECOVERY_RESTORE_EXECUTOR_REPLICATION_ROLE_UNAUTHORIZED");
-  const compatibility = evaluateTargetCompatibility(details, outputs);
+  const occupancy = parseStorageIcebergClosureOccupancy(outputs.storageIcebergClosureOccupancy);
+  const compatibility = evaluateTargetCompatibility(details, outputs, Object.freeze({
+    ...occupancy,
+    visibilityVerified: replication.isSuperuser || replication.canBypassRls,
+  }));
   const result = Object.freeze({
     status: "PASS",
     phase: "RESTORE_EXECUTOR_PREFLIGHT",

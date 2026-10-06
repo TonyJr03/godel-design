@@ -88,6 +88,7 @@ function governedFinding(callback) {
 
 test("execute preflight queries are opaque, fixed SELECT-only handles", () => {
   const preflight = buildRestoreExecutePreflight({ restorePlan: restoreFixture() });
+  assert.equal(preflight.queryCount, 5);
   assert.deepEqual(Object.keys(preflight.queries), [...RESTORE_EXECUTE_PREFLIGHT_QUERY_NAMES]);
   for (const query of Object.values(preflight.queries)) {
     assert.deepEqual(Object.keys(query), ["name", "statementClass"]);
