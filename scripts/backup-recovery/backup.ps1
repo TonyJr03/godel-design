@@ -47,6 +47,32 @@ function Get-BackupRelativePath {
   return $resolvedName.Substring($directoryPrefix.Length).Replace("\", "/")
 }
 
+function Restore-SupabaseTempState {
+  param(
+    [Parameter(Mandatory = $true)]
+    [object]$State
+  )
+
+  if ($State.Captured -and -not $State.Restored) {
+    if (Test-Path -LiteralPath $State.TempPath) {
+      Remove-Item -LiteralPath $State.TempPath -Recurse -Force
+    }
+
+    if ($State.HadPrevious) {
+      Copy-Item -LiteralPath $State.BackupPath -Destination $State.TempPath -Recurse -Force
+    }
+
+    $State.Restored = $true
+  }
+
+  if (
+    -not [string]::IsNullOrWhiteSpace($State.BackupRoot) -and
+    (Test-Path -LiteralPath $State.BackupRoot)
+  ) {
+    Remove-Item -LiteralPath $State.BackupRoot -Recurse -Force
+  }
+}
+
 $bucketName = "godel-files"
 $sourceName = "godel-production"
 $currentStep = "PREFLIGHT"
@@ -57,6 +83,7 @@ $partialDirectory = $null
 $finalDirectory = $null
 $backupRootPrefix = $null
 $backupId = $null
+$linkState = $null
 
 try {
   $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\.."))
@@ -69,12 +96,24 @@ try {
     throw "ProjectRef is required."
   }
 
-  foreach ($variableName in @("SUPABASE_ACCESS_TOKEN", "SUPABASE_DB_PASSWORD")) {
+  foreach ($variableName in @(
+    "SUPABASE_ACCESS_TOKEN",
+    "SUPABASE_DB_PASSWORD",
+    "GODEL_PRODUCTION_PROJECT_REF"
+  )) {
     $variableValue = [Environment]::GetEnvironmentVariable($variableName, "Process")
     if ([string]::IsNullOrWhiteSpace($variableValue)) {
       throw "$variableName is required."
     }
     Remove-Variable variableValue
+  }
+
+  $productionProjectRef = [Environment]::GetEnvironmentVariable(
+    "GODEL_PRODUCTION_PROJECT_REF",
+    "Process"
+  )
+  if (-not [StringComparer]::Ordinal.Equals($ProjectRef, $productionProjectRef)) {
+    throw "ProjectRef does not match GODEL_PRODUCTION_PROJECT_REF."
   }
 
   $gitCommand = Get-Command git -ErrorAction Stop
@@ -131,12 +170,39 @@ try {
 
   $storageRoot = Join-Path $partialDirectory "storage"
   $storageDirectory = Join-Path $storageRoot $bucketName
-  New-Item -ItemType Directory -Path $storageDirectory -Force | Out-Null
+  New-Item -ItemType Directory -Path $storageRoot | Out-Null
+
+  $currentStep = "LINK STATE PRESERVE"
+  $supabaseTempPath = Join-Path $repoRoot "supabase\.temp"
+  $linkState = [PSCustomObject]@{
+    TempPath = $supabaseTempPath
+    BackupRoot = Join-Path (
+      [IO.Path]::GetTempPath()
+    ) ("godel-backup-link-state-" + [guid]::NewGuid().ToString("N"))
+    BackupPath = $null
+    HadPrevious = Test-Path -LiteralPath $supabaseTempPath
+    Captured = $false
+    Restored = $false
+  }
+  $linkState.BackupPath = Join-Path $linkState.BackupRoot "supabase-temp"
+  New-Item -ItemType Directory -Path $linkState.BackupRoot | Out-Null
+
+  if ($linkState.HadPrevious) {
+    Copy-Item -LiteralPath $linkState.TempPath -Destination $linkState.BackupPath -Recurse -Force
+  }
+  $linkState.Captured = $true
 
   $currentStep = "LINK"
-  Invoke-CheckedCommand -FilePath $npxCommand.Source -Arguments @(
-    "--no-install", "supabase", "link", "--project-ref", $ProjectRef
-  )
+  $savedDbPassword = [Environment]::GetEnvironmentVariable("SUPABASE_DB_PASSWORD", "Process")
+  try {
+    [Environment]::SetEnvironmentVariable("SUPABASE_DB_PASSWORD", $null, "Process")
+    Invoke-CheckedCommand -FilePath $npxCommand.Source -Arguments @(
+      "--no-install", "supabase", "link", "--project-ref", $ProjectRef
+    )
+  } finally {
+    [Environment]::SetEnvironmentVariable("SUPABASE_DB_PASSWORD", $savedDbPassword, "Process")
+    $savedDbPassword = $null
+  }
 
   $currentStep = "DATABASE"
   $dataPath = Join-Path $partialDirectory "data.sql"
@@ -163,6 +229,9 @@ try {
   if (-not (Test-Path -LiteralPath $storageDirectory -PathType Container)) {
     throw "Storage directory is missing."
   }
+
+  $currentStep = "LINK STATE RESTORE"
+  Restore-SupabaseTempState -State $linkState
 
   $currentStep = "MANIFEST"
   $manifest = [ordered]@{
@@ -250,6 +319,19 @@ try {
 
   [Console]::Error.WriteLine("BACKUP FAILED: " + $failureStep)
 } finally {
+  if ($null -ne $linkState) {
+    try {
+      Restore-SupabaseTempState -State $linkState
+    } catch {
+      if ($exitCode -eq 0) {
+        $exitCode = 1
+        [Console]::Error.WriteLine("BACKUP FAILED: LINK STATE RESTORE")
+      } else {
+        [Console]::Error.WriteLine("Supabase link state cleanup failed.")
+      }
+    }
+  }
+
   if ($locationPushed) {
     Pop-Location
   }

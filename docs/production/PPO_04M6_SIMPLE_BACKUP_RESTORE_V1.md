@@ -8,6 +8,8 @@
 
 **Simple Backup V1:** `IMPLEMENTED / PENDING REAL PRODUCTION BACKUP VALIDATION`
 
+**Real Production Backup #1:** `NOT AUTHORIZED`
+
 **Simple Restore V1:** `DESIGNED / NOT IMPLEMENTED`
 
 **Production restore:** `NOT AUTHORIZED`
@@ -210,11 +212,14 @@ El script:
    invocarse desde cualquier working directory;
 3. valida `git`, `npx.cmd` y la CLI local mediante
    `npx.cmd --no-install supabase`, sin instalar ni actualizar dependencias;
-4. exige `SUPABASE_ACCESS_TOKEN` y `SUPABASE_DB_PASSWORD` sin imprimirlos ni
-   persistirlos;
+4. exige como environment `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD` y
+   `GODEL_PRODUCTION_PROJECT_REF`, y comprueba antes de cualquier operación
+   remota que `ProjectRef` coincida exactamente con el project ref Productivo;
 5. comprueba o crea `BackupRoot` y crea un backup ID UTC con formato
    `GDBK-YYYYMMDDTHHMMSSZ`;
-6. enlaza el proyecto indicado mediante `supabase link --project-ref`;
+6. preserva `supabase/.temp` en un directorio temporal del sistema, ejecuta
+   `supabase link --project-ref` sin exponer `SUPABASE_DB_PASSWORD` al comando y
+   restaura inmediatamente el password process-local para el dump;
 7. construye `<backup-id>.partial` y falla si ya existe el directorio parcial
    o final;
 8. genera `data.sql` mediante
@@ -229,6 +234,11 @@ El script:
     `BackupRoot` sólo si todas las fases terminan correctamente;
 12. devuelve un código distinto de cero, no publica el nombre final y elimina
     preferentemente el parcial creado por la ejecución ante cualquier fallo.
+
+La restauración de `supabase/.temp` se ejecuta tanto en PASS como en FAIL. Si el
+repositorio tenía un vínculo previo, se repone exactamente ese estado; si no lo
+tenía, el script termina sin `.temp`. Así, el backup no deja el workspace
+enlazado a Production como efecto lateral.
 
 Los checksums SHA-256 se escriben en minúsculas, ordenados por ruta relativa
 con `/`, y cubren `data.sql`, `manifest.json` y todos los objetos físicos de
@@ -344,6 +354,7 @@ PPO-04M.6 = ACTIVE
 PPO-04M.6.0 = REVIEWED / CLOSED
 PPO-04M.6.1 = IMPLEMENTED / PENDING CODE REVIEW
 SIMPLE BACKUP V1 = IMPLEMENTED / PENDING REAL PRODUCTION BACKUP VALIDATION
+REAL PRODUCTION BACKUP #1 = NOT AUTHORIZED
 SIMPLE RESTORE V1 = DESIGNED / NOT IMPLEMENTED
 LEGACY COMPLEX RECOVERY HARNESS = FROZEN / NOT ACTIVE PATH
 DIAGNOSTIC #7 = CANCELLED
