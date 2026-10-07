@@ -2,12 +2,12 @@
 
 ## Metadatos
 
-- Actualización de estado: 2026-10-06
+- Actualización de estado: 2026-10-07
 
 - Proyecto: Godel Diseño
 - Estado: Activo
 - Fecha de creación: 2026-07-21
-- Última revisión: 2026-10-06
+- Última revisión: 2026-10-07
 - Responsable técnico: Dirección Técnica de Godel Diseño
 - Arquitectura y supervisión: Arquitectura Senior / Orquestación Técnica
 - Implementación: Agente Codex en VS Code
@@ -167,8 +167,10 @@ PPO-04M.5.3 queda `SUSPENDED / SUPERSEDED`: el harness complejo se congela como
 tooling experimental y deja de ser la ruta activa.
 
 PPO-04M.6 queda `ACTIVE` con M.6.0 `REVIEWED / CLOSED` y M.6.1
-`IMPLEMENTED / PENDING CODE REVIEW`. Simple Backup V1 permanece
-`PENDING REAL PRODUCTION BACKUP VALIDATION`; no se ha ejecutado un backup real.
+`REVIEWED / CLOSED`. Simple Backup V1 queda `REVIEWED / APPROVED / REAL
+PRODUCTION BACKUP VERIFIED`; Real Production Backup #3 quedó `PASS / ARTIFACT
+VERIFIED LOCALLY`.
+M.6.2 no ha comenzado y Production restore no está autorizado.
 El contrato vigente está en
 [PPO-04M.6 — Simple Backup / Restore V1](PPO_04M6_SIMPLE_BACKUP_RESTORE_V1.md).
 PPO-04 global continúa `ACTIVE / NEXT`; el Production pilot rollout permanece
@@ -2506,7 +2508,7 @@ Iceberg. La estrategia activa se define en
 | Bloque | Alcance | Estado |
 | --- | --- | --- |
 | PPO-04M.6.0 | Architecture Pivot / Documentation | `REVIEWED / CLOSED` |
-| PPO-04M.6.1 | Simple Backup V1 Implementation | `IMPLEMENTED / PENDING CODE REVIEW` |
+| PPO-04M.6.1 | Simple Backup V1 Implementation | `REVIEWED / CLOSED` |
 | PPO-04M.6.2 | Simple Restore V1 Implementation | `NOT STARTED` |
 | PPO-04M.6.3 | Real Backup + Managed Recovery Drill | `NOT STARTED` |
 | PPO-04M.6.4 | Operationalization / Retention / Optional Off-site Copy | `NOT STARTED` |

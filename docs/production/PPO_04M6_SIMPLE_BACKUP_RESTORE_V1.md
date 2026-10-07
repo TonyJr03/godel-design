@@ -4,19 +4,21 @@
 
 **Estado de PPO-04M.6.0:** `REVIEWED / CLOSED`
 
-**Estado de PPO-04M.6.1:** `IMPLEMENTED / PENDING REAL PRODUCTION BACKUP VALIDATION`
+**Estado de PPO-04M.6.1:** `REVIEWED / CLOSED`
 
-**Simple Backup V1:** `IMPLEMENTED / PENDING REAL PRODUCTION BACKUP VALIDATION`
+**Simple Backup V1:** `REVIEWED / APPROVED / REAL PRODUCTION BACKUP VERIFIED`
 
 **Real Production Backup #1:** `PREFLIGHT BLOCKED / NOT EXECUTED / ZERO REMOTE ACTIVITY`
 
 **Real Production Backup #2:** `SAFE FAIL / STORAGE WINDOWS PATH COMPATIBILITY`
 
+**Real Production Backup #3:** `PASS / ARTIFACT VERIFIED LOCALLY`
+
 **Simple Restore V1:** `DESIGNED / NOT IMPLEMENTED`
 
 **Production restore:** `NOT AUTHORIZED`
 
-**Fecha:** 2026-10-06
+**Fecha:** 2026-10-07
 
 ## 1. Objetivo y decisión arquitectónica
 
@@ -136,9 +138,12 @@ supabase storage cp ... -r --experimental
 ```
 
 `storage cp` es actualmente una capacidad experimental del Supabase CLI.
-PPO-04M.6.1 deberá validar el comando con la versión CLI usada por el proyecto
-antes de considerarlo operacional. Si funciona en el drill real, se utiliza sin
-diseñar un fallback complejo, un SDK propio ni capas adicionales.
+PPO-04M.6.1 validó operativamente el flujo con Supabase CLI 2.109.1 durante Real
+Production Backup #3: `storage ls` real terminó en `PASS`, el bucket vacío se
+clasificó correctamente y se creó `storage/godel-files/` vacío. El camino
+`storage cp` para un bucket no vacío quedó validado sintéticamente, todavía no
+con objetos Production reales. No se diseña un fallback complejo, un SDK propio
+ni capas adicionales.
 
 En Windows, el script ejecuta primero `storage ls` de forma read-only para
 distinguir un bucket vacío. Si no hay objetos, crea localmente
@@ -240,9 +245,11 @@ El script:
    `supabase db dump --linked --data-only --use-copy`, excluyendo
    `storage.buckets_vectors` y `storage.vector_indexes`, y comprueba que sea un
    archivo regular no vacío;
-9. descarga recursivamente `godel-files` mediante
-   `supabase storage cp ... -r --experimental --linked`, aceptando como válido
-   un bucket vacío si el comando termina correctamente;
+9. ejecuta `storage ls` recursivo; si el bucket está vacío, crea
+   `storage/godel-files/` vacío sin ejecutar `storage cp`; si contiene objetos,
+   ejecuta `supabase storage cp ... -r --experimental --linked` con el destino
+   relativo del workaround Windows aprobado; ambos caminos producen el mismo
+   layout contractual;
 10. genera el manifest mínimo y `checksums.sha256`;
 11. renombra el directorio parcial al nombre final dentro del mismo
     `BackupRoot` sólo si todas las fases terminan correctamente;
@@ -306,6 +313,46 @@ copiar objetos de Storage y no produjo mutaciones. Tanto el directorio parcial
 como el final del backup `GDBK-20261007T180643Z` quedaron ausentes tras el
 cleanup.
 
+### 5.2 Evidencia de Real Production Backup #3
+
+El artefacto final se validó independientemente de forma local y read-only, sin
+contactar Supabase, ejecutar SQL ni modificar el backup.
+
+```text
+REAL PRODUCTION BACKUP #3 =
+PASS / ARTIFACT VERIFIED LOCALLY
+
+BACKUP ID =
+GDBK-20261007T183337Z
+
+TOOLING SHA =
+7e412c501dace1181d17c30caa3b54cfa711ee91
+
+FINAL DIRECTORY = PRESENT
+PARTIAL DIRECTORY = ABSENT
+MANIFEST = PASS
+CHECKSUMS = PASS / 2 OF 2 FILES
+DATABASE ARTIFACT = PASS
+DATA.SQL BYTES = 44862
+COPY BLOCKS = 51
+CRITICAL COPY TARGETS = 10 OF 10 PRESENT
+SETVAL STATEMENTS = 1
+STORAGE DIRECTORY = PRESENT
+STORAGE FILE COUNT = 0
+STORAGE TOTAL BYTES = 0
+STORAGE = EMPTY / PASS
+SECRET LEAK CHECK = PASS
+SUPABASE_DB_PASSWORD LEAK = NO
+SUPABASE_ACCESS_TOKEN LEAK = NOT CONFIGURED
+
+REMOTE ACTIVITY DURING VALIDATION = 0
+PRODUCTION DB READS DURING VALIDATION = 0
+PRODUCTION STORAGE READS DURING VALIDATION = 0
+SQL EXECUTIONS DURING VALIDATION = 0
+PRODUCTION MUTATIONS DURING VALIDATION = 0
+PRODUCTION MUTATIONS = 0
+```
+
 ## 6. Contrato futuro de `restore.ps1`
 
 Ubicación prevista: `scripts/backup-recovery/restore.ps1`.
@@ -354,13 +401,13 @@ para demostrar que backup y restore funcionan.
 | Bloque | Alcance | Estado |
 | --- | --- | --- |
 | PPO-04M.6.0 | Architecture Pivot / Documentation | `REVIEWED / CLOSED` |
-| PPO-04M.6.1 | Simple Backup V1 Implementation | `IMPLEMENTED / PENDING REAL PRODUCTION BACKUP VALIDATION` |
+| PPO-04M.6.1 | Simple Backup V1 Implementation | `REVIEWED / CLOSED` |
 | PPO-04M.6.2 | Simple Restore V1 Implementation | `NOT STARTED` |
 | PPO-04M.6.3 | Real Backup + Managed Recovery Drill | `NOT STARTED` |
 | PPO-04M.6.4 | Operationalization / Retention / Optional Off-site Copy | `NOT STARTED` |
 
-PPO-04M.6.1 queda implementado y pendiente de validación mediante un backup
-Productivo real completo. PPO-04M.6.2 no ha comenzado.
+PPO-04M.6.1 queda revisado y cerrado, con Simple Backup V1 aprobado y el backup
+Productivo real verificado localmente. PPO-04M.6.2 no ha comenzado.
 
 ## 10. Cierre de Diagnostic #6
 
@@ -400,10 +447,11 @@ privileges ni el closure Iceberg.
 PPO-04M.5.3 = SUSPENDED / SUPERSEDED
 PPO-04M.6 = ACTIVE
 PPO-04M.6.0 = REVIEWED / CLOSED
-PPO-04M.6.1 = IMPLEMENTED / PENDING REAL PRODUCTION BACKUP VALIDATION
-SIMPLE BACKUP V1 = IMPLEMENTED / PENDING REAL PRODUCTION BACKUP VALIDATION
+PPO-04M.6.1 = REVIEWED / CLOSED
+SIMPLE BACKUP V1 = REVIEWED / APPROVED / REAL PRODUCTION BACKUP VERIFIED
 REAL PRODUCTION BACKUP #1 = PREFLIGHT BLOCKED / NOT EXECUTED / ZERO REMOTE ACTIVITY
 REAL PRODUCTION BACKUP #2 = SAFE FAIL / STORAGE WINDOWS PATH COMPATIBILITY
+REAL PRODUCTION BACKUP #3 = PASS / ARTIFACT VERIFIED LOCALLY
 SIMPLE RESTORE V1 = DESIGNED / NOT IMPLEMENTED
 LEGACY COMPLEX RECOVERY HARNESS = FROZEN / NOT ACTIVE PATH
 DIAGNOSTIC #7 = CANCELLED
