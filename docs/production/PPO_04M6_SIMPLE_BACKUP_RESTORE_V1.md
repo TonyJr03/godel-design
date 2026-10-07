@@ -4,11 +4,13 @@
 
 **Estado de PPO-04M.6.0:** `REVIEWED / CLOSED`
 
-**Estado de PPO-04M.6.1:** `IMPLEMENTED / PENDING CODE REVIEW`
+**Estado de PPO-04M.6.1:** `IMPLEMENTED / PENDING REAL PRODUCTION BACKUP VALIDATION`
 
 **Simple Backup V1:** `IMPLEMENTED / PENDING REAL PRODUCTION BACKUP VALIDATION`
 
 **Real Production Backup #1:** `PREFLIGHT BLOCKED / NOT EXECUTED / ZERO REMOTE ACTIVITY`
+
+**Real Production Backup #2:** `SAFE FAIL / STORAGE WINDOWS PATH COMPATIBILITY`
 
 **Simple Restore V1:** `DESIGNED / NOT IMPLEMENTED`
 
@@ -114,6 +116,12 @@ incluir:
 
 V1 no introduce un sistema propio de transformación SQL.
 
+Los warnings de `pg_dump` sobre foreign keys circulares en `perfiles`,
+`solicitudes` y `pedidos` son esperados y no bloquean el backup. El dump de
+datos generado por Supabase CLI 2.109.1 comienza con
+`SET session_replication_role = replica;`; la capacidad de restore de esas
+relaciones se validará en PPO-04M.6.2. V1 no añade `schema.sql` ni `roles.sql`.
+
 ### 3.2 `storage/godel-files/`
 
 El backup PostgreSQL no contiene los objetos físicos de Storage. El backup los
@@ -131,6 +139,13 @@ supabase storage cp ... -r --experimental
 PPO-04M.6.1 deberá validar el comando con la versión CLI usada por el proyecto
 antes de considerarlo operacional. Si funciona en el drill real, se utiliza sin
 diseñar un fallback complejo, un SDK propio ni capas adicionales.
+
+En Windows, el script ejecuta primero `storage ls` de forma read-only para
+distinguir un bucket vacío. Si no hay objetos, crea localmente
+`storage/godel-files/` vacío y no ejecuta `storage cp`. Si existen objetos,
+cambia temporalmente el working directory a `storage/` y ejecuta el CLI local
+versionado con `--workdir <repoRoot>`, origen `ss:///godel-files/` y destino
+relativo `godel-files`. No se pasa una ruta Windows absoluta como destino.
 
 La metadata de Storage permanece en el dump de datos PostgreSQL. El backup
 Productivo actual tiene Storage vacío, pero el contrato V1 contempla Storage no
@@ -268,6 +283,29 @@ Path: <ruta-final>
 
 R2, `age` y los diagnostics encadenados no son requisitos del backup V1.
 
+### 5.1 Evidencia de Real Production Backup #2
+
+```text
+REAL PRODUCTION BACKUP #1 =
+PREFLIGHT BLOCKED / NOT EXECUTED / ZERO REMOTE ACTIVITY
+
+REAL PRODUCTION BACKUP #2 =
+SAFE FAIL / STORAGE WINDOWS PATH COMPATIBILITY
+
+TOOLING SHA #2 =
+d07726c68a19e6f28f0e7b2b891ce14986b209b8
+
+LINK = PASS
+DATABASE DUMP = PASS
+STORAGE COPY = FAIL / WINDOWS ABSOLUTE DESTINATION PARSED AS URL SCHEME
+PRODUCTION MUTATIONS = 0
+```
+
+El intento #2 leyó Production para generar `data.sql`, pero falló antes de
+copiar objetos de Storage y no produjo mutaciones. Tanto el directorio parcial
+como el final del backup `GDBK-20261007T180643Z` quedaron ausentes tras el
+cleanup.
+
 ## 6. Contrato futuro de `restore.ps1`
 
 Ubicación prevista: `scripts/backup-recovery/restore.ps1`.
@@ -316,14 +354,13 @@ para demostrar que backup y restore funcionan.
 | Bloque | Alcance | Estado |
 | --- | --- | --- |
 | PPO-04M.6.0 | Architecture Pivot / Documentation | `REVIEWED / CLOSED` |
-| PPO-04M.6.1 | Simple Backup V1 Implementation | `IMPLEMENTED / PENDING CODE REVIEW` |
+| PPO-04M.6.1 | Simple Backup V1 Implementation | `IMPLEMENTED / PENDING REAL PRODUCTION BACKUP VALIDATION` |
 | PPO-04M.6.2 | Simple Restore V1 Implementation | `NOT STARTED` |
 | PPO-04M.6.3 | Real Backup + Managed Recovery Drill | `NOT STARTED` |
 | PPO-04M.6.4 | Operationalization / Retention / Optional Off-site Copy | `NOT STARTED` |
 
-PPO-04M.6.1 queda implementado y pendiente de revisión de código. Su resultado
-operativo permanece `PENDING REAL PRODUCTION BACKUP VALIDATION` hasta ejecutar
-un backup real autorizado. PPO-04M.6.2 no ha comenzado.
+PPO-04M.6.1 queda implementado y pendiente de validación mediante un backup
+Productivo real completo. PPO-04M.6.2 no ha comenzado.
 
 ## 10. Cierre de Diagnostic #6
 
@@ -363,9 +400,10 @@ privileges ni el closure Iceberg.
 PPO-04M.5.3 = SUSPENDED / SUPERSEDED
 PPO-04M.6 = ACTIVE
 PPO-04M.6.0 = REVIEWED / CLOSED
-PPO-04M.6.1 = IMPLEMENTED / PENDING CODE REVIEW
+PPO-04M.6.1 = IMPLEMENTED / PENDING REAL PRODUCTION BACKUP VALIDATION
 SIMPLE BACKUP V1 = IMPLEMENTED / PENDING REAL PRODUCTION BACKUP VALIDATION
 REAL PRODUCTION BACKUP #1 = PREFLIGHT BLOCKED / NOT EXECUTED / ZERO REMOTE ACTIVITY
+REAL PRODUCTION BACKUP #2 = SAFE FAIL / STORAGE WINDOWS PATH COMPATIBILITY
 SIMPLE RESTORE V1 = DESIGNED / NOT IMPLEMENTED
 LEGACY COMPLEX RECOVERY HARNESS = FROZEN / NOT ACTIVE PATH
 DIAGNOSTIC #7 = CANCELLED

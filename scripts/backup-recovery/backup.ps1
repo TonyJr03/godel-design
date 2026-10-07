@@ -23,6 +23,23 @@ function Invoke-CheckedCommand {
   }
 }
 
+function Invoke-CheckedCommandCapture {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$FilePath,
+
+    [Parameter(Mandatory = $true)]
+    [string[]]$Arguments
+  )
+
+  $output = @(& $FilePath @Arguments 2>$null)
+  if ($LASTEXITCODE -ne 0) {
+    throw "Command failed."
+  }
+
+  return $output
+}
+
 function Get-BackupRelativePath {
   param(
     [Parameter(Mandatory = $true)]
@@ -160,6 +177,7 @@ $backupRootPrefix = $null
 $backupId = $null
 $linkState = $null
 $environmentState = $null
+$storageLocationPushed = $false
 
 try {
   $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\.."))
@@ -206,6 +224,10 @@ try {
 
   $gitCommand = Get-Command git -ErrorAction Stop
   $npxCommand = Get-Command npx.cmd -ErrorAction Stop
+  $supabaseCommandPath = Join-Path $repoRoot "node_modules\.bin\supabase.cmd"
+  if (-not (Test-Path -LiteralPath $supabaseCommandPath -PathType Leaf)) {
+    throw "The local Supabase CLI executable is unavailable."
+  }
 
   Push-Location -LiteralPath $repoRoot
   $locationPushed = $true
@@ -308,11 +330,38 @@ try {
   }
 
   $currentStep = "STORAGE"
-  Invoke-CheckedCommand -FilePath $npxCommand.Source -Arguments @(
-    "--no-install", "supabase", "storage", "cp",
-    "-r", ("ss:///" + $bucketName), $storageDirectory,
-    "--experimental", "--linked"
-  )
+  try {
+    Push-Location -LiteralPath $storageRoot
+    $storageLocationPushed = $true
+
+    $storageListOutput = @(
+      Invoke-CheckedCommandCapture -FilePath $supabaseCommandPath -Arguments @(
+        "--workdir", $repoRoot,
+        "--experimental",
+        "storage", "ls", ("ss:///" + $bucketName + "/"),
+        "-r", "--linked"
+      )
+    )
+    $storageHasObjects = @(
+      $storageListOutput | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }
+    ).Count -gt 0
+
+    if ($storageHasObjects) {
+      Invoke-CheckedCommand -FilePath $supabaseCommandPath -Arguments @(
+        "--workdir", $repoRoot,
+        "--experimental",
+        "storage", "cp", ("ss:///" + $bucketName + "/"), $bucketName,
+        "-r", "--linked"
+      )
+    } else {
+      New-Item -ItemType Directory -Path $bucketName | Out-Null
+    }
+  } finally {
+    if ($storageLocationPushed) {
+      Pop-Location
+      $storageLocationPushed = $false
+    }
+  }
 
   if (-not (Test-Path -LiteralPath $storageDirectory -PathType Container)) {
     throw "Storage directory is missing."
@@ -410,6 +459,11 @@ try {
 
   [Console]::Error.WriteLine("BACKUP FAILED: " + $failureStep)
 } finally {
+  if ($storageLocationPushed) {
+    Pop-Location
+    $storageLocationPushed = $false
+  }
+
   if ($null -ne $linkState) {
     try {
       Restore-SupabaseTempState -State $linkState
