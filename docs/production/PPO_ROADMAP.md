@@ -170,12 +170,14 @@ PPO-04M.6 queda `ACTIVE` con M.6.0 `REVIEWED / CLOSED` y M.6.1
 `REVIEWED / CLOSED`. Simple Backup V1 queda `REVIEWED / APPROVED / REAL
 PRODUCTION BACKUP VERIFIED`; Real Production Backup #3 quedó `PASS / ARTIFACT
 VERIFIED LOCALLY`.
-M.6.2 queda `REVIEWED / CODE COMPLETE`; Simple Restore V1 queda `REVIEWED /
-APPROVED TOOLING / NOT YET REAL-DRILLED`. M.6.3 continúa `NOT STARTED`, el Real
-Managed Recovery Drill sigue `NOT YET EXECUTED` y Production restore no está
-autorizado. El restore automático aplica migrations, datos y Storage, pero no
-ejecuta `supabase config push` porque la configuración versionada contiene URLs
-localhost de desarrollo.
+M.6.2 queda `REVIEWED / CODE COMPLETE`; Simple Restore V1 queda `REVIEWED TOOLING
+/ REAL-DRILL CORRECTION IN PROGRESS`. M.6.3 queda `ACTIVE`: Drill #1 falló en
+preflight con cero actividad remota y Drill #2 terminó con outcome ambiguo de
+`db push`, aunque la verificación read-only confirmó migrations 01–06 committed.
+Data y Storage restore no se ejecutaron y el target quedó failed/disposable.
+Production restore no está autorizado. El restore automático aplica migrations,
+datos y Storage, pero no ejecuta `supabase config push` porque la configuración
+versionada contiene URLs localhost de desarrollo.
 El contrato vigente está en
 [PPO-04M.6 — Simple Backup / Restore V1](PPO_04M6_SIMPLE_BACKUP_RESTORE_V1.md).
 PPO-04 global continúa `ACTIVE / NEXT`; el Production pilot rollout permanece
@@ -2515,5 +2517,5 @@ Iceberg. La estrategia activa se define en
 | PPO-04M.6.0 | Architecture Pivot / Documentation | `REVIEWED / CLOSED` |
 | PPO-04M.6.1 | Simple Backup V1 Implementation | `REVIEWED / CLOSED` |
 | PPO-04M.6.2 | Simple Restore V1 Implementation | `REVIEWED / CODE COMPLETE` |
-| PPO-04M.6.3 | Real Backup + Managed Recovery Drill | `NOT STARTED` |
+| PPO-04M.6.3 | Real Backup + Managed Recovery Drill | `ACTIVE` |
 | PPO-04M.6.4 | Operationalization / Retention / Optional Off-site Copy | `NOT STARTED` |

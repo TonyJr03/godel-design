@@ -180,6 +180,7 @@ if "%GODEL_RESTORE_PSQL_PHASE%"=="SEED_SAFETY" goto seed_safety\r
 if "%GODEL_RESTORE_PSQL_PHASE%"=="SEED_CLEANUP" goto seed_cleanup\r
 if "%GODEL_RESTORE_PSQL_PHASE%"=="DATABASE_RESTORE" goto database_restore\r
 if "%GODEL_RESTORE_PSQL_PHASE%"=="DATABASE_COUNTS" goto database_counts\r
+if "%GODEL_RESTORE_PSQL_PHASE%"=="DB_PUSH_RECONCILIATION" goto reconciliation\r
 if "%GODEL_RESTORE_PSQL_PHASE%"=="MIGRATIONS" goto migrations\r
 if "%GODEL_RESTORE_PSQL_PHASE%"=="BUCKET" goto bucket\r
 exit /b 1\r
@@ -226,6 +227,17 @@ echo storage.buckets^|1\r
 echo storage.objects^|0\r
 echo private.internal_user_creation_audit^|0\r
 echo private.internal_user_password_reset_audit^|0\r
+exit /b 0\r
+:reconciliation\r
+if "%GODEL_STUB_RECONCILIATION_MODE%"=="fail" exit /b 1\r
+echo 20260811131824\r
+echo 20260811131825\r
+echo 20260811131826\r
+if "%GODEL_STUB_RECONCILIATION_MODE%"=="partial" exit /b 0\r
+echo 20260811131827\r
+echo 20260811131828\r
+echo 20260811131829\r
+if "%GODEL_STUB_RECONCILIATION_MODE%"=="unexpected" echo 20991231235959\r
 exit /b 0\r
 :migrations\r
 echo 20260811131824\r
@@ -424,6 +436,8 @@ test("Simple Restore V1 synthetic contract", async (context) => {
       assert.equal(state.cwdRestored, true);
       const log = await readFile(logPath, "utf8");
       assert.match(log, /NPX --no-install supabase --yes db push --linked/u, result.stderr);
+      assert.equal((log.match(/NPX --no-install supabase --yes db push --linked/gu) ?? []).length, 1);
+      assert.doesNotMatch(log, /PSQL_PHASE \[DB_PUSH_RECONCILIATION\]/u);
       assert.doesNotMatch(log, /storage cp/u);
       assert.doesNotMatch(log, /PINNED_SUPABASE/u);
       assert.doesNotMatch(log, new RegExp(syntheticPassword.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));
@@ -520,23 +534,118 @@ test("Simple Restore V1 synthetic contract", async (context) => {
       assert.doesNotMatch(log, /SEED_CLEANUP/u);
     });
 
-    await context.test("db push failure marks the synthetic run failed", async () => {
-      const backupPath = await createBackup(path.join(temporaryRoot, "db-push"), currentHead);
+    await context.test("nonzero db push with exact migrations is reconciled", async () => {
+      const backupPath = await createBackup(path.join(temporaryRoot, "db-push-reconciled"), currentHead);
       const result = await runRestore(
         backupPath,
         { GODEL_STUB_DB_PUSH_FAIL: "1" },
         { dotSource: true },
       );
+      assert.equal(result.status, 0, result.stderr);
+      const state = JSON.parse(await readFile(reportPath, "utf8"));
+      assert.equal(state.environmentRestored, true);
+      assert.equal(state.cwdRestored, true);
+      const log = await readFile(logPath, "utf8");
+      assert.equal((log.match(/NPX --no-install supabase --yes db push --linked/gu) ?? []).length, 1);
+      assert.match(log, /DB_PUSH_DB_PASSWORD_OK/u);
+      assert.match(log, /PSQL_PHASE \[DB_PUSH_RECONCILIATION\]/u);
+      assert.match(log, /PSQL_PHASE \[SEED_SAFETY\]/u);
+      assert.match(log, /PSQL_PHASE \[DATABASE_RESTORE\]/u);
+      assert.doesNotMatch(log, /SECRET_ENV_LEAK/u);
+      assert.doesNotMatch(log, /SUPABASE_DB_PASSWORD_MISMATCH/u);
+      assert.doesNotMatch(log, /SUPABASE_DB_PASSWORD_SCOPE_LEAK/u);
+      assert.doesNotMatch(log, /PGPASSWORD_MISMATCH/u);
+      assert.doesNotMatch(log, new RegExp(syntheticPassword.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));
+    });
+
+    await context.test("nonzero db push with partial migrations fails closed", async () => {
+      const backupPath = await createBackup(
+        path.join(temporaryRoot, "db-push-partial"),
+        currentHead,
+        { nonEmptyStorage: true },
+      );
+      const result = await runRestore(
+        backupPath,
+        {
+          GODEL_STUB_DB_PUSH_FAIL: "1",
+          GODEL_STUB_RECONCILIATION_MODE: "partial",
+        },
+        { dotSource: true },
+      );
       assert.equal(result.status, 1, result.stderr);
+      assert.match(result.stderr, /RESTORE FAILED: DB PUSH RECONCILIATION/u);
+      assert.match(result.stderr, /DB push: FAIL \/ UNRECONCILED/u);
       assert.match(result.stderr, /Target: FAILED \/ DISPOSABLE/u);
       const state = JSON.parse(await readFile(reportPath, "utf8"));
       assert.equal(state.environmentRestored, true);
       assert.equal(state.cwdRestored, true);
       const log = await readFile(logPath, "utf8");
-      assert.match(log, /--yes db push --linked/u, result.stderr);
+      assert.equal((log.match(/NPX --no-install supabase --yes db push --linked/gu) ?? []).length, 1);
       assert.match(log, /DB_PUSH_DB_PASSWORD_OK/u);
-      assert.doesNotMatch(log, /SECRET_ENV_LEAK/u);
-      assert.doesNotMatch(log, /SUPABASE_DB_PASSWORD_MISMATCH/u);
+      assert.match(log, /PSQL_PHASE \[DB_PUSH_RECONCILIATION\]/u);
+      assert.doesNotMatch(log, /PSQL_PHASE \[SEED_SAFETY\]/u);
+      assert.doesNotMatch(log, /PSQL_PHASE \[DATABASE_RESTORE\]/u);
+      assert.doesNotMatch(log, /storage cp/u);
+      assert.doesNotMatch(log, /SUPABASE_DB_PASSWORD_SCOPE_LEAK/u);
+      assert.doesNotMatch(log, /PGPASSWORD_MISMATCH/u);
+    });
+
+    await context.test("nonzero db push with an unexpected migration fails closed", async () => {
+      const backupPath = await createBackup(
+        path.join(temporaryRoot, "db-push-unexpected"),
+        currentHead,
+        { nonEmptyStorage: true },
+      );
+      const result = await runRestore(
+        backupPath,
+        {
+          GODEL_STUB_DB_PUSH_FAIL: "1",
+          GODEL_STUB_RECONCILIATION_MODE: "unexpected",
+        },
+        { dotSource: true },
+      );
+      assert.equal(result.status, 1, result.stderr);
+      assert.match(result.stderr, /RESTORE FAILED: DB PUSH RECONCILIATION/u);
+      const state = JSON.parse(await readFile(reportPath, "utf8"));
+      assert.equal(state.environmentRestored, true);
+      assert.equal(state.cwdRestored, true);
+      const log = await readFile(logPath, "utf8");
+      assert.equal((log.match(/NPX --no-install supabase --yes db push --linked/gu) ?? []).length, 1);
+      assert.match(log, /DB_PUSH_DB_PASSWORD_OK/u);
+      assert.doesNotMatch(log, /PSQL_PHASE \[SEED_SAFETY\]/u);
+      assert.doesNotMatch(log, /PSQL_PHASE \[DATABASE_RESTORE\]/u);
+      assert.doesNotMatch(log, /storage cp/u);
+      assert.doesNotMatch(log, /SUPABASE_DB_PASSWORD_SCOPE_LEAK/u);
+      assert.doesNotMatch(log, /PGPASSWORD_MISMATCH/u);
+    });
+
+    await context.test("db push reconciliation query failure fails closed", async () => {
+      const backupPath = await createBackup(
+        path.join(temporaryRoot, "db-push-query-failure"),
+        currentHead,
+        { nonEmptyStorage: true },
+      );
+      const result = await runRestore(
+        backupPath,
+        {
+          GODEL_STUB_DB_PUSH_FAIL: "1",
+          GODEL_STUB_RECONCILIATION_MODE: "fail",
+        },
+        { dotSource: true },
+      );
+      assert.equal(result.status, 1, result.stderr);
+      assert.match(result.stderr, /RESTORE FAILED: DB PUSH RECONCILIATION/u);
+      const state = JSON.parse(await readFile(reportPath, "utf8"));
+      assert.equal(state.environmentRestored, true);
+      assert.equal(state.cwdRestored, true);
+      const log = await readFile(logPath, "utf8");
+      assert.equal((log.match(/NPX --no-install supabase --yes db push --linked/gu) ?? []).length, 1);
+      assert.match(log, /DB_PUSH_DB_PASSWORD_OK/u);
+      assert.doesNotMatch(log, /PSQL_PHASE \[SEED_SAFETY\]/u);
+      assert.doesNotMatch(log, /PSQL_PHASE \[DATABASE_RESTORE\]/u);
+      assert.doesNotMatch(log, /storage cp/u);
+      assert.doesNotMatch(log, /SUPABASE_DB_PASSWORD_SCOPE_LEAK/u);
+      assert.doesNotMatch(log, /PGPASSWORD_MISMATCH/u);
     });
 
     await context.test("psql restore failure stops before Storage and restores state", async () => {

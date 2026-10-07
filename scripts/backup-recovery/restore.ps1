@@ -505,6 +505,48 @@ function Invoke-Psql {
   }
 }
 
+function Invoke-DbPush {
+  param([Parameter(Mandatory = $true)][string]$NpxPath)
+
+  $null = @(& $NpxPath "--no-install" "supabase" "--yes" "db" "push" "--linked" 2>$null)
+  return [int]$LASTEXITCODE
+}
+
+function Get-RegisteredMigrationVersions {
+  param(
+    [Parameter(Mandatory = $true)][string]$PsqlPath,
+    [Parameter(Mandatory = $true)][string]$Phase
+  )
+
+  $migrationSql = @'
+SELECT version FROM supabase_migrations.schema_migrations ORDER BY version;
+'@
+  return @(
+    Invoke-Psql -PsqlPath $PsqlPath -Phase $Phase -Arguments @(
+      "--no-psqlrc", "--tuples-only", "--no-align", "--variable", "ON_ERROR_STOP=1",
+      "--command", $migrationSql
+    ) | ForEach-Object { ([string]$_).Trim() } |
+      Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+  )
+}
+
+function Test-ExpectedMigrationSet {
+  param(
+    [Parameter(Mandatory = $true)][string[]]$RegisteredVersions,
+    [Parameter(Mandatory = $true)][string[]]$ExpectedVersions
+  )
+
+  if ($RegisteredVersions.Count -ne $ExpectedVersions.Count) {
+    return $false
+  }
+  for ($index = 0; $index -lt $ExpectedVersions.Count; $index++) {
+    if ($RegisteredVersions[$index] -cne $ExpectedVersions[$index]) {
+      return $false
+    }
+  }
+  return $true
+}
+
 function ConvertTo-KeyValueMap {
   param([Parameter(Mandatory = $true)][object[]]$Lines)
 
@@ -598,6 +640,7 @@ $repoLocationPushed = $false
 $storageLocationPushed = $false
 $backup = $null
 $storageStatus = $null
+$dbPushStatus = $null
 $targetDbPassword = $null
 $previousSupabaseDbPassword = $null
 
@@ -760,9 +803,7 @@ SELECT 'auth.users|' || count(*)::text FROM auth.users;
       $targetDbPassword,
       "Process"
     )
-    $null = Invoke-ExternalCommand -FilePath $npxCommand.Source -Arguments @(
-      "--no-install", "supabase", "--yes", "db", "push", "--linked"
-    )
+    $dbPushExitCode = Invoke-DbPush -NpxPath $npxCommand.Source
   } finally {
     [Environment]::SetEnvironmentVariable(
       "SUPABASE_DB_PASSWORD",
@@ -771,6 +812,24 @@ SELECT 'auth.users|' || count(*)::text FROM auth.users;
     )
     $previousSupabaseDbPassword = $null
     $targetDbPassword = $null
+  }
+
+  if ($dbPushExitCode -eq 0) {
+    $dbPushStatus = "OK"
+  } else {
+    $currentStep = "DB PUSH RECONCILIATION"
+    $registeredMigrationVersions = @(
+      Get-RegisteredMigrationVersions `
+        -PsqlPath $psqlCommand.Source `
+        -Phase "DB_PUSH_RECONCILIATION"
+    )
+    if (-not (Test-ExpectedMigrationSet `
+      -RegisteredVersions $registeredMigrationVersions `
+      -ExpectedVersions $migrationVersions
+    )) {
+      throw "DB push failed and the migration set could not be reconciled."
+    }
+    $dbPushStatus = "NONZERO / MIGRATIONS RECONCILED"
   }
 
   $currentStep = "SEED SAFETY"
@@ -886,23 +945,16 @@ SELECT 'private.internal_user_password_reset_audit|' || count(*)::text FROM priv
   }
 
   $currentStep = "MIGRATION VERIFICATION"
-  $migrationSql = @'
-SELECT version FROM supabase_migrations.schema_migrations ORDER BY version;
-'@
   $migrationOutput = @(
-    Invoke-Psql -PsqlPath $psqlCommand.Source -Phase "MIGRATIONS" -Arguments @(
-      "--no-psqlrc", "--tuples-only", "--no-align", "--variable", "ON_ERROR_STOP=1",
-      "--command", $migrationSql
-    ) | ForEach-Object { ([string]$_).Trim() } |
-      Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    Get-RegisteredMigrationVersions `
+      -PsqlPath $psqlCommand.Source `
+      -Phase "MIGRATIONS"
   )
-  if ($migrationOutput.Count -ne $migrationVersions.Count) {
+  if (-not (Test-ExpectedMigrationSet `
+    -RegisteredVersions $migrationOutput `
+    -ExpectedVersions $migrationVersions
+  )) {
     throw "The expected migration set is not registered."
-  }
-  for ($index = 0; $index -lt $migrationVersions.Count; $index++) {
-    if ($migrationOutput[$index] -cne $migrationVersions[$index]) {
-      throw "The expected migration set is not registered."
-    }
   }
 
   $currentStep = "BUCKET VERIFICATION"
@@ -967,11 +1019,15 @@ if ($exitCode -eq 0) {
   Write-Output ("Backup: " + $backup.BackupId)
   Write-Output "Target: VERIFIED DISPOSABLE TARGET"
   Write-Output "Schema: OK"
+  Write-Output ("DB push: " + $dbPushStatus)
   Write-Output "Database: OK"
   Write-Output "Database counts: OK"
   Write-Output ("Storage: " + $storageStatus)
 } else {
   [Console]::Error.WriteLine("RESTORE FAILED: " + $failureStep)
+  if ($failureStep -ceq "DB PUSH RECONCILIATION") {
+    [Console]::Error.WriteLine("DB push: FAIL / UNRECONCILED")
+  }
   if ($targetMutated) {
     [Console]::Error.WriteLine("Target: FAILED / DISPOSABLE")
   }

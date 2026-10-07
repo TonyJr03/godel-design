@@ -10,9 +10,13 @@
 
 **Estado de PPO-04M.6.2:** `REVIEWED / CODE COMPLETE`
 
-**Simple Restore V1:** `REVIEWED / APPROVED TOOLING / NOT YET REAL-DRILLED`
+**Simple Restore V1:** `REVIEWED TOOLING / REAL-DRILL CORRECTION IN PROGRESS`
 
-**Real Managed Recovery Drill:** `NOT YET EXECUTED`
+**Estado de PPO-04M.6.3:** `ACTIVE`
+
+**Real Managed Recovery Drill #1:** `FAIL / PREFLIGHT / PSQL_REQUIRED / ZERO REMOTE ACTIVITY`
+
+**Real Managed Recovery Drill #2:** `FAIL / AMBIGUOUS DB PUSH OUTCOME`
 
 **Real Production Backup #1:** `PREFLIGHT BLOCKED / NOT EXECUTED / ZERO REMOTE ACTIVITY`
 
@@ -378,10 +382,14 @@ El script:
    `db push`, con restauración inmediata del environment.
 6. Comprueba de forma read-only que el target es nuevo y disposable antes de
    permitir mutaciones.
-7. Ejecuta `npx.cmd --no-install supabase --yes db push --linked`, verifica que
-   no existan datos operativos y elimina únicamente los seeds de
-   `public.tipos_servicio` y el bucket `godel-files` dentro de una transacción
-   controlada.
+7. Ejecuta una sola vez `npx.cmd --no-install supabase --yes db push --linked`.
+   Un exit cero continúa normalmente. Ante exit no-cero no reintenta: consulta
+   read-only `supabase_migrations.schema_migrations` y sólo continúa como
+   `NONZERO / MIGRATIONS RECONCILED` si el conjunto ordenado coincide exactamente
+   con migrations 01–06; cualquier ausencia, versión inesperada o fallo de
+   consulta termina `FAIL / UNRECONCILED`. Después verifica que no existan datos
+   operativos y elimina únicamente los seeds de `public.tipos_servicio` y el
+   bucket `godel-files` dentro de una transacción controlada.
 8. Restaura `data.sql` mediante `psql --single-transaction` y
    `ON_ERROR_STOP=1`.
 9. Para Storage vacío no ejecuta upload; con objetos invoca directamente el
@@ -394,8 +402,10 @@ El script:
 
 V1 no acepta Production como target, no usa local/self-hosted como target
 principal, no promete compatibilidad arbitraria de schema y no crea una nueva
-cadena de diagnostics numerados. Un fallo posterior a `db push` marca el target
-como `FAILED / DISPOSABLE` y no intenta limpiarlo ni reutilizarlo.
+cadena de diagnostics numerados. El stderr de `db push` permanece suprimido en
+V1; la reconciliación read-only determina si el flujo puede continuar. Un
+outcome no reconciliado marca el target como `FAILED / DISPOSABLE` y no intenta
+limpiarlo ni reutilizarlo.
 
 ## 7. Verificación post-restore
 
@@ -429,12 +439,13 @@ para demostrar que backup y restore funcionan.
 | PPO-04M.6.0 | Architecture Pivot / Documentation | `REVIEWED / CLOSED` |
 | PPO-04M.6.1 | Simple Backup V1 Implementation | `REVIEWED / CLOSED` |
 | PPO-04M.6.2 | Simple Restore V1 Implementation | `REVIEWED / CODE COMPLETE` |
-| PPO-04M.6.3 | Real Backup + Managed Recovery Drill | `NOT STARTED` |
+| PPO-04M.6.3 | Real Backup + Managed Recovery Drill | `ACTIVE` |
 | PPO-04M.6.4 | Operationalization / Retention / Optional Off-site Copy | `NOT STARTED` |
 
 PPO-04M.6.1 queda revisado y cerrado, con Simple Backup V1 aprobado y el backup
-Productivo real verificado localmente. PPO-04M.6.2 queda revisado y code complete,
-con el tooling de Simple Restore V1 aprobado pero todavía sin drill Managed real.
+Productivo real verificado localmente. PPO-04M.6.2 queda revisado y code complete.
+PPO-04M.6.3 está activo mientras se corrige el outcome ambiguo observado en el
+segundo drill real.
 
 ## 10. Cierre de Diagnostic #6
 
@@ -468,7 +479,22 @@ No se determinó la causa raíz. La línea de trabajo se detuvo antes de
 instrumentar Diagnostic #7. Por tanto, no se afirma que fallaran sequences,
 privileges ni el closure Iceberg.
 
-## 11. Estado resultante
+## 11. Evidencia de Real Managed Recovery Drill #1 y #2
+
+Ambos drills utilizaron el execution SHA inmutable
+`7cb8bedf3f5a4611854c3f825924090e455afdee`. Drill #1 terminó en
+`FAIL / PREFLIGHT / PSQL_REQUIRED` sin actividad remota ni mutaciones. Después de
+instalar PostgreSQL client 17.11, Drill #2 alcanzó `db push`, devolvió exit 1 y el
+target quedó `FAILED / DISPOSABLE`.
+
+El diagnóstico posterior fue exclusivamente read-only. Confirmó la tabla
+`supabase_migrations.schema_migrations`, exactamente las versions 01–06, los
+objetos canónicos comprobados y el bucket `godel-files`. Además,
+`supabase --yes db push --dry-run --linked` informó que la base remota estaba al
+día con exit 0. No existe evidencia de fallo SQL de una migration; data restore
+y Storage restore no se ejecutaron. El stderr original no quedó disponible.
+
+## 12. Estado resultante
 
 ```text
 PPO-04M.5.3 = SUSPENDED / SUPERSEDED
@@ -480,9 +506,14 @@ REAL PRODUCTION BACKUP #1 = PREFLIGHT BLOCKED / NOT EXECUTED / ZERO REMOTE ACTIV
 REAL PRODUCTION BACKUP #2 = SAFE FAIL / STORAGE WINDOWS PATH COMPATIBILITY
 REAL PRODUCTION BACKUP #3 = PASS / ARTIFACT VERIFIED LOCALLY
 PPO-04M.6.2 = REVIEWED / CODE COMPLETE
-SIMPLE RESTORE V1 = REVIEWED / APPROVED TOOLING / NOT YET REAL-DRILLED
-PPO-04M.6.3 = NOT STARTED
-REAL MANAGED RECOVERY DRILL = NOT YET EXECUTED
+SIMPLE RESTORE V1 = REVIEWED TOOLING / REAL-DRILL CORRECTION IN PROGRESS
+PPO-04M.6.3 = ACTIVE
+REAL MANAGED RECOVERY DRILL #1 = FAIL / PREFLIGHT / PSQL_REQUIRED / ZERO REMOTE ACTIVITY
+REAL MANAGED RECOVERY DRILL #2 = FAIL / AMBIGUOUS DB PUSH OUTCOME
+DRILL #2 MIGRATIONS 01–06 = COMMITTED / VERIFIED
+DRILL #2 DATA RESTORE = NOT EXECUTED
+DRILL #2 STORAGE RESTORE = NOT EXECUTED
+DRILL #2 TARGET = FAILED / DISPOSABLE
 LEGACY COMPLEX RECOVERY HARNESS = FROZEN / NOT ACTIVE PATH
 DIAGNOSTIC #7 = CANCELLED
 OLD REAL RESTORE ATTEMPT #7 = CANCELLED UNDER LEGACY APPROACH
