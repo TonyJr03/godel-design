@@ -8,7 +8,7 @@
 
 **Simple Backup V1:** `IMPLEMENTED / PENDING REAL PRODUCTION BACKUP VALIDATION`
 
-**Real Production Backup #1:** `NOT AUTHORIZED`
+**Real Production Backup #1:** `PREFLIGHT BLOCKED / NOT EXECUTED / ZERO REMOTE ACTIVITY`
 
 **Simple Restore V1:** `DESIGNED / NOT IMPLEMENTED`
 
@@ -206,15 +206,14 @@ Ubicación: `scripts/backup-recovery/backup.ps1`.
 
 El script:
 
-1. acepta exclusivamente `-BackupRoot <path>` y
-   `-ProjectRef <supabase-project-ref>`;
+1. acepta exclusivamente `-BackupRoot <path>`;
 2. resuelve la raíz del repositorio desde `$PSScriptRoot`, por lo que puede
    invocarse desde cualquier working directory;
 3. valida `git`, `npx.cmd` y la CLI local mediante
    `npx.cmd --no-install supabase`, sin instalar ni actualizar dependencias;
-4. exige como environment `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD` y
-   `GODEL_PRODUCTION_PROJECT_REF`, y comprueba antes de cualquier operación
-   remota que `ProjectRef` coincida exactamente con el project ref Productivo;
+4. reutiliza `.env.managed.backup.local` del tooling Managed histórico con
+   precedencia `Process environment > archivo`, cargando sólo las variables de
+   Simple Backup V1;
 5. comprueba o crea `BackupRoot` y crea un backup ID UTC con formato
    `GDBK-YYYYMMDDTHHMMSSZ`;
 6. preserva `supabase/.temp` en un directorio temporal del sistema, ejecuta
@@ -239,6 +238,18 @@ La restauración de `supabase/.temp` se ejecuta tanto en PASS como en FAIL. Si e
 repositorio tenía un vínculo previo, se repone exactamente ese estado; si no lo
 tenía, el script termina sin `.temp`. Así, el backup no deja el workspace
 enlazado a Production como efecto lateral.
+
+El environment de Simple Backup V1 queda limitado a:
+
+- required: `GODEL_MANAGED_SUPABASE_PROJECT_REF` y `SUPABASE_DB_PASSWORD`;
+- optional: `SUPABASE_ACCESS_TOKEN`.
+
+`GODEL_MANAGED_SUPABASE_PROJECT_REF` debe cumplir `^[a-z0-9]{20}$` y es la
+fuente interna de `ProjectRef`. La ausencia de `SUPABASE_ACCESS_TOKEN` no
+bloquea el preflight: el Supabase CLI puede usar la sesión persistida por
+`supabase login`, y `supabase link` determina si existe autenticación válida.
+Las variables cargadas desde el archivo se restauran a su estado process-local
+previo tanto en PASS como en FAIL. Las variables legacy de R2 y `age` se ignoran.
 
 Los checksums SHA-256 se escriben en minúsculas, ordenados por ruta relativa
 con `/`, y cubren `data.sql`, `manifest.json` y todos los objetos físicos de
@@ -354,7 +365,7 @@ PPO-04M.6 = ACTIVE
 PPO-04M.6.0 = REVIEWED / CLOSED
 PPO-04M.6.1 = IMPLEMENTED / PENDING CODE REVIEW
 SIMPLE BACKUP V1 = IMPLEMENTED / PENDING REAL PRODUCTION BACKUP VALIDATION
-REAL PRODUCTION BACKUP #1 = NOT AUTHORIZED
+REAL PRODUCTION BACKUP #1 = PREFLIGHT BLOCKED / NOT EXECUTED / ZERO REMOTE ACTIVITY
 SIMPLE RESTORE V1 = DESIGNED / NOT IMPLEMENTED
 LEGACY COMPLEX RECOVERY HARNESS = FROZEN / NOT ACTIVE PATH
 DIAGNOSTIC #7 = CANCELLED

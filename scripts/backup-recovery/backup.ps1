@@ -2,11 +2,7 @@
 param(
   [Parameter(Mandatory = $true)]
   [ValidateNotNullOrEmpty()]
-  [string]$BackupRoot,
-
-  [Parameter(Mandatory = $true)]
-  [ValidateNotNullOrEmpty()]
-  [string]$ProjectRef
+  [string]$BackupRoot
 )
 
 Set-StrictMode -Version Latest
@@ -73,6 +69,85 @@ function Restore-SupabaseTempState {
   }
 }
 
+function Import-SimpleBackupEnvironment {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$FilePath,
+
+    [Parameter(Mandatory = $true)]
+    [string[]]$VariableNames,
+
+    [Parameter(Mandatory = $true)]
+    [hashtable]$PreviousState
+  )
+
+  if (-not (Test-Path -LiteralPath $FilePath -PathType Leaf)) {
+    return
+  }
+
+  $allowedNames = @{}
+  foreach ($variableName in $VariableNames) {
+    $allowedNames[$variableName] = $true
+  }
+
+  $fileValues = @{}
+  foreach ($line in (Get-Content -LiteralPath $FilePath -ErrorAction Stop)) {
+    $trimmedLine = $line.Trim()
+    if ([string]::IsNullOrWhiteSpace($trimmedLine) -or $trimmedLine.StartsWith("#")) {
+      continue
+    }
+
+    $separatorIndex = $trimmedLine.IndexOf("=")
+    if ($separatorIndex -lt 1) {
+      continue
+    }
+
+    $variableName = $trimmedLine.Substring(0, $separatorIndex).Trim()
+    if (-not $allowedNames.ContainsKey($variableName)) {
+      continue
+    }
+
+    $variableValue = $trimmedLine.Substring($separatorIndex + 1).Trim()
+    if ($variableValue.Length -ge 2) {
+      $firstCharacter = $variableValue.Substring(0, 1)
+      $lastCharacter = $variableValue.Substring($variableValue.Length - 1, 1)
+      if (
+        ($firstCharacter -eq '"' -and $lastCharacter -eq '"') -or
+        ($firstCharacter -eq "'" -and $lastCharacter -eq "'")
+      ) {
+        $variableValue = $variableValue.Substring(1, $variableValue.Length - 2)
+      }
+    }
+
+    $fileValues[$variableName] = $variableValue
+  }
+
+  foreach ($variableName in $VariableNames) {
+    if (-not $PreviousState[$variableName].Existed -and $fileValues.ContainsKey($variableName)) {
+      [Environment]::SetEnvironmentVariable($variableName, $fileValues[$variableName], "Process")
+    }
+  }
+}
+
+function Restore-ProcessEnvironment {
+  param(
+    [Parameter(Mandatory = $true)]
+    [hashtable]$PreviousState
+  )
+
+  foreach ($variableName in $PreviousState.Keys) {
+    if ($PreviousState[$variableName].Existed) {
+      [Environment]::SetEnvironmentVariable(
+        $variableName,
+        $PreviousState[$variableName].Value,
+        "Process"
+      )
+    } else {
+      [Environment]::SetEnvironmentVariable($variableName, $null, "Process")
+    }
+  }
+}
+
 $bucketName = "godel-files"
 $sourceName = "godel-production"
 $currentStep = "PREFLIGHT"
@@ -84,6 +159,7 @@ $finalDirectory = $null
 $backupRootPrefix = $null
 $backupId = $null
 $linkState = $null
+$environmentState = $null
 
 try {
   $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\.."))
@@ -92,15 +168,27 @@ try {
     throw "Repository root could not be resolved."
   }
 
-  if ([string]::IsNullOrWhiteSpace($ProjectRef)) {
-    throw "ProjectRef is required."
+  $environmentVariableNames = @(
+    "GODEL_MANAGED_SUPABASE_PROJECT_REF",
+    "SUPABASE_DB_PASSWORD",
+    "SUPABASE_ACCESS_TOKEN"
+  )
+  $processEnvironment = [Environment]::GetEnvironmentVariables("Process")
+  $environmentState = @{}
+  foreach ($variableName in $environmentVariableNames) {
+    $variableExisted = $processEnvironment.Contains($variableName)
+    $environmentState[$variableName] = [PSCustomObject]@{
+      Existed = $variableExisted
+      Value = if ($variableExisted) { [string]$processEnvironment[$variableName] } else { $null }
+    }
   }
 
-  foreach ($variableName in @(
-    "SUPABASE_ACCESS_TOKEN",
-    "SUPABASE_DB_PASSWORD",
-    "GODEL_PRODUCTION_PROJECT_REF"
-  )) {
+  Import-SimpleBackupEnvironment `
+    -FilePath (Join-Path $repoRoot ".env.managed.backup.local") `
+    -VariableNames $environmentVariableNames `
+    -PreviousState $environmentState
+
+  foreach ($variableName in @("GODEL_MANAGED_SUPABASE_PROJECT_REF", "SUPABASE_DB_PASSWORD")) {
     $variableValue = [Environment]::GetEnvironmentVariable($variableName, "Process")
     if ([string]::IsNullOrWhiteSpace($variableValue)) {
       throw "$variableName is required."
@@ -108,12 +196,12 @@ try {
     Remove-Variable variableValue
   }
 
-  $productionProjectRef = [Environment]::GetEnvironmentVariable(
-    "GODEL_PRODUCTION_PROJECT_REF",
+  $ProjectRef = [Environment]::GetEnvironmentVariable(
+    "GODEL_MANAGED_SUPABASE_PROJECT_REF",
     "Process"
   )
-  if (-not [StringComparer]::Ordinal.Equals($ProjectRef, $productionProjectRef)) {
-    throw "ProjectRef does not match GODEL_PRODUCTION_PROJECT_REF."
+  if ($ProjectRef -notmatch "^[a-z0-9]{20}$") {
+    throw "GODEL_MANAGED_SUPABASE_PROJECT_REF has an invalid format."
   }
 
   $gitCommand = Get-Command git -ErrorAction Stop
@@ -233,6 +321,9 @@ try {
   $currentStep = "LINK STATE RESTORE"
   Restore-SupabaseTempState -State $linkState
 
+  $currentStep = "ENVIRONMENT RESTORE"
+  Restore-ProcessEnvironment -PreviousState $environmentState
+
   $currentStep = "MANIFEST"
   $manifest = [ordered]@{
     formatVersion = 1
@@ -334,6 +425,19 @@ try {
 
   if ($locationPushed) {
     Pop-Location
+  }
+
+  if ($null -ne $environmentState) {
+    try {
+      Restore-ProcessEnvironment -PreviousState $environmentState
+    } catch {
+      if ($exitCode -eq 0) {
+        $exitCode = 1
+        [Console]::Error.WriteLine("BACKUP FAILED: ENVIRONMENT RESTORE")
+      } else {
+        [Console]::Error.WriteLine("Process environment restoration failed.")
+      }
+    }
   }
 }
 
