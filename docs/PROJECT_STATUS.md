@@ -33,8 +33,10 @@ privileges ni al closure Iceberg.
 PPO-04M.6 queda `ACTIVE`; PPO-04M.6.0 está `REVIEWED / CLOSED` y PPO-04M.6.1
 está `REVIEWED / CLOSED`. Simple Backup V1 queda `REVIEWED / APPROVED / REAL
 PRODUCTION BACKUP VERIFIED`, con Real Production Backup #3 `PASS / ARTIFACT
-VERIFIED LOCALLY`. PPO-04M.6.2 no ha comenzado y Production restore no está
-autorizado.
+VERIFIED LOCALLY`. PPO-04M.6.2 queda `REVIEWED / CODE COMPLETE` y Simple Restore
+V1 `REVIEWED / APPROVED TOOLING / NOT YET REAL-DRILLED`. PPO-04M.6.3 continúa
+`NOT STARTED`, el Real Managed Recovery Drill sigue `NOT YET EXECUTED` y
+Production restore no está autorizado.
 La estrategia canónica es
 [PPO-04M.6 — Simple Backup / Restore V1](production/PPO_04M6_SIMPLE_BACKUP_RESTORE_V1.md):
 Git conserva la autoridad de schema/código y el backup conserva los datos
@@ -143,7 +145,8 @@ una migración nueva `07+`.
 | PPO-04M.6 | `ACTIVE` |
 | PPO-04M.6.0 | `REVIEWED / CLOSED` |
 | PPO-04M.6.1 | `REVIEWED / CLOSED` |
-| PPO-04M.6.2–PPO-04M.6.4 | `NOT STARTED` |
+| PPO-04M.6.2 | `REVIEWED / CODE COMPLETE` |
+| PPO-04M.6.3–PPO-04M.6.4 | `NOT STARTED` |
 | PPO-04M.7 | `NOT STARTED` |
 | PPO-05 | `PENDING` — seguridad pública/antiabuso |
 | PPO-06 | `PENDING` — backup/recovery managed |
@@ -212,6 +215,10 @@ PPO-04M.6.0 = REVIEWED / CLOSED
 PPO-04M.6.1 = REVIEWED / CLOSED
 SIMPLE BACKUP V1 = REVIEWED / APPROVED / REAL PRODUCTION BACKUP VERIFIED
 REAL PRODUCTION BACKUP #3 = PASS / ARTIFACT VERIFIED LOCALLY
+PPO-04M.6.2 = REVIEWED / CODE COMPLETE
+SIMPLE RESTORE V1 = REVIEWED / APPROVED TOOLING / NOT YET REAL-DRILLED
+PPO-04M.6.3 = NOT STARTED
+REAL MANAGED RECOVERY DRILL = NOT YET EXECUTED
 REAL RESTORE ATTEMPT #1 = FAIL / PREFLIGHT OPERATOR CONFIGURATION
 REAL RESTORE ATTEMPT #2 = FAIL / SOURCE_VERIFY REAL BACKUP SQL DIALECT ADMISSION FINDING
 REAL RESTORE ATTEMPT #3 = NOT AUTHORIZED / PENDING FINAL DOCUMENTARY REVIEW
@@ -981,7 +988,7 @@ PPO-04M.0  arquitectura y gobernanza — CLOSED / APPROVED
 → PPO-04M.5.3  complex recovery harness — SUSPENDED / SUPERSEDED
 → PPO-04M.6.0  architecture pivot / documentation — REVIEWED / CLOSED
 → PPO-04M.6.1  Simple Backup V1 implementation — REVIEWED / CLOSED
-→ PPO-04M.6.2  Simple Restore V1 implementation — NOT STARTED
+→ PPO-04M.6.2  Simple Restore V1 implementation — REVIEWED / CODE COMPLETE
 → PPO-04M.6.3  real backup + managed recovery drill — NOT STARTED
 → PPO-04M.6.4  operationalization / retention / optional off-site copy — NOT STARTED
 → Production pilot rollout — NOT EXECUTED / SEQUENCING PENDING AFTER M.6

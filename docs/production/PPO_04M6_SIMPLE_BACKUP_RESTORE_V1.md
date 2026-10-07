@@ -8,13 +8,17 @@
 
 **Simple Backup V1:** `REVIEWED / APPROVED / REAL PRODUCTION BACKUP VERIFIED`
 
+**Estado de PPO-04M.6.2:** `REVIEWED / CODE COMPLETE`
+
+**Simple Restore V1:** `REVIEWED / APPROVED TOOLING / NOT YET REAL-DRILLED`
+
+**Real Managed Recovery Drill:** `NOT YET EXECUTED`
+
 **Real Production Backup #1:** `PREFLIGHT BLOCKED / NOT EXECUTED / ZERO REMOTE ACTIVITY`
 
 **Real Production Backup #2:** `SAFE FAIL / STORAGE WINDOWS PATH COMPATIBILITY`
 
 **Real Production Backup #3:** `PASS / ARTIFACT VERIFIED LOCALLY`
-
-**Simple Restore V1:** `DESIGNED / NOT IMPLEMENTED`
 
 **Production restore:** `NOT AUTHORIZED`
 
@@ -122,7 +126,8 @@ Los warnings de `pg_dump` sobre foreign keys circulares en `perfiles`,
 `solicitudes` y `pedidos` son esperados y no bloquean el backup. El dump de
 datos generado por Supabase CLI 2.109.1 comienza con
 `SET session_replication_role = replica;`; la capacidad de restore de esas
-relaciones se validará en PPO-04M.6.2. V1 no añade `schema.sql` ni `roles.sql`.
+relaciones queda implementada en PPO-04M.6.2 y pendiente del drill real. V1 no
+añade `schema.sql` ni `roles.sql`.
 
 ### 3.2 `storage/godel-files/`
 
@@ -206,19 +211,19 @@ de Auth y Storage de Supabase.
 ```text
 new Supabase Managed project
 → supabase link
+→ fresh-target verification
 → supabase db push
-→ supabase config push
+→ remove baseline seed rows
 → restore data.sql
 → restore Storage
-→ smoke verification
+→ read-only verification
 ```
 
-`supabase db push` aplica las migraciones del repositorio. El comando
-`supabase config push` aplica al proyecto enlazado la configuración versionada
-soportada desde `supabase/config.toml`. V1 no afirma que toda configuración
-existente en Supabase se reconstruya automáticamente cuando no está
-representada o no es configurable desde el repositorio. Secrets y credenciales
-permanecen fuera del backup.
+`supabase db push` aplica las migraciones del repositorio. Simple Restore V1 no
+ejecuta `supabase config push`: `supabase/config.toml` contiene URLs localhost
+propias del desarrollo y no es autoridad automática para configurar el target
+Managed. La configuración del proyecto queda explícita y fuera del restore
+automático de M.6.2. Secrets y credenciales permanecen fuera del backup.
 
 ## 5. Contrato implementado de `backup.ps1`
 
@@ -353,40 +358,61 @@ PRODUCTION MUTATIONS DURING VALIDATION = 0
 PRODUCTION MUTATIONS = 0
 ```
 
-## 6. Contrato futuro de `restore.ps1`
+## 6. Contrato implementado de `restore.ps1`
 
-Ubicación prevista: `scripts/backup-recovery/restore.ps1`.
+Ubicación: `scripts/backup-recovery/restore.ps1`.
 
-El script deberá:
+El script:
 
 1. Recibir explícitamente la carpeta de backup.
-2. Validar el manifest y los checksums.
-3. Exigir explícitamente un target Supabase Managed de recuperación.
-4. Impedir que el target sea el Production conocido.
-5. Aplicar o preparar el esquema del repositorio.
-6. Restaurar `data.sql`.
-7. Restaurar Storage.
-8. Ejecutar la verificación smoke.
-9. Finalizar con un resultado claro.
+2. Valida layout, manifest, checksums, sentencias de seguridad y targets `COPY`
+   antes de cualquier operación remota.
+3. Carga el target desde `.env.managed.restore.local`, exige
+   `ALLOW_DISPOSABLE_MANAGED_RESTORE` y bloquea el ProjectRef Productivo.
+4. Exige `psql`, Supabase CLI 2.109.1 y ausencia de drift en
+   `supabase/migrations/**`; `supabase/config.toml` no se restaura
+   automáticamente.
+5. Preserva `supabase/.temp`, enlaza el target sin password y obtiene la
+   conexión `psql` passwordless desde `pooler-url`; el password viaja como
+   `PGPASSWORD` para `psql` y como `SUPABASE_DB_PASSWORD` exclusivamente durante
+   `db push`, con restauración inmediata del environment.
+6. Comprueba de forma read-only que el target es nuevo y disposable antes de
+   permitir mutaciones.
+7. Ejecuta `npx.cmd --no-install supabase --yes db push --linked`, verifica que
+   no existan datos operativos y elimina únicamente los seeds de
+   `public.tipos_servicio` y el bucket `godel-files` dentro de una transacción
+   controlada.
+8. Restaura `data.sql` mediante `psql --single-transaction` y
+   `ON_ERROR_STOP=1`.
+9. Para Storage vacío no ejecuta upload; con objetos invoca directamente el
+   `node_modules/.bin/supabase.cmd` fijado por el repositorio y usa `storage cp`
+   recursivo con source relativo y el workaround Windows aprobado.
+10. Compara diez conteos del target con los bloques `COPY`, verifica migrations
+    01–06, el bucket y la inmutabilidad local del backup.
+11. Restaura link state, environment y working directory tanto en `PASS` como
+    en `FAIL`.
 
 V1 no acepta Production como target, no usa local/self-hosted como target
 principal, no promete compatibilidad arbitraria de schema y no crea una nueva
-cadena de diagnostics numerados.
+cadena de diagnostics numerados. Un fallo posterior a `db push` marca el target
+como `FAILED / DISPOSABLE` y no intenta limpiarlo ni reutilizarlo.
 
 ## 7. Verificación post-restore
 
 La verificación V1 es deliberadamente pequeña:
 
 ```text
-DATABASE RESTORE COMMAND = PASS
-CORE APPLICATION DATA = PRESENT
-AUTH LOGIN = PASS
-APPLICATION START / BASIC ACCESS = PASS
+DATABASE RESTORE = PASS
+DATABASE COUNTS = PASS
+MIGRATIONS 01-06 = PASS
+GODEL-FILES BUCKET = PRESENT
 STORAGE = PASS, cuando existan objetos
 STORAGE = EMPTY / PASS, cuando el backup sea legítimamente vacío
 ```
 
-No se crea un framework adicional de decenas de gates.
+No se crea un framework adicional de decenas de gates. El login real del
+usuario restaurado y el smoke de aplicación contra el target quedan para
+PPO-04M.6.3.
 
 ## 8. Off-site y cifrado
 
@@ -402,12 +428,13 @@ para demostrar que backup y restore funcionan.
 | --- | --- | --- |
 | PPO-04M.6.0 | Architecture Pivot / Documentation | `REVIEWED / CLOSED` |
 | PPO-04M.6.1 | Simple Backup V1 Implementation | `REVIEWED / CLOSED` |
-| PPO-04M.6.2 | Simple Restore V1 Implementation | `NOT STARTED` |
+| PPO-04M.6.2 | Simple Restore V1 Implementation | `REVIEWED / CODE COMPLETE` |
 | PPO-04M.6.3 | Real Backup + Managed Recovery Drill | `NOT STARTED` |
 | PPO-04M.6.4 | Operationalization / Retention / Optional Off-site Copy | `NOT STARTED` |
 
 PPO-04M.6.1 queda revisado y cerrado, con Simple Backup V1 aprobado y el backup
-Productivo real verificado localmente. PPO-04M.6.2 no ha comenzado.
+Productivo real verificado localmente. PPO-04M.6.2 queda revisado y code complete,
+con el tooling de Simple Restore V1 aprobado pero todavía sin drill Managed real.
 
 ## 10. Cierre de Diagnostic #6
 
@@ -452,7 +479,10 @@ SIMPLE BACKUP V1 = REVIEWED / APPROVED / REAL PRODUCTION BACKUP VERIFIED
 REAL PRODUCTION BACKUP #1 = PREFLIGHT BLOCKED / NOT EXECUTED / ZERO REMOTE ACTIVITY
 REAL PRODUCTION BACKUP #2 = SAFE FAIL / STORAGE WINDOWS PATH COMPATIBILITY
 REAL PRODUCTION BACKUP #3 = PASS / ARTIFACT VERIFIED LOCALLY
-SIMPLE RESTORE V1 = DESIGNED / NOT IMPLEMENTED
+PPO-04M.6.2 = REVIEWED / CODE COMPLETE
+SIMPLE RESTORE V1 = REVIEWED / APPROVED TOOLING / NOT YET REAL-DRILLED
+PPO-04M.6.3 = NOT STARTED
+REAL MANAGED RECOVERY DRILL = NOT YET EXECUTED
 LEGACY COMPLEX RECOVERY HARNESS = FROZEN / NOT ACTIVE PATH
 DIAGNOSTIC #7 = CANCELLED
 OLD REAL RESTORE ATTEMPT #7 = CANCELLED UNDER LEGACY APPROACH
