@@ -10,9 +10,11 @@
 
 **Estado de PPO-04M.6.2:** `REVIEWED / CODE COMPLETE`
 
-**Simple Restore V1:** `REVIEWED TOOLING / REAL-DRILL CORRECTION IN PROGRESS`
+**Simple Restore V1:** `REVIEWED / APPROVED / REAL MANAGED RECOVERY VERIFIED`
 
-**Estado de PPO-04M.6.3:** `ACTIVE`
+**Estado de PPO-04M.6.3:** `REVIEWED / CLOSED`
+
+**Estado de PPO-04M.6.4:** `NOT STARTED / NEXT`
 
 **Real Managed Recovery Drill #1:** `FAIL / PREFLIGHT / PSQL_REQUIRED / ZERO REMOTE ACTIVITY`
 
@@ -21,6 +23,8 @@
 **Real Managed Recovery Drill #3:** `FAIL / POWERSHELL NATIVE STDERR HANDLING`
 
 **Real Managed Recovery Drill #4:** `FAIL / STORAGE DIRECT DELETE PROTECTION AT SEED CLEANUP`
+
+**Real Managed Recovery Drill #5:** `PASS / STRUCTURAL + FUNCTIONAL RECOVERY VERIFIED`
 
 **Real Production Backup #1:** `PREFLIGHT BLOCKED / NOT EXECUTED / ZERO REMOTE ACTIVITY`
 
@@ -427,9 +431,9 @@ STORAGE = PASS, cuando existan objetos
 STORAGE = EMPTY / PASS, cuando el backup sea legítimamente vacío
 ```
 
-No se crea un framework adicional de decenas de gates. El login real del
-usuario restaurado y el smoke de aplicación contra el target quedan para
-PPO-04M.6.3.
+No se crea un framework adicional de decenas de gates. PPO-04M.6.3 validó el
+login real del usuario restaurado y el smoke de aplicación contra el target
+Managed recuperado.
 
 ## 8. Off-site y cifrado
 
@@ -446,13 +450,13 @@ para demostrar que backup y restore funcionan.
 | PPO-04M.6.0 | Architecture Pivot / Documentation | `REVIEWED / CLOSED` |
 | PPO-04M.6.1 | Simple Backup V1 Implementation | `REVIEWED / CLOSED` |
 | PPO-04M.6.2 | Simple Restore V1 Implementation | `REVIEWED / CODE COMPLETE` |
-| PPO-04M.6.3 | Real Backup + Managed Recovery Drill | `ACTIVE` |
-| PPO-04M.6.4 | Operationalization / Retention / Optional Off-site Copy | `NOT STARTED` |
+| PPO-04M.6.3 | Real Backup + Managed Recovery Drill | `REVIEWED / CLOSED` |
+| PPO-04M.6.4 | Operationalization / Retention / Optional Off-site Copy | `NOT STARTED / NEXT` |
 
 PPO-04M.6.1 queda revisado y cerrado, con Simple Backup V1 aprobado y el backup
 Productivo real verificado localmente. PPO-04M.6.2 queda revisado y code complete.
-PPO-04M.6.3 está activo mientras se corrige el manejo de stderr nativo observado
-en el tercer drill real.
+PPO-04M.6.3 queda revisado y cerrado por evidencia estructural y funcional del
+quinto drill real. PPO-04M.6.4 queda como siguiente bloque, todavía no iniciado.
 
 ## 10. Cierre de Diagnostic #6
 
@@ -486,9 +490,9 @@ No se determinó la causa raíz. La línea de trabajo se detuvo antes de
 instrumentar Diagnostic #7. Por tanto, no se afirma que fallaran sequences,
 privileges ni el closure Iceberg.
 
-## 11. Evidencia de Real Managed Recovery Drill #1, #2, #3 y #4
+## 11. Evidencia de Real Managed Recovery Drill #1–#5
 
-Ambos drills utilizaron el execution SHA inmutable
+Drills #1 y #2 utilizaron el execution SHA inmutable
 `7cb8bedf3f5a4611854c3f825924090e455afdee`. Drill #1 terminó en
 `FAIL / PREFLIGHT / PSQL_REQUIRED` sin actividad remota ni mutaciones. Después de
 instalar PostgreSQL client 17.11, Drill #2 alcanzó `db push`, devolvió exit 1 y el
@@ -517,6 +521,28 @@ real. Terminó `FAIL / STORAGE DIRECT DELETE PROTECTION AT SEED CLEANUP` porque
 Supabase Storage protegió el `DELETE` SQL directo del bucket. El target quedó
 `FAILED / DISPOSABLE`; data restore y Storage restore no se ejecutaron.
 
+Drill #5 utilizó el execution SHA inmutable
+`cc7895f0c59ea21b656d07ca7f47a116cada79ea`, el backup fuente
+`GDBK-20261007T183337Z` y un proyecto Supabase Managed nuevo y desechable. El
+restore terminó `RESTORE COMPLETE` con exit 0: `db push`, seed safety, seed
+cleanup, database restore, database counts, migrations 01–06, bucket
+`godel-files` y el camino `STORAGE = EMPTY / PASS` pasaron.
+
+La aceptación Auth posterior usó `.env.managed.qa.local` y las variables
+vigentes `GODEL_TEST_ADMIN_EMAIL` y `GODEL_TEST_ADMIN_PASSWORD`; las variables
+legacy `GODEL_MANAGED_TEST_ADMIN_*` no fueron autoridad. Tras confirmar que el
+target no era Production, el login restaurado y el perfil admin activo pasaron
+con exit 0.
+
+La aceptación de aplicación levantó Godel localmente contra el target Managed
+recuperado y ejecutó exclusivamente `tests/e2e/smoke.spec.ts` con Chromium y un
+worker. Pasaron `6 OF 6`, incluido login admin restaurado y dashboard, con
+actividad Productiva igual a cero.
+
+El backup tenía `STORAGE FILE COUNT = 0` y `STORAGE TOTAL BYTES = 0`. Por tanto,
+el camino real de Storage vacío queda verificado, pero no se afirma validación
+real de Storage no vacío ni de upload mediante `storage cp`.
+
 ## 12. Estado resultante
 
 ```text
@@ -529,8 +555,8 @@ REAL PRODUCTION BACKUP #1 = PREFLIGHT BLOCKED / NOT EXECUTED / ZERO REMOTE ACTIV
 REAL PRODUCTION BACKUP #2 = SAFE FAIL / STORAGE WINDOWS PATH COMPATIBILITY
 REAL PRODUCTION BACKUP #3 = PASS / ARTIFACT VERIFIED LOCALLY
 PPO-04M.6.2 = REVIEWED / CODE COMPLETE
-SIMPLE RESTORE V1 = REVIEWED TOOLING / REAL-DRILL CORRECTION IN PROGRESS
-PPO-04M.6.3 = ACTIVE
+SIMPLE RESTORE V1 = REVIEWED / APPROVED / REAL MANAGED RECOVERY VERIFIED
+PPO-04M.6.3 = REVIEWED / CLOSED
 REAL MANAGED RECOVERY DRILL #1 = FAIL / PREFLIGHT / PSQL_REQUIRED / ZERO REMOTE ACTIVITY
 REAL MANAGED RECOVERY DRILL #2 = FAIL / AMBIGUOUS DB PUSH OUTCOME
 DRILL #2 MIGRATIONS 01–06 = COMMITTED / VERIFIED
@@ -551,6 +577,28 @@ DRILL #4 DATA RESTORE = NOT EXECUTED
 DRILL #4 STORAGE RESTORE = NOT EXECUTED
 DRILL #4 TARGET = FAILED / DISPOSABLE
 WINDOWS POWERSHELL NATIVE STDERR FIX = REAL-DRILL VALIDATED
+REAL MANAGED RECOVERY DRILL #5 = PASS / STRUCTURAL + FUNCTIONAL RECOVERY VERIFIED
+DRILL #5 EXECUTION SHA = cc7895f0c59ea21b656d07ca7f47a116cada79ea
+DRILL #5 SOURCE BACKUP = GDBK-20261007T183337Z
+DRILL #5 STRUCTURAL RESTORE = PASS
+DRILL #5 AUTH LOGIN = PASS
+DRILL #5 RESTORED ADMIN PROFILE = PASS
+DRILL #5 APPLICATION SMOKE = PASS / 6 OF 6
+DRILL #5 TARGET = VERIFIED DISPOSABLE MANAGED RECOVERY TARGET
+RESTORED_AUTH_LOGIN = PASS
+RESTORED_ADMIN_PROFILE = PASS
+RECOVERY_AUTH_ACCEPTANCE = PASS
+RECOVERY_APPLICATION_SMOKE = PASS
+POWERSHELL_INVOKE_SUCCESS = True
+REAL_MANAGED_RECOVERY_DRILL_5_EXIT_CODE = 0
+RECOVERY_AUTH_ACCEPTANCE_EXIT_CODE = 0
+RECOVERY_APPLICATION_SMOKE_EXIT_CODE = 0
+FINAL_RECOVERY_APPLICATION_SMOKE_EXIT_CODE = 0
+PRODUCTION ACTIVITY DURING FUNCTIONAL ACCEPTANCE = 0
+STORAGE FILE COUNT = 0
+STORAGE TOTAL BYTES = 0
+CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY
+PPO-04M.6.4 = NOT STARTED / NEXT
 LEGACY COMPLEX RECOVERY HARNESS = FROZEN / NOT ACTIVE PATH
 DIAGNOSTIC #7 = CANCELLED
 OLD REAL RESTORE ATTEMPT #7 = CANCELLED UNDER LEGACY APPROACH

@@ -170,19 +170,16 @@ PPO-04M.6 queda `ACTIVE` con M.6.0 `REVIEWED / CLOSED` y M.6.1
 `REVIEWED / CLOSED`. Simple Backup V1 queda `REVIEWED / APPROVED / REAL
 PRODUCTION BACKUP VERIFIED`; Real Production Backup #3 quedó `PASS / ARTIFACT
 VERIFIED LOCALLY`.
-M.6.2 queda `REVIEWED / CODE COMPLETE`; Simple Restore V1 queda `REVIEWED TOOLING
-/ REAL-DRILL CORRECTION IN PROGRESS`. M.6.3 queda `ACTIVE`: Drill #1 falló en
-preflight con cero actividad remota y Drill #2 terminó con outcome ambiguo de
-`db push`, aunque la verificación read-only confirmó migrations 01–06 committed.
-Drill #3 terminó `FAIL / POWERSHELL NATIVE STDERR HANDLING`; la reconciliación
-estaba implementada pero no fue alcanzada, el target quedó `FAILED / DISPOSABLE`
-y no se ejecutaron data ni Storage restore. No se realizó diagnóstico remoto
-posterior para determinar el estado de las migrations en Drill #3. Drill #4
-atravesó `db push` y seed safety, validó en entorno real el fix de stderr nativo
-y terminó `FAIL / STORAGE DIRECT DELETE PROTECTION AT SEED CLEANUP`; data y
-Storage restore no se ejecutaron y el target quedó `FAILED / DISPOSABLE`.
-Production restore no está autorizado y TD-BACKUP-004 permanece `OPEN`. El
-restore automático aplica migrations, datos y Storage, pero no ejecuta
+M.6.2 queda `REVIEWED / CODE COMPLETE`; Simple Restore V1 queda `REVIEWED /
+APPROVED / REAL MANAGED RECOVERY VERIFIED`. M.6.3 queda `REVIEWED / CLOSED`.
+Se conserva el historial de hallazgos de Drills #1–#4. Drill #5 terminó `PASS /
+STRUCTURAL + FUNCTIONAL RECOVERY VERIFIED` sobre un target Managed nuevo y
+desechable: restore estructural, login Auth, perfil admin restaurado y smoke de
+aplicación `6 OF 6` pasaron sin actividad Productiva. M.6.4 queda `NOT STARTED /
+NEXT`. Production restore no está autorizado; el alcance real continúa `EMPTY
+STORAGE ONLY` porque el backup tenía cero archivos y cero bytes de Storage, y
+TD-BACKUP-004 permanece `OPEN`. El restore automático aplica migrations, datos
+y Storage, pero no ejecuta
 `supabase config push` porque la configuración versionada contiene URLs
 localhost de desarrollo.
 El contrato vigente está en
@@ -2524,5 +2521,5 @@ Iceberg. La estrategia activa se define en
 | PPO-04M.6.0 | Architecture Pivot / Documentation | `REVIEWED / CLOSED` |
 | PPO-04M.6.1 | Simple Backup V1 Implementation | `REVIEWED / CLOSED` |
 | PPO-04M.6.2 | Simple Restore V1 Implementation | `REVIEWED / CODE COMPLETE` |
-| PPO-04M.6.3 | Real Backup + Managed Recovery Drill | `ACTIVE` |
-| PPO-04M.6.4 | Operationalization / Retention / Optional Off-site Copy | `NOT STARTED` |
+| PPO-04M.6.3 | Real Backup + Managed Recovery Drill | `REVIEWED / CLOSED` |
+| PPO-04M.6.4 | Operationalization / Retention / Optional Off-site Copy | `NOT STARTED / NEXT` |

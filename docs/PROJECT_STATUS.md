@@ -34,15 +34,14 @@ PPO-04M.6 queda `ACTIVE`; PPO-04M.6.0 está `REVIEWED / CLOSED` y PPO-04M.6.1
 está `REVIEWED / CLOSED`. Simple Backup V1 queda `REVIEWED / APPROVED / REAL
 PRODUCTION BACKUP VERIFIED`, con Real Production Backup #3 `PASS / ARTIFACT
 VERIFIED LOCALLY`. PPO-04M.6.2 queda `REVIEWED / CODE COMPLETE` y Simple Restore
-V1 `REVIEWED TOOLING / REAL-DRILL CORRECTION IN PROGRESS`. PPO-04M.6.3 queda
-`ACTIVE`: Drill #1 falló en preflight sin actividad remota y Drill #2 dejó un
-outcome ambiguo de `db push`, con migrations 01–06 verificadas como committed.
-Drill #3 terminó `FAIL / POWERSHELL NATIVE STDERR HANDLING`: la reconciliación
-de `db push` estaba implementada pero no fue alcanzada, y no se realizó un
-diagnóstico remoto posterior sobre sus migrations. Drill #4 atravesó `db push`
-y seed safety, validando en entorno real el fix de stderr nativo, y terminó
-`FAIL / STORAGE DIRECT DELETE PROTECTION AT SEED CLEANUP`. Production restore
-no está autorizado y TD-BACKUP-004 permanece `OPEN`.
+V1 queda `REVIEWED / APPROVED / REAL MANAGED RECOVERY VERIFIED`. PPO-04M.6.3
+queda `REVIEWED / CLOSED`: tras los hallazgos conservados de Drills #1–#4,
+Drill #5 terminó `PASS / STRUCTURAL + FUNCTIONAL RECOVERY VERIFIED` sobre un
+target Managed nuevo y desechable. El restore estructural, el login Auth, el
+perfil admin restaurado y el smoke de aplicación `6 OF 6` pasaron sin actividad
+Productiva. PPO-04M.6.4 queda `NOT STARTED / NEXT`. Production restore no está
+autorizado; el alcance real de Storage sigue siendo `EMPTY STORAGE ONLY` y
+TD-BACKUP-004 permanece `OPEN`.
 La estrategia canónica es
 [PPO-04M.6 — Simple Backup / Restore V1](production/PPO_04M6_SIMPLE_BACKUP_RESTORE_V1.md):
 Git conserva la autoridad de schema/código y el backup conserva los datos
@@ -152,8 +151,8 @@ una migración nueva `07+`.
 | PPO-04M.6.0 | `REVIEWED / CLOSED` |
 | PPO-04M.6.1 | `REVIEWED / CLOSED` |
 | PPO-04M.6.2 | `REVIEWED / CODE COMPLETE` |
-| PPO-04M.6.3 | `ACTIVE` |
-| PPO-04M.6.4 | `NOT STARTED` |
+| PPO-04M.6.3 | `REVIEWED / CLOSED` |
+| PPO-04M.6.4 | `NOT STARTED / NEXT` |
 | PPO-04M.7 | `NOT STARTED` |
 | PPO-05 | `PENDING` — seguridad pública/antiabuso |
 | PPO-06 | `PENDING` — backup/recovery managed |
@@ -223,8 +222,8 @@ PPO-04M.6.1 = REVIEWED / CLOSED
 SIMPLE BACKUP V1 = REVIEWED / APPROVED / REAL PRODUCTION BACKUP VERIFIED
 REAL PRODUCTION BACKUP #3 = PASS / ARTIFACT VERIFIED LOCALLY
 PPO-04M.6.2 = REVIEWED / CODE COMPLETE
-SIMPLE RESTORE V1 = REVIEWED TOOLING / REAL-DRILL CORRECTION IN PROGRESS
-PPO-04M.6.3 = ACTIVE
+SIMPLE RESTORE V1 = REVIEWED / APPROVED / REAL MANAGED RECOVERY VERIFIED
+PPO-04M.6.3 = REVIEWED / CLOSED
 REAL MANAGED RECOVERY DRILL #1 = FAIL / PREFLIGHT / PSQL_REQUIRED / ZERO REMOTE ACTIVITY
 REAL MANAGED RECOVERY DRILL #2 = FAIL / AMBIGUOUS DB PUSH OUTCOME
 DRILL #2 MIGRATIONS 01–06 = COMMITTED / VERIFIED
@@ -245,6 +244,19 @@ DRILL #4 DATA RESTORE = NOT EXECUTED
 DRILL #4 STORAGE RESTORE = NOT EXECUTED
 DRILL #4 TARGET = FAILED / DISPOSABLE
 WINDOWS POWERSHELL NATIVE STDERR FIX = REAL-DRILL VALIDATED
+REAL MANAGED RECOVERY DRILL #5 = PASS / STRUCTURAL + FUNCTIONAL RECOVERY VERIFIED
+DRILL #5 EXECUTION SHA = cc7895f0c59ea21b656d07ca7f47a116cada79ea
+DRILL #5 SOURCE BACKUP = GDBK-20261007T183337Z
+DRILL #5 STRUCTURAL RESTORE = PASS
+DRILL #5 AUTH LOGIN = PASS
+DRILL #5 RESTORED ADMIN PROFILE = PASS
+DRILL #5 APPLICATION SMOKE = PASS / 6 OF 6
+DRILL #5 TARGET = VERIFIED DISPOSABLE MANAGED RECOVERY TARGET
+STORAGE FILE COUNT = 0
+STORAGE TOTAL BYTES = 0
+PRODUCTION ACTIVITY DURING FUNCTIONAL ACCEPTANCE = 0
+PRODUCTION RESTORE = NOT AUTHORIZED
+PPO-04M.6.4 = NOT STARTED / NEXT
 TD-BACKUP-004 = OPEN
 REAL RESTORE ATTEMPT #1 = FAIL / PREFLIGHT OPERATOR CONFIGURATION
 REAL RESTORE ATTEMPT #2 = FAIL / SOURCE_VERIFY REAL BACKUP SQL DIALECT ADMISSION FINDING
@@ -1016,8 +1028,8 @@ PPO-04M.0  arquitectura y gobernanza — CLOSED / APPROVED
 → PPO-04M.6.0  architecture pivot / documentation — REVIEWED / CLOSED
 → PPO-04M.6.1  Simple Backup V1 implementation — REVIEWED / CLOSED
 → PPO-04M.6.2  Simple Restore V1 implementation — REVIEWED / CODE COMPLETE
-→ PPO-04M.6.3  real backup + managed recovery drill — ACTIVE
-→ PPO-04M.6.4  operationalization / retention / optional off-site copy — NOT STARTED
+→ PPO-04M.6.3  real backup + managed recovery drill — REVIEWED / CLOSED
+→ PPO-04M.6.4  operationalization / retention / optional off-site copy — NOT STARTED / NEXT
 → Production pilot rollout — NOT EXECUTED / SEQUENCING PENDING AFTER M.6
 → LSH (futuro, no iniciado)
 ```
