@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Última actualización: 2026-10-07
+Última actualización: 2026-10-08
 
 ## Estado general
 
@@ -37,7 +37,10 @@ VERIFIED LOCALLY`. PPO-04M.6.2 queda `REVIEWED / CODE COMPLETE` y Simple Restore
 V1 `REVIEWED TOOLING / REAL-DRILL CORRECTION IN PROGRESS`. PPO-04M.6.3 queda
 `ACTIVE`: Drill #1 falló en preflight sin actividad remota y Drill #2 dejó un
 outcome ambiguo de `db push`, con migrations 01–06 verificadas como committed.
-Production restore no está autorizado.
+Drill #3 terminó `FAIL / POWERSHELL NATIVE STDERR HANDLING`: la reconciliación
+de `db push` estaba implementada pero no fue alcanzada, y no se realizó un
+diagnóstico remoto posterior sobre sus migrations. Production restore no está
+autorizado y TD-BACKUP-004 permanece `OPEN`.
 La estrategia canónica es
 [PPO-04M.6 — Simple Backup / Restore V1](production/PPO_04M6_SIMPLE_BACKUP_RESTORE_V1.md):
 Git conserva la autoridad de schema/código y el backup conserva los datos
@@ -226,6 +229,12 @@ DRILL #2 MIGRATIONS 01–06 = COMMITTED / VERIFIED
 DRILL #2 DATA RESTORE = NOT EXECUTED
 DRILL #2 STORAGE RESTORE = NOT EXECUTED
 DRILL #2 TARGET = FAILED / DISPOSABLE
+REAL MANAGED RECOVERY DRILL #3 = FAIL / POWERSHELL NATIVE STDERR HANDLING
+DRILL #3 TARGET = FAILED / DISPOSABLE
+DRILL #3 DATA RESTORE = NOT EXECUTED
+DRILL #3 STORAGE RESTORE = NOT EXECUTED
+DB PUSH RECONCILIATION = IMPLEMENTED / NOT REACHED IN DRILL #3
+TD-BACKUP-004 = OPEN
 REAL RESTORE ATTEMPT #1 = FAIL / PREFLIGHT OPERATOR CONFIGURATION
 REAL RESTORE ATTEMPT #2 = FAIL / SOURCE_VERIFY REAL BACKUP SQL DIALECT ADMISSION FINDING
 REAL RESTORE ATTEMPT #3 = NOT AUTHORIZED / PENDING FINAL DOCUMENTARY REVIEW

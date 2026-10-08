@@ -478,8 +478,16 @@ function Invoke-ExternalCommand {
     [Parameter(Mandatory = $true)][string[]]$Arguments
   )
 
-  $output = @(& $FilePath @Arguments 2>$null)
-  if ($LASTEXITCODE -ne 0) {
+  $previousErrorActionPreference = $ErrorActionPreference
+  try {
+    $ErrorActionPreference = "Continue"
+    $output = @(& $FilePath @Arguments 2>$null)
+    $nativeExitCode = [int]$LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+  }
+
+  if ($nativeExitCode -ne 0) {
     throw "External command failed."
   }
   return $output
@@ -508,8 +516,16 @@ function Invoke-Psql {
 function Invoke-DbPush {
   param([Parameter(Mandatory = $true)][string]$NpxPath)
 
-  $null = @(& $NpxPath "--no-install" "supabase" "--yes" "db" "push" "--linked" 2>$null)
-  return [int]$LASTEXITCODE
+  $previousErrorActionPreference = $ErrorActionPreference
+  try {
+    $ErrorActionPreference = "Continue"
+    $null = @(& $NpxPath "--no-install" "supabase" "--yes" "db" "push" "--linked" 2>$null)
+    $nativeExitCode = [int]$LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+  }
+
+  return $nativeExitCode
 }
 
 function Get-RegisteredMigrationVersions {

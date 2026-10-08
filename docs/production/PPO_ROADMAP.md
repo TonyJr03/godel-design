@@ -2,12 +2,12 @@
 
 ## Metadatos
 
-- Actualización de estado: 2026-10-07
+- Actualización de estado: 2026-10-08
 
 - Proyecto: Godel Diseño
 - Estado: Activo
 - Fecha de creación: 2026-07-21
-- Última revisión: 2026-10-07
+- Última revisión: 2026-10-08
 - Responsable técnico: Dirección Técnica de Godel Diseño
 - Arquitectura y supervisión: Arquitectura Senior / Orquestación Técnica
 - Implementación: Agente Codex en VS Code
@@ -174,10 +174,14 @@ M.6.2 queda `REVIEWED / CODE COMPLETE`; Simple Restore V1 queda `REVIEWED TOOLIN
 / REAL-DRILL CORRECTION IN PROGRESS`. M.6.3 queda `ACTIVE`: Drill #1 falló en
 preflight con cero actividad remota y Drill #2 terminó con outcome ambiguo de
 `db push`, aunque la verificación read-only confirmó migrations 01–06 committed.
-Data y Storage restore no se ejecutaron y el target quedó failed/disposable.
-Production restore no está autorizado. El restore automático aplica migrations,
-datos y Storage, pero no ejecuta `supabase config push` porque la configuración
-versionada contiene URLs localhost de desarrollo.
+Drill #3 terminó `FAIL / POWERSHELL NATIVE STDERR HANDLING`; la reconciliación
+estaba implementada pero no fue alcanzada, el target quedó `FAILED / DISPOSABLE`
+y no se ejecutaron data ni Storage restore. No se realizó diagnóstico remoto
+posterior para determinar el estado de las migrations en Drill #3. Production
+restore no está autorizado y TD-BACKUP-004 permanece `OPEN`. El restore
+automático aplica migrations, datos y Storage, pero no ejecuta
+`supabase config push` porque la configuración versionada contiene URLs
+localhost de desarrollo.
 El contrato vigente está en
 [PPO-04M.6 — Simple Backup / Restore V1](PPO_04M6_SIMPLE_BACKUP_RESTORE_V1.md).
 PPO-04 global continúa `ACTIVE / NEXT`; el Production pilot rollout permanece

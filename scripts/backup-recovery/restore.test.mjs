@@ -146,6 +146,8 @@ exit /b 0\r
 :link\r
 if not "%SUPABASE_DB_PASSWORD%"=="" goto link_db_password_leak\r
 echo LINK_DB_PASSWORD_ABSENT>>"%GODEL_STUB_LOG%"\r
+echo LINK_BENIGN_STDERR_EMITTED>>"%GODEL_STUB_LOG%"\r
+echo Linking to remote project... 1>&2\r
 if "%GODEL_STUB_LINK_FAIL%"=="1" exit /b 1\r
 if not exist "%GODEL_REPO_ROOT%\\supabase\\.temp" mkdir "%GODEL_REPO_ROOT%\\supabase\\.temp"\r
 >"%GODEL_REPO_ROOT%\\supabase\\.temp\\pooler-url" echo postgresql://synthetic_user@127.0.0.1:6543/postgres\r
@@ -156,6 +158,8 @@ exit /b 1\r
 :db_push\r
 if not "%SUPABASE_DB_PASSWORD%"=="%GODEL_STUB_EXPECT_DB_PASSWORD%" goto db_password_mismatch\r
 echo DB_PUSH_DB_PASSWORD_OK>>"%GODEL_STUB_LOG%"\r
+echo DB_PUSH_BENIGN_STDERR_EMITTED>>"%GODEL_STUB_LOG%"\r
+echo Connecting to remote database... 1>&2\r
 if "%GODEL_STUB_DB_PUSH_FAIL%"=="1" exit /b 1\r
 exit /b 0\r
 :db_password_mismatch\r
@@ -167,6 +171,8 @@ echo PINNED_SUPABASE CWD=[%CD%] ARGS=[%*]>>"%GODEL_STUB_LOG%"\r
 if not "%GODEL_RESTORE_CLI_PHASE%"=="STORAGE_UPLOAD" exit /b 88\r
 if not "%PGPASSWORD%"=="" echo STORAGE_PASSWORD_LEAK>>"%GODEL_STUB_LOG%"\r
 if not "%SUPABASE_DB_PASSWORD%"=="" echo STORAGE_SUPABASE_DB_PASSWORD_LEAK>>"%GODEL_STUB_LOG%"\r
+echo STORAGE_BENIGN_STDERR_EMITTED>>"%GODEL_STUB_LOG%"\r
+echo Uploading Storage objects... 1>&2\r
 if "%GODEL_STUB_STORAGE_FAIL%"=="1" exit /b 1\r
 exit /b 0\r
 `;
@@ -435,9 +441,12 @@ test("Simple Restore V1 synthetic contract", async (context) => {
       assert.equal(state.environmentRestored, true);
       assert.equal(state.cwdRestored, true);
       const log = await readFile(logPath, "utf8");
+      assert.match(log, /LINK_BENIGN_STDERR_EMITTED/u);
       assert.match(log, /NPX --no-install supabase --yes db push --linked/u, result.stderr);
+      assert.match(log, /DB_PUSH_BENIGN_STDERR_EMITTED/u);
       assert.equal((log.match(/NPX --no-install supabase --yes db push --linked/gu) ?? []).length, 1);
       assert.doesNotMatch(log, /PSQL_PHASE \[DB_PUSH_RECONCILIATION\]/u);
+      assert.doesNotMatch(result.stderr, /^RESTORE FAILED: DB PUSH$/mu);
       assert.doesNotMatch(log, /storage cp/u);
       assert.doesNotMatch(log, /PINNED_SUPABASE/u);
       assert.doesNotMatch(log, new RegExp(syntheticPassword.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));
@@ -534,6 +543,23 @@ test("Simple Restore V1 synthetic contract", async (context) => {
       assert.doesNotMatch(log, /SEED_CLEANUP/u);
     });
 
+    await context.test("native stderr with a nonzero link exit fails by exit code", async () => {
+      const backupPath = await createBackup(path.join(temporaryRoot, "link-failure"), currentHead);
+      const result = await runRestore(
+        backupPath,
+        { GODEL_STUB_LINK_FAIL: "1" },
+        { dotSource: true },
+      );
+      assert.equal(result.status, 1, result.stderr);
+      assert.match(result.stderr, /^RESTORE FAILED: LINK$/mu);
+      const state = JSON.parse(await readFile(reportPath, "utf8"));
+      assert.equal(state.environmentRestored, true);
+      assert.equal(state.cwdRestored, true);
+      const log = await readFile(logPath, "utf8");
+      assert.match(log, /LINK_BENIGN_STDERR_EMITTED/u);
+      assert.doesNotMatch(log, /db push/u);
+    });
+
     await context.test("nonzero db push with exact migrations is reconciled", async () => {
       const backupPath = await createBackup(path.join(temporaryRoot, "db-push-reconciled"), currentHead);
       const result = await runRestore(
@@ -548,6 +574,7 @@ test("Simple Restore V1 synthetic contract", async (context) => {
       const log = await readFile(logPath, "utf8");
       assert.equal((log.match(/NPX --no-install supabase --yes db push --linked/gu) ?? []).length, 1);
       assert.match(log, /DB_PUSH_DB_PASSWORD_OK/u);
+      assert.match(log, /DB_PUSH_BENIGN_STDERR_EMITTED/u);
       assert.match(log, /PSQL_PHASE \[DB_PUSH_RECONCILIATION\]/u);
       assert.match(log, /PSQL_PHASE \[SEED_SAFETY\]/u);
       assert.match(log, /PSQL_PHASE \[DATABASE_RESTORE\]/u);
@@ -555,6 +582,7 @@ test("Simple Restore V1 synthetic contract", async (context) => {
       assert.doesNotMatch(log, /SUPABASE_DB_PASSWORD_MISMATCH/u);
       assert.doesNotMatch(log, /SUPABASE_DB_PASSWORD_SCOPE_LEAK/u);
       assert.doesNotMatch(log, /PGPASSWORD_MISMATCH/u);
+      assert.doesNotMatch(result.stderr, /^RESTORE FAILED: DB PUSH$/mu);
       assert.doesNotMatch(log, new RegExp(syntheticPassword.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));
     });
 
@@ -582,12 +610,14 @@ test("Simple Restore V1 synthetic contract", async (context) => {
       const log = await readFile(logPath, "utf8");
       assert.equal((log.match(/NPX --no-install supabase --yes db push --linked/gu) ?? []).length, 1);
       assert.match(log, /DB_PUSH_DB_PASSWORD_OK/u);
+      assert.match(log, /DB_PUSH_BENIGN_STDERR_EMITTED/u);
       assert.match(log, /PSQL_PHASE \[DB_PUSH_RECONCILIATION\]/u);
       assert.doesNotMatch(log, /PSQL_PHASE \[SEED_SAFETY\]/u);
       assert.doesNotMatch(log, /PSQL_PHASE \[DATABASE_RESTORE\]/u);
       assert.doesNotMatch(log, /storage cp/u);
       assert.doesNotMatch(log, /SUPABASE_DB_PASSWORD_SCOPE_LEAK/u);
       assert.doesNotMatch(log, /PGPASSWORD_MISMATCH/u);
+      assert.doesNotMatch(result.stderr, /^RESTORE FAILED: DB PUSH$/mu);
     });
 
     await context.test("nonzero db push with an unexpected migration fails closed", async () => {
@@ -681,6 +711,7 @@ test("Simple Restore V1 synthetic contract", async (context) => {
       assert.equal(state.environmentRestored, true);
       assert.equal(state.cwdRestored, true);
       assert.match(log, /PINNED_SUPABASE/u, result.stderr);
+      assert.match(log, /STORAGE_BENIGN_STDERR_EMITTED/u);
       assert.match(log, /--experimental storage cp godel-files ss:\/\/\/godel-files\/ -r --linked/u);
       assert.ok(
         log.includes(`CWD=[${path.join(backupPath, "storage")}]`),

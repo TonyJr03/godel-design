@@ -18,6 +18,8 @@
 
 **Real Managed Recovery Drill #2:** `FAIL / AMBIGUOUS DB PUSH OUTCOME`
 
+**Real Managed Recovery Drill #3:** `FAIL / POWERSHELL NATIVE STDERR HANDLING`
+
 **Real Production Backup #1:** `PREFLIGHT BLOCKED / NOT EXECUTED / ZERO REMOTE ACTIVITY`
 
 **Real Production Backup #2:** `SAFE FAIL / STORAGE WINDOWS PATH COMPATIBILITY`
@@ -26,7 +28,7 @@
 
 **Production restore:** `NOT AUTHORIZED`
 
-**Fecha:** 2026-10-07
+**Fecha:** 2026-10-08
 
 ## 1. Objetivo y decisión arquitectónica
 
@@ -402,10 +404,11 @@ El script:
 
 V1 no acepta Production como target, no usa local/self-hosted como target
 principal, no promete compatibilidad arbitraria de schema y no crea una nueva
-cadena de diagnostics numerados. El stderr de `db push` permanece suprimido en
-V1; la reconciliación read-only determina si el flujo puede continuar. Un
-outcome no reconciliado marca el target como `FAILED / DISPOSABLE` y no intenta
-limpiarlo ni reutilizarlo.
+cadena de diagnostics numerados. El stderr de los comandos nativos permanece
+suprimido en V1; success/failure se determina exclusivamente mediante el exit
+code del proceso. Ante un `db push` no-cero, la reconciliación read-only
+determina si el flujo puede continuar. Un outcome no reconciliado marca el
+target como `FAILED / DISPOSABLE` y no intenta limpiarlo ni reutilizarlo.
 
 ## 7. Verificación post-restore
 
@@ -444,8 +447,8 @@ para demostrar que backup y restore funcionan.
 
 PPO-04M.6.1 queda revisado y cerrado, con Simple Backup V1 aprobado y el backup
 Productivo real verificado localmente. PPO-04M.6.2 queda revisado y code complete.
-PPO-04M.6.3 está activo mientras se corrige el outcome ambiguo observado en el
-segundo drill real.
+PPO-04M.6.3 está activo mientras se corrige el manejo de stderr nativo observado
+en el tercer drill real.
 
 ## 10. Cierre de Diagnostic #6
 
@@ -479,7 +482,7 @@ No se determinó la causa raíz. La línea de trabajo se detuvo antes de
 instrumentar Diagnostic #7. Por tanto, no se afirma que fallaran sequences,
 privileges ni el closure Iceberg.
 
-## 11. Evidencia de Real Managed Recovery Drill #1 y #2
+## 11. Evidencia de Real Managed Recovery Drill #1, #2 y #3
 
 Ambos drills utilizaron el execution SHA inmutable
 `7cb8bedf3f5a4611854c3f825924090e455afdee`. Drill #1 terminó en
@@ -493,6 +496,15 @@ objetos canónicos comprobados y el bucket `godel-files`. Además,
 `supabase --yes db push --dry-run --linked` informó que la base remota estaba al
 día con exit 0. No existe evidencia de fallo SQL de una migration; data restore
 y Storage restore no se ejecutaron. El stderr original no quedó disponible.
+
+Drill #3 utilizó el execution SHA inmutable
+`e42b0e5929dc29f383e374e2eeda3073bcb018d4`. Terminó
+`FAIL / POWERSHELL NATIVE STDERR HANDLING`: Windows PowerShell 5.1 convirtió el
+stderr informativo de `db push` en un terminating error antes de que
+`Invoke-DbPush` pudiera devolver el exit code. La reconciliación estaba
+implementada pero no fue alcanzada. El target quedó `FAILED / DISPOSABLE`; data
+restore y Storage restore no se ejecutaron. No se realizó diagnóstico remoto
+posterior y no se afirma si migrations 01–06 quedaron aplicadas en Drill #3.
 
 ## 12. Estado resultante
 
@@ -514,9 +526,14 @@ DRILL #2 MIGRATIONS 01–06 = COMMITTED / VERIFIED
 DRILL #2 DATA RESTORE = NOT EXECUTED
 DRILL #2 STORAGE RESTORE = NOT EXECUTED
 DRILL #2 TARGET = FAILED / DISPOSABLE
+REAL MANAGED RECOVERY DRILL #3 = FAIL / POWERSHELL NATIVE STDERR HANDLING
+DRILL #3 TARGET = FAILED / DISPOSABLE
+DRILL #3 DATA RESTORE = NOT EXECUTED
+DRILL #3 STORAGE RESTORE = NOT EXECUTED
+DB PUSH RECONCILIATION = IMPLEMENTED / NOT REACHED IN DRILL #3
 LEGACY COMPLEX RECOVERY HARNESS = FROZEN / NOT ACTIVE PATH
 DIAGNOSTIC #7 = CANCELLED
 OLD REAL RESTORE ATTEMPT #7 = CANCELLED UNDER LEGACY APPROACH
 PRODUCTION RESTORE = NOT AUTHORIZED
-TD-BACKUP-004 = OPEN / REASSIGNED TO SIMPLE STORAGE RECOVERY VALIDATION
+TD-BACKUP-004 = OPEN
 ```
