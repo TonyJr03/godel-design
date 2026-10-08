@@ -176,6 +176,42 @@ echo Uploading Storage objects... 1>&2\r
 if "%GODEL_STUB_STORAGE_FAIL%"=="1" exit /b 1\r
 exit /b 0\r
 `;
+  const seedCleanupValidator = `import { appendFileSync } from "node:fs";
+
+const args = process.argv.slice(2);
+const commandIndex = args.indexOf("--command");
+const sql = commandIndex >= 0 ? (args[commandIndex + 1] ?? "") : "";
+const normalizedSql = sql.replace(/\\s+/gu, " ").trim();
+const serviceDelete = "DELETE FROM public.tipos_servicio;";
+const localGuard = "SELECT set_config('storage.allow_delete_query', 'true', true);";
+const bucketDelete = "DELETE FROM storage.buckets WHERE id = 'godel-files';";
+const count = (value, fragment) => value.split(fragment).length - 1;
+const guardIndex = normalizedSql.indexOf(localGuard);
+const bucketDeleteIndex = normalizedSql.indexOf(bucketDelete);
+const valid =
+  args.includes("--single-transaction") &&
+  args.includes("ON_ERROR_STOP=1") &&
+  normalizedSql.includes(serviceDelete) &&
+  guardIndex >= 0 &&
+  bucketDeleteIndex > guardIndex &&
+  count(normalizedSql, "DELETE FROM") === 2 &&
+  count(normalizedSql, "DELETE FROM storage.buckets") === 1 &&
+  !normalizedSql.includes("set_config('storage.allow_delete_query', 'true', false)") &&
+  !normalizedSql.includes("ALTER DATABASE") &&
+  !normalizedSql.includes("ALTER ROLE") &&
+  !normalizedSql.includes("DISABLE TRIGGER") &&
+  !normalizedSql.includes("DELETE FROM storage.objects") &&
+  !normalizedSql.includes("TRUNCATE storage.") &&
+  !normalizedSql.includes("CASCADE");
+
+if (!valid) process.exit(91);
+appendFileSync(
+  process.env.GODEL_STUB_LOG,
+  "STORAGE_DELETE_GUARD_ENABLED = PASS\\r\\n" +
+    "STORAGE_DELETE_GUARD_SCOPE = TRANSACTION_LOCAL\\r\\n" +
+    "STORAGE_BUCKET_DELETE_TARGET = godel-files ONLY\\r\\n",
+);
+`;
   const psqlStub = `@echo off\r
 if not "%GODEL_MANAGED_RESTORE_DB_PASSWORD%"=="" echo SECRET_ENV_LEAK>>"%GODEL_STUB_LOG%"\r
 if not "%PGPASSWORD%"=="%GODEL_STUB_EXPECT_PGPASSWORD%" echo PGPASSWORD_MISMATCH>>"%GODEL_STUB_LOG%"\r
@@ -208,11 +244,16 @@ echo public.perfiles^|0\r
 echo public.clientes^|0\r
 echo public.solicitudes^|0\r
 echo public.pedidos^|0\r
+if "%GODEL_STUB_SEED_SAFETY_FAIL%"=="1" goto seed_safety_unsafe_storage\r
 echo storage.objects^|0\r
+exit /b 0\r
+:seed_safety_unsafe_storage\r
+echo storage.objects^|1\r
 exit /b 0\r
 :seed_cleanup\r
 echo PSQL_ARGS %*>>"%GODEL_STUB_LOG%"\r
-exit /b 0\r
+node "%~dp0seed-cleanup-validator.mjs" %*\r
+exit /b %ERRORLEVEL%\r
 :database_restore\r
 echo PSQL_ARGS %*>>"%GODEL_STUB_LOG%"\r
 if "%GODEL_STUB_DATABASE_RESTORE_FAIL%"=="1" exit /b 1\r
@@ -259,6 +300,11 @@ exit /b 0\r
   `;
   await writeFile(path.join(stubDirectory, "npx.cmd"), npxStub, "ascii");
   await writeFile(path.join(stubDirectory, "psql.cmd"), psqlStub, "ascii");
+  await writeFile(
+    path.join(stubDirectory, "seed-cleanup-validator.mjs"),
+    seedCleanupValidator,
+    "utf8",
+  );
   const pinnedSupabasePath = path.join(
     syntheticRepoRoot,
     "node_modules",
@@ -359,6 +405,7 @@ test("Simple Restore V1 synthetic contract", async (context) => {
   git(syntheticRepoRoot, "-c", "commit.gpgsign=false", "commit", "-m", "synthetic schema");
   const currentHead = git(syntheticRepoRoot, "rev-parse", "HEAD");
   const originalTempSnapshot = await snapshotDirectory(supabaseTempPath);
+  const seedCleanupValidatorPath = path.join(stubDirectory, "seed-cleanup-validator.mjs");
 
   const baseEnvironment = {
     ...process.env,
@@ -433,6 +480,22 @@ test("Simple Restore V1 synthetic contract", async (context) => {
   }
 
   try {
+    await context.test("seed cleanup stub rejects bucket deletion without the local guard", () => {
+      const result = spawnSync(
+        "node",
+        [
+          seedCleanupValidatorPath,
+          "--single-transaction",
+          "--variable",
+          "ON_ERROR_STOP=1",
+          "--command",
+          "DELETE FROM public.tipos_servicio; DELETE FROM storage.buckets WHERE id = 'godel-files';",
+        ],
+        { encoding: "utf8", env: baseEnvironment, windowsHide: true },
+      );
+      assert.notEqual(result.status, 0, result.stderr);
+    });
+
     await context.test("valid backup admission and empty Storage pass", async () => {
       const backupPath = await createBackup(path.join(temporaryRoot, "valid"), currentHead);
       const result = await runRestore(backupPath, {}, { dotSource: true });
@@ -460,7 +523,32 @@ test("Simple Restore V1 synthetic contract", async (context) => {
       const deletes = log.match(/DELETE FROM/gu) ?? [];
       assert.equal(deletes.length, 2);
       assert.match(log, /DELETE FROM public\.tipos_servicio;/u);
+      assert.match(
+        log,
+        /SELECT set_config\('storage\.allow_delete_query', 'true', true\);/u,
+      );
       assert.match(log, /DELETE FROM storage\.buckets WHERE id = 'godel-files';/u);
+      assert.ok(
+        log.indexOf("SELECT set_config('storage.allow_delete_query', 'true', true);") <
+          log.indexOf("DELETE FROM storage.buckets WHERE id = 'godel-files';"),
+        log,
+      );
+      assert.equal((log.match(/DELETE FROM storage\.buckets/gu) ?? []).length, 1);
+      assert.match(log, /STORAGE_DELETE_GUARD_ENABLED = PASS/u);
+      assert.match(log, /STORAGE_DELETE_GUARD_SCOPE = TRANSACTION_LOCAL/u);
+      assert.match(log, /STORAGE_BUCKET_DELETE_TARGET = godel-files ONLY/u);
+      assert.match(log, /--single-transaction/u);
+      assert.match(log, /ON_ERROR_STOP=1/u);
+      assert.doesNotMatch(
+        log,
+        /set_config\('storage\.allow_delete_query', 'true', false\)/u,
+      );
+      assert.doesNotMatch(log, /ALTER DATABASE/u);
+      assert.doesNotMatch(log, /ALTER ROLE/u);
+      assert.doesNotMatch(log, /DISABLE TRIGGER/u);
+      assert.doesNotMatch(log, /DELETE FROM storage\.objects/u);
+      assert.doesNotMatch(log, /TRUNCATE storage\./u);
+      assert.doesNotMatch(log, /CASCADE/u);
       assert.doesNotMatch(log, /config push/u);
     });
 
@@ -541,6 +629,29 @@ test("Simple Restore V1 synthetic contract", async (context) => {
       assert.match(log, /TARGET_FRESHNESS/u, result.stderr);
       assert.doesNotMatch(log, /db push/u);
       assert.doesNotMatch(log, /SEED_CLEANUP/u);
+    });
+
+    await context.test("seed safety blocks cleanup when Storage contains objects", async () => {
+      const backupPath = await createBackup(
+        path.join(temporaryRoot, "unsafe-storage-seed"),
+        currentHead,
+        { nonEmptyStorage: true },
+      );
+      const result = await runRestore(
+        backupPath,
+        { GODEL_STUB_SEED_SAFETY_FAIL: "1" },
+        { dotSource: true },
+      );
+      assert.equal(result.status, 1, result.stderr);
+      assert.match(result.stderr, /^RESTORE FAILED: SEED SAFETY$/mu);
+      const state = JSON.parse(await readFile(reportPath, "utf8"));
+      assert.equal(state.environmentRestored, true);
+      assert.equal(state.cwdRestored, true);
+      const log = await readFile(logPath, "utf8");
+      assert.match(log, /PSQL_PHASE \[SEED_SAFETY\]/u);
+      assert.doesNotMatch(log, /PSQL_PHASE \[SEED_CLEANUP\]/u);
+      assert.doesNotMatch(log, /PSQL_PHASE \[DATABASE_RESTORE\]/u);
+      assert.doesNotMatch(log, /storage cp/u);
     });
 
     await context.test("native stderr with a nonzero link exit fails by exit code", async () => {

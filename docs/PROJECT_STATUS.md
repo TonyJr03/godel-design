@@ -39,8 +39,10 @@ V1 `REVIEWED TOOLING / REAL-DRILL CORRECTION IN PROGRESS`. PPO-04M.6.3 queda
 outcome ambiguo de `db push`, con migrations 01–06 verificadas como committed.
 Drill #3 terminó `FAIL / POWERSHELL NATIVE STDERR HANDLING`: la reconciliación
 de `db push` estaba implementada pero no fue alcanzada, y no se realizó un
-diagnóstico remoto posterior sobre sus migrations. Production restore no está
-autorizado y TD-BACKUP-004 permanece `OPEN`.
+diagnóstico remoto posterior sobre sus migrations. Drill #4 atravesó `db push`
+y seed safety, validando en entorno real el fix de stderr nativo, y terminó
+`FAIL / STORAGE DIRECT DELETE PROTECTION AT SEED CLEANUP`. Production restore
+no está autorizado y TD-BACKUP-004 permanece `OPEN`.
 La estrategia canónica es
 [PPO-04M.6 — Simple Backup / Restore V1](production/PPO_04M6_SIMPLE_BACKUP_RESTORE_V1.md):
 Git conserva la autoridad de schema/código y el backup conserva los datos
@@ -234,6 +236,15 @@ DRILL #3 TARGET = FAILED / DISPOSABLE
 DRILL #3 DATA RESTORE = NOT EXECUTED
 DRILL #3 STORAGE RESTORE = NOT EXECUTED
 DB PUSH RECONCILIATION = IMPLEMENTED / NOT REACHED IN DRILL #3
+REAL MANAGED RECOVERY DRILL #4 = FAIL / STORAGE DIRECT DELETE PROTECTION AT SEED CLEANUP
+DRILL #4 EXECUTION SHA = 56489d4d98dda6a771e9e92d6dee10a1f9889268
+DRILL #4 DB PUSH GATE = PASSED
+DRILL #4 SEED SAFETY = PASSED
+DRILL #4 SEED CLEANUP = FAIL
+DRILL #4 DATA RESTORE = NOT EXECUTED
+DRILL #4 STORAGE RESTORE = NOT EXECUTED
+DRILL #4 TARGET = FAILED / DISPOSABLE
+WINDOWS POWERSHELL NATIVE STDERR FIX = REAL-DRILL VALIDATED
 TD-BACKUP-004 = OPEN
 REAL RESTORE ATTEMPT #1 = FAIL / PREFLIGHT OPERATOR CONFIGURATION
 REAL RESTORE ATTEMPT #2 = FAIL / SOURCE_VERIFY REAL BACKUP SQL DIALECT ADMISSION FINDING

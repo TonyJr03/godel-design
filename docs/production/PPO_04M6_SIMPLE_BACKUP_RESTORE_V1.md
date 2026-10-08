@@ -20,6 +20,8 @@
 
 **Real Managed Recovery Drill #3:** `FAIL / POWERSHELL NATIVE STDERR HANDLING`
 
+**Real Managed Recovery Drill #4:** `FAIL / STORAGE DIRECT DELETE PROTECTION AT SEED CLEANUP`
+
 **Real Production Backup #1:** `PREFLIGHT BLOCKED / NOT EXECUTED / ZERO REMOTE ACTIVITY`
 
 **Real Production Backup #2:** `SAFE FAIL / STORAGE WINDOWS PATH COMPATIBILITY`
@@ -390,8 +392,10 @@ El script:
    `NONZERO / MIGRATIONS RECONCILED` si el conjunto ordenado coincide exactamente
    con migrations 01–06; cualquier ausencia, versión inesperada o fallo de
    consulta termina `FAIL / UNRECONCILED`. Después verifica que no existan datos
-   operativos y elimina únicamente los seeds de `public.tipos_servicio` y el
-   bucket `godel-files` dentro de una transacción controlada.
+   operativos, incluido `storage.objects = 0`, y dentro de una única transacción
+   elimina los seeds de `public.tipos_servicio`, habilita
+   `storage.allow_delete_query` mediante `set_config(..., true)` con scope local
+   y elimina exclusivamente el bucket `godel-files`.
 8. Restaura `data.sql` mediante `psql --single-transaction` y
    `ON_ERROR_STOP=1`.
 9. Para Storage vacío no ejecuta upload; con objetos invoca directamente el
@@ -482,7 +486,7 @@ No se determinó la causa raíz. La línea de trabajo se detuvo antes de
 instrumentar Diagnostic #7. Por tanto, no se afirma que fallaran sequences,
 privileges ni el closure Iceberg.
 
-## 11. Evidencia de Real Managed Recovery Drill #1, #2 y #3
+## 11. Evidencia de Real Managed Recovery Drill #1, #2, #3 y #4
 
 Ambos drills utilizaron el execution SHA inmutable
 `7cb8bedf3f5a4611854c3f825924090e455afdee`. Drill #1 terminó en
@@ -505,6 +509,13 @@ stderr informativo de `db push` en un terminating error antes de que
 implementada pero no fue alcanzada. El target quedó `FAILED / DISPOSABLE`; data
 restore y Storage restore no se ejecutaron. No se realizó diagnóstico remoto
 posterior y no se afirma si migrations 01–06 quedaron aplicadas en Drill #3.
+
+Drill #4 utilizó el execution SHA inmutable
+`56489d4d98dda6a771e9e92d6dee10a1f9889268`. Atravesó `db push` y seed safety,
+por lo que el fix de Windows PowerShell native stderr quedó validado en entorno
+real. Terminó `FAIL / STORAGE DIRECT DELETE PROTECTION AT SEED CLEANUP` porque
+Supabase Storage protegió el `DELETE` SQL directo del bucket. El target quedó
+`FAILED / DISPOSABLE`; data restore y Storage restore no se ejecutaron.
 
 ## 12. Estado resultante
 
@@ -531,6 +542,15 @@ DRILL #3 TARGET = FAILED / DISPOSABLE
 DRILL #3 DATA RESTORE = NOT EXECUTED
 DRILL #3 STORAGE RESTORE = NOT EXECUTED
 DB PUSH RECONCILIATION = IMPLEMENTED / NOT REACHED IN DRILL #3
+REAL MANAGED RECOVERY DRILL #4 = FAIL / STORAGE DIRECT DELETE PROTECTION AT SEED CLEANUP
+DRILL #4 EXECUTION SHA = 56489d4d98dda6a771e9e92d6dee10a1f9889268
+DRILL #4 DB PUSH GATE = PASSED
+DRILL #4 SEED SAFETY = PASSED
+DRILL #4 SEED CLEANUP = FAIL
+DRILL #4 DATA RESTORE = NOT EXECUTED
+DRILL #4 STORAGE RESTORE = NOT EXECUTED
+DRILL #4 TARGET = FAILED / DISPOSABLE
+WINDOWS POWERSHELL NATIVE STDERR FIX = REAL-DRILL VALIDATED
 LEGACY COMPLEX RECOVERY HARNESS = FROZEN / NOT ACTIVE PATH
 DIAGNOSTIC #7 = CANCELLED
 OLD REAL RESTORE ATTEMPT #7 = CANCELLED UNDER LEGACY APPROACH

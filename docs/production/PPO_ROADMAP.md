@@ -177,9 +177,12 @@ preflight con cero actividad remota y Drill #2 terminó con outcome ambiguo de
 Drill #3 terminó `FAIL / POWERSHELL NATIVE STDERR HANDLING`; la reconciliación
 estaba implementada pero no fue alcanzada, el target quedó `FAILED / DISPOSABLE`
 y no se ejecutaron data ni Storage restore. No se realizó diagnóstico remoto
-posterior para determinar el estado de las migrations en Drill #3. Production
-restore no está autorizado y TD-BACKUP-004 permanece `OPEN`. El restore
-automático aplica migrations, datos y Storage, pero no ejecuta
+posterior para determinar el estado de las migrations en Drill #3. Drill #4
+atravesó `db push` y seed safety, validó en entorno real el fix de stderr nativo
+y terminó `FAIL / STORAGE DIRECT DELETE PROTECTION AT SEED CLEANUP`; data y
+Storage restore no se ejecutaron y el target quedó `FAILED / DISPOSABLE`.
+Production restore no está autorizado y TD-BACKUP-004 permanece `OPEN`. El
+restore automático aplica migrations, datos y Storage, pero no ejecuta
 `supabase config push` porque la configuración versionada contiene URLs
 localhost de desarrollo.
 El contrato vigente está en

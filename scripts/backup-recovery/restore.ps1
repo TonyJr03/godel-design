@@ -876,7 +876,7 @@ SELECT 'storage.objects|' || count(*)::text FROM storage.objects;
   }
 
   $currentStep = "SEED CLEANUP"
-  $seedCleanupSql = "DELETE FROM public.tipos_servicio; DELETE FROM storage.buckets WHERE id = 'godel-files';"
+  $seedCleanupSql = "DELETE FROM public.tipos_servicio; SELECT set_config('storage.allow_delete_query', 'true', true); DELETE FROM storage.buckets WHERE id = 'godel-files';"
   $null = Invoke-Psql -PsqlPath $psqlCommand.Source -Phase "SEED_CLEANUP" -Arguments @(
     "--no-psqlrc", "--single-transaction", "--variable", "ON_ERROR_STOP=1",
     "--command", $seedCleanupSql
