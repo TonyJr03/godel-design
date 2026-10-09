@@ -1,12 +1,14 @@
 # PPO-04M.6 — Simple Backup / Restore V1
 
-**Estado de PPO-04M.6:** `ACTIVE`
+**Estado de PPO-04M.6:** `REVIEWED / CLOSED`
+
+**Simple Backup / Restore V1:** `REVIEWED / CLOSED`
 
 **Estado de PPO-04M.6.0:** `REVIEWED / CLOSED`
 
 **Estado de PPO-04M.6.1:** `REVIEWED / CLOSED`
 
-**Simple Backup V1:** `REVIEWED / APPROVED / REAL PRODUCTION BACKUP VERIFIED`
+**Simple Backup V1:** `REAL PRODUCTION BACKUP VERIFIED`
 
 **Estado de PPO-04M.6.2:** `REVIEWED / CODE COMPLETE`
 
@@ -14,7 +16,7 @@
 
 **Estado de PPO-04M.6.3:** `REVIEWED / CLOSED`
 
-**Estado de PPO-04M.6.4:** `ACTIVE`
+**Estado de PPO-04M.6.4:** `REVIEWED / CLOSED`
 
 **Estado de PPO-04M.6.4A:** `REVIEWED / CLOSED`
 
@@ -24,7 +26,9 @@
 
 **Backup Operations Runbook:** `AVAILABLE / GOVERNING OPERATOR ENTRY POINT`
 
-**Estado de PPO-04M.6.4D:** `NEXT / OPTIONAL OFF-SITE DECISION`
+**Estado de PPO-04M.6.4D:** `REVIEWED / CLOSED`
+
+**Off-site durability:** `DEFERRED TO PPO-06`
 
 **Real Managed Recovery Drill #1:** `FAIL / PREFLIGHT / PSQL_REQUIRED / ZERO REMOTE ACTIVITY`
 
@@ -455,10 +459,11 @@ Managed recuperado.
 
 ## 8. Off-site y cifrado
 
-El cifrado y la copia off-site siguen siendo deseables, pero quedan desacoplados
-del mecanismo básico. Simple Backup / Restore V1 debe funcionar por completo
-con una carpeta local. M.6.4D queda `NEXT / OPTIONAL OFF-SITE DECISION`;
-M.6.4B no selecciona proveedor ni introduce una dependencia externa.
+El cifrado y la copia off-site siguen siendo valiosos, pero quedan desacoplados
+del mecanismo básico. Simple Backup / Restore V1 funciona por completo con una
+carpeta local elegida por el operador. M.6.4D queda `REVIEWED / CLOSED` y la
+durabilidad off-site del Production Pilot se difiere a PPO-06. M.6 no introduce
+provider, tooling ni sincronización externa nuevos.
 
 ## 9. Roadmap
 
@@ -468,17 +473,17 @@ M.6.4B no selecciona proveedor ni introduce una dependencia externa.
 | PPO-04M.6.1 | Simple Backup V1 Implementation | `REVIEWED / CLOSED` |
 | PPO-04M.6.2 | Simple Restore V1 Implementation | `REVIEWED / CODE COMPLETE` |
 | PPO-04M.6.3 | Real Backup + Managed Recovery Drill | `REVIEWED / CLOSED` |
-| PPO-04M.6.4 | Operationalization / Retention / Optional Off-site Copy | `ACTIVE` |
+| PPO-04M.6.4 | Operationalization / Retention / Optional Off-site Copy | `REVIEWED / CLOSED` |
 | PPO-04M.6.4A | Non-empty Storage Recovery Validation | `REVIEWED / CLOSED` |
 | PPO-04M.6.4B | Minimal Operational Backup Policy | `REVIEWED / CLOSED` |
 | PPO-04M.6.4C | Lightweight Operational Runbook | `REVIEWED / CLOSED` |
-| PPO-04M.6.4D | Optional Off-site Decision | `NEXT / OPTIONAL OFF-SITE DECISION` |
+| PPO-04M.6.4D | Optional Off-site Decision | `REVIEWED / CLOSED` |
 
 PPO-04M.6.1 queda revisado y cerrado, con Simple Backup V1 aprobado y el backup
 Productivo real verificado localmente. PPO-04M.6.2 queda revisado y code complete.
 PPO-04M.6.3 queda revisado y cerrado por evidencia estructural y funcional del
-quinto drill real. PPO-04M.6.4 sigue activo; M.6.4A, M.6.4B y M.6.4C quedan
-revisados y cerrados, y M.6.4D es el siguiente bloque.
+quinto drill real. M.6.4A, M.6.4B, M.6.4C y M.6.4D quedan revisados y cerrados;
+por tanto, PPO-04M.6.4 y PPO-04M.6 quedan `REVIEWED / CLOSED`.
 
 ## 10. Cierre de Diagnostic #6
 
@@ -671,10 +676,10 @@ BACKUP CLEANUP = MANUAL DURING PRODUCTION PILOT
 FAILED / PARTIAL BACKUPS = NOT VALID RECOVERY POINTS
 PROTECTED BACKUPS = EXEMPT FROM ORDINARY RETENTION CLEANUP
 PRIMARY BACKUP CUSTODY = OPERATOR-SPECIFIED LOCAL BACKUPROOT
-OFF-SITE DECISION = DEFERRED TO M.6.4D
+OFF-SITE DURABILITY = DEFERRED TO PPO-06
 PRODUCTION RESTORE = NOT AUTHORIZED
 PPO-04M.6.4C = REVIEWED / CLOSED
-PPO-04M.6.4D = NEXT / OPTIONAL OFF-SITE DECISION
+PPO-04M.6.4D = REVIEWED / CLOSED
 ```
 
 ## 14. PPO-04M.6.4C — Lightweight Operational Runbook
@@ -695,17 +700,61 @@ HIGH-RISK PRE-BACKUP = REQUIRED
 RETENTION = MINIMUM 4 SUCCESSFUL PRODUCTION BACKUPS
 CLEANUP = MANUAL
 PRODUCTION RESTORE = NOT AUTHORIZED
-PPO-04M.6.4D = NEXT / OPTIONAL OFF-SITE DECISION
+PPO-04M.6.4D = REVIEWED / CLOSED
 ```
 
-## 15. Estado resultante
+## 15. PPO-04M.6.4D — Optional Off-site Decision
+
+La copia off-site para el Production Pilot actual queda diferida a PPO-06.
+Simple Backup / Restore V1 no añade otra capa externa de custodia antes del
+piloto, y M.6.4D no implementa tooling ni sincronización off-site.
+
+El backup contiene datos operativos y datos Auth. Una custodia externa seria
+requiere un contrato aprobado para cifrado antes del upload o at rest, custodia
+de identidades de recovery o claves, alcance de acceso, retention y deletion
+externas, selección de provider, monitoring y verification. PPO-06 es la
+autoridad futura para esas decisiones; no se adopta una copia cruda ad-hoc a un
+servicio externo sin ese contrato.
+
+Cloudflare R2 + `age` fue diseñado y probado dentro de PPO-04M.5. Esa capacidad
+se preserva como evidencia y no se considera fallida, pero pertenece al harness
+PPO-04M.5 `SUSPENDED / SUPERSEDED`; no se reactiva automáticamente como ruta de
+Simple V1 y podría evaluarse de nuevo en el futuro.
+
+El baseline final conserva Supabase Managed como runtime Productivo y una copia
+operacional independiente en el `BackupRoot` local elegido por el operador. La
+cadencia es semanal, el backup previo a operaciones de alto riesgo es obligatorio,
+se retienen como mínimo cuatro backups exitosos, el cleanup es manual y los
+backups protegidos se conservan. El restore validado sigue dirigido a un target
+Managed nuevo y desechable; restore sobre Production no está autorizado.
+
+```text
+PPO-04M.6.4D = REVIEWED / CLOSED
+OFF-SITE COPY FOR CURRENT PRODUCTION PILOT = DEFERRED TO PPO-06
+NEW OFF-SITE TOOLING = NOT IMPLEMENTED
+AUTOMATED OFF-SITE SYNC = NOT IMPLEMENTED
+HISTORICAL R2/AGE CAPABILITY = PRESERVED AS EVIDENCE / NOT ACTIVE SIMPLE V1 PATH
+PPO-04M.6.4 = REVIEWED / CLOSED
+PPO-04M.6 = REVIEWED / CLOSED
+SIMPLE BACKUP / RESTORE V1 = REVIEWED / CLOSED
+PRODUCTION RESTORE = NOT AUTHORIZED
+PRODUCTION PILOT ROLLOUT = NOT EXECUTED
+```
+
+El siguiente paso arquitectónico es revisar el roadmap PPO-04M y definir el
+handoff hacia el primer uso real antes de iniciar Stabilization & Usage
+Measurement. PPO-04M.7 permanece `NOT STARTED`; PPO-04 y PPO-04M no se cierran
+en este bloque.
+
+## 16. Estado resultante
 
 ```text
 PPO-04M.5.3 = SUSPENDED / SUPERSEDED
-PPO-04M.6 = ACTIVE
+PPO-04M.6 = REVIEWED / CLOSED
+SIMPLE BACKUP / RESTORE V1 = REVIEWED / CLOSED
 PPO-04M.6.0 = REVIEWED / CLOSED
 PPO-04M.6.1 = REVIEWED / CLOSED
-SIMPLE BACKUP V1 = REVIEWED / APPROVED / REAL PRODUCTION BACKUP VERIFIED
+SIMPLE BACKUP V1 = REAL PRODUCTION BACKUP VERIFIED
 REAL PRODUCTION BACKUP #1 = PREFLIGHT BLOCKED / NOT EXECUTED / ZERO REMOTE ACTIVITY
 REAL PRODUCTION BACKUP #2 = SAFE FAIL / STORAGE WINDOWS PATH COMPATIBILITY
 REAL PRODUCTION BACKUP #3 = PASS / ARTIFACT VERIFIED LOCALLY
@@ -753,7 +802,7 @@ PRODUCTION ACTIVITY DURING FUNCTIONAL ACCEPTANCE = 0
 STORAGE FILE COUNT = 0
 STORAGE TOTAL BYTES = 0
 CURRENT REAL RESTORE STORAGE SCOPE = NON-EMPTY STORAGE VERIFIED / BYTE-EXACT
-PPO-04M.6.4 = ACTIVE
+PPO-04M.6.4 = REVIEWED / CLOSED
 PPO-04M.6.4A = REVIEWED / CLOSED
 NON-EMPTY STORAGE SOURCE FIXTURE = PASS / REAL MANAGED
 REAL NON-EMPTY STORAGE BACKUP = PASS / REAL MANAGED VERIFIED
@@ -804,7 +853,6 @@ BACKUP CLEANUP = MANUAL DURING PRODUCTION PILOT
 FAILED / PARTIAL BACKUPS = NOT VALID RECOVERY POINTS
 PROTECTED BACKUPS = EXEMPT FROM ORDINARY RETENTION CLEANUP
 PRIMARY BACKUP CUSTODY = OPERATOR-SPECIFIED LOCAL BACKUPROOT
-OFF-SITE DECISION = DEFERRED TO M.6.4D
 PPO-04M.6.4C = REVIEWED / CLOSED
 BACKUP OPERATIONS RUNBOOK = AVAILABLE / GOVERNING OPERATOR ENTRY POINT
 CANONICAL BACKUP INTERFACE = scripts/backup-recovery/backup.ps1 -BackupRoot <path>
@@ -812,10 +860,16 @@ ROUTINE CADENCE = WEEKLY
 HIGH-RISK PRE-BACKUP = REQUIRED
 RETENTION = MINIMUM 4 SUCCESSFUL PRODUCTION BACKUPS
 CLEANUP = MANUAL
-PPO-04M.6.4D = NEXT / OPTIONAL OFF-SITE DECISION
+PPO-04M.6.4D = REVIEWED / CLOSED
+OFF-SITE DURABILITY = DEFERRED TO PPO-06
+NEW OFF-SITE TOOLING = NOT IMPLEMENTED
+AUTOMATED OFF-SITE SYNC = NOT IMPLEMENTED
+HISTORICAL R2/AGE CAPABILITY = PRESERVED AS EVIDENCE / NOT ACTIVE SIMPLE V1 PATH
 LEGACY COMPLEX RECOVERY HARNESS = FROZEN / NOT ACTIVE PATH
 DIAGNOSTIC #7 = CANCELLED
 OLD REAL RESTORE ATTEMPT #7 = CANCELLED UNDER LEGACY APPROACH
 PRODUCTION RESTORE = NOT AUTHORIZED
 TD-BACKUP-004 = CLOSED
+PRODUCTION PILOT ROLLOUT = NOT EXECUTED
+PPO-04M.7 = NOT STARTED
 ```

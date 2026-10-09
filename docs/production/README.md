@@ -8,13 +8,14 @@ ha ejecutado.
 ## CURRENT / GOVERNING
 
 - [PPO_ROADMAP.md](PPO_ROADMAP.md): roadmap maestro de Preproducción y Puesta
-  en Operación. PPO-04M.6 está `ACTIVE`; M.6.4A, M.6.4B y M.6.4C están
-  `REVIEWED / CLOSED`, y M.6.4D es la siguiente decisión opcional off-site.
+  en Operación. PPO-04M.6 y M.6.4A–M.6.4D están `REVIEWED / CLOSED`; el
+  siguiente gate es revisar el roadmap y definir el handoff al primer uso real.
 - [PPO_04_MANAGED_FREE_PILOT_PLAN.md](PPO_04_MANAGED_FREE_PILOT_PLAN.md): plan
   gobernante de PPO-04M; PPO-04M.0 y PPO-04M.1 están `CLOSED / APPROVED`,
   PPO-04M.2 está `CLOSED / APPROVED` con M.2A y M.2B cerrados; PPO-04M.3 está
   `CLOSED / APPROVED`, PPO-04M.4 está `CLOSED / QUALIFIED ACCEPTANCE`,
-  PPO-04M.5 está `SUSPENDED / SUPERSEDED` y PPO-04M.6 está `ACTIVE`.
+  PPO-04M.5 está `SUSPENDED / SUPERSEDED`, PPO-04M.6 está `REVIEWED / CLOSED`
+  y PPO-04M.7 permanece `NOT STARTED`.
 - [PPO_04M0_MANAGED_ARCHITECTURE_AUDIT.md](PPO_04M0_MANAGED_ARCHITECTURE_AUDIT.md):
   contrato aprobado de arquitectura, variables, Auth, DB, Storage, Vercel, QA,
   backup boundary y handoff exacto a PPO-04M.1.

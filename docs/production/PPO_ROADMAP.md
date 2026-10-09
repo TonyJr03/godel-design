@@ -166,7 +166,7 @@ se conservan, incluido el primer backup Productivo y su custodia externa.
 PPO-04M.5.3 queda `SUSPENDED / SUPERSEDED`: el harness complejo se congela como
 tooling experimental y deja de ser la ruta activa.
 
-PPO-04M.6 queda `ACTIVE` con M.6.0 `REVIEWED / CLOSED` y M.6.1
+PPO-04M.6 queda `REVIEWED / CLOSED` con M.6.0 `REVIEWED / CLOSED` y M.6.1
 `REVIEWED / CLOSED`. Simple Backup V1 queda `REVIEWED / APPROVED / REAL
 PRODUCTION BACKUP VERIFIED`; Real Production Backup #3 quedó `PASS / ARTIFACT
 VERIFIED LOCALLY`.
@@ -189,8 +189,10 @@ operativa real, backup obligatorio antes de operaciones deliberadas de alto
 riesgo, mínimo de cuatro backups exitosos retenidos y cleanup manual. M.6.4C
 queda `REVIEWED / CLOSED`; el
 [Backup Operations Runbook](PPO_04M6_BACKUP_OPERATIONS_RUNBOOK.md) es el entry
-point operativo gobernante. M.6.4D queda `NEXT / OPTIONAL OFF-SITE DECISION`.
-Production restore no está autorizado. El restore
+point operativo gobernante. M.6.4D, M.6.4 y M.6 quedan `REVIEWED / CLOSED`.
+La durabilidad off-site del piloto se difiere a PPO-06; R2/age se conserva como
+evidencia histórica de M.5 y no es la ruta activa Simple V1. Production restore
+no está autorizado. El restore
 automático aplica migrations, datos
 y Storage, pero no ejecuta
 `supabase config push` porque la configuración versionada contiene URLs
@@ -207,11 +209,21 @@ HIGH-RISK PRE-BACKUP = REQUIRED
 RETENTION = MINIMUM 4 SUCCESSFUL PRODUCTION BACKUPS
 CLEANUP = MANUAL
 PRODUCTION RESTORE = NOT AUTHORIZED
-PPO-04M.6.4D = NEXT / OPTIONAL OFF-SITE DECISION
+PPO-04M.6.4D = REVIEWED / CLOSED
+PPO-04M.6.4 = REVIEWED / CLOSED
+PPO-04M.6 = REVIEWED / CLOSED
+SIMPLE BACKUP / RESTORE V1 = REVIEWED / CLOSED
+OFF-SITE DURABILITY = DEFERRED TO PPO-06
+NEW OFF-SITE TOOLING = NOT IMPLEMENTED
+AUTOMATED OFF-SITE SYNC = NOT IMPLEMENTED
+HISTORICAL R2/AGE CAPABILITY = PRESERVED AS EVIDENCE / NOT ACTIVE SIMPLE V1 PATH
+PRODUCTION PILOT ROLLOUT = NOT EXECUTED
+PPO-04M.7 = NOT STARTED
 ```
 
 PPO-04 global continúa `ACTIVE / NEXT`; el Production pilot rollout permanece
-`NOT EXECUTED`.
+`NOT EXECUTED`. El siguiente paso arquitectónico es revisar el roadmap PPO-04M
+y definir el handoff hacia el primer uso real antes de iniciar M.7.
 
 El gate de consistencia del harness Productivo exige inventarios Storage inicial
 y final estructuralmente idénticos y una proyección local `path/size` exactamente
@@ -2548,8 +2560,9 @@ Iceberg. La estrategia activa se define en
 | PPO-04M.6.1 | Simple Backup V1 Implementation | `REVIEWED / CLOSED` |
 | PPO-04M.6.2 | Simple Restore V1 Implementation | `REVIEWED / CODE COMPLETE` |
 | PPO-04M.6.3 | Real Backup + Managed Recovery Drill | `REVIEWED / CLOSED` |
-| PPO-04M.6.4 | Operationalization / Retention / Optional Off-site Copy | `ACTIVE` |
+| PPO-04M.6.4 | Operationalization / Retention / Optional Off-site Copy | `REVIEWED / CLOSED` |
 | PPO-04M.6.4A | Non-empty Storage Recovery Validation | `REVIEWED / CLOSED` |
 | PPO-04M.6.4B | Minimal Operational Backup Policy | `REVIEWED / CLOSED` |
 | PPO-04M.6.4C | Lightweight Operational Runbook | `REVIEWED / CLOSED` |
-| PPO-04M.6.4D | Optional Off-site Decision | `NEXT / OPTIONAL OFF-SITE DECISION` |
+| PPO-04M.6.4D | Optional Off-site Decision | `REVIEWED / CLOSED` |
+| PPO-04M.7 | Stabilization & Usage Measurement | `NOT STARTED` |

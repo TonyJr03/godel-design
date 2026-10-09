@@ -24,6 +24,7 @@ MINIMUM SUCCESSFUL PRODUCTION BACKUPS RETAINED = 4
 AUTOMATIC SCHEDULING = NO
 AUTOMATIC RETENTION DELETION = NO
 CLEANUP = MANUAL DURING PRODUCTION PILOT
+OFF-SITE DURABILITY = DEFERRED TO PPO-06
 ```
 
 El mínimo de cuatro backups exitosos no es un máximo.
@@ -130,9 +131,15 @@ mediante cleanup ordinario:
 Los backups protegidos pueden elevar el total por encima de cuatro. El cleanup
 permanece manual; este runbook no introduce comandos ni scripts automáticos.
 
-## 9. Frontera de restore
+## 9. Custodia off-site y frontera de restore
+
+La custodia primaria permanece en el `BackupRoot` local elegido por el operador.
+La durabilidad off-site se difiere a PPO-06; este runbook no recomienda una
+copia cruda ad-hoc a un servicio externo ni introduce provider, tooling o
+sincronización off-site.
 
 ```text
+OFF-SITE DURABILITY = DEFERRED TO PPO-06
 PRODUCTION RESTORE = NOT AUTHORIZED
 VALIDATED V1 RESTORE TARGET = NEW / DISPOSABLE SUPABASE MANAGED PROJECT
 ```
