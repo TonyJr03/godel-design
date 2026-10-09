@@ -447,7 +447,14 @@ La evidencia de cierre vive en
 
 ## 9. PPO-04M.5 — Free-Tier Backup & Recovery Baseline
 
-**Estado:** `ACTIVE / SOURCE VERIFIED / REAL RESTORE ATTEMPT #3 PENDING AUTHORIZATION`
+> **Nota de gobernanza — 2026-10-06:** esta sección conserva el snapshot
+> histórico de PPO-04M.5 anterior al pivot a Simple Backup / Restore V1. No
+> representa el estado vigente. El estado actual es:
+> `PPO-04M.5 = SUSPENDED / SUPERSEDED` y
+> `PPO-04M.6 = REVIEWED / CLOSED`.
+
+**Estado histórico / snapshot:**
+`ACTIVE / SOURCE VERIFIED / REAL RESTORE ATTEMPT #3 PENDING AUTHORIZATION`
 
 ```text
 external backup required

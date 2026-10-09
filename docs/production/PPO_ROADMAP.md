@@ -175,9 +175,9 @@ RECOVERY VERIFIED INCLUDING NON-EMPTY STORAGE`. M.6.3 queda `REVIEWED / CLOSED`.
 Se conserva el historial de hallazgos de Drills #1–#4. Drill #5 terminó `PASS /
 STRUCTURAL + FUNCTIONAL RECOVERY VERIFIED` sobre un target Managed nuevo y
 desechable: restore estructural, login Auth, perfil admin restaurado y smoke de
-aplicación `6 OF 6` pasaron sin actividad Productiva. M.6.4 queda `ACTIVE` y
-M.6.4A queda `REVIEWED / CLOSED`. Un source Managed desechable con un objeto de
-68 bytes produjo el
+aplicación `6 OF 6` pasaron sin actividad Productiva. M.6.4 queda `REVIEWED /
+CLOSED` y M.6.4A queda `REVIEWED / CLOSED`. Un source Managed desechable con un
+objeto de 68 bytes produjo el
 backup real `GDBK-20261009T024741Z`, `PASS / REAL MANAGED VERIFIED`. Real
 Restores #1 y #2 fallaron en `DATABASE COUNTS` con `storage.objects` `EXPECTED 1
 / ACTUAL 2`: Supabase CLI 2.109.1 conservó el basename local tanto con source

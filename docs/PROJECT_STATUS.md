@@ -39,7 +39,8 @@ queda `REVIEWED / CLOSED`: tras los hallazgos conservados de Drills #1–#4,
 Drill #5 terminó `PASS / STRUCTURAL + FUNCTIONAL RECOVERY VERIFIED` sobre un
 target Managed nuevo y desechable. El restore estructural, el login Auth, el
 perfil admin restaurado y el smoke de aplicación `6 OF 6` pasaron sin actividad
-Productiva. PPO-04M.6.4 queda `ACTIVE` y PPO-04M.6.4A queda `REVIEWED / CLOSED`.
+Productiva. PPO-04M.6.4 queda `REVIEWED / CLOSED` y PPO-04M.6.4A queda
+`REVIEWED / CLOSED`.
 Un source Managed desechable con un objeto de 68 bytes pasó el byte round-trip y
 produjo el backup real `GDBK-20261009T024741Z`, verificado con Storage no vacío. Los dos
 primeros restores no vacíos fallaron correctamente en `DATABASE COUNTS`: tanto
