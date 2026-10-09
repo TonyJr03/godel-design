@@ -10,13 +10,15 @@
 
 **Estado de PPO-04M.6.2:** `REVIEWED / CODE COMPLETE`
 
-**Simple Restore V1:** `REVIEWED / APPROVED / REAL MANAGED RECOVERY VERIFIED`
+**Simple Restore V1:** `REAL MANAGED RECOVERY VERIFIED INCLUDING NON-EMPTY STORAGE`
 
 **Estado de PPO-04M.6.3:** `REVIEWED / CLOSED`
 
 **Estado de PPO-04M.6.4:** `ACTIVE`
 
-**Estado de PPO-04M.6.4A:** `ACTIVE`
+**Estado de PPO-04M.6.4A:** `REVIEWED / CLOSED`
+
+**Estado de PPO-04M.6.4B:** `NEXT / MINIMAL OPERATIONAL BACKUP POLICY`
 
 **Real Managed Recovery Drill #1:** `FAIL / PREFLIGHT / PSQL_REQUIRED / ZERO REMOTE ACTIVITY`
 
@@ -36,7 +38,7 @@
 
 **Production restore:** `NOT AUTHORIZED`
 
-**Fecha:** 2026-10-08
+**Fecha:** 2026-10-09
 
 ## 1. Objetivo y decisión arquitectónica
 
@@ -162,10 +164,10 @@ Production Backup #3. PPO-04M.6.4A verificó después un backup real no vacío d
 un source Managed desechable. Real Restores #1 y #2 alcanzaron el upload, pero
 fallaron en `DATABASE COUNTS` porque Supabase CLI 2.109.1 conservó el basename
 del directorio local tanto con source `godel-files` como con source `.`. La
-estrategia directory-root queda rechazada; el restore local corregido usa upsert
-por archivo hacia el path remoto exacto y queda pendiente de Real Restore #3.
-Esto no afirma validación con objetos Production. No se diseña un fallback
-complejo, un SDK propio ni capas adicionales.
+estrategia directory-root queda rechazada. El restore corregido por archivo pasó
+Real Restore #3 con paths exactos y round-trip byte-exact. Esto no afirma
+validación con objetos Production. No se diseña un fallback complejo, un SDK
+propio ni capas adicionales.
 
 En Windows, el script ejecuta primero `storage ls` de forma read-only para
 distinguir un bucket vacío. Si no hay objetos, crea localmente
@@ -175,9 +177,9 @@ versionado con `--workdir <repoRoot>`, origen `ss:///godel-files/` y destino
 relativo `godel-files`. No se pasa una ruta Windows absoluta como destino.
 
 La metadata de Storage permanece en el dump de datos PostgreSQL. El backup
-Productivo actual tiene Storage vacío, mientras que el backup no vacío ya fue
-verificado en un entorno Managed desechable. `TD-BACKUP-004` queda `OPEN` hasta
-demostrar el restore corregido con objetos reales.
+Productivo actual tiene Storage vacío, mientras que backup y restore no vacíos
+quedaron verificados en entornos Managed desechables. `TD-BACKUP-004` queda
+`CLOSED` por aceptación estructural y byte-exact.
 
 ### 3.3 `manifest.json`
 
@@ -462,12 +464,14 @@ para demostrar que backup y restore funcionan.
 | PPO-04M.6.2 | Simple Restore V1 Implementation | `REVIEWED / CODE COMPLETE` |
 | PPO-04M.6.3 | Real Backup + Managed Recovery Drill | `REVIEWED / CLOSED` |
 | PPO-04M.6.4 | Operationalization / Retention / Optional Off-site Copy | `ACTIVE` |
-| PPO-04M.6.4A | Non-empty Storage Recovery Validation | `ACTIVE` |
+| PPO-04M.6.4A | Non-empty Storage Recovery Validation | `REVIEWED / CLOSED` |
+| PPO-04M.6.4B | Minimal Operational Backup Policy | `NEXT / MINIMAL OPERATIONAL BACKUP POLICY` |
 
 PPO-04M.6.1 queda revisado y cerrado, con Simple Backup V1 aprobado y el backup
 Productivo real verificado localmente. PPO-04M.6.2 queda revisado y code complete.
 PPO-04M.6.3 queda revisado y cerrado por evidencia estructural y funcional del
-quinto drill real. PPO-04M.6.4 está activo mediante la validación M.6.4A.
+quinto drill real. PPO-04M.6.4 sigue activo; M.6.4A queda revisado y cerrado, y
+M.6.4B es el siguiente bloque.
 
 ## 10. Cierre de Diagnostic #6
 
@@ -589,8 +593,22 @@ del directorio y vuelve a obtener `godel-files` como basename. Por tanto, la
 estrategia directory-root queda `REJECTED`. La corrección local definitiva sube
 cada archivo con source relativo y destination remoto exacto, conserva `-r` para
 el upsert y verifica después el conjunto exacto de paths. `DATABASE COUNTS` se
-mantiene sin relajar. El restore no vacío sigue pendiente de Real Restore #3,
-por lo que M.6.4A y TD-BACKUP-004 permanecen abiertos.
+mantiene sin relajar.
+
+Real Non-empty Storage Restore #3 usó el execution SHA inmutable
+`00a2f8c8c9dd7d06fef2017c16ef4acbc486f7ba` y el backup
+`GDBK-20261009T024741Z`. `restore.ps1` terminó `RESTORE COMPLETE` con exit 0:
+schema, db push, database, database counts, Storage y restauración de las
+variables del caller pasaron. La aceptación read-only independiente confirmó un
+bucket, un objeto, un único path canónico
+`m6-4a/nonempty-storage-fixture.png`, ausencia del path duplicado y metadata size
+68. El download final midió 68 bytes y su SHA-256
+`0d0c28ebff1146040753834f8cc0ca19d6ee70c8902db80e949891afa9dedd90` coincidió
+con el fixture del backup. La cadena source → backup → restored quedó `PASS` y la
+verificación remota realizó cero mutaciones.
+
+Por esta evidencia, M.6.4A queda `REVIEWED / CLOSED`, TD-BACKUP-004 queda
+`CLOSED` y el alcance real pasa a `NON-EMPTY STORAGE VERIFIED / BYTE-EXACT`.
 
 ## 13. Estado resultante
 
@@ -604,7 +622,7 @@ REAL PRODUCTION BACKUP #1 = PREFLIGHT BLOCKED / NOT EXECUTED / ZERO REMOTE ACTIV
 REAL PRODUCTION BACKUP #2 = SAFE FAIL / STORAGE WINDOWS PATH COMPATIBILITY
 REAL PRODUCTION BACKUP #3 = PASS / ARTIFACT VERIFIED LOCALLY
 PPO-04M.6.2 = REVIEWED / CODE COMPLETE
-SIMPLE RESTORE V1 = REVIEWED / APPROVED / REAL MANAGED RECOVERY VERIFIED
+SIMPLE RESTORE V1 = REAL MANAGED RECOVERY VERIFIED INCLUDING NON-EMPTY STORAGE
 PPO-04M.6.3 = REVIEWED / CLOSED
 REAL MANAGED RECOVERY DRILL #1 = FAIL / PREFLIGHT / PSQL_REQUIRED / ZERO REMOTE ACTIVITY
 REAL MANAGED RECOVERY DRILL #2 = FAIL / AMBIGUOUS DB PUSH OUTCOME
@@ -646,16 +664,16 @@ FINAL_RECOVERY_APPLICATION_SMOKE_EXIT_CODE = 0
 PRODUCTION ACTIVITY DURING FUNCTIONAL ACCEPTANCE = 0
 STORAGE FILE COUNT = 0
 STORAGE TOTAL BYTES = 0
-CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE VERIFIED / NON-EMPTY RESTORE PENDING REAL RESTORE #3
+CURRENT REAL RESTORE STORAGE SCOPE = NON-EMPTY STORAGE VERIFIED / BYTE-EXACT
 PPO-04M.6.4 = ACTIVE
-PPO-04M.6.4A = ACTIVE
+PPO-04M.6.4A = REVIEWED / CLOSED
 NON-EMPTY STORAGE SOURCE FIXTURE = PASS / REAL MANAGED
-REAL NON-EMPTY STORAGE BACKUP = PASS / REAL-ENVIRONMENT VERIFIED
+REAL NON-EMPTY STORAGE BACKUP = PASS / REAL MANAGED VERIFIED
 VALIDATION BACKUP = GDBK-20261009T024741Z
 BACKUP STORAGE FILE COUNT = 1
 BACKUP STORAGE TOTAL BYTES = 68
 BACKUP BYTE SHA256 = MATCH
-REAL NON-EMPTY STORAGE RESTORE #1 = FAIL / STORAGE SOURCE-ROOT PATH DUPLICATION
+REAL NON-EMPTY STORAGE RESTORE #1 = FAIL / SOURCE-ROOT PATH DUPLICATION
 RESTORE #1 EXECUTION SHA = 7bf39fb50e42d6809cd9ae3497d7090daa4f0fdd
 RESTORE #1 DATABASE COUNTS = FAIL
 RESTORE #1 storage.objects = EXPECTED 1 / ACTUAL 2
@@ -664,7 +682,7 @@ CANONICAL RESTORED PATH = m6-4a/nonempty-storage-fixture.png
 INCORRECT PATH CREATED = godel-files/m6-4a/nonempty-storage-fixture.png
 RESTORE #1 TARGET = FAILED / DISPOSABLE
 NON-EMPTY STORAGE BACKUP = REAL VERIFIED
-REAL NON-EMPTY STORAGE RESTORE #2 = FAIL / DIRECTORY SOURCE NORMALIZATION RETAINS BUCKET BASENAME
+REAL NON-EMPTY STORAGE RESTORE #2 = FAIL / DIRECTORY NORMALIZATION RETAINED BUCKET BASENAME
 RESTORE #2 EXECUTION SHA = 8c8c12d5cde5f4e570bb4dcc945363d5a299b7bb
 RESTORE #2 DATABASE COUNTS = FAIL
 RESTORE #2 storage.objects = EXPECTED 1 / ACTUAL 2
@@ -674,10 +692,24 @@ RESTORE #2 FORENSICS = CONFIRMED / REMOTE MUTATIONS 0
 RESTORE #2 TARGET = FAILED / DISPOSABLE
 DIRECTORY-ROOT RESTORE STRATEGY = REJECTED
 CORRECTED STRATEGY = PER-FILE EXACT-PATH UPSERT
-NON-EMPTY STORAGE RESTORE = PENDING REAL RESTORE #3
+REAL NON-EMPTY STORAGE RESTORE #3 = PASS / REAL MANAGED VERIFIED
+RESTORE #3 EXECUTION SHA = 00a2f8c8c9dd7d06fef2017c16ef4acbc486f7ba
+RESTORE #3 STRATEGY = PER-FILE EXACT-PATH UPSERT
+RESTORE #3 DATABASE COUNTS = PASS
+RESTORE #3 STORAGE PATHS = PASS
+TARGET STORAGE OBJECT COUNT = 1
+CANONICAL PATH = m6-4a/nonempty-storage-fixture.png
+DUPLICATED PATH = ABSENT
+BACKUP STORAGE BYTES = 68
+RESTORED STORAGE BYTES = 68
+BACKUP / RESTORED SHA256 = MATCH
+NON-EMPTY STORAGE BYTE-EXACT ROUNDTRIP = PASS
+SOURCE → BACKUP → RESTORED BYTE CHAIN = PASS
+REMOTE VERIFICATION MUTATIONS = 0
+PPO-04M.6.4B = NEXT / MINIMAL OPERATIONAL BACKUP POLICY
 LEGACY COMPLEX RECOVERY HARNESS = FROZEN / NOT ACTIVE PATH
 DIAGNOSTIC #7 = CANCELLED
 OLD REAL RESTORE ATTEMPT #7 = CANCELLED UNDER LEGACY APPROACH
 PRODUCTION RESTORE = NOT AUTHORIZED
-TD-BACKUP-004 = OPEN
+TD-BACKUP-004 = CLOSED
 ```

@@ -2,12 +2,12 @@
 
 ## Metadatos
 
-- Actualización de estado: 2026-10-08
+- Actualización de estado: 2026-10-09
 
 - Proyecto: Godel Diseño
 - Estado: Activo
 - Fecha de creación: 2026-07-21
-- Última revisión: 2026-10-08
+- Última revisión: 2026-10-09
 - Responsable técnico: Dirección Técnica de Godel Diseño
 - Arquitectura y supervisión: Arquitectura Senior / Orquestación Técnica
 - Implementación: Agente Codex en VS Code
@@ -170,20 +170,22 @@ PPO-04M.6 queda `ACTIVE` con M.6.0 `REVIEWED / CLOSED` y M.6.1
 `REVIEWED / CLOSED`. Simple Backup V1 queda `REVIEWED / APPROVED / REAL
 PRODUCTION BACKUP VERIFIED`; Real Production Backup #3 quedó `PASS / ARTIFACT
 VERIFIED LOCALLY`.
-M.6.2 queda `REVIEWED / CODE COMPLETE`; Simple Restore V1 queda `REVIEWED /
-APPROVED / REAL MANAGED RECOVERY VERIFIED`. M.6.3 queda `REVIEWED / CLOSED`.
+M.6.2 queda `REVIEWED / CODE COMPLETE`; Simple Restore V1 queda `REAL MANAGED
+RECOVERY VERIFIED INCLUDING NON-EMPTY STORAGE`. M.6.3 queda `REVIEWED / CLOSED`.
 Se conserva el historial de hallazgos de Drills #1–#4. Drill #5 terminó `PASS /
 STRUCTURAL + FUNCTIONAL RECOVERY VERIFIED` sobre un target Managed nuevo y
 desechable: restore estructural, login Auth, perfil admin restaurado y smoke de
-aplicación `6 OF 6` pasaron sin actividad Productiva. M.6.4 y M.6.4A quedan
-`ACTIVE`. Un source Managed desechable con un objeto de 68 bytes produjo el
-backup real `GDBK-20261009T024741Z`, `PASS / REAL-ENVIRONMENT VERIFIED`. Real
+aplicación `6 OF 6` pasaron sin actividad Productiva. M.6.4 queda `ACTIVE` y
+M.6.4A queda `REVIEWED / CLOSED`. Un source Managed desechable con un objeto de
+68 bytes produjo el
+backup real `GDBK-20261009T024741Z`, `PASS / REAL MANAGED VERIFIED`. Real
 Restores #1 y #2 fallaron en `DATABASE COUNTS` con `storage.objects` `EXPECTED 1
 / ACTUAL 2`: Supabase CLI 2.109.1 conservó el basename local tanto con source
 `godel-files` como con source `.`. La estrategia directory-root queda rechazada
-y la corrección local adopta upsert por archivo hacia el path remoto exacto,
-pendiente de Real Restore #3. Production restore no está autorizado y
-TD-BACKUP-004 permanece `OPEN`. El restore automático aplica migrations, datos
+y la corrección per-file exact-path terminó Real Restore #3 `PASS / REAL MANAGED
+VERIFIED`, con paths exactos y round-trip byte-exact. TD-BACKUP-004 queda
+`CLOSED`; M.6.4B queda `NEXT / MINIMAL OPERATIONAL BACKUP POLICY`. Production
+restore no está autorizado. El restore automático aplica migrations, datos
 y Storage, pero no ejecuta
 `supabase config push` porque la configuración versionada contiene URLs
 localhost de desarrollo.
@@ -2528,4 +2530,5 @@ Iceberg. La estrategia activa se define en
 | PPO-04M.6.2 | Simple Restore V1 Implementation | `REVIEWED / CODE COMPLETE` |
 | PPO-04M.6.3 | Real Backup + Managed Recovery Drill | `REVIEWED / CLOSED` |
 | PPO-04M.6.4 | Operationalization / Retention / Optional Off-site Copy | `ACTIVE` |
-| PPO-04M.6.4A | Non-empty Storage Recovery Validation | `ACTIVE` |
+| PPO-04M.6.4A | Non-empty Storage Recovery Validation | `REVIEWED / CLOSED` |
+| PPO-04M.6.4B | Minimal Operational Backup Policy | `NEXT / MINIMAL OPERATIONAL BACKUP POLICY` |
