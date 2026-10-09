@@ -184,8 +184,12 @@ Restores #1 y #2 fallaron en `DATABASE COUNTS` con `storage.objects` `EXPECTED 1
 `godel-files` como con source `.`. La estrategia directory-root queda rechazada
 y la corrección per-file exact-path terminó Real Restore #3 `PASS / REAL MANAGED
 VERIFIED`, con paths exactos y round-trip byte-exact. TD-BACKUP-004 queda
-`CLOSED`; M.6.4B queda `NEXT / MINIMAL OPERATIONAL BACKUP POLICY`. Production
-restore no está autorizado. El restore automático aplica migrations, datos
+`CLOSED`. M.6.4B queda `REVIEWED / CLOSED`: backup semanal durante actividad
+operativa real, backup obligatorio antes de operaciones deliberadas de alto
+riesgo, mínimo de cuatro backups exitosos retenidos y cleanup manual. M.6.4C
+queda `NEXT / LIGHTWEIGHT OPERATIONAL RUNBOOK`; M.6.4D conserva la decisión
+off-site como `PENDING`. Production restore no está autorizado. El restore
+automático aplica migrations, datos
 y Storage, pero no ejecuta
 `supabase config push` porque la configuración versionada contiene URLs
 localhost de desarrollo.
@@ -2531,4 +2535,6 @@ Iceberg. La estrategia activa se define en
 | PPO-04M.6.3 | Real Backup + Managed Recovery Drill | `REVIEWED / CLOSED` |
 | PPO-04M.6.4 | Operationalization / Retention / Optional Off-site Copy | `ACTIVE` |
 | PPO-04M.6.4A | Non-empty Storage Recovery Validation | `REVIEWED / CLOSED` |
-| PPO-04M.6.4B | Minimal Operational Backup Policy | `NEXT / MINIMAL OPERATIONAL BACKUP POLICY` |
+| PPO-04M.6.4B | Minimal Operational Backup Policy | `REVIEWED / CLOSED` |
+| PPO-04M.6.4C | Lightweight Operational Runbook | `NEXT / LIGHTWEIGHT OPERATIONAL RUNBOOK` |
+| PPO-04M.6.4D | Optional Off-site Decision | `OPTIONAL OFF-SITE DECISION / PENDING` |

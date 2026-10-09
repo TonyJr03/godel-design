@@ -47,9 +47,12 @@ la fuente `godel-files` como la fuente `.` fueron normalizadas por Supabase CLI
 2.109.1 a un directorio cuyo basename volvió a añadirse al path remoto. La
 estrategia de copiar un directorio a la raíz del bucket queda rechazada; la
 corrección por archivo pasó Real Restore #3, incluida aceptación estructural,
-paths exactos y round-trip byte-exact. TD-BACKUP-004 queda `CLOSED` y
-PPO-04M.6.4B queda `NEXT / MINIMAL OPERATIONAL BACKUP POLICY`. Production
-restore no está autorizado.
+paths exactos y round-trip byte-exact. TD-BACKUP-004 queda `CLOSED`.
+PPO-04M.6.4B queda `REVIEWED / CLOSED`: durante el Production Pilot el baseline
+es un backup semanal cuando exista actividad operativa real, más un backup
+exitoso previo a operaciones deliberadas de alto riesgo, con un mínimo de cuatro
+backups exitosos retenidos y cleanup manual. PPO-04M.6.4C queda `NEXT /
+LIGHTWEIGHT OPERATIONAL RUNBOOK`; Production restore no está autorizado.
 La estrategia canónica es
 [PPO-04M.6 — Simple Backup / Restore V1](production/PPO_04M6_SIMPLE_BACKUP_RESTORE_V1.md):
 Git conserva la autoridad de schema/código y el backup conserva los datos
@@ -306,7 +309,19 @@ NON-EMPTY STORAGE BYTE-EXACT ROUNDTRIP = PASS
 SOURCE → BACKUP → RESTORED BYTE CHAIN = PASS
 REMOTE VERIFICATION MUTATIONS = 0
 TD-BACKUP-004 = CLOSED
-PPO-04M.6.4B = NEXT / MINIMAL OPERATIONAL BACKUP POLICY
+PPO-04M.6.4B = REVIEWED / CLOSED
+ROUTINE PRODUCTION BACKUP CADENCE = WEEKLY
+PRE-HIGH-RISK-OPERATION BACKUP = REQUIRED
+MINIMUM SUCCESSFUL PRODUCTION BACKUPS RETAINED = 4
+AUTOMATIC BACKUP SCHEDULING = NOT IMPLEMENTED IN M.6.4B
+AUTOMATIC RETENTION DELETION = NOT IMPLEMENTED
+BACKUP CLEANUP = MANUAL DURING PRODUCTION PILOT
+FAILED / PARTIAL BACKUPS = NOT VALID RECOVERY POINTS
+PROTECTED BACKUPS = EXEMPT FROM ORDINARY RETENTION CLEANUP
+PRIMARY BACKUP CUSTODY = OPERATOR-SPECIFIED LOCAL BACKUPROOT
+OFF-SITE DECISION = DEFERRED TO M.6.4D
+PPO-04M.6.4C = NEXT / LIGHTWEIGHT OPERATIONAL RUNBOOK
+PPO-04M.6.4D = OPTIONAL OFF-SITE DECISION / PENDING
 REAL RESTORE ATTEMPT #1 = FAIL / PREFLIGHT OPERATOR CONFIGURATION
 REAL RESTORE ATTEMPT #2 = FAIL / SOURCE_VERIFY REAL BACKUP SQL DIALECT ADMISSION FINDING
 REAL RESTORE ATTEMPT #3 = NOT AUTHORIZED / PENDING FINAL DOCUMENTARY REVIEW
@@ -1080,7 +1095,9 @@ PPO-04M.0  arquitectura y gobernanza — CLOSED / APPROVED
 → PPO-04M.6.3  real backup + managed recovery drill — REVIEWED / CLOSED
 → PPO-04M.6.4  operationalization / retention / optional off-site copy — ACTIVE
 → PPO-04M.6.4A  Non-empty Storage Recovery Validation — REVIEWED / CLOSED
-→ PPO-04M.6.4B  Minimal Operational Backup Policy — NEXT
+→ PPO-04M.6.4B  Minimal Operational Backup Policy — REVIEWED / CLOSED
+→ PPO-04M.6.4C  Lightweight Operational Runbook — NEXT / LIGHTWEIGHT OPERATIONAL RUNBOOK
+→ PPO-04M.6.4D  Optional Off-site Decision — OPTIONAL OFF-SITE DECISION / PENDING
 → Production pilot rollout — NOT EXECUTED / SEQUENCING PENDING AFTER M.6
 → LSH (futuro, no iniciado)
 ```

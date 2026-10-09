@@ -18,7 +18,11 @@
 
 **Estado de PPO-04M.6.4A:** `REVIEWED / CLOSED`
 
-**Estado de PPO-04M.6.4B:** `NEXT / MINIMAL OPERATIONAL BACKUP POLICY`
+**Estado de PPO-04M.6.4B:** `REVIEWED / CLOSED`
+
+**Estado de PPO-04M.6.4C:** `NEXT / LIGHTWEIGHT OPERATIONAL RUNBOOK`
+
+**Estado de PPO-04M.6.4D:** `OPTIONAL OFF-SITE DECISION / PENDING`
 
 **Real Managed Recovery Drill #1:** `FAIL / PREFLIGHT / PSQL_REQUIRED / ZERO REMOTE ACTIVITY`
 
@@ -451,9 +455,9 @@ Managed recuperado.
 
 El cifrado y la copia off-site siguen siendo deseables, pero quedan desacoplados
 del mecanismo básico. Simple Backup / Restore V1 debe funcionar por completo
-con una carpeta local. Una etapa posterior podrá copiar esa carpeta a R2 u otro
-destino y cifrarla según la política operativa; R2 y `age` no son requisitos
-para demostrar que backup y restore funcionan.
+con una carpeta local. M.6.4D conserva la decisión off-site como `OPTIONAL
+OFF-SITE DECISION / PENDING`; M.6.4B no selecciona proveedor ni introduce una
+dependencia externa.
 
 ## 9. Roadmap
 
@@ -465,13 +469,15 @@ para demostrar que backup y restore funcionan.
 | PPO-04M.6.3 | Real Backup + Managed Recovery Drill | `REVIEWED / CLOSED` |
 | PPO-04M.6.4 | Operationalization / Retention / Optional Off-site Copy | `ACTIVE` |
 | PPO-04M.6.4A | Non-empty Storage Recovery Validation | `REVIEWED / CLOSED` |
-| PPO-04M.6.4B | Minimal Operational Backup Policy | `NEXT / MINIMAL OPERATIONAL BACKUP POLICY` |
+| PPO-04M.6.4B | Minimal Operational Backup Policy | `REVIEWED / CLOSED` |
+| PPO-04M.6.4C | Lightweight Operational Runbook | `NEXT / LIGHTWEIGHT OPERATIONAL RUNBOOK` |
+| PPO-04M.6.4D | Optional Off-site Decision | `OPTIONAL OFF-SITE DECISION / PENDING` |
 
 PPO-04M.6.1 queda revisado y cerrado, con Simple Backup V1 aprobado y el backup
 Productivo real verificado localmente. PPO-04M.6.2 queda revisado y code complete.
 PPO-04M.6.3 queda revisado y cerrado por evidencia estructural y funcional del
-quinto drill real. PPO-04M.6.4 sigue activo; M.6.4A queda revisado y cerrado, y
-M.6.4B es el siguiente bloque.
+quinto drill real. PPO-04M.6.4 sigue activo; M.6.4A y M.6.4B quedan revisados y
+cerrados, y M.6.4C es el siguiente bloque.
 
 ## 10. Cierre de Diagnostic #6
 
@@ -610,7 +616,67 @@ verificación remota realizó cero mutaciones.
 Por esta evidencia, M.6.4A queda `REVIEWED / CLOSED`, TD-BACKUP-004 queda
 `CLOSED` y el alcance real pasa a `NON-EMPTY STORAGE VERIFIED / BYTE-EXACT`.
 
-## 13. Estado resultante
+## 13. PPO-04M.6.4B — Minimal Operational Backup Policy
+
+Durante el Production Pilot, el baseline rutinario es crear un backup
+Productivo una vez por semana mientras Production tenga actividad operativa
+real. M.6.4B no introduce scheduler automático.
+
+Además del backup semanal, el operador debe obtener primero un backup exitoso
+antes de una operación deliberada con riesgo significativo sobre datos, como una
+migración nueva, una modificación bulk, un cleanup potencialmente destructivo,
+un cambio relevante de Storage o una operación administrativa excepcional. La
+regla general es:
+
+```text
+BEFORE DELIBERATE HIGH-RISK PRODUCTION DATA OPERATION
+= CREATE SUCCESSFUL BACKUP FIRST
+```
+
+Después de una importación o cambio operacional importante, el operador puede
+crear otro backup para fijar explícitamente el nuevo estado como recovery point.
+
+Se deben retener como mínimo cuatro backups Productivos exitosos. Sólo cuenta un
+directorio final `GDBK-*` producido por una ejecución exitosa de
+`scripts/backup-recovery/backup.ps1`; un fallo, un `*.partial` o una ejecución
+incompleta no es un recovery point válido ni sustituye un backup exitoso.
+
+El mínimo de cuatro no es un máximo. Quedan protegidos frente al cleanup
+ordinario el último backup Productivo exitoso, los usados como evidencia de un
+recovery drill, los asociados a un incidente o investigación, los marcados por
+el operador como referencia y aquellos cuyo reemplazo aún no haya sido validado
+exitosamente.
+
+M.6.4B no implementa scheduling ni eliminación automática. El cleanup durante
+el Production Pilot permanece manual y no se crea registry o catálogo adicional:
+el filesystem y el manifest existentes siguen siendo suficientes para V1. La
+custodia primaria continúa en el `-BackupRoot <path>` local elegido por el
+operador; no existe una ruta absoluta universal en el contrato.
+
+Esta política no autoriza restore in-place, restore sobre Production ni restore
+automático. El recovery validado continúa dirigido a un proyecto Supabase
+Managed nuevo y desechable. PPO-06 podrá profundizar después en automatización,
+scheduling, retention automation, monitoring, restore rehearsals, durabilidad
+off-site y objetivos RPO/RTO más estrictos.
+
+```text
+PPO-04M.6.4B = REVIEWED / CLOSED
+ROUTINE PRODUCTION BACKUP CADENCE = WEEKLY
+PRE-HIGH-RISK-OPERATION BACKUP = REQUIRED
+MINIMUM SUCCESSFUL PRODUCTION BACKUPS RETAINED = 4
+AUTOMATIC BACKUP SCHEDULING = NOT IMPLEMENTED IN M.6.4B
+AUTOMATIC RETENTION DELETION = NOT IMPLEMENTED
+BACKUP CLEANUP = MANUAL DURING PRODUCTION PILOT
+FAILED / PARTIAL BACKUPS = NOT VALID RECOVERY POINTS
+PROTECTED BACKUPS = EXEMPT FROM ORDINARY RETENTION CLEANUP
+PRIMARY BACKUP CUSTODY = OPERATOR-SPECIFIED LOCAL BACKUPROOT
+OFF-SITE DECISION = DEFERRED TO M.6.4D
+PRODUCTION RESTORE = NOT AUTHORIZED
+PPO-04M.6.4C = NEXT / LIGHTWEIGHT OPERATIONAL RUNBOOK
+PPO-04M.6.4D = OPTIONAL OFF-SITE DECISION / PENDING
+```
+
+## 14. Estado resultante
 
 ```text
 PPO-04M.5.3 = SUSPENDED / SUPERSEDED
@@ -706,7 +772,19 @@ BACKUP / RESTORED SHA256 = MATCH
 NON-EMPTY STORAGE BYTE-EXACT ROUNDTRIP = PASS
 SOURCE → BACKUP → RESTORED BYTE CHAIN = PASS
 REMOTE VERIFICATION MUTATIONS = 0
-PPO-04M.6.4B = NEXT / MINIMAL OPERATIONAL BACKUP POLICY
+PPO-04M.6.4B = REVIEWED / CLOSED
+ROUTINE PRODUCTION BACKUP CADENCE = WEEKLY
+PRE-HIGH-RISK-OPERATION BACKUP = REQUIRED
+MINIMUM SUCCESSFUL PRODUCTION BACKUPS RETAINED = 4
+AUTOMATIC BACKUP SCHEDULING = NOT IMPLEMENTED IN M.6.4B
+AUTOMATIC RETENTION DELETION = NOT IMPLEMENTED
+BACKUP CLEANUP = MANUAL DURING PRODUCTION PILOT
+FAILED / PARTIAL BACKUPS = NOT VALID RECOVERY POINTS
+PROTECTED BACKUPS = EXEMPT FROM ORDINARY RETENTION CLEANUP
+PRIMARY BACKUP CUSTODY = OPERATOR-SPECIFIED LOCAL BACKUPROOT
+OFF-SITE DECISION = DEFERRED TO M.6.4D
+PPO-04M.6.4C = NEXT / LIGHTWEIGHT OPERATIONAL RUNBOOK
+PPO-04M.6.4D = OPTIONAL OFF-SITE DECISION / PENDING
 LEGACY COMPLEX RECOVERY HARNESS = FROZEN / NOT ACTIVE PATH
 DIAGNOSTIC #7 = CANCELLED
 OLD REAL RESTORE ATTEMPT #7 = CANCELLED UNDER LEGACY APPROACH
