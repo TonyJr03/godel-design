@@ -8,13 +8,13 @@ ha ejecutado.
 ## CURRENT / GOVERNING
 
 - [PPO_ROADMAP.md](PPO_ROADMAP.md): roadmap maestro de Preproducción y Puesta
-  en Operación. PPO-04 está `ACTIVE / NEXT` con destino Vercel Hobby + Supabase
-  Managed Free.
+  en Operación. PPO-04M.6 está `ACTIVE`; M.6.4A, M.6.4B y M.6.4C están
+  `REVIEWED / CLOSED`, y M.6.4D es la siguiente decisión opcional off-site.
 - [PPO_04_MANAGED_FREE_PILOT_PLAN.md](PPO_04_MANAGED_FREE_PILOT_PLAN.md): plan
   gobernante de PPO-04M; PPO-04M.0 y PPO-04M.1 están `CLOSED / APPROVED`,
   PPO-04M.2 está `CLOSED / APPROVED` con M.2A y M.2B cerrados; PPO-04M.3 está
-  `CLOSED / APPROVED`, PPO-04M.4 está `CLOSED / QUALIFIED ACCEPTANCE` y
-  PPO-04M.5 está `ACTIVE / RESTORE DRILL PREPARATION`.
+  `CLOSED / APPROVED`, PPO-04M.4 está `CLOSED / QUALIFIED ACCEPTANCE`,
+  PPO-04M.5 está `SUSPENDED / SUPERSEDED` y PPO-04M.6 está `ACTIVE`.
 - [PPO_04M0_MANAGED_ARCHITECTURE_AUDIT.md](PPO_04M0_MANAGED_ARCHITECTURE_AUDIT.md):
   contrato aprobado de arquitectura, variables, Auth, DB, Storage, Vercel, QA,
   backup boundary y handoff exacto a PPO-04M.1.
@@ -28,19 +28,24 @@ ha ejecutado.
 - [PPO_04M3_VERCEL_HOBBY_DEPLOYMENT_REPORT.md](PPO_04M3_VERCEL_HOBBY_DEPLOYMENT_REPORT.md):
   evidencia de M.3 `CLOSED / APPROVED`; Production está ready, aceptado y
   protegido, con Site URL alineado y pilot rollout pendiente.
-- [PPO_04M5_BACKUP_RECOVERY_DESIGN.md](PPO_04M5_BACKUP_RECOVERY_DESIGN.md):
-  arquitectura y estado gobernante del backup/recovery managed.
-- [PPO_04M53_RESTORE_DRILL_AUDIT.md](PPO_04M53_RESTORE_DRILL_AUDIT.md):
-  auditoría de arquitectura y contrato fail-closed para el primer restore drill
-  local, aislado y desechable; el restore todavía no está autorizado.
-- [PPO_04M521E_FIRST_PRODUCTION_BACKUP_ATTEMPT_1_REPORT.md](PPO_04M521E_FIRST_PRODUCTION_BACKUP_ATTEMPT_1_REPORT.md):
-  evidencia sanitizada del intento #1, detenido de forma segura antes de
-  bundle, cifrado o publicación R2.
+- [PPO_04M6_SIMPLE_BACKUP_RESTORE_V1.md](PPO_04M6_SIMPLE_BACKUP_RESTORE_V1.md):
+  diseño y estado gobernante del camino Simple Backup / Restore V1.
+- [PPO_04M6_BACKUP_OPERATIONS_RUNBOOK.md](PPO_04M6_BACKUP_OPERATIONS_RUNBOOK.md):
+  entry point operativo vigente para crear, aceptar y conservar backups
+  Productivos durante el Managed Production Pilot.
 - [PROJECT_STATUS.md](../PROJECT_STATUS.md): fotografía vigente del proyecto,
   arquitectura, baseline y estados globales.
 
 ## HISTORICAL / SUPERSEDED EXECUTION PATH
 
+- [PPO_04M5_BACKUP_RECOVERY_DESIGN.md](PPO_04M5_BACKUP_RECOVERY_DESIGN.md):
+  arquitectura anterior de backup/recovery managed, `SUSPENDED / SUPERSEDED`
+  por Simple Backup / Restore V1.
+- [PPO_04M53_RESTORE_DRILL_AUDIT.md](PPO_04M53_RESTORE_DRILL_AUDIT.md):
+  auditoría histórica del primer restore drill local, aislado y desechable.
+- [PPO_04M521E_FIRST_PRODUCTION_BACKUP_ATTEMPT_1_REPORT.md](PPO_04M521E_FIRST_PRODUCTION_BACKUP_ATTEMPT_1_REPORT.md):
+  evidencia sanitizada histórica del intento #1, detenido de forma segura antes
+  de bundle, cifrado o publicación R2.
 - [PPO_04_PRODUCTION_PILOT_PLAN.md](PPO_04_PRODUCTION_PILOT_PLAN.md): antiguo
   plan de ejecución Self-Hosted VPS, `SUPERSEDED`; deployment no ejecutado y
   gates pendientes preservados.

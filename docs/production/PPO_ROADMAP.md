@@ -187,14 +187,29 @@ VERIFIED`, con paths exactos y round-trip byte-exact. TD-BACKUP-004 queda
 `CLOSED`. M.6.4B queda `REVIEWED / CLOSED`: backup semanal durante actividad
 operativa real, backup obligatorio antes de operaciones deliberadas de alto
 riesgo, mínimo de cuatro backups exitosos retenidos y cleanup manual. M.6.4C
-queda `NEXT / LIGHTWEIGHT OPERATIONAL RUNBOOK`; M.6.4D conserva la decisión
-off-site como `PENDING`. Production restore no está autorizado. El restore
+queda `REVIEWED / CLOSED`; el
+[Backup Operations Runbook](PPO_04M6_BACKUP_OPERATIONS_RUNBOOK.md) es el entry
+point operativo gobernante. M.6.4D queda `NEXT / OPTIONAL OFF-SITE DECISION`.
+Production restore no está autorizado. El restore
 automático aplica migrations, datos
 y Storage, pero no ejecuta
 `supabase config push` porque la configuración versionada contiene URLs
 localhost de desarrollo.
 El contrato vigente está en
 [PPO-04M.6 — Simple Backup / Restore V1](PPO_04M6_SIMPLE_BACKUP_RESTORE_V1.md).
+
+```text
+PPO-04M.6.4C = REVIEWED / CLOSED
+BACKUP OPERATIONS RUNBOOK = AVAILABLE / GOVERNING OPERATOR ENTRY POINT
+CANONICAL BACKUP INTERFACE = scripts/backup-recovery/backup.ps1 -BackupRoot <path>
+ROUTINE CADENCE = WEEKLY
+HIGH-RISK PRE-BACKUP = REQUIRED
+RETENTION = MINIMUM 4 SUCCESSFUL PRODUCTION BACKUPS
+CLEANUP = MANUAL
+PRODUCTION RESTORE = NOT AUTHORIZED
+PPO-04M.6.4D = NEXT / OPTIONAL OFF-SITE DECISION
+```
+
 PPO-04 global continúa `ACTIVE / NEXT`; el Production pilot rollout permanece
 `NOT EXECUTED`.
 
@@ -2536,5 +2551,5 @@ Iceberg. La estrategia activa se define en
 | PPO-04M.6.4 | Operationalization / Retention / Optional Off-site Copy | `ACTIVE` |
 | PPO-04M.6.4A | Non-empty Storage Recovery Validation | `REVIEWED / CLOSED` |
 | PPO-04M.6.4B | Minimal Operational Backup Policy | `REVIEWED / CLOSED` |
-| PPO-04M.6.4C | Lightweight Operational Runbook | `NEXT / LIGHTWEIGHT OPERATIONAL RUNBOOK` |
-| PPO-04M.6.4D | Optional Off-site Decision | `OPTIONAL OFF-SITE DECISION / PENDING` |
+| PPO-04M.6.4C | Lightweight Operational Runbook | `REVIEWED / CLOSED` |
+| PPO-04M.6.4D | Optional Off-site Decision | `NEXT / OPTIONAL OFF-SITE DECISION` |

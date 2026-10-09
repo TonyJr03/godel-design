@@ -51,8 +51,11 @@ paths exactos y round-trip byte-exact. TD-BACKUP-004 queda `CLOSED`.
 PPO-04M.6.4B queda `REVIEWED / CLOSED`: durante el Production Pilot el baseline
 es un backup semanal cuando exista actividad operativa real, más un backup
 exitoso previo a operaciones deliberadas de alto riesgo, con un mínimo de cuatro
-backups exitosos retenidos y cleanup manual. PPO-04M.6.4C queda `NEXT /
-LIGHTWEIGHT OPERATIONAL RUNBOOK`; Production restore no está autorizado.
+backups exitosos retenidos y cleanup manual. PPO-04M.6.4C queda `REVIEWED /
+CLOSED`; el
+[Backup Operations Runbook](production/PPO_04M6_BACKUP_OPERATIONS_RUNBOOK.md)
+es el entry point operativo gobernante. PPO-04M.6.4D queda `NEXT / OPTIONAL
+OFF-SITE DECISION`; Production restore no está autorizado.
 La estrategia canónica es
 [PPO-04M.6 — Simple Backup / Restore V1](production/PPO_04M6_SIMPLE_BACKUP_RESTORE_V1.md):
 Git conserva la autoridad de schema/código y el backup conserva los datos
@@ -320,8 +323,14 @@ FAILED / PARTIAL BACKUPS = NOT VALID RECOVERY POINTS
 PROTECTED BACKUPS = EXEMPT FROM ORDINARY RETENTION CLEANUP
 PRIMARY BACKUP CUSTODY = OPERATOR-SPECIFIED LOCAL BACKUPROOT
 OFF-SITE DECISION = DEFERRED TO M.6.4D
-PPO-04M.6.4C = NEXT / LIGHTWEIGHT OPERATIONAL RUNBOOK
-PPO-04M.6.4D = OPTIONAL OFF-SITE DECISION / PENDING
+PPO-04M.6.4C = REVIEWED / CLOSED
+BACKUP OPERATIONS RUNBOOK = AVAILABLE / GOVERNING OPERATOR ENTRY POINT
+CANONICAL BACKUP INTERFACE = scripts/backup-recovery/backup.ps1 -BackupRoot <path>
+ROUTINE CADENCE = WEEKLY
+HIGH-RISK PRE-BACKUP = REQUIRED
+RETENTION = MINIMUM 4 SUCCESSFUL PRODUCTION BACKUPS
+CLEANUP = MANUAL
+PPO-04M.6.4D = NEXT / OPTIONAL OFF-SITE DECISION
 REAL RESTORE ATTEMPT #1 = FAIL / PREFLIGHT OPERATOR CONFIGURATION
 REAL RESTORE ATTEMPT #2 = FAIL / SOURCE_VERIFY REAL BACKUP SQL DIALECT ADMISSION FINDING
 REAL RESTORE ATTEMPT #3 = NOT AUTHORIZED / PENDING FINAL DOCUMENTARY REVIEW
@@ -1096,8 +1105,8 @@ PPO-04M.0  arquitectura y gobernanza — CLOSED / APPROVED
 → PPO-04M.6.4  operationalization / retention / optional off-site copy — ACTIVE
 → PPO-04M.6.4A  Non-empty Storage Recovery Validation — REVIEWED / CLOSED
 → PPO-04M.6.4B  Minimal Operational Backup Policy — REVIEWED / CLOSED
-→ PPO-04M.6.4C  Lightweight Operational Runbook — NEXT / LIGHTWEIGHT OPERATIONAL RUNBOOK
-→ PPO-04M.6.4D  Optional Off-site Decision — OPTIONAL OFF-SITE DECISION / PENDING
+→ PPO-04M.6.4C  Lightweight Operational Runbook — REVIEWED / CLOSED
+→ PPO-04M.6.4D  Optional Off-site Decision — NEXT / OPTIONAL OFF-SITE DECISION
 → Production pilot rollout — NOT EXECUTED / SEQUENCING PENDING AFTER M.6
 → LSH (futuro, no iniciado)
 ```

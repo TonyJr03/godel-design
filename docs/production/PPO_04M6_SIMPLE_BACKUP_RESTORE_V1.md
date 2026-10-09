@@ -20,9 +20,11 @@
 
 **Estado de PPO-04M.6.4B:** `REVIEWED / CLOSED`
 
-**Estado de PPO-04M.6.4C:** `NEXT / LIGHTWEIGHT OPERATIONAL RUNBOOK`
+**Estado de PPO-04M.6.4C:** `REVIEWED / CLOSED`
 
-**Estado de PPO-04M.6.4D:** `OPTIONAL OFF-SITE DECISION / PENDING`
+**Backup Operations Runbook:** `AVAILABLE / GOVERNING OPERATOR ENTRY POINT`
+
+**Estado de PPO-04M.6.4D:** `NEXT / OPTIONAL OFF-SITE DECISION`
 
 **Real Managed Recovery Drill #1:** `FAIL / PREFLIGHT / PSQL_REQUIRED / ZERO REMOTE ACTIVITY`
 
@@ -455,9 +457,8 @@ Managed recuperado.
 
 El cifrado y la copia off-site siguen siendo deseables, pero quedan desacoplados
 del mecanismo básico. Simple Backup / Restore V1 debe funcionar por completo
-con una carpeta local. M.6.4D conserva la decisión off-site como `OPTIONAL
-OFF-SITE DECISION / PENDING`; M.6.4B no selecciona proveedor ni introduce una
-dependencia externa.
+con una carpeta local. M.6.4D queda `NEXT / OPTIONAL OFF-SITE DECISION`;
+M.6.4B no selecciona proveedor ni introduce una dependencia externa.
 
 ## 9. Roadmap
 
@@ -470,14 +471,14 @@ dependencia externa.
 | PPO-04M.6.4 | Operationalization / Retention / Optional Off-site Copy | `ACTIVE` |
 | PPO-04M.6.4A | Non-empty Storage Recovery Validation | `REVIEWED / CLOSED` |
 | PPO-04M.6.4B | Minimal Operational Backup Policy | `REVIEWED / CLOSED` |
-| PPO-04M.6.4C | Lightweight Operational Runbook | `NEXT / LIGHTWEIGHT OPERATIONAL RUNBOOK` |
-| PPO-04M.6.4D | Optional Off-site Decision | `OPTIONAL OFF-SITE DECISION / PENDING` |
+| PPO-04M.6.4C | Lightweight Operational Runbook | `REVIEWED / CLOSED` |
+| PPO-04M.6.4D | Optional Off-site Decision | `NEXT / OPTIONAL OFF-SITE DECISION` |
 
 PPO-04M.6.1 queda revisado y cerrado, con Simple Backup V1 aprobado y el backup
 Productivo real verificado localmente. PPO-04M.6.2 queda revisado y code complete.
 PPO-04M.6.3 queda revisado y cerrado por evidencia estructural y funcional del
-quinto drill real. PPO-04M.6.4 sigue activo; M.6.4A y M.6.4B quedan revisados y
-cerrados, y M.6.4C es el siguiente bloque.
+quinto drill real. PPO-04M.6.4 sigue activo; M.6.4A, M.6.4B y M.6.4C quedan
+revisados y cerrados, y M.6.4D es el siguiente bloque.
 
 ## 10. Cierre de Diagnostic #6
 
@@ -672,11 +673,32 @@ PROTECTED BACKUPS = EXEMPT FROM ORDINARY RETENTION CLEANUP
 PRIMARY BACKUP CUSTODY = OPERATOR-SPECIFIED LOCAL BACKUPROOT
 OFF-SITE DECISION = DEFERRED TO M.6.4D
 PRODUCTION RESTORE = NOT AUTHORIZED
-PPO-04M.6.4C = NEXT / LIGHTWEIGHT OPERATIONAL RUNBOOK
-PPO-04M.6.4D = OPTIONAL OFF-SITE DECISION / PENDING
+PPO-04M.6.4C = REVIEWED / CLOSED
+PPO-04M.6.4D = NEXT / OPTIONAL OFF-SITE DECISION
 ```
 
-## 14. Estado resultante
+## 14. PPO-04M.6.4C — Lightweight Operational Runbook
+
+El [Backup Operations Runbook](PPO_04M6_BACKUP_OPERATIONS_RUNBOOK.md) es el
+entry point operativo gobernante para el uso rutinario de Simple Backup V1
+durante el Managed Production Pilot. Documenta la interfaz real de
+`backup.ps1`, sus precondiciones, los criterios de aceptación y fallo, el gate
+previo a operaciones Productivas de alto riesgo, la retención y el cleanup
+manual. No autoriza restore sobre Production.
+
+```text
+PPO-04M.6.4C = REVIEWED / CLOSED
+BACKUP OPERATIONS RUNBOOK = AVAILABLE / GOVERNING OPERATOR ENTRY POINT
+CANONICAL BACKUP INTERFACE = scripts/backup-recovery/backup.ps1 -BackupRoot <path>
+ROUTINE CADENCE = WEEKLY
+HIGH-RISK PRE-BACKUP = REQUIRED
+RETENTION = MINIMUM 4 SUCCESSFUL PRODUCTION BACKUPS
+CLEANUP = MANUAL
+PRODUCTION RESTORE = NOT AUTHORIZED
+PPO-04M.6.4D = NEXT / OPTIONAL OFF-SITE DECISION
+```
+
+## 15. Estado resultante
 
 ```text
 PPO-04M.5.3 = SUSPENDED / SUPERSEDED
@@ -783,8 +805,14 @@ FAILED / PARTIAL BACKUPS = NOT VALID RECOVERY POINTS
 PROTECTED BACKUPS = EXEMPT FROM ORDINARY RETENTION CLEANUP
 PRIMARY BACKUP CUSTODY = OPERATOR-SPECIFIED LOCAL BACKUPROOT
 OFF-SITE DECISION = DEFERRED TO M.6.4D
-PPO-04M.6.4C = NEXT / LIGHTWEIGHT OPERATIONAL RUNBOOK
-PPO-04M.6.4D = OPTIONAL OFF-SITE DECISION / PENDING
+PPO-04M.6.4C = REVIEWED / CLOSED
+BACKUP OPERATIONS RUNBOOK = AVAILABLE / GOVERNING OPERATOR ENTRY POINT
+CANONICAL BACKUP INTERFACE = scripts/backup-recovery/backup.ps1 -BackupRoot <path>
+ROUTINE CADENCE = WEEKLY
+HIGH-RISK PRE-BACKUP = REQUIRED
+RETENTION = MINIMUM 4 SUCCESSFUL PRODUCTION BACKUPS
+CLEANUP = MANUAL
+PPO-04M.6.4D = NEXT / OPTIONAL OFF-SITE DECISION
 LEGACY COMPLEX RECOVERY HARNESS = FROZEN / NOT ACTIVE PATH
 DIAGNOSTIC #7 = CANCELLED
 OLD REAL RESTORE ATTEMPT #7 = CANCELLED UNDER LEGACY APPROACH
