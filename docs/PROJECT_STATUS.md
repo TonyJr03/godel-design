@@ -41,11 +41,13 @@ target Managed nuevo y desechable. El restore estructural, el login Auth, el
 perfil admin restaurado y el smoke de aplicación `6 OF 6` pasaron sin actividad
 Productiva. PPO-04M.6.4 y su validación PPO-04M.6.4A quedan `ACTIVE`. Un source
 Managed desechable con un objeto de 68 bytes pasó el byte round-trip y produjo el
-backup real `GDBK-20261009T024741Z`, verificado con Storage no vacío. El primer
-restore no vacío falló correctamente en `DATABASE COUNTS`: la fuente local
-`godel-files` duplicó el basename remoto y produjo dos filas en `storage.objects`
-en lugar de una. La causa raíz está confirmada y la corrección local queda
-pendiente de un nuevo drill real. Production restore no está autorizado y
+backup real `GDBK-20261009T024741Z`, verificado con Storage no vacío. Los dos
+primeros restores no vacíos fallaron correctamente en `DATABASE COUNTS`: tanto
+la fuente `godel-files` como la fuente `.` fueron normalizadas por Supabase CLI
+2.109.1 a un directorio cuyo basename volvió a añadirse al path remoto. La
+estrategia de copiar un directorio a la raíz del bucket queda rechazada; la
+corrección local usa upsert por archivo hacia su path remoto exacto y queda
+pendiente de Real Restore #3. Production restore no está autorizado y
 TD-BACKUP-004 permanece `OPEN`.
 La estrategia canónica es
 [PPO-04M.6 — Simple Backup / Restore V1](production/PPO_04M6_SIMPLE_BACKUP_RESTORE_V1.md):
@@ -278,12 +280,22 @@ CANONICAL RESTORED PATH = m6-4a/nonempty-storage-fixture.png
 INCORRECT PATH CREATED = godel-files/m6-4a/nonempty-storage-fixture.png
 RESTORE #1 TARGET = FAILED / DISPOSABLE
 NON-EMPTY STORAGE BACKUP = REAL VERIFIED
-NON-EMPTY STORAGE RESTORE = PENDING CORRECTED REAL DRILL
+REAL NON-EMPTY STORAGE RESTORE #2 = FAIL / DIRECTORY SOURCE NORMALIZATION RETAINS BUCKET BASENAME
+RESTORE #2 EXECUTION SHA = 8c8c12d5cde5f4e570bb4dcc945363d5a299b7bb
+RESTORE #2 DATABASE COUNTS = FAIL
+RESTORE #2 storage.objects = EXPECTED 1 / ACTUAL 2
+RESTORE #2 CANONICAL PATH = m6-4a/nonempty-storage-fixture.png
+RESTORE #2 INCORRECT DUPLICATED PATH = godel-files/m6-4a/nonempty-storage-fixture.png
+RESTORE #2 FORENSICS = CONFIRMED / REMOTE MUTATIONS 0
+RESTORE #2 TARGET = FAILED / DISPOSABLE
+DIRECTORY-ROOT RESTORE STRATEGY = REJECTED
+CORRECTED STRATEGY = PER-FILE EXACT-PATH UPSERT
+NON-EMPTY STORAGE RESTORE = PENDING REAL RESTORE #3
 TD-BACKUP-004 = OPEN
 REAL RESTORE ATTEMPT #1 = FAIL / PREFLIGHT OPERATOR CONFIGURATION
 REAL RESTORE ATTEMPT #2 = FAIL / SOURCE_VERIFY REAL BACKUP SQL DIALECT ADMISSION FINDING
 REAL RESTORE ATTEMPT #3 = NOT AUTHORIZED / PENDING FINAL DOCUMENTARY REVIEW
-CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE VERIFIED / NON-EMPTY RESTORE PENDING CORRECTED REAL DRILL
+CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE VERIFIED / NON-EMPTY RESTORE PENDING REAL RESTORE #3
 REAL LOCAL APPLICATION COMPATIBILITY ATTEMPT #1 = FAIL / APPLICATION PROCESS SHUTDOWN LIFECYCLE FINDING
 REAL LOCAL APPLICATION COMPATIBILITY ATTEMPT #2 = FAIL / APPLICATION HEALTH GATE DIAGNOSTIC FINDING
 REAL LOCAL APPLICATION COMPATIBILITY ATTEMPT #3 = FAIL / LIVE ROUTE RESPONSE DIAGNOSTIC FINDING

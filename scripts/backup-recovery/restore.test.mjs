@@ -90,12 +90,17 @@ function buildDataSql({ storageObjects = 0 } = {}) {
   return lines.join("\n");
 }
 
-async function createBackup(root, gitSha, { nonEmptyStorage = false } = {}) {
+async function createBackup(
+  root,
+  gitSha,
+  { nonEmptyStorage = false, storageObjects } = {},
+) {
   const backupPath = path.join(root, backupId);
   const storagePath = path.join(backupPath, "storage", "godel-files");
   await mkdir(storagePath, { recursive: true });
 
-  const dataSql = buildDataSql({ storageObjects: nonEmptyStorage ? 1 : 0 });
+  const storageObjectCount = storageObjects ?? (nonEmptyStorage ? 2 : 0);
+  const dataSql = buildDataSql({ storageObjects: storageObjectCount });
   const manifest = `${JSON.stringify(
     {
       formatVersion: 1,
@@ -118,11 +123,16 @@ async function createBackup(root, gitSha, { nonEmptyStorage = false } = {}) {
     ["manifest.json", Buffer.from(manifest)],
   ];
   if (nonEmptyStorage) {
-    const objectPath = path.join(storagePath, "synthetic", "object.txt");
-    const objectContent = Buffer.from("synthetic storage object\n");
-    await mkdir(path.dirname(objectPath), { recursive: true });
-    await writeFile(objectPath, objectContent);
-    records.push(["storage/godel-files/synthetic/object.txt", objectContent]);
+    const storageFixtures = [
+      ["synthetic/object.txt", Buffer.from("synthetic storage object\n")],
+      ["root-object.txt", Buffer.from("synthetic root storage object\n")],
+    ];
+    for (const [relativePath, content] of storageFixtures) {
+      const objectPath = path.join(storagePath, ...relativePath.split("/"));
+      await mkdir(path.dirname(objectPath), { recursive: true });
+      await writeFile(objectPath, content);
+      records.push([`storage/godel-files/${relativePath}`, content]);
+    }
   }
   records.sort(([left], [right]) => left.localeCompare(right));
   const checksumText = `${records
@@ -223,6 +233,7 @@ if "%GODEL_RESTORE_PSQL_PHASE%"=="SEED_SAFETY" goto seed_safety\r
 if "%GODEL_RESTORE_PSQL_PHASE%"=="SEED_CLEANUP" goto seed_cleanup\r
 if "%GODEL_RESTORE_PSQL_PHASE%"=="DATABASE_RESTORE" goto database_restore\r
 if "%GODEL_RESTORE_PSQL_PHASE%"=="DATABASE_COUNTS" goto database_counts\r
+if "%GODEL_RESTORE_PSQL_PHASE%"=="STORAGE_PATHS" goto storage_paths\r
 if "%GODEL_RESTORE_PSQL_PHASE%"=="DB_PUSH_RECONCILIATION" goto reconciliation\r
 if "%GODEL_RESTORE_PSQL_PHASE%"=="MIGRATIONS" goto migrations\r
 if "%GODEL_RESTORE_PSQL_PHASE%"=="BUCKET" goto bucket\r
@@ -276,6 +287,16 @@ if "%GODEL_STUB_STORAGE_OBJECTS_COUNT%"=="" echo storage.objects^|0\r
 if not "%GODEL_STUB_STORAGE_OBJECTS_COUNT%"=="" echo storage.objects^|%GODEL_STUB_STORAGE_OBJECTS_COUNT%\r
 echo private.internal_user_creation_audit^|0\r
 echo private.internal_user_password_reset_audit^|0\r
+exit /b 0\r
+:storage_paths\r
+if "%GODEL_STUB_STORAGE_OBJECTS_COUNT%"=="" exit /b 0\r
+if "%GODEL_STUB_STORAGE_OBJECTS_COUNT%"=="0" exit /b 0\r
+echo root-object.txt\r
+if "%GODEL_STUB_STORAGE_PATH_MISMATCH%"=="1" goto storage_paths_mismatch\r
+echo synthetic/object.txt\r
+exit /b 0\r
+:storage_paths_mismatch\r
+echo godel-files/synthetic/object.txt\r
 exit /b 0\r
 :reconciliation\r
 if "%GODEL_STUB_RECONCILIATION_MODE%"=="fail" exit /b 1\r
@@ -811,7 +832,7 @@ test("Simple Restore V1 synthetic contract", async (context) => {
       assert.doesNotMatch(log, /storage cp/u);
     });
 
-    await context.test("non-empty Storage uses the repo-pinned CLI and a relative source", async () => {
+    await context.test("non-empty Storage uploads exact paths with the repo-pinned CLI", async () => {
       const backupPath = await createBackup(
         path.join(temporaryRoot, "non-empty"),
         currentHead,
@@ -819,7 +840,7 @@ test("Simple Restore V1 synthetic contract", async (context) => {
       );
       const result = await runRestore(
         backupPath,
-        { GODEL_STUB_STORAGE_OBJECTS_COUNT: "1" },
+        { GODEL_STUB_STORAGE_OBJECTS_COUNT: "2" },
         { dotSource: true },
       );
       const log = await readFile(logPath, "utf8");
@@ -829,7 +850,22 @@ test("Simple Restore V1 synthetic contract", async (context) => {
       assert.equal(state.cwdRestored, true);
       assert.match(log, /PINNED_SUPABASE/u, result.stderr);
       assert.match(log, /STORAGE_BENIGN_STDERR_EMITTED/u);
-      assert.match(log, /--experimental storage cp \. ss:\/\/\/godel-files\/ -r --linked/u);
+      const storageCommands = log
+        .split(/\r?\n/u)
+        .filter((line) => line.includes("PINNED_SUPABASE"));
+      assert.equal(storageCommands.length, 2, log);
+      assert.ok(
+        storageCommands[0].includes(
+          "--experimental storage cp root-object.txt ss:///godel-files/root-object.txt -r --linked",
+        ),
+        log,
+      );
+      assert.ok(
+        storageCommands[1].includes(
+          "--experimental storage cp synthetic/object.txt ss:///godel-files/synthetic/object.txt -r --linked",
+        ),
+        log,
+      );
       assert.ok(
         log.includes(`CWD=[${path.join(backupPath, "storage", "godel-files")}]`),
         log,
@@ -838,11 +874,47 @@ test("Simple Restore V1 synthetic contract", async (context) => {
         log.includes(`--workdir ${syntheticRepoRoot} --experimental`),
         log,
       );
+      assert.match(log, /PSQL_PHASE \[STORAGE_PATHS\]/u);
+      assert.doesNotMatch(log, /storage cp \. /u);
       assert.doesNotMatch(log, /storage cp godel-files ss:\/\/\/godel-files\//u);
+      assert.doesNotMatch(log, /ss:\/\/\/godel-files\/ -r --linked/u);
       assert.doesNotMatch(log, /storage cp [A-Za-z]:\\/u);
       assert.doesNotMatch(log, /NPX .*storage cp/u);
       assert.doesNotMatch(log, /STORAGE_PASSWORD_LEAK/u);
       assert.doesNotMatch(log, /STORAGE_SUPABASE_DB_PASSWORD_LEAK/u);
+    });
+
+    await context.test("Storage cardinality mismatch fails before upload", async () => {
+      const backupPath = await createBackup(
+        path.join(temporaryRoot, "storage-cardinality"),
+        currentHead,
+        { nonEmptyStorage: true, storageObjects: 1 },
+      );
+      const result = await runRestore(backupPath, {}, { dotSource: true });
+      assert.equal(result.status, 1, result.stderr);
+      assert.match(result.stderr, /^RESTORE FAILED: STORAGE$/mu);
+      assert.doesNotMatch(await readFile(logPath, "utf8"), /PINNED_SUPABASE/u);
+    });
+
+    await context.test("Storage path mismatch fails after matching counts", async () => {
+      const backupPath = await createBackup(
+        path.join(temporaryRoot, "storage-path-mismatch"),
+        currentHead,
+        { nonEmptyStorage: true },
+      );
+      const result = await runRestore(
+        backupPath,
+        {
+          GODEL_STUB_STORAGE_OBJECTS_COUNT: "2",
+          GODEL_STUB_STORAGE_PATH_MISMATCH: "1",
+        },
+        { dotSource: true },
+      );
+      assert.equal(result.status, 1, result.stderr);
+      assert.match(result.stderr, /^RESTORE FAILED: STORAGE PATHS$/mu);
+      const log = await readFile(logPath, "utf8");
+      assert.match(log, /PSQL_PHASE \[DATABASE_COUNTS\]/u);
+      assert.match(log, /PSQL_PHASE \[STORAGE_PATHS\]/u);
     });
 
     await context.test("Storage upload failure restores process state", async () => {
@@ -862,6 +934,7 @@ test("Simple Restore V1 synthetic contract", async (context) => {
       assert.equal(state.cwdRestored, true);
       const log = await readFile(logPath, "utf8");
       assert.match(log, /PINNED_SUPABASE/u);
+      assert.equal((log.match(/PINNED_SUPABASE/gu) ?? []).length, 1, log);
       assert.doesNotMatch(log, /STORAGE_PASSWORD_LEAK/u);
       assert.doesNotMatch(log, /STORAGE_SUPABASE_DB_PASSWORD_LEAK/u);
     });

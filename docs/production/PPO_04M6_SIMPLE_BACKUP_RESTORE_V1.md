@@ -159,11 +159,13 @@ supabase storage cp ... -r --experimental
 `storage cp` es actualmente una capacidad experimental del Supabase CLI.
 PPO-04M.6.1 validó el camino vacío con Supabase CLI 2.109.1 durante Real
 Production Backup #3. PPO-04M.6.4A verificó después un backup real no vacío desde
-un source Managed desechable. El primer restore no vacío alcanzó el upload, pero
-falló en `DATABASE COUNTS` porque la fuente local conservó por error el basename
-`godel-files`; la corrección queda pendiente de un nuevo drill real. Esto no
-afirma validación con objetos Production. No se diseña un fallback complejo, un
-SDK propio ni capas adicionales.
+un source Managed desechable. Real Restores #1 y #2 alcanzaron el upload, pero
+fallaron en `DATABASE COUNTS` porque Supabase CLI 2.109.1 conservó el basename
+del directorio local tanto con source `godel-files` como con source `.`. La
+estrategia directory-root queda rechazada; el restore local corregido usa upsert
+por archivo hacia el path remoto exacto y queda pendiente de Real Restore #3.
+Esto no afirma validación con objetos Production. No se diseña un fallback
+complejo, un SDK propio ni capas adicionales.
 
 En Windows, el script ejecuta primero `storage ls` de forma read-only para
 distinguir un bucket vacío. Si no hay objetos, crea localmente
@@ -405,11 +407,15 @@ El script:
    y elimina exclusivamente el bucket `godel-files`.
 8. Restaura `data.sql` mediante `psql --single-transaction` y
    `ON_ERROR_STOP=1`.
-9. Para Storage vacío no ejecuta upload; con objetos invoca directamente el
-   `node_modules/.bin/supabase.cmd` fijado por el repositorio desde
-   `storage/godel-files/` y usa `storage cp . ss:///godel-files/ -r --linked`.
-10. Compara diez conteos del target con los bloques `COPY`, verifica migrations
-    01–06, el bucket y la inmutabilidad local del backup.
+9. Exige que la cantidad de archivos físicos de Storage coincida con el bloque
+   `COPY storage.objects`; para Storage vacío no ejecuta upload. Con objetos,
+   invoca directamente el `node_modules/.bin/supabase.cmd` fijado por el
+   repositorio y ejecuta, en orden determinista, un
+   `storage cp <relative-path> ss:///godel-files/<relative-path> -r --linked` por
+   archivo desde `storage/godel-files/`.
+10. Compara diez conteos del target con los bloques `COPY`, verifica el conjunto
+    case-sensitive exacto de nombres en `storage.objects`, migrations 01–06, el
+    bucket y la inmutabilidad local del backup.
 11. Restaura link state, environment y working directory tanto en `PASS` como
     en `FAIL`.
 
@@ -428,6 +434,7 @@ La verificación V1 es deliberadamente pequeña:
 ```text
 DATABASE RESTORE = PASS
 DATABASE COUNTS = PASS
+STORAGE PATHS = PASS
 MIGRATIONS 01-06 = PASS
 GODEL-FILES BUCKET = PRESENT
 STORAGE = PASS, cuando existan objetos
@@ -566,10 +573,24 @@ DISPOSABLE` y la actividad de mutación durante la forense fue cero.
 
 La causa raíz queda `CONFIRMED`: ejecutar desde `storage/` con source
 `godel-files` hizo que Supabase CLI 2.109.1 preservara ese basename. La corrección
-local ejecuta desde `storage/godel-files/` con source `.` y destino
-`ss:///godel-files/`. `DATABASE COUNTS` se mantiene sin relajar. El restore no
-vacío corregido sigue pendiente de un nuevo drill real, por lo que M.6.4A y
-TD-BACKUP-004 permanecen abiertos.
+local inicial ejecutó desde `storage/godel-files/` con source `.` y destino
+`ss:///godel-files/`.
+
+Real Non-empty Storage Restore #2 usó el execution SHA inmutable
+`8c8c12d5cde5f4e570bb4dcc945363d5a299b7bb` sobre otro target Managed fresco.
+También llegó al upload y falló correctamente en `DATABASE COUNTS`, con
+`storage.objects EXPECTED 1 / ACTUAL 2`. La forense read-only confirmó otra vez
+el path canónico `m6-4a/nonempty-storage-fixture.png` y el duplicado incorrecto
+`godel-files/m6-4a/nonempty-storage-fixture.png`; el target quedó `FAILED /
+DISPOSABLE` y la forense realizó cero mutaciones remotas.
+
+La causa definitiva queda `CONFIRMED`: el CLI convierte `.` a la ruta absoluta
+del directorio y vuelve a obtener `godel-files` como basename. Por tanto, la
+estrategia directory-root queda `REJECTED`. La corrección local definitiva sube
+cada archivo con source relativo y destination remoto exacto, conserva `-r` para
+el upsert y verifica después el conjunto exacto de paths. `DATABASE COUNTS` se
+mantiene sin relajar. El restore no vacío sigue pendiente de Real Restore #3,
+por lo que M.6.4A y TD-BACKUP-004 permanecen abiertos.
 
 ## 13. Estado resultante
 
@@ -625,7 +646,7 @@ FINAL_RECOVERY_APPLICATION_SMOKE_EXIT_CODE = 0
 PRODUCTION ACTIVITY DURING FUNCTIONAL ACCEPTANCE = 0
 STORAGE FILE COUNT = 0
 STORAGE TOTAL BYTES = 0
-CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE VERIFIED / NON-EMPTY RESTORE PENDING CORRECTED REAL DRILL
+CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE VERIFIED / NON-EMPTY RESTORE PENDING REAL RESTORE #3
 PPO-04M.6.4 = ACTIVE
 PPO-04M.6.4A = ACTIVE
 NON-EMPTY STORAGE SOURCE FIXTURE = PASS / REAL MANAGED
@@ -643,7 +664,17 @@ CANONICAL RESTORED PATH = m6-4a/nonempty-storage-fixture.png
 INCORRECT PATH CREATED = godel-files/m6-4a/nonempty-storage-fixture.png
 RESTORE #1 TARGET = FAILED / DISPOSABLE
 NON-EMPTY STORAGE BACKUP = REAL VERIFIED
-NON-EMPTY STORAGE RESTORE = PENDING CORRECTED REAL DRILL
+REAL NON-EMPTY STORAGE RESTORE #2 = FAIL / DIRECTORY SOURCE NORMALIZATION RETAINS BUCKET BASENAME
+RESTORE #2 EXECUTION SHA = 8c8c12d5cde5f4e570bb4dcc945363d5a299b7bb
+RESTORE #2 DATABASE COUNTS = FAIL
+RESTORE #2 storage.objects = EXPECTED 1 / ACTUAL 2
+RESTORE #2 CANONICAL PATH = m6-4a/nonempty-storage-fixture.png
+RESTORE #2 INCORRECT DUPLICATED PATH = godel-files/m6-4a/nonempty-storage-fixture.png
+RESTORE #2 FORENSICS = CONFIRMED / REMOTE MUTATIONS 0
+RESTORE #2 TARGET = FAILED / DISPOSABLE
+DIRECTORY-ROOT RESTORE STRATEGY = REJECTED
+CORRECTED STRATEGY = PER-FILE EXACT-PATH UPSERT
+NON-EMPTY STORAGE RESTORE = PENDING REAL RESTORE #3
 LEGACY COMPLEX RECOVERY HARNESS = FROZEN / NOT ACTIVE PATH
 DIAGNOSTIC #7 = CANCELLED
 OLD REAL RESTORE ATTEMPT #7 = CANCELLED UNDER LEGACY APPROACH

@@ -656,6 +656,7 @@ $repoLocationPushed = $false
 $storageLocationPushed = $false
 $backup = $null
 $storageStatus = $null
+$expectedStoragePaths = @()
 $dbPushStatus = $null
 $targetDbPassword = $null
 $previousSupabaseDbPassword = $null
@@ -890,9 +891,35 @@ SELECT 'storage.objects|' || count(*)::text FROM storage.objects;
   )
 
   $currentStep = "STORAGE"
+  if ([long]$backup.StorageFiles.Count -ne [long]$backup.CopyCounts["storage.objects"]) {
+    throw "Physical Storage file count does not match storage.objects COPY count."
+  }
   if ($backup.StorageFiles.Count -eq 0) {
     $storageStatus = "EMPTY / OK"
   } else {
+    $storageRelativePaths = [string[]]@(
+      foreach ($storageFile in $backup.StorageFiles) {
+        if (-not (Test-ContainedPath `
+          -Root $backup.StorageDirectory `
+          -Candidate $storageFile.FullName
+        )) {
+          throw "Storage file is outside the bucket directory."
+        }
+        $relativeStoragePath = Get-RelativePath `
+          -Root $backup.StorageDirectory `
+          -Candidate $storageFile.FullName
+        if (
+          [string]::IsNullOrWhiteSpace($relativeStoragePath) -or
+          [IO.Path]::IsPathRooted($relativeStoragePath) -or
+          $relativeStoragePath.StartsWith("/")
+        ) {
+          throw "Storage file path is not a safe relative path."
+        }
+        $relativeStoragePath
+      }
+    )
+    [Array]::Sort($storageRelativePaths, [StringComparer]::Ordinal)
+    $expectedStoragePaths = @($storageRelativePaths)
     $savedPgPassword = [Environment]::GetEnvironmentVariable("PGPASSWORD", "Process")
     $previousCliPhase = [Environment]::GetEnvironmentVariable(
       "GODEL_RESTORE_CLI_PHASE",
@@ -907,12 +934,15 @@ SELECT 'storage.objects|' || count(*)::text FROM storage.objects;
         "Process"
       )
       [Environment]::SetEnvironmentVariable("PGPASSWORD", $null, "Process")
-      $null = Invoke-ExternalCommand -FilePath $supabaseCommandPath -Arguments @(
-        "--workdir", $repoRoot,
-        "--experimental",
-        "storage", "cp", ".", "ss:///godel-files/",
-        "-r", "--linked"
-      )
+      foreach ($relativeStoragePath in $expectedStoragePaths) {
+        $remoteStoragePath = "ss:///godel-files/" + $relativeStoragePath
+        $null = Invoke-ExternalCommand -FilePath $supabaseCommandPath -Arguments @(
+          "--workdir", $repoRoot,
+          "--experimental",
+          "storage", "cp", $relativeStoragePath, $remoteStoragePath,
+          "-r", "--linked"
+        )
+      }
     } finally {
       [Environment]::SetEnvironmentVariable(
         "GODEL_RESTORE_CLI_PHASE",
@@ -957,6 +987,44 @@ SELECT 'private.internal_user_password_reset_audit|' || count(*)::text FROM priv
     }
     if ($targetCount -ne [long]$backup.CopyCounts[$key]) {
       throw "Target count does not match the backup COPY count."
+    }
+  }
+
+  $currentStep = "STORAGE PATHS"
+  $storagePathSql = @'
+SELECT name
+FROM storage.objects
+WHERE bucket_id = 'godel-files'
+ORDER BY name;
+'@
+  $actualStoragePaths = @(
+    Invoke-Psql -PsqlPath $psqlCommand.Source -Phase "STORAGE_PATHS" -Arguments @(
+      "--no-psqlrc", "--tuples-only", "--no-align", "--variable", "ON_ERROR_STOP=1",
+      "--command", $storagePathSql
+    ) | ForEach-Object { [string]$_ } | Where-Object { $_ -cne "" }
+  )
+  $expectedStoragePathSet = [System.Collections.Generic.HashSet[string]]::new(
+    [StringComparer]::Ordinal
+  )
+  foreach ($storagePath in $expectedStoragePaths) {
+    if (-not $expectedStoragePathSet.Add($storagePath)) {
+      throw "Backup contains a duplicate Storage path."
+    }
+  }
+  $actualStoragePathSet = [System.Collections.Generic.HashSet[string]]::new(
+    [StringComparer]::Ordinal
+  )
+  foreach ($storagePath in $actualStoragePaths) {
+    if (-not $actualStoragePathSet.Add($storagePath)) {
+      throw "Target contains a duplicate Storage path."
+    }
+  }
+  if ($actualStoragePathSet.Count -ne $expectedStoragePathSet.Count) {
+    throw "Target Storage path set does not match the backup."
+  }
+  foreach ($storagePath in $expectedStoragePathSet) {
+    if (-not $actualStoragePathSet.Contains($storagePath)) {
+      throw "Target Storage path set does not match the backup."
     }
   }
 

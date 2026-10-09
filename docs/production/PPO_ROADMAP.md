@@ -177,11 +177,12 @@ STRUCTURAL + FUNCTIONAL RECOVERY VERIFIED` sobre un target Managed nuevo y
 desechable: restore estructural, login Auth, perfil admin restaurado y smoke de
 aplicación `6 OF 6` pasaron sin actividad Productiva. M.6.4 y M.6.4A quedan
 `ACTIVE`. Un source Managed desechable con un objeto de 68 bytes produjo el
-backup real `GDBK-20261009T024741Z`, `PASS / REAL-ENVIRONMENT VERIFIED`. El
-primer restore no vacío falló en `DATABASE COUNTS` con `storage.objects`
-`EXPECTED 1 / ACTUAL 2`; la causa raíz fue la duplicación del basename
-`godel-files` al subir desde la raíz local incorrecta. La corrección local queda
-pendiente de un nuevo drill real. Production restore no está autorizado y
+backup real `GDBK-20261009T024741Z`, `PASS / REAL-ENVIRONMENT VERIFIED`. Real
+Restores #1 y #2 fallaron en `DATABASE COUNTS` con `storage.objects` `EXPECTED 1
+/ ACTUAL 2`: Supabase CLI 2.109.1 conservó el basename local tanto con source
+`godel-files` como con source `.`. La estrategia directory-root queda rechazada
+y la corrección local adopta upsert por archivo hacia el path remoto exacto,
+pendiente de Real Restore #3. Production restore no está autorizado y
 TD-BACKUP-004 permanece `OPEN`. El restore automático aplica migrations, datos
 y Storage, pero no ejecuta
 `supabase config push` porque la configuración versionada contiene URLs
