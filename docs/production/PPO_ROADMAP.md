@@ -175,9 +175,13 @@ APPROVED / REAL MANAGED RECOVERY VERIFIED`. M.6.3 queda `REVIEWED / CLOSED`.
 Se conserva el historial de hallazgos de Drills #1–#4. Drill #5 terminó `PASS /
 STRUCTURAL + FUNCTIONAL RECOVERY VERIFIED` sobre un target Managed nuevo y
 desechable: restore estructural, login Auth, perfil admin restaurado y smoke de
-aplicación `6 OF 6` pasaron sin actividad Productiva. M.6.4 queda `NOT STARTED /
-NEXT`. Production restore no está autorizado; el alcance real continúa `EMPTY
-STORAGE ONLY` porque el backup tenía cero archivos y cero bytes de Storage, y
+aplicación `6 OF 6` pasaron sin actividad Productiva. M.6.4 y M.6.4A quedan
+`ACTIVE`. Un source Managed desechable con un objeto de 68 bytes produjo el
+backup real `GDBK-20261009T024741Z`, `PASS / REAL-ENVIRONMENT VERIFIED`. El
+primer restore no vacío falló en `DATABASE COUNTS` con `storage.objects`
+`EXPECTED 1 / ACTUAL 2`; la causa raíz fue la duplicación del basename
+`godel-files` al subir desde la raíz local incorrecta. La corrección local queda
+pendiente de un nuevo drill real. Production restore no está autorizado y
 TD-BACKUP-004 permanece `OPEN`. El restore automático aplica migrations, datos
 y Storage, pero no ejecuta
 `supabase config push` porque la configuración versionada contiene URLs
@@ -2522,4 +2526,5 @@ Iceberg. La estrategia activa se define en
 | PPO-04M.6.1 | Simple Backup V1 Implementation | `REVIEWED / CLOSED` |
 | PPO-04M.6.2 | Simple Restore V1 Implementation | `REVIEWED / CODE COMPLETE` |
 | PPO-04M.6.3 | Real Backup + Managed Recovery Drill | `REVIEWED / CLOSED` |
-| PPO-04M.6.4 | Operationalization / Retention / Optional Off-site Copy | `NOT STARTED / NEXT` |
+| PPO-04M.6.4 | Operationalization / Retention / Optional Off-site Copy | `ACTIVE` |
+| PPO-04M.6.4A | Non-empty Storage Recovery Validation | `ACTIVE` |

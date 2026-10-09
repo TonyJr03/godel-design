@@ -76,11 +76,12 @@ async function snapshotDirectory(root) {
   return entries;
 }
 
-function buildDataSql() {
+function buildDataSql({ storageObjects = 0 } = {}) {
   const lines = ["SET session_replication_role = replica;", ""];
   for (const [target, rowCount] of expectedCounts) {
+    const effectiveRowCount = target === "storage.objects" ? storageObjects : rowCount;
     lines.push(`COPY ${target} (id) FROM stdin;`);
-    for (let index = 0; index < rowCount; index += 1) {
+    for (let index = 0; index < effectiveRowCount; index += 1) {
       lines.push(`synthetic-row-${index + 1}`);
     }
     lines.push("\\.", "");
@@ -94,7 +95,7 @@ async function createBackup(root, gitSha, { nonEmptyStorage = false } = {}) {
   const storagePath = path.join(backupPath, "storage", "godel-files");
   await mkdir(storagePath, { recursive: true });
 
-  const dataSql = buildDataSql();
+  const dataSql = buildDataSql({ storageObjects: nonEmptyStorage ? 1 : 0 });
   const manifest = `${JSON.stringify(
     {
       formatVersion: 1,
@@ -271,7 +272,8 @@ goto count_tail\r
 echo public.pedidos^|0\r
 :count_tail\r
 echo storage.buckets^|1\r
-echo storage.objects^|0\r
+if "%GODEL_STUB_STORAGE_OBJECTS_COUNT%"=="" echo storage.objects^|0\r
+if not "%GODEL_STUB_STORAGE_OBJECTS_COUNT%"=="" echo storage.objects^|%GODEL_STUB_STORAGE_OBJECTS_COUNT%\r
 echo private.internal_user_creation_audit^|0\r
 echo private.internal_user_password_reset_audit^|0\r
 exit /b 0\r
@@ -815,7 +817,11 @@ test("Simple Restore V1 synthetic contract", async (context) => {
         currentHead,
         { nonEmptyStorage: true },
       );
-      const result = await runRestore(backupPath, {}, { dotSource: true });
+      const result = await runRestore(
+        backupPath,
+        { GODEL_STUB_STORAGE_OBJECTS_COUNT: "1" },
+        { dotSource: true },
+      );
       const log = await readFile(logPath, "utf8");
       assert.equal(result.status, 0, `${result.stderr}\n${log}`);
       const state = JSON.parse(await readFile(reportPath, "utf8"));
@@ -823,15 +829,16 @@ test("Simple Restore V1 synthetic contract", async (context) => {
       assert.equal(state.cwdRestored, true);
       assert.match(log, /PINNED_SUPABASE/u, result.stderr);
       assert.match(log, /STORAGE_BENIGN_STDERR_EMITTED/u);
-      assert.match(log, /--experimental storage cp godel-files ss:\/\/\/godel-files\/ -r --linked/u);
+      assert.match(log, /--experimental storage cp \. ss:\/\/\/godel-files\/ -r --linked/u);
       assert.ok(
-        log.includes(`CWD=[${path.join(backupPath, "storage")}]`),
+        log.includes(`CWD=[${path.join(backupPath, "storage", "godel-files")}]`),
         log,
       );
       assert.ok(
         log.includes(`--workdir ${syntheticRepoRoot} --experimental`),
         log,
       );
+      assert.doesNotMatch(log, /storage cp godel-files ss:\/\/\/godel-files\//u);
       assert.doesNotMatch(log, /storage cp [A-Za-z]:\\/u);
       assert.doesNotMatch(log, /NPX .*storage cp/u);
       assert.doesNotMatch(log, /STORAGE_PASSWORD_LEAK/u);

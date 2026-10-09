@@ -899,7 +899,7 @@ SELECT 'storage.objects|' || count(*)::text FROM storage.objects;
       "Process"
     )
     try {
-      Push-Location -LiteralPath $backup.StorageRoot
+      Push-Location -LiteralPath $backup.StorageDirectory
       $storageLocationPushed = $true
       [Environment]::SetEnvironmentVariable(
         "GODEL_RESTORE_CLI_PHASE",
@@ -910,7 +910,7 @@ SELECT 'storage.objects|' || count(*)::text FROM storage.objects;
       $null = Invoke-ExternalCommand -FilePath $supabaseCommandPath -Arguments @(
         "--workdir", $repoRoot,
         "--experimental",
-        "storage", "cp", "godel-files", "ss:///godel-files/",
+        "storage", "cp", ".", "ss:///godel-files/",
         "-r", "--linked"
       )
     } finally {

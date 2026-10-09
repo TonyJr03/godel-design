@@ -39,8 +39,13 @@ queda `REVIEWED / CLOSED`: tras los hallazgos conservados de Drills #1–#4,
 Drill #5 terminó `PASS / STRUCTURAL + FUNCTIONAL RECOVERY VERIFIED` sobre un
 target Managed nuevo y desechable. El restore estructural, el login Auth, el
 perfil admin restaurado y el smoke de aplicación `6 OF 6` pasaron sin actividad
-Productiva. PPO-04M.6.4 queda `NOT STARTED / NEXT`. Production restore no está
-autorizado; el alcance real de Storage sigue siendo `EMPTY STORAGE ONLY` y
+Productiva. PPO-04M.6.4 y su validación PPO-04M.6.4A quedan `ACTIVE`. Un source
+Managed desechable con un objeto de 68 bytes pasó el byte round-trip y produjo el
+backup real `GDBK-20261009T024741Z`, verificado con Storage no vacío. El primer
+restore no vacío falló correctamente en `DATABASE COUNTS`: la fuente local
+`godel-files` duplicó el basename remoto y produjo dos filas en `storage.objects`
+en lugar de una. La causa raíz está confirmada y la corrección local queda
+pendiente de un nuevo drill real. Production restore no está autorizado y
 TD-BACKUP-004 permanece `OPEN`.
 La estrategia canónica es
 [PPO-04M.6 — Simple Backup / Restore V1](production/PPO_04M6_SIMPLE_BACKUP_RESTORE_V1.md):
@@ -256,12 +261,29 @@ STORAGE FILE COUNT = 0
 STORAGE TOTAL BYTES = 0
 PRODUCTION ACTIVITY DURING FUNCTIONAL ACCEPTANCE = 0
 PRODUCTION RESTORE = NOT AUTHORIZED
-PPO-04M.6.4 = NOT STARTED / NEXT
+PPO-04M.6.4 = ACTIVE
+PPO-04M.6.4A = ACTIVE
+NON-EMPTY STORAGE SOURCE FIXTURE = PASS / REAL MANAGED
+REAL NON-EMPTY STORAGE BACKUP = PASS / REAL-ENVIRONMENT VERIFIED
+VALIDATION BACKUP = GDBK-20261009T024741Z
+BACKUP STORAGE FILE COUNT = 1
+BACKUP STORAGE TOTAL BYTES = 68
+BACKUP BYTE SHA256 = MATCH
+REAL NON-EMPTY STORAGE RESTORE #1 = FAIL / STORAGE SOURCE-ROOT PATH DUPLICATION
+RESTORE #1 EXECUTION SHA = 7bf39fb50e42d6809cd9ae3497d7090daa4f0fdd
+RESTORE #1 DATABASE COUNTS = FAIL
+RESTORE #1 storage.objects = EXPECTED 1 / ACTUAL 2
+FORENSIC ROOT CAUSE = CONFIRMED
+CANONICAL RESTORED PATH = m6-4a/nonempty-storage-fixture.png
+INCORRECT PATH CREATED = godel-files/m6-4a/nonempty-storage-fixture.png
+RESTORE #1 TARGET = FAILED / DISPOSABLE
+NON-EMPTY STORAGE BACKUP = REAL VERIFIED
+NON-EMPTY STORAGE RESTORE = PENDING CORRECTED REAL DRILL
 TD-BACKUP-004 = OPEN
 REAL RESTORE ATTEMPT #1 = FAIL / PREFLIGHT OPERATOR CONFIGURATION
 REAL RESTORE ATTEMPT #2 = FAIL / SOURCE_VERIFY REAL BACKUP SQL DIALECT ADMISSION FINDING
 REAL RESTORE ATTEMPT #3 = NOT AUTHORIZED / PENDING FINAL DOCUMENTARY REVIEW
-CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY
+CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE VERIFIED / NON-EMPTY RESTORE PENDING CORRECTED REAL DRILL
 REAL LOCAL APPLICATION COMPATIBILITY ATTEMPT #1 = FAIL / APPLICATION PROCESS SHUTDOWN LIFECYCLE FINDING
 REAL LOCAL APPLICATION COMPATIBILITY ATTEMPT #2 = FAIL / APPLICATION HEALTH GATE DIAGNOSTIC FINDING
 REAL LOCAL APPLICATION COMPATIBILITY ATTEMPT #3 = FAIL / LIVE ROUTE RESPONSE DIAGNOSTIC FINDING
@@ -1029,7 +1051,8 @@ PPO-04M.0  arquitectura y gobernanza — CLOSED / APPROVED
 → PPO-04M.6.1  Simple Backup V1 implementation — REVIEWED / CLOSED
 → PPO-04M.6.2  Simple Restore V1 implementation — REVIEWED / CODE COMPLETE
 → PPO-04M.6.3  real backup + managed recovery drill — REVIEWED / CLOSED
-→ PPO-04M.6.4  operationalization / retention / optional off-site copy — NOT STARTED / NEXT
+→ PPO-04M.6.4  operationalization / retention / optional off-site copy — ACTIVE
+→ PPO-04M.6.4A  Non-empty Storage Recovery Validation — ACTIVE
 → Production pilot rollout — NOT EXECUTED / SEQUENCING PENDING AFTER M.6
 → LSH (futuro, no iniciado)
 ```

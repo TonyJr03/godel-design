@@ -14,7 +14,9 @@
 
 **Estado de PPO-04M.6.3:** `REVIEWED / CLOSED`
 
-**Estado de PPO-04M.6.4:** `NOT STARTED / NEXT`
+**Estado de PPO-04M.6.4:** `ACTIVE`
+
+**Estado de PPO-04M.6.4A:** `ACTIVE`
 
 **Real Managed Recovery Drill #1:** `FAIL / PREFLIGHT / PSQL_REQUIRED / ZERO REMOTE ACTIVITY`
 
@@ -155,12 +157,13 @@ supabase storage cp ... -r --experimental
 ```
 
 `storage cp` es actualmente una capacidad experimental del Supabase CLI.
-PPO-04M.6.1 validó operativamente el flujo con Supabase CLI 2.109.1 durante Real
-Production Backup #3: `storage ls` real terminó en `PASS`, el bucket vacío se
-clasificó correctamente y se creó `storage/godel-files/` vacío. El camino
-`storage cp` para un bucket no vacío quedó validado sintéticamente, todavía no
-con objetos Production reales. No se diseña un fallback complejo, un SDK propio
-ni capas adicionales.
+PPO-04M.6.1 validó el camino vacío con Supabase CLI 2.109.1 durante Real
+Production Backup #3. PPO-04M.6.4A verificó después un backup real no vacío desde
+un source Managed desechable. El primer restore no vacío alcanzó el upload, pero
+falló en `DATABASE COUNTS` porque la fuente local conservó por error el basename
+`godel-files`; la corrección queda pendiente de un nuevo drill real. Esto no
+afirma validación con objetos Production. No se diseña un fallback complejo, un
+SDK propio ni capas adicionales.
 
 En Windows, el script ejecuta primero `storage ls` de forma read-only para
 distinguir un bucket vacío. Si no hay objetos, crea localmente
@@ -170,9 +173,9 @@ versionado con `--workdir <repoRoot>`, origen `ss:///godel-files/` y destino
 relativo `godel-files`. No se pasa una ruta Windows absoluta como destino.
 
 La metadata de Storage permanece en el dump de datos PostgreSQL. El backup
-Productivo actual tiene Storage vacío, pero el contrato V1 contempla Storage no
-vacío. `TD-BACKUP-004` queda `OPEN / REASSIGNED TO SIMPLE STORAGE RECOVERY
-VALIDATION` hasta demostrar backup y restore con objetos reales.
+Productivo actual tiene Storage vacío, mientras que el backup no vacío ya fue
+verificado en un entorno Managed desechable. `TD-BACKUP-004` queda `OPEN` hasta
+demostrar el restore corregido con objetos reales.
 
 ### 3.3 `manifest.json`
 
@@ -403,8 +406,8 @@ El script:
 8. Restaura `data.sql` mediante `psql --single-transaction` y
    `ON_ERROR_STOP=1`.
 9. Para Storage vacío no ejecuta upload; con objetos invoca directamente el
-   `node_modules/.bin/supabase.cmd` fijado por el repositorio y usa `storage cp`
-   recursivo con source relativo y el workaround Windows aprobado.
+   `node_modules/.bin/supabase.cmd` fijado por el repositorio desde
+   `storage/godel-files/` y usa `storage cp . ss:///godel-files/ -r --linked`.
 10. Compara diez conteos del target con los bloques `COPY`, verifica migrations
     01–06, el bucket y la inmutabilidad local del backup.
 11. Restaura link state, environment y working directory tanto en `PASS` como
@@ -451,12 +454,13 @@ para demostrar que backup y restore funcionan.
 | PPO-04M.6.1 | Simple Backup V1 Implementation | `REVIEWED / CLOSED` |
 | PPO-04M.6.2 | Simple Restore V1 Implementation | `REVIEWED / CODE COMPLETE` |
 | PPO-04M.6.3 | Real Backup + Managed Recovery Drill | `REVIEWED / CLOSED` |
-| PPO-04M.6.4 | Operationalization / Retention / Optional Off-site Copy | `NOT STARTED / NEXT` |
+| PPO-04M.6.4 | Operationalization / Retention / Optional Off-site Copy | `ACTIVE` |
+| PPO-04M.6.4A | Non-empty Storage Recovery Validation | `ACTIVE` |
 
 PPO-04M.6.1 queda revisado y cerrado, con Simple Backup V1 aprobado y el backup
 Productivo real verificado localmente. PPO-04M.6.2 queda revisado y code complete.
 PPO-04M.6.3 queda revisado y cerrado por evidencia estructural y funcional del
-quinto drill real. PPO-04M.6.4 queda como siguiente bloque, todavía no iniciado.
+quinto drill real. PPO-04M.6.4 está activo mediante la validación M.6.4A.
 
 ## 10. Cierre de Diagnostic #6
 
@@ -543,7 +547,31 @@ El backup tenía `STORAGE FILE COUNT = 0` y `STORAGE TOTAL BYTES = 0`. Por tanto
 el camino real de Storage vacío queda verificado, pero no se afirma validación
 real de Storage no vacío ni de upload mediante `storage cp`.
 
-## 12. Estado resultante
+## 12. Evidencia de PPO-04M.6.4A
+
+Un source Supabase Managed desechable contenía exactamente el objeto
+`godel-files/m6-4a/nonempty-storage-fixture.png`, de 68 bytes y SHA-256
+`0d0c28ebff1146040753834f8cc0ca19d6ee70c8902db80e949891afa9dedd90`. El byte
+round-trip fue `PASS`. El backup real `GDBK-20261009T024741Z` terminó `PASS /
+REAL-ENVIRONMENT VERIFIED`: un archivo, 68 bytes, SHA-256 coincidente,
+`checksums.sha256` `PASS / 3 OF 3` y metadata del fixture presente en `data.sql`.
+
+Real Non-empty Storage Restore #1 usó el execution SHA inmutable
+`7bf39fb50e42d6809cd9ae3497d7090daa4f0fdd` sobre un target Managed nuevo. Llegó
+a Storage upload y falló correctamente en `DATABASE COUNTS`, con
+`storage.objects EXPECTED 1 / ACTUAL 2`. La forense read-only confirmó el path
+canónico `m6-4a/nonempty-storage-fixture.png` y el path duplicado incorrecto
+`godel-files/m6-4a/nonempty-storage-fixture.png`; el target quedó `FAILED /
+DISPOSABLE` y la actividad de mutación durante la forense fue cero.
+
+La causa raíz queda `CONFIRMED`: ejecutar desde `storage/` con source
+`godel-files` hizo que Supabase CLI 2.109.1 preservara ese basename. La corrección
+local ejecuta desde `storage/godel-files/` con source `.` y destino
+`ss:///godel-files/`. `DATABASE COUNTS` se mantiene sin relajar. El restore no
+vacío corregido sigue pendiente de un nuevo drill real, por lo que M.6.4A y
+TD-BACKUP-004 permanecen abiertos.
+
+## 13. Estado resultante
 
 ```text
 PPO-04M.5.3 = SUSPENDED / SUPERSEDED
@@ -597,8 +625,25 @@ FINAL_RECOVERY_APPLICATION_SMOKE_EXIT_CODE = 0
 PRODUCTION ACTIVITY DURING FUNCTIONAL ACCEPTANCE = 0
 STORAGE FILE COUNT = 0
 STORAGE TOTAL BYTES = 0
-CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE ONLY
-PPO-04M.6.4 = NOT STARTED / NEXT
+CURRENT REAL RESTORE STORAGE SCOPE = EMPTY STORAGE VERIFIED / NON-EMPTY RESTORE PENDING CORRECTED REAL DRILL
+PPO-04M.6.4 = ACTIVE
+PPO-04M.6.4A = ACTIVE
+NON-EMPTY STORAGE SOURCE FIXTURE = PASS / REAL MANAGED
+REAL NON-EMPTY STORAGE BACKUP = PASS / REAL-ENVIRONMENT VERIFIED
+VALIDATION BACKUP = GDBK-20261009T024741Z
+BACKUP STORAGE FILE COUNT = 1
+BACKUP STORAGE TOTAL BYTES = 68
+BACKUP BYTE SHA256 = MATCH
+REAL NON-EMPTY STORAGE RESTORE #1 = FAIL / STORAGE SOURCE-ROOT PATH DUPLICATION
+RESTORE #1 EXECUTION SHA = 7bf39fb50e42d6809cd9ae3497d7090daa4f0fdd
+RESTORE #1 DATABASE COUNTS = FAIL
+RESTORE #1 storage.objects = EXPECTED 1 / ACTUAL 2
+FORENSIC ROOT CAUSE = CONFIRMED
+CANONICAL RESTORED PATH = m6-4a/nonempty-storage-fixture.png
+INCORRECT PATH CREATED = godel-files/m6-4a/nonempty-storage-fixture.png
+RESTORE #1 TARGET = FAILED / DISPOSABLE
+NON-EMPTY STORAGE BACKUP = REAL VERIFIED
+NON-EMPTY STORAGE RESTORE = PENDING CORRECTED REAL DRILL
 LEGACY COMPLEX RECOVERY HARNESS = FROZEN / NOT ACTIVE PATH
 DIAGNOSTIC #7 = CANCELLED
 OLD REAL RESTORE ATTEMPT #7 = CANCELLED UNDER LEGACY APPROACH
